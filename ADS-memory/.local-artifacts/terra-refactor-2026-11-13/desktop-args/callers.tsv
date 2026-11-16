@@ -1,0 +1,1081 @@
+id	def	name	mode	file:line	how	imp	snippet
+F1	apps/desktop/src/complexity-debt.ts	diffAgainstBaseline	fn	apps/desktop/src/complexity-debt.test.ts:40	call	imp	diffAgainstBaseline(one, two)
+F1	apps/desktop/src/complexity-debt.ts	diffAgainstBaseline	fn	apps/desktop/src/complexity-debt.test.ts:41	call	imp	diffAgainstBaseline(two, one)
+F1	apps/desktop/src/complexity-debt.ts	diffAgainstBaseline	fn	apps/desktop/src/complexity-debt.test.ts:45	call	imp	diffAgainstBaseline([v(CYC, "a.ts", "gone")], [])
+F1	apps/desktop/src/complexity-debt.ts	diffAgainstBaseline	fn	apps/desktop/src/complexity-debt.ts:128	call	imp	diffAgainstBaseline(baseline, current)
+F2	apps/desktop/src/complexity-debt.ts	countByKey	fn	apps/desktop/src/complexity-debt.ts:92	call	imp	countByKey(baseline)
+F2	apps/desktop/src/complexity-debt.ts	countByKey	fn	apps/desktop/src/complexity-debt.ts:93	call	imp	countByKey(current)
+F3	apps/desktop/src/contracts/sections.ts	sectionsInGroup	fn	apps/desktop/src/contracts/sections.test.ts:14	call	imp	sectionsInGroup('workspace')
+F3	apps/desktop/src/contracts/sections.ts	sectionsInGroup	fn	apps/desktop/src/contracts/sections.test.ts:15	call	imp	sectionsInGroup('work')
+F3	apps/desktop/src/contracts/sections.ts	sectionsInGroup	fn	apps/desktop/src/contracts/sections.test.ts:16	call	imp	sectionsInGroup('operations')
+F3	apps/desktop/src/contracts/sections.ts	sectionsInGroup	fn	apps/desktop/src/contracts/sections.test.ts:17	call	imp	sectionsInGroup('access')
+F4	apps/desktop/src/coverage-floors.ts	runnerSplitDrift	fn	apps/desktop/src/coverage-floors.test.ts:230	call	imp	runnerSplitDrift(AGREEING_PASSES, parseNodeTestScript({ script: SCRIPT }))
+F4	apps/desktop/src/coverage-floors.ts	runnerSplitDrift	fn	apps/desktop/src/coverage-floors.test.ts:240	call	imp	runnerSplitDrift(moved, parseNodeTestScript({ script: SCRIPT }))
+F4	apps/desktop/src/coverage-floors.ts	runnerSplitDrift	fn	apps/desktop/src/coverage-floors.test.ts:250	call	imp	runnerSplitDrift(extra, parseNodeTestScript({ script: SCRIPT }))
+F4	apps/desktop/src/coverage-floors.ts	runnerSplitDrift	fn	apps/desktop/src/coverage-floors.test.ts:253	call	imp	runnerSplitDrift([AGREEING_PASSES[0]!], parseNodeTestScript({ script: SCRIPT }))
+F4	apps/desktop/src/coverage-floors.ts	runnerSplitDrift	fn	apps/desktop/src/coverage-runner-split.test.ts:42	call	imp	runnerSplitDrift(TEST_PASSES, parseNodeTestScript({ script: manifest.scripts.test }))
+F5	apps/desktop/src/coverage-floors.ts	formatArea	fn	apps/desktop/scripts/check-coverage.ts:234	call	imp	formatArea(result, area)
+F5	apps/desktop/src/coverage-floors.ts	formatArea	fn	apps/desktop/src/coverage-floors.test.ts:199	call	imp	formatArea(result, area)
+F5	apps/desktop/src/coverage-floors.ts	formatArea	fn	apps/desktop/src/coverage-floors.test.ts:210	call	imp	formatArea(evaluateArea({ area, onDisk: ["src/a.ts"], records: cov([["src/a.ts", perfect]]) }), area)
+F6	apps/desktop/src/coverage-floors.ts	unionAxis	fn	apps/desktop/src/coverage-floors.ts:392	call	imp	unionAxis(a.line, b.line)
+F6	apps/desktop/src/coverage-floors.ts	unionAxis	fn	apps/desktop/src/coverage-floors.ts:392	call	imp	unionAxis(a.branch, b.branch)
+F6	apps/desktop/src/coverage-floors.ts	unionAxis	fn	apps/desktop/src/coverage-floors.ts:392	call	imp	unionAxis(a.funcs, b.funcs)
+F7	apps/desktop/src/coverage-floors.ts	keyOf	member	apps/desktop/src/coverage-floors.ts:328	destructure	imp	{ record, pattern, keyOf, countAt }: { record: string; pattern: RegExp; keyOf: (match: RegExpMatchArray) => st
+F7	apps/desktop/src/coverage-floors.ts	keyOf	member	apps/desktop/src/coverage-floors.ts:328	type	imp	keyOf: (match: RegExpMatchArray) => string;
+F7	apps/desktop/src/coverage-floors.ts	keyOf	member	apps/desktop/src/coverage-floors.ts:365	impl	imp	keyOf: (m) => m[1] ?? ""
+F7	apps/desktop/src/coverage-floors.ts	keyOf	member	apps/desktop/src/coverage-floors.ts:366	impl	imp	keyOf: (m) => ordinalKey({ seen: branchSeen, base: m[1] ?? "" })
+F8	apps/desktop/src/js-backslide-guard.ts	jsBackslideOffenders	fn	apps/desktop/scripts/check-js-backslide.ts:82	call	imp	jsBackslideOffenders(listPaths(), ALLOWLIST)
+F8	apps/desktop/src/js-backslide-guard.ts	jsBackslideOffenders	fn	apps/desktop/src/js-backslide-guard.test.ts:14	call	imp	jsBackslideOffenders([])
+F8	apps/desktop/src/js-backslide-guard.ts	jsBackslideOffenders	fn	apps/desktop/src/js-backslide-guard.test.ts:18	call	imp	jsBackslideOffenders(["apps/desktop/src/quality-gates.ts"])
+F8	apps/desktop/src/js-backslide-guard.ts	jsBackslideOffenders	fn	apps/desktop/src/js-backslide-guard.test.ts:22	call	imp	jsBackslideOffenders(["apps/desktop/src/foo.js"])
+F8	apps/desktop/src/js-backslide-guard.ts	jsBackslideOffenders	fn	apps/desktop/src/js-backslide-guard.test.ts:26	call	imp	jsBackslideOffenders(["apps/desktop/scripts/foo.mjs"])
+F8	apps/desktop/src/js-backslide-guard.ts	jsBackslideOffenders	fn	apps/desktop/src/js-backslide-guard.test.ts:31	call	imp	jsBackslideOffenders(["apps/desktop/src/speech/other.cjs"], ALLOWED)
+F8	apps/desktop/src/js-backslide-guard.ts	jsBackslideOffenders	fn	apps/desktop/src/js-backslide-guard.test.ts:38	call	imp	jsBackslideOffenders(["apps/desktop/src/foo.test.js"])
+F8	apps/desktop/src/js-backslide-guard.ts	jsBackslideOffenders	fn	apps/desktop/src/js-backslide-guard.test.ts:45	call	imp	jsBackslideOffenders(["apps/desktop/src/renderer/foo.js"])
+F8	apps/desktop/src/js-backslide-guard.ts	jsBackslideOffenders	fn	apps/desktop/src/js-backslide-guard.test.ts:51	call	imp	jsBackslideOffenders(["apps/desktop/bin/launch.mjs"])
+F8	apps/desktop/src/js-backslide-guard.ts	jsBackslideOffenders	fn	apps/desktop/src/js-backslide-guard.test.ts:55	call	imp	jsBackslideOffenders(["apps/desktop/scripts/check-foo.cjs"])
+F8	apps/desktop/src/js-backslide-guard.ts	jsBackslideOffenders	fn	apps/desktop/src/js-backslide-guard.test.ts:59	call	imp	jsBackslideOffenders(["apps/desktop/vite.config.mjs"])
+F8	apps/desktop/src/js-backslide-guard.ts	jsBackslideOffenders	fn	apps/desktop/src/js-backslide-guard.test.ts:63	call	imp	jsBackslideOffenders(["apps/desktop/src/speech/preload-speech.cjs"], ALLOWED)
+F8	apps/desktop/src/js-backslide-guard.ts	jsBackslideOffenders	fn	apps/desktop/src/js-backslide-guard.test.ts:67	call	imp	jsBackslideOffenders(["apps/desktop/src/js-backslide-guard.ts"])
+F8	apps/desktop/src/js-backslide-guard.ts	jsBackslideOffenders	fn	apps/desktop/src/js-backslide-guard.test.ts:72	call	imp	jsBackslideOffenders(["apps/desktop/src/speech/preload-speech.cjs"])
+F8	apps/desktop/src/js-backslide-guard.ts	jsBackslideOffenders	fn	apps/desktop/src/js-backslide-guard.test.ts:79	call	imp	jsBackslideOffenders(["apps/desktop/src/a.js", "apps/desktop/src/b.ts", "apps/desktop/src/c.cjs"])
+F9	apps/desktop/src/quality-gates.ts	formatSummary	fn	apps/desktop/scripts/check-gates.ts:159	call	imp	formatSummary(gates, outcomes)
+F9	apps/desktop/src/quality-gates.ts	formatSummary	fn	apps/desktop/src/quality-gates.test.ts:185	call	imp	formatSummary(gates, new Map([["tests", 0]]))
+F9	apps/desktop/src/quality-gates.ts	formatSummary	fn	apps/desktop/src/quality-gates.test.ts:195	call	imp	formatSummary([{ id: "coverage", run: "x", enabled: false }], new Map())
+F9	apps/desktop/src/quality-gates.ts	formatSummary	fn	apps/desktop/src/quality-gates.test.ts:201	call	imp	formatSummary([{ id: "tests", run: "npm test" }], new Map([["tests", 1]]))
+F9	apps/desktop/src/quality-gates.ts	formatSummary	fn	apps/desktop/src/quality-gates.test.ts:209	call	imp	formatSummary([{ id: "ghost", run: "nope" }], new Map())
+F10	apps/desktop/src/renderer/SiteGrid.hooks.ts	siteCardTone	fn	apps/desktop/src/renderer/SiteGrid.hooks.test.ts:111	call	imp	siteCardTone("running")
+F10	apps/desktop/src/renderer/SiteGrid.hooks.ts	siteCardTone	fn	apps/desktop/src/renderer/SiteGrid.hooks.test.ts:112	call	imp	siteCardTone("starting")
+F10	apps/desktop/src/renderer/SiteGrid.hooks.ts	siteCardTone	fn	apps/desktop/src/renderer/SiteGrid.hooks.test.ts:113	call	imp	siteCardTone("stopping")
+F10	apps/desktop/src/renderer/SiteGrid.hooks.ts	siteCardTone	fn	apps/desktop/src/renderer/SiteGrid.hooks.test.ts:114	call	imp	siteCardTone("failed")
+F10	apps/desktop/src/renderer/SiteGrid.hooks.ts	siteCardTone	fn	apps/desktop/src/renderer/SiteGrid.hooks.test.ts:115	call	imp	siteCardTone("stopped")
+F10	apps/desktop/src/renderer/SiteGrid.hooks.ts	siteCardTone	fn	apps/desktop/src/renderer/SiteGrid.tsx:280	call	imp	siteCardTone(status)
+F11	apps/desktop/src/renderer/SiteGrid.hooks.ts	closeMenuThen	fn	apps/desktop/src/renderer/SiteGrid.hooks.test.ts:46	call	imp	closeMenuThen({ setOpen: (open) => calls.push(`setOpen:${open}`) })
+F11	apps/desktop/src/renderer/SiteGrid.hooks.ts	closeMenuThen	fn	apps/desktop/src/renderer/SiteGrid.hooks.test.ts:55	call	imp	closeMenuThen({ setOpen: (open) => calls.push(`setOpen:${open}`) })
+F11	apps/desktop/src/renderer/SiteGrid.hooks.ts	closeMenuThen	fn	apps/desktop/src/renderer/SiteGrid.tsx:622	call	imp	closeMenuThen({ setOpen })
+F12	apps/desktop/src/renderer/persistable-messages.ts	persistableMessages	fn	apps/desktop/src/renderer/persistable-messages.test.ts:20	call	imp	persistableMessages(messages)
+F12	apps/desktop/src/renderer/persistable-messages.ts	persistableMessages	fn	apps/desktop/src/renderer/persistable-messages.test.ts:30	call	imp	persistableMessages([{ id: 'u', role: 'user', content: 'keep me', runStatus: 'running' }])
+F12	apps/desktop/src/renderer/persistable-messages.ts	persistableMessages	fn	apps/desktop/src/renderer/persistable-messages.test.ts:37	call	imp	persistableMessages([reply])
+F12	apps/desktop/src/renderer/persistable-messages.ts	persistableMessages	fn	apps/desktop/src/renderer/persistable-messages.test.ts:38	call	imp	persistableMessages([{ ...reply, content: 'finished', runStatus: 'succeeded' }])
+F12	apps/desktop/src/renderer/persistable-messages.ts	persistableMessages	fn	apps/desktop/src/renderer/persistable-messages.test.ts:41	call	imp	persistableMessages([])
+F12	apps/desktop/src/renderer/persistable-messages.ts	persistableMessages	fn	apps/desktop/src/renderer/runner-conversation-controller.ts:294	call	imp	persistableMessages(messages)
+F12	apps/desktop/src/renderer/persistable-messages.ts	persistableMessages	fn	apps/desktop/src/renderer/runner-conversation-controller.ts:340	call	imp	persistableMessages(messages)
+F13	apps/desktop/src/renderer/use-section-nav.hooks.ts	useSectionNav	fn	apps/desktop/src/renderer/use-section-nav.hooks.render.test.ts:18	call	imp	useSectionNav(tabs.setActiveTab)
+F14	apps/desktop/src/renderer/use-site-list-prefs.hooks.ts	useSiteListPrefs	fn	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:626	call	imp	useSiteListPrefs(storage)
+F14	apps/desktop/src/renderer/use-site-list-prefs.hooks.ts	useSiteListPrefs	fn	apps/desktop/src/renderer/SiteGrid.tsx:92	BYREF	imp	useListPrefs = useSiteListPrefs
+F14	apps/desktop/src/renderer/use-site-list-prefs.hooks.ts	useSiteListPrefs	fn	apps/desktop/src/renderer/use-site-list-prefs.hooks.test.ts:65	call	imp	useSiteListPrefs(counted)
+F14	apps/desktop/src/renderer/use-site-list-prefs.hooks.ts	useSiteListPrefs	fn	apps/desktop/src/renderer/use-site-list-prefs.hooks.test.ts:77	call	imp	useSiteListPrefs(deniedStorage)
+F14	apps/desktop/src/renderer/use-site-list-prefs.hooks.ts	useSiteListPrefs	fn	apps/desktop/src/renderer/use-site-list-prefs.hooks.test.ts:85	call	imp	useSiteListPrefs()
+F14	apps/desktop/src/renderer/use-site-list-prefs.hooks.ts	useSiteListPrefs	fn	apps/desktop/src/renderer/use-site-list-prefs.hooks.test.ts:89	call	imp	useSiteListPrefs()
+F15	apps/desktop/src/renderer/use-site-power.hooks.ts	powerControl	fn	apps/desktop/src/renderer/SiteGrid.tsx:488	call	imp	powerControl(status, { external: Boolean(project.externalUrl) && !project.externalLauncher })
+F15	apps/desktop/src/renderer/use-site-power.hooks.ts	powerControl	fn	apps/desktop/src/renderer/use-site-power.hooks.test.ts:42	call	imp	powerControl('running')
+F15	apps/desktop/src/renderer/use-site-power.hooks.ts	powerControl	fn	apps/desktop/src/renderer/use-site-power.hooks.test.ts:46	call	imp	powerControl('stopped')
+F15	apps/desktop/src/renderer/use-site-power.hooks.ts	powerControl	fn	apps/desktop/src/renderer/use-site-power.hooks.test.ts:50	call	imp	powerControl('failed')
+F15	apps/desktop/src/renderer/use-site-power.hooks.ts	powerControl	fn	apps/desktop/src/renderer/use-site-power.hooks.test.ts:54	call	imp	powerControl('sleeping')
+F15	apps/desktop/src/renderer/use-site-power.hooks.ts	powerControl	fn	apps/desktop/src/renderer/use-site-power.hooks.test.ts:55	call	imp	powerControl('sleeping', { external: true })
+F15	apps/desktop/src/renderer/use-site-power.hooks.ts	powerControl	fn	apps/desktop/src/renderer/use-site-power.hooks.test.ts:59	call	imp	powerControl('starting')
+F15	apps/desktop/src/renderer/use-site-power.hooks.ts	powerControl	fn	apps/desktop/src/renderer/use-site-power.hooks.test.ts:68	call	imp	powerControl('stopping')
+F15	apps/desktop/src/renderer/use-site-power.hooks.ts	powerControl	fn	apps/desktop/src/renderer/use-site-power.hooks.test.ts:79	call	imp	powerControl('provisioning')
+F15	apps/desktop/src/renderer/use-site-power.hooks.ts	powerControl	fn	apps/desktop/src/renderer/use-site-power.hooks.test.ts:80	call	imp	powerControl('blocked')
+F15	apps/desktop/src/renderer/use-site-power.hooks.ts	powerControl	fn	apps/desktop/src/renderer/use-site-power.hooks.test.ts:87	call	imp	powerControl(status)
+F15	apps/desktop/src/renderer/use-site-power.hooks.ts	powerControl	fn	apps/desktop/src/renderer/use-site-power.hooks.ts:286	call	imp	powerControl(statusOf(project), { external: Boolean(project.externalUrl) && !project.externalLauncher })
+F15	apps/desktop/src/renderer/use-site-power.hooks.ts	powerControl	fn	apps/desktop/src/renderer/use-site-workspace.hooks.test.ts:502	call	imp	powerControl('running', { external: true })
+F15	apps/desktop/src/renderer/use-site-power.hooks.ts	powerControl	fn	apps/desktop/src/renderer/use-tab-close-ask.hooks.ts:20	call	imp	powerControl(project.status, { external })
+F16	apps/desktop/src/renderer/use-sites-inventory.hooks.ts	useSiteRescan	fn	apps/desktop/src/renderer/use-sites-inventory.hooks.render.test.ts:103	call	imp	useSiteRescan(setProjects, { getBridge })
+F17	apps/desktop/src/renderer/use-sites-inventory.hooks.ts	useApplySiteRecord	fn	apps/desktop/src/renderer/use-sites-inventory.hooks.render.test.ts:163	call	imp	useApplySiteRecord(set)
+F17	apps/desktop/src/renderer/use-sites-inventory.hooks.ts	useApplySiteRecord	fn	apps/desktop/src/renderer/use-sites-inventory.hooks.render.test.ts:176	call	imp	useApplySiteRecord(set)
+F17	apps/desktop/src/renderer/use-sites-inventory.hooks.ts	useApplySiteRecord	fn	apps/desktop/src/renderer/use-sites-inventory.hooks.render.test.ts:184	call	imp	useApplySiteRecord(set)
+F18	apps/desktop/src/renderer/use-sites-inventory.hooks.ts	countRunningSites	fn	apps/desktop/src/renderer/use-sites-inventory.hooks.test.ts:17	call	imp	countRunningSites(projects)
+F18	apps/desktop/src/renderer/use-sites-inventory.hooks.ts	countRunningSites	fn	apps/desktop/src/renderer/use-sites-inventory.hooks.test.ts:18	call	imp	countRunningSites([])
+F19	apps/desktop/src/renderer/use-site-workspace.hooks.ts	trackGuestNavigation	fn	apps/desktop/src/renderer/use-site-workspace.hooks.test.ts:149	call	imp	trackGuestNavigation(fake.guest, dispatch)
+F19	apps/desktop/src/renderer/use-site-workspace.hooks.ts	trackGuestNavigation	fn	apps/desktop/src/renderer/use-site-workspace.hooks.test.ts:162	call	imp	trackGuestNavigation(fake.guest, dispatch)
+F19	apps/desktop/src/renderer/use-site-workspace.hooks.ts	trackGuestNavigation	fn	apps/desktop/src/renderer/use-site-workspace.hooks.test.ts:174	call	imp	trackGuestNavigation(fake.guest, dispatch)
+F19	apps/desktop/src/renderer/use-site-workspace.hooks.ts	trackGuestNavigation	fn	apps/desktop/src/renderer/use-site-workspace.hooks.test.ts:185	call	imp	trackGuestNavigation(fake.guest, recorder().dispatch)
+F19	apps/desktop/src/renderer/use-site-workspace.hooks.ts	trackGuestNavigation	fn	apps/desktop/src/renderer/use-site-workspace.hooks.test.ts:478	call	imp	trackGuestNavigation(guest, () => {})
+F19	apps/desktop/src/renderer/use-site-workspace.hooks.ts	trackGuestNavigation	fn	apps/desktop/src/renderer/use-site-workspace.hooks.ts:366	call	imp	trackGuestNavigation(guest, dispatch)
+F20	apps/desktop/src/stage-payload-lib.ts	resolveTargets	fn	apps/desktop/src/stage-payload-lib.test.ts:645	call	imp	resolveTargets({}, { platform: "darwin", arch: "x64" })
+F20	apps/desktop/src/stage-payload-lib.ts	resolveTargets	fn	apps/desktop/src/stage-payload-lib.test.ts:646	call	imp	resolveTargets({}, { platform: "darwin", arch: "arm64" })
+F20	apps/desktop/src/stage-payload-lib.ts	resolveTargets	fn	apps/desktop/src/stage-payload-lib.test.ts:651	call	imp	resolveTargets({ TOVU_TARGET_ARCH: "arm64" }, { platform: "darwin", arch: "x64" })
+F20	apps/desktop/src/stage-payload-lib.ts	resolveTargets	fn	apps/desktop/src/stage-payload-lib.test.ts:652	call	imp	resolveTargets({ TOVU_TARGET_PLATFORM: "linux", TOVU_TARGET_ARCH: "x64" }, { platform: "darwin", arch: "arm64"
+F20	apps/desktop/src/stage-payload-lib.ts	resolveTargets	fn	apps/desktop/src/stage-payload-lib.test.ts:658	call	imp	resolveTargets({ TOVU_TARGET_ARCH: "universal" }, { platform: "darwin", arch: "x64" })
+F20	apps/desktop/src/stage-payload-lib.ts	resolveTargets	fn	apps/desktop/src/stage-payload-lib.test.ts:691	call	imp	resolveTargets({ TOVU_TARGET_ARCH: "universal" }, { platform: "darwin", arch: "x64" })
+F20	apps/desktop/src/stage-payload-lib.ts	resolveTargets	fn	apps/desktop/src/stage-payload-run.ts:343	call	imp	resolveTargets(ports.env, ports.host)
+F21	apps/desktop/src/stage-payload-lib.ts	prebuildServesTarget	fn	apps/desktop/src/stage-payload-lib.ts:430	call	imp	prebuildServesTarget(built, targets)
+F22	apps/desktop/src/stage-payload-lib.ts	isWalkable	fn	apps/desktop/src/stage-payload-lib.ts:493	call	imp	isWalkable(entry)
+F23	apps/desktop/src/stage-payload-run.ts	stagePayloadCli	fn	apps/desktop/scripts/stage-payload.ts:74	call	imp	stagePayloadCli({ argv: process.argv.slice(2), desktopDir }, { fs: { cpSync, existsSync, lstatSync, mkdirSync,
+F23	apps/desktop/src/stage-payload-run.ts	stagePayloadCli	fn	apps/desktop/src/stage-payload-run.test.ts:349	call	imp	stagePayloadCli({ argv: ["--repo-root", fx.repo], desktopDir: fx.desktop }, { ...base, stderr })
+F23	apps/desktop/src/stage-payload-run.ts	stagePayloadCli	fn	apps/desktop/src/stage-payload-run.test.ts:352	call	imp	stagePayloadCli({ argv: ["--repo-root", fx.repo], desktopDir: fx.desktop }, { ...base, stderr })
+F23	apps/desktop/src/stage-payload-run.ts	stagePayloadCli	fn	apps/desktop/src/stage-payload-run.test.ts:355	call	imp	stagePayloadCli({ argv: ["--repo-root", fx.repo], desktopDir: fx.desktop }, { ...base, stderr })
+F24	apps/desktop/src/stage-payload-run.ts	declaredRuntimePackages	fn	apps/desktop/src/stage-payload-run.ts:350	call	imp	declaredRuntimePackages(layout, ports)
+F25	apps/desktop/src/stage-payload-run.ts	stageWorkspacePackages	fn	apps/desktop/src/stage-payload-run.ts:119	call	imp	stageWorkspacePackages(layout, ports)
+F26	apps/desktop/src/stage-payload-run.ts	stageRuntimePackages	fn	apps/desktop/src/stage-payload-run.ts:313	call	imp	stageRuntimePackages(layout, ports)
+F27	apps/desktop/src/stage-payload-run.ts	failIfDistIsStale	fn	apps/desktop/src/stage-payload-run.ts:370	call	imp	failIfDistIsStale(layout, ports)
+F28	apps/desktop/src/stage-payload-run.ts	assertSourcePreconditions	fn	apps/desktop/src/stage-payload-run.ts:408	call	imp	assertSourcePreconditions(layout, ports)
+F29	apps/desktop/src/stage-payload-run.ts	stageTree	fn	apps/desktop/src/stage-payload-run.ts:409	call	imp	stageTree(layout, ports)
+F30	apps/desktop/src/stage-payload-run.ts	stageNpm	fn	apps/desktop/src/stage-payload-run.ts:412	call	imp	stageNpm(layout, ports)
+F31	apps/desktop/src/stage-payload-run.ts	stagePtyHelpers	fn	apps/desktop/src/stage-payload-run.ts:413	call	imp	stagePtyHelpers(layout, ports)
+F32	apps/desktop/src/tree-quiet.ts	gitDirtyProblem	fn	apps/desktop/src/tree-quiet.ts:91	call	imp	gitDirtyProblem(signals.gitDirtyPaths ?? [])
+F33	apps/desktop/src/tree-quiet.ts	movingProblem	fn	apps/desktop/src/tree-quiet.ts:92	call	imp	movingProblem(signals.movingPaths ?? [])
+F34	apps/desktop/src/update-manifest-merge.ts	unionFiles	fn	apps/desktop/src/update-manifest-merge.ts:74	call	imp	unionFiles(manifests)
+F35	apps/desktop/src/update-manifest-merge.ts	onlyIntelZip	fn	apps/desktop/src/update-manifest-merge.ts:75	call	imp	onlyIntelZip(files)
+F36	apps/desktop/src/webview-guest-policy.ts	applyGuestWebPreferences	fn	apps/desktop/src/main/windows/sites-home-window.ts:148	call	imp	applyGuestWebPreferences(webPreferences, { preloadPath: ports.guestPreloadPath })
+F36	apps/desktop/src/webview-guest-policy.ts	applyGuestWebPreferences	fn	apps/desktop/src/webview-guest-policy.test.ts:27	call	imp	applyGuestWebPreferences(webPreferences, { preloadPath: PRELOAD })
+F36	apps/desktop/src/webview-guest-policy.ts	applyGuestWebPreferences	fn	apps/desktop/src/webview-guest-policy.test.ts:35	call	imp	applyGuestWebPreferences(webPreferences, { preloadPath: PRELOAD })
+F36	apps/desktop/src/webview-guest-policy.ts	applyGuestWebPreferences	fn	apps/desktop/src/webview-guest-policy.test.ts:41	call	imp	applyGuestWebPreferences(webPreferences, { preloadPath: PRELOAD })
+F36	apps/desktop/src/webview-guest-policy.ts	applyGuestWebPreferences	fn	apps/desktop/src/webview-guest-policy.test.ts:49	call	imp	applyGuestWebPreferences({}, {})
+F36	apps/desktop/src/webview-guest-policy.ts	applyGuestWebPreferences	fn	apps/desktop/src/webview-guest-policy.test.ts:50	call	imp	applyGuestWebPreferences({}, { preloadPath: "" })
+F36	apps/desktop/src/webview-guest-policy.ts	applyGuestWebPreferences	fn	apps/desktop/src/webview-guest-policy.test.ts:57	call	imp	applyGuestWebPreferences(webPreferences, undefined)
+F36	apps/desktop/src/webview-guest-policy.ts	applyGuestWebPreferences	fn	apps/desktop/src/webview-guest-policy.ts:30	export	imp	applyGuestWebPreferences
+F37	apps/desktop/src/window-navigation-policy.ts	installAppWindowNavigationPolicy	fn	apps/desktop/src/main/windows/app-window.ts:106	call	imp	installAppWindowNavigationPolicy(window.webContents, { appOrigin: new URL(url).origin, openExternal: (url) => 
+F37	apps/desktop/src/window-navigation-policy.ts	installAppWindowNavigationPolicy	fn	apps/desktop/src/window-navigation-policy.test.ts:45	call	imp	installAppWindowNavigationPolicy(contents, { appOrigin: APP_ORIGIN, openExternal })
+F37	apps/desktop/src/window-navigation-policy.ts	installAppWindowNavigationPolicy	fn	apps/desktop/src/window-navigation-policy.ts:83	export	imp	installAppWindowNavigationPolicy
+F38	apps/desktop/src/window-navigation-policy.ts	installSitesHomeNavigationPolicy	fn	apps/desktop/src/main/windows/sites-home-window.ts:214	call	imp	installSitesHomeNavigationPolicy(window.webContents, { rendererFileUrl: pathToFileURL(ports.rendererPath).href
+F38	apps/desktop/src/window-navigation-policy.ts	installSitesHomeNavigationPolicy	fn	apps/desktop/src/window-navigation-policy.test.ts:315	call	imp	installSitesHomeNavigationPolicy(contents, { rendererFileUrl: RENDERER, openExternal })
+F38	apps/desktop/src/window-navigation-policy.ts	installSitesHomeNavigationPolicy	fn	apps/desktop/src/window-navigation-policy.ts:83	export	imp	installSitesHomeNavigationPolicy
+F39	apps/desktop/src/workspace-chat-ipc.ts	addresseeForStart	fn	apps/desktop/src/workspace-chat-ipc.test.ts:115	call	imp	addresseeForStart({ subscriptionId: "s", prompt: "p", agentId: "a", activeSiteDir: "/tracked" }, resolve)
+F39	apps/desktop/src/workspace-chat-ipc.ts	addresseeForStart	fn	apps/desktop/src/workspace-chat-ipc.test.ts:116	call	imp	addresseeForStart({ subscriptionId: "s", prompt: "p", agentId: "a", activeSiteDir: "/etc" }, resolve)
+F39	apps/desktop/src/workspace-chat-ipc.ts	addresseeForStart	fn	apps/desktop/src/workspace-chat-ipc.test.ts:118	call	imp	addresseeForStart({ subscriptionId: "s", prompt: "p", agentId: "a", activeSiteDir }, () => assert.fail("must n
+F39	apps/desktop/src/workspace-chat-ipc.ts	addresseeForStart	fn	apps/desktop/src/workspace-chat-ipc.ts:166	call	imp	addresseeForStart(input, deps.resolveAddressee)
+F39	apps/desktop/src/workspace-chat-ipc.ts	addresseeForStart	fn	apps/desktop/src/workspace-chat-ipc.ts:214	export	imp	addresseeForStart
+F40	apps/desktop/src/desktop-agent-inventory.ts	summarizeAgent	fn	apps/desktop/src/desktop-agent-inventory.test.ts:43	call	imp	summarizeAgent(def("claude", { reasoningOptions: [{ id: "high", label: "High" }], supportsCustomModel: true, }
+F40	apps/desktop/src/desktop-agent-inventory.ts	summarizeAgent	fn	apps/desktop/src/desktop-agent-inventory.test.ts:60	call	imp	summarizeAgent(def("codex"), p)
+F40	apps/desktop/src/desktop-agent-inventory.ts	summarizeAgent	fn	apps/desktop/src/desktop-agent-inventory.test.ts:69	call	imp	summarizeAgent(def("named"), p)
+F40	apps/desktop/src/desktop-agent-inventory.ts	summarizeAgent	fn	apps/desktop/src/desktop-agent-inventory.test.ts:73	call	imp	summarizeAgent(def("bare"), p)
+F40	apps/desktop/src/desktop-agent-inventory.ts	summarizeAgent	fn	apps/desktop/src/desktop-agent-inventory.test.ts:141	call	imp	summarizeAgent(def("effort", { reasoningOptions: advertised }), ports({ probeModels: async () => ({ models }) 
+F40	apps/desktop/src/desktop-agent-inventory.ts	summarizeAgent	fn	apps/desktop/src/desktop-agent-inventory.test.ts:154	call	imp	summarizeAgent(def("suffix", { reasoningInModelId: { levels: high } }), ports({ probeModels: async () => ({ mo
+F40	apps/desktop/src/desktop-agent-inventory.ts	summarizeAgent	fn	apps/desktop/src/desktop-agent-inventory.ts:53	call	imp	summarizeAgent(def, ports)
+F40	apps/desktop/src/desktop-agent-inventory.ts	summarizeAgent	fn	apps/desktop/src/desktop-agent-inventory.ts:63	export	imp	summarizeAgent
+F41	apps/desktop/src/desktop-agent-tools.ts	navigateTool	fn	apps/desktop/src/desktop-agent-tools.ts:173	call	imp	navigateTool(deps.navigate)
+F42	apps/desktop/src/desktop-resources.ts	sitesKeyOf	fn	apps/desktop/src/desktop-resources.ts:215	call	imp	sitesKeyOf(sites)
+F43	apps/desktop/src/main/index.ts	trackAppWindow	fn	apps/desktop/src/main/index.ts:529	BYREF	imp	trackWindow: trackAppWindow
+F43	apps/desktop/src/main/index.ts	trackAppWindow	fn	apps/desktop/src/main/index.ts:545	BYREF	imp	trackWindow: trackAppWindow
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/add-site-button-wiring.test.ts:94	type	-	key: string;
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/complexity-debt.ts:98	destructure	-	[key, violation]
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/coverage-floors.ts:362	destructure	-	{ key }: { key: string }
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/coverage-floors.ts:362	type	-	key: string
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/coverage-floors.ts:365	impl	-	key: "LF"
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/coverage-floors.ts:365	impl	-	key: "LH"
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/coverage-floors.ts:366	impl	-	key: "BRF"
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/coverage-floors.ts:366	impl	-	key: "BRH"
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/coverage-floors.ts:367	impl	-	key: "FNF"
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/coverage-floors.ts:367	impl	-	key: "FNH"
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/coverage-floors.ts:377	destructure	-	[key, count]
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/desktop-i18n.boundaries.test.ts:12	destructure	-	[key, child]
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/keyed-serializer.test.ts:18	impl	-	key: "site-a"
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/keyed-serializer.test.ts:27	impl	-	key: "site-a"
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/keyed-serializer.test.ts:32	impl	-	key: "site-a"
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/keyed-serializer.test.ts:51	impl	-	key: "site-a"
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/keyed-serializer.test.ts:56	impl	-	key: "site-b"
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/keyed-serializer.test.ts:73	impl	-	key: "site-a"
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/keyed-serializer.test.ts:77	impl	-	key: "site-a"
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/keyed-serializer.ts:18	type	-	key: string;
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/keyed-serializer.ts:36	destructure	-	{ key, fn }: { key: string; fn: () => T | PromiseLike<T> }
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/keyed-serializer.ts:36	type	-	key: string;
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/main/index.ts:709	impl	-	key: "__open_new__"
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/main/index.ts:710	impl	-	key: dir
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/main/index.ts:761	impl	-	key: siteDir
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/owner-store-ipc.ts:133	impl	-	key: 'owner-store'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/packaged-paths.test.ts:136	destructure	-	[key, value]
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/product-telemetry.test.ts:108	destructure	-	[key]
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/project-ipc.test.ts:186	type	-	key: string;
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/project-ipc.test.ts:871	destructure	-	{ key, fn }: { key: string; fn: () => T | PromiseLike<T> }
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/project-ipc.test.ts:871	type	-	key: string;
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/project-ipc.test.ts:2317	impl	-	key: siteDir
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/project-ipc.ts:338	type	-	key: string;
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/project-ipc.ts:1032	impl	-	key: id
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/project-ipc.ts:1334	impl	-	key: id
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/project-ipc.ts:1409	impl	-	key: id
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/project-ipc.ts:1730	impl	-	key: siteDir
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/App.render.test.ts:186	m-call	imp	app.key(menu, { key: 'ArrowDown' })
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/App.render.test.ts:186	impl	imp	key: 'ArrowDown'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/App.render.test.ts:192	m-call	imp	localStorage.key(i)
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/App.render.test.ts:271	impl	imp	key: 'Escape'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/App.render.test.ts:332	m-call	imp	app.key(input, { key: 'Enter' })
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/App.render.test.ts:332	impl	imp	key: 'Enter'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/App.render.test.ts:334	m-call	imp	app.key(input, { key: 'Enter', shiftKey: true })
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/App.render.test.ts:334	impl	imp	key: 'Enter'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/App.render.test.ts:336	m-call	imp	app.key(input, { key: 'Enter' })
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/App.render.test.ts:336	impl	imp	key: 'Enter'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/App.render.test.ts:338	m-call	imp	app.key(input, { key: 'a' })
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/App.render.test.ts:338	impl	imp	key: 'a'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/App.render.test.ts:344	m-call	imp	app.key(input, { key: 'Escape' })
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/App.render.test.ts:344	impl	imp	key: 'Escape'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/App.render.test.ts:368	m-call	imp	app.key(strip, { key: 'ArrowRight' })
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/App.render.test.ts:368	impl	imp	key: 'ArrowRight'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/ResourcesPanel.render.test.ts:37	impl	-	key: tab.id
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/SiteGrid.hooks.test.ts:22	impl	-	key: "Enter"
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/SiteGrid.hooks.test.ts:23	impl	-	key: " "
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/SiteGrid.hooks.test.ts:28	impl	-	key
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/SiteGrid.hooks.test.ts:39	impl	-	key: "Enter"
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/SiteGrid.hooks.test.ts:40	impl	-	key: " "
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/SiteGrid.hooks.test.ts:70	destructure	-	[key, target, expected]
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/SiteGrid.hooks.test.ts:79	impl	-	key
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/SiteGrid.hooks.ts:48	type	-	key: string;
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/SiteGrid.hooks.ts:53	m-BYREF	-	event.key === 'Enter'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/SiteGrid.hooks.ts:53	m-BYREF	-	event.key === ' '
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/SiteGrid.hooks.ts:168	type	-	key: string;
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:40	destructure	-	[key, value]
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:149	impl	-	key: 'Enter'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:166	impl	-	key: 'Enter'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:244	impl	-	key: 'x'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:310	impl	-	key: 'Enter'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:368	impl	-	key: 'Enter'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:529	impl	-	key
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:550	impl	-	key: 'Enter'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:551	impl	-	key: ' '
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:556	impl	-	key: 'Escape'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:577	impl	-	key
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:614	destructure	-	{ key }
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:615	destructure	-	{ key, value }
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/app/FindBar.render.test.ts:53	impl	imp	key: 'Enter'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/app/FindBar.render.test.ts:54	impl	imp	key: 'Enter'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/app/FindBar.render.test.ts:55	impl	imp	key: 'Escape'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/app/FindBar.render.test.ts:56	impl	imp	key: 'a'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/app/FindBar.tsx:25	m-BYREF	-	event.key === 'Escape'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/app/FindBar.tsx:30	m-BYREF	-	event.key === 'Enter'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/app/LoadedSitesStepper.hooks.ts:8	destructure	-	{ key, value }: { key: string; value: number }
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/app/LoadedSitesStepper.hooks.ts:8	type	-	key: string;
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/app/LoadedSitesStepper.hooks.ts:28	impl	-	key: event.key
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/app/LoadedSitesStepper.hooks.ts:28	m-BYREF	-	key: event.key
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/app/LoadedSitesStepper.render.test.ts:40	impl	imp	key: name
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/app/LoadedSitesStepper.render.test.ts:48	impl	imp	key
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/app/LoadedSitesStepper.render.test.ts:114	m-call	imp	view.key('ArrowUp')
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/app/LoadedSitesStepper.render.test.ts:116	m-call	imp	view.key('ArrowDown')
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/app/LoadedSitesStepper.render.test.ts:117	m-call	imp	view.key('End')
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/app/LoadedSitesStepper.render.test.ts:118	m-call	imp	view.key('Home')
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/app/LoadedSitesStepper.render.test.ts:119	m-call	imp	view.key('ArrowDown')
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/app/TabStrip.render.test.ts:90	impl	imp	key
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/app-render-harness.ts:126	impl	imp	key
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/expanded-mode.test.ts:65	impl	-	key: 'Escape'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/expanded-mode.test.ts:71	impl	-	key: 'Escape'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/expanded-mode.test.ts:75	impl	-	key: 'Escape'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/expanded-mode.test.ts:75	impl	-	key: 'Escape'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/expanded-mode.test.ts:81	impl	-	key
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/expanded-mode.ts:35	destructure	-	{ expanded, key }: { expanded: boolean; key: string }
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/expanded-mode.ts:35	type	-	key: string
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/shell-bug-fixes.test.ts:19	impl	-	key: 'Enter'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/shell-bug-fixes.test.ts:20	impl	-	key: 'Escape'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/shell-bug-fixes.test.ts:21	impl	-	key: 'Escape'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/shell-bug-fixes.test.ts:23	impl	-	key: 'Escape'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/site-shell-policy.ts:40	type	-	key: string;
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/site-shell-policy.ts:42	m-BYREF	-	event.key === 'Escape'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/sitesnest-card.test.ts:17	destructure	-	[key, value]
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/sitesnest-card.test.ts:24	destructure	-	[key, descriptor]
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/stalecard-paths.test.ts:16	destructure	-	[key, value]
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/stalecard-paths.test.ts:20	destructure	-	[key, descriptor]
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/tab-strip-keyboard.test.ts:20	destructure	-	[key, from, to]
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/tab-strip-keyboard.test.ts:23	impl	-	key
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/tab-strip-keyboard.test.ts:32	impl	-	key: 'ArrowDown'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/tab-strip-keyboard.test.ts:32	impl	-	key: 'Tab'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/tab-strip-keyboard.test.ts:32	impl	-	key: 'ArrowRight'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/tab-strip-keyboard.test.ts:32	impl	-	key: 'ArrowRight'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/tab-strip-keyboard.test.ts:32	impl	-	key: 'Home'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/tab-strip-keyboard.test.ts:32	impl	-	key: 'End'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/tab-strip-keyboard.test.ts:32	impl	-	key: 'ArrowLeft'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/tab-strip-keyboard.test.ts:44	impl	-	key: 'ArrowLeft'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/theme.test.ts:22	destructure	-	[key, value]
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/theme.test.ts:39	destructure	-	[key, descriptor]
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-delete-confirmation.hooks.render.test.ts:18	impl	-	key: 'Escape'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-delete-confirmation.hooks.render.test.ts:59	impl	-	key: 'Enter'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-delete-confirmation.hooks.render.test.ts:61	impl	-	key: 'Escape'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-dropdown-menu.hooks.render.test.ts:28	impl	-	key: 'Escape'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-dropdown-menu.hooks.render.test.ts:39	impl	-	key: 'Enter'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-dropdown-menu.hooks.render.test.ts:63	impl	-	key: name
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-dropdown-menu.hooks.render.test.ts:66	impl	-	key
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-dropdown-menu.hooks.render.test.ts:73	m-call	-	menu.key('ArrowDown')
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-dropdown-menu.hooks.render.test.ts:75	m-call	-	menu.key('End')
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-dropdown-menu.hooks.render.test.ts:77	m-call	-	menu.key('ArrowDown')
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-dropdown-menu.hooks.render.test.ts:79	m-call	-	menu.key('ArrowUp')
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-dropdown-menu.hooks.render.test.ts:81	m-call	-	menu.key('Home')
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-dropdown-menu.hooks.render.test.ts:83	m-call	-	menu.key('a')
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-dropdown-menu.hooks.render.test.ts:92	m-call	-	menu.key('ArrowDown')
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-dropdown-menu.hooks.render.test.ts:156	impl	-	key: 'ArrowDown'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-dropdown-menu.hooks.test.ts:12	impl	-	key
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-dropdown-menu.hooks.test.ts:23	impl	-	key: 'ArrowDown'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-dropdown-menu.hooks.test.ts:28	impl	-	key
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-dropdown-menu.hooks.ts:68	destructure	-	{ key, current, count }: { key: string; current: number; count: number }
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-dropdown-menu.hooks.ts:68	type	-	key: string;
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-dropdown-menu.hooks.ts:107	impl	-	key: event.key
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-dropdown-menu.hooks.ts:107	m-BYREF	-	key: event.key
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-expanded-mode.hooks.render.test.ts:17	impl	-	key
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-expanded-mode.hooks.render.test.ts:38	impl	-	key: 'Enter'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-expanded-mode.hooks.render.test.ts:40	impl	-	key: 'Escape'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-expanded-mode.hooks.ts:42	impl	-	key: event.key
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-expanded-mode.hooks.ts:42	m-BYREF	-	key: event.key
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-new-site-dir.hooks.test.ts:13	destructure	-	[key, value]
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-new-site-dir.hooks.test.ts:23	destructure	-	[key, descriptor]
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-project-mutations.hooks.render.test.ts:89	impl	-	key: hook.current().createFormKey
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-project-mutations.hooks.render.test.ts:90	impl	-	key
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-project-mutations.hooks.render.test.ts:107	impl	-	key: hook.current().createFormKey
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-project-mutations.hooks.render.test.ts:108	impl	-	key
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-list-prefs.hooks.test.ts:25	destructure	-	{ key }
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-list-prefs.hooks.test.ts:26	destructure	-	{ key, value: next }
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-list-prefs.hooks.test.ts:64	destructure	-	{ key }
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-list-prefs.hooks.test.ts:64	impl	-	key
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-list-prefs.hooks.ts:18	type	-	key: string
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-list-prefs.hooks.ts:19	type	-	key: string;
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-list-prefs.hooks.ts:25	destructure	-	{ key }
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-list-prefs.hooks.ts:26	destructure	-	{ key, value }
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-list-prefs.hooks.ts:36	impl	-	key: SITE_LIST_STORAGE_KEY
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-list-prefs.hooks.ts:47	impl	-	key: SITE_LIST_STORAGE_KEY
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-locate.hooks.test.ts:55	destructure	-	[key, value]
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-locate.hooks.test.ts:71	destructure	-	[key, descriptor]
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-power.hooks.ts:297	impl	-	key: id
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-power.hooks.ts:307	impl	-	key: id
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-power.hooks.ts:322	impl	-	key: id
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-power.hooks.ts:329	impl	-	key: id
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-power.hooks.ts:348	destructure	-	{ record, key }: { record: Readonly<Record<string, T>>; key: string }
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-power.hooks.ts:348	type	-	key: string
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-rename.hooks.render.test.ts:34	impl	-	key: 'Escape'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-rename.hooks.test.ts:28	impl	-	key: 'Enter'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-rename.hooks.test.ts:30	impl	-	key: 'Enter'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-rename.hooks.test.ts:176	impl	-	key: 'Escape'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-rename.hooks.test.ts:183	impl	-	key: 'Enter'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-rename.hooks.test.ts:189	impl	-	key: 'Enter'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-rename.hooks.test.ts:196	impl	-	key
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-rename.hooks.ts:139	type	-	key: string;
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-rename.hooks.ts:142	m-BYREF	-	event.key === 'Escape'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-site-rename.hooks.ts:143	m-BYREF	-	event.key === 'Enter'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-tab-close-ask.hooks.render.test.ts:64	impl	-	key: 'Escape'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-tab-strip.hooks.render.test.ts:41	impl	-	key: site.id
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-tab-strip.hooks.render.test.ts:101	impl	-	key: 'ArrowRight'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-tab-strip.hooks.render.test.ts:114	impl	-	key: 'ArrowRight'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-tab-strip.hooks.ts:32	impl	-	key: event.key
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-tab-strip.hooks.ts:32	m-BYREF	-	key: event.key
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-tab-strip.hooks.ts:44	destructure	-	{ key, index, count }: { key: string; index: number; count: number }
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/renderer/use-tab-strip.hooks.ts:44	type	-	key: string;
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/site-scan-policy.boundaries.test.ts:38	impl	-	key: 'k'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/site-scan-policy.boundaries.test.ts:39	impl	-	key: 'k'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/site-scan-policy.boundaries.test.ts:43	impl	-	key: 'k'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/site-scan-policy.boundaries.test.ts:53	impl	-	key: 'k'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/site-scan-policy.boundaries.test.ts:54	impl	-	key: 'k'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/site-scan-policy.boundaries.test.ts:56	impl	-	key: 'a'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/site-scan-policy.boundaries.test.ts:57	impl	-	key: 'b'
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/smoke-native.ts:173	destructure	-	{ key }: { key: string }
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/smoke-native.ts:173	type	-	key: string
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/smoke-native.ts:185	impl	-	key: "betterSqlite3"
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/smoke-native.ts:186	impl	-	key: "sharp"
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/smoke-native.ts:187	impl	-	key: "argon2"
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/tovu-server.test.ts:94	destructure	-	[key]
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/tovu-server.test.ts:315	destructure	-	[key, value]
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/tovu-server.ts:1023	destructure	-	[key]
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/window-bounds-store.ts:32	destructure	-	{ key }
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/window-bounds-store.ts:33	destructure	-	{ key, bounds }
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/window-bounds-store.ts:49	impl	-	key: boundsPath
+F44	apps/desktop/src/renderer/app-render-harness.ts	key	member	apps/desktop/src/window-bounds-store.ts:53	impl	-	key: boundsPath
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/ResourcesPanel.render.test.ts:30	m-call	-	root.render(next)
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/ResourcesPanel.render.test.ts:32	impl	-	render
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/ResourcesPanel.render.test.ts:227	destructure	-	{ host, render } = mount(t, element({ ...SITE, status: 'stopped' }))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/SharedKeys.render.test.ts:27	m-call	-	root.render(createElement(SharedKeys, { bridge, onClose: () => {} }))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:125	m-call	-	root.render(createElement(SiteGrid, { projects: records, onOpen: (id: string) => { opened.push(id); }, onDelet
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:137	impl	-	render
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:176	m-call	-	root.render(createElement(ResourcesMonitor, { projects: records, onSiteUpdated() {}, useReadings: (): Resource
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:268	m-call	-	grid.render()
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:315	m-call	-	grid.render()
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:373	m-call	-	grid.render()
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:387	m-call	-	root.render(createElement(SiteGrid, { projects: [site('/sites/plain')], onOpen: () => {}, onDelete: async () =
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/SitesFolders.jsdom.test.ts:61	m-call	-	root.render(next)
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/WorkspaceChatPane.render.test.ts:86	m-call	-	root.render(createElement(WorkspaceChatPane, { onClose: () => calls.push('close'), ports, components }))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/app/CreateWebsiteHost.render.test.ts:25	m-call	imp	view.render(element(next))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/app/SiteWorkspace.live-views.render.test.ts:59	m-call	imp	view.render(element())
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/app/SiteWorkspace.live-views.render.test.ts:155	m-call	imp	view.render(createElement(SiteWorkspaces, { openSites: SITES.slice(1, 3), inSites: true, visibleWorkspaceId: '
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/app/SiteWorkspace.live-views.render.test.ts:160	m-call	imp	view.render(createElement(SiteWorkspaces, { openSites: reopened, inSites: true, visibleWorkspaceId: 'a', expan
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/app/SiteWorkspace.render.test.ts:79	m-call	imp	view.render(element(next))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/app/component-harness.ts:26	type	imp	render: (next: ReactElement) => void;
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/app/component-harness.ts:44	m-call	imp	root.render(next)
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/app/component-harness.ts:49	impl	imp	render
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/app-hooks.test-support.ts:32	m-call	-	root.render(createElement(Probe))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/app-hooks.test-support.ts:33	m-call	-	root.render(createElement(Probe))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/app-render-harness.ts:115	m-call	-	root.render(createElement(App as (required: typeof props) => ReturnType<typeof App>, props))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/dom-hook-harness.ts:50	m-call	-	root.render(createElement(Probe))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/dom-hook-harness.ts:51	m-call	-	root.render(createElement(Probe))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/imported-hooks.hooks.test.ts:32	m-call	-	root.render(createElement(Probe))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/imported-hooks.hooks.test.ts:33	m-call	-	root.render(createElement(Probe))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/mount-renderer.test.ts:32	impl	-	render: (children) => void host.rendered.push(children)
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/mount-renderer.test.ts:49	m-BYREF	-	typeof root.render
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/mount-renderer.ts:11	type	-	render(children: ReactNode): void;
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/mount-renderer.ts:39	m-call	-	root.render(deps.app)
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/site-create-hooks.jsdom.test.ts:37	m-call	-	root.render(createElement(Probe))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/sitesnest-card.test.ts:26	m-call	-	root.render(createElement(SiteGrid, { projects: [record], onOpen: () => {}, onDelete: async () => {}, }))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/source-test-harness.test.ts:20	m-call	-	harness.render({ run: useRunaway })
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/source-test-harness.test.ts:31	m-call	-	harness.render({ run: useOnce })
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/source-test-harness.ts:64	impl	-	render<T>({ run }: { run: () => T }): T { let result: T; for (let count = 0; count < 20; count++) { cursor = 0
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/stalecard-paths.test.ts:28	m-call	-	root.render(createElement(SiteGrid, { projects: records, onOpen: () => {}, onDelete: async () => {}, }))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/theme.test.ts:44	m-call	-	root.render(createElement(Probe))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/use-find-in-page.jsdom.test.ts:118	m-call	-	root.render(createElement(Bar))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/use-find-in-page.jsdom.test.ts:405	m-call	-	root.render(createElement(Probe))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/use-find-in-page.jsdom.test.ts:406	m-call	-	root.render(createElement(Probe))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/use-find-in-page.jsdom.test.ts:413	m-call	-	root.render(createElement(Probe))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/use-new-site-dir.hooks.test.ts:28	m-call	-	root.render(createElement(Probe, { name: 'Corner Bakery' }))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/use-new-site-dir.hooks.test.ts:32	m-call	-	root.render(createElement(Probe, { name: 'Second name' }))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/use-new-site-dir.hooks.test.ts:34	m-call	-	root.render(createElement(Probe, { name: 'Third name' }))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/use-new-site-dir.hooks.test.ts:38	m-call	-	root.render(createElement(Probe, { name: 'Windows name' }))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/use-new-site-dir.hooks.test.ts:41	m-call	-	root.render(createElement(Probe, { name: 'Unavailable' }))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/use-new-site-dir.hooks.test.ts:45	m-call	-	root.render(createElement(Probe, { name: 'Stale failure' }))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/use-new-site-dir.hooks.test.ts:46	m-call	-	root.render(createElement(Probe, { name: 'Latest' }))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/use-new-site-dir.hooks.test.ts:52	m-call	-	root.render(createElement(Probe, { name: 'Missing bridge' }))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/use-site-locate.hooks.test.ts:76	m-call	-	root.render(createElement(Probe))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/use-tab-strip.hooks.render.test.ts:46	m-call	-	root.render(createElement(Strip))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/use-tab-strip.hooks.render.test.ts:51	m-call	-	root.render(createElement(Strip))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/use-workspace-chat-transport.hooks.render.test.ts:45	m-call	-	root.render(createElement(StrictMode, null, createElement(Pane)))
+F45	apps/desktop/src/renderer/app/component-harness.ts	render	member	apps/desktop/src/renderer/use-workspace-chat-transport.hooks.render.test.ts:48	m-call	-	root.render(null)
+F46	apps/desktop/src/renderer/chat-attachments.ts	attachmentKind	fn	apps/desktop/src/renderer/chat-attachments.ts:37	call	imp	attachmentKind(file)
+F47	apps/desktop/src/renderer/folder-drop.ts	pairFileItemsWithFiles	fn	apps/desktop/src/renderer/folder-drop.ts:89	call	imp	pairFileItemsWithFiles(items, files)
+F48	apps/desktop/src/renderer/runner-conversation-controller.ts	publish	fn	apps/desktop/src/renderer/runner-conversation-controller.ts:169	call	imp	publish(core, { conversations: list })
+F48	apps/desktop/src/renderer/runner-conversation-controller.ts	publish	fn	apps/desktop/src/renderer/runner-conversation-controller.ts:208	call	imp	publish(core, { initialMessages: messages, activeId: id, paneKey: id })
+F48	apps/desktop/src/renderer/runner-conversation-controller.ts	publish	fn	apps/desktop/src/renderer/runner-conversation-controller.ts:224	call	imp	publish(core, { conversations })
+F48	apps/desktop/src/renderer/runner-conversation-controller.ts	publish	fn	apps/desktop/src/renderer/runner-conversation-controller.ts:229	call	imp	publish(core, { conversations, activeId: conversation.id, initialMessages: [], paneKey: conversation.id })
+F48	apps/desktop/src/renderer/runner-conversation-controller.ts	publish	fn	apps/desktop/src/renderer/runner-conversation-controller.ts:240	call	imp	publish(core, { conversations: core.state.conversations.filter((c) => c.id !== id) })
+F48	apps/desktop/src/renderer/runner-conversation-controller.ts	publish	fn	apps/desktop/src/renderer/runner-conversation-controller.ts:265	call	imp	publish(core, { activeId: null, initialMessages: [], paneKey: `new-${core.paneNonce}` })
+F48	apps/desktop/src/renderer/runner-conversation-controller.ts	publish	fn	apps/desktop/src/renderer/runner-conversation-controller.ts:272	call	imp	publish(core, { conversations: core.state.conversations.map((c) => (c.id === id ? { ...c, title } : c)) })
+F48	apps/desktop/src/renderer/runner-conversation-controller.ts	publish	fn	apps/desktop/src/renderer/runner-conversation-controller.ts:372	call	imp	publish(core, { conversations: withConversation(core, conversation), ...adopt })
+F49	apps/desktop/src/renderer/runner-conversation-controller.ts	withConversation	fn	apps/desktop/src/renderer/runner-conversation-controller.ts:222	call	imp	withConversation(core, conversation)
+F49	apps/desktop/src/renderer/runner-conversation-controller.ts	withConversation	fn	apps/desktop/src/renderer/runner-conversation-controller.ts:372	call	imp	withConversation(core, conversation)
+F50	apps/desktop/src/renderer/runner-conversation-controller.ts	commitSelection	fn	apps/desktop/src/renderer/runner-conversation-controller.ts:181	call	imp	commitSelection(core, { id, seq, messages })
+F51	apps/desktop/src/renderer/runner-conversation-controller.ts	rename	fn	apps/desktop/src/renderer/runner-conversation-controller.ts:118	call	imp	rename(core, { id, title })
+F52	apps/desktop/src/renderer/runner-conversation-controller.ts	flush	fn	apps/desktop/src/renderer/runner-conversation-controller.ts:331	call	imp	flush(core, { conversationId, messages })
+F52	apps/desktop/src/renderer/runner-conversation-controller.ts	flush	fn	apps/desktop/src/renderer/runner-conversation-controller.ts:391	call	imp	flush(core, { conversationId: id, messages })
+F53	apps/desktop/src/renderer/runner-conversation-controller.ts	saveMessage	fn	apps/desktop/src/renderer/runner-conversation-controller.ts:299	call	imp	saveMessage(core, { bridge, conversationId, message, written })
+F54	apps/desktop/src/renderer/runner-conversation-controller.ts	claimAdoption	fn	apps/desktop/src/renderer/runner-conversation-controller.ts:342	call	imp	claimAdoption(core, bridge)
+F55	apps/desktop/src/renderer/runner-conversation-controller.ts	adoptConversation	fn	apps/desktop/src/renderer/runner-conversation-controller.ts:351	call	imp	adoptConversation(core, { bridge, generation })
+F56	apps/desktop/src/renderer/runner-conversation-controller.ts	afterAdoption	fn	apps/desktop/src/renderer/runner-conversation-controller.ts:343	call	imp	afterAdoption(core, { adoption, id, messages })
+F57	apps/desktop/src/renderer/tool-icons.tsx	toolPath	fn	apps/desktop/src/renderer/tool-icons.tsx:77	call	imp	toolPath(kind)
+F58	apps/desktop/src/renderer/use-add-site.hooks.ts	showAddedSite	fn	apps/desktop/src/renderer/use-add-site.hooks.ts:82	call	imp	showAddedSite(added, { setProjects, setAddError, setAddNotice, onAdded, onAlreadyTracked })
+F59	apps/desktop/src/renderer/use-add-site.hooks.ts	mergeAddedSite	fn	apps/desktop/src/renderer/App.tsx:151	call	imp	mergeAddedSite(current, site)
+F59	apps/desktop/src/renderer/use-add-site.hooks.ts	mergeAddedSite	fn	apps/desktop/src/renderer/use-add-site.hooks.test.ts:91	call	imp	mergeAddedSite([existing, other], added)
+F59	apps/desktop/src/renderer/use-add-site.hooks.ts	mergeAddedSite	fn	apps/desktop/src/renderer/use-add-site.hooks.test.ts:106	call	imp	mergeAddedSite([siteRecord('/sites/a')], siteRecord('/sites/new'))
+F59	apps/desktop/src/renderer/use-add-site.hooks.ts	mergeAddedSite	fn	apps/desktop/src/renderer/use-add-site.hooks.ts:112	call	imp	mergeAddedSite(current, added)
+F59	apps/desktop/src/renderer/use-add-site.hooks.ts	mergeAddedSite	fn	apps/desktop/src/renderer/use-add-site.hooks.ts:155	export	imp	mergeAddedSite
+F60	apps/desktop/src/renderer/use-create-website-form.hooks.ts	refValue	fn	apps/desktop/src/renderer/use-create-website-form.hooks.ts:156	call	imp	refValue(supabaseKeyRef)
+F60	apps/desktop/src/renderer/use-create-website-form.hooks.ts	refValue	fn	apps/desktop/src/renderer/use-create-website-form.hooks.ts:157	call	imp	refValue(customCredentialRef)
+F61	apps/desktop/src/renderer/workspace-chat-transport.ts	translateToolUse	fn	apps/desktop/src/renderer/workspace-chat-transport.ts:192	BYREF	imp	translateToolUse as PayloadTranslator
+F62	apps/desktop/src/renderer/workspace-chat-transport.ts	translateToolInputDelta	fn	apps/desktop/src/renderer/workspace-chat-transport.ts:193	BYREF	imp	translateToolInputDelta as PayloadTranslator
+F63	apps/desktop/src/renderer/workspace-chat-transport.ts	translateToolResult	fn	apps/desktop/src/renderer/workspace-chat-transport.ts:194	BYREF	imp	translateToolResult as PayloadTranslator
+F64	apps/desktop/src/renderer/workspace-chat-transport.ts	translateAgentPayload	fn	apps/desktop/src/renderer/workspace-chat-transport.ts:229	call	imp	translateAgentPayload(payload, record)
+F65	apps/desktop/src/renderer/workspace-chat-transport.ts	applyAgentEvent	fn	apps/desktop/src/renderer/workspace-chat-transport.ts:251	call	imp	applyAgentEvent(record, event.payload)
+F66	apps/desktop/src/renderer/workspace-chat-transport.ts	applyRunEndEvent	fn	apps/desktop/src/renderer/workspace-chat-transport.ts:258	call	imp	applyRunEndEvent(record, event)
+F67	apps/desktop/src/renderer/workspace-chat-transport.ts	applyRunEvent	fn	apps/desktop/src/renderer/workspace-chat-transport.ts:332	call	imp	applyRunEvent(record, message.event)
+F68	apps/desktop/src/renderer/workspace-chat-transport.ts	toChatRunStatus	fn	apps/desktop/src/renderer/workspace-chat-transport.ts:436	call	imp	toChatRunStatus(snapshot.state)
+F69	apps/desktop/src/site-power-verify.ts	onNameRow	fn	apps/desktop/src/site-power-verify.ts:89	call	imp	onNameRow(layout.name, layout.menu)
+F70	apps/desktop/src/site-theme-preview-ipc.ts	release	fn	apps/desktop/src/site-theme-preview-ipc.ts:44	call	imp	release(sender, created)
+F70	apps/desktop/src/site-theme-preview-ipc.ts	release	fn	apps/desktop/src/site-theme-preview-ipc.ts:58	call	imp	release(sender, owner)
+F70	apps/desktop/src/site-theme-preview-ipc.ts	release	fn	apps/desktop/src/site-theme-preview-ipc.ts:61	call	imp	release(sender, owner)
+F71	apps/desktop/src/site-view-preference.ts	trusted	fn	apps/desktop/src/site-view-preference.ts:48	call	imp	trusted(sender)
+F71	apps/desktop/src/site-view-preference.ts	trusted	fn	apps/desktop/src/site-view-preference.ts:52	call	imp	trusted(sender)
+F71	apps/desktop/src/site-view-preference.ts	trusted	fn	apps/desktop/src/site-view-preference.ts:161	call	imp	trusted(sender)
+F71	apps/desktop/src/site-view-preference.ts	trusted	fn	apps/desktop/src/site-view-preference.ts:163	call	imp	trusted(sender)
+F72	apps/desktop/src/smoke-packaged-chat.ts	rawFrames	fn	apps/desktop/src/smoke-packaged-chat.ts:154	call	imp	rawFrames(events)
+F73	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	titleCase	fn	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts:56	BYREF	imp	tokens.pluginIds.map(titleCase)
+F74	apps/desktop/scripts/check-complexity.ts	toRepoRelative	fn	apps/desktop/scripts/check-complexity.ts:173	call	imp	toRepoRelative(JSON.parse(run.stdout))
+F75	apps/desktop/scripts/check-coverage.ts	warnForeignImages	fn	apps/desktop/scripts/check-coverage.ts:329	call	imp	warnForeignImages(lcovPaths, ctx)
+F76	apps/desktop/scripts/check-coverage.ts	rootFromArgv	fn	apps/desktop/scripts/check-coverage.ts:362	call	imp	rootFromArgv(process.argv.slice(2))
+F76	apps/desktop/scripts/check-coverage.ts	rootFromArgv	fn	apps/desktop/scripts/check-coverage.ts:369	export	imp	rootFromArgv
+F76	apps/desktop/scripts/check-coverage.ts	rootFromArgv	fn	apps/desktop/src/check-coverage-script.test.ts:249	call	imp	rootFromArgv([])
+F76	apps/desktop/scripts/check-coverage.ts	rootFromArgv	fn	apps/desktop/src/check-coverage-script.test.ts:250	call	imp	rootFromArgv(["--root"])
+F76	apps/desktop/scripts/check-coverage.ts	rootFromArgv	fn	apps/desktop/src/check-coverage-script.test.ts:251	call	imp	rootFromArgv(["--root", "/tmp/x/../y"])
+F77	apps/desktop/scripts/check-tree-quiet.ts	snapshotsDiffer	fn	apps/desktop/scripts/check-tree-quiet.ts:128	call	imp	snapshotsDiffer(before[i]!, after[i]!)
+F78	apps/desktop/scripts/smoke-native.ts	checkEntryImports	fn	apps/desktop/scripts/smoke-native.ts:130	call	imp	checkEntryImports(targets, ports)
+F79	apps/desktop/scripts/smoke-native.ts	spawnEntryLoad	fn	apps/desktop/scripts/smoke-native.ts:162	call	imp	spawnEntryLoad(targets, ports)
+F80	apps/desktop/scripts/smoke-native.ts	spawnSmoke	fn	apps/desktop/scripts/smoke-native.ts:117	call	imp	spawnSmoke(targets, ports)
+F81	apps/desktop/scripts/smoke-native.ts	platformDirFromArgv	fn	apps/desktop/scripts/smoke-native.ts:198	call	imp	platformDirFromArgv(argv)
+F82	apps/desktop/scripts/stage-website-shared.ts	sharedImports	fn	apps/desktop/scripts/stage-website-shared.ts:57	call	imp	sharedImports(sources)
+F83	apps/desktop/scripts/verify-find-in-page.ts	verifyCycling	fn	apps/desktop/scripts/verify-find-in-page.ts:279	call	imp	verifyCycling(win, start)
+F84	apps/desktop/scripts/verify-find-in-page.ts	openGuestTab	fn	apps/desktop/scripts/verify-find-in-page.ts:331	call	imp	openGuestTab(win)
+F84	apps/desktop/scripts/verify-find-in-page.ts	openGuestTab	fn	apps/desktop/scripts/verify-find-in-page.ts:391	call	imp	openGuestTab(win)
+F85	apps/desktop/scripts/verify-find-in-page.ts	waitForShellText	fn	apps/desktop/scripts/verify-find-in-page.ts:466	call	imp	waitForShellText(win)
+F86	apps/desktop/scripts/verify-find-in-page.ts	countText	fn	apps/desktop/scripts/verify-find-in-page.ts:83	call	imp	countText(win)
+F86	apps/desktop/scripts/verify-find-in-page.ts	countText	fn	apps/desktop/scripts/verify-find-in-page.ts:132	call	imp	countText(win)
+F86	apps/desktop/scripts/verify-find-in-page.ts	countText	fn	apps/desktop/scripts/verify-find-in-page.ts:143	call	imp	countText(win)
+F86	apps/desktop/scripts/verify-find-in-page.ts	countText	fn	apps/desktop/scripts/verify-find-in-page.ts:159	call	imp	countText(win)
+F86	apps/desktop/scripts/verify-find-in-page.ts	countText	fn	apps/desktop/scripts/verify-find-in-page.ts:168	call	imp	countText(win)
+F86	apps/desktop/scripts/verify-find-in-page.ts	countText	fn	apps/desktop/scripts/verify-find-in-page.ts:275	call	imp	countText(win)
+F86	apps/desktop/scripts/verify-find-in-page.ts	countText	fn	apps/desktop/scripts/verify-find-in-page.ts:364	call	imp	countText(win)
+F86	apps/desktop/scripts/verify-find-in-page.ts	countText	fn	apps/desktop/scripts/verify-find-in-page.ts:427	call	imp	countText(win)
+F86	apps/desktop/scripts/verify-find-in-page.ts	countText	fn	apps/desktop/scripts/verify-find-in-page.ts:434	call	imp	countText(win)
+F87	apps/desktop/scripts/verify-find-in-page.ts	barOpen	fn	apps/desktop/scripts/verify-find-in-page.ts:263	call	imp	barOpen(win)
+F87	apps/desktop/scripts/verify-find-in-page.ts	barOpen	fn	apps/desktop/scripts/verify-find-in-page.ts:284	call	imp	barOpen(win)
+F87	apps/desktop/scripts/verify-find-in-page.ts	barOpen	fn	apps/desktop/scripts/verify-find-in-page.ts:340	call	imp	barOpen(win)
+F87	apps/desktop/scripts/verify-find-in-page.ts	barOpen	fn	apps/desktop/scripts/verify-find-in-page.ts:376	call	imp	barOpen(win)
+F87	apps/desktop/scripts/verify-find-in-page.ts	barOpen	fn	apps/desktop/scripts/verify-find-in-page.ts:402	call	imp	barOpen(win)
+F88	apps/desktop/scripts/verify-find-in-page.ts	inputState	fn	apps/desktop/scripts/verify-find-in-page.ts:246	call	imp	inputState(win)
+F88	apps/desktop/scripts/verify-find-in-page.ts	inputState	fn	apps/desktop/scripts/verify-find-in-page.ts:269	call	imp	inputState(win)
+F88	apps/desktop/scripts/verify-find-in-page.ts	inputState	fn	apps/desktop/scripts/verify-find-in-page.ts:348	call	imp	inputState(win)
+F88	apps/desktop/scripts/verify-find-in-page.ts	inputState	fn	apps/desktop/scripts/verify-find-in-page.ts:422	call	imp	inputState(win)
+F89	apps/desktop/scripts/verify-site-power.ts	powerMatchesCreate	fn	apps/desktop/scripts/verify-site-power.ts:214	call	imp	powerMatchesCreate(win)
+F90	apps/desktop/scripts/verify-site-power.ts	verifyStarted	fn	apps/desktop/scripts/verify-site-power.ts:402	call	imp	verifyStarted(win)
+F91	apps/desktop/scripts/verify-site-power.ts	verifyStopped	fn	apps/desktop/scripts/verify-site-power.ts:403	call	imp	verifyStopped(win)
+F92	apps/desktop/scripts/verify-site-power.ts	checkMenuNotClipped	fn	apps/desktop/scripts/verify-site-power.ts:336	call	imp	checkMenuNotClipped(win)
+F93	apps/desktop/scripts/verify-site-power.ts	verifyDeleteEntry	fn	apps/desktop/scripts/verify-site-power.ts:348	call	imp	verifyDeleteEntry(win)
+F94	apps/desktop/scripts/verify-site-power.ts	closeMenu	fn	apps/desktop/scripts/verify-site-power.ts:349	call	imp	closeMenu(win)
+F94	apps/desktop/scripts/verify-site-power.ts	closeMenu	fn	apps/desktop/scripts/verify-site-power.ts:368	call	imp	closeMenu(win)
+F95	apps/desktop/scripts/verify-site-power.ts	verifyMenu	fn	apps/desktop/scripts/verify-site-power.ts:404	call	imp	verifyMenu(win)
+F96	apps/desktop/scripts/verify-site-power.ts	verifyDark	fn	apps/desktop/scripts/verify-site-power.ts:405	call	imp	verifyDark(win)
+F97	apps/desktop/scripts/verify-site-power.ts	cardState	fn	apps/desktop/scripts/verify-site-power.ts:149	call	imp	cardState(win)
+F97	apps/desktop/scripts/verify-site-power.ts	cardState	fn	apps/desktop/scripts/verify-site-power.ts:173	call	imp	cardState(win)
+F97	apps/desktop/scripts/verify-site-power.ts	cardState	fn	apps/desktop/scripts/verify-site-power.ts:227	call	imp	cardState(win)
+F97	apps/desktop/scripts/verify-site-power.ts	cardState	fn	apps/desktop/scripts/verify-site-power.ts:355	call	imp	cardState(win)
+P1	apps/desktop/src/renderer/use-site-power.hooks.ts	errorOf	member	apps/desktop/src/renderer/ResourcesPanel.tsx:197	m-call	imp	power.errorOf(site.id)
+P1	apps/desktop/src/renderer/use-site-power.hooks.ts	errorOf	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:94	impl	imp	errorOf: (id) => state.errors[id] ?? null
+P1	apps/desktop/src/renderer/use-site-power.hooks.ts	errorOf	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:111	impl	imp	errorOf: (id) => state.locateErrors[id] ?? null
+P1	apps/desktop/src/renderer/use-site-power.hooks.ts	errorOf	member	apps/desktop/src/renderer/SiteGrid.tsx:231	m-call	imp	power.errorOf(project.id)
+P1	apps/desktop/src/renderer/use-site-power.hooks.ts	errorOf	member	apps/desktop/src/renderer/SiteGrid.tsx:373	m-call	imp	locate.errorOf(project.id)
+P1	apps/desktop/src/renderer/use-site-power.hooks.ts	errorOf	member	apps/desktop/src/renderer/use-site-locate.hooks.test.ts:81	m-call	-	latest.errorOf('/sites/missing')
+P1	apps/desktop/src/renderer/use-site-power.hooks.ts	errorOf	member	apps/desktop/src/renderer/use-site-locate.hooks.test.ts:88	m-call	-	latest.errorOf('/sites/missing')
+P1	apps/desktop/src/renderer/use-site-power.hooks.ts	errorOf	member	apps/desktop/src/renderer/use-site-locate.hooks.ts:20	type	-	errorOf: (id: string) => string | null;
+P1	apps/desktop/src/renderer/use-site-power.hooks.ts	errorOf	member	apps/desktop/src/renderer/use-site-locate.hooks.ts:73	impl	-	errorOf
+P1	apps/desktop/src/renderer/use-site-power.hooks.ts	errorOf	member	apps/desktop/src/renderer/use-site-power.hooks.render.test.ts:48	m-call	imp	hook.current().errorOf(SITE.id)
+P1	apps/desktop/src/renderer/use-site-power.hooks.ts	errorOf	member	apps/desktop/src/renderer/use-site-power.hooks.render.test.ts:76	m-call	imp	hook.current().errorOf(running.id)
+P1	apps/desktop/src/renderer/use-site-power.hooks.ts	errorOf	member	apps/desktop/src/renderer/use-site-power.hooks.render.test.ts:80	m-call	imp	hook.current().errorOf(running.id)
+P1	apps/desktop/src/renderer/use-site-power.hooks.ts	errorOf	member	apps/desktop/src/renderer/use-site-power.hooks.render.test.ts:146	m-call	imp	hook.current().errorOf(running.id)
+P1	apps/desktop/src/renderer/use-site-power.hooks.ts	errorOf	member	apps/desktop/src/renderer/use-site-power.hooks.render.test.ts:158	m-call	imp	hook.current().errorOf(SITE.id)
+P1	apps/desktop/src/renderer/use-site-power.hooks.ts	errorOf	member	apps/desktop/src/renderer/use-site-power.hooks.restart-guard.render.test.ts:38	m-call	imp	hook.current().errorOf(RUNNING.id)
+P1	apps/desktop/src/renderer/use-site-power.hooks.ts	errorOf	member	apps/desktop/src/renderer/use-site-power.hooks.ts:146	type	imp	errorOf: (id: string) => string | null;
+P1	apps/desktop/src/renderer/use-site-power.hooks.ts	errorOf	member	apps/desktop/src/renderer/use-site-power.hooks.ts:339	impl	imp	errorOf
+P2	apps/desktop/src/renderer/use-site-locate.hooks.ts	errorOf	member	apps/desktop/src/renderer/ResourcesPanel.tsx:197	m-call	-	power.errorOf(site.id)
+P2	apps/desktop/src/renderer/use-site-locate.hooks.ts	errorOf	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:94	impl	imp	errorOf: (id) => state.errors[id] ?? null
+P2	apps/desktop/src/renderer/use-site-locate.hooks.ts	errorOf	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:111	impl	imp	errorOf: (id) => state.locateErrors[id] ?? null
+P2	apps/desktop/src/renderer/use-site-locate.hooks.ts	errorOf	member	apps/desktop/src/renderer/SiteGrid.tsx:231	m-call	imp	power.errorOf(project.id)
+P2	apps/desktop/src/renderer/use-site-locate.hooks.ts	errorOf	member	apps/desktop/src/renderer/SiteGrid.tsx:373	m-call	imp	locate.errorOf(project.id)
+P2	apps/desktop/src/renderer/use-site-locate.hooks.ts	errorOf	member	apps/desktop/src/renderer/use-site-locate.hooks.test.ts:81	m-call	imp	latest.errorOf('/sites/missing')
+P2	apps/desktop/src/renderer/use-site-locate.hooks.ts	errorOf	member	apps/desktop/src/renderer/use-site-locate.hooks.test.ts:88	m-call	imp	latest.errorOf('/sites/missing')
+P2	apps/desktop/src/renderer/use-site-locate.hooks.ts	errorOf	member	apps/desktop/src/renderer/use-site-locate.hooks.ts:20	type	imp	errorOf: (id: string) => string | null;
+P2	apps/desktop/src/renderer/use-site-locate.hooks.ts	errorOf	member	apps/desktop/src/renderer/use-site-locate.hooks.ts:73	impl	imp	errorOf
+P2	apps/desktop/src/renderer/use-site-locate.hooks.ts	errorOf	member	apps/desktop/src/renderer/use-site-power.hooks.render.test.ts:48	m-call	-	hook.current().errorOf(SITE.id)
+P2	apps/desktop/src/renderer/use-site-locate.hooks.ts	errorOf	member	apps/desktop/src/renderer/use-site-power.hooks.render.test.ts:76	m-call	-	hook.current().errorOf(running.id)
+P2	apps/desktop/src/renderer/use-site-locate.hooks.ts	errorOf	member	apps/desktop/src/renderer/use-site-power.hooks.render.test.ts:80	m-call	-	hook.current().errorOf(running.id)
+P2	apps/desktop/src/renderer/use-site-locate.hooks.ts	errorOf	member	apps/desktop/src/renderer/use-site-power.hooks.render.test.ts:146	m-call	-	hook.current().errorOf(running.id)
+P2	apps/desktop/src/renderer/use-site-locate.hooks.ts	errorOf	member	apps/desktop/src/renderer/use-site-power.hooks.render.test.ts:158	m-call	-	hook.current().errorOf(SITE.id)
+P2	apps/desktop/src/renderer/use-site-locate.hooks.ts	errorOf	member	apps/desktop/src/renderer/use-site-power.hooks.restart-guard.render.test.ts:38	m-call	-	hook.current().errorOf(RUNNING.id)
+P2	apps/desktop/src/renderer/use-site-locate.hooks.ts	errorOf	member	apps/desktop/src/renderer/use-site-power.hooks.ts:146	type	-	errorOf: (id: string) => string | null;
+P2	apps/desktop/src/renderer/use-site-locate.hooks.ts	errorOf	member	apps/desktop/src/renderer/use-site-power.hooks.ts:339	impl	-	errorOf
+P3	apps/desktop/src/renderer/use-site-locate.hooks.ts	locate	member	apps/desktop/src/contracts/project.ts:297	impl	-	locate: 'runner:sites:locate'
+P3	apps/desktop/src/renderer/use-site-locate.hooks.ts	locate	member	apps/desktop/src/preload/preload.mts:144	m-BYREF	-	ipcRenderer.invoke(SITE_IPC_CHANNELS.locate, id)
+P3	apps/desktop/src/renderer/use-site-locate.hooks.ts	locate	member	apps/desktop/src/preload/preload.test.ts:171	m-BYREF	-	[SITE.locate, "site-1"]
+P3	apps/desktop/src/renderer/use-site-locate.hooks.ts	locate	member	apps/desktop/src/project-ipc-dispatch.test.ts:298	m-BYREF	-	channel: SITE_IPC_CHANNELS.locate
+P3	apps/desktop/src/renderer/use-site-locate.hooks.ts	locate	member	apps/desktop/src/project-ipc.ts:72	impl	-	locate: "runner:sites:locate"
+P3	apps/desktop/src/renderer/use-site-locate.hooks.ts	locate	member	apps/desktop/src/project-ipc.ts:1860	m-BYREF	-	deps.ipcMain.handle(SITE_IPC_CHANNELS.locate, (_event, id) => handleLocate({ id, deps: { ...deps, siteRuntime:
+P3	apps/desktop/src/renderer/use-site-locate.hooks.ts	locate	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:112	impl	imp	locate: async (id) => { calls.push(`locate ${id}`); }
+P3	apps/desktop/src/renderer/use-site-locate.hooks.ts	locate	member	apps/desktop/src/renderer/SiteGrid.tsx:193	destructure	imp	{ project, list, showParent, overlay, deleting, deleteError, rename, onOpen, actions, power, locate, onRequest
+P3	apps/desktop/src/renderer/use-site-locate.hooks.ts	locate	member	apps/desktop/src/renderer/SiteGrid.tsx:209	type	imp	locate: SiteLocate;
+P3	apps/desktop/src/renderer/use-site-locate.hooks.ts	locate	member	apps/desktop/src/renderer/SiteGrid.tsx:309	destructure	imp	{ project, detail, powerError, locate }: { project: SiteRecord; detail: string | null | undefined; powerError:
+P3	apps/desktop/src/renderer/use-site-locate.hooks.ts	locate	member	apps/desktop/src/renderer/SiteGrid.tsx:309	type	imp	locate: SiteLocate
+P3	apps/desktop/src/renderer/use-site-locate.hooks.ts	locate	member	apps/desktop/src/renderer/SiteGrid.tsx:372	destructure	imp	{ project, locate }: { project: SiteRecord; locate: SiteLocate }
+P3	apps/desktop/src/renderer/use-site-locate.hooks.ts	locate	member	apps/desktop/src/renderer/SiteGrid.tsx:372	type	imp	locate: SiteLocate
+P3	apps/desktop/src/renderer/use-site-locate.hooks.ts	locate	member	apps/desktop/src/renderer/SiteGrid.tsx:477	destructure	imp	{ project, status, power, locate, onRequestDelete, }: { project: SiteRecord; status: SiteRecord['status']; pow
+P3	apps/desktop/src/renderer/use-site-locate.hooks.ts	locate	member	apps/desktop/src/renderer/SiteGrid.tsx:483	type	imp	locate: SiteLocate;
+P3	apps/desktop/src/renderer/use-site-locate.hooks.ts	locate	member	apps/desktop/src/renderer/SiteGrid.tsx:508	m-call	imp	locate.locate(project.id)
+P3	apps/desktop/src/renderer/use-site-locate.hooks.ts	locate	member	apps/desktop/src/renderer/use-site-locate.hooks.test.ts:78	m-call	imp	latest.locate('/sites/missing')
+P3	apps/desktop/src/renderer/use-site-locate.hooks.ts	locate	member	apps/desktop/src/renderer/use-site-locate.hooks.test.ts:84	m-call	imp	latest.locate('/sites/missing')
+P3	apps/desktop/src/renderer/use-site-locate.hooks.ts	locate	member	apps/desktop/src/renderer/use-site-locate.hooks.ts:21	type	imp	locate: (id: string) => Promise<void>;
+P3	apps/desktop/src/renderer/use-site-locate.hooks.ts	locate	member	apps/desktop/src/renderer/use-site-locate.hooks.ts:73	impl	imp	locate
+P4	apps/desktop/src/renderer/use-add-site.hooks.ts	addDroppedFolder	member	apps/desktop/src/renderer/App.tsx:145	destructure	imp	{ adding, addError, addDetails, addNotice, addSite, addDroppedFolder, clearAddError } = useAddSite({ setProjec
+P4	apps/desktop/src/renderer/use-add-site.hooks.ts	addDroppedFolder	member	apps/desktop/src/renderer/use-add-site.hooks.ts:59	type	imp	addDroppedFolder: (folder: string) => Promise<void>;
+P4	apps/desktop/src/renderer/use-add-site.hooks.ts	addDroppedFolder	member	apps/desktop/src/renderer/use-add-site.hooks.ts:93	impl	imp	addDroppedFolder: add
+P5	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	inputRef	member	apps/desktop/src/renderer/CreateWebsiteOnboarding.render.test.ts:49	impl	imp	inputRef: (pluginId) => { // One callback per service, stable across renders like the real hook's, recording t
+P5	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	inputRef	member	apps/desktop/src/renderer/CreateWebsiteOnboarding.tsx:184	m-call	imp	pluginTokens.inputRef(plugin.pluginId)
+P5	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	inputRef	member	apps/desktop/src/renderer/app/FindBar.render.test.ts:18	impl	-	inputRef: () => {}
+P5	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	inputRef	member	apps/desktop/src/renderer/app/FindBar.tsx:19	m-BYREF	-	{find.inputRef}
+P5	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	inputRef	member	apps/desktop/src/renderer/site-create-hooks.jsdom.test.ts:189	m-call	imp	hook.current().inputRef('supabase')
+P5	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	inputRef	member	apps/desktop/src/renderer/site-create-hooks.jsdom.test.ts:190	m-call	imp	hook.current().inputRef('other')
+P5	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	inputRef	member	apps/desktop/src/renderer/site-create-hooks.jsdom.test.ts:199	m-call	imp	hook.current().inputRef('supabase')
+P5	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	inputRef	member	apps/desktop/src/renderer/site-create-hooks.jsdom.test.ts:200	m-call	imp	hook.current().inputRef('other')
+P5	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	inputRef	member	apps/desktop/src/renderer/site-create-hooks.jsdom.test.ts:213	m-call	imp	hook.current().inputRef('supabase')
+P5	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	inputRef	member	apps/desktop/src/renderer/site-create-hooks.jsdom.test.ts:261	m-call	imp	hook.current().inputRef('supabase')
+P5	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	inputRef	member	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts:22	type	imp	inputRef: (pluginId: string) => (element: HTMLInputElement | null) => void;
+P5	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	inputRef	member	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts:117	impl	imp	inputRef
+P5	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	inputRef	member	apps/desktop/src/renderer/use-find-in-page.hooks.ts:383	type	-	inputRef: (node: HTMLInputElement | null) => void;
+P5	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	inputRef	member	apps/desktop/src/renderer/use-find-in-page.hooks.ts:674	impl	-	inputRef
+P5	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	inputRef	member	apps/desktop/src/renderer/use-find-in-page.jsdom.test.ts:111	m-BYREF	-	ref: latest.inputRef
+P6	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	withTokens	member	apps/desktop/src/renderer/CreateWebsiteOnboarding.render.test.ts:55	impl	imp	withTokens: (inner) => { assert.equal(inner, onCreate, 'withTokens must wrap the caller onCreate'); return wra
+P6	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	withTokens	member	apps/desktop/src/renderer/CreateWebsiteOnboarding.tsx:258	m-call	imp	pluginTokens.withTokens(onCreate)
+P6	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	withTokens	member	apps/desktop/src/renderer/site-create-hooks.jsdom.test.ts:192	m-call	imp	hook.current().withTokens(async (value) => { assert.equal(field.value, '', 'the token leaves the DOM before th
+P6	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	withTokens	member	apps/desktop/src/renderer/site-create-hooks.jsdom.test.ts:201	m-call	imp	hook.current().withTokens(async (value) => { received.push(value); })
+P6	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	withTokens	member	apps/desktop/src/renderer/site-create-hooks.jsdom.test.ts:215	m-call	imp	hook.current().withTokens(async (value) => { received = value; })
+P6	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	withTokens	member	apps/desktop/src/renderer/site-create-hooks.jsdom.test.ts:265	m-call	imp	hook.current().withTokens(async (value) => { received = value; })
+P6	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	withTokens	member	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts:24	type	imp	withTokens: (onCreate: (input: CreateSiteInput) => Promise<void>) => (input: CreateSiteInput) => Promise<void>
+P6	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	withTokens	member	apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts:117	impl	imp	withTokens
+P7	apps/desktop/src/renderer/use-runner-conversations.hooks.ts	resolvePending	member	apps/desktop/src/renderer/WorkspaceChatPane.render.test.ts:67	impl	-	resolvePending: (confirmed: boolean) => calls.push(`resolve:${confirmed}`)
+P7	apps/desktop/src/renderer/use-runner-conversations.hooks.ts	resolvePending	member	apps/desktop/src/renderer/WorkspaceChatPane.tsx:89	m-call	-	deleteConfirmation.resolvePending(false)
+P7	apps/desktop/src/renderer/use-runner-conversations.hooks.ts	resolvePending	member	apps/desktop/src/renderer/WorkspaceChatPane.tsx:95	m-call	-	deleteConfirmation.resolvePending(true)
+P7	apps/desktop/src/renderer/use-runner-conversations.hooks.ts	resolvePending	member	apps/desktop/src/renderer/use-runner-conversations.hooks.render.test.ts:334	m-call	imp	hook.current().resolvePending(true)
+P7	apps/desktop/src/renderer/use-runner-conversations.hooks.ts	resolvePending	member	apps/desktop/src/renderer/use-runner-conversations.hooks.render.test.ts:343	m-call	imp	hook.current().resolvePending(true)
+P7	apps/desktop/src/renderer/use-runner-conversations.hooks.ts	resolvePending	member	apps/desktop/src/renderer/use-runner-conversations.hooks.render.test.ts:352	m-call	imp	hook.current().resolvePending(false)
+P7	apps/desktop/src/renderer/use-runner-conversations.hooks.ts	resolvePending	member	apps/desktop/src/renderer/use-runner-conversations.hooks.render.test.ts:353	m-call	imp	hook.current().resolvePending(true)
+P7	apps/desktop/src/renderer/use-runner-conversations.hooks.ts	resolvePending	member	apps/desktop/src/renderer/use-runner-conversations.hooks.ts:95	type	imp	resolvePending: (confirmed: boolean) => void;
+P7	apps/desktop/src/renderer/use-runner-conversations.hooks.ts	resolvePending	member	apps/desktop/src/renderer/use-runner-conversations.hooks.ts:125	impl	imp	resolvePending
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/contracts/chat-attachments.ts:18	impl	-	save: 'runner:chat-attachments:save'
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/main/updates/product-telemetry-boot.ts:198	impl	-	save: ({ patch }) => { const saved = writeSharing({ preferencePath, patch }); state.product.consentChanged(sav
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/main/updates/settings-menu.ts:65	impl	-	save: ({ patch }) => writeSharing({ preferencePath, patch })
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/preload/preload.mts:200	m-BYREF	-	ipcRenderer.invoke(RUNNER_CHAT_ATTACHMENT_CHANNELS.save, input)
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/preload/preload.test.ts:187	m-BYREF	-	[ATTACHMENT.save, input]
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/product-telemetry-preference.test.ts:16	impl	-	save: (patch: { crashes?: boolean; usage?: boolean }) => writeProductTelemetryPreference({ preferencePath, pat
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/product-telemetry-preference.test.ts:27	m-call	-	f.save({ crashes: true })
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/product-telemetry-preference.test.ts:31	m-call	-	f.save({ usage: true })
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/product-telemetry-preference.test.ts:32	m-call	-	f.save({ crashes: false })
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/product-telemetry-preference.test.ts:33	m-call	-	f.save({ usage: false })
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/product-telemetry-preference.test.ts:34	m-call	-	f.save({ usage: true })
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/product-telemetry-preference.test.ts:39	m-call	-	f.save({ crashes: true, usage: true })
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/product-telemetry-preference.test.ts:42	m-call	-	f.save({ crashes: false })
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/product-telemetry-preference.test.ts:44	impl	-	save: ({ patch }) => f.save(patch)
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/product-telemetry-preference.test.ts:44	m-call	-	f.save(patch)
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/product-telemetry-preference.test.ts:60	impl	-	save: ({ patch }) => f.save(patch)
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/product-telemetry-preference.test.ts:60	m-call	-	f.save(patch)
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/product-telemetry-preference.test.ts:72	impl	-	save: ({ patch }) => f.save(patch)
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/product-telemetry-preference.test.ts:72	m-call	-	f.save(patch)
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/product-telemetry-preference.test.ts:92	impl	-	save: ({ patch }) => { saved.push(patch); }
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/product-telemetry-preference.ts:63	destructure	-	{ active, preference, show, save }: { active: boolean; preference: ProductTelemetryPreference; show: (required
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/product-telemetry-preference.ts:66	type	-	save: (required: { patch: Pick<ProductConsent, 'crashes' | 'usage'> }) => void;
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/product-telemetry-preference.ts:80	destructure	-	{ preference, save, changed, onError }: { preference: ProductTelemetryPreference; save: (required: { patch: Pa
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/product-telemetry-preference.ts:82	type	-	save: (required: { patch: Partial<Pick<ProductConsent, 'crashes' | 'usage'>> }) => ProductTelemetryPreference;
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/renderer/SitesFolders.dialog.render.test.ts:38	impl	-	save: async () => {}
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/renderer/SitesFolders.jsdom.test.ts:156	impl	-	save: async () => {}
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/renderer/app/LoadedSitesStepper.hooks.ts:20	destructure	-	{ value, save } = setting
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/renderer/app/LoadedSitesStepper.hooks.ts:36	impl	-	save
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/renderer/app/LoadedSitesStepper.tsx:18	destructure	-	{ draft, setDraft, value, save, onChange, onKeyDown } = useLoadedSitesStepper({ setting })
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/renderer/app/SettingsControl.render.test.ts:28	m-call	imp	setting.save({ next: 1 })
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/renderer/app/SettingsControl.tsx:135	impl	imp	save
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/renderer/app/SettingsControl.tsx:150	m-call	imp	setting.save(minutes)
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/renderer/imported-hooks.hooks.test.ts:190	m-call	-	hook.current().save()
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/renderer/runner-conversation-controller.test.ts:54	impl	-	save: save.calls
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/renderer/runner-conversation-controller.test.ts:96	m-BYREF	-	store.save.map
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/renderer/runner-conversation-controller.test.ts:494	m-BYREF	-	ctx.store.save.length
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/renderer/runner-conversation-controller.test.ts:512	m-BYREF	-	nth(ctx.store.save, 0)
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/renderer/runner-conversation-controller.test.ts:513	m-BYREF	-	nth(ctx.store.save, 1)
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/renderer/use-loaded-sites.hooks.ts:19	type	-	save: (input: { next: number }) => void;
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/renderer/use-loaded-sites.hooks.ts:61	impl	-	save
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/renderer/use-site-storage-settings.hooks.ts:20	impl	-	save
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/renderer/use-sites-folders-dialog.hooks.test.ts:16	impl	-	save: async () => {}
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/renderer/use-sites-folders-dialog.hooks.test.ts:79	impl	-	save: async () => { calls.push('save'); }
+P8	apps/desktop/src/renderer/app/SettingsControl.tsx	save	member	apps/desktop/src/renderer/use-sites-folders-dialog.hooks.ts:65	m-call	-	settings.save()
+P9	apps/desktop/src/main/boot/own-server-boot.ts	pickDir	member	apps/desktop/src/main/boot/own-server-boot.test.ts:21	impl	imp	pickDir
+P9	apps/desktop/src/main/boot/own-server-boot.ts	pickDir	member	apps/desktop/src/main/boot/own-server-boot.test.ts:26	impl	imp	pickDir
+P9	apps/desktop/src/main/boot/own-server-boot.ts	pickDir	member	apps/desktop/src/main/boot/own-server-boot.test.ts:54	impl	imp	pickDir: d.pickDir
+P9	apps/desktop/src/main/boot/own-server-boot.ts	pickDir	member	apps/desktop/src/main/boot/own-server-boot.test.ts:54	m-BYREF	imp	pickDir: d.pickDir
+P9	apps/desktop/src/main/boot/own-server-boot.ts	pickDir	member	apps/desktop/src/main/boot/own-server-boot.ts:41	type	imp	pickDir: (rejectedDefault: RejectedDefault | null) => Promise<string | null>;
+P9	apps/desktop/src/main/boot/own-server-boot.ts	pickDir	member	apps/desktop/src/main/boot/own-server-boot.ts:44	type	imp	pickDir: (rejectedDefault: RejectedDefault | null) => Promise<string | null>;
+P9	apps/desktop/src/main/boot/own-server-boot.ts	pickDir	member	apps/desktop/src/main/boot/own-server-boot.ts:74	impl	imp	pickDir: ports.pickDir
+P9	apps/desktop/src/main/boot/own-server-boot.ts	pickDir	member	apps/desktop/src/main/boot/own-server-boot.ts:74	m-BYREF	imp	pickDir: ports.pickDir
+P9	apps/desktop/src/main/boot/own-server-boot.ts	pickDir	member	apps/desktop/src/main/index.ts:739	impl	imp	pickDir: (rejectedDefault) => promptForSiteDir({ rejectedDefault })
+P9	apps/desktop/src/main/boot/own-server-boot.ts	pickDir	member	apps/desktop/src/site-create-admin-password.test.ts:42	impl	-	pickDir: () => dir
+P9	apps/desktop/src/main/boot/own-server-boot.ts	pickDir	member	apps/desktop/src/site-dir-store.test.ts:149	impl	-	pickDir: () => { asked = true; return null; }
+P9	apps/desktop/src/main/boot/own-server-boot.ts	pickDir	member	apps/desktop/src/site-dir-store.test.ts:166	impl	-	pickDir: () => assert.fail("an env override must never fall through to the picker")
+P9	apps/desktop/src/main/boot/own-server-boot.ts	pickDir	member	apps/desktop/src/site-dir-store.test.ts:186	impl	-	pickDir: () => assert.fail("an env override must never fall through to the picker")
+P9	apps/desktop/src/main/boot/own-server-boot.ts	pickDir	member	apps/desktop/src/site-dir-store.test.ts:220	impl	-	pickDir: () => assert.fail("should not have prompted")
+P9	apps/desktop/src/main/boot/own-server-boot.ts	pickDir	member	apps/desktop/src/site-dir-store.test.ts:231	impl	-	pickDir: () => assert.fail("should not have prompted")
+P9	apps/desktop/src/main/boot/own-server-boot.ts	pickDir	member	apps/desktop/src/site-dir-store.test.ts:242	impl	-	pickDir: () => picked
+P9	apps/desktop/src/main/boot/own-server-boot.ts	pickDir	member	apps/desktop/src/site-dir-store.test.ts:255	impl	-	pickDir: (rejectedDefault) => { received = rejectedDefault; return null; }
+P9	apps/desktop/src/main/boot/own-server-boot.ts	pickDir	member	apps/desktop/src/site-dir-store.test.ts:274	impl	-	pickDir: (rejectedDefault) => { received = rejectedDefault; return null; }
+P9	apps/desktop/src/main/boot/own-server-boot.ts	pickDir	member	apps/desktop/src/site-dir-store.test.ts:294	impl	-	pickDir: (rejectedDefault) => { received = rejectedDefault; return null; }
+P9	apps/desktop/src/main/boot/own-server-boot.ts	pickDir	member	apps/desktop/src/site-dir-store.test.ts:310	impl	-	pickDir: (rejectedDefault) => { received = rejectedDefault; return null; }
+P9	apps/desktop/src/main/boot/own-server-boot.ts	pickDir	member	apps/desktop/src/site-dir-store.test.ts:323	impl	-	pickDir: () => picked
+P9	apps/desktop/src/main/boot/own-server-boot.ts	pickDir	member	apps/desktop/src/site-dir-store.test.ts:329	impl	-	pickDir: () => null
+P9	apps/desktop/src/main/boot/own-server-boot.ts	pickDir	member	apps/desktop/src/site-dir-store.ts:545	type	-	pickDir?: PickDirFn;
+P9	apps/desktop/src/main/boot/own-server-boot.ts	pickDir	member	apps/desktop/src/site-dir-store.ts:604	m-BYREF	-	!input.pickDir
+P9	apps/desktop/src/main/boot/own-server-boot.ts	pickDir	member	apps/desktop/src/site-dir-store.ts:605	m-call	-	input.pickDir(fallback.rejected)
+P10	apps/desktop/src/site-dir-store.ts	PickDirFn	type	apps/desktop/src/site-dir-store.ts:545	typeref	imp	pickDir?: PickDirFn;
+P11	apps/desktop/src/import-handoff-ipc.ts	isTrustedSender	member	apps/desktop/src/import-handoff-ipc.test.ts:37	impl	imp	isTrustedSender: trusted
+P11	apps/desktop/src/import-handoff-ipc.ts	isTrustedSender	member	apps/desktop/src/import-handoff-ipc.test.ts:78	impl	imp	isTrustedSender: () => true
+P11	apps/desktop/src/import-handoff-ipc.ts	isTrustedSender	member	apps/desktop/src/import-handoff-ipc.ts:28	destructure	imp	{ ipcMain, isTrustedSender, sitesHomeWindows }: { ipcMain: { handle(channel: string, handler: (event: Pick<Ipc
+P11	apps/desktop/src/import-handoff-ipc.ts	isTrustedSender	member	apps/desktop/src/import-handoff-ipc.ts:30	type	imp	isTrustedSender: (senderUrl: string) => boolean;
+P11	apps/desktop/src/import-handoff-ipc.ts	isTrustedSender	member	apps/desktop/src/main/index.ts:838	impl	imp	isTrustedSender: (raw) => isShellPage({ raw })
+P11	apps/desktop/src/import-handoff-ipc.ts	isTrustedSender	member	apps/desktop/src/main/index.ts:847	impl	imp	isTrustedSender: (raw) => isShellPage({ raw })
+P11	apps/desktop/src/import-handoff-ipc.ts	isTrustedSender	member	apps/desktop/src/speech/native-speech-adapter.test.ts:74	impl	-	isTrustedSender: () => true
+P11	apps/desktop/src/import-handoff-ipc.ts	isTrustedSender	member	apps/desktop/src/speech/speech-ipc.test.ts:29	impl	-	isTrustedSender
+P11	apps/desktop/src/import-handoff-ipc.ts	isTrustedSender	member	apps/desktop/src/speech/speech-ipc.test.ts:37	impl	-	isTrustedSender
+P11	apps/desktop/src/import-handoff-ipc.ts	isTrustedSender	member	apps/desktop/src/speech/speech-ipc.test.ts:53	impl	-	isTrustedSender
+P11	apps/desktop/src/import-handoff-ipc.ts	isTrustedSender	member	apps/desktop/src/speech/speech-ipc.test.ts:72	impl	-	isTrustedSender
+P11	apps/desktop/src/import-handoff-ipc.ts	isTrustedSender	member	apps/desktop/src/speech/speech-ipc.test.ts:91	impl	-	isTrustedSender
+P11	apps/desktop/src/import-handoff-ipc.ts	isTrustedSender	member	apps/desktop/src/speech/speech-ipc.test.ts:133	impl	-	isTrustedSender: (url: string) => (seen.push(url), true)
+P11	apps/desktop/src/import-handoff-ipc.ts	isTrustedSender	member	apps/desktop/src/speech/speech-ipc.test.ts:210	impl	-	isTrustedSender
+P11	apps/desktop/src/import-handoff-ipc.ts	isTrustedSender	member	apps/desktop/src/speech/speech-ipc.test.ts:217	impl	-	isTrustedSender
+P11	apps/desktop/src/import-handoff-ipc.ts	isTrustedSender	member	apps/desktop/src/speech/speech-ipc.ts:44	type	-	isTrustedSender: (senderUrl: string) => boolean;
+P11	apps/desktop/src/import-handoff-ipc.ts	isTrustedSender	member	apps/desktop/src/speech/speech-ipc.ts:47	destructure	-	{ ipcMain, isTrustedSender }: RegisterSpeechIpcArgs
+P11	apps/desktop/src/import-handoff-ipc.ts	isTrustedSender	member	apps/desktop/src/speech/speech-ipc.ts:58	impl	-	isTrustedSender: ({ senderUrl }) => isTrustedSender(senderUrl)
+P12	apps/desktop/src/speech/speech-ipc.ts	isTrustedSender	member	apps/desktop/src/import-handoff-ipc.test.ts:37	impl	-	isTrustedSender: trusted
+P12	apps/desktop/src/speech/speech-ipc.ts	isTrustedSender	member	apps/desktop/src/import-handoff-ipc.test.ts:78	impl	-	isTrustedSender: () => true
+P12	apps/desktop/src/speech/speech-ipc.ts	isTrustedSender	member	apps/desktop/src/import-handoff-ipc.ts:28	destructure	-	{ ipcMain, isTrustedSender, sitesHomeWindows }: { ipcMain: { handle(channel: string, handler: (event: Pick<Ipc
+P12	apps/desktop/src/speech/speech-ipc.ts	isTrustedSender	member	apps/desktop/src/import-handoff-ipc.ts:30	type	-	isTrustedSender: (senderUrl: string) => boolean;
+P12	apps/desktop/src/speech/speech-ipc.ts	isTrustedSender	member	apps/desktop/src/main/index.ts:838	impl	imp	isTrustedSender: (raw) => isShellPage({ raw })
+P12	apps/desktop/src/speech/speech-ipc.ts	isTrustedSender	member	apps/desktop/src/main/index.ts:847	impl	imp	isTrustedSender: (raw) => isShellPage({ raw })
+P12	apps/desktop/src/speech/speech-ipc.ts	isTrustedSender	member	apps/desktop/src/speech/native-speech-adapter.test.ts:74	impl	imp	isTrustedSender: () => true
+P12	apps/desktop/src/speech/speech-ipc.ts	isTrustedSender	member	apps/desktop/src/speech/speech-ipc.test.ts:29	impl	imp	isTrustedSender
+P12	apps/desktop/src/speech/speech-ipc.ts	isTrustedSender	member	apps/desktop/src/speech/speech-ipc.test.ts:37	impl	imp	isTrustedSender
+P12	apps/desktop/src/speech/speech-ipc.ts	isTrustedSender	member	apps/desktop/src/speech/speech-ipc.test.ts:53	impl	imp	isTrustedSender
+P12	apps/desktop/src/speech/speech-ipc.ts	isTrustedSender	member	apps/desktop/src/speech/speech-ipc.test.ts:72	impl	imp	isTrustedSender
+P12	apps/desktop/src/speech/speech-ipc.ts	isTrustedSender	member	apps/desktop/src/speech/speech-ipc.test.ts:91	impl	imp	isTrustedSender
+P12	apps/desktop/src/speech/speech-ipc.ts	isTrustedSender	member	apps/desktop/src/speech/speech-ipc.test.ts:133	impl	imp	isTrustedSender: (url: string) => (seen.push(url), true)
+P12	apps/desktop/src/speech/speech-ipc.ts	isTrustedSender	member	apps/desktop/src/speech/speech-ipc.test.ts:210	impl	imp	isTrustedSender
+P12	apps/desktop/src/speech/speech-ipc.ts	isTrustedSender	member	apps/desktop/src/speech/speech-ipc.test.ts:217	impl	imp	isTrustedSender
+P12	apps/desktop/src/speech/speech-ipc.ts	isTrustedSender	member	apps/desktop/src/speech/speech-ipc.ts:44	type	imp	isTrustedSender: (senderUrl: string) => boolean;
+P12	apps/desktop/src/speech/speech-ipc.ts	isTrustedSender	member	apps/desktop/src/speech/speech-ipc.ts:47	destructure	imp	{ ipcMain, isTrustedSender }: RegisterSpeechIpcArgs
+P12	apps/desktop/src/speech/speech-ipc.ts	isTrustedSender	member	apps/desktop/src/speech/speech-ipc.ts:58	impl	imp	isTrustedSender: ({ senderUrl }) => isTrustedSender(senderUrl)
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/add-site-button-wiring.test.ts:92	impl	-	openExternal: async () => {}
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/contracts/project.ts:278	impl	-	openExternal: 'runner:sites:open-external'
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/main/index.ts:528	impl	imp	openExternal: ({ url: target }) => void shell.openExternal(target)
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/main/index.ts:528	m-call	imp	shell.openExternal(target)
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/main/index.ts:541	impl	imp	openExternal: ({ url }) => void shell.openExternal(url)
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/main/index.ts:541	m-call	imp	shell.openExternal(url)
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/main/index.ts:671	impl	imp	openExternal: ({ url }) => { const target = new URL(url); if (!isSupervisedGuestUrl({ raw: url }) || !isSameOr
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/main/index.ts:674	m-call	imp	shell.openExternal(url)
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/main/index.ts:679	impl	imp	openExternal: ({ url: next }) => void shell.openExternal(next)
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/main/index.ts:679	m-call	imp	shell.openExternal(next)
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/main/windows/app-window.test.ts:85	impl	imp	openExternal: () => {}
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/main/windows/app-window.test.ts:98	impl	imp	openExternal: () => {}
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/main/windows/app-window.test.ts:106	impl	imp	openExternal: () => {}
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/main/windows/app-window.test.ts:113	impl	imp	openExternal: ({ url }) => opened.push(url)
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/main/windows/app-window.test.ts:125	impl	imp	openExternal: () => {}
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/main/windows/app-window.ts:81	destructure	imp	{ url, createBrowserWindow, preloadPath, openExternal }: { url: string; createBrowserWindow: (options: AppWind
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/main/windows/app-window.ts:82	type	imp	openExternal: (required: { url: string }) => void;
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/main/windows/app-window.ts:106	impl	imp	openExternal: (url) => openExternal({ url })
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/main/windows/guest-navigation.test.ts:36	impl	imp	openExternal: ({ url }) => opened.push(url)
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/main/windows/guest-navigation.ts:39	destructure	imp	{ contents, isSupervisedGuestUrl, openExternal }: { contents: GuestContents; isSupervisedGuestUrl: (required: 
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/main/windows/guest-navigation.ts:40	type	imp	openExternal: (required: { url: string }) => void;
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/main/windows/guest-navigation.ts:50	impl	imp	openExternal
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/main/windows/sites-home-window.test.ts:77	impl	imp	openExternal: ({ url }) => { opened.push(url); }
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/main/windows/sites-home-window.ts:57	type	imp	openExternal: (required: { url: string }) => void;
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/main/windows/sites-home-window.ts:216	impl	imp	openExternal: (url) => ports.openExternal({ url })
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/main/windows/sites-home-window.ts:216	m-call	imp	ports.openExternal({ url })
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/preload/preload.mts:149	m-BYREF	-	ipcRenderer.invoke(SITE_IPC_CHANNELS.openExternal, input)
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/preload/preload.test.ts:175	m-BYREF	-	[SITE.openExternal, input]
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/project-ipc-dispatch.test.ts:48	impl	-	openExternal: async (url) => { opened.push(url); }
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/project-ipc-dispatch.test.ts:239	m-BYREF	-	channel: SITE_IPC_CHANNELS.openExternal
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/project-ipc-dispatch.test.ts:242	m-BYREF	-	channel: SITE_IPC_CHANNELS.openExternal
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/project-ipc.test.ts:686	impl	-	openExternal: async (url) => opened.push(url)
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/project-ipc.ts:57	impl	-	openExternal: "runner:sites:open-external"
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/project-ipc.ts:319	type	-	openExternal(url: string): Promise<unknown>;
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/project-ipc.ts:1284	m-call	-	deps.shell.openExternal(url)
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/project-ipc.ts:1806	m-BYREF	-	deps.ipcMain.handle(SITE_IPC_CHANNELS.openExternal, (_event, input) => handleOpenExternal(input, deps))
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/window-navigation-policy.test.ts:45	impl	imp	openExternal
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/window-navigation-policy.test.ts:208	impl	imp	openExternal: ({ url }) => opened.push(url)
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/window-navigation-policy.test.ts:255	impl	imp	openExternal: () => { throw new Error("boom"); }
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/window-navigation-policy.test.ts:315	impl	imp	openExternal
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/window-navigation-policy.test.ts:379	impl	imp	openExternal: (url: string) => opened.push(url)
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/window-navigation-policy.ts:20	type	imp	openExternal: (url: string) => void;
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/window-navigation-policy.ts:24	type	imp	openExternal: (required: { url: string }) => void;
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/window-navigation-policy.ts:47	impl	imp	openExternal: ({ url }) => options.openExternal(url)
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/window-navigation-policy.ts:47	m-call	imp	options.openExternal(url)
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/window-navigation-policy.ts:54	type	imp	openExternal: (url: string) => void
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/window-navigation-policy.ts:59	impl	imp	openExternal: ({ url }) => options.openExternal(url)
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/window-navigation-policy.ts:59	m-call	imp	options.openExternal(url)
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/window-navigation-policy.ts:68	impl	imp	openExternal: options.openExternal
+P13	apps/desktop/src/window-navigation-policy.ts	openExternal	member	apps/desktop/src/window-navigation-policy.ts:68	m-BYREF	imp	openExternal: options.openExternal
+P14	apps/desktop/src/window-navigation-policy.ts	isSupervisedSite	member	apps/desktop/src/main/index.ts:659	impl	imp	isSupervisedSite: (raw) => isSupervisedGuestUrl({ raw })
+P14	apps/desktop/src/window-navigation-policy.ts	isSupervisedSite	member	apps/desktop/src/window-navigation-policy.test.ts:263	impl	imp	isSupervisedSite: (url: string) => url.startsWith("http://127.0.0.1:4567/")
+P14	apps/desktop/src/window-navigation-policy.ts	isSupervisedSite	member	apps/desktop/src/window-navigation-policy.ts:27	type	imp	isSupervisedSite: (url: string) => boolean;
+P14	apps/desktop/src/window-navigation-policy.ts	isSupervisedSite	member	apps/desktop/src/window-navigation-policy.ts:77	impl	imp	isSupervisedSite: ({ url }) => pages.isSupervisedSite(url)
+P14	apps/desktop/src/window-navigation-policy.ts	isSupervisedSite	member	apps/desktop/src/window-navigation-policy.ts:77	m-call	imp	pages.isSupervisedSite(url)
+P15	apps/desktop/src/webview-guest-policy.ts	isAllowedSource	member	apps/desktop/src/main/windows/sites-home-window.ts:147	impl	imp	isAllowedSource: ports.isSupervisedGuestUrl
+P15	apps/desktop/src/webview-guest-policy.ts	isAllowedSource	member	apps/desktop/src/webview-guest-policy.test.ts:84	impl	imp	isAllowedSource: isSupervised
+P15	apps/desktop/src/webview-guest-policy.ts	isAllowedSource	member	apps/desktop/src/webview-guest-policy.test.ts:93	impl	imp	isAllowedSource: isSupervised
+P15	apps/desktop/src/webview-guest-policy.ts	isAllowedSource	member	apps/desktop/src/webview-guest-policy.test.ts:106	impl	imp	isAllowedSource
+P15	apps/desktop/src/webview-guest-policy.ts	isAllowedSource	member	apps/desktop/src/webview-guest-policy.test.ts:119	impl	imp	isAllowedSource
+P15	apps/desktop/src/webview-guest-policy.ts	isAllowedSource	member	apps/desktop/src/webview-guest-policy.ts:10	type	imp	isAllowedSource: (src: string) => boolean;
+P15	apps/desktop/src/webview-guest-policy.ts	isAllowedSource	member	apps/desktop/src/webview-guest-policy.ts:27	impl	imp	isAllowedSource: ({ src }) => options.isAllowedSource(src)
+P15	apps/desktop/src/webview-guest-policy.ts	isAllowedSource	member	apps/desktop/src/webview-guest-policy.ts:27	m-call	imp	options.isAllowedSource(src)
+P16	apps/desktop/src/main/windows/sites-home-window.ts	isSupervisedGuestUrl	member	apps/desktop/src/main/index.ts:539	impl	imp	isSupervisedGuestUrl: (raw) => isSupervisedGuestUrl({ raw })
+P16	apps/desktop/src/main/windows/sites-home-window.ts	isSupervisedGuestUrl	member	apps/desktop/src/main/index.ts:671	impl	imp	isSupervisedGuestUrl: ({ url }) => isSupervisedGuestUrl({ raw: url })
+P16	apps/desktop/src/main/windows/sites-home-window.ts	isSupervisedGuestUrl	member	apps/desktop/src/main/index.ts:679	impl	imp	isSupervisedGuestUrl: ({ url }) => isSupervisedGuestUrl({ raw: url })
+P16	apps/desktop/src/main/windows/sites-home-window.ts	isSupervisedGuestUrl	member	apps/desktop/src/main/windows/guest-navigation.test.ts:36	impl	-	isSupervisedGuestUrl
+P16	apps/desktop/src/main/windows/sites-home-window.ts	isSupervisedGuestUrl	member	apps/desktop/src/main/windows/guest-navigation.ts:39	destructure	-	{ contents, isSupervisedGuestUrl, openExternal }: { contents: GuestContents; isSupervisedGuestUrl: (required: 
+P16	apps/desktop/src/main/windows/sites-home-window.ts	isSupervisedGuestUrl	member	apps/desktop/src/main/windows/guest-navigation.ts:40	type	-	isSupervisedGuestUrl: (required: { url: string }) => boolean;
+P16	apps/desktop/src/main/windows/sites-home-window.ts	isSupervisedGuestUrl	member	apps/desktop/src/main/windows/guest-navigation.ts:50	impl	-	isSupervisedGuestUrl
+P16	apps/desktop/src/main/windows/sites-home-window.ts	isSupervisedGuestUrl	member	apps/desktop/src/main/windows/sites-home-window.test.ts:76	impl	imp	isSupervisedGuestUrl: (url) => url === SUPERVISED
+P16	apps/desktop/src/main/windows/sites-home-window.ts	isSupervisedGuestUrl	member	apps/desktop/src/main/windows/sites-home-window.ts:56	type	imp	isSupervisedGuestUrl: (url: string) => boolean;
+P16	apps/desktop/src/main/windows/sites-home-window.ts	isSupervisedGuestUrl	member	apps/desktop/src/main/windows/sites-home-window.ts:147	m-BYREF	imp	isAllowedSource: ports.isSupervisedGuestUrl
+P16	apps/desktop/src/main/windows/sites-home-window.ts	isSupervisedGuestUrl	member	apps/desktop/src/window-navigation-policy.test.ts:208	impl	-	isSupervisedGuestUrl: ({ url }) => isSupervisedGuestUrl(url)
+P16	apps/desktop/src/main/windows/sites-home-window.ts	isSupervisedGuestUrl	member	apps/desktop/src/window-navigation-policy.test.ts:254	impl	-	isSupervisedGuestUrl: () => false
+P16	apps/desktop/src/main/windows/sites-home-window.ts	isSupervisedGuestUrl	member	apps/desktop/src/window-navigation-policy.test.ts:381	impl	-	isSupervisedGuestUrl: ({ raw }: { raw: string }) => { try { return [APP_ORIGIN, "http://127.0.0.1:4568"].inclu
+P16	apps/desktop/src/main/windows/sites-home-window.ts	isSupervisedGuestUrl	member	apps/desktop/src/window-navigation-policy.ts:23	type	-	isSupervisedGuestUrl: (required: { url: string }) => boolean;
+P16	apps/desktop/src/main/windows/sites-home-window.ts	isSupervisedGuestUrl	member	apps/desktop/src/window-navigation-policy.ts:67	impl	-	isSupervisedGuestUrl: options.isSupervisedGuestUrl
+P16	apps/desktop/src/main/windows/sites-home-window.ts	isSupervisedGuestUrl	member	apps/desktop/src/window-navigation-policy.ts:67	m-BYREF	-	isSupervisedGuestUrl: options.isSupervisedGuestUrl
+P17	apps/desktop/src/move-to-applications.ts	readExistingVersion	member	apps/desktop/src/move-to-applications.test.ts:160	impl	imp	readExistingVersion: () => null
+P17	apps/desktop/src/move-to-applications.ts	readExistingVersion	member	apps/desktop/src/move-to-applications.test.ts:197	impl	imp	readExistingVersion: () => "0.1.7"
+P17	apps/desktop/src/move-to-applications.ts	readExistingVersion	member	apps/desktop/src/move-to-applications.test.ts:209	impl	imp	readExistingVersion: () => "0.1.9"
+P17	apps/desktop/src/move-to-applications.ts	readExistingVersion	member	apps/desktop/src/move-to-applications.test.ts:220	impl	imp	readExistingVersion: () => "0.1.9"
+P17	apps/desktop/src/move-to-applications.ts	readExistingVersion	member	apps/desktop/src/move-to-applications.test.ts:233	impl	imp	readExistingVersion: () => "0.1.7"
+P17	apps/desktop/src/move-to-applications.ts	readExistingVersion	member	apps/desktop/src/move-to-applications.ts:174	type	imp	readExistingVersion: (appPath: string) => string | null;
+P17	apps/desktop/src/move-to-applications.ts	readExistingVersion	member	apps/desktop/src/move-to-applications.ts:197	m-call	imp	deps.readExistingVersion(deps.targetPath)
+P18	apps/desktop/src/move-to-applications.ts	openExisting	member	apps/desktop/src/move-to-applications.test.ts:161	impl	imp	openExisting: (appPath) => { seen.calls.push(`open ${appPath}`); }
+P18	apps/desktop/src/move-to-applications.ts	openExisting	member	apps/desktop/src/move-to-applications.ts:175	type	imp	openExisting: (appPath: string) => void;
+P18	apps/desktop/src/move-to-applications.ts	openExisting	member	apps/desktop/src/move-to-applications.ts:216	m-call	imp	deps.openExisting(deps.targetPath)
+P19	apps/desktop/src/move-to-applications.ts	showError	member	apps/desktop/src/main/boot/boot-failure.test.ts:20	impl	-	showError: ({ title, content }) => { effects.push(`errorBox:${title}:${content}`); }
+P19	apps/desktop/src/move-to-applications.ts	showError	member	apps/desktop/src/main/boot/boot-failure.ts:19	type	-	showError: (required: { title: string; content: string }) => void;
+P19	apps/desktop/src/move-to-applications.ts	showError	member	apps/desktop/src/main/boot/boot-failure.ts:65	m-call	-	ports.showError({ title: "Tovu could not start", content: error.message })
+P19	apps/desktop/src/move-to-applications.ts	showError	member	apps/desktop/src/main/index.ts:721	impl	-	showError: ({ title, content }) => dialog.showErrorBox(title, content)
+P19	apps/desktop/src/move-to-applications.ts	showError	member	apps/desktop/src/move-to-applications.test.ts:170	impl	imp	showError: (message) => { seen.errors.push(message); }
+P19	apps/desktop/src/move-to-applications.ts	showError	member	apps/desktop/src/move-to-applications.ts:178	type	imp	showError: (message: string) => void;
+P19	apps/desktop/src/move-to-applications.ts	showError	member	apps/desktop/src/move-to-applications.ts:205	m-call	imp	deps.showError(`${MOVE_PROMPT.moveFailed} ${(error as Error).message}`)
+P19	apps/desktop/src/move-to-applications.ts	showError	member	apps/desktop/src/move-to-applications.ts:221	m-call	imp	deps.showError(MOVE_PROMPT.olderCopyRunning)
+P19	apps/desktop/src/move-to-applications.ts	showError	member	apps/desktop/src/move-to-applications.ts:224	m-call	imp	deps.showError(MOVE_PROMPT.moveFailed)
+P20	apps/desktop/src/move-to-applications.ts	showInfo	member	apps/desktop/src/main/boot/boot-failure.test.ts:19	impl	-	showInfo: async (options) => { effects.push("info"); infos.push(options); }
+P20	apps/desktop/src/move-to-applications.ts	showInfo	member	apps/desktop/src/main/boot/boot-failure.test.ts:47	impl	-	showInfo: () => new Promise<void>((resolve) => { release = resolve; })
+P20	apps/desktop/src/move-to-applications.ts	showInfo	member	apps/desktop/src/main/boot/boot-failure.ts:17	type	-	showInfo: (options: { type: "info"; title: string; message: string; detail: string }) => Promise<unknown>;
+P20	apps/desktop/src/move-to-applications.ts	showInfo	member	apps/desktop/src/main/boot/boot-failure.ts:31	m-call	-	ports.showInfo({ type: "info", title: "Tovu", message: "No site folder was chosen.", detail: "Tovu needs a fol
+P20	apps/desktop/src/move-to-applications.ts	showInfo	member	apps/desktop/src/main/index.ts:720	impl	-	showInfo: (options) => dialog.showMessageBox(options)
+P20	apps/desktop/src/move-to-applications.ts	showInfo	member	apps/desktop/src/move-to-applications.test.ts:173	impl	imp	showInfo: (message) => { seen.infos.push(message); }
+P20	apps/desktop/src/move-to-applications.ts	showInfo	member	apps/desktop/src/move-to-applications.ts:180	type	imp	showInfo: (message: string) => void;
+P20	apps/desktop/src/move-to-applications.ts	showInfo	member	apps/desktop/src/move-to-applications.ts:215	m-call	imp	deps.showInfo(MOVE_PROMPT.openingNewer)
+P21	apps/desktop/src/move-to-applications.ts	move	member	apps/desktop/src/move-to-applications.test.ts:156	impl	imp	move: () => { seen.calls.push("move"); return true; }
+P21	apps/desktop/src/move-to-applications.ts	move	member	apps/desktop/src/move-to-applications.test.ts:198	impl	imp	move: (onConflict) => { answers.push(onConflict("exists")); return true; }
+P21	apps/desktop/src/move-to-applications.ts	move	member	apps/desktop/src/move-to-applications.test.ts:210	impl	imp	move: (onConflict) => onConflict("exists")
+P21	apps/desktop/src/move-to-applications.ts	move	member	apps/desktop/src/move-to-applications.test.ts:221	impl	imp	move: (onConflict) => { answers.push(onConflict("existsAndRunning")); return true; }
+P21	apps/desktop/src/move-to-applications.ts	move	member	apps/desktop/src/move-to-applications.test.ts:234	impl	imp	move: (onConflict) => onConflict("existsAndRunning")
+P21	apps/desktop/src/move-to-applications.ts	move	member	apps/desktop/src/move-to-applications.test.ts:243	impl	imp	move: () => { throw new Error("Permission denied"); }
+P21	apps/desktop/src/move-to-applications.ts	move	member	apps/desktop/src/move-to-applications.test.ts:253	impl	imp	move: () => false
+P21	apps/desktop/src/move-to-applications.ts	move	member	apps/desktop/src/move-to-applications.ts:173	type	imp	move: (conflictHandler: (conflictType: MoveConflictType) => boolean) => boolean;
+P21	apps/desktop/src/move-to-applications.ts	move	member	apps/desktop/src/move-to-applications.ts:203	m-call	imp	deps.move(conflictHandler)
+P21	apps/desktop/src/move-to-applications.ts	move	member	apps/desktop/src/nested-sites-migration.test.ts:53	impl	-	move: async ({ dir }) => { calls++; return moveLegacySite({ dir }, { workspace: current, repoRoot: homeDir, pr
+P21	apps/desktop/src/move-to-applications.ts	move	member	apps/desktop/src/nested-sites-migration.test.ts:173	impl	-	move: ({ dir }) => moveLegacySite({ dir }, { workspace: current, repoRoot: f.homeDir, projectsPaths: [f.projec
+P21	apps/desktop/src/move-to-applications.ts	move	member	apps/desktop/src/nested-sites-migration.test.ts:187	impl	-	move: async () => assert.fail("explicit homes must not migrate")
+P21	apps/desktop/src/move-to-applications.ts	move	member	apps/desktop/src/nested-sites-migration.test.ts:231	impl	-	move: async ({ dir }) => { moved.push(dir); return dir; }
+P21	apps/desktop/src/move-to-applications.ts	move	member	apps/desktop/src/nested-sites-migration.test.ts:263	impl	-	move: () => Promise.reject("site busy")
+P21	apps/desktop/src/move-to-applications.ts	move	member	apps/desktop/src/nested-sites-migration.ts:27	destructure	-	{ move, report }: { move: typeof moveSiteHome; report: (message: string) => void }
+P21	apps/desktop/src/move-to-applications.ts	move	member	apps/desktop/src/nested-sites-migration.ts:27	type	-	move: typeof moveSiteHome;
+P21	apps/desktop/src/move-to-applications.ts	move	member	apps/desktop/src/nested-sites-migration.ts:68	destructure	-	{ move = moveSiteHome, report = console.warn, removeDir = fs.rmdirSync }: { move?: typeof moveSiteHome; report
+P21	apps/desktop/src/move-to-applications.ts	move	member	apps/desktop/src/nested-sites-migration.ts:68	type	-	move?: typeof moveSiteHome;
+P21	apps/desktop/src/move-to-applications.ts	move	member	apps/desktop/src/nested-sites-migration.ts:77	impl	-	move
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/scripts/check-js-backslide.ts:63	m-call	-	offender.replace(/\.(mjs|cjs|js)$/, ".ts")
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/add-site-pointer.test.ts:84	m-call	-	siteDir.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/contracts/workspace-chat.ts:108	m-call	-	verb.replace(/\./g, '_')
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/desktop-agent.ts:292	m-call	-	DESKTOP_SYSTEM_OVERLAY.replace(TOOLS_FIRST_RULE, "Native shell/file tools, agents and workflows are unavailabl
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/desktop-i18n.ts:160	m-call	-	locale.replace(/_/g, '-')
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/main/windows/last-window-quit.ts:90	m-call	-	(stops === 1 ? copy.quitOne : copy.quitMany).replace("{count}", () => String(stops))
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/main/windows/last-window-quit.ts:91	m-call	-	(keeps === 1 ? copy.keepsOne : copy.keepsMany).replace("{count}", () => String(keeps))
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/main/windows/sites-home-window.test.ts:193	m-call	imp	`${SUPERVISED}`.replace("4567", "4568")
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/main-move-to-applications-wiring.test.ts:22	m-call	-	source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "")
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/main-move-to-applications-wiring.test.ts:22	m-call	-	source.replace(/\/\*[\s\S]*?\*\//g, "")
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/main-project-wiring.test.ts:38	m-call	-	rawSource.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "")
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/main-project-wiring.test.ts:38	m-call	-	rawSource.replace(/\/\*[\s\S]*?\*\//g, "")
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/project-ipc.test.ts:42	m-call	-	presence.replace({ sender: first, siteIds: ['a', 'unloaded'] })
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/project-ipc.test.ts:43	m-call	-	presence.replace({ sender: second, siteIds: ['a'] })
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/project-ipc.test.ts:44	m-call	-	presence.replace({ sender: first, siteIds: ['b'] })
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/project-ipc.test.ts:48	m-call	-	presence.replace({ sender: first, siteIds: ['unknown'] })
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/project-ipc.test.ts:49	m-call	-	presence.replace({ sender: first, siteIds: 'b' })
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/project-ipc.test.ts:50	m-call	-	presence.replace({ sender: untrusted, siteIds: ['a'] })
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/project-ipc.test.ts:59	m-call	-	presence.replace({ sender: second, siteIds: ['unloaded'] })
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/project-ipc.test.ts:2407	m-call	-	h.lifecycle.replace({ sender, siteIds: [h.siteDir] })
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/project-ipc.ts:85	type	-	replace(input: { sender: Sender; siteIds: unknown }, options?: {}): void;
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/project-ipc.ts:122	impl	-	replace
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/project-ipc.ts:697	m-call	-	name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/project-ipc.ts:697	m-call	-	name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-")
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/project-ipc.ts:1785	m-call	-	presence.replace({ sender, siteIds: input?.siteIds })
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/renderer/app/SiteWorkspace.live-views.render.test.ts:37	m-call	-	(this.getAttribute('partition') ?? '').replace('persist:', '')
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/renderer/app/SiteWorkspace.live-views.render.test.ts:57	m-call	-	guest.getAttribute('partition')!.replace('persist:', '')
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/renderer/import-error-details.ts:12	m-call	-	raw .replace(/^(?:Error:\s*)?Error invoking remote method '[^']*':\s*/, '') .replace(/\/(?:Users|home)\/[^/\s'
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/renderer/import-error-details.ts:12	m-call	-	raw .replace(/^(?:Error:\s*)?Error invoking remote method '[^']*':\s*/, '') .replace(/\/(?:Users|home)\/[^/\s'
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/renderer/import-error-details.ts:12	m-call	-	raw .replace(/^(?:Error:\s*)?Error invoking remote method '[^']*':\s*/, '')
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/renderer/import-site-entry.ts:63	m-call	-	new URL(address).hostname.replace(/^www\./, '')
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/renderer/one-chat-fab-wiring.test.ts:39	m-call	-	source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "")
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/renderer/one-chat-fab-wiring.test.ts:39	m-call	-	source.replace(/\/\*[\s\S]*?\*\//g, "")
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/renderer/remote-code-lockdown.test.ts:66	m-call	-	url.replace(/[\t\r\n]/g, "")
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/renderer/site-port.rules.ts:56	m-call	-	connection.origin.replace('127.0.0.1', 'localhost')
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/renderer/site-shell-policy.ts:22	m-call	-	raw.replace(/^(?:Error:\s*)?Error invoking remote method '[^']*':\s*/, '') .replace(/^(?:[\w.]*Error:\s*)+/, '
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/renderer/site-shell-policy.ts:22	m-call	-	raw.replace(/^(?:Error:\s*)?Error invoking remote method '[^']*':\s*/, '')
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/renderer/source-test-harness.ts:11	m-call	-	declaration.getText(file).replace(/^export\s+/, '')
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/renderer/use-create-website-form.hooks.ts:85	m-call	-	name .trim() .toLowerCase() .replace(/[^\p{L}\p{N}\p{M}]+/gu, '-') .replace(/^-|-$/g, '')
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/renderer/use-create-website-form.hooks.ts:85	m-call	-	name .trim() .toLowerCase() .replace(/[^\p{L}\p{N}\p{M}]+/gu, '-')
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/renderer/use-dropdown-menu.hooks.render.test.ts:66	m-call	-	document.activeElement?.id.replace(`${prefix}-`, '')
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/renderer/use-loaded-sites.hooks.ts:32	m-call	-	text.replace(/\D/g, '')
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/renderer/use-site-power.hooks.ts:78	m-call	-	copy.otherBody.replace('{app}', () => project.runningApp ?? 'Tovu')
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/renderer/use-site-power.hooks.ts:80	m-call	-	copy.title.replace('{name}', () => project.displayName)
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/renderer/use-tab-close-ask.hooks.ts:33	m-call	-	copy.tabClose.stopToo.replace('{name}', () => project.displayName)
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/renderer/use-workspace-chat-pane.hooks.test.ts:157	m-call	-	source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '')
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/renderer/use-workspace-chat-pane.hooks.test.ts:157	m-call	-	source.replace(/\/\*[\s\S]*?\*\//g, '')
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/renderer/websites-width.test.ts:58	m-call	-	css.replace(/url\('\.\.\/(vendor\/fonts\/[^']+)'\)/g, (_match, file: string) => `url('data:font/ttf;base64,${f
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/renderer/websites-width.test.ts:100	m-call	-	fs.readFileSync(UI_TABBED_DIALOG_CSS, 'utf8').replace(/@import[^;]+;/g, '')
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/site-process-registry.ts:468	m-call	-	row.siteDir.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/speech/preload-speech.test.ts:53	m-call	-	text.replace(/\/\*[\s\S]*?\*\//g, "")
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/spellcheck-menu.test.ts:21	impl	imp	replace: (word: string) => calls.push(["replace", word])
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/spellcheck-menu.ts:34	type	imp	replace(word: string): void;
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/spellcheck-menu.ts:47	impl	imp	replace: ({ word }) => handlers.replace(word)
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/spellcheck-menu.ts:47	m-call	imp	handlers.replace(word)
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/tovu-desktop-cli.test.ts:74	m-call	-	userDataDir.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/tovu-server.test.ts:521	m-call	-	REAL_BOOT_LINE.replace(`/Users/${path.basename(os.homedir())}`, "/Users/<USER>")
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/tovu-server.ts:67	m-call	-	text.replace(BOOT_TOKEN_LINE_GLOBAL, "")
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/verify-package-cli.test.ts:198	m-call	-	asarPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	apps/desktop/src/verify-package-cli.test.ts:200	m-call	-	probe.replace(/\./g, "\\.")
+P22	apps/desktop/src/spellcheck-menu.ts	replace	member	development/e2e/support/start-journey-site.mjs:113	m-call	-	String(text).replace(/ws:\/\/[^\s"']+/g, "ws://[inspector]")
+P23	apps/desktop/src/spellcheck-menu.ts	addToDictionary	member	apps/desktop/src/spellcheck-menu.test.ts:22	impl	imp	addToDictionary: (word: string) => calls.push(["addToDictionary", word])
+P23	apps/desktop/src/spellcheck-menu.ts	addToDictionary	member	apps/desktop/src/spellcheck-menu.ts:30	impl	imp	addToDictionary: "Add to Dictionary"
+P23	apps/desktop/src/spellcheck-menu.ts	addToDictionary	member	apps/desktop/src/spellcheck-menu.ts:35	type	imp	addToDictionary(word: string): void;
+P23	apps/desktop/src/spellcheck-menu.ts	addToDictionary	member	apps/desktop/src/spellcheck-menu.ts:48	impl	imp	addToDictionary: ({ word }) => handlers.addToDictionary(word)
+P23	apps/desktop/src/spellcheck-menu.ts	addToDictionary	member	apps/desktop/src/spellcheck-menu.ts:48	m-call	imp	handlers.addToDictionary(word)
+P24	apps/desktop/src/auto-update-controller.ts	isAlive	member	apps/desktop/src/auto-update-controller.test.ts:63	impl	imp	isAlive: (pid) => alive.has(pid)
+P24	apps/desktop/src/auto-update-controller.ts	isAlive	member	apps/desktop/src/auto-update-controller.test.ts:235	impl	imp	isAlive: undefined
+P24	apps/desktop/src/auto-update-controller.ts	isAlive	member	apps/desktop/src/auto-update-controller.test.ts:242	impl	imp	isAlive: undefined
+P24	apps/desktop/src/auto-update-controller.ts	isAlive	member	apps/desktop/src/auto-update-controller.ts:16	type	imp	isAlive?: (pid: number) => boolean;
+P24	apps/desktop/src/auto-update-controller.ts	isAlive	member	apps/desktop/src/auto-update-controller.ts:33	m-BYREF	imp	isAlive = deps.isAlive
+P24	apps/desktop/src/auto-update-controller.ts	isAlive	member	apps/desktop/src/auto-update-controller.ts:39	impl	imp	isAlive: ({ pid }) => isAlive(pid)
+P24	apps/desktop/src/auto-update-controller.ts	isAlive	member	apps/desktop/src/instance-presence.test.ts:25	impl	-	isAlive: () => true
+P24	apps/desktop/src/auto-update-controller.ts	isAlive	member	apps/desktop/src/instance-presence.test.ts:33	impl	-	isAlive: ({ pid }) => pid === 12
+P24	apps/desktop/src/auto-update-controller.ts	isAlive	member	apps/desktop/src/instance-presence.test.ts:45	impl	-	isAlive: () => true
+P24	apps/desktop/src/auto-update-controller.ts	isAlive	member	apps/desktop/src/instance-presence.ts:33	destructure	-	{ isAlive = isPidAlive, writerPid = process.pid }: { isAlive?: (args: { pid: number }) => boolean; writerPid?:
+P24	apps/desktop/src/auto-update-controller.ts	isAlive	member	apps/desktop/src/instance-presence.ts:33	type	-	isAlive?: (args: { pid: number }) => boolean;
+P24	apps/desktop/src/auto-update-controller.ts	isAlive	member	apps/desktop/src/instance-presence.ts:35	impl	-	isAlive
+P24	apps/desktop/src/auto-update-controller.ts	isAlive	member	apps/desktop/src/shared-sites-stale-lease.test.ts:15	impl	-	isAlive: ({ pid }) => pid === process.pid
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/instance-presence.test.ts:56	m-call	-	createInstancePresence({ directory: dir }).remove({ pid: 11 })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/instance-presence.test.ts:57	m-call	-	createInstancePresence({ directory: dir }).remove({ pid: 11 })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/nested-sites-migration.test.ts:192	m-call	-	f.workspace.registry({}).remove({ path: from })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/profile-isolation.test.ts:58	m-call	-	siteFolders.remove({ root: extra })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/project-ipc-dispatch.test.ts:162	impl	-	remove: () => ({ roots: [], extraRoots: [] })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/project-ipc.test.ts:1351	m-call	-	folders.remove({ root: outsideRoot })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/project-ipc.test.ts:2201	impl	-	remove: () => { throw new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"); }
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/project-ipc.ts:1101	m-call	imp	sharedSites?.registry({}).remove({ path: id })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/project-ipc.ts:1853	m-call	imp	deps.siteFolders.remove({ root: input.root })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/remove-site-tree.test.ts:17	impl	imp	remove: async (root) => { assert.equal(root, '/site/package'); assert.deepEqual(writes, [['/site/package', 0o7
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/remove-site-tree.test.ts:27	impl	imp	remove: async () => assert.fail('must not remove')
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/remove-site-tree.ts:30	destructure	imp	{ files = fs, remove = (entry: string) => fsp.rm(entry, { recursive: true, force: true }) }: { files?: Writabl
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/remove-site-tree.ts:31	type	imp	remove?: (entry: string) => Promise<void>
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/ResourcesPanel.render.test.ts:29	m-call	-	host.remove()
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/SharedKeys.render.test.ts:29	m-call	-	host.remove()
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:124	m-call	-	host.remove()
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:175	m-call	-	host.remove()
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/SiteGrid.jsdom.test.ts:386	m-call	-	host.remove()
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/SitesFolders.jsdom.test.ts:60	m-call	-	host.remove()
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/WorkspaceChatPane.render.test.ts:60	impl	-	remove: (id: string) => calls.push(`remove:${id}`)
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/WorkspaceChatPane.render.test.ts:114	m-BYREF	-	assert.equal(list?.onDelete, fake.conversations.remove)
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/WorkspaceChatPane.tsx:72	m-BYREF	-	{conversations.remove}
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/app/SiteWorkspace.live-views.render.test.ts:199	m-call	-	form.remove()
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/app/component-harness.ts:43	m-call	-	container.remove()
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/app-render-harness.ts:111	m-call	-	container.remove()
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/runner-conversation-controller.test.ts:127	m-call	-	ctx.controller.remove({ id: 'gone' })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/runner-conversation-controller.test.ts:140	m-call	-	ctx.controller.remove({ id: 'gone' })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/runner-conversation-controller.test.ts:191	m-call	-	ctx.controller.remove({ id: 'gone' })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/runner-conversation-controller.test.ts:350	m-call	-	ctx.controller.remove({ id: 'b' })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/runner-conversation-controller.test.ts:365	m-call	-	ctx.controller.remove({ id: 'a' })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/runner-conversation-controller.test.ts:382	m-call	-	ctx.controller.remove({ id: 'a' })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/runner-conversation-controller.test.ts:396	m-call	-	ctx.controller.remove({ id: 'a' })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/runner-conversation-controller.test.ts:409	m-call	-	ctx.controller.remove({ id: 'c1' })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/runner-conversation-controller.test.ts:423	m-call	-	ctx.controller.remove({ id: 'c1' })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/runner-conversation-controller.test.ts:442	m-call	-	ctx.controller.remove({ id: 'a' })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/runner-conversation-controller.test.ts:524	m-call	-	ctx.controller.remove({ id: 'a' })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/runner-conversation-controller.test.ts:604	m-call	-	ctx.controller.remove({ id: 'a' })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/runner-conversation-controller.test.ts:631	m-call	-	controller.remove({ id: 'a' })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/runner-conversation-controller.ts:57	type	-	remove: (input: { id: string }) => Promise<void>;
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/runner-conversation-controller.ts:117	impl	-	remove: ({ id }) => remove({ core, id })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/use-find-in-page.jsdom.test.ts:116	m-call	-	host.remove()
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/use-runner-conversations.hooks.render.test.ts:121	m-call	-	hook.current().remove('b')
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/use-runner-conversations.hooks.render.test.ts:126	m-call	-	hook.current().remove('a')
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/use-runner-conversations.hooks.render.test.ts:130	m-call	-	hook.current().remove('z')
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/use-runner-conversations.hooks.render.test.ts:144	m-call	-	hook.current().remove('a')
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/use-runner-conversations.hooks.render.test.ts:278	m-call	-	hook.current().remove('a')
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/use-runner-conversations.hooks.render.test.ts:295	m-call	-	hook.current().remove('a')
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/use-runner-conversations.hooks.ts:35	type	-	remove: (id: string) => Promise<void>;
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/use-runner-conversations.hooks.ts:74	impl	-	remove: (id: string) => controller.remove({ id })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/use-runner-conversations.hooks.ts:74	m-call	-	controller.remove({ id })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/renderer/websites-width.test.ts:125	m-call	-	node.classList.remove('jini-tabbed-dialog-sidebar-collapsed')
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/site-folders.boundaries.test.ts:53	m-call	-	folders.remove({ root: extra })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/site-folders.test.ts:30	m-call	-	restarted.remove({ root: extra })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/site-folders.test.ts:78	m-call	-	folders.remove({ root })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/site-folders.test.ts:88	m-call	-	folders.remove({ root })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/site-folders.test.ts:129	m-call	-	folders.remove({ root })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/site-folders.test.ts:160	m-call	-	folders.remove({ root: extra })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/site-folders.test.ts:184	m-call	-	folders.remove({ root: extra })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/site-folders.ts:22	type	-	remove(required: { root: string }, options?: {}): SiteFolders;
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/site-folders.ts:102	impl	-	remove({ root }, _optional = {}) { const [canonical] = distinctRoots({ roots: [root] }); update({ change: (sto
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/site-folders.ts:154	impl	-	remove({ root }, _options = {}) { workspace.updateRoots({ remove: distinctRoots({ roots: [root] }) }); return 
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/site-folders.ts:155	impl	-	remove: distinctRoots({ roots: [root] })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/workspace-chat-ipc.test.ts:65	impl	-	remove: (input: unknown) => { calls.remove = [input]; }
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/workspace-chat-ipc.test.ts:65	m-BYREF	-	calls.remove = [input]
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/workspace-chat-ipc.test.ts:275	m-BYREF	-	assert.deepEqual(calls.remove, [{ id: "c1" }], "only the id reaches the store")
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/workspace-chat-ipc.ts:192	m-call	-	deps.conversations.remove({ id })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/workspace-conversation-store.test.ts:55	m-call	-	store.remove({ id: second.id })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/workspace-conversation-store.test.ts:56	m-call	-	store.remove({ id: "never-existed" })
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/workspace-conversation-store.ts:32	type	-	remove(required: { id: string }): void;
+P25	apps/desktop/src/remove-site-tree.ts	remove	member	apps/desktop/src/workspace-conversation-store.ts:125	impl	-	remove: ({ id }) => locked({ critical: () => save({ rows: load().filter((row) => row.id !== id) }) })
+P26	apps/desktop/src/smoke-packaged-chat-gate.ts	withInterruptSignal	fn	apps/desktop/scripts/smoke-packaged-chat.ts:30	call	imp	withInterruptSignal({ events: process, run: signal => smokePackagedChatCli({ desktopRoot, scratchRoot: path.jo
+P26	apps/desktop/src/smoke-packaged-chat-gate.ts	withInterruptSignal	fn	apps/desktop/src/smoke-packaged-chat-gate.test.ts:514	call	imp	withInterruptSignal({ events, run: async (abort) => { assert.equal(abort.aborted, false); events.emit(signal);
+P26	apps/desktop/src/smoke-packaged-chat-gate.ts	withInterruptSignal	fn	apps/desktop/src/smoke-packaged-chat-gate.test.ts:523	call	imp	withInterruptSignal({ events, run: async () => { throw new PackagedChatSmokeError("boom"); } })
+X1	apps/desktop/src/desktop-chat-main.ts	revealPath	member	apps/desktop/src/desktop-agent-runtime.test.ts:186	impl	imp	revealPath: async () => {}
+X1	apps/desktop/src/desktop-chat-main.ts	revealPath	member	apps/desktop/src/desktop-agent-tools.test.ts:51	impl	-	revealPath: async () => {}
+X1	apps/desktop/src/desktop-chat-main.ts	revealPath	member	apps/desktop/src/desktop-chat-main.test.ts:57	impl	imp	revealPath: async () => {}
+X1	apps/desktop/src/desktop-chat-main.ts	revealPath	member	apps/desktop/src/desktop-chat-main.ts:25	type	imp	revealPath: (target: string) => Promise<void>;
+X1	apps/desktop/src/desktop-chat-main.ts	revealPath	member	apps/desktop/src/desktop-chat-main.ts:62	impl	imp	revealPath: ({ target }) => deps.revealPath(target)
+X1	apps/desktop/src/desktop-chat-main.ts	revealPath	member	apps/desktop/src/desktop-chat-main.ts:62	m-call	imp	deps.revealPath(target)
+X1	apps/desktop/src/desktop-chat-main.ts	revealPath	member	apps/desktop/src/desktop-mcp-http-runtime.test.ts:5	impl	-	revealPath: async () => {}
+X1	apps/desktop/src/desktop-chat-main.ts	revealPath	member	apps/desktop/src/desktop-mcp-http.test.ts:26	impl	-	revealPath: ({ target }) => revealPath(target)
+X1	apps/desktop/src/desktop-chat-main.ts	revealPath	member	apps/desktop/src/desktop-mcp-http.test.ts:120	impl	-	revealPath: async () => { events.push('start'); await gate; events.push('finish'); }
+X1	apps/desktop/src/desktop-chat-main.ts	revealPath	member	apps/desktop/src/main/index.ts:552	impl	-	revealPath: async ({ target }) => { shell.showItemInFolder(target); }
+X1	apps/desktop/src/desktop-chat-main.ts	revealPath	member	apps/desktop/src/sites-mcp-tools.boundaries.test.ts:30	impl	-	revealPath: async ({ target }: { target: string }) => { revealed.push(target); }
+X1	apps/desktop/src/desktop-chat-main.ts	revealPath	member	apps/desktop/src/sites-mcp-tools.boundaries.test.ts:76	impl	-	revealPath: async () => { throw new Error('shell unavailable'); }
+X1	apps/desktop/src/desktop-chat-main.ts	revealPath	member	apps/desktop/src/sites-mcp-tools.test.ts:44	impl	-	revealPath: async ({ target }: { target: string }) => { revealed.push(target); }
+X1	apps/desktop/src/desktop-chat-main.ts	revealPath	member	apps/desktop/src/sites-mcp-tools.test.ts:251	impl	-	revealPath: async () => { throw new Error("could not run 'open': ENOENT"); }
+X1	apps/desktop/src/desktop-chat-main.ts	revealPath	member	apps/desktop/src/sites-mcp-tools.test.ts:271	impl	-	revealPath: async () => { // Some spawn wrappers reject with a bare string rather than an Error. throw "file m
+X1	apps/desktop/src/desktop-chat-main.ts	revealPath	member	apps/desktop/src/sites-mcp-tools.ts:76	type	-	revealPath: (required: { target: string }) => Promise<void>;
+X1	apps/desktop/src/desktop-chat-main.ts	revealPath	member	apps/desktop/src/sites-mcp-tools.ts:251	m-call	-	context.revealPath({ target: siteDir })
+X2	apps/desktop/src/desktop-chat-main.ts	broadcast	member	apps/desktop/src/desktop-agent-runtime.test.ts:187	impl	imp	broadcast: () => {}
+X2	apps/desktop/src/desktop-chat-main.ts	broadcast	member	apps/desktop/src/desktop-chat-main.test.ts:58	impl	imp	broadcast: (channel, payload) => broadcasts.push([channel, payload])
+X2	apps/desktop/src/desktop-chat-main.ts	broadcast	member	apps/desktop/src/desktop-chat-main.ts:28	type	imp	broadcast: (channel: string, payload: unknown) => void;
+X2	apps/desktop/src/desktop-chat-main.ts	broadcast	member	apps/desktop/src/desktop-chat-main.ts:65	m-call	imp	deps.broadcast(WORKSPACE_CHAT_IPC.navigate, section)
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/add-site-button-wiring.test.ts:100	impl	-	readSiteName: ({ siteDir }: { siteDir: string }) => path.basename(siteDir)
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/add-site-copy.test.ts:65	impl	-	readSiteName: () => "Harbor Florist"
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/add-site-copy.test.ts:138	impl	-	readSiteName: () => "Harbor Florist"
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/add-site-copy.test.ts:162	impl	-	readSiteName: () => "Harbor Florist"
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/add-site-copy.test.ts:181	impl	-	readSiteName: () => "Harbor Florist"
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/agent-plugin-tokens.test.ts:80	impl	-	readSiteName: ({ siteDir }: { siteDir: string }) => path.basename(siteDir)
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/copied-external-database.test.ts:42	impl	-	readSiteName: () => 'Original'
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/copied-external-database.test.ts:68	impl	-	readSiteName: () => 'Original'
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/desktop-agent-runtime.test.ts:187	impl	imp	readSiteName: () => "Fixture site"
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/desktop-chat-main.test.ts:21	impl	imp	readSiteName: (dir: string) => `name of ${dir}`
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/desktop-chat-main.test.ts:59	impl	imp	readSiteName: (siteDir) => `Site ${path.basename(siteDir)}`
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/desktop-chat-main.ts:30	type	imp	readSiteName: (siteDir: string) => string;
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/desktop-chat-main.ts:39	type	imp	readSiteName: (siteDir: string) => string
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/desktop-chat-main.ts:44	m-call	imp	ports.readSiteName(resolved)
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/desktop-chat-main.ts:77	impl	imp	readSiteName: deps.readSiteName
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/desktop-chat-main.ts:77	m-BYREF	imp	readSiteName: deps.readSiteName
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/desktop-reported-regressions.test.ts:31	impl	-	readSiteName: () => 'tovu-dev'
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/desktop-reported-regressions.test.ts:42	impl	-	readSiteName: () => 'tovu-dev'
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/main/index.ts:620	impl	-	readSiteName
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/main/index.ts:921	impl	-	readSiteName
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/main/windows/site-window.test.ts:67	impl	-	readSiteName: ({ siteDir }) => `Name of ${siteDir}`
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/main/windows/site-window.ts:50	type	-	readSiteName: (required: { siteDir: string }) => string;
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/main/windows/site-window.ts:232	m-call	-	ports.readSiteName({ siteDir })
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/main-shutdown-wiring.test.ts:148	impl	-	readSiteName: () => "alpha"
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc-dispatch.test.ts:56	impl	-	readSiteName: ({ siteDir: dir }) => (JSON.parse(fs.readFileSync(path.join(dir, "config.json"), "utf8")) as { n
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc-dispatch.test.ts:259	m-call	-	f.deps.readSiteName({ siteDir: id })
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc-dispatch.test.ts:260	m-call	-	f.deps.readSiteName({ siteDir: other })
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc-dispatch.test.ts:360	m-BYREF	-	f.deps.readSiteName = (dir) => path.basename(dir)
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc-dispatch.test.ts:455	m-BYREF	-	f.deps.readSiteName = () => { fs.rmSync(f.deps.projectsPath, { force: true }); return "Created site"; }
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.test.ts:173	impl	-	readSiteName: ({ siteDir }: { siteDir: string }) => path.basename(siteDir)
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.test.ts:1356	impl	-	readSiteName: () => "Same"
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.test.ts:1595	impl	-	readSiteName: ({ siteDir: dir }: { siteDir: string }) => JSON.parse(fs.readFileSync(path.join(dir, "config.jso
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.test.ts:1895	impl	-	readSiteName: ({ siteDir: dir }) => JSON.parse(fs.readFileSync(path.join(dir, 'config.json'), 'utf8')).name as
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.test.ts:1913	impl	-	readSiteName: ({ siteDir: dir }: { siteDir: string }) => names.get(dir) ?? path.basename(dir)
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.test.ts:1941	impl	-	readSiteName: ({ siteDir: dir }: { siteDir: string }) => JSON.parse(fs.readFileSync(path.join(dir, 'config.jso
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.test.ts:1958	impl	-	readSiteName: ({ siteDir: dir }: { siteDir: string }) => names.get(dir)!
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.test.ts:2059	impl	-	readSiteName: ({ siteDir }) => path.basename(siteDir)
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.test.ts:2061	impl	-	readSiteName: ({ siteDir }) => path.basename(siteDir)
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.test.ts:2062	impl	-	readSiteName: ({ siteDir }) => path.basename(siteDir)
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.test.ts:2076	impl	-	readSiteName: ({ siteDir }) => path.basename(siteDir)
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.test.ts:2082	impl	-	readSiteName: ({ siteDir }) => path.basename(siteDir)
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.test.ts:2101	impl	-	readSiteName
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.test.ts:2102	impl	-	readSiteName
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.test.ts:2181	impl	-	readSiteName: ({ siteDir: dir }: { siteDir: string }) => (dir === own ? 'Own' : assert.fail(`a missing folder'
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.test.ts:2236	impl	-	readSiteName: () => { if (!blocked) { blocked = true; // The profile folder becomes unusable after the pointer
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.test.ts:2259	impl	-	readSiteName: () => { if (!blocked) { blocked = true; const profile = path.dirname(deps.projectsPath); fs.rmSy
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.test.ts:2686	impl	-	readSiteName: () => "same"
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.ts:462	destructure	-	{ row, validSite, readSiteName }: { row: SiteRow; validSite: boolean; readSiteName: (required: { siteDir: stri
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.ts:462	type	-	readSiteName: (required: { siteDir: string }) => string
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.ts:503	impl	-	readSiteName: deps.readSiteName
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.ts:503	m-BYREF	-	readSiteName: deps.readSiteName
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.ts:546	destructure	-	{ projectsPath, sharedSites, readSiteName }: Pick<ProjectIpcDeps, "projectsPath" | "sharedSites" | "readSiteNa
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.ts:553	impl	-	readSiteName
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.ts:572	impl	-	readSiteName: deps.readSiteName
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.ts:572	m-BYREF	-	readSiteName: deps.readSiteName
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.ts:657	m-call	-	deps.readSiteName({ siteDir: row.siteDir })
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.ts:680	m-call	-	deps.readSiteName({ siteDir })
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.ts:787	m-call	-	deps.readSiteName({ siteDir })
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.ts:868	m-call	-	deps.readSiteName({ siteDir })
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.ts:939	m-call	-	deps.readSiteName({ siteDir: imported.dir })
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/project-ipc.ts:1905	type	-	readSiteName: (required: { siteDir: string }) => string;
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/shared-sites-home.test.ts:28	impl	-	readSiteName: ({ siteDir: dir }: { siteDir: string }) => JSON.parse(fs.readFileSync(path.join(dir, "config.jso
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/shared-sites-home.test.ts:169	impl	-	readSiteName: () => "Alpha"
+X3	apps/desktop/src/desktop-chat-main.ts	readSiteName	member	apps/desktop/src/shared-sites-home.test.ts:256	impl	-	readSiteName: () => "Alpha"
+X4	apps/desktop/src/workspace-chat-ipc.ts	pickDirectory	member	apps/desktop/src/desktop-agent-runtime.test.ts:186	impl	imp	pickDirectory: async () => null
+X4	apps/desktop/src/workspace-chat-ipc.ts	pickDirectory	member	apps/desktop/src/desktop-chat-main.test.ts:57	impl	imp	pickDirectory: async () => null
+X4	apps/desktop/src/workspace-chat-ipc.ts	pickDirectory	member	apps/desktop/src/desktop-chat-main.ts:26	type	imp	pickDirectory: (currentDirectory?: string) => Promise<string | null>;
+X4	apps/desktop/src/workspace-chat-ipc.ts	pickDirectory	member	apps/desktop/src/desktop-chat-main.ts:86	impl	imp	pickDirectory: deps.pickDirectory
+X4	apps/desktop/src/workspace-chat-ipc.ts	pickDirectory	member	apps/desktop/src/desktop-chat-main.ts:86	m-BYREF	imp	pickDirectory: deps.pickDirectory
+X4	apps/desktop/src/workspace-chat-ipc.ts	pickDirectory	member	apps/desktop/src/workspace-chat-ipc.test.ts:90	impl	imp	pickDirectory: async (current?: string) => { calls.pick!.push(current); return "/picked"; }
+X4	apps/desktop/src/workspace-chat-ipc.ts	pickDirectory	member	apps/desktop/src/workspace-chat-ipc.ts:93	type	imp	pickDirectory: (currentDirectory?: string) => Promise<string | null>;
+X4	apps/desktop/src/workspace-chat-ipc.ts	pickDirectory	member	apps/desktop/src/workspace-chat-ipc.ts:196	m-call	imp	deps.pickDirectory(currentDirectory)

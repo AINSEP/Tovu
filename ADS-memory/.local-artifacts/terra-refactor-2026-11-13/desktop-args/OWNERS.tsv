@@ -1,0 +1,120 @@
+apps/desktop/src/renderer/App.tsx	R1	F59 P4
+apps/desktop/src/renderer/CreateWebsiteOnboarding.render.test.ts	R1	P5 P6
+apps/desktop/src/renderer/CreateWebsiteOnboarding.tsx	R1	P5 P6
+apps/desktop/src/renderer/ResourcesPanel.tsx	R1	P1
+apps/desktop/src/renderer/SiteGrid.hooks.test.ts	R1	F10 F11
+apps/desktop/src/renderer/SiteGrid.hooks.ts	R1	F10 F11
+apps/desktop/src/renderer/SiteGrid.jsdom.test.ts	R1	F14 P1 P2 P3
+apps/desktop/src/renderer/SiteGrid.tsx	R1	F10 F11 F14 F15 P1 P2 P3
+apps/desktop/src/renderer/app/SettingsControl.render.test.ts	R1	P8
+apps/desktop/src/renderer/app/SettingsControl.tsx	R1	P8
+apps/desktop/src/renderer/site-create-hooks.jsdom.test.ts	R1	P5 P6
+apps/desktop/src/renderer/use-add-site.hooks.test.ts	R1	F59
+apps/desktop/src/renderer/use-add-site.hooks.ts	R1	F58 F59 P4
+apps/desktop/src/renderer/use-create-site-plugin-tokens.hooks.ts	R1	F73 P5 P6
+apps/desktop/src/renderer/use-create-website-form.hooks.ts	R1	F60
+apps/desktop/src/renderer/use-section-nav.hooks.render.test.ts	R1	F13
+apps/desktop/src/renderer/use-section-nav.hooks.ts	R1	F13
+apps/desktop/src/renderer/use-site-list-prefs.hooks.test.ts	R1	F14
+apps/desktop/src/renderer/use-site-list-prefs.hooks.ts	R1	F14
+apps/desktop/src/renderer/use-site-locate.hooks.test.ts	R1	P2 P3
+apps/desktop/src/renderer/use-site-locate.hooks.ts	R1	P2 P3
+apps/desktop/src/renderer/use-site-power.hooks.render.test.ts	R1	P1
+apps/desktop/src/renderer/use-site-power.hooks.restart-guard.render.test.ts	R1	P1
+apps/desktop/src/renderer/use-site-power.hooks.test.ts	R1	F15
+apps/desktop/src/renderer/use-site-power.hooks.ts	R1	F15 P1
+apps/desktop/src/renderer/use-site-workspace.hooks.test.ts	R1	F15 F19
+apps/desktop/src/renderer/use-site-workspace.hooks.ts	R1	F19
+apps/desktop/src/renderer/use-sites-inventory.hooks.render.test.ts	R1	F16 F17
+apps/desktop/src/renderer/use-sites-inventory.hooks.test.ts	R1	F18
+apps/desktop/src/renderer/use-sites-inventory.hooks.ts	R1	F16 F17 F18
+apps/desktop/src/renderer/use-tab-close-ask.hooks.ts	R1	F15
+apps/desktop/src/contracts/sections.test.ts	R2	F3
+apps/desktop/src/contracts/sections.ts	R2	F3
+apps/desktop/src/desktop-agent-runtime.test.ts	R2	X1 X2 X3 X4
+apps/desktop/src/desktop-chat-main.test.ts	R2	X1 X2 X3 X4
+apps/desktop/src/desktop-chat-main.ts	R2	X1 X2 X3 X4
+apps/desktop/src/renderer/App.render.test.ts	R2	F44
+apps/desktop/src/renderer/app-render-harness.ts	R2	F44
+apps/desktop/src/renderer/app/CreateWebsiteHost.render.test.ts	R2	F45
+apps/desktop/src/renderer/app/FindBar.render.test.ts	R2	F44
+apps/desktop/src/renderer/app/LoadedSitesStepper.render.test.ts	R2	F44
+apps/desktop/src/renderer/app/SiteWorkspace.live-views.render.test.ts	R2	F45
+apps/desktop/src/renderer/app/SiteWorkspace.render.test.ts	R2	F45
+apps/desktop/src/renderer/app/TabStrip.render.test.ts	R2	F44
+apps/desktop/src/renderer/app/component-harness.ts	R2	F45
+apps/desktop/src/renderer/chat-attachments.ts	R2	F46
+apps/desktop/src/renderer/folder-drop.ts	R2	F47
+apps/desktop/src/renderer/persistable-messages.test.ts	R2	F12
+apps/desktop/src/renderer/persistable-messages.ts	R2	F12
+apps/desktop/src/renderer/runner-conversation-controller.ts	R2	F12 F48 F49 F50 F51 F52 F53 F54 F55 F56
+apps/desktop/src/renderer/tool-icons.tsx	R2	F57
+apps/desktop/src/renderer/use-runner-conversations.hooks.render.test.ts	R2	P7
+apps/desktop/src/renderer/use-runner-conversations.hooks.ts	R2	P7
+apps/desktop/src/renderer/workspace-chat-transport.ts	R2	F61 F62 F63 F64 F65 F66 F67 F68
+apps/desktop/src/workspace-chat-ipc.test.ts	R2	F39 X4
+apps/desktop/src/workspace-chat-ipc.ts	R2	F39 X4
+apps/desktop/src/auto-update-controller.test.ts	M	P24
+apps/desktop/src/auto-update-controller.ts	M	P24
+apps/desktop/src/desktop-agent-inventory.test.ts	M	F40
+apps/desktop/src/desktop-agent-inventory.ts	M	F40
+apps/desktop/src/desktop-agent-tools.ts	M	F41
+apps/desktop/src/desktop-resources.ts	M	F42
+apps/desktop/src/import-handoff-ipc.test.ts	M	P11
+apps/desktop/src/import-handoff-ipc.ts	M	P11
+apps/desktop/src/main/boot/own-server-boot.test.ts	M	P9
+apps/desktop/src/main/boot/own-server-boot.ts	M	P9
+apps/desktop/src/main/index.ts	M	F43 P11 P12 P13 P14 P16 P9
+apps/desktop/src/main/windows/app-window.test.ts	M	P13
+apps/desktop/src/main/windows/app-window.ts	M	F37 P13
+apps/desktop/src/main/windows/guest-navigation.test.ts	M	P13
+apps/desktop/src/main/windows/guest-navigation.ts	M	P13
+apps/desktop/src/main/windows/sites-home-window.test.ts	M	P13 P16 P22
+apps/desktop/src/main/windows/sites-home-window.ts	M	F36 F38 P13 P15 P16
+apps/desktop/src/move-to-applications.test.ts	M	P17 P18 P19 P20 P21
+apps/desktop/src/move-to-applications.ts	M	P17 P18 P19 P20 P21
+apps/desktop/src/remove-site-tree.test.ts	M	P25
+apps/desktop/src/remove-site-tree.ts	M	P25
+apps/desktop/src/site-dir-store.ts	M	P10
+apps/desktop/src/site-power-verify.ts	M	F69
+apps/desktop/src/site-theme-preview-ipc.ts	M	F70
+apps/desktop/src/site-view-preference.ts	M	F71
+apps/desktop/src/speech/native-speech-adapter.test.ts	M	P12
+apps/desktop/src/speech/speech-ipc.test.ts	M	P12
+apps/desktop/src/speech/speech-ipc.ts	M	P12
+apps/desktop/src/spellcheck-menu.test.ts	M	P22 P23
+apps/desktop/src/spellcheck-menu.ts	M	P22 P23
+apps/desktop/src/webview-guest-policy.test.ts	M	F36 P15
+apps/desktop/src/webview-guest-policy.ts	M	F36 P15
+apps/desktop/src/window-navigation-policy.test.ts	M	F37 F38 P13 P14
+apps/desktop/src/window-navigation-policy.ts	M	F37 F38 P13 P14
+apps/desktop/scripts/check-complexity.ts	T	F74
+apps/desktop/scripts/check-coverage.ts	T	F5 F75 F76
+apps/desktop/scripts/check-gates.ts	T	F9
+apps/desktop/scripts/check-js-backslide.ts	T	F8
+apps/desktop/scripts/check-tree-quiet.ts	T	F77
+apps/desktop/scripts/smoke-native.ts	T	F78 F79 F80 F81
+apps/desktop/scripts/smoke-packaged-chat.ts	T	P26
+apps/desktop/scripts/stage-payload.ts	T	F23
+apps/desktop/scripts/stage-website-shared.ts	T	F82
+apps/desktop/scripts/verify-find-in-page.ts	T	F83 F84 F85 F86 F87 F88
+apps/desktop/scripts/verify-site-power.ts	T	F89 F90 F91 F92 F93 F94 F95 F96 F97
+apps/desktop/src/check-coverage-script.test.ts	T	F76
+apps/desktop/src/complexity-debt.test.ts	T	F1
+apps/desktop/src/complexity-debt.ts	T	F1 F2
+apps/desktop/src/coverage-floors.test.ts	T	F4 F5
+apps/desktop/src/coverage-floors.ts	T	F4 F5 F6 F7
+apps/desktop/src/coverage-runner-split.test.ts	T	F4
+apps/desktop/src/js-backslide-guard.test.ts	T	F8
+apps/desktop/src/js-backslide-guard.ts	T	F8
+apps/desktop/src/quality-gates.test.ts	T	F9
+apps/desktop/src/quality-gates.ts	T	F9
+apps/desktop/src/smoke-packaged-chat-gate.test.ts	T	P26
+apps/desktop/src/smoke-packaged-chat-gate.ts	T	P26
+apps/desktop/src/smoke-packaged-chat.ts	T	F72
+apps/desktop/src/stage-payload-lib.test.ts	T	F20
+apps/desktop/src/stage-payload-lib.ts	T	F20 F21 F22
+apps/desktop/src/stage-payload-run.test.ts	T	F23
+apps/desktop/src/stage-payload-run.ts	T	F20 F23 F24 F25 F26 F27 F28 F29 F30 F31
+apps/desktop/src/tree-quiet.ts	T	F32 F33
+apps/desktop/src/update-manifest-merge.ts	T	F34 F35

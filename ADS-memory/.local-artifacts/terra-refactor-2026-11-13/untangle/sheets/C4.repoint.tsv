@@ -157,7 +157,7 @@ jini	packages/http-kit/src/__tests__/verified-origin-site-path.test.ts	../verifi
 jini	packages/http-kit/src/__tests__/verified-origin.hostile.test.ts	../verified-origin/origin.js	OriginRegistry,isSameOrigin,normalizeOriginCandidate	@jini-ai/core/contracts/server/verified-origin		C-lane	MOVE packages/core/src/contracts/server/__tests__/verified-origin/verified-origin.hostile.test.ts (the C lane does it with the move; relative import inside core)
 jini	packages/http-kit/src/__tests__/verified-origin.hostile.test.ts	../verified-origin/configured-origin.js	planOriginBoot,resolveConfiguredOrigin	@jini-ai/core/contracts/server/verified-origin		C-lane	MOVE packages/core/src/contracts/server/__tests__/verified-origin/verified-origin.hostile.test.ts (the C lane does it with the move; relative import inside core)
 jini	packages/http-kit/src/adapter.ts	./response.js	statusForError	@jini-ai/core/contracts/server		wave	
-jini	packages/http-kit/src/adapter.ts	./origin.js	type OriginContext	@jini-ai/core/contracts/server		wave	
+jini	packages/http-kit/src/adapter.ts	./origin.js	type OriginContext	@jini-ai/core/contracts/server		done	done-by-lane e2da5b2d7 (adapter no longer imports OriginContext)
 jini	packages/http-kit/src/adapter.ts	./types.js	type JsonRouteAuthorize,type Result	@jini-ai/core/contracts/server		wave	
 jini	packages/http-kit/src/adapter.ts	./types.js	type JsonRouteSpec	KEEP		route-conversion	Express-side definition stays in http-kit; deleted with mountJsonRoute in O6 (no rename, no @deprecated)
 jini	packages/http-kit/src/index.ts	export-from ./types.js	type Handler,type HttpMethod,type InputParser,type JsonRouteAuthorize,type Result,type RouteInputContext	DROP		wave	shell: delete these names from the barrel
@@ -172,7 +172,7 @@ jini	packages/http-kit/src/index.ts	export * from ./verified-origin.js	* (Origin
 jini	packages/http-kit/src/index.ts	export * from ./request.js	* (validationError)	KEEP		wave	export * line stays; the moved names leave with their definitions
 jini	packages/http-kit/src/index.ts	export * from ./response.js	* (statusForError)	KEEP		wave	export * line stays; the moved names leave with their definitions
 jini	packages/http-kit/src/index.ts	export * from ./origin.js	* (OriginContext guardSameOrigin)	KEEP		wave	export * line stays; the moved names leave with their definitions
-jini	packages/http-kit/src/origin.ts	./types.js	err,ok,type Result	@jini-ai/core/contracts/server		wave	
+jini	packages/http-kit/src/origin.ts	./types.js	err,ok,type Result	@jini-ai/core/contracts/server		done	done-by-lane e2da5b2d7 (origin.ts no longer imports err/ok/Result)
 jini	packages/http-kit/src/origin.ts	./response.js	statusForError	@jini-ai/core/contracts/server		wave	
 jini	packages/http-kit/src/request.ts	./types.js	type RouteInputContext	@jini-ai/core/contracts/server		wave	
 jini	packages/server/src/__tests__/builtin-features.mounts.test.ts	@jini-ai/http-kit	type AdapterContext	@jini-ai/core/contracts/server	AdapterContext->RouteHostContext	wave	

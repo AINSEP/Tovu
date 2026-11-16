@@ -149,12 +149,12 @@ jini	packages/platform/src/mail/senders.ts	export * from ./prepare-sender-email.
 jini	packages/platform/src/net/__tests__/address.test.ts	../address.js	expandIpv6	@jini-ai/core/net		wave	
 jini	packages/platform/src/net/__tests__/api-host.agent-runtime.test.ts	../address.js	isLoopbackApiHost,isBlockedExternalApiHostname	@jini-ai/core/net		wave	
 jini	packages/platform/src/net/__tests__/api-host.integrations.test.ts	../address.js	isLoopbackApiHost,isBlockedExternalApiHostname	@jini-ai/core/net		wave	
-jini	packages/platform/src/net/__tests__/endpoint-policy.boundaries.test.ts	../endpoint-policy.js	isBlockedExternalApiHostname,isLoopbackApiHost,isDeployedApiHostname	@jini-ai/core/net		wave	
+jini	packages/platform/src/net/__tests__/endpoint-policy.boundaries.test.ts	../endpoint-policy.js	isBlockedExternalApiHostname,isLoopbackApiHost,isDeployedApiHostname	@jini-ai/core/net		done	DROP: test moved to packages/core/src/net/__tests__ by lane ae626fbd5; platform copy deleted
 jini	packages/platform/src/net/__tests__/endpoint-policy.contract.test.ts	../endpoint-policy.js	isBlockedExternalApiHostname,isLoopbackApiHost	@jini-ai/core/net		lane	LANE-OWNED, not in pass B1 (r2): lane git-mvs this test to core/src/net/__tests__/endpoint-policy.test.ts (followups/C5.md)
 jini	packages/platform/src/net/__tests__/endpoint-policy.contract.test.ts	../address.js	isBlockedExternalApiHostname as nodeBlocked,isLoopbackApiHost as nodeLoopback	@jini-ai/core/net		lane	LANE-OWNED, not in pass B1 (r2): lane git-mvs this test to core (followups/C5.md)
-jini	packages/platform/src/net/__tests__/endpoint-policy.f1-expand.test.ts	../endpoint-policy.js	classifyAddressLiteral,expandIpv6	@jini-ai/core/net		wave	
-jini	packages/platform/src/net/__tests__/endpoint-policy.parity.test.ts	../address.js	isLoopbackApiHost,isBlockedExternalApiHostname	@jini-ai/core/net		wave	
-jini	packages/platform/src/net/__tests__/loopback-hostname.test.ts	../address.js	isLoopbackHostname	@jini-ai/core/net		wave	
+jini	packages/platform/src/net/__tests__/endpoint-policy.f1-expand.test.ts	../endpoint-policy.js	classifyAddressLiteral,expandIpv6	@jini-ai/core/net		done	DROP: test moved to packages/core/src/net/__tests__ by lane ae626fbd5; platform copy deleted
+jini	packages/platform/src/net/__tests__/endpoint-policy.parity.test.ts	../address.js	isLoopbackApiHost,isBlockedExternalApiHostname	@jini-ai/core/net		done	DROP: test moved to packages/core/src/net/__tests__ by lane ae626fbd5; platform copy deleted
+jini	packages/platform/src/net/__tests__/loopback-hostname.test.ts	../address.js	isLoopbackHostname	@jini-ai/core/net		done	DROP: test moved to packages/core/src/net/__tests__ by lane ae626fbd5; platform copy deleted
 jini	packages/platform/src/net/__tests__/ssrf-regressions.test.ts	../endpoint-policy.js	isBlockedExternalApiHostname,isLoopbackApiHost	@jini-ai/core/net		wave	
 jini	packages/platform/src/net/__tests__/unit/address.property.unit.test.ts	../../endpoint-policy.js	classifyAddressLiteral,isBlockedExternalApiHostname,isLoopbackApiHost	@jini-ai/core/net		wave	
 jini	packages/platform/src/net/__tests__/unit/address.property.unit.test.ts	../../endpoint-policy.js	type AddressClass	@jini-ai/core/net		wave	
