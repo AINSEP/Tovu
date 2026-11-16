@@ -47,7 +47,10 @@ function safeAttribute(attr: Element['attrs'][number], options: { styleContext?:
 export function sanitizePageHtml({ html }: { html: string }, { reportDrops = ({ dropped }) => console.warn('[media] Raw HTML sanitizer dropped markup', dropped) }: { reportDrops?: (required: { dropped: Record<string, number> }, optional?: Record<string, never>) => void } = {}): string {
   const root = parseFragment(html);
   const dropped = new Map<string, number>();
-  const drop = (key: string): false => { dropped.set(key, (dropped.get(key) ?? 0) + 1); return false; };
+  const drop = (
+    { key }: { key: string },
+    _optional = {}
+  ): false => { dropped.set(key, (dropped.get(key) ?? 0) + 1); return false; };
   const parents: { parent: DefaultTreeAdapterMap['documentFragment'] | Element; depth: number }[] = [{ parent: root, depth: 0 }];
   while (parents.length) {
     const pending = parents.pop();
@@ -56,16 +59,16 @@ export function sanitizePageHtml({ html }: { html: string }, { reportDrops = ({ 
     parent.childNodes = parent.childNodes.filter(child => {
       if (!('tagName' in child)) return child.nodeName === '#text';
       // Bound native serializer recursion as well as our own traversal on imported HTML.
-      if (depth >= 128) return drop(child.tagName);
+      if (depth >= 128) return drop({ key: child.tagName });
       const allowed = ELEMENTS_BY_NAMESPACE.get(child.namespaceURI);
-      if (!allowed?.has(child.tagName)) return drop(child.tagName);
+      if (!allowed?.has(child.tagName)) return drop({ key: child.tagName });
       if (child.tagName === 'style') {
         const css = child.childNodes.map(node => 'value' in node ? node.value : '').join('');
         // A stylesheet may use Unicode glyph escapes; the inline-attribute policy rejects them.
         // Validate with the shared stylesheet context without changing the authored rule bytes.
-        if (!safeAttribute({ name: 'style', value: css }, { styleContext: 'stylesheet' })) return drop('style');
+        if (!safeAttribute({ name: 'style', value: css }, { styleContext: 'stylesheet' })) return drop({ key: 'style' });
       }
-      child.attrs = child.attrs.filter(attr => safeAttribute(attr) || drop(`${child.tagName}@${attr.prefix ? attr.prefix + ':' : ''}${attr.name}`));
+      child.attrs = child.attrs.filter(attr => safeAttribute(attr) || drop({ key: `${child.tagName}@${attr.prefix ? attr.prefix + ':' : ''}${attr.name}` }));
       // A collection marker's authored <template> keeps its item markup in the inert `content`
       // fragment, not childNodes: hold that markup to the same element/attribute rules.
       parents.push({ parent: 'content' in child ? child.content : child, depth: depth + 1 });
@@ -82,20 +85,20 @@ interface RawMediaRequired {
   renderMedia: (required: { props: JsonObject }, optional?: Record<string, never>) => string;
 }
 
-function replaceMediaTokens({ value, resolve }: { value: string; resolve: (slug: string) => Element | undefined }, _options: Record<string, never> = {}) {
+function replaceMediaTokens({ value, resolve }: { value: string; resolve: (required: { slug: string }, optional?: Record<string, never>) => Element | undefined }, _options: Record<string, never> = {}) {
   let found = true;
   const replaced = value.replace(/\{\{media:([^{}]+)\}\}/g, (_token, slug: string) => {
-    const src = resolve(slug)?.attrs.find(attr => attr.name === 'src')?.value;
+    const src = resolve({ slug })?.attrs.find(attr => attr.name === 'src')?.value;
     if (!src) found = false;
     return src ?? '';
   });
   return { value: replaced, found };
 }
 
-function bindMediaSource({ node, resolve }: { node: Element; resolve: (slug: string) => Element | undefined }, _options: Record<string, never> = {}): boolean {
+function bindMediaSource({ node, resolve }: { node: Element; resolve: (required: { slug: string }, optional?: Record<string, never>) => Element | undefined }, _options: Record<string, never> = {}): boolean {
   const slug = node.attrs.find(attr => attr.name === 'data-media-slug')?.value;
   if (slug === undefined) return true;
-  const canonical = resolve(slug);
+  const canonical = resolve({ slug });
   if (!canonical || !['img', 'video', 'audio', 'source'].includes(node.tagName)) return false;
   if (node.tagName !== 'source' && node.tagName !== canonical.tagName) {
     console.warn('[media] media kind does not match Raw HTML element', { slug, tag: node.tagName, mediaTag: canonical.tagName });
@@ -146,7 +149,7 @@ function resolveMediaTree({ root, visit }: { root: DefaultTreeAdapterMap['docume
  * metadata/rendering belongs to the injected host media renderer. O(n + a) for HTML and assets. */
 export function renderMediaRawHtml({ html, media, renderMedia }: RawMediaRequired, { reportIssue = ({ slug }) => console.warn('[media] unknown slug in raw HTML', { slug }) }: { reportIssue?: (required: { slug: string }, optional?: Record<string, never>) => void } = {}): string {
   const rendered = new Map<string, Element | undefined>();
-  const resolve = (slug: string): Element | undefined => {
+  const resolve = ({ slug }: { slug: string }, _optional = {}): Element | undefined => {
     if (rendered.has(slug)) return rendered.get(slug);
     const props = Object.hasOwn(media, slug) ? media[slug] : undefined;
     const fragment = props ? parseFragment(renderMedia({ props: { ...props, galleryResponsive: true } })) : undefined;

@@ -231,22 +231,22 @@ export async function ensureSiteKey(input: EnsureSiteKeyInput): Promise<EnsureSi
   // A source holding exactly the key `.site-meta.json` names is the right one to adopt wherever it
   // sits in the order; only without such a source does the first-present rule apply.
   const stampedFingerprint = resolveSiteKeyFingerprint({ siteDir: input.siteDir });
-  const stampedHex = findStampedHex(otherSources, env, stampedFingerprint);
+  const stampedHex = findStampedHex({ sources: otherSources, env, stampedFingerprint });
 
   // A per-site file the stamp does not name (a different key, or malformed) while another source
   // holds the stamped key: the per-site file would otherwise outrank the right key forever. It is
   // moved aside, never deleted, and the stamped key takes its place.
-  if (perSiteRaw !== undefined && stampedHex !== undefined && !matchesFingerprint(perSiteParsed, stampedFingerprint)) {
-    moveSiteKeyFileAside(perSiteFilePath, perSiteRaw);
-    const written = atomicCreateSiteKeyFile(perSiteFilePath, stampedHex);
-    return withFingerprintReconciliation(input.siteDir, "adopt", perSiteFilePath, fingerprintSiteKeyHex({ hex: written }), neverRestamp);
+  if (perSiteRaw !== undefined && stampedHex !== undefined && !matchesFingerprint({ parsed: perSiteParsed, fingerprint: stampedFingerprint })) {
+    moveSiteKeyFileAside({ filePath: perSiteFilePath, expectedContent: perSiteRaw });
+    const written = atomicCreateSiteKeyFile({ filePath: perSiteFilePath, hex: stampedHex });
+    return withFingerprintReconciliation({ siteDir: input.siteDir, action: "adopt", perSiteFilePath, fingerprint: fingerprintSiteKeyHex({ hex: written }), mayRestamp: neverRestamp });
   }
 
   return settleSiteKey({
     siteDir: input.siteDir,
     perSiteFilePath,
-    perSite: verdictOf(perSiteParsed),
-    other: stampedHex !== undefined ? { kind: "valid", value: stampedHex } : verdictOf(parseRawMaterial(findFirstPresentMaterial(otherSources, env))),
+    perSite: verdictOf({ parsed: perSiteParsed }),
+    other: stampedHex !== undefined ? { kind: "valid", value: stampedHex } : verdictOf({ parsed: parseRawMaterial({ raw: findFirstPresentMaterial(otherSources, env) }) }),
     stampedFingerprint,
     findSiteKeyDependentData: input.findSiteKeyDependentData,
   });
@@ -295,7 +295,7 @@ async function settleSiteKey(required: {
 
   switch (decision.action) {
     case "noop":
-      return withFingerprintReconciliation(siteDir, "noop", perSiteFilePath, fingerprintSiteKeyHex({ hex: decision.value }), neverRestamp);
+      return withFingerprintReconciliation({ siteDir, action: "noop", perSiteFilePath, fingerprint: fingerprintSiteKeyHex({ hex: decision.value }), mayRestamp: neverRestamp });
     case "invalid":
       return { action: "invalid", perSiteFilePath, reason: decision.value };
     case "adopt":
@@ -303,11 +303,11 @@ async function settleSiteKey(required: {
     case "refuse":
       return { action: "refuse", perSiteFilePath };
     case "mint": {
-      const written = atomicCreateSiteKeyFile(perSiteFilePath, mintSiteKeyHex());
+      const written = atomicCreateSiteKeyFile({ filePath: perSiteFilePath, hex: mintSiteKeyHex() });
       // `mint` is only planned when the site has no key-dependent data, so a stale stamp (a moved or
       // copied site folder) protects nothing — it is replaced rather than left as a permanent,
       // false "mismatch".
-      return withFingerprintReconciliation(siteDir, "mint", perSiteFilePath, fingerprintSiteKeyHex({ hex: written }), async () => !(await siteHasKeyData()));
+      return withFingerprintReconciliation({ siteDir, action: "mint", perSiteFilePath, fingerprint: fingerprintSiteKeyHex({ hex: written }), mayRestamp: async () => !(await siteHasKeyData()) });
     }
     default: {
       const unhandled: never = decision;
@@ -333,8 +333,8 @@ async function adoptSiteKey(required: {
   if (stampedFingerprint !== undefined && stampedFingerprint !== candidateFingerprint && (await siteHasKeyData())) {
     return { action: "mismatch", perSiteFilePath, fingerprint: candidateFingerprint };
   }
-  const written = atomicCreateSiteKeyFile(perSiteFilePath, hex);
-  return withFingerprintReconciliation(siteDir, "adopt", perSiteFilePath, fingerprintSiteKeyHex({ hex: written }), async () => !(await siteHasKeyData()));
+  const written = atomicCreateSiteKeyFile({ filePath: perSiteFilePath, hex });
+  return withFingerprintReconciliation({ siteDir, action: "adopt", perSiteFilePath, fingerprint: fingerprintSiteKeyHex({ hex: written }), mayRestamp: async () => !(await siteHasKeyData()) });
 }
 
 /** `mayRestamp` for outcomes that never re-stamp (`"noop"`, and replacing a per-site file with the
@@ -365,30 +365,39 @@ const neverRestamp = async (): Promise<boolean> => false;
  * @complexity O(1) — one bounded JSON read, at most one atomic JSON write.
  */
 async function withFingerprintReconciliation(
-  siteDir: string,
-  action: "noop" | "adopt" | "mint",
-  perSiteFilePath: string,
-  fingerprint: string,
-  mayRestamp: () => Promise<boolean>
+  {
+    siteDir,
+    action,
+    perSiteFilePath,
+    fingerprint,
+    mayRestamp,
+  }: {
+    siteDir: string;
+    action: "noop" | "adopt" | "mint";
+    perSiteFilePath: string;
+    fingerprint: string;
+    mayRestamp: () => Promise<boolean>;
+  },
+  _optional = {}
 ): Promise<EnsureSiteKeyResult> {
   // `readSiteMetaJson` (site-key-sources.ts) — the shared `.site-meta.json` parse both this
   // function and `site-key-sources.ts`'s own `resolveSiteKeyId`/`resolveSiteKeyFingerprint` build
   // on, so a corrupt-file/non-object verdict can never drift between the writer's own
   // reconciliation and the admin route's read-only state derivation.
-  const meta = readSiteMetaJson(siteDir);
+  const meta = readSiteMetaJson({ siteDir });
   if (meta === undefined) {
     return { action, perSiteFilePath, fingerprint };
   }
   const stamped = meta.siteKeyFingerprint;
   if (stamped === undefined) {
-    writeFingerprintStamp(siteDir, meta, fingerprint);
+    writeFingerprintStamp({ siteDir, meta, fingerprint });
     return { action, perSiteFilePath, fingerprint };
   }
   if (stamped === fingerprint) {
     return { action, perSiteFilePath, fingerprint };
   }
   if (await mayRestamp()) {
-    writeFingerprintStamp(siteDir, meta, fingerprint);
+    writeFingerprintStamp({ siteDir, meta, fingerprint });
     return { action, perSiteFilePath, fingerprint };
   }
   return { action: "mismatch", perSiteFilePath, fingerprint };
@@ -469,7 +478,7 @@ export async function ensureSiteKeyForBoot(input: EnsureSiteKeyForBootInput): Pr
 export async function ensureSiteKeyForSite(input: EnsureSiteKeyForBootInput): Promise<EnsureSiteKeyResult | undefined> {
   const env = input.env ?? process.env;
   const mode = input.mode ?? resolveRuntimeMode({ env });
-  const siteKeyId = resolveSiteKeyId({ siteDir: input.siteDir }) ?? (await mintSiteMetaForBootIfAbsent(input.siteDir, mode));
+  const siteKeyId = resolveSiteKeyId({ siteDir: input.siteDir }) ?? (await mintSiteMetaForBootIfAbsent({ siteDir: input.siteDir, mode }));
   if (!siteKeyId) return undefined;
   return ensureSiteKey({
     siteDir: input.siteDir,
@@ -541,7 +550,7 @@ export function installSiteKey(input: InstallSiteKeyInput): InstallSiteKeyResult
 function resolveInstallSources(input: InstallSiteKeyInput): { env: NodeJS.ProcessEnv; sources: SiteKeySource[] } | undefined {
   const env = input.env ?? process.env;
   const mode = input.mode ?? resolveRuntimeMode({ env });
-  const siteKeyId = resolveSiteKeyId({ siteDir: input.siteDir }) ?? mintSiteKeyIdIfAbsent(input.siteDir, mode);
+  const siteKeyId = resolveSiteKeyId({ siteDir: input.siteDir }) ?? mintSiteKeyIdIfAbsent({ siteDir: input.siteDir, mode });
   if (mode !== "production" && !siteKeyId) return undefined;
   return { env, sources: siteKeySources({ mode, env, home: input.home ?? homedir(), cwd: input.cwd ?? process.cwd(), siteKeyId }) };
 }
@@ -566,31 +575,34 @@ function installIntoSource(required: InstallTarget & { source: SiteKeySource; en
 function installAgainstEnvKey(required: InstallTarget & { material: SiteKeySourceMaterial | undefined }): InstallSiteKeyResult | undefined {
   const { siteDir, fingerprint, material } = required;
   if (material === undefined) return undefined;
-  if (!matchesFingerprint(parseSiteKeyHex({ raw: material.raw }), fingerprint)) return { outcome: "env-key-set" };
-  stampFingerprint(siteDir, fingerprint);
+  if (!matchesFingerprint({ parsed: parseSiteKeyHex({ raw: material.raw }), fingerprint })) return { outcome: "env-key-set" };
+  stampFingerprint({ siteDir, fingerprint });
   return { outcome: "installed", keyFilePath: `env:${material.envVarName}`, fingerprint };
 }
 
 /** Writes `hex` into the target key file, backing up a different (or garbage) one first. */
 function installIntoKeyFile(required: InstallTarget & { path: string; current: string | undefined }): InstallSiteKeyResult {
   const { siteDir, hex, fingerprint, path, current } = required;
-  if (current !== undefined && !matchesFingerprint(parseSiteKeyHex({ raw: current }), fingerprint)) moveSiteKeyFileAside(path, current);
-  const written = atomicCreateSiteKeyFile(path, hex);
+  if (current !== undefined && !matchesFingerprint({ parsed: parseSiteKeyHex({ raw: current }), fingerprint })) moveSiteKeyFileAside({ filePath: path, expectedContent: current });
+  const written = atomicCreateSiteKeyFile({ filePath: path, hex });
   if (fingerprintSiteKeyHex({ hex: written }) !== fingerprint) throw new Error("installSiteKey: another process wrote a different key at the same moment; nothing was stamped");
-  stampFingerprint(siteDir, fingerprint);
+  stampFingerprint({ siteDir, fingerprint });
   return { outcome: "installed", keyFilePath: path, fingerprint };
 }
 
 /** Sets `.site-meta.json`'s `siteKeyFingerprint`, keeping every other field; no meta file is left
  *  alone. @complexity O(1). */
-function stampFingerprint(siteDir: string, fingerprint: string): void {
-  const meta = readSiteMetaJson(siteDir);
+function stampFingerprint({ siteDir, fingerprint }: { siteDir: string; fingerprint: string }, _optional = {}): void {
+  const meta = readSiteMetaJson({ siteDir });
   if (meta === undefined || meta.siteKeyFingerprint === fingerprint) return;
-  writeFingerprintStamp(siteDir, meta, fingerprint);
+  writeFingerprintStamp({ siteDir, meta, fingerprint });
 }
 
 /** Writes `meta` back with `siteKeyFingerprint` set — atomically, every other field kept. */
-function writeFingerprintStamp(siteDir: string, meta: Record<string, unknown>, fingerprint: string): void {
+function writeFingerprintStamp(
+  { siteDir, meta, fingerprint }: { siteDir: string; meta: Record<string, unknown>; fingerprint: string },
+  _optional = {}
+): void {
   writeJsonFileAtomic({ filePath: join(siteDir, ".site-meta.json"), data: { ...meta, siteKeyFingerprint: fingerprint }, fs: createNodeAtomicFilesystem({}, {}) }, {});
 }
 
@@ -603,10 +615,10 @@ function writeFingerprintStamp(siteDir: string, meta: Record<string, unknown>, f
  *
  * @complexity O(1) — one `randomUUID`, one attempted exclusive file create.
  */
-function mintSiteKeyIdIfAbsent(siteDir: string, mode: RuntimeMode): string | undefined {
+function mintSiteKeyIdIfAbsent({ siteDir, mode }: { siteDir: string; mode: RuntimeMode }, _optional = {}): string | undefined {
   if (mode === "production") return undefined;
   const siteKeyId = randomUUID();
-  return mintMinimalSiteMetaJson(siteDir, siteKeyId, { siteKeyId });
+  return mintMinimalSiteMetaJson({ siteDir, siteKeyId, content: { siteKeyId } });
 }
 
 /**
@@ -621,11 +633,14 @@ function mintSiteKeyIdIfAbsent(siteDir: string, mode: RuntimeMode): string | und
  * @complexity O(m) in the bundled journal's entry count (one read-only db open), plus one exclusive
  *   file create.
  */
-async function mintSiteMetaForBootIfAbsent(siteDir: string, mode: RuntimeMode): Promise<string | undefined> {
+async function mintSiteMetaForBootIfAbsent(
+  { siteDir, mode }: { siteDir: string; mode: RuntimeMode },
+  _optional = {}
+): Promise<string | undefined> {
   if (mode === "production") return undefined;
   const siteKeyId = randomUUID();
   const complete = await buildSiteMetaForNewKey({ dir: siteDir, siteKeyId });
-  return mintMinimalSiteMetaJson(siteDir, siteKeyId, complete ?? { siteKeyId });
+  return mintMinimalSiteMetaJson({ siteDir, siteKeyId, content: complete ?? { siteKeyId } });
 }
 
 /**
@@ -660,26 +675,32 @@ async function mintSiteMetaForBootIfAbsent(siteDir: string, mode: RuntimeMode): 
  *   caller, {@link ensureSiteKeyForBoot}, is the boot-time safety net that catches it.
  * @complexity O(1) — one `randomUUID`, one attempted exclusive file write.
  */
-function mintMinimalSiteMetaJson(siteDir: string, siteKeyId: string, content: { siteKeyId?: string }): string | undefined {
+function mintMinimalSiteMetaJson(
+  { siteDir, siteKeyId, content }: { siteDir: string; siteKeyId: string; content: { siteKeyId?: string } },
+  _optional = {}
+): string | undefined {
   const metaPath = join(siteDir, ".site-meta.json");
   try {
     writeFileSync(metaPath, JSON.stringify(content, null, 2), { flag: "wx", mode: 0o600 });
     return siteKeyId;
   } catch (err) {
-    if (!isErrorCode(err, "EEXIST")) throw err;
+    if (!isErrorCode({ err, code: "EEXIST" })) throw err;
     return resolveSiteKeyId({ siteDir });
   }
 }
 
 /** {@link decideLocalSiteKeyEnsure}'s input from a raw {@link parseSiteKeyHex} result (or
  *  `undefined` for "nothing there"). */
-function verdictOf(parsed: ParsedSiteKeyHex | undefined): SiteKeyVerdict<string, SiteKeyRejection> {
+function verdictOf(
+  { parsed }: { parsed: ParsedSiteKeyHex | undefined },
+  _optional = {}
+): SiteKeyVerdict<string, SiteKeyRejection> {
   if (parsed === undefined) return { kind: "absent" };
   return parsed.ok ? { kind: "valid", value: parsed.hex } : { kind: "invalid", value: parsed.reason };
 }
 
 /** {@link parseSiteKeyHex} over material that may be absent. */
-function parseRawMaterial(raw: string | undefined): ParsedSiteKeyHex | undefined {
+function parseRawMaterial({ raw }: { raw: string | undefined }, _optional = {}): ParsedSiteKeyHex | undefined {
   return raw === undefined ? undefined : parseSiteKeyHex({ raw });
 }
 
@@ -689,20 +710,30 @@ function parseRawMaterial(raw: string | undefined): ParsedSiteKeyHex | undefined
  *  the order does not hide it.
  *  @complexity O(n) in `sources.length` — one read and one hash per source. */
 function findStampedHex(
-  sources: readonly SiteKeySource[],
-  env: NodeJS.ProcessEnv,
-  stampedFingerprint: string | undefined
+  {
+    sources,
+    env,
+    stampedFingerprint,
+  }: {
+    sources: readonly SiteKeySource[];
+    env: NodeJS.ProcessEnv;
+    stampedFingerprint: string | undefined;
+  },
+  _optional = {}
 ): string | undefined {
   if (stampedFingerprint === undefined) return undefined;
   for (const source of sources) {
-    const parsed = parseRawMaterial(readRawSiteKeyMaterial(source, env));
+    const parsed = parseRawMaterial({ raw: readRawSiteKeyMaterial(source, env) });
     if (parsed?.ok && fingerprintSiteKeyHex({ hex: parsed.hex }) === stampedFingerprint) return parsed.hex;
   }
   return undefined;
 }
 
 /** Whether `parsed` is a valid key whose fingerprint is `fingerprint`. @complexity O(1). */
-function matchesFingerprint(parsed: ParsedSiteKeyHex | undefined, fingerprint: string | undefined): boolean {
+function matchesFingerprint(
+  { parsed, fingerprint }: { parsed: ParsedSiteKeyHex | undefined; fingerprint: string | undefined },
+  _optional = {}
+): boolean {
   return parsed?.ok === true && fingerprint !== undefined && fingerprintSiteKeyHex({ hex: parsed.hex }) === fingerprint;
 }
 
@@ -716,12 +747,15 @@ function matchesFingerprint(parsed: ParsedSiteKeyHex | undefined, fingerprint: s
  * @throws whatever `fs` throws other than `ENOENT`.
  * @complexity O(1) — one read, one rename, one chmod.
  */
-function moveSiteKeyFileAside(filePath: string, expectedContent: string): string | undefined {
+function moveSiteKeyFileAside(
+  { filePath, expectedContent }: { filePath: string; expectedContent: string },
+  _optional = {}
+): string | undefined {
   let current: string;
   try {
     current = readFileSync(filePath, "utf8");
   } catch (err) {
-    if (isErrorCode(err, "ENOENT")) return undefined;
+    if (isErrorCode({ err, code: "ENOENT" })) return undefined;
     throw err;
   }
   if (current !== expectedContent) return undefined;
@@ -730,7 +764,7 @@ function moveSiteKeyFileAside(filePath: string, expectedContent: string): string
   try {
     renameSync(filePath, backupPath);
   } catch (err) {
-    if (isErrorCode(err, "ENOENT")) return undefined;
+    if (isErrorCode({ err, code: "ENOENT" })) return undefined;
     throw err;
   }
   chmodSync(backupPath, 0o600);
@@ -758,14 +792,14 @@ function findFirstPresentMaterial(sources: readonly SiteKeySource[], env: NodeJS
  * the one file that won, whichever process actually wrote it. Also the project key's publisher
  * (`server/runtime/composition/project-store.ts`), for the same race (web + desktop first start).
  *
- * @param filePath - the target `~/.tovu/site-keys/<id>.hex`. Its containing directory is created
+ * @param required.filePath - the target `~/.tovu/site-keys/<id>.hex`. Its containing directory is created
  *   (`0700`) if missing.
- * @param hex - this call's own candidate key material, used only if no one else wins the race.
+ * @param required.hex - this call's own candidate key material, used only if no one else wins the race.
  * @returns the final file's content (trimmed) — always read from disk, never `hex` verbatim.
  * @throws whatever `fs` throws other than `EEXIST` from the `linkSync` step.
  * @complexity O(1) — a fixed number of syscalls, independent of `hex`'s length.
  */
-export function atomicCreateSiteKeyFile(filePath: string, hex: string): string {
+export function atomicCreateSiteKeyFile({ filePath, hex }: { filePath: string; hex: string }, _optional = {}): string {
   const dir = dirname(filePath);
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   const tmpPath = join(dir, `.${basename(filePath)}.tmp-${process.pid}-${randomBytes(4).toString("hex")}`);
@@ -780,7 +814,7 @@ export function atomicCreateSiteKeyFile(filePath: string, hex: string): string {
   try {
     linkSync(tmpPath, filePath);
   } catch (err) {
-    if (!isErrorCode(err, "EEXIST")) throw err;
+    if (!isErrorCode({ err, code: "EEXIST" })) throw err;
     // Lost the race — another process's file is now canonical; fall through to read it back.
   } finally {
     try {
@@ -797,7 +831,7 @@ export function atomicCreateSiteKeyFile(filePath: string, hex: string): string {
  *  {@link atomicCreateSiteKeyFile}'s `linkSync` and {@link mintMinimalSiteMetaJson}'s `writeFileSync(…,
  *  {flag:"wx"})` — both are "only the FIRST writer wins, everyone else reads the result back"
  *  primitives — and by {@link moveSiteKeyFileAside}'s `ENOENT` (another instance moved it first). */
-function isErrorCode(err: unknown, code: "EEXIST" | "ENOENT"): boolean {
+function isErrorCode({ err, code }: { err: unknown; code: "EEXIST" | "ENOENT" }, _optional = {}): boolean {
   if (typeof err !== "object" || err === null || !("code" in err)) return false;
   return (err as { code?: unknown }).code === code;
 }

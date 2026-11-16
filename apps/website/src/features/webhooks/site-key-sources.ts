@@ -66,16 +66,16 @@ export function siteKeySources(input: SiteKeySourcesInput): SiteKeySource[] {
   const envSource: SiteKeySource = { kind: "env" };
 
   if (input.mode === "production") {
-    return [envSource, { kind: "volume-file", path: join(input.cwd, "sites", ".tovu", "site-key.hex") }, { kind: "legacy-volume-file", path: legacyVolumeFilePath(input.cwd) }];
+    return [envSource, { kind: "volume-file", path: join(input.cwd, "sites", ".tovu", "site-key.hex") }, { kind: "legacy-volume-file", path: legacyVolumeFilePath({ cwd: input.cwd }) }];
   }
 
   assertTestHomeIsolation({ homeDir: input.home });
   const sources: SiteKeySource[] = [];
-  if (input.siteKeyId && isSafeSiteKeyId(input.siteKeyId)) {
-    sources.push({ kind: "per-site-file", path: perSiteFilePath(input.home, input.siteKeyId) });
+  if (input.siteKeyId && isSafeSiteKeyId({ id: input.siteKeyId })) {
+    sources.push({ kind: "per-site-file", path: perSiteFilePath({ home: input.home, siteKeyId: input.siteKeyId }) });
   }
   sources.push(envSource);
-  sources.push({ kind: "legacy-shared-file", path: legacySharedFilePath(input.home) });
+  sources.push({ kind: "legacy-shared-file", path: legacySharedFilePath({ home: input.home }) });
   return sources;
 }
 
@@ -101,24 +101,24 @@ export function siteKeyEnvOnlySources(_required = {}, _optional = {}): SiteKeySo
 const SAFE_SITE_KEY_ID = /^[A-Za-z0-9._-]{1,128}$/;
 
 /** Whether `id` can be used as a key-file name without escaping `~/.tovu/site-keys/`. */
-export function isSafeSiteKeyId(id: string): boolean {
+export function isSafeSiteKeyId({ id }: { id: string }, _optional = {}): boolean {
   return SAFE_SITE_KEY_ID.test(id) && id !== "." && id !== "..";
 }
 
 /** `~/.tovu/site-keys/<siteKeyId>.hex` — A.1's per-site local path. */
-function perSiteFilePath(home: string, siteKeyId: string): string {
+function perSiteFilePath({ home, siteKeyId }: { home: string; siteKeyId: string }, _optional = {}): string {
   return join(home, ".tovu", "site-keys", `${siteKeyId}.hex`);
 }
 
 /** `~/.tovu/site-key.hex` — the one shared file every install had before per-site
  *  keys, still read (never written by a reader) as an adoption source. */
-function legacySharedFilePath(home: string): string {
+function legacySharedFilePath({ home }: { home: string }, _optional = {}): string {
   return join(home, ".tovu", LEGACY_SITE_KEY_FILENAME);
 }
 
 /** `<cwd>/sites/.tovu/site-key.hex` — the production durable-volume path
  *  (`keyring.env.ts`'s `defaultSiteKeyFilePath` production branch), reused here unchanged. */
-function legacyVolumeFilePath(cwd: string): string {
+function legacyVolumeFilePath({ cwd }: { cwd: string }, _optional = {}): string {
   return join(cwd, "sites", ".tovu", LEGACY_SITE_KEY_FILENAME);
 }
 
@@ -134,7 +134,7 @@ function legacyVolumeFilePath(cwd: string): string {
  *
  * @complexity O(1) — one small, bounded-size file read.
  */
-export function readSiteMetaJson(siteDir: string): Record<string, unknown> | undefined {
+export function readSiteMetaJson({ siteDir }: { siteDir: string }, _optional = {}): Record<string, unknown> | undefined {
   let raw: string;
   try {
     raw = readFileSync(join(siteDir, ".site-meta.json"), "utf8");
@@ -158,8 +158,8 @@ export function readSiteMetaJson(siteDir: string): Record<string, unknown> | und
  * it to the deployed server as `TOVU_SITE_ID`, so both name the same site the same way.
  * @complexity O(1), one small file read.
  */
-export function readSiteMetaId(siteDir: string): string | undefined {
-  const meta = readSiteMetaJson(siteDir);
+export function readSiteMetaId({ siteDir }: { siteDir: string }, _optional = {}): string | undefined {
+  const meta = readSiteMetaJson({ siteDir });
   const id = typeof meta?.siteId === "string" && meta.siteId !== "" ? meta.siteId : meta?.siteKeyId;
   return typeof id === "string" && id !== "" ? id : undefined;
 }
@@ -173,7 +173,7 @@ const SITE_ID_TOKEN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
  * a path) is refused rather than carried.
  * @complexity O(1) (bounded length).
  */
-export function isSiteIdToken(value: string): boolean {
+export function isSiteIdToken({ value }: { value: string }, _optional = {}): boolean {
   return SITE_ID_TOKEN.test(value);
 }
 
@@ -200,12 +200,12 @@ export interface ResolveSiteKeyIdInput {
  * @complexity O(1) — one small, bounded-size file read (via {@link readSiteMetaJson}).
  */
 export function resolveSiteKeyId(input: ResolveSiteKeyIdInput): string | undefined {
-  const meta = readSiteMetaJson(input.siteDir);
+  const meta = readSiteMetaJson({ siteDir: input.siteDir });
   if (meta === undefined) return undefined;
   const id = typeof meta.siteKeyId === "string" && meta.siteKeyId.length > 0 ? meta.siteKeyId : meta.siteId;
   // An unsafe id resolves to "no per-site key" (legacy readers only) rather than falling back to
   // `siteId`: a site whose `siteKeyId` was tampered with must not quietly switch to another key file.
-  return typeof id === "string" && id.length > 0 && isSafeSiteKeyId(id) ? id : undefined;
+  return typeof id === "string" && id.length > 0 && isSafeSiteKeyId({ id }) ? id : undefined;
 }
 
 export interface SiteKeySourcesForSiteDirInput {
@@ -251,7 +251,7 @@ export interface ResolveSiteKeyFingerprintInput {
  * @complexity O(1) — one small, bounded-size file read (via {@link readSiteMetaJson}).
  */
 export function resolveSiteKeyFingerprint(input: ResolveSiteKeyFingerprintInput): string | undefined {
-  const meta = readSiteMetaJson(input.siteDir);
+  const meta = readSiteMetaJson({ siteDir: input.siteDir });
   if (meta === undefined) return undefined;
   return typeof meta.siteKeyFingerprint === "string" && meta.siteKeyFingerprint.length > 0 ? meta.siteKeyFingerprint : undefined;
 }

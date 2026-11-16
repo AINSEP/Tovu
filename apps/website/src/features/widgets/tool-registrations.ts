@@ -89,7 +89,7 @@ export const widgetsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTool
  * problems only. A `WidgetForbiddenError` or `WidgetReferencedError` is not a shape problem
  * retrying the SAME input would ever resolve.
  */
-function isWidgetsShapeRejection(error: unknown): boolean {
+function isWidgetsShapeRejection({ error }: { error: unknown }, _optional = {}): boolean {
   return (
     error instanceof WidgetConfigValidationError ||
     error instanceof WidgetTypeUnregisteredError ||
@@ -130,7 +130,7 @@ function isWidgetsShapeRejection(error: unknown): boolean {
  *
  * @complexity O(1).
  */
-function toModelFacingWidgetsError(err: unknown): unknown {
+function toModelFacingWidgetsError({ err }: { err: unknown }, _optional = {}): unknown {
   if (err instanceof ToolInputError) return err;
   if (err instanceof WidgetForbiddenError) {
     return new ToolInputError({ message: `WIDGETS_FORBIDDEN: ${err.message}` });
@@ -150,13 +150,21 @@ function toModelFacingWidgetsError(err: unknown): unknown {
   if (err instanceof WidgetEmbedPlacementNotFoundError) {
     return new ToolInputError({ message: `WIDGETS_EMBED_PLACEMENT_NOT_FOUND: ${err.message}` });
   }
+  const conflict = toModelFacingWidgetsConflictError({ err });
+  if (conflict) return conflict;
+  return err;
+}
+
+/** The two optimistic-concurrency refusals of {@link toModelFacingWidgetsError}, split out to keep
+ * its branch count within the complexity limit. `undefined` when `err` is neither. */
+function toModelFacingWidgetsConflictError({ err }: { err: unknown }, _optional = {}): ToolInputError | undefined {
   if (err instanceof WidgetVersionConflictError) {
     return new ToolInputError({ message: `WIDGETS_VERSION_CONFLICT: ${err.message}. Nothing was written. Re-read the host or instance to get its current version (${err.currentVersion}) and resend with that as baseVersion.` });
   }
   if (err instanceof WidgetAreaConflictError) {
     return new ToolInputError({ message: `WIDGETS_AREA_CONFLICT: ${err.message}. Nothing was written. Call content_read.widget_region to get the current baseVersion (${err.currentVersion}) and resend.` });
   }
-  return err;
+  return undefined;
 }
 
 /** What a Widgets instance tool returns to the model — see {@link toWidgetInstanceToolView}. */
@@ -283,7 +291,7 @@ export function buildWidgetsRegistrations(
 
     widgets_create_instance: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
-      return withSchemaOnRejection({ toolId: "widgets_create_instance", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isWidgetsShapeRejection(error), fn: async () => {
+      return withSchemaOnRejection({ toolId: "widgets_create_instance", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isWidgetsShapeRejection({ error }), fn: async () => {
         const { instance } = await createWidgetInstance({
           deps: buildWidgetsDeps(routeDeps),
           input: {
@@ -301,7 +309,7 @@ export function buildWidgetsRegistrations(
 
     widgets_update_instance: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
-      return withSchemaOnRejection({ toolId: "widgets_update_instance", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isWidgetsShapeRejection(error), fn: async () => {
+      return withSchemaOnRejection({ toolId: "widgets_update_instance", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isWidgetsShapeRejection({ error }), fn: async () => {
         const { instance } = await updateWidgetInstance({
           deps: buildWidgetsDeps(routeDeps),
           input: {
@@ -406,7 +414,7 @@ export function buildWidgetsRegistrations(
 
     widgets_insert_embed: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
-      return withSchemaOnRejection({ toolId: "widgets_insert_embed", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isWidgetsShapeRejection(error), fn: async () => {
+      return withSchemaOnRejection({ toolId: "widgets_insert_embed", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isWidgetsShapeRejection({ error }), fn: async () => {
         const { entry, placementId } = await insertWidgetEmbed({
           deps: buildWidgetsDeps(routeDeps),
           input: {
@@ -445,7 +453,7 @@ export function buildWidgetsRegistrations(
       // decoration a rejection caught INSIDE the wrap gets from `isWidgetsShapeRejection`. Moved
       // inside so this validator is unremarkable among this handler's other shape checks rather than
       // the one exception that bypasses the wrap every sibling rejection goes through.
-      return withSchemaOnRejection({ toolId: "widgets_reorder_embeds", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isWidgetsShapeRejection(error), fn: async () => {
+      return withSchemaOnRejection({ toolId: "widgets_reorder_embeds", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isWidgetsShapeRejection({ error }), fn: async () => {
         if (!Array.isArray(input.orderedWidgetEntryIds) || !input.orderedWidgetEntryIds.every((id: unknown) => typeof id === "string" && id.length > 0)) {
           throw new ToolInputError({ message: "'orderedWidgetEntryIds' (non-empty string array) is required" });
         }
@@ -476,7 +484,7 @@ export function buildWidgetsRegistrations(
         try {
           return await handler(ctx);
         } catch (err) {
-          throw toModelFacingWidgetsError(err);
+          throw toModelFacingWidgetsError({ err });
         }
       },
     ])

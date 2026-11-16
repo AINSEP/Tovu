@@ -83,7 +83,7 @@ const LAST_DELIVERY_LOOKUP_LIMIT = 50;
 const DEFAULT_DELIVERIES_LIMIT = 50;
 const MAX_DELIVERIES_LIMIT = 200;
 
-function clampDeliveriesLimit(requested: number | undefined): number {
+function clampDeliveriesLimit({ requested }: { requested: number | undefined }, _optional = {}): number {
   if (requested === undefined || !Number.isFinite(requested) || requested <= 0) return DEFAULT_DELIVERIES_LIMIT;
   return Math.min(Math.floor(requested), MAX_DELIVERIES_LIMIT);
 }
@@ -102,7 +102,10 @@ function mostRecentDelivery(deliveries: readonly WebhookDeliveryRecord[]): Webho
  * `newsletter/tool-registrations.ts`'s identical reasoning for dropping actor attribution). Never
  * includes a secret value — `WebhookSubscriptionRecord` has no secret field to begin with (see
  * `agent-tools.ts`'s file header). */
-function toSubscriptionToolView(subscription: WebhookSubscriptionRecord, lastDelivery: WebhookDeliveryRecord | null) {
+function toSubscriptionToolView(
+  { subscription, lastDelivery }: { subscription: WebhookSubscriptionRecord; lastDelivery: WebhookDeliveryRecord | null },
+  _optional = {}
+) {
   return {
     id: subscription.id,
     label: subscription.label,
@@ -195,7 +198,10 @@ export function buildWebhooksRegistrations(
   routeDeps: IntegrationsToolDeps,
   surfaces: ChatDeleteSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
-  const isAllowedTarget = (url: string) => routeDeps.originRegistry.isAllowedEgressTarget({ context: { workspaceId: routeDeps.workspaceId }, url: url });
+  const isAllowedTarget = (
+    { url }: { url: string },
+    _optional = {}
+  ) => routeDeps.originRegistry.isAllowedEgressTarget({ context: { workspaceId: routeDeps.workspaceId }, url: url });
 
   const handlers: Record<string, ToolHandler> = {
     webhooks_list_subscriptions: async (ctx) => {
@@ -210,7 +216,7 @@ export function buildWebhooksRegistrations(
             subscriptionId: subscription.id,
             limit: LAST_DELIVERY_LOOKUP_LIMIT,
           });
-          return toSubscriptionToolView(subscription, mostRecentDelivery(recentDeliveries));
+          return toSubscriptionToolView({ subscription, lastDelivery: mostRecentDelivery(recentDeliveries) });
         }),
       );
       return { subscriptions: views };
@@ -227,7 +233,7 @@ export function buildWebhooksRegistrations(
       const deliveries = await routeDeps.webhookDeliveryRepo.listBySubscription({
         workspaceId: routeDeps.workspaceId,
         subscriptionId,
-        limit: clampDeliveriesLimit(optionalNumber({ input, key: "limit" })),
+        limit: clampDeliveriesLimit({ requested: optionalNumber({ input, key: "limit" }) }),
       });
       const newestFirst = [...deliveries].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       return { deliveries: newestFirst.map((delivery) => toWebhookDeliveryView({ delivery })) };
@@ -253,7 +259,7 @@ export function buildWebhooksRegistrations(
           topics: Array.isArray(rawTopics) ? rawTopics.map(String) : [],
         },
       });
-      return { subscription: toSubscriptionToolView(subscription, null) };
+      return { subscription: toSubscriptionToolView({ subscription, lastDelivery: null }) };
     },
 
     /** Uses the existing validation/egress owner and never exposes signing material. */
@@ -273,7 +279,7 @@ export function buildWebhooksRegistrations(
       const deliveries = await routeDeps.webhookDeliveryRepo.listBySubscription({
         workspaceId: routeDeps.workspaceId, subscriptionId, limit: 1,
       });
-      return { subscription: toSubscriptionToolView(subscription, mostRecentDelivery(deliveries)) };
+      return { subscription: toSubscriptionToolView({ subscription, lastDelivery: mostRecentDelivery(deliveries) }) };
     },
     webhooks_pause_subscription: async (ctx) => {
       const input = requireInputRecord({ input: ctx.input });
@@ -287,7 +293,7 @@ export function buildWebhooksRegistrations(
         },
         { paused: optionalBoolean({ input, key: "paused" }) ?? true },
       );
-      return { subscription: toSubscriptionToolView(subscription, null) };
+      return { subscription: toSubscriptionToolView({ subscription, lastDelivery: null }) };
     },
 
     /**
@@ -334,10 +340,10 @@ export function buildWebhooksRegistrations(
           deps: { clock: routeDeps.clock, repo: routeDeps.webhookSubscriptionRepo, idGenerator: routeDeps.idGen, isAllowedTarget },
           input: { workspaceId: routeDeps.workspaceId, id: subscriptionId },
         });
-        return { deleted: true, cancelled: false, subscription: toSubscriptionToolView(subscription, null) };
+        return { deleted: true, cancelled: false, subscription: toSubscriptionToolView({ subscription, lastDelivery: null }) };
       },
     }, { flag: "deleted", batch: true, declined: ({ reason, prepared }) => {
-      if (reason === "declined" && prepared) return { deleted: false, cancelled: true, subscription: toSubscriptionToolView(prepared.existing, null) };
+      if (reason === "declined" && prepared) return { deleted: false, cancelled: true, subscription: toSubscriptionToolView({ subscription: prepared.existing, lastDelivery: null }) };
       return { deleted: false, cancelled: false, reason, note: reason === "expired"
         ? "The user did not respond to the confirmation dialog before it expired. Nothing was deleted."
         : "The confirmation dialog was closed because the run ended. Nothing was deleted." };

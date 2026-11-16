@@ -124,9 +124,9 @@ function siteIdentityEnv({ env, stderr }: { env: NodeJS.ProcessEnv; stderr: (req
     stderr({ message: `tovu deploy config: the site could not be resolved, so TOVU_SITE_ID is not set: ${error instanceof Error ? error.message : String(error)}\n` });
     return {};
   }
-  const siteId = readSiteMetaId(siteRoot);
+  const siteId = readSiteMetaId({ siteDir: siteRoot });
   if (siteId === undefined) return {};
-  if (!isSiteIdToken(siteId)) {
+  if (!isSiteIdToken({ value: siteId })) {
     stderr({ message: `tovu deploy config: ${path.join(siteRoot, ".site-meta.json")} holds ${JSON.stringify(siteId.slice(0, 80))}, which is not a valid site id, so TOVU_SITE_ID is not set\n` });
     return {};
   }

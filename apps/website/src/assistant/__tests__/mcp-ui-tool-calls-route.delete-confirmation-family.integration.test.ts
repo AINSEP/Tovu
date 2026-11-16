@@ -310,7 +310,7 @@ async function setupWebhooks(surfaceExchanges: SurfaceExchangeStore): ReturnType
       clock,
       repo: webhookSubscriptionRepo,
       idGenerator: idGen,
-      isAllowedTarget: (url: string) => originRegistry.isAllowedEgressTarget({ context: { workspaceId }, url: url }),
+      isAllowedTarget: ({ url }: { url: string }) => originRegistry.isAllowedEgressTarget({ context: { workspaceId }, url: url }),
     },
     input: {
       workspaceId,

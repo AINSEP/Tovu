@@ -9,7 +9,7 @@ import { SqlWorkspaceRepo } from "./repo.js";
  */
 export class SqliteWorkspaceRepo extends SqlWorkspaceRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
-  constructor(store: ContentKernel | ContentDb) {
+  constructor({ store }: { store: ContentKernel | ContentDb }) {
     super(contentKernel({ store }));
   }
 }

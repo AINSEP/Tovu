@@ -34,7 +34,10 @@ import { importWidgetInstance } from "@jini-ai/cms/widgets";
  */
 
 /** The widgets write-service deps for one apply. */
-function serviceDeps(ctx: RepoWriteContext<unknown, WidgetPublishPorts>, entityType: string) {
+function serviceDeps(
+  { ctx, entityType }: { ctx: RepoWriteContext<unknown, WidgetPublishPorts>; entityType: string },
+  _optional = {}
+) {
   const { deps, ports } = ctx;
   const gateway = gatewayDeps(deps, entityType);
   return {
@@ -77,9 +80,16 @@ const WIDGET_CONFIG_REFERENCES: Readonly<Record<string, string>> = { [FORM_REF]:
  *  write). A reference `swap` cannot resolve stays as it is, so a dangling one stays dangling on
  *  both sides and still hashes alike. */
 async function swapFormRef(
-  widgetType: WidgetTypeKey,
-  config: Record<string, unknown>,
-  swap: (ref: string) => Promise<string | undefined>
+  {
+    widgetType,
+    config,
+    swap,
+  }: {
+    widgetType: WidgetTypeKey;
+    config: Record<string, unknown>;
+    swap: (ref: string) => Promise<string | undefined>;
+  },
+  _optional = {}
 ): Promise<Record<string, unknown>> {
   const ref = config[FORM_REF];
   if (widgetType !== "contact-form" || typeof ref !== "string") return config;
@@ -89,7 +99,10 @@ async function swapFormRef(
 /** The media a widget's free-text config fields link to by `/m/` or `/media/` URL (a text widget's
  *  body, a social link's `url`), found through its type's `configSchema`. No v1 type stores a media
  *  id, so URLs are the only way a widget's settings name an image or file. */
-function widgetMediaReferences(widgetType: string, config: Record<string, unknown>): PublishContentReference[] {
+function widgetMediaReferences(
+  { widgetType, config }: { widgetType: string; config: Record<string, unknown> },
+  _optional = {}
+): PublishContentReference[] {
   const registration = findWidgetTypeRegistration({ raw: widgetType });
   if (!registration) return [];
   const keys = new Set(collectWidgetConfigStrings({ schema: registration.configSchema, config }).flatMap((text) => [...collectMediaUrlKeys(text)]));
@@ -98,8 +111,11 @@ function widgetMediaReferences(widgetType: string, config: Record<string, unknow
 }
 
 /** The row as it packs: its form reference as the form's slug. */
-async function portableRow(p: WidgetPublishPorts, workspaceId: string, row: WidgetRow): Promise<WidgetRow> {
-  const config = await swapFormRef(row.widgetType, row.config, async (id) => (await p.forms.findById({ workspaceId, id }))?.slug);
+async function portableRow(
+  { p, workspaceId, row }: { p: WidgetPublishPorts; workspaceId: string; row: WidgetRow },
+  _optional = {}
+): Promise<WidgetRow> {
+  const config = await swapFormRef({ widgetType: row.widgetType, config: row.config, swap: async (id) => (await p.forms.findById({ workspaceId, id }))?.slug });
   return config === row.config ? row : { ...row, config };
 }
 
@@ -113,10 +129,10 @@ export const contributeWidgetPublish = (): PublishContentContributor =>
     dependsOn: ["form"],
     ports: ({ deps }, _optional = {}) => deps.ports.widget,
     list: async ({ ports: p, workspaceId }) =>
-      Promise.all((await p.entries.listByWorkspace({ workspaceId }, { type: WIDGET_CONTENT_TYPE })).map((entry) => portableRow(p, workspaceId, toWidgetRow(entry)))),
+      Promise.all((await p.entries.listByWorkspace({ workspaceId }, { type: WIDGET_CONTENT_TYPE })).map((entry) => portableRow({ p, workspaceId, row: toWidgetRow(entry) }))),
     find: async ({ ports: p, workspaceId, id }) => {
       const row = await p.entries.findAnyById({ workspaceId, id });
-      return row && row.type === WIDGET_CONTENT_TYPE ? portableRow(p, workspaceId, toWidgetRow(row)) : null;
+      return row && row.type === WIDGET_CONTENT_TYPE ? portableRow({ p, workspaceId, row: toWidgetRow(row) }) : null;
     },
     // A legacy `trash`/`purged` payload is trashed too (the Trash adopts those rows over time).
     isTrashed: ({ row }) => row.deletedAt !== null || row.status !== "active",
@@ -144,7 +160,7 @@ export const contributeWidgetPublish = (): PublishContentContributor =>
         const key = config[field];
         return typeof key === "string" && key.length > 0 ? [{ entityType, key }] : [];
       });
-      return [...refs, ...widgetMediaReferences(String(entity.state.widgetType), config)];
+      return [...refs, ...widgetMediaReferences({ widgetType: String(entity.state.widgetType), config })];
     },
     validate: async ({ entity }) => {
       const widgetType = entity.state.widgetType as WidgetTypeKey;
@@ -156,9 +172,9 @@ export const contributeWidgetPublish = (): PublishContentContributor =>
     write: async (ctx) => {
       const { id, state, expectedVersion, principalId, workspaceId, ports } = ctx;
       const widgetType = state.widgetType as WidgetTypeKey;
-      const config = await swapFormRef(widgetType, state.config as Record<string, unknown>, async (slug) => (await ports.forms.findBySlug({ workspaceId, slug }))?.id);
+      const config = await swapFormRef({ widgetType, config: state.config as Record<string, unknown>, swap: async (slug) => (await ports.forms.findBySlug({ workspaceId, slug }))?.id });
       const { instance } = await importWidgetInstance({
-        deps: serviceDeps(ctx, "widget"),
+        deps: serviceDeps({ ctx, entityType: "widget" }),
         input: {
           workspaceId,
           actor: { principalId },
@@ -217,7 +233,7 @@ export const contributeWidgetAreaPublish = (): PublishContentContributor =>
     references: ({ entity }) => collectPlacementReferences(entity.state),
     write: async (ctx) => {
       const { state, existing, expectedVersion, principalId, workspaceId } = ctx;
-      const deps = serviceDeps(ctx, "widget-area");
+      const deps = serviceDeps({ ctx, entityType: "widget-area" });
       const regionKey = state.regionKey as WidgetRegionKey;
       const placements = state.placements as WidgetPlacementNode[];
       // Before `bindWidgetArea`: a create that then failed this check would leave an empty area bound.

@@ -48,7 +48,7 @@ async function seedSubscription(deps: IntegrationsToolDeps, overrides: { label?:
       clock: deps.clock,
       repo: deps.webhookSubscriptionRepo,
       idGenerator: deps.idGen,
-      isAllowedTarget: (url: string) => deps.originRegistry.isAllowedEgressTarget({ context: { workspaceId: deps.workspaceId }, url: url }),
+      isAllowedTarget: ({ url }: { url: string }) => deps.originRegistry.isAllowedEgressTarget({ context: { workspaceId: deps.workspaceId }, url: url }),
     },
     input: {
       workspaceId: WORKSPACE_ID,

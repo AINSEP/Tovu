@@ -82,7 +82,7 @@ export type { UpdateSubscriptionInput, PauseSubscriptionInput, PauseSubscription
 
 export interface WebhookSubscriptionDeps extends Omit<JiniSubscriptionDeps, "isAllowedTarget" | "clock"> {
   clock: { nowIso(): string };
-  isAllowedTarget: (url: string) => Promise<boolean>;
+  isAllowedTarget: (required: { url: string }, optional?: Record<string, never>) => Promise<boolean>;
 }
 export interface CreateSubscriptionInput extends JiniCreateInput { createdByPluginId?: string | null; }
 export interface CreateSubscriptionRequired { deps: WebhookSubscriptionDeps; input: CreateSubscriptionInput; }
@@ -90,13 +90,12 @@ export interface UpdateSubscriptionRequired { deps: WebhookSubscriptionDeps; inp
 export interface PauseSubscriptionRequired { deps: WebhookSubscriptionDeps; input: PauseSubscriptionInput; }
 export interface DeleteSubscriptionRequired { deps: WebhookSubscriptionDeps; input: DeleteSubscriptionInput; }
 
-/** Existing origin ports accept a URL string; adapt to Jini's required callback object. */
+/** Adapts the ISO clock contract to Jini's `nowMs` clock. */
 function adaptSubscriptionDeps(deps: WebhookSubscriptionDeps): JiniSubscriptionDeps {
   return {
     ...deps,
     // Existing routes and excluded durable adapters keep their ISO clock contract.
     clock: { nowMs: () => Date.parse(deps.clock.nowIso()) },
-    isAllowedTarget: ({ url }) => deps.isAllowedTarget(url),
   };
 }
 

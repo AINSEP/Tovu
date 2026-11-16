@@ -286,10 +286,10 @@ test("resolveSiteKeyId/resolveSiteKeyFingerprint: JSON that is not an object (ar
 });
 
 test("isSafeSiteKeyId refuses the dot directory names even though the character class allows dots", () => {
-  assert.equal(isSafeSiteKeyId("."), false);
-  assert.equal(isSafeSiteKeyId(".."), false);
-  assert.equal(isSafeSiteKeyId("site.v2"), true);
-  assert.equal(isSafeSiteKeyId("a".repeat(129)), false);
+  assert.equal(isSafeSiteKeyId({ id: "." }), false);
+  assert.equal(isSafeSiteKeyId({ id: ".." }), false);
+  assert.equal(isSafeSiteKeyId({ id: "site.v2" }), true);
+  assert.equal(isSafeSiteKeyId({ id: "a".repeat(129) }), false);
 });
 
 test("siteKeyEnvOnlySources is exactly the env candidate", () => {
