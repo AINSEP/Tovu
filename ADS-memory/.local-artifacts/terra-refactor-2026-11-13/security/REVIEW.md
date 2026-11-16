@@ -6,6 +6,15 @@ Skills: security-review, secure-input-handling, test-design, hexagonal-architect
 The repositories are public, so every finding is given as **class, location, fix** only. There are no
 attack steps, payloads, request examples or proof-of-concept code in this file.
 
+**Revision 2 (2026-11-16).** An adversarial judge (Codex gpt-6.1-sol, high; security + red-team)
+reviewed revision 1 and returned "needs rework": 5 majors and 3 minors (`CODEX-JUDGE.md`, same folder).
+I checked each one against the code myself before changing anything. Result: 7 accepted in full, 1
+accepted in part (one of its four sub-claims is rebutted with a measurement). The changes are in place
+in the items below; the finding-by-finding answer is in [Judge response](#judge-response) at the end,
+followed by a second adversarial pass over every "safe" and "safe with fixes" verdict and a new section
+of owner-rule acceptance checks. One owner decision arrived with this revision and is applied: **B2-F1
+is resolved — the same-origin check compares the full origin (scheme + host + port).**
+
 ## What was reviewed (exact commits)
 
 | Repo | Ref | SHA |
@@ -38,7 +47,11 @@ not from a mutation run. Where that matters it is said again in the item.
 
 ## A1 — moves/audit-x1 "A03": bound visitor confirmations (Jini `af6779fb`, Tovu `022e1d5b`)
 
-**Verdict: safe with fixes.** Highest severity: **medium**.
+**Verdict: safe with fixes.** Highest severity: **medium**. (Revision 2: verdict unchanged, but the
+must-fix list grew — F5 is a new must-fix before the Jini half is published, and the "owner check kept"
+row below was wrong for the generalised type.)
+
+Must fix: **F1** before the Tovu half merges; **F2 and F5** before the Jini half is published.
 
 ### What the change is
 
@@ -57,7 +70,7 @@ argument, and the tail of `confirm` was split out as `settleHeld`.
 | Reply route rate limit, enabled check, closed body shape, JSON content type, same-origin | `site-assistant-confirm.ts:31-41` | not touched | yes |
 | Body shape depends on the ID format (22 base64url chars) | route regex `site-assistant-confirm.ts:23`; generator `site-assistant.ts:584` (16 random bytes) | not touched | yes |
 | Dedicated exchange store, never the admin store | `site-assistant.ts:581-585` | not touched | yes |
-| Owner check before the claim; a mismatch does not consume the prompt | `visitor-confirmations.ts` (old `confirm`) | `bound-confirmations.ts:128` | yes |
+| Owner check before the claim; a mismatch does not consume the prompt | `visitor-confirmations.ts:71` (old `confirm`) | `bound-confirmations.ts:128` | **yes for Tovu's binding (owners are objects); not for the generalised owner type — F5** |
 | Claim before any await (no double answer) | old `confirm` | `bound-confirmations.ts:130` then `settleHeld` | yes |
 | Expiry checked before and after the host validation; answer always delivered | old `confirm` | `settleHeld`, `bound-confirmations.ts:61-73` | yes |
 | Caps: 20 held, 2 per client address, 1 per run | literals in Tovu | `limits` passed from Tovu `visitor-confirmations.ts:27-28`; no Jini default | yes |
@@ -134,11 +147,58 @@ Both commits merge onto `integ/wave-b-r2` without conflicts (`git merge-tree` ch
 - Fix: add one Tovu test that the admin MCP-UI reply endpoint cannot deliver to an exchange opened with
   the visitor principal/channel, and that the site-assistant module builds its own store. **Missing.**
 
+**A1-F5 — medium — the owner check is skipped for a present owner whose value is falsy (added in revision 2; judge finding 1, verified).**
+- Class: authorization check that depends on value truthiness after the owner type was generalised.
+- Location: Jini `packages/daemon/src/bound-confirmations.ts:128`
+  (`if (held.owner && !deps.sameOwner(…)) return false;`), with the unrestricted type parameter at
+  `:15`, `:20`, `:35`, `:43` and `:50`.
+- Fact: the line was copied from Tovu (`visitor-confirmations.ts:71` on `integ/wave-b-r2`), where the
+  owner type is `FrontendSessionOwner`, always an object, so "truthy" and "present" were the same thing.
+  Jini made the owner any `TOwner`. For a host whose owner is a scalar (a number, a string, a boolean),
+  one legal owner value is falsy, and for that owner `sameOwner` is never called: the prompt is then
+  answerable by anyone who holds the exchange ID, which is exactly the "no owner bound" mode. The
+  exchange ID is still an unguessable single-use bearer delivered only on the owner's own stream, so
+  this removes the second factor for one owner value, not the first — that is why it is medium and not
+  high. **Tovu is not affected** (its owners are objects; `022e1d5b:…/visitor-confirmations.ts:27`
+  binds `createBoundConfirmations<FrontendSessionOwner>`).
+- Why revision 1 missed it: I compared the line with the old Tovu line, saw them identical, and marked
+  the gate "kept". Identical text is not identical behaviour once the type under it widens.
+- Fix (either; the first is preferred because it removes the trap for every later edit):
+  1. Record presence explicitly. Store `hasOwner: 'owner' in binding && binding.owner !== undefined`
+     (or keep `owner` and test `held.owner !== undefined`) and compare whenever an owner was bound.
+     Decide and document what `null` means; recommended: `null` is "bound to nobody" and is refused at
+     `request`.
+  2. Or constrain the contract: `TOwner extends object`, so the truthiness test is sound by type. This
+     is the smaller diff; it narrows the public API, so it must be chosen before publication.
+  Note for the implementer: `createBoundConfirmations` measures 48 lint-counted lines against a limit of
+  50 (see "Owner-rule acceptance checks"). Fix 1 must not push it over; extract the owner test into a
+  named helper if needed.
+- Regression tests needed — **all missing** in Jini (`bound-confirmations.test.ts:7` uses only an
+  object owner, and the six cases of F2 do not touch this line): for every owner representation the
+  contract admits (object, and under fix 1 also string, number and boolean including each falsy value):
+  (a) matching owner answers; (b) a different owner is refused; (c) an **omitted** owner is refused when
+  one was bound; (d) after each refusal the prompt is still answerable by its owner (a refusal must not
+  consume it). Under fix 2 instead: a type test that a scalar owner does not compile, plus (a)–(d) for
+  the object case. Each of (b) and (c) must fail on today's line 128 for a falsy owner.
+- Tovu keeps `visitor-confirmations.unit.test.ts:33,134` as the binding test; no Tovu change is needed.
+
+**A1-F6 — low — the bound owner is held by reference (added in revision 2; found in the second pass).**
+- Class: caller-owned mutable object retained as the authority for a later check.
+- Location: Jini `bound-confirmations.ts:109` (`owner: binding.owner` stored in the held prompt) and
+  `:128` (compared up to the exchange lifetime later).
+- Fact: the value compared at answer time is whatever the caller's object holds by then, not what it
+  held when the prompt was opened. Tovu passes the owner produced by its own session binding for that
+  request (`composition/modules/site-assistant.ts:715`), which nothing mutates, so there is no effect
+  today. As a published generic API the note belongs on the type.
+- Fix: say on `BoundConfirmationBinding.owner` that the value must be immutable for the life of the
+  prompt, or take an owner *key* (a primitive the host derives) instead of an object and compare keys.
+  Not blocking.
+
 ### Regression tests that must exist
 
 | Test | Exists? |
 |---|---|
-| Forged / replayed / wrong-owner answer refused; owner mismatch does not consume | yes (Jini `bound-confirmations.test.ts`; Tovu `visitor-confirmations.unit:33,134`) |
+| Forged / replayed / wrong-owner answer refused; owner mismatch does not consume | object owners: yes (Jini `bound-confirmations.test.ts:50`; Tovu `visitor-confirmations.unit:33,134`). **Omitted owner, and every non-object or falsy owner: missing (F5)** |
 | Caps (run, per key, total) and slot release on every terminal path | Tovu yes (`:52,73,117`); Jini release path **missing** (F2.6) |
 | Expiry during validation, validation error, abort after claim | Tovu yes (`:19,33,102`); Jini throw/abort **missing** (F2.3, F2.5) |
 | Approval bound to revision and exact input; single use | Tovu yes (`visitor-confirmation-gate.unit:44,72,80`); Jini positive + single-use **missing** (F2.1, F2.2) |
@@ -307,7 +367,7 @@ It is a generic copy of Tovu `apps/website/src/assistant/desktop-mcp-runtime.ts:
 |---|---|---|---|
 | Capability shape: canonical loopback URL, port range, 64-hex token | Tovu `desktop-mcp-runtime.ts:11-22` | host-supplied `isCapability` | **Tovu must keep** |
 | Bearer answers only for the exact pinned URL | Tovu `:47-50` | `pinned-capability.ts:60` | yes |
-| First capability is immutable; same value may be re-delivered | Tovu `:51-56` | `:62-67` | yes |
+| First capability is immutable; same value may be re-delivered | Tovu `:51-56` | `:62-67` | **partly** — `accept` refuses a replacement, but `capability()` (`:61`) hands out the pinned object itself, so a holder can change it — F1 |
 | Handoff token shape (64 hex) or dropped | Tovu `:42` | `:40`, `:55` (fixed in Jini) | yes |
 | Keys removed from the environment object | Tovu `:43` | `:56` | yes, see F2 |
 | Real process environment scrubbed | Tovu `startup-secrets.ts:18-23` (token + handoff) and `desktop-mcp-runtime.ts:75` (URL) | **not in Jini** | **Tovu must keep** |
@@ -321,19 +381,35 @@ It is a generic copy of Tovu `apps/website/src/assistant/desktop-mcp-runtime.ts:
 
 ### Findings
 
-**A3-F1 — medium — a new accessor hands out the raw token without the endpoint check.**
-- Class: token scope widened by API shape.
-- Location: Jini `pinned-capability.ts:28` (interface) and `:61` (`capability()`).
-- Fact: the Tovu runtime exposes the token only through `bearerToken({ url })`, which checks the exact
-  URL. The Jini runtime adds `capability()`, which returns `{ url, token }` to any caller in the
-  process. The file's own header says the supplier "answers only for the exact pinned endpoint"; this
-  accessor is a second way to the same secret with no such check, and it returns a plain object that is
-  easy to log or serialise by accident. Tovu only needs the URL from it (to build `connection()`).
-- Fix: replace `capability()` with an accessor that returns the pinned URL only (for example
-  `endpointUrl()`); keep the token reachable only through `bearerToken`. Must-fix before the Jini API
-  is published, because narrowing it later is a breaking change.
-- Regression test: a type-level and runtime test that no member of the runtime other than
-  `bearerToken` and `handoffToken` returns a 64-hex token — **missing**.
+**A3-F1 — medium — a new accessor hands out the raw token without the endpoint check, and hands out the pin itself.**
+- Class: token scope widened by API shape; accessor returning a live internal object (the second half
+  was added in revision 2: judge finding 7, verified).
+- Location: Jini `pinned-capability.ts:28` (interface) and `:61` (`capability()`); the object it returns
+  is created at `:52-53` or `:65` and read by the bearer supplier at `:60` and by the pin check at `:64`.
+- Fact 1 (token): the Tovu runtime exposes the token only through `bearerToken({ url })`, which checks
+  the exact URL. The Jini runtime adds `capability()`, which returns `{ url, token }` to any caller in
+  the process. The file's own header says the supplier "answers only for the exact pinned endpoint";
+  this accessor is a second way to the same secret with no such check, and it returns a plain object
+  that is easy to log or serialise by accident. Tovu only needs the URL from it (to build
+  `connection()`).
+- Fact 2 (pin): `capability()` returns `capability ?? null` — the **same object** the runtime keeps,
+  not a copy and not frozen. `PinnedCapability` is `readonly` in TypeScript only; that is a compile-time
+  promise, not a runtime one. Whoever receives the object can assign to its two properties, and the
+  bearer supplier (`:60`) and the "is it the same capability" check (`:64`) then use the new values.
+  So the accessor carries the authority to move the pin, which `accept` exists to refuse. Revision 1
+  marked "first capability is immutable" as kept; that was wrong and the gate row above is corrected.
+  The existing tests compare returned values only (`pinned-capability.test.ts:18`, `:31`) and would not
+  notice.
+- Fix: replace `capability()` with an accessor that returns the pinned URL only, as a string (for
+  example `endpointUrl()`); keep the token reachable only through `bearerToken`. A string return closes
+  both halves at once. As defence in depth, freeze the object the runtime holds and build it from the
+  two named fields only (this also closes F6). Must-fix before the Jini API is published, because
+  narrowing it later is a breaking change.
+- Regression tests — both **missing**: (a) a type-level and runtime test that no member of the runtime
+  other than `bearerToken` and `handoffToken` returns a 64-hex token; (b) nothing a caller can obtain
+  from the runtime, and no later change to the object passed to `accept` or to the `env` object, can
+  change what `bearerToken` answers for the pinned URL or make it answer for another URL. (b) must fail
+  on today's `:61`.
 
 **A3-F2 — medium — the "scrubbed before any child can inherit" promise depends on what the host passes.**
 - Class: security property stated by the port but only true for one binding.
@@ -430,6 +506,7 @@ The unpushed commit must be redone on `integ/wave-b-r2`. To be accepted it must:
 | Only the spawning main can supply a capability; other children do not inherit it | yes (Tovu `tovu-server.desktop-mcp.test.ts:7,17`) |
 | Delivery refuses redirects; aborts on disconnect and timeout | **missing** (F3) |
 | No accessor other than the supplier returns the token | **missing** (F1) |
+| Nothing obtainable from the runtime can change the pinned URL or bearer | **missing** (F1, fact 2) |
 | `process.env` holds none of the three names after first use | **missing** (F2) |
 | Receiving route: origin, non-loopback peer, wrong bearer, no token configured, oversized body, second different capability → refused | not checked in this review (route is unchanged); confirm before the Tovu half merges |
 
@@ -455,6 +532,12 @@ Sheets are at `origin/plan/audit2-sheets-a3` (`45764eac`); the A06 sheet is byte
 design cannot express two of the gates it promises to keep, and it leaves the executor to invent a
 default at a deny gate. Highest severity: **high**. Fix the sheet first; the move itself is sound.
 
+Revision 2 adds four findings: **F10** (budget windows become configurable with no cache
+invalidation), **F11 — high** (the Tovu step never connects the new binding to the executor and
+deletes a type the gate still needs), **F12** (two per-call checks read the caller's live capability
+list) and **F13** (owner-rule conflicts in the sheet). The verdict is unchanged; it now rests on two
+highs (F1 and F11).
+
 #### Does the plan keep each gate?
 
 | Gate (today, `apps/website/src/assistant/site/`) | In the sheet | Kept? |
@@ -466,7 +549,9 @@ default at a deny gate. Highest severity: **high**. Fix the sheet first; the mov
 | Ask needs a human return channel (`:128`, `:163`) | B5 | **not expressible in the new port — F2** |
 | Per-input forced confirmation reaches the gate (`:47-48`) | B4 says "derived inside the engine" | **dropped from the gate's input — F3** |
 | Approval checked in the handler; `forget` on every outcome (`:97`, `:140`) | B4 | yes |
-| Rate limit: per-address first, then per-site, serialised, ceiling change keeps counts (`visitor-tool-budgets.ts:39-53`) | B11 | yes, see F5, F6 |
+| Rate limit: per-address first, then per-site, serialised, ceiling change keeps counts (`visitor-tool-budgets.ts:39-53`) | B11 | yes for the ceiling; **the window is a new variable the limiter cache does not see — F10**; see also F5, F6 |
+| Input validation and per-input forced confirmation are looked up for the registered capability (`:66-67`, `:172`, `:184`) | B3, B4 | **yes today; depends on the caller never changing the list it passed — F12** |
+| The policy ports actually reach the executor (`capability-registry.ts:171`) | S3 step 2 | **not specified — F11** |
 | Default deny on any error in authorize (`:132-135`) | B6 | yes |
 | Rollback mode with no ports: page tools denied (`:123`) | B7 | **contradicted by the port shape — F1** |
 | Only explicitly offerable capabilities are registered (`:118`, runtime check) | type only | **not in the must-survive list — F7** |
@@ -580,54 +665,242 @@ default at a deny gate. Highest severity: **high**. Fix the sheet first; the mov
   `createBoundConfirmationGate` (Jini `af6779fb`).
 - The guard list pins `visitor-confirmation-gate.ts` at blob `a2bc520b`, but precondition 1 wants A03
   landed first, and A03 changes that file. The guard will fail after A03. Re-take the blob.
-- A06 must also carry forward the A1 fixes (escaped bidi class, Jini gate tests) or it will copy the
-  gaps.
+- A06 must also carry forward the A1 fixes (escaped bidi class, Jini gate tests, the explicit owner
+  presence check of A1-F5) or it will copy the gaps.
+- (Revision 2, second pass.) With the policy type made generic, "no policy" is tested three different
+  ways today (`visitor-executor.ts:83` and `:126` by truthiness, `:89` by `!== null`, `:119` by
+  `!= null`). State in B5 that "no policy" means exactly `null` and test it the same way everywhere;
+  add the S1 case "a falsy but non-null policy is treated as a policy at all four places".
+
+**B1-F10 — medium — the budget windows become configurable, but the limiter cache only knows about the ceiling (added in revision 2; judge finding 2, verified).**
+- Class: cache keyed on a setting that used to be a constant.
+- Location: sheet contract `VisitorBudgetLimits` (`split-a06-visitor-tool-engine.md:74`: each of `ip`
+  and `site` now carries its own `windowSeconds`, supplied with every charge, `:110`) and S1 step 2
+  (`:132`: budgets move "as is" with a limiter-factory substitution); code
+  `visitor-tool-budgets.ts:8` (`Bucket` records `store`, `max`, `limiter`), `:29-35` (`limiterFor`),
+  `:31` (a cached limiter is reused whenever `max` is unchanged), `:42` and `:44` (today the two windows
+  are the literals 3600 and 86 400).
+- Fact: the cache is correct today only because the window can never change. Under the sheet's
+  contract a host can keep the ceiling and change the window; line 31 then returns the limiter built
+  for the **old** window, silently, for the life of the process. A longer window that is ignored means
+  more calls are admitted than the policy says; a shorter one that is ignored refuses calls it should
+  admit. Tovu's binding passes constants (sheet S3 step 1), so Tovu itself does not change behaviour;
+  the fault is in what Jini would publish. What a counter store does with a counter that was opened
+  under a different window is also undefined (`@jini-ai/http-kit` `CounterStore`,
+  `packages/http-kit/src/rate-limit.ts:27-33`, stores a window state per key and has no notion of the
+  window length changing).
+- Revision 1 missed it: F5 and F6 looked at key canonicalisation, the ceiling and the store, and took
+  the cache as given.
+- Fix (in the sheet; pick one and write it down):
+  1. Preferred: the windows are **fixed when the budgets are built**
+     (`createVisitorToolBudgets({ limiters, windows: { ipSeconds, siteSeconds } })`), and
+     `VisitorBudgetLimits` carries only the two ceilings. This keeps today's behaviour exactly and
+     leaves the cache correct by construction. Tovu's requirement (one hour, one day) is met.
+  2. Otherwise: make the window part of the cached identity (compare `max` **and** `windowSeconds`),
+     and state what happens to consumed allowance on a window change — recommended: the new window
+     starts with the old window's consumed count and its own expiry, never with a fresh allowance —
+     and require the limiter-factory contract to say the same.
+- Regression tests needed in S1 (`budgets.test.ts`, fake clock; **not in the sheet's list**):
+  under fix 1, a type test that a per-charge window does not compile, plus the existing "changed
+  ceiling keeps consumed counts"; under fix 2, change **only** the window with the ceiling held, and
+  assert the admission decisions before and after the old and the new window boundary. That case must
+  fail against a cache that compares `max` alone.
+
+**B1-F11 — high — the Tovu step does not connect the new host binding to the executor, and deletes a type the gate still needs (added in revision 2; judge finding 3, verified).**
+- Class: migration that can silently drop a policy boundary (authorization, budget and audit wiring
+  left to the executor's guesswork).
+- Location: sheet S1 step 2 (`:132`: the factory becomes
+  `createVisitorExecutor({ capabilities, ports }, optional = {})`), S3 steps 1–2 (`:142-143`: a new
+  `visitorPorts(...)` is created; `capability-registry.ts:57` is listed as an **import** change only),
+  S3 step 4 (`:145`: all four source files are removed, `visitor-execution-ports.ts` included) and the
+  note at `:116` ("they stay on a Tovu `VisitorExecutionPorts extends` the Jini type"); code
+  `capability-registry.ts:171`
+  (`createVisitorExecutor({ capabilities: […] }, { ports: options.visitorExecution })`) and
+  `visitor-confirmation-gate.ts:68`, `:76`, `:80` (the gate reads `ports.confirmation`,
+  `ports.publicationRevision`, `ports.owner`).
+- Fact 1: today the ports travel in the **second** argument. The sheet moves them to the first and
+  never says to rewrite line 171, and never says where `visitorPorts(...)` is called. With only the
+  import repointed there are two outcomes, and the sheet does not choose:
+  - the new second parameter is a closed type → the old call does not compile. Safe, but the executor
+    must then improvise the call, which COMMON's STOP rule forbids;
+  - the new second parameter is the open `optional = {}` default → the old call still compiles, the
+    ports are ignored, and the executor runs in **rollback mode**: no policy read, no per-turn cap, no
+    budgets, no audit, and every capability that is not a page tool is allowed
+    (`visitor-executor.ts:63`, `:70`, `:123`). That is a fail-open for anonymous visitors, reached by a
+    type-correct edit.
+- Fact 2: the Tovu gate needs three host-only members. The sheet deletes the file that declares them
+  and gives the surviving Tovu type no file, no definition and no list of consumers to update
+  (`visitor-confirmation-gate.ts:7`, `capability-registry.ts`, the composition at
+  `composition/modules/site-assistant.ts:708-725`, and the four Tovu test files that build ports).
+- Existing protection, from reading: `visitor-tools.integration.test.ts:46-64` builds the registry with
+  real ports and asserts that an empty policy yields no schemas and a refusal, and that a tool set to
+  "off" is not advertised. Both assertions fail if the ports are dropped. So the silent outcome would
+  be caught **if that test is run and not edited** — the sheet does list it as kept. **I did not run
+  it.**
+- Fix (in the sheet, S3):
+  1. Name the surviving Tovu type and its file: for example `visitor-tools-binding.ts` exports
+     `TovuVisitorExecutionPorts` = the Jini ports' host inputs plus `owner`, `publicationRevision`,
+     `confirmation`. List every producer and consumer to update, tests included.
+  2. Give the complete adapter: `visitorPorts(tovuPorts)` → Jini ports, including how the gate
+     factory closes over the three host-only members.
+  3. Give the exact replacement for `capability-registry.ts:171`, for both modes: ports present →
+     `createVisitorExecutor({ capabilities, …the required values of F1 }, { ports: visitorPorts(…) })`
+     (or the first-argument shape, whichever F1's fix settles on); rollback → the same call with no
+     ports.
+  4. Close the second parameter's type in Jini (`Record<string, never>` or a named options type with
+     no index signature) so a stray `{ ports }` cannot compile.
+  5. Delete the four old files only after both constructions have been exercised through the real
+     binding.
+- Regression tests that must exist before S3 is accepted: (a) the two `visitor-tools.integration`
+  cases above, unchanged, **exist**; (b) a Tovu test that the registry built with ports writes an
+  audit event and charges the budget once per allowed call — **missing as a single named guard** (the
+  behaviour is spread over `visitor-executor.unit`); (c) a Jini type test that
+  `createVisitorExecutor(first, { ports })` does not compile once ports live in the first argument —
+  **missing**; (d) rollback construction through the Tovu registry still denies page tools —
+  check whether `visitor-tools.integration.test.ts:34` (`legacy`) covers a page tool; if not, add it.
+
+**B1-F12 — medium — two per-call checks read the caller's capability list, not what was registered (added in revision 2; second pass).**
+- Class: security lookup over a caller-owned mutable collection (the inbound twin of "accessor
+  returning a live internal object").
+- Location: code `visitor-executor.ts:172` (`capabilityNeedsApproval`) and `:184`
+  (`capabilityAcceptsInput`), called per attempt from `:66-67` and through `:47`; both run
+  `capabilities.find(...)` on the array the caller passed to the factory. Registration copied each
+  capability's handler into the registry once (`:117-150`).
+- Fact: if the array changes after construction, the registry still runs the registered handler, but
+  the input validator and the "this input needs a confirmation" rule are looked up in the changed
+  array. A capability that is no longer found there has **no** validator (`:185` then accepts any
+  input) and **no** forced confirmation (`:172` returns false). Tovu is safe today: it passes a fresh
+  array that nothing else holds (`capability-registry.ts:171` spreads the map's values). In Jini the
+  list is host-supplied and the sheet says "keep the exact structure".
+- Fix: at construction, copy what the per-call checks need into a private map keyed by capability
+  name (`acceptsInput`, `requiresConfirmation`), built in the same loop that registers the handler,
+  and read only that map afterwards. Add it to the must-survive list as B16.
+- Test (S1, **not in the sheet**): after the executor is built, empty the caller's array; a call with
+  input the validator rejects is still denied, and an input that forces confirmation still reaches the
+  gate.
+
+**B1-F13 — medium — the sheet conflicts with two owner rules, and neither is in its STOP list (added in revision 2; judge finding 5, the parts that verify).**
+- Location: sheet S2 step 2 (`:138`: "the three Tovu tables become REQUIRED options" —
+  `messages`, `defaultMessage`, `visitorCausedCodes`), against COMMON rule 10
+  (`move-templates/COMMON.md:26`: exported functions take `(required, optional = {})`).
+- Fact: a value that must be supplied cannot live in an argument whose default is `{}`. Either the
+  executor makes the second argument non-optional (breaks rule 10), or keeps the default and has to
+  invent a fallback for a missing table: a fallback message table is product copy in Jini (rule 2),
+  and a missing `visitorCausedCodes` silently changes which errors raise an incident. This is the
+  same class as F1 (required values on an object that may be absent).
+- Fix: the three tables go in the **first** argument of `createPublicErrorReporter`, with no default.
+  Add to the sheet's STOP list: "any required value ends up in the optional argument".
+- Test (S2, **missing**): a type test that the reporter cannot be built without each table.
+- Also for the sheet (owner rule 5 and 17, not a security finding): the new
+  `visitor-tools/index.ts` (`:122`, `:132`) is a file of re-exports. The written rules allow a subpath
+  entry file and forbid Jini code importing through it; they do not forbid the file. See "Owner-rule
+  acceptance checks" for what must be checked and for the open owner question.
 
 #### Tests
 
 The sheet's S1 list is good and mostly mutation-proof by construction (it asserts handler call counts
-and audit content, not internals). Missing cases are named in F1–F8. Tovu keeps
+and audit content, not internals). Missing cases are named in F1–F8 and F10–F13. Tovu keeps
 `visitor-executor.unit`, `visitor-executor-confirmation.unit`, `visitor-page-confirmation.unit` and
 `visitor-tools.integration` as tests of the binding — that is the right call and must not be weakened.
 
 ### B2 — `split-a50-web-security-predicates.md` (CSP declared hosts + same-origin write check → Jini)
 
 **Verdict: safe with fixes.** Highest severity: **medium**. The move keeps both call sites and their
-surrounding gates; the problems are a self-contradicting test, a name that promises more than the
-function does, and a weakness that becomes more important once the helper is shared.
+surrounding gates; the problems are a self-contradicting test, a name that promised more than the
+function did, and a weakness that becomes more important once the helper is shared.
+
+**Revision 2. Owner decision made (B2-F1, sheet finding 4, audit row A50): the same-origin check
+compares the FULL origin — scheme, host and port.** This tightens `admin-surfaces.ts:72`. F1 is
+**resolved as a decision**; the sheet as written still implements the opposite (host-only, with a test
+that pins the cross-scheme case as accepted), so **the sheet must be rewritten to the decision before
+it is executed**. Also changed here: the saved-keys test inventory was wrong and is corrected (judge
+finding 6), and the wildcard fix in F3 is narrowed (judge finding 8).
 
 #### Does the plan keep each gate?
 
 | Gate | Where today | In the sheet | Kept? |
 |---|---|---|---|
-| Write refused unless `Origin` is a bare http(s) origin whose host equals `Host`, and fetch metadata (if sent) is same-origin | `features/agent-plugins/admin-surfaces/same-origin.ts:14-33` | moved byte-identical, renamed | yes |
-| Admin-surface writes: CSRF check, then session-credential-only check | `admin-surfaces.ts:71-77` | call renamed only | yes |
+| Write refused unless `Origin` is a bare http(s) origin whose host equals `Host`, and fetch metadata (if sent) is same-origin | `features/agent-plugins/admin-surfaces/same-origin.ts:14-33` | moved byte-identical, renamed | yes — and by the owner decision it must become **stricter** (full origin), which the sheet does not yet do: F1 |
+| Admin-surface writes: CSRF check, then session-credential-only check | `server/inbound/admin-http/routes/agent-plugins/admin-surfaces.ts:71-77` | call renamed only | yes; **gains the scheme comparison** (F1) |
 | Saved-keys reveal: workspace, session credential, owner identity, CSRF check, **plus scheme equality** | `site-share-password.ts:20-24` | call renamed, line 24 kept | yes |
 | Declared hosts cannot add policy syntax | `contracts/core/public-page-security-headers.ts:64-85` | moved | yes, see F2, F3 |
 | Rate limit, session rotation, token scope, audit | not in these files | — | not affected |
 
 #### Findings
 
-**B2-F1 — medium — the moved function is named "same-origin" but compares host and port only.**
-- Class: security contract over-stated by its name; a weakness pinned as intended.
-- Location: code `same-origin.ts:17`, `:32`; sheet finding 4 and S1 test "an `http:` vs `https:` origin
-  with the same host ACCEPTED".
-- Fact: the scheme of `Origin` is not compared with the scheme the server is serving. One caller adds
-  its own scheme check (`site-share-password.ts:24`); the other (`admin-surfaces.ts:72`) does not. The
-  sheet proposes to export this to every Jini host as `isSameOriginBrowserWrite` and to add a test that
-  pins the cross-scheme case as accepted. Modern browsers' fetch metadata and schemeful cookies cover
-  most of the gap, which is why this is not higher, but a shared primitive must do what its name says.
-- Fix (owner decision needed before execution, as the sheet itself asks): make the Jini function take
-  the expected scheme (or the full expected origin from the host's origin registry) as a **required**
-  input and compare the whole origin; Tovu `admin-surfaces.ts` then gains the scheme check that
-  `site-share-password.ts` already has — a tightening that needs a changeset line. If the owner wants
-  no behaviour change now, name it for what it is (same host) and say so in the doc; do not ship the
-  "same-origin" name with a host-only body.
-- Tests: route-level guard for admin surfaces **exists**
-  (`agent-plugin-admin-surfaces.security.integration.test.ts:129`, asserts the refusal code; it fails
-  if the gate call is removed). I did **not** find a route-level test for the saved-keys path (only
-  `features/site-backup/__tests__/saved-keys-quality.test.ts` references it) — confirm one exists that
-  fails when line 23-24 is removed, or add it, because the unit test file is deleted from Tovu.
+**B2-F1 — medium — RESOLVED by owner decision: the check compares the full origin (scheme + host + port).**
+- Class: security contract over-stated by its name; a weakness that the sheet pinned as intended.
+- Location: code `same-origin.ts:17`, `:32`; `admin-surfaces.ts:72`; `site-share-password.ts:23-24`;
+  sheet finding 4 (`split-a50-web-security-predicates.md:11`), the contract (`:51-54`), S1 step 1
+  (`:67`, the test "an `http:` vs `https:` origin with the same host ACCEPTED"), S2 step 2 (`:73`, "the
+  extra scheme check … is KEPT untouched") and the STOP rule at `:84`.
+- Fact (unchanged from revision 1): the scheme of `Origin` is not compared with the scheme the server
+  is serving. One caller adds its own scheme check (`site-share-password.ts:24`); the other
+  (`admin-surfaces.ts:72`) does not.
+- **Decision (owner, 2026-11-16):** compare the whole origin. The rename-only alternative is dropped.
+- What the sheet must now say (this replaces sheet finding 4, the contract, the pinned test and the
+  STOP rule at `:84`):
+  1. **Jini contract.** `isSameOriginBrowserWrite` takes the **expected origin** as a required input
+     and no longer takes `host`:
+     `{ origin: string | undefined; expectedOrigin: string; fetchSite: string | undefined }`.
+     It returns true only when `origin` is a bare http(s) origin (the existing canonical check at
+     `same-origin.ts:17` stays), equals `expectedOrigin` **exactly** as a serialised origin, and fetch
+     metadata, when sent, is `same-origin`. `expectedOrigin` is required and has no default: a missing
+     or unparsable one refuses. Jini never reads a request, a header or the environment to work the
+     expected origin out (owner rules 3 and 8); the host supplies it.
+  2. **Who decides the expected scheme (Tovu, one helper for both callers).** The expected origin is
+     `<scheme>://<Host header>`, normalised through the URL parser so a default port written out
+     compares equal to one left off. The scheme must come from **one named Tovu helper**. Tovu already
+     has two precedents and they disagree: `req.protocol` (`site-share-password.ts:24`,
+     `routes/system/site-imports.ts:127`) and `resolveProtocol`, which honours the forwarded-scheme
+     header (`public-http/routes/oauth/public-origin.ts:37-45`, used for the same purpose by
+     `public-http/routes/site/comments-submit.ts:67-71`). Behind a proxy that terminates TLS, with no
+     `trust proxy` hop count in effect (`server/inbound/shared/trust-proxy.ts:38`: hops are trusted
+     only from an explicit override or a recognised platform; otherwise none), `req.protocol` reports
+     the inner scheme, so a full-origin check built on it refuses
+     **every** admin-surface write on such a deployment. It fails closed, but it is an outage, and from
+     reading it is what the saved-keys route already does there today (**not verified by running**).
+     The sheet must therefore pick the helper explicitly and say why. Recommended: the comments-route
+     rule (forwarded scheme when it is exactly `http` or `https`, else `req.protocol`), because a page
+     in a victim's browser cannot set that header on a cross-origin request and a client that forges
+     headers needs the session cookie anyway — the same reasoning `same-origin.ts:9-10` already states.
+     This is a judgment for the owner or the sheet author to confirm; it is **not** part of the
+     decision already made.
+  3. **Tovu callers.** `admin-surfaces.ts:72` and `site-share-password.ts:23` both pass the expected
+     origin from that helper. `site-share-password.ts:24` then duplicates the shared check; delete it
+     **only in the same commit** that lands the shared check with its scheme test, and only if the
+     helper chosen in step 2 is at least as strict for that route as `req.protocol` is today —
+     otherwise keep line 24 and say so.
+  4. **It is a behaviour change, not a pure move.** COMMON rule 13 applies: failing tests first, in
+     the same commit, red on the parent. Changeset line for `@jini-ai/core` (new required input) and a
+     Tovu release note (admin-surface writes are refused when the page's scheme differs from the
+     server's).
+  5. **Remove** the S1 case that pins cross-scheme as accepted and the STOP rule that protects
+     host-only behaviour (`:84`); replace with "STOP if any caller would need a host-only comparison".
+- Regression tests that must exist (write these first):
+  - Jini `same-origin-write.test.ts` — **missing** (file not created yet): same host, different
+    scheme → refused, both directions; same scheme and host, different port → refused; default port
+    written out on one side only → accepted; `expectedOrigin` missing, empty, with a path, or not
+    http(s) → refused; every existing case of Tovu `same-origin.unit.test.ts` re-expressed with an
+    expected origin (record the assertion count before and after).
+  - Tovu admin surfaces — the route-level guard **exists**
+    (`agent-plugin-admin-surfaces.security.integration.test.ts:129`, asserts the refusal code; it
+    fails if the gate call is removed). **Missing:** a case on that route where only the scheme
+    differs, expecting the refusal code. It must be red on today's code.
+  - Tovu saved keys — two route-level suites **exist** (corrected in revision 2; judge finding 6,
+    verified): `server/inbound/admin-http/routes/system/__tests__/site-share-password.integration.test.ts:26-48`
+    drives the registered route with a fake backend — a foreign origin is refused (`:43`) and a
+    matching origin with cross-site fetch metadata is refused (`:45`), with the reveal counter still
+    zero (`:46`); `…/__tests__/site-share-password-handler.test.ts:39-75` uses the real registry,
+    sealer and backend and refuses a same-host different-scheme origin, an opaque origin and
+    cross-site fetch metadata (`:62`). From reading, the first fails if the predicate call at
+    `site-share-password.ts:23` is removed (the fetch-metadata case) and the second fails if the scheme
+    comparison at `:24` is removed. **Neither was run, and no mutation run was done.** Both must be
+    kept through A50 with every assertion intact; after the change the scheme case also guards the
+    shared predicate. Revision 1 said no such test was found — that was a search error on my side.
+  - Tovu proxy behaviour — **missing**: one test per caller that an HTTPS page behind a
+    TLS-terminating proxy is admitted under the helper chosen in step 2, and that a forwarded-scheme
+    value other than `http`/`https` falls back rather than being trusted.
 
 **B2-F2 — medium — a new "tests first" case contradicts "bodies move byte-identical".**
 - Location: sheet S1 step 1 ("an `http:` host in `script` … dropped") versus code
@@ -636,8 +909,13 @@ function does, and a weakness that becomes more important once the helper is sha
 - Fact: with the body moved unchanged, an `http:` origin is **not** dropped, so that test is red
   forever. The executor must then either change the predicate (unreviewed behaviour change), delete
   the assertion, or stop. The sheet's STOP list does not cover it.
-- Fix: decide it in the sheet. Recommended: drop `http:` for `script` and `connect` (keep it only where
-  a real need is shown), state it as a behaviour change, and keep the test.
+- Fix: decide it in the sheet. With no owner decision, the default is **no behaviour change**: the
+  body moves unchanged, the test is corrected to pin today's behaviour (`http:` origins accepted in
+  all three directives), and the type doc at `:13` is corrected to say "http(s)". Dropping `http:` for
+  `script` and `connect` is the stricter option and I still recommend it, but it is a behaviour change
+  and needs its own owner decision, a caller check (which plugin exports declare `http:` hosts today)
+  and a failing test first. (Revision 2: revision 1 recommended the stricter option without marking it
+  as a decision; the judge's point about F3 applies here too.)
 
 **B2-F3 — medium (low today) — wildcard-shaped hosts pass the "exact origin" check.**
 - Class: allow-list entry that is policy syntax.
@@ -647,9 +925,21 @@ function does, and a weakness that becomes more important once the helper is sha
   a wildcard, not one host. So "a declaration can never become policy syntax" (`:60-61`) is not fully
   true. Today the policy is report-only (`:53`), so the effect is limited to reporting; once this is a
   shared Jini helper another host may enforce the policy with it.
-- Fix: in the moved `isDeclaredOrigin`, accept only hosts whose labels are letters, digits and hyphens
-  (plus an optional port), and reject a trailing dot. Add the case to the S1 injection list — it is
-  **missing** there.
+- Revision 2 check: I evaluated the predicate's expression on its own (no server, no test suite). It
+  accepts both wildcard shapes, and it also accepts address-literal hosts, a trailing dot and an
+  explicit port; it refuses a wildcard in the port position.
+- Fix (narrowed in revision 2; judge finding 8, verified): in the moved `isDeclaredOrigin`, reject a
+  value whose host contains the wildcard character, and change nothing else. Every origin the check
+  accepts today that is not wildcard syntax stays accepted. Revision 1 proposed "labels of letters,
+  digits and hyphens only, no trailing dot"; that also turns away canonical address-literal origins and
+  changes trailing-dot handling — two extra policy changes nobody asked for, with no caller assessment.
+  If the owner wants the stricter host grammar, it is a separate decision with its own callers check
+  and tests.
+- Tests for S1 (**missing** from the sheet's injection list): a host that is only the wildcard, and a
+  host with a wildcard label, are dropped from all three directives; and, to pin that the fix did not
+  over-narrow, one address-literal origin and one origin with an explicit non-default port are still
+  accepted exactly as on today's code (take the expected values from a run on the parent commit, not
+  from this document).
 
 **B2-F4 — low — the sheet's line numbers do not match the blob it guards.**
 - Location: sheet guard line "lines 12-23 types + 55-83 helpers leave", ":47" and ":40".
@@ -666,20 +956,24 @@ function does, and a weakness that becomes more important once the helper is sha
 #### Tests
 
 The S1 list is strong (opaque origin, path, trailing slash, userinfo, port mismatch, fetch-metadata
-values, directive prefix). Add: wildcard host (F3), scheme decision (F1, F2). In Tovu keep one test per
-call site that fails when the gate call is deleted (see F1).
+values, directive prefix). Change: the cross-scheme case flips from "accepted" to "refused" (F1,
+decided). Add: the full-origin cases and the proxy cases listed under F1; wildcard host and the two
+"still accepted" pins (F3); the `http:` pin (F2). In Tovu keep one test per call site that fails when
+the gate call is deleted — both call sites have one today (F1).
 
 ### B3 — `split-a51-session-bootstrap.md` (initial-session read, probe-then-redeem, loopback guard → Jini)
 
-**Verdict: safe with fixes.** Highest severity: **low**. This is the best of the three sheets: the
-decisions move, the transports and every credential-bearing request stay in Tovu, and each auth rule
-is tied to a named test.
+**Verdict: safe with fixes.** Highest severity: **medium** (was low in revision 1). This is still the
+best of the three sheets: the decisions move, the transports and every credential-bearing request stay
+in Tovu, and each auth rule is tied to a named test. Revision 2 adds **F5 (medium, must fix in the
+sheet before execution)**: the plan deletes the only tests of Tovu's hostname admission rule, and my
+revision-1 statement that the tests were "sufficient" was wrong. It also adds F6 (low).
 
 #### Does the plan keep each gate?
 
 | Gate | Where today | In the sheet | Kept? |
 |---|---|---|---|
-| Bootstrap only from an admitted local hostname | `apps/admin/src/lib/local-owner-signin.ts:9-11`, `:21` | host-supplied `admit`, required | yes |
+| Bootstrap only from an admitted local hostname | `apps/admin/src/lib/local-owner-signin.ts:9-11`, `:21` | host-supplied `admit`, required | yes in code; **its tests are deleted by the plan — F5** |
 | Bootstrap only after the exact "no session" error | `:39` | host-supplied `isUnauthenticated`, required | yes |
 | One bootstrap, never retried; no identity read after a refusal; original error rethrown | `:22-25`, `:40-41` | finding 5, S1 tests | yes |
 | Sign-in callback only after a successful identity read | `:43` | finding 5, S1 test | yes |
@@ -727,20 +1021,81 @@ pins it with a spy test. That rule is about not piling up sessions, not about fi
   which is correct. Mapped and other loopback-range addresses are refused, which is the safe side.
 - Fix: add both groups as explicit cases so a later change to the comparison cannot widen it unseen.
 
+**B3-F5 — medium — the plan deletes the only tests of Tovu's hostname admission rule (added in revision 2; judge finding 4, verified).**
+- Class: test gap on an admission gate, created by moving the tests to a place where the gate is a fake.
+- Location: sheet S2 (`split-a51-session-bootstrap.md:79`: `tryLocalOwnerSession` is deleted and "the
+  `tryLocalOwnerSession` cases move to Jini"); code `apps/admin/src/lib/local-owner-signin.ts:9-11`
+  (`isLocalOwnerSignInHost`, which **stays** in Tovu) and `:21`; tests
+  `apps/admin/src/lib/__tests__/local-owner-signin.unit.test.ts:17-23` (four non-local hostnames: zero
+  calls), `:25-29` (three local hostnames: admitted), `:31-38`, `:40-46`, and `:73-78`.
+- Fact: every test that exercises the real hostname rule calls `tryLocalOwnerSession` (`:9`, `:19`,
+  `:26`, `:33`, `:42`). After S2 that function is gone and those cases are rewritten in Jini, where
+  `admit` is a fake that returns what the test tells it to. Jini cannot see Tovu's hostname list, so a
+  wrong list, or a binding that passes the wrong hostname, is tested nowhere. The one surviving Tovu
+  case that looks like a guard (`:73-78`, "initial remote refusal…") does not guard: its bootstrap fake
+  throws, the code under test swallows bootstrap errors and rethrows the original error
+  (`local-owner-signin.ts:25`, `:41`), so the assertion passes **whether or not** the bootstrap was
+  attempted.
+- What revision 1 got wrong: it said the tests were sufficient and listed `:31` and `:40` as tests
+  that stay. Both call the deleted function; they do not stay. The Jini cases are sufficient for the
+  **generic mechanism** only.
+- Why medium and not higher: the browser-side rule exists to avoid sending the bootstrap request from
+  a deployed origin; the server decides whether a bootstrap is honoured
+  (`local-owner-signin.ts:1`, and the routes in `admin-http/dev-auth.ts`, which the sheet does not
+  touch and this review did not read). So a broken rule sends a request it should not, to a server
+  that should refuse it. That is a lost layer, not a lost boundary.
+- Fix (in the sheet, S2):
+  1. Keep the hostname cases **in Tovu**, re-expressed through `readInitialAdminSession`: for each of
+     the four refused hostnames and each of the three admitted ones, the identity read first fails
+     with the exact "no session" error, the bootstrap fake **succeeds** and counts its calls. Refused
+     hostnames: zero bootstrap calls, the original error rethrown. Admitted hostnames: exactly one
+     bootstrap call, then the second identity read's value.
+  2. Rewrite `:73-78` the same way (successful, counting fake; assert zero calls).
+  3. Keep one direct table test of `isLocalOwnerSignInHost` (it is an exported Tovu function).
+  4. Jini tests the generic mechanism with fakes, as the sheet already lists.
+  5. Replace "record counts" with: list each deleted Tovu case next to the Tovu or Jini case that
+     replaces it, and state for each whether it runs the real hostname rule.
+- These tests must be written before S2 is executed; each refused-hostname case must fail if
+  `admit` is bound to a constant `true`.
+
+**B3-F6 — low — "no session after bootstrap" must not be detected by testing the returned value (added in revision 2; second pass).**
+- Class: absence check after type generalisation (the same class as A1-F5).
+- Location: sheet contract `readInitialSession<T>` (`:46`); code `local-owner-signin.ts:20`
+  (`Promise<T | null>`), `:25`, `:41` (`if (session === null) throw error`).
+- Fact: today "bootstrap refused" travels as `null` inside a `T | null`. Tovu's identity value is
+  always an object, so that is sound. In Jini `T` is whatever the host's identity read resolves to; a
+  host whose read can resolve to `null` (or any value an implementation chooses to test for) would be
+  treated as refused, or — if the implementer swaps the test for truthiness — a falsy identity would
+  be. Either way it fails towards "ordinary login", so it is low; it is still a behaviour trap in a
+  published auth helper.
+- Fix: the sheet says in S1 that refusal is carried by control flow (the catch path), never by a
+  sentinel value of `T`; add the S1 test "the second identity read resolves to a falsy value → that
+  value is returned and `onBootstrapped` is called once".
+
 #### Tests
 
-Named in the sheet and sufficient for the moved decisions; each fails when its rule is removed
-(call-count and call-order assertions with fakes). Tovu's `desktop-auth.test.ts`,
-`desktop-auth-streams.test.ts` and `local-owner-signin.unit.test.ts:31,40,73` stay as binding tests.
-Add the cases in F1 and F4.
+Revision 2 (judge finding 4): the Jini list in the sheet is sufficient for the **generic decisions**
+only; each of those cases fails when its rule is removed (call-count and call-order assertions with
+fakes). It is **not** sufficient for the binding: Tovu's hostname admission rule loses all its real
+tests unless F5 is applied. Tovu's `desktop-auth.test.ts` and `desktop-auth-streams.test.ts` stay as
+binding tests of the desktop half. Of `local-owner-signin.unit.test.ts`, only `:48-54`, `:56-63`,
+`:65-71` and `:73-78` survive as written, and `:73-78` must be rewritten (F5). Add the cases in F1,
+F4, F5 and F6.
 
 ### Not verified in part B
 
 - I did not run any of the listed Tovu tests, and did not re-run the sheets' census commands.
 - For A51 I did not read the server routes that mint, rotate and end sessions; the sheet does not touch
   them, so their correctness is outside this item.
-- For A50 I did not find or read a route-level test for the saved-keys reveal path.
-- For A06 I did not read `capability-registry.ts` or the composition beyond the lines cited.
+- For A50 (corrected in revision 2): the two saved-keys route suites exist and I have now read them;
+  I did not run them and did no mutation run. I did not verify by running that the saved-keys route
+  refuses HTTPS pages behind a TLS-terminating proxy with no trusted hop count; that is from reading.
+- For A06 (revision 2): I have now read `capability-registry.ts:154-174` and the composition at
+  `composition/modules/site-assistant.ts:700-731`. I did not read the other callers of
+  `createSiteCapabilityRegistry`, and I did not check which npm/TypeScript settings decide whether a
+  stray second-argument object compiles (F11 covers both outcomes).
+- For A51 (revision 2): I did not run `local-owner-signin.unit.test.ts`; the statement that `:73-78`
+  passes either way is from reading the test and the code.
 
 ---
 
@@ -748,7 +1103,7 @@ Add the cases in F1 and F4.
 
 **Verdict: unsafe - do not merge** Jini `10605caf` ("Claude def declares mcpIsolation so planRun skips
 MCP consent"). Highest severity: **high**. The other commits on the two branches are dependency
-hygiene and are **safe** (notes at the end).
+hygiene and are **safe with fixes** (revision 2; was "safe" — notes at the end, C-F4).
 
 Line numbers in this item are at Jini `cloud/small-fixes-2026-11-15` (`2bf74b9f`).
 
@@ -852,10 +1207,27 @@ The claim **is** true for the one case the new test checks: the capability expli
 ### The other commits on these branches (briefly)
 
 - Tovu `51133f44` → `939ee65d` (mail library pinned to a release older than 14 days), `52ac8c1b`
-  (`.npmrc` minimum release age); Jini `eff5c025`, `1a1a4d43` (same for pnpm). **Safe.** One low note:
-  both age gates exempt the first-party `@jini-ai/*` scope, and the executor could not confirm the
-  exemption pattern matches. Confirm it, and note that a compromised first-party publish is by design
-  not delayed by this gate.
+  (`.npmrc` minimum release age); Jini `eff5c025`, `1a1a4d43` (same for pnpm).
+  **Verdict (revision 2): safe with fixes** — was "safe". Nothing in these commits weakens anything, so
+  merging them is harmless; what changed is that I no longer accept the claim "enforced" as shown.
+  - **C-F4 — low — the Tovu age gate depends on an npm version that nothing pins (added in revision 2;
+    second pass, class "a control that silently depends on a setting assumed constant").** Location:
+    Tovu `52ac8c1b:.npmrc:2-3` and `CONTRIBUTING.md` (states the setting needs a recent npm 11
+    release); Tovu `package.json:11-13` (`engines` names Node only; there is no npm constraint and no
+    `packageManager` field). Fact: an npm that does not know the setting ignores it without failing.
+    The npm in this review's environment is 10.9.9 and its full configuration list has no such key, so
+    here the gate does nothing. Node 24 is required by `engines`, but which npm a given Node 24 minor
+    ships is not something the repository controls. Fix: add an npm constraint to `engines` (the
+    first version that has the setting) **and** a CI step that reads the effective value and fails
+    when it is not 14. Test: that CI step, shown failing on an older npm.
+  - Jini is in better shape: `package.json:4-8` pins pnpm (`packageManager` and an `engines` range)
+    to a version that has the setting. Not verified: that the pinned pnpm accepts a scope pattern in
+    its exclude list.
+  - Still open from revision 1 (low): both gates exempt the first-party `@jini-ai/*` scope and the
+    executor could not confirm the exemption pattern matches; I could not confirm it either, nor that
+    npm has an exclude key under that name at all (checking it needed a newer npm than this
+    environment has). Confirm both, and note that a compromised first-party publish is by design not
+    delayed by this gate.
 - Jini `65c42167`, `befb207e`, `b7666092` (guard script fixes) were not reviewed here; they are the
   branch base and not part of item C.
 
@@ -926,3 +1298,118 @@ confirmed.**
 - No request was sent to a running server; these are reads of the code.
 - I did not read the design documents the judge reviewed (R7, INDEX), only the judge's findings and
   the code they cite.
+
+---
+
+## Owner-rule acceptance checks (added in revision 2; judge finding 5)
+
+Revision 1 looked at security gates only and left the owner's move rules
+(`move-templates/COMMON.md:16-37`, on `plan/audit2-sheets-a3`) out of its acceptance lists. They belong
+there: a move that breaks them is sent back whatever its security verdict, and two of them (required
+values in an optional argument; functions split "to fit") change security behaviour when done badly.
+Each row is either measured here or marked not measured. No lint, type-check or test was run.
+
+| Rule (COMMON) | Item | Result | Evidence |
+|---|---|---|---|
+| 11 — functions ≤ 50 lines, blank lines and comments not counted | A1, Jini `bound-confirmations.ts` | **passes — measured**: `createBoundConfirmations` (`:80-134`) is 55 physical lines = **48 counted**; `createBoundConfirmationGate` (`:161-212`) is 52 physical = **43 counted**; `settleHeld` 13 | Rule text `COMMON.md:27`; Jini lint config `eslint.config.mjs:74` (`max: 50, skipBlankLines: true, skipComments: true`). The judge counted physical lines; the rule does not. **This sub-claim is rebutted.** The headroom is 2 lines: the A1-F5 fix must not use it up (extract a helper). |
+| 11 | A3, Jini `pinned-capability.ts` | passes — measured: 22 and 19 physical lines | `:48-69`, `:94-112` |
+| 11 | A2, Jini `vault.service.ts` `rotate`, `assertOpensTo` | passes — measured: 10 and 6 lines of body | `ab0ef93c` `:376-387`, `:162-169` |
+| 11 — complexity ≤ 10 | A1, A2, A3 | **not measured** (needs the lint run; no install was done) | must be in the executor's or integrator's report before merge |
+| 11 | B1 sheet | the sheet already requires the 120-line factory to be split (`:132`). **Add:** the split must not move the synchronous attempt increment or the policy read (sheet review points 1 and 3), and F12's private map must be built in the registering loop | — |
+| 10 — `(required, optional = {})`; required values never in the optional argument | B1 sheet, public-errors | **fails as written**: three required tables are placed in "options" | sheet `:138`; see B1-F13. Must fix in the sheet. |
+| 10 | B1 sheet, executor | **fails as written**: four values needed when ports are absent sit on the optional ports | B1-F1 (already a must-fix) |
+| 10 | A1, A3 landed code | passes by reading: every exported function has the two-argument shape with `= {}` | `bound-confirmations.ts:80`, `:161-164`; `pinned-capability.ts:48-51`, `:94-97` |
+| 5 — Jini imports: own leaf files, `@jini-ai/core`, `@jini-ai/protocol` only | A1, A3 landed code | passes — measured | `bound-confirmations.ts:10-12`; `pinned-capability.ts:15` |
+| 2, 7, 8 — no product text, no `console`, no `process.env` in Jini | A1, A2 (added lines), A3 | passes — measured (no match) | search over the three files at their commits |
+| 17 — a new subpath needs an exports entry, a runtime tag and a README line | A1, A3 | no new subpath: both ride an existing entry. A1 adds one re-export line to `packages/daemon/src/surface-exchanges.ts:66`; A3 adds one to `packages/mcp/src/federation/hosted/index.ts:14`. README line: **not checked** | `af6779fb`, `1b5af586` |
+| 5, 17, 19 — "no barrels" | A3 (`hosted/index.ts:14`), A1 (`surface-exchanges.ts:66`), B1 sheet (`visitor-tools/index.ts`, `:122`, `:132`), B3 sheet (`session-bootstrap/index.ts`, `:57`) | **not a violation of any written rule I could find — partly rebutted, and raised as an owner question.** Rule 5 forbids Jini code *importing through* a package barrel; rule 17 *prescribes* an entry per subpath; rule 19 and the R-BARRELS lane are about Tovu shells that re-export Jini. None says a Jini subpath may not have an entry file of re-exports. | `COMMON.md:21`, `:33`, `:35`; `untangle/sheets/R-BARRELS.md:1` |
+
+Because the judge reads a "no-barrels target" into the rules and I cannot find it written down for Jini
+entry files, this is an **owner question, not a silent pass**: *should a new Jini subpath point its
+`exports` entry straight at the implementation files (one subpath per file) instead of at an `index.ts`
+of re-exports?* Until it is answered, the acceptance check for A1, A3, B1 and B3 is the written one:
+no Jini file imports the moved code through the entry file (rule 5), and no Tovu file re-exports it
+(rule 19). If the owner says "no entry files", the cost is small for B1 and B3 (not executed yet) and a
+follow-up for A1 and A3.
+
+**Added to the acceptance lists** (and to `INDEX.md`): B1-F13 (required tables in the first argument);
+the size headroom note on A1-F5; complexity measured for A1, A2, A3 before merge; the owner question
+above.
+
+---
+
+## Second adversarial pass over every "safe" / "safe with fixes" verdict (revision 2)
+
+The judge named three classes of mistake I had made. I re-read each item that I had not marked unsafe,
+looking only for those three. "Checked" means I read the cited lines again with that one question.
+
+**Class 1 — a truthiness test standing in for "is it present" after a type was generalised.**
+
+| Item | Where I looked | Result |
+|---|---|---|
+| A1 | Jini `bound-confirmations.ts:128` | **finding A1-F5** (judge's). Also checked `:102` and `:171`, `:186`, `:208` (`signal?.aborted` — a boolean, sound); `:88`, `:101` (`?? 0` on counts — sound); `:206` (`Boolean(validate)` on a function — sound). |
+| A3 | Jini `pinned-capability.ts:53`, `:55`, `:60`, `:64` | `:55` treats an empty handoff value as absent, which is correct (it then fails the pattern anyway). `:60` and `:64` test the held object, never a host scalar. Sound. Whether an empty URL can be a capability is the host predicate's decision (`isCapability`); Tovu's refuses it (`desktop-mcp-runtime.ts:11-22`). |
+| B1 (sheet) | code `visitor-executor.ts:83`, `:89`, `:119`, `:126` | With the policy type made generic, "no policy" is tested three ways (`!policy`, `!== null`, `!= null`). A falsy but valid policy would be advertised (`:89`) and then denied (`:126`): fail-closed, so low. **Add to the sheet (B5):** "no policy" means exactly `null`, tested the same way at all four places. Folded into B1-F9 housekeeping; not a new numbered finding. |
+| B2 (sheet) | code `same-origin.ts:30` | `!origin || !host` treats an empty header as absent; both mean "refuse". Sound. With the new required `expectedOrigin`, an empty value must refuse — it is in F1's test list. |
+| B3 (sheet) | code `local-owner-signin.ts:41`; sheet `:46` | **finding B3-F6** (new, low). |
+| C (rest) | not applicable (configuration only) | — |
+
+**Class 2 — a cache, or a control, keyed on something that used to be constant.**
+
+| Item | Where I looked | Result |
+|---|---|---|
+| A1 | `bound-confirmations.ts:81-84`, `:109` | The limits are fixed when the instance is built and the counters are keyed by run and quota key, both per request. The expiry is captured once per prompt (`:109`) from the exchange, which owns it. Sound. |
+| A3 | `pinned-capability.ts:59` | `owned` is computed once at construction; it can only go from "handoff only" to "has a capability", and both are `true`. Sound. |
+| B1 (sheet) | code `visitor-tool-budgets.ts:31` | **finding B1-F10** (judge's). Also checked `visitor-executor.ts:119`: "ask" is read once per turn from the initial policy — that is the documented rule B5, re-checked per call at `:129`. Sound. |
+| B2 (sheet) | `public-page-security-headers.ts:50`, `:75-76` | The header set is frozen and rebuilt per call; nothing is cached across requests in the moved code. Sound. |
+| B3 (sheet) | no cache in the moved code | — |
+| C (rest) | Tovu `.npmrc`, `package.json:11-13` | **finding C-F4** (new, low): the control assumes an npm version nothing pins. Verdict changed to "safe with fixes". |
+
+**Class 3 — an accessor that returns the live internal object (and its mirror: keeping the caller's live object).**
+
+| Item | Where I looked | Result |
+|---|---|---|
+| A1 | `bound-confirmations.ts:109`, `:201-211` | The gate exposes no internal object. The held owner is the caller's object — **finding A1-F6** (new, low). The input is safe against later change because its digest is taken at prompt time (`:182`) and re-taken at use (`:186`). |
+| A3 | `pinned-capability.ts:61` | **A3-F1, fact 2** (judge's). `:65` copies the delivered object, so the caller of `accept` holds no alias; `:53` keeps an object the runtime itself built. |
+| B1 (sheet) | code `visitor-executor.ts:172`, `:184` | **finding B1-F12** (new, medium). |
+| B2 (sheet) | `public-page-security-headers.ts:76` | Returns a new object, or the caller's own unchanged one. Sound. |
+| B3 (sheet) | sheet `:50` | `assertLoopbackHttpUrl` returns a freshly parsed URL. Sound. |
+
+**Verdicts after this pass.** A1: safe with fixes (unchanged; two more findings). A3: safe with fixes
+for the Jini half (unchanged; F1 widened). B2: safe with fixes (unchanged; F1 decided). B3: safe with
+fixes, highest severity raised from low to medium. C (rest): **safe → safe with fixes**. A2, B1 and C
+were already "unsafe" and stay so; B1 gains a second high.
+
+---
+
+## Judge response
+
+Judge: Codex gpt-6.1-sol, high (security + red-team), file `CODEX-JUDGE.md` in this folder, written
+against revision 1 at `8f0d1c6e`. Every row below was checked by me against the code at the commits
+named at the top of this file before I accepted or rebutted it.
+
+| # | Judge finding | My check | Outcome | Where it is fixed |
+|---|---|---|---|---|
+| 1 (major) | A1 misses an owner-check bypass from generalising the owner type | Jini `af6779fb:packages/daemon/src/bound-confirmations.ts:128` tests `held.owner` for truthiness; `:15-20` puts no bound on the owner type; the Jini test uses an object owner only (`bound-confirmations.test.ts:7`). Tovu's own owners are objects, so Tovu is not exposed. | **Accepted.** Severity medium (the single-use bearer still stands; one owner value loses the second factor; latent in the published API, not reachable through Tovu). | New **A1-F5**; gate row corrected; test table corrected; must-fix before the Jini half is published. |
+| 2 (major) | A06 makes budget windows configurable without cache invalidation | Sheet `:74`, `:110`, `:132`; code `visitor-tool-budgets.ts:31` reuses the limiter on equal `max` only; windows are literals at `:42`, `:44` today. | **Accepted.** Medium. | New **B1-F10** with the preferred fix (windows fixed at construction) and the fake-clock test. |
+| 3 (major) | A06 migration does not connect the new host binding to the executor | `capability-registry.ts:171` passes ports in the second argument; sheet S3 (`:142-145`) repoints the import only, never rewrites the call, and removes `visitor-execution-ports.ts` while `visitor-confirmation-gate.ts:68`, `:76`, `:80` still read three host-only members. | **Accepted, and rated high**: one of the two possible outcomes is a silent switch to rollback mode (no policy, cap, budget or audit). I add that `visitor-tools.integration.test.ts:46-64` would catch that outcome, from reading. | New **B1-F11**; new gate row. |
+| 4 (major) | B3's "sufficient" tests lose Tovu's hostname admission coverage | `local-owner-signin.unit.test.ts:17-29` call the function the sheet deletes (`:79`); `:73-78` passes whether or not bootstrap is attempted because its fake throws and the code swallows it (`local-owner-signin.ts:25`, `:41`). | **Accepted.** Medium. My "sufficient" was wrong, and two of the three tests I listed as staying do not stay. | New **B3-F5**; "Tests" paragraph rewritten; gate row corrected; B3 highest severity low → medium. |
+| 5 (major) | The review omits concrete owner-rule violations | Four sub-claims, checked one by one: | **Accepted in part.** | New section "Owner-rule acceptance checks". |
+| 5a | A03 factories are 55 and 52 lines, over the 50-line limit | The rule and the lint setting do not count blank lines or comments (`COMMON.md:27`; Jini `eslint.config.mjs:74`). Counted that way: **48 and 43**. | **Rebutted** with the measurement. Accepted as a note: 2 lines of headroom. | Table row 1. |
+| 5b | A37 adds a forwarding export to an existing barrel | True as a fact (`hosted/index.ts:14`); A03 does the same at `surface-exchanges.ts:66`, which the judge did not list. No written rule forbids an entry file (`COMMON.md:21`, `:33`, `:35`). | **Partly rebutted**: fact accepted, "violation" not shown. Raised as an owner question. | Table last row + the owner question. |
+| 5c | A06 and A51 propose new forwarding `index.ts` files | Sheet A06 `:122`, `:132`; sheet A51 `:57`. Same analysis as 5b. | **Partly rebutted**, same owner question. | Same. |
+| 5d | A06 puts three required tables in "options" | Sheet `:138` against rule 10 (`COMMON.md:26`). | **Accepted.** | New **B1-F13**. |
+| 6 (minor) | Saved-keys test inventory is wrong | Both suites exist and do what the judge says (`site-share-password.integration.test.ts:26-48`, `site-share-password-handler.test.ts:39-75`). | **Accepted.** My search missed them. | B2-F1 test list; "Not verified in part B"; `INDEX.md`. |
+| 7 (minor) | A3's "immutable pin" overlooks a live mutable alias | `pinned-capability.ts:61` returns the held object; `readonly` is compile-time only; tests compare values (`:18`, `:31`). | **Accepted.** Stays medium inside F1. | **A3-F1** widened (fact 2), gate row corrected, new test row. |
+| 8 (minor) | B2's wildcard fix over-narrows other origin classes | Evaluated the predicate expression: it accepts address-literal hosts, a trailing dot and explicit ports today; my proposed grammar would have refused the first two. | **Accepted.** | **B2-F3** fix narrowed to the wildcard character only, with two "still accepted" pins. I applied the same correction to B2-F2, which had the same fault. |
+
+The judge's spot-check of 21 rows marked two as incomplete (findings 1 and 7) and one inventory as
+incorrect (finding 6); all three are fixed above. Its remark on the highs — that A2-F1 and B1-F1 are
+independently supported, and that C-F1 and C-F2 are supported on the integration code but could not be
+checked against the cloud commit — needs no change: I read the cloud commit (`2bf74b9f`) directly in
+revision 1 and the lines cited in item C are from it.
+
+**Owner decision applied in this revision:** B2-F1 / audit row A50 — full-origin comparison. See B2.
+
+**What the judge could not check and I could:** Tovu `022e1d5b`, the cloud branches and the sheets
+were all readable here. **What neither of us did:** run any test, lint or type-check.
