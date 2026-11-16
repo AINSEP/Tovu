@@ -1,4 +1,5 @@
 import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render";
+import { composeNavFormContentRepos } from "./memory-deps/slices/nav-form-content-repos.js";
 import { composeTaxonomyTrashRepos } from "./memory-deps/slices/taxonomy-trash-repos.js";
 import { composeOriginNewsletter } from "./memory-deps/slices/origin-newsletter.js";
 import { composeSiteTitleSettings } from "./memory-deps/slices/site-title-settings.js";
@@ -111,8 +112,7 @@ import {
 } from "../configuration/seed.js";
 import { createLocalAnalyticsSink } from "#src/features/analytics/jini-adapters";
 import { ConsoleMailerAdapter, InMemoryMagicLinkTokenRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "#src/features/members/index";
-import { InMemoryNavLocationBindingRepo, registerMenuReverters } from "#src/features/navigation/index";
-import { TrashAwareInMemoryMenuRepo } from "#src/features/navigation/trash-aware-memory-menu-repo";
+import { registerMenuReverters } from "#src/features/navigation/index";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/index";
 import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
 import { InMemoryMediaProviderCredentialRepo } from "#src/features/media/provider-credential-store.memory";
@@ -120,16 +120,12 @@ import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryImageTransformer, InM
 import { InMemoryNewsletterAudienceSnapshotRepo, InMemoryNewsletterCampaignRepo, InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterSendRepo, InMemoryNewsletterSubscriptionRepo } from "#src/features/newsletter/repo.memory";
 import { ensureDefaultList } from "#src/features/newsletter/lists";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
-import { InMemoryFormDefinitionRepo } from "@jini-ai/cms/forms";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
 import { formSubmissionAttemptsFor } from "#src/features/forms/index";
 import { redirectMatcher, RedirectSlugChangeCapture, registerRedirectHitOutboxHandler, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { registerRedirectsPhaseHandlers } from "#src/features/redirects/phase-handler";
 import { getSlugChangeCapture, registerSlugChangeCapture } from "#src/platform/routing/adapter";
 import { InMemoryDbOpsAdapter, InMemoryDatabaseIntrospectionAdapter, InMemoryMigrationRunsRepo, InMemorySiteStatusRepo, InMemoryDatabaseLedgerRepo } from "#src/features/database/repo.memory";
-import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "#src/features/content-types/index";
-import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
-import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { readAdminChartProviderSnapshot } from "./chart-providers.js";
 import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL, RECHARTS_DEFAULT_PROVIDER } from "./charts-recharts-source.js";
@@ -339,22 +335,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   }, { hits: { outbox, clock, idGen } });
   registerSlugChangeCapture({ impl: new RedirectSlugChangeCapture({ reservedSegments: RESERVED_SEGMENTS, repo: redirectRepo, db: redirectRepo, clock, idGen }) });
   void registerRedirectHitOutboxHandler({ bus, hitSink: redirectHitSink });
-
-  // SPEC-043/ADR-047 (widgets) — hoisted alongside `entryRepo` for the same reason: both the admin
-  // `widgets` routes and the public site-render path (`routes/site/pages.ts` → `resolvePageWidgets`,
-  // W-004) must see the SAME binding/ref-index state, not two independent in-memory instances.
-  const widgetBindingRepo = new InMemoryWidgetRegionBindingRepo();
-  const entryRefsRepo = new InMemoryEntryRefsRepo();
-  const menuRepo = new TrashAwareInMemoryMenuRepo();
-  const navLocationBindingRepo = new InMemoryNavLocationBindingRepo({});
-  const formDefinitionRepo = new InMemoryFormDefinitionRepo();
-  // Collections plan R1 — hoisted above `wireCoreResolvers` (was constructed later, inline, only for
-  // the Admin-UI backend-gap deps object below) so the `recent-entries` widget's "Collection list"
-  // mode and the rest of the app (content-type CRUD routes, etc.) share the SAME store — a second
-  // `new InMemoryContentTypeRepo()` here would be an empty, disconnected double nothing ever
-  // registers a content type into, silently breaking every collection-configured widget.
-  const contentTypeRepo = new InMemoryContentTypeRepo();
-  const contentTypeIndexProvisioner = new NoopContentTypeIndexProvisioner();
+  const { menuRepo, navLocationBindingRepo, formDefinitionRepo, contentTypeRepo, contentTypeIndexProvisioner, entryRefsRepo, widgetBindingRepo } = composeNavFormContentRepos({  });
   // SPEC-043/ADR-047 (widgets, Fable adversarial-review fix 2026-07-21) — mirrors `apps/website/src/server/runtime/composition/deps.ts`'s
   // identical fix: without this, no test exercising the real HTTP path ever ran a dynamic widget
   // type (`menu`/`recent-entries`/`contact-form`) through its actual resolver, only test doubles.
