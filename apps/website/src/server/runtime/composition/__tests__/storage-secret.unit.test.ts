@@ -47,7 +47,9 @@ test("new-site sealing prepares its identified key file and the default reader r
     fs.writeFileSync(${JSON.stringify(path.join(dir, ".site-meta.json"))}, JSON.stringify({ siteKeyId: ${JSON.stringify(siteKeyId)} }));
     assert.equal(await readSealedConnectionString({ siteDir: ${JSON.stringify(dir)} }), ${JSON.stringify(URL)});
   `;
-  const env: NodeJS.ProcessEnv = { ...process.env, TOVU_RUNTIME_MODE: "local" };
+  // why: the sealer reads HOME/USERPROFILE before os.homedir(), and the isolated-catalog-home helper points
+  // HOME at its own temp catalog, so the child's HOME must name the isolated home too.
+  const env: NodeJS.ProcessEnv = { ...process.env, HOME: isolatedHome, USERPROFILE: isolatedHome, TOVU_RUNTIME_MODE: "local" };
   delete env.TOVU_SITE_KEY;
   const child = spawnSync(process.execPath, ["--import", "tsx", "--experimental-test-module-mocks", "--input-type=module", "--eval", script],
     { env, encoding: "utf8", timeout: 15_000 });

@@ -147,7 +147,12 @@ for (const workerFile of ["handlebars-worker.ts", "liquid-worker.ts"] as const) 
     const formServices = modules.filter((module) => FORBIDDEN_FORM_SERVICES.test(module));
     assert.deepEqual(formServices, [], `${workerFile} pulled in forms services: ${formServices.join(", ")}`);
     // tsx and its esbuild transpiler are development-loader overhead, absent from deployed JS workers.
-    const renderingModules = modules.filter((module) => !/\/node_modules\/(?:tsx|esbuild)\//.test(module));
+    // A linked Jini checkout (`npm run link:jini`) carries its own node_modules, so a dependency both repos
+    // install (parse5, entities) is loaded from two physical copies. A registry install has one; count each
+    // dependency file once, by its path under the last node_modules, so the budget measures the real graph.
+    const renderingModules = [...new Set(modules
+      .filter((module) => !/\/node_modules\/(?:tsx|esbuild)\//.test(module))
+      .map((module) => module.slice(Math.max(0, module.lastIndexOf("/node_modules/")))))];
     const budget = WORKER_MODULE_BUDGETS[workerFile];
     assert.ok(renderingModules.length <= budget,
       `${workerFile} loaded ${renderingModules.length} rendering modules (budget ${budget})`);

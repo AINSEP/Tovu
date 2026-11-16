@@ -32,6 +32,8 @@ describeEachDialect("resolveWorkspace", { tables: ["workspaces"], make: (kernel:
         name: "ws-older",
         slug: "ws-older",
         createdAt: "2026-07-28T00:00:00.000Z",
+        // Migration 0042 (50253e2d): every workspace row carries its optimistic-concurrency version, starting at 1.
+        version: 1,
       });
     } finally {
       console.warn = originalWarn;

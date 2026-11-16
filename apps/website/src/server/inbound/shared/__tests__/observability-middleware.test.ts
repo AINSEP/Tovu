@@ -242,9 +242,12 @@ for (const scenario of [
       requestId: body.error.requestId,
     } });
     assert.match(body.error.requestId, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    // Jini http-kit logs `describeErrorForLog(err)` — the class label only, never the message or stack (they can
+    // quote a secret; Jini core/src/model-facing-tool-errors.ts). The raw `failure` still reaches the host sink.
     assert.deepEqual(error.mock.calls.map(call => call.arguments), [[
-      `[@jini-ai/http-kit] internal error (GET /boom, correlationId=${body.error.requestId})`, failure.stack,
+      `[@jini-ai/http-kit] internal error (GET /boom, correlationId=${body.error.requestId})`, "Error",
     ]]);
+    assert.ok(!JSON.stringify(error.mock.calls.map(call => call.arguments)).includes("handler failed"), "the message must not reach the log line");
     assert.deepEqual(info.mock.calls.map(call => call.arguments), scenario.completionLogged ? [[
       "http 500 GET /boom 10ms req=failed-request",
     ]] : []);
@@ -365,7 +368,9 @@ test("a synchronous 503 exports its exception before ending the SDK request span
   assert.equal(spans[0]!.name, "GET /unavailable");
   const exceptions = spans[0]!.events.filter(event => event.name === "exception");
   assert.equal(exceptions.length, 1);
-  assert.equal(exceptions[0]!.attributes?.["exception.type"], "ServerErrorResponse");
+  // Jini's errorType exports only approved class labels: an unregistered class name (this marker's
+  // "ServerErrorResponse") is a writable secret channel and reads as the base label (diagnostics otel.ts, review 2026-10-25).
+  assert.equal(exceptions[0]!.attributes?.["exception.type"], "Error");
   assert.equal(exceptions[0]!.attributes?.["operation.name"], "http.request");
 });
 

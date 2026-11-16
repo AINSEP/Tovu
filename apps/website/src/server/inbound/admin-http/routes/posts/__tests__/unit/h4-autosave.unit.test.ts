@@ -26,7 +26,7 @@ for (const byline of [{ author: 7 }, { showAuthor: 'true' }, { author: 'x'.repea
   });
 }
 
-test('autosave parks by raw id after lookup failure, retaining the normalized byline', async () => {
+test('autosave parks by raw id after a lookup miss, retaining the normalized byline', async () => {
   const writes: unknown[] = [];
   const lookups: unknown[] = [];
   const app = express();
@@ -34,7 +34,8 @@ test('autosave parks by raw id after lookup failure, retaining the normalized by
     authorize: async () => ({ allowed: true, reason: 'owner' }),
     clock: { nowIso: () => '2026-10-28T00:00:00.000Z' },
     postRepo: { findBySlug: async (input: unknown) => { lookups.push(input); return null; },
-      findById: async (input: unknown) => { lookups.push(input); throw new Error('lookup failed'); },
+      // A miss (no row for the slug or the id) is the safe no-op; see resolvePostId in posts/autosave.ts.
+      findById: async (input: unknown) => { lookups.push(input); return null; },
       writeAutosave: async (input: unknown) => { writes.push(input); return { applied: false }; } },
   }) });
   const { res, capture } = createCapturingResponse();
@@ -44,4 +45,23 @@ test('autosave parks by raw id after lookup failure, retaining the normalized by
   assert.deepEqual(lookups, [{ workspaceId: 'ws', slug: 'raw-id' }, { workspaceId: 'ws', id: 'raw-id' }]);
   assert.deepEqual(writes, [{ workspaceId: 'ws', id: 'raw-id', snapshot: { ...VALID, author: 'Ada', showAuthor: false,
     savedAt: '2026-10-28T00:00:00.000Z', savedByPrincipalId: 'owner' } }]);
+});
+
+test('autosave refuses to park after a lookup failure that is not a miss, writing nothing', async () => {
+  const writes: unknown[] = [];
+  const app = express();
+  registerAdminPostAutosaveRoute({ app, deps: portFake<ContentRouteDeps>({ workspaceId: 'ws',
+    authorize: async () => ({ allowed: true, reason: 'owner' }),
+    clock: { nowIso: () => '2026-10-28T00:00:00.000Z' },
+    postRepo: { findBySlug: async () => null, findById: async () => { throw new Error('lookup failed'); },
+      writeAutosave: async (input: unknown) => { writes.push(input); return { applied: false }; } },
+  }) });
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: 'owner' };
+  const quiet = console.error; console.error = () => {};
+  try { await lastRouteHandler(app, 'put', PATH)({ params: { workspaceId: 'ws', postId: 'raw-id' }, body: { ...VALID } }, res); }
+  finally { console.error = quiet; }
+  assert.equal(capture.statusCode, 500);
+  assert.equal((capture.jsonBody as { code: string }).code, 'INTERNAL_ERROR');
+  assert.deepEqual(writes, []);
 });

@@ -42,7 +42,9 @@ test("a subclass of a listed class matches that rule", () => {
 test("describeErrorForLog names the class and a constant-token code, never the message", () => {
   const driverError = Object.assign(new Error("SQLITE_READONLY: attempt to write (/srv/LEAK-path/content.db)"), { code: "SQLITE_READONLY" });
   assert.equal(describeErrorForLog({ err: driverError }), "Error(SQLITE_READONLY)");
-  assert.equal(describeErrorForLog({ err: new UnlistedError("LEAK-TOKEN") }), "UnlistedError");
+  // A class name nothing registered is itself a writable text channel (Jini core: "never ... the class's own
+  // name"), so an unlisted subclass reads as the base label.
+  assert.equal(describeErrorForLog({ err: new UnlistedError("LEAK-TOKEN") }), "Error");
 });
 
 test("describeErrorForLog drops a code that is free text rather than a constant token", () => {

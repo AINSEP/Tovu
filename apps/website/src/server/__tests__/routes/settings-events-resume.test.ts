@@ -6,6 +6,7 @@ import type { Express, Request, Response } from "express";
 import type { SettingRevisionRecord } from "#src/features/settings/index";
 import { registerAdminSettingsEventsRoute } from "../../inbound/admin-http/routes/settings/events.js";
 import type { SettingsRouteDeps } from "../../inbound/admin-http/routes/settings/deps.js";
+import type { AsyncRouteRequestHandler } from "../../inbound/shared/async-route.js";
 
 /** sseshare: query resume uses the existing authorized ledger feed, no sockets, DB or timers. */
 async function feed({ query = {}, header, allowed = true, previewAllowed = false, workspaceId = "ws", authorize }: {
@@ -18,7 +19,10 @@ async function feed({ query = {}, header, allowed = true, previewAllowed = false
   const writes: string[] = [];
   let status = 200;
   let ended = false;
-  const app = { get: (_path: string, work: typeof handler) => { handler = work; } } as unknown as Express;
+  // `asyncRoute` returns before its handler finishes; the original async body is `.handler` (shared/async-route.ts).
+  const app = { get: (_path: string, work: AsyncRouteRequestHandler) => {
+    handler = async (req, res) => { await work.handler(req, res, () => { throw new Error("the route forwarded an error to next()"); }); };
+  } } as unknown as Express;
   const revision = { seq: 7, settingId: "setting", entityKind: "value", scope: "workspace", workspaceId: "ws", principalId: null } as SettingRevisionRecord;
   const settingsRepo = {
     maxRevisionSeq: async () => 8,

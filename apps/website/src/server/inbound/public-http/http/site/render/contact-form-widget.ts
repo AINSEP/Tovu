@@ -3,9 +3,8 @@ import { FORM_CLASS, FORM_RANGE_READOUT_SCRIPT, FORM_BASELINE_STYLE, stampFormFi
 import { str, arr } from "./value-readers.js";
 import { renderWidgetPlaceholder } from "./widgets/placeholder.js";
 import { randomUUID } from "node:crypto";
-import { renderFormCollection } from "@jini-ai/cms/forms";
 import type { FormCollectionPlan } from "@jini-ai/core/contracts/forms";
-import { renderHtmlForm, renderHtmlFormBody, renderFormSchemaHash } from "@jini-ai/cms/forms/html-render";
+import { renderFormCollection, renderHtmlForm, renderHtmlFormBody, renderFormSchemaHash } from "@jini-ai/cms/forms/html-render";
 import { escapeHtml } from "#src/platform/html/escape";
 
 /** Field rendering, attribute allowlisting and help/error association belong to Jini's registry

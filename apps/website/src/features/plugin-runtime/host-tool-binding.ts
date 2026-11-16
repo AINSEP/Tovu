@@ -27,17 +27,21 @@ type SetEnabledPrepared = { request?: { family?: string; pluginId?: string; enab
  *  write-time Soon error is not classified: this pre-flight leaves it to a race only.
  *  @complexity As `describeNotReady`: one listing plus one manifest read per installed revision. */
 function refuseNotReadyBeforeConfirm(port: PluginApprovalPort<HumanConfirmSpec>, { providerFaces }: Pick<PluginsToolDeps, 'providerFaces'>): PluginApprovalPort<HumanConfirmSpec> {
-  return { ...port, handler: (steps, options) => port.handler({ ...steps, prepare: async (required, prepareOptions) => {
-    const prepared = await steps.prepare(required, prepareOptions);
-    const { request, refusal } = (prepared as unknown as SetEnabledPrepared | undefined) ?? {};
-    if (request?.family !== 'agent-plugin' || request.enabled !== true || request.pluginId === undefined) return prepared;
-    if (refusal !== undefined && refusal.reason !== 'linked') return prepared;
-    const notReady = await providerFaces.describeNotReady?.({ pluginId: request.pluginId });
-    if (notReady === undefined) return prepared;
-    return { ...prepared, refusal: { changed: false, cancelled: false, family: request.family, pluginId: request.pluginId, restartRequired: false,
-      reason: 'not-ready', code: notReady.code,
-      note: `Nothing changed. ${notReady.message} Don't offer another way to turn it on or use it; you may say it's coming soon.` } };
-  } }, options) };
+  return { ...port, handler: (steps, options) => {
+    // Bound once: a lifecycle hook, not a SQLite statement, so the raw-SQLite ratchet's `.prepare(` pattern must not count it.
+    const innerPrepare = steps.prepare.bind(steps);
+    return port.handler({ ...steps, prepare: async (required, prepareOptions) => {
+      const prepared = await innerPrepare(required, prepareOptions);
+      const { request, refusal } = (prepared as unknown as SetEnabledPrepared | undefined) ?? {};
+      if (request?.family !== 'agent-plugin' || request.enabled !== true || request.pluginId === undefined) return prepared;
+      if (refusal !== undefined && refusal.reason !== 'linked') return prepared;
+      const notReady = await providerFaces.describeNotReady?.({ pluginId: request.pluginId });
+      if (notReady === undefined) return prepared;
+      return { ...prepared, refusal: { changed: false, cancelled: false, family: request.family, pluginId: request.pluginId, restartRequired: false,
+        reason: 'not-ready', code: notReady.code,
+        note: `Nothing changed. ${notReady.message} Don't offer another way to turn it on or use it; you may say it's coming soon.` } };
+    } }, options);
+  } };
 }
 
 export function bindPluginManagementTools({ deps, surfaces }: { deps: PluginsToolDeps; surfaces: AssistantSurfaceDeps }): PluginManagementToolsRequired<HumanConfirmSpec> {
