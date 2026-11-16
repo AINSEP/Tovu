@@ -1,4 +1,4 @@
-// Builds EDGES.tsv from the two edge dumps. Usage: node gen-edges-tsv.mjs <tovu-edges.json> <jini-edges.json> <feature-ranks.json> > EDGES.tsv
+// Builds EDGES.tsv from the two edge dumps (made by edges.mjs revision 2: runtime = statement survives real compiler emission). Usage: node gen-edges-tsv.mjs <tovu-edges.json> <jini-edges.json> <feature-ranks.json> > EDGES.tsv
 import fs from 'node:fs';
 const [tovuFile, jiniFile, ranksFile] = process.argv.slice(2);
 const d = JSON.parse(fs.readFileSync(tovuFile, 'utf8')); const j = JSON.parse(fs.readFileSync(jiniFile, 'utf8')); const rank = JSON.parse(fs.readFileSync(ranksFile, 'utf8'));
@@ -8,14 +8,14 @@ const isFeat = (f) => f.startsWith(SRC + 'features/') && f.slice(SRC.length).spl
 const SCC24 = new Set('api-connections consent content-types custom-credentials deployments entries form-destinations media media-import navigation post project-keys publish-content publish-trust redirects settings site-backup site-export site-inspection source-control taxonomy theme trash widgets'.split(' '));
 const CUT = {
   'publish-trust>deployments': ['repoint-to-jini: import isContainedDeployConfigPath from @jini-ai/devops/deploy; delete the two re-export shells', 'S1'],
-  'project-keys>api-connections': ['move-down: apiConnectionVaultScope + API_CONNECTION_VAULT_KIND -> platform/secrets/vault-api-connection-meta.ts; repoint 4 importers; delete the PLUGIN_STATE_FORMAT re-export', 'S2'],
-  'custom-credentials>source-control': ['repoint-to-jini (repositoryTargetError; delete forwarder repository-target.ts) + move-to-owner (bindSourceControlWritePort -> source-control); host injects SourceControlWritePort', 'S3'],
-  'custom-credentials>deployments': ['port-inversion: PublishCompatibilityPort declared by custom-credentials, bound by the host to deployments', 'S4'],
-  'source-control>site-backup': ['port-inversion: StaticSitePackagerPort declared by source-control, bound by the host to site-backup static packaging (= CLASSIFY host contract files.export)', 'S5'],
+  'project-keys>api-connections': ['move-down: apiConnectionVaultScope + API_CONNECTION_VAULT_KIND -> platform/secrets/vault-api-connection-meta.ts; repoint 3 production + 6 test importers; delete the PLUGIN_STATE_FORMAT re-export', 'S2'],
+  'custom-credentials>source-control': ['repoint-to-jini (repositoryTargetError; delete forwarder repository-target.ts) + move-to-owner (bindSourceControlWritePort -> source-control/write-port.ts); RouteDeps.sourceControlWrite bound late by the host; 15 fixtures gain the field', 'S3'],
+  'custom-credentials>deployments': ['port-inversion: PublishCompatibilityPort declared by custom-credentials; binding = today\'s prepareInvalidation body moved verbatim to deployments/publish-credentials; RouteDeps.publishCompatibility bound by the host', 'S4'],
+  'source-control>site-backup': ['port-inversion: StaticSitePackagerPort declared by source-control; reaches preview AND commit through CommitSiteInput.packager (RouteDeps.staticSitePackager -> SourceControlToolDeps -> commitInput); implemented in site-backup', 'S5'],
 };
 const SHELL = {
-  'external-mcp>assistant': ['port-inversion: rosterChanged callback in external-mcp tool deps, bound by the host to assistant/mcp-services', 'B1'],
-  'platform/headless-browser>server/runtime': ['move-down: startup-secrets.ts (leaf, 0 internal imports) -> platform/secrets; repoint 9 prod files', 'B2'],
+  'external-mcp>assistant': ['reuse existing host port: ExternalMcpToolDeps gains notifyRosterChanged: NotifyToolAccessChanged (RouteDeps.notifyRosterChanged, already bound in deps.ts:2388 and app.ts:1335)', 'B1'],
+  'platform/headless-browser>server/runtime': ['move-down (git mv, one module instance): startup-secrets.ts (leaf, 0 internal imports) -> platform/secrets; repoint 11 website production files, 2 desktop files, 1 eval harness, 4 test files', 'B2'],
   'assistant>server/runtime': ['move-down startupSecretEnvironment (B2) + port-inversion warmSiteServerForAgent (host binds)', 'B2/B3'],
   'assistant>server/inbound': ['move-down: async-route.ts and public-origin.ts are leaves -> platform/http', 'B3'],
 };
@@ -47,7 +47,9 @@ for (const [k, r] of [...agg].sort((x, y) => x[0].localeCompare(y[0]))) {
   out.push([scope, a, b, kind, scope === 'tovu-feature' && SCC24.has(a) && SCC24.has(b) ? 'yes' : 'no', r.imports, r.files.size, [...r.names].join(',') + (r.inlineTypes ? ' | types: ' + [...r.inlineTypes].join(',') : ''), showSites, fix, step].join('\t'));
 }
 // Jini module cycles: every runtime edge inside a file-level SCC
-const JFIX = { 'agent-runtime': ['split: pure helpers + types -> json-event-stream/shared.ts (leaf); the 5 defs import the leaf; dispatcher keeps the parser map', 'J1'], daemon: ['split: JINI_MCP_SERVER_KEY + default read/write/remove + mergeMcpJsonContent -> agent-executor/mcp-json-file.ts (leaf); delete the 2 export-from lines in mcp-bridge.ts and repoint', 'J2'], admin: ['split: QueueActionsCell + its hook useQueueActionsCell -> components/QueueActionsCell.tsx + hooks/QueueActionsCell.hooks.ts; QueueSection.hooks.ts imports the cell file', 'J3'] };
+const JFIX = { 'agent-runtime': ['split: pure helpers + types -> json-event-stream-shared.ts (internal leaf, not exported from index.ts); the 5 defs import the leaf; dispatcher keeps the parser map', 'J1'], daemon: ['split: JINI_MCP_SERVER_KEY + default read/write/remove + mergeMcpJsonContent -> agent-executor/mcp-json-file.ts (leaf); commit 1 repoints all 9 production + 1 test consumers of the 5 names; commit 2 deletes the 2 export-from lines and repoints their 2 production + 2 test consumers', 'J2'], admin: ['split: QueueActionsCell + its hook useQueueActionsCell -> components/QueueActionsCell.tsx + hooks/QueueActionsCell.hooks.ts; QueueSection.hooks.ts imports the cell file', 'J3'] };
 const cyc = [['admin', ['packages/admin/src/comments/react/components/QueueSection.tsx', 'packages/admin/src/comments/react/hooks/QueueSection.hooks.ts']], ['agent-runtime', ['packages/agent-runtime/src/json-event-stream.ts', ...['codex', 'cursor-agent', 'gemini', 'kimi', 'opencode'].map((x) => `packages/agent-runtime/src/defs/${x}/event-stream.ts`)]], ['daemon', ['packages/daemon/src/agent-executor/mcp-bridge.ts', 'packages/daemon/src/agent-executor/claude/config-dir.ts', 'packages/daemon/src/agent-executor/claude/mcp-delivery.ts', 'packages/daemon/src/agent-executor/opencode/mcp-config.ts']]];
 for (const [pkg, files] of cyc) for (const e of j.edges) if (e.kind === 'runtime' && files.includes(e.from) && files.includes(e.to)) out.push(['jini-module', e.from.replace('packages/', ''), e.to.replace('packages/', ''), 'runtime', 'n/a', 1, 1, e.names.filter((n) => n.use === 'value').map((n) => n.name).join(','), e.from.replace('packages/', '') + ':' + e.line, JFIX[pkg][0], JFIX[pkg][1]].join('\t'));
+// Jini imports the compiler keeps although no name is used as a value (verbatimModuleSyntax). They load the module at runtime.
+for (const e of j.edges) if (e.kind === 'runtime' && (e.empty || e.unused)) out.push(['jini-kept-import', e.from.replace('packages/', ''), e.to.replace('packages/', ''), e.empty ? 'runtime-empty' : 'runtime-unused', 'n/a', 1, 1, e.names.map((n) => n.name).join(','), e.from.replace('packages/', '') + ':' + e.line, e.empty ? 'emitted as `import {} from`: write `import type { … }` if the load is not wanted' : 'value import with no value use: kept by verbatimModuleSyntax; delete it or make it `import type`', 'J4 (visible to the gate; none is in a cycle)'].join('\t'));
 console.log(out.join('\n'));

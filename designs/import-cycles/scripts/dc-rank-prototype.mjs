@@ -11,7 +11,6 @@ const rules = [...byRank.keys()].sort((a, b) => a - b).map((rank) => {
     from: { path: '^' + F + '/(' + alt(byRank.get(rank)) + ')/', pathNot: '.*/__tests__/.*|\\.test\\.ts$' },
     to: { path: '^' + F + '/(' + alt(sameOrHigher) + ')/', pathNot: '^' + F + '/$1/', dependencyTypesNot: process.env.TYPES === '1' ? [] : ['type-only', 'type-import'] } };
 });
-rules.push({ name: 'feature-rank:unranked', severity: 'error', comment: 'Every feature directory must have a FEATURE_RANK entry.',
-  from: { path: '^' + F + '/[^/]+/', pathNot: '^' + F + '/(' + alt(Object.keys(FEATURE_RANK)) + '|__tests__)/|.*/__tests__/.*|\\.test\\.ts$' }, to: { path: '^' + F + '/[^/]+/' , pathNot: '^' + F + '/$1/'} });
+// The unranked-feature check is a node check, not an edge rule: see check-feature-ranks.mjs (judge finding 8).
 if (process.env.FOLDER === '1') rules.push({ name: 'no-folder-cycles', scope: 'folder', severity: 'warn', from: { path: '^' + F + '/[^/]+$' }, to: { circular: true } });
 export default { forbidden: rules, options: { doNotFollow: { path: 'node_modules' }, tsPreCompilationDeps: process.env.PRECOMP !== '0', tsConfig: { fileName: 'tsconfig.json' } } };
