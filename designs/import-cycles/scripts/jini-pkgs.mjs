@@ -1,17 +1,22 @@
-// Jini package-level graph from @jini-ai/* specifiers in production src (static import/export-from + dynamic import()).
-import ts from 'typescript'; import fs from 'node:fs'; import path from 'node:path';
+// Jini package-level graph. Reads the dump of `edges.mjs --packages packages --scope @jini-ai/`, so a package edge is
+// "runtime" exactly when the compiler keeps the import statement (verbatimModuleSyntax keeps `import { type T } from "@jini-ai/x"`
+// as `import {} from "@jini-ai/x"`, which still loads the package).  Usage: node jini-pkgs.mjs <jini-edges.json>
+import fs from 'node:fs';
 import { scc } from './graph-lib.mjs';
-const root = process.argv[2]; const pk = path.join(root, 'packages');
-const edges = new Map();
-const walk = (dir, acc) => { for (const e of fs.readdirSync(dir, { withFileTypes: true })) { if (['node_modules', 'dist', '__tests__'].includes(e.name)) continue; const p = path.join(dir, e.name); if (e.isDirectory()) walk(p, acc); else if (/\.(ts|tsx)$/.test(e.name) && !/\.(test|d)\.tsx?$/.test(e.name)) acc.push(p); } return acc; };
-for (const pkg of fs.readdirSync(pk)) { const src = path.join(pk, pkg, 'src'); if (!fs.existsSync(src)) continue;
-  for (const f of walk(src, [])) { const sf = ts.createSourceFile(f, fs.readFileSync(f, 'utf8'), ts.ScriptTarget.ES2022, true);
-    const add = (spec, type) => { const m = /^@jini-ai\/([^/]+)/.exec(spec); if (!m || m[1] === pkg) return; const k = pkg + '>' + m[1]; const r = edges.get(k) || { rt: 0, ty: 0 }; type ? r.ty++ : r.rt++; edges.set(k, r); };
-    const visit = (n) => { if (ts.isImportDeclaration(n) && ts.isStringLiteral(n.moduleSpecifier)) { const ic = n.importClause; const nb = ic?.namedBindings; const allType = !!ic && (ic.isTypeOnly || (!ic.name && nb && ts.isNamedImports(nb) && nb.elements.length > 0 && nb.elements.every((e) => e.isTypeOnly))); add(n.moduleSpecifier.text, allType); }
-      else if (ts.isExportDeclaration(n) && n.moduleSpecifier && ts.isStringLiteral(n.moduleSpecifier)) add(n.moduleSpecifier.text, n.isTypeOnly || (n.exportClause && ts.isNamedExports(n.exportClause) && n.exportClause.elements.length > 0 && n.exportClause.elements.every((e) => e.isTypeOnly)));
-      else if (ts.isCallExpression(n) && n.expression.kind === ts.SyntaxKind.ImportKeyword && n.arguments[0] && ts.isStringLiteralLike(n.arguments[0])) add(n.arguments[0].text, false);
-      else if (ts.isImportTypeNode(n) && ts.isLiteralTypeNode(n.argument) && ts.isStringLiteral(n.argument.literal)) add(n.argument.literal.text, true);
-      ts.forEachChild(n, visit); }; visit(sf); } }
-for (const [label, f] of [['runtime', (r) => r.rt > 0], ['all', () => true]]) { const adj = new Map(); const nodes = new Set();
-  for (const [k, r] of edges) if (f(r)) { const [a, b] = k.split('>'); nodes.add(a); nodes.add(b); if (!adj.has(a)) adj.set(a, []); adj.get(a).push(b); }
-  const comps = scc([...nodes], adj).filter((c) => c.length > 1); console.log(label, 'package edges', [...edges.values()].filter(f).length, 'SCCs', comps.length, comps.map((c) => c.sort().join(' ')).join(' | ')); }
+const d = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const edges = new Map(); // "a>b" -> { runtime, runtimeEmpty, type }
+for (const e of d.scoped) {
+  const from = e.from.split('/')[1]; const to = /^@jini-ai\/([^/]+)/.exec(e.spec)?.[1];
+  if (!to || to === from) continue;
+  const r = edges.get(from + '>' + to) ?? { runtime: 0, runtimeEmpty: 0, type: 0 }; edges.set(from + '>' + to, r);
+  if (e.kind !== 'runtime') r.type++; else if (e.empty || e.unused) r.runtimeEmpty++; else r.runtime++;
+}
+const views = [['runtime (statements the compiler keeps)', (r) => r.runtime + r.runtimeEmpty > 0], ['runtime, value-using statements only', (r) => r.runtime > 0], ['all (types included)', () => true]];
+for (const [label, keep] of views) {
+  const adj = new Map(); const nodes = new Set();
+  for (const [k, r] of edges) if (keep(r)) { const [a, b] = k.split('>'); nodes.add(a); nodes.add(b); if (!adj.has(a)) adj.set(a, []); adj.get(a).push(b); }
+  const comps = scc([...nodes], adj).filter((c) => c.length > 1);
+  console.log(`${label}: package edges ${[...edges.values()].filter(keep).length}, SCCs ${comps.length}`, comps.map((c) => c.sort().join(' ')).join(' | '));
+}
+const onlyEmpty = [...edges].filter(([, r]) => r.runtime === 0 && r.runtimeEmpty > 0).map(([k, r]) => `${k} x${r.runtimeEmpty}`);
+console.log('package edges that exist at runtime ONLY through empty/unused imports:', onlyEmpty.length, onlyEmpty.join(', '));
