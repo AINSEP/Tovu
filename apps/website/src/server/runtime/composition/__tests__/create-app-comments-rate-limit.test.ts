@@ -6,6 +6,7 @@ import { COMMENTS_SUBMIT_PROFILE } from "#src/features/comments/index";
 import { loginAsOwner, startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { FixedSiteKeyKeyring } from "#src/features/webhooks/keyring.env";
 import { createApp, createRouteDeps } from "../app.js";
+import { createInMemoryApp } from "../memory-route-deps.js";
 
 /**
  * @file The comment handler must receive its required HTTP budget and host IP resolver through
@@ -134,7 +135,7 @@ for (const builder of ["createApp", "createSiteApp"] as const) {
 
 test("createApp with default dependencies mounts the required comment handler", async (t) => {
   const bootWork: Promise<void>[] = [];
-  const app = createApp(undefined, { onBootWork: ({ work }) => bootWork.push(work) });
+  const app = createInMemoryApp({}, { app: { onBootWork: ({ work }) => bootWork.push(work) } });
   await Promise.all(bootWork);
   const baseUrl = await startTestServer(app, t);
   assert.deepEqual(await submitComment({ baseUrl, forwardedFor: "203.0.113.1" }), {
