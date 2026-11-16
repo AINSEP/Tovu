@@ -11,7 +11,6 @@ import type { StorageKernel } from "../kernel/port.js";
 import { readSchemaShape, type SchemaShape } from "@jini-ai/db/kernel";
 import { CHAT_TABLE_NAMES } from "../sqlite/chat-orphan-check.js";
 import { LEDGER_TABLE } from "./runner.js";
-import { LegacyHistoryError } from "./step.js";
 
 /**
  * @file The FROZEN drizzle chain (`platform/db/drizzle/`, 0000–0077) as the SQLite half of
@@ -74,6 +73,14 @@ export interface LegacyReconciliation {
   applied: number;
   /** The missing tail, in order. */
   pending: LegacyEntry[];
+}
+
+/** Tovu's frozen Drizzle history cannot be matched; legacy adoption remains host-owned. */
+export class LegacyHistoryError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "LegacyHistoryError";
+  }
 }
 
 /**
