@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import type { NodeViewProps } from "@tiptap/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api } from "../api";
+import { widgetsApi } from "../../features/widgets/api/widgets-api";
 import { useWidgetEmbedNodeView } from "../widget-embed-extension.hooks";
 
 /**
@@ -31,7 +31,7 @@ const ACTIVE_WIDGET = {
   version: 1,
 };
 
-type GetWidgetResult = Awaited<ReturnType<typeof api.getWidget>>;
+type GetWidgetResult = Awaited<ReturnType<typeof widgetsApi.getWidget>>;
 
 function fakeProps(
   attrs: { widgetEntryId?: string; placementId?: string; cssClass?: string | null; htmlAttributes?: string | null },
@@ -52,7 +52,7 @@ function renderView(props: NodeViewProps) {
 /** A `getWidget` whose responses the test settles by id, in any order. */
 function deferredGetWidget() {
   const pending = new Map<string, { resolve: (value: GetWidgetResult) => void; reject: (error: unknown) => void }>();
-  vi.spyOn(api, "getWidget").mockImplementation(
+  vi.spyOn(widgetsApi, "getWidget").mockImplementation(
     ({ id }: { id: string }) => new Promise<GetWidgetResult>((resolve, reject) => pending.set(id, { resolve, reject })),
   );
   return pending;
@@ -60,7 +60,7 @@ function deferredGetWidget() {
 
 describe("useWidgetEmbedNodeView — fetch and display state", () => {
   it("is loading (widget undefined, not broken, no dialog) before getWidget settles", () => {
-    vi.spyOn(api, "getWidget").mockReturnValue(new Promise(() => {}));
+    vi.spyOn(widgetsApi, "getWidget").mockReturnValue(new Promise(() => {}));
     const { result } = renderView(fakeProps({ widgetEntryId: "w1", placementId: "p1" }));
 
     expect(result.current.widget).toBeUndefined();
@@ -71,7 +71,7 @@ describe("useWidgetEmbedNodeView — fetch and display state", () => {
   });
 
   it("is broken with a null widget, without calling getWidget, when widgetEntryId is missing", () => {
-    const getWidget = vi.spyOn(api, "getWidget");
+    const getWidget = vi.spyOn(widgetsApi, "getWidget");
     const { result } = renderView(fakeProps({}));
 
     expect(result.current.widget).toBeNull();
@@ -82,7 +82,7 @@ describe("useWidgetEmbedNodeView — fetch and display state", () => {
   });
 
   it("resolves an active widget as not broken", async () => {
-    vi.spyOn(api, "getWidget").mockResolvedValue({ widget: ACTIVE_WIDGET, whereUsed: NO_WHERE_USED });
+    vi.spyOn(widgetsApi, "getWidget").mockResolvedValue({ widget: ACTIVE_WIDGET, whereUsed: NO_WHERE_USED });
     const { result } = renderView(fakeProps({ widgetEntryId: "w1" }));
 
     await waitFor(() => expect(result.current.widget).toEqual(ACTIVE_WIDGET));
@@ -90,7 +90,7 @@ describe("useWidgetEmbedNodeView — fetch and display state", () => {
   });
 
   it("keeps a resolved but inactive widget, marked broken", async () => {
-    vi.spyOn(api, "getWidget").mockResolvedValue({ widget: { ...ACTIVE_WIDGET, status: "trash" }, whereUsed: NO_WHERE_USED });
+    vi.spyOn(widgetsApi, "getWidget").mockResolvedValue({ widget: { ...ACTIVE_WIDGET, status: "trash" }, whereUsed: NO_WHERE_USED });
     const { result } = renderView(fakeProps({ widgetEntryId: "w1" }));
 
     await waitFor(() => expect(result.current.isBroken).toBe(true));
@@ -98,7 +98,7 @@ describe("useWidgetEmbedNodeView — fetch and display state", () => {
   });
 
   it("a failed fetch leaves a null widget, marked broken", async () => {
-    vi.spyOn(api, "getWidget").mockRejectedValue(new Error("404"));
+    vi.spyOn(widgetsApi, "getWidget").mockRejectedValue(new Error("404"));
     const { result } = renderView(fakeProps({ widgetEntryId: "w1" }));
 
     await waitFor(() => expect(result.current.widget).toBeNull());
@@ -155,7 +155,7 @@ describe("useWidgetEmbedNodeView — stale responses are dropped", () => {
 describe("useWidgetEmbedNodeView — Change dialog and Remove", () => {
   it("openChange yields no dialog until a widget has resolved to scope it to", async () => {
     let resolve!: (value: GetWidgetResult) => void;
-    vi.spyOn(api, "getWidget").mockImplementation(() => new Promise<GetWidgetResult>((r) => (resolve = r)));
+    vi.spyOn(widgetsApi, "getWidget").mockImplementation(() => new Promise<GetWidgetResult>((r) => (resolve = r)));
     const { result } = renderView(fakeProps({ widgetEntryId: "w1" }));
 
     act(() => result.current.openChange());
@@ -168,7 +168,7 @@ describe("useWidgetEmbedNodeView — Change dialog and Remove", () => {
   });
 
   it("onUseExisting points the node at the chosen widget and closes the dialog", async () => {
-    vi.spyOn(api, "getWidget").mockResolvedValue({ widget: ACTIVE_WIDGET, whereUsed: NO_WHERE_USED });
+    vi.spyOn(widgetsApi, "getWidget").mockResolvedValue({ widget: ACTIVE_WIDGET, whereUsed: NO_WHERE_USED });
     const updateAttributes = vi.fn();
     const { result } = renderView(fakeProps({ widgetEntryId: "w1" }, { updateAttributes }));
     await waitFor(() => expect(result.current.widget).toBeTruthy());
@@ -181,8 +181,8 @@ describe("useWidgetEmbedNodeView — Change dialog and Remove", () => {
   });
 
   it("onCreateNew creates a widget of the current type, then points the node at it", async () => {
-    vi.spyOn(api, "getWidget").mockResolvedValue({ widget: ACTIVE_WIDGET, whereUsed: NO_WHERE_USED });
-    const createWidget = vi.spyOn(api, "createWidget").mockResolvedValue({ widget: { ...ACTIVE_WIDGET, id: "w-new" } });
+    vi.spyOn(widgetsApi, "getWidget").mockResolvedValue({ widget: ACTIVE_WIDGET, whereUsed: NO_WHERE_USED });
+    const createWidget = vi.spyOn(widgetsApi, "createWidget").mockResolvedValue({ widget: { ...ACTIVE_WIDGET, id: "w-new" } });
     const updateAttributes = vi.fn();
     const { result } = renderView(fakeProps({ widgetEntryId: "w1" }, { updateAttributes }));
     await waitFor(() => expect(result.current.widget).toBeTruthy());
@@ -198,8 +198,8 @@ describe("useWidgetEmbedNodeView — Change dialog and Remove", () => {
   });
 
   it("a failed onCreateNew alerts the describable error and leaves the node and dialog untouched", async () => {
-    vi.spyOn(api, "getWidget").mockResolvedValue({ widget: ACTIVE_WIDGET, whereUsed: NO_WHERE_USED });
-    vi.spyOn(api, "createWidget").mockRejectedValue(new Error("title already taken"));
+    vi.spyOn(widgetsApi, "getWidget").mockResolvedValue({ widget: ACTIVE_WIDGET, whereUsed: NO_WHERE_USED });
+    vi.spyOn(widgetsApi, "createWidget").mockRejectedValue(new Error("title already taken"));
     const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
     const updateAttributes = vi.fn();
     const { result } = renderView(fakeProps({ widgetEntryId: "w1" }, { updateAttributes }));
@@ -216,7 +216,7 @@ describe("useWidgetEmbedNodeView — Change dialog and Remove", () => {
   });
 
   it("onCancel closes the dialog without updating the node", async () => {
-    vi.spyOn(api, "getWidget").mockResolvedValue({ widget: ACTIVE_WIDGET, whereUsed: NO_WHERE_USED });
+    vi.spyOn(widgetsApi, "getWidget").mockResolvedValue({ widget: ACTIVE_WIDGET, whereUsed: NO_WHERE_USED });
     const updateAttributes = vi.fn();
     const { result } = renderView(fakeProps({ widgetEntryId: "w1" }, { updateAttributes }));
     await waitFor(() => expect(result.current.widget).toBeTruthy());
@@ -229,7 +229,7 @@ describe("useWidgetEmbedNodeView — Change dialog and Remove", () => {
   });
 
   it("remove deletes the node", () => {
-    vi.spyOn(api, "getWidget").mockReturnValue(new Promise(() => {}));
+    vi.spyOn(widgetsApi, "getWidget").mockReturnValue(new Promise(() => {}));
     const deleteNode = vi.fn();
     const { result } = renderView(fakeProps({ widgetEntryId: "w1" }, { deleteNode }));
 
@@ -243,21 +243,21 @@ describe("useWidgetEmbedNodeView — Change dialog and Remove", () => {
 // `alt`, which the widget node has no concept of.
 describe("useWidgetEmbedNodeView — Style dialog", () => {
   it("styleInitial reflects the node's current cssClass/htmlAttributes, with alt always null", () => {
-    vi.spyOn(api, "getWidget").mockReturnValue(new Promise(() => {}));
+    vi.spyOn(widgetsApi, "getWidget").mockReturnValue(new Promise(() => {}));
     const { result } = renderView(fakeProps({ widgetEntryId: "w1", cssClass: "hero", htmlAttributes: 'data-kui="x"' }));
 
     expect(result.current.styleInitial).toEqual({ alt: null, cssClass: "hero", htmlAttributes: 'data-kui="x"' });
   });
 
   it("defaults styleInitial's cssClass/htmlAttributes to null when the node has neither set", () => {
-    vi.spyOn(api, "getWidget").mockReturnValue(new Promise(() => {}));
+    vi.spyOn(widgetsApi, "getWidget").mockReturnValue(new Promise(() => {}));
     const { result } = renderView(fakeProps({ widgetEntryId: "w1" }));
 
     expect(result.current.styleInitial).toEqual({ alt: null, cssClass: null, htmlAttributes: null });
   });
 
   it("is not gated on the widget having resolved: styling starts false and opens on demand regardless", () => {
-    vi.spyOn(api, "getWidget").mockReturnValue(new Promise(() => {}));
+    vi.spyOn(widgetsApi, "getWidget").mockReturnValue(new Promise(() => {}));
     const { result } = renderView(fakeProps({ widgetEntryId: "w1" }));
     expect(result.current.styling).toBe(false);
 
@@ -267,7 +267,7 @@ describe("useWidgetEmbedNodeView — Style dialog", () => {
   });
 
   it("closeStyle closes the dialog without updating the node", () => {
-    vi.spyOn(api, "getWidget").mockReturnValue(new Promise(() => {}));
+    vi.spyOn(widgetsApi, "getWidget").mockReturnValue(new Promise(() => {}));
     const updateAttributes = vi.fn();
     const { result } = renderView(fakeProps({ widgetEntryId: "w1" }, { updateAttributes }));
     act(() => result.current.openStyle());
@@ -279,7 +279,7 @@ describe("useWidgetEmbedNodeView — Style dialog", () => {
   });
 
   it("saveStyle writes cssClass and htmlAttributes onto the node (never alt) and closes the dialog", () => {
-    vi.spyOn(api, "getWidget").mockReturnValue(new Promise(() => {}));
+    vi.spyOn(widgetsApi, "getWidget").mockReturnValue(new Promise(() => {}));
     const updateAttributes = vi.fn();
     const { result } = renderView(fakeProps({ widgetEntryId: "w1" }, { updateAttributes }));
     act(() => result.current.openStyle());
@@ -297,7 +297,7 @@ describe("useWidgetEmbedNodeView — placement content", () => {
 
   /** Renders a node pointing at the media widget, waits for it to resolve, and opens Style. */
   async function openMediaStyle(updateAttributes = vi.fn()) {
-    vi.spyOn(api, "getWidget").mockResolvedValue({ widget: MEDIA_WIDGET, whereUsed: NO_WHERE_USED });
+    vi.spyOn(widgetsApi, "getWidget").mockResolvedValue({ widget: MEDIA_WIDGET, whereUsed: NO_WHERE_USED });
     const view = renderView(fakeProps({ widgetEntryId: "w1" }, { updateAttributes }));
     await waitFor(() => expect(view.result.current.widget).toEqual(MEDIA_WIDGET));
     act(() => view.result.current.openStyle());

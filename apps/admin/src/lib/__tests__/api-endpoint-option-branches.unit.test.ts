@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { widgetsApi } from "../../features/widgets/api/widgets-api";
 import { settingsApi } from "../../features/settings/api/settings-api";
 import { commentsApi } from "../../features/comments/api/comments-api";
 import { analyticsApi } from "../../features/analytics/api/analytics-api";
@@ -410,31 +411,31 @@ test("listCommentsQueue sets limit in the query when given", async () => {
 
 test("listWidgets has no query string when no options are given", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listWidgets();
+  await widgetsApi.listWidgets();
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/widgets`);
 });
 
 test("listWidgets sets widgetType in the query when given", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listWidgets({ widgetType: "text" });
+  await widgetsApi.listWidgets({ widgetType: "text" });
   expect(calls[0].url).toContain("widgetType=text");
 });
 
 test("listWidgets sets includeInactive=true in the query when requested", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listWidgets({ includeInactive: true });
+  await widgetsApi.listWidgets({ includeInactive: true });
   expect(calls[0].url).toContain("includeInactive=true");
 });
 
 test("createWidget omits slug from the body when the caller doesn't pass one", async () => {
   const { body } = stubFetchCapturing();
-  await api.createWidget({ widgetType: "text", title: "My widget", config: {} });
+  await widgetsApi.createWidget({ widgetType: "text", title: "My widget", config: {} });
   expect(body()).toEqual({ widgetType: "text", title: "My widget", config: {} });
 });
 
 test("createWidget includes slug when the caller passes one", async () => {
   const { body } = stubFetchCapturing();
-  await api.createWidget({ widgetType: "text", title: "My widget", config: {} }, { slug: "my-widget" });
+  await widgetsApi.createWidget({ widgetType: "text", title: "My widget", config: {} }, { slug: "my-widget" });
   expect(body()).toEqual({ widgetType: "text", title: "My widget", config: {}, slug: "my-widget" });
 });
 

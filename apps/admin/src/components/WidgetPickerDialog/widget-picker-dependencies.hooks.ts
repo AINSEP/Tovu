@@ -1,4 +1,5 @@
-import { api, type AdminWidget } from "../../lib/api";
+import type { AdminWidget } from "../../features/widgets/api/widgets-api.types";
+import { widgetsApi } from "../../features/widgets/api/widgets-api";
 import type { WidgetPickerPort } from "./widget-picker-port.hooks";
 
 /**
@@ -8,8 +9,8 @@ import type { WidgetPickerPort } from "./widget-picker-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultWidgetPickerPort: WidgetPickerPort = {
-  listWidgets: (options, _optional: Record<string, never> = {}) => api.listWidgets(options),
-  createWidget: (input, _optional: Record<string, never> = {}) => api.createWidget(input),
+  listWidgets: (options, _optional: Record<string, never> = {}) => widgetsApi.listWidgets(options),
+  createWidget: (input, _optional: Record<string, never> = {}) => widgetsApi.createWidget(input),
 };
 
 /** Seed state for {@link createFakeWidgetPickerPort}. */

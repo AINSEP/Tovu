@@ -2,7 +2,9 @@ import { fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-qu
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, type AdminMedia, type AdminWidget } from "../../lib/api";
+import { api, type AdminMedia } from "../../lib/api";
+import type { AdminWidget } from "../../features/widgets/api/widgets-api.types";
+import { widgetsApi } from "../../features/widgets/api/widgets-api";
 import { EmbedInsertControl } from "../EmbedInsertControl/EmbedInsertControl";
 import type { useEmbedInsertControl } from "../EmbedInsertControl/EmbedInsertControl.hooks";
 
@@ -185,7 +187,7 @@ describe("EmbedInsertControl — Media", () => {
 describe("EmbedInsertControl — Form / Menu shortcuts skip the type <Select>", () => {
   it("Form pins the picker straight to contact-form on one click — no WidgetAddControl type chooser appears", async () => {
     const user = userEvent.setup();
-    vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [] });
+    vi.spyOn(widgetsApi, "listWidgets").mockResolvedValue({ widgets: [] });
     render(<EmbedInsertControl editor={fakeEditor()} />);
 
     await openMenu(user);
@@ -202,7 +204,7 @@ describe("EmbedInsertControl — Form / Menu shortcuts skip the type <Select>", 
 
   it("Menu pins the picker straight to menu on one click", async () => {
     const user = userEvent.setup();
-    vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [] });
+    vi.spyOn(widgetsApi, "listWidgets").mockResolvedValue({ widgets: [] });
     render(<EmbedInsertControl editor={fakeEditor()} />);
 
     await openMenu(user);
@@ -214,7 +216,7 @@ describe("EmbedInsertControl — Form / Menu shortcuts skip the type <Select>", 
 
   it("Form: selecting an existing contact-form widget inserts it and closes the dialog", async () => {
     const user = userEvent.setup();
-    vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [widget({ id: "cf1", title: "Contact widget" })] });
+    vi.spyOn(widgetsApi, "listWidgets").mockResolvedValue({ widgets: [widget({ id: "cf1", title: "Contact widget" })] });
     const editor = fakeEditor();
     render(<EmbedInsertControl editor={editor} />);
 
@@ -241,7 +243,7 @@ describe("EmbedInsertControl — Form / Menu shortcuts skip the type <Select>", 
    */
   it("Form: Cancel closes the dialog and inserts nothing", async () => {
     const user = userEvent.setup();
-    vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [] });
+    vi.spyOn(widgetsApi, "listWidgets").mockResolvedValue({ widgets: [] });
     const editor = fakeEditor();
     render(<EmbedInsertControl editor={editor} />);
 
@@ -257,7 +259,7 @@ describe("EmbedInsertControl — Form / Menu shortcuts skip the type <Select>", 
 
   it("Menu: Cancel closes the dialog and inserts nothing", async () => {
     const user = userEvent.setup();
-    vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [] });
+    vi.spyOn(widgetsApi, "listWidgets").mockResolvedValue({ widgets: [] });
     const editor = fakeEditor();
     render(<EmbedInsertControl editor={editor} />);
 
@@ -273,7 +275,7 @@ describe("EmbedInsertControl — Form / Menu shortcuts skip the type <Select>", 
 
   it("Gallery: Cancel closes the dialog and inserts nothing", async () => {
     const user = userEvent.setup();
-    vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [] });
+    vi.spyOn(widgetsApi, "listWidgets").mockResolvedValue({ widgets: [] });
     const editor = fakeEditor();
     render(<EmbedInsertControl editor={editor} />);
 
@@ -289,7 +291,7 @@ describe("EmbedInsertControl — Form / Menu shortcuts skip the type <Select>", 
 
   it("mints a fresh placementId per insertion — two inserts never reuse the same id", async () => {
     const user = userEvent.setup();
-    vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [widget({ id: "menu1", title: "Main nav", widgetType: "menu" })] });
+    vi.spyOn(widgetsApi, "listWidgets").mockResolvedValue({ widgets: [widget({ id: "menu1", title: "Main nav", widgetType: "menu" })] });
     const editor = fakeEditor();
     render(<EmbedInsertControl editor={editor} />);
 
@@ -312,7 +314,7 @@ describe("EmbedInsertControl — Form / Menu shortcuts skip the type <Select>", 
 describe("EmbedInsertControl — Widget…", () => {
   it("opens one native picker with type selection inside it, leaving the toolbar compact", async () => {
     const user = userEvent.setup();
-    vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [] });
+    vi.spyOn(widgetsApi, "listWidgets").mockResolvedValue({ widgets: [] });
     render(<EmbedInsertControl editor={fakeEditor()} />);
 
     await openMenu(user);
@@ -329,7 +331,7 @@ describe("EmbedInsertControl — Widget…", () => {
 
   it("native Escape cancellation collapses the widget flow and restores the Embed trigger", async () => {
     const user = userEvent.setup();
-    vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [] });
+    vi.spyOn(widgetsApi, "listWidgets").mockResolvedValue({ widgets: [] });
     const editor = fakeEditor();
     render(<EmbedInsertControl editor={editor} />);
     await openMenu(user);
@@ -353,7 +355,7 @@ describe("EmbedInsertControl — Widget…", () => {
    */
   it("selecting an existing text widget through the full flow inserts it, closes the menu, and drops back out of widget mode", async () => {
     const user = userEvent.setup();
-    vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [widget({ id: "w1", title: "Hero banner", widgetType: "text" })] });
+    vi.spyOn(widgetsApi, "listWidgets").mockResolvedValue({ widgets: [widget({ id: "w1", title: "Hero banner", widgetType: "text" })] });
     const editor = fakeEditor();
     render(<EmbedInsertControl editor={editor} />);
 

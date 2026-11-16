@@ -2,7 +2,9 @@ import { render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { api, type AdminMedia, type AdminWidget } from "../../lib/api";
+import { api, type AdminMedia } from "../../lib/api";
+import type { AdminWidget } from "../../features/widgets/api/widgets-api.types";
+import { widgetsApi } from "../../features/widgets/api/widgets-api";
 import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
 import { WidgetAddControl, WidgetPickerDialog } from "../WidgetPickerDialog/WidgetPickerDialog";
 
@@ -82,7 +84,7 @@ describe("MediaPickerDialog agentHandle", () => {
 
 describe("WidgetPickerDialog agentHandle", () => {
   it("omits host handles without a base while the shared Select and dialog close remain addressable", async () => {
-    vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [EXISTING_WIDGET] });
+    vi.spyOn(widgetsApi, "listWidgets").mockResolvedValue({ widgets: [EXISTING_WIDGET] });
     render(<WidgetPickerDialog widgetType="text" onUseExisting={vi.fn()} onCreateNew={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.getByLabelText("Title")).not.toHaveAttribute(AGENT_ELEMENT);
     expect(screen.getByLabelText("Text")).not.toHaveAttribute(AGENT_ELEMENT);
@@ -118,7 +120,7 @@ describe("WidgetPickerDialog agentHandle", () => {
   });
 
   it("publishes the existing-instances Select and its submit once instances resolve", async () => {
-    vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [EXISTING_WIDGET] });
+    vi.spyOn(widgetsApi, "listWidgets").mockResolvedValue({ widgets: [EXISTING_WIDGET] });
     render(
       <WidgetPickerDialog
         widgetType="text"

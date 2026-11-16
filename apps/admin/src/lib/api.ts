@@ -1389,60 +1389,6 @@ export interface AdminMenuAuthoring {
   html?: string;
 }
 
-// ---------------------------------------------------------------------------
-// Widgets (SPEC-043, ADR-047) — mirrors AdminMenu's shape, the direct structural sibling
-// ---------------------------------------------------------------------------
-
-export type AdminWidgetType = "text" | "social-links" | "recent-entries" | "menu" | "contact-form" | "gallery" | "media";
-
-export interface AdminWidget {
-  id: string;
-  workspaceId: string;
-  slug: string;
-  title: string;
-  status: "active" | "trash" | "purged";
-  widgetType: AdminWidgetType;
-  config: Record<string, unknown>;
-  updatedAt: string;
-  version: number;
-}
-
-export interface AdminWidgetWhereUsedReference {
-  kind: "region" | "embed";
-  sourceEntryId: string;
-  fieldPath: string;
-}
-
-export interface AdminWidgetWhereUsed {
-  count: number;
-  references: AdminWidgetWhereUsedReference[];
-}
-
-export interface AdminWidgetPlacement {
-  placementId: string;
-  widgetEntryId: string;
-  enabled: boolean;
-  widgetTitle: string | null;
-  widgetType: string | null;
-  broken: boolean;
-}
-
-export interface AdminWidgetArea {
-  id: string;
-  workspaceId: string;
-  regionKey: string;
-  updatedAt: string;
-  version: number;
-}
-
-export interface AdminWidgetRegionBinding {
-  workspaceId: string;
-  regionKey: string;
-  areaEntryId: string;
-  updatedAt: string;
-  placementCount: number;
-}
-
 export interface AdminMedia {
   id: string;
   /** `"document"` for a private Library document, `"media"` for ordinary media. Legacy servers omit it. */
@@ -3121,26 +3067,6 @@ export const api = {
    *  row to the Trash, instead of each domain keeping its own bespoke delete call. */
   trash: ({ type, id }: { type: string; id: string }) =>
     authenticatedAdminRequest<{ ok: true; version: number | null }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/trash/items`, body: { type, id } }),
-
-  // -------------------------------------------------------------------------
-  // Widgets (SPEC-043, ADR-047) — mirrors the Menus client functions' exact shape
-  // -------------------------------------------------------------------------
-  listWidgets: (options: { widgetType?: string; includeInactive?: boolean } = {}) => {
-    const params = new URLSearchParams();
-    if (options.widgetType) params.set("widgetType", options.widgetType);
-    if (options.includeInactive) params.set("includeInactive", "true");
-    const qs = params.toString();
-    // `skippedCount`/`skippedIds` (dossier C5 follow-up, 2026-08-03) are additive and optional —
-    // present only when the server dropped one or more malformed records. Absent in the common case.
-    return authenticatedAdminRequest<{ widgets: AdminWidget[]; skippedCount?: number; skippedIds?: string[] }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/widgets${querySuffix({ query: qs })}` });
-  },
-  getWidget: ({ id }: { id: string }, _optional: Record<string, never> = {}) =>
-    authenticatedAdminRequest<{ widget: AdminWidget; whereUsed: AdminWidgetWhereUsed }>({ method: "GET", path: `/workspaces/${WORKSPACE_ID}/widgets/${encodeURIComponent(id)}` }),
-  createWidget: (
-    input: { widgetType: AdminWidgetType; title: string; config: Record<string, unknown> },
-    options: { slug?: string } = {}
-  ) =>
-    authenticatedAdminRequest<{ widget: AdminWidget }>({ method: "POST", path: `/workspaces/${WORKSPACE_ID}/widgets`, body: { ...input, ...options } }),
 
   // SPEC-005 REQ-12..17 (1.1.0 UI amendment) — consumes REQ-10's PLUGINS_LIST/PLUGIN_SET_ENABLED
   // HTTP contract as a black box (ui.spec.md §3.1/§4.2).

@@ -1,5 +1,6 @@
 import type { PageEntityLookup, ResolvedPageEntity } from "@jini-ai/agentic";
 import { api } from "./api";
+import { widgetsApi } from "../features/widgets/api/widgets-api";
 
 /** Product lookups use the same authenticated read APIs as each editor. A missing row refuses
  * navigation; an authorization or transport error propagates. No handle suffix is constructed. */
@@ -23,7 +24,7 @@ const lookups: Readonly<Record<string, (required: { id: string }) => Promise<Res
     return { params: { menuId: menu.id } };
   },
   widget: async ({ id }, _options = {}) => {
-    const { widget } = await api.getWidget({ id });
+    const { widget } = await widgetsApi.getWidget({ id });
     return { params: { widgetId: widget.id } };
   },
 };

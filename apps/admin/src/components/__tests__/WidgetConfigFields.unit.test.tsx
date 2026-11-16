@@ -3,7 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { api, type AdminWidgetType } from "../../lib/api";
+import { api } from "../../lib/api";
+import type { AdminWidgetType } from "../../features/widgets/api/widgets-api.types";
 import { formsApi } from "../../features/forms/api/forms-api";
 import { defaultWidgetConfig, WidgetConfigFields, WIDGET_TYPE_OPTIONS } from "../WidgetConfigFields/WidgetConfigFields";
 

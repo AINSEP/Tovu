@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { widgetsApi } from "../../features/widgets/api/widgets-api";
 
 /**
  * @file id-encoding sweep (2026-09-05, `fix-apienc` dispatch) — TASK 1.
@@ -169,7 +170,7 @@ const singleIdCases: Case[] = [
     `${BASE_API}/taxonomy/terms/${ENC}/merge/execute`,
   ],
 
-  ["getWidget", () => api.getWidget({ id: SLASH_ID }), `${BASE_WORKSPACE}/widgets/${ENC}`],
+  ["getWidget", () => widgetsApi.getWidget({ id: SLASH_ID }), `${BASE_WORKSPACE}/widgets/${ENC}`],
 
   [
     "setPluginEnabled",

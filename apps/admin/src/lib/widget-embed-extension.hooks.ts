@@ -2,7 +2,8 @@ import { t as translateForWidgetEmbed } from "../app-i18n";
 import { useEffect, useState, type ComponentProps } from "react";
 import type { NodeViewProps } from "@tiptap/react";
 
-import { api, type AdminWidget } from "./api";
+import type { AdminWidget } from "../features/widgets/api/widgets-api.types";
+import { widgetsApi } from "../features/widgets/api/widgets-api";
 import { describeApiError } from "./admin-http/request";
 import type { MediaEditDialogValue } from "../components/MediaEditDialog/MediaEditDialog.hooks";
 import type { WidgetPickerDialog } from "../components/WidgetPickerDialog/WidgetPickerDialog";
@@ -166,7 +167,7 @@ function useResolvedWidget({ widgetEntryId }: { widgetEntryId: string }, _option
     // Cleared by this run's own cleanup, i.e. as soon as `widgetEntryId` changes or the node view
     // unmounts — see this file's header on why a stale settle must not apply.
     let current = true;
-    api
+    widgetsApi
       .getWidget({ id: widgetEntryId })
       .then((r) => {
         if (!current) return;
@@ -215,7 +216,7 @@ function changeDialogController(
     onUseExisting: ({ id }, _optional = {}) => changeInstance({ newWidgetEntryId: id }),
     onCreateNew: async ({ title, config }, _optional = {}) => {
       try {
-        const { widget: created } = await api.createWidget({ widgetType, title, config });
+        const { widget: created } = await widgetsApi.createWidget({ widgetType, title, config });
         changeInstance({ newWidgetEntryId: created.id });
       } catch (e) {
         // eslint-disable-next-line no-alert -- this controller has no other error surface for the failed create.
