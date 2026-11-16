@@ -90,7 +90,7 @@ test("GET status treats a failed open-store scan as missing-with-data rather tha
     authorize: async () => ({ allowed: true, reason: "matched" }),
     contentKernel: { dialect: "sqlite", query: async () => { scans++; if (failScan) throw new Error("catalog unavailable"); return []; } },
   };
-  registerAdminSiteKeyRoutes({ app: { get: (_path: string, h: any) => { if (!handler) handler = h; }, post: () => {} } as any, deps: deps as any, siteKey: {} as any });
+  registerAdminSiteKeyRoutes({ app: { get: (_path: string, h: any) => { if (!handler) handler = h.handler ?? h; }, post: () => {} } as any, deps: deps as any, siteKey: {} as any });
   async function status() {
     let code = 0;
     let body: any;
