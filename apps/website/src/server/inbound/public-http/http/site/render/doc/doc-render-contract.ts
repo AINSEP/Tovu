@@ -36,3 +36,14 @@ export interface DocRenderOptions {
    *  chosen. */
   depth?: number;
 }
+
+/** The doc-rendering functions the widget renderers call back into: a `post-content` widget renders
+ *  its body and its title node, and a legacy `src` gallery image renders as an `image` node. Passed
+ *  to those widgets as a required field (built once, in `render/content-html.ts`) for the same reason
+ *  as {@link DocNodeRenderDeps.renderWidget}: the doc renderer renders widgets, so a widget file that
+ *  imported it back would close a cycle. Both members are the real functions with the widget
+ *  renderer already bound. */
+export interface WidgetDocRendering {
+  renderDocNode: (required: { node: JsonValue }, optional?: DocRenderOptions) => string;
+  renderNodes: (required: { nodes: JsonValue[] | undefined; inlineResolved: ReadonlyMap<string, WidgetRenderIR>; mediaTransformVersions: ReadonlyMap<string, number>; mediaAssetMetadata: ReadonlyMap<string, MediaAssetRenderMeta>; depth: number }) => string;
+}

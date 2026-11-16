@@ -55,7 +55,7 @@ import { mediaPlaceholder } from "./render/media-placeholder.js";
 import { hero, announcement, ctaBand, section, featureGrid } from "./render/components/marketing.js";
 import { siteHeader, siteFooter, siteNav, siteFooterRich } from "./render/components/layout.js";
 import { plausibleMediaRefId } from "./render/doc/media-ref.js";
-import type { DocRenderOptions } from "./render/doc/doc-render-contract.js";
+import type { DocRenderOptions, WidgetDocRendering } from "./render/doc/doc-render-contract.js";
 import { renderDocNodeWith, renderNodes, EMPTY_INLINE_RESOLVED, EMPTY_MEDIA_TRANSFORM_VERSIONS, EMPTY_MEDIA_ASSET_METADATA } from "./render/doc/doc-nodes.js";
 import { swapManagedDocNodes } from "./render/doc/managed-markers.js";
 
@@ -591,26 +591,27 @@ function renderWidgetMediaImage(props: JsonObject): string {
 /** Gallery image adapter: managed media uses the canonical renderer; URL images retain the
  * document image renderer's scheme, credential and private-admin-route guards. No I/O.
  */
-const renderGalleryImage: GalleryImageRenderer = ({ image, media }, _optional = {}) => {
+function renderGalleryImage({ image, media, docRendering }: Parameters<GalleryImageRenderer>[0] & { docRendering: WidgetDocRendering }, _optional = {}): string {
   const slug = (image as typeof image & { slug?: string }).slug;
   // URL image: no managed reference. `parseGalleryConfig` (Jini `markers/gallery.ts`) accepts a
   // legacy image only with exactly one of `mediaId`/`src`, and media-mode items are slug-only, so an
   // image reaching here with neither `slug` nor `mediaId` always carries its `src` (L082b: the old
   // `src ?? ""` fallback could not run).
   if (slug === undefined && image.mediaId === undefined && image.src !== undefined) {
-    return renderDocNode({ node: { type: "image", attrs: { src: image.src, alt: image.alt } } });
+    return docRendering.renderDocNode({ node: { type: "image", attrs: { src: image.src, alt: image.alt } } });
   }
   // No `!media` guard here: `renderGallery`'s `renderFigure` (Jini `gallery-render.ts`), this
   // adapter's only caller, already returns `""` for a managed image without a media record before
   // calling it. Even if that ever changed, `media` undefined spreads to no `assetId`, which
   // `renderWidgetMediaImage` already renders as the same widget placeholder.
   return renderWidgetMediaImage({ ...media, alt: image.alt, galleryResponsive: true });
-};
+}
 
 /** Gallery compatibility and generic media share one renderer. HTML uses the page-body policy. */
-function renderMediaWidget({ ir }: { ir: WidgetRenderIR }, _optional: Record<string, never> = {}): string {
+function renderMediaWidget({ ir, docRendering }: { ir: WidgetRenderIR; docRendering: WidgetDocRendering }, _optional: Record<string, never> = {}): string {
+  const renderImage: GalleryImageRenderer = ({ image, media }) => renderGalleryImage({ image, media, docRendering });
   const renderOptions = {
-    config: ir.props.config, media: ir.props.media, renderImage: renderGalleryImage,
+    config: ir.props.config, media: ir.props.media, renderImage,
     renderRawHtml: ({ html, media }: { html: string; media: Record<string, JsonObject> }) => renderMediaRawHtml({
       html, media, renderMedia: ({ props }) => renderWidgetMediaImage(props),
     }),
@@ -647,7 +648,7 @@ function renderMediaWidget({ ir }: { ir: WidgetRenderIR }, _optional: Record<str
  * work at all over the rest of `bodyJson`.
  */
 function extractTitleNode(
-  bodyJson: JsonValue
+  { bodyJson, renderNodes }: { bodyJson: JsonValue; renderNodes: WidgetDocRendering["renderNodes"] }, _optional = {}
 ): { html: string; align: string | null } | null {
   if (!isObject(bodyJson)) return null;
   const content = Array.isArray(bodyJson.content) ? bodyJson.content : undefined;
@@ -659,7 +660,7 @@ function extractTitleNode(
     // `0`: this is its own independent render entry point (the title node's inline content, read
     // directly off `bodyJson` rather than reached via `renderDocNode`'s own recursive walk), same as
     // every other top-level caller relying on `renderDocNode`'s own `depth = 0` default.
-    html: renderNodes({ nodes: innerContent, inlineResolved: EMPTY_INLINE_RESOLVED, mediaTransformVersions: EMPTY_MEDIA_TRANSFORM_VERSIONS, mediaAssetMetadata: EMPTY_MEDIA_ASSET_METADATA, depth: 0, renderWidget: renderWidgetIr }),
+    html: renderNodes({ nodes: innerContent, inlineResolved: EMPTY_INLINE_RESOLVED, mediaTransformVersions: EMPTY_MEDIA_TRANSFORM_VERSIONS, mediaAssetMetadata: EMPTY_MEDIA_ASSET_METADATA, depth: 0 }),
     align,
   };
 }
@@ -784,7 +785,7 @@ function renderPostDetailHeader(
   return `<div class="post-detail-header">` + titleHtml + (meta ? `<div class="post-meta">${meta}</div>` : "") + `</div>`;
 }
 
-function renderWidgetPostContent(props: JsonObject): string {
+function renderWidgetPostContent({ props, docRendering }: { props: JsonObject; docRendering: WidgetDocRendering }, _optional = {}): string {
   const { title, bodyJson } = props;
   if (typeof title !== "string" || bodyJson === undefined) return renderWidgetPlaceholder();
   // `header` (2026-09-04): `false` only when a "content" marker explicitly opted out
@@ -808,7 +809,7 @@ function renderWidgetPostContent(props: JsonObject): string {
   // a pre-migration body (no title node yet — every row saved before this feature landed) falls back
   // to the plain `props.title` string exactly as this rendered before the feature existed. Exactly
   // one `<h1>` either way — never two, never zero.
-  const titleNode = extractTitleNode(bodyJson as JsonValue);
+  const titleNode = extractTitleNode({ bodyJson: bodyJson as JsonValue, renderNodes: docRendering.renderNodes });
   const titleHtml =
     titleNode !== null ? `<h1${styleForAlign({ align: titleNode.align })}>${titleNode.html}</h1>` : `<h1>${escapeHtml({ text: title })}</h1>`;
   const mediaTransformVersions = readMediaTransformVersions({ value: props.mediaTransformVersions as JsonValue | undefined });
@@ -816,9 +817,17 @@ function renderWidgetPostContent(props: JsonObject): string {
   const inlineWidgets = readInlineWidgets({ value: props.inlineWidgets as JsonValue | undefined });
   return (
     renderPostDetailHeader({ showHeader, titleHtml, dateLabel, dateIso, bylineHtml: str({ value: props.postAuthorByline }) }) +
-    `<div class="post-detail-body">${renderDocNode({ node: bodyJson }, { inlineResolved: inlineWidgets, mediaTransformVersions, mediaAssetMetadata })}</div>`
+    `<div class="post-detail-body">${docRendering.renderDocNode({ node: bodyJson }, { inlineResolved: inlineWidgets, mediaTransformVersions, mediaAssetMetadata })}</div>`
   );
 }
+
+/** The widget renderers' way back into the doc renderer ({@link WidgetDocRendering}), built once here
+ *  from the real functions with the widget renderer bound — the same binding {@link renderDocNode}
+ *  makes, so a title node or a legacy gallery image renders exactly as any other doc content. */
+const WIDGET_DOC_RENDERING: WidgetDocRendering = {
+  renderDocNode,
+  renderNodes: (required) => renderNodes({ ...required, renderWidget: renderWidgetIr }),
+};
 
 /** One renderer per resolvable `componentId` — a lookup instead of a `switch` so the number of widget
  *  types stops being what drives {@link renderWidgetIr}'s own complexity (each `case` in a `switch`
@@ -840,9 +849,9 @@ const WIDGET_IR_RENDERERS: Record<string, (required: { ir: WidgetRenderIR }, opt
   }),
   "contact-form": ({ ir }) => renderWidgetContactForm(ir.props),
   "media-image": ({ ir }) => renderWidgetMediaImage(ir.props),
-  "gallery": ({ ir }) => renderMediaWidget({ ir }),
-  "media": ({ ir }) => renderMediaWidget({ ir }),
-  "post-content": ({ ir }) => renderWidgetPostContent(ir.props),
+  "gallery": ({ ir }) => renderMediaWidget({ ir, docRendering: WIDGET_DOC_RENDERING }),
+  "media": ({ ir }) => renderMediaWidget({ ir, docRendering: WIDGET_DOC_RENDERING }),
+  "post-content": ({ ir }) => renderWidgetPostContent({ props: ir.props, docRendering: WIDGET_DOC_RENDERING }),
 };
 
 /**
