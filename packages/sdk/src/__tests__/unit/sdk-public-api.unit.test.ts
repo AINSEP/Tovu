@@ -106,7 +106,8 @@ test("REQ-08/C-001: definePlugin performs no filesystem writes or fetches and th
 test("SDK consumer types resolve for sync/async filters and route/tool/widget/provider contributions", () => {
   // The compiler API checks this consumer; tsx alone does not check types.
   const fixture = path.resolve(import.meta.dirname, "before-save-consumer.ts");
-  const source = `import type { BeforeSaveFilter, PluginSdk, PluginProviderContribution, PluginRouteContribution, PluginToolContribution, PluginWidgetContribution } from "../../index.js";
+  const source = `import type { BeforeSaveFilter, PluginSdk } from "../../index.js";
+    import type { PluginProviderContribution, PluginRouteContribution, PluginToolContribution, PluginWidgetContribution } from "@jini-ai/core/contracts/plugin-sdk";
     const syncFilter: BeforeSaveFilter = () => ({ count: 1 });
     const asyncFilter: BeforeSaveFilter = async () => ({ count: 1 });
     const route: PluginRouteContribution = { method: 'GET', path: '/items', access: 'public', handler: async ({ auth }) => ({ body: auth.workspaceId }) };
