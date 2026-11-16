@@ -385,7 +385,7 @@ describe("saveExecutionConfig — the ADR-028 §6 boundary, and the write-only c
     const { InMemorySettingsRepo } = await import("@jini-ai/core/settings");
     const { buildSettingsRegistrations } = await import("../../../../website/src/features/settings/tool-registrations");
     const { createSurfaceExchangeStore } = await import("@jini-ai/daemon/surface-exchanges");
-    const { createSystemClock } = await import("@jini-ai/core/primitives");
+    const { createSystemClock } = await import("@jini-ai/platform/system");
     const { createTimeoutScheduler } = await import("@jini-ai/daemon/scheduler");
     const { act, renderHook } = await import("@/__tests__/fetch-query-render");
     const { useExecutionConfig, useLocalCliSelection, useAssistantTransport } = await import("../../components/AssistantDock/hooks/AssistantDock.hooks");

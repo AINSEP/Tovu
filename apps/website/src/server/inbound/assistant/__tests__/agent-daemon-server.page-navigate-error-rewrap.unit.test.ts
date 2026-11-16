@@ -89,7 +89,7 @@ test("the daemon loop registers every frontend tool and preserves navigation suc
   const { pageApprovalOptions } = await import("#src/assistant/page-approval-context");
   const { createSurfaceExchangeStore } = await import("@jini-ai/daemon/surface-exchanges");
   const { createTimeoutScheduler } = await import("@jini-ai/daemon/scheduler");
-  const { createSystemClock, createRandomUuidGenerator } = await import("@jini-ai/core/primitives");
+  const { createSystemClock, createRandomUuidGenerator } = await import("@jini-ai/platform/system");
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const loop = daemonSource.statements.find((statement) => ts.isForOfStatement(statement) && statement.expression.getText(daemonSource).includes("frontendControl.toolRegistrations"));
   assert.ok(loop, "the module-level frontend registration loop must exist");
