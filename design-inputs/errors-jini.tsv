@@ -1,0 +1,294 @@
+rule	file	line	snippet
+swallowed-error	packages/admin/src/browser/telemetry.ts	61	try { void deps.send(payload).catch(() => {}); } catch { /* never throws */ }
+generic-error-catch	packages/admin/src/forms/react/hooks/use-form-editor.hooks.ts	224	"Could not copy embed"
+swallowed-error	packages/admin/src/media/controllers/library.controller.ts	140	writes = operation.catch(() => undefined);
+generic-error-catch	packages/admin/src/media/controllers/providers.controller.ts	35	"Provider service unavailable"
+generic-error-catch	packages/admin/src/media/controllers/providers.controller.ts	49	"Failed to save provider credentials"
+swallowed-error	packages/admin/src/redirects/controllers/redirects.controller.ts	28	void actions().toggle(rule).catch(() => {});
+swallowed-error	packages/admin/src/redirects/controllers/redirects.controller.ts	40	void actions().remove(rule).catch(() => {}).finally(() => store.set({ patch: { pendingDelete: null } }));
+generic-error-catch	packages/admin/src/redirects/rules.ts	151	"Not valid JSON."
+generic-error-catch	packages/admin/src/security/controllers/access-tokens.controller.ts	22	"Credential store unavailable"
+generic-error-catch	packages/admin/src/security/controllers/access-tokens.controller.ts	24	"Provider catalog unavailable"
+generic-error-catch	packages/admin/src/security/controllers/other-credentials.controller.ts	10	"Credential store unavailable"
+generic-error-catch	packages/admin/src/security/controllers/other-credentials.controller.ts	34	"Unable to update credential"
+generic-error-catch	packages/admin/src/security/controllers/root-key.controller.ts	21	"Root key status unavailable"
+generic-error-catch	packages/admin/src/security/controllers/root-key.controller.ts	28	"Recovery refused. Check the host key configuration."
+generic-error-catch	packages/admin/src/security/controllers/root-key.controller.ts	48	"Recovery preview unavailable"
+generic-error-catch	packages/admin/src/security/rules.ts	45	"Enter an HTTP or HTTPS URL"
+generic-error-catch	packages/admin/src/source-control/controllers/source-control.controller.ts	30	"Provider catalog unavailable"
+swallowed-error	packages/admin/src/widgets/controllers/region-editor.controller.ts	32	}).catch(() => {});
+generic-error-catch	packages/agent-plugins/cloudflare/worker/forms-receiver.mjs	105	"Your submission could not be saved. Try again in a few minutes."
+swallowed-error	packages/agent-plugins/core/persistent-state.js	150	catch (error) { if (frozen) await fs.chmod(source, mode).catch(() => undefined); throw error; }
+generic-error-catch	packages/agent-plugins/github/deployments/github.mjs	178	"GitHub returned invalid JSON minting an installation token"
+generic-error-catch	packages/agent-plugins/github/deployments/github.mjs	242	"GitHub returned invalid JSON creating a deployment"
+generic-error-catch	packages/agent-plugins/github/deployments/github.mjs	367	"GitHub returned a malformed statuses response"
+generic-error-catch	packages/agent-plugins/github/source-control/commit-site.mjs	203	"GitHub managed-manifest content is not valid JSON — cannot confirm which paths this adapter previously owned."
+generic-error-catch	packages/agent-plugins/github/source-control/commit-site.mjs	359	"Invalid target folder or repository file path."
+swallowed-error	packages/agent-plugins/github-pages/targets/github-pages.mjs	515	return { ok: true, accountLabel: readGitHubLogin(await response.json().catch(() => undefined)) };
+swallowed-error	packages/agent-plugins/google-workspace/lib/auth.mjs	58	const body = await response.json().catch(() => null);
+generic-error-catch	packages/agent-plugins/resend/lib/domains.mjs	75	"Resend returned a body that is not JSON"
+generic-error-catch	packages/agent-plugins/resend/lib/feedback.mjs	101	"body is not JSON"
+generic-error-catch	packages/agent-plugins/s3-compatible/targets/s3-compatible.mjs	414	"The Tovu-managed object manifest is not valid JSON — cannot confirm which keys this target previously owned."
+generic-error-catch	packages/agent-plugins/src/admin-surfaces/descriptor.ts	97	"not valid JSON"
+generic-error-catch	packages/agent-plugins/src/admin-surfaces/external-links.ts	74	"The host could not open the link. Try again."
+swallowed-error	packages/agent-plugins/src/connect/connect-tool.ts	421	const plugin = await routeDeps.resolveInstalledPlugin(pluginId).catch(() => null);
+swallowed-error	packages/agent-plugins/src/connect/executable/register.ts	124	queue = run.catch(() => undefined);
+generic-error-catch	packages/agent-plugins/src/connect/plugin-credential-card.ts	41	"Server URL must use HTTPS"
+generic-error-catch	packages/agent-plugins/src/connect/plugin-credential-card.ts	67	"[plugin-credential-cards] Optional card lookup failed; using the default credential form."
+swallowed-error	packages/agent-plugins/src/lifecycle/activation.ts	890	} catch {
+swallowed-error	packages/agent-plugins/src/lifecycle/automatic-use.ts	258	queue = next.catch(() => undefined);
+swallowed-error	packages/agent-plugins/src/lifecycle/bundled-file-policy.ts	20	const installed = await required.readFile({ pluginId: required.pluginId, relativePath: required.relativePath }).catch(()
+generic-error-catch	packages/agent-plugins/src/lifecycle/capability-projection.ts	34	"File request refused: the installed skill folder is missing, unreadable, or outside the package. Valid supporting files
+swallowed-error	packages/agent-plugins/src/lifecycle/capability-projection.ts	59	} catch {
+generic-error-catch	packages/agent-plugins/src/lifecycle/fetch-archive.ts	167	"archive request failed"
+swallowed-error	packages/agent-plugins/src/lifecycle/fetch-archive.ts	255	await reader.cancel().catch(() => {});
+generic-error-catch	packages/agent-plugins/src/lifecycle/host-tools/identity.ts	55	"The installed plugin identity manifest could not be read."
+generic-error-catch	packages/agent-plugins/src/lifecycle/install.ts	214	"The publisher-qualified plugin id conflicts with an installed package."
+swallowed-error	packages/agent-plugins/src/lifecycle/install.ts	503	await Promise.resolve(iterator.return?.()).catch(() => undefined);
+generic-error-catch	packages/agent-plugins/src/lifecycle/mail/adapter-descriptors.ts	85	"not valid JSON"
+generic-error-catch	packages/agent-plugins/src/lifecycle/provider-contribution.ts	97	"its parser failed"
+generic-error-catch	packages/agent-plugins/src/lifecycle/skill-file-reader.ts	44	"File request refused: binary or invalid UTF-8 content cannot be read as text."
+swallowed-error	packages/agent-plugins/src/lifecycle/skill-file-reader.ts	106	const handle = await filesystem.open(absolute, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK).catch((
+swallowed-error	packages/agent-plugins/src/lifecycle/skill-file-reader.ts	109	return readOpened(handle).catch(() => ({ refusal: UNREADABLE })).finally(() => handle.close().catch(() => {}));
+generic-error-catch	packages/agent-plugins/src/lifecycle/tools/manifest.ts	81	"not valid JSON"
+swallowed-error	packages/agent-plugins/src/lifecycle/uninstall.ts	366	await chmod(packageRoot, originalMode).catch(() => undefined);
+swallowed-error	packages/agent-plugins/src/lifecycle/uninstall.ts	385	await chmod(tree.original, tree.originalMode).catch(() => undefined);
+swallowed-error	packages/agent-plugins/src/lifecycle/uninstall.ts	481	await chmod(dir, 0o700).catch(() => undefined);
+swallowed-error	packages/agent-plugins/src/lifecycle/uninstall.ts	490	await chmod(absolute, 0o600).catch(() => undefined);
+swallowed-error	packages/agent-plugins/vercel/targets/vercel.mjs	350	await resp.arrayBuffer().catch(() => undefined);
+swallowed-error	packages/agent-plugins/vercel/targets/vercel.mjs	433	await resp.arrayBuffer().catch(() => undefined);
+swallowed-error	packages/agent-plugins/vercel/targets/vercel.mjs	437	await resp.arrayBuffer().catch(() => undefined);
+swallowed-error	packages/agent-plugins/vercel/targets/vercel.mjs	634	return { ok: true, accountLabel: readVercelUsername(await response.json().catch(() => undefined)) };
+swallowed-error	packages/agent-runtime/src/agent-protocol/acp/models.ts	419	} catch {}
+generic-error-catch	packages/agent-runtime/src/agent-protocol/pi-rpc/session.ts	214	"[pi-rpc] Image attachment could not be read; skipping it."
+swallowed-error	packages/agent-runtime/src/claude-code-models.ts	233	readConfigFile: (path) => readFile(path, 'utf8').catch(() => null),
+generic-error-catch	packages/agent-runtime/src/diagnostics.ts	26	"The error details could not be read."
+swallowed-error	packages/agent-runtime/src/model-discovery-adapters.ts	272	const killTree = () => { if (tree && child.pid) { try { process.kill(-child.pid, 'SIGKILL'); } catch {} } };
+swallowed-error	packages/agent-runtime/src/model-discovery-adapters.ts	367	read: (path, { signal }) => readFile(path, { encoding: 'utf8', signal }).catch(() => null),
+generic-error-catch	packages/agent-runtime/src/model-discovery.ts	232	"Launch configuration could not be read."
+generic-error-catch	packages/agent-runtime/src/providers/connection-guard.ts	168	"DNS lookup failed"
+swallowed-error	packages/agent-runtime/src/providers/oauth-tokens.ts	99	const task = prev.catch(() => {}).then(fn);
+generic-error-catch	packages/agent-runtime/src/providers/response-text.ts	19	"Provider response could not be read within the byte limit"
+swallowed-error	packages/agent-runtime/src/skills/web-clone/scripts/interaction-probe.mjs	213	await page.waitForLoadState("networkidle", { timeout: 6000 }).catch(() => {});
+swallowed-error	packages/agent-runtime/src/skills/web-clone/scripts/mirror-site.mjs	134	} catch {}
+swallowed-error	packages/agent-runtime/src/skills/web-clone/scripts/network-capture.mjs	118	await page.waitForLoadState("networkidle", { timeout: args.waitMs }).catch(() => {});
+swallowed-error	packages/agent-runtime/src/skills/web-clone/scripts/recon-site.mjs	417	await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
+swallowed-error	packages/agent-runtime/src/skills/web-clone/scripts/route-crawl.mjs	169	await page.waitForLoadState("networkidle", { timeout: 6000 }).catch(() => {});
+generic-error-catch	packages/agentic/src/core/site-guide/topic-schema.ts	51	"site-guide manifest must be valid JSON"
+swallowed-error	packages/agentic/src/skills/install/install-service.ts	78	const result = (queues.get(key) ?? Promise.resolve()).catch(() => {}).then(work);
+generic-error-catch	packages/analytics/src/forwarding.ts	250	"beforeIngest handler threw"
+swallowed-error	packages/analytics/src/product/index.ts	156	try { return Promise.resolve(send()).catch(() => {}); } catch { /* A vendor failure must not invalidate other pending ap
+swallowed-error	packages/chat/src/core/assistant-client/durable-run-subscription.ts	77	stopTimer = ports.schedule({ work: () => void read().catch(() => undefined), delayMs: dropped ? reconnectDelayMs : 1_000
+swallowed-error	packages/chat/src/core/assistant-client/durable-run-subscription.ts	88	if (outcome.terminal || outcome.error) { recoveryPending = true; void read().catch(() => undefined); return; }
+swallowed-error	packages/chat/src/core/assistant-client/durable-run-subscription.ts	140	stopTimer = ports.schedule({ work: () => void read().catch(() => undefined), delayMs: 1_000 }, {});
+swallowed-error	packages/chat/src/core/assistant-client/transport.ts	781	const adopted = await ensureConversationId({}, {}).catch(() => null);
+swallowed-error	packages/chat/src/core/assistant-client/transport.ts	844	await persistUserTurn({ conversationId, message }, {}).catch(() => undefined);
+swallowed-error	packages/chat/src/core/run-events/entry.ts	440	if (!ended) await reader.cancel().catch(() => undefined);
+swallowed-error	packages/chat/src/embed-widget/browser/frontend-session-bridge.ts	349	void respondError(action.invocationId, 'already executed on this surface').catch(() => undefined);
+swallowed-error	packages/chat/src/embed-widget/browser/frontend-session-bridge.ts	353	void respondError(action.invocationId, 'Capability unavailable').catch(() => undefined);
+swallowed-error	packages/chat/src/embed-widget/browser/frontend-session-bridge.ts	505	} finally { await reader.cancel().catch(() => undefined); reader.releaseLock(); }
+swallowed-error	packages/chat/src/embed-widget/transports/fetch-sse.ts	60	const cancel = () => { void reader.cancel().catch(() => {}); };
+swallowed-error	packages/chat/src/embed-widget/transports/fetch-sse.ts	193	const body: unknown = await response.json().catch(() => null);
+swallowed-error	packages/chat/src/react/features/chat-pane/create-mid-run-message-poster.ts	38	const body: unknown = await response.json().catch(() => null);
+swallowed-error	packages/chat/src/react/features/chat-pane/create-mid-run-message-poster.ts	46	const body: unknown = await response.json().catch(() => null);
+swallowed-error	packages/chat/src/react/features/chat-pane/hooks/useChatPaneAgentControl.hooks.ts	214	await bridge.respondError(action.invocationId, errorMessage(error)).catch(() => undefined);
+swallowed-error	packages/chat/src/react/features/chat-pane/hooks/useChatPaneAgentControl.hooks.ts	225	.catch(() => undefined);
+swallowed-error	packages/chat/src/react/features/chat-pane/hooks/useChatPaneAgentControl.hooks.ts	283	void Promise.resolve(registered).catch(() => undefined);
+swallowed-error	packages/chat/src/react/hooks/assistant-chats.ts	493	const read = await portRef.current.listConversations({}, {}).catch(() => null);
+swallowed-error	packages/chat/src/react/hooks/assistant-chats.ts	980	.catch(() => null));
+swallowed-error	packages/chat/src/react/hooks/useComposerHistory.hooks.ts	112	writeQueueRef.current = writeQueueRef.current.then(() => storage.write({ scope, entries: normalizeComposerHistory({ entr
+swallowed-error	packages/chat/src/server/durable-runs/recover.ts	156	await ports.cancelAttempt(run, {}).catch(() => undefined);
+swallowed-error	packages/chat/src/server/durable-runs/recover.ts	196	await ports.cancelAttempt(run, {}).catch(() => undefined);
+swallowed-error	packages/chat/src/server/run-finalizer/entry.ts	150	await response.body?.cancel().catch(() => undefined);
+generic-error-catch	packages/cms/src/forms/destination-descriptors.ts	38	"not valid JSON"
+swallowed-error	packages/cms/src/forms/repo.memory.ts	181	this.turn = run.catch(() => undefined);
+generic-error-catch	packages/cms/src/forms/submit-service.ts	269	"form upload free-disk check unavailable; allowing attachments"
+generic-error-catch	packages/cms/src/media/document-ingress.ts	42	"document text must be valid UTF-8"
+generic-error-catch	packages/cms/src/media/document-ingress.ts	221	"document JSON is invalid"
+swallowed-error	packages/cms/src/media/plugins/document-text/unpdf.ts	48	const abort = () => { void destroy().catch(() => undefined); }; // Observed again by finally.
+generic-error-catch	packages/cms/src/media/provenance.ts	8	"source path must be a safe relative path"
+generic-error-catch	packages/cms/src/media/provenance.ts	24	"source URL must be HTTP or HTTPS"
+generic-error-catch	packages/cms/src/media/sanitize-svg.ts	58	"SVG must be valid UTF-8"
+generic-error-catch	packages/cms/src/media/video-frames.ffmpeg.ts	330	"Video preview temporary files could not be removed."
+generic-error-catch	packages/cms/src/widgets/read-service.ts	117	"[widgets] listWidgetInstances: skipping malformed widget-instance row"
+generic-error-catch	packages/commerce/src/browser/checkout.ts	47	"Your browser could not restore checkout. Keep this page open while paying."
+generic-error-catch	packages/commerce/src/browser/checkout.ts	67	"The shop did not return a secure checkout link. Retry this same order."
+generic-error-catch	packages/commerce/src/browser/checkout.ts	81	"Your browser could not save this order. Payment has not been requested; keep this page open and retry."
+generic-error-catch	packages/commerce/src/browser/checkout.ts	107	"Your browser could not clear the saved order. Keep this page open and retry; a new payment has not been requested."
+generic-error-catch	packages/commerce/src/browser/checkout.ts	115	"Check paid order"
+generic-error-catch	packages/commerce/src/catalog/checkout.ts	120	"order total exceeds the safe integer range"
+generic-error-catch	packages/commerce/src/catalog/plugin-server.ts	136	"Commerce storage could not be prepared. Checkout is temporarily unavailable."
+generic-error-catch	packages/commerce/src/catalog-tools.ts	53	"The catalog record was saved. The storefront size could not be checked; the grid shows at most 24 priced products, and 
+swallowed-error	packages/commerce/src/payments/accounting/apply-evidence.ts	193	.catch(() => undefined);
+generic-error-catch	packages/commerce/src/payments/ingest/settlement-worker.ts	35	"Payment settlement ownership was lost; this process stopped its worker."
+generic-error-catch	packages/commerce/src/payments/ingest/settlement-worker.ts	48	"Payment settlement is delayed; recorded payments will retry automatically."
+generic-error-catch	packages/commerce/src/payments/ingest/settlement-worker.ts	62	"Payment settlement ownership retry is delayed; recorded work remains queued."
+swallowed-error	packages/commerce/src/payments/ingest/worker.ts	241	for (const alert of alerts) await port.raise({ alert }).catch(() => undefined);
+swallowed-error	packages/commerce/src/payments/ledger/repo.memory.ts	490	tail = run.catch(() => undefined);
+swallowed-error	packages/commerce/src/payments/ops/common.ts	170	await deps.alerts.raise({ alert }).catch(() => undefined);
+swallowed-error	packages/cookie-consent/src/client/bridges.ts	34	else void import(/* @vite-ignore */ bridge.src!).then(module => mount(module.default)).catch(() => undefined);
+swallowed-error	packages/cookie-consent/src/client/runtime.ts	106	headers: { 'content-type': 'application/json' }, body }).catch(() => null);
+swallowed-error	packages/cookie-consent/src/client/runtime.ts	107	const out = res?.ok ? ((await res.json().catch(() => null)) as { id?: unknown } | null) : null;
+swallowed-error	packages/cookie-consent/src/node/index.ts	54	const pending = (writes.get(directory) ?? Promise.resolve()).catch(() => undefined).then(operation);
+swallowed-error	packages/cookie-consent/src/server/receipt.ts	75	await store.retire({ id: previousId }).catch(() => undefined);
+swallowed-error	packages/core/src/fetch/cache.ts	190	void pending.catch(() => {});
+generic-error-catch	packages/core/src/tool-input-envelope.ts	15	"The delegated input is not valid JSON. Send one JSON object containing the tool fields."
+swallowed-error	packages/daemon/src/agent-executor/claude/mcp-config.ts	21	if (inheritUserMcp) existingRaw = await readFile({ path: join(cwd, '.mcp.json') }).catch(() => undefined);
+generic-error-catch	packages/daemon/src/agent-executor/http-mcp.ts	87	"the HTTP listener could not start"
+generic-error-catch	packages/daemon/src/agent-executor/launch.ts	884	"AgentExecutor: could not prepare agent command"
+swallowed-error	packages/daemon/src/agent-executor/launch.ts	1035	.catch(() => undefined);
+generic-error-catch	packages/daemon/src/agent-executor/launch.ts	1103	"Folder-limited launch refused: invalid filesystem root, working directory or attachment path."
+generic-error-catch	packages/daemon/src/agent-executor/launch.ts	1154	"Folder-limited launch refused: invalid host settings or private runtime directory."
+swallowed-error	packages/daemon/src/agent-executor/run-output.ts	89	await lifecycle.emit({ runId, input: { event: 'error', data: { message } } }).catch(() => {});
+generic-error-catch	packages/daemon/src/core/tool-audit.ts	53	"input: an unreadable object"
+swallowed-error	packages/daemon/src/http/attachments.ts	1038	const entries = await readdir(batchDirectory).catch(() => undefined);
+swallowed-error	packages/daemon/src/http/attachments.ts	1047	await rmdir(batchDirectory).catch(() => undefined);
+swallowed-error	packages/daemon/src/http/attachments.ts	1271	await rm(filePath, { force: true }).catch(() => undefined);
+swallowed-error	packages/daemon/src/http/attachments.ts	1577	await deps.store.deleteUnclaimed({ batchId, paths: [] }).catch(() => undefined);
+swallowed-error	packages/daemon/src/http/cancel-owned-runs.ts	45	await Promise.all(active.map((run) => runs.cancel({ runId: run.id }).catch(() => { })));
+generic-error-catch	packages/daemon/src/http/connectors.ts	417	"where must be valid JSON when provided"
+swallowed-error	packages/daemon/src/http/frontend-control.ts	217	.catch(() => undefined);
+generic-error-catch	packages/daemon/src/http/frontend-request-route.ts	54	"The browser session could not be verified for this page action."
+swallowed-error	packages/daemon/src/http/remote-run-events.ts	225	const status = await deps.lifecycle.get({ runId }).catch(() => undefined);
+generic-error-catch	packages/daemon/src/http/tool-execution-routes.ts	207	"an internal error occurred"
+swallowed-error	packages/daemon/src/remote-tool-executor.ts	198	surfaces = surfaces.then(() => emitSurface?.(line.emission)).catch(() => undefined);
+swallowed-error	packages/daemon/src/routines/scheduler.ts	417	.catch(() => {});
+swallowed-error	packages/daemon/src/terminal-session.ts	191	const task = prior.catch(() => undefined).then(fn);
+swallowed-error	packages/daemon/src/tool-access-lowering.ts	29	try { void notice(required).catch(() => {}); } catch { /* A closed stream cannot prevent Stop. */ }
+generic-error-catch	packages/daemon/src/tool-access-lowering.ts	52	"Couldn't stop everything the agent started after tool access changed."
+swallowed-error	packages/db/src/data-modules/snapshot.ts	104	await fs.rm(snapshotPath, { force: true }).catch(() => {});
+swallowed-error	packages/db/src/kernel/pglite/driver.ts	48	ready.catch(() => {});
+swallowed-error	packages/db/src/kernel/pglite/driver.ts	63	await ready.catch(() => {});
+swallowed-error	packages/db/src/pglite/owner.ts	469	await server?.stop().catch(() => {});
+swallowed-error	packages/db/src/pglite/owner.ts	470	await db?.close().catch(() => {});
+swallowed-error	packages/db/src/pglite/socket-server.ts	288	void this.queue.rollbackIfOwned(this.id).catch(() => {});
+swallowed-error	packages/db/src/sqlite/db-ops.ts	78	await fs.rm(artifactRef, { force: true }).catch(() => undefined);
+swallowed-error	packages/db/src/tools/transfer-tools.ts	103	await deps.files.unlink(artifactRef).catch(() => undefined);
+generic-error-catch	packages/db/src/transfer/postgres-target.ts	48	"the connection string is not a valid postgres:// URL"
+generic-error-catch	packages/desktop-host/src/electron/electron-url-capture.ts	77	"native capture session cleanup failed"
+swallowed-error	packages/desktop-host/src/electron/electron-url-capture.ts	159	{ timeoutMs: CAPTURE_CLEANUP_TIMEOUT_MS }).catch(() => {});
+swallowed-error	packages/desktop-host/src/electron/electron-url-capture.ts	172	await initialReset?.catch(() => {});
+swallowed-error	packages/desktop-host/src/electron/navigation-policy/window-navigation-policy.ts	166	} catch {
+generic-error-catch	packages/desktop-host/src/render-bridge.ts	131	"invalid desktop capture channel"
+swallowed-error	packages/desktop-host/src/sidecar.ts	191	await logHandle?.close().catch(() => undefined);
+swallowed-error	packages/desktop-host/src/sidecar.ts	201	await appendFile(logPath, `${message}\n`, 'utf8').catch(() => undefined);
+generic-error-catch	packages/devops/src/deploy/config-descriptors.ts	52	"not valid JSON"
+generic-error-catch	packages/devops/src/deploy/ops-descriptors.ts	15	"not valid JSON"
+generic-error-catch	packages/devops/src/deploy/ops-runner.ts	55	"Deployment ops module supplied an invalid URL."
+generic-error-catch	packages/devops/src/deploy/ops-runner.ts	220	"[deploy-ops] destination history write failed after accepted deploy"
+generic-error-catch	packages/devops/src/deploy/target-descriptors.ts	36	"not valid JSON"
+generic-error-catch	packages/devops/src/dns/delegation.ts	29	"The DNS query failed before an answer arrived."
+generic-error-catch	packages/devops/src/dns/node/resolver.ts	141	"The DNS query failed before an answer arrived."
+generic-error-catch	packages/devops/src/packaging/electron/archive.ts	75	"shipped in app.asar but missing from the source tree"
+generic-error-catch	packages/devops/src/source-control/registry.ts	66	"not valid JSON"
+generic-error-catch	packages/devops/src/static-export/transforms.ts	197	"Invalid URL encoding — refused"
+swallowed-error	packages/diagnostics/src/observability/report-error.ts	97	if (result instanceof Promise) { void result.then(accepted).catch(() => {}); return false; }
+swallowed-error	packages/diagnostics/src/web-evidence/page-work-budget.ts	55	void closing.catch(() => {});
+swallowed-error	packages/diagnostics/src/web-evidence/public-page.ts	176	void result.browser.close().catch(() => {});
+swallowed-error	packages/diagnostics/src/web-evidence/public-page.ts	243	else await budget.release({ close: () => opened.browser.close().catch(() => {}) });
+swallowed-error	packages/diagnostics/src/web-evidence/render-page.ts	144	void opened.close().catch(() => {});
+swallowed-error	packages/diagnostics/src/web-evidence/render-page.ts	158	await budget.run({ work: async () => { await context.routeWebSocket?.(/.*/, socket => socket.close().catch(() => {})); }
+swallowed-error	packages/diagnostics/src/web-evidence/render-page.ts	168	await route.abort("blockedbyclient").catch(() => {});
+swallowed-error	packages/diagnostics/src/web-evidence/render-page.ts	311	const onAbort = () => { void context?.close().catch(() => {}); };
+swallowed-error	packages/diagnostics/src/web-evidence/render-page.ts	320	if (context) await budget.release({ close: () => context!.close().catch(() => {}) });
+swallowed-error	packages/diagnostics/src/web-evidence/request-guard.ts	275	await route.abort(reason === "failed" ? "failed" : "blockedbyclient").catch(() => {});
+swallowed-error	packages/diagnostics/src/web-evidence/request-guard.ts	283	: DROPPED_RESPONSE_HEADERS), body: resource.body }).catch(() => {});
+swallowed-error	packages/diagnostics/src/web-evidence/request-guard.ts	304	return route.abort("aborted").catch(() => {});
+swallowed-error	packages/diagnostics/src/web-evidence/request-guard.ts	361	await reader.cancel().catch(() => {});
+swallowed-error	packages/infra/src/events/outbox/fenced-conformance.ts	51	const receipt = await pending.catch(() => undefined);
+swallowed-error	packages/infra/src/events/outbox/fenced-conformance.ts	132	await first.rollback().catch(() => undefined);
+swallowed-error	packages/infra/src/events/outbox/worker.ts	331	gate.catch(() => {});
+generic-error-catch	packages/integrations/src/credentialed-http/auth-schemes.ts	44	"not valid JSON"
+generic-error-catch	packages/integrations/src/credentialed-http/credentialed-request.ts	71	"url must be a valid absolute URL"
+generic-error-catch	packages/integrations/src/credentialed-http/credentialed-request.ts	330	"credential probe requires an absolute HTTP(S) URL without embedded credentials"
+generic-error-catch	packages/integrations/src/credentialed-http/credentialed-request.ts	573	"JSON response must be valid"
+generic-error-catch	packages/integrations/src/credentialed-http/sets/store.ts	199	"baseUrl must be a valid absolute URL"
+swallowed-error	packages/integrations/src/media-providers/dispatch/operation-runtime.ts	192	await deps.store.update({ id: operationId, patch: { status: 'failed', error: toOperationError(submitted.error) } }).catc
+swallowed-error	packages/integrations/src/media-providers/dispatch/operation-runtime.ts	229	void settle.catch(() => undefined);
+swallowed-error	packages/mcp/src/core/config.ts	297	const task = prev.catch(() => {}).then(() => doWrite(dataDir, body, filesystem));
+swallowed-error	packages/mcp/src/core/tokens.ts	211	const task = prev.catch(() => {}).then(fn);
+swallowed-error	packages/mcp/src/federation/adapter.http.ts	213	}).catch(() => undefined);
+swallowed-error	packages/mcp/src/federation/adapter.http.ts	469	await session.close({}).catch(() => undefined);
+swallowed-error	packages/mcp/src/federation/bootstrap.ts	323	await session?.close({}).catch(() => undefined);
+generic-error-catch	packages/mcp/src/federation/hosted/access.ts	36	"The plugin connection has an unreadable tool list. Save its tool list again before enabling it."
+swallowed-error	packages/mcp/src/federation/hosted/store.memory.ts	57	this.pending = result.catch(() => {});
+generic-error-catch	packages/mcp/src/federation/hosted/store.ts	1362	"Stored OAuth credentials could not be decrypted."
+swallowed-error	packages/mcp/src/federation/reload.ts	180	queuedNext = runningPass.catch(() => undefined).then(() => {
+swallowed-error	packages/mcp/src/federation/stdio/adapter.stdio.ts	362	await session.close({}).catch(() => undefined);
+swallowed-error	packages/mcp/src/server/http-tool-server.adapter.ts	167	await sessionConnection?.catch(() => {});
+swallowed-error	packages/mcp/src/server/tool-server.ts	387	void transport.close({}).catch(() => {});
+swallowed-error	packages/memory/src/llm-provider.ts	246	await resp.body?.cancel().catch(() => undefined);
+generic-error-catch	packages/memory/src/llm-provider.ts	429	"llm-provider: response was not valid JSON"
+swallowed-error	packages/memory/src/note-store.ts	410	await fsp.unlink(tmpPath).catch(() => {});
+generic-error-catch	packages/oauth/src/authorization-code.ts	62	"the OAuth authorization request configuration is invalid"
+swallowed-error	packages/oauth/src/bounded-json.ts	33	await reader.cancel().catch(() => undefined);
+swallowed-error	packages/oauth/src/discovery.ts	50	await response.body?.cancel().catch(() => undefined);
+generic-error-catch	packages/oauth/src/discovery.ts	74	"the OAuth metadata endpoint did not return a JSON object"
+generic-error-catch	packages/oauth/src/discovery.ts	106	"the protected resource metadata contains an invalid resource URL"
+generic-error-catch	packages/oauth/src/endpoint-safety.ts	38	"is not a valid absolute URL"
+swallowed-error	packages/oauth/src/endpoint-safety.ts	93	await response.body?.cancel().catch(() => undefined);
+swallowed-error	packages/oauth/src/file-registration-cache.ts	44	queue = attempt.catch(() => undefined);
+swallowed-error	packages/oauth/src/loopback-receiver.ts	144	result.catch(() => undefined);
+generic-error-catch	packages/oauth/src/oidc.ts	63	"the OpenID Connect ID token could not be validated"
+swallowed-error	packages/oauth/src/refresh.ts	139	}).catch(() => undefined);
+swallowed-error	packages/oauth/src/registration-cache.ts	77	await inFlight.get(key)?.catch(() => undefined);
+generic-error-catch	packages/oauth/src/resource.ts	16	"resource indicators must be absolute URIs without fragments"
+generic-error-catch	packages/platform/src/child-environment.ts	119	"Login shell environment unavailable"
+swallowed-error	packages/platform/src/download.ts	389	await rm(path, { force: true }).catch(() => undefined);
+swallowed-error	packages/platform/src/download.ts	685	await rm(target.partialPath, { force: true }).catch(() => undefined);
+swallowed-error	packages/platform/src/download.ts	717	await rm(target.partialPath, { force: true }).catch(() => undefined);
+swallowed-error	packages/platform/src/download.ts	745	await writeJson(target.manifestPath, next).catch(() => undefined);
+swallowed-error	packages/platform/src/download.ts	783	await rm(target.lockPath, { force: true }).catch(() => undefined);
+swallowed-error	packages/platform/src/download.ts	789	await rm(lock.path, { force: true }).catch(() => undefined);
+swallowed-error	packages/platform/src/download.ts	820	const actual = await hashFile(target.finalPath, target.checksum.algorithm).catch(() => null);
+swallowed-error	packages/platform/src/download.ts	849	await pruneManagedDownloads({ basePath: target.basePath }).catch(() => undefined);
+swallowed-error	packages/platform/src/download.ts	893	await resetOwnedTarget({ target }).catch(() => undefined);
+swallowed-error	packages/platform/src/download.ts	902	const existing = await hashFile(target.finalPath, target.checksum.algorithm).catch(() => null);
+swallowed-error	packages/platform/src/download.ts	904	await resetOwnedTarget({ target }).catch(() => undefined);
+swallowed-error	packages/platform/src/download.ts	907	await rm(target.partialPath, { force: true }).catch(() => undefined);
+swallowed-error	packages/platform/src/download.ts	987	}).catch(() => undefined);
+swallowed-error	packages/platform/src/download.ts	1024	await removeManagedDownload(state.removeOptions).catch(() => undefined);
+swallowed-error	packages/platform/src/download.ts	1042	const existingDigest = await hashFile(outputPath, target.checksum.algorithm).catch(() => null);
+swallowed-error	packages/platform/src/download.ts	1111	const entries = await readdir(bucketPath).catch(() => null);
+swallowed-error	packages/platform/src/download.ts	1112	if (entries != null && entries.length === 0) await rm(bucketPath, { force: true, recursive: true }).catch(() => undefine
+swallowed-error	packages/platform/src/download.ts	1122	const info = await stat(path).catch(() => null);
+swallowed-error	packages/platform/src/download.ts	1150	const remaining = await readdir(join(basePath, entry.name)).catch(() => null);
+swallowed-error	packages/platform/src/download.ts	1151	if (remaining != null && remaining.length === 0) await rm(join(basePath, entry.name), { force: true, recursive: true }).
+swallowed-error	packages/platform/src/fs.ts	114	await rm(tempPath, { force: true }).catch(() => undefined);
+generic-error-catch	packages/platform/src/mail/delivery-wrapper.ts	62	"[mail] activity observation failed"
+swallowed-error	packages/platform/src/mail/domain-read.ts	25	const credential = await resolveDomainReadCredential({ id: providerId }).catch(() => null);
+swallowed-error	packages/platform/src/mail/resolve-mailer.ts	279	const email = await state.options.readSenderEmail?.().catch(() => undefined);
+swallowed-error	packages/platform/src/mail/sender-domain-verification.ts	35	const email = await deps.readSenderEmail().catch(() => undefined);
+swallowed-error	packages/platform/src/mail/sender-domain-verification.ts	43	const credential = await deps.resolveCredential({ id: providerId }).catch(() => null);
+swallowed-error	packages/platform/src/mail/sender-domain-verification.ts	47	const result = await readMailDomain({ ctx, providerId, read: context => provider.domainStatus!(context, { domain }), ...
+swallowed-error	packages/platform/src/mail/sender-domain-verification.ts	68	const [providerId, domain] = await Promise.all([deps.readProviderId().catch(() => null), senderDomain(deps)]);
+swallowed-error	packages/platform/src/mail/sender-domain-verification.ts	70	const provider = providerId === null ? undefined : await deps.findProvider({ id: providerId }).catch(() => undefined);
+generic-error-catch	packages/platform/src/object-store/descriptors.ts	38	"not valid JSON"
+generic-error-catch	packages/platform/src/web/web-page.ts	163	"web_fetch_page: url must be an absolute http(s) URL, e.g. https://example.com/about."
+generic-error-catch	packages/plugins/src/host/node/install.ts	222	"The publisher-qualified plugin id conflicts with an installed package."
+swallowed-error	packages/plugins/src/host/node/loader.ts	143	const actualHash = await computeFileHash(path.join(pluginRoot, relativeFilePath)).catch(() => undefined);
+swallowed-error	packages/plugins/src/host/node/module-snapshot.ts	190	void ready.catch(() => undefined);
+swallowed-error	packages/plugins/src/host/node/runtime-core.ts	710	attached.catch(() => {});
+swallowed-error	packages/plugins/src/host/provider-host.ts	155	try { void Promise.resolve(optional.onError?.(failure, {})).catch(() => {}); } catch { /* Failure reporting is a borrowe
+swallowed-error	packages/plugins/src/host/tools/management.ts	321	const providerPluginId = await routeDeps.providerFaces.linkedProvider({ pluginId: request.pluginId }).catch(() => undefi
+swallowed-error	packages/provider-plugins/src/analytics-posthog/consent-adapter.ts	60	headers: { 'content-type': 'application/json' }, body: anonymousPageview(config), signal }).catch(() => undefined);
+generic-error-catch	packages/provider-plugins/src/analytics-posthog/consent.ts	37	"Use an HTTP or HTTPS host URL without credentials."
+generic-error-catch	packages/provider-plugins/src/payments-stripe/http.ts	54	"payment provider request could not be confirmed"
+generic-error-catch	packages/provider-plugins/src/payments-stripe/provider.ts	33	"invalid webhook JSON"
+generic-error-catch	packages/search/src/indexer.ts	58	"search provider threw"
+swallowed-error	packages/sidecar/src/supervision/supervisor-node.ts	253	).catch(() => {}).finally(() => { handling--; }); // A disconnected peer cannot receive its reply.
+generic-error-catch	packages/ui/src/features/connectors/hooks/useConnectorCatalog.ts	45	"[connectors] Catalog load failed."
+generic-error-catch	packages/ui/src/features/connectors/hooks/useConnectorCatalog.ts	73	"[connectors] Catalog enrichment failed."
+swallowed-error	packages/ui/src/features/execution/react/hooks/use-execution-credential.hooks.ts	265	.catch(() => undefined);
+swallowed-error	packages/ui/src/features/mcp-ui/sign-in-card.ts	92	await exchange?.send({ emission: { channel: 'mcp-ui', payload: { resource: card({ state }) } } }).catch(() => undefined)
+generic-error-catch	packages/ui/src/features/memory/react/hooks/useMemoryConnectors.hooks.ts	307	"Connected app statuses couldn't be loaded. Try again shortly."
+generic-error-catch	packages/ui/src/features/memory/react/hooks/useMemoryConnectors.hooks.ts	326	"Connected apps couldn't be loaded. Try again shortly."
+generic-error-catch	packages/ui/src/features/memory/react/hooks/useMemoryConnectors.hooks.ts	409	"Connected app statuses couldn't be loaded. Try again shortly."
+swallowed-error	packages/ui/src/features/panel-kit/fetch-query/adapter.react.tsx	108	void promise.catch(() => {});
+swallowed-error	packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx	183	void promise.catch(() => {});
+generic-error-catch	packages/ui/src/features/panel-kit/helpers/standing-draft-local-backup.ts	55	"standing-draft local backup: could not write"
+swallowed-error	packages/ui/src/features/resource-dashboard/react/components/ResourceRowList.tsx	94	list.dispatchRowAction(id, () => onRowAction(id, kind)).catch(() => {});
+swallowed-error	packages/ui/src/features/version-manager/react/hooks/useVersionManager.ts	185	.catch(() => {})
+swallowed-error	packages/ui/src/renderers/preview-modal-shell/react/hooks/usePreviewModalShell.ts	203	document.exitFullscreen().catch(() => {});
+swallowed-error	packages/user-management/src/react/members/hooks/use-members.hooks.ts	168	await listLoader.load().catch(() => {}); // Await roster settlement; list.error owns a failed read, not the accepted dis
+swallowed-error	packages/vibecoding/src/node/project.ts	168	queue = next.catch(() => {});
