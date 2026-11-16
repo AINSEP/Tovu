@@ -57,7 +57,8 @@ test("the BYOK route places prepared pixels only on the newest user message, rea
   // why: 40ea6e547 made the turn validate picked folders first; the real reader is injected, so an
   // absent `folders` still resolves to none rather than the harness failing on an unbound name.
   const resolve = new Function("resolveMessages", "withPageContextBlock", "readRunPageContext", "getAuthedPrincipal", "prepareByokMessageAttachments", "readPickedFolders", code)(
-    (raw: unknown) => raw, ({ messages }: { messages: unknown }) => messages, () => undefined,
+    // why: the (required, optional) argument rule made the real call `resolveMessages({ raw })`.
+    ({ raw }: { raw: unknown }) => raw, ({ messages }: { messages: unknown }) => messages, () => undefined,
     () => ({ id: "alice" }), async (required: unknown) => { calls.push(required); return { images, notice: "" }; }, readPickedFolders,
   );
   const messages = [{ role: "user", content: "old question" }, { role: "assistant", content: "old answer" }, { role: "user", content: "colours?" }];
