@@ -202,7 +202,10 @@ test("AC-07/INV-05: an older schemaVersion migrates forward, both schemaVersion+
     try {
       const kernel = sqliteKernel<unknown>(older);
       await kernel.transaction(() => applyLegacyEntries(kernel, readFrozenChain().slice(0, -1)));
-      older.insert(workspaces).values({ id: "ws-fixture", name: "Fixture", slug: "fixture", createdAt: "2026-01-01T00:00:00.000Z" }).run();
+      // Raw insert on purpose: this database holds only the frozen chain, which predates migration 0042's
+      // `workspaces.version` column that the current Drizzle schema (`workspaces`) now writes.
+      older.$client.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)")
+        .run("ws-fixture", "Fixture", "fixture", "2026-01-01T00:00:00.000Z");
       assert.equal(older.$client.prepare("SELECT name FROM sqlite_schema WHERE name = 'external_mcp_tool_approvals'").get(), undefined);
     } finally {
       older.$client.close();
