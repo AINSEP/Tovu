@@ -1,7 +1,7 @@
 import type { Express } from 'express';
 import { z } from 'zod';
 import type { ToolAccessChange, ToolAccessStopResult } from '@jini-ai/daemon';
-import { sendAdminFailure } from '#src/server/inbound/admin-http/routes/system/site-share-errors';
+import { sendAdminFailure } from '#src/server/inbound/shared/admin-failure';
 
 export const TOOL_ACCESS_LOWERING_PATH = '/api/tool-access/lower';
 const ids = z.array(z.string().min(1).max(128)).max(32).optional();
