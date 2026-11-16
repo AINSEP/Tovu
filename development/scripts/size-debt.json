@@ -878,17 +878,10 @@
     },
     {
       "file": "apps/desktop/src/tovu-server.ts",
-      "function": "startTovuServer#1",
-      "line": 979,
-      "rule": "max-lines-per-function",
-      "value": 127
-    },
-    {
-      "file": "apps/desktop/src/tovu-server.ts",
       "function": "<file>",
-      "line": 1136,
+      "line": 1103,
       "rule": "max-lines",
-      "value": 514
+      "value": 478
     },
     {
       "file": "apps/website/src/assistant/byok-tool-surface.ts",
