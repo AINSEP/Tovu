@@ -3,7 +3,12 @@
  */
 
 import type { Express } from "express";
+import type { ByokToolSurfaceDeps } from "#src/assistant/index";
+import type { NewsletterRouteDeps } from "../../../inbound/admin-http/routes/newsletter/deps.js";
 import type { ServerModuleHandle } from "../modules/types.js";
+
+/** What every mount takes: the Express app it registers on and the composed deps. */
+export type MountInput = { app: Express; routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps };
 
 /**
  * 2026-08-20 (complexity pass) — `createApp` mounts ~30 `ServerModuleHandle`s below, each via the

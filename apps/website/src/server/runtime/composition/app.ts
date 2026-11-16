@@ -2,13 +2,9 @@ import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/si
 import { createFormAttachmentPurgeHooks } from "@jini-ai/cms/forms";
 import { startupSecretEnvironment } from "../boot/startup-secrets.js";
 import { statfs } from "node:fs/promises";
-import { registerCommerceHttp, registerCommerceWebhooks } from "./commerce-http.js";
+import { registerCommerceHttp } from "./commerce-http.js";
 import { getExportRunSnapshot } from '../../../features/deployments/export-run.js';
 import { getPublishRunSnapshot } from '../../../features/deployments/static-publish/publish-run.js';
-import { createSiteIdlePark } from "../lifecycle/site-idle-park.js";
-import { registerSiteIdleStopHook } from "../lifecycle/daemon-supervisor.js";
-import { assistantRunFinalizerFor } from "./modules/assistant-run-finalizer.js";
-import { createVisitorPageTargets } from './visitor-page-targets.js';
 import { registerWarmSiteRetirement } from '../lifecycle/warm-site-retirement.js';
 import { notifyExternalMcpRosterChanged } from "../../../assistant/external-mcp-roster-change.js";
 import { composeAgentPluginMcp, composeAgentPluginPreferences, composePluginProviderFaces } from "./agent-plugin-service-ports.js";
@@ -22,14 +18,12 @@ import { readBundledDeployWorkflowFiles } from "#src/features/deployments/index"
 import { createCommentsCapability } from '#src/features/comments/provider-selection';
 import { composeVisitorToolsManagement } from "./visitor-tools-management.js";
 import { createCommentTargetLookup } from '#src/features/comments/comment-targets';
-import { applyThemePreviewSwitcher } from "../../inbound/public-http/middleware/theme-preview-switcher.js";
 import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { contentKernel } from '#src/platform/db/content-kernel';
 import { createFormMediaCleanup } from '#src/features/forms/form-file-purge';
 import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
 import { bindSiteConsentService } from './site-consent.js';
 import { registerAdminConsentRoutes } from '../../inbound/admin-http/routes/consent/routes.js';
-import { registerPublicShareRoutes } from "#src/server/inbound/public-http/routes/site-share";
 import { registerAdminSiteShareRoutes } from "#src/server/inbound/admin-http/routes/system/site-shares";
 import { registerAdminSiteImportRoutes } from "#src/server/inbound/admin-http/routes/system/site-imports";
 import { registerAdminSiteBackupRoutes } from "#src/server/inbound/admin-http/routes/system/site-backups";
@@ -144,7 +138,7 @@ import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { resolveSkillLayout } from "#src/features/skills/layout";
 import { bundledAgentPluginsDir, builtInThemesDir, defaultContentDbPath, mediaUploadsDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSiteStoragePaths, resolveSourceControlExportRootDir } from "./site-paths.js";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../boot/dev-tls.js";
-import { describeSiteBinding, resolveAppDistDir, resolveCheckoutRoot, resolveProductRoot } from "#src/platform/site-dir/index";
+import { describeSiteBinding, resolveCheckoutRoot, resolveProductRoot } from "#src/platform/site-dir/index";
 import {
   seededPosts,
   seededPresentation,
@@ -266,26 +260,12 @@ import { registerAdminTaxonomyMergeTermRoutes } from "../../inbound/admin-http/r
 import { registerAdminDatabaseMigrateForwardRoutes } from "../../inbound/admin-http/routes/database/migrate-forward.js";
 import { registerAdminRecoveryRestoreRoutes } from "../../inbound/admin-http/routes/recovery/restore.js";
 
-import { applyDevCors } from "../../inbound/shared/dev-cors.js";
-import { applyRequestTracking, captureRouteError } from "../../inbound/shared/observability-middleware.js";
-import { parsePublicJsonBody, respondToOversizedBody } from "../../inbound/shared/json-body-parsers.js";
-import { applyTrustProxy } from "../../inbound/shared/trust-proxy.js";
-import { applySiteServingGate } from "../../inbound/public-http/middleware/site-serving-gate.js";
-import { applyPublicPageSecurityHeaders } from "../../inbound/public-http/middleware/public-page-security-headers.js";
-import { applyPublishedWebMcp } from '../../inbound/public-http/middleware/published-webmcp.js';
-import { applySiteCookieConsent } from '../../inbound/public-http/middleware/site-cookie-consent.js';
-import { applyAdminBrowserAnalytics } from './browser-analytics.js';
-import { applyBrowserAnalyticsHttp } from './browser-analytics-http.js';
-import { applyCanonicalSiteHostRedirect } from '../../inbound/public-http/middleware/canonical-site-host.js';
-import { isPublishedWebMcpEnabled } from '#src/features/webmcp/settings';
-import { registerAdminStatic } from "../../inbound/admin-http/admin-static.js";
-import { registerSiteChatStatic } from "../../inbound/public-http/middleware/site-chat-static.js";
+import { captureRouteError } from "../../inbound/shared/observability-middleware.js";
+import { respondToOversizedBody } from "../../inbound/shared/json-body-parsers.js";
 import { registerThemePreviewStatic } from "../../inbound/public-http/middleware/theme-preview-static.js";
 import { registerThemeStaticAssets } from "../../inbound/public-http/middleware/theme-static-assets.js";
 import { registerThemePagePreview } from "../../inbound/public-http/middleware/theme-page-preview.js";
-import { applyRenderThemeOverride } from "../../inbound/public-http/middleware/render-theme-override.js";
 import { registerPluginContributionRoutes, createPluginRouteAuthPorts } from "../../inbound/public-http/routes/plugin-contributions.js";
-import { registerMailFeedbackRoute } from "../../inbound/public-http/routes/mail-feedback.js";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
 import { registerMemberPageRoutes } from "../../inbound/public-http/routes/site/member-pages.js";
 import { registerSiteChatComparisonRoutes } from "../../inbound/public-http/routes/site/chat-comparison.js";
@@ -303,7 +283,7 @@ import { createWorkspaceModule } from "./modules/workspace.js";
 import { createIntegrationsAdminModule } from "./modules/integrations-admin.js";
 import { createExternalMcpModule } from "./modules/external-mcp.js";
 import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../../../features/external-mcp/external-mcp-oauth.js";
-import { isPublicAssistantEnabled, resolvePublicAssistantAvailability } from "../../../assistant/index.js";
+import { resolvePublicAssistantAvailability } from "../../../assistant/index.js";
 import { createMediaModule } from "./modules/media.js";
 import { createTaxonomyModule } from "./modules/taxonomy.js";
 import { createTrashModule } from "./modules/trash.js";
@@ -373,13 +353,13 @@ import type { RouteDeps } from "../../routes/types.js";
 // `type`-only, so it is erased and adds no runtime edge — used only to annotate
 // {@link runExportSite} below.
 import type { ExportEngine } from "#src/features/deployments/export-run";
-import type { Express } from "express";
 import { createMediaProviderRegistry } from "@jini-ai/integrations/media-providers";
 import { startSettingsRegistration } from "./settings-registration.js";
 import type { CreateAppOptions } from "./create-app-options.js";
 import { mountRoutes, startModule } from "./http-app/module-handles.js";
 import { siteAppBootWorkByDeps, trackByokBootWork } from "./site-app-boot-work.js";
 import { subscribeSiteEventHandlersOnce } from "./site-event-subscriptions.js";
+import { applyPublicMiddleware, registerAdminSpa, registerSiteChatBundle, registerSiteIdlePark } from "./http-app/public-middleware.js";
 
 /**
  * @file HTTP composition root and route wiring.
@@ -1753,90 +1733,6 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
  * `ADS-memory/reports/2026-09-05-coverage-dual-instantiation-routes-W-and-A.md`'s "Route A".
  */
 const runExportSite: ExportEngine<RouteDeps> = (options, _optional = {}) => exportSite(options);
-
-/** Install the ordered public request guards before any normal routes. O(1) setup. */
-function applyPublicMiddleware(
-  { app, routeDeps, internalRouter }: { app: express.Express; routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps; internalRouter: express.Router },
-  options: CreateAppOptions = {},
-): void {
-  // X-Forwarded-For is trusted only for a known edge proxy's hops (Fly) or TOVU_TRUST_PROXY.
-  applyTrustProxy({ app });
-  applyDevCors(app);
-  // Registered as early as possible — ahead of the serving gate below and every route module — so
-  // a request the gate rejects, or a 404 that matches no route at all, is still measured. See
-  // `observability-middleware.ts`'s own file header for the full reasoning and for why this is the
-  // single chokepoint that sees both `tovu serve` and `index.ts`'s boot paths (both call this exact
-  // `createApp()` function; see `ADS-memory/.local-artifacts/metrics/
-  // 2026-08-28-observability-groundwork.md` §1-2 for why that distinction matters here).
-  // Bearer share paths never enter request logging, page analytics, or public rendering.
-  registerPublicShareRoutes({ app, registry: routeDeps.siteShareBackend?.registry });
-  applyRequestTracking(app, { tracker: routeDeps.tracker });
-  // Only a `createSiteApp({ themeId })` loopback app has this; see `render-theme-override.ts`.
-  if (options.themeIdOverride !== undefined) applyRenderThemeOverride(app, { themeId: options.themeIdOverride });
-  // ADR-041/043/044/045 — must precede the normal traffic handlers so a
-  // BLOCKED_PENDING_RECOVERY site refuses normal traffic regardless of which route would have
-  // handled it. See site-serving-gate.ts's own header for the allowlist rationale.
-  applySiteServingGate(app, { siteStatusRepo: routeDeps.siteStatusRepo, workspaceId: routeDeps.workspaceId });
-  // nosniff + Referrer-Policy + a report-only CSP on every non-admin response, set before any
-  // public route runs. See `public-page-security-headers.ts`.
-  applyPublicPageSecurityHeaders(app, { readHeaders: routeDeps.publicPageSecurityHeaders });
-  // Redirect page aliases before consent/preview middleware can render or set a visitor cookie.
-  applyCanonicalSiteHostRedirect({ app, originRegistry: routeDeps.originRegistry, workspaceId: routeDeps.workspaceId, runtimeMode: routeDeps.seoDeps.runtimeMode });
-  if (options.themeIdOverride === undefined) applyThemePreviewSwitcher({ app, deps: routeDeps });
-  const visitorPageTargets = createVisitorPageTargets({ deps: routeDeps });
-  applyPublishedWebMcp({ app, workspaceId: routeDeps.workspaceId, readEnabled: () => isPublishedWebMcpEnabled(routeDeps, { workspaceId: routeDeps.workspaceId }),
-    allowsVisitorPublication: async ({ path }) => process.env.TOVU_VISITOR_TOOLS_POLICY !== 'off'
-      && await isPublicAssistantEnabled({ settingsRepo: routeDeps.settingsRepo, getEffective: routeDeps.getEffective }, { workspaceId: routeDeps.workspaceId })
-      && (await visitorPageTargets.list({})).some(page => page.path === path) });
-  // Consent contributes assets during document construction. Audit renders omit that runtime;
-  // admin readiness reports unmanaged content without transforming the sampled page.
-  if (!options.consentAudit && routeDeps.cookieConsent) applySiteCookieConsent({ app, deps: routeDeps, consent: routeDeps.cookieConsent });
-
-  applyBrowserAnalyticsHttp({ app, deps: routeDeps });
-
-  // Public routes parse JSON at a small limit here; session-gated paths are left unparsed and
-  // parsed by `requireAdminSession` only once the caller has authenticated (15 MB, 75 MB for the
-  // base64 upload routes). See `inbound/shared/json-body-parsers.ts` for the limits and why.
-  // Mail provider webhooks read RAW bytes (signatures), so they mount ahead of the JSON parser.
-  if (routeDeps.mailFeedbackRoute) registerMailFeedbackRoute({ app, route: routeDeps.mailFeedbackRoute });
-  registerCommerceWebhooks({ app, deps: routeDeps });
-  // The agent daemon's tool RPC (ADR-070) gates before parsing and parses its own body, so it mounts
-  // ahead of the public parser. Its routes are added once the BYOK surface exists (`createApp`); they
-  // carry full `/internal/...` paths, so this mounts at the root.
-  app.use(internalRouter);
-  app.use(parsePublicJsonBody);
-}
-
-function registerAdminSpa({ app, routeDeps }: { app: Express; routeDeps: RouteDeps }, _optional = {}): void {
-  // Built admin SPA (apps/admin/dist) at /admin; helpful 503 when unbuilt. Walked up to, not a fixed
-  // `../` count: the source and compiled (`dist/src/...`) trees sit at different depths.
-  applyAdminBrowserAnalytics({ app, deps: routeDeps });
-  registerAdminStatic(app, {
-    distDir: process.env.TOVU_ADMIN_DIST ?? resolveAppDistDir({ app: "admin" }),
-  });
-}
-
-/** Mount the public browser bundle at the configured built-output location.
- * @complexity O(1) route registration. */
-function registerSiteChatBundle({ app }: { app: Express }, _optional = {}): void {
-  registerSiteChatStatic(app, {
-    distDir: process.env.TOVU_SITE_CHAT_DIST ?? resolveAppDistDir({ app: "site-chat" }),
-  });
-}
-
-/** Install intake before every route only when the serving process supplies its graceful stop.
- * Share the routes' finalizer by ledger identity: creating another watch owner could park mid-chat.
- * @complexity O(1) wiring; each idle probe uses up to two bounded existence reads.
- */
-function registerSiteIdlePark({ app, routeDeps, hasBackgroundWork }: { app: express.Express; routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps; hasBackgroundWork: () => Promise<boolean> }, options: CreateAppOptions = {}): void {
-  if (!options.stopForIdle) return;
-  const finalizer = assistantRunFinalizerFor({ ledger: routeDeps.chatRunLedger,
-    tracker: routeDeps.tracker, observability: routeDeps.observability });
-  const park = createSiteIdlePark({ hasBackgroundWork, hasActiveRuns: () => routeDeps.chatRunLedger.hasActiveRuns({}, {}),
-    activeCount: () => finalizer.activeCount(), stop: options.stopForIdle });
-  app.use(park.middleware);
-  registerSiteIdleStopHook({ stopIfIdle: park.stopIfIdle });
-}
 
 export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = createRouteDeps(), options: CreateAppOptions = {}) {
   const app = express();
