@@ -7,6 +7,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
+import ts from "typescript";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createShutdownTracker, decideBeforeQuit } from "@jini-ai/desktop-host/shutdown";
 
@@ -86,7 +87,8 @@ test("quit waits for owned runtime disposal even without sites and disposes once
       exit: () => assert.fail("quit must drain rather than force exit"),
     },
   });
-  vm.runInContext(source.slice(start, end + "\n});".length), context);
+  // The slice is TypeScript (a typed `catch (error: unknown)`); `vm` only runs JavaScript.
+  vm.runInContext(ts.transpileModule(source.slice(start, end + "\n});".length), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, context);
   onQuit(event);
   onQuit(event);
   assert.equal(prevented, 2);

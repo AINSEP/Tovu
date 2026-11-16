@@ -19,6 +19,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
+import ts from "typescript";
 import os from "node:os";
 import { createShutdownTracker, decideBeforeQuit } from "@jini-ai/desktop-host/shutdown";
 import { handleStop } from "./project-ipc.ts";
@@ -64,6 +65,11 @@ function beforeQuitHandler() {
   return source.slice(start, end);
 }
 
+/** The handler as JavaScript `vm` can run: the slice is TypeScript (a typed `catch (error: unknown)`). */
+function runnableBeforeQuitHandler() {
+  return ts.transpileModule(`${beforeQuitHandler()}\n});`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+}
+
 test("before-quit waits on in-flight teardowns, not only on openSites", async () => {
   // The defect: the `closed` handler empties `openSites` synchronously and only then begins
   // stopping the child, so closing the last window made this read "nothing to drain" while a
@@ -87,7 +93,7 @@ test("before-quit waits on in-flight teardowns, not only on openSites", async ()
   let finalQuits = 0;
   let lifecycleStops = 0;
   let quitNotifications = 0;
-  vm.runInNewContext(`${beforeQuitHandler()}\n});`, {
+  vm.runInNewContext(runnableBeforeQuitHandler(), {
     lastWindowQuit: { onQuitStarted: () => { quitNotifications++; } },
     stopSiteLifecycle: () => { lifecycleStops++; },
     app: {
@@ -155,7 +161,7 @@ test("Quit during a card Stop waits for its tracked teardown after openSites bec
   let quitNotifications = 0;
   let imports = 0;
   const shutdownOrder: string[] = [];
-  vm.runInNewContext(`${beforeQuitHandler()}\n});`, {
+  vm.runInNewContext(runnableBeforeQuitHandler(), {
     lastWindowQuit: { onQuitStarted: () => { quitNotifications++; } },
     stopSiteLifecycle: () => { lifecycleStops++; },
     app: {
@@ -239,7 +245,7 @@ test("a failed agent-service shutdown still waits for every tracked teardown bef
   let onQuit!: (event: { preventDefault: () => void }) => void;
   let finalQuits = 0;
   const logged: string[] = [];
-  vm.runInNewContext(`${beforeQuitHandler()}\n});`, {
+  vm.runInNewContext(runnableBeforeQuitHandler(), {
     console: { error: (line: string) => { logged.push(line); } },
     lastWindowQuit: { onQuitStarted: () => {} },
     stopSiteLifecycle: () => {},
