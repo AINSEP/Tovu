@@ -8,7 +8,7 @@ import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/re
 import { checkMarkupFile } from "#src/features/theme/validation/markup";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { finishStaticTierDocument } from "#src/server/inbound/public-http/routes/site/pages";
+import { finishStaticTierDocument } from "#src/server/inbound/public-http/routes/site/pages/static-tier";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
 
 const taxonomy: Taxonomy = { id: "tax-1", name: "Categories", hierarchical: true, status: "active", version: 1, updatedAt: "2026-10-04" };

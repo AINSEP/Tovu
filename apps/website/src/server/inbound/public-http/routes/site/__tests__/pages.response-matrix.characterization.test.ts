@@ -28,7 +28,8 @@ import type { DiscoveredTheme } from "#src/features/theme/index";
 import { registerResolvePhase } from "#src/platform/routing/adapter";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
-import { finishStaticTierDocument, registerSiteRoutes } from "../pages.js";
+import { registerSiteRoutes } from "../pages.js";
+import { finishStaticTierDocument } from "../pages/static-tier.js";
 
 type Deps = ReturnType<typeof createRouteDeps>;
 
