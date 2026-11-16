@@ -44,13 +44,6 @@
       "fingerprint": "bfbbb041a4274a35fddbe664e1241c541c8077e768b6a3971bccc3fe060e2b18"
     },
     {
-      "rule": "HW5-jini-export",
-      "file": "apps/admin/src/features/users/hooks/users-dependencies.hooks.ts",
-      "line": 83,
-      "reason": "Export createFakeUsersPort duplicates a Jini function without using its owner.",
-      "fingerprint": "69d895dbd44eb85c9ee27974cabde11ae66ace5eb12ffed0cb739cc43c9f4aaf"
-    },
-    {
       "rule": "HW2-vendor-adapter",
       "file": "apps/desktop/scripts/verify-find-in-page.ts",
       "line": 50,

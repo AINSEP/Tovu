@@ -6,7 +6,7 @@ import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 import { UserManagePanel, Users, type UserManageController } from "../UsersPanel";
 import { useUsers, type UsersController } from "../hooks/users-controller.hooks";
-import { createFakeUsersPort } from "../hooks/users-dependencies.hooks";
+import { createFakeUsersPort } from "@jini-ai/user-management/react/testing";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import userEvent from "@testing-library/user-event";
 import type { AdminIdentityUser } from "@/lib/api";
@@ -331,7 +331,7 @@ describe("account-management controls are agent-drivable, like the rest of the p
   });
 
   it.each([false, true])("gates Delete by canManageUserTrash=%s and confirms through the real hook", async (canManageUserTrash) => {
-    const port = createFakeUsersPort({ users: [bob], meId: "u-manager", canManageUserTrash });
+    const port = createFakeUsersPort({}, { users: [bob], meId: "u-manager", canManageUserTrash });
     const deleteUser = vi.spyOn(port, "deleteUser");
     function useRealUsers() { return useUsers({ port }); }
     const { container } = render(<FetchQueryProvider><Users useUsersHook={useRealUsers} /></FetchQueryProvider>);
