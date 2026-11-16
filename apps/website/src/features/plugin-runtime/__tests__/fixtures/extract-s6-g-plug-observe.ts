@@ -349,12 +349,12 @@ export function observeAdminDto(): unknown {
   const invalid = siteRecord({ status: "invalid", manifest: undefined, errors: [{ code: "MANIFEST_INVALID", file: "tovu.plugin.json", message: "bad" }] } as Partial<PluginDiscoveryRecord>);
   const conflict = { kind: "hook", key: "content.entry.beforeSave", heldBy: "other", heldByName: "Other", heldKey: "content.entry.beforeSave" } as const;
   return plain({
-    enabled: toAdminPluginResponse(siteRecord(), ENABLED_ROW),
-    neverActivated: toAdminPluginResponse(siteRecord(), null),
-    quarantined: toAdminPluginResponse(siteRecord(), quarantined),
-    invalid: toAdminPluginResponse(invalid, null),
-    withConflicts: toAdminPluginResponse(siteRecord(), ENABLED_ROW, { conflicts: [conflict] }),
-    withProviderSettings: toAdminPluginResponse(siteRecord({ manifest: { ...siteRecord().manifest, contributes: { providers: [{ contract: "example.provider", id: "p1", contractVersion: 1, settings: [{ name: "apiKey", label: "API key", kind: "secret" }] }] } } as never }), ENABLED_ROW),
-    builtInTierFallback: toAdminPluginResponse(siteRecord({ source: "built-in", tier: undefined } as Partial<PluginDiscoveryRecord>), ENABLED_ROW),
+    enabled: toAdminPluginResponse({ discovery: siteRecord(), activation: ENABLED_ROW }),
+    neverActivated: toAdminPluginResponse({ discovery: siteRecord(), activation: null }),
+    quarantined: toAdminPluginResponse({ discovery: siteRecord(), activation: quarantined }),
+    invalid: toAdminPluginResponse({ discovery: invalid, activation: null }),
+    withConflicts: toAdminPluginResponse({ discovery: siteRecord(), activation: ENABLED_ROW }, { conflicts: [conflict] }),
+    withProviderSettings: toAdminPluginResponse({ discovery: siteRecord({ manifest: { ...siteRecord().manifest, contributes: { providers: [{ contract: "example.provider", id: "p1", contractVersion: 1, settings: [{ name: "apiKey", label: "API key", kind: "secret" }] }] } } as never }), activation: ENABLED_ROW }),
+    builtInTierFallback: toAdminPluginResponse({ discovery: siteRecord({ source: "built-in", tier: undefined } as Partial<PluginDiscoveryRecord>), activation: ENABLED_ROW }),
   });
 }

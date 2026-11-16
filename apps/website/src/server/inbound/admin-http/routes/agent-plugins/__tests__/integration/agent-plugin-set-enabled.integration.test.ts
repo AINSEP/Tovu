@@ -134,9 +134,9 @@ function buildTestApp(overrides: Partial<Pick<AgentPluginsRouteDeps, "setAgentPl
 
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, baseDeps);
+  registerAuthRoutes({ app, deps: baseDeps });
   app.use("/api/admin", requireAdminSession(baseDeps));
-  registerAgentPluginSetEnabledRoute(app, routeDeps);
+  registerAgentPluginSetEnabledRoute({ app, deps: routeDeps });
   return { app, baseDeps };
 }
 
@@ -213,10 +213,10 @@ test("AGENT_PLUGIN_SET_ENABLED: production composition captures one event per ac
     } });
     const app = express();
     app.use(express.json());
-    registerAuthRoutes(app, deps);
+    registerAuthRoutes({ app, deps });
     app.use("/api/admin", requireAdminSession(deps));
     // No toggle override: this goes through deps.ts -> site mailer -> the shared boot lifecycle.
-    registerAgentPluginSetEnabledRoute(app, deps);
+    registerAgentPluginSetEnabledRoute({ app, deps });
     const { baseUrl, cookie } = await bootAuthenticated(app, t);
     await deps.pluginRuntimeReady;
     events.length = 0;

@@ -91,7 +91,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   deps.postRepo = new InMemoryPostRepo({});
   deps.themes = [staticTheme()];
   const app = express();
-  registerSiteRoutes(app, deps);
+  registerSiteRoutes({ app, deps });
   return { app, deps };
 }
 

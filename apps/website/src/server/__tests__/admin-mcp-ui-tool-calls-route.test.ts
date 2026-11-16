@@ -80,7 +80,7 @@ function harness() {
         const deps: RouteDeps = createRouteDeps();
         const app = express();
         app.use(express.json());
-        registerAuthRoutes(app, deps);
+        registerAuthRoutes({ app, deps });
         // A fresh, empty store: redemption replies name daemon-held exchanges, so the local
         // delivery branch cannot consume them. The daemon owns and validates those exchanges.
         createAssistantModule(Object.assign(deps, { assistantDaemonDemand: { ensureReady: async () => {}, isReady: () => true } }), createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })).registerRoutes?.({ app });
@@ -243,7 +243,7 @@ async function bootWithStore(t: import("node:test").TestContext) {
   const deps: RouteDeps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   createAssistantModule(Object.assign(deps, { assistantDaemonDemand: { ensureReady: async () => {}, isReady: () => true } }), surfaceExchanges).registerRoutes?.({ app });
 
   recorded = [];

@@ -298,12 +298,7 @@ test("performThemeFileRename: a destPath that resolves generated-readonly throws
 
   assert.throws(
     () =>
-      performThemeFileRename(
-        routeDeps,
-        theme,
-        { sourcePath: "src/config.json", destPath: "generated-output.json", name: "generated-output.json" },
-        new Set(["src/config.json"])
-      ),
+      performThemeFileRename({ routeDeps, theme, paths: { sourcePath: "src/config.json", destPath: "generated-output.json", name: "generated-output.json" }, existingPaths: new Set(["src/config.json"]) }),
     /'generated-output\.json' is read-only: this file is generated output of a built theme/
   );
 });

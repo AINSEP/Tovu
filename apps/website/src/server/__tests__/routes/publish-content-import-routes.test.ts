@@ -295,7 +295,7 @@ test("publish-content import: overwriteEntityKeys forces a no-baseline conflict 
   });
   const { bundleId } = await expectJson<{ bundleId: string }>(stageRes, 201);
 
-  const key = entityKey("post", post.id);
+  const key = entityKey({ entityType: "post", entityId: post.id });
 
   const planRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/import/plan`, {
     method: "POST",

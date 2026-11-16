@@ -496,7 +496,7 @@ test("auto-quarantine end to end: repeated hook failures persist disabled metada
   assert.equal(quarantined?.quarantinedAt, "2026-08-12T12:00:00.000Z");
   assert.equal(quarantined?.quarantineFailureCount, 2);
   assert.match(quarantined?.quarantineReason ?? "", /save blocker/);
-  assert.deepEqual(toAdminPluginResponse(discovery[0]!, quarantined).quarantine, {
+  assert.deepEqual(toAdminPluginResponse({ discovery: discovery[0]!, activation: quarantined }).quarantine, {
     at: "2026-08-12T12:00:00.000Z",
     reason: "plugin 'throwing-plugin' content.entry.beforeSave filter failed: save blocker",
     consecutiveFailures: 2,
@@ -516,7 +516,7 @@ test("auto-quarantine end to end: repeated hook failures persist disabled metada
   });
   assert.equal(reEnabled.enabled, true);
   assert.equal(reEnabled.quarantinedAt ?? null, null);
-  assert.equal(toAdminPluginResponse(discovery[0]!, reEnabled).quarantine, null);
+  assert.equal(toAdminPluginResponse({ discovery: discovery[0]!, activation: reEnabled }).quarantine, null);
   assert.deepEqual(await runtime.beforeSaveHook(entry), { "throwing-plugin": { ok: true } });
 });
 

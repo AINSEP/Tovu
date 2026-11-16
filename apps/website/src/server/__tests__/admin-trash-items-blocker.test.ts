@@ -76,7 +76,7 @@ function buildHarness(): Harness {
 
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, base);
+  registerAuthRoutes({ app, deps: base });
   app.use("/api/admin", requireAdminSession(base));
   createTrashModule(trashDeps).registerRoutes?.({ app });
 

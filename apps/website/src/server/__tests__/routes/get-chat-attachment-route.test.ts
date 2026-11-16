@@ -99,7 +99,7 @@ async function boot(t: test.TestContext, staged: Staged) {
   deps.siteStoragePaths = { ...deps.siteStoragePaths, chatAttachmentsDir: staged.uploadDirectory };
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   createAssistantModule(deps, createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" })).registerRoutes?.({ app });
 
   const baseUrl = await startTestServer(app, t);

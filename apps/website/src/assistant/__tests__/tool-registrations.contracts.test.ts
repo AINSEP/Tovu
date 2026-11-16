@@ -200,7 +200,7 @@ function registrationsById(existing?: ContentTypeRecord): Map<string, ToolRegist
 test('every tool description and explicit prompt call names only declared input arguments', () => {
   const descriptors = [...registrationsById().values()].map(tool => tool.descriptor).concat(META_TOOL_DESCRIPTORS);
   const byId = new Map(descriptors.map(tool => [tool.id, tool]));
-  const prompts = [buildBaseSystemOverlay(false), buildBaseSystemOverlay(true), buildBaseSystemOverlay(false, { nativeToolAccess: true })];
+  const prompts = [buildBaseSystemOverlay({ bashProhibitionEnabled: false }), buildBaseSystemOverlay({ bashProhibitionEnabled: true }), buildBaseSystemOverlay({ bashProhibitionEnabled: false }, { nativeToolAccess: true })];
   for (const tool of descriptors) {
     const schema = tool.inputSchema as { properties?: Record<string, { description?: string }> } | undefined;
     const fields = schema?.properties ?? {};

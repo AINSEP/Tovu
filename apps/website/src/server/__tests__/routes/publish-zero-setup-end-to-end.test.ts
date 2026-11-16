@@ -395,7 +395,7 @@ test("forms and the active theme publish through a publishing grant", async () =
     await s.sourceDeps.presentationRepo.save({ ...presentation, activeThemeId: "tovu-theme", updatedAt: now });
 
     // Both sides hold an active theme and have never synced, so it plans a conflict until ticked.
-    const applied = await publishEverything(s, site, [entityKey("active-theme", "site")]);
+    const applied = await publishEverything(s, site, [entityKey({ entityType: "active-theme", entityId: "site" })]);
     assert.ok(Array.isArray(applied.changeSetIds), JSON.stringify(applied));
 
     const form = await s.destinationDeps.formDefinitionRepo.findBySlug({

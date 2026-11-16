@@ -164,16 +164,16 @@ test("L163 pull boundary translates each known refusal and preserves unknown rej
   const { PluginHookFailedError } = await import("../../../contracts/core/plugin-hook-failed-error.js");
   const cases: Array<{ error: unknown; message: string }> = [
     { error: new PlanStaleError({ message: "internal stale" }), message: "The local content changed after the dialog was shown. Run publish_content_execute_pull again to review a fresh plan." },
-    { error: new PublishContentBundleNotFoundError("internal missing"), message: "This pull plan was not found or has expired. Run publish_content_plan_pull again." },
-    { error: new RestorePointUnavailableError("internal backup"), message: "This computer cannot capture a restore point. Pulling content is refused until backups are available." },
-    { error: new PublishContentPeerNotFoundError("internal peer"), message: "The saved destination was removed. Choose a saved peerId or connect the live site again." },
+    { error: new PublishContentBundleNotFoundError({ message: "internal missing" }), message: "This pull plan was not found or has expired. Run publish_content_plan_pull again." },
+    { error: new RestorePointUnavailableError({ message: "internal backup" }), message: "This computer cannot capture a restore point. Pulling content is refused until backups are available." },
+    { error: new PublishContentPeerNotFoundError({ message: "internal peer" }), message: "The saved destination was removed. Choose a saved peerId or connect the live site again." },
     { error: new PluginHookFailedError("plugin", "private diagnostic", { refusedItemRef: "post:p" }), message: "PLUGIN_HOOK_FAILED: a site plugin (plugin) refused item post:p; items applied before it stay saved, so check the import history before retrying" },
     ...[
       new ForbiddenError({ message: "permission denied", reasonCode: "denied" }),
-      new PublishTrustHandshakeError("handshake refused", "refused"),
-      new PublishContentPeerTransportError("transport refused", "PEER_REJECTED"),
-      new PublishContentPeerCredentialMissingError("credential absent"),
-      new PublishContentPeerSecretStoreUnconfiguredError("store absent"),
+      new PublishTrustHandshakeError({ message: "handshake refused", failure: "refused" }),
+      new PublishContentPeerTransportError({ message: "transport refused", code: "PEER_REJECTED" }),
+      new PublishContentPeerCredentialMissingError({ message: "credential absent" }),
+      new PublishContentPeerSecretStoreUnconfiguredError({ message: "store absent" }),
     ].map(error => ({ error, message: error.message })),
   ];
   const f = await fixture();

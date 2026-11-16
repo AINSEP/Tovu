@@ -35,7 +35,7 @@ const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
 
 test("SqliteSettingsRepo: saveDefinition + findActiveDefinition round-trip through real SQLite", async () => {
   const db = openTestDb();
-  const repo = new SqliteSettingsRepo(db);
+  const repo = new SqliteSettingsRepo({ store: db });
   const def: SettingDefinitionRecord = {
     settingId: "setting-sqlite-1",
     version: 1,
@@ -65,7 +65,7 @@ test("SqliteSettingsRepo: saveDefinition + findActiveDefinition round-trip throu
 
 test("SqliteSettingsRepo: set() writes exactly one value row + one revision row in the real DB (AC-07)", async () => {
   const db = openTestDb();
-  const repo = new SqliteSettingsRepo(db);
+  const repo = new SqliteSettingsRepo({ store: db });
   const principals = new InMemoryPrincipalRepo({});
   const def: SettingDefinitionRecord = {
     settingId: "setting-sqlite-2",
@@ -111,7 +111,7 @@ test("SqliteSettingsRepo: set() writes exactly one value row + one revision row 
 
 test("SqliteSettingsRepo: transaction rolls back the value write when a later step in the same transaction throws (INV-01 atomicity proof)", async () => {
   const db = openTestDb();
-  const repo = new SqliteSettingsRepo(db);
+  const repo = new SqliteSettingsRepo({ store: db });
   const def: SettingDefinitionRecord = {
     settingId: "setting-sqlite-3",
     version: 1,
@@ -158,7 +158,7 @@ test("SqliteSettingsRepo: transaction rolls back the value write when a later st
 
 test("SqliteSettingsRepo: workspace-scoped value from one workspace never leaks into another's read", async () => {
   const db = openTestDb();
-  const repo = new SqliteSettingsRepo(db);
+  const repo = new SqliteSettingsRepo({ store: db });
   const def: SettingDefinitionRecord = {
     settingId: "setting-sqlite-4",
     version: 1,
@@ -212,7 +212,7 @@ test("SqliteSettingsRepo: a legacy row holding a bare coercer tag still reads ba
        VALUES ('legacy-tag', 2, 'core.test', 'legacyTag', 'core', '{"type":"string"}', 1, 'active', 'identity', 'now', 'now')`
     )
     .run();
-  const repo = new SqliteSettingsRepo(db);
+  const repo = new SqliteSettingsRepo({ store: db });
   assert.equal((await repo.findDefinitionBySettingId({ settingId: "legacy-tag" }))?.coercionTag, "identity");
 });
 
@@ -236,7 +236,7 @@ function settingValue(overrides: Partial<SettingValueRecord> = {}): SettingValue
 test("definition lookup prefers the active version, otherwise the newest retired version, and exact versions never fall back", async (t) => {
   const db = openTestDb();
   t.after(() => db.$client.close());
-  const repo = new SqliteSettingsRepo(db);
+  const repo = new SqliteSettingsRepo({ store: db });
   const first = definition({ status: "tombstone" });
   const latest = definition({ version: 3, status: "tombstone", defaultValue: "blue", secret: true });
   await repo.saveDefinition(first);
@@ -253,7 +253,7 @@ test("definition lookup prefers the active version, otherwise the newest retired
 test("active definitions partition platform and workspace aliases, excluding tombstones from lists", async (t) => {
   const db = openTestDb();
   t.after(() => db.$client.close());
-  const repo = new SqliteSettingsRepo(db);
+  const repo = new SqliteSettingsRepo({ store: db });
   const platform = definition();
   const alias = definition({ settingId: "alias", ownerKind: "site", workspaceId: "ws-definitions", status: "alias", aliasOfNamespace: "core.target", aliasOfKey: "colour" });
   const tombstone = definition({ settingId: "retired", ownerKind: "site", workspaceId: "ws-definitions", key: "old", status: "tombstone" });
@@ -268,7 +268,7 @@ test("active definitions partition platform and workspace aliases, excluding tom
 test("legacy valid JSON coercion values that are not strings are retained verbatim", async (t) => {
   const db = openTestDb();
   t.after(() => db.$client.close());
-  const repo = new SqliteSettingsRepo(db);
+  const repo = new SqliteSettingsRepo({ store: db });
   await repo.saveDefinition(definition());
   for (const stored of ["null", "17", '{"kind":"identity"}']) {
     db.$client.prepare("UPDATE setting_definitions SET coercion_json = ? WHERE setting_id = ?").run(stored, "coverage-setting");
@@ -280,7 +280,7 @@ test("user and workspace lists retain their full value records and exclude other
   const db = openTestDb();
   t.after(() => db.$client.close());
   for (const id of ["ws-values", "ws-neighbour"]) seedWorkspace(db, id);
-  const repo = new SqliteSettingsRepo(db);
+  const repo = new SqliteSettingsRepo({ store: db });
   const own = settingValue();
   const otherUser = settingValue({ principalId: "editor", valueJson: "orange" });
   const otherTenant = settingValue({ workspaceId: "ws-neighbour", valueJson: "green" });
@@ -298,7 +298,7 @@ test("user and workspace lists retain their full value records and exclude other
 test("cleared values store SQL NULL while a set JSON null stays serialized, including on upsert", async (t) => {
   const db = openTestDb();
   t.after(() => db.$client.close());
-  const repo = new SqliteSettingsRepo(db);
+  const repo = new SqliteSettingsRepo({ store: db });
   const global = settingValue({ scope: "global", workspaceId: null, principalId: null, valueJson: null });
   assert.equal(await repo.getGlobalValue(global.settingId), null);
   await repo.saveGlobalValue(global);
@@ -318,7 +318,7 @@ for (const [name, record, message] of [
   test(`invalid ${name} is rejected before any value is written`, async (t) => {
     const db = openTestDb();
     t.after(() => db.$client.close());
-    const repo = new SqliteSettingsRepo(db);
+    const repo = new SqliteSettingsRepo({ store: db });
     await assert.rejects(name.startsWith("workspace") ? repo.saveWorkspaceValue(record) : repo.saveUserValue(record), { message });
     assert.deepEqual(db.$client.prepare("SELECT * FROM setting_values_workspace").all(), []);
     assert.deepEqual(db.$client.prepare("SELECT * FROM setting_values_user").all(), []);
@@ -328,7 +328,7 @@ for (const [name, record, message] of [
 test("revision heads start at zero and round-trip both before and after JSON on a clear", async (t) => {
   const db = openTestDb();
   t.after(() => db.$client.close());
-  const repo = new SqliteSettingsRepo(db);
+  const repo = new SqliteSettingsRepo({ store: db });
   assert.equal(await repo.maxRevisionSeq(), 0);
   const revision = {
     entityKind: "value" as const, settingId: "coverage-setting", scope: "global" as const,

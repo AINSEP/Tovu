@@ -165,7 +165,7 @@ test("C: end-to-end — a real HTTP request for a 5000-deep post serves bounded 
   };
   deps.postRepo = new InMemoryPostRepo({}, { initialRows: [CRASH_POST] });
   const app = express();
-  registerSiteRoutes(app, deps);
+  registerSiteRoutes({ app, deps });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}/crash-test`);

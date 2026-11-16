@@ -60,10 +60,10 @@ function buildTestApp(theme: DiscoveredTheme): { app: express.Express; deps: Rou
   deps.postRepo = new InMemoryPostRepo({}, { initialRows: seededPosts.filter((post) => post.slug !== ROOT_SLUG) });
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
   createWidgetsModule(deps).registerRoutes?.({ app });
-  registerSiteRoutes(app, deps);
+  registerSiteRoutes({ app, deps });
   return { app, deps };
 }
 

@@ -34,7 +34,7 @@ async function buildTestApp(): Promise<{ app: express.Express; deps: RouteDeps }
   const deps = await createSiteRouteDeps({ dbPath: ":memory:" });
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
 
   registerAdminTaxonomyListRoute(app, deps);
@@ -43,7 +43,7 @@ async function buildTestApp(): Promise<{ app: express.Express; deps: RouteDeps }
   registerAdminTaxonomyAssignTermsRoute(app, deps);
   registerAdminTaxonomyDeleteRoute(app, deps);
   registerAdminTaxonomyDeleteTermRoute(app, deps);
-  registerAdminTrashRestoreRoute(app, deps);
+  registerAdminTrashRestoreRoute({ app, deps });
   return { app, deps };
 }
 

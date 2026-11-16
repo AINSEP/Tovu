@@ -35,8 +35,8 @@ test("HTML create/edit route, native urlencoded POST, confirmation redirect and 
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "owner", kind: "user" }; next(); });
-  registerAdminFormsCreateRoute(app, deps);
-  registerAdminFormsAuthoringRoute(app, deps);
+  registerAdminFormsCreateRoute({ app, deps });
+  registerAdminFormsAuthoringRoute({ app, deps });
   registerFormsSubmitRoute(app, { workspaceId: "ws", submitForm: {
     definitionRepo: formDefinitionRepo, submissionRepo: formSubmissionRepo,
     ...deps, rateLimiter: { check: () => ({ allowed: true as const }) },
@@ -141,7 +141,7 @@ test("authoring PUT requires admin.forms.manage before any lookup, for existing 
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "reader", kind: "user" }; next(); });
-  registerAdminFormsAuthoringRoute(app, deps as unknown as Parameters<typeof registerAdminFormsAuthoringRoute>[1]);
+  registerAdminFormsAuthoringRoute({ app, deps: deps as unknown as Parameters<typeof registerAdminFormsAuthoringRoute>[0]["deps"] });
   const server = createServer(app).listen(0);
   t.after(() => new Promise<void>((resolve) => { server.closeAllConnections(); server.close(() => resolve()); }));
   await once(server, "listening");

@@ -53,7 +53,7 @@ async function buildAdminOnlyApp() {
 
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
   createExternalMcpModule(deps).registerRoutes?.({ app });
   const supabase = parsed.config.servers.supabase;

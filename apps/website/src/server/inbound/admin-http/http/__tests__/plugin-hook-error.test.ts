@@ -39,7 +39,7 @@ function capturingResponse(): { res: CapturingRes; statusCode: () => number | un
 
 test("sendPluginHookFailedError: a PluginHookFailedError is mapped to 500 with code PLUGIN_HOOK_FAILED and the plugin id", () => {
   const { res, statusCode, jsonBody } = capturingResponse();
-  const handled = sendPluginHookFailedError(res, new PluginHookFailedError("word-count", "provider request failed; token=sk-live-123"));
+  const handled = sendPluginHookFailedError({ res, err: new PluginHookFailedError("word-count", "provider request failed; token=sk-live-123") });
 
   assert.equal(handled, true);
   assert.equal(statusCode(), 500);
@@ -53,7 +53,7 @@ test("sendPluginHookFailedError: a PluginHookFailedError is mapped to 500 with c
 
 test("sendPluginHookFailedError: any other error is left unhandled (writes nothing, returns false)", () => {
   const { res, statusCode, jsonBody } = capturingResponse();
-  const handled = sendPluginHookFailedError(res, new Error("not a plugin hook error"));
+  const handled = sendPluginHookFailedError({ res, err: new Error("not a plugin hook error") });
 
   assert.equal(handled, false);
   assert.equal(statusCode(), undefined);
@@ -108,7 +108,7 @@ test("HTTP: updating a post through a throwing beforeSave filter returns PLUGIN_
 });
 
 test("widgetErrorToResponse: a hook refusal behind a widget embed/tool route is PLUGIN_HOOK_FAILED naming the plugin, not a bare 500", () => {
-  assert.deepEqual(widgetErrorToResponse(new PluginHookFailedError("seo", "plugin 'seo' content.entry.beforeSave filter failed: token=sk-live-123")), {
+  assert.deepEqual(widgetErrorToResponse({ err: new PluginHookFailedError("seo", "plugin 'seo' content.entry.beforeSave filter failed: token=sk-live-123") }), {
     status: 500,
     body: { error: "a site plugin (seo) refused this save; the content was not saved", code: "PLUGIN_HOOK_FAILED", pluginId: "seo" },
   });

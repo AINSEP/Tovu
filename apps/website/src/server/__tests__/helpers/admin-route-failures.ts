@@ -15,7 +15,7 @@ export const INTERNAL_CODE = { ...INTERNAL, code: 'INTERNAL_ERROR' };
 export const allowed = async () => ({ allowed: true, reason: 'matched' });
 export const limiter = { check: async () => ({ allowed: true as const }) };
 export type Deps = ReturnType<typeof createRouteDeps>;
-export type Register = (app: express.Express, deps: Deps) => void;
+export type Register = (required: { app: express.Express; deps: Deps }, optional?: Record<string, never>) => void;
 
 // Reuse the composition's in-memory ports and the existing native HTTP dispatcher.
 // Scenario overrides replace only the boundary whose failure or input is under test.
@@ -23,7 +23,7 @@ export function fixture(register: Register, overrides: Record<string, unknown> =
   const deps = { ...createRouteDeps(), authorize: allowed, ...overrides } as Deps;
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: 'owner' }; next(); });
-  register(app, deps);
+  register({ app, deps });
   return { deps, app };
 }
 

@@ -49,7 +49,7 @@ for (const root of ["memory", "sqlite"] as const) {
     const state = { title: "Published through composition", slug: "composition-publish", kind: "post",
       bodyJson: { type: "doc", content: [] }, bodyFormat: "doc", bodyHtml: null, status: "draft", termIds: [] };
     const entity = { entityType: "post", id: "composition-publish", schemaVersion: 2,
-      hashVersion: CONTENT_HASH_VERSION, contentHash: contentHash("post", state), requiredBlobs: [], state };
+      hashVersion: CONTENT_HASH_VERSION, contentHash: contentHash({ entityType: "post", state }), requiredBlobs: [], state };
     const bundle = { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
       hashVersion: CONTENT_HASH_VERSION, entities: [entity], blobManifest: [] };
     const { bundleId } = await stageBundle({ ...bundle, workspaceId: deps.workspaceId,

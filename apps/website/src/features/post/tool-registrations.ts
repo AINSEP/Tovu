@@ -134,7 +134,7 @@ const CATALOG_BY_ID = indexCatalogById({ catalog: postAgentToolCatalog });
  * change is needed to wire this field; it is already present on the object that flows through.
  */
 export interface DuplicatePagesHtmlStore {
-  ensureHtmlFormat(seedHtml: string): Promise<void>;
+  ensureHtmlFormat(required: { seedHtml: string }, optional?: Record<string, never>): Promise<void>;
   read(): Promise<string>;
   write(html: string): Promise<void>;
 }
@@ -1479,7 +1479,7 @@ async function duplicatePostOrPage(
         // `created.post` is stale after this (still "doc" format, version 1); re-read to return the
         // row's real, post-conversion state.
         if (!routeDeps.pagesHtmlStore) throw new Error("Post duplication has no HTML page store");
-        await routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: newId }).ensureHtmlFormat(sourceHtml);
+        await routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: newId }).ensureHtmlFormat({ seedHtml: sourceHtml });
         return getAdminPostById({ deps: { repo: routeDeps.postRepo }, input: { workspaceId: routeDeps.workspaceId, id: newId } });
       } }),
       captureEntityVersion: ({ result }) => result.post.version,

@@ -103,14 +103,14 @@ function buildTestApp(): { app: express.Express; deps: IntegrationsTestDeps } {
 
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminIntegrationsListRoute(app, deps);
-  registerAdminIntegrationsCreateRoute(app, deps);
-  registerAdminIntegrationsPauseRoute(app, deps);
-  registerAdminIntegrationsDeleteRoute(app, deps);
-  registerAdminIntegrationsDeliveriesRoute(app, deps);
+  registerAdminIntegrationsListRoute({ app, deps });
+  registerAdminIntegrationsCreateRoute({ app, deps });
+  registerAdminIntegrationsPauseRoute({ app, deps });
+  registerAdminIntegrationsDeleteRoute({ app, deps });
+  registerAdminIntegrationsDeliveriesRoute({ app, deps });
 
   return { app, deps };
 }
@@ -425,7 +425,7 @@ test("integrations routes: delete's `req.params.subscriptionId ?? \"\"` fallback
     authorize: async () => ({ allowed: true, reason: "matched" }),
   };
   const app = express();
-  registerAdminIntegrationsDeleteRoute(app, deps);
+  registerAdminIntegrationsDeleteRoute({ app, deps });
   const handler = extractHandler(
     app,
     "/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId"

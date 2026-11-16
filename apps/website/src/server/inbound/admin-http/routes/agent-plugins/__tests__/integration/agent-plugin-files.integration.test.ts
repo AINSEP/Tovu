@@ -84,9 +84,9 @@ function buildTestApp(baseDeps = createRouteDeps()): express.Express {
   // `agent-plugins-http.integration.test.ts`'s `buildTestApp` for why a second call 403s.
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, baseDeps);
+  registerAuthRoutes({ app, deps: baseDeps });
   app.use("/api/admin", requireAdminSession(baseDeps));
-  registerAgentPluginFilesRoute(app, baseDeps);
+  registerAgentPluginFilesRoute({ app, deps: baseDeps });
   return app;
 }
 

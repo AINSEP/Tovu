@@ -196,12 +196,12 @@ test("GET .../publish-content/export streams registered post/page entities for a
     assert.equal(Object.hasOwn(entity.state, "author"), !isPage);
     assert.equal(Object.hasOwn(entity.state, "showAuthor"), false);
     assert.deepEqual(entity.state.bodyJson, { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: title }] }] });
-    assert.equal(entity.contentHash, contentHash(entity.entityType, {
+    assert.equal(entity.contentHash, contentHash({ entityType: entity.entityType, state: {
       title, slug: row.slug, kind: isPage ? "page" : "post", status: "draft",
       bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: title }] }] },
       bodyFormat: "doc", bodyHtml: null, seoExtJson: null, templateChoice: null,
       overridesThemePage: null, memberAccessJson: null, ...(!isPage ? { author: "admin" } : {}),
-    }));
+    } }));
   }
   assert.notEqual(byId.get(post.id)?.contentHash, byId.get(page.id)?.contentHash);
   assert.notEqual(byId.get(post.id)?.contentHash, byId.get(otherPost.id)?.contentHash);

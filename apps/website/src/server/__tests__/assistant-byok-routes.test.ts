@@ -603,7 +603,7 @@ function stubByokToolSurface(options: { readonly settled: boolean; readonly refu
 async function bootWithStubSurface(deps: ReturnType<typeof createRouteDeps>, toolSurface: ByokToolSurface, t: import("node:test").TestContext) {
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   createAssistantByokModule({ routeDeps: deps }, { toolSurface }).registerRoutes?.({ app });
   return bootAuthenticated(app, t);
 }

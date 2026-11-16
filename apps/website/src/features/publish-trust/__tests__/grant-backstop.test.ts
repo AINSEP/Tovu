@@ -12,9 +12,9 @@ test("backstop requires a separate capability AND an explicit raw entity type", 
     assert.equal(backstopGrantAllows({ grant: { capabilities: ["publish_content.backstop"], entityTypes: [] }, entityType }), false);
     assert.equal(backstopGrantAllows({ grant: { capabilities: ["publish_content.apply", "publish_content.backstop"], entityTypes: [entityType] }, entityType }), true);
   }
-  const parsed = parsePublishTrustGrant({ version: 1, sourceInstallationId: "src", workspaceId: "ws",
+  const parsed = parsePublishTrustGrant({ raw: { version: 1, sourceInstallationId: "src", workspaceId: "ws",
     publicKeys: [{ publicKeyB64u: "AAAA", generation: 1 }], entityTypes: ["raw-row"],
-    capabilities: ["publish_content.apply", "publish_content.backstop"], notAfter: "2099-01-01T00:00:00.000Z" });
+    capabilities: ["publish_content.apply", "publish_content.backstop"], notAfter: "2099-01-01T00:00:00.000Z" } });
   assert.equal(parsed.ok, true);
   assert.deepEqual(DEFAULT_PUBLISHING_CAPABILITIES, ["publish_content.read", "publish_content.apply"]);
 });

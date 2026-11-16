@@ -146,10 +146,10 @@ for (const cookieName of ["tovu_session", "tovu_session_local_303"]) {
     assert.equal(revoke.mock.callCount(), ordinary ? 1 : 0);
     assert.deepEqual(response.cleared, ordinary ? ["tovu_session_local_303"] : []);
     const oldRequest = { headers: { cookie }, socket: { localPort: 303 } } as Request;
-    assert.equal((await currentCredential(deps, oldRequest, { localOwnerSignIn: { enabled: true } }))?.principal.id ?? null,
+    assert.equal((await currentCredential({ deps, req: oldRequest }, { localOwnerSignIn: { enabled: true } }))?.principal.id ?? null,
       ordinary ? null : owner?.id);
     const newRequest = { headers: { cookie: `${cookieName}=${issued.value}` }, socket: { localPort: 303 } } as Request;
-    assert.equal((await currentCredential(deps, newRequest, { localOwnerSignIn: { enabled: true } }))?.principal.id, principal?.id);
+    assert.equal((await currentCredential({ deps, req: newRequest }, { localOwnerSignIn: { enabled: true } }))?.principal.id, principal?.id);
   });
 }
 

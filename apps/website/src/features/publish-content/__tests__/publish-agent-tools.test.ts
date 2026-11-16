@@ -177,8 +177,8 @@ test("nothing publishable is checked BEFORE connectedness — it blocks the thin
 });
 
 test("siteLabelFor is the host, and an unparseable address does not throw", () => {
-  assert.equal(siteLabelFor("https://example.com/a/b"), "example.com");
-  assert.equal(siteLabelFor("not a url"), "not a url");
+  assert.equal(siteLabelFor({ baseUrl: "https://example.com/a/b" }), "example.com");
+  assert.equal(siteLabelFor({ baseUrl: "not a url" }), "not a url");
 });
 
 // ---------------------------------------------------------------------------
@@ -202,12 +202,12 @@ test("no verdict this function can produce teaches a concept or leaks a code", (
 });
 
 test("plainSentence passes a person's sentence through and discards one carrying a machine token", () => {
-  assert.equal(plainSentence("The site could not be reached.", "fallback"), "The site could not be reached.");
-  assert.equal(plainSentence("refused: PEER_NOT_FOUND", "fallback"), "fallback");
-  assert.equal(plainSentence("reason publish_trust_export_not_wired", "fallback"), "fallback");
-  assert.equal(plainSentence("   ", "fallback"), "fallback");
+  assert.equal(plainSentence({ text: "The site could not be reached.", fallback: "fallback" }), "The site could not be reached.");
+  assert.equal(plainSentence({ text: "refused: PEER_NOT_FOUND", fallback: "fallback" }), "fallback");
+  assert.equal(plainSentence({ text: "reason publish_trust_export_not_wired", fallback: "fallback" }), "fallback");
+  assert.equal(plainSentence({ text: "   ", fallback: "fallback" }), "fallback");
   // A capitalised site name is ordinary prose and must survive.
-  assert.equal(plainSentence("Example Site is offline.", "fallback"), "Example Site is offline.");
+  assert.equal(plainSentence({ text: "Example Site is offline.", fallback: "fallback" }), "Example Site is offline.");
 });
 
 // ---------------------------------------------------------------------------

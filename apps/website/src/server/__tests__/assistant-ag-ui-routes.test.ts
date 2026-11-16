@@ -255,7 +255,7 @@ function harness() {
         if (observability) { deps.observability = observability; deps.tracker = createTracker({ observability }); }
         const app = express();
         app.use(express.json());
-        registerAuthRoutes(app, deps);
+        registerAuthRoutes({ app, deps });
         app.use("/api/admin/v1/assistant/ag-ui-run", (_req, res, next) => {
           res.on("close", () => clientCloseGate?.arrive());
           next();

@@ -25,7 +25,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   const deps: RouteDeps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
 
   registerAdminDatabaseRestorePointsCreateRoute(app, deps);
@@ -77,7 +77,7 @@ test("recovery routes: disclosure is 403 for a caller without backup.read", asyn
   const deps: RouteDeps = { ...createRouteDeps(), authorize: async () => ({ allowed: false, reason: "insufficient role" }) };
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
   registerAdminRecoveryDisclosureRoute(app, deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -129,7 +129,7 @@ test("recovery routes: disclosure 500s with the concealed incident envelope (no 
   };
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
   registerAdminRecoveryDisclosureRoute(app, deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -151,7 +151,7 @@ test("recovery routes: disclosure 500s with a generic message when a non-Error i
   };
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
   registerAdminRecoveryDisclosureRoute(app, deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -171,7 +171,7 @@ test("recovery routes: disclosure renders real counts once the watermark baselin
   deps.disclosureWatermarkSource.getCategoryCounts = async () => ({ posts_pages: 7 });
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
   registerAdminRecoveryDisclosureRoute(app, deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

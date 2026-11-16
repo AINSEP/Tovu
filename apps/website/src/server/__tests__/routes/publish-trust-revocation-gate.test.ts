@@ -131,7 +131,7 @@ async function tokenFor(socketPath: string): Promise<string> {
       sourceInstallationId: SOURCE_INSTALL,
       generation: 1,
       capabilities: [...CAPABILITIES],
-      signatureB64u: key.sign(message),
+      signatureB64u: key.sign({ message }),
     }),
   });
   assert.equal(sessionRes.status, 200, sessionRes.body);

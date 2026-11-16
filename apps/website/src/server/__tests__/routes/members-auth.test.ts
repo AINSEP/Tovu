@@ -42,13 +42,13 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps; membersDeps: M
   };
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminMemberListRoute(app, membersDeps);
-  registerAdminMemberGetRoute(app, membersDeps);
-  registerAdminMemberDisableRoute(app, membersDeps);
-  registerAdminMemberRequestMagicLinkRoute(app, membersDeps);
+  registerAdminMemberListRoute({ app, deps: membersDeps });
+  registerAdminMemberGetRoute({ app, deps: membersDeps });
+  registerAdminMemberDisableRoute({ app, deps: membersDeps });
+  registerAdminMemberRequestMagicLinkRoute({ app, deps: membersDeps });
   return { app, deps, membersDeps };
 }
 

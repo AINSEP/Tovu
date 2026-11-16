@@ -71,9 +71,9 @@ function buildTestApp(options: BuildOptions = {}): { app: express.Express; deps:
   const deps = probeDeps as unknown as RouteDeps;
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
-  if (options.limiter) registerAdminExternalMcpProbeRoute(app, probeDeps, options.limiter);
+  if (options.limiter) registerAdminExternalMcpProbeRoute({ app, deps: probeDeps, limiter: options.limiter });
   createExternalMcpModule(deps).registerRoutes?.({ app });
   return { app, deps };
 }

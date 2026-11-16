@@ -191,7 +191,7 @@ function harness() {
         } });
         const app = express();
         app.use(express.json());
-        registerAuthRoutes(app, deps);
+        registerAuthRoutes({ app, deps });
         // A fresh, empty store: none of this file's requests carry an exchangeId, so the local-first
         // delivery branch never triggers and every request still reaches the stand-in daemon exactly
         // as before — see `modules/assistant.ts`'s own doc for why the real store must be shared with

@@ -1303,25 +1303,25 @@ test("firstExportFailure: checks routes before assets when both have failures", 
  * to exercise that combination at all.
  */
 test("redirectOutcomeFor: a non-3xx status is not a redirect", () => {
-  assert.deepEqual(redirectOutcomeFor(200, null, undefined), { kind: "failed", reason: "expected a 3xx redirect response, got 200" });
+  assert.deepEqual(redirectOutcomeFor({ status: 200, locationHeader: null, manifestTarget: undefined }), { kind: "failed", reason: "expected a 3xx redirect response, got 200" });
 });
 
 /** Branch-coverage fill (2026-09-04): `status < 300 || status >= 400` — the test above only ever
  *  proves the LOW side of this OR (200). This proves the HIGH side independently. */
 test("redirectOutcomeFor: a status of 400 or above is ALSO not a redirect, independent of the below-300 case", () => {
-  assert.deepEqual(redirectOutcomeFor(500, null, undefined), { kind: "failed", reason: "expected a 3xx redirect response, got 500" });
+  assert.deepEqual(redirectOutcomeFor({ status: 500, locationHeader: null, manifestTarget: undefined }), { kind: "failed", reason: "expected a 3xx redirect response, got 500" });
 });
 
 test("redirectOutcomeFor: a 3xx with a Location header redirects to it, even when a manifest fallback is also present", () => {
-  assert.deepEqual(redirectOutcomeFor(302, "/from-header", "/fallback-target"), { kind: "redirect-to", location: "/from-header" });
+  assert.deepEqual(redirectOutcomeFor({ status: 302, locationHeader: "/from-header", manifestTarget: "/fallback-target" }), { kind: "redirect-to", location: "/from-header" });
 });
 
 test("redirectOutcomeFor: a 3xx with no Location header falls back to the manifest's redirectTarget", () => {
-  assert.deepEqual(redirectOutcomeFor(302, null, "/fallback-target"), { kind: "redirect-to", location: "/fallback-target" });
+  assert.deepEqual(redirectOutcomeFor({ status: 302, locationHeader: null, manifestTarget: "/fallback-target" }), { kind: "redirect-to", location: "/fallback-target" });
 });
 
 test("redirectOutcomeFor: a 3xx with neither a Location header nor a manifest redirectTarget fails", () => {
-  assert.deepEqual(redirectOutcomeFor(302, null, undefined), { kind: "failed", reason: "redirect response carried no Location header" });
+  assert.deepEqual(redirectOutcomeFor({ status: 302, locationHeader: null, manifestTarget: undefined }), { kind: "failed", reason: "redirect response carried no Location header" });
 });
 
 test("exportSite: a redirect-kind route whose live response is intercepted into a non-3xx is reported as a route failure", async (t) => {

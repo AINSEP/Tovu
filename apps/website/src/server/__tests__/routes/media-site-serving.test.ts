@@ -63,11 +63,11 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   deps.themes = [declarativeTheme()];
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
   createContentModule(deps).registerRoutes?.({ app });
   createMediaModule(deps).registerRoutes?.({ app });
-  registerSiteRoutes(app, deps);
+  registerSiteRoutes({ app, deps });
   return { app, deps };
 }
 

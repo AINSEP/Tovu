@@ -92,7 +92,7 @@ test("plugin_toggled identifies the plugin family and direction without settings
   const baseDeps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, baseDeps);
+  registerAuthRoutes({ app, deps: baseDeps });
   app.use("/api/admin", requireAdminSession(baseDeps));
   registerPluginSetEnabledRoute(app, {
     notifyRosterChanged: baseDeps.notifyRosterChanged,

@@ -127,7 +127,7 @@ async function handshakeOver(
     sourceInstallationId: SOURCE_INSTALL,
     generation: 1,
     capabilities: [...CAPABILITIES],
-    signatureB64u: options.omitSignature ? "" : key.sign(message),
+    signatureB64u: options.omitSignature ? "" : key.sign({ message }),
   };
 
   const sessionRes = await fetch(`${baseUrl}/api/publish-trust/v1/session`, {
@@ -165,7 +165,7 @@ async function directGateFixture(
   _options: Record<string, never> = {}
 ) {
   const key = await sourceKey();
-  const parsed = parseGrantDocument(grantDocument(key.publicKeyB64u));
+  const parsed = parseGrantDocument({ text: grantDocument(key.publicKeyB64u) });
   assert.equal(parsed.ok, true);
   const resolution: PublishTrustResolution = { state: "configured", origin: "env", grants: parsed.grants, reason: null };
   const deps: PublishTrustAuthDeps = {

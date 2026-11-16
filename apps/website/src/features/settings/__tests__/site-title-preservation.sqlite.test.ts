@@ -15,8 +15,8 @@ for (const useKernel of [false, true]) {
     await store.markPreserved({ workspaceId: "ws-a", preservedAt: "2026-10-01T12:00:00.000Z" });
     assert.deepEqual(db.$client.prepare("SELECT workspace_id, preserved_at FROM site_title_preexisting_workspaces ORDER BY workspace_id").all(),
       [{ workspace_id: "ws-a", preserved_at: "2026-10-01T12:00:00.000Z" }, { workspace_id: "ws-b", preserved_at: null }]);
-    assert.equal(await store.isPending("ws-a"), false);
-    assert.equal(await store.isPending("ws-b"), true);
-    assert.equal(await store.isPending("absent"), false);
+    assert.equal(await store.isPending({ workspaceId: "ws-a" }), false);
+    assert.equal(await store.isPending({ workspaceId: "ws-b" }), true);
+    assert.equal(await store.isPending({ workspaceId: "absent" }), false);
   });
 }

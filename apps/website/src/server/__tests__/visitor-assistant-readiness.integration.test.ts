@@ -46,7 +46,7 @@ async function boot({ t }: { t: import("node:test").TestContext }, _options = {}
   });
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
   createAssistantSettingsModule(deps).registerRoutes?.({ app });
   registerAdminSettingsSetRoute({ app, deps });
@@ -60,7 +60,7 @@ async function boot({ t }: { t: import("node:test").TestContext }, _options = {}
     tokens: {}, tokensLight: {}, pages: {}, partials: {}, templates: { home: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Visitor readiness page" }] }] } },
     liquidTemplates: {}, handlebarsTemplates: {}, dir: "/nonexistent/visitorai-test", css: "", source: "site", status: "valid", errors: [] }];
   deps.themes = themes;
-  registerSiteRoutes(app, deps);
+  registerSiteRoutes({ app, deps });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   return { deps, baseUrl, cookie, providerCalls: () => providerCalls };
 }

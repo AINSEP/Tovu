@@ -248,7 +248,7 @@ test("media original video route: an anonymous caller is 404'd for a video whose
     assert.equal(extendedAnon.headers.get("cache-control"), "private, no-store");
     assert.deepEqual(await extendedAnon.json(), anonBody);
 
-    deps.memberSessionRepo = new InMemoryMemberSessionRepo([activeMemberSession(deps.workspaceId)]);
+    deps.memberSessionRepo = new InMemoryMemberSessionRepo({}, { initialRows: [activeMemberSession(deps.workspaceId)] });
     const memberRes = await fetch(`${baseUrl}/m/${media.id}/original`, {
       headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` },
     });

@@ -43,7 +43,7 @@ function buildPublicSiteApp(): { app: express.Express; deps: CommerceSiteTestDep
   // store/products must precede `registerSiteRoutes`'s `/:slug` catch-all.
   createSeoModule(deps).registerRoutes?.({ app });
   registerProductRoutes(app, deps);
-  registerSiteRoutes(app, deps);
+  registerSiteRoutes({ app, deps });
   return { app, deps };
 }
 
