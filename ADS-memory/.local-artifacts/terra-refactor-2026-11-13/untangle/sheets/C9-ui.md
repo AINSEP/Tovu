@@ -83,3 +83,10 @@ Jini: NEW `ui/src/react/kit.tsx`, `ui/src/react/__tests__/{fake-ui-kit.tsx,kit.u
 - `ui/src/features/source-config-list/react/components/SourceConfigField.tsx:5` `useSecretReveal as useSecretInputReveal` from `../../../../react/components/SecretInput.hooks.js` → `../../../../react/kit.js`.
 - **chat** `react/features/chat-pane/components/AgentRuntimePicker.tsx:5` `useOverlayContainer` from `@jini-ai/ui` → `@jini-ai/ui-kit/react` (chat already depends on `@jini-ai/ui-kit`, `package.json:250`; interim until C9b/R4 gives chat its own kit slot). This puts one chat file in C9-ui's pass; no other wave-B lane edits that file's line 5 (C2 row 58 edits its `@jini-ai/agentic` line, a different statement).
 - `SecretInput.hooks.ts` holds only its comment after the DROP: delete the file (`git rm`).
+
+## r2-sheets-b revision (2026-11-15; Codex review r2; wins over everything above)
+1. **`ui/src/index.ts:154` re-exports ui's OWN facade** (row 5 repoints to `./react/kit.js`; coordinator adds `UiKitProvider, type UiKit` to that line). That is not a shell (the facade is defined in ui). The chat `AgentRuntimePicker.tsx` row is deleted: chat keeps its `@jini-ai/ui` import (no new injection-debt key); C9b moves it to the chat kit.
+2. Row `SecretInput.hooks.ts` DROP deleted from the TSV (the lane deletes the file; a DROP on a missing file is STALE); `git rm` after B1 if it still exists.
+3. Guards: the 7 files are TSV-applied, not hand-edited; blob mismatch is not a STOP (Select.tsx is already `006d6240`). Content check in `../followups/C9-ui.md` A1.
+4. Fake `SecretInput` forwards `ref`. Test wrappers land with wave B (ui + chat `ui-kit-render-support.tsx`, real ui-kit bound test-only). Examples' roots mount `UiKitProvider`.
+5. **Known latent gap:** chat `embed-widget/react/embed.tsx` (`mountEmbedChat`, no callers in Tovu/examples) renders ChatPane, whose runtime picker and QuestionForm now need `UiKitProvider`; mounting one there would add a chat→ui debt key (gate forbids growth). C9b fixes it via the chat kit. Steps: **`../followups/C9-ui.md`**.

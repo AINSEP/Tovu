@@ -7,3 +7,6 @@ Planning only, 2026-11-15. Not part of `C2.md` (another agent owns it); runs aft
 - **Repoint** (`C2-addendum.repoint.tsv`, 6 Jini files, 0 Tovu): ui-kit `react/SecretInput.tsx`, `react/agent-attrs.hooks.ts`, `react/native/Controls.hooks.ts` (ui-kit → core is a base edge), and ui `react/components/SecretInput.tsx:3` (removes one of ui's 7 `ui → ui-kit` lines, so C9-ui's kit no longer needs it).
 - **Tests:** `ui-kit/src/attrs.test.ts` (2 cases, both this function) moves to `core/src/agent-handles/__tests__/secret-attrs.test.ts`.
 - **Gate:** core purity rule passes on the new file; no `@jini-ai/ui-kit` import remains for this name.
+
+## r2-sheets-b revision (2026-11-15; Codex review r2; wins over everything above)
+- ui-kit gains `"dependencies": { "@jini-ai/core": "workspace:^" }` (3 runtime imports of `@jini-ai/core/agent-handles`); coordinator updates the lockfile. Applied by `../followups/C2.md` A1.

@@ -23,14 +23,26 @@
 //             already carry type arguments stay). Applies to type references and extends/implements. Clauses, `;`-separated:
 //             `add import [type] { A, B } from "spec"` (also `add/merge import ...`: merged into an existing import of that
 //             spec, else a new statement after the last import), or the notes `core`, `every bare type use`, `X from core`.
-//             Any other identifier the template needs must already be bound in the file, else the row is STALE.
+//             Any other identifier the template needs must already be bound in the file (or be a TypeScript lib global
+//             such as HTMLElement), else the row is STALE.
 //   same spec (new_spec == old_spec) with `Old->New`: in-place rename of the imported name (and its uses, or the alias
 //             kept with the `(... as ...)` hint); works for import, export-from and inline import('<spec>').Old rows.
 //   Unknown syntax in the rename column, or an `action` that is not an UPPER-CASE label (`SK-CORE+MOVE`), is a GrammarError:
 //   printed as ERROR, nothing written, exit 1 (v1 silently ignored `=>`).
 // A row whose names are in neither old_spec nor new_spec's statement is STALE: the run prints it, writes nothing, exits 1.
-// Known limits: no scope analysis for renames (a declaration of the same name in the file is a STOP instead);
-// DROP rows with names absent count as already applied (cannot tell stale from done).
+// v3 (Codex review r2):
+//   - renames and templates resolve each use with the TypeScript checker (one file, no lib): shadowed bindings
+//     (params, locals, type parameters, destructuring, catch, class/function names) are left alone; a binding of the
+//     new name (or of a template identifier) that would capture a use is STALE; an unresolvable use is STALE.
+//   - "already applied" needs the row's full postcondition (imported name, alias, type-only form when the row says
+//     `type`, in new_spec; for a template, every use transformed), else STALE.
+//   - templates and every changed file are parsed: a parse error in the template is a GrammarError, a new parse error
+//     in the output is STALE (GrammarError for template rows). Templates on import()/vi.mock/export-from/DROP rows and
+//     a new_spec that is not a module specifier are GrammarErrors.
+//   - moved names keep their statement form: `import type { T }` stays declaration-level, `import { type T }` inline.
+//   - writes are staged (temp file + rename per file, both repos); any failure rolls every file back.
+//   - rows of one file apply in TSV order (later rows see earlier results).
+// Known limits: DROP rows with names absent count as already applied (cannot tell stale from done).
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -38,7 +50,14 @@ import { pathToFileURL } from 'node:url';
 
 const require = createRequire(import.meta.url);
 
+let tsCache;
 export function loadTs() {
+  if (tsCache) return tsCache;
+  tsCache = findTs();
+  return tsCache;
+}
+
+function findTs() {
   const roots = [
     process.env.TS_PATH,
     '/Users/la/Programming/jini-terra-base/node_modules/typescript',
@@ -103,6 +122,18 @@ function parseTemplate(rename) {
   if (!/^\w+<[\w<>, ]+>$/.test(text) || text.split('<').length !== text.split('>').length) throw new GrammarError(`bad template '${text}' in rename '${rename}'`);
   if (!new RegExp(`^${old}<`).test(text)) throw new GrammarError(`template '${text}' must start with '${old}<' (rename '${rename}')`);
   if (placeholder && !new RegExp(`\\b${placeholder}\\b`).test(text.slice(old.length))) throw new GrammarError(`placeholder ${placeholder} unused in '${text}'`);
+  const ts = loadTs();
+  const probe = ts.createSourceFile('template.ts', `type __T = ${text};`, ts.ScriptTarget.Latest, true);
+  const alias = probe.statements[0];
+  let trailingComma = false; // a checker (not parser) error in TypeScript, so look for it here
+  const walk = (n) => {
+    if (n.typeArguments?.hasTrailingComma) trailingComma = true;
+    ts.forEachChild(n, walk);
+  };
+  walk(probe);
+  if (probe.parseDiagnostics.length || trailingComma || probe.statements.length !== 1 || !ts.isTypeAliasDeclaration(alias) || !ts.isTypeReferenceNode(alias.type) || alias.type.typeName.getText(probe) !== old || !alias.type.typeArguments?.length) {
+    throw new GrammarError(`template '${text}' is not a valid TypeScript type reference to ${old}<...> (rename '${rename}')`);
+  }
   const idents = [...new Set(text.match(/[A-Za-z_]\w*/g))].filter((i) => i !== old && i !== placeholder && !BUILTIN_TYPES.has(i));
   return { old, placeholder, text, idents, adds: parseClauses(clauses, rename) };
 }
@@ -130,13 +161,21 @@ function checkAction(action) {
   if (a && !/^[A-Z0-9][A-Z0-9+-]*$/.test(a)) throw new GrammarError(`unknown syntax in action '${a}' (expected a label like SK-CORE+MOVE)`);
 }
 
-function applyEdits(text, edits) {
+
+const SPEC = /^(?:\.{1,2}|\.{1,2}\/[^\s'"`(),;+]*|@[\w.-]+\/[^\s'"`(),;+]*|node:[^\s'"`(),;+]+|[A-Za-z0-9_][^\s'"`(),;+]*)$/;
+
+/** new_spec must be a module specifier (or DROP/-/KEEP/MANUAL, handled earlier); prose such as `C1+ (see ...)` is a GrammarError. */
+function checkSpec(target) {
+  if (!SPEC.test(target)) throw new GrammarError(`new_spec '${target}' is not a module specifier (use DROP, KEEP or MANUAL and put the text in note)`);
+}
+
+function applyEdits(text, edits, eol = '\n') {
   const sorted = [...edits].sort((a, b) => b.start - a.start || b.end - a.end);
   for (let i = 1; i < sorted.length; i++) {
     if (sorted[i].end > sorted[i - 1].start) throw new Error('internal: overlapping edits');
   }
   let out = text;
-  for (const e of sorted) out = out.slice(0, e.start) + e.text + out.slice(e.end);
+  for (const e of sorted) out = out.slice(0, e.start) + (eol === '\n' ? e.text : e.text.replace(/\r?\n/g, eol)) + out.slice(e.end);
   return out;
 }
 
@@ -145,6 +184,9 @@ function scriptKind(ts, file) {
   if (/\.(js|mjs|cjs)$/.test(file)) return ts.ScriptKind.JS;
   return ts.ScriptKind.TS;
 }
+
+const parseSf = (ts, file, text) => ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, scriptKind(ts, file));
+const lineOf = (sf, n) => sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1;
 
 function lineEndAfter(text, pos) {
   if (text[pos] === '\r' && text[pos + 1] === '\n') return pos + 2;
@@ -158,6 +200,99 @@ function deleteStatement(text, node, sf) {
   while (ls > 0 && (text[ls - 1] === ' ' || text[ls - 1] === '\t')) ls--;
   const atLineStart = ls === 0 || text[ls - 1] === '\n';
   return { start: atLineStart ? ls : start, end: lineEndAfter(text, node.end), text: '' };
+}
+
+// ---- scope: one-file TypeScript checker (no lib, no module resolution) ----
+
+/** Lazily builds a checker over `sf` alone; imports stay unresolved aliases, which is all the scope checks need. */
+function makeScope(ts, sf) {
+  let checker;
+  return () => {
+    if (!checker) {
+      const host = {
+        getSourceFile: () => sf,
+        getDefaultLibFileName: () => '/__no-lib__.d.ts',
+        writeFile() {},
+        getCurrentDirectory: () => '/',
+        getCanonicalFileName: (f) => f,
+        useCaseSensitiveFileNames: () => true,
+        getNewLine: () => '\n',
+        fileExists: () => true,
+        readFile: () => undefined,
+      };
+      const options = { noLib: true, noResolve: true, types: [], allowJs: true, jsx: ts.JsxEmit.Preserve };
+      checker = ts.createProgram({ rootNames: [sf.fileName], options, host }).getTypeChecker();
+    }
+    return checker;
+  };
+}
+
+const anyMeaning = (ts) => ts.SymbolFlags.Value | ts.SymbolFlags.Type | ts.SymbolFlags.Namespace | ts.SymbolFlags.Alias;
+
+/** Identifier positions that never refer to a binding: member names, labels, import('x') qualifiers. */
+function isNonReference(ts, n) {
+  const p = n.parent;
+  if (!p) return true;
+  if (ts.isQualifiedName(p) && p.right === n) return true;
+  const named = ts.isPropertyAccessExpression(p) || ts.isPropertyAssignment(p) || ts.isPropertySignature(p) || ts.isPropertyDeclaration(p) || ts.isMethodDeclaration(p) || ts.isMethodSignature(p) || ts.isGetAccessor(p) || ts.isSetAccessor(p) || ts.isEnumMember(p) || ts.isJsxAttribute(p);
+  if (named && p.name === n) return true;
+  if (ts.isBindingElement(p) && p.propertyName === n) return true;
+  if (ts.isImportTypeNode(p) || ts.isMetaProperty(p)) return true;
+  return ts.isLabeledStatement(p) || ts.isBreakStatement(p) || ts.isContinueStatement(p);
+}
+
+function refSymbol(ts, c, id) {
+  const p = id.parent;
+  if (ts.isShorthandPropertyAssignment(p) && p.name === id) return c.getShorthandAssignmentValueSymbol(p);
+  if (ts.isExportSpecifier(p) && (p.propertyName ?? p.name) === id) return c.getExportSpecifierLocalTargetSymbol(p);
+  return c.getSymbolAtLocation(id);
+}
+
+/** Reference identifiers spelled `name`, outside import / export-from statements. */
+function referenceIds(ts, sf, name) {
+  const out = [];
+  const walk = (n) => {
+    if (ts.isImportDeclaration(n) || (ts.isExportDeclaration(n) && n.moduleSpecifier)) return;
+    if (ts.isIdentifier(n) && n.text === name && !isNonReference(ts, n)) out.push(n);
+    ts.forEachChild(n, walk);
+  };
+  walk(sf);
+  return out;
+}
+
+/** The uses of binding `sym` (spelled `local`). Same-spelled identifiers bound elsewhere (shadowing) are left out; an unresolvable one is STALE. */
+function usesOf(ts, sf, check, local, sym) {
+  const c = check();
+  return referenceIds(ts, sf, local).filter((id) => {
+    const s = refSymbol(ts, c, id);
+    if (!s) throw new StaleRowError(`cannot resolve \`${local}\` at line ${lineOf(sf, id)} (scope unclear; rename by hand)`);
+    return s === sym;
+  });
+}
+
+/** Renaming to `to` must not capture: no binding of `to` (other than `allowed`) visible at a use or at top level, and no free use of `to`. */
+function checkCapture(ts, sf, check, uses, to, allowed) {
+  const c = check();
+  const ok = (x) => allowed.includes(x);
+  for (const u of uses) {
+    const x = c.resolveName(to, u, anyMeaning(ts), false);
+    if (x && !ok(x)) throw new StaleRowError(`renaming to \`${to}\` would capture the use at line ${lineOf(sf, u)}: a binding of \`${to}\` is in scope there (rename by hand)`);
+  }
+  const top = c.resolveName(to, sf.endOfFileToken, anyMeaning(ts), false);
+  if (top && !ok(top)) throw new StaleRowError(`name conflict: the file already binds \`${to}\` (rename by hand)`);
+  for (const id of referenceIds(ts, sf, to)) {
+    if (!refSymbol(ts, c, id)) throw new StaleRowError(`\`${to}\` is used free at line ${lineOf(sf, id)}; the rename would capture it (rename by hand)`);
+  }
+}
+
+function renameUseEdits(ts, sf, uses, to) {
+  return uses.map((n) => {
+    const p = n.parent;
+    const at = { start: n.getStart(sf), end: n.end };
+    if (ts.isShorthandPropertyAssignment(p) && p.name === n) return { ...at, text: `${n.text}: ${to}` };
+    if (ts.isExportSpecifier(p) && !p.propertyName) return { ...at, text: `${to} as ${n.text}` };
+    return { ...at, text: to };
+  });
 }
 
 // ---- generic import / export-from statements ----
@@ -187,10 +322,22 @@ const elInfo = (K, d, el) => ({
   first: (el.propertyName ?? el.name).text,
   second: el.name.text,
   hasAlias: !!el.propertyName,
+  declType: K.declType(d),
   typeOnly: !!el.isTypeOnly || K.declType(d),
 });
 
 const nameMatches = (n, info) => info.first === n.first && (n.second === undefined || info.second === n.second);
+
+/** What a done row leaves in the destination: imported name, local name, and the type-only form when the row says `type`. */
+function expectedBinding(n, r, kind) {
+  const first = r ? r.to : n.first;
+  let second = first;
+  if (n.second !== undefined) second = n.second;
+  else if (r && r.aliasMode && kind === 'import') second = n.first;
+  return { first, second, type: n.type };
+}
+
+const satisfies = (info, want) => info.first === want.first && info.second === want.second && (!want.type || info.typeOnly);
 
 function removalEdits(text, sf, K, d, removedEls) {
   const b = K.bindings(d);
@@ -242,70 +389,51 @@ function appendEdit(text, sf, K, d, strs) {
   return { start: last.end, end: last.end, text: strs.map((s) => `,\n${indent}${s}`).join('') };
 }
 
-function useRenameEdits(ts, sf, renames) {
-  const edits = [];
-  const conflict = (p, id) =>
-    (ts.isVariableDeclaration(p) || ts.isParameter(p) || ts.isFunctionDeclaration(p) || ts.isClassDeclaration(p) || ts.isBindingElement(p) || ts.isTypeAliasDeclaration(p) || ts.isInterfaceDeclaration(p)) && p.name === id;
-  const walk = (n) => {
-    if (ts.isImportDeclaration(n) || (ts.isExportDeclaration(n) && n.moduleSpecifier)) return;
-    if (ts.isIdentifier(n) && renames.has(n.text)) {
-      const { to } = renames.get(n.text);
-      const p = n.parent;
-      const isMemberName = p && p.name === n && (ts.isPropertyAccessExpression(p) || ts.isPropertyAssignment(p) || ts.isPropertySignature(p) || ts.isPropertyDeclaration(p) || ts.isMethodDeclaration(p) || ts.isMethodSignature(p) || ts.isGetAccessor(p) || ts.isSetAccessor(p) || ts.isEnumMember(p) || ts.isJsxAttribute(p));
-      if (conflict(p, n)) throw new StaleRowError(`name conflict: the file declares its own \`${n.text}\` (rename by hand)`);
-      if (p && ts.isQualifiedName(p) && p.right === n) {
-        /* member name */
-      } else if (isMemberName || (p && ts.isBindingElement(p) && p.propertyName === n) || (p && ts.isImportTypeNode(p))) {
-        /* not a use of the binding */
-      } else if (p && ts.isShorthandPropertyAssignment(p) && p.name === n) {
-        edits.push({ start: n.getStart(sf), end: n.end, text: `${n.text}: ${to}` });
-      } else if (p && ts.isExportSpecifier(p)) {
-        if (!p.propertyName) edits.push({ start: n.getStart(sf), end: n.end, text: `${to} as ${n.text}` });
-        else if (p.propertyName === n) edits.push({ start: n.getStart(sf), end: n.end, text: to });
-      } else {
-        edits.push({ start: n.getStart(sf), end: n.end, text: to });
-      }
-    }
-    ts.forEachChild(n, walk);
-  };
-  walk(sf);
-  return edits;
-}
-
-function applyNamedRow(ts, text, sf, row, parsed, drop) {
-  const K = makeKind(ts, parsed.kind);
-  const names = parseNames(row.names);
-  const { map: renames, template } = parseRename(row.rename);
-  const decls = K.decls(sf);
-  const olds = decls.filter((d) => d.moduleSpecifier.text === parsed.spec);
-  const dests = drop ? [] : decls.filter((d) => d.moduleSpecifier.text === row.new_spec);
+/** Split the row's names into those still in old_spec (to move) and those whose postcondition already holds in new_spec. */
+function locateNames(K, parsed, row, names, renames, olds, dests, drop) {
   const moved = [];
-  let already = 0;
+  const done = [];
   for (const n of names) {
     let found = null;
     for (const d of olds) {
       const b = K.bindings(d);
       if (!b) continue;
-      const hit = b.elements.map((e) => elInfo(K, d, e)).find((i) => nameMatches(n, i) && !moved.some((m) => m.el === i.el));
-      if (hit) {
-        found = hit;
-        break;
-      }
+      found = b.elements.map((e) => elInfo(K, d, e)).find((i) => nameMatches(n, i) && !moved.some((m) => m.el === i.el));
+      if (found) break;
     }
     if (found) {
       moved.push(found);
       continue;
     }
-    const probe = renames.get(n.first)?.to ?? n.first;
-    const done = dests.some((d) => K.bindings(d)?.elements.some((e) => (e.propertyName ?? e.name).text === probe || e.name.text === probe));
-    if (drop || done) already++;
-    else throw new StaleRowError(`names not found in ${parsed.kind === 'import' ? 'import' : 'export-from'} of '${parsed.spec}': ${n.first}`);
+    if (drop) {
+      done.push({ n });
+      continue;
+    }
+    const want = expectedBinding(n, renames.get(n.first), parsed.kind);
+    const hit = dests.flatMap((d) => K.bindings(d).elements.map((e) => elInfo(K, d, e))).find((i) => satisfies(i, want));
+    if (!hit) throw new StaleRowError(`names not found in ${parsed.kind === 'import' ? 'import' : 'export-from'} of '${parsed.spec}', and '${row.new_spec}' has no ${want.type ? 'type ' : ''}${want.first}${want.second !== want.first ? ` as ${want.second}` : ''}: ${n.first}`);
+    done.push({ n, hit });
+  }
+  return { moved, done };
+}
+
+function applyNamedRow(ts, text, sf, check, row, parsed, drop) {
+  const K = makeKind(ts, parsed.kind);
+  const names = parseNames(row.names);
+  const { map: renames, template } = parseRename(row.rename);
+  const decls = K.decls(sf);
+  const olds = decls.filter((d) => d.moduleSpecifier.text === parsed.spec);
+  const dests = drop ? [] : decls.filter((d) => d.moduleSpecifier.text === row.new_spec && K.bindings(d));
+  const { moved, done } = locateNames(K, parsed, row, names, renames, olds, dests, drop);
+  if (template) {
+    const doneT = done.find((x) => x.n.first === template.old);
+    if (doneT) checkTemplateDone(ts, sf, check, template, doneT.hit);
   }
   if (moved.length === 0) return { edits: [], status: 'already' };
 
   const edits = [];
   const items = [];
-  const useRenames = new Map();
+  const useRenames = [];
   for (const m of moved) {
     const r = renames.get(m.first);
     let outFirst = m.first;
@@ -314,7 +442,7 @@ function applyNamedRow(ts, text, sf, row, parsed, drop) {
       outFirst = r.to;
       if (!m.hasAlias) {
         if (r.aliasMode && parsed.kind === 'import') outAlias = m.first;
-        else if (parsed.kind === 'import') useRenames.set(m.second, r);
+        else if (parsed.kind === 'import') useRenames.push({ m, to: r.to });
       }
     }
     if (outAlias === outFirst) outAlias = undefined;
@@ -338,26 +466,18 @@ function applyNamedRow(ts, text, sf, row, parsed, drop) {
   }
   if (drop) return { edits, status: 'applied' };
 
-  // 2. add to the destination
-  const valueItems = items.filter((i) => !i.typeOnly);
-  const typeItems = items.filter((i) => i.typeOnly);
+  // 2. add to the destination; `import type { T }` stays declaration-level, `import { type T }` stays inline (REVIEW N1)
   const has = (d, it) => K.bindings(d).elements.some((e) => elInfo(K, d, e).first === it.outFirst && elInfo(K, d, e).second === (it.outAlias ?? it.outFirst));
   const appends = new Map();
   const leftoverValue = [];
   const leftoverType = [];
-  const pick = (it) => {
-    const usable = dests.filter((d) => K.bindings(d));
-    const valueDest = usable.find((d) => !K.declType(d));
-    const typeDest = usable.find((d) => K.declType(d));
-    return it.typeOnly ? (typeDest ?? valueDest) : valueDest;
-  };
-  for (const it of [...valueItems, ...typeItems]) {
-    const d = pick(it);
+  for (const it of [...items.filter((i) => !i.declType), ...items.filter((i) => i.declType)]) {
+    if (dests.some((x) => has(x, it))) continue;
+    const d = dests.find((x) => K.declType(x) === it.declType);
     if (!d) {
-      (it.typeOnly ? leftoverType : leftoverValue).push(it);
+      (it.declType ? leftoverType : leftoverValue).push(it);
       continue;
     }
-    if (dests.some((x) => K.bindings(x) && has(x, it))) continue;
     if (!appends.has(d)) appends.set(d, []);
     const list = appends.get(d);
     if (!list.some((s) => s.key === it.key)) list.push({ key: it.key, str: elementText(it, K.declType(d)) });
@@ -375,8 +495,21 @@ function applyNamedRow(ts, text, sf, row, parsed, drop) {
   } else if (stmts.length) {
     edits.push({ start: lastOld.end, end: lastOld.end, text: `\n${stmts.join('\n')}` });
   }
-  if (useRenames.size) edits.push(...useRenameEdits(ts, sf, useRenames));
-  if (template) edits.push(...settleInserts(templateEdits(ts, text, sf, template, moved), edits));
+
+  // 3. renamed uses: only references that resolve to the moved import; a binding of the new name in scope is STALE
+  const c = useRenames.length ? check() : null;
+  for (const { m, to } of useRenames) {
+    const sym = c.getSymbolAtLocation(m.el.name);
+    const uses = usesOf(ts, sf, check, m.second, sym);
+    const allowed = dests.flatMap((d) => K.bindings(d).elements.filter((e) => (e.propertyName ?? e.name).text === to && e.name.text === to).map((e) => c.getSymbolAtLocation(e.name)));
+    checkCapture(ts, sf, check, uses, to, allowed);
+    edits.push(...renameUseEdits(ts, sf, uses, to));
+  }
+  if (template) {
+    const m = moved.find((x) => x.first === template.old);
+    if (!m && !done.some((x) => x.n.first === template.old)) throw new StaleRowError(`template names '${template.old}' but the row moves ${moved.map((x) => x.first).join(',')}`);
+    if (m) edits.push(...settleInserts(templateEdits(ts, text, sf, check, template, m), edits));
+  }
   return { edits, status: 'applied' };
 }
 
@@ -432,19 +565,25 @@ function addImportEdits(ts, text, sf, adds, bound) {
 
 const rootIdent = (ts, n) => (ts.isTypeReferenceNode(n) ? n.typeName : ts.isExpressionWithTypeArguments(n) ? n.expression : null);
 
-/** Collect the nodes naming `local` as a type (type reference or extends/implements), outside import/export-from statements. */
-function typeUseSites(ts, sf, local) {
+/** Type uses (type reference or extends/implements) of the binding `sym`, spelled `local`. Shadowed ones are left out; a use nested in another use is STALE. */
+function templateSites(ts, sf, check, local, sym, oldName) {
+  const c = check();
   const sites = [];
   const walk = (n) => {
     if (ts.isImportDeclaration(n) || (ts.isExportDeclaration(n) && n.moduleSpecifier)) return;
     const id = rootIdent(ts, n);
     if (id && ts.isIdentifier(id) && id.text === local) {
-      sites.push(n);
-      return; // nested uses inside the arguments are checked by the caller
+      const s = c.getSymbolAtLocation(id);
+      if (!s) throw new StaleRowError(`cannot resolve type \`${local}\` at line ${lineOf(sf, id)} (scope unclear; rewrite by hand)`);
+      if (s === sym) sites.push(n);
     }
     ts.forEachChild(n, walk);
   };
   walk(sf);
+  const set = new Set(sites);
+  for (const n of sites) {
+    for (let p = n.parent; p; p = p.parent) if (set.has(p)) throw new StaleRowError(`nested use of ${oldName} inside its own type argument at line ${lineOf(sf, n)} (rewrite by hand)`);
+  }
   return sites;
 }
 
@@ -453,24 +592,79 @@ function renderTemplate(t, local, argText) {
   return local + body.slice(t.old.length);
 }
 
-function templateEdits(ts, text, sf, t, moved) {
-  const m = moved.find((x) => x.first === t.old);
-  if (!m) throw new StaleRowError(`template names '${t.old}' but the row moves ${moved.map((x) => x.first).join(',')}`);
-  const sites = typeUseSites(ts, sf, m.second);
+let libGlobalsCache;
+/** Global names declared by TypeScript's own lib files (es*, dom, ...): a template may name them without an import. */
+function libGlobals(ts) {
+  if (libGlobalsCache) return libGlobalsCache;
+  const dir = path.dirname(ts.getDefaultLibFilePath({}));
+  const out = new Set();
+  for (const f of fs.readdirSync(dir).filter((x) => /^lib\..*\.d\.ts$/.test(x))) {
+    const sf = ts.createSourceFile(f, fs.readFileSync(path.join(dir, f), 'utf8'), ts.ScriptTarget.Latest, false);
+    for (const st of sf.statements) {
+      if (ts.isVariableStatement(st)) {
+        for (const d of st.declarationList.declarations) if (ts.isIdentifier(d.name)) out.add(d.name.text);
+      } else if (st.name && ts.isIdentifier(st.name)) out.add(st.name.text);
+    }
+  }
+  libGlobalsCache = out;
+  return out;
+}
+
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** Regex matching a use already in the template's output form (whitespace ignored). */
+function templateOutputRe(t, local) {
+  const body = t.text.slice(t.old.length).replace(/\s+/g, '');
+  if (!t.placeholder) return new RegExp(`^${escapeRe(local + body)}$`);
+  let first = true;
+  const parts = body.split(new RegExp(`\\b${t.placeholder}\\b`)).map(escapeRe);
+  const re = parts.reduce((acc, p, i) => {
+    if (i === 0) return p;
+    const g = first ? '(.+)' : '\\1';
+    first = false;
+    return `${acc}${g}${p}`;
+  }, '');
+  return new RegExp(`^${escapeRe(local)}${re}$`);
+}
+
+/** Template target already in new_spec: every use must be in the output form, else the file is half-done (STALE). */
+function checkTemplateDone(ts, sf, check, t, hit) {
+  const sym = check().getSymbolAtLocation(hit.el.name);
+  const re = templateOutputRe(t, hit.second);
+  for (const n of templateSites(ts, sf, check, hit.second, sym, t.old)) {
+    const args = n.typeArguments ?? [];
+    const transformed = t.placeholder ? re.test(n.getText(sf).replace(/\s+/g, '')) : args.length > 0;
+    if (!transformed) throw new StaleRowError(`${t.old} is already imported from the new spec but the use at line ${lineOf(sf, n)} is not in the template form '${t.text}' (half-applied; fix by hand)`);
+  }
+}
+
+function templateEdits(ts, text, sf, check, t, m) {
+  const c = check();
+  const sym = c.getSymbolAtLocation(m.el.name);
+  const sites = templateSites(ts, sf, check, m.second, sym, t.old);
   const edits = [];
+  const touched = [];
   for (const n of sites) {
     const args = n.typeArguments ? [...n.typeArguments] : [];
     if (t.placeholder ? args.length !== 1 : args.length > 0) {
-      if (t.placeholder) throw new StaleRowError(`${t.old} used with ${args.length} type arguments (need exactly one for <${t.placeholder}>): line ${sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1}`);
+      if (t.placeholder) throw new StaleRowError(`${t.old} used with ${args.length} type arguments (need exactly one for <${t.placeholder}>): line ${lineOf(sf, n)}`);
       continue; // already generic
     }
-    if (args.length && typeUseSites(ts, args[0], m.second).length) throw new StaleRowError(`nested use of ${t.old} inside its own type argument (rewrite by hand)`);
+    touched.push(n);
     edits.push({ start: n.getStart(sf), end: n.end, text: renderTemplate(t, m.second, args.length ? text.slice(args[0].getStart(sf), args[0].end) : '') });
   }
   if (!edits.length) return [];
+  // identifiers the template introduces must mean the top-level binding at every use (no capture by a local / type parameter)
+  for (const ident of t.idents) {
+    const top = c.resolveName(ident, sf.endOfFileToken, anyMeaning(ts), false);
+    for (const n of touched) {
+      const x = c.resolveName(ident, n, anyMeaning(ts), false);
+      if (x && x !== top) throw new StaleRowError(`template identifier \`${ident}\` would be captured by a local binding at line ${lineOf(sf, n)} (rewrite by hand)`);
+    }
+  }
   const bound = boundNames(ts, sf);
   for (const a of t.adds) for (const x of a.names) if (!bound.has(x)) bound.set(x, a.spec);
-  const missing = t.idents.filter((i) => !bound.has(i));
+  const missing = t.idents.filter((i) => !bound.has(i) && !libGlobals(ts).has(i));
   if (missing.length) throw new StaleRowError(`template '${t.text}' needs ${missing.join(', ')}: not bound in the file and no \`add import\` clause names it`);
   return [...edits, ...addImportEdits(ts, text, sf, t.adds, boundNames(ts, sf))];
 }
@@ -492,14 +686,12 @@ function renameElementEdit(ts, sf, info, r, kind) {
 }
 
 /** new_spec == old_spec with `Old->New`: rename the imported (or re-exported) name in place. */
-function applyInPlaceRow(ts, text, sf, row, parsed) {
+function applyInPlaceRow(ts, text, sf, check, row, parsed) {
   const K = makeKind(ts, parsed.kind);
   const names = parseNames(row.names);
   const { map: renames } = parseRename(row.rename);
   const decls = K.decls(sf).filter((d) => d.moduleSpecifier.text === parsed.spec && K.bindings(d));
-  const bound = boundNames(ts, sf);
   const edits = [];
-  const useRenames = new Map();
   let applied = 0;
   for (const n of names) {
     const r = renames.get(n.first);
@@ -507,16 +699,19 @@ function applyInPlaceRow(ts, text, sf, row, parsed) {
     const infos = decls.flatMap((d) => K.bindings(d).elements.map((e) => elInfo(K, d, e)));
     const hit = infos.find((i) => nameMatches(n, i));
     if (!hit) {
-      if (infos.some((i) => i.first === r.to || i.second === r.to)) continue;
-      throw new StaleRowError(`names not found in ${parsed.kind === 'import' ? 'import' : 'export-from'} of '${parsed.spec}': ${n.first}`);
+      const want = expectedBinding(n, r, parsed.kind);
+      if (infos.some((i) => satisfies(i, want))) continue;
+      throw new StaleRowError(`names not found in ${parsed.kind === 'import' ? 'import' : 'export-from'} of '${parsed.spec}' (neither ${n.first} nor the renamed ${want.first}${want.second !== want.first ? ` as ${want.second}` : ''}): ${n.first}`);
     }
     const res = renameElementEdit(ts, sf, hit, r, parsed.kind);
-    if (res.useRename && bound.has(r.to)) throw new StaleRowError(`name conflict: the file already binds \`${r.to}\` (rename by hand)`);
     edits.push(res.edit);
-    if (res.useRename) useRenames.set(hit.second, r);
+    if (res.useRename) {
+      const uses = usesOf(ts, sf, check, hit.second, check().getSymbolAtLocation(hit.el.name));
+      checkCapture(ts, sf, check, uses, r.to, []);
+      edits.push(...renameUseEdits(ts, sf, uses, r.to));
+    }
     applied++;
   }
-  if (useRenames.size) edits.push(...useRenameEdits(ts, sf, useRenames));
   return { edits, status: applied ? 'applied' : 'already' };
 }
 
@@ -581,7 +776,9 @@ function applyStringRow(ts, sf, row, parsed) {
   return { edits, status: 'applied' };
 }
 
-/** Apply one row to a file's text. Returns { text, status: 'applied'|'already'|'skip' }; throws StaleRowError. */
+const KIND_LABEL = { import: 'import', export: 'export-from', star: 'export *', dynimport: "import('')", mock: 'vi.mock' };
+
+/** Apply one row to a file's text. Returns { text, status: 'applied'|'already'|'skip' }; throws StaleRowError / GrammarError. */
 export function applyRowToText(ts, text, file, row) {
   const target = (row.new_spec || '').trim();
   const parsed = parseOldSpec(row.old_spec);
@@ -589,27 +786,43 @@ export function applyRowToText(ts, text, file, row) {
   checkAction(row.action);
   const { map: renames, template } = parseRename(row.rename);
   const drop = target === 'DROP' || target === '-';
+  if (!drop) checkSpec(target);
   const inPlace = !drop && target === parsed.spec;
-  if (inPlace && template) throw new GrammarError(`a type-argument template needs a move (new_spec differs from '${parsed.spec}'): ${row.rename}`);
+  if (template) {
+    if (inPlace) throw new GrammarError(`a type-argument template needs a move (new_spec differs from '${parsed.spec}'): ${row.rename}`);
+    if (drop) throw new GrammarError(`a type-argument template on a DROP row does nothing: ${row.rename}`);
+    if (parsed.kind !== 'import') throw new GrammarError(`type-argument templates work only on import rows, not ${KIND_LABEL[parsed.kind]} rows (rewrite by hand or split the row): ${row.rename}`);
+  }
   if (inPlace && !renames.size) return { text, status: 'skip' };
-  const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, scriptKind(ts, file));
+  const sf = parseSf(ts, file, text);
+  const check = makeScope(ts, sf);
   let r;
   if (parsed.kind === 'star') r = applyStarRow(ts, text, sf, parsed, drop);
-  else if (inPlace && parsed.kind !== 'dynimport' && parsed.kind !== 'mock') r = applyInPlaceRow(ts, text, sf, row, parsed);
+  else if (inPlace && parsed.kind !== 'dynimport' && parsed.kind !== 'mock') r = applyInPlaceRow(ts, text, sf, check, row, parsed);
   else if (parsed.kind === 'dynimport' || parsed.kind === 'mock') r = drop || (inPlace && parsed.kind === 'mock') ? { edits: [], status: 'skip' } : applyStringRow(ts, sf, row, parsed);
-  else r = applyNamedRow(ts, text, sf, row, parsed, drop);
-  return { text: r.edits.length ? applyEdits(text, r.edits) : text, status: r.status };
+  else r = applyNamedRow(ts, text, sf, check, row, parsed, drop);
+  if (!r.edits.length) return { text, status: r.status };
+  const out = applyEdits(text, r.edits, /\r\n/.test(text) ? '\r\n' : '\n');
+  const after = parseSf(ts, file, out).parseDiagnostics;
+  if (after.length > sf.parseDiagnostics.length) {
+    const E = template ? GrammarError : StaleRowError;
+    throw new E(`the edit would leave a TypeScript parse error (${ts.flattenDiagnosticMessageText(after[0].messageText, ' ')}); nothing written`);
+  }
+  return { text: out, status: r.status };
 }
 
 export function readTsv(file) {
-  const lines = fs.readFileSync(file, 'utf8').split('\n').filter((l) => l.trim());
+  const lines = fs.readFileSync(file, 'utf8').split(/\r?\n/);
   const head = lines[0].split('\t');
-  return lines.slice(1).map((l, i) => {
+  const rows = [];
+  lines.forEach((l, i) => {
+    if (i === 0 || !l.trim()) return;
     const cells = l.split('\t');
     const row = Object.fromEntries(head.map((h, k) => [h, cells[k] ?? '']));
-    row._src = `${path.basename(file)}:${i + 2}`;
-    return row;
+    row._src = `${path.basename(file)}:${i + 1}`;
+    rows.push(row);
   });
+  return rows;
 }
 
 function parseArgs(argv) {
@@ -625,7 +838,65 @@ function parseArgs(argv) {
   return o;
 }
 
-export function run(argv, out = console.log) {
+/**
+ * Write every changed file or none: refuse if a file changed on disk since it was read, stage each new text in a temp
+ * file next to its target (same filesystem, mode copied), then rename them in; on any failure the files already renamed
+ * get their original text back (same temp + rename) and the temp files are removed.
+ */
+export function commitFiles(changed, fsi = fs) {
+  for (const r of changed) {
+    if (fsi.readFileSync(r.abs, 'utf8') !== r.orig) throw new Error(`${r.abs} changed on disk since it was read`);
+  }
+  const staged = [];
+  const cleanup = () => {
+    for (const s of staged) {
+      try {
+        if (fsi.existsSync(s.tmp)) fsi.unlinkSync(s.tmp);
+      } catch {
+        /* best effort */
+      }
+    }
+  };
+  const tmpFor = (abs) => path.join(path.dirname(abs), `.${path.basename(abs)}.repoint-${process.pid}.tmp`);
+  try {
+    for (const r of changed) {
+      const s = { r, tmp: tmpFor(r.abs) };
+      staged.push(s);
+      fsi.writeFileSync(s.tmp, r.text);
+      fsi.chmodSync(s.tmp, fsi.statSync(r.abs).mode & 0o7777);
+    }
+  } catch (e) {
+    cleanup();
+    throw new Error(`staging failed (${e.message})`);
+  }
+  const done = [];
+  try {
+    for (const s of staged) {
+      fsi.renameSync(s.tmp, s.r.abs);
+      done.push(s);
+    }
+  } catch (e) {
+    const lost = [];
+    for (const s of done.reverse()) {
+      try {
+        fsi.writeFileSync(s.tmp, s.r.orig);
+        fsi.renameSync(s.tmp, s.r.abs);
+      } catch {
+        lost.push(s.r.abs);
+        try {
+          fsi.writeFileSync(`${s.r.abs}.repoint-orig`, s.r.orig);
+        } catch {
+          /* reported below */
+        }
+      }
+    }
+    cleanup();
+    throw new Error(`rename failed (${e.message}); ${done.length - lost.length} file(s) rolled back${lost.length ? `; COULD NOT RESTORE ${lost.join(', ')} (original saved as <file>.repoint-orig)` : ''}`);
+  }
+}
+
+export function run(argv, out = console.log, deps = {}) {
+  const fsi = deps.fs ?? fs;
   const opt = parseArgs(argv);
   if (!opt.tsv.length || !opt.roots.length) throw new Error('usage: --tsv <files...> --repo-root [repo=]<path> [--phase p] [--dry-run]');
   const ts = loadTs();
@@ -668,13 +939,14 @@ export function run(argv, out = console.log) {
   }
   const results = [];
   for (const [abs, frows] of files) {
-    if (!fs.existsSync(abs)) {
+    if (!fsi.existsSync(abs)) {
       for (const r of frows) stale.push({ row: r, why: 'file not found' });
       continue;
     }
-    const orig = fs.readFileSync(abs, 'utf8');
+    const orig = fsi.readFileSync(abs, 'utf8');
     let text = orig;
     const st = { applied: 0, already: 0 };
+    // rows of one file apply in TSV order: each row sees the text the earlier rows produced
     for (const r of frows) {
       try {
         const res = applyRowToText(ts, text, abs, r);
@@ -690,7 +962,7 @@ export function run(argv, out = console.log) {
     }
     count.applied += st.applied;
     count.already += st.already;
-    results.push({ abs, text, changed: text !== orig, ...st });
+    results.push({ abs, orig, text, changed: text !== orig, ...st });
   }
   for (const r of results) if (r.changed || r.applied) out(`${opt.dry ? 'WOULD APPLY' : 'APPLY'} ${r.abs}: ${r.applied} applied, ${r.already} already`);
   if (manual.length) {
@@ -701,9 +973,19 @@ export function run(argv, out = console.log) {
   for (const s of errors) out(`ERROR row ${s.row._src}: ${s.row.repo}\t${s.row.file}\t${s.row.old_spec}\t${s.row.names}\t${s.row.new_spec} -> ${s.why}`);
   count.stale = stale.length;
   count.error = errors.length;
-  const bad = stale.length + errors.length;
-  if (!bad && !opt.dry) for (const r of results) if (r.changed) fs.writeFileSync(r.abs, r.text);
-  out(`SUMMARY${opt.dry ? ' (dry run, nothing written)' : ''}: rows ${rows.length}; applied ${count.applied}, already ${count.already}, keep ${count.keep}, manual ${count.manual}, other-phase ${count.phase}, STALE ${stale.length}, ERROR ${errors.length}; files changed ${results.filter((r) => r.changed).length}${bad ? '; NOTHING WRITTEN (stale or error rows)' : ''}`);
+  let bad = stale.length + errors.length;
+  let commitFailed = false;
+  if (!bad && !opt.dry) {
+    try {
+      commitFiles(results.filter((r) => r.changed), fsi);
+    } catch (e) {
+      commitFailed = true;
+      bad++;
+      out(`ERROR commit failed: ${e.message}; every file left as it was`);
+    }
+  }
+  const why = commitFailed ? '; NOTHING WRITTEN (commit failed)' : bad ? '; NOTHING WRITTEN (stale or error rows)' : '';
+  out(`SUMMARY${opt.dry ? ' (dry run, nothing written)' : ''}: rows ${rows.length}; applied ${count.applied}, already ${count.already}, keep ${count.keep}, manual ${count.manual}, other-phase ${count.phase}, STALE ${stale.length}, ERROR ${errors.length}; files changed ${results.filter((r) => r.changed).length}${why}`);
   return { count, stale, errors, manual, results, code: bad ? 1 : 0 };
 }
 
