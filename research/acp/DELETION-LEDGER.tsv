@@ -1,0 +1,82 @@
+file	lines_or_symbols	count	class	deletable_under_acp	why	step	callers_and_tests
+# Jini integ/wave-b-r2 @ 02edbb68. AR = packages/agent-runtime/src ; DA = packages/daemon/src/agent-executor. Counted with wc -l and grep -n symbol starts; tests excluded. A range runs from a symbol's first line to the line before the next top-level symbol.
+# class: DELETE = goes when that CLI's native path is deleted (Phase E) ; DELETE-IF = goes only if the named extra step also lands ; SHARED = goes only when its last listed user has left ; RE-EXPRESS = the policy stays and is spelled for the adapter instead of argv (no saving) ; RETAIN = needed with or without ACP ; DEAD = unused today, cleanup unrelated to ACP ; NEVER = CLI has no ACP route ; UNVERIFIED = registry-only CLI, nothing demonstrated
+# --- claude (vendor adapter program) ---
+AR/defs/claude.ts	242-287 buildArgs	46	DELETE	yes	argv for `claude -p --output-format stream-json`; ACP variant has its own short buildArgs	E-claude	def tests for argv order; daemon launch tests that assert Claude argv
+AR/defs/claude.ts	81-88 claudeEffortArgs	8	DELETE	yes	effort moves to the thought_level config option (A7)	E-claude	effort argv tests
+AR/defs/claude.ts	89-108 claudeToolPolicyArgs	20	RE-EXPRESS	no	the deny list is still computed (resolveNativeCapabilityDenies); only `--disallowedTools` spelling changes to adapter options	D2	policy tests stay, gain adapter-shape cases
+AR/defs/claude.ts	109-123 claudeSettingSourcesArgs	15	RE-EXPRESS	no	isolation rule (`settingSources: []`); adapter default is user+project+local (claude-agent-acp src/v1/acp-agent.ts:10040)	D2	same
+AR/defs/claude.ts	124-131 claudeChromeArgs	8	RE-EXPRESS	no	host switch still exists; adapter route for it not verified	D2	same
+AR/defs/claude.ts	132-147 claudeLaunchPolicy	16	RE-EXPRESS	no	folder confinement reaches the engine only through generated settings	D2	same
+AR/defs/claude.ts	1-80,148-241,288-323 models, effort table, def data	210	RETAIN	no	binary, auth probe, model list, capability flags, def fields	-	-
+AR/defs/claude-compatible-args.ts	whole file	47	SHARED	no	sessionArgs/permissionModeArgs/addDirArgs also used by codebuddy and amp	after claude+codebuddy+amp	-
+AR/defs/claude/{auth,executable,model-discovery,types}.ts	whole files	75	RETAIN	no	engine identity, login probe, model discovery	-	-
+AR/claude-filesystem-policy.ts	whole file	243	RETAIN	no	generates the settings that install read blocking and the sandbox; needed by blocker-1 fix	-	-
+AR/claude-code-models.ts	whole file	327	RETAIN	no	model list before a session exists	-	-
+AR/claude-stream.ts	whole file	971	SHARED	no	parser for claude, amp and codebuddy (3 defs with streamFormat claude-stream-json)	after claude+amp+codebuddy	daemon events.ts, contracts.ts, continuation-transport.ts import it
+AR/claude-segment-usage.ts	whole file	101	SHARED	no	cost basis for the same three defs	after claude+amp+codebuddy	-
+DA/claude/config-dir.ts	whole file	176	RETAIN	no	staged CLAUDE_CONFIG_DIR; adapter reads CLAUDE_CONFIG_DIR or ~/.claude (src/paths.ts:6)	-	-
+DA/claude/contracts.ts	whole file	80	RETAIN	no	isolation option types	-	-
+DA/claude/filesystem.ts	whole file	33	RETAIN	no	runtime temp + settings validation for folder-limited runs	-	-
+DA/claude/subagent-start.ts	whole file	40	RE-EXPRESS	no	SubagentStart hook still wanted; adapter merges client hooks	D2	-
+DA/claude/mcp-config.ts	whole file	32	DELETE-IF	only with A8	writes the HTTP .mcp.json; replaced only when the HTTP entry travels in session/new	E-claude after A8	http-mcp.ts:5,65
+DA/claude/mcp-delivery.ts	whole file	84	SHARED	no	claude-mcp-json delivery is also codebuddy's	after claude+codebuddy	mcp-bridge.ts
+# --- codex (vendor adapter program) ---
+AR/defs/codex.ts	393-419 buildArgs	27	DELETE	yes	argv for `codex exec --json`	E-codex	def argv tests
+AR/defs/codex.ts	193-203 CODEX_TURN_COMMAND; 254-258 codexResumeSessionId; 292-298 codexCreateOnlyArgs; 299-312 codexModelArgs	37	DELETE	yes	argv spelling of turn, resume, model and effort; ACP carries these	E-codex	same
+AR/defs/codex.ts	178-189,204-253,259-291 sandbox tier, locked-tools args, capability overrides, codexPolicyArgs	95	RE-EXPRESS	no	the policy table stays; it is spelled as INITIAL_AGENT_MODE and CODEX_CONFIG for the adapter	D1	policy tests stay
+AR/defs/codex.ts	20-177 model catalog parsing	158	RETAIN	no	model and effort list before a session exists	-	-
+AR/defs/codex.ts	1-19,190-192,313-392,420-440 def data	123	RETAIN	no	binary, auth, def fields	-	-
+AR/defs/codex/event-stream.ts	whole file	379	DELETE	yes	only codex selects eventParser 'codex' (defs/codex.ts:429)	E-codex	json-event-stream.ts registration; parser tests
+AR/defs/codex/launch.ts	whole file	162	RETAIN	no	finds the real engine binary behind the node wrapper; the engine is a separate identity that Jini must still pin (CODEX_PATH)	-	launch.ts:21 LAUNCH_ADAPTERS
+AR/defs/codex/{auth,executable,executable-resolution,model-discovery,types}.ts	whole files	57	RETAIN	no	engine identity and login	-	-
+DA/codex/home-staging.ts	whole file	264	RETAIN	no	staged CODEX_HOME; adapter reads and watches CODEX_HOME (src/CodexHomeWatcher.ts)	-	launch.ts:1621
+DA/codex/home-config.ts	whole file	231	RETAIN	no	design keeps Codex MCP delivery inside the staged home; lines 125-221 strip personal MCP and trusted-project tables (security)	-	home-staging.ts
+DA/codex/isolation.ts	whole file	67	RETAIN	no	refusal when personal config cannot be switched off	-	-
+DA/codex/contracts.ts, DA/codex/mcp-delivery.ts	whole files	47	RETAIN	no	types; codex-toml delivery kept	-	-
+# --- antigravity (vendor binary; registry only) ---
+AR/defs/antigravity/index.ts	252-277 buildArgs; 151-178 skipPermissionsArgs, modelArgs, logFileArgs	54	UNVERIFIED	maybe	argv spelling; nothing about agy_acp_server.par was read or run	E-antigravity	-
+AR/defs/antigravity/event-stream.ts	whole file	92	UNVERIFIED	maybe	only antigravity selects eventParser 'antigravity' (index.ts:279)	E-antigravity	-
+AR/defs/antigravity/index.ts	rest (auth URL redaction, model lock, def data)	315	RETAIN	no	redaction and model lock are not transport concerns	-	-
+AR/defs/antigravity/{auth,model-discovery}.ts	whole files	58	RETAIN	no	login, model list	-	-
+DA/antigravity/permissions.ts	whole file	68	UNVERIFIED	maybe	writes an MCP allow rule into agy settings under a lock; whether the ACP binary still reads that file is unknown	-	mcp-bridge.ts:237
+# --- dead code, not an ACP saving ---
+AR/defs/gemini/event-stream.ts	whole file	205	DEAD	n/a	registered as 'legacy-google-stream-json' (json-event-stream.ts:206); no def selects it; Gemini CLI def retired 2026-10-06 (registry.ts comment)	separate cleanup	json-event-stream.ts:206
+DA/gemini/tool-calls.ts	whole file	7	DEAD	n/a	receipt adapter for the same unselected parser (tool-call-receipts.ts:9)	separate cleanup	tool-call-receipts.ts:9
+# --- built-in ACP CLIs ---
+AR/defs/opencode.ts	73-80 buildArgs; 22-26 resumeArgs; 6-21 skip-permissions flag	29	DELETE	yes	argv spelling of run, resume, permission bypass	E-opencode	def argv tests
+AR/defs/opencode.ts	rest	88	RETAIN	no	binary, models, def data	-	-
+AR/defs/opencode/event-stream.ts	whole file	121	SHARED	no	mimo selects the same parser (defs/mimo.ts:22) and has no ACP route	never while mimo stays	-
+AR/opencode-log.ts	whole file	185	RETAIN	no	log-file staging; whether `opencode acp` needs it was not checked, so it is not counted as saved	-	AR/index.ts export
+DA/opencode/mcp-config.ts	7-51 withOpenCodeHttpMcp, mergeOpenCodeHttpMcpConfig	45	DELETE-IF	only if delivery moves to session/new	design keeps OPENCODE_CONFIG_CONTENT delivery for the ACP variant at first	later, after A8	launch.ts:117
+DA/opencode/mcp-config.ts	1-6,52-126 env-content merge, instructions merge	81	SHARED	no	mimo-env-content uses the same merge	never while mimo stays	-
+DA/opencode/{constants,tool-calls}.ts	whole files	10	SHARED	no	receipts for the shared parser	never while mimo stays	-
+AR/defs/cursor-agent.ts	97-105 buildArgs; 47-62 bypassArgs	25	UNVERIFIED	yes if parity holds	argv spelling	E-cursor	-
+AR/defs/cursor-agent/event-stream.ts	whole file	113	UNVERIFIED	yes if parity holds	only cursor-agent uses it	E-cursor	json-event-stream.ts
+AR/defs/cursor-agent.ts + cursor-agent/{auth,executable,model-discovery}.ts	rest	130	RETAIN	no	binary, login, model list parsing	-	-
+AR/defs/qoder.ts	46-53 buildArgs; 7-21 qoderRunArgs, absolutePaths	23	UNVERIFIED	yes if parity holds	argv spelling	E-qoder	-
+AR/qoder-stream.ts	whole file	201	UNVERIFIED	yes if parity holds	only qoder uses it; `streams.qoder` leaves AgentRuntimePort in the same commit	E-qoder	daemon events.ts qoder branch
+AR/defs/qoder.ts + qoder/*	rest	57	RETAIN	no	binary, models	-	-
+AR/defs/qwen.ts	22-34 buildArgs	13	DELETE	yes	plain-text argv	E-qwen	-
+AR/defs/droid.ts	28-39 buildArgs	12	UNVERIFIED	yes if parity holds	plain-text argv	E-droid	-
+AR/defs/grok-build.ts	83-103 buildArgs	21	UNVERIFIED	yes if parity holds	plain-text argv	E-grok	-
+AR/defs/grok-build.ts	25-50 grokModelSupportsReasoningEffort	26	RETAIN	no	effort validity per model is still needed to refuse an unsupported effort	-	-
+AR/defs/codebuddy/index.ts	85-113 buildArgs	29	UNVERIFIED	yes if parity holds	argv spelling; parser and MCP delivery are shared with claude	E-codebuddy	-
+AR/defs/{qwen,droid,grok-build,codebuddy}*	rest	322	RETAIN	no	binary, login, models	-	-
+# --- never ---
+AR/defs/{aider,crush,deepseek,mimo}*, AR/defs/pi.ts, AR/agent-protocol/pi-rpc/, AR/json-event-stream.ts, daemon wireChildLifecycle	all	~1,330 + events.ts:470-950	NEVER	no	no ACP route (pi: only a third-party MVP over the RPC Jini already speaks)	-	-
+# === TOTALS (recomputed from the rows above) ===
+# DELETE, demonstrated-source CLIs (claude 54, codex 443, opencode 29, qwen 13)	539
+# UNVERIFIED but deletable if a live check shows parity (cursor 138, qoder 224, droid 12, grok 21, codebuddy 29, antigravity 146)	570
+# DELETE-IF (claude/mcp-config 32 after A8, opencode HTTP merge 45 if delivery moves, antigravity permissions 68 unverified)	145
+# Gross ceiling, all ten CLIs, every check passing	1,254
+# SHARED, only if amp and codebuddy also leave the Claude stream format (claude-stream 971, segment-usage 101, claude-compatible-args 47, claude/mcp-delivery 84)	1,203
+# DEAD, removable today without ACP (gemini parser 205 + receipt adapter 7)	212
+# ADDED (estimates, DESIGN.md section 4): client work A1-A8 ~400 ; daemon forwarding and teardown ~150 ; one catalog selection + adapter and engine identities ~200 ; Claude and Codex policy-to-adapter mappers ~160 ; ten variants and profiles ~380	~1,290
+# NET without amp leaving Claude stream format: 1,254 - 1,290	about -40 (break-even; range -350 to +250)
+# NET if amp and codebuddy also leave: 2,457 - 1,290	about +1,170
+# === LANE K (the 1,272 lines in DA/{claude,codex,opencode,antigravity,pi,gemini}/) ===
+# RETAIN or RE-EXPRESS under ACP: claude 329 (config-dir 176, contracts 80, filesystem 33, subagent-start 40) + codex 609 (all five files) + opencode 91 + pi 7	1,036 (81%)
+# Deletable ever under ACP: claude/mcp-config 32 + claude/mcp-delivery 84 + opencode HTTP merge 45	161 (13%)
+# UNVERIFIED: antigravity/permissions 68	68 (5%)
+# DEAD today: gemini/tool-calls 7	7 (1%)
