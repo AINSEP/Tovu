@@ -1,4 +1,5 @@
 import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render";
+import { composeMemoryTrash } from "./memory-deps/slices/memory-trash.js";
 import { composePublishContentStores } from "./memory-deps/slices/publish-content-stores.js";
 import { composeNavFormContentRepos } from "./memory-deps/slices/nav-form-content-repos.js";
 import { composeTaxonomyTrashRepos } from "./memory-deps/slices/taxonomy-trash-repos.js";
@@ -39,7 +40,7 @@ import { widgetCollectionListPort } from "../../../features/entries/public-list.
 import { resolveMenuDoc } from "@jini-ai/cms/navigation";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import { readBuiltInExternalMcpServerIds } from "#src/features/external-mcp/built-in-connections";
-import { TRASH_RETENTION_DAYS, bindWidgetRemoval } from "#src/features/trash/index";
+import { bindWidgetRemoval } from "#src/features/trash/index";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import { createHttpClient as createGuardedMediaHttpClient, createNodeGuardedHttpPorts } from "@jini-ai/platform/http/guarded";
@@ -51,10 +52,8 @@ import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability"
 import { createSitemapService } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "#src/features/seo/index";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
-import { COMMENT_ENTITY_TYPE, createDirectoryTrashAdapter, unhideIfRemoveThrows, MEDIA_ENTITY_TYPE, PLUGIN_ENTITY_TYPE, THEME_ENTITY_TYPE, POST_ENTITY_TYPE, REDIRECT_ENTITY_TYPE, removeEntityWithoutBlocker, type TrashKindMover } from "#src/features/trash/index";
-import { bindRemoveEntity, bindForgetRemovedEntity, createTrashService, createTrashSweep } from "@jini-ai/cms/trash";
-import { attachFormAttachmentPurge } from "./memory-deps/slices/form-attachment-purge.js";
-import { composeMemoryTrashAdapters } from "./memory-deps/slices/trash-adapters.js";
+import { COMMENT_ENTITY_TYPE, unhideIfRemoveThrows, MEDIA_ENTITY_TYPE, THEME_ENTITY_TYPE, POST_ENTITY_TYPE, REDIRECT_ENTITY_TYPE, removeEntityWithoutBlocker, type TrashKindMover } from "#src/features/trash/index";
+import { bindRemoveEntity, bindForgetRemovedEntity, createTrashSweep } from "@jini-ai/cms/trash";
 import { createInMemoryRevocations } from "#src/features/publish-trust/revocations";
 import { memoryPublishContentApplyPort, memoryPublishContentPorts } from "./memory-deps/slices/publish-apply.js";
 import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
@@ -129,7 +128,6 @@ import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-in
 import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
 import { createDeclaredContentTypePorts } from "./declared-content-types.js";
 import { deferDeclaredContentTypePorts } from "@jini-ai/plugins/host";
-import { forgetPluginActivations, type RemovePluginFn } from "@jini-ai/plugins/host";
 import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
 import { bindProviderFacePorts, followProviderActivations } from "#src/features/agent-plugins/provider-plugin-link";
 import { composePluginRuntime } from "./plugin-runtime.js";
@@ -259,43 +257,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const { settingsPrincipals, analyticsSettingsReady, settingsReady, commentsSettingsReady, identity, seoReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady } = composeIdentitySettings({ clock, idGen, settingsRepo });
   const { siteTitleSettingsDeps, siteSettingsReady, siteTitleReady, siteTitlePreservationStore } = composeSiteTitleSettings({ settingsRepo, clock, idGen, settingsPrincipals, analyticsSettingsReady });
   const { originRegistry, newsletterListRepoInMemory } = composeOriginNewsletter({ clock });
-  const { taxonomyDb, workspaceId, outbox, redirectRepo, commentRepo, mediaRepo, formSubmissionRepo, entryRepo, sqliteTrashDb, bus, redirectHitSink, assetRenditionRepo, restorePointsRepo } = composeMemoryRepos({  });
+  const { taxonomyDb, workspaceId, outbox, redirectRepo, commentRepo, mediaRepo, formSubmissionRepo, entryRepo, sqliteTrashDb, bus, redirectHitSink, assetRenditionRepo, restorePointsRepo } = composeMemoryRepos();
   const { trashRegistry, termRepo, taxonomyFollowUpTermRepo, trashRepo, taxonomyFollowUpRevisions, taxonomyFollowUpOutbox, taxonomyRepo, entryTermRepo, taxonomyRevisionRepo } = composeTaxonomyTrashRepos({ taxonomyDb, workspaceId, outbox, clock, idGen });
-  const pluginTrashAdapter = createDirectoryTrashAdapter({
-    entityType: PLUGIN_ENTITY_TYPE,
-    locate: ({ entityId }) => pluginRuntime.locatePluginPackageDirs(entityId),
-    forget: ({ entityId }) => forgetPluginActivations({ pluginId: entityId, deps: { repo: pluginActivationRepo } }),
-  });
-  const termTrashEntry = trashRegistry.get("term");
-  const taxonomyTrashEntry = trashRegistry.get("taxonomy");
-  const formTrashEntry = trashRegistry.get("form");
-  if (!termTrashEntry || !taxonomyTrashEntry || !formTrashEntry) throw new Error("memory trash registry is missing a term, taxonomy, or form entry");
-  const taxonomyFollowUps = { termRepo: taxonomyFollowUpTermRepo, trash: trashRepo, revisions: taxonomyFollowUpRevisions, outbox: taxonomyFollowUpOutbox, clock };
-  const trashAdapters = composeMemoryTrashAdapters({
-    pluginTrashAdapter, postRepo, redirectRepo, commentRepo, mediaRepo, formSubmissionRepo, trashRepo, entryRepo,
-    formDefinitionRepo: () => formDefinitionRepo, entryRefsRepo: () => entryRefsRepo,
-    menuRepo: () => menuRepo, navLocationBindingRepo: () => navLocationBindingRepo,
-    term: { entry: termTrashEntry, db: sqliteTrashDb, followUps: taxonomyFollowUps },
-    taxonomy: { entry: taxonomyTrashEntry, db: sqliteTrashDb, followUps: taxonomyFollowUps },
-  });
-  attachFormAttachmentPurge({ adapters: trashAdapters, formSubmissionRepo, mediaRepo, postRepo, clock, idGen, outbox, entryRefsRepo: () => entryRefsRepo, routeDeps: () => routeDeps });
-  const trash = createTrashService({
-    repo: trashRepo,
-    adapters: trashAdapters,
-    idGen: { newId: () => randomUUID() },
-    // Nothing here opens a database transaction, so the runner is a pass-through. The atomicity
-    // guarantee this replaces is a SQLite one; an in-memory store has no partial-write window.
-    transaction: ({ work }) => work(),
-    entityPolicy: ({ entityType }) => (trashAdapters).has(entityType)
-  }, {
-    retentionDays: TRASH_RETENTION_DAYS,
-    onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error)
-  });
-  // Folder moves before the Trash row is written; if that write throws, move the folder back.
-  const removePlugin: RemovePluginFn = unhideIfRemoveThrows({ adapter: pluginTrashAdapter, remove: bindRemoveEntity({
-    trash: trash,
-    entityType: PLUGIN_ENTITY_TYPE
-  }) });
+  const { trash, trashAdapters, formTrashEntry, removePlugin } = composeMemoryTrash({ pluginRuntime, pluginActivationRepo, trashRegistry, taxonomyFollowUpTermRepo, trashRepo, taxonomyFollowUpRevisions, taxonomyFollowUpOutbox, outbox, clock, idGen, postRepo, redirectRepo, commentRepo, mediaRepo, formSubmissionRepo, entryRepo, sqliteTrashDb, formDefinitionRepo: () => formDefinitionRepo, entryRefsRepo: () => entryRefsRepo, menuRepo: () => menuRepo, navLocationBindingRepo: () => navLocationBindingRepo, routeDeps: () => routeDeps });
 
   const redirectsWriteDeps: RedirectsWriteDeps = {
     repo: redirectRepo,
