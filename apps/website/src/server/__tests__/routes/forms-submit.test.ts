@@ -177,7 +177,7 @@ test("live timing: native POST redirects with plain retry copy and restores elig
   assert.equal(response.headers.get("location"), "/contact-page?keep=1&form=contact&form_status=too-fast");
   const flash = parseFlashCookieHeader(response.headers.get("set-cookie")!);
   assert.ok(flash);
-  assert.deepEqual(decodeFormFlashCookieValue(flash.raw), { slug: "contact", values: { name: "Ada <safe>" } });
+  assert.deepEqual(decodeFormFlashCookieValue({ raw: flash.raw }), { slug: "contact", values: { name: "Ada <safe>" } });
   assert.deepEqual((await submissionRepo.listByDefinition({ workspaceId: WORKSPACE_ID, formDefinitionId: "def-1", limit: 10 })).items, []);
 });
 
@@ -606,7 +606,7 @@ test("POST /forms/:slug/submit: Accept: text/html + a validation failure sets a 
   assert.match(flash!.attrs, /\bHttpOnly\b/);
   assert.match(flash!.attrs, /\bSameSite=Lax\b/);
   assert.match(flash!.attrs, /\bMax-Age=120\b/);
-  assert.deepEqual(decodeFormFlashCookieValue(flash!.raw), { slug: "contact", values: { name: "Ada", email: "ada@example.com" } });
+  assert.deepEqual(decodeFormFlashCookieValue({ raw: flash!.raw }), { slug: "contact", values: { name: "Ada", email: "ada@example.com" } });
 });
 
 test("POST /forms/:slug/submit: a field of a type NOT in the repopulatable allowlist (e.g. a future 'password' type this codebase has not added yet) is never included in the flash cookie", async (t) => {
@@ -1031,7 +1031,7 @@ test("validation flash cookies preserve upstream cookies and expire in 120 secon
   assert.ok(cookies[1].includes("Max-Age=120;"));
   const flash = parseFlashCookieHeader(cookies[1]);
   assert.ok(flash);
-  assert.deepEqual(decodeFormFlashCookieValue(flash.raw), {
+  assert.deepEqual(decodeFormFlashCookieValue({ raw: flash.raw }), {
     slug: "contact", values: { email: "ada@example.com" },
   });
 });

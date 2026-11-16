@@ -60,7 +60,7 @@ async function probe(
     next: (error?: unknown) => void,
   ) => unknown;
   let handler: ProbeHandler | undefined;
-  registrar({ post: (_path: string, registered: ProbeHandler) => { handler = registered; } } as unknown as Express, { ...deps, ...options });
+  registrar({ app: { post: (_path: string, registered: ProbeHandler) => { handler = registered; } } as unknown as Express, deps: { ...deps, ...options } });
   let status = 200;
   let body: { ok?: boolean; message?: string; models?: string[]; error?: string; code?: string } | undefined;
   const response = {

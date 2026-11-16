@@ -27,7 +27,7 @@ export function warmSiteServerForHost({ binding, workspaceId }: { binding: SiteB
   if (process.env.TOVU_DEV_WARM_SITES !== "1" || process.env.TOVU_DEV_WARM_CONTROL_URL) return undefined;
   const supervisor = localSiteSupervisorForHost({ binding, workspaceId });
   if (!supervisor) return undefined;
-  const tls = resolveDevTls(resolveDevTlsCertPaths(resolveCheckoutRoot({})));
+  const tls = resolveDevTls(resolveDevTlsCertPaths({ repoRoot: resolveCheckoutRoot({}) }));
   return async ({ name }: { name: string }): Promise<string> => {
     if (name === binding.name) return `${tls.active ? "https" : "http"}://localhost:${process.env.PORT ?? 3000}/admin/`;
     const state = await startLocalSiteWhenRunning({ supervisor, name });
@@ -47,7 +47,7 @@ export function localSiteSupervisorForHost({ binding, workspaceId }: { binding: 
   if (base === null) return undefined;
   const existing = hosts.get(binding.dir);
   if (existing) return existing.supervisor;
-  const tls = resolveDevTls(resolveDevTlsCertPaths(resolveCheckoutRoot({})));
+  const tls = resolveDevTls(resolveDevTlsCertPaths({ repoRoot: resolveCheckoutRoot({}) }));
   const excludedPorts = hostOwnedPorts({ env: process.env });
   const pool = localSitePoolOptions({ workspaceId, scheme: tls.active ? "https" : "http" });
   const supervisor = createLocalSiteSupervisor({ processPort: createLocalSiteProcessPort({ switcherBase: base }, { env: pool.env }), servingName: binding.name, scheme: tls.active ? "https" : "http" },

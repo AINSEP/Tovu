@@ -24,7 +24,7 @@ export function registerWarmSiteControl({ app, binding, workspaceId }: { app: Ex
   const origin = env.TOVU_DEV_WARM_CONTROL_URL;
   const hostWorkspace = env.TOVU_DEV_WARM_CONTROL_WORKSPACE;
   if (env.TOVU_DEV_WARM_SITES !== '1' || !origin || !hostWorkspace) return false;
-  const tls = resolveDevTls(resolveDevTlsCertPaths(resolveCheckoutRoot({})), { env });
+  const tls = resolveDevTls(resolveDevTlsCertPaths({ repoRoot: resolveCheckoutRoot({}) }), { env });
   const prefix = `/api/admin/v1/workspaces/${encodeURIComponent(workspaceId)}/system/sites`;
   app.use(prefix, async (req, res) => {
     try {

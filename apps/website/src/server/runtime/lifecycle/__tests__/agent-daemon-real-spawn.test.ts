@@ -121,7 +121,7 @@ for (const mode of ['https-dev', 'desktop'] as const) {
       });
       assert.equal(tls.active, true);
       const selected = mode === 'https-dev'
-        ? { scheme: deriveDevScheme(tls.active), host: undefined, port: 3047 }
+        ? { scheme: deriveDevScheme({ tlsActive: tls.active }), host: undefined, port: 3047 }
         : { scheme: 'http' as const, host: '127.0.0.1', port: 43127 };
       pinSiteListenerOrigin(selected);
       const expected = mode === 'https-dev' ? 'https://localhost:3047' : 'http://127.0.0.1:43127';
