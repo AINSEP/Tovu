@@ -11,7 +11,8 @@ import type { CustomCredentialSetRecord } from "#src/features/custom-credentials
 import { seedWorkspaces } from "#src/platform/db/kernel/__tests__/content-seeds";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlCustomCredentialSetRepo } from "../../../../features/custom-credentials/custom-credential-repo.js";
-import { InMemoryVaultRepo, VaultError, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError, type VaultRecord } from "@jini-ai/core/contracts/vault";
 import { CustomCredentialVaultRepo, customVaultRecord, customVaultScope } from "#src/features/custom-credentials/vault-repo";
 
 /** Existing characterization suite now exercises Jini's vault-backed facade on both dialects.

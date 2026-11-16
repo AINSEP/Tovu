@@ -3,7 +3,8 @@ import { expect, test } from "@playwright/test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { collectProcessTreePids, listProcessSnapshots, waitForProcessExit } from "@jini-ai/platform";
+import { listProcessSnapshots, waitForProcessExit } from "@jini-ai/platform";
+import { collectProcessTreePids } from "@jini-ai/core/contracts/runtime";
 
 import { closeDesktop, removeScratchTree, launchDesktop, listSites, makeSite, portAnswers, siteCard, startSite, type DesktopLaunch } from "./_fixtures.js";
 

@@ -12,8 +12,14 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { installSiteKey, mintSiteKeyHex } from "#src/features/webhooks/site-key-ensure";
 import { readSealedConnectionString, writeSealedConnectionString } from "./storage-secret.js";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
-import { buildVaultAad, SecretsVaultService, VAULT_KINDS, VaultError, type VaultMetaParsers, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
-import type { SecretSealerPort } from "@jini-ai/platform/secrets";
+import { buildVaultAad, SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
+import {
+  VAULT_KINDS,
+  VaultError,
+  type VaultMetaParsers,
+  type VaultRecord,
+} from "@jini-ai/core/contracts/vault";
+import type { SecretSealerPort } from "@jini-ai/core/contracts/vault";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { inventoryVaultCredentials } from "#src/platform/db/vault-credential-inventory";
 import { legacyVaultAad } from "./vault-legacy-codecs.js";

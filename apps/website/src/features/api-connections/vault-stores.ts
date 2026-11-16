@@ -1,7 +1,13 @@
 import { createHash } from "node:crypto";
 
-import { SecretsVaultService, VaultError, createVaultMetaParsers, type VaultArchiveEntry, type VaultContext, type VaultMeta, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/platform/secrets";
+import { SecretsVaultService, createVaultMetaParsers, type VaultArchiveEntry } from "@jini-ai/platform/secrets/credential-sets";
+import {
+  VaultError,
+  type VaultContext,
+  type VaultMeta,
+  type VaultRepoPort,
+} from "@jini-ai/core/contracts/vault";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/core/contracts/vault";
 import type { Clock } from "@jini-ai/core/primitives";
 import {
   createApiConnectionGenerationReader, createVaultOAuthTokenStore,

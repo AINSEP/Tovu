@@ -1,6 +1,6 @@
 import type { HttpClientPort, HttpRequest, HttpResponse } from "@jini-ai/core/primitives";
 import { assertSafeUserFacingUrl as assertJiniUserFacingUrl, createOAuthUrlGuard, defaultOAuthMessages, OAuthError as JiniOAuthError, type OAuthDiscoveryPolicy, type OAuthFetch, type OAuthHttpPorts, type OAuthUrlGuard } from "@jini-ai/oauth";
-import { isBlockedExternalApiHostname, isLoopbackApiHost } from "@jini-ai/platform/net";
+import { isBlockedExternalApiHostname, isLoopbackApiHost } from "@jini-ai/core/net";
 
 import { toLegacyEndpointError } from "./legacy-endpoint-error.js";
 

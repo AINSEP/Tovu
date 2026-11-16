@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { PassThrough } from "node:stream";
 import test from "node:test";
-import { FileLockTimeoutError } from "@jini-ai/platform/fs/file-lock";
+import { FileLockTimeoutError } from "@jini-ai/core/contracts/runtime";
 import { importFixture, OWNER_PASSWORD } from "../../../features/site-backup/__tests__/import.fixture.js";
 import { leaveSavedKeysOut } from "../../../features/site-backup/saved-keys.js";
 import type { SiteImportBackend } from "../../../features/site-backup/import-backend.js";

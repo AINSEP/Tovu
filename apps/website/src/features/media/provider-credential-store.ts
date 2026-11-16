@@ -6,7 +6,7 @@ import { MEDIA_PROVIDERS } from "@jini-ai/integrations/media-providers/catalog";
 import type { Clock as ClockPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../webhooks/index.js";
-import { type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import { type VaultRepoPort } from "@jini-ai/core/contracts/vault";
 import { createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
 import { mediaProviderVault, mediaVaultId, mediaVaultRecord, mediaVaultScope } from "./provider-credential-vault.js";
 

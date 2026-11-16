@@ -7,7 +7,8 @@ import test from "node:test";
 
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { ensureVaultRepoFixture } from "#src/platform/db/repos/__tests__/vault-repo.fixture";
-import { buildVaultAad, InMemoryVaultRepo, VaultError } from "@jini-ai/platform/secrets/credential-sets";
+import { buildVaultAad, InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError } from "@jini-ai/core/contracts/vault";
 import { InMemoryDatabaseDestinationStore } from "../destination-store.js";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";

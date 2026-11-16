@@ -1,8 +1,17 @@
-import { createVaultMetaParsers, isCopyableKind, SecretsVaultService, VAULT_KINDS, VaultError,
-  type VaultRepoPort, type VaultContext,
-  type VaultKind, type VaultMeta, type VaultMetaParser, type VaultMetaParsers, type VaultOptions } from "@jini-ai/platform/secrets/credential-sets";
+import { createVaultMetaParsers, isCopyableKind, SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
+import {
+  VAULT_KINDS,
+  VaultError,
+  type VaultRepoPort,
+  type VaultContext,
+  type VaultKind,
+  type VaultMeta,
+  type VaultMetaParser,
+  type VaultMetaParsers,
+  type VaultOptions,
+} from "@jini-ai/core/contracts/vault";
 import type { Clock } from "@jini-ai/core/primitives";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/platform/secrets";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/core/contracts/vault";
 import { createStoreKeyring, protectStorage } from "./store-vault-guards.js";
 import { assertHostMetaRules, assertRecoveryMeta, parseStructuralMeta, withRecoveryMeta } from "./vault-meta-rules.js";
 

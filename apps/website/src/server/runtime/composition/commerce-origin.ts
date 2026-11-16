@@ -1,5 +1,5 @@
 import { normalizedCommerceOrigin } from '@jini-ai/commerce';
-import { isDeployedApiHostname } from '@jini-ai/platform/net/endpoint-policy';
+import { isDeployedApiHostname } from '@jini-ai/core/net';
 
 /** A configured deployed origin uses the generic HTTPS shape and shared literal-address policy.
  * DNS reachability belongs to deployment setup; no request Host or forwarded header selects it.

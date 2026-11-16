@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import test from "node:test";
-import type { StopProcessesResult } from "@jini-ai/platform/process";
+import type { StopProcessesResult } from "@jini-ai/core/contracts/runtime";
 import {
   createOwnTreeReaper, isEntrypoint, NO_REGISTRY, ownerPidFrom, parentGone, runLocalSiteChild, selfAsDaemonProcess,
   type LocalSiteChildProcess, type WatchdogHandle, type WatchdogTimers,

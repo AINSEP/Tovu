@@ -2,7 +2,7 @@ import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
-import type { VaultRepoPort } from '@jini-ai/platform/secrets/credential-sets';
+import type { VaultRepoPort } from '@jini-ai/core/contracts/vault';
 import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
 import { portFake } from '#src/server/__tests__/helpers/port-fake';
 import type { LoadedDeployTarget, DeployTargetRegistry } from '#src/features/deployments/deploy-targets/types';

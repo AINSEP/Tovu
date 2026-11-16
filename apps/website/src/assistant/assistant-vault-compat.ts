@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from "node:util";
-import type { VaultContext, VaultMeta, VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
+import type { VaultContext, VaultMeta, VaultRecord } from "@jini-ai/core/contracts/vault";
 import type { SealedSecret } from "../features/webhooks/index.js";
 import { assistantVaultId, type AssistantVaultRepo } from "./assistant-vault.js";
 

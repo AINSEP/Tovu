@@ -10,7 +10,7 @@ import path from "node:path";
 import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
-import type { VaultRecord, VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import type { VaultRecord, VaultRepoPort } from "@jini-ai/core/contracts/vault";
 
 import { createAgentPluginStateStore } from "#src/features/api-connections/plugin-state";
 import { createApiConnectionVault } from "#src/features/api-connections/vault-stores";

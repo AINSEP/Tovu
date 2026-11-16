@@ -1,7 +1,7 @@
 import { SecretsVaultService } from '@jini-ai/platform/secrets/credential-sets';
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from '@jini-ai/db/secrets-vault';
 import type { KyselyKernel } from '@jini-ai/db/kernel';
-import type { KeyringPort, SecretSealerPort } from '@jini-ai/platform/secrets';
+import type { KeyringPort, SecretSealerPort } from '@jini-ai/core/contracts/vault';
 import type { ContentDatabase } from '../../../../platform/db/content-database.generated.js';
 import { SqlSettingsRepo } from '../../../settings/repo.js';
 import { loadSiteVaultKinds } from '../../../../server/runtime/composition/vault-boot.js';

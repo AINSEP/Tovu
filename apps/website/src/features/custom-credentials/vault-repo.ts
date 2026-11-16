@@ -1,4 +1,4 @@
-import type { VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import type { VaultRepoPort } from "@jini-ai/core/contracts/vault";
 import type { SiteGrantedVault } from "../project-keys/attached-vault.js";
 import type { CustomCredentialCategoryId } from "../../contracts/core/custom-credential-categories.js";
 import { CredentialSetVaultRepo, credentialSetVaultRecord, credentialSetVaultScope } from "@jini-ai/integrations/credentialed-http/sets";

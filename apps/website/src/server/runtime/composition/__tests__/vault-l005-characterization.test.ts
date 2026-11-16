@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { VaultRecord } from '@jini-ai/platform/secrets/credential-sets';
+import type { VaultRecord } from '@jini-ai/core/contracts/vault';
 import type { TovuVaultPolicy } from '#src/platform/secrets/vault-kinds';
 import { legacyContext } from '../vault-boot.js';
 import { legacyVaultAad, normalizeLegacyVaultPayload, type VaultLegacyContext } from '../vault-legacy-codecs.js';

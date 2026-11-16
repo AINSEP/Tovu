@@ -1,4 +1,10 @@
-import { VaultError, type VaultJson, type VaultKind, type VaultMeta, type VaultMetaParsers } from "@jini-ai/platform/secrets/credential-sets";
+import {
+  VaultError,
+  type VaultJson,
+  type VaultKind,
+  type VaultMeta,
+  type VaultMetaParsers,
+} from "@jini-ai/core/contracts/vault";
 import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
 import { CUSTOM_CREDENTIAL_CATEGORIES } from "#src/contracts/core/custom-credential-categories";
 import { parseApiConnectionMeta } from "./vault-api-connection-meta.js";

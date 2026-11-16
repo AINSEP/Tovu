@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { InMemoryVaultRepo, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { type VaultRecord } from "@jini-ai/core/contracts/vault";
 import { InMemorySiteAssistantCredentialRepo } from "../site-credential-store.memory.js";
 import { InMemoryAdminExecutionCredentialRepo } from "../execution-credential-store.memory.js";
 import { assistantVaultContext, assistantVaultId } from "../assistant-vault.js";

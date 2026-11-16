@@ -1,5 +1,5 @@
 import { ApiConnectionError, resolveByoClient as resolveConnectionByoClient, type ApiConnectionByoCredentials, type ApiConnectionByoRefusal } from '@jini-ai/integrations/api-connections';
-import type { KeyringPort, SecretSealerPort } from '@jini-ai/platform/secrets';
+import type { KeyringPort, SecretSealerPort } from '@jini-ai/core/contracts/vault';
 import { allowedOriginsFor, resolveCustomCredentialByLabel, type CustomCredentialSetRepoPort } from '../custom-credentials/index.js';
 import type { DeclaredApiConnection } from './contribution.js';
 export { byoClientLabel, type ByoClient } from '@jini-ai/integrations/api-connections';

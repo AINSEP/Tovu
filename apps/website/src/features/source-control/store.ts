@@ -4,7 +4,7 @@ import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 
 import { isUniqueViolation } from "@jini-ai/core/contracts/storage";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
-import { VaultError, type VaultSummary } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError, type VaultSummary } from "@jini-ai/core/contracts/vault";
 import { credentialVault, credentialScope, credentialHint } from "../vendor-credentials/index.js";
 import { credentialCreateTarget, credentialScopes, type CredentialScope, type ScopedCredentialDeps } from "../vendor-credentials/index.js";
 import { buildSourceControlProvider, type LoadSourceControlProviders, type SourceControlProviderRegistry, type SourceControlProviderDescriptor } from "./provider-registry.js";

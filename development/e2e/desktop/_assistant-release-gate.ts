@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import Database from 'better-sqlite3';
 import { expect, type ElectronApplication } from '@playwright/test';
-import { collectProcessTreePids, listProcessSnapshots, waitForProcessExit } from '@jini-ai/platform';
+import { listProcessSnapshots, waitForProcessExit } from '@jini-ai/platform';
+import { collectProcessTreePids } from '@jini-ai/core/contracts/runtime';
 import { closeDesktop, launchDesktop, makeSite, openSiteTab, removeScratchTree, scratchDir, siteContentDb, startSite,
   type DesktopLaunch } from './_fixtures.js';
 import { fiveSitesExecuting } from './_shared-daemon-evidence.js';

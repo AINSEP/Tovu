@@ -1,5 +1,6 @@
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
-import { buildVaultAad, type VaultKind, type VaultMeta, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
+import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
+import { type VaultKind, type VaultMeta, type VaultRecord } from "@jini-ai/core/contracts/vault";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { seedPrincipals } from "../kernel/__tests__/content-seeds.js";

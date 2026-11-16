@@ -1,6 +1,7 @@
 import { isDeepStrictEqual } from "node:util";
 import type { LegacyOwnerEntry, LegacyOwnerSnapshot } from "@jini-ai/server/owner-store";
-import type { SecretsVaultService, VaultSummary } from "@jini-ai/platform/secrets/credential-sets";
+import type { SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
+import type { VaultSummary } from "@jini-ai/core/contracts/vault";
 import type { ProjectKeyTransaction } from "#src/features/project-keys/attachments";
 
 /** @file The one explicit legacy import: owner-store entries (from owner.db or a passphrase backup)

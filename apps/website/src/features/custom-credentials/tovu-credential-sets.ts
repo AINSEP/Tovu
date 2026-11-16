@@ -1,5 +1,6 @@
 import { ProjectKeyCreateConflictError } from "../project-keys/create-vault.js";
-import { normalizeCredentialWorksFor, VaultError } from "@jini-ai/platform/secrets/credential-sets";
+import { normalizeCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError } from "@jini-ai/core/contracts/vault";
 import { CredentialInputError, CREDENTIAL_MESSAGES, assertCredentialFreeField, normalizeCredentialToken } from '../../contracts/core/credential-token.js';
 import { isUniqueViolation } from "@jini-ai/core/contracts/storage";
 import { byVaultLabel, createTovuStoreVault, parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";

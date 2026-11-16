@@ -4,7 +4,7 @@ import test from "node:test";
 import type { UUID } from "@jini-ai/core/primitives";
 import { InMemoryMediaProviderCredentialRepo } from "../provider-credential-store.memory.js";
 import type { MediaProviderCredentialRecord } from "../provider-credential-store.js";
-import { VaultError } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError } from "@jini-ai/core/contracts/vault";
 
 /**
  * @file Direct `MediaProviderCredentialRepoPort` contract coverage for

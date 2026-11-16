@@ -9,7 +9,8 @@ import { projectKeyCreateVault } from "#src/features/project-keys/create-vault";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { InMemoryVaultRepo, VaultError } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError } from "@jini-ai/core/contracts/vault";
 
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
@@ -52,7 +53,7 @@ function projectStore() {
   const keyring = new InMemoryKeyring();
   return { vault: new InMemoryVaultRepo({}), keyring, sealer: new AesGcmSecretSealer(keyring) };
 }
-type ProjectStoreFixture = Omit<ReturnType<typeof projectStore>, "vault"> & { createVault?: import("@jini-ai/platform/secrets/credential-sets").VaultRepoPort; vault: import("@jini-ai/platform/secrets/credential-sets").VaultRepoPort };
+type ProjectStoreFixture = Omit<ReturnType<typeof projectStore>, "vault"> & { createVault?: import("@jini-ai/core/contracts/vault").VaultRepoPort; vault: import("@jini-ai/core/contracts/vault").VaultRepoPort };
 
 let ids = 0;
 /** One site: its own vault, with both credential stores' project halves over the same project vault

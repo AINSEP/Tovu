@@ -7,7 +7,8 @@ process.env[SITE_KEY_ENV_VAR_NAME] ??= randomBytes(32).toString("hex");
 
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { EnvOrFileKeyring } from "../../webhooks/keyring.env.js";
-import { buildVaultAad, type VaultMeta } from "@jini-ai/platform/secrets/credential-sets";
+import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
+import { type VaultMeta } from "@jini-ai/core/contracts/vault";
 import { externalMcpVaultRecord, sealExternalMcpVaultPayload } from "../external-mcp-vault.js";
 import { EXTERNAL_MCP_OAUTH_PAYLOAD_VERSION, openExternalMcpOAuthPayload, sealExternalMcpOAuthPayload } from "../external-mcp-store.js";
 

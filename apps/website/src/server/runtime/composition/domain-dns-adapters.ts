@@ -4,7 +4,8 @@ import { readAgentPluginPortableExtension } from "@jini-ai/agent-plugins/manifes
 import { bundledContributionSources } from "#src/features/agent-plugins/bundled-contribution-sources";
 import { isIP } from "node:net";
 import { ToolInputError } from "@jini-ai/core";
-import { EgressRefusedError, type HttpClientPort, type EgressPolicy } from "#src/platform/http/index";
+import { EgressRefusedError, type HttpClientPort } from "#src/platform/http/index";
+import { type EgressPolicy } from "@jini-ai/core/contracts/runtime";
 import { classifyAddress } from "#src/platform/http/client";
 import { readPublicDomain, readPublicDnsName, type PublicDnsResolver, type DnsQuery, type DnsRecordType, type TlsStatus } from "#src/features/domain-dns/index";
 import type { RouteDeps } from "../../routes/types.js";

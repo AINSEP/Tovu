@@ -2,9 +2,8 @@ import { createHash } from 'node:crypto';
 import type { Clock } from '@jini-ai/core/primitives';
 import { ApiConnectionError, type ApiConnectionClientKind, type ApiConnectionDescriptor, type SharedOAuthConnection } from '@jini-ai/integrations/api-connections';
 import type { OAuthClient } from '@jini-ai/oauth';
-import type { KeyringPort, SecretSealerPort } from '@jini-ai/platform/secrets';
-import type { VaultRepoPort } from '@jini-ai/platform/secrets/credential-sets';
-import type { SecretsVaultService, VaultMeta } from '@jini-ai/platform/secrets/credential-sets';
+import type { KeyringPort, SecretSealerPort, VaultRepoPort, VaultMeta } from '@jini-ai/core/contracts/vault';
+import type { SecretsVaultService } from '@jini-ai/platform/secrets/credential-sets';
 import { apiConnectionVaultScope, createApiConnectionVault, createApiConnectionVaultRecordStore, createApiConnectionVaultTokenStore, PLUGIN_STATE_FORMAT } from './vault-stores.js';
 
 /** Issuing configuration is sealed in the owner store; a consuming site's client cannot replace it. */

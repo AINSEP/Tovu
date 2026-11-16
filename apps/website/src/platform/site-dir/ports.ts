@@ -1,5 +1,5 @@
 import type { Clock } from "@jini-ai/core/primitives";
-import type { SecretSealerPort } from "@jini-ai/platform/secrets";
+import type { SecretSealerPort } from "@jini-ai/core/contracts/vault";
 import type { ContentKernel } from "../db/content-kernel.js";
 import type { OpenSiteStoreOptional, OpenSiteStoreRequired, SiteStore } from "./site-store.js";
 

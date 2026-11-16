@@ -5,7 +5,14 @@ import { sql } from "kysely";
 import { ToolInputError } from "@jini-ai/core";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
 import { AesGcmSecretSealer } from "@jini-ai/platform/secrets";
-import { SecretsVaultService, VaultError, type VaultKind, type VaultMeta, type VaultRecord, type VaultSummary } from "@jini-ai/platform/secrets/credential-sets";
+import { SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
+import {
+  VaultError,
+  type VaultKind,
+  type VaultMeta,
+  type VaultRecord,
+  type VaultSummary,
+} from "@jini-ai/core/contracts/vault";
 import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { openSqliteFileKernel } from "#src/platform/db/kernel/drivers/sqlite";

@@ -1,6 +1,10 @@
 import { ToolInputError } from '@jini-ai/core';
 import { describeErrorForLog } from '#src/contracts/core/model-facing-tool-errors';
-import { isInVaultQueryScope, type VaultRecord, type VaultRepoPort } from '@jini-ai/platform/secrets/credential-sets';
+import {
+  isInVaultQueryScope,
+  type VaultRecord,
+  type VaultRepoPort,
+} from '@jini-ai/core/contracts/vault';
 import type { KeyAttachments } from './attachments.js';
 
 export type SiteGrantedVault = VaultRepoPort & { findByLabel?: (input: { workspaceId: string; label: string }, options?: Record<string, never>) => Promise<VaultRecord | null> };

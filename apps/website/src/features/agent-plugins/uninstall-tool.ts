@@ -5,7 +5,7 @@ import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { approvalToolHandler, notConfirmedResult } from "../../contracts/core/human-confirm.js";
 
 import { AgentPluginActivationsBusyError, AgentPluginActivationsUnreadableError, AgentPluginUpdateError } from "@jini-ai/agent-plugins/lifecycle";
-import { FileLockTimeoutError } from "@jini-ai/platform/fs/file-lock";
+import { FileLockTimeoutError } from "@jini-ai/core/contracts/runtime";
 import type { AgentPluginPreferencesPort } from "./service-ports.js";
 import {
   AgentPluginChangedSincePreviewError,

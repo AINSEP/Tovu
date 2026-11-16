@@ -1,5 +1,5 @@
 import { parseOAuthTokenVaultMeta } from "@jini-ai/integrations/api-connections";
-import { VaultError, type VaultMeta } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError, type VaultMeta } from "@jini-ai/core/contracts/vault";
 
 /** Tovu's row formats within the shared api-connection kind; OAuth remains owned by Jini. */
 export const API_CONNECTION_RECORD_FORMAT = "api-connection-record";

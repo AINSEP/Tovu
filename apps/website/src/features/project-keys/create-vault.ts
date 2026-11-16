@@ -1,6 +1,6 @@
 import type { ProjectKeyTransaction } from './attachments.js';
 import { ToolInputError } from '@jini-ai/core';
-import { VaultError, type VaultRepoPort } from '@jini-ai/platform/secrets/credential-sets';
+import { VaultError, type VaultRepoPort } from '@jini-ai/core/contracts/vault';
 
 /** A safe create conflict that each credential domain can map onto its existing form error. */
 export class ProjectKeyCreateConflictError extends ToolInputError {

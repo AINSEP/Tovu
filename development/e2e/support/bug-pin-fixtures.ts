@@ -3,7 +3,8 @@ import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, realpathSync
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { APIRequestContext, PlaywrightWorkerArgs, TestInfo } from "@playwright/test";
-import { collectProcessTreePids, listProcessSnapshots, stopProcesses } from "@jini-ai/platform";
+import { listProcessSnapshots, stopProcesses } from "@jini-ai/platform";
+import { collectProcessTreePids } from "@jini-ai/core/contracts/runtime";
 import { test as journeyTest, expect } from "../journeys/_fixtures.js";
 import { createIsolatedJourneySite, JOURNEY_ADMIN_USER, JOURNEY_ADMIN_PASSWORD, type IsolatedJourneySite } from "./isolated-journey-site.js";
 import JourneySiteCleanupReporter from "./journey-site-cleanup-reporter.js";

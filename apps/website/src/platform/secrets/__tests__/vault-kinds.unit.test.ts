@@ -1,7 +1,13 @@
 import "../../site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { InMemoryVaultRepo, VaultError, type VaultContext, type VaultKind, type VaultMeta } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import {
+  VaultError,
+  type VaultContext,
+  type VaultKind,
+  type VaultMeta,
+} from "@jini-ai/core/contracts/vault";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { CUSTOM_CREDENTIAL_CATEGORIES } from "../../../contracts/core/custom-credential-categories.js";

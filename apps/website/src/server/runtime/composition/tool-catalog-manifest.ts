@@ -63,7 +63,7 @@ import { contributeDatabaseTools } from "#src/features/database/tool-registratio
 import { contributeDatabaseTransferTools } from "#src/features/database-transfer/tool-registrations";
 import { contributeDomainDnsAndChangeTools } from "#src/features/domain-dns/index";
 import { createDefaultHttpClient } from "#src/platform/http/index";
-import type { EgressPolicy } from "#src/platform/http/index";
+import type { EgressPolicy } from "@jini-ai/core/contracts/runtime";
 import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { LIVE_PAGE_EGRESS_POLICY, WEB_FETCH_EGRESS_POLICY, WEB_SCREENSHOT_EGRESS_POLICY } from "#src/platform/http/index";
 import { createSiteWebFetchEgressPolicy } from "#src/platform/http/egress-policies";

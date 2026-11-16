@@ -1,7 +1,6 @@
 import { sql } from "kysely";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
-import type { SecretSealerPort, SiteKeyHandle } from "@jini-ai/platform/secrets";
-import type { VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
+import type { SecretSealerPort, RootKeyHandle, VaultRecord } from "@jini-ai/core/contracts/vault";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { opensVaultCredential, snapshotVaultCredentials, siblingColumns,
   type VaultCredentialKeyDeps, type VaultCredentialValue } from "./vault-credential-inventory.js";
@@ -12,7 +11,7 @@ import { opensVaultCredential, snapshotVaultCredentials, siblingColumns,
  */
 export type SealedCredentialKeyDeps = VaultCredentialKeyDeps;
 export interface ResealCredentialsDeps extends VaultCredentialKeyDeps {
-  sealer: Pick<SecretSealerPort, "seal" | "open">; key: SiteKeyHandle; previous: Pick<SecretSealerPort, "open">;
+  sealer: Pick<SecretSealerPort, "seal" | "open">; key: RootKeyHandle; previous: Pick<SecretSealerPort, "open">;
   /** Host codec normalizes legacy rows or rotates ordinary rows through Jini, with CAS. */
   resealRecord: (input: { record: VaultRecord; previous: Pick<SecretSealerPort, "open"> }) => Promise<void>;
 }

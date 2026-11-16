@@ -4,8 +4,7 @@ import type { ProjectStore, ProjectVaultScope } from "./project-store.js";
 import { defineAdminSurfaceContribution } from "@jini-ai/agent-plugins/admin-surfaces";
 import { notifyExternalMcpRosterChanged } from "#src/assistant/index";
 import { ADMIN_SURFACES_FILENAME } from "#src/features/agent-plugins/admin-surfaces/surfaces";
-import type { VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
-import type { KeyringPort, SecretSealerPort } from "@jini-ai/platform/secrets";
+import type { VaultRepoPort, KeyringPort, SecretSealerPort } from "@jini-ai/core/contracts/vault";
 import type { HttpClientPort } from "@jini-ai/core/primitives";
 import { createIssuedTokenMemories } from "@jini-ai/agent-plugins/lifecycle/tools";
 

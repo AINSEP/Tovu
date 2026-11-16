@@ -10,8 +10,14 @@ import { readPromptFromFlags } from "@jini-ai/cli";
 import { ApiConnectionError } from '@jini-ai/integrations/api-connections';
 import { countLegacyOwnerStore, OwnerStoreBackupError, OwnerStoreRecoveryError, readLegacyOwnerBackup,
   readLegacyOwnerStore, type LegacyOwnerSnapshot } from "@jini-ai/server/owner-store";
-import { isCopyableKind, SecretsVaultService, VAULT_KINDS, VaultError,
-  type VaultKind, type VaultMeta, type VaultPutInput, type VaultSummary } from "@jini-ai/platform/secrets/credential-sets";
+import { isCopyableKind, SecretsVaultService, type VaultPutInput } from "@jini-ai/platform/secrets/credential-sets";
+import {
+  VAULT_KINDS,
+  VaultError,
+  type VaultKind,
+  type VaultMeta,
+  type VaultSummary,
+} from "@jini-ai/core/contracts/vault";
 import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
 import { openNativeSqlite } from "#src/platform/db/kernel/drivers/sqlite";
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
@@ -58,7 +64,7 @@ type ProjectTarget = Parameters<typeof importLegacyKeys>[0]["target"];
 type OwnerTarget = ProjectTarget & {
   attachments: KeyAttachments;
   sharedOAuth: SharedOAuthOwnerStorage;
-  find: (required: { id: string }, optional?: Record<string, never>) => Promise<import("@jini-ai/platform/secrets/credential-sets").VaultRecord | null>;
+  find: (required: { id: string }, optional?: Record<string, never>) => Promise<import("@jini-ai/core/contracts/vault").VaultRecord | null>;
 };
 
 class OwnerStoreInputError extends Error {

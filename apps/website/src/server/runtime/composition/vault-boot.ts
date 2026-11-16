@@ -9,8 +9,19 @@ import { loadBundledDeployTargetRegistry, loadDeployTargetRegistry } from "#src/
 import { sql } from "kysely";
 import type { Clock } from "@jini-ai/core/primitives";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
-import { AesGcmSecretSealer, credentialTokenHint, type KeyringPort, type SiteKeyHandle, type SecretSealerPort } from "@jini-ai/platform/secrets";
-import { buildVaultAad, VaultError, VAULT_KINDS, type VaultKind, type VaultMeta, type VaultRecord, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import { AesGcmSecretSealer, credentialTokenHint } from "@jini-ai/platform/secrets";
+import {
+  type KeyringPort,
+  type RootKeyHandle,
+  type SecretSealerPort,
+  VaultError,
+  VAULT_KINDS,
+  type VaultKind,
+  type VaultMeta,
+  type VaultRecord,
+  type VaultRepoPort,
+} from "@jini-ai/core/contracts/vault";
+import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
 import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
 import { assertCredentialFreeField } from "#src/contracts/core/credential-token";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
@@ -118,9 +129,9 @@ function normalizationProvider({ input, record, legacy }: LegacyRecordInput, _op
   return provider;
 }
 
-async function openLegacyRecord({ input, record, legacy, previous = input.sealer }: LegacyRecordInput, _options = {}): Promise<{ plaintext: string | null; key: SiteKeyHandle }> {
+async function openLegacyRecord({ input, record, legacy, previous = input.sealer }: LegacyRecordInput, _options = {}): Promise<{ plaintext: string | null; key: RootKeyHandle }> {
   let plaintext: string | null = null;
-  let key!: SiteKeyHandle; // Non-null payloads require plaintext opened after key acquisition.
+  let key!: RootKeyHandle; // Non-null payloads require plaintext opened after key acquisition.
   if (record.sealed) {
     try { key = await input.keyring.activeKey({}); } catch { throw new RowBlocked("missing-key"); }
     try { plaintext = await previous.open({ sealed: record.sealed }, { aad: legacyVaultAad({ record, legacy }) }); }
@@ -146,7 +157,7 @@ function parseLegacyRecord({ input, record, legacy, plaintext }: LegacyRecordInp
 }
 
 async function sealNormalizedRecord({ input, replacement, normalized, key }: {
-  input: VaultBootInput; replacement: VaultRecord; normalized: ReturnType<typeof normalizeLegacyVaultPayload>; key: SiteKeyHandle;
+  input: VaultBootInput; replacement: VaultRecord; normalized: ReturnType<typeof normalizeLegacyVaultPayload>; key: RootKeyHandle;
 }, _options = {}): Promise<void> {
   if (normalized.payload !== null) {
     const payloadText = JSON.stringify(normalized.payload);

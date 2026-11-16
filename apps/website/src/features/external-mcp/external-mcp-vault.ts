@@ -1,6 +1,12 @@
-import { InMemoryVaultRepo, SecretsVaultService, VaultError, type VaultMeta, type VaultRecord,
-  type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
-import type { KeyringPort, SealedSecret, SecretSealerPort } from "@jini-ai/platform/secrets";
+import { InMemoryVaultRepo, SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
+import {
+  VaultError,
+  type VaultMeta,
+  type VaultRecord,
+  type VaultRepoPort,
+} from "@jini-ai/core/contracts/vault";
+import type { SealedSecret } from "@jini-ai/platform/secrets";
+import type { KeyringPort, SecretSealerPort } from "@jini-ai/core/contracts/vault";
 import { createTovuVaultKinds } from "../../platform/secrets/vault-kinds.js";
 import * as hosted from "@jini-ai/mcp/federation/hosted";
 import type { HostedMcpVaultPorts, Identity, Kind } from "@jini-ai/mcp/federation/hosted";

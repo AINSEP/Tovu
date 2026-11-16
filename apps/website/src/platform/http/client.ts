@@ -6,16 +6,18 @@ import {
   createNodeGuardedHttpPorts,
   defaultPlatformMessages,
   EgressRefusedError,
-  type AddressClass,
+} from "@jini-ai/platform/http/guarded";
+import {
   type GuardedClock,
   type DnsResolver,
   type EgressPolicy,
-} from "@jini-ai/platform/http/guarded";
+} from "@jini-ai/core/contracts/runtime";
+import { type AddressClass } from "@jini-ai/core/net";
 import type { HttpClientPort as JiniHttpClientPort } from "@jini-ai/core/primitives";
 import { trackHttpClient, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import type { HttpClientPort, HttpTransportAdapter } from "./ports.js";
 
-export type { AddressClass } from "@jini-ai/platform/http/guarded";
+export type { AddressClass } from "@jini-ai/core/net";
 // GitHub rejects otherwise valid authenticated requests without a User-Agent with a bare 403.
 // Keep an honest product identifier here; a live package-version read adds filesystem/layout
 // coupling to every outbound request for a header that can be bumped with the package version.

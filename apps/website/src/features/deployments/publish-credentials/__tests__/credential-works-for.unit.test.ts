@@ -6,7 +6,8 @@ import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm"
 import { InMemoryVendorCredentialSetRepo } from "../repo.memory.js";
 import { CustomCredentialVaultRepo } from "#src/features/custom-credentials/vault-repo";
 import { createCustomCredential, updateCustomCredential } from "#src/features/custom-credentials/store";
-import { buildVaultAad, type VaultMeta } from "@jini-ai/platform/secrets/credential-sets";
+import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
+import { type VaultMeta } from "@jini-ai/core/contracts/vault";
 import { loadBundledDeployTargets } from "../../deploy-targets/__tests__/bundled-deploy-targets.fixture.js";
 import { createDbPublishCredentialSource } from "../../static-publish/credentials.js";
 import { invalidatePublishCredentialCompatibility, createPublishCredential, listPublishCredentials, resolveForPublish, PublishCredentialSecretStoreUnconfiguredError } from "../store.js";

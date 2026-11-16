@@ -26,7 +26,7 @@ import { createRedactedOutputSink } from "../../website/src/platform/server-logs
 import { spawn as nodeSpawn, execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import type { DesktopAgentService } from "./desktop-agent-service.ts";
-import { omitEnvironmentKeys } from "@jini-ai/platform/child-environment";
+import { omitEnvironmentKeys } from "@jini-ai/core/contracts/runtime";
 import { provideNodeStartupSecrets, splitNodeStartupSecrets, STARTUP_SECRETS_ENV } from '@jini-ai/sidecar/supervisor/node';
 import { STARTUP_SECRET_KEYS, DESKTOP_AGENT_SERVICE_ENV } from '../../website/src/server/runtime/boot/startup-secrets.ts';
 import type { ChildProcess, SpawnOptions } from "node:child_process";

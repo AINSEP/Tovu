@@ -1,5 +1,5 @@
 import { sql } from "kysely";
-import type { VaultKind, VaultMeta } from "@jini-ai/platform/secrets/credential-sets";
+import type { VaultKind, VaultMeta } from "@jini-ai/core/contracts/vault";
 import type { SecretsVaultTable } from "@jini-ai/db/secrets-vault";
 import { tableExists } from "@jini-ai/db/kernel";
 import type { KyselyKernel } from "@jini-ai/db/kernel";

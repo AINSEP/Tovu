@@ -21,7 +21,8 @@
  *
  * Architectural role: `platform/http` Tier-2 library, composition-root-facing, like `client.ts`.
  */
-import { createNodeGuardedHttpPorts, EgressRefusedError, type DnsResolver, type EgressPolicy } from "@jini-ai/platform/http/guarded";
+import { createNodeGuardedHttpPorts, EgressRefusedError } from "@jini-ai/platform/http/guarded";
+import { type DnsResolver, type EgressPolicy } from "@jini-ai/core/contracts/runtime";
 import { classifyAddress, createDefaultHttpClient, createHttpClient, type HttpClientOptions } from "./client.js";
 import type { HttpClientPort, HttpTransportAdapter } from "./ports.js";
 

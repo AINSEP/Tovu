@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { LegacyOwnerEntry, LegacyOwnerSnapshot } from "@jini-ai/server/owner-store";
-import type { SecretsVaultService, VaultSummary } from "@jini-ai/platform/secrets/credential-sets";
+import type { SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
+import type { VaultSummary } from "@jini-ai/core/contracts/vault";
 import { EMPTY_IMPORT, importLegacyKeys } from "../../commands/owner-store-import.js";
 
 /** The import plan against a fake project vault: every outcome is decided before any write, and

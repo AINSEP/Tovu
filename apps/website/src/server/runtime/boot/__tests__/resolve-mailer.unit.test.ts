@@ -10,7 +10,8 @@ import {
   type CustomCredentialWriteDeps,
 } from "#src/features/custom-credentials/index";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
-import type { SmtpMailPayload, SmtpTransport } from "#src/platform/mail/index";
+import type { SmtpTransport } from "#src/platform/mail/index";
+import type { SmtpMailPayload } from "@jini-ai/core/contracts/mail";
 import type { CustomCredentialSetRecord, CustomCredentialSetRepoPort } from "#src/features/custom-credentials/index";
 import type { MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { createResolvedMailer, MAIL_SMTP_CREDENTIAL_LABEL, type MailProviderSettingPort, type ResolveMailerDeps } from "../resolve-mailer.js";

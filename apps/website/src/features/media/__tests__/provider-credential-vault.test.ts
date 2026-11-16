@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { VaultError, type VaultBatchOp, type VaultBatchResult, type VaultQuery, type VaultRecord, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import {
+  VaultError,
+  type VaultBatchOp,
+  type VaultBatchResult,
+  type VaultQuery,
+  type VaultRecord,
+  type VaultRepoPort,
+} from "@jini-ai/core/contracts/vault";
 import type { MediaProviderCredentialRecord } from "../provider-credential-store.js";
 import { MediaProviderCredentialVaultRepo, mediaProviderVault, mediaVaultRecord, mediaVaultScope } from "../provider-credential-vault.js";
 

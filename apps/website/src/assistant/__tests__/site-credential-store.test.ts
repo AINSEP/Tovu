@@ -14,7 +14,8 @@ import {
   resolveSiteAssistantApiKey,
   setSiteAssistantCredential,
 } from "../site-credential-store.js";
-import { buildVaultAad, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
+import { type VaultRepoPort } from "@jini-ai/core/contracts/vault";
 import { assistantVaultContext, assistantVaultRepo, createAssistantVault, readAssistantVault } from "../assistant-vault.js";
 
 /**

@@ -6,11 +6,11 @@ import type { ISODateTime } from "@jini-ai/core/primitives";
 import {
   createNodemailerSmtpTransport as createJiniSmtpTransport,
   SmtpMailerAdapter as JiniSmtpMailerAdapter,
-  type SmtpMailPayload,
 } from "@jini-ai/platform/mail/smtp";
+import { type SmtpMailPayload } from "@jini-ai/core/contracts/mail";
 import type { MailerPort, MailerCapabilities, MailerSendOptions, MailerSendResult, OutboundEmail } from "../ports.js";
 import { toTovuMailer } from "../purpose-scoped-mailer.js";
-export type { SmtpMailPayload } from "@jini-ai/platform/mail/smtp";
+export type { SmtpMailPayload } from "@jini-ai/core/contracts/mail";
 
 /** Existing Tovu vendor seam; the Jini adapter receives an object-shaped wrapper. */
 export interface SmtpTransport {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { VaultError, type VaultRecord, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError, type VaultRecord, type VaultRepoPort } from "@jini-ai/core/contracts/vault";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { createPublishContentPeer, updatePublishContentPeer, InMemoryPublishContentPeerRepo, PublishContentPeerDuplicateLabelError, PublishContentPeerSecretStoreUnconfiguredError, PublishContentPeerNotFoundError, VaultPublishContentPeerRepo, type PublishContentPeerWriteDeps } from "../peers.js";

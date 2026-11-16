@@ -1,4 +1,4 @@
-import type { KeyringPort } from "@jini-ai/platform/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 
 /** The parts of a store vault's `required` input that crypto guards read. Both are read at call time,
  * never captured, so a guard always sees the store's current keyring and translator. */

@@ -1,6 +1,7 @@
 import { ToolInputError } from '@jini-ai/core';
 import { createHash } from 'node:crypto';
-import type { SecretsVaultService, VaultRepoPort } from '@jini-ai/platform/secrets/credential-sets';
+import type { SecretsVaultService } from '@jini-ai/platform/secrets/credential-sets';
+import type { VaultRepoPort } from '@jini-ai/core/contracts/vault';
 import { apiConnectionVaultScope, PLUGIN_STATE_FORMAT } from '../api-connections/vault-stores.js';
 
 /** Site storage contains references only. Grants and secrets remain in the owner database. */

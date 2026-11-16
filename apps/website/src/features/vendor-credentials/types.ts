@@ -16,10 +16,14 @@
 // Credential-contract rationale: Jini packages/platform/src/secrets/credential-sets/types.ts.
 // Migration 0045 backfilled destination-based credentials into vendor groups; store.ts remains the
 // validation/sealing boundary, with memory and SQLite repositories under ADR-006/ADR-007.
-import type { VaultRepoPort, VendorCredentialSetRecord as JiniVendorRecord, VendorCredentialSetRepoPort as JiniVendorRepo } from "@jini-ai/platform/secrets/credential-sets";
+import type {
+  VaultRepoPort,
+  VendorCredentialSetRecord as JiniVendorRecord,
+  VendorCredentialSetRepoPort as JiniVendorRepo,
+} from "@jini-ai/core/contracts/vault";
 import type { CredentialTokenHint } from "../../contracts/core/credential-token.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
-export type { VendorCredentialSetSummary } from "@jini-ai/platform/secrets/credential-sets";
+export type { VendorCredentialSetSummary } from "@jini-ai/core/contracts/vault";
 export interface VendorCredentialSetRecord extends JiniVendorRecord { readonly tokenHint?: CredentialTokenHint | null }
 /** Workspace-scoped persistence for {@link VendorCredentialSetRecord} (ADR-007 §1).
  *

@@ -1,7 +1,9 @@
 import { sql } from "kysely";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from "@jini-ai/db/secrets-vault";
-import { buildVaultAad, type VaultQuery, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
-import type { KeyringPort, SealedSecret, SecretSealerPort, SiteKeyHandle } from "@jini-ai/platform/secrets";
+import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
+import { type VaultQuery, type VaultRecord } from "@jini-ai/core/contracts/vault";
+import type { SealedSecret } from "@jini-ai/platform/secrets";
+import type { KeyringPort, SecretSealerPort, RootKeyHandle } from "@jini-ai/core/contracts/vault";
 import type { ContentKernel } from "./content-kernel.js";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { listColumns, listTables } from "@jini-ai/db/kernel";
@@ -217,7 +219,7 @@ export async function opensVaultCredential({ value, sealer }: { value: VaultCred
   try { await sealer.open({ sealed: value.sealed }, { aad: value.aad }); return true; } catch { return false; }
 }
 /** Probe before classification and after failed opens: a broken active key is unknown, not dead data. */
-async function probe({ deps, key }: { deps: SealedCredentialInventoryDeps; key: SiteKeyHandle }): Promise<string | null> {
+async function probe({ deps, key }: { deps: SealedCredentialInventoryDeps; key: RootKeyHandle }): Promise<string | null> {
   try {
     const plaintext = "sealed-credential-inventory-probe";
     const aad = "sealed-credential-inventory-probe:v1";
@@ -226,7 +228,7 @@ async function probe({ deps, key }: { deps: SealedCredentialInventoryDeps; key: 
   } catch { return null; }
 }
 /** Whether a key source exists, the active key when it can be read, and the algorithm its probe proved. */
-interface ActiveKeyCheck { present: boolean; key: SiteKeyHandle | null; alg: string | null }
+interface ActiveKeyCheck { present: boolean; key: RootKeyHandle | null; alg: string | null }
 /**
  * Reads the active key once, only when a source exists, and probes it. Never mints a key and never
  * surfaces a keyring or crypto error: an unreadable key is a null key.
@@ -235,7 +237,7 @@ interface ActiveKeyCheck { present: boolean; key: SiteKeyHandle | null; alg: str
  */
 async function checkActiveKey({ deps }: { deps: SealedCredentialInventoryDeps }): Promise<ActiveKeyCheck> {
   const present = deps.hasSiteKeySource();
-  let key: SiteKeyHandle | null = null;
+  let key: RootKeyHandle | null = null;
   if (present) { try { key = await deps.keyring.activeKey({}); } catch { /* Safe unknown verdict below. */ } }
   const alg = key ? await probe({ deps, key }) : null;
   return { present, key, alg };
@@ -247,7 +249,7 @@ async function checkActiveKey({ deps }: { deps: SealedCredentialInventoryDeps })
  * @complexity O(1).
  */
 function readyKeyFor({ value, check }: { value: VaultCredentialValue; check: ActiveKeyCheck }):
-  { key: SiteKeyHandle } | { reason: SealedCredentialUnknownReason } {
+  { key: RootKeyHandle } | { reason: SealedCredentialUnknownReason } {
   if (value.reason) return { reason: value.reason };
   if (!check.present) return { reason: "no-site-key" };
   if (!check.key || !check.alg) return { reason: "active-key-unavailable" };

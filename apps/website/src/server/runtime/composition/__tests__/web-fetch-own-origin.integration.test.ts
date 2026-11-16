@@ -5,7 +5,8 @@ import { createContributionRegistry, type ToolContributor, type DerivedToolContr
 import type { AssistantToolRegistryDeps } from '#src/assistant/tool-registrations';
 import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
 import { createHttpClient } from '#src/platform/http/client';
-import type { HttpRequest, PinnedPeer } from '#src/platform/http/ports';
+import type { HttpRequest } from '#src/platform/http/ports';
+import type { PinnedPeer } from '@jini-ai/core/contracts/runtime';
 import { installFirstPartyToolContributors } from '../tool-catalog-manifest.js';
 
 test('web_fetch_page reads the configured local site and refuses other local origins across site bindings', async () => {

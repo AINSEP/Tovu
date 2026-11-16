@@ -1,5 +1,6 @@
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
-import { InMemoryVaultRepo, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
+import { type VaultRepoPort } from "@jini-ai/core/contracts/vault";
 import type { AdminExecutionCredentialRecord, AdminExecutionCredentialRepoPort } from "./execution-credential-store.js";
 import { assistantVaultContext, assistantVaultRepo, type AssistantVaultRepo } from "./assistant-vault.js";
 import { assistantVaultKeyView, clearAssistantVaultKey, upsertAssistantVaultRow } from "./assistant-vault-compat.js";

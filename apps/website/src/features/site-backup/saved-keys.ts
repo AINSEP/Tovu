@@ -1,4 +1,4 @@
-import { type SecretSealerPort } from "@jini-ai/platform/secrets";
+import { type SecretSealerPort } from "@jini-ai/core/contracts/vault";
 import { SiteShareRefusal } from "./share-policy.js";
 import type { SiteSavedKeysPort } from "./saved-keys-port.js";
 

@@ -1,7 +1,7 @@
 import { isDeepStrictEqual } from "node:util";
 import { sql, type Selectable } from "kysely";
 import { SqlSecretsVaultRepo, type SecretsVaultDatabase, type SecretsVaultTable } from "@jini-ai/db/secrets-vault";
-import { VaultError, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError, type VaultRecord } from "@jini-ai/core/contracts/vault";
 import { externalMcpVaultEnvelope, persistExternalMcpVaultEnvelope, deleteExternalMcpVaultEnvelope } from "./external-mcp-vault.js";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 

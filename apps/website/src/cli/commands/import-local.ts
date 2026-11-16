@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import fsp from "node:fs/promises";
 import path from "node:path";
-import { FileLockTimeoutError } from "@jini-ai/platform/fs/file-lock";
+import { FileLockTimeoutError } from "@jini-ai/core/contracts/runtime";
 import { leaveSavedKeysOut } from "#src/features/site-backup/saved-keys";
 import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-policy";
 import type { SiteImportBackend, SiteImportSource, SiteImportView } from "#src/features/site-backup/import-backend";

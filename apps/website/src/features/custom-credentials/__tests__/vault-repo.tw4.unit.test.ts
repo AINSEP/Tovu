@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { VaultError, type VaultRecord, type VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError, type VaultRecord, type VaultRepoPort } from "@jini-ai/core/contracts/vault";
 import { CustomCredentialVaultRepo, customVaultRecord } from "../vault-repo.js";
 import type { CustomCredentialSetRecord } from "../types.js";
 

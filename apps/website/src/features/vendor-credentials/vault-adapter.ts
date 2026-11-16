@@ -1,4 +1,11 @@
-import { SecretsVaultService, VaultError, type VaultRepoPort, type VaultRecord, type VaultSummary, type VaultMeta } from "@jini-ai/platform/secrets/credential-sets";
+import { SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
+import {
+  VaultError,
+  type VaultRepoPort,
+  type VaultRecord,
+  type VaultSummary,
+  type VaultMeta,
+} from "@jini-ai/core/contracts/vault";
 import type { Clock } from "@jini-ai/core/primitives";
 import type { KeyringPort, SecretSealerPort, SealedSecret } from "../webhooks/index.js";
 import type { SourceControlCredentialSetRecord } from "../source-control/types.js";

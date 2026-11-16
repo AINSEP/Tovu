@@ -1,6 +1,6 @@
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 import type { SealedSecret } from "../webhooks/index.js";
-import type { VaultRepoPort } from "@jini-ai/platform/secrets/credential-sets";
+import type { VaultRepoPort } from "@jini-ai/core/contracts/vault";
 type VaultPutRecord = Parameters<VaultRepoPort["put"]>[0]["record"];
 
 

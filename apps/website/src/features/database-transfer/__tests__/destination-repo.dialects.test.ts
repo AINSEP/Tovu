@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { sql } from "kysely";
-import { VaultError, type VaultRecord } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError, type VaultRecord } from "@jini-ai/core/contracts/vault";
 import { describeEachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { ensureVaultRepoFixture } from "#src/platform/db/repos/__tests__/vault-repo.fixture";
 import { DatabaseDestinationRepo } from "../destination-repo.js";

@@ -16,7 +16,7 @@ import { probeLoopbackHttp, requestLoopbackHttp } from "@jini-ai/platform/net";
 import { allocatePort, readLiveDaemonRegistryRecord } from "@jini-ai/sidecar";
 import { createNodeDaemonProcessAdapter, type NodeDaemonProcessOptions } from "@jini-ai/sidecar/supervisor/node";
 import { listProcessSnapshots, readFlagValue } from "@jini-ai/platform/process";
-import { omitEnvironmentKeys } from "@jini-ai/platform/child-environment";
+import { omitEnvironmentKeys } from "@jini-ai/core/contracts/runtime";
 import type { SpawnedDaemonProcess } from "@jini-ai/sidecar/supervisor";
 import type { LocalSiteProcessPort, LocalSiteProcess } from "#src/platform/site-dir/index";
 import { LocalSiteError, assertLocalSiteName } from "#src/platform/site-dir/index";

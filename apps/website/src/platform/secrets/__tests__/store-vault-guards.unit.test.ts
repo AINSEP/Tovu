@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { KeyringPort } from "@jini-ai/platform/secrets";
+import type { KeyringPort } from "@jini-ai/core/contracts/vault";
 import { createStoreKeyring, protectStorage, type StorageFailureSource } from "../store-vault-guards.js";
 
 /** Typed fake keyring: records each call and answers with fixed bytes / key handle. */

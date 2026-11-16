@@ -1,4 +1,4 @@
-import type { SecretSealerPort } from "@jini-ai/platform/secrets";
+import type { SecretSealerPort } from "@jini-ai/core/contracts/vault";
 import type { ChatKernel } from "../db/chat-kernel.js";
 import type { ContentKernel } from "../db/content-kernel.js";
 import type { ContentDb, ContentDbOpenOptions, ContentDbSeedData } from "../db/sqlite/content-db.js";

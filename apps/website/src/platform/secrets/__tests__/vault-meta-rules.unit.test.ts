@@ -1,7 +1,8 @@
 import "../../site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createVaultMetaParsers, VaultError, type VaultMetaParsers } from "@jini-ai/platform/secrets/credential-sets";
+import { createVaultMetaParsers } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError, type VaultMetaParsers } from "@jini-ai/core/contracts/vault";
 import { assertCredentialFreeOrigin, assertHostMetaRules, assertRecoveryMeta, parseStructuralMeta, withRecoveryMeta } from "../vault-meta-rules.js";
 
 const invalidMeta = { name: "VaultError", message: "Secrets vault: invalid-meta", code: "invalid-meta" };

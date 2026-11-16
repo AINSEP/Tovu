@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { VaultError } from "@jini-ai/platform/secrets/credential-sets";
+import { VaultError } from "@jini-ai/core/contracts/vault";
 import type { FederatedCallTarget } from "@jini-ai/mcp/federation";
 import type { ContentKernel } from "../../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../../platform/db/sqlite/content-db.js";

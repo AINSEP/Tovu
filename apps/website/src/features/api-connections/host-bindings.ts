@@ -1,7 +1,6 @@
 import type { Clock } from '@jini-ai/core/primitives';
 import type { OAuthHttpPorts } from '@jini-ai/core/contracts/oauth';
-import type { KeyringPort, SecretSealerPort } from '@jini-ai/platform/secrets';
-import type { VaultRepoPort } from '@jini-ai/platform/secrets/credential-sets';
+import type { KeyringPort, SecretSealerPort, VaultRepoPort } from '@jini-ai/core/contracts/vault';
 import { startLoopbackAuthorizationReceiver } from '@jini-ai/oauth';
 import { apiConnectionOAuthCapabilities } from './oauth-bindings.js';
 import type { ApiConnectionHostPorts, ApiConnectionHostMessages, ApiConnectionRuntime, ApiConnectionSharedFactoryInput, PluginHttp } from '@jini-ai/integrations/api-connections';
