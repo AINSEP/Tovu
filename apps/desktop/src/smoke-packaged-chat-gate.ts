@@ -16,6 +16,7 @@ import { Writable } from "node:stream";
 import type { ChildProcess, ChildProcessWithoutNullStreams, SpawnOptions, SpawnOptionsWithoutStdio,
   SpawnSyncOptionsWithStringEncoding, SpawnSyncReturns } from "node:child_process";
 import type * as platformProcess from "@jini-ai/platform/process";
+import type { collectProcessTreePids } from "@jini-ai/core/contracts/runtime";
 
 import { PackagedGateIsolationError } from "./packaged-gate-isolation.ts";
 import type { withIsolatedSmokeTargets } from "./packaged-gate-isolation.ts";
@@ -65,7 +66,7 @@ interface ChatGateDeps {
   setTimeout(callback: () => void, ms: number): NodeJS.Timeout;
   clearTimeout(handle: NodeJS.Timeout | undefined): void;
   randomUUID(): string;
-  processes: Pick<typeof platformProcess, "collectProcessTreePids" | "listProcessSnapshots" | "stopProcesses">;
+  processes: Pick<typeof platformProcess, "listProcessSnapshots" | "stopProcesses"> & { collectProcessTreePids: typeof collectProcessTreePids };
   allocatePort: typeof allocatePort;
   buildServeEnv: typeof buildServeEnv;
   startTovuServer: typeof startTovuServer;
