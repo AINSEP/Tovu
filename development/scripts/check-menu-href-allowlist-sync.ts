@@ -8,7 +8,7 @@
  * 1. **Canonical**: `isAllowedHref`, exported from `@jini-ai/cms/navigation` (Jini repo,
  *    `packages/cms/src/navigation/menu-service.ts`). Write-time — rejects a menu item's `url` target
  *    with a 400 `MenuValidationError` when it fails.
- * 2. `safeHref` in `apps/website/src/server/inbound/public-http/http/site/render.ts` (this repo).
+ * 2. `safeHref` in `apps/website/src/platform/html/safe-url.ts` (this repo).
  *    Render-time — coerces a failing value to `"#"` instead of rejecting.
  * 3. `safeHref` in `apps/website/src/features/theme/static-render.ts` (this repo, static-tier
  *    theme menu rendering). Same render-time coerce-to-`"#"` contract as #2 — a DELIBERATE duplicate
@@ -64,7 +64,7 @@ import { pathToFileURL } from "node:url";
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const RENDER_TS_PATH = path.join(
   REPO_ROOT,
-  "apps/website/src/server/inbound/public-http/http/site/render.ts"
+  "apps/website/src/platform/html/safe-url.ts"
 );
 const STATIC_RENDER_TS_PATH = path.join(REPO_ROOT, "apps/website/src/features/theme/render-contract.ts");
 
