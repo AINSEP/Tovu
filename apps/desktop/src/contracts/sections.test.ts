@@ -11,10 +11,10 @@ test('visible navigation retains declaration order and filters hidden sections i
     ['home', 'Home'], ['projects', 'Websites'], ['marketplace', 'Marketplace'],
     ['generation', 'Media'], ['activity', 'Activity'], ['updates', 'Updates'],
   ]);
-  assert.deepEqual(sectionsInGroup('workspace').map(({ id }) => id), ['home', 'projects', 'marketplace']);
-  assert.deepEqual(sectionsInGroup('work').map(({ id }) => id), ['generation']);
-  assert.deepEqual(sectionsInGroup('operations').map(({ id }) => id), ['activity', 'updates']);
-  assert.deepEqual(sectionsInGroup('access'), []);
+  assert.deepEqual(sectionsInGroup({ group: 'workspace' }).map(({ id }) => id), ['home', 'projects', 'marketplace']);
+  assert.deepEqual(sectionsInGroup({ group: 'work' }).map(({ id }) => id), ['generation']);
+  assert.deepEqual(sectionsInGroup({ group: 'operations' }).map(({ id }) => id), ['activity', 'updates']);
+  assert.deepEqual(sectionsInGroup({ group: 'access' }), []);
 });
 
 test('hidden tasks remain addressable while unknown IDs have no fallback section', () => {

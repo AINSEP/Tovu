@@ -26,7 +26,7 @@ import type { RunnerInventoryBridge } from './runner-api.js';
 
 /** `File.type` is the browser's own MIME sniff off the dropped/picked file — good enough to tell
  *  `ChatPane` how to render the attachment chip; not a security boundary either way. */
-function attachmentKind(file: File): ChatAttachment['kind'] {
+function attachmentKind({ file }: { file: File }, _options = {}): ChatAttachment['kind'] {
   return file.type.startsWith('image/') ? 'image' : 'file';
 }
 
@@ -34,7 +34,7 @@ async function stageOne({ bridge, file, order }: { bridge: Pick<RunnerInventoryB
 ): Promise<ChatAttachment> {
   const data = await file.arrayBuffer();
   const { path } = await bridge.saveChatAttachment({ name: file.name, data });
-  return { path, name: file.name, kind: attachmentKind(file), size: file.size, order };
+  return { path, name: file.name, kind: attachmentKind({ file }), size: file.size, order };
 }
 
 export function createLocalAttachmentUploader(

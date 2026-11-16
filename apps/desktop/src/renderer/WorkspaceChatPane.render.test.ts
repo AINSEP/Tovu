@@ -64,7 +64,7 @@ function fakePorts({ connected = true, pendingTitle = null, getPathForFile }: Fa
   const deleteConfirmation = {
     pendingTitle,
     confirmDelete: async () => false,
-    resolvePending: (confirmed: boolean) => calls.push(`resolve:${confirmed}`),
+    resolvePending: ({ confirmed }: { confirmed: boolean }) => calls.push(`resolve:${confirmed}`),
   } as unknown as DeleteConfirmation;
   const ports = { useTransport: () => transport, useConversations: () => conversations, useDeleteConfirmation: () => deleteConfirmation };
   const rendered: { list?: Record<string, unknown>; chat?: Record<string, unknown> } = {};

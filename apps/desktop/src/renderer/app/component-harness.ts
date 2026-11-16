@@ -23,7 +23,7 @@ export interface TestContext {
 /** What {@link mount} hands back: the root's container, a re-render, and real-event helpers. */
 export interface Mounted {
   container: HTMLElement;
-  render: (next: ReactElement) => void;
+  render: (required: { next: ReactElement }, options?: {}) => void;
   all: (required: { selector: string }, options?: {}) => HTMLElement[];
   byLabel: (required: { label: string }, options?: {}) => HTMLElement | null;
   byText: (required: { text: string }, options?: { selector?: string }) => HTMLElement | undefined;
@@ -41,8 +41,8 @@ export function mount({ t, element }: { t: TestContext; element: ReactElement },
   const container = document.body.appendChild(document.createElement('div'));
   const root = createRoot(container);
   t.after(() => { act(() => root.unmount()); container.remove(); });
-  const render = (next: ReactElement) => act(() => root.render(next));
-  render(element);
+  const render = ({ next }: { next: ReactElement }, _options = {}) => act(() => root.render(next));
+  render({ next: element });
   const all = ({ selector }: { selector: string }, _options = {}) => [...container.querySelectorAll<HTMLElement>(selector)];
   return {
     container,
