@@ -1,5 +1,5 @@
 // @unrun: e2 edit-only dispatch, 2026-10-08; coordinator owns all execution.
-import { createUIResource } from "@jini-ai/ui/mcp-ui";
+import { createUIResource } from "@jini-ai/protocol/mcp-ui";
 import { test, expect, requestApi, installFixtureTheme, WS_API } from "../support/release-0113-fixtures.js";
 import { createAdminChatDriver } from "../support/admin-chat-driver.js";
 import { stubPendingRun } from "../support/assistant-run-stub.js";
