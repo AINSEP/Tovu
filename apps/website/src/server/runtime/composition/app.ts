@@ -1,7 +1,6 @@
 import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render";
 import { createFormAttachmentPurgeHooks } from "@jini-ai/cms/forms";
 import { startupSecretEnvironment } from "../boot/startup-secrets.js";
-import { statfs } from "node:fs/promises";
 import { registerCommerceHttp } from "./commerce-http.js";
 import { getExportRunSnapshot } from '../../../features/deployments/export-run.js';
 import { getPublishRunSnapshot } from '../../../features/deployments/static-publish/publish-run.js';
@@ -146,7 +145,6 @@ import {
   SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
 } from "../configuration/seed.js";
 import { createLocalAnalyticsSink } from "#src/features/analytics/jini-adapters";
-import { analyticsProviderRouteDeps } from "./analytics-providers.js";
 import {
   ConsoleMailerAdapter,
   createInMemoryCredentialLifecycle,
@@ -232,7 +230,7 @@ import { wireCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
 import { createNavMenuReadModel } from "#src/features/navigation/index";
 import { createCommentsModule, HeuristicSpamCheck } from "@jini-ai/cms/comments";
-import { createCommentsHostPorts, resolveCommentsIpHashSalt } from "#src/features/comments/index";
+import { createCommentsHostPorts } from "#src/features/comments/index";
 import { createSettingsAnalyticsConfig } from "#src/features/analytics/config.settings";
 import {
   ensureSiteTitleSettingDefinition,
@@ -243,7 +241,6 @@ import { ensureAdminInterfaceSettingDefinitions } from "#src/features/settings/a
 import { createSiteTimeZonePort, ensureSiteTimeZoneSettingDefinition } from "#src/features/settings/site-timezone";
 import { InMemoryCommentRepo } from "@jini-ai/cms/comments";
 import type { CommentRecord } from "@jini-ai/cms/comments";
-import { registerCommentsSubmitRoute } from "../../inbound/public-http/routes/site/comments-submit.js";
 import { noopStampWatermark, toTaxonomyOutbox } from "#src/features/taxonomy/index";
 import {
   SqliteEntryTermRepo,
@@ -270,7 +267,6 @@ import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.
 import { registerMemberPageRoutes } from "../../inbound/public-http/routes/site/member-pages.js";
 import { registerSiteChatComparisonRoutes } from "../../inbound/public-http/routes/site/chat-comparison.js";
 import { resolveStorefrontProducts } from "../../inbound/public-http/routes/site/products.js";
-import { registerAnalyticsIngestRoute } from "../../inbound/public-http/routes/site/analytics-ingest.js";
 import { registerContentPostGetRoute } from "../../inbound/public-http/routes/content/posts/get-by-slug.js";
 import { createCommentsModerationModule } from "./modules/comments-moderation.js";
 import { createCoreModule } from "./modules/core.js";
@@ -335,7 +331,6 @@ import { isLocalTovuHost } from "./registered-sites.js";
 import { registerAdminPublishSiteRoutes } from "../../inbound/admin-http/routes/system/publish-site.js";
 import { createFormsAdminModule } from "./modules/forms-admin.js";
 import { createFormFileStorage } from "../../../features/forms/form-file-storage.js";
-import { registerFormsSubmitRoute } from "../../inbound/public-http/routes/site/forms-submit.js";
 import { createRedirectsModule } from "./modules/redirects.js";
 import { createDatabaseRecoveryModule } from "./modules/database-recovery.js";
 import { createContentTypesModule } from "./modules/content-types.js";
@@ -360,6 +355,7 @@ import { mountRoutes, startModule } from "./http-app/module-handles.js";
 import { siteAppBootWorkByDeps, trackByokBootWork } from "./site-app-boot-work.js";
 import { subscribeSiteEventHandlersOnce } from "./site-event-subscriptions.js";
 import { applyPublicMiddleware, registerAdminSpa, registerSiteChatBundle, registerSiteIdlePark } from "./http-app/public-middleware.js";
+import { registerCommentsSubmit, registerAnalyticsIngest, registerFormsSubmit } from "./http-app/visitor-submit.js";
 
 /**
  * @file HTTP composition root and route wiring.
@@ -2214,92 +2210,9 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // Historical rows and namespace claims survive retirement independently of activation.
   registerCommerceHttp({ app, deps: routeDeps });
 
-  // Public comment submission (ADR-031 §4) — unauthenticated by design; must precede the site
-  // `/:slug` catch-all, same reasoning as the store/analytics routes above.
-  registerCommentsSubmitRoute(app, {
-    visitorAnalyticsProof: routeDeps.visitorAnalyticsProof,
-    visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
-    visitorTracker: routeDeps.visitorTracker,
-    tracker: routeDeps.tracker,
-    idGen: routeDeps.idGen,
-    ingressPolicy: routeDeps.commentIngressPolicy,
-    providers: routeDeps.commentsProviders,
-    workspaceId: routeDeps.workspaceId,
-    // HTTP requests and accepted submissions consume separate budgets, never the same counter twice.
-    rateLimiter: createCommentsHostPorts({ clock: routeDeps.clock, settingsRepo: routeDeps.settingsRepo, workspaceId: routeDeps.workspaceId }, {}).rateLimiter,
-    // Resolved here, once, from the root's env and its site-key keyring — the route never reads env.
-    // No public-constant fallback in production: see `features/comments/ip-hash-salt.ts`.
-    ipHashSalt: resolveCommentsIpHashSalt({
-      env: process.env, mode: resolveRuntimeMode(), workspaceId: routeDeps.workspaceId, keyring: routeDeps.siteAssistantSecretKeyring,
-    }).then(({ salt }) => salt),
-  });
-
-  // Public analytics beacon (ADR-035 §5) — unauthenticated by design; must precede the site
-  // `/:slug` catch-all. `config` is now the real ADR-028-backed adapter
-  // (`analytics/config.settings.ts`'s `createSettingsAnalyticsConfig`), replacing the former
-  // hardcoded dev-only stub.
-  registerAnalyticsIngestRoute(app, {
-    browserAnalytics: routeDeps.browserAnalytics,
-    visitorAnalyticsProof: routeDeps.visitorAnalyticsProof,
-    visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
-    visitorTracker: routeDeps.visitorTracker,
-    tracker: routeDeps.tracker,
-    idGen: routeDeps.idGen,
-    clock: routeDeps.clock,
-    ids: routeDeps.idGen,
-    sink: routeDeps.analyticsSink,
-    config: routeDeps.analyticsConfig,
-    resolveWorkspaceForHost: async () => routeDeps.workspaceId, // single-workspace v1
-    analyticsSeed: process.env.ANALYTICS_ROOT_KEY_SEED ?? "dev-only-insecure-seed",
-    ...analyticsProviderRouteDeps(routeDeps),
-  });
-
-  // ADR-046 Phase 3 (SPEC-034): the public media rendition route now registers earlier, as part of
-  // `createMediaModule(routeDeps).registerRoutes(app)` above — it's still safely before the site
-  // `/:slug` catch-all below, which is the only ordering constraint that ever applied to it.
-
-  // Public, unauthenticated form submission endpoint (SPEC-010 REQ-05, FORMS_POST_SUBMIT) — must
-  // precede the site `/:slug` catch-all, same reasoning as the routes immediately above.
-  registerFormsSubmitRoute(app, {
-    visitorAnalyticsProof: routeDeps.visitorAnalyticsProof,
-    visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
-    visitorTracker: routeDeps.visitorTracker,
-    formSubmissionAttempts: routeDeps.formSubmissionAttempts,
-    tracker: routeDeps.tracker,
-    idGen: routeDeps.idGen,
-    workspaceId: routeDeps.workspaceId,
-    submitForm: {
-      definitionRepo: routeDeps.formDefinitionRepo,
-      submissionRepo: routeDeps.formSubmissionRepo,
-      outbox: routeDeps.outbox,
-      bus: routeDeps.bus,
-      clock: routeDeps.clock,
-      idGen: routeDeps.idGen,
-      crypto: globalThis.crypto,
-      rateLimiter: routeDeps.formsRateLimiter,
-      readUploadFreeBytes: async () => {
-        if (await routeDeps.siteBackupSources?.isMediaRemote?.()) return undefined;
-        const stats = await statfs(routeDeps.siteStoragePaths.mediaUploadsDir);
-        return stats.bavail * stats.bsize;
-      },
-      uploadSpaceMessage: "This site has no room for another attachment. Your answers are kept below. Your form has not been sent.",
-      files: createFormFileStorage({ media: {
-        clock: routeDeps.clock, idGen: routeDeps.idGen, mediaRepo: routeDeps.mediaRepo,
-        entryRefsRepo: routeDeps.entryRefsRepo, postRepo: routeDeps.postRepo,
-        blobRepo: routeDeps.assetBlobRepo, renditionRepo: routeDeps.assetRenditionRepo, blobStore: routeDeps.blobStore,
-        ...createFormMediaCleanup({ kernel: routeDeps.contentKernel, outbox: routeDeps.outbox, clock: routeDeps.clock, graceMs: DEFAULT_GC_GRACE_MS }),
-      }, contentTypes: routeDeps.mediaContentTypeStore,
-        resolveCreatedByPrincipal: async ({ workspaceId }) => {
-          // Uploads have no signed-in operator. Await identity's existing seed and attribute the
-          // write to its active System principal, rather than minting a dangling anonymous id.
-          await routeDeps.identityReady;
-          const principal = (await routeDeps.principalRepo.list({ workspaceId })).find(row => row.kind === "system" && row.status === "active" && row.displayName === "System");
-          if (!principal) throw new Error("form uploads require the site's System principal");
-          return principal.id;
-        },
-      }, {}),
-    },
-  });
+  registerCommentsSubmit({ app, routeDeps });
+  registerAnalyticsIngest({ app, routeDeps });
+  registerFormsSubmit({ app, routeDeps });
 
   // Member sign-in pages (/signin, /account, ...) must precede the /:slug catch-all below.
   registerMemberPageRoutes(app, routeDeps);
