@@ -1,10 +1,8 @@
-import { createFocusedEditorChain } from "./PostEditor.hooks";
 import { standingDraftRecoveryMessage } from "@jini-ai/ui/panel-kit";
 import { useThemePreviewFrame } from "../themes/hooks/use-theme-preview-refresh.hooks";
 import { WiredThemePreviewReloadButton } from "../themes/ThemePreviewReloadButton";
 import type { ReactNode } from "react";
-import { EditorContent, useEditorState, type Editor } from "@tiptap/react";
-import { BubbleMenu } from "@tiptap/react/menus";
+import { EditorContent, type Editor } from "@tiptap/react";
 import DragHandle from "@tiptap/extension-drag-handle-react";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { ConfirmDialog } from "@jini-ai/admin/react";
@@ -33,10 +31,9 @@ import { PostCoverImage } from "./PostCoverImage";
 import { PostSettingsDialog } from "./PostSettingsDialog";
 import { PostUrlDialog } from "./PostUrlDialog";
 import { Toolbar } from "./editor/toolbar/Toolbar";
-import { probeBubbleMenu } from "./editor/bubble-menu/bubble-menu-state";
+import { BubbleFormattingMenu } from "./editor/bubble-menu/BubbleFormattingMenu";
 import { usePostUrlDialog, type PostUrlDialogController } from "./hooks/use-post-url-dialog.hooks";
 import {
-  toolbarBtnClass,
   overridesThemePageFromSelectValue,
   overridesThemePageSelectValue,
   resolvePostPreviewBranches,
@@ -83,45 +80,6 @@ const VIEWS: ReadonlyArray<{ key: PostEditorView; label: string; handle: string;
  *  the `.segmented` pill row is a different visual control, only the keyboard contract is shared.
  *  Spread, not rebuilt, so nothing in the JSX below has to change which field it reads. */
 const VIEW_TABS = VIEWS.map((entry) => ({ ...entry, id: entry.key }));
-
-/**
- * Selection bubble menu (owner, 2026-08-11: "anything and everything") — floats above a text
- * selection with the handful of formatting actions an author reaches for most while highlighting a
- * phrase, so they don't have to move the mouse all the way up to the fixed `Toolbar` row and back.
- * `@tiptap/react/menus` is the only working import path for `BubbleMenu` in the installed 3.27.2 —
- * confirmed against the actual built JS, not just the docs: `@tiptap/react`'s own main entry has NO
- * `BubbleMenu` export in its bundle, only the `/menus` subpath does.
- *
- * Deliberately a small, separate subset (Bold/Italic/Underline/Highlight/Link), not the full
- * `Toolbar` teleported into a popover — a selection-context menu that's as busy as the fixed toolbar
- * defeats its own "quick action while selecting" purpose. Its own `useEditorState` selector, not
- * `Toolbar`'s: the two mount independently (this one only appears with a selection), so sharing one
- * selector would make `Toolbar` re-render on every selection change for state it never displays.
- */
-function BubbleFormattingMenu({ editor, urlDialog, t }: { editor: Editor; urlDialog: PostUrlDialogController; t: Translate }) {
-  const s = useEditorState({
-    editor,
-    selector: ({ editor }) => probeBubbleMenu({ editor }),
-  });
-  const chain = createFocusedEditorChain({ editor });
-
-  return (
-    <BubbleMenu editor={editor} className="bubble-formatting-menu">
-      <button className={toolbarBtnClass({ active: s.bold })} title={t("Bold")} aria-pressed={s.bold} onClick={() => chain().toggleBold().run()}><b>B</b></button>
-      <button className={toolbarBtnClass({ active: s.italic })} title={t("Italic")} aria-pressed={s.italic} onClick={() => chain().toggleItalic().run()}><i>I</i></button>
-      <button className={toolbarBtnClass({ active: s.underline })} title={t("Underline")} aria-pressed={s.underline} onClick={() => chain().toggleUnderline().run()}><u>U</u></button>
-      <button className={toolbarBtnClass({ active: s.highlight })} title={t("Highlight")} aria-pressed={s.highlight} onClick={() => chain().toggleHighlight().run()}><mark>H</mark></button>
-      <button
-        className={toolbarBtnClass({ active: s.link })}
-        title={t("Link")}
-        aria-pressed={s.link}
-        onClick={urlDialog.openLink}
-      >
-        {t("Link")}
-      </button>
-    </BubbleMenu>
-  );
-}
 
 /**
  * The editor header — the back link, the title and the slug (owner, 2026-10-10: the title and slug
