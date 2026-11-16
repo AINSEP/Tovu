@@ -1,5 +1,6 @@
 import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
-import { buildFormSurface, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { buildFormSurface } from "@jini-ai/ui/mcp-ui/surfaces";
+import { type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
 
 // The core catalog contract avoids a dependency on another feature’s declarations.
 import { buildDomainRegistrations, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";

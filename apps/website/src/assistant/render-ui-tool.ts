@@ -1,5 +1,10 @@
 import { toolMetadata } from '../contracts/core/tool-metadata/assistant.js';
-import { A2UI_DISPLAY_ONLY_PROPERTY, createLabCatalog, parseAgentToRendererMessage, type AgentToRendererMessage } from "@jini-ai/agentic/a2ui";
+import {
+  A2UI_DISPLAY_ONLY_PROPERTY,
+  createLabCatalog,
+  parseAgentToRendererMessage,
+  type AgentToRendererMessage,
+} from "@jini-ai/protocol/a2ui";
 
 import { buildDomainRegistrations, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 

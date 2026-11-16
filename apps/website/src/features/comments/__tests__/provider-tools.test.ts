@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { JSDOM } from 'jsdom';
-import type { UIResource } from '@jini-ai/ui/mcp-ui/surfaces';
+import type { UIResource } from '@jini-ai/protocol/mcp-ui';
 import { createSurfaceExchangeStore } from '@jini-ai/daemon/surface-exchanges';
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createSystemClock } from '@jini-ai/platform/system';

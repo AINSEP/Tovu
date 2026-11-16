@@ -13,7 +13,7 @@ import test from "node:test";
 import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryExternalMcpServerRepo } from "../../features/external-mcp/external-mcp-store.memory.js";
-import { MCP_UI_MIME_TYPE, type UIResource } from "../index.js";
+import { MCP_UI_MIME_TYPE, type UIResource } from "@jini-ai/protocol/mcp-ui";
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
 import {
   SURFACE_EXCHANGE_ID_PARAM,

@@ -7,7 +7,7 @@ import { mkdtemp, readdir, rm, writeFile, access } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import type { ToolExecutionOptions, ToolRegistration } from "@jini-ai/core";
-import { MCP_UI_EXPIRES_AT_META_KEY, type UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
+import { MCP_UI_EXPIRES_AT_META_KEY, type UIResource } from "@jini-ai/protocol/mcp-ui";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryDatabaseDestinationStore } from "../destination-store.js";
 import { DatabaseTransferPlanStore } from "../plan-store.js";

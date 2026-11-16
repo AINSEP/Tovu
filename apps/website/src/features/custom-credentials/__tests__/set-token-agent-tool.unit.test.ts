@@ -8,7 +8,7 @@ import { createToolRegistry, type SurfaceEmitter, type ToolExecutionContext, typ
 import { createToolExecutor } from "@jini-ai/daemon";
 import type { Express, Request, Response } from "express";
 
-import { MCP_UI_MIME_TYPE, type UIResource } from "#src/assistant/index";
+import { MCP_UI_MIME_TYPE, type UIResource } from "@jini-ai/protocol/mcp-ui";
 import { describeInput, withToolAttemptAudit } from "#src/assistant/tool-audit-preset";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "#src/assistant/mcp-ui-tool-calls-route";
 import { RUN_PRINCIPAL_HEADER } from "#src/assistant/daemon-access";

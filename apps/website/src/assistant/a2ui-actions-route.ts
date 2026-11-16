@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
 
-import { parseRendererToAgentMessage, type RendererToAgentMessage } from "@jini-ai/agentic/a2ui";
+import { parseRendererToAgentMessage, type RendererToAgentMessage } from "@jini-ai/protocol/a2ui";
 
 import { RUN_PRINCIPAL_HEADER } from "./daemon-access.js";
 import type { DeliverResult, SurfaceDeliveryRejectionReason, SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";

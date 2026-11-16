@@ -170,14 +170,10 @@ export { MCP_UI_TOOL_CALLS_PATH, isTypedSurfaceAnswer } from "./mcp-ui-tool-call
 // tool output conforms to it, the same "consumer needs the port's own type" reasoning as any other
 // cross-module port. The rest of `mcp-ui.ts` (`buildUIToolResult`, etc.) stays
 // un-re-exported — no external caller constructs a `UIResource` today, only reads/asserts on one.
-export { MCP_UI_MIME_TYPE } from "./mcp-ui.js";
-export type { UIResource } from "./mcp-ui.js";
 export { RUN_PRINCIPAL_HEADER } from "./daemon-access.js";
 
 // Cross-domain consumers import the Jini exchange owner directly. Keep only the symbol pair
 // the server's assistant module needs here, so the curated barrel does not widen its consumers.
-export { SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
-export type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 
 // ---------------------------------------------------------------------------------------------
 // E — External MCP Federation (registry)
@@ -203,8 +199,6 @@ export {
 
 
 
-export { FEDERATED_CONNECTION_DEFAULTS, isFederationEnabled, parseAllowedToolNames, positiveIntOrDefault } from "@jini-ai/mcp/federation";
-export type { ResolvedFederatedConnection } from "@jini-ai/mcp/federation";
 // The admin probe is the other external consumer of the hosted MCP
 // transport besides `mcp-federation/bootstrap.ts` itself — the admin probe route needs to open the
 // exact same kind of short-lived session bootstrap.ts's `defaultConnect` opens for a `streamable_http`

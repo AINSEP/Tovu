@@ -93,7 +93,8 @@
  * unless the model actually passes `confirm: true`. That check is already fully implemented
  * upstream and does not depend on this host's confirmation-transport gap at all.
  */
-import { PAGE_CAPABILITIES, type CapabilityDef } from "@jini-ai/agentic";
+import { PAGE_CAPABILITIES } from "@jini-ai/agentic";
+import { type CapabilityDef } from "@jini-ai/core/contracts/capabilities";
 import type { ToolRegistration } from "@jini-ai/core";
 import { withToolMetadata } from "@jini-ai/core";
 import { toolMetadata } from "../contracts/core/tool-metadata/frontend-control.js";
