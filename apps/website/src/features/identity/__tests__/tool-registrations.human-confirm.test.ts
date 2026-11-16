@@ -9,7 +9,7 @@ import { type IdentityRepos } from "@jini-ai/user-management";
 import { InMemoryPolicyPermissionRepo, InMemoryPolicyRepo, InMemoryPrincipalPolicyRepo, InMemoryPrincipalRepo, InMemoryPrincipalRoleRepo, InMemoryRolePolicyRepo, InMemoryRoleRepo, InMemorySessionRepo, InMemoryUserRepo, seedIdentity } from "@jini-ai/user-management/server";
 import { Argon2PasswordHasher, loadArgon2Binding } from "@jini-ai/user-management/server";
 
-import type { UIResource } from "#src/assistant/index";
+import type { UIResource } from "@jini-ai/protocol/mcp-ui";
 import {
   createSurfaceExchangeStore,
   SURFACE_DISMISSED_PARAM,

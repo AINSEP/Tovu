@@ -8,7 +8,7 @@ import test from "node:test";
 
 import { type SurfaceEmitter, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 
-import type { UIResource } from "#src/assistant/index";
+import type { UIResource } from "@jini-ai/protocol/mcp-ui";
 import type { DbOpsPort, RestoreCapability } from "#src/contracts/core/gated-mutations/ports";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { ContentDb } from "#src/platform/db/sqlite/content-db";

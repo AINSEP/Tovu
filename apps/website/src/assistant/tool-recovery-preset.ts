@@ -3,7 +3,8 @@ import { randomBytes, randomUUID } from "node:crypto";
 import type { ToolExecutor } from "@jini-ai/daemon";
 import type { ToolRegistry } from "@jini-ai/core";
 import { redactUserText } from "@jini-ai/chat/core";
-import { buildFormSurface, type SurfaceField, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { buildFormSurface, type SurfaceField } from "@jini-ai/ui/mcp-ui/surfaces";
+import { type UIResource, type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { withToolFailureRecovery as withDaemonRecovery, withRedactedToolFailures as withDaemonRedaction,

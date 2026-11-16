@@ -5,7 +5,7 @@ import test from "node:test";
 import express from "express";
 
 import { createToolRegistry, type SurfaceEmission } from "@jini-ai/core";
-import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/ui/mcp-ui/surfaces";
+import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/protocol/mcp-ui";
 import { createToolExecutor } from "@jini-ai/daemon";
 
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";

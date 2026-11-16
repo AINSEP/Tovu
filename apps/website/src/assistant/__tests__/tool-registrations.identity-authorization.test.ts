@@ -10,7 +10,7 @@ import test from "node:test";
 const SEED_OWNER_PASSWORD = "seed-owner-pw";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
-import type { UIResource } from "#src/assistant/index";
+import type { UIResource } from "@jini-ai/protocol/mcp-ui";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 
 import { type IdentityRepos, GrantExceedsIssuerError, IdentityForbiddenError } from "@jini-ai/user-management";

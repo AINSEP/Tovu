@@ -5,7 +5,7 @@ import test from "node:test";
 import { createToolRegistry, type Principal, type RunRef, type SurfaceEmitter, type ToolExecutionContext, type ToolRegistry } from "@jini-ai/core";
 import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 import { isReadOnlyTool } from "@jini-ai/core";
-import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
+import type { UIResource } from "@jini-ai/protocol/mcp-ui";
 
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";

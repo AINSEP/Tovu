@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { A2UI_DISPLAY_ONLY_PROPERTY } from "@jini-ai/agentic/a2ui";
+import { A2UI_DISPLAY_ONLY_PROPERTY } from "@jini-ai/protocol/a2ui";
 import type { SurfaceEmission, SurfaceEmitter } from "@jini-ai/core";
 import type { ToolRegistration } from "@jini-ai/core";
 

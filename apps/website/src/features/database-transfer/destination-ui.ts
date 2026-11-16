@@ -1,5 +1,6 @@
 import { SECRET_FORM_CARD_DEFINITIONS } from "../../contracts/headless/index.js";
-import { buildFormSurface, buildOutcomeSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { buildFormSurface, buildOutcomeSurface } from "@jini-ai/ui/mcp-ui/surfaces";
+import { type UIResource, type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
 
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 

@@ -1,6 +1,7 @@
 import { VISITOR_TOOL_PRESENTATION } from './visitor-tool-presentation.js';
 /** CMS policy over Jini's frontend registrations; no second page executor. */
-import { PAGE_CAPABILITIES, findCapabilityInputError, normalizeAgentLabel, pageActionNeedsConfirmation, type PagePublication, type CapabilityDef } from '@jini-ai/agentic';
+import { PAGE_CAPABILITIES, normalizeAgentLabel, pageActionNeedsConfirmation, type PagePublication } from '@jini-ai/agentic';
+import { findCapabilityInputError, type CapabilityDef } from '@jini-ai/core/contracts/capabilities';
 import type { ToolRegistration } from '@jini-ai/core';
 import { readAnonymousPublishedPosts, type AnonymousPublishedPostDeps } from './public-content.js';
 import { postPublicPath, checkSiteRelativeTarget } from '#src/platform/routing/index';

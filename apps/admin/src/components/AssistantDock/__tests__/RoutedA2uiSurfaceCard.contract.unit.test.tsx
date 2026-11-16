@@ -1,7 +1,7 @@
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import type { Clock } from "@jini-ai/core/primitives";
 import { afterEach, expect, it, vi } from "vitest";
-import { createLabCatalog } from "@jini-ai/agentic/a2ui";
+import { createLabCatalog } from "@jini-ai/protocol/a2ui";
 
 import { RoutedA2uiSurfaceCard } from "../RoutedA2uiSurfaceCard";
 import { resetPlaygroundRenderTargetBus, setPlaygroundRenderTarget } from "@/lib/playground-render-target-bus";

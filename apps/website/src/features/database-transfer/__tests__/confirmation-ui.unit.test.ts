@@ -1,7 +1,7 @@
 import { renderHumanApproval } from "../../../__tests__/support/render-human-approval.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/ui/mcp-ui/surfaces";
+import { MCP_UI_EXPIRES_AT_META_KEY } from "@jini-ai/protocol/mcp-ui";
 
 import { describeTransferApproval, formatSnapshotTime } from "../confirmation-ui.js";
 import type { DatabaseTransferPlan } from "../plan-store.js";

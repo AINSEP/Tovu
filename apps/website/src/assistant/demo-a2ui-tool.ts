@@ -4,7 +4,7 @@ import {
   parseAgentToRendererMessage,
   type ActionMessagePayload,
   type AgentToRendererMessage,
-} from "@jini-ai/agentic/a2ui";
+} from "@jini-ai/protocol/a2ui";
 
 // The core catalog contract avoids a dependency on another feature’s declarations.
 import { buildDomainRegistrations, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";

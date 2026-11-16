@@ -68,9 +68,11 @@ import {
   MCP_UI_TOOL_CALLS_PATH,
   readA2uiAction,
   RUN_PRINCIPAL_HEADER,
+} from "#src/assistant/index";
+import {
   SURFACE_EXCHANGE_ID_PARAM,
   type SurfaceExchangeStore,
-} from "#src/assistant/index";
+} from "@jini-ai/daemon/surface-exchanges";
 import { getAuthedPrincipal, rejectUnlessSessionCredential, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import { registerAdminChatAttachmentReadRoute } from "#src/server/inbound/admin-http/routes/assistant/get-chat-attachment";
 import type { RouteDeps } from "#src/server/routes/types";

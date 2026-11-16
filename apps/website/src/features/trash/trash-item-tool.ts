@@ -53,7 +53,7 @@ import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 // `ToolInputError` so a refusal reaches the model with its message intact rather than as a redacted
 // 500 — see `features/comments/tool-registrations.ts`'s identical import.
 import { ToolInputError } from "@jini-ai/core";
-import { type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
 
 import { type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 

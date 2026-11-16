@@ -41,7 +41,8 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
  */
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
-import { buildOutcomeSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { buildOutcomeSurface } from "@jini-ai/ui/mcp-ui/surfaces";
+import { type UIResource, type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
 
 // Type-only ExportReport avoids a runtime export/server cycle. ExportSiteBoundFn names the narrow
 // operation contract locally instead of importing the composition root's RouteDeps type.

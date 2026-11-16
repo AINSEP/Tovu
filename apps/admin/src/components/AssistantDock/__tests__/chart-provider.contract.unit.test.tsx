@@ -2,7 +2,7 @@
 import { cleanup, render, waitFor } from "@testing-library/react";
 import type { Clock } from "@jini-ai/core/primitives";
 import { afterEach, expect, it } from "vitest";
-import { createLabCatalog } from "@jini-ai/agentic/a2ui";
+import { createLabCatalog } from "@jini-ai/protocol/a2ui";
 import { DEFAULT_INTERACTIVE_UI_REGISTRY } from "@jini-ai/ui/interactive-ui";
 import { createChartProviderRegistry } from "@jini-ai/ui/charts";
 import { createChartInteractiveRegistry } from "@jini-ai/ui/charts/react";

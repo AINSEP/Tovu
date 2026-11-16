@@ -1,8 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { createUIResource } from "@jini-ai/ui/mcp-ui/surfaces";
+import { createUIResource, type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
 
-import { buildUIToolResult, type UIResourceUri } from "../mcp-ui.js";
+import { buildUIToolResult } from "../mcp-ui.js";
 
 /**
  * @file Pins Tovu's tool-result wrapper, including its optional metadata. Resource construction
