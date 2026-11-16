@@ -80,10 +80,13 @@ function runMemberRepoContractSuite(adapterName: string, makeRepo: () => MemberR
     await repo.save({ id: "m-2", workspaceId: "ws-list", email: "x2@example.com", status: "active", createdAt: NOW, updatedAt: NOW, version: 1 });
     await repo.save({ id: "m-3", workspaceId: "ws-list", email: "x3@example.com", status: "active", createdAt: NOW, updatedAt: NOW, version: 1 });
 
-    const firstPage = await repo.list({ workspaceId: "ws-list", limit: 2 });
-    assert.deepEqual(firstPage.map((m) => m.id), ["m-1", "m-2"]);
-    const secondPage = await repo.list({ workspaceId: "ws-list", afterId: "m-2", limit: 2 });
-    assert.deepEqual(secondPage.map((m) => m.id), ["m-3"]);
+    // list-cursor contract: a { items, nextCursor } page, continued by the cursor the previous page returned.
+    const firstPage = await repo.list({ workspaceId: "ws-list" }, { limit: 2 });
+    assert.deepEqual(firstPage.items.map((m) => m.id), ["m-1", "m-2"]);
+    assert.notEqual(firstPage.nextCursor, null);
+    const secondPage = await repo.list({ workspaceId: "ws-list" }, { cursor: firstPage.nextCursor, limit: 2 });
+    assert.deepEqual(secondPage.items.map((m) => m.id), ["m-3"]);
+    assert.equal(secondPage.nextCursor, null);
   });
 
   test(`[${adapterName}] MemberRepoPort: save upserts by id (version bump visible on re-read)`, async () => {
