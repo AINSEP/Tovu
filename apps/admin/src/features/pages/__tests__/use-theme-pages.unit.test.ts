@@ -1,7 +1,7 @@
 import { renderHook, waitFor, act } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
-import { NO_THEME_ID } from "@/lib/api";
+import { NO_THEME_ID } from "@/features/themes/api/themes-api.types";
 import { createFakeThemePagesPort } from "../hooks/theme-pages-dependencies.hooks";
 import {
   themePageCollisionAdminPath,

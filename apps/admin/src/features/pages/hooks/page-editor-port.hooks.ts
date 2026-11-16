@@ -1,4 +1,4 @@
-import type { ThemeTier } from "@/lib/api";
+import type { ThemeTier } from "@/features/themes/api/themes-api.types";
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import type { AdminPagePluginEmbed } from "@/features/pages/api/pages-api.types";
 import type { StandingDraftAutosavePort } from "@/hooks/use-standing-draft-autosave.hooks";

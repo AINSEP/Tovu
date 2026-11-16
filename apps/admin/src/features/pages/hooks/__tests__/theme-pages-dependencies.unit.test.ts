@@ -20,9 +20,9 @@ const { getThemeDetail, setThemePagePublished } = vi.hoisted(() => ({
   setThemePagePublished: vi.fn(),
 }));
 
-vi.mock("../../../../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../../lib/api")>();
-  return { ...actual, api: { ...actual.api, getThemeDetail, setThemePagePublished } };
+vi.mock("../../../themes/api/themes-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../themes/api/themes-api")>();
+  return { ...actual, themesApi: { ...actual.themesApi, getThemeDetail, setThemePagePublished } };
 });
 
 const { createFakeThemePagesPort, defaultThemePagesPort } = await import("../theme-pages-dependencies.hooks");

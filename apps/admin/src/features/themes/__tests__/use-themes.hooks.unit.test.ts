@@ -2,7 +2,8 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { defaultAdminLocalePort } from "@/hooks/admin-locale-dependencies.hooks";
-import { api, type PresentationSettings } from "@/lib/api";
+import type { PresentationSettings } from "@/features/themes/api/themes-api.types";
+import { themesApi } from "@/features/themes/api/themes-api";
 import { createFakeThemesPort } from "../hooks/themes-dependencies.hooks";
 import { useThemes, useWiredThemes } from "../hooks/use-themes.hooks";
 import { t as translateThemes } from "../themes-i18n";
@@ -59,7 +60,7 @@ describe("useThemes — injected port (no fetch stub, no api spy)", () => {
   });
 
   it("loads settings/themes/tiers from the injected port and never touches the real api client", async () => {
-    const getPresentationSpy = vi.spyOn(api, "getPresentation");
+    const getPresentationSpy = vi.spyOn(themesApi, "getPresentation");
     const port = createFakeThemesPort({
       availableThemeIds: ["basic", "quartz"],
       availableThemes: [{ id: "basic", name: "Basic", tier: "declarative" }, { id: "quartz", tier: "static" }],
@@ -73,7 +74,7 @@ describe("useThemes — injected port (no fetch stub, no api spy)", () => {
   });
 
   it("routes activate through the injected port and updates settings from its response", async () => {
-    const setActiveSpy = vi.spyOn(api, "setActiveTheme");
+    const setActiveSpy = vi.spyOn(themesApi, "setActiveTheme");
     const port = createFakeThemesPort({ availableThemeIds: ["basic", "quartz"] });
     const { result } = renderHook(() => useThemes({ port, t: (k) => k }));
     await waitFor(() => expect(result.current.themes).toEqual(["basic", "quartz"]));
@@ -523,7 +524,7 @@ describe("useWiredThemes", () => {
 
   it("wires the real api-backed port and a themes-i18n-bound translator", async () => {
     vi.spyOn(defaultAdminLocalePort, "loadLanguage").mockResolvedValue("es");
-    const getPresentationSpy = vi.spyOn(api, "getPresentation").mockResolvedValue({
+    const getPresentationSpy = vi.spyOn(themesApi, "getPresentation").mockResolvedValue({
       settings: { workspaceId: "ws", activeThemeId: "basic", updatedAt: new Date(0).toISOString() },
       availableThemeIds: ["basic"],
       availableThemes: [{ id: "basic", tier: "declarative" }],

@@ -3,7 +3,7 @@ import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 
 import { resolveThemeLayout } from "@tovu/theme-layout";
 
-import type { ThemeTier } from "@/lib/api";
+import type { ThemeTier } from "@/features/themes/api/themes-api.types";
 import { defaultTemplateSourcePort } from "./template-source-dependencies.hooks";
 import type { TemplateSourcePort } from "./template-source-port.hooks";
 

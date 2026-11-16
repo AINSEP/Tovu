@@ -1,5 +1,6 @@
 import { getAdminDraftIdentity } from "@/lib/admin-draft-identity";
-import { api, type ThemeTier } from "@/lib/api";
+import type { ThemeTier } from "@/features/themes/api/themes-api.types";
+import { themesApi } from "@/features/themes/api/themes-api";
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { postsApi } from "@/features/posts/api/posts-api";
 import { pagesApi } from "@/features/pages/api/pages-api";
@@ -19,7 +20,7 @@ import { PAGE_VERSION_CONFLICT_CODE } from "../rules";
 export const defaultPageEditorPort: PageEditorPort = {
   getPage: ({ routeSlug }, _options = {}) => pagesApi.getPage({ id: routeSlug }),
   getPresentation: async () => {
-    const { activeThemeTemplates, settings, availableThemes } = await api.getPresentation({ kind: "page" });
+    const { activeThemeTemplates, settings, availableThemes } = await themesApi.getPresentation({ kind: "page" });
     const activeTheme = availableThemes.find((theme) => theme.id === settings.activeThemeId);
     return {
       activeThemeTemplates,

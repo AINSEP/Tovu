@@ -1,4 +1,4 @@
-import { NO_THEME_ID, type PresentationSettings, type ThemeTier } from "../../lib/api";
+import { NO_THEME_ID, type PresentationSettings, type ThemeTier } from "./api/themes-api.types";
 
 import { interpolate, type Translate } from '@jini-ai/core/text';
 /**

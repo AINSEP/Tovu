@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { themesApi } from "../../features/themes/api/themes-api";
 import { rolesApi } from "../../features/roles/api/roles-api";
 import { taxonomyApi } from "../../features/taxonomy/api/taxonomy-api";
 import { collectionsApi } from "../../features/collections/api/collections-api";
@@ -488,14 +489,14 @@ test("executeRestore POSTs { confirmationToken, restorePointId } to /recovery/re
 
 test("getPresentation hits GET /presentation", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getPresentation();
+  await themesApi.getPresentation();
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/presentation`);
   expect(calls[0].init?.method).toBeUndefined();
 });
 
 test("setActiveTheme PATCHes { activeThemeId } to /presentation", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.setActiveTheme({ activeThemeId: "quartz" });
+  await themesApi.setActiveTheme({ activeThemeId: "quartz" });
   expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/presentation`);
   expect(calls[0].init?.method).toBe("PATCH");
   expect(body()).toEqual({ activeThemeId: "quartz" });
@@ -593,8 +594,8 @@ test("probeExternalMcpServer POSTs (no body) to /mcp-servers/:id/probe", async (
 
 test("presentation requests identify each editor's template kind", async () => {
   const { calls } = stubFetchCapturing();
-  await api.getPresentation({ kind: "post" });
-  await api.getPresentation({ kind: "page" });
+  await themesApi.getPresentation({ kind: "post" });
+  await themesApi.getPresentation({ kind: "page" });
   expect(calls.map((call) => call.url)).toEqual([
     "/api/admin/v1/workspaces/workspace-local/presentation?kind=post",
     "/api/admin/v1/workspaces/workspace-local/presentation?kind=page",

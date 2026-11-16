@@ -17,10 +17,11 @@ import { recoveryApi } from "../../features/recovery/api/recovery-api";
 import { rolesApi } from "../../features/roles/api/roles-api";
 import { settingsApi } from "../../features/settings/api/settings-api";
 import { taxonomyApi } from "../../features/taxonomy/api/taxonomy-api";
+import { themesApi } from "../../features/themes/api/themes-api";
 import { trashApi } from "../../features/trash/api/trash-api";
 import { usersApi } from "../../features/users/api/users-api";
 import { widgetsApi } from "../../features/widgets/api/widgets-api";
 import { workspaceApi } from "../../features/workspace/api/workspace-api";
 
 /** Every admin API client object the request-shape table calls; a member must belong to exactly one. */
-export const API_CLIENTS: Record<string, object> = { analyticsApi, api, authApi, collectionsApi, commentsApi, databaseApi, formsApi, fsFilesApi, membersApi, menusApi, pagesApi, pluginsApi, postsApi, providersApi, publishContentApi, recoveryApi, rolesApi, settingsApi, taxonomyApi, trashApi, usersApi, widgetsApi, workspaceApi };
+export const API_CLIENTS: Record<string, object> = { analyticsApi, api, authApi, collectionsApi, commentsApi, databaseApi, formsApi, fsFilesApi, membersApi, menusApi, pagesApi, pluginsApi, postsApi, providersApi, publishContentApi, recoveryApi, rolesApi, settingsApi, taxonomyApi, themesApi, trashApi, usersApi, widgetsApi, workspaceApi };

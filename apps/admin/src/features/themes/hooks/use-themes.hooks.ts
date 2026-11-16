@@ -1,7 +1,7 @@
 import { useFetchQuery, useFetchMutation, useCachedLoader, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { type PresentationSettings, type ThemeTier } from "@/lib/api";
+import type { PresentationSettings, ThemeTier } from "@/features/themes/api/themes-api.types";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useSerialWrites, useSettlementGeneration } from "@jini-ai/ui/panel-kit";
 import { THEMES_RESOURCE, themeCopyName, themeNamesById } from "../rules";

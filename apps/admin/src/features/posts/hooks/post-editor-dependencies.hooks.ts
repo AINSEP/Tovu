@@ -1,5 +1,7 @@
 import { getAdminDraftIdentity } from "@/lib/admin-draft-identity";
-import { api, type AdminMedia, type AdminThemeSummary, type PresentationSettings } from "@/lib/api";
+import { api, type AdminMedia } from "@/lib/api";
+import type { AdminThemeSummary, PresentationSettings } from "@/features/themes/api/themes-api.types";
+import { themesApi } from "@/features/themes/api/themes-api";
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { postsApi } from "@/features/posts/api/posts-api";
 import { ApiError } from "@/lib/admin-http/request";
@@ -16,7 +18,7 @@ import type { PostEditorPort } from "./post-editor-port.hooks";
 export const defaultPostEditorPort: PostEditorPort = {
   getPost: ({ id }, _optional = {}) => postsApi.getPost({ id }),
   createPost: (input, options = {}) => postsApi.createPost(input, options),
-  getPresentation: () => api.getPresentation({ kind: "post" }),
+  getPresentation: () => themesApi.getPresentation({ kind: "post" }),
   updatePost: ({ target, patch }, _optional = {}) => postsApi.updatePost(target, { options: patch }),
   deletePost: ({ id }, _optional = {}) => postsApi.deletePost({ id }),
   listPosts: () => postsApi.listPosts(),

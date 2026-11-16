@@ -1,4 +1,4 @@
-import { api } from "@/lib/api";
+import { themesApi } from "@/features/themes/api/themes-api";
 import type { ThemeExploreFileEntry, ThemeExplorePort } from "./theme-explore-port.hooks";
 
 /**
@@ -9,15 +9,15 @@ import type { ThemeExploreFileEntry, ThemeExplorePort } from "./theme-explore-po
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. Each method narrows the real route's wider response down
  *  to what the port declares (see `theme-explore-port.hooks.ts`'s own doc comment on why). */
 export const defaultThemeExplorePort: ThemeExplorePort = {
-  getThemeDetail: ({ themeId }, _optional = {}) => api.getThemeDetail({ themeId }),
-  getThemeFile: ({ themeId, path }, _optional = {}) => api.getThemeFile({ themeId, path }),
-  putThemeFile: ({ themeId, path, content }, _optional = {}) => api.putThemeFile({ themeId, path, content }),
-  resetThemeFile: ({ themeId, path }, _optional = {}) => api.resetThemeFile({ themeId, path }),
-  saveThemeOriginal: ({ themeId }, _optional = {}) => api.saveThemeOriginal({ themeId }),
-  renameThemeFile: ({ themeId, path, name }, _optional = {}) => api.renameThemeFile({ themeId, path, name }),
-  copyThemeFile: ({ themeId, path }, _optional = {}) => api.copyThemeFile({ themeId, path }),
-  deleteThemeFile: ({ themeId, path }, _optional = {}) => api.deleteThemeFile({ themeId, path }),
-  setPagePublished: ({ themeId, page, published }, _optional = {}) => api.setThemePagePublished({ themeId, page, published }),
+  getThemeDetail: ({ themeId }, _optional = {}) => themesApi.getThemeDetail({ themeId }),
+  getThemeFile: ({ themeId, path }, _optional = {}) => themesApi.getThemeFile({ themeId, path }),
+  putThemeFile: ({ themeId, path, content }, _optional = {}) => themesApi.putThemeFile({ themeId, path, content }),
+  resetThemeFile: ({ themeId, path }, _optional = {}) => themesApi.resetThemeFile({ themeId, path }),
+  saveThemeOriginal: ({ themeId }, _optional = {}) => themesApi.saveThemeOriginal({ themeId }),
+  renameThemeFile: ({ themeId, path, name }, _optional = {}) => themesApi.renameThemeFile({ themeId, path, name }),
+  copyThemeFile: ({ themeId, path }, _optional = {}) => themesApi.copyThemeFile({ themeId, path }),
+  deleteThemeFile: ({ themeId, path }, _optional = {}) => themesApi.deleteThemeFile({ themeId, path }),
+  setPagePublished: ({ themeId, page, published }, _optional = {}) => themesApi.setThemePagePublished({ themeId, page, published }),
 };
 
 /** Seed state for {@link createFakeThemeExplorePort}. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { NO_THEME_ID, type PresentationSettings } from "@/lib/api";
+import { NO_THEME_ID, type PresentationSettings } from "@/features/themes/api/themes-api.types";
 import {
   defaultThemeTabGroup,
   groupThemesByTabGroup,

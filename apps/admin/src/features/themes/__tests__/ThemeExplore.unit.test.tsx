@@ -6,7 +6,7 @@ import { executePageCapability } from "@jini-ai/agentic/core";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 import { ThemeExplore } from "../ThemeExplore";
-import { api } from "@/lib/api";
+import { themesApi } from "@/features/themes/api/themes-api";
 import type { ThemeExploreController, ThemeExploreDetail, ThemeExploreFile } from "../hooks/use-theme-explore.hooks";
 
 /**
@@ -138,11 +138,11 @@ function renderExplore(overrides: Partial<ThemeExploreController> = {}) {
 
 describe("Explore without a theme query parameter", () => {
   it("loads the active theme before mounting the editor instead of requesting /themes/", async () => {
-    const presentation = vi.spyOn(api, "getPresentation").mockResolvedValue({
+    const presentation = vi.spyOn(themesApi, "getPresentation").mockResolvedValue({
       settings: { workspaceId: "workspace-local", activeThemeId: "novice", updatedAt: "2026-10-06T00:00:00Z" },
       availableThemeIds: ["novice"], availableThemes: [{ id: "novice", tier: "static" }],
-    } as Awaited<ReturnType<typeof api.getPresentation>>);
-    const getDetail = vi.spyOn(api, "getThemeDetail").mockImplementation(async ({ themeId }) => {
+    } as Awaited<ReturnType<typeof themesApi.getPresentation>>);
+    const getDetail = vi.spyOn(themesApi, "getThemeDetail").mockImplementation(async ({ themeId }) => {
       // The empty ID reproduces the registry-shaped response that caused files.map to fail.
       if (!themeId) return { themes: [] } as never;
       return {
@@ -151,7 +151,7 @@ describe("Explore without a theme query parameter", () => {
         files: [{ path: "pages/index.html", group: "page" as const, readable: true, editable: true, resettable: true }],
       };
     });
-    const getFile = vi.spyOn(api, "getThemeFile").mockResolvedValue({ path: "pages/index.html", content: "<h1>Home</h1>" });
+    const getFile = vi.spyOn(themesApi, "getThemeFile").mockResolvedValue({ path: "pages/index.html", content: "<h1>Home</h1>" });
     try {
       render(<ThemeExplore themeId="" />);
       expect(getDetail.mock.calls).toEqual([]);
@@ -168,7 +168,7 @@ describe("Explore without a theme query parameter", () => {
   });
 
   it("offers a Themes link when no theme is active and never mounts an empty-ID editor", async () => {
-    const presentation = vi.spyOn(api, "getPresentation").mockResolvedValue({
+    const presentation = vi.spyOn(themesApi, "getPresentation").mockResolvedValue({
       settings: { workspaceId: "workspace-local", activeThemeId: "", updatedAt: "2026-10-06T00:00:00Z" },
       availableThemeIds: [], availableThemes: [],
       activeThemeTemplates: [], activeThemeStaticPageIds: [],
@@ -1549,7 +1549,7 @@ describe("toolbar and status states", () => {
 
 describe("Explore — remaining file-list and resolution states", () => {
   it("shows the active-theme lookup failure as an error notice, still offering the Themes link", async () => {
-    const presentation = vi.spyOn(api, "getPresentation").mockRejectedValue(new Error("Presentation settings unavailable"));
+    const presentation = vi.spyOn(themesApi, "getPresentation").mockRejectedValue(new Error("Presentation settings unavailable"));
     try {
       render(<ThemeExplore themeId="" useThemeExploreHook={() => controller()} />);
       const message = await screen.findByText("Presentation settings unavailable");

@@ -2,7 +2,7 @@ import { act, render, renderHook, screen, waitFor, within } from "@/__tests__/fe
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { type PresentationSettings } from "@/lib/api";
+import type { PresentationSettings } from "@/features/themes/api/themes-api.types";
 import { trashApi } from "@/features/trash/api/trash-api";
 import { Themes } from "../Themes";
 import { createFakeThemesPort, defaultThemesPort } from "../hooks/themes-dependencies.hooks";
