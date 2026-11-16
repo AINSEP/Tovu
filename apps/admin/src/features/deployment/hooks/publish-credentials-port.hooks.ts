@@ -1,9 +1,4 @@
-import type {
-  AdminPublishConnectionInput,
-  AdminPublishCredentialSummary,
-  AdminPublishCredentialsSnapshot,
-  AdminPublishCredentialVerification,
-} from "@/lib/api";
+import type { AdminPublishConnectionInput, AdminPublishCredentialSummary, AdminPublishCredentialsSnapshot, AdminPublishCredentialVerification } from "@/features/security/api/security-api.types";
 
 /** A saved credential plus the server's save-time verification of it, when the write carried a
  *  `connection` — `POST`/`PUT .../credentials` verify what was just saved and return the verdict

@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import type { AdminCredentialCopySource } from "@/lib/api";
+import type { AdminCredentialCopySource } from "@/features/security/api/security-api.types";
 import type { CopyKeysPort } from "../hooks/use-copy-keys.hooks";
 
 /**

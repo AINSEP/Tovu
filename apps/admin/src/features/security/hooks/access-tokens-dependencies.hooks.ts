@@ -1,4 +1,5 @@
-import { api, type AdminCustomCredentialsSnapshot, type AdminPublishCredentialsSnapshot } from "@/lib/api";
+import type { AdminCustomCredentialsSnapshot, AdminPublishCredentialsSnapshot } from "@/features/security/api/security-api.types";
+import { securityApi } from "@/features/security/api/security-api";
 import { deploymentApi } from "@/features/deployment/api/deployment-api";
 import type { AdminSourceControlCredentialsSnapshot } from "@/features/source-control/api/source-control-api.types";
 import { sourceControlApi } from "@/features/source-control/api/source-control-api";
@@ -14,10 +15,10 @@ export const defaultAccessTokensPort: AccessTokensPort = {
   publishTargets: { list: () => deploymentApi.getPublishTargets() },
   sourceControlProviders: { list: () => sourceControlApi.listSourceControlProviders().then((res) => res.providers) },
   publish: {
-    list: () => api.listPublishCredentials(),
-    create: (input, _optional = {}) => api.createPublishCredential(input).then((res) => res.credential),
-    update: ({ id, input }, _optional = {}) => api.updatePublishCredential({ id, input }).then((res) => res.credential),
-    remove: ({ id }, _optional = {}) => api.deletePublishCredential({ id }),
+    list: () => securityApi.listPublishCredentials(),
+    create: (input, _optional = {}) => securityApi.createPublishCredential(input).then((res) => res.credential),
+    update: ({ id, input }, _optional = {}) => securityApi.updatePublishCredential({ id, input }).then((res) => res.credential),
+    remove: ({ id }, _optional = {}) => securityApi.deletePublishCredential({ id }),
   },
   sourceControl: {
     list: () => sourceControlApi.listSourceControlCredentials(),
@@ -26,11 +27,11 @@ export const defaultAccessTokensPort: AccessTokensPort = {
     remove: ({ id }, _optional = {}) => sourceControlApi.deleteSourceControlCredential({ id }),
   },
   custom: {
-    list: () => api.listCustomCredentials(),
+    list: () => securityApi.listCustomCredentials(),
     useKey: (input, _optional = {}) => providersApi.useProjectKey(input),
-    create: (input, _optional = {}) => api.createCustomCredential(input).then((res) => res.credential),
-    update: ({ id, input }, _optional = {}) => api.updateCustomCredential({ id, input }).then((res) => res.credential),
-    remove: ({ id }, _optional = {}) => api.deleteCustomCredential({ id }),
+    create: (input, _optional = {}) => securityApi.createCustomCredential(input).then((res) => res.credential),
+    update: ({ id, input }, _optional = {}) => securityApi.updateCustomCredential({ id, input }).then((res) => res.credential),
+    remove: ({ id }, _optional = {}) => securityApi.deleteCustomCredential({ id }),
   },
 };
 

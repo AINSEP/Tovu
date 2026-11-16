@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { type AdminPublishCredentialSummary, type AdminPublishCredentialsSnapshot } from "@/lib/api";
+import type { AdminPublishCredentialSummary, AdminPublishCredentialsSnapshot } from "@/features/security/api/security-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 import { usePublishCredentials } from "../use-publish-credentials.hooks";
 import { createFakePublishCredentialsPort } from "../publish-credentials-dependencies.hooks";

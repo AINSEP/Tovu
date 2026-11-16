@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminCustomCredentialSummary, AdminPublishCredentialSummary } from "@/lib/api";
+import type { AdminCustomCredentialSummary, AdminPublishCredentialSummary } from "@/features/security/api/security-api.types";
 import type { AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
 import { PLAIN_TARGET } from "../../../deployment/__tests__/publish-targets.fixture";
 
@@ -47,12 +47,9 @@ const {
   deleteCustomCredential: vi.fn(),
 }));
 
-vi.mock("../../../../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../../lib/api")>();
-  return {
-    ...actual,
-    api: { ...actual.api, listPublishCredentials, createPublishCredential, updatePublishCredential, deletePublishCredential, listCustomCredentials, createCustomCredential, updateCustomCredential, deleteCustomCredential },
-  };
+vi.mock("../../api/security-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/security-api")>();
+  return { ...actual, securityApi: { ...actual.securityApi, listPublishCredentials, createPublishCredential, updatePublishCredential, deletePublishCredential, listCustomCredentials, createCustomCredential, updateCustomCredential, deleteCustomCredential } };
 });
 vi.mock("../../../deployment/api/deployment-api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../deployment/api/deployment-api")>();

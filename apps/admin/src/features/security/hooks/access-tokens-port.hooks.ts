@@ -1,4 +1,4 @@
-import type { AdminCustomConnectionInput, AdminCustomCredentialCategoryId, AdminCustomCredentialSummary, AdminCustomCredentialsSnapshot, AdminPublishConnectionInput, AdminPublishCredentialSummary, AdminPublishCredentialsSnapshot } from "@/lib/api";
+import type { AdminCustomConnectionInput, AdminCustomCredentialCategoryId, AdminCustomCredentialSummary, AdminCustomCredentialsSnapshot, AdminPublishConnectionInput, AdminPublishCredentialSummary, AdminPublishCredentialsSnapshot } from "@/features/security/api/security-api.types";
 import type { AdminPublishTargetDescriptor } from "@/features/deployment/api/deployment-api.types";
 import type { AdminSourceControlConnectionInput, AdminSourceControlProviderDescriptor, AdminSourceControlCredentialSummary, AdminSourceControlCredentialsSnapshot } from "@/features/source-control/api/source-control-api.types";
 

@@ -2,7 +2,7 @@ import { classifyCredentialSubmitError } from "../../../lib/credential-submit-er
 import { credentialDraftError, translateCredentialMessage } from "@/lib/credential-copy";
 import { useEffect, useRef, useState } from "react";
 
-import { type AdminPublishCredentialProviderId, type AdminPublishCredentialSummary, type AdminPublishCredentialVerification, type AdminPublishExecutionMode } from "@/lib/api";
+import type { AdminPublishCredentialProviderId, AdminPublishCredentialSummary, AdminPublishCredentialVerification, AdminPublishExecutionMode } from "@/features/security/api/security-api.types";
 import type { AdminPublishTargetCredentialSpec, AdminPublishTargetDescriptor } from "@/features/deployment/api/deployment-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";

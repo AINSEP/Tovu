@@ -6,7 +6,7 @@ import { StaticSiteTab } from "../StaticSiteTab";
 import type { StaticExportController } from "../hooks/use-static-export.hooks";
 import type { StaticPublishController } from "../hooks/use-static-publish.hooks";
 import type { PublishCredentialRowState, PublishCredentialsController } from "../hooks/use-publish-credentials.hooks";
-import type { AdminPublishCredentialProviderId, AdminPublishCredentialSummary } from "@/lib/api";
+import type { AdminPublishCredentialProviderId, AdminPublishCredentialSummary } from "@/features/security/api/security-api.types";
 import {
   STATIC_SITE_CAPABILITIES,
   publishTargetById,

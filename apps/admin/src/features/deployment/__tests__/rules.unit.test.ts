@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { AdminPublishCredentialSummary } from "@/lib/api";
+import type { AdminPublishCredentialSummary } from "@/features/security/api/security-api.types";
 import {
   PUBLISH_CREDENTIAL_ROW_LABEL,
   buildCredentialConnectionInput,

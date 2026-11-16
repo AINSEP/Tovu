@@ -1,4 +1,4 @@
-import type { AdminPublishCredentialProviderId } from "../../../lib/api";
+import type { AdminPublishCredentialProviderId } from "../../security/api/security-api.types";
 
 /** One required-for-production env var's presence — never its value. Mirrors
  *  `DeploymentEnvVarStatus` in `apps/website/src/server/inbound/admin-http/routes/system/deployment-overview.ts`. */

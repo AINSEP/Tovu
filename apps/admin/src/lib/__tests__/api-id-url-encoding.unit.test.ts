@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { api } from "../api";
+import { securityApi } from "../../features/security/api/security-api";
 import { sourceControlApi } from "../../features/source-control/api/source-control-api";
 import { integrationsApi } from "../../features/integrations/api/integrations-api";
 import { mediaApi } from "../../features/media/api/media-api";
@@ -191,17 +191,17 @@ const singleIdCases: Case[] = [
   ],
   [
     "updatePublishCredential",
-    () => api.updatePublishCredential({ id: SLASH_ID, input: {} }),
+    () => securityApi.updatePublishCredential({ id: SLASH_ID, input: {} }),
     `${BASE_WORKSPACE}/system/publish/credentials/${ENC}`,
   ],
   [
     "deletePublishCredential",
-    () => api.deletePublishCredential({ id: SLASH_ID }),
+    () => securityApi.deletePublishCredential({ id: SLASH_ID }),
     `${BASE_WORKSPACE}/system/publish/credentials/${ENC}`,
   ],
   [
     "verifyPublishCredential",
-    () => api.verifyPublishCredential({ id: SLASH_ID }),
+    () => securityApi.verifyPublishCredential({ id: SLASH_ID }),
     `${BASE_WORKSPACE}/system/publish/credentials/${ENC}/verify`,
   ],
   [
@@ -216,12 +216,12 @@ const singleIdCases: Case[] = [
   ],
   [
     "updateCustomCredential",
-    () => api.updateCustomCredential({ id: SLASH_ID, input: {} }),
+    () => securityApi.updateCustomCredential({ id: SLASH_ID, input: {} }),
     `${BASE_WORKSPACE}/system/custom/credentials/${ENC}`,
   ],
   [
     "deleteCustomCredential",
-    () => api.deleteCustomCredential({ id: SLASH_ID }),
+    () => securityApi.deleteCustomCredential({ id: SLASH_ID }),
     `${BASE_WORKSPACE}/system/custom/credentials/${ENC}`,
   ],
 ];

@@ -1,4 +1,5 @@
-import { api, type AdminPublishCredentialSummary, type AdminPublishCredentialVerification, type AdminPublishCredentialsSnapshot } from "@/lib/api";
+import type { AdminPublishCredentialSummary, AdminPublishCredentialVerification, AdminPublishCredentialsSnapshot } from "@/features/security/api/security-api.types";
+import { securityApi } from "@/features/security/api/security-api";
 import type { PublishCredentialSaveResult, PublishCredentialsPort } from "./publish-credentials-port.hooks";
 
 /** Keeps the save-time `verification` the server returns beside `credential` — dropping it was how
@@ -10,11 +11,11 @@ function withSaveVerification(res: { credential: AdminPublishCredentialSummary; 
 /** The live implementation, as a module-level singleton — matches
  *  `static-publish-dependencies.hooks.ts`'s `defaultStaticPublishPort`. */
 export const defaultPublishCredentialsPort: PublishCredentialsPort = {
-  listCredentials: () => api.listPublishCredentials(),
-  createCredential: (input, _options = {}) => api.createPublishCredential(input).then(withSaveVerification),
-  updateCredential: ({ id, input }, _options = {}) => api.updatePublishCredential({ id, input }).then(withSaveVerification),
-  deleteCredential: ({ id }, _options = {}) => api.deletePublishCredential({ id }),
-  verifyCredential: ({ id }, _options = {}) => api.verifyPublishCredential({ id }).then((res) => res.verification),
+  listCredentials: () => securityApi.listPublishCredentials(),
+  createCredential: (input, _options = {}) => securityApi.createPublishCredential(input).then(withSaveVerification),
+  updateCredential: ({ id, input }, _options = {}) => securityApi.updatePublishCredential({ id, input }).then(withSaveVerification),
+  deleteCredential: ({ id }, _options = {}) => securityApi.deletePublishCredential({ id }),
+  verifyCredential: ({ id }, _options = {}) => securityApi.verifyPublishCredential({ id }).then((res) => res.verification),
 };
 
 /** An in-memory {@link PublishCredentialsPort} for tests. Each of the five calls defaults to a
