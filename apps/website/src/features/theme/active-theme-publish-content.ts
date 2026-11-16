@@ -4,7 +4,8 @@ import { PresentationSettingsNotFoundError, PresentationSettingsValidationError,
 
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
 import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-content/repo-handler";
-import type { PublishContentContributor, PublishContentPorts } from "#src/features/publish-content/type-registry";
+import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
+import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 
 import { writableThemeIds } from "./active-theme.js";
 import type { DiscoveredTheme } from "./theme.js";
@@ -40,7 +41,7 @@ export interface ActiveThemeRow {
   readonly version: number;
 }
 
-type Ports = PublishContentPorts["active-theme"];
+type Ports = TovuPublishPorts["active-theme"];
 
 /** @complexity O(themes). */
 function installedTheme({ ports, themeId }: { ports: Ports; themeId: string }, _optional = {}): DiscoveredTheme | undefined {

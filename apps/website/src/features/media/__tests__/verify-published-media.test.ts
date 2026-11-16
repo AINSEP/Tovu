@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryAssetBlobRepo, InMemoryBlobStore, type MediaRecord } from "@jini-ai/cms/media";
-import type { PackedEntity, PublishContentPorts } from "#src/features/publish-content/type-registry";
+import type { PackedEntity } from "#src/features/publish-content/type-registry";
+import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 import { InMemoryMediaContentTypeStore } from "../content-type-store.js";
 import { verifyPublishedMedia } from "../verify-published-media.js";
 import { InMemoryVersionedMediaRepo } from "../versioned-media-repo.js";
@@ -16,7 +17,7 @@ function media(overrides: Partial<MediaRecord> = {}): MediaRecord {
 function packed(record: MediaRecord): PackedEntity {
   return { entityType: "media", id: record.id, state: { ...record }, schemaVersion: 1, hashVersion: 1, contentHash: "unused", requiredBlobs: [record.source.sha256] };
 }
-function ports(records: MediaRecord[] = []): NonNullable<PublishContentPorts["media"]> {
+function ports(records: MediaRecord[] = []): NonNullable<TovuPublishPorts["media"]> {
   return { repo: new InMemoryVersionedMediaRepo({}, { initialRows: records }), blobStore: new InMemoryBlobStore(), contentTypeStore: new InMemoryMediaContentTypeStore(), assetBlobRepo: new InMemoryAssetBlobRepo({}) };
 }
 

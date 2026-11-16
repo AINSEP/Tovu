@@ -1317,5 +1317,25 @@
   "tests": [
    "apps/website/src/server/__tests__/routes/publish-trust-gate-predicates.characterization.test.ts"
   ]
+ },
+ {
+  "id": "HOOKa",
+  "what": "route producer drops the before-save hook from the publish bag",
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/deps.ts",
+  "find": "      hooks: { beforeSave: deps.pluginBeforeSaveHook },\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/deps.hooks.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "HOOKb",
+  "what": "post apply no longer reads the before-save hook from the bag",
+  "file": "apps/website/src/features/post/publish-content.ts",
+  "find": "beforeSaveHook: deps.ports.hooks?.beforeSave },",
+  "replace": "beforeSaveHook: undefined },",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/execute-pull-tool.plugin-hook-refusal.test.ts"
+  ]
  }
 ]

@@ -29,9 +29,9 @@ import type {
   EntityReplacement,
   PublishContentDeps,
   PublishContentHandler,
-  PublishContentPorts,
   PackedEntity,
 } from "./type-registry.js";
+import type { TovuPublishPorts } from "./tovu-publish-ports.js";
 
 /**
  * @file Task 8 of the publish-content (Publish Content) feature —
@@ -125,7 +125,7 @@ export function publishContentItemIdempotencyKey(input: {
  */
 export type PublishContentApplyDeps = Omit<PublishContentDeps, "ports"> &
   Required<Pick<PublishContentDeps, "outbox" | "changeSets" | "authorize">> & {
-    readonly ports: PublishContentPorts;
+    readonly ports: TovuPublishPorts;
   };
 
 /**

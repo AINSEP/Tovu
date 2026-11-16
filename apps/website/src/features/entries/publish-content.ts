@@ -4,7 +4,8 @@ import { PublishContentApplyRowError } from "#src/features/publish-content/apply
 import { collectBodyReferences } from "#src/features/publish-content/content-references";
 import { tombstonedAtDestination } from "#src/features/publish-content/precheck-reasons";
 import { createRepoPublishHandler, gatewayDeps, okOrThrow } from "#src/features/publish-content/repo-handler";
-import type { EntryPublishPorts, PublishContentContributor } from "#src/features/publish-content/type-registry";
+import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
+import type { EntryPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 import { prepareTermSync, readTermIds, TERM_SYNC_PERMISSION } from "#src/features/taxonomy/term-sync";
 import { ContentRecordNotFoundError, TaxonomyNotApplicableError, TermRecordNotFoundError } from "#src/features/taxonomy/index";
 

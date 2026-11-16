@@ -22,8 +22,8 @@ import {
   type PackedEntity,
   type PublishContentContributor,
   type PublishContentDeps,
-  type PublishContentPorts,
 } from "../type-registry.js";
+import type { TovuPublishPorts } from "../tovu-publish-ports.js";
 
 /**
  * @file Shared round trip for a factory-built type's test: pack the source, plan against the
@@ -37,7 +37,7 @@ export const WORKSPACE_ID = "11111111-1111-4111-8111-111111111111";
 
 /** One instance's apply-capable deps over `ports`: in-memory change sets and outbox, allow-all
  *  authorize, a ticking clock and counting ids. */
-export function makeSite(ports: Partial<PublishContentPorts>, name = "site"): PublishContentDeps {
+export function makeSite(ports: Partial<TovuPublishPorts>, name = "site"): PublishContentDeps {
   const outbox = new InMemoryOutbox();
   let tick = 0;
   let id = 0;
@@ -145,7 +145,7 @@ export function sqliteContentSite() {
     /** The site's discovered themes; a test pushes stand-ins. */
     themes: [] as DiscoveredTheme[],
   };
-  const ports: Partial<PublishContentPorts> = {
+  const ports: Partial<TovuPublishPorts> = {
     // A function port, so not `unused()`'s Proxy (calling a Proxy over `{}` is a bare TypeError).
     post: { repo: repos.posts, forgetRemoved: async () => {}, remove: async () => { throw new Error("round-trip-harness: 'post.remove' is not wired"); } },
     ...buildContentPublishPorts({

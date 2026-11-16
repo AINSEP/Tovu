@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import type { TaxonomyPublishPorts } from "#src/features/publish-content/type-registry";
+import type { TaxonomyPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 import { applyReport, makeSite, packAll, plan, registerOnly, roundTrip, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
 import { InMemoryContentLookup } from "../index.js";
 import { contributeTaxonomyPublish, contributeTermPublish } from "../publish-content.js";

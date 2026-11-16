@@ -77,7 +77,7 @@ async function pullOfThreePosts(beforeSaveHook: BeforeSaveHookPort) {
   const publishContentDeps: PublishContentDeps = {
     workspaceId: "local", clock: f.deps.clock, idGen: { newId: () => `cs-${++changeSetCount}` }, outbox,
     changeSets: new InMemoryChangeSetRepo([], [], outbox), authorize: async () => ({ allowed: true, reason: "matched" }),
-    beforeSaveHook, ports,
+    ports: { ...ports, hooks: { beforeSave: beforeSaveHook } },
   };
   const deps = {
     ...f.deps, publishContentPorts: ports,

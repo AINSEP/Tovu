@@ -9,7 +9,7 @@ import { applyReport, makeSite, packAll, plan, registerOnly, roundTrip, sqliteCo
 import { InMemoryContentLookup } from "#src/features/taxonomy/index";
 import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/taxonomy/publish-content";
 import { SqliteEntryTermRepo, SqliteTaxonomyRepo, SqliteTaxonomyRevisionRepo, SqliteTermRepo } from "#src/features/taxonomy/repo.sqlite";
-import type { TaxonomyPublishPorts } from "#src/features/publish-content/type-registry";
+import type { TaxonomyPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import type { EntryRecord } from "../../index.js";
 import { contributeCollectionEntryPublish } from "../../publish-content.js";

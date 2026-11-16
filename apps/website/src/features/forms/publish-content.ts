@@ -1,7 +1,8 @@
 import { executeCommand } from "#src/contracts/core/commands/index";
 import { trashedAtDestination } from "#src/features/publish-content/precheck-reasons";
 import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-content/repo-handler";
-import type { PublishContentContributor, PublishContentPorts } from "#src/features/publish-content/type-registry";
+import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
+import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 
 import { FormDefinitionNotFoundError, FormFieldValidationError, FormSlugConflictError } from "@jini-ai/cms/forms";
 import type { FieldDescriptor, FormDefinitionStatus } from "@jini-ai/cms/forms";
@@ -23,7 +24,7 @@ import { FORMS_TABLES } from "./repo.sqlite.js";
  * @overallScore 98 — Minor: the factory's typed state is trusted until existing command validation. */
 
 export const contributeFormPublish = (): PublishContentContributor =>
-  createRepoPublishHandler<HtmlFormDefinitionRecord, PublishContentPorts["form"]>({
+  createRepoPublishHandler<HtmlFormDefinitionRecord, TovuPublishPorts["form"]>({
     entityType: "form",
     coversTables: [FORMS_TABLES.definitions],
     permission: "admin.forms.manage",

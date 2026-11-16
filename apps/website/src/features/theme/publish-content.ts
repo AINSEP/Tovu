@@ -612,7 +612,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
 
   async function* pack(): AsyncIterable<PackedEntity> {
     // Absent the port degrades to "nothing to export" — the same convention every other optional
-    // port already follows (`type-registry.ts`'s own header on `PublishContentPorts`).
+    // port already follows (`tovu-publish-ports.ts`'s own header).
     if (!themePort) return;
     const { entities } = await packThemeFilesEntities({ themesDir: themePort.themesDir, fileBlobIndex: themePort.fileBlobIndex });
     for (const entity of entities) yield entity;

@@ -1,5 +1,6 @@
 import { collectMediaUrlKeys } from "#src/features/publish-content/media-references";
-import type { PackedEntity, PublishContentPorts } from "#src/features/publish-content/type-registry";
+import type { PackedEntity } from "#src/features/publish-content/type-registry";
+import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 
 import { computeBlobStorageKey, findMediaByIdOrSlug, sniffContentType } from "./index.js";
 
@@ -22,7 +23,7 @@ import { computeBlobStorageKey, findMediaByIdOrSlug, sniffContentType } from "./
  * first request, and proving one decodes would mean running the image transformer per item.
  */
 
-type MediaPorts = PublishContentPorts["media"];
+type MediaPorts = TovuPublishPorts["media"];
 
 /** A media item's operator-facing name: its slug, else its id. */
 function labelOf(entity: PackedEntity): string {
