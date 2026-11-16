@@ -3,7 +3,7 @@ import { Liquid, Hash, type Tag, type TagToken, type Context, type FS } from "li
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { DEFAULT_SITE_TIME_ZONE, normalizeTimeZone } from "@jini-ai/cms/widgets/date-label";
 import { lintLiquidTemplate } from "#src/features/theme/liquid-allowlist";
-import { type SiteRenderContext } from "./render.js";
+import type { SiteRenderContext } from "./render-context.js";
 import { renderBlockSeam } from "./render/blocks.js";
 import { buildTemplateRenderData } from "./render/template-render-data.js";
 import type { LiquidWorkerInput, LiquidWorkerResult } from "./liquid-sandbox.js";

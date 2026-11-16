@@ -5,7 +5,7 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
 import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
-import { type MediaAssetRenderMeta } from "../render.js";
+import type { MediaAssetRenderMeta } from "../render-context.js";
 import { renderHtmlPageBody } from "../render/page-body.js";
 import { renderDocNode, renderWidgetIr } from "../render/content-html.js";
 

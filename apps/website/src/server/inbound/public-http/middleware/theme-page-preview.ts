@@ -6,7 +6,8 @@ import { authorizeThemeSetPermission } from "../../admin-http/routes/themes/expl
 import { requireAdminSession } from "../../admin-http/dev-auth.js";
 import { reportServerFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
 import type { RouteDeps } from "#src/server/routes/types";
-import { renderSite, type SiteProduct } from "../http/site/render.js";
+import { renderSite } from "../http/site/render.js";
+import type { SiteProduct } from "../http/site/render-context.js";
 import {
   resolveWidgetsForRender,
   resolveMediaTransformVersionsForRender,

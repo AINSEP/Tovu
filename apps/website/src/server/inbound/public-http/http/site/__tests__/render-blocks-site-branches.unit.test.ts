@@ -5,7 +5,8 @@ import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
 import type { DiscoveredTheme, TemplateNode } from "#src/features/theme/index";
 import { resolveAppDistDir } from "#src/platform/site-dir/product-root";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
-import { renderSite, type RenderSiteRequired, type SiteRenderContext } from "../render.js";
+import { renderSite, type RenderSiteRequired } from "../render.js";
+import type { SiteRenderContext } from "../render-context.js";
 import { renderBlockSeam } from "../render/blocks.js";
 import { renderWidgetIr } from "../render/content-html.js";
 import {

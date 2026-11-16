@@ -4,7 +4,7 @@ import type { CommerceSiteTestDeps } from "../commerce-site-app.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { SiteProduct } from "#src/server/inbound/public-http/http/site/render";
+import type { SiteProduct } from "#src/server/inbound/public-http/http/site/render-context";
 type Product = SiteProduct & { version?: number };
 type StoreApi = { listProducts(): Promise<Product[]>; findProduct(required: { idOrSlug: string }): Promise<Product | null> };
 import { createRouteDeps } from "#src/server/runtime/composition/app";

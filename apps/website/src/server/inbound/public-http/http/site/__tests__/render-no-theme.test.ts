@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { PublicPostRecord } from "#src/features/post/index";
-import { renderSite, type SiteProduct } from "../render.js";
+import { renderSite } from "../render.js";
+import type { SiteProduct } from "../render-context.js";
 
 /**
  * @file Certifies what `renderSite` produces when there is DELIBERATELY no theme — state 3 of the

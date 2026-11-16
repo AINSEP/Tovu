@@ -10,18 +10,6 @@ import { renderStaticPage } from "#src/features/theme/static-render";
 import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import type { ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";
 import type { AssignedTermView } from "#src/features/taxonomy/contracts";
-import {
-  decodeFormSubmissionResultFromQuery,
-  encodeFormSubmissionResultQuery,
-  clearFormSubmissionResultQueryParams,
-  injectFormSubmissionResultIntoHtml,
-  decodeFormFlashCookieValue,
-  encodeFormFlashCookieValue,
-  mergeFormFlashIntoResult,
-  FORM_FLASH_COOKIE_NAME,
-  type FormSubmissionRedirectResult,
-  type FormFlashPayload,
-} from "./form-render.js";
 import { escapeHtml } from "#src/platform/html/escape";
 import { injectExtraHeadIntoStaticPage, injectSiteAssistantIntoStaticPage } from "./render/static-page-injection.js";
 import { pageShell } from "./render/document-shell.js";
@@ -30,28 +18,6 @@ import { EMPTY_INLINE_RESOLVED, EMPTY_MEDIA_TRANSFORM_VERSIONS, EMPTY_MEDIA_ASSE
 import { entryContent } from "./render/post-body.js";
 import { entryList, productEntryContent, productEntryList } from "./render/components/entry-lists.js";
 import { renderBlock } from "./render/blocks.js";
-
-export type { SiteProduct, SiteRenderContext, MediaAssetRenderMeta } from "./render-context.js";
-
-/**
- * Re-exported so every existing importer of this file (`render.test.ts`, `routes/site/pages.ts`,
- * `routes/site/forms-submit.ts`) keeps working unchanged after the 2026-08-31 "generalize the form
- * pattern" split moved their actual implementations into `form-render.js`. `render.ts` stays the one
- * public-HTTP-rendering façade; `form-render.ts` is the (framework-agnostic) module that owns the
- * form-specific pieces of it.
- */
-export {
-  decodeFormSubmissionResultFromQuery,
-  encodeFormSubmissionResultQuery,
-  clearFormSubmissionResultQueryParams,
-  injectFormSubmissionResultIntoHtml,
-  decodeFormFlashCookieValue,
-  encodeFormFlashCookieValue,
-  mergeFormFlashIntoResult,
-  FORM_FLASH_COOKIE_NAME,
-  type FormSubmissionRedirectResult,
-  type FormFlashPayload,
-};
 
 /** No-terms default for every `renderSite`/`renderPostBody` caller that doesn't pass one — same
  * "optional, defaults to empty, degrades to no block" convention as {@link EMPTY_MEDIA_ASSET_METADATA}

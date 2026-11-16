@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { NO_ACCESS_FS, runLiquidRender } from "../liquid-render.js";
-import type { SiteRenderContext } from "../render.js";
+import type { SiteRenderContext } from "../render-context.js";
 
 /**
  * @file In-process tests of the Liquid worker's render logic (`liquid-render.ts`). The sandbox

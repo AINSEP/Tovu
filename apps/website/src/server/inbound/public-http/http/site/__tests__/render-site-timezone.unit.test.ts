@@ -4,7 +4,8 @@ import test from "node:test";
 import type { PublicPostRecord } from "#src/features/post/index";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import { runLiquidRender } from "../liquid-render.js";
-import { renderSite, type SiteRenderContext } from "../render.js";
+import { renderSite } from "../render.js";
+import type { SiteRenderContext } from "../render-context.js";
 import { buildTemplateRenderData } from "../render/template-render-data.js";
 
 /**

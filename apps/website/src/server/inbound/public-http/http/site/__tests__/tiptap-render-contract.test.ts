@@ -8,7 +8,7 @@ import ts from "typescript";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
-import { type MediaAssetRenderMeta } from "../render.js";
+import type { MediaAssetRenderMeta } from "../render-context.js";
 import { renderDocNode, renderWidgetIr } from "../render/content-html.js";
 
 /**

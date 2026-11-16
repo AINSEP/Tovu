@@ -10,7 +10,7 @@ import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import { build } from "esbuild";
 
-import type { SiteRenderContext } from "../render.js";
+import type { SiteRenderContext } from "../render-context.js";
 import { renderInWorkerSandbox } from "../worker-sandbox.js";
 
 test("source worker setup preserves stdin stat failures other than EBADF", () => {

@@ -13,7 +13,8 @@ import type { DiscoveredTheme } from '#src/features/theme/index';
 import { MAX_CONTENT_EMBED_FETCHES, resolveHtmlFormatContentMarkers, type ContentMarkerResolutionDeps } from '#src/server/inbound/public-http/routes/site/pages';
 import { renderWidgetPreview } from '#src/server/inbound/admin-http/routes/widgets/preview-render';
 import { createGalleryWidgetResolver } from '@jini-ai/cms/widgets/resolvers';
-import { renderSite, injectFormSubmissionResultIntoHtml } from '../render.js';
+import { renderSite } from '../render.js';
+import { injectFormSubmissionResultIntoHtml } from '../form-render.js';
 import { renderWidgetIr } from '../render/content-html.js';
 
 // The complete leading stylesheet from Landing v130, including its CSS checkmark escape.

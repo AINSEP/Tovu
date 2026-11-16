@@ -9,7 +9,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import type { SiteProduct } from "#src/server/inbound/public-http/http/site/render";
+import type { SiteProduct } from "#src/server/inbound/public-http/http/site/render-context";
 type Product = SiteProduct & { version?: number };
 type StoreApi = { listProducts(): Promise<Product[]>; findProduct(required: { idOrSlug: string }): Promise<Product | null> };
 

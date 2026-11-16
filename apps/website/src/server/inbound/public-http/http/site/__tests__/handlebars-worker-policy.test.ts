@@ -5,7 +5,7 @@ import { createNodeWorkerFactory } from "@jini-ai/sandbox/node-worker";
 import * as threads from "node:worker_threads";
 import type { ResourceLimits, WorkerOptions } from "node:worker_threads";
 
-import type { SiteRenderContext } from "../render.js";
+import type { SiteRenderContext } from "../render-context.js";
 
 // Observe the real Worker boundary, without replacing rendering or worker lifecycle.
 const spawned: Array<{ requested: ResourceLimits | undefined; worker: threads.Worker }> = [];

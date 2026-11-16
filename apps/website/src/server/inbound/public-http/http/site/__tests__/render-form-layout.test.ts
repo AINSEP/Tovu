@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { chromium } from "playwright";
 
-import { injectFormSubmissionResultIntoHtml } from "../render.js";
+import { injectFormSubmissionResultIntoHtml } from "../form-render.js";
 import { renderHtmlPageBody } from "../render/page-body.js";
 import { renderWidgetRegion, renderWidgetIr } from "../render/content-html.js";
-import type { SiteRenderContext } from "../render.js";
+import type { SiteRenderContext } from "../render-context.js";
 
 test("repeated Builder forms across embeds and regions keep every ID and association within its occurrence", () => {
   for (const collectionPlan of [undefined, { kind: "post", external: true, action: "https://forms.example.test/submit" }]) {

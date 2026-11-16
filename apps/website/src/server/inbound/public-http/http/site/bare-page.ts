@@ -3,7 +3,7 @@ import type { PostRecord } from "#src/features/post/index";
 import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
 import { escapeHtml } from "#src/platform/html/escape";
-import { type MediaAssetRenderMeta } from "./render.js";
+import type { MediaAssetRenderMeta } from "./render-context.js";
 import { renderHtmlPageBody } from "./render/page-body.js";
 import { renderDocNode } from "./render/content-html.js";
 
