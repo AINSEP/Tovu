@@ -13,7 +13,7 @@ test("webhook tools expose a version and report stale updates with recovery guid
     createdAt: "t0", updatedAt: "t0", disabledAt: null, version: 1 });
   const deps: IntegrationsToolDeps = { workspaceId: "ws", clock: { nowIso: () => "2026-11-13T00:00:00.000Z" }, idGen: { newId: () => "id" },
     webhookSubscriptionRepo: repo, webhookDeliveryRepo: new InMemoryWebhookDeliveryRepo(),
-    originRegistry: { isAllowedEgressTarget: async () => true } as IntegrationsToolDeps["originRegistry"],
+    originRegistry: { canonicalOrigin: async () => { throw new Error("unused: this fixture never resolves a canonical origin"); }, isAllowedRedirectTarget: async () => true, isAllowedEgressTarget: async () => true },
     authorize: async () => ({ allowed: true, reason: "test" }) };
   const registrations = buildWebhooksRegistrations(deps);
   const read = registrations.find(item => item.descriptor.id === "webhooks_list_subscriptions");

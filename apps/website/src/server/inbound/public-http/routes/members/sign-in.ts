@@ -28,7 +28,7 @@ import { checkMemberPost, checkMemberRequestLimits, memberStringBody, toPublicMe
 /** Public acceptance is independent of address lookup and mail latency. Setup failures remain 503.
  * @complexity O(1) setup I/O; address-dependent work runs detached after the response.
  */
-export function registerPublicMemberSignInRequestRoute(app: Express, deps: MemberPublicRouteDeps): void {
+export function registerPublicMemberSignInRequestRoute({ app, deps }: { app: Express; deps: MemberPublicRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/members/v1/workspaces/:workspaceId/sign-in", async (req, res) => {
     observeMemberSignInFailure({ deps: deps, request: req, response: res, method: "challenge" });
     try {

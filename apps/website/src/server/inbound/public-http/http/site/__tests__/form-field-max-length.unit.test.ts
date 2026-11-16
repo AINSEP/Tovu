@@ -38,7 +38,7 @@ test("HTML-mode forms get the cap on authored controls but keep an author's own 
 });
 
 test("hidden inputs and undeclared controls are left alone", () => {
-  const fields = [{ id: "ref", label: "Ref", type: "hidden", required: false }] as Parameters<typeof stampFormFieldMaxLengths>[1];
+  const fields = [{ id: "ref", label: "Ref", type: "hidden", required: false }] as Parameters<typeof stampFormFieldMaxLengths>[0]["fields"];
   const html = '<input type="hidden" name="ref" value="x"><input name="other">';
   assert.equal(stampFormFieldMaxLengths({ html, fields }), html);
 });
