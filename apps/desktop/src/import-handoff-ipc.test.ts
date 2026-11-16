@@ -33,7 +33,7 @@ function fakeWindow({ minimized = false }: { minimized?: boolean } = {}) {
 function register({ windows, trusted = () => true }: { windows: () => ImportHandoffWindow[]; trusted?: (required: { senderUrl: string }) => boolean }) {
   const handlers = new Map<string, Handler>();
   registerImportHandoffIpc({
-    ipcMain: { handle: (channel: string, handler: Handler) => { handlers.set(channel, handler); } },
+    ipcMain: { handle: (channel: string, handler: (event: never, raw: unknown) => unknown) => { handlers.set(channel, handler as Handler); } },
     isTrustedSender: trusted,
     sitesHomeWindows: windows,
   });
@@ -74,7 +74,7 @@ test("an untrusted page is refused in plain words and no window is touched", asy
 test("a request with no sender frame is refused", async () => {
   const handlers = new Map<string, Handler>();
   registerImportHandoffIpc({
-    ipcMain: { handle: (channel: string, handler: Handler) => { handlers.set(channel, handler); } },
+    ipcMain: { handle: (channel: string, handler: (event: never, raw: unknown) => unknown) => { handlers.set(channel, handler as Handler); } },
     isTrustedSender: () => true, sitesHomeWindows: () => [],
   });
   await assert.rejects(async () => handlers.get(IMPORT_HANDOFF_CHANNELS.request)!({}, {}), /isn't part of Tovu/);
