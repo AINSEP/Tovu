@@ -111,3 +111,107 @@ One correction was needed: X1 made `createAssistantRunFinalizer` 327 counted lin
 - The mutation runner and its 36 specs lived in the session scratchpad and are gone. The table above names each mutation.
 - Gate commands: the 15 files of design section 1.3 plus `assistant-run-finalizer.{characterization.unit,races.unit,rejections.unit,halt-matrix.integration,unusable-body.unit}.test.ts`, run with `--test-concurrency=1`.
 - C15a must be edited again in A7 (the table in design section 7).
+
+# Run 2
+
+Run date 2026-11-16. Same branch, continued from `94ed0c92`. Builds on Jini `refactor/terra` `02edbb68` (linked; Jini was not changed).
+Amendments A and B and SEQUENCE were read again: they still do not override this design.
+
+**Status: Phase A is COMPLETE (A4, A5, A6, A7).** Phases 0, X and A are all done.
+**Next step: B1** (engine to Jini). It is blocked, as the design says, on untangle C6 + R4-chat row 390 in Jini and on OD-7. Nothing in Tovu is waiting.
+
+## Commits (all pushed)
+
+| SHA | Step | What |
+|---|---|---|
+| `b50d8872` | A3 follow-up | `makeWatch` and `interruptionEvents` moved to `watch-state.ts` (design 4.1 lists them there) |
+| `6704e2f6` | pin | the `console.error` line of a rejected checkpoint: exact text and arguments |
+| `2394c57e` | A4 | `run-finalizer/checkpointer.ts`, `report.ts`, `ports.ts` |
+| `61ec8d89` | A5 | `run-finalizer/stream.ts`, `bounded-follow.ts` |
+| `8c531514` | A6 | `run-finalizer/recovery-binding.ts` |
+| `c2217f6f` | pin | the `console.error` line of a failed watch: exact text and arguments |
+| `ccfc1a12` | A7 | `run-finalizer/entry.ts`, `shared.ts`; `assistant-run-finalizer.ts` deleted; callers repointed; debt entries removed |
+| `18618b08` | A7 follow-up | two closures in `entry.ts` destructure what they forward (args audit) |
+
+## Result
+
+`modules/run-finalizer/` now holds 9 files: `ports.ts` 21 lines, `report.ts` 23, `shared.ts` 35, `checkpoint-policy.ts` 48, `stream.ts` 74, `recovery-binding.ts` 81, `watch-state.ts` 104, `checkpointer.ts` 147, `bounded-follow.ts` 177, `entry.ts` 299.
+Every function is under 50 lines and under complexity 10 by the lint tools, not by reading: `check:size` and `check:complexity` print nothing about these files.
+Neither debt file names these paths any more. No file re-exports the old path.
+
+## Gates
+
+Each of the 8 commits was gated alone, before it was committed.
+
+| Gate | Start of run 2 (`94ed0c92`) | After `18618b08` |
+|---|---|---|
+| Finalizer test files | 20 files, 185 tests, 184 pass | 22 files, 199 tests, 198 pass |
+| The one failing test | `desktop-assistant-admission.integration.test.ts`: `Cannot find module 'electron'` from `apps/desktop/package.json` (not installed here) | same failure, same cause. Its import was repointed in A7 and typechecks |
+| `tsc -p tsconfig.json` | 0 errors | 0 errors |
+| `tsc -p tsconfig.tests.json` | 0 errors | 0 errors |
+| `check:size` | fails; no line about these files | same output, line for line |
+| `check:complexity` | fails; one line was ours (the stale `startWatch` entry) | that line is gone; the rest is unchanged |
+| `check:boundaries` | exit 16 (16 errors, 95 warnings) | exit 16, same counts, no line about these files |
+
+Test count: 185 + 2 pins + 3 (A4) + 9 (A7) = 199. No test was deleted or weakened. The 52 Phase 0 pins are green at every commit. C15a was edited once, in A7, as the design's table says.
+
+## New tests and their mutation proof
+
+| Test | Where | Mutation that fails it |
+|---|---|---|
+| a rejected checkpoint is logged once (pin) | `assistant-run-finalizer.reporting.unit.test.ts` | second argument changed to `String(error)`. Run before A4 and again after A7 |
+| a watch that fails is logged once (pin) | same file | argument stringified; call removed. Run before A7 and again after |
+| a log that fails does not stop the backed-off retry (3 ways) | `run-finalizer/__tests__/checkpointer.unit.test.ts` | log call not through `reportSafely` (3 fail); `reportSafely` ignores a rejected promise (1 fails); retry removed (3 fail) |
+| a log, a `setOutcome`, a cleanup warning that fail (3 ways each, 9 tests) | `assistant-run-finalizer.reporting.unit.test.ts` | each of the three `reportSafely` wrappers removed in `entry.ts`: its 3 tests fail |
+
+The pins were green on the tree before the change they guard. The 9 A7 tests cannot pass before A7: without `reportSafely` a failing reporter rejects the watch and `idle()` rejects.
+
+## Phase 0 mutations run again on moved code
+
+All were applied to the file the code lives in now, one at a time, and the file restored. Every one made its test fail.
+
+| After | Mutations | Target file |
+|---|---|---|
+| A4 | C5a, C5b, C11-G2a, C11-G2b, C11-R (no retry after a rejected checkpoint) | `checkpointer.ts`, timer binding |
+| A5 | C5c, C6a, C6b (2), C6c, C6d (2), C6e (2), C11-R (`runStatus`, `openEvents` rejections), X1 (404, 503, cancel that rejects) | `bounded-follow.ts`, `stream.ts` |
+| A6 | C1 (2: snapshot in the factory, snapshot in the binding), C9, C12 | `recovery-binding.ts` |
+| A7 | C1, C2, C4, C5a, C5b, C7 (2), C8 (2), C9, C10, C14, C15a (an extra export) | `entry.ts` |
+
+That is 26 of the mutation runs in the run 1 table, plus C1, X1 and C15a.
+Not run again, because this run did not move their target: C3 (`run-daemon-http-client.ts`, A2) and the ones in Jini's built `recover.js` (C11-G1, C13a to C13d, the launch grace, attach after a failed launch, the catch on the cancel). C13e, C16, C17, C18 and C11-G3 have no mutation, as in run 1.
+
+## Deviations from the design
+
+1. **Three commits the design does not list.** `b50d8872` moves two functions that design 4.1 places in `watch-state.ts` but A3 left in the factory. `6704e2f6` and `c2217f6f` pin two log lines that Phase 0 did not cover, before the log port carries them.
+2. **`createCheckpointer` returns `{ onFrame }`, not `{ onFrame, clear }`.** `Watch.trailing` is now the cancel function the timer port returns. `stopWatch` cancels it through `clearTrailing` in `watch-state.ts`. A `clear` method would only forward to that.
+3. **A5 has one input the design's list omits: `recoveryAvailable`.** `resolveStreamOutcome` hands a failed end to recovery only when a recovery exists. `probeRun` and `delay` are exported from `bounded-follow.ts` because the recovery ports and the hand-off use them too.
+4. **`ports.ts` holds three types, not eight.** `RunTimerPort`, `RunLogPort`, `RunWatchOutcome`. The tracker stays the `Tracker` type in Tovu; `RunSpanPort` and the rest belong to B1. Whether `Tracker` fits `RunSpanPort` is still not checked.
+5. **`settle`, the hand-off (`recoverWatch`), `retainLive` and the boot callback live in `entry.ts`.** The design names no file for them. `entry.ts` is 299 lines (the design guessed about 140): it also carries the 30-line header comment and the two public types.
+6. **A reporter's result is returned by the console binding**, so `reportSafely` also contains a reporter that rejects later. Only a replaced console can show the difference.
+7. **One small behaviour change in A7, as the design asks:** a `setOutcome` that throws is contained. Before, it was turned into an `abandoned` outcome and a log line. The real tracker does not throw.
+8. **`checkpointIntervalMs` is a required key typed `number | undefined`** in the one argument object the design gives `createCheckpointer`.
+
+## Owner audits (files this run changed)
+
+| Audit | Before | After | New |
+|---|---|---|---|
+| `owner-rules-audit.mjs` | 9 | 10 | **1**: `swallowed-error` in `report.ts` (`reportSafely`). The design flags it (4.4, practice 9). The other moved findings are the same lines in new files |
+| `args-object-audit.mjs` | 9 violations, 10 unsure | 9 violations, 0 unsure | 0. The 9 are callbacks that implement an existing typed port |
+| `hook-injection-audit.py` | 0 | 0 | 0 (no `.tsx` file was touched) |
+
+## Left as found
+
+- `.cloud-coord/job-f-complexity.json` still names the old path twice. It is a coordination record, not read by any check.
+- Jini `packages/chat/dbpkg-chat/host-callers.json` and `packages/daemon/docs/caller-ledger.csv` still list the old Tovu path. The design regenerates them in B2.
+- F1 to F4 are still pinned, not fixed (OD-6, OD-8).
+- `measure-site-memory.mjs` was repointed but not executed (a 20 minute workload that needs a built server).
+
+## One incident, no effect on the commits
+
+While running the A6 mutations, a cleanup command killed the session's own shell twice and an orphaned mutation run left two mutated files in the working tree. The tree was restored with `git checkout`, checked clean, and all A6 specs were run again from the clean tree. Every commit was made from a gated tree; the A7 mutation specs each matched the committed text exactly once, which they could not if a mutation had been committed.
+
+## For the next run
+
+- B1 starts from `18618b08`. The files to carry to Jini are the 9 under `modules/run-finalizer/` minus `shared.ts`.
+- In B1 the engine must call the Jini run-event owners with object arguments; the Tovu wrappers used here are positional (design 4.3). `now` becomes the `Clock` port, and the host defaults in `createAssistantRunFinalizer` (`randomUUID`, the child check, the agent table, the console, the unref'd timer) stay behind in `jini-run-finalizer.ts`.
+- The mutation runner and its specs lived in the session scratchpad and are gone. The tables above name each mutation.
