@@ -46,3 +46,6 @@ Paste these into every future split/move DESIGN brief (and executor brief):
 
 ## Added after the publish-engine judgment (2026-11-16)
 25. Package moves: every export-map entry must exist (and build) in the commit that introduces it; universal entries must not load Node code or cross isolation domains; every prerequisite in the migration graph must already exist or be scheduled; authorization compensation (cleanup after a failed check) needs its own failure-reporting contract - never lose evidence that cleanup failed.
+
+## Added after the env-schema judgment (2026-11-16)
+26. Config/env: names are an installation compatibility surface (no-alias still needs a deployment-state migration); OS string env != native binding namespaces (an object called env is not strings); model confidentiality separately from role (dynamic names, credentials inside URLs); define when validation applies and which override wins; deleting a deny/disable switch can silently ENABLE a forbidden capability - treat as security.
