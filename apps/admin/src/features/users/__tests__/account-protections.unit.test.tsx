@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@/__tests__/render-with-jini-kits";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { Users } from "../UsersPanel";
 import { useUsers } from "../hooks/users-controller.hooks";

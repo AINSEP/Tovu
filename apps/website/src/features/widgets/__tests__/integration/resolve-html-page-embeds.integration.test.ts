@@ -172,7 +172,7 @@ test('resolveHtmlPageEmbeds: a contact-form WIDGET instance resolves through the
   await seedContactFormWidget(entryRepo, "cf-widget-1", "form-1");
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
   await formDefinitionRepo.create(formDefinition());
-  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo }) });
+  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo, crypto: globalThis.crypto }) });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
@@ -195,7 +195,7 @@ test('resolveHtmlPageEmbeds: the RESTORED "form" embed type resolves by form id 
   await seedContactFormWidget(entryRepo, "cf-widget-1", "form-1");
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
   await formDefinitionRepo.create(formDefinition());
-  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo }) });
+  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo, crypto: globalThis.crypto }) });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
@@ -218,7 +218,7 @@ test('resolveHtmlPageEmbeds: a contact-form widget referencing a DISABLED form d
   await seedContactFormWidget(entryRepo, "cf-widget-disabled", "form-disabled");
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
   await formDefinitionRepo.create(formDefinition({ id: "form-disabled", slug: "disabled-form", status: "disabled" }));
-  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo }) });
+  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo, crypto: globalThis.crypto }) });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
@@ -236,7 +236,7 @@ test("resolveHtmlPageEmbeds: a text widget and a contact-form widget on the same
   await seedContactFormWidget(entryRepo, "cf-widget-1", "form-1");
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
   await formDefinitionRepo.create(formDefinition());
-  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo }) });
+  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo, crypto: globalThis.crypto }) });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
@@ -404,7 +404,7 @@ test('resolveHtmlPageEmbeds: a "widget" embed addressed by SLUG resolves to the 
   await seedContactFormWidget(entryRepo, "cf-widget-1", "form-1", "contact-widget");
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
   await formDefinitionRepo.create(formDefinition());
-  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo }) });
+  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo, crypto: globalThis.crypto }) });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
@@ -423,7 +423,7 @@ test('resolveHtmlPageEmbeds: a slug-addressed "widget" marker re-serialized by a
   await seedContactFormWidget(entryRepo, "cf-widget-1", "form-1", "contact-widget");
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
   await formDefinitionRepo.create(formDefinition());
-  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo }) });
+  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo, crypto: globalThis.crypto }) });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo },
@@ -702,7 +702,7 @@ test("resolveHtmlPageEmbeds: media and widget embeds on the same page all resolv
   const transformRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [transformDefinition()] });
   const formDefinitionRepo = new InMemoryFormDefinitionRepo();
   await formDefinitionRepo.create(formDefinition());
-  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo }) });
+  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo, crypto: globalThis.crypto }) });
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { host: buildWidgetHostPorts({}, {}), entryRepo, mediaRepo, transformRepo },

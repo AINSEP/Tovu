@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@/__tests__/render-with-jini-kits";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { isValidElementHandle } from "@jini-ai/core/agent-handles";
 

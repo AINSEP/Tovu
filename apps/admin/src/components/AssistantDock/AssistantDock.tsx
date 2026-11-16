@@ -379,7 +379,7 @@ export function AssistantDock({
     // conversation. `startRun` awaits this before dispatching, so the user's turn is durable before
     // a run that may fail to deliver it exists at all — see `persistUserTurn`'s own doc in
     // `use-assistant-chats.hooks.ts`.
-    persistUserTurn: chats.persistUserTurn ? persistUserTurn : undefined,
+    persistUserTurn,
   }, { useTransport: useAssistantTransportOverride });
   const uploadOrdinaryAttachments = useAttachmentUploaderSeam({ override: useAttachmentUploaderOverride });
   const skillInstall = useSkillInstall();

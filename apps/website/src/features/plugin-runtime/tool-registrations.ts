@@ -39,7 +39,7 @@ export interface PluginsToolDeps extends OperatorLocaleDeps {
   assertAgentPluginActivationsWritable?: (required: { workspaceRoot: string }) => Promise<void>;
   /** Bind the same lifecycle owner with host effects; no module replacement is needed for failures. */
   setAgentPluginEnabled?: (required: SetAgentPluginEnabledInput) => Promise<SetAgentPluginEnabledResult>;
-  listInstalledAgentPlugins?: (workspaceRoot: string) => Promise<readonly InstalledAgentPlugin[]>;
+  listInstalledAgentPlugins?: (required: { workspaceRoot: string }, optional?: Record<string, never>) => Promise<readonly InstalledAgentPlugin[]>;
   /** Bound to the existing remembered-approval store; only enable escalations get reusable keys. */
   nativeApprovalMemory?: RememberedApprovalPort;
   uninstallAgentPlugin?: AgentPluginUninstallToolDeps["uninstallAgentPlugin"];

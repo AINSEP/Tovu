@@ -48,7 +48,7 @@ function fakeMenuReadModel(menu: NavMenuEntry | null): NavMenuReadModel {
 }
 
 test("createCoreResolvers: returns the built-in dynamic resolver type keys including Gallery, each with a callable resolveMany", () => {
-  const resolvers = createCoreResolvers({ menus: { resolveMenuDoc }, collectionList: widgetCollectionListPort,
+  const resolvers = createCoreResolvers({ crypto: globalThis.crypto, menus: { resolveMenuDoc }, collectionList: widgetCollectionListPort,
     entryList: new TrashAwareInMemoryEntryRepo(),
     navMenuReadModel: fakeMenuReadModel(null),
     formDefinitionRepo: new InMemoryFormDefinitionRepo(),
@@ -105,7 +105,7 @@ test("createCoreResolvers: each assembled resolver is wired to the deps it was g
       updatedAt: "2026-01-01T00:00:00.000Z",
       version: 1,
     });
-    const resolvers = createCoreResolvers({ menus: { resolveMenuDoc }, collectionList: widgetCollectionListPort,
+    const resolvers = createCoreResolvers({ crypto: globalThis.crypto, menus: { resolveMenuDoc }, collectionList: widgetCollectionListPort,
       entryList,
       navMenuReadModel: fakeMenuReadModel(menu),
       formDefinitionRepo,

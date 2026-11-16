@@ -9,7 +9,7 @@ import {
   PublishContentPeerValidationError,
   updatePublishContentPeer,
 } from "#src/features/publish-content/peers";
-import type { PublishContentRouteRegistrar } from "./deps.js";
+import type { PublishContentRouteDeps, PublishContentRouteRegistrar } from "./deps.js";
 import {
   authorizedPrincipalId,
   bodyRecord,
@@ -70,7 +70,7 @@ function respondToPeerFailure({ res, error }: { res: Response; error: unknown })
 
 /** The write-side dependency bag, assembled once per handler from this module's route deps.
  *  @complexity O(1). */
-function toWriteDeps(deps: Parameters<PublishContentRouteRegistrar>[1]) {
+function toWriteDeps(deps: PublishContentRouteDeps) {
   return {
     repo: deps.publishContentPeerRepo,
     sealer: deps.siteAssistantSecretSealer,

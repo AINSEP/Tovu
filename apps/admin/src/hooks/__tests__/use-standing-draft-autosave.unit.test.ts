@@ -127,7 +127,7 @@ describe("useStandingDraftAutosave", () => {
     await act(async () => vi.advanceTimersByTimeAsync(0));
     act(() => result.current.scheduleAutosave(DOC_DRAFT));
     await act(async () => vi.advanceTimersByTimeAsync(IDLE_MS_PLUS_MARGIN));
-    let clearing!: Promise<void>;
+    let clearing!: Promise<{ discarded: boolean }>;
     act(() => { clearing = result.current.clearStandingDraft(); });
     await act(async () => { rejectWrite({ status: 401 }); await clearing; });
     expect(readStandingDraftLocalBackup({ entryId: "late-401" })).toBeNull();

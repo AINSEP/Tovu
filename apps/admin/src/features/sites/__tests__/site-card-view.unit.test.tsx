@@ -1,4 +1,4 @@
-import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen } from "@/__tests__/render-with-jini-kits";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
 import type { AdminSiteListEntry, AdminSitesSnapshot } from "@/lib/api";

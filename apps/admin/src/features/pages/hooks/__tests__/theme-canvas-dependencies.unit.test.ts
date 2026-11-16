@@ -34,8 +34,8 @@ describe("defaultThemeCanvasPort.fetchThemeTokens", () => {
     await expect(defaultThemeCanvasPort.fetchThemeTokens({ url: "/theme-assets/basic/tokens.light.json" })).rejects.toThrow(
       "the theme server responded with 404",
     );
-    await expect(defaultThemeCanvasPort.fetchThemeTokens("/theme-assets/basic/tokens.light.json")).rejects.toBeInstanceOf(ThemeServerResponseError);
-    await expect(defaultThemeCanvasPort.fetchThemeTokens("/theme-assets/basic/tokens.light.json")).rejects.toMatchObject({ status: 404 });
+    await expect(defaultThemeCanvasPort.fetchThemeTokens({ url: "/theme-assets/basic/tokens.light.json" })).rejects.toBeInstanceOf(ThemeServerResponseError);
+    await expect(defaultThemeCanvasPort.fetchThemeTokens({ url: "/theme-assets/basic/tokens.light.json" })).rejects.toMatchObject({ status: 404 });
   });
 
   it("surfaces invalid JSON from a successful tokens response", async () => {
@@ -59,8 +59,8 @@ describe("defaultThemeCanvasPort.fetchTemplateMarkup", () => {
     await expect(defaultThemeCanvasPort.fetchTemplateMarkup({ url: "/theme-assets/basic/pages/missing.html" })).rejects.toThrow(
       "the theme server responded with 500",
     );
-    await expect(defaultThemeCanvasPort.fetchTemplateMarkup("/theme-assets/basic/pages/missing.html")).rejects.toBeInstanceOf(ThemeServerResponseError);
-    await expect(defaultThemeCanvasPort.fetchTemplateMarkup("/theme-assets/basic/pages/missing.html")).rejects.toMatchObject({ status: 500 });
+    await expect(defaultThemeCanvasPort.fetchTemplateMarkup({ url: "/theme-assets/basic/pages/missing.html" })).rejects.toBeInstanceOf(ThemeServerResponseError);
+    await expect(defaultThemeCanvasPort.fetchTemplateMarkup({ url: "/theme-assets/basic/pages/missing.html" })).rejects.toMatchObject({ status: 500 });
   });
 });
 

@@ -56,9 +56,9 @@ export class InMemoryNewsletterCampaignRepo implements NewsletterCampaignRepoPor
    */
   async list(required: { workspaceId: string }, optional: { limit?: number; cursor?: string | null } = {}): Promise<ListPage<CampaignRecord>> {
     const limit = Math.min(optional.limit ?? DEFAULT_LIST_LIMIT, DEFAULT_LIST_LIMIT);
-    if (optional.cursor != null) decodeListCursor({ cursor: optional.cursor, size: 1 });
+    if (optional.cursor != null) decodeListCursor({ cursor: optional.cursor, shape: ['string'] });
     return pageFromArray({ rows: this.campaigns.filter(c => c.workspaceId === required.workspaceId),
-      limit, cursor: optional.cursor ?? null, positionOf: campaign => [campaign.id] });
+      limit, cursor: optional.cursor ?? null, positionOf: campaign => [campaign.id], shape: ['string'] });
   }
 
   async saveCampaignRow(campaign: CampaignRecord): Promise<void> {
@@ -160,9 +160,9 @@ export class InMemoryNewsletterSubscriptionRepo implements NewsletterSubscriptio
     listId: string;
   }, optional: { limit?: number; cursor?: string | null } = {}): Promise<ListPage<SubscriptionRow>> {
     const limit = Math.min(optional.limit ?? DEFAULT_LIST_LIMIT, DEFAULT_LIST_LIMIT);
-    if (optional.cursor != null) decodeListCursor({ cursor: optional.cursor, size: 1 });
+    if (optional.cursor != null) decodeListCursor({ cursor: optional.cursor, shape: ['string'] });
     return pageFromArray({ rows: this.rows.filter(r => r.workspaceId === required.workspaceId && r.listId === required.listId),
-      limit, cursor: optional.cursor ?? null, positionOf: row => [row.id] });
+      limit, cursor: optional.cursor ?? null, positionOf: row => [row.id], shape: ['string'] });
   }
 
   async listSubscribed(required: { workspaceId: string; listId: string }): Promise<SubscriptionRow[]> {

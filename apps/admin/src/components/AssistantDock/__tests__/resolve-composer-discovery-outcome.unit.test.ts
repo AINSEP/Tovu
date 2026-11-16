@@ -39,7 +39,7 @@ describe("resolveComposerDiscoveryOutcome", () => {
   });
 
   it("resolves a compose-text binding into a draft-replacing outcome, without calling the tool endpoint", async () => {
-    const resolve = (argument: string | null | undefined): ComposerHostBinding => ({
+    const resolve = ({ argument }: { argument: string | null | undefined }): ComposerHostBinding => ({
       kind: "compose-text",
       text: `Search the web for: ${argument}`,
     });

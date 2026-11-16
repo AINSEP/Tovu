@@ -978,6 +978,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   const siteTimeZone = createSiteTimeZonePort({ settingsRepo });
   wireCoreResolvers({
     siteTimeZone,
+    crypto: globalThis.crypto,
     // Defer captures: media MIME metadata is assembled later in this composition root.
     galleryMedia: ({ refs, context }) => resolveGalleryWidgetMedia({ refs, context, deps: {
       host: buildWidgetHostPorts({}), entryRepo, mediaRepo, transformRepo: transformDefinitionRepo, mediaContentTypeStore,
@@ -2577,6 +2578,7 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
       bus: routeDeps.bus,
       clock: routeDeps.clock,
       idGen: routeDeps.idGen,
+      crypto: globalThis.crypto,
       rateLimiter: routeDeps.formsRateLimiter,
       readUploadFreeBytes: async () => {
         if (await routeDeps.siteBackupSources?.isMediaRemote?.()) return undefined;

@@ -71,7 +71,7 @@ async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort
   const app = express();
   app.use(express.json());
   if (overrides.upstreamCookie) app.use((_req, res, next) => { res.cookie("upstream", "kept", { path: "/" }); next(); });
-  const submitFormDeps = { definitionRepo, submissionRepo, outbox, bus, clock, idGen,
+  const submitFormDeps = { crypto: globalThis.crypto, definitionRepo, submissionRepo, outbox, bus, clock, idGen,
     rateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
   };
   registerFormsSubmitRoute(app, {

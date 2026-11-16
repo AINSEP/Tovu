@@ -102,7 +102,7 @@ export class SqlNewsletterCampaignRepo implements NewsletterCampaignRepoPort {
    */
   async list(required: { workspaceId: string }, optional: { limit?: number; cursor?: string | null } = {}): Promise<ListPage<CampaignRecord>> {
     const limit = Math.min(optional.limit ?? DEFAULT_LIST_LIMIT, DEFAULT_LIST_LIMIT);
-    const after = optional.cursor != null ? decodeListCursor({ cursor: optional.cursor, size: 1 }) : null;
+    const after = optional.cursor != null ? decodeListCursor({ cursor: optional.cursor, shape: ['string'] }) : null;
     const rows = await this.kernel.run((db) => {
       // One bounded page of envelopes per list call; bodies are loaded only by findById.
       let query = db.selectFrom("newsletter_campaigns").selectAll().where("workspace_id", "=", required.workspaceId);
@@ -308,7 +308,7 @@ export class SqlNewsletterSubscriptionRepo implements NewsletterSubscriptionRepo
     listId: string;
   }, optional: { limit?: number; cursor?: string | null } = {}): Promise<ListPage<SubscriptionRow>> {
     const limit = Math.min(optional.limit ?? DEFAULT_LIST_LIMIT, DEFAULT_LIST_LIMIT);
-    const after = optional.cursor != null ? decodeListCursor({ cursor: optional.cursor, size: 1 }) : null;
+    const after = optional.cursor != null ? decodeListCursor({ cursor: optional.cursor, shape: ['string'] }) : null;
     const rows = await this.kernel.run((db) => {
       let query = db
         .withTables<NewsletterTables>()

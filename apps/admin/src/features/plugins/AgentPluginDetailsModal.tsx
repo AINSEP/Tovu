@@ -22,7 +22,7 @@ export interface AgentPluginDetailsModalProps {
   readonly onClose: () => void;
   /** Injectable seam for the listing. Defaults to the real {@link useWiredAgentPluginDetailsModal};
    *  a test can pass a fake to exercise the modal's rendering with a fixed file list/selection. */
-  readonly useDetails?: (pluginId: string) => AgentPluginDetailsModalController;
+  readonly useDetails?: (required: { pluginId: string }, optional?: Record<string, never>) => AgentPluginDetailsModalController;
   /** Plugin-owned admin surfaces (2026-10-20); a test passes a typed fake. */
   readonly surfacesPort?: AgentPluginSurfacesPort;
 }

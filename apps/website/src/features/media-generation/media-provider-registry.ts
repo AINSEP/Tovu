@@ -145,7 +145,8 @@ function parseDescriptor({ entry, at }: { entry: unknown; at: string }, _optiona
   if (typeof module !== "string" || !module.endsWith(".mjs") || path.posix.isAbsolute(module)) return `${at}.module must be a relative path ending in .mjs`;
   const labelRefusal = refuseLabel({ label, at });
   if (labelRefusal !== undefined) return labelRefusal;
-  return { id, module, ...(label === undefined ? {} : { label }) };
+  // `refuseLabel` above already refused every non-string label, so this guard only narrows for the compiler.
+  return { id, module, ...(typeof label === "string" ? { label } : {}) };
 }
 
 /** The reason a descriptor's optional `label` is invalid, or `undefined` when absent or fine. @complexity O(1). */

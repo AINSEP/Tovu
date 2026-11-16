@@ -119,7 +119,7 @@ describe("locked block Edit HTML navigation", () => {
   });
   it("scrolls to the measured wrapped position of the tag, not a newline count", async () => {
     const measured: number[] = [];
-    const { result, scrollTop } = harness(async () => source, (_node, index) => { measured.push(index); return 900; });
+    const { result, scrollTop } = harness(async () => source, ({ index }) => { measured.push(index); return 900; });
     await act(async () => { await result.current.requestEditHtml({ occurrenceIndex: 1, tagName: "div", id: "same" }, {}); });
     const node = document.createElement("textarea");
     node.value = source;

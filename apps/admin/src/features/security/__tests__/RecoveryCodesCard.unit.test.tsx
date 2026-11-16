@@ -1,5 +1,5 @@
 import { ApiError } from '@/lib/api';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from "@/__tests__/render-with-jini-kits";
 import { describe, it, expect, vi } from 'vitest';
 import { RecoveryCodesCard } from '../RecoveryCodesCard';
 import type { OwnerRecoveryPort } from '../../../lib/owner-recovery-api';

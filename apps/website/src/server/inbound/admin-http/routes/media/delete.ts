@@ -39,6 +39,7 @@ export const registerAdminMediaDeleteRoute = (app: Express, deps: MediaRouteDeps
           blobRepo: deps.assetBlobRepo,
           renditionRepo: deps.assetRenditionRepo,
           blobStore: deps.blobStore,
+          clock: deps.clock,
         },
         input: { workspaceId: deps.workspaceId, id: mediaId },
       });

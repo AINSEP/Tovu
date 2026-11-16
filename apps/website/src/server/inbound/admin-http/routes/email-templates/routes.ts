@@ -71,7 +71,7 @@ function body(req: Request): Record<string, unknown> {
 }
 
 /** Workspace check, then authorization BEFORE any body validation, then the operation. */
-function route({ deps, permission, handler }: { deps: ContentRouteDeps; permission: string; handler: Handler }, { status = 200 }: { status?: unknown } = {}) {
+function route({ deps, permission, handler }: { deps: ContentRouteDeps; permission: string; handler: Handler }, { status = 200 }: { status?: number } = {}) {
   return async (req: Request, res: Response) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {

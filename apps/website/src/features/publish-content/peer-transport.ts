@@ -526,7 +526,7 @@ export async function pushBundleToPeer(
     throw new PublishContentPeerTransportError({ message: `the peer staged the bundle but returned no 'bundleId'`, code: "PEER_RESPONSE_INVALID" });
   }
 
-  const plan = requireObject({ value: {
+  const plan = requireObject({
     value: await callPeer(deps, {
       method: "POST",
       path: peerRoute({ credential, suffix: "/import/plan" }),
@@ -540,7 +540,7 @@ export async function pushBundleToPeer(
     }),
     what: "import plan",
     baseUrl: credential.baseUrl,
-  } });
+  });
 
   return { bundleId, blobsUploaded, blobsUnavailable, plan, notSupportedByLive, liveCanOverwrite };
 }

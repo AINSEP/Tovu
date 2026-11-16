@@ -24,7 +24,7 @@ for (const restored of [false, true]) test(`public widget dialog: ${restored ? '
     element.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key, shiftKey, bubbles: true, cancelable: true }));
   });
   try {
-    await act(async () => root.render(React.createElement(ChatSurfacesProvider, { surfaces: chatSurfaces }, React.createElement(SiteAssistantWidget))));
+    await act(async () => root.render(React.createElement(ChatSurfacesProvider, { surfaces: chatSurfaces, children: React.createElement(SiteAssistantWidget) })));
     const bubble = button('Chat with this site');
     assert.equal(bubble.getAttribute('aria-expanded'), 'false');
     bubble.focus();

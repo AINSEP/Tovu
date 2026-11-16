@@ -137,7 +137,7 @@ const CATALOG_BY_ID = indexCatalogById({ catalog: postAgentToolCatalog });
 export interface DuplicatePagesHtmlStore {
   ensureHtmlFormat(required: { seedHtml: string }, optional?: Record<string, never>): Promise<void>;
   read(): Promise<string>;
-  write(html: string): Promise<void>;
+  write(required: { html: string }, optional?: Record<string, never>): Promise<void>;
 }
 export type DuplicatePagesHtmlStoreFactory = (scope: { workspaceId: string; postId: string }) => DuplicatePagesHtmlStore;
 

@@ -1782,6 +1782,7 @@ async function composeSiteRouteDeps(
   // (see `navigation/read-model.ts`'s file header).
   wireCoreResolvers({
     siteTimeZone,
+    crypto: globalThis.crypto,
     // Defer captures: media MIME metadata is assembled later in this composition root.
     galleryMedia: ({ refs, context }) => resolveGalleryWidgetMedia({ refs, context, deps: {
       host: buildWidgetHostPorts({}), entryRepo, mediaRepo, transformRepo: transformDefinitionRepo, mediaContentTypeStore,

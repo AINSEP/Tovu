@@ -139,7 +139,7 @@ test("constructing and reading the package adapter alone leaves checkpointed mai
     db = seed(file, true); db.close(); db = undefined;
     const initial = readFileSync(file);
     db = new Database(file, { readonly: true, fileMustExist: true });
-    const history = createSqliteChatStore({ kernel: sqliteKernel<ChatDatabase>(db), scope: USER });
+    const history = createSqliteChatStore({ kernel: sqliteKernel<ChatDatabase>(db), scope: USER, clock: { nowMs: () => Date.now() } });
     assert.equal((await history.list())[0]?.id, "user-chat");
     assert.equal((await history.messages({ conversationId: "user-chat" }))[0]?.createdAt, T0 + 1);
     await history.pageConversations({}); await history.pageMessages({ conversationId: "user-chat" });

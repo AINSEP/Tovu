@@ -104,7 +104,10 @@ it('deployed composer hides the portaled Local CLI row and code-agent list, even
   await screen.findByText(DEPLOYED_LOCAL_CLI_NOTE);
   fireEvent.click(screen.getByRole('button', { name: 'Choose AI runtime' }));
   const dialog = await screen.findByRole('dialog', { name: 'Choose AI runtime' });
-  expect(dialog.parentElement).toBe(document.body);
+  // The kit portals every dialog into its own overlay root, which is itself a direct child of <body>:
+  // still entirely outside the composer, so a clipped dock can never hide it.
+  expect(dialog.parentElement).toHaveAttribute('data-jini-part', 'kit.overlay');
+  expect(dialog.parentElement?.parentElement).toBe(document.body);
   expect(screen.queryByRole('button', { name: 'Use Local CLI offline' })).not.toBeInTheDocument();
   expect(screen.getByText('Use Local CLI').closest('button')).not.toBeVisible();
   expect(screen.getByRole('button', { name: 'Use API · BYOK' })).toBeVisible();
