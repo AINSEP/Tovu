@@ -19,7 +19,7 @@ import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import { createPluginExportRuntime } from "#src/features/agent-plugins/exports/runtime";
 import { createPluginExportSource } from "#src/features/agent-plugins/exports/source";
 import { readBundledDeployWorkflowFiles } from "#src/features/deployments/index";
-import { createCommentsCapability, ensureCommentsProviderDefinition } from '#src/features/comments/provider-selection';
+import { createCommentsCapability } from '#src/features/comments/provider-selection';
 import { composeVisitorToolsManagement } from "./visitor-tools-management.js";
 import { createCommentTargetLookup } from '#src/features/comments/comment-targets';
 import { applyThemePreviewSwitcher } from "../../inbound/public-http/middleware/theme-preview-switcher.js";
@@ -61,7 +61,7 @@ import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/
 import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { SITEMAP_INVALIDATED_EVENT, createSitemapService } from "@jini-ai/cms/seo";
-import { createSeoDeps, ensureSeoSettingDefinitions, type EnsureSeoSettingDefinitionsDeps } from "#src/features/seo/index";
+import { createSeoDeps } from "#src/features/seo/index";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
 import type { PostRecord } from "#src/features/post/index";
 import type { RedirectRecord } from "@jini-ai/cms/redirects";
@@ -120,7 +120,7 @@ import { InMemoryPagesHtmlDocumentStore } from "#src/features/pages/index";
 // 2026-09-05 (fix-cycle) — used to be a lazy `require()` here; see `runExportSite`'s doc below for
 // why a plain static import is now correct.
 import { exportSite } from "#src/features/site-export/index";
-import { createInMemoryChatHistory, createInMemoryAgentSessionStore, InMemorySiteAssistantCredentialRepo, InMemoryAdminExecutionCredentialRepo, InMemoryExternalMcpToolApprovalRepo, createInMemoryConversationToolApprovalStore, ensurePublicAssistantSettingDefinitions, ensureExecutionSettingDefinitions } from "../../../assistant/index.js";
+import { createInMemoryChatHistory, createInMemoryAgentSessionStore, InMemorySiteAssistantCredentialRepo, InMemoryAdminExecutionCredentialRepo, InMemoryExternalMcpToolApprovalRepo, createInMemoryConversationToolApprovalStore } from "../../../assistant/index.js";
 import { InMemoryExternalMcpServerRepo } from "../../../features/external-mcp/external-mcp-store.memory.js";
 // Deep-imported rather than routed through the barrel above: `assistant/index.ts`'s Section D
 // ("Admin Daemon Proxy / Process Composition") is documented as consumed by the DAEMON's own proxy
@@ -131,15 +131,7 @@ import { InMemoryExternalMcpServerRepo } from "../../../features/external-mcp/ex
 // exactly this reason — the same exemption `express.static`'s `/agent-icons` mount below relies on.
 import { registerMcpUiSandboxProxyRoute } from "#src/assistant/mcp-ui-sandbox-proxy-route";
 import { InMemoryPresentationSettingsRepo, resolveActiveThemeId } from "#src/features/presentation/index";
-import {
-  InMemorySettingsRepo,
-  ensureSettingsUiTabDefinitions,
-  ensureSettingDefinitions,
-  type EnsureSettingDefinitionsDeps,
-  getEffective,
-  set,
-  INSTRUCTIONS_NAMESPACE,
-} from "#src/features/settings/index";
+import { InMemorySettingsRepo, getEffective, set, INSTRUCTIONS_NAMESPACE } from "#src/features/settings/index";
 import { discoverAllBuiltInThemes, rescanThemes, resolveActiveTheme, NO_THEME_ID } from "#src/features/theme/index";
 import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
 import { createThemeTrashMover } from "#src/features/theme/trash-theme-tool";
@@ -259,8 +251,8 @@ import { wireCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
 import { createNavMenuReadModel } from "#src/features/navigation/index";
 import { createCommentsModule, HeuristicSpamCheck } from "@jini-ai/cms/comments";
-import { createCommentsHostPorts, ensureCommentsSettingDefinitions, resolveCommentsIpHashSalt } from "#src/features/comments/index";
-import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "#src/features/analytics/config.settings";
+import { createCommentsHostPorts, resolveCommentsIpHashSalt } from "#src/features/comments/index";
+import { createSettingsAnalyticsConfig } from "#src/features/analytics/config.settings";
 import {
   ensureSiteTitleSettingDefinition,
   InMemorySiteTitlePreservationStore,
@@ -401,6 +393,7 @@ import type { ExportEngine } from "#src/features/deployments/export-run";
 import type { Express } from "express";
 import type { ServerModuleHandle } from "./modules/types.js";
 import { createMediaProviderRegistry } from "@jini-ai/integrations/media-providers";
+import { startSettingsRegistration } from "./settings-registration.js";
 
 /**
  * @file HTTP composition root and route wiring.
@@ -1014,7 +1007,6 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     siteId: seededWorkspace.id, module: commentsModule, commentsReady: Promise.resolve(), settingsReady: commentsSettingsReady,
     settings: { settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals },
   });
-
 
   // SPEC-011 (Newsletter) Stage 5 wiring — hoisted so `newsletterSubscriberDirectory` below reads
   // the SAME member rows the returned `memberRepo` field exposes (mirrors `entryRepo`/
@@ -2617,74 +2609,3 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   return app;
 }
 
-/** Tovu's shared boot order; feature modules retain ownership of their definitions.
- * Both roots expose the intermediate promises while keeping their later registrations separate.
- * Rejections propagate through the same serial chain; callers observe its tail.
- * @complexity O(1) registrations and readiness promises; no parallel settings writers.
- */
-export function startSettingsRegistration(required: {
-  deps: EnsureSeoSettingDefinitionsDeps & EnsureSettingDefinitionsDeps;
-  settingsReady: Promise<void>;
-  workspaceId: string;
-  systemPrincipalId: string;
-}, _options = {}) {
-  const { deps, settingsReady, workspaceId, systemPrincipalId } = required;
-  // SPEC-008 (ADR-PIPE-008 Decision §3, T050) — idempotently registers the 8 `site.seo.*`
-  // definitions at boot, mirroring `settingsReady`'s fire-and-forget shape. Chained AFTER
-  // `settingsReady` resolves, not fired in parallel with it — both are SQLite writers on the
-  // SAME single better-sqlite3 connection, and `SettingsWriteService`'s chokepoint opens a real
-  // `BEGIN IMMEDIATE` transaction; two independent async chains racing to BEGIN on one connection
-  // throws "cannot start a transaction within a transaction" (caught directly, not theoretical).
-  const seoReady = settingsReady.then(() =>
-    ensureSeoSettingDefinitions(deps, { workspaceId, systemPrincipalId }).then(() => undefined)
-  );
-
-  // SPEC-035 (ADR-028 Settings Layered Ledger wiring for Comments) — idempotently registers the 6
-  // `comments.*` definitions at boot, mirroring `seoReady`'s exact fire-and-forget shape. Chained
-  // AFTER `seoReady` resolves, not fired in parallel — same single-SQLite-connection transaction
-  // hazard `seoReady`'s own comment documents immediately above.
-  const commentsSettingsReady = seoReady.then(() =>
-    ensureCommentsSettingDefinitions(deps, { workspaceId, systemPrincipalId })
-      .then(() => ensureCommentsProviderDefinition({ deps, systemPrincipalId }))
-  );
-
-  // The visitor-facing assistant's master switch (`assistant/public-assistant-settings.ts`).
-  // Chained after `commentsSettingsReady`, not fired in parallel, for the same
-  // single-SQLite-connection transaction hazard `seoReady`'s comment above documents. Registering
-  // the definition does NOT enable anything: its default is `false`.
-  const assistantSettingsReady = commentsSettingsReady.then(() =>
-    ensurePublicAssistantSettingDefinitions(
-      { ...deps, ensureSettingDefinitions },
-      { workspaceId, systemPrincipalId }
-    ).then(() => undefined)
-  );
-
-  // The admin "Execution mode" tab's `core.execution.*` definitions
-  // (`assistant/execution-mode-settings.ts`). Chained after `assistantSettingsReady` rather than
-  // fired in parallel, for the identical single-SQLite-connection-transaction reason `seoReady`'s
-  // own comment above documents. `ownerKind: "core"` (not "site"), so unlike the three bindings
-  // above this one does not pass a `workspaceId` into the registration call — see that file's
-  // header for the namespace-fence reasoning.
-  const executionSettingsReady = assistantSettingsReady.then(() =>
-    ensureExecutionSettingDefinitions(
-      { ...deps, ensureSettingDefinitions },
-      { systemPrincipalId }
-    ).then(() => undefined)
-  );
-
-  // The remaining ledger-only settings-dialog tabs (Instructions, Notifications, Privacy).
-  // Chained after `executionSettingsReady` rather than fired alongside it for the same
-  // single-SQLite-connection-transaction reason every registration above documents.
-  const settingsUiTabsReady = executionSettingsReady.then(() =>
-    ensureSettingsUiTabDefinitions(deps, { systemPrincipalId }).then(() => undefined)
-  );
-
-  // The public analytics beacon's `core.analytics.*` definitions (`analytics/config.settings.ts`).
-  // Chained after `settingsUiTabsReady` rather than fired alongside it, for the identical
-  // single-SQLite-connection-transaction reason every registration above documents.
-  const analyticsSettingsReady = settingsUiTabsReady.then(() =>
-    ensureAnalyticsSettingDefinitions(deps, { systemPrincipalId }).then(() => undefined)
-  );
-
-  return { seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady };
-}
