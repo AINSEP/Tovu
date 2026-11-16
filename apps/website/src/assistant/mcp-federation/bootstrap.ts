@@ -22,13 +22,18 @@ import type { FederatedAdmissionReport } from "@jini-ai/mcp/federation";
 /** Where the admission report goes. Injected so tests assert on it instead of scraping stdout, and
  * so a future structured logger is a parameter change rather than an edit. */
 export interface FederationLogger {
-  info(required: { message: string }, optional?: Record<string, never>): void;
-  warn(required: { message: string }, optional?: Record<string, never>): void;
+  info(required: { message: string }, optional?: { error?: unknown }): void;
+  warn(required: { message: string }, optional?: { error?: unknown }): void;
 }
 
+/** Jini's federation loop logs fixed words in `message` and hands the original error as `{ error }` for the
+ * host sink; this console IS Tovu's host sink, so the error rides along as a second console argument
+ * (without it a failed connection would log no cause at all). */
+const consoleArgs = ({ line, error }: { line: string; error: unknown }): unknown[] => (error === undefined ? [line] : [line, error]);
+
 const consoleLogger: FederationLogger = {
-  info: ({ message }) => console.log(`[agent-daemon] ${message}`),
-  warn: ({ message }) => console.warn(`[agent-daemon] ${message}`),
+  info: ({ message }, { error } = {}) => console.log(...consoleArgs({ line: `[agent-daemon] ${message}`, error })),
+  warn: ({ message }, { error } = {}) => console.warn(...consoleArgs({ line: `[agent-daemon] ${message}`, error })),
 };
 
 export interface AttachFederatedToolsResult {
@@ -204,9 +209,9 @@ export async function attachFederatedMcpTools(params: AttachFederatedMcpToolsPar
     extraConnections: connections.filter(entry => !entry.isPreset).map(entry => entry.connection),
     env: params.env ?? process.env,
     logger: {
-      info: ({ message }) => logger.info({ message }),
-      warn: ({ message }) => logger.warn({ message }),
-      error: ({ message }) => logger.warn({ message }),
+      info: ({ message }, { error } = {}) => logger.info({ message }, { error }),
+      warn: ({ message }, { error } = {}) => logger.warn({ message }, { error }),
+      error: ({ message }, { error } = {}) => logger.warn({ message }, { error }),
     },
   });
   return result;

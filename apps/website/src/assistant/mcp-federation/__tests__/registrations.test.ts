@@ -652,7 +652,14 @@ function fakeRegistry(seed: string[] = []): ToolRegistry & { registered: ToolReg
 
 function collectingLogger() {
   const messages: string[] = [];
-  return { messages, logger: { info: ({ message }: { message: string }) => messages.push(`info:${message}`), warn: ({ message }: { message: string }) => messages.push(`warn:${message}`) } };
+  // Jini's logger port is log({ message }, { error }): the fixed words ride in `message`, and the original
+  // error (whose text names the cause) goes to the host sink as the second argument, so fold both in here.
+  const line = ({ level, message }: { level: string; message: string }, { error }: { error?: unknown } = {}) =>
+    messages.push(`${level}:${message}${error === undefined ? "" : ` — ${error instanceof Error ? error.message : String(error)}`}`);
+  return { messages, logger: {
+    info: ({ message }: { message: string }, optional: { error?: unknown } = {}) => line({ level: "info", message }, optional),
+    warn: ({ message }: { message: string }, optional: { error?: unknown } = {}) => line({ level: "warn", message }, optional),
+  } };
 }
 
 test("with no configuration, the daemon boots exactly as it did before federation existed", async () => {

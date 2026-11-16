@@ -301,10 +301,10 @@ test("reload() called while start() is in flight waits for the boot pass before 
   assert.deepEqual(order, ["start", "reload"]);
 });
 
-test("the logger prefixes warnings with the caller's own log tag too", async (t) => {
-  const warnLines: string[] = [];
+test("the logger prefixes warnings with the caller's own log tag too, and hands the original error to the console sink", async (t) => {
+  const warnCalls: unknown[][] = [];
   t.mock.method(console, "warn", (...args: unknown[]) => {
-    warnLines.push(args.map(String).join(" "));
+    warnCalls.push(args);
   });
   t.mock.method(console, "log", () => {});
   const failure = new Error("boom");
@@ -322,12 +322,14 @@ test("the logger prefixes warnings with the caller's own log tag too", async (t)
 
   await runtime.start();
 
+  // Jini logs fixed words as `message` and passes the original error as `{ error }` for the host sink;
+  // this console is that sink, so the error is the second console argument (not text folded into the line).
   assert.ok(
-    // The error itself goes to the host sink via the logger's second argument (Jini mcp federation/bootstrap.ts); the console line is the fixed words only, never the message or stack.
-    warnLines.includes("[assistant-byok] mcp-federation: 'x' failed, continuing without its tools"),
-    `expected the exact warn line; got: ${JSON.stringify(warnLines)}`,
+    warnCalls.some(([line, cause]) => line === "[assistant-byok] mcp-federation: 'x' failed, continuing without its tools" && cause === failure),
+    `expected the fixed warn line with the original error; got: ${JSON.stringify(warnCalls.map(([line]) => line))}`,
   );
 });
+
 
 // ---------------------------------------------------------------------------
 // connectFailures() (2026-09-24) — a connection that never reached admission must still be visible
