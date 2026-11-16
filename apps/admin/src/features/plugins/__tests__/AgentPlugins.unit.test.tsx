@@ -9,8 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { act } from "@testing-library/react";
 import { executePageCapability, type FindElementsResult } from "@jini-ai/agentic";
-import { createDomPageDriver } from "@jini-ai/agentic/dom";
-import { pagePortFromDriver } from "@/integrations/jini-page-port";
+import { createDomPageDriver, createDriverPagePort } from "@jini-ai/agentic/dom";
 import { buildAdminAgentPages } from "@/lib/agent-pages";
 import { api } from "@/lib/api";
 
@@ -691,7 +690,7 @@ describe("assistant admin navigation regression", () => {
     const invocations: { capabilityId: string; input: unknown }[] = [];
     const bridge = createFrontendSessionBridge({ baseUrl: "", openStream: () => source as unknown as EventSource,
       request: async ({ init }) => { responses.push(JSON.parse(init.body as string)); return new Response(JSON.stringify({ settled: true })); },
-    }, { page: pagePortFromDriver({ driver }), onInvocation: ({ capabilityId, input }) => invocations.push({ capabilityId, input }) });
+    }, { page: createDriverPagePort({ driver }), onInvocation: ({ capabilityId, input }) => invocations.push({ capabilityId, input }) });
     const emit = (frame: unknown) => source.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(frame) }));
     emit({ type: "attached", sessionId: "owner-tab", bindToken: "owner-tab-current" });
     try {

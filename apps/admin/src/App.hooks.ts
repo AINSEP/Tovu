@@ -1,14 +1,13 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { directPageAction } from "../../website/src/assistant/assistant-tool-approval-policy.js";
 import { PAGE_CAPABILITIES as APPROVAL_PAGE_CAPABILITIES } from "@jini-ai/agentic";
-import { pagePortFromDriver } from "./integrations/jini-page-port";
 import { adminFailureChannel } from "./lib/admin-failure-channel";
 import { ensureInitialSession, acceptSession, handleSessionUnauthenticated, signInSession, signOutSession, type AdminSessionOptions, type MeResponse } from "./App.session";
 import { setAdminDraftIdentity, getAdminDraftIdentity } from "./lib/admin-draft-identity";
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { createFrontendSessionBridge, createFrontendRequestCaller, createFrontendNavigationGuard, type FrontendSessionBridge } from "@jini-ai/chat/react";
 import { createAdminShellNavigation } from "@jini-ai/admin/browser/shell-navigation";
-import { createDomPageDriver } from "@jini-ai/agentic/dom";
+import { createDomPageDriver, createDriverPagePort } from "@jini-ai/agentic/dom";
 import { toWebMcpTool, type WebMcpRegisterToolOptions, type WebMcpToolRegistration } from "@jini-ai/agentic";
 import { registerAdminPageWebMcpTools } from "./features/webmcp/admin-page-tools";
 import { isDesktopAdmin } from "./features/settings/ai-agent-presentation";
@@ -1088,7 +1087,7 @@ export function useAgentPageBridge(
       // EventSource cannot send custom headers; its authenticated stream carries the same tab id.
       openStream: ({ url }) => openStream({ url: `${url}&tabId=${encodeURIComponent(adminFrontendTabId)}` }),
     }, {
-      page: pagePortFromDriver({ driver: pageDriver }),
+      page: createDriverPagePort({ driver: pageDriver }),
       preparePageInput: pageNavigation.preparePageInput,
       onBeforeResponse: pageNavigation.onBeforeResponse,
       executors,
