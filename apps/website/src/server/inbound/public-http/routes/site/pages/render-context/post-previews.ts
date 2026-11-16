@@ -1,6 +1,7 @@
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import { listPublishedPostPreviews } from "#src/features/post/post";
 import type { MemberContext, MemberAccessResolver } from "#src/features/members/index";
+// Keep request rendering separate from theme installation, imports, and agent tools.
 import { postPreviewsBatchSize, isPagedPostPreviewsMarker, type StaticPostPreview, type StaticListingBatch, type StaticPostPreviewsPage } from "#src/features/theme/static-render";
 import { markersOfType, POST_PREVIEWS_MARKER_TYPE, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
 import { extractListingCardTemplate, listingBatchPath, listingKeyOfAttributes, readListingBatch, readListingPage, renderListingPageNav, type ListingSource } from "@jini-ai/cms/listing";

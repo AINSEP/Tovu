@@ -4,6 +4,7 @@ import type { Request, Response } from "express";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import { createPublicPostReader } from "#src/features/post/post";
 import type { MemberContext, MemberAccessResolver } from "#src/features/members/index";
+// Keep request rendering separate from theme installation, imports, and agent tools.
 import { renderStaticPage, type StaticFeaturedImage } from "#src/features/theme/static-render";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
 import { expandPartials } from "../../../../../../contracts/core/expand-partials.js";

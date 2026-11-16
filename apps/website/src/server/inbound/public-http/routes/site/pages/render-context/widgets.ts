@@ -3,6 +3,7 @@ import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import type { Request } from "express";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import { createPublicPostReader } from "#src/features/post/post";
+// Page readiness reads must not load the assistant tool/runtime barrel.
 import { getPublicAssistantSettings } from "#src/assistant/public-assistant-settings";
 import { resolvePublicAssistantAvailability } from "#src/assistant/public-assistant-availability";
 import type { DiscoveredTheme } from "#src/features/theme/theme";

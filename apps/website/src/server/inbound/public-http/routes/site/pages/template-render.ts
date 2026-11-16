@@ -5,6 +5,7 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import { createPublicPostReader } from "#src/features/post/post";
 import type { MemberContext, MemberAccessResolver } from "#src/features/members/index";
+// Keep request rendering separate from theme installation, imports, and agent tools.
 import { renderStaticPage, injectCurrentEntityContentId, injectPageTitle, resolveTemplate } from "#src/features/theme/static-render";
 import { tokenStylesheetSentinel } from "#src/features/theme/static-asset-contract";
 import type { DiscoveredTheme } from "#src/features/theme/theme";
