@@ -2498,5 +2498,258 @@
    "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
    "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
   ]
+ },
+ {
+  "id": "PP1",
+  "what": "scope not applied to the bundle",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "input.scope == null ? fullBundle : applyPublishScope(fullBundle, input.scope)",
+  "replace": "fullBundle",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP2",
+  "what": "row selection not applied",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "input.selectedEntityKeys == null ? scoped : selectBundleEntities(scoped, new Set(input.selectedEntityKeys))",
+  "replace": "scoped",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP3",
+  "what": "carried-along rows drawn from the selected bundle, not the full one",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "source: fullBundle, handlers",
+  "replace": "source: selected, handlers",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP4",
+  "what": "source label ignores the workspace name",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "sourceLabel: workspace?.name ?? deps.workspaceId,",
+  "replace": "sourceLabel: deps.workspaceId,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP5",
+  "what": "ticked overwrite keys not sent to the peer",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "{ bundle, ...(input.overwriteEntityKeys == null ? {} : { overwriteEntityKeys: input.overwriteEntityKeys }) }",
+  "replace": "{ bundle }",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP6",
+  "what": "ticked overwrite keys not echoed back",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "    ...(input.overwriteEntityKeys == null ? {} : { overwriteEntityKeys: input.overwriteEntityKeys }),\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP7",
+  "what": "entityCount counts held-back rows",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "entityCount: bundle.entities.length - heldBackCount,",
+  "replace": "entityCount: bundle.entities.length,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP8",
+  "what": "held-back count ignores each entry's count",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "sum + entry.count",
+  "replace": "sum + 1",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP9",
+  "what": "itemNames keeps empty names",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "name.length > 0",
+  "replace": "true",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP10",
+  "what": "itemNames drops the slug",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "[entity.state.title, entity.state.slug, entity.displayLabel]",
+  "replace": "[entity.state.title, entity.displayLabel]",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP11",
+  "what": "public URLs for every type",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "entity.entityType !== \"post\" && entity.entityType !== \"page\"",
+  "replace": "false",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP12",
+  "what": "public URL not built on the peer's origin",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "originOverride: peer.credential.baseUrl",
+  "replace": "originOverride: \"https://other.example\"",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP13",
+  "what": "peer label dropped",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "peerLabel: peer.credential.label,",
+  "replace": "peerLabel: \"\",",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP14",
+  "what": "liveCanOverwrite always false",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "liveCanOverwrite: result.liveCanOverwrite,",
+  "replace": "liveCanOverwrite: false,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP15",
+  "what": "blobsUploaded dropped",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "blobsUploaded: result.blobsUploaded,",
+  "replace": "blobsUploaded: 0,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP16",
+  "what": "trashing rows not tagged",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "tagTrashingRows(labelPeerPlanRows(result.plan, bundle.entities), bundle.entities),",
+  "replace": "labelPeerPlanRows(result.plan, bundle.entities),",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP17",
+  "what": "skipped units read from the selected bundle (equivalent: selectBundleEntities and includeReferencedEntities both keep the scoped list, so the two reads are the same value)",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "      scoped.skipped\n",
+  "replace": "      bundle.skipped\n",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP18",
+  "what": "carried-along rows never filtered",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "        includedFor\n      ),",
+  "replace": "        new Map<string, readonly string[]>()\n      ),",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP19",
+  "what": "blob storage key built for another workspace",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 })",
+  "replace": "computeBlobStorageKey({ workspaceId: \"other\", sha256 })",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP20",
+  "what": "bundleId dropped",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "bundleId: result.bundleId,",
+  "replace": "bundleId: \"\",",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP21",
+  "what": "peer id dropped",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "peerId: peer.credential.id,",
+  "replace": "peerId: \"\",",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP22",
+  "what": "blobsUnavailable dropped",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "blobsUnavailable: result.blobsUnavailable,",
+  "replace": "blobsUnavailable: [],",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP23",
+  "what": "notSupportedByLive dropped",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "    notSupportedByLive: result.notSupportedByLive,\n",
+  "replace": "    notSupportedByLive: [],\n",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
  }
 ]
