@@ -2938,7 +2938,9 @@ async function composeSiteRouteDeps(
     return composeCommerce({ kernel: kernel as unknown as KyselyKernel<unknown>,
       workspaceId, siteId: projectSiteId || workspaceId, workspaceRoot: agentPluginLayout.forWorkspace({ workspaceId }).root,
       workerOwner: (overrides.storeRole ?? 'owner') === 'owner', workerDirectory: dbPath === ':memory:' ? resolvedSiteBinding.dir : dirname(dbPath),
-      settingsRepo, settingsReady: siteTitleReady, providerConfig: providerConfigSource, providers: providerPlugins,
+      settingsRepo, providerConfig: providerConfigSource, providers: providerPlugins,
+      // Commerce reads only registered setting definitions (ready with `siteSettingsReady`); gating it on `siteTitleReady` made /products wait on the legacy-title pin.
+      settingsReady: siteSettingsReady,
       httpClient: { send: ({ request }, options) => createDefaultHttpClient({ policy: SINGLE_HOP_HTTPS_EGRESS_POLICY }, { observability }).send(request, options) }, clock, idGen,
     });
   }
