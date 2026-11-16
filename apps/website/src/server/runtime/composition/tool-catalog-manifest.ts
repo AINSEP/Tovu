@@ -85,8 +85,8 @@ import { contributeDeploymentsTools } from "#src/features/deployments/tool-regis
 import { contributeEntriesTools } from "#src/features/entries/tool-registrations";
 import { contributeExternalMcpTools } from "#src/features/external-mcp/tool-registrations";
 import { contributeExternalMcpOperationsTools } from "#src/features/external-mcp/operations-tools";
-import { probeExternalMcpServer } from "#src/server/runtime/services/external-mcp-probe";
-import { readServerAdmissions } from "#src/server/runtime/services/external-mcp-admissions";
+import { probeExternalMcpServer } from "#src/features/external-mcp/external-mcp-probe";
+import { readServerAdmissions } from "#src/features/external-mcp/external-mcp-admissions";
 import type { ExternalMcpOperations } from "#src/features/external-mcp/operations-tools";
 import { contributeFilesCopyTools } from "#src/features/asset-transfer/copy-tool";
 import { contributeFsFilesTools } from "#src/features/fs-files/tool-registrations";

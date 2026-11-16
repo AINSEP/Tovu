@@ -4,7 +4,7 @@ import test from "node:test";
 import type { Request, Response } from "express";
 import * as daemonClient from "../assistant-daemon-client.js";
 import * as assistantModule from "../assistant.js";
-import { readServerAdmissions } from "../../../services/external-mcp-admissions.js";
+import { readServerAdmissions } from "#src/features/external-mcp/external-mcp-admissions";
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "../../../lifecycle/readiness-state.js";
 import { resetAssistantDaemonSingletonForTests } from "../../../lifecycle/daemon-supervisor.js";
 

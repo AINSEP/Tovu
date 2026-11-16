@@ -511,7 +511,7 @@ test("a needs_reauth connection is REPORTED at boot, not silently dropped", asyn
 
   assert.deepEqual(configs, []);
   assert.deepEqual(failures, [
-    { serverId: SERVER, reason: "its authorization expired or was revoked — reconnect it in Settings → External MCP" },
+    { serverId: SERVER, reason: "its authorization expired or was revoked — reconnect it in Settings → External MCP", category: "reauth_required" },
   ]);
 });
 

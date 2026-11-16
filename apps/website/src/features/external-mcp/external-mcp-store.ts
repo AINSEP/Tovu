@@ -2,6 +2,7 @@ export { ExternalMcpValidationError, externalMcpAdmissionRevision, externalMcpAc
 import type { ExternalMcpServerView, ExternalMcpStoreDeps, ExternalMcpOAuthTokenResolverPort, ExternalMcpServerRecord, ExternalMcpServerConfig, SaveExternalMcpServerInput, ExternalMcpSealedOAuthPayload, SealedExternalMcpOAuth } from "./contracts.js";
 import { CredentialInputError, assertCredentialFreeField, normalizeCredentialToken, assertCredentialToken, CREDENTIAL_MESSAGES, CREDENTIAL_TOKEN_LIMIT, credentialTokenHint } from "../../contracts/core/credential-token.js";
 import type { UUID } from "@jini-ai/core/primitives";
+import type { ExternalMcpConfigFailure } from "@jini-ai/core/contracts/hosted-mcp";
 import type { SecretSealerPort } from "../webhooks/index.js";
 import * as hosted from "@jini-ai/mcp/federation/hosted";
 import type { HostedMcpStorePorts } from "@jini-ai/mcp/federation/hosted";
@@ -41,7 +42,7 @@ export async function listExternalMcpServerViews(
 export async function readEnabledExternalMcpConfigs(
   deps: Pick<ExternalMcpStoreDeps, "repo" | "sealer"> & { oauth?: ExternalMcpOAuthTokenResolverPort },
   workspaceId: UUID,
-): Promise<{ configs: ExternalMcpServerConfig[]; failures: { serverId: string; reason: string }[] }> {
+): Promise<{ configs: ExternalMcpServerConfig[]; failures: ExternalMcpConfigFailure[] }> {
   return hosted.readEnabledExternalMcpConfigs({ repo: deps.repo, sealer: deps.sealer, oauth: deps.oauth, ...externalMcpStorePorts }, workspaceId);
 }
 
