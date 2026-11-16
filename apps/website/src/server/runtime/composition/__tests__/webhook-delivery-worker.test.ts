@@ -130,7 +130,8 @@ test("a failed tick is logged with name, scrubbed message and code only, and the
 
   clock.fire();
   await worker.tick();
-  assert.deepEqual(lines, [`${WEBHOOK_DELIVERY_FAILED_LINE}: WebhookRepoError: POST [url] refused (code ECONNRESET)`]);
+  // Why: Jini's describeErrorForLog (log lines carry fixed words) names the class, an approved code and the cause's class; the message text never reaches the line.
+  assert.deepEqual(lines, [`${WEBHOOK_DELIVERY_FAILED_LINE}: Error(ECONNRESET) cause=Error`]);
   for (const secret of ["hunter2", "token=abc", "sk-live-123", "person@example.com", "deadbeef", "hooks.example.com"]) {
     assert.ok(!lines[0].includes(secret), `the log line must not carry ${secret}`);
   }
@@ -145,15 +146,14 @@ test("the default log writes the failure line to console.error", async (t) => {
   const errors = t.mock.method(console, "error", () => {});
   const worker = startWebhookDeliveryWorker({ processDue: async () => { throw new Error("db closed"); } }, { scheduler: fakeScheduler().scheduler });
   await worker.tick();
-  assert.deepEqual(errors.mock.calls.map((call) => call.arguments), [[`${WEBHOOK_DELIVERY_FAILED_LINE}: Error: db closed`]]);
+  assert.deepEqual(errors.mock.calls.map((call) => call.arguments), [[`${WEBHOOK_DELIVERY_FAILED_LINE}: Error`]]);
 });
 
-test("describeWebhookTickError never stringifies a non-Error, keeps numeric codes, drops other codes and caps the message", () => {
-  assert.equal(describeWebhookTickError({ error: { secret: "x" } }), `${WEBHOOK_DELIVERY_FAILED_LINE}: a non-Error value was thrown`);
-  assert.equal(describeWebhookTickError({ error: Object.assign(new Error("busy"), { code: 5 }) }), `${WEBHOOK_DELIVERY_FAILED_LINE}: Error: busy (code 5)`);
-  assert.equal(describeWebhookTickError({ error: Object.assign(new Error("odd"), { code: { secret: "x" } }) }), `${WEBHOOK_DELIVERY_FAILED_LINE}: Error: odd`);
-  const long = describeWebhookTickError({ error: new Error("a".repeat(500)) });
-  assert.equal(long, `${WEBHOOK_DELIVERY_FAILED_LINE}: Error: ${"a".repeat(200)}`);
+test("describeWebhookTickError names only a class, never a thrown message, a non-Error value or an unapproved code", () => {
+  assert.equal(describeWebhookTickError({ error: { secret: "x" } }), `${WEBHOOK_DELIVERY_FAILED_LINE}: object`);
+  assert.equal(describeWebhookTickError({ error: Object.assign(new Error("busy"), { code: 5 }) }), `${WEBHOOK_DELIVERY_FAILED_LINE}: Error`);
+  assert.equal(describeWebhookTickError({ error: Object.assign(new Error("odd"), { code: { secret: "x" } }) }), `${WEBHOOK_DELIVERY_FAILED_LINE}: Error`);
+  assert.equal(describeWebhookTickError({ error: new Error("a".repeat(500)) }), `${WEBHOOK_DELIVERY_FAILED_LINE}: Error`);
 });
 
 test("stop cancels the interval, is idempotent, and no tick runs afterwards", async () => {
