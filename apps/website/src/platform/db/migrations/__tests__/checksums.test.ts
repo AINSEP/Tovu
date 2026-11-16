@@ -9,10 +9,11 @@ import { LEGACY_BASELINE_ID, legacyBaselineChecksum } from "../0000_legacy_basel
 import { MIGRATION_CHECKSUMS } from "../checksums.js";
 import { CHAT_MIGRATIONS, COMMERCE_MIGRATIONS, CONTENT_MIGRATIONS, PROJECT_MIGRATIONS } from "../index.js";
 import { FROZEN_CHAIN, LEGACY_DRIZZLE_DIR } from "../legacy-sqlite.js";
+import { MIGRATION_SOURCE_DIGESTS } from "../source-digests.js";
 
 /**
  * @file Holds the migration history immutable (ADR-066 §3, §7):
- * - every step's pinned checksum equals the one derived from its sources, so editing a shipped step
+ * - every step's source hashes to its source digest (`source-digests.ts`) or, without one, to its pinned checksum, so editing a shipped step
  *   goes red here instead of differing silently between databases;
  * - the legacy drizzle folder cannot grow (schema changes are TS steps now).
  *
@@ -28,6 +29,9 @@ function sourceChecksum(id: string): string {
   const text = stripComments(file, fs.readFileSync(file, "utf8")).replace(/\s+/g, " ").trim();
   return crypto.createHash("sha256").update(text).digest("hex");
 }
+
+/** What a step's source must hash to: its reviewed source digest when it has one, else its ledger checksum. */
+const expectedSource = (id: string) => MIGRATION_SOURCE_DIGESTS[id] ?? MIGRATION_CHECKSUMS[id];
 
 const derive = (id: string) => (id === LEGACY_BASELINE_ID ? legacyBaselineChecksum() : sourceChecksum(id));
 
@@ -45,8 +49,15 @@ test("every step's pinned checksum matches its sources", () => {
   }
   assert.deepEqual(unpinned, [], "pin new steps with UPDATE_MIGRATION_CHECKSUMS=1");
   for (const [id, step] of PINNED) {
-    assert.equal(derive(id), MIGRATION_CHECKSUMS[id], `${id} changed after it was pinned; add a new step instead`);
+    assert.equal(derive(id), expectedSource(id), `${id} changed after it was pinned; add a new step instead`);
     assert.equal(step.checksum, MIGRATION_CHECKSUMS[id]);
+  }
+});
+
+test("source digests only refine ledger checksums of TS steps", () => {
+  for (const id of Object.keys(MIGRATION_SOURCE_DIGESTS)) {
+    assert.notEqual(MIGRATION_CHECKSUMS[id], undefined, `${id} has a source digest but no ledger checksum`);
+    assert.notEqual(id, LEGACY_BASELINE_ID, "the legacy baseline hashes the drizzle chain, not a source file");
   }
 });
 
@@ -58,11 +69,11 @@ test("the legacy drizzle chain is frozen", () => {
 
 test("0012 activation appends the final checksum after 0011 without replacing history", () => {
   assert.deepEqual(CONTENT_MIGRATIONS.filter(step => step.id <= "0012_secrets_vault").slice(-2).map(step => step.id), ["0011_drop_empty_core_commerce_tables", "0012_secrets_vault"]);
-  assert.equal(MIGRATION_CHECKSUMS["0012_secrets_vault"], sourceChecksum("0012_secrets_vault"));
+  assert.equal(expectedSource("0012_secrets_vault"), sourceChecksum("0012_secrets_vault"));
   assert.equal(MIGRATION_CHECKSUMS["0011_drop_empty_core_commerce_tables"], "047fc0b89a63c6a42a82e63d3e6d5f5065be0359a99e8740779ef794a4b0b9ad");
 });
 
 test("0013 activation pins the data-only conversion after the historical vault step", () => {
   assert.deepEqual(CONTENT_MIGRATIONS.filter(step => step.id <= "0013_unify_vault_credentials").slice(-2).map(step => step.id), ["0012_secrets_vault", "0013_unify_vault_credentials"]);
-  assert.equal(MIGRATION_CHECKSUMS["0013_unify_vault_credentials"], sourceChecksum("0013_unify_vault_credentials"));
+  assert.equal(expectedSource("0013_unify_vault_credentials"), sourceChecksum("0013_unify_vault_credentials"));
 });

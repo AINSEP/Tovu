@@ -1,12 +1,4 @@
-/** @file Storage kernel public surface: the port, its drivers, and the dialect helpers. See `port.ts`. */
-export {
-  type StorageCapabilities,
-  type StorageCapability,
-  type StorageDialect,
-  type StorageKernel,
-  type StorageTransport,
-  UnsupportedCapabilityError,
-} from "./port.js";
+/** @file Storage kernel public surface: the drivers and host-owned kernel helpers. The contract lives in `@jini-ai/core/contracts/storage`, the Kysely binding in `@jini-ai/db/kernel`. */
 export {
   closeSqliteConnection,
   openSqliteFileKernel,
@@ -17,26 +9,6 @@ export {
 export { StorageOpError, StorageOpNotSupportedError, type StorageOps, storageOps } from "./ops.js";
 export { openPgliteKernel, type PgKernel } from "./drivers/pglite.js";
 export { openPostgresKernel } from "./drivers/postgres.js";
-export {
-  autoIdColumnSql,
-  checkpointWal,
-  type ColumnAffinity,
-  type ColumnInfo,
-  columnTypeSql,
-  type IndexInfo,
-  isUniqueViolation,
-  jsonScalarEquals,
-  jsonSet,
-  jsonSortKey,
-  jsonText,
-  listColumns,
-  listIndexes,
-  listTables,
-  nowIso,
-  tableExists,
-  toBool,
-  toBytes,
-} from "./dialect.js";
 export {
   type SqliteForeignKeyViolation,
   sqliteForeignKeyCheckedTransaction,

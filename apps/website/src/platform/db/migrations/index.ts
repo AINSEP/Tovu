@@ -176,4 +176,3 @@ export function migrateChatDatabase(kernel: StorageKernel<unknown>): Promise<Mig
 }
 
 export { type MigrationOptions, type MigrationReport, runMigrations } from "./runner.js";
-export { LegacyHistoryError, MigrationChecksumError, type MigrationStep, UnknownAppliedMigrationError } from "./step.js";

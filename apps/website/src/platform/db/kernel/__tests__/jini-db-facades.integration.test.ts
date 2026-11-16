@@ -8,21 +8,13 @@ import test from "node:test";
 import { PGlite } from "@electric-sql/pglite";
 import Database from "better-sqlite3";
 import { sql } from "kysely";
-import * as jini from "@jini-ai/db/kernel";
 import { sqliteKernel as jiniSqliteKernel } from "@jini-ai/db/kernel/sqlite";
-import { jsonText } from "../dialect.js";
-import { UnsupportedCapabilityError } from "../port.js";
 import { openMemorySqliteKernel, sqliteKernel, sqliteClientOf, sqliteConnectionOf } from "../drivers/sqlite.js";
 import { openPgliteKernel } from "../drivers/pglite.js";
 import { defaultPgliteSocketDir, ensurePrivateDir, acquireOwnerLock, OWNER_LOCK_FILE, PGLITE_LOW_MEMORY_START_PARAMS, PgliteOwnerLockedError } from "../drivers/pglite-owner.js";
 import { storageOps, StorageOpNotSupportedError } from "../ops.js";
 import { hasLedger, runMigrations } from "../../migrations/runner.js";
 import { MigrationChecksumError, UnknownAppliedMigrationError, type MigrationStep } from "../../migrations/step.js";
-
-test("kernel shims expose the same shared implementations and error constructors", () => {
-  assert.equal(jsonText, jini.jsonText);
-  assert.equal(UnsupportedCapabilityError, jini.UnsupportedCapabilityError);
-});
 
 test("same-file locking crosses from a Tovu shim into a direct Jini kernel", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "j02-locks-"));
@@ -75,7 +67,7 @@ test("runner defaults preserve separate content and chat ledgers, no-op reruns a
     assert.deepEqual(await kernel.query(sql`SELECT id, checksum FROM tovu_chat_migrations`), [{ id: chat.id, checksum: chat.checksum }]);
     await assert.rejects(runMigrations(kernel, [{ ...content, checksum: "f".repeat(64) }]), MigrationChecksumError);
     const expected = "the database has migrations this runtime does not know (0000_content_probe); it was upgraded by a newer Tovu — run that version";
-    assert.equal(new UnknownAppliedMigrationError([content.id]).message, expected);
+    assert.equal(new UnknownAppliedMigrationError([content.id], "Tovu").message, expected);
     await assert.rejects(runMigrations(kernel, []), (error: unknown) => {
       assert.ok(error instanceof UnknownAppliedMigrationError);
       assert.equal(error.message, expected);
