@@ -123,13 +123,13 @@ test("renameThemeFileIfChanged: a destPath that resolves generated-readonly 409s
   const deps = {} as unknown as ContentRouteDeps;
   const { res, capture } = createCapturingResponse();
 
-  const changed = renameThemeFileIfChanged(
+  const changed = renameThemeFileIfChanged({
     deps,
     theme,
-    { sourcePath: "src/config.json", destPath: "generated-output.json", name: "generated-output.json" },
-    new Set(["src/config.json"]),
-    res
-  );
+    paths: { sourcePath: "src/config.json", destPath: "generated-output.json", name: "generated-output.json" },
+    existingPaths: new Set(["src/config.json"]),
+    res,
+  });
 
   assert.equal(changed, false);
   assert.equal(capture.statusCode, 409);

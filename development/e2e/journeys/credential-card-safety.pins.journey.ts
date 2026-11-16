@@ -117,7 +117,7 @@ test.describe("Bug pin: localhost credential-card safety", { tag: ["@real-servic
       expect(row.label).toBe("mailchimp");
       expect(row.sealed_alg).toBe("aes-256-gcm");
       const manifest = JSON.parse(await readFile(site.manifestPath, "utf8")) as { env: { TOVU_SITE_KEY: string } };
-      const sealer = new AesGcmSecretSealer(new FixedSiteKeyKeyring(manifest.env.TOVU_SITE_KEY, row.sealed_key_id));
+      const sealer = new AesGcmSecretSealer(new FixedSiteKeyKeyring({ hex: manifest.env.TOVU_SITE_KEY }, { keyId: row.sealed_key_id }));
       const opened = JSON.parse(await sealer.open({ sealed: {
         keyId: row.sealed_key_id, ciphertext: row.sealed_ciphertext, nonce: row.sealed_nonce, alg: row.sealed_alg,
       } }, { aad: buildVaultAad({ workspaceId: WS, id: row.id, kind: "custom", ownerKey: "tovu", principalId: null, binding: null }) })) as { token: string };

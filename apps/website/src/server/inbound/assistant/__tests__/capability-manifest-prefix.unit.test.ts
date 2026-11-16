@@ -28,7 +28,7 @@ test("buildCapabilityManifestPrefix('off') is empty — matches today's behavior
 
 test("an 'off' prefix leaves the assembled prompt byte-for-byte unchanged", () => {
   const basePrompt = "deploy my site";
-  const assembled = assemblePromptWithPluginPrefix(basePrompt, buildCapabilityManifestPrefix("off"));
+  const assembled = assemblePromptWithPluginPrefix({ basePrompt, pluginPromptPrefix: buildCapabilityManifestPrefix("off") });
   assert.equal(assembled, basePrompt);
 });
 

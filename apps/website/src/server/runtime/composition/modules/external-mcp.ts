@@ -67,7 +67,7 @@ export function createExternalMcpModule(deps: ExternalMcpRouteDeps | ExternalMcp
       if (!oauthDeps) return;
       registerAdminExternalMcpOAuthConnectRoute({ app, deps: oauthDeps, limiter: oauthLimiter });
       registerAdminExternalMcpOAuthDevicePollRoute({ app, deps: oauthDeps, limiter: oauthLimiter });
-      registerAdminExternalMcpOAuthDisconnectRoute(app, oauthDeps);
+      registerAdminExternalMcpOAuthDisconnectRoute({ app, deps: oauthDeps });
 
       // PUBLIC — deliberately outside `/api/admin`, so `requireAdminSession` never sees it.
       registerExternalMcpOAuthCallbackRoute(app, { oauth: oauthDeps.externalMcpOAuth, callbackLimiter });

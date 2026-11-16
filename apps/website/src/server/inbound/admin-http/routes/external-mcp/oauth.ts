@@ -223,7 +223,7 @@ export function registerAdminExternalMcpOAuthDevicePollRoute({ app, deps, limite
  * Not rate-limited: it makes no outbound call, so the self-DoS the other two guard against does not
  * exist here.
  */
-export function registerAdminExternalMcpOAuthDisconnectRoute(app: Express, deps: ExternalMcpOAuthRouteDeps): void {
+export function registerAdminExternalMcpOAuthDisconnectRoute({ app, deps }: { app: Express; deps: ExternalMcpOAuthRouteDeps }, _optional = {}): void {
   app.delete("/api/admin/v1/workspaces/:workspaceId/mcp-servers/:serverId/oauth", async (req, res) => {
     try {
       if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;

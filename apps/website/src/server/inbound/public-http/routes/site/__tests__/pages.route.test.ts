@@ -824,9 +824,9 @@ test("GET /:slug: a PostNotFoundError is ordinary 404 control flow and must NOT 
 
 test("a published empty theme page falls through before head or assistant injection", async () => {
   const deps = { ...createRouteDeps(), postRepo: new InMemoryPostRepo({}, { initialRows: [] }) };
-  assert.deepEqual(await resolveMarketingPageOrOverride(
-    deps, staticThemeWithEmptyPage(), "empty-page", undefined, true,
-  ), { kind: "fallthrough" });
+  assert.deepEqual(await resolveMarketingPageOrOverride({
+    deps, theme: staticThemeWithEmptyPage(), slug: "empty-page", staticMenus: undefined, siteAssistantEnabled: true,
+  }), { kind: "fallthrough" });
 });
 
 

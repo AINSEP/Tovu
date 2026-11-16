@@ -49,7 +49,7 @@ test("section ids are unique and every section's entityTypes are exactly its typ
 
 test("the existing six sections still send exactly what they sent before, plus the active theme", () => {
   const sent = Object.fromEntries(
-    ["pages", "posts", "media", "menus", "redirects", "themes"].map((id) => [id, [...publishSectionById(id)!.entityTypes]]),
+    ["pages", "posts", "media", "menus", "redirects", "themes"].map((id) => [id, [...publishSectionById({ id })!.entityTypes]]),
   );
   assert.deepEqual(sent, {
     pages: ["page"],
@@ -63,11 +63,11 @@ test("the existing six sections still send exactly what they sent before, plus t
 });
 
 test("the new sections send their whole type set", () => {
-  assert.deepEqual([...publishSectionById("forms")!.entityTypes], ["form"]);
-  assert.deepEqual([...publishSectionById("collections")!.entityTypes], ["content-type", "collection-entry"]);
-  assert.deepEqual([...publishSectionById("categories")!.entityTypes], ["taxonomy", "term"]);
-  assert.deepEqual([...publishSectionById("widgets")!.entityTypes], ["widget", "widget-area"]);
-  assert.deepEqual([...publishSectionById("settings")!.entityTypes], ["site-setting"]);
+  assert.deepEqual([...publishSectionById({ id: "forms" })!.entityTypes], ["form"]);
+  assert.deepEqual([...publishSectionById({ id: "collections" })!.entityTypes], ["content-type", "collection-entry"]);
+  assert.deepEqual([...publishSectionById({ id: "categories" })!.entityTypes], ["taxonomy", "term"]);
+  assert.deepEqual([...publishSectionById({ id: "widgets" })!.entityTypes], ["widget", "widget-area"]);
+  assert.deepEqual([...publishSectionById({ id: "settings" })!.entityTypes], ["site-setting"]);
   assert.equal(publishSectionById({ id: "nope" }), undefined);
 });
 

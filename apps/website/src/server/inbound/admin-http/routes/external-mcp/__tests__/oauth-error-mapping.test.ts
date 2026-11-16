@@ -79,7 +79,7 @@ function buildApp(options: {
   });
   registerAdminExternalMcpOAuthConnectRoute({ app, deps, limiter });
   registerAdminExternalMcpOAuthDevicePollRoute({ app, deps, limiter });
-  registerAdminExternalMcpOAuthDisconnectRoute(app, deps);
+  registerAdminExternalMcpOAuthDisconnectRoute({ app, deps });
   return { app, authorizeCalls };
 }
 

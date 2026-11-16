@@ -186,7 +186,7 @@ async function main(): Promise<void> {
     if (action !== "convert") return;
 
     const bodyJson = row.bodyJson ? JSON.parse(row.bodyJson) : {};
-    const seedHtml = renderDocNode(bodyJson);
+    const seedHtml = renderDocNode({ node: bodyJson });
 
     if (!args.apply) {
       console.log(`DRY RUN: '${row.slug}' would convert. Rendered body length: ${seedHtml.length} chars.`);
@@ -196,7 +196,7 @@ async function main(): Promise<void> {
     await captureRestorePointOnce({});
 
     const store = new PagesHtmlDocumentStore({ workspaceId: row.workspaceId, postId: row.id }, { db, clock, entryRefsRepo });
-    await store.ensureHtmlFormat(seedHtml);
+    await store.ensureHtmlFormat({ seedHtml });
     console.log(`CONVERTED: '${row.slug}' (id=${row.id}). Rendered body length: ${seedHtml.length} chars.`);
   };
   for (const row of rows) await convertRow({ row });

@@ -17,7 +17,7 @@ const packageRoot = PLUGIN_ROOT;
 const raw = readFileSync(path.join(PLUGIN_ROOT, 'tovu-source-control.json'), 'utf8');
 
 test('GitHub owns its token form and reuses its existing source-control credential card', () => {
-  const parsed = parseSourceControlProvidersFile(raw);
+  const parsed = parseSourceControlProvidersFile({ raw });
   assert.equal(parsed.ok, true);
   const descriptor = parsed.descriptors.find(provider => provider.id === 'github');
   assert.deepEqual(descriptor.credential.fields, [{ name: 'token', label: 'Access token', required: true, secret: true }]);
@@ -37,7 +37,7 @@ test('GitHub owns its token form and reuses its existing source-control credenti
 });
 
 test('GitHub declares its own reserved and executable workflow paths', () => {
-  const parsed = parseSourceControlProvidersFile(raw);
+  const parsed = parseSourceControlProvidersFile({ raw });
   assert.equal(parsed.ok, true);
   assert.deepEqual(parsed.descriptors.find(provider => provider.id === 'github').reservedPaths, ['.github']);
   assert.deepEqual(parsed.descriptors.find(provider => provider.id === 'github').workflowPaths, ['.github/workflows']);

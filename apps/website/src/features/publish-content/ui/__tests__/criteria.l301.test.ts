@@ -5,7 +5,7 @@ import { decodePublishCriteriaFromQuery } from "../criteria.js";
 
 test("query decoder rejects runtime non-string arguments before reading their length", () => {
   for (const raw of [undefined, null, 0, false, {}, []]) {
-    assert.equal(Reflect.apply(decodePublishCriteriaFromQuery, undefined, [raw]), null);
+    assert.equal(Reflect.apply(decodePublishCriteriaFromQuery, undefined, [{ raw }]), null);
   }
 });
 

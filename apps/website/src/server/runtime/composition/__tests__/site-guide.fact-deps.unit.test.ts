@@ -50,7 +50,7 @@ test("registry projections list type keys, field types, unique markers and both 
   const markers = facts.listMarkers();
   assert.deepEqual(new Set(markers), new Set([...Object.keys(EMBED_MARKER_TARGET_KEYS), FEATURED_IMAGE_MARKER_TYPE]));
   assert.equal(new Set(markers).size, markers.length);
-  assert.deepEqual(facts.listLayouts(), [resolveThemeLayout().pagesDir, resolveThemeLayout(2).pagesDir]);
+  assert.deepEqual(facts.listLayouts(), [resolveThemeLayout({}).pagesDir, resolveThemeLayout({}, { apiVersion: 2 }).pagesDir]);
   assert.equal(await facts.readMembersEnabled(), null);
 });
 

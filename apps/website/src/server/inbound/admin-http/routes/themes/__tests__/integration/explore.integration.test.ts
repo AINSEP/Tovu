@@ -1246,13 +1246,13 @@ test("renameThemeFileIfChanged: a destPath resolving into a built theme's genera
     },
   } as unknown as Response;
 
-  const changed = renameThemeFileIfChanged(
+  const changed = renameThemeFileIfChanged({
     deps,
-    theme!,
-    { sourcePath: "src/Header.tsx", destPath: "preview/Header.tsx", name: "Header.tsx" },
-    new Set(["src/Header.tsx"]),
-    res
-  );
+    theme: theme!,
+    paths: { sourcePath: "src/Header.tsx", destPath: "preview/Header.tsx", name: "Header.tsx" },
+    existingPaths: new Set(["src/Header.tsx"]),
+    res,
+  });
 
   assert.equal(changed, false);
   assert.equal(statusCode, 409);

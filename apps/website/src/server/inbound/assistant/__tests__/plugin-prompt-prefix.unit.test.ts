@@ -71,11 +71,11 @@ async function newRealLifecycleWithRun() {
 }
 
 test("assemblePromptWithPluginPrefix leaves the base prompt untouched when the prefix is empty (the common no-plugin-pinned case)", () => {
-  assert.equal(assemblePromptWithPluginPrefix("what should I write next?", ""), "what should I write next?");
+  assert.equal(assemblePromptWithPluginPrefix({ basePrompt: "what should I write next?", pluginPromptPrefix: "" }), "what should I write next?");
 });
 
 test("assemblePromptWithPluginPrefix prepends a non-empty prefix with exactly one blank-line separator", () => {
-  const result = assemblePromptWithPluginPrefix("what should I write next?", "<<AGENT_PLUGIN pluginId=\"ui-ux-design\">>...");
+  const result = assemblePromptWithPluginPrefix({ basePrompt: "what should I write next?", pluginPromptPrefix: "<<AGENT_PLUGIN pluginId=\"ui-ux-design\">>..." });
   assert.equal(result, "<<AGENT_PLUGIN pluginId=\"ui-ux-design\">>...\n\nwhat should I write next?");
 });
 
@@ -132,7 +132,7 @@ test("resolveAgentPluginPromptPrefix resolves an isolated installed ui-ux-design
   // The exact two-line sequence `onStarted` runs after this call: prepend, then use the result as
   // the run's actual prompt.
   const basePrompt = "what should I write next for the coffee shop's About page?";
-  const finalPrompt = assemblePromptWithPluginPrefix(basePrompt, prefix);
+  const finalPrompt = assemblePromptWithPluginPrefix({ basePrompt, pluginPromptPrefix: prefix });
 
   assert.ok(finalPrompt.startsWith(prefix), "the resolved plugin prefix must lead the final prompt");
   assert.equal(finalPrompt, `${prefix}\n\n${basePrompt}`);

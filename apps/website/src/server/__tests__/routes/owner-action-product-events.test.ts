@@ -94,7 +94,7 @@ test("plugin_toggled identifies the plugin family and direction without settings
   app.use(express.json());
   registerAuthRoutes({ app, deps: baseDeps });
   app.use("/api/admin", requireAdminSession(baseDeps));
-  registerPluginSetEnabledRoute(app, {
+  registerPluginSetEnabledRoute({ app, deps: {
     notifyRosterChanged: baseDeps.notifyRosterChanged,
     workspaceId: baseDeps.workspaceId, authorize: baseDeps.authorize, clock: baseDeps.clock, idGen: baseDeps.idGen,
     changeSets: baseDeps.changeSets, outbox: baseDeps.outbox, pluginActivationRepo: new InMemoryPluginActivationRepo(),
@@ -102,7 +102,7 @@ test("plugin_toggled identifies the plugin family and direction without settings
     onPluginEnabled: async () => {}, onPluginDisabled: () => {}, removePlugin: baseDeps.removePlugin,
     readPluginPackageFiles: baseDeps.readPluginPackageFiles, previewPluginBeforeSave: baseDeps.previewPluginBeforeSave,
     tracker: createTracker({ productAnalytics: port }),
-  });
+  } });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   for (const enabled of [true, false]) {
     const response = await adminFetch(baseUrl, cookie, `/api/admin/v1/workspaces/${baseDeps.workspaceId}/plugins/word-count`, { method: "PATCH", body: { enabled } });
