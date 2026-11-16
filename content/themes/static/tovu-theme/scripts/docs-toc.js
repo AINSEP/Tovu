@@ -42,7 +42,7 @@
   /** Kebab-case a heading's own text into an id candidate; strips everything but
    *  letters/digits/spaces/hyphens first so punctuation in a title (e.g. "Config file (advanced)")
    *  does not leak stray characters into the anchor. */
-  function slugify(text) {
+  function slugify({ text }, _optional = {}) {
     var base = text
       .trim()
       .toLowerCase()
@@ -57,9 +57,9 @@
    *  already on the page, including ids this same pass has just assigned) when it has none. Never
    *  overwrites an author-set id — an existing id is some other part of the page's own contract
    *  (an in-body anchor link may already point at it) and must survive untouched. */
-  function ensureId(heading) {
+  function ensureId({ heading }, _optional = {}) {
     if (heading.id) return heading.id;
-    var slug = slugify(heading.textContent);
+    var slug = slugify({ text: heading.textContent });
     var candidate = slug;
     var n = 2;
     while (usedIds[candidate]) {
@@ -77,7 +77,7 @@
    * content, not a case the theme forbids) attach to a synthetic top-level group with no link of its
    * own, so they still render rather than being silently dropped.
    */
-  function buildTree(items) {
+  function buildTree({ items }, _optional = {}) {
     var roots = [];
     var currentGroup = null;
     items.forEach(function (heading) {
@@ -94,25 +94,25 @@
     return roots;
   }
 
-  function renderList(entries, depth) {
+  function renderList({ entries, depth }, _optional = {}) {
     var ul = document.createElement("ul");
     ul.className = "toc-list depth-" + depth;
     entries.forEach(function (entry) {
       var li = document.createElement("li");
       li.className = "toc-item depth-" + depth;
       var a = document.createElement("a");
-      a.href = "#" + ensureId(entry.heading);
+      a.href = "#" + ensureId({ heading: entry.heading });
       a.textContent = entry.heading.textContent.trim();
       li.appendChild(a);
       if (entry.children.length > 0) {
-        li.appendChild(renderList(entry.children, depth + 1));
+        li.appendChild(renderList({ entries: entry.children, depth: depth + 1 }));
       }
       ul.appendChild(li);
     });
     return ul;
   }
 
-  nav.appendChild(renderList(buildTree(headings), 0));
+  nav.appendChild(renderList({ entries: buildTree({ items: headings }), depth: 0 }));
 
   // ---- scroll-spy: highlights the link for whichever heading is currently in view ----
   // Carried over from the retired docs-sidebar.js (2026-08-31) — same observer shape, same
@@ -127,7 +127,7 @@
     .filter(Boolean);
   if (targets.length === 0) return;
 
-  function setActive(entry) {
+  function setActive({ entry }, _optional = {}) {
     nav.querySelectorAll(".toc-item.is-current").forEach(function (li) {
       li.classList.remove("is-current");
     });
@@ -156,7 +156,7 @@
       var match = targets.filter(function (t) {
         return t.el === top.target;
       })[0];
-      if (match) setActive(match);
+      if (match) setActive({ entry: match });
     },
     { rootMargin: "-88px 0px -70% 0px", threshold: 0 }
   );
@@ -168,7 +168,7 @@
   targets.forEach(function (t) {
     t.link.addEventListener("click", function () {
       lockedUntil = Date.now() + 700;
-      setActive(t);
+      setActive({ entry: t });
       // On mobile the TOC lives inside a <details> disclosure; a reader who taps a link inside it
       // almost certainly wants to read that section next, not keep the disclosure open over it.
       if (toggle.hasAttribute("open") && window.matchMedia("(max-width: 900px)").matches) {

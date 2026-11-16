@@ -3,7 +3,7 @@
   var root = document.documentElement;
   var buttons = [];
 
-  function apply(mode) {
+  function apply({ mode }, _optional = {}) {
     if (mode === "light") root.setAttribute("data-theme", "light");
     else root.removeAttribute("data-theme");
     var label = mode === "light" ? "Switch to dark mode" : "Switch to light mode";
@@ -19,11 +19,11 @@
   var saved = null;
   try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) { /* Storage can be unavailable; the current theme still works. */ }
   var chosen = saved === "light" || saved === "dark";
-  apply(chosen ? saved : byClock());
+  apply({ mode: chosen ? saved : byClock() });
 
   // A page left open across 6 am or 6 pm flips by itself until the visitor picks a mode.
   setInterval(function () {
-    if (!chosen) apply(byClock());
+    if (!chosen) apply({ mode: byClock() });
   }, 60000);
 
   // Every [data-theme-toggle] is wired, not only the first: the header has one and the mobile menu
@@ -34,10 +34,10 @@
       buttons[i].addEventListener("click", function () {
         var next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
         chosen = true;
-        apply(next);
+        apply({ mode: next });
         try { localStorage.setItem(STORAGE_KEY, next); } catch (e) { /* Storage can be unavailable; the current theme still works. */ }
       });
     }
-    apply(root.getAttribute("data-theme") === "light" ? "light" : "dark");
+    apply({ mode: root.getAttribute("data-theme") === "light" ? "light" : "dark" });
   });
 })();
