@@ -8,11 +8,13 @@ import test, { type TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import express from "express";
+import { createToolNameMap } from "@jini-ai/core";
 import { set as setLegacySetting } from "@jini-ai/core/settings";
 import type { SchedulerPort } from "@jini-ai/daemon/scheduler";
 
 import { setPublicAssistantSettings, setSiteAssistantCredential } from "../../assistant/index.js";
 import { writeVisitorTools } from "#src/features/settings/visitor-tools-write";
+import { publishVisitorPage } from "#src/features/theme/visitor-publication";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { createSiteAssistantModule } from "../runtime/composition/modules/site-assistant.js";
 import { startTestServer } from "./helpers/http-test-server.js";
@@ -30,6 +32,10 @@ import { startStubProviderServer, type StubProviderReply } from "./helpers/stub-
  *
  * The expiry scenario passes the module its confirmation scheduler, so the deadline is fired by the
  * test and no real 60 s wait or wall clock is involved.
+ *
+ * The navigation scenario attaches a page session the way a visitor tab does (credentials, then the
+ * session stream), answers the one command it is sent, and pins the command, the visitor's frames
+ * and that the model is not called again.
  *
  * Regenerate with `UPDATE_GOLDEN=1` only in a commit that names the wire change it makes.
  */
@@ -65,9 +71,10 @@ function manualScheduler() {
   };
 }
 
-async function boot({ t, respond, ask = false, confirmationScheduler }: { t: TestContext; respond: (count: number, body: Record<string, unknown>) => StubProviderReply; ask?: boolean; confirmationScheduler?: SchedulerPort }) {
+async function boot({ t, respond, ask = false, confirmationScheduler, seed }: { t: TestContext; respond: (count: number, body: Record<string, unknown>) => StubProviderReply; ask?: boolean; confirmationScheduler?: SchedulerPort; seed?: (deps: ReturnType<typeof createRouteDeps>) => Promise<void> }) {
   const deps = createRouteDeps();
   await deps.siteTitleReady;
+  await seed?.(deps);
   await setPublicAssistantSettings({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective, set: setLegacySetting,
     clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo },
   { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" });
@@ -87,11 +94,51 @@ async function boot({ t, respond, ask = false, confirmationScheduler }: { t: Tes
     { ...process.env, GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: providerUrl, TOVU_VISITOR_TOOLS_POLICY: "on" }).registerRoutes?.({ app });
   const baseUrl = await startTestServer(app, t);
   siteOrigin = new URL(baseUrl);
-  return { baseUrl };
+  return { baseUrl, workspaceId: deps.workspaceId };
 }
 
-function chat(baseUrl: string, signal?: AbortSignal): Promise<Response> {
-  return fetch(`${baseUrl}/api/site-assistant/chat`, { method: "POST", headers: { "content-type": "application/json" },
+/**
+ * A visitor tab, reduced to its wire: it gets its credentials, opens the page-session stream, and
+ * answers every command with `output`. `commands` holds each command as the tab received it, and
+ * `headers` are what the tab sends with a chat request so the turn is bound to this tab.
+ */
+async function attachTab({ t, baseUrl, workspaceId, capability, output }: { t: TestContext; baseUrl: string; workspaceId: string; capability: string; output: unknown }) {
+  const closed = new AbortController();
+  t.after(() => closed.abort());
+  const html = publishVisitorPage({ workspaceId, html: '<html><body><div id="tovu-site-assistant-root"></div></body></html>' });
+  const revision = (JSON.parse(html.match(/id="tovu-visitor-publication">(.*?)<\/script>/s)![1]!) as { revision: string }).revision;
+  const origin = { origin: baseUrl, "sec-fetch-site": "same-origin" };
+  const issued = await fetch(`${baseUrl}/api/site-assistant/frontend-sessions/credentials`, { method: "POST", headers: origin });
+  assert.equal(issued.status, 200);
+  const cookie = issued.headers.get("set-cookie")!.split(";")[0]!;
+  const { tabCredential } = await issued.json() as { tabCredential: string };
+  const tab = { ...origin, cookie, "x-frontend-tab": tabCredential, "x-visitor-publication": revision };
+  const stream = await fetch(`${baseUrl}/api/site-assistant/frontend-sessions/stream?capability=${encodeURIComponent(capability)}`, { headers: tab, signal: closed.signal });
+  assert.equal(stream.status, 200);
+  const reader = stream.body!.getReader();
+  const attached = JSON.parse(new TextDecoder().decode((await reader.read()).value).match(/data: (.+)/)![1]!) as { sessionId: string; bindToken: string };
+  const headers = { ...tab, "x-frontend-bind-token": attached.bindToken };
+  const commands: Record<string, unknown>[] = [];
+  /** One per command, added the moment the command arrives, so a turn that has ended has all of them. */
+  const answers: Promise<number>[] = [];
+  void (async () => {
+    for (;;) {
+      const next = await reader.read().catch(() => ({ done: true as const, value: undefined }));
+      if (next.done) return;
+      for (const match of new TextDecoder().decode(next.value).matchAll(/^data: (.+)$/gm)) {
+        const command = JSON.parse(match[1]!) as { type: string; invocationId: string };
+        commands.push(command);
+        if (command.type !== "invocation") continue;
+        answers.push(fetch(`${baseUrl}/api/site-assistant/frontend-sessions/${encodeURIComponent(attached.sessionId)}/responses`, { method: "POST",
+          headers: { "content-type": "application/json", ...headers }, body: JSON.stringify({ invocationId: command.invocationId, ok: true, output }) }).then((answer) => answer.status));
+      }
+    }
+  })();
+  return { headers, commands, answers, revision };
+}
+
+function chat(baseUrl: string, signal?: AbortSignal, tabHeaders: Record<string, string> = {}): Promise<Response> {
+  return fetch(`${baseUrl}/api/site-assistant/chat`, { method: "POST", headers: { "content-type": "application/json", ...tabHeaders },
     body: JSON.stringify({ message: "List the categories." }), ...(signal ? { signal } : {}) });
 }
 
@@ -213,6 +260,27 @@ test("site chat golden: an Ask-mode tool is denied without a prompt when this ad
   check("ask tool, no capacity", { status: third.status, body, toolResultSeenByModel: toolResults(requests.find((request) => toolResults(request).length > 0)!) });
 });
 
+test("site chat golden: page.navigate to a published page reaches the attached tab, then ends the turn", { timeout: 8_000 }, async (t) => {
+  const navigate = createToolNameMap({ toolIds: ["page.navigate"] }).wireNameFor({ toolId: "page.navigate" })!;
+  const requests: Record<string, unknown>[] = [];
+  const { baseUrl, workspaceId } = await boot({ t,
+    seed: async (deps) => {
+      await deps.postRepo.save({ id: "p-live", workspaceId: deps.workspaceId, title: "Opening Hours", slug: "opening-hours",
+        bodyJson: { type: "doc", content: [] }, bodyFormat: "doc", bodyHtml: null, status: "published", kind: "post",
+        updatedAt: "2026-08-04T00:00:00.000Z", version: 1 });
+    },
+    respond: (count, body) => {
+      requests.push(body);
+      return count === 1 ? functionCall(navigate, { page: "p-live" }, "nav-call") : text("This reply must never be asked for.");
+    } });
+  const tab = await attachTab({ t, baseUrl, workspaceId, capability: "page.navigate", output: { navigated: true } });
+  const response = await chat(baseUrl, undefined, tab.headers);
+  const body = pin(await response.text());
+  assert.equal(requests.length, 1, "a navigation ends the turn: the model is not called again");
+  check("page.navigate", { status: response.status, body, tabAnswers: await Promise.all(tab.answers),
+    tabCommands: JSON.parse(pin(JSON.stringify(tab.commands)).replaceAll(tab.revision, "<revision>")) as unknown });
+});
+
 test("site chat golden: a provider error", async (t) => {
   const { baseUrl } = await boot({ t, respond: () => ({ status: 500, body: JSON.stringify({ error: { message: "private upstream detail" } }) }) });
   const response = await chat(baseUrl);
@@ -266,5 +334,5 @@ test("site chat golden: a visitor who leaves cancels the provider call and gets 
 test("the site chat golden file holds exactly these scenarios", () => {
   if (process.env.UPDATE_GOLDEN === "1") writeFileSync(GOLDEN, `${JSON.stringify(actual, null, 2)}\n`);
   const golden = JSON.parse(readFileSync(GOLDEN, "utf8")) as Record<string, unknown>;
-  assert.deepEqual(Object.keys(golden), ["plain reply", "ask tool, allow=true", "ask tool, allow=false", "ask tool, expired", "ask tool, no capacity", "provider error", "visitor abort"]);
+  assert.deepEqual(Object.keys(golden), ["plain reply", "ask tool, allow=true", "ask tool, allow=false", "ask tool, expired", "ask tool, no capacity", "page.navigate", "provider error", "visitor abort"]);
 });
