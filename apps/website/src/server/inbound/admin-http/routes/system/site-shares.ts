@@ -37,11 +37,14 @@ function shareStep({ req }: { req: Request }, _options = {}): string {
   return steps[`${req.method} ${suffix}`] ?? "Site sharing";
 }
 
-/** Authenticated management and ZIP-only download. Mounted under the existing admin session gate. */
-export function registerAdminSiteShareRoutes(required: { app: Express; deps: RouteDeps }, _optional: Record<string, never> = {}): void {
-  const { app, deps } = required;
-  const root = "/api/admin/v1/workspaces/:workspaceId/site-shares";
-  const gate = async (req: Request, res: Response, artifact = false) => {
+type ShareBackend = NonNullable<RouteDeps["siteShareBackend"]>;
+type ShareGate = (req: Request, res: Response, artifact?: boolean) => Promise<ShareBackend | false>;
+type ShareFail = (res: Response, error: unknown, req: Request) => void;
+type ShareRouteContext = { app: Express; deps: RouteDeps; root: string; gate: ShareGate; fail: ShareFail };
+
+/** Workspace match, session kind, RBAC and backend availability — resolves the backend or has already responded. */
+function createShareGate({ deps }: { deps: RouteDeps }): ShareGate {
+  return async (req, res, artifact = false) => {
     res.set({ "Cache-Control": "no-store" });
     const step = shareStep({ req });
     if (String(req.params.workspaceId) !== deps.workspaceId) { res.status(404).json({ code: "NOT_FOUND", message: `${step} failed: this workspace is not available.` }); return false; }
@@ -52,7 +55,9 @@ export function registerAdminSiteShareRoutes(required: { app: Express; deps: Rou
     if (!deps.siteShareBackend) { res.status(503).json({ code: "UNAVAILABLE", message: `${step} requires a site folder and private artifact storage.` }); return false; }
     return deps.siteShareBackend;
   };
-  const fail = (res: Response, error: unknown, req: Request) => sendSiteShareFailure({ res, error, tracker: deps.tracker }, { step: shareStep({ req }) });
+}
+
+function registerShareListAndCreateRoutes({ app, root, gate, fail }: ShareRouteContext): void {
   app.get(root, async (req, res) => {
     try { const backend = await gate(req, res); if (backend) res.json({ shares: await backend.list({}) }); }
     catch (error) { fail(res, error, req); }
@@ -65,6 +70,9 @@ export function registerAdminSiteShareRoutes(required: { app: Express; deps: Rou
       res.json(await backend.create({ principalId: getAuthedPrincipal(res).id, signal: new AbortController().signal, ...input }));
     } catch (error) { fail(res, error, req); }
   });
+}
+
+function registerShareStaticRoutes({ app, root, gate, fail }: ShareRouteContext): void {
   app.get(`${root}/static/options`, async (req, res) => {
     try { const backend = await gate(req, res); if (backend) res.json(await backend.staticOptions({})); }
     catch (error) { fail(res, error, req); }
@@ -77,7 +85,9 @@ export function registerAdminSiteShareRoutes(required: { app: Express; deps: Rou
       res.json(await backend.create({ principalId: getAuthedPrincipal(res).id, signal: new AbortController().signal, format: "static", ...input }));
     } catch (error) { fail(res, error, req); }
   });
-  app.post(`${root}/:shareId/password`, createSiteSharePasswordHandler({ deps }));
+}
+
+function registerShareAcknowledgeAndRevokeRoutes({ app, root, gate, fail }: ShareRouteContext): void {
   app.post(`${root}/:shareId/acknowledge`, async (req, res) => {
     try {
       const backend = await gate(req, res);
@@ -85,6 +95,28 @@ export function registerAdminSiteShareRoutes(required: { app: Express; deps: Rou
       res.json(await backend.acknowledge({ shareId: String(req.params.shareId) }));
     } catch (error) { fail(res, error, req); }
   });
+  app.delete(`${root}/:shareId`, async (req, res) => {
+    try { const backend = await gate(req, res); if (backend) res.json(await backend.revoke({ shareId: String(req.params.shareId) })); }
+    catch (error) { fail(res, error, req); }
+  });
+}
+
+function sendShareZip({ req, res, row, registry, fail }: { req: Request; res: Response; row: { shareId: string; file: string }; registry: ShareBackend["registry"]; fail: ShareFail }): void {
+  res.set({ ...SHARE_DOWNLOAD_HEADERS, "Content-Disposition": `attachment; filename="${row.file}"` });
+  res.sendFile(`${row.shareId}.tovu.zip`, { root: registry.directory, dotfiles: "deny", cacheControl: false, lastModified: false }, error => {
+    if (!error) return;
+    if (res.headersSent) { res.destroy(); return; }
+    res.removeHeader("Content-Disposition");
+    res.type("application/json");
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      res.status(404).json({ code: "NOT_FOUND", message: "Export download failed: the ZIP is missing from storage. Create a new export." });
+      return;
+    }
+    fail(res, error, req);
+  });
+}
+
+function registerShareDownloadRoute({ app, deps, root, gate, fail }: ShareRouteContext): void {
   app.get(`${root}/:shareId/download`, async (req, res) => {
     try {
       const backend = await gate(req, res);
@@ -96,24 +128,12 @@ export function registerAdminSiteShareRoutes(required: { app: Express; deps: Rou
         res.status(409).json({ code: "ACKNOWLEDGE_CREDENTIALS", message: "This export may contain credentials. Review the warnings and acknowledge that you understand before downloading.", credentialWarnings: row.credentialWarnings ?? [] });
         return;
       }
-      res.set({ ...SHARE_DOWNLOAD_HEADERS, "Content-Disposition": `attachment; filename="${row.file}"` });
-      res.sendFile(`${row.shareId}.tovu.zip`, { root: registry.directory, dotfiles: "deny", cacheControl: false, lastModified: false }, error => {
-        if (!error) return;
-        if (res.headersSent) { res.destroy(); return; }
-        res.removeHeader("Content-Disposition");
-        res.type("application/json");
-        if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-          res.status(404).json({ code: "NOT_FOUND", message: "Export download failed: the ZIP is missing from storage. Create a new export." });
-          return;
-        }
-        fail(res, error, req);
-      });
+      sendShareZip({ req, res, row, registry, fail });
     } catch (error) { fail(res, error, req); }
   });
-  app.delete(`${root}/:shareId`, async (req, res) => {
-    try { const backend = await gate(req, res); if (backend) res.json(await backend.revoke({ shareId: String(req.params.shareId) })); }
-    catch (error) { fail(res, error, req); }
-  });
+}
+
+function registerShareArtifactUploadRoute({ app, deps, root, gate, fail }: ShareRouteContext): void {
   // Raw ZIP parsing runs AFTER authentication and authorization. A base64 JSON upload would
   // inflate a 300 MiB cap and duplicate the full buffer before we could validate it.
   app.put(`${root}/artifacts/:token/:file`, async (req, res, next) => {
@@ -138,6 +158,9 @@ export function registerAdminSiteShareRoutes(required: { app: Express; deps: Rou
       res.status(201).json({ shareId: row.shareId, bytes: row.bytes, sha256: row.sha256 });
     } catch (error) { fail(res, error, req); }
   });
+}
+
+function registerShareArtifactDeleteRoute({ app, deps, root, gate, fail }: ShareRouteContext): void {
   app.delete(`${root}/artifacts/:token/:file`, async (req, res) => {
     try {
       const backend = await gate(req, res, true);
@@ -150,4 +173,18 @@ export function registerAdminSiteShareRoutes(required: { app: Express; deps: Rou
       res.sendStatus(204);
     } catch (error) { fail(res, error, req); }
   });
+}
+
+/** Authenticated management and ZIP-only download. Mounted under the existing admin session gate. */
+export function registerAdminSiteShareRoutes(required: { app: Express; deps: RouteDeps }, _optional: Record<string, never> = {}): void {
+  const { app, deps } = required;
+  const fail: ShareFail = (res, error, req) => sendSiteShareFailure({ res, error, tracker: deps.tracker }, { step: shareStep({ req }) });
+  const context: ShareRouteContext = { app, deps, root: "/api/admin/v1/workspaces/:workspaceId/site-shares", gate: createShareGate({ deps }), fail };
+  registerShareListAndCreateRoutes(context);
+  registerShareStaticRoutes(context);
+  app.post(`${context.root}/:shareId/password`, createSiteSharePasswordHandler({ deps }));
+  registerShareAcknowledgeAndRevokeRoutes(context);
+  registerShareDownloadRoute(context);
+  registerShareArtifactUploadRoute(context);
+  registerShareArtifactDeleteRoute(context);
 }
