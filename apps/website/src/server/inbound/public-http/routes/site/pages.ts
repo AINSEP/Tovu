@@ -25,7 +25,7 @@ import { markersOfType, MENU_MARKER_TYPE } from "@jini-ai/cms/widgets/markers";
 import { assignListingKeys, injectListingScript, parseListingBatchPath, parseListingPagePath } from "@jini-ai/cms/listing";
 import { comparePostsByDisplayDate } from "#src/contracts/core/scheduled-publish";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
-import { postPublicPath, runPostContentPhase, runPreContentPhase, urlFor } from "#src/platform/routing/index";
+import { postPublicPath, urlFor } from "#src/platform/routing/index";
 import { checkSiteRelativeTarget } from "#src/platform/routing/index";
 import { resolveWorkspaceOrigin, toAbsoluteUrl } from "@jini-ai/cms/seo";
 import { foldPageHead, serializeHeadElements, type PageHeadContext } from "../../http/site/page-head.js";
@@ -58,6 +58,7 @@ import { resolveStaticMenusForRender, type StaticMenuMap } from "./pages/render-
 import { resolveMediaTransformVersionsForRender, resolveMediaAssetMetadataForRender, resolveFeaturedImageForRender } from "./pages/render-context/media-metadata.js";
 import { resolvePostPreviewsForRender } from "./pages/render-context/post-previews.js";
 import { resolveCollectionListsForRender } from "./pages/render-context/collection-lists.js";
+import { tryRedirectPhase } from "./pages/redirect-phase.js";
 
 /**
  * SPEC-008 T049 — builds the `PageHeadContext` for one render (home/page have
@@ -119,38 +120,6 @@ async function buildExtraHead({ deps, route, siteTitle, post }: { deps: RouteDep
   });
   const elements = await foldPageHead(ctx, { contributors: [seoHook, ...(deps.pageHeadContributors ?? [])] });
   return serializeHeadElements({ elements });
-}
-
-/**
- * SPEC-009 (Redirects) REQ-18/19: run the registered `pre_content` phase
- * (redirect rules with `overrideContent: true`) before any content lookup,
- * and `post_content` (the default case) only after a content lookup has
- * failed — the exact `pre_content -> content-resolve -> post_content` order
- * ADR-039 §1 documents. Issues the redirect and returns `true` if a phase
- * matched; the caller falls through to its own content/404 handling on `false`.
- */
-async function tryRedirectPhase({ phase, path, workspaceId, res }: { phase: "pre_content" | "post_content"; path: string; workspaceId: string; res: Response }, _optional = {}): Promise<boolean> {
-  const outcome =
-    phase === "pre_content"
-      ? await runPreContentPhase({ path: path, ctx: { workspaceId } })
-      : await runPostContentPhase({ path: path, ctx: { workspaceId } });
-  // `outcome.kind !== "redirect"` has two type-level arms — `"resolved"` and `"not_found"`
-  // (`RouteResolvePhaseOutcome`, @jini-ai/cms/routing) — but only one is reachable through this
-  // codebase's real registrants today: `registerResolvePhase` (routing.ts) has exactly one
-  // non-test caller repo-wide, `registerRedirectsPhaseHandlers` (redirects/phase-handler.ts),
-  // whose own `toOutcome` is the ONLY constructor of this type anywhere in the tree and returns
-  // only `null` or `{ kind: "redirect", ... }` — never `"resolved"`/`"not_found"`. Testing that
-  // sub-arm would require pushing a resolver onto `registerResolvePhase`'s module-level
-  // `phaseRegistry` from a test. That is no longer permanently polluting — as of 2026-09-16 that
-  // registry is no longer append-only (`registerResolvePhase` returns a disposer and takes an
-  // `owner`, so a test can revoke what it added) — but it still leaves the cost of standing up a
-  // second registrant just to reach a sub-arm no shipped code constructs, which is a worse trade
-  // than leaving this documented rather than covered. A future SECOND registrant that legitimately returns
-  // `"resolved"`/`"not_found"` would make this reachable again; this comment is the disclosure,
-  // not a claim that it can never happen.
-  if (!outcome || outcome.kind !== "redirect") return false;
-  res.redirect(outcome.statusCode, outcome.location);
-  return true;
 }
 
 /**
