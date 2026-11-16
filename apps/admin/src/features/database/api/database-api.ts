@@ -1,6 +1,6 @@
 import { request } from "../../../lib/admin-http/request";
-import type { GatedConfirmResult, GatedPlanResult } from "../../../lib/api";
 import { querySuffix } from "../../../lib/query-suffix";
+import type { GatedConfirmResult, GatedPlanResult } from "../../taxonomy/api/taxonomy-api.types";
 import type { AdminLedgerRow, AdminRestorePointSummary, AdminSchemaState, MigrateForwardExecuteResult } from "./database-api.types";
 
 /** The admin API calls of the database feature. */

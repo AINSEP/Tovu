@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { type AdminTerm } from "@/lib/api";
+import type { AdminTerm } from "@/features/taxonomy/api/taxonomy-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";

@@ -1346,57 +1346,6 @@ export interface AdminPolicyPermission {
   constraintJson?: string | null;
 }
 
-/**
- * Categories & Tags (ADR-044) — mirrors `Jini packages/cms/src/taxonomy/write-service.ts`'s `Taxonomy`/`Term`.
- */
-export interface AdminTaxonomy {
-  id: string;
-  name: string;
-  hierarchical: boolean;
-  status: string;
-  updatedAt: string;
-  version: number;
-}
-
-export interface AdminTerm {
-  id: string;
-  taxonomyId: string;
-  parentId: string | null;
-  name: string;
-  status: string;
-  updatedAt: string;
-  version: number;
-}
-
-export interface AdminTaxonomyWithTerms {
-  taxonomy: AdminTaxonomy;
-  terms: AdminTerm[];
-}
-
-/**
- * Session 5-6 backend gap closure — the 3 gated-mutation ceremonies (`core/gated-mutations`'s
- * gateway, wired into the real composition for the first time): taxonomy merge-term, database
- * migrate-forward, recovery restore. Each mirrors `gateway.ts`'s own `plan`/`confirm`/`execute`
- * 3-endpoint shape; `GatedPlanResult`/`GatedConfirmResult` are the shared envelope, `TDetails`
- * varies per ceremony.
- */
-export interface GatedPlanResult<TDetails = unknown> {
-  planId: string;
-  planHash: string;
-  details: TDetails;
-}
-
-export interface GatedConfirmResult {
-  confirmationToken: string;
-}
-
-export interface MergeTermPlanDetails {
-  fromTermId: string;
-  intoTermId: string;
-  overlapLossDisclosed: boolean;
-  overlappingContentCount: number;
-}
-
 /** Mirrors `server/inbound/admin-http/routes/agent-plugins/list.ts`'s response shape — the
  *  `AGENT_PLUGINS_LIST` per-plugin wire shape (2026-09-09). A DIFFERENT family from {@link
  *  AdminPlugin} above: Agent Plugins (agent-plugins.org packages) versus the `.tovu-plugin`
@@ -2001,68 +1950,6 @@ export const api = {
     authenticatedAdminRequest<{ data: AdminExecutionCredential }>({ method: "PUT", path: `/workspaces/${WORKSPACE_ID}/assistant/execution-credential`, body: patch }),
   deleteAdminExecutionCredential: () =>
     authenticatedAdminRequest<{ data: AdminExecutionCredential }>({ method: "DELETE", path: `/workspaces/${WORKSPACE_ID}/assistant/execution-credential` }),
-
-  // Categories & Tags (ADR-044) — taxonomies + terms.
-  listTaxonomies: () => request<{ items: AdminTaxonomyWithTerms[] }>({ path: "/taxonomy" }),
-  createTaxonomy: (input: { name: string; hierarchical: boolean }) =>
-    request<{ taxonomy: AdminTaxonomy }>({ path: "/taxonomy" }, { init: { method: "POST", body: JSON.stringify(input) } }),
-  createTerm: (
-    { taxonomyId, name }: { taxonomyId: string; name: string },
-    options: { parentId?: string | null } = {}
-  ) =>
-    request<{ term: AdminTerm }>({ path: `/taxonomy/${encodeURIComponent(taxonomyId)}/terms` }, { init: {
-      method: "POST",
-      body: JSON.stringify({ name, parentId: options.parentId }),
-    } }),
-  renameTerm: (
-    { termId, newName }: { termId: string; newName: string },
-    _options: Record<string, never> = {}
-  ) =>
-    request<{ term: AdminTerm }>({ path: `/taxonomy/terms/${encodeURIComponent(termId)}` }, { init: {
-      method: "PUT",
-      body: JSON.stringify({ newName }),
-    } }),
-  /** Additive: upserts one `entry_terms` row per `termIds` entry (never clears an existing,
-   * unselected assignment — {@link unassignTerms} removes). Posts, pages and collection entries. */
-  assignTerms: (input: { contentType: string; contentId: string; termIds: string[] }) =>
-    request<void>({ path: "/taxonomy/assign-terms" }, { init: { method: "POST", body: JSON.stringify(input) } }),
-  /** Removes each `termIds` assignment; one that is not there is a no-op. */
-  unassignTerms: (input: { contentType: string; contentId: string; termIds: string[] }) =>
-    request<void>({ path: "/taxonomy/unassign-terms" }, { init: { method: "POST", body: JSON.stringify(input) } }),
-  /** The term ids one post, page or entry holds now, sorted. */
-  assignedTerms: ({ contentType, contentId }: { contentType: string; contentId: string }) =>
-    request<{ termIds: string[] }>(
-      { path: `/taxonomy/assigned-terms?contentType=${encodeURIComponent(contentType)}&contentId=${encodeURIComponent(contentId)}` }
-    ),
-  // Categories & Tags — merge-term ceremony (ADR-044, SPEC-018 C-207). 3-step plan/confirm/execute.
-  planMergeTerm: (
-    { fromTermId, intoTermId }: { fromTermId: string; intoTermId: string },
-    _options: Record<string, never> = {}
-  ) =>
-    request<GatedPlanResult<MergeTermPlanDetails>>({ path: `/taxonomy/terms/${encodeURIComponent(fromTermId)}/merge/plan` }, { init: {
-      method: "POST",
-      body: JSON.stringify({ intoTermId }),
-    } }),
-  confirmMergeTerm: (
-    { fromTermId, planId, planHash }: { fromTermId: string; planId: string; planHash: string },
-    _options: Record<string, never> = {}
-  ) =>
-    request<GatedConfirmResult>({ path: `/taxonomy/terms/${encodeURIComponent(fromTermId)}/merge/confirm` }, { init: {
-      method: "POST",
-      body: JSON.stringify({ planId, planHash }),
-    } }),
-  executeMergeTerm: (
-    {
-      fromTermId,
-      intoTermId,
-      confirmationToken,
-    }: { fromTermId: string; intoTermId: string; confirmationToken: string },
-    _options: Record<string, never> = {}
-  ) =>
-    request<{ mergedCount: number }>({ path: `/taxonomy/terms/${encodeURIComponent(fromTermId)}/merge/execute` }, { init: {
-      method: "POST",
-      body: JSON.stringify({ intoTermId, confirmationToken }),
-    } }),
 
   // 2026-09-09 — AGENT_PLUGINS_LIST: the `agent-plugins` screen's read of real installed Agent
   // Plugins (a separate family from listPlugins/setPluginEnabled above — see AdminAgentPlugin's doc).

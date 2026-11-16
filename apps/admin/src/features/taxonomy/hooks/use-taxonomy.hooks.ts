@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { type AdminTaxonomy, type AdminTaxonomyWithTerms, type AdminTerm } from "@/lib/api";
+import type { AdminTaxonomy, AdminTaxonomyWithTerms, AdminTerm } from "@/features/taxonomy/api/taxonomy-api.types";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { contentRefreshApplies, subscribeToContentRefresh } from "@/lib/content-refresh-bus";
 import {

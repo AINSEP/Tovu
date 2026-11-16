@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { api } from "../api";
+import { taxonomyApi } from "../../features/taxonomy/api/taxonomy-api";
 import { pluginsApi } from "../../features/plugins/api/plugins-api";
 import { pagesApi } from "../../features/pages/api/pages-api";
 import { menusApi } from "../../features/menus/api/menus-api";
@@ -129,7 +129,7 @@ test("listTaxonomies GETs the top-level /taxonomy collection (no /workspaces/:id
   const { calls, method } = stubFetchCapturing(() =>
     jsonResponse({ items: [{ taxonomy: { id: "t1", name: "Category" }, terms: [] }] })
   );
-  await expect(api.listTaxonomies()).resolves.toEqual({
+  await expect(taxonomyApi.listTaxonomies()).resolves.toEqual({
     items: [{ taxonomy: { id: "t1", name: "Category" }, terms: [] }],
   });
   expect(calls[0].url).toBe("/api/admin/v1/taxonomy");

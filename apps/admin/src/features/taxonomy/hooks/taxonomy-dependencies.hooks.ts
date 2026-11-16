@@ -1,4 +1,5 @@
-import { api, type AdminTaxonomyWithTerms, type AdminTerm } from "@/lib/api";
+import type { AdminTaxonomyWithTerms, AdminTerm } from "@/features/taxonomy/api/taxonomy-api.types";
+import { taxonomyApi } from "@/features/taxonomy/api/taxonomy-api";
 import { trashApi } from "@/features/trash/api/trash-api";
 import { ApiError } from "@/lib/admin-http/request";
 import type { TaxonomyPort } from "./taxonomy-port.hooks";
@@ -16,10 +17,10 @@ import type { TaxonomyPort } from "./taxonomy-port.hooks";
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s
  *  `redirectsHostPorts`. */
 export const defaultTaxonomyPort: TaxonomyPort = {
-  listTaxonomies: () => api.listTaxonomies(),
+  listTaxonomies: () => taxonomyApi.listTaxonomies(),
   trashTerm: ({ id }) => trashApi.trash({ type: "term", id }),
   trashTaxonomy: ({ id }) => trashApi.trash({ type: "taxonomy", id }),
-  renameTerm: (target) => api.renameTerm(target),
+  renameTerm: (target) => taxonomyApi.renameTerm(target),
 };
 
 /** Seed state for {@link createFakeTaxonomyPort}. */

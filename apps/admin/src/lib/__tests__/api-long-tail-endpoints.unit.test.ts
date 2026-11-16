@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { taxonomyApi } from "../../features/taxonomy/api/taxonomy-api";
 import { collectionsApi } from "../../features/collections/api/collections-api";
 import { recoveryApi } from "../../features/recovery/api/recovery-api";
 import { authApi } from "../../features/auth/api/auth-api";
@@ -311,7 +312,7 @@ test("entryLifecycle POSTs { op, expectedVersion } to /entries/:id/lifecycle", a
 
 test("createTaxonomy POSTs the input verbatim to /taxonomy", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.createTaxonomy({ name: "Genre", hierarchical: false });
+  await taxonomyApi.createTaxonomy({ name: "Genre", hierarchical: false });
   expect(calls[0].url).toBe(`/api/admin/v1/taxonomy`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ name: "Genre", hierarchical: false });
@@ -319,20 +320,20 @@ test("createTaxonomy POSTs the input verbatim to /taxonomy", async () => {
 
 test("createTerm omits parentId from the body when the caller doesn't pass one", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.createTerm({ taxonomyId: "t1", name: "Sci-Fi" });
+  await taxonomyApi.createTerm({ taxonomyId: "t1", name: "Sci-Fi" });
   expect(calls[0].url).toBe(`/api/admin/v1/taxonomy/t1/terms`);
   expect(body()).toEqual({ name: "Sci-Fi", parentId: undefined });
 });
 
 test("createTerm includes parentId when the caller passes one", async () => {
   const { body } = stubFetchCapturing();
-  await api.createTerm({ taxonomyId: "t1", name: "Space Opera" }, { parentId: "p1" });
+  await taxonomyApi.createTerm({ taxonomyId: "t1", name: "Space Opera" }, { parentId: "p1" });
   expect(body()).toEqual({ name: "Space Opera", parentId: "p1" });
 });
 
 test("renameTerm PUTs { newName } to /taxonomy/terms/:id", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.renameTerm({ termId: "term1", newName: "Fantasy" });
+  await taxonomyApi.renameTerm({ termId: "term1", newName: "Fantasy" });
   expect(calls[0].url).toBe(`/api/admin/v1/taxonomy/terms/term1`);
   expect(calls[0].init?.method).toBe("PUT");
   expect(body()).toEqual({ newName: "Fantasy" });
@@ -340,7 +341,7 @@ test("renameTerm PUTs { newName } to /taxonomy/terms/:id", async () => {
 
 test("assignTerms POSTs the input verbatim to /taxonomy/assign-terms", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.assignTerms({ contentType: "recipe", contentId: "e1", termIds: ["term1", "term2"] });
+  await taxonomyApi.assignTerms({ contentType: "recipe", contentId: "e1", termIds: ["term1", "term2"] });
   expect(calls[0].url).toBe(`/api/admin/v1/taxonomy/assign-terms`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ contentType: "recipe", contentId: "e1", termIds: ["term1", "term2"] });
@@ -348,7 +349,7 @@ test("assignTerms POSTs the input verbatim to /taxonomy/assign-terms", async () 
 
 test("unassignTerms POSTs the input verbatim to /taxonomy/unassign-terms", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.unassignTerms({ contentType: "recipe", contentId: "e1", termIds: ["term1"] });
+  await taxonomyApi.unassignTerms({ contentType: "recipe", contentId: "e1", termIds: ["term1"] });
   expect(calls[0].url).toBe(`/api/admin/v1/taxonomy/unassign-terms`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ contentType: "recipe", contentId: "e1", termIds: ["term1"] });
@@ -356,14 +357,14 @@ test("unassignTerms POSTs the input verbatim to /taxonomy/unassign-terms", async
 
 test("assignedTerms GETs /taxonomy/assigned-terms with both ids encoded", async () => {
   const { calls } = stubFetchCapturing();
-  await api.assignedTerms({ contentType: "recipe", contentId: "e 1" });
+  await taxonomyApi.assignedTerms({ contentType: "recipe", contentId: "e 1" });
   expect(calls[0].url).toBe(`/api/admin/v1/taxonomy/assigned-terms?contentType=recipe&contentId=e%201`);
   expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
 
 test("planMergeTerm POSTs { intoTermId } to /taxonomy/terms/:id/merge/plan", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.planMergeTerm({ fromTermId: "term1", intoTermId: "term2" });
+  await taxonomyApi.planMergeTerm({ fromTermId: "term1", intoTermId: "term2" });
   expect(calls[0].url).toBe(`/api/admin/v1/taxonomy/terms/term1/merge/plan`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ intoTermId: "term2" });
@@ -371,7 +372,7 @@ test("planMergeTerm POSTs { intoTermId } to /taxonomy/terms/:id/merge/plan", asy
 
 test("confirmMergeTerm POSTs { planId, planHash } to /taxonomy/terms/:id/merge/confirm", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.confirmMergeTerm({ fromTermId: "term1", planId: "plan1", planHash: "hash1" });
+  await taxonomyApi.confirmMergeTerm({ fromTermId: "term1", planId: "plan1", planHash: "hash1" });
   expect(calls[0].url).toBe(`/api/admin/v1/taxonomy/terms/term1/merge/confirm`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ planId: "plan1", planHash: "hash1" });
@@ -379,7 +380,7 @@ test("confirmMergeTerm POSTs { planId, planHash } to /taxonomy/terms/:id/merge/c
 
 test("executeMergeTerm POSTs { intoTermId, confirmationToken } to /taxonomy/terms/:id/merge/execute", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.executeMergeTerm({ fromTermId: "term1", intoTermId: "term2", confirmationToken: "tok1" });
+  await taxonomyApi.executeMergeTerm({ fromTermId: "term1", intoTermId: "term2", confirmationToken: "tok1" });
   expect(calls[0].url).toBe(`/api/admin/v1/taxonomy/terms/term1/merge/execute`);
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ intoTermId: "term2", confirmationToken: "tok1" });

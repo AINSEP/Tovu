@@ -1,4 +1,4 @@
-import type { GatedConfirmResult, GatedPlanResult } from "@/lib/api";
+import type { GatedConfirmResult, GatedPlanResult } from "@/features/taxonomy/api/taxonomy-api.types";
 import type { MigrateForwardExecuteResult } from "@/features/database/api/database-api.types";
 
 /**

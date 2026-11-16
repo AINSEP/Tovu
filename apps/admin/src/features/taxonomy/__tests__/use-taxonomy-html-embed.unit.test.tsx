@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AdminTaxonomy, AdminTaxonomyWithTerms } from "@/lib/api";
+import type { AdminTaxonomy, AdminTaxonomyWithTerms } from "@/features/taxonomy/api/taxonomy-api.types";
 import { adminFailureChannel } from "@/lib/admin-failure-channel";
 import { useTaxonomyHtmlEmbed } from "../hooks/use-taxonomy-html-embed.hooks";
 

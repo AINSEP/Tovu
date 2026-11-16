@@ -5,7 +5,7 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 import { createFakeTermPickerPort } from "../hooks/term-picker-dependencies.hooks";
 import { useTermPicker, useWiredTermPicker } from "../hooks/use-term-picker.hooks";
 import type { TermPickerPort } from "../hooks/term-picker-port.hooks";
-import type { AdminTaxonomyWithTerms } from "@/lib/api";
+import type { AdminTaxonomyWithTerms } from "@/features/taxonomy/api/taxonomy-api.types";
 
 /**
  * @file `useTermPicker` — `TermPicker`'s taxonomy list, its ticked set loaded from the content's own

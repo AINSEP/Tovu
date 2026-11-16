@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { taxonomyApi } from "../../features/taxonomy/api/taxonomy-api";
 import { postsApi } from "../../features/posts/api/posts-api";
 import { usersApi } from "../../features/users/api/users-api";
 import { collectionsApi } from "../../features/collections/api/collections-api";
@@ -153,27 +154,27 @@ const singleIdCases: Case[] = [
   ],
   [
     "createTerm",
-    () => api.createTerm({ taxonomyId: SLASH_ID, name: "x" }),
+    () => taxonomyApi.createTerm({ taxonomyId: SLASH_ID, name: "x" }),
     `${BASE_API}/taxonomy/${ENC}/terms`,
   ],
   [
     "renameTerm",
-    () => api.renameTerm({ termId: SLASH_ID, newName: "x" }),
+    () => taxonomyApi.renameTerm({ termId: SLASH_ID, newName: "x" }),
     `${BASE_API}/taxonomy/terms/${ENC}`,
   ],
   [
     "planMergeTerm",
-    () => api.planMergeTerm({ fromTermId: SLASH_ID, intoTermId: "t2" }),
+    () => taxonomyApi.planMergeTerm({ fromTermId: SLASH_ID, intoTermId: "t2" }),
     `${BASE_API}/taxonomy/terms/${ENC}/merge/plan`,
   ],
   [
     "confirmMergeTerm",
-    () => api.confirmMergeTerm({ fromTermId: SLASH_ID, planId: "p1", planHash: "h1" }),
+    () => taxonomyApi.confirmMergeTerm({ fromTermId: SLASH_ID, planId: "p1", planHash: "h1" }),
     `${BASE_API}/taxonomy/terms/${ENC}/merge/confirm`,
   ],
   [
     "executeMergeTerm",
-    () => api.executeMergeTerm({ fromTermId: SLASH_ID, intoTermId: "t2", confirmationToken: "tok" }),
+    () => taxonomyApi.executeMergeTerm({ fromTermId: SLASH_ID, intoTermId: "t2", confirmationToken: "tok" }),
     `${BASE_API}/taxonomy/terms/${ENC}/merge/execute`,
   ],
 

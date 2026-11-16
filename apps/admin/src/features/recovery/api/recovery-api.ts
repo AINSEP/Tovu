@@ -1,5 +1,5 @@
 import { request } from "../../../lib/admin-http/request";
-import type { GatedConfirmResult, GatedPlanResult } from "../../../lib/api";
+import type { GatedConfirmResult, GatedPlanResult } from "../../taxonomy/api/taxonomy-api.types";
 import type { AdminDisclosureResult, AdminRecoveryDeepLinkResult, AdminRecoveryStatus, AdminRestorePoint, DatabaseContextEnvelope, RestoreExecuteResult } from "./recovery-api.types";
 
 /** The admin API calls of the recovery feature. */
