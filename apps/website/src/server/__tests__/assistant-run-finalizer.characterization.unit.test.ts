@@ -3,13 +3,8 @@ import test, { type TestContext } from "node:test";
 
 import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
 import type { ChatRunLedger } from "#src/assistant/index";
-import {
-  assistantRunFinalizerFor,
-  createAssistantRunFinalizer,
-  createHttpRunDaemonClient,
-  type AssistantRunFinalizer,
-  type RunDaemonClient,
-} from "../runtime/composition/modules/assistant-run-finalizer.js";
+import { assistantRunFinalizerFor, createAssistantRunFinalizer, type AssistantRunFinalizer } from "../runtime/composition/modules/assistant-run-finalizer.js";
+import { createHttpRunDaemonClient, type RunDaemonClient } from "../runtime/composition/modules/run-daemon-http-client.js";
 import { recoveryLedgerFixture } from "./durable-ledger.fixture.js";
 import {
   captureGlobalTimers, deferred, droppedStream, end, ended, flush, liveStream, manualScheduler, missing,
@@ -373,9 +368,11 @@ for (const [style, reject] of [
 
 // ---- Public surface (C15): edited only in the commits the design lists -----------------------
 
-test("C15a the module's run-time exports", async () => {
-  const module = await import("../runtime/composition/modules/assistant-run-finalizer.js");
-  assert.deepEqual(Object.keys(module).sort(), ["assistantRunFinalizerFor", "createAssistantRunFinalizer", "createHttpRunDaemonClient"]);
+test("C15a the run-time exports of the finalizer module and of the daemon HTTP client module", async () => {
+  const finalizerModule = await import("../runtime/composition/modules/assistant-run-finalizer.js");
+  assert.deepEqual(Object.keys(finalizerModule).sort(), ["assistantRunFinalizerFor", "createAssistantRunFinalizer"]);
+  const clientModule = await import("../runtime/composition/modules/run-daemon-http-client.js");
+  assert.deepEqual(Object.keys(clientModule).sort(), ["createHttpRunDaemonClient"]);
 });
 
 test("C15b the finalizer object has exactly five methods", () => {

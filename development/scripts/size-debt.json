@@ -1724,9 +1724,9 @@
       "value": 139
     },
     {
-      "file": "apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts",
+      "file": "apps/website/src/server/runtime/composition/modules/run-daemon-http-client.ts",
       "function": "createHttpRunDaemonClient#1",
-      "line": 142,
+      "line": 47,
       "rule": "max-lines-per-function",
       "value": 101
     },
@@ -1736,13 +1736,6 @@
       "line": 370,
       "rule": "max-lines-per-function",
       "value": 325
-    },
-    {
-      "file": "apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts",
-      "function": "<file>",
-      "line": 715,
-      "rule": "max-lines",
-      "value": 580
     },
     {
       "file": "apps/website/src/server/runtime/composition/modules/site-assistant.ts",

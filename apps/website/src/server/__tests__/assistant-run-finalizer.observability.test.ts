@@ -9,7 +9,8 @@ import test, { type TestContext } from "node:test";
 import { SpanKind, SpanStatusCode } from "@opentelemetry/api";
 import type { ChatMessage } from "@jini-ai/chat/core";
 
-import { createAssistantRunFinalizer, createHttpRunDaemonClient, type RunDaemonClient } from "../runtime/composition/modules/assistant-run-finalizer.js";
+import { createAssistantRunFinalizer } from "../runtime/composition/modules/assistant-run-finalizer.js";
+import { createHttpRunDaemonClient, type RunDaemonClient } from "../runtime/composition/modules/run-daemon-http-client.js";
 import { createNoopObservabilityPort, type AgentRunStatus, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { assertSpanOmits, createInMemoryOtel } from "#src/platform/observability/__tests__/fixtures/in-memory-otel";
 import { AGENT_DAEMON_TOKEN_ENV_VAR, type ChatRunLedger } from "../../assistant/index.js";

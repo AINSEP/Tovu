@@ -3,7 +3,8 @@ import test, { type TestContext } from "node:test";
 
 import { EXHAUSTED_NOTICE } from "@jini-ai/chat/server/durable-runs";
 import type { ChatRunLedger } from "#src/assistant/index";
-import { createAssistantRunFinalizer, type RunDaemonClient } from "../runtime/composition/modules/assistant-run-finalizer.js";
+import { createAssistantRunFinalizer } from "../runtime/composition/modules/assistant-run-finalizer.js";
+import { type RunDaemonClient } from "../runtime/composition/modules/run-daemon-http-client.js";
 import { recoveryLedgerFixture } from "./durable-ledger.fixture.js";
 import {
   captureGlobalTimers, deferred, end, ended, flush, liveStream, manualScheduler, recordingLedger, runningMessage, text, until,
