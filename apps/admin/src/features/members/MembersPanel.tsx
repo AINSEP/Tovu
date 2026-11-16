@@ -2,7 +2,7 @@ import { createMembersControllerHook } from "./MembersPanel.hooks";
 import { Members as JiniMembers } from "@jini-ai/user-management/react";
 import { ServerLabel } from "@/components/status-labels";
 import { useWiredMembers } from "./hooks/members-controller.hooks";
-import { defaultMembersPort, toJiniMembersPort } from "./hooks/members-dependencies.hooks";
+import { defaultMembersPort } from "./hooks/members-dependencies.hooks";
 
 export interface MembersProps {
   /**
@@ -12,7 +12,7 @@ export interface MembersProps {
    */
   useMembersHook?: typeof useWiredMembers;
 }
-const port = toJiniMembersPort({ port: defaultMembersPort });
+const port = defaultMembersPort;
 
 /** Supply product vocabulary and protocol-label rendering to the shared Members screen. */
 export function Members({ useMembersHook = useWiredMembers }: MembersProps = {}) {
