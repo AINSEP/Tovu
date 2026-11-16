@@ -42,7 +42,7 @@ Checked against Tovu `refactor/terra` `80b00f5b` and Jini `refactor/terra` `02ed
 - Visitor errors: A03 fixes → A06 (port only) → E2 → E3 → E4 → AG-UI S5.
 - Chat failures: field map (X4) → AG-UI S1 → E8 → AG-UI S3 onward.
 - Route status: C-ORIGIN-PORT → E5a-1 → R7 G1–G3 → E5a-2; E5a-3 only if R9 has not converted cms.
-- Daemon launcher files: R8a → C6 → R8b → lane K → size-design 10 → ACP A-daemon. ACP A-client is independent.
+- Daemon launcher files: R8a → C6 → R8b → import-cycle J2 → lane K → size-design 10 → ACP A-daemon (same chain as `AMENDMENTS-A.md`; this run only appends the ACP step). ACP A-client is independent.
 
 ## For the runs revising other designs
 

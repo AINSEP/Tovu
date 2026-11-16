@@ -471,7 +471,7 @@ contradicts P.
 | Group | Steps | Files | May start |
 |---|---|---|---|
 | **A-client** | A0, A1, A4, A5, A6 | only `packages/agent-runtime/src/agent-protocol/acp/**` and its tests | after P for those files (the `refactor/size-jini-chat-runtime` ACP commits, then splits to ≤ 500 / ≤ 50) |
-| **A-daemon** | A2, A3, A7, A8, A9 | daemon `launch.ts`, `events.ts`, `contracts.ts` and what they become | after R8a step 5 → C6 → R8b → lane K → size-design 10 and the events/session splits |
+| **A-daemon** | A2, A3, A7, A8, A9 | daemon `launch.ts`, `events.ts`, `contracts.ts` and what they become | after R8a step 5 → C6 → R8b → import-cycle J2 → lane K → size-design 10 and the events/session splits (J2's place is from `AMENDMENTS-A.md`, which sets the same chain) |
 
 - The grouping follows the design's own "Needs" column: none of A0, A1, A4, A5, A6 needs A2.
 - STOP condition added to §7: an A-client step that needs any edit under
