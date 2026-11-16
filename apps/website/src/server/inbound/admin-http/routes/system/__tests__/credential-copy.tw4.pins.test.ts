@@ -14,6 +14,7 @@ function fixture({ instance = true }: { instance?: boolean } = {}, _options = {}
     authorize: async () => { calls.push("rbac"); return { allowed, reason: "pin" }; },
     gatedMutations: { gatewayDeps: { authorizeInstance: instance ? async () => { calls.push("instance"); return { allowed: instanceAllowed, reason: "pin" }; } : undefined } } as Deps["gatedMutations"],
     projectKeys: {
+      list: async () => [],
       listChoices: async () => { calls.push("list"); return [{ keyId: "key", name: "Saved key", kind: "vendor", usedByThisSite: false, usedBy: [] }]; },
       listGranted: async () => [], savedResult: async ({ result }) => result,
       permissionFor: async () => "custom-credentials.write",

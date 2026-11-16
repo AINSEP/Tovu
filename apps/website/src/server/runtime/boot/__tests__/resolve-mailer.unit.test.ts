@@ -252,7 +252,7 @@ test("after the setting exists, selection reads only it: a saved resend key does
   const httpClient = new FakeHttpClient();
   const { mailer, ready } = createResolvedMailer(makeResolveDeps({
     customCredentialRepo: credentialDeps.repo, sealer: credentialDeps.sealer, providerSetting, httpClient,
-    createSmtpTransport: () => ({ sendMail: async (mail) => { deliveries.push(mail.subject); return { messageId: "smtp-1" }; } }),
+    createSmtpTransport: () => ({ sendMail: async ({ mail }) => { deliveries.push(mail.subject); return { messageId: "smtp-1" }; } }),
   }));
   await ready;
   assert.equal(mailer.capabilities().driver, "smtp");

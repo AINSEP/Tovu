@@ -58,6 +58,7 @@ test("createIntegrationsModule().start() enqueues a webhook delivery when a form
     createdAt: nowIso,
     updatedAt: nowIso,
     disabledAt: null,
+    version: 1,
   });
 
   createIntegrationsModule({ bus, webhookSubscriptionRepo, webhookDeliveryRepo, idGen, clock }).start?.();

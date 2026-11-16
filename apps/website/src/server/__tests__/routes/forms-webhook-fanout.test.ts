@@ -109,6 +109,7 @@ test("AC-16: an accepted submission queues a matching webhook subscription's del
     createdAt: NOW,
     updatedAt: NOW,
     disabledAt: null,
+    version: 1,
   });
 
   await submitForm({

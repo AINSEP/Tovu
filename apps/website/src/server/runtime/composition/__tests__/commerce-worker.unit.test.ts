@@ -7,7 +7,7 @@ function fixture({ owner = true, active = true, pending = false } = {}) {
   const warnings: string[] = [];
   const state = { active, pending, runs: 0, acquisitions: 0, releases: 0 };
   const worker = createCommerceWorker({ owner, directory: 'unused', active: async () => state.active,
-    hasPending: async () => state.pending, run: async () => { state.runs++; }, warn: message => warnings.push(message) }, {
+    hasPending: async () => state.pending, run: async () => { state.runs++; }, warn: ({ message }) => warnings.push(message) }, {
     acquire: () => { state.acquisitions++; return () => { state.releases++; }; },
     schedule: run => { timers.push(run); return () => { const index = timers.indexOf(run); if (index >= 0) timers.splice(index, 1); }; },
   });
@@ -78,7 +78,7 @@ test('lost PostgreSQL session ownership stops future cycles and releases the wor
   let valid = true, runs = 0, released = false;
   const timers: (() => void)[] = [], warnings: string[] = [];
   const worker = createCommerceWorker({ owner: true, directory: 'unused', active: async () => true,
-    hasPending: async () => true, run: async () => { runs++; }, warn: message => warnings.push(message) }, {
+    hasPending: async () => true, run: async () => { runs++; }, warn: ({ message }) => warnings.push(message) }, {
     withOwnership: async run => { try { await run({ assertOwned: async () => { if (!valid) throw new Error('connection lost'); } }); return { acquired: true }; } finally { released = true; } },
     schedule: run => { timers.push(run); return () => {}; },
   });

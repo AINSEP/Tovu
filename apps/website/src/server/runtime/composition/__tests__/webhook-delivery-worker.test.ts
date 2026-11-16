@@ -243,7 +243,7 @@ async function servingRig() {
     id: "sub-1", workspaceId: "workspace-1", ownerPrincipalId: "principal-1", label: "Endpoint",
     targetUrl: "https://example.com/hooks", topics: ["form.submission.received"], secretVersion: 1,
     previousSecretVersion: null, status: "active", createdByPrincipalId: "principal-1", createdByPluginId: null,
-    createdAt: nowIso, updatedAt: nowIso, disabledAt: null,
+    createdAt: nowIso, updatedAt: nowIso, disabledAt: null, version: 1,
   });
   const deps = {
     webhookSubscriptionRepo,

@@ -29,19 +29,19 @@ test("bodyParseRefusal: any other parse failure is an unreadable upload", () => 
 });
 
 test("installErrorResponse: an unreadable archive upload is 400 with plain text", () => {
-  assert.deepEqual(installErrorResponse({ error: new AgentPluginUploadError("ARCHIVE_UNREADABLE", "yauzl: bad central directory") }), {
+  assert.deepEqual(installErrorResponse({ error: new AgentPluginUploadError({ code: "ARCHIVE_UNREADABLE", message: "yauzl: bad central directory" }) }), {
     status: 400, body: { code: "AGENT_PLUGIN_ARCHIVE_UNREADABLE", error: "This file is not a readable .zip." },
   });
 });
 
 test("installErrorResponse: a taken plugin id is 409 pointing at Replace", () => {
-  assert.deepEqual(installErrorResponse({ error: new AgentPluginUploadError("PLUGIN_ID_TAKEN", "taken") }), {
+  assert.deepEqual(installErrorResponse({ error: new AgentPluginUploadError({ code: "PLUGIN_ID_TAKEN", message: "taken" }) }), {
     status: 409, body: { code: "AGENT_PLUGIN_PLUGIN_ID_TAKEN", error: "This plugin ID is already installed. Choose Replace existing version to upgrade it." },
   });
 });
 
 test("installErrorResponse: other upload refusals are 409 with the upload error's own message", () => {
-  assert.deepEqual(installErrorResponse({ error: new AgentPluginUploadError("PLUGIN_BUNDLED", "A bundled plugin owns this ID.") }), {
+  assert.deepEqual(installErrorResponse({ error: new AgentPluginUploadError({ code: "PLUGIN_BUNDLED", message: "A bundled plugin owns this ID." }) }), {
     status: 409, body: { code: "AGENT_PLUGIN_PLUGIN_BUNDLED", error: "A bundled plugin owns this ID." },
   });
 });
