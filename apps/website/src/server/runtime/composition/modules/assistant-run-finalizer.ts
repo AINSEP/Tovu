@@ -32,7 +32,6 @@ import type { Tracker } from "@jini-ai/diagnostics/observability";
  */
 import type { ChatMessage } from "@jini-ai/chat/core";
 import { randomUUID } from "node:crypto";
-import { createDurableRecovery } from "@jini-ai/chat/server/durable-runs";
 import type { DurableRecovery, RecoveryTrigger } from "@jini-ai/chat/server/durable-runs";
 import { verifyAttemptChildDead } from "#src/server/inbound/assistant/attempt-process-identity";
 import { agentCarriesOwnMemory } from "#src/assistant/agent-session-preset";
@@ -44,6 +43,7 @@ import { createHttpRunDaemonClient, type RunDaemonClient } from "./run-daemon-ht
 import { createFollower, delay, probeRun } from "./run-finalizer/bounded-follow.js";
 import { createCheckpointer } from "./run-finalizer/checkpointer.js";
 import type { RunLogPort, RunTimerPort } from "./run-finalizer/ports.js";
+import { createRecoveryBinding } from "./run-finalizer/recovery-binding.js";
 import { createStreamReader } from "./run-finalizer/stream.js";
 import { interruptionEvents, makeWatch, stopWatch, watchable, type Watch } from "./run-finalizer/watch-state.js";
 import { runContentFromEvents, runEventsForSave } from "#src/contracts/core/assistant-run-events";
@@ -140,42 +140,19 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
   const scheduler = options.scheduler ?? createNodeSupervisorScheduler({});
   const active = new Map<string, { watch: Watch; done: Promise<void> }>();
   const recoveryStore = options.ledger.durable;
-  const newAttempts = new Set<string>();
   const checkpointer = createCheckpointer({
     ledger: options.ledger, now, checkpointTimers: unrefTimers, log: consoleRunLog, checkpointIntervalMs: options.checkpointIntervalMs,
   });
-  const recovery = recoveryStore ? createDurableRecovery({
-    store: recoveryStore, now, mintRunId: randomUUID,
-    async probe(run, _options) {
-      if (!run.principalId) throw new Error("assistant recovery probe has no principal id");
-      const status = await probeRun({
-        timers: scheduler, statusTimeoutMs, run: { runId: run.runId, principalId: run.principalId },
-        client: newAttempts.has(run.runId) ? daemon : options.recoveryDaemon ?? daemon,
-      });
-      if (status === 404) return "dead";
-      return status === 200 ? "live" : "uncertain";
-    },
-    attach(run, _options) { if (!run.principalId) throw new Error("assistant recovery watch has no principal id"); finalizer.watch({ principalId: run.principalId, conversationId: run.conversationId, message: run.message }, {
-      attemptBase: [...run.attemptBase], daemon: newAttempts.has(run.runId) ? daemon : options.recoveryDaemon ?? daemon,
-    }); },
-    async launch(required, optional) {
-      if (!daemon.launch) throw new Error("daemon continuation port is unavailable");
-      newAttempts.add(required.run.runId);
-      await daemon.launch(required, optional);
-    },
-    cancelAttempt: async (run, optional) => {
-      const client = newAttempts.has(run.runId) ? daemon : options.recoveryDaemon ?? daemon;
-      if (!client.cancel) return;
-      if (!run.principalId) throw new Error("assistant recovery cancellation has no principal id");
-      return client.cancel({ runId: run.runId, principalId: run.principalId }, optional);
-    },
+  const { recovery, attemptEnded } = createRecoveryBinding({
+    ledger: options.ledger, durable: recoveryStore, now, mintRunId: randomUUID, daemon,
+    recoveryDaemon: () => options.recoveryDaemon,
+    probe: ({ run, client }) => probeRun({ timers: scheduler, statusTimeoutMs, client, run }),
+    attach: (required, optional) => { finalizer.watch(required, optional); },
     // No process identity is guessed from daemon PID existence. Until the executor provides a
     // verified child identity, reconstruction is the safe universal continuation path.
     verifyChildDead: options.verifyChildDead ?? ((required, _options) => verifyAttemptChildDead(required, {})),
     supportsNativeResume: options.supportsNativeResume ?? (({ agentId }, _options) => agentCarriesOwnMemory({ agentId: agentId }, {})),
-    checkpoint: (required, _options) => options.ledger.checkpoint(required),
-    settle: (required, _options) => options.ledger.settle(required),
-  }, {}) : undefined;
+  });
 
   /** Stop progress scheduling and await the ledger's atomic terminal write; persistence errors propagate. */
   async function settle({ watch, status, events }: { watch: Watch; status: RunSettlement["status"]; events: AgentEvent[] }, _optional = {}): Promise<void> {
@@ -268,7 +245,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
       } }, { agent: { runId, conversationId } })
         .finally(async () => {
           stopWatch({ watch });
-          newAttempts.delete(runId);
+          attemptEnded({ runId });
           try {
             // Preserve a successor's pin on the same client, but release an old client's
             // credentials when a replacement watch uses a different daemon client.
