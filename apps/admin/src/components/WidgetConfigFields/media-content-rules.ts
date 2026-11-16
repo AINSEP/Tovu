@@ -1,4 +1,4 @@
-import type { AdminMedia } from "../../lib/api";
+import type { AdminMedia } from "../../features/media/api/media-api.types";
 import { parseMediaHtmlAttributes } from "../../features/media/rules";
 
 /**

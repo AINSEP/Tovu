@@ -1,5 +1,6 @@
 import { getAdminDraftIdentity } from "@/lib/admin-draft-identity";
-import { api, type AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
+import { mediaApi } from "@/features/media/api/media-api";
 import type { AdminThemeSummary, PresentationSettings } from "@/features/themes/api/themes-api.types";
 import { themesApi } from "@/features/themes/api/themes-api";
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
@@ -22,7 +23,7 @@ export const defaultPostEditorPort: PostEditorPort = {
   updatePost: ({ target, patch }, _optional = {}) => postsApi.updatePost(target, { options: patch }),
   deletePost: ({ id }, _optional = {}) => postsApi.deletePost({ id }),
   listPosts: () => postsApi.listPosts(),
-  uploadMedia: (input, _optional = {}) => api.uploadMedia(input),
+  uploadMedia: (input, _optional = {}) => mediaApi.uploadMedia(input),
   templatePreviewUrl: ({ id, templateChoice }, _optional = {}) => postsApi.templatePreviewUrl({ id, templateChoice }),
   putAutosave: ({ id, draft }, options = {}) => postsApi.putAutosave({ id, draft }, options),
   getBackupPrincipalId: () => getAdminDraftIdentity(),
@@ -31,7 +32,7 @@ export const defaultPostEditorPort: PostEditorPort = {
 };
 
 /** The featured/cover image preview's resized URL — `usePostFeaturedImage`'s `renditionUrl` seam. */
-export const defaultFeaturedImageRenditionUrl = ({ id }: { id: string }, _optional = {}): string => api.mediaPreviewRenditionUrl({ id });
+export const defaultFeaturedImageRenditionUrl = ({ id }: { id: string }, _optional = {}): string => mediaApi.mediaPreviewRenditionUrl({ id });
 
 /** Seed state for {@link createFakePostEditorPort}. */
 export interface FakePostEditorPortOptions {

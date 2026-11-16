@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { mediaApi } from "../../features/media/api/media-api";
 import { rolesApi } from "../../features/roles/api/roles-api";
 import { taxonomyApi } from "../../features/taxonomy/api/taxonomy-api";
 import { postsApi } from "../../features/posts/api/posts-api";
@@ -101,9 +102,9 @@ const singleIdCases: Case[] = [
     () => api.listIntegrationDeliveries({ subscriptionId: SLASH_ID }),
     `${BASE_WORKSPACE}/integrations/subscriptions/${ENC}/deliveries`,
   ],
-  ["updateMedia", () => api.updateMedia({ id: SLASH_ID }), `${BASE_WORKSPACE}/media/${ENC}`],
-  ["trashMedia", () => api.trashMedia({ id: SLASH_ID }), `${BASE_WORKSPACE}/media/${ENC}/trash`],
-  ["deleteMedia", () => api.deleteMedia({ id: SLASH_ID }), `${BASE_WORKSPACE}/media/${ENC}`],
+  ["updateMedia", () => mediaApi.updateMedia({ id: SLASH_ID }), `${BASE_WORKSPACE}/media/${ENC}`],
+  ["trashMedia", () => mediaApi.trashMedia({ id: SLASH_ID }), `${BASE_WORKSPACE}/media/${ENC}/trash`],
+  ["deleteMedia", () => mediaApi.deleteMedia({ id: SLASH_ID }), `${BASE_WORKSPACE}/media/${ENC}`],
   ["updateUser", () => usersApi.updateUser({ principalId: SLASH_ID }), `${BASE_WORKSPACE}/users/${ENC}`],
   ["disableUser", () => usersApi.disableUser({ principalId: SLASH_ID }), `${BASE_WORKSPACE}/users/${ENC}/disable`],
   ["enableUser", () => usersApi.enableUser({ principalId: SLASH_ID }), `${BASE_WORKSPACE}/users/${ENC}/enable`],
@@ -233,13 +234,13 @@ test.each(singleIdCases)("%s encodes an id containing '/' in the request URL", a
 // to a DOM element's `src` (same shape as `templatePreviewUrl`, which already encodes). No stub
 // needed.
 test("mediaOriginalUrl encodes an id containing '/' in the URL string it builds", () => {
-  expect(api.mediaOriginalUrl({ id: SLASH_ID })).toBe(`${BASE_API}/workspaces/workspace-local/media/${ENC}/original`);
+  expect(mediaApi.mediaOriginalUrl({ id: SLASH_ID })).toBe(`${BASE_API}/workspaces/workspace-local/media/${ENC}/original`);
 });
 
 // The Edit post cover slot shows the same `public` rendition the published post's cover uses, not the
 // cropped `og` share card (owner 2026-10-11: the slot must match the published page).
 test("mediaPreviewRenditionUrl builds the published cover's public.v1 URL with the id encoded", () => {
-  expect(api.mediaPreviewRenditionUrl({ id: SLASH_ID })).toMatch(new RegExp(`/m/${ENC}/public\\.v1/image\\.jpg$`));
+  expect(mediaApi.mediaPreviewRenditionUrl({ id: SLASH_ID })).toMatch(new RegExp(`/m/${ENC}/public\\.v1/image\\.jpg$`));
 });
 
 // --- Two-id call sites: each segment asserted independently ----------------

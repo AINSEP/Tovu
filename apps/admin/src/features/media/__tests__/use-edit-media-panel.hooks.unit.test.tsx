@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, type AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
+import { mediaApi } from "@/features/media/api/media-api";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
 import { useEditMediaPanel } from "../hooks/use-edit-media-panel.hooks";
@@ -110,7 +111,7 @@ describe("useEditMediaPanel — injected port (no fetch stub)", () => {
   // still uses — see `use-media-preview.hooks.ts`, untouched by this change). Proves the field is a
   // plain pass-through of the server-computed value, not something this hook derives itself.
   it("publicUrl is exactly item.publicUrl, not something this hook computes from the port", () => {
-    const mediaOriginalUrlSpy = vi.spyOn(api, "mediaOriginalUrl");
+    const mediaOriginalUrlSpy = vi.spyOn(mediaApi, "mediaOriginalUrl");
     const item: AdminMedia = { ...ITEM, publicUrl: "https://localhost:3000/m/old-title" };
     const port = createFakeMediaPort({ media: [item] });
     const { result } = renderHook(() => useEditMediaPanel({ item, onSaved: vi.fn(), onCancel: vi.fn() }, { port, locale: "en" }), {
@@ -191,7 +192,7 @@ describe("useEditMediaPanel — injected port (no fetch stub)", () => {
   });
 
   it("saves a changed title through the injected port and calls onSaved, never touching the real api client", async () => {
-    const updateSpy = vi.spyOn(api, "updateMedia");
+    const updateSpy = vi.spyOn(mediaApi, "updateMedia");
     const port = createFakeMediaPort({ media: [ITEM] });
     const onSaved = vi.fn();
     const { result } = renderHook(

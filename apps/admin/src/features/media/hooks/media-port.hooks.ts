@@ -1,4 +1,4 @@
-import type { AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
 
 /**
  * @file What `use-media.hooks.ts`, `use-edit-media-panel.hooks.ts`, and `use-media-preview.hooks.ts`

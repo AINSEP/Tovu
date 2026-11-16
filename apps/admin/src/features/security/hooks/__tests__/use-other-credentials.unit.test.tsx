@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import type { AdminMediaProviderMap } from "@/lib/api";
+import type { AdminMediaProviderMap } from "@/features/media/api/media-api.types";
 import { useOtherCredentials, useWiredOtherCredentials } from "../use-other-credentials.hooks";
 import type { OtherCredentialGroupState } from "../use-other-credentials.hooks";
 import { createFakeOtherCredentialsPort } from "../other-credentials-dependencies.hooks";
@@ -65,14 +65,12 @@ vi.mock("../../../../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../../lib/api")>();
   return {
     ...actual,
-    api: {
-      ...actual.api,
-      getAssistantSiteCredential,
-      getAdminExecutionCredential,
-      getMediaProviders,
-      listExternalMcpServers,
-    },
+    api: { ...actual.api, getAssistantSiteCredential, getAdminExecutionCredential, listExternalMcpServers },
   };
+});
+vi.mock("../../../media/api/media-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../media/api/media-api")>();
+  return { ...actual, mediaApi: { ...actual.mediaApi, getMediaProviders } };
 });
 
 function wrapper({ children }: { children: ReactNode }) {

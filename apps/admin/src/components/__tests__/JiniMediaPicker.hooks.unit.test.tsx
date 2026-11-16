@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MediaPickerPort } from "@jini-ai/admin/contracts/media-picker";
 import { useJiniMediaPicker } from "../MediaPickerDialog/JiniMediaPicker.hooks";
 import { AdminModulesContext } from "../../integrations/jini-admin/modules.hooks";
-import type { AdminMedia } from "../../lib/api";
+import type { AdminMedia } from "../../features/media/api/media-api.types";
 import { MediaPickerDialog, type MediaPickerDialogProps } from "../MediaPickerDialog/MediaPickerDialog";
 
 /**

@@ -1,7 +1,7 @@
 import { createHttpMediaApi } from '@jini-ai/admin/media/adapters/http';
 import type { MediaApiPort, MediaProvidersPort, MediaProvider, MediaEventsPort, MediaProviderConfiguration, MediaProviderConfigurationMap } from '@jini-ai/admin/media';
 import type { MediaProviderOption } from '@jini-ai/ui';
-import { type AdminMediaProviderCredentials, type AdminMediaProviderMap } from '../../lib/api';
+import type { AdminMediaProviderCredentials, AdminMediaProviderMap } from '../../features/media/api/media-api.types';
 import { authenticatedAdminRequest } from '../../lib/admin-http/request';
 import { authenticatedAdminUrl } from '../../lib/admin-http/urls';
 import { WORKSPACE_ID } from '../../lib/admin-http/config';

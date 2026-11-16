@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { api, type AdminMedia, type AdminMediaProviderMap } from "../api";
+import type { AdminMedia, AdminMediaProviderMap } from "../../features/media/api/media-api.types";
+import { mediaApi } from "../../features/media/api/media-api";
 import { ApiError } from "../admin-http/request";
 
 /**
@@ -79,14 +80,14 @@ function media(overrides: Partial<AdminMedia> = {}): AdminMedia {
 test("listMedia GETs the workspace's media list and resolves it verbatim", async () => {
   const list = [media()];
   const { calls } = stubFetchCapturing(okJson({ media: list }));
-  await expect(api.listMedia()).resolves.toEqual({ media: list });
+  await expect(mediaApi.listMedia()).resolves.toEqual({ media: list });
   expect(calls[0].url).toBe(`${BASE}/media`);
   expect(calls[0].init?.method).toBeUndefined();
 });
 
 test("listMedia throws ApiError on a non-2xx response", async () => {
   stubFetchCapturing(errJson(500, "database unavailable"));
-  const error = await api.listMedia().catch((e: unknown) => e);
+  const error = await mediaApi.listMedia().catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).message).toBe("database unavailable");
 });
@@ -96,7 +97,7 @@ test("listMedia throws ApiError on a non-2xx response", async () => {
 test("getMediaProviders GETs the bare provider map (no {data} envelope)", async () => {
   const providers: AdminMediaProviderMap = { grok: { baseUrl: "https://x.example", apiKeyConfigured: true } };
   const { calls } = stubFetchCapturing(okJson(providers));
-  await expect(api.getMediaProviders()).resolves.toEqual(providers);
+  await expect(mediaApi.getMediaProviders()).resolves.toEqual(providers);
   expect(calls[0].url).toBe(`${BASE}/media/providers`);
   expect(calls[0].init?.method).toBeUndefined();
 });
@@ -104,7 +105,7 @@ test("getMediaProviders GETs the bare provider map (no {data} envelope)", async 
 test("saveMediaProviders PUTs the whole provider map as the body and resolves the authoritative copy", async () => {
   const providers: AdminMediaProviderMap = { nanobanana: { baseUrl: "https://y.example", model: "v2" } };
   const { calls, body } = stubFetchCapturing(okJson(providers));
-  const result = await api.saveMediaProviders(providers);
+  const result = await mediaApi.saveMediaProviders(providers);
   expect(calls[0].url).toBe(`${BASE}/media/providers`);
   expect(calls[0].init?.method).toBe("PUT");
   expect(body()).toEqual(providers);
@@ -113,13 +114,13 @@ test("saveMediaProviders PUTs the whole provider map as the body and resolves th
 
 test("saveMediaProviders sending an empty map is how a caller clears every provider — still a plain PUT", async () => {
   const { body } = stubFetchCapturing(okJson({}));
-  await api.saveMediaProviders({});
+  await mediaApi.saveMediaProviders({});
   expect(body()).toEqual({});
 });
 
 test("saveMediaProviders throws ApiError on a validation failure", async () => {
   stubFetchCapturing(errJson(400, "invalid provider config", "VALIDATION_ERROR"));
-  const error = await api.saveMediaProviders({ grok: {} }).catch((e: unknown) => e);
+  const error = await mediaApi.saveMediaProviders({ grok: {} }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).code).toBe("VALIDATION_ERROR");
 });
@@ -127,21 +128,21 @@ test("saveMediaProviders throws ApiError on a validation failure", async () => {
 // --- mediaOriginalUrl ---------------------------------------------------------------
 
 test("mediaOriginalUrl builds the byte-serving URL directly — not routed through request()/fetch at all", () => {
-  expect(api.mediaOriginalUrl({ id: "asset-1" })).toBe(`${BASE}/media/asset-1/original`);
+  expect(mediaApi.mediaOriginalUrl({ id: "asset-1" })).toBe(`${BASE}/media/asset-1/original`);
 });
 
 // --- mediaContentType ---------------------------------------------------------------
 
 test("mediaContentType HEADs the byte-serving URL and resolves its Content-Type header", async () => {
   const { calls } = stubFetchCapturing(new Response(null, { status: 200, headers: { "Content-Type": "image/png" } }));
-  expect(await api.mediaContentType({ id: "asset-1" })).toBe("image/png");
+  expect(await mediaApi.mediaContentType({ id: "asset-1" })).toBe("image/png");
   expect(calls[0].url).toBe(`${BASE}/media/asset-1/original`);
   expect(calls[0].init?.method).toBe("HEAD");
 });
 
 test("mediaContentType resolves '' for a non-2xx answer", async () => {
   stubFetchCapturing(new Response(null, { status: 404, headers: { "Content-Type": "application/json" } }));
-  expect(await api.mediaContentType({ id: "missing" })).toBe("");
+  expect(await mediaApi.mediaContentType({ id: "missing" })).toBe("");
 });
 
 // --- uploadMedia ---------------------------------------------------------------
@@ -149,7 +150,7 @@ test("mediaContentType resolves '' for a non-2xx answer", async () => {
 test("uploadMedia POSTs to the media collection and resolves the created record", async () => {
   const created = media({ id: "asset-9" });
   const { calls } = stubFetchCapturing(okJson({ media: created }));
-  const result = await api.uploadMedia({ filename: "f.png", contentType: "image/png", dataBase64: "AA==" });
+  const result = await mediaApi.uploadMedia({ filename: "f.png", contentType: "image/png", dataBase64: "AA==" });
   expect(calls[0].url).toBe(`${BASE}/media`);
   expect(calls[0].init?.method).toBe("POST");
   expect(result).toEqual({ media: created });
@@ -157,7 +158,7 @@ test("uploadMedia POSTs to the media collection and resolves the created record"
 
 test("uploadMedia throws ApiError when the upload is rejected", async () => {
   stubFetchCapturing(errJson(413, "payload too large"));
-  const error = await api
+  const error = await mediaApi
     .uploadMedia({ filename: "big.png", contentType: "image/png", dataBase64: "AA==" })
     .catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
@@ -169,7 +170,7 @@ test("uploadMedia throws ApiError when the upload is rejected", async () => {
 test("updateMedia PATCHes /media/:id with the given options as the body", async () => {
   const updated = media({ id: "asset-1", title: "New title" });
   const { calls, body } = stubFetchCapturing(okJson({ media: updated }));
-  const result = await api.updateMedia({ id: "asset-1" }, { title: "New title" });
+  const result = await mediaApi.updateMedia({ id: "asset-1" }, { title: "New title" });
   expect(calls[0].url).toBe(`${BASE}/media/asset-1`);
   expect(calls[0].init?.method).toBe("PATCH");
   expect(body()).toEqual({ title: "New title" });
@@ -178,19 +179,19 @@ test("updateMedia PATCHes /media/:id with the given options as the body", async 
 
 test("updateMedia sends an empty body when the caller passes no options", async () => {
   const { body } = stubFetchCapturing(okJson({ media: media() }));
-  await api.updateMedia({ id: "asset-1" });
+  await mediaApi.updateMedia({ id: "asset-1" });
   expect(body()).toEqual({});
 });
 
 test("updateMedia can explicitly null out width/height/cssClass", async () => {
   const { body } = stubFetchCapturing(okJson({ media: media() }));
-  await api.updateMedia({ id: "asset-1" }, { width: null, height: null, cssClass: null });
+  await mediaApi.updateMedia({ id: "asset-1" }, { width: null, height: null, cssClass: null });
   expect(body()).toEqual({ width: null, height: null, cssClass: null });
 });
 
 test("updateMedia throws ApiError for an unknown id", async () => {
   stubFetchCapturing(errJson(404, "media not found"));
-  const error = await api.updateMedia({ id: "missing" }, { title: "x" }).catch((e: unknown) => e);
+  const error = await mediaApi.updateMedia({ id: "missing" }, { title: "x" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).status).toBe(404);
 });
@@ -200,7 +201,7 @@ test("updateMedia throws ApiError for an unknown id", async () => {
 test("trashMedia POSTs to /media/:id/trash and resolves the trashed record", async () => {
   const trashed = media({ status: "trashed" });
   const { calls } = stubFetchCapturing(okJson({ media: trashed }));
-  const result = await api.trashMedia({ id: "asset-1" });
+  const result = await mediaApi.trashMedia({ id: "asset-1" });
   expect(calls[0].url).toBe(`${BASE}/media/asset-1/trash`);
   expect(calls[0].init?.method).toBe("POST");
   expect(result).toEqual({ media: trashed });
@@ -208,7 +209,7 @@ test("trashMedia POSTs to /media/:id/trash and resolves the trashed record", asy
 
 test("trashMedia throws ApiError for an unknown id", async () => {
   stubFetchCapturing(errJson(404, "media not found"));
-  const error = await api.trashMedia({ id: "missing" }).catch((e: unknown) => e);
+  const error = await mediaApi.trashMedia({ id: "missing" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
 });
 
@@ -216,7 +217,7 @@ test("trashMedia throws ApiError for an unknown id", async () => {
 
 test("deleteMedia DELETEs /media/:id and resolves { purged: true }", async () => {
   const { calls } = stubFetchCapturing(okJson({ purged: true }));
-  const result = await api.deleteMedia({ id: "asset-1" });
+  const result = await mediaApi.deleteMedia({ id: "asset-1" });
   expect(calls[0].url).toBe(`${BASE}/media/asset-1`);
   expect(calls[0].init?.method).toBe("DELETE");
   expect(result).toEqual({ purged: true });
@@ -224,7 +225,7 @@ test("deleteMedia DELETEs /media/:id and resolves { purged: true }", async () =>
 
 test("deleteMedia throws ApiError when the asset is still referenced", async () => {
   stubFetchCapturing(errJson(409, "still referenced by content", "RESOURCE_CONFLICT"));
-  const error = await api.deleteMedia({ id: "asset-1" }).catch((e: unknown) => e);
+  const error = await mediaApi.deleteMedia({ id: "asset-1" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ApiError);
   expect((error as ApiError).code).toBe("RESOURCE_CONFLICT");
 });

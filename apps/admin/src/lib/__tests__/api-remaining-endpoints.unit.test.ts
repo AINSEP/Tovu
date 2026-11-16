@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "../api";
+import { mediaApi } from "../../features/media/api/media-api";
 import { postsApi } from "../../features/posts/api/posts-api";
 import { usersApi } from "../../features/users/api/users-api";
 import { authApi } from "../../features/auth/api/auth-api";
@@ -86,16 +87,16 @@ describe("endpoints", () => {
       new Response(null, { status: 404, headers: { "content-type": "text/html" } }),
     ];
     const calls = stubFetch(() => replies.shift()!);
-    expect(await api.mediaContentType({ id: "m1" })).toBe("video/mp4");
-    expect(await api.mediaContentType({ id: "m1" })).toBe("");
-    expect(await api.mediaContentType({ id: "m1" })).toBe("");
-    expect(calls.every((call) => call.method === "HEAD" && call.url === api.mediaOriginalUrl({ id: "m1" }))).toBe(true);
+    expect(await mediaApi.mediaContentType({ id: "m1" })).toBe("video/mp4");
+    expect(await mediaApi.mediaContentType({ id: "m1" })).toBe("");
+    expect(await mediaApi.mediaContentType({ id: "m1" })).toBe("");
+    expect(calls.every((call) => call.method === "HEAD" && call.url === mediaApi.mediaOriginalUrl({ id: "m1" }))).toBe(true);
   });
 
   it("media import from URL, with and without descriptive options", async () => {
     const calls = stubFetch();
-    await api.importMediaFromUrl({ url: "https://example.com/a.png" });
-    await api.importMediaFromUrl({ url: "https://example.com/a.png" }, { alt: "A", filename: "a.png" });
+    await mediaApi.importMediaFromUrl({ url: "https://example.com/a.png" });
+    await mediaApi.importMediaFromUrl({ url: "https://example.com/a.png" }, { alt: "A", filename: "a.png" });
     expect(calls).toEqual([
       { url: `${W}/media/import-url`, method: "POST", body: { url: "https://example.com/a.png" } },
       { url: `${W}/media/import-url`, method: "POST", body: { url: "https://example.com/a.png", alt: "A", filename: "a.png" } },
@@ -104,11 +105,11 @@ describe("endpoints", () => {
 
   it("documents: list, upload as a document, and read text pages", async () => {
     const calls = stubFetch();
-    await api.listDocuments();
-    await api.uploadDocument({ filename: "notes.md", dataBase64: "aGk=" });
-    await api.readDocumentText({ id: "d 1" });
-    await api.readDocumentText({ id: "d 1" }, { offset: 0 });
-    await api.readDocumentText({ id: "d 1" }, { offset: 65536 });
+    await mediaApi.listDocuments();
+    await mediaApi.uploadDocument({ filename: "notes.md", dataBase64: "aGk=" });
+    await mediaApi.readDocumentText({ id: "d 1" });
+    await mediaApi.readDocumentText({ id: "d 1" }, { offset: 0 });
+    await mediaApi.readDocumentText({ id: "d 1" }, { offset: 65536 });
     expect(calls).toEqual([
       { url: `${W}/media?kind=document`, method: "GET" },
       { url: `${W}/media`, method: "POST", body: { filename: "notes.md", dataBase64: "aGk=", kind: "document" } },

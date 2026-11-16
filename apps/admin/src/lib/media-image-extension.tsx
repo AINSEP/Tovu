@@ -2,7 +2,7 @@ import { createMediaImageTranslator, createMediaImageReplace } from "./media-ima
 import { useState } from "react";
 import TiptapImage from "@tiptap/extension-image";
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
-import { api } from "./api";
+import { mediaApi } from "../features/media/api/media-api";
 import { MediaPickerDialog } from "../components/MediaPickerDialog/MediaPickerDialog";
 import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
 
@@ -60,7 +60,7 @@ export function MediaImageNodeView(props: NodeViewProps) {
   const t = createMediaImageTranslator({ locale });
 
   const isRef = assetId.length > 0 && transformName.length > 0;
-  const previewSrc = isRef ? api.mediaOriginalUrl({ id: assetId }) : legacySrc;
+  const previewSrc = isRef ? mediaApi.mediaOriginalUrl({ id: assetId }) : legacySrc;
 
   const replaceWith = createMediaImageReplace({ props, setPicking });
 

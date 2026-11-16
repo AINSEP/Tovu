@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 
-import { type AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { KEYS, MEDIA_RESOURCE, findEditingItem, readFileAsBase64, visibleMediaError, type MediaOrderBy } from "../rules";

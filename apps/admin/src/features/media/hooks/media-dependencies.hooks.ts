@@ -1,4 +1,5 @@
-import { api, type AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
+import { mediaApi } from "@/features/media/api/media-api";
 import { usersApi } from "@/features/users/api/users-api";
 import { trashApi } from "@/features/trash/api/trash-api";
 import type { MediaPort } from "./media-port.hooks";
@@ -13,17 +14,17 @@ import { asciiSlug } from "../../../lib/ascii-slug";
  *  than pointing at it directly, so a route's default-parameter shape (`uploadMedia`'s
  *  `options = {}`, `updateMedia`'s `options = {}`) stays `lib/api.ts`'s to own. */
 export const defaultMediaPort: MediaPort = {
-  listMedia: () => api.listMedia(),
-  uploadMedia: (input, options) => api.uploadMedia(input, options),
-  updateMedia: (target, options) => api.updateMedia(target, options),
-  trashMedia: (id) => api.trashMedia({ id }),
-  deleteMedia: (id) => api.deleteMedia({ id }),
+  listMedia: () => mediaApi.listMedia(),
+  uploadMedia: (input, options) => mediaApi.uploadMedia(input, options),
+  updateMedia: (target, options) => mediaApi.updateMedia(target, options),
+  trashMedia: (id) => mediaApi.trashMedia({ id }),
+  deleteMedia: (id) => mediaApi.deleteMedia({ id }),
   // No media-specific restore route: the shared Trash restore already handles media rows.
   restoreMedia: async (id) => {
     const report = await trashApi.restoreTrashItems({ items: [{ entityType: "media", entityId: id }] });
     return { restored: report.restored === 1 };
   },
-  mediaOriginalUrl: (id) => api.mediaOriginalUrl({ id }),
+  mediaOriginalUrl: (id) => mediaApi.mediaOriginalUrl({ id }),
   listUsers: () => usersApi.listUsers(),
 };
 

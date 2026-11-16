@@ -1,7 +1,7 @@
 import { useCallback as useQueryFetchCallback } from "react";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { acceptsMedia } from "@jini-ai/admin/media";
-import { type AdminMedia } from "../../lib/api";
+import type { AdminMedia } from "../../features/media/api/media-api.types";
 import { describeApiError } from "../../lib/admin-http/request";
 import { DEFAULT_LOCALE } from "../../hooks/admin-locale-dependencies.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";

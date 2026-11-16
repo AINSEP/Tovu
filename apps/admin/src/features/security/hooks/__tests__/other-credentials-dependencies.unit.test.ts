@@ -1,11 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type {
-  AdminExecutionCredential,
-  AdminExternalMcpServer,
-  AdminMediaProviderMap,
-  SiteAssistantCredential,
-} from "@/lib/api";
+import type { AdminExecutionCredential, AdminExternalMcpServer, SiteAssistantCredential } from "@/lib/api";
+import type { AdminMediaProviderMap } from "@/features/media/api/media-api.types";
 
 /**
  * @file Coverage for `other-credentials-dependencies.hooks.ts` — two independent surfaces:
@@ -46,20 +42,12 @@ vi.mock("../../../../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../../lib/api")>();
   return {
     ...actual,
-    api: {
-      ...actual.api,
-      getAssistantSiteCredential,
-      setAssistantSiteCredential,
-      deleteAssistantSiteCredential,
-      getAdminExecutionCredential,
-      setAdminExecutionCredential,
-      deleteAdminExecutionCredential,
-      getMediaProviders,
-      saveMediaProviders,
-      listExternalMcpServers,
-      deleteExternalMcpServer,
-    },
+    api: { ...actual.api, getAssistantSiteCredential, setAssistantSiteCredential, deleteAssistantSiteCredential, getAdminExecutionCredential, setAdminExecutionCredential, deleteAdminExecutionCredential, listExternalMcpServers, deleteExternalMcpServer },
   };
+});
+vi.mock("../../../media/api/media-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../media/api/media-api")>();
+  return { ...actual, mediaApi: { ...actual.mediaApi, getMediaProviders, saveMediaProviders } };
 });
 
 const { createFakeOtherCredentialsPort, defaultOtherCredentialsPort } = await import("../other-credentials-dependencies.hooks");

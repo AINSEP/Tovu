@@ -6,7 +6,7 @@ import { Media } from "../Media";
 import { resolveMediaTabs } from "../Media.hooks";
 import { mediaContentTabCounts } from "../rules";
 import { MEDIA_PROVIDER_CATALOG } from "../media-provider-catalog";
-import type { AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
 /**

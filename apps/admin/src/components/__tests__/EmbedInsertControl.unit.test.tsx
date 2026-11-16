@@ -2,7 +2,8 @@ import { fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-qu
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, type AdminMedia } from "../../lib/api";
+import type { AdminMedia } from "../../features/media/api/media-api.types";
+import { mediaApi } from "../../features/media/api/media-api";
 import type { AdminWidget } from "../../features/widgets/api/widgets-api.types";
 import { widgetsApi } from "../../features/widgets/api/widgets-api";
 import { EmbedInsertControl } from "../EmbedInsertControl/EmbedInsertControl";
@@ -122,7 +123,7 @@ describe("EmbedInsertControl — the Embed menu", () => {
 describe("EmbedInsertControl — Media", () => {
   it("opens MediaPickerDialog, closes the menu, and selecting an asset inserts it on the public transform", async () => {
     const user = userEvent.setup();
-    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [mediaItem()] });
+    vi.spyOn(mediaApi, "listMedia").mockResolvedValue({ media: [mediaItem()] });
     const editor = fakeEditor();
     render(<EmbedInsertControl editor={editor} />);
 
@@ -147,7 +148,7 @@ describe("EmbedInsertControl — Media", () => {
    */
   it("falls back to the asset's title as alt text when it carries no alt text of its own", async () => {
     const user = userEvent.setup();
-    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [mediaItem({ id: "m2", title: "Untitled photo", alt: "" })] });
+    vi.spyOn(mediaApi, "listMedia").mockResolvedValue({ media: [mediaItem({ id: "m2", title: "Untitled photo", alt: "" })] });
     const editor = fakeEditor();
     render(<EmbedInsertControl editor={editor} />);
 
@@ -169,7 +170,7 @@ describe("EmbedInsertControl — Media", () => {
    */
   it("Cancel closes MediaPickerDialog without inserting anything", async () => {
     const user = userEvent.setup();
-    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [mediaItem()] });
+    vi.spyOn(mediaApi, "listMedia").mockResolvedValue({ media: [mediaItem()] });
     const editor = fakeEditor();
     render(<EmbedInsertControl editor={editor} />);
 
@@ -424,7 +425,7 @@ describe("EmbedInsertControl — useEmbed injection", () => {
     // clicked "Media" to get here: `mediaPicking` starts `false` on every real render (see the
     // "no editor"/"opens on click" tests above), so a mounted dialog with zero clicks is reachable
     // only through the injected `true`.
-    vi.spyOn(api, "listMedia").mockReturnValue(new Promise(() => {}));
+    vi.spyOn(mediaApi, "listMedia").mockReturnValue(new Promise(() => {}));
     const fakeUseEmbed: typeof useEmbedInsertControl = () => ({
       open: false,
       setOpen: vi.fn(),

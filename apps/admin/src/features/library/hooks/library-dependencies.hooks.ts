@@ -1,4 +1,5 @@
-import { api, type AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
+import { mediaApi } from "@/features/media/api/media-api";
 import { usersApi } from "@/features/users/api/users-api";
 import { authApi } from "@/features/auth/api/auth-api";
 import type { LibraryPort } from "./library-port.hooks";
@@ -47,12 +48,12 @@ export function createApiLibraryPort({ client, fetchFn }: { client: LibraryApiCl
 /** The Library reads three feature API clients. Each method is looked up when it is called, so a
  *  test that replaces a client method is still reached, as it was when one object held them all. */
 const libraryApiClient: LibraryApiClient = {
-  listDocuments: (...args) => api.listDocuments(...args),
-  uploadDocument: (...args) => api.uploadDocument(...args),
-  updateMedia: (...args) => api.updateMedia(...args),
-  trashMedia: (...args) => api.trashMedia(...args),
-  readDocumentText: (...args) => api.readDocumentText(...args),
-  mediaOriginalUrl: (...args) => api.mediaOriginalUrl(...args),
+  listDocuments: (...args) => mediaApi.listDocuments(...args),
+  uploadDocument: (...args) => mediaApi.uploadDocument(...args),
+  updateMedia: (...args) => mediaApi.updateMedia(...args),
+  trashMedia: (...args) => mediaApi.trashMedia(...args),
+  readDocumentText: (...args) => mediaApi.readDocumentText(...args),
+  mediaOriginalUrl: (...args) => mediaApi.mediaOriginalUrl(...args),
   me: (...args) => authApi.me(...args),
   listUsers: (...args) => usersApi.listUsers(...args),
 };

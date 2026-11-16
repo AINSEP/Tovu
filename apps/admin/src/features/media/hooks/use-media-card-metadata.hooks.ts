@@ -1,5 +1,5 @@
 import * as mediaFormatters from "@jini-ai/admin/media";
-import type { AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
 
 /** Jini owns generic formatting; this hook only adapts the legacy card's view model. */
 export interface MediaMetadataFormatters {

@@ -5,7 +5,7 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 import { FileDropzone, Toast } from "@jini-ai/ui";
 
 import { TabBar } from "@jini-ai/ui/tab-strip";
-import type { AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
 import { navigate } from "@/lib/router";
 import { UploadIcon, goToLibraryTab, resolveLibraryTabId, resolveLibraryTabs } from "./Library.hooks";
 import { useWiredLibrary, type LibraryController, type LibraryPreviewState, type LibraryUploadRow } from "./hooks/use-library.hooks";

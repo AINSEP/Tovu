@@ -2,7 +2,8 @@ import { render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { api, type AdminMedia } from "../../lib/api";
+import type { AdminMedia } from "../../features/media/api/media-api.types";
+import { mediaApi } from "../../features/media/api/media-api";
 import type { AdminWidget } from "../../features/widgets/api/widgets-api.types";
 import { widgetsApi } from "../../features/widgets/api/widgets-api";
 import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
@@ -61,7 +62,7 @@ afterEach(() => {
 
 describe("MediaPickerDialog agentHandle", () => {
   it("omits data-agent-* on grid items and Cancel when agentHandle is not passed", async () => {
-    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [mediaItem({ id: "m1", title: "Sunset" })] });
+    vi.spyOn(mediaApi, "listMedia").mockResolvedValue({ media: [mediaItem({ id: "m1", title: "Sunset" })] });
     render(<MediaPickerDialog onSelect={vi.fn()} onCancel={vi.fn()} />);
     const item = await screen.findByTitle("Sunset");
     expect(item).not.toHaveAttribute(AGENT_ELEMENT);
@@ -69,7 +70,7 @@ describe("MediaPickerDialog agentHandle", () => {
   });
 
   it("keys each grid item by the asset's own id, and tags Cancel", async () => {
-    vi.spyOn(api, "listMedia").mockResolvedValue({
+    vi.spyOn(mediaApi, "listMedia").mockResolvedValue({
       media: [mediaItem({ id: "m1", title: "Sunset" }), mediaItem({ id: "m2", title: "Mountain" })],
     });
     render(<MediaPickerDialog onSelect={vi.fn()} onCancel={vi.fn()} agentHandle="post-media" />);

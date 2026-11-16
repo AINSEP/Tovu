@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-import type { AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
 import { navigate } from "@/lib/router";
 import type { MediaTabId } from "./use-media-tabs.hooks";
 

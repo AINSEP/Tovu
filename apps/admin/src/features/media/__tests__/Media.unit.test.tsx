@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_ALLOWED_MIME_TYPES } from "@jini-ai/cms/media";
 
 import { Media } from "../Media";
-import { api } from "@/lib/api";
+import { mediaApi } from "@/features/media/api/media-api";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
 /**
@@ -327,7 +327,7 @@ describe("preview fallback chain", () => {
     const card = cardFor(await waitForCard(container, "Sunset Photo.png"), "Sunset Photo.png");
     const img = card.querySelector("img");
     expect(img).toBeInTheDocument();
-    expect(img).toHaveAttribute("src", api.mediaOriginalUrl({ id: "media-1" }));
+    expect(img).toHaveAttribute("src", mediaApi.mediaOriginalUrl({ id: "media-1" }));
     expect(img).toHaveAttribute("alt", "A sunset over the ocean");
     expect(img).toHaveAttribute("loading", "lazy");
   });
@@ -354,7 +354,7 @@ describe("preview fallback chain", () => {
     await waitFor(() => {
       const video = card.querySelector("video");
       expect(video).toBeInTheDocument();
-      expect(video).toHaveAttribute("src", api.mediaOriginalUrl({ id: "media-1" }));
+      expect(video).toHaveAttribute("src", mediaApi.mediaOriginalUrl({ id: "media-1" }));
       expect(video).not.toHaveAttribute("controls");
       expect(video).not.toHaveAttribute("autoplay");
       expect(card.querySelector("img")).not.toBeInTheDocument();
@@ -380,7 +380,7 @@ describe("preview fallback chain", () => {
       expect(within(card).getByText("Preview not available")).toBeInTheDocument();
     });
     const downloadLink = within(card).getByRole("link", { name: /download original/i });
-    expect(downloadLink).toHaveAttribute("href", api.mediaOriginalUrl({ id: "media-1" }));
+    expect(downloadLink).toHaveAttribute("href", mediaApi.mediaOriginalUrl({ id: "media-1" }));
   });
 });
 
@@ -426,13 +426,13 @@ describe("lightbox", () => {
     await waitFor(() => expect(dialog.hasAttribute("open")).toBe(true));
 
     const lightboxImg = dialog.querySelector(".media-lightbox-media img")!;
-    expect(lightboxImg).toHaveAttribute("src", api.mediaOriginalUrl({ id: "media-1" }));
+    expect(lightboxImg).toHaveAttribute("src", mediaApi.mediaOriginalUrl({ id: "media-1" }));
 
     fireEvent.error(lightboxImg);
     await waitFor(() => {
       expect(dialog.querySelector(".media-lightbox-media video")).toHaveAttribute(
         "src",
-        api.mediaOriginalUrl({ id: "media-1" })
+        mediaApi.mediaOriginalUrl({ id: "media-1" })
       );
     });
   });
@@ -463,7 +463,7 @@ describe("lightbox", () => {
     fireEvent.keyDown(dialog, { key: "ArrowRight" });
 
     await waitFor(() => {
-      expect(dialog.querySelector(".media-lightbox-media img")).toHaveAttribute("src", api.mediaOriginalUrl({ id: "media-2" }));
+      expect(dialog.querySelector(".media-lightbox-media img")).toHaveAttribute("src", mediaApi.mediaOriginalUrl({ id: "media-2" }));
     });
     expect(dialog.querySelector(".media-lightbox-media .media-card-placeholder")).toBeNull();
   });

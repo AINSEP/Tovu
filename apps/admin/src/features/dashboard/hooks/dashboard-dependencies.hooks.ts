@@ -1,4 +1,5 @@
 import { api, type AdminSiteKeyState } from "@/lib/api";
+import { mediaApi } from "@/features/media/api/media-api";
 import { themesApi } from "@/features/themes/api/themes-api";
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { postsApi } from "@/features/posts/api/posts-api";
@@ -19,7 +20,7 @@ import type { DashboardPort } from "./dashboard-port.hooks";
 export const defaultDashboardPort: DashboardPort = {
   listPosts: () => postsApi.listPosts(),
   listPages: () => pagesApi.listPages(),
-  listMedia: () => api.listMedia(),
+  listMedia: () => mediaApi.listMedia(),
   listCommentsQueue: (options, _optional = {}) => commentsApi.listCommentsQueue(options),
   getPresentation: () => themesApi.getPresentation(),
   getPasswordStatus: async ({ principalId } = {}) => {

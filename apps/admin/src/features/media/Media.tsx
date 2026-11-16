@@ -1,6 +1,6 @@
 import { useAdminThemeBoundary } from "../../admin-themes/use-admin-theme.hooks";
 import { useId, type ReactNode } from "react";
-import type { AdminMedia } from "../../lib/api";
+import type { AdminMedia } from "./api/media-api.types";
 import { ServerLabel } from "@/components/status-labels";
 import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import { I18nProvider, MediaProvidersTab, SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/ui";

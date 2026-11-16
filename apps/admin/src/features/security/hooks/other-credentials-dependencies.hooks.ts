@@ -1,4 +1,6 @@
-import { api, type AdminMediaProviderMap } from "@/lib/api";
+import { api } from "@/lib/api";
+import type { AdminMediaProviderMap } from "@/features/media/api/media-api.types";
+import { mediaApi } from "@/features/media/api/media-api";
 import type { OtherCredentialsPort } from "./other-credentials-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches
@@ -15,8 +17,8 @@ export const defaultOtherCredentialsPort: OtherCredentialsPort = {
   setAdminByokCredential: (patch, _optional = {}) => api.setAdminExecutionCredential(patch),
   deleteAdminByokCredential: () => api.deleteAdminExecutionCredential(),
 
-  getMediaProviders: () => api.getMediaProviders(),
-  saveMediaProviders: (providers, _optional = {}) => api.saveMediaProviders(providers),
+  getMediaProviders: () => mediaApi.getMediaProviders(),
+  saveMediaProviders: (providers, _optional = {}) => mediaApi.saveMediaProviders(providers),
 
   listExternalMcpServers: () => api.listExternalMcpServers(),
   deleteExternalMcpServer: ({ serverId }, _optional = {}) => api.deleteExternalMcpServer({ serverId }),

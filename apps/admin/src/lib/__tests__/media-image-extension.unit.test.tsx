@@ -5,7 +5,8 @@ import StarterKit from "@tiptap/starter-kit";
 import { EditorContent, type NodeViewProps } from "@tiptap/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, type AdminMedia } from "../api";
+import type { AdminMedia } from "../../features/media/api/media-api.types";
+import { mediaApi } from "../../features/media/api/media-api";
 import { MediaImage, MediaImageNodeView } from "../media-image-extension";
 
 /**
@@ -69,7 +70,7 @@ describe("MediaImageNodeView", () => {
     render(<MediaImageNodeView {...fakeNodeViewProps({ assetId: "asset-1", transformName: "public", alt: "Dune" })} />);
 
     const img = screen.getByRole("img") as HTMLImageElement;
-    expect(img.src).toContain(api.mediaOriginalUrl({ id: "asset-1" }));
+    expect(img.src).toContain(mediaApi.mediaOriginalUrl({ id: "asset-1" }));
     expect(img).toHaveAttribute("alt", "Dune");
     expect(screen.queryByLabelText("Broken image reference")).not.toBeInTheDocument();
   });
@@ -97,7 +98,7 @@ describe("MediaImageNodeView", () => {
     );
 
     const img = screen.getByRole("img") as HTMLImageElement;
-    expect(img.src).toContain(api.mediaOriginalUrl({ id: "asset-1" }));
+    expect(img.src).toContain(mediaApi.mediaOriginalUrl({ id: "asset-1" }));
   });
 
   it("broken-ref branch: neither assetId/transformName nor src renders the unavailable label, no real <img>", () => {
@@ -134,7 +135,7 @@ describe("MediaImageNodeView", () => {
       // raw network stub.
       // `alt: ""` on the picked asset — exercises `replaceWith`'s `item.alt || item.title` fallback,
       // rather than masking it with a truthy alt that would pass either way.
-      vi.spyOn(api, "listMedia").mockResolvedValue({ media: [media({ id: "asset-2", title: "New pick", alt: "" })] });
+      vi.spyOn(mediaApi, "listMedia").mockResolvedValue({ media: [media({ id: "asset-2", title: "New pick", alt: "" })] });
       render(
         <MediaImageNodeView
           {...fakeNodeViewProps({ assetId: "asset-1", transformName: "public", alt: "Old" }, { updateAttributes })}
@@ -156,7 +157,7 @@ describe("MediaImageNodeView", () => {
     it("closes the dialog on cancel without updating anything", async () => {
       const user = userEvent.setup();
       const updateAttributes = vi.fn();
-      vi.spyOn(api, "listMedia").mockResolvedValue({ media: [] });
+      vi.spyOn(mediaApi, "listMedia").mockResolvedValue({ media: [] });
       render(
         <MediaImageNodeView
           {...fakeNodeViewProps({ assetId: "asset-1", transformName: "public" }, { updateAttributes })}
@@ -195,7 +196,7 @@ describe("MediaImage — real @tiptap/core Editor integration", () => {
 
 describe("MediaImage mounted node view and HTML serialization", () => {
   it("Replace updates a legacy image's document and preview, clearing stored URLs", async () => {
-    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [media({ id: "asset-new", title: "New pick", alt: "New alt" })] });
+    vi.spyOn(mediaApi, "listMedia").mockResolvedValue({ media: [media({ id: "asset-new", title: "New pick", alt: "New alt" })] });
     const editor = new Editor({ extensions: [StarterKit, MediaImage], content: { type: "doc", content: [
       { type: "image", attrs: { src: "https://example.com/old.png", title: "Old title", alt: "Old" } }, { type: "paragraph" },
     ] } });
@@ -208,7 +209,7 @@ describe("MediaImage mounted node view and HTML serialization", () => {
       expect(editor.getJSON().content?.find((node) => node.type === "image")?.attrs).toEqual({
         assetId: "asset-new", transformName: "public", alt: "New alt", src: null, title: null, width: null, height: null,
       });
-      expect(await screen.findByAltText("New alt")).toHaveAttribute("src", api.mediaOriginalUrl({ id: "asset-new" }));
+      expect(await screen.findByAltText("New alt")).toHaveAttribute("src", mediaApi.mediaOriginalUrl({ id: "asset-new" }));
       expect(screen.queryByAltText("Old")).not.toBeInTheDocument();
     } finally { mounted.unmount(); editor.destroy(); }
   });

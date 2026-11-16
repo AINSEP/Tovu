@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { mediaApi } from "../../features/media/api/media-api";
 import { rolesApi } from "../../features/roles/api/roles-api";
 import { usersApi } from "../../features/users/api/users-api";
 import { collectionsApi } from "../../features/collections/api/collections-api";
@@ -134,13 +135,13 @@ test("pauseIntegrationSubscription sends the same request whether or not the unu
 
 test("uploadMedia sends no extra metadata fields when the caller passes none", async () => {
   const { body } = stubFetchCapturing();
-  await api.uploadMedia({ filename: "f.png", contentType: "image/png", dataBase64: "AA==" });
+  await mediaApi.uploadMedia({ filename: "f.png", contentType: "image/png", dataBase64: "AA==" });
   expect(body()).toEqual({ filename: "f.png", contentType: "image/png", dataBase64: "AA==" });
 });
 
 test("uploadMedia includes alt/caption/credit when the caller passes them", async () => {
   const { body } = stubFetchCapturing();
-  await api.uploadMedia(
+  await mediaApi.uploadMedia(
     { filename: "f.png", contentType: "image/png", dataBase64: "AA==" },
     { alt: "a photo", caption: "cap", credit: "cred" }
   );

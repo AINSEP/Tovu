@@ -1,11 +1,5 @@
-import type {
-  AdminExecutionCredential,
-  AdminExecutionCredentialPatch,
-  AdminExternalMcpServer,
-  AdminMediaProviderMap,
-  SiteAssistantCredential,
-  SiteAssistantCredentialPatch,
-} from "@/lib/api";
+import type { AdminExecutionCredential, AdminExecutionCredentialPatch, AdminExternalMcpServer, SiteAssistantCredential, SiteAssistantCredentialPatch } from "@/lib/api";
+import type { AdminMediaProviderMap } from "@/features/media/api/media-api.types";
 
 /**
  * @file What `useOtherCredentials` needs from the outside world, as an interface rather than a

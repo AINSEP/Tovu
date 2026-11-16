@@ -1,6 +1,6 @@
 import { useState, type SyntheticEvent } from "react";
 
-import type { AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
 import { mediaAltText, type MediaShape } from "../rules";
 import { defaultMediaPort } from "./media-dependencies.hooks";
 import type { MediaPort } from "./media-port.hooks";

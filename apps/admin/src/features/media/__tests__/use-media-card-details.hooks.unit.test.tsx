@@ -3,7 +3,7 @@ import { act, renderHook } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { useMediaCardDetails } from "../hooks/use-media-card-details.hooks";
-import type { AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
 
 describe("phone media card details", () => {
   it("server-renders the desktop card when no window is available", () => {

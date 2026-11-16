@@ -1,4 +1,5 @@
-import { api, type AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
+import { mediaApi } from "@/features/media/api/media-api";
 
 /** The admin URL-import port is separate so existing upload/edit consumers need no new dependency. */
 export interface MediaImportPort {
@@ -6,5 +7,5 @@ export interface MediaImportPort {
 }
 
 export const defaultMediaImportPort: MediaImportPort = {
-  importFromUrl: (required, optional = {}) => api.importMediaFromUrl(required, optional),
+  importFromUrl: (required, optional = {}) => mediaApi.importMediaFromUrl(required, optional),
 };
