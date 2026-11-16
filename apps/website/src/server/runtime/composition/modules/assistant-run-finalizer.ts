@@ -41,15 +41,15 @@ import { createNodeSupervisorScheduler } from "@jini-ai/sidecar/supervisor/node"
 
 import { type ChatRunLedger, type RunSettlement } from "#src/assistant/index";
 import { createHttpRunDaemonClient, type RunDaemonClient, type RunDaemonRequest } from "./run-daemon-http-client.js";
+import { approximateJsonBytes, checkpointGrew, hasUnsavedCheckpointGrowth } from "./run-finalizer/checkpoint-policy.js";
+import { clearTrailing, stopWatch, watchable, type Watch } from "./run-finalizer/watch-state.js";
 import {
-  isDaemonRunId,
   readSseFrames,
   runContentFromEvents,
   runEventsForSave,
   translateRunFrame,
-  type RunFrameCarry,
 } from "#src/contracts/core/assistant-run-events";
-import { isTerminalRunStatus, type AgentEvent } from "@jini-ai/chat/core";
+import type { AgentEvent } from "@jini-ai/chat/core";
 
 import { createNoopObservabilityPort, type AgentRunStatus, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 
@@ -107,61 +107,12 @@ export interface AssistantRunFinalizer {
 }
 
 
-type CheckpointState = NonNullable<Parameters<ChatRunLedger["checkpoint"]>[1]>["previous"];
-
-/** One run being watched: the events received on the current connection, and whether it failed. */
-interface Watch {
-  /** Last exact persisted projection. Owned by this watch; no ledger cache/release lifecycle. */
-  checkpointState?: CheckpointState;
-  readonly daemon: RunDaemonClient;
-  readonly abortStream: AbortController;
-  resolutionDeadline: number;
-  readonly principalId: string;
-  readonly conversationId: string;
-  readonly messageId: string;
-  readonly runId: string;
-  readonly attemptBase: AgentEvent[];
-  events: AgentEvent[];
-  /** Keep the last complete checkpoint while a reconnect is still replaying an earlier prefix. */
-  retainedEvents: AgentEvent[];
-  /** Split-echo-line memory for the current connection; reset with `events` on every replay. */
-  frameCarry?: RunFrameCarry;
-  failed: boolean;
-  /** Saved payload size and start time of the latest checkpoint attempt (writes are best
-   *  effort). The saved size picks the interval before the next one. */
-  checkpointedAt: number;
-  checkpointedBytes: number;
-  /** Meaningful saved progress: status chatter and replayed tool identities do not qualify. */
-  checkpointedTextCharacters: number;
-  checkpointedExtensionEvents: number;
-  checkpointedTools: Set<string>;
-  /** Only one best-effort progress write at a time; later frames are coalesced into the next one. */
-  checkpointPending: boolean;
-  /** Failed writes cannot be retried by new frames before the backed-off deadline. */
-  checkpointRetryAt?: number;
-  /** Stops progress scheduling as soon as the terminal outcome is known, before its durable write. */
-  terminal: boolean;
-  /** The trailing checkpoint armed when the interval skipped one (see `checkpoint`). */
-  trailing?: ReturnType<typeof setTimeout>;
-}
 
 function recoverySettings({ options }: { options: AssistantRunFinalizerOptions }, _optional = {}) {
   return { reconnectDelayMs: options.reconnectDelayMs ?? 2_000, maxReconnects: Math.max(0, options.maxReconnects ?? 30),
     resolutionTimeoutMs: options.resolutionTimeoutMs ?? 120_000, statusTimeoutMs: options.statusTimeoutMs ?? 5_000 };
 }
 
-/**
- * String characters in a JSON-shaped value: a cheap lower bound of its serialized size, measured
- * without serializing it (the point is to avoid another multi-MB string per checkpoint).
- * @complexity O(nodes) time, O(depth) stack.
- */
-function approximateJsonBytes({ value }: { value: unknown }, _optional = {}): number {
-  if (typeof value === "string") return value.length;
-  if (value === null || typeof value !== "object") return 1;
-  let total = 0;
-  for (const item of Array.isArray(value) ? value : Object.values(value)) total += approximateJsonBytes({ value: item });
-  return total;
-}
 
 /** Preserve injected host/test overrides while the shared pure policy owns the default cadence.
  * @complexity O(1) time and space. */
@@ -169,46 +120,6 @@ function checkpointDelay({ bytes, options }: { bytes: number; options: Assistant
   return options.checkpointIntervalMs ?? scaledCheckpointIntervalMs({ bytes });
 }
 
-/** Compare live progress with a successful or attempted checkpoint, including replayed tool ids.
- * @returns Whether unsaved meaningful progress needs a write or trailing timer; no side effects.
- * @complexity O(tool identities) time and space for the comparison. */
-function checkpointGrew(
-  { previous, progress }: { previous: ReturnType<typeof checkpointProgress>; progress: ReturnType<typeof checkpointProgress> },
-  _options = {},
-): boolean {
-  return progress.textCharacters > previous.textCharacters ||
-    progress.extensionEvents > previous.extensionEvents ||
-    [...progress.tools].some((key) => !previous.tools.has(key));
-}
-
-/** Compare with the last successful save, so replay prefixes and unchanged rows need no retry.
- * @complexity O(tool identities) comparison; does not serialize or mutate progress. */
-function hasUnsavedCheckpointGrowth({ watch, progress }: { watch: Watch; progress: ReturnType<typeof checkpointProgress> }, _options = {}): boolean {
-  return checkpointGrew({ progress, previous: {
-    textCharacters: watch.checkpointedTextCharacters,
-    extensionEvents: watch.checkpointedExtensionEvents,
-    tools: watch.checkpointedTools,
-  } });
-}
-
-function clearTrailing({ watch }: { watch: Watch }, _options = {}): void {
-  clearTimeout(watch.trailing);
-  watch.trailing = undefined;
-}
-
-/** Close progress scheduling before aborting I/O or awaiting storage. A late checkpoint completion
- * must not resurrect a watch that settled, was canceled, or failed to persist.
- * @complexity O(1) time and space; idempotent timer cancellation and stream abort. */
-function stopWatch({ watch }: { watch: Watch }, _options = {}): void {
-  watch.terminal = true;
-  clearTrailing({ watch });
-  watch.abortStream.abort();
-}
-
-function watchable({ message }: { message: ChatMessage }, _optional = {}): boolean {
-  if (message.role !== "assistant" || !message.runId || !isDaemonRunId({ runId: message.runId })) return false;
-  return message.runStatus !== undefined && !isTerminalRunStatus({ status: message.runStatus });
-}
 
 /** Releases an events response that will never be read. An unread body stays open, and a run
  * reconnects up to maxReconnects times. Not awaited: a body that never finishes cancelling must
