@@ -7,7 +7,7 @@ test('desktop gap revisions persist with conversations and survive later message
   let file: unknown = null;
   const ports: ConversationStorePorts = {
     read: () => file === null ? { state: 'missing' } : { state: 'ok', value: file },
-    write: (_path, value) => { file = structuredClone(value); }, now: () => 1, newId: () => 'chat', withLock: (_path, critical) => critical(),
+    write: (_path, value) => { file = structuredClone(value); }, now: () => 1, newId: () => 'chat', withLock: ({ critical }) => critical(),
   };
   const store = createConversationStore({ filePath: 'memory' }, ports);
   store.create();

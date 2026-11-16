@@ -94,11 +94,14 @@ interface DesktopAgentRuntimeRequired {
   buildTools: (ports: { addresseeOf: (input: { runId: string }, options?: Record<string, never>) => TurnAddressee | null }) => ToolRegistration[];
 }
 
+/** The only slice of the conversation store the tool-gap surface reads and writes. */
+type ToolGapStore = Pick<ConversationStore, "appendToolGap" | "listToolGaps">;
+
 interface DesktopAgentRuntimeOptions {
   readLoginShellEnvironment?: typeof readLoginShellEnvironment;
   installOwnedJsonAgent?: typeof installOwnedJsonAgent;
   readFullCliAccess?: (required: { addressee: TurnAddressee | null }, optional?: {}) => Promise<boolean | AssistantCliPermissions>;
-  toolGapStore?: Pick<ConversationStore, "appendToolGap" | "listToolGaps">;
+  toolGapStore?: ToolGapStore;
   /** Test seam: a fake executor so no real CLI is spawned. */
   createAgentExecutor?: (...args: Parameters<typeof createAgentExecutor>) => Pick<AgentExecutor, "run">;
   /** Test seam: the `jini-mcp` entry script. Defaults to the installed `@jini-ai/mcp`'s `bin/serve.js`. */
@@ -334,15 +337,15 @@ interface TurnContext {
   /** Live runs only — deleted on terminal, which is what expires their bridge credentials. */
   liveRuns: Map<string, { addressee: TurnAddressee | null }>;
   credentials: RunScopedCredentials;
-  gapStore: ConversationStore;
+  gapStore: ToolGapStore;
   gapCollectors: Set<ReturnType<typeof createToolGapCollector>>;
-  executor: AgentExecutor;
+  executor: Pick<AgentExecutor, "run">;
   fullCliContext: AsyncLocalStorage<boolean>;
 }
 
 /** The app's tools plus the owner-only tool-gap list, in one registry. */
 async function createDesktopRegistry(
-  { required, addresseeOf, gapStore }: { required: DesktopAgentRuntimeRequired; addresseeOf: (input: { runId: string }, options?: Record<string, never>) => TurnAddressee | null; gapStore: ConversationStore },
+  { required, addresseeOf, gapStore }: { required: DesktopAgentRuntimeRequired; addresseeOf: (input: { runId: string }, options?: Record<string, never>) => TurnAddressee | null; gapStore: ToolGapStore },
   _options = {},
 ): Promise<ToolRegistry> {
   const registry = (await loadDaemonToolRegistryFactory())({});

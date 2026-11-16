@@ -357,7 +357,7 @@ test("registered list skips bad catalog siblings and repeats import without dupl
   fs.writeFileSync(path.join(bad, "config.json"), "{broken");
   for (const dir of [first, copied, bad]) trackSite({ projectsPath: f.deps.projectsPath, siteDir: dir });
   // Production's name reader tolerates bad config independently of catalog admission.
-  f.deps.readSiteName = (dir) => path.basename(dir);
+  f.deps.readSiteName = ({ siteDir }) => path.basename(siteDir);
   assert.equal(f.invoke({ channel: SITE_IPC_CHANNELS.list }).length, 3);
   assert.equal(f.invoke({ channel: SITE_IPC_CHANNELS.list }).length, 3);
   assert.deepEqual(f.workspace.registry({}).list({}).map((row) => row.path), [first]);
