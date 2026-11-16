@@ -21,7 +21,7 @@ import type { KeyringPort } from "./ports.js";
 export class InMemoryKeyring implements KeyringPort {
   private readonly keyring: FixedSiteKeyKeyring;
 
-  constructor(keyId = "v1") {
+  constructor(_required: Record<string, never> = {}, { keyId = "v1" }: { keyId?: string } = {}) {
     this.keyring = new FixedSiteKeyKeyring({
       hex: randomBytes(32).toString("hex"), hkdfSalt: HKDF_EXTRACTION_SALT, // site-key-frozen: never change (every sealed row depends on these bytes)
     }, { keyId });

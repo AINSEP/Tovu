@@ -151,7 +151,7 @@ test("pin: with no deps the keyring reads process.env on every derivation, not o
   const keyring = new EnvOrFileKeyring({ sources: [{ kind: "env" }] });
   await assert.rejects(keyring.derive(DERIVE_INPUT), { message: "no site key: none of the configured sources resolved (env var TOVU_SITE_KEY)" });
   process.env.TOVU_SITE_KEY = KEY_A;
-  assert.deepEqual(await keyring.derive(DERIVE_INPUT), await new FixedSiteKeyKeyring(KEY_A).derive(DERIVE_INPUT));
+  assert.deepEqual(await keyring.derive(DERIVE_INPUT), await new FixedSiteKeyKeyring({ hex: KEY_A }).derive(DERIVE_INPUT));
 });
 
 test("pin: keyId defaults to v1 and is configurable", async () => {
@@ -161,24 +161,24 @@ test("pin: keyId defaults to v1 and is configurable", async () => {
 });
 
 test("pin: EnvOrFileKeyring and FixedSiteKeyKeyring derive the same bytes for the same key, both methods", async () => {
-  const fixed = new FixedSiteKeyKeyring(KEY_A);
+  const fixed = new FixedSiteKeyKeyring({ hex: KEY_A });
   assert.deepEqual(await envKeyring(KEY_A).derive(DERIVE_INPUT), await fixed.derive(DERIVE_INPUT));
   assert.deepEqual(await envKeyring(KEY_A).deriveSigningSecret(SIGNING_INPUT), await fixed.deriveSigningSecret(SIGNING_INPUT));
   assert.notDeepEqual(await envKeyring(KEY_B).derive(DERIVE_INPUT), await fixed.derive(DERIVE_INPUT));
 });
 
 test("pin: FixedSiteKeyKeyring keyId defaults to v1 and is configurable", async () => {
-  assert.deepEqual(await new FixedSiteKeyKeyring(KEY_A).activeKey(), { keyId: "v1" });
-  assert.deepEqual(await new FixedSiteKeyKeyring(KEY_A, "v3").activeKey(), { keyId: "v3" });
+  assert.deepEqual(await new FixedSiteKeyKeyring({ hex: KEY_A }).activeKey(), { keyId: "v1" });
+  assert.deepEqual(await new FixedSiteKeyKeyring({ hex: KEY_A }, { keyId: "v3" }).activeKey(), { keyId: "v3" });
 });
 
 test("pin: FixedSiteKeyKeyring refuses invalid hex at construction", () => {
-  assert.throws(() => new FixedSiteKeyKeyring("abcd"), { message: "FixedRootKeyKeyring: not a valid root key (too-short)" });
+  assert.throws(() => new FixedSiteKeyKeyring({ hex: "abcd" }), { message: "FixedRootKeyKeyring: not a valid root key (too-short)" });
 });
 
 test("pin: parseSiteKeyHex trims surrounding whitespace and reports digits for a rejection", () => {
-  assert.deepEqual(parseSiteKeyHex(`  ${KEY_A}\n`), { ok: true, hex: KEY_A });
-  assert.deepEqual(parseSiteKeyHex("abcde"), { ok: false, reason: "odd-length", hexDigits: 5 });
+  assert.deepEqual(parseSiteKeyHex({ raw: `  ${KEY_A}\n` }), { ok: true, hex: KEY_A });
+  assert.deepEqual(parseSiteKeyHex({ raw: "abcde" }), { ok: false, reason: "odd-length", hexDigits: 5 });
 });
 
 // ---------------------------------------------------------------------------
@@ -190,7 +190,7 @@ test("pin: status of an active env key — exact key order, no hex", () => {
   const status = inspectSiteKeyMaterial({ sources }, { env: () => ({ TOVU_SITE_KEY: KEY_A }) });
   assert.equal(
     JSON.stringify(status),
-    JSON.stringify({ active: true, source: "env", fingerprint: fingerprintSiteKeyHex(KEY_A), keyFilePath: "/k/site.hex", envVarName: "TOVU_SITE_KEY" })
+    JSON.stringify({ active: true, source: "env", fingerprint: fingerprintSiteKeyHex({ hex: KEY_A }), keyFilePath: "/k/site.hex", envVarName: "TOVU_SITE_KEY" })
   );
 });
 
@@ -199,7 +199,7 @@ test("pin: reveal of an active env key — exact key order, hex included", () =>
   const reveal = revealSiteKeyMaterial({ sources }, { env: () => ({ TOVU_SITE_KEY: KEY_A }) });
   assert.equal(
     JSON.stringify(reveal),
-    JSON.stringify({ active: true, source: "env", hex: KEY_A, fingerprint: fingerprintSiteKeyHex(KEY_A), keyFilePath: "", envVarName: "TOVU_SITE_KEY" })
+    JSON.stringify({ active: true, source: "env", hex: KEY_A, fingerprint: fingerprintSiteKeyHex({ hex: KEY_A }), keyFilePath: "", envVarName: "TOVU_SITE_KEY" })
   );
   assert.ok("envVarName" in reveal);
 });
@@ -208,10 +208,10 @@ test("pin: status and reveal of an active file key — no envVarName key at all"
   const path = fileWith(t, `${KEY_B}\n`);
   const sources: SiteKeySource[] = [{ kind: "env" }, { kind: "volume-file", path }];
   const status = inspectSiteKeyMaterial({ sources }, { env: () => ({}) });
-  assert.equal(JSON.stringify(status), JSON.stringify({ active: true, source: "file", fingerprint: fingerprintSiteKeyHex(KEY_B), keyFilePath: path }));
+  assert.equal(JSON.stringify(status), JSON.stringify({ active: true, source: "file", fingerprint: fingerprintSiteKeyHex({ hex: KEY_B }), keyFilePath: path }));
   assert.equal("envVarName" in status, false);
   const reveal = revealSiteKeyMaterial({ sources }, { env: () => ({}) });
-  assert.equal(JSON.stringify(reveal), JSON.stringify({ active: true, source: "file", hex: KEY_B, fingerprint: fingerprintSiteKeyHex(KEY_B), keyFilePath: path }));
+  assert.equal(JSON.stringify(reveal), JSON.stringify({ active: true, source: "file", hex: KEY_B, fingerprint: fingerprintSiteKeyHex({ hex: KEY_B }), keyFilePath: path }));
   assert.equal("envVarName" in reveal, false);
 });
 
@@ -247,7 +247,7 @@ test("pin: status and reveal with nothing present — source 'none', no invalid/
 test("pin: inspectSiteKeyMaterial with no deps reads process.env", (t) => {
   withProcessSiteKey(t, KEY_A);
   const status = inspectSiteKeyMaterial({ sources: [{ kind: "env" }] });
-  assert.equal(status.fingerprint, fingerprintSiteKeyHex(KEY_A));
+  assert.equal(status.fingerprint, fingerprintSiteKeyHex({ hex: KEY_A }));
 });
 
 test("pin: revealSiteKeyMaterial with no deps reads process.env", (t) => {
@@ -287,5 +287,5 @@ test("pin: generateFileSiteKey returns hex, its fingerprint and the path it wrot
   const keyFilePath = join(dir, "keys", "site-key.hex");
   const generated = generateFileSiteKey({ keyFilePath });
   assert.match(generated.hex, /^[0-9a-f]{64}$/);
-  assert.deepEqual(generated, { hex: generated.hex, fingerprint: fingerprintSiteKeyHex(generated.hex), keyFilePath });
+  assert.deepEqual(generated, { hex: generated.hex, fingerprint: fingerprintSiteKeyHex({ hex: generated.hex }), keyFilePath });
 });

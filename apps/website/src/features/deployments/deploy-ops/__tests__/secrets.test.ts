@@ -63,7 +63,7 @@ test("set from the site key creates an absent secret without a card and stages i
   const c = confirmer(true);
   const result = await runSetSecret({ deps: h.deps, input: { platform: "example-host", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" } } }, { confirm: c.confirm });
   assert.deepEqual(result, {
-    platform: "example-host", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" }, comparison: "absent", fingerprint: fingerprintSiteKeyHex(SITE_KEY), fingerprintKind: "site-key",
+    platform: "example-host", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" }, comparison: "absent", fingerprint: fingerprintSiteKeyHex({ hex: SITE_KEY }), fingerprintKind: "site-key",
     appliesOn: "next-deploy", supportsStaging: true, deployNeeded: true, changed: true, version: "7",
     summary: "Set 'TOVU_SITE_KEY' on 'shop' from this site's key. The running app keeps the old environment until the next deploy of 'shop' (deployment_ops_deploy).",
   });
@@ -109,7 +109,7 @@ test("copying another secret on the same target reads it server side and never r
   const h = await harness({ [`GET ${API}`]: listed("OLD_KEY"), [`GET ${API}/OLD_KEY?reveal=true`]: shown("OLD_KEY", OTHER_KEY), [`POST ${API}/TOVU_SITE_KEY`]: { status: 201, body: {} } });
   const result = await runSetSecret({ deps: h.deps, input: { platform: "example-host", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "secret", name: "OLD_KEY" } } });
   assert.equal(result.changed, true); assert.equal(result.comparison, "absent");
-  assert.deepEqual({ fingerprint: result.fingerprint, kind: result.fingerprintKind }, { fingerprint: fingerprintSiteKeyHex(OTHER_KEY), kind: "site-key" });
+  assert.deepEqual({ fingerprint: result.fingerprint, kind: result.fingerprintKind }, { fingerprint: fingerprintSiteKeyHex({ hex: OTHER_KEY }), kind: "site-key" });
   assert.deepEqual(JSON.parse(h.calls.find(call => call.method === "POST")!.body!), { value: OTHER_KEY });
   assert.equal(result.summary, "Set 'TOVU_SITE_KEY' on 'shop' from secret OLD_KEY. The running app keeps the old environment until the next deploy of 'shop' (deployment_ops_deploy).");
   noSecretIn(result, OTHER_KEY);
@@ -193,7 +193,7 @@ test("tools: unset holds the call on a card for the named human and re-checks pe
 });
 
 test("fingerprints: site-key-shaped values match the Security page; others are a short sha256", () => {
-  assert.deepEqual(secretFingerprint({ value: SITE_KEY }), { fingerprint: fingerprintSiteKeyHex(SITE_KEY), fingerprintKind: "site-key" });
+  assert.deepEqual(secretFingerprint({ value: SITE_KEY }), { fingerprint: fingerprintSiteKeyHex({ hex: SITE_KEY }), fingerprintKind: "site-key" });
   assert.deepEqual(secretFingerprint({ value: "hunter2" }), { fingerprint: "f52fbd32b2b3", fingerprintKind: "sha256" });
 });
 
@@ -224,7 +224,7 @@ test("the default site-key reader resolves this site's sources; no bound site me
   process.env.TOVU_SITE_KEY = OTHER_KEY; delete process.env.TOVU_RUNTIME_MODE;
   try {
     const result = await runSetSecret({ deps: { ...deps, siteBinding: { dir: siteDir } }, input: { platform: "example-host", target: "shop", name: "TOVU_SITE_KEY", source: { kind: "site-key" }, dryRun: true } });
-    assert.equal(result.fingerprint, fingerprintSiteKeyHex(OTHER_KEY));
+    assert.equal(result.fingerprint, fingerprintSiteKeyHex({ hex: OTHER_KEY }));
   } finally {
     if (previous.key === undefined) delete process.env.TOVU_SITE_KEY; else process.env.TOVU_SITE_KEY = previous.key;
     if (previous.mode !== undefined) process.env.TOVU_RUNTIME_MODE = previous.mode;

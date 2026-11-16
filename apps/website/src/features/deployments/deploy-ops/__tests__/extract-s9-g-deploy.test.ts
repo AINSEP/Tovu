@@ -10,9 +10,9 @@ test('G-deploy real-tool results, card bytes, history, and I/O counts equal the 
   assert.equal(createHash('sha256').update(text).digest('hex'), 'b616c77f065734bdaa64a007eb507117f7ce65666eb8a98cd61afc520bbceb58');
   const actual = await recordDeployOps();
   assert.equal(JSON.stringify(actual, null, 2) + '\n', text);
-  const site = parseSiteKeyHex(S9_SITE_KEY); assert.ok(site.ok);
+  const site = parseSiteKeyHex({ raw: S9_SITE_KEY }); assert.ok(site.ok);
   const created = actual.cases.create!.result as { fingerprint: string; fingerprintKind: string };
-  assert.deepEqual({ fingerprint: created.fingerprint, fingerprintKind: created.fingerprintKind }, { fingerprint: fingerprintSiteKeyHex(site.hex), fingerprintKind: 'site-key' });
+  assert.deepEqual({ fingerprint: created.fingerprint, fingerprintKind: created.fingerprintKind }, { fingerprint: fingerprintSiteKeyHex({ hex: site.hex }), fingerprintKind: 'site-key' });
   const plain = actual.cases.plain!.result as { fingerprint: string; fingerprintKind: string };
   assert.deepEqual({ fingerprint: plain.fingerprint, fingerprintKind: plain.fingerprintKind }, { fingerprint: createHash('sha256').update(S9_PLAIN, 'utf8').digest('hex').slice(0, 12), fingerprintKind: 'sha256' });
 });

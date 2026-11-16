@@ -123,7 +123,7 @@ function patchFs<Name extends "readFileSync" | "renameSync" | "linkSync" | "unli
 function wrongPerSiteWithStampedLegacy(): { rightHex: string; wrongHex: string; perSite: string } {
   const rightHex = validHex();
   const wrongHex = validHex();
-  writeMeta(siteDir, { siteId: "site-1", siteKeyFingerprint: fingerprintSiteKeyHex(rightHex) });
+  writeMeta(siteDir, { siteId: "site-1", siteKeyFingerprint: fingerprintSiteKeyHex({ hex: rightHex }) });
   const perSite = writePerSite(home, "site-1", wrongHex);
   writeLegacy(home, rightHex);
   return { rightHex, wrongHex, perSite };
@@ -147,7 +147,7 @@ test("pin: ensureSiteKey with no env/mode/home uses process.env and homedir() (l
   const result = await ensureSiteKey({ siteDir, siteKeyId, findSiteKeyDependentData: noKeyData });
   assert.equal(result.action, "mint");
   assert.equal(result.perSiteFilePath, file);
-  assert.equal(result.fingerprint, fingerprintSiteKeyHex(readFileSync(file, "utf8")));
+  assert.equal(result.fingerprint, fingerprintSiteKeyHex({ hex: readFileSync(file, "utf8") }));
 });
 
 test("pin: ensureSiteKey given an unsafe siteKeyId throws the per-site-candidate guard and writes nothing", async () => {
@@ -199,21 +199,21 @@ test("pin: a valid per-site file never triggers the data scan", async () => {
   writeMeta(siteDir, { siteId: "site-1", siteKeyFingerprint: "other-stamp" });
   const failing = async (): Promise<boolean> => assert.fail("noop must not scan for key-dependent data");
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findSiteKeyDependentData: failing });
-  assert.deepEqual(result, { action: "mismatch", perSiteFilePath: perSitePath(home, "site-1"), fingerprint: fingerprintSiteKeyHex(hex) });
+  assert.deepEqual(result, { action: "mismatch", perSiteFilePath: perSitePath(home, "site-1"), fingerprint: fingerprintSiteKeyHex({ hex }) });
 });
 
 test("pin: adopting a key whose fingerprint matches the stamp never scans and keeps the stamp", async () => {
   const hex = validHex();
-  writeMeta(siteDir, { siteId: "site-1", siteKeyFingerprint: fingerprintSiteKeyHex(hex) });
+  writeMeta(siteDir, { siteId: "site-1", siteKeyFingerprint: fingerprintSiteKeyHex({ hex }) });
   const failing = async (): Promise<boolean> => assert.fail("a matching stamp needs no data scan");
   const env = { ...bareEnv(), TOVU_SITE_KEY: hex };
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData: failing });
-  assert.deepEqual(result, { action: "adopt", perSiteFilePath: perSitePath(home, "site-1"), fingerprint: fingerprintSiteKeyHex(hex) });
+  assert.deepEqual(result, { action: "adopt", perSiteFilePath: perSitePath(home, "site-1"), fingerprint: fingerprintSiteKeyHex({ hex }) });
 });
 
 test("pin: the stamped key is adopted over an EARLIER valid source, trimmed of surrounding whitespace", async () => {
   const rightHex = validHex();
-  writeMeta(siteDir, { siteId: "site-1", siteKeyFingerprint: fingerprintSiteKeyHex(rightHex) });
+  writeMeta(siteDir, { siteId: "site-1", siteKeyFingerprint: fingerprintSiteKeyHex({ hex: rightHex }) });
   writeLegacy(home, `${rightHex}\n`);
   const env = { ...bareEnv(), TOVU_SITE_KEY: validHex() };
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData: hasKeyData });
@@ -224,7 +224,7 @@ test("pin: the stamped key is adopted over an EARLIER valid source, trimmed of s
 test("pin: replacing an unstamped per-site file writes the stamped key and keeps the stamp unchanged", async () => {
   const { rightHex, wrongHex } = wrongPerSiteWithStampedLegacy();
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findSiteKeyDependentData: hasKeyData });
-  assert.deepEqual(result, { action: "adopt", perSiteFilePath: perSitePath(home, "site-1"), fingerprint: fingerprintSiteKeyHex(rightHex) });
+  assert.deepEqual(result, { action: "adopt", perSiteFilePath: perSitePath(home, "site-1"), fingerprint: fingerprintSiteKeyHex({ hex: rightHex }) });
   const [backup] = backupsIn(home);
   assert.ok(backup !== undefined);
   assert.match(backup, /^site-1\.hex\.wrong-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-[0-9a-f]{4}$/);
@@ -280,7 +280,7 @@ test("pin: a per-site file another instance already fixed is not moved aside; it
     fixed = true;
   });
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findSiteKeyDependentData: hasKeyData });
-  assert.deepEqual(result, { action: "adopt", perSiteFilePath: perSite, fingerprint: fingerprintSiteKeyHex(rightHex) });
+  assert.deepEqual(result, { action: "adopt", perSiteFilePath: perSite, fingerprint: fingerprintSiteKeyHex({ hex: rightHex }) });
   assert.deepEqual(backupsIn(home), []);
 });
 
@@ -373,7 +373,7 @@ test("pin: losing the create race reads back the winner's key (adopt converges o
   });
   const env = { ...bareEnv(), TOVU_SITE_KEY: validHex() };
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env, home, findSiteKeyDependentData: noKeyData });
-  assert.deepEqual(result, { action: "adopt", perSiteFilePath: target, fingerprint: fingerprintSiteKeyHex(winnerHex) });
+  assert.deepEqual(result, { action: "adopt", perSiteFilePath: target, fingerprint: fingerprintSiteKeyHex({ hex: winnerHex }) });
   assert.deepEqual(tmpFilesIn(home), []);
 });
 
@@ -386,7 +386,7 @@ test("pin: replacing an unstamped per-site file and then losing the create race 
     realLink(from, to);
   });
   const result = await ensureSiteKey({ siteDir, siteKeyId: "site-1", mode: "local", env: bareEnv(), home, findSiteKeyDependentData: noKeyData });
-  assert.deepEqual(result, { action: "mismatch", perSiteFilePath: perSite, fingerprint: fingerprintSiteKeyHex(winnerHex) });
+  assert.deepEqual(result, { action: "mismatch", perSiteFilePath: perSite, fingerprint: fingerprintSiteKeyHex({ hex: winnerHex }) });
 });
 
 // ---------------------------------------------------------------------------
@@ -451,8 +451,8 @@ test("pin: installSiteKey (production) with the env var already holding hex → 
   writeMeta(siteDir, { siteId: "site-1", keep: 1 });
   const env = { ...bareEnv(), TOVU_SITE_KEY: hex };
   const result = installSiteKey({ siteDir, hex, mode: "production", env, home, cwd: siteDir });
-  assert.deepEqual(result, { outcome: "installed", keyFilePath: "env:TOVU_SITE_KEY", fingerprint: fingerprintSiteKeyHex(hex) });
-  assert.deepEqual(readMeta(siteDir), { siteId: "site-1", keep: 1, siteKeyFingerprint: fingerprintSiteKeyHex(hex) });
+  assert.deepEqual(result, { outcome: "installed", keyFilePath: "env:TOVU_SITE_KEY", fingerprint: fingerprintSiteKeyHex({ hex }) });
+  assert.deepEqual(readMeta(siteDir), { siteId: "site-1", keep: 1, siteKeyFingerprint: fingerprintSiteKeyHex({ hex }) });
   assert.equal(existsSync(path.join(siteDir, "sites")), false);
 });
 
@@ -466,7 +466,7 @@ test("pin: installSiteKey (production) with a malformed env var → env-key-set,
 test("pin: installSiteKey (production) with no meta file installs the volume file and creates no meta", () => {
   const hex = validHex();
   const result = installSiteKey({ siteDir, hex, mode: "production", env: bareEnv(), home, cwd: siteDir });
-  assert.deepEqual(result, { outcome: "installed", keyFilePath: path.join(siteDir, "sites", ".tovu", "site-key.hex"), fingerprint: fingerprintSiteKeyHex(hex) });
+  assert.deepEqual(result, { outcome: "installed", keyFilePath: path.join(siteDir, "sites", ".tovu", "site-key.hex"), fingerprint: fingerprintSiteKeyHex({ hex }) });
   assert.equal(existsSync(path.join(siteDir, ".site-meta.json")), false);
 });
 
@@ -476,8 +476,8 @@ test("pin: installSiteKey (local) with no meta file mints a key-only meta, insta
   const meta = readMeta(siteDir);
   assert.deepEqual(Object.keys(meta), ["siteKeyId", "siteKeyFingerprint"]);
   assert.match(String(meta.siteKeyId), /^[0-9a-f-]{36}$/);
-  assert.equal(meta.siteKeyFingerprint, fingerprintSiteKeyHex(hex));
-  assert.deepEqual(result, { outcome: "installed", keyFilePath: perSitePath(home, String(meta.siteKeyId)), fingerprint: fingerprintSiteKeyHex(hex) });
+  assert.equal(meta.siteKeyFingerprint, fingerprintSiteKeyHex({ hex }));
+  assert.deepEqual(result, { outcome: "installed", keyFilePath: perSitePath(home, String(meta.siteKeyId)), fingerprint: fingerprintSiteKeyHex({ hex }) });
   assert.equal(statSync(path.join(siteDir, ".site-meta.json")).mode & 0o777, 0o600);
 });
 
@@ -490,7 +490,7 @@ test("pin: installSiteKey (local) with a corrupt meta file returns undefined and
 
 test("pin: installSiteKey with the stamp already naming hex does not rewrite .site-meta.json", () => {
   const hex = validHex();
-  writeMeta(siteDir, { siteId: "site-1", siteKeyFingerprint: fingerprintSiteKeyHex(hex) });
+  writeMeta(siteDir, { siteId: "site-1", siteKeyFingerprint: fingerprintSiteKeyHex({ hex }) });
   const before = statSync(path.join(siteDir, ".site-meta.json")).ino;
   installSiteKey({ siteDir, hex, mode: "local", env: bareEnv(), home });
   assert.equal(statSync(path.join(siteDir, ".site-meta.json")).ino, before);
@@ -528,5 +528,5 @@ test("pin: installSiteKey with no mode/env/home uses homedir() in local mode", (
   t.after(() => rmSync(file, { force: true }));
   writeMeta(siteDir, { siteKeyId });
   const hex = validHex();
-  assert.deepEqual(installSiteKey({ siteDir, hex }), { outcome: "installed", keyFilePath: file, fingerprint: fingerprintSiteKeyHex(hex) });
+  assert.deepEqual(installSiteKey({ siteDir, hex }), { outcome: "installed", keyFilePath: file, fingerprint: fingerprintSiteKeyHex({ hex }) });
 });

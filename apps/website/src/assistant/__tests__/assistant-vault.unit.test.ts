@@ -117,7 +117,7 @@ test("readAssistantVault refuses a row whose identity is outside the requested s
 test("readAssistantVault keeps settings but drops the hint when the envelope cannot be opened", async () => {
   const repo = new InMemoryVaultRepo({});
   const stored = await seed({ repo, context: SITE });
-  const read = await readAssistantVault({ repo, context: SITE, sealer: new AesGcmSecretSealer(new InMemoryKeyring("v2")) });
+  const read = await readAssistantVault({ repo, context: SITE, sealer: new AesGcmSecretSealer(new InMemoryKeyring({}, { keyId: "v2" })) });
   assert.deepEqual(read, { record: stored, tokenHint: null });
 });
 

@@ -146,7 +146,7 @@ test("a decrypt failure on the stored row degrades to null, it does not throw", 
   );
 
   // A sealer over a DIFFERENT site key generation — simulates a rotated/reset site key.
-  const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring("different-generation"));
+  const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring({}, { keyId: "different-generation" }));
   const port = createStoredExecutionCredentialPort({ repo, sealer: otherSealer });
   const resolved = await port.resolve({ requestBody: {}, workspaceId: WORKSPACE, principalId: ADMIN_A });
   assert.equal(resolved, null);

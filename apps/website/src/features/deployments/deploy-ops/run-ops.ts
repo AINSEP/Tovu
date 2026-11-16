@@ -40,8 +40,8 @@ export interface DeployOpsToolDeps extends OperatorLocaleDeps {
 const sha256 = ({ value }: { value: string }, _options = {})=>createHash('sha256').update(value,'utf8').digest();
 /** A site-key-shaped value gets the Security page's own fingerprint, so the two can be compared by eye. O(n). */
 export function secretFingerprint({ value }: { value: string }, _options = {}): { fingerprint: string; fingerprintKind: "site-key" | "sha256" } {
-  const parsed = parseSiteKeyHex(value);
-  return parsed.ok ? { fingerprint: fingerprintSiteKeyHex(parsed.hex), fingerprintKind: "site-key" } : { fingerprint: sha256({ value }).toString("hex").slice(0, 12), fingerprintKind: "sha256" };
+  const parsed = parseSiteKeyHex({ raw: value });
+  return parsed.ok ? { fingerprint: fingerprintSiteKeyHex({ hex: parsed.hex }), fingerprintKind: "site-key" } : { fingerprint: sha256({ value }).toString("hex").slice(0, 12), fingerprintKind: "sha256" };
 }
 
 /** Same ordered sources and precedence the Security page and the keyring read; re-read on every call. */

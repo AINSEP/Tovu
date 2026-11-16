@@ -17,7 +17,7 @@ const fixture = {
 };
 
 test("current sealing wire bytes and stored fixture remain pinned", async () => {
-  const keyring = new FixedSiteKeyKeyring(siteKeyHex);
+  const keyring = new FixedSiteKeyKeyring({ hex: siteKeyHex });
   // Independently pin the existing salt and derivation labels as well as the envelope.
   // The salt is a wire-format constant, not UI copy: its bytes keep the old name on purpose.
   assert.deepEqual(

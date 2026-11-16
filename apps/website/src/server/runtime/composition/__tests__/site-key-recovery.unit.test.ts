@@ -33,7 +33,7 @@ const B = mintSiteKeyHex();
 const C = mintSiteKeyHex();
 
 function keyed(hex: string) {
-  const keyring = new FixedSiteKeyKeyring(hex);
+  const keyring = new FixedSiteKeyKeyring({ hex });
   return { keyring, sealer: new AesGcmSecretSealer(keyring) };
 }
 

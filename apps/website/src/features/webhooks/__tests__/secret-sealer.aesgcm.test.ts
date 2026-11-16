@@ -130,7 +130,7 @@ test("a value sealed with NO aad throws when opened WITH an aad (asymmetry fails
 });
 
 test("open() re-derives from the sealed row's own keyId, not the keyring's CURRENT active key", async () => {
-  const generations = { v7: new InMemoryKeyring("v7"), v8: new InMemoryKeyring("v8") };
+  const generations = { v7: new InMemoryKeyring({}, { keyId: "v7" }), v8: new InMemoryKeyring({}, { keyId: "v8" }) };
   let activeKeyId: keyof typeof generations = "v7";
   const keyring = {
     activeKey: async () => ({ keyId: activeKeyId }),
@@ -174,8 +174,8 @@ test("ciphertext shorter than a complete authentication tag is rejected", async 
 test("every failure to open the sealed value itself carries SECRET_OPEN_FAILED (wrong key, tampered, damaged, unknown alg); its message is kept", async () => {
   // Two real, different project keys, built at runtime: the runtime's own wording (OpenSSL in Node,
   // BoringSSL in Electron) never decides how a wrong key is classified, the code does.
-  const sealedBy = new AesGcmSecretSealer(new FixedSiteKeyKeyring(randomBytes(32).toString("hex")));
-  const openedBy = new AesGcmSecretSealer(new FixedSiteKeyKeyring(randomBytes(32).toString("hex")));
+  const sealedBy = new AesGcmSecretSealer(new FixedSiteKeyKeyring({ hex: randomBytes(32).toString("hex") }));
+  const openedBy = new AesGcmSecretSealer(new FixedSiteKeyKeyring({ hex: randomBytes(32).toString("hex") }));
   const keyring = new InMemoryKeyring();
   const sealed = await sealedBy.seal({ plaintext: "fixture-value", key: await keyring.activeKey() });
   const wrongKey = await openedBy.open({ sealed }).catch((caught: unknown) => caught);

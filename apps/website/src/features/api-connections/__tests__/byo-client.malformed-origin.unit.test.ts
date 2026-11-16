@@ -30,7 +30,7 @@ async function fixtureConnection() {
 
 async function savedClient() {
   const repo = new InMemoryCustomCredentialSetRepo();
-  const keyring = new InMemoryKeyring("v1");
+  const keyring = new InMemoryKeyring({}, { keyId: "v1" });
   const sealer = new AesGcmSecretSealer(keyring);
   await createCustomCredential({ repo, sealer, keyring, clock: { nowMs: () => Date.now() }, idGen: { newId: () => id } }, {
     workspaceId: "ws-1", label: byoClientLabel({ pluginId: "acme-office", connectionId: "account" }), category: "general",
@@ -51,7 +51,7 @@ test("a malformed saved base URL rejects with the raw URL error, not an unreadab
 
 test("a saved client this site cannot open keeps the exact unreadable refusal", async () => {
   const { repo } = await savedClient();
-  const otherKeyring = new InMemoryKeyring("v1");
+  const otherKeyring = new InMemoryKeyring({}, { keyId: "v1" });
   const resolved = await resolveByoClient({ credentials: { repo, sealer: new AesGcmSecretSealer(otherKeyring), keyring: otherKeyring }, workspaceId: "ws-1", connection: await fixtureConnection() });
   assert.ok(resolved instanceof ApiConnectionError);
   assert.equal(resolved.message, 'Acme Office cannot use your own OAuth client: the saved credential "acme-office/account OAuth client" could not be read on this site. Edit it under Admin > Access Tokens, then retry.');
