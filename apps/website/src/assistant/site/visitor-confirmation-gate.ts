@@ -70,11 +70,11 @@ export function createVisitorConfirmationGate({ ports, resume }: { ports: Visito
       const forced = ports.requiresConfirmation?.({ toolId: request.tool.id, input: request.input }) === true;
       if (mode === 'off' || (mode !== 'ask' && !forced)) return;
       // An object envelope keeps omitted arguments JSON-serializable without changing handler input.
-      const inputDigest = await canonicalArgumentDigest({ args: { input: request.input } });
+      const inputDigest = await canonicalArgumentDigest({ args: { input: request.input }, crypto: globalThis.crypto });
       const validate = async ({ input }: { input: unknown }, _optional = {}) => {
         const live = await ports.readSnapshot!();
         const publicationValid = !ports.publicationRevision || Boolean(readVisitorPagePublication({ revision: ports.publicationRevision, workspaceId: ports.workspaceId }));
-        return !ports.signal?.aborted && publicationValid && live.policy !== null && live.revision === captured.revision && await canonicalArgumentDigest({ args: { input } }) === inputDigest;
+        return !ports.signal?.aborted && publicationValid && live.policy !== null && live.revision === captured.revision && await canonicalArgumentDigest({ args: { input }, crypto: globalThis.crypto }) === inputDigest;
       };
       allow = await ports.confirmation.request({
         binding: { runId: ports.runId, executionId: request.executionId, ip: ports.ip, owner: ports.owner },
