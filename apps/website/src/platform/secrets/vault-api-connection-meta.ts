@@ -1,11 +1,18 @@
 import { parseOAuthTokenVaultMeta } from "@jini-ai/integrations/api-connections";
-import { VaultError, type VaultMeta } from "@jini-ai/core/contracts/vault";
+import { VaultError, type VaultContext, type VaultMeta } from "@jini-ai/core/contracts/vault";
+
+export const API_CONNECTION_VAULT_KIND = "api-connection" as const;
 
 /** Tovu's row formats within the shared api-connection kind; OAuth remains owned by Jini. */
 export const API_CONNECTION_RECORD_FORMAT = "api-connection-record";
 export const API_CONNECTION_ATTEMPT_FORMAT = "api-connection-attempt";
 /** Plugin settings rows (`plugin-state.ts`): plain JSON a plugin's admin surface saves, sealed like the rest. */
 export const PLUGIN_STATE_FORMAT = "agent-plugin-state";
+
+/** The one vault context every api-connection row of a workspace lives under. */
+export function apiConnectionVaultScope(required: { readonly workspaceId: string }, _optional: Record<string, never> = {}): VaultContext {
+  return { workspaceId: required.workspaceId, kind: API_CONNECTION_VAULT_KIND, ownerKey: "tovu", principalId: null, binding: null };
+}
 
 /** Token rows keep Jini's parser; record, settings and attempt rows carry only their format (and an attempt's expiry).
  * Called only for the api-connection kind, after recovery annotations have been validated and separated.

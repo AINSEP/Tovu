@@ -9,7 +9,8 @@ import { createSharedOAuthConsumer, type SharedOAuthConnection } from '@jini-ai/
 import { freshPostgresContentDatabase, dropDatabase } from '../../../platform/db/__tests__/postgres-database.js';
 import { openPostgresKernel } from '../../../platform/db/kernel/drivers/postgres.js';
 import { createSiteOAuthBindings } from '../../project-keys/site-references.js';
-import { apiConnectionVaultScope, createApiConnectionVault } from '../vault-stores.js';
+import { apiConnectionVaultScope } from '#src/platform/secrets/vault-api-connection-meta';
+import { createApiConnectionVault } from '../vault-stores.js';
 
 const DATABASE = 'tovu_shared_oauth_binding_fixture';
 

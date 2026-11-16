@@ -7,7 +7,7 @@ import { InMemoryVaultRepo, SecretsVaultService } from '@jini-ai/platform/secret
 import { deriveApiConnectionKey, type ApiConnectionRecord } from '@jini-ai/integrations/api-connections';
 import { InMemoryCustomCredentialSetRepo } from '../../../../features/custom-credentials/index.js';
 import { createApiConnectionHost } from '../../../../features/api-connections/host.js';
-import { apiConnectionVaultScope, PLUGIN_STATE_FORMAT } from '../../../../features/api-connections/vault-stores.js';
+import { apiConnectionVaultScope, PLUGIN_STATE_FORMAT } from '#src/platform/secrets/vault-api-connection-meta';
 
 test('A4 row 14: actual state/API writes use one vault, saved scope/format and revision CAS', async () => {
   const seen = new Set<SecretsVaultService>();
