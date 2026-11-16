@@ -179,116 +179,116 @@ jini	packages/platform/src/child-environment.ts:93	generic-error-catch	current	r
 jini	packages/search/src/indexer.ts:58	generic-error-catch	current	real	fixed-result-without-cause	W8	line
 jini	packages/ui/src/features/memory/react/hooks/useMemoryConnectors.hooks.ts:326	generic-error-catch	current	real	fixed-result-without-cause	W8	line
 jini	packages/ui/src/features/memory/react/hooks/useMemoryConnectors.hooks.ts:409	generic-error-catch	current	real	fixed-result-without-cause	W8	line
-jini	packages/admin/src/media/controllers/library.controller.ts:140	swallowed-error	current	FP	queue-tail	W1	line
-jini	packages/admin/src/redirects/controllers/redirects.controller.ts:28	swallowed-error	current	FP	owned-elsewhere (another owner shows the failure)	W1	context
-jini	packages/admin/src/redirects/controllers/redirects.controller.ts:40	swallowed-error	current	FP	owned-elsewhere (another owner shows the failure)	W1	context
-jini	packages/agent-plugins/github-pages/targets/github-pages.mjs:515	swallowed-error	current	FP	error-body-parse	W1	line
-jini	packages/agent-plugins/google-workspace/lib/auth.mjs:58	swallowed-error	current	FP	error-body-parse	W1	line
-jini	packages/agent-plugins/src/connect/executable/register.ts:124	swallowed-error	current	FP	queue-tail	W1	line
-jini	packages/agent-plugins/src/lifecycle/automatic-use.ts:281	swallowed-error	current	FP	queue-tail	W1	line
-jini	packages/agent-plugins/vercel/targets/vercel.mjs:634	swallowed-error	current	FP	error-body-parse	W1	line
-jini	packages/agent-runtime/src/diagnostics.ts:26	generic-error-catch	current	FP	reporter-self-guard (failure inside the reporting path)	W1	line
-jini	packages/agent-runtime/src/providers/oauth-tokens.ts:98	swallowed-error	current	FP	queue-tail	W1	line
-jini	packages/agentic/src/skills/install/install-service.ts:78	swallowed-error	current	FP	queue-tail	W1	line
-jini	packages/chat/src/embed-widget/transports/fetch-sse.ts:193	swallowed-error	current	FP	error-body-parse	W1	line
-jini	packages/chat/src/react/features/chat-pane/create-mid-run-message-poster.ts:38	swallowed-error	current	FP	error-body-parse	W1	line
-jini	packages/chat/src/react/features/chat-pane/create-mid-run-message-poster.ts:46	swallowed-error	current	FP	error-body-parse	W1	line
-jini	packages/chat/src/react/features/chat-pane/hooks/useChatPaneAgentControl.hooks.ts:284	swallowed-error	current	FP	mark-observed	W1	line
-jini	packages/chat/src/react/hooks/useComposerHistory.hooks.ts:112	swallowed-error	current	FP	queue-tail	W1	line
-jini	packages/cms/src/forms/repo.memory.ts:190	swallowed-error	current	FP	queue-tail	W1	line
-jini	packages/commerce/src/payments/ledger/repo.memory.ts:490	swallowed-error	current	FP	queue-tail	W1	line
-jini	packages/cookie-consent/src/client/runtime.ts:107	swallowed-error	current	FP	error-body-parse	W1	line
-jini	packages/cookie-consent/src/node/index.ts:54	swallowed-error	current	FP	queue-tail	W1	line
-jini	packages/core/src/fetch/cache.ts:188	swallowed-error	current	FP	mark-observed	W1	line
-jini	packages/daemon/src/core/tool-audit.ts:53	generic-error-catch	current	FP	reporter-self-guard (failure inside the reporting path)	W1	line
-jini	packages/daemon/src/remote-tool-executor.ts:198	swallowed-error	current	FP	queue-tail	W1	line
-jini	packages/daemon/src/terminal-session.ts:192	swallowed-error	current	FP	queue-tail	W1	line
-jini	packages/db/src/kernel/pglite/driver.ts:48	swallowed-error	current	FP	mark-observed	W1	line
-jini	packages/db/src/kernel/pglite/driver.ts:63	swallowed-error	current	FP	mark-observed	W1	line
-jini	packages/desktop-host/src/electron/electron-url-capture.ts:172	swallowed-error	current	FP	mark-observed	W1	line
-jini	packages/desktop-host/src/sidecar.ts:201	swallowed-error	current	FP	reporter-self-guard (failure inside the reporting path)	W1	line
-jini	packages/diagnostics/src/observability/report-error.ts:97	swallowed-error	current	FP	reporter-self-guard (failure inside the reporting path)	W1	line
-jini	packages/diagnostics/src/web-evidence/page-work-budget.ts:55	swallowed-error	current	FP	mark-observed	W1	line
-jini	packages/infra/src/events/outbox/worker.ts:332	swallowed-error	current	FP	mark-observed	W1	line
-jini	packages/integrations/src/media-providers/dispatch/operation-runtime.ts:229	swallowed-error	current	FP	mark-observed	W1	line
-jini	packages/mcp/src/core/config.ts:269	swallowed-error	current	FP	queue-tail	W1	line
-jini	packages/mcp/src/core/tokens.ts:177	swallowed-error	current	FP	queue-tail	W1	line
-jini	packages/mcp/src/federation/hosted/store.memory.ts:57	swallowed-error	current	FP	queue-tail	W1	line
-jini	packages/mcp/src/federation/reload.ts:180	swallowed-error	current	FP	queue-tail	W1	line
-jini	packages/mcp/src/server/http-tool-server.adapter.ts:167	swallowed-error	current	FP	mark-observed	W1	line
-jini	packages/oauth/src/file-registration-cache.ts:44	swallowed-error	current	FP	queue-tail	W1	line
-jini	packages/oauth/src/loopback-receiver.ts:144	swallowed-error	current	FP	mark-observed	W1	line
-jini	packages/oauth/src/registration-cache.ts:77	swallowed-error	current	FP	mark-observed	W1	line
-jini	packages/plugins/src/host/node/module-snapshot.ts:190	swallowed-error	current	FP	mark-observed	W1	line
-jini	packages/plugins/src/host/node/runtime-core.ts:703	swallowed-error	current	FP	mark-observed	W1	line
-jini	packages/plugins/src/host/provider-host.ts:141	swallowed-error	current	FP	reporter-self-guard (failure inside the reporting path)	W1	line
-jini	packages/ui/src/features/panel-kit/fetch-query/adapter.react.tsx:118	swallowed-error	current	FP	mark-observed	W1	line
-jini	packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:184	swallowed-error	current	FP	mark-observed	W1	line
-jini	packages/ui/src/features/resource-dashboard/react/components/ResourceRowList.tsx:94	swallowed-error	current	FP	owned-elsewhere (another owner shows the failure)	W1	context
-jini	packages/user-management/src/react/members/hooks/use-members.hooks.ts:167	swallowed-error	current	FP	query-owned-reload	W1	line
-jini	packages/vibecoding/src/node/project.ts:168	swallowed-error	current	FP	queue-tail	W1	line
-jini	packages/agent-runtime/src/skills/web-clone/scripts/lib/playwright-loader.mjs:56	generic-error-catch	current-not-in-input	FP	cause-preserved (outer variable carries it)	none	line
-jini	packages/commerce/src/browser/checkout.ts:115	generic-error-catch	current	FP	not-an-error-message (button label)	none	line
-jini	packages/daemon/src/http/frontend-request-route.ts:54	generic-error-catch	current	FP	expected-refusal (auth check)	none	line
-jini	packages/infra/src/events/outbox/fenced-conformance.ts:132	swallowed-error	current	FP	test-support (conformance suite helper)	none	line
-jini	packages/infra/src/events/outbox/fenced-conformance.ts:51	swallowed-error	current	FP	test-support (conformance suite helper)	none	line
-jini	packages/agent-runtime/src/skills/web-clone/scripts/interaction-probe.mjs:214	swallowed-error	current	FP	wait-timeout	none: allowlist idiom in payload scripts	line
-jini	packages/agent-runtime/src/skills/web-clone/scripts/network-capture.mjs:119	swallowed-error	current	FP	wait-timeout	none: allowlist idiom in payload scripts	line
-jini	packages/agent-runtime/src/skills/web-clone/scripts/recon-site.mjs:418	swallowed-error	current	FP	wait-timeout	none: allowlist idiom in payload scripts	line
-jini	packages/agent-runtime/src/skills/web-clone/scripts/route-crawl.mjs:170	swallowed-error	current	FP	wait-timeout	none: allowlist idiom in payload scripts	line
-jini	packages/admin/src/redirects/rules.ts:151	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/admin/src/security/rules.ts:45	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/agent-plugins/github/deployments/github.mjs:178	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/agent-plugins/github/deployments/github.mjs:242	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/agent-plugins/github/deployments/github.mjs:367	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/agent-plugins/github/source-control/commit-site.mjs:203	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/agent-plugins/resend/lib/domains.mjs:75	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/agent-plugins/resend/lib/feedback.mjs:101	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/agent-plugins/s3-compatible/targets/s3-compatible.mjs:414	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/agent-plugins/src/admin-surfaces/descriptor.ts:97	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/agent-plugins/src/connect/plugin-credential-card.ts:41	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/agent-plugins/src/lifecycle/host-tools/identity.ts:55	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/agent-plugins/src/lifecycle/mail/adapter-descriptors.ts:85	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/agent-plugins/src/lifecycle/provider-contribution.ts:97	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/agent-plugins/src/lifecycle/skill-file-reader.ts:44	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/agent-plugins/src/lifecycle/tools/manifest.ts:81	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/agent-runtime/src/providers/response-text.ts:19	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/agentic/src/core/site-guide/topic-schema.ts:51	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/cms/src/forms/destination-descriptors.ts:38	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/cms/src/media/document-ingress.ts:221	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/cms/src/media/document-ingress.ts:42	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/cms/src/media/provenance.ts:42	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/cms/src/media/provenance.ts:8	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/cms/src/media/sanitize-svg.ts:58	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/commerce/src/browser/checkout.ts:67	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/commerce/src/catalog/checkout.ts:120	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/core/src/list-page.ts:69	generic-error-catch	current-not-in-input	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/core/src/records.ts:34	generic-error-catch	current-not-in-input	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/core/src/tool-input-envelope.ts:15	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/daemon/src/http/connectors.ts:414	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/db/src/transfer/postgres-target.ts:48	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/desktop-host/src/render-bridge.ts:131	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/devops/src/deploy/config-descriptors.ts:52	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/devops/src/deploy/ops-descriptors.ts:15	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/devops/src/deploy/ops-runner.ts:55	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/devops/src/deploy/target-descriptors.ts:36	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/devops/src/source-control/registry.ts:66	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/devops/src/static-export/transforms.ts:197	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/integrations/src/credentialed-http/auth-schemes.ts:44	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/integrations/src/credentialed-http/credentialed-request.ts:330	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/integrations/src/credentialed-http/credentialed-request.ts:573	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/integrations/src/credentialed-http/credentialed-request.ts:71	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/integrations/src/credentialed-http/sets/store.ts:199	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/mcp/src/federation/hosted/access.ts:36	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/memory/src/llm-provider.ts:429	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/oauth/src/discovery.ts:106	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/oauth/src/endpoint-safety.ts:38	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/oauth/src/resource.ts:16	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/platform/src/object-store/descriptors.ts:38	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/platform/src/web/web-page.ts:163	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/provider-plugins/src/analytics-posthog/consent.ts:37	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/provider-plugins/src/payments-stripe/http.ts:54	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-jini	packages/provider-plugins/src/payments-stripe/provider.ts:33	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+jini	packages/admin/src/media/controllers/library.controller.ts:140	swallowed-error	current	FP	queue-tail	W1: afterSettled	ast
+jini	packages/admin/src/redirects/controllers/redirects.controller.ts:28	swallowed-error	current	FP	owned-elsewhere (another owner shows the failure)	W1: observed	ast
+jini	packages/admin/src/redirects/controllers/redirects.controller.ts:40	swallowed-error	current	FP	owned-elsewhere (another owner shows the failure)	W1: observed	ast
+jini	packages/agent-plugins/github-pages/targets/github-pages.mjs:515	swallowed-error	current	FP	error-body-parse	debt: payload cannot import core idioms (D9)	ast
+jini	packages/agent-plugins/google-workspace/lib/auth.mjs:58	swallowed-error	current	FP	error-body-parse	debt: payload cannot import core idioms (D9)	ast
+jini	packages/agent-plugins/src/connect/executable/register.ts:124	swallowed-error	current	FP	queue-tail	W1: afterSettled	ast
+jini	packages/agent-plugins/src/lifecycle/automatic-use.ts:281	swallowed-error	current	FP	queue-tail	W1: afterSettled	ast
+jini	packages/agent-plugins/vercel/targets/vercel.mjs:634	swallowed-error	current	FP	error-body-parse	W1: orFallback	ast
+jini	packages/agent-runtime/src/diagnostics.ts:26	generic-error-catch	current	FP	reporter-self-guard (failure inside the reporting path)	none: sanctioned reporting module (gate list)	ast
+jini	packages/agent-runtime/src/providers/oauth-tokens.ts:98	swallowed-error	current	FP	queue-tail	W1: afterSettled	ast
+jini	packages/agentic/src/skills/install/install-service.ts:78	swallowed-error	current	FP	queue-tail	W1: afterSettled	ast
+jini	packages/chat/src/embed-widget/transports/fetch-sse.ts:193	swallowed-error	current	FP	error-body-parse	W1: orFallback	ast
+jini	packages/chat/src/react/features/chat-pane/create-mid-run-message-poster.ts:38	swallowed-error	current	FP	error-body-parse	W1: orFallback	ast
+jini	packages/chat/src/react/features/chat-pane/create-mid-run-message-poster.ts:46	swallowed-error	current	FP	error-body-parse	W1: orFallback	ast
+jini	packages/chat/src/react/features/chat-pane/hooks/useChatPaneAgentControl.hooks.ts:284	swallowed-error	current	FP	mark-observed	W1: observed	ast
+jini	packages/chat/src/react/hooks/useComposerHistory.hooks.ts:112	swallowed-error	current	real	dropped-write (storage write swallowed inside a queue tail)	W4	ast
+jini	packages/cms/src/forms/repo.memory.ts:190	swallowed-error	current	FP	queue-tail	W1: afterSettled	ast
+jini	packages/commerce/src/payments/ledger/repo.memory.ts:490	swallowed-error	current	FP	queue-tail	W1: afterSettled	ast
+jini	packages/cookie-consent/src/client/runtime.ts:107	swallowed-error	current	FP	error-body-parse	W1: orFallback	ast
+jini	packages/cookie-consent/src/node/index.ts:54	swallowed-error	current	FP	queue-tail	W1: afterSettled	ast
+jini	packages/core/src/fetch/cache.ts:188	swallowed-error	current	FP	mark-observed	W1: observed	ast
+jini	packages/daemon/src/core/tool-audit.ts:53	generic-error-catch	current	FP	reporter-self-guard (failure inside the reporting path)	none: sanctioned reporting module (gate list)	ast
+jini	packages/daemon/src/remote-tool-executor.ts:198	swallowed-error	current	real	dropped-notification (surface emit swallowed inside a queue tail)	W4	ast
+jini	packages/daemon/src/terminal-session.ts:192	swallowed-error	current	FP	queue-tail	W1: afterSettled	ast
+jini	packages/db/src/kernel/pglite/driver.ts:48	swallowed-error	current	FP	mark-observed	W1: observed	ast
+jini	packages/db/src/kernel/pglite/driver.ts:63	swallowed-error	current	FP	mark-observed	W1: observed	ast
+jini	packages/desktop-host/src/electron/electron-url-capture.ts:172	swallowed-error	current	FP	mark-observed	W1: observed	ast
+jini	packages/desktop-host/src/sidecar.ts:201	swallowed-error	current	FP	reporter-self-guard (failure inside the reporting path)	none: sanctioned reporting module (gate list)	ast
+jini	packages/diagnostics/src/observability/report-error.ts:97	swallowed-error	current	FP	reporter-self-guard (failure inside the reporting path)	none: sanctioned reporting module (gate list)	ast
+jini	packages/diagnostics/src/web-evidence/page-work-budget.ts:55	swallowed-error	current	FP	mark-observed	W1: observed	ast
+jini	packages/infra/src/events/outbox/worker.ts:332	swallowed-error	current	FP	mark-observed	W1: observed	ast
+jini	packages/integrations/src/media-providers/dispatch/operation-runtime.ts:229	swallowed-error	current	FP	mark-observed	W1: observed	ast
+jini	packages/mcp/src/core/config.ts:269	swallowed-error	current	FP	queue-tail	W1: afterSettled	ast
+jini	packages/mcp/src/core/tokens.ts:177	swallowed-error	current	FP	queue-tail	W1: afterSettled	ast
+jini	packages/mcp/src/federation/hosted/store.memory.ts:57	swallowed-error	current	FP	queue-tail	W1: afterSettled	ast
+jini	packages/mcp/src/federation/reload.ts:180	swallowed-error	current	FP	queue-tail	W1: afterSettled	ast
+jini	packages/mcp/src/server/http-tool-server.adapter.ts:167	swallowed-error	current	FP	mark-observed	W1: observed	ast
+jini	packages/oauth/src/file-registration-cache.ts:44	swallowed-error	current	FP	queue-tail	W1: afterSettled	ast
+jini	packages/oauth/src/loopback-receiver.ts:144	swallowed-error	current	FP	mark-observed	W1: observed	ast
+jini	packages/oauth/src/registration-cache.ts:77	swallowed-error	current	FP	mark-observed	W1: observed	ast
+jini	packages/plugins/src/host/node/module-snapshot.ts:190	swallowed-error	current	FP	mark-observed	W1: observed	ast
+jini	packages/plugins/src/host/node/runtime-core.ts:703	swallowed-error	current	FP	mark-observed	W1: observed	ast
+jini	packages/plugins/src/host/provider-host.ts:141	swallowed-error	current	FP	reporter-self-guard (failure inside the reporting path)	none: sanctioned reporting module (gate list)	ast
+jini	packages/ui/src/features/panel-kit/fetch-query/adapter.react.tsx:118	swallowed-error	current	FP	mark-observed	W1: observed	ast
+jini	packages/ui/src/features/panel-kit/fetch-query/adapter.tanstack.tsx:184	swallowed-error	current	FP	mark-observed	W1: observed	ast
+jini	packages/ui/src/features/resource-dashboard/react/components/ResourceRowList.tsx:94	swallowed-error	current	FP	owned-elsewhere (another owner shows the failure)	W1: observed	ast
+jini	packages/user-management/src/react/members/hooks/use-members.hooks.ts:167	swallowed-error	current	FP	query-owned-reload	W1: observed	ast
+jini	packages/vibecoding/src/node/project.ts:168	swallowed-error	current	FP	queue-tail	W1: afterSettled	ast
+jini	packages/agent-runtime/src/skills/web-clone/scripts/lib/playwright-loader.mjs:56	generic-error-catch	current-not-in-input	FP	cause-preserved (outer variable carries it)	none: standalone skill payload, outside the gate scope (D9)	ast
+jini	packages/commerce/src/browser/checkout.ts:115	generic-error-catch	current	FP	not-an-error-message (button label)	W1: orFallbackSync	ast
+jini	packages/daemon/src/http/frontend-request-route.ts:54	generic-error-catch	current	real	auth-check-failure-unrecorded (keep the 403, record the error)	W5	ast
+jini	packages/infra/src/events/outbox/fenced-conformance.ts:132	swallowed-error	current	FP	test-support (conformance suite helper)	none	ast
+jini	packages/infra/src/events/outbox/fenced-conformance.ts:51	swallowed-error	current	FP	test-support (conformance suite helper)	none	ast
+jini	packages/agent-runtime/src/skills/web-clone/scripts/interaction-probe.mjs:214	swallowed-error	current	FP	wait-timeout	none: standalone skill payload, outside the gate scope (D9)	ast
+jini	packages/agent-runtime/src/skills/web-clone/scripts/network-capture.mjs:119	swallowed-error	current	FP	wait-timeout	none: standalone skill payload, outside the gate scope (D9)	ast
+jini	packages/agent-runtime/src/skills/web-clone/scripts/recon-site.mjs:418	swallowed-error	current	FP	wait-timeout	none: standalone skill payload, outside the gate scope (D9)	ast
+jini	packages/agent-runtime/src/skills/web-clone/scripts/route-crawl.mjs:170	swallowed-error	current	FP	wait-timeout	none: standalone skill payload, outside the gate scope (D9)	ast
+jini	packages/admin/src/redirects/rules.ts:151	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/admin/src/security/rules.ts:45	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/agent-plugins/github/deployments/github.mjs:178	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/agent-plugins/github/deployments/github.mjs:242	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/agent-plugins/github/deployments/github.mjs:367	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/agent-plugins/github/source-control/commit-site.mjs:203	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/agent-plugins/resend/lib/domains.mjs:75	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/agent-plugins/resend/lib/feedback.mjs:101	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/agent-plugins/s3-compatible/targets/s3-compatible.mjs:414	generic-error-catch	current	real	read-and-parse-in-one-try (body read failure reported as invalid JSON)	W8	ast
+jini	packages/agent-plugins/src/admin-surfaces/descriptor.ts:97	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/agent-plugins/src/connect/plugin-credential-card.ts:41	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/agent-plugins/src/lifecycle/host-tools/identity.ts:55	generic-error-catch	current	real	read-and-parse-in-one-try (file read failure reported as a bad manifest)	W8	ast
+jini	packages/agent-plugins/src/lifecycle/mail/adapter-descriptors.ts:85	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/agent-plugins/src/lifecycle/provider-contribution.ts:97	generic-error-catch	current	real	plugin-parser-throw (typed result without the cause)	W8	ast
+jini	packages/agent-plugins/src/lifecycle/skill-file-reader.ts:44	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/agent-plugins/src/lifecycle/tools/manifest.ts:81	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/agent-runtime/src/providers/response-text.ts:19	generic-error-catch	current	real	stream-read-failure (fixed words, cause dropped)	W8	ast
+jini	packages/agentic/src/core/site-guide/topic-schema.ts:51	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/cms/src/forms/destination-descriptors.ts:38	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/cms/src/media/document-ingress.ts:221	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/cms/src/media/document-ingress.ts:42	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/cms/src/media/provenance.ts:42	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/cms/src/media/provenance.ts:8	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/cms/src/media/sanitize-svg.ts:58	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/commerce/src/browser/checkout.ts:67	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/commerce/src/catalog/checkout.ts:120	generic-error-catch	current	FP	parse-refusal (project validator in try)	none: passes once the validator is on the gate's pureHelpers list (E0)	ast
+jini	packages/core/src/list-page.ts:69	generic-error-catch	current-not-in-input	FP	parse-refusal (project validator in try)	none: passes once the validator is on the gate's pureHelpers list (E0)	ast
+jini	packages/core/src/records.ts:34	generic-error-catch	current-not-in-input	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/core/src/tool-input-envelope.ts:15	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/daemon/src/http/connectors.ts:414	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/db/src/transfer/postgres-target.ts:48	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/desktop-host/src/render-bridge.ts:131	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/devops/src/deploy/config-descriptors.ts:52	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/devops/src/deploy/ops-descriptors.ts:15	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/devops/src/deploy/ops-runner.ts:55	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/devops/src/deploy/target-descriptors.ts:36	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/devops/src/source-control/registry.ts:66	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/devops/src/static-export/transforms.ts:197	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/integrations/src/credentialed-http/auth-schemes.ts:44	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/integrations/src/credentialed-http/credentialed-request.ts:330	generic-error-catch	current	FP	parse-refusal (project validator in try)	none: passes once the validator is on the gate's pureHelpers list (E0)	ast
+jini	packages/integrations/src/credentialed-http/credentialed-request.ts:573	generic-error-catch	current	FP	parse-refusal (project validator in try)	none: passes once the validator is on the gate's pureHelpers list (E0)	ast
+jini	packages/integrations/src/credentialed-http/credentialed-request.ts:71	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/integrations/src/credentialed-http/sets/store.ts:199	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/mcp/src/federation/hosted/access.ts:36	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/memory/src/llm-provider.ts:429	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/oauth/src/discovery.ts:106	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/oauth/src/endpoint-safety.ts:38	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/oauth/src/resource.ts:16	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/platform/src/object-store/descriptors.ts:38	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/platform/src/web/web-page.ts:163	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/provider-plugins/src/analytics-posthog/consent.ts:37	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+jini	packages/provider-plugins/src/payments-stripe/http.ts:54	generic-error-catch	current	real	uncertain-payment-outcome (transport error never recorded; keep the unknown outcome)	W8	ast
+jini	packages/provider-plugins/src/payments-stripe/provider.ts:33	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
 jini	packages/admin/src/media/controllers/providers.controller.ts:35	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
 jini	packages/admin/src/media/controllers/providers.controller.ts:49	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
 jini	packages/commerce/src/payments/ingest/settlement-worker.ts:35	generic-error-catch	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
@@ -305,75 +305,75 @@ tovu	apps/website/src/server/runtime/composition/modules/assistant-run-finalizer
 tovu	apps/website/src/server/runtime/composition/modules/assistant.ts:122	swallowed-error	current	real	best-effort-cleanup	W3	line
 tovu	apps/website/src/server/runtime/services/external-mcp-probe.ts:185	swallowed-error	current	real	best-effort-cleanup	W3	line
 tovu	apps/website/src/server/runtime/boot/local-owner-signin.ts:69	generic-error-catch	current	real	fixed-result-without-cause	W8	context
-tovu	apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx:1313	swallowed-error	current	FP	designed-fallback (documented at the site)	W1	context
-tovu	apps/admin/src/features/plugins/hooks/use-plugins.hooks.ts:166	swallowed-error	current	FP	query-owned-reload	W1	line
-tovu	apps/admin/src/features/plugins/hooks/use-plugins.hooks.ts:182	swallowed-error	current	FP	query-owned-reload	W1	line
-tovu	apps/admin/src/features/plugins/hooks/use-plugins.hooks.ts:203	swallowed-error	current	FP	query-owned-reload	W1	line
-tovu	apps/admin/src/features/recovery/hooks/use-recovery.hooks.ts:123	swallowed-error	current	FP	query-owned-reload	W1	line
-tovu	apps/admin/src/features/sites/hooks/site-transfer-dependencies.hooks.ts:102	swallowed-error	current	FP	error-body-parse	W1	line
-tovu	apps/admin/src/features/sites/hooks/site-transfer-dependencies.hooks.ts:95	swallowed-error	current	FP	designed-fallback (documented at the site)	W1	context
-tovu	apps/admin/src/features/sites/hooks/site-transfer-dependencies.hooks.ts:98	swallowed-error	current	FP	designed-fallback (documented at the site)	W1	context
-tovu	apps/admin/src/features/skills/use-skills.hooks.ts:105	swallowed-error	current	FP	query-owned-reload	W1	line
-tovu	apps/admin/src/features/skills/use-skills.hooks.ts:86	swallowed-error	current	FP	query-owned-reload	W1	line
-tovu	apps/admin/src/integrations/jini-admin/media-ports.ts:131	swallowed-error	current	FP	queue-tail	W1	line
-tovu	apps/admin/src/lib/assistant-daemon-activation.ts:19	swallowed-error	current	FP	error-body-parse	W1	line
-tovu	apps/admin/src/lib/queued-daemon-start.ts:16	swallowed-error	current	FP	error-body-parse	W1	line
-tovu	apps/desktop/src/keyed-serializer.ts:39	swallowed-error	current	FP	queue-tail	W1	line
-tovu	apps/site-chat/src/site-assistant-transport.ts:271	swallowed-error	current	FP	error-body-parse	W1	line
-tovu	apps/website/src/assistant/site/visitor-tool-budgets.ts:52	swallowed-error	current	FP	queue-tail	W1	line
-tovu	apps/website/src/cli/commands/owner-store.ts:226	swallowed-error	current	FP	designed-fallback (documented at the site)	W1	context
-tovu	apps/website/src/features/comments/provider-selection.ts:83	swallowed-error	current	FP	mark-observed	W1	line
-tovu	apps/website/src/features/consent/settings.ts:42	swallowed-error	current	FP	mark-observed	W1	line
-tovu	apps/website/src/features/identity/delete-user-service.ts:353	swallowed-error	current	FP	queue-tail	W1	line
-tovu	apps/website/src/features/members/repo.memory.ts:62	swallowed-error	current	FP	queue-tail	W1	line
-tovu	apps/website/src/features/web-screenshot/playwright-page-capture.ts:174	swallowed-error	current	FP	mark-observed	W1	line
-tovu	apps/website/src/platform/db/journal-kernel.ts:112	swallowed-error	current	FP	mark-observed	W1	line
-tovu	apps/website/src/platform/db/journal-kernel.ts:86	swallowed-error	current	FP	mark-observed	W1	line
-tovu	apps/website/src/platform/site-dir/local-site-supervisor.ts:78	swallowed-error	current	FP	queue-tail	W1	line
-tovu	apps/website/src/server/inbound/admin-http/routes/sites/warm-site-control.ts:41	generic-error-catch	current	FP	reporter-self-guard (failure inside the reporting path)	W1	line
-tovu	apps/website/src/server/inbound/assistant/agent-daemon-server.ts:46	swallowed-error	current	FP	mark-observed	W1	line
-tovu	apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts:247	swallowed-error	current	FP	mark-observed	W1	line
-tovu	apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts:258	swallowed-error	current	FP	mark-observed	W1	line
-tovu	apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts:330	generic-error-catch	current	FP	reporter-self-guard (failure inside the reporting path)	W1	line
-tovu	apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts:368	generic-error-catch	current	FP	reporter-self-guard (failure inside the reporting path)	W1	line
-tovu	apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts:412	swallowed-error	current	FP	mark-observed	W1	line
-tovu	apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts:417	swallowed-error	current	FP	mark-observed	W1	line
-tovu	apps/website/src/server/runtime/composition/app.ts:554	swallowed-error	current	FP	mark-observed	W1	line
-tovu	apps/website/src/server/runtime/composition/deps.ts:1315	swallowed-error	current	FP	mark-observed	W1	line
-tovu	apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts:430	swallowed-error	current	FP	designed-fallback (documented at the site)	W1	context
-tovu	apps/website/src/server/runtime/composition/modules/assistant.ts:213	swallowed-error	current	FP	error-body-parse	W1	line
-tovu	apps/website/src/server/runtime/composition/modules/core.ts:47	swallowed-error	current	FP	mark-observed	W1	line
-tovu	apps/website/src/server/runtime/composition/modules/site-search.ts:264	swallowed-error	current	FP	mark-observed	W1	line
-tovu	apps/website/src/server/runtime/composition/peer-site-reads.ts:463	swallowed-error	current	FP	queue-tail	W1	line
-tovu	apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx:1832	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/admin/src/features/posts/hooks/use-post-url-dialog.hooks.ts:36	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/desktop/src/renderer/SharedKeys.hooks.ts:137	generic-error-catch	current-not-in-input	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/assistant/byok-meta-tool-result.ts:93	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/assistant/credential-chat-intake.ts:7	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/cli/commands/agent-plugin-tokens.ts:50	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/cli/commands/import-local.ts:137	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/cli/commands/import-site.ts:32	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/cli/commands/import-site.ts:51	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/cli/commands/init.ts:145	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/features/agent-plugins/analytics-provider-registry.ts:64	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/features/consent/config.ts:79	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/features/consent/readiness.ts:16	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/features/consent/request.ts:25	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/features/media-generation/media-provider-registry.ts:125	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/features/newsletter/unsubscribe.ts:78	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/features/publish-content/backstop-service.ts:116	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/features/publish-content/peer-url.ts:97	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/features/publish-trust/session.ts:146	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/features/site-backup/import-backend-steps.ts:59	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/features/site-inspection/live-url.ts:36	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/features/site-inspection/live-url.ts:98	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/features/theme/tool-registrations.ts:142	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/features/web-screenshot/web-screenshot.ts:142	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/server/inbound/assistant/durable-run-routes.ts:19	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/server/runtime/boot/local-owner-signin.ts:81	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/server/runtime/boot/local-owner-signin.ts:90	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/server/runtime/composition/modules/assistant-byok.ts:427	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
-tovu	apps/website/src/server/runtime/composition/modules/assistant-chats.ts:251	generic-error-catch	current	FP	parse-refusal	none: allowlisted (pure parse in try, specific refusal)	line
+tovu	apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx:1313	swallowed-error	current	FP	designed-fallback (documented at the site)	W1: orFallback	ast
+tovu	apps/admin/src/features/plugins/hooks/use-plugins.hooks.ts:166	swallowed-error	current	FP	query-owned-reload	W1: observed	ast
+tovu	apps/admin/src/features/plugins/hooks/use-plugins.hooks.ts:182	swallowed-error	current	FP	query-owned-reload	W1: observed	ast
+tovu	apps/admin/src/features/plugins/hooks/use-plugins.hooks.ts:203	swallowed-error	current	FP	query-owned-reload	W1: observed	ast
+tovu	apps/admin/src/features/recovery/hooks/use-recovery.hooks.ts:123	swallowed-error	current	FP	query-owned-reload	W1: observed	ast
+tovu	apps/admin/src/features/sites/hooks/site-transfer-dependencies.hooks.ts:102	swallowed-error	current	FP	error-body-parse	W1: orFallback	ast
+tovu	apps/admin/src/features/sites/hooks/site-transfer-dependencies.hooks.ts:95	swallowed-error	current	FP	designed-fallback (documented at the site)	W1: orFallback	ast
+tovu	apps/admin/src/features/sites/hooks/site-transfer-dependencies.hooks.ts:98	swallowed-error	current	FP	designed-fallback (documented at the site)	W1: orFallback	ast
+tovu	apps/admin/src/features/skills/use-skills.hooks.ts:105	swallowed-error	current	FP	query-owned-reload	W1: observed	ast
+tovu	apps/admin/src/features/skills/use-skills.hooks.ts:86	swallowed-error	current	FP	query-owned-reload	W1: observed	ast
+tovu	apps/admin/src/integrations/jini-admin/media-ports.ts:131	swallowed-error	current	FP	queue-tail	W1: afterSettled	ast
+tovu	apps/admin/src/lib/assistant-daemon-activation.ts:19	swallowed-error	current	FP	error-body-parse	W1: orFallback	ast
+tovu	apps/admin/src/lib/queued-daemon-start.ts:16	swallowed-error	current	FP	error-body-parse	W1: orFallback	ast
+tovu	apps/desktop/src/keyed-serializer.ts:39	swallowed-error	current	FP	queue-tail	W1: afterSettled	ast
+tovu	apps/site-chat/src/site-assistant-transport.ts:271	swallowed-error	current	FP	error-body-parse	W1: orFallback	ast
+tovu	apps/website/src/assistant/site/visitor-tool-budgets.ts:52	swallowed-error	current	FP	queue-tail	W1: afterSettled	ast
+tovu	apps/website/src/cli/commands/owner-store.ts:226	swallowed-error	current	FP	designed-fallback (documented at the site)	W1: orFallback	ast
+tovu	apps/website/src/features/comments/provider-selection.ts:83	swallowed-error	current	FP	mark-observed	W1: observed	ast
+tovu	apps/website/src/features/consent/settings.ts:42	swallowed-error	current	FP	mark-observed	W1: observed	ast
+tovu	apps/website/src/features/identity/delete-user-service.ts:353	swallowed-error	current	FP	queue-tail	W1: afterSettled	ast
+tovu	apps/website/src/features/members/repo.memory.ts:62	swallowed-error	current	FP	queue-tail	W1: afterSettled	ast
+tovu	apps/website/src/features/web-screenshot/playwright-page-capture.ts:174	swallowed-error	current	FP	mark-observed	W1: observed	ast
+tovu	apps/website/src/platform/db/journal-kernel.ts:112	swallowed-error	current	FP	mark-observed	W1: observed	ast
+tovu	apps/website/src/platform/db/journal-kernel.ts:86	swallowed-error	current	FP	mark-observed	W1: observed	ast
+tovu	apps/website/src/platform/site-dir/local-site-supervisor.ts:78	swallowed-error	current	FP	queue-tail	W1: afterSettled	ast
+tovu	apps/website/src/server/inbound/admin-http/routes/sites/warm-site-control.ts:41	generic-error-catch	current	FP	reporter-self-guard (failure inside the reporting path)	E4: guard removed once the reporter never-throws contract holds	ast
+tovu	apps/website/src/server/inbound/assistant/agent-daemon-server.ts:46	swallowed-error	current	FP	mark-observed	W1: observed	ast
+tovu	apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts:247	swallowed-error	current	FP	mark-observed	W1: observed	ast
+tovu	apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts:258	swallowed-error	current	FP	mark-observed	W1: observed	ast
+tovu	apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts:330	generic-error-catch	current	FP	reporter-self-guard (failure inside the reporting path)	E4: guard removed once the reporter never-throws contract holds	ast
+tovu	apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts:368	generic-error-catch	current	FP	reporter-self-guard (failure inside the reporting path)	E4: guard removed once the reporter never-throws contract holds	ast
+tovu	apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts:412	swallowed-error	current	FP	mark-observed	W1: observed	ast
+tovu	apps/website/src/server/inbound/public-http/middleware/site-cookie-consent.ts:417	swallowed-error	current	FP	mark-observed	W1: observed	ast
+tovu	apps/website/src/server/runtime/composition/app.ts:554	swallowed-error	current	FP	mark-observed	W1: observed	ast
+tovu	apps/website/src/server/runtime/composition/deps.ts:1315	swallowed-error	current	FP	mark-observed	W1: observed	ast
+tovu	apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts:430	swallowed-error	current	FP	designed-fallback (documented at the site)	W1: orFallback	ast
+tovu	apps/website/src/server/runtime/composition/modules/assistant.ts:213	swallowed-error	current	FP	error-body-parse	W1: orFallback	ast
+tovu	apps/website/src/server/runtime/composition/modules/core.ts:47	swallowed-error	current	FP	mark-observed	W1: observed	ast
+tovu	apps/website/src/server/runtime/composition/modules/site-search.ts:264	swallowed-error	current	FP	mark-observed	W1: observed	ast
+tovu	apps/website/src/server/runtime/composition/peer-site-reads.ts:463	swallowed-error	current	FP	queue-tail	W1: afterSettled	ast
+tovu	apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx:1832	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+tovu	apps/admin/src/features/posts/hooks/use-post-url-dialog.hooks.ts:36	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+tovu	apps/desktop/src/renderer/SharedKeys.hooks.ts:137	generic-error-catch	current-not-in-input	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+tovu	apps/website/src/assistant/byok-meta-tool-result.ts:93	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+tovu	apps/website/src/assistant/credential-chat-intake.ts:7	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+tovu	apps/website/src/cli/commands/agent-plugin-tokens.ts:50	generic-error-catch	current	real	read-and-parse-in-one-try (stdin read failure reported as bad JSON)	W8	ast
+tovu	apps/website/src/cli/commands/import-local.ts:137	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+tovu	apps/website/src/cli/commands/import-site.ts:32	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+tovu	apps/website/src/cli/commands/import-site.ts:51	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+tovu	apps/website/src/cli/commands/init.ts:145	generic-error-catch	current	real	read-and-parse-in-one-try (stdin read failure reported as bad JSON)	W8	ast
+tovu	apps/website/src/features/agent-plugins/analytics-provider-registry.ts:64	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+tovu	apps/website/src/features/consent/config.ts:79	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+tovu	apps/website/src/features/consent/readiness.ts:16	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+tovu	apps/website/src/features/consent/request.ts:25	generic-error-catch	current	FP	parse-refusal (project validator in try)	none: passes once the validator is on the gate's pureHelpers list (E0)	ast
+tovu	apps/website/src/features/media-generation/media-provider-registry.ts:125	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+tovu	apps/website/src/features/newsletter/unsubscribe.ts:78	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+tovu	apps/website/src/features/publish-content/backstop-service.ts:116	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+tovu	apps/website/src/features/publish-content/peer-url.ts:97	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+tovu	apps/website/src/features/publish-trust/session.ts:146	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+tovu	apps/website/src/features/site-backup/import-backend-steps.ts:59	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+tovu	apps/website/src/features/site-inspection/live-url.ts:36	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+tovu	apps/website/src/features/site-inspection/live-url.ts:98	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+tovu	apps/website/src/features/theme/tool-registrations.ts:142	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+tovu	apps/website/src/features/web-screenshot/web-screenshot.ts:142	generic-error-catch	current	FP	parse-refusal	none: passes the pure-parse exemption (prototype run)	ast
+tovu	apps/website/src/server/inbound/assistant/durable-run-routes.ts:19	generic-error-catch	current	FP	parse-refusal (project validator in try)	none: passes once the validator is on the gate's pureHelpers list (E0)	ast
+tovu	apps/website/src/server/runtime/boot/local-owner-signin.ts:81	generic-error-catch	current	FP	parse-refusal (project validator in try)	none: passes once the validator is on the gate's pureHelpers list (E0)	ast
+tovu	apps/website/src/server/runtime/boot/local-owner-signin.ts:90	generic-error-catch	current	FP	parse-refusal (project validator in try)	none: passes once the validator is on the gate's pureHelpers list (E0)	ast
+tovu	apps/website/src/server/runtime/composition/modules/assistant-byok.ts:427	generic-error-catch	current	FP	parse-refusal (project validator in try)	none: passes once the validator is on the gate's pureHelpers list (E0)	ast
+tovu	apps/website/src/server/runtime/composition/modules/assistant-chats.ts:251	generic-error-catch	current	FP	parse-refusal (project validator in try)	none: passes once the validator is on the gate's pureHelpers list (E0)	ast
 tovu	apps/admin/src/App.hooks.ts:142	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
 tovu	apps/admin/src/App.hooks.ts:239	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
 tovu	apps/admin/src/App.hooks.ts:249	swallowed-error	input-only (not flagged on integ/wave-b-r2)	gone	-	none: already fixed, reshaped or documented; the gate baseline re-checks	script
