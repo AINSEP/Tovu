@@ -4,6 +4,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import { useAdminSession } from "../../App.hooks";
 import { api } from "../../lib/api";
+import { postsApi } from "../../features/posts/api/posts-api";
 import { settingsApi } from "../../features/settings/api/settings-api";
 import * as apiModule from "../../lib/admin-http/request";
 import { Login } from "../../features/auth";
@@ -118,7 +119,7 @@ it("a 401 from an unrelated screen's own api call clears the session, not just t
   // Some unrelated screen's own request hits the now-expired session. Before this fix, this 401
   // only ever reached THAT screen's own catch block — `useAdminSession`'s `user` never learned
   // about it, so `App.tsx` kept rendering the real shell around a dead session.
-  await api.listPosts().catch(() => undefined);
+  await postsApi.listPosts().catch(() => undefined);
 
   await waitFor(() => expect(result.current.user).toBeNull());
 });
@@ -143,7 +144,7 @@ it("a 403 (authenticated but forbidden) does NOT clear the session — a real pe
   const { result } = renderHook(() => useAdminSession());
   await waitFor(() => expect(result.current.checking).toBe(false));
 
-  await act(async () => { await expect(api.listPosts()).rejects.toMatchObject({ status: 403 }); });
+  await act(async () => { await expect(postsApi.listPosts()).rejects.toMatchObject({ status: 403 }); });
   expect(result.current.user).toEqual({ id: "u1", username: "admin" });
 });
 
@@ -189,6 +190,6 @@ it("unsubscribes on unmount so a later 401 cannot notify the removed session", a
   expect(registration).toHaveBeenCalledTimes(1);
   unmount();
   expect(unsubscribe).toHaveBeenCalledTimes(1);
-  await expect(api.listPosts()).rejects.toMatchObject({ status: 401 });
+  await expect(postsApi.listPosts()).rejects.toMatchObject({ status: 401 });
   expect(notified).not.toHaveBeenCalled();
 });

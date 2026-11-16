@@ -1,5 +1,7 @@
 import { getAdminDraftIdentity } from "@/lib/admin-draft-identity";
-import { api, type AdminPost, type ThemeTier } from "@/lib/api";
+import { api, type ThemeTier } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import { postsApi } from "@/features/posts/api/posts-api";
 import { pagesApi } from "@/features/pages/api/pages-api";
 import { ApiError } from "@/lib/admin-http/request";
 import type { StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot } from "@/hooks/use-standing-draft-autosave.hooks";
@@ -30,13 +32,13 @@ export const defaultPageEditorPort: PageEditorPort = {
   },
   updatePageHtml: ({ id, html }, _options = {}) => pagesApi.updatePageHtml({ id, html }),
   // The shared posts route saves pages too; `entry` makes a failure notice say "page".
-  updatePost: ({ target, patch }, _options = {}) => api.updatePost(target, { options: patch, entry: "page" }),
+  updatePost: ({ target, patch }, _options = {}) => postsApi.updatePost(target, { options: patch, entry: "page" }),
   deletePage: ({ id }, _options = {}) => pagesApi.deletePage({ id }),
-  templatePreviewUrl: ({ id, templateChoice }, _options = {}) => api.templatePreviewUrl({ id, templateChoice }),
-  putAutosave: ({ id, draft }, options = {}) => api.putAutosave({ id, draft }, options),
+  templatePreviewUrl: ({ id, templateChoice }, _options = {}) => postsApi.templatePreviewUrl({ id, templateChoice }),
+  putAutosave: ({ id, draft }, options = {}) => postsApi.putAutosave({ id, draft }, options),
   getBackupPrincipalId: () => getAdminDraftIdentity(),
-  getAutosave: ({ id }, _options = {}) => api.getAutosave({ id }),
-  discardAutosave: ({ id }, _options = {}) => api.discardAutosave({ id }),
+  getAutosave: ({ id }, _options = {}) => postsApi.getAutosave({ id }),
+  discardAutosave: ({ id }, _options = {}) => postsApi.discardAutosave({ id }),
 };
 
 /** Seed state for {@link createFakePageEditorPort}. */

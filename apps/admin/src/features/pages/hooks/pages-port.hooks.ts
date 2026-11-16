@@ -1,4 +1,4 @@
-import type { AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 
 /**
  * @file What `use-pages.hooks.ts` needs from the outside world, as an interface rather than a

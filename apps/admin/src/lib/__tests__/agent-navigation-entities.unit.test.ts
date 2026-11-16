@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { api, type AdminAgentPlugin, type AdminPost } from "../api";
+import { api, type AdminAgentPlugin } from "../api";
+import type { AdminPost } from "../../features/posts/api/posts-api.types";
 import { pagesApi } from "../../features/pages/api/pages-api";
 import { buildAdminAgentPages } from "../agent-pages";
 import * as router from "../router";

@@ -1,4 +1,6 @@
-import { api, type AdminPost, type AdminSiteKeyState } from "@/lib/api";
+import { api, type AdminSiteKeyState } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import { postsApi } from "@/features/posts/api/posts-api";
 import { authApi } from "@/features/auth/api/auth-api";
 import { pagesApi } from "@/features/pages/api/pages-api";
 import { commentsApi } from "@/features/comments/api/comments-api";
@@ -14,7 +16,7 @@ import type { DashboardPort } from "./dashboard-port.hooks";
  *  reasoning — a route's own parameter shape (`listCommentsQueue`'s `options`) stays `lib/api.ts`'s
  *  to own. */
 export const defaultDashboardPort: DashboardPort = {
-  listPosts: () => api.listPosts(),
+  listPosts: () => postsApi.listPosts(),
   listPages: () => pagesApi.listPages(),
   listMedia: () => api.listMedia(),
   listCommentsQueue: (options, _optional = {}) => commentsApi.listCommentsQueue(options),

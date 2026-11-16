@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "../api";
+import { postsApi } from "../../features/posts/api/posts-api";
 import { usersApi } from "../../features/users/api/users-api";
 import { authApi } from "../../features/auth/api/auth-api";
 import { databaseApi } from "../../features/database/api/database-api";
@@ -73,8 +74,8 @@ describe("endpoints", () => {
 
   it("post autosave read and discard", async () => {
     const calls = stubFetch();
-    await api.getAutosave({ id: "p/1" });
-    await api.discardAutosave({ id: "p/1" });
+    await postsApi.getAutosave({ id: "p/1" });
+    await postsApi.discardAutosave({ id: "p/1" });
     expect(calls.map(({ url, method }) => [url, method])).toEqual([[`${W}/posts/p%2F1/autosave`, "GET"], [`${W}/posts/p%2F1/autosave`, "DELETE"]]);
   });
 

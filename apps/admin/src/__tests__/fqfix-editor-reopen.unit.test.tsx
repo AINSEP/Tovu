@@ -2,7 +2,7 @@ import { act, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FetchQueryProvider } from './fetch-query-provider.test-helper';
 import type { ReactNode } from 'react';
-import type { AdminPost } from '@/lib/api';
+import type { AdminPost } from '@/features/posts/api/posts-api.types';
 import type { AdminMenu } from '@/features/menus/api/menus-api.types';
 import type { AdminWorkspace } from '@/features/workspace/api/workspace-api.types';
 import { usePageEditor } from '@/features/pages/hooks/use-page-editor.hooks';

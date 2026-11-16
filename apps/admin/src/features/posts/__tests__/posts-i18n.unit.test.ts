@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createElement as h } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
-import { api } from "@/lib/api";
+import { postsApi } from "@/features/posts/api/posts-api";
 import { Posts } from "../Posts";
 import { PostEditor } from "../PostEditor";
 import { PostPublishAtField } from "../PostPublishingFields";
@@ -208,12 +208,12 @@ for (const copy of LOCALIZED) {
       language.locale = copy.locale;
       const post = createFakePostEditorPort().post;
       if (action === "unpublish") post.status = "published";
-      vi.spyOn(api, "listPosts").mockImplementation(async () => {
+      vi.spyOn(postsApi, "listPosts").mockImplementation(async () => {
         if (action === "load") throw null;
         return { posts: [{ post }] };
       });
-      vi.spyOn(api, "updatePost").mockRejectedValue(null);
-      vi.spyOn(api, "deletePost").mockRejectedValue(null);
+      vi.spyOn(postsApi, "updatePost").mockRejectedValue(null);
+      vi.spyOn(postsApi, "deletePost").mockRejectedValue(null);
       render(h(Posts));
       if (action !== "load") {
         await screen.findByRole("link", { name: post.title });

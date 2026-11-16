@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { type AdminMedia, type AdminPost } from "@/lib/api";
+import { type AdminMedia } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import {

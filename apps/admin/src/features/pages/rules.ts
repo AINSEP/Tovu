@@ -3,7 +3,7 @@ import type { RowMenuItem } from "@jini-ai/admin/react";
 import type { CanvasStyling } from "@jini-ai/ui/html-editor";
 
 import { buildAgentListHandles } from "@jini-ai/core/agent-handles";
-import { type AdminPost } from "../../lib/api";
+import type { AdminPost } from "../posts/api/posts-api.types";
 
 import type {
   StandingDraftAutosaveInput,

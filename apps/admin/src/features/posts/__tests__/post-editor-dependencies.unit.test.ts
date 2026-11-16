@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createFakePostEditorPort, defaultFeaturedImageRenditionUrl, defaultPostEditorPort } from "../hooks/post-editor-dependencies.hooks";
-import { api } from "@/lib/api";
+import { postsApi } from "@/features/posts/api/posts-api";
 
 // The hook suite is being edited by another worker. These are the port's own contracts,
 // including its id guards, which the hook cannot reach with its loaded post's id.
@@ -12,7 +12,7 @@ describe("post editor dependencies", () => {
     const options: Record<string, never> = {};
     const created = await port.createPost(input, options);
     expect(created.post.title).toBe("First save");
-    const create = vi.spyOn(api, "createPost").mockResolvedValue(created);
+    const create = vi.spyOn(postsApi, "createPost").mockResolvedValue(created);
     try {
       await expect(defaultPostEditorPort.createPost(input, options)).resolves.toEqual(created);
       expect(create).toHaveBeenCalledWith(input, options);

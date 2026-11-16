@@ -6,7 +6,8 @@ import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 import { PostEditor } from "../PostEditor";
 import type { PostEditorController } from "../hooks/use-post-editor.hooks";
-import { api, type AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import { postsApi } from "@/features/posts/api/posts-api";
 
 // The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its
 // content ref so this file's fetch queue and assertions stay about the editor itself (its own
@@ -110,7 +111,7 @@ function controller(overrides: Partial<PostEditorController> = {}): PostEditorCo
     confirmLeave: () => true,
     dirty: false,
     contentDirty: false,
-    templatePreviewUrl: api.templatePreviewUrl({ id: post.id, templateChoice: null }),
+    templatePreviewUrl: postsApi.templatePreviewUrl({ id: post.id, templateChoice: null }),
     bodyJson: null,
     showTemplateModal: false,
     setShowTemplateModal,

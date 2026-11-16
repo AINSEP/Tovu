@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { formatUserFacingError } from "@jini-ai/core";
 import { api } from "../api";
+import { postsApi } from "../../features/posts/api/posts-api";
 import { authApi } from "../../features/auth/api/auth-api";
 import { pagesApi } from "../../features/pages/api/pages-api";
 import { ApiError, authenticatedAdminRequest, API_UNREACHABLE_CODE } from "../admin-http/request";
@@ -153,7 +154,7 @@ it("a page saved through the shared posts route is called a page in the notice, 
   const failure = formatUserFacingError({ message: "The post save could not be completed.", action: "Check whether your changes were saved before repeating the save.", step: "Save post", cause: "The error ID identifies the server report." }, { errorId: "incident-9" });
   const body = { error: { code: "INTERNAL_ERROR", message: "boom", requestId: "request-9", details: { errorId: "incident-9", failure } } };
   vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 500 })));
-  await api.updatePost({ id: "p1" }, { options: { title: "x" }, entry: "page" }).catch(() => undefined);
+  await postsApi.updatePost({ id: "p1" }, { options: { title: "x" }, entry: "page" }).catch(() => undefined);
   const approved = adminFailureChannel.getSnapshot();
   expect(approved?.message).toBe("The page save could not be completed.");
   expect(approved?.copyText).toMatch(/Save page/);
@@ -161,9 +162,9 @@ it("a page saved through the shared posts route is called a page in the notice, 
   adminFailureChannel.reset();
   setAdminDraftIdentity({ id: null });
   vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: "x" }), { status: 500 })));
-  await api.updatePost({ id: "p1" }, { options: { title: "x" }, entry: "page" }).catch(() => undefined);
+  await postsApi.updatePost({ id: "p1" }, { options: { title: "x" }, entry: "page" }).catch(() => undefined);
   expect(adminFailureChannel.getSnapshot()?.message).toMatch(/page save/);
   adminFailureChannel.reset();
-  await api.updatePost({ id: "p1" }, { options: { title: "x" } }).catch(() => undefined);
+  await postsApi.updatePost({ id: "p1" }, { options: { title: "x" } }).catch(() => undefined);
   expect(adminFailureChannel.getSnapshot()?.message).toMatch(/post save/);
 });

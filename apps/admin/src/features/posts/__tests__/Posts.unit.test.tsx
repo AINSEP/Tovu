@@ -8,7 +8,7 @@ import { Posts, postsListNotice } from "../Posts";
 import type { PostsController } from "../hooks/use-posts.hooks";
 import { buildPostRowMenuHandleMap } from "../rules";
 import { navigate } from "@/lib/router";
-import type { AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 
 /**
  * @file `Posts` — markup-only list screen, twin of `features/pages/Pages.tsx`. Had NO test file

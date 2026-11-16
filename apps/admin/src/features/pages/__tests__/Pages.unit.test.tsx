@@ -7,7 +7,7 @@ import { buildPageRowMenuHandleMap } from "../rules";
 import type { PagesController } from "../hooks/use-pages.hooks";
 import type { ThemePageRow, ThemePagesController } from "../hooks/use-theme-pages.hooks";
 import { adminHref, navigate } from "@/lib/router";
-import type { AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { siteUrl } from "@/lib/site-url";
 
 const identityT = (key: string): string => key;

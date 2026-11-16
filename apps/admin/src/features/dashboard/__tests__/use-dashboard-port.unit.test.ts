@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { useDashboard } from "../hooks/use-dashboard.hooks";
 import { createFakeDashboardPort } from "../hooks/dashboard-dependencies.hooks";
 import type { DashboardPort } from "../hooks/dashboard-port.hooks";
-import { type AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { ApiError } from "@/lib/admin-http/request";
 import { AdminBootScopeContext } from "@/lib/admin-boot-scope";
 import { createElement, type ReactNode } from "react";

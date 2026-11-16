@@ -15,7 +15,8 @@ import { DevicePreviewFrame } from "../../components/DevicePreview/DevicePreview
 import { DevicePreviewToggle } from "../../components/DevicePreview/DevicePreviewToggle";
 import { EmbedInsertControl } from "../../components/EmbedInsertControl/EmbedInsertControl";
 import { resolveTabBarTabIndex, useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
-import type { AdminPost, ThemeTier } from "../../lib/api";
+import type { ThemeTier } from "../../lib/api";
+import type { AdminPost } from "./api/posts-api.types";
 
 import { siteUrl } from "../../lib/site-url";
 import type {

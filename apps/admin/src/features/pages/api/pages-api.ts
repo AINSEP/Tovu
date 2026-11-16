@@ -1,6 +1,6 @@
 import { WORKSPACE_ID } from "../../../lib/admin-http/config";
 import { request } from "../../../lib/admin-http/request";
-import type { AdminPost } from "../../../lib/api";
+import type { AdminPost } from "../../posts/api/posts-api.types";
 import type { AdminPagePluginEmbed } from "./pages-api.types";
 
 /** The admin API calls of the pages feature. */

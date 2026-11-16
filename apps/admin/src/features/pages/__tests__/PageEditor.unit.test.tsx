@@ -5,7 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { publishThemePreviewRefresh } from "../../themes/theme-preview-refresh";
 import { PageEditor } from "../PageEditor";
 import type { PageEditorController } from "../hooks/use-page-editor.hooks";
-import { api, type AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import { postsApi } from "@/features/posts/api/posts-api";
 import { PAGE_PREVIEW_IFRAME_SANDBOX } from "../rules";
 
 // The shared Categories & Tags box reads its own taxonomy list and terms; stubbed to echo its
@@ -130,7 +131,7 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     // `PagePreviewFrame` called `api.templatePreviewUrl` itself — still see realistic URLs without
     // restating that logic. A test proving the seam itself overrides this with a value the real `api`
     // could never produce (see "the preview iframe's src comes from the injected controller" below).
-    templatePreviewUrl: page ? api.templatePreviewUrl({ id: page.id, templateChoice }) : "",
+    templatePreviewUrl: page ? postsApi.templatePreviewUrl({ id: page.id, templateChoice }) : "",
     previewFormRef: vi.fn(),
     previewFormTarget: page ? `page-preview-pending-${page.id}` : "",
     // Settled-with-no-styling by default: the Interactive tab then mounts a real GrapesJS editor

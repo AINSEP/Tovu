@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api } from "../api";
+import { postsApi } from "../../features/posts/api/posts-api";
 import { bodyFitsKeepalive, KEEPALIVE_MAX_BODY_BYTES } from "../admin-http/request";
 
 /**
@@ -44,20 +44,20 @@ const DRAFT = {
 describe("api.putAutosave keepalive", () => {
   it("sets keepalive on the fetch when the caller asks for it", async () => {
     const calls = stubFetchCapturing();
-    await api.putAutosave({ id: "p1", draft: { ...DRAFT } }, { keepalive: true });
+    await postsApi.putAutosave({ id: "p1", draft: { ...DRAFT } }, { keepalive: true });
     expect(calls[0]?.init?.keepalive).toBe(true);
   });
 
   it("omits keepalive entirely on an ordinary write", async () => {
     const calls = stubFetchCapturing();
-    await api.putAutosave({ id: "p1", draft: { ...DRAFT } });
+    await postsApi.putAutosave({ id: "p1", draft: { ...DRAFT } });
     expect(calls[0]?.init?.keepalive).toBeUndefined();
   });
 
   it("drops keepalive for a body over the ceiling — a rejected request beats no request", async () => {
     const calls = stubFetchCapturing();
     // Over 64 KiB once serialized, so `fetch` would reject outright rather than send it.
-    await api.putAutosave({ id: "p1", draft: { ...DRAFT, bodyHtml: "x".repeat(KEEPALIVE_MAX_BODY_BYTES + 1) } }, { keepalive: true });
+    await postsApi.putAutosave({ id: "p1", draft: { ...DRAFT, bodyHtml: "x".repeat(KEEPALIVE_MAX_BODY_BYTES + 1) } }, { keepalive: true });
     expect(calls[0]?.init?.keepalive).toBeUndefined();
     // The write is still attempted, just over the ordinary transport.
     expect(calls[0]?.init?.method).toBe("PUT");

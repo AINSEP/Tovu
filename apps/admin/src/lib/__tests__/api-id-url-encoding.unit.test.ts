@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { postsApi } from "../../features/posts/api/posts-api";
 import { usersApi } from "../../features/users/api/users-api";
 import { collectionsApi } from "../../features/collections/api/collections-api";
 import { pluginsApi } from "../../features/plugins/api/plugins-api";
@@ -69,9 +70,9 @@ type Case = [name: string, run: () => unknown, expectedUrl: string];
 // the URL-building line; unrelated fields (`expectedVersion`, `baseVersion`, required companion
 // ids) get innocuous fixed values since only the URL is asserted.
 const singleIdCases: Case[] = [
-  ["getPost", () => api.getPost({ id: SLASH_ID }), `${BASE_WORKSPACE}/posts/${ENC}`],
-  ["updatePost", () => api.updatePost({ id: SLASH_ID }), `${BASE_WORKSPACE}/posts/${ENC}`],
-  ["deletePost", () => api.deletePost({ id: SLASH_ID }), `${BASE_WORKSPACE}/posts/${ENC}`],
+  ["getPost", () => postsApi.getPost({ id: SLASH_ID }), `${BASE_WORKSPACE}/posts/${ENC}`],
+  ["updatePost", () => postsApi.updatePost({ id: SLASH_ID }), `${BASE_WORKSPACE}/posts/${ENC}`],
+  ["deletePost", () => postsApi.deletePost({ id: SLASH_ID }), `${BASE_WORKSPACE}/posts/${ENC}`],
   ["getPage", () => pagesApi.getPage({ id: SLASH_ID }), `${BASE_WORKSPACE}/pages/${ENC}`],
   ["updatePageHtml", () => pagesApi.updatePageHtml({ id: SLASH_ID, html: "<p>x</p>" }), `${BASE_WORKSPACE}/pages/${ENC}/html`],
   ["deletePage", () => pagesApi.deletePage({ id: SLASH_ID }), `${BASE_WORKSPACE}/pages/${ENC}`],

@@ -1,7 +1,7 @@
 import type { JSONContent } from "@tiptap/core";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, expect, it } from "vitest";
-import type { AdminPost } from "../../lib/api";
+import type { AdminPost } from "../../features/posts/api/posts-api.types";
 import { usePostEditor } from "../../features/posts/hooks/use-post-editor.hooks";
 import { createFakePostEditorPort } from "../../features/posts/hooks/post-editor-dependencies.hooks";
 import { usePageEditor } from "../../features/pages/hooks/use-page-editor.hooks";

@@ -18,7 +18,8 @@ import InvisibleCharacters from "@tiptap/extension-invisible-characters";
 import { Table, TableRow, TableCell, TableHeader } from "@tiptap/extension-table";
 import { TaskList, TaskItem } from "@tiptap/extension-list";
 
-import type { AdminPost, ThemeTier } from "@/lib/api";
+import type { ThemeTier } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { isUnexpectedServerFailure } from "@/lib/server-failure";
 import { useSettlementGeneration, useDirtyGuard } from "@jini-ai/ui/panel-kit";
 

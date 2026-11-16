@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { createFakePostsListPort } from "../hooks/posts-list-dependencies.hooks";
 
 /** A seeded row; the list port has no create (the editor owns creation on first Save). */

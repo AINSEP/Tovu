@@ -5,7 +5,7 @@ import type { DataTableSortState } from "@jini-ai/admin/core";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { useState, type ReactNode } from "react";
 
-import type { AdminPost } from "../../lib/api";
+import type { AdminPost } from "./api/posts-api.types";
 import { siteUrl } from "../../lib/site-url";
 
 import { navigate } from "../../lib/router";

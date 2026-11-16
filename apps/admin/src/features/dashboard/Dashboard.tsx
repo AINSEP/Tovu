@@ -1,4 +1,4 @@
-import type { AdminPost } from "../../lib/api";
+import type { AdminPost } from "../posts/api/posts-api.types";
 import { siteUrl } from "../../lib/site-url";
 import { adminHref } from "../../lib/router";
 

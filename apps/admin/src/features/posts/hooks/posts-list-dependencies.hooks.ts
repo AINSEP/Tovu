@@ -1,4 +1,5 @@
-import { api, type AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import { postsApi } from "@/features/posts/api/posts-api";
 import { ApiError } from "@/lib/admin-http/request";
 import { POST_VERSION_CONFLICT_CODE } from "../rules";
 import type { PostsListPort } from "./posts-list-port.hooks";
@@ -10,9 +11,9 @@ import type { PostsListPort } from "./posts-list-port.hooks";
 
 /** The live implementation, as a module-level singleton. */
 export const defaultPostsListPort: PostsListPort = {
-  listPosts: () => api.listPosts(),
-  updatePost: ({ target, patch }, _optional = {}) => api.updatePost(target, { options: patch }),
-  deletePost: ({ id }, _optional = {}) => api.deletePost({ id }),
+  listPosts: () => postsApi.listPosts(),
+  updatePost: ({ target, patch }, _optional = {}) => postsApi.updatePost(target, { options: patch }),
+  deletePost: ({ id }, _optional = {}) => postsApi.deletePost({ id }),
 };
 
 /** Seed state for {@link createFakePostsListPort}. */

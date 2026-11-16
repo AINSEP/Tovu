@@ -9,7 +9,7 @@ import { defaultPagesPort, createFakePagesPort } from "../hooks/pages-dependenci
 import { defaultThemePagesPort, createFakeThemePagesPort } from "../hooks/theme-pages-dependencies.hooks";
 import { defaultAdminLocalePort } from "@/hooks/admin-locale-dependencies.hooks";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import type { AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 
 const candidate: ThemePageRow = { pageId: "pricing", filePath: "render/pages/pricing.html", published: true, resettable: true, collidingContent: null };
 function props() {

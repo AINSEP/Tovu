@@ -4,7 +4,7 @@ import { EditorSourceError } from "@jini-ai/ui/html-editor";
 import { usePageEditor } from "../hooks/use-page-editor.hooks";
 import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
 import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
-import type { AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 
 const html = '<p>hello</p><div data-kui id="ring"></div>';
 const page: AdminPost = { id: "scriptblocks-page", workspaceId: "w", kind: "page", title: "Landing", slug: "scriptblocks", bodyJson: {}, bodyFormat: "html", bodyHtml: html, status: "draft", version: 1, updatedAt: "2026-10-11T00:00:00.000Z" };

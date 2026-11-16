@@ -2,7 +2,7 @@ import { derivePostSlugBase, isAutomaticPostSlug } from "../../../../website/src
 import type { RowMenuItem } from "@jini-ai/admin/react";
 import type { EditorView } from "@tiptap/pm/view";
 
-import { type AdminPost } from "../../lib/api";
+import type { AdminPost } from "./api/posts-api.types";
 import { VERSION_CONFLICT_CODE, type SaveConflict } from "../../lib/version-conflict";
 import { buildAgentListHandles } from "@jini-ai/core/agent-handles";
 import type {
