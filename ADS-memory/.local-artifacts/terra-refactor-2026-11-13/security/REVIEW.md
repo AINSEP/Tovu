@@ -741,3 +741,188 @@ Add the cases in F1 and F4.
   them, so their correctness is outside this item.
 - For A50 I did not find or read a route-level test for the saved-keys reveal path.
 - For A06 I did not read `capability-registry.ts` or the composition beyond the lines cited.
+
+---
+
+## C — cloud/small-fixes-2026-11-15: the MCP consent gap and the `mcpIsolation` claim
+
+**Verdict: unsafe - do not merge** Jini `10605caf` ("Claude def declares mcpIsolation so planRun skips
+MCP consent"). Highest severity: **high**. The other commits on the two branches are dependency
+hygiene and are **safe** (notes at the end).
+
+Line numbers in this item are at Jini `cloud/small-fixes-2026-11-15` (`2bf74b9f`).
+
+### The claim
+
+`packages/agent-runtime/src/defs/claude.ts:151-153` adds
+`mcpIsolation: { perRun: 'claude-strict-mcp-config@2026-11-16' }` with the comment: *every run passes
+`--strict-mcp-config`, so the CLI ignores user/project MCP sources; planRun need not ask for consent.*
+
+### Is the claim true? **No.** Three separate facts, all read from the code:
+
+The same question — "will this run load MCP servers the owner did not grant?" — is answered in three
+places, and they disagree whenever the host leaves the personal-MCP capability **unset** (it is
+optional: `nativeCapabilities?: Partial<NativeCapabilities>`, `native-tool-policy.ts:53-58`).
+
+| Place | Rule when the capability is unset | Location |
+|---|---|---|
+| Consent planner | "isolated": no consent key, verdict RUN | `native-tool-policy.ts:119-126` (`loadsOwnSources` returns `userMcp === true`), `:128-134` |
+| Argument builder | **not** locked: the strict flag is omitted when no config is staged; and omitted with a staged config when the run has CLI parity and bypass mode | `defs/shared.ts:76-79` (`claudeUserMcpLocked`), `:69`, `:30-32`, `:71-72` |
+| Config stager | **inherit**: the project's own MCP file is read and merged into the config the daemon stages | `packages/daemon/src/agent-executor/mcp-bridge.ts:283`, `launch.ts:1433`, `claude/mcp-config.ts:14`, `:21-24` |
+
+So:
+
+1. **No staged config** → the builder returns no strict flag at all (`shared.ts:69`). "Every run passes
+   it" is false.
+2. **Staged config, CLI parity + bypass mode** → the strict flag is dropped (`shared.ts:30-32`, `:71-72`).
+3. **Staged config, strict flag present** → the staged file already contains the project's MCP server
+   definitions (`claude/mcp-config.ts:21-24`), and passing it explicitly is documented in the same
+   file as skipping the CLI's own project-trust prompt (`shared.ts:45-47`). The flag isolates nothing
+   that matters here.
+
+Before this commit the definition declared no isolation, so the planner asked for the personal-MCP
+consent in all three cases and the daemon's backstop refused the launch
+(`launch.ts:1121-1126`). After it, the planner answers RUN and the backstop lets the run through.
+
+The claim **is** true for the one case the new test checks: the capability explicitly `false`
+(`claudeUserMcpLocked` is then true, the strict flag is passed, and the stager does not inherit).
+
+### Findings
+
+**C-F1 — high — consent is skipped on paths where no isolation is applied.**
+- Class: missing authorization (consent) because two components disagree about a default; untrusted
+  project configuration loaded without a trust decision.
+- Location: `defs/claude.ts:153`; `native-tool-policy.ts:119-126`; `defs/shared.ts:66-79`;
+  `daemon/src/agent-executor/launch.ts:1113-1126`, `:1433`; `mcp-bridge.ts:283`;
+  `claude/mcp-config.ts:14-24`.
+- Impact: an agent run can start with MCP servers defined by the owner's own CLI setup or by the
+  project folder, with no consent card and no CLI trust prompt. Those servers can carry the owner's
+  credentials and can run local commands.
+- Fix (all needed):
+  1. Resolve the capability **once**, in `enforceNativeToolPolicy` before `planRun`, to a definite
+     boolean (unset → `false`), and make the planner, the argument builder and the stager read that
+     one value. No component may keep its own reading of "unset".
+  2. Make the planner's answer and the launch agree by construction: when the plan says "does not load
+     its own sources", the daemon must check the built arguments contain the isolation flag and that
+     the staged config was built without inheritance, and otherwise fail before spawn (the planner
+     already has `isolationBlocked` for this; the daemon never sets it — `launch.ts:1121` passes no
+     host).
+  3. Until 1 and 2 land, remove the `mcpIsolation` declaration (back to "ask").
+
+**C-F2 — high — the isolation stamp is not what the type contract requires.**
+- Class: unverified security claim recorded as verified.
+- Location: `packages/agent-runtime/src/types.ts:346-347` ("A per-run claim must identify a verified
+  CLI version and date"); `defs/claude.ts:153`; executor report `cloud-results/small-fixes-2026-11-15.md`
+  ("a claim from the documented … behaviour, not a live CLI check").
+- Fact: the stamp carries a date and no CLI version, and nothing was run. Not verified by anyone:
+  whether the flag also excludes servers contributed by installed CLI plugins, by the signed-in
+  account's connectors, and by managed (organisation) configuration. I could not verify these either
+  (no CLI in this environment).
+- Fix: verify on a named CLI version, for each of those sources, and put that version in the stamp.
+  Add the check to the def's contract test: the stamp must match `<name>@<cli version>@<date>`.
+
+**C-F3 — medium — the new test is named as a guard but does not look at the gate.**
+- Location: `packages/agent-runtime/src/__tests__/plan-run.unit.test.ts:61-66` ("an isolated Claude run
+  does not request MCP consent (it passes --strict-mcp-config)").
+- Fact: it calls only `planRun`. It never builds arguments. Delete the strict flag from
+  `buildClaudeMcpConfigArgs` and the test stays green. Its fixture sets the capability to `false`
+  (`:5-7`), the one case where the claim holds, so it cannot see the gap. The date-only regex also
+  locks in the stamp format that breaks the type contract.
+- Fix: a matrix test over {capability true / false / unset} × {config staged / not} × {parity+bypass /
+  not} × {folder limit / none}. For every cell where `planRun` returns RUN with `loadsOwn: false`,
+  assert (a) the def's built arguments contain the isolation flag and (b) the stager is called with
+  inheritance off. This fails today in the unset cells, and fails if the flag is ever removed.
+
+### What must change before merge
+
+1. Drop `10605caf` from the branch, or land it together with C-F1 fixes 1 and 2.
+2. Stamp with a verified CLI version (C-F2).
+3. Replace the test with the matrix (C-F3); show it red on today's code first.
+
+### Not verified
+
+- Whether Tovu can reach the executor with the capability unset. Tovu has a path that discards a
+  stored `false` and re-applies defaults (`apps/website/src/assistant/subagent-settings.ts:38-41`,
+  `cli-permission-layer.ts:25-27`); I did not trace the resolved value to the executor call. The Jini
+  finding stands regardless: Jini's contract allows unset, and other hosts use it.
+- The CLI's real behaviour (see C-F2).
+
+### The other commits on these branches (briefly)
+
+- Tovu `51133f44` → `939ee65d` (mail library pinned to a release older than 14 days), `52ac8c1b`
+  (`.npmrc` minimum release age); Jini `eff5c025`, `1a1a4d43` (same for pnpm). **Safe.** One low note:
+  both age gates exempt the first-party `@jini-ai/*` scope, and the executor could not confirm the
+  exemption pattern matches. Confirm it, and note that a compromised first-party publish is by design
+  not delayed by this gate.
+- Jini `65c42167`, `befb207e`, `b7666092` (guard script fixes) were not reviewed here; they are the
+  branch base and not part of item C.
+
+---
+
+## D — Cross-cutting facts from the daemon design review (judge findings 1, 2, 12)
+
+Facts only, on today's code (Tovu `65302ee5`, Jini `02edbb68`). No design. **All three findings are
+confirmed.**
+
+### D1 — the `authorizeRun` principal rewrite (judge finding 1): **confirmed**
+
+- The lookup refuses unless the supplied principal equals the stored one:
+  `apps/website/src/server/runtime/composition/modules/assistant-tool-exec.ts:216`.
+- The middleware reads the supplied run id and principal id, and answers 403 if either is not a
+  string or there is no run store (`:231`); it passes the supplied principal into the lookup (`:232`)
+  and answers 403 when the lookup returns nothing (`:233`).
+- Only **after** that does it replace the request's principal with the stored id, keeping only a
+  `read-only` tool-access narrowing from the caller (`:234`). Every other caller-supplied principal
+  field is dropped.
+- So "principal A, run recorded under B" is **refused with 403 and nothing executes** today. A
+  characterisation that expects it to "execute as B" describes a different, weaker system. The judge
+  is right.
+- Ordering in Jini: the route chain is caller gate → body parser → `authorizeRun` → handler
+  (`packages/daemon/src/http/tool-execution-routes.ts:234`), and the body shape is validated inside
+  the handler (`:183`). So today authorization runs **before** shape validation: a well-authenticated
+  caller with a malformed body and no valid run gets 403, not 400. Moving authorization after
+  validation changes which refusal a caller sees.
+- The lookup also requires the run to be the live attempt, the same run id, and this workspace
+  (`assistant-tool-exec.ts:211-215`).
+
+(The judge cites `:233`, `:234`, `:235`; on my read the three statements are at `:232`, `:233`, `:234`.
+Same code, one line off.)
+
+### D2 — the Tovu blanket body parser gate (judge finding 2): **confirmed**
+
+- The daemon-side app installs one unscoped JSON parser at
+  `apps/website/src/server/inbound/assistant/agent-daemon-scope.ts:1407` (6 MB), after the bearer gate.
+- A second credential check for delegated tool calls is registered **after** that parser, at `:1433`,
+  with `validateDelegatedRunId: true`.
+- That check reads the parsed body: Jini `packages/daemon/src/http/run-credentials.ts:30` passes
+  `req.body` to the authorizer only in this mode, and `packages/daemon/src/run-credentials.ts:153-155`
+  refuses a run-scoped credential unless `body.runId` equals the credential's own run.
+- Therefore, if the blanket parser is removed and nothing replaces it for that path, `req.body` is
+  undefined there and every delegated call from a run-scoped credential is refused (fail closed — a
+  break, not a bypass). The gate's meaning depends on a parser it does not own.
+- Other Tovu-owned handlers below the same parser read `req.body` directly, for example
+  `tool-access-lowering-route.ts:20`, and the routes registered at `agent-daemon-scope.ts:1408` onward.
+  I confirmed the first; I did not enumerate all of them.
+- Related fact for the main site app (not the daemon app): the internal router that carries the
+  tool-execution and capability-handoff routes is mounted **before** the public parser
+  (`apps/website/src/server/runtime/composition/app.ts:2005-2006`), so those routes gate before any
+  body bytes are parsed. That ordering is also load-bearing and is not pinned by a test I could find.
+
+### D3 — the constant-time comparison port (judge finding 12): **confirmed**
+
+- Tool execution compares the bearer with `timingSafeTokenMatch` at
+  `packages/daemon/src/http/tool-execution-routes.ts:75`, imported from `@jini-ai/http-kit` (`:28`).
+- Remote run events do the same at `packages/daemon/src/http/remote-run-events.ts:88`.
+- The http-kit function binds Node's native comparison itself
+  (`packages/http-kit/src/api-security-middleware.ts:83-85`).
+- The core function of the same name requires the comparison to be injected
+  (`packages/core/src/token.ts:46-50`, `timingSafeEqual: TimingSafeByteComparison`).
+- So a design that removes the http-kit import from these routes must supply that comparison as a
+  port (with a fake for tests). If it does not, the code either will not compile or someone will
+  reach for plain equality. The judge is right.
+
+### Not verified in D
+
+- No request was sent to a running server; these are reads of the code.
+- I did not read the design documents the judge reviewed (R7, INDEX), only the judge's findings and
+  the code they cite.
