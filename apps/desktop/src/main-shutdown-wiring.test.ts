@@ -270,6 +270,6 @@ test("a failed agent-service shutdown still waits for every tracked teardown bef
   }
   assert.equal(finalQuits, 1);
   assert.equal(logged.length, 1);
-  assert.match(logged[0], /agent service shutdown failed/);
-  assert.match(logged[0], /agent service stuck/);
+  assert.match((logged[0] ?? ""), /agent service shutdown failed/);
+  assert.match((logged[0] ?? ""), /agent service stuck/);
 });

@@ -17,6 +17,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ADMIN = "http://127.0.0.1:4100/admin/import-export?tab=import";
 
 type Handler = (event: unknown, raw: unknown) => unknown;
+// What the real `ipcMain.handle` hands us, widened to `never` for the event so the fake can store it as the
+// looser `Handler` the tests drive with hand-built senders (no real `WebFrameMain` exists in a unit test).
+type RegisteredHandler = (event: never, raw: unknown) => unknown;
 
 function fakeWindow({ minimized = false }: { minimized?: boolean } = {}) {
   const calls: unknown[][] = [];
@@ -33,7 +36,7 @@ function fakeWindow({ minimized = false }: { minimized?: boolean } = {}) {
 function register({ windows, trusted = () => true }: { windows: () => ImportHandoffWindow[]; trusted?: (url: string) => boolean }) {
   const handlers = new Map<string, Handler>();
   registerImportHandoffIpc({
-    ipcMain: { handle: (channel: string, handler: Handler) => { handlers.set(channel, handler); } },
+    ipcMain: { handle: (channel: string, handler: RegisteredHandler) => { handlers.set(channel, handler as Handler); } },
     isTrustedSender: trusted,
     sitesHomeWindows: windows,
   });
@@ -74,7 +77,7 @@ test("an untrusted page is refused in plain words and no window is touched", asy
 test("a request with no sender frame is refused", async () => {
   const handlers = new Map<string, Handler>();
   registerImportHandoffIpc({
-    ipcMain: { handle: (channel: string, handler: Handler) => { handlers.set(channel, handler); } },
+    ipcMain: { handle: (channel: string, handler: RegisteredHandler) => { handlers.set(channel, handler as Handler); } },
     isTrustedSender: () => true, sitesHomeWindows: () => [],
   });
   await assert.rejects(async () => handlers.get(IMPORT_HANDOFF_CHANNELS.request)!({}, {}), /isn't part of Tovu/);

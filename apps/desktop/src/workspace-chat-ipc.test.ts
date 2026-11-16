@@ -85,7 +85,7 @@ function setup({ stream }: { stream?: (input: { runId: string; onEvent: (event: 
     ipcMain: { handle: (channel: string, listener: Handler) => { assert.ok(!handlers.has(channel), `duplicate ${channel}`); handlers.set(channel, listener); } },
     runtime: Promise.resolve(runtime),
     conversations: store,
-    resolveAddressee: ({ siteDir }, _options = {}) => { calls.resolve!.push(siteDir); return siteDir === "/tracked" ? { siteDir, name: "Tracked" } : null; },
+    resolveAddressee: ({ siteDir }: { siteDir: string }, _options = {}) => { calls.resolve!.push(siteDir); return siteDir === "/tracked" ? { siteDir, name: "Tracked" } : null; },
     listAgents: async (required: { rescan: boolean }) => { calls.listAgents!.push(required); return []; },
     pickDirectory: async (current?: string) => { calls.pick!.push(current); return "/picked"; },
   } as unknown as WorkspaceChatIpcDeps;
@@ -111,7 +111,7 @@ test("every claimed invoke channel gets exactly one handler, and push-only chann
 });
 
 test("addresseeForStart trusts only a tracked site, never a bare renderer-reported path", () => {
-  const resolve = (siteDir: string) => (siteDir === "/tracked" ? { siteDir, name: "Tracked" } as never : null);
+  const resolve = ({ siteDir }: { siteDir: string }) => (siteDir === "/tracked" ? { siteDir, name: "Tracked" } as never : null);
   assert.deepEqual(addresseeForStart({ subscriptionId: "s", prompt: "p", agentId: "a", activeSiteDir: "/tracked" }, resolve), { siteDir: "/tracked", name: "Tracked" });
   assert.equal(addresseeForStart({ subscriptionId: "s", prompt: "p", agentId: "a", activeSiteDir: "/etc" }, resolve), null);
   for (const activeSiteDir of [undefined, null, ""]) {
