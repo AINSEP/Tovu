@@ -1,0 +1,9 @@
+{"jini":"/Users/la/Programming/jini-terra-base","tovu":"/Users/la/Programming/tovu-codex-trial-terra",
+ "moves":[
+  {"file":"packages/core/src/settings/express/contracts.ts","names":"*","to":"@jini-ai/core/settings/routes"},
+  {"file":"packages/core/src/settings/express/shared.ts","names":"*","to":"@jini-ai/core/settings/routes"},
+  {"file":"packages/core/src/settings/express/cms-adapter.ts","names":"*","to":"@jini-ai/core/settings/routes"},
+  {"file":"packages/core/src/settings/express/http.ts","names":"*","to":"@jini-ai/core/settings/routes"},
+  {"file":"packages/core/src/settings/express/http-request.ts","names":"*","to":"@jini-ai/core/settings/routes"},
+  {"file":"packages/core/src/settings/express/stream.ts","names":"*","to":"@jini-ai/core/settings/routes"}],
+ "exclude":["packages/core/src/settings/express/index.ts","packages/core/src/settings/express/contracts.ts","packages/core/src/settings/express/shared.ts","packages/core/src/settings/express/cms-adapter.ts","packages/core/src/settings/express/http.ts","packages/core/src/settings/express/http-request.ts","packages/core/src/settings/express/stream.ts","packages/cms/src/settings/express/index.ts"]}

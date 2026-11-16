@@ -1,0 +1,19 @@
+repo	file	old_spec	names	new_spec
+jini	packages/cms/src/__tests__/settings-compatibility.contract.test.ts	@jini-ai/core/settings/express	*ns:settingsExpress (22 moved names reachable)	MANUAL
+jini	packages/cms/src/__tests__/settings-compatibility.contract.test.ts	../settings/express/index.js	*ns:legacyExpress (22 moved names reachable)	MANUAL
+jini	packages/core/src/settings/express/__tests__/settings-cms-adapter.pins.test.ts	../index.js	createCmsSettingsService	@jini-ai/core/settings/routes
+jini	packages/core/src/settings/express/__tests__/settings-cms.test.ts	../index.js	createCmsSettingsService,createCmsSettingsChangeFeed	@jini-ai/core/settings/routes
+jini	packages/core/src/settings/express/__tests__/settings-feed.test.ts	../index.js	registerSettingsRoutes,type SettingsHttpOptions	@jini-ai/core/settings/routes
+jini	packages/core/src/settings/express/__tests__/settings-fixture.ts	../index.js	type SettingsHttpRequired,type SettingsPermissions	@jini-ai/core/settings/routes
+jini	packages/core/src/settings/express/__tests__/settings-http-request.test.ts	../http-request.js	failRequest,readValueMutation,resolvePrincipal,VALUE_MUTATION_REQUIRED	@jini-ai/core/settings/routes
+jini	packages/core/src/settings/express/__tests__/settings-http-request.test.ts	../index.js	type SettingsHttpOptions	@jini-ai/core/settings/routes
+jini	packages/core/src/settings/express/__tests__/settings-http.pins.test.ts	../index.js	registerSettingsRoutes,type SettingsHttpOptions	@jini-ai/core/settings/routes
+jini	packages/core/src/settings/express/__tests__/settings-http.test.ts	../index.js	registerSettingsRoutes	@jini-ai/core/settings/routes
+jini	packages/core/src/settings/express/__tests__/settings-shared.test.ts	../index.js	resolveTargetWorkspaceId,resolveUserLayerReadTarget,respondToSettingsError	@jini-ai/core/settings/routes
+jini	packages/core/src/settings/express/__tests__/settings-stream.test.ts	../stream.js	openSettingsChangeStream	@jini-ai/core/settings/routes
+jini	packages/core/src/settings/express/__tests__/settings-stream.test.ts	../contracts.js	type SettingsChangeFeed,type SettingsHttpOptions	@jini-ai/core/settings/routes
+jini	packages/core/src/settings/express/__tests__/unit/fixture-routing.unit.test.ts	../../index.js	registerSettingsRoutes	@jini-ai/core/settings/routes
+tovu	apps/website/src/server/inbound/admin-http/routes/settings/register-definitions.ts	./shared.js	type SettingsErrorMapping	@jini-ai/core/settings/routes
+tovu	apps/website/src/server/inbound/admin-http/routes/settings/set.ts	./shared.js	type SettingsErrorMapping	@jini-ai/core/settings/routes
+tovu	apps/website/src/server/inbound/admin-http/routes/settings/shared.ts	@jini-ai/core/settings/express	createCmsSettingsService,resolveTargetWorkspaceId as resolveCmsTargetWorkspaceId,resolveUserLayerReadTarget as resolveCmsUserLayerReadTarget,respondToSettingsError as respondToCmsSettingsError,type SettingsPermissions,type SettingsService,type TargetWorkspaceResolution,type UserLayerReadTarget,type SettingsErrorMapping	@jini-ai/core/settings/routes
+tovu	apps/website/src/server/inbound/admin-http/routes/settings/shared.ts	export-from @jini-ai/core/settings/express	type TargetWorkspaceResolution,type UserLayerReadTarget,type SettingsErrorMapping	@jini-ai/core/settings/routes
