@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { api } from "../../../lib/api";
+import { fsFilesApi } from "../api/fs-files-api";
 import { ApiError } from "../../../lib/admin-http/request";
 
 /**
@@ -36,8 +36,8 @@ export interface UseNativeFolderPicker {
  * @complexity O(1) per call; one probe request per mount, one request per pick.
  */
 export function useNativeFolderPicker(input: UseNativeFolderPickerInput, deps: UseNativeFolderPickerDeps = {}): UseNativeFolderPicker {
-  const probe = deps.probe ?? api.getFolderPicker;
-  const pick = deps.pick ?? api.pickFolder;
+  const probe = deps.probe ?? fsFilesApi.getFolderPicker;
+  const pick = deps.pick ?? fsFilesApi.pickFolder;
   const [available, setAvailable] = useState(false);
   const [picking, setPicking] = useState(false);
   // A ref, not `picking`, guards re-entry: two clicks in one tick both see the stale state value.

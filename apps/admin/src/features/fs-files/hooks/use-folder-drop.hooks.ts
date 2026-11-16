@@ -3,7 +3,7 @@ import type { DragEvent } from "react";
 import type { ChatPaneComposerHandle } from "@jini-ai/chat/react";
 import { folderPathsFromDataTransfer } from "@jini-ai/ui";
 
-import { api } from "../../../lib/api";
+import { fsFilesApi } from "../api/fs-files-api";
 import { ApiError } from "../../../lib/admin-http/request";
 import { getFolderDropPort, type FolderDropPort } from "../folder-drop-port";
 import { useSerialWrites, useSettlementGeneration } from "@jini-ai/ui/panel-kit";
@@ -202,7 +202,7 @@ function confirmationNotice(
 export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps = {}): UseFolderDrop {
   const getPort = deps.getPort ?? defaultGetPort;
   const setCustomRoot = deps.setCustomRoot;
-  const getCustomRoot = deps.getCustomRoot ?? api.getFsFilesCustomRoot;
+  const getCustomRoot = deps.getCustomRoot ?? fsFilesApi.getFsFilesCustomRoot;
   const autoDismissMs = deps.autoDismissMs ?? DEFAULT_AUTO_DISMISS_MS;
 
   const [notice, setNotice] = useState<FolderDropNotice | null>(null);
@@ -252,7 +252,7 @@ export function useFolderDrop(input: UseFolderDropInput, deps: UseFolderDropDeps
         if (!settlement.isCurrent({ generation })) return;
         const settlesHere = () => mountedRef.current && settlement.isCurrent({ generation });
         try {
-          await (setCustomRoot ? setCustomRoot(path) : api.setFsFilesCustomRoot({ path }));
+          await (setCustomRoot ? setCustomRoot(path) : fsFilesApi.setFsFilesCustomRoot({ path }));
           if (!settlesHere()) return;
           setNotice(confirmationNotice({ path, previousPath }, { paths }));
           scheduleAutoDismiss();
