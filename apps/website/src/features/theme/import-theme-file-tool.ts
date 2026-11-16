@@ -126,7 +126,7 @@ function buildImportThemeFileHandler(
       toolId,
       catalog: CATALOG_BY_ID,
       isShapeRejection: ({ error }) => isShapeRejection({ error }) || isImportShapeRejection({ error }) || error instanceof FsFilePathError,
-      fn: () => withCallerSafeEgressRefusal(logEgressRefusal, async () => {
+      fn: () => withCallerSafeEgressRefusal({ log: logEgressRefusal, work: async () => {
         const theme = findThemeOrThrow({ routeDeps, themeId });
         assertThemeFileWritable({ theme, relativePath });
         const destination = { themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath };
@@ -144,7 +144,7 @@ function buildImportThemeFileHandler(
         return { themeId, ...imported,
           ...(toolId === "theme_import_local_file" ? { sourcePath: requireString({ input, key: "sourcePath" }) } : {}),
           status: reloaded.status, errors: reloaded.errors };
-      }, { toolId }),
+      } }, { toolId }),
     });
   };
 }

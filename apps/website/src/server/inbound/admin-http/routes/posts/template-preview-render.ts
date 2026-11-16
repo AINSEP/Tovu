@@ -43,7 +43,7 @@ function buildPreviewPost(
  * Bare-page preview (owner ruling 2026-09-23, S5) — mirrors `pages.ts`'s own `renderBarePage`, but
  * built from `ContentRouteDeps`-compatible (Pick-typed) exports only, since this route's `deps` is
  * narrower than the full `RouteDeps` those two functions require. Inline `widgetEmbed` nodes resolve
- * through `resolveWidgetsForRender(deps, null, post)`, the same `theme: null` call the live bare
+ * through `resolveWidgetsForRender({ deps, theme: null }, { post })`, the same `theme: null` call the live bare
  * render makes: a doc-format Page can be bare too (the `templateChoice` query/API, not only the Pages
  * picker), and skipping it previewed every inline widget as the placeholder. Skips the SEO
  * `extraHead` fold (`buildExtraHead` is private to `pages.ts` and needs `originRegistry`, not in
@@ -61,10 +61,10 @@ async function renderBarePreview(deps: ContentRouteDeps, post: PostRecord): Prom
       },
       { workspaceId: deps.workspaceId }
     ),
-    resolveWidgetsForRender(deps, null, post),
-    resolveHtmlEmbedsForRender(deps, post),
+    resolveWidgetsForRender({ deps, theme: null }, { post }),
+    resolveHtmlEmbedsForRender({ deps, post }),
     resolveMediaTransformVersionsForRender(deps),
-    resolveMediaAssetMetadataForRender(deps, post),
+    resolveMediaAssetMetadataForRender({ deps, post }),
   ]);
   return renderBareEntryDocument({
     post,
@@ -200,7 +200,7 @@ export async function renderPostPreview(deps: ContentRouteDeps, input: PostPrevi
   // own page-shell arm does it, so the row stays untemplated and a later explicit pick still wins.
   const renderedPost = branch.kind === "page-shell" ? { ...previewPost, templateChoice: branch.templateChoice } : previewPost;
 
-  const staticMenus = await resolveStaticMenusForRender(deps, theme, postPublicPath({ slug: post.slug }));
+  const staticMenus = await resolveStaticMenusForRender({ deps, theme, currentPath: postPublicPath({ slug: post.slug }) });
   // Preview the anonymous visitor's listing, never the admin's privileges. Passing access enables
   // the live pipeline's assembled-document resolution (plain, paged and keyed See more batches),
   // after pending content has been applied; no second listing fetch/render implementation.
@@ -208,7 +208,7 @@ export async function renderPostPreview(deps: ContentRouteDeps, input: PostPrevi
     resolver: createMemberAccessResolver({ deps }),
     context: { isAuthenticated: false, activeTierIds: [], isPaid: false },
   };
-  const html = await renderViaTemplate(deps, theme, renderedPost, staticMenus, previewBodyJson, previewBodyHtml, undefined, false, postPreviewsAccess);
+  const html = await renderViaTemplate({ deps, theme, post: renderedPost, staticMenus }, { pendingBodyJson: previewBodyJson, pendingBodyHtml: previewBodyHtml, siteAssistantEnabled: false, postPreviewsAccess });
 
   return { html, templateChoice: renderedPost.templateChoice ?? null };
 }

@@ -266,7 +266,7 @@ async function startTrashRoutes(t: test.TestContext, h: Harness, options: { deny
     userRepo: {},
     movers: new Map([[THEME_ENTITY_TYPE, createThemeTrashMover(h.deps)]]),
   } as unknown as TrashRouteDeps;
-  createTrashModule(trashDeps).registerRoutes?.(app);
+  createTrashModule(trashDeps).registerRoutes?.({ app });
   const baseUrl = await startTestServer(app, t);
   return `${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/trash/items`;
 }

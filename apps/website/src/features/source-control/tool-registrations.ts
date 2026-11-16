@@ -342,7 +342,7 @@ function buildCommitOutcomeResult(outcome: SourceControlCommitOutcome): unknown 
  * @complexity O(1) — fixed string interpolation, no iteration.
  */
 function buildCapabilityGuidance({ providerId, configured, commitReady, switchedOffPluginId }: { providerId: string; configured: boolean; commitReady: boolean; switchedOffPluginId: string | undefined }, _optional = {}): string | undefined {
-  const switchOn = switchedOffPluginId === undefined ? "" : `: ${switchedOffPluginSentence(switchedOffPluginId)}`;
+  const switchOn = switchedOffPluginId === undefined ? "" : `: ${switchedOffPluginSentence({ pluginIds: [switchedOffPluginId] })}`;
   if (!configured && !commitReady) {
     return `No ${providerId} credential is saved, and no enabled Agent Plugin supports committing to ${providerId}${switchOn || "."}`;
   }

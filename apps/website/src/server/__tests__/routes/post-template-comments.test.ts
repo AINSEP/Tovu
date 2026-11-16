@@ -28,7 +28,7 @@ test("comments: the Starter post template shows approved comments + the no-JS fo
   await deps.commentRepo.create({ record: comment({ id: "c-ok", workspaceId: deps.workspaceId, entryId: post.id }) });
   await deps.commentRepo.create({ record: comment({ id: "c-held", workspaceId: deps.workspaceId, entryId: post.id, status: "pending", bodyText: "HELD_BODY" }) });
 
-  const html = await renderViaTemplate(deps, theme, post, undefined);
+  const html = await renderViaTemplate({ deps, theme, post, staticMenus: undefined });
   assert.match(html, /<section class="post-comments wrap"[^>]*><div data-comments-surface><section id="comments"/);
   assert.match(html, /Approved hello/);
   assert.match(html, new RegExp(`<form method="post" action="/api/site/comments"><input type="hidden" name="entryId" value="${post.id}">`));
@@ -38,7 +38,7 @@ test("comments: the Starter post template shows approved comments + the no-JS fo
 
   const { revision } = await deps.commentsProviders!.active({ siteId: deps.workspaceId });
   await deps.commentsProviders!.select({ siteId: deps.workspaceId, providerId: null, expectedRevision: revision, actorPrincipalId: await deps.ownerPrincipalId });
-  const off = await renderViaTemplate(deps, theme, post, undefined);
+  const off = await renderViaTemplate({ deps, theme, post, staticMenus: undefined });
   assert.doesNotMatch(off, /Approved hello|<form method="post" action="\/api\/site\/comments"/, "disable takes effect on the very next render (no cache)");
   assert.match(off, /data-comments-surface><\/div>/);
 });

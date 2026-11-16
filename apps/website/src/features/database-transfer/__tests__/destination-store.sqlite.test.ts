@@ -104,10 +104,10 @@ test("a sealed address copied onto another workspace's row does not open, and sa
 
 test("a destination sealed under another site key does not open", async (t) => {
   const { db } = await fixture(t);
-  const other = new InMemoryKeyring("v1");
+  const other = new InMemoryKeyring({}, { keyId: "v1" });
   const repo = new DatabaseDestinationRepo(contentKernel({ store: db }));
   await new SealedDatabaseDestinationStore({ repo, sealer: new AesGcmSecretSealer(other), keyring: other }).save("ws-1", DESTINATION);
-  const mine = new InMemoryKeyring("v1");
+  const mine = new InMemoryKeyring({}, { keyId: "v1" });
   await assert.rejects(new SealedDatabaseDestinationStore({ repo, sealer: new AesGcmSecretSealer(mine), keyring: mine }).get("ws-1"), DestinationUnreadableError);
 });
 

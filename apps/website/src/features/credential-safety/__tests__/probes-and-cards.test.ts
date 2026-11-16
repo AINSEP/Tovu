@@ -31,17 +31,17 @@ async function fixture() {
 }
 for (const status of [401, 403]) test(`hosted probe maps ${status} to auth, without echoing upstream text`, async () => {
   const deps = await fixture();
-  const result = await probeExternalMcpServer({ ...deps, connect: async () => { throw Object.assign(new Error('hostile upstream credential body'), { status }); } }, 'fixture');
+  const result = await probeExternalMcpServer({ deps: { ...deps, connect: async () => { throw Object.assign(new Error('hostile upstream credential body'), { status }); } }, serverId: 'fixture' });
   assert.deepEqual(result, { ok: false, status: 401, body: { error: 'The server rejected this token.', code: 'MCP_AUTH_REJECTED' } });
 });
 for (const [name, expected] of [['AbortError', 'timeout'], ['TimeoutError', 'timeout'], ['Error', 'unreachable']] as const) test(`hosted probe distinguishes ${name}`, async () => {
   const deps = await fixture();
-  const result = await probeExternalMcpServer({ ...deps, connect: async () => { const error = new Error('upstream private text'); error.name = name; throw error; } }, 'fixture');
+  const result = await probeExternalMcpServer({ deps: { ...deps, connect: async () => { const error = new Error('upstream private text'); error.name = name; throw error; } }, serverId: 'fixture' });
   assert.deepEqual(result, { ok: false, status: expected === 'timeout' ? 504 : 502, body: { error: expected === 'timeout' ? 'The connection timed out.' : 'Could not reach the server.', code: expected === 'timeout' ? 'MCP_TIMEOUT' : 'MCP_SERVER_UNREACHABLE' } });
 });
 test('a successful hosted probe closes its session', async () => {
   const deps = await fixture(); let closed = 0;
-  const result = await probeExternalMcpServer({ ...deps, connect: async () => ({ listTools: async () => [], callTool: async () => { throw new Error('unused'); }, close: async () => { closed++; } }) }, 'fixture');
+  const result = await probeExternalMcpServer({ deps: { ...deps, connect: async () => ({ listTools: async () => [], callTool: async () => { throw new Error('unused'); }, close: async () => { closed++; } }) }, serverId: 'fixture' });
   assert.equal(result.ok, true); assert.equal(closed, 1);
 });
 async function submitCard({ transport = 'streamable_http', token, code = 'MCP_AUTH_REJECTED' }: { transport?: 'streamable_http' | 'stdio'; token: string; code?: string }) {
@@ -133,7 +133,7 @@ test('publish verifier validates before probing and maps 401/403 independently o
 
 test('Jini protocol HTTP 403 is an auth verdict at the connection-check boundary', async () => {
   const deps = await fixture();
-  const result = await probeExternalMcpServer({ ...deps, connect: async () => { throw new McpProtocolError({ message: "mcp-federation: the server answered 'initialize' with HTTP 403" }); } }, 'fixture');
+  const result = await probeExternalMcpServer({ deps: { ...deps, connect: async () => { throw new McpProtocolError({ message: "mcp-federation: the server answered 'initialize' with HTTP 403" }); } }, serverId: 'fixture' });
   assert.deepEqual(result, { ok: false, status: 401, body: { error: 'The server rejected this token.', code: 'MCP_AUTH_REJECTED' } });
 });
 

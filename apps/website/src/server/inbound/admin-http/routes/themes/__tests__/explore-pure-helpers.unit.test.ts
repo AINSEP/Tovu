@@ -68,26 +68,26 @@ test("bodyRecord: a nullish body coerces to an empty object", () => {
   // Unreachable through any real route: the app's global `express.json()` (app.ts) always
   // defaults `req.body` to `{}` for any request it processes, so `body` is never actually
   // `undefined`/`null` at the one real call sites (bodyStringField, parseThemeFilePutBody).
-  assert.deepEqual(bodyRecord(undefined), {});
-  assert.deepEqual(bodyRecord(null), {});
+  assert.deepEqual(bodyRecord({ body: undefined }), {});
+  assert.deepEqual(bodyRecord({ body: null }), {});
 });
 
 test("bodyRecord: a real object body passes through unchanged", () => {
   const body = { path: "pages/index.html", content: "x" };
-  assert.deepEqual(bodyRecord(body), body);
+  assert.deepEqual(bodyRecord({ body }), body);
 });
 
 test("bodyStringField: a missing field defaults to the empty string", () => {
-  assert.equal(bodyStringField({}, "path"), "");
-  assert.equal(bodyStringField(undefined, "path"), "");
+  assert.equal(bodyStringField({ body: {}, field: "path" }), "");
+  assert.equal(bodyStringField({ body: undefined, field: "path" }), "");
 });
 
 test("bodyStringField: a present field is coerced to a string", () => {
-  assert.equal(bodyStringField({ path: "pages/index.html" }, "path"), "pages/index.html");
-  assert.equal(bodyStringField({ path: 42 }, "path"), "42");
-  assert.equal(bodyStringField({ path: false }, "path"), "false");
-  assert.equal(bodyStringField({ path: null }, "path"), "");
-  assert.equal(bodyStringField({ path: undefined }, "path"), "");
+  assert.equal(bodyStringField({ body: { path: "pages/index.html" }, field: "path" }), "pages/index.html");
+  assert.equal(bodyStringField({ body: { path: 42 }, field: "path" }), "42");
+  assert.equal(bodyStringField({ body: { path: false }, field: "path" }), "false");
+  assert.equal(bodyStringField({ body: { path: null }, field: "path" }), "");
+  assert.equal(bodyStringField({ body: { path: undefined }, field: "path" }), "");
 });
 
 test("reloadTheme: a themeId with no matching entry in deps.themes is a silent no-op", () => {
@@ -100,7 +100,7 @@ test("reloadTheme: a themeId with no matching entry in deps.themes is a silent n
   const original = { manifest: { id: "existing-theme" } } as ContentRouteDeps["themes"][number];
   const deps = { themes: [original] } as unknown as ContentRouteDeps;
 
-  reloadTheme(deps, "does-not-exist-in-themes-array");
+  reloadTheme({ deps, themeId: "does-not-exist-in-themes-array" });
 
   assert.equal(deps.themes.length, 1);
   assert.equal(deps.themes[0], original, "the unrelated existing entry must be untouched, not replaced");

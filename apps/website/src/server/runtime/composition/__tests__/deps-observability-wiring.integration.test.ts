@@ -33,9 +33,9 @@ async function siteDeps(t: TestContext, overrides: Partial<CreateSiteRouteDepsOv
       finally { fs.rmSync(dir, { recursive: true, force: true }); }
     }
   });
-  const deps = await createSiteRouteDeps(path.join(dir, "content.db"), {
+  const deps = await createSiteRouteDeps({ dbPath: path.join(dir, "content.db"), overrides: {
     ...overrides, siteBinding, onStoreOpened: ({ store }, _optional = {}) => { close = () => store.close(); },
-  });
+  } });
   ready = deps.pluginRuntimeReady;
   assert.equal(deps.siteBinding.dir, dir, "all boot writes stay inside the disposable site");
   assert.equal(fs.readFileSync(path.join(dir, ".form-files-protected-v1"), "utf8"), "complete\n");

@@ -51,7 +51,7 @@ const EMPTY_TEMPLATE_CHOICE_POST = buildPostRecord({ templateChoice: "" });
 const FAKE_DEPS = {} as unknown as TemplateRenderDeps;
 
 test("v2 theme: the missing-template diagnostic page links css/theme.css, not the v1 filename", async () => {
-  const html = await renderViaTemplate(FAKE_DEPS, V2_THEME, EMPTY_TEMPLATE_CHOICE_POST, undefined);
+  const html = await renderViaTemplate({ deps: FAKE_DEPS, theme: V2_THEME, post: EMPTY_TEMPLATE_CHOICE_POST, staticMenus: undefined });
 
   assert.match(
     html,
@@ -64,7 +64,7 @@ test("v2 theme: the missing-template diagnostic page links css/theme.css, not th
 });
 
 test("v1 theme (apiVersion undefined): the missing-template diagnostic page still links css/styles.css", async () => {
-  const html = await renderViaTemplate(FAKE_DEPS, V1_THEME, EMPTY_TEMPLATE_CHOICE_POST, undefined);
+  const html = await renderViaTemplate({ deps: FAKE_DEPS, theme: V1_THEME, post: EMPTY_TEMPLATE_CHOICE_POST, staticMenus: undefined });
 
   assert.match(
     html,

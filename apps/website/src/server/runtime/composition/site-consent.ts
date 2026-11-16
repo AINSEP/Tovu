@@ -50,8 +50,8 @@ export function siteConsentPorts({ deps }: { deps: RouteDeps }, _options = {}): 
       catch (error) { console.error('[consent] receipt storage check failed'); throw error; }
     },
     renderPage: async ({ path }) => {
-      const localPath = resolveSameOriginPath(path, 'http://127.0.0.1');
-      const page = await fetchPublishedPage({ createSiteApp: () => deps.createSiteApp({ consentAudit: true }), observability: deps.observability }, { path: localPath }, { maxBytes: 1_000_000, timeoutMs: 15_000 });
+      const localPath = resolveSameOriginPath({ raw: path, base: 'http://127.0.0.1' });
+      const page = await fetchPublishedPage({ deps: { createSiteApp: () => deps.createSiteApp({ consentAudit: true }), observability: deps.observability }, input: { path: localPath } }, { maxBytes: 1_000_000, timeoutMs: 15_000 });
       return { html: page.body ?? '', ok: page.ok, truncated: page.truncated };
     },
   };
@@ -62,7 +62,7 @@ export function siteConsentPorts({ deps }: { deps: RouteDeps }, _options = {}): 
 async function publishedPageSlot({ deps, path }: { deps: RouteDeps; path: string }): Promise<{ slot: boolean | null; problems: ConsentProblem[] }> {
   const unavailable = () => ({ slot: false, problems: [{ code: 'PUBLISHED_ENTRY_UNAVAILABLE', message: 'The published entry for this page could not be verified. Runtime loading eligibility is unavailable.' }] });
   if (!deps.postRepo) return unavailable();
-  const local = resolveSameOriginPath(path, 'http://127.0.0.1');
+  const local = resolveSameOriginPath({ raw: path, base: 'http://127.0.0.1' });
   const pathname = new URL(local, 'http://127.0.0.1').pathname;
   const slug = pathname === '/' ? '/' : decodeURIComponent(pathname.slice(1).replace(/\/$/, ''));
   let post;
@@ -72,7 +72,7 @@ async function publishedPageSlot({ deps, path }: { deps: RouteDeps; path: string
   if (!isBarePageChoice(post)) return { slot: null, problems: [] };
   if (post.bodyFormat === 'doc') return { slot: true, problems: [] };
   if (post.bodyFormat !== 'html' || typeof post.bodyHtml !== 'string') return { slot: false, problems: [{ code: 'PUBLISHED_PAGE_FORMAT_UNAVAILABLE', message: 'The published bare page format could not be verified. Runtime loading eligibility is unavailable.' }] };
-  return { slot: !isFullHtmlDocument(post.bodyHtml), problems: [] };
+  return { slot: !isFullHtmlDocument({ html: post.bodyHtml }), problems: [] };
 }
 
 /** Bind the CMS-only default-content step to the existing settings/content/identity owners.

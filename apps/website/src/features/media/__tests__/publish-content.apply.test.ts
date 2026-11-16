@@ -216,7 +216,7 @@ test("apply() + renderDocNode: a post's embed authored against the SOURCE asset 
     type: "doc",
     content: [{ type: "image", attrs: { assetId: "source-system-asset-42", transformName: "public", alt: "The whole team" } }],
   };
-  const html = renderDocNode(postBodyDoc, undefined, mediaTransformVersions, mediaAssetMetadata);
+  const html = renderDocNode({ node: postBodyDoc }, { mediaTransformVersions, mediaAssetMetadata });
 
   assert.match(
     html,

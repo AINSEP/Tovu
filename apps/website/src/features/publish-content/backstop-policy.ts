@@ -82,7 +82,7 @@ export function checkRawValues(
   }
   for (const [column, value] of Object.entries(values)) {
     if (typeof value !== "string") continue;
-    const hit = scanTextForSecrets(value)[0];
+    const hit = scanTextForSecrets({ text: value })[0];
     if (hit) return `Value '${column}' looks like it holds a key (${hit.patternName}); it was not sent.`;
   }
   return null;

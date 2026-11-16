@@ -158,7 +158,7 @@ export async function connectDestination(
     // Connecting is the ordinary publish path. Backstop trust is reviewed in deploy config.
     entityTypes: input.entityTypes.filter((entityType) => !isBackstopEntityType({ entityType })),
     capabilities: DEFAULT_PUBLISHING_CAPABILITIES,
-    notAfter: grantNotAfterFrom(nowIso({ clock: deps.clock })),
+    notAfter: grantNotAfterFrom({ nowIso: nowIso({ clock: deps.clock }) }),
   };
 
   const written = await deps.provisioning.connect({ grant });

@@ -49,57 +49,45 @@ function assetMeta(fields: Partial<MediaAssetRenderMeta>): MediaAssetRenderMeta 
 }
 
 test("renderDocNode: bold/italic/code marks still render (regression)", () => {
-  const html = renderDocNode(
-    textDoc(
+  const html = renderDocNode({ node: textDoc(
       { type: "text", text: "b", marks: [{ type: "bold" }] },
       { type: "text", text: "i", marks: [{ type: "italic" }] },
       { type: "text", text: "c", marks: [{ type: "code" }] }
-    )
-  );
+    ) });
   assert.equal(html, "<p><strong>b</strong><em>i</em><code>c</code></p>");
 });
 
 test("renderDocNode: underline and strike marks render (Posts toolbar, 2026-08-11 — underline was silently dropped before this fix, strike had never rendered)", () => {
-  const html = renderDocNode(
-    textDoc(
+  const html = renderDocNode({ node: textDoc(
       { type: "text", text: "u", marks: [{ type: "underline" }] },
       { type: "text", text: "s", marks: [{ type: "strike" }] }
-    )
-  );
+    ) });
   assert.equal(html, "<p><u>u</u><s>s</s></p>");
 });
 
 test("underline/strike compose with bold and with each other — the mark loop wraps progressively, so nesting order must match the marks array", () => {
-  const html = renderDocNode(
-    textDoc(
+  const html = renderDocNode({ node: textDoc(
       { type: "text", text: "bu", marks: [{ type: "bold" }, { type: "underline" }] },
       { type: "text", text: "us", marks: [{ type: "underline" }, { type: "strike" }] }
-    )
-  );
+    ) });
   assert.equal(html, "<p><u><strong>bu</strong></u><s><u>us</u></s></p>");
 });
 
 test("C7: a link mark renders an anchor with its href", () => {
-  const html = renderDocNode(
-    textDoc({ type: "text", text: "plugins", marks: [{ type: "link", attrs: { href: "/how-plugins-work" } }] })
-  );
+  const html = renderDocNode({ node: textDoc({ type: "text", text: "plugins", marks: [{ type: "link", attrs: { href: "/how-plugins-work" } }] }) });
   assert.equal(html, '<p><a href="/how-plugins-work">plugins</a></p>');
 });
 
 test("C7: relative, http(s) and mailto hrefs are allowed; text is escaped", () => {
   for (const href of ["/about", "#top", "https://tovu.dev", "http://x.io", "mailto:a@b.co"]) {
-    const html = renderDocNode(
-      textDoc({ type: "text", text: "<x>", marks: [{ type: "link", attrs: { href } }] })
-    );
+    const html = renderDocNode({ node: textDoc({ type: "text", text: "<x>", marks: [{ type: "link", attrs: { href } }] }) });
     assert.equal(html, `<p><a href="${href}">&lt;x&gt;</a></p>`);
   }
 });
 
 test("C7: javascript:, data: and non-string hrefs collapse to '#' (no script smuggling)", () => {
   for (const href of ["javascript:alert(1)", "data:text/html,<script>", "  javascript:alert(1)", 42, null, undefined]) {
-    const html = renderDocNode(
-      textDoc({ type: "text", text: "x", marks: [{ type: "link", attrs: { href } as never }] })
-    );
+    const html = renderDocNode({ node: textDoc({ type: "text", text: "x", marks: [{ type: "link", attrs: { href } as never }] }) });
     assert.equal(html, '<p><a href="#">x</a></p>');
   }
 });
@@ -119,81 +107,68 @@ test("C7: protocol-relative and same-origin-lookalike hrefs collapse to '#' (ope
     // reconstitutes "//evil.example" the same way a browser would see it
   ];
   for (const href of hostile) {
-    const html = renderDocNode(
-      textDoc({ type: "text", text: "x", marks: [{ type: "link", attrs: { href } }] })
-    );
+    const html = renderDocNode({ node: textDoc({ type: "text", text: "x", marks: [{ type: "link", attrs: { href } }] }) });
     assert.equal(html, '<p><a href="#">x</a></p>', `expected ${JSON.stringify(href)} to collapse to "#", got: ${html}`);
   }
 });
 
 test("C7: link composes with an emphasis mark on the same text", () => {
-  const html = renderDocNode(
-    textDoc({ type: "text", text: "here", marks: [{ type: "bold" }, { type: "link", attrs: { href: "/x" } }] })
-  );
+  const html = renderDocNode({ node: textDoc({ type: "text", text: "here", marks: [{ type: "bold" }, { type: "link", attrs: { href: "/x" } }] }) });
   assert.equal(html, '<p><a href="/x"><strong>here</strong></a></p>');
 });
 
 test("renderDocNode: a textStyle mark with a color attr renders an inline color style", () => {
-  const html = renderDocNode(textDoc({ type: "text", text: "hi", marks: [{ type: "textStyle", attrs: { color: "#ff0000" } }] }));
+  const html = renderDocNode({ node: textDoc({ type: "text", text: "hi", marks: [{ type: "textStyle", attrs: { color: "#ff0000" } }] }) });
   assert.equal(html, '<p><span style="color:#ff0000">hi</span></p>');
 });
 
 test("a textStyle mark with a backgroundColor attr renders an inline background-color style", () => {
-  const html = renderDocNode(textDoc({ type: "text", text: "hi", marks: [{ type: "textStyle", attrs: { backgroundColor: "#00ff00" } }] }));
+  const html = renderDocNode({ node: textDoc({ type: "text", text: "hi", marks: [{ type: "textStyle", attrs: { backgroundColor: "#00ff00" } }] }) });
   assert.equal(html, '<p><span style="background-color:#00ff00">hi</span></p>');
 });
 
 test("a textStyle mark with both color and backgroundColor combines into one style attribute on one span", () => {
-  const html = renderDocNode(
-    textDoc({ type: "text", text: "hi", marks: [{ type: "textStyle", attrs: { color: "#ff0000", backgroundColor: "#00ff00" } }] })
-  );
+  const html = renderDocNode({ node: textDoc({ type: "text", text: "hi", marks: [{ type: "textStyle", attrs: { color: "#ff0000", backgroundColor: "#00ff00" } }] }) });
   assert.equal(html, '<p><span style="color:#ff0000;background-color:#00ff00">hi</span></p>');
 });
 
 test("a textStyle mark with no recognized attrs (or attrs that all fail the color allowlist) renders no <span> at all", () => {
-  assert.equal(renderDocNode(textDoc({ type: "text", text: "hi", marks: [{ type: "textStyle" }] })), "<p>hi</p>");
+  assert.equal(renderDocNode({ node: textDoc({ type: "text", text: "hi", marks: [{ type: "textStyle" }] }) }), "<p>hi</p>");
   assert.equal(
-    renderDocNode(textDoc({ type: "text", text: "hi", marks: [{ type: "textStyle", attrs: { color: "red; } body { display:none" } }] })),
+    renderDocNode({ node: textDoc({ type: "text", text: "hi", marks: [{ type: "textStyle", attrs: { color: "red; } body { display:none" } }] }) }),
     "<p>hi</p>"
   );
 });
 
 test("an unsafe backgroundColor is dropped independently — a valid color attr alongside it still renders", () => {
-  const html = renderDocNode(
-    textDoc({
+  const html = renderDocNode({ node: textDoc({
       type: "text",
       text: "hi",
       marks: [{ type: "textStyle", attrs: { color: "#ff0000", backgroundColor: "url(javascript:alert(1))" } }],
-    })
-  );
+    }) });
   assert.equal(html, '<p><span style="color:#ff0000">hi</span></p>');
 });
 
 test("a textStyle mark with fontFamily/fontSize/lineHeight attrs combines all three into one style attribute", () => {
-  const html = renderDocNode(
-    textDoc({
+  const html = renderDocNode({ node: textDoc({
       type: "text",
       text: "hi",
       marks: [{ type: "textStyle", attrs: { fontFamily: "Georgia, serif", fontSize: "18px", lineHeight: "1.5" } }],
-    })
-  );
+    }) });
   assert.equal(html, '<p><span style="font-family:Georgia, serif;font-size:18px;line-height:1.5">hi</span></p>');
 });
 
 test("fontFamily/fontSize/lineHeight compose with color/backgroundColor in the documented order", () => {
-  const html = renderDocNode(
-    textDoc({
+  const html = renderDocNode({ node: textDoc({
       type: "text",
       text: "hi",
       marks: [{ type: "textStyle", attrs: { color: "#111", backgroundColor: "#eee", fontFamily: "Arial, sans-serif", fontSize: "24px", lineHeight: "2" } }],
-    })
-  );
+    }) });
   assert.equal(html, '<p><span style="color:#111;background-color:#eee;font-family:Arial, sans-serif;font-size:24px;line-height:2">hi</span></p>');
 });
 
 test("an unsafe fontFamily/fontSize/lineHeight is dropped independently, same as an unsafe color", () => {
-  const html = renderDocNode(
-    textDoc({
+  const html = renderDocNode({ node: textDoc({
       type: "text",
       text: "hi",
       marks: [
@@ -207,23 +182,20 @@ test("an unsafe fontFamily/fontSize/lineHeight is dropped independently, same as
           },
         },
       ],
-    })
-  );
+    }) });
   assert.equal(html, '<p><span style="color:#111">hi</span></p>');
 });
 
 test("renderDocNode: subscript and superscript marks render (Posts toolbar, 2026-08-11)", () => {
-  const html = renderDocNode(
-    textDoc(
+  const html = renderDocNode({ node: textDoc(
       { type: "text", text: "2", marks: [{ type: "subscript" }] },
       { type: "text", text: "2", marks: [{ type: "superscript" }] }
-    )
-  );
+    ) });
   assert.equal(html, "<p><sub>2</sub><sup>2</sup></p>");
 });
 
 test("renderDocNode: a youtube node with a watch-URL src builds a canonical nocookie embed iframe", () => {
-  const html = renderDocNode({ type: "doc", content: [{ type: "youtube", attrs: { src: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" } }] });
+  const html = renderDocNode({ node: { type: "doc", content: [{ type: "youtube", attrs: { src: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" } }] } });
   assert.equal(
     html,
     '<div class="youtube-embed"><iframe src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ" title="YouTube video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>'
@@ -236,53 +208,53 @@ test("a youtube node's src is recognized from every URL shape the extension itse
     ["https://www.youtube.com/embed/dQw4w9WgXcQ", "dQw4w9WgXcQ"],
     ["https://www.youtube.com/shorts/dQw4w9WgXcQ", "dQw4w9WgXcQ"],
   ] as const) {
-    const html = renderDocNode({ type: "doc", content: [{ type: "youtube", attrs: { src } }] });
+    const html = renderDocNode({ node: { type: "doc", content: [{ type: "youtube", attrs: { src } }] } });
     assert.match(html, new RegExp(`src="https://www\\.youtube-nocookie\\.com/embed/${expectedId}"`));
   }
 });
 
 test("a youtube node's start attr (bounded, positive integer) appends ?start=N; zero/invalid omit it", () => {
-  const withStart = renderDocNode({ type: "doc", content: [{ type: "youtube", attrs: { src: "https://youtu.be/dQw4w9WgXcQ", start: 90 } }] });
+  const withStart = renderDocNode({ node: { type: "doc", content: [{ type: "youtube", attrs: { src: "https://youtu.be/dQw4w9WgXcQ", start: 90 } }] } });
   assert.match(withStart, /embed\/dQw4w9WgXcQ\?start=90"/);
-  const zeroStart = renderDocNode({ type: "doc", content: [{ type: "youtube", attrs: { src: "https://youtu.be/dQw4w9WgXcQ", start: 0 } }] });
+  const zeroStart = renderDocNode({ node: { type: "doc", content: [{ type: "youtube", attrs: { src: "https://youtu.be/dQw4w9WgXcQ", start: 0 } }] } });
   assert.doesNotMatch(zeroStart, /\?start=/);
-  const negativeStart = renderDocNode({ type: "doc", content: [{ type: "youtube", attrs: { src: "https://youtu.be/dQw4w9WgXcQ", start: -5 } }] });
+  const negativeStart = renderDocNode({ node: { type: "doc", content: [{ type: "youtube", attrs: { src: "https://youtu.be/dQw4w9WgXcQ", start: -5 } }] } });
   assert.doesNotMatch(negativeStart, /\?start=/);
 });
 
 test("a youtube node with an unrecognized/unsafe src degrades to the media placeholder, never an <iframe>", () => {
   for (const src of ["javascript:alert(1)", "https://evil.example.com/embed/x", "not a url at all", 42, null, undefined]) {
-    const html = renderDocNode({ type: "doc", content: [{ type: "youtube", attrs: { src } as never }] });
+    const html = renderDocNode({ node: { type: "doc", content: [{ type: "youtube", attrs: { src } as never }] } });
     assert.doesNotMatch(html, /<iframe/);
     assert.match(html, /media-ph/);
   }
 });
 
 test("renderDocNode: a codeBlock with a language attr emits a language-X class on <code>", () => {
-  const html = renderDocNode({
+  const html = renderDocNode({ node: {
     type: "doc",
     content: [{ type: "codeBlock", attrs: { language: "typescript" }, content: [{ type: "text", text: "const x = 1;" }] }],
-  });
+  } });
   assert.equal(html, '<pre><code class="language-typescript">const x = 1;</code></pre>');
 });
 
 test("a codeBlock with no language attr renders the plain bare <code> from before this feature existed", () => {
-  const html = renderDocNode({ type: "doc", content: [{ type: "codeBlock", content: [{ type: "text", text: "x" }] }] });
+  const html = renderDocNode({ node: { type: "doc", content: [{ type: "codeBlock", content: [{ type: "text", text: "x" }] }] } });
   assert.equal(html, "<pre><code>x</code></pre>");
 });
 
 test("a codeBlock with an unsafe language value (quote/space/angle-bracket) drops the class rather than emitting a malformed attribute", () => {
   for (const language of ['ts"><script>alert(1)</script>', "type script", "a<b", 42, null]) {
-    const html = renderDocNode({
+    const html = renderDocNode({ node: {
       type: "doc",
       content: [{ type: "codeBlock", attrs: { language } as never, content: [{ type: "text", text: "x" }] }],
-    });
+    } });
     assert.equal(html, "<pre><code>x</code></pre>");
   }
 });
 
 test("renderDocNode: a task list renders checkbox/label structure, unchecked and checked", () => {
-  const html = renderDocNode({
+  const html = renderDocNode({ node: {
     type: "doc",
     content: [
       {
@@ -293,7 +265,7 @@ test("renderDocNode: a task list renders checkbox/label structure, unchecked and
         ],
       },
     ],
-  });
+  } });
   assert.equal(
     html,
     '<ul data-type="taskList">' +
@@ -304,10 +276,10 @@ test("renderDocNode: a task list renders checkbox/label structure, unchecked and
 });
 
 test("a taskItem with a non-boolean/missing checked attr renders unchecked (defaults safe)", () => {
-  const html = renderDocNode({
+  const html = renderDocNode({ node: {
     type: "doc",
     content: [{ type: "taskList", content: [{ type: "taskItem", content: [{ type: "paragraph", content: [{ type: "text", text: "x" }] }] }] }],
-  });
+  } });
   assert.equal(
     html,
     '<ul data-type="taskList"><li data-type="taskItem"><label><input type="checkbox" disabled/><span></span></label><div><p>x</p></div></li></ul>'
@@ -315,7 +287,7 @@ test("a taskItem with a non-boolean/missing checked attr renders unchecked (defa
 });
 
 test("renderDocNode: a table renders table/tr/td structure", () => {
-  const html = renderDocNode({
+  const html = renderDocNode({ node: {
     type: "doc",
     content: [
       {
@@ -338,7 +310,7 @@ test("renderDocNode: a table renders table/tr/td structure", () => {
         ],
       },
     ],
-  });
+  } });
   assert.equal(
     html,
     "<table><tr><th><p>Name</p></th><th><p>Age</p></th></tr><tr><td><p>Ada</p></td><td><p>36</p></td></tr></table>"
@@ -351,11 +323,11 @@ test("a table cell's colspan/rowspan render only when not the HTML default of 1,
     attrs,
     content: [{ type: "paragraph", content: [{ type: "text", text: "x" }] }],
   });
-  assert.equal(renderDocNode({ type: "doc", content: [cell({ colspan: 1, rowspan: 1 })] }), "<td><p>x</p></td>");
-  assert.equal(renderDocNode({ type: "doc", content: [cell({ colspan: 2, rowspan: 3 })] }), '<td colspan="2" rowspan="3"><p>x</p></td>');
+  assert.equal(renderDocNode({ node: { type: "doc", content: [cell({ colspan: 1, rowspan: 1 })] } }), "<td><p>x</p></td>");
+  assert.equal(renderDocNode({ node: { type: "doc", content: [cell({ colspan: 2, rowspan: 3 })] } }), '<td colspan="2" rowspan="3"><p>x</p></td>');
   // Out-of-bounds / non-numeric values collapse to the default rather than an unbounded attribute.
-  assert.equal(renderDocNode({ type: "doc", content: [cell({ colspan: 999999 })] }), "<td><p>x</p></td>");
-  assert.equal(renderDocNode({ type: "doc", content: [cell({ colspan: "3" as never })] }), "<td><p>x</p></td>");
+  assert.equal(renderDocNode({ node: { type: "doc", content: [cell({ colspan: 999999 })] } }), "<td><p>x</p></td>");
+  assert.equal(renderDocNode({ node: { type: "doc", content: [cell({ colspan: "3" as never })] } }), "<td><p>x</p></td>");
 });
 
 test("a table cell's align attr only accepts left/center/right — never justify, never an unsafe value", () => {
@@ -364,46 +336,42 @@ test("a table cell's align attr only accepts left/center/right — never justify
     attrs: { align },
     content: [{ type: "paragraph", content: [{ type: "text", text: "x" }] }],
   });
-  assert.equal(renderDocNode({ type: "doc", content: [cell("center")] }), '<td style="text-align:center"><p>x</p></td>');
-  assert.equal(renderDocNode({ type: "doc", content: [cell("justify")] }), "<td><p>x</p></td>");
-  assert.equal(renderDocNode({ type: "doc", content: [cell("left; } body { display:none")] }), "<td><p>x</p></td>");
+  assert.equal(renderDocNode({ node: { type: "doc", content: [cell("center")] } }), '<td style="text-align:center"><p>x</p></td>');
+  assert.equal(renderDocNode({ node: { type: "doc", content: [cell("justify")] } }), "<td><p>x</p></td>");
+  assert.equal(renderDocNode({ node: { type: "doc", content: [cell("left; } body { display:none")] } }), "<td><p>x</p></td>");
 });
 
 test("renderDocNode: hardBreak renders <br/> (Shift-Enter, 2026-08-11) — before this case existed, an unrecognized hardBreak fell through to `default`'s `renderNodes(content, ...)`, and since a leaf node's `content` is always undefined, that resolved to \"\": the line break silently vanished on the public site with no error", () => {
-  const html = renderDocNode(
-    textDoc({ type: "text", text: "line one" }, { type: "hardBreak" }, { type: "text", text: "line two" })
-  );
+  const html = renderDocNode({ node: textDoc({ type: "text", text: "line one" }, { type: "hardBreak" }, { type: "text", text: "line two" }) });
   assert.equal(html, "<p>line one<br/>line two</p>");
 });
 
 test("renderDocNode: a highlight mark with no color attr renders a bare <mark> (the admin toolbar's plain toggle button)", () => {
-  const html = renderDocNode(textDoc({ type: "text", text: "hi", marks: [{ type: "highlight" }] }));
+  const html = renderDocNode({ node: textDoc({ type: "text", text: "hi", marks: [{ type: "highlight" }] }) });
   assert.equal(html, "<p><mark>hi</mark></p>");
 });
 
 test("a highlight mark with an allowlisted color attr renders an inline background-color style", () => {
   for (const color of ["#f0a", "#ff00aa", "red", "rgb(255, 0, 170)", "oklch(88.5% 0.062 18.334)"]) {
-    const html = renderDocNode(textDoc({ type: "text", text: "hi", marks: [{ type: "highlight", attrs: { color } }] }));
+    const html = renderDocNode({ node: textDoc({ type: "text", text: "hi", marks: [{ type: "highlight", attrs: { color } }] }) });
     assert.equal(html, `<p><mark style="background-color:${color}">hi</mark></p>`);
   }
 });
 
 test("a highlight mark with an unsafe/malformed color attr degrades to a bare <mark> (no CSS injection)", () => {
   for (const color of ["red; } body { display:none", "url(javascript:alert(1))", "expression(alert(1))", "red;color:blue", 42, null]) {
-    const html = renderDocNode(textDoc({ type: "text", text: "hi", marks: [{ type: "highlight", attrs: { color } as never }] }));
+    const html = renderDocNode({ node: textDoc({ type: "text", text: "hi", marks: [{ type: "highlight", attrs: { color } as never }] }) });
     assert.equal(html, "<p><mark>hi</mark></p>");
   }
 });
 
 test("hardBreak composes with surrounding marked text and can appear more than once", () => {
-  const html = renderDocNode(
-    textDoc(
+  const html = renderDocNode({ node: textDoc(
       { type: "text", text: "bold", marks: [{ type: "bold" }] },
       { type: "hardBreak" },
       { type: "hardBreak" },
       { type: "text", text: "plain" }
-    )
-  );
+    ) });
   assert.equal(html, "<p><strong>bold</strong><br/><br/>plain</p>");
 });
 
@@ -946,7 +914,7 @@ test("renderDocNode: a widgetEmbed node resolves through inlineResolved to its w
   const inlineResolved = new Map<string, WidgetRenderIR>([
     ["p1", { componentId: "text", props: { body: "Inline widget content" } }],
   ]);
-  const html = renderDocNode(doc, inlineResolved);
+  const html = renderDocNode({ node: doc }, { inlineResolved });
   assert.match(html, /widget-text/);
   assert.match(html, /Inline widget content/);
   assert.doesNotMatch(html, /widgetEmbed/);
@@ -957,7 +925,7 @@ test("renderDocNode: a widgetEmbed node with no matching entry in inlineResolved
     type: "doc",
     content: [{ type: "widgetEmbed", attrs: { placementId: "missing", widgetEntryId: "w1" } }],
   };
-  const html = renderDocNode(doc);
+  const html = renderDocNode({ node: doc });
   assert.match(html, /widget-placeholder/);
   assert.doesNotMatch(html, /w1|missing/);
 });
@@ -995,7 +963,7 @@ test("renderDocNode: an image node no longer vanishes — a hostile-scheme src d
       { type: "paragraph", content: [{ type: "text", text: "after" }] },
     ],
   };
-  const html = renderDocNode(doc);
+  const html = renderDocNode({ node: doc });
   assert.match(html, /<p>before<\/p>/);
   assert.match(html, /<p>after<\/p>/);
   assert.match(html, /media-ph/);
@@ -1009,10 +977,10 @@ test("renderDocNode: an image node with no/non-string alt falls back to a generi
   // No `src` at all (as opposed to a rejected one) — still the placeholder path this test exercises,
   // per safeImageSrc's 2026-08-12 allowlist (see the D7 block's own update note above): a valid https
   // URL now renders a real <img>, which would take this case off the placeholder path entirely.
-  const noAlt = renderDocNode({ type: "doc", content: [{ type: "image", attrs: {} }] });
+  const noAlt = renderDocNode({ node: { type: "doc", content: [{ type: "image", attrs: {} }] } });
   assert.match(noAlt, /media-ph__label">Image</);
 
-  const nonStringAlt = renderDocNode({ type: "doc", content: [{ type: "image", attrs: { src: "javascript:alert(1)", alt: 42 } as never }] });
+  const nonStringAlt = renderDocNode({ node: { type: "doc", content: [{ type: "image", attrs: { src: "javascript:alert(1)", alt: 42 } as never }] } });
   assert.match(nonStringAlt, /media-ph__label">Image</);
 });
 
@@ -1041,7 +1009,7 @@ test("renderDocNode: a ref-based image node with a resolved transformName render
     type: "doc",
     content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: '<A> & "friend"' } }],
   };
-  const html = renderDocNode(doc, undefined, new Map([["public", 3]]));
+  const html = renderDocNode({ node: doc }, { mediaTransformVersions: new Map([["public", 3]]) });
   assert.match(html, /<img src="\/m\/asset-1\/public\.v3\/image\.jpg" alt="&lt;A&gt; &amp; &quot;friend&quot;" loading="lazy">/);
   assert.doesNotMatch(html, /media-ph/);
 });
@@ -1053,7 +1021,7 @@ test("renderDocNode: a ref-based image node with NO entry for its transformName 
   };
   // Non-empty map, but no key for "unknown-name" — proves the branch checks the SPECIFIC name,
   // not merely "is the map non-empty".
-  const html = renderDocNode(doc, undefined, new Map([["public", 3]]));
+  const html = renderDocNode({ node: doc }, { mediaTransformVersions: new Map([["public", 3]]) });
   assert.match(html, /media-ph/);
   assert.doesNotMatch(html, /<img/);
 });
@@ -1063,7 +1031,7 @@ test("renderDocNode: a ref-based image node with an empty mediaTransformVersions
     type: "doc",
     content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
   };
-  const html = renderDocNode(doc); // no 3rd arg at all — exercises the default EMPTY_MEDIA_TRANSFORM_VERSIONS
+  const html = renderDocNode({ node: doc }); // no 3rd arg at all — exercises the default EMPTY_MEDIA_TRANSFORM_VERSIONS
   assert.match(html, /media-ph/);
   assert.doesNotMatch(html, /<img/);
 });
@@ -1073,12 +1041,7 @@ test("renderDocNode: a ref-based image node with a resolved mediaAssetMetadata e
     type: "doc",
     content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
   };
-  const html = renderDocNode(
-    doc,
-    undefined,
-    new Map([["public", 3]]),
-    new Map([["asset-1", assetMeta({ width: 800, height: 600, cssClass: "rounded" })]])
-  );
+  const html = renderDocNode({ node: doc }, { mediaTransformVersions: new Map([["public", 3]]), mediaAssetMetadata: new Map([["asset-1", assetMeta({ width: 800, height: 600, cssClass: "rounded" })]]) });
   assert.match(html, /<img src="\/m\/asset-1\/public\.v3\/image\.jpg" alt="x" width="800" height="600" class="rounded" loading="lazy">/);
 });
 
@@ -1087,12 +1050,7 @@ test("renderDocNode: a resolved image with only width set omits height/class ent
     type: "doc",
     content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
   };
-  const html = renderDocNode(
-    doc,
-    undefined,
-    new Map([["public", 3]]),
-    new Map([["asset-1", assetMeta({ width: 800, height: null, cssClass: null })]])
-  );
+  const html = renderDocNode({ node: doc }, { mediaTransformVersions: new Map([["public", 3]]), mediaAssetMetadata: new Map([["asset-1", assetMeta({ width: 800, height: null, cssClass: null })]]) });
   assert.match(html, /<img src="\/m\/asset-1\/public\.v3\/image\.jpg" alt="x" width="800" loading="lazy">/);
   assert.doesNotMatch(html, /height=/);
   assert.doesNotMatch(html, /class=/);
@@ -1103,7 +1061,7 @@ test("renderDocNode: an asset absent from mediaAssetMetadata (never uploaded thr
     type: "doc",
     content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
   };
-  const html = renderDocNode(doc, undefined, new Map([["public", 3]])); // no 4th arg — default EMPTY_MEDIA_ASSET_METADATA
+  const html = renderDocNode({ node: doc }, { mediaTransformVersions: new Map([["public", 3]]) }); // no 4th arg — default EMPTY_MEDIA_ASSET_METADATA
   assert.equal(html, '<img src="/m/asset-1/public.v3/image.jpg" alt="x" loading="lazy">');
 });
 
@@ -1112,12 +1070,7 @@ test("renderDocNode: a hostile stored cssClass is HTML-escaped, same as alt — 
     type: "doc",
     content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
   };
-  const html = renderDocNode(
-    doc,
-    undefined,
-    new Map([["public", 3]]),
-    new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: '"><script>alert(1)</script>' })]])
-  );
+  const html = renderDocNode({ node: doc }, { mediaTransformVersions: new Map([["public", 3]]), mediaAssetMetadata: new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: '"><script>alert(1)</script>' })]]) });
   assert.doesNotMatch(html, /<script>/);
   assert.match(html, /class="&quot;&gt;&lt;script&gt;alert\(1\)&lt;\/script&gt;"/);
 });
@@ -1132,12 +1085,7 @@ test("renderDocNode: a resolved htmlAttributes value emits the extra allowlisted
     type: "doc",
     content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
   };
-  const html = renderDocNode(
-    doc,
-    undefined,
-    new Map([["public", 3]]),
-    new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: 'data-motion="fade-in"' })]])
-  );
+  const html = renderDocNode({ node: doc }, { mediaTransformVersions: new Map([["public", 3]]), mediaAssetMetadata: new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: 'data-motion="fade-in"' })]]) });
   assert.match(html, /<img src="\/m\/asset-1\/public\.v3\/image\.jpg" alt="x" data-motion="fade-in" loading="lazy">/);
 });
 
@@ -1146,12 +1094,7 @@ test("renderDocNode: an operator's own htmlAttributes loading value OVERRIDES th
     type: "doc",
     content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
   };
-  const html = renderDocNode(
-    doc,
-    undefined,
-    new Map([["public", 3]]),
-    new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: 'loading="eager"' })]])
-  );
+  const html = renderDocNode({ node: doc }, { mediaTransformVersions: new Map([["public", 3]]), mediaAssetMetadata: new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: 'loading="eager"' })]]) });
   assert.match(html, /loading="eager"/);
   const loadingCount = (html.match(/loading=/g) ?? []).length;
   assert.equal(loadingCount, 1, "loading must appear exactly once, never duplicated");
@@ -1162,12 +1105,7 @@ test("renderDocNode: a stored htmlAttributes value that would now fail validatio
     type: "doc",
     content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
   };
-  const html = renderDocNode(
-    doc,
-    undefined,
-    new Map([["public", 3]]),
-    new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: 'onerror="alert(1)"' })]])
-  );
+  const html = renderDocNode({ node: doc }, { mediaTransformVersions: new Map([["public", 3]]), mediaAssetMetadata: new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: 'onerror="alert(1)"' })]]) });
   assert.doesNotMatch(html, /onerror/, "an invalid stored value must never reach the emitted tag, defense-in-depth");
   assert.match(html, /<img src="\/m\/asset-1\/public\.v3\/image\.jpg" alt="x" loading="lazy">/);
 });
@@ -1177,12 +1115,7 @@ test("renderDocNode: an asset with no htmlAttributes set renders exactly as befo
     type: "doc",
     content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
   };
-  const html = renderDocNode(
-    doc,
-    undefined,
-    new Map([["public", 3]]),
-    new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: null })]])
-  );
+  const html = renderDocNode({ node: doc }, { mediaTransformVersions: new Map([["public", 3]]), mediaAssetMetadata: new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: null })]]) });
   assert.equal(html, '<img src="/m/asset-1/public.v3/image.jpg" alt="x" loading="lazy">');
 });
 
@@ -1193,12 +1126,7 @@ test("renderDocNode: a resolved mediaAssetMetadata entry carrying a slug renders
     type: "doc",
     content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
   };
-  const html = renderDocNode(
-    doc,
-    undefined,
-    new Map([["public", 3]]),
-    new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: null, slug: "fox" })]])
-  );
+  const html = renderDocNode({ node: doc }, { mediaTransformVersions: new Map([["public", 3]]), mediaAssetMetadata: new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: null, slug: "fox" })]]) });
   assert.equal(html, '<img src="/m/fox/public.v3/image.jpg" alt="x" loading="lazy">');
 });
 
@@ -1207,12 +1135,7 @@ test("renderDocNode: an INVALID slug (fails isValidMediaSlugFormat — e.g. cont
     type: "doc",
     content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
   };
-  const html = renderDocNode(
-    doc,
-    undefined,
-    new Map([["public", 3]]),
-    new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: null, slug: "../etc" })]])
-  );
+  const html = renderDocNode({ node: doc }, { mediaTransformVersions: new Map([["public", 3]]), mediaAssetMetadata: new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: null, slug: "../etc" })]]) });
   assert.equal(html, '<img src="/m/asset-1/public.v3/image.jpg" alt="x" loading="lazy">');
 });
 
@@ -1221,12 +1144,7 @@ test("renderDocNode: no slug on the mediaAssetMetadata entry (absent field, or a
     type: "doc",
     content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
   };
-  const html = renderDocNode(
-    doc,
-    undefined,
-    new Map([["public", 3]]),
-    new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: null, slug: null })]])
-  );
+  const html = renderDocNode({ node: doc }, { mediaTransformVersions: new Map([["public", 3]]), mediaAssetMetadata: new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: null, slug: null })]]) });
   assert.equal(html, '<img src="/m/asset-1/public.v3/image.jpg" alt="x" loading="lazy">');
 });
 
@@ -1235,12 +1153,7 @@ test("renderDocNode: a generic media VIDEO node with a slug in mediaAssetMetadat
     type: "doc",
     content: [{ type: "media", attrs: { assetId: "asset-vid", transformName: "public", alt: "A clip" } }],
   };
-  const html = renderDocNode(
-    doc,
-    undefined,
-    undefined,
-    new Map([["asset-vid", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "video/mp4", slug: "fox" }]])
-  );
+  const html = renderDocNode({ node: doc }, { mediaAssetMetadata: new Map([["asset-vid", { width: null, height: null, cssClass: null, htmlAttributes: null, contentType: "video/mp4", slug: "fox" }]]) });
   assert.match(html, /<video src="\/m\/fox\/original\.mp4" controls>A clip<\/video>/);
 });
 
@@ -1255,7 +1168,7 @@ test("renderDocNode: a malformed assetId/transformName (embedded '/', empty, or 
   ];
   for (const attrs of cases) {
     const doc: JsonObject = { type: "doc", content: [{ type: "image", attrs: { ...attrs, alt: "x" } }] };
-    const html = renderDocNode(doc, undefined, resolved);
+    const html = renderDocNode({ node: doc }, { mediaTransformVersions: resolved });
     assert.match(html, /media-ph/, `expected placeholder for ${JSON.stringify(attrs)}`);
     assert.doesNotMatch(html, /<img/, `expected no <img> for ${JSON.stringify(attrs)}`);
   }
@@ -1266,7 +1179,7 @@ test("renderDocNode: a legacy src-only node with a hostile-scheme src still degr
     type: "doc",
     content: [{ type: "image", attrs: { src: "javascript:alert(1)", alt: "legacy" } }],
   };
-  const html = renderDocNode(doc, undefined, new Map([["public", 1]]));
+  const html = renderDocNode({ node: doc }, { mediaTransformVersions: new Map([["public", 1]]) });
   assert.match(html, /media-ph/);
   assert.doesNotMatch(html, /<img/);
   assert.doesNotMatch(html, /javascript:/);
@@ -1903,18 +1816,18 @@ function contactFormPageHtml(slug = "contact"): string {
 
 test("injectFormSubmissionResultIntoHtml: undefined result is a byte-identical no-op", () => {
   const html = contactFormPageHtml();
-  assert.equal(injectFormSubmissionResultIntoHtml(html, undefined), html);
+  assert.equal(injectFormSubmissionResultIntoHtml({ html, result: undefined }), html);
 });
 
 test("injectFormSubmissionResultIntoHtml: a result for a slug NOT present on the page is a silent no-op (stale or forged query string)", () => {
   const html = contactFormPageHtml("contact");
   const result: FormSubmissionRedirectResult = { kind: "success", slug: "some-other-form" };
-  assert.equal(injectFormSubmissionResultIntoHtml(html, result), html);
+  assert.equal(injectFormSubmissionResultIntoHtml({ html, result }), html);
 });
 
 test("injectFormSubmissionResultIntoHtml: success reveals the success message and hides the form", () => {
   const html = contactFormPageHtml();
-  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "success", slug: "contact" });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "success", slug: "contact" } });
   assert.match(updated, /<div class="tovu-form-success widget-contact-form-success" data-form-slug="contact" data-contact-form-slug="contact">All set!<\/div>/);
   assert.match(updated, /<form hidden class="widget tovu-form widget-contact-form"/);
 });
@@ -1931,7 +1844,7 @@ test("builder form: an empty required email shows a friendly field sentence whil
   const decoded = decodeFormSubmissionResultFromQuery(Object.fromEntries(params));
   assert.deepEqual(decoded, result);
 
-  const updated = injectFormSubmissionResultIntoHtml(html, decoded);
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: decoded });
   assert.match(updated, /<div class="widget-form-field-error" data-field="email" id="widget-contact-[0-9a-f-]{36}-email-error">Please enter your email\.<\/div>/);
   assert.match(updated, /<div class="tovu-form-error widget-contact-form-error" data-form-slug="contact-us" data-contact-form-slug="contact-us">Please fix the highlighted fields below\.<\/div>/);
   assert.doesNotMatch(updated, />required<\/div>/);
@@ -1945,7 +1858,7 @@ test("builder field instructions use document language and honor a form language
     [`<html lang="es-MX">${html}</html>`, "Introduce Email."],
     [`<html lang="es-MX">${html.replace("<form ", '<form lang="fr" ')}</html>`, "Veuillez renseigner Email."],
   ]) {
-    const updated = injectFormSubmissionResultIntoHtml(page, result);
+    const updated = injectFormSubmissionResultIntoHtml({ html: page, result });
     const errorId = html.match(/ id="(widget-contact-[0-9a-f-]{36}-email-error)"/)?.[1];
     assert.ok(errorId);
     assert.ok(updated.includes(`id="${errorId}">${expected}</div>`));
@@ -1956,9 +1869,9 @@ test("builder field instructions use document language and honor a form language
 test("builder fields translate length and invalid reasons into label-based instructions", () => {
   for (const [reason, message] of [["too_long", "Please keep your email to 100 characters or fewer."], ["invalid", "Please check your email."]]) {
     const html = contactFormPageHtml();
-    const updated = injectFormSubmissionResultIntoHtml(html, {
+    const updated = injectFormSubmissionResultIntoHtml({ html, result: {
       kind: "validation", slug: "contact", fieldErrors: [{ field: "email", reason }],
-    });
+    } });
     const errorId = html.match(/ id="(widget-contact-[0-9a-f-]{36}-email-error)"/)?.[1];
     assert.ok(errorId);
     assert.ok(updated.includes(`id="${errorId}">${message}</div>`));
@@ -1977,11 +1890,11 @@ test("injectFormSubmissionResultIntoHtml: validation reveals a friendly matching
       successMessage: null,
     },
   });
-  const updated = injectFormSubmissionResultIntoHtml(html, {
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: {
     kind: "validation",
     slug: "contact",
     fieldErrors: [{ field: "email", reason: "<script>bad</script>" }],
-  });
+  } });
   assert.match(updated, /<div class="widget-form-field-error" data-field="email" id="widget-contact-[0-9a-f-]{36}-email-error">Please check your email\.<\/div>/);
   assert.doesNotMatch(updated, /bad|&lt;script&gt;/, "forged reason text must never be echoed");
   assert.match(updated, /data-field="message"[^>]*hidden><\/div>/, "an untouched field's error slot must stay hidden");
@@ -1992,11 +1905,11 @@ test("injectFormSubmissionResultIntoHtml: a field label containing an apostrophe
   const html = renderWidgetIr({ componentId: "contact-form", props: {
     slug: "contact", fields: [{ id: "email", label: "Recipient's email", type: "email", required: true }],
   } });
-  const updated = injectFormSubmissionResultIntoHtml(html, {
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: {
     kind: "validation",
     slug: "contact",
     fieldErrors: [{ field: "email", reason: "required" }],
-  });
+  } });
   assert.match(updated, /id="widget-contact-[0-9a-f-]{36}-email-error">Please enter Recipient&#39;s email\.<\/div>/, "an apostrophe in the field instruction must be escaped");
   assert.doesNotMatch(updated, /Recipient's email</, "a raw, unescaped apostrophe must never survive into rendered HTML");
 });
@@ -2005,11 +1918,11 @@ test("injectFormSubmissionResultIntoHtml: a field label containing '$&'/'$1'-sha
   const html = renderWidgetIr({ componentId: "contact-form", props: {
     slug: "contact", fields: [{ id: "email", label: "cost is $1.00, not $&", type: "email", required: true }],
   } });
-  const updated = injectFormSubmissionResultIntoHtml(html, {
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: {
     kind: "validation",
     slug: "contact",
     fieldErrors: [{ field: "email", reason: "required" }],
-  });
+  } });
   assert.match(updated, /id="widget-contact-[0-9a-f-]{36}-email-error">Please enter cost is \$1\.00, not \$&amp;\.<\/div>/);
   // A `$&` mis-substitution would have duplicated the matched substring inline — the baseline count
   // (success slot + form tag + the form's own error-summary div, all three carry the attribute) must
@@ -2021,13 +1934,13 @@ test("injectFormSubmissionResultIntoHtml: a field label containing '$&'/'$1'-sha
 
 test("injectFormSubmissionResultIntoHtml: rate-limited reveals the error summary with the retry seconds", () => {
   const html = contactFormPageHtml();
-  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "rate-limited", slug: "contact", retryAfterSeconds: 42 });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "rate-limited", slug: "contact", retryAfterSeconds: 42 } });
   assert.match(updated, /<div class="tovu-form-error widget-contact-form-error" data-form-slug="contact" data-contact-form-slug="contact">Too many submissions.*42 seconds\.<\/div>/);
 });
 
 test("injectFormSubmissionResultIntoHtml: generic error reveals a generic message", () => {
   const html = contactFormPageHtml();
-  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "error", slug: "contact" });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "error", slug: "contact" } });
   assert.match(updated, /Something went wrong — please try again\./);
 });
 
@@ -2102,7 +2015,7 @@ test("decodeFormSubmissionResultFromQuery -> injectFormSubmissionResultIntoHtml:
   // object's prototype — Object.prototype itself is untouched by decoding this query.
   assert.equal(Object.prototype.hasOwnProperty.call({}, "polluted"), false);
 
-  const updated = injectFormSubmissionResultIntoHtml(html, decoded);
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: decoded });
   assert.doesNotMatch(updated, /<script>alert\(1\)<\/script>/, "the hostile reason must never reach the response as live markup");
   assert.match(
     updated,
@@ -2125,7 +2038,7 @@ test("encodeFormFlashCookieValue + decodeFormFlashCookieValue round-trip a small
   const payload: FormFlashPayload = { slug: "contact", values: { name: "Ada Lovelace", email: "ada@example.com" } };
   const json = encodeFormFlashCookieValue(payload);
   assert.ok(json, "small payload must fit and encode to a real string");
-  assert.deepEqual(decodeFormFlashCookieValue(json), payload);
+  assert.deepEqual(decodeFormFlashCookieValue({ raw: json }), payload);
 });
 
 test("encodeFormFlashCookieValue: never puts field values in the URL/query layer — the query round-trip functions are untouched by `values`", () => {
@@ -2149,7 +2062,7 @@ test("encodeFormFlashCookieValue: a value longer than the per-field bound is tru
   const longValue = "begin:" + "x".repeat(294) + "end:" + "y".repeat(4696); // MAX_BODY_STRING_LENGTH's own bound in forms-submit.ts
   const json = encodeFormFlashCookieValue({ slug: "contact", values: { message: longValue } });
   assert.ok(json);
-  const decoded = decodeFormFlashCookieValue(json);
+  const decoded = decodeFormFlashCookieValue({ raw: json });
   assert.equal(decoded?.values.message.length, 300);
   assert.equal(decoded?.values.message, "begin:" + "x".repeat(294));
   assert.ok(longValue.startsWith(decoded!.values.message), "the truncated preview must be a real prefix of what was typed");
@@ -2160,7 +2073,7 @@ test("encodeFormFlashCookieValue: a form with many long fields that would not fi
   const json = encodeFormFlashCookieValue({ slug: "contact", values: fields });
   assert.ok(json, "must still encode SOMETHING — dropping fields, not giving up entirely");
   assert.ok(Buffer.byteLength(json, "utf8") <= 3000, "encoded cookie value must respect the byte budget");
-  const decoded = decodeFormFlashCookieValue(json)!;
+  const decoded = decodeFormFlashCookieValue({ raw: json })!;
   const keptCount = Object.keys(decoded.values).length;
   assert.ok(keptCount > 0 && keptCount < 20, `expected some but not all fields to survive, got ${keptCount}`);
   assert.ok("field0" in decoded.values, "the FIRST-declared field must survive the drop");
@@ -2168,13 +2081,13 @@ test("encodeFormFlashCookieValue: a form with many long fields that would not fi
 });
 
 test("decodeFormFlashCookieValue: malformed/hostile cookie input degrades to undefined rather than throwing", () => {
-  assert.equal(decodeFormFlashCookieValue(undefined), undefined);
-  assert.equal(decodeFormFlashCookieValue(""), undefined);
-  assert.equal(decodeFormFlashCookieValue("not json"), undefined);
-  assert.equal(decodeFormFlashCookieValue('{"slug":""}'), undefined, "empty slug is not a usable flash");
-  assert.equal(decodeFormFlashCookieValue('{"slug":"contact"}'), undefined, "missing values object");
-  assert.equal(decodeFormFlashCookieValue('{"slug":"contact","values":"not an object"}'), undefined);
-  assert.deepEqual(decodeFormFlashCookieValue('{"slug":"contact","values":{"a":"ok","b":123}}'), {
+  assert.equal(decodeFormFlashCookieValue({ raw: undefined }), undefined);
+  assert.equal(decodeFormFlashCookieValue({ raw: "" }), undefined);
+  assert.equal(decodeFormFlashCookieValue({ raw: "not json" }), undefined);
+  assert.equal(decodeFormFlashCookieValue({ raw: '{"slug":""}' }), undefined, "empty slug is not a usable flash");
+  assert.equal(decodeFormFlashCookieValue({ raw: '{"slug":"contact"}' }), undefined, "missing values object");
+  assert.equal(decodeFormFlashCookieValue({ raw: '{"slug":"contact","values":"not an object"}' }), undefined);
+  assert.deepEqual(decodeFormFlashCookieValue({ raw: '{"slug":"contact","values":{"a":"ok","b":123}}' }), {
     slug: "contact",
     values: { a: "ok" },
   });
@@ -2182,15 +2095,15 @@ test("decodeFormFlashCookieValue: malformed/hostile cookie input degrades to und
 
 test("mergeFormFlashIntoResult: attaches values only to a validation result for the SAME slug", () => {
   const validation: FormSubmissionRedirectResult = { kind: "validation", slug: "contact", fieldErrors: [] };
-  assert.deepEqual(mergeFormFlashIntoResult(validation, { slug: "contact", values: { name: "Ada" } }), {
+  assert.deepEqual(mergeFormFlashIntoResult({ result: validation, flash: { slug: "contact", values: { name: "Ada" } } }), {
     ...validation,
     values: { name: "Ada" },
   });
-  assert.equal(mergeFormFlashIntoResult(validation, { slug: "newsletter", values: { name: "Ada" } }), validation, "different slug: unchanged");
-  assert.equal(mergeFormFlashIntoResult(validation, undefined), validation, "no flash: unchanged");
-  assert.equal(mergeFormFlashIntoResult(undefined, { slug: "contact", values: { name: "Ada" } }), undefined, "no result: unchanged");
+  assert.equal(mergeFormFlashIntoResult({ result: validation, flash: { slug: "newsletter", values: { name: "Ada" } } }), validation, "different slug: unchanged");
+  assert.equal(mergeFormFlashIntoResult({ result: validation, flash: undefined }), validation, "no flash: unchanged");
+  assert.equal(mergeFormFlashIntoResult({ result: undefined, flash: { slug: "contact", values: { name: "Ada" } } }), undefined, "no result: unchanged");
   const success: FormSubmissionRedirectResult = { kind: "success", slug: "contact" };
-  assert.equal(mergeFormFlashIntoResult(success, { slug: "contact", values: { name: "Ada" } }), success, "non-validation kind: unchanged");
+  assert.equal(mergeFormFlashIntoResult({ result: success, flash: { slug: "contact", values: { name: "Ada" } } }), success, "non-validation kind: unchanged");
 });
 
 test("injectFormSubmissionResultIntoHtml: validation WITH flash values re-populates the untouched fields' <input>/<textarea>, escaped, instead of leaving them wiped", () => {
@@ -2206,12 +2119,12 @@ test("injectFormSubmissionResultIntoHtml: validation WITH flash values re-popula
       successMessage: null,
     },
   });
-  const updated = injectFormSubmissionResultIntoHtml(html, {
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: {
     kind: "validation",
     slug: "contact",
     fieldErrors: [{ field: "message", reason: "required" }],
     values: { name: "Ada <Lovelace>", email: "ada@example.com" },
-  });
+  } });
   // The two fields that were VALID (no error) must come back with what the visitor typed — this is
   // the actual bug: before the fix, a 303 PRG reload wiped these even though only "message" failed.
   assert.match(updated, /<input\b(?=[^>]* type="text")(?=[^>]* name="name")(?=[^>]* id="widget-contact-[0-9a-f-]{36}-name")(?=[^>]* aria-describedby="widget-contact-[0-9a-f-]{36}-name-error")(?=[^>]* value="Ada &lt;Lovelace&gt;")[^>]*>/);
@@ -2224,12 +2137,12 @@ test("injectFormSubmissionResultIntoHtml: validation WITH flash values re-popula
 
 test("injectFormSubmissionResultIntoHtml: a flash value naming a field this page's form does not have is a silent no-op for that entry (stale/forged flash)", () => {
   const html = contactFormPageHtml(); // one field: "email"
-  const updated = injectFormSubmissionResultIntoHtml(html, {
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: {
     kind: "validation",
     slug: "contact",
     fieldErrors: [],
     values: { "no-such-field": "whatever" },
-  });
+  } });
   assert.doesNotMatch(updated, /whatever/, "a value for a field the form doesn't have must never appear anywhere in the output");
   assert.doesNotMatch(updated, /value="/, "the form's own real field ('email') has no flash entry here, so it must stay unpopulated");
 });
@@ -2249,72 +2162,72 @@ function rawFormPageHtml(fieldHtml: string, slug = "contact"): string {
 
 test("injectFormSubmissionResultIntoHtml: repopulates a standard HTML5 <input name=\"x\"> (no self-close, no existing value) — bug (a)", () => {
   const html = rawFormPageHtml(`<input type="text" name="x">`);
-  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } } });
   assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" value="hello">`));
 });
 
 test("injectFormSubmissionResultIntoHtml: repopulates <input name=\"x\" value=\"\"> by REPLACING the empty value, not appending a second value= — bug (b)", () => {
   const html = rawFormPageHtml(`<input type="text" name="x" value="">`);
-  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } } });
   assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" value="hello">`));
   assert.equal((updated.match(/\bvalue="/g) ?? []).length, 1, "exactly one value= attribute — never two");
 });
 
 test("injectFormSubmissionResultIntoHtml: repopulates a non-self-closing <input name=\"x\" value=\"old\"> by REPLACING the stale value — bug (b), non-XHTML shape", () => {
   const html = rawFormPageHtml(`<input type="text" name="x" value="old">`);
-  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "new" } });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "new" } } });
   assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" value="new">`));
   assert.equal((updated.match(/\bvalue="/g) ?? []).length, 1, "exactly one value= attribute — never two");
 });
 
 test("injectFormSubmissionResultIntoHtml: repopulates a self-closing XHTML <input name=\"x\" value=\"old\"/> by REPLACING the stale value, keeping the /> form — bug (b), existing path must not regress", () => {
   const html = rawFormPageHtml(`<input type="text" name="x" value="old"/>`);
-  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "new" } });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "new" } } });
   assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" value="new"/>`));
   assert.equal((updated.match(/\bvalue="/g) ?? []).length, 1, "exactly one value= attribute — never two");
 });
 
 test("injectFormSubmissionResultIntoHtml: self-closing XHTML <input name=\"x\"/> with no existing value still repopulates, keeping the /> form — existing path must not regress", () => {
   const html = rawFormPageHtml(`<input type="text" name="x"/>`);
-  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } } });
   assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" value="hello"/>`));
 });
 
 test("injectFormSubmissionResultIntoHtml: a raw <textarea name=\"x\"> still repopulates — existing path must not regress", () => {
   const html = rawFormPageHtml(`<textarea name="x"></textarea>`);
-  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } } });
   assert.equal(updated, rawFormPageHtml(`<textarea name="x">hello</textarea>`));
 });
 
 test("injectFormSubmissionResultIntoHtml: a field name matching no input/textarea in the form is a byte-identical no-op", () => {
   const html = rawFormPageHtml(`<input type="text" name="x">`);
-  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [], values: { "no-such-field": "whatever" } });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { "no-such-field": "whatever" } } });
   assert.equal(updated, html);
 });
 
 test("injectFormSubmissionResultIntoHtml: a custom data-default-value attribute survives untouched -- BUG (c), 2026-09-05 Gemini audit finding #5: setInputValueAttr's \\b-bounded regex matches mid-attribute-name (data-default-VALUE=\"...\" has a \\b right before \"value\" because \"-\" precedes it), so the theme author's own preset gets silently overwritten with the flash value instead of a real value= attribute being added", () => {
   const html = rawFormPageHtml(`<input type="text" name="x" data-default-value="preset">`);
-  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } } });
   assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" data-default-value="preset" value="hello">`));
 });
 
 test("injectFormSubmissionResultIntoHtml: a single-quoted value='old' attribute is REPLACED, not duplicated -- bug (d), 2026-09-05 Gemini audit finding #5: the regex only ever matched value=\"...\" (double quotes), so a theme's hand-authored value='...' input was invisible to the existing-attribute check and got a SECOND, double-quoted value= appended -- regressing the exact stale-value-wins bug already fixed once for double quotes, since browsers only honor the first same-named attribute", () => {
   const html = rawFormPageHtml(`<input type="text" name="x" value='old'>`);
-  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "new" } });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "new" } } });
   assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" value="new">`));
   assert.equal((updated.match(/\bvalue=/g) ?? []).length, 1, "exactly one value= attribute -- never two");
 });
 
 test("injectFormSubmissionResultIntoHtml: a double-quoted value=\"Don't know\" containing an apostrophe is REPLACED, not duplicated -- bug (e): the 2026-09-05 fix's own existing-attribute check, /(\\s)value=([\"'])[^\"']*\\2/i, excludes BOTH quote characters from the value body, so it cannot span an embedded apostrophe inside a double-quoted value and never matches at all here -- the code falls through to the append branch and adds a second value=, and the browser honors only the first (the stale \"Don't know\")", () => {
   const html = rawFormPageHtml(`<input type="text" name="x" value="Don't know">`);
-  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } } });
   assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" value="hello">`));
   assert.equal((updated.match(/\bvalue=/g) ?? []).length, 1, "exactly one value= attribute -- never two");
 });
 
 test("injectFormSubmissionResultIntoHtml: a single-quoted value='say \"hi\"' containing a double quote is REPLACED, not duplicated -- bug (e), sibling case with quotes swapped", () => {
   const html = rawFormPageHtml(`<input type="text" name="x" value='say "hi"'>`);
-  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } } });
   assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" value="hello">`));
   assert.equal((updated.match(/\bvalue=/g) ?? []).length, 1, "exactly one value= attribute -- never two");
 });
@@ -2678,71 +2591,71 @@ function headingDoc(...headings: Array<[string, number]>): JsonObject {
 }
 
 test("renderDocNode: headings get a slugified id an in-page anchor can target", () => {
-  const html = renderDocNode(headingDoc(["Getting Started", 2], ["What is a theme?", 3]));
+  const html = renderDocNode({ node: headingDoc(["Getting Started", 2], ["What is a theme?", 3]) });
   assert.ok(html.includes('<h2 id="getting-started">Getting Started</h2>'));
   assert.ok(html.includes('<h3 id="what-is-a-theme">What is a theme?</h3>'));
 });
 
 test("renderDocNode: the anchor slug matches post.ts's slugify dialect, not a second one", () => {
   // Same rule: lowercase, every non-alphanumeric run collapses to one dash, edges trimmed.
-  const html = renderDocNode(headingDoc(["C++ & Rust — a Comparison!", 2]));
+  const html = renderDocNode({ node: headingDoc(["C++ & Rust — a Comparison!", 2]) });
   assert.ok(html.includes('id="c-rust-a-comparison"'), html);
 });
 
 test("renderDocNode: repeated headings are suffixed within one document, first one unsuffixed", () => {
-  const html = renderDocNode(headingDoc(["Overview", 2], ["Overview", 2], ["Overview", 3]));
+  const html = renderDocNode({ node: headingDoc(["Overview", 2], ["Overview", 2], ["Overview", 3]) });
   assert.ok(html.includes('<h2 id="overview">'));
   assert.ok(html.includes('<h2 id="overview-2">'));
   assert.ok(html.includes('<h3 id="overview-3">'));
 });
 
 test("renderDocNode: heading suffixes skip literal ids already emitted", () => {
-  const html = renderDocNode(headingDoc(["Foo", 2], ["Foo-2", 2], ["Foo", 3]));
+  const html = renderDocNode({ node: headingDoc(["Foo", 2], ["Foo-2", 2], ["Foo", 3]) });
   assert.equal(html, '<h2 id="foo">Foo</h2><h2 id="foo-2">Foo-2</h2><h3 id="foo-3">Foo</h3>');
 });
 
 test("renderDocNode: literal heading ids cannot reuse previously generated suffixes", () => {
-  const html = renderDocNode(headingDoc(["Foo", 2], ["Foo", 2], ["Foo-2", 3], ["Foo-2-2", 4], ["Foo-2", 5]));
+  const html = renderDocNode({ node: headingDoc(["Foo", 2], ["Foo", 2], ["Foo-2", 3], ["Foo-2-2", 4], ["Foo-2", 5]) });
   assert.equal(html, '<h2 id="foo">Foo</h2><h2 id="foo-2">Foo</h2><h3 id="foo-2-2">Foo-2</h3><h4 id="foo-2-2-2">Foo-2-2</h4><h5 id="foo-2-3">Foo-2</h5>');
 });
 
 test("renderDocNode: transliterated headings share the same collision-safe id namespace", () => {
-  const html = renderDocNode(headingDoc(["Café", 2], ["Cafe-2", 2], ["Cafe", 3], ["Café", 4]));
+  const html = renderDocNode({ node: headingDoc(["Café", 2], ["Cafe-2", 2], ["Cafe", 3], ["Café", 4]) });
   assert.equal(html, '<h2 id="cafe">Café</h2><h2 id="cafe-2">Cafe-2</h2><h3 id="cafe-3">Cafe</h3><h4 id="cafe-4">Café</h4>');
 });
 
 test("renderDocNode: styled headings participate in dedupe without changing their styles", () => {
-  const html = renderDocNode({
+  const html = renderDocNode({ node: {
     type: "doc",
     content: ["Foo", "Foo-2", "Foo"].map((text) => ({
       type: "heading",
       attrs: { level: 2, textAlign: "right" },
       content: [{ type: "text", text }],
     })),
-  });
+  } });
   assert.equal(html, '<h2 id="foo" style="text-align:right">Foo</h2><h2 id="foo-2" style="text-align:right">Foo-2</h2><h2 id="foo-3" style="text-align:right">Foo</h2>');
 });
 
 test("renderDocNode: documents without id collisions retain byte-identical heading output", () => {
-  const html = renderDocNode(headingDoc(["Overview", 2], ["Overview", 2], ["Overview", 3], ["Café", 4], ["Foo-2", 5]));
+  const html = renderDocNode({ node: headingDoc(["Overview", 2], ["Overview", 2], ["Overview", 3], ["Café", 4], ["Foo-2", 5]) });
   assert.equal(html, '<h2 id="overview">Overview</h2><h2 id="overview-2">Overview</h2><h3 id="overview-3">Overview</h3><h4 id="cafe">Café</h4><h5 id="foo-2">Foo-2</h5>');
 });
 
 test("renderDocNode: dedupe is per-document — two documents may each own the same anchor", () => {
-  const a = renderDocNode(headingDoc(["Overview", 2]));
-  const b = renderDocNode(headingDoc(["Overview", 2]));
+  const a = renderDocNode({ node: headingDoc(["Overview", 2]) });
+  const b = renderDocNode({ node: headingDoc(["Overview", 2]) });
   assert.equal(a, b, "a second post's #overview must not inherit the first post's suffix");
   assert.ok(a.includes('id="overview"'));
 });
 
 test("renderDocNode: a heading whose text slugifies to nothing gets no id, never id=\"\"", () => {
-  const html = renderDocNode(headingDoc(["🎉", 2], ["...", 2]));
+  const html = renderDocNode({ node: headingDoc(["🎉", 2], ["...", 2]) });
   assert.ok(!html.includes('id=""'));
   assert.ok(html.includes("<h2>🎉</h2>"));
 });
 
 test("renderDocNode: the slug comes from the heading's text, ignoring inline marks", () => {
-  const html = renderDocNode({
+  const html = renderDocNode({ node: {
     type: "doc",
     content: [
       {
@@ -2754,7 +2667,7 @@ test("renderDocNode: the slug comes from the heading's text, ignoring inline mar
         ],
       },
     ],
-  });
+  } });
   assert.ok(html.includes('<h2 id="design-tokens">'), html);
   assert.ok(html.includes("<strong>Design </strong>"), "the visible markup is untouched");
 });
@@ -2764,31 +2677,31 @@ test("renderDocNode: the slug comes from the heading's text, ignoring inline mar
 // ---------------------------------------------------------------------------
 
 test("renderDocNode: a paragraph's textAlign attr renders as an inline style", () => {
-  const html = renderDocNode({
+  const html = renderDocNode({ node: {
     type: "doc",
     content: [{ type: "paragraph", attrs: { textAlign: "center" }, content: [{ type: "text", text: "Hi" }] }],
-  });
+  } });
   assert.ok(html.includes('<p style="text-align:center">Hi</p>'), html);
 });
 
 test("renderDocNode: a heading's textAlign attr renders alongside its own id attribute, id first", () => {
-  const html = renderDocNode({
+  const html = renderDocNode({ node: {
     type: "doc",
     content: [{ type: "heading", attrs: { level: 2, textAlign: "right" }, content: [{ type: "text", text: "Overview" }] }],
-  });
+  } });
   assert.ok(html.includes('<h2 id="overview" style="text-align:right">Overview</h2>'), html);
 });
 
 test("renderDocNode: textAlign 'left' (the CSS default) never emits an explicit style attribute", () => {
-  const html = renderDocNode({
+  const html = renderDocNode({ node: {
     type: "doc",
     content: [{ type: "paragraph", attrs: { textAlign: "left" }, content: [{ type: "text", text: "Hi" }] }],
-  });
+  } });
   assert.equal(html, "<p>Hi</p>");
 });
 
 test("renderDocNode: no textAlign attr at all renders exactly as before this feature (regression)", () => {
-  const html = renderDocNode({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Hi" }] }] });
+  const html = renderDocNode({ node: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Hi" }] }] } });
   assert.equal(html, "<p>Hi</p>");
 });
 
@@ -2802,26 +2715,26 @@ test("renderDocNode: no textAlign attr at all renders exactly as before this fea
 // ---------------------------------------------------------------------------
 
 test("renderDocNode: a textAlign value that smuggles a second CSS declaration emits no style attribute at all, not an escaped copy of the payload", () => {
-  const centerPayload = renderDocNode({
+  const centerPayload = renderDocNode({ node: {
     type: "doc",
     content: [{ type: "paragraph", attrs: { textAlign: "center;position:fixed" }, content: [{ type: "text", text: "Hi" }] }],
-  });
+  } });
   assert.equal(centerPayload, "<p>Hi</p>");
   assert.doesNotMatch(centerPayload, /position/);
 
-  const leftPayload = renderDocNode({
+  const leftPayload = renderDocNode({ node: {
     type: "doc",
     content: [{ type: "paragraph", attrs: { textAlign: "left;background:url(x)" }, content: [{ type: "text", text: "Hi" }] }],
-  });
+  } });
   assert.equal(leftPayload, "<p>Hi</p>");
   assert.doesNotMatch(leftPayload, /background/);
 });
 
 test("renderDocNode: a legitimate textAlign still renders its inline style (regression guard for the allowlist fix)", () => {
-  const html = renderDocNode({
+  const html = renderDocNode({ node: {
     type: "doc",
     content: [{ type: "paragraph", attrs: { textAlign: "center" }, content: [{ type: "text", text: "Hi" }] }],
-  });
+  } });
   assert.equal(html, '<p style="text-align:center">Hi</p>');
 });
 
@@ -2860,13 +2773,13 @@ test("widget/declarative: media-placeholder — a legitimate ratio still renders
 // ---------------------------------------------------------------------------
 
 test("renderDocNode: a 'title' node contributes nothing to a generic doc walk — every OTHER render path prints post.title separately, so this node rendering text too would duplicate it", () => {
-  const html = renderDocNode({
+  const html = renderDocNode({ node: {
     type: "doc",
     content: [
       { type: "title", content: [{ type: "text", text: "My Post" }] },
       { type: "paragraph", content: [{ type: "text", text: "Body." }] },
     ],
-  });
+  } });
   assert.equal(html, "<p>Body.</p>", "the title node's own text must not leak into the generic body render");
 });
 
@@ -2996,7 +2909,7 @@ function deepBulletChain(depth: number): JsonObject {
 test("renderDocNode: worklist #5 regression — a document nested past MAX_RENDER_DEPTH renders a placeholder instead of crashing the whole render", () => {
   // Below the bound: renders in full, no placeholder at all — the bound must not clip ordinary
   // (if unusually deep) legitimate content.
-  const shallow = renderDocNode(deepBulletChain(50));
+  const shallow = renderDocNode({ node: deepBulletChain(50) });
   assert.ok(shallow.includes("leaf"), "content within the bound must render exactly as authored");
   assert.ok(!shallow.includes("content-ph"), "content within the bound must not show any placeholder");
 
@@ -3006,7 +2919,7 @@ test("renderDocNode: worklist #5 regression — a document nested past MAX_RENDE
   // instead of throwing. `deepBulletChain(600)` is comfortably past both the crash boundary this
   // fix guards against AND `MAX_RENDER_DEPTH` itself, so this is testing the ACTUAL fix, not a value
   // that happens to sit below both.
-  const tooDeep = renderDocNode(deepBulletChain(600));
+  const tooDeep = renderDocNode({ node: deepBulletChain(600) });
   assert.ok(tooDeep.includes("content-ph"), "an over-deep document must degrade to the placeholder, not crash");
   assert.ok(!tooDeep.includes("leaf"), "content past the bound must not appear — it was never reached, not truncated mid-render");
 });
@@ -3021,7 +2934,7 @@ test("renderDocNode: worklist #5 regression — content above the bound still re
       (deepBulletChain(600).content as JsonObject[])[0]!,
     ],
   };
-  const html = renderDocNode(doc);
+  const html = renderDocNode({ node: doc });
   assert.ok(html.includes("this paragraph is fine"), "sibling content above the bound must render normally");
   assert.ok(html.includes("content-ph"), "the over-deep sibling must degrade to the placeholder");
 });
@@ -3113,7 +3026,7 @@ const HEAD_COMMENT_MENTIONING_TITLE = [
 const SEO_HEAD = '<title>Contact</title><link rel="canonical" href="/contact"/>';
 
 test("injectExtraHeadIntoStaticPage: a <title> mentioned inside a head comment does not swallow the rest of the head (regression)", () => {
-  const out = injectExtraHeadIntoStaticPage(HEAD_COMMENT_MENTIONING_TITLE, SEO_HEAD);
+  const out = injectExtraHeadIntoStaticPage({ html: HEAD_COMMENT_MENTIONING_TITLE, extraHead: SEO_HEAD });
 
   assert.equal((out.match(/-->/g) ?? []).length, 1, "the head comment must still be terminated");
   assert.ok(
@@ -3123,7 +3036,7 @@ test("injectExtraHeadIntoStaticPage: a <title> mentioned inside a head comment d
 });
 
 test("injectExtraHeadIntoStaticPage: the theme's own title is still the one removed, not the comment's mention", () => {
-  const out = injectExtraHeadIntoStaticPage(HEAD_COMMENT_MENTIONING_TITLE, SEO_HEAD);
+  const out = injectExtraHeadIntoStaticPage({ html: HEAD_COMMENT_MENTIONING_TITLE, extraHead: SEO_HEAD });
 
   const afterComment = out.slice(out.indexOf("-->") + "-->".length);
   assert.equal((afterComment.match(/<title>/g) ?? []).length, 1, "exactly one real <title> element ships");
@@ -3133,14 +3046,14 @@ test("injectExtraHeadIntoStaticPage: the theme's own title is still the one remo
 });
 
 test("injectExtraHeadIntoStaticPage: extraHead without a title leaves the theme's own title in place", () => {
-  const out = injectExtraHeadIntoStaticPage(HEAD_COMMENT_MENTIONING_TITLE, '<link rel="canonical" href="/contact"/>');
+  const out = injectExtraHeadIntoStaticPage({ html: HEAD_COMMENT_MENTIONING_TITLE, extraHead: '<link rel="canonical" href="/contact"/>' });
 
   assert.ok(out.includes("<title>Theme Title</title>"), "nothing to suppress it, so it stays");
   assert.equal((out.match(/-->/g) ?? []).length, 1, "and the comment is untouched");
 });
 
 test("injectExtraHeadIntoStaticPage: preserving an authored title skips comment mentions and keeps the other head elements", () => {
-  const out = injectExtraHeadIntoStaticPage(HEAD_COMMENT_MENTIONING_TITLE, SEO_HEAD, { preserveThemeTitle: true });
+  const out = injectExtraHeadIntoStaticPage({ html: HEAD_COMMENT_MENTIONING_TITLE, extraHead: SEO_HEAD }, { preserveThemeTitle: true });
   const withoutComments = out.replace(/<!--[\s\S]*?-->/g, "");
   assert.deepEqual(withoutComments.match(/<title>[\s\S]*?<\/title>/g), ["<title>Theme Title</title>"]);
   assert.ok(out.includes('<link rel="canonical" href="/contact"/>'));
@@ -3150,7 +3063,7 @@ test("injectExtraHeadIntoStaticPage: preserving an authored title skips comment 
 
 test("injectExtraHeadIntoStaticPage: a theme with only a comment mentioning title still receives the fold's fallback title", () => {
   const html = HEAD_COMMENT_MENTIONING_TITLE.replace("<title>Theme Title</title>", "");
-  const out = injectExtraHeadIntoStaticPage(html, SEO_HEAD, { preserveThemeTitle: true });
+  const out = injectExtraHeadIntoStaticPage({ html, extraHead: SEO_HEAD }, { preserveThemeTitle: true });
   const withoutComments = out.replace(/<!--[\s\S]*?-->/g, "");
   assert.deepEqual(withoutComments.match(/<title>[\s\S]*?<\/title>/g), ["<title>Contact</title>"]);
   assert.ok(out.includes('<link rel="canonical" href="/contact"/>'));
@@ -3169,7 +3082,7 @@ const HEAD_COMMENT_MENTIONING_CLOSING_TAGS = [
 
 test("injectSiteAssistantIntoStaticPage: closing tags named inside a head comment are skipped (regression)", (t) => {
   useSiteChatBuild({ test: t, ready: true });
-  const out = injectSiteAssistantIntoStaticPage(HEAD_COMMENT_MENTIONING_CLOSING_TAGS, true);
+  const out = injectSiteAssistantIntoStaticPage({ html: HEAD_COMMENT_MENTIONING_CLOSING_TAGS, enabled: true });
   const comment = "<!-- cloak: armed before </head> runs, then at the end of <body> rather than at </body>. -->";
   assert.ok(out.includes(comment), "the authored comment must remain intact");
   const liveMarkup = out.replace(/<!--[\s\S]*?-->/g, "");
@@ -3179,7 +3092,7 @@ test("injectSiteAssistantIntoStaticPage: closing tags named inside a head commen
 });
 
 test("injectExtraHeadIntoStaticPage: a </head> named inside a head comment is skipped (regression)", () => {
-  const out = injectExtraHeadIntoStaticPage(HEAD_COMMENT_MENTIONING_CLOSING_TAGS, '<link rel="canonical" href="/"/>');
+  const out = injectExtraHeadIntoStaticPage({ html: HEAD_COMMENT_MENTIONING_CLOSING_TAGS, extraHead: '<link rel="canonical" href="/"/>' });
 
   assert.equal(
     out,
@@ -3208,13 +3121,13 @@ function resolvedMap(type: string, key: string, ir: WidgetRenderIR): ResolveHtml
 
 test("renderHtmlPageBody: an id-carrying widget marker still resolves by id (UUID markers keep working unchanged)", () => {
   const html = `<div data-embed-config='{"type":"widget","id":"w1"}'></div>`;
-  const out = renderHtmlPageBody(html, resolvedMap("widget", "w1", TEXT_WIDGET_IR));
+  const out = renderHtmlPageBody({ html, resolved: resolvedMap("widget", "w1", TEXT_WIDGET_IR) });
   assert.equal(out, renderWidgetIr(TEXT_WIDGET_IR));
 });
 
 test("renderHtmlPageBody: a slug-only widget marker (no id key at all) resolves via the slug-keyed entry in the resolved map", () => {
   const html = `<div data-embed-config='{"type":"widget","slug":"contact-form"}'></div>`;
-  const out = renderHtmlPageBody(html, resolvedMap("widget", "contact-form", TEXT_WIDGET_IR));
+  const out = renderHtmlPageBody({ html, resolved: resolvedMap("widget", "contact-form", TEXT_WIDGET_IR) });
   assert.equal(out, renderWidgetIr(TEXT_WIDGET_IR));
 });
 
@@ -3222,13 +3135,13 @@ test("renderHtmlPageBody: a marker carrying BOTH id and slug looks up by id — 
   const html = `<div data-embed-config='{"type":"widget","id":"w1","slug":"stale-slug"}'></div>`;
   // Only the id-keyed entry is populated; if this function fell back to slug it would find nothing
   // and render the placeholder instead of TEXT_WIDGET_IR.
-  const out = renderHtmlPageBody(html, resolvedMap("widget", "w1", TEXT_WIDGET_IR));
+  const out = renderHtmlPageBody({ html, resolved: resolvedMap("widget", "w1", TEXT_WIDGET_IR) });
   assert.equal(out, renderWidgetIr(TEXT_WIDGET_IR));
 });
 
 test("renderHtmlPageBody: an unresolvable widget slug renders nothing", () => {
   const html = `<div data-embed-config='{"type":"widget","slug":"does-not-exist"}'></div>`;
-  const out = renderHtmlPageBody(html, new Map([["widget", new Map()]]));
+  const out = renderHtmlPageBody({ html, resolved: new Map([["widget", new Map()]]) });
   assert.equal(out, "");
 });
 
@@ -3242,19 +3155,19 @@ test("renderHtmlPageBody: an unresolvable widget slug renders nothing", () => {
 
 test('renderHtmlPageBody: an id-less, slug-less "content" marker is left exactly as written, not replaced by the placeholder', () => {
   const html = `<div data-embed-config='{"type":"content","header":false}'>keep</div>`;
-  const out = renderHtmlPageBody(html, undefined);
+  const out = renderHtmlPageBody({ html, resolved: undefined });
   assert.equal(out, html);
 });
 
 test('renderHtmlPageBody: an id-less, slug-less "post" marker is left exactly as written, not replaced by the placeholder', () => {
   const html = `<div data-embed-config='{"type":"post"}'>keep</div>`;
-  const out = renderHtmlPageBody(html, undefined);
+  const out = renderHtmlPageBody({ html, resolved: undefined });
   assert.equal(out, html);
 });
 
 test('renderHtmlPageBody: an id-carrying "content" marker still resolves normally — the D4 guard is id-less AND slug-less only', () => {
   const html = `<div data-embed-config='{"type":"content","id":"c1"}'></div>`;
-  const out = renderHtmlPageBody(html, resolvedMap("content", "c1", TEXT_WIDGET_IR));
+  const out = renderHtmlPageBody({ html, resolved: resolvedMap("content", "c1", TEXT_WIDGET_IR) });
   // "content" always keeps its wrapper element (WRAPPER_PRESERVING_EMBED_TYPES), unlike the
   // keep-if-attributed "widget" rule the tests above this section exercise.
   assert.equal(out, `<div>${renderWidgetIr(TEXT_WIDGET_IR)}</div>`);
@@ -3262,7 +3175,7 @@ test('renderHtmlPageBody: an id-carrying "content" marker still resolves normall
 
 test('renderHtmlPageBody: an unresolvable id-less "content" marker still degrades to the placeholder when it DOES carry a slug', () => {
   const html = `<div data-embed-config='{"type":"content","slug":"does-not-exist"}'></div>`;
-  const out = renderHtmlPageBody(html, new Map([["content", new Map()]]));
+  const out = renderHtmlPageBody({ html, resolved: new Map([["content", new Map()]]) });
   // "content" always keeps its wrapper element, same as the id-carrying case above.
   assert.equal(out, `<div>${renderWidgetIr({ componentId: "widget-placeholder", props: {} })}</div>`);
 });
@@ -3280,12 +3193,7 @@ test("renderDocNode: an htmlAttributes name carrying '>' cannot break out of the
     type: "doc",
     content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
   };
-  const html = renderDocNode(
-    doc,
-    undefined,
-    new Map([["public", 3]]),
-    new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: "data-x><svg/onload=alert(1)" })]])
-  );
+  const html = renderDocNode({ node: doc }, { mediaTransformVersions: new Map([["public", 3]]), mediaAssetMetadata: new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: "data-x><svg/onload=alert(1)" })]]) });
   assert.doesNotMatch(html, /<svg/i, "an attribute name must never be able to terminate the tag and start a new element");
   assert.doesNotMatch(html, /onload/i, "no event handler may reach the emitted markup");
   assert.equal(html, '<img src="/m/asset-1/public.v3/image.jpg" alt="x" loading="lazy">');
@@ -3297,12 +3205,7 @@ test("renderDocNode: an htmlAttributes name outside the [a-z][a-z0-9-]* shape is
     content: [{ type: "image", attrs: { assetId: "asset-1", transformName: "public", alt: "x" } }],
   };
   for (const payload of ['data-a/onerror="alert(1)"', 'aria-x<img', 'data-"x"="y"', "data-x`y=1"]) {
-    const html = renderDocNode(
-      doc,
-      undefined,
-      new Map([["public", 3]]),
-      new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: payload })]])
-    );
+    const html = renderDocNode({ node: doc }, { mediaTransformVersions: new Map([["public", 3]]), mediaAssetMetadata: new Map([["asset-1", assetMeta({ width: null, height: null, cssClass: null, htmlAttributes: payload })]]) });
     assert.equal(
       html,
       '<img src="/m/asset-1/public.v3/image.jpg" alt="x" loading="lazy">',
@@ -3377,7 +3280,7 @@ test("declarative content slots render escaped assigned terms grouped by taxonom
 test("content marker header overrides stay local to each occurrence of a shared IR", () => {
   const ir: WidgetRenderIR = { componentId: "post-content", props: { title: "Distinct title", bodyJson: textDoc({ type: "text", text: "Body" }) } };
   const resolved = htmlEmbeds({ content: new Map([["same", ir]]) });
-  const html = renderHtmlPageBody(`<section id="hidden-header"><div data-embed-config='{"type":"content","id":"same","header":false}'></div></section><section id="shown-header"><div data-embed-config='{"type":"content","id":"same","header":true}'></div></section>`, resolved);
+  const html = renderHtmlPageBody({ html: `<section id="hidden-header"><div data-embed-config='{"type":"content","id":"same","header":false}'></div></section><section id="shown-header"><div data-embed-config='{"type":"content","id":"same","header":true}'></div></section>`, resolved });
   assert.match(html, /<section id="hidden-header"><div><div class="post-detail-body"><p>Body<\/p><\/div><\/div><\/section>/);
   assert.match(html, /<section id="shown-header"><div><div class="post-detail-header"><h1>Distinct title<\/h1><\/div><div class="post-detail-body"><p>Body<\/p><\/div><\/div><\/section>/);
   assert.equal(ir.props.header, undefined);

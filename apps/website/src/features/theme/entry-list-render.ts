@@ -121,13 +121,13 @@ function formatFieldValue(field: EntryListFieldValue): string {
 
 /** One field row inside a card/list item's `<dl>`, escaped for plain HTML content (not a template). */
 function renderFieldRow(field: EntryListFieldValue): string {
-  return `<dt>${escapeHtml(field.label)}</dt><dd>${escapeHtml(formatFieldValue(field))}</dd>`;
+  return `<dt>${escapeHtml({ text: field.label })}</dt><dd>${escapeHtml({ text: formatFieldValue(field) })}</dd>`;
 }
 
 /** The title element shared by cards and list items: linked only when `href` is non-null (D1). */
 function renderTitle({ item, tag }: { item: EntryListItem; tag: "h3" }, _optional = {}): string {
-  const title = escapeHtml(item.title);
-  const inner = item.href === null ? title : `<a href="${escapeHtml(safeHref({ value: item.href }))}">${title}</a>`;
+  const title = escapeHtml({ text: item.title });
+  const inner = item.href === null ? title : `<a href="${escapeHtml({ text: safeHref({ value: item.href }) })}">${title}</a>`;
   return `<${tag} class="entry-card__title">${inner}</${tag}>`;
 }
 
@@ -155,9 +155,9 @@ function nonEmptyFieldValues(item: EntryListItem): Array<{ readonly field: Entry
  * summary itself is the toggle. */
 function renderAccordionItem(item: EntryListItem): string {
   const body = nonEmptyFieldValues(item)
-    .map(({ field, text }) => `<p class="entry-accordion__field entry-accordion__field--${escapeHtml(field.name)}">${escapeHtml(text)}</p>`)
+    .map(({ field, text }) => `<p class="entry-accordion__field entry-accordion__field--${escapeHtml({ text: field.name })}">${escapeHtml({ text })}</p>`)
     .join("");
-  return `<details class="entry-accordion__item"><summary class="entry-accordion__question">${escapeHtml(item.title)}</summary><div class="entry-accordion__answer">${body}</div></details>`;
+  return `<details class="entry-accordion__item"><summary class="entry-accordion__question">${escapeHtml({ text: item.title })}</summary><div class="entry-accordion__answer">${body}</div></details>`;
 }
 
 /**
@@ -226,7 +226,7 @@ function substitutePlaceholders({ text, item, transform }: { text: string; item:
 /** Entity-encodes the characters that end or split an UNQUOTED attribute value (whitespace, `=`,
  * backtick) on top of {@link escapeHtml}, so an entry value there cannot start a second attribute. */
 function escapeForUnquotedAttribute({ raw }: { raw: string }, _optional = {}): string {
-  return escapeHtml(raw).replace(/[\s=`]/g, (char) => `&#${char.codePointAt(0)};`);
+  return escapeHtml({ text: raw }).replace(/[\s=`]/g, (char) => `&#${char.codePointAt(0)};`);
 }
 
 /**
@@ -256,7 +256,7 @@ function renderTemplateAttribute(attribute: { name: string; equals: string; valu
   const { name, equals, value } = attribute;
   const quote = value.startsWith('"') || value.startsWith("'") ? value.charAt(0) : "";
   const inner = quote === "" ? value : value.slice(1, -1);
-  const escapeValue: PlaceholderEscape = quote === "" ? (raw: string) => escapeForUnquotedAttribute({ raw }) : escapeHtml;
+  const escapeValue: PlaceholderEscape = quote === "" ? (raw: string) => escapeForUnquotedAttribute({ raw }) : (raw: string) => escapeHtml({ text: raw });
   return `${name}${equals}${quote}${fillAttributeValue({ lowerName: name.toLowerCase(), inner, item, escapeValue })}${quote}`;
 }
 
@@ -291,7 +291,7 @@ function renderTemplateTag({ tag, item }: { tag: string; item: EntryListItem }, 
  */
 function renderTemplateItem({ template, item }: { template: string; item: EntryListItem }, _optional = {}): string {
   return template.replace(TEMPLATE_TAG_OR_PLACEHOLDER, (match, key: string | undefined) =>
-    key === undefined ? renderTemplateTag({ tag: match, item }) : escapeHtml(resolvePlaceholderRawValue({ key, item }))
+    key === undefined ? renderTemplateTag({ tag: match, item }) : escapeHtml({ text: resolvePlaceholderRawValue({ key, item }) })
   );
 }
 
@@ -330,7 +330,7 @@ function renderEntryListBody(items: readonly EntryListItem[], options: EntryList
   if (options.template !== undefined) {
     return wrap({ html: items.map((item) => renderTemplateItem({ template: options.template as string, item })).join("") });
   }
-  const typeClass = escapeHtml(options.typeKey);
+  const typeClass = escapeHtml({ text: options.typeKey });
   const marker = key === undefined ? "data-tovu-entry-list" : `data-tovu-entry-list data-jini-listing="${key}"`;
   if (options.layout === "list") {
     return `<ul class="entry-list entry-list--${typeClass} entry-list--list" ${marker}>${wrap({ html: items.map(renderListItem).join("") })}</ul>`;

@@ -381,12 +381,12 @@ test("active theme: a denied theme.set cannot switch an installed theme", async 
 
 test("share-image local detection rejects malformed absolute URLs and every supported local host", () => {
   for (const value of [null, undefined, 42, {}, "", MEDIA_ID, `${MEDIA_ID}:public`, "/uploads/image.png", "https://cdn.example.com/image.png"]) {
-    assert.equal(pointsAtThisComputer(value), false, JSON.stringify(value));
+    assert.equal(pointsAtThisComputer({ value }), false, JSON.stringify(value));
   }
   for (const value of ["https://[broken", " http://localhost/image.png ", "https://sub.localhost/image.png", "http://box.local/image.png", "http://127.0.0.2/x", "http://0.0.0.0/x", "http://[::1]/x", "http://10.1.2.3/x", "http://192.168.0.2/x", "http://172.16.0.2/x", "http://172.31.0.2/x"]) {
-    assert.equal(pointsAtThisComputer(value), true, value);
+    assert.equal(pointsAtThisComputer({ value }), true, value);
   }
-  assert.equal(pointsAtThisComputer("http://172.32.0.2/x"), false);
+  assert.equal(pointsAtThisComputer({ value: "http://172.32.0.2/x" }), false);
 });
 
 // F6 fix wave (L7 Stryker: LOCAL_HOST anchor survivors). Public hosts that merely CONTAIN a local
@@ -395,10 +395,10 @@ test("share-image local detection is anchored: look-alike public hosts are not l
   for (const value of ["http://evil-localhost.com/x", "http://localhostx.com/x", "http://127.0.0.1.evil.com/x", "http://box.local.evil.com/x",
     "http://110.1.2.3/x", "http://10.1.2.3.nip.io/x", "http://1192.168.0.2.example/x", "http://192.168.0.2.example/x", "http://172.15.0.2/x",
     "http://0.0.0.1/x", "http://[::2]/x", "http://12.0.0.1/x", "see http://localhost/x", "localhost/x"]) {
-    assert.equal(pointsAtThisComputer(value), false, value);
+    assert.equal(pointsAtThisComputer({ value }), false, value);
   }
   for (const value of ["HTTP://LOCALHOST/x", "https://a.b.localhost/x", "ftp://printer.local/x", "http://[::]/x", "http://10.0.0.1/x"]) {
-    assert.equal(pointsAtThisComputer(value), true, value);
+    assert.equal(pointsAtThisComputer({ value }), true, value);
   }
 });
 

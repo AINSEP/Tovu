@@ -53,10 +53,10 @@ const callerError = ({ error }: { error: unknown }, _optional = {}) => {
 async function readUrl({ deps, source, media }: { deps: AssetToolDeps; source: Record<string, unknown>; media: boolean }): Promise<AssetFile> {
   if (source.glob !== undefined) throw new ToolInputError({ message: "URL sources do not accept glob" });
   const url = requireString({ input: source, key: "url" });
-  const fetched = await withCallerSafeEgressRefusal(deps.mediaImportEgressRefusalLog ?? console.warn, () => fetchImage(
+  const fetched = await withCallerSafeEgressRefusal({ log: deps.mediaImportEgressRefusalLog ?? console.warn, work: () => fetchImage(
     { deps: { httpClient: deps.mediaImportHttpClient, plainHttpTestOrigins: deps.outboundTestOrigins }, url },
     media ? { policy: { ...MEDIA_IMPORT_POLICY, maxBytes: FILES_COPY_LIMITS.maxFileBytes } } : { policy: THEME_IMPORT_POLICY, accept: THEME_IMPORT_ACCEPT },
-  ), { toolId: "files_copy" });
+  ) }, { toolId: "files_copy" });
   return { bytes: Buffer.from(fetched.bytes), path: source.path === undefined ? basename(fetched.url.pathname) : requireString({ input: source, key: "path" }), sourceUrl: fetched.url.href };
 }
 

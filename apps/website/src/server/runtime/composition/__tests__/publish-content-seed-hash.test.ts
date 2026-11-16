@@ -45,7 +45,7 @@ async function hydrateLive(t: { after(fn: () => void): void }) {
     await prepareContentStore(contentKernel({ store: seedDb }), { seed: {
       workspace: seededWorkspace, posts: [{ ...page, kind: "page" }], presentation: seededPresentation,
     } });
-    await new SqliteMenuRepo(seedDb).save({
+    await new SqliteMenuRepo({ store: seedDb }).save({
       id: "menu-header-nav", workspaceId: WORKSPACE, slug: "header-nav", title: "Header Nav",
       status: "published", doc: { type: "menu", version: 1, items: [] }, locations: [],
       updatedAt: clock.nowIso(), version: 1,
@@ -57,7 +57,7 @@ async function hydrateLive(t: { after(fn: () => void): void }) {
   const livePath = join(dir, "content.db");
   copyFileSync(seedPath, livePath);
   const db = liveDb = openContentDb(livePath);
-  const menuRepo = new SqliteMenuRepo(db);
+  const menuRepo = new SqliteMenuRepo({ store: db });
   const liveDeps: PublishContentDeps = {
     workspaceId: WORKSPACE,
     clock,

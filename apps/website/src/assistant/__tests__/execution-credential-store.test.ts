@@ -274,7 +274,7 @@ test("resolveExecutionCredential's onDecryptFailure defaults to a silent no-op â
   const { deps, repo } = makeDeps();
   await setExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A, apiKey: "some-key" });
 
-  const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring("different-generation"));
+  const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring({}, { keyId: "different-generation" }));
   const resolved = await resolveExecutionCredential({ deps: { repo, sealer: otherSealer }, input: { workspaceId: WORKSPACE, principalId: ADMIN_A } });
 
   assert.equal(resolved, null, "the default no-op must still let the failure resolve to null rather than throwing");
@@ -305,7 +305,7 @@ test("resolveExecutionCredential returns null (not a throw) when the sealed row 
   await setExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A, apiKey: "some-key" });
 
   // A sealer over a DIFFERENT site key generation â€” simulates a rotated/reset site key.
-  const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring("different-generation"));
+  const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring({}, { keyId: "different-generation" }));
   let warned = 0;
   const resolved = await resolveExecutionCredential(
     { deps: { repo, sealer: otherSealer },

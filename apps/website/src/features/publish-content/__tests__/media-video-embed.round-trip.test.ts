@@ -136,7 +136,7 @@ test("publishing only a video media item carries its poster along, and the recei
     },
     input: { workspaceId: WORKSPACE_ID, html },
   });
-  const rendered = renderHtmlPageBody(html, resolved);
+  const rendered = renderHtmlPageBody({ html, resolved });
 
   assert.doesNotMatch(rendered, /<img\b/);
   assert.equal(rendered.match(/<video\b[^>]*\bsrc="([^"]*)"/)?.[1], `/m/promo-01/original.mp4?v=${VIDEO_SHA.slice(0, 12)}`);

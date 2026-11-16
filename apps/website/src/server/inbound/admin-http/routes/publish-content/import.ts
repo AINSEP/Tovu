@@ -100,7 +100,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
       // The apply loop authorizes each entity against its TYPE's own write permission. For a human
       // that is RBAC, unchanged. For a publishing credential it has to be the grant, or the
       // ceremony fails at execute — see `withPublishTrustContentAuthorize`'s own doc.
-      publishContentDeps: withPublishTrustContentAuthorize(res, publishContentDeps, registeredPublishTypePermissions(publishContentDeps)),
+      publishContentDeps: withPublishTrustContentAuthorize({ res, deps: publishContentDeps, typePermissions: registeredPublishTypePermissions(publishContentDeps) }),
       bundleRepo: deps.publishContentBundleRepo,
       baselineRepo: deps.publishContentBaselineRepo,
       blobStore: deps.blobStore,
@@ -121,7 +121,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
    *  @complexity O(t) sequential `authorize()` calls, one per distinct entity type; stops at the first denial. */
   async function mayReadRawValues({ res, principalId, report }: { res: Response; principalId: string; report: PublishContentReport }, _options: Record<string, never> = {}): Promise<boolean> {
     const projection = toPublishContentDeps(deps);
-    const authorized = withPublishTrustContentAuthorize(res, { authorize: deps.authorize }, registeredPublishTypePermissions(projection));
+    const authorized = withPublishTrustContentAuthorize({ res, deps: { authorize: deps.authorize }, typePermissions: registeredPublishTypePermissions(projection) });
     const types = [...new Set(report.rows.map((row) => row.entityType))];
     for (const publishType of types) {
       const allowed = await authorized.authorize({ principalId, permission: "publish.backstop", workspaceId: deps.workspaceId, publishType } as Parameters<typeof deps.authorize>[0]);

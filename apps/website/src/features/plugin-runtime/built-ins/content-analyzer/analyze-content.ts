@@ -266,7 +266,7 @@ function buildToc({ headings }: { headings: ReadonlyArray<{ level: HeadingLevel;
   for (const heading of headings) {
     const text = heading.text.trim();
     if (text === "") continue;
-    const base = toSlug(text);
+    const base = toSlug({ text });
     if (base !== "") {
       let anchor = base;
       // Keep counting past a suffix a LITERAL heading already took ("Foo-2" then a second "Foo").

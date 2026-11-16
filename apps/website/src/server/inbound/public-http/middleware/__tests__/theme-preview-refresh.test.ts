@@ -373,7 +373,7 @@ test("registered refresh remembers only the 512 most recent authenticated previe
   const deps = createRouteDeps();
   const app = express();
   app.use(express.json());
-  registerAuthRoutes(app, deps);
+  registerAuthRoutes({ app, deps });
   const wasAuthenticated = registerThemePreviewRefresh({ app, deps });
   app.get("/preview-probe", (_req, res) => { res.send("ok"); });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

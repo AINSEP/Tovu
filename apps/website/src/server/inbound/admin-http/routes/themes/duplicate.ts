@@ -20,7 +20,7 @@ const DUPLICATE_ERROR_STATUS: Record<DuplicateThemeErrorCode, number> = {
 
 /** Keep the HTTP body's coercion rules separate from the duplication service's validation. */
 function duplicateInput({ body, sourceThemeId }: { body: unknown; sourceThemeId: unknown }, _optional = {}) {
-  const record = bodyRecord(body);
+  const record = bodyRecord({ body });
   return {
     sourceThemeId: String(sourceThemeId ?? ""),
     newName: String(record.newName ?? ""),

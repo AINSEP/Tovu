@@ -28,11 +28,11 @@ export function createVisitorPageTargets({ deps }: { deps: RouteDeps }, _options
         .filter(id => isStandaloneThemePage({ theme, pageId: id }) && !occupied.has(id) && !['signin', 'signup'].includes(id))
         .map(id => ({ id: `theme:${id}`, label: id === 'index' ? 'Home' : id, path: id === 'index' ? '/' : `/${id}` }));
       return [...publicPosts.map(post => ({ id: post.id, label: post.title, path: postPublicPath({ slug: post.slug }) })), ...themePages]
-        .filter(page => checkSiteRelativeTarget(page.path).kind === 'ok' && !/[?#]/.test(page.path));
+        .filter(page => checkSiteRelativeTarget({ raw: page.path }).kind === 'ok' && !/[?#]/.test(page.path));
     },
     /** Refuse any redirect rather than following a chain into an unreviewed destination. */
     async assertPath({ path }: { path: string }, _optional = {}): Promise<void> {
-      if (checkSiteRelativeTarget(path).kind !== 'ok') throw new Error('Reserved route');
+      if (checkSiteRelativeTarget({ raw: path }).kind !== 'ok') throw new Error('Reserved route');
       const report = await redirects.resolveWithRefusals({ workspaceId: deps.workspaceId, path, phase: 'pre_content' });
       if (report.resolution.matched || report.refused.length) throw new Error('Redirect navigation refused');
     },

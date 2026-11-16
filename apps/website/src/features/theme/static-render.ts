@@ -138,7 +138,7 @@ export function injectCurrentEntityContentId({ html, entityId }: { html: string;
  * @complexity O(n) over `html`'s length — one string search-and-replace.
  */
 export function injectPageTitle({ html, title }: { html: string; title: string }, _optional = {}): string {
-  return html.replace(/<title>\{\{title\}\}<\/title>/, () => `<title>${escapeHtml(title)}</title>`);
+  return html.replace(/<title>\{\{title\}\}<\/title>/, () => `<title>${escapeHtml({ text: title })}</title>`);
 }
 
 /**
@@ -196,7 +196,7 @@ function renderMenuLinks(items: readonly StaticMenuItem[]): string {
   // offers both, so a flat header/footer silently ignoring them was a render-path divergence.
   return items
     .filter((item) => item.available && item.href !== null)
-    .map((item) => `<a href="${escapeHtml(safeHref({ value: item.href as string }))}"${menuItemLinkAttrs(item)}>${escapeHtml(item.label)}</a>`)
+    .map((item) => `<a href="${escapeHtml({ text: safeHref({ value: item.href as string }) })}"${menuItemLinkAttrs(item)}>${escapeHtml({ text: item.label })}</a>`)
     .join("");
 }
 
@@ -246,10 +246,10 @@ function menuItemClasses({ item, depth }: { item: StaticMenuItem; depth: number 
  *  {@link menuItemBody}. `icon`/`description` render as child spans so a theme can style or ignore
  *  them without this renderer having to know an icon set. */
 function menuItemInnerHtml(item: StaticMenuItem): string {
-  const label = escapeHtml(item.label);
-  const icon = item.attrs?.icon ? `<span class="menu-item-icon" data-icon="${escapeHtml(item.attrs.icon)}"></span>` : "";
+  const label = escapeHtml({ text: item.label });
+  const icon = item.attrs?.icon ? `<span class="menu-item-icon" data-icon="${escapeHtml({ text: item.attrs.icon })}"></span>` : "";
   const description = item.attrs?.description
-    ? `<span class="menu-item-desc">${escapeHtml(item.attrs.description)}</span>`
+    ? `<span class="menu-item-desc">${escapeHtml({ text: item.attrs.description })}</span>`
     : "";
   return `${icon}${label}${description}`;
 }
@@ -261,7 +261,7 @@ function menuItemLinkAttrs(item: StaticMenuItem): string {
   const target = item.attrs?.openInNewTab ? ' target="_blank"' : "";
   const identity = `${item.href}:${item.label}`;
   const name = `menu_${agentHandleSegment({ value: identity })}`;
-  return `${current}${rel}${target} data-toolname="${name}" data-tooldescription="${escapeHtml(item.label)}" data-tool-action="navigate"`;
+  return `${current}${rel}${target} data-toolname="${name}" data-tooldescription="${escapeHtml({ text: item.label })}" data-tool-action="navigate"`;
 }
 
 /**
@@ -271,8 +271,8 @@ function menuItemLinkAttrs(item: StaticMenuItem): string {
  */
 function menuItemBody({ item, linkable }: { item: StaticMenuItem; linkable: boolean }, _optional = {}): string {
   const inner = menuItemInnerHtml(item);
-  if (!linkable) return `<span class="menu-item-label" data-toolname="menu_${agentHandleSegment({ value: item.label })}" data-tooldescription="${escapeHtml(item.label)}" data-tool-action="read">${inner}</span>`;
-  return `<a href="${escapeHtml(safeHref({ value: item.href as string }))}"${menuItemLinkAttrs(item)}>${inner}</a>`;
+  if (!linkable) return `<span class="menu-item-label" data-toolname="menu_${agentHandleSegment({ value: item.label })}" data-tooldescription="${escapeHtml({ text: item.label })}" data-tool-action="read">${inner}</span>`;
+  return `<a href="${escapeHtml({ text: safeHref({ value: item.href as string }) })}"${menuItemLinkAttrs(item)}>${inner}</a>`;
 }
 
 /** Set for `{"variant":"dropdown"}` menus: hands out the child-`<ul>` ids the toggles point at. */
@@ -288,7 +288,7 @@ function renderMenuItem({ item, depth }: { item: StaticMenuItem; depth: number }
   const linkable = item.available && item.href !== null;
   const lis = item.children.length > 0 ? renderMenuItems({ items: item.children, depth: depth + 1 }, { dropdown }) : "";
   if (!linkable && lis === "") return "";
-  const classes = escapeHtml(menuItemClasses({ item, depth }));
+  const classes = escapeHtml({ text: menuItemClasses({ item, depth }) });
   if (dropdown === undefined || lis === "") {
     const children = lis === "" ? "" : `<ul class="menu-list depth-${depth + 1}">${lis}</ul>`;
     return `<li class="${classes}">${menuItemBody({ item, linkable })}${children}</li>`;
@@ -306,7 +306,7 @@ function renderDropdownBranch(
   const body = linkable && item.href !== "#"
     ? menuItemBody({ item, linkable: true }) + renderVisitorMenuToggle({ controlsId, label: item.label })
     : renderVisitorMenuToggle({ controlsId, label: item.label }, { asLabel: true });
-  return `<li class="${classes}">${body}<ul class="menu-list depth-${depth + 1}" id="${escapeHtml(controlsId)}">${lis}</ul></li>`;
+  return `<li class="${classes}">${body}<ul class="menu-list depth-${depth + 1}" id="${escapeHtml({ text: controlsId })}">${lis}</ul></li>`;
 }
 
 function renderMenuItems({ items, depth }: { items: readonly StaticMenuItem[]; depth: number }, { dropdown }: { dropdown?: MenuDropdown } = {}): string {
@@ -466,8 +466,8 @@ function renderPostPreviewCard(preview: StaticPostPreview): string {
   return (
     `<article class="post-card">` +
     (preview.featuredImage ? renderCoverImageTag({ image: preview.featuredImage }, { loading: "lazy" }) : "") +
-    `<h3><a href="${escapeHtml(preview.href)}">${escapeHtml(preview.title)}</a></h3>` +
-    `<div class="post-meta"><time datetime="${escapeHtml(preview.dateIso)}">${escapeHtml(preview.dateLabel)}</time></div>` +
+    `<h3><a href="${escapeHtml({ text: preview.href })}">${escapeHtml({ text: preview.title })}</a></h3>` +
+    `<div class="post-meta"><time datetime="${escapeHtml({ text: preview.dateIso })}">${escapeHtml({ text: preview.dateLabel })}</time></div>` +
     `</article>`
   );
 }
@@ -642,7 +642,7 @@ export function renderCoverImageTag({ image }: { image: StaticFeaturedImage }, o
   const width = image.width === null ? "" : ` width="${image.width}"`;
   const height = image.height === null ? "" : ` height="${image.height}"`;
   const priority = optional.loading === "lazy" ? ' loading="lazy"' : ' fetchpriority="high"';
-  return `<img src="${escapeHtml(image.url)}" alt="${escapeHtml(image.alt)}"${width}${height} decoding="async"${priority}>`;
+  return `<img src="${escapeHtml({ text: image.url })}" alt="${escapeHtml({ text: image.alt })}"${width}${height} decoding="async"${priority}>`;
 }
 
 /**
@@ -674,7 +674,7 @@ export function injectPostAuthor(
   _optional: Record<string, never> = {},
 ): string {
   const author = required.post ? postAuthorForDisplay({ post: required.post }) : null;
-  const credit = author ? `By ${escapeHtml(author)}` : "";
+  const credit = author ? `By ${escapeHtml({ text: author })}` : "";
   const resolveAuthor = (marker: EmbedMarker): string | undefined => {
     if (marker.type !== "post-author") return undefined;
     return credit ? withInnerContentFinal({ marker, inner: (marker.attrs.includes('data-post-author-separator=') ? " · " : "") + credit }) : "";
@@ -727,7 +727,7 @@ export function postAuthorForContentHeader(
  */
 function injectColorMode({ html, defaultMode }: { html: string; defaultMode: string | undefined }, _optional = {}): string {
   if (defaultMode === undefined) return html;
-  return html.replace(/<html(?![^>]*\sdata-theme=)([^>]*)>/i, (_match, attributes: string) => `<html${attributes} data-theme="${escapeHtml(defaultMode)}">`);
+  return html.replace(/<html(?![^>]*\sdata-theme=)([^>]*)>/i, (_match, attributes: string) => `<html${attributes} data-theme="${escapeHtml({ text: defaultMode })}">`);
 }
 
 /**
@@ -1391,6 +1391,6 @@ export function resolveTemplateBranchChoice(
 
 /** Theme publication adorns the existing Jini disclosure; it owns all menu state/keyboard behavior. */
 function renderVisitorMenuToggle(required: { controlsId: string; label: string }, optional: { asLabel?: boolean } = {}): string {
-  const attrs = ` data-toolname="${escapeHtml(required.controlsId)}" data-tooldescription="${escapeHtml(required.label)} submenu" data-tool-action="menu"`;
+  const attrs = ` data-toolname="${escapeHtml({ text: required.controlsId })}" data-tooldescription="${escapeHtml({ text: required.label })} submenu" data-tool-action="menu"`;
   return renderMenuToggle(required, optional).replace('<button', () => `<button${attrs}`);
 }

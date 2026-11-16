@@ -302,7 +302,7 @@ test("resolveSiteAssistantApiKey returns null (not a throw) when the sealed row 
   // A sealer over a DIFFERENT site key than the one that sealed the row â€” simulates a rotated or
   // reset site key. `open()` must reject (wrong key -> auth tag mismatch), and the resolver
   // must swallow that into `null`, never propagate it to the caller.
-  const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring("different-generation"));
+  const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring({}, { keyId: "different-generation" }));
   let warned = 0;
   const resolved = await resolveSiteAssistantApiKey(
     { deps: { repo, sealer: otherSealer },
@@ -320,7 +320,7 @@ test("resolveSiteAssistantApiKey's onDecryptFailure defaults to a silent no-op â
   const { deps, repo } = makeDeps();
   await setSiteAssistantCredential(deps, { workspaceId: WORKSPACE, apiKey: "some-key" });
 
-  const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring("different-generation"));
+  const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring({}, { keyId: "different-generation" }));
   const resolved = await resolveSiteAssistantApiKey({ deps: { repo, sealer: otherSealer }, input: { workspaceId: WORKSPACE } });
 
   assert.equal(resolved, null, "the default no-op must still let the failure resolve to null rather than throwing");

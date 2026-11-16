@@ -330,7 +330,7 @@ test("non-ASCII TOC anchors exist in the rendered document; unanchorable heading
   const { renderDocNode } = await import("#src/server/inbound/public-http/http/site/render");
   const texts = ["Café Münster", "Привет", "—", "日本語"];
   const report = analyzeContent({ title: OK_TITLE, blocks: texts.map(text => ({ kind: "heading" as const, level: 2 as const, text })) });
-  const html = renderDocNode({ type: "doc", content: texts.map(text => ({ type: "heading", attrs: { level: 2 }, content: [{ type: "text", text }] })) });
+  const html = renderDocNode({ node: { type: "doc", content: texts.map(text => ({ type: "heading", attrs: { level: 2 }, content: [{ type: "text", text }] })) } });
   assert.deepEqual(report.toc.map(row => row.anchor), ["cafe-muenster", "privet"]);
   for (const row of report.toc) assert.ok(html.includes(`id="${row.anchor}"`));
 });

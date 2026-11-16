@@ -398,7 +398,7 @@ for (const themeId of STATIC_THEME_IDS) {
         bodyJson: { type: "doc", content: [{ type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Sweep Sentinel Body" }] }] },
       };
       const resolved = new Map([["content", new Map([[entityId, { componentId: "post-content", props: entityProps }]])]]);
-      const bodyResolved = renderHtmlPageBody(withRealId, resolved as never);
+      const bodyResolved = renderHtmlPageBody({ html: withRealId, resolved: resolved as never });
       const full = renderStaticPage({ theme, pageId: resolution.pageId, htmlOverride: bodyResolved, menus }) ?? "";
 
       assert.ok(!full.includes("widget-placeholder"), `${themeId}/${choice}: no marker may render as an empty widget placeholder`);
