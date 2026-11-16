@@ -41,7 +41,7 @@ test("api-connection formats reject extra fields, bad attempts and malformed rec
     for (const patch of [{ unexpected: true }, { normalization: ["conflict"] }, { normalization: 1 },
       { normalization: "unknown" }, { migration: [] }, { migration: null }, { legacyAad: {} }]) {
       const input = { kind: "api-connection" as const, meta: { ...plain, ...patch } };
-      const expected = plain.credentialFormat === "oauth-token-set" && "unexpected" in patch
+      const expected: Record<string, unknown> = plain.credentialFormat === "oauth-token-set" && "unexpected" in patch
         ? { name: "OAuthTokenStoreError", code: "invalid-record", message: "OAuth token store: the stored credential is not a valid OAuth token record." }
         : { constructor: VaultError, name: "VaultError", code: "invalid-meta", message: "Secrets vault: invalid-meta" };
       assert.throws(() => registry.metaParsers[input.kind](input), expected);

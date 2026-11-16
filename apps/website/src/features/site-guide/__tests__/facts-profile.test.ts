@@ -9,7 +9,7 @@ import type { SiteGuideFactsDeps } from "../facts.js";
 const inspection = await import("../../site-inspection/index.js");
 let sections: SiteProfile["sections"] = {};
 const requests: unknown[] = [];
-const buildSiteProfile: typeof inspection.buildSiteProfile = async (_deps, _caller, options) => {
+const buildSiteProfile: typeof inspection.buildSiteProfile = async (_required, options) => {
   requests.push(options?.sections);
   return { schemaVersion: "1", capturedAt: "2026-10-09T00:00:00Z", completeness: "partial", sections };
 };

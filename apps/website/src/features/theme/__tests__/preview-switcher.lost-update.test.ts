@@ -20,7 +20,7 @@ test("preview switcher tool reads a value revision and refuses a stale replaceme
     settingsRepo, principalRepo, clock, idGen, presentationRepo, workspaceId: "ws", themes: [],
     authorize: async () => ({ allowed: true, reason: "test" }),
     set: (required, optional = {}) => set(required, { ...optional, preparePreviewSwitcherWrite: async (write) => write }),
-  });
+  }, undefined);
   const read = registrations.find((item) => item.descriptor.id === "theme_get_preview_switcher");
   const write = registrations.find((item) => item.descriptor.id === "theme_update_preview_switcher");
   assert.ok(read && write);

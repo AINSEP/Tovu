@@ -452,7 +452,7 @@ test("REQ-05: renderable configured and workspace names are trimmed before rende
   assert.equal(await resolveSiteTitle(resolveDeps(ledger, { siteDisplayName: "  Configured title  " }), { workspaceId: "ws-new" }),
     "Configured title");
   const workspaceRepo: Pick<WorkspaceRepoPort, "findById"> = {
-    findById: async ({ id }) => ({ id, name: "  Workspace title  ", slug: id, createdAt: clock.nowIso() }),
+    findById: async ({ id }) => ({ id, name: "  Workspace title  ", slug: id, createdAt: clock.nowIso(), version: 1 }),
   };
   assert.equal(await resolveSiteTitle(resolveDeps(ledger, { siteDisplayName: "x".repeat(201), workspaceRepo }), { workspaceId: "ws-new" }),
     "Workspace title");
