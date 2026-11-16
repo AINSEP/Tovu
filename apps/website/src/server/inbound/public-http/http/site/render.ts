@@ -41,7 +41,7 @@ import { escapeHtml } from "#src/platform/html/escape";
 import { postAuthorForDisplay } from "#src/contracts/core/post-author";
 import { postAuthorForContentHeader } from "#src/features/theme/static-render";
 import { postDisplayDateIso } from "#src/contracts/core/scheduled-publish";
-import { resolveEmbedHtmlAttributes, omitKey, formatHtmlAttributes, NO_MARKER_ATTRIBUTES } from "./render/doc/html-attributes.js";
+import { NO_MARKER_ATTRIBUTES } from "./render/doc/html-attributes.js";
 import { renderImageTag, renderVideoTag } from "./render/doc/media-tags.js";
 import { injectExtraHeadIntoStaticPage, injectSiteAssistantIntoStaticPage } from "./render/static-page-injection.js";
 import { pageShell } from "./render/document-shell.js";
@@ -56,7 +56,8 @@ import { hero, announcement, ctaBand, section, featureGrid } from "./render/comp
 import { siteHeader, siteFooter, siteNav, siteFooterRich } from "./render/components/layout.js";
 import { plausibleMediaRefId } from "./render/doc/media-ref.js";
 import type { DocRenderOptions } from "./render/doc/doc-render-contract.js";
-import { renderDocNodeWith, MAX_RENDER_DEPTH, renderNodes, EMPTY_INLINE_RESOLVED, EMPTY_MEDIA_TRANSFORM_VERSIONS, EMPTY_MEDIA_ASSET_METADATA } from "./render/doc/doc-nodes.js";
+import { renderDocNodeWith, renderNodes, EMPTY_INLINE_RESOLVED, EMPTY_MEDIA_TRANSFORM_VERSIONS, EMPTY_MEDIA_ASSET_METADATA } from "./render/doc/doc-nodes.js";
+import { swapManagedDocNodes } from "./render/doc/managed-markers.js";
 
 export type { SiteProduct, SiteRenderContext, MediaAssetRenderMeta } from "./render-context.js";
 
@@ -99,42 +100,6 @@ const EMPTY_ASSIGNED_TERMS: readonly AssignedTermView[] = [];
  */
 export function renderDocNode({ node }: { node: JsonValue }, options: DocRenderOptions = {}): string {
   return renderDocNodeWith({ node, renderWidget: renderWidgetIr }, options);
-}
-
-/** The `data-embed-config` element that stands for a managed doc node in Page HTML. `alt` is carried
- *  as a marker attribute because the media resolver reads it there. @complexity O(n) in the node's attrs. */
-function docNodeEmbedMarker(required: { config: JsonObject; attrs: JsonObject; alt?: string }): string {
-  const parsed = resolveEmbedHtmlAttributes({ raw: str({ value: required.attrs.htmlAttributes }) || null });
-  const classes = [str({ value: required.attrs.cssClass }), parsed.class].filter(Boolean).join(" ");
-  const classAttr = classes ? ` class="${escapeHtml({ text: classes })}"` : "";
-  const altAttr = required.alt ? ` alt="${escapeHtml({ text: required.alt })}"` : "";
-  // A single-quoted marker reads its JSON raw, so an apostrophe needs the JSON escape, not an entity.
-  const json = JSON.stringify(required.config).replace(/'/g, "\\u0027");
-  return `<div${classAttr}${altAttr}${formatHtmlAttributes(omitKey({ attributes: parsed, key: "class" }))} data-embed-config='${json}'></div>`;
-}
-
-/** A widget or managed-media node's Page HTML marker; `undefined` for every other node, which the
- *  ordinary renderer handles. A malformed reference stays with that renderer's placeholder. @complexity O(1). */
-function managedDocNodeMarker(node: JsonObject): string | undefined {
-  const attrs = isObject(node.attrs) ? node.attrs : {};
-  if (node.type === "widgetEmbed" && str({ value: attrs.widgetEntryId })) {
-    const config: JsonObject = { type: "widget", id: str({ value: attrs.widgetEntryId }) };
-    if (attrs.content !== undefined) config.content = attrs.content;
-    return docNodeEmbedMarker({ config, attrs });
-  }
-  const assetId = node.type === "media" || node.type === "image" ? plausibleMediaRefId({ value: attrs.assetId }) : undefined;
-  return assetId ? docNodeEmbedMarker({ config: { type: "media", id: assetId }, attrs, alt: str({ value: attrs.alt }) }) : undefined;
-}
-
-/** Copies `node` with each managed node replaced by a text token, recording its marker by index.
- *  Past {@link MAX_RENDER_DEPTH} nodes are left for the renderer's own depth limit. @complexity O(n) in nodes. */
-function swapManagedDocNodes(required: { node: JsonValue; token: string; markers: string[]; depth: number }): JsonValue {
-  const { node, token, markers, depth } = required;
-  if (!isObject(node) || depth > MAX_RENDER_DEPTH) return node;
-  const marker = managedDocNodeMarker(node);
-  if (marker !== undefined) return { type: "text", text: `${token}${markers.push(marker) - 1}X` };
-  if (!Array.isArray(node.content)) return node;
-  return { ...node, content: node.content.map(child => swapManagedDocNodes({ node: child, token, markers, depth: depth + 1 })) };
 }
 
 /**
