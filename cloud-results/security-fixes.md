@@ -244,3 +244,12 @@ Remains for item 4 (the real fix, C-F1 and C-F2):
   a forbidden import chain through `tool-access-lowering-route.ts` and `site-share-errors.ts`, which this
   branch does not edit. I did not baseline either on the untouched branch.
 - Item 3, Tovu type-check: 9 errors, none in the capability runtime or its tests.
+- Item 3, Jini `pnpm guard` on `fix/sec-a37`: 153 violations, none in the touched files (same count as the
+  other bases).
+- Mutation totals across all items: 64 run, 61 caught, 3 survived (two equivalent mutants and the one
+  unreachable warning branch, each described under item 3). The phone notification for this run said
+  "59 of 62"; 61 of 64 is the correct figure.
+- Item 4, Jini `pnpm guard` on `fix/sec-mcp-isolation`: 132 violations. One names a file this branch
+  touches, `packages/agent-runtime/src/defs/claude.ts`, but for a different reason (its fallback model
+  list is behind the locally cached model list); the revert does not touch that list. Not baselined on
+  the untouched branch.
