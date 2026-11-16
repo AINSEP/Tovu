@@ -38,7 +38,15 @@ const busesWithSiteEventHandlers = new WeakSet<RouteDeps["bus"]>();
 export function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
   if (busesWithSiteEventHandlers.has(routeDeps.bus)) return;
   busesWithSiteEventHandlers.add(routeDeps.bus);
+  subscribeWorkspaceEvents({ routeDeps });
+  subscribeContentEvents({ routeDeps });
+  subscribeNewsletterEvents({ routeDeps });
+  startFormsEventModules({ routeDeps });
+}
 
+/** The `workspace.created` demonstration subscription. @complexity O(1): fixed subscriptions. */
+function subscribeWorkspaceEvents(required: { routeDeps: NewsletterRouteDeps }, _optional = {}): void {
+  const { routeDeps } = required;
   void routeDeps.bus.subscribe({
     eventName: "workspace.created",
     handler: async (event) => {
@@ -46,7 +54,11 @@ export function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): 
       console.log("event handled:", event.name, event.payload);
     },
   });
+}
 
+/** The SEO sitemap-invalidation subscriptions and the site-search indexer, both driven by entry-lifecycle events. @complexity O(1): fixed subscriptions. */
+function subscribeContentEvents(required: { routeDeps: NewsletterRouteDeps }, _optional = {}): void {
+  const { routeDeps } = required;
   // SPEC-008 (ADR-PIPE-008 Decision §5, T038) — SEO subscribes to the 3 entry-lifecycle events
   // `post.ts`'s `updatePost()` now emits, invalidating that workspace's sitemap cache entry on
   // delivery (idempotent per ADR-009 — a duplicate delivery is a no-op, `invalidateSitemapCache`
@@ -62,7 +74,11 @@ export function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): 
   // current truth (document or tombstone) to every current index. Errors propagate so the outbox
   // redelivers. A composition without `siteSearch` subscribes nothing (`modules/site-search.ts`).
   subscribeSiteSearchIndexer({ bus: routeDeps.bus, runtime: routeDeps.siteSearch });
+}
 
+/** The newsletter send pipeline's batch-claimed subscriber. @complexity O(1): fixed subscriptions. */
+function subscribeNewsletterEvents(required: { routeDeps: NewsletterRouteDeps }, _optional = {}): void {
+  const { routeDeps } = required;
   const newsletterAdminDeps = routeDeps;
   // T040 (tasks.md Phase 4) — the `newsletter.send.batch.claimed` bus subscriber `send-pipeline.ts`'s
   // own file header names as the one piece of Stage 4 wiring no composition root had done yet
@@ -82,7 +98,11 @@ export function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): 
       await handleSendBatchClaimed({ deps: toSendPipelineDeps(newsletterAdminDeps), job: event.payload });
     },
   });
+}
 
+/** Starts the Forms (notify) and Integrations (webhook fan-out) modules, which own their own subscriptions. @complexity O(1): fixed subscriptions. */
+function startFormsEventModules(required: { routeDeps: NewsletterRouteDeps }, _optional = {}): void {
+  const { routeDeps } = required;
   /**
    * ADR-046 Phase 3 (SPEC-031) — SPEC-010 (Forms) outbox wiring, now split across two
    * feature-owned modules instead of two inline blocks: `forms` owns the C-009 notify
