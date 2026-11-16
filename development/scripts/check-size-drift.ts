@@ -27,7 +27,7 @@ function sizeFunction(message: EslintMessage, offsets: number[], locations: Func
 }
 
 /** Preserve the same lexical identities as the complexity ratchet, including nested functions. */
-function readViolations(result: EslintFileResult): Violation[] {
+export function readViolations(result: EslintFileResult): Violation[] {
   const file = path.relative(REPO_ROOT, result.filePath).split(path.sep).join("/");
   const messages = result.messages.filter(message => {
     if (message.fatal || message.ruleId === null) throw new Error(`${file}:${message.line}: ${message.message}`);
@@ -84,7 +84,7 @@ function validDebtEntry(entry: Violation): boolean {
   return identity && numbers && rule;
 }
 
-function readDebt(raw: string): Violation[] {
+export function readDebt(raw: string): Violation[] {
   const parsed = JSON.parse(raw) as { version?: number; violations?: Violation[] };
   if (parsed.version !== 1 || !Array.isArray(parsed.violations)) throw new Error("Invalid size debt format");
   for (const entry of parsed.violations) {
@@ -95,13 +95,15 @@ function readDebt(raw: string): Violation[] {
   return parsed.violations;
 }
 
-function gitAtBase(base: string, args: string[]): string {
+export function gitAtBase(base: string, args: string[]): string {
   return execFileSync("git", [...args, base], { cwd: REPO_ROOT, encoding: "utf8", maxBuffer: 128 * 1024 * 1024 });
 }
 
-function sourceMatchesBase(base: string, file: string): boolean {
+type GitReader = (base: string, args: string[]) => string;
+
+export function sourceMatchesBase(base: string, file: string, git: GitReader = gitAtBase): boolean {
   try {
-    return gitAtBase(`${base}:${file}`, ["show"]) === readFileSync(path.join(REPO_ROOT, file), "utf8");
+    return git(`${base}:${file}`, ["show"]) === readFileSync(path.join(REPO_ROOT, file), "utf8");
   } catch {
     // An unreadable base or source cannot justify waiving the debt ratchet.
     return false;
@@ -109,19 +111,23 @@ function sourceMatchesBase(base: string, file: string): boolean {
 }
 
 /** Do not allow additions or increases to the recorded debt in the same change as a violation. */
-function checkDebtHistory(current: readonly Violation[], measured: readonly Violation[]): boolean {
-  const base = process.env.SIZE_BASE_REF;
+export function checkDebtHistory(
+  current: readonly Violation[], measured: readonly Violation[],
+  { env = process.env, git = gitAtBase, sameAsBase = (base: string, file: string) => sourceMatchesBase(base, file, git) }:
+    { env?: Record<string, string | undefined>; git?: GitReader; sameAsBase?: (base: string, file: string) => boolean } = {},
+): boolean {
+  const base = env.SIZE_BASE_REF;
   if (!base) return true;
-  const files = gitAtBase(base, ["ls-tree", "-r", "--name-only"]).trim().split("\n");
+  const files = git(base, ["ls-tree", "-r", "--name-only"]).trim().split("\n");
   if (!files.includes(DEBT_FILE)) {
     if (files.includes(CHECKER_FILE)) throw new Error("Base revision is missing its size debt list");
     console.log("check:size — capturing the first size debt snapshot.");
     return true;
   }
-  const previous = gitAtBase(`${base}:${DEBT_FILE}`, ["show"]);
+  const previous = git(`${base}:${DEBT_FILE}`, ["show"]);
   const drift = diffAgainstBaseline(readDebt(previous), current);
   const policy = files.includes(POLICY_FILE)
-    ? JSON.parse(gitAtBase(`${base}:${POLICY_FILE}`, ["show"])) as { limits?: { functionLines?: number } }
+    ? JSON.parse(git(`${base}:${POLICY_FILE}`, ["show"])) as { limits?: { functionLines?: number } }
     : undefined;
   const from50 = policy?.limits?.functionLines === 50;
   const inflated = diffAgainstBaseline(measured, current);
@@ -130,7 +136,7 @@ function checkDebtHistory(current: readonly Violation[], measured: readonly Viol
   // The owner approved a fresh 80-line baseline; only remeasure unchanged base files, without inflating debt.
   const isMigrationDebt = (entry: Violation): boolean => {
     if (!from50 || inaccurateFiles.has(entry.file)) return false;
-    if (!unchanged.has(entry.file)) unchanged.set(entry.file, sourceMatchesBase(base, entry.file));
+    if (!unchanged.has(entry.file)) unchanged.set(entry.file, sameAsBase(base, entry.file));
     return unchanged.get(entry.file) === true;
   };
   const added = drift.added.filter(entry => !isMigrationDebt(entry));
@@ -142,11 +148,17 @@ function checkDebtHistory(current: readonly Violation[], measured: readonly Viol
   return added.length === 0 && worsened.length === 0;
 }
 
-export function main(_input: Record<string, never> = {}, _options: Record<string, never> = {}): void {
-  const baseline = readDebt(readFileSync(path.join(REPO_ROOT, DEBT_FILE), "utf8"));
-  const all = findSizeViolations();
+export interface MainOptions {
+  debtRaw?: string;
+  find?: () => Violation[];
+  history?: typeof checkDebtHistory;
+}
+
+export function main(_input: Record<string, never> = {}, { debtRaw, find = findSizeViolations, history = checkDebtHistory }: MainOptions = {}): void {
+  const baseline = readDebt(debtRaw ?? readFileSync(path.join(REPO_ROOT, DEBT_FILE), "utf8"));
+  const all = find();
   const { debt, accepted } = partitionExceptions({ violations: all });
-  const historyOk = checkDebtHistory(baseline, debt);
+  const historyOk = history(baseline, debt);
   const { added, removed, worsened } = diffAgainstBaseline(baseline, debt);
   for (const { violation, reason } of accepted) console.log(`Accepted exception: ${printViolation(violation)} — ${reason}`);
   for (const entry of added) console.error(`New violation: ${printViolation(entry)}`);
