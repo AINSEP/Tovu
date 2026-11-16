@@ -1,5 +1,10 @@
 import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render";
-import { startupSecretEnvironment } from "../boot/startup-secrets.js";
+import { composeOriginNewsletter } from "./memory-deps/slices/origin-newsletter.js";
+import { composeSiteTitleSettings } from "./memory-deps/slices/site-title-settings.js";
+import { composeIdentitySettings } from "./memory-deps/slices/identity-settings.js";
+import { createLazyProxy } from "./memory-deps/lazy-proxy.js";
+import { composeMemoryRepos } from "./memory-deps/slices/repos.js";
+import { composeMemberSecrets } from "./memory-deps/slices/member-secrets.js";
 import { getExportRunSnapshot } from '../../../features/deployments/export-run.js';
 import { getPublishRunSnapshot } from '../../../features/deployments/static-publish/publish-run.js';
 import { registerWarmSiteRetirement } from '../lifecycle/warm-site-retirement.js';
@@ -15,7 +20,7 @@ import { readBundledDeployWorkflowFiles } from "#src/features/deployments/index"
 import { createCommentsCapability } from '#src/features/comments/provider-selection';
 import { composeVisitorToolsManagement } from "./visitor-tools-management.js";
 import { createCommentTargetLookup } from '#src/features/comments/comment-targets';
-import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
+import { preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { contentKernel } from '#src/platform/db/content-kernel';
 import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
 import { bindSiteConsentService } from './site-consent.js';
@@ -34,44 +39,20 @@ import { readBuiltInExternalMcpServerIds } from "#src/features/external-mcp/buil
 import { TRASH_RETENTION_DAYS, bindWidgetRemoval } from "#src/features/trash/index";
 import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
-import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { createHttpClient as createGuardedMediaHttpClient, createNodeGuardedHttpPorts } from "@jini-ai/platform/http/guarded";
 import { executeCommand } from "@jini-ai/cms/core";
 import express from "express";
 import { NO_PUBLISH_CONTENT_SEED_HASH, type PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
 import { randomUUID } from "node:crypto";
-
-import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/core/events/index";
 import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { createSitemapService } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "#src/features/seo/index";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
-import {
-  buildTrashRegistry,
-  COMMENT_ENTITY_TYPE,
-  createDirectoryTrashAdapter,
-  unhideIfRemoveThrows,
-  MEDIA_ENTITY_TYPE,
-  PLUGIN_ENTITY_TYPE,
-  THEME_ENTITY_TYPE,
-  POST_ENTITY_TYPE,
-  REDIRECT_ENTITY_TYPE,
-  removeEntityWithoutBlocker,
-  type TrashDb,
-  type TrashKindMover,
-} from "#src/features/trash/index";
-import {
-  bindRemoveEntity,
-  bindForgetRemovedEntity,
-  createTrashService,
-  createTrashSweep,
-  InMemoryTrashRepo,
-  type TrashAdapter,
-} from "@jini-ai/cms/trash";
+import { buildTrashRegistry, COMMENT_ENTITY_TYPE, createDirectoryTrashAdapter, unhideIfRemoveThrows, MEDIA_ENTITY_TYPE, PLUGIN_ENTITY_TYPE, THEME_ENTITY_TYPE, POST_ENTITY_TYPE, REDIRECT_ENTITY_TYPE, removeEntityWithoutBlocker, type TrashKindMover } from "#src/features/trash/index";
+import { bindRemoveEntity, bindForgetRemovedEntity, createTrashService, createTrashSweep, InMemoryTrashRepo } from "@jini-ai/cms/trash";
 import { attachFormAttachmentPurge } from "./memory-deps/slices/form-attachment-purge.js";
 import { composeMemoryTrashAdapters } from "./memory-deps/slices/trash-adapters.js";
-import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { InMemoryPublishContentBundleRepo } from "#src/features/publish-content/bundle-staging";
 import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
 import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
@@ -100,8 +81,7 @@ import { InMemoryPagesHtmlDocumentStore } from "#src/features/pages/index";
 // 2026-09-05 (fix-cycle) — used to be a lazy `require()` here; see `runExportSite`'s doc below for
 // why a plain static import is now correct.
 import { exportSite } from "#src/features/site-export/index";
-import { createInMemoryChatHistory, createInMemoryAgentSessionStore, InMemorySiteAssistantCredentialRepo, InMemoryAdminExecutionCredentialRepo, InMemoryExternalMcpToolApprovalRepo, createInMemoryConversationToolApprovalStore } from "../../../assistant/index.js";
-import { InMemoryExternalMcpServerRepo } from "../../../features/external-mcp/external-mcp-store.memory.js";
+import { createInMemoryChatHistory, createInMemoryAgentSessionStore, InMemoryAdminExecutionCredentialRepo, InMemoryExternalMcpToolApprovalRepo, createInMemoryConversationToolApprovalStore } from "../../../assistant/index.js";
 // Deep-imported rather than routed through the barrel above: `assistant/index.ts`'s Section D
 // ("Admin Daemon Proxy / Process Composition") is documented as consumed by the DAEMON's own proxy
 // composition (`apps/website/src/server/runtime/composition/modules/assistant.ts`) — this route is the opposite of that, a plain static
@@ -129,60 +109,29 @@ import {
   SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
 } from "../configuration/seed.js";
 import { createLocalAnalyticsSink } from "#src/features/analytics/jini-adapters";
-import { ConsoleMailerAdapter, InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "#src/features/members/index";
+import { ConsoleMailerAdapter, InMemoryMagicLinkTokenRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "#src/features/members/index";
 import { InMemoryNavLocationBindingRepo, registerMenuReverters } from "#src/features/navigation/index";
 import { TrashAwareInMemoryMenuRepo } from "#src/features/navigation/trash-aware-memory-menu-repo";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/index";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryMediaProviderCredentialRepo } from "#src/features/media/provider-credential-store.memory";
-import { InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryImageTransformer, InMemoryMediaContentTypeStore, InMemoryVersionedMediaRepo, InMemoryTransformDefinitionRepo } from "#src/features/media/index";
-import { createInMemoryIdentityRouteDeps, resolveOwnerCredentials } from "#src/features/identity/wiring";
-import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
-import {
-  InMemoryNewsletterAudienceSnapshotRepo,
-  InMemoryNewsletterCampaignRepo,
-  InMemoryNewsletterConfirmationTokenRepo,
-  InMemoryNewsletterListRepo,
-  InMemoryNewsletterSendRepo,
-  InMemoryNewsletterSubscriptionRepo,
-} from "#src/features/newsletter/repo.memory";
+import { InMemoryAssetBlobRepo, InMemoryBlobStore, InMemoryImageTransformer, InMemoryMediaContentTypeStore, InMemoryTransformDefinitionRepo } from "#src/features/media/index";
+import { InMemoryNewsletterAudienceSnapshotRepo, InMemoryNewsletterCampaignRepo, InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterSendRepo, InMemoryNewsletterSubscriptionRepo } from "#src/features/newsletter/repo.memory";
 import { ensureDefaultList } from "#src/features/newsletter/lists";
-import { createHookRegistry } from "#src/features/newsletter/send-pipeline";
-import { MembersSubscriberDirectory } from "#src/features/members/index";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
-import {
-  InMemoryFormDefinitionRepo,
-  InMemoryFormSubmissionRepo,
-} from "@jini-ai/cms/forms";
+import { InMemoryFormDefinitionRepo } from "@jini-ai/cms/forms";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
 import { formSubmissionAttemptsFor } from "#src/features/forms/index";
-import {
-  createVerifiedOrigin,
-  InMemoryOriginSettingRepo,
-  OriginRegistry,
-} from "@jini-ai/core/contracts/server/verified-origin";
-import { InMemoryRedirectRepo, RedirectHitSinkImpl, redirectMatcher, RedirectSlugChangeCapture, registerRedirectHitOutboxHandler, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
+import { redirectMatcher, RedirectSlugChangeCapture, registerRedirectHitOutboxHandler, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { registerRedirectsPhaseHandlers } from "#src/features/redirects/phase-handler";
 import { getSlugChangeCapture, registerSlugChangeCapture } from "#src/platform/routing/adapter";
-import {
-  InMemoryDbOpsAdapter,
-  InMemoryDatabaseIntrospectionAdapter,
-  InMemoryMigrationRunsRepo,
-  InMemoryRestorePointsRepo,
-  InMemorySiteStatusRepo,
-  InMemoryDatabaseLedgerRepo,
-} from "#src/features/database/repo.memory";
+import { InMemoryDbOpsAdapter, InMemoryDatabaseIntrospectionAdapter, InMemoryMigrationRunsRepo, InMemorySiteStatusRepo, InMemoryDatabaseLedgerRepo } from "#src/features/database/repo.memory";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "#src/features/content-types/index";
-import { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { readAdminChartProviderSnapshot } from "./chart-providers.js";
 import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL, RECHARTS_DEFAULT_PROVIDER } from "./charts-recharts-source.js";
-import { ensureChartProviderSetting } from "#src/features/settings/chart-provider";
-import { ensureFormDestinationSetting } from "#src/features/settings/form-destination";
 import { createSiteConsentReadiness } from "#src/features/consent/settings";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
 import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
@@ -201,14 +150,7 @@ import { createNavMenuReadModel } from "#src/features/navigation/index";
 import { createCommentsModule, HeuristicSpamCheck } from "@jini-ai/cms/comments";
 import { createCommentsHostPorts } from "#src/features/comments/index";
 import { createSettingsAnalyticsConfig } from "#src/features/analytics/config.settings";
-import {
-  ensureSiteTitleSettingDefinition,
-  InMemorySiteTitlePreservationStore,
-  preserveLegacySiteTitles,
-} from "#src/features/settings/site-title";
-import { ensureAdminInterfaceSettingDefinitions } from "#src/features/settings/admin-interface";
-import { createSiteTimeZonePort, ensureSiteTimeZoneSettingDefinition } from "#src/features/settings/site-timezone";
-import { InMemoryCommentRepo } from "@jini-ai/cms/comments";
+import { createSiteTimeZonePort } from "#src/features/settings/site-timezone";
 import { noopStampWatermark, toTaxonomyOutbox } from "#src/features/taxonomy/index";
 import {
   SqliteEntryTermRepo,
@@ -225,7 +167,7 @@ import { captureRouteError } from "../../inbound/shared/observability-middleware
 import { respondToOversizedBody } from "../../inbound/shared/json-body-parsers.js";
 import { registerPluginContributionRoutes, createPluginRouteAuthPorts } from "../../inbound/public-http/routes/plugin-contributions.js";
 import { resolveStorefrontProducts } from "../../inbound/public-http/routes/site/products.js";
-import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../../../features/external-mcp/external-mcp-oauth.js";
+import { createExternalMcpOAuthService } from "../../../features/external-mcp/external-mcp-oauth.js";
 import { resolvePublicAssistantAvailability } from "../../../assistant/index.js";
 import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
 import { isAdminAssistantEnabled } from "./admin-assistant-enabled.js";
@@ -234,7 +176,6 @@ import type { RouteDeps } from "../../routes/types.js";
 // {@link runExportSite} below.
 import type { ExportEngine } from "#src/features/deployments/export-run";
 import { createMediaProviderRegistry } from "@jini-ai/integrations/media-providers";
-import { startSettingsRegistration } from "./settings-registration.js";
 import type { CreateAppOptions } from "./create-app-options.js";
 import { siteAppBootWorkByDeps } from "./site-app-boot-work.js";
 import { subscribeSiteEventHandlersOnce } from "./site-event-subscriptions.js";
@@ -285,22 +226,6 @@ export interface CreateRouteDepsOptions {
   readonly publishContentSeedHash?: PublishContentSeedHashFn;
 }
 
-function createLazyProxy<T extends object>({ factory }: { factory: () => T }, _optional = {}): T {
-  let instance: T | undefined;
-  return new Proxy({} as T, {
-    get(_target, property) {
-      const object = (instance ??= factory());
-      const value = Reflect.get(object, property, object);
-      return typeof value === "function" ? value.bind(object) : value;
-    },
-    // `in` must see the real instance too: `sqliteKernel` tells a Drizzle handle from its client by `"$client" in`.
-    has(_target, property) {
-      instance ??= factory();
-      return Reflect.has(instance, property);
-    },
-  });
-}
-
 /** Preserve optional plugin-runtime overrides without turning absent values into explicit options.
  * @complexity O(1), no I/O. */
 function inMemoryPluginRuntimeOptions({ options }: { options: CreateRouteDepsOptions }, _optional = {}) {
@@ -345,115 +270,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     }),
     ...inMemoryPluginRuntimeOptions({ options }),
   });
-  // Composition root: the in-memory root keeps the same env-driven owner login as `deps.ts`.
-  const identity = createInMemoryIdentityRouteDeps({ workspaceId: seededWorkspace.id, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredentials: resolveOwnerCredentials({ env: startupSecretEnvironment({ env: process.env }) }) });
-  // Keep the host repository ABI while binding the active/workspace-scoped settings lookup.
-  const settingsPrincipals = {
-    ...createSettingsPrincipalLookup({ repo: identity.principalRepo }),
-    findById: (required: Parameters<typeof identity.principalRepo.findById>[0]) => identity.principalRepo.findById(required),
-    list: (required: Parameters<typeof identity.principalRepo.list>[0]) => identity.principalRepo.list(required),
-    save: (record: Parameters<typeof identity.principalRepo.save>[0]) => identity.principalRepo.save(record),
-  };
-  // Fire-and-forget, mirroring `identityReady` (see routes/types.ts's `settingsReady` doc) — this
-  // composition root stays synchronous; consumers await `settingsReady` before relying on the
-  // settings boot sequence being ready.
-  // Presentation remains the live owner; boot must not write a second active-theme value.
-  const settingsReady = Promise.resolve();
-
-  // Serial writes avoid nested SQLite transactions; see startSettingsRegistration below.
-  const { seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady } = startSettingsRegistration({
-    deps: { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
-    settingsReady,
-    workspaceId: seededWorkspace.id,
-    systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
-  });
-
-  // SPEC-050 `core.site.title` (`features/settings/site-title.ts`): registration, then the one-time
-  // pin for workspaces that existed before the setting. This root always seeds fresh, so it records
-  // no pre-existing workspace (EC-03) and the pin is a no-op. Chained after `analyticsSettingsReady`
-  // for the single-SQLite-connection-transaction reason every registration above documents.
-  const siteTitlePreservationStore = new InMemorySiteTitlePreservationStore();
-  const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: settingsPrincipals };
-  const siteSettingsReady = analyticsSettingsReady
-    // `core.interface` (`features/settings/admin-interface.ts`), chained here for the same
-    // one-connection reason as the registrations above.
-    .then(() => ensureAdminInterfaceSettingDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
-    .then(() => ensureChartProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
-    .then(() => ensureFormDestinationSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
-    .then(() => ensurePreviewSwitcherSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
-    .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
-    // Bug D: `core.site.timezone` (`features/settings/site-timezone.ts`), the zone post dates render in.
-    .then(() => ensureSiteTimeZoneSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }));
-  // Public title reads already handle pending pins; consent must not inherit this migration wait.
-  const siteTitleReady = siteSettingsReady
-    .then(() =>
-      preserveLegacySiteTitles(
-        { ...siteTitleSettingsDeps, preservationStore: siteTitlePreservationStore },
-        { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
-      )
-    )
-    .then(() => undefined);
-
-  // Consent no longer observes this detached branch. Observe it now while preserving rejection
-  // for consumers that await title readiness later, as the persistent composition root does.
-  void siteTitleReady.catch(() => undefined);
-
-  // SPEC-011 (Newsletter) — declared here (not inline in the return object) so `newsletterReady`
-  // below can seed the default list against the SAME repo instance the returned deps expose.
-  const newsletterListRepoInMemory = new InMemoryNewsletterListRepo();
-
-  // SPEC-009 (Redirects, ADR-PIPE-009) — FIRST-TIME composition-root wiring of `origin`'s
-  // OriginRegistry and `routing`'s registration functions (Context item 4: neither library had a
-  // real consumer before this feature). Seeds a `dev-capability` verified origin for the single
-  // seeded workspace, mirroring every other dev-mode fixture in this file (e.g. `seededWorkspace`).
-  const originRegistry = new OriginRegistry({
-    repo: new InMemoryOriginSettingRepo({ seeds: [
-      {
-        workspaceId: seededWorkspace.id,
-        origin: createVerifiedOrigin({
-          scheme: "http",
-          host: "localhost",
-          port: 3000,
-          verifiedAt: clock.nowIso(),
-          source: "dev-capability",
-        }),
-        // ADR-PIPE-015 T016: a dev-capability egress allowlist entry so the real
-        // isAllowedEgressTarget oracle doesn't fail-closed on every fresh dev server — matches the
-        // `example.com` target every integrations fixture/test in this repo already uses.
-        egressAllowlist: ["example.com"],
-      },
-    ] }),
-  });
-  const redirectRepo = new InMemoryRedirectRepo();
-  const redirectHitSink = new RedirectHitSinkImpl();
-  const outbox = new InMemoryOutbox();
-  const bus = new InMemoryEventBus();
-  // Admin-UI backend-gap closure (design-spec.md §0.4/§4.8, this dispatch): declared here (not
-  // inline in the return object) so Recovery's `deepLinkRestorePointLookup` below reads the SAME
-  // in-memory rows Database's restore-points routes write into, not a second, disconnected instance.
-  const restorePointsRepo = new InMemoryRestorePointsRepo();
-  // Local admin Trash, hermetic half. A plain Map resolved at CALL time, same as `deps.ts`'s —
-  // never a module-level registry. Every domain whose delete path is wired to `deps.remove` in this
-  // composition must be registered here; an unregistered type fails loudly at the call rather than
-  // silently trashing something that could never be restored.
-  const commentRepo = new InMemoryCommentRepo();
-  // Hoisted here (from beside `changeSets` further down) for TWO reasons now: the apply loop's
-  // `media.apply()` must write into the very stores the media routes and this file's own tests
-  // read — constructed twice they would be two disconnected in-memory stores — and the media
-  // `TrashAdapter` just below needs the same instance.
-  const assetRenditionRepo = new InMemoryAssetRenditionRepo({}, { initialRows: [] });
-  const mediaRepo = new InMemoryVersionedMediaRepo({}, { initialRows: [], renditionRepo: assetRenditionRepo });
-  // Hoisted for the same reason: the `form_submission` `TrashAdapter` below must flip the marker on
-  // the very store the Forms routes read.
-  const formSubmissionRepo = new InMemoryFormSubmissionRepo();
-  // ADR-031/ADR-023 (SPEC-033) — hoisted so the Comments module's `entryLookup` reads the SAME
-  // in-memory entries the rest of the hermetic composition writes into (mirrors
-  // `restorePointsRepo`'s identical hoisting rationale above) — and so the `widget` `TrashAdapter`
-  // below flips the marker on the very store the widget routes read.
-  const entryRepo = new TrashAwareInMemoryEntryRepo();
-  const workspaceId = seededWorkspace.id;
-  const taxonomyDb = createLazyProxy<ContentDb>({ factory: () => openContentDb(":memory:") });
-  const sqliteTrashDb = createLazyProxy<TrashDb>({ factory: () => contentKernel({ store: taxonomyDb }) });
+  const { settingsPrincipals, analyticsSettingsReady, settingsReady, commentsSettingsReady, identity, seoReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady } = composeIdentitySettings({ clock, idGen, settingsRepo });
+  const { siteTitleSettingsDeps, siteSettingsReady, siteTitleReady, siteTitlePreservationStore } = composeSiteTitleSettings({ settingsRepo, clock, idGen, settingsPrincipals, analyticsSettingsReady });
+  const { originRegistry, newsletterListRepoInMemory } = composeOriginNewsletter({ clock });
+  const { taxonomyDb, workspaceId, outbox, redirectRepo, commentRepo, mediaRepo, formSubmissionRepo, entryRepo, sqliteTrashDb, bus, redirectHitSink, assetRenditionRepo, restorePointsRepo } = composeMemoryRepos({  });
   // Mirror production permissions for the memory-backed forms, menus and widgets too: without
   // their registry entries the Trash routes report a hermetically trashed record as "forbidden"
   // and it can never be restored (F3469/F1868). Its writes still go through the in-memory adapter.
@@ -598,34 +418,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     siteId: seededWorkspace.id, module: commentsModule, commentsReady: Promise.resolve(), settingsReady: commentsSettingsReady,
     settings: { settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals },
   });
-
-  // SPEC-011 (Newsletter) Stage 5 wiring — hoisted so `newsletterSubscriberDirectory` below reads
-  // the SAME member rows the returned `memberRepo` field exposes (mirrors `entryRepo`/
-  // `widgetBindingRepo`'s identical hoisting rationale above), and so `newsletterKeyring` is the
-  // ONE process-lifetime `KeyringPort` instance also used to build `webhookSigner` just below —
-  // one site key, purpose-namespaced (`webhooks/ports.ts`'s `KeyringPort.derive()` contract),
-  // not two independent keyrings.
-  const memberRepo = new InMemoryMemberRepo({}, { initialRows: [] });
-  const newsletterKeyring = new InMemoryKeyring();
-  const newsletterSubscriberDirectory = new MembersSubscriberDirectory({ members: memberRepo });
-  const newsletterHooks = createHookRegistry();
-
-  // ADR-058: the SITE assistant credential store's OWN `KeyringPort` instance, deliberately not
-  // `newsletterKeyring` above — see `routes/types.ts`'s `siteAssistantSecretKeyring` doc and ADR-058
-  // §2 for why a separate instance matters in the real composition root (`apps/website/src/server/runtime/composition/deps.ts`). This
-  // hermetic root has no "fail closed on a missing env var" concern to preserve (there is no env var
-  // here at all), so a second `InMemoryKeyring` is just the same rule-of-two test double, kept
-  // distinct so this root's wiring shape matches `deps.ts`'s one-instance-per-purpose shape.
-  const siteAssistantSecretKeyring = new InMemoryKeyring();
-  const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);
-  const siteAssistantCredentialRepo = new InMemorySiteAssistantCredentialRepo();
-  // Held as a local rather than constructed inline, because the OAuth service below must be given
-  // the SAME repo instance the routes read through — two instances would refresh a token into one
-  // and read it back from the other.
-  const externalMcpServerRepo = new InMemoryExternalMcpServerRepo();
-  // Device begin/poll share this process-local store. Redirect state uses the site's sealer;
-  // this hermetic root's ephemeral key still limits its callbacks to the same process.
-  const externalMcpOAuthDevices = createDeviceAuthorizationStore();
+  const { externalMcpServerRepo, siteAssistantSecretSealer, siteAssistantSecretKeyring, siteAssistantCredentialRepo, externalMcpOAuthDevices, memberRepo, newsletterKeyring, newsletterSubscriberDirectory, newsletterHooks } = composeMemberSecrets({  });
 
   // See `routes/types.ts`'s `derivedPublicOrigin` doc. Mirrors `deps.ts`'s identical derivation
   // (`resolveCheckoutRoot`, a walk-up that is right from both the tsx and the compiled tree) — this
