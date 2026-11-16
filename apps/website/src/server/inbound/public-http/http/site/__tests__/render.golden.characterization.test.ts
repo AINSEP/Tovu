@@ -8,7 +8,8 @@ import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
 import { loadTheme, type DiscoveredTheme } from "#src/features/theme/index";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import { useSiteChatBuild } from "./site-chat.fixture.js";
-import { COMPONENTS, renderSite, type MediaAssetRenderMeta, type SiteRenderContext } from "../render.js";
+import { renderSite, type MediaAssetRenderMeta, type SiteRenderContext } from "../render.js";
+import { COMPONENTS } from "../render/components/registry.js";
 import { renderDocBodyAsPageHtml, renderDocNode, renderWidgetIr } from "../render/content-html.js";
 import { DOC_NODE_HANDLERS } from "../render/doc/doc-nodes.js";
 import {

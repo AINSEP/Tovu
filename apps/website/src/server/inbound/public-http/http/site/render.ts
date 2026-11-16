@@ -27,13 +27,12 @@ import { escapeHtml } from "#src/platform/html/escape";
 import { injectExtraHeadIntoStaticPage, injectSiteAssistantIntoStaticPage } from "./render/static-page-injection.js";
 import { pageShell } from "./render/document-shell.js";
 import { isObject } from "./render/value-readers.js";
-import { mediaPlaceholder } from "./render/media-placeholder.js";
-import { hero, announcement, ctaBand, section, featureGrid } from "./render/components/marketing.js";
-import { siteHeader, siteFooter, siteNav, siteFooterRich } from "./render/components/layout.js";
+import { siteHeader, siteFooter } from "./render/components/layout.js";
 import { EMPTY_INLINE_RESOLVED, EMPTY_MEDIA_TRANSFORM_VERSIONS, EMPTY_MEDIA_ASSET_METADATA } from "./render/doc/doc-nodes.js";
 import { renderDocNode, renderWidgetRegion } from "./render/content-html.js";
 import { entryContent, renderPostBody } from "./render/post-body.js";
 import { entryList, productEntryContent, productEntryList } from "./render/components/entry-lists.js";
+import { COMPONENTS } from "./render/components/registry.js";
 
 export type { SiteProduct, SiteRenderContext, MediaAssetRenderMeta } from "./render-context.js";
 
@@ -61,35 +60,6 @@ export {
  * "optional, defaults to empty, degrades to no block" convention as {@link EMPTY_MEDIA_ASSET_METADATA}
  * immediately above. */
 const EMPTY_ASSIGNED_TERMS: readonly AssignedTermView[] = [];
-
-// ---------------------------------------------------------------------------
-// Core component registry (v1) — the safe building blocks a theme references.
-// A theme can arrange these by id; it cannot define new ones. This table has no schema,
-// capability tier, or isolation boundary (each `Component` runs synchronously, in-render, with
-// no timeout), so it stays closed to plugins. A future plugin-contributed component goes through
-// the widget-type registry instead (`WidgetTypeKey`/`CORE_RESOLVERS`, `Jini/packages/cms/src/widgets/registry.ts`),
-// which already has schema validation, tier gating, and a try/catch+timeout isolation boundary —
-// see the Widget IR rendering block below for that seam's own dispatch (ADR-047; ratified by
-// `ADS-memory/reports/architecture/2026-08-20-component-catalog-split-proposal.md`).
-// ---------------------------------------------------------------------------
-
-type Component = (ctx: SiteRenderContext, props: JsonObject) => string;
-
-/** Exported for `liquid-worker.ts`: the `render_block` Liquid tag (registered on the isolated worker's own engine) resolves against this same registry, so a Liquid theme and a declarative theme render identical output for the same component id. */
-export const COMPONENTS: Record<string, Component> = {
-  "tovu/site-header": siteHeader,
-  "tovu/entry-list": entryList,
-  "tovu/entry-content": entryContent,
-  "tovu/site-footer": siteFooter,
-  "tovu/hero": hero,
-  "tovu/section": section,
-  "tovu/feature-grid": featureGrid,
-  "tovu/media-placeholder": (_ctx, props) => mediaPlaceholder(props),
-  "tovu/announcement": announcement,
-  "tovu/nav": siteNav,
-  "tovu/cta": ctaBand,
-  "tovu/footer": siteFooterRich,
-};
 
 // ---------------------------------------------------------------------------
 // Templated tier (LiquidJS) — ADR-020 Tier 2.
