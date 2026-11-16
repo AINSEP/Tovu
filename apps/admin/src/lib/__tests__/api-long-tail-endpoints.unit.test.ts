@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 import { api } from "../api";
+import { publishContentApi } from "../../features/publish-content/api/publish-content-api";
 import { databaseApi } from "../../features/database/api/database-api";
 import { pluginsApi } from "../../features/plugins/api/plugins-api";
 import { pagesApi } from "../../features/pages/api/pages-api";
@@ -19,9 +20,9 @@ test("external MCP approvals list and revoke use separately encoded server and t
 
 test("publish destination reads and connects the workspace singleton with an optional site URL", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.getPublishDestination();
-  await api.connectPublishDestination();
-  await api.connectPublishDestination({ siteUrl: "https://live.example" });
+  await publishContentApi.getPublishDestination();
+  await publishContentApi.connectPublishDestination();
+  await publishContentApi.connectPublishDestination({ siteUrl: "https://live.example" });
   expect(calls.map(({ url, init }) => [url, init?.method ?? "GET"])).toEqual([
     ["/api/admin/v1/workspaces/workspace-local/publish-content/destination", "GET"],
     ["/api/admin/v1/workspaces/workspace-local/publish-content/destination/connect", "POST"],
@@ -33,7 +34,7 @@ test("publish destination reads and connects the workspace singleton with an opt
 
 test("publish peers are read from the workspace peer collection", async () => {
   const { calls } = stubFetchCapturing();
-  await api.listPublishContentPeers();
+  await publishContentApi.listPublishContentPeers();
   expect(calls[0].url).toBe("/api/admin/v1/workspaces/workspace-local/publish-content/peers");
   expect(calls[0].init?.method ?? "GET").toBe("GET");
 });
@@ -41,11 +42,11 @@ test("publish peers are read from the workspace peer collection", async () => {
 test("publish plans omit a body when unfiltered and retain each explicitly supplied selection", async () => {
   const { calls, body } = stubFetchCapturing();
   const scope = { entityTypes: ["post"] };
-  await api.planPublishContent({ peerId: "peer/one" });
-  await api.planPublishContent({ peerId: "peer/one", selectedEntityKeys: [] });
-  await api.planPublishContent({ peerId: "peer/one", overwriteEntityKeys: [] });
-  await api.planPublishContent({ peerId: "peer/one", scope });
-  await api.planPublishContent({ peerId: "peer/one", selectedEntityKeys: ["post:p1"], overwriteEntityKeys: ["post:p1"], scope });
+  await publishContentApi.planPublishContent({ peerId: "peer/one" });
+  await publishContentApi.planPublishContent({ peerId: "peer/one", selectedEntityKeys: [] });
+  await publishContentApi.planPublishContent({ peerId: "peer/one", overwriteEntityKeys: [] });
+  await publishContentApi.planPublishContent({ peerId: "peer/one", scope });
+  await publishContentApi.planPublishContent({ peerId: "peer/one", selectedEntityKeys: ["post:p1"], overwriteEntityKeys: ["post:p1"], scope });
   expect(calls.every(({ url, init }) => url === "/api/admin/v1/workspaces/workspace-local/publish-content/peers/peer%2Fone/push/plan" && init?.method === "POST")).toBe(true);
   expect(calls[0].init?.body).toBeUndefined();
   expect(body(1)).toEqual({ selectedEntityKeys: [] });
@@ -56,9 +57,9 @@ test("publish plans omit a body when unfiltered and retain each explicitly suppl
 
 test("publish confirmation and execution retain their distinct authorization payloads", async () => {
   const { calls, body } = stubFetchCapturing();
-  await api.confirmPublishContent({ peerId: "peer/one", planId: "plan", planHash: "hash" });
-  await api.executePublishContent({ peerId: "peer/one", bundleId: "bundle", confirmationToken: "approved" });
-  await api.executePublishContent({ peerId: "peer/one", bundleId: "bundle", confirmationToken: "approved", overwriteEntityKeys: [] }, {});
+  await publishContentApi.confirmPublishContent({ peerId: "peer/one", planId: "plan", planHash: "hash" });
+  await publishContentApi.executePublishContent({ peerId: "peer/one", bundleId: "bundle", confirmationToken: "approved" });
+  await publishContentApi.executePublishContent({ peerId: "peer/one", bundleId: "bundle", confirmationToken: "approved", overwriteEntityKeys: [] }, {});
   expect(calls.map(({ url, init }) => [url, init?.method])).toEqual([
     ["/api/admin/v1/workspaces/workspace-local/publish-content/peers/peer%2Fone/push/confirm", "POST"],
     ["/api/admin/v1/workspaces/workspace-local/publish-content/peers/peer%2Fone/push/execute", "POST"],

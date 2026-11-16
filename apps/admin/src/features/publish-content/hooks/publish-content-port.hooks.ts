@@ -6,7 +6,7 @@ import type {
   PublishScope,
 } from "@tovu/publish-content-ui";
 
-import type { AdminPublishDestinationView } from "@/lib/api";
+import type { AdminPublishDestinationView } from "@/features/publish-content/api/publish-content-api.types";
 
 /**
  * @file What `use-publish-content-confirm.hooks.ts` needs from the outside world, as an interface
