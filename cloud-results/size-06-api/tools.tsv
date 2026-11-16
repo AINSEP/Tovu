@@ -1,0 +1,4 @@
+consumer	how it reads lib/api.ts	action
+development/scripts/check-admin-api-routes.ts:93	readFileSync of apps/admin/src/lib/api.ts, regex over request( path literals	step 3: read the feature client files and lib/admin-http/urls.ts
+development/scripts/size-debt.json:761	debt entry <file> max-lines 2522	step 3: delete
+development/scripts/src-complexity-debt.json:61	debt entry request#1 complexity 10	stale since step 1 (request split): delete

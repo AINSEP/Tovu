@@ -1,0 +1,199 @@
+declaration	kind	exported	home client	file	rule	importing files
+publishContentPeerPath	function	false	publish-content	apps/admin/src/features/publish-content/api/publish-content-api.ts	members of one client	0
+publishContentDestinationPath	function	false	publish-content	apps/admin/src/features/publish-content/api/publish-content-api.ts	members of one client	0
+ThemeFileGroup	type	true	themes	apps/admin/src/features/themes/api/themes-api.types.ts	members of one client	1
+AdminUser	type	true	auth	apps/admin/src/features/auth/api/auth-api.types.ts	members of one client	8
+ProviderDomainVerification	type	true	email	apps/admin/src/features/email/api/mail-status-api.types.ts	used by types of {"email":1}	1
+SettingValueResponse	type	true	settings	apps/admin/src/features/settings/api/settings-api.types.ts	members of one client	0
+SettingResetResponse	type	true	settings	apps/admin/src/features/settings/api/settings-api.types.ts	UNUSED: no API member and no importer; placed by name	0
+AdminMediaProviderCredentials	type	true	media	apps/admin/src/features/media/api/media-api.types.ts	used by types of {"media":1}	1
+AdminMediaProviderMap	type	true	media	apps/admin/src/features/media/api/media-api.types.ts	members of one client	8
+AdminExternalMcpOAuthView	type	true	integrations	apps/admin/src/features/integrations/api/integrations-api.types.ts	used by types of {"integrations":1}	0
+AdminExternalMcpConnectStart	type	true	integrations	apps/admin/src/features/integrations/api/integrations-api.types.ts	members of one client	0
+AdminExternalMcpToolApproval	type	true	integrations	apps/admin/src/features/integrations/api/integrations-api.types.ts	members of one client	4
+AdminExternalMcpServer	type	true	integrations	apps/admin/src/features/integrations/api/integrations-api.types.ts	members of one client	10
+AdminExternalMcpOAuthInput	type	true	integrations	apps/admin/src/features/integrations/api/integrations-api.types.ts	used by types of {"integrations":1}	2
+AdminExternalMcpServerInput	type	true	integrations	apps/admin/src/features/integrations/api/integrations-api.types.ts	members of one client	2
+AdminRemoteToolAnnotations	type	true	integrations	apps/admin/src/features/integrations/api/integrations-api.types.ts	used by types of {"integrations":1}	0
+AdminToolRefusalReason	type	true	integrations	apps/admin/src/features/integrations/api/integrations-api.types.ts	used by types of {"integrations":2}	1
+AdminRemoteToolSurfaceEntry	type	true	integrations	apps/admin/src/features/integrations/api/integrations-api.types.ts	used by types of {"integrations":1}	7
+AdminExternalMcpProbeResult	type	true	integrations	apps/admin/src/features/integrations/api/integrations-api.types.ts	members of one client	0
+AdminFederatedAdmissionEntry	type	true	integrations	apps/admin/src/features/integrations/api/integrations-api.types.ts	used by types of {"integrations":2}	2
+AdminExternalMcpConfigFailure	type	true	integrations	apps/admin/src/features/integrations/api/integrations-api.types.ts	members of one client	1
+AdminExternalMcpAdmissionsSnapshot	type	true	integrations	apps/admin/src/features/integrations/api/integrations-api.types.ts	members of one client	3
+RawAdmissionConnection	type	false	integrations	apps/admin/src/features/integrations/api/integrations-api.ts	members of one client	0
+flattenAdmissionConnection	function	false	integrations	apps/admin/src/features/integrations/api/integrations-api.ts	members of one client	0
+AdminDeploymentEnvVarStatus	type	true	deployment	apps/admin/src/features/deployment/api/deployment-api.types.ts	used by types of {"deployment":1}	2
+AdminDeploymentOverview	type	true	deployment	apps/admin/src/features/deployment/api/deployment-api.types.ts	members of one client	9
+AdminObservabilityStatus	type	true	observability	apps/admin/src/features/observability/api/observability-api.types.ts	members of one client	4
+AdminTelemetryDeliveryStatus	type	true	observability	apps/admin/src/features/observability/api/observability-api.types.ts	used by types of {"observability":1}	0
+AdminTelemetryTestResult	type	true	observability	apps/admin/src/features/observability/api/observability-api.types.ts	members of one client	2
+AdminServerLogEntry	type	true	observability	apps/admin/src/features/observability/api/observability-api.types.ts	used by types of {"observability":2}	3
+AdminServerLogs	type	true	observability	apps/admin/src/features/observability/api/observability-api.types.ts	members of one client	4
+AdminServerLogsQuery	type	true	observability	apps/admin/src/features/observability/api/observability-api.types.ts	members of one client	1
+AdminMailStatus	type	true	email	apps/admin/src/features/email/api/mail-status-api.types.ts	members of one client	6
+AdminSiteListEntry	type	true	sites	apps/admin/src/features/sites/api/sites-api.types.ts	used by types of {"sites":1}	8
+AdminSiteBinding	type	true	sites	apps/admin/src/features/sites/api/sites-api.types.ts	used by types of {"sites":1}	0
+AdminLocalSiteState	type	true	sites	apps/admin/src/features/sites/api/sites-api.types.ts	used by types of {"sites":1}	2
+AdminTrashedSite	type	true	sites	apps/admin/src/features/sites/api/sites-api.types.ts	used by types of {"sites":1}	1
+AdminLocalSiteAction	type	true	sites	apps/admin/src/features/sites/api/sites-api.types.ts	members of one client	2
+SitesUserConfig	type	true	sites	apps/admin/src/features/sites/api/sites-api.types.ts	members of one client	3
+SitesUserConfigPatch	type	true	sites	apps/admin/src/features/sites/api/sites-api.types.ts	members of one client	2
+AdminSitesSnapshot	type	true	sites	apps/admin/src/features/sites/api/sites-api.types.ts	members of one client	24
+AdminCreatedSite	type	true	sites	apps/admin/src/features/sites/api/sites-api.types.ts	members of one client	1
+AdminCreatedSiteAgentPluginTokens	type	true	sites	apps/admin/src/features/sites/api/sites-api.types.ts	members of one client	1
+AdminTokenSignInPlugin	type	true	sites	apps/admin/src/features/sites/api/sites-api.types.ts	members of one client	3
+AdminSiteActivation	type	true	sites	apps/admin/src/features/sites/api/sites-api.types.ts	members of one client	3
+AdminDockerfileSource	type	true	deployment	apps/admin/src/features/deployment/api/deployment-api.types.ts	members of one client	4
+AdminExportRunStatus	type	true	import-export	apps/admin/src/features/import-export/api/import-export-api.types.ts	used by types of {"import-export":1}	0
+AdminExportRunSnapshot	type	true	import-export	apps/admin/src/features/import-export/api/import-export-api.types.ts	members of one client	7
+AdminStaticPublishTargetId	type	true	deployment	apps/admin/src/features/deployment/api/deployment-api.types.ts	used by types of {"deployment":5}	3
+AdminDescriptorI18n	type	true	deployment	apps/admin/src/features/deployment/api/deployment-api.types.ts	used by types of {"deployment":1}	1
+AdminPublishTargetField	type	true	deployment	apps/admin/src/features/deployment/api/deployment-api.types.ts	used by types of {"deployment":1}	6
+AdminPublishTargetCredentialSpec	type	true	deployment	apps/admin/src/features/deployment/api/deployment-api.types.ts	used by types of {"deployment":1}	4
+AdminPublishTargetDescriptor	type	true	deployment	apps/admin/src/features/deployment/api/deployment-api.types.ts	members of one client	9
+AdminStaticPublishConfig	type	true	deployment	apps/admin/src/features/deployment/api/deployment-api.types.ts	members of one client	5
+AdminStaticPublishOutcome	type	true	deployment	apps/admin/src/features/deployment/api/deployment-api.types.ts	used by types of {"deployment":1}	0
+AdminPublishRunStatus	type	true	deployment	apps/admin/src/features/deployment/api/deployment-api.types.ts	used by types of {"deployment":1}	0
+AdminPublishRunSnapshot	type	true	deployment	apps/admin/src/features/deployment/api/deployment-api.types.ts	members of one client	7
+AdminPublishDestination	type	true	deployment	apps/admin/src/features/deployment/api/deployment-api.types.ts	members of one client	0
+AdminStaticPublishPreview	type	true	deployment	apps/admin/src/features/deployment/api/deployment-api.types.ts	members of one client	6
+AdminPublishCredentialProviderId	type	true	security	apps/admin/src/features/security/api/security-api.types.ts	used by types of {"deployment":1,"security":2}	4
+AdminPublishCredentialSummary	type	true	security	apps/admin/src/features/security/api/security-api.types.ts	members of one client	13
+AdminPublishCredentialVerification	type	true	security	apps/admin/src/features/security/api/security-api.types.ts	members of one client	5
+AdminPublishConnectionInput	type	true	security	apps/admin/src/features/security/api/security-api.types.ts	members of one client	5
+AdminPublishExecutionMode	type	true	security	apps/admin/src/features/security/api/security-api.types.ts	used by types of {"security":1}	3
+AdminPublishCredentialsSnapshot	type	true	security	apps/admin/src/features/security/api/security-api.types.ts	members of one client	5
+AdminSiteKeyRuntimeMode	type	true	sites	apps/admin/src/features/sites/api/sites-api.types.ts	used by types of {"sites":5}	0
+ADMIN_SITE_KEY_STATES	const	true	sites	apps/admin/src/features/sites/api/sites-api.types.ts	used by types of {"sites":1}	1
+AdminSiteKeyState	type	true	sites	apps/admin/src/features/sites/api/sites-api.types.ts	used by types of {"sites":1}	3
+AdminSiteKeyStatus	type	true	sites	apps/admin/src/features/sites/api/sites-api.types.ts	members of one client	8
+AdminSiteKeyGenerateOutcome	type	true	sites	apps/admin/src/features/sites/api/sites-api.types.ts	used by types of {"sites":1}	0
+AdminGeneratedSiteKey	type	true	sites	apps/admin/src/features/sites/api/sites-api.types.ts	members of one client	1
+AdminImportedSiteKey	type	true	sites	apps/admin/src/features/sites/api/sites-api.types.ts	members of one client	1
+AdminSiteKeyAffectedWebhook	type	true	sites	apps/admin/src/features/sites/api/sites-api.types.ts	used by types of {"sites":2}	1
+AdminSiteKeyStartFreshPreview	type	true	sites	apps/admin/src/features/sites/api/sites-api.types.ts	members of one client	2
+AdminStartedFreshSiteKey	type	true	sites	apps/admin/src/features/sites/api/sites-api.types.ts	members of one client	1
+AdminRevealedSiteKey	type	true	sites	apps/admin/src/features/sites/api/sites-api.types.ts	members of one client	1
+AdminSourceControlProviderId	type	true	source-control	apps/admin/src/features/source-control/api/source-control-api.types.ts	used by types of {"source-control":3}	4
+AdminSourceControlCredentialForm	type	true	source-control	apps/admin/src/features/source-control/api/source-control-api.types.ts	used by types of {"source-control":1}	0
+AdminSourceControlProviderDescriptor	type	true	source-control	apps/admin/src/features/source-control/api/source-control-api.types.ts	used by types of {"source-control":1}	7
+AdminSourceControlProvidersSnapshot	type	true	source-control	apps/admin/src/features/source-control/api/source-control-api.types.ts	members of one client	3
+AdminSourceControlCredentialSummary	type	true	source-control	apps/admin/src/features/source-control/api/source-control-api.types.ts	members of one client	14
+AdminSourceControlConnectionInput	type	true	source-control	apps/admin/src/features/source-control/api/source-control-api.types.ts	members of one client	6
+AdminSourceControlCredentialsSnapshot	type	true	source-control	apps/admin/src/features/source-control/api/source-control-api.types.ts	members of one client	4
+AdminCustomCredentialCategoryId	type	true	security	apps/admin/src/features/security/api/security-api.types.ts	members of one client	2
+AdminCustomCredentialSummary	type	true	security	apps/admin/src/features/security/api/security-api.types.ts	members of one client	4
+AdminCustomConnectionInput	type	true	security	apps/admin/src/features/security/api/security-api.types.ts	members of one client	2
+AdminCustomCredentialsSnapshot	type	true	security	apps/admin/src/features/security/api/security-api.types.ts	members of one client	2
+AdminPublishDestinationView	type	true	publish-content	apps/admin/src/features/publish-content/api/publish-content-api.types.ts	members of one client	4
+AdminExecutionDetectedAgent	type	true	ai-assistant	apps/admin/src/features/ai-assistant/api/ai-assistant-api.types.ts	members of one client	0
+PublicAssistantSettings	type	true	ai-assistant	apps/admin/src/features/ai-assistant/api/ai-assistant-api.types.ts	members of one client	6
+SiteAssistantCredential	type	true	ai-assistant	apps/admin/src/features/ai-assistant/api/ai-assistant-api.types.ts	members of one client	9
+SiteAssistantCredentialPatch	type	true	ai-assistant	apps/admin/src/features/ai-assistant/api/ai-assistant-api.types.ts	members of one client	4
+AdminExecutionCredential	type	true	ai-assistant	apps/admin/src/features/ai-assistant/api/ai-assistant-api.types.ts	members of one client	11
+AdminExecutionCredentialPatch	type	true	ai-assistant	apps/admin/src/features/ai-assistant/api/ai-assistant-api.types.ts	members of one client	5
+RobotsRule	type	true	seo	apps/admin/src/features/seo/api/seo-api.types.ts	UNUSED: no API member and no importer; placed by name	0
+SeoSettings	type	true	seo	apps/admin/src/features/seo/api/seo-api.types.ts	UNUSED: no API member and no importer; placed by name	0
+SeoSettingsPatch	type	true	seo	apps/admin/src/features/seo/api/seo-api.types.ts	UNUSED: no API member and no importer; placed by name	0
+SeoOpenGraphType	type	true	seo	apps/admin/src/features/seo/api/seo-api.types.ts	UNUSED: no API member and no importer; placed by name	0
+SeoTwitterCardKind	type	true	seo	apps/admin/src/features/seo/api/seo-api.types.ts	UNUSED: no API member and no importer; placed by name	0
+SeoOpenGraph	type	true	seo	apps/admin/src/features/seo/api/seo-api.types.ts	UNUSED: no API member and no importer; placed by name	0
+SeoTwitterCard	type	true	seo	apps/admin/src/features/seo/api/seo-api.types.ts	UNUSED: no API member and no importer; placed by name	0
+SeoEntryMeta	type	true	seo	apps/admin/src/features/seo/api/seo-api.types.ts	UNUSED: no API member and no importer; placed by name	0
+SeoEntryOverrides	type	true	seo	apps/admin/src/features/seo/api/seo-api.types.ts	UNUSED: no API member and no importer; placed by name	0
+SeoEntryOverridesPatch	type	true	seo	apps/admin/src/features/seo/api/seo-api.types.ts	UNUSED: no API member and no importer; placed by name	0
+SeoIssueSeverity	type	true	seo	apps/admin/src/features/seo/api/seo-api.types.ts	UNUSED: no API member and no importer; placed by name	0
+SeoIssue	type	true	seo	apps/admin/src/features/seo/api/seo-api.types.ts	UNUSED: no API member and no importer; placed by name	0
+SeoEntryAnalysis	type	true	seo	apps/admin/src/features/seo/api/seo-api.types.ts	UNUSED: no API member and no importer; placed by name	0
+AdminPagePluginEmbed	type	true	pages	apps/admin/src/features/pages/api/pages-api.types.ts	members of one client	3
+AdminPostCreateInput	type	true	posts	apps/admin/src/features/posts/api/posts-api.types.ts	members of one client	1
+AdminPost	type	true	posts	apps/admin/src/features/posts/api/posts-api.types.ts	members of several clients ({"posts":5,"pages":5}): most uses	55
+PresentationSettings	type	true	themes	apps/admin/src/features/themes/api/themes-api.types.ts	members of one client	14
+NO_THEME_ID	const	true	themes	apps/admin/src/features/themes/api/themes-api.types.ts	no API member uses it; importers by feature {"pages":2,"themes":4}	6
+ThemeTier	type	true	themes	apps/admin/src/features/themes/api/themes-api.types.ts	members of one client	14
+AdminThemeSummary	type	true	themes	apps/admin/src/features/themes/api/themes-api.types.ts	members of one client	3
+AdminMember	type	true	members	apps/admin/src/features/members/api/members-api.types.ts	members of one client	5
+AdminAnalyticsHit	type	true	analytics	apps/admin/src/features/analytics/api/analytics-api.types.ts	members of one client	3
+AdminMenuTarget	type	true	menus	apps/admin/src/features/menus/api/menus-api.types.ts	used by types of {"menus":1}	1
+AdminMenuItemAttrs	type	true	menus	apps/admin/src/features/menus/api/menus-api.types.ts	used by types of {"menus":1}	1
+AdminMenuItem	type	true	menus	apps/admin/src/features/menus/api/menus-api.types.ts	members of one client	13
+AdminMenu	type	true	menus	apps/admin/src/features/menus/api/menus-api.types.ts	members of one client	16
+AdminMenuMode	type	true	menus	apps/admin/src/features/menus/api/menus-api.types.ts	used by types of {"menus":2}	3
+AdminMenuAuthoring	type	true	menus	apps/admin/src/features/menus/api/menus-api.types.ts	members of one client	2
+AdminWidgetType	type	true	widgets	apps/admin/src/features/widgets/api/widgets-api.types.ts	members of one client	9
+AdminWidget	type	true	widgets	apps/admin/src/features/widgets/api/widgets-api.types.ts	members of one client	7
+AdminWidgetWhereUsedReference	type	true	widgets	apps/admin/src/features/widgets/api/widgets-api.types.ts	used by types of {"widgets":1}	0
+AdminWidgetWhereUsed	type	true	widgets	apps/admin/src/features/widgets/api/widgets-api.types.ts	members of one client	0
+AdminWidgetPlacement	type	true	widgets	apps/admin/src/features/widgets/api/widgets-api.types.ts	UNUSED: no API member and no importer; placed by name	0
+AdminWidgetArea	type	true	widgets	apps/admin/src/features/widgets/api/widgets-api.types.ts	UNUSED: no API member and no importer; placed by name	0
+AdminWidgetRegionBinding	type	true	widgets	apps/admin/src/features/widgets/api/widgets-api.types.ts	UNUSED: no API member and no importer; placed by name	0
+AdminMedia	type	true	media	apps/admin/src/features/media/api/media-api.types.ts	members of one client	51
+AdminWebhookDeliverySummary	type	true	integrations	apps/admin/src/features/integrations/api/integrations-api.types.ts	used by types of {"integrations":2}	0
+AdminWebhookSubscription	type	true	integrations	apps/admin/src/features/integrations/api/integrations-api.types.ts	members of one client	7
+AdminWebhookDelivery	type	true	integrations	apps/admin/src/features/integrations/api/integrations-api.types.ts	members of one client	7
+AdminIdentityUser	type	true	users	apps/admin/src/features/users/api/users-api.types.ts	members of one client	12
+AdminRole	type	true	roles	apps/admin/src/features/roles/api/roles-api.types.ts	members of one client	9
+AdminPolicy	type	true	roles	apps/admin/src/features/roles/api/roles-api.types.ts	members of one client	9
+AdminPolicyPermission	type	true	roles	apps/admin/src/features/roles/api/roles-api.types.ts	members of one client	5
+AdminWorkspace	type	true	workspace	apps/admin/src/features/workspace/api/workspace-api.types.ts	members of one client	8
+AdminFormField	type	true	forms	apps/admin/src/features/forms/api/forms-api.types.ts	used by types of {"forms":1}	0
+AdminFormNotify	type	true	forms	apps/admin/src/features/forms/api/forms-api.types.ts	used by types of {"forms":1}	0
+AdminFormDefinition	type	true	forms	apps/admin/src/features/forms/api/forms-api.types.ts	members of one client	5
+AdminFormSubmission	type	true	forms	apps/admin/src/features/forms/api/forms-api.types.ts	UNUSED: no API member and no importer; placed by name	0
+AdminRedirect	type	true	redirects	apps/admin/src/features/redirects/api/redirects-api.types.ts	UNUSED: no API member and no importer; placed by name	0
+AdminRedirectHitStats	type	true	redirects	apps/admin/src/features/redirects/api/redirects-api.types.ts	UNUSED: no API member and no importer; placed by name	0
+RedirectImportRule	type	true	redirects	apps/admin/src/features/redirects/api/redirects-api.types.ts	UNUSED: no API member and no importer; placed by name	0
+AdminRedirectImportResponse	type	true	redirects	apps/admin/src/features/redirects/api/redirects-api.types.ts	UNUSED: no API member and no importer; placed by name	0
+CONTENT_TYPE_FIELD_KINDS	const	true	collections	apps/admin/src/features/collections/api/collections-api.types.ts	used by types of {"collections":1}	2
+ContentTypeFieldKind	type	true	collections	apps/admin/src/features/collections/api/collections-api.types.ts	used by types of {"collections":1}	3
+ContentTypeFieldDef	type	true	collections	apps/admin/src/features/collections/api/collections-api.types.ts	members of one client	8
+ContentTypeStatus	type	true	collections	apps/admin/src/features/collections/api/collections-api.types.ts	used by types of {"collections":1}	0
+ContentTypeLifecycleOp	type	true	collections	apps/admin/src/features/collections/api/collections-api.types.ts	members of one client	2
+AdminContentType	type	true	collections	apps/admin/src/features/collections/api/collections-api.types.ts	members of one client	29
+EntryStatus	type	true	collections	apps/admin/src/features/collections/api/collections-api.types.ts	used by types of {"collections":1}	0
+AdminEntry	type	true	collections	apps/admin/src/features/collections/api/collections-api.types.ts	members of one client	9
+AdminTaxonomy	type	true	taxonomy	apps/admin/src/features/taxonomy/api/taxonomy-api.types.ts	members of one client	7
+AdminTerm	type	true	taxonomy	apps/admin/src/features/taxonomy/api/taxonomy-api.types.ts	members of one client	15
+AdminTaxonomyWithTerms	type	true	taxonomy	apps/admin/src/features/taxonomy/api/taxonomy-api.types.ts	members of one client	18
+AdminLedgerRow	type	true	database	apps/admin/src/features/database/api/database-api.types.ts	members of one client	7
+RestorePointCostClass	type	true	database	apps/admin/src/features/database/api/database-api.types.ts	used by types of {"database":1,"recovery":1}	0
+AdminRestorePoint	type	true	recovery	apps/admin/src/features/recovery/api/recovery-api.types.ts	members of one client	11
+AdminRestorePointSummary	type	true	database	apps/admin/src/features/database/api/database-api.types.ts	members of one client	2
+AdminSchemaDriftStatus	type	true	database	apps/admin/src/features/database/api/database-api.types.ts	used by types of {"database":1}	0
+AdminSchemaSnapshot	type	true	database	apps/admin/src/features/database/api/database-api.types.ts	used by types of {"database":1}	0
+AdminSchemaState	type	true	database	apps/admin/src/features/database/api/database-api.types.ts	members of one client	7
+CategoryCount	type	true	recovery	apps/admin/src/features/recovery/api/recovery-api.types.ts	used by types of {"recovery":1}	0
+AdminDisclosureResult	type	true	recovery	apps/admin/src/features/recovery/api/recovery-api.types.ts	members of one client	4
+DegradedBannerKind	type	true	recovery	apps/admin/src/features/recovery/api/recovery-api.types.ts	used by types of {"recovery":1}	0
+DegradedBannerActionKind	type	true	recovery	apps/admin/src/features/recovery/api/recovery-api.types.ts	used by types of {"recovery":1}	0
+AdminDegradedBanner	type	true	recovery	apps/admin/src/features/recovery/api/recovery-api.types.ts	used by types of {"recovery":1}	3
+AdminRecoveryStatus	type	true	recovery	apps/admin/src/features/recovery/api/recovery-api.types.ts	members of one client	6
+DatabaseContextEnvelope	type	true	recovery	apps/admin/src/features/recovery/api/recovery-api.types.ts	members of one client	4
+AdminRecoveryDeepLinkResult	type	true	recovery	apps/admin/src/features/recovery/api/recovery-api.types.ts	members of one client	2
+GatedPlanResult	type	true	taxonomy	apps/admin/src/features/taxonomy/api/taxonomy-api.types.ts	members of several clients ({"taxonomy":1,"database":1,"recovery":1}): most uses	6
+GatedConfirmResult	type	true	taxonomy	apps/admin/src/features/taxonomy/api/taxonomy-api.types.ts	members of several clients ({"taxonomy":1,"database":1,"recovery":1}): most uses	5
+MergeTermPlanDetails	type	true	taxonomy	apps/admin/src/features/taxonomy/api/taxonomy-api.types.ts	members of one client	2
+MigrateForwardExecuteResult	type	true	database	apps/admin/src/features/database/api/database-api.types.ts	members of one client	2
+RestoreExecuteResult	type	true	recovery	apps/admin/src/features/recovery/api/recovery-api.types.ts	members of one client	2
+CommentStatus	type	true	comments	apps/admin/src/features/comments/api/comments-api.types.ts	members of one client	0
+AdminComment	type	true	comments	apps/admin/src/features/comments/api/comments-api.types.ts	used by types of {"comments":1}	0
+AdminCommentsQueuePage	type	true	comments	apps/admin/src/features/comments/api/comments-api.types.ts	members of one client	0
+AdminTrashItem	type	true	trash	apps/admin/src/features/trash/api/trash-api.types.ts	used by types of {"trash":1}	7
+AdminTrashPage	type	true	trash	apps/admin/src/features/trash/api/trash-api.types.ts	members of one client	2
+AdminTrashRestoreOutcome	type	true	trash	apps/admin/src/features/trash/api/trash-api.types.ts	used by types of {"trash":1}	1
+AdminTrashPurgeOutcome	type	true	trash	apps/admin/src/features/trash/api/trash-api.types.ts	used by types of {"trash":1}	1
+AdminTrashRestoreReport	type	true	trash	apps/admin/src/features/trash/api/trash-api.types.ts	members of one client	3
+AdminTrashPurgeReport	type	true	trash	apps/admin/src/features/trash/api/trash-api.types.ts	members of one client	2
+CommentsSettings	type	true	comments	apps/admin/src/features/comments/api/comments-api.types.ts	UNUSED: no API member and no importer; placed by name	0
+CommentModerationAction	type	true	comments	apps/admin/src/features/comments/api/comments-api.types.ts	UNUSED: no API member and no importer; placed by name	0
+AdminPlugin	type	true	plugins	apps/admin/src/features/plugins/api/plugins-api.types.ts	members of one client	14
+AdminPluginProviderSettingField	type	true	plugins	apps/admin/src/features/plugins/api/plugins-api.types.ts	used by types of {"plugins":1}	3
+AdminPluginProviderSettings	type	true	plugins	apps/admin/src/features/plugins/api/plugins-api.types.ts	members of one client	5
+AdminPluginConflict	type	true	plugins	apps/admin/src/features/plugins/api/plugins-api.types.ts	used by types of {"plugins":1}	2
+AdminPluginPackageFile	type	true	plugins	apps/admin/src/features/plugins/api/plugins-api.types.ts	used by types of {"plugins":1}	1
+AdminPluginFiles	type	true	plugins	apps/admin/src/features/plugins/api/plugins-api.types.ts	members of one client	5
+AdminAgentPlugin	type	true	integrations	apps/admin/src/features/integrations/api/integrations-api.types.ts	members of one client	25
+AdminAgentPluginFiles	type	true	integrations	apps/admin/src/features/integrations/api/integrations-api.types.ts	members of one client	3
+AdminCredentialCopySource	type	true	security	apps/admin/src/features/security/api/security-api.types.ts	members of one client	2
+AdminCredentialCopyResult	type	true	security	apps/admin/src/features/security/api/security-api.types.ts	members of one client	1
