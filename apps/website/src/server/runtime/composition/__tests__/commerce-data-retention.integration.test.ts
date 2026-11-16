@@ -107,7 +107,8 @@ for (const populated of [false, true]) {
           const result = await declareDataModule({ db: contentKernel({ store: db }), dbPath: filePath, decl });
           assert.equal(result.ok, true);
         }
-        db.insert(workspaces).values({ id: "retained-ws", name: "Retained", slug: "retained", createdAt: NOW }).run();
+        // Why: the fixture is historical (before 0042 added `workspaces.version`), so insert only the columns that existed then; the current Drizzle schema would name `version`.
+        db.$client.prepare("INSERT INTO workspaces (id, name, slug, created_at) VALUES (?, ?, ?, ?)").run("retained-ws", "Retained", "retained", NOW);
         if (populated) {
           // Keep this pre-0011 upgrade fixture historical: current Drizzle also names 0014's
           // kind/original_filename and 0034's members.password_hash columns. The shared copier

@@ -156,5 +156,6 @@ test("create: a failed event delivery returns 201 and retains the event for retr
   const retry = await outbox.claimPending({ batchSize: 20, nowIso: "2026-01-01T00:01:00.000Z" });
   assert.equal(retry.length, 1);
   assert.equal(retry[0].event.name, "workspace.created");
-  assert.equal(retry[0].lastError, "subscriber unavailable");
+  // Why: the retained last error is class-only (Jini describeErrorForLog); the subscriber's message never reaches the outbox row.
+  assert.equal(retry[0].lastError, "Error");
 });
