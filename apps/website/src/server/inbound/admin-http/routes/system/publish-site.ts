@@ -228,6 +228,40 @@ async function readPublishTriggerConfig(required: {
   return { ok: true, config: read.config };
 }
 
+type ParsedPublishRequest = Extract<ReturnType<typeof parsePublishRequestBody>, { ok: true }>;
+
+/** Starts the one shared publish run; the response returns before it finishes (see the caller). */
+function startAdminPublishRun(
+  required: {
+    deps: AdminPublishSiteDeps;
+    credentialSource: ReturnType<typeof composePublishCredentialSource>;
+    principalId: string;
+    config: Parameters<typeof startPublishRun>[0]["input"]["config"];
+    parsed: ParsedPublishRequest;
+  },
+  _optional = {},
+) {
+  const { deps, credentialSource, principalId, config, parsed } = required;
+  return startPublishRun({
+    deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, formDestination: deps.formDestination, publicPageSecurityHeaders: deps.publicPageSecurityHeaders, pluginExportHosts: deps.pluginExportHosts },
+    input: {
+      productEvent: { userId: principalId, source: "admin" },
+      workspaceId: deps.workspaceId,
+      publishOutputRootDir: deps.publishOutputRootDir,
+      idGen: deps.idGen,
+      exportSiteBound: deps.exportSiteBound,
+      config,
+      projectName: parsed.projectName,
+      // The connection the operator actually chose in the Static Site tab. Never defaulted here:
+      // an absent id means "this caller has no chosen connection", which the credential source
+      // answers with its own default lookup — see `parsePublishRequestBody` above.
+      ...credentialChoice({ value: parsed.credentialId }),
+    },
+    clock: deps.clock,
+    historyStore: deps.publishHistoryStore,
+  });
+}
+
 export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishSiteDeps): void {
   // Built once per `registerAdminPublishSiteRoutes` call (this route file's own registration is
   // itself a once-per-process composition step), bound to `deps.workspaceId` — see
@@ -287,24 +321,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
       // publish finishes. `startPublishRun` itself keeps the shared slot in sync as the publish
       // settles, so a poller can never observe a stale "running" snapshot after the promise has
       // actually settled.
-      const snapshot = startPublishRun({
-        deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, formDestination: deps.formDestination, publicPageSecurityHeaders: deps.publicPageSecurityHeaders, pluginExportHosts: deps.pluginExportHosts },
-        input: {
-          productEvent: { userId: principal.id, source: "admin" },
-          workspaceId: deps.workspaceId,
-          publishOutputRootDir: deps.publishOutputRootDir,
-          idGen: deps.idGen,
-          exportSiteBound: deps.exportSiteBound,
-          config: read.config,
-          projectName: parsed.projectName,
-          // The connection the operator actually chose in the Static Site tab. Never defaulted here:
-          // an absent id means "this caller has no chosen connection", which the credential source
-          // answers with its own default lookup — see `parsePublishRequestBody` above.
-          ...credentialChoice({ value: parsed.credentialId }),
-        },
-        clock: deps.clock,
-        historyStore: deps.publishHistoryStore,
-      });
+      const snapshot = startAdminPublishRun({ deps, credentialSource, principalId: principal.id, config: read.config, parsed });
 
       res.status(202).json(snapshot);
     } catch (err) {
