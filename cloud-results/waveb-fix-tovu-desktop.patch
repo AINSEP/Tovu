@@ -1,0 +1,154 @@
+diff --git a/apps/desktop/src/desktop-agent.ts b/apps/desktop/src/desktop-agent.ts
+index b93a2eaf..ff4ca45a 100644
+--- a/apps/desktop/src/desktop-agent.ts
++++ b/apps/desktop/src/desktop-agent.ts
+@@ -94,11 +94,14 @@ interface DesktopAgentRuntimeRequired {
+   buildTools: (ports: { addresseeOf: (input: { runId: string }, options?: Record<string, never>) => TurnAddressee | null }) => ToolRegistration[];
+ }
+ 
++/** The only slice of the conversation store the tool-gap surface reads and writes. */
++type ToolGapStore = Pick<ConversationStore, "appendToolGap" | "listToolGaps">;
++
+ interface DesktopAgentRuntimeOptions {
+   readLoginShellEnvironment?: typeof readLoginShellEnvironment;
+   installOwnedJsonAgent?: typeof installOwnedJsonAgent;
+   readFullCliAccess?: (required: { addressee: TurnAddressee | null }, optional?: {}) => Promise<boolean | AssistantCliPermissions>;
+-  toolGapStore?: Pick<ConversationStore, "appendToolGap" | "listToolGaps">;
++  toolGapStore?: ToolGapStore;
+   /** Test seam: a fake executor so no real CLI is spawned. */
+   createAgentExecutor?: (...args: Parameters<typeof createAgentExecutor>) => Pick<AgentExecutor, "run">;
+   /** Test seam: the `jini-mcp` entry script. Defaults to the installed `@jini-ai/mcp`'s `bin/serve.js`. */
+@@ -334,15 +337,15 @@ interface TurnContext {
+   /** Live runs only — deleted on terminal, which is what expires their bridge credentials. */
+   liveRuns: Map<string, { addressee: TurnAddressee | null }>;
+   credentials: RunScopedCredentials;
+-  gapStore: ConversationStore;
++  gapStore: ToolGapStore;
+   gapCollectors: Set<ReturnType<typeof createToolGapCollector>>;
+-  executor: AgentExecutor;
++  executor: Pick<AgentExecutor, "run">;
+   fullCliContext: AsyncLocalStorage<boolean>;
+ }
+ 
+ /** The app's tools plus the owner-only tool-gap list, in one registry. */
+ async function createDesktopRegistry(
+-  { required, addresseeOf, gapStore }: { required: DesktopAgentRuntimeRequired; addresseeOf: (input: { runId: string }, options?: Record<string, never>) => TurnAddressee | null; gapStore: ConversationStore },
++  { required, addresseeOf, gapStore }: { required: DesktopAgentRuntimeRequired; addresseeOf: (input: { runId: string }, options?: Record<string, never>) => TurnAddressee | null; gapStore: ToolGapStore },
+   _options = {},
+ ): Promise<ToolRegistry> {
+   const registry = (await loadDaemonToolRegistryFactory())({});
+diff --git a/apps/desktop/src/import-handoff-ipc.test.ts b/apps/desktop/src/import-handoff-ipc.test.ts
+index 8bd89848..21f46ab5 100644
+--- a/apps/desktop/src/import-handoff-ipc.test.ts
++++ b/apps/desktop/src/import-handoff-ipc.test.ts
+@@ -17,6 +17,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
+ const ADMIN = "http://127.0.0.1:4100/admin/import-export?tab=import";
+ 
+ type Handler = (event: unknown, raw: unknown) => unknown;
++// What the real `ipcMain.handle` hands us, widened to `never` for the event so the fake can store it as the
++// looser `Handler` the tests drive with hand-built senders (no real `WebFrameMain` exists in a unit test).
++type RegisteredHandler = (event: never, raw: unknown) => unknown;
+ 
+ function fakeWindow({ minimized = false }: { minimized?: boolean } = {}) {
+   const calls: unknown[][] = [];
+@@ -33,7 +36,7 @@ function fakeWindow({ minimized = false }: { minimized?: boolean } = {}) {
+ function register({ windows, trusted = () => true }: { windows: () => ImportHandoffWindow[]; trusted?: (url: string) => boolean }) {
+   const handlers = new Map<string, Handler>();
+   registerImportHandoffIpc({
+-    ipcMain: { handle: (channel: string, handler: Handler) => { handlers.set(channel, handler); } },
++    ipcMain: { handle: (channel: string, handler: RegisteredHandler) => { handlers.set(channel, handler as Handler); } },
+     isTrustedSender: trusted,
+     sitesHomeWindows: windows,
+   });
+@@ -74,7 +77,7 @@ test("an untrusted page is refused in plain words and no window is touched", asy
+ test("a request with no sender frame is refused", async () => {
+   const handlers = new Map<string, Handler>();
+   registerImportHandoffIpc({
+-    ipcMain: { handle: (channel: string, handler: Handler) => { handlers.set(channel, handler); } },
++    ipcMain: { handle: (channel: string, handler: RegisteredHandler) => { handlers.set(channel, handler as Handler); } },
+     isTrustedSender: () => true, sitesHomeWindows: () => [],
+   });
+   await assert.rejects(async () => handlers.get(IMPORT_HANDOFF_CHANNELS.request)!({}, {}), /isn't part of Tovu/);
+diff --git a/apps/desktop/src/main-shutdown-wiring.test.ts b/apps/desktop/src/main-shutdown-wiring.test.ts
+index 92937b01..80f7bb0e 100644
+--- a/apps/desktop/src/main-shutdown-wiring.test.ts
++++ b/apps/desktop/src/main-shutdown-wiring.test.ts
+@@ -270,6 +270,6 @@ test("a failed agent-service shutdown still waits for every tracked teardown bef
+   }
+   assert.equal(finalQuits, 1);
+   assert.equal(logged.length, 1);
+-  assert.match(logged[0], /agent service shutdown failed/);
+-  assert.match(logged[0], /agent service stuck/);
++  assert.match((logged[0] ?? ""), /agent service shutdown failed/);
++  assert.match((logged[0] ?? ""), /agent service stuck/);
+ });
+diff --git a/apps/desktop/src/project-ipc-dispatch.test.ts b/apps/desktop/src/project-ipc-dispatch.test.ts
+index ce8e8809..0f321dcd 100644
+--- a/apps/desktop/src/project-ipc-dispatch.test.ts
++++ b/apps/desktop/src/project-ipc-dispatch.test.ts
+@@ -357,7 +357,7 @@ test("registered list skips bad catalog siblings and repeats import without dupl
+   fs.writeFileSync(path.join(bad, "config.json"), "{broken");
+   for (const dir of [first, copied, bad]) trackSite({ projectsPath: f.deps.projectsPath, siteDir: dir });
+   // Production's name reader tolerates bad config independently of catalog admission.
+-  f.deps.readSiteName = (dir) => path.basename(dir);
++  f.deps.readSiteName = ({ siteDir }) => path.basename(siteDir);
+   assert.equal(f.invoke({ channel: SITE_IPC_CHANNELS.list }).length, 3);
+   assert.equal(f.invoke({ channel: SITE_IPC_CHANNELS.list }).length, 3);
+   assert.deepEqual(f.workspace.registry({}).list({}).map((row) => row.path), [first]);
+diff --git a/apps/desktop/src/project-ipc.test.ts b/apps/desktop/src/project-ipc.test.ts
+index 7869c4f1..b2405048 100644
+--- a/apps/desktop/src/project-ipc.test.ts
++++ b/apps/desktop/src/project-ipc.test.ts
+@@ -1027,7 +1027,7 @@ test("a site reads `starting` for its whole boot, not `stopped` until the port o
+   const deps = baseDeps({ transitions });
+   let release = () => {};
+   const booting = new Promise<void>((resolve) => { release = resolve; });
+-  deps.openSiteServer = async (siteDir: string) => { await booting; deps.openSites.set(siteDir, { server: { port: 4321 } }); };
++  deps.openSiteServer = async ({ siteDir }: { siteDir: string; ctx: unknown }) => { await booting; deps.openSites.set(siteDir, { server: { port: 4321 } }); };
+   trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
+ 
+   const starting = handleStart({ id: "/sites/a", deps: deps as typeof deps & Pick<ProjectIpcDeps, "openSiteServer"> }); // assigned just above
+@@ -1137,7 +1137,7 @@ test("handleDelete waits for an in-flight handleStart on the same site instead o
+   const order: string[] = [];
+   let releaseBoot!: () => void; // assigned synchronously by the Promise executor below
+   const booted = new Promise<void>((resolve) => { releaseBoot = resolve; });
+-  deps.openSiteServer = async (id) => {
++  deps.openSiteServer = async ({ siteDir: id }) => {
+     order.push("boot:started");
+     await booted;
+     order.push(fs.existsSync(id) ? "boot:dir-present" : "boot:dir-ERASED");
+diff --git a/apps/desktop/src/workspace-chat-ipc.test.ts b/apps/desktop/src/workspace-chat-ipc.test.ts
+index a28ddb4c..40d400f4 100644
+--- a/apps/desktop/src/workspace-chat-ipc.test.ts
++++ b/apps/desktop/src/workspace-chat-ipc.test.ts
+@@ -85,7 +85,7 @@ function setup({ stream }: { stream?: (input: { runId: string; onEvent: (event:
+     ipcMain: { handle: (channel: string, listener: Handler) => { assert.ok(!handlers.has(channel), `duplicate ${channel}`); handlers.set(channel, listener); } },
+     runtime: Promise.resolve(runtime),
+     conversations: store,
+-    resolveAddressee: ({ siteDir }, _options = {}) => { calls.resolve!.push(siteDir); return siteDir === "/tracked" ? { siteDir, name: "Tracked" } : null; },
++    resolveAddressee: ({ siteDir }: { siteDir: string }, _options = {}) => { calls.resolve!.push(siteDir); return siteDir === "/tracked" ? { siteDir, name: "Tracked" } : null; },
+     listAgents: async (required: { rescan: boolean }) => { calls.listAgents!.push(required); return []; },
+     pickDirectory: async (current?: string) => { calls.pick!.push(current); return "/picked"; },
+   } as unknown as WorkspaceChatIpcDeps;
+@@ -111,7 +111,7 @@ test("every claimed invoke channel gets exactly one handler, and push-only chann
+ });
+ 
+ test("addresseeForStart trusts only a tracked site, never a bare renderer-reported path", () => {
+-  const resolve = (siteDir: string) => (siteDir === "/tracked" ? { siteDir, name: "Tracked" } as never : null);
++  const resolve = ({ siteDir }: { siteDir: string }) => (siteDir === "/tracked" ? { siteDir, name: "Tracked" } as never : null);
+   assert.deepEqual(addresseeForStart({ subscriptionId: "s", prompt: "p", agentId: "a", activeSiteDir: "/tracked" }, resolve), { siteDir: "/tracked", name: "Tracked" });
+   assert.equal(addresseeForStart({ subscriptionId: "s", prompt: "p", agentId: "a", activeSiteDir: "/etc" }, resolve), null);
+   for (const activeSiteDir of [undefined, null, ""]) {
+diff --git a/apps/desktop/src/workspace-conversation-gaps.test.ts b/apps/desktop/src/workspace-conversation-gaps.test.ts
+index 55db2962..545c3f30 100644
+--- a/apps/desktop/src/workspace-conversation-gaps.test.ts
++++ b/apps/desktop/src/workspace-conversation-gaps.test.ts
+@@ -7,7 +7,7 @@ test('desktop gap revisions persist with conversations and survive later message
+   let file: unknown = null;
+   const ports: ConversationStorePorts = {
+     read: () => file === null ? { state: 'missing' } : { state: 'ok', value: file },
+-    write: (_path, value) => { file = structuredClone(value); }, now: () => 1, newId: () => 'chat', withLock: (_path, critical) => critical(),
++    write: (_path, value) => { file = structuredClone(value); }, now: () => 1, newId: () => 'chat', withLock: ({ critical }) => critical(),
+   };
+   const store = createConversationStore({ filePath: 'memory' }, ports);
+   store.create();

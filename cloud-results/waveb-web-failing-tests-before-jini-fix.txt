@@ -1,0 +1,159 @@
+--storage-env moves the site and leaves the connection string in that variable
+../../../inbound/assistant/agent-daemon-server.ts: desktop accepts a loopback OAuth callback; hosted requires HTTPS
+/home/user/Tovu/apps/website/src/cli/__tests__/integration/storage-move.postgres.test.ts
+/home/user/Tovu/apps/website/src/features/database-transfer/__tests__/tool-registrations.postgres.test.ts
+/home/user/Tovu/apps/website/src/features/entries/__tests__/integration/unreadable-owner-entries-repair.postgres.test.ts
+/home/user/Tovu/apps/website/src/features/external-mcp/__tests__/access-choice.postgres.test.ts
+/home/user/Tovu/apps/website/src/features/external-mcp/__tests__/external-mcp-frozen-db.postgres.test.ts
+/home/user/Tovu/apps/website/src/features/members/__tests__/member-external-identities.postgres.test.ts
+/home/user/Tovu/apps/website/src/platform/db/kernel/__tests__/ops.postgres.test.ts
+/home/user/Tovu/apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts
+/home/user/Tovu/apps/website/src/server/runtime/composition/__tests__/move-site-storage.postgres.test.ts
+0000_legacy_baseline on Postgres (PGlite)
+A cancelled delegated confirmation executes zero times and rejects late approval
+API sign-in displays only the declaring plugin oauth card copy
+An expired delegated confirmation executes zero times and rejects late approval
+B6: a busy pre-flight fails every bundled plugin with a reason naming the write lock, installing nothing
+C3 changes zero bytes in historical SQL, metadata, chat steps or checksum pins
+Cancel writes nothing, and a used planId is gone
+HTML create/edit route, native urlencoded POST, confirmation redirect and honeypot discard
+L005: custom usernames, publish discriminators and MCP token hints retain their historical contracts
+MCP provisioning logs each server and reason while preserving activation success
+N-1: an enabled 0.1.0 row boots, admits the packaged provider and serves the packaged bytes
+POST /forms/:slug/submit: AC-13 — a honeypot-tripped request returns the identical 201 accepted response
+POST /forms/:slug/submit: a DB failure in the flash-cookie's own second findBySlug lookup (setFormFlashCookieForValidationFailure) still answers the validation failure — not a hung request
+Postgres compactAndVerify refuses a missing ledger, then passes once it has a step
+Postgres copyTo is refused with what to do instead
+Postgres: concurrent upgrades archive once with stable relation identities; dumps restore all rows
+[pglite] host composition stays dormant, guards configuration, and drains original payments across disabled restart
+[pglite] member purchase settles only from signed paid evidence and survives relay redelivery
+[postgres] activation creates exactly the borrowed catalog once without importing historical rows
+[postgres] an id cannot move ownership, even during explicit reconnect
+[postgres] both natural keys reserve ownership, including unlinked rows
+[postgres] conflicting concurrent inserts produce exactly one owner
+[postgres] explicit connect reuses the marker row and can change the subject
+[postgres] identity round-trip is scoped and independent of email or tokens
+[postgres] listing orders multiple providers and active upserts retain a single row
+[postgres] member purchase settles only from signed paid evidence and survives relay redelivery
+[postgres] records cannot mutate storage through input or output references
+[postgres] unlink survives stale callbacks and is idempotent and workspace-scoped
+[sqlite] configuration before provider keys recovers when the current lease attaches
+[sqlite] host composition stays dormant, guards configuration, and drains original payments across disabled restart
+[sqlite] member purchase settles only from signed paid evidence and survives relay redelivery
+[sqlite] runtime enabling and configuration changes prepare storefront without a setup tool call
+a copied current DB rejects an old history without losing data and reopens on the current release
+a declared API connection connects through the real host: waiting card, then connected card, status and connectionRef only
+a failed connected-card update never turns a real connection into a tool failure
+a failure after the copy rolls the target back and leaves the site on PGlite
+a malformed or unreachable address is refused in the form, nothing is saved, and the password is never quoted
+a non-retryable failure goes terminal at once and is never retried
+a restart never overwrites operator edits: edited, deleted and re-themed rows survive a second prepare byte for byte
+a row written to the target after the emptiness check refuses the copy; nothing is truncated
+a running site is refused; nothing changes
+a signed-in connection receives the reviewed plugin defaults: operator source false
+a signed-in connection receives the reviewed plugin defaults: operator source true
+a target that already holds data is refused; nothing changes
+a transport failure stays redacted — its message can carry an internal address
+an UNLISTED failure stays redacted — the allowlist is not a blanket unwrap
+an existing workspace with the seed's SLUG but a different id is never seeded over: no second workspace, no demo posts
+applies on an empty database and matches schema.postgres.ts at head
+approved grant failure uses safe host guidance; advisory healing warns and continues
+apps/website/src/features/source-control/__tests__/tool-registrations.unit.test.ts
+apps/website/src/platform/db/kernel/__tests__/postgres-pool-error.postgres.test.ts
+apps/website/src/server/__tests__/assistant-byok-routes.test.ts
+apps/website/src/server/__tests__/assistant-proxy-routes.test.ts
+authoring PUT preserves form content with a null body
+authoring PUT preserves form content with a undefined body
+bridge approval still waits for a person's cancel card answer
+bridge approval still waits for a person's confirm card answer
+composed form delivery security [pglite]
+composed form delivery security [sqlite]
+composition preview and the approved provision grant revalidate with the host projections
+cost counters equal the baseline recorded before any move
+counter: token lookup (contribution reload, credential opens) per getAccessToken
+create: a failed event delivery returns 201 and retains the event for retry
+createSiteApp() on a SQLite composition adds no second copy of the serving app's event handlers
+database_transfer_status reports the saved destination, this process's last run and the copy found there
+drain 1: A completes, B is retrying with its next retry time and safe error code
+enabling an Agent Plugin reports live discovery and guidance without a restart
+every registration is still handed to registry.register — the rewrap must not replace registration itself
+exactly enough staging space proceeds, and the staging directory is removed afterwards
+first copy runs headlessly; replacement waits for Copy; the password never shows
+form delivery vertical slice: pull → plan → two destinations through the outbox
+frozen fixture [postgres]: replayed sealed bytes open, refresh under the lease, re-save and survive a reconnect
+gapb member: active survives Trash/list/restore; credentials never revive
+gapb member: disabled survives Trash/list/restore; credentials never revive
+gapb member: memory reader retains email reservation but prevents list/get/update resurrection
+gapb member: pending survives Trash/list/restore; credentials never revive
+host startup IDs reach a typed MCP call and the existing Tovu executor
+independent connections cannot both apply an access decision from the same snapshot
+moved tools, cards, approvals and counters match the golden recorded before any move
+observes real rendered evidence from a real page
+openContentDbReadOnly: never advances a database sitting one migration behind, unlike openContentDb
+overlapping runs isolate grants, credentials and publication and read the live registry at launch
+persisted legacy bytes survive the daemon boundary, failure backoff, and serving delivery
+persisted poison rows get exactly six attempts with the historical retry times and terminal status
+planOriginBoot: a loopback TOVU_PUBLIC_URL in production writes nothing -- never the localhost seed
+plugins_set_enabled: a confirmed enable writes the Agent Plugin's activation record
+plugins_set_enabled: a confirmed in-chat enable also provisions the plugin's declared remote MCP server, exactly like the admin toggle
+plugins_set_enabled: a declined enable writes nothing and says so
+plugins_set_enabled: enabling refuses outright when the execution context has no confirmation channel
+postgres: persisted notifications survive restart, honour 429 delay and stop uncertain resend
+postgres: restart after acceptance before ledger mark does not send twice
+postgres: transactions commit, roll back and nest on a pooled connection
+postgres: two creates of one id, B blocked on A's uncommitted insert — A lands, B gets the version conflict
+postgres: two import-as-creates of one id, B blocked on A's uncommitted insert — one row, one revision, one event; B is a version conflict
+postgres: two writers on the same base version, B blocked on A's row lock — A lands, B gets the version conflict
+processOutbox schedules a retryable form-delivery failure on the webhook backoff, not the 15 s default
+put-entry: a trashed entry returns 409 ENTITY_IN_TRASH without changing its SEO
+real PostgreSQL passkey completion has one winner, atomic session rollback, and recovery clears credentials
+refuses a target other than postgres, and a --storage-env that is not set
+resolveConfiguredOrigin defaults to console warnings and the process environment
+resolveConfiguredOrigin: a backslash in the raw value is refused with the exact warning
+resolveConfiguredOrigin: a fragment is refused with the exact warning
+resolveConfiguredOrigin: a non-http(s) scheme is refused with the exact warning
+resolveConfiguredOrigin: a query string is refused with the exact warning
+resolveConfiguredOrigin: a userinfo component is refused with the exact warning
+resolveConfiguredOrigin: an http URL is refused with the exact warning (ADR-040 https-only)
+resolveConfiguredOrigin: an unparseable value is refused with the exact warning
+resolveConfiguredOrigin: every loopback identity is refused
+resolveConfiguredOrigin: https://localhost:3000 -- this repo's own .env value -- is refused as a loopback host
+runner-to-head, then prepare twice: one watermark row, one seeded workspace with its posts and presentation
+security: a token a plugin kept in module scope is withheld in a LATER tool call, surface call and state write (one memory per generation)
+security: one token memory across seams: a token a SURFACE handler obtained is withheld from a tool's output
+security: one token memory across seams: a token a TOOL obtained is withheld from a surface answer
+security: the composition gives the assistant's tool registrar and the admin screen's connections ONE frozen-account map, so an admin action the assistant runs is pinned
+security: the shared connection port refuses another workspace's target and reads no account for it
+set_token: a seal failure that quotes the submitted token never reaches the model, the outcome resource, or the log
+signin-lab: member tool delete uses Trash, revokes sessions, restores and purges
+sqlite: persisted notifications survive restart, honour 429 delay and stop uncertain resend
+sqlite: restart after acceptance before ledger mark does not send twice
+startup discovery excludes forbidden and ungranted permanent deletes despite diagnostic IDs
+startup publication prioritizes late theme tools within the budget and preserves remaining catalog order
+step 5: boot enables and admits the bundled provider; disable/reboot preserves the owner's row
+t10 media callback delivers a human key only to its parked call, rejects wrong principals and replay
+the chat history lands in ai_chat with its own ledger there; public gets no chat table
+the confirmation dialog is a real MCP-UI resource naming the plugin, and calls back into THIS tool id
+the content history through the current head applies on real Postgres
+the model never passes a connection string: no tool takes one, and the plan asks for the private form first
+the move copies every table, seals the secret, switches the meta last, and the site boots on Postgres
+the outbox ledger records only allowlisted codes, whatever the adapter threw or returned
+the packaged hosted form keeps the same consent and fallback markup through static HTML and ZIP
+the private form saves a reachable destination, and neither the form, its result nor the log shows the password
+the program routes `storage move` to the command
+the registered connect handler resolves a real installed plugin and reuses its saved sign-in and approved access
+the same packaged plan delivers ordinarily in explicit consent-off mode
+the toolRegistrations registration loop
+two connections WITH lockKey: the second append waits and chains after the first
+two connections WITHOUT lockKey: both appends read the same latest row (the hazard is real)
+two connections migrating at once apply a step exactly once
+two processes booting at once: the mismatched rows go exactly once, one marker, readable rows survive
+two processes booting at once: the second prepare WAITS on the seed lock the first holds, then seeds nothing twice
+two static form exports agree when time and occurrence identifiers are controlled
+typed and legacy bridge ingress preserve the executor's confirm decision
+typed and legacy bridge ingress preserve the executor's deny decision
+typed and legacy calls recheck authorization after publication
+vendor neutrality end to end: a second provider plugin connects, stores sealed tokens, runs a confirmed write tool, a surface action and a push form delivery
+vertical slice: a surface reads status, starts a pick sign-in, takes its callback field once, saves state, and a tool reads it
+vertical slice: connect -> public callback -> executable tool call -> admin-surface action, all through the composition
+with no poll interval or wait bound configured, the built-in defaults still let a finished sign-in connect
