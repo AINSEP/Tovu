@@ -86,7 +86,44 @@ function planCarriesRawRows(report: PublishContentReport): boolean {
 }
 
 /** Returned by `rawPlanPreview` once it has sent the 403. */
+/** What a gated import apply reports back through the gateway. */
+type PublishContentImportApplied = {
+  restorePointId: string;
+  runId: string;
+  changeSetIds: readonly string[];
+  retiredChangeSetIds: readonly string[];
+  repointChangeSetIds: readonly string[];
+  menuLinksUpdated: number;
+  menuLinksNotUpdated: readonly string[];
+  verificationProblems: readonly string[];
+};
+
 const RAW_VALUES_REFUSED = Symbol("raw-values-refused");
+
+/** Responds 403 and returns false unless the principal may apply an import. */
+async function authorizeImportApply(
+  required: { res: Response; deps: Parameters<PublishContentRouteRegistrar>[0]["deps"]; principalId: string },
+  _optional = {},
+): Promise<boolean> {
+  const { res, deps, principalId } = required;
+  // Pre-check mirroring `database/migrate-forward.ts`'s AUD-001 fix: authorize BEFORE the
+  // costClass refusal ever runs, so an authenticated-but-unauthorized caller cannot learn this
+  // workspace's restore-point capability at all. `gateway.execute()`'s own fresh authorize()
+  // (CIC U-001) remains the authoritative check and is unchanged by this.
+  const preCheck = await authorizeForHooks({
+    deps: withPublishTrustAuthorize(res, deps.gatedMutations.gatewayDeps),
+    hooks: confirmOnlyHooks({ workspaceId: deps.workspaceId }),
+    required: { principalId, permission: "publish_content.apply" },
+  });
+  if (!preCheck.allowed) {
+    res.status(403).json({
+      error: `principal '${principalId}' is not authorized for 'publish_content.apply' (${preCheck.reason})`,
+      code: "NOT_AUTHORIZED",
+    });
+    return false;
+  }
+  return true;
+}
 
 export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   function buildHooks({ bundleId, actorId, res, overwriteEntityKeys }: { bundleId: string; actorId: string; res: Response; overwriteEntityKeys: readonly string[] | null }, _options: Record<string, never> = {}) {
@@ -227,22 +264,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
       const overwriteEntityKeys = acceptOverwriteEntityKeys({ res, raw: body.overwriteEntityKeys, mayOverwrite });
       if (overwriteEntityKeys === OVERWRITE_REFUSED) return;
 
-      // Pre-check mirroring `database/migrate-forward.ts`'s AUD-001 fix: authorize BEFORE the
-      // costClass refusal ever runs, so an authenticated-but-unauthorized caller cannot learn this
-      // workspace's restore-point capability at all. `gateway.execute()`'s own fresh authorize()
-      // (CIC U-001) remains the authoritative check and is unchanged by this.
-      const preCheck = await authorizeForHooks({
-        deps: withPublishTrustAuthorize(res, deps.gatedMutations.gatewayDeps),
-        hooks: confirmOnlyHooks({ workspaceId: deps.workspaceId }),
-        required: { principalId: principal.id, permission: "publish_content.apply" },
-      });
-      if (!preCheck.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'publish_content.apply' (${preCheck.reason})`,
-          code: "NOT_AUTHORIZED",
-        });
-        return;
-      }
+      if (!(await authorizeImportApply({ res, deps, principalId: principal.id }))) return;
 
       const hooks = buildHooks({ bundleId, actorId: principal.id, res, overwriteEntityKeys });
       const capabilities = await deps.dbOps.getCapabilities();
@@ -254,19 +276,7 @@ export const registerPublishContentImportRoutes: PublishContentRouteRegistrar = 
             deps: withPublishTrustAuthorize(res, deps.gatedMutations.gatewayDeps),
             principalId: principal.id,
             principalKind: gatedPrincipalKindFor(getAuthedCredentialKind(res)),
-            hooks: hooks as unknown as GatedMutationHooks<
-              unknown,
-              {
-                restorePointId: string;
-                runId: string;
-                changeSetIds: readonly string[];
-                retiredChangeSetIds: readonly string[];
-                repointChangeSetIds: readonly string[];
-                menuLinksUpdated: number;
-                menuLinksNotUpdated: readonly string[];
-                verificationProblems: readonly string[];
-              }
-            >,
+            hooks: hooks as unknown as GatedMutationHooks<unknown, PublishContentImportApplied>,
             confirmationToken,
           }),
       });
