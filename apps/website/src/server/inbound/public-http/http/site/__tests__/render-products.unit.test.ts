@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildTemplateRenderData, type SiteProduct, type SiteRenderContext } from "../render.js";
+import { type SiteProduct, type SiteRenderContext } from "../render.js";
+import { buildTemplateRenderData } from "../render/template-render-data.js";
 
 /**
  * @file Focused, isolated coverage for `buildTemplateRenderData`'s product mapping (2026-08-12:

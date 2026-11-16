@@ -2,7 +2,8 @@ import Handlebars from "handlebars";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { lintHandlebarsTemplate } from "#src/features/theme/handlebars-allowlist";
-import { buildTemplateRenderData, renderBlockSeam, type SiteRenderContext } from "./render.js";
+import { renderBlockSeam, type SiteRenderContext } from "./render.js";
+import { buildTemplateRenderData } from "./render/template-render-data.js";
 import type { HandlebarsWorkerInput, HandlebarsWorkerResult } from "./handlebars-sandbox.js";
 
 /**

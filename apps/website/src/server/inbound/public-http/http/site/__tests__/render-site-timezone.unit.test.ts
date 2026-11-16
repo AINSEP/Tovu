@@ -4,7 +4,8 @@ import test from "node:test";
 import type { PublicPostRecord } from "#src/features/post/index";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import { runLiquidRender } from "../liquid-render.js";
-import { buildTemplateRenderData, renderSite, type SiteRenderContext } from "../render.js";
+import { renderSite, type SiteRenderContext } from "../render.js";
+import { buildTemplateRenderData } from "../render/template-render-data.js";
 
 /**
  * @file Bug D follow-up (2026-10-22): the day a template shows for a post is the SITE's calendar day,

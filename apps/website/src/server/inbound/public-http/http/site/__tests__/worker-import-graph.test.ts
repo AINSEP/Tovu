@@ -98,10 +98,10 @@ const FORBIDDEN_FORM_SERVICES = /\/(?:packages\/cms|node_modules\/@jini-ai\/cms)
  * and CMS plugin-export/consent-category/server-fragment (9ed0d7d5d). They produce or validate
  * rendered HTML; retain a small margin for them while banning non-rendering forms code explicitly.
  */
-// raised by 25 for the render.ts split into feature files (no new code); owner 2026-11-16
+// raised by 26 for the render.ts split into feature files (no new code); owner 2026-11-16
 const WORKER_MODULE_BUDGETS = {
-  "handlebars-worker.ts": 190,
-  "liquid-worker.ts": 150,
+  "handlebars-worker.ts": 191,
+  "liquid-worker.ts": 151,
 } as const;
 
 /** Loads one entry in a bounded child, preserving errors so incomplete graphs cannot pass.
