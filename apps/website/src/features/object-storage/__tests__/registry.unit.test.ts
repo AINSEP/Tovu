@@ -8,7 +8,8 @@ import { OBJECT_STORE_CONTRACT } from "@jini-ai/core/object-store";
 
 import { composedBundledSourceRoot } from "../../agent-plugins/__tests__/fixtures/bundled-source-root.js";
 import type { LoadPluginContributions } from "../../agent-plugins/lifecycle.js";
-import { loadBundledObjectStoreRegistry, loadObjectStoreRegistry, OBJECT_STORES_FILENAME, parseObjectStoresFile, type TovuObjectStoreProvider } from "../registry.js";
+import { parseObjectStoresFile } from "@jini-ai/platform/object-store";
+import { loadBundledObjectStoreRegistry, loadObjectStoreRegistry, OBJECT_STORES_FILENAME, type TovuObjectStoreProvider } from "../registry.js";
 
 /**
  * @file Tovu's object-store provider registry: the `tovu-object-stores.json` manifest parser, the
