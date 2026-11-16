@@ -1,6 +1,6 @@
 import { isNonArrayRecord } from "@jini-ai/core";
 import type { RepositoryTargetValidator } from "../source-control/provider-module.js";
-import { repositoryTargetError } from "../source-control/repository-target.js";
+import { repositoryTargetError } from "@jini-ai/devops/source-control";
 
 import { CustomCredentialValidationError } from "./store.js";
 
@@ -13,7 +13,7 @@ import { CustomCredentialValidationError } from "./store.js";
  * filesystem call" split.
  *
  * Owner and repo are the one exception to "before the credential is resolved": their rules belong to
- * the git host (`features/source-control/repository-target.ts`: the host plugin's own
+ * the git host (`repositoryTargetError` in `@jini-ai/devops/source-control`: the host plugin's own
  * `validateTarget`, then a generic one-path-segment rule), and the host is known only from the saved
  * credential's base URL. So {@link validateRepositoryTarget} runs once the caller has picked the
  * provider from that URL, still before any decrypt, network call or dialog.
@@ -95,7 +95,7 @@ export interface ValidatedWriteFilesInput extends WriteFilesRequest {
 export function validateRepositoryTarget(target: { owner: unknown; repo: unknown }, validateTarget?: RepositoryTargetValidator): { owner: string; repo: string } {
   if (typeof target.owner !== "string") throw new CustomCredentialValidationError(`invalid owner '${String(target.owner)}'`);
   if (typeof target.repo !== "string") throw new CustomCredentialValidationError(`invalid repo '${String(target.repo)}'`);
-  const error = repositoryTargetError({ owner: target.owner, repo: target.repo }, validateTarget);
+  const error = repositoryTargetError({ owner: target.owner, repo: target.repo }, { validateTarget });
   if (error !== null) throw new CustomCredentialValidationError(error);
   return { owner: target.owner, repo: target.repo };
 }

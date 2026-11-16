@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { repositoryTargetError } from "../repository-target.js";
+import { repositoryTargetError } from "@jini-ai/devops/source-control";
 
 // F4.4: each fixture violates only the field under test, without a provider-specific guard.
 test("generic owner and repo reject separators, whitespace, controls, dot segments and overlong names", () => {
@@ -15,9 +15,9 @@ test("generic owner and repo reject separators, whitespace, controls, dot segmen
 
 test("host refusal wins before generic validation, and a host approval still gets generic validation", () => {
   const seen: unknown[] = [];
-  assert.equal(repositoryTargetError({ owner: "a/b", repo: "repo" }, (p) => { seen.push(p); return "host refuses owner"; }), "host refuses owner");
+  assert.equal(repositoryTargetError({ owner: "a/b", repo: "repo" }, { validateTarget: (p) => { seen.push(p); return "host refuses owner"; } }), "host refuses owner");
   assert.deepEqual(seen, [{ owner: "a/b", repo: "repo" }]);
-  assert.equal(repositoryTargetError({ owner: "team", repo: "a/b" }, () => null), "invalid repo 'a/b'");
+  assert.equal(repositoryTargetError({ owner: "team", repo: "a/b" }, { validateTarget: () => null }), "invalid repo 'a/b'");
 });
 
 // BUG probe (F4.4): a final line terminator must not evade the one-path-segment rule.
