@@ -26,6 +26,7 @@ for (const retryable of [true, false]) test(`outbox persists notification failur
   const outbox = { enqueue: async () => {}, claimPending: async () => [{ id: event.id, event, status: 'processing' as const, attempts: 1, nextAttemptAt: now, createdAt: now }], markDelivered: async () => assert.fail('failed mail is never delivered'), markFailed: async (failure: { nextStatus: 'pending' | 'failed'; error: string; nextAttemptAt: string }) => { failures.push(failure); } };
   await processOutbox({ outbox, bus, clock: { nowMs: () => Date.parse(now) } }, { random: () => 0 });
   assert.equal(failures[0]!.nextStatus, retryable ? 'pending' : 'failed');
-  assert.match(failures[0]!.error, /Form notification failed/);
+  // The outbox records describeErrorForLog's fixed class label, not the message (Jini infra outbox/worker.ts, bc545d4d).
+  assert.equal(failures[0]!.error, 'Error');
   assert.ok(Date.parse(failures[0]!.nextAttemptAt) > Date.parse(now));
 });

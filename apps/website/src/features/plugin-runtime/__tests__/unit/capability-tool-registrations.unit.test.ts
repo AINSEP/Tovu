@@ -534,7 +534,7 @@ test("an enabled plugin that declares no fields, or none in its own namespace, p
   assert.deepEqual(sources, []);
 });
 
-test("an activation read that throws a non-Error denies the call and logs the thrown value", async (t) => {
+test("an activation read that throws a non-Error denies the call and logs only its type, never the thrown text (describeErrorForLog)", async (t) => {
   const warn = t.mock.method(console, "warn", () => undefined);
   const [registration] = buildPluginCapabilityToolRegistrations({ sources: [WORD_COUNT_SOURCE], deps: deps({
     pluginActivationRepo: Object.assign(activationRepoWith([]), {
@@ -547,7 +547,7 @@ test("an activation read that throws a non-Error denies the call and logs the th
   const decision = await registration.policy.authorize(toolContext({ postId: "post-1" }));
   assert.equal(decision, "deny");
   assert.deepEqual(warn.mock.calls.map((call) => call.arguments[0]), [
-    "[plugin-runtime] 'word-count': capability tool call denied — its activation record could not be read (locked)",
+    "[plugin-runtime] 'word-count': capability tool call denied — its activation record could not be read (string)",
   ]);
 });
 

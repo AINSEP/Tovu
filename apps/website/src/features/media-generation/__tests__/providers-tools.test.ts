@@ -41,7 +41,9 @@ test('t10 media callback delivers a human key only to its parked call, rejects w
   let handler!: (req: Request, res: Response) => Promise<void>;
   // Invoke the registered production handler directly: no HTTP listener or transport mock.
   registerMcpUiToolCallsRoute({ post: (path: string, callback: typeof handler) => {
-    assert.equal(path, MCP_UI_TOOL_CALLS_PATH); handler = callback;
+    assert.equal(path, MCP_UI_TOOL_CALLS_PATH);
+    // asyncRoute's wrapper returns before the handler finishes; the restore-on-miss path is async, so await the real handler.
+    handler = (callback as unknown as { handler: typeof handler }).handler;
   } } as unknown as Express, {
     surfaceExchanges: f.surfaces,
     toolExecutor: { execute: async () => assert.fail('human secrets must never enter a fresh tool execution') } as unknown as ToolExecutor,

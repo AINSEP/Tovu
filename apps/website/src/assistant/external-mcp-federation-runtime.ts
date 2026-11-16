@@ -111,8 +111,9 @@ export function createFederationRuntime(params: CreateFederationRuntimeParams): 
   const presetRegistry = params.presetRegistry ?? createFederatedMcpPresetRegistry({});
   const attach = params.attach ?? attachFederatedMcpTools;
   const logger: FederationLogger = {
-    info: ({ message }) => console.log(`${params.log} ${message}`),
-    warn: ({ message }) => console.warn(`${params.log} ${message}`),
+    // The original error (Jini's `{ error }` host-sink argument) rides along as a second console argument.
+    info: ({ message }, { error } = {}) => console.log(...(error === undefined ? [`${params.log} ${message}`] : [`${params.log} ${message}`, error])),
+    warn: ({ message }, { error } = {}) => console.warn(...(error === undefined ? [`${params.log} ${message}`] : [`${params.log} ${message}`, error])),
   };
 
   let mergedReports: AttachFederatedToolsResultReports = [];

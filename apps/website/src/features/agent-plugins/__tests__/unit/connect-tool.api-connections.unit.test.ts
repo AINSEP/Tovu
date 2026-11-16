@@ -23,7 +23,7 @@ import { InMemoryExternalMcpServerRepo } from "../../../external-mcp/external-mc
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import {
-  PLUGIN, PUBLIC_URL, WORKSPACE, accessToken, compose, followConsent, providerUrlOf, mountCallback, refreshToken, startAcmeProvider, stopAcmeProvider, type AcmeComposition,
+  PLUGIN, WORKSPACE, accessToken, compose, followConsent, providerUrlOf, mountCallback, refreshToken, startAcmeProvider, stopAcmeProvider, type AcmeComposition,
 } from "#src/server/runtime/composition/__tests__/fixtures/acme-provider";
 import { runAgentPluginConnect, type AgentPluginConnectToolDeps } from "../../connect-tool.js";
 
@@ -79,9 +79,9 @@ test("a declared API connection connects through the real host: waiting card, th
   assert.equal(typeof result.connectionRef, "string");
   assert.deepEqual(Object.keys(result).sort(), ["connectionRef", "status"]);
   assert.equal(cards.length, 2);
-  // F1: the card links to the host's sign-in link on the site's public address; the provider URL
-  // (with its state) never reaches the transcript.
-  assert.equal(new URL(signInUrlOf(cards[0]!)).origin, PUBLIC_URL);
+  // F1: the card links to the host's own same-origin sign-in PATH (Jini hands hosted cards a path, resolved
+  // against the page's origin); the provider URL (with its state) never reaches the transcript.
+  assert.match(signInUrlOf(cards[0]!), /^\/api\/admin\/v1\/workspaces\/[^/]+\/agent-plugins\/connections\/sign-in\/[A-Za-z0-9_-]{43}$/);
   assert.doesNotMatch(cards[0]!, /auth\.acme\.test/);
   assert.ok(!cards[0]!.includes(providerUrlOf(signInUrlOf(cards[0]!)).searchParams.get("state")!), "the OAuth state is not on the card");
   assert.match(providerUrlOf(signInUrlOf(cards[0]!)).hostname, /^auth\.acme\.test$/);

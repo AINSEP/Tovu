@@ -11,6 +11,7 @@ import { contributeWorkspaceTools } from "../../features/workspace/tool-registra
 
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
+import { createRetiredReadToolIdRewriter, RETIRED_READ_TOOL_TO_CARD } from "../content-read-tool.js";
 
 const contributions = {
   contributors: createContributionRegistry({ keyOf: ({ contribution }: { contribution: OwnedToolContributor }) => contribution.domain }),
@@ -71,6 +72,14 @@ function wired(deps: RegistryDepsWithoutLimiter, toolId: string): ToolRegistrati
   return found;
 }
 
+const rewriteRetiredIds = createRetiredReadToolIdRewriter({ retiredIds: new Set(RETIRED_READ_TOOL_TO_CARD.keys()) });
+
+/** A catalog entry's description and schema as the assistant publishes them (retired read ids rewritten). */
+function publishedForm(entry: WorkspaceAgentToolDefinition): { description: string | undefined; inputSchema: unknown } {
+  const { descriptor } = rewriteRetiredIds({ descriptor: { id: entry.name, description: entry.description, inputSchema: entry.inputSchema } } as unknown as ToolRegistration);
+  return { description: descriptor.description, inputSchema: descriptor.inputSchema };
+}
+
 function catalogEntry(toolId: string): WorkspaceAgentToolDefinition {
   const entry = getWorkspaceAgentToolCatalog().find((tool) => tool.name === toolId);
   assert.ok(entry, `catalog has no entry for '${toolId}'`);
@@ -119,8 +128,12 @@ test("every wired workspace registration publishes its catalog entry's inputSche
     // `buildDomainRegistrations` gate against its OWN catalog at construction time, and this
     // file could not have built its registrations at all had that thrown.
     if (id === "content_read.workspace") continue;
-    assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's`);
-    assert.equal(registration.descriptor.description, catalogEntry(id).description);
+    // The assistant publishes each description through the retired-read-id rewrite (a retired read tool
+    // id in the text becomes the card that serves it now), so the catalog text is compared after that
+    // same pass — "workspace_get" in the catalog reads "content_read.workspace" on the wire.
+    const published = publishedForm(catalogEntry(id));
+    assert.deepEqual(registration.descriptor.inputSchema, published.inputSchema, `${id}'s published schema must be its catalog entry's`);
+    assert.equal(registration.descriptor.description, published.description);
   }
 });
 

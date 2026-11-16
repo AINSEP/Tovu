@@ -50,7 +50,9 @@ test('approved grant failure uses safe host guidance; advisory healing warns and
   const f = await fixture(); const fault = new Error('storage failed');
   const deps = { ...f.grant, onConnected: async () => { throw fault; } };
   await grantDeclaredToolsToSignedInRows({ deps, pluginId: 'crm-plugin', servers });
-  assert.equal(f.warnings.length, 1); assert.match(f.warnings[0]!, /storage failed/);
+  assert.equal(f.warnings.length, 1);
+  // Log lines carry the fixed class label, never the message (Jini describeErrorForLog, bc545d4d).
+  assert.match(f.warnings[0]!, /could not turn on the 'crm' connection.*— Error$/); assert.doesNotMatch(f.warnings[0]!, /storage failed/);
   await assert.rejects(grantDeclaredToolsToSignedInRows({ deps, pluginId: 'crm-plugin', servers }, { approvedEnable: { principalId: 'owner', accessKey: 'approved' } }), error => error instanceof ToolInputError && error.message === 'acme enable crm: storage failed');
 });
 

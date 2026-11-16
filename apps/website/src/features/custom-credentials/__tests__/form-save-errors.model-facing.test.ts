@@ -186,7 +186,7 @@ test("set_token: a seal failure that quotes the submitted token never reaches th
   assertNowhere("set_token", { "model-facing result": wireText, "run events (outcome resource)": eventsText, log: harness.logLines.join("\n") }, LEAK_MARKER);
   assert.deepEqual(structuredOutput(wireText), { reason: "error", message: SECRET_STORE_MESSAGE });
   assert.equal(harness.logLines.length, 1, harness.logLines.join("\n"));
-  assert.match(harness.logLines[0]!, /credential_save: save failed .*error=CustomCredentialSecretStoreUnconfiguredError/);
+  assert.match(harness.logLines[0]!, /credential_save: save failed .*error=Error$/); // fixed class label, not the subclass name (describeErrorForLog, d68cdd24)
 });
 
 test("set_token: the SHIPPED keyring's missing-site key text (env var name, absolute key-file path) never reaches the model or the human", async () => {

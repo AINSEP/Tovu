@@ -31,7 +31,8 @@ export function trackStartingBrowser(required: { readonly host: ApiConnectionHos
     return id;
   };
   return {
-    providerUrl(link) { return links.get(new URL(link).pathname.split("/").at(-1) ?? "") ?? link; },
+    // Jini hands hosted cards the same-origin PATH (integrations connect.ts), so parse against a throwaway base.
+    providerUrl(link) { return links.get(new URL(link, "http://same-origin.invalid").pathname.split("/").at(-1) ?? "") ?? link; },
     cookieFor(url): Readonly<Record<string, string>> {
       const binding = bindings.get(new URL(url).searchParams.get("state") ?? "");
       return binding === undefined ? {} : { cookie: `${API_CONNECTION_BINDING_COOKIE}=${binding}` };

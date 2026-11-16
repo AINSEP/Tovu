@@ -27,8 +27,9 @@ test("definition listing omits stored HTML while retaining authoring metadata", 
   assert.ok(tool);
   const context: ToolExecutionContext = { executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, input: {}, signal: new AbortController().signal };
   const result = await tool.handler(context);
-  assert.deepEqual(result, { definitions: records.map(({ id, name, slug, status, fields, notify, mode }) => ({
-    id, name, slug, status, fields, notify,
+  assert.deepEqual(result, { definitions: records.map(({ id, name, slug, status, fields, notify, mode, version }) => ({
+    // `version` is listed so an agent can pass it back as expectedVersion on update (lost-update guard, Jini cms forms).
+    id, name, slug, status, fields, notify, version,
     ...(mode === undefined ? {} : { mode }),
   })) });
 });

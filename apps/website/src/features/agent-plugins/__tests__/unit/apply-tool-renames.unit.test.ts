@@ -188,7 +188,7 @@ test("a plugin listing that throws is a warning, never a boot failure", async ()
     }),
     { info: (m) => logs.push(m), warn: (m) => logs.push(m) },
   );
-  assert.deepEqual(logs, ["[agent-plugins] could not list plugins to apply tool renames: package store unreadable"]);
+  assert.deepEqual(logs, ["[agent-plugins] could not list plugins to apply tool renames: Error"]); // fixed class label, not the message (describeErrorForLog)
 });
 
 for (const operation of ["findByServerId", "upsert"] as const) {
@@ -219,7 +219,7 @@ for (const operation of ["findByServerId", "upsert"] as const) {
     assert.deepEqual(JSON.parse(later.writeAllowedToolNames!), ["query_logs"]);
     assert.equal(h.notifications(), 1);
     assert.deepEqual(h.logs, [
-      "warn: [agent-plugins] could not apply the 'supabase' plugin's tool renames to 'supabase': repository unavailable",
+      "warn: [agent-plugins] could not apply the 'supabase' plugin's tool renames to 'supabase': Error",
       "info: [agent-plugins] 'later': renamed saved tools to follow the 'supabase' plugin (get_logs -> query_logs).",
     ]);
   });
@@ -267,10 +267,10 @@ test("tool renames still notify after a successful write when its info logger th
   }), { info: () => { throw new Error("logger unavailable"); }, warn: (message) => { warnings.push(message); } });
   assert.equal((await h.read()).allowedToolNames, '["query_logs"]');
   assert.equal(notified, 1);
-  assert.deepEqual(warnings, ["[agent-plugins] could not apply the 'supabase' plugin's tool renames to 'supabase': logger unavailable"]);
+  assert.deepEqual(warnings, ["[agent-plugins] could not apply the 'supabase' plugin's tool renames to 'supabase': Error"]);
 });
 
-test("a non-Error thrown by the plugin listing is still reported as text", async () => {
+test("a non-Error thrown by the plugin listing is reported by its typeof, never its text", async () => {
   const logs: string[] = [];
   await applyAgentPluginToolRenames(
     testSiteLayoutContext({
@@ -280,7 +280,7 @@ test("a non-Error thrown by the plugin listing is still reported as text", async
     }),
     { info: (m) => logs.push(m), warn: (m) => logs.push(m) },
   );
-  assert.deepEqual(logs, ["[agent-plugins] could not list plugins to apply tool renames: listing offline"]);
+  assert.deepEqual(logs, ["[agent-plugins] could not list plugins to apply tool renames: string"]);
 });
 
 test("without an injected listing, the workspace's installed plugins are read (none here) and nothing is touched", async (t) => {
@@ -314,11 +314,11 @@ test("an empty stored read list counts as no tools, not as an unreadable list", 
   assert.deepEqual(JSON.parse((await h.read()).writeAllowedToolNames ?? "null"), ["query_logs"]);
 });
 
-test("a non-Error upsert failure is reported as text and the row is kept", async () => {
+test("a non-Error upsert failure is reported by its typeof, never its text, and the row is kept", async () => {
   const h = await makeHarness({ allowedToolNames: "get_logs" });
   const before = await h.read();
   h.repo.upsert = async () => { throw "disk full"; };
   await h.run();
   assert.deepEqual(await h.read(), before);
-  assert.deepEqual(h.logs, ["warn: [agent-plugins] could not apply the 'supabase' plugin's tool renames to 'supabase': disk full"]);
+  assert.deepEqual(h.logs, ["warn: [agent-plugins] could not apply the 'supabase' plugin's tool renames to 'supabase': string"]);
 });

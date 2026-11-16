@@ -79,6 +79,9 @@ const DYNAMIC_BINDINGS = new Map<string, ReadonlySet<string>>([
   // All five replacement tools are exercised against real exchanges by theme-file-safety.test.ts.
   ["features/theme/file-mutation-tools.ts", new Set(["description"])],
   ["assistant/ask-choice-tool.ts", new Set(["toolId"])],
+  // The ask-choice store adapter forwards the Jini open() args untouched; assistant_ask_choice is already
+  // listed as a parameterised exchange id above, so the id stays covered.
+  ["assistant/ask-choice-custom-answer.ts", new Set(["args"])],
   ["features/settings/tool-registrations.ts", new Set(["toolId"])],
   // The copy tool receives the host-bound credential_copy_from_project id; Jini owns the exchange.
   ["features/custom-credentials/credential-copy-tool.ts", new Set(["toolId"])],
@@ -108,6 +111,8 @@ const NON_EXCHANGE_OPEN_CALLS = new Map<string, ReadonlySet<string>>([
     })`])],
   // 9abe6503d: the Tovu sealer opens through a per-call Jini sealer that wraps its keyring.
   ["features/webhooks/secret-sealer.aesgcm.ts", new Set(["new JiniSecretSealer({ keyring }).open(input, optional)"])],
+  // The import-local CLI opens a bounded archive FILE with fs.promises.open; nothing to do with an exchange.
+  ["cli/commands/import-local.ts", new Set([`fsp.open(file, "r")`])],
   ["features/plugin-runtime/source-tools.ts", new Set(["port.open({ id: pluginId }, {})"])],
   ["features/vendor-credentials/vault-adapter.ts", new Set(["required.sealer.open(input, options)"])],
   ["server/runtime/composition/site-key-recovery.ts", new Set(["input.previous.open(required, options)"])],
@@ -119,7 +124,7 @@ const NON_EXCHANGE_OPEN_CALLS = new Map<string, ReadonlySet<string>>([
   // 2b0e2d7d9: member OIDC login unseals its redirect state and emailed-code continuation.
   ["features/member-login/oidc-login.ts", new Set([
     "stateless.open({ state: input.params.state, ownerKey, providerId: config.provider.id, redirectUri: config.redirectUri })",
-    "continuationCodec(deps, input, config.version).open({ state: input.continuation })",
+    "continuationCodec({ deps, input, version: config.version }).open({ state: input.continuation })", // object-args form of the same reviewed call
   ])],
 ]);
 

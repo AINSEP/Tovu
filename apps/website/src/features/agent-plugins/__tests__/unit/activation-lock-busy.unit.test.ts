@@ -196,7 +196,7 @@ test("B5: a lock LOST right before the rename maps to AgentPluginActivationsBusy
   }
 });
 
-test("B6: a busy pre-flight fails every bundled plugin with a reason naming the write lock, installing nothing", async () => {
+test("B6: a busy pre-flight fails every bundled plugin with the fixed class label (no lock path), installing nothing", async () => {
   const cwd = await mkdtemp(path.join(os.tmpdir(), "tovu-seed-lock-busy-"));
   const bundledRoot = await mkdtemp(path.join(os.tmpdir(), "tovu-seed-lock-busy-bundled-"));
   try {
@@ -210,7 +210,9 @@ test("B6: a busy pre-flight fails every bundled plugin with a reason naming the 
     const outcome = result.outcomes[0] as { pluginId: string; status: string; reason?: string };
     assert.equal(outcome.pluginId, "mini-bundled");
     assert.equal(outcome.status, "failed");
-    assert.match(outcome.reason ?? "", /write lock/);
+    // Jini's seed path reports failures through describeErrorForLog (log lines carry fixed words,
+    // bc545d4d / d68cdd24): the busy error's message, which quotes the host lock path, is never the reason.
+    assert.equal(outcome.reason, "Error");
   assert.deepEqual(await listInstalledPlugins({ workspaceRoot: layout.forWorkspace({ workspaceId: WORKSPACE_ID }).root }), []);
   } finally {
     behavior = realFsp.open;

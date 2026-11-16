@@ -236,7 +236,7 @@ test("magic-link limiter shares normalized email budget and authorization denial
 test("a repository conflict is model-facing while an unexpected auth error remains redacted", async () => {
   for (const [error, expected] of [
     [new MemberConflictError("member update conflicted"), { code: "BAD_REQUEST", message: "MEMBERS_CONFLICT: member update conflicted" }],
-    [new MemberAuthError("sign-in link was already used"), { code: "INTERNAL_ERROR", message: "an internal error occurred" }],
+    [new MemberAuthError("sign-in link was already used"), { code: "INTERNAL_ERROR", message: "The tool could not run because of a server fault. Do not retry the same call; tell the user to copy the request ID and report this problem." }], // Jini daemon delegated-tools.ts (44ae8070): fixed server-fault guidance
   ] as const) {
     const deps = makeRouteDeps();
     deps.memberRepo.findById = async () => { throw error; };

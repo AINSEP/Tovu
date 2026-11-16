@@ -83,7 +83,7 @@ for (const status of ["active", "pending", "disabled"]) {
     assert.deepEqual(await h.move(), { ok: true, version: 2 });
     assert.equal((await h.members.findByEmail({ workspaceId: WS, email: stale.email }))!.credentialsRevokedAt, AT);
     assert.equal(await h.members.findById({ workspaceId: WS, id: "member-1" }), null);
-    assert.deepEqual((await h.members.list({ workspaceId: WS })).map(m => m.id), ["member-2"]);
+    assert.deepEqual((await h.members.list({ workspaceId: WS })).items.map(m => m.id), ["member-2"]);
     assert.equal((await h.members.findByEmail({ workspaceId: WS, email: stale.email }))!.status, "trash", "email stays reserved");
     await assert.rejects(h.members.save(stale), { message: "member changed or is in Trash; re-read it before updating" });
     const page = await h.trash.list({ workspaceId: WS, now: AT, limit: 50 });
@@ -170,7 +170,7 @@ test("gapb member: memory reader retains email reservation but prevents list/get
   const member = { id: "member-1", workspaceId: WS, email: "member-1@example.test", status: "trash" as const, createdAt: AT, updatedAt: AT, version: 2 };
   const repo = new InMemoryMemberRepo({}, { initialRows: [member] });
   assert.equal(await repo.findById({ workspaceId: WS, id: member.id }), null);
-  assert.deepEqual(await repo.list({ workspaceId: WS }), []);
+  assert.deepEqual(await repo.list({ workspaceId: WS }), { items: [], nextCursor: null });
   assert.equal((await repo.findByEmail({ workspaceId: WS, email: member.email }))!.status, "trash");
   await assert.rejects(repo.save({ ...member, status: "active" }));
 });
@@ -305,7 +305,7 @@ for (const entrypoint of ["api", "tool"] as const) test(`signin-lab: member ${en
   const invoke = async (memberId: string, workspaceId = WS) => {
     if (entrypoint === "tool") {
       const registration = buildMembersRegistrations(deps as never).find(r => r.descriptor.id === "members_delete")!;
-      return registration.handler({ principal: { id: "operator" }, input: { memberId } } as ToolExecutionContext);
+      return registration.handler({ principal: { id: "operator" }, input: { memberId }, signal: new AbortController().signal } as ToolExecutionContext);
     }
     const app = express(); registerAdminMemberDeleteRoute({ app, deps: deps as never });
     const { res, capture } = createCapturingResponse(); res.locals.principal = { id: "operator" };

@@ -157,8 +157,8 @@ test("vertical slice: connect -> public callback -> plugin access token -> form-
     deps: { host }, connection, actorId: "admin-1", signal: new AbortController().signal, pollIntervalMs: 5, waitTimeoutMs: 5_000,
     showSignIn: async ({ signInUrl }) => {
       // F1: the card gets the host's sign-in link (the provider URL stays off the transcript).
-      assert.match(new URL(signInUrl).pathname, /\/agent-plugins\/connections\/sign-in\/[A-Za-z0-9_-]{43}$/);
-      assert.equal(new URL(signInUrl).search, "");
+      // Jini hands hosted cards the same-origin PATH, not an absolute URL (integrations connect.ts).
+      assert.match(signInUrl, /^\/api\/admin\/v1\/workspaces\/ws-1\/agent-plugins\/connections\/sign-in\/[A-Za-z0-9_-]{43}$/);
       assert.equal(new URL(browser!.providerUrl(signInUrl)).searchParams.get("code_challenge_method"), "S256");
       const response = await followConsent(signInUrl);
       callbackPage = await response.text();
