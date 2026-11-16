@@ -14,7 +14,7 @@ import {
   type EmailFieldValues,
   type EmailTemplateField,
   type SendableEmail,
-} from "./render.js";
+} from "@jini-ai/platform/mail/email-template";
 
 /**
  * @file The ONE set of email-template operations — create, edit, list, get, preview and the send
@@ -26,6 +26,10 @@ import {
  * {@link EMAIL_TEMPLATE_KIND}, written in `"html"` format by the same `PagesHtmlDocumentStore` a
  * bespoke Page is (compare-and-set writes, revision ledger, trash). It is born like a Page too — a
  * plain row, then `ensureHtmlFormat(seed)` — so that store stays the only writer of html bodies.
+ *
+ * A template's subject and fields live in that one html body, not in extra columns, so an agent
+ * edits a template with the same full-document writes it uses for a Page. The pure renders live in
+ * `@jini-ai/platform/mail/email-template`.
  */
 
 /** Bounds a template's name; the body is bounded by the routes' JSON body-size limit. */
@@ -308,6 +312,8 @@ export async function previewEmailTemplate(
     const sent = renderEmailForSend({ html, values });
     return { ...sent, undeclaredFields, mode, scriptsStripped: true };
   }
+  // Scripts are kept: the admin shows this preview in the Pages preview iframe, sandboxed without
+  // `allow-same-origin`, so they run in an opaque origin; `scriptsStripped: false` says so.
   return { ...renderEmailPreview({ html, values }), undeclaredFields, mode, scriptsStripped: false };
 }
 
