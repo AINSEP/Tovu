@@ -1,0 +1,48 @@
+# D6: renderer workspace into `@jini-ai/ui` (6 runs; every one needs a look at the running Electron app)
+
+Inherits `COMMON.md`. Survey step 6. Owner rule: UI moves are reviewed by Opus with real looks. Each run below is sized for one Sonnet executor **plus** an Opus review of screenshots; if the owner wants Opus to execute UI moves, the estimates hold as Opus tokens.
+
+Order: D6a -> (D6b, D6c in parallel: file-disjoint) -> D6d -> D6e -> D6f. Needs D1b2 (the preload bridge shape) and D4c (site-card hooks) merged.
+
+## Measured (reading tree)
+
+Renderer total: 97 files, 12,081 lines non-test (`renderer: workspace` 3,320 in 23 files; `renderer: chat` 1,558 in 11; rest 7,203 in 63), plus `app.css` 2,309 and `SharedKeys.css` 23.
+
+| File (lines) | Verdict | Run |
+|---|---|---|
+| `expanded-mode.ts` (94), `find-query-scheduler.ts` (33), `visible-interval.ts` (61), `site-port.rules.ts` (60), pure rules inside `use-zoom.hooks.ts` (`nextZoomLevel`, `resolveZoomTarget`, stored-zoom read/write) and `use-live-views.hooks.ts` (`liveViewOrder`, `releaseCandidates`, `parseReleaseProbe`) | MOVE (pure, no React) | D6a |
+| `use-find-in-page.hooks.ts` (711; 13 functions; in `size-debt.json`), `app/FindBar.tsx` (71) | MOVE | D6b |
+| `use-zoom.hooks.ts` (257), `use-webview-load-failure.hooks.ts` (134), `use-expanded-mode.hooks.ts` (51), `use-site-workspace.hooks.ts` (413), `app/SiteWorkspace.tsx` (346; in `size-debt.json`) | MOVE part: guest history, load failure, zoom, expanded mode are generic; site surface URLs, theme preview, import entry are Tovu | D6c |
+| `app/TabStrip.tsx` (106), `use-tab-strip.hooks.ts` (84), `use-project-tabs.hooks.ts` (70), `use-tab-close-ask.hooks.ts` (112), `app/TabCloseAsk.tsx` (35) | REPLACE by `@jini-ai/ui/tab-strip` (exists: 1,052 lines; **the desktop does not import it**) | D6d |
+| `use-live-views.hooks.ts` (282), `use-loaded-sites.hooks.ts` (62), `use-site-view-preference.hooks.ts` (34), `app/LoadedSitesStepper*.tsx` (99), `ResourcesPanel.tsx` (206), `use-resources.hooks.ts` (101) | MOVE part | D6e |
+| `use-dropdown-menu.hooks.ts` (155), `theme.ts` (50), `folder-drop.ts` (94), `import-drop.ts` (46) | check existing owners in `ui/src/browser` (`useDismissOnOutsideOrEscape`, `useFileDropTarget`, `useGlobalKeydown`) and `ui/theme`; adopt, do not duplicate | D6e |
+| `app.css` (2,309) | SPLIT: rules for moved components become `jini-` classes in ui stylesheets; tokens and Tovu brand stay | D6f |
+| `SiteGrid*`, onboarding, import, settings, shared keys, `TopNav`, `MainArea`, icons, `runner-api.ts` | STAY | |
+
+Movable: about **2.4 to 3.0k** TS lines + an unmeasured share of the CSS (the survey said 3 to 3.8k; `browser-chrome` (924 lines) and `tab-strip` in Jini already cover part, so some of this becomes adoption and deletion rather than a move). **Not verified:** how much of `app.css` belongs to moved components; whether `ui/tab-strip`'s behaviour matches the desktop's (overflow, keyboard, close ask).
+
+Existing Jini owners (verified to exist; behaviour not compared): `ui/tab-strip` (`TabStrip.tsx`, `TabStripFrame.tsx`, `TabBar.hooks.tsx`, `TabStripItem.hooks.ts`, `dependencies.ts`), `ui/features/browser-chrome` (`BrowserViewportControls.tsx`, `useBrowserHistory.ts`, `useBrowserNavigationStack.ts`, `useBrowserBridgeRegistration.ts`; no export key seen for it in `ui/package.json`), `ui/src/browser/*` hooks, `ui/site-card`. There is **no** find-in-page owner in ui (`rg` for find under `ui/src` found none); the main-process half is in `desktop-host/electron/usability` (`find-in-page-ipc.ts`, `find-menu.ts`).
+
+## Rules for every D6 run
+
+- A moved component gets every custom hook as a prop defaulted to the real hook, including `useT`; copy and icons arrive as props (S2). `ui` imports only itself, core, protocol, `@jini-ai/ui-kit/react`.
+- The bridge is a typed port argument (`FindBridge`, `ZoomBridge`, `WorkspaceGuest` exist as local types today: they move with the code). Nothing in ui reads `window.*` bridge globals; Tovu's `runner-api.ts:173` stays the only reader of `window.tovuRunner`.
+- **Webview security does not move.** `webviewTag`, guest attach admission (`isSupervisedGuestUrl`), `will-attach-webview` handling and window-open policy stay in the main process (`main/windows/guest-navigation.ts`, `window-navigation-policy.ts`). A ui component receives an already-admitted guest handle. Test in Tovu (exists; keep green): a guest URL that is not a supervised site is refused at attach.
+- Effects: each moved hook's test asserts cleanup (listeners, timers, subscriptions back to zero on unmount) and effect order where the old test did. Timers and clocks are injected (`FindQueryClock`, `IntervalTimers`, `VisibilitySource` already are).
+- Cost bounds to keep: the bounded number of live webviews (`DEFAULT_LIVE_VIEW_LIMIT` and the stored preference), the visibility-gated poll, no extra bridge call per render.
+- Source-reading tests: 37 desktop test files read source or CSS as text (`rg -l "source-test-harness|app-shell-source|readFileSync\([^)]*\.(tsx?|css)" src -g '*.test.*'`). List the ones that read a file you move; update them in the same commit.
+- Proof **E** for every run: before and after screenshots at 2x, light and dark, of the screens the run names; keyboard path named in the run. P once, after D6f (`smoke-bridge`, `verify-find-in-page.ts`).
+
+## Runs
+
+**D6a: pure rules (~120k).** Move the pure functions listed above to `packages/ui/src/features/webview-workspace/rules/*.ts` (export `./webview-workspace/rules`; universal; no React import: test asserts it). Split `use-zoom.hooks.ts` and `use-live-views.hooks.ts` in Tovu first (pure part to its own file, one green commit), then move. Lesson 3: `shellZoomStorage` and `liveViewLimit` read storage or a preference at **call** time; the moved functions take the value or a reader as an argument and must not read it at import.
+
+**D6b: find in page (~230k).** `use-find-in-page.hooks.ts` is over the size limit: first split it **in Tovu** along its dependency graph (reducer + state; target resolution; run/stop; focus reclaim timing; bridge subscription), one green commit, then move the pieces to `packages/ui/src/features/find-bar/` with `FindBar.tsx` (export `./find-bar`, plus its stylesheet in D6f). Risks with a test each: focus returns to the input after the guest steals it, within `FIND_FOCUS_RECLAIM_MS`, and stops reclaiming once the user clicks elsewhere; a result for a stale query id is ignored; closing the bar stops the search in the guest and in the top page; switching guest closes or keeps the bar exactly as `shouldCloseOnGuestChange` says today. Screens: find bar open over a site with 0, 1 and many matches; Cmd/Ctrl+F, Enter, Shift+Enter, Escape.
+
+**D6c: webview workspace (~240k).** New `packages/ui/src/features/webview-workspace/` (export `./webview-workspace`): guest history (`readHistory`, `trackGuestNavigation`, `stepHistory`, `subscribeSiteHistory`), load-failure hook, zoom hook, expanded-mode hook, and a frame component that takes the guest element as a child (the `<webview>` tag itself stays in Tovu's `SiteWorkspace.tsx`). **Compare with `browser-chrome`'s `useBrowserHistory`/`useBrowserNavigationStack` first**: if they model the same back/forward stack, use them and report what was deleted. `siteSurfaceUrl`, `restoredSrc`, `surfaceOfUrl`, theme-preview and import-entry wiring stay. Screens: a site in the workspace; back/forward after two navigations; a load failure page and retry; zoom in/out/reset; expanded mode on and off (keyboard).
+
+**D6d: adopt `ui/tab-strip` (~200k).** Not a move. Step 1 is a written behaviour comparison (overflow reveal of the active tab, roving tab index and arrow keys, close button, the import tab, the "stop the site?" ask on close) between the desktop's 407 lines and Jini's. For each difference decide: Jini option (add it there, with a test), Tovu wrapper (stays in Tovu), or accepted change (list for the owner; **STOP** if any is user-visible and unlisted in INDEX OD-8). Then replace and delete the desktop's strip files. `use-tab-close-ask` (Tovu policy: asks whether to stop the site) stays as the host's `onClose` handler. Screens: 1, 5 and 20 tabs (overflow); keyboard walk; close with a running site.
+
+**D6e: live views, loaded-sites control, resources panel, small hooks (~200k).** Live-view parking and release (`useLiveViews`, release probe, scroll restore) to `webview-workspace`; the stepper and the resources **table** to `ui` as presentational components fed by props (the data shape `contracts/resources.ts` stays Tovu's; the component takes rows and formatters). Dropdown, theme and drop helpers: adopt `ui/src/browser` owners where equal; otherwise leave in Tovu and say why. Screens: settings popover with the stepper; resources panel with two sites; a sixth site opened beyond the live limit (oldest view parks, returns with its scroll position).
+
+**D6f: CSS (~200k).** For each component moved in D6b to D6e: find its rules in `app.css` (`rg -n "\.<class>" src/renderer/app.css`), move them to a stylesheet beside the component in ui with `jini-` class names and `--jini-*` custom properties whose values the host sets (the pattern of `./site-card.css`, `./tabbed-dialog.css`), export the stylesheet, import it in the desktop's `main.tsx`. Tovu keeps tokens, fonts and brand. No visual change is accepted: full-page before/after screenshots of every screen named in D6b to D6e, light and dark, compared side by side in the report. Tests that read `app.css` as text are updated in the same commit.
