@@ -11,6 +11,14 @@ sheet starts with its inventory commands and COMMON's base rule.
 **How to read a sheet now:** each revised sheet starts with a "Revision 2 corrections" block. It is authoritative and
 replaces the steps it names. The older step text below it has not been rewritten in place yet (open item 1).
 
+## 00. Coordinator decisions (revision 3, 2026-11-16; recorded identically in the desktop plan's INDEX section 0)
+
+1. **One owner per shared surface.** The desktop-extraction plan owns `desktop-host` `./bridge` (its D0d), the IPC kit at `./electron/ipc` + `./electron/ipc/preload` (its D1a; `./electron/*` is desktop-host's existing naming; this plan's `./ipc` is withdrawn) and every change to `createNodeSidecarLauncher` (its D3a/D3c1).
+2. This plan **consumes** them: sheet D0 is withdrawn (pointer table in `sheets/D0-*`), D1 lists desktop D0d + D1a as prerequisites. `examples/notes-desktop` is owned by this plan only (desktop D2 withdrawn); desktop D3c1 may edit only its launcher binding line(s).
+3. `@jini-ai/node-adapters` is created only by xpkg N1. **OD-3 DECIDED (owner, 2026-11-16): fs/lock/process bindings only.** No sheet here needs it now (D1's node-adapters STOP deleted).
+4. **G1 reuses `@jini-ai/http-kit/node-bridge`** (`createNodeDispatcher` → `{ server, handle }`, `handle({ incoming, out }, { next })`; `packages/http-kit/src/node-bridge.ts:1-14,331`) instead of new code. Nothing beyond fs/lock/process goes into node-adapters. OD-N2 is therefore **moot**, not "decided: node-adapters".
+5. **G19 is on HOLD as an OWNER DECISION (OD-N13).** Letting the agent change note bodies reverses a deliberate design (`packages/cms/src/entries/agent-tools.ts:35-41`: the update schema omits `bodyJson` on purpose; body edits go through `widgets/embed-service.ts`'s guardrail) and changes Tovu's assistant too (it registers the same tools). The field is **`bodyJson`** (TipTap JSON, `unknown | null`; clear = `null`), its schema is in `agent-tools.ts`, not `tool-registrations.ts`. N3/N5 must not depend on body edits: the assistant round trip changes a note's **title**.
+
 ## 0. Revision 2 changes to the sheet list
 
 | Change | Sheet | Why (judge finding) |
@@ -202,3 +210,30 @@ Each finding was checked at merge-a before deciding. J = Jini `packages/…` or 
 6. **Reuse claims.** Only the export-map facts the judge sampled (18 rows) and the ones this revision touched were
    re-checked at merge-a. The rest of `DESIGN.md` §4 was read at merge-b in revision 1 and was not re-run.
 7. **Estimates** are by analogy, not measured; no sheet was dry-run.
+
+## Revision 3 - Opus review response
+Review: `opus-review/notes.md`. Code re-checked read-only on `integ/merge-final-2026-11-16` (Jini `65d73b0d`). **PARTIAL**: context cap reached; see "Opus fixes - remaining".
+
+| Item | ACCEPT/REBUT | Change | Evidence |
+|---|---|---|---|
+| Blocker: desktop wave duplicates desktop-extraction | ACCEPT | section 00 decisions 1-2; `sheets/D0` withdrawn (pointer table); `sheets/D1` corrections + Design + Steps rewritten to consume desktop D0d/D1a, today's launcher with HTTP probe | desktop-host exports on merge-final have neither `./bridge` nor any ipc entry; `desktop-host/src/sidecar.ts:52` `waitUntilReady({ probe, isReady })` |
+| Judge 11: G19 widens a deliberate absence; wrong field | ACCEPT | section 00 decision 5 (HOLD, OD-N13, `bodyJson`); sheet text not yet rewritten (remaining 2) | `cms/src/entries/agent-tools.ts:35-41`; `tool-registrations.ts:62,100,117,171,177` |
+| Judge 21: G1 duplicates `http-kit/node-bridge` | ACCEPT | section 00 decision 4; sheet not yet rewritten (remaining 1) | `http-kit/src/node-bridge.ts:1-14,331`; `http-kit/package.json` `./node-bridge` |
+| Major: node-adapters scope creep (OD-N2) | ACCEPT | COMMON rule 5: fs/lock/process only, N1 only, no HTTP adapter; OD-N2 moot | xpkg `N1-node-adapters.md` header |
+| Major: notes D1 STOPs on node-adapters for no use | ACCEPT | D1 landed check replaced by the three desktop-host export keys | old D1:12-13 |
+| Major: old step text contradicts blocks -> executors STOP | ACCEPT in part | COMMON: precedence COMMON > rev-3 block > rev-2 block > steps; a contradicted step is void, not a STOP; D0/D1 rewritten; N0/N2/G1/G19 in-place rewrite remaining | COMMON "Revision 2" para |
+| Major: STOP commands with `\|` do nothing | ACCEPT | COMMON STOP table has no commands; block of X2-X11, G, L fenced | lesson 29 |
+| Medium: hook STOP checks `.tsx` added lines only | ACCEPT | COMMON X7: whole `.ts`/`.tsx` files, multiline, + `scripts/check-hook-injection.mjs` | Jini `package.json:29` `check:hooks` |
+| Judge 19/20: no command enforces 50 / complexity 10 (examples too) | ACCEPT | COMMON rule 4 + block L (ESLint limits as errors; created/moved pass outright, edited may not grow) | `scripts/check-size.mjs:15,39`; `sourceGlob` packages only (`:14`) |
+| OD-N12 (esbuild) | ACCEPT (moot) | D0 pointer + D1: esbuild declared as the example's devDependency, as desktop D1a does | esbuild in `agent-plugins`, `analytics`, `cookie-consent`, `provider-plugins` `package.json` |
+| D1 `--web` flag only a replaced N2 step adds | ACCEPT | D1: no `--web`; window loads `/admin/`; bundle argument = what N2 landed, else STOP | N2 corrections block (`/admin/` via `onUnmatched`) |
+
+## Opus fixes - remaining
+1. **G1 sheet**: rewrite to "notes-app adopts `createNodeDispatcher`; delete `examples/notes-app/src/node-server.ts`; N0's `onUnmatched` becomes `handle(..., { next })`; listen/close stay in `main.ts`; run the example's old adapter tests against the dispatcher composition, a behaviour gap is a STOP for http-kit's owner". Delete owner line, 3-line re-export step, `packages/http-kit/src/node-server` target, precedence change.
+2. **G19 sheet**: mark HOLD (OD-N13), field `bodyJson`, schema in `agent-tools.ts`, clear = `null`. **N3**: delete G19 prerequisite and the non-enforcing landed check (`rg -n "body" tool-registrations.ts` already matches `bodyJson` at 100/117/171); if OD-N13 is approved, landed check = G19's red-first test title. **N5:7**: "changes a note's body" -> "changes a note's title".
+3. **N0**: delete T3 "red before the fix", step 3 "Cookie fix", inventory comment "no getSetCookie" (`node-server.ts:96-97` already uses `getSetCookie`).
+4. **N2**: landed check -> `rg -n "describeFailure|refreshToken" packages/admin/src/react/entities`; T5 row and steps 6-7 -> `serveAdminBundle` under `/admin/` via `onUnmatched` (no `--web`, no "register last").
+5. **G7**: exact export is `runStartRoute` from `@jini-ai/daemon/http` (`packages/daemon/src/http/index.ts:70`).
+6. **INDEX sections 0-5**: remove G8 row from §2, G1 -> http-kit node-bridge, G7 "coordinator edit" -> own commit (COMMON rule 3), D0 -> desktop D0d+D1a, add GA/G19(HOLD) rows, totals; §3 waves (GA in, G8 out, G19 held); §4 delete "coordinator applies them"; add collision rows: G7 vs desktop D5a/D5b (`packages/chat/package.json`), GA/G4/G5/G6 vs xpkg R1c/R2 (`packages/admin`), notes D2 vs desktop D1c2 (`packages/devops/package.json`), notes D1 step 1 (G18) vs desktop-plan runs on `packages/desktop-host`; §5 OD-N2 -> MOOT, OD-N12 -> MOOT, add OD-N13 (G19), OD-N11 = desktop OD-6.
+7. **DESIGN.md:7** still says the `node:http` adapter lives in node-adapters; §4-6 not rewritten.
+8. Notes D2: add the ownership line (devops recipe owned here; desktop D2 withdrawn).
