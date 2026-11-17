@@ -6,11 +6,12 @@ export interface SiteAssistantHeaderProps {
   readonly hasMessages: boolean;
   readonly onReset: () => void;
   readonly onClose?: () => void;
+  useSiteAssistantHeaderHook?: typeof useSiteAssistantHeader;
 }
 
 /** The shared embed header owns safe reset confirmation; this adapter supplies public-site copy. */
-export function SiteAssistantHeader({ title, hasMessages, onReset, onClose }: SiteAssistantHeaderProps) {
-  const { t, keyboard, copy } = useSiteAssistantHeader({ hasMessages });
+export function SiteAssistantHeader({ title, hasMessages, onReset, onClose, useSiteAssistantHeaderHook = useSiteAssistantHeader }: SiteAssistantHeaderProps) {
+  const { t, keyboard, copy } = useSiteAssistantHeaderHook({ hasMessages });
   return <EmbedChatHeader title={title} hasMessages={hasMessages} onReset={onReset} copy={copy} keyboard={keyboard}
     closeAction={onClose && <button type="button" className="jini-chat-pane__close" onClick={onClose} aria-label={t('Close chat')}>
       <span aria-hidden="true">×</span>

@@ -16,12 +16,7 @@ export interface AlwaysAllowPanelProps {
   useAlwaysAllowHook?: typeof useWiredAlwaysAllow;
 }
 
-function resolveAlwaysAllowHook({ override }: { override: typeof useWiredAlwaysAllow | undefined }, _options: Record<string, never> = {}): typeof useWiredAlwaysAllow {
-  return override ?? useWiredAlwaysAllow;
-}
-
-export function AlwaysAllowPanel(props: AlwaysAllowPanelProps) {
-  const useAlwaysAllowHook = resolveAlwaysAllowHook({ override: props.useAlwaysAllowHook });
+export function AlwaysAllowPanel({ useAlwaysAllowHook = useWiredAlwaysAllow }: AlwaysAllowPanelProps) {
   const { groups, loadError, revokeError, pendingKey, revoke, rowKey, formatDate, t } = useAlwaysAllowHook();
 
   if (loadError) return <div className="notice error">{loadError}</div>;

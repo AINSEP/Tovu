@@ -38,11 +38,12 @@ export interface PlaygroundProps {
    *  {@link usePlaygroundCanvas}; a test can pass a fake here to exercise `Playground`'s rendering
    *  without driving the real `playground-render-target-bus` module state. */
   usePlaygroundCanvasHook?: typeof usePlaygroundCanvas;
+  useAdminLocaleHook?: typeof useAdminLocale;
 }
 
-export function Playground({ usePlaygroundCanvasHook = usePlaygroundCanvas }: PlaygroundProps = {}) {
+export function Playground({ usePlaygroundCanvasHook = usePlaygroundCanvas, useAdminLocaleHook = useAdminLocale }: PlaygroundProps = {}) {
   const { registerCanvas } = usePlaygroundCanvasHook();
-  const locale = useAdminLocale();
+  const locale = useAdminLocaleHook();
   const t = createPlaygroundTranslator({ locale });
 
   return (

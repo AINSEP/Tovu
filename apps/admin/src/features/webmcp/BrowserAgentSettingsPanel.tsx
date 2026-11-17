@@ -3,8 +3,8 @@ import { useBrowserAgentSettings } from "./browser-agent-settings.hooks";
 import { t } from "./webmcp-i18n";
 
 /** Same `jini-toggle-row` switch the Privacy tab's own toggles use, so the host CSS styles it. */
-export function BrowserAgentSettingsPanel({ locale }: { locale: string }) {
-  const { enabled, setEnabled } = useBrowserAgentSettings({});
+export function BrowserAgentSettingsPanel({ locale, useBrowserAgentSettingsHook = useBrowserAgentSettings }: { locale: string; useBrowserAgentSettingsHook?: typeof useBrowserAgentSettings; }) {
+  const { enabled, setEnabled } = useBrowserAgentSettingsHook({});
   const id = useId();
   return (
     <section className="jini-settings-section">

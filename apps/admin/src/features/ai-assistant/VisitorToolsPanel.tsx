@@ -123,8 +123,8 @@ function VisitorToolRow({ tool, controller, t }: { tool: VisitorToolView; contro
   );
 }
 
-function VisitorToolLimits({ tool, title, controller, t }: { tool: VisitorToolView; title: string; controller: VisitorToolsController; t: (key: string) => string }) {
-  const limits = useVisitorToolLimitsDraft({ tool, configure: controller.configure });
+function VisitorToolLimits({ tool, title, controller, t, useVisitorToolLimitsDraftHook = useVisitorToolLimitsDraft }: { tool: VisitorToolView; title: string; controller: VisitorToolsController; t: (key: string) => string; useVisitorToolLimitsDraftHook?: typeof useVisitorToolLimitsDraft; }) {
+  const limits = useVisitorToolLimitsDraftHook({ tool, configure: controller.configure });
   const ipId = useId();
   const siteId = useId();
   const errorId = useId();

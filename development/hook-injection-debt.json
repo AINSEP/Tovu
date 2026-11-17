@@ -109,18 +109,6 @@
         "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
       ]
     },
-    "AdminModulesProvider::useAdminModules": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/integrations/jini-admin/AdminModulesProvider.tsx"
-      ]
-    },
-    "AdminModulesProvider::useModuleProviderContent": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/integrations/jini-admin/AdminModulesProvider.tsx"
-      ]
-    },
     "AdminShell::useCollapsibleNavGroupLabels": {
       "count": 1,
       "files": [
@@ -179,12 +167,6 @@
       "count": 1,
       "files": [
         "apps/admin/src/features/admin-themes/AdminThemes.tsx"
-      ]
-    },
-    "AdminUi::useAdminLocale": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/admin-ui/AdminUi.tsx"
       ]
     },
     "AgentFailureCard::useAgentFailureCard": {
@@ -275,12 +257,6 @@
       "count": 1,
       "files": [
         "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
-      ]
-    },
-    "AlwaysAllowPanel::useAlwaysAllowHook": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/providers/AlwaysAllowPanel.tsx"
       ]
     },
     "App::useAddSite": {
@@ -397,34 +373,10 @@
         "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
       ]
     },
-    "Authentication::useAdminLocale": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/authentication/Authentication.tsx"
-      ]
-    },
-    "Authentication::useAdminThemeBoundary": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/authentication/Authentication.tsx"
-      ]
-    },
-    "BrowserAgentSettingsPanel::useBrowserAgentSettings": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/webmcp/BrowserAgentSettingsPanel.tsx"
-      ]
-    },
     "BubbleFormattingMenu::useEditorState": {
       "count": 1,
       "files": [
         "apps/admin/src/features/posts/editor/bubble-menu/BubbleFormattingMenu.tsx"
-      ]
-    },
-    "ChartRegistryProvider::useWiredAdminChartRegistry": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/integrations/chart-providers/ChartRegistryProvider.tsx"
       ]
     },
     "ChoiceControl::usePluginProviderChoice": {
@@ -437,12 +389,6 @@
       "count": 1,
       "files": [
         "apps/admin/src/features/collections/CollectionEntryEditor.tsx"
-      ]
-    },
-    "ContentAnalysisCard::useContentAnalysisHook": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/content-analysis/ContentAnalysisCard.tsx"
       ]
     },
     "CookieConsent::useConsentPage": {
@@ -467,12 +413,6 @@
       "count": 1,
       "files": [
         "apps/admin/src/components/CredentialHint.tsx"
-      ]
-    },
-    "Dashboard::usePublishToLiveAvailable": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/dashboard/Dashboard.tsx"
       ]
     },
     "Database::useAdminLocale": {
@@ -521,36 +461,6 @@
       "count": 1,
       "files": [
         "apps/admin/src/components/WidgetConfigFields/MediaContentEditor.tsx"
-      ]
-    },
-    "Email::useAdminThemeBoundary": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/email/Email.tsx"
-      ]
-    },
-    "EmailTemplateEditor::useEditor": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/email/EmailTemplateEditor.tsx"
-      ]
-    },
-    "EmailTemplateEditor::useEditorKeys": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/email/EmailTemplateEditor.tsx"
-      ]
-    },
-    "EmailTemplateEditor::useEditorLocale": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/email/EmailTemplateEditor.tsx"
-      ]
-    },
-    "EmailTemplateEditor::useEmailTemplateView": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/email/EmailTemplateEditor.tsx"
       ]
     },
     "EmbedInsertControl::useAdminLocale": {
@@ -721,12 +631,6 @@
         "apps/desktop/src/renderer/ImportWebsite.tsx"
       ]
     },
-    "IntegrationsRedirect::useIntegrationsRedirect": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/integrations/IntegrationsRedirect.tsx"
-      ]
-    },
     "ItemRow::useMenuItemRemove": {
       "count": 1,
       "files": [
@@ -853,12 +757,6 @@
         "apps/admin/src/components/AssistantDock/MessageOverflowModal.tsx"
       ]
     },
-    "ModulePanel::useModulePanel": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/integrations/jini-admin/ModulePanel.tsx"
-      ]
-    },
     "NewTaxonomyForm::useWiredNewTaxonomyForm": {
       "count": 1,
       "files": [
@@ -869,18 +767,6 @@
       "count": 1,
       "files": [
         "apps/admin/src/features/taxonomy/Taxonomy.tsx"
-      ]
-    },
-    "Observability::useAdminThemeBoundary": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/observability/Observability.tsx"
-      ]
-    },
-    "Observability::useObservabilityTab": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/observability/Observability.tsx"
       ]
     },
     "OtherCredentialRemoveDialog::useAdminLocale": {
@@ -911,12 +797,6 @@
       "count": 1,
       "files": [
         "apps/admin/src/features/deployment/OverviewTab.tsx"
-      ]
-    },
-    "OwnerRecoverySignIn::useOwnerRecoverySignIn": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/auth/OwnerRecoverySignIn.tsx"
       ]
     },
     "PackageFileContent::useCodeWrap": {
@@ -965,12 +845,6 @@
       "count": 1,
       "files": [
         "apps/admin/src/components/Placeholder.tsx"
-      ]
-    },
-    "Playground::useAdminLocale": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/playground/Playground.tsx"
       ]
     },
     "PluginProviderSettingsDialog::useProviderSettingsFocus": {
@@ -1051,64 +925,10 @@
         "apps/admin/src/features/source-control/ProvidersTab.tsx"
       ]
     },
-    "PublishContentDialog::usePublishContentConfirm": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/publish-content/PublishContentDialog.tsx"
-      ]
-    },
-    "PublishSectionButton::usePublishSectionButton": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/publish-content/PublishSectionButton.tsx"
-      ]
-    },
-    "PushToTalkMicButton::useMicButtonView": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/voice-input/PushToTalkMicButton.tsx"
-      ]
-    },
-    "PushToTalkMicButton::usePushToTalk": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/voice-input/PushToTalkMicButton.tsx"
-      ]
-    },
-    "PushToTalkMicButton::useSpaceHoldToTalk": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/voice-input/PushToTalkMicButton.tsx"
-      ]
-    },
-    "PushToTalkMicButton::useT": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/voice-input/PushToTalkMicButton.tsx"
-      ]
-    },
-    "RecentActivityPanel::useRecentActivityDisclosure": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/dashboard/Dashboard.tsx"
-      ]
-    },
     "RecentEntriesConfigFields::useRecentEntriesConfig": {
       "count": 1,
       "files": [
         "apps/admin/src/components/WidgetConfigFields/WidgetConfigFields.tsx"
-      ]
-    },
-    "RecentErrorItem::useRecentErrorItem": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/observability/recent-errors-panel.tsx"
-      ]
-    },
-    "RecentErrorsPanel::useRecentServerErrorsHook": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/observability/recent-errors-panel.tsx"
       ]
     },
     "Recovery::useRecoveryNavigation": {
@@ -1297,24 +1117,6 @@
         "apps/admin/src/App.tsx"
       ]
     },
-    "SiteAssistantHeader::useSiteAssistantHeader": {
-      "count": 1,
-      "files": [
-        "apps/site-chat/src/SiteAssistantHeader.tsx"
-      ]
-    },
-    "SiteAssistantWidget::useSiteAssistantWidget": {
-      "count": 1,
-      "files": [
-        "apps/site-chat/src/SiteAssistantWidget.tsx"
-      ]
-    },
-    "SiteCard::useSiteCardPreview": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/sites/AllSitesTab.tsx"
-      ]
-    },
     "SiteCardMenu::useDismissibleDropdown": {
       "count": 1,
       "files": [
@@ -1381,12 +1183,6 @@
         "apps/desktop/src/renderer/app/SiteWorkspace.tsx"
       ]
     },
-    "Sites::useReturnToSiteListOnCreate": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/sites/Sites.tsx"
-      ]
-    },
     "SitesFolders::useSiteStorageSettings": {
       "count": 1,
       "files": [
@@ -1399,40 +1195,10 @@
         "apps/desktop/src/renderer/SitesFolders.tsx"
       ]
     },
-    "SitesGrid::useSiteListView": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/sites/AllSitesTab.tsx"
-      ]
-    },
     "SitesSidebarNav::useSitesSidebarNav": {
       "count": 1,
       "files": [
         "apps/admin/src/components/SitesSidebarNav.tsx"
-      ]
-    },
-    "SkillInstallConfirmation::useSkillInstallConfirmation": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/skills/SkillInstallConfirmation.tsx"
-      ]
-    },
-    "Skills::useAdminThemeBoundary": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/skills/Skills.tsx"
-      ]
-    },
-    "Skills::useSkillFilesModal": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/skills/Skills.tsx"
-      ]
-    },
-    "Skills::useSkillsTranslator": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/skills/Skills.tsx"
       ]
     },
     "SlowRunNoticeCard::useT": {
@@ -1579,22 +1345,10 @@
         "apps/admin/src/features/themes/Themes.tsx"
       ]
     },
-    "ToolGapsPanel::useFetchQuery": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/observability/tool-gaps-panel.tsx"
-      ]
-    },
     "Toolbar::useEditorState": {
       "count": 1,
       "files": [
         "apps/admin/src/features/posts/editor/toolbar/Toolbar.tsx"
-      ]
-    },
-    "Toolbar::useTabBarKeyboard": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/email/EmailTemplateEditor.tsx"
       ]
     },
     "Toolbar::useToolbarOverflow": {
@@ -1633,34 +1387,10 @@
         "apps/admin/src/features/settings/UserInterfaceSettingsPanel.tsx"
       ]
     },
-    "VisitorAssistantTabs::useTabBarKeyboard": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/ai-assistant/VisitorAssistantTabs.tsx"
-      ]
-    },
-    "VisitorAssistantTabs::useVisitorAssistantTabs": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/ai-assistant/VisitorAssistantTabs.tsx"
-      ]
-    },
     "VisitorCredentialForm::useStoredCredentialHint": {
       "count": 1,
       "files": [
         "apps/admin/src/features/ai-assistant/AiAssistant.tsx"
-      ]
-    },
-    "VisitorToolLimits::useVisitorToolLimitsDraft": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/ai-assistant/VisitorToolsPanel.tsx"
-      ]
-    },
-    "VoiceInputPlaceholder::useT": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/voice-input/VoiceInputPlaceholder.tsx"
       ]
     },
     "WidgetEmbedInsertControlEnabled::useWiredAdminLocale": {
@@ -1697,12 +1427,6 @@
       "count": 1,
       "files": [
         "apps/desktop/src/renderer/WorkspaceChatPane.tsx"
-      ]
-    },
-    "WorkspaceRedirect::useWorkspaceRedirect": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/workspace/WorkspaceRedirect.tsx"
       ]
     }
   }

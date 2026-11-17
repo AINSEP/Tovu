@@ -10,14 +10,14 @@ import { useWiredContentAnalysis, type ContentAnalysisTarget } from "./hooks/use
  * (see `ADS-memory/.local-artifacts/aw7-tier2/dx-pain.md`). Mounted by `PostEditor.tsx` beside the
  * Categories & Tags box; renders nothing unless the plugin is enabled.
  */
-export function ContentAnalysisCard(
-  props: ContentAnalysisTarget & {
+export function ContentAnalysisCard({
+  useContentAnalysisHook = useWiredContentAnalysis,
+  ...props
+}: ContentAnalysisTarget & {
     /** Dependency injection seam for tests — the same convention `TermPicker` uses. Defaulted to the
      *  real hook, so production callers pass nothing. */
     useContentAnalysisHook?: typeof useWiredContentAnalysis;
-  }
-) {
-  const useContentAnalysisHook = props.useContentAnalysisHook ?? useWiredContentAnalysis;
+  }) {
   const { hidden, view, analyzing, error, analyze, t } = useContentAnalysisHook({
     post: props.post,
     title: props.title,

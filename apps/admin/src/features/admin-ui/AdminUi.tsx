@@ -14,8 +14,8 @@ const TAB_IDS = ["theme", "appearance"] as const;
 /** Studio's admin-only presentation settings. Shared tabs own interaction; the URL owns selection.
  * Retired Design System links use the shared history-replacing redirect to Appearance.
  * @complexity O(1): two fixed tabs, with one mounted body at a time. */
-export function AdminUi({ tabId }: { tabId?: string | null }) {
-  const locale = useAdminLocale();
+export function AdminUi({ tabId, useAdminLocaleHook = useAdminLocale }: { tabId?: string | null; useAdminLocaleHook?: typeof useAdminLocale; }) {
+  const locale = useAdminLocaleHook();
   if (tabId === "design-system") return <IntegrationsRedirect routePath="/admin-ui?tab=appearance" />;
   const activeId = resolveActiveTabId({ tabId, validIds: TAB_IDS, defaultId: "theme" });
   const tabs: TabBarTab[] = [

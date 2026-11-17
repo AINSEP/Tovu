@@ -79,4 +79,10 @@ describe("Playground", () => {
       expect(getPlaygroundRenderTarget()).not.toBeNull();
     });
   });
+
+  it("renders in the locale returned by the injected useAdminLocaleHook", () => {
+    render(<Playground useAdminLocaleHook={() => "es"} />);
+    expect(screen.getByRole("heading", { name: "Zona de pruebas" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Playground" })).not.toBeInTheDocument();
+  });
 });
