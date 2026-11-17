@@ -1,6 +1,7 @@
 import { PlainTextBlocks } from "@/components/PlainTextBlocks";
+import { Icon } from "@jini-ai/ui";
 import type { SkillRowView } from "./use-skills.hooks";
-import { SkillDocumentIcon, SkillChevronIcon } from "./skills-visuals";
+import { SkillChevronIcon } from "./skills-visuals";
 import { EyeIcon, TrashIcon } from "../plugins/agent-plugins-visuals";
 
 import { type Translate } from '@jini-ai/core/text';
@@ -13,7 +14,7 @@ export function SkillRow({ row, t = key => key }: { row: SkillRowView; t?: Trans
         <div className="skills-row-summary">
           <div className="skills-row-identity">
             <button type="button" className="agent-plugin-row-summary" aria-label={skill.name} onClick={row.onInspect}>
-              <span className="agent-plugin-row-glyph"><SkillDocumentIcon /></span>
+              <span className="agent-plugin-row-glyph"><Icon name="document-marked" size={18} strokeWidth={1.5} /></span>
               <span className="agent-plugin-row-text">
                 <span className="agent-plugin-row-heading"><span className="agent-plugin-row-name">{skill.name}</span></span>
                 <span className="agent-plugin-row-desc" title={skill.description}>{skill.description}</span>

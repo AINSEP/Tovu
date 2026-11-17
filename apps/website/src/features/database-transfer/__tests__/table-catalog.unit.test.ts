@@ -6,7 +6,7 @@ import Database from "better-sqlite3";
 import { sql } from "drizzle-orm";
 import { boolean, check, ForeignKeyBuilder, index, integer, jsonb, pgTable, primaryKey, text, unique } from "drizzle-orm/pg-core";
 
-import { openSqliteSnapshotSource } from "../sqlite-source.js";
+import { openSqliteSnapshotSource } from "@jini-ai/db/transfer";
 import { collectSchemaTables, collectTransferTables, planChatSnapshotTables, planSnapshotTables } from "../table-catalog.js";
 import { indexSql } from "@jini-ai/db/transfer";
 
@@ -34,7 +34,7 @@ test("plugin layout uses affinity, literal defaults and INTEGER identity; drops 
     CREATE INDEX b08_label ON p_b08__items(label);
     CREATE INDEX b08_partial ON p_b08__items(score) WHERE score > 0;
     CREATE INDEX b08_expression ON p_b08__items(lower(label));`);
-  const source = openSqliteSnapshotSource({ bytes: db.serialize(), open: data => openSqliteSnapshot({ data }) });
+  const source = openSqliteSnapshotSource({ bytes: db.serialize() }, { open: data => openSqliteSnapshot({ data }) });
   t.after(() => source.close());
   const planned = planSnapshotTables({ source, catalog: createCoreTableCatalog({}) }).tables.find((entry) => entry.name === "p_b08__items");
   assert.deepEqual(planned, {
@@ -54,7 +54,7 @@ test("composite keys follow declared key order and never become row-id identitie
   const db = new Database(":memory:");
   t.after(() => db.close());
   db.exec("CREATE TABLE p_b08__pairs (a INTEGER, b INTEGER, PRIMARY KEY(b, a)); CREATE TABLE p_b08__child (id INT PRIMARY KEY, b INTEGER, a INTEGER, FOREIGN KEY(b, a) REFERENCES p_b08__pairs ON DELETE CASCADE ON UPDATE SET NULL)");
-  const source = openSqliteSnapshotSource({ bytes: db.serialize(), open: data => openSqliteSnapshot({ data }) });
+  const source = openSqliteSnapshotSource({ bytes: db.serialize() }, { open: data => openSqliteSnapshot({ data }) });
   t.after(() => source.close());
   const byName = new Map(planSnapshotTables({ source, catalog: createCoreTableCatalog({}) }).tables.map((entry) => [entry.name, entry]));
   assert.deepEqual(byName.get("p_b08__pairs")?.primaryKey, ["b", "a"]);
@@ -70,7 +70,7 @@ test("content.db's legacy chat tables are left out with a reason: chat.db is the
   t.after(() => db.close());
   db.exec(`CREATE TABLE ai_chats (id TEXT PRIMARY KEY); CREATE TABLE ai_chat_messages (id TEXT PRIMARY KEY); CREATE TABLE assistant_agent_sessions (id TEXT PRIMARY KEY);
     INSERT INTO ai_chats VALUES ('stranded');`);
-  const source = openSqliteSnapshotSource({ bytes: db.serialize(), open: data => openSqliteSnapshot({ data }) });
+  const source = openSqliteSnapshotSource({ bytes: db.serialize() }, { open: data => openSqliteSnapshot({ data }) });
   t.after(() => source.close());
   const plan = planSnapshotTables({ source, catalog: createCoreTableCatalog({}) });
   const chatTables = ["ai_chat_messages", "ai_chats", "assistant_agent_sessions"];
@@ -128,7 +128,7 @@ test("chat snapshot order places the three owned tables first and sorts other ta
   t.after(() => db.close());
   db.exec(`CREATE TABLE z_extra (id TEXT); CREATE TABLE a_extra (id TEXT);
     CREATE TABLE assistant_agent_sessions (id TEXT); CREATE TABLE ai_chat_messages (id TEXT); CREATE TABLE ai_chats (id TEXT);`);
-  const source = openSqliteSnapshotSource({ bytes: db.serialize(), open: data => openSqliteSnapshot({ data }) });
+  const source = openSqliteSnapshotSource({ bytes: db.serialize() }, { open: data => openSqliteSnapshot({ data }) });
   t.after(() => source.close());
   assert.deepEqual(planChatSnapshotTables(source).tables.map(table => table.name), ["ai_chats", "ai_chat_messages", "assistant_agent_sessions", "a_extra", "z_extra"]);
 });

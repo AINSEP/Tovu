@@ -2,7 +2,7 @@
  * (generic over the card `Resource` and the connect result); these entries keep their signatures and
  * bind Tovu's UI, card identity, SAME process exchange store and missing-emitter/skip copy. */
 import { agentPluginCardHost } from './card-host-bindings.js';
-import type { AgentPluginCardsPort } from './service-ports.js';
+import type { AgentPluginCardsPort } from '@jini-ai/agent-plugins/connect';
 import type { SurfaceCardSecretDeps } from '@jini-ai/core/contracts/cards';
 import type { ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
 import type { AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';

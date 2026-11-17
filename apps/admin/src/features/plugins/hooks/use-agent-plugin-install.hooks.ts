@@ -4,7 +4,7 @@ import { ApiError, type AdminAgentPlugin } from "@/lib/api";
 
 import { useZipDrop } from "../../../components/InstallTabCard/use-zip-drop.hooks";
 import { useFolderUpload } from "../../../components/InstallTabCard/use-folder-upload.hooks";
-import { installArchiveSize } from "../../../components/InstallTabCard/install-archive-size";
+import { formatByteSize } from "@jini-ai/core/text";
 import { agentPluginDisplayName, agentPluginWarningText } from "../rules";
 import type { AgentPluginInstallPort } from "./agent-plugin-install-port.hooks";
 
@@ -173,7 +173,7 @@ export function useAgentPluginInstall(
     file,
     replace,
     onReplaceChange: (event: ChangeEvent<HTMLInputElement>) => setReplace(event.target.checked),
-    fileSizeLabel: file ? installArchiveSize({ bytes: file.size }) : "",
+    fileSizeLabel: file ? formatByteSize({ bytes: file.size }, { megabyteLabel: "MiB" }) : "",
     drop,
     folderUpload,
     busy: busy || folderUpload.zipping,

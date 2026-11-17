@@ -1,6 +1,6 @@
 import { useEffect, useRef, type RefObject } from "react";
 
-import { useFocusTrap } from "../../../hooks/use-focus-trap.hooks";
+import { useFocusTrap } from "@jini-ai/ui/panel-kit";
 
 import { buildExternalMcpRemoveConfirmCopy, type RemoveConfirmCopy } from "../rules";
 

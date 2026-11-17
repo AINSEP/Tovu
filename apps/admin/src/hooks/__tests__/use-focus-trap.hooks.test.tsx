@@ -2,7 +2,7 @@ import { render } from "@testing-library/react";
 import { useRef, type ReactNode } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { useFocusTrap } from "../use-focus-trap.hooks";
+import { useFocusTrap } from "@jini-ai/ui/panel-kit";
 
 /**
  * @file `useFocusTrap` — the Tab containment an `aria-modal="true"` div dialog promises. The

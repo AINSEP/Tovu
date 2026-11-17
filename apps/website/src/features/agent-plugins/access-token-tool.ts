@@ -10,7 +10,7 @@ import { credentialText, translateCredentialMessage } from '../../contracts/core
 import { assertCredentialToken, CredentialInputError, type CredentialMessageId } from '../../contracts/core/credential-token.js';
 import type { ToolExecutionOptions, ToolExecutionContext } from "@jini-ai/core";
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import type { AgentPluginMcpRecord } from "./service-ports.js";
+import type { AgentPluginMcpRecord } from "@jini-ai/agent-plugins/connect";
 import { agentPluginCardHost, tovuAgentPluginCardIdentity } from "./card-host-bindings.js";
 import { tovuAccessTokenFormMessages } from "./connect-card-ui.js";
 import { defaultResolveInstalledAgentPlugin, type AgentPluginConnectToolDeps } from "./connect-tool.js";

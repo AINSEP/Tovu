@@ -1,4 +1,5 @@
 import { buildAgentListHandles } from "@jini-ai/core/agent-handles";
+import { Icon } from "@jini-ai/ui";
 import { useEffect, useState } from "react";
 import type { RowMenuItem } from "@jini-ai/admin/react";
 import type { AdminSiteListEntry, AdminSitesSnapshot } from "../../lib/api";
@@ -6,7 +7,6 @@ import type { LocalSitesController } from "./hooks/use-local-sites.hooks";
 
 import type { TabBarTab } from "@jini-ai/ui/tab-strip";
 import { NO_SWITCH_TARGET_KEY, SERVING_CHAT_WARNING_KEY, siteRegistration, siteRowState, siteRowStateLabelKey, siteRowStateToneClass } from "./rules";
-import { AllSitesIcon, NewSiteIcon } from "./sites-visuals";
 import type { CreateSitePluginTokenField, CreateSitePluginTokensController } from "./hooks/use-create-site-plugin-tokens.hooks";
 
 import { type Translate, resolveActiveTabId, interpolate } from '@jini-ai/core/text';
@@ -183,7 +183,7 @@ export function resolveSitesTabs(
     {
       id: "all",
       label: t("All sites"),
-      icon: <AllSitesIcon />,
+      icon: <Icon name="folder-outline" size={16} strokeWidth={1.5} />,
       count: listedCount,
       handle: "sites-tab-all",
       handleLabel: "Switch to the All sites tab — every site folder listed under sites/",
@@ -191,7 +191,7 @@ export function resolveSitesTabs(
     {
       id: "new",
       label: t("New site"),
-      icon: <NewSiteIcon />,
+      icon: <Icon name="folder-plus" size={16} strokeWidth={1.5} />,
       handle: "sites-tab-new",
       handleLabel: "Switch to the New site tab — the form that creates a site folder",
     },

@@ -6233,7 +6233,7 @@ body:has(.agent-plugin-source-modal) .chat-fab { display: none; }
  *    `aria-hidden` by construction — a `::before` with no text — so the accessible name is still
  *    the words.
  * 2. The FLAG is a footnote, not a peer. `.site-card-flag` loses the pill fill and becomes a small
- *    warning-colored line with a glyph (`SiteFlagIcon`, `sites-visuals.tsx`) — the shape says
+ *    warning-colored line with a glyph (`flag-triangle` from `@jini-ai/ui`'s `Icon`) — the shape says
  *    "note about this folder", the pill above it says "state". Same words, same `title` tooltip;
  *    the glyph plus the text keeps the meaning off color alone (`frontend-accessibility`).
  * 3. The disabled Activate button goes quiet. Transparent, faint text, hairline border — the

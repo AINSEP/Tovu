@@ -1,4 +1,5 @@
 import { navigateDatabaseTab } from "./Database.hooks";
+import { Icon } from "@jini-ai/ui";
 import { type AdminLedgerRow } from "../../lib/api";
 
 import { DataTable } from "@jini-ai/admin/react";
@@ -12,7 +13,6 @@ import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
 
 import { TabBar, type TabBarTab } from "@jini-ai/ui/tab-strip";
-import { MigrateForwardIcon, TimelineIcon } from "./database-visuals";
 import { t, planReadyMessage } from "./database-i18n";
 import { viewInRecoveryAccessibleName } from "./rules";
 
@@ -504,10 +504,10 @@ export function Database(props: DatabaseProps) {
   const activeTabId = resolveDatabaseTabId({ tabId: props.tabId });
 
   // Icons (2026-09-06): the same icon-beside-label idiom every other `TabBar` row in this admin
-  // carries — this was one of two rows still bare after the Media pass. See `database-visuals.tsx`.
+  // carries — this was one of two rows still bare after the Media pass.
   const tabs: TabBarTab[] = [
-    { id: "timeline", label: t({ locale: locale, key: "Timeline" }), icon: <TimelineIcon /> },
-    { id: "migrate-forward", label: t({ locale: locale, key: "Migrate forward" }), icon: <MigrateForwardIcon /> },
+    { id: "timeline", label: t({ locale: locale, key: "Timeline" }), icon: <Icon name="timeline" size={16} strokeWidth={1.5} /> },
+    { id: "migrate-forward", label: t({ locale: locale, key: "Migrate forward" }), icon: <Icon name="migrate-forward" size={16} strokeWidth={1.5} /> },
   ];
 
   return (

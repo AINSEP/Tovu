@@ -8,7 +8,8 @@ import { previewAgentPluginEnableAccess as previewWithPorts, validatedAgentPlugi
 import { agentPluginMcpProjectionPorts, withAgentPluginMcpPorts, withOverrides } from './mcp-host-bindings.js';
 import { classifyAgentPluginMcpServerTrust } from './capability-projection.js';
 import { tovuFederationMessages } from './federate-mcp.js';
-import type { AgentPluginMcpContext, AgentPluginMcpProjectionPorts } from './service-ports.js';
+import type { AgentPluginMcpContext } from './service-ports.js';
+import type { AgentPluginMcpProjectionPorts } from '@jini-ai/agent-plugins/connect';
 export { storedAgentPluginGrants } from '@jini-ai/agent-plugins/connect';
 
 /** Tovu's refusal copy (names Tovu's settings screen). Bytes unchanged from the pre-move body. */

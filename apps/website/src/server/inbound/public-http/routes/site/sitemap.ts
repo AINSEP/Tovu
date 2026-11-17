@@ -1,5 +1,5 @@
 import { seoForRequest } from "../../http/site/seo-render-context.js";
-import { escapeXml } from "#src/platform/html/escape";
+import { serializeSitemapXml } from "@jini-ai/cms/seo";
 import type { SeoRouteRegistrar } from "#src/server/inbound/admin-http/routes/seo/deps";
 
 /** Owner decision (TM-TOVU-2026-08-12-A request-cost audit, Phase 2 change 2 of 2) — same header,
@@ -17,17 +17,7 @@ export const registerSeoSitemapRoute: SeoRouteRegistrar = ({ app, deps }, _optio
       await deps.seoReady;
       const seoDeps = seoForRequest({ req, deps: deps.seoDeps });
       const entries = await deps.sitemapService.buildSitemap({ workspaceId: deps.workspaceId }, { renderBaseUrl: seoDeps.renderBaseUrl });
-      const body =
-        `<?xml version="1.0" encoding="UTF-8"?>\n` +
-        `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
-        entries
-          .map((e) => {
-            const lastmod = e.lastmod ? `<lastmod>${escapeXml({ text: e.lastmod })}</lastmod>` : "";
-            return `  <url><loc>${escapeXml({ text: e.loc })}</loc>${lastmod}</url>`;
-          })
-          .join("\n") +
-        (entries.length > 0 ? "\n" : "") +
-        `</urlset>\n`;
+      const body = serializeSitemapXml({ entries });
       res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("text/xml").send(body);
     } catch {
       res.status(500).type("text/plain").send("internal error");

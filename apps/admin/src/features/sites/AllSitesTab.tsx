@@ -1,4 +1,5 @@
 import type { LocalSitesController } from "./hooks/use-local-sites.hooks";
+import { Icon } from "@jini-ai/ui";
 import { RowMenu } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
@@ -21,7 +22,6 @@ import {
   resolveSitesEmpty,
   resolveSitesRowHandles,
 } from "./Sites.hooks";
-import { SiteFlagIcon, StarIcon } from "./sites-visuals";
 import { useSiteCardPreview } from "./hooks/use-site-card-preview.hooks";
 
 import { interpolate, type Translate } from '@jini-ai/core/text';
@@ -105,7 +105,7 @@ function SiteCardFlag({ site, snapshot, t }: { site: AdminSiteListEntry; snapsho
     // footnote about the folder rather than a second status; `aria-hidden` inside the
     // component, since the text beside it already says the same thing.
     <span className="status status-warning site-card-flag" title={t(registration.titleKey)}>
-      <SiteFlagIcon />
+      <Icon name="flag-triangle" size={14} strokeWidth={1.5} />
       {t(registration.labelKey)}
     </span>
   );
@@ -123,7 +123,7 @@ const STATUS_TONES: Record<string, SiteCardTone> = { "status-ok": "running", "st
 /** The default star, or nothing. */
 function SiteCardDefaultStar({ site, snapshot, t }: { site: AdminSiteListEntry; snapshot: AdminSitesSnapshot; t: Translate }) {
   if (!resolveSiteIsDefault(site, snapshot)) return null;
-  return <span className="site-card-default" role="img" aria-label={t("Opens by default")} title={t("Opens by default")}><StarIcon /></span>;
+  return <span className="site-card-default" role="img" aria-label={t("Opens by default")} title={t("Opens by default")}><Icon name="star-filled" size={14} strokeWidth={1.5} /></span>;
 }
 
 /** The second line under the name, or nothing. */

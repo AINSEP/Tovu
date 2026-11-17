@@ -6,6 +6,5 @@ import type { SiteConfirmController } from "./hooks/use-site-confirm.hooks";
  *  for a controller without one (test fakes, older callers). */
 export function LocalSiteConfirmDialog({ dialog }: { dialog?: SiteConfirmController }) {
   if (!dialog) return null;
-  return <ConfirmDialog open={dialog.open} agentHandle="sites-local-confirm" title={dialog.title} body={<p>{dialog.body}</p>}
-    confirmLabel={dialog.confirmLabel} tone={dialog.tone} onConfirm={dialog.onConfirm} onCancel={dialog.onCancel} />;
+  return <ConfirmDialog {...dialog.dialog} agentHandle="sites-local-confirm" />;
 }

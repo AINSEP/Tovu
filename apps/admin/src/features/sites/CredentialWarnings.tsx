@@ -1,8 +1,8 @@
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
+import { Icon } from "@jini-ai/ui";
 
 import type { CredentialWarning } from "./hooks/site-transfer-dependencies.hooks";
 import { credentialFileCount } from "./hooks/use-share-credential-gate.hooks";
-import { SiteFlagIcon } from "./sites-visuals";
 
 import { interpolate, type Translate } from '@jini-ai/core/text';
 /**
@@ -60,7 +60,7 @@ export function TransferNoticeTip({ notices, t }: { notices: readonly string[]; 
     <span className="site-transfer-notice-tip">
       {/* The triangle alone read as an unexplained mark; the word is decoration for the eye (the button already carries the name). */}
       <span className="site-transfer-notice-word" aria-hidden="true">{t("Warning")}</span>
-      <InfoTip icon={<SiteFlagIcon size={16} />} triggerLabel={t("Warning")} label={notices.join("\n")} agentHandle={false} />
+      <InfoTip icon={<Icon name="flag-triangle" size={16} strokeWidth={1.5} />} triggerLabel={t("Warning")} label={notices.join("\n")} agentHandle={false} />
     </span>
   );
 }

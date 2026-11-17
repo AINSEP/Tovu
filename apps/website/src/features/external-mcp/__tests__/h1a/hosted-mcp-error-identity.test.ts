@@ -5,7 +5,7 @@ import * as hosted from "@jini-ai/mcp/federation/hosted";
 import { ExternalMcpValidationError as AccessShimValidationError } from "../../../../contracts/core/external-mcp-access.js";
 import { ExternalMcpSecretStoreUnconfiguredError as StoreUnconfigured, ExternalMcpValidationError as StoreValidationError } from "../../external-mcp-store.js";
 import { classifyAgentPluginMcpError, isAgentPluginSignInRefusal } from "../../../agent-plugins/mcp-host-bindings.js";
-import type { AgentPluginMcpProjections } from "../../../agent-plugins/service-ports.js";
+import type { AgentPluginMcpProjections } from "@jini-ai/agent-plugins/connect";
 
 /** Same name and shape, different class: must NOT be treated as canonical. */
 class LookalikeValidationError extends Error {

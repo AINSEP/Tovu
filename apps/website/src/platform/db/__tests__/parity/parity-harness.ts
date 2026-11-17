@@ -83,7 +83,7 @@ export async function loadParityModules(root: string): Promise<ParityModules> {
     mcpRepo: await loadRepo("features/external-mcp/external-mcp-repo.ts"),
     userPurge: await load("features/identity/user-purge.ts"),
     tableCatalog: await load("features/database-transfer/table-catalog.ts"),
-    snapshotSource: await load("features/database-transfer/sqlite-source.ts"),
+    snapshotSource: root === CURRENT_SRC ? await import("@jini-ai/db/transfer") : await load("features/database-transfer/sqlite-source.ts"),
     exclusions: await load("features/database-transfer/exclusions.ts"),
     keyDependent: await load("platform/db/key-dependent-data.ts"),
   };
@@ -462,7 +462,7 @@ export async function writeTranscript(mods: ParityModules, ctx: ParityContext,
 export async function boundaryTranscript(mods: ParityModules, ctx: ParityContext): Promise<Record<string, unknown>> {
   const bytes = sqliteConnectionOf(ctx.kernel)!.serialize();
   const source = mods.current
-    ? mods.snapshotSource.openSqliteSnapshotSource({ bytes, open: (data: Buffer) => openSqliteSnapshot({ data }) })
+    ? mods.snapshotSource.openSqliteSnapshotSource({ bytes }, { open: (data: Buffer) => openSqliteSnapshot({ data }) })
     : mods.snapshotSource.openSqliteSnapshotSource(bytes);
   try {
     const plan = mods.current
