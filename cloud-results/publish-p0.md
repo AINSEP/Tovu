@@ -191,3 +191,132 @@ each split (a split moves the mutated text, so a row that no longer finds its te
   the run was stopped on the context budget.
 - A scratch worktree (`../Tovu-mut`) was used to run the mutation proof beside the edits; it was
   removed at the end. No test process was left running.
+
+# Run 2
+
+Status: **PARTIAL**. Done: the 6 remaining P0.6 function splits (each characterization-first, each with
+mutation proof), the D10e test, P0.8 for `apply-loop.ts`, `planner.ts` and `provisioning.ts`, and the
+empty-options-type part of P0.5a for the backstop, raw-contributor and apply family. Not done: the rest of
+P0.5a (the 87-function census), P0.5b (port methods), and P0.8 for `type-registry.ts`, `peers.ts`,
+`peer-transport.ts`, `file-tree-policy.ts` (they wait for P0.4 / P0.7, as the design says).
+Branch: Tovu `refactor/publish-p0`, continued from `5c37c65f` (run 1). Jini: `refactor/terra` @ `02edbb68`, built and
+linked locally; no Jini change. Node 24.22.3, pnpm install `--frozen-lockfile`, `pnpm -r build` green on the unmodified tree.
+
+## Commits (all pushed; last pushed SHA `ff81ceffc`)
+
+| SHA | Step | What |
+|---|---|---|
+| `f3bec7f4d` | P0.1 | **D10e test**: the import plan reads the baseline under the bundle's source principal. 2 cases, green on base, red when the lookup uses the admin |
+| `15a2d6a36` | P0.6 | characterization of `createRepoPublishHandler` (15 cases, rows RH1-17) |
+| `ede34bec6` | P0.6 | `createRepoPublishHandler` -> codec, env, pack/inspect/precheck/apply steps; 2 size-debt rows deleted |
+| `8a458467e` | P0.6 | characterization of the raw row contributor over a fake port (15 cases, rows RR1-23) |
+| `85c2d13f1` | P0.6 | `buildRawRowHandler` -> `RawRowEnv` + steps; 1 size-debt row and 1 complexity-debt row deleted |
+| `ebaf0afde` | P0.6 | characterization of the raw file contributor (10 cases added to the L044 suite; rows RF1-49) |
+| `135bfed0c` | P0.6 | `contributeRawFilePublish` -> `RawFileEnv` + steps, one `RawFileWrite` value; 2 size-debt rows deleted |
+| `0287ffebb` | P0.6 | characterization of `planPublishToPeer` (8 cases, rows PP1-23) |
+| `e5cce52a8` | P0.6 | `planPublishToPeer` -> select, push, annotate, answer |
+| `7ba531d85` | P0.6 | characterization of the apply loop (21 cases over a fake handler, rows AL1-32, AR1-44) |
+| `ad3c56f03` | P0.6 | `applyOneRow` (five closures -> module functions taking `{ step }`) and `applyReport` (-> `RunProgress` + steps); 3 size-debt function rows deleted |
+| `051f7845e` | P0.8 | `apply-loop.ts` -> `idempotency`, `apply-failure`, `apply-row`, `apply-retire`, `apply-report`, `apply-run`, `apply-port` |
+| `5dc899acb` | P0.8 | `planner.ts` -> `planner` + `plan-rows`; 40 imports repointed by script |
+| `67ec9b900` | P0.8 | `provisioning.ts` -> `provisioning` + `provisioning-status` |
+| `ff81ceffc` | P0.5a (part) | `_optional: Record<string, never> = {}` -> `_optional = {}` in 9 files; apply port factory destructures its input |
+| (this commit) | report | this section and the regenerated mutation table |
+
+## Baseline and gates
+
+Baseline on the unmodified tree: Jini build green; Tovu root `tsc` 0, tests `tsc` 0; the publish-content, publish-trust, route and
+gate suites passed before any edit (the D10e and characterization files were green before each split).
+After every commit: `tsc` root 0 errors; `check:size` and `check:complexity` output **identical to the previous commit** (diffed
+line by line), with one exception named below. After the last commit: `tsc` tests 0 errors; the publish-content + publish-trust + route
+suites **1285 tests, 1284 pass, 0 fail, 1 skipped** (the skip is the one of run 1); `check:boundaries` 111 violations (16 errors,
+95 warnings), the same as base; `check:architecture` still red as on base: this run **adds** exposed files (`module API surface 821 -> 852`, the
+new split files), which the design expects ("check-architecture.baseline.json edges rewritten") and which the coordinator
+should rebaseline after the whole of P0.8; cycle count is not worse by file in the two publish folders (no cycle among the new files).
+Exception: at `ad3c56f03` the file row of `apply-loop.ts` counted 775 lines against a baseline of 720 (the step signatures and
+interfaces); `051f7845e`, the next commit, deletes it. That is a worsened line for one commit, by design of the order (P0.6 then P0.8).
+
+## P0.6: function splits (all eight now done)
+
+| Function | Was | Now | Proof (mutation rows, all re-run on the split code) |
+|---|---|---|---|
+| `createRepoPublishHandler` | 177 lines | codec + `RepoEnv` + 8 module functions | RH1-17: 17 red |
+| `buildRawRowHandler` | 134 | `RawRowEnv` + 9 module functions | RR1-23: 23 red |
+| `contributeRawFilePublish` | 152 | `RawFileEnv` + 13 module functions | RF1-49: 48 red, RF32 equivalent |
+| `planPublishToPeer` | 63 | 5 module functions + 3 named types | PP1-23: 22 red, PP17 equivalent |
+| `applyOneRow` | 195 | dispatcher + `validateRetire`, `applyRetiringRow`, `checkExistence`, `checkAgreement`, `applyOrdinaryRow` taking `{ step }` | AL1-32: 32 red |
+| `applyReport` | 314 | `loadStagedBundle`, `abandonRefusedRun`, `openRun`, `executeRows`, `failRun`, `closeRun` and 15 helpers over one `RunProgress` | AR1-44: 42 red, AR19 and AR20 equivalent |
+
+Late-read check (lesson 3), done by reading every closure before lifting it: `applyOneRow`'s five closures read only `row`, `ctx`,
+`key` and `current`, all assigned before the first call, so each lifted function takes them in `{ step }` and nothing became eager.
+In `applyReport`, `report` is reassigned once (`prepareRunAudit` adds `backstop`); it is now `progress.report`, read at the
+same points. `transactional` was computed late and is pure over `entities`, so `openRun` computes it. The raw and repo handlers read
+`port` / `files` once at build time, as before (kept in the env value); every other read is still made when the step runs. The
+mutable state of `applyReport` is the one `RunProgress` value; the steps that write it name themselves in its doc.
+Bugs found: none new beyond the D10e gap. Where the design said "re-verify with the AST", I read the code; no closure
+depended on a later assignment.
+
+## Mutation proof
+
+The spec now has **330 rows** (142 before; +188: RH 17, RR 23, RF 49, PP 23, AL 32, AR 44). Final run at `ff81ceffc`:
+**325 red, 5 survived**. The survivors, all recorded and none papered over:
+
+- **K6c** (run 1): a second line behind K6d; stays for P0.7c.
+- **RF32**: the guard `written && prior` in the raw file rollback. The command gateway calls `rollback` only after `execute`
+  returned, so `written` is always true there; equivalent, kept as defense in depth.
+- **PP17**: `scoped.skipped` vs `bundle.skipped`; `selectBundleEntities` and `includeReferencedEntities` keep the scoped list, so
+  the two are the same value; equivalent.
+- **AR19, AR20**: `result.changeSetId ?? item.changeSetId` (and the retired id): an item gets a change set id only together with the result
+  that carries it; equivalent.
+- **D10e** is no longer a survivor.
+
+Method note: the first pass of the apply-loop rows left 39 of 76 green on the existing suites; the 21 characterization cases killed
+37 of them (nothing in the existing suites pinned the send-by-hand audit, the file rollbacks, the run-row identity or the retire
+refusals' wording). Three mutation workers ran in scratch worktrees (`/tmp`) so the main tree was never mutated while edited; a stale
+mutation left in two worktrees by a killed run was reset with `git checkout`, never in the main tree.
+
+## P0.8 notes
+
+- `apply-run.ts` is a **seventh** file beyond the design's six: `apply-report.ts` alone counted 537 lines against the 500 limit and
+  the run types cannot sit in `apply-port.ts` without a type cycle (the canonical `no-circular` rule counts type-only edges). It holds
+  `ApplyRun`, `RunProgress`, `CreatePublishContentApplyPortInput` and the run-row persistence. Coordinator: confirm or fold it back
+  once the F1/B02-S5 file shapes are set.
+- `applyOneRow` lives in `apply-report.ts` (the dispatcher imports `apply-row` and `apply-retire`; the other way round would be a cycle).
+- The two composition roots (`composition/deps.ts`, `composition/app.ts`) changed **only their import line**
+  (`createPublishContentApplyPort`, `toPublishContentApplyDeps` now from `apply-port`). Coordinator: re-take the text guards.
+- `planner.ts` re-exported `RetireTarget` and `ReferenceHolder`; that forwarder is deleted and its importers take the types from
+  `type-registry.ts`.
+- Error messages that say "wire it from the apply-loop composition root (features/publish-content/apply-loop.ts)" (repo handler, post,
+  media, menu, theme handlers) now name a file that no longer exists. They are asserted verbatim by tests, so they are **unchanged**; a
+  later step should reword them together with their tests (owner decision).
+- Not done and why: `type-registry.ts` needs P0.4; `peers.ts` needs `PeerStorePort` (P0.7c); `peer-transport.ts` and
+  `file-tree-policy.ts` need their config/redact ports to end up at the target names (P0.7). The 4 remaining `size-debt.json` rows for
+  `publish-content/*` are `peer-transport.ts` (file), `publish-backstop-file.ts`, `publish-tool.ts`, `tool-registrations.ts`.
+  The `apply-loop.ts` rows (4), `repo-handler.ts` (2), raw row (1 + 1 complexity row), raw file (2) are retired. X5 item 5 is now met for
+  `apply-loop.ts`.
+
+## P0.5
+
+Only a slice of **P0.5a** was done: the empty-options type (`Record<string, never>`) was dropped from function signatures in
+`backstop-policy.ts`, `backstop-service.ts`, both raw contributors, `apply-report/retire/row`, `push-plan.ts` and `repo-handler.ts`
+(type-only, no caller changed), and the apply port factory takes a destructured input. The `(deps, input)` and no-options-boundary
+conversions of the 87-function census and all of **P0.5b** (about 39 port methods, OD-12) are not started; each is a
+one-family-per-commit job with every caller and fake. Self-check at the end of the run: `owner-rules-audit` on the whole tree gives
+**0 new findings** in changed files; `args-object-audit` gives **0 findings that are new by function name** in the two publish
+folders (its by-line comparison lists 2 pre-existing `unsure` entries that moved with their files:
+`packedEntityLabel` and `describePublishTrustState`); the findings it dropped are `applyOneRow` (now `{ row, ctx }`),
+`build`, `blob`, `check` and two `apply` closures.
+
+## Findings carried and new
+
+1. (run 1, still open) the plugin before-save hook is not on the apply bag; needs the owner's yes.
+2. (run 1) K6c.
+3. **D10e is closed** by a test.
+4. The stale error-message path above.
+5. `check:architecture`'s API-surface count grows with every split file; plan one baseline rewrite after P0.8.
+
+## Next step
+
+P0.4 (registry per composition root) unblocks `type-registry.ts` and the rest of P0.8's first group; P0.7a-c unblock `peers.ts`,
+`peer-transport.ts`, `file-tree-policy.ts`. P0.5a/b are independent and can be dispatched per file family now, starting with the families
+whose files this run already moved (`apply-*`, raw contributors, backstop), because their callers and tests were just repointed.
