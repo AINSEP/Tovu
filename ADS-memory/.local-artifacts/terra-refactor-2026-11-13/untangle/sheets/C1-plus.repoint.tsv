@@ -9,7 +9,7 @@ jini	packages/ui/src/features/asset-tree-browser/index.ts	export-from ./rules.js
 jini	packages/ui/src/features/asset-tree-browser/rules.ts	export-from ../../utils/file-transfer.js	extensionForMimeType	DROP		wave	shell: delete these names from the barrel
 jini	packages/ui/src/features/html-editor/__tests__/dom.test.ts	../dom.js	hasAttributeOnAnyNodeShape	@jini-ai/core/primitives		C-lane	SPLIT hasAttributeOnAnyNodeShape cases -> packages/core/src/primitives/__tests__/node-shape.test.ts (the C lane does it with the move; relative import inside core)
 jini	packages/ui/src/features/html-editor/__tests__/index.test.ts	../index.js	*ns:HtmlEditor (1 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
-jini	packages/ui/src/features/html-editor/__tests__/index.test.ts	../dom.js	hasAttributeOnAnyNodeShape	@jini-ai/core/primitives		wave	core signature takes a structural NodeShape (core has no DOM lib); a DOM Element still fits
+jini	packages/ui/src/features/html-editor/__tests__/index.test.ts	../dom.js	hasAttributeOnAnyNodeShape	@jini-ai/core/primitives		done	DONE-BY-LANE: wave-b merge already removed the hasAttributeOnAnyNodeShape import/use from this test (no import of ../dom.js remains)
 jini	packages/ui/src/features/html-editor/index.ts	export-from ./dom.js	hasAttributeOnAnyNodeShape	DROP		wave	shell: delete these names from the barrel
 jini	packages/ui/src/features/media-providers/__tests__/missing-peer.test.ts	await import('../../../index.js')	dynamic (1 moved names reachable)	MANUAL		wave	namespace/dynamic/mock import: edit by hand
 jini	packages/ui/src/index.ts	export * from ./features/asset-tree-browser/index.js	* (extensionForMimeType)	KEEP		wave	export * line stays; the moved names leave with their definitions
