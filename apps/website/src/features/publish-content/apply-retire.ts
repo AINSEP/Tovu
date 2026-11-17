@@ -14,7 +14,7 @@ export type RetiringRowStep = ApplyRowStep & { readonly row: RetiringRow };
  *  closing the same plan/apply window `apply-row.ts`'s header requires for every other outcome, just
  *  applied to a target that lives outside this row's own id. Both checks run BEFORE either write,
  *  so a stale retire target never reaches handler.retire()/apply() at all. */
-async function validateRetire({ step }: { step: RetiringRowStep }, _optional: Record<string, never> = {}): Promise<ApplyRowResult | null> {
+async function validateRetire({ step }: { step: RetiringRowStep }, _optional = {}): Promise<ApplyRowResult | null> {
   const { row, entity, handler, current } = step;
   if (current !== null) {
     return downgradedRow({ row, outcome: "conflict", reason: `${row.entityType} '${row.entityId}' was created on the destination between plan and apply` });
@@ -33,7 +33,7 @@ async function validateRetire({ step }: { step: RetiringRowStep }, _optional: Re
   return null;
 }
 
-export async function applyRetiringRow({ step }: { step: RetiringRowStep }, _optional: Record<string, never> = {}): Promise<ApplyRowResult> {
+export async function applyRetiringRow({ step }: { step: RetiringRowStep }, _optional = {}): Promise<ApplyRowResult> {
   const { row, ctx, key, entity, handler } = step;
   const refused = await validateRetire({ step });
   if (refused) return refused;
@@ -74,7 +74,7 @@ export async function applyRetiringRow({ step }: { step: RetiringRowStep }, _opt
 async function undoRetire({ error, retireResult, row }: {
   error: unknown; retireResult: { undo(): Promise<void> } | undefined;
   row: PublishContentOutcomeRow & { retires: NonNullable<PublishContentOutcomeRow["retires"]> };
-}, _optional: Record<string, never> = {}): Promise<void> {
+}, _optional = {}): Promise<void> {
   // The retire already landed but the create it was clearing the address FOR did not — put the
   // holder back rather than leaving it retired with nothing to show for it (this handler's own
   // `retire()` doc: the apply loop is the one caller besides its own gateway rollback that calls

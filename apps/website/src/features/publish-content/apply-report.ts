@@ -127,7 +127,7 @@ async function abandonRefusedRun(
 
 /** Send by hand: records the pending audit row (with each item's hash before the run) and puts the
  *  backstop metadata on the report. Only a run whose bundle carries that metadata has one. */
-async function prepareRunAudit({ run }: { run: ApplyRun }, _optional: Record<string, never> = {}): Promise<void> {
+async function prepareRunAudit({ run }: { run: ApplyRun }, _optional = {}): Promise<void> {
   const { progress, handlerDeps, handlerByType, input, runId, startedAt, entities } = run;
   const metadata = readBackstopMetadata({ entities });
   const backstopAudit = handlerDeps.backstop?.audit;
@@ -146,7 +146,7 @@ async function prepareRunAudit({ run }: { run: ApplyRun }, _optional: Record<str
   await backstopAudit.save({ record: progress.auditRecord });
 }
 
-function initializeRunItems({ run }: { run: ApplyRun }, _optional: Record<string, never> = {}): void {
+function initializeRunItems({ run }: { run: ApplyRun }, _optional = {}): void {
   const { progress, entityByKey, input, sourcePrincipalId, startedAt } = run;
   for (const row of progress.report.rows) {
     const key = entityKey({ entityType: row.entityType, entityId: row.entityId });
@@ -270,7 +270,7 @@ function landedReplacements({ run }: { run: ApplyRun }, _optional = {}): EntityR
 
 async function repointHandlers(
   { run, replacements, skipIds }: { run: ApplyRun; replacements: EntityReplacement[]; skipIds: Set<string> },
-  _optional: Record<string, never> = {}
+  _optional = {}
 ): Promise<RepointOutcome> {
   let repointChangeSetIds: string[] = [];
   let menuLinksUpdated = 0;
@@ -309,7 +309,7 @@ async function repointHandlers(
 // write) aborts the whole run — otherwise a live menu is left pointing at a holder this run
 // already moved to Trash. A row that never reached a landed retire (never got there, or the
 // create half failed and was undone) contributes nothing, aborted run or not.
-async function runRepointPass({ run }: { run: ApplyRun }, _optional: Record<string, never> = {}): Promise<RepointOutcome> {
+async function runRepointPass({ run }: { run: ApplyRun }, _optional = {}): Promise<RepointOutcome> {
   const replacements = landedReplacements({ run });
   // Every id written THIS run, across every type — a holder in this set already carries the
   // source's own intent (its own row wrote), so repointing it would fight that intent (§2.5).
@@ -326,7 +326,7 @@ async function runRepointPass({ run }: { run: ApplyRun }, _optional: Record<stri
 // confirms its entities are servable here (`PublishContentHandler.verifyApplied`). Rows that
 // ended `blocked`/`conflict` are left out: they carry their own reason already. A failing check
 // is reported, never thrown: the content already landed.
-async function runVerifyPass({ run }: { run: ApplyRun }, _optional: Record<string, never> = {}): Promise<string[]> {
+async function runVerifyPass({ run }: { run: ApplyRun }, _optional = {}): Promise<string[]> {
   const problems: string[] = [];
   for (const handler of run.handlerByType.values()) {
     if (!handler.verifyApplied) continue;
@@ -392,7 +392,7 @@ async function applyRows({ run, ctx }: { run: ApplyRun; ctx: ApplyRowContext }, 
 
 async function rollbackRawRun(
   { run, error, rollbackErrors }: { run: ApplyRun; error: unknown; rollbackErrors: string[] },
-  _optional: Record<string, never> = {}
+  _optional = {}
 ): Promise<void> {
   for (const rollback of [...(run.handlerDeps.backstop?.fileRollbacks ?? [])].reverse()) {
     try { await rollback(); } catch (failure) { rollbackErrors.push(failure instanceof Error ? failure.message : "A file could not be rolled back."); }
@@ -402,7 +402,7 @@ async function rollbackRawRun(
 
 function recordRawRollback(
   { run, error, rollbackErrors }: { run: ApplyRun; error: unknown; rollbackErrors: string[] },
-  _optional: Record<string, never> = {}
+  _optional = {}
 ): void {
   const { progress } = run;
   // All raw writes, change sets and baselines rolled back together. Do not report the
@@ -421,7 +421,7 @@ function recordRawRollback(
   }
 }
 
-function recordFailedItem({ run, error }: { run: ApplyRun; error: unknown }, _optional: Record<string, never> = {}): void {
+function recordFailedItem({ run, error }: { run: ApplyRun; error: unknown }, _optional = {}): void {
   const { progress } = run;
   // A non-conflict error aborted the run partway through — the run row must still record
   // exactly which change sets landed before the failure (plan §5 risk #7's own words), never
@@ -444,7 +444,7 @@ function recordFailedItem({ run, error }: { run: ApplyRun; error: unknown }, _op
  *  file inverses an operator still needs. */
 async function saveFailureAudit(
   { run, error, rollbackErrors }: { run: ApplyRun; error: unknown; rollbackErrors: string[] },
-  _optional: Record<string, never> = {}
+  _optional = {}
 ): Promise<void> {
   const { auditRecord } = run.progress;
   if (!auditRecord) return;
@@ -459,7 +459,7 @@ async function saveFailureAudit(
   });
 }
 
-async function failRun({ run, error }: { run: ApplyRun; error: unknown }, _optional: Record<string, never> = {}): Promise<never> {
+async function failRun({ run, error }: { run: ApplyRun; error: unknown }, _optional = {}): Promise<never> {
   const { progress, transactional } = run;
   const rollbackErrors: string[] = [];
   if (transactional) await rollbackRawRun({ run, error, rollbackErrors });
@@ -472,7 +472,7 @@ async function failRun({ run, error }: { run: ApplyRun; error: unknown }, _optio
   throw transactional ? error : withRefusedItem({ error, itemKey: progress.activeItemKey });
 }
 
-async function executeRows({ run, ctx }: { run: ApplyRun; ctx: ApplyRowContext }, _optional: Record<string, never> = {}): Promise<void> {
+async function executeRows({ run, ctx }: { run: ApplyRun; ctx: ApplyRowContext }, _optional = {}): Promise<void> {
   const { handlerDeps } = run;
   try {
     if (run.transactional) {
@@ -486,7 +486,7 @@ async function executeRows({ run, ctx }: { run: ApplyRun; ctx: ApplyRowContext }
 
 /** Reports what the run did: the repoint and verification passes, the final snapshot, and the
  *  actual outcomes. */
-async function closeRun({ run }: { run: ApplyRun }, _optional: Record<string, never> = {}): Promise<ApplyReportResult> {
+async function closeRun({ run }: { run: ApplyRun }, _optional = {}): Promise<ApplyReportResult> {
   const { repointChangeSetIds, menuLinksUpdated, menuLinksNotUpdated } = await runRepointPass({ run });
   const verificationProblems = await runVerifyPass({ run });
 
@@ -506,10 +506,9 @@ async function closeRun({ run }: { run: ApplyRun }, _optional: Record<string, ne
 /** Applies a report: loads its bundle, opens the run row, writes row by row (or in one transaction for
  *  a send by hand), and closes the run with the repoint and verification passes. */
 export async function applyPublishContentReport(
-  { input, args }: { input: CreatePublishContentApplyPortInput; args: ApplyReportInput },
+  { input, report, principalId, bundleId, restorePointId, authorize, backstop }: { input: CreatePublishContentApplyPortInput } & ApplyReportInput,
   _optional = {}
 ): Promise<ApplyReportResult> {
-  const { report, principalId, bundleId, restorePointId, authorize, backstop } = args;
   const startedAt = clockNowIso({ clock: input.clock });
   const staged = await loadStagedBundle({ input, bundleId, startedAt });
   const identity: ApplyRunIdentity = { runId: input.idGen.newId(), startedAt, sourcePrincipalId: staged.sourcePrincipalId, principalId, restorePointId };
@@ -523,7 +522,7 @@ export async function applyPublishContentReport(
 /** Match each audited item to the inverse captured by its gateway mutation. */
 function backstopAuditItems(
   { items, inverses }: { items: BackstopAuditRecord["items"]; inverses: readonly BackstopInverse[] | undefined },
-  _optional: Record<string, never> = {},
+  _optional = {},
 ): BackstopAuditRecord["items"] {
   return items.map((item) => {
     const inverse = inverses?.find((candidate) => candidate.entity.id === item.id && candidate.entity.entityType === item.entityType);
@@ -543,7 +542,7 @@ function backstopAuditItems(
 /** Verification reports a problem after committed writes; it never aborts the published run. */
 async function verifyPublishedEntities(
   { handler, entities }: { handler: PublishContentHandler; entities: readonly PackedEntity[] },
-  _optional: Record<string, never> = {},
+  _optional = {},
 ): Promise<readonly string[]> {
   try {
     if (!handler.verifyApplied) throw new Error("Publish content handler has no verification operation");

@@ -41,7 +41,7 @@ export const BACKSTOP_LIMITS = { rows: 200, files: 50, bytes: 50 * 1024 * 1024, 
 
 export function checkRawTable(
   { table, columns }: { table: string; columns: readonly string[] },
-  _optional: Record<string, never> = {},
+  _optional = {},
 ): string | null {
   if (!/^[A-Za-z_]\w*$/.test(table)) return "The table name is not a valid database identifier.";
   if (BACKSTOP_DENIED_CORE_TABLES.has(table.toLowerCase()) || BACKSTOP_DENIED_TABLE_PATTERNS.some((pattern) => pattern.test(table))) {
@@ -56,7 +56,7 @@ export function checkRawTable(
 
 export function checkRawFilePath(
   { relPath, isSymbolicLink = false }: { relPath: string; isSymbolicLink?: boolean },
-  _optional: Record<string, never> = {},
+  _optional = {},
 ): string | null {
   if (isSymbolicLink) return "Links are never sent; choose a regular file inside the site folder.";
   // A raw file can start at the site root, unlike a typed tree. Apply the deny-list at EVERY
@@ -74,7 +74,7 @@ export function checkRawFilePath(
 
 export function checkRawValues(
   { values, table }: { values: Readonly<Record<string, unknown>>; table?: string },
-  _optional: Record<string, never> = {},
+  _optional = {},
 ): string | null {
   if (table?.toLowerCase().startsWith("setting_values_")) {
     const denied = checkInstallationSetting({ values });
@@ -90,27 +90,27 @@ export function checkRawValues(
 
 export function gapLabelFor(
   item: { entityType: "raw-row"; table: string } | { entityType: "raw-file"; relPath: string },
-  _optional: Record<string, never> = {},
+  _optional = {},
 ): string {
   return item.entityType === "raw-row" ? `table:${item.table}` : `folder:${item.relPath.split("/").slice(0, 2).join("/")}`;
 }
 
 /** Private names are denied at every depth, including backup and key suffix variants. */
-function isProtectedRawComponent({ part }: { part: string }, _optional: Record<string, never> = {}): boolean {
+function isProtectedRawComponent({ part }: { part: string }, _optional = {}): boolean {
   const lower = part.toLowerCase();
   if (BACKSTOP_DENIED_FILE_ROOTS.some((root) => root === lower) || lower.startsWith("restore-point-")) return true;
   return isPrivateRawName({ lower }) || isPrivateRawName({ lower: credentialBaseName({ name: part }) });
 }
 
 /** Checked on the name and on its backup-stripped base (`.npmrc.bak`, `tls.key~`). */
-function isPrivateRawName({ lower }: { lower: string }, _optional: Record<string, never> = {}): boolean {
+function isPrivateRawName({ lower }: { lower: string }, _optional = {}): boolean {
   if (lower.startsWith(".env") || /^\.mcp(?:\..*)?\.json$/.test(lower)) return true;
   if ([".npmrc", ".netrc", ".fs-custom-root.json", ".site-meta.json", ".storage-secret.json", "config.json"].includes(lower)) return true;
   return /^id_(?:rsa|dsa|ecdsa|ed25519)(?:\.|$)/.test(lower) || /\.(?:pem|key|p12|pfx)(?:[.-]|$)/.test(lower) || /\.(?:db.*|sqlite.*)$/.test(lower);
 }
 
 /** Installation settings stay local independently of the generic secret scan. */
-function checkInstallationSetting({ values }: { values: Readonly<Record<string, unknown>> }, _optional: Record<string, never> = {}): string | null {
+function checkInstallationSetting({ values }: { values: Readonly<Record<string, unknown>> }, _optional = {}): string | null {
   if (values.secret === 1 || values.secret === true || values.secret === "1") return "Secret settings are never sent.";
   const key = values.key;
   if (typeof key === "string" && (/^core\.(?:execution|privacy)\./.test(key) ||

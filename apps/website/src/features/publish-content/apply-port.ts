@@ -50,5 +50,8 @@ export function toPublishContentApplyDeps(required: PublishContentApplyDeps): Pu
  * flow.
  */
 export function createPublishContentApplyPort(input: CreatePublishContentApplyPortInput): PublishContentApplyPort {
-  return { applyReport: (args) => applyPublishContentReport({ input, args }) };
+  return {
+    applyReport: ({ report, principalId, bundleId, restorePointId, authorize, backstop }) =>
+      applyPublishContentReport({ input, report, principalId, bundleId, restorePointId, authorize, backstop }),
+  };
 }

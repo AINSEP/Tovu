@@ -16,7 +16,7 @@ function stateFor({ relPath, file }: { relPath: string; file: RawFileSnapshot },
 function hash({ relPath, file }: { relPath: string; file: RawFileSnapshot }, _optional = {}): string { return contentHash({ entityType: "raw-file", state: stateFor({ relPath, file }) }); }
 function version({ relPath, file }: { relPath: string; file: RawFileSnapshot }, _optional = {}): number { return Number.parseInt(hash({ relPath, file }).slice(0, 12), 16); }
 
-export function contributeRawFilePublish(_required: Record<string, never> = {}, _optional: Record<string, never> = {}): PublishContentContributor {
+export function contributeRawFilePublish(_required = {}, _optional = {}): PublishContentContributor {
   return { entityType: "raw-file", dependsOn: [], build: (deps: PublishContentDeps) => buildRawFileHandler({ deps }) };
 }
 
@@ -257,7 +257,7 @@ function buildRawFileHandler({ deps }: { deps: PublishContentDeps }, _optional =
 
 export async function undoRawFile(
   { deps, entity, before, afterHash }: { deps: PublishContentDeps; entity: PackedEntity; before: RawFileInverse; afterHash: string },
-  _optional: Record<string, never> = {},
+  _optional = {},
 ): Promise<string | null> {
   const files = deps.backstop?.files;
   if (!files) return "Send by hand is not available on this destination.";

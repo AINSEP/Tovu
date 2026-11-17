@@ -99,7 +99,7 @@ export interface ApplyRowStep {
   readonly current: InspectedRow | null;
 }
 
-export function checkExistence({ step }: { step: ApplyRowStep }, _optional: Record<string, never> = {}): ApplyRowResult | null {
+export function checkExistence({ step }: { step: ApplyRowStep }, _optional = {}): ApplyRowResult | null {
   const { row, current } = step;
   if (row.outcome === "created" && current !== null) {
     return downgradedRow({ row, outcome: "conflict", reason: `${row.entityType} '${row.entityId}' was created on the destination between plan and apply` });
@@ -112,7 +112,7 @@ export function checkExistence({ step }: { step: ApplyRowStep }, _optional: Reco
 
 export async function checkAgreement(
   { step, current }: { step: ApplyRowStep; current: InspectedRow },
-  _optional: Record<string, never> = {}
+  _optional = {}
 ): Promise<ApplyRowResult | null> {
   const { row, ctx, entity, handler } = step;
   // Never for `forced` — an operator forcing past a conflict already accepted overriding whatever
@@ -143,7 +143,7 @@ export async function checkAgreement(
   return null;
 }
 
-export async function applyOrdinaryRow({ step }: { step: ApplyRowStep }, _optional: Record<string, never> = {}): Promise<ApplyRowResult> {
+export async function applyOrdinaryRow({ step }: { step: ApplyRowStep }, _optional = {}): Promise<ApplyRowResult> {
   const { row, ctx, key, entity, handler, current } = step;
   try {
     const { changeSetId } = await handler.apply({
@@ -171,7 +171,7 @@ export async function applyOrdinaryRow({ step }: { step: ApplyRowStep }, _option
 
 /** Replacement sanitizing may normalize source metadata; remember what actually landed.
  * One indexed inspect per replaced row, with no additional reads on ordinary imports. */
-export async function refreshBaseline({ row, entity, ctx }: { row: PublishContentOutcomeRow; entity: PackedEntity; ctx: ApplyRowContext }, _optional: Record<string, never> = {}): Promise<void> {
+export async function refreshBaseline({ row, entity, ctx }: { row: PublishContentOutcomeRow; entity: PackedEntity; ctx: ApplyRowContext }, _optional = {}): Promise<void> {
   const destination = row.sourceReplacement ? await ctx.handlerByType.get(row.entityType)?.inspect({ id: row.entityId }) : null;
   return ctx.baselineRepo.upsert({
     workspaceId: ctx.workspaceId,
@@ -185,7 +185,7 @@ export async function refreshBaseline({ row, entity, ctx }: { row: PublishConten
   });
 }
 
-export async function refreshNonWritingRow({ row, ctx }: { row: PublishContentOutcomeRow; ctx: ApplyRowContext }, _optional: Record<string, never> = {}): Promise<ApplyRowResult> {
+export async function refreshNonWritingRow({ row, ctx }: { row: PublishContentOutcomeRow; ctx: ApplyRowContext }, _optional = {}): Promise<ApplyRowResult> {
   const key = entityKey({ entityType: row.entityType, entityId: row.entityId });
   // `conflict`/`blocked` pass through untouched — no baseline write (plan §4 task 8: baselines are
   // upserted for created/unchanged/applied/forced ONLY). `unchanged` is the one non-writing outcome

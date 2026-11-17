@@ -268,7 +268,7 @@ async function inspectRepoEntity<Row, Ports>(
 
 async function precheckRepoAddress<Row, Ports>(
   { env, entity, p }: { env: RepoEnv<Row, Ports>; entity: PackedEntity; p: Ports },
-  _options: Record<string, never> = {}
+  _options = {}
 ): Promise<string | null> {
   const { address } = env.config;
   const value = address ? entity.state[address.field] : undefined;

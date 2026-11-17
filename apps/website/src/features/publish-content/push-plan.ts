@@ -84,7 +84,7 @@ function pushSelectedBundle(
       // `RouteDeps.fileBlobIndex` (a file-tree type's `pack()` fill) so a blob that was never
       // copied into the blob store can still be pushed. See `composite-blob-source.ts`'s header.
       blobSource: createCompositePeerBlobSource({ blobStore: deps.blobStore, fileBlobIndex: deps.fileBlobIndex }),
-      computeStorageKey: ({ sha256 }: { sha256: string }, _options: Record<string, never> = {}) => computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 }),
+      computeStorageKey: ({ sha256 }: { sha256: string }, _options = {}) => computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 }),
     },
     { bundle, ...(overwriteEntityKeys == null ? {} : { overwriteEntityKeys }) }
   );

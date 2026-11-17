@@ -6,7 +6,7 @@ import { PublishContentApplyRowError } from "./apply-errors.js";
 import { contentHash, CONTENT_HASH_VERSION } from "./content-hash.js";
 import type { PackedEntity, PublishContentContributor, PublishContentDeps, PublishContentHandler, SkippedPackEntity } from "./type-registry.js";
 
-export function rawRowId({ table, pk }: { table: string; pk: Readonly<Record<string, RawValue>> }, _optional: Record<string, never> = {}): string {
+export function rawRowId({ table, pk }: { table: string; pk: Readonly<Record<string, RawValue>> }, _optional = {}): string {
   return `${table}:${JSON.stringify(Object.fromEntries(Object.entries(pk).sort(([a], [b]) => a.localeCompare(b))))}`;
 }
 
@@ -41,7 +41,7 @@ function scalar(value: unknown): value is RawValue {
 
 /** Every column, including bookkeeping columns, stays NESTED in values so the typed hashing
  * exclusions cannot silently discard raw data. A hash-derived version supplies the existing OCC seam. */
-export function contributeRawRowPublish(_required: Record<string, never> = {}, _optional: Record<string, never> = {}): PublishContentContributor {
+export function contributeRawRowPublish(_required = {}, _optional = {}): PublishContentContributor {
   return {
     entityType: "raw-row", dependsOn: [], build: (deps) => buildRawRowHandler({ deps }),
   };
@@ -65,7 +65,7 @@ function blockedTable({ env, table }: { env: RawRowEnv; table: string }, _option
     ? `Table '${table}' already publishes normally; use Overwrite live in normal publishing.` : null;
 }
 
-function checkShape({ env, entity }: { env: RawRowEnv; entity: PackedEntity }, _optional: Record<string, never> = {}): string | null {
+function checkShape({ env, entity }: { env: RawRowEnv; entity: PackedEntity }, _optional = {}): string | null {
   const { table, columns, values } = entity.state;
   if (typeof table !== "string") return "The raw row has no valid table name.";
   const covered = blockedTable({ env, table });
@@ -77,7 +77,7 @@ function checkShape({ env, entity }: { env: RawRowEnv; entity: PackedEntity }, _
   return checkRawTable({ table, columns: columns.map((c: RawColumn) => c.name) });
 }
 
-function checkPrimaryKey({ entity, live }: { entity: PackedEntity; live: readonly RawColumn[] }, _optional: Record<string, never> = {}): string | null {
+function checkPrimaryKey({ entity, live }: { entity: PackedEntity; live: readonly RawColumn[] }, _optional = {}): string | null {
   const { table, pk, values } = entity.state as unknown as RawRowSnapshot;
   if (!recordValue({ value: pk })) return "Choose a row by its complete primary key.";
   const decoded = decodeId({ id: entity.id });
@@ -87,7 +87,7 @@ function checkPrimaryKey({ entity, live }: { entity: PackedEntity; live: readonl
   return null;
 }
 
-function checkLiveValues({ env, entity, live }: { env: RawRowEnv; entity: PackedEntity; live: readonly RawColumn[] }, _optional: Record<string, never> = {}): string | null {
+function checkLiveValues({ env, entity, live }: { env: RawRowEnv; entity: PackedEntity; live: readonly RawColumn[] }, _optional = {}): string | null {
   const { values } = entity.state as unknown as RawRowSnapshot;
   if (JSON.stringify(Object.keys(values).sort()) !== JSON.stringify(live.map((c) => c.name).sort()) || Object.values(values).some((value) => !scalar(value))) return "The raw row must contain a valid value for every column.";
   const invalidKey = checkPrimaryKey({ entity, live });
@@ -117,7 +117,7 @@ async function precheckRawRow({ env, entity }: { env: RawRowEnv; entity: PackedE
 /** Reads the selected row. Only a typed refusal becomes a reason; any other port failure propagates. */
 async function readSelectedRow(
   { port, selected }: { port: RawRowPort | undefined; selected: { table: string; pk: Readonly<Record<string, RawValue>> } },
-  _optional: Record<string, never> = {}
+  _optional = {}
 ): Promise<{ row: RawRowSnapshot | null; readReason: string | null }> {
   try {
     if (!port) throw new Error("Send by hand has no row reader");
@@ -130,7 +130,7 @@ async function readSelectedRow(
 
 async function packSelectedRow(
   { env, selected }: { env: RawRowEnv; selected: { table: string; pk: Readonly<Record<string, RawValue>> } },
-  _optional: Record<string, never> = {}
+  _optional = {}
 ) {
   const id = rawRowId(selected);
   const early = checkRawTable({ table: selected.table, columns: Object.keys(selected.pk) }) ?? blockedTable({ env, table: selected.table });
@@ -215,7 +215,7 @@ async function applyRawRow({ env, input }: { env: RawRowEnv; input: RawRowApplyI
   } });
 }
 
-function buildRawRowHandler({ deps }: { deps: PublishContentDeps }, _optional: Record<string, never> = {}): PublishContentHandler {
+function buildRawRowHandler({ deps }: { deps: PublishContentDeps }, _optional = {}): PublishContentHandler {
   const env: RawRowEnv = { deps, port: deps.backstop?.rows, skipped: [] };
   return {
     entityType: "raw-row", schemaVersion: 1, permission: "publish.backstop", dependsOn: [], idempotencyScope: "run",
@@ -231,7 +231,7 @@ function buildRawRowHandler({ deps }: { deps: PublishContentDeps }, _optional: R
  * transaction, preventing an edit between OCC and restoration. FK failures roll back the undo. */
 export async function undoRawRow(
   { deps, entity, before, afterHash }: { deps: PublishContentDeps; entity: PackedEntity; before: RawRowSnapshot | null; afterHash: string },
-  _optional: Record<string, never> = {},
+  _optional = {},
 ): Promise<string | null> {
   const rows = deps.backstop?.rows;
   if (!rows) return "Send by hand is not available on this destination.";
@@ -254,22 +254,22 @@ export async function undoRawRow(
   } });
 }
 
-function blobScalar({ value }: { value: unknown }, _optional: Record<string, never> = {}): boolean {
+function blobScalar({ value }: { value: unknown }, _optional = {}): boolean {
   if (typeof value !== "object" || value === null || Object.keys(value).length !== 1) return false;
   return typeof (value as { blobBase64?: unknown }).blobBase64 === "string" &&
     /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test((value as { blobBase64: string }).blobBase64);
 }
 
-function invalidColumn({ column }: { column: RawColumn | null }, _optional: Record<string, never> = {}): boolean {
+function invalidColumn({ column }: { column: RawColumn | null }, _optional = {}): boolean {
   if (!column || typeof column.name !== "string" || typeof column.type !== "string") return true;
   return !Number.isInteger(column.pk) || !Number.isInteger(column.notnull);
 }
 
-function recordValue({ value }: { value: unknown }, _optional: Record<string, never> = {}): boolean {
+function recordValue({ value }: { value: unknown }, _optional = {}): boolean {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
-function checkContent({ entity }: { entity: PackedEntity }, _optional: Record<string, never> = {}): string | null {
+function checkContent({ entity }: { entity: PackedEntity }, _optional = {}): string | null {
   const { table, values } = entity.state as unknown as RawRowSnapshot;
   const scannable = Object.fromEntries(Object.entries(values).map(([name, value]) => [name,
     typeof value === "object" && value !== null ? Buffer.from((value as { blobBase64: string }).blobBase64, "base64").toString("utf8") : value]));
