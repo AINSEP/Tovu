@@ -1,3 +1,6 @@
+import type { Response } from "express";
+import { ToolInputError } from "@jini-ai/core";
+import { RecordVersionConflictError, parseExpectedVersion, versionConflictBody } from "@jini-ai/core/optimistic-concurrency";
 import { ToolAccessLoweringError } from '#src/assistant/external-mcp-roster-change';
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { describeExternalMcpOwnership } from "#src/features/external-mcp/built-in-connections";
@@ -90,7 +93,45 @@ function parseExternalMcpPutBody({ rawBody }: { rawBody: unknown }, _optional = 
     ...optionalStringField({ value: body.accessToken, key: "accessToken" }),
     ...optionalStringField({ value: body.accessTokenEnvName, key: "accessTokenEnvName" }),
     ...parseExternalMcpOAuthBody({ rawOAuth: body.oauth }),
+    // The version the tab loaded. Absent is still accepted (the save then compares the version read in
+    // the same request); a malformed value is a 400, never read as "no basis".
+    ...expectedVersionField({ value: body.expectedVersion }),
   };
+}
+
+/** `{ expectedVersion }` when the caller sent one. @throws {ToolInputError} when malformed. @complexity O(1). */
+function expectedVersionField({ value }: { value: unknown }, _optional = {}): { expectedVersion?: number } {
+  const expectedVersion = parseExpectedVersion({ value });
+  return expectedVersion === undefined ? {} : { expectedVersion };
+}
+
+/**
+ * Maps a failed save onto its HTTP answer: 409 for a stale `expectedVersion` (the shared conflict
+ * body), 400 for a malformed one or an invalid field, 503 for a roster change that lowers tool
+ * access or a missing secret store, 500 for anything else. @complexity O(1).
+ */
+function respondToExternalMcpSaveFailure({ res, err }: { res: Response; err: unknown }, _optional = {}): void {
+  if (err instanceof ToolAccessLoweringError) {
+    res.status(503).json({ error: err.message, code: err.code });
+    return;
+  }
+  if (err instanceof RecordVersionConflictError) {
+    res.status(409).json(versionConflictBody({ error: err }));
+    return;
+  }
+  if (err instanceof ToolInputError) {
+    res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
+    return;
+  }
+  if (err instanceof ExternalMcpValidationError) {
+    res.status(400).json({ error: err.message, code: "INVALID_MCP_SERVER", details: { field: err.field } });
+    return;
+  }
+  if (err instanceof ExternalMcpSecretStoreUnconfiguredError) {
+    res.status(503).json({ error: err.message, code: "SECRET_STORE_UNCONFIGURED" });
+    return;
+  }
+  sendAdminFailure({ res, error: err }, { operation: "routes/external-mcp/put", code: "INTERNAL_ERROR" });
 }
 
 /**
@@ -158,19 +199,7 @@ export const registerAdminExternalMcpPutRoute: ExternalMcpRouteRegistrar = ({ ap
       else await notifyExternalMcpRosterChanged({ lowered: { serverIds: [server.serverId] } });
       res.json({ server: describeExternalMcpOwnership({ server, ids: deps.builtInExternalMcpServerIds }), restartRequired: true });
     } catch (err) {
-      if (err instanceof ToolAccessLoweringError) {
-        res.status(503).json({ error: err.message, code: err.code });
-        return;
-      }
-      if (err instanceof ExternalMcpValidationError) {
-        res.status(400).json({ error: err.message, code: "INVALID_MCP_SERVER", details: { field: err.field } });
-        return;
-      }
-      if (err instanceof ExternalMcpSecretStoreUnconfiguredError) {
-        res.status(503).json({ error: err.message, code: "SECRET_STORE_UNCONFIGURED" });
-        return;
-      }
-      sendAdminFailure({ res, error: err }, { operation: "routes/external-mcp/put", code: "INTERNAL_ERROR" });
+      respondToExternalMcpSaveFailure({ res, err });
     }
   });
 };

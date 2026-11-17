@@ -21,7 +21,7 @@ it("a renamed built-in connection has a badge and Tools, and no Remove control",
 });
 
 it("Secrets excludes the source flag and still includes a user connection with the desktop name", async () => {
-  const base: AdminExternalMcpServer = { serverId: "host-tools", label: "Renamed host", transport: "stdio", authMode: "none", enabled: true, command: "host-launcher", url: null, args: [], allowedToolNames: [], writeAllowedToolNames: [], writeGrantsUpdatedByPrincipalId: null, writeGrantsUpdatedAt: null, envNames: [], oauth: { providerId: null, grant: null, clientId: null, scopes: [], status: "disconnected", expiresAt: null, tokenEnvName: null, hasStoredToken: false } };
+  const base: AdminExternalMcpServer = { serverId: "host-tools", version: 1, label: "Renamed host", transport: "stdio", authMode: "none", enabled: true, command: "host-launcher", url: null, args: [], allowedToolNames: [], writeAllowedToolNames: [], writeGrantsUpdatedByPrincipalId: null, writeGrantsUpdatedAt: null, envNames: [], oauth: { providerId: null, grant: null, clientId: null, scopes: [], status: "disconnected", expiresAt: null, tokenEnvName: null, hasStoredToken: false } };
   const port = createFakeOtherCredentialsPort({ listExternalMcpServers: async () => ({ servers: [{ ...base, builtIn: true }, { ...base, serverId: "user-server", label: "Tovu Desktop", builtIn: false }] }) });
   const t = (key: string) => key;
   const { result } = renderHook(() => useOtherCredentials({ port, t, locale: "en", filter: { query: "", category: "all" } }), { wrapper: ({ children }) => <FetchQueryProvider>{children}</FetchQueryProvider> });

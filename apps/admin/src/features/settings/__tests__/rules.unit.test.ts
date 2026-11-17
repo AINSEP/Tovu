@@ -288,6 +288,7 @@ describe("buildExternalMcpFieldSpecs — exhaustive coverage of the PUT route's 
    * than a snapshot of today's fields.
    */
   const TOP_LEVEL_FIELDS: Record<keyof AdminExternalMcpServerInput, true> = {
+    expectedVersion: true,
     label: true,
     transport: true,
     enabled: true,
@@ -324,10 +325,11 @@ describe("buildExternalMcpFieldSpecs — exhaustive coverage of the PUT route's 
    *    itself (a fixed "Label" input outside the per-item field-spec loop), not by this module.
    *  - `enabled` — rendered by that same package's enable/disable checkbox in the card header, gated
    *    on `source.enabled !== undefined` rather than a field spec.
+   *  - `expectedVersion` — the basis the tab sends back (the `version` it last loaded or saved), never typed by an operator.
    *  - `oauth` — a wire-body CONTAINER, not a control an operator fills in directly; its own members
    *    are `OAUTH_FIELDS` below, each checked against its own `oauth<Field>` spec key.
    */
-  const RENDERED_OUTSIDE_FIELD_SPECS = new Set<keyof AdminExternalMcpServerInput>(["label", "enabled", "oauth"]);
+  const RENDERED_OUTSIDE_FIELD_SPECS = new Set<keyof AdminExternalMcpServerInput>(["label", "enabled", "oauth", "expectedVersion"]);
 
   /**
    * The union of every spec key `buildExternalMcpFieldSpecs` can produce across the field set's two

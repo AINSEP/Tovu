@@ -138,6 +138,7 @@ describe("defaultOtherCredentialsPort — external MCP servers", () => {
   const server: AdminExternalMcpServer = {
     serverId: "local-fs",
     label: "Local filesystem",
+    version: 1,
     transport: "stdio",
     authMode: "static_env",
     enabled: true,
@@ -209,6 +210,7 @@ describe("createFakeOtherCredentialsPort — defaults", () => {
           servers: [
             {
               serverId: "s1",
+              version: 1,
               label: "S1",
               transport: "stdio",
               authMode: "static_env",

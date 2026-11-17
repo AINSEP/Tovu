@@ -16,6 +16,7 @@ function fakeExternalMcpServer(overrides: Partial<AdminExternalMcpServer> = {}):
   return {
     serverId: "local-fs",
     label: "Local filesystem",
+    version: 1,
     transport: "stdio",
     authMode: "static_env",
     enabled: true,
