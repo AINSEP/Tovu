@@ -13,7 +13,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
  * mirroring those routes' identical check (ADR-021 §2's single evaluator, located at the handler
  * here rather than inside the domain function).
  */
-import { buildDomainRegistrations, indexCatalogById, isRecord, optionalBoolean, optionalNumber, optionalOneOf, optionalString, requireInputRecord, requireNumber, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, withToolMetadata, isRecord, optionalBoolean, optionalNumber, optionalOneOf, optionalString, requireInputRecord, requireNumber, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { ToolInputError } from "@jini-ai/core";
@@ -49,9 +49,21 @@ export interface RedirectsToolDeps {
   redirectsWriteDeps: RedirectsWriteDeps;
 }
 
-/** What each handler factory receives: the host deps bag (handlers never read the surface store). */
+/**
+ * The package-side deps bag: exactly what the handlers read. It carries no surface store (no
+ * handler opens a dialog) and no host policy; the host binds its own wording and metadata around it.
+ */
+export interface RedirectsPackageToolDeps {
+  authorize: AuthorizeFn;
+  workspaceId: string;
+  redirectRepo: RedirectRepoPort;
+  redirectHitSink: RedirectHitSink;
+  redirectsWriteDeps: RedirectsWriteDeps;
+}
+
+/** What each handler factory receives (handlers never read the surface store). */
 interface RedirectsHandlerArgs {
-  deps: RedirectsToolDeps;
+  deps: RedirectsPackageToolDeps;
 }
 
 /** Model-facing redirect-rule view — drops `workspaceId` (redundant: every call is already scoped
@@ -262,11 +274,20 @@ const redirectsImportHandler = ({ deps }: RedirectsHandlerArgs): ToolHandler => 
   return { created: created.map(toRedirectToolView), failed };
 };
 
-export function buildRedirectsRegistrations(
-  routeDeps: RedirectsToolDeps,
-  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
+/**
+ * The package-side builder: the seven redirects tools, their model-facing error mapping and the
+ * authored risk map, with no host metadata or default surface store bound.
+ *
+ * @param required.deps - The ports the handlers read.
+ * @returns One registration per catalog entry, in catalog order.
+ * @throws {Error} When a catalog entry is neither wired nor declared unwired (the kit's tripwire).
+ * @complexity O(t) in the seven catalog entries.
+ */
+export function buildRedirectsToolRegistrations(
+  { deps }: { deps: RedirectsPackageToolDeps },
+  _optional = {},
 ): ToolRegistration[] {
-  const args: RedirectsHandlerArgs = { deps: routeDeps };
+  const args: RedirectsHandlerArgs = { deps };
   const handlers: Record<string, ToolHandler> = {
     redirects_list: redirectsListHandler(args),
     redirects_get: redirectsGetHandler(args),
@@ -277,13 +298,25 @@ export function buildRedirectsRegistrations(
     redirects_import: redirectsImportHandler(args),
   };
 
-  return buildDomainRegistrations({ metadata: toolMetadata,
+  return buildDomainRegistrations({
     domain: "redirects",
     catalogModule: "redirects/agent-tools.ts",
     catalog: CATALOG_BY_ID,
     handlers: withModelFacingErrors({ handlers, rules: REDIRECTS_MODEL_FACING_RULES }),
     derivedRisk: redirectsDerivedRisk,
   });
+}
+
+/**
+ * The host builder: the package registrations plus this site's tool metadata (search vocabulary,
+ * the `redirects_tombstone` confirmation policy). Its name, positional parameters and default
+ * surface store are pinned by existing callers and tests; no handler reads `surfaces`.
+ */
+export function buildRedirectsRegistrations(
+  routeDeps: RedirectsToolDeps,
+  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
+): ToolRegistration[] {
+  return withToolMetadata({ registrations: buildRedirectsToolRegistrations({ deps: routeDeps }), metadata: toolMetadata });
 }
 
 /**
