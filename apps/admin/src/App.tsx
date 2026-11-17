@@ -45,7 +45,6 @@ import { closePublishRequest, usePublishRequest } from "./features/publish-conte
 import { t as translateDashboard } from "./features/dashboard/dashboard-i18n";
 import {
   resolveChatFabClearance,
-  resolveSiteSectionRouteGate,
   createAdminShellTranslators,
   useAdminAssistantAvailability,
   useAdminSession,
@@ -58,12 +57,15 @@ import {
   usePublishCriteriaDeepLink,
   useScreenshotAnnouncement,
   useSidebarDrawer,
+  type UseLogoutConfirm,
+} from "./App.hooks";
+import {
+  resolveSiteSectionRouteGate,
   useSiteSectionAvailability,
   useSidebarSiteSection,
   withoutSiteSection,
   type SiteSectionAvailability,
-  type UseLogoutConfirm,
-} from "./App.hooks";
+} from "./site-section-availability.hooks";
 
 /**
  * A resolved route, plus Tovu's legacy sections and URL migration metadata — see `parseRoute`.

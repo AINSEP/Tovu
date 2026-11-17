@@ -24,7 +24,7 @@ export function useSiteTransferTranslate(): Translate {
 /**
  * Whether this deployment has a Sites section, so the Import tab may make a new site for a live
  * website (until 2026-11-10 it linked to the New site tab instead).
- * The same rule `App.hooks.ts`'s `useSiteSectionAvailability` applies to the sidebar and router —
+ * The same rule `site-section-availability.hooks.ts`'s `useSiteSectionAvailability` applies to the sidebar and router —
  * never in the desktop shell, otherwise the server's `switchingEnabled` — over the same cached read
  * (the boot scope's principal key is the one App passes), so it costs no extra request. A read still
  * loading counts as no: an offer that fails is worse than one that shows a moment late.
