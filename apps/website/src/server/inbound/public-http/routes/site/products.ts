@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { resolveProtocol } from "../oauth/public-origin.js";
+import { resolveProtocol } from "../../../../../platform/http/public-origin.js";
 import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { productCheckoutWhenReady, type ProductCheckoutReadiness } from "./product-checkout.js";
 import { resolveRenderThemeId } from "../../middleware/render-theme-override.js";

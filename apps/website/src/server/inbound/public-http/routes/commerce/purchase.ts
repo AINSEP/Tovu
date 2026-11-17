@@ -9,7 +9,7 @@ import { createRateLimiter, OUTBOUND_CALL_PER_IP, resolveClientIp, type RateLimi
 import type { RouteDeps } from "#src/server/routes/types";
 import { uniqueMemberCookie } from "../members/oidc-deps.js";
 import { isSameOriginCommentPost } from "../site/comments-submit.js";
-import { resolveProtocol } from "../oauth/public-origin.js";
+import { resolveProtocol } from "../../../../../platform/http/public-origin.js";
 import { asyncRoute } from "../../../../../platform/http/async-route.js";
 
 /** Narrow structural port; no credential, provider or ledger mutation capability crosses HTTP. */
