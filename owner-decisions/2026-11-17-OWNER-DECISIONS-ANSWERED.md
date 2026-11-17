@@ -22,3 +22,7 @@ Coordinator tovu-30 reviewed each Rec in 2026-11-17-OWNER-DECISIONS.md (full que
 - ER-6 (tracker gets original + exactSecrets: security-sensitive, coordinator wants a second look), ER-D12 (model sees incident reason).
 - OLD-CLONES (permanent delete: owner confirms explicitly), OLD-KL (talk), OLD-DEDUPE (re-ask), OLD-TRASH, OLD-L2LOG, OLD-PAGETOOLS, OLD-RELEASE (no rec).
 - Decide-later by design: AU-D4, AU-D6, AU-D12, XP-OD6.
+
+## Added 2026-11-17 ~3:30 PM PT (owner)
+- 03-a HREF STANDARD: use Jini's isAllowedHref as THE href check; fix Jini (refuse protocol-relative links to its own placeholder host; non-string input = not allowed, never throw; add one Jini helper next to it that returns the trimmed href or "#"), then delete BOTH Tovu safeHref helpers (platform/html/safe-url.ts and features/theme/render-contract.ts), repoint every caller, update check-menu-href-allowlist-sync.
+- AU-D15 = ACCEPT the judge-2 rewrite of admin sheet T1b (route-parity step 0, full mapping, S12-S16; ~380k).
