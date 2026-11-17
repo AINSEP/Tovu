@@ -28,8 +28,8 @@ export interface DesktopUpdaterPorts {
   automaticUpdates: () => boolean;
   saveAutomaticUpdates: (args: { enabled: boolean }) => void;
   skipReason: () => string | null;
-  /** `(await import("electron-updater")).default.autoUpdater`. Imported by the caller at call time,
-   *  not at the top of `main.ts`, so a dev launch never loads it. */
+  /** Resolves `electron-updater`'s `autoUpdater` (the entry imports the package statically, as it is a
+   *  declared dependency). Called only once the skip gate has passed, so a dev launch never reads it. */
   loadNativeUpdater: () => Promise<NativeUpdater>;
   /** `quitPhase === "idle"`: no quit drain has begun. */
   quitIdle: () => boolean;

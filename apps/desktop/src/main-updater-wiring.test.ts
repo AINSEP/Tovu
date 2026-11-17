@@ -22,8 +22,10 @@ function block(anchor: string, end: string): string {
   return source.slice(start, stop);
 }
 
-test("electron-updater is never imported at module scope", () => {
-  assert.doesNotMatch(source, /^import .*electron-updater/m);
+test("electron-updater is a declared dependency, imported statically and never through a dynamic import()", () => {
+  assert.match(source, /^import electronUpdater from "electron-updater";$/m);
+  assert.doesNotMatch(source, /import\(\s*["']electron-updater["']\s*\)/);
+  assert.match(source, /loadNativeUpdater: async \(\) => electronUpdater\.autoUpdater,/);
 });
 
 test("only the quit that ends the app consults the updater, and may be held by it", () => {

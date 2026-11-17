@@ -107,6 +107,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { app, BrowserWindow, dialog, shell, Menu, ipcMain, net, session, screen, crashReporter, webContents } from "electron";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
+import electronUpdater from "electron-updater";
 import { createElectronUrlCapturePool } from "@jini-ai/desktop-host/electron";
 
 import { startTovuServer, DEFAULT_STOP_GRACE_MS } from "../tovu-server.ts";
@@ -464,8 +465,9 @@ const desktopUpdater = createDesktopUpdater({ ports: {
   automaticUpdates: () => readAutomaticUpdates({ preferencePath: desktopPreferencesPath() }),
   saveAutomaticUpdates: ({ enabled }) => writeAutomaticUpdates({ preferencePath: desktopPreferencesPath(), enabled }),
   skipReason: currentUpdaterSkipReason,
-  // Imported here, not at the top, so a dev launch never loads it.
-  loadNativeUpdater: async () => (await import("electron-updater")).default.autoUpdater,
+  // A declared dependency, imported statically at the top; the port stays async so the updater's skip gate
+  // (dev launches, updates off) decides whether anything reads the autoUpdater at all.
+  loadNativeUpdater: async () => electronUpdater.autoUpdater,
   quitIdle: () => quitPhase === "idle",
   controllerDeps: () => ({ platform: process.platform, pid: process.pid, presenceDir: presenceDirPath({ userDataDir: app.getPath("userData") }),
     now: Date.now, explainOthersOpen: ({ count }: { count: number }) => explainOthersOpen({ dialog, count }), quit: () => app.quit(),
