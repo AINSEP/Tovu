@@ -12,7 +12,7 @@ import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
 import { SealedDatabaseDestinationStore, type SavedDatabaseDestination } from '../../database-transfer/destination-store.js';
 import { createDestinationExchangeReporter } from '../../database-transfer/destination-exchange.js';
 import { buildDestinationForm, SET_DESTINATION_TOOL_ID } from '../../database-transfer/destination-ui.js';
-import { CREDENTIAL_MESSAGES } from '../../../contracts/core/credential-token.js';
+import { CREDENTIAL_MESSAGES } from '@jini-ai/platform/secrets/credential-token';
 import { McpProtocolError } from '@jini-ai/mcp/federation';
 import type { SurfaceEmission } from '@jini-ai/core';
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";

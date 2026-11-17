@@ -15,7 +15,7 @@ import {
   saveMediaProviderCredentials,
 } from "../provider-credential-store.js";
 import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
-import { CREDENTIAL_MESSAGES, CREDENTIAL_TOKEN_LIMIT } from "../../../contracts/core/credential-token.js";
+import { CREDENTIAL_MESSAGES, CREDENTIAL_TOKEN_LIMIT } from "@jini-ai/platform/secrets/credential-token";
 import { createTovuStoreVault } from "#src/platform/secrets/vault-kinds";
 import { mediaVaultScope } from "../provider-credential-vault.js";
 

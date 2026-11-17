@@ -10,7 +10,7 @@ import { staticDownloadLayout } from "../site-backup/static-download-layout.js";
 import { LANDING_FILE } from "../site-backup/static-download-landing.js";
 import { claimArchivePaths } from "../site-backup/share-zip.js";
 import { SiteShareRefusal } from "../site-backup/share-policy.js";
-import { CREDENTIAL_MESSAGES } from "../../contracts/core/credential-token.js";
+import { CREDENTIAL_MESSAGES } from "@jini-ai/platform/secrets/credential-token";
 
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import { firstExportFailure, type ExportReport } from "#src/features/site-export/index";

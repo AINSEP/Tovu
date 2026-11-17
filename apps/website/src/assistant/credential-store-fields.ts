@@ -1,5 +1,5 @@
 import type { VaultRecord } from '@jini-ai/core/contracts/vault';
-import type { CredentialTokenHint } from '../contracts/core/credential-token.js';
+import type { CredentialTokenHint } from '@jini-ai/platform/secrets/credential-token';
 
 /** Both assistant views expose presence and hints from the same vault snapshot. */
 export function credentialViewFields({ record, tokenHint = null }: { record: VaultRecord | null; tokenHint?: CredentialTokenHint | null }, _options = {}) {

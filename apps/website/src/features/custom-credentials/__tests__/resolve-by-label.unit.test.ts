@@ -23,7 +23,7 @@ import {
   type CustomCredentialWriteDeps,
 } from "../store.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { CREDENTIAL_MESSAGES } from "../../../contracts/core/credential-token.js";
+import { CREDENTIAL_MESSAGES } from "@jini-ai/platform/secrets/credential-token";
 import type { CreateCustomCredentialInput } from "../store.js";
 import type { CustomCredentialSetRecord } from "../types.js";
 

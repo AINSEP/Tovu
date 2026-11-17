@@ -1,4 +1,4 @@
-import { CREDENTIAL_MESSAGES, type CredentialMessageId, type CredentialTokenHint } from './credential-token.js';
+import { CREDENTIAL_MESSAGES, type CredentialMessageId, type CredentialTokenHint } from '@jini-ai/platform/secrets/credential-token';
 
 /** Shared Tovu copy for server cards and admin hooks, covering every offered admin locale. */
 export const CREDENTIAL_COPY = {

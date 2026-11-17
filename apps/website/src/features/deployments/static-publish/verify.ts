@@ -1,4 +1,4 @@
-import { assertCredentialToken, CredentialInputError } from '../../../contracts/core/credential-token.js';
+import { assertCredentialToken, CredentialInputError } from '@jini-ai/platform/secrets/credential-token';
 import { credentialText } from '../../../contracts/core/credential-copy.js';
 import type { UUID } from "@jini-ai/core/primitives";
 import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";

@@ -1,6 +1,7 @@
 export { ExternalMcpValidationError, externalMcpAdmissionRevision, externalMcpAccessSnapshot, readExternalMcpToolGrants, validateExternalMcpToolNames } from "../../contracts/core/external-mcp-access.js";
 import type { ExternalMcpServerView, ExternalMcpStoreDeps, ExternalMcpOAuthTokenResolverPort, ExternalMcpServerRecord, ExternalMcpServerConfig, SaveExternalMcpServerInput, ExternalMcpSealedOAuthPayload, SealedExternalMcpOAuth } from "./contracts.js";
-import { CredentialInputError, assertCredentialFreeField, normalizeCredentialToken, assertCredentialToken, CREDENTIAL_MESSAGES, CREDENTIAL_TOKEN_LIMIT, credentialTokenHint } from "../../contracts/core/credential-token.js";
+import { assertCredentialFreeField } from "../../contracts/core/credential-token.js";
+import { CredentialInputError, normalizeCredentialToken, assertCredentialToken, CREDENTIAL_MESSAGES, CREDENTIAL_TOKEN_LIMIT, credentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
 import type { UUID } from "@jini-ai/core/primitives";
 import type { ExternalMcpConfigFailure } from "@jini-ai/core/contracts/hosted-mcp";
 import type { SecretSealerPort } from "../webhooks/index.js";
