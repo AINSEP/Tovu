@@ -52,3 +52,56 @@ Branch `refactor/size-02-app` (from `origin/refactor/terra`), Jini `origin/refac
 
 ## Next step
 Design step 4 (in-place splits in the in-memory root: trash adapters Map, attachment purge loop, apply port, share-check script), then 5-7, then P2 once 02-a is applied. `app.ts` still holds both roots (`createRouteDeps` 880 lines) as designed for phase 1.
+
+
+# Run 2 — size-02-cont (design 02 steps 4, 5 (partial), 6 (blocked), 7, phase P2)
+
+Branch `refactor/size-02-app` (continued from `1f1455fc`), Jini `origin/refactor/terra` `02edbb68` (not edited; my Tovu commits do not name it in their messages — they were pushed before I noticed the owner rule; there is no Jini change in this run). Node 24. `app.ts`: 1,675 -> **1,003** lines (2,690 at the original base). `createRouteDeps`: 880 -> **460** code lines. `createApp` unchanged (~40).
+
+## Commits (all pushed, in order)
+| SHA | what |
+|---|---|
+| ef5ae2e1 | step 4 pin: `memory-root-trash-adapters.pin.test.ts` — trash/list/restore round trip for post, redirect, comment, media, form, form_submission, widget, menu through `routeDeps.trash` (9 tests) |
+| d46ed911 | step 4: post/redirect/comment/media adapters -> `memory-deps/slices/trash-adapters-content.ts` |
+| 547d3fb6 | step 4: form/form_submission/widget/menu adapters (deferred repos as getters) -> `trash-adapters-forms-widgets.ts` |
+| 2711a212 | step 4: term/taxonomy adapters + the Map (`composeMemoryTrashAdapters`, 38-line file) |
+| 3e2249e1 | step 4: attachment purge loop (27 lines) -> `form-attachment-purge.ts` (reader / remover / wiring) + 5 interface-fake unit tests |
+| 78157857 | step 4: apply port + ports bag -> `publish-apply.ts`; share check script `cloud-results/work/size-02-apply-ports-share-check.cjs` |
+| 323dcce3 / 4fd7b21e / 50154409 | **P2** 3a `createInMemoryApp()` in `memory-route-deps.ts` (3 tests) · 3b the 27 calls in 8 files · 3c `createApp` default removed |
+| 08e06741 | step 5: five runs at once — `member-secrets`, `repos`, `identity-settings`, `site-title-settings`, `origin-newsletter` (+ `lazy-proxy.ts`, `ports.ts`) |
+| 635e076b, 62844c65, 53daedbd | step 5: `taxonomy-trash-repos`, `nav-form-content-repos`, `publish-content-stores` |
+| 225f954a | step 5: `memory-trash.ts` (Trash service + adapter wiring + `removePlugin`) |
+| 3927ef58 | step 5/6 piece: `outbound-http.ts` (guarded client + OAuth ports) + egress-policy pin (`outbound-http.test.ts`) |
+| b5980e4d, 9b1b886e, 9f8b6c62 | step 5: `seo-sitemap`, `agent-plugins` (repoints `wiring-identity` row 7), `comments` |
+| 86fcc8f9 | repoints `external-mcp-oauth-loopback-wiring` (see D-R2-3) |
+| c0c63b36 | **step 7**: `size-debt.json` — `createApp#1` entry deleted; `createRouteDeps` lines 879 -> 460, `app.ts` file lines 1703 -> 653; `src-complexity-debt.json` — `createRouteDeps` complexity 13 entry deleted (it is now <= 10) |
+
+## What was NOT done (honest scope)
+- **Step 5 is partial.** Moved: 14 slice files, ~500 lines. NOT moved: the 530-line `routeDeps` literal (the bulk of what is left in `createRouteDeps`) and the few statements beside it (`redirectsWriteDeps`, `pluginRuntime`, consent/plugin-exports, `publishContentSeedHash`, chat history). `createRouteDeps` is still 460 lines, so it keeps its size-debt entry. Reason: splitting the literal needs ~130 typed inputs per fragment; I had no cheap, honest typing route inside the budget and did not improvise one. Next run: build one `MemoryRootContext` type from the slices' `ReturnType`s and cut the literal into ordered fragment functions (no getters in the literal; no `routeDeps` self-reference inside it — checked by reading, not yet by script). `createRouteDeps` also still stays in `app.ts` (the P2 note "joins `memory-route-deps.ts` at the end of step 5" is therefore NOT done; `createInMemoryApp` imports it from `./app.js`, no back edge).
+- **Step 6 is blocked, not done.** It needs design 01 step 6 (`composition/guarded-outbound-http.ts` shared with `deps.ts`); that file does not exist on this branch. I only moved the memory root's own copy (`outbound-http.ts`) and pinned its policy whole (`toEqual`-style, 3 fields mutated -> fails). When design 01 step 6 lands, both roots point at the shared function.
+- Step 4's "apply ports shared" is **recorded, not applied**: the script shows both roots use the SAME port set (`post/media/redirect/menu`, `buildContentPublishPorts` args, `theme-files`), but the shared `publishContentPorts` belongs to design 01 (absent), so the memory root has its own two functions.
+
+## Gates (final tree `c0c63b36`)
+- `tsc -p tsconfig.json` 0 · `npm run typecheck:tests` 0 (after 3c, no zero-arg caller left; the compiler found exactly the 27 calls in 8 files the amendment predicted — 26 zero-arg + 1 `createApp(undefined, {onBootWork})`; no dev script / desktop file calls it without a root). `tsc -p development/tsconfig.scripts.json` shows 3 errors that are identical on the unmodified tree.
+- `check:boundaries`: 111 violations (16 errors, 95 warnings) = base; no new cycle (type-only cycles avoided: `CreateRouteDepsOptions` still lives in `app.ts`, so no slice reads `options`).
+- `check:size`: no new/worsened line; the base "Worsened createRouteDeps 880 (baseline 879)" and "Delete stale createApp#1" lines are gone. `check:complexity`: no new line; one stale entry removed. (Both still exit 1 on other files' pre-existing violations.)
+- Tests: final set = 43 files (the 18 baseline files + source-reading tests naming `app.ts` + all pins + the 4 new files + the 8 files of 3b): **448 tests, 446 pass, 2 fail — both fail identically on the unmodified tree** (`agent-daemon-import-graph` ADR-070; `site-title-preservation` AC-12; the second one I confirmed by checking out `1f1455fc`).
+- Owner-rule audits (`origin/tools/owner-audits-2026-11-16`, whole repo, filtered to my files): `owner-rules-audit` 1 finding (`swallowed-error`, `void siteTitleReady.catch(() => undefined)` in `site-title-settings.ts:44` — the line moved verbatim from `app.ts` line 409 at `1f1455fc`; not new code); `args-object-audit` 31 findings in my files, all in **moved verbatim** lambdas (`findById: required => …`, `hardDelete`, `transaction`, Proxy `get`/`has` traps) — every function I wrote is `(required, _optional = {})` or typed `required`. New findings from new code: 0.
+- No new `eslint-disable` / `@ts-ignore`; every new file function <= 50 code lines (own AST measure; `eslint` on `memory-deps/` clean).
+
+## The 13 mutations, re-run against the MOVED code (`cloud-results/work/size-02-mutate.py`; pins: lifecycle, precedence, route-table, visitor-capabilities, boot-work)
+**13/13 caught** — each applied to the file that now holds the code, pin failed, reverted (tree clean afterwards): 1 member-pages/site-catch-all order swap (`mount-public-site.ts`; 8 fails incl. route table) · 2 `themeIdOverride` ignored (`public-middleware.ts`; route table) · 3 oversized responder removed (`app.ts`; 9) · 4 admin locals middleware dropped (`app.ts`; 1) · 5 subscribe-once guard removed (`site-event-subscriptions.ts`; 1) · 6a boot work never removed / 6b not handed to `onBootWork` (`site-app-boot-work.ts`; 2 / 5) · 7 idle-stop hook not registered (`public-middleware.ts`; 4) · 8 `recoverInterrupted` dropped (`mount-assistant.ts`; 2) · 9 share-backend veto removed (`app.ts`; 1) · 10 comments salt resolved lazily (`visitor-submit.ts`; 1) · 11 remote media still probes disk (`visitor-submit.ts`; 1) · 12 System-principal message changed (`visitor-submit.ts`; 1).
+New-code mutations also caught: trash markers (status/deletedAt/priorStatus, hide/show), reader keyset (`>=`, limit+1), remover no-op, missing-adapter message, apply-port `contentTypeStore` / menu `bindingRepo` / `runRepo`, egress policy (`denyPrivateAddresses`, `maxRedirects`), `createInMemoryApp` memoized root / dropped options.
+
+## Deviations / findings
+- D-R2-1: step 4 was done **at the moment of the move** (builders written straight into slice files), not as in-place splits in `app.ts` first — an in-place split would have grown `app.ts`, which is under the shrink-only ratchet. Every builder body is verbatim (script-extracted, why-comments included).
+- D-R2-2: commit `08e06741` carries five slice moves (they were generated as one batch); the other 10 are one responsibility each.
+- D-R2-3: **red commits.** `3927ef58` (outbound-http) through `9b1b886e` (agent-plugins, 3 commits + `b5980e4d`) leave `external-mcp-oauth-loopback-wiring.unit.test.ts` red (it reads `app.ts` for the `createTovuOAuthHttpPorts` call); fixed forward in `86fcc8f9` (file list repointed, assertions unchanged, 2 tests before = after, title now names `../memory-deps/slices/outbound-http.ts`). I ran the pins + a fast set per commit, not every source-reading test, until `agent-plugins` exposed this. Violates "no red commit"; recorded.
+- D-R2-4 (**characterization gaps found, not closed**): (a) swapping the `term`/`taxonomy` entries in the memory Map is NOT caught by any test (both are SQL table adapters; the hermetic taxonomy repos have no seeded rows to trash); (b) the "one hoisted instance" identities (`assetRenditionRepo` shared with `mediaRepo`, `newsletterSubscriberDirectory` reading the same `memberRepo`) are not observable through any existing test — I mutated both and nothing failed. These are exactly the risks of the remaining slices; add observability pins before moving the literal.
+- D-R2-5: `trash-adapters-taxonomy.ts` / `memory-trash.ts` etc. type inputs with the in-memory class names and `ReturnType<typeof slice>`; `memory-deps/ports.ts` holds `MemoryClock` / `MemoryIdGen` (two 3-line types shared by slices).
+- D-R2-6: `createLazyProxy` moved to `memory-deps/lazy-proxy.ts` (not "private beside its user" as designed: it has two users — the content db and the consent store).
+- D-R2-7: tool detail: moves were script-generated; the scripts are in `cloud-results/work/size-02-*.cjs` (AST statement listing, slice extraction, unused-import pruning).
+- Untracked test artifacts (`chat.db`, `sites/tovu-dev/...`) deleted, not committed. No test process left running.
+
+## Next step
+(1) Add the two missing observability pins (D-R2-4). (2) Split the `routeDeps` literal into ordered fragments over a `MemoryRootContext`. (3) Move `createRouteDeps` into `memory-route-deps.ts` and repoint its ~488 importers by symbol. (4) Step 6 after design 01 step 6.
