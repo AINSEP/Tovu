@@ -6,7 +6,8 @@ import { Posts } from "../Posts";
 import { PostEditor } from "../PostEditor";
 import { PostPublishAtField } from "../PostPublishingFields";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
-import { formatUploadFailureMessage, usePostEditor } from "../hooks/use-post-editor.hooks";
+import { formatUploadFailureMessage } from "../hooks/post-editor-file-upload";
+import { usePostEditor } from "../hooks/use-post-editor.hooks";
 import type { PostEditorController } from "../hooks/use-post-editor.hooks";
 
 import { COMMON_I18N } from "@/lib/i18n-common";
