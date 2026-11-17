@@ -213,3 +213,15 @@ Counts re-run for this revision: sheets 22 (`ls sheets/S*.md | wc -l`); files in
 (`tail -n +2 sheets/BLOBS.tsv | wc -l`), none missing at merge-a; cited paths missing on merge-b: 1 of the 18
 checked (`core/src/errors/reporter.ts`). The judge's "unverified" list (CLI timeouts, Node header wait, registry
 counts, pin fit) is still unverified here and is measured by S15, S16a and S4a before anything depends on it.
+
+## Opus fixes - remaining
+
+The Opus review of revision 2 is not applied to this plan yet: the run that applied it to the xpkg sheets (`plan/xpkg-lane-sheets-2026-11-16` @ `78fa7ef3`) stopped at its context limit before starting here. Every item below is still open:
+- **S17 vs S4a (B1, Major):** S17 (wave 1) change 4 requires `npm run check:tool-guides`, but S4a creates it in wave 3. Verified: Tovu merge-final `package.json` has no `check:tool-guides`. Remove that line from S17, or move S17's guidance edit after S4a.
+- **Shared-file order vs waves (B2, Major):** the `agent-daemon-scope.ts` order `S2a → S4b → S9 → S17 → S16b` contradicts S17 in wave 1. Rewrite it as `S17 → S2a → S4b → S9 → S16b`, or move S17. Also add `mcp/src/server/daemon-client.ts` S8 → S6 → **S7** and `mcp/src/server/tools/delegated-tool.ts` S15 → S2b to the table.
+- **README §4.10 (B3):** split each sheet header into "Blocking decision" and "Branching decision" (S6 OD-3, S17 OD-4, S14b OD-5, S4b OD-7 are branching), and grep only the blocking ones.
+- **One error-id format (B4):** S8 uses core `mintToolErrorId` (`ERR-…`), while S9's `reportRouteInternalError` mints `randomUUID()` (`http-kit/src/internal-error.ts:38`). Pick one format matching core `createErrorReporter` (`core/src/errors/reporter.ts:219`) / `errors/error-id`, or write the temporary split into S9's acceptance with E4 as the owner.
+- **README §4 STOP table:** move every command out of the table cells into fenced blocks. Also check each `grep -E` pattern that uses `\|`: inside a code block it must be a plain `|`.
+- **50/10 enforcing command (B5):** copy xpkg `COMMON.md` S8 (eslint `max-lines-per-function` 50, `complexity` 10, `sonarjs/cognitive-complexity` 10, `max-lines` 500 on changed source files, diffed against `BASE`; eslint 10 has no `unix` formatter, so it uses the JSON formatter). Both repos load the sonarjs plugin (Jini `eslint.config.mjs:45`, Tovu `:55`).
+- Lows (cheap): B6 (random non-dictionary alphabet in S8's canary sentence), B7 (name S8's no-op tracker as the one allowed empty body), B8 (S15 undici step likely to STOP: say so in the estimate), B9 (landed checks for S12a and S8), B10 (re-pin the base to merge-final, Jini `65d73b0d` / Tovu `a28cb1bf`; regenerate BLOBS.tsv on it), S10 `optional = {}` signature.
+- Then add a `## Revision 3 - Opus review response` table (item, ACCEPT/REBUT, change, evidence).
