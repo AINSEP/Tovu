@@ -1,7 +1,7 @@
 import { runResetOwnerCommand } from "./commands/reset-owner.js";
 import { Command } from "commander";
 import { runPluginInstallCommand } from "./commands/plugin/install.js";
-import { runPluginIntegrityCommand } from "./commands/plugin/integrity.js";
+import { runPluginIntegrityCommand } from "@jini-ai/plugins/host/node";
 
 import { runAdoptCommand } from "./commands/adopt.js";
 import { runTokenSignInPluginsCommand } from "./commands/agent-plugin-tokens.js";
