@@ -87,7 +87,7 @@ function registerShareStaticRoutes({ app, root, gate, fail }: ShareRouteContext)
   });
 }
 
-function registerShareAcknowledgeAndRevokeRoutes({ app, root, gate, fail }: ShareRouteContext): void {
+function registerShareAcknowledgeRoute({ app, root, gate, fail }: ShareRouteContext): void {
   app.post(`${root}/:shareId/acknowledge`, async (req, res) => {
     try {
       const backend = await gate(req, res);
@@ -95,6 +95,10 @@ function registerShareAcknowledgeAndRevokeRoutes({ app, root, gate, fail }: Shar
       res.json(await backend.acknowledge({ shareId: String(req.params.shareId) }));
     } catch (error) { fail(res, error, req); }
   });
+}
+
+/** Registered after the download route: the pinned route table keeps `download` before `DELETE :shareId`. */
+function registerShareRevokeRoute({ app, root, gate, fail }: ShareRouteContext): void {
   app.delete(`${root}/:shareId`, async (req, res) => {
     try { const backend = await gate(req, res); if (backend) res.json(await backend.revoke({ shareId: String(req.params.shareId) })); }
     catch (error) { fail(res, error, req); }
@@ -183,8 +187,9 @@ export function registerAdminSiteShareRoutes(required: { app: Express; deps: Rou
   registerShareListAndCreateRoutes(context);
   registerShareStaticRoutes(context);
   app.post(`${context.root}/:shareId/password`, createSiteSharePasswordHandler({ deps }));
-  registerShareAcknowledgeAndRevokeRoutes(context);
+  registerShareAcknowledgeRoute(context);
   registerShareDownloadRoute(context);
+  registerShareRevokeRoute(context);
   registerShareArtifactUploadRoute(context);
   registerShareArtifactDeleteRoute(context);
 }
