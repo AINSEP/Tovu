@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemorySettingsRepo, type SettingDefinitionRecord } from "@jini-ai/core/settings";
-import { ASSISTANT_SUBAGENTS_NAMESPACE } from "#src/contracts/headless/index";
+import { ASSISTANT_SUBAGENTS_NAMESPACE } from "@tovu/contracts/assistant-subagents-policy";
 import { ASSISTANT_PERMANENT_DELETES_NAMESPACE } from "#src/contracts/headless/index";
 import { touchesAssistantSubagents } from "../assistant-subagents-access.js";
 

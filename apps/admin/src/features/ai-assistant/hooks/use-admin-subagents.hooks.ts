@@ -1,8 +1,8 @@
 import type { useConfirmRequest } from "@jini-ai/admin/react";
 import type { NativeToolPolicyInput } from "@jini-ai/core/contracts/agents";
-import { assistantSubagentsPort, SUBAGENTS_NAMESPACE, SUBAGENT_DANGERS, type AssistantSubagentsPort, type AssistantSubagentsSettings } from "@/lib/assistant-subagents";
+import { assistantSubagentsPort, SUBAGENT_DANGERS, type AssistantSubagentsPort, type AssistantSubagentsSettings } from "@/lib/assistant-subagents";
 import { useAssistantOwnerGrant, useAssistantOwnerGrantSettings } from "./use-assistant-owner-grant.hooks";
-import { ASSISTANT_CLI_CAPABILITIES, type AssistantCliCapability } from "@tovu/headless";
+import { ASSISTANT_CLI_CAPABILITIES, ASSISTANT_SUBAGENTS_NAMESPACE as SUBAGENTS_NAMESPACE, type AssistantCliCapability } from "@tovu/contracts/assistant-subagents-policy";
 import { assistantCliPermissions } from "../../../../../website/src/assistant/assistant-subagents-policy.js";
 const settingsKey = ["admin-assistant", "subagents"] as const;
 /** The panel and dock share the site-owner grant query. */

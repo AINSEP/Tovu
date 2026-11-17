@@ -5,7 +5,7 @@ import { fullCliEnvLock, isHostedAssistantRuntime, resolveAssistantCliPermission
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission-mode";
 import { readAssistantCliPermissions } from "#src/assistant/runtime-settings";
-import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_SUBAGENTS_WRITE_REASON, ASSISTANT_CLI_CAPABILITIES, type AssistantCliCapability } from "#src/contracts/headless/index";
+import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_SUBAGENTS_WRITE_REASON, ASSISTANT_CLI_CAPABILITIES, type AssistantCliCapability } from "@tovu/contracts/assistant-subagents-policy";
 import { assistantCliPermissions } from "#src/assistant/runtime-settings";
 import { rejectSettingsRequest } from "../settings/shared.js";
 import { registerAssistantOwnerGrantRoutes, type AssistantOwnerGrantDeps } from "./assistant-owner-grant.js";

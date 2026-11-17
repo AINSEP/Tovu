@@ -10,8 +10,6 @@ export type { PluginLookupPort, PluginProvider, AgentPluginWorkspaceLayout, Agen
 export type { SiteCookieConsentDeps, ConsentPluginHttp, ConsentPluginContribution } from './site-cookie-consent.js';
 export { CREDENTIAL_SAVE_TOOL_ID, SECRET_FORM_CARD_DEFINITIONS, SECRET_FORM_TOOL_IDS } from './secret-form-cards.js';
 export { MEMBER_OIDC_PATH } from './member-login.js';
-export type { AssistantCliCapability, AssistantCliPermissions } from './assistant-subagents-policy.js';
-export { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_KEY, ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_CLI_CAPABILITIES, ASSISTANT_SUBAGENTS_WRITE_REASON } from './assistant-subagents-policy.js';
 export type { ChatPermanentDeleteToolId, AssistantPermanentDeletesPolicy } from './assistant-permanent-deletes-policy.js';
 export { PERMANENT_DELETE_TOOLS, ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_KEY, ASSISTANT_PERMANENT_DELETES_WRITE_REASON, PERMANENT_DELETE_DANGERS, DEFAULT_PERMANENT_DELETES_POLICY, PERMANENT_DELETE_GUIDANCE } from './assistant-permanent-deletes-policy.js';
 export type { ToolApprovalClass, ToolApprovalPolicy } from './assistant-tool-approval-policy.js';

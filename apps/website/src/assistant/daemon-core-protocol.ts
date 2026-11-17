@@ -2,7 +2,7 @@
  * this protocol exposes neither acceptance/recovery writes nor a provider settings secret. */
 import type { AiTraceEvent } from "@jini-ai/core/contracts/ai-trace";
 import { z } from "zod";
-import { ASSISTANT_CLI_CAPABILITIES } from "#src/contracts/headless/assistant-subagents-policy";
+import { ASSISTANT_CLI_CAPABILITIES } from "@tovu/contracts/assistant-subagents-policy";
 import type { DurableRunStore, DurableRunHead } from "@jini-ai/chat/server/durable-runs";
 
 /** Only fields the daemon's start/liveness gates read; the daemon already owns its event log.

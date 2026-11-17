@@ -1,6 +1,5 @@
 import { authenticatedAdminRequest } from "./admin-http/request";
 import { WORKSPACE_ID } from "./admin-http/config";
-export { ASSISTANT_SUBAGENTS_NAMESPACE as SUBAGENTS_NAMESPACE } from "@tovu/headless";
 
 export const SUBAGENT_DANGERS = [
   "Security risk: subagents can act independently.",
@@ -8,7 +7,7 @@ export const SUBAGENT_DANGERS = [
   "You may not see what they do; the chat does not show subagent tool calls.",
   "Cost and machine load multiply with each subagent.",
 ] as const;
-import type { AssistantCliPermissions } from "@tovu/headless";
+import type { AssistantCliPermissions } from "@tovu/contracts/assistant-subagents-policy";
 export interface AssistantSubagentsSettings {
   /** canEdit identifies a local owner; unavailableReason can still lock full access on this machine. */
   enabled: boolean; canEdit: boolean; capabilities?: Partial<AssistantCliPermissions["capabilities"]>; unavailableReason?: string;

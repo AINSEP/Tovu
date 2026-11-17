@@ -2,7 +2,7 @@ import { PERMANENT_DELETE_GUIDANCE } from "#src/contracts/headless/index";
 import { CREDENTIAL_GUIDANCE, SITE_GUIDE_POINTER } from "#src/assistant/prompt-guidance";
 import { TOOLS_FIRST_RULE } from "#src/contracts/core/assistant-native-fallbacks";
 import { ASSISTANT_CONTENT_EDIT_GUIDANCE } from "#src/contracts/core/assistant-content-guidance";
-import { ASSISTANT_CLI_CAPABILITIES, type AssistantCliPermissions } from "#src/contracts/headless/index";
+import { ASSISTANT_CLI_CAPABILITIES, type AssistantCliPermissions } from "@tovu/contracts/assistant-subagents-policy";
 /**
  * @file Test seam extracted out of `agent-daemon-server.ts`'s `assistantPromptAugmenter.
  * systemOverlay()`: the base tool-catalog-protocol overlay every assistant run receives, and the

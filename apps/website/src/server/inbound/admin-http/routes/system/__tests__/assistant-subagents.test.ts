@@ -5,7 +5,7 @@ import express from "express";
 import { InMemorySettingsRepo, ensureSettingDefinitions, getEffective } from "@jini-ai/core/settings";
 import { ensureExecutionSettingDefinitions } from "#src/assistant/execution-mode-settings";
 import { readAssistantSubagentsEnabled, readAssistantCliPermissions } from "#src/assistant/subagent-settings";
-import { ASSISTANT_SUBAGENTS_NAMESPACE as namespace, ASSISTANT_SUBAGENTS_WRITE_REASON, ASSISTANT_CLI_PERMISSIONS_KEY } from "#src/contracts/headless/index";
+import { ASSISTANT_SUBAGENTS_NAMESPACE as namespace, ASSISTANT_SUBAGENTS_WRITE_REASON, ASSISTANT_CLI_PERMISSIONS_KEY } from "@tovu/contracts/assistant-subagents-policy";
 import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
 import { registerAdminAssistantSubagentsRoutes } from "../assistant-subagents.js";
 import { registerAdminSettingsSetRoute } from "../../settings/set.js";

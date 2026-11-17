@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readAssistantCliPermissions, readAssistantSubagentsEnabled } from "../subagent-settings.js";
-import { ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_SUBAGENTS_KEY } from "../../contracts/headless/index.js";
+import { ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_SUBAGENTS_KEY } from "@tovu/contracts/assistant-subagents-policy";
 import { assistantCliPermissions } from "../assistant-subagents-policy.js";
 
 type CliRequired = Parameters<typeof readAssistantCliPermissions>[0];

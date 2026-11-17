@@ -42,7 +42,7 @@ import type { TurnAddressee } from "./desktop-agent-tools.ts";
 import { createToolGapCollector, type ToolGapEntry } from "@jini-ai/daemon/tool-audit";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import { assistantCliPermissions } from "../../website/src/assistant/assistant-subagents-policy.ts";
-import { type AssistantCliPermissions } from "../../website/src/contracts/headless/index.ts";
+import { type AssistantCliPermissions } from "@tovu/contracts/assistant-subagents-policy";
 import { resolveFullCliAccess, resolveAssistantCliPermissions, isHostedAssistantRuntime, TOOLS_FIRST_RULE, resolveAssistantDisallowedTools } from "../../website/src/contracts/core/assistant-native-fallbacks.ts";
 import { resolveDesktopHostSignals } from "./desktop-host-signals.ts";
 import type { HostSignals } from "@tovu/contracts/host-signals";

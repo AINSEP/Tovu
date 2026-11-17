@@ -1,4 +1,4 @@
-import { ASSISTANT_CLI_CAPABILITIES, type AssistantCliCapability, type AssistantCliPermissions } from "#src/contracts/headless/assistant-subagents-policy";
+import { ASSISTANT_CLI_CAPABILITIES, type AssistantCliCapability, type AssistantCliPermissions } from "@tovu/contracts/assistant-subagents-policy";
 import { CORE_HOST_SIGNAL_FALLBACK, evaluateHostSignals, type HostSignalOptions } from "@tovu/contracts/host-signals";
 
 /** The master supplies every default, personal MCP included: owner decision 2026-11-10

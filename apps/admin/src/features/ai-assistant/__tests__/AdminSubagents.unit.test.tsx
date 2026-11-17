@@ -1,3 +1,4 @@
+import { ASSISTANT_SUBAGENTS_NAMESPACE as SUBAGENTS_NAMESPACE } from "@tovu/contracts/assistant-subagents-policy";
 import { assistantCliPermissions } from "../../../../../website/src/assistant/assistant-subagents-policy.js";
 import { act, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
@@ -5,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { AdminSubagents } from "../AdminSubagents";
 import { SubagentsIndicator } from "@/components/AssistantDock/SubagentsIndicator";
 import { useAdminSubagents, useAssistantSubagentsSettings } from "../hooks/use-admin-subagents.hooks";
-import { SUBAGENTS_NAMESPACE, type AssistantSubagentsPort, type AssistantSubagentsSettings } from "@/lib/assistant-subagents";
+import { type AssistantSubagentsPort, type AssistantSubagentsSettings } from "@/lib/assistant-subagents";
 import { publishSettingsRefresh } from "@/lib/settings-refresh-bus";
 import { t as translate } from "../ai-assistant-i18n";
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { resolveAssistantCliPermissions } from "../../assistant-native-fallbacks.js";
-import { ASSISTANT_CLI_CAPABILITIES } from "../../../headless/index.js";
+import { ASSISTANT_CLI_CAPABILITIES } from "@tovu/contracts/assistant-subagents-policy";
 import { assistantCliPermissions } from "../../../../assistant/assistant-subagents-policy.js";
 
 test("local owner capabilities default on, personal MCP included (2026-11-10), and explicit off choices survive", () => {

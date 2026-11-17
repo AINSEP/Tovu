@@ -108,7 +108,7 @@ test("the website's local-site launcher references no dev-only package the packa
 // D0a (desktop extraction): the pure contracts the shell shares with the website live in
 // `@tovu/contracts`, which the packaged app resolves like any other dependency. A relative path into
 // `website/src` for one of them would need the second staged copy of the website that D0c2 removes.
-const WEBSITE_CONTRACT_PATHS = /['"](?:\.\.\/)+website\/src\/(?:assistant\/daemon-exit-codes|contracts\/core\/(?:hosted-sign-in-links|host-signals))[^'"]*['"]/;
+const WEBSITE_CONTRACT_PATHS = /['"](?:\.\.\/)+website\/src\/(?:assistant\/daemon-exit-codes|contracts\/(?:core\/(?:hosted-sign-in-links|host-signals)|headless\/(?:index|assistant-subagents-policy)))[^'"]*['"]/;
 
 function desktopSourceFiles({ root }: { root: string }): string[] {
   const out: string[] = [];
