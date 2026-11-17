@@ -2,7 +2,9 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminIdentityUser } from "@/features/users/api/users-api.types";
+import { UserManagementKitProvider } from "@jini-ai/user-management/react/kit";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+import { userManagementKit } from "@/integrations/jini-kits";
 import { createFakeUsersPort } from "@jini-ai/user-management/react/testing";
 import { defaultUsersPort } from "../hooks/users-dependencies.hooks";
 import { useUsers, useWiredUsers } from "../hooks/users-controller.hooks";
@@ -38,7 +40,7 @@ import { useUsers, useWiredUsers } from "../hooks/users-controller.hooks";
  */
 
 function wrapper({ children }: { children: React.ReactNode }) {
-  return <FetchQueryProvider>{children}</FetchQueryProvider>;
+  return <FetchQueryProvider><UserManagementKitProvider kit={userManagementKit}>{children}</UserManagementKitProvider></FetchQueryProvider>;
 }
 
 function jsonResponse(body: unknown, status = 200): Response {

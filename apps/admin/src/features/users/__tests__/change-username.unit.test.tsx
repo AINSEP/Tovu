@@ -1,6 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
+import { UserManagementKitProvider } from "@jini-ai/user-management/react/kit";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
+import { userManagementKit } from "@/integrations/jini-kits";
 import { useUsers } from "../hooks/users-controller.hooks";
 import { createFakeUsersPort } from "@jini-ai/user-management/react/testing";
 
@@ -10,7 +12,7 @@ it("the host hook forwards username through the existing port and refreshes the 
   const fake = createFakeUsersPort({}, { users: [own], meId: own.principalId });
   const port = { ...fake, me: async () => ({ user: { id: own.principalId }, canManageUserTrash: false, effectivePermissions: ["user.manage"] }) };
   const update = vi.spyOn(port, "updateUser");
-  function wrapper({ children }: { children: React.ReactNode }) { return <FetchQueryProvider>{children}</FetchQueryProvider>; }
+  function wrapper({ children }: { children: React.ReactNode }) { return <FetchQueryProvider><UserManagementKitProvider kit={userManagementKit}>{children}</UserManagementKitProvider></FetchQueryProvider>; }
   const { result } = renderHook(() => useUsers({ port }), { wrapper });
   await waitFor(() => expect(result.current.ownProfile?.principalId).toBe("self"));
   act(() => result.current.changeUsername!.open({ user: own }));
