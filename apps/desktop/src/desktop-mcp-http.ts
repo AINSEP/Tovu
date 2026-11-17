@@ -1,5 +1,6 @@
 /** Electron-main adapter: Jini owns HTTP/SDK hosting, the desktop table owns tool behavior. */
 import { createMcpHttpToolServerRuntime, startMcpHttpToolServer, type McpHttpToolServerHandle } from '@jini-ai/mcp';
+import { startCapabilityDelivery } from '@jini-ai/mcp/federation/hosted';
 import { randomBytes } from 'node:crypto';
 import { assertLoopbackAdminUrl } from './desktop-auth.ts';
 import { createSitesMcpToolHost, type ToolContext } from './sites-mcp-tools.ts';
@@ -53,25 +54,21 @@ export function createDesktopMcpHttpRuntime({ context, warn }: { context: ToolCo
     },
     connectSite({ adminUrl, onExit }, _optional = {}) {
       if (stopped) return;
+      // Endpoint policy stays here: a loopback admin URL and this one fixed path, checked before any
+      // delivery exists. Jini only POSTs to the endpoint it is handed and never follows a redirect.
       const endpoint = new URL('/internal/desktop-mcp-capability', assertLoopbackAdminUrl({ adminUrl }));
-      const abort = new AbortController();
-      let unsubscribe: (() => void) | undefined;
-      const disconnect = () => { abort.abort(); unsubscribe?.(); disconnects.delete(disconnect); };
+      let delivery: ReturnType<typeof startCapabilityDelivery> | undefined;
+      let exited = false;
+      const disconnect = () => { exited = true; delivery?.disconnect({}); disconnects.delete(disconnect); };
       disconnects.add(disconnect);
       onExit({ listener: disconnect });
-      void runtime.then(host => {
-        if (abort.signal.aborted) return;
-        // Delivery retries belong to the same Jini runtime that repairs the listener. Only this
-        // spawning main has the handoff token. Attaching windows never call connectSite.
-        unsubscribe = host?.subscribe({ listener: async capability => {
-          const response = await fetchImpl(endpoint, { method: 'POST', redirect: 'error',
-            headers: { authorization: `Bearer ${handoffToken}`, 'content-type': 'application/json' },
-            body: JSON.stringify(capability), signal: AbortSignal.any([abort.signal, AbortSignal.timeout(5000)]),
-          });
-          await response.body?.cancel();
-          if (!response.ok) throw new Error('Desktop capability handoff unavailable');
-        } });
-      }).catch(() => { warn({ message: 'tovu-desktop: desktop capability recovery unavailable for this application release.' }); });
+      if (exited) return;
+      // Delivery retries belong to the same Jini runtime that repairs the listener. Only this
+      // spawning main has the handoff token. Attaching windows never call connectSite.
+      delivery = startCapabilityDelivery({ endpoint, handoffToken, host: runtime, fetch: fetchImpl,
+        // A fixed string: the cause may name a path or port, and nothing here may carry a token.
+        onUnavailable: () => { warn({ message: 'tovu-desktop: desktop capability recovery unavailable for this application release.' }); },
+      });
     },
     async close(required, optional = {}) {
       stopped = true;
