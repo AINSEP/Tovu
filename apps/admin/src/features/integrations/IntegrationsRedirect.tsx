@@ -8,7 +8,7 @@ import { useIntegrationsRedirect } from "./hooks/use-integrations-redirect.hooks
  * simply losing its `render` branch, and why the panel's id/route stay even though its nav row does
  * not.
  */
-export function IntegrationsRedirect({ routePath }: { routePath?: string } = {}) {
-  useIntegrationsRedirect({ routePath });
+export function IntegrationsRedirect({ routePath, useIntegrationsRedirectHook = useIntegrationsRedirect }: { routePath?: string; useIntegrationsRedirectHook?: typeof useIntegrationsRedirect; } = {}) {
+  useIntegrationsRedirectHook({ routePath });
   return null;
 }
