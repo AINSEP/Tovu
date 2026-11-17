@@ -14,7 +14,7 @@ import {
   resolveSourceControlExportRootDir,
   siteDir,
   siteThemesDir,
-} from "../deps.js";
+} from "../site-paths.js";
 import { resolveChatAttachmentUploadDirectory } from "../../../inbound/assistant/chat-attachment-directory.js";
 
 /**

@@ -8,7 +8,7 @@ import test from "node:test";
 import { pinPlainHttpIntoEnv, pinServedSiteDirIntoEnv } from "../../commands/serve.js";
 import { resolveDevTls } from "../../../platform/http/dev-tls.js";
 import { buildDaemonSpawnEnvOverrides } from "../../../server/runtime/lifecycle/daemon-supervisor.js";
-import { defaultChatDbPath, defaultContentDbPath, resolveSiteStoragePaths } from "../../../server/runtime/composition/deps.js";
+import { defaultChatDbPath, defaultContentDbPath, resolveSiteStoragePaths } from "../../../server/runtime/composition/site-paths.js";
 import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databases.js";
 import { resolveSiteRoot } from "../../../platform/site-dir/site-root.js";
 import { describeSiteBinding } from "../../../platform/site-dir/site-registry.js";
