@@ -1,51 +1,98 @@
-> **REVISION 2 HOLD (2026-11-17): do NOT dispatch this sheet as written.** The Codex judge's finding(s) below were checked against the code and accepted; the redesign is not written yet (INDEX §7 and "Revision 2 - judge response"). Until this banner is removed the sheet is input for the next planning run, not an executor brief.
-> Findings 1, 6, 16: the invalidation port must keep today's contract `invalidateMediaAccessEvidence({ owner: object })` keyed by repository identity, called in `finally` from `save` (`features/entries/repo.ts:129-130`) and `transaction` (`:223`), i.e. **also after a failed write**; `declaredOwnerFor` / `DECLARED_CONTENT_TYPE_OWNERS`, `EntryPublishReadPort` and the query contracts (incl. `offset`) have no destination yet; line 31 calls the content-type SQLite binding production-unused while the facts list 3 production importers.
+# S2 (revision 2) — content-types and entries SQL repos -> `@jini-ai/cms/{content-types,entries}/sql`; the trash-aware memory repo
 
-# S2 — entries and content-types SQL repos -> `@jini-ai/cms/{entries,content-types}/sql`
-
-Template: T-SQLREPO. Facts: `S2-entries-content-types-sql.facts.md` (8 files, 754 lines, 27 test files).
+Template: T-SQLREPO rev 2. Facts: `S2-entries-content-types-sql.facts.md` (8 files, 754 lines). Three runs, serial.
+Revision 2 fixes judge findings 1 (cache-invalidation contract), 6 (declared owners, entry contracts, `offset`) and 16
+(the content-type binding HAS 3 production importers: it stays), and writes round-1 item 2 (S2c).
 
 ```
-id: S2a-content-types-sql | S2b-entries-sql        (S2a first: smaller, and the entries repo reads content types)
-jini_target: cms NEW ./content-types/sql and ./entries/sql (node)
+id: S2a-content-types-sql (~100k) -> S2b-entries-sql (~200k, cut point after J1) -> S2c-entries-trash-aware-memory (~110k)
+jini_target: cms NEW ./content-types/sql and ./entries/sql (node); S2c adds one universal file under ./entries
 prerequisites:
-  - S0 green (P6, P7). S1 template calibrated (move-workspace + one S1 run landed clean).
-  - OD-5 answered (how a Jini SQL adapter gets the dialect helpers). entries/repo.ts imports `jsonScalarEquals`, `jsonSortKey`
-    from `@jini-ai/db/kernel`; a cms file may not import `@jini-ai/db` (COMMON 5). Recommended answer: injected (below).
-  - audit2 sheet A08 status known: it moves `features/media/access-evidence.ts` to cms/media. S2b does not depend on it
-    (the edge becomes a port either way) but both edit importers of that file: run S2b and A08 serially.
+  - S0 DONE (P6, P7; `schemaErasedKernel`): `rg -n "export function schemaErasedKernel" apps/website/src/platform/db/content-kernel.ts`
+  - xpkg R6-R9 landed (it owns cms's manifest in wave 1 and the `ColumnCatalogPort` precedent): `rg -n "ColumnCatalogPort" packages/cms/src/forms`
+  - lost-updates: if a lost-updates sheet is scheduled on `features/entries/repo.ts` it runs first (INDEX §4); then re-take facts
+  - audit2 A08 (moves `features/media/access-evidence.ts`): S2b and A08 never run in the same wave; S2b works before or after it
+successor_of: S1c (cms manifest), S0
 ```
 
-## The two edges that are not SQL (LESSONS 1, 3, 4)
-1. `entries/repo.ts:1` and `entries/trash-aware-memory-repo.ts:1` import `invalidateMediaAccessEvidence` from
-   `features/media/access-evidence.ts`: an entry write invalidates another feature's cached state. In Jini this is a
-   required port on the repo: `onEntryMutated: (event: { workspaceId: string; entryId: string }) => void` (name it after what
-   the repo knows; read the call sites to copy the exact argument the function takes today). Tovu binds it to
-   `invalidateMediaAccessEvidence`. It is called at the SAME point (after the write statement, inside or outside the
-   transaction exactly as today — read and record which) and synchronously if it is synchronous today. A missing binding
-   must be a compile error (required field), never a silent no-op default.
-2. `jsonScalarEquals` / `jsonSortKey` (dialect-specific JSON comparison and sort expressions). Port:
-   `dialect: { jsonScalarEquals: …; jsonSortKey: … }` declared in `packages/cms/src/entries/sql/dialect-port.ts` with the
-   signatures copied from `packages/db/src/kernel` (print: `rg -n "export function (jsonScalarEquals|jsonSortKey)" -A6 packages/db/src/kernel`).
-   Tovu binds the two `@jini-ai/db/kernel` functions. LESSONS 12: compare argument order and object-vs-positional shape; a
-   mis-bound helper typechecks if both take `(a, b)`.
-
-## split
-- content-types: `repo.ts` (`SqlContentTypeRepo`, `contentTypeRepoFor`) MOVE; `repo.rows.ts` MOVE; `repo.sqlite.ts` (0 prod, 1 test importer) -> if the census confirms no prod importer, DELETE and repoint the test to `contentTypeRepoFor`; `repo.memory.ts` (17 lines, label SHIM, 0 prod / 1 test) DELETE and repoint the test to `@jini-ai/cms/content-types`.
-- entries: `repo.ts` (`SqlEntryRepo`, `entryRepoFor`) MOVE with the two ports above; `repo.rows.ts` MOVE; `repo.sqlite.ts` STAY-WIRING (1 prod + 2 tests).
-- `entries/trash-aware-memory-repo.ts` (209 lines, 1 prod + 3 tests, label DEDUPE "promote to an exported hermetic repo"): NOT in this sheet. It is a memory adapter with the same invalidation edge; it needs a behaviour diff against `packages/cms/src/entries/repo.memory.ts` first. Follow-up S2c (not written): diff, then either a `hideTrashed` option on the Jini repo or MOVE as its own class.
-
-## Characterization (T0)
-| Risk | Test | Mutation -> RED |
+## S2a — content types
+**split.** `repo.ts` (`SqlContentTypeRepo`, `contentTypeRepoFor`) MOVE; `repo.rows.ts` MOVE; `repo.sqlite.ts` STAY-WIRING
+(3 prod + 4 test importers); `repo.memory.ts` (17-line re-export shim, 1 dynamic test importer) DELETE, the importer
+`assistant/__tests__/tool-registrations.widgets-authorization.test.ts:137` repoints to `@jini-ai/cms/content-types`;
+`declared-owners.ts` **STAY-PRODUCT** (its values are the widgets constants; `publish-content.ts`,
+`entries/unreadable-owner-entries-repair.ts` and the barrel keep importing it).
+**The owner lookup is a required data port (finding 6).** Today `repo.rows.ts:10,31,51-53` calls `declaredOwnerFor` on
+every read and write and lists `DECLARED_CONTENT_TYPE_OWNERS` in the refusal. In Jini:
+`ContentTypeSqlRequired = { kernel; tables: { contentTypes: string; revisions: string }; declaredOwners: Readonly<Record<string, string>> }`
+— data, not a callback, so the host cannot change the rule, only the table. `repo.rows.ts` exports
+`contentTypeRowMapper({ declaredOwners }, _optional = {})` returning `{ toRecord, toRow, toRevisionRow, updatableColumns }`
+with bodies verbatim; the lookup stays `Object.prototype.hasOwnProperty.call(declaredOwners, key)` (never `declaredOwners[key]`
+alone: a type keyed `constructor` must have no owner). No default: a host that passes `{}` stores only `site`-owned types.
+Tovu binding (`repo.sqlite.ts`): `declaredOwners: DECLARED_CONTENT_TYPE_OWNERS`.
+**characterization (T0).**
+| Risk | Test (real SQLite kernel, unmoved code) | Mutation -> RED |
 |---|---|---|
-| Entry write stops invalidating media access evidence | spy passed as the real function's replacement at the BINDING (after the move it is the port; before it, wrap via the module the composition passes) — assert called once per save/delete with the entry's ids, and not called on a failed write | delete the call |
-| JSON field filter/sort differs per dialect | existing dialect-matrix tests (keep-repointed) + one new case per helper: scalar equality on string vs number vs boolean JSON values; sort key ordering of mixed types | swap the two helpers' bindings; pass SQLite's to PGlite |
-| Workspace scoping; trashed entries hidden from the reads that hide them today | as S1 | drop a predicate |
-| Entry refs written in the same transaction as the entry (the single write chokepoint; see `sheets/move-entry-refs.md`) | failing ref write rolls the entry back | move the ref write outside the transaction |
-| Content-type `declared owners` rule untouched | `features/content-types/declared-owners.ts` is not in this sheet; assert its one consumer still receives the same repo instance type | - |
+| A widget type read back without its owner validates entries under the wrong namespace | save + read the widget and widget-area types: `owner` equals the declared namespace | return no owner in `toRecord` |
+| Other types gain an `owner` key | a site type read back: `"owner" in record === false` | spread `owner: undefined` |
+| An undeclared owner is dropped silently | `save` with `owner: "x"`: throws; message equals today's text including the `key=owner` list; no row written | remove the throw |
+| Prototype keys resolve to an owner | type keys `constructor`, `toString`: no owner, save succeeds | use a plain index lookup |
+| Tombstone / version / revisions | existing `__tests__/repo.dialects.test.ts` stays, repointed | - |
+**wiring.** `repo.sqlite.ts`: `SqliteContentTypeRepo` keeps name and `({ store })`; `super({ kernel: schemaErasedKernel({ store }), tables: { contentTypes: "content_types", revisions: "content_type_revisions" }, declaredOwners: DECLARED_CONTENT_TYPE_OWNERS }, {})`.
 
-## stops / estimate
-- The lost-updates design adds `version` handling to entries (`0042_optimistic_concurrency_versions` exists): if a
-  lost-updates sheet is scheduled on `entries/repo.ts`, it goes FIRST (LESSONS 10); re-take blobs after it.
-- S2a ~90k. S2b ~190k (27 test files are mostly entries; repointing them is the bulk).
-Not verified while planning: where exactly the invalidation call sits relative to the transaction; the helper signatures.
+## S2b — entries
+**split.** `repo.ts` (`SqlEntryRepo`, `entryRepoFor`) MOVE; `repo.rows.ts` MOVE; `repo.sqlite.ts` STAY-WIRING (4 prod + 7 tests).
+**Contract destinations (finding 6), all landed by S2b's J1 before the class that implements them:**
+| Contract (today) | Destination | Tovu after T1 |
+|---|---|---|
+| `TrashableEntryRecord`, `EntryPublishReadPort` (`features/entries/contracts.ts:23-34`) | NEW `packages/cms/src/entries/publish-read-port.ts`, named type exports from `./entries` | the two declarations are deleted from `contracts.ts` (the layout constants stay); importers repoint to `@jini-ai/cms/entries`: `publish-content.ts`, `trash-aware-memory-repo.ts`, `features/publish-content/type-registry.ts`, `server/routes/types.ts:119`, `memory-deps/slices/trash-adapters-forms-widgets.ts`. The re-export lines `repo.sqlite.ts:4` and `trash-aware-memory-repo.ts:3` are deleted (no shell) |
+| `CollectionListQuery.offset` (Tovu `public-list.ts:57-63` has it; Jini `widgets/resolvers/ports.ts:9-14` does not) | add `readonly offset?: number` to the Jini type (additive, changeset minor) | `public-list.ts` is not edited; its own declaration stays structurally equal (the typecheck gate proves it). Deduplicating the two declarations is not this sheet |
+| `EntryDisplayListPort`, `EntryListExcludingTypesPort` | already in Jini `widgets/resolvers/ports.ts`; the class imports them type-only by leaf path | - |
+**ports (required constructor fields; a missing binding is a compile error).**
+1. `onWriteSettled: (event: { repo: object }) => void` — **finding 1.** Today `save` (`repo.ts:129-130`) and `transaction`
+   (`:223`) call `invalidateMediaAccessEvidence({ owner: this })` in `finally`: after success AND after failure, and the
+   caches are keyed by repository object identity (`features/media/access-evidence.ts:16-17,35`). The Jini class calls
+   `this.onWriteSettled({ repo: this })` at the same two points, in `finally`, synchronously. Tovu binds
+   `onWriteSettled: ({ repo }) => invalidateMediaAccessEvidence({ owner: repo })`. `repo` is the `SqliteEntryRepo`
+   instance composition already passes as `entryRepo` to `getMediaAccessEvidenceCache`
+   (`server/inbound/public-http/routes/site/media-rendition.ts:278`), so identity is preserved. No entry id is passed: a
+   transaction has none. Nothing is invalidated less often than today.
+2. `json: EntryJsonDialectPort` declared in `packages/cms/src/entries/sql/json-dialect-port.ts`:
+   `{ scalarEquals(required: { column: Expression<unknown>; path: readonly string[]; value: string | number | boolean }): <return type of db's jsonScalarEquals>; sortKey(required: { column: Expression<unknown>; path: readonly string[] }): RawBuilder<unknown> }`.
+   Tovu binds, from the SAME kernel it passes: `scalarEquals: ({ column, path, value }) => jsonScalarEquals(kernel.dialect, column, path, value)`, `sortKey: ({ column, path }) => jsonSortKey(kernel.dialect, column, path)` (`@jini-ai/db/kernel/dialect.ts:68,87` are positional `(dialect, column, path[, value])`: LESSONS 12).
+**characterization (T0).**
+| Risk | Test (unmoved code, real SQLite kernel, the REAL cache: `getMediaAccessEvidenceCache({ postRepo: {}, entryRepo: repo })` seeded with one entry holding a never-resolved promise) | Mutation -> RED |
+|---|---|---|
+| A successful entry write leaves stale access evidence | after `save`: the linked cache is empty | delete the `finally` call in `save` |
+| A FAILED write leaves stale evidence (today it invalidates) | `save` refused by the slug index (trashed holder) and by a version conflict: error propagates AND the cache is empty | move the call out of `finally` |
+| Transaction completion and failure | `transaction({ fn })` resolving, and rejecting: cache empty after each; nested call joins the outer transaction | delete the `finally` in `transaction` |
+| Wrong owner invalidated | a second repo instance's linked cache is NOT cleared | pass a constant object as owner |
+| Pagination | `listPublishedForDisplay` with `offset` 0, 1 and absent over 3 rows: exact ids | drop `.offset(...)` |
+| JSON filter/sort per dialect | existing dialect-matrix tests + per helper: equality on string / number / boolean values; NULL sort keys first ascending, last descending; `id` tiebreak | swap the two helpers; drop `nullsFirst` |
+| Unknown field name reaches SQL | a `where.field` failing `^\w+$` matches nothing and does not throw | remove the guard |
+| Trash hidden; `findAny*` shows it; workspace scoping | trashed and live rows in two workspaces, each read method individually | drop a predicate |
+| Slug held by a trashed row | create with that slug: `EntrySlugConflictError` with today's message | rethrow the raw error |
+Binding tests (T1, Tovu): a recording fake of `EntryJsonDialectPort`'s targets asserts dialect, column, path and value
+arrive in that order; the four cache rows above re-run through `SqliteEntryRepo` unchanged.
+**wiring.** `repo.sqlite.ts`: `SqliteEntryRepo` keeps name and `({ store })`; builds `kernel = contentKernel({ store })` once
+and calls `super({ kernel: schemaErasedKernel({ store: kernel }), tables: { entries: "entries", revisions: "entry_revisions" }, json: {...}, onWriteSettled: ... }, {})`.
+Callers of `entryRepoFor(kernel)`: `rg -n "entryRepoFor\(" apps/website/src`; each becomes `new SqliteEntryRepo({ store: kernel })`.
+
+## S2c — `entries/trash-aware-memory-repo.ts` (209 lines; round-1 item 2)
+Behaviour diff, done while planning: it is NOT a variant of Jini's `InMemoryEntryRepo` (which implements 2 ports and has
+no Trash marker). It implements the same four list/read ports as `SqlEntryRepo` plus `findAnyById`, `findAnyBySlug`,
+`saveAny`, `hardDelete`, hides trashed rows, and invalidates at four sites (`:103` after `save`, `:112` in `transaction`'s
+`finally`, `:165` after `saveAny`, `:176` after `hardDelete`). It is the memory twin of the SQL repo -> MOVE as its own
+class `TrashAwareInMemoryEntryRepo` to `packages/cms/src/entries/repo.trash-aware.memory.ts` (universal, named export from
+`./entries`), constructor gains the same required `onWriteSettled`; the four call sites keep their exact position (three
+are NOT in `finally`: do not "harmonise" them). T0 pins each site with the real linked cache (as S2b) and runs S2b's
+read/trash/slug rows against this class too (one contract table, two adapters). Tovu keeps no file: its 2 prod importers
+construct the Jini class with the same binding expression as `repo.sqlite.ts`. Why-comments move.
+**stop:** the memory class diverges from the SQL class on a row of the shared table: report the row, move nothing.
+
+## commits / gates / stops
+Each run: T0 -> J1 -> T1 with the gates of T-SQLREPO §5. S2a's tree after T1 compiles alone (entries still imports
+Tovu's content-type barrel). S2b's J1 adds contracts, the `offset` field, the adapter, the export entry, in one commit.
+- STOP if `features/media/access-evidence.ts` no longer exports `invalidateMediaAccessEvidence({ owner })` (A08 changed its shape): `rg -n "export function invalidateMediaAccessEvidence\(\{ owner \}" apps/website/src packages -g '!**/node_modules/**'` in both repos; re-plan the binding line only.
+- STOP if a cms file would import `@jini-ai/db`: `rg -n "@jini-ai/db" packages/cms/src/{entries,content-types}`.
+Not verified while planning: per-method sizes inside the two classes (the eslint gate measures them; `SqlEntryRepo` is one
+272-line file, well under 500).

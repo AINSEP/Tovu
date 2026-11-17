@@ -1,85 +1,110 @@
-> **REVISION 2 HOLD (2026-11-17): do NOT dispatch this sheet as written.** The Codex judge's finding(s) below were checked against the code and accepted; the redesign is not written yet (INDEX §7 and "Revision 2 - judge response"). Until this banner is removed the sheet is input for the next planning run, not an executor brief.
-> Findings 13, 14: the template promises green commits while `../COMMON.md:9` forbids tests, typechecks and builds, and it leaves `write-path-inventory.baseline.json` and P-DEP to a coordinator (same contradiction the xpkg COMMON removed: see `untangle/sheets-2026-11-16/COMMON.md` "There are no coordinator-only files" and its STOP table, which this template must adopt); `platform/db/sqlite/__tests__/repo-transactions.sqlite.test.ts` is assigned to S3, S5, S6 and S7 in parallel chains.
+# T-SQLREPO (revision 2): shared rules for every lane S / U sheet
 
-# T-SQLREPO: a Tovu Kysely repo moves into the Jini package that owns its port; Tovu keeps the binding
+Lane-local template for lanes S and U. Revision 2 (2026-11-17) fixes judge findings 13 and 14: the brief is ONE contract,
+every commit has a gate command, nothing is left for a coordinator, shared files are scheduled.
+Executor: Sonnet, one sheet = one run (stop before 250k tokens; each sheet names its cut point).
 
-Lane-local template for lanes S and U (2026-11-16). It generalises the one worked SQL-repo sheet,
-`sheets/move-workspace.md` on `plan/w1-sheets-d` (C3 decision A / D6: "a domain SQL adapter lives behind the
-existing neutral port, in a `<domain>/sql` node subpath of the package that owns the port"). Executor: Sonnet 5.5 high.
-Assembly: `cat T-SQLREPO.md <sheet>.md <sheet>.facts.md ../COMMON.md > <job>.md` (COMMON.md is the move-templates one).
-One sheet = one Sonnet run (stop before 250k tokens; a sheet lists its own cut points).
+## 0. The brief is one contract (LESSONS 29)
+Assemble: `cat <X>/untangle/sheets-2026-11-16/COMMON.md T-SQLREPO.md <sheet>.md <sheet>.facts.md > job.md`
+(`<X>` = `ADS-memory/.local-artifacts/terra-refactor-2026-11-13` on `plan/xpkg-lane-sheets-2026-11-16`).
+- The xpkg `COMMON.md` (revision 2) is the shared rule file: its STOP table, "no coordinator-only files", pairs, git and
+  owner rules apply here unchanged. **`move-templates/COMMON.md` is NOT part of this brief** (its line 9 forbids tests,
+  typechecks and builds; that contradicts every gate below).
+- Precedence: xpkg COMMON > this file > the sheet > the facts file. If two of them disagree: **STOP**, report both lines.
+- Where xpkg COMMON says "census", lanes S/U use the facts generator (§3). Branch names: `lanes-su/<sheet-id>` in both repos.
 
-## What moves and what stays (the same for every sheet of this kind)
-- MOVES to Jini: the query bodies (`Sql*Repo` classes / `create*Store` factories), their row mappers (`repo.rows.ts`),
-  the lock-key strings they own, their why-comments (reworded neutral).
-- STAYS in Tovu: `repo.sqlite.ts` (it becomes the binding: Tovu kernel + Tovu table names -> the Jini class; same shape as
-  `apps/website/src/features/redirects/repo.sqlite.ts`), the generated `ContentDatabase`, migrations, the dialect-matrix
-  tests (they run Tovu's migrations on SQLite/PGlite/Postgres; they cannot move), composition.
-- NEVER touched: `platform/db/drizzle/**` (frozen), `platform/db/migrations/**` (applied; ADR-066), `content-database.generated.ts`,
-  `*.sql`, lockfiles. No schema change belongs in these sheets. A sheet that seems to need one = STOP.
-
-## Sheet fields (every sheet fills all of them; `-` when empty)
+## 1. Base and setup
+Verified for this revision on Jini `integ/merge-final-2026-11-16` @ `af33fcdb` (contains merge-a `dde69a6d` and merge-b
+`9c982fd9`) and Tovu `integ/merge-a-2026-11-16` @ `e801e9ae`, cross-checked with merge-b `450ac748` (lane files differ in
+one file: `platform/db/repos/change-set-repo.ts`, 2 lines; Tovu had no `merge-final` on 2026-11-17). Start only from a pair
+where each repo contains both merges (xpkg COMMON "Base" commands). Then, before reading source:
 ```
-id / feature / jini_target (package, subpath, new files, runtime tag)
-prerequisites        # each with the rg/git command that proves it landed; a missing one = SKIPPED
-port_compat          # for each Jini port the moved class implements: the command that prints the Jini signature, and the
-                     # Tovu class it must match METHOD BY METHOD (argument object fields, optional vs required, return
-                     # null vs undefined vs throw, ordering guarantees). Structural `implements` passing is NOT enough.
-split                # every top-level declaration of every file: MOVE -> file | STAY-WIRING | STAY-PRODUCT | DELETE
-table_types          # the Jini-local table interfaces (columns copied from the generated type for the tables in facts)
-tables_binding       # the `tables: {...}` object Tovu passes (real table names; none has a default in Jini)
-lock_keys            # each key string: owner after the move, and the test that pins the exact string
-ports                # anything else the moved body needs from Tovu (smallest set), with the Tovu binding expression
-characterization     # tests written FIRST, on the UNMOVED Tovu code, each naming the risk it fails on
-tests_split          # per test file: stays-repointed | moves-to-jini (only pure, kernel-fake tests move)
-wiring               # exact Tovu lines after the move (repo.sqlite.ts text, composition edits old -> new)
-baselines            # path-keyed debt rows to update (write-path inventory, hardwiring, architecture, size)
-commits              # ordered; each lists prerequisites + caller/test updates and is green alone
-stops                # sheet-specific STOP conditions
-estimate             # tokens for one Sonnet run; cut points if it runs long
+# Jini                                                   # Tovu
+pnpm install --config.prefer-workspace-packages=true     npm ci && npm run link:jini
+pnpm -r build && pnpm guard > /tmp/guard-before.txt      npm run typecheck && npm run typecheck:tests     # red on the unmodified pair = STOP
+npm --prefix packages/<pkg> run test   (each package the sheet touches; record the summary line)
 ```
+`TT` below means Tovu's single-file test command (the `test` script without its globs):
+`TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks <files>`.
 
-## Steps
-0. Branch rule and blobs (facts file). Run every `prerequisites` and `port_compat` command. Any mismatch: SKIPPED, report the
-   exact differing member. Read the landed precedent before writing a line:
-   `packages/cms/src/redirects/sql/repo.ts` and `packages/cms/src/comments/sql/{repo.ts,repo.rows.ts,index.ts}` in the Jini clone;
-   copy their spelling for the kernel type, the `tables` argument, `(required, _optional = {})` and the `*RepoFor` factory.
-### Commit T0 (Tovu, tests only): characterization on the unmoved code
-1. Add the tests listed under `characterization`. They are written against the Tovu class as it stands and must be GREEN
-   on this commit in the batched cloud run. Each test names, in its title, the risk it guards. The cloud run also proves each
-   one can FAIL: the sheet gives a one-line mutation per test ("delete line N" / "change the string"); the run applies it,
-   expects RED, reverts. A characterization test that cannot go red is rejected (LESSONS 6, 21).
-### Commit J1 (Jini): the adapter
-2. NEW `<pkg>/src/<domain>/sql/repo.rows.ts` (table interfaces from `table_types` + the mappers, bodies verbatim),
-   `repo.ts` (classes verbatim apart from: kernel type, `tables` names, `(required, _optional = {})` constructor, leaf imports),
-   `index.ts` (named exports only, no `export *` of anything not listed in `split`).
-3. `package.json`: `exports` entry + `jini.entries` `"<sub>": "node"` + README row, in THIS commit (LESSONS 25: an export-map
-   entry must exist and build in the commit that introduces it). Changeset `minor`.
-4. Rule checks: no Tovu text; imports only own package (leaf files), `@jini-ai/core`, `@jini-ai/protocol`, and `kysely`
-   (type-only where the precedent is type-only). No `@jini-ai/db` import (the kernel comes through `@jini-ai/core/contracts/storage`).
-   No `console.*`, no `process.env`, no `await import(`. Functions <= 50 lines, complexity <= 10: measure each moved method
-   (`node_modules/.bin/eslint -f json` on the new files); a method over the limit is split as the sheet says, or STOP.
-5. Jini tests: the kernel-fake unit tests listed `moves-to-jini`, plus a `lock-keys.test.ts` that drives each locking method
-   against a recording fake kernel and asserts the exact key strings. Fakes implement the interface
-   (`StorageKernel`); never `vi.mock` a package's internals.
-### Commit T1 (Tovu): bind and delete
-6. Census (facts file command). Every hit must be in the facts file. Else STOP.
-7. Rewrite `repo.sqlite.ts` per `wiring`; repoint every importer; `git rm` the moved `repo.ts` / `repo.rows.ts`
-   (no re-export shell, no forwarder; COMMON 19). Why-comments that name Tovu facts go above the binding.
-8. Update `baselines` rows exactly as listed (the file stays, its write sites moved: remove the listed objects; never add an
-   ignore). Re-run the census: no hit names a deleted path.
-9. eslint touched files. Commit with every path, deleted ones included.
+## 2. What moves and what stays (the same for every SQL sheet)
+- MOVES to Jini: query bodies (`Sql*Repo` classes / `create*Store` factories), their row mappers, the lock-key strings
+  they own, their why-comments (reworded neutral; the comment gate in xpkg COMMON lists every vanished line).
+- STAYS in Tovu: `repo.sqlite.ts` (the binding: Tovu kernel + Tovu table names -> the Jini class), the generated
+  `ContentDatabase`, migrations, the dialect-matrix tests, composition.
+- NEVER touched: `platform/db/drizzle/**` (frozen), `platform/db/migrations/**` (ADR-066), `content-database.generated.ts`,
+  `*.sql`. No sheet changes a schema, a stored format or a default. A sheet that seems to need one = STOP. (If one is
+  ever approved it is an ADR-066 TS migration with an N-1 fixture and automatic migration, in its own sheet.)
+- Never permanent deletes: a sheet adds no `deleteFrom`; every existing one is listed in the sheet with the reason it
+  exists today (credential material, a Trash purge behind the retention check) and moves verbatim.
+- Dependency rule (option C): a Jini file written here imports only its own package (relative leaf paths),
+  `@jini-ai/core`, `@jini-ai/protocol`, and `kysely` where the manifest declares it. **Never `@jini-ai/db`** from cms,
+  user-management or integrations: the kernel type is `StorageKernel<Kysely<unknown>, unknown>` from
+  `@jini-ai/core/contracts/storage`, dialect helpers arrive as an injected port (the sheet declares it; precedent:
+  xpkg R6-R9 §2 `ColumnCatalogPort`). A Node fs/lock/process need = a port the host fills from `@jini-ai/node-adapters`.
+- Shapes copied from the landed precedent (read it first): `packages/cms/src/comments/sql/{repo.ts,repo.rows.ts}` and
+  `packages/cms/src/redirects/sql/repo.ts` in Jini; `apps/website/src/features/redirects/repo.sqlite.ts` in Tovu.
+  Constructor `({ kernel, tables, ...ports }, _optional: Record<string, never> = {})`; every query starts from
+  `db.withTables<LocalTables>()`; table names come only from `tables` (no default); methods take
+  `(required, _optional = {})`. A method the PORT declares positionally keeps the port's signature (the sheet lists it).
+- Kernel erasure: the precedent bindings cast `contentKernel({ store }) as unknown as XSqlRequired["kernel"]`. xpkg COMMON
+  forbids new casts on bindings, so S0 adds ONE helper, `schemaErasedKernel({ store })`, in
+  `platform/db/content-kernel.ts` (the single place the cast lives, with its why-comment); every binding in lanes S/U
+  calls it and adds no cast. `git diff $BASE..HEAD | rg "^\+.*as unknown as"` must print nothing in every later sheet.
+- No Jini `index.ts` uses `export *` for anything the sheet's `split` does not list (xpkg COMMON shell gate; the two
+  `export *` lines in the comments precedent are not copied: write named exports).
 
-## STOP conditions specific to SQLREPO
-- A moved query needs a table the sheet's `tables_binding` does not list, or a column the `table_types` do not declare.
-- A moved body imports another Tovu feature the sheet did not turn into a port.
-- The Jini port and the Tovu class differ in any member (step 0): never adapt silently; the sheet decides.
-- The `sql` template tag, a raw string of SQL, or a dialect branch appears that the sheet did not list (dialect behaviour
-  must be preserved per dialect; the Tovu dialect-matrix test stays the judge).
-- Any change to a lock-key string, a stored token/hash format, a table or column name.
-- The move would need `kysely` in a package whose `package.json` does not declare it (see INDEX prerequisite P-DEP).
+## 3. Facts, successor guards, shared files (finding 14)
+- Regenerate before step 1: `LANE_ROOT=<tovu> python3 scripts/inv.py && LANE_ROOT=<tovu> python3 scripts/rep.py &&
+  LANE_ROOT=<tovu> python3 scripts/facts.py /tmp/facts && diff /tmp/facts/<sheet>.facts.md <sheet>.facts.md`.
+  Allowed differences, and only these: (a) blob and line changes of files that a sheet listed in this sheet's
+  `successor_of` edited, exactly in the declarations that sheet names; (b) new test importers under
+  `apps/website/src/__tests__/lane-su-pins/` (S0); (c) the header line. Anything else: **STOP** and report the diff.
+  A refreshed guard never widens the sheet: a new importer of a moved file that is not (b) is a STOP, not a to-do.
+- Shared Tovu files and who may edit them (by chain order in INDEX §4; two sheets that edit the same file never run in
+  the same wave):
+  | File | Edited by | Rule |
+  |---|---|---|
+  | `platform/db/content-kernel.ts` | S0 only | adds `schemaErasedKernel` |
+  | `platform/db/sqlite/__tests__/repo-transactions.sqlite.test.ts` | S6a only (line 2, `outboxEventValues`) | every other binding it imports keeps its path and name; a sheet that would need to edit it = STOP |
+  | `features/identity/wiring.ts`, `features/identity/repo.sqlite.ts`, `features/identity/repo.ts` | S3a, S3b, U3a, U3b, serial in that order | text-guarded: each OLD line occurs exactly once |
+  | `server/runtime/composition/deps.ts` | any sheet whose `wiring` lists a line there | one chain at a time per wave (INDEX §4); text-guarded |
+  | `development/scripts/write-path-inventory.baseline.json` and the other path-keyed baselines | the sheet whose commit moves the write site | in THAT commit: delete only your own rows by hand, never regenerate the file; parallel chains make disjoint hunks |
+  | `packages/<pkg>/package.json` + `pnpm-lock.yaml` (Jini) | one sheet per package per wave | export entry, `jini.entries` line, README row and (first SQL sheet of user-management / integrations) the `kysely` optional peer + lockfile, all in the J1 commit that needs them (this replaces the round-1 "P-DEP coordinator step") |
 
-## Expected afterwards (batched cloud run)
-T0 green on its own; mutations red. J1: vitest of the new files, typecheck, `check-subpath-isolation`, size/complexity gates.
-T1: the kept dialect-matrix tests green on SQLite + PGlite (+ Postgres where the matrix runs it), `write-path-inventory`
-check green with the updated baseline, typecheck after linking the Jini clone.
+## 4. Sheet fields (every sheet fills all of them; `-` when empty)
+`id / jini_target / prerequisites (each with its proving command) / successor_of / port_compat / split (every top-level
+declaration: MOVE -> file | STAY-WIRING | STAY-PRODUCT | DELETE) / partition (file and function sizes of the new files,
+when the source is over a limit) / tables / lock_keys / ports (name, signature, Tovu binding expression, binding test) /
+characterization (test, risk, mutation) / wiring (exact Tovu text) / commits / stops (each with its command) / estimate`.
+Table types: the sheet names the tables; the executor copies each column set from
+`platform/db/content-database.generated.ts` into a Jini-local interface in the same key order, and S0-P6 (run under
+`typecheck:tests`) fails if a later copy drifts from the generated type.
+
+## 5. Commits and their gates
+Every commit is pushed only after its gate is green; a red gate is fixed inside the same commit or the run stops there
+(report: step, command, output). Never push red and fix forward.
+| Commit | Content | Gate (all must pass; paste output) |
+|---|---|---|
+| **T0** (Tovu, tests only) | the sheet's characterization tests, on unmoved code | `TT <new test files>` green; `npm run typecheck:tests` green; then the **mutation loop**: for each row apply the one-line mutation to the SOURCE file, run that test file, expect a non-zero exit naming that test, `git checkout -- <source>`; finish with `git status --porcelain` empty. A test that stays green under its mutation is rewritten or the row is reported as NOT CHARACTERIZED (the sheet then does not move that code path: STOP for security rows) |
+| **J1** (Jini) | new adapter files + their tests + manifest/export/README/changeset (+ lockfile) | `pnpm --filter @jini-ai/<pkg> build`; `npm --prefix packages/<pkg> run test`; `pnpm typecheck`; `pnpm guard` (diff against `/tmp/guard-before.txt` shows no new finding); the eslint limits line of xpkg COMMON on every new file; `pnpm check:size && pnpm check:complexity` |
+| **T1** (Tovu, names the Jini SHA) | binding rewritten, importers repointed, moved files `git rm`'d, baseline rows | `npm run link:jini` to that SHA; `npm run typecheck && npm run typecheck:tests`; `TT` on T0's tests + every test file in the facts file (all still green, same count); `npx tsx development/scripts/write-path-inventory.ts --check`; `npm run check:boundaries && npm run check:architecture && npm run check:size && npm run check:complexity`; `rg -n "<each deleted path stem>" apps development -g '!**/node_modules/**'` prints nothing |
+A sheet with two runs (a/b) states the exact tree after run a; run a's T1 gate is the proof that it compiles alone
+(LESSONS 30). Jini tests use fakes that implement the interface (`StorageKernel`, the port types); no `vi.mock`.
+Each locking method also gets a Jini `lock-keys.test.ts` driving a recording fake kernel and asserting the exact key.
+
+## 6. STOP conditions, each with its command
+| STOP | Command (prints nothing = ok, unless stated) |
+|---|---|
+| Source changed since planning | the facts diff of §3 |
+| A moved body reads a table or column the sheet did not list | after J1: `rg -n "(selectFrom|insertInto|updateTable|deleteFrom|innerJoin|leftJoin)\(" <new files>` and compare each target with the sheet's `tables` |
+| A moved body imports something the sheet did not turn into a port | `rg -n "^import .* from ['\"](\.\./\.\./\.\.|@jini-ai/(?!core|protocol))" -P <new Jini files>` |
+| Raw SQL / dialect branch the sheet did not list | `rg -n "sql\`|\.dialect\b|sql\.raw" <new files>`: every hit is named in the sheet |
+| Lock key, stored format, table or column name changed | S0 pins: `TT apps/website/src/__tests__/lane-su-pins/*.test.ts` green after T1 |
+| A permanent delete was added | `git diff $BASE..HEAD \| rg "^\+.*deleteFrom\("` lists only moved lines; each has a matching `^-` line in the Tovu diff |
+| `kysely` used where the manifest does not declare it | `node -e 'const j=require("./packages/<pkg>/package.json");if(!((j.peerDependencies\|\|{}).kysely\|\|(j.dependencies\|\|{}).kysely))process.exit(1)'` after J1 |
+| Port and class differ (step 0 `port_compat`) | the sheet's print command; any differing member: SKIPPED with the member named, never adapted silently |
+| A security step would become a host callback, or its test cannot go red | the T0 mutation loop |
+| Prerequisite missing | each prerequisite's own command; missing = SKIPPED, nothing committed |
+Report file (last commit, both repos): `cloud-results/lanes-su/<sheet-id>.md` with DONE / PARTIAL / SKIPPED, every SHA,
+each gate's output, test counts before/after, what the sheet got wrong.
