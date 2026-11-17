@@ -583,7 +583,7 @@ test("SCOPE: production closes the exemption and binds delegated runId after par
   const auth = statements.indexOf("app.use(requireAgentDaemonToken({ env: authEnv, runScopedCallers: runCredentials }, {}));");
   const json = statements.indexOf('app.use(express.json({ limit: "6mb" }));');
   const binding = statements.indexOf("app.post(DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken({ env: authEnv, runScopedCallers: runCredentials, validateDelegatedRunId: true }, {}));");
-  const route = statements.indexOf("registerDelegatedToolRoutes({ app, deps: delegatedToolRouteDeps, adapter });");
+  const route = statements.indexOf("mountJiniRoutes({ app, routes: delegatedToolRoutes({ deps: delegatedToolRouteDeps, host: routeHost }) });");
   assert.notEqual(auth, -1, "production must authenticate delegated callers without exemptPaths");
   assert.equal(auth < json && json < binding && binding < route, true,
     "delegated run binding must execute after JSON parsing and before the real delegated route");

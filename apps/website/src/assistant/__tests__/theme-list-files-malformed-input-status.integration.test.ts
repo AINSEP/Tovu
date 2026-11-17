@@ -10,7 +10,8 @@ import express from "express";
 
 import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
-import { delegatedToolExecuteRoute, registerDelegatedToolRoutes } from "@jini-ai/daemon/http";
+import { delegatedToolExecuteRoute, delegatedToolRoutes } from "@jini-ai/daemon/http";
+import { daemonRouteHost, mountJiniRoutes } from "../../server/runtime/composition/jini-routes.js";
 
 import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
 import { buildThemesRegistrations, type ThemeToolDeps } from "../../features/theme/tool-registrations.js";
@@ -20,7 +21,7 @@ import { createLocalSameOriginPolicy } from "@jini-ai/core/contracts/server";
  * @file Regression test for the bug report: `theme_list_files` called with a malformed/wrong
  * parameter name (e.g. `theme_id` instead of `themeId`) returned an HTTP 500 through
  * `/api/delegated-tool-calls` — the real transport a spawned agent CLI uses to call this site's
- * tools (`registerDelegatedToolRoutes` in `src/server/agent-daemon/agent-daemon-server.ts`) — instead
+ * tools (`delegatedToolRoutes` in `src/server/agent-daemon/agent-daemon-server.ts`) — instead
  * of a 400. Root cause and fix both live upstream in `@jini-ai/core`/`@jini-ai/daemon`/
  * `@jini-ai/http-kit` (a shared `ToolInputError` marker threading a `ToolExecutionResult.errorKind`
  * through to the wire status), so this test drives the REAL chain end to end — real theme
@@ -134,7 +135,9 @@ test("the mounted HTTP adapter returns 200 for a repaired alias and 400 for malf
     const { run, ...deps } = await buildDelegatedToolDeps();
     const app = express();
     app.use(express.json());
-    registerDelegatedToolRoutes({ app, deps: deps, adapter: { originPolicy: createLocalSameOriginPolicy({ port: () => 7456, env: {}, config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) } });
+    const context = { originPolicy: createLocalSameOriginPolicy({ port: () => 7456, env: {}, config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
+    // 100 KB: the byte size of the default `express.json()` parser above; the list derives its body limit from it.
+    mountJiniRoutes({ app, routes: delegatedToolRoutes({ deps, host: daemonRouteHost({ context, parserLimitBytes: 100 * 1024 }) }) });
 
     // Drive real IncomingMessage/ServerResponse and Express routing over an in-memory
     // stream: no listening socket, and no stub of the adapter's status or JSON writers.
