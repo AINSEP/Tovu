@@ -6,7 +6,7 @@ import type { MailerPort } from "../../../platform/mail/index.js";
 import { SenderIdentityNotConfiguredError } from "../../../platform/mail/sender-identity.js";
 import { createMailPurposeGateProbe, type MailPurposeGateProbe } from "../../../platform/mail/purpose-gate-probe.js";
 import { createPermissionGrantRegistry } from "../../identity/permission-grants.js";
-import type { MailActivityRecord, MailActivityRepo } from "../../mail/activity.repo.js";
+import type { MailActivityRecord, MailActivityRepo } from "../../mail/activity-ports.js";
 import type { LaunchGateDeps } from "../../newsletter/launch-gate.js";
 import {
   DEFAULT_MAIL_ACTIVITY_LIMIT, getMailActivity, listMailActivity, MailActivityForbiddenError, MailActivityUnavailableError, maskRecipient,

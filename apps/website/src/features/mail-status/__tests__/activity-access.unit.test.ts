@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { MailActivityRecord, MailActivityRepo, MailFeedbackRecord } from "../../mail/activity.repo.js";
+import type { MailActivityRecord, MailActivityRepo, MailFeedbackRecord } from "../../mail/activity-ports.js";
 import {
   getMailActivity, listMailActivity, MailActivityForbiddenError, maskRecipient, nextMailCursor, readMailActivityQuery, readMailCursor, readMailPageLimit, type MailActivityDeps,
 } from "../activity.js";

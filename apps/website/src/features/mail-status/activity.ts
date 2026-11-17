@@ -14,9 +14,8 @@
  */
 import { ToolInputError } from "@jini-ai/core";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
-import {
-  MAIL_ACTIVITY_OUTCOMES, MAIL_ACTIVITY_USES, type MailActivityFilter, type MailActivityPosition, type MailActivityRecord, type MailActivityRepo, type MailFeedbackRecord,
-} from "../mail/activity.repo.js";
+import type { MailActivityFilter, MailActivityPosition, MailActivityRecord, MailActivityRepo, MailFeedbackRecord } from "../mail/activity-ports.js";
+import { MAIL_ACTIVITY_OUTCOMES, MAIL_ACTIVITY_USES } from "../mail/activity-vocabulary.js";
 import { MAIL_ACTIVITY_READ_PERMISSION, MAIL_STATUS_PERMISSION } from "./permissions.js";
 
 export const DEFAULT_MAIL_ACTIVITY_LIMIT = 25;

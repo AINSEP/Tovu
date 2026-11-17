@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { MailSuppressionAdminRepo, MailSuppressionEntry } from "../../mail/suppression-admin.repo.js";
+import type { MailSuppressionAdminRepo, MailSuppressionEntry } from "../../mail/activity-ports.js";
 import { MailActivityForbiddenError } from "../activity.js";
 import { MAIL_ACTIVITY_READ_PERMISSION, MAIL_STATUS_PERMISSION, MAIL_SUPPRESSIONS_MANAGE_PERMISSION } from "../permissions.js";
 import {
