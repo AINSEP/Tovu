@@ -2,7 +2,7 @@
  * page-body sanitizer, while executable SVG (script, foreignObject, on*, javascript: hrefs) drops. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { sanitizePageHtml } from '#src/features/widgets/media-html';
+import { sanitizePageHtml } from '@jini-ai/cms/widgets/html';
 
 test('sanitizePageHtml keeps the landing carousel buttons\' inline SVG icons', () => {
   const prev = `<button type="button" class="deck-arrow deck-prev" aria-label="Previous video"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 L8 12 L15 19" /></svg></button>`;

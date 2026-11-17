@@ -2,7 +2,7 @@
  * scripts with no trace. Each call that removed anything reports ONCE, naming what and how many. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { renderMediaRawHtml, sanitizePageHtml } from '#src/features/widgets/media-html';
+import { renderMediaRawHtml, sanitizePageHtml } from '@jini-ai/cms/widgets/html';
 import { logMediaHtmlEvent } from '#src/features/widgets/media-html-log';
 
 test('one report per call, listing every dropped tag and attribute with counts', () => {

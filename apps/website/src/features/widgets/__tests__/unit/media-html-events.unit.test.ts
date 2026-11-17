@@ -2,7 +2,7 @@
  * has no console of its own can prove each line still reaches the host's log. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { renderMediaRawHtml, sanitizePageHtml } from '../../media-html.js';
+import { renderMediaRawHtml, sanitizePageHtml } from '@jini-ai/cms/widgets/html';
 import { logMediaHtmlEvent } from '../../media-html-log.js';
 
 const renderPhoto = ({ props }: { props: Record<string, unknown> }): string => props.slug === 'photo' ? '<img src="/photo" alt="Library">' : '';

@@ -1,7 +1,7 @@
 /** Host binding for the Raw HTML pipeline's diagnostics: the pipeline reports `{ code, detail }`
  * events and never logs; Tovu keeps today's console lines (text and arguments) so the server log
  * still shows a dropped tag, an unknown slug or a media-kind mismatch the moment a page renders. */
-import type { MediaHtmlEvent } from './media-html.js';
+import type { MediaHtmlEvent } from '@jini-ai/cms/widgets/html';
 
 const MESSAGES: Readonly<Record<string, string>> = {
   'raw-html-dropped': '[media] Raw HTML sanitizer dropped markup',

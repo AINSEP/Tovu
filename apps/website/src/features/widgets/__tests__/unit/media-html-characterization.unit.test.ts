@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { JsonObject } from '@jini-ai/core/primitives';
-import { renderMediaRawHtml, sanitizePageHtml } from '../../media-html.js';
+import { renderMediaRawHtml, sanitizePageHtml } from '@jini-ai/cms/widgets/html';
 import { logMediaHtmlEvent } from '../../media-html-log.js';
 
 test('srcset and SVG attributes keep safe URLs and reject invalid, empty and namespaced values', () => {
