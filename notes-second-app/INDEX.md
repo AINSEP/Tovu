@@ -1,9 +1,45 @@
 # INDEX: notes second app (2026-11-17)
 
-Status: **COMPLETE for the sheets listed in §2** (see the last section for anything marked PARTIAL).
+Status: **PARTIAL, revision 2** (2026-11-17). Revision 2 answers `CODEX-JUDGE.md` (5 blockers, 18 majors, 3 minors):
+**26 accepted, 0 rebutted**; 22 are fixed in the plan, 4 are only partly fixed. What is still open is numbered in
+"Revision 2 - still open" at the end of this file; **do not dispatch a sheet that list names**.
 Planning only: nothing was built, typechecked or run. Design and gap list: `DESIGN.md`. Shared rules: `sheets/COMMON.md`.
-Jini was read at `integ/merge-b-2026-11-16@674a19ea` (cross-checked with merge-a `96aade8c` and
-`refactor/terra` `02edbb68`); Tovu at `refactor/terra@80b00f5b`.
+Revision 2 was verified against `integ/merge-a-2026-11-16` (Jini `dde69a6d`, Tovu `e801e9ae`); `integ/merge-final-2026-11-16`
+did not exist. Revision 1 read Jini at `integ/merge-b-2026-11-16@674a19ea`. The two branches have diverged, so every
+sheet starts with its inventory commands and COMMON's base rule.
+
+**How to read a sheet now:** each revised sheet starts with a "Revision 2 corrections" block. It is authoritative and
+replaces the steps it names. The older step text below it has not been rewritten in place yet (open item 1).
+
+## 0. Revision 2 changes to the sheet list
+
+| Change | Sheet | Why (judge finding) |
+|---|---|---|
+| New, runs before N1 / N2 | `GA-admin-entity-seams.md` (150k) | create vs persisted fields, mutation-failure seam, refresh seam, `search` in the list query (6, 7, 8, 12) |
+| New, runs before N3 | `G19-entry-tool-body.md` (70k) | the update tool cannot change a body (11) |
+| Withdrawn | `G8-mcp-bin.md` | `@jini-ai/mcp` already exports `./bin` (23) |
+| Rescoped to "consume lane S's adapter" (about 50k) | `G2-entries-sql.md` | lane S sheet S2 already owns `cms/entries/sql` (1, 13) |
+| Home changed to `@jini-ai/node-adapters`; matching stays in core | `G1-node-server.md` | owner-approved package for Node bindings; core owns the route table (21) |
+| Blocked | `N3-assistant-server.md` (open item 2), `D2-desktop-packaging.md` (OD-N11) | 15, 25 |
+
+New order: `N0 → GA → N1 → { N2 ‖ (G19 → N3) }`, then `G7 → N4 → N5`, then wave C `{ G1 ‖ G2 } and G6 → G5 → G4`
+(G1 needs `@jini-ai/node-adapters`; G2 needs lane S2), then `D0 → D1 → D2`.
+New estimate: **about 1.75M Sonnet for 17 runs** (16 − G8 + GA + G19; G2 smaller; D0, N2, N4, N5, G6 each about 20k
+larger for the added tests), plus one Opus design pass of about 60k for open item 2. Revision 1 said 1.6M for 16.
+
+Gap owners after revision 2 (the gap list stays complete; ids continue `DESIGN.md` §5):
+
+| Gap | Owner | State |
+|---|---|---|
+| G2 SQL entry repository | lane S, sheet S2 (`plan/lanes-s-u-2026-11-16`) | consume, do not build |
+| G8 MCP bin path | none | closed: not a gap |
+| G15 durable identity repository | lane S, sheet S3 (`S/S3-identity-sql.md`, `user-management/server/sql`) | existing owner; no new design asked |
+| G16 entity port concurrency / object arguments | owner decision OD-N10, **before** G6 (new adapters would freeze the positional form) | open |
+| G19 (new) update tool forwards `body` | `G19-entry-tool-body.md` | sheeted |
+| G20 (new) page API and a real read bound for `listEntries`; memory-repo transaction semantics | lane S, S2's owner | not sheeted here |
+| G21 (new) a version conflict from an entry tool reaches the model as an input error, not an internal error | cms entry tools owner; follows G19 | not sheeted; N3 characterizes today's answer |
+| G22 (new) MCP callback credential for a host-assembled daemon | this plan, open item 2 | design missing |
+| Node `fs` / lock / process bindings, `node:http` adapter | `@jini-ai/node-adapters` (xpkg plan) | prerequisite of G1, D1 |
 
 ## 1. Answer in one screen
 
@@ -77,6 +113,23 @@ Not prerequisites: R6–R13 other than above, G-TESTS, C12-OBS, the size lanes. 
 | OD-N9 | Desktop server placement | Sidecar under Node, not inside Electron main | D1 |
 | OD-N10 | Should `AdminEntityPort.update` gain `expectedVersion` and object arguments (G16)? | Decide after G6: the conformance suite will show how many adapters need it; until then the declared `version` field carries it | nothing |
 
+Revision 2: executors gate on decisions with `grep -nE "^\| OD-N<n> .*\| DECIDED: " notes-second-app/INDEX.md`. State of each:
+
+| # | State |
+|---|---|
+| OD-N1 | DECIDED: examples/ (default applied) |
+| OD-N2 | DECIDED: `@jini-ai/node-adapters` (owner-approved new package; replaces the http-kit recommendation above) |
+| OD-N3 | DECIDED: superseded. Lane S sheet S2 ships `cms/entries/sql`; NOTES consumes it |
+| OD-N4 | OPEN (no sheet waits) |
+| OD-N5 | OPEN (no sheet waits) |
+| OD-N6 | OPEN (timing only) |
+| OD-N7 | OPEN (no sheet waits) |
+| OD-N8 | OPEN: blocks G4 |
+| OD-N9 | OPEN: blocks D1 |
+| OD-N10 | OPEN: now blocks **G6** (finding 19): decide object arguments and `expectedVersion` on `AdminEntityPort.update` before two new adapters implement the positional form |
+| OD-N11 (new) | OPEN: blocks D2. Which Node runs the packaged sidecar: Electron's own (through `node-toolchain` shims; SQLite built for Electron's ABI) or a bundled Node distribution (then `node-toolchain` is not used). Recommendation: Electron's own, because that is what the package provides today |
+| OD-N12 (new) | OPEN: blocks D0. May the desktop examples depend on a bundler (esbuild) for the sandboxed preload, if no workspace package already declares it? |
+
 ## 6. After these sheets (not sheeted)
 
 - **N6 single listener** (after R7/R13): mount the daemon's routes on the app's `Server`, delete `src/gaps/daemon-proxy.ts` and the `express` dependency. Re-run `scripts/closure.mjs`.
@@ -100,3 +153,52 @@ Not prerequisites: R6–R13 other than above, G-TESTS, C12-OBS, the size lanes. 
 
 See `DESIGN.md` §9. In addition: sheet estimates are not measured; lane file lists (`sites/*.tsv`) were not
 read; no sheet was dry-run.
+
+## Revision 2 - judge response
+
+Each finding was checked at merge-a before deciding. J = Jini `packages/…` or `examples/…`, T = Tovu.
+
+| # | Sev. | Verdict | What changed (file) | Evidence |
+|---|---|---|---|---|
+| 1 | Blocker | ACCEPT | G2 builds nothing; it consumes lane S's adapter. G15's owner is lane S3 (`sheets/G2-…` block, §0 gap table) | T `features/entries/repo.ts:51,270`; `plan/lanes-s-u-2026-11-16` `S/S2-entries-content-types-sql.md` |
+| 2 | Blocker | ACCEPT | Admin mounted at `/admin/`; unmatched requests handled by an adapter hook added in N0; existing HTML routes characterized (`N0`, `N2` blocks) | J `core/src/contracts/server.ts:96`; J `examples/notes-app/src/app.ts:58` |
+| 3 | Blocker | ACCEPT | Transport takes a required `resolveRunInput` port; request tested against the real daemon parser (`G7`, `N4` blocks) | J `daemon/src/http/runs.ts:44,119` |
+| 4 | Blocker | ACCEPT | Move + exports + callers + tests + delete in one commit; nothing left for a coordinator (`COMMON` rule 3; `G6`, `G7`, `G1` blocks) | old `G6:46-50`, `G7:58-63` |
+| 5 | Blocker | ACCEPT | Bundled CJS preload with `electron` external; emitted file tested in a sandboxed window; dependency question is OD-N12 (`D0`, `D1` blocks) | J `examples/reference-desktop/src/preload.cts:1` |
+| 6 | Major | ACCEPT | `persistedOnly` fields in new sheet GA; `version` is never a creation input (`GA`, `N1`, `G5` blocks) | J `admin/src/react/entities/rules.ts:103` |
+| 7 | Major | ACCEPT | Typed mutation-failure seam with retained draft and Reload (`GA` item 2; `N2` block) | J `admin/src/react/entities/use-entity-edit.ts:113` |
+| 8 | Major | ACCEPT | `refreshToken` seam; `useInvalidate` removed; N5 asserts an automatic update (`GA` item 3; `N4`, `N5` blocks) | J `admin/src/react/entities/use-entity-read.ts:7-21` |
+| 9 | Major | ACCEPT | Agent inventory route, initial selection and a selectable scripted agent are bound explicitly (`N4` block) | J `chat/src/react/features/chat-pane/components/ChatPane.tsx:189,824` |
+| 10 | Major | ACCEPT | Three lifecycle states; unpublish ends in `unpublished`; slug read-only after create (`N1` block) | J `cms/src/entries/types.ts:16` |
+| 11 | Major | ACCEPT | New sheet G19 adds `body` to the update tool; N3 waits for it (`G19`, `N3` block) | J `cms/src/entries/tool-registrations.ts` (update handler) |
+| 12 | Major | ACCEPT | No `limit` argument; the 200-row claim is removed; `search` contract lands in GA before its consumers; a real bound is G20 (`N1`, `G5` blocks) | J `cms/src/entries/list.ts:42-45` |
+| 13 | Major | ACCEPT | Cursor and memory-rollback steps removed; recorded as G20 for S2's owner (`G2` block) | J `cms/src/entries/repo.memory.ts:67` |
+| 14 | Major | ACCEPT | Wire protocol carries filter and sort; patch is `{ set, clear }`; conformance through the HTTP round trip (`G6` block) | J `admin/src/react/entities/use-entity-edit.ts:54-58` |
+| 15 | Major | ACCEPT, **partly fixed** | Security downgrade removed; N3 blocked until the callback credential is designed (open item 2) | judge's citations; not re-read in this revision |
+| 16 | Major | ACCEPT | Invented denial/conflict expectations deleted; today's outcome is characterized; friendlier conflict is G21 (`N3` block) | judge's citations (`registration-kit.ts:539`), confirmed for tool-call-fixes at `core/src/registration-kit.ts` |
+| 17 | Major | ACCEPT | Transitive provider inventory command and per-provider tests; chat i18n bound; hooks injected (`N2`, `N4` blocks; `COMMON` rule 8) | J `ui/src/react/components/CustomSelect.tsx:14,532` |
+| 18 | Major | ACCEPT | Every shell, stub and slice `index.ts` step removed; `COMMON` rule 6 and a STOP command (`G1`, `G4`, `G6`, `G7`, `N2`, `D0` blocks) | old sheet lines cited by the judge |
+| 19 | Major | ACCEPT, **partly fixed** | Option C recorded as the approved exception; STOP list complete with commands; cognitive complexity and error rules added (`COMMON`). G16 is now a decision **before** G6 (OD-N10), still open | J `admin/src/core/ports/entities.ts` |
+| 20 | Major | ACCEPT, **partly fixed** | `api:check` / `check:cross-package` removed (not root scripts); real link procedure; moved tests rewritten for the package runner. The example size check is still a manual count (open item 4) | J `package.json:12,22,25,26`; T `package.json:102` |
+| 21 | Major | ACCEPT | Adapter calls core's route table; only Node conversion and lifecycle move (`G1` block) | J `core/src/contracts/server/route-table.ts:32,74` |
+| 22 | Minor | ACCEPT | Cookie and precedence characterized, not "fixed"; health-boot path and the two-note count corrected (`N0`, `G1`, `N5` blocks) | J `examples/notes-app/src/node-server.ts:96-97`; J `scripts/health-boot.ts` |
+| 23 | Minor | ACCEPT | G8 withdrawn (`G8` block) | J `mcp/package.json` `./bin` |
+| 24 | Major | ACCEPT | `shutdown({}, options)`; handle kept on readiness failure; three cleanup tests (`D0`, `D1` blocks) | J `desktop-host/src/sidecar.ts` |
+| 25 | Major | ACCEPT, **partly fixed** | Wrong claim removed; D2 blocked on new OD-N11 (`D2` block) | J `desktop-host/src/node-toolchain/index.ts:55` |
+| 26 | Major | ACCEPT | Packed proof builds and drives the browser app outside the workspace (`N5` block) | J `examples/notes-app/scripts/smoke.ts:3,56` |
+
+## Revision 2 - still open (PARTIAL)
+
+1. **In-place rewrite of step text.** 15 sheets carry an authoritative corrections block above older step text
+   (`N0, N1, N2, N3, N4, N5, G1, G2, G4, G5, G6, G7, G8, D0, D1, D2`); the steps below the block were not rewritten.
+   Until they are, a reviewer should read block-then-steps together before dispatch. `DESIGN.md` §4 to §6 were not
+   rewritten either: §0 of this file overrides them where they differ.
+2. **Finding 15: MCP callback credential (G22).** Not designed. Needs a read of `daemon/src/agent-executor/contracts.ts`
+   (credential resolver) and `mcp-bridge.ts`, then a contract: who issues the run-scoped credential, how the spawned
+   MCP server receives it, how NOTES' daemon validates it, and a real-callback test. **N3 (and so N4, N5) must not be dispatched before this.**
+3. **Finding 25 / OD-N11 and finding 5 / OD-N12.** Owner decisions; D2 and D0 wait.
+4. **Finding 20, example limits.** No command enforces the 50-line / complexity-10 limits under `examples/`; COMMON asks for a manual count.
+5. **Finding 19, G16 / OD-N10.** Must be decided before G6; the adapter sheets assume today's positional `update(id, patch)` until then.
+6. **Reuse claims.** Only the export-map facts the judge sampled (18 rows) and the ones this revision touched were
+   re-checked at merge-a. The rest of `DESIGN.md` §4 was read at merge-b in revision 1 and was not re-run.
+7. **Estimates** are by analogy, not measured; no sheet was dry-run.

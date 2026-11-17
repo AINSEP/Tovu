@@ -1,5 +1,13 @@
 # Notes: the second app that proves Jini reuse by wiring alone (DESIGN, 2026-11-17)
 
+> **Revision 2 (2026-11-17).** `INDEX.md` §0 and "Revision 2 - judge response" override this file where they differ.
+> In short: G2 is owned by lane S sheet S2 (NOTES consumes it); G8 is not a gap (`@jini-ai/mcp` exports `./bin`);
+> G15's owner is lane S sheet S3; G16 is decided before G6; new gaps G19 (update tool forwards `body`), G20 (page API
+> and read bound, S2's owner), G21 (conflict answer from entry tools), G22 (MCP callback credential, not designed yet);
+> the `node:http` adapter and Node `fs`/lock/process bindings live in the owner-approved `@jini-ai/node-adapters`;
+> the admin is mounted at `/admin/`; React entries importing `@jini-ai/ui-kit/react` is the approved option C;
+> `authorize` mutations use the evaluator's `{ allowed, reason }` shape. The sections below were not rewritten in place.
+
 Planning only. No source file was changed, nothing was built, typechecked or run. Every claim below
 was read from git objects or the checked-out tree named in §0; what could not be checked is in §9.
 
