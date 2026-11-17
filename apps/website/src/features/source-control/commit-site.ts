@@ -51,6 +51,7 @@ export type ExportSiteBoundFn = (options: { outputDir: string; clean?: boolean; 
 export type StaticSiteContextFn = () => Promise<{ name: string; slug: string; theme: string; themeId: string }>;
 /** The two host-bound ports that package a site for a commit; `RouteDeps` and `SourceControlToolDeps` both carry exactly these. */
 export interface StaticSiteHostPorts {
+  /** Existing site/theme resolvers, bound for portable static packaging. */
   readonly staticSiteContext: StaticSiteContextFn;
   /** Bound by composition to `site-backup`'s packager, so this feature never imports `site-backup`. */
   readonly staticSitePackager: StaticSitePackagerPort;
@@ -86,8 +87,9 @@ function describeStageError({ error, stage }: { error: unknown; stage?: sourceCo
   if (stage === "credential") return CREDENTIAL_MESSAGES.storage;
   if (stage === "commit") { console.warn("[source-control] source control provider could not commit; the commit remains incomplete", describeErrorForLog({ err: error })); return "the source control provider failed while committing"; }
   if (stage === "arrange") {
-    return error instanceof StaticSiteCollision
-      ? `Static site destination validation failed: ${error.message}` : "Static site packaging failed before committing could start.";
+    if (error instanceof StaticSiteCollision) return `Static site destination validation failed: ${error.message}`;
+    console.warn("[source-control] static site packaging failed before committing could start", describeErrorForLog({ err: error }));
+    return "Static site packaging failed before committing could start.";
   }
   return error instanceof Error ? error.message : String(error);
 }
