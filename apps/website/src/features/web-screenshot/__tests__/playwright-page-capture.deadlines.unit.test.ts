@@ -146,3 +146,29 @@ test("a page that loaded but hung the renderer fails at T and says so: it did no
   assert.equal(outcome.failure.limitMs, 25_000);
   assert.equal(outcome.failure.loaded, true);
 });
+
+test("a caller cancel at any time ends the capture with the cancel's own error, starts no frame, and never a fallback", async t => {
+  // settleMs 5000 → T = 25 s, work deadline 21 s.
+  const loading: StepTimes = { goto: 3_000, wait: 60_000 };
+  const cases: Array<{ label: string; times: StepTimes; cancelAt: number; framesBefore: number }> = [
+    { label: "during the wait", times: loading, cancelAt: 10_000, framesBefore: 0 },
+    { label: "just before the work deadline", times: loading, cancelAt: 20_999, framesBefore: 0 },
+    { label: "during the fallback frame", times: { ...loading, screenshots: ["never"] }, cancelAt: 22_000, framesBefore: 1 },
+    { label: "during the stable-frame attempt", times: { wait: 0, screenshots: ["never"] }, cancelAt: 1_000, framesBefore: 1 },
+  ];
+  for (const { label, times, cancelAt, framesBefore } of cases) {
+    const fixture = capturing({ times });
+    t.after(() => fixture.capture.close());
+    const reason = new Error(`cancelled ${label}`);
+    const controller = new AbortController();
+    const run = watch(fixture.capture.capture(captureRequest({ settleMs: 5_000 }), { signal: controller.signal }));
+    await fixture.clock.advance(cancelAt);
+    assert.equal(fixture.screenshots.length, framesBefore, `${label}: frames before the cancel`);
+    controller.abort(reason);
+    await fixture.clock.advance(30_000);
+    const outcome = run.outcome();
+    assert.ok(outcome && "failure" in outcome, `${label}: no image`);
+    assert.equal(outcome.failure, reason, `${label}: the cancel's own error`);
+    assert.equal(fixture.screenshots.length, framesBefore, `${label}: no frame after the cancel`);
+  }
+});

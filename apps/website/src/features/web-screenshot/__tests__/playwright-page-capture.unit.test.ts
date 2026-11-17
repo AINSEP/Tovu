@@ -382,8 +382,7 @@ test("a caller's already-aborted signal prevents launch and an active abort prev
   const capture = createPlaywrightPageCapture({ httpClient: client("ok") }, { loadLauncher: async () => fake.launcher });
   t.after(() => capture.close());
   await assert.rejects(capture.capture(request(), { signal: alreadyAborted.signal }), (error: unknown) => {
-    assert.ok(error instanceof PageCaptureError);
-    assert.equal(error.kind, "unavailable");
+    assert.equal(error, alreadyAborted.signal.reason, "the cancel's own error, not an 'unavailable' capture failure");
     return true;
   });
   assert.deepEqual(fake.launches, []);
@@ -393,9 +392,7 @@ test("a caller's already-aborted signal prevents launch and an active abort prev
   const running = createPlaywrightPageCapture({ httpClient: client("ok") }, { loadLauncher: async () => active.launcher });
   t.after(() => running.close());
   await assert.rejects(running.capture(request(), { signal: controller.signal }), (error: unknown) => {
-    assert.ok(error instanceof PageCaptureError);
-    assert.equal(error.kind, "failed");
-    assert.equal(error.message, "navigation failed");
+    assert.equal(error, controller.signal.reason, "the cancel's own error, not a 'navigation failed' capture failure");
     return true;
   });
   assert.ok(active.events.includes("context-close"));

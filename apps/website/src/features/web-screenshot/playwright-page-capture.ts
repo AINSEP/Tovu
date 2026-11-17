@@ -168,8 +168,9 @@ export function createPlaywrightPageCapture(
         work.catch(() => {});
         return await Promise.race([work, deadline]);
       } catch (error) {
-        // A page that hung the renderer can also hang its context's close: drop the whole browser.
-        if (!browserPool && error instanceof PageCaptureError && error.kind === "timeout") void browser.close().catch((closeError: unknown) => console.error("[screenshot] Could not close the timed-out browser", describeErrorForLog({ err: closeError })));
+        // A caller's cancel is not a capture failure: its own reason reaches the caller, never a "navigation failed".
+        if (signal?.aborted) throw signal.reason;
+        dropBrowserAfterTimeout({ browser, error, owned: !browserPool });
         throw error;
       } finally {
         clock.clearTimeout(timer);
@@ -186,6 +187,12 @@ export function createPlaywrightPageCapture(
 type FrameShooter = { screenshot(options: Omit<Parameters<CapturePage["screenshot"]>[0], "animations"> & { animations: "disabled" | "allow" }): Promise<Buffer> };
 type ScreenshotBudget = { run<T>(required: { work: () => Promise<T> }): Promise<T>; remainingMs(): number };
 type FrameClip = { clip?: { x: number; y: number; width: number; height: number } };
+
+/** A page that hung the renderer can also hang its context's close: drop the whole browser (never a pool its host shares). */
+function dropBrowserAfterTimeout({ browser, error, owned }: { browser: RenderBrowserPool; error: unknown; owned: boolean }, _optional = {}): void {
+  if (!owned || !(error instanceof PageCaptureError) || error.kind !== "timeout") return;
+  void browser.close().catch((closeError: unknown) => console.error("[screenshot] Could not close the timed-out browser", describeErrorForLog({ err: closeError })));
+}
 
 /** How far one capture got, shared by the render and the outer race so a timeout can say what ran out. */
 interface CaptureProgress { loaded: boolean }
