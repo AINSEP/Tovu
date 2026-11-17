@@ -49,3 +49,10 @@ Paste these into every future split/move DESIGN brief (and executor brief):
 
 ## Added after the env-schema judgment (2026-11-16)
 26. Config/env: names are an installation compatibility surface (no-alias still needs a deployment-state migration); OS string env != native binding namespaces (an object called env is not strings); model confidentiality separately from role (dynamic names, credentials inside URLs); define when validation applies and which override wins; deleting a deny/disable switch can silently ENABLE a forbidden capability - treat as security.
+
+## From Codex judging the 11-16 evening PLANNING runs (xpkg lane sheets, lanes S/U)
+27. **Separate extraction from compliance classification.** Keep raw import counts, but apply the approved exceptions (host-preset, frozen packages, option-C React->ui-kit) before generating cleanup work; do not plan work against an exception or apply a stricter rule than the owner approved.
+28. **Separately delivered browser assets are separate composition boundaries.** A server-side binding cannot reach code shipped as a browser bundle/asset; plan an explicit browser-side injection point (and test the browser lifecycle event, not the server one).
+29. **Validate the assembled executor brief as ONE contract.** A sheet + its shared COMMON/appendix must not contradict each other: "coordinator applies these lines later" makes a sheet's "every commit green" gate impossible; every STOP condition named must have a command that actually enforces it; hand-written instructions must not contradict generated facts (census, inventories).
+30. **Every sub-sheet's intermediate state must compile alone.** Splitting a lane into a/b/c runs: sub-sheet a may not depend on contracts/implementations that b or c create; the base branches named for Tovu and Jini must be compatible with each other.
+31. **Characterize, never invent.** For security paths (auth, API keys, search validation, permissions) the plan pins what the code does today, names the real producer of each invariant, and only then moves it; a planned test needs an existing injection seam or the sheet must create one first.
