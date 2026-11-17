@@ -26,8 +26,18 @@ function codeLines(source: string): string[] {
   return source.split("\n").filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line));
 }
 
+/** `tovu serve`'s boot path spans `serve.ts` and `serve-listen.ts` (the listen/shutdown half split out under the 50-line limit). */
+const BOOT_PATH_FILES: Readonly<Record<string, readonly string[]>> = {
+  "cli/commands/serve.ts": ["cli/commands/serve.ts", "cli/commands/serve-listen.ts"],
+};
+
 function readCodeLines(relativePath: string): string[] {
   return codeLines(readFileSync(path.join(SRC_ROOT, relativePath), "utf8"));
+}
+
+/** The code lines of a boot path: every file it spans (see {@link BOOT_PATH_FILES}). */
+function readBootPathLines(bootPath: string): string[] {
+  return (BOOT_PATH_FILES[bootPath] ?? [bootPath]).flatMap(readCodeLines);
 }
 
 /** Every production `.ts` file under `src/`, relative and `/`-separated; test files excluded. */
@@ -44,6 +54,15 @@ function productionSourceFiles(dir = SRC_ROOT): string[] {
   return files;
 }
 
+/**
+ * The serving app's result is bound either in one statement (`const { x } = createServingApp(deps, servingOptions)`,
+ * as `index.ts` does) or through a `serving` constant destructured on the next statement (`serve-listen.ts`).
+ */
+function servingResultBinds(field: string): RegExp {
+  const call = String.raw`(?:createServingApp|\(optional\.createServingApp \?\? createServingApp\))\(deps(?:, servingOptions)?\)`;
+  return new RegExp(String.raw`const \{[^}]*\b${field}\b[^}]*\} = ${call}|const serving = ${call};\s*const \{[^}]*\b${field}\b[^}]*\} = serving;`);
+}
+
 function filesCalling(pattern: RegExp): string[] {
   return productionSourceFiles()
     .filter((file) => readCodeLines(file).some((line) => pattern.test(line)))
@@ -52,7 +71,7 @@ function filesCalling(pattern: RegExp): string[] {
 
 for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
   test(`${bootPath} builds its app with createServingApp, never a bare createApp`, () => {
-    const lines = readCodeLines(bootPath);
+    const lines = readBootPathLines(bootPath);
     assert.ok(
       lines.some((line) => /(?:\bcreateServingApp|\(optional\.createServingApp \?\? createServingApp\))\(deps(?:, servingOptions)?\)/.test(line)),
       `${bootPath} must call createServingApp(deps) so the outbox drainer starts after createApp's subscribers`,
@@ -66,11 +85,11 @@ for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
 }
 
 test("cli/commands/serve.ts stops the outbox drainer on shutdown", () => {
-  assert.ok(readCodeLines("cli/commands/serve.ts").some((line) => /\boutboxDrainer\.stop\(\)/.test(line)));
+  assert.ok(readBootPathLines("cli/commands/serve.ts").some((line) => /\boutboxDrainer\.stop\(\)/.test(line)));
 });
 
-test("createServingApp is called only by the two site-serving boot paths", () => {
-  assert.deepEqual(filesCalling(/(?<!function )(?:\bcreateServingApp\(|\(optional\.createServingApp \?\? createServingApp\)\()/), ["cli/commands/serve.ts", "index.ts"]);
+test("createServingApp is called only by the two site-serving boot paths (index.ts and tovu serve's serve-listen.ts)", () => {
+  assert.deepEqual(filesCalling(/(?<!function )(?:\bcreateServingApp\(|\(optional\.createServingApp \?\? createServingApp\)\()/), ["cli/commands/serve-listen.ts", "index.ts"]);
 });
 
 test("startOutboxDrainer is called only by createServingApp", () => {
@@ -93,15 +112,15 @@ test("the theme watcher starts only in the website's serving composition", () =>
 
 for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
   test(`${bootPath} owns the theme watcher through shutdown and listener closure`, () => {
-    const source = readCodeLines(bootPath).join("\n");
-    assert.match(source, /const \{[^}]*\bthemeWatcher\b[^}]*\} = (?:createServingApp|\(optional\.createServingApp \?\? createServingApp\))\(deps(?:, servingOptions)?\)/);
+    const source = readBootPathLines(bootPath).join("\n");
+    assert.match(source, servingResultBinds("themeWatcher"));
     assert.match(source, /workers: \[[\s\S]*?\bthemeWatcher\b[\s\S]*?\]/);
-    assert.match(source, /server\.once\("close", \(\) => \{\s*void themeWatcher\.stop\(\)/);
+    assert.match(source, /server\.once\("close", \(\) => \{\s*void (?:serving\.)?themeWatcher\.stop\(\)/);
   });
 }
 
 test("cli/commands/serve.ts stops the trash sweeper on shutdown", () => {
-  assert.ok(readCodeLines("cli/commands/serve.ts").some((line) => /\btrashSweeper\.stop\(\{\}\)/.test(line)));
+  assert.ok(readBootPathLines("cli/commands/serve.ts").some((line) => /\btrashSweeper\.stop\(\{\}\)/.test(line)));
 });
 
 /**
@@ -125,7 +144,7 @@ test("createTrashModule is mounted by exactly one composition, and it is the adm
  * (`close-store-on-shutdown-boot-work.test.ts`); this pins that index.ts feeds it both passes.
  */
 test("index.ts hands the legacy tail and createServingApp's bootWork to the store close", () => {
-  const source = readCodeLines("index.ts").join("\n");
+  const source = readBootPathLines("index.ts").join("\n");
   assert.match(source, /closeStoreOnShutdown\([^;]*\bbootWork: \(\) => bootWork\b/, "the store close must read the boot work list");
   assert.match(source, /bootWork\.push\(deps\.legacyPublishCredentialsReady\)/, "the legacy publish-credential tail must be awaited");
   // Other destructured fields (the drainer/sweeper handed to stopServing) may sit beside these two.
@@ -156,8 +175,8 @@ test("createServingApp pulls once at startup, after createApp attached the subsc
 
 for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
   test(`${bootPath} stops the automatic form pull trigger at shutdown`, () => {
-    const source = readCodeLines(bootPath).join("\n");
-    assert.match(source, /const \{[^}]*\bformPullTrigger\b[^}]*\} = (?:createServingApp|\(optional\.createServingApp \?\? createServingApp\))\(deps(?:, servingOptions)?\)/);
+    const source = readBootPathLines(bootPath).join("\n");
+    assert.match(source, servingResultBinds("formPullTrigger"));
     assert.match(source, /workers: \[[^\]]*\bformPullTrigger\b[^\]]*\]/);
   });
 }
@@ -174,8 +193,8 @@ test("the webhook delivery loop starts only in createServingApp", () => {
 
 for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
   test(`${bootPath} stops the webhook delivery loop at shutdown`, () => {
-    const source = readCodeLines(bootPath).join("\n");
-    assert.match(source, /const \{[^}]*\bwebhookDeliveryWorker\b[^}]*\} = (?:createServingApp|\(optional\.createServingApp \?\? createServingApp\))\(deps(?:, servingOptions)?\)/);
+    const source = readBootPathLines(bootPath).join("\n");
+    assert.match(source, servingResultBinds("webhookDeliveryWorker"));
     assert.match(source, /workers: \[[^\]]*\bwebhookDeliveryWorker\b[^\]]*\]/);
   });
 }
@@ -190,8 +209,8 @@ test("the due-bindings DNS sweep starts only in createServingApp", () => {
 
 for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
   test(`${bootPath} stops the due-bindings DNS sweep at shutdown`, () => {
-    const source = readCodeLines(bootPath).join("\n");
-    assert.match(source, /const \{[^}]*\bdomainBindingSweeper\b[^}]*\} = (?:createServingApp|\(optional\.createServingApp \?\? createServingApp\))\(deps(?:, servingOptions)?\)/);
+    const source = readBootPathLines(bootPath).join("\n");
+    assert.match(source, servingResultBinds("domainBindingSweeper"));
     assert.match(source, /workers: \[[^\]]*\bdomainBindingSweeper\b[^\]]*\]/);
   });
 }
@@ -211,8 +230,8 @@ test("the post go-live sweep is started only by createServingApp, after createAp
 
 for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
   test(`${bootPath} stops the post go-live sweep at shutdown`, () => {
-    const source = readCodeLines(bootPath).join("\n");
-    assert.match(source, /const \{[^}]*\bpostGoLiveSweep\b[^}]*\} = (?:createServingApp|\(optional\.createServingApp \?\? createServingApp\))\(deps(?:, servingOptions)?\)/);
+    const source = readBootPathLines(bootPath).join("\n");
+    assert.match(source, servingResultBinds("postGoLiveSweep"));
     assert.match(source, /workers: \[[^\]]*\bpostGoLiveSweep\b[^\]]*\]/);
   });
 }
@@ -220,9 +239,9 @@ for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
 
 for (const bootPath of ["index.ts", "cli/commands/serve.ts"]) {
   test(`${bootPath} routes idle shutdown through the existing registered store stop`, () => {
-    const source = readCodeLines(bootPath).join("\n");
+    const source = readBootPathLines(bootPath).join("\n");
     assert.match(source, /const servingOptions = \{\s*stopForIdle:/);
-    assert.match(source, /registerStop: \(\{ stop \}, _optional = \{\}\) => \{ requestStop = stop; \}/);
+    assert.match(source, /registerStop: \(\{ stop \}, _optional = \{\}\) => \{ (?:stopRef\.)?requestStop = stop; \}/);
     assert.match(source, /setImmediate\(\(\) => stop\(input\)\)/);
     assert.match(source, /\(deps, servingOptions\)/);
   });
