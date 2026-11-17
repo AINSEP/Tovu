@@ -1,7 +1,8 @@
 import { createPreparedBatchHandler, requireInputRecord, requireString, withSchemaOnRejection, ToolInputError, type AgentToolDefinition, type ToolRegistration } from '@jini-ai/core';
 import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';
 import { assertThemeFileWritable, findThemeOrThrow, isShapeRejection, type ThemeToolDeps } from './asset-operations.js';
-import { readThemeFileVersion, validateThemeFileWrite, withReviewedThemeFileWrite } from './theme-files.js';
+import { readThemeFileVersion, validateThemeFileWrite } from './theme-files.js';
+import { runReviewedThemeFileWrite } from './reviewed-write-commit.js';
 import { THEME_WRITE_PERMISSION } from './agent-tools.js';
 import { syncThemeRoster } from './theme-roster-sync.js';
 import { THEME_CONTENT_REPLACEMENT_TOOL_IDS } from '../../contracts/core/tool-metadata/theme.js';
@@ -57,7 +58,7 @@ export function protectThemeFileTools(
           if (current.target !== prepared.target || current.version !== prepared.version) {
             throw new ToolInputError({ message: 'The theme file changed during review. Read it again and retry; this file was not replaced.' });
           }
-          return withReviewedThemeFileWrite({ prepared, run: () => registration.handler(ctx, options) });
+          return (await runReviewedThemeFileWrite({ prepared, run: async () => registration.handler(ctx, options) })).result;
         },
     }) };
   });
