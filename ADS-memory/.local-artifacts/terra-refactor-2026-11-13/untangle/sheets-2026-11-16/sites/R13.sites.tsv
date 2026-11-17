@@ -1,0 +1,52 @@
+owner	target	spec	kind	file	line	file_loc	names	fix_11_15	clane_11_15	rlane
+cli	sidecar	@jini-ai/sidecar	value	packages/cli/src/local-daemon-discovery.ts	20	65	readLiveDaemonRegistryRecord,resolveDaemonRegistryPath	HOST-composition-package (Q1)	Q1	R13
+infra	db	@jini-ai/db/core	value	packages/infra/src/db/driver/index.ts	2	9	restorePointFilename,sanitizeForFilename	HOST-deprecated-forwarder (Q2)	Q2	R13
+infra	db	@jini-ai/db/core	type+reexport	packages/infra/src/db/driver/index.ts	8	9	DbOpsPort,RestoreCapability,RestoreCostClass,RestoreKind,RestorePoint,WatermarkReader	HOST-deprecated-forwarder (Q2)	Q2	R13
+infra	db	@jini-ai/db/sqlite	value+reexport	packages/infra/src/db/sqlite/index.ts	2	9	DEFAULT_PRAGMAS,openSqliteConnection,SqliteDbOpsAdapter	HOST-deprecated-forwarder (Q2)	Q2	R13
+infra	db	@jini-ai/db/sqlite	type+reexport	packages/infra/src/db/sqlite/index.ts	3	9	SqliteDbOpsAdapterDeps	HOST-deprecated-forwarder (Q2)	Q2	R13
+server	agent-runtime	@jini-ai/agent-runtime	value	packages/server/src/builtin-features.ts	23	713	getAgentDef,DetectedAgent,OAuthCallbackListener	HOST-composition-package (Q1)	Q1	R13
+server	daemon	@jini-ai/daemon	value	packages/server/src/builtin-features.ts	24	713	createDefaultRunStartHandler,createRemoteToolEventRecorder,isAgentExecutorSupported,createTerminalSessionManager,createTerminalToolRegistrations,ResolveRunInput,CreateTerminalSessionManagerOptions,TerminalSessionManager	HOST-composition-package (Q1)	Q1	R13
+server	registry	@jini-ai/registry/tool-catalog/sqlite	value	packages/server/src/builtin-features.ts	34	713	ensureToolCatalogTables,getToolCatalogEntry,reseedToolCatalog,searchToolCatalog	HOST-composition-package (Q1)	Q1	R13
+server	db	@jini-ai/db/sqlite	value	packages/server/src/builtin-features.ts	40	713	inspectSqliteDatabase,verifySqliteIntegrity	HOST-composition-package (Q1)	Q1	R13
+server	daemon	@jini-ai/daemon/http	value	packages/server/src/builtin-features.ts	41	713	createDaemonDbToolRegistrations,denyAllWorkspaceRoots,registerActiveContextRoutes,registerAgentRoutes,registerConnectorsRoutes,registerDaemonDbRoutes,registerDaemonStatusRoutes,registerDelegatedToolRoutes,registerFrontendSessionRoutes,registerHealthRoutes,registerHostToolsRoutes,registerMediaRoutes,registerMemoryRoutes,registerModelProxyRoutes,registerRemoteRunEventRoutes,registerResearchRoutes,registerRoutineRoutes,registerRunRoutes,registerTerminalRoutes,registerToolCatalogRoutes,registerXaiRoutes,AgentSummary,DaemonDbOperations,DaemonDbVacuumResult,DelegatedToolExecuteRequest,FrontendSessionsHttpDeps,MediaHttpDeps,MemoryHttpDeps,RemoteToolBridgeTokenConfig,RoutineHttpDeps,RunStartHandler,WorkspaceRootResolver	HOST-composition-package (Q1)	Q1	R13
+server	daemon	@jini-ai/daemon	value	packages/server/src/compose-jini-kernel.ts	45	440	AgentExecutorToken,EventLogToken,RunLifecycleToken	HOST-composition-package (Q1)	Q1	R13
+server	http-kit	@jini-ai/http-kit	value	packages/server/src/compose-jini-kernel.ts	46	440	mountPackHttp,registerApiBearerAuthMiddleware,registerApiOriginGuardMiddleware,requireStrictBearerToken	HOST-composition-package (Q1)	Q1	R13
+server	daemon	@jini-ai/daemon/http	type	packages/server/src/compose-jini-kernel.ts	53	440	DaemonRouteHost	NEW-SINCE-11-15	NONE	R13
+server	agent-runtime	@jini-ai/agent-runtime	type	packages/server/src/create-local-node-daemon.ts	39	525	DetectedAgent,OAuthCallbackListener	HOST-composition-package (Q1)	Q1	R13
+server	daemon	@jini-ai/daemon	type	packages/server/src/create-local-node-daemon.ts	42	525	CreateTerminalSessionManagerOptions,ResolveRunInput,RunLifecycle	HOST-composition-package (Q1)	Q1	R13
+server	http-kit	@jini-ai/http-kit	value	packages/server/src/create-local-node-daemon.ts	43	525	installRouteRegistrationGuard,mountPackHttp	HOST-composition-package (Q1)	Q1	R13
+server	daemon	@jini-ai/daemon/http	type	packages/server/src/create-local-node-daemon.ts	45	525	DelegatedToolExecuteRequest,RunStartHandler,WorkspaceRootResolver	HOST-composition-package (Q1)	Q1	R13
+server	sidecar	@jini-ai/sidecar	value	packages/server/src/create-local-node-daemon.ts	46	525	removeDaemonRegistryRecordIfCurrent,resolveDaemonRegistryPath,writeDaemonRegistryRecord	HOST-composition-package (Q1)	Q1	R13
+server	daemon	@jini-ai/daemon/http	type	packages/server/src/feature.ts	24	243	DaemonRouteHost	NEW-SINCE-11-15	NONE	R13
+server	daemon	@jini-ai/daemon/http	value+reexport	packages/server/src/index.ts	94	104	createFrontendControl	HOST-composition-package (Q1)	Q1	R13
+server	daemon	@jini-ai/daemon/http	type+reexport	packages/server/src/index.ts	95	104	CreateFrontendControlOptions,FrontendBindErrorContext,FrontendControl,FrontendHttpExtension	HOST-composition-package (Q1)	Q1	R13
+server	db	@jini-ai/db/sqlite	value	packages/server/src/kernel-base.ts	16	242	openSqliteConnection	HOST-composition-package (Q1)	Q1	R13
+server	agent-runtime	@jini-ai/agent-runtime	value	packages/server/src/kernel-base.ts	19	242	createNativeAgentRuntime,NativeAgentRuntime	HOST-composition-package (Q1)	Q1	R13
+server	daemon	@jini-ai/daemon	value	packages/server/src/kernel-base.ts	23	242	createAgentExecutor,createInMemoryEventLog,createRunByteJournal,createRunLifecycle,createToolExecutor,resumableFromProcessExit,withAiTracing,AiTracingOptions,AgentExecutor,EventLog,RunLifecycle,RunRetrySideEffectState,ToolExecutor	HOST-composition-package (Q1)	Q1	R13
+server	daemon	@jini-ai/daemon/store/event-log/sqlite	value	packages/server/src/kernel-base.ts	38	242	openSqliteEventLog	HOST-composition-package (Q1)	Q1	R13
+server	platform	@jini-ai/platform/system	value	packages/server/src/kernel-base.ts	39	242	createSystemClock	NEW-SINCE-11-15	NONE	R13
+server	http-kit	@jini-ai/http-kit/node-bridge	value	packages/server/src/mount-routes.ts	10	43	createNodeDispatcher	NEW-SINCE-11-15	NONE	R13
+server	platform	@jini-ai/platform/secrets	value	packages/server/src/owner-store/backup.ts	1	162	openWithPassphrase	HOST-composition-package (Q1)	Q1	R13
+server	platform	@jini-ai/platform/secrets/credential-sets	value	packages/server/src/owner-store/backup.ts	2	162	isCopyableKind	HOST-composition-package (Q1)	Q1	R13
+server	db	@jini-ai/db/secrets-vault	value	packages/server/src/owner-store/legacy.ts	3	122	SqlSecretsVaultRepo,SecretsVaultDatabase	HOST-composition-package (Q1)	Q1	R13
+server	db	@jini-ai/db/kernel	type	packages/server/src/owner-store/legacy.ts	4	122	KyselyKernel	HOST-composition-package (Q1)	Q1	R13
+server	db	@jini-ai/db/kernel/sqlite	value	packages/server/src/owner-store/legacy.ts	5	122	openSqliteFileKernel	HOST-composition-package (Q1)	Q1	R13
+server	platform	@jini-ai/platform/secrets	value	packages/server/src/owner-store/legacy.ts	7	122	AesGcmSecretSealer,EnvOrFileKeyring	HOST-composition-package (Q1)	Q1	R13
+server	platform	@jini-ai/platform/secrets/credential-sets	value	packages/server/src/owner-store/legacy.ts	8	122	createVaultMetaParsers,isCopyableKind,SecretsVaultService,VaultServiceDeps	HOST-composition-package (Q1)	Q1	R13
+server	daemon	@jini-ai/daemon/http	type	packages/server/src/route-host.ts	9	37	DaemonRouteHost	NEW-SINCE-11-15	NONE	R13
+server	http-kit	@jini-ai/http-kit	value	packages/server/src/route-host.ts	10	37	reportRouteInternalError	NEW-SINCE-11-15	NONE	R13
+server	http-kit	@jini-ai/http-kit/node-bridge	value	packages/server/src/route-host.ts	11	37	maxReserializedJsonBytes	NEW-SINCE-11-15	NONE	R13
+server	db	@jini-ai/db/sqlite	value	packages/server/src/storage/legacy/sqlite.ts	4	67	openSqliteConnection	HOST-composition-package (Q1)	Q1	R13
+server	chat	@jini-ai/chat/store/legacy/sqlite	value	packages/server/src/storage/legacy/sqlite.ts	6	67	LEGACY_CHAT_DDL	HOST-composition-package (Q1)	Q1	R13
+server	daemon	@jini-ai/daemon/store/agent-sessions/sqlite	value	packages/server/src/storage/legacy/sqlite.ts	7	67	LEGACY_AGENT_SESSIONS_DDL	HOST-composition-package (Q1)	Q1	R13
+sqlite	daemon	@jini-ai/daemon/store/event-log/sqlite	value+reexport	packages/sqlite/src/index.ts	8	21	createSqliteEventLog,DEFAULT_MAX_ENTRIES_PER_RUN	HOST-deprecated-forwarder (Q2)	Q2	R13
+sqlite	daemon	@jini-ai/daemon/store/event-log/sqlite	type+reexport	packages/sqlite/src/index.ts	9	21	SqliteEventLog,SqliteEventLogOptions	HOST-deprecated-forwarder (Q2)	Q2	R13
+sqlite	db	@jini-ai/db/sqlite	value+reexport	packages/sqlite/src/index.ts	10	21	inspectSqliteDatabase,verifySqliteIntegrity	HOST-deprecated-forwarder (Q2)	Q2	R13
+sqlite	db	@jini-ai/db/sqlite	type+reexport	packages/sqlite/src/index.ts	11	21	DaemonDbStatusReport,DaemonDbTableInfo,DbIntegrityIssue,DbIntegrityIssueKind,DbIntegrityReport,VerifyDbOptions	HOST-deprecated-forwarder (Q2)	Q2	R13
+sqlite	db	@jini-ai/db/core	type+reexport	packages/sqlite/src/index.ts	14	21	JsonObject	HOST-deprecated-forwarder (Q2)	Q2	R13
+sqlite	chat	@jini-ai/chat/store/legacy	type+reexport	packages/sqlite/src/index.ts	15	21	ChatSessionMode	HOST-deprecated-forwarder (Q2)	Q2	R13
+sqlite	chat	@jini-ai/chat/store/sqlite	value+reexport	packages/sqlite/src/index.ts	16	21	CHAT_HISTORY_DDL,createChatHistoryMaintenance,createChatHistoryStore,ensureChatHistoryTables	HOST-deprecated-forwarder (Q2)	Q2	R13
+sqlite	registry	@jini-ai/registry/tool-catalog	type+reexport	packages/sqlite/src/index.ts	17	21	ToolCatalogEntry,ToolCatalogSearchHit	HOST-deprecated-forwarder (Q2)	Q2	R13
+sqlite	registry	@jini-ai/registry/tool-catalog/sqlite	value+reexport	packages/sqlite/src/index.ts	18	21	ensureToolCatalogTables,getToolCatalogEntry,reseedToolCatalog,searchToolCatalog	HOST-deprecated-forwarder (Q2)	Q2	R13
+sqlite	chat	@jini-ai/chat/store/legacy/sqlite	value+reexport	packages/sqlite/src/index.ts	19	21	appendMessageAgentEvent,appendMessageStatusEvent,deleteConversation,deleteMessage,getConversation,getMessageTelemetryFinalizationState,insertConversation,listConversations,listMessages,normalizeConversationSessionMode,updateConversation,upsertMessage	HOST-deprecated-forwarder (Q2)	Q2	R13
+sqlite	daemon	@jini-ai/daemon/store/agent-sessions/sqlite	value+reexport	packages/sqlite/src/index.ts	20	21	clearAgentSession,getAgentSession,getAgentSessionRecord,latestCompletedAssistantMessageId,updateAgentSessionStableHash,upsertAgentSession	HOST-deprecated-forwarder (Q2)	Q2	R13

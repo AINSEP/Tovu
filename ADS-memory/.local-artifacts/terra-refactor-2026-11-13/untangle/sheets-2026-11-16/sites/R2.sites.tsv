@@ -1,0 +1,7 @@
+owner	target	spec	kind	file	line	file_loc	names	fix_11_15	clane_11_15	rlane
+admin	agent-plugins	@jini-ai/agent-plugins/lifecycle	type	packages/admin/src/agent-plugins/models.ts	1	46	InstalledAgentPlugin,InstalledAgentPluginSkill,SetAgentPluginEnabledInput	CONTRACT -> local type (admin owns its plugin-list port)	L-ADMIN-PORTS	R2
+admin	cms	@jini-ai/cms/comments	value	packages/admin/src/comments/adapters/memory.ts	1	84	InMemoryCommentRepo	PORT: cms forms catalog / comment repo / embed policy injected by host	L-ADMIN-PORTS	R2
+admin	cms	@jini-ai/cms/forms	value	packages/admin/src/forms/field-settings.ts	2	446	FIELD_TYPE_REGISTRY,isBrowserSafeFieldPattern,MAX_FORM_FILE_BYTES,SAFE_FORM_FILE_TYPES,FieldType	PORT: cms forms catalog / comment repo / embed policy injected by host	L-ADMIN-PORTS	R2
+admin	cms	@jini-ai/cms/forms	value	packages/admin/src/forms/html-rules.ts	1	185	FIELD_TYPE_REGISTRY,escapeFormHtml,FieldType	PORT: cms forms catalog / comment repo / embed policy injected by host	L-ADMIN-PORTS	R2
+admin	cms	@jini-ai/cms/forms	value	packages/admin/src/forms/rules.ts	6	436	FIELD_TYPE_REGISTRY,FieldType	PORT: cms forms catalog / comment repo / embed policy injected by host	L-ADMIN-PORTS	R2
+admin	cms	@jini-ai/cms/widgets/markers	value	packages/admin/src/media/html-attributes.ts	8	102	EMBED_HTML_ATTRIBUTE_ALLOWED_NAMES,isAllowedEmbedHtmlAttributeName,parseEmbedHtmlAttributes	PORT: cms forms catalog / comment repo / embed policy injected by host	L-ADMIN-PORTS	R2

@@ -1,0 +1,4 @@
+owner	target	spec	kind	file	line	file_loc	names	fix_11_15	clane_11_15	rlane
+admin	ui	@jini-ai/ui/theme	react	packages/admin/src/consent/react/ConsentFields.tsx	2	157	defaultAdminTheme	KIT slot (KIT-INJECTION)	L-KIT-ADMIN	R1
+admin	ui	@jini-ai/ui	react	packages/admin/src/media/react/hooks/ProvidersTab.hooks.ts	5	208	sortProvidersByConfigured,isEntryPresent,isMarkerOnlyEntry,maskedKeyLabel,isProviderBaseUrlInvalid,invalidBaseUrlProviderIds	KIT slot (KIT-INJECTION)	L-KIT-ADMIN	R1
+admin	ui	@jini-ai/ui/theme	react	packages/admin/src/react/shell/use-admin-theme.ts	2	63	applyAdminTheme,resolveColorScheme	KIT slot (KIT-INJECTION)	L-KIT-ADMIN	R1
