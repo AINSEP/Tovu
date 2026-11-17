@@ -1,0 +1,253 @@
+# Tovu base 232764af5 (refactor/terra) linked to merged Jini integ/wave1-merge-2026-11-17 (Jini tip bfb64d55)
+
+##### npm run typecheck
+exit=0
+> tovu@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit && npm run typecheck:e2e
+> tovu@0.1.0 typecheck:e2e
+> tsc -p development/tsconfig.e2e.json --noEmit
+
+##### npm run check:size
+exit=1
+> tovu@0.1.0 check:size
+> node --import tsx development/scripts/check-size-drift.ts
+Accepted exception: apps/admin/src/features/consent/consent-dictionary.ts:509 <file> [max-lines] 1937 — Data table: literal copy rows, no logic.
+Accepted exception: apps/website/src/contracts/core/credential-copy.ts:543 <file> [max-lines] 552 — Data table: literal copy rows, no logic.
+Accepted exception: apps/website/src/features/post/tool-registrations.ts:1082 buildPostRegistrations#1.content_post_update#1 [max-lines-per-function] 89 — Registration list: tool wiring entries.
+Accepted exception: apps/website/src/features/post/tool-registrations.ts:1084 buildPostRegistrations#1.content_post_update#1.fn#1 [max-lines-per-function] 86 — Registration list: tool wiring entries (inner handler of content_post_update).
+Accepted exception: apps/website/src/features/redirects/tool-registrations.ts:128 buildRedirectsRegistrations#1 [max-lines-per-function] 123 — Registration list: tool wiring entries.
+Accepted exception: apps/website/src/features/theme/agent-tools.ts:343 getThemesAgentToolCatalog#1 [max-lines-per-function] 111 — Registration list: agent tool catalog entries.
+Accepted exception: apps/website/src/features/trash/registry.ts:164 buildTrashRegistry#1 [max-lines-per-function] 162 — Data table: one literal row per trashable type.
+Accepted exception: apps/website/src/platform/db/schema.postgres.ts:551 <file> [max-lines] 1149 — Generated from schema.sqlite.ts by generate-postgres-schema.ts; CI drift-checks it.
+Accepted exception: apps/website/src/platform/db/schema.sqlite.ts:914 <file> [max-lines] 1376 — DB schema declaration, one line per column; splitting it scatters one table set.
+Accepted exception: apps/website/src/server/runtime/composition/peer-site-reads.ts:203 composePeer#1 [max-lines-per-function] 89 — Registration list: peer-site read wiring.
+Worsened violation: apps/admin/src/App.hooks.ts:1162 <file> [max-lines] 518 (baseline 513)
+Worsened violation: apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts:684 usePageEditor#1 [max-lines-per-function] 381 (baseline 380)
+Worsened violation: apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts:1104 <file> [max-lines] 685 (baseline 681)
+Worsened violation: apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts:597 usePostEditor#1 [max-lines-per-function] 405 (baseline 400)
+Worsened violation: apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts:1178 <file> [max-lines] 652 (baseline 636)
+Worsened violation: apps/admin/src/features/publish-content/hooks/use-publish-content-confirm.hooks.ts:926 <file> [max-lines] 848 (baseline 847)
+Worsened violation: apps/admin/src/features/themes/hooks/use-theme-explore.hooks.ts:1112 <file> [max-lines] 908 (baseline 907)
+Worsened violation: apps/desktop/src/main/index.ts:905 <file> [max-lines] 667 (baseline 665)
+Worsened violation: apps/website/src/features/deployments/publish-agent-tools.ts:819 <file> [max-lines] 764 (baseline 763)
+Worsened violation: apps/website/src/features/media-import/tool-registrations.ts:276 buildMediaImportRegistrations#1 [max-lines-per-function] 120 (baseline 118)
+Worsened violation: apps/website/src/features/post/tool-registrations.ts:1041 <file> [max-lines] 797 (baseline 796)
+Worsened violation: apps/website/src/features/theme/tool-registrations.ts:822 <file> [max-lines] 642 (baseline 627)
+Worsened violation: apps/website/src/features/webhooks/tool-registrations.ts:198 buildWebhooksRegistrations#1 [max-lines-per-function] 130 (baseline 127)
+Worsened violation: apps/website/src/server/runtime/composition/commerce.ts:68 composeCommerce#1 [max-lines-per-function] 267 (baseline 266)
+Worsened violation: apps/website/src/server/runtime/composition/deps.ts:742 <file> [max-lines] 1952 (baseline 1926)
+Worsened violation: apps/website/src/server/runtime/composition/deps.ts:1083 composeSiteRouteDeps#1 [max-lines-per-function] 1202 (baseline 1199)
+Worsened violation: apps/website/src/server/runtime/composition/provider-plugins.ts:337 bootProviderPlugins#1 [max-lines-per-function] 149 (baseline 147)
+
+##### npm run check:complexity
+exit=1
+> tovu@0.1.0 check:complexity
+> node --import tsx development/scripts/check-src-complexity-drift.ts
+New violation: apps/admin/src/App.tsx:199 renderRoute#1 [complexity] 10
+New violation: apps/admin/src/components/AssistantDock/AgentFailureCard.hooks.ts:45 failureData#1 [complexity] 10
+New violation: apps/admin/src/components/Select/Select.hooks.tsx:75 repositionOrClose#1 [complexity] 10
+New violation: apps/admin/src/components/WidgetConfigFields/media-content-rules.ts:115 readMediaContent#1 [complexity] 10
+New violation: apps/admin/src/features/deployment/rules.ts:437 publishRunStatusLabelKey#1 [complexity] 10
+New violation: apps/admin/src/features/plugins/PackageFilesModal.tsx:217 PackageFilesModal#1 [complexity] 12
+New violation: apps/admin/src/features/plugins/Plugins.tsx:344 LoadedPlugins#1 [complexity] 16
+New violation: apps/admin/src/features/plugins/Plugins.tsx:344 LoadedPlugins#1 [sonarjs/cognitive-complexity] 15
+New violation: apps/admin/src/features/plugins/hooks/use-plugin-install.hooks.ts:67 usePluginInstall#1.perform#1 [sonarjs/cognitive-complexity] 11
+New violation: apps/admin/src/features/posts/hooks/post-editor-dependencies.hooks.ts:180 createFakePostEditorPort#1.updatePost#1 [complexity] 10
+New violation: apps/admin/src/features/publish-content/hooks/use-publish-content-confirm.hooks.ts:449 buildCriteriaPublishResult#1 [sonarjs/cognitive-complexity] 11
+New violation: apps/admin/src/features/security/hooks/access-tokens-dependencies.hooks.ts:42 fakePublishPort#1 [complexity] 10
+New violation: apps/admin/src/features/security/hooks/access-tokens-dependencies.hooks.ts:54 fakeSourceControlPort#1 [complexity] 10
+New violation: apps/admin/src/features/settings/hooks/use-external-mcp.hooks.ts:71 toItem#1 [complexity] 10
+New violation: apps/admin/src/features/settings/rules.ts:69 mergeSourceUpdate#1 [complexity] 10
+New violation: apps/admin/src/features/sites/hooks/use-static-export-selection.hooks.ts:13 useStaticExportSelection#1 [complexity] 10
+New violation: apps/admin/src/features/skills/skill-drop.ts:25 collect#1.walk#1 [complexity] 10
+New violation: apps/website/src/assistant/run-start-context.ts:74 parseRunStartContextRef#1 [complexity] 11
+New violation: apps/website/src/cli/errors.ts:178 mapErrorToCliOutcome#1 [complexity] 11
+New violation: apps/website/src/features/external-mcp/tool-registrations.ts:306 buildSaveExternalMcpServerInputFromFormParams#1 [complexity] 11
+New violation: apps/website/src/server/inbound/admin-http/routes/members/list.ts:18 parseMembersListQuery#1 [complexity] 12
+New violation: apps/website/src/server/runtime/composition/modules/assistant-byok.ts:453 attachTurnMessagesOrRespond#1 [sonarjs/cognitive-complexity] 11
+Worsened violation: apps/website/src/server/inbound/admin-http/routes/publish-content/backstop.ts:206 handleUndoRequest#1 [complexity] 13 (baseline 12)
+
+##### npm run check:architecture
+exit=1
+> tovu@0.1.0 check:architecture
+> tsx development/scripts/check-architecture.ts
+check:architecture — 2243 files, 73 modules, production files only
+  cross-feature import edges (all-import)              436
+  propagation cost (all-import)                        12.44%
+  propagation cost (runtime-only)                      3.18%
+  back-edges into composition root                     6
+    └ back-edges, runtime-only (informational)         6
+  module cycles (mutual pairs, runtime-only)           6
+  largest strongly-connected component (runtime-only)  60
+  module API surface (files exposed)                   852
+    └ deep-import edges (informational)                2828
+  bidirectional hub count                              16.18% (363/2243)
+  Martin instability: informational, not ratcheted — pass --list for the per-module gradient.
+  NEW cross-feature edge: apps/website/src/features/agent-plugins/service-ports.ts -> apps/website/src/features/api-connections/connect.ts
+  NEW cross-feature edge: apps/website/src/features/agent-plugins/service-ports.ts -> apps/website/src/features/api-connections/contribution.ts
+  NEW cross-feature edge: apps/website/src/features/agent-plugins/service-ports.ts -> apps/website/src/features/external-mcp/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/api-connections/host-bindings.ts -> apps/website/src/features/agent-plugins/lifecycle.ts
+  NEW cross-feature edge: apps/website/src/features/api-connections/host-bindings.ts -> apps/website/src/features/custom-credentials/index.ts
+  NEW cross-feature edge: apps/website/src/features/api-connections/shared-api.ts -> apps/website/src/features/project-keys/attachments.ts
+  NEW cross-feature edge: apps/website/src/features/api-connections/shared-api.ts -> apps/website/src/features/project-keys/site-references.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/asset-destinations.ts -> apps/website/src/features/media/index.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/asset-destinations.ts -> apps/website/src/features/theme/asset-operations.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/asset-sources.ts -> apps/website/src/features/theme/asset-operations.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/copy-tool.ts -> apps/website/src/features/media/document-archive.ts
+  NEW cross-feature edge: apps/website/src/features/asset-transfer/copy-tool.ts -> apps/website/src/features/theme/asset-operations.ts
+  NEW cross-feature edge: apps/website/src/features/content-types/publish-content.ts -> apps/website/src/features/publish-content/tovu-publish-ports.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/credential-copy-tool.ts -> apps/website/src/features/project-keys/service.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/credential-ports.ts -> apps/website/src/features/source-control/provider-registry.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/tool-registrations.ts -> apps/website/src/features/deployments/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/tool-registrations.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/tovu-credential-sets.ts -> apps/website/src/features/project-keys/create-vault.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/tovu-credential-sets.ts -> apps/website/src/features/vendor-credentials/index.ts
+  NEW cross-feature edge: apps/website/src/features/custom-credentials/vault-repo.ts -> apps/website/src/features/project-keys/attached-vault.ts
+  NEW cross-feature edge: apps/website/src/features/database-transfer/tool-registrations.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/deploy-ops/run-ops.ts -> apps/website/src/features/webhooks/index.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/deploy-ops/typed-secret-card.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/publish-agent-tools.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/publish-credentials/store.ts -> apps/website/src/features/project-keys/create-vault.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/publish-credentials/store.ts -> apps/website/src/features/vendor-credentials/index.ts
+  NEW cross-feature edge: apps/website/src/features/deployments/static-publish/publish-consent.ts -> apps/website/src/features/consent/service.ts
+  NEW cross-feature edge: apps/website/src/features/entries/publish-content.ts -> apps/website/src/features/publish-content/tovu-publish-ports.ts
+  NEW cross-feature edge: apps/website/src/features/entries/publish-content.ts -> apps/website/src/features/taxonomy/term-sync.ts
+  NEW cross-feature edge: apps/website/src/features/entries/repo.ts -> apps/website/src/features/media/access-evidence.ts
+  NEW cross-feature edge: apps/website/src/features/entries/trash-aware-memory-repo.ts -> apps/website/src/features/media/access-evidence.ts
+  NEW cross-feature edge: apps/website/src/features/entries/unreadable-owner-entries-repair.ts -> apps/website/src/features/content-types/index.ts
+  NEW cross-feature edge: apps/website/src/features/external-mcp/external-mcp-oauth.ts -> apps/website/src/features/api-connections/browser-binding.ts
+  NEW cross-feature edge: apps/website/src/features/external-mcp/external-mcp-store.ts -> apps/website/src/features/webhooks/index.ts
+  NEW cross-feature edge: apps/website/src/features/external-mcp/tool-registrations.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/forms/form-file-maintenance.ts -> apps/website/src/features/media/purge-media.ts
+  NEW cross-feature edge: apps/website/src/features/forms/publish-content.ts -> apps/website/src/features/publish-content/tovu-publish-ports.ts
+  NEW cross-feature edge: apps/website/src/features/image-transform/tool.ts -> apps/website/src/features/theme/asset-operations.ts
+  NEW cross-feature edge: apps/website/src/features/mail-status/test-send.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/mail-status/use-readiness.ts -> apps/website/src/features/newsletter/index.ts
+  NEW cross-feature edge: apps/website/src/features/mail/attempts.repo.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/media-generation/providers-tools.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/media-generation/tool-registrations.ts -> apps/website/src/features/media/chat-preview.ts
+  NEW cross-feature edge: apps/website/src/features/media-import/agent-tools.ts -> apps/website/src/features/fs-files/site-file-request.ts
+  NEW cross-feature edge: apps/website/src/features/media-import/tool-registrations.ts -> apps/website/src/features/media/chat-preview.ts
+  NEW cross-feature edge: apps/website/src/features/media/access-evidence.ts -> apps/website/src/features/post/post.ts
+  NEW cross-feature edge: apps/website/src/features/media/import-media-entity.ts -> apps/website/src/features/publish-content/type-registry.ts
+  NEW cross-feature edge: apps/website/src/features/media/publish-content.ts -> apps/website/src/features/publish-content/tovu-publish-ports.ts
+  NEW cross-feature edge: apps/website/src/features/media/verify-published-media.ts -> apps/website/src/features/publish-content/tovu-publish-ports.ts
+  NEW cross-feature edge: apps/website/src/features/media/where-used.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/member-login/link-policy.ts -> apps/website/src/features/members/index.ts
+  NEW cross-feature edge: apps/website/src/features/member-login/link-service.ts -> apps/website/src/features/members/index.ts
+  NEW cross-feature edge: apps/website/src/features/navigation/publish-content.ts -> apps/website/src/features/publish-content/tovu-publish-ports.ts
+  NEW cross-feature edge: apps/website/src/features/object-storage/artifact-provider.ts -> apps/website/src/features/deployments/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/object-storage/registry.ts -> apps/website/src/features/deployments/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/pages/html-document-store.memory.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/pages/html-document-store.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/pages/html-document-store.ts -> apps/website/src/features/post/index.ts
+  NEW cross-feature edge: apps/website/src/features/plugin-runtime/service-ports.ts -> apps/website/src/features/post/index.ts
+  NEW cross-feature edge: apps/website/src/features/post/publish-content.ts -> apps/website/src/features/publish-content/tovu-publish-ports.ts
+  NEW cross-feature edge: apps/website/src/features/post/publish-content.ts -> apps/website/src/features/taxonomy/term-sync.ts
+  NEW cross-feature edge: apps/website/src/features/post/repo.memory.ts -> apps/website/src/features/media/access-evidence.ts
+  NEW cross-feature edge: apps/website/src/features/post/repo.ts -> apps/website/src/features/media/access-evidence.ts
+  NEW cross-feature edge: apps/website/src/features/project-keys/shared-oauth-disconnect.ts -> apps/website/src/features/api-connections/shared-owner.ts
+  NEW cross-feature edge: apps/website/src/features/project-keys/site-sealer.ts -> apps/website/src/features/webhooks/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/backstop-policy.ts -> apps/website/src/features/webhooks/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/file-tree-policy.ts -> apps/website/src/features/webhooks/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/peer-transport.ts -> apps/website/src/features/deployments/static-publish/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/push-plan.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/tool-deps.ts -> apps/website/src/features/deployments/static-publish/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/tool-registrations.ts -> apps/website/src/features/deployments/static-publish/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/tovu-publish-ports.ts -> apps/website/src/features/content-types/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/tovu-publish-ports.ts -> apps/website/src/features/entries/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/tovu-publish-ports.ts -> apps/website/src/features/entries/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/tovu-publish-ports.ts -> apps/website/src/features/media/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/tovu-publish-ports.ts -> apps/website/src/features/navigation/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/tovu-publish-ports.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/tovu-publish-ports.ts -> apps/website/src/features/taxonomy/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/tovu-publish-ports.ts -> apps/website/src/features/taxonomy/index.ts
+  NEW cross-feature edge: apps/website/src/features/publish-content/tovu-publish-ports.ts -> apps/website/src/features/theme/catalog.ts
+  NEW cross-feature edge: apps/website/src/features/seo/cover-image.ts -> apps/website/src/features/post/rendering.ts
+  NEW cross-feature edge: apps/website/src/features/settings/publish-content.ts -> apps/website/src/features/publish-content/tovu-publish-ports.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/bundled-export-file-policy.ts -> apps/website/src/features/agent-plugins/bundled-catalog.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/import-keep-off.ts -> apps/website/src/features/theme/active-theme.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/import-keep-off.ts -> apps/website/src/features/widgets/media-html.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/import-plugin-state.ts -> apps/website/src/features/agent-plugins/soon-lock.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/import-restore-placement.ts -> apps/website/src/features/theme/catalog.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/package-file-inventory.ts -> apps/website/src/features/agent-plugins/new-site-agent-plugin-tokens.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/share-backend.ts -> apps/website/src/features/theme/index.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/share-database/repo.sqlite.ts -> apps/website/src/features/settings/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/static-copy.ts -> apps/website/src/features/site-export/export-html-policy.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/static-copy.ts -> apps/website/src/features/site-export/site-exporter.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/static-download-landing.ts -> apps/website/src/features/post/html-plain-text.ts
+  NEW cross-feature edge: apps/website/src/features/site-backup/static-download-layout.ts -> apps/website/src/features/site-export/export-html-policy.ts
+  NEW cross-feature edge: apps/website/src/features/site-export/export-html-policy.ts -> apps/website/src/features/webmcp/published-html.ts
+  NEW cross-feature edge: apps/website/src/features/site-export/media-original-urls.ts -> apps/website/src/features/media/index.ts
+  NEW cross-feature edge: apps/website/src/features/site-inspection/site-profile.ts -> apps/website/src/features/theme/active-theme.ts
+  NEW cross-feature edge: apps/website/src/features/site-inspection/site-profile.ts -> apps/website/src/features/theme/theme-id-aliases.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/access.ts -> apps/website/src/features/members/index.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/access.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/cms-document-source.ts -> apps/website/src/features/members/index.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/cms-document-source.ts -> apps/website/src/features/post/contracts.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/cms-document-source.ts -> apps/website/src/features/post/read-model.ts
+  NEW cross-feature edge: apps/website/src/features/site-search/settings.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/sites/site-admin.ts -> apps/website/src/features/agent-plugins/service-ports.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/commit-site.ts -> apps/website/src/features/site-backup/share-policy.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/commit-site.ts -> apps/website/src/features/site-backup/share-zip.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/commit-site.ts -> apps/website/src/features/site-backup/static-copy.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/commit-site.ts -> apps/website/src/features/site-backup/static-download-landing.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/commit-site.ts -> apps/website/src/features/site-backup/static-download-layout.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/credential-setup.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/store.ts -> apps/website/src/features/project-keys/create-vault.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/store.ts -> apps/website/src/features/vendor-credentials/index.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/tool-registrations.ts -> apps/website/src/features/custom-credentials/index.ts
+  NEW cross-feature edge: apps/website/src/features/source-control/tool-registrations.ts -> apps/website/src/features/site-backup/static-download-landing.ts
+  NEW cross-feature edge: apps/website/src/features/taxonomy/publish-content.ts -> apps/website/src/features/publish-content/tovu-publish-ports.ts
+  NEW cross-feature edge: apps/website/src/features/taxonomy/publish-term-ids.ts -> apps/website/src/features/publish-content/tovu-publish-ports.ts
+  NEW cross-feature edge: apps/website/src/features/theme/active-theme-publish-content.ts -> apps/website/src/features/publish-content/tovu-publish-ports.ts
+  NEW cross-feature edge: apps/website/src/features/theme/preview-switcher-tools.ts -> apps/website/src/features/settings/index.ts
+  NEW cross-feature edge: apps/website/src/features/theme/static-render.ts -> apps/website/src/features/navigation/render-entry.ts
+  NEW cross-feature edge: apps/website/src/features/trash/adapters/redirect.ts -> apps/website/src/features/redirects/index.ts
+  NEW cross-feature edge: apps/website/src/features/widgets/deps.ts -> apps/website/src/features/content-types/write-service.ts
+  NEW cross-feature edge: apps/website/src/features/widgets/deps.ts -> apps/website/src/features/post/post.ts
+  NEW cross-feature edge: apps/website/src/features/widgets/publish-content.ts -> apps/website/src/features/publish-content/tovu-publish-ports.ts
+  module cycles — 3 new pair(s) introduced:
+    + assistant <-> server
+    + features/site-backup <-> features/source-control
+    + platform <-> server
+  largest strongly-connected component grew: 22 → 60
+  module cycles — 2 pair(s) removed since baseline:
+    - assistant <-> features/agent-plugins
+    - features/agent-plugins <-> features/api-connections
+  WARNING (ratchet, non-blocking): propagation cost (runtime-only) regressed: 3.06 → 3.18
+  back-edges into composition root regressed: 0 → 6
+  module API surface (files exposed) regressed: 821 → 852
+  WARNING (ratchet, non-blocking): bidirectional hub count regressed: 335 → 363
+  propagation cost (all-import) improved: 15.52 → 12.44
+========================================================================
+  TRADE DETECTED — this run bought improvement on one metric with regression on another
+========================================================================
+  regressed: propagation cost (runtime-only)     3.06 → 3.18  (+0.12 pts, +3.92%)
+  regressed: back-edges into composition root    0 → 6  (+6, n/a)
+  regressed: module API surface (files exposed)  821 → 852  (+31, +3.78%)
+  regressed: bidirectional hub count             335 → 363  (+28, +8.36%)
+  regressed: module cycles / SCC (runtime-only)  +3 cycle pair(s), -2 cycle pair(s), largest SCC 22 → 60
+  improved:  propagation cost (all-import)       15.52 → 12.44  (-3.08 pts, -19.85%)
+========================================================================
+check:architecture — FAILED: 4 metric(s) regressed against a hard constraint.
+Either fix the regression or, if genuinely intended, run with --update to move the baseline.
+
+##### npm run check:errors
+exit=0
+> tovu@0.1.0 check:errors
+> node development/scripts/check-error-gate.mjs
+New: [catch-reads-error] apps/admin/src/features/ai-assistant/api/ai-assistant-api.ts (1)
+New: [failure-text-from-catalog] apps/admin/src/features/ai-assistant/api/ai-assistant-api.ts (1)
+New: [catch-reads-error] apps/admin/src/lib/admin-http/request.ts (1)
+New: [catch-reads-error] apps/desktop/src/project-ipc.site-lifecycle.ts (1)
+New: [failure-text-from-catalog] apps/website/src/features/publish-content/apply-retire.ts (1)
+New: [catch-reads-error] apps/website/src/server/inbound/public-http/routes/site/pages/render-context/site-title.ts (1)
+New: [catch-reads-error] apps/website/src/server/inbound/shared/admin-failure.ts (2)
+New: [catch-reads-error] apps/website/src/server/runtime/composition/memory-deps/slices/site-title-settings.ts (1)
+New: [catch-reads-error] apps/website/src/server/runtime/composition/modules/run-daemon-http-client.ts (3)
+New: [catch-reads-error] apps/website/src/server/runtime/composition/modules/run-finalizer/bounded-follow.ts (2)
+New: [catch-reads-error] apps/website/src/server/runtime/composition/modules/run-finalizer/report.ts (2)
+New: [catch-reads-error] apps/website/src/server/runtime/composition/modules/run-finalizer/stream.ts (2)
+17 entries improved or are gone: run with --update to lower the debt list.
+Error gate (WARN mode): 12 new or worse entries. Not failing the build yet; fix them or use a named idiom.
