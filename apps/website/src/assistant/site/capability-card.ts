@@ -1,4 +1,4 @@
-import type { CapabilityCard } from "#src/features/site-guide/contracts";
+import type { GuideTopic as CapabilityCard } from "@jini-ai/agentic/core";
 
 /** Shared by the visitor prompt and guide so tool results cannot become internal jargon in replies. */
 export const VISITOR_REPLY_GUIDANCE = "Never name internal tools or expose tool or topic identifiers to visitors, including when an action is unavailable or refused. Describe what you can or cannot do in plain visitor-friendly language; do not quote internal errors.";

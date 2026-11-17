@@ -18,7 +18,7 @@ import {
  * @file Post-domain entity reverters (ADR-018 C-005/C-006).
  *
  * Purpose:
- * The concrete `post/update` and `post/delete` inverse appliers `core/commands/revert.ts`'s
+ * The concrete `post/update` and `post/delete` inverse appliers Jini `cms/core/commands/revert.ts`'s
  * generic `RevertRegistry` dispatches to. Adapter code, not core: they need `PostRecord`/
  * `PostStatus`/`classifyStatusTransition` — real domain knowledge that belongs to this feature
  * module. Moved out of `core/commands/appliers.ts` (2026-08-13 features-post-deep-import-trace.md

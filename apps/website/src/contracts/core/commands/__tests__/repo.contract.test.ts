@@ -5,7 +5,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlChangeSetRepo } from "#src/platform/db/repos/change-set-repo";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
-import { InMemoryChangeSetRepo } from "../repo.memory.js";
+import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import type {
   ChangeSetItemRecord,
   ChangeSetRecord,

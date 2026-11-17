@@ -1,5 +1,5 @@
 /** Backup guidance points to the existing owners; it never aggregates credentials or providers. */
-import type { CapabilityCard } from "#src/features/site-guide/contracts";
+import type { GuideTopic as CapabilityCard } from "@jini-ai/agentic/core";
 
 export const capabilityCard = {
   id: "backup", title: "Backup and recovery",

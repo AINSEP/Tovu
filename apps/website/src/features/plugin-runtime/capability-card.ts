@@ -1,5 +1,5 @@
 /** Minimal Plugins learning card, maintained beside its owning code. Live registries supply current types. */
-import type { CapabilityCard } from "#src/features/site-guide/contracts";
+import type { GuideTopic as CapabilityCard } from "@jini-ai/agentic/core";
 
 export const capabilityCard = {
   "id": "plugins",

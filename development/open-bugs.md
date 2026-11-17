@@ -6,8 +6,8 @@ Fixing one is its own piece of work: write the failing test first, then change t
 ## Preserved (pinned by tests, not fixed)
 
 Logged in extract session 1, batch V1, when `cloud/more-jini-1` was merged. The revert code now lives in
-Jini `packages/cms/src/core/commands/revert.ts` (public entry `@jini-ai/cms/core/commands`); Tovu's
-`apps/website/src/contracts/core/commands/revert.ts` is a re-export.
+Jini `packages/cms/src/core/commands/revert.ts` (public entry `@jini-ai/cms/core/commands`); Tovu
+imports it directly.
 
 ### `L079-force-without-principal-kind`
 

@@ -302,7 +302,7 @@ test("AC-03: an editor CAN create a post through the gateway, and the change-set
   });
   assert.equal(createResponse.status, 201);
 
-  // `listByWorkspace` sorts newest-first (see `core/commands/repo.memory.ts`).
+  // `listByWorkspace` sorts newest-first (see Jini `InMemoryChangeSetRepo`, `@jini-ai/cms/core/commands`).
   const changeSets = await deps.changeSets.listByWorkspace({ workspaceId: deps.workspaceId });
   const latest = changeSets[0];
   assert.equal(latest.actorId, editorPrincipalId, "the change-set actorId is the real principal, not 'user-local'");

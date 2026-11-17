@@ -142,24 +142,6 @@
   },
   {
     "source": "port",
-    "contractMethod": "ChangeSetRepoPort.save",
-    "implementingClass": "InMemoryChangeSetRepo",
-    "caller": "revertChangeSet",
-    "file": "src/contracts/core/commands/revert.ts",
-    "line": 131,
-    "coverageClass": "sequential_outbox"
-  },
-  {
-    "source": "port",
-    "contractMethod": "OutboxPort.enqueue",
-    "implementingClass": "InMemoryOutbox",
-    "caller": "revertChangeSet",
-    "file": "src/contracts/core/commands/revert.ts",
-    "line": 144,
-    "coverageClass": "sequential_outbox"
-  },
-  {
-    "source": "port",
     "contractMethod": "EventBusPort.publishBatch",
     "implementingClass": "InMemoryEventBus",
     "caller": "(no caller found in project)",
