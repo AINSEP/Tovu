@@ -7,7 +7,8 @@ import {
 import { selectConnectedDestination, type PublishContentPeerRepoPort } from "#src/features/publish-content/peers";
 import type { PublishHistoryStore } from "#src/features/deployments/static-publish/index";
 import { readPageBodyOptions, shapePageBody, DEFAULT_MAX_BODY_BYTES, MAX_MAX_BODY_BYTES, type PageBodyOptions } from "./page-body.js";
-import { PublishedPagePathError, resolveSameOriginPath, toCookieShapes, type PublishedPageResult } from "./published-page.js";
+import { PublishedPagePathError, toCookieShapes, type PublishedPageResult } from "./published-page.js";
+import { resolveSitePath } from "./site-path-policy.js";
 
 /** Read ports only; missing ports on a test/older composition do not invent an address. */
 export interface LiveOriginSourceDeps {
@@ -84,7 +85,7 @@ function selectOrigin({ known, requested }: { known: readonly string[]; requeste
 
 /** Reuses the local path boundary while retaining actionable errors at the assistant boundary. */
 function resolveLivePath({ path, origin }: { path: string; origin: string }, _optional = {}): string {
-  try { return resolveSameOriginPath({ raw: path, base: origin }); }
+  try { return resolveSitePath({ raw: path, base: origin }); }
   catch (error) {
     if (error instanceof PublishedPagePathError) throw new ToolInputError({ message: `fetch_live_url: ${error.message}` });
     throw error;

@@ -55,7 +55,7 @@
     "apps/website/src/features/comments/types.ts -> apps/website/src/features/plugins/index.ts",
     "apps/website/src/features/consent/ensure-privacy-defaults.ts -> apps/website/src/features/post/index.ts",
     "apps/website/src/features/consent/region-plugins.ts -> apps/website/src/features/agent-plugins/lifecycle.ts",
-    "apps/website/src/features/consent/request.ts -> apps/website/src/features/site-inspection/published-page.ts",
+    "apps/website/src/features/consent/request.ts -> apps/website/src/features/site-inspection/site-path-policy.ts",
     "apps/website/src/features/content-types/publish-content.ts -> apps/website/src/features/publish-content/apply-errors.ts",
     "apps/website/src/features/content-types/publish-content.ts -> apps/website/src/features/publish-content/precheck-reasons.ts",
     "apps/website/src/features/content-types/publish-content.ts -> apps/website/src/features/publish-content/repo-handler.ts",

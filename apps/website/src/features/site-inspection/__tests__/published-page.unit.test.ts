@@ -11,9 +11,9 @@ import {
   MAX_PATH_LENGTH,
   PublishedPagePathError,
   readBoundedBody,
-  resolveSameOriginPath,
   toCookieShapes,
 } from "../published-page.js";
+import { resolveSitePath as resolveSameOriginPath } from "../site-path-policy.js";
 
 /**
  * @file `fetch_published_page`'s same-origin restriction and response projection.

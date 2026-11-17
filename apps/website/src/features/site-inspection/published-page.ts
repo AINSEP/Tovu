@@ -5,8 +5,7 @@ import type { AddressInfo } from "node:net";
 
 import { createNoopObservabilityPort, trackFetch, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { hasControlCharacter } from "@jini-ai/core/contracts/server/verified-origin";
-import { checkSitePathname } from "#src/platform/routing/index";
-import type { SitePathCheck } from "#src/platform/routing/index";
+import { resolveSitePath } from "./site-path-policy.js";
 
 /**
  * @file `fetchPublishedPage()` — renders ONE route of this site's own public surface and returns
@@ -230,11 +229,21 @@ function resolveWithinOrigin({ raw, base }: { raw: string; base: string }, _opti
 }
 
 /**
+ * What the host's pathname policy says about a resolved pathname. `refused` carries the host's own
+ * complete refusal sentence (for example a reserved surface), so this module never names a surface.
+ */
+export type PathnameVerdict =
+  | { kind: "ok" }
+  | { kind: "malformed-encoding" }
+  | { kind: "disallowed-character" }
+  | { kind: "refused"; reason: string };
+
+/**
  * Why a resolved pathname was refused, phrased for this module's caller.
  *
  * Split out of {@link assertNoDisallowedDecodedForm} so the wording lives next to the verdict
  * union it exhausts: with an explicit `string | null` return type and no `default` arm, a future
- * case added to `SitePathCheck` is a compile error here rather than a silent fall-through to
+ * case added to `PathnameVerdict` is a compile error here rather than a silent fall-through to
  * "allowed". Mirrors `redirects.ts`'s `siteRelativeRefusalReason`, the sibling that already gets
  * this right for `SiteRelativeTargetCheck`.
  *
@@ -242,12 +251,12 @@ function resolveWithinOrigin({ raw, base }: { raw: string; base: string }, _opti
  * exactly the same surfaces for a stored redirect target, and two copies of a denylist is how one
  * of them ends up a decode or a case-fold behind the other.
  *
- * @param required.check - The verdict from `checkSitePathname`.
+ * @param required.check - The verdict from the host's pathname policy.
  * @param required.raw - The original caller-supplied path, for the error message only.
  * @returns The refusal message, or `null` when the path is allowed.
  * @complexity O(1).
  */
-function disallowedFormReason({ check, raw }: { check: SitePathCheck; raw: string }, _optional = {}): string | null {
+function disallowedFormReason({ check, raw }: { check: PathnameVerdict; raw: string }, _optional = {}): string | null {
   switch (check.kind) {
     case "ok":
       return null;
@@ -255,8 +264,8 @@ function disallowedFormReason({ check, raw }: { check: SitePathCheck; raw: strin
       return `path contains a malformed percent-encoding: '${raw}'.`;
     case "disallowed-character":
       return "path decodes to a backslash or control character, which is refused.";
-    case "reserved":
-      return `path must not target '/${check.surface}' — that is the authenticated admin/API surface, not a published page.`;
+    case "refused":
+      return check.reason;
     default: {
       const unhandled: never = check;
       throw new TypeError(`Unknown site path verdict: ${String(unhandled)}`);
@@ -265,15 +274,18 @@ function disallowedFormReason({ check, raw }: { check: SitePathCheck; raw: strin
 }
 
 /**
- * Applies `platform/routing`'s shared reserved-path rule to the resolved pathname and maps its
- * verdict onto this module's own error type. Split out purely to keep {@link resolveSameOriginPath}
- * below the repo's complexity gate.
+ * Applies the host's pathname policy to the resolved pathname and maps its verdict onto this
+ * module's own error type. Split out purely to keep {@link resolveSameOriginPath} below the repo's
+ * complexity gate.
  *
  * @throws {PublishedPagePathError} On a malformed encoding, a decoded backslash/control character,
- * or a path that resolves onto `/admin` or `/api`.
+ * or a pathname the host policy refuses.
  */
-function assertNoDisallowedDecodedForm({ resolved, raw }: { resolved: URL; raw: string }, _optional = {}): void {
-  const reason = disallowedFormReason({ check: checkSitePathname({ url: resolved }), raw });
+function assertNoDisallowedDecodedForm(
+  { resolved, raw, checkPathname }: { resolved: URL; raw: string; checkPathname: (required: { url: URL }) => PathnameVerdict },
+  _optional = {},
+): void {
+  const reason = disallowedFormReason({ check: checkPathname({ url: resolved }), raw });
   if (reason !== null) throw new PublishedPagePathError({ message: reason });
 }
 
@@ -299,27 +311,26 @@ function assertNoDisallowedDecodedForm({ resolved, raw }: { resolved: URL; raw: 
  *   from reaching a static-file handler. `..` cannot escape the origin, but it can escape a
  *   directory, and a single decode pass is enough because the check runs on the decoded form and
  *   rejects a remaining `%` sequence that decodes to a traversal.
- * - **not on `/admin` or `/api`** — the site app, the admin SPA and the admin API share one
- *   Express app (`admin-static.ts`'s `app.use("/admin", ...)`, `core.ts`'s
- *   `app.use("/api/admin", ...)`). Both are session-gated, so an unauthenticated in-process request
- *   already fails, but "a published page" is a claim about the public site and this tool must not
- *   become a second, unaudited door to the admin surface. Defense in depth, stated as a rule rather
- *   than relied on as a side effect. The comparison is per SEGMENT and post-decode
- *   (`platform/routing/reserved-paths.ts`), so `/%61dmin` is refused while `/administer-survey`
- *   — ordinary site content that merely starts with the same letters — is not.
+ * - **the host's pathname policy** (`checkPathname`) — the resolved pathname is handed to the policy the
+ *   caller injects. This module does not know which surfaces a host reserves; see
+ *   `site-path-policy.ts` for this site's rule and why it exists.
  *
  * @param raw - The caller's path, untrusted.
  * @param base - The loopback origin this call minted, e.g. `http://127.0.0.1:53142`.
+ * @param checkPathname - The host's pathname policy, run on the resolved URL.
  * @returns The canonical `pathname + search` to request, re-encoded by the URL parser.
  * @throws {PublishedPagePathError} With a message naming the specific rule that rejected it, so the
  * model can fix the input in one turn instead of guessing.
  * @complexity O(L) in the path length, bounded by {@link MAX_PATH_LENGTH}.
- * @example resolveSameOriginPath({ raw: "/blog/hello", base: "http://127.0.0.1:53142" }); // => "/blog/hello"
+ * @example resolveSameOriginPath({ raw: "/blog/hello", base: "http://127.0.0.1:53142", checkPathname: () => ({ kind: "ok" }) }); // => "/blog/hello"
  */
-export function resolveSameOriginPath({ raw, base }: { raw: unknown; base: string }, _optional = {}): string {
+export function resolveSameOriginPath(
+  { raw, base, checkPathname }: { raw: unknown; base: string; checkPathname: (required: { url: URL }) => PathnameVerdict },
+  _optional = {},
+): string {
   const path = assertRawPathShape({ raw });
   const resolved = resolveWithinOrigin({ raw: path, base });
-  assertNoDisallowedDecodedForm({ resolved, raw: path });
+  assertNoDisallowedDecodedForm({ resolved, raw: path, checkPathname });
   return `${resolved.pathname}${resolved.search}`;
 }
 
@@ -498,7 +509,7 @@ export async function fetchPublishedPage(
 
   try {
     // Validated against the origin this call just minted — see `resolveSameOriginPath`'s doc.
-    const path = resolveSameOriginPath({ raw: input.path, base: baseUrl });
+    const path = resolveSitePath({ raw: input.path, base: baseUrl });
 
     const response = await requestPublishedPage({ deps, baseUrl, path, timeoutMs });
 

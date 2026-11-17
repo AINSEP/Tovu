@@ -70,7 +70,6 @@ export {
   MAX_PATH_LENGTH,
   openLoopbackSiteServer,
   PublishedPagePathError,
-  resolveSameOriginPath,
   type FetchPublishedPageDeps,
   type FetchPublishedPageOptions,
   type LoopbackSiteServer,
