@@ -29,5 +29,5 @@ apps/website/src/features/site-inspection/page-body.ts	src	114	837e91a458e2	5	3	
 apps/website/src/features/site-inspection/published-page.ts	src	528	1877aafb7fc2	6	8	15	0	1	0	0	3	events,http,net	core,diagnostics		MIXED	diagnostics/web-evidence/same-origin.ts	features/consent,server/runtime/composition
 apps/website/src/features/site-inspection/section-collector.ts	src	177	492db58ca1d7	3	1	8	0	0	0	0	1				MOVE	core	
 apps/website/src/features/site-inspection/site-capabilities.ts	src	316	fc9c8d780606	4	2	18	0	0	0	0	3				MIXED	agentic	
-apps/website/src/features/site-inspection/site-profile.ts	src	663	f358046a277b	4	2	28	0	0	0	0	16			looked, found nothing			
-apps/website/src/features/site-inspection/tool-registrations.ts	src	205	507e3f62be54	1	4	4	0	5	0	0	3		cms,core	that section came back empty			
+apps/website/src/features/site-inspection/site-profile.ts	src	663	f358046a277b	4	2	28	0	0	0	0	16						
+apps/website/src/features/site-inspection/tool-registrations.ts	src	205	507e3f62be54	1	4	4	0	5	0	0	3		cms,core				

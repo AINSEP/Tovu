@@ -6,7 +6,7 @@ apps/admin/src/features/deployment/HistoryTab.tsx	src	62	c752dfcc4352	1	1	1	0	0	
 apps/admin/src/features/deployment/OverviewTab.tsx	src	309	9b6cd5e6ecb3	1	1	2	0	0	0	0	8		core	react			
 apps/admin/src/features/deployment/PublishRunResult.tsx	src	57	54a0dbe66ff8	1	0	1	0	0	0	0	2		core				
 apps/admin/src/features/deployment/StaticSiteTab.hooks.ts	src	24	d57bd5192a26	1	0	2	0	0	0	0	0			react			
-apps/admin/src/features/deployment/StaticSiteTab.tsx	src	1424	b9d9f2a80884	1	1	2	0	0	27	0	310		core,ui	not in this state,react	MIXED		
+apps/admin/src/features/deployment/StaticSiteTab.tsx	src	1424	b9d9f2a80884	1	1	2	0	0	27	0	310		core,ui	react	MIXED		
 apps/admin/src/features/deployment/__tests__/Deployment.unit.test.tsx	test	148	87c9e63b6b10	0	0	0	0	0	0	0	2			@testing-library/react,@testing-library/user-event,vitest			
 apps/admin/src/features/deployment/__tests__/DockerfileTab.unit.test.tsx	test	350	a3cab1c74cad	0	0	0	0	0	0	0	0			@testing-library/user-event,vitest			
 apps/admin/src/features/deployment/__tests__/OverviewTab.unit.test.tsx	test	239	a34a01ccecf2	0	0	0	0	0	0	0	14			@testing-library/react,vitest			
@@ -23,7 +23,7 @@ apps/admin/src/features/deployment/hooks/__tests__/publish-credentials-dependenc
 apps/admin/src/features/deployment/hooks/__tests__/static-export-dependencies.unit.test.ts	test	65	f83f5aa7c45e	0	0	0	0	0	0	0	1			vitest			
 apps/admin/src/features/deployment/hooks/__tests__/static-publish-dependencies.unit.test.ts	test	118	2cfc7290fe44	0	0	0	0	0	9	0	5			vitest			
 apps/admin/src/features/deployment/hooks/__tests__/use-deployment-overview.unit.test.tsx	test	76	8a355e12f8b0	0	0	0	0	0	0	0	2			@testing-library/react,vitest			
-apps/admin/src/features/deployment/hooks/__tests__/use-dockerfile-source.unit.test.tsx	test	596	42cb8a7d87ce	0	0	0	0	1	0	0	0			@testing-library/react,the value a save,vitest			
+apps/admin/src/features/deployment/hooks/__tests__/use-dockerfile-source.unit.test.tsx	test	596	42cb8a7d87ce	0	0	0	0	1	0	0	0			@testing-library/react,vitest			
 apps/admin/src/features/deployment/hooks/__tests__/use-publish-credentials-wired.unit.test.tsx	test	43	7081b67349b6	0	0	0	0	0	0	0	20			@testing-library/react,vitest			
 apps/admin/src/features/deployment/hooks/__tests__/use-publish-credentials.unit.test.tsx	test	1135	2be525e397d2	0	0	0	0	0	186	0	562			@testing-library/react,vitest			
 apps/admin/src/features/deployment/hooks/__tests__/use-static-export.unit.test.tsx	test	507	085cdb9fc056	0	0	0	0	0	0	0	0			@testing-library/react,vitest			
@@ -44,7 +44,7 @@ apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	src	46
 apps/admin/src/features/deployment/hooks/use-static-export.hooks.ts	src	249	14fdba49f185	1	2	3	0	0	0	0	2		core,ui	react	MOVE-AFTER		
 apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts	src	417	0210959fcf19	1	2	4	0	0	0	0	10		core,ui	react	MIXED		
 apps/admin/src/features/deployment/index.ts	src	7	55e64ae2a2a5	1	0	1	0	0	0	0	0						apps/admin/src
-apps/admin/src/features/deployment/rules.ts	src	456	b5e7fe299a2b	10	4	38	0	0	0	0	129			Not required to boot	MIXED	admin/security	features/security,features/security/hooks,features/source-control
+apps/admin/src/features/deployment/rules.ts	src	456	b5e7fe299a2b	10	4	38	0	0	0	0	129				MIXED	admin/security	features/security,features/security/hooks,features/source-control
 apps/website/src/features/deployments/__tests__/deploy-config-host-notes.unit.test.ts	test	69	0ff43a8c4e23	0	0	0	0	0	4	0	0	assert/strict,path,test					
 apps/website/src/features/deployments/__tests__/deploy-config-registry.unit.test.ts	test	189	2e0f5629ff3e	0	0	0	0	0	0	0	0	assert/strict,fs/promises,os,path,test		bad,fixture			
 apps/website/src/features/deployments/__tests__/deploy-config.unit.test.ts	test	157	1f6587efefd7	0	0	0	2	1	0	0	13	assert/strict,fs,os,path,test		recommended			
@@ -56,7 +56,7 @@ apps/website/src/features/deployments/__tests__/export-run.test.ts	test	62	ed2a6
 apps/website/src/features/deployments/__tests__/index.unit.test.ts	test	8	199f1f2b2c0a	0	0	0	0	0	0	0	0	assert/strict,test					
 apps/website/src/features/deployments/__tests__/integration/tool-registrations.integration.test.ts	test	308	7d12ac0339d2	0	0	0	1	2	0	0	0	assert/strict,fs,os,path,test,timers/promises	core				
 apps/website/src/features/deployments/__tests__/publish-agent-tools.abort-guard.unit.test.ts	test	76	5c4aa61f230c	0	0	0	0	0	0	0	39	assert/strict,test					
-apps/website/src/features/deployments/__tests__/publish-agent-tools.unit.test.ts	test	2341	b8c14f1700be	0	0	0	9	2	294	0	769	assert/strict,fs,os,path,test	core,daemon,devops,platform	nothing saved at all			
+apps/website/src/features/deployments/__tests__/publish-agent-tools.unit.test.ts	test	2341	b8c14f1700be	0	0	0	9	2	294	0	769	assert/strict,fs,os,path,test	core,daemon,devops,platform				
 apps/website/src/features/deployments/__tests__/tool-registrations.trigger-export.unit.test.ts	test	74	1bb2aea49233	0	0	0	0	0	0	0	1	assert/strict,fs,os,path,test,timers/promises					
 apps/website/src/features/deployments/agent-tools.ts	src	142	bdfa7845d0cc	1	1	4	0	0	0	0	2		core				
 apps/website/src/features/deployments/capability-card.ts	src	34	e7e8c2fe703b	1	1	1	0	0	0	0	0		agentic				server/runtime/composition
@@ -132,7 +132,7 @@ apps/website/src/features/deployments/static-publish/__tests__/publish-operation
 apps/website/src/features/deployments/static-publish/__tests__/publish-run.unit.test.ts	test	438	9f2eabac73f2	0	0	0	1	0	53	0	81	assert/strict,fs,os,path,test	devops				
 apps/website/src/features/deployments/static-publish/__tests__/verify.unit.test.ts	test	777	251678115d70	0	0	0	0	1	106	0	297	assert/strict,crypto,test		invalid,unreachable			
 apps/website/src/features/deployments/static-publish/adapter.ts	src	695	c1cbf124e117	3	12	14	1	2	3	2	117	crypto,fs,path	devops,diagnostics		MIXED	devops/deploy	
-apps/website/src/features/deployments/static-publish/credentials.ts	src	345	cd000d850e20	5	4	8	3	0	2	0	187		core	accepted but ignored	MIXED	devops/deploy	server/runtime/composition
+apps/website/src/features/deployments/static-publish/credentials.ts	src	345	cd000d850e20	5	4	8	3	0	2	0	187		core		MIXED	devops/deploy	server/runtime/composition
 apps/website/src/features/deployments/static-publish/domain-publish-rows.ts	src	47	ebceef86c562	1	1	1	0	0	0	0	0				MOVE-AFTER	devops/deploy	
 apps/website/src/features/deployments/static-publish/domain-publish-tool.ts	src	129	f71957173fca	1	1	1	0	0	0	0	33		cms,core,daemon				
 apps/website/src/features/deployments/static-publish/index.ts	src	57	3ad5c95a22df	13	4	8	0	0	2	0	14						features/publish-content,features/site-inspection,platform/db/repos,server/inbound/admin-http/routes/system,server/routes,server/runtime/composition

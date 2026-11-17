@@ -3,8 +3,7 @@ apps/admin/src/features/source-control/ProvidersTab.tsx	src	464	4f7d4a25fa1d	1	1
 apps/admin/src/features/source-control/SourceControl.hooks.ts	src	6	178853cbfa21	1	0	1	0	0	0	0	0						
 apps/admin/src/features/source-control/SourceControl.tsx	src	118	3517a817db72	1	1	2	0	0	3	0	7		core,ui		DELETE-AFTER-PARITY	admin/source-control/react	
 apps/admin/src/features/source-control/__tests__/ProvidersTab.unit.test.tsx	test	109	98cbbf7c0f3c	0	0	0	0	0	0	0	57			@testing-library/user-event,vitest			
-apps/admin/src/features/source-control/__tests__/SourceControl.unit.test.tsx	test	447	567f7f279437	0	0	0	0	0	59	0	114			@testing-library/user-event,passed as
-  // undefined,vitest			
+apps/admin/src/features/source-control/__tests__/SourceControl.unit.test.tsx	test	447	567f7f279437	0	0	0	0	0	59	0	114			@testing-library/user-event,vitest			
 apps/admin/src/features/source-control/__tests__/rules.unit.test.ts	test	234	38c23c66f47c	0	0	0	0	0	37	0	152			vitest			
 apps/admin/src/features/source-control/__tests__/source-control-credentials-dependencies.unit.test.ts	test	107	c344adefdd09	0	0	0	0	0	5	0	80			vitest			
 apps/admin/src/features/source-control/__tests__/source-control-i18n.unit.test.ts	test	20	84c3422b10f3	0	0	0	0	0	0	0	15			vitest			

@@ -59,11 +59,10 @@ apps/website/src/features/theme/__tests__/template-applicability.unit.test.ts	te
 apps/website/src/features/theme/__tests__/template-eligibility.test.ts	test	178	2eed0b8a02f5	0	0	0	0	1	0	0	2	assert/strict,test					
 apps/website/src/features/theme/__tests__/template-id-resolution.test.ts	test	139	a5599913548c	0	0	0	0	0	0	0	0	assert/strict,test					
 apps/website/src/features/theme/__tests__/template-render.canary.test.ts	test	326	a321609722e0	0	0	0	0	0	0	0	4	assert/strict,crypto,fs,path,test					
-apps/website/src/features/theme/__tests__/template-resolution.test.ts	test	231	3cb0a7f344ec	0	0	0	0	2	0	0	2	assert/strict,test		this template
-  // was meant for a Page			
+apps/website/src/features/theme/__tests__/template-resolution.test.ts	test	231	3cb0a7f344ec	0	0	0	0	2	0	0	2	assert/strict,test					
 apps/website/src/features/theme/__tests__/theme-build-manifest.test.ts	test	257	8e29f3bc3a30	0	0	0	0	0	0	0	2	assert/strict,fs,os,path,test					
 apps/website/src/features/theme/__tests__/theme-compiled-load-gate.test.ts	test	262	6528f425ee40	0	0	0	0	0	0	0	6	assert/strict,crypto,fs,os,path,test					
-apps/website/src/features/theme/__tests__/theme-file-differs-from-original.test.ts	test	161	c5467955a7c4	0	0	0	0	0	0	0	4	assert/strict,fs,os,path,test		opened and read the bytes			
+apps/website/src/features/theme/__tests__/theme-file-differs-from-original.test.ts	test	161	c5467955a7c4	0	0	0	0	0	0	0	4	assert/strict,fs,os,path,test					
 apps/website/src/features/theme/__tests__/theme-file-import.test.ts	test	211	1d8951e23f70	0	0	0	0	6	0	0	5	assert/strict,fs,os,path,test	cms				
 apps/website/src/features/theme/__tests__/theme-file-reset-to-original.test.ts	test	177	c2ff222da044	0	0	0	0	0	0	0	0	assert/strict,fs,module,os,path,test					
 apps/website/src/features/theme/__tests__/theme-file-safety.test.ts	test	231	670c0df26322	0	0	0	0	0	0	0	0	assert/strict,fs,module,os,path,test	core,daemon,platform				
@@ -115,7 +114,7 @@ apps/website/src/features/theme/entry-list-render.ts	src	375	1e09be16bc13	5	3	9	
 apps/website/src/features/theme/file-identity-lock.ts	src	283	fd57dde6a92d	5	2	13	0	0	0	0	2						
 apps/website/src/features/theme/file-mutation-tools.ts	src	64	0e049e0b9eea	2	0	1	0	0	0	0	0		cms,core				
 apps/website/src/features/theme/font-links.ts	src	36	352b44a603b6	2	1	1	0	0	0	0	0						server/inbound/public-http/http/site
-apps/website/src/features/theme/handlebars-allowlist.ts	src	424	21ad730881fb	3	1	5	0	0	0	0	0			handlebars,template author			server/inbound/public-http/http/site
+apps/website/src/features/theme/handlebars-allowlist.ts	src	424	21ad730881fb	3	1	5	0	0	0	0	0			handlebars			server/inbound/public-http/http/site
 apps/website/src/features/theme/hardcoded-link-lists.ts	src	118	3d5bc77251c8	1	1	3	0	0	0	0	0		cms				
 apps/website/src/features/theme/import-theme-file-tool.ts	src	179	7e1ded8b6996	1	5	5	0	1	0	0	1		cms,core,daemon,platform				
 apps/website/src/features/theme/index.ts	src	221	4cb5c8accd89	33	110	26	0	1	0	0	2						cli/commands/theme,development/scripts,features/pages,features/post,features/site-backup,features/site-export,server/inbound/admin-http/routes/posts,server/inbound/admin-http/routes/presentation,server/inbound/admin-http/routes/settings,server/inbound/admin-http/routes/themes,server/inbound/admin-http/routes/widgets,server/inbound/public-http/http/site,server/inbound/public-http/middleware,server/
@@ -138,8 +137,7 @@ apps/website/src/features/theme/save-theme-original.ts	src	54	2a441c07c1c9	1	1	2
 apps/website/src/features/theme/set-active-theme-tool.ts	src	193	2c6b4b490d63	4	5	6	0	0	0	0	0		cms,core,diagnostics				
 apps/website/src/features/theme/static-asset-contract.ts	src	115	44df411aeb47	5	1	5	0	0	0	0	17						server/inbound/public-http/routes/site
 apps/website/src/features/theme/static-portability-index.ts	src	234	0345f7221492	1	1	4	0	0	0	0	13	fs,path	cms		MIXED		
-apps/website/src/features/theme/static-render.ts	src	1396	50ddf9b5f5d9	6	32	30	0	6	1	0	53		cms,core	this
-    // theme has no such template	MIXED	cms/navigation	server/inbound/public-http/http/site,server/inbound/public-http/routes/site,server/runtime/composition
+apps/website/src/features/theme/static-render.ts	src	1396	50ddf9b5f5d9	6	32	30	0	6	1	0	53		cms,core		MIXED	cms/navigation	server/inbound/public-http/http/site,server/inbound/public-http/routes/site,server/runtime/composition
 apps/website/src/features/theme/structure-only-theme.ts	src	54	d9cfa6e3837b	1	0	2	0	0	0	0	16	fs,path	platform				
 apps/website/src/features/theme/sync-originals.ts	src	197	68382fcd34bc	3	4	6	0	0	0	0	0	fs,path					
 apps/website/src/features/theme/template-applicability.ts	src	47	478624a1ec67	4	3	4	0	0	0	0	0						

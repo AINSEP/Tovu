@@ -44,7 +44,7 @@ apps/website/src/platform/db/__tests__/helpers/pre-site-title-marker-db.ts	test	
 apps/website/src/platform/db/__tests__/journal-kernel.test.ts	test	113	f1401caa0bf0	0	0	0	0	0	0	2	0	assert/strict,test		kysely			
 apps/website/src/platform/db/__tests__/key-dependent-data.test.ts	test	223	cbdbb647b743	0	0	0	0	0	0	10	17	assert/strict,fs,os,path,test		better-sqlite3			
 apps/website/src/platform/db/__tests__/keyset-cursor.test.ts	test	29	ca11d07de083	0	0	0	0	0	0	0	0	assert/strict,test	cms,core				
-apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts	test	522	22678514ceb9	0	0	0	3	2	0	10	0	assert/strict,child_process,test	db	${CANONICAL},${NAIVE_LOCAL},a sibling run is using it right now.			
+apps/website/src/platform/db/__tests__/migration-manifest-postgres.test.ts	test	522	22678514ceb9	0	0	0	3	2	0	10	0	assert/strict,child_process,test	db	${CANONICAL},${NAIVE_LOCAL}			
 apps/website/src/platform/db/__tests__/migration-manifest.test.ts	test	931	a62bbbc1f802	0	0	0	0	3	0	9	14	assert/strict,fs,path,test	db	drizzle-orm/pg-core,drizzle-orm/sqlite-core,typescript			
 apps/website/src/platform/db/__tests__/oauth-pending-store.sqlite.test.ts	test	207	f32deccbbecd	0	0	0	0	0	0	1	11	assert/strict,crypto,fs,os,path,test	core	drizzle-orm			
 apps/website/src/platform/db/__tests__/page-empty-template-choice-migration.test.ts	test	150	5ac193ab292b	0	0	0	0	0	0	7	0	assert/strict,fs,os,path,test		better-sqlite3			
@@ -262,8 +262,7 @@ apps/website/src/platform/db/repos/publish-content-run-repo.ts	src	90	5f8e16d55d
 apps/website/src/platform/db/repos/publish-history-repo.ts	src	151	4fc57a08832a	1	2	1	0	0	0	2	5		core	kysely			
 apps/website/src/platform/db/repos/webhook-repo.ts	src	394	0eef21339b8c	1	3	2	0	0	0	2	8		core	kysely	MOVE	integrations/webhooks/sql	
 apps/website/src/platform/db/schema.postgres.ts	src	1246	ab4549bb9ba9	1	3	82	0	2	0	32	119			drizzle-orm,drizzle-orm/pg-core			server/runtime/composition
-apps/website/src/platform/db/schema.sqlite.ts	src	2410	dabf8d2b1a47	5	57	82	0	3	0	53	171			drizzle-orm,drizzle-orm/sqlite-core,edited on the
- * far side			development/scripts
+apps/website/src/platform/db/schema.sqlite.ts	src	2410	dabf8d2b1a47	5	57	82	0	3	0	53	171			drizzle-orm,drizzle-orm/sqlite-core			development/scripts
 apps/website/src/platform/db/site-store-copy.ts	src	17	c2aae8850d6c	2	2	7	0	0	0	5	4		db				platform/site-dir,server/runtime/composition
 apps/website/src/platform/db/sqlite/__tests__/backup-retention.test.ts	test	89	40d28269200e	0	0	0	0	0	0	0	8	assert/strict,fs,fs/promises,os,path,test					
 apps/website/src/platform/db/sqlite/__tests__/change-set-repo.sqlite.test.ts	test	177	e43887596cf8	0	0	0	0	0	0	0	0	assert/strict,test	core				

@@ -42,6 +42,8 @@ for f in ALL:
     text[f] = txt
     lst = []
     for m in IMP.finditer(txt):
+        if re.search(r'\s', m.group(1)):
+            continue  # a quote inside a comment, not an import specifier
         r = resolve(f, m.group(1))
         lst.append((m.group(1), r))
         if r:

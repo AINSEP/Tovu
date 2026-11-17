@@ -14,7 +14,7 @@ apps/admin/src/features/import-export/index.ts	src	5	810a2c2fdc25	1	1	1	0	0	0	0	
 apps/admin/src/features/recovery/Recovery.tsx	src	572	9e5dd81a11e5	1	2	3	0	0	0	0	8		admin,core,ui		MOVE-AFTER	db/recovery	
 apps/admin/src/features/recovery/__tests__/Recovery.unit.test.tsx	test	526	f19d8b01fffd	0	0	0	0	1	0	0	2			@testing-library/user-event,vitest			
 apps/admin/src/features/recovery/__tests__/recovery-i18n.unit.test.tsx	test	47	b7594fc4b430	0	0	0	0	0	0	0	2			@testing-library/react,vitest			
-apps/admin/src/features/recovery/__tests__/rules.unit.test.ts	test	138	46634e994283	0	0	0	0	0	0	0	0			JSON.parse threw,vitest			
+apps/admin/src/features/recovery/__tests__/rules.unit.test.ts	test	138	46634e994283	0	0	0	0	0	0	0	0			vitest			
 apps/admin/src/features/recovery/__tests__/use-recovery-navigation.unit.test.ts	test	56	12e071f404c4	0	0	0	0	0	0	0	0			@testing-library/react,vitest			
 apps/admin/src/features/recovery/__tests__/use-recovery.unit.test.ts	test	533	f3b87a16105a	0	0	0	0	0	0	0	0			vitest			
 apps/admin/src/features/recovery/__tests__/use-restore-flow.unit.test.ts	test	459	fca892878096	0	0	0	0	0	0	0	18			vitest			
