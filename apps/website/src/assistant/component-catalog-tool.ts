@@ -75,7 +75,7 @@ export const componentCatalogAgentToolCatalog: AgentToolDefinition[] = [
         limit: {
           type: "integer",
           minimum: 1,
-          maximum: SEARCH_LIMIT_MAX,
+          maximum: SEARCH_LIMIT_MAX, clamp: true,
           description: `Max hits to return (1-${SEARCH_LIMIT_MAX}). Optional, defaults to ${SEARCH_LIMIT_DEFAULT}.`,
         },
       },

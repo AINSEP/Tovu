@@ -16,7 +16,7 @@ export const mailDeliveryAgentToolCatalog = [{
     outcome: { type: "string", enum: ["accepted", "delivered", "bounced", "complained", "suppressed", "deferred", "failed", "unknown"] },
     use: { type: "string", enum: ["sign_in", "newsletter_confirmation", "form_notification", "newsletter", "test", "unknown"] },
     recipient: { type: "string", maxLength: 254, description: "One exact address." },
-    limit: { type: "integer", minimum: 1, maximum: 100, description: "Page size; default 25." },
+    limit: { type: "integer", minimum: 1, maximum: 100, clamp: true, description: "Page size; default 25." },
     cursor: { type: "string", description: "nextCursor from the previous page." },
   } },
 }, {
@@ -34,7 +34,7 @@ export const mailDeliveryAgentToolCatalog = [{
     search: { type: "string", maxLength: 254, description: "Part of an address, e.g. a domain." },
     scope: { type: "string", enum: ["all", "bulk"] },
     reason: { type: "string", enum: ["bounced", "complained", "manual"] },
-    limit: { type: "integer", minimum: 1, maximum: 100, description: "Page size; default 25." },
+    limit: { type: "integer", minimum: 1, maximum: 100, clamp: true, description: "Page size; default 25." },
     cursor: { type: "string", description: "nextCursor from the previous page." },
   } },
 }, {

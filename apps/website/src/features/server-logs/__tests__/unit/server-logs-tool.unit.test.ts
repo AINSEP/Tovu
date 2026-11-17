@@ -74,5 +74,5 @@ test("description names every schema field and its exact bounds", () => {
   assert.match(entry.description, /level \(minimum severity: debug, info, warn, error;/);
   assert.match(entry.description, /contains \(case-insensitive text, at most 200 characters\)/);
   assert.match(entry.description, /limit \(1-500, default 100\)/);
-  assert.deepEqual(entry.inputSchema.properties.limit, { type: "integer", minimum: 1, maximum: 500 });
+  assert.deepEqual(entry.inputSchema.properties.limit, { type: "integer", minimum: 1, maximum: 500, clamp: true });
 });

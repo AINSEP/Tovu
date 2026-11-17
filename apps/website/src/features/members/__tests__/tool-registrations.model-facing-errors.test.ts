@@ -254,7 +254,8 @@ test("members_list refuses a bad limit and an unknown afterId with the real reas
   await seedMember(deps);
   const harness = await buildHarness(deps);
 
-  for (const limit of [-5, 0, 1.5]) {
+  // -5 and 0 are repaired to the nearest bound by the declared clamp (below); only a non-integer is refused.
+  for (const limit of [1.5, 2.5, -0.5]) {
     const result = await call(harness, "members_list", { limit });
     assert.equal(result.ok, false);
     if (result.ok) return;
@@ -266,7 +267,12 @@ test("members_list refuses a bad limit and an unknown afterId with the real reas
   assert.deepEqual(unknown.error, { code: "BAD_REQUEST", message: "unknown afterId 'ghost'" });
 
   assert.deepEqual(output(await call(harness, "members_list", { afterId: "m-1" })), { members: [], nextCursor: null });
-  assert.deepEqual(output(await call(harness, "members_list", { limit: 500 })), { members: [MEMBER_VIEW], nextCursor: null });
+  // Declared clamp: an out-of-range page size runs at the nearest bound and says so, instead of being refused
+  // (the original fault was `-5 reads as an empty page`; it now reads as a page of one).
+  assert.deepEqual(output(await call(harness, "members_list", { limit: 500 })), { members: [MEMBER_VIEW], nextCursor: null, normalizationNotes: ["limit was lowered to its maximum, 100"] });
+  for (const limit of [-5, 0]) {
+    assert.deepEqual(output(await call(harness, "members_list", { limit })), { members: [MEMBER_VIEW], nextCursor: null, normalizationNotes: ["limit was raised to its minimum, 1"] });
+  }
 });
 
 // REGRESSION (refactor pattern list-cursor): a full page came back as a bare array, so the model read

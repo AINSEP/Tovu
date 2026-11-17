@@ -21,6 +21,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createToolRegistry, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
+import { assertRepairKeywords } from "@jini-ai/core/tool-input-repairs";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
@@ -894,4 +895,52 @@ test('root-added load_agent_plugin is discoverable and publishes the shared doma
   assert.deepEqual(described.inputSchema, agentPluginGuidanceCatalog[0]!.inputSchema);
   assert.equal(described.description, agentPluginGuidanceCatalog[0]!.description);
   assert.deepEqual(wiredRegistration('load_agent_plugin').descriptor.metadata?.approval, { class: 'read', confirmation: 'direct' });
+});
+
+// ---------------------------------------------------------------------------
+// Declared repairs: every page, size and wait control states whether an out-of-range number is repaired
+// ---------------------------------------------------------------------------
+
+/** Names whose bound is a page, size or wait control: a caller's out-of-range value is a near miss, never a different target. */
+const BOUNDED_CONTROL_NAMES: ReadonlySet<string> = new Set(["limit", "offset", "pageSize", "maxResults", "width", "height", "waitMs", "timeoutMs"]);
+
+interface BoundedControl { readonly path: string; readonly property: Record<string, unknown> }
+
+/** Every integer property with a `maximum` and a control name, to the same depth `assertRepairKeywords` walks; arrays contribute their item properties. */
+function boundedControls({ schema, prefix = "", depth = 0 }: { schema: unknown; prefix?: string; depth?: number }): BoundedControl[] {
+  const record = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
+  if (!record(schema) || depth > 6) return [];
+  const properties = record(schema.properties) ? schema.properties : {};
+  return Object.entries(properties).flatMap(([name, property]) => {
+    if (!record(property)) return [];
+    const path = `${prefix}${name}`;
+    const own = property.type === "integer" && property.maximum !== undefined && BOUNDED_CONTROL_NAMES.has(name) ? [{ path, property }] : [];
+    const nested = property.type === "array" ? property.items : property;
+    return [...own, ...boundedControls({ schema: nested, prefix: property.type === "array" ? `${path}[]` + "." : `${path}.`, depth: depth + 1 })];
+  });
+}
+
+/**
+ * Controls whose schema is owned by a Jini package (`@jini-ai/cms` media, `@jini-ai/db`, `@jini-ai/agent-plugins`,
+ * `@jini-ai/chat`), so Tovu cannot classify them: each is a page-size `limit` that the Jini owner declares
+ * `clamp: true` in a later Jini release. The list only shrinks: an entry whose control IS declared fails the
+ * second assertion, so the day the Jini release lands this list must lose that line.
+ */
+const JINI_OWNED_UNDECLARED: ReadonlySet<string> = new Set([
+  "library_list.limit", "content_read.media_asset.limit", "database_query_timeline.limit",
+  "search_agent_plugin_local.limit", "assistant_chats_list.limit", "assistant_chat_read.limit",
+]);
+
+test("every bounded page, size and wait control declares clamp true or false, and every declared clamp is usable", () => {
+  const undeclared: string[] = [];
+  for (const [id, registration] of registrationsById()) {
+    const schema = registration.descriptor.inputSchema;
+    assertRepairKeywords({ inputSchema: schema });
+    for (const { path, property } of boundedControls({ schema })) {
+      if (typeof property.clamp !== "boolean") undeclared.push(`${id}.${path}`);
+    }
+  }
+  const owned = undeclared.filter((control) => JINI_OWNED_UNDECLARED.has(control));
+  assert.deepEqual(undeclared.filter((control) => !JINI_OWNED_UNDECLARED.has(control)), [], `declare clamp: true (a page, size or wait control) or clamp: false (it selects, addresses, prices or authorizes) on each:\n${undeclared.join("\n")}`);
+  assert.deepEqual(owned.sort(), [...JINI_OWNED_UNDECLARED].sort(), "a Jini-owned control is declared now: remove it from JINI_OWNED_UNDECLARED");
 });
