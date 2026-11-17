@@ -1,7 +1,7 @@
 /** Packaged MCP release checks. Command construction and reply validation are independently testable. */
 import { spawn } from "node:child_process";
 import path from "node:path";
-import { redactLocalText } from "../../website/src/platform/server-logs/redact-local-text.ts";
+import { redactLocalText } from "@jini-ai/diagnostics/local-text";
 import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import { resolveSmokeTargets } from "./smoke-native.ts";
 

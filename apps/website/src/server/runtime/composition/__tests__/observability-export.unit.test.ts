@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { resolveTovuObservabilityExport } from '../observability-export.js';
+import { installConsoleTee } from '@jini-ai/diagnostics/console-tee';
 
 test('Tovu host facts deny checkouts before production labels and admit only packaged or deployed runtimes', () => {
   const cases: { name: string; env: NodeJS.ProcessEnv; checkout: boolean; packagedDesktop?: boolean; expected: boolean }[] = [
@@ -41,7 +42,7 @@ test('denied export preserves console output, the local buffer and file persiste
   const { mkdtemp, rm } = await import('node:fs/promises');
   const { tmpdir } = await import('node:os');
   const path = await import('node:path');
-  const { createLogBuffer, installConsoleTee, createRotatingLogFileSink, readLogFileTail } = await import('../../../../platform/server-logs/index.js');
+  const { createLogBuffer, createRotatingLogFileSink, readLogFileTail } = await import('../../../../platform/server-logs/index.js');
   const root = await mkdtemp(path.join(tmpdir(), 'tovu-local-observability-'));
   const filePath = path.join(root, 'server.log');
   const lines: unknown[][] = [];
