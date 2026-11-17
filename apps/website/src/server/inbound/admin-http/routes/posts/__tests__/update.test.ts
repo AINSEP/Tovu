@@ -9,6 +9,7 @@ import test from "node:test";
 import type express from "express";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
+import { createInMemoryApp } from "#src/server/runtime/composition/memory-route-deps";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
@@ -24,7 +25,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 const WS = "workspace-local";
 
 async function startServer(t: { after: (fn: () => Promise<void>) => void }) {
-  const server = createServer(createApp());
+  const server = createServer(createInMemoryApp());
   server.listen(0);
   await once(server, "listening");
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));

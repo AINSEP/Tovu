@@ -6,7 +6,8 @@ import type { Express } from "express";
 
 import { startOutboxDrainer, type OutboxDrainer } from "#src/contracts/core/events/index";
 import { startTrashSweeper, type TrashSweeper } from "@jini-ai/cms/trash";
-import { createApp, type CreateAppOptions } from "./app.js";
+import { createApp } from "./app.js";
+import type { CreateAppOptions } from "./create-app-options.js";
 import { createServingFormPullTrigger } from "./form-pull-triggers.js";
 import { startServingWebhookDeliveryWorker, type WebhookDeliveryWorker } from "./webhook-delivery-worker.js";
 import { startDomainBindingSweeper, type DomainBindingSweeper } from "./domain-binding-sweeper.js";

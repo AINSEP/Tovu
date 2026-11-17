@@ -338,13 +338,6 @@
       "value": 11
     },
     {
-      "file": "apps/website/src/server/runtime/composition/app.ts",
-      "function": "createRouteDeps#1",
-      "line": 466,
-      "rule": "complexity",
-      "value": 13
-    },
-    {
       "file": "apps/website/src/server/runtime/composition/import-database/repo.sqlite.ts",
       "function": "run#1",
       "line": 99,

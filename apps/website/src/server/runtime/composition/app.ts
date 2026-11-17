@@ -1,14 +1,20 @@
 import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render/content-html";
-import { createFormAttachmentPurgeHooks } from "@jini-ai/cms/forms";
-import { startupSecretEnvironment } from "../boot/startup-secrets.js";
-import { statfs } from "node:fs/promises";
-import { registerCommerceHttp, registerCommerceWebhooks } from "./commerce-http.js";
+import { composeMemoryComments } from "./memory-deps/slices/comments.js";
+import { composeMemoryAgentPlugins } from "./memory-deps/slices/agent-plugins.js";
+import { composeMemorySeo } from "./memory-deps/slices/seo-sitemap.js";
+import { composeMemoryOutboundHttp } from "./memory-deps/slices/outbound-http.js";
+import { composeMemoryTrash } from "./memory-deps/slices/memory-trash.js";
+import { composePublishContentStores } from "./memory-deps/slices/publish-content-stores.js";
+import { composeNavFormContentRepos } from "./memory-deps/slices/nav-form-content-repos.js";
+import { composeTaxonomyTrashRepos } from "./memory-deps/slices/taxonomy-trash-repos.js";
+import { composeOriginNewsletter } from "./memory-deps/slices/origin-newsletter.js";
+import { composeSiteTitleSettings } from "./memory-deps/slices/site-title-settings.js";
+import { composeIdentitySettings } from "./memory-deps/slices/identity-settings.js";
+import { createLazyProxy } from "./memory-deps/lazy-proxy.js";
+import { composeMemoryRepos } from "./memory-deps/slices/repos.js";
+import { composeMemberSecrets } from "./memory-deps/slices/member-secrets.js";
 import { getExportRunSnapshot } from '../../../features/deployments/export-run.js';
 import { getPublishRunSnapshot } from '../../../features/deployments/static-publish/publish-run.js';
-import { createSiteIdlePark } from "../lifecycle/site-idle-park.js";
-import { registerSiteIdleStopHook } from "../lifecycle/daemon-supervisor.js";
-import { assistantRunFinalizerFor } from "./modules/assistant-run-finalizer.js";
-import { createVisitorPageTargets } from './visitor-page-targets.js';
 import { registerWarmSiteRetirement } from '../lifecycle/warm-site-retirement.js';
 import { notifyExternalMcpRosterChanged } from "../../../assistant/external-mcp-roster-change.js";
 import { composeAgentPluginMcp, composeAgentPluginPreferences, composePluginProviderFaces } from "./agent-plugin-service-ports.js";
@@ -19,86 +25,34 @@ import { createNoopTracker } from "@jini-ai/diagnostics/observability";
 import { createPluginExportRuntime } from "#src/features/agent-plugins/exports/runtime";
 import { createPluginExportSource } from "#src/features/agent-plugins/exports/source";
 import { readBundledDeployWorkflowFiles } from "#src/features/deployments/index";
-import { createCommentsCapability, ensureCommentsProviderDefinition } from '#src/features/comments/provider-selection';
 import { composeVisitorToolsManagement } from "./visitor-tools-management.js";
-import { createCommentTargetLookup } from '#src/features/comments/comment-targets';
-import { applyThemePreviewSwitcher } from "../../inbound/public-http/middleware/theme-preview-switcher.js";
-import { ensurePreviewSwitcherSetting, preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
+import { preparePreviewSwitcherWrite } from "#src/features/theme/preview-switcher";
 import { contentKernel } from '#src/platform/db/content-kernel';
-import { createFormMediaCleanup, hasFormFileOwners, hasFormFileStorageKeyOwners, withFormFileStorageKeyLock } from '#src/features/forms/form-file-purge';
 import { createSiteConsentStore } from '#src/features/consent/revisions.repo';
 import { bindSiteConsentService } from './site-consent.js';
-import { registerAdminConsentRoutes } from '../../inbound/admin-http/routes/consent/routes.js';
-import { registerPublicShareRoutes } from "#src/server/inbound/public-http/routes/site-share";
-import { registerAdminSiteShareRoutes } from "#src/server/inbound/admin-http/routes/system/site-shares";
-import { registerAdminSiteImportRoutes } from "#src/server/inbound/admin-http/routes/system/site-imports";
-import { registerAdminSiteBackupRoutes } from "#src/server/inbound/admin-http/routes/system/site-backups";
 import { toolGapsFromAuditEvents } from "@jini-ai/daemon/tool-audit";
-import { registerAdminToolGapsRoute } from "../../inbound/admin-http/routes/system/tool-gaps.js";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createAssistantAgentInventory } from "#src/assistant/agents";
 import { createTovuPluginHost } from "./plugin-host.js";
-import { composeAgentPluginConnections, resolveApiConnectionRuntime } from "./agent-plugin-connections.js";
+import { composeAgentPluginConnections } from "./agent-plugin-connections.js";
 import { InMemoryVaultRepo } from "@jini-ai/platform/secrets/credential-sets";
-import { createFederatedMcpPresetRegistry } from "@jini-ai/mcp/federation";
 import { resolvePublishContentPeerHttpClient } from "./publish-content-http.js";
 import { widgetCollectionListPort } from "../../../features/entries/public-list.js";
 import { resolveMenuDoc } from "@jini-ai/cms/navigation";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import { readBuiltInExternalMcpServerIds } from "#src/features/external-mcp/built-in-connections";
-import { registerThemePreviewRefresh } from "../../inbound/public-http/middleware/theme-preview-refresh.js";
-import { TRASH_RETENTION_DAYS, bindWidgetRemoval } from "#src/features/trash/index";
-import { createTovuOAuthHttpPorts } from "#src/platform/oauth/endpoint-safety";
+import { bindWidgetRemoval } from "#src/features/trash/index";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
-import { createSettingsPrincipalLookup } from "#src/features/settings/index";
-import { createHttpClient as createGuardedMediaHttpClient, createNodeGuardedHttpPorts } from "@jini-ai/platform/http/guarded";
 import { executeCommand } from "@jini-ai/cms/core";
 import express from "express";
 import { NO_PUBLISH_CONTENT_SEED_HASH, type PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
 import { randomUUID } from "node:crypto";
-
-import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/core/events/index";
 import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
-import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { SITEMAP_INVALIDATED_EVENT, createSitemapService } from "@jini-ai/cms/seo";
-import { createSeoDeps, ensureSeoSettingDefinitions, type EnsureSeoSettingDefinitionsDeps } from "#src/features/seo/index";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
-import type { PostRecord } from "#src/features/post/index";
-import type { RedirectRecord } from "@jini-ai/cms/redirects";
-import {
-  buildTrashRegistry,
-  COMMENT_ENTITY_TYPE,
-  createDirectoryTrashAdapter,
-  unhideIfRemoveThrows,
-  createTableTrashAdapter,
-  MEDIA_ENTITY_TYPE,
-  PLUGIN_ENTITY_TYPE,
-  THEME_ENTITY_TYPE,
-  POST_ENTITY_TYPE,
-  REDIRECT_ENTITY_TYPE,
-  removeEntityWithoutBlocker,
-  type TrashDb,
-  type TrashKindMover,
-} from "#src/features/trash/index";
-import {
-  bindRemoveEntity,
-  bindForgetRemovedEntity,
-  createRecordStoreTrashAdapter,
-  createTrashService,
-  createTrashSweep,
-  InMemoryTrashRepo,
-  type TrashAdapter,
-  withFollowUps,
-} from "@jini-ai/cms/trash";
-import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
-import { InMemoryPublishContentBundleRepo } from "#src/features/publish-content/bundle-staging";
-import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
-import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";
-import { InMemoryPublishContentPeerRepo } from "#src/features/publish-content/peers";
-import { InMemoryPublishContentBaselineRepo } from "#src/features/publish-content/baseline-repo";
-import { InMemoryPublishContentRunRepo } from "#src/features/publish-content/run-repo";
+import { COMMENT_ENTITY_TYPE, unhideIfRemoveThrows, MEDIA_ENTITY_TYPE, THEME_ENTITY_TYPE, POST_ENTITY_TYPE, REDIRECT_ENTITY_TYPE, removeEntityWithoutBlocker, type TrashKindMover } from "#src/features/trash/index";
+import { bindRemoveEntity, bindForgetRemovedEntity, createTrashSweep } from "@jini-ai/cms/trash";
 import { createInMemoryRevocations } from "#src/features/publish-trust/revocations";
-import { createPublishContentApplyPort, toPublishContentApplyDeps } from "#src/features/publish-content/apply-loop";
+import { memoryPublishContentApplyPort, memoryPublishContentPorts } from "./memory-deps/slices/publish-apply.js";
 import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/index";
 import { loadBundledDeployOpsRegistry } from "#src/features/deployments/deploy-ops/registry";
@@ -107,7 +61,6 @@ import { loadBundledSourceControlProviderRegistry } from "#src/features/source-c
 import { loadBundledMailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { loadMailCredentialCards } from "../boot/mail-provider-catalog.js";
 import { loadBundledCredentialSchemeRegistry } from "#src/features/agent-plugins/auth-schemes";
-import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import {
   CUSTOM_CREDENTIALS_EGRESS_POLICY,
@@ -120,8 +73,7 @@ import { InMemoryPagesHtmlDocumentStore } from "#src/features/pages/index";
 // 2026-09-05 (fix-cycle) — used to be a lazy `require()` here; see `runExportSite`'s doc below for
 // why a plain static import is now correct.
 import { exportSite } from "#src/features/site-export/index";
-import { createInMemoryChatHistory, createInMemoryAgentSessionStore, InMemorySiteAssistantCredentialRepo, InMemoryAdminExecutionCredentialRepo, InMemoryExternalMcpToolApprovalRepo, createInMemoryConversationToolApprovalStore, ensurePublicAssistantSettingDefinitions, ensureExecutionSettingDefinitions } from "../../../assistant/index.js";
-import { InMemoryExternalMcpServerRepo } from "../../../features/external-mcp/external-mcp-store.memory.js";
+import { createInMemoryChatHistory, createInMemoryAgentSessionStore, InMemoryAdminExecutionCredentialRepo, InMemoryExternalMcpToolApprovalRepo, createInMemoryConversationToolApprovalStore } from "../../../assistant/index.js";
 // Deep-imported rather than routed through the barrel above: `assistant/index.ts`'s Section D
 // ("Admin Daemon Proxy / Process Composition") is documented as consumed by the DAEMON's own proxy
 // composition (`apps/website/src/server/runtime/composition/modules/assistant.ts`) — this route is the opposite of that, a plain static
@@ -129,30 +81,15 @@ import { InMemoryExternalMcpServerRepo } from "../../../features/external-mcp/ex
 // module doc). Filing it under Section D would misdescribe it. `app.ts` is a composition root
 // (`.dependency-cruiser.mjs`'s `COMPOSITION_ROOTS`), exempt from `no-deep-imports:assistant` for
 // exactly this reason — the same exemption `express.static`'s `/agent-icons` mount below relies on.
-import { registerMcpUiSandboxProxyRoute } from "#src/assistant/mcp-ui-sandbox-proxy-route";
 import { InMemoryPresentationSettingsRepo, resolveActiveThemeId } from "#src/features/presentation/index";
-import {
-  InMemorySettingsRepo,
-  ensureSettingsUiTabDefinitions,
-  ensureSettingDefinitions,
-  type EnsureSettingDefinitionsDeps,
-  getEffective,
-  set,
-  INSTRUCTIONS_NAMESPACE,
-} from "#src/features/settings/index";
-import { discoverAllBuiltInThemes, rescanThemes, resolveActiveTheme, NO_THEME_ID } from "#src/features/theme/index";
+import { InMemorySettingsRepo, getEffective, set, INSTRUCTIONS_NAMESPACE } from "#src/features/settings/index";
+import { discoverAllBuiltInThemes, resolveActiveTheme, NO_THEME_ID } from "#src/features/theme/index";
 import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
-import { createThemeTrashMover } from "#src/features/theme/trash-theme-tool";
 import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
 import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
-import path from "node:path";
-import { createTovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
-import { createDeferredAgentPluginUpdateEffects } from "#src/features/agent-plugins/update-effects";
-import { resolveAgentPluginLayout } from "#src/features/agent-plugins/layout";
-import { resolveSkillLayout } from "#src/features/skills/layout";
 import { bundledAgentPluginsDir, builtInThemesDir, defaultContentDbPath, mediaUploadsDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSiteStoragePaths, resolveSourceControlExportRootDir } from "./site-paths.js";
 import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../boot/dev-tls.js";
-import { describeSiteBinding, resolveAppDistDir, resolveCheckoutRoot, resolveProductRoot } from "#src/platform/site-dir/index";
+import { describeSiteBinding, resolveCheckoutRoot } from "#src/platform/site-dir/index";
 import {
   seededPosts,
   seededPresentation,
@@ -160,97 +97,31 @@ import {
   SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
 } from "../configuration/seed.js";
 import { createLocalAnalyticsSink } from "#src/features/analytics/jini-adapters";
-import { analyticsProviderRouteDeps } from "./analytics-providers.js";
-import {
-  ConsoleMailerAdapter,
-  createInMemoryCredentialLifecycle,
-  InMemoryMagicLinkTokenRepo,
-  InMemoryMemberRepo,
-  InMemoryMemberSessionRepo,
-  InMemoryMemberSubscriptionRepo,
-  InMemoryMemberTierRepo,
-} from "#src/features/members/index";
-import { InMemoryNavLocationBindingRepo, registerMenuReverters } from "#src/features/navigation/index";
-import { TrashAwareInMemoryMenuRepo, type TrashableMenuRecord } from "#src/features/navigation/trash-aware-memory-menu-repo";
+import { ConsoleMailerAdapter, InMemoryMagicLinkTokenRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "#src/features/members/index";
+import { registerMenuReverters } from "#src/features/navigation/index";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/index";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
-import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
-import { ensureSiteKeyForSite } from "#src/features/webhooks/site-key-ensure";
 import { InMemoryMediaProviderCredentialRepo } from "#src/features/media/provider-credential-store.memory";
-import {
-  DEFAULT_GC_GRACE_MS,
-  withSha256Lock,
-  InMemoryAssetBlobRepo,
-  InMemoryAssetRenditionRepo,
-  InMemoryBlobStore,
-  InMemoryImageTransformer,
-  InMemoryMediaContentTypeStore,
-  InMemoryVersionedMediaRepo,
-  type MediaRecord,
-  InMemoryTransformDefinitionRepo,
-} from "#src/features/media/index";
-import { createInMemoryIdentityRouteDeps, resolveOwnerCredentials } from "#src/features/identity/wiring";
-import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
-import {
-  InMemoryNewsletterAudienceSnapshotRepo,
-  InMemoryNewsletterCampaignRepo,
-  InMemoryNewsletterConfirmationTokenRepo,
-  InMemoryNewsletterListRepo,
-  InMemoryNewsletterSendRepo,
-  InMemoryNewsletterSubscriptionRepo,
-} from "#src/features/newsletter/repo.memory";
+import { InMemoryImageTransformer } from "#src/features/media/index";
+import { InMemoryNewsletterAudienceSnapshotRepo, InMemoryNewsletterCampaignRepo, InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterSendRepo, InMemoryNewsletterSubscriptionRepo } from "#src/features/newsletter/repo.memory";
 import { ensureDefaultList } from "#src/features/newsletter/lists";
-import { createHookRegistry, handleSendBatchClaimed, SEND_BATCH_CLAIMED_EVENT } from "#src/features/newsletter/send-pipeline";
-import type { SendBatchJob } from "#src/features/newsletter/index";
-import { MembersSubscriberDirectory } from "#src/features/members/index";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
-import { toSendPipelineDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
-import { createNewsletterModule } from "./modules/newsletter.js";
-import type { NewsletterPublicRouteDeps } from "../../inbound/public-http/routes/site/newsletter-deps.js";
-import {
-  InMemoryFormDefinitionRepo,
-  InMemoryFormSubmissionRepo,
-  type StoredFormSubmission,
-} from "@jini-ai/cms/forms";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
 import { formSubmissionAttemptsFor } from "#src/features/forms/index";
-import {
-  createVerifiedOrigin,
-  InMemoryOriginSettingRepo,
-  OriginRegistry,
-} from "@jini-ai/core/contracts/server/verified-origin";
-import { InMemoryRedirectRepo, RedirectHitSinkImpl, redirectMatcher, RedirectSlugChangeCapture, registerRedirectHitOutboxHandler, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
+import { redirectMatcher, RedirectSlugChangeCapture, registerRedirectHitOutboxHandler, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { registerRedirectsPhaseHandlers } from "#src/features/redirects/phase-handler";
 import { getSlugChangeCapture, registerSlugChangeCapture } from "#src/platform/routing/adapter";
-import {
-  InMemoryDbOpsAdapter,
-  InMemoryDatabaseIntrospectionAdapter,
-  InMemoryMigrationRunsRepo,
-  InMemoryRestorePointsRepo,
-  InMemorySiteStatusRepo,
-  InMemoryDatabaseLedgerRepo,
-} from "#src/features/database/repo.memory";
-import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "#src/features/content-types/index";
-import { TrashAwareInMemoryEntryRepo, type TrashableEntryRecord } from "#src/features/entries/trash-aware-memory-repo";
-import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
-import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
+import { InMemoryDbOpsAdapter, InMemoryDatabaseIntrospectionAdapter, InMemoryMigrationRunsRepo, InMemorySiteStatusRepo, InMemoryDatabaseLedgerRepo } from "#src/features/database/repo.memory";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { readAdminChartProviderSnapshot } from "./chart-providers.js";
 import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL, RECHARTS_DEFAULT_PROVIDER } from "./charts-recharts-source.js";
-import { ensureChartProviderSetting } from "#src/features/settings/chart-provider";
-import { ensureFormDestinationSetting } from "#src/features/settings/form-destination";
 import { createSiteConsentReadiness } from "#src/features/consent/settings";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
 import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";
 import { createDeclaredContentTypePorts } from "./declared-content-types.js";
 import { deferDeclaredContentTypePorts } from "@jini-ai/plugins/host";
-import { forgetPluginActivations, type RemovePluginFn } from "@jini-ai/plugins/host";
 import { createApplyConnectDefaults } from "#src/features/agent-plugins/apply-connect-defaults";
 import { bindProviderFacePorts, followProviderActivations } from "#src/features/agent-plugins/provider-plugin-link";
-import { createAgentPluginsModule } from "./modules/agent-plugins.js";
-import { createPluginsModule } from "./modules/plugins.js";
-import { createSkillsModule } from "./modules/skills.js";
 import { composePluginRuntime } from "./plugin-runtime.js";
 import { TOVU_CORE_EXTENSION_CLAIMS } from "./core-extension-claims.js";
 import { resolveGalleryWidgetMedia } from "@jini-ai/cms/widgets/html";
@@ -258,149 +129,38 @@ import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import { wireCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
 import { createMenuPageTargetResolver } from "#src/features/navigation/page-target-resolver";
 import { createNavMenuReadModel } from "#src/features/navigation/index";
-import { createCommentsModule, HeuristicSpamCheck } from "@jini-ai/cms/comments";
-import { createCommentsHostPorts, ensureCommentsSettingDefinitions, resolveCommentsIpHashSalt } from "#src/features/comments/index";
-import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "#src/features/analytics/config.settings";
-import {
-  ensureSiteTitleSettingDefinition,
-  InMemorySiteTitlePreservationStore,
-  preserveLegacySiteTitles,
-} from "#src/features/settings/site-title";
-import { ensureAdminInterfaceSettingDefinitions } from "#src/features/settings/admin-interface";
-import { createSiteTimeZonePort, ensureSiteTimeZoneSettingDefinition } from "#src/features/settings/site-timezone";
-import { InMemoryCommentRepo } from "@jini-ai/cms/comments";
-import type { CommentRecord } from "@jini-ai/cms/comments";
-import { registerCommentsSubmitRoute } from "../../inbound/public-http/routes/site/comments-submit.js";
-import { noopStampWatermark, toTaxonomyOutbox } from "#src/features/taxonomy/index";
-import {
-  SqliteEntryTermRepo,
-  SqliteTaxonomyRepo,
-  SqliteTaxonomyRevisionRepo,
-  SqliteTermRepo,
-} from "#src/features/taxonomy/repo.sqlite";
-import { createTaxonomyPurgeFollowUp, createTermPurgeFollowUp } from "#src/features/taxonomy/taxonomy-trash-follow-ups";
+import { createSettingsAnalyticsConfig } from "#src/features/analytics/config.settings";
+import { createSiteTimeZonePort } from "#src/features/settings/site-timezone";
+import { noopStampWatermark } from "#src/features/taxonomy/index";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "@jini-ai/db/recovery/lookup-adapters";
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "#src/contracts/core/gated-mutations/composition";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mailer";
-import { registerAdminTaxonomyMergeTermRoutes } from "../../inbound/admin-http/routes/taxonomy/merge-term.js";
-import { registerAdminDatabaseMigrateForwardRoutes } from "../../inbound/admin-http/routes/database/migrate-forward.js";
-import { registerAdminRecoveryRestoreRoutes } from "../../inbound/admin-http/routes/recovery/restore.js";
 
-import { applyDevCors } from "../../inbound/shared/dev-cors.js";
-import { applyRequestTracking, captureRouteError } from "../../inbound/shared/observability-middleware.js";
-import { parsePublicJsonBody, respondToOversizedBody } from "../../inbound/shared/json-body-parsers.js";
-import { applyTrustProxy } from "../../inbound/shared/trust-proxy.js";
-import { applySiteServingGate } from "../../inbound/public-http/middleware/site-serving-gate.js";
-import { applyPublicPageSecurityHeaders } from "../../inbound/public-http/middleware/public-page-security-headers.js";
-import { applyPublishedWebMcp } from '../../inbound/public-http/middleware/published-webmcp.js';
-import { applySiteCookieConsent } from '../../inbound/public-http/middleware/site-cookie-consent.js';
-import { applyAdminBrowserAnalytics } from './browser-analytics.js';
-import { applyBrowserAnalyticsHttp } from './browser-analytics-http.js';
-import { applyCanonicalSiteHostRedirect } from '../../inbound/public-http/middleware/canonical-site-host.js';
-import { isPublishedWebMcpEnabled } from '#src/features/webmcp/settings';
-import { registerAdminStatic } from "../../inbound/admin-http/admin-static.js";
-import { registerSiteChatStatic } from "../../inbound/public-http/middleware/site-chat-static.js";
-import { registerThemePreviewStatic } from "../../inbound/public-http/middleware/theme-preview-static.js";
-import { registerThemeStaticAssets } from "../../inbound/public-http/middleware/theme-static-assets.js";
-import { registerThemePagePreview } from "../../inbound/public-http/middleware/theme-page-preview.js";
-import { applyRenderThemeOverride } from "../../inbound/public-http/middleware/render-theme-override.js";
+import { captureRouteError } from "../../inbound/shared/observability-middleware.js";
+import { respondToOversizedBody } from "../../inbound/shared/json-body-parsers.js";
 import { registerPluginContributionRoutes, createPluginRouteAuthPorts } from "../../inbound/public-http/routes/plugin-contributions.js";
-import { registerMailFeedbackRoute } from "../../inbound/public-http/routes/mail-feedback.js";
-import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
-import { registerMemberPageRoutes } from "../../inbound/public-http/routes/site/member-pages.js";
-import { registerSiteChatComparisonRoutes } from "../../inbound/public-http/routes/site/chat-comparison.js";
 import { resolveStorefrontProducts } from "../../inbound/public-http/routes/site/products.js";
-import { registerAnalyticsIngestRoute } from "../../inbound/public-http/routes/site/analytics-ingest.js";
-import { registerContentPostGetRoute } from "../../inbound/public-http/routes/content/posts/get-by-slug.js";
-import { createCommentsModerationModule } from "./modules/comments-moderation.js";
-import { createCoreModule } from "./modules/core.js";
-import type { AdminSignInPort } from "#src/server/inbound/admin-http/dev-auth";
-import { createFormsModule } from "./modules/forms.js";
-import { createMenusModule } from "./modules/menus.js";
-import { createWidgetsModule } from "./modules/widgets.js";
-import { createSettingsModule } from "./modules/settings.js";
-import { createUsersModule } from "./modules/users.js";
-import { createApiKeysModule } from "./modules/api-keys.js";
-import { createWorkspaceModule } from "./modules/workspace.js";
-import { createIntegrationsModule } from "./modules/integrations.js";
-import { createIntegrationsAdminModule } from "./modules/integrations-admin.js";
-import { createExternalMcpModule } from "./modules/external-mcp.js";
-import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../../../features/external-mcp/external-mcp-oauth.js";
-import { isPublicAssistantEnabled, resolvePublicAssistantAvailability } from "../../../assistant/index.js";
-import { createMediaModule } from "./modules/media.js";
-import { createTaxonomyModule } from "./modules/taxonomy.js";
-import { createTrashModule } from "./modules/trash.js";
-import { withUserTrashAdminOverride } from "./trash-user-admin-override.js";
-import { identityServiceDepsFrom } from "../../inbound/admin-http/routes/users/deps.js";
-import { createContentModule } from "./modules/content.js";
-import { createPublishContentModule } from "./modules/publish-content.js";
-import { createMembersModule } from "./modules/members.js";
-import type { MembersRouteDeps } from "../../inbound/admin-http/routes/members/deps.js";
-import type { MemberPublicRouteDeps } from "../../inbound/public-http/routes/members/deps.js";
-import {
-  createRateLimiter,
-  MAGIC_LINK_COMPLETE_ATTEMPT,
-  MAGIC_LINK_PER_EMAIL,
-  LOGIN_STRICT,
-  MAGIC_LINK_PER_IP,
-  SITE_ASSISTANT_PER_IP,
-} from "#src/contracts/core/rate-limit/rate-limit";
-import { createAnalyticsModule } from "./modules/analytics.js";
-import { registerAdminModuleStatusRoute } from "../../inbound/admin-http/routes/system/module-status.js";
-import { registerAdminObservabilityStatusRoute } from "../../inbound/admin-http/routes/system/observability-status.js";
-import { registerAdminBrowserTelemetryRoute } from "../../inbound/admin-http/routes/system/browser-telemetry.js";
-import { registerAdminServerLogsRoute } from "../../inbound/admin-http/routes/system/server-logs.js";
-import { registerAdminMailStatusRoute } from "../../inbound/admin-http/routes/system/mail-status.js";
-import { registerAdminMailProviderRoutes } from "../../inbound/admin-http/routes/system/mail-providers.js";
-import { registerAdminMailDnsRoutes } from "../../inbound/admin-http/routes/system/mail-dns.js";
-import { registerAdminMailTestSendRoute } from "../../inbound/admin-http/routes/system/mail-test-send.js";
-import { registerAdminMailActivityRoutes } from "../../inbound/admin-http/routes/system/mail-activity.js";
-import { createDnsChangeDepsFactory } from "./dns-change-deps.js";
-import { DOMAIN_DNS_EGRESS_POLICY } from "./domain-dns-adapters.js";
-import { registerAdminAssistantDaemonRoutes } from "../../inbound/admin-http/routes/system/assistant-daemon.js";
-import { registerAdminAssistantPermanentDeletesRoutes } from "../../inbound/admin-http/routes/system/assistant-permanent-deletes.js";
-import { registerAdminAssistantSubagentsRoutes } from "../../inbound/admin-http/routes/system/assistant-subagents.js";
-import { registerAdminDeploymentOverviewRoute } from "../../inbound/admin-http/routes/system/deployment-overview.js";
-import { registerAdminSitesRoutes } from "../../inbound/admin-http/routes/system/sites.js";
-import { registerAdminSiteProfileRoute } from "../../inbound/admin-http/routes/site/profile.js";
-import { registerAdminDockerfileSourceRoute } from "../../inbound/admin-http/routes/system/dockerfile-source.js";
-import { registerAdminExportSiteRoutes } from "../../inbound/admin-http/routes/system/export-site.js";
-import { registerAdminCustomCredentialsRoutes } from "../../inbound/admin-http/routes/system/custom-credentials.js";
-import { registerAdminCredentialCopyRoutes } from "../../inbound/admin-http/routes/system/credential-copy.js";
-import { registerAdminPublishCredentialsRoutes } from "../../inbound/admin-http/routes/system/publish-credentials.js";
-import { registerAdminSourceControlCredentialsRoutes } from "../../inbound/admin-http/routes/system/source-control-credentials.js";
-import { registerAdminSiteKeyRoutes } from "../../inbound/admin-http/routes/system/site-key.js";
-import { siteKeyRecovery } from "./site-key-recovery.js";
-import { registerAdminFsFilesCustomRootRoutes } from "../../inbound/admin-http/routes/fs-files/custom-root.js";
-import { registerAdminFsFilesFolderPickerRoutes } from "../../inbound/admin-http/routes/fs-files/folder-picker.js";
-import { createNativeFolderPicker } from "#src/features/fs-files/native-folder-picker";
-import { isLocalTovuHost } from "./registered-sites.js";
-import { registerAdminPublishSiteRoutes } from "../../inbound/admin-http/routes/system/publish-site.js";
-import { createFormsAdminModule } from "./modules/forms-admin.js";
-import { createFormFileStorage } from "../../../features/forms/form-file-storage.js";
-import { registerFormsSubmitRoute } from "../../inbound/public-http/routes/site/forms-submit.js";
-import { createRedirectsModule } from "./modules/redirects.js";
-import { createDatabaseRecoveryModule } from "./modules/database-recovery.js";
-import { createContentTypesModule } from "./modules/content-types.js";
-import { createSeoModule } from "./modules/seo.js";
-import { subscribeSiteSearchIndexer } from "./modules/site-search.js";
-import { registerSiteSearchRoute } from "#src/server/inbound/public-http/routes/site/search";
+import { createExternalMcpOAuthService } from "../../../features/external-mcp/external-mcp-oauth.js";
+import { resolvePublicAssistantAvailability } from "../../../assistant/index.js";
+import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
 import { isAdminAssistantEnabled } from "./admin-assistant-enabled.js";
-import { createAssistantModule } from "./modules/assistant.js";
-import { createSiteAssistantModule } from "./modules/site-assistant.js";
-import { createAssistantChatsModule } from "./modules/assistant-chats.js";
-import { createAssistantSettingsModule } from "./modules/assistant-settings.js";
-import { createAssistantExecutionModule } from "./modules/assistant-execution.js";
-import { createAssistantByokModule } from "./modules/assistant-byok.js";
-import { createAssistantAgUiModule } from "./modules/assistant-ag-ui.js";
 import type { RouteDeps } from "../../routes/types.js";
 // `type`-only, so it is erased and adds no runtime edge — used only to annotate
 // {@link runExportSite} below.
 import type { ExportEngine } from "#src/features/deployments/export-run";
-import type { Express } from "express";
-import type { ServerModuleHandle } from "./modules/types.js";
 import { createMediaProviderRegistry } from "@jini-ai/integrations/media-providers";
+import type { CreateAppOptions } from "./create-app-options.js";
+import { siteAppBootWorkByDeps } from "./site-app-boot-work.js";
+import { subscribeSiteEventHandlersOnce } from "./site-event-subscriptions.js";
+import { applyPublicMiddleware, registerAdminSpa, registerSiteIdlePark } from "./http-app/public-middleware.js";
+import { mountPublicSite } from "./http-app/mount-public-site.js";
+import { mountAdminData } from "./http-app/mount-admin-data.js";
+import { mountAssistant } from "./http-app/mount-assistant.js";
+import { mountAdminFeatures } from "./http-app/mount-admin-features.js";
+import { mountAdminSystem } from "./http-app/mount-admin-system.js";
+import { mountMembersNewsletter } from "./http-app/mount-members-newsletter.js";
+import { mountCoreContent } from "./http-app/mount-core-content.js";
 
 /**
  * @file HTTP composition root and route wiring.
@@ -438,22 +198,6 @@ export interface CreateRouteDepsOptions {
    *  this hermetic root ships no seed ({@link NO_PUBLISH_CONTENT_SEED_HASH}); a two-instance test
    *  passes a real `createPublishContentSeedHash()` over a third instance standing in for the seed. */
   readonly publishContentSeedHash?: PublishContentSeedHashFn;
-}
-
-function createLazyProxy<T extends object>({ factory }: { factory: () => T }, _optional = {}): T {
-  let instance: T | undefined;
-  return new Proxy({} as T, {
-    get(_target, property) {
-      const object = (instance ??= factory());
-      const value = Reflect.get(object, property, object);
-      return typeof value === "function" ? value.bind(object) : value;
-    },
-    // `in` must see the real instance too: `sqliteKernel` tells a Drizzle handle from its client by `"$client" in`.
-    has(_target, property) {
-      instance ??= factory();
-      return Reflect.has(instance, property);
-    },
-  });
 }
 
 /** Preserve optional plugin-runtime overrides without turning absent values into explicit options.
@@ -500,427 +244,12 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     }),
     ...inMemoryPluginRuntimeOptions({ options }),
   });
-  // Composition root: the in-memory root keeps the same env-driven owner login as `deps.ts`.
-  const identity = createInMemoryIdentityRouteDeps({ workspaceId: seededWorkspace.id, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredentials: resolveOwnerCredentials({ env: startupSecretEnvironment({ env: process.env }) }) });
-  // Keep the host repository ABI while binding the active/workspace-scoped settings lookup.
-  const settingsPrincipals = {
-    ...createSettingsPrincipalLookup({ repo: identity.principalRepo }),
-    findById: (required: Parameters<typeof identity.principalRepo.findById>[0]) => identity.principalRepo.findById(required),
-    list: (required: Parameters<typeof identity.principalRepo.list>[0]) => identity.principalRepo.list(required),
-    save: (record: Parameters<typeof identity.principalRepo.save>[0]) => identity.principalRepo.save(record),
-  };
-  // Fire-and-forget, mirroring `identityReady` (see routes/types.ts's `settingsReady` doc) — this
-  // composition root stays synchronous; consumers await `settingsReady` before relying on the
-  // settings boot sequence being ready.
-  // Presentation remains the live owner; boot must not write a second active-theme value.
-  const settingsReady = Promise.resolve();
-
-  // Serial writes avoid nested SQLite transactions; see startSettingsRegistration below.
-  const { seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady } = startSettingsRegistration({
-    deps: { settingsRepo, clock, ids: idGen, principals: settingsPrincipals },
-    settingsReady,
-    workspaceId: seededWorkspace.id,
-    systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
-  });
-
-  // SPEC-050 `core.site.title` (`features/settings/site-title.ts`): registration, then the one-time
-  // pin for workspaces that existed before the setting. This root always seeds fresh, so it records
-  // no pre-existing workspace (EC-03) and the pin is a no-op. Chained after `analyticsSettingsReady`
-  // for the single-SQLite-connection-transaction reason every registration above documents.
-  const siteTitlePreservationStore = new InMemorySiteTitlePreservationStore();
-  const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: settingsPrincipals };
-  const siteSettingsReady = analyticsSettingsReady
-    // `core.interface` (`features/settings/admin-interface.ts`), chained here for the same
-    // one-connection reason as the registrations above.
-    .then(() => ensureAdminInterfaceSettingDefinitions(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
-    .then(() => ensureChartProviderSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
-    .then(() => ensureFormDestinationSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
-    .then(() => ensurePreviewSwitcherSetting({ deps: siteTitleSettingsDeps, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
-    .then(() => ensureSiteTitleSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }))
-    // Bug D: `core.site.timezone` (`features/settings/site-timezone.ts`), the zone post dates render in.
-    .then(() => ensureSiteTimeZoneSettingDefinition(siteTitleSettingsDeps, { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }));
-  // Public title reads already handle pending pins; consent must not inherit this migration wait.
-  const siteTitleReady = siteSettingsReady
-    .then(() =>
-      preserveLegacySiteTitles(
-        { ...siteTitleSettingsDeps, preservationStore: siteTitlePreservationStore },
-        { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
-      )
-    )
-    .then(() => undefined);
-
-  // Consent no longer observes this detached branch. Observe it now while preserving rejection
-  // for consumers that await title readiness later, as the persistent composition root does.
-  void siteTitleReady.catch(() => undefined);
-
-  // SPEC-011 (Newsletter) — declared here (not inline in the return object) so `newsletterReady`
-  // below can seed the default list against the SAME repo instance the returned deps expose.
-  const newsletterListRepoInMemory = new InMemoryNewsletterListRepo();
-
-  // SPEC-009 (Redirects, ADR-PIPE-009) — FIRST-TIME composition-root wiring of `origin`'s
-  // OriginRegistry and `routing`'s registration functions (Context item 4: neither library had a
-  // real consumer before this feature). Seeds a `dev-capability` verified origin for the single
-  // seeded workspace, mirroring every other dev-mode fixture in this file (e.g. `seededWorkspace`).
-  const originRegistry = new OriginRegistry({
-    repo: new InMemoryOriginSettingRepo({ seeds: [
-      {
-        workspaceId: seededWorkspace.id,
-        origin: createVerifiedOrigin({
-          scheme: "http",
-          host: "localhost",
-          port: 3000,
-          verifiedAt: clock.nowIso(),
-          source: "dev-capability",
-        }),
-        // ADR-PIPE-015 T016: a dev-capability egress allowlist entry so the real
-        // isAllowedEgressTarget oracle doesn't fail-closed on every fresh dev server — matches the
-        // `example.com` target every integrations fixture/test in this repo already uses.
-        egressAllowlist: ["example.com"],
-      },
-    ] }),
-  });
-  const redirectRepo = new InMemoryRedirectRepo();
-  const redirectHitSink = new RedirectHitSinkImpl();
-  const outbox = new InMemoryOutbox();
-  const bus = new InMemoryEventBus();
-  // Admin-UI backend-gap closure (design-spec.md §0.4/§4.8, this dispatch): declared here (not
-  // inline in the return object) so Recovery's `deepLinkRestorePointLookup` below reads the SAME
-  // in-memory rows Database's restore-points routes write into, not a second, disconnected instance.
-  const restorePointsRepo = new InMemoryRestorePointsRepo();
-  // Local admin Trash, hermetic half. A plain Map resolved at CALL time, same as `deps.ts`'s —
-  // never a module-level registry. Every domain whose delete path is wired to `deps.remove` in this
-  // composition must be registered here; an unregistered type fails loudly at the call rather than
-  // silently trashing something that could never be restored.
-  const commentRepo = new InMemoryCommentRepo();
-  // Hoisted here (from beside `changeSets` further down) for TWO reasons now: the apply loop's
-  // `media.apply()` must write into the very stores the media routes and this file's own tests
-  // read — constructed twice they would be two disconnected in-memory stores — and the media
-  // `TrashAdapter` just below needs the same instance.
-  const assetRenditionRepo = new InMemoryAssetRenditionRepo({}, { initialRows: [] });
-  const mediaRepo = new InMemoryVersionedMediaRepo({}, { initialRows: [], renditionRepo: assetRenditionRepo });
-  // Hoisted for the same reason: the `form_submission` `TrashAdapter` below must flip the marker on
-  // the very store the Forms routes read.
-  const formSubmissionRepo = new InMemoryFormSubmissionRepo();
-  // ADR-031/ADR-023 (SPEC-033) — hoisted so the Comments module's `entryLookup` reads the SAME
-  // in-memory entries the rest of the hermetic composition writes into (mirrors
-  // `restorePointsRepo`'s identical hoisting rationale above) — and so the `widget` `TrashAdapter`
-  // below flips the marker on the very store the widget routes read.
-  const entryRepo = new TrashAwareInMemoryEntryRepo();
-  const workspaceId = seededWorkspace.id;
-  const taxonomyDb = createLazyProxy<ContentDb>({ factory: () => openContentDb(":memory:") });
-  const sqliteTrashDb = createLazyProxy<TrashDb>({ factory: () => contentKernel({ store: taxonomyDb }) });
-  // Mirror production permissions for the memory-backed forms, menus and widgets too: without
-  // their registry entries the Trash routes report a hermetically trashed record as "forbidden"
-  // and it can never be restored (F3469/F1868). Its writes still go through the in-memory adapter.
-  const trashRegistry = new Map(
-    [...buildTrashRegistry()].filter(([entityType]) =>
-      ["term", "taxonomy", "form_submission", "form", "menu", "widget"].includes(entityType)
-    )
-  );
-  const trashRepo = new InMemoryTrashRepo({});
-  const taxonomyFollowUpTermRepo = new SqliteTermRepo({ db: taxonomyDb, workspaceId });
-  const taxonomyFollowUpRevisions = new SqliteTaxonomyRevisionRepo({ db: taxonomyDb, workspaceId });
-  const taxonomyFollowUpOutbox = toTaxonomyOutbox({ outbox, clock, idGen, workspaceId });
-  const taxonomyRepo = new SqliteTaxonomyRepo({ db: taxonomyDb, workspaceId });
-  const termRepo = new SqliteTermRepo({ db: taxonomyDb, workspaceId });
-  const entryTermRepo = new SqliteEntryTermRepo({ db: taxonomyDb, workspaceId });
-  const taxonomyRevisionRepo = new SqliteTaxonomyRevisionRepo({ db: taxonomyDb, workspaceId });
-  const pluginTrashAdapter = createDirectoryTrashAdapter({
-    entityType: PLUGIN_ENTITY_TYPE,
-    locate: ({ entityId }) => pluginRuntime.locatePluginPackageDirs(entityId),
-    forget: ({ entityId }) => forgetPluginActivations({ pluginId: entityId, deps: { repo: pluginActivationRepo } }),
-  });
-  const termTrashEntry = trashRegistry.get("term");
-  const taxonomyTrashEntry = trashRegistry.get("taxonomy");
-  const formTrashEntry = trashRegistry.get("form");
-  if (!termTrashEntry || !taxonomyTrashEntry || !formTrashEntry) throw new Error("memory trash registry is missing a term, taxonomy, or form entry");
-  const trashAdapters = new Map<string, TrashAdapter>([
-    [PLUGIN_ENTITY_TYPE, pluginTrashAdapter],
-    [
-      POST_ENTITY_TYPE,
-      createRecordStoreTrashAdapter<PostRecord>({
-        entityType: POST_ENTITY_TYPE,
-        store: {
-          findById: required => (postRepo).findById(required),
-          save: ({ record }) => (postRepo).save(record)
-        },
-        isHidden: ({ record }) => record.deletedAt !== undefined && record.deletedAt !== null,
-        hidden: ({ record, at }) => ({
-          ...record,
-          deletedAt: at,
-          updatedAt: at
-        }),
-        shown: ({ record, at }) => ({
-          ...record,
-          deletedAt: null,
-          updatedAt: at
-        })
-      }, {
-        // 2026-09-20: `PostRepoPort.hardDelete` now exists on both adapters, so this purges for
-        // real. The former stand-down ("`InMemoryPostRepo` has no row removal") was honest but left
-        // an expired post un-purgeable in this composition — the sweeper released the lease and
-        // retried the same row on every pass, forever. Same cascade the durable adapter performs:
-        // `hardDelete` takes the revision ledger and the parked autosave with the row.
-        hardDelete: (required) => postRepo.hardDelete(required)
-      }),
-    ],
-    [
-      REDIRECT_ENTITY_TYPE,
-      createRecordStoreTrashAdapter<RedirectRecord>({
-        entityType: REDIRECT_ENTITY_TYPE,
-        // `insertRedirect` rather than `save`: this repo's `save` insists on a paired revision, and
-        // the revision for a tombstone is written by `tombstoneRedirect` itself.
-        store: {
-          findById: (required) => redirectRepo.findById(required),
-          save: async ({ record }) => {
-            await redirectRepo.insertRedirect(record);
-          }
-        },
-        isHidden: ({ record }) => record.status === "disabled",
-        hidden: ({ record, at }) => ({
-          ...record,
-          status: "disabled",
-          updatedAt: at
-        }),
-        shown: ({ record, at }) => ({
-          ...record,
-          status: "active",
-          updatedAt: at
-        })
-      }),
-    ],
-    [
-      COMMENT_ENTITY_TYPE,
-      createRecordStoreTrashAdapter<CommentRecord>({
-        entityType: COMMENT_ENTITY_TYPE,
-        // `save` is this double's direct-write seam (not on `CommentRepoPort`) — the moderation
-        // write-service has already flipped the status by the time `remove` runs, so `hide` is a
-        // no-op here and only `unhide` (a Trash-screen restore) actually writes.
-        store: {
-          findById: required => (commentRepo).findById(required),
-          save: ({ record }) => (commentRepo).save(record)
-        },
-        isHidden: ({ record }) => record.status === "trash",
-        hidden: ({ record, at }) => ({
-          ...record,
-          status: "trash",
-          updatedAt: at
-        }),
-        // Back to moderation, not to the prior status: the original is recorded nowhere the
-        // no-parse rule lets an adapter read, and of the two guesses this is the one that cannot
-        // republish spam onto a public page.
-        shown: ({ record, at }) => ({
-          ...record,
-          status: "pending",
-          updatedAt: at
-        })
-        // No `hardDelete`: `InMemoryCommentRepo.purge` needs a moderator, an action and a note this
-        // adapter does not have, so purge stands down rather than claiming a removal.
-      }),
-    ],
-    [
-      MEDIA_ENTITY_TYPE,
-      createRecordStoreTrashAdapter<MediaRecord>({
-        entityType: MEDIA_ENTITY_TYPE,
-        store: {
-          findById: required => (mediaRepo).findById(required),
-          save: ({ record }) => (mediaRepo).save(record)
-        },
-        isHidden: ({ record }) => record.status === "trashed",
-        hidden: ({ record, at }) => ({
-          ...record,
-          status: "trashed",
-          updatedAt: at
-        }),
-        shown: ({ record, at }) => ({
-          ...record,
-          status: "active",
-          updatedAt: at
-        })
-        // No `hardDelete`: a media purge is not a row delete — rendition rows hang off it and the
-        // blob store holds bytes, a ladder `purgeMedia` owns. Reimplementing it here would orphan
-        // bytes, so purge stands down instead.
-      }),
-    ],
-    [
-      "form",
-      createRecordStoreTrashAdapter({
-        entityType: "form",
-        store: {
-          findById: (required) => formDefinitionRepo.findAnyById(required),
-          save: ({ record }) => formDefinitionRepo.save(record),
-        },
-        isHidden: ({ record }) => record.deletedAt !== null,
-        hidden: ({ record, at }) => ({ ...record, deletedAt: at }),
-        shown: ({ record }) => ({ ...record, deletedAt: null }),
-      }, {
-        // Match the durable adapter's cascade, including independently trashed submissions' index rows.
-        hardDelete: async ({ workspaceId, id }) => {
-          const submissions = await formSubmissionRepo.listAllForDefinition({ workspaceId, formDefinitionId: id });
-          for (const submission of submissions) {
-            await trashRepo.deleteByEntity({ workspaceId, entityType: "form_submission", entityId: submission.id });
-          }
-          await formSubmissionRepo.deleteAllForDefinition({ workspaceId, formDefinitionId: id });
-          await formDefinitionRepo.hardDelete({ workspaceId, id });
-        },
-      }),
-    ],
-    [
-      "form_submission",
-      createRecordStoreTrashAdapter<StoredFormSubmission>({
-        entityType: "form_submission",
-        // The repo's trash-blind, memory-only seam — its port reads hide a trashed submission.
-        store: {
-          findById: (required) => formSubmissionRepo.findAnyById(required),
-          save: ({ record }) => formSubmissionRepo.save(record)
-        },
-        isHidden: ({ record }) => record.deletedAt !== null,
-        hidden: ({ record, at }) => ({
-          ...record,
-          deletedAt: at
-        }),
-        shown: ({ record }) => ({
-          ...record,
-          deletedAt: null
-        })
-      }, {
-        hardDelete: (required) => formSubmissionRepo.hardDelete(required)
-      }),
-    ],
-    [
-      "widget",
-      createRecordStoreTrashAdapter<TrashableEntryRecord>({
-        entityType: "widget",
-        // The repo's trash-blind seam — its port reads hide a trashed entry.
-        store: {
-          findById: (required) => entryRepo.findAnyById(required),
-          save: ({ record }) => entryRepo.saveAny(record)
-        },
-        isHidden: ({ record }) => record.deletedAt !== null,
-        hidden: ({ record, at }) => ({
-          ...record,
-          deletedAt: at
-        }),
-        shown: ({ record }) => ({
-          ...record,
-          deletedAt: null
-        })
-      }, {
-        // Remove only outgoing references; other content may still refer to this now-missing widget.
-        hardDelete: async (required) => {
-          await entryRefsRepo.removeBySource({ workspaceId: required.workspaceId, sourceEntryId: required.id });
-          await entryRepo.hardDelete(required);
-        },
-      }),
-    ],
-    [
-      "menu",
-      createRecordStoreTrashAdapter<TrashableMenuRecord>({
-        entityType: "menu",
-        // The repo's trash-blind seam — its port reads hide a trashed menu. Purge must remove
-        // location bindings first, matching the durable registry's purgeFirst contract.
-        store: {
-          findById: (required) => menuRepo.findAnyById(required),
-          save: ({ record }) => menuRepo.saveAny(record)
-        },
-        isHidden: ({ record }) => record.status === "trash",
-        // Stash the pre-trash status so `shown` can restore it — `flip()` has no side-channel of its
-        // own for it (see `trash-aware-memory-menu-repo.ts`'s file doc).
-        hidden: ({ record, at }) => ({
-          ...record,
-          status: "trash",
-          updatedAt: at,
-          priorStatus: record.status
-        }),
-        shown: ({ record, at }) => ({
-          ...record,
-          status: record.priorStatus ?? "published",
-          updatedAt: at,
-          priorStatus: null
-        })
-      }, {
-        hardDelete: async ({ workspaceId, id }) => {
-          await navLocationBindingRepo.removeByMenu({ workspaceId, menuId: id });
-          await menuRepo.remove({ workspaceId, id });
-        },
-      }),
-    ],
-    [
-      "term",
-      withFollowUps({
-        adapter: createTableTrashAdapter({
-          entry: termTrashEntry,
-          db: sqliteTrashDb,
-        })
-      }, createTermPurgeFollowUp({
-        termRepo: taxonomyFollowUpTermRepo,
-        trash: trashRepo,
-        revisions: taxonomyFollowUpRevisions,
-        outbox: taxonomyFollowUpOutbox,
-        clock,
-      })),
-    ],
-    [
-      "taxonomy",
-      withFollowUps({
-        adapter: createTableTrashAdapter({
-          entry: taxonomyTrashEntry,
-          db: sqliteTrashDb,
-        })
-      }, createTaxonomyPurgeFollowUp({
-        termRepo: taxonomyFollowUpTermRepo,
-        trash: trashRepo,
-        revisions: taxonomyFollowUpRevisions,
-        outbox: taxonomyFollowUpOutbox,
-        clock,
-      })),
-    ],
-  ]);
-  for (const entityType of ["form", "form_submission"] as const) {
-    const adapter = trashAdapters.get(entityType);
-    if (!adapter) throw new Error(`memory trash has no ${entityType} adapter`);
-    trashAdapters.set(entityType, withFollowUps({ adapter }, createFormAttachmentPurgeHooks({
-      readSubmissions: async ({ workspaceId, entityId, after, limit }) => {
-        const rows = entityType === "form" ? await formSubmissionRepo.listAllForDefinition({ workspaceId, formDefinitionId: entityId })
-          : [await formSubmissionRepo.findAnyById({ workspaceId, id: entityId })];
-        // Match the SQL host's keyset pages, including the terminal empty page for one submission.
-        return rows.filter(row => row !== null)
-          .filter(row => after === undefined || row.id > after)
-          .sort((left, right) => {
-            if (left.id < right.id) return -1;
-            return left.id > right.id ? 1 : 0;
-          })
-          .slice(0, limit).map(row => ({ id: row.id, dataJson: JSON.stringify(row.data) }));
-      },
-      remove: async ({ workspaceId, mediaId }) => {
-        const asset = await mediaRepo.findById({ workspaceId, id: mediaId });
-        if (!asset) return;
-        const files = createFormFileStorage({ media: {
-          mediaRepo, clock, idGen, entryRefsRepo, postRepo, blobRepo: routeDeps.assetBlobRepo,
-          renditionRepo: routeDeps.assetRenditionRepo, blobStore: routeDeps.blobStore,
-          ...createFormMediaCleanup({ kernel: routeDeps.contentKernel, outbox, clock, graceMs: DEFAULT_GC_GRACE_MS }),
-        }, contentTypes: routeDeps.mediaContentTypeStore, resolveCreatedByPrincipal: async () => { throw new Error("Purge never creates files"); } });
-        await files.discard({ workspaceId, reference: { mediaId } });
-      },
-    })));
-  }
-  const trash = createTrashService({
-    repo: trashRepo,
-    adapters: trashAdapters,
-    idGen: { newId: () => randomUUID() },
-    // Nothing here opens a database transaction, so the runner is a pass-through. The atomicity
-    // guarantee this replaces is a SQLite one; an in-memory store has no partial-write window.
-    transaction: ({ work }) => work(),
-    entityPolicy: ({ entityType }) => (trashAdapters).has(entityType)
-  }, {
-    retentionDays: TRASH_RETENTION_DAYS,
-    onError: ({ error }) => console.error("[trash] onChanged hook failed; the trash/restore/purge it followed already committed", error)
-  });
-  // Folder moves before the Trash row is written; if that write throws, move the folder back.
-  const removePlugin: RemovePluginFn = unhideIfRemoveThrows({ adapter: pluginTrashAdapter, remove: bindRemoveEntity({
-    trash: trash,
-    entityType: PLUGIN_ENTITY_TYPE
-  }) });
+  const { settingsPrincipals, analyticsSettingsReady, settingsReady, commentsSettingsReady, identity, seoReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady } = composeIdentitySettings({ clock, idGen, settingsRepo });
+  const { siteTitleSettingsDeps, siteSettingsReady, siteTitleReady, siteTitlePreservationStore } = composeSiteTitleSettings({ settingsRepo, clock, idGen, settingsPrincipals, analyticsSettingsReady });
+  const { originRegistry, newsletterListRepoInMemory } = composeOriginNewsletter({ clock });
+  const { taxonomyDb, workspaceId, outbox, redirectRepo, commentRepo, mediaRepo, formSubmissionRepo, entryRepo, sqliteTrashDb, bus, redirectHitSink, assetRenditionRepo, restorePointsRepo } = composeMemoryRepos();
+  const { trashRegistry, termRepo, taxonomyFollowUpTermRepo, trashRepo, taxonomyFollowUpRevisions, taxonomyFollowUpOutbox, taxonomyRepo, entryTermRepo, taxonomyRevisionRepo } = composeTaxonomyTrashRepos({ taxonomyDb, workspaceId, outbox, clock, idGen });
+  const { trash, trashAdapters, formTrashEntry, removePlugin } = composeMemoryTrash({ pluginRuntime, pluginActivationRepo, trashRegistry, taxonomyFollowUpTermRepo, trashRepo, taxonomyFollowUpRevisions, taxonomyFollowUpOutbox, outbox, clock, idGen, postRepo, redirectRepo, commentRepo, mediaRepo, formSubmissionRepo, entryRepo, sqliteTrashDb, formDefinitionRepo: () => formDefinitionRepo, entryRefsRepo: () => entryRefsRepo, menuRepo: () => menuRepo, navLocationBindingRepo: () => navLocationBindingRepo, routeDeps: () => routeDeps });
 
   const redirectsWriteDeps: RedirectsWriteDeps = {
     repo: redirectRepo,
@@ -955,22 +284,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   }, { hits: { outbox, clock, idGen } });
   registerSlugChangeCapture({ impl: new RedirectSlugChangeCapture({ reservedSegments: RESERVED_SEGMENTS, repo: redirectRepo, db: redirectRepo, clock, idGen }) });
   void registerRedirectHitOutboxHandler({ bus, hitSink: redirectHitSink });
-
-  // SPEC-043/ADR-047 (widgets) — hoisted alongside `entryRepo` for the same reason: both the admin
-  // `widgets` routes and the public site-render path (`routes/site/pages.ts` → `resolvePageWidgets`,
-  // W-004) must see the SAME binding/ref-index state, not two independent in-memory instances.
-  const widgetBindingRepo = new InMemoryWidgetRegionBindingRepo();
-  const entryRefsRepo = new InMemoryEntryRefsRepo();
-  const menuRepo = new TrashAwareInMemoryMenuRepo();
-  const navLocationBindingRepo = new InMemoryNavLocationBindingRepo({});
-  const formDefinitionRepo = new InMemoryFormDefinitionRepo();
-  // Collections plan R1 — hoisted above `wireCoreResolvers` (was constructed later, inline, only for
-  // the Admin-UI backend-gap deps object below) so the `recent-entries` widget's "Collection list"
-  // mode and the rest of the app (content-type CRUD routes, etc.) share the SAME store — a second
-  // `new InMemoryContentTypeRepo()` here would be an empty, disconnected double nothing ever
-  // registers a content type into, silently breaking every collection-configured widget.
-  const contentTypeRepo = new InMemoryContentTypeRepo();
-  const contentTypeIndexProvisioner = new NoopContentTypeIndexProvisioner();
+  const { menuRepo, navLocationBindingRepo, formDefinitionRepo, contentTypeRepo, contentTypeIndexProvisioner, entryRefsRepo, widgetBindingRepo } = composeNavFormContentRepos({  });
   // SPEC-043/ADR-047 (widgets, Fable adversarial-review fix 2026-07-21) — mirrors `apps/website/src/server/runtime/composition/deps.ts`'s
   // identical fix: without this, no test exercising the real HTTP path ever ran a dynamic widget
   // type (`menu`/`recent-entries`/`contact-form`) through its actual resolver, only test doubles.
@@ -991,58 +305,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     formDefinitionRepo: { findById: formDefinitionRepo.findById.bind(formDefinitionRepo), findBySlug: formDefinitionRepo.findBySlug.bind(formDefinitionRepo) },
     contentTypes: contentTypeRepo,
   });
-  const commentsModule = createCommentsModule({
-    commentRepo,
-    // Entries first, then the public blog's legacy posts (`comment-targets.ts`); `postRepo` is
-    // read lazily at submit time, after this root has finished constructing it.
-    entryLookup: createCommentTargetLookup({ entries: entryRepo, posts: { findById: (required) => postRepo.findById(required) } }),
-    outbox,
-    clock,
-    idGen,
-    spamCheck: new HeuristicSpamCheck(),
-    ...createCommentsHostPorts({ clock, settingsRepo, workspaceId }, {}),
-    remove: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
-      trash: trash,
-      entityType: COMMENT_ENTITY_TYPE
-    }) }),
-    forgetRemoved: ({ workspaceId: ws, id }) =>
-      trashRepo.deleteByEntity({ workspaceId: ws, entityType: COMMENT_ENTITY_TYPE, entityId: id }),
-    // Nothing in this composition opens a database transaction; see `createTrashService` above.
-    runInTransaction: (fn) => fn(),
-  }, {});
-  const commentsCapability = createCommentsCapability({
-    siteId: seededWorkspace.id, module: commentsModule, commentsReady: Promise.resolve(), settingsReady: commentsSettingsReady,
-    settings: { settingsRepo, clock, ids: idGen, authorize: identity.authorize, principals: settingsPrincipals },
-  });
-
-
-  // SPEC-011 (Newsletter) Stage 5 wiring — hoisted so `newsletterSubscriberDirectory` below reads
-  // the SAME member rows the returned `memberRepo` field exposes (mirrors `entryRepo`/
-  // `widgetBindingRepo`'s identical hoisting rationale above), and so `newsletterKeyring` is the
-  // ONE process-lifetime `KeyringPort` instance also used to build `webhookSigner` just below —
-  // one site key, purpose-namespaced (`webhooks/ports.ts`'s `KeyringPort.derive()` contract),
-  // not two independent keyrings.
-  const memberRepo = new InMemoryMemberRepo({}, { initialRows: [] });
-  const newsletterKeyring = new InMemoryKeyring();
-  const newsletterSubscriberDirectory = new MembersSubscriberDirectory({ members: memberRepo });
-  const newsletterHooks = createHookRegistry();
-
-  // ADR-058: the SITE assistant credential store's OWN `KeyringPort` instance, deliberately not
-  // `newsletterKeyring` above — see `routes/types.ts`'s `siteAssistantSecretKeyring` doc and ADR-058
-  // §2 for why a separate instance matters in the real composition root (`apps/website/src/server/runtime/composition/deps.ts`). This
-  // hermetic root has no "fail closed on a missing env var" concern to preserve (there is no env var
-  // here at all), so a second `InMemoryKeyring` is just the same rule-of-two test double, kept
-  // distinct so this root's wiring shape matches `deps.ts`'s one-instance-per-purpose shape.
-  const siteAssistantSecretKeyring = new InMemoryKeyring();
-  const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);
-  const siteAssistantCredentialRepo = new InMemorySiteAssistantCredentialRepo();
-  // Held as a local rather than constructed inline, because the OAuth service below must be given
-  // the SAME repo instance the routes read through — two instances would refresh a token into one
-  // and read it back from the other.
-  const externalMcpServerRepo = new InMemoryExternalMcpServerRepo();
-  // Device begin/poll share this process-local store. Redirect state uses the site's sealer;
-  // this hermetic root's ephemeral key still limits its callbacks to the same process.
-  const externalMcpOAuthDevices = createDeviceAuthorizationStore();
+  const { commentsModule, commentsCapability } = composeMemoryComments({ commentRepo, entryRepo, postRepo, outbox, clock, idGen, settingsRepo, workspaceId, trash, trashRepo, commentsSettingsReady, identity, settingsPrincipals });
+  const { externalMcpServerRepo, siteAssistantSecretSealer, siteAssistantSecretKeyring, siteAssistantCredentialRepo, externalMcpOAuthDevices, memberRepo, newsletterKeyring, newsletterSubscriberDirectory, newsletterHooks } = composeMemberSecrets({  });
 
   // See `routes/types.ts`'s `derivedPublicOrigin` doc. Mirrors `deps.ts`'s identical derivation
   // (`resolveCheckoutRoot`, a walk-up that is right from both the tsx and the compiled tree) — this
@@ -1050,30 +314,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // fallback origin must be derived the same way rather than silently differing.
   const REPO_ROOT_FOR_ORIGIN = resolveCheckoutRoot({});
   const derivedPublicOrigin = process.env.TOVU_SITE_LISTENER_ORIGIN ?? `${deriveDevScheme({ tlsActive: resolveDevTls(resolveDevTlsCertPaths({ repoRoot: REPO_ROOT_FOR_ORIGIN })).active })}://localhost:${Number(process.env.PORT ?? 3000)}`;
-
-  // Extracted (not inlined into the return object below), same reasoning as `restorePointsRepo`
-  // above: Task 8's real `publishContentApplyPort` (`apply-loop.ts`) must read/write the SAME
-  // in-memory bundle/baseline/run stores the routes below expose on `RouteDeps`, not a second,
-  // disconnected instance — an apply loop reading an empty baseline store would never see `applied`,
-  // only ever `created`/`conflict`. `changeSets` is hoisted for the identical reason: the apply
-  // loop's `executeCommand` calls must land in the SAME change-set store every other route/test
-  // reads off `RouteDeps.changeSets`.
-  const changeSets = new InMemoryChangeSetRepo([], [], outbox);
-  const assetBlobRepo = new InMemoryAssetBlobRepo({}, { initialRows: [] });
-  // Shared by the render path and publish's media apply, which records what render reads.
-  const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
-  const blobStore = new InMemoryBlobStore();
-  const publishContentBundleRepo = new InMemoryPublishContentBundleRepo();
-  const publishContentBaselineRepo = new InMemoryPublishContentBaselineRepo();
-  const publishContentRunRepo = new InMemoryPublishContentRunRepo();
-  // `publish-files-plan-2026-09-24.md` §3 — no rule-of-two double needed: `FileBlobIndexPort` is
-  // already an in-memory LRU (`file-blob-index.ts`'s own doc), so this hermetic root shares the
-  // SAME real factory the SQLite root uses. Hoisted for the identical "one process-lifetime
-  // instance" reason as every repo above. See `routes/types.ts`'s `fileBlobIndex` doc.
-  const fileBlobIndex = createFileBlobIndex();
-  // Task 10 — the rule-of-two in-memory peer repo. See `routes/types.ts`'s
-  // `publishContentPeerRepo` doc.
-  const publishContentPeerRepo = new InMemoryPublishContentPeerRepo();
+  const { publishContentBundleRepo, publishContentBaselineRepo, publishContentRunRepo, changeSets, assetBlobRepo, blobStore, mediaContentTypeStore, fileBlobIndex, publishContentPeerRepo } = composePublishContentStores({ outbox });
   const publishContentSeedHash = options.publishContentSeedHash ?? NO_PUBLISH_CONTENT_SEED_HASH;
   // One array shared by `routeDeps.themes` (below) and the theme-files apply's refresh hook, so a
   // published theme's partials/pages re-render without a restart (`rescanThemes` refills IN PLACE).
@@ -1085,107 +326,47 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   trashAdapters.set(THEME_ENTITY_TYPE, themeTrashAdapter);
   // Folder moves before the Trash row is written; if that write throws, move the folder back.
   const removeTheme = unhideIfRemoveThrows({ adapter: themeTrashAdapter, remove: bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }) });
-  const publishContentApplyPort = createPublishContentApplyPort({
+  const publishContentApplyPort = memoryPublishContentApplyPort({
     workspaceId: seededWorkspace.id,
     bundleRepo: publishContentBundleRepo,
     baselineRepo: publishContentBaselineRepo,
     runRepo: publishContentRunRepo,
-    publishContentDeps: toPublishContentApplyDeps({
-      workspaceId: seededWorkspace.id,
-      clock,
-      idGen,
-      outbox,
-      changeSets,
-      authorize: identity.authorize,
-      // F2 — one ports bag keyed by entityType (`type-registry.ts`'s `PublishContentPorts`).
-      ports: {
-        post: {
-          repo: postRepo,
-          forgetRemoved: bindForgetRemovedEntity({
-            repo: trashRepo,
-            entityType: POST_ENTITY_TYPE
-          }),
-          // S4 (publish-overwrite-live-plan-2026-09-24) — same binding `routeDeps.removePost` below
-          // uses; the post handler's `retire()` needs it to wrap `retirePostForReplacement`.
-          remove: removeEntityWithoutBlocker({ remove: bindRemoveEntity({
-            trash: trash,
-            entityType: POST_ENTITY_TYPE
-          }) }),
-        },
-        media: { repo: mediaRepo, assetBlobRepo, blobStore, contentTypeStore: mediaContentTypeStore },
-        redirect: redirectsWriteDeps,
-        menu: { repo: menuRepo, bindingRepo: navLocationBindingRepo },
-        ...buildContentPublishPorts({
-          workspaceId: seededWorkspace.id,
-          postRepo,
-          formDefinitionRepo,
-          contentTypeRepo,
-          contentTypeIndexProvisioner,
-          taxonomyRepo,
-          termRepo,
-          entryTermRepo,
-          taxonomyRevisionRepo,
-          stampWatermark: noopStampWatermark,
-          entryRepo,
-          entryRefsRepo,
-          widgetBindingRepo,
-          settingsRepo,
-          principalRepo: settingsPrincipals,
-          presentationRepo,
-          themes: siteThemes,
-        }),
-        "theme-files": {
-          // S19 (S-F4) — same value `routeDeps.themesDir` (below) resolves to. See
-          // `routes/types.ts`'s `themesDir` doc and `deps.ts`'s identical addition to this same
-          // apply bag.
-          themesDir: builtInThemesDir(),
-          onReplaced: () => {
-            rescanThemes({ themes: siteThemes, dir: builtInThemesDir() });
-          },
-        },
-      },
-    }),
     clock,
     idGen,
+    outbox,
+    changeSets,
+    authorize: identity.authorize,
     getSeedHash: publishContentSeedHash,
+    ports: memoryPublishContentPorts({
+      postRepo, trashRepo, trash, mediaRepo, assetBlobRepo, blobStore, mediaContentTypeStore, redirectsWriteDeps,
+      menuRepo, navLocationBindingRepo, siteThemes,
+      content: {
+        workspaceId: seededWorkspace.id,
+        postRepo,
+        formDefinitionRepo,
+        contentTypeRepo,
+        contentTypeIndexProvisioner,
+        taxonomyRepo,
+        termRepo,
+        entryTermRepo,
+        taxonomyRevisionRepo,
+        stampWatermark: noopStampWatermark,
+        entryRepo,
+        entryRefsRepo,
+        widgetBindingRepo,
+        settingsRepo,
+        principalRepo: settingsPrincipals,
+        presentationRepo,
+        themes: siteThemes,
+      },
+    }),
   });
 
   // One lazy in-memory `chat.db` behind both the chat store and its run ledger (`store-factory.ts`).
   const inMemoryChatHistory = createInMemoryChatHistory();
-  // One pinned HTTP capability backs both media and OAuth; each request keeps its own tighter budget.
-  const guardedOutboundHttpClient = createGuardedMediaHttpClient({
-      ...createNodeGuardedHttpPorts({}),
-      userAgent: "Tovu/0.1.0",
-      // Preserve Jini's generation budget (10 minutes, 96 MiB); asset requests may choose less.
-      // Redirects are refused; provider-returned URLs get no private-network exception.
-      policy: { allowedSchemes: ["https", "http"], denyPrivateAddresses: true, devHostAllowlist: [],
-        maxRedirects: 0, connectTimeoutMs: 10 * 60 * 1000,
-        maxResponseBytes: 96 * 1024 * 1024, maxDecompressedBytes: 96 * 1024 * 1024 },
-    });
-  // c266749d0: desktop's loopback callback needs the same exception as plugin API OAuth.
-  const externalMcpOAuthHttpPorts = createTovuOAuthHttpPorts({ http: guardedOutboundHttpClient }, { allowLoopbackHttp: resolveApiConnectionRuntime({ env: process.env }) === "desktop" });
-  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({}, { initialRows: [] });
-  const seoDeps = createSeoDeps({ deps: { postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, transformDefinitionRepo, originRegistry, clock } }, {});
-  const sitemapService = createSitemapService({ deps: seoDeps }, {});
-  const siteBinding = describeSiteBinding();
-  const agentPluginLayout = resolveAgentPluginLayout({ siteDir: siteBinding.dir });
-  const agentPluginLifecycle = createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, {
-    bundledSourceRoot: bundledAgentPluginsDir(),
-    identityAdmission: ({ id, localId, run }) => {
-      const host = routeDeps.pluginHost;
-      if (!host) throw new Error("agent plugin installation has no plugin host");
-      return host.withInstallIdentity({ candidate: { id, localId, family: "agent-plugin" }, run });
-    },
-    // Boot recovery re-provisions a restored revision's MCP servers through the same store; read
-    // lazily because that store is composed below.
-    mcpProvisioning: createDeferredAgentPluginUpdateEffects({ resolveDeps: () => routeDeps }),
-  });
-  const federatedMcpPresetRegistry = createFederatedMcpPresetRegistry({});
-  const skillLayout = resolveSkillLayout({ siteDir: siteBinding.dir });
-  // 2026-08-17 — hermetic double for `apps/website/src/server/runtime/composition/deps.ts`'s real `SqliteCustomCredentialSetRepo`; see
-  // `routes/types.ts`'s `customCredentialSetRepo` doc. One instance: the plugin connections read an
-  // admin's own OAuth client from the same saved credentials the Access Tokens routes write.
-  const customCredentialSetRepo = new InMemoryCustomCredentialSetRepo();
+  const { externalMcpOAuthHttpPorts, guardedOutboundHttpClient } = composeMemoryOutboundHttp({  });
+  const { seoDeps, sitemapService, transformDefinitionRepo } = composeMemorySeo({ postRepo, settingsRepo, mediaRepo, mediaContentTypeStore, originRegistry, clock });
+  const { agentPluginLifecycle, agentPluginLayout, customCredentialSetRepo, siteBinding, federatedMcpPresetRegistry, skillLayout } = composeMemoryAgentPlugins({ routeDeps: () => routeDeps });
   // Hermetic readiness registers definitions without asynchronously publishing CMS default content.
   // Serialize ledger registration, but never gate consent on unrelated title preservation.
   const siteConsentReady = createSiteConsentReadiness({ ...siteTitleSettingsDeps,
@@ -1776,268 +957,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
  */
 const runExportSite: ExportEngine<RouteDeps> = (options, _optional = {}) => exportSite(options);
 
-/**
- * 2026-08-20 (complexity pass) — `createApp` mounts ~30 `ServerModuleHandle`s below, each via the
- * identical `mod.registerRoutes?.(app)` guard (`registerRoutes` is optional per
- * `modules/types.ts`'s `ServerModuleHandle` doc: a module may own only subscriptions, only routes,
- * or both). ESLint's `complexity` rule counts every `?.` as its own branch, so 30 inlined copies of
- * the SAME guard cost `createApp` 30 points of complexity for zero actual decision-making — the
- * guard never varies. Hoisting it here means the branch is counted once, in this 2-line function,
- * instead of once per call site.
- */
-function mountRoutes(app: Express, mod: ServerModuleHandle): void {
-  mod.registerRoutes?.({ app });
-}
-
-/** Same hoisted-guard rationale as {@link mountRoutes}, for the `start?.()` half of
- * `ServerModuleHandle` (a module's optional subscriptions/workers, started once at boot). */
-function startModule(mod: ServerModuleHandle): void {
-  mod.start?.();
-}
-
-/** Buses that already carry the handlers {@link subscribeSiteEventHandlersOnce} attaches. */
-const busesWithSiteEventHandlers = new WeakSet<RouteDeps["bus"]>();
-
-/** The real composition's mutable collector; RouteDeps exposes the same set as read-only. */
-export const siteAppBootWorkByDeps = new WeakMap<RouteDeps, Set<Promise<void>>>();
-
-/**
- * Attaches the site's outbox event handlers to `routeDeps.bus`, once per bus (2026-09-14).
- *
- * `createApp` runs more than once on the same `routeDeps` in one process: the serving app first, then
- * `routeDeps.createSiteApp()` for every static export (`features/site-export/site-exporter.ts`) and every
- * published-page fetch (`features/site-inspection/published-page.ts`). These subscriptions used to
- * sit inline in `createApp`, so each rebuild added another copy of every handler to the same bus and
- * one event then ran each handler once per build (a duplicate forms notify mail per export, for
- * one). Pinned by `server/__tests__/integration/create-app-event-subscriptions-once.integration.test.ts`.
- *
- * Keyed on the bus because the bus is what holds the handlers. The first build's handlers serve every
- * later build; they capture fields of `routeDeps`, which is the same object in every build.
- *
- * @param routeDeps the composed deps whose `bus` receives the handlers.
- * @complexity O(1): a fixed set of subscriptions.
- */
-function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
-  if (busesWithSiteEventHandlers.has(routeDeps.bus)) return;
-  busesWithSiteEventHandlers.add(routeDeps.bus);
-
-  void routeDeps.bus.subscribe({
-    eventName: "workspace.created",
-    handler: async (event) => {
-      // Demonstration side effect. Replace with indexers/webhooks/etc.
-      console.log("event handled:", event.name, event.payload);
-    },
-  });
-
-  // SPEC-008 (ADR-PIPE-008 Decision §5, T038) — SEO subscribes to the 3 entry-lifecycle events
-  // `post.ts`'s `updatePost()` now emits, invalidating that workspace's sitemap cache entry on
-  // delivery (idempotent per ADR-009 — a duplicate delivery is a no-op, `invalidateSitemapCache`
-  // is itself idempotent). Delivered by the serving process's background outbox drainer
-  // (`serving-app.ts`) or by a route's own inline `processOutbox` call.
-  const seoEventSubscriptions = routeDeps.sitemapService.createSeoEventSubscriptions({}, {});
-  void routeDeps.bus.subscribe({ eventName: SITEMAP_INVALIDATED_EVENT, handler: seoEventSubscriptions.onSitemapInvalidated });
-  void routeDeps.bus.subscribe({ eventName: "entry.published", handler: seoEventSubscriptions.onEntryPublished });
-  void routeDeps.bus.subscribe({ eventName: "entry.updated", handler: seoEventSubscriptions.onEntryUpdated });
-  void routeDeps.bus.subscribe({ eventName: "entry.unpublished", handler: seoEventSubscriptions.onEntryUnpublished });
-
-  // Site search (lots S3/S4): the indexer re-loads each post/page an entry event names and writes the
-  // current truth (document or tombstone) to every current index. Errors propagate so the outbox
-  // redelivers. A composition without `siteSearch` subscribes nothing (`modules/site-search.ts`).
-  subscribeSiteSearchIndexer({ bus: routeDeps.bus, runtime: routeDeps.siteSearch });
-
-  const newsletterAdminDeps = routeDeps;
-  // T040 (tasks.md Phase 4) — the `newsletter.send.batch.claimed` bus subscriber `send-pipeline.ts`'s
-  // own file header names as the one piece of Stage 4 wiring no composition root had done yet
-  // (found while wiring Stage 5's `send-campaign.ts`, which is the only real caller of `claimBatch`/
-  // `processOutbox` for this campaign). Mirrors the demonstration subscription to `workspace.created`
-  // above. In practice this handler is never reached in either composition root today:
-  // `authorizeSend`'s Launch Gate check always rejects before `freezeAudience` ever enqueues a batch,
-  // because precondition (a) `isSendingEnabled` always resolves `false` (`routes/newsletter/deps.ts`'s
-  // `toSendPipelineDeps`) and (b) both composition roots bind `membersConsentCapability: null`
-  // (tasks.md's disclosed, by-design "Real Sending Is Inherently Blocked Today" flag). Precondition
-  // (d) is no longer the blocker — hosted-API (plugin) and SMTP adapters resolve (`boot/resolve-mailer.ts`),
-  // corrected 2026-09-16. Wired now anyway so the pipeline is genuinely complete end to end the
-  // moment (a) and (b) are met, not silently half-wired.
-  void routeDeps.bus.subscribe<SendBatchJob>({
-    eventName: SEND_BATCH_CLAIMED_EVENT,
-    handler: async (event) => {
-      await handleSendBatchClaimed({ deps: toSendPipelineDeps(newsletterAdminDeps), job: event.payload });
-    },
-  });
-
-  /**
-   * ADR-046 Phase 3 (SPEC-031) — SPEC-010 (Forms) outbox wiring, now split across two
-   * feature-owned modules instead of two inline blocks: `forms` owns the C-009 notify
-   * subscriber (its own business logic); `integrations` owns the webhook-fanout subscriber to
-   * the SAME `form.submission.received` topic (cross-feature integration owned by the
-   * consumer, per the ADR's explicit Phase 3 rule — see `modules/integrations.ts`'s header).
-   */
-  startModule(
-    createFormsModule({
-      outbox: routeDeps.outbox,
-      fileCleanup: {
-        withHashLock: withSha256Lock,
-        withStorageKeyLock: withFormFileStorageKeyLock,
-        hasStorageKeyOwners: input => hasFormFileStorageKeyOwners({ kernel: routeDeps.contentKernel, ...input }),
-        findBlob: input => routeDeps.assetBlobRepo.findByHash(input),
-        // This is a delayed cold GC job, never a visitor or upload hot path. Without a
-        // persistent content database we cannot prove orphanhood, so retain the bytes.
-        hasOwners: input => routeDeps.contentKernel
-          ? hasFormFileOwners({ kernel: routeDeps.contentKernel, ...input }) : Promise.resolve(true),
-        deleteBytes: input => routeDeps.blobStore.remove(input),
-        removeBlob: input => routeDeps.assetBlobRepo.remove(input),
-      },
-      visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
-      bus: routeDeps.bus,
-      mailer: routeDeps.mailer,
-      formDefinitionRepo: routeDeps.formDefinitionRepo,
-      formSubmissionRepo: routeDeps.formSubmissionRepo,
-      tracker: routeDeps.visitorTracker ?? routeDeps.tracker,
-      senderIdentity: routeDeps.mailSenderIdentity,
-    })
-  );
-  startModule(
-    createIntegrationsModule({
-      bus: routeDeps.bus,
-      formDelivery: routeDeps.formDelivery,
-      webhookSubscriptionRepo: routeDeps.webhookSubscriptionRepo,
-      webhookDeliveryRepo: routeDeps.webhookDeliveryRepo,
-      idGen: routeDeps.idGen,
-      clock: routeDeps.clock,
-    })
-  );
-}
-
-/** Optional {@link createApp} hooks. */
-export interface CreateAppOptions {
-  /** Serving process only. Uses the same listener/daemon/store stop as signals, with a sleep code. */
-  stopForIdle?: (input: { exitCode: number }) => void;
-  /** Only createServingApp activates process-owned federation listeners and capability recovery. */
-  activateAssistantFederation?: true;
-  /** Hermetic integration seam; production uses the module's single default surface. */
-  assistantToolSurface?: ReturnType<typeof createAssistantByokModule>["toolSurface"];
-  /** Serving boot only; exporter/eager apps do not own recovery of assistant turns. */
-  recoverAssistantChatRuns?: boolean;
-  /**
-   * Receives each background pass `createApp` starts and returns before it finishes — today the BYOK
-   * tool surface's installed-extension pass, which reads the plugin catalog and plugin activations
-   * from the store. Whoever closes the store soon after composing an app awaits these first, so the
-   * close does not land under those reads. Never rejects (the pass is fail-open).
-   */
-  onBootWork?: ({ work }: { work: Promise<void> }, optional?: Record<string, never>) => void;
-  /** Serving boot only: hears every owner/admin sign-in (the automatic form pull). Exporter and eager
-   *  apps never pass it, so signing in to them pulls nothing. */
-  onAdminSignIn?: AdminSignInPort;
-  /**
-   * Render the site's pages through this theme id instead of the stored active one, for every request
-   * this app serves. Only `RouteDeps.createSiteApp({ themeId })` sets it, for a throwaway loopback app
-   * (`web_screenshot_page` seeing an unactivated theme copy); the serving app never has it, and no
-   * header, query or cookie can set it. The caller checks the theme exists — the render itself still
-   * falls back like it does for a bad stored id.
-   */
-  themeIdOverride?: string;
-  /** Internal local-render audit only; no HTTP input can set this option. */
-  consentAudit?: true;
-}
-
-/** Track the existing tool-surface pass for the app/store lifetime. O(1) time and space. */
-function trackByokBootWork(
-  { routeDeps, byokAssistantModule, bootWorkByDeps }: { routeDeps: RouteDeps; byokAssistantModule: ReturnType<typeof createAssistantByokModule>; bootWorkByDeps: typeof siteAppBootWorkByDeps },
-  options: CreateAppOptions = {},
-): void {
-  // Track serving apps too: they share the same store lifetime as export/inspection apps.
-  const bootWork = byokAssistantModule.toolSurface.ready;
-  const pendingBootWork = bootWorkByDeps.get(routeDeps);
-  pendingBootWork?.add(bootWork);
-  void bootWork.then(() => pendingBootWork?.delete(bootWork), () => pendingBootWork?.delete(bootWork));
-  options.onBootWork?.({ work: byokAssistantModule.toolSurface.ready });
-}
-
-/** Install the ordered public request guards before any normal routes. O(1) setup. */
-function applyPublicMiddleware(
-  { app, routeDeps, internalRouter }: { app: express.Express; routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps; internalRouter: express.Router },
-  options: CreateAppOptions = {},
-): void {
-  // X-Forwarded-For is trusted only for a known edge proxy's hops (Fly) or TOVU_TRUST_PROXY.
-  applyTrustProxy({ app });
-  applyDevCors(app);
-  // Registered as early as possible — ahead of the serving gate below and every route module — so
-  // a request the gate rejects, or a 404 that matches no route at all, is still measured. See
-  // `observability-middleware.ts`'s own file header for the full reasoning and for why this is the
-  // single chokepoint that sees both `tovu serve` and `index.ts`'s boot paths (both call this exact
-  // `createApp()` function; see `ADS-memory/.local-artifacts/metrics/
-  // 2026-08-28-observability-groundwork.md` §1-2 for why that distinction matters here).
-  // Bearer share paths never enter request logging, page analytics, or public rendering.
-  registerPublicShareRoutes({ app, registry: routeDeps.siteShareBackend?.registry });
-  applyRequestTracking(app, { tracker: routeDeps.tracker });
-  // Only a `createSiteApp({ themeId })` loopback app has this; see `render-theme-override.ts`.
-  if (options.themeIdOverride !== undefined) applyRenderThemeOverride(app, { themeId: options.themeIdOverride });
-  // ADR-041/043/044/045 — must precede the normal traffic handlers so a
-  // BLOCKED_PENDING_RECOVERY site refuses normal traffic regardless of which route would have
-  // handled it. See site-serving-gate.ts's own header for the allowlist rationale.
-  applySiteServingGate(app, { siteStatusRepo: routeDeps.siteStatusRepo, workspaceId: routeDeps.workspaceId });
-  // nosniff + Referrer-Policy + a report-only CSP on every non-admin response, set before any
-  // public route runs. See `public-page-security-headers.ts`.
-  applyPublicPageSecurityHeaders(app, { readHeaders: routeDeps.publicPageSecurityHeaders });
-  // Redirect page aliases before consent/preview middleware can render or set a visitor cookie.
-  applyCanonicalSiteHostRedirect({ app, originRegistry: routeDeps.originRegistry, workspaceId: routeDeps.workspaceId, runtimeMode: routeDeps.seoDeps.runtimeMode });
-  if (options.themeIdOverride === undefined) applyThemePreviewSwitcher({ app, deps: routeDeps });
-  const visitorPageTargets = createVisitorPageTargets({ deps: routeDeps });
-  applyPublishedWebMcp({ app, workspaceId: routeDeps.workspaceId, readEnabled: () => isPublishedWebMcpEnabled(routeDeps, { workspaceId: routeDeps.workspaceId }),
-    allowsVisitorPublication: async ({ path }) => process.env.TOVU_VISITOR_TOOLS_POLICY !== 'off'
-      && await isPublicAssistantEnabled({ settingsRepo: routeDeps.settingsRepo, getEffective: routeDeps.getEffective }, { workspaceId: routeDeps.workspaceId })
-      && (await visitorPageTargets.list({})).some(page => page.path === path) });
-  // Consent contributes assets during document construction. Audit renders omit that runtime;
-  // admin readiness reports unmanaged content without transforming the sampled page.
-  if (!options.consentAudit && routeDeps.cookieConsent) applySiteCookieConsent({ app, deps: routeDeps, consent: routeDeps.cookieConsent });
-
-  applyBrowserAnalyticsHttp({ app, deps: routeDeps });
-
-  // Public routes parse JSON at a small limit here; session-gated paths are left unparsed and
-  // parsed by `requireAdminSession` only once the caller has authenticated (15 MB, 75 MB for the
-  // base64 upload routes). See `inbound/shared/json-body-parsers.ts` for the limits and why.
-  // Mail provider webhooks read RAW bytes (signatures), so they mount ahead of the JSON parser.
-  if (routeDeps.mailFeedbackRoute) registerMailFeedbackRoute({ app, route: routeDeps.mailFeedbackRoute });
-  registerCommerceWebhooks({ app, deps: routeDeps });
-  // The agent daemon's tool RPC (ADR-070) gates before parsing and parses its own body, so it mounts
-  // ahead of the public parser. Its routes are added once the BYOK surface exists (`createApp`); they
-  // carry full `/internal/...` paths, so this mounts at the root.
-  app.use(internalRouter);
-  app.use(parsePublicJsonBody);
-}
-
-function registerAdminSpa({ app, routeDeps }: { app: Express; routeDeps: RouteDeps }, _optional = {}): void {
-  // Built admin SPA (apps/admin/dist) at /admin; helpful 503 when unbuilt. Walked up to, not a fixed
-  // `../` count: the source and compiled (`dist/src/...`) trees sit at different depths.
-  applyAdminBrowserAnalytics({ app, deps: routeDeps });
-  registerAdminStatic(app, {
-    distDir: process.env.TOVU_ADMIN_DIST ?? resolveAppDistDir({ app: "admin" }),
-  });
-}
-
-/** Mount the public browser bundle at the configured built-output location.
- * @complexity O(1) route registration. */
-function registerSiteChatBundle({ app }: { app: Express }, _optional = {}): void {
-  registerSiteChatStatic(app, {
-    distDir: process.env.TOVU_SITE_CHAT_DIST ?? resolveAppDistDir({ app: "site-chat" }),
-  });
-}
-
-/** Install intake before every route only when the serving process supplies its graceful stop.
- * Share the routes' finalizer by ledger identity: creating another watch owner could park mid-chat.
- * @complexity O(1) wiring; each idle probe uses up to two bounded existence reads.
- */
-function registerSiteIdlePark({ app, routeDeps, hasBackgroundWork }: { app: express.Express; routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps; hasBackgroundWork: () => Promise<boolean> }, options: CreateAppOptions = {}): void {
-  if (!options.stopForIdle) return;
-  const finalizer = assistantRunFinalizerFor({ ledger: routeDeps.chatRunLedger,
-    tracker: routeDeps.tracker, observability: routeDeps.observability });
-  const park = createSiteIdlePark({ hasBackgroundWork, hasActiveRuns: () => routeDeps.chatRunLedger.hasActiveRuns({}, {}),
-    activeCount: () => finalizer.activeCount(), stop: options.stopForIdle });
-  app.use(park.middleware);
-  registerSiteIdleStopHook({ stopIfIdle: park.stopIfIdle });
-}
-
-export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = createRouteDeps(), options: CreateAppOptions = {}) {
+export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps, options: CreateAppOptions = {}) {
   const app = express();
   // Read the lifecycle owners now: a completed job must not pin a warm child forever.
   const hasBackgroundWork = async (): Promise<boolean> => {
@@ -2057,557 +977,20 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   // Once per bus, not once per createApp call: see `subscribeSiteEventHandlersOnce`.
   subscribeSiteEventHandlersOnce(routeDeps);
 
-  // ADR-046 Phase 3 (SPEC-039): the `core` server module — ops routes, then
-  // login/logout/me (ungated), then the `/api/admin` session gate, all
-  // registered together in that order so login is never caught by its own
-  // gate. Real argon2id + principal/session model (ADR-021/SPEC-006) — see
-  // inbound/admin-http/dev-auth.ts.
-  mountRoutes(app, createCoreModule(routeDeps, { onAdminSignIn: options.onAdminSignIn }));
-  const isAuthenticatedPreviewRevision = registerThemePreviewRefresh({ app, deps: routeDeps });
+  const { isAuthenticatedPreviewRevision } = mountCoreContent({ app, routeDeps }, { onAdminSignIn: options.onAdminSignIn });
 
-  // ADR-046 Phase 3 (SPEC-038): the `content` server module — 11 posts/pages/change-sets/
-  // presentation admin routes. `registerContentPostGetRoute` (public site content serving) stays
-  // inline immediately below — it was never one of this module's 11 registrations.
-  mountRoutes(app, createContentModule(routeDeps));
-  registerContentPostGetRoute({ app, deps: routeDeps });
+  mountMembersNewsletter({ app, routeDeps });
 
-  // Task 4 of the publish-content (Publish Content) feature (`ADS-memory/reports/
-  // 2026-09-18-publish-feature-implementation-plan.md` §1.1/§4) — the export/pull route. This is
-  // also where `installFirstPartyPublishContentTypes()` first gets a real caller (see
-  // `publish-content-manifest.ts`'s own header and `modules/publish-content.ts`'s).
-  mountRoutes(app, createPublishContentModule(routeDeps));
+  mountAdminSystem({ app, routeDeps });
+  mountAdminFeatures({ app, routeDeps });
 
-  // ADR-PIPE-013 Decision §2-3 (FEAT-013 Phase 2) — one shared
-  // MAGIC_LINK_PER_EMAIL limiter instance consulted by BOTH the admin
-  // request-magic-link route and the new public sign-in route (C-015: one
-  // counter per email, not two). Per-boot-scoped, mirroring
-  // `registerAuthRoutes`'s own `loginRateLimiter` construction.
-  const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
-  const magicLinkPerIpLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_IP, clock: routeDeps.clock });
-  const magicLinkCompleteAttemptLimiter = createRateLimiter({ profile: MAGIC_LINK_COMPLETE_ATTEMPT, clock: routeDeps.clock });
-  const membersDeps: MembersRouteDeps = { ...routeDeps, magicLinkPerEmailLimiter };
+  mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps: siteAppBootWorkByDeps }, options);
 
-  // NEW public (non-admin) member route family (ADR-PIPE-013 Decision §2-3) —
-  // mounted OUTSIDE /api/admin's `requireAdminSession` middleware (this
-  // family is unauthenticated by design), alongside the existing
-  // `registerContentPostGetRoute`-style public mount above. The member repos
-  // are whatever `routeDeps` carries: in-memory from `createRouteDeps()` (this
-  // file, the hermetic test composition), durable SQL from `deps.ts`'s
-  // `createSiteRouteDeps()` (the real site, ADR-046 Phase 1).
-  const memberPublicDeps: MemberPublicRouteDeps = {
-    visitorAnalyticsProof: routeDeps.visitorAnalyticsProof,
-    visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
-    visitorTracker: routeDeps.visitorTracker,
-    tracker: routeDeps.tracker,
-    // Password writes need the SAME store as the member repos: the durable kernel, or (memory-only
-    // composition, no kernel) an in-process mutex. Never mix kernel transactions with memory repos.
-    credentialLifecycle: routeDeps.contentKernel ?? createInMemoryCredentialLifecycle(),
-    workspaceId: routeDeps.workspaceId,
-    memberRepo: routeDeps.memberRepo,
-    memberTierRepo: routeDeps.memberTierRepo,
-    memberSubscriptionRepo: routeDeps.memberSubscriptionRepo,
-    memberSessionRepo: routeDeps.memberSessionRepo,
-    magicLinkRepo: routeDeps.magicLinkRepo,
-    mailer: routeDeps.mailer,
-    mailStatus: routeDeps.mailStatus,
-    origin: routeDeps.originRegistry,
-    clock: routeDeps.clock,
-    idGen: routeDeps.idGen,
-    principalRepo: routeDeps.principalRepo,
-    mailSenderIdentity: routeDeps.mailSenderIdentity,
-    magicLinkPerEmailLimiter,
-    magicLinkPerIpLimiter,
-    magicLinkCompleteAttemptLimiter,
-    passwordHasher: routeDeps.passwordHasher,
-    passwordSignInPerEmailLimiter: createRateLimiter({ profile: LOGIN_STRICT, clock: routeDeps.clock }),
-    passwordSignInPerIpLimiter: createRateLimiter({ profile: LOGIN_STRICT, clock: routeDeps.clock }),
-    passwordSetPerMemberLimiter: createRateLimiter({ profile: LOGIN_STRICT, clock: routeDeps.clock }),
-  };
-  // ADR-046 Phase 3 (SPEC-038): the `members` server module — 4 admin CRUD/list routes + 2 public
-  // sign-in routes, genuinely two deps objects (see `modules/members.ts`'s file header).
-  mountRoutes(app, createMembersModule({ admin: membersDeps, public: memberPublicDeps }));
-
-  // SPEC-011 (Newsletter, ADR-PIPE-011) Stage 5 — the `newsletter` server module: 19 admin routes
-  // (inside the `/api/admin` gate mounted by `createCoreModule` above) + 2 public, cookie-less,
-  // token-only routes (`newsletter-confirm.ts`/`newsletter-unsubscribe.ts`), genuinely two deps
-  // objects, same rationale as `members` immediately above (see `modules/newsletter.ts`'s header).
-  // `routeDeps` is cast to `NewsletterRouteDeps` here (not widened) — mirrors every admin
-  // newsletter route file's own `routeDeps as NewsletterRouteDeps` cast (`routes/admin/newsletter/
-  // deps.ts`'s file header); `createRouteDeps()`'s actual return type already IS
-  // `NewsletterRouteDeps`, this parameter's own `RouteDeps` annotation is just narrower.
-  const newsletterAdminDeps = routeDeps as NewsletterRouteDeps;
-  const newsletterPublicDeps: NewsletterPublicRouteDeps = {
-    visitorAnalyticsProof: routeDeps.visitorAnalyticsProof,
-    visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
-    visitorTracker: routeDeps.visitorTracker,
-    tracker: routeDeps.tracker,
-    workspaceId: newsletterAdminDeps.workspaceId,
-    newsletterReady: newsletterAdminDeps.newsletterReady,
-    newsletterConfirmationTokenRepo: newsletterAdminDeps.newsletterConfirmationTokenRepo,
-    newsletterSubscriptionRepo: newsletterAdminDeps.newsletterSubscriptionRepo,
-    newsletterKeyring: newsletterAdminDeps.newsletterKeyring,
-    mailer: newsletterAdminDeps.mailer,
-    membersConsentCapability: newsletterAdminDeps.membersConsentCapability,
-    originRegistry: newsletterAdminDeps.originRegistry,
-    clock: newsletterAdminDeps.clock,
-    idGen: newsletterAdminDeps.idGen,
-    mailSenderIdentity: newsletterAdminDeps.mailSenderIdentity,
-  };
-  mountRoutes(app, createNewsletterModule({ admin: newsletterAdminDeps, public: newsletterPublicDeps }));
-
-  // ADR-046 Phase 3 (SPEC-041): the `analytics` server module — the single admin "recent hits"
-  // read route (ADR-035/ADR-PIPE-014).
-  mountRoutes(app, createAnalyticsModule(routeDeps));
-  // ADR-054: the PUBLIC visitor assistant. Deliberately NOT behind `requireAdminSession` — it is
-  // the one assistant surface anonymous traffic may reach, which is why it runs on its own
-  // in-process provider relay with a read-only published-content tool surface rather than the
-  // admin's process-spawning agent daemon. `start()` logs the demo-gate state at boot.
-  const siteAssistantModule = createSiteAssistantModule(routeDeps);
-  startModule(siteAssistantModule);
-  mountRoutes(app, siteAssistantModule);
-  registerAdminModuleStatusRoute(app, routeDeps);
-  // Observability admin page, Overview tab (`development/todos.md` 2026-09-09 owner ask) — same
-  // `system.read`-gated shape as the module-status route just above.
-  registerAdminObservabilityStatusRoute(app, routeDeps);
-  // The admin browser's own errors and page views, relayed to the same provider-plugin ports.
-  registerAdminBrowserTelemetryRoute({ app, deps: routeDeps });
-  registerAdminToolGapsRoute(app, routeDeps);
-  registerAdminServerLogsRoute({ app, deps: routeDeps });
-  // Whether outbound mail really sends (not the console fallback) — the form editor greys out its
-  // notification settings when it does not.
-  registerAdminMailStatusRoute(app, routeDeps);
-  registerAdminMailProviderRoutes(app, routeDeps);
-  // Email page: Sender and DNS (same operations as `mail_dns_status`/`mail_dns_verify`) and
-  // Send test email (same operation as `mail_send_test`).
-  registerAdminMailDnsRoutes(app, { workspaceId: routeDeps.workspaceId, dns: createDnsChangeDepsFactory({ httpClient: createDefaultHttpClient({ policy: DOMAIN_DNS_EGRESS_POLICY }, { observability: routeDeps.observability }) })(routeDeps) });
-  registerAdminMailTestSendRoute(app, routeDeps);
-  // Email page: What uses email and Recent sends and failures (same operations as
-  // `mail_get_readiness`, `mail_list_activity`, `mail_get_activity`).
-  registerAdminMailActivityRoutes(app, routeDeps);
-  // Admin "Restart assistant" action (`system.write`-gated) — the manual recovery seam for the
-  // locally-spawned agent daemon, sibling to the on-demand recovery `apps/website/src/server/runtime/composition/modules/assistant.ts`'s
-  // daemon-proxy code now triggers automatically on a known-failed request. See that route file's
-  // own header for why its response never claims the daemon is healthy again.
-  registerAdminAssistantDaemonRoutes(app, routeDeps);
-  registerAdminAssistantSubagentsRoutes({ app, deps: routeDeps });
-  registerAdminAssistantPermanentDeletesRoutes({ app, deps: routeDeps });
-  // Admin Deployment panel (Overview + Dockerfile tabs) — same `system.read`-gated shape as the
-  // module-status route just above; see each route file's own header for why they share it.
-  registerAdminDeploymentOverviewRoute(app, routeDeps);
-  registerAdminDockerfileSourceRoute(app, routeDeps);
-  // Admin "Sites" screen (2026-09-04 sites-switcher decision) — list/create/activate the sites
-  // under `sites/<name>/`. `system.read`/`system.write`-gated, same shape as the routes just
-  // above; Create/Activate additionally refuse when `TOVU_ENABLE_SITE_SWITCHER` is off (default),
-  // which List does not — see that route file's own header for the full split.
-  registerAdminSitesRoutes(app, routeDeps);
-  // The admin frontend's door to `buildSiteProfile()` — the SAME function the `site_get_profile`
-  // agent tool calls, because `apps/admin` is a browser bundle and cannot invoke an agent tool.
-  // Deliberately NOT gated by one `authorize()` call here: it authorizes each section against that
-  // section's own domain permission. See that route file's header for why that difference matters.
-  registerAdminSiteProfileRoute(app, routeDeps);
-  // Deployment panel → Static Site tab: trigger + poll the static exporter (`src/features/site-export/`).
-  // `system.export`-gated for the trigger (a disk write), `system.read` for the status poll — see
-  // that file's own header for the split.
-  registerAdminExportSiteRoutes(app, routeDeps);
-  registerAdminSiteShareRoutes({ app, deps: routeDeps });
-  registerAdminSiteImportRoutes({ app, deps: routeDeps });
-  registerAdminSiteBackupRoutes({ app, deps: routeDeps });
-  // Deployment panel → publish to a static host: trigger + poll a one-shot static publish
-  // (`features/deployments/static-publish/`, wrapping `@jini-ai/devops/deploy`). `system.publish`-
-  // gated for BOTH the trigger and the status poll — see that route file's own header for why.
-  registerAdminConsentRoutes({ app, deps: routeDeps, service: routeDeps.siteConsent ?? bindSiteConsentService({ deps: routeDeps }) });
-  registerAdminPublishSiteRoutes(app, routeDeps);
-  // Deployment panel → Static Site tab's credential form: CRUD over saved provider connections
-  // (`publish_credential_sets`). `system.publish`-gated on every verb — see that route file's own
-  // header for why this doesn't split trigger/read the way `publish-site.ts` does.
-  registerAdminPublishCredentialsRoutes(app, routeDeps);
-  // Admin Source Control page: CRUD over saved plugin-provided source-control identities
-  // (`source_control_credential_sets`). `source-control.credentials.write`-gated on every verb —
-  // see that route file's own header for why this is NOT `system.publish`.
-  registerAdminSourceControlCredentialsRoutes(app, routeDeps);
-  // Access Tokens page's "Add custom provider" form: CRUD over saved user-defined provider
-  // connections (`custom_credential_sets`). `custom-credentials.write`-gated on every verb.
-  registerAdminCustomCredentialsRoutes(app, routeDeps);
-  registerAdminCredentialCopyRoutes({ app, deps: routeDeps });
-  // Security panel → site key tab: view/generate the TOVU_SITE_KEY site key's
-  // generated-file fallback. `admin.security.site-key.manage`-gated on both verbs — see that route
-  // file's own header for exactly what this does and does not cover (since 2026-09-09 it seals
-  // every stored credential and can satisfy a production boot, but webhook signing / newsletter
-  // tokens still need the env var). Generate runs the one site-key writer boot runs
-  // (`ensureSiteKeyForSite`), handed in here because the route itself may not import it; the
-  // recovery verbs (import, start fresh) get `siteKeyRecovery` the same way.
-  registerAdminSiteKeyRoutes({ app, deps: routeDeps, siteKey: { ensureSiteKeyForSite, ...siteKeyRecovery } });
-  // Chat composer's folder control: GET/PUT/DELETE the fs-files `custom` root — the operator-set
-  // folder `fs_list_files`/`fs_read_file` may reach outside `repo`/`site`. `content.read`-gated, the
-  // same permission that gates those two tools themselves — see that route file's own header.
-  registerAdminFsFilesCustomRootRoutes({ app, deps: routeDeps });
-  // Chat composer's folder button: opens the OS folder dialog on this machine and returns the path.
-  // Exists only on a local Tovu (`isLocalTovuHost`, the same decision credential copy uses) and only
-  // for a request from this machine — see that route file's own header.
-  registerAdminFsFilesFolderPickerRoutes({ app, deps: { workspaceId: routeDeps.workspaceId, authorize: routeDeps.authorize,
-    localHost: isLocalTovuHost({}, {}), folderPicker: createNativeFolderPicker({}) } });
-  // ADR-046 Phase 3 (SPEC-040): the `comments-moderation` server module — 4 admin
-  // moderation-queue/moderate/settings routes. Distinct from `createCommentsModule` above
-  // (the ADR-031 backend composition) and from `registerCommentsSubmitRoute` below (the public,
-  // unauthenticated submission route, which stays inline near the site catch-all).
-  mountRoutes(app, createCommentsModerationModule(routeDeps));
-  // ADR-046 Phase 3 (SPEC-040): the `menus` server module — 6 admin CRUD/location-assignment
-  // routes (ADR-029). `MenuRouteDeps` reused as-is from its existing location in
-  // `apps/website/src/server/inbound/admin-http/http/menus.ts` (see `modules/menus.ts`'s file header for why it lives there).
-  mountRoutes(app, createMenusModule(routeDeps));
-  // SPEC-043 (widgets, ADR-047) — 13 admin routes (instance CRUD, region binding/placement,
-  // server-side embed mutation) + the widgets.place/create/remove/diagnose AI tool surface.
-  // `RouteDeps` already carries every dependency this module needs (`widgetBindingRepo`/
-  // `entryRefsRepo`, added by this same dispatch) — no widened deps type, unlike menus.
-  mountRoutes(app, createWidgetsModule(routeDeps));
-  // SPEC-005 (ADR-005-ARCH) — the `plugins` server module: PLUGINS_LIST/PLUGIN_SET_ENABLED (REQ-10).
-  mountRoutes(app, createPluginsModule(routeDeps));
-  // 2026-09-09 — the `agent-plugins` server module: AGENT_PLUGINS_LIST, the admin Agent Plugins
-  // screen's read of real installed Agent Plugins (a SEPARATE family from the `plugins` module
-  // above — see `modules/agent-plugins.ts`'s own header).
-  mountRoutes(app, createAgentPluginsModule(routeDeps));
-  // skills-composer-typeahead (implementation-outline.md, C-001/C-003) — the `skills` server
-  // module: GET .../skills, the browser-reachable enumeration of installed standalone Agent Skills.
-  mountRoutes(app, createSkillsModule(routeDeps));
-  // ADR-046 Phase 3 (SPEC-034): the `integrations-admin` server module — 5 admin CRUD/read routes
-  // over webhook subscriptions/deliveries (ADR-036). Distinct from `createIntegrationsModule`
-  // below, which owns the Forms-to-webhook fan-out subscriber, not an HTTP surface.
-  mountRoutes(app, createIntegrationsAdminModule(routeDeps));
-  // ADR-046 Phase 3 (SPEC-034): the `media` server module — 5 admin routes + the public rendition
-  // route (previously registered much later, see below near the old catch-all-precedence group;
-  // moved up here since its only real constraint, "before `/:slug`", still holds — see
-  // `modules/media.ts`'s file header for the full disclosure).
-  mountRoutes(app, createMediaModule(routeDeps));
-  // The local admin Trash screen's 3 routes (design:
-  // `ADS-memory/reports/2026-09-20-trash-delete-architecture.md`). Registered next to `media`
-  // because Media is one of the four kinds it lists, but it is a platform surface, not a media one:
-  // it spans Posts, Comments, Media and Redirects. No ordering constraint — every path is under
-  // `/api/admin/v1/workspaces/:workspaceId/trash` and none is a catch-all.
-  //
-  // `authorize` is overridden (ONLY for this module's own deps, never `routeDeps.authorize` itself,
-  // which every other route reads unchanged) so restore/purge of a trashed USER also honor the
-  // built-in `admin` role, not just the owner `TRASH_PERMISSION_BY_ENTITY_TYPE.get("user") === "*"`
-  // alone (OWNER DECISION 2026-09-24, delete-user plan v2 Slice 3's "Open gap") — see
-  // `trash-user-admin-override.ts`'s file header for why the override lives here and not in
-  // `permissions.ts`/`mayActOnEntityType`, which are shared by every other trashable kind.
-  mountRoutes(
-    app,
-    createTrashModule({
-      ...routeDeps,
-      authorize: withUserTrashAdminOverride({
-        base: routeDeps.authorize,
-        identity: identityServiceDepsFrom(routeDeps),
-        workspaceId: routeDeps.workspaceId,
-        seededOwnerPrincipalId: routeDeps.ownerPrincipalId,
-      }),
-      // A theme is a folder, not a `TRASHABLE` row: `POST /trash/items` reaches it through the same
-      // `trashTheme` `theme_trash` runs (active-theme refusal included).
-      movers: new Map([...(routeDeps.trashMovers ?? []), [THEME_ENTITY_TYPE, createThemeTrashMover(routeDeps)]]),
-    })
-  );
-  mountRoutes(app, createExternalMcpModule(routeDeps));
-  // ADR-046 Phase 3 (SPEC-040): the `users` server module — 8 admin CRUD/list routes over
-  // users/roles/policies (ADR-021/SPEC-006 identity RBAC).
-  mountRoutes(app, createUsersModule(routeDeps));
-  // SPEC-006 REQ-08: the `api-keys` server module — the 3 api-key admin routes. Registered next to
-  // `users` because both are the ADR-021/SPEC-006 identity surface, but kept a separate module —
-  // see `modules/api-keys.ts` for why. Must sit after `createCoreModule` above, which mounts the
-  // `/api/admin` session gate these three routes rely on for both auth and credential-kind.
-  mountRoutes(app, createApiKeysModule(routeDeps));
-  // SPEC-044: the `workspace` server module — 5 admin routes (list/create/get/update/delete), the
-  // real successor to the original unauthenticated inline `POST /workspaces` route this file used
-  // to own directly (see the file header note).
-  mountRoutes(app, createWorkspaceModule(routeDeps));
-  // ADR-046 Phase 3 (SPEC-040): the `settings` server module — 5 admin settings HTTP routes
-  // (SPEC-007 Phase 5, T043).
-  mountRoutes(app, createSettingsModule(routeDeps));
-
-  // ADR-046 Phase 3 (SPEC-041): the `forms-admin` server module — 7 admin routes (definitions
-  // CRUD + submissions list/get/delete), gated per api.spec.md §2's `admin.forms.*` profiles.
-  // Distinct from `createFormsModule` below, which owns the Forms-to-notify-subscriber
-  // subscription, not an HTTP surface.
-  mountRoutes(app, createFormsAdminModule(routeDeps));
-
-  // ADR-046 Phase 3 (SPEC-041): the `redirects` server module — 7 admin routes (list/get/create/
-  // update/tombstone/import/hits), each gated by `admin.redirects.manage` (api.spec.md §1/§2).
-  mountRoutes(app, createRedirectsModule(routeDeps));
-
-  // ADR-046 Phase 3 (SPEC-042, final slice): the `database-recovery` server module — all 7
-  // Database/Recovery plain registrations (Timeline + restore-points list/create, Recovery's own
-  // restore-points list, disclosure, deep-link, status). Consolidates what used to be two
-  // non-contiguous inline blocks (this one, plus a second block after `createTaxonomyModule`
-  // below) into one call site — see `modules/database-recovery.ts`'s file header for the full
-  // disclosure of why that consolidation is safe (no path overlap with content-types/entries/
-  // taxonomy). `registerAdminDatabaseMigrateForwardRoutes`/`registerAdminRecoveryRestoreRoutes`
-  // (the 2 gated-mutation ceremonies) stay inline below, unchanged non-goal since SPEC-031.
-  mountRoutes(app, createDatabaseRecoveryModule(routeDeps));
-
-  // Built ONCE, by calling `createAssistantByokModule` here (rather than at its original position
-  // below) so its returned `.toolSurface` can be handed to `createAssistantModule` immediately after
-  // — never folded into `routeDeps` (that bag already carries 53 back-edges into this file, a
-  // tracked architectural metric; see `npm run check:architecture`). Deliberately NOT
-  // `createByokToolSurface(routeDeps)` called directly here: that would add a new edge from this
-  // file straight to `byok-tool-surface.ts`, and measuring with `check:architecture` showed that one
-  // edge alone regresses the "core size" metric (it flips ~17 files into the core classification,
-  // both fan-in and fan-out above the graph median) — this file already transitively reaches that
-  // module THROUGH `createAssistantByokModule`, so reading the value off its return object is free.
-  // See `AssistantByokModuleHandle`'s own doc for the full trace.
-  const byokAssistantModule = createAssistantByokModule({ routeDeps }, { toolSurface: options.assistantToolSurface });
-  trackByokBootWork({ routeDeps, byokAssistantModule, bootWorkByDeps: siteAppBootWorkByDeps }, options);
-  // Through the handle, not a direct import, for the same zero-new-edge reason as `toolSurface` above.
-  byokAssistantModule.registerToolExecRoutes({ router: internalRouter });
-
-  // Export/inspection apps keep federation cold; only serving composition binds process listeners.
-  if (options.activateAssistantFederation) byokAssistantModule.activateServerFederation({ router: internalRouter }, {});
-
-  // `TOVU_ADMIN_ASSISTANT=off` — a real disable: the four admin-assistant route modules below are
-  // never mounted, matching ADR-054's visitor-assistant posture (no endpoint, not a hidden widget).
-  // `createAssistantSettingsModule`/`createAssistantExecutionModule` stay mounted unconditionally —
-  // the first is the PUBLIC assistant's master switch (a different product), and the second is the
-  // settings tab that would have to render the off state. See `admin-assistant-enabled.ts`.
-  //
-  // Reads `routeDeps.adminAssistantEnabled` (computed once in `createRouteDeps()`/`createSiteRouteDeps()`)
-  // rather than calling `isAdminAssistantEnabled()` again here — see `routes/types.ts`'s
-  // `adminAssistantEnabled` field doc: the admin SPA's `GET .../assistant/settings` response threads
-  // the SAME field, so a second, separate read here could never end up disagreeing with what that
-  // response reports.
-  const adminAssistantEnabled = routeDeps.adminAssistantEnabled;
-
-  // ADR-049: the admin assistant's tool-execution/run surface, composed from the published
-  // `@jini-ai/core` + `@jini-ai/daemon` + `@jini-ai/node-host` kernel — see `src/assistant/`.
-  if (adminAssistantEnabled) {
-    mountRoutes(app, createAssistantModule(routeDeps, byokAssistantModule.toolSurface.surfaceExchanges));
-
-    // Durable transcripts for that same assistant, in `content.db` rather than the daemon. Separate
-    // module because nothing here is proxied: run execution belongs to the daemon (that is where run
-    // state lives), while history belongs to Tovu's own database, where backups, snapshots, and
-    // workspace scoping already work. The daemon can restart or be replaced without touching it.
-    mountRoutes(app, createAssistantChatsModule(routeDeps, {
-      recoverInterrupted: options.recoverAssistantChatRuns,
-      onBootWork: options.onBootWork,
-    }));
-  }
-
-  // The AI Assistant admin section's 2 settings routes (GET/PUT the public assistant's master
-  // switch). Registered next to `createAssistantModule` for readability only — the two modules share
-  // no dependencies and no path prefix (see `modules/assistant-settings.ts`'s header), and both sit
-  // inside the `/api/admin` session gate, so this position is not load-bearing.
-  mountRoutes(app, createAssistantSettingsModule(routeDeps));
-  // The same admin section's "Execution mode" tab — Local CLI detection + BYOK connection
-  // test/model discovery. Separate module from the settings pair above for the reason
-  // `modules/assistant-execution.ts`'s header gives (stateless egress probes, not settings CRUD).
-  mountRoutes(app, createAssistantExecutionModule(routeDeps));
-  // 2026-08-04: the admin dock's "API · BYOK" execution mode — a second, provider-direct run path
-  // alongside `createAssistantModule`'s daemon proxy above. Composes its own registry/executor over
-  // the SAME `buildAssistantToolRegistrations` catalog the daemon uses (see `modules/assistant-byok.ts`'s
-  // header for the full trace and disclosed gaps). Reuses this SAME `routeDeps` — the whole reason
-  // this can be a second, independent composition rather than a daemon-process change. Routes only —
-  // the module itself (and its `toolSurface`) was already built above, so
-  // `createAssistantModule`'s redemption proxy shares the exact same confirmation store.
-  if (adminAssistantEnabled) {
-    mountRoutes(app, byokAssistantModule);
-
-    // ADR-059 (2026-08-18): the admin assistant's AG-UI canary transport — additive, flagged,
-    // deletable. Wraps the SAME daemon-backed run lifecycle `createAssistantModule` above proxies
-    // (via `assistant-daemon-client.ts`'s shared `fetchAgentDaemon`, extracted from that module this
-    // same dispatch), translating its wire frames into real AG-UI SSE events. Does not touch, and is
-    // not touched by, either existing execution path. See `modules/assistant-ag-ui.ts`'s header.
-    mountRoutes(app, createAssistantAgUiModule(routeDeps));
-  }
-
-  // ADR-046 Phase 3 (SPEC-042, final slice): the `content-types` server module (ADR-043
-  // Collections backend) — all 8 registrations (content-types' list/register/update-fields/
-  // lifecycle, entries' list/create/update/lifecycle). Admin-UI backend-gap closure (design-
-  // spec.md §0.4) — the read-side domain functions + admin routes the Web Design pass found
-  // missing across Collections, Categories & Tags (taxonomy), and the rest of Database/Recovery.
-  // `mergeTerm`'s plan/confirm/execute ceremony and the migrate-forward/restore-ceremony routes
-  // were deferred at the time this block was first written; see the gated-mutation route
-  // registrations below for where they now live.
-  mountRoutes(app, createContentTypesModule(routeDeps));
-  // ADR-046 Phase 3 (SPEC-034): the `taxonomy` server module — the 5 plain CRUD/list routes.
-  // `registerAdminTaxonomyMergeTermRoutes` (the gated-mutation ceremony) stays inline below,
-  // alongside the unrelated database/recovery ceremonies it shares a gateway pattern with.
-  mountRoutes(app, createTaxonomyModule(routeDeps));
-
-  // SPEC-016 (`core/gated-mutations`'s gateway composed into a real composition root, this
-  // dispatch) — the 3 deferred gated-mutation ceremonies: taxonomy `mergeTerm`, database
-  // `migrate-forward`, recovery `restore`. Each registers 3 endpoints (`/plan`, `/confirm`,
-  // `/execute`) mirroring `gateway.ts`'s own 3-method shape.
-  registerAdminTaxonomyMergeTermRoutes(app, routeDeps);
-  registerAdminDatabaseMigrateForwardRoutes(app, routeDeps);
-  registerAdminRecoveryRestoreRoutes(app, routeDeps);
-
-  // ADR-046 Phase 3 (SPEC-042, final slice): the `seo` server module (SPEC-008 SEO) — 6 admin
-  // routes gated by `admin.seo.manage`, plus the 2 public site routes (sitemap.xml/robots.txt),
-  // which must register before `registerSiteRoutes`'s `/:slug` catch-all below. This call site
-  // sits at the exact same position the 8 inline registrations previously occupied — well before
-  // `registerSiteRoutes` — so that ordering constraint is unchanged. See `modules/seo.ts`'s file
-  // header for the full disclosure and the re-run `route-class-precedence.unit.test.ts` evidence.
-  mountRoutes(app, createSeoModule(routeDeps));
-  // `GET /api/search` (site search, lot S4): public, audiences from the visitor's own member cookie
-  // only; answers 503 `not_configured` in a composition without `siteSearch`.
-  registerSiteSearchRoute(app, routeDeps);
+  mountAdminData({ app, routeDeps });
 
   registerAdminSpa({ app, routeDeps });
 
-  // ADR-049 — `@jini-ai/chat-react`'s runtime picker requests agent icons from `/agent-icons/*`
-  // at the site root (hardcoded, no `ChatPaneProps` override exists to relocate it — verified
-  // against `chat-react@0.2.0`'s `AgentRuntimePicker.tsx`), which sits outside the admin SPA's own
-  // `/admin/*`-scoped static serving above. Served from Tovu's own root here (in both dev, via
-  // `apps/admin/vite.config.ts`'s matching proxy entry, and prod) rather than duplicated inside
-  // `apps/admin/dist` (which would only ever resolve under `/admin/`).
-  app.use("/agent-icons", express.static(path.join(resolveProductRoot({}), "content", "public", "agent-icons")));
-
-  // MCP-UI sandbox proxy — `@mcp-ui/client`'s `AppFrame` points an iframe's `src` at this exact
-  // root-relative path (see `mcp-ui-sandbox-proxy-route.ts`'s own module doc) and never falls back
-  // to `srcdoc`, so every MCP-UI surface (e.g. `assistant_ask_choice`'s form) fails to render at all
-  // without it. Same "root-relative, outside the admin SPA's `/admin/*` static serving" shape as
-  // `/agent-icons` immediately above — mounted here on Tovu's own web server, NOT on the agent
-  // daemon (`agent-daemon-server.ts`), because it needs nothing from that process's in-memory
-  // `ToolExecutor`/`SurfaceExchangeStore`, only a constant string.
-  registerMcpUiSandboxProxyRoute(app);
-
-  // ADR-054 Task 2/3 — the built public site-chat bundle (apps/site-chat/dist) at /site-chat.
-  // Distinct static mount from the admin SPA above: a single self-mounting script, not an app with
-  // client-side routing, so `site-chat-static.ts` has no `index.html` SPA fallback to serve.
-  registerSiteChatBundle({ app });
-  registerSiteChatComparisonRoutes({ app, deps: routeDeps });
-
-  // SPIKE — `static`-tier theme preview builds at /theme-preview/<theme-id>/<dark|light>/...; see
-  // theme-preview-static.ts's file header for exactly what this is (and isn't) wired up to.
-  registerThemePreviewStatic(app, {
-    // `routeDeps.themesDir`, not a package-relative path: since 2026-08-27 the themes a site
-    // actually serves live under `sites/<name>/themes/`, and this mount has to follow them or the
-    // preview renders the STOCK css while the live site renders the owner's edited copy. Reading it
-    // off `routeDeps` rather than calling `siteThemesDir()` here keeps the hermetic in-memory path
-    // (`createRouteDeps()` below, which stays on `builtInThemesDir()`) pointed at the same tree its
-    // own `deps.themes` was discovered from.
-    themesStaticDir: path.join(routeDeps.themesDir, "static"),
-  });
-
-  // Real (non-spike) asset serving for a theme's own files at /theme-assets/{id}/...: static-tier
-  // css/js (used by render.ts's static-tier branch when actually rendering one as the live site),
-  // EXTENDED 2026-08-12 to also cover templated-tier theme folders so a Liquid theme's own images/
-  // screenshots are reachable (see theme-static-assets.ts's own header for why declarative/handlebars
-  // are not listed here yet, and why templates/*.liquid source being servable is deliberate).
-  registerThemeStaticAssets(app, {
-    // Theme refresh replaces the roster; inherited sources must follow that replacement.
-    get themes() { return routeDeps.themes; },
-    isAuthenticatedPreviewRevision,
-    // Site-relative for the same reason as `themesStaticDir` just above — this is the mount that
-    // serves the live site's own theme css/js, so a package-relative root here is precisely the bug
-    // the `sites/` move fixes.
-    themeRoots: [path.join(routeDeps.themesDir, "static"), path.join(routeDeps.themesDir, "templated")],
-  });
-
-  // Admin Explore screen's preview iframe: any static theme's page, fully rendered, at
-  // /theme-explore/<theme-id>/<page-id> -- plus (2026-08-12) a GATED templated-theme (`.liquid`)
-  // preview at /theme-explore/<theme-id>/template/<template-id>, which needs `requireAdminSession`
-  // and therefore full `RouteDeps`, not the narrower `ContentRouteDeps` the admin CRUD module uses —
-  // see that route's own file header for why it stays registered here instead of moving into
-  // `createContentModule`. Registered AFTER the asset route above so the rendered page's own
-  // `/theme-assets/...` references are already being served when it loads.
-  registerThemePagePreview(app, routeDeps);
-
-  // SPEC-044: the `workspace` server module (list/create/get/update/delete) is registered near the
-  // other ADR-046 Phase 3 module calls above (`createUsersModule`); the original inline
-  // unauthenticated `POST /workspaces` route that lived here has been removed (see the file header).
-
-  // Commerce's plugin switch controls new purchases; its durable settlement drain remains available.
-  // Historical rows and namespace claims survive retirement independently of activation.
-  registerCommerceHttp({ app, deps: routeDeps });
-
-  // Public comment submission (ADR-031 §4) — unauthenticated by design; must precede the site
-  // `/:slug` catch-all, same reasoning as the store/analytics routes above.
-  registerCommentsSubmitRoute(app, {
-    visitorAnalyticsProof: routeDeps.visitorAnalyticsProof,
-    visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
-    visitorTracker: routeDeps.visitorTracker,
-    tracker: routeDeps.tracker,
-    idGen: routeDeps.idGen,
-    ingressPolicy: routeDeps.commentIngressPolicy,
-    providers: routeDeps.commentsProviders,
-    workspaceId: routeDeps.workspaceId,
-    // HTTP requests and accepted submissions consume separate budgets, never the same counter twice.
-    rateLimiter: createCommentsHostPorts({ clock: routeDeps.clock, settingsRepo: routeDeps.settingsRepo, workspaceId: routeDeps.workspaceId }, {}).rateLimiter,
-    // Resolved here, once, from the root's env and its site-key keyring — the route never reads env.
-    // No public-constant fallback in production: see `features/comments/ip-hash-salt.ts`.
-    ipHashSalt: resolveCommentsIpHashSalt({
-      env: process.env, mode: resolveRuntimeMode(), workspaceId: routeDeps.workspaceId, keyring: routeDeps.siteAssistantSecretKeyring,
-    }).then(({ salt }) => salt),
-  });
-
-  // Public analytics beacon (ADR-035 §5) — unauthenticated by design; must precede the site
-  // `/:slug` catch-all. `config` is now the real ADR-028-backed adapter
-  // (`analytics/config.settings.ts`'s `createSettingsAnalyticsConfig`), replacing the former
-  // hardcoded dev-only stub.
-  registerAnalyticsIngestRoute(app, {
-    browserAnalytics: routeDeps.browserAnalytics,
-    visitorAnalyticsProof: routeDeps.visitorAnalyticsProof,
-    visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
-    visitorTracker: routeDeps.visitorTracker,
-    tracker: routeDeps.tracker,
-    idGen: routeDeps.idGen,
-    clock: routeDeps.clock,
-    ids: routeDeps.idGen,
-    sink: routeDeps.analyticsSink,
-    config: routeDeps.analyticsConfig,
-    resolveWorkspaceForHost: async () => routeDeps.workspaceId, // single-workspace v1
-    analyticsSeed: process.env.ANALYTICS_ROOT_KEY_SEED ?? "dev-only-insecure-seed",
-    ...analyticsProviderRouteDeps(routeDeps),
-  });
-
-  // ADR-046 Phase 3 (SPEC-034): the public media rendition route now registers earlier, as part of
-  // `createMediaModule(routeDeps).registerRoutes(app)` above — it's still safely before the site
-  // `/:slug` catch-all below, which is the only ordering constraint that ever applied to it.
-
-  // Public, unauthenticated form submission endpoint (SPEC-010 REQ-05, FORMS_POST_SUBMIT) — must
-  // precede the site `/:slug` catch-all, same reasoning as the routes immediately above.
-  registerFormsSubmitRoute(app, {
-    visitorAnalyticsProof: routeDeps.visitorAnalyticsProof,
-    visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
-    visitorTracker: routeDeps.visitorTracker,
-    formSubmissionAttempts: routeDeps.formSubmissionAttempts,
-    tracker: routeDeps.tracker,
-    idGen: routeDeps.idGen,
-    workspaceId: routeDeps.workspaceId,
-    submitForm: {
-      definitionRepo: routeDeps.formDefinitionRepo,
-      submissionRepo: routeDeps.formSubmissionRepo,
-      outbox: routeDeps.outbox,
-      bus: routeDeps.bus,
-      clock: routeDeps.clock,
-      idGen: routeDeps.idGen,
-      crypto: globalThis.crypto,
-      rateLimiter: routeDeps.formsRateLimiter,
-      readUploadFreeBytes: async () => {
-        if (await routeDeps.siteBackupSources?.isMediaRemote?.()) return undefined;
-        const stats = await statfs(routeDeps.siteStoragePaths.mediaUploadsDir);
-        return stats.bavail * stats.bsize;
-      },
-      uploadSpaceMessage: "This site has no room for another attachment. Your answers are kept below. Your form has not been sent.",
-      files: createFormFileStorage({ media: {
-        clock: routeDeps.clock, idGen: routeDeps.idGen, mediaRepo: routeDeps.mediaRepo,
-        entryRefsRepo: routeDeps.entryRefsRepo, postRepo: routeDeps.postRepo,
-        blobRepo: routeDeps.assetBlobRepo, renditionRepo: routeDeps.assetRenditionRepo, blobStore: routeDeps.blobStore,
-        ...createFormMediaCleanup({ kernel: routeDeps.contentKernel, outbox: routeDeps.outbox, clock: routeDeps.clock, graceMs: DEFAULT_GC_GRACE_MS }),
-      }, contentTypes: routeDeps.mediaContentTypeStore,
-        resolveCreatedByPrincipal: async ({ workspaceId }) => {
-          // Uploads have no signed-in operator. Await identity's existing seed and attribute the
-          // write to its active System principal, rather than minting a dangling anonymous id.
-          await routeDeps.identityReady;
-          const principal = (await routeDeps.principalRepo.list({ workspaceId })).find(row => row.kind === "system" && row.status === "active" && row.displayName === "System");
-          if (!principal) throw new Error("form uploads require the site's System principal");
-          return principal.id;
-        },
-      }, {}),
-    },
-  });
-
-  // Member sign-in pages (/signin, /account, ...) must precede the /:slug catch-all below.
-  registerMemberPageRoutes(app, routeDeps);
-  // Public dummy site — registered last (GET /:slug is a catch-all).
-  registerSiteRoutes({ app, deps: routeDeps });
+  mountPublicSite({ app, routeDeps, isAuthenticatedPreviewRevision });
 
   // Last, so it sees a body-parser 413 from any route and answers JSON instead of Express's HTML page.
   app.use(respondToOversizedBody);
@@ -2617,74 +1000,3 @@ export function createApp(routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps =
   return app;
 }
 
-/** Tovu's shared boot order; feature modules retain ownership of their definitions.
- * Both roots expose the intermediate promises while keeping their later registrations separate.
- * Rejections propagate through the same serial chain; callers observe its tail.
- * @complexity O(1) registrations and readiness promises; no parallel settings writers.
- */
-export function startSettingsRegistration(required: {
-  deps: EnsureSeoSettingDefinitionsDeps & EnsureSettingDefinitionsDeps;
-  settingsReady: Promise<void>;
-  workspaceId: string;
-  systemPrincipalId: string;
-}, _options = {}) {
-  const { deps, settingsReady, workspaceId, systemPrincipalId } = required;
-  // SPEC-008 (ADR-PIPE-008 Decision §3, T050) — idempotently registers the 8 `site.seo.*`
-  // definitions at boot, mirroring `settingsReady`'s fire-and-forget shape. Chained AFTER
-  // `settingsReady` resolves, not fired in parallel with it — both are SQLite writers on the
-  // SAME single better-sqlite3 connection, and `SettingsWriteService`'s chokepoint opens a real
-  // `BEGIN IMMEDIATE` transaction; two independent async chains racing to BEGIN on one connection
-  // throws "cannot start a transaction within a transaction" (caught directly, not theoretical).
-  const seoReady = settingsReady.then(() =>
-    ensureSeoSettingDefinitions(deps, { workspaceId, systemPrincipalId }).then(() => undefined)
-  );
-
-  // SPEC-035 (ADR-028 Settings Layered Ledger wiring for Comments) — idempotently registers the 6
-  // `comments.*` definitions at boot, mirroring `seoReady`'s exact fire-and-forget shape. Chained
-  // AFTER `seoReady` resolves, not fired in parallel — same single-SQLite-connection transaction
-  // hazard `seoReady`'s own comment documents immediately above.
-  const commentsSettingsReady = seoReady.then(() =>
-    ensureCommentsSettingDefinitions(deps, { workspaceId, systemPrincipalId })
-      .then(() => ensureCommentsProviderDefinition({ deps, systemPrincipalId }))
-  );
-
-  // The visitor-facing assistant's master switch (`assistant/public-assistant-settings.ts`).
-  // Chained after `commentsSettingsReady`, not fired in parallel, for the same
-  // single-SQLite-connection transaction hazard `seoReady`'s comment above documents. Registering
-  // the definition does NOT enable anything: its default is `false`.
-  const assistantSettingsReady = commentsSettingsReady.then(() =>
-    ensurePublicAssistantSettingDefinitions(
-      { ...deps, ensureSettingDefinitions },
-      { workspaceId, systemPrincipalId }
-    ).then(() => undefined)
-  );
-
-  // The admin "Execution mode" tab's `core.execution.*` definitions
-  // (`assistant/execution-mode-settings.ts`). Chained after `assistantSettingsReady` rather than
-  // fired in parallel, for the identical single-SQLite-connection-transaction reason `seoReady`'s
-  // own comment above documents. `ownerKind: "core"` (not "site"), so unlike the three bindings
-  // above this one does not pass a `workspaceId` into the registration call — see that file's
-  // header for the namespace-fence reasoning.
-  const executionSettingsReady = assistantSettingsReady.then(() =>
-    ensureExecutionSettingDefinitions(
-      { ...deps, ensureSettingDefinitions },
-      { systemPrincipalId }
-    ).then(() => undefined)
-  );
-
-  // The remaining ledger-only settings-dialog tabs (Instructions, Notifications, Privacy).
-  // Chained after `executionSettingsReady` rather than fired alongside it for the same
-  // single-SQLite-connection-transaction reason every registration above documents.
-  const settingsUiTabsReady = executionSettingsReady.then(() =>
-    ensureSettingsUiTabDefinitions(deps, { systemPrincipalId }).then(() => undefined)
-  );
-
-  // The public analytics beacon's `core.analytics.*` definitions (`analytics/config.settings.ts`).
-  // Chained after `settingsUiTabsReady` rather than fired alongside it, for the identical
-  // single-SQLite-connection-transaction reason every registration above documents.
-  const analyticsSettingsReady = settingsUiTabsReady.then(() =>
-    ensureAnalyticsSettingDefinitions(deps, { systemPrincipalId }).then(() => undefined)
-  );
-
-  return { seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady };
-}

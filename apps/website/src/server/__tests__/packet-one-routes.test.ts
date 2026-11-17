@@ -6,6 +6,7 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
+import { createInMemoryApp } from "../runtime/composition/memory-route-deps.js";
 
 /** Measure the complete serialized request against the documented 1 MiB cap, including metadata. */
 function contentRequestAtBytes(fields: Record<string, unknown>, bytes: number): string {
@@ -19,7 +20,7 @@ function contentRequestAtBytes(fields: Record<string, unknown>, bytes: number): 
 }
 
 test("packet-one admin and content routes expose the seeded post loop", async (t) => {
-  const server = createServer(createApp());
+  const server = createServer(createInMemoryApp());
   server.listen(0);
   await once(server, "listening");
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -99,7 +100,7 @@ test("packet-one admin and content routes expose the seeded post loop", async (t
 });
 
 test("POST posts creates a blank draft and it's immediately listed", async (t) => {
-  const server = createServer(createApp());
+  const server = createServer(createInMemoryApp());
   server.listen(0);
   await once(server, "listening");
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -136,7 +137,7 @@ test("POST posts creates a blank draft and it's immediately listed", async (t) =
 });
 
 test("POST_CREATE: honors caller-supplied slug/bodyJson/status instead of always deriving/blanking/drafting them", async (t) => {
-  const server = createServer(createApp());
+  const server = createServer(createInMemoryApp());
   server.listen(0);
   await once(server, "listening");
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -170,7 +171,7 @@ test("POST_CREATE: honors caller-supplied slug/bodyJson/status instead of always
 // SEC-snapshot-and-post-create-2026-07-28, Finding 1). The oversized request must never reach
 // `createPost`/the command gateway: confirmed here by asserting nothing is created for the slug.
 test("POST_CREATE: 413 PAYLOAD_TOO_LARGE for a body over 1 MiB, nothing written; a body just under the cap still succeeds", async (t) => {
-  const server = createServer(createApp());
+  const server = createServer(createInMemoryApp());
   server.listen(0);
   await once(server, "listening");
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -226,7 +227,7 @@ test("POST_CREATE: 413 PAYLOAD_TOO_LARGE for a body over 1 MiB, nothing written;
 // the content-entry create *and* update endpoints. Proof the oversized request never reaches
 // `updatePost`/the command gateway: the stored post is still at its seeded title and version.
 test("POST_UPDATE: 413 PAYLOAD_TOO_LARGE for a body over 1 MiB, nothing persisted; a body just under the cap still succeeds", async (t) => {
-  const server = createServer(createApp());
+  const server = createServer(createInMemoryApp());
   server.listen(0);
   await once(server, "listening");
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -282,7 +283,7 @@ test("POST_UPDATE: 413 PAYLOAD_TOO_LARGE for a body over 1 MiB, nothing persiste
 });
 
 test("POST_CREATE: 400 VALIDATION_ERROR for a malformed slug, 409 SLUG_CONFLICT for a taken slug", async (t) => {
-  const server = createServer(createApp());
+  const server = createServer(createInMemoryApp());
   server.listen(0);
   await once(server, "listening");
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -322,7 +323,7 @@ test("POST_CREATE: 400 VALIDATION_ERROR for a malformed slug, 409 SLUG_CONFLICT 
 });
 
 test("POST pages creates a blank draft with kind 'page', it's listed under pages but not posts", async (t) => {
-  const server = createServer(createApp());
+  const server = createServer(createInMemoryApp());
   server.listen(0);
   await once(server, "listening");
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -377,7 +378,7 @@ test("POST pages creates a blank draft with kind 'page', it's listed under pages
 });
 
 test("PAGE_CREATE: honors caller-supplied slug/bodyJson/status, 400 VALIDATION_ERROR / 409 SLUG_CONFLICT on bad input", async (t) => {
-  const server = createServer(createApp());
+  const server = createServer(createInMemoryApp());
   server.listen(0);
   await once(server, "listening");
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -424,7 +425,7 @@ test("PAGE_CREATE: honors caller-supplied slug/bodyJson/status, 400 VALIDATION_E
 });
 
 test("pages routes 404 for an unknown workspace id", async (t) => {
-  const server = createServer(createApp());
+  const server = createServer(createInMemoryApp());
   server.listen(0);
   await once(server, "listening");
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -453,7 +454,7 @@ test("pages routes 404 for an unknown workspace id", async (t) => {
 });
 
 test("GET/PUT a page round-trips, and both 404 when the id belongs to a post (kind mismatch)", async (t) => {
-  const server = createServer(createApp());
+  const server = createServer(createInMemoryApp());
   server.listen(0);
   await once(server, "listening");
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -532,7 +533,7 @@ test("GET/PUT a page round-trips, and both 404 when the id belongs to a post (ki
 });
 
 test("PAGE_UPDATE: 400 VALIDATION_ERROR for a blank title, 409 SLUG_CONFLICT for a taken slug", async (t) => {
-  const server = createServer(createApp());
+  const server = createServer(createInMemoryApp());
   server.listen(0);
   await once(server, "listening");
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -593,7 +594,7 @@ test("PAGE_UPDATE: 400 VALIDATION_ERROR for a blank title, 409 SLUG_CONFLICT for
 // endpoints too). Proof the oversized request never reaches `updatePost`/the command gateway: the
 // stored page is still at its post-create title and version.
 test("PAGE_UPDATE: 413 PAYLOAD_TOO_LARGE for a body over 1 MiB, nothing persisted; a body just under the cap still succeeds", async (t) => {
-  const server = createServer(createApp());
+  const server = createServer(createInMemoryApp());
   server.listen(0);
   await once(server, "listening");
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -660,7 +661,7 @@ test("PAGE_UPDATE: 413 PAYLOAD_TOO_LARGE for a body over 1 MiB, nothing persiste
 });
 
 test("GET themes lists discovered built-in themes, TB-01 ordered, exactly one marked active", async (t) => {
-  const server = createServer(createApp());
+  const server = createServer(createInMemoryApp());
   server.listen(0);
   await once(server, "listening");
   t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));

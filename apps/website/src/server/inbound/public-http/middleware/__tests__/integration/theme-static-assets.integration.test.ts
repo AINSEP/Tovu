@@ -8,7 +8,7 @@ import test from "node:test";
 import express from "express";
 
 import { registerThemeStaticAssets } from "../../theme-static-assets.js";
-import { createApp } from "#src/server/runtime/composition/app";
+import { createInMemoryApp } from "#src/server/runtime/composition/memory-route-deps";
 
 /**
  * @file Regression coverage for `registerThemeStaticAssets`'s 2026-08-12 extension from a single
@@ -364,7 +364,7 @@ test("registerThemeStaticAssets: font files carry `Access-Control-Allow-Origin: 
 // ---------------------------------------------------------------------------
 
 test("createApp(): the real 'basic' static theme's real css/theme.css still serves byte-for-byte identically (static tier not regressed)", async (t) => {
-  const server = createServer(createApp());
+  const server = createServer(createInMemoryApp());
   server.listen(0);
   t.after(() => server.close());
   await new Promise<void>((resolve) => server.once("listening", resolve));
@@ -379,7 +379,7 @@ test("createApp(): the real 'basic' static theme's real css/theme.css still serv
 });
 
 test("createApp(): the real 'basic' theme's Geist fonts are CORS-loadable (`*`, no credentials) for the sandboxed Theme Studio preview", async (t) => {
-  const server = createServer(createApp());
+  const server = createServer(createInMemoryApp());
   server.listen(0);
   t.after(() => server.close());
   await new Promise<void>((resolve) => server.once("listening", resolve));
@@ -397,7 +397,7 @@ test("createApp(): the real 'basic' theme's Geist fonts are CORS-loadable (`*`, 
 });
 
 test("createApp(): the new 'fashion-modern' templated theme's own assets now resolve (the gap this change closes)", async (t) => {
-  const server = createServer(createApp());
+  const server = createServer(createInMemoryApp());
   server.listen(0);
   t.after(() => server.close());
   await new Promise<void>((resolve) => server.once("listening", resolve));
@@ -419,7 +419,7 @@ test("createApp(): the new 'fashion-modern' templated theme's own assets now res
 });
 
 test("createApp(): both bundled static themes' real screenshot files serve byte-for-byte identically", async (t) => {
-  const server = createServer(createApp());
+  const server = createServer(createInMemoryApp());
   server.listen(0);
   t.after(() => server.close());
   await new Promise<void>((resolve) => server.once("listening", resolve));
@@ -445,7 +445,7 @@ test("createApp(): both bundled static themes' real screenshot files serve byte-
 });
 
 test("createApp(): 'storefront' still returns 404 for an absent screenshot", async (t) => {
-  const server = createServer(createApp());
+  const server = createServer(createInMemoryApp());
   server.listen(0);
   t.after(() => server.close());
   await new Promise<void>((resolve) => server.once("listening", resolve));
@@ -459,7 +459,7 @@ test("createApp(): 'storefront' still returns 404 for an absent screenshot", asy
 
 // All four themes use the existing whole-folder asset route, including nested vendor folders.
 test("createApp(): each bundled theme serves its removable animation library from its own folder", async (t) => {
-  const server = createServer(createApp());
+  const server = createServer(createInMemoryApp());
   server.listen(0);
   t.after(() => server.close());
   await new Promise<void>((resolve) => server.once("listening", resolve));

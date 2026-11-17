@@ -405,7 +405,9 @@ export { builtInThemesDir, defaultContentDbPath, mediaUploadsDir, resolveExportO
 // routing, page-head and event-subscription registries — exports and site inspection served no
 // redirects. `src/__tests__/no-first-party-require.boundary.test.ts` now forbids that pattern.
 import { exportSite } from "#src/features/site-export/index";
-import { createApp, siteAppBootWorkByDeps, startSettingsRegistration } from "./app.js";
+import { createApp } from "./app.js";
+import { siteAppBootWorkByDeps } from "./site-app-boot-work.js";
+import { startSettingsRegistration } from "./settings-registration.js";
 
 const consoleLogger = createConsoleLogger({ prefix: "" });
 

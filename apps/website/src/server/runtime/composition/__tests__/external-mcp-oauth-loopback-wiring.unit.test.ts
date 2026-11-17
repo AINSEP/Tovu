@@ -61,7 +61,7 @@ function beginRedirect(
 }
 
 // Why: the daemon server no longer builds its own OAuth ports (it takes `externalMcpOAuthHttpPorts` from deps.ts, already on terra), so only the two composition roots that call the factory remain to pin.
-for (const file of ["../app.ts", "../deps.ts"]) {
+for (const file of ["../memory-deps/slices/outbound-http.ts", "../deps.ts"]) {
   test(`${file}: desktop accepts a loopback OAuth callback; hosted requires HTTPS`, async () => {
     for (const electronRunAsNode of ["1", undefined, "true"]) {
       const ports = wiredOAuthPorts({ file, env: { ELECTRON_RUN_AS_NODE: electronRunAsNode } });

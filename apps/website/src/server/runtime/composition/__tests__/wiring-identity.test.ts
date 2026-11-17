@@ -209,7 +209,7 @@ const BASELINE_OWNER_FILES = new Set([
   "features/agent-plugins/set-enabled.ts",
   "features/site-backup/archive-extensions.ts",
   "features/site-backup/import-plugin-state.ts",
-  "server/runtime/composition/app.ts",
+  "server/runtime/composition/memory-deps/slices/agent-plugins.ts",
   "server/runtime/composition/deps.ts",
   "server/runtime/composition/plugin-credential-cards.ts",
   "server/runtime/composition/site-guide.ts",

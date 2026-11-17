@@ -1593,23 +1593,16 @@
     {
       "file": "apps/website/src/server/runtime/composition/app.ts",
       "function": "createRouteDeps#1",
-      "line": 465,
+      "line": 213,
       "rule": "max-lines-per-function",
-      "value": 879
+      "value": 460
     },
     {
       "file": "apps/website/src/server/runtime/composition/app.ts",
       "function": "<file>",
-      "line": 612,
+      "line": 666,
       "rule": "max-lines",
-      "value": 1703
-    },
-    {
-      "file": "apps/website/src/server/runtime/composition/app.ts",
-      "function": "createApp#1",
-      "line": 2035,
-      "rule": "max-lines-per-function",
-      "value": 247
+      "value": 653
     },
     {
       "file": "apps/website/src/server/runtime/composition/commerce.ts",
