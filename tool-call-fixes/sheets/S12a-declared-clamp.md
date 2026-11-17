@@ -43,7 +43,9 @@ A schema carrying `clamp: true` and `obtainFrom: "x"` on a property must (a) com
    `clampDeclaredBounds({ input, inputSchema }, {})` → `{ input, notes }` and `assertRepairKeywords`. Top-level and
    nested object properties, depth ≤ 6.
 2. `core/src/tool-input-normalization.ts` (271 lines): `normalizeToolInput` calls `clampDeclaredBounds` after its number
-   coercion. Registry tools get it on every path that already runs the normalizer (typed MCP tools and the daemon executor).
+   coercion. Registry tools get it on every path that already runs the normalizer: typed MCP tools (`tool-protocol.ts`), the
+   registry's own execution path (`core/src/tool-registry.ts`, which the gateway reaches) and `core/src/batch-tool-inputs.ts`.
+   Add one test per path (typed, gateway through a real `ToolRegistry`, one batch item).
 3. `mcp`: `McpToolArgumentContract.argumentNormalization.clamp?: true`; `normalizeCallArguments` runs
    `clampDeclaredBounds` for such a tool and returns its notes. `read_tool_result.limit` and
    `search_tools.limit` / `max_results` get `clamp: true` and the tools opt in.
