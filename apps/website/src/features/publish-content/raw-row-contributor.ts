@@ -47,141 +47,168 @@ export function contributeRawRowPublish(_required: Record<string, never> = {}, _
   };
 }
 
-function buildRawRowHandler({ deps }: { deps: PublishContentDeps }, _optional: Record<string, never> = {}): PublishContentHandler {
-  const port = deps.backstop?.rows;
-  const skipped: SkippedPackEntity[] = [];
-  function blockedTable({ table }: { table: string }, _optional = {}): string | null {
-    return deps.backstop?.coveredTables.some((covered) => covered.toLowerCase() === table.toLowerCase())
-      ? `Table '${table}' already publishes normally; use Overwrite live in normal publishing.` : null;
+function blockedTable({ deps, table }: { deps: PublishContentDeps; table: string }, _optional = {}): string | null {
+  return deps.backstop?.coveredTables.some((covered) => covered.toLowerCase() === table.toLowerCase())
+    ? `Table '${table}' already publishes normally; use Overwrite live in normal publishing.` : null;
+}
+
+function checkShape({ deps, entity }: { deps: PublishContentDeps; entity: PackedEntity }, _optional: Record<string, never> = {}): string | null {
+  const { table, columns, values } = entity.state;
+  if (typeof table !== "string") return "The raw row has no valid table name.";
+  const covered = blockedTable({ deps, table });
+  if (covered) return covered;
+  if (!values || typeof values !== "object" || Array.isArray(values)) return "The raw row has no valid column values.";
+  const policy = checkRawTable({ table, columns: Object.keys(values) });
+  if (policy) return policy;
+  if (!Array.isArray(columns) || columns.some((column) => invalidColumn({ column }))) return "The raw row has no valid column shape.";
+  return checkRawTable({ table, columns: columns.map((c: RawColumn) => c.name) });
+}
+
+function checkPrimaryKey({ entity, live }: { entity: PackedEntity; live: readonly RawColumn[] }, _optional: Record<string, never> = {}): string | null {
+  const { table, pk, values } = entity.state as unknown as RawRowSnapshot;
+  if (!recordValue({ value: pk })) return "Choose a row by its complete primary key.";
+  const decoded = decodeId({ id: entity.id });
+  if (!decoded || decoded.table !== table || JSON.stringify(decoded.pk) !== JSON.stringify(Object.fromEntries(Object.entries(pk).sort(([a], [b]) => a.localeCompare(b))))) return "The raw row's primary key does not match its address.";
+  const primary = live.filter((c) => c.pk > 0).map((c) => c.name).sort();
+  if (primary.length === 0 || JSON.stringify(primary) !== JSON.stringify(Object.keys(decoded.pk).sort()) || primary.some((name) => decoded.pk[name] !== (values as Record<string, RawValue>)[name])) return "Choose a row by its complete primary key.";
+  return null;
+}
+
+function checkLiveValues({ deps, entity, live }: { deps: PublishContentDeps; entity: PackedEntity; live: readonly RawColumn[] }, _optional: Record<string, never> = {}): string | null {
+  const { values } = entity.state as unknown as RawRowSnapshot;
+  if (JSON.stringify(Object.keys(values).sort()) !== JSON.stringify(live.map((c) => c.name).sort()) || Object.values(values).some((value) => !scalar(value))) return "The raw row must contain a valid value for every column.";
+  const invalidKey = checkPrimaryKey({ entity, live });
+  if (invalidKey) return invalidKey;
+  if (Object.hasOwn(values, "workspace_id") && (values as Record<string, unknown>).workspace_id !== deps.workspaceId) return "This row belongs to a different workspace.";
+  return null;
+}
+
+type RawRowContext = { deps: PublishContentDeps; port: NonNullable<PublishContentDeps["backstop"]>["rows"]; skipped: SkippedPackEntity[] };
+type RawRowApplyInput = Parameters<PublishContentHandler["apply"]>[0];
+
+async function precheckRawRow({ ctx, entity }: { ctx: RawRowContext; entity: PackedEntity }, _optional = {}): Promise<string | null> {
+  const { deps, port } = ctx;
+  if (!port || !deps.backstop) return "Send by hand is not available on this destination.";
+  const { table, columns } = entity.state as unknown as RawRowSnapshot;
+  const invalid = checkShape({ deps, entity });
+  if (invalid) return invalid;
+  let live: readonly RawColumn[] | null;
+  try { live = await port.columns({ table }); } catch (error) {
+    // Only expected refusals are public; unexpected diagnostics belong to the shared failure handler.
+    if (!(error instanceof BackstopRefusal)) throw error;
+    return error.message;
   }
-  function checkShape({ entity }: { entity: PackedEntity }, _optional: Record<string, never> = {}): string | null {
-    const { table, columns, values } = entity.state;
-    if (typeof table !== "string") return "The raw row has no valid table name.";
-    const covered = blockedTable({ table });
-    if (covered) return covered;
-    if (!values || typeof values !== "object" || Array.isArray(values)) return "The raw row has no valid column values.";
-    const policy = checkRawTable({ table, columns: Object.keys(values) });
-    if (policy) return policy;
-    if (!Array.isArray(columns) || columns.some((column) => invalidColumn({ column }))) return "The raw row has no valid column shape.";
-    return checkRawTable({ table, columns: columns.map((c: RawColumn) => c.name) });
+  if (!live || shape(live) !== shape(columns)) return `Live's '${table}' has a different shape; update live first.`;
+  const invalidValues = checkLiveValues({ deps, entity, live });
+  if (invalidValues) return invalidValues;
+  return checkContent({ entity });
+}
+
+/** Reads one selected row; an expected refusal becomes the skip reason instead of an error. */
+async function readSelectedRow({ port, selected }: { port: RawRowContext["port"]; selected: { table: string; pk: Readonly<Record<string, RawValue>> } }): Promise<{ row: RawRowSnapshot | null; readReason: string | null }> {
+  try {
+    if (!port) throw new Error("Send by hand has no row reader");
+    return { row: await port.read(selected), readReason: null };
+  } catch (error) {
+    if (!(error instanceof BackstopRefusal)) throw error;
+    return { row: null, readReason: error.message };
   }
-  function checkPrimaryKey({ entity, live }: { entity: PackedEntity; live: readonly RawColumn[] }, _optional: Record<string, never> = {}): string | null {
-    const { table, pk, values } = entity.state as unknown as RawRowSnapshot;
-    if (!recordValue({ value: pk })) return "Choose a row by its complete primary key.";
-    const decoded = decodeId({ id: entity.id });
-    if (!decoded || decoded.table !== table || JSON.stringify(decoded.pk) !== JSON.stringify(Object.fromEntries(Object.entries(pk).sort(([a], [b]) => a.localeCompare(b))))) return "The raw row's primary key does not match its address.";
-    const primary = live.filter((c) => c.pk > 0).map((c) => c.name).sort();
-    if (primary.length === 0 || JSON.stringify(primary) !== JSON.stringify(Object.keys(decoded.pk).sort()) || primary.some((name) => decoded.pk[name] !== (values as Record<string, RawValue>)[name])) return "Choose a row by its complete primary key.";
-    return null;
-  }
-  function checkLiveValues({ entity, live }: { entity: PackedEntity; live: readonly RawColumn[] }, _optional: Record<string, never> = {}): string | null {
-    const { values } = entity.state as unknown as RawRowSnapshot;
-    if (JSON.stringify(Object.keys(values).sort()) !== JSON.stringify(live.map((c) => c.name).sort()) || Object.values(values).some((value) => !scalar(value))) return "The raw row must contain a valid value for every column.";
-    const invalidKey = checkPrimaryKey({ entity, live });
-    if (invalidKey) return invalidKey;
-    if (Object.hasOwn(values, "workspace_id") && (values as Record<string, unknown>).workspace_id !== deps.workspaceId) return "This row belongs to a different workspace.";
-    return null;
-  }
-  async function precheck({ entity }: { entity: PackedEntity }, _optional = {}): Promise<string | null> {
-    if (!port || !deps.backstop) return "Send by hand is not available on this destination.";
-    const { table, columns } = entity.state as unknown as RawRowSnapshot;
-    const invalid = checkShape({ entity });
-    if (invalid) return invalid;
-    let live: readonly RawColumn[] | null;
-    try { live = await port.columns({ table }); } catch (error) {
-      // Only expected refusals are public; unexpected diagnostics belong to the shared failure handler.
-      if (!(error instanceof BackstopRefusal)) throw error;
-      return error.message;
+}
+
+async function packSelected({ ctx, selected }: { ctx: RawRowContext; selected: { table: string; pk: Readonly<Record<string, RawValue>> } }, _optional: Record<string, never> = {}) {
+  const { deps, port } = ctx;
+  const id = rawRowId(selected);
+  const early = checkRawTable({ table: selected.table, columns: Object.keys(selected.pk) }) ?? blockedTable({ deps, table: selected.table });
+  const { row, readReason } = early ? { row: null, readReason: null } : await readSelectedRow({ port, selected });
+  const entity: PackedEntity | null = row ? {
+    entityType: "raw-row", id, schemaVersion: 1,
+    hashVersion: CONTENT_HASH_VERSION, contentHash: rowHash(row), requiredBlobs: [], state: rowState(row)
+  } : null;
+  const reason = early ?? readReason ?? (entity ? await precheckRawRow({ ctx, entity }) : "The selected row no longer exists.");
+  return { id, entity, reason };
+}
+
+async function* packRawRows({ ctx }: { ctx: RawRowContext }): AsyncGenerator<PackedEntity> {
+  const { deps, port, skipped } = ctx;
+  skipped.length = 0;
+  if (!port) return;
+  const selection = deps.backstop?.selection?.rows ?? [];
+  if (selection.length > BACKSTOP_LIMITS.rows) throw new Error("Choose at most 200 rows per send.");
+  for (const selected of selection) {
+    const { id, entity, reason } = await packSelected({ ctx, selected });
+    if (reason) skipped.push({ entityType: "raw-row", id, label: id, reason });
+    else {
+      if (entity) yield entity;
     }
-    if (!live || shape(live) !== shape(columns)) return `Live's '${table}' has a different shape; update live first.`;
-    const invalidValues = checkLiveValues({ entity, live });
-    if (invalidValues) return invalidValues;
-    return checkContent({ entity });
   }
-  async function packSelected({ selected }: { selected: { table: string; pk: Readonly<Record<string, RawValue>> } }, _optional: Record<string, never> = {}) {
-    const id = rawRowId(selected);
-    const early = checkRawTable({ table: selected.table, columns: Object.keys(selected.pk) }) ?? blockedTable({ table: selected.table });
-    let row: RawRowSnapshot | null = null;
-    let readReason: string | null = null;
-    if (!early) {
-      try {
-        if (!port) throw new Error("Send by hand has no row reader");
-        row = await port.read(selected);
-      } catch (error) {
-        if (!(error instanceof BackstopRefusal)) throw error;
-        readReason = error.message;
+}
+
+async function inspectRawRow({ ctx, id }: { ctx: RawRowContext; id: string }) {
+  const { deps, port } = ctx;
+  const address = decodeId({ id });
+  if (!address || !port || blockedTable({ deps, table: address.table })) return null;
+  let row: RawRowSnapshot | null;
+  try { row = await port.read(address); } catch { return null; }
+  if (!row) return null;
+  // Inspect never exposes values; it still refuses private columns and scans live data.
+  if (checkRawTable({ table: row.table, columns: row.columns.map((c) => c.name) })) return null;
+  return { hash: rowHash(row), hashVersion: CONTENT_HASH_VERSION, version: rowVersion(row) };
+}
+
+type RawRowWriteState = { prior: RawRowSnapshot | null };
+
+/** The command mutation for one raw-row write; `state.prior` carries the captured snapshot out to the caller. */
+function rawRowMutation({ port, input, state }: { port: NonNullable<RawRowContext["port"]>; input: RawRowApplyInput; state: RawRowWriteState }) {
+  const incoming = input.entity.state as unknown as RawRowSnapshot;
+  return { entityType: "raw-row", entityId: input.entity.id, operation: input.expectedVersion === undefined ? "create" as const : "update" as const,
+    captureInverse: async () => {
+      state.prior = await port.read({ table: incoming.table, pk: incoming.pk });
+      return state.prior ? rowState(state.prior) as JsonObject : null;
+    },
+    execute: async () => {
+      const { prior } = state;
+      if (input.expectedVersion === undefined ? prior !== null : prior === null || rowVersion(prior) !== input.expectedVersion) {
+        throw new PublishContentApplyRowError({ rowOutcome: "conflict", message: "This row changed on live after it was checked." });
       }
-    }
-    const entity: PackedEntity | null = row ? {
-      entityType: "raw-row", id, schemaVersion: 1,
-      hashVersion: CONTENT_HASH_VERSION, contentHash: rowHash(row), requiredBlobs: [], state: rowState(row)
-    } : null;
-    const reason = early ?? readReason ?? (entity ? await precheck({ entity }) : "The selected row no longer exists.");
-    return { id, entity, reason };
-  }
-  const handler: PublishContentHandler = {
-    entityType: "raw-row", schemaVersion: 1, permission: "publish.backstop", dependsOn: [], idempotencyScope: "run",
-    pack: async function*() {
-      skipped.length = 0;
-      if (!port) return;
-      const selection = deps.backstop?.selection?.rows ?? [];
-      if (selection.length > BACKSTOP_LIMITS.rows) throw new Error("Choose at most 200 rows per send.");
-      for (const selected of selection) {
-        const { id, entity, reason } = await packSelected({ selected });
-        if (reason) skipped.push({ entityType: "raw-row", id, label: id, reason });
-        else {
-          if (entity) yield entity;
-        }
-      }
+      await port.upsert(incoming);
+      return { version: rowVersion(incoming) };
     },
-    inspect: async ({ id }) => {
-      const address = decodeId({ id });
-      if (!address || !port || blockedTable({ table: address.table })) return null;
-      let row: RawRowSnapshot | null;
-      try { row = await port.read(address); } catch { return null; }
-      if (!row) return null;
-      // Inspect never exposes values; it still refuses private columns and scans live data.
-      if (checkRawTable({ table: row.table, columns: row.columns.map((c) => c.name) })) return null;
-      return { hash: rowHash(row), hashVersion: CONTENT_HASH_VERSION, version: rowVersion(row) };
-    },
-    precheck,
-    apply: async (input) => {
-      const reason = await precheck({ entity: input.entity });
-      if (reason) throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: reason });
-      const { changeSets, authorize, outbox } = deps;
-      if (!port || !changeSets || !authorize || !outbox) throw new Error("The raw row command gateway is not wired.");
-      const incoming = input.entity.state as unknown as RawRowSnapshot;
-      return port.transaction({ work: async () => {
-        const freshReason = await precheck({ entity: input.entity });
-        if (freshReason) throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: freshReason });
-        let prior: RawRowSnapshot | null = null;
-        const result = await executeCommand<{ version: number }>({
-          deps: { clock: deps.clock, idGen: deps.idGen, authorize, changeSets, outbox },
-          command: { workspaceId: deps.workspaceId, actor: { id: input.principalId, kind: "user" }, permission: "publish.backstop",
-            summary: `Send '${input.entity.id}' by hand`, idempotencyKey: input.idempotencyKey },
-          mutation: { entityType: "raw-row", entityId: input.entity.id, operation: input.expectedVersion === undefined ? "create" : "update",
-            captureInverse: async () => {
-              prior = await port.read({ table: incoming.table, pk: incoming.pk });
-              return prior ? rowState(prior) as JsonObject : null;
-            },
-            execute: async () => {
-              if (input.expectedVersion === undefined ? prior !== null : prior === null || rowVersion(prior) !== input.expectedVersion) {
-                throw new PublishContentApplyRowError({ rowOutcome: "conflict", message: "This row changed on live after it was checked." });
-              }
-              await port.upsert(incoming);
-              return { version: rowVersion(incoming) };
-            },
-            captureEntityVersion: ({ result: saved }) => saved.version,
-            rollback: async () => { if (prior) await port.upsert(prior); else await port.removeCreated(incoming); },
-          },
-        });
-        deps.backstop?.inverses?.push({ kind: "raw-row", entity: input.entity, before: prior, afterHash: input.entity.contentHash });
-        return { changeSetId: result.changeSetId };
-      } });
-    },
-    listSkipped: async () => [...skipped],
+    captureEntityVersion: ({ result: saved }: { result: { version: number } }) => saved.version,
+    rollback: async () => { if (state.prior) await port.upsert(state.prior); else await port.removeCreated(incoming); },
   };
-  return handler;
+}
+
+async function applyRawRow({ ctx, input }: { ctx: RawRowContext; input: RawRowApplyInput }) {
+  const { deps, port } = ctx;
+  const reason = await precheckRawRow({ ctx, entity: input.entity });
+  if (reason) throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: reason });
+  const { changeSets, authorize, outbox } = deps;
+  if (!port || !changeSets || !authorize || !outbox) throw new Error("The raw row command gateway is not wired.");
+  return port.transaction({ work: async () => {
+    const freshReason = await precheckRawRow({ ctx, entity: input.entity });
+    if (freshReason) throw new PublishContentApplyRowError({ rowOutcome: "blocked", message: freshReason });
+    const state: RawRowWriteState = { prior: null };
+    const result = await executeCommand<{ version: number }>({
+      deps: { clock: deps.clock, idGen: deps.idGen, authorize, changeSets, outbox },
+      command: { workspaceId: deps.workspaceId, actor: { id: input.principalId, kind: "user" }, permission: "publish.backstop",
+        summary: `Send '${input.entity.id}' by hand`, idempotencyKey: input.idempotencyKey },
+      mutation: rawRowMutation({ port, input, state }),
+    });
+    deps.backstop?.inverses?.push({ kind: "raw-row", entity: input.entity, before: state.prior, afterHash: input.entity.contentHash });
+    return { changeSetId: result.changeSetId };
+  } });
+}
+
+function buildRawRowHandler({ deps }: { deps: PublishContentDeps }, _optional: Record<string, never> = {}): PublishContentHandler {
+  const ctx: RawRowContext = { deps, port: deps.backstop?.rows, skipped: [] };
+  return {
+    entityType: "raw-row", schemaVersion: 1, permission: "publish.backstop", dependsOn: [], idempotencyScope: "run",
+    pack: () => packRawRows({ ctx }),
+    inspect: ({ id }) => inspectRawRow({ ctx, id }),
+    precheck: ({ entity }) => precheckRawRow({ ctx, entity }),
+    apply: (input) => applyRawRow({ ctx, input }),
+    listSkipped: async () => [...ctx.skipped],
+  };
 }
 
 /** Used by the audited undo route, never by normal publish. Check and inverse share the same DB

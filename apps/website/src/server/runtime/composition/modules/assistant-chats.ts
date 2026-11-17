@@ -20,7 +20,7 @@ import { readPickedFolders } from "#src/assistant/run-page-context";
  * router for it by loosening this middleware would be the easiest way to hand a visitor an admin
  * scope, so the two get separate mounts.
  */
-import type { Express, Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import { Readable, pipeline } from "node:stream";
 import { readPreviousAssistantDaemon } from "../../lifecycle/assistant-daemon-registry.js";
 
@@ -91,8 +91,21 @@ export interface AssistantChatsModuleOptions {
   readonly onBootWork?: ({ work }: { work: Promise<void> }, optional?: Record<string, never>) => void;
 }
 
-export function createAssistantChatsModule(deps: RouteDeps, options: AssistantChatsModuleOptions = {}): ServerModuleHandle {
-  const finalizer = options.finalizer ?? assistantRunFinalizerFor({
+type ChatsRouteContext = { deps: RouteDeps; finalizer: AssistantRunFinalizer };
+type ChatRoute = (req: Request, res: Response, next: NextFunction) => void;
+
+/** The store for whoever is making this request, and nobody else. */
+function storeFor({ deps, res }: { deps: RouteDeps; res: Response }) {
+  const principal = getAuthedPrincipal(res);
+  return deps.chatHistory({
+    kind: "user",
+    workspaceId: deps.workspaceId,
+    userId: principal.id,
+  });
+}
+
+function buildChatsFinalizer({ deps, options }: { deps: RouteDeps; options: AssistantChatsModuleOptions }): AssistantRunFinalizer {
+  return options.finalizer ?? assistantRunFinalizerFor({
     ledger: deps.chatRunLedger, tracker: deps.tracker, observability: deps.observability,
     ...(options.recoverInterrupted && deps.siteBinding?.dir ? {
       recoveryDaemon: createHttpRunDaemonClient({ observability: deps.observability ?? createNoopObservabilityPort({}) }, {
@@ -100,28 +113,208 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
       }),
     } : {}),
   });
+}
+
+/*
+ * Serving-boot repair, before chat routes answer: a queued/running turn may still belong to
+ * a live detached daemon, so dispatch each unfinished binding to the shared coordinator. It
+ * reattaches live attempts, waits for uncertainty, and continues dead attempts within the
+ * saved budget. Child teardown is best
+ * effort, not proof of death. Route registration also happens during static exports inside the
+ * daemon (and eagerly on importing app.ts); those are not restarts and must never sweep.
+ */
+function startBootReconcile({ finalizer, options }: { finalizer: AssistantRunFinalizer; options: AssistantChatsModuleOptions }): Promise<void> {
+  const reconciled = (options.recoverInterrupted ? finalizer.reconcileInterrupted({}, {}) : Promise.resolve(0)).then(
+    (repaired) => {
+      if (repaired > 0) console.log(`[assistant-chats] dispatched ${repaired} unfinished chat turn(s) to recovery`);
+    },
+    (error: unknown) => {
+      // A failed repair leaves rows `running` (the pane shows them spinning); it must not keep
+      // every chat route down with it.
+      console.error("[assistant-chats] boot-time repair of interrupted chat turns failed", error);
+    }
+  );
+  if (options.recoverInterrupted) options.onBootWork?.({ work: reconciled });
+  return reconciled;
+}
+
+function listChatsRoute({ deps }: ChatsRouteContext): ChatRoute {
+  return (_req, res, next) => {
+    storeFor({ deps, res })
+      .list()
+      .then((conversations) => res.json({ conversations }))
+      .catch(next);
+  };
+}
+
+function createChatRoute({ deps }: ChatsRouteContext): ChatRoute {
+  return (req, res, next) => {
+    const body = bodyOf(req);
+    const id = typeof body.id === "string" && body.id ? body.id : crypto.randomUUID();
+    // A title derived from the first prompt, when the client sends one. Local and synchronous
+    // — a conversation needs a name the moment it appears in the list, and a model call to
+    // produce one would put a spinner in front of every "New chat".
+    const seed = typeof body.firstMessage === "string" ? deriveAssistantConversationTitle({ text: redactUserText({ text: body.firstMessage }).text }) : "";
+    storeFor({ deps, res })
+      .create({
+        id,
+        ...(seed ? { title: seed, titleSource: "fallback" as const } : {}),
+      })
+      .then((conversation) => {
+        // Owner-action product event (consent-gated port): a chat was started; never its text.
+        void deps.tracker.capture({ name: "assistant_chat_started", userId: getAuthedPrincipal(res).id }, { properties: { chatSurface: "admin", conversationId: conversation.id, source: "admin", eventId: `assistant-chat:${conversation.id}` } });
+        res.status(201).json({ conversation });
+      })
+      .catch(next);
+  };
+}
+
+/** The validated, trimmed title, or the 400 message when it is empty or too long. */
+function parseRenameTitle({ body }: { body: Record<string, unknown> }): { title: string } | { error: string } {
+  const title = typeof body.title === "string" ? body.title.trim() : "";
+  if (!title) return { error: "'title' must be a non-empty string" };
+  if (title.length > MAX_CONVERSATION_TITLE_LENGTH) return { error: `'title' must be at most ${MAX_CONVERSATION_TITLE_LENGTH} characters` };
+  return { title };
+}
+
+function renameChatRoute({ deps }: ChatsRouteContext): ChatRoute {
+  return (req, res, next) => {
+    const id = req.params.id;
+    if (id === undefined) { res.status(404).json({ error: "not found" }); return; }
+    const body = bodyOf(req);
+    const parsed = parseRenameTitle({ body });
+    if ("error" in parsed) {
+      res.status(400).json({ error: parsed.error, code: "VALIDATION_ERROR" });
+      return;
+    }
+    // `source` defaults to `manual` in the store. A caller may pass `generated` for an
+    // agent-produced title, which the store then refuses to apply over a manual rename.
+    const source = body.source === "generated" ? ("generated" as const) : ("manual" as const);
+    storeFor({ deps, res })
+      .rename({ id, title: parsed.title }, { source })
+      .then((conversation) =>
+        // `null` means the id does not exist *or* belongs to someone else. Both answer 404, on
+        // purpose: distinguishing them would confirm the existence of another admin's chat.
+        conversation ? res.json({ conversation }) : res.status(404).json({ error: "not found" }),
+      )
+      .catch(next);
+  };
+}
+
+/** Cancel before deleting the binding. Once cascaded away, recovery cannot recreate it. */
+async function cancelUnfinishedRuns({ context, store, id }: { context: ChatsRouteContext; store: ReturnType<typeof storeFor>; id: string }): Promise<void> {
+  const messages = await store.messages({ conversationId: id }, { includeEvents: false });
+  for (const message of messages) {
+    if (!message.runId || !["queued", "running"].includes(message.runStatus ?? "")) continue;
+    await context.deps.chatRunLedger.durable?.cancel({ runId: message.runId, reason: "conversation-deleted" }, {});
+    await context.finalizer.recover({ messageId: message.id, trigger: "browser" }, {});
+  }
+}
+
+function deleteChatRoute(context: ChatsRouteContext): ChatRoute {
+  return (req, res, next) => {
+    const id = req.params.id;
+    if (id === undefined) { res.status(404).json({ error: "not found" }); return; }
+    const store = storeFor({ deps: context.deps, res });
+    cancelUnfinishedRuns({ context, store, id })
+      .then(() => store.delete({ id }))
+      .then(() => res.status(204).end())
+      .catch(next);
+  };
+}
+
+async function sendChatMessages({ store, id, req, res, next }: { store: ReturnType<typeof storeFor>; id: string; req: Request; res: Response; next: NextFunction }): Promise<void> {
+  const version = await store.messagesVersion?.({ conversationId: id }, {});
+  if (version != null) {
+    const etag = '"' + encodeURIComponent(version) + '"';
+    res.setHeader('ETag', etag);
+    res.setHeader('Cache-Control', 'private, no-store');
+    if (req.query?.ifVersion === etag) { res.json({ unchanged: true }); return; }
+  }
+  if (store.messagesJson) {
+    // Native stream piping honors socket backpressure without building one enormous JSON body.
+    const chunks = await store.messagesJson({ conversationId: id }, {});
+    pipeline(Readable.from(chunks, { objectMode: false }), res.type("json"), error => {
+      if (error && (error as NodeJS.ErrnoException).code !== 'ERR_STREAM_PREMATURE_CLOSE') next(error);
+    });
+    return;
+  }
+  res.json({ messages: await store.messages({ conversationId: id }) });
+}
+
+function listChatMessagesRoute({ deps }: ChatsRouteContext): ChatRoute {
+  return (req, res, next) => {
+    const id = req.params.id;
+    if (id === undefined) { res.status(404).json({ error: "not found" }); return; }
+    const store = storeFor({ deps, res });
+    // Resolve the cheap validator before borrowing any raw history strings. Keep the version
+    // read before the payload read: a racing write then invalidates the next refresh safely.
+    void sendChatMessages({ store, id, req, res, next }).catch(next);
+  };
+}
+
+/** The redacted message to append, or the 400 message for the first invalid field. */
+function parseSavedMessage({ body, messageId }: { body: Record<string, unknown>; messageId: string }): { message: ChatMessage } | { error: string } {
+  if (body.role !== "user" && body.role !== "assistant") return { error: "'role' must be 'user' or 'assistant'" };
+  if (typeof body.content !== "string") return { error: "'content' must be a string" };
+  try { readPickedFolders({ value: body.folders }, {}); }
+  catch { return { error: "Invalid picked folders" }; }
+  const sent = body as unknown as ChatMessage;
+  const message: ChatMessage = redactUserMessage({ message: {
+    ...sent,
+    id: messageId,
+    // Streamed text deltas saved as one event per run, the same shape the server finalizer writes.
+    ...(Array.isArray(sent.events) ? { events: runEventsForSave(sent.events) } : {}),
+  } }).message;
+  return { message };
+}
+
+async function afterMessageSaved({ context, res, id, saved, message, store }: { context: ChatsRouteContext; res: Response; id: string; saved: ChatMessage; message: ChatMessage; store: ReturnType<typeof storeFor> }): Promise<void> {
+  const { deps, finalizer } = context;
+  if (saved.role === "user") void deps.tracker.capture({ name: "assistant_message_sent", userId: getAuthedPrincipal(res).id }, { properties: { chatSurface: "admin", conversationId: id, inputKind: "text", eventId: `assistant-message:${saved.id}` } });
+  await maybeNameFromFirstUserMessage({ store, id, message });
+  // The in-flight stub of a daemon run is the one moment the server learns which row a
+  // run belongs to. From here the server saves the finished turn itself, so it no longer
+  // depends on this browser staying connected (`assistant-run-finalizer.ts`). A no-op for
+  // anything that is not an in-flight daemon run.
+  // Acceptance already starts the authoritative watch; a browser save merely returns
+  // that row. Re-reading its attempt base prevents a replay from erasing prior segments.
+  const runStore = deps.chatRunLedger.durable;
+  const durable = runStore && await (runStore.head ?? runStore.load)({ messageId: saved.id }, { events: false });
+  finalizer.watch({ principalId: getAuthedPrincipal(res).id, conversationId: id, message: saved }, { attemptBase: [...(durable?.attemptBase ?? [])] });
+  res.json({ message: saved });
+}
+
+function saveChatMessageRoute(context: ChatsRouteContext): ChatRoute {
+  return (req, res, next) => {
+    const { id, messageId } = req.params;
+    if (id === undefined || messageId === undefined) { res.status(404).json({ error: "not found" }); return; }
+    const parsed = parseSavedMessage({ body: bodyOf(req), messageId });
+    if ("error" in parsed) {
+      res.status(400).json({ error: parsed.error, code: "VALIDATION_ERROR" });
+      return;
+    }
+    const { message } = parsed;
+    const store = storeFor({ deps: context.deps, res });
+    store
+      .appendMessage({ conversationId: id, message })
+      .then(async (saved) => {
+        if (!saved) {
+          res.status(404).json({ error: "not found" });
+          return;
+        }
+        await afterMessageSaved({ context, res, id, saved, message, store });
+      })
+      .catch(next);
+  };
+}
+
+export function createAssistantChatsModule(deps: RouteDeps, options: AssistantChatsModuleOptions = {}): ServerModuleHandle {
+  const context: ChatsRouteContext = { deps, finalizer: buildChatsFinalizer({ deps, options }) };
   return {
     name: "assistant-chats",
     registerRoutes: ({ app }, _options = {}) => {
-      /*
-       * Serving-boot repair, before chat routes answer: a queued/running turn may still belong to
-       * a live detached daemon, so dispatch each unfinished binding to the shared coordinator. It
-       * reattaches live attempts, waits for uncertainty, and continues dead attempts within the
-       * saved budget. Child teardown is best
-       * effort, not proof of death. Route registration also happens during static exports inside the
-       * daemon (and eagerly on importing app.ts); those are not restarts and must never sweep.
-       */
-      const reconciled = (options.recoverInterrupted ? finalizer.reconcileInterrupted({}, {}) : Promise.resolve(0)).then(
-        (repaired) => {
-          if (repaired > 0) console.log(`[assistant-chats] dispatched ${repaired} unfinished chat turn(s) to recovery`);
-        },
-        (error: unknown) => {
-          // A failed repair leaves rows `running` (the pane shows them spinning); it must not keep
-          // every chat route down with it.
-          console.error("[assistant-chats] boot-time repair of interrupted chat turns failed", error);
-        }
-      );
-      if (options.recoverInterrupted) options.onBootWork?.({ work: reconciled });
+      const reconciled = startBootReconcile({ finalizer: context.finalizer, options });
 
       app.use("/api/assistant/chats", requireAdminSession(deps));
       // The repair is async now (storage kernel); no chat route answers until it has finished.
@@ -129,156 +322,12 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
         void reconciled.then(() => next());
       });
 
-      /** The store for whoever is making this request, and nobody else. */
-      function storeFor(res: Response) {
-        const principal = getAuthedPrincipal(res);
-        return deps.chatHistory({
-          kind: "user",
-          workspaceId: deps.workspaceId,
-          userId: principal.id,
-        });
-      }
-
-      app.get("/api/assistant/chats", (_req, res, next) => {
-        storeFor(res)
-          .list()
-          .then((conversations) => res.json({ conversations }))
-          .catch(next);
-      });
-
-      app.post("/api/assistant/chats", (req, res, next) => {
-        const body = bodyOf(req);
-        const id = typeof body.id === "string" && body.id ? body.id : crypto.randomUUID();
-        // A title derived from the first prompt, when the client sends one. Local and synchronous
-        // — a conversation needs a name the moment it appears in the list, and a model call to
-        // produce one would put a spinner in front of every "New chat".
-        const seed = typeof body.firstMessage === "string" ? deriveAssistantConversationTitle({ text: redactUserText({ text: body.firstMessage }).text }) : "";
-        storeFor(res)
-          .create({
-            id,
-            ...(seed ? { title: seed, titleSource: "fallback" as const } : {}),
-          })
-          .then((conversation) => {
-            // Owner-action product event (consent-gated port): a chat was started; never its text.
-            void deps.tracker.capture({ name: "assistant_chat_started", userId: getAuthedPrincipal(res).id }, { properties: { chatSurface: "admin", conversationId: conversation.id, source: "admin", eventId: `assistant-chat:${conversation.id}` } });
-            res.status(201).json({ conversation });
-          })
-          .catch(next);
-      });
-
-      app.patch("/api/assistant/chats/:id", (req, res, next) => {
-        const id = req.params.id;
-        if (id === undefined) { res.status(404).json({ error: "not found" }); return; }
-        const body = bodyOf(req);
-        const title = typeof body.title === "string" ? body.title.trim() : "";
-        if (!title) {
-          res.status(400).json({ error: "'title' must be a non-empty string", code: "VALIDATION_ERROR" });
-          return;
-        }
-        if (title.length > MAX_CONVERSATION_TITLE_LENGTH) {
-          res.status(400).json({ error: `'title' must be at most ${MAX_CONVERSATION_TITLE_LENGTH} characters`, code: "VALIDATION_ERROR" });
-          return;
-        }
-        // `source` defaults to `manual` in the store. A caller may pass `generated` for an
-        // agent-produced title, which the store then refuses to apply over a manual rename.
-        const source = body.source === "generated" ? ("generated" as const) : ("manual" as const);
-        storeFor(res)
-          .rename({ id, title }, { source })
-          .then((conversation) =>
-            // `null` means the id does not exist *or* belongs to someone else. Both answer 404, on
-            // purpose: distinguishing them would confirm the existence of another admin's chat.
-            conversation ? res.json({ conversation }) : res.status(404).json({ error: "not found" }),
-          )
-          .catch(next);
-      });
-
-      app.delete("/api/assistant/chats/:id", (req, res, next) => {
-        const id = req.params.id;
-        if (id === undefined) { res.status(404).json({ error: "not found" }); return; }
-        // Cancel before deleting the binding. Once cascaded away, recovery cannot recreate it.
-        const store = storeFor(res);
-        store.messages({ conversationId: id }, { includeEvents: false }).then(async (messages) => {
-          for (const message of messages) {
-            if (!message.runId || !["queued", "running"].includes(message.runStatus ?? "")) continue;
-            await deps.chatRunLedger.durable?.cancel({ runId: message.runId, reason: "conversation-deleted" }, {});
-            await finalizer.recover({ messageId: message.id, trigger: "browser" }, {});
-          }
-          await store.delete({ id });
-        })
-          .then(() => res.status(204).end())
-          .catch(next);
-      });
-
-      app.get("/api/assistant/chats/:id/messages", (req, res, next) => {
-        const id = req.params.id;
-        if (id === undefined) { res.status(404).json({ error: "not found" }); return; }
-        const store = storeFor(res);
-        // Resolve the cheap validator before borrowing any raw history strings. Keep the version
-        // read before the payload read: a racing write then invalidates the next refresh safely.
-        void (async () => {
-          const version = await store.messagesVersion?.({ conversationId: id }, {});
-          if (version != null) {
-            const etag = '"' + encodeURIComponent(version) + '"';
-            res.setHeader('ETag', etag);
-            res.setHeader('Cache-Control', 'private, no-store');
-            if (req.query?.ifVersion === etag) { res.json({ unchanged: true }); return; }
-          }
-          if (store.messagesJson) {
-            // Native stream piping honors socket backpressure without building one enormous JSON body.
-            const chunks = await store.messagesJson({ conversationId: id }, {});
-            pipeline(Readable.from(chunks, { objectMode: false }), res.type("json"), error => {
-              if (error && (error as NodeJS.ErrnoException).code !== 'ERR_STREAM_PREMATURE_CLOSE') next(error);
-            });
-            return;
-          }
-          res.json({ messages: await store.messages({ conversationId: id }) });
-        })().catch(next);
-      });
-
-      app.put("/api/assistant/chats/:id/messages/:messageId", (req, res, next) => {
-        const { id, messageId } = req.params;
-        if (id === undefined || messageId === undefined) { res.status(404).json({ error: "not found" }); return; }
-        const body = bodyOf(req);
-        if (body.role !== "user" && body.role !== "assistant") {
-          res.status(400).json({ error: "'role' must be 'user' or 'assistant'", code: "VALIDATION_ERROR" });
-          return;
-        }
-        if (typeof body.content !== "string") {
-          res.status(400).json({ error: "'content' must be a string", code: "VALIDATION_ERROR" });
-          return;
-        }
-        try { readPickedFolders({ value: body.folders }, {}); }
-        catch { res.status(400).json({ error: "Invalid picked folders", code: "VALIDATION_ERROR" }); return; }
-        const sent = body as unknown as ChatMessage;
-        const message: ChatMessage = redactUserMessage({ message: {
-          ...sent,
-          id: messageId,
-          // Streamed text deltas saved as one event per run, the same shape the server finalizer writes.
-          ...(Array.isArray(sent.events) ? { events: runEventsForSave(sent.events) } : {}),
-        } }).message;
-        const store = storeFor(res);
-        store
-          .appendMessage({ conversationId: id, message })
-          .then(async (saved) => {
-            if (!saved) {
-              res.status(404).json({ error: "not found" });
-              return;
-            }
-            if (saved.role === "user") void deps.tracker.capture({ name: "assistant_message_sent", userId: getAuthedPrincipal(res).id }, { properties: { chatSurface: "admin", conversationId: id, inputKind: "text", eventId: `assistant-message:${saved.id}` } });
-            await maybeNameFromFirstUserMessage({ store, id, message });
-            // The in-flight stub of a daemon run is the one moment the server learns which row a
-            // run belongs to. From here the server saves the finished turn itself, so it no longer
-            // depends on this browser staying connected (`assistant-run-finalizer.ts`). A no-op for
-            // anything that is not an in-flight daemon run.
-            // Acceptance already starts the authoritative watch; a browser save merely returns
-            // that row. Re-reading its attempt base prevents a replay from erasing prior segments.
-            const runStore = deps.chatRunLedger.durable;
-            const durable = runStore && await (runStore.head ?? runStore.load)({ messageId: saved.id }, { events: false });
-            finalizer.watch({ principalId: getAuthedPrincipal(res).id, conversationId: id, message: saved }, { attemptBase: [...(durable?.attemptBase ?? [])] });
-            res.json({ message: saved });
-          })
-          .catch(next);
-      });
+      app.get("/api/assistant/chats", listChatsRoute(context));
+      app.post("/api/assistant/chats", createChatRoute(context));
+      app.patch("/api/assistant/chats/:id", renameChatRoute(context));
+      app.delete("/api/assistant/chats/:id", deleteChatRoute(context));
+      app.get("/api/assistant/chats/:id/messages", listChatMessagesRoute(context));
+      app.put("/api/assistant/chats/:id/messages/:messageId", saveChatMessageRoute(context));
     },
   };
 }

@@ -1,4 +1,3 @@
-import { createConsoleLogger } from "@jini-ai/core/primitives";
 import { tidyImportDatabases } from "../../features/site-backup/import-database.js";
 import { reportSitesSyncWarning } from "../../platform/site-dir/sites-home.js";
 import { resolveSiteDatabasePaths } from "../../platform/site-dir/site-databases.js";
@@ -8,19 +7,13 @@ import path from "node:path";
 import { createServingApp } from "../../server/runtime/composition/serving-app.js";
 import { createSiteRouteDeps } from "../../server/runtime/composition/deps.js";
 import { pinSiteListenerOrigin } from "../../server/runtime/boot/site-listener-origin.js";
-import { startSiteDaemonListener } from "../../server/runtime/boot/site-daemon-listener.js";
 import { ValidationError, type ConfigJson } from "../../platform/site-dir/index.js";
 import { SITE_BINDING_NOT_SWITCHABLE_ENV } from "../../platform/site-dir/site-registry.js";
-import { mintBootSessionToken } from "#src/features/identity/boot-session-token";
 import { closeSiteDirBoot, type BootSiteDirResult } from "../../platform/site-dir/boot-site-dir.js";
 import { bootSiteDir } from "#src/server/runtime/composition/site-dir";
 import type { SiteStore } from "../../server/runtime/composition/open-site-store.js";
 import { awaitBootWorkWithinBound } from "../../server/runtime/lifecycle/await-boot-work.js";
-import { closeStoreOnShutdown, stopServingWithinGrace } from "../../server/runtime/lifecycle/close-store-on-shutdown.js";
 import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
-import { runtimeSchemaVersion } from "../../platform/site-dir/schema-guard.js";
-import { PortInUseError } from "../errors.js";
-import { startAssistantDaemon, shutdownAssistantDaemon } from "../../server/inbound/assistant/index.js";
 import { ensureAgentDaemonPortResolved } from "../../server/runtime/lifecycle/agent-daemon-port.js";
 import { installProcessErrorReporting, installUnhandledRejectionGuard } from "../../server/runtime/boot/process-error-guards.js";
 import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from "../../platform/server-logs/index.js";
@@ -34,13 +27,10 @@ import { ensureSiteKeyForBoot } from "../../features/webhooks/site-key-ensure.js
 import { findSiteKeyDependentData } from "../../platform/site-dir/site-key-dependent-data.js";
 import { runBootLifecycle } from "../../server/runtime/lifecycle/boot-lifecycle.js";
 import { buildBootModules, logCriticalBootFailures } from "../../server/runtime/boot/bootstrap.js";
-import { agentDaemonWanted } from "../../server/runtime/boot/agent-daemon-wanted.js";
-import { awaitSiteBootReadiness } from "../../server/runtime/boot/site-boot-readiness.js";
-import { resolveBindHost, isLoopbackHost, DEFAULT_LOCAL_BIND_HOST } from "../../server/runtime/boot/bind-host.js";
+import { resolveBindHost, DEFAULT_LOCAL_BIND_HOST } from "../../server/runtime/boot/bind-host.js";
 import { setReadinessSnapshot } from "../../server/runtime/lifecycle/readiness-state.js";
-import { registerAdminDevProxyUpgrade } from "../../server/inbound/admin-http/admin-dev-proxy.js";
+import { serveListening } from "./serve-listen.js";
 
-const consoleLogger = createConsoleLogger({ prefix: "" });
 
 /**
  * @file SPEC-003 C-002 (`CLI_SERVE`) — boot a site, compose its server and listen (W-002).
@@ -240,7 +230,7 @@ export async function runServeCommand(input: RunServeCommandInput, optional: Run
 }
 
 /** What a `tovu serve` run holds open once `bootSiteDir` has succeeded. */
-interface ServeOwnership {
+export interface ServeOwnership {
   runningLease: ReturnType<typeof claimSiteRunning>;
   readonly bootResult: BootSiteDirResult;
   /** The composition's store (`onStoreOpened`); closing it stops the guest-chat sweep first. */
@@ -265,19 +255,8 @@ async function closeOwnedStore(owned: ServeOwnership): Promise<void> {
   await closeSiteDirBoot(owned.bootResult, owned.composedStore);
 }
 
-/**
- * {@link runServeCommand} after `bootSiteDir`: compose, run the boot lifecycle, bind the listener and
- * install the BR-07 shutdown. Records what it starts in `owned`, so a rejection can be cleaned up.
- */
-async function serveBootedSite({ input, target, owned, optional }: { input: RunServeCommandInput; target: string; owned: ServeOwnership; optional: RunServeCommandOptional }, _options = {}): Promise<void> {
-  const { bootResult } = owned;
-  const port = resolveServePort(input, bootResult.config);
-  // LAN-bind plan (2026-09-23): loopback-only unless TOVU_HOST opts in. Resolved before the boot
-  // lifecycle below, same reasoning as `port` above — a bad value fails fast as VALIDATION rather
-  // than after `bootSiteDir`'s migrations/side effects have already run.
-  const host = resolveBindHost({ raw: input.host ?? process.env.TOVU_HOST, fallback: DEFAULT_LOCAL_BIND_HOST });
-  pinSiteListenerOrigin({ scheme: "http", host, port });
-
+/** Writes the per-site key before anything reads it, then warns when a local boot has none. */
+async function prepareSiteKey({ target }: { target: string }): Promise<void> {
   // site-key plan §A3a: safe to call on every boot (a valid per-site file is read, not rewritten —
   // see `ensureSiteKeyForBoot`'s own header). Result is discarded — no caller here needs it, same
   // "safe to call on every boot" framing `ensureSiteKey` itself documents. Must precede
@@ -293,10 +272,13 @@ async function serveBootedSite({ input, target, owned, optional }: { input: RunS
   // site's just-minted per-site key counts (2026-10-22: it warned "no key file at .").
   warnIfNoSiteKeyAtBoot({ siteDir: target });
 
-  reportSitesSyncWarning({});
+}
+
+/** Composes the route deps for the booted site, recording the store it opens in `owned`. */
+async function createServeRouteDeps({ target, owned, dbPath }: { target: string; owned: ServeOwnership; dbPath: string }) {
+  const { bootResult } = owned;
   const paths = resolveSiteDatabasePaths({ dir: target });
-  const dbPath = paths.contentDbPath;
-  const deps = await createSiteRouteDeps({}, { dbPath, overrides: {
+  return createSiteRouteDeps({}, { dbPath, overrides: {
     db: bootResult.db,
     chatDbPath: paths.chatDbPath,
     store: bootResult.store,
@@ -325,10 +307,10 @@ async function serveBootedSite({ input, target, owned, optional }: { input: RunS
       switcherCompatible: false,
     },
   } });
-  if (deps.legacyPublishCredentialsReady) owned.bootWork.push(deps.legacyPublishCredentialsReady);
-  // Unhandled rejections/exceptions reach the error tracker too, now that its port exists.
-  installProcessErrorReporting({ tracker: deps.tracker, processRole: "server" }, { flush: deps.flushTelemetry });
+}
 
+/** Runs the shared boot lifecycle and refuses to serve when a critical module failed. */
+async function runServeBootLifecycle({ deps, dbPath }: { deps: Awaited<ReturnType<typeof createSiteRouteDeps>>; dbPath: string }): Promise<void> {
   // 2026-09-05 dispatch (boot-path parity): this command never ran `runBootLifecycle` at all —
   // only `src/index.ts`'s `main()` did (ADR-046 Phase 3/SPEC-031). Two concrete gaps that opened:
   // (1) `database-migration-reconciliation` (`reconcile-interrupted-migration.ts`) — the scan that
@@ -355,141 +337,35 @@ async function serveBootedSite({ input, target, owned, optional }: { input: RunS
     // outcome for the identical failure without inventing a new SPEC-003 error code for it.
     throw new Error("Refusing to boot — a critical module failed. See failures above.");
   }
+}
+
+/**
+ * {@link runServeCommand} after `bootSiteDir`: compose, run the boot lifecycle, bind the listener and
+ * install the BR-07 shutdown. Records what it starts in `owned`, so a rejection can be cleaned up.
+ */
+async function serveBootedSite({ input, target, owned, optional }: { input: RunServeCommandInput; target: string; owned: ServeOwnership; optional: RunServeCommandOptional }, _options = {}): Promise<void> {
+  const { bootResult } = owned;
+  const port = resolveServePort(input, bootResult.config);
+  // LAN-bind plan (2026-09-23): loopback-only unless TOVU_HOST opts in. Resolved before the boot
+  // lifecycle below, same reasoning as `port` above — a bad value fails fast as VALIDATION rather
+  // than after `bootSiteDir`'s migrations/side effects have already run.
+  const host = resolveBindHost({ raw: input.host ?? process.env.TOVU_HOST, fallback: DEFAULT_LOCAL_BIND_HOST });
+  pinSiteListenerOrigin({ scheme: "http", host, port });
+
+  await prepareSiteKey({ target });
+  reportSitesSyncWarning({});
+  const dbPath = resolveSiteDatabasePaths({ dir: target }).contentDbPath;
+  const deps = await createServeRouteDeps({ target, owned, dbPath });
+  if (deps.legacyPublishCredentialsReady) owned.bootWork.push(deps.legacyPublishCredentialsReady);
+  // Unhandled rejections/exceptions reach the error tracker too, now that its port exists.
+  installProcessErrorReporting({ tracker: deps.tracker, processRole: "server" }, { flush: deps.flushTelemetry });
+
+  await runServeBootLifecycle({ deps, dbPath });
 
   // Must resolve — and, when neither `JINI_AGENT_DAEMON_URL` nor `JINI_AGENT_DAEMON_PORT` is set,
   // allocate — this instance's daemon origin BEFORE `createApp()` wires the assistant proxy's
   // routes, so no inbound request can ever reach `getAgentDaemonUrl()` before it has something to
   // return. See this file's own header and `agent-daemon-port.ts`'s for the full contract.
   await ensureAgentDaemonPortResolved();
-  // `createServingApp`, not bare `createApp`: it also starts the background outbox drainer (after
-  // `createApp` has attached every subscriber), Trash auto-purge sweeper, theme watcher, the
-  // automatic form pull, the post go-live sweep, the webhook delivery loop, the due-bindings DNS
-  // sweep and the site-search maintenance loop. All stop in `shutdown` below.
-  let requestStop: ((input: { exitCode: number }) => void) | undefined;
-  const servingOptions = {
-    stopForIdle: (input: { exitCode: number }) => {
-      if (!requestStop) throw new Error("site shutdown is not ready");
-      // Reply on the inherited channel before its normal daemon-first teardown withdraws it.
-      const stop = requestStop;
-      setImmediate(() => stop(input));
-    },
-  };
-  const { app, outboxDrainer, trashSweeper, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance, bootWork } = (optional.createServingApp ?? createServingApp)(deps, servingOptions);
-  owned.workers.push(outboxDrainer, { stop: () => trashSweeper.stop({}) }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance);
-  owned.bootWork.push(...bootWork);
-
-  await new Promise<void>((resolve, reject) => {
-    // Express's own `.listen()` overloads type `hostname` as a required `string`, not
-    // `string | undefined` (`@types/express-serve-static-core`) — so `host === undefined` (the
-    // "no TOVU_HOST override, use Node's own all-interfaces default" case) is routed to the
-    // callback-only overload explicitly, rather than widening the type with a cast.
-    const server = host !== undefined ? app.listen(port, host) : app.listen(port);
-    server.once("close", () => { void themeWatcher.stop(); });
-
-    // Forwards Vite's HMR WebSocket when `TOVU_ADMIN_DEV_PROXY_URL` is set. `registerAdminStatic`
-    // (reached via `createApp` above) already proxies ordinary `/admin/*` REQUESTS on this path, but
-    // an `upgrade` is a raw `http.Server` event Express's request pipeline never sees — so without
-    // this, a dev-proxied `tovu serve` served current admin source that could never hot-reload.
-    // Measured before the fix, same handshake against the same Vite: `index.ts`'s server answered
-    // `101 Switching Protocols`; this one answered nothing at all.
-    //
-    // The FIFTH instance of this file's own recurring defect class — see the header above for the
-    // other four (agent daemon, daemon token, plugin SDK resolver, readiness gate + boot lifecycle),
-    // each of them "`src/index.ts` was the only boot path that did it". `apps/desktop` spawns this
-    // command, so every desktop site window was on the wrong side of all five.
-    //
-    // Self-gating, so production and packaged builds are unaffected: the function returns
-    // immediately when `TOVU_ADMIN_DEV_PROXY_URL` is unset or the runtime is a SEA single-binary.
-    // Registered on `server`, not `app`, for the same reason `index.ts` does it that way.
-    registerAdminDevProxyUpgrade(server);
-
-    server.once("error", (err: NodeJS.ErrnoException) => {
-      if (err.code === "EADDRINUSE") {
-        reject(new PortInUseError({ message: `Port ${port} is already in use.`, port: port }));
-      } else {
-        reject(err);
-      }
-    });
-
-    server.once("listening", () => {
-      void (async () => {
-      const siteApiOrigin = pinSiteListenerOrigin({ scheme: "http", host, port: (server.address() as import("node:net").AddressInfo).port });
-      const daemonCallback = await startSiteDaemonListener({ publicOrigin: siteApiOrigin, handler: app });
-      owned.workers.push({ stop: () => daemonCallback.close() });
-      server.once("close", () => { void daemonCallback.close(); });
-      try { owned.runningLease.ready({ port }); }
-      catch (error) { server.close(); reject(error); return; }
-      const runtime = runtimeSchemaVersion();
-      // BEFORE the documented startup line below, on purpose. A launcher treats that line as the
-      // ready signal and stops waiting the moment it sees it, so a token printed after it would
-      // race the parent's own resolve. Printed first, it is already in the parent's buffer by the
-      // time the line it is waiting for arrives — no extra handshake, no timing window.
-      //
-      // A SEPARATE line, deliberately not a fifth field on the startup line: that line is a
-      // documented contract (api.spec.md §5) other readers parse, and widening it would put a
-      // secret in front of every consumer of it. Emitted only when explicitly asked for, and only
-      // once the listener is bound, so a token can never outlive a boot that failed.
-      if (input.emitBootToken === true) {
-        consoleLogger.info({ message: `tovu serve: bootToken=${mintBootSessionToken()}` });
-      }
-      // api.spec.md §5: "one startup line including: dir, resolved port, schemaVersion, workspace id".
-      consoleLogger.info({ message: `tovu serve: dir=${target} port=${port} schemaVersion=${runtime.index} workspaceId=${bootResult.workspaceId}` });
-      // AFTER the documented startup line, same ordering reason as the boot token above — a parser
-      // treating that line as the ready signal must see it exactly as documented, unwidened by a
-      // second line ahead of it. LAN-bind plan (2026-09-23): this is the one place `--host`/
-      // `TOVU_HOST` widening a `tovu serve` instance beyond loopback becomes visible to whoever
-      // started it.
-      if (!isLoopbackHost({ host })) {
-        process.stderr.write(
-          `tovu serve: warning: listening on ${host ?? "all interfaces"}; this site is reachable from other machines on your network (--host/TOVU_HOST)\n`
-        );
-      }
-      resolve();
-
-      // Register cold, retaining the readiness-before-spawn gate shared with index.ts, and
-      // for the identical reason (see `server/runtime/boot/site-boot-readiness.ts`, the list both
-      // boot paths now share): spawning before these settle raced this process's own first-boot identity/settings seeding and
-      // shipped a real duplicate-`core.execution.mode`-row defect. `registerProcessSignalHandlers:
-      // false` because this command already owns SIGINT/SIGTERM below (BR-07) — see
-      // `startAssistantDaemon`'s own option doc for why a second listener here would race it.
-      startAssistantDaemon(
-        { workspaceId: deps.workspaceId, siteDir: target, pgSocketPath: bootResult.store?.pgliteSocketPath,
-          siteApiOrigin, siteCallbackOrigin: daemonCallback.origin },
-        { registerProcessSignalHandlers: false, beforeStart: async () => {
-          await awaitSiteBootReadiness({ deps });
-          if (!(await agentDaemonWanted(deps))) throw new Error("the assistant daemon is disabled for this site");
-        } }
-      );
-
-      // BR-07: on SIGINT/SIGTERM, stop accepting new connections, let the current request finish,
-      // then close the db handle and exit 0.
-      // First, so no new outbox drain or trash sweep starts while the grace window below runs
-      // toward the db close. A sweep caught mid-batch leaves its rows leased, and the next boot
-      // re-claims them once the lease expires.
-      // Awaits the store close (PGlite flushes, removes its socket and releases its owner lock),
-      // bounded like the default boot's (`closeWithinBound`, 4 s) so a hung close still exits.
-      // The close itself first waits (2 s of that) for boot work still reading the store.
-      // Idle keep-alive sockets don't block in-flight requests, but a client-pooled connection
-      // that never sends another request WOULD block `server.close()`'s callback indefinitely
-      // otherwise — better-sqlite3 is synchronous, so any genuinely in-flight request completes
-      // within milliseconds, not seconds; a short grace window is more than enough before the
-      // shared helper force-closes anything still lingering (BR-07 only promises the current
-      // request finishes, not that an idle keep-alive socket outlives shutdown).
-      const stopOutbox = () => outboxDrainer.stop();
-      const stopTrash = () => trashSweeper.stop({});
-      closeStoreOnShutdown({
-        store: { storage: bootResult.storage, close: () => closeSiteDirBoot(bootResult, owned.composedStore) },
-        onShutdown: shutdownAssistantDaemon,
-      }, {
-        registerStop: ({ stop }, _optional = {}) => { requestStop = stop; },
-        bootWork: () => owned.bootWork,
-        stopServing: () => stopServingWithinGrace({ server, workers: [
-          { stop: () => daemonCallback.close() }, { stop: stopOutbox }, { stop: stopTrash }, themeWatcher, formPullTrigger, postGoLiveSweep, webhookDeliveryWorker, domainBindingSweeper, siteSearchMaintenance,
-        ] }),
-        // Opt-in (the desktop on Windows): an ignored or terminal stdin must never stop the site.
-        stopOnEnd: process.env.TOVU_STOP_ON_STDIN_EOF === "1" ? process.stdin : undefined,
-      });
-      })().catch(error => { server.close(); reject(error); });
-    });
-  });
+  await serveListening({ input, target, owned, optional, deps, listen: { host, port } });
 }
