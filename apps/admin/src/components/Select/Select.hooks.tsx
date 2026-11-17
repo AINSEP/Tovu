@@ -79,15 +79,20 @@ export function repositionOrClose({ trigger, onOutOfView, setPosition }: { trigg
     onOutOfView();
     return;
   }
-  if (typeof document.elementFromPoint === "function") {
-    const topmostAtCenter = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
-    const obscured = !topmostAtCenter || !(trigger.contains(topmostAtCenter) || topmostAtCenter.contains(trigger));
-    if (obscured) {
-      onOutOfView();
-      return;
-    }
+  if (isObscuredAtCenter({ trigger, rect })) {
+    onOutOfView();
+    return;
   }
   setPosition(computePosition(trigger));
+}
+
+/** True when something other than the trigger (or an ancestor/descendant of it) is rendered at the
+ * trigger's center. Where `elementFromPoint` is not implemented this answers false, so the caller
+ * falls back to the viewport-edge check alone. */
+function isObscuredAtCenter({ trigger, rect }: { trigger: HTMLElement; rect: DOMRect }, _options: Record<string, never> = {}): boolean {
+  if (typeof document.elementFromPoint !== "function") return false;
+  const topmostAtCenter = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+  return !topmostAtCenter || !(trigger.contains(topmostAtCenter) || topmostAtCenter.contains(trigger));
 }
 
 /** Resolves Tab's DOM-order neighbour of the trigger. Returns
