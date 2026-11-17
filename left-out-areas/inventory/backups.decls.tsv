@@ -54,8 +54,7 @@ apps/admin/src/features/import-export/import-export-links.ts	IMPORT_EXPORT_LINKS
 apps/admin/src/features/import-export/import-export-tabs.tsx	IMPORT_EXPORT_TAB_IDS	const	export	14	14	1
 apps/admin/src/features/import-export/import-export-tabs.tsx	ImportExportTabId	type	export	15	15	1
 apps/admin/src/features/import-export/import-export-tabs.tsx	resolveImportExportTabId	function	export	19	21	3
-apps/admin/src/features/import-export/import-export-tabs.tsx	OtherIcon	function		26	34	9
-apps/admin/src/features/import-export/import-export-tabs.tsx	resolveImportExportTabs	function	export	40	67	28
+apps/admin/src/features/import-export/import-export-tabs.tsx	resolveImportExportTabs	function	export	27	54	28
 apps/admin/src/features/recovery/Recovery.tsx	DegradedBannerView	function		86	126	41
 apps/admin/src/features/recovery/Recovery.tsx	RestorePointsList	function		128	182	55
 apps/admin/src/features/recovery/Recovery.tsx	RestorePointsPanel	function		191	215	25
@@ -312,7 +311,17 @@ apps/website/src/features/site-backup/import-backend-steps.ts	startImportedSite	
 apps/website/src/features/site-backup/import-backend-steps.ts	siteImportView	function	export	164	174	11
 apps/website/src/features/site-backup/import-backend.ts	SiteImportBackend	interface	export	22	30	9
 apps/website/src/features/site-backup/import-backend.ts	parseSiteImportInput	function	export	34	36	3
-apps/website/src/features/site-backup/import-backend.ts	createSiteImportBackend	function	export	42	193	152
+apps/website/src/features/site-backup/import-backend.ts	ImportBackendRequired	type		38	47	10
+apps/website/src/features/site-backup/import-backend.ts	ImportBackendOptional	type		48	51	4
+apps/website/src/features/site-backup/import-backend.ts	ImportBackendContext	type		54	58	5
+apps/website/src/features/site-backup/import-backend.ts	createImportContext	function		60	74	15
+apps/website/src/features/site-backup/import-backend.ts	fetchArchive	function		77	84	8
+apps/website/src/features/site-backup/import-backend.ts	verifyAndStage	function		88	104	17
+apps/website/src/features/site-backup/import-backend.ts	createImportedSite	function		108	134	27
+apps/website/src/features/site-backup/import-backend.ts	uploadImportArchive	function		136	147	12
+apps/website/src/features/site-backup/import-backend.ts	startImportFromSource	function		149	166	18
+apps/website/src/features/site-backup/import-backend.ts	completeImportOwner	function		168	198	31
+apps/website/src/features/site-backup/import-backend.ts	createSiteImportBackend	function	export	204	215	12
 apps/website/src/features/site-backup/import-database.ts	ImportWorkerChild	interface	export	16	21	6
 apps/website/src/features/site-backup/import-database.ts	RebuildImportDatabaseOptions	interface	export	24	29	6
 apps/website/src/features/site-backup/import-database.ts	importWorkerLaunch	function	export	32	36	5
@@ -464,7 +473,22 @@ apps/website/src/features/site-backup/share-backend.ts	staticRoster	function		79
 apps/website/src/features/site-backup/share-backend.ts	retainStaticCapture	function		91	100	10
 apps/website/src/features/site-backup/share-backend.ts	captureSelection	function		106	127	22
 apps/website/src/features/site-backup/share-backend.ts	requireCredentialFreeExport	function		131	134	4
-apps/website/src/features/site-backup/share-backend.ts	createSiteShareBackend	function	export	140	244	105
+apps/website/src/features/site-backup/share-backend.ts	ShareBackendRequired	type		136	145	10
+apps/website/src/features/site-backup/share-backend.ts	ShareBackendOptional	type		146	146	1
+apps/website/src/features/site-backup/share-backend.ts	ShareBackendContext	type		148	148	1
+apps/website/src/features/site-backup/share-backend.ts	ShareExportInput	type		149	149	1
+apps/website/src/features/site-backup/share-backend.ts	ShareExportStage	type		150	150	1
+apps/website/src/features/site-backup/share-backend.ts	exportStaticShare	function		153	164	12
+apps/website/src/features/site-backup/share-backend.ts	exportBackupShare	function		167	187	21
+apps/website/src/features/site-backup/share-backend.ts	exportShare	function		190	196	7
+apps/website/src/features/site-backup/share-backend.ts	startExport	function		199	205	7
+apps/website/src/features/site-backup/share-backend.ts	staticShareOptions	function		207	213	7
+apps/website/src/features/site-backup/share-backend.ts	ShareCreateInput	type		215	215	1
+apps/website/src/features/site-backup/share-backend.ts	createShare	function		217	227	11
+apps/website/src/features/site-backup/share-backend.ts	acknowledgeShare	function		229	239	11
+apps/website/src/features/site-backup/share-backend.ts	revealSharePassword	function		241	248	8
+apps/website/src/features/site-backup/share-backend.ts	revokeShare	function		250	261	12
+apps/website/src/features/site-backup/share-backend.ts	createSiteShareBackend	function	export	267	279	13
 apps/website/src/features/site-backup/share-database/repo.sqlite.ts	Row	type		24	24	1
 apps/website/src/features/site-backup/share-database/repo.sqlite.ts	Tables	type		25	25	1
 apps/website/src/features/site-backup/share-database/repo.sqlite.ts	Kernel	type		26	26	1

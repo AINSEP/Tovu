@@ -17,7 +17,7 @@ apps/website/src/features/site-backup/archive-manifest.ts	apps/website/src/featu
 apps/website/src/features/site-backup/archive-manifest.ts	apps/website/src/features/site-backup/plan-store.ts	prod	62	./archive-manifest.js
 apps/website/src/features/site-backup/archive-manifest.ts	apps/website/src/features/site-backup/share-zip.ts	prod	1	./archive-manifest.js
 apps/website/src/features/site-backup/import-database.ts	apps/website/src/cli/__tests__/unit/serve-import-cleanup.unit.test.ts	test	9	../../../features/site-backup/import-database.js
-apps/website/src/features/site-backup/import-database.ts	apps/website/src/cli/commands/serve.ts	prod	2	../../features/site-backup/import-database.js
+apps/website/src/features/site-backup/import-database.ts	apps/website/src/cli/commands/serve.ts	prod	1	../../features/site-backup/import-database.js
 apps/website/src/features/site-backup/import-database.ts	apps/website/src/features/site-backup/import-backend.ts	prod	1	./import-database.js
 apps/website/src/features/site-backup/import-database.ts	apps/website/src/platform/db/sqlite/__tests__/import-database-cleanup.integration.test.ts	test	3	#src/features/site-backup/import-database
 apps/website/src/features/site-backup/import-database.ts	apps/website/src/platform/db/sqlite/__tests__/import-database-logging.fixture.ts	test	5	#src/features/site-backup/import-database

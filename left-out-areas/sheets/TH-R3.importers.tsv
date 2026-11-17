@@ -16,7 +16,7 @@ apps/website/src/features/theme/active-theme.ts	apps/website/src/features/theme/
 apps/website/src/features/theme/active-theme.ts	apps/website/src/features/theme/__tests__/duplicate-theme.test.ts	test	12	../active-theme.js
 apps/website/src/features/theme/active-theme.ts	apps/website/src/features/theme/__tests__/preview-switcher.integration.test.ts	test	17	../active-theme.js
 apps/website/src/features/theme/active-theme.ts	apps/website/src/features/theme/__tests__/verify-active-theme.test.ts	test	12	../active-theme.js
-apps/website/src/features/theme/active-theme.ts	apps/website/src/features/theme/active-theme-publish-content.ts	prod	9	./active-theme.js
+apps/website/src/features/theme/active-theme.ts	apps/website/src/features/theme/active-theme-publish-content.ts	prod	10	./active-theme.js
 apps/website/src/features/theme/active-theme.ts	apps/website/src/features/theme/duplicate-theme-tool.ts	prod	10	./active-theme.js
 apps/website/src/features/theme/active-theme.ts	apps/website/src/features/theme/index.ts	prod	127	./active-theme.js
 apps/website/src/features/theme/active-theme.ts	apps/website/src/features/theme/set-active-theme-tool.ts	prod	18	./active-theme.js
@@ -31,7 +31,7 @@ apps/website/src/features/theme/active-theme.ts	apps/website/src/server/inbound/
 apps/website/src/features/theme/active-theme.ts	apps/website/src/server/inbound/public-http/routes/site/pages/handlers/home.ts	prod	8	#src/features/theme/active-theme
 apps/website/src/features/theme/active-theme.ts	apps/website/src/server/inbound/public-http/routes/site/pages/handlers/slug-routes.ts	prod	4	#src/features/theme/active-theme
 apps/website/src/features/theme/active-theme.ts	apps/website/src/server/inbound/public-http/routes/site/pages/handlers/virtual-page.ts	prod	6	#src/features/theme/active-theme
-apps/website/src/features/theme/active-theme.ts	apps/website/src/server/inbound/public-http/routes/site/products.ts	prod	5	#src/features/theme/active-theme
+apps/website/src/features/theme/active-theme.ts	apps/website/src/server/inbound/public-http/routes/site/products.ts	prod	6	#src/features/theme/active-theme
 apps/website/src/features/theme/active-theme.ts	apps/website/src/server/runtime/composition/commerce-http.ts	prod	11	#src/features/theme/active-theme
 apps/website/src/features/theme/active-theme.ts	apps/website/src/server/runtime/composition/site-consent.ts	prod	17	#src/features/theme/active-theme
 apps/website/src/features/theme/verify-active-theme.ts	apps/website/src/features/theme/__tests__/verify-active-theme.test.ts	test	14	../verify-active-theme.js

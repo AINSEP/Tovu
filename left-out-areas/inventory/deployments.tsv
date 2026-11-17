@@ -41,7 +41,7 @@ apps/admin/src/features/deployment/hooks/static-export-port.hooks.ts	src	16	371a
 apps/admin/src/features/deployment/hooks/static-publish-dependencies.hooks.ts	src	42	ad37bb210b9e	1	2	2	0	0	0	0	2						
 apps/admin/src/features/deployment/hooks/static-publish-port.hooks.ts	src	22	18187fc04422	2	0	1	0	0	0	0	3						
 apps/admin/src/features/deployment/hooks/use-deployment-overview.hooks.ts	src	60	ffcc1dd76001	1	2	3	0	0	0	0	0		core,ui				
-apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	src	291	9934e31a3c9d	1	2	3	0	0	0	0	0		core,ui	react			
+apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	src	311	95183823f08b	1	2	3	0	0	0	0	0		core,ui	react			
 apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	src	460	b99989a98c46	1	3	4	0	0	3	0	217		core,ui	react			
 apps/admin/src/features/deployment/hooks/use-static-export.hooks.ts	src	250	0033c357552b	1	2	3	0	0	0	0	2		core,ui	react	MOVE-AFTER		
 apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts	src	411	acebdf33ace8	1	2	4	0	0	0	0	10		core,ui	react	MIXED		
@@ -61,7 +61,7 @@ apps/website/src/features/deployments/__tests__/publish-agent-tools.abort-guard.
 apps/website/src/features/deployments/__tests__/publish-agent-tools.unit.test.ts	test	2341	b8c14f1700be	0	0	0	9	2	294	0	769	assert/strict,fs,os,path,test	core,daemon,devops,platform				
 apps/website/src/features/deployments/__tests__/tool-registrations.trigger-export.unit.test.ts	test	74	1bb2aea49233	0	0	0	0	0	0	0	1	assert/strict,fs,os,path,test,timers/promises					
 apps/website/src/features/deployments/agent-tools.ts	src	142	bdfa7845d0cc	1	1	4	0	0	0	0	2		core				
-apps/website/src/features/deployments/capability-card.ts	src	34	edbc32391589	1	1	1	0	0	0	0	0						server/runtime/composition
+apps/website/src/features/deployments/capability-card.ts	src	34	e7e8c2fe703b	1	1	1	0	0	0	0	0		agentic				server/runtime/composition
 apps/website/src/features/deployments/contracts.ts	src	9	34c743001ffc	5	1	1	0	0	0	0	2						features/custom-credentials,features/object-storage,server/inbound/admin-http/routes/system,server/routes
 apps/website/src/features/deployments/deploy-config-registry.ts	src	174	893328405096	1	3	12	0	0	0	0	0	fs,path	devops	${plugin.pluginId}	MIXED	agent-plugins/lifecycle	
 apps/website/src/features/deployments/deploy-config.ts	src	374	05fa21767e54	2	2	8	3	3	0	6	41	fs,path	devops	Required			
@@ -144,5 +144,5 @@ apps/website/src/features/deployments/static-publish/publish-history.ts	src	304	
 apps/website/src/features/deployments/static-publish/publish-run.ts	src	289	b3d87384b7e9	3	2	5	0	0	0	0	13		devops		MIXED	devops/deploy	server/runtime/composition
 apps/website/src/features/deployments/static-publish/types.ts	src	154	201904727478	8	8	5	1	0	5	0	34		core		MOVE	devops/deploy	
 apps/website/src/features/deployments/static-publish/verify.ts	src	350	82da06fa8246	2	5	9	0	0	0	0	148		core,diagnostics		MIXED	devops/deploy	
-apps/website/src/features/deployments/tool-registrations.ts	src	195	f7b512825986	2	3	5	0	1	1	0	5		cms,core,diagnostics				assistant,server/runtime/composition
+apps/website/src/features/deployments/tool-registrations.ts	src	198	40a145d43c97	2	3	5	0	1	1	0	5		cms,core,diagnostics				assistant,server/runtime/composition
 apps/website/src/features/deployments/types.ts	src	51	ab98c8eca528	2	0	5	0	0	12	0	2		core		DELETE		

@@ -146,8 +146,12 @@ apps/admin/src/features/deployment/hooks/use-deployment-overview.hooks.ts	useDep
 apps/admin/src/features/deployment/hooks/use-deployment-overview.hooks.ts	useWiredDeploymentOverview	function	export	56	60	5
 apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	DockerfileSourceController	interface	export	62	121	60
 apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	readSaveConflictPayload	function		132	138	7
-apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	useDockerfileSource	function	export	140	280	141
-apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	useWiredDockerfileSource	function	export	287	291	5
+apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	useDockerfileDraft	function		141	167	27
+apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	useDockerfileCopy	function		170	185	16
+apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	DockerfileDraft	type		187	187	1
+apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	useDockerfileSave	function		190	274	85
+apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	useDockerfileSource	function	export	276	300	25
+apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	useWiredDockerfileSource	function	export	307	311	5
 apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	PublishCredentialRowState	interface	export	88	123	36
 apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	PublishCredentialsController	interface	export	125	180	56
 apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	RowFormState	interface		184	194	11
@@ -592,13 +596,14 @@ apps/website/src/features/deployments/tool-registrations.ts	DeploymentsToolDeps	
 apps/website/src/features/deployments/tool-registrations.ts	CATALOG_BY_ID	const		66	66	1
 apps/website/src/features/deployments/tool-registrations.ts	deploymentsDerivedRisk	const	export	73	85	13
 apps/website/src/features/deployments/tool-registrations.ts	pickExportSiteOptions	function	export	95	97	3
-apps/website/src/features/deployments/tool-registrations.ts	buildDeploymentsRegistrations	function	export	99	185	87
-apps/website/src/features/deployments/tool-registrations.ts	deployment_trigger_export	handler		109	125	17
-apps/website/src/features/deployments/tool-registrations.ts	deployment_diagnose_static_export	handler		126	131	6
-apps/website/src/features/deployments/tool-registrations.ts	deployment_get_export_status	handler		132	138	7
-apps/website/src/features/deployments/tool-registrations.ts	deployment_get_dockerfile	handler		139	144	6
-apps/website/src/features/deployments/tool-registrations.ts	deployment_set_dockerfile	handler		145	185	41
-apps/website/src/features/deployments/tool-registrations.ts	contributeDeploymentsTools	function	export	193	195	3
+apps/website/src/features/deployments/tool-registrations.ts	triggerExportTool	function		99	115	17
+apps/website/src/features/deployments/tool-registrations.ts	buildDeploymentsRegistrations	function	export	117	188	72
+apps/website/src/features/deployments/tool-registrations.ts	deployment_trigger_export	handler		127	128	2
+apps/website/src/features/deployments/tool-registrations.ts	deployment_diagnose_static_export	handler		129	134	6
+apps/website/src/features/deployments/tool-registrations.ts	deployment_get_export_status	handler		135	141	7
+apps/website/src/features/deployments/tool-registrations.ts	deployment_get_dockerfile	handler		142	147	6
+apps/website/src/features/deployments/tool-registrations.ts	deployment_set_dockerfile	handler		148	188	41
+apps/website/src/features/deployments/tool-registrations.ts	contributeDeploymentsTools	function	export	196	198	3
 apps/website/src/features/deployments/types.ts	DeploymentProviderId	type	export	11	11	1
 apps/website/src/features/deployments/types.ts	DeploymentTargetRecord	interface	export	17	27	11
 apps/website/src/features/deployments/types.ts	ReleaseSource	type	export	32	34	3

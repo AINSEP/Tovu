@@ -17,3 +17,7 @@ packages/agent-plugins/github/source-control/github.mjs 93 bd0854808959ebdd13de5
 packages/agent-plugins/github/source-control/commit-site.mjs 459 21a16bfccf189ac44a0722e2503445288c5ef3e0
 packages/agent-plugins/github/source-control/write-files.mjs 468 a03802cb8bdd32c229364b22794279caab31d9eb
 packages/agent-plugins/github/source-control/backup-push.mjs 242 773eb5f985115f851a78ed592015af950f128b27
+packages/core/src/gated-mutations.ts 4 1b80aa24588ee055931408ba2e3651a9d3d2b43a
+packages/core/README.md 283 452d3eb63eb37f94e685cf9e01e5505dfdb3a490
+packages/db/src/tools/plan-store.ts 77 4cf1b953c54ddd26c7582502499e0c7ff6395636
+packages/db/src/kernel/schema-shape.ts 143 0a47961f32d650f15505e0bffb523b2d6d1c8f8c

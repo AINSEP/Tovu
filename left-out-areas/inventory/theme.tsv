@@ -34,7 +34,7 @@ apps/website/src/features/theme/__tests__/preview-switcher.integration.test.ts	t
 apps/website/src/features/theme/__tests__/preview-switcher.lost-update.test.ts	test	36	92311f08936f	0	0	0	0	0	0	0	0	assert/strict,test	core,user-management				
 apps/website/src/features/theme/__tests__/preview-switcher.test.ts	test	111	d247da2ef4eb	0	0	0	0	0	0	0	1	assert/strict,test	core	jsdom,parse5			
 apps/website/src/features/theme/__tests__/public-resources-lazy.test.ts	test	27	23bc0960d07e	0	0	0	0	0	0	0	0	assert/strict,fs,test					
-apps/website/src/features/theme/__tests__/publish-content.apply.test.ts	test	745	6b267ad48bef	0	0	0	0	0	0	0	3	assert/strict,crypto,fs,fs/promises,module,os,path,test					
+apps/website/src/features/theme/__tests__/publish-content.apply.test.ts	test	746	d4310e1c7036	0	0	0	0	0	0	0	3	assert/strict,crypto,fs,fs/promises,module,os,path,test					
 apps/website/src/features/theme/__tests__/publish-content.pack.test.ts	test	419	035d4ecd8556	0	0	0	0	0	0	0	4	assert/strict,child_process,crypto,fs,fs/promises,module,os,path,test					
 apps/website/src/features/theme/__tests__/save-theme-original.test.ts	test	77	f8896a9d3b82	0	0	0	0	0	0	0	0	assert/strict,fs,os,path,test					
 apps/website/src/features/theme/__tests__/set-active-theme-tool.test.ts	test	49	aaaa10215b13	0	0	0	0	0	0	0	0	assert/strict,test	core				
@@ -99,13 +99,13 @@ apps/website/src/features/theme/__tests__/verify-active-theme.test.ts	test	110	e
 apps/website/src/features/theme/__tests__/visitor-handles.unit.test.ts	test	30	8b1a208c92a9	0	0	0	0	0	0	0	0	assert/strict,fs,test					
 apps/website/src/features/theme/__tests__/visitor-tool-marks.fixture.ts	test	17	4a5573646e9d	0	2	1	0	0	0	0	0						
 apps/website/src/features/theme/__tests__/write-file-atomically-eloop.unit.test.ts	test	76	5288ce8f74fa	0	0	0	0	0	0	0	0	assert/strict,fs,os,path,test					
-apps/website/src/features/theme/active-theme-publish-content.ts	src	110	20be95efe807	1	1	3	0	0	0	0	0	path	cms				server/runtime/composition
+apps/website/src/features/theme/active-theme-publish-content.ts	src	111	628733bed3ce	1	1	3	0	0	0	0	0	path	cms				server/runtime/composition
 apps/website/src/features/theme/active-theme.ts	src	223	c558c20ab59b	18	7	10	0	0	0	0	1						features/site-backup,features/site-inspection,server/inbound/admin-http/routes/posts,server/inbound/public-http/middleware,server/inbound/public-http/routes/site,server/inbound/public-http/routes/site/pages/handlers,server/runtime/composition
 apps/website/src/features/theme/agent-tools.ts	src	453	b7c36d021d7d	6	6	6	0	0	0	0	4		core				
 apps/website/src/features/theme/asset-operations.ts	src	237	8aa7467cb66d	8	0	16	0	0	0	0	0		core		MIXED		features/asset-transfer,features/image-transform
 apps/website/src/features/theme/asset-path-rewrites.ts	src	23	4708ca750d75	2	0	1	0	0	0	0	0						
-apps/website/src/features/theme/build-conformance.ts	src	553	3e7f3f4718bc	2	3	2	0	1	0	0	12	crypto,fs,path		listed-file-only			
-apps/website/src/features/theme/capability-card.ts	src	29	ad7279510390	1	1	1	0	0	0	0	0						server/runtime/composition
+apps/website/src/features/theme/build-conformance.ts	src	542	edbd86646175	2	3	2	0	1	0	0	12	crypto,fs,path		listed-file-only			
+apps/website/src/features/theme/capability-card.ts	src	29	4fb20591294a	1	1	1	0	0	0	0	0		agentic				server/runtime/composition
 apps/website/src/features/theme/catalog.ts	src	3	0f8203adb48f	2	0	3	0	0	0	0	0						features/publish-content,features/site-backup
 apps/website/src/features/theme/code-tier-asset-normalizer.ts	src	413	61dca2954796	1	1	7	0	0	0	0	4	fs,path		other.css			
 apps/website/src/features/theme/duplicate-theme-tool.ts	src	174	7d106308740a	1	2	5	0	0	0	0	0		cms,core				
@@ -131,7 +131,7 @@ apps/website/src/features/theme/preview-switcher-tools.ts	src	74	53fa33612690	1	
 apps/website/src/features/theme/preview-switcher.ts	src	127	6530b55d5747	7	4	12	0	0	0	0	0		core				features/site-export,server/inbound/public-http/middleware,server/runtime/composition,server/runtime/composition/memory-deps/slices
 apps/website/src/features/theme/public-page-security-headers.ts	src	26	aca60dbf27a0	4	6	2	0	0	0	0	0		cms				features/deployments/static-publish,features/site-export,server/inbound/public-http/middleware,server/runtime/composition
 apps/website/src/features/theme/public-theme-resources.ts	src	37	c18d462ef368	2	0	2	0	0	0	0	0	fs,path					
-apps/website/src/features/theme/publish-content.ts	src	831	1da256292f64	1	4	3	0	0	0	0	9	crypto,fs,fs/promises,path	cms,core		MIXED	cms	server/runtime/composition
+apps/website/src/features/theme/publish-content.ts	src	831	344568bdcaec	1	4	3	0	0	0	0	9	crypto,fs,fs/promises,path	cms,core		MIXED	cms	server/runtime/composition
 apps/website/src/features/theme/render-contract.ts	src	361	b90d551425cd	6	0	8	0	1	0	0	5		cookie-consent,core		MIXED	core	server/inbound/public-http/http/site
 apps/website/src/features/theme/rendering.ts	src	18	6182aafa7d81	1	0	6	0	0	0	0	2						server/inbound/admin-http/routes/widgets
 apps/website/src/features/theme/save-theme-original.ts	src	54	2a441c07c1c9	1	1	2	0	0	0	0	0	path					
@@ -148,9 +148,9 @@ apps/website/src/features/theme/theme-id-aliases.ts	src	34	6fee9309491d	5	0	2	0	
 apps/website/src/features/theme/theme-layout.ts	src	160	14941cb6e1e6	8	1	7	0	0	0	0	4						server/runtime/composition
 apps/website/src/features/theme/theme-preview-image.ts	src	114	cdc5664b94b1	2	1	3	0	0	0	0	0	fs,path					server/inbound/admin-http/routes/presentation,server/inbound/admin-http/routes/themes
 apps/website/src/features/theme/theme-roster-sync.ts	src	89	44995a49d251	8	1	2	0	0	0	0	0	fs,path					server/inbound/public-http/middleware
-apps/website/src/features/theme/theme-trash.ts	src	211	69bbabb48e09	2	1	5	0	0	0	0	0	fs,fs/promises,path	cms				server/runtime/composition
+apps/website/src/features/theme/theme-trash.ts	src	243	e0504b0048a9	2	1	5	0	0	0	0	0	fs,fs/promises,path	cms				server/runtime/composition
 apps/website/src/features/theme/theme-watcher.ts	src	97	2c5bfaec5cfd	1	1	2	0	0	0	0	0	fs					server/runtime/composition
-apps/website/src/features/theme/theme.ts	src	1153	1572d1aeb76c	38	76	20	0	0	0	0	42	fs,path	cms,cookie-consent,core	it			development/scripts,server/inbound/public-http/routes/site/pages,server/inbound/public-http/routes/site/pages/handlers,server/inbound/public-http/routes/site/pages/render-context
+apps/website/src/features/theme/theme.ts	src	1168	a9a10233edb7	38	76	20	0	0	0	0	44	fs,path	cms,cookie-consent,core	it			development/scripts,server/inbound/public-http/routes/site/pages,server/inbound/public-http/routes/site/pages/handlers,server/inbound/public-http/routes/site/pages/render-context
 apps/website/src/features/theme/token-aliases.ts	src	53	c0eacfc69925	3	1	1	0	0	0	0	23						server/inbound/public-http/http/site/render
 apps/website/src/features/theme/tool-registrations.ts	src	1036	1972928c4c05	2	23	11	0	0	0	0	0	fs,path	cms,core,daemon,platform		MIXED	core/text	assistant,server/runtime/composition
 apps/website/src/features/theme/trash-theme-tool.ts	src	193	a993ae6a55f3	2	3	8	0	0	0	0	0		cms,core				server/runtime/composition/http-app
