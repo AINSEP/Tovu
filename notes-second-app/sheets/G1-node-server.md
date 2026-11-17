@@ -1,79 +1,86 @@
-# G1: a packaged `Server` adapter for `node:http`
+# G1: notes-app adopts `@jini-ai/http-kit/node-bridge`; the example's own adapter is deleted
 
-## Revision 2 corrections (authoritative; they replace the steps they name)
+## Revision 3 (authoritative; the whole sheet was rewritten in place, no older step text remains)
 
-**Owner decision applied (OD-N2 closed):** the `node:http` adapter's home is the owner-approved new package
-**`@jini-ai/node-adapters`** (planned in the xpkg plan), not `http-kit`. Prerequisite and landed check:
-`test -f packages/node-adapters/package.json`. Absent: STOP.
+Coordinator decision (`../INDEX.md` section 00, item 4): **no new adapter code anywhere.** Jini already ships the
+`node:http` bridge: `@jini-ai/http-kit/node-bridge` (`packages/http-kit/src/node-bridge.ts:1-14`, export key
+`./node-bridge` in `packages/http-kit/package.json`, `jini.entries` `node`). It matches on core's route table
+(`createRouteTable`), so judge 21 (do not move route matching) is satisfied by construction. OD-N2 is **moot**.
+`@jini-ai/node-adapters` is not involved (COMMON rule 5). Withdrawn from the old sheet: the "Owner: http-kit" line,
+the three-line re-export step, the `packages/http-kit/src/node-server` target, the precedence change, the
+`cookie-consent-standalone` README step and the http-kit changeset.
 
-**Judge 21:** do not move route matching. Core already owns it (`createRouteTable`, `matchServerPath`,
-`packages/core/src/contracts/server/route-table.ts:32,74`). The adapter calls the core route table and keeps only
-request/response conversion, listening, socket lifecycle and the `onUnmatched` hook (see N0, N2). Delete the
-example's own matcher in the same commit and run `serverConformance` against the adapter.
+Inherits `COMMON.md`. Repo: Jini. Branch: `feat/gap-g1-node-bridge`. Estimate: ~50k Sonnet (examples only).
+Touches only `examples/notes-app/**`, plus one comment in `packages/core/src/contracts/server.ts` (step 4).
+Prerequisites: N0 and N2 merged (N2 binds `serveAdminBundle` to N0's `onUnmatched`). Landed check (both print a line):
 
-**Judge 18, 4:** no three-line re-export. One commit: file in the package, `exports` + `jini.entries`, examples re-pointed, example file deleted.
-
-**Judge 20:** the example's `node:test` suite is rewritten for the package's runner (Vitest) in the same commit; test count before/after reported.
-
-**Judge 22:** set-cookie handling and route precedence are already correct in the example (`node-server.ts:94-102`): characterize them, do not schedule them as changes.
-
----
-
-Inherits `COMMON.md`. Repo: Jini. Branch: `feat/gap-g1-node-server`. Estimate: ~70k Sonnet.
-Owner: `@jini-ai/http-kit` (OD-N2 must be answered "http-kit"; otherwise do not run). Prerequisite: N0 merged.
-
-## Inventory
-
-```sh
-wc -l examples/notes-app/src/node-server.ts examples/notes-app/src/node-server.test.ts          # 182 (+N0's cookie fix), 163 (+1 test)
-sed -n 1,60p packages/core/src/contracts/server/conformance.ts                                  # what the conformance suite takes
-rg -n "node-server" examples packages -l -g '!**/node_modules/**'
-node -e 'const j=require("./packages/http-kit/package.json");console.log(Object.keys(j.exports), j.jini)'
-rg -n "node:http" examples/cookie-consent-standalone/server.mjs | head -3
+```bash
+rg -n "onUnmatched" examples/notes-app/src
+rg -n "serveAdminBundle" examples/notes-app/src
 ```
 
-## Target
+No hit: STOP (X2).
 
-`packages/http-kit/src/node-server/{node-server.ts, index.ts}`; export `./node-server` (`jini.entries`: node).
-Surface (unchanged from the example): `createNodeServer(required = {}, optional = {}): NodeServer` where
-`NodeServer extends Server` adds `listen({ port }, { host? })` -> `{ port }` and `close()`.
-Imports: `node:http`, `@jini-ai/core/contracts/server` only.
+## Inventory (expected at the base; X3 on a mismatch)
 
-Contract points to state in the file header and test (they are decided here, before first publish):
-- **Route precedence:** when a literal and a `:param` pattern both match, the literal wins at the first
-  differing segment, regardless of registration order (notes-app-review finding 4). If today's adapter uses
-  registration order, change it and keep notes-app's routes passing.
-- Duplicate `method + path` registration throws at registration time.
-- `HEAD` falls back to `GET` without a body; unknown path 404; known path, other method 405 with `allow`.
-- Multiple `Set-Cookie` stay separate; response streaming awaits `drain` (finding 6's second half).
-- Client disconnect aborts `request.signal`.
+```bash
+wc -l examples/notes-app/src/node-server.ts examples/notes-app/src/node-server.test.ts   # ~182 (+N0 onUnmatched), ~163 (+N0 tests)
+rg -n "node-server" examples packages -g '!**/node_modules/**'                           # main.ts, app.test.ts, node-server.test.ts, README.md:24, core server.ts:110
+rg -n "^export (function|async function|interface)" packages/http-kit/src/node-bridge.ts # createNodeDispatcher, sendWebResponse, NodeDispatcher, NodeDispatchOptions, ...
+sed -n 325,350p packages/http-kit/src/node-bridge.ts                                      # no `next` -> the bridge answers 404/405 itself
+rg -n '"@jini-ai/http-kit"' examples/notes-app/package.json                                # already a dependency: nothing to add
+```
+
+## Design
+
+`createNodeDispatcher({}, { onUnhandledError })` returns `{ server, handle }`. `server` is the `Server` that
+`registerNotesApp({ app: server, ... })` already takes. `main.ts` keeps `listen` and `close` itself:
+
+```
+const dispatcher = createNodeDispatcher({}, { onUnhandledError: report });
+await registerNotesApp({ app: dispatcher.server, kernel });
+const http = createServer((incoming, out) => void routeRequest({ incoming, out, dispatcher }, { serveAdminBundle }));
+http.listen(port, '127.0.0.1')  ...  close: http.close() + closeAllConnections()
+```
+
+`routeRequest` (new, `src/route-request.ts`, <= 40 lines): a `GET`/`HEAD` whose **raw** path (`incoming.url`, never a
+parsed pathname: same reason as `node-bridge.ts:97-102`) starts with `/admin/` goes to `serveAdminBundle`;
+everything else goes to `dispatcher.handle({ incoming, out })` **without** `next`.
+
+Why not `handle(..., { next })` (the wording of the revision-3 remaining list): the bridge hands `next` every
+unmatched request **and** the 405 case **and** every handler failure (`NodeDispatchOptions.next`, `node-bridge.ts:17`),
+so a `next` hook would have to rebuild 404/405/500 that the bridge already answers. Routing `/admin/` before the
+dispatcher keeps those answers in the bridge. N0's `onUnmatched` hook is deleted with the adapter.
 
 ## Tests first
 
-1. Run `@jini-ai/core/contracts/server/conformance` against `createNodeServer` (and keep its broken-adapter
-   self-test, AP12: if the suite has none, add one deliberate defect per check in this package's test).
-2. Move `node-server.test.ts` with the code; add: precedence (`/notes/new` vs `/notes/:slug`, both
-   registration orders), duplicate registration throws, backpressure (a slow consumer does not buffer an
-   unbounded body: write 10 MB, assert `drain` awaited via a counting fake socket or bounded `writableLength`),
-   `listen` on port 0 returns the real port, `close` resolves with open keep-alive sockets.
+1. **Characterization, green before any change:** the example's existing adapter tests
+   (`node-server.test.ts`: dispatch with params, body, 404/405, HEAD, OPTIONS, `client.address`, two `Set-Cookie`,
+   route list, duplicate registration, literal-over-param precedence in both orders) and N0's `onUnmatched` tests are
+   re-pointed at the new composition (`createNodeDispatcher` + `routeRequest` + a test `createServer` on port 0) in a
+   new `src/route-request.test.ts`. The `matchServerPath` describe block is **not** carried: core owns and tests it.
+   **Any test that fails against the bridge is a behaviour gap: STOP and report it for http-kit's owner** (do not
+   patch the bridge, do not weaken the test, do not keep the old adapter).
+2. `route-request.test.ts` red-first: `GET /admin/x` reaches the bundle handler; `POST /admin/x` reaches the dispatcher
+   (404); `GET /admin/../api/entities/note` and `%2e%2e` forms never reach the bundle handler outside `/admin/`; a
+   bundle handler that throws answers 500 in plain words and is reported, never swallowed.
 
-## Steps (commit each)
+## Steps (commit each; each green alone)
 
-1. `git mv` the adapter + test into http-kit; leave `examples/notes-app/src/node-server.ts` as a 3-line
-   re-export; add `exports`/`jini.entries` in the same commit; notes-app gains nothing new (http-kit is
-   already its dependency).
-2. Precedence + drain changes with their tests. 3. Conformance wiring.
-4. notes-app imports `@jini-ai/http-kit/node-server` directly; delete the re-export file and its `GAPS.json`
-   row. 5. `cookie-consent-standalone`: leave as is, add one README line pointing at the adapter (it is
-   `.mjs` with its own purpose). 6. Changeset: `@jini-ai/http-kit` minor. Update
-   `core/src/contracts/server.ts`'s agent note to name the package subpath instead of an example path.
+1. Add `src/route-request.ts` + `src/route-request.test.ts` (tests above, green against the bridge).
+2. `main.ts` and `app.test.ts` switch to `createNodeDispatcher` + `routeRequest`; **delete** `src/node-server.ts` and
+   `src/node-server.test.ts` and the `src/node-server.ts` row in `GAPS.json` in the same commit. Test count before and
+   after in the report (the carried tests must all be present).
+3. README: the "Routes" row (`README.md:24`) names `@jini-ai/http-kit/node-bridge`.
+4. `packages/core/src/contracts/server.ts:110`'s note names `@jini-ai/http-kit/node-bridge` instead of the deleted
+   example path (comment only; core gates).
 
 ## Acceptance
 
-http-kit gates; Jini repo gates; notes-app gates + `gaps` (one row fewer); N5 e2e unchanged and green if it
-exists. Deletion ledger: 182+ lines leave the example.
+Example-server gates; `gaps` (one row fewer); core gates for the comment; N5 e2e unchanged and green if it exists.
+Deletion ledger: `node-server.ts` and its test leave the example (~180 + ~160 lines). No `package.json` change.
 
 ## Not verified by the planner
 
-Whether http-kit's root pulls Express types into every subpath's `.d.ts` (the new subpath must not: check the
-emitted `dist/node-server/*.d.ts` for `express`); the conformance suite's exact entry signature.
+Whether the bridge sets `client.address` from the socket the way the example adapter does, and whether it closes
+keep-alive sockets on `close()` (the composition owns `closeAllConnections()`): step 1 finds out; a gap is a STOP.

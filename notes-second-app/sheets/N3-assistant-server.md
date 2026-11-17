@@ -1,10 +1,17 @@
 # N3: the assistant backend, wired from the daemon preset and the entries tool registrations
 
-## Revision 2 corrections (authoritative; they replace the steps they name)
+## Revision 3 corrections (authoritative; over revision 2)
 
-**Judge 11: prerequisite `G19-entry-tool-body.md`.** `collections_entry_update` forwards title, fields and expected
-version only (`packages/cms/src/entries/tool-registrations.ts:177-191`), so the assistant cannot edit a note's body.
-Landed check: `rg -n "body" packages/cms/src/entries/tool-registrations.ts` shows the update handler forwarding it.
+**No G19 prerequisite** (`../INDEX.md` section 00, item 5). Agent body edits are owner decision OD-N13 and G19 is on
+hold. This sheet's assistant edits a note's **title** (`collections_entry_update` forwards `title`, `fields` and
+`expectedVersion`, `packages/cms/src/entries/tool-registrations.ts:177-191`); the update tool's schema
+(`agent-tools.ts:35-41`) leaves `bodyJson` out on purpose. The revision-2 landed check
+(`rg -n "body" tool-registrations.ts`) is **deleted**: it already matched `bodyJson` at base, so it enforced nothing.
+If OD-N13 is later decided yes, the landed check for body edits is G19's red-first test title
+`forwards bodyJson to updateEntry`. T1 adds: `collections_entry_update` with the right `expectedVersion` and a new
+`title` -> the row's title changes and `version` goes up by one.
+
+## Revision 2 corrections (authoritative; they replace the steps they name)
 
 **Judge 16: characterize, never invent (lesson 31).** Delete the expected "tool-permission denial code" and
 "conflict result". First pin what happens today, through the real delegated route: the domain registrations use an

@@ -10,8 +10,8 @@ corrections block and a step still disagree: STOP and report; do not pick one.
 **Revision 3 (2026-11-16, Opus review).** Precedence is now fixed so that a stale step cannot stop a run:
 **COMMON > the sheet's corrections blocks (revision 3 over revision 2) > the sheet's step text.** A step that a block
 contradicts is **void**: skip it, do not STOP, and list it in the report as "void step". STOP only when a block
-contradicts COMMON, the code, or another block. The sheets whose step text the review found contradictory (N0, N2,
-G1, D1, G19) were rewritten in place in revision 3; the others still carry older step text under their blocks.
+contradicts COMMON, the code, or another block. Rewritten in place in revision 3 (block and steps agree): N0, N2, N5,
+G1, G7, G19, D1 (D0 is a pointer table); N1, N3, N4, G2, G4, G5, G6, D2 still carry older step text under their blocks.
 Coordinator decisions recorded in `../INDEX.md` section 00 apply to every sheet.
 
 ## Setup (before reading any source)

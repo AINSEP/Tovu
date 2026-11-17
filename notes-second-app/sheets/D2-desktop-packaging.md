@@ -1,5 +1,15 @@
 # D2: packaging recipe and template for a second Electron app, proven on notes-desktop
 
+## Revision 3 corrections (authoritative; over revision 2)
+
+**Ownership (coordinator, 2026-11-16; `../INDEX.md` section 00).** This plan owns the devops Electron packaging recipe
+for a second app (`packages/devops/src/packaging/electron/README.md` + template) and the packaged notes-desktop proof.
+The desktop-extraction plan's D2 (which also wrote that recipe in its step 4) is **withdrawn**; its
+`D2-notes-desktop.md` points here. **OD-N11 is the same question as the desktop plan's OD-6**, moved to this plan;
+answer it once, here. **Collision:** desktop D1c2 also edits `packages/devops/package.json`
+(`update-manifest-merge`): one run at a time on that file (`../INDEX.md` section 4); STOP (X4) if D1c2 has an open
+branch at dispatch.
+
 ## Revision 2 corrections (authoritative; they replace the steps they name)
 
 **Judge 25: blocked on new owner decision OD-N11.** `node-toolchain` does not find a system Node: it builds shims
