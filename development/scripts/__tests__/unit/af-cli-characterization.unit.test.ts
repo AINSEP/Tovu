@@ -40,7 +40,8 @@ test('admin route CLI resolves nested placeholders and reports the unmatched con
       route: { methods: { get: true } }, handle: {}
     }] } });
   `);
-  f.write('apps/admin/src/lib/api.ts', [
+  f.write('apps/admin/src/lib/admin-http/urls.ts', '');
+  f.write('apps/admin/src/features/zed/api/zed-api.ts', [
     'function base(id): string { return `/workspaces/${WORKSPACE_ID}/items/${id}`; }',
     'request(`${base(id)}/${action}${query ? "?q=" + ({ nested: true }).nested : ""}`);',
     'request("/missing\\\"quote");',
@@ -279,10 +280,13 @@ test('coverage triage CLI includes complexity-only files absent from both covera
 
 test('web dev CLI attaches to the selected running site and opens its admin URL', t => {
   const f = fixture(t, ['dev.mjs']);
-  f.write('development/scripts/dev-sites-home.mjs', `export const devSitesHome = () => ({
-    running: { app: 'desktop', port: 3123, scheme: 'https' }
-  });`);
+  f.write('development/scripts/dev-sites-home.mjs', `const selected = { dir: '/unused-site', dbPath: '/unused-db', warning: undefined,
+    running: { app: 'desktop', port: 3123, scheme: 'https' } };
+    export const devSitesHome = () => selected;
+    export const prepareDevSitesHome = async () => ({ ...selected, env: {} });`);
   f.write('development/scripts/dev-api-watch.mjs', 'export const apiWatchArgs = () => [];');
+  f.write('development/scripts/dev-lite.mjs', 'export const prepareLiteAdmin = async () => ({});');
+  f.write('development/scripts/compose-bundled-agent-plugins.mjs', 'export const composeDevBundledAgentPlugins = () => "/unused/bundled-agent-plugins";');
   f.write('development/scripts/prune-tsx-cache.mjs', 'export const pruneTsxCache = () => { throw Error("unexpected prune"); };');
   f.write('development/scripts/load-repo-root-env.mjs', 'export const loadRepoRootEnvFile = () => false;');
   f.write('development/scripts/local-dev-plugin-install.mjs', 'export const localDevPluginInstallEnv = () => ({});');
@@ -302,6 +306,7 @@ test('web dev CLI attaches to the selected running site and opens its admin URL'
 test('desktop dev CLI builds preload before watching and forwards Electron flags on normal exit', t => {
   const f = fixture(t, ['dev-desktop.mjs']);
   f.write('development/scripts/free-port.mjs', 'export const pickFreePort = () => { throw Error("unexpected probe"); };');
+  f.write('development/scripts/compose-bundled-agent-plugins.mjs', 'export const composeDevBundledAgentPlugins = () => "/unused/bundled-agent-plugins";');
   f.write('development/scripts/load-repo-root-env.mjs', 'export const loadRepoRootEnvFile = () => false;');
   f.write('development/scripts/local-dev-plugin-install.mjs', 'export const localDevPluginInstallEnv = () => ({});');
   f.write('development/scripts/port-listeners.mjs', 'export const listenersOn = () => [];');
