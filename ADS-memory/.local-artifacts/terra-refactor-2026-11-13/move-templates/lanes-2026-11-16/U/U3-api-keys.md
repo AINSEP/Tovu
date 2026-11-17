@@ -87,10 +87,14 @@ Mutations: delete each numbered step in turn; each turns its own test RED.
 | Revocation is idempotent and workspace-scoped | cross-workspace id behaves like an unknown id |
 
 ## The bearer gate (finding 11; not moved, traced: LESSONS 13)
-`server/inbound/admin-http/dev-auth.ts:262-291` `currentCredential`: a session token is tried first; a valid OPERATOR
+`server/inbound/admin-http/dev-auth.ts:268-292` `currentCredential` (doc comment above it from :250; re-read on refactor/terra): a session token is tried first; a valid OPERATOR
 session returns `{ principal, kind: "session" }`; a non-operator session is treated like no session and falls through;
 then the key header -> `authenticateApiKey` -> operator-principal check -> `{ principal, kind: "api_key" }` or `null`.
-T0 adds, per shipped security profile (`rg -n "securityProfile|SECURITY_PROFILE" apps/website/src/server -g '!**/__tests__/**'`):
+T0 adds the rows below. su-refresh: revision 2 said "per shipped security profile" with a command that prints nothing on
+refactor/terra (no such concept exists). The one per-deployment input of `currentCredential` is its optional
+`localOwnerSignIn` policy (default `bootLocalOwnerSignIn`, `server/runtime/boot/local-owner-signin.ts`, read by
+`readSessionToken` at :269): run every row with the default AND with the policy that refuses local owner sign-in (read the
+`LocalOwnerSignInPolicy` type for its values; one run per value). The rows:
 | Case | Assertion | Fails when |
 |---|---|---|
 | **Positive control**: a valid key calls a protected operation | 2xx AND the resolved credential is that key's principal with `kind: "api_key"` (assert through `currentCredential` and through one route) | the middleware stops calling `authenticateApiKey` (the old equal-denial test stayed green) |
@@ -133,4 +137,8 @@ rg -n -e 'new ScryptApiKeySecretHasher' -e '"tovu_ak_"' apps/website/src -g '*.t
 - A refusal's error class or message changes (routes map them to status codes; LESSONS 7, 24): chain B's assertions.
 - The clamp table turns red after the swap (see above).
 Not verified while planning: bodies of `createApiKeyPrincipal`, `revokeApiKey`, `findIssuableTargetOrThrow`,
-`collectSnapshotSourceRows`, `isCandidateStillUsable`; Jini's private `holdsUnconstrained`; the list of credential-kind branches.
+`collectSnapshotSourceRows`, `isCandidateStillUsable`; Jini's private `holdsUnconstrained` (`grant-service.ts:148`).
+su-refresh (refactor/terra, 2026-11-17): the declaration-map command prints exactly the lines of the map (plus the private
+`api-key-secret.ts` constants :45-69 and helpers :116-172, all under "private derivation helpers"; `ScryptApiKeySecretHasher`
+is a `class`, which the regex does not list); command K prints the 5 branches named; the hasher/scheme STOP prints exactly
+`wiring.ts:184` and `api-key-secret.ts:45`; Jini `assertGrantClamp` is at `grant-service.ts:174`.

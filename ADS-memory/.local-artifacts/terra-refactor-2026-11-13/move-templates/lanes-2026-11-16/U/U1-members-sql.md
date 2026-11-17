@@ -3,7 +3,7 @@
 Security code (U1b). Template: T-SQLREPO rev 2. Facts: `U1-members-sql.facts.md` (3 files, 974 lines, 16 test files).
 New relative to audit2 A07 (`split-a07-members-server-domain.md`), which moves `types, ports, repo.memory, agent-tools,
 tool-registrations, subscriber-directory` to `packages/user-management/src/members/` (a UNIVERSAL entry) and leaves the SQL
-adapters in Tovu. U1 moves them behind A07's ports (OD-3). A07 has NOT landed on Jini `af33fcdb` (`src/members` is absent).
+adapters in Tovu. U1 moves them behind A07's ports (OD-3). A07 has NOT landed on Jini `65d73b0d5` = refactor/terra (`src/members` is absent; su-refresh 2026-11-17).
 Revision 2 fixes judge finding 5: the two runs now have an exact intermediate tree, bindings and helper owner.
 
 ```
@@ -32,7 +32,7 @@ non-exported module helpers used by the class files through a named internal exp
 `member-repo.ts`, `tier-repo.ts`, `subscription-repo.ts`, `index.ts`, export entry + `jini.entries` line.
 Constructors `({ kernel, tables }, _optional = {})`.
 **T1 — the exact intermediate tree (compiles alone; finding 5).**
-- `features/members/repo.ts`: keeps its imports, **its own copy of `withoutId` if `rg -n "withoutId" ` shows a use in :354-604** (a five-line generic helper, duplicated only until U1b deletes this file; if no remaining class uses it, delete it now), and the three classes `SqlMemberSessionRepo`, `SqlMagicLinkTokenRepo`, `SqlMemberConsentRepo`, untouched.
+- `features/members/repo.ts`: keeps its imports, **its own copy of `withoutId`** (su-refresh: the three remaining classes use it at :400, :477, :570; a five-line generic helper, duplicated only until U1b deletes this file), and the three classes `SqlMemberSessionRepo`, `SqlMagicLinkTokenRepo`, `SqlMemberConsentRepo`, untouched.
 - `features/members/repo.rows.ts`: reduced to the mappers those three classes import (`rg -n "repo\.rows" features/members/repo.ts` after the edit lists them); nothing else.
 - `features/members/repo.sqlite.ts`: `SqliteMemberExternalIdentityRepo`, `SqliteMemberRepo`, `SqliteMemberTierRepo`, `SqliteMemberSubscriptionRepo` keep names and constructors and call `super({ kernel: schemaErasedKernel({ store }), tables: MEMBER_TABLES }, {})` on the Jini classes; the other three subclasses still import from `./repo.js`. `MEMBER_TABLES` is a `const` here with all eight real names (`members`, `member_tiers`, `member_subscriptions`, `member_sessions`, `member_magic_tokens`, `member_consents`, `member_external_identities`, `member_revisions`); U1b reuses it.
 - Successor guard for U1b: the facts diff may show ONLY these three files changed, in exactly the declarations above.
@@ -62,7 +62,7 @@ domain's own key and moves as a literal builder, pinned by S0-P1.
 **Security chain (T0, unmoved code; each row is repo behaviour — the filtering of revoked / expired sessions is NOT here: `access-resolver.ts` `resolveMemberSession` does it, see U2b).**
 | Step today | Test | Mutation -> RED |
 |---|---|---|
-| Session found only by `(workspace, exact digest)` | S0-P5 fixture; same digest in another workspace not found; pin whether the repo itself filters revoked / expired rows (read `findByTokenHash`) | drop a predicate |
+| Session found only by `(workspace, exact digest)` | S0-P5 fixture; same digest in another workspace not found; the repo itself does NOT filter revoked / expired rows (`findByTokenHash` :360-367 has only the workspace and digest predicates, read 2026-11-17): a revoked and an expired session ARE returned, pin that | drop a predicate |
 | Session save and `revokeAllForMember` (with `exceptSessionId`) run under the member lock, in a transaction | recording kernel: lock string and order at :391 and :424; `exceptSessionId` survives, every other live session of that member gets the instant, other members' sessions untouched | remove each lock; drop the member predicate; ignore the exception |
 | Sign-in token is single use and expires | `consume` twice concurrently: exactly one success; expired: refused; the three refusal messages are EXACT strings the challenge adapter matches today (`features/members/write-service.ts:243-246`: `magic link token '<id>' was not found` / `has expired` / `was already consumed`): assert each verbatim | make consume unconditional; change one message |
 | Code attempts are reserved atomically | `reserveCodeAttempt` up to `maxAttempts` concurrently: exactly `maxAttempts` succeed | drop the attempts predicate |
@@ -74,5 +74,6 @@ domain's own key and moves as a literal builder, pinned by S0-P1.
 - A07's landed port names differ from the ones `repo.ts:5-13` imports: step 0 prints both; any member mismatch = SKIPPED.
 - A token or session digest would be computed differently (S0-P5a/b red).
 - The `locks.member` binding and the trash key differ (S0-P2 red).
-Not verified while planning: the bodies of the seven classes beyond the lock sites and line ranges; whether
-`findByTokenHash` filters; which remaining classes use `withoutId`.
+Not verified while planning: the bodies of the seven classes beyond the lock sites and line ranges.
+su-refresh (refactor/terra `232764af5`): source map, lock lines :391/:424/:501, `password-auth.ts:125`, the three refusal
+fragments (`write-service.ts:245`, matched as `prefix + reason`), `withoutId` uses and `findByTokenHash` re-read; facts identical.

@@ -17,12 +17,13 @@ runs, in order (user-management chain; INDEX-SU §3):
 jini_target: user-management NEW Node subpath `./members/server` (`jini.entries` line `"./members/server": "node"`, export-map
   entry `./dist/members/server/index.{d.ts,js}`, README row: all in U2c-2's J1). A07's `./members` stays UNIVERSAL:
   no file of this sheet is exported from it, and `rg -n "node:" packages/user-management/src/members -g '!**/server/**'` prints nothing.
-prerequisites: S0 DONE (P2, P5a, P5b). A07 landed (`ls packages/user-management/src/members/ports.ts`; absent on Jini af33fcdb).
+prerequisites: S0 DONE (P2, P5a, P5b). A07 landed (`ls packages/user-management/src/members/ports.ts`; absent on Jini `65d73b0d5` = refactor/terra, 2026-11-17).
   error-system design: if it has a scheduled sheet on `members/write-service.ts`, it runs before U2c-1.
 ```
 
 ## Design: `write-service.ts` (677 lines) by its real dependency graph (LESSONS 1-4)
-Call graph generated from the file on Tovu `e801e9ae` (declaration -> what it calls -> which `deps` it reads):
+Call graph generated from the file on Tovu `e801e9ae`; su-refresh re-read every declaration line below on refactor/terra
+`232764af5` (unchanged; the local export list is :659, the swallowing `catch` :676) (declaration -> what it calls -> which `deps` it reads):
 | Group | Declarations (line) | Calls | `deps` read | State owned |
 |---|---|---|---|---|
 | **A credentials** | `sessionTokens` (:58), `legacyPasswordHasher` (:59), `memberPasswordHasher` (:62), `dummyHashes` (:67), `dummyPasswordHash` (:70), `hashToken` (:80), `newRawToken` (:84), `isoPlusMs` (:88), `SESSION_TTL_MS` (:50), `issueMemberSession` (:451) | - | `passwordHasher`, `ids`, `sessions` | the ONE token helper instance, the fallback hasher, the per-hasher dummy-hash cache (`WeakMap`) |
@@ -90,6 +91,10 @@ Importers of the resolver (8 direct production files under `server/inbound/publi
 (edit in A07's `members/ports.ts` and its in-memory lifecycle), and the literal leaves user-management. Tovu binds it at
 `server/runtime/composition/http-app/mount-members-newsletter.ts:69`: `lockMember: ({ workspaceId, memberId }) => kernel.lockKey(trashEntityLockKey({ entityType: "member", workspaceId, entityId: memberId }))`.
 Binding test: recording kernel receives exactly `trash:member:<ws>:<id>`; S0-P2 stays green.
+su-refresh: `mount-members-newsletter.ts:69` is `credentialLifecycle: routeDeps.contentKernel ?? createInMemoryCredentialLifecycle()`;
+the binding therefore keeps that choice: the kernel branch becomes `{ transaction: (fn) => kernel.transaction(fn), lockMember: … }`
+as above, and the in-memory branch is A07's lifecycle, which gains `lockMember` in the same Jini commit (a no-op lock on
+one process, as its `lockKey` is today). Both branches get a binding test.
 
 **The real chains (finding 9). T0, unmoved code, fakes of the A07 port interfaces with a recording hasher; fixed clock.**
 | # | What the code does today | Test | Mutation -> RED |
@@ -135,6 +140,31 @@ before J1): (d) observer throws -> `report` called once with the thrown error an
 (e) observer succeeds -> `report` never called. Mutations: drop the `report` call (d fails); call `report` on success
 (e fails). T1 (Tovu): one binding test per build site: the deps it returns carry a `report` that forwards to the
 observability port's `reportError` (recording fake). If `report` itself throws, the error propagates (no nested swallow).
+
+## Barrel rule for `features/members/index.ts` (su-refresh; replaces "only specifiers change" for moves to Jini)
+xpkg COMMON S3 fails on any added `export { … } from` line and the owner rule forbids forwarders, so a barrel line may
+NOT be repointed to `@jini-ai/user-management/members/server`. In the T1 commit that moves a symbol to Jini, its barrel
+line (or the symbol inside a multi-line block) is DELETED and every barrel importer of that symbol imports it from the
+Jini subpath instead (allowed edit (a) for tests). Barrel importers on refactor/terra (2026-11-17, list command below):
+- U2b (resolver + password auth: `DefaultMemberAccessResolver`, `createMemberAccessResolver`, `resolvePostMemberAccess`,
+  `MemberAccessResolverDeps`, `resolveMemberSession`, `signInWithPassword`, `resetPassword`, `setMemberPassword`; barrel
+  `index.ts:96-100,133-134`): 11 files: `assistant/site/__tests__/member-access.fixture.ts`, `features/seo/index.ts`,
+  `features/site-search/cms-document-source.ts`, `server/inbound/admin-http/routes/posts/template-preview-render.ts`,
+  `server/inbound/public-http/routes/members/{me,oidc-deps,password-sign-in,reset-password,set-password}.ts`,
+  `server/runtime/composition/deps.ts` (shared file: INDEX-SU §3.4), `server/runtime/composition/modules/site-assistant.ts`.
+- U2c-2 (`issueMemberSession`): `features/member-login/link-service.ts`, `server/inbound/public-http/routes/members/unlink-identity.ts`.
+- U2c-3 (`compSubscription`, `createMember`, `completeSignIn`, `notifyMemberCreated`, `disableMember`, `setSubscriptionStatus`,
+  `updateProfile`): `features/member-login/link-service.ts`, `server/inbound/admin-http/routes/members/disable.ts`,
+  `server/inbound/public-http/routes/members/complete-sign-in.ts`.
+- U2c-1 (Tovu-only split): barrel lines that name a symbol moving between TOVU files change only their `./…` specifier
+  (`index.ts:102-114` block, `:133` for `requestPasswordReset`). These are existing barrel lines, not new forwarders; the
+  run report lists each such S3 hit with this paragraph as its allowance. Anything else S3 prints = STOP.
+```bash
+cd "$TOVU"/apps/website/src   # barrel importers of a symbol set; S = the run's symbols, joined by |
+S='DefaultMemberAccessResolver|createMemberAccessResolver|resolvePostMemberAccess|MemberAccessResolverDeps|resolveMemberSession|signInWithPassword|resetPassword|setMemberPassword'
+rg -l -U "import[^;]*\b($S)\b[^;]*from \"[^\"]*(features/members/index|members/index\.js|\./index\.js)[^\"]*\"" . | grep -v '^./features/members/index.ts' | sort
+```
+A file that is not in the run's list above = STOP (a new importer since 2026-11-17: regenerate the list, never widen silently).
 
 ## stops
 - A step of R1-P6 would become a host callback, or its mutation stays green: do not move that file.
