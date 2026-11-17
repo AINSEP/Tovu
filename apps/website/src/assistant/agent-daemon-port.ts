@@ -20,7 +20,6 @@
 export { listAssistantAgents, rescanAssistantAgents } from "./agents.js";
 export { createCustomInstructionsCache } from "./custom-instructions.js";
 export { DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "./daemon-access.js";
-export { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes.js";
 export { FRONTEND_CONTROL_CAPABILITIES, withReadOnlyFrontendCapabilities } from "./frontend-control-capabilities.js";
 export { attachFederatedMcpTools } from "./mcp-federation/bootstrap.js";
 // Federation hot-reload: re-admits connections an operator authorized AFTER this

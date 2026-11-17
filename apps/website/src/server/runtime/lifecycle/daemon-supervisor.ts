@@ -39,7 +39,8 @@ import { createRedactedOutputSink } from "../../../platform/server-logs/console-
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "./readiness-state.js";
 import { getAgentDaemonPortForSpawnEnv, refreshAgentDaemonPort } from "./agent-daemon-port.js";
 import { createAssistantDaemonRegistry, readPreviousAssistantDaemon } from "./assistant-daemon-registry.js";
-import { AGENT_DAEMON_EXIT_CODE, createRespawnPolicy } from "#src/assistant/index";
+import { AGENT_DAEMON_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
+import { createRespawnPolicy } from "#src/assistant/index";
 import type { RespawnDecision, RespawnPolicy } from "#src/assistant/index";
 
 /**

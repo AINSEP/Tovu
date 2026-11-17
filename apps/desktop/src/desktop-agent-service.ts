@@ -17,7 +17,7 @@ import { createRespawnPolicy } from "@jini-ai/sidecar/respawn-policy";
 import { createNodeDaemonProcessAdapter, createNodeIpcChannel, createNodeSupervisorScheduler, createSupervisorRegistry,
   type NodeDaemonProcessOptions, type SupervisorRegistry } from "@jini-ai/sidecar/supervisor/node";
 import { daemonControlRequest, daemonEndpoint, siteIdleStopReply, type DaemonSiteRegistration } from "../../website/src/server/runtime/lifecycle/assistant-daemon-connection.ts";
-import { AGENT_DAEMON_EXIT_CODE } from "../../website/src/assistant/daemon-exit-codes.ts";
+import { AGENT_DAEMON_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 import type { CliMode } from "./startup-env.ts";
 
 export interface DesktopAgentServiceOptions {

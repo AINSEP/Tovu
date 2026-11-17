@@ -16,7 +16,7 @@ import { SITES_MCP_SERVER_ID, DESKTOP_MCP_URL_ENV, DESKTOP_MCP_TOKEN_ENV, DESKTO
  * under `apps/website/` has to change for the desktop shell to exist.
  */
 import { redactSecrets } from "@jini-ai/core";
-import { SITE_SLEEP_EXIT_CODE } from "../../website/src/assistant/daemon-exit-codes.ts";
+import { SITE_SLEEP_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 import net from "node:net";
 import path from "node:path";
 import { pathToFileURL } from "node:url";

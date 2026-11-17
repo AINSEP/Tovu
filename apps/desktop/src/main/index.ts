@@ -1,4 +1,4 @@
-import { SITE_SLEEP_EXIT_CODE } from "../../../website/src/assistant/daemon-exit-codes.ts";
+import { SITE_SLEEP_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 import { migrateNestedSitesHome } from "../nested-sites-migration.ts";
 import { createSitesWorkspace, rememberSharedSiteOpen, attachRunningSite } from "../shared-sites.ts";
 /**
