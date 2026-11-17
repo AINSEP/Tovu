@@ -205,7 +205,9 @@ test("capture failures become caller-safe ToolInputErrors that name the origin, 
   const cases: Array<[PageCaptureError, RegExp]> = [
     [new PageCaptureError({ kind: "refused", message: "x" }), /^web_screenshot_page: https:\/\/intranet\.example is not a public internet address .*Use sitePath/],
     [new PageCaptureError({ kind: "unavailable", message: "Executable doesn't exist at /opt/x" }), /^web_screenshot_page: this server cannot take screenshots/],
-    [new PageCaptureError({ kind: "timeout", message: "x" }), /did not finish rendering within 20 seconds/],
+    [new PageCaptureError({ kind: "timeout", message: "x", limitMs: 17_200, loaded: false }), /^web_screenshot_page: https:\/\/intranet\.example did not answer within 17\.2 seconds\.$/],
+    [new PageCaptureError({ kind: "timeout", message: "x", limitMs: 25_000, loaded: true }), /^web_screenshot_page: https:\/\/intranet\.example did not finish rendering within 25 seconds\.$/],
+    [new PageCaptureError({ kind: "timeout", message: "x" }), /^web_screenshot_page: https:\/\/intranet\.example did not finish rendering in time\.$/],
   ];
   for (const [error, message] of cases) {
     const events: WebScreenshotEvent[] = [];

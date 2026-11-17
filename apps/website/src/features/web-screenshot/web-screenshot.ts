@@ -84,10 +84,16 @@ export type PageCaptureFailure = "refused" | "unavailable" | "timeout" | "failed
 /** A capture that produced no picture, with a caller-safe reason. */
 export class PageCaptureError extends Error {
   readonly kind: PageCaptureFailure;
-  constructor({ kind, message }: { kind: PageCaptureFailure; message: string }) {
+  /** A `timeout` only: the limit that ended the capture, in ms. A port that does not know it leaves it out. */
+  readonly limitMs: number | undefined;
+  /** A `timeout` only: whether the page had loaded when the limit ended the capture. */
+  readonly loaded: boolean | undefined;
+  constructor({ kind, message, limitMs, loaded }: { kind: PageCaptureFailure; message: string; limitMs?: number; loaded?: boolean }) {
     super(message);
     this.name = "PageCaptureError";
     this.kind = kind;
+    this.limitMs = limitMs;
+    this.loaded = loaded;
   }
 }
 
@@ -229,9 +235,17 @@ function failureMessage({ error, where }: { error: PageCaptureError; where: stri
   switch (error.kind) {
     case "refused": return `${where} is not a public internet address (localhost, private-network and cloud-metadata addresses are refused, including via redirects). Use sitePath to capture THIS site.`;
     case "unavailable": return "this server cannot take screenshots: its headless browser (Playwright Chromium) is not installed or failed to start.";
-    case "timeout": return `${where} did not finish rendering within ${CAPTURE_LIMITS.baseMs / 1000} seconds.`;
+    case "timeout": return timeoutMessage({ error, where });
     default: return `could not load ${where} (${error.message}). Check the address and that the site is up.`;
   }
+}
+
+/** A timeout says the real number and which part ran out: a site that never answered, or a page that loaded but did not finish.
+ *  A port that does not know its limit (the desktop's native capture) gets no number rather than a wrong one. */
+function timeoutMessage({ error, where }: { error: PageCaptureError; where: string }, _optional = {}): string {
+  if (error.limitMs === undefined) return `${where} did not finish rendering in time.`;
+  const seconds = `${error.limitMs / 1000} seconds`;
+  return error.loaded === false ? `${where} did not answer within ${seconds}.` : `${where} did not finish rendering within ${seconds}.`;
 }
 
 /** The capture request for one validated input: the viewport preset, the full-page height cap and, for an

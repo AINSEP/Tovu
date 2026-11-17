@@ -117,7 +117,7 @@ export function createPlaywrightPageCapture(
     { idleCloseMs },
   );
 
-  async function shoot({ request, plan }: { request: PageCaptureRequest; plan: CaptureBudget }, signal: AbortSignal): Promise<PageCapture> {
+  async function shoot({ request, plan, progress }: { request: PageCaptureRequest; plan: CaptureBudget; progress: CaptureProgress }, signal: AbortSignal): Promise<PageCapture> {
     let lease: RenderBrowserLease;
     try {
       lease = await browser.acquire({}, { signal });
@@ -135,13 +135,13 @@ export function createPlaywrightPageCapture(
       return await renderPage({
         browser: { newContext: () => lease.browser.newContext({ ...contextOptions }), close: () => lease.browser.close() },
         url: request.url,
-        consume: session => consumeCapture({ session, request, router, plan, clock }),
+        consume: session => { progress.loaded = true; return consumeCapture({ session, request, router, plan, clock }); },
       }, { originPolicy: "public", router, signal, timeoutMs: plan.totalMs, softDeadlineMs: plan.softDeadlineMs, onSoftDeadline: "consume-current", clock,
         waitFor: request.waitFor ?? request.settleMs / 1000,
         dismissCookieBanners: request.dismissCookieBanners === true, loadWaitMs: 5_000,
       });
     } catch (error) {
-      if (error instanceof PageWorkTimeout) throw new PageCaptureError({ kind: "timeout", message: `exceeded ${plan.totalMs}ms` });
+      if (error instanceof PageWorkTimeout) throw timeoutError({ plan, progress });
       if (router.report().navigationRefused) throw new PageCaptureError({ kind: "refused", message: "refused by the egress guard" });
       throw new PageCaptureError({ kind: "failed", message: navigationErrorCode({ error }) });
     } finally { lease.release(); }
@@ -150,6 +150,7 @@ export function createPlaywrightPageCapture(
   return {
     async capture(request, { signal } = {}) {
       const plan = captureBudget(budgetRequestOf({ request }), limits);
+      const progress: CaptureProgress = { loaded: false };
       const controller = new AbortController();
       const onAbort = () => controller.abort();
       signal?.addEventListener("abort", onAbort, { once: true });
@@ -158,11 +159,11 @@ export function createPlaywrightPageCapture(
       const deadline = new Promise<never>((_, reject) => {
         timer = clock.setTimeout(() => {
           controller.abort();
-          reject(new PageCaptureError({ kind: "timeout", message: `exceeded ${plan.totalMs}ms` }));
+          reject(timeoutError({ plan, progress, hardStop: true }));
         }, plan.totalMs);
       });
       try {
-        const work = shoot({ request, plan }, controller.signal);
+        const work = shoot({ request, plan, progress }, controller.signal);
         // A capture that lost the race still settles later; its outcome is already reported.
         work.catch(() => {});
         return await Promise.race([work, deadline]);
@@ -185,6 +186,19 @@ export function createPlaywrightPageCapture(
 type FrameShooter = { screenshot(options: Omit<Parameters<CapturePage["screenshot"]>[0], "animations"> & { animations: "disabled" | "allow" }): Promise<Buffer> };
 type ScreenshotBudget = { run<T>(required: { work: () => Promise<T> }): Promise<T>; remainingMs(): number };
 type FrameClip = { clip?: { x: number; y: number; width: number; height: number } };
+
+/** How far one capture got, shared by the render and the outer race so a timeout can say what ran out. */
+interface CaptureProgress { loaded: boolean }
+
+/** The capture's timeout. Before the page loaded it is the work deadline that ran out (a render that never committed
+ *  navigation fails there); once loaded, or when the hard stop of the whole capture fires, it is the total. */
+function timeoutError(
+  { plan, progress, hardStop = false }: { plan: CaptureBudget; progress: CaptureProgress; hardStop?: boolean },
+  _optional = {},
+): PageCaptureError {
+  const limitMs = progress.loaded || hardStop ? plan.totalMs : plan.softDeadlineMs;
+  return new PageCaptureError({ kind: "timeout", message: `exceeded ${limitMs}ms`, limitMs, loaded: progress.loaded });
+}
 
 /** What the request asks for, in the units `captureBudget` reads. A selector wait adds nothing: it ends when the element shows. */
 function budgetRequestOf({ request }: { request: PageCaptureRequest }, _optional = {}): Parameters<typeof captureBudget>[0] {

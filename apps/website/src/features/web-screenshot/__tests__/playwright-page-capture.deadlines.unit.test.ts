@@ -121,3 +121,28 @@ test("a full-page scroll that ends before the work deadline keeps the stable-fra
   assert.equal(done.image.note, undefined, "it settled in time: no note");
   assert.deepEqual(fixture.screenshots, [{ at: 25_000, timeout: 1_000, animations: "disabled" }], "30 s − 25 s left, minus the 4 s reserve");
 });
+
+test("a navigation that never commits fails at the work deadline and says so: the site did not answer, with that number", async t => {
+  const fixture = capturing({ times: { goto: "never" } });
+  t.after(() => fixture.capture.close());
+  const run = watch(fixture.capture.capture(captureRequest({ settleMs: 5_000 })));
+  await fixture.clock.advance(20_999);
+  assert.equal(run.outcome(), undefined, "T is 25 s, the work deadline 21 s");
+  await fixture.clock.advance(1);
+  const outcome = run.outcome();
+  assert.ok(outcome && "failure" in outcome && outcome.failure instanceof PageCaptureError);
+  assert.equal(outcome.failure.kind, "timeout");
+  assert.equal(outcome.failure.limitMs, 21_000, "the work deadline");
+  assert.equal(outcome.failure.loaded, false);
+});
+
+test("a page that loaded but hung the renderer fails at T and says so: it did not finish, with T", async t => {
+  const fixture = capturing({ times: { screenshots: ["never"] } });
+  t.after(() => fixture.capture.close());
+  const run = watch(fixture.capture.capture(captureRequest({ settleMs: 5_000 })));
+  await fixture.clock.advance(25_000);
+  const outcome = run.outcome();
+  assert.ok(outcome && "failure" in outcome && outcome.failure instanceof PageCaptureError);
+  assert.equal(outcome.failure.limitMs, 25_000);
+  assert.equal(outcome.failure.loaded, true);
+});
