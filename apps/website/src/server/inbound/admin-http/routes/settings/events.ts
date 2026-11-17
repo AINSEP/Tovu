@@ -367,7 +367,27 @@ export const registerAdminSettingsEventsRoute = (app: Express, deps: SettingsEve
     if (!admission) return;
 
     res.writeHead(200, sseWriteHeadHeaders(req));
-    const cursor = resumeCursor({ req, head: await deps.settingsRepo.maxRevisionSeq() });
-    runChangeFeed({ ...admission, req, res, deps, timers, cursor });
+    const head = await readHeadOrEndStream({ res, deps });
+    if (head === null) return;
+    runChangeFeed({ ...admission, req, res, deps, timers, cursor: resumeCursor({ req, head }) });
   } }));
 };
+
+/**
+ * Reads the ledger head after the stream's headers are already sent. A failure here cannot become
+ * an HTTP error any more, so it is turned into one `error` event in plain words and the stream is
+ * ended: without it the open tab sat silent, believing live updates were still coming. The raw
+ * cause goes to the server log only, since it may carry a path or a SQL fragment.
+ * @returns The head sequence, or `null` once the stream has been ended.
+ * @complexity O(1) plus one indexed read.
+ */
+async function readHeadOrEndStream({ res, deps }: { res: Response; deps: SettingsEventsDeps }, _options: Record<string, never> = {}): Promise<number | null> {
+  try {
+    return await deps.settingsRepo.maxRevisionSeq();
+  } catch (error) {
+    console.error("[settings] change feed could not read the revision head", error);
+    res.write(`event: error\ndata: ${JSON.stringify({ code: "FEED_UNAVAILABLE", message: "Live settings updates stopped because the server could not read the latest settings change. Reload the page to reconnect." })}\n\n`);
+    res.end();
+    return null;
+  }
+}

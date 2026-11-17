@@ -35,3 +35,29 @@ test("a failed ledger head read after the stream opened closes the stream instea
     );
   assert.equal(outcome, "closed");
 });
+
+// A closed stream with no word tells the open settings tab nothing; it should be told in plain
+// words that live updates stopped, so it can show that rather than sit silent.
+test("a failed ledger head read sends one error event in plain words before the stream ends", async (t) => {
+  t.mock.method(console, "error", () => {});
+  const deps: SettingsEventsDeps = {
+    workspaceId: "ws", settingsReady: Promise.resolve(),
+    authorize: async () => ({ allowed: true, reason: "granted" }),
+    settingsRepo: {
+      maxRevisionSeq: async () => { throw new Error("revision head read failed"); },
+      listRevisionsSince: async () => [],
+      findDefinitionBySettingId: async () => null,
+    },
+  };
+  const app = express();
+  app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
+  registerAdminSettingsEventsRoute(app, deps);
+  app.use(captureRouteError);
+  const baseUrl = await startTestServer(app, t);
+
+  const body = await fetch(`${baseUrl}/api/admin/v1/workspaces/ws/settings/events`, { signal: AbortSignal.timeout(2_000) }).then((response) => response.text());
+
+  assert.match(body, /event: error\n/);
+  assert.match(body, /Live settings updates stopped/);
+  assert.equal(body.includes("revision head read failed"), false, "the raw cause must stay in the server log");
+});
