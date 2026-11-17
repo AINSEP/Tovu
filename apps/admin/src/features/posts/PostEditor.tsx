@@ -42,10 +42,16 @@ export interface PostEditorProps {
    * TipTap or serving a post — the existing suite currently has to stand up both.
    */
   usePostEditorHook?: typeof useWiredPostEditor;
+  /**
+   * The root composition's own hook (state → per-region prop bundles), injected like `usePostEditorHook`
+   * so a test can hand the root a ready-made screen state without driving the controller beneath it.
+   * Defaulted to the real hook; `usePostEditorHook` is still forwarded into it.
+   */
+  usePostEditorScreenHook?: typeof usePostEditorScreen;
 }
 
-export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: PostEditorProps) {
-  const screen = usePostEditorScreen({ postId, usePostEditorHook });
+export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor, usePostEditorScreenHook = usePostEditorScreen }: PostEditorProps) {
+  const screen = usePostEditorScreenHook({ postId, usePostEditorHook });
   if (screen.status === "error") return <div className="notice error">{screen.error}</div>;
   if (screen.status === "loading") return <div className="notice">{screen.t("Loading editor…")}</div>;
   const { view, t } = screen;

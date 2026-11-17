@@ -93,6 +93,7 @@ export function PostPreview({
   width,
   expanded,
   onToggleExpanded,
+  usePostPreviewSourceHook = usePostPreviewSource,
 }: {
   /** Empty until first Save; server previews require a persisted post. */
   postId: string;
@@ -128,8 +129,11 @@ export function PostPreview({
    *  toggles this any more (since `a380c716`) — this is the only control that does. */
   onToggleExpanded: () => void;
   t: Translate;
+  /** Injected like `Posts.tsx`'s `usePostsHook`: the preview's data source (which surface to show, and the
+   *  measured pane the device frame scales into). Defaulted to the real hook, so callers pass nothing. */
+  usePostPreviewSourceHook?: typeof usePostPreviewSource;
 }) {
-  const { canShowLiveSite, canShowTemplatePreview, frameRef, paneWidth } = usePostPreviewSource({ status, scheduled, dirty, contentDirty });
+  const { canShowLiveSite, canShowTemplatePreview, frameRef, paneWidth } = usePostPreviewSourceHook({ status, scheduled, dirty, contentDirty });
 
   // Keep the guard in the preview owner, after hooks so first Save can reveal the server frame.
   if (!postId) return <p className="notice" role="status">{t("Save this post to preview it.")}</p>;

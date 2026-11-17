@@ -646,7 +646,7 @@
     "BubbleFormattingMenu::useEditorState": {
       "count": 1,
       "files": [
-        "apps/admin/src/features/posts/PostEditor.tsx"
+        "apps/admin/src/features/posts/editor/bubble-menu/BubbleFormattingMenu.tsx"
       ]
     },
     "ChartRegistryProvider::useWiredAdminChartRegistry": {
@@ -1219,46 +1219,22 @@
         "apps/admin/src/features/plugins/PluginRow.tsx"
       ]
     },
-    "PostEditor::useDevicePreviewDevice": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/posts/PostEditor.tsx"
-      ]
-    },
-    "PostEditor::usePostSettingsDialog": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/posts/PostEditor.tsx"
-      ]
-    },
-    "PostEditor::useTabBarKeyboard": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/posts/PostEditor.tsx"
-      ]
-    },
     "PostEditorBody::usePostUrlDialog": {
       "count": 1,
       "files": [
-        "apps/admin/src/features/posts/PostEditor.tsx"
-      ]
-    },
-    "PostPreview::usePreviewPaneWidth": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/posts/PostEditor.tsx"
+        "apps/admin/src/features/posts/editor/PostEditorBody.tsx"
       ]
     },
     "PostPreviewFrame::usePostPreviewIframeEscape": {
       "count": 1,
       "files": [
-        "apps/admin/src/features/posts/PostEditor.tsx"
+        "apps/admin/src/features/posts/editor/preview/PostPreviewFrame.tsx"
       ]
     },
     "PostPreviewFrame::useThemePreviewFrame": {
       "count": 1,
       "files": [
-        "apps/admin/src/features/posts/PostEditor.tsx"
+        "apps/admin/src/features/posts/editor/preview/PostPreviewFrame.tsx"
       ]
     },
     "PostSettingsDialog::useTabBarKeyboard": {
@@ -1840,7 +1816,7 @@
     "Toolbar::useEditorState": {
       "count": 1,
       "files": [
-        "apps/admin/src/features/posts/PostEditor.tsx"
+        "apps/admin/src/features/posts/editor/toolbar/Toolbar.tsx"
       ]
     },
     "Toolbar::useTabBarKeyboard": {
@@ -1852,7 +1828,7 @@
     "Toolbar::useToolbarOverflow": {
       "count": 1,
       "files": [
-        "apps/admin/src/features/posts/PostEditor.tsx"
+        "apps/admin/src/features/posts/editor/toolbar/Toolbar.tsx"
       ]
     },
     "TopNav::useAppVersion": {
