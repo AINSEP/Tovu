@@ -52,6 +52,7 @@ import { describeApiError } from "@/lib/admin-http/request";
 
 import { useWiredAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 
+import { buildCriteriaPublishResult } from "./criteria-publish-result";
 import { defaultPublishContentPort } from "./publish-content-dependencies.hooks";
 import type { PublishContentPort } from "./publish-content-port.hooks";
 import { publishScopeDescriptionKey, publishScopeTitleKey } from "../publish-scope";
@@ -432,51 +433,6 @@ function publishInFlight(phase: PublishContentPhase): boolean {
  */
 function isChosenPeerId(peerId: string | null): peerId is string {
   return peerId !== null && peerId !== "";
-}
-
-/**
- * S2 — what `props.onPlanned` is called with: the SAME `rows`/`selection` the dialog itself renders
- * from, so a chat/WebMCP caller's report can never disagree with what the operator sees on screen.
- *
- * `willOverwrite` is a subset of `willPublish`, not a separate list: a `forced` row is also a row
- * that will be published (plan §2's own `PublishRequestResult` doc says as much — "what would be
- * published or overwritten"), it just publishes BY overwriting. `leftAlone` only ever names a
- * `skipped` row — an `unchanged` row isn't "left alone" by the criteria, it was already a no-op
- * before any criteria existed.
- *
- * @complexity O(rows).
- */
-function buildCriteriaPublishResult({ rows, selection, siteLabel }: { rows: readonly PublishReportRow[]; selection: CriteriaSelection; siteLabel: string | null }, _options: Record<string, never> = {}
-): PublishRequestResult {
-  const willPublish: string[] = [];
-  const willOverwrite: string[] = [];
-  const leftAlone: { label: string; reason: string }[] = [];
-  const selected = new Set(selectableRowKeys(rows).filter((key) => !selection.deselectedKeys.has(key)));
-  for (const row of rows) {
-    // A carried-along media row publishes with the pages/posts that use it (`rowPublishesWithSelection`).
-    if (rowPublishesWithSelection(row, selected)) {
-      willPublish.push(row.entityLabel);
-      if (row.outcome === "forced") willOverwrite.push(row.entityLabel);
-      continue;
-    }
-    // `toPublishReportRows` gives every skipped row a reason (its own MISSING_REASON fallback when the
-    // peer sent none), so a skipped row's `reason` is never null here.
-    if (row.disposition === "skipped") {
-      if (row.reason === null || row.reason === undefined) throw new Error(`skipped publish item ${row.entityLabel} has no reason`);
-      leftAlone.push({ label: row.entityLabel, reason: row.reason });
-    }
-  }
-  return {
-    opened: true,
-    planned: true,
-    site: siteLabel,
-    willPublish,
-    willOverwrite,
-    leftAlone,
-    unmatchedItems: selection.unmatchedItems,
-    unknownTypes: selection.unknownTypes,
-    nextStep: "Check the list in the Publish dialog, then click Publish.",
-  };
 }
 
 /**
