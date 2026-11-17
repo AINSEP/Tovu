@@ -9,7 +9,7 @@ Jini was read at `integ/merge-b-2026-11-16@674a19ea` (cross-checked with merge-a
 
 - **Where it lives:** Jini `examples/`: `notes-app` (exists, server), `notes-web` (new), `notes-desktop` (new). Not a separate repo yet (OD-N1).
 - **Feature set v1:** notes list/create/edit/publish/unpublish (no delete: the entry services have none), text search, an assistant docked in the admin shell that edits notes through the 5 existing entry tools, optional desktop shell. One local owner, no login.
-- **Gaps found:** 17 (`DESIGN.md` §5). 11 get a sheet here; G9 and G10 belong to existing xpkg lanes; G3(c), G15, G16 need an owner decision or a design first.
+- **Gaps found:** 18 (`DESIGN.md` §5). 13 are closed by sheets here and G3 in part; G9 (Express-bound daemon preset) and G10 (package closure) belong to existing xpkg lanes; G3(c), G15, G16 need an owner decision or a design first.
 - **How:** Phase A builds the app on today's exports with app-owned glue in `src/gaps/*` under a line budget; Phase B moves each glue file into its Jini owner and deletes it; Phase D adds the desktop shell.
 
 ## 2. Sheets (each ONE Sonnet run)
@@ -30,7 +30,7 @@ Jini was read at `integ/merge-b-2026-11-16@674a19ea` (cross-checked with merge-a
 | `G8-mcp-bin.md` | `resolveJiniMcpBin` exported by `@jini-ai/mcp` | `packages/mcp`, examples | N3 | 40k |
 | `G4-admin-kit-slices.md` | required core kit + optional feature kits | `packages/admin`, examples, Tovu binding | R1c, R2a, R2b landed; OD-N8 | 90k |
 | `D0-desktop-host-ipc-bridge.md` | `desktop-host` `./bridge`, `./ipc`, ready-line launcher option | `packages/desktop-host`, `examples/reference-desktop` | merge-final (has `moves/audit2-desktop`) | 140k |
-| `D1-notes-desktop.md` | `examples/notes-desktop`: Electron shell around notes-app | `examples/notes-desktop` | D0, N5 | 120k |
+| `D1-notes-desktop.md` | `examples/notes-desktop`: Electron shell around notes-app; moves the Electron binders into desktop-host (G18) | `examples/notes-desktop`, one file into `packages/desktop-host` | D0, N5 | 120k |
 | `D2-desktop-packaging.md` | packaging recipe/template + packaged smoke | `packages/devops` docs/template, `examples/notes-desktop` | D1 | 80k |
 | **Total** | **16 runs** | | | **~1.6M Sonnet** |
 

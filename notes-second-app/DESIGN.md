@@ -146,6 +146,10 @@ which is the coupling. Sheets are in `sheets/`. "No sheet" means an existing lan
 | **G15** | Real sign-in cannot be wired durably: `@jini-ai/user-management/server` exports only memory repos. | Tovu's identity SQL repos. | `@jini-ai/user-management` `./server/sql` (design needed). Out of v1 (OD-N4). | none |
 | **G16** | `AdminEntityPort` has no concurrency token and uses positional arguments (`get(id)`, `update(id, patch)`), unlike the owner's `(required, optional)` rule. v1 mitigates with a declared `version` field (D5). | n/a | `@jini-ai/admin`: owner decision whether the port gains `expectedVersion` (OD-N10). | none |
 | **G17** | No public no-op `FormOutboxPort` / `OutboxDispatcherPort` (existing markers in `notes-app/src/ports.ts`). | Tovu's outbox. | `@jini-ai/cms` (or core events): export `discardOutbox`, `noopDispatcher`. Small; folded into G2's run. | G2 |
+| **G18** | The bindings from Electron objects to desktop-host's ports live in an example: `examples/reference-desktop/src/electron-surfaces.ts` (102 lines: `bindElectronApp`, `bindBrowserWindow`, `bindElectronDialog`, `bindElectronProtocol`, `bindElectronShell`, `toBrowserWindowOptions`). Every Electron host must copy them. | Tovu's desktop shims (818 lines per the desktop survey). | `@jini-ai/desktop-host/electron`: export the binders with structural types (no `electron` import). | D1 step 1 |
+
+Count: 18 gaps. 13 are closed by sheets here (G1, G2, G4, G5, G6, G7, G8, G11, G12, G13, G14, G17, G18) and
+G3 in part; G9 and G10 belong to existing xpkg lanes; G3(c), G15 and G16 need an owner decision or a design.
 
 Carried forward from `notes-app-review.md` and re-checked on merge-b: finding 6 (`Set-Cookie` flattening in the
 reference adapter) and finding 8 (no Host/Origin guard on mutations) are fixed by N0 before any assistant or
