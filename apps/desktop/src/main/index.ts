@@ -519,9 +519,7 @@ function trackAppWindow({ window }: { window: BrowserWindow }, _optional = {}): 
 }
 
 /** App windows for the Dock-click check. `getAllWindows()` also lists hidden capture windows, which would stop a click reopening the app. The self-test does not watch windows, so it keeps the plain count. */
-function appWindowCount(): number {
-  return SELFTEST ? BrowserWindow.getAllWindows().length : lastWindowQuit.openCount();
-}
+function appWindowCount(): number { return SELFTEST ? BrowserWindow.getAllWindows().length : lastWindowQuit.openCount(); }
 
 /** One sandboxed admin window (own-server site or attach mode) — see `app-window.ts`. */
 function createWindow({ url }: { url: string }, { title, partition }: { title?: string; partition?: string } = {}): BrowserWindow {
