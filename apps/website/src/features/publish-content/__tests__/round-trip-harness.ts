@@ -59,9 +59,9 @@ export function registerOnly(contributors: readonly PublishContentContributor[])
   for (const dep of new Set(contributors.flatMap((c) => c.dependsOn))) {
     if (known.has(dep)) continue;
     known.add(dep);
-    registerPublishContentContributor(emptyContributor(dep));
+    registerPublishContentContributor({ contributor: emptyContributor(dep) });
   }
-  for (const contributor of contributors) registerPublishContentContributor(contributor);
+  for (const contributor of contributors) registerPublishContentContributor({ contributor });
 }
 
 function emptyContributor(entityType: string): PublishContentContributor {

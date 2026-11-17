@@ -93,14 +93,16 @@ test("export ends a failed partial stream without claiming a complete JSON bundl
   resetPublishContentContributorsForTests();
   t.after(() => {
     resetPublishContentContributorsForTests();
-    for (const contributor of contributors) registerPublishContentContributor(contributor);
+    for (const contributor of contributors) registerPublishContentContributor({ contributor });
   });
   const entity = { entityType: "stream-fixture", id: "first", schemaVersion: 1, hashVersion: 1, contentHash: "a".repeat(64), requiredBlobs: [], state: { title: "First entity" } };
   let failed = false;
-  registerPublishContentContributor({ entityType: "stream-fixture", dependsOn: [], build: () => ({
-    entityType: "stream-fixture", schemaVersion: 1, permission: "content.write",
-    pack: async function* () { yield entity; failed = true; throw new Error("contributor failed after first entity"); },
-  } as any) });
+  registerPublishContentContributor({
+                                      contributor: { entityType: "stream-fixture", dependsOn: [], build: () => ({
+      entityType: "stream-fixture", schemaVersion: 1, permission: "content.write",
+      pack: async function* () { yield entity; failed = true; throw new Error("contributor failed after first entity"); },
+    } as any) }
+                                    });
   const handler = buildHandler({ workspaceId: "ws-stream", authorize: async () => ({ allowed: true, reason: "matched" }), workspaceRepo: { findById: async () => ({ name: "Stream fixture" }) } as any });
   const chunks: string[] = [];
   let ended = 0;

@@ -58,12 +58,14 @@ function harness() {
   const register = (type: string, overrides: Partial<Script> = {}): Script => {
     const script: Script = { current: new Map(), apply: async ({ entity }) => ({ changeSetId: `cs-${entity.id}` }), extra: {}, builtWith: [], ...overrides };
     scripts.set(type, script);
-    registerPublishContentContributor({ entityType: type, dependsOn: [], build: (deps) => {
-      script.builtWith.push(deps);
-      return { entityType: type, schemaVersion: 1, permission: "content.write", dependsOn: [],
-        pack: async function* () {}, inspect: async ({ id }) => script.current.get(id) ?? null, precheck: async () => null,
-        apply: (input) => script.apply(input), ...script.extra };
-    } });
+    registerPublishContentContributor({
+                                        contributor: { entityType: type, dependsOn: [], build: (deps) => {
+        script.builtWith.push(deps);
+        return { entityType: type, schemaVersion: 1, permission: "content.write", dependsOn: [],
+          pack: async function* () {}, inspect: async ({ id }) => script.current.get(id) ?? null, precheck: async () => null,
+          apply: (input) => script.apply(input), ...script.extra };
+      } }
+                                      });
     return script;
   };
   const stage = async (entities: PackedEntity[]) => (await stageBundle(

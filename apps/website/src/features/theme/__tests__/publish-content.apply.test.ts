@@ -400,7 +400,7 @@ function bundleOf(entity: PackedEntity) {
 
 test("round trip: a destination still equal to its original plans 'applied', and apply lands the source files", async () => {
   const fixture = await makeFixture();
-  registerPublishContentContributor(contributeThemeFilesPublish());
+  registerPublishContentContributor({ contributor: contributeThemeFilesPublish() });
   const entity = await packAndStage(fixture);
 
   const report = await planImport({ bundle: bundleOf(entity), deps: planDeps(fixture) });
@@ -418,7 +418,7 @@ test("round trip: a destination still equal to its original plans 'applied', and
 test("round trip: a theme edited on live plans 'conflict' offered as an overwrite; forcing it replaces the tree and keeps .publish-previous", async () => {
   const edited = { ...ORIGINAL_BASIC, "render/partials/nav.html": "<nav>edited on live</nav>" };
   const fixture = await makeFixture({ destFiles: edited });
-  registerPublishContentContributor(contributeThemeFilesPublish());
+  registerPublishContentContributor({ contributor: contributeThemeFilesPublish() });
   const entity = await packAndStage(fixture);
 
   const report = await planImport({ bundle: bundleOf(entity), deps: planDeps(fixture) });

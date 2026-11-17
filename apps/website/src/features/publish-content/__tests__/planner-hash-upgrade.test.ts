@@ -17,12 +17,12 @@ test("v2 planner re-baselines stored v1/unknown history without trusting obsolet
     ["edited", { version: 1, hash: "old-hash" }],
     ["seed", { version: 1, hash: "current-seed" }],
   ]);
-  registerPublishContentContributor({ entityType: "widget", dependsOn: [], build: () => ({
+  registerPublishContentContributor({ contributor: { entityType: "widget", dependsOn: [], build: () => ({
     entityType: "widget", schemaVersion: 1, permission: "content.write", dependsOn: [],
     pack: async function* () {}, inspect: async ({ id }) => destination.get(id) ?? null,
     precheck: async () => null, apply: async () => { assert.fail("planning must never write"); },
     seedHash: async ({ id }) => id === "seed" ? "current-seed" : null,
-  }) });
+  }) } });
   const entities = ["same", "edited", "seed", "new"].map(id => ({
     entityType: "widget", id, schemaVersion: 1, hashVersion: 2,
     contentHash: id === "same" ? "current-same" : "incoming", requiredBlobs: [], state: {},
@@ -79,7 +79,7 @@ test("v2 apply replaces v1 baselines for matching and seed-matched rows, preserv
     contentHash: id === "same" ? "current-same" : "incoming", requiredBlobs: [], state: {},
   }));
   const writes: string[] = [];
-  registerPublishContentContributor({ entityType: "widget", dependsOn: [], build: () => ({
+  registerPublishContentContributor({ contributor: { entityType: "widget", dependsOn: [], build: () => ({
     entityType: "widget", schemaVersion: 1, permission: "content.write", dependsOn: [],
     pack: async function* () {}, inspect: async ({ id }) => destination.get(id) ?? null,
     precheck: async () => null, seedHash: async ({ id }) => id === "seed" ? "current-seed" : null,
@@ -87,7 +87,7 @@ test("v2 apply replaces v1 baselines for matching and seed-matched rows, preserv
       writes.push(entity.id); destination.set(entity.id, { version: 2, hash: entity.contentHash });
       return { changeSetId: `change-${entity.id}` };
     },
-  }) });
+  }) } });
   const key = (id: string) => ({ workspaceId: "ws", peerPrincipalId: "peer", entityType: "widget", entityId: id });
   for (const entity of entities) await baselineRepo.upsert({ ...key(entity.id), hashVersion: 1,
     hashAtLastSync: "obsolete", syncedAt: "2026-10-01T00:00:00Z", runId: "v1-run" });

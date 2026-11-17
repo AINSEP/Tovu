@@ -50,21 +50,21 @@ import { contributeWidgetAreaPublish, contributeWidgetPublish } from "#src/featu
  * (`apply-loop.ts`'s `PublishContentApplyDeps`) required `themesDir`.
  */
 export function installFirstPartyPublishContentTypes(): void {
-  registerPublishContentContributor(contributePostPublish());
-  registerPublishContentContributor(contributePagePublish());
-  registerPublishContentContributor(contributeMediaPublish());
-  registerPublishContentContributor(contributeRedirectPublish());
-  registerPublishContentContributor(contributeMenusPublish());
-  registerPublishContentContributor(contributeThemeFilesPublish());
-  registerPublishContentContributor(contributeFormPublish());
-  registerPublishContentContributor(contributeContentTypePublish());
-  registerPublishContentContributor(contributeTaxonomyPublish());
-  registerPublishContentContributor(contributeTermPublish());
-  registerPublishContentContributor(contributeCollectionEntryPublish());
-  registerPublishContentContributor(contributeWidgetPublish());
-  registerPublishContentContributor(contributeWidgetAreaPublish());
-  registerPublishContentContributor(contributeSiteSettingPublish());
-  registerPublishContentContributor(contributeActiveThemePublish());
-  registerPublishContentContributor(contributeRawRowPublish());
-  registerPublishContentContributor(contributeRawFilePublish());
+  registerPublishContentContributor({ contributor: contributePostPublish() });
+  registerPublishContentContributor({ contributor: contributePagePublish() });
+  registerPublishContentContributor({ contributor: contributeMediaPublish() });
+  registerPublishContentContributor({ contributor: contributeRedirectPublish() });
+  registerPublishContentContributor({ contributor: contributeMenusPublish() });
+  registerPublishContentContributor({ contributor: contributeThemeFilesPublish() });
+  registerPublishContentContributor({ contributor: contributeFormPublish() });
+  registerPublishContentContributor({ contributor: contributeContentTypePublish() });
+  registerPublishContentContributor({ contributor: contributeTaxonomyPublish() });
+  registerPublishContentContributor({ contributor: contributeTermPublish() });
+  registerPublishContentContributor({ contributor: contributeCollectionEntryPublish() });
+  registerPublishContentContributor({ contributor: contributeWidgetPublish() });
+  registerPublishContentContributor({ contributor: contributeWidgetAreaPublish() });
+  registerPublishContentContributor({ contributor: contributeSiteSettingPublish() });
+  registerPublishContentContributor({ contributor: contributeActiveThemePublish() });
+  registerPublishContentContributor({ contributor: contributeRawRowPublish() });
+  registerPublishContentContributor({ contributor: contributeRawFilePublish() });
 }

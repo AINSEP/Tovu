@@ -66,10 +66,10 @@ function refusingSecondPost(): BeforeSaveHookPort {
 /** The t09 pull fixture with its fake apply port swapped for the REAL one over real posts. */
 async function pullOfThreePosts(beforeSaveHook: BeforeSaveHookPort) {
   const f = await fixture([livePost("p-1"), livePost("p-2"), livePost("p-3")]);
-  registerPublishContentContributor(contributeMediaPublish()); // post dependsOn media and term; no ports, so both pack nothing
-  registerPublishContentContributor(contributePostPublish());
-  registerPublishContentContributor(contributeTaxonomyPublish());
-  registerPublishContentContributor(contributeTermPublish());
+  registerPublishContentContributor({ contributor: contributeMediaPublish() }); // post dependsOn media and term; no ports, so both pack nothing
+  registerPublishContentContributor({ contributor: contributePostPublish() });
+  registerPublishContentContributor({ contributor: contributeTaxonomyPublish() });
+  registerPublishContentContributor({ contributor: contributeTermPublish() });
   const postRepo = new InMemoryPostRepo({});
   const outbox = new InMemoryOutbox();
   const ports = { post: { repo: postRepo, forgetRemoved: async () => {}, remove: removeVia(postRepo) } };

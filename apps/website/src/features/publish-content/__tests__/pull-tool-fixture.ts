@@ -46,12 +46,14 @@ export async function fixture(entities: PackedEntity[] = [packed("new")]) {
     return { allowed: !denied.has(args.permission as string), reason: denied.has(args.permission as string) ? "insufficient_permission" : "matched" };
   };
   resetPublishContentContributorsForTests();
-  registerPublishContentContributor({ entityType: "pull-fixture", dependsOn: [], build: () => ({
-    entityType: "pull-fixture", schemaVersion: 1, permission: "content.write", dependsOn: [],
-    pack: async function* () {}, inspect: async ({ id }) => destination.get(id) ?? null,
-    precheck: async ({ entity }) => entity.id === "blocked" ? "Local item is locked" : null,
-    apply: async () => { throw new Error("use the apply port"); },
-  }) });
+  registerPublishContentContributor({
+                                      contributor: { entityType: "pull-fixture", dependsOn: [], build: () => ({
+      entityType: "pull-fixture", schemaVersion: 1, permission: "content.write", dependsOn: [],
+      pack: async function* () {}, inspect: async ({ id }) => destination.get(id) ?? null,
+      precheck: async ({ entity }) => entity.id === "blocked" ? "Local item is locked" : null,
+      apply: async () => { throw new Error("use the apply port"); },
+    }) }
+                                    });
   const deps = {
     workspaceId: "local", clock, idGen, authorize, pluginBeforeSaveHook: undefined, outbox: undefined,
     publishContentPeerRepo: peerRepo, workspaceRepo: { findById: async () => ({ name: "Local" }) },

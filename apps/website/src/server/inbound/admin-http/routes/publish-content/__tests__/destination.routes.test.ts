@@ -118,10 +118,10 @@ async function boot(t: test.TestContext, options: HarnessOptions = {}): Promise<
 function withContributors(t: test.TestContext, entityTypes: readonly string[]): void {
   const previous = [...listPublishContentContributors()];
   resetPublishContentContributorsForTests();
-  for (const entityType of entityTypes) registerPublishContentContributor({ entityType } as unknown as PublishContentContributor);
+  for (const entityType of entityTypes) registerPublishContentContributor({ contributor: { entityType } as unknown as PublishContentContributor });
   t.after(() => {
     resetPublishContentContributorsForTests();
-    for (const contributor of previous) registerPublishContentContributor(contributor);
+    for (const contributor of previous) registerPublishContentContributor({ contributor });
   });
 }
 

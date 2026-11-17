@@ -58,7 +58,7 @@ test("changed bytes require Overwrite even when the destination still matches it
   const f = await fixture(t);
   resetPublishContentContributorsForTests();
   t.after(resetPublishContentContributorsForTests);
-  registerPublishContentContributor(contributeMediaPublish());
+  registerPublishContentContributor({ contributor: contributeMediaPublish() });
   const destination = await f.handler.inspect({ id: f.prior.id });
   const bundle = { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [f.entity] };
   const deps = { publishContentDeps: f.deps, hasBlob: async () => true,
@@ -244,7 +244,7 @@ test("file replacement offers explain destination edits since the last sync", as
   const f = await fixture(t);
   resetPublishContentContributorsForTests();
   t.after(resetPublishContentContributorsForTests);
-  registerPublishContentContributor(contributeMediaPublish());
+  registerPublishContentContributor({ contributor: contributeMediaPublish() });
   const report = await planImport({
                                     bundle: { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
       hashVersion: CONTENT_HASH_VERSION, entities: [f.entity] },

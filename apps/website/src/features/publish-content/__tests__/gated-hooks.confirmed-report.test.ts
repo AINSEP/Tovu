@@ -85,7 +85,7 @@ function registerFakeHandler(destination: Map<string, DestinationRow>): void {
       throw new Error("this fixture's apply() must never run — applyReport is spied, not executed");
     },
   };
-  registerPublishContentContributor({ entityType: ENTITY_TYPE, dependsOn: [], build: () => handler });
+  registerPublishContentContributor({ contributor: { entityType: ENTITY_TYPE, dependsOn: [], build: () => handler } });
 }
 
 function packedEntity(): PackedEntity {
@@ -242,7 +242,7 @@ for (const changed of ["version", "source"] as const) {
       pack: async function* () {}, inspect: async () => ({ version, hash: DRIFTED_HASH }),
       precheck: async () => ({ reason: "Tick Overwrite on live to replace this file.", sourceReplacement: { version, sourceSha256 } }),
       apply: async () => { throw new Error("stale confirmation must never apply"); } };
-    registerPublishContentContributor({ entityType: ENTITY_TYPE, dependsOn: [], build: () => handler });
+    registerPublishContentContributor({ contributor: { entityType: ENTITY_TYPE, dependsOn: [], build: () => handler } });
     const bundleRepo = new InMemoryPublishContentBundleRepo();
     await bundleRepo.save(stagedBundle());
     const seen: Array<Record<string, unknown>> = [];

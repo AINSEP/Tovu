@@ -224,7 +224,7 @@ test("the status tool reads and the connect tool does not claim to be read-only"
 
 test("the status tool answers the never-connected install in plain sentences", async () => {
   resetPublishContentContributorsForTests();
-  registerPublishContentContributor({ entityType: "post", dependsOn: [], build: () => null as never });
+  registerPublishContentContributor({ contributor: { entityType: "post", dependsOn: [], build: () => null as never } });
 
   const result = (await registrationFor(toolDeps({ findPublishCandidate: async () => "https://example.com" }), PUBLISH_CONTENT_STATUS_TOOL_ID).handler(
     execContext({})
@@ -243,7 +243,7 @@ test("the status tool answers the never-connected install in plain sentences", a
 
 test("connect refuses plainly when there is no live site to connect to, rather than throwing", async () => {
   resetPublishContentContributorsForTests();
-  registerPublishContentContributor({ entityType: "post", dependsOn: [], build: () => null as never });
+  registerPublishContentContributor({ contributor: { entityType: "post", dependsOn: [], build: () => null as never } });
 
   const result = (await registrationFor(toolDeps(), PUBLISH_CONTENT_CONNECT_TOOL_ID).handler(execContext({}))) as Record<string, unknown>;
   assert.equal(result.connected, false);
@@ -253,7 +253,7 @@ test("connect refuses plainly when there is no live site to connect to, rather t
 
 test("connect refuses an address that is not one, without naming a validation rule", async () => {
   resetPublishContentContributorsForTests();
-  registerPublishContentContributor({ entityType: "post", dependsOn: [], build: () => null as never });
+  registerPublishContentContributor({ contributor: { entityType: "post", dependsOn: [], build: () => null as never } });
 
   const result = (await registrationFor(toolDeps(), PUBLISH_CONTENT_CONNECT_TOOL_ID).handler(
     execContext({ siteUrl: "definitely not a url" })
@@ -276,7 +276,7 @@ for (const failure of [null, "handshake", "provisioning"] as const) {
   test(`connect handler ${failure ?? "saves a connection and status reads it"}`, async (t) => {
     t.after(resetPublishContentContributorsForTests);
     resetPublishContentContributorsForTests();
-    registerPublishContentContributor({ entityType: "post", dependsOn: [], build: () => null as never });
+    registerPublishContentContributor({ contributor: { entityType: "post", dependsOn: [], build: () => null as never } });
     const repo = new InMemoryPublishContentPeerRepo();
     const files = new Map<string, string>();
     const requests: unknown[] = [];

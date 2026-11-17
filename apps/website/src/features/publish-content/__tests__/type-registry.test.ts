@@ -58,13 +58,13 @@ test("a freshly reset registry has no contributors", () => {
 });
 
 test("registerPublishContentContributor appends in call order", () => {
-  registerPublishContentContributor(fakeContributor("post"));
-  registerPublishContentContributor(fakeContributor("page"));
+  registerPublishContentContributor({ contributor: fakeContributor("post") });
+  registerPublishContentContributor({ contributor: fakeContributor("page") });
   assert.deepEqual(listPublishContentContributors().map((c) => c.entityType), ["post", "page"]);
 });
 
 test("a contributor registered AFTER the first list() call is seen by a SECOND list() call — fresh read, never cached", () => {
-  registerPublishContentContributor(fakeContributor("post"));
+  registerPublishContentContributor({ contributor: fakeContributor("post") });
   const first = listPublishContentContributors();
   assert.deepEqual(first.map((c) => c.entityType), ["post"]);
 
@@ -72,16 +72,16 @@ test("a contributor registered AFTER the first list() call is seen by a SECOND l
   // `first`'s own array reference also reflects it is deliberately unspecified — like its sibling
   // registries, `listPublishContentContributors()` promises a correct fresh read on every call,
   // not defensive-copy isolation between calls.)
-  registerPublishContentContributor(fakeContributor("page"));
+  registerPublishContentContributor({ contributor: fakeContributor("page") });
   const second = listPublishContentContributors();
   assert.deepEqual(second.map((c) => c.entityType), ["post", "page"]);
 });
 
 test("re-registering the same entityType REPLACES the earlier entry in place, not appends", () => {
-  registerPublishContentContributor(fakeContributor("post"));
-  registerPublishContentContributor(fakeContributor("page"));
+  registerPublishContentContributor({ contributor: fakeContributor("post") });
+  registerPublishContentContributor({ contributor: fakeContributor("page") });
   const replacement = fakeContributor("post");
-  registerPublishContentContributor(replacement); // replaces "post", position preserved
+  registerPublishContentContributor({ contributor: replacement }); // replaces "post", position preserved
 
   const contributors = listPublishContentContributors();
   assert.deepEqual(contributors.map((c) => c.entityType), ["post", "page"], "entityType count/order must not change on replacement");
@@ -90,11 +90,11 @@ test("re-registering the same entityType REPLACES the earlier entry in place, no
 
 test("catalog rebuild includes contributors registered after the first build", () => {
   const deps = {} as PublishContentDeps;
-  registerPublishContentContributor(fakeContributor("post"));
+  registerPublishContentContributor({ contributor: fakeContributor("post") });
   const first = buildPublishContentCatalog(deps);
   assert.deepEqual(first.applyOrder, ["post"]);
 
-  registerPublishContentContributor(fakeContributor("page", ["post"]));
+  registerPublishContentContributor({ contributor: fakeContributor("page", ["post"]) });
   const second = buildPublishContentCatalog(deps);
   assert.deepEqual(second.handlers.map((handler) => handler.entityType), ["post", "page"]);
   assert.equal(second.handlerByType.get("post"), second.handlers[0]);
@@ -103,8 +103,8 @@ test("catalog rebuild includes contributors registered after the first build", (
 });
 
 test("resetPublishContentContributorsForTests clears every registration", () => {
-  registerPublishContentContributor(fakeContributor("post"));
-  registerPublishContentContributor(fakeContributor("page"));
+  registerPublishContentContributor({ contributor: fakeContributor("post") });
+  registerPublishContentContributor({ contributor: fakeContributor("page") });
   assert.equal(listPublishContentContributors().length, 2);
 
   resetPublishContentContributorsForTests();
@@ -115,7 +115,7 @@ test("resetPublishContentContributorsForTests clears every registration", () => 
 test("buildPublishContentCatalog rejects a dependency on an unregistered type before building handlers", () => {
   let buildCalls = 0;
   const contributor = fakeContributor("post", ["media"]);
-  registerPublishContentContributor({ ...contributor, build: (deps) => (buildCalls++, contributor.build(deps)) });
+  registerPublishContentContributor({ contributor: { ...contributor, build: (deps) => (buildCalls++, contributor.build(deps)) } });
 
   assert.throws(
     () => buildPublishContentCatalog({} as PublishContentDeps),
@@ -127,8 +127,8 @@ test("buildPublishContentCatalog rejects a dependency on an unregistered type be
 });
 
 test("buildPublishContentCatalog rejects dependency cycles instead of inventing an apply order", () => {
-  registerPublishContentContributor(fakeContributor("a", ["b"]));
-  registerPublishContentContributor(fakeContributor("b", ["a"]));
+  registerPublishContentContributor({ contributor: fakeContributor("a", ["b"]) });
+  registerPublishContentContributor({ contributor: fakeContributor("b", ["a"]) });
 
   assert.throws(
     () => buildPublishContentCatalog({} as PublishContentDeps),
@@ -139,8 +139,8 @@ test("buildPublishContentCatalog rejects dependency cycles instead of inventing 
 });
 
 test("buildPublishContentCatalog derives deterministic apply order without reordering handlers", () => {
-  registerPublishContentContributor(fakeContributor("post", ["media"]));
-  registerPublishContentContributor(fakeContributor("media"));
+  registerPublishContentContributor({ contributor: fakeContributor("post", ["media"]) });
+  registerPublishContentContributor({ contributor: fakeContributor("media") });
 
   const catalog = buildPublishContentCatalog({} as PublishContentDeps);
 
@@ -155,17 +155,19 @@ test("buildPublishContentCatalog derives deterministic apply order without reord
 test("every authorize call a built handler makes names its publish type, and a caller cannot override it", async () => {
   const seen: unknown[] = [];
   registerPublishContentContributor({
-    entityType: "form",
-    dependsOn: [],
-    build: (deps) => ({
-      ...fakeContributor("form").build(deps),
-      apply: async () => {
-        // A domain service asks with its OWN entity type, and here even tries to name another type.
-        await deps.authorize!({ principalId: "p", permission: "admin.forms.manage", workspaceId: "w", entityType: "form_definition", publishType: "post" } as never);
-        return { changeSetId: "c" };
-      },
-    }),
-  });
+                                      contributor: {
+      entityType: "form",
+      dependsOn: [],
+      build: (deps) => ({
+        ...fakeContributor("form").build(deps),
+        apply: async () => {
+          // A domain service asks with its OWN entity type, and here even tries to name another type.
+          await deps.authorize!({ principalId: "p", permission: "admin.forms.manage", workspaceId: "w", entityType: "form_definition", publishType: "post" } as never);
+          return { changeSetId: "c" };
+        },
+      }),
+    }
+                                    });
   const deps = {
     workspaceId: "w",
     clock: { nowIso: () => "2026-09-26T00:00:00.000Z" },
@@ -185,12 +187,14 @@ test("every authorize call a built handler makes names its publish type, and a c
 });
 
 test("registeredPublishTypePermissions lists each type's permission plus what it also authorizes", () => {
-  registerPublishContentContributor(fakeContributor("post"));
+  registerPublishContentContributor({ contributor: fakeContributor("post") });
   registerPublishContentContributor({
-    entityType: "widget",
-    dependsOn: [],
-    build: (deps) => ({ ...fakeContributor("widget").build(deps), permission: "widgets.update", alsoAuthorizes: ["widgets.create"] }),
-  });
+                                      contributor: {
+      entityType: "widget",
+      dependsOn: [],
+      build: (deps) => ({ ...fakeContributor("widget").build(deps), permission: "widgets.update", alsoAuthorizes: ["widgets.create"] }),
+    }
+                                    });
 
   assert.deepEqual(
     [...registeredPublishTypePermissions({ workspaceId: "w", ports: {} } as unknown as PublishContentDeps)],
@@ -202,9 +206,9 @@ test("registeredPublishTypePermissions lists each type's permission plus what it
 });
 
 test("L163 catalog deduplicates dependency edges and preserves stable ready-type ordering", () => {
-  registerPublishContentContributor(fakeContributor("last", ["first", "first"]));
-  registerPublishContentContributor(fakeContributor("unrelated"));
-  registerPublishContentContributor(fakeContributor("first"));
+  registerPublishContentContributor({ contributor: fakeContributor("last", ["first", "first"]) });
+  registerPublishContentContributor({ contributor: fakeContributor("unrelated") });
+  registerPublishContentContributor({ contributor: fakeContributor("first") });
   const catalog = buildPublishContentCatalog({} as PublishContentDeps);
   assert.deepEqual(catalog.applyOrder, ["unrelated", "first", "last"]);
   assert.deepEqual(catalog.handlers.map(h => h.entityType), ["last", "unrelated", "first"]);
@@ -214,7 +218,7 @@ test("L163 catalog reports every remaining cycle-dependent type before building 
   let builds = 0;
   for (const [type, dependencies] of [["tail", ["cycle"]], ["cycle", ["cycle"]]] as const) {
     const contributor = fakeContributor(type, dependencies);
-    registerPublishContentContributor({ ...contributor, build: deps => { builds++; return contributor.build(deps); } });
+    registerPublishContentContributor({ contributor: { ...contributor, build: deps => { builds++; return contributor.build(deps); } } });
   }
   assert.throws(() => buildPublishContentCatalog({} as PublishContentDeps), { message: "publish-content dependency cycle among registered types: tail, cycle" });
   assert.equal(builds, 0);

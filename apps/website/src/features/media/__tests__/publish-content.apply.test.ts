@@ -653,7 +653,7 @@ test("bug 44: video and poster published between disposable SQLite sites immedia
   t.after(() => closeSqliteConnection(destinationDb));
   resetPublishContentContributorsForTests();
   t.after(resetPublishContentContributorsForTests);
-  registerPublishContentContributor(contributeMediaPublish());
+  registerPublishContentContributor({ contributor: contributeMediaPublish() });
   const videoBytes = new TextEncoder().encode("disposable video bytes for the publish hashing contract");
   const videoSha = createHash("sha256").update(videoBytes).digest("hex");
   const poster = makeMediaRecord({ id: "poster", slug: "poster", createdBy: "source-owner",

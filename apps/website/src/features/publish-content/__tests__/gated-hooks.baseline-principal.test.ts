@@ -53,7 +53,7 @@ async function planRowWithBaselineUnder({ baselinePeer }: { baselinePeer: string
     precheck: async () => null,
     apply: async () => { throw new Error("planning must never apply"); },
   };
-  registerPublishContentContributor({ entityType: ENTITY_TYPE, dependsOn: [], build: () => handler });
+  registerPublishContentContributor({ contributor: { entityType: ENTITY_TYPE, dependsOn: [], build: () => handler } });
 
   const bundleRepo = new InMemoryPublishContentBundleRepo();
   await bundleRepo.save({

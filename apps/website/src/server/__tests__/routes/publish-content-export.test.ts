@@ -324,7 +324,7 @@ test("GET .../publish-content/export reads the contributor registry FRESH per re
       },
     }),
   };
-  registerPublishContentContributor(canaryContributor);
+  registerPublishContentContributor({ contributor: canaryContributor });
 
   const after = await fetchExport(baseUrl, ownerCookie);
   const bundle = JSON.parse(after.raw) as ExportBundle;

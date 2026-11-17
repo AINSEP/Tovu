@@ -133,14 +133,14 @@ test("the production contributor projects the same content ports the import rout
   await realDeps.identityReady;
   const f = await fixture();
   let builds = 0;
-  registerPublishContentContributor({ entityType: "pull-fixture", dependsOn: [], build: publishDeps => {
+  registerPublishContentContributor({ contributor: { entityType: "pull-fixture", dependsOn: [], build: publishDeps => {
     builds++;
     assert.equal(publishDeps.ports.post?.repo, realDeps.postRepo);
     assert.equal(publishDeps.ports.media?.repo, realDeps.mediaRepo);
     assert.equal(publishDeps.ports.menu?.repo, realDeps.menuRepo);
     assert.equal(publishDeps.ports.form?.repo, realDeps.formDefinitionRepo);
     return { entityType: "pull-fixture", schemaVersion: 1, permission: "content.write", dependsOn: [], pack: async function* () {}, inspect: async () => null, precheck: async () => null, apply: async () => { throw new Error("planning cannot apply"); } };
-  } });
+  } } });
   contributions.contributors.clear({});
   installFirstPartyToolContributors({ contributions });
   const contributor = contributions.contributors.list({}).find(c => c.domain === "publish-content")!;

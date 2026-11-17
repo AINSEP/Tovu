@@ -35,13 +35,15 @@ async function fixture(entities = [post("one", "How Tovu Saves You Time"), post(
   let legacy = false;
   let supportedTypes = ["post"];
   resetPublishContentContributorsForTests();
-  registerPublishContentContributor({ entityType: "post", dependsOn: [], build: () => ({
-    entityType: "post", schemaVersion: 1, permission: "content.write", dependsOn: [],
-    pack: async function* () { yield* entities; },
-    inspect: async ({ id }) => f.destination.get(id) ?? null,
-    precheck: async () => null,
-    apply: async () => { throw new Error("use apply port"); },
-  }) });
+  registerPublishContentContributor({
+                                      contributor: { entityType: "post", dependsOn: [], build: () => ({
+      entityType: "post", schemaVersion: 1, permission: "content.write", dependsOn: [],
+      pack: async function* () { yield* entities; },
+      inspect: async ({ id }) => f.destination.get(id) ?? null,
+      precheck: async () => null,
+      apply: async () => { throw new Error("use apply port"); },
+    }) }
+                                    });
   f.deps.fileBlobIndex = new Map();
   f.deps.blobStore.get = async () => new Uint8Array();
   const hooks = (bundleId: string, overwrite?: string[]) => buildPublishContentImportHooks({
@@ -318,13 +320,15 @@ test("planPublishToPeer keys blob probes by this workspace's storage key and giv
   const page = { ...post("p", "A Page"), entityType: "page" };
   const note = { ...post("n", "A Note"), entityType: "note" };
   const f = await fixture([withBlob]);
-  for (const extra of [page, note]) registerPublishContentContributor({ entityType: extra.entityType, dependsOn: [], build: () => ({
-    entityType: extra.entityType, schemaVersion: 1, permission: "content.write", dependsOn: [],
-    pack: async function* () { yield extra; },
-    inspect: async () => null,
-    precheck: async () => null,
-    apply: async () => { throw new Error("not applied in a plan"); },
-  }) });
+  for (const extra of [page, note]) registerPublishContentContributor({
+                                                                        contributor: { entityType: extra.entityType, dependsOn: [], build: () => ({
+      entityType: extra.entityType, schemaVersion: 1, permission: "content.write", dependsOn: [],
+      pack: async function* () { yield extra; },
+      inspect: async () => null,
+      precheck: async () => null,
+      apply: async () => { throw new Error("not applied in a plan"); },
+    }) }
+                                                                      });
   const probed: unknown[] = [];
   const send = f.deps.publishContentPeerHttpClient!.send;
   f.deps.publishContentPeerHttpClient = { send: async request => {

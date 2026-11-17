@@ -441,7 +441,7 @@ function catalogDependencies(
  * unregistered type or a dependency cycle makes every possible fallback order unsafe, so this
  * rejects before any handler is built or any publish-content read/write begins.
  */
-export function buildPublishContentCatalog(deps: PublishContentDeps): PublishContentCatalog {
+export function buildPublishContentCatalog(deps: PublishContentDeps, _optional = {}): PublishContentCatalog {
   const snapshot = [...contributors];
   const originalOrder = snapshot.map((contributor) => contributor.entityType);
   const { inDegree, dependents } = catalogDependencies({ snapshot, originalOrder });
@@ -499,7 +499,7 @@ function stampPublishType({ deps, publishType }: { deps: PublishContentDeps; pub
 
 /** Every permission a publishing grant may answer for `handler`'s writes: its own
  *  {@link PublishContentHandler.permission} plus {@link PublishContentHandler.alsoAuthorizes}. */
-export function publishTypePermissions(handler: PublishContentHandler): readonly string[] {
+export function publishTypePermissions({ handler }: { handler: PublishContentHandler }, _optional = {}): readonly string[] {
   return [handler.permission, ...(handler.alsoAuthorizes ?? [])];
 }
 
@@ -514,8 +514,8 @@ export function publishTypePermissions(handler: PublishContentHandler): readonly
  *
  * @complexity O(types) handler builds, each cheap (no I/O).
  */
-export function registeredPublishTypePermissions(deps: PublishContentDeps): ReadonlyMap<string, readonly string[]> {
-  return new Map(contributors.map((contributor) => [contributor.entityType, publishTypePermissions(contributor.build(deps))] as const));
+export function registeredPublishTypePermissions(deps: PublishContentDeps, _optional = {}): ReadonlyMap<string, readonly string[]> {
+  return new Map(contributors.map((contributor) => [contributor.entityType, publishTypePermissions({ handler: contributor.build(deps) })] as const));
 }
 
 let contributors: PublishContentContributor[] = [];
@@ -529,7 +529,7 @@ let contributors: PublishContentContributor[] = [];
  * instance, safe for a test process that legitimately re-registers. Registration order is otherwise
  * preserved so a replacement does not silently reorder the registry.
  */
-export function registerPublishContentContributor(contributor: PublishContentContributor): void {
+export function registerPublishContentContributor({ contributor }: { contributor: PublishContentContributor }, _optional = {}): void {
   const existing = contributors.findIndex((candidate) => candidate.entityType === contributor.entityType);
   if (existing >= 0) {
     contributors[existing] = contributor;

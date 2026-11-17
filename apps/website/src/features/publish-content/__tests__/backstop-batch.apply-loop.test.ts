@@ -21,7 +21,7 @@ test("the real apply loop joins every raw write in one FK-checked transaction an
   const db = new Database(":memory:");
   t.after(() => db.close());
   resetPublishContentContributorsForTests(); t.after(resetPublishContentContributorsForTests);
-  registerPublishContentContributor(contributeRawRowPublish());
+  registerPublishContentContributor({ contributor: contributeRawRowPublish() });
   // The source deliberately contains a dangling reference. Disable enforcement only while
   // seeding it; the destination below must enforce FKs and roll back the real apply batch.
   db.exec("PRAGMA foreign_keys=OFF; CREATE TABLE p_widgets(id TEXT PRIMARY KEY, title TEXT); CREATE TABLE p_links(id TEXT PRIMARY KEY, widget_id TEXT REFERENCES p_widgets(id)); INSERT INTO p_widgets VALUES('a','new'); INSERT INTO p_links VALUES('l','missing');");
@@ -67,7 +67,7 @@ test("the real apply loop joins every raw write in one FK-checked transaction an
 test("a selected row equal to live plans unchanged through the real planner", async (t) => {
   const db = new Database(":memory:"); t.after(() => db.close());
   resetPublishContentContributorsForTests(); t.after(resetPublishContentContributorsForTests);
-  registerPublishContentContributor(contributeRawRowPublish());
+  registerPublishContentContributor({ contributor: contributeRawRowPublish() });
   db.exec("CREATE TABLE p_widgets(id TEXT PRIMARY KEY, title TEXT); INSERT INTO p_widgets VALUES('a','same');");
   const deps: PublishContentDeps = { workspaceId: "ws", ports: {}, clock: { nowMs: () => Date.parse("2026-10-04T00:00:00.000Z") }, idGen: { newId: () => "id" },
     backstop: { rows: createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel: contentKernel({ store: db }) }), coveredTables: [], coveredRoots: [], selection: { rows: [{ table: "p_widgets", pk: { id: "a" } }] } } };
