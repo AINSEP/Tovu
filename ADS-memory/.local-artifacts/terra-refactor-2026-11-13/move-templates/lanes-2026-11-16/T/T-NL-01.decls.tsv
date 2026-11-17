@@ -1,0 +1,52 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/newsletter/confirmation.ts	decl	CONFIRMATION_TOKEN_TTL_MS	export	24	24	1
+apps/website/src/features/newsletter/confirmation.ts	decl	ConfirmationDeps	export	26	38	13
+apps/website/src/features/newsletter/confirmation.ts	decl	NEWSLETTER_FALLBACK_SENDER		41	41	1
+apps/website/src/features/newsletter/confirmation.ts	decl	hashToken		43	43	1
+apps/website/src/features/newsletter/confirmation.ts	decl	composeOriginUrl		46	51	6
+apps/website/src/features/newsletter/confirmation.ts	decl	issueConfirmationToken	export	61	123	63
+apps/website/src/features/newsletter/confirmation.ts	decl	consumeConfirmationToken	export	130	186	57
+apps/website/src/features/newsletter/send-pipeline.ts	decl	TEST_SEND_MIN		39	39	1
+apps/website/src/features/newsletter/send-pipeline.ts	decl	TEST_SEND_MAX		40	40	1
+apps/website/src/features/newsletter/send-pipeline.ts	decl	SEND_BATCH_CLAIMED_EVENT	export	41	41	1
+apps/website/src/features/newsletter/send-pipeline.ts	decl	NEWSLETTER_SEND_ROW_LEASE_MS	export	52	52	1
+apps/website/src/features/newsletter/send-pipeline.ts	decl	SendPipelineDeps	export	54	73	20
+apps/website/src/features/newsletter/send-pipeline.ts	decl	NEWSLETTER_INLINE_DEFER_MAX_MS	export	83	83	1
+apps/website/src/features/newsletter/send-pipeline.ts	decl	NEWSLETTER_INLINE_DEFER_BUDGET_MS	export	84	84	1
+apps/website/src/features/newsletter/send-pipeline.ts	decl	DEFAULT_DEFER_MS		86	86	1
+apps/website/src/features/newsletter/send-pipeline.ts	decl	authorizeSend	export	89	118	30
+apps/website/src/features/newsletter/send-pipeline.ts	decl	freezeAudience	export	126	199	74
+apps/website/src/features/newsletter/send-pipeline.ts	decl	enqueueSendBatches		203	210	8
+apps/website/src/features/newsletter/send-pipeline.ts	decl	claimBatch	export	213	220	8
+apps/website/src/features/newsletter/send-pipeline.ts	decl	dispatchRow	export	227	289	63
+apps/website/src/features/newsletter/send-pipeline.ts	decl	unsubscribeHeaders		296	305	10
+apps/website/src/features/newsletter/send-pipeline.ts	decl	recordResult	export	314	338	25
+apps/website/src/features/newsletter/send-pipeline.ts	decl	completeIfDrained	export	341	361	21
+apps/website/src/features/newsletter/send-pipeline.ts	decl	pauseCampaign	export	364	369	6
+apps/website/src/features/newsletter/send-pipeline.ts	decl	resumeCampaign	export	377	393	17
+apps/website/src/features/newsletter/send-pipeline.ts	decl	requeuePendingSends		396	407	12
+apps/website/src/features/newsletter/send-pipeline.ts	decl	transitionAndSave		409	423	15
+apps/website/src/features/newsletter/send-pipeline.ts	decl	sendTestCampaign	export	426	458	33
+apps/website/src/features/newsletter/send-pipeline.ts	decl	claimSendRow		467	475	9
+apps/website/src/features/newsletter/send-pipeline.ts	decl	dispatchAndRecord		484	522	39
+apps/website/src/features/newsletter/send-pipeline.ts	decl	stillSending		525	528	4
+apps/website/src/features/newsletter/send-pipeline.ts	decl	RowStep		530	530	1
+apps/website/src/features/newsletter/send-pipeline.ts	decl	dispatchWithinBudget		536	548	13
+apps/website/src/features/newsletter/send-pipeline.ts	decl	runBatchRow		551	560	10
+apps/website/src/features/newsletter/send-pipeline.ts	decl	continueLater		568	574	7
+apps/website/src/features/newsletter/send-pipeline.ts	decl	handleSendBatchClaimed	export	588	614	27
+apps/website/src/features/newsletter/subscriptions.ts	decl	IMPORT_BATCH_MAX		25	25	1
+apps/website/src/features/newsletter/subscriptions.ts	decl	SubscriptionsDeps	export	27	35	9
+apps/website/src/features/newsletter/subscriptions.ts	decl	saveSubscription	export	38	81	44
+apps/website/src/features/newsletter/subscriptions.ts	decl	UnsubscribeSubscriptionDeps	export	83	88	6
+apps/website/src/features/newsletter/subscriptions.ts	decl	unsubscribeSubscription	export	100	121	22
+apps/website/src/features/newsletter/subscriptions.ts	decl	importSubscriptions	export	128	171	44
+apps/website/src/features/newsletter/unsubscribe.ts	decl	UnsubscribeTokenClaims	export	23	32	10
+apps/website/src/features/newsletter/unsubscribe.ts	decl	UnsubscribeDeps	export	34	40	7
+apps/website/src/features/newsletter/unsubscribe.ts	decl	derivationInfo		42	43	2
+apps/website/src/features/newsletter/unsubscribe.ts	decl	composeOriginUrl		46	51	6
+apps/website/src/features/newsletter/unsubscribe.ts	decl	signature		53	60	8
+apps/website/src/features/newsletter/unsubscribe.ts	decl	buildUnsubscribeLink	export	63	72	10
+apps/website/src/features/newsletter/unsubscribe.ts	decl	decodeClaims		75	81	7
+apps/website/src/features/newsletter/unsubscribe.ts	decl	processUnsubscribe	export	87	136	50
+apps/website/src/features/newsletter/unsubscribe.ts	decl	timingSafeEqualHex		139	142	4

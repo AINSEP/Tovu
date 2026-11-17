@@ -1,0 +1,60 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/theme/theme-files.ts	decl	ThemePathError	export	69	74	6
+apps/website/src/features/theme/theme-files.ts	decl	MAX_THEME_FILE_BYTES	export	81	81	1
+apps/website/src/features/theme/theme-files.ts	decl	MAX_LISTED_FILES	export	84	84	1
+apps/website/src/features/theme/theme-files.ts	decl	MAX_WALK_DEPTH	export	87	87	1
+apps/website/src/features/theme/theme-files.ts	decl	GENERATED_THEME_DIRS	export	113	113	1
+apps/website/src/features/theme/theme-files.ts	decl	GENERATED_THEME_ROOT_FILES	export	124	124	1
+apps/website/src/features/theme/theme-files.ts	decl	isGeneratedThemePath	export	159	163	5
+apps/website/src/features/theme/theme-files.ts	decl	isSourceDirGeneratedConflict	export	197	208	12
+apps/website/src/features/theme/theme-files.ts	decl	normalizeThemeRelativePath		219	230	12
+apps/website/src/features/theme/theme-files.ts	decl	isRecognizedThemeRoot	export	249	257	9
+apps/website/src/features/theme/theme-files.ts	decl	isWithin		261	265	5
+apps/website/src/features/theme/theme-files.ts	decl	assertNoSymlinkEscape		275	287	13
+apps/website/src/features/theme/theme-files.ts	decl	resolveThemeFilePath	export	307	341	35
+apps/website/src/features/theme/theme-files.ts	decl	visitThemeDirEntry		349	365	17
+apps/website/src/features/theme/theme-files.ts	decl	walkThemeDir		372	380	9
+apps/website/src/features/theme/theme-files.ts	decl	listThemeFiles	export	396	411	16
+apps/website/src/features/theme/theme-files.ts	decl	statOrThemePathError		433	440	8
+apps/website/src/features/theme/theme-files.ts	decl	readThemeFile	export	449	461	13
+apps/website/src/features/theme/theme-files.ts	decl	COMPARE_CHUNK_BYTES		465	465	1
+apps/website/src/features/theme/theme-files.ts	decl	readFullChunk		469	477	9
+apps/website/src/features/theme/theme-files.ts	decl	filesHaveSameBytes		485	497	13
+apps/website/src/features/theme/theme-files.ts	decl	compareOpenThemeFiles		499	514	16
+apps/website/src/features/theme/theme-files.ts	decl	originalRegularFile		523	540	18
+apps/website/src/features/theme/theme-files.ts	decl	themeFileDiffersFromOriginal	export	563	574	12
+apps/website/src/features/theme/theme-files.ts	decl	writeFileAtomically		607	639	33
+apps/website/src/features/theme/theme-files.ts	decl	pruneCommittedThemeRevision		643	653	11
+apps/website/src/features/theme/theme-files.ts	decl	ReviewedThemeFile		655	659	5
+apps/website/src/features/theme/theme-files.ts	decl	reviewedThemeWrite		660	660	1
+apps/website/src/features/theme/theme-files.ts	decl	withReviewedThemeFileWrite	export	667	669	3
+apps/website/src/features/theme/theme-files.ts	decl	assertReviewedThemeFileCurrent		671	678	8
+apps/website/src/features/theme/theme-files.ts	decl	readThemeFileVersion	export	684	690	7
+apps/website/src/features/theme/theme-files.ts	decl	THEME_REVISION_ROOT		693	693	1
+apps/website/src/features/theme/theme-files.ts	decl	MAX_THEME_FILE_REVISIONS		694	694	1
+apps/website/src/features/theme/theme-files.ts	decl	ThemeRevisionFile		695	695	1
+apps/website/src/features/theme/theme-files.ts	decl	themeRevisionDirectories		699	702	4
+apps/website/src/features/theme/theme-files.ts	decl	saveThemeFileRevision		709	728	20
+apps/website/src/features/theme/theme-files.ts	decl	createThemeRevisionDirectory		734	744	11
+apps/website/src/features/theme/theme-files.ts	decl	pruneThemeFileRevisions		751	762	12
+apps/website/src/features/theme/theme-files.ts	decl	regularRevisionFile		767	778	12
+apps/website/src/features/theme/theme-files.ts	decl	removeEmptyRevisionParents		783	788	6
+apps/website/src/features/theme/theme-files.ts	decl	assertOverwritableTarget		799	807	9
+apps/website/src/features/theme/theme-files.ts	decl	validateThemeFileWrite	export	823	840	18
+apps/website/src/features/theme/theme-files.ts	decl	writeThemeFile	export	848	862	15
+apps/website/src/features/theme/theme-files.ts	decl	writeThemeBinaryFile	export	876	886	11
+apps/website/src/features/theme/theme-files.ts	decl	resetThemeFileToOriginal	export	918	936	19
+apps/website/src/features/theme/theme-files.ts	decl	ThemeOriginalSource	export	947	951	5
+apps/website/src/features/theme/theme-files.ts	decl	resolveThemeOriginalSource	export	988	1012	25
+apps/website/src/features/theme/theme-files.ts	decl	isPackageShippedTheme	export	1027	1034	8
+apps/website/src/features/theme/theme-files.ts	decl	ThemeOriginalResetRefusal	export	1038	1038	1
+apps/website/src/features/theme/theme-files.ts	decl	ORIGINAL_LAYOUT_MISMATCH_REFUSAL		1040	1043	4
+apps/website/src/features/theme/theme-files.ts	decl	manifestApiVersionOnDisk		1053	1064	12
+apps/website/src/features/theme/theme-files.ts	decl	themeOriginalResetRefusal	export	1089	1099	11
+apps/website/src/features/theme/theme-files.ts	decl	resolveCopyOrRenameTargets		1114	1135	22
+apps/website/src/features/theme/theme-files.ts	decl	copyThemeFile	export	1148	1172	25
+apps/website/src/features/theme/theme-files.ts	decl	nextAvailableFileName	export	1191	1212	22
+apps/website/src/features/theme/theme-files.ts	decl	renameThemeFile	export	1223	1231	9
+apps/website/src/features/theme/theme-files.ts	decl	ThemeFileWriteScope	export	1257	1259	3
+apps/website/src/features/theme/theme-files.ts	decl	resolveThemeFileWriteScope	export	1261	1285	25
+apps/website/src/features/theme/theme-files.ts	decl	restoreBuiltThemeGeneratedTree	export	1311	1344	34

@@ -1,0 +1,41 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/widgets/agent-tools.ts	decl	MUTATES_DURABLE_STATE		57	57	1
+apps/website/src/features/widgets/agent-tools.ts	decl	PLACE_WIDGET_PERMISSION		58	58	1
+apps/website/src/features/widgets/agent-tools.ts	decl	AgentToolSideEffect	export	60	62	3
+apps/website/src/features/widgets/agent-tools.ts	decl	AgentToolDefinition	export	68	68	1
+apps/website/src/features/widgets/agent-tools.ts	decl	WIDGET_TYPE_KEYS		70	70	1
+apps/website/src/features/widgets/agent-tools.ts	decl	WIDGET_INSTANCE_ID_SCHEMA		72	75	4
+apps/website/src/features/widgets/agent-tools.ts	decl	HOST_ENTRY_ID_SCHEMA		77	84	8
+apps/website/src/features/widgets/agent-tools.ts	decl	BASE_VERSION_SCHEMA		86	89	4
+apps/website/src/features/widgets/agent-tools.ts	decl	REGION_KEY_SCHEMA		91	95	5
+apps/website/src/features/widgets/agent-tools.ts	decl	PLACEMENT_SCHEMA		98	111	14
+apps/website/src/features/widgets/agent-tools.ts	decl	widgetsAgentToolCatalog	export	122	335	214
+apps/website/src/features/widgets/tool-registrations.ts	decl	MUTATES_DURABLE_STATE		44	44	1
+apps/website/src/features/widgets/tool-registrations.ts	decl	CATALOG_BY_ID		47	47	1
+apps/website/src/features/widgets/tool-registrations.ts	decl	WidgetsToolDeps	export	53	53	1
+apps/website/src/features/widgets/tool-registrations.ts	decl	widgetsDerivedRisk	export	60	86	27
+apps/website/src/features/widgets/tool-registrations.ts	decl	isWidgetsShapeRejection		93	100	8
+apps/website/src/features/widgets/tool-registrations.ts	decl	toModelFacingWidgetsError		134	157	24
+apps/website/src/features/widgets/tool-registrations.ts	decl	toModelFacingWidgetsConflictError		161	169	9
+apps/website/src/features/widgets/tool-registrations.ts	decl	WidgetInstanceToolView		172	180	9
+apps/website/src/features/widgets/tool-registrations.ts	decl	toWidgetInstanceToolView		183	193	11
+apps/website/src/features/widgets/tool-registrations.ts	decl	WIDGETS_TRASH_TOOL_ID		195	195	1
+apps/website/src/features/widgets/tool-registrations.ts	decl	ASSISTANT_ACTOR_PLUGIN_ID		200	200	1
+apps/website/src/features/widgets/tool-registrations.ts	decl	WidgetAreaToolView		203	208	6
+apps/website/src/features/widgets/tool-registrations.ts	decl	toWidgetAreaToolView		210	212	3
+apps/website/src/features/widgets/tool-registrations.ts	decl	resolveWidgetPlacementView		215	227	13
+apps/website/src/features/widgets/tool-registrations.ts	decl	placementContent		229	233	5
+apps/website/src/features/widgets/tool-registrations.ts	decl	buildWidgetsRegistrations	export	235	502	268
+apps/website/src/features/widgets/tool-registrations.ts	handler	widgets_list_instances		240	254	15
+apps/website/src/features/widgets/tool-registrations.ts	handler	widgets_get_instance		255	264	10
+apps/website/src/features/widgets/tool-registrations.ts	handler	widgets_list_regions		265	277	13
+apps/website/src/features/widgets/tool-registrations.ts	handler	widgets_get_region		278	292	15
+apps/website/src/features/widgets/tool-registrations.ts	handler	widgets_create_instance		293	310	18
+apps/website/src/features/widgets/tool-registrations.ts	handler	widgets_update_instance		311	344	34
+apps/website/src/features/widgets/tool-registrations.ts	handler	widgets_trash_instance		345	373	29
+apps/website/src/features/widgets/tool-registrations.ts	handler	widgets_bind_region		374	386	13
+apps/website/src/features/widgets/tool-registrations.ts	handler	widgets_set_region_placements		387	415	29
+apps/website/src/features/widgets/tool-registrations.ts	handler	widgets_insert_embed		416	432	17
+apps/website/src/features/widgets/tool-registrations.ts	handler	widgets_remove_embed		433	447	15
+apps/website/src/features/widgets/tool-registrations.ts	handler	widgets_reorder_embeds		448	502	55
+apps/website/src/features/widgets/tool-registrations.ts	decl	contributeWidgetsTools	export	516	518	3

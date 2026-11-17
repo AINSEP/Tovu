@@ -1,0 +1,51 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/newsletter/agent-tools.ts	decl	MUTATES_DURABLE_STATE		10	10	1
+apps/website/src/features/newsletter/agent-tools.ts	decl	AgentToolSideEffect	export	18	20	3
+apps/website/src/features/newsletter/agent-tools.ts	decl	AgentToolDefinition	export	26	26	1
+apps/website/src/features/newsletter/agent-tools.ts	decl	CAMPAIGN_ID_SCHEMA		28	32	5
+apps/website/src/features/newsletter/agent-tools.ts	decl	LIST_ID_SCHEMA		34	38	5
+apps/website/src/features/newsletter/agent-tools.ts	decl	CAMPAIGN_FIELDS_PROPERTIES		41	57	17
+apps/website/src/features/newsletter/agent-tools.ts	decl	newsletterAgentToolCatalog	export	60	265	206
+apps/website/src/features/newsletter/delivery/tool-registrations.ts	decl	MUTATES_DURABLE_STATE		27	27	1
+apps/website/src/features/newsletter/delivery/tool-registrations.ts	decl	NewsletterDeliveryToolDeps	export	31	34	4
+apps/website/src/features/newsletter/delivery/tool-registrations.ts	decl	campaignIdSchema		36	36	1
+apps/website/src/features/newsletter/delivery/tool-registrations.ts	decl	newsletterDeliveryAgentToolCatalog	export	42	67	26
+apps/website/src/features/newsletter/delivery/tool-registrations.ts	decl	newsletterDeliveryDerivedRisk	export	69	78	10
+apps/website/src/features/newsletter/delivery/tool-registrations.ts	decl	mailOffResult		81	85	5
+apps/website/src/features/newsletter/delivery/tool-registrations.ts	decl	processingAttentionResult		88	90	3
+apps/website/src/features/newsletter/delivery/tool-registrations.ts	decl	requireMassLaunchReady		93	96	4
+apps/website/src/features/newsletter/delivery/tool-registrations.ts	decl	buildNewsletterDeliveryRegistrations	export	106	202	97
+apps/website/src/features/newsletter/delivery/tool-registrations.ts	handler	newsletter_send_test		108	189	82
+apps/website/src/features/newsletter/delivery/tool-registrations.ts	handler	declined		190	202	13
+apps/website/src/features/newsletter/delivery/tool-registrations.ts	decl	contributeNewsletterDeliveryTools	export	205	207	3
+apps/website/src/features/newsletter/tool-registrations.ts	decl	MUTATES_DURABLE_STATE		71	71	1
+apps/website/src/features/newsletter/tool-registrations.ts	decl	CATALOG_BY_ID		74	74	1
+apps/website/src/features/newsletter/tool-registrations.ts	decl	NewsletterToolDeps	export	83	106	24
+apps/website/src/features/newsletter/tool-registrations.ts	decl	toCampaignWriteServiceDeps		115	122	8
+apps/website/src/features/newsletter/tool-registrations.ts	decl	toListsDeps		125	127	3
+apps/website/src/features/newsletter/tool-registrations.ts	decl	toUnsubscribeSubscriptionDeps		131	137	7
+apps/website/src/features/newsletter/tool-registrations.ts	decl	toNewsletterSendPipelineDeps	export	144	146	3
+apps/website/src/features/newsletter/tool-registrations.ts	decl	newsletterDerivedRisk	export	153	180	28
+apps/website/src/features/newsletter/tool-registrations.ts	decl	toCampaignToolView		183	199	17
+apps/website/src/features/newsletter/tool-registrations.ts	decl	toListToolView		202	204	3
+apps/website/src/features/newsletter/tool-registrations.ts	decl	toSubscriptionToolView		207	217	11
+apps/website/src/features/newsletter/tool-registrations.ts	decl	toSendLogToolView		220	232	13
+apps/website/src/features/newsletter/tool-registrations.ts	decl	NEWSLETTER_MODEL_FACING_ERRORS		255	270	16
+apps/website/src/features/newsletter/tool-registrations.ts	decl	resendPendingSubscriptionConfirmation		272	296	25
+apps/website/src/features/newsletter/tool-registrations.ts	decl	buildNewsletterRegistrations	export	298	512	215
+apps/website/src/features/newsletter/tool-registrations.ts	handler	newsletter_list_campaigns		300	312	13
+apps/website/src/features/newsletter/tool-registrations.ts	handler	newsletter_get_campaign		313	322	10
+apps/website/src/features/newsletter/tool-registrations.ts	handler	newsletter_list_lists		323	331	9
+apps/website/src/features/newsletter/tool-registrations.ts	handler	newsletter_list_subscriptions		332	343	12
+apps/website/src/features/newsletter/tool-registrations.ts	handler	newsletter_list_send_log		344	354	11
+apps/website/src/features/newsletter/tool-registrations.ts	handler	newsletter_create_campaign		355	378	24
+apps/website/src/features/newsletter/tool-registrations.ts	handler	newsletter_update_campaign		379	407	29
+apps/website/src/features/newsletter/tool-registrations.ts	handler	newsletter_cancel_campaign		408	420	13
+apps/website/src/features/newsletter/tool-registrations.ts	handler	newsletter_pause_campaign		421	429	9
+apps/website/src/features/newsletter/tool-registrations.ts	handler	newsletter_create_list		430	442	13
+apps/website/src/features/newsletter/tool-registrations.ts	handler	newsletter_archive_list		443	452	10
+apps/website/src/features/newsletter/tool-registrations.ts	handler	newsletter_create_subscription		453	467	15
+apps/website/src/features/newsletter/tool-registrations.ts	handler	newsletter_remove_subscription		468	486	19
+apps/website/src/features/newsletter/tool-registrations.ts	handler	newsletter_resend_confirmation		487	508	22
+apps/website/src/features/newsletter/tool-registrations.ts	handler	handlers		509	512	4
+apps/website/src/features/newsletter/tool-registrations.ts	decl	contributeNewsletterTools	export	522	524	3

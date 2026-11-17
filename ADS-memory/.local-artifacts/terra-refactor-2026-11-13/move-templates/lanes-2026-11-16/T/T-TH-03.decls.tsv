@@ -1,0 +1,49 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/theme/entry-list-render.ts	decl	EntryListFieldValue	export	25	30	6
+apps/website/src/features/theme/entry-list-render.ts	decl	EntryListItem	export	37	43	7
+apps/website/src/features/theme/entry-list-render.ts	decl	EntryListRenderOptions	export	50	65	16
+apps/website/src/features/theme/entry-list-render.ts	decl	EntryListLayout	export	68	68	1
+apps/website/src/features/theme/entry-list-render.ts	decl	EntryListStructuredData	export	70	70	1
+apps/website/src/features/theme/entry-list-render.ts	decl	ENTRY_LIST_STYLE_OPEN_TAG		83	83	1
+apps/website/src/features/theme/entry-list-render.ts	decl	ENTRY_LIST_DEFAULT_STYLE	export	91	108	18
+apps/website/src/features/theme/entry-list-render.ts	decl	formatFieldValue		117	120	4
+apps/website/src/features/theme/entry-list-render.ts	decl	renderFieldRow		123	125	3
+apps/website/src/features/theme/entry-list-render.ts	decl	renderTitle		128	132	5
+apps/website/src/features/theme/entry-list-render.ts	decl	renderCard		136	139	4
+apps/website/src/features/theme/entry-list-render.ts	decl	renderListItem		142	145	4
+apps/website/src/features/theme/entry-list-render.ts	decl	nonEmptyFieldValues		148	150	3
+apps/website/src/features/theme/entry-list-render.ts	decl	renderAccordionItem		156	161	6
+apps/website/src/features/theme/entry-list-render.ts	decl	renderFaqPageJsonLd		170	178	9
+apps/website/src/features/theme/entry-list-render.ts	decl	resolvePlaceholderRawValue		184	193	10
+apps/website/src/features/theme/entry-list-render.ts	decl	PLACEHOLDER_PATTERN		195	195	1
+apps/website/src/features/theme/entry-list-render.ts	decl	QUOTED_VALUE_SOURCE		200	200	1
+apps/website/src/features/theme/entry-list-render.ts	decl	PLACEHOLDER_SOURCE		201	201	1
+apps/website/src/features/theme/entry-list-render.ts	decl	TEMPLATE_TAG_OR_PLACEHOLDER		202	202	1
+apps/website/src/features/theme/entry-list-render.ts	decl	TAG_ATTRIBUTE_OR_PLACEHOLDER		206	209	4
+apps/website/src/features/theme/entry-list-render.ts	decl	URL_ATTRIBUTE_NAMES		213	213	1
+apps/website/src/features/theme/entry-list-render.ts	decl	HAS_PLACEHOLDER		216	216	1
+apps/website/src/features/theme/entry-list-render.ts	decl	PlaceholderEscape		218	218	1
+apps/website/src/features/theme/entry-list-render.ts	decl	substitutePlaceholders		222	224	3
+apps/website/src/features/theme/entry-list-render.ts	decl	escapeForUnquotedAttribute		228	230	3
+apps/website/src/features/theme/entry-list-render.ts	decl	renderUrlAttributeValue		240	244	5
+apps/website/src/features/theme/entry-list-render.ts	decl	renderTemplateAttribute		255	261	7
+apps/website/src/features/theme/entry-list-render.ts	decl	fillAttributeValue		264	268	5
+apps/website/src/features/theme/entry-list-render.ts	decl	renderTemplateTag		272	281	10
+apps/website/src/features/theme/entry-list-render.ts	decl	renderTemplateItem		292	296	5
+apps/website/src/features/theme/entry-list-render.ts	decl	renderEntryList	export	310	313	4
+apps/website/src/features/theme/entry-list-render.ts	decl	renderEntryListStructuredData	export	322	324	3
+apps/website/src/features/theme/entry-list-render.ts	decl	renderEntryListBody		327	350	24
+apps/website/src/features/theme/entry-list-render.ts	decl	withEntryListStyleOnce	export	369	375	7
+apps/website/src/features/theme/render-contract.ts	decl	ThemeTier	export	16	16	1
+apps/website/src/features/theme/render-contract.ts	decl	ThemeBuildInfo	export	39	78	40
+apps/website/src/features/theme/render-contract.ts	decl	ThemeManifest	export	81	226	146
+apps/website/src/features/theme/render-contract.ts	decl	TemplateNode	export	229	229	1
+apps/website/src/features/theme/render-contract.ts	decl	TemplateRoute		240	240	1
+apps/website/src/features/theme/render-contract.ts	decl	ROUTE_TEMPLATE_CANDIDATES		241	246	6
+apps/website/src/features/theme/render-contract.ts	decl	resolveRouteTemplateId		256	264	9
+apps/website/src/features/theme/render-contract.ts	decl	resolveTemplateId	export	271	276	6
+apps/website/src/features/theme/render-contract.ts	decl	resolveLiquidTemplateId	export	283	288	6
+apps/website/src/features/theme/render-contract.ts	decl	resolveHandlebarsTemplateId	export	295	300	6
+apps/website/src/features/theme/render-contract.ts	decl	SAFE_HREF_RESOLUTION_BASE		306	309	4
+apps/website/src/features/theme/render-contract.ts	decl	SAFE_HREF_RESOLUTION_ORIGIN		310	310	1
+apps/website/src/features/theme/render-contract.ts	decl	safeHref	export	347	361	15

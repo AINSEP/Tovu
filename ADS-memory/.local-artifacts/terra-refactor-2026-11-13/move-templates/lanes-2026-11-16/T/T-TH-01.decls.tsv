@@ -1,0 +1,23 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/theme/asset-path-rewrites.ts	decl	rewriteThemeAssetPaths	export	13	23	11
+apps/website/src/features/theme/font-links.ts	decl	renderThemeFontLinks	export	13	23	11
+apps/website/src/features/theme/font-links.ts	decl	legacyStylesheets		27	31	5
+apps/website/src/features/theme/font-links.ts	decl	attribute		34	36	3
+apps/website/src/features/theme/hardcoded-link-lists.ts	decl	MIN_HARDCODED_LINK_LIST	export	19	19	1
+apps/website/src/features/theme/hardcoded-link-lists.ts	decl	MAX_NAMED_LINKS		21	21	1
+apps/website/src/features/theme/hardcoded-link-lists.ts	decl	CHROME_PARTIAL		24	24	1
+apps/website/src/features/theme/hardcoded-link-lists.ts	decl	ANCHOR_START		25	25	1
+apps/website/src/features/theme/hardcoded-link-lists.ts	decl	HREF_PREFIX		26	26	1
+apps/website/src/features/theme/hardcoded-link-lists.ts	decl	HREF_VALUE		27	27	1
+apps/website/src/features/theme/hardcoded-link-lists.ts	decl	URL_SCHEME		29	29	1
+apps/website/src/features/theme/hardcoded-link-lists.ts	decl	isInternalHref		31	37	7
+apps/website/src/features/theme/hardcoded-link-lists.ts	decl	maskMenusAndNonRenderable		40	46	7
+apps/website/src/features/theme/hardcoded-link-lists.ts	decl	findHardcodedLinks	export	54	66	13
+apps/website/src/features/theme/hardcoded-link-lists.ts	decl	anchorHref		70	85	16
+apps/website/src/features/theme/hardcoded-link-lists.ts	decl	anchorHrefAt		89	98	10
+apps/website/src/features/theme/hardcoded-link-lists.ts	decl	describeHardcodedLinkList	export	107	118	12
+apps/website/src/features/theme/page-publication.ts	decl	ThemePagePublicationError	export	6	15	10
+apps/website/src/features/theme/page-publication.ts	decl	togglePages		18	25	8
+apps/website/src/features/theme/page-publication.ts	decl	setThemePagePublished	export	39	60	22
+apps/website/src/features/theme/token-aliases.ts	decl	TOKEN_ALIASES		22	33	12
+apps/website/src/features/theme/token-aliases.ts	decl	themeTokenAliasDeclarations	export	44	53	10

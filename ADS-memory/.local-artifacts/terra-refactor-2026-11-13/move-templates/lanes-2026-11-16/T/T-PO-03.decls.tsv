@@ -1,0 +1,126 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/post/post.ts	decl	EMAIL_TEMPLATE_KIND	export	27	27	1
+apps/website/src/features/post/post.ts	decl	HTML_DOCUMENT_KINDS	export	30	30	1
+apps/website/src/features/post/post.ts	decl	PostBodyFormat	export	39	39	1
+apps/website/src/features/post/post.ts	decl	PostRecord	export	41	177	137
+apps/website/src/features/post/post.ts	decl	PublicPostRecord	export	180	180	1
+apps/website/src/features/post/post.ts	decl	PublicPostReaderPort	export	183	187	5
+apps/website/src/features/post/post.ts	decl	isPublicPost	export	194	196	3
+apps/website/src/features/post/post.ts	decl	createPublicPostReader	export	205	221	17
+apps/website/src/features/post/post.ts	decl	PostAutosaveSnapshot	export	235	251	17
+apps/website/src/features/post/post.ts	decl	BeforeSaveEntryDraft	export	260	268	9
+apps/website/src/features/post/post.ts	decl	BeforeSaveHookPort	export	275	275	1
+apps/website/src/features/post/post.ts	decl	PostRevisionOp	export	285	285	1
+apps/website/src/features/post/post.ts	decl	PostRevisionInput	export	293	306	14
+apps/website/src/features/post/post.ts	decl	PostRevisionRecord	export	310	313	4
+apps/website/src/features/post/post.ts	decl	PostRevisionAppendResult	export	319	322	4
+apps/website/src/features/post/post.ts	decl	PostRepoPort	export	324	509	186
+apps/website/src/features/post/post.ts	decl	CreatePostInput	export	511	555	45
+apps/website/src/features/post/post.ts	decl	PostAuthorAccountPort	export	557	559	3
+apps/website/src/features/post/post.ts	decl	CreatePostDeps	export	561	586	26
+apps/website/src/features/post/post.ts	decl	CreatePostRequired	export	588	591	4
+apps/website/src/features/post/post.ts	decl	CreatePostOptional	export	593	593	1
+apps/website/src/features/post/post.ts	decl	UpdatePostInput	export	595	654	60
+apps/website/src/features/post/post.ts	decl	UpdatePostDeps	export	656	684	29
+apps/website/src/features/post/post.ts	decl	SlugChangeCaptureLookup	export	687	687	1
+apps/website/src/features/post/post.ts	decl	UpdatePostRequired	export	689	692	4
+apps/website/src/features/post/post.ts	decl	UpdatePostOptional	export	694	694	1
+apps/website/src/features/post/post.ts	decl	DeletePostInput	export	696	709	14
+apps/website/src/features/post/post.ts	decl	RemovePostFn	export	724	731	8
+apps/website/src/features/post/post.ts	decl	DeletePostDeps	export	733	745	13
+apps/website/src/features/post/post.ts	decl	DeletePostRequired	export	747	750	4
+apps/website/src/features/post/post.ts	decl	DeletePostOptional	export	752	752	1
+apps/website/src/features/post/post.ts	decl	deletePost	export	780	820	41
+apps/website/src/features/post/post.ts	decl	RetirePostForReplacementInput	export	822	841	20
+apps/website/src/features/post/post.ts	decl	RetirePostForReplacementDeps	export	843	849	7
+apps/website/src/features/post/post.ts	decl	RetirePostForReplacementRequired	export	851	854	4
+apps/website/src/features/post/post.ts	decl	RetirePostForReplacementOptional	export	856	856	1
+apps/website/src/features/post/post.ts	decl	retirePostForReplacement	export	888	959	72
+apps/website/src/features/post/post.ts	decl	GetPostByIdRequired	export	961	964	4
+apps/website/src/features/post/post.ts	decl	GetPostBySlugRequired	export	966	969	4
+apps/website/src/features/post/post.ts	decl	GetPostByIdOrSlugRequired	export	971	974	4
+apps/website/src/features/post/post.ts	decl	GetPostOptional	export	976	979	4
+apps/website/src/features/post/post.ts	decl	PostNotFoundError	export	981	981	1
+apps/website/src/features/post/post.ts	decl	PostValidationError	export	982	982	1
+apps/website/src/features/post/post.ts	decl	PostConflictError	export	983	983	1
+apps/website/src/features/post/post.ts	decl	PostVersionConflictError	export	1003	1011	9
+apps/website/src/features/post/post.ts	decl	DEFAULT_BODY_JSON	export	1023	1023	1
+apps/website/src/features/post/post.ts	decl	SYSTEM_ACTOR_ID	export	1028	1028	1
+apps/website/src/features/post/post.ts	decl	RevisionAttribution		1031	1035	5
+apps/website/src/features/post/post.ts	decl	appendPostRevision		1042	1059	18
+apps/website/src/features/post/post.ts	decl	runBeforeSaveHook		1071	1077	7
+apps/website/src/features/post/post.ts	decl	mergeExt		1087	1090	4
+apps/website/src/features/post/post.ts	decl	MAX_TITLE_LENGTH	export	1094	1100	7
+apps/website/src/features/post/post.ts	decl	ROOT_SLUG	export	1114	1114	1
+apps/website/src/features/post/post.ts	decl	SLUG_OR_ROOT_PATTERN	export	1117	1117	1
+apps/website/src/features/post/post.ts	decl	isValidSlugFormat		1120	1122	3
+apps/website/src/features/post/post.ts	decl	isValidPostStatus		1125	1127	3
+apps/website/src/features/post/post.ts	decl	PUBLISH_AT_PATTERN	export	1132	1132	1
+apps/website/src/features/post/post.ts	decl	MAX_FEATURED_MEDIA_ID_LENGTH	export	1135	1135	1
+apps/website/src/features/post/post.ts	decl	normalizePublishAt	export	1145	1152	8
+apps/website/src/features/post/post.ts	decl	normalizeFeaturedMediaId	export	1157	1164	8
+apps/website/src/features/post/post.ts	decl	normalizePostAuthor	export	1170	1177	8
+apps/website/src/features/post/post.ts	decl	normalizeShowPostAuthor	export	1180	1185	6
+apps/website/src/features/post/post.ts	decl	presentScheduleFields	export	1190	1195	6
+apps/website/src/features/post/post.ts	decl	assertSlugNotReserved		1204	1208	5
+apps/website/src/features/post/post.ts	decl	assertValidExplicitSlug		1222	1233	12
+apps/website/src/features/post/post.ts	decl	ResolvedCreateFields		1236	1244	9
+apps/website/src/features/post/post.ts	decl	resolveBodyFields		1263	1265	3
+apps/website/src/features/post/post.ts	decl	resolveUpdateBodyFields		1301	1309	9
+apps/website/src/features/post/post.ts	decl	assertTitleWithinLimit		1319	1323	5
+apps/website/src/features/post/post.ts	decl	resolveTitle		1330	1334	5
+apps/website/src/features/post/post.ts	decl	resolveExplicitSlug		1341	1349	9
+apps/website/src/features/post/post.ts	decl	resolveCreateBodyJson		1353	1358	6
+apps/website/src/features/post/post.ts	decl	resolveCreateStatus		1362	1367	6
+apps/website/src/features/post/post.ts	decl	resolveCreateFields		1383	1389	7
+apps/website/src/features/post/post.ts	decl	resolveCreateByline		1397	1410	14
+apps/website/src/features/post/post.ts	decl	resolveCreateSlug		1418	1426	9
+apps/website/src/features/post/post.ts	decl	createPost	export	1451	1530	80
+apps/website/src/features/post/post.ts	decl	assertOptionalBoolean		1533	1535	3
+apps/website/src/features/post/post.ts	decl	assertPostPresentationFields		1539	1544	6
+apps/website/src/features/post/post.ts	decl	validateUpdatePostInput		1552	1585	34
+apps/website/src/features/post/post.ts	decl	trashedSlugHolderOrConflict		1600	1608	9
+apps/website/src/features/post/post.ts	decl	assertSlugAvailableForUpdate		1614	1622	9
+apps/website/src/features/post/post.ts	decl	TRASHED_SLUG_SUFFIX		1625	1625	1
+apps/website/src/features/post/post.ts	decl	releaseTrashedSlug		1648	1666	19
+apps/website/src/features/post/post.ts	decl	assertExpectedVersion		1681	1689	9
+apps/website/src/features/post/post.ts	decl	versionConflictMessage		1695	1697	3
+apps/website/src/features/post/post.ts	decl	persistUpdatedPost		1721	1740	20
+apps/website/src/features/post/post.ts	decl	buildUpdatedPost		1750	1779	30
+apps/website/src/features/post/post.ts	decl	captureSlugChange		1796	1810	15
+apps/website/src/features/post/post.ts	decl	savedPostPresentation		1812	1819	8
+apps/website/src/features/post/post.ts	decl	savedPostContent		1828	1841	14
+apps/website/src/features/post/post.ts	decl	hasPostBeenPublished	export	1844	1846	3
+apps/website/src/features/post/post.ts	decl	slugTakenMessage		1850	1852	3
+apps/website/src/features/post/post.ts	decl	availablePostSlug		1862	1876	15
+apps/website/src/features/post/post.ts	decl	followsTitleSlug		1883	1890	8
+apps/website/src/features/post/post.ts	decl	withCoverPresentation		1894	1898	5
+apps/website/src/features/post/post.ts	decl	unchangedLiveRow		1908	1917	10
+apps/website/src/features/post/post.ts	decl	updatePost	export	1925	1993	69
+apps/website/src/features/post/post.ts	decl	publicFacingStatus		2000	2002	3
+apps/website/src/features/post/post.ts	decl	ForgetRemovedPostFn	export	2011	2011	1
+apps/website/src/features/post/post.ts	decl	RestorePostForwardRequired	export	2013	2033	21
+apps/website/src/features/post/post.ts	decl	RestorePostForwardOptional	export	2035	2035	1
+apps/website/src/features/post/post.ts	decl	restorePostForward	export	2097	2137	41
+apps/website/src/features/post/post.ts	decl	classifyStatusTransition	export	2154	2165	12
+apps/website/src/features/post/post.ts	decl	emitPublicTransitionEvent	export	2180	2188	9
+apps/website/src/features/post/post.ts	decl	emitStatusTransitionEvent		2197	2213	17
+apps/website/src/features/post/post.ts	decl	DEFAULT_POST_LIST_LIMIT	export	2223	2223	1
+apps/website/src/features/post/post.ts	decl	MAX_POST_LIST_LIMIT	export	2225	2225	1
+apps/website/src/features/post/post.ts	decl	ListPostsRequired	export	2227	2230	4
+apps/website/src/features/post/post.ts	decl	listAdminPosts	export	2241	2247	7
+apps/website/src/features/post/post.ts	decl	listPublishedPosts	export	2250	2257	8
+apps/website/src/features/post/post.ts	decl	ListPublishedPostPreviewsRequired	export	2259	2262	4
+apps/website/src/features/post/post.ts	decl	listPublishedPostPreviews	export	2272	2283	12
+apps/website/src/features/post/post.ts	decl	listAdminPages	export	2286	2291	6
+apps/website/src/features/post/post.ts	decl	getAdminPostById	export	2293	2303	11
+apps/website/src/features/post/post.ts	decl	getPublishedPostBySlug	export	2305	2317	13
+apps/website/src/features/post/post.ts	decl	findPublishedPostById	export	2338	2346	9
+apps/website/src/features/post/post.ts	decl	findPublishedPostBySlug	export	2359	2367	9
+apps/website/src/features/post/post.ts	decl	getAdminPostByIdOrSlug	export	2390	2402	13
+apps/website/src/features/post/post.ts	decl	isJsonObject		2404	2406	3
+apps/website/src/features/post/post.ts	decl	ImportPostEntityDeps	export	2412	2418	7
+apps/website/src/features/post/post.ts	decl	ImportPostEntityInput	export	2420	2440	21
+apps/website/src/features/post/post.ts	decl	assertImportTarget		2449	2487	39
+apps/website/src/features/post/post.ts	decl	importPostEntity	export	2528	2583	56
+apps/website/src/features/post/post.ts	decl	enqueueContentWrite		2587	2596	10

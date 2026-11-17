@@ -1,0 +1,34 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/redirects/agent-tools.ts	decl	MANAGE_REDIRECTS_PERMISSION		5	5	1
+apps/website/src/features/redirects/agent-tools.ts	decl	AgentToolSideEffect	export	48	48	1
+apps/website/src/features/redirects/agent-tools.ts	decl	AgentToolDefinition	export	57	57	1
+apps/website/src/features/redirects/agent-tools.ts	decl	REDIRECT_ID_PROPERTY		59	63	5
+apps/website/src/features/redirects/agent-tools.ts	decl	REDIRECT_ID_SCHEMA		65	70	6
+apps/website/src/features/redirects/agent-tools.ts	decl	MATCH_TYPE_PROPERTY		72	77	6
+apps/website/src/features/redirects/agent-tools.ts	decl	STATUS_CODE_PROPERTY		79	83	5
+apps/website/src/features/redirects/agent-tools.ts	decl	TO_TARGET_PROPERTY		85	90	6
+apps/website/src/features/redirects/agent-tools.ts	decl	PRIORITY_PROPERTY		92	97	6
+apps/website/src/features/redirects/agent-tools.ts	decl	OVERRIDE_PROPERTY		99	103	5
+apps/website/src/features/redirects/agent-tools.ts	decl	LIST_SCHEMA		105	118	14
+apps/website/src/features/redirects/agent-tools.ts	decl	CREATE_SCHEMA		120	132	13
+apps/website/src/features/redirects/agent-tools.ts	decl	IMPORT_SCHEMA		134	147	14
+apps/website/src/features/redirects/agent-tools.ts	decl	UPDATE_SCHEMA		149	168	20
+apps/website/src/features/redirects/agent-tools.ts	decl	getRedirectsAgentToolCatalog	export	177	231	55
+apps/website/src/features/redirects/tool-registrations.ts	decl	MANAGE_REDIRECTS_PERMISSION		33	33	1
+apps/website/src/features/redirects/tool-registrations.ts	decl	CATALOG_BY_ID		36	36	1
+apps/website/src/features/redirects/tool-registrations.ts	decl	RedirectsToolDeps	export	44	50	7
+apps/website/src/features/redirects/tool-registrations.ts	decl	toRedirectToolView		57	72	16
+apps/website/src/features/redirects/tool-registrations.ts	decl	REDIRECTS_TOMBSTONE_TOOL_ID		74	74	1
+apps/website/src/features/redirects/tool-registrations.ts	decl	ASSISTANT_ACTOR_PLUGIN_ID		79	79	1
+apps/website/src/features/redirects/tool-registrations.ts	decl	redirectsDerivedRisk	export	86	103	18
+apps/website/src/features/redirects/tool-registrations.ts	decl	REDIRECTS_MODEL_FACING_RULES		119	126	8
+apps/website/src/features/redirects/tool-registrations.ts	decl	buildRedirectsRegistrations	export	128	274	147
+apps/website/src/features/redirects/tool-registrations.ts	handler	redirects_list		133	149	17
+apps/website/src/features/redirects/tool-registrations.ts	handler	redirects_get		150	158	9
+apps/website/src/features/redirects/tool-registrations.ts	handler	redirects_get_hits		159	169	11
+apps/website/src/features/redirects/tool-registrations.ts	handler	redirects_create		170	190	21
+apps/website/src/features/redirects/tool-registrations.ts	handler	redirects_update		191	215	25
+apps/website/src/features/redirects/tool-registrations.ts	handler	redirects_tombstone		216	233	18
+apps/website/src/features/redirects/tool-registrations.ts	handler	redirects_import		234	270	37
+apps/website/src/features/redirects/tool-registrations.ts	handler	handlers		271	274	4
+apps/website/src/features/redirects/tool-registrations.ts	decl	contributeRedirectsTools	export	284	286	3

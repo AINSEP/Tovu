@@ -1,0 +1,92 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	decl	DISCARDED_FRAMEWORK_ARTIFACTS		116	116	1
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	decl	AssetRelocation	export	121	124	4
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	decl	AssetRelocationPlan	export	129	131	3
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	decl	RELOCATED_CSS_EXTENSIONS		153	153	1
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	decl	RELOCATED_JS_EXTENSIONS		155	155	1
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	decl	classifyAssetRelocation		160	173	14
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	decl	planAssetRelocation	export	175	185	11
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	decl	rewriteExactBareAttributeValue		197	203	7
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	decl	rewriteBundlerHtml	export	230	266	37
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	decl	CSS_URL_START		273	273	1
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	decl	rewriteCssUrlSegment		277	301	25
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	decl	cssUrlContent		305	313	9
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	decl	isRelativeCssUrl		319	325	7
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	decl	rewriteCssRelativeUrls	export	337	341	5
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	decl	NormalizeBuildOutputResult	export	346	350	5
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	decl	normalizeBuildOutputDirectory	export	382	413	32
+apps/website/src/features/theme/static-portability-index.ts	decl	LIVE_CONTENT_PLACEHOLDER		54	54	1
+apps/website/src/features/theme/static-portability-index.ts	decl	STATIC_PORTABILITY_INDEX_FILENAME	export	59	59	1
+apps/website/src/features/theme/static-portability-index.ts	decl	partialIdFromSource		63	65	3
+apps/website/src/features/theme/static-portability-index.ts	decl	rewriteRootRelativeAssetPaths		85	95	11
+apps/website/src/features/theme/static-portability-index.ts	decl	tokensToRootCss		103	107	5
+apps/website/src/features/theme/static-portability-index.ts	decl	injectDefaultColorMode		112	115	4
+apps/website/src/features/theme/static-portability-index.ts	decl	injectTokenStyleBlock		128	136	9
+apps/website/src/features/theme/static-portability-index.ts	decl	spliceRootPartials		146	154	9
+apps/website/src/features/theme/static-portability-index.ts	decl	placeholderRemainingMarkers		177	179	3
+apps/website/src/features/theme/static-portability-index.ts	decl	buildStaticPortabilityIndex	export	189	200	12
+apps/website/src/features/theme/static-portability-index.ts	decl	GenerateStaticPortabilityIndexResult	export	202	204	3
+apps/website/src/features/theme/static-portability-index.ts	decl	generateStaticPortabilityIndex	export	218	234	17
+apps/website/src/features/theme/static-render.ts	decl	tokensToRootCss		32	40	9
+apps/website/src/features/theme/static-render.ts	decl	rewritePageLinks		61	63	3
+apps/website/src/features/theme/static-render.ts	decl	hasAuthoredSlug		68	71	4
+apps/website/src/features/theme/static-render.ts	decl	injectCurrentEntityContentId	export	109	114	6
+apps/website/src/features/theme/static-render.ts	decl	injectPageTitle	export	140	142	3
+apps/website/src/features/theme/static-render.ts	decl	StaticMenuItem	export	152	171	20
+apps/website/src/features/theme/static-render.ts	decl	StaticHtmlMenu	export	175	177	3
+apps/website/src/features/theme/static-render.ts	decl	StaticMenuContent	export	180	182	3
+apps/website/src/features/theme/static-render.ts	decl	renderMenuLinks		193	201	9
+apps/website/src/features/theme/static-render.ts	decl	menuItemClasses		232	243	12
+apps/website/src/features/theme/static-render.ts	decl	menuItemInnerHtml		248	255	8
+apps/website/src/features/theme/static-render.ts	decl	menuItemLinkAttrs		258	265	8
+apps/website/src/features/theme/static-render.ts	decl	menuItemBody		272	276	5
+apps/website/src/features/theme/static-render.ts	decl	MenuDropdown		279	279	1
+apps/website/src/features/theme/static-render.ts	decl	renderMenuItem		287	297	11
+apps/website/src/features/theme/static-render.ts	decl	renderDropdownBranch		301	310	10
+apps/website/src/features/theme/static-render.ts	decl	renderMenuItems		312	317	6
+apps/website/src/features/theme/static-render.ts	decl	renderMenuTree		319	323	5
+apps/website/src/features/theme/static-render.ts	decl	injectMenuEmbeds		338	364	27
+apps/website/src/features/theme/static-render.ts	decl	injectAuthoredMenuHtml		372	377	6
+apps/website/src/features/theme/static-render.ts	decl	scanMenuEmbedIds	export	390	398	9
+apps/website/src/features/theme/static-render.ts	decl	LEGACY_POST_PREVIEWS_LIMIT		412	412	1
+apps/website/src/features/theme/static-render.ts	decl	StaticPostPreview	export	420	432	13
+apps/website/src/features/theme/static-render.ts	decl	postPreviewsBatchSize	export	439	441	3
+apps/website/src/features/theme/static-render.ts	decl	isPagedPostPreviewsMarker	export	446	448	3
+apps/website/src/features/theme/static-render.ts	decl	StaticPostPreviewsPage	export	452	455	4
+apps/website/src/features/theme/static-render.ts	decl	StaticListingBatch	export	459	462	4
+apps/website/src/features/theme/static-render.ts	decl	renderPostPreviewCard		465	473	9
+apps/website/src/features/theme/static-render.ts	decl	injectPostPreviewsEmbeds		493	503	11
+apps/website/src/features/theme/static-render.ts	decl	renderKeyedPostPreviews		506	515	10
+apps/website/src/features/theme/static-render.ts	decl	renderPagedPostPreviews		519	525	7
+apps/website/src/features/theme/static-render.ts	decl	StaticCollectionList	export	538	542	5
+apps/website/src/features/theme/static-render.ts	decl	collectionMarkerKey	export	563	569	7
+apps/website/src/features/theme/static-render.ts	decl	splitCollectionMarkerInner	export	581	591	11
+apps/website/src/features/theme/static-render.ts	decl	injectCollectionEmbeds		607	620	14
+apps/website/src/features/theme/static-render.ts	decl	StaticFeaturedImage	export	627	632	6
+apps/website/src/features/theme/static-render.ts	decl	renderCoverImageTag	export	641	646	6
+apps/website/src/features/theme/static-render.ts	decl	injectFeaturedImage	export	658	663	6
+apps/website/src/features/theme/static-render.ts	decl	injectPostAuthor	export	672	689	18
+apps/website/src/features/theme/static-render.ts	decl	postAuthorForContentHeader	export	704	715	12
+apps/website/src/features/theme/static-render.ts	decl	injectColorMode		728	731	4
+apps/website/src/features/theme/static-render.ts	decl	injectTokenStylesheet		739	752	14
+apps/website/src/features/theme/static-render.ts	decl	warnUnrewrittenAssetPaths		759	768	10
+apps/website/src/features/theme/static-render.ts	decl	renderStaticPage	export	804	840	37
+apps/website/src/features/theme/static-render.ts	decl	wrapPartialInHostDocument		850	862	13
+apps/website/src/features/theme/static-render.ts	decl	renderStaticPartial	export	881	889	9
+apps/website/src/features/theme/static-render.ts	decl	renderStaticFragment	export	894	906	13
+apps/website/src/features/theme/static-render.ts	decl	PostTemplateResolution	export	914	916	3
+apps/website/src/features/theme/static-render.ts	decl	LEGACY_TEMPLATE_FILENAME_ALIASES		944	948	5
+apps/website/src/features/theme/static-render.ts	decl	resolveTemplate	export	1015	1042	28
+apps/website/src/features/theme/static-render.ts	decl	isPageTemplateChoiceEligible		1117	1119	3
+apps/website/src/features/theme/static-render.ts	decl	isBarePageChoice	export	1141	1143	3
+apps/website/src/features/theme/static-render.ts	decl	STATIC_TIER_PAGE_SHELL_IDS		1152	1152	1
+apps/website/src/features/theme/static-render.ts	decl	warnedPageShellFallbackMisses		1229	1229	1
+apps/website/src/features/theme/static-render.ts	decl	warnPageShellFallbackMissOnce		1238	1242	5
+apps/website/src/features/theme/static-render.ts	decl	PageShellCandidateOutcome		1246	1246	1
+apps/website/src/features/theme/static-render.ts	decl	findPageShellCandidate		1260	1269	10
+apps/website/src/features/theme/static-render.ts	decl	pageShellMissMessage		1274	1281	8
+apps/website/src/features/theme/static-render.ts	decl	resolveStaticTierPageShellFallback	export	1283	1307	25
+apps/website/src/features/theme/static-render.ts	decl	isEligibleForTemplateBranch	export	1309	1326	18
+apps/website/src/features/theme/static-render.ts	decl	TemplateBranchChoice	export	1339	1342	4
+apps/website/src/features/theme/static-render.ts	decl	resolveTemplateBranchChoice	export	1378	1390	13
+apps/website/src/features/theme/static-render.ts	decl	renderVisitorMenuToggle		1393	1396	4

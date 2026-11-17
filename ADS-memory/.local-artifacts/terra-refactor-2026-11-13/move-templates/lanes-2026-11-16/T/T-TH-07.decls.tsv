@@ -1,0 +1,91 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/theme/duplicate-theme.ts	decl	MAX_DUPLICATE_THEME_BYTES	export	37	37	1
+apps/website/src/features/theme/duplicate-theme.ts	decl	MAX_THEME_NAME_LENGTH		40	40	1
+apps/website/src/features/theme/duplicate-theme.ts	decl	THEME_ID_PATTERN		45	45	1
+apps/website/src/features/theme/duplicate-theme.ts	decl	DUPLICATE_INITIAL_VERSION		48	48	1
+apps/website/src/features/theme/duplicate-theme.ts	decl	DuplicateThemeErrorCode	export	50	58	9
+apps/website/src/features/theme/duplicate-theme.ts	decl	DuplicateThemeError	export	62	69	8
+apps/website/src/features/theme/duplicate-theme.ts	decl	DuplicateThemeResult	export	71	82	12
+apps/website/src/features/theme/duplicate-theme.ts	decl	DuplicateThemeOptions	export	85	89	5
+apps/website/src/features/theme/duplicate-theme.ts	decl	validateStructureSource		92	96	5
+apps/website/src/features/theme/duplicate-theme.ts	decl	themeIdFromName	export	104	113	10
+apps/website/src/features/theme/duplicate-theme.ts	decl	validateThemeName		116	124	9
+apps/website/src/features/theme/duplicate-theme.ts	decl	assignThemeId		131	151	21
+apps/website/src/features/theme/duplicate-theme.ts	decl	PlannedFile		154	157	4
+apps/website/src/features/theme/duplicate-theme.ts	decl	ThemeCopyPlan		160	164	5
+apps/website/src/features/theme/duplicate-theme.ts	decl	planThemeCopy		174	178	5
+apps/website/src/features/theme/duplicate-theme.ts	decl	planThemeFolder		185	195	11
+apps/website/src/features/theme/duplicate-theme.ts	decl	planThemeEntry		203	215	13
+apps/website/src/features/theme/duplicate-theme.ts	decl	addPlannedFile		223	233	11
+apps/website/src/features/theme/duplicate-theme.ts	decl	rewriteCopiedManifest		240	259	20
+apps/website/src/features/theme/duplicate-theme.ts	decl	copyStagedTheme		263	276	14
+apps/website/src/features/theme/duplicate-theme.ts	decl	rewriteCopiedAssetPaths		289	309	21
+apps/website/src/features/theme/duplicate-theme.ts	decl	writeCopyOriginal		325	333	9
+apps/website/src/features/theme/duplicate-theme.ts	decl	duplicateTheme	export	352	390	39
+apps/website/src/features/theme/duplicate-theme.ts	decl	duplicateDiscoveredTheme	export	402	416	15
+apps/website/src/features/theme/file-identity-lock.ts	decl	ThemeFileGroup	export	39	39	1
+apps/website/src/features/theme/file-identity-lock.ts	decl	ASSET_EXTENSIONS		46	55	10
+apps/website/src/features/theme/file-identity-lock.ts	decl	isAssetExtension		57	60	4
+apps/website/src/features/theme/file-identity-lock.ts	decl	fileExtension	export	64	68	5
+apps/website/src/features/theme/file-identity-lock.ts	decl	fileGroup	export	75	83	9
+apps/website/src/features/theme/file-identity-lock.ts	decl	IDENTITY_LOCKED_GROUPS	export	94	94	1
+apps/website/src/features/theme/file-identity-lock.ts	decl	FRAMEWORK_SOURCE_EXTENSIONS		100	100	1
+apps/website/src/features/theme/file-identity-lock.ts	decl	SOURCE_DIR_WRITABLE_EXTENSIONS		102	102	1
+apps/website/src/features/theme/file-identity-lock.ts	decl	isInsideCompiledSourceDir	export	107	109	3
+apps/website/src/features/theme/file-identity-lock.ts	decl	isSourceDirWritableExtension	export	113	115	3
+apps/website/src/features/theme/file-identity-lock.ts	decl	requiredThemeFiles	export	123	146	24
+apps/website/src/features/theme/file-identity-lock.ts	decl	normalizedPathSegments		154	165	12
+apps/website/src/features/theme/file-identity-lock.ts	decl	isTrashedThemePath	export	168	170	3
+apps/website/src/features/theme/file-identity-lock.ts	decl	trashDestinationFor	export	186	193	8
+apps/website/src/features/theme/file-identity-lock.ts	decl	originalPathFromTrashedPath	export	204	209	6
+apps/website/src/features/theme/file-identity-lock.ts	decl	isFileIdentityChangeAllowed		217	224	8
+apps/website/src/features/theme/file-identity-lock.ts	decl	FileIdentityLockResult	export	231	235	5
+apps/website/src/features/theme/file-identity-lock.ts	decl	validateFileIdentityChange	export	258	283	26
+apps/website/src/features/theme/migration/migrate-theme.ts	decl	MigrationStatus	export	24	24	1
+apps/website/src/features/theme/migration/migrate-theme.ts	decl	MigrateThemeResult	export	26	41	16
+apps/website/src/features/theme/migration/migrate-theme.ts	decl	isObject		43	45	3
+apps/website/src/features/theme/migration/migrate-theme.ts	decl	TIER_ENGINE_NAME		50	53	4
+apps/website/src/features/theme/migration/migrate-theme.ts	decl	convertEngineField		62	67	6
+apps/website/src/features/theme/migration/migrate-theme.ts	decl	createStagingDir		76	80	5
+apps/website/src/features/theme/migration/migrate-theme.ts	decl	readRawManifest		82	86	5
+apps/website/src/features/theme/migration/migrate-theme.ts	decl	applyMoves		94	100	7
+apps/website/src/features/theme/migration/migrate-theme.ts	decl	copyCarryOverFiles		118	132	15
+apps/website/src/features/theme/migration/migrate-theme.ts	decl	applyAssetPathRewrites		145	155	11
+apps/website/src/features/theme/migration/migrate-theme.ts	decl	rewriteStaticAssetHtml	export	169	173	5
+apps/website/src/features/theme/migration/migrate-theme.ts	decl	rewriteRelativeStaticAssetReferences		192	200	9
+apps/website/src/features/theme/migration/migrate-theme.ts	decl	buildV2Manifest		207	213	7
+apps/website/src/features/theme/migration/migrate-theme.ts	decl	MigrationPlanResult		217	221	5
+apps/website/src/features/theme/migration/migrate-theme.ts	decl	resolveMigrationPlan		228	247	20
+apps/website/src/features/theme/migration/migrate-theme.ts	decl	StagedMigration		251	256	6
+apps/website/src/features/theme/migration/migrate-theme.ts	decl	stageAndVerifyMigration		264	276	13
+apps/website/src/features/theme/migration/migrate-theme.ts	decl	finalizeMigration		283	314	32
+apps/website/src/features/theme/migration/migrate-theme.ts	decl	migrateThemeToV2	export	343	363	21
+apps/website/src/features/theme/migration/migrate-theme.ts	decl	cleanupMigrationOutput	export	368	370	3
+apps/website/src/features/theme/save-theme-original.ts	decl	SaveThemeOriginalRefusal	export	18	20	3
+apps/website/src/features/theme/save-theme-original.ts	decl	saveThemeAsOriginal	export	38	54	17
+apps/website/src/features/theme/sync-originals.ts	decl	SyncThemeOriginalsThemeResult	export	42	45	4
+apps/website/src/features/theme/sync-originals.ts	decl	SyncThemeOriginalsResult	export	48	50	3
+apps/website/src/features/theme/sync-originals.ts	decl	STAGING_DIR_PREFIX		59	59	1
+apps/website/src/features/theme/sync-originals.ts	decl	writeGeneratedThemeOriginal	export	85	111	27
+apps/website/src/features/theme/sync-originals.ts	decl	syncThemeOriginals	export	133	150	18
+apps/website/src/features/theme/sync-originals.ts	decl	relativeFilePaths	export	161	169	9
+apps/website/src/features/theme/sync-originals.ts	decl	diffThemeFolders	export	184	197	14
+apps/website/src/features/theme/theme-preview-image.ts	decl	themePreviewImage	export	6	18	13
+apps/website/src/features/theme/theme-preview-image.ts	decl	themeContentVersion	export	33	44	12
+apps/website/src/features/theme/theme-preview-image.ts	decl	ContentWalkFs		47	47	1
+apps/website/src/features/theme/theme-preview-image.ts	decl	ContentWalk		50	54	5
+apps/website/src/features/theme/theme-preview-image.ts	decl	walkThemeContent		62	71	10
+apps/website/src/features/theme/theme-preview-image.ts	decl	visitThemeContentEntry		78	93	16
+apps/website/src/features/theme/theme-preview-image.ts	decl	themeCardPreviewUrl	export	102	114	13
+apps/website/src/features/theme/theme-trash.ts	decl	ThemeTrashLocationError	export	33	38	6
+apps/website/src/features/theme/theme-trash.ts	decl	themeTrashRoot	export	41	43	3
+apps/website/src/features/theme/theme-trash.ts	decl	assertThemeIdSegment		45	49	5
+apps/website/src/features/theme/theme-trash.ts	decl	locateThemeFolder	export	62	81	20
+apps/website/src/features/theme/theme-trash.ts	decl	tierDirs		84	87	4
+apps/website/src/features/theme/theme-trash.ts	decl	locateThemeOriginal	export	100	114	15
+apps/website/src/features/theme/theme-trash.ts	decl	createThemeTrashAdapter	export	128	155	28
+apps/website/src/features/theme/theme-trash.ts	decl	createThemeOriginalTrashAdapter		158	175	18
+apps/website/src/features/theme/theme-trash.ts	decl	ThemeTrashPair		178	182	5
+apps/website/src/features/theme/theme-trash.ts	decl	settled		185	185	1
+apps/website/src/features/theme/theme-trash.ts	decl	hideThemeWithOriginal		187	216	30
+apps/website/src/features/theme/theme-trash.ts	decl	unhideThemeWithOriginal		218	243	26

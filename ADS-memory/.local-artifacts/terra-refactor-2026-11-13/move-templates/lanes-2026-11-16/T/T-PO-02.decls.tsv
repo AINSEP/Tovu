@@ -1,0 +1,28 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/post/cover-image.ts	decl	CoverImagePost	export	9	17	9
+apps/website/src/features/post/cover-image.ts	decl	CoverMedia	export	19	25	7
+apps/website/src/features/post/cover-image.ts	decl	CoverImage	export	27	36	10
+apps/website/src/features/post/cover-image.ts	decl	Candidate		38	38	1
+apps/website/src/features/post/cover-image.ts	decl	HtmlNode		39	39	1
+apps/website/src/features/post/cover-image.ts	decl	INERT_ELEMENTS		40	40	1
+apps/website/src/features/post/cover-image.ts	decl	object		43	45	3
+apps/website/src/features/post/cover-image.ts	decl	isMediaNode		48	50	3
+apps/website/src/features/post/cover-image.ts	decl	pushReversed		53	58	6
+apps/website/src/features/post/cover-image.ts	decl	renditionRef		61	66	6
+apps/website/src/features/post/cover-image.ts	decl	candidate		69	74	6
+apps/website/src/features/post/cover-image.ts	decl	queueDocContent		76	78	3
+apps/website/src/features/post/cover-image.ts	decl	docCandidates		81	98	18
+apps/website/src/features/post/cover-image.ts	decl	markerCandidate		101	104	4
+apps/website/src/features/post/cover-image.ts	decl	htmlElementCandidates		106	119	14
+apps/website/src/features/post/cover-image.ts	decl	htmlCandidates		125	134	10
+apps/website/src/features/post/cover-image.ts	decl	candidates		137	140	4
+apps/website/src/features/post/cover-image.ts	decl	externalHttps		145	153	9
+apps/website/src/features/post/cover-image.ts	decl	isCoverMedia		156	158	3
+apps/website/src/features/post/cover-image.ts	decl	candidateCover		161	173	13
+apps/website/src/features/post/cover-image.ts	decl	collectCoverMediaRefs	export	179	183	5
+apps/website/src/features/post/cover-image.ts	decl	resolveCoverImage	export	192	201	10
+apps/website/src/features/post/cover-image.ts	decl	keepsStoredBody		206	210	5
+apps/website/src/features/post/cover-image.ts	decl	BodyCopyFrame		212	212	1
+apps/website/src/features/post/cover-image.ts	decl	copyBodyFrame		215	239	25
+apps/website/src/features/post/cover-image.ts	decl	withoutOccurrence		244	254	11
+apps/website/src/features/post/cover-image.ts	decl	projectPostBody	export	260	268	9

@@ -1,0 +1,18 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/widgets/media-html.ts	decl	Element		7	7	1
+apps/website/src/features/widgets/media-html.ts	decl	Child		8	8	1
+apps/website/src/features/widgets/media-html.ts	decl	SAFE_ELEMENTS		9	9	1
+apps/website/src/features/widgets/media-html.ts	decl	CONTENT_ATTRIBUTES		13	13	1
+apps/website/src/features/widgets/media-html.ts	decl	SVG_NAMESPACE		16	16	1
+apps/website/src/features/widgets/media-html.ts	decl	SVG_ELEMENTS		17	17	1
+apps/website/src/features/widgets/media-html.ts	decl	ELEMENTS_BY_NAMESPACE		18	21	4
+apps/website/src/features/widgets/media-html.ts	decl	SVG_ATTRIBUTES		23	23	1
+apps/website/src/features/widgets/media-html.ts	decl	safeSrcset		24	32	9
+apps/website/src/features/widgets/media-html.ts	decl	safeAttribute		34	41	8
+apps/website/src/features/widgets/media-html.ts	decl	sanitizePageHtml	export	47	80	34
+apps/website/src/features/widgets/media-html.ts	decl	RawMediaRequired		82	86	5
+apps/website/src/features/widgets/media-html.ts	decl	replaceMediaTokens		88	96	9
+apps/website/src/features/widgets/media-html.ts	decl	bindMediaSource		98	115	18
+apps/website/src/features/widgets/media-html.ts	decl	pruneMediaChildren		117	123	7
+apps/website/src/features/widgets/media-html.ts	decl	resolveMediaTree		125	146	22
+apps/website/src/features/widgets/media-html.ts	decl	renderMediaRawHtml	export	150	179	30

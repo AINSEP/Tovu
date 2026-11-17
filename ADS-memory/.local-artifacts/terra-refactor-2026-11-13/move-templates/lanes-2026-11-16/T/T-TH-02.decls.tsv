@@ -1,0 +1,120 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/theme/migration/theme-migration-plan.ts	decl	MigrationFileMove	export	23	26	4
+apps/website/src/features/theme/migration/theme-migration-plan.ts	decl	AssetPathRewriteRule	export	32	35	4
+apps/website/src/features/theme/migration/theme-migration-plan.ts	decl	ThemeMigrationPlan	export	37	44	8
+apps/website/src/features/theme/migration/theme-migration-plan.ts	decl	CARRY_OVER_UNCHANGED		52	52	1
+apps/website/src/features/theme/migration/theme-migration-plan.ts	decl	TOKENS_MODE_FILE_PATTERN	export	54	54	1
+apps/website/src/features/theme/migration/theme-migration-plan.ts	decl	NON_STATIC_TIER_EXTENSIONS		59	63	5
+apps/website/src/features/theme/migration/theme-migration-plan.ts	decl	planTemplatesFolderMoves		69	83	15
+apps/website/src/features/theme/migration/theme-migration-plan.ts	decl	planFlatAssetsFolderMoves		88	94	7
+apps/website/src/features/theme/migration/theme-migration-plan.ts	decl	NON_STATIC_TIER_SKIP_ROOTS		98	98	1
+apps/website/src/features/theme/migration/theme-migration-plan.ts	decl	planNonStaticRootScan		100	107	8
+apps/website/src/features/theme/migration/theme-migration-plan.ts	decl	planNonStaticTierMigration		120	131	12
+apps/website/src/features/theme/migration/theme-migration-plan.ts	decl	walkFilesRecursive		139	150	12
+apps/website/src/features/theme/migration/theme-migration-plan.ts	decl	PARTIAL_SLOT_STEMS		158	158	1
+apps/website/src/features/theme/migration/theme-migration-plan.ts	decl	isConventionalPartialFile		160	163	4
+apps/website/src/features/theme/migration/theme-migration-plan.ts	decl	planCssFolderMoves		167	178	12
+apps/website/src/features/theme/migration/theme-migration-plan.ts	decl	planScriptsFolderMoves		183	187	5
+apps/website/src/features/theme/migration/theme-migration-plan.ts	decl	planImagesFolderMoves		192	198	7
+apps/website/src/features/theme/migration/theme-migration-plan.ts	decl	planPagesFolderMoves		202	213	12
+apps/website/src/features/theme/migration/theme-migration-plan.ts	decl	STATIC_TIER_SKIP_ROOTS		216	216	1
+apps/website/src/features/theme/migration/theme-migration-plan.ts	decl	planStaticRootScan		220	234	15
+apps/website/src/features/theme/migration/theme-migration-plan.ts	decl	planStaticTierMigration		254	265	12
+apps/website/src/features/theme/migration/theme-migration-plan.ts	decl	planV2Migration	export	271	280	10
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	V2_TOP_LEVEL_KEYS		85	118	34
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	V2_FIELDS_READ_BY_LOADER		129	149	21
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	V2_RESERVED_METADATA_FIELDS		161	169	9
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	V2_TIERS		171	171	1
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	V2_BUILD_SOURCES		172	172	1
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	V2_BUILD_FRAMEWORKS		177	186	10
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	V2_ENGINE_NAMES		191	191	1
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	SEMVER_PATTERN		193	193	1
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	isObject		195	197	3
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	checkUnknownTopLevelFields		200	211	12
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	checkApiVersion		213	216	4
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	checkId		218	221	4
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	checkName		223	226	4
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	checkVersionField		228	231	4
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	checkTier		233	239	7
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	isFontStylesheet		243	247	5
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	checkFontStylesheets		251	255	5
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	checkEngine		271	292	22
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	checkTokens		306	329	24
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	checkLicense		331	334	4
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	checkAuthors		336	339	4
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	checkAttributions		341	344	4
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	checkPartials		358	369	12
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	checkRegions		371	374	4
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	checkRenderer		384	391	8
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	checkUnimplementedFieldSweep		406	417	12
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	validateManifestV2	export	426	492	67
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	checkBuildSource		494	504	11
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	checkBuildFramework		506	516	11
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	checkCompiledBuildRequirements		518	537	20
+apps/website/src/features/theme/validation/manifest-v2.ts	decl	validateBuildV2		539	548	10
+apps/website/src/features/theme/validation/markup.ts	decl	KNOWN_EMBED_TYPES		24	40	17
+apps/website/src/features/theme/validation/markup.ts	decl	UNQUOTED_EMBED_CONFIG_PATTERN		49	49	1
+apps/website/src/features/theme/validation/markup.ts	decl	DATA_AGENT_ELEMENT_PATTERN		51	51	1
+apps/website/src/features/theme/validation/markup.ts	decl	Issue		53	53	1
+apps/website/src/features/theme/validation/markup.ts	decl	FileInput		54	54	1
+apps/website/src/features/theme/validation/markup.ts	decl	Marker		55	55	1
+apps/website/src/features/theme/validation/markup.ts	decl	Rejection		56	56	1
+apps/website/src/features/theme/validation/markup.ts	decl	dataAgentElementIssues		58	65	8
+apps/website/src/features/theme/validation/markup.ts	decl	unquotedEmbedConfigIssues		67	74	8
+apps/website/src/features/theme/validation/markup.ts	decl	rejectionIssue		76	80	5
+apps/website/src/features/theme/validation/markup.ts	decl	isGalleryMarker		83	88	6
+apps/website/src/features/theme/validation/markup.ts	decl	galleryIssues		90	98	9
+apps/website/src/features/theme/validation/markup.ts	decl	unknownTypeIssues		100	107	8
+apps/website/src/features/theme/validation/markup.ts	decl	checkMarkupFile	export	116	129	14
+apps/website/src/features/theme/validation/validate-theme-package.ts	decl	MARKUP_EXTENSIONS		59	59	1
+apps/website/src/features/theme/validation/validate-theme-package.ts	decl	ThemeValidationFinding	export	61	63	3
+apps/website/src/features/theme/validation/validate-theme-package.ts	decl	ValidateThemePackageResult	export	65	70	6
+apps/website/src/features/theme/validation/validate-theme-package.ts	decl	isObject		72	74	3
+apps/website/src/features/theme/validation/validate-theme-package.ts	decl	loadRawManifest		81	103	23
+apps/website/src/features/theme/validation/validate-theme-package.ts	decl	checkV2ManifestIdMatch		105	111	7
+apps/website/src/features/theme/validation/validate-theme-package.ts	decl	checkV2BuildContainment		117	126	10
+apps/website/src/features/theme/validation/validate-theme-package.ts	decl	checkV2References		128	137	10
+apps/website/src/features/theme/validation/validate-theme-package.ts	decl	checkV2PublishReadiness		145	163	19
+apps/website/src/features/theme/validation/validate-theme-package.ts	decl	runV2StrictChecks		171	183	13
+apps/website/src/features/theme/validation/validate-theme-package.ts	decl	runV1FallbackCheck		187	190	4
+apps/website/src/features/theme/validation/validate-theme-package.ts	decl	checkMarkupFiles		196	211	16
+apps/website/src/features/theme/validation/validate-theme-package.ts	decl	resolveFindings		213	225	13
+apps/website/src/features/theme/validation/validate-theme-package.ts	decl	validateThemePackage	export	239	260	22
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	Node		4	4	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	Element		5	5	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	ElementCheck		8	13	6
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	NAME		15	15	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	FORM_NAMES		16	16	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	PARAM_NAMES		17	17	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	ACTION_NAMES		18	18	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	NON_ELEMENTS		19	19	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	PARAM_CONTROLS		20	20	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	PRIVATE_PARAM_TYPES		21	21	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	SECRET_INPUT_TYPES		22	22	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	SUBMITTERS		23	23	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	WEBMCP_LIKE		27	27	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	isLocal		28	31	4
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	isTemplated		32	32	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	isExposableTarget		34	34	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	attr		35	38	4
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	inputType		39	39	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	hasAttrIn		40	40	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	owningForm		42	51	10
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	advertisedOwningForm		54	57	4
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	collectElements		61	74	14
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	isActionHost		76	76	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	isPagePublicationHost		77	84	8
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	checkPlacement		86	91	6
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	checkToolIdentity		93	103	11
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	checkToolTarget		105	113	9
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	checkAnnotatedTool		116	122	7
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	checkAutosubmit		124	128	5
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	isPublicNamedControl		130	131	2
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	ownsParameters		133	136	4
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	checkParameters		138	144	7
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	checkSecretInput		146	150	5
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	checkSubmitterOverrides		152	160	9
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	isSupportedAnnotation		162	165	4
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	checkUnknownAttributes		167	171	5
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	checkElement		174	192	19
+apps/website/src/features/theme/validation/webmcp-markup.ts	decl	checkWebMcpMarkup	export	197	210	14

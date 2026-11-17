@@ -1,0 +1,7 @@
+# K-04 SP-seo-tools-1 (+ K-04b cover/head, blocked): SEO agent tools -> `@jini-ai/cms/seo`
+kind: SPLIT (K-TOOLS-PATTERN). est: K-04 140k Sonnet; K-04b 60k after T-PO-02.
+tovu_files: `K-04.files.tsv` (2 files, 539 lines). decls: `K-04.decls.tsv` (21 declarations, 7 handlers, longest 26). over the limit: `buildSeoRegistrations` 106.
+ports: `getSeoSettings`/`setSeoSettings` (`./settings.js`, 411 lines, STAY) -> `deps.seoSettings`; `PostRepoPort` (`../post`), `SettingsRepoPort`, four media ports (`../media`), `PrincipalRepoPort`: type-only -> local structural ports, methods actually called only; `SeoHostBindings` (`./index.js`) -> move the TYPE to Jini only if every member is already a Jini type, else keep it Tovu and pass the resolved values. `contributeSeoTools` is `ToolContributor<SeoToolDeps, unknown>`: no surfaces.
+K-04b (= audit2 B21, never sheeted): `seo/cover-image.ts` 96 + `seo/page-head-contributor.ts` 43 (`K-04b.files.tsv`). BLOCKED until T-PO-02 lands `collectCoverMediaRefs`/`resolveCoverImage` in Jini (precondition rg: `rg -n "resolveCoverImage" packages/cms/src` hits). Then T-MOVE into `packages/cms/src/seo/`, extending the existing `getEntryMeta`/`buildHeadElements` owner (`packages/cms/src/seo/page-head.ts`), with a `coverSource` port.
+characterization (S0): pattern plus (f) the settings tool refuses an unknown key with the same message.
+changeset: cms minor. census: `K-04.census.txt`, `K-04b.census.txt`.

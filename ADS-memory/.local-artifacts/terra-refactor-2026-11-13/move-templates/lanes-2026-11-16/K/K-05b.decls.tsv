@@ -1,0 +1,28 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/taxonomy/collection-term-policy.ts	decl	NO_TERMS_TYPES		21	21	1
+apps/website/src/features/taxonomy/collection-term-policy.ts	decl	CollectionOwnerLookupPort	export	24	26	3
+apps/website/src/features/taxonomy/collection-term-policy.ts	decl	createLiveCollectionTermPolicy	export	33	41	9
+apps/website/src/features/taxonomy/collection-term-policy.ts	decl	createContentTargetPorts	export	48	58	11
+apps/website/src/features/taxonomy/collection-term-policy.ts	decl	contentEditPermission	export	62	64	3
+apps/website/src/features/taxonomy/collection-term-policy.ts	decl	authorizeContentEdit	export	71	80	10
+apps/website/src/features/taxonomy/gated-hooks.ts	decl	MergeableEntryTermRepoPort	export	19	22	4
+apps/website/src/features/taxonomy/gated-hooks.ts	decl	BuildMergeTermHooksInput	export	24	35	12
+apps/website/src/features/taxonomy/gated-hooks.ts	decl	buildMergeTermHooks	export	59	103	45
+apps/website/src/features/taxonomy/taxonomy-trash-follow-ups.ts	decl	PurgeTrashLookupPort	export	34	40	7
+apps/website/src/features/taxonomy/taxonomy-trash-follow-ups.ts	decl	TaxonomyRevisionWritePort	export	43	51	9
+apps/website/src/features/taxonomy/taxonomy-trash-follow-ups.ts	decl	TaxonomyEventOutboxPort	export	58	60	3
+apps/website/src/features/taxonomy/taxonomy-trash-follow-ups.ts	decl	TermPurgeAuditReadPort	export	64	66	3
+apps/website/src/features/taxonomy/taxonomy-trash-follow-ups.ts	decl	TaxonomyMemberIdsReadPort	export	71	73	3
+apps/website/src/features/taxonomy/taxonomy-trash-follow-ups.ts	decl	TermPurgePriorState		75	79	5
+apps/website/src/features/taxonomy/taxonomy-trash-follow-ups.ts	decl	TaxonomyPurgePriorState		81	84	4
+apps/website/src/features/taxonomy/taxonomy-trash-follow-ups.ts	decl	PurgeFollowUpHooks	export	88	91	4
+apps/website/src/features/taxonomy/taxonomy-trash-follow-ups.ts	decl	createTermPurgeFollowUp	export	99	138	40
+apps/website/src/features/taxonomy/taxonomy-trash-follow-ups.ts	decl	createTaxonomyPurgeFollowUp	export	148	182	35
+apps/website/src/features/taxonomy/trash-term.ts	decl	RemoveTermFn	export	22	33	12
+apps/website/src/features/taxonomy/trash-term.ts	decl	RemoveTaxonomyFn	export	38	45	8
+apps/website/src/features/taxonomy/trash-term.ts	decl	TermTrashReadPort	export	50	52	3
+apps/website/src/features/taxonomy/trash-term.ts	decl	TaxonomyTrashReadPort	export	55	57	3
+apps/website/src/features/taxonomy/trash-term.ts	decl	TrashTermOutcome	export	59	62	4
+apps/website/src/features/taxonomy/trash-term.ts	decl	TrashTaxonomyOutcome	export	64	64	1
+apps/website/src/features/taxonomy/trash-term.ts	decl	trashTerm	export	77	92	16
+apps/website/src/features/taxonomy/trash-term.ts	decl	trashTaxonomy	export	101	116	16

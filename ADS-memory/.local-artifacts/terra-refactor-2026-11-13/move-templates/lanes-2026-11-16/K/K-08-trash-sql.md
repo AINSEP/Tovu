@@ -1,0 +1,9 @@
+# K-08 MV-trash-sql-1: trash Kysely repo + table adapter -> `@jini-ai/cms/trash/sql` (new subpath)
+kind: MOVE with one function split. est: 220k (Opus drafts the `createTableTrashAdapter` split, Sonnet executes). File-disjoint from K-07.
+tovu_files: `K-08.files.tsv` (6 files, 950 lines): `repo.ts` 232, `table-adapter.ts` 362, `entry-sql.ts` 83, `entry-sql.types.ts` 9, `not-trashed.ts` 117, `adapters/marker-sql.ts` 147. 39 import sites (`K-08.repoint.tsv`).
+over the limit: `createTableTrashAdapter` 287 lines (one factory closing over table config). Design the split BEFORE moving (seam commit in Tovu, tests green): one function per returned method, shared state passed as an explicit `ctx` object built once; check deferred reads: any value the closure reads late (after construction) must stay a getter on `ctx`, not a copied field (LESSON 3).
+jini_target: `packages/cms/src/trash/sql/*` + new entry `./trash/sql` (node), same mechanics as K-06. Read the existing `packages/cms/src/trash/*` (8 files) first: if a memory adapter with the same contract exists, the SQL adapter implements THAT interface.
+ports: `platform/db` kernel/handle -> the existing cms `*/sql` constructor shape. `size-debt.json` has an entry for `trash/table-adapter.ts`: the debt entry is deleted in the Tovu commit only because the function is split, never carried to Jini.
+characterization FIRST: 15 test files import `table-adapter.ts` and 22 import `repo.sqlite.ts`; add one that pins, on a real SQLite file: move -> list -> restore ordering, restore of a row whose slug was taken meanwhile (error class), and that `not-trashed` filters compose into the same SQL result set as before (compare row ids, not SQL text).
+STOP: an adapter under `trash/adapters/` other than `marker-sql.ts` needs to move for this to compile (they bind Tovu tables and are STAY here).
+changeset: cms minor. census: `K-08.census.txt`.

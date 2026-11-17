@@ -1,0 +1,39 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/comments/agent-tools.ts	decl	AgentToolSideEffect	export	50	50	1
+apps/website/src/features/comments/agent-tools.ts	decl	AgentToolActorClassRule	export	52	52	1
+apps/website/src/features/comments/agent-tools.ts	decl	AgentToolDefinition	export	58	58	1
+apps/website/src/features/comments/agent-tools.ts	decl	COMMENT_ID_SCHEMA		61	65	5
+apps/website/src/features/comments/agent-tools.ts	decl	EXPECTED_VERSION_SCHEMA		68	72	5
+apps/website/src/features/comments/agent-tools.ts	decl	NOTE_SCHEMA		75	78	4
+apps/website/src/features/comments/agent-tools.ts	decl	MODERATION_ACTION_INPUT_SCHEMA		81	90	10
+apps/website/src/features/comments/agent-tools.ts	decl	NO_INPUT_SCHEMA		93	98	6
+apps/website/src/features/comments/agent-tools.ts	decl	MUTATES_DURABLE_STATE		100	100	1
+apps/website/src/features/comments/agent-tools.ts	decl	commentsAgentToolCatalog	export	103	207	105
+apps/website/src/features/comments/tool-registrations.ts	decl	CATALOG_BY_ID		41	41	1
+apps/website/src/features/comments/tool-registrations.ts	decl	providerNote		44	48	5
+apps/website/src/features/comments/tool-registrations.ts	decl	CommentsToolDeps	export	56	68	13
+apps/website/src/features/comments/tool-registrations.ts	decl	MUTATES_DURABLE_STATE		70	70	1
+apps/website/src/features/comments/tool-registrations.ts	decl	commentsDerivedRisk	export	77	93	17
+apps/website/src/features/comments/tool-registrations.ts	decl	toCommentModerationView		96	120	25
+apps/website/src/features/comments/tool-registrations.ts	decl	toModerationQueueToolView		123	125	3
+apps/website/src/features/comments/tool-registrations.ts	decl	COMMENTS_MODEL_FACING_ERRORS		134	145	12
+apps/website/src/features/comments/tool-registrations.ts	decl	moderationFailureError		148	153	6
+apps/website/src/features/comments/tool-registrations.ts	decl	buildCommentsModerationHandler		169	195	27
+apps/website/src/features/comments/tool-registrations.ts	decl	COMMENTS_TRASH_TOOL_ID		197	197	1
+apps/website/src/features/comments/tool-registrations.ts	decl	ASSISTANT_ACTOR_PLUGIN_ID		202	202	1
+apps/website/src/features/comments/tool-registrations.ts	decl	requireCommentsSettingsPatch		205	217	13
+apps/website/src/features/comments/tool-registrations.ts	decl	buildCommentsRegistrations	export	219	375	157
+apps/website/src/features/comments/tool-registrations.ts	handler	comments_set_provider		241	241	1
+apps/website/src/features/comments/tool-registrations.ts	handler	prepare		242	253	12
+apps/website/src/features/comments/tool-registrations.ts	handler	describe		254	258	5
+apps/website/src/features/comments/tool-registrations.ts	handler	run		259	267	9
+apps/website/src/features/comments/tool-registrations.ts	handler	comments_get_comment		268	275	8
+apps/website/src/features/comments/tool-registrations.ts	handler	comments_list_moderation_queue		276	289	14
+apps/website/src/features/comments/tool-registrations.ts	handler	comments_get_settings		290	300	11
+apps/website/src/features/comments/tool-registrations.ts	handler	comments_update_settings		301	327	27
+apps/website/src/features/comments/tool-registrations.ts	handler	comments_approve_comment		328	328	1
+apps/website/src/features/comments/tool-registrations.ts	handler	comments_mark_comment_spam		329	331	3
+apps/website/src/features/comments/tool-registrations.ts	handler	comments_trash_comment		332	362	31
+apps/website/src/features/comments/tool-registrations.ts	handler	comments_restore_comment		363	371	9
+apps/website/src/features/comments/tool-registrations.ts	handler	handlers		372	375	4
+apps/website/src/features/comments/tool-registrations.ts	decl	contributeCommentsTools	export	385	387	3

@@ -1,0 +1,8 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/seo/cover-image.ts	decl	resolveSeoCoverImage	export	10	23	14
+apps/website/src/features/seo/cover-image.ts	decl	readCoverSeoOverrides		28	37	10
+apps/website/src/features/seo/cover-image.ts	decl	withCoverSeoDefaults	export	45	59	15
+apps/website/src/features/seo/cover-image.ts	decl	withCoverReadDeps	export	65	80	16
+apps/website/src/features/seo/cover-image.ts	decl	withContentImageSource	export	86	96	11
+apps/website/src/features/seo/page-head-contributor.ts	decl	DEFAULT_CONTRIBUTOR_PRIORITY		11	11	1
+apps/website/src/features/seo/page-head-contributor.ts	decl	createSeoPageHeadHook	export	19	43	25

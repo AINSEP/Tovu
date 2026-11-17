@@ -1,0 +1,35 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/newsletter/repo.rows.ts	decl	ListTableRow	export	25	34	10
+apps/website/src/features/newsletter/repo.rows.ts	decl	SubscriptionTableRow	export	36	48	13
+apps/website/src/features/newsletter/repo.rows.ts	decl	AudienceSnapshotTableRow	export	50	57	8
+apps/website/src/features/newsletter/repo.rows.ts	decl	SendTableRow	export	59	74	16
+apps/website/src/features/newsletter/repo.rows.ts	decl	ConfirmationTokenTableRow	export	76	85	10
+apps/website/src/features/newsletter/repo.rows.ts	decl	NewsletterTables	export	89	95	7
+apps/website/src/features/newsletter/repo.rows.ts	decl	CampaignTableRow	export	97	97	1
+apps/website/src/features/newsletter/repo.rows.ts	decl	CampaignRevisionTableRow	export	98	98	1
+apps/website/src/features/newsletter/repo.rows.ts	decl	editorialBody		102	112	11
+apps/website/src/features/newsletter/repo.rows.ts	decl	toCampaignRecord	export	115	137	23
+apps/website/src/features/newsletter/repo.rows.ts	decl	toCampaignRow	export	140	160	21
+apps/website/src/features/newsletter/repo.rows.ts	decl	updatableCampaignColumns	export	166	169	4
+apps/website/src/features/newsletter/repo.rows.ts	decl	toCampaignRevision	export	172	181	10
+apps/website/src/features/newsletter/repo.rows.ts	decl	toListRecord	export	184	195	12
+apps/website/src/features/newsletter/repo.rows.ts	decl	toListRow	export	198	209	12
+apps/website/src/features/newsletter/repo.rows.ts	decl	updatableListColumns	export	212	215	4
+apps/website/src/features/newsletter/repo.rows.ts	decl	toSubscriptionRecord	export	218	232	15
+apps/website/src/features/newsletter/repo.rows.ts	decl	toSubscriptionRow	export	235	249	15
+apps/website/src/features/newsletter/repo.rows.ts	decl	updatableSubscriptionColumns	export	252	260	9
+apps/website/src/features/newsletter/repo.rows.ts	decl	toAudienceSnapshotRecord	export	263	272	10
+apps/website/src/features/newsletter/repo.rows.ts	decl	toAudienceSnapshotRow	export	275	284	10
+apps/website/src/features/newsletter/repo.rows.ts	decl	toSendRecord	export	287	304	18
+apps/website/src/features/newsletter/repo.rows.ts	decl	toSendRow	export	307	324	18
+apps/website/src/features/newsletter/repo.rows.ts	decl	updatableSendColumns	export	327	337	11
+apps/website/src/features/newsletter/repo.rows.ts	decl	toConfirmationTokenRecord	export	340	351	12
+apps/website/src/features/newsletter/repo.rows.ts	decl	toConfirmationTokenRow	export	354	365	12
+apps/website/src/features/newsletter/repo.ts	decl	DEFAULT_LIST_LIMIT		54	54	1
+apps/website/src/features/newsletter/repo.ts	decl	campaignsWithEditorialState		60	71	12
+apps/website/src/features/newsletter/repo.ts	decl	SqlNewsletterCampaignRepo	export	73	201	129
+apps/website/src/features/newsletter/repo.ts	decl	SqlNewsletterListRepo	export	203	261	59
+apps/website/src/features/newsletter/repo.ts	decl	SqlNewsletterSubscriptionRepo	export	263	365	103
+apps/website/src/features/newsletter/repo.ts	decl	SqlNewsletterAudienceSnapshotRepo	export	367	407	41
+apps/website/src/features/newsletter/repo.ts	decl	SqlNewsletterSendRepo	export	409	578	170
+apps/website/src/features/newsletter/repo.ts	decl	SqlNewsletterConfirmationTokenRepo	export	580	644	65

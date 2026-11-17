@@ -1,0 +1,73 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/post/repo.memory.ts	decl	InMemoryPostRepo	export	22	260	239
+apps/website/src/features/post/repo.rows.ts	decl	PostRow	export	32	32	1
+apps/website/src/features/post/repo.rows.ts	decl	PostRevisionRow	export	33	33	1
+apps/website/src/features/post/repo.rows.ts	decl	parseExt		36	39	4
+apps/website/src/features/post/repo.rows.ts	decl	readPostAttribution		41	48	8
+apps/website/src/features/post/repo.rows.ts	decl	readPostMetadata		51	60	10
+apps/website/src/features/post/repo.rows.ts	decl	toRecord	export	77	96	20
+apps/website/src/features/post/repo.rows.ts	decl	writePostAccessAndAttribution		98	116	19
+apps/website/src/features/post/repo.rows.ts	decl	writePostMetadata		119	129	11
+apps/website/src/features/post/repo.rows.ts	decl	writePostPublication		131	138	8
+apps/website/src/features/post/repo.rows.ts	decl	toRow	export	150	176	27
+apps/website/src/features/post/repo.rows.ts	decl	updatableColumns	export	196	219	24
+apps/website/src/features/post/repo.rows.ts	decl	toRevisionRecord	export	222	237	16
+apps/website/src/features/post/repo.rows.ts	decl	toRevisionRow	export	241	257	17
+apps/website/src/features/post/repo.ts	decl	SqlPostRepo	export	41	357	317
+apps/website/src/features/post/repo.ts	decl	postRepoFor	export	360	362	3
+apps/website/src/features/post/reverters.ts	decl	PostReverterDeps	export	36	48	13
+apps/website/src/features/post/reverters.ts	decl	resolveCurrentActor		63	72	10
+apps/website/src/features/post/reverters.ts	decl	saveRevertedPost		83	108	26
+apps/website/src/features/post/reverters.ts	decl	restorableSlug		118	125	8
+apps/website/src/features/post/reverters.ts	decl	restoredPresentationFields		128	149	22
+apps/website/src/features/post/reverters.ts	decl	createPostUpdateReverter		168	232	65
+apps/website/src/features/post/reverters.ts	decl	createPostDeleteReverter		260	315	56
+apps/website/src/features/post/reverters.ts	decl	createPostReverters	export	318	326	9
+apps/website/src/features/post/reverters.ts	decl	createPostRevertRegistry	export	332	338	7
+apps/website/src/features/post/search-index.contract.ts	decl	PostSearchProjection	export	7	10	4
+apps/website/src/features/post/search-index.contract.ts	decl	PostSearchDialect	export	13	15	3
+apps/website/src/features/post/search-index.contract.ts	decl	SearchProjectionTables	export	20	22	3
+apps/website/src/features/post/search-index.contract.ts	decl	PostSearchRow	export	25	35	11
+apps/website/src/features/post/search-index.contract.ts	decl	toPostSearchHit	export	37	48	12
+apps/website/src/features/post/search-index.postgres.ts	decl	SEARCH_CONFIG		33	33	1
+apps/website/src/features/post/search-index.postgres.ts	decl	RANK_WEIGHTS		37	37	1
+apps/website/src/features/post/search-index.postgres.ts	decl	RANK_NORMALIZATION		41	41	1
+apps/website/src/features/post/search-index.postgres.ts	decl	HEADLINE_OPTIONS		44	44	1
+apps/website/src/features/post/search-index.postgres.ts	decl	foldForIndex	export	50	56	7
+apps/website/src/features/post/search-index.postgres.ts	decl	searchVector		58	62	5
+apps/website/src/features/post/search-index.postgres.ts	decl	pgPostSearch	export	64	110	47
+apps/website/src/features/post/search-index.sqlite.ts	decl	BM25_WEIGHTS		57	57	1
+apps/website/src/features/post/search-index.sqlite.ts	decl	SNIPPET_ELLIPSIS		62	62	1
+apps/website/src/features/post/search-index.sqlite.ts	decl	SNIPPET_TOKEN_BUDGET		63	63	1
+apps/website/src/features/post/search-index.sqlite.ts	decl	SNIPPET_COLUMN_BODY_TEXT		73	73	1
+apps/website/src/features/post/search-index.sqlite.ts	decl	sqlitePostSearch	export	81	137	57
+apps/website/src/features/post/search-index.ts	decl	postSearchFor	export	23	25	3
+apps/website/src/features/post/search-index.ts	decl	PostSearchIndex	export	32	49	18
+apps/website/src/features/post/search-index.ts	decl	SqlitePostSearchIndex	export	55	55	1
+apps/website/src/features/post/search-index.ts	decl	postSearchIndexFor	export	63	65	3
+apps/website/src/features/post/search-index.ts	decl	BACKFILL_BATCH_SIZE	export	68	68	1
+apps/website/src/features/post/search-index.ts	decl	backfillPostSearchIndex	export	95	119	25
+apps/website/src/features/post/search-index.ts	decl	POST_SEARCH_PROJECTION_VERSION	export	130	130	1
+apps/website/src/features/post/search-index.ts	decl	POST_SEARCH_PROJECTION_VERSION_SETTING_ID	export	138	138	1
+apps/website/src/features/post/search-index.ts	decl	reindexStalePostSearchIndex	export	162	190	29
+apps/website/src/features/post/search-index.ts	decl	preparePostSearchIndex	export	203	210	8
+apps/website/src/features/post/search-index.ts	decl	readProjectionVersion		213	233	21
+apps/website/src/features/post/search-index.ts	decl	writeProjectionVersion		235	247	13
+apps/website/src/features/post/search-index.ts	decl	projectPostRow		250	257	8
+apps/website/src/features/post/search-index.ts	decl	parseBodyJson		267	274	8
+apps/website/src/features/post/search.ts	decl	PostSearchHit	export	44	56	13
+apps/website/src/features/post/search.ts	decl	PostSearchQuery	export	63	73	11
+apps/website/src/features/post/search.ts	decl	PostSearchPort	export	85	87	3
+apps/website/src/features/post/search.ts	decl	DEFAULT_POST_SEARCH_LIMIT	export	91	91	1
+apps/website/src/features/post/search.ts	decl	MAX_POST_SEARCH_LIMIT	export	95	95	1
+apps/website/src/features/post/search.ts	decl	MAX_INDEXED_BODY_CHARS	export	100	100	1
+apps/website/src/features/post/search.ts	decl	MAX_BODY_DEPTH		106	106	1
+apps/website/src/features/post/search.ts	decl	toSearchTerms	export	121	123	3
+apps/website/src/features/post/search.ts	decl	isNode		126	128	3
+apps/website/src/features/post/search.ts	decl	extractPostPlainText	export	152	178	27
+apps/website/src/features/post/search.ts	decl	PostSearchDocument	export	182	187	6
+apps/website/src/features/post/search.ts	decl	toPostSearchDocument	export	199	211	13
+apps/website/src/features/post/search.ts	decl	SearchAdminPostsRequired	export	213	222	10
+apps/website/src/features/post/search.ts	decl	SearchAdminPostsOptional	export	224	224	1
+apps/website/src/features/post/search.ts	decl	searchAdminPosts	export	246	273	28
+apps/website/src/features/post/search.ts	decl	clampLimit		277	279	3

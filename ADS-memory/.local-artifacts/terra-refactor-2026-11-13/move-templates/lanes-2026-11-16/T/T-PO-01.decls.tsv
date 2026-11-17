@@ -1,0 +1,37 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/post/duplicate-embeds.ts	decl	isPlainObject		41	43	3
+apps/website/src/features/post/duplicate-embeds.ts	decl	refreshEmbedPlacement		46	53	8
+apps/website/src/features/post/duplicate-embeds.ts	decl	EmbedCopyFrame		55	55	1
+apps/website/src/features/post/duplicate-embeds.ts	decl	queueEmbedObject		57	73	17
+apps/website/src/features/post/duplicate-embeds.ts	decl	walk		75	99	25
+apps/website/src/features/post/duplicate-embeds.ts	decl	copyBodyJsonWithFreshEmbedPlacements	export	112	114	3
+apps/website/src/features/post/expected-version.ts	decl	EXPECTED_VERSION_REJECTION	export	19	19	1
+apps/website/src/features/post/expected-version.ts	decl	VERSION_CONFLICT_CODE	export	28	28	1
+apps/website/src/features/post/expected-version.ts	decl	parseExpectedVersion	export	49	55	7
+apps/website/src/features/post/expected-version.ts	decl	versionConflictEnvelope	export	66	76	11
+apps/website/src/features/post/featured-image.ts	decl	FeaturedImageDeps	export	21	26	6
+apps/website/src/features/post/featured-image.ts	decl	FeaturedImageResolution	export	28	30	3
+apps/website/src/features/post/featured-image.ts	decl	resolveFeaturedImageRef	export	38	51	14
+apps/website/src/features/post/featured-image.ts	decl	FEATURED_MEDIA_ID_REFUSALS		53	58	6
+apps/website/src/features/post/featured-image.ts	decl	resolveFeaturedMediaIdForWrite	export	69	79	11
+apps/website/src/features/post/go-live.ts	decl	POST_GO_LIVE_SWEEP_INTERVAL_MS	export	35	35	1
+apps/website/src/features/post/go-live.ts	decl	POST_GO_LIVE_LOOKBACK_MS	export	40	40	1
+apps/website/src/features/post/go-live.ts	decl	GoLiveCandidatesPort	export	43	50	8
+apps/website/src/features/post/go-live.ts	decl	GoLiveRow	export	54	62	9
+apps/website/src/features/post/go-live.ts	decl	wentLiveSinceSave	export	66	71	6
+apps/website/src/features/post/go-live.ts	decl	goLiveEvent	export	75	85	11
+apps/website/src/features/post/go-live.ts	decl	announcePendingGoLive	export	96	99	4
+apps/website/src/features/post/go-live.ts	decl	announceDueGoLives	export	112	120	9
+apps/website/src/features/post/go-live.ts	decl	IntervalHandle		122	122	1
+apps/website/src/features/post/go-live.ts	decl	warn		124	126	3
+apps/website/src/features/post/go-live.ts	decl	startPostGoLiveSweep	export	147	185	39
+apps/website/src/features/post/html-plain-text.ts	decl	HTML_NAMED_ENTITIES		12	16	5
+apps/website/src/features/post/html-plain-text.ts	decl	decodeHtmlEntities		20	28	9
+apps/website/src/features/post/html-plain-text.ts	decl	decodeNumericEntity		30	36	7
+apps/website/src/features/post/html-plain-text.ts	decl	POST_DETAIL_HEADER_OPEN		42	42	1
+apps/website/src/features/post/html-plain-text.ts	decl	findBalancedCloseEnd		48	57	10
+apps/website/src/features/post/html-plain-text.ts	decl	stripPostDetailHeader		66	83	18
+apps/website/src/features/post/html-plain-text.ts	decl	extractPlainTextFromHtml	export	89	99	11
+apps/website/src/features/post/post-vocabulary.ts	decl	PostStatus	export	1	1	1
+apps/website/src/features/post/post-vocabulary.ts	decl	PostKind	export	10	10	1
+apps/website/src/features/post/post-vocabulary.ts	decl	PublicPostKind	export	11	11	1

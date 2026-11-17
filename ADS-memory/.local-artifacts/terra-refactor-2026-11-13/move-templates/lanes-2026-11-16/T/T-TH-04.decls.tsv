@@ -1,0 +1,37 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/theme/handlebars-allowlist.ts	decl	ALLOWED_HANDLEBARS_BLOCK_HELPERS	export	63	63	1
+apps/website/src/features/theme/handlebars-allowlist.ts	decl	ALLOWED_HANDLEBARS_HELPERS	export	80	80	1
+apps/website/src/features/theme/handlebars-allowlist.ts	decl	ALLOWED_HANDLEBARS_RAW_PATHS	export	106	106	1
+apps/website/src/features/theme/handlebars-allowlist.ts	decl	ALLOWED_HANDLEBARS_DATA_VARS	export	120	120	1
+apps/website/src/features/theme/handlebars-allowlist.ts	decl	FORBIDDEN_PATH_SEGMENTS		133	141	9
+apps/website/src/features/theme/handlebars-allowlist.ts	decl	MAX_TEMPLATE_SOURCE_BYTES		151	151	1
+apps/website/src/features/theme/handlebars-allowlist.ts	decl	MAX_BLOCK_NESTING_DEPTH		164	164	1
+apps/website/src/features/theme/handlebars-allowlist.ts	decl	HbsNode		178	187	10
+apps/website/src/features/theme/handlebars-allowlist.ts	decl	HbsPath		189	195	7
+apps/website/src/features/theme/handlebars-allowlist.ts	decl	isInvocation		198	200	3
+apps/website/src/features/theme/handlebars-allowlist.ts	decl	pathText		203	205	3
+apps/website/src/features/theme/handlebars-allowlist.ts	decl	checkPath		211	230	20
+apps/website/src/features/theme/handlebars-allowlist.ts	decl	exceedsNestingDepth		241	245	5
+apps/website/src/features/theme/handlebars-allowlist.ts	decl	walkParamsAndHash		249	254	6
+apps/website/src/features/theme/handlebars-allowlist.ts	decl	handleBlockStatement		258	266	9
+apps/website/src/features/theme/handlebars-allowlist.ts	decl	handleMustacheStatement		271	289	19
+apps/website/src/features/theme/handlebars-allowlist.ts	decl	handleNoopStatement		292	292	1
+apps/website/src/features/theme/handlebars-allowlist.ts	decl	handlePartialStatement		299	301	3
+apps/website/src/features/theme/handlebars-allowlist.ts	decl	handleDecoratorStatement		306	308	3
+apps/website/src/features/theme/handlebars-allowlist.ts	decl	handleUnknownStatement		312	315	4
+apps/website/src/features/theme/handlebars-allowlist.ts	decl	STATEMENT_HANDLERS		322	331	10
+apps/website/src/features/theme/handlebars-allowlist.ts	decl	walkHandlebarsNodes		339	346	8
+apps/website/src/features/theme/handlebars-allowlist.ts	decl	walkExpression		355	368	14
+apps/website/src/features/theme/handlebars-allowlist.ts	decl	lintHandlebarsTemplate	export	391	424	34
+apps/website/src/features/theme/liquid-allowlist.ts	decl	ALLOWED_LIQUID_TAGS	export	44	62	19
+apps/website/src/features/theme/liquid-allowlist.ts	decl	ALLOWED_LIQUID_FILTERS	export	76	143	68
+apps/website/src/features/theme/liquid-allowlist.ts	decl	parser		153	161	9
+apps/website/src/features/theme/liquid-allowlist.ts	decl	MAX_FOR_RANGE_SPAN		180	180	1
+apps/website/src/features/theme/liquid-allowlist.ts	decl	WalkableNode		191	197	7
+apps/website/src/features/theme/liquid-allowlist.ts	decl	collectNodeTag		200	202	3
+apps/website/src/features/theme/liquid-allowlist.ts	decl	collectNodeValueFilters		205	207	3
+apps/website/src/features/theme/liquid-allowlist.ts	decl	collectNodeArgumentFilters		210	215	6
+apps/website/src/features/theme/liquid-allowlist.ts	decl	collectForRangeViolation		218	225	8
+apps/website/src/features/theme/liquid-allowlist.ts	decl	drainChildren		230	236	7
+apps/website/src/features/theme/liquid-allowlist.ts	decl	collectLiquidUsage		253	262	10
+apps/website/src/features/theme/liquid-allowlist.ts	decl	lintLiquidTemplate	export	277	297	21

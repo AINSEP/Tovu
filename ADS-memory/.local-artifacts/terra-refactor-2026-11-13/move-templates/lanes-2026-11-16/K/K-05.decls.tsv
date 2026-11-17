@@ -1,0 +1,22 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/taxonomy/tool-registrations.ts	decl	MUTATES_DURABLE_STATE		78	78	1
+apps/website/src/features/taxonomy/tool-registrations.ts	decl	CATALOG_BY_ID		81	81	1
+apps/website/src/features/taxonomy/tool-registrations.ts	decl	TaxonomyToolDeps	export	92	117	26
+apps/website/src/features/taxonomy/tool-registrations.ts	decl	taxonomyDerivedRisk	export	124	151	28
+apps/website/src/features/taxonomy/tool-registrations.ts	decl	MERGE_TOOL_ID		153	153	1
+apps/website/src/features/taxonomy/tool-registrations.ts	decl	requireTaggableContentType		159	166	8
+apps/website/src/features/taxonomy/tool-registrations.ts	decl	taxonomyDeps		170	184	15
+apps/website/src/features/taxonomy/tool-registrations.ts	decl	buildTaxonomyRegistrations	export	186	438	253
+apps/website/src/features/taxonomy/tool-registrations.ts	handler	taxonomy_list		215	220	6
+apps/website/src/features/taxonomy/tool-registrations.ts	handler	taxonomy_get_assigned_terms		221	241	21
+apps/website/src/features/taxonomy/tool-registrations.ts	handler	taxonomy_create_taxonomy		242	252	11
+apps/website/src/features/taxonomy/tool-registrations.ts	handler	taxonomy_create_term		253	263	11
+apps/website/src/features/taxonomy/tool-registrations.ts	handler	taxonomy_rename_term		264	274	11
+apps/website/src/features/taxonomy/tool-registrations.ts	handler	taxonomy_assign_terms		275	300	26
+apps/website/src/features/taxonomy/tool-registrations.ts	handler	taxonomy_unassign_terms		301	325	25
+apps/website/src/features/taxonomy/tool-registrations.ts	handler	taxonomy_plan_merge_term		326	362	37
+apps/website/src/features/taxonomy/tool-registrations.ts	handler	MERGE_TOOL_ID		363	364	2
+apps/website/src/features/taxonomy/tool-registrations.ts	handler	prepare		365	381	17
+apps/website/src/features/taxonomy/tool-registrations.ts	handler	dialog		382	396	15
+apps/website/src/features/taxonomy/tool-registrations.ts	handler	run		397	438	42
+apps/website/src/features/taxonomy/tool-registrations.ts	decl	contributeTaxonomyTools	export	448	450	3

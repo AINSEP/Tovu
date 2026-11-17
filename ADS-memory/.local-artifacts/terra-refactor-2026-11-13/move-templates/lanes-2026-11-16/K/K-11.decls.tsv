@@ -1,0 +1,102 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/forms/field-length-caps.ts	decl	surrogatePairs		20	24	5
+apps/website/src/features/forms/field-length-caps.ts	decl	capSubmissionFieldLengths	export	28	39	12
+apps/website/src/features/forms/form-destination-manifest.ts	decl	FormDestinationManifestForm	export	14	18	5
+apps/website/src/features/forms/form-destination-manifest.ts	decl	buildFormDestinationManifest	export	26	33	8
+apps/website/src/features/forms/form-destination-manifest.ts	decl	submitCap		38	41	4
+apps/website/src/features/forms/form-destination-manifest.ts	decl	buildFormDeliveryForm	export	49	52	4
+apps/website/src/features/forms/form-destination-manifest.ts	decl	manifestField		56	63	8
+apps/website/src/features/forms/form-destination-manifest.ts	decl	receiverValidation		68	73	6
+apps/website/src/features/forms/form-destination-manifest.ts	decl	receiverTextRules		77	85	9
+apps/website/src/features/forms/form-destination-manifest.ts	decl	receiverBounds		89	93	5
+apps/website/src/features/forms/form-destination-manifest.ts	decl	receiverStep		97	100	4
+apps/website/src/features/forms/form-file-maintenance.ts	decl	MaintenanceDeps		8	12	5
+apps/website/src/features/forms/form-file-maintenance.ts	decl	CandidateInput		13	13	1
+apps/website/src/features/forms/form-file-maintenance.ts	decl	runFormFileMaintenance	export	22	38	17
+apps/website/src/features/forms/form-file-maintenance.ts	decl	inspectCandidate		41	61	21
+apps/website/src/features/forms/form-file-maintenance.ts	decl	protectCandidate		64	77	14
+apps/website/src/features/forms/form-file-maintenance.ts	decl	cleanupCandidate		80	89	10
+apps/website/src/features/forms/form-file-maintenance.ts	decl	assertStillOrphan		91	93	3
+apps/website/src/features/forms/form-file-maintenance.ts	decl	hasStoredReferences		99	130	32
+apps/website/src/features/forms/form-file-maintenance.ts	decl	storedPageReferences		132	140	9
+apps/website/src/features/forms/form-file-maintenance.ts	decl	storedRowReferences		143	145	3
+apps/website/src/features/forms/form-file-purge.ts	decl	createFormFilePurgeHooks	export	9	29	21
+apps/website/src/features/forms/form-file-purge.ts	decl	hasFormFileOwners	export	33	36	4
+apps/website/src/features/forms/form-file-purge.ts	decl	createFormMediaCleanup	export	42	58	17
+apps/website/src/features/forms/form-file-purge.ts	decl	hasFormFileStorageKeyOwners	export	65	78	14
+apps/website/src/features/forms/form-file-purge.ts	decl	withFormFileStorageKeyLock	export	84	93	10
+apps/website/src/features/forms/import-remote-submissions.ts	decl	RemoteSubmissionInput	export	21	28	8
+apps/website/src/features/forms/import-remote-submissions.ts	decl	FormSubmissionReceiptPort	export	31	33	3
+apps/website/src/features/forms/import-remote-submissions.ts	decl	ImportRemoteSubmissionsDeps	export	35	45	11
+apps/website/src/features/forms/import-remote-submissions.ts	decl	RemoteImportResult	export	47	58	12
+apps/website/src/features/forms/import-remote-submissions.ts	decl	FormImportCounts	export	61	66	6
+apps/website/src/features/forms/import-remote-submissions.ts	decl	MutableImportResult		68	68	1
+apps/website/src/features/forms/import-remote-submissions.ts	decl	recordImportOutcome		71	89	19
+apps/website/src/features/forms/import-remote-submissions.ts	decl	importRemoteFormSubmissions	export	97	116	20
+apps/website/src/features/forms/import-remote-submissions.ts	decl	countsFor		119	125	7
+apps/website/src/features/forms/import-remote-submissions.ts	decl	importOne		130	157	28
+apps/website/src/features/forms/import-remote-submissions.ts	decl	declaredAnswers		163	171	9
+apps/website/src/features/forms/import-remote-submissions.ts	decl	cappedTextAnswer		174	178	5
+apps/website/src/features/forms/import-remote-submissions.ts	decl	capped		181	184	4
+apps/website/src/features/forms/import-remote-submissions.ts	decl	submittedAt		187	190	4
+apps/website/src/features/forms/import-remote-submissions.ts	decl	FormDestinationPullReport	export	193	207	15
+apps/website/src/features/forms/import-remote-submissions.ts	decl	FormPullCounts	export	213	216	4
+apps/website/src/features/forms/import-remote-submissions.ts	decl	FormSubmissionsPullResult	export	219	224	6
+apps/website/src/features/forms/import-remote-submissions.ts	decl	FormSubmissionsPullPort	export	228	230	3
+apps/website/src/features/forms/import-remote-submissions.ts	decl	FormsAutoPullPort	export	235	238	4
+apps/website/src/features/forms/protect-existing-files.ts	decl	Site		7	7	1
+apps/website/src/features/forms/protect-existing-files.ts	decl	protectExistingFormFiles	export	14	35	22
+apps/website/src/features/forms/protect-existing-files.ts	decl	readPage		38	45	8
+apps/website/src/features/forms/protect-existing-files.ts	decl	protectReference		49	59	11
+apps/website/src/features/forms/submission-ip-expiry-sweep.ts	decl	consoleLogger		6	6	1
+apps/website/src/features/forms/submission-ip-expiry-sweep.ts	decl	SubmissionIpSweep		7	7	1
+apps/website/src/features/forms/submission-ip-expiry-sweep.ts	decl	SUBMISSION_IP_SWEEP_INTERVAL_MS	export	10	10	1
+apps/website/src/features/forms/submission-ip-expiry-sweep.ts	decl	warn		12	14	3
+apps/website/src/features/forms/submission-ip-expiry-sweep.ts	decl	startSubmissionIpExpirySweep	export	21	54	34
+apps/website/src/features/form-destinations/connection-port.ts	decl	createCustomCredentialConnectionPort	export	22	36	15
+apps/website/src/features/form-destinations/deliver.ts	decl	createFormDestinationDeliverer	export	26	45	20
+apps/website/src/features/form-destinations/deliver.ts	decl	credentialScopedKit		55	70	16
+apps/website/src/features/form-destinations/key-store.ts	decl	LABEL_PREFIX		21	21	1
+apps/website/src/features/form-destinations/key-store.ts	decl	formDestinationKeyLabel	export	24	26	3
+apps/website/src/features/form-destinations/key-store.ts	decl	formReceiverKey	export	33	52	20
+apps/website/src/features/form-destinations/key-store.ts	decl	listFormDestinations	export	56	69	14
+apps/website/src/features/form-destinations/port.ts	decl	FormDestinationPortDeps	export	14	20	7
+apps/website/src/features/form-destinations/port.ts	decl	PortInput		21	21	1
+apps/website/src/features/form-destinations/port.ts	decl	createFormDestinationPort	export	26	47	22
+apps/website/src/features/form-destinations/port.ts	decl	selectFor		50	53	4
+apps/website/src/features/form-destinations/port.ts	decl	previewFor		57	74	18
+apps/website/src/features/form-destinations/port.ts	decl	planFor		78	90	13
+apps/website/src/features/form-destinations/port.ts	decl	prepareExternal		94	107	14
+apps/website/src/features/form-destinations/port.ts	decl	destinationCredential		110	119	10
+apps/website/src/features/form-destinations/port.ts	decl	off		121	123	3
+apps/website/src/features/form-destinations/pull.ts	decl	DEFAULT_MAX_PAGES		9	9	1
+apps/website/src/features/form-destinations/pull.ts	decl	DEFAULT_PAGE_SIZE		10	10	1
+apps/website/src/features/form-destinations/pull.ts	decl	FORM_PULL_REQUEST_TIMEOUT_MS	export	14	14	1
+apps/website/src/features/form-destinations/pull.ts	decl	FORM_PULL_BUDGET_MS	export	18	18	1
+apps/website/src/features/form-destinations/pull.ts	decl	FORM_PULL_LEASE_MARGIN_MS		21	21	1
+apps/website/src/features/form-destinations/pull.ts	decl	FORM_PULL_LEASE_MS	export	32	32	1
+apps/website/src/features/form-destinations/pull.ts	decl	FormDestinationImportPort	export	35	36	2
+apps/website/src/features/form-destinations/pull.ts	decl	formDestinationKey	export	39	41	3
+apps/website/src/features/form-destinations/pull.ts	decl	pullFromFormDestination	export	50	71	22
+apps/website/src/features/form-destinations/pull.ts	decl	pullPages		76	99	24
+apps/website/src/features/form-destinations/pull.ts	decl	boundedKit		104	110	7
+apps/website/src/features/form-destinations/pull.ts	decl	acknowledgeCommitted		113	119	7
+apps/website/src/features/form-destinations/pull.ts	decl	pullStopped		122	126	5
+apps/website/src/features/form-destinations/registry.ts	decl	FORM_DESTINATIONS_FILENAME	export	24	24	1
+apps/website/src/features/form-destinations/registry.ts	decl	destinationContribution		26	31	6
+apps/website/src/features/form-destinations/registry.ts	decl	loadFormDestinationRegistry	export	41	44	4
+apps/website/src/features/form-destinations/registry.ts	decl	loadFormDestinationRegistryFromSource	export	52	55	4
+apps/website/src/features/form-destinations/registry.ts	decl	buildFormDestinationRegistry	export	62	79	18
+apps/website/src/features/form-destinations/registry.ts	decl	dropShared		83	98	16
+apps/website/src/features/form-destinations/registry.ts	decl	parseFormDestinationsFile	export	106	108	3
+apps/website/src/features/form-destinations/rewrite-actions.ts	decl	FORM_ACTION		10	10	1
+apps/website/src/features/form-destinations/rewrite-actions.ts	decl	HTML_ESCAPES		11	11	1
+apps/website/src/features/form-destinations/rewrite-actions.ts	decl	assertSubmitUrl	export	18	25	8
+apps/website/src/features/form-destinations/rewrite-actions.ts	decl	isPlainHttps		28	30	3
+apps/website/src/features/form-destinations/rewrite-actions.ts	decl	rewriteFormActions	export	37	50	14
+apps/website/src/features/form-destinations/select.ts	decl	FORM_RECEIVER_AUTO	export	10	10	1
+apps/website/src/features/form-destinations/select.ts	decl	FORM_RECEIVER_NONE	export	11	11	1
+apps/website/src/features/form-destinations/select.ts	decl	FormReceiverSelection	export	13	17	5
+apps/website/src/features/form-destinations/select.ts	decl	selectFormReceiver	export	24	35	12
+apps/website/src/features/form-destinations/select.ts	decl	autoReceiver		38	43	6
+apps/website/src/features/form-destinations/select.ts	decl	namedReceiver		46	52	7

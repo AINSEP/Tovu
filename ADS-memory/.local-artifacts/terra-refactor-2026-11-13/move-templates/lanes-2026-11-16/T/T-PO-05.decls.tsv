@@ -1,0 +1,105 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/post/agent-tools.ts	decl	CONTENT_POST_DELETE_TOOL_ID	export	2	5	4
+apps/website/src/features/post/agent-tools.ts	decl	BLOCK_NODE_REF		7	7	1
+apps/website/src/features/post/agent-tools.ts	decl	AgentToolSideEffect	export	147	151	5
+apps/website/src/features/post/agent-tools.ts	decl	AgentToolDefinition	export	158	158	1
+apps/website/src/features/post/agent-tools.ts	decl	POST_KIND_SCHEMA		160	168	9
+apps/website/src/features/post/agent-tools.ts	decl	PUBLISH_AT_SCHEMA		175	183	9
+apps/website/src/features/post/agent-tools.ts	decl	FEATURED_IMAGE_SCHEMA		186	195	10
+apps/website/src/features/post/agent-tools.ts	decl	POST_LIST_FIELDS	export	198	201	4
+apps/website/src/features/post/agent-tools.ts	decl	POST_ID_SCHEMA		203	207	5
+apps/website/src/features/post/agent-tools.ts	decl	TIPTAP_TEXT_BODY_EXAMPLE		209	209	1
+apps/website/src/features/post/agent-tools.ts	decl	TIPTAP_MARK_SCHEMA		237	281	45
+apps/website/src/features/post/agent-tools.ts	decl	TIPTAP_TEXT_NODE_SCHEMA		285	294	10
+apps/website/src/features/post/agent-tools.ts	decl	TIPTAP_DOC_SCHEMA	export	362	734	373
+apps/website/src/features/post/agent-tools.ts	decl	postAgentToolCatalog	export	758	1000	243
+apps/website/src/features/post/content-stats-tool.ts	decl	ContentStatsToolDeps	export	18	28	11
+apps/website/src/features/post/content-stats-tool.ts	decl	contentStatsAgentToolCatalog	export	30	39	10
+apps/website/src/features/post/content-stats-tool.ts	decl	contentStatsDerivedRisk	export	41	46	6
+apps/website/src/features/post/content-stats-tool.ts	decl	countStatuses		49	53	5
+apps/website/src/features/post/content-stats-tool.ts	decl	summarizePosts		58	68	11
+apps/website/src/features/post/content-stats-tool.ts	decl	canRead		71	73	3
+apps/website/src/features/post/content-stats-tool.ts	decl	readMediaTypes		81	94	14
+apps/website/src/features/post/content-stats-tool.ts	decl	parseStatsOptions		99	105	7
+apps/website/src/features/post/content-stats-tool.ts	decl	summarizeEntries		110	123	14
+apps/website/src/features/post/content-stats-tool.ts	decl	summarizeMedia		129	141	13
+apps/website/src/features/post/content-stats-tool.ts	decl	buildContentStatsRegistrations	export	148	168	21
+apps/website/src/features/post/content-stats-tool.ts	decl	contributeContentStatsTools	export	171	173	3
+apps/website/src/features/post/preview-tool.ts	decl	PostPreviewToolDeps	export	14	14	1
+apps/website/src/features/post/preview-tool.ts	decl	PostPreviewInput	export	15	15	1
+apps/website/src/features/post/preview-tool.ts	decl	PostPreviewRenderer	export	16	18	3
+apps/website/src/features/post/preview-tool.ts	decl	postPreviewAgentToolCatalog	export	19	32	14
+apps/website/src/features/post/preview-tool.ts	decl	postPreviewDerivedRisk	export	33	36	4
+apps/website/src/features/post/preview-tool.ts	decl	CATALOG		37	37	1
+apps/website/src/features/post/preview-tool.ts	decl	validatePreviewOverrides		40	43	4
+apps/website/src/features/post/preview-tool.ts	decl	readPreviewInput		51	60	10
+apps/website/src/features/post/preview-tool.ts	decl	buildPostPreviewRegistrations	export	63	82	20
+apps/website/src/features/post/preview-tool.ts	decl	contributePostPreviewTools	export	84	86	3
+apps/website/src/features/post/tool-registrations.ts	decl	CONTENT_READ_PERMISSION		117	117	1
+apps/website/src/features/post/tool-registrations.ts	decl	CONTENT_WRITE_PERMISSION		118	118	1
+apps/website/src/features/post/tool-registrations.ts	decl	CATALOG_BY_ID		120	120	1
+apps/website/src/features/post/tool-registrations.ts	decl	DuplicatePagesHtmlStore	export	137	141	5
+apps/website/src/features/post/tool-registrations.ts	decl	DuplicatePagesHtmlStoreFactory	export	142	142	1
+apps/website/src/features/post/tool-registrations.ts	decl	PostToolDeps	export	152	201	50
+apps/website/src/features/post/tool-registrations.ts	decl	postDerivedRisk	export	208	235	28
+apps/website/src/features/post/tool-registrations.ts	decl	isPostShapeRejection		247	249	3
+apps/website/src/features/post/tool-registrations.ts	decl	VERSION_CONFLICT_GUIDANCE		253	256	4
+apps/website/src/features/post/tool-registrations.ts	decl	POST_MODEL_FACING_ERRORS		299	306	8
+apps/website/src/features/post/tool-registrations.ts	decl	requirePostKind		308	320	13
+apps/website/src/features/post/tool-registrations.ts	decl	requirePostStatus		322	329	8
+apps/website/src/features/post/tool-registrations.ts	decl	optionalPostStatus		331	334	4
+apps/website/src/features/post/tool-registrations.ts	decl	clampPostListLimit		344	347	4
+apps/website/src/features/post/tool-registrations.ts	decl	requireBodyJson		353	355	3
+apps/website/src/features/post/tool-registrations.ts	decl	optionalBodyJson		362	365	4
+apps/website/src/features/post/tool-registrations.ts	decl	optionalNonEmptyString		371	374	4
+apps/website/src/features/post/tool-registrations.ts	decl	optionalPublishAt		381	383	3
+apps/website/src/features/post/tool-registrations.ts	decl	FEATURED_IMAGE_REFUSALS		385	389	5
+apps/website/src/features/post/tool-registrations.ts	decl	resolveFeaturedImageInput		398	413	16
+apps/website/src/features/post/tool-registrations.ts	decl	ASSISTANT_ACTOR_PLUGIN_ID		418	418	1
+apps/website/src/features/post/tool-registrations.ts	decl	postCommandDeps		422	430	9
+apps/website/src/features/post/tool-registrations.ts	decl	PostToolView		433	450	18
+apps/website/src/features/post/tool-registrations.ts	decl	scheduleView		460	466	7
+apps/website/src/features/post/tool-registrations.ts	decl	toPostToolView		472	487	16
+apps/website/src/features/post/tool-registrations.ts	decl	PostToolViewWithPublicUrl		492	495	4
+apps/website/src/features/post/tool-registrations.ts	decl	resolvePublicUrl		513	516	4
+apps/website/src/features/post/tool-registrations.ts	decl	resolveAdminUrl		547	552	6
+apps/website/src/features/post/tool-registrations.ts	decl	toPostToolViewWithPublicUrl		561	563	3
+apps/website/src/features/post/tool-registrations.ts	decl	PUBLISHED_WHERE_LOCAL	export	566	568	3
+apps/website/src/features/post/tool-registrations.ts	decl	PUBLISHED_WHERE_LIVE	export	571	571	1
+apps/website/src/features/post/tool-registrations.ts	decl	PAGE_HEADER_NAVIGATION	export	580	582	3
+apps/website/src/features/post/tool-registrations.ts	decl	headerNavigationView		585	587	3
+apps/website/src/features/post/tool-registrations.ts	decl	publishedWhereView		597	601	5
+apps/website/src/features/post/tool-registrations.ts	decl	toPostWriteResultView		604	606	3
+apps/website/src/features/post/tool-registrations.ts	decl	POST_LIST_TEXT_BUDGET	export	618	618	1
+apps/website/src/features/post/tool-registrations.ts	decl	POST_LIST_MIN_EXCERPT_CHARS	export	621	621	1
+apps/website/src/features/post/tool-registrations.ts	decl	PostListRow		624	624	1
+apps/website/src/features/post/tool-registrations.ts	decl	PostListField		626	626	1
+apps/website/src/features/post/tool-registrations.ts	decl	optionalPostListFields		635	642	8
+apps/website/src/features/post/tool-registrations.ts	decl	matchesPostListFilters		651	655	5
+apps/website/src/features/post/tool-registrations.ts	decl	projectPostListRow		664	666	3
+apps/website/src/features/post/tool-registrations.ts	decl	toExcerpt		673	679	7
+apps/website/src/features/post/tool-registrations.ts	decl	excerptCharsFor		682	684	3
+apps/website/src/features/post/tool-registrations.ts	decl	toPostListRow		689	710	22
+apps/website/src/features/post/tool-registrations.ts	decl	loadDeletablePost		723	732	10
+apps/website/src/features/post/tool-registrations.ts	decl	assertFreshVersion		739	754	16
+apps/website/src/features/post/tool-registrations.ts	decl	PostUpdatePatch		757	766	10
+apps/website/src/features/post/tool-registrations.ts	decl	parseUpdatePatch		774	788	15
+apps/website/src/features/post/tool-registrations.ts	decl	assertPatchNotEmpty		791	795	5
+apps/website/src/features/post/tool-registrations.ts	decl	isPartialPatch		798	800	3
+apps/website/src/features/post/tool-registrations.ts	decl	mergeUpdatePatch		803	811	9
+apps/website/src/features/post/tool-registrations.ts	decl	loadUpdateTarget		819	830	12
+apps/website/src/features/post/tool-registrations.ts	decl	assertTemplateAvailable		837	844	8
+apps/website/src/features/post/tool-registrations.ts	decl	assertHtmlBodyUnchanged		859	866	8
+apps/website/src/features/post/tool-registrations.ts	decl	updateInverse		875	888	14
+apps/website/src/features/post/tool-registrations.ts	decl	buildPostRegistrations	export	904	1331	428
+apps/website/src/features/post/tool-registrations.ts	handler	content_post_search		918	953	36
+apps/website/src/features/post/tool-registrations.ts	handler	content_post_list		954	983	30
+apps/website/src/features/post/tool-registrations.ts	handler	content_post_get		984	1001	18
+apps/website/src/features/post/tool-registrations.ts	handler	content_post_create		1002	1081	80
+apps/website/src/features/post/tool-registrations.ts	handler	content_post_update		1082	1229	148
+apps/website/src/features/post/tool-registrations.ts	handler	content_post_delete		1230	1327	98
+apps/website/src/features/post/tool-registrations.ts	handler	handlers		1328	1331	4
+apps/website/src/features/post/tool-registrations.ts	decl	deriveDefaultDuplicateTitle		1346	1356	11
+apps/website/src/features/post/tool-registrations.ts	decl	duplicatePostOrPage		1378	1498	121
+apps/website/src/features/post/tool-registrations.ts	decl	contributePostDuplicateHandlers	export	1515	1532	18
+apps/website/src/features/post/tool-registrations.ts	decl	contributePostTools	export	1538	1543	6

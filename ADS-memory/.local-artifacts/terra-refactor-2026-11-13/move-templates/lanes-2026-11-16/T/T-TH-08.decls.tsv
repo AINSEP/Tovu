@@ -1,0 +1,121 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/theme/agent-tools.ts	decl	MUTATES_DURABLE_STATE		4	4	1
+apps/website/src/features/theme/agent-tools.ts	decl	AgentToolSideEffect	export	96	96	1
+apps/website/src/features/theme/agent-tools.ts	decl	AgentToolDefinition	export	104	104	1
+apps/website/src/features/theme/agent-tools.ts	decl	THEME_READ_PERMISSION	export	112	112	1
+apps/website/src/features/theme/agent-tools.ts	decl	THEME_WRITE_PERMISSION	export	123	123	1
+apps/website/src/features/theme/agent-tools.ts	decl	THEME_FILE_REPLACEMENT_GUIDANCE	export	126	126	1
+apps/website/src/features/theme/agent-tools.ts	decl	THEME_ID_PROPERTY		128	132	5
+apps/website/src/features/theme/agent-tools.ts	decl	RELATIVE_PATH_PROPERTY		134	139	6
+apps/website/src/features/theme/agent-tools.ts	decl	LIST_SCHEMA		141	158	18
+apps/website/src/features/theme/agent-tools.ts	decl	THEME_ID_ONLY_SCHEMA		160	165	6
+apps/website/src/features/theme/agent-tools.ts	decl	LIST_FILES_SCHEMA		167	179	13
+apps/website/src/features/theme/agent-tools.ts	decl	READ_FILE_SCHEMA		181	209	29
+apps/website/src/features/theme/agent-tools.ts	decl	WRITE_FILE_SCHEMA		211	228	18
+apps/website/src/features/theme/agent-tools.ts	decl	EDIT_FILE_SCHEMA		236	267	32
+apps/website/src/features/theme/agent-tools.ts	decl	RENAME_FILE_SCHEMA		269	283	15
+apps/website/src/features/theme/agent-tools.ts	decl	TRASH_FILE_SCHEMA		288	293	6
+apps/website/src/features/theme/agent-tools.ts	decl	RESET_FILE_SCHEMA		298	303	6
+apps/website/src/features/theme/agent-tools.ts	decl	COPY_FILE_SCHEMA		308	313	6
+apps/website/src/features/theme/agent-tools.ts	decl	RESTORE_TRASHED_FILE_SCHEMA		315	334	20
+apps/website/src/features/theme/agent-tools.ts	decl	getThemesAgentToolCatalog	export	343	453	111
+apps/website/src/features/theme/duplicate-theme-tool.ts	decl	DuplicateThemeToolDeps	export	32	32	1
+apps/website/src/features/theme/duplicate-theme-tool.ts	decl	DUPLICATE_THEME_CATALOG		34	82	49
+apps/website/src/features/theme/duplicate-theme-tool.ts	decl	duplicateThemeAgentToolCatalog	export	85	85	1
+apps/website/src/features/theme/duplicate-theme-tool.ts	decl	CATALOG_BY_ID		87	87	1
+apps/website/src/features/theme/duplicate-theme-tool.ts	decl	duplicationMode		90	99	10
+apps/website/src/features/theme/duplicate-theme-tool.ts	decl	duplicateThemeDerivedRisk	export	102	102	1
+apps/website/src/features/theme/duplicate-theme-tool.ts	decl	buildDuplicateThemeHandlers		104	151	48
+apps/website/src/features/theme/duplicate-theme-tool.ts	decl	buildDuplicateThemeRegistrations	export	153	161	9
+apps/website/src/features/theme/duplicate-theme-tool.ts	handler	handlers		158	161	4
+apps/website/src/features/theme/duplicate-theme-tool.ts	decl	contributeDuplicateThemeTools	export	168	174	7
+apps/website/src/features/theme/file-mutation-tools.ts	decl	CONTENT_TOOLS		9	9	1
+apps/website/src/features/theme/file-mutation-tools.ts	decl	PreparedThemeFile		11	14	4
+apps/website/src/features/theme/file-mutation-tools.ts	decl	protectThemeFileTools	export	25	64	40
+apps/website/src/features/theme/import-theme-file-tool.ts	decl	ImportThemeFileToolDeps	export	36	37	2
+apps/website/src/features/theme/import-theme-file-tool.ts	decl	IMPORT_THEME_FILE_CATALOG		39	71	33
+apps/website/src/features/theme/import-theme-file-tool.ts	decl	importThemeFileAgentToolCatalog	export	74	94	21
+apps/website/src/features/theme/import-theme-file-tool.ts	decl	CATALOG_BY_ID		96	96	1
+apps/website/src/features/theme/import-theme-file-tool.ts	decl	importThemeFileDerivedRisk	export	99	99	1
+apps/website/src/features/theme/import-theme-file-tool.ts	decl	localThemeSource		102	106	5
+apps/website/src/features/theme/import-theme-file-tool.ts	decl	buildImportThemeFileHandler		114	150	37
+apps/website/src/features/theme/import-theme-file-tool.ts	decl	buildImportThemeFileRegistrations	export	152	166	15
+apps/website/src/features/theme/import-theme-file-tool.ts	handler	theme_import_file_from_url		161	161	1
+apps/website/src/features/theme/import-theme-file-tool.ts	handler	theme_import_local_file		162	166	5
+apps/website/src/features/theme/import-theme-file-tool.ts	decl	contributeImportThemeFileTools	export	173	179	7
+apps/website/src/features/theme/page-publish-tool.ts	decl	Deps	export	13	13	1
+apps/website/src/features/theme/page-publish-tool.ts	decl	catalog	export	14	22	9
+apps/website/src/features/theme/page-publish-tool.ts	decl	derivedRisk	export	23	26	4
+apps/website/src/features/theme/page-publish-tool.ts	decl	buildRegistrations	export	35	52	18
+apps/website/src/features/theme/page-publish-tool.ts	decl	contributeThemeSetPagePublishedTools	export	55	57	3
+apps/website/src/features/theme/preview-switcher-tools.ts	decl	PreviewSwitcherToolDeps	export	15	17	3
+apps/website/src/features/theme/preview-switcher-tools.ts	decl	previewSwitcherAgentToolCatalog	export	19	30	12
+apps/website/src/features/theme/preview-switcher-tools.ts	decl	risk		31	33	3
+apps/website/src/features/theme/preview-switcher-tools.ts	decl	buildPreviewSwitcherRegistrations	export	36	66	31
+apps/website/src/features/theme/preview-switcher-tools.ts	handler	catalog		43	66	24
+apps/website/src/features/theme/preview-switcher-tools.ts	decl	contributePreviewSwitcherTools	export	69	74	6
+apps/website/src/features/theme/set-active-theme-tool.ts	decl	SetActiveThemeToolDeps	export	49	60	12
+apps/website/src/features/theme/set-active-theme-tool.ts	decl	SET_ACTIVE_THEME_CATALOG		62	84	23
+apps/website/src/features/theme/set-active-theme-tool.ts	decl	setActiveThemeAgentToolCatalog	export	87	87	1
+apps/website/src/features/theme/set-active-theme-tool.ts	decl	CATALOG_BY_ID		89	89	1
+apps/website/src/features/theme/set-active-theme-tool.ts	decl	setActiveThemeDerivedRisk	export	93	93	1
+apps/website/src/features/theme/set-active-theme-tool.ts	decl	activationInputError		96	105	10
+apps/website/src/features/theme/set-active-theme-tool.ts	decl	applyActiveTheme	export	122	154	33
+apps/website/src/features/theme/set-active-theme-tool.ts	decl	buildSetActiveThemeHandlers		156	167	12
+apps/website/src/features/theme/set-active-theme-tool.ts	decl	buildSetActiveThemeRegistrations	export	169	177	9
+apps/website/src/features/theme/set-active-theme-tool.ts	handler	handlers		174	177	4
+apps/website/src/features/theme/set-active-theme-tool.ts	decl	contributeSetActiveThemeTools	export	187	193	7
+apps/website/src/features/theme/tool-registrations.ts	decl	MUTATES_DURABLE_STATE		89	89	1
+apps/website/src/features/theme/tool-registrations.ts	decl	CATALOG_BY_ID		92	92	1
+apps/website/src/features/theme/tool-registrations.ts	decl	toThemeToolView		110	131	22
+apps/website/src/features/theme/tool-registrations.ts	decl	assertCompiledWriteBoundaryUnchanged		134	148	15
+apps/website/src/features/theme/tool-registrations.ts	decl	originalSourceForTool		157	163	7
+apps/website/src/features/theme/tool-registrations.ts	decl	resetFromOriginalForTool		181	202	22
+apps/website/src/features/theme/tool-registrations.ts	decl	countOccurrences		207	209	3
+apps/website/src/features/theme/tool-registrations.ts	decl	applyThemeFileEdit		220	232	13
+apps/website/src/features/theme/tool-registrations.ts	decl	replaceThemeFileText		234	248	15
+apps/website/src/features/theme/tool-registrations.ts	decl	invalidRenameTargetNameReason		255	260	6
+apps/website/src/features/theme/tool-registrations.ts	decl	performThemeFileRename	export	274	308	35
+apps/website/src/features/theme/tool-registrations.ts	decl	THEME_TRASH_TOOL_ID		310	310	1
+apps/website/src/features/theme/tool-registrations.ts	decl	themesDerivedRisk	export	317	350	34
+apps/website/src/features/theme/tool-registrations.ts	decl	ThemeReadSelection		352	355	4
+apps/website/src/features/theme/tool-registrations.ts	decl	pruneRestoredThemeTrash		364	381	18
+apps/website/src/features/theme/tool-registrations.ts	decl	normalizeThemeReadInput		387	395	9
+apps/website/src/features/theme/tool-registrations.ts	decl	optionalThemeReadInteger		407	418	12
+apps/website/src/features/theme/tool-registrations.ts	decl	themeReadSelection		427	438	12
+apps/website/src/features/theme/tool-registrations.ts	decl	ThemeReadWindow		441	444	4
+apps/website/src/features/theme/tool-registrations.ts	decl	findThemeReadWindows		455	468	14
+apps/website/src/features/theme/tool-registrations.ts	decl	collectThemeReadMatches		476	496	21
+apps/website/src/features/theme/tool-registrations.ts	decl	mergeThemeReadWindow		503	508	6
+apps/website/src/features/theme/tool-registrations.ts	decl	renderThemeReadWindows		515	532	18
+apps/website/src/features/theme/tool-registrations.ts	decl	selectThemeReadContent		541	551	11
+apps/website/src/features/theme/tool-registrations.ts	decl	pageThemeReadContent		559	571	13
+apps/website/src/features/theme/tool-registrations.ts	decl	buildThemesRegistrations	export	573	1019	447
+apps/website/src/features/theme/tool-registrations.ts	handler	preview_reload		578	591	14
+apps/website/src/features/theme/tool-registrations.ts	handler	theme_rescan		592	602	11
+apps/website/src/features/theme/tool-registrations.ts	handler	theme_list		603	620	18
+apps/website/src/features/theme/tool-registrations.ts	handler	theme_list_page_publications		621	632	12
+apps/website/src/features/theme/tool-registrations.ts	handler	theme_list_files		633	654	22
+apps/website/src/features/theme/tool-registrations.ts	handler	theme_read_file		655	676	22
+apps/website/src/features/theme/tool-registrations.ts	handler	theme_write_file		677	723	47
+apps/website/src/features/theme/tool-registrations.ts	handler	theme_edit_file		724	781	58
+apps/website/src/features/theme/tool-registrations.ts	handler	theme_reset_file		782	816	35
+apps/website/src/features/theme/tool-registrations.ts	handler	theme_rename_file		817	876	60
+apps/website/src/features/theme/tool-registrations.ts	handler	theme_copy_file		877	914	38
+apps/website/src/features/theme/tool-registrations.ts	handler	theme_trash_file		915	941	27
+apps/website/src/features/theme/tool-registrations.ts	handler	theme_restore_trashed_file		942	1019	78
+apps/website/src/features/theme/tool-registrations.ts	decl	contributeThemesTools	export	1026	1028	3
+apps/website/src/features/theme/trash-theme-tool.ts	decl	TrashThemeToolDeps	export	36	39	4
+apps/website/src/features/theme/trash-theme-tool.ts	decl	ASSISTANT_ACTOR_PLUGIN_ID		42	42	1
+apps/website/src/features/theme/trash-theme-tool.ts	decl	TRASH_THEME_CATALOG		44	65	22
+apps/website/src/features/theme/trash-theme-tool.ts	decl	trashThemeAgentToolCatalog	export	68	68	1
+apps/website/src/features/theme/trash-theme-tool.ts	decl	CATALOG_BY_ID		70	70	1
+apps/website/src/features/theme/trash-theme-tool.ts	decl	trashThemeDerivedRisk	export	73	73	1
+apps/website/src/features/theme/trash-theme-tool.ts	decl	removalRefusal		76	84	9
+apps/website/src/features/theme/trash-theme-tool.ts	decl	TrashThemeOutcome	export	87	91	5
+apps/website/src/features/theme/trash-theme-tool.ts	decl	trashTheme	export	102	120	19
+apps/website/src/features/theme/trash-theme-tool.ts	decl	createThemeTrashMover	export	129	140	12
+apps/website/src/features/theme/trash-theme-tool.ts	decl	buildTrashThemeHandlers		142	171	30
+apps/website/src/features/theme/trash-theme-tool.ts	decl	buildTrashThemeRegistrations	export	173	181	9
+apps/website/src/features/theme/trash-theme-tool.ts	handler	handlers		178	181	4
+apps/website/src/features/theme/trash-theme-tool.ts	decl	contributeTrashThemeTools	export	187	193	7
