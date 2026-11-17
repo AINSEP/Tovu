@@ -25,7 +25,7 @@ Existing Jini owners (verified to exist; behaviour not compared): `ui/tab-strip`
 
 ## Rules for every D6 run
 
-- A moved component gets every custom hook as a prop defaulted to the real hook, including `useT`; copy and icons arrive as props (S2). `ui` imports only itself, core, protocol, `@jini-ai/ui-kit/react`.
+- A moved component gets every custom hook as a prop defaulted to the real hook, including `useT`; copy and icons arrive as props (S2). `ui` imports only itself, core, protocol, and — owner-approved option C for React entries, COMMON S10 — `@jini-ai/ui-kit/react`. Each moved component has one fake-hook output test (fake hooks return fixed values; the rendered output is asserted; the real hook is not called).
 - The bridge is a typed port argument (`FindBridge`, `ZoomBridge`, `WorkspaceGuest` exist as local types today: they move with the code). Nothing in ui reads `window.*` bridge globals; Tovu's `runner-api.ts:173` stays the only reader of `window.tovuRunner`.
 - **Webview security does not move.** `webviewTag`, guest attach admission (`isSupervisedGuestUrl`), `will-attach-webview` handling and window-open policy stay in the main process (`main/windows/guest-navigation.ts`, `window-navigation-policy.ts`). A ui component receives an already-admitted guest handle. Test in Tovu (exists; keep green): a guest URL that is not a supervised site is refused at attach.
 - Effects: each moved hook's test asserts cleanup (listeners, timers, subscriptions back to zero on unmount) and effect order where the old test did. Timers and clocks are injected (`FindQueryClock`, `IntervalTimers`, `VisibilitySource` already are).
