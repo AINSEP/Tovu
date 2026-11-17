@@ -11,21 +11,21 @@ type Child = DefaultTreeAdapterMap['childNode'];
  * payload; the host decides whether and how to log it (no report = silent). */
 export interface MediaHtmlEvent { code: string; detail: string }
 export type MediaHtmlReport = (event: MediaHtmlEvent) => void;
-const SAFE_ELEMENTS = new Set('a abbr address article aside audio b blockquote br button caption cite code col colgroup dd details dfn div dl dt em figcaption figure footer form h1 h2 h3 h4 h5 h6 header hr i img input label li main nav ol option p picture pre section select small source span style strong sub summary sup table tbody td template textarea tfoot th thead time tr track u ul video wbr'.split(' '));
+const SAFE_ELEMENTS: ReadonlySet<string> = new Set('a abbr address article aside audio b blockquote br button caption cite code col colgroup dd details dfn div dl dt em figcaption figure footer form h1 h2 h3 h4 h5 h6 header hr i img input label li main nav ol option p picture pre section select small source span style strong sub summary sup table tbody td template textarea tfoot th thead time tr track u ul video wbr'.split(' '));
 // Content attributes run through the SAME value checks as the shared allowlist's URL attribute.
 // Names are fixed here, never taken from input; script-bearing attributes remain disallowed.
 // tool* are WebMCP declarative form attributes (themes carry them; owner, 2026-09-17).
-const CONTENT_ATTRIBUTES = new Set('src srcset href alt width height controls preload sizes type name value method action for required disabled checked selected multiple placeholder rows cols min max step colspan rowspan datetime open download target rel autocomplete minlength fetchpriority toolname tooldescription toolautosubmit toolparamtitle toolparamdescription'.split(' '));
+const CONTENT_ATTRIBUTES: ReadonlySet<string> = new Set('src srcset href alt width height controls preload sizes type name value method action for required disabled checked selected multiple placeholder rows cols min max step colspan rowspan datetime open download target rel autocomplete minlength fetchpriority toolname tooldescription toolautosubmit toolparamtitle toolparamdescription'.split(' '));
 // Inline SVG icons (shape + paint only). No script/style/foreignObject/a/use/image/animate/set:
 // those execute, load external resources, or rewrite attributes after this check runs.
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
-const SVG_ELEMENTS = new Set('svg g path rect circle ellipse line polyline polygon defs title desc linearGradient radialGradient stop clipPath mask'.split(' '));
+const SVG_ELEMENTS: ReadonlySet<string> = new Set('svg g path rect circle ellipse line polyline polygon defs title desc linearGradient radialGradient stop clipPath mask'.split(' '));
 const ELEMENTS_BY_NAMESPACE: ReadonlyMap<string, ReadonlySet<string>> = new Map([
   ['http://www.w3.org/1999/xhtml', SAFE_ELEMENTS],
   [SVG_NAMESPACE, SVG_ELEMENTS],
 ]);
 // Presentation/geometry names only (parse5 keeps SVG camelCase). Values still pass the URL-value check.
-const SVG_ATTRIBUTES = new Set('viewBox preserveAspectRatio focusable d points x y x1 y1 x2 y2 cx cy r rx ry width height transform fill fill-rule fill-opacity stroke stroke-width stroke-linecap stroke-linejoin stroke-miterlimit stroke-dasharray stroke-dashoffset stroke-opacity opacity clip-path clip-rule clipPathUnits mask maskUnits vector-effect offset stop-color stop-opacity gradientUnits gradientTransform fx fy pathLength'.split(' '));
+const SVG_ATTRIBUTES: ReadonlySet<string> = new Set('viewBox preserveAspectRatio focusable d points x y x1 y1 x2 y2 cx cy r rx ry width height transform fill fill-rule fill-opacity stroke stroke-width stroke-linecap stroke-linejoin stroke-miterlimit stroke-dasharray stroke-dashoffset stroke-opacity opacity clip-path clip-rule clipPathUnits mask maskUnits vector-effect offset stop-color stop-opacity gradientUnits gradientTransform fx fy pathLength'.split(' '));
 function safeSrcset({ value }: { value: string }, _options: Record<string, never> = {}): boolean {
   for (const source of value.split(',')) {
     const url = source.trim().split(/\s+/)[0];
