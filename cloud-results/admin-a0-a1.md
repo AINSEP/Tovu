@@ -13,7 +13,7 @@ Node 24.22.3; Jini built (`pnpm install --frozen-lockfile`, `pnpm --no-bail -r b
 | `c276c39d6` | A1 row 3: `content-chat-title.ts` moved (pure rename) to `packages/contracts/src/`; contracts declares `@jini-ai/chat`; 3 lockfiles changed by npm |
 | `c768d5e09` | A2 step 1: `credentialPolicy` port on the media credential store; rethrow test drops `mock.module` |
 | `ae31663c2` | A2 step 2: 33 importers repointed to `@jini-ai/platform/secrets/credential-token`; `credential-token.ts` keeps only the `assertCredentialFreeField` binding |
-| REPORT_SHA | this report |
+| (the commit adding this file) | this report |
 
 ## A0 (DONE, no production edit)
 - Harness: the journeys config's hermetic seeded site (the one `npm run test:visual` boots) + `a0-capture.journey.ts.txt` (committed; rename to `.journey.ts` to re-run). Needed in this container: `apps/site-chat` `npm ci`, `packages/sdk` build, and a private `PLAYWRIGHT_BROWSERS_PATH` with `-1228` symlinks to the installed `-1243` chromium (the repo's Playwright wants 1228).
