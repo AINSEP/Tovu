@@ -185,7 +185,7 @@ ready screens.
 - The body of Tovu's and Jini's roles, media and security implementations: sizes and file lists only; the
   behaviour diffs are step 1 of those sheets.
 - The S sheets' port method lists: derived at run time from the existing `*-port.hooks.ts` files, not pre-written.
-- The 11-10 survey's "about 2.1k generic" dock figure: rev 2 lists 2,106 lines in existing separate files (S-DOCK
+- The 11-10 survey's "about 2.1k generic" dock figure: rev 2 lists 2,162 lines in existing separate files (S-DOCK
   table; overflow, slow-run and folder-drop are separate files, round 1 was wrong). Whether each folder-drop file is
   free of Tovu path knowledge is checked in run c step 0.
 - xpkg `G-TESTS.md` could not be read at its recorded path on `plan/xpkg-lane-sheets-2026-11-16` in round 2; the
@@ -228,7 +228,7 @@ Code read: Tovu `integ/merge-a-2026-11-16` @ `e801e9ae`, `integ/merge-b-2026-11-
 | 10 | Major | ACCEPT | `S-design-first.md` S-ENTRY-EDITOR items 3-4: pin the present payload and save-then-publish, field-diffing excluded, fake must refuse stale versions first; round-1 test C1 deleted | `use-collection-entry-editor.hooks.ts:244-254`; `collection-entry-editor-dependencies.hooks.ts:75-79` |
 | 11 | Major | ACCEPT | `S-screens-ready.md` S-MENUS: existing `listPages` port reused, `PagePicker` slot removed, M1 is up/down + save payload, M4 added | `menus-port.hooks.ts:25`; `menus-dependencies.hooks.ts:1-19`; `MenuEditor.tsx:17-19`; `use-menu-editor.hooks.ts:216-219,320` |
 | 12 | Major | ACCEPT | `JM-jini-domains-out.md`: five pre-runs; `SeoPage.tsx` partition table by declaration; debt census per folder; cost added (0.92M) | `SeoPage.tsx` 838 lines; `scripts/size-debt.json:108-119`; 20 size keys and 77 hook keys in the nine folders |
-| 13 | Major | ACCEPT | `JM-jini-domains-out.md` pre-run step 4: four test classes, case ledger across destinations, G-TESTS ownership split and prerequisite | 95 of 135 test files in the nine folders import admin internals outside their folder; `media/react/__tests__/media.test.tsx:3-18` |
+| 13 | Major | ACCEPT | `JM-jini-domains-out.md` pre-run step 4: four test classes, case ledger across destinations, G-TESTS ownership split and prerequisite | 92 of 135 test files in the nine folders import admin internals outside their folder; `media/react/__tests__/media.test.tsx:3-18` |
 | 14 | Major | ACCEPT | `S-SECURITY-and-DOCK.md` S-DOCK table and runs: existing overflow/slow-run/folder-drop files listed, registry split into lifecycle vs host bindings, tests O1-O5, split-design prerequisite removed, estimate 0.77M → 0.60M | files exist on merge-a and merge-b (79/59/72/41/63/79 lines); invariant at `OverflowAwareMcpUiSurfaceCard.tsx:25-42` |
 | 15 | Major | ACCEPT | `COMMON-ADMIN.md` sections 0 and 2: every command names its directory, admin tests via `npm --prefix apps/admin run test --`, debt paths corrected; `A-prereqs.md` exception path | `development/scripts/{size-debt,src-complexity-debt,size-exceptions}.json` exist, `development/size-debt.json` does not; `size-exceptions.json:20` |
 | 16 | Major | ACCEPT | `JM-jini-domains-out.md` exact specifier table (41 keys), existing cms roots preserved, 17 `export *` lines removed in pre-runs; `COMMON-ADMIN.md` browser proof = real `vite build`; INDEX subpaths made consistent (`…/admin/react`) | `packages/cms/package.json` `./forms`, `./media` (node) exist; `user-management/package.json:59-79` precedent; `apps/admin/package.json:12` build refuses linked Jini |
