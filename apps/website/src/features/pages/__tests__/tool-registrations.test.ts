@@ -334,6 +334,14 @@ test("pages_write_html with the CORRECT expectedVersion on a doc page converts a
   assert.equal(saved?.bodyHtml, html);
 });
 
+test("a page that does not exist says how to find the right id: the listing tool by name, then the id", async () => {
+  const { call } = harness();
+  const html = `<section data-agent-element="hero" data-agent-role="region"><h1>Hi</h1></section>`;
+  const expected = "PAGES_NOT_FOUND: page 'no-such-page' was not found. List pages with content_post_list, then pass its id.";
+  await assert.rejects(() => call("pages_read_html", { id: "no-such-page" }), { name: "ToolInputError", message: expected });
+  await assert.rejects(() => call("pages_write_html", { id: "no-such-page", html }), { name: "ToolInputError", message: expected });
+});
+
 test("a page id that does not exist reaches the model as PAGES_NOT_FOUND input, not a redacted internal error", async () => {
   const { call } = harness();
   const html = `<section data-agent-element="hero" data-agent-role="region"><h1>Hi</h1></section>`;
@@ -642,7 +650,7 @@ for (const state of ["missing", "post", "trashed"] as const) {
     }
     const before = structuredClone(await repo.findById({ workspaceId: WS, id: "fallback" }));
     await assert.rejects(call("pages_read_html", { id: "fallback" }), {
-      name: "ToolInputError", message: "PAGES_NOT_FOUND: original read failure",
+      name: "ToolInputError", message: "PAGES_NOT_FOUND: original read failure. List pages with content_post_list, then pass its id.",
     });
     assert.deepEqual(await repo.findById({ workspaceId: WS, id: "fallback" }), before);
   });
