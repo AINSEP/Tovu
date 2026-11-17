@@ -53,8 +53,10 @@ function mountVisitorFrontendRoutes(required: { app: Express; scope: GuestScope;
       res.json(issued);
     } catch { res.sendStatus(403); }
   });
-  control.httpExtension({ app, context: { adapter: { env: {}, resolvedPortRef: { current: 0 },
-    allowedOriginsEnvVar: 'TOVU_ALLOWED_ORIGINS', webPortEnvVar: 'PORT', bindHostEnvVar: 'HOST' } } });
+  // Port 0 and an empty env: no browser origin is ever same-origin here, only a header-less loopback request.
+  const originPolicy = createLocalSameOriginPolicy({ port: () => 0, env: {},
+    config: { allowedOriginsEnvVar: 'TOVU_ALLOWED_ORIGINS', webPortEnvVar: 'PORT', bindHostEnvVar: 'HOST' } });
+  control.httpExtension({ app, context: { adapter: { originPolicy } } });
 }
 
 export function createVisitorFrontendControl({ workspaceId, enabled, canonicalOrigin, clock }: {
