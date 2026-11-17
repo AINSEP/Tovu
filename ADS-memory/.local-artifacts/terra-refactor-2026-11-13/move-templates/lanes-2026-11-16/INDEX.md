@@ -1,148 +1,140 @@
-# Lanes S (database code) and U (users): plan index — 2026-11-16/17, planning only, nothing executed
+# Lanes S (database code) and U (users): plan index — revision 2 complete, 2026-11-17. Planning only, nothing executed.
 
-Status: **PARTIAL, revision 2 (2026-11-17): every sheet is on HOLD** (banner at the top of each; context budget reached again). All 16 judge findings were verified against code and accepted; none is fixed in a sheet body yet. See "Revision 2 - judge response" at the end.
-Round-1 status: PARTIAL (context budget reached). Written: 12 hand sheets + 11 generated facts files + 1 template.
-Remaining work is numbered in "Not written".
+Status: **revision 2 written for every sheet; no sheet carries a HOLD banner.** All 16 judge findings are fixed in the
+sheet bodies ("Revision 2 - judge response" below). Of the 8 round-1 remainder items, 6 are closed and 2 stay open
+(§7, numbered). What was NOT verified is listed per sheet and in §8; the plan was not compiled or run.
 
-Code read from Tovu `origin/integ/merge-b-2026-11-16` @ `491632dc5` (it exists, so it replaced `refactor/terra`; all seven
-`moves/*` branches are merged into it) and Jini `origin/refactor/terra` @ `02edbb68`. Jini has no `integ/merge-b` branch;
-its eight `moves/*` branches (3-23 commits ahead) were NOT read: re-take every Jini guard on the Jini integration branch.
+Code read for this revision: Tovu `integ/merge-a-2026-11-16` @ `e801e9ae` (no `merge-final` existed in Tovu; cross-checked
+with `merge-b` @ `450ac748`: of all lane files only `platform/db/repos/change-set-repo.ts` differs, 2 lines) and Jini
+`integ/merge-final-2026-11-16` @ `af33fcdb` (contains merge-a `dde69a6d` and merge-b `9c982fd9`).
+Facts files were regenerated on that Tovu tree (`scripts/` now take `LANE_ROOT`).
 
-## 1. Verified size now (production lines, tests excluded; `inventory.tsv`)
-| Lane | 11-05 figure | Verified now | Files | Test files importing them |
+## 1. Verified size (production lines, tests excluded; `inventory.tsv`)
+| Lane | Lines | Files | Test files importing them (regenerated) |
+|---|---|---|---|
+| S | **9,705** | 78 | S1 18, S2 27, S3 19, S4 40, S5 12, S6 40, S7 27, S8 54 (overlapping) |
+| U | **5,320** | 22 | members 56 + 16, API keys 7 |
+`coverage.tsv`: 60 of the 100 files have a CLASSIFY label, 40 have none; 51 labelled files have no other sheet or design.
+
+## 2. Sheets (assemble per `T-SQLREPO.md` §0: xpkg `COMMON.md` + `T-SQLREPO.md` + sheet + facts)
+| Run | Sheet | Target | Est. tokens | Needs (beyond S0) |
 |---|---|---|---|---|
-| S | ~7k | **9,705** | 78 | S1 18, S2 27, S3 19, S4 40, S5 12, S6 40, S7 27, S8 53 (overlapping) |
-| U | ~5.5k | **5,320** | 22 | members 55 + 16, API keys 7 |
-The layout changed since 11-05: the SQL code is now `features/<domain>/repo*.ts` and `platform/db/repos/*.ts`, not `server/db/*`.
-Scope was re-derived by role (Kysely repos, their bindings, the named contracts files), listed per file in `inventory.tsv`.
+| S0 | `S/S0-pins.md` | Tovu: 8 pins + `schemaErasedKernel` | 120k | base pair green; OD-8 |
+| — | `move-workspace.md` (existing, plan/w1-sheets-d) | cms/workspace/sql | ~80k | calibrates the template |
+| S1a / S1b / S1c | `S/S1-…` | cms taxonomy / navigation / presentation `/sql` | 210k / 150k / 80k | move-workspace, xpkg R6-R9 |
+| S2a / S2b / S2c | `S/S2-…` | cms content-types/sql, entries/sql, entries memory twin | 100k / 200k / 110k | xpkg R6-R9; not with A08 |
+| S3a / S3b | `S/S3-identity-sql.md` | user-management/server/sql | 220k / 120k | xpkg C9c + R3b |
+| S4a / S4b | `S/S4-trash-sql.md` | cms/trash (contracts) + trash/sql | 200k / 210k | xpkg R6-R9 |
+| S5a / S5b / S5c | `S/S5-…` | db settings / gated-mutations / verified-origin | 180k / 100k / 130k | OD-1 |
+| S6a / S6b / S6c | `S/S6-…` | db/events; integrations/webhooks/sql; cms/forms/sql | 200k / 190k / 170k | OD-1 + OD-6 (S6a); xpkg R11b-3 (S6b); xpkg R6-R9 (S6c) |
+| S7a / S7b | `S/S7-media-sql.md` | cms/media, cms/media/sql | 110k / 240k | xpkg R6-R9; not with A08 |
+| S8a / S8b | `S/S8-….md` | cms/widgets/sql; cms/widgets/markers | 110k / 70k | move-entry-refs |
+| U1a / U1b | `U/U1-members-sql.md` | user-management/members/sql | 200k / 190k | A07, S3a, OD-3; U1b: S4a |
+| U2c-1 / U2a / U2c-2 / U2b / U2c-3 | `U/U2-members-auth-domain.md` | Tovu split; platform/mail; user-management/members/server | 170k / 90k / 170k / 210k / 200k | U2c-1: nothing; others: A07; U2b: S4a |
+| U3a / U3b | `U/U3-api-keys.md` | user-management core + server/api-keys + server/sql | 190k / 210k | S3a, OD-4 |
+**Total: 30 runs, about 4.85M Sonnet tokens** (S 3.22M in 21 runs, U 1.63M in 9), every run under 250k. Round 1 said 26
+runs / 4.15M plus ~0.9M unwritten and one ~250k Opus design: the design (U2c) and the unwritten S2c are now inside the
+total; U3c is gone. Not included: `move-workspace` and `move-entry-refs` (existing sheets), the open items of §7
+(~0.5M if all are done), one batched cloud verification run per wave. Estimates use 30k + 25 tokens/line plus the
+test-repoint load; none is measured.
 
-## 2. Already covered vs new (`coverage.tsv`: one row per file, with CLASSIFY label, audit row, sheet/design mentions)
-| | Lines | What |
-|---|---|---|
-| S, existing executable sheet | 676 | `move-workspace.md` (workspace repo, 116), `move-entry-refs.md` (entry-refs contracts, 560) — plan/w1-sheets-d. Neither is executed yet. |
-| S, existing blocked note | 286 | `move-events.md` (5 `contracts/core/events` outbox files) — waits on OD-6 |
-| U, existing executable sheet | 1,814 | audit2 A07 `split-a07-members-server-domain.md` (6 members files, 1,785); `delete-site-guide.gen.md` (capability-card, 29) |
-| Done on moves/* | 0 of these files | adjacent only: admin Members/Users ports, `InMemoryChangeSetRepo` repoint, stopped-database, postgres db-ops |
-| S, new sheets here | 7,222 | S1-S8 below |
-| U, new sheets here | 2,695 | U1, U2a, U2b, U3 |
-| S/U, no executable sheet (planned-not-written, STAY, or another lane's) | 2,332 | see "Not written"; includes `trash/ports.ts` 61 and `origin/configured-origin.ts` 82 (STAY) |
-Recount from `coverage.tsv` (judge finding 16; round 1 said 69/31): **60 of the 100 files have a CLASSIFY label, 40 have none; 51 labelled files have no sheet or design mention** (`awk -F'\t' 'NR>1{l=($4==""||$4=="-")?"unlabelled":"labelled"; m=($6==""||$6=="-")?"nomention":"mention"; c[l" "m]++} END{for(k in c) print c[k], k}' coverage.tsv`). Unlabelled files include `identity/repo.ts` 710, `members/repo.ts` 604, `settings/repo.ts` 426.
-
-## 3. Sheets (assemble: `cat T-SQLREPO.md <sheet>.md <sheet>.facts.md ../COMMON.md`)
-| Run | Sheet | Lines | Target | Est. tokens (one Sonnet run) | Needs |
-|---|---|---|---|---|---|
-| S0 | `S/S0-pins.md` | tests only | Tovu | 110k | — (gate for everything) |
-| — | `move-workspace.md` (existing) | 116 | cms/workspace/sql | ~80k | C3 landed |
-| S1a / S1b / S1c | `S/S1-…-sql.md` | 680 / 355 / 95 | cms taxonomy / navigation / presentation `/sql` | 200k / 150k / 80k | S0, move-workspace, R9 |
-| S2a / S2b | `S/S2-…-sql.md` | 194 / 351 | cms content-types / entries `/sql` | 90k / 190k | S0, OD-5, serial with A08 |
-| S3a / S3b | `S/S3-identity-sql.md` | 794 / 224 | user-management/server/sql | 210k / 150k | S0, P-DEP, R3 |
-| S4a / S4b | `S/S4-trash-sql.md` | 494 / 874 | cms/trash/sql | 170k / 230k | S0, R9 |
-| S5a / S5b / S5c | `S/S5-…-sql.md` | 441 / 143 / 277 | db settings / gated-mutations / verified-origin | 170k / 90k / 130k | S0, OD-1, R11 |
-| S6a / S6b / S6c | `S/S6-…-sql.md` | 368 / 420 / 290 | db/events; integrations/webhooks/sql; cms/forms/sql | 200k / 190k / 170k | S0, OD-1, OD-6, P-DEP (S6b) |
-| S7a / S7b | `S/S7-media-sql.md` | 232 / 765 | cms/media, cms/media/sql | 110k / 240k | S0, OD-5, serial with A08 |
-| S8a / S8b | `S/S8-….md` | 141 / 84 | cms/widgets/sql; cms/widgets/markers | 110k / 60k | move-entry-refs |
-| U1a / U1b | `U/U1-members-sql.md` | 974 | user-management/members/sql | 210k / 180k | A07, S3a, S4b, P-DEP, OD-3 |
-| U2a / U2b | `U/U2-members-auth-domain.md` | 403 / 441 | user-management/members, platform/mail | 120k / 200k | A07, U1 |
-| U3a / U3b | `U/U3-api-keys.md` | 877 (102 of it STAY) + repo 64 | user-management core + server/api-keys + server/sql | 190k / 200k | S3a, OD-4 |
-**Total: 26 runs, about 4.15M Sonnet tokens** (S 3.05M in 20 runs, U 1.1M in 6), every run sized under 250k. Not included:
-the batched cloud verification runs (one per wave), and the unwritten items below (~0.9M Sonnet + one ~250k Opus design).
-Estimates use PLAN.md's rate (30k + 25 tokens/line) plus the measured test-repoint load; none is measured.
-
-## 4. Order and prerequisites
-Outside this lane, first: C3 storage contract (landed in Jini 02edbb68), untangle R3 (user-management), R9 (cms), R11 (db,
-integrations), R-BARRELS for the Tovu feature barrels; audit2 sheets A07 (before U1/U2) and A08 (serial with S2b, S7);
-existing `move-workspace`, `move-entry-refs`; coordinator step **P-DEP** (OD-2). Hard designs that may edit the same files and
-therefore run BEFORE the sheet that moves them: lost-updates (`identity/repo.ts`, `members/repo.ts`, `settings/repo.ts`,
-`entries/repo.ts`), error-system (`jini-outbox-adapter.ts`, members write-service/types/tool-registrations), env-schema
-(settings defaults), publish-engine (outbox/change-set callers).
-1. S0, alone. Cloud run: green, and every listed mutation red.
-2. move-workspace (calibrates T-SQLREPO). If it does not land clean, fix the template before any fan-out.
-3. Three package chains, parallel with each other, serial inside (each run adds an export to the SAME `package.json`, and
-   an export entry must build in the commit that introduces it):
-   - cms: S1a -> S1b -> S1c -> S2a -> S2b -> S4a -> S4b -> S7a -> S7b -> S8a -> S8b -> S6c
+## 3. Order and prerequisites
+Outside this lane, first: xpkg waves 0b-3 for the packages named above (`N1` before U2a; `R6-R9`, `C9c` in wave 1;
+`R3b` in wave 2; `R11b-3` in wave 3); audit2 A07 (before U1 and U2c-2) and A08 (never in a wave with S2b or S7);
+existing `move-workspace`, `move-entry-refs`. Designs that edit a file a sheet moves run BEFORE that sheet, and the
+sheet's facts diff then fails until its table is regenerated: lost-updates (`identity/repo.ts`, `members/repo.ts`,
+`settings/repo.ts`, `entries/repo.ts`), error-system (`members/write-service.ts`, `jini-outbox-adapter.ts`), env-schema
+(settings defaults), publish-engine (outbox / change-set callers).
+1. **S0**, alone: green, every mutation red, facts regenerated and committed.
+2. **move-workspace** (calibration). If it does not land clean, fix `T-SQLREPO.md` before any fan-out.
+3. Four chains, parallel with each other, serial inside (each run adds an export entry to ONE `package.json`, and an
+   export must build in the commit that introduces it):
+   - cms: S1a -> S1b -> S1c -> S2a -> S2b -> S2c -> S4a -> S4b -> S7a -> S7b -> S8a -> S8b -> S6c
    - db: S5a -> S5b -> S5c -> S6a
-   - user-management: S3a -> S3b -> U3a -> U3b -> U1a -> U1b -> U2a -> U2b   (U1 also waits for S4b on the cms chain)
-   - integrations: S6b (alone)
-4. Tovu-side file-disjointness: sheets in different chains touch disjoint Tovu source files EXCEPT three hot files, which are
-   text-guarded (OLD text must occur once) and never edited by two running jobs: `features/identity/wiring.ts`
-   (S3a, S3b, U3a, U3b), `server/runtime/composition/deps.ts` (S3b, and any binding repoint), and
-   `development/scripts/write-path-inventory.baseline.json` (every sheet with a baseline row: the coordinator applies the
-   baseline edits of parallel sheets in one commit per wave).
+   - user-management: U2c-1 (Tovu only, may start right after S0) -> S3a -> S3b -> U3a -> U3b -> U1a -> U1b -> U2c-2 -> U2b -> U2c-3
+     (U1b and U2b also wait for S4a on the cms chain)
+   - single runs: S6b (integrations), U2a (platform)
+4. Shared Tovu files are serialized by the table in `T-SQLREPO.md` §3 (no coordinator edits; baselines and the `kysely`
+   peers travel in the commit that needs them). Two additions:
+   - `server/runtime/composition/deps.ts`: at most one sheet per wave whose `wiring` names a line there (S6a is the only
+     one known; a census hit in another sheet moves that sheet to the next wave).
+   - `features/members/index.ts` (134-line barrel, 60 importers; round-1 item 7): U2c-1, U1a, U1b, U2c-2, U2b, U2c-3 each
+     change only the specifier of lines naming a symbol they move, serially on the user-management chain. **R-BARRELS
+     runs on this barrel either before U2c-1 or after U2c-3, never in between**; if after, it repoints the importers to
+     the final owners these sheets created.
 
-## 5. Owner decisions
+## 4. Owner decisions (local ids; not the xpkg ids)
 | # | Decision | Recommendation |
 |---|---|---|
-| OD-1 | Where the SQL adapter of a port declared in `@jini-ai/core` lives (settings, gated-mutation tokens, verified origin, change sets, outbox) | `@jini-ai/db/<name>`, beside `db/secrets-vault/repo.sql.ts`. Domain ports keep `<pkg>/<domain>/sql`. Overrides CLASSIFY's `http-kit/verified-origin` and `cms/core/sql`. |
-| OD-2 (P-DEP) | `kysely` as a declared optional peer of `@jini-ai/user-management` and `@jini-ai/integrations` (coordinator adds it + lockfile) | YES; without it S3, U1, U3a, S6b cannot run (new-dependency STOP rule) |
+| OD-1 | SQL adapters of ports declared in `@jini-ai/core` (settings, confirmation tokens, verified origin, change sets, outbox) live in `@jini-ai/db/<name>` | YES |
+| OD-2 | `kysely` as an optional peer of `@jini-ai/user-management` (S3a's J1) and `@jini-ai/integrations` (S6b's J1), added in those commits with the lockfile | YES (no coordinator step any more) |
 | OD-3 | Members SQL repos move to `user-management/members/sql` (A07 listed them as staying) | YES, after A07 |
-| OD-4 | API keys enter `@jini-ai/user-management` (the library documents them as out of scope); scheme prefix stays a Tovu value | YES; stored hash format frozen, no migration needed |
-| OD-5 | How a Jini SQL adapter gets dialect helpers (`jsonScalarEquals`, `jsonSortKey`, `listColumns`, `tableExists`) | inject as a small port per package (option C stays clean). Alternative: allow `*/sql` subpaths to import `@jini-ai/db/kernel` (one such import already exists in `cms/forms/sql`) |
-| OD-6 | One outbox port shape (core contract) or two — already posed in `move-events.md` | (a) core-contract shape; unblocks S6a, S8c and move-events |
-| OD-7 | Delete `members/consent-service.ts` (labelled DELETE; a privacy record writer) | only after a reachability proof; else keep |
+| OD-4 | API keys enter `@jini-ai/user-management`; the scheme prefix stays a Tovu value passed as data | YES; stored hash format frozen, no migration |
+| OD-5 | Dialect helpers reach a Jini SQL adapter as an injected port | DECIDED by the owner rule (option C); the alternative is withdrawn |
+| OD-6 | One outbox port shape (core contract) or two | (a) core-contract shape; unblocks S6a, S8c, move-events |
+| OD-7 | Delete `members/consent-service.ts` (labelled DELETE; writes privacy records; exported by the members barrel) | keep until a reachability proof exists |
+| OD-8 (new) | One Tovu helper `schemaErasedKernel` holding the single schema-erasing cast, instead of one cast per binding (three bindings do that today) | YES; with NO, every binding copies the precedent cast and the "no new casts" gate lists them |
+| OD-9 (new) | New Node subpath `@jini-ai/user-management/members/server` for member credential code (A07's `./members` stays universal) | YES |
 
-## 6. Lock keys carried by these lanes (S0-P1 pins each; found by `rg "lockKey\("`, 23 call sites)
+## 5. Lock keys carried by these lanes (S0-P1 pins each)
 `identity:<ws>` · `taxonomy:<ws>` (2) · `workspace:roster` · `setting_revisions` · `origin_settings:<ws>` ·
-`gated_mutation_tokens:<token>` · `outbox_events:claim` (2) · `webhook_deliveries:claim` (2) ·
-`["form-delivery-plan",ws,submission]` · `["form-receiver-pull",ws,receiver]` · `asset_blobs:<ws>:<sha>` · `slugLockKey(ws)` (5) ·
-`trash:<entityType>:<ws>:<id>` (table adapter) = `trash:member:<ws>:<id>` (members repo x2, password-auth) ·
-`trash:user:<ws>:<principal>` (trash user adapter) · trash `SWEEP_LOCK_KEY` · `members:magic-tokens:<ws>`.
-Also seen, out of scope: `secrets_vault:<ws>`, `footer_page_links_2026_10_04`, entries repair `LOCK_KEY`.
+`gated_mutation_tokens:<token>` · `outbox_events:claim` · `webhook_deliveries:claim` ·
+`["form-delivery-plan",ws,submission]` · `["form-receiver-pull",ws,receiver]` · `asset_blobs:<ws>:<sha>` · the media slug key (5 sites) ·
+`trash:<entityType>:<ws>:<id>` (table adapter) = `trash:member:<ws>:<id>` (member session repo x2, password persist) ·
+`trash:user:<ws>:<principal>` (stays in Tovu) · `trash:sweep-claim` · `members:magic-tokens:<ws>`.
 
-## 7. Not written (numbered; the PARTIAL list)
-1. **S4c** trash adapters for other domains (9 files, 882 lines): each needs its domain's port read.
-2. **S2c** `entries/trash-aware-memory-repo.ts` (209): behaviour diff against the Jini memory repo first.
-3. **S8c** `memory-bus.ts` (161): blocked on OD-6.
-4. **U2c** `members/write-service.ts` (677): needs an Opus design (dependency graph, challenge-store state owner, origin gates).
-5. **U3c** grant-clamp dedupe (Tovu's re-implementation vs Jini's unexported one): behaviour diff, then one small sheet.
-6. Identity files outside the SQL/API-key scope with labels but no sheet: audit row A26 (`repo.memory.ts` 42,
-   `user-purge-types.ts` 84, `tool-registrations.ts`, `owner-reset-env.ts`) and CLASSIFY row 55 (`builtin-role-grants`,
-   `delete-user-service`, `permission-grants`, `permission-list-tool`, `wiring`). Not planned here.
-7. `features/members/index.ts` (134-line barrel, 60 importers): R-BARRELS owns it.
-8. Exact `wiring` texts (old -> new lines) and `table_types` column lists: the sheets name the source and the shape;
-   the executor copies them from the tree at execution. A stricter pass would paste them (about 15k tokens per sheet).
+## 6. Schema and data
+No sheet changes a table, column, stored format or default; the Drizzle chain stays frozen and ADR-066 TS migrations
+stay in Tovu. Existing installs need no migration: S0's N-1 fixtures (P4 key hash, P5 digests, P8 outbox row) are the
+proof. No sheet adds a delete; each existing one that moves is listed in its sheet with why it exists.
+
+## 7. Round-1 remainder items
+| # | Item | Status |
+|---|---|---|
+| 1 | S4c trash adapters of other domains | **Closed** as a per-file ownership table (`S/S4`): five stay as Tovu product adapters, two stay as wiring, two are constants; one move is open (R3-2 below) |
+| 2 | S2c trash-aware memory entry repo | **Closed**: written (`S/S2`, run S2c), same invalidation contract as S2b |
+| 3 | S8c memory bus | **Open**, blocked on OD-6 and a behaviour comparison (R3-1) |
+| 4 | U2c write-service | **Closed**: dependency-graph design and three runs in `U/U2` |
+| 5 | U3c grant-clamp dedupe | **Closed**: compared, reused in U3b; U3c deleted |
+| 6 | Identity files outside the SQL / API-key scope (audit row A26, CLASSIFY row 55) | **Open**, not planned here (R3-4) |
+| 7 | `features/members/index.ts` barrel | **Closed** as a scheduling rule (§3.4) |
+| 8 | Exact wiring texts and table types | **Closed by rule**: every sheet gives the binding expression, table map and port bindings; column lists are copied from the generated type at execution and compared by S0-P6 under `typecheck:tests` (not pasted here) |
+### Still open (numbered)
+R3-1 S8c memory bus (OD-6 + comparison; ~90k). R3-2 `trash/adapters/directory.ts` -> `@jini-ai/node-adapters` (needs xpkg
+N1 and a function partition of its 75-line factory; ~120k). R3-3 S4d: bespoke trash adapters -> registry entries, one per
+commit, only where S4b's parity table is identical (up to ~300k, Tovu only). R3-4 identity files of A26 / row 55
+(`repo.memory.ts`, `user-purge-types.ts`, `tool-registrations.ts`, `owner-reset-env.ts`, `builtin-role-grants`,
+`delete-user-service`, `permission-grants`, `permission-list-tool`, `wiring`): unplanned. R3-5 `consent-service.ts` (OD-7).
 
 ## 8. What was verified, and what was not
-Verified against the code: every line count, blob, importer list, table name, lock-key call site, exported name and
-baseline hit in the facts files (generated by `scripts/`; import graph over 8,156 files, relative and `#src/` specifiers).
-Verified by reading: `authenticateApiKey` and the API-key file headers; `createIdentityTransactions`; `mfa.repo.ts`;
-taxonomy repo header and its sqlite binding; the Jini `comments/sql` precedent; the `StorageKernel` contract; Jini export maps
-and which packages declare `kysely`; that no Jini class name collides with a moved name.
-NOT verified: the bodies of the other repos (each sheet lists this); method-by-method compatibility between each Jini port
-and its Tovu class (made a guarded step 0, not a claim); per-function size/complexity inside the proposed Jini files;
-dynamic `import()`/string-built paths and non-TS consumers beyond the four baseline JSON files; tests importing through
-barrels (counted against the barrel, not the repo); nothing was compiled or run. The generator's "npm imports" column has
-regex false positives from comments (noted in S4). The sandbox clock was unreliable, so no wall-clock figures are given.
+Verified by reading the code on the base pair: every file, line and declaration this revision cites (the invalidation
+call sites and the cache keying; the content-type mapper's owner lookup; the trash registry, table adapter and its
+closure; the three owner-factor stores and the identity guard; the session repo's upsert; the user purge; the settings
+repo's method list; the token store's port shape; the form-delivery `store` body; the media repo's class ranges, locks
+and deletes; the members write-service call graph (generated), password auth and the access resolver in full; the two
+grant clamps; `issueApiKey` in full; the bearer path in `dev-auth.ts`; Jini's export map, `kysely` declarations, the
+SQL precedent and the token helper). Generated: line counts, blobs, importer lists, tables, lock sites (facts files).
+NOT verified: method-by-method port compatibility (step 0 of every sheet); the bodies each sheet lists under "Not
+verified"; function sizes inside the new files (the eslint gate decides, with fixed split points); A07's final port
+names (A07 has not landed); the xpkg lanes named as prerequisites (none has landed on the base pair); nothing was
+compiled, typechecked or run, and no mutation was tried. The sandbox clock was unreliable: no wall-clock figures.
 
-## Revision 2 - prerequisites aligned with the revised xpkg sheets (`plan/xpkg-lane-sheets-2026-11-16`, revision 2)
-- Base: the same paired state as xpkg COMMON (both repos contain merge-a **and** merge-b; Tovu merge-b alone does not typecheck against Jini merge-a). Round 1 read Tovu merge-b and Jini `refactor/terra`: every guard and facts file must be regenerated on the pair.
-- Names: xpkg `R11` is now `R11a`, `R11b-1..3`, `R11c`. S5's "R11 (db)" has no remaining edge (nothing to wait for); S6b waits for `R11b-3` (integrations); S6c waits for `R6-R9`; user-management sheets wait for `C9c` + `R3b` (xpkg R3a was deleted: option C keeps `@jini-ai/ui-kit/react`).
-- Rule: a Jini package imports only itself + core + protocol. xpkg `R6-R9` §2 removes the one existing `cms/forms/sql → @jini-ai/db/kernel` import by injecting a `ColumnCatalogPort`, so **OD-5 here has one answer left: inject the dialect helpers as a small port per package**; the alternative ("allow `*/sql` subpaths to import `@jini-ai/db/kernel`") contradicts the owner rule and is withdrawn.
-- Node bindings: any S/U adapter that needs a Node fs/lock/process binding takes the port and the host passes `@jini-ai/node-adapters` (xpkg N1, owner decision of 2026-11-16); nothing moves to the server preset.
-- Decision ids: this file's OD-1..OD-7 are local to lanes S/U (its OD-3 is the members-SQL destination, not the xpkg OD-3 about `@jini-ai/node-adapters`).
-- No coordinator-applied edits: `write-path-inventory.baseline.json` rows and the P-DEP `kysely` peer + lockfile belong to the commit that needs them, serialized by chain order (to be written into T-SQLREPO; finding 13).
-
-## Revision 2 - judge response
-Verified on Tovu merge-a `e801e9ae` (paths under `apps/website/src/`) and Jini merge-a `dde69a6d` + merge-b `9c982fd9`. **16 accepted, 0 rebutted. Fixed in this revision: 16 (counts) and the prerequisite names; the other 15 are accepted and put on HOLD by banner, redesign not written (PARTIAL items R2-1..R2-15 below).**
-
-| # | Severity | Verdict | What changed (file) | Evidence |
-|---|---|---|---|---|
-| 1 | Blocker | ACCEPT, not yet redesigned | HOLD banner `S/S2`; PARTIAL R2-1 | `features/media/access-evidence.ts:35` takes `{ owner: object }`; `features/entries/repo.ts:129-130,223` invalidate in `finally` |
-| 2 | Blocker | ACCEPT, not yet redesigned | HOLD banner `U/U2`; R2-2 (same work as round-1 item 4, U2c) | `features/members/password-auth.ts:7-9` imports 5 helpers from `./write-service.js` |
-| 3 | Blocker | ACCEPT, not yet redesigned | HOLD banner `U/U2`; R2-3 | `features/members/access-resolver.ts:16` imports `node:crypto` |
-| 4 | Blocker | ACCEPT, not yet redesigned | HOLD banner `S/S4`; R2-4 | `features/trash/registry.ts:164` `buildTrashRegistry(): TrashRegistry` (no input) |
-| 5 | Major | ACCEPT, not yet redesigned | HOLD banner `U/U1`; R2-5 | judge's lines; not re-read beyond the banner facts |
-| 6 | Major | ACCEPT, not yet redesigned | HOLD banner `S/S2`; R2-6 | judge's lines (`content-types/repo.rows.ts:10,31,51-53`); not re-read |
-| 7 | Major | ACCEPT, not yet redesigned | HOLD banner `S/S6` (S6c); R2-7 | owner rule (cms may not import db); judge's lines not re-read |
-| 8 | Major | ACCEPT, not yet redesigned | HOLD banners `S/S0`, `S/S3`; R2-8 | judge's lines; not re-read |
-| 9 | Major | ACCEPT, not yet redesigned | HOLD banner `U/U2`; R2-9 | `access-resolver.ts` has `createHash` only; no `timingSafeEqual` in the file |
-| 10 | Major | ACCEPT, not yet redesigned | HOLD banner `S/S5`; R2-10 | `rg -c expectedRevision features/settings/repo.ts` → 0 |
-| 11 | Major | ACCEPT, not yet redesigned | HOLD banner `U/U3`; R2-11 | logic of the test (equal denial does not prove the call) |
-| 12 | Major | ACCEPT, not yet redesigned | HOLD banners `S/S1`, `U/U3`; R2-12 | `features/taxonomy/repo.ts` 555 lines; `api-key-service.ts:193,222,277` |
-| 13 | Major | ACCEPT, not yet redesigned | HOLD banners `T-SQLREPO`, `S/S0`; R2-13 | Tovu root `package.json:37` `typecheck:tests` (`tsconfig.tests.json`) |
-| 14 | Major | ACCEPT, not yet redesigned | HOLD banners `T-SQLREPO`, `S/S0`; R2-14 | judge's lines; not re-read |
-| 15 | Major | ACCEPT, not yet redesigned | HOLD banner `U/U3`; R2-15 | Jini `packages/user-management/src/server/grant-service.ts:174` `export async function assertGrantClamp` |
-| 16 | Minor | ACCEPT, counts fixed | INDEX §2 recount (60 / 40 / 51); the two contradictory "unused binding" lines are named in the `S/S1`, `S/S2` banners | `coverage.tsv` (awk above) |
-
-### PARTIAL: not yet addressed (numbered)
-R2-1 S2 owner-preserving invalidation callback incl. transaction completion and failure; test real linked-cache invalidation. R2-2 design the shared owner of the five password helpers (token generation, fallback hasher, dummy-hash cache) before U2b. R2-3 split universal member contracts from a Node auth entry (manifest lines, importer updates). R2-4 land registry contracts with or before S4a; fixed registry stays in Tovu; drop the invented validator. R2-5 U1a/U1b exact intermediate file, bindings, `withoutId` owner, successor guards. R2-6 S2 declared-owner lookup + diagnostics contract, `EntryPublishReadPort` and query contract destinations (`offset`). R2-7 S6c mapper port inside the caller's transaction. R2-8 re-trace each stored credential to its producer; mutation per pin; outer anti-replay transaction; MFA clear deletes passkeys. R2-9 replace U2 rows 27-28 with the real resolver/sign-in chain. R2-10 S5 against lost-updates (prerequisite) or today's behaviour. R2-11 U3 positive control, session precedence, machine-credential restrictions. R2-12 partitions for taxonomy repo and `issueApiKey`; full U3 declaration map. R2-13 T-SQLREPO adopts the xpkg COMMON verification table (per-commit commands incl. `typecheck:tests`, STOP protocol, no coordinator edits). R2-14 schedule `repo-transactions.sqlite.test.ts` across S3/S5/S6/S7; regenerate importer inventories after S0. R2-15 U3b grant-clamp comparison and reuse (removes U3c).
-Round-1 items 1-8 (§7) are all still open; the judge's reading of them is accepted: item 4 (U2c) is a prerequisite of U2b (= R2-2); item 5 (U3c) folds into U3b (= R2-15); item 8 (exact wiring texts, table types) is acceptance-critical content of the existing sheets, not a later feature; item 1 needs per-file ownership; item 3 stays blocked on OD-6; item 7's importer edits must enter the execution graph; items 2 and 6 unchanged.
+## Revision 2 - judge response (16 accepted, 0 rebutted, 16 fixed in sheet bodies)
+| # | Sev. | Change made (file) |
+|---|---|---|
+| 1 | Blocker | `S/S2` S2b: required `onWriteSettled({ repo })` called in `finally` of `save` and `transaction` (success and failure), bound to `invalidateMediaAccessEvidence({ owner: repo })`; tests use the real linked cache incl. a pending entry, failed writes and a second owner. S2c shares it |
+| 2 | Blocker | `U/U2`: write-service designed by its call graph; run U2c-1 (Tovu-only split) and U2c-2 (credential + challenge core to Jini) come BEFORE U2b; `requestPasswordReset` joins the host-coupled group so password auth no longer imports it |
+| 3 | Blocker | `U/U2`: new Node subpath `./members/server` with its manifest lines and importer list; A07's `./members` stays universal with a command that proves it |
+| 4 | Blocker | `S/S4`: registry TYPES and the lock-key builder land in S4a's J1 with the files that import them; `buildTrashRegistry` stays whole in Tovu; the invented validator test is removed |
+| 5 | Major | `U/U1`: exact intermediate tree after U1a (reduced `repo.ts`, `repo.rows.ts`, split bindings, `withoutId` owner, table map) and U1b's successor guard |
+| 6 | Major | `S/S2`: `declaredOwners` required data port + exact refusal text + prototype-key cases; `EntryPublishReadPort` / `TrashableEntryRecord` destination; `offset` added to the Jini query type; pagination test |
+| 7 | Major | `S/S6` S6c: required `outboxRow` mapper port (the pattern `SqlUserPurge` already uses), insert stays in the plan transaction; rollback and end-to-end stored-row tests; S6c no longer depends on S6a |
+| 8 | Major | `S/S0` P5 split into three pins on the three real producers with a mutation each; `S/S3` chain rewritten: outer anti-replay guard, MFA clear deletes passkeys, passkey ownership predicates, caller-owned recovery store |
+| 9 | Major | `U/U2` chains R1-R3, P1-P6 describe the real resolver and password paths; the comparer and sign-in-lock rows are withdrawn; existing race tests mapped |
+| 10 | Major | `S/S5`: settings table pins unconditional upserts and ledger ordering (no expected-revision claim); lost-updates is an either-order prerequisite with a detecting command; the action binding is located in the core service |
+| 11 | Major | `U/U3` bearer gate: positive control asserting principal and credential kind, session precedence, non-operator fall-through, one test per credential-kind branch |
+| 12 | Major | Partitions with line ranges: taxonomy (`S/S1`), identity repos (`S/S3`), table adapter (`S/S4`), media (`S/S7`), `issueApiKey` + full declaration map (`U/U3`) |
+| 13 | Major | `T-SQLREPO.md` rewritten: inherits the xpkg COMMON (not the move-templates one), per-commit gate table incl. `typecheck:tests` and the mutation loop, STOP table with commands, no coordinator edits |
+| 14 | Major | `T-SQLREPO.md` §3: successor guards via regenerated facts; shared-file table (the transaction test is edited by S6a only; `user-purge.sqlite.ts` stays so S3b does not touch it); `S/S0` commits regenerated facts |
+| 15 | Major | `U/U3`: clamps compared; U3b imports the package's own `assertGrantClamp` by leaf path; U3c deleted |
+| 16 | Minor | counts fixed (round 2a); `S/S1` and `S/S2` no longer call the navigation / content-type bindings unused |

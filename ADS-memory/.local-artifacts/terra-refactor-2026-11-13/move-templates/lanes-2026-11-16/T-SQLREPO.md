@@ -61,14 +61,14 @@ npm --prefix packages/<pkg> run test   (each package the sheet touches; record t
   `successor_of` edited, exactly in the declarations that sheet names; (b) new test importers under
   `apps/website/src/__tests__/lane-su-pins/` (S0); (c) the header line. Anything else: **STOP** and report the diff.
   A refreshed guard never widens the sheet: a new importer of a moved file that is not (b) is a STOP, not a to-do.
-- Shared Tovu files and who may edit them (by chain order in INDEX §4; two sheets that edit the same file never run in
+- Shared Tovu files and who may edit them (by chain order in INDEX §3; two sheets that edit the same file never run in
   the same wave):
   | File | Edited by | Rule |
   |---|---|---|
   | `platform/db/content-kernel.ts` | S0 only | adds `schemaErasedKernel` |
   | `platform/db/sqlite/__tests__/repo-transactions.sqlite.test.ts` | S6a only (line 2, `outboxEventValues`) | every other binding it imports keeps its path and name; a sheet that would need to edit it = STOP |
   | `features/identity/wiring.ts`, `features/identity/repo.sqlite.ts`, `features/identity/repo.ts` | S3a, S3b, U3a, U3b, serial in that order | text-guarded: each OLD line occurs exactly once |
-  | `server/runtime/composition/deps.ts` | any sheet whose `wiring` lists a line there | one chain at a time per wave (INDEX §4); text-guarded |
+  | `server/runtime/composition/deps.ts` | any sheet whose `wiring` lists a line there | one chain at a time per wave (INDEX §3); text-guarded |
   | `development/scripts/write-path-inventory.baseline.json` and the other path-keyed baselines | the sheet whose commit moves the write site | in THAT commit: delete only your own rows by hand, never regenerate the file; parallel chains make disjoint hunks |
   | `packages/<pkg>/package.json` + `pnpm-lock.yaml` (Jini) | one sheet per package per wave | export entry, `jini.entries` line, README row and (first SQL sheet of user-management / integrations) the `kysely` optional peer + lockfile, all in the J1 commit that needs them (this replaces the round-1 "P-DEP coordinator step") |
 

@@ -11,7 +11,7 @@ id: S4a-trash-contracts-and-kit (~200k, cut point after J1)   registry TYPES, lo
     S4b-trash-table-adapter     (~210k, cut point after J1)   table-adapter.ts (362) partitioned; marker-sql parity table (test only)
 jini_target: cms existing ./trash (universal: two new type/pure files) + NEW ./trash/sql (node)
 prerequisites: S0 DONE (P1 `trash:<type>:<ws>:<id>`, `trash:sweep-claim`; P2). xpkg R6-R9 landed (cms manifest, wave 1).
-successor_of: S2b (cms manifest). S4b: S4a.   U1b and U2b need only S4a (the lock-key builder).
+successor_of: S2c (cms manifest). S4b: S4a.   U1b and U2b need only S4a (the lock-key builder).
 ```
 
 ## S4a
@@ -88,7 +88,7 @@ pass `{ entry, kernel: <the same lazy value passed as db today>, tables: { trash
 | `adapters/marker-sql.ts` (147), `comment.ts` (74), `post.ts` (91), `redirect.ts` (73), `media.ts` (95) | **STAY in Tovu.** They are bespoke per-table adapters over Tovu's product tables; the labelled end state ("canonical = table-adapter") is a registry ENTRY per domain, which is Tovu product content, not a Jini move | follow-up **S4d** (Tovu only, one adapter per commit, each gated on its row of S4b's parity table being identical; otherwise it stays, with the difference recorded). ~60k per adapter, not scheduled here |
 | `adapters/member.ts` (64) | **STAY-WIRING.** It binds cms's `TrashAdapter` to members tables (revokes sessions, consumes sign-in links in the hide transaction); cms and user-management may not import each other | U1b pins its effect (its security table) and repoints nothing in it |
 | `adapters/user.ts` (228) | **STAY-WIRING.** Binds the trash contract to identity purge, sessions and the outbox row format, under `trash:user:<ws>:<principal>` | S3b pins the key (P1) and leaves the file; S6a repoints its type import of `outboxEventValues` |
-| `adapters/directory.ts` (253; `node:fs/promises`, `node:path`, `node:crypto`; no Tovu import) | **MOVE -> `@jini-ai/node-adapters`** (a Node runtime adapter of cms's `TrashAdapter` port type; xpkg OD-3) | needs xpkg N1 landed and a function partition (`createDirectoryTrashAdapter` spans :179-253). **Not written** (INDEX remainder) |
+| `adapters/directory.ts` (253; `node:fs/promises`, `node:path`, `node:crypto`; no Tovu import) | **MOVE -> `@jini-ai/node-adapters`** (a Node runtime adapter of cms's `TrashAdapter` port type; xpkg OD-3) | needs xpkg N1 landed and a function partition (`createDirectoryTrashAdapter` spans :179-253). **Not written** (INDEX §7, R3-2) |
 | `adapters/plugin.ts` (1), `theme.ts` (3) | **STAY-PRODUCT** (entity-type names of Tovu folders) | - |
 
 ## stops

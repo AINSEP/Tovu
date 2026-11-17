@@ -14,7 +14,7 @@ prerequisites:
   - xpkg C9c and R3b landed (they own `packages/user-management/**` in waves 1-2): `git log --oneline -1 -- packages/user-management` names them.
   - C3 storage contract: `rg -n "export interface StorageKernel" packages/core/src/contracts/storage/kernel.ts`.
   - lost-updates: if its sheet is scheduled on `features/identity/repo.ts`, it runs first; re-take facts.
-successor_of: S0.  Then U3a, U3b, U1a (same manifest, same Tovu hot files): serial, INDEX §4.
+successor_of: S0.  Then U3a, U3b, U1a (same manifest, same Tovu hot files): serial, INDEX §3.
 ```
 **`kysely` (replaces round-1 P-DEP).** `packages/user-management/package.json` does not declare it (checked on Jini
 `af33fcdb`). S3a's J1 adds it as an optional peer exactly the way `packages/cms/package.json` does (peer + `peerDependenciesMeta`
@@ -58,7 +58,7 @@ exists today; they move verbatim and nothing new is added (T-SQLREPO §6 delete 
 **`SqlUserPurge` (`user-purge.ts`, 92) and `user-purge.sqlite.ts` (8): STAY in Tovu, unsplit.** The purge is ONE
 transaction over nine tables of five owners (role and policy assignments, sessions, API keys, per-user settings, the
 secrets vault, users, principals, then the outbox event). It is host orchestration; moving a slice would only risk the
-statement order. `user-purge-types.ts` and `repo.memory.ts` belong to audit row A26 (INDEX remainder).
+statement order. `user-purge-types.ts` and `repo.memory.ts` belong to audit row A26 (INDEX §7, R3-4).
 
 ## Security chain (finding 8): today's real behaviour, its owner after the move, the test that fails without it
 All tests are T0, on unmoved code, real kernel; "recording kernel" = a wrapper recording `transaction` depth, `lockKey`

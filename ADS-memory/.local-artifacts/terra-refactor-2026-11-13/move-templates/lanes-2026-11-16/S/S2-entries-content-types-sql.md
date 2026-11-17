@@ -10,7 +10,7 @@ jini_target: cms NEW ./content-types/sql and ./entries/sql (node); S2c adds one 
 prerequisites:
   - S0 DONE (P6, P7; `schemaErasedKernel`): `rg -n "export function schemaErasedKernel" apps/website/src/platform/db/content-kernel.ts`
   - xpkg R6-R9 landed (it owns cms's manifest in wave 1 and the `ColumnCatalogPort` precedent): `rg -n "ColumnCatalogPort" packages/cms/src/forms`
-  - lost-updates: if a lost-updates sheet is scheduled on `features/entries/repo.ts` it runs first (INDEX §4); then re-take facts
+  - lost-updates: if a lost-updates sheet is scheduled on `features/entries/repo.ts` it runs first (INDEX §3); then re-take facts
   - audit2 A08 (moves `features/media/access-evidence.ts`): S2b and A08 never run in the same wave; S2b works before or after it
 successor_of: S1c (cms manifest), S0
 ```
