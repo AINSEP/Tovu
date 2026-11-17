@@ -101,12 +101,10 @@ export function PublishContentDialog({
   port,
   criteria,
   scope,
-  onPlanned,
-  confirmArmDelayMs,
+  onPlanned, confirmArmDelayMs,
   usePublishContentConfirmHook = usePublishContentConfirm,
 }: PublishContentDialogProps) {
   const view = usePublishContentConfirmHook({ onCancel, t, port, criteria, scope, onPlanned, confirmArmDelayMs });
-
   return (
     <Dialog
       open

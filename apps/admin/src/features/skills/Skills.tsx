@@ -65,6 +65,17 @@ function AddSkillPanel({ controller, t }: { controller: SkillsController; t: Tra
   );
 }
 
+/** The failure notice and the two dialogs the page raises; split out so the page body stays under the complexity ceiling. */
+function SkillsOverlays({ controller, t, filesModal }: { controller: SkillsController; t: Translate; filesModal: ReturnType<typeof useSkillFilesModal> }) {
+  return (
+    <>
+      {controller.failure ? <ErrorNotice failure={controller.failure} t={t} /> : null}
+      {controller.removing ? <SkillRemoveConfirmDialog controller={controller} t={t} /> : null}
+      {filesModal ? <PackageFilesModal {...filesModal} /> : null}
+    </>
+  );
+}
+
 /** Agent Plugins' shared tab shell; navigation and installation behavior live in hooks. */
 export function Skills({ useSkillsHook = useSkills, useLocaleHook = useAdminLocale, useAdminThemeBoundaryHook = useAdminThemeBoundary, useSkillsTranslatorHook = useSkillsTranslator, useSkillFilesModalHook = useSkillFilesModal }: {
   useSkillsHook?: typeof useSkills; useLocaleHook?: typeof useAdminLocale;
@@ -95,9 +106,7 @@ export function Skills({ useSkillsHook = useSkills, useLocaleHook = useAdminLoca
         labels={{ kicker: t("Add-Ons"), sidebarAriaLabel: t("Skills sections") }}
       />
       <SkillInstallConfirmation install={controller.install} locale={locale} />
-      {controller.failure ? <ErrorNotice failure={controller.failure} t={t} /> : null}
-      {controller.removing ? <SkillRemoveConfirmDialog controller={controller} t={t} /> : null}
-      {filesModal ? <PackageFilesModal {...filesModal} /> : null}
+      <SkillsOverlays controller={controller} t={t} filesModal={filesModal} />
       <p className="field-hint">{t("Skills work with Claude Code, Codex and BYOK. Aider, Gemini CLI and Pi can't use them.")}</p>
     </section>
   );
