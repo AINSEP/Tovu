@@ -15,9 +15,9 @@ import type {
 } from "../../platform/db/content-database.generated.js";
 
 import type { ApiKeyRecord, ApiKeyRepoPort } from "./api-key-types.js";
-import type { PolicyPermissionRepoPort, PolicyRepoPort, PrincipalPolicyRepoPort, PrincipalRepoPort, PrincipalRoleRepoPort, RolePolicyRepoPort, RoleRepoPort, SessionRepoPort, UserRepoPort } from "@jini-ai/user-management";
+import type { PolicyPermissionRepoPort, PolicyRepoPort, PrincipalPolicyRepoPort, PrincipalRepoPort, PrincipalRoleRepoPort, RolePolicyRepoPort, RoleRepoPort, SessionRepoPort, UserRepoPort, IdentityTransactionPort } from "@jini-ai/user-management";
 import type { PolicyPermissionRecord, PolicyRecord, PrincipalKind, PrincipalPolicyRecord, PrincipalRecord, PrincipalRoleRecord, PrincipalStatus, RolePolicyRecord, RoleRecord, SessionRecord, UserRecord } from "@jini-ai/user-management";
-import type { IdentityTransactionPort } from "@jini-ai/user-management";
+import { keepStoredRevocation } from "../../platform/db/keep-stored-revocation.js";
 
 /**
  * @file THE adapters for the `identity` repo ports (ADR-021 / SPEC-006): one Kysely query body for
@@ -241,7 +241,7 @@ export class SqlSessionRepo implements SessionRepoPort {
       user_agent: record.userAgent ?? null,
     };
     await createIdentityTransactions({ kernel: this.kernel }).run({ workspaceId: record.workspaceId, execute: () => this.kernel.run((db) =>
-      db.insertInto("sessions").values(row).onConflict((oc) => oc.column("id").doUpdateSet(row)).execute()) });
+      db.insertInto("sessions").values(row).onConflict((oc) => oc.column("id").doUpdateSet({ ...row, revoked_at: keepStoredRevocation({ table: "sessions" }) })).execute()) });
   }
 
   async revoke(required: { workspaceId: string; id: string; revokedAt: string }): Promise<void> {

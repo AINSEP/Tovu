@@ -2,6 +2,7 @@ import { decodeListCursor, pageFromOverfetch, type ListPage } from "@jini-ai/cor
 import { assertVersionedWrite } from "@jini-ai/core/optimistic-concurrency";
 import { MemberAuthError, MemberConflictError } from "./types.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
+import { keepStoredRevocation } from "../../platform/db/keep-stored-revocation.js";
 import type {
   MagicLinkTokenRepoPort,
   MemberConsentRepoPort,
@@ -397,7 +398,8 @@ export class SqlMemberSessionRepo implements MemberSessionRepoPort {
         throw new MemberAuthError("member changed before the session was saved; request a new sign-in link");
       }
       await this.kernel.run((db) => db.insertInto("member_sessions").values(row)
-        .onConflict((oc) => oc.column("id").doUpdateSet(withoutId(row)))
+        // Revocation is one-way: a save never restores a revoked session (see keepStoredRevocation).
+        .onConflict((oc) => oc.column("id").doUpdateSet({ ...withoutId(row), revoked_at: keepStoredRevocation({ table: "member_sessions" }) }))
         .execute());
     });
   }

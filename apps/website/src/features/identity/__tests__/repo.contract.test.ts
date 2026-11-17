@@ -94,7 +94,7 @@ function runUserRepoSuite(adapterName: string, makeRepo: () => UserRepoPort) {
 }
 
 function runSessionRepoSuite(adapterName: string, makeRepo: () => SessionRepoPort) {
-  test(`[${adapterName}] SessionRepoPort: client metadata survives save and is cleared by a later save without it`, async () => {
+  test(`[${adapterName}] SessionRepoPort: client metadata survives save and is cleared by a later save without it; a revocation is never cleared`, async () => {
     const repo = makeRepo();
     const row = { id: "s-client", workspaceId: WS, principalId: "p-1", tokenHash: "client-hash", createdAt: "2026-01-01T00:00:00.000Z", expiresAt: "2026-02-01T00:00:00.000Z", ip: "192.0.2.8", userAgent: "Coverage browser", revokedAt: "2026-01-05T00:00:00.000Z" };
     await repo.save(row);
@@ -102,7 +102,8 @@ function runSessionRepoSuite(adapterName: string, makeRepo: () => SessionRepoPor
     assert.deepEqual(await repo.listByPrincipalId({ workspaceId: WS, principalId: row.principalId }), [row]);
     const cleared = { ...row, ip: undefined, userAgent: undefined, revokedAt: undefined };
     await repo.save(cleared);
-    assert.deepEqual(await repo.findById({ workspaceId: WS, id: row.id }), cleared);
+    // Revocation is one-way: the later save drops the client metadata but cannot restore the revoked session.
+    assert.deepEqual(await repo.findById({ workspaceId: WS, id: row.id }), { ...cleared, revokedAt: row.revokedAt });
   });
 
   test(`[${adapterName}] SessionRepoPort: save + findById/findByTokenHash round-trip, revoke sets revokedAt`, async () => {
