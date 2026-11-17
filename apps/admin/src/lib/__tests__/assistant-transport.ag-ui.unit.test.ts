@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { createAgUiToAgentTranslationState, translateAgUiEventToAgentEvent } from "@jini-ai/chat/core/ag-ui";
+import type { AgUiEvent } from "@jini-ai/chat/core/ag-ui";
+import { createAgUiToAgentTranslationState, translateAgUiEventToAgentEvent } from "@jini-ai/chat/core/ag-ui/reduction";
 import { EventType } from "@ag-ui/core";
 
 import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
@@ -10,7 +11,6 @@ import {
   AG_UI_RUN_PATH,
   agUiRunClient,
   isAgUiTransportEnabled,
-  type AgUiEvent,
 } from "../assistant-transport-ag-ui";
 import { createTovuAssistantTransport } from "../assistant-transport";
 import { flushMicrotasks, streamFromChunks } from "./assistant-transport.test-helpers";
@@ -163,11 +163,18 @@ describe("translateAgUiEventToAgentEvent — direct mappings", () => {
     ]);
   });
 
-  test("tool_result loses isError across the round trip — AG-UI's ToolCallResultEvent has no such field", () => {
+  test("tool_result without the extra isError field reads as a success — a server that sends none is not an error", () => {
     const state = createAgUiToAgentTranslationState({ customEventNames: CUSTOM_EVENT_NAMES }, {});
     expect(
       translateAgUiEventToAgentEvent({ event: { type: EventType.TOOL_CALL_RESULT, messageId: "m1", toolCallId: "call-1", content: "3 posts" }, state: state }, {}),
-    ).toEqual([{ kind: "tool_result", toolUseId: "call-1", content: "3 posts", isError: false }]);
+    ).toStrictEqual([{ kind: "tool_result", toolUseId: "call-1", content: "3 posts", isError: false }]);
+  });
+
+  test("tool_result keeps isError when the server sends it as an extra field", () => {
+    const state = createAgUiToAgentTranslationState({ customEventNames: CUSTOM_EVENT_NAMES }, {});
+    expect(
+      translateAgUiEventToAgentEvent({ event: { type: EventType.TOOL_CALL_RESULT, messageId: "m1", toolCallId: "call-1", content: "no such post", isError: true }, state: state }, {}),
+    ).toStrictEqual([{ kind: "tool_result", toolUseId: "call-1", content: "no such post", isError: true }]);
   });
 });
 
@@ -535,6 +542,37 @@ describe("startAgUiRun — SSE frame streaming end to end", () => {
       { kind: "status", code: "step_start", label: "", data: { messageId: "m1" } },
       { kind: "text", text: "partial" },
     ]);
+  });
+
+  // AG-UI has no standard field for these, so the server writes them as extra fields. This drives
+  // the real `HttpAgent` (its SSE parse and its per-event schema check) to prove they are not
+  // stripped on the way to the reducer. If an `@ag-ui/client` upgrade starts dropping unknown
+  // fields, this is the test that fails.
+  test("extra tool fields survive the official HttpAgent pipeline: bridge correlation, isError, media, outcome", async () => {
+    const bridgeCall = { name: "posts.search", input: { q: "posts" }, buffered: true };
+    const media = [{ type: "image" as const, mimeType: "image/png", data: "AAAA" }];
+    const stream = streamFromChunks([
+      frame({ type: EventType.RUN_STARTED, threadId: "t", runId: "r" }),
+      frame({ type: EventType.TOOL_CALL_START, toolCallId: "call-1", toolCallName: "search", toolOrigin: "bridge", bridgeCall }),
+      frame({ type: EventType.TOOL_CALL_ARGS, toolCallId: "call-1", delta: JSON.stringify({ q: "posts" }) }),
+      frame({ type: EventType.TOOL_CALL_END, toolCallId: "call-1" }),
+      frame({ type: EventType.TOOL_CALL_RESULT, messageId: "tool_result_msg_1", toolCallId: "call-1", content: "found 3", role: "tool", isError: true, media, outcome: "unknown" }),
+      frame({ type: EventType.RUN_FINISHED, threadId: "t", runId: "r", result: { reason: "stop" } }),
+    ]);
+    fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const h = handlers();
+
+    await agUiRunClient.startAgUiRun({ input: { history: HISTORY, signal: new AbortController().signal }, handlers: h }, {});
+    await flushMicrotasks();
+    await flushMicrotasks();
+
+    expect(h.events).toStrictEqual([
+      { kind: "tool_use", id: "call-1", name: "search", input: { q: "posts" }, toolOrigin: "bridge", bridgeCall },
+      { kind: "tool_result", toolUseId: "call-1", content: "found 3", isError: true, media, outcome: "unknown" },
+    ]);
+    expect(h.done).toEqual(h.events);
+    expect(h.errors).toEqual([]);
   });
 
   // --- ADR-059 Decision 6: the named, load-bearing interruption-sequence regression ------------

@@ -1,0 +1,157 @@
+{
+  "plain reply": {
+    "status": 200,
+    "headers": [
+      [
+        "cache-control",
+        "no-cache, no-transform"
+      ],
+      [
+        "connection",
+        "keep-alive"
+      ],
+      [
+        "content-type",
+        "text/event-stream; charset=utf-8"
+      ],
+      [
+        "transfer-encoding",
+        "chunked"
+      ],
+      [
+        "x-accel-buffering",
+        "no"
+      ],
+      [
+        "x-powered-by",
+        "Express"
+      ]
+    ],
+    "body": "event: text\ndata: {\"delta\":\"Hello from the site.\"}\n\nevent: end\ndata: {\"reason\":\"stop\"}\n\n"
+  },
+  "ask tool, allow=true": {
+    "status": 200,
+    "body": "event: client_directive\ndata: {\"kind\":\"tool_confirmation\",\"challengeId\":\"<challenge>\",\"title\":\"Allow listing categories?\",\"summary\":\"List published categories.\"}\n\nevent: text\ndata: {\"delta\":\"Finished.\"}\n\nevent: end\ndata: {\"reason\":\"stop\"}\n\n",
+    "toolResultSeenByModel": [
+      {
+        "content": "[]",
+        "isError": false
+      }
+    ]
+  },
+  "ask tool, allow=false": {
+    "status": 200,
+    "body": "event: client_directive\ndata: {\"kind\":\"tool_confirmation\",\"challengeId\":\"<challenge>\",\"title\":\"Allow listing categories?\",\"summary\":\"List published categories.\"}\n\nevent: text\ndata: {\"delta\":\"Finished.\"}\n\nevent: end\ndata: {\"reason\":\"stop\"}\n\n",
+    "toolResultSeenByModel": [
+      {
+        "content": "I can't help with that request here.",
+        "isError": true
+      }
+    ]
+  },
+  "ask tool, expired": {
+    "status": 200,
+    "body": "event: client_directive\ndata: {\"kind\":\"tool_confirmation\",\"challengeId\":\"<challenge>\",\"title\":\"Allow listing categories?\",\"summary\":\"List published categories.\"}\n\nevent: text\ndata: {\"delta\":\"Finished.\"}\n\nevent: end\ndata: {\"reason\":\"stop\"}\n\n",
+    "toolResultSeenByModel": [
+      {
+        "content": "I can't help with that request here.",
+        "isError": true
+      }
+    ],
+    "confirmationTimersMs": [
+      60000,
+      60000,
+      60000
+    ],
+    "lateAnswer": {
+      "status": 400,
+      "body": "{\"error\":\"I can't help with that request here.\"}"
+    }
+  },
+  "ask tool, no capacity": {
+    "status": 200,
+    "body": "event: text\ndata: {\"delta\":\"Finished.\"}\n\nevent: end\ndata: {\"reason\":\"stop\"}\n\n",
+    "toolResultSeenByModel": [
+      {
+        "content": "I can't help with that request here.",
+        "isError": true
+      }
+    ]
+  },
+  "page.navigate": {
+    "status": 200,
+    "body": "event: text\ndata: {\"delta\":\"Opening the page.\"}\n\nevent: end\ndata: {\"reason\":\"navigation\"}\n\n",
+    "tabAnswers": [
+      200
+    ],
+    "tabCommands": [
+      {
+        "type": "invocation",
+        "invocationId": "<uuid>",
+        "capabilityId": "page.navigate",
+        "input": {
+          "page": "p-live",
+          "__visitorPage": {
+            "revision": "<revision>",
+            "approved": true,
+            "pages": [
+              {
+                "id": "p-live",
+                "label": "Opening Hours"
+              },
+              {
+                "id": "post-home",
+                "label": "Welcome to Tovu"
+              },
+              {
+                "id": "post-about",
+                "label": "What Is Tovu?"
+              },
+              {
+                "id": "post-themes",
+                "label": "How Themes Work"
+              },
+              {
+                "id": "post-plugins",
+                "label": "How Plugins Work"
+              },
+              {
+                "id": "post-plugin-api",
+                "label": "The Plugin API"
+              },
+              {
+                "id": "post-self-hosting",
+                "label": "Self-Hosting — Coming Soon"
+              },
+              {
+                "id": "post-typography",
+                "label": "Field Notes: The Weight of Type"
+              },
+              {
+                "id": "post-mornings",
+                "label": "Slow Mornings"
+              },
+              {
+                "id": "page-root",
+                "label": "Home"
+              },
+              {
+                "id": "page-blog",
+                "label": "Blog"
+              }
+            ],
+            "path": "/opening-hours"
+          }
+        }
+      }
+    ]
+  },
+  "provider error": {
+    "status": 200,
+    "body": "event: error\ndata: {\"code\":\"provider_error\",\"errorId\":\"<uuid>\",\"message\":\"The assistant couldn't answer right now. Please try again. (error <uuid>)\"}\n\nevent: end\ndata: {\"reason\":\"error\"}\n\n"
+  },
+  "visitor abort": {
+    "status": 200,
+    "bodyBeforeLeaving": ""
+  }
+}

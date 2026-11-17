@@ -2,19 +2,25 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { AgentEvent } from "@jini-ai/chat/core";
+import { terminalReasonNotice as jiniTerminalReasonNotice, translateRunAgentPayload, type RunAgentPayload } from "@jini-ai/chat/core/run-events";
 
-import {
-  closeAgUiRun,
-  createAgUiTranslationState,
-  reduceAgentWirePayload,
-  terminalReasonNotice,
-  translateAgentEventToAgUi,
-} from "../runtime/composition/modules/assistant-ag-ui.js";
+import { closeAgUiRun as close, createAgUiTranslationState as create, translateAgentEventToAgUi as translate, type AgUiTranslationState } from "@jini-ai/chat/core/ag-ui";
+
+import { RUN_NOTICES } from "../../contracts/core/assistant-run-events.js";
+import { AG_UI_TRANSLATION } from "../runtime/composition/modules/assistant-ag-ui.js";
+
+/** Jini's notice rule with the words this host passes it, as the route's frame translation does. */
+const terminalReasonNotice = ({ reason }: { reason: string }) => jiniTerminalReasonNotice({ reason, notice: RUN_NOTICES.toolStepLimit });
+
+/** The route's projection calls, with its own ids and wire names. */
+const createAgUiTranslationState = () => create(AG_UI_TRANSLATION);
+const translateAgentEventToAgUi = (event: AgentEvent, state: AgUiTranslationState) => translate({ event, state });
+const closeAgUiRun = (state: AgUiTranslationState) => close({ state });
 
 /**
  * @file Pure-function coverage for `assistant-ag-ui.ts`'s two translation steps — no daemon, no
- * Express, no network. `reduceAgentWirePayload` (daemon wire -> `AgentEvent`, a server-side port of
- * `translateRunAgentPayload`) and `translateAgentEventToAgUi` (`AgentEvent` -> real AG-UI events)
+ * Express, no network. Jini's `translateRunAgentPayload` (daemon wire -> `AgentEvent`, the one
+ * reducer this route calls) and `translateAgentEventToAgUi` (`AgentEvent` -> real AG-UI events)
  * are each independently testable this way, matching the existing precedent
  * `apps/admin/.../assistant-transport.translate.unit.test.ts` sets for the client-side half.
  *
@@ -24,31 +30,36 @@ import {
  * "interruption sequences" describe block below.
  */
 
-test("reduceAgentWirePayload — status/text_delta/thinking_delta/tool_use/tool_result map field-for-field", () => {
-  assert.deepEqual(reduceAgentWirePayload({ type: "status", label: "Thinking", detail: "step 2" }), {
+/** The route's reduction step, as it calls it. */
+function reduce(payload: RunAgentPayload): AgentEvent | null {
+  return translateRunAgentPayload({ payload });
+}
+
+test("translateRunAgentPayload — status/text_delta/thinking_delta/tool_use/tool_result map field-for-field", () => {
+  assert.deepEqual(reduce({ type: "status", label: "Thinking", detail: "step 2" }), {
     kind: "status",
     label: "Thinking",
     detail: "step 2",
   });
-  assert.deepEqual(reduceAgentWirePayload({ type: "text_delta", delta: "hi" }), { kind: "text", text: "hi" });
-  assert.deepEqual(reduceAgentWirePayload({ type: "thinking_delta", delta: "hmm" }), { kind: "thinking", text: "hmm" });
-  assert.deepEqual(reduceAgentWirePayload({ type: "tool_use", id: "t1", name: "search", input: { q: "x" } }), {
+  assert.deepEqual(reduce({ type: "text_delta", delta: "hi" }), { kind: "text", text: "hi" });
+  assert.deepEqual(reduce({ type: "thinking_delta", delta: "hmm" }), { kind: "thinking", text: "hmm" });
+  assert.deepEqual(reduce({ type: "tool_use", id: "t1", name: "search", input: { q: "x" } }), {
     kind: "tool_use",
     id: "t1",
     name: "search",
     input: { q: "x" },
   });
-  assert.deepEqual(reduceAgentWirePayload({ type: "tool_result", toolUseId: "t1", content: "ok", isError: false }), {
+  assert.deepEqual(reduce({ type: "tool_result", toolUseId: "t1", content: "ok", isError: false }), {
     kind: "tool_result",
     toolUseId: "t1",
     content: "ok",
     isError: false,
   });
-  assert.deepEqual(reduceAgentWirePayload({ type: "raw", line: "stdout chunk" }), { kind: "raw", line: "stdout chunk" });
+  assert.deepEqual(reduce({ type: "raw", line: "stdout chunk" }), { kind: "raw", line: "stdout chunk" });
 });
 
-test("reduceAgentWirePayload — usage pulls only well-typed numeric fields", () => {
-  assert.deepEqual(reduceAgentWirePayload({ type: "usage", usage: { input_tokens: 10, output_tokens: "bad" }, costUsd: 0.01 }), {
+test("translateRunAgentPayload — usage pulls only well-typed numeric fields", () => {
+  assert.deepEqual(reduce({ type: "usage", usage: { input_tokens: 10, output_tokens: "bad" }, costUsd: 0.01 }), {
     kind: "usage",
     inputTokens: 10,
     costUsd: 0.01,
@@ -56,55 +67,58 @@ test("reduceAgentWirePayload — usage pulls only well-typed numeric fields", ()
   // The opposite combination: input/output well-typed this time, cost/duration the wrong type —
   // each of the four fields is independently typeof-checked, so this exercises the other half of
   // each field's true/false pair.
-  assert.deepEqual(reduceAgentWirePayload({ type: "usage", usage: { input_tokens: "bad", output_tokens: 20 }, costUsd: "bad", durationMs: 500 }), {
+  assert.deepEqual(reduce({ type: "usage", usage: { input_tokens: "bad", output_tokens: 20 }, costUsd: "bad", durationMs: 500 }), {
     kind: "usage",
     outputTokens: 20,
     durationMs: 500,
   });
 });
 
-test("reduceAgentWirePayload — cumulative usage and session identity survive AG-UI translation", () => {
-  const usage = reduceAgentWirePayload({ type: "usage", costUsd: null, cumulativeCostUsd: 25.6, costSessionId: "claude-session-a" });
+test("translateRunAgentPayload — cumulative usage and session identity survive AG-UI translation", () => {
+  const usage = reduce({ type: "usage", costUsd: null, cumulativeCostUsd: 25.6, costSessionId: "claude-session-a" });
   assert.deepEqual(usage, { kind: "usage", cumulativeCostUsd: 25.6, costSessionId: "claude-session-a" });
   assert.deepEqual(translateAgentEventToAgUi(usage!, createAgUiTranslationState()),
     [{ type: "CUSTOM", name: "tovu.usage", value: usage }]);
-  assert.deepEqual(reduceAgentWirePayload({ type: "usage", cumulativeCostUsd: "bad", costSessionId: 17 }), { kind: "usage" });
-  assert.deepEqual(reduceAgentWirePayload({ type: "usage", cumulativeCostUsd: 0, costSessionId: "zero-session" }),
+  assert.deepEqual(reduce({ type: "usage", cumulativeCostUsd: "bad", costSessionId: 17 }), { kind: "usage" });
+  assert.deepEqual(reduce({ type: "usage", cumulativeCostUsd: 0, costSessionId: "zero-session" }),
     { kind: "usage", cumulativeCostUsd: 0, costSessionId: "zero-session" });
 });
 
-test("reduceAgentWirePayload — status with no detail field omits it, rather than stringifying undefined", () => {
-  assert.deepEqual(reduceAgentWirePayload({ type: "status", label: "Thinking" }), { kind: "status", label: "Thinking", detail: undefined });
+test("translateRunAgentPayload — status with no detail field omits it, rather than stringifying undefined", () => {
+  assert.deepEqual(reduce({ type: "status", label: "Thinking" }), { kind: "status", label: "Thinking" });
 });
 
-test("reduceAgentWirePayload — non-string label/delta fields are JSON-stringified by asString, not coerced to a bare string", () => {
-  assert.deepEqual(reduceAgentWirePayload({ type: "status", label: { code: 1 } }), {
+test("translateRunAgentPayload — non-string label/delta fields are JSON-stringified by asString, not coerced to a bare string", () => {
+  assert.deepEqual(reduce({ type: "status", label: { code: 1 } }), {
     kind: "status",
     label: '{"code":1}',
-    detail: undefined,
   });
 });
 
-test("reduceAgentWirePayload — thinking_start drops (no wire-side thinking_end exists to pair it with)", () => {
-  assert.equal(reduceAgentWirePayload({ type: "thinking_start" }), null);
+test("translateRunAgentPayload — thinking_start drops (no wire-side thinking_end exists to pair it with)", () => {
+  assert.equal(reduce({ type: "thinking_start" }), null);
 });
 
-test("reduceAgentWirePayload — mcp-ui/a2ui unwrap to their inner payload under 'ext'", () => {
-  assert.deepEqual(reduceAgentWirePayload({ type: "mcp-ui", toolUseId: "t1", resource: { uri: "ui://x" } }), {
+test("translateRunAgentPayload — mcp-ui/a2ui unwrap to their inner payload under 'ext'", () => {
+  assert.deepEqual(reduce({ type: "mcp-ui", toolUseId: "t1", resource: { uri: "ui://x" } }), {
     kind: "ext",
     name: "mcp-ui",
     data: { uri: "ui://x" },
   });
-  assert.deepEqual(reduceAgentWirePayload({ type: "a2ui", message: { channel: "a2ui" } }), {
+  assert.deepEqual(reduce({ type: "a2ui", message: { channel: "a2ui" } }), {
     kind: "ext",
     name: "a2ui",
     data: { channel: "a2ui" },
   });
 });
 
-test("reduceAgentWirePayload — an unrecognized type (e.g. tool_input_delta) falls through to 'ext' with the whole payload", () => {
-  const payload = { type: "tool_input_delta", id: "t1", name: "search", delta: "{\"q" };
-  assert.deepEqual(reduceAgentWirePayload(payload), { kind: "ext", name: "tool_input_delta", data: payload });
+test("translateRunAgentPayload — an unrecognized type (e.g. stage_start) falls through to 'ext' with the whole payload", () => {
+  const payload = { type: "stage_start", stage: "plan" };
+  assert.deepEqual(reduce(payload), { kind: "ext", name: "stage_start", data: payload });
+});
+
+test("translateRunAgentPayload — partial tool input is dropped: the finished tool_use carries the same input whole", () => {
+  assert.equal(reduce({ type: "tool_input_delta", id: "t1", name: "search", delta: "{\"q" }), null);
 });
 
 test("terminalReasonNotice — only max_tool_turns produces a notice", () => {
