@@ -98,7 +98,7 @@ import type { PostStatus, PublicPostKind } from "@jini-ai/cms/core";
 // The SAME boundary `server/inbound/admin-http/routes/posts/update.ts` uses — imported, not copied.
 // The two arms diverged in the first place because only one of them had this logic at all.
 import { parseExpectedVersion, VERSION_CONFLICT_CODE } from "./expected-version.js";
-import { extractPlainTextFromHtml } from "./html-plain-text.js";
+import { extractPlainTextFromHtml } from "@jini-ai/cms/seo";
 import { readPostTemplateOptions, type PostTemplateDeps } from "./template-options.js";
 import { extractPostPlainText, searchAdminPosts, type PostSearchPort } from "./search.js";
 // Keep the standalone read tool on the existing registration seam, outside the content barrel.

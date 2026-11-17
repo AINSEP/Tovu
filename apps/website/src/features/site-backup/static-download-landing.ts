@@ -1,5 +1,5 @@
 import { escapeHtml } from "#src/platform/html/escape";
-import { extractPlainTextFromHtml } from "../post/html-plain-text.js";
+import { extractPlainTextFromHtml } from "@jini-ai/cms/seo";
 
 /** One delivered page of one exported theme, as the landing page lists it. */
 export interface LandingPage { href: string; title: string; label: string }

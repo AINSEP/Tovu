@@ -3,8 +3,7 @@ import type { PublicPostRecord as PostRecord } from "#src/features/post/contract
 import type { StaticPostPreview, StaticFeaturedImage } from "#src/features/theme/static-render";
 import { extractListingBatch, renderListingBatchDocument, type ListingBatchRequest, type ListingPageRequest, type ListingJsonPage } from "@jini-ai/cms/listing";
 import { postAuthorForDisplay } from "#src/contracts/core/post-author";
-import { extractPlainTextFromHtml } from "#src/features/post/rendering";
-import { deriveExcerpt } from "@jini-ai/cms/seo";
+import { deriveExcerpt, extractPlainTextFromHtml } from "@jini-ai/cms/seo";
 import type { AssignedTermView } from "#src/features/taxonomy/contracts";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { TemplateRenderDeps } from "../render-context/deps.js";

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { extractPlainTextFromHtml } from "../html-plain-text.js";
+import { extractPlainTextFromHtml } from "@jini-ai/cms/seo";
 
 // pb1/F4.4: keep malformed references literal while decoding valid scalar boundaries.
 test("BUG: HTML entity decoding accepts uppercase hex and preserves surrogate references", () => {
