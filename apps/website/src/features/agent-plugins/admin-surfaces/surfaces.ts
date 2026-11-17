@@ -8,7 +8,7 @@ import {
 import type { TrustedPluginPackage } from "@jini-ai/agent-plugins/lifecycle";
 
 import type { TovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
-import type { HostSignInLink, IssuedSignInCollector } from "./issued-sign-ins.js";
+import type { HostSignInLink, IssuedSignInCollector } from "@jini-ai/agent-plugins/admin-surfaces/node";
 
 /**
  * @file Tovu's adapter over Jini's admin-surface seam (`@jini-ai/agent-plugins/admin-surfaces`):

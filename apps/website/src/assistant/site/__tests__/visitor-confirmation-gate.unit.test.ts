@@ -113,7 +113,9 @@ test("a resume racing another cancellation is reported without an unhandled reje
 
 test("confirmation copy projects only declared fields and strips controls, links and excess text", async () => {
   const f = fixture({ toolId: "search_published_entries" });
-  const input = { query: `\u0000\u0085\u200e\u200f\u202a\u202e\u2066\u2069https://evil.test/login\n\t${"x".repeat(5000)}`,
+  const bidiControls = "\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069";
+  assert.equal(bidiControls.length, 11);
+  const input = { query: `\u0000\u0085${bidiControls}https://evil.test/login\n\t${"x".repeat(5000)}`,
     secret: "do not display", nested: { query: "do not display either" } };
   f.gate.delegate.onConfirm!({ ...f.request, input });
   await f.result;

@@ -90,9 +90,6 @@ const DYNAMIC_BINDINGS = new Map<string, ReadonlySet<string>>([
   ["features/identity/tool-registrations.ts", new Set(["registration.descriptor.id"])],
   ["features/permanent-delete/tool-registrations.ts", new Set(["toolId", "spec.name"])],
   ["features/database-transfer/tool-registrations.ts", new Set(["binding", "describeTransferApproval({ plan })"])],
-  // fc576483f: visitor Ask-first confirmations open on the site assistant's OWN exchange store
-  // (channel "visitor-tool-confirmation", principal "anonymous-visitor"); the MCP-UI admin route never sees them.
-  ["assistant/site/visitor-confirmations.ts", new Set(["binding.executionId"])],
 ]);
 
 // These open APIs operate on plugin sources, sealed credentials or filesystem watches, never surface exchanges.

@@ -1,8 +1,8 @@
 import { readVisitorPagePublication } from '#src/features/theme/visitor-publication';
-/** Policy/input binding for the visitor delegate; Jini remains the execution lifecycle owner. */
-import { canonicalArgumentDigest } from "@jini-ai/core/records";
+/** Visitor policy, publication check and copy for Jini's bound confirmation gate. */
 import { stripControlSequences } from "@jini-ai/core/text";
-import type { ExecutionDelegate, ToolConfirmationRequest, ToolExecutor } from "@jini-ai/daemon";
+import type { ToolConfirmationRequest, ToolExecutor } from "@jini-ai/daemon";
+import { createBoundConfirmationGate } from "@jini-ai/daemon/surface-exchanges";
 import { resolveVisitorToolChoice } from "../../contracts/site-assistant/visitor-tools.js";
 import type { VisitorExecutionPorts } from "./visitor-execution-ports.js";
 
@@ -24,6 +24,8 @@ const CONFIRMATION_COPY: Readonly<Record<string, { title: string; summary: strin
   site_guide: { title: "Allow reading the site guide?", summary: "Read the public site guide", field: "topic" },
 };
 
+type VisitorSnapshot = Awaited<ReturnType<NonNullable<VisitorExecutionPorts["readSnapshot"]>>>;
+
 /** Project only a declared string field into CMS-owned copy, never serialize the model's input.
  * Jini owns control stripping; this surface additionally removes bidi controls and links.
  * @complexity O(n) time/space in one input field; fields are capped at 120 and summaries at 240.
@@ -41,67 +43,42 @@ function confirmationCopy({ request }: { request: ToolConfirmationRequest }, _op
   return { title: copy.title, summary: `${copy.summary}: "${field}"`.slice(0, 240) };
 }
 
-/** Only Ask registrations enter this delegate. Each approval binds one immutable execution.
- * Re-read both after the click and immediately before the handler; changed-and-restored settings
- * still differ by value-row seq. IDs and argument digests never become model-facing results.
- * No values are retained in the challenge binding or audit. Input is detached before execution.
- * @complexity O(1) per execution plus bounded policy reads and input hashing; four calls per turn.
+/** Only Ask registrations (or forced confirmations) prompt; everything else resumes denied.
+ * Authorization refuses legacy/headless ports without the owner's value-row snapshot. */
+function decideVisitorConfirmation(
+  { ports, request, snapshot }: { ports: VisitorExecutionPorts; request: ToolConfirmationRequest; snapshot: VisitorSnapshot },
+  _options = {},
+): "ask" | "deny" {
+  if (!snapshot.policy || !ports.confirmation) return "deny";
+  const mode = resolveVisitorToolChoice({ policy: snapshot.policy, toolId: request.tool.id }).mode;
+  const forced = ports.requiresConfirmation?.({ toolId: request.tool.id, input: request.input }) === true;
+  return mode === 'off' || (mode !== 'ask' && !forced) ? "deny" : "ask";
+}
+
+/** The bound gate lives in `@jini-ai/daemon/surface-exchanges` (`createBoundConfirmationGate`). Tovu binds
+ * the visitor policy, the value-row revision (a value hash cannot detect changed-and-restored settings),
+ * the page publication check, the IP/owner binding and the copy. Four calls per turn.
  */
 export function createVisitorConfirmationGate({ ports, resume }: { ports: VisitorExecutionPorts; resume: ToolExecutor["resumeConfirmation"] }, _options = {}) {
-  const approved = new Map<string, (required: { input: unknown }) => Promise<boolean>>();
-
-  /** Disconnect already cancels Jini's pending confirmation. Never try to resurrect it.
-   * Other cancellation paths may also settle it first; report a failed resume without rejecting.
-   */
-  function resumeSafely({ executionId, allow }: { executionId: string; allow: boolean }, _optional = {}): void {
-    if (ports.signal?.aborted) return;
-    try { resume({ executionId, decision: allow ? "confirm" : "deny" }); }
-    catch (error) { ports.reportError({ error }); }
-  }
-
-  async function confirm({ request }: { request: ToolConfirmationRequest }, _optional = {}): Promise<void> {
-    let allow = false;
-    try {
-      // MOVE: Ask needs an actual value-row revision. A value hash cannot detect changed-and-restored
-      // policy; authorization refuses legacy/headless ports without this owner snapshot.
-      const captured = await ports.readSnapshot!();
-      if (!captured.policy || !ports.confirmation) return;
-      const mode = resolveVisitorToolChoice({ policy: captured.policy, toolId: request.tool.id }).mode;
-      const forced = ports.requiresConfirmation?.({ toolId: request.tool.id, input: request.input }) === true;
-      if (mode === 'off' || (mode !== 'ask' && !forced)) return;
-      // An object envelope keeps omitted arguments JSON-serializable without changing handler input.
-      const inputDigest = await canonicalArgumentDigest({ args: { input: request.input }, crypto: globalThis.crypto });
-      const validate = async ({ input }: { input: unknown }, _optional = {}) => {
-        const live = await ports.readSnapshot!();
-        const publicationValid = !ports.publicationRevision || Boolean(readVisitorPagePublication({ revision: ports.publicationRevision, workspaceId: ports.workspaceId }));
-        return !ports.signal?.aborted && publicationValid && live.policy !== null && live.revision === captured.revision && await canonicalArgumentDigest({ args: { input }, crypto: globalThis.crypto }) === inputDigest;
-      };
-      allow = await ports.confirmation.request({
-        binding: { runId: ports.runId, executionId: request.executionId, ip: ports.ip, owner: ports.owner },
-        ...confirmationCopy({ request }),
-        emit: ports.confirmation.emit, validate: () => validate({ input: request.input }), signal: ports.signal,
-      });
-      if (allow) approved.set(request.executionId, validate);
-    } catch (error) { ports.reportError({ error }); }
-    finally {
-      resumeSafely({ executionId: request.executionId, allow });
-    }
-  }
-
-  const delegate: ExecutionDelegate = { onConfirm(request) {
-    // Bare void is Jini's documented resumable seam. The async policy read ensures the executor
-    // parks before even a synchronous test/browser click can call resumeConfirmation.
-    void confirm({ request });
-  } };
-  return { delegate,
-    async assertApproved({ executionId, input }: { executionId: string; input: unknown }, _optional = {}) {
-      const validate = approved.get(executionId);
-      approved.delete(executionId);
-      let valid = false;
-      try { valid = Boolean(validate) && await validate!({ input }); }
-      catch (error) { ports.reportError({ error }); }
-      if (!valid || ports.signal?.aborted) throw new VisitorPlanRefused();
+  const gate = createBoundConfirmationGate<VisitorSnapshot>({ resume, crypto: globalThis.crypto, ports: {
+    readSnapshot: () => ports.readSnapshot!(),
+    decide: ({ request, snapshot }) => decideVisitorConfirmation({ ports, request, snapshot }),
+    isCurrent: ({ captured, live }) => {
+      const publicationValid = !ports.publicationRevision || Boolean(readVisitorPagePublication({ revision: ports.publicationRevision, workspaceId: ports.workspaceId }));
+      return publicationValid && live.policy !== null && live.revision === captured.revision;
     },
-    forget({ executionId }: { executionId: string }, _optional = {}) { approved.delete(executionId); },
+    requestApproval: ({ request, validate }) => ports.confirmation!.request({
+      binding: { runId: ports.runId, executionId: request.executionId, ip: ports.ip, owner: ports.owner },
+      ...confirmationCopy({ request }),
+      emit: ports.confirmation!.emit, validate, signal: ports.signal,
+    }),
+    reportError: ({ error }) => ports.reportError({ error }),
+    signal: ports.signal,
+  } });
+  return { delegate: gate.delegate,
+    async assertApproved({ executionId, input }: { executionId: string; input: unknown }, _optional = {}) {
+      if (!await gate.isApproved({ executionId, input })) throw new VisitorPlanRefused();
+    },
+    forget({ executionId }: { executionId: string }, _optional = {}) { gate.forget({ executionId }); },
   };
 }
