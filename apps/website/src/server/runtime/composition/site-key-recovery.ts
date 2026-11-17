@@ -166,13 +166,11 @@ async function resealRecord(input: {
     authorize: async ({ context }) => {
       if (buildVaultAad({ ...context, id: input.record.id, binding: "binding" in context ? context.binding : input.record.binding }) !== buildVaultAad(input.record)) throw new VaultError({ code: "context" });
     },
-    sealer: { open: (required, options) => input.previous.open(required, options), seal: async required => {
-      const sealed = await input.sealer.seal({ plaintext: required.plaintext, key: required.key, aad: required.aad });
-      if (await input.sealer.open({ sealed }, { aad: required.aad }) !== required.plaintext) throw new VaultError({ code: "invalid-record" });
-      return sealed;
-    } },
+    // The service seals AND verifies with the new key's sealer (Jini opens every fresh envelope again
+    // before it is written); the previous key only reads the stored row, as rotate's source opener.
+    sealer: input.sealer,
   });
-  await service.rotate({ ...input.record, expectedRevision: input.record.revision });
+  await service.rotate({ ...input.record, expectedRevision: input.record.revision }, { sourceOpener: input.previous });
 }
 
 // Ordinary rotation needs only the established safe metadata registration, not plugin discovery.

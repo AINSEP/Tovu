@@ -149,9 +149,10 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
     const result = await resealVaultCredentialsOpeningUnder({ kernel: fx.kernel, sealer: fx.right.sealer, key: await fx.right.keyring.activeKey(), previous: previous.sealer,
       resealRecord: async ({ record, previous }) => {
         const service = new SecretsVaultService({ repo: fx.repo, keyring: fx.right.keyring, metaParsers: registry.metaParsers,
-          sealer: { seal: fx.right.sealer.seal.bind(fx.right.sealer), open: previous.open.bind(previous) },
+          // Same binding as site-key-recovery.ts: the kept key seals and verifies, the previous key only reads.
+          sealer: fx.right.sealer,
           authorize: async () => {}, newId: () => "unused", now: () => NOW });
-        await service.rotate({ ...record, expectedRevision: record.revision });
+        await service.rotate({ ...record, expectedRevision: record.revision }, { sourceOpener: previous });
       } });
     assert.deepEqual(result, { resealed: 2, unreadable: 1 });
     assert.deepEqual(await countVaultCredentialsOpening({ kernel: fx.kernel, sealer: fx.right.sealer }), { sealed: 4, opens: 3 });

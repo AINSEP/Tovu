@@ -6,6 +6,7 @@ import path from "node:path";
 import test, { type TestContext } from "node:test";
 
 import { buildVaultAad } from "@jini-ai/platform/secrets/credential-sets";
+import { secretSealerContractViolations } from "@jini-ai/platform/secrets/testing";
 import { type VaultRecord } from "@jini-ai/core/contracts/vault";
 import { vaultRepo } from "#src/platform/db/__tests__/vault-credential.fixture";
 import { FixedSiteKeyKeyring } from "#src/features/webhooks/keyring.env";
@@ -133,6 +134,17 @@ test("resealFrom moves the sealed row and the storage secret from the previous k
   assert.deepEqual(await siteKeyRecovery.resealFrom({ siteDir: dir, hex: B, previousHex: A }), { resealed: 2, unreadable: 0 });
   assert.deepEqual(await siteKeyRecovery.checkKey({ siteDir: dir, hex: B }), { sealed: 1, opens: 1, storageSecret: "opens", metadataOnly: 0, legacy: 0 });
   assert.equal(await readSealedConnectionString({ siteDir: dir }, { sealer: keyed(B).sealer }), "postgres://site");
+});
+
+test("the sealer binding recovery hands to the vault service opens what it seals and refuses another binding", async () => {
+  // resealRecord gives SecretsVaultService exactly this pair: the new key's sealer and keyring.
+  for (const hex of [A, B]) assert.deepEqual(await secretSealerContractViolations(keyed(hex)), []);
+});
+
+test("a row that opens under neither key is counted unreadable and is not rewritten", async t => {
+  const dir = await siteWithSealedKey(t, C);
+  assert.deepEqual(await siteKeyRecovery.resealFrom({ siteDir: dir, hex: B, previousHex: A }), { resealed: 0, unreadable: 1 });
+  assert.deepEqual(await siteKeyRecovery.checkKey({ siteDir: dir, hex: C }), { sealed: 1, opens: 1, storageSecret: "absent", metadataOnly: 0, legacy: 0 });
 });
 
 test("a storage secret already under the new key is left alone", async t => {
