@@ -77,7 +77,7 @@ import {
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { Express, Request, Response } from "express";
 import type { SettingsRouteDeps } from "./deps.js";
-import { asyncRoute } from "../../../shared/async-route.js";
+import { asyncRoute } from "../../../../../platform/http/async-route.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 type IntervalHandle = ReturnType<typeof setInterval>;

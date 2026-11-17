@@ -5,7 +5,7 @@ import { consumeConfirmationToken } from "#src/features/newsletter/confirmation"
 import { NewsletterConfirmTokenInvalidError } from "#src/features/newsletter/index";
 import { escapeHtml } from "#src/platform/html/escape";
 import { toPublicConfirmationDeps, type NewsletterPublicRouteDeps } from "./newsletter-deps.js";
-import { asyncRoute } from "../../../shared/async-route.js";
+import { asyncRoute } from "../../../../../platform/http/async-route.js";
 
 /**
  * @file `CONFIRM_SUBSCRIPTION` (api.spec.md §1a) — `GET /newsletter/confirm?token=...`. Public,

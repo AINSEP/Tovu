@@ -8,7 +8,7 @@ import { API_CONNECTION_OAUTH_CALLBACK_PATH, type ApiConnectionHost } from "#src
 import { clearedBrowserBindingCookie, readBrowserBinding } from "#src/features/api-connections/browser-binding";
 import { renderOAuthCallbackPage, type OAuthCallbackFailureReason } from "../oauth/callback-page.js";
 import { resolvePublicOrigin } from "../oauth/public-origin.js";
-import { asyncRoute } from "../../../shared/async-route.js";
+import { asyncRoute } from "../../../../../platform/http/async-route.js";
 
 const consoleLogger = createConsoleLogger({ prefix: "" });
 

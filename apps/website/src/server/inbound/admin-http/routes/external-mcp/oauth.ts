@@ -16,7 +16,7 @@ import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { externalMcpOAuthCallbackUrl } from "#src/server/inbound/public-http/routes/external-mcp/oauth-callback-url";
 import type { ExternalMcpRouteDeps } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";
-import { asyncRoute } from "../../../shared/async-route.js";
+import { asyncRoute } from "../../../../../platform/http/async-route.js";
 
 const SHARED_MCP_PERMISSION = 'admin.integrations.manage';
 
