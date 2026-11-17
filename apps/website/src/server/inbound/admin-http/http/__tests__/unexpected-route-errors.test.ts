@@ -191,7 +191,7 @@ test("class guard: admin route error mappings send unexpected 500s through the s
   for (const entry of fs.readdirSync(root, { recursive: true, withFileTypes: true })) {
     if (!entry.isFile() || !entry.name.endsWith(".ts") || entry.name.includes(".test.") || entry.parentPath.includes("__tests__")) continue;
     const file = path.join(entry.parentPath, entry.name);
-    if (!/\/(routes|http)\//.test(file) || file.endsWith("site-share-errors.ts") || file.endsWith("plugin-hook-error.ts")) continue;
+    if (!/\/(routes|http)\//.test(file) || file.endsWith("plugin-hook-error.ts")) continue;
     const source = ts.createSourceFile(file, fs.readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true);
     const visit = (node: ts.Node) => {
       if ((isDirect500(node, source) && !isExpectedRefusal(node, source)) || isUnreported500Body(node, source) || isUnclassifiedCatch(node, source)) {

@@ -1900,11 +1900,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/server/inbound/admin-http/routes/system/site-share-errors.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/assign-terms.ts",
     "rule": "no-generic-failure-text",
     "value": 1

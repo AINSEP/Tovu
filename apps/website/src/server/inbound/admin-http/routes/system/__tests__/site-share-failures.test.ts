@@ -7,7 +7,7 @@ import type { Socket } from "node:net";
 import type { RouteDeps } from "#src/server/routes/types";
 import { registerAdminSiteShareRoutes } from "../site-shares.js";
 import { SiteShareRefusal } from "#src/features/site-backup/share-policy";
-import { sendSiteShareFailure } from "../site-share-errors.js";
+import { sendSiteShareFailure } from "../site-share-password.js";
 import { SiteShareExportFailure } from "#src/features/site-backup/share-export-failure";
 
 test("an archive failure returns the actual job step and redacted copyable details", async t => {
