@@ -6,7 +6,7 @@ import { chatDeleteRefusal, type ChatDeleteSurfaceDeps } from "../contracts/core
 import { applyToolApprovalPolicy } from "./tool-approval-policy.js";
 import { toolApprovalPolicyFor } from "./assistant-tool-approval-policy.js";
 import { getEffective as getEffectiveSetting, LANGUAGE_NAMESPACE } from "@jini-ai/core/settings";
-import type { Deps as SitesListToolDeps } from "../features/sites/list-tool.js";
+import type { SitesListToolDeps } from "../features/sites/index.js";
 /**
  * @file ADR-049 Decision 4's assembly point: the single place that composes every domain's agent
  * tools into the list registered into the assistant's `ToolRegistry` (`kernel.ts`), so a run's tool
@@ -75,7 +75,7 @@ import type { TaxonomyToolDeps } from "../features/taxonomy/tool-registrations.j
 import type { ThemeToolDeps } from "../features/theme/tool-registrations.js";
 import type { SetActiveThemeToolDeps } from "../features/theme/tool-registrations.js";
 import type { ChangeSetToolDeps } from "../features/change-sets/tool-registrations.js";
-import type { WorkspaceToolDeps } from "../features/workspace/tool-registrations.js";
+import type { WorkspaceToolDeps } from "../features/workspace/index.js";
 import type { FormsToolDeps } from "../features/forms/tool-registrations.js";
 import type { IdentityToolDeps } from "../features/identity/tool-registrations.js";
 import type { IntegrationsToolDeps } from "../features/webhooks/tool-registrations.js";
