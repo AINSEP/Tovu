@@ -10,7 +10,7 @@ Personas: software-architect (lead), refactor, programmer, tdd. Skills: implemen
 | K | redirects 806, widgets 1,480, comments 1,423, seo 1,244, taxonomy 2,022, trash 3,732, webhooks 3,892, forms 2,178, form-destinations 686 | 17,463 | ~7.3k |
 | T | theme 15,934, post 9,169, newsletter 5,223 | 30,326 | ~21.9k |
 The 11-05 numbers counted only the parts then planned to move. By label now: K = MOVE 3,873 + SPLIT 3,381 + MOVE-AFTER 2,759 (in scope 10,013) + STAY 7,450 (3,297 of it is webhooks keyring/sealer/site-key code that belongs to row 57 and audit2 B09, not lane K). T = already covered 4,328 + MOVE 2,281 + SPLIT 6,340 + MOVE-AFTER 13,063 + owner decision 721 + STAY 3,593.
-Tests in these folders: K 195 files / 30,516 lines, T 217 files / 40,028 lines (counted, not classified per test).
+Tests in these folders: K 175 files / 30,531 lines, T 217 files / 40,028 lines (counted, not classified per test).
 
 ## Already covered (not planned twice)
 - Domain layers of redirects, widgets, comments, seo, taxonomy, trash, forms are already in `@jini-ai/cms` (subpaths exist); what is left in Tovu is tools, SQL repos, bindings.
@@ -82,6 +82,6 @@ Re-run `scripts/gen.py` + `scripts/decls.py` on the merged tree before any wave:
 1. Admin screens were measured but NOT sheeted: `apps/admin/src/features/` posts 9,317, themes 9,452, taxonomy 4,640, trash 2,216, forms 1,872, seo 1,625, widgets 1,483 (a04 exists), comments 960, redirects 925 = 32,490 lines on merge-b. All need a Chrome visual check after any move (list screens, editors, dialogs; light + dark); CLASSIFY-files already labels 19 taxonomy, 4 trash, 4 themes, 7 posts, 2 forms rows.
 2. K-05b, K-11, T-TH-05, T-TH-06, T-PO-03: Opus designs (dependency-graph partitions, state owners, migration graph).
 3. T-TH-07, T-TH-08, T-PO-04, T-PO-05, T-NL-03: outlines to full sheets after their prerequisites land.
-4. Per-test move/keep classification for the 412 test files.
+4. Per-test move/keep classification for the 392 test files.
 5. Refresh B04/B05 blob guards; write the missing B21/B22/B08 sheets (B21 is K-04b here).
 6. lost-updates and error-system designs were not read in this run; T-PO-03 must be checked against both before its design is accepted.
