@@ -81,7 +81,7 @@ export interface ApplyRowContext {
     changeSetId: string;
     /** The retire half's own change set, for a `retires` row whose retire and create both landed. */
     retiredChangeSetId?: string;
-  }) => Promise<void>;
+  }, optional?: {}) => Promise<void>;
 }
 
 export type InspectedRow = NonNullable<Awaited<ReturnType<PublishContentHandler["inspect"]>>>;

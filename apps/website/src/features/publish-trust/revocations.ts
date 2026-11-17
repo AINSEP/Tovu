@@ -75,8 +75,8 @@ export interface PublishTrustRevocationPort {
     readonly sourceInstallationId: string;
     readonly nowIso: string;
     readonly note?: string;
-  }): Promise<RevocationWrite>;
-  restore(input: { readonly sourceInstallationId: string }): Promise<RevocationWrite>;
+  }, optional?: {}): Promise<RevocationWrite>;
+  restore(input: { readonly sourceInstallationId: string }, optional?: {}): Promise<RevocationWrite>;
 }
 
 /** @complexity O(1). */

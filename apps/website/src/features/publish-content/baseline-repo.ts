@@ -47,7 +47,7 @@ export interface PublishContentBaselineRepoPort {
     peerPrincipalId: string;
     entityType: string;
     entityId: string;
-  }): Promise<PublishContentBaselineRecord | null>;
+  }, optional?: {}): Promise<PublishContentBaselineRecord | null>;
   /** Replaces the baseline for `(workspaceId, peerPrincipalId, entityType, entityId)` — the table's
    *  own `publish_content_baselines_unique` index target. Not called anywhere in Task 7; Task 8's
    *  apply loop is the real caller (plan §4 task 8's own "baseline upserted for created/unchanged/

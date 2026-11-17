@@ -64,7 +64,7 @@ export interface PublishContentToolDeps extends PublishContentPullDeps, PublishC
   /** Needed by the shared production content projection for theme-file pulls. */
   fileBlobIndex: NonNullable<TovuPublishPorts["theme-files"]["fileBlobIndex"]>;
   mediaRepo: TovuPublishPorts["media"]["repo"];
-  workspaceRepo: { findById(required: { id: string }): Promise<{ name?: string } | null> };
+  workspaceRepo: { findById(required: { id: string }, optional?: {}): Promise<{ name?: string } | null> };
   publishContentPeerRepo: PublishContentPeerRepoPort;
   publishHistoryStore?: PublishHistoryStore;
   publishContentPeerHttpClient: Parameters<typeof resolvePublishDestinationCredential>[0]["deps"]["httpClient"];

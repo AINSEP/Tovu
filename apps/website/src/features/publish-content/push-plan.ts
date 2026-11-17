@@ -12,7 +12,7 @@ export interface PlanPublishToPeerDeps {
   workspaceId: string;
   authorize: PublishContentAuthorize;
   publishContentDeps: PublishContentDeps;
-  workspaceRepo: { findById(input: { id: string }): Promise<{ name?: string } | null> };
+  workspaceRepo: { findById(input: { id: string }, optional?: {}): Promise<{ name?: string } | null> };
   blobStore: CompositeBlobStoreRead;
   fileBlobIndex: Parameters<typeof createCompositePeerBlobSource>[0]["fileBlobIndex"];
 }

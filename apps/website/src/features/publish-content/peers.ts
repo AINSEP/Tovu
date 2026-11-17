@@ -120,13 +120,13 @@ export interface PublishContentPeerRepoPort {
   insert(required: { record: PublishContentPeerRecord }, optional?: {}): Promise<void>;
   /** Full-row replace by `(workspaceId, id)`. */
   update(required: { record: PublishContentPeerRecord }, optional?: {}): Promise<void>;
-  findById(input: { workspaceId: string; id: string }): Promise<PublishContentPeerRecord | null>;
+  findById(input: { workspaceId: string; id: string }, optional?: {}): Promise<PublishContentPeerRecord | null>;
   /** Every peer a workspace has saved. Inherently small — bounded by how many peers a human types
    *  into this one form, never by a caller-supplied N — so no pagination or cap, the same reasoning
    *  `VendorCredentialSetRepoPort.listByWorkspace` records. */
-  listByWorkspace(input: { workspaceId: string }): Promise<PublishContentPeerRecord[]>;
+  listByWorkspace(input: { workspaceId: string }, optional?: {}): Promise<PublishContentPeerRecord[]>;
   /** No-op (not an error) if no row exists — matches this feature's DELETE route contract. */
-  delete(input: { workspaceId: string; id: string }): Promise<void>;
+  delete(input: { workspaceId: string; id: string }, optional?: {}): Promise<void>;
 }
 
 /** Read-side deps: NO sealer, NO keyring — see this file's header. */

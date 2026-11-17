@@ -357,9 +357,9 @@ export interface PublishTrustProvisioningPort {
   /** What the repo's deploy config carries today. */
   readProvisioned(): Promise<ProvisionedRead>;
   /** Add or replace one source's grant, leaving every other source untouched. */
-  connect(input: { readonly grant: PublishTrustGrant }): Promise<ProvisioningWrite>;
+  connect(input: { readonly grant: PublishTrustGrant }, optional?: {}): Promise<ProvisioningWrite>;
   /** Remove one source's grant. */
-  disconnect(input: { readonly sourceInstallationId: string }): Promise<ProvisioningWrite>;
+  disconnect(input: { readonly sourceInstallationId: string }, optional?: {}): Promise<ProvisioningWrite>;
 }
 
 /**
@@ -379,7 +379,7 @@ export interface ProvisioningCodec {
   /** Extract the grant document from the config file's text; `null` when it carries none. */
   decode(required: { fileContents: string | null }, optional?: Record<string, never>): string | null;
   /** Put `document` back, preserving everything else in the file. */
-  encode(input: { readonly fileContents: string | null; readonly document: string }):
+  encode(input: { readonly fileContents: string | null; readonly document: string }, optional?: {}):
     | { readonly ok: true; readonly contents: string }
     | { readonly ok: false; readonly reason: string };
 }

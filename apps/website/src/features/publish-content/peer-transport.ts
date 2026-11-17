@@ -213,8 +213,8 @@ export const PEER_REQUEST_TIMEOUT_MS = 60_000;
  *  caller is asking for. Both callers below already have the plain sha in scope when they call these
  *  methods, so passing it through costs nothing. */
 export interface PeerBlobSource {
-  exists(input: { sha256: string; storageKey: string }): Promise<boolean>;
-  get(input: { sha256: string; storageKey: string }): Promise<Uint8Array>;
+  exists(input: { sha256: string; storageKey: string }, optional?: {}): Promise<boolean>;
+  get(input: { sha256: string; storageKey: string }, optional?: {}): Promise<Uint8Array>;
 }
 
 export interface PeerCallDeps {
@@ -696,12 +696,12 @@ export async function pullBundleFromPeer(deps: PeerCallDeps, _optional = {}): Pr
  *  create-only write, and nothing else. No `put`, no `remove`: this module can never overwrite or
  *  delete a blob, only add one that is absent. */
 export interface PeerBlobSink {
-  exists(input: { storageKey: string }): Promise<boolean>;
+  exists(input: { storageKey: string }, optional?: {}): Promise<boolean>;
   putIfAbsent(input: {
     workspaceId: string;
     sha256: string;
     bytes: Uint8Array;
-  }): Promise<{ storageKey: string; written: boolean }>;
+  }, optional?: {}): Promise<{ storageKey: string; written: boolean }>;
 }
 
 /**

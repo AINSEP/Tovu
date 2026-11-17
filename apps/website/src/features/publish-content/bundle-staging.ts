@@ -61,9 +61,9 @@ export interface StagedBundleRecord {
 
 export interface PublishContentBundleRepoPort {
   save(required: { record: StagedBundleRecord }, optional?: {}): Promise<void>;
-  findById(input: { workspaceId: string; id: string }): Promise<StagedBundleRecord | null>;
+  findById(input: { workspaceId: string; id: string }, optional?: {}): Promise<StagedBundleRecord | null>;
   /** Deletes rows whose expiry is strictly before `expiredBefore` and returns the number removed. */
-  deleteExpired(input: { expiredBefore: string }): Promise<number>;
+  deleteExpired(input: { expiredBefore: string }, optional?: {}): Promise<number>;
 }
 
 /**

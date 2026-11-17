@@ -78,7 +78,7 @@ export interface RepoPublishTypeConfig<Row, Ports> {
   /** Pack filter beyond trash (kind, active status, excluded keys). */
   readonly include?: (required: { row: Row }, optional?: Record<string, never>) => boolean;
   /** Pack skips a trashed row; precheck refuses a trashed destination row. */
-  readonly isTrashed?: (required: { row: Row }) => boolean;
+  readonly isTrashed?: (required: { row: Row }, optional?: {}) => boolean;
   /** e.g. parent-first for a tree-shaped type. */
   readonly packOrder?: (required: { rows: readonly Row[] }, optional?: {}) => readonly Row[];
 
@@ -106,18 +106,18 @@ export interface RepoPublishTypeConfig<Row, Ports> {
   /** What a packed entity uses, carried along by a scoped publish ({@link PublishContentHandler.references}). */
   readonly references?: (required: { entity: PackedEntity }, optional?: Record<string, never>) => readonly PublishContentReference[];
   /** Type-specific refusals, after the generic ones. Returns a reason or `null`. */
-  readonly validate?: (input: { ports: Ports; workspaceId: string; entity: PackedEntity; existing: Row | null }) => ReturnType<PublishContentHandler["precheck"]>;
+  readonly validate?: (input: { ports: Ports; workspaceId: string; entity: PackedEntity; existing: Row | null }, optional?: {}) => ReturnType<PublishContentHandler["precheck"]>;
 
   /** The one write. Throws domain errors, which `errors` maps. Without `undo`, a returned
    *  `changeSetId` is the report's (else the packed id); with `undo`, the gateway's id wins. */
-  readonly write: (ctx: RepoWriteContext<Row, Ports>) => Promise<RepoWriteResult | void>;
+  readonly write: (ctx: RepoWriteContext<Row, Ports>, optional?: {}) => Promise<RepoWriteResult | void>;
   /** When set, `write` runs inside `executeCommand` (inverse = the prior row; rollback = `restore`
    *  or, for a create, `remove`). When unset, the domain write keeps its own revision (redirect, menu). */
   readonly undo?: {
     readonly restore: (required: { ctx: RepoWriteContext<Row, Ports>; prior: Row }, optional?: Record<string, never>) => Promise<void>;
-    readonly remove: (ctx: RepoWriteContext<Row, Ports>) => Promise<void>;
+    readonly remove: (ctx: RepoWriteContext<Row, Ports>, optional?: {}) => Promise<void>;
     /** Defaults to `Import <type> '<id>' via publish-content`. `ctx.existing` is not read yet. */
-    readonly summary?: (ctx: RepoWriteContext<Row, Ports>) => string | Promise<string>;
+    readonly summary?: (ctx: RepoWriteContext<Row, Ports>, optional?: {}) => string | Promise<string>;
   };
   /** `blocked` keeps the error's message; `conflict` wraps it in {@link changedSincePlan}. Anything
    *  else rethrows and aborts the run. `conflict` is matched first, so `blocked` may name a base class
@@ -128,7 +128,7 @@ export interface RepoPublishTypeConfig<Row, Ports> {
   readonly conflictError?: (required: { message: string }, optional?: Record<string, never>) => PublishContentApplyRowError;
 
   /** Type-specific handler methods, passed through unchanged. */
-  readonly extend?: (ctx: { deps: PublishContentDeps; ports: () => Ports | undefined }) => Partial<
+  readonly extend?: (ctx: { deps: PublishContentDeps; ports: () => Ports | undefined }, optional?: {}) => Partial<
     Pick<PublishContentHandler, "planRetire" | "retire" | "referencesTo" | "repointReferences" | "verifyApplied" | "seedHash" | "listSkipped" | "isApplyConflict">
   >;
 }

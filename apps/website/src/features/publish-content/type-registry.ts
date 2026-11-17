@@ -241,7 +241,7 @@ export interface PublishContentHandler {
     idempotencyKey: string;
     /** Trusted apply-loop context, never read from PackedEntity.state. */
     sourceReplacement?: MediaSourceReplacement;
-  }): Promise<{ changeSetId: string }>;
+  }, optional?: {}): Promise<{ changeSetId: string }>;
 
   /**
    * S4 (`publish-overwrite-live-plan-2026-09-24.md` §4/§5) — read-only, like {@link precheck}: reports
@@ -263,7 +263,7 @@ export interface PublishContentHandler {
     target: RetireTarget;
     principalId: string;
     idempotencyKey: string;
-  }): Promise<{ changeSetId: string; undo(): Promise<void> }>;
+  }, optional?: {}): Promise<{ changeSetId: string; undo(): Promise<void> }>;
 
   /**
    * `publish-repoint-menus-plan-2026-09-24.md` §2.1/§2.2 — read-only, like {@link planRetire}: every
@@ -286,7 +286,7 @@ export interface PublishContentHandler {
     skipIds: ReadonlySet<string>;
     principalId: string;
     runId: string;
-  }): Promise<RepointResult>;
+  }, optional?: {}): Promise<RepointResult>;
   /**
    * Post-publish safety check (2026-09-26): after every row has landed, confirms this type's
    * entities from the run are actually servable here — e.g. a media item's bytes are present and its
@@ -296,7 +296,7 @@ export interface PublishContentHandler {
    * operator-facing lines, one per problem; empty when all is well. Called by the apply loop once,
    * after the repoint pass; a throw is caught and reported, never fails the run (the content landed).
    */
-  verifyApplied?(input: { entities: readonly PackedEntity[] }): Promise<readonly string[]>;
+  verifyApplied?(input: { entities: readonly PackedEntity[] }, optional?: {}): Promise<readonly string[]>;
 
   /**
    * S-F4 (`publish-files-plan-2026-09-24.md` §4) — the hash `id` had when this destination was first
@@ -388,7 +388,7 @@ export interface PublishContentContributor<TPorts = TovuPublishPorts> {
   readonly coversRoots?: readonly string[];
   readonly entityType: string;
   readonly dependsOn: readonly string[];
-  readonly build: (deps: PublishContentDeps<TPorts>) => PublishContentHandler;
+  readonly build: (deps: PublishContentDeps<TPorts>, optional?: {}) => PublishContentHandler;
 }
 
 /** A programmer-authored registry configuration that cannot produce a safe apply order. */

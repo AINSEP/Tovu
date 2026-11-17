@@ -72,7 +72,7 @@ export interface PublishContentRunRepoPort {
   /** Upserts one run snapshot. Apply writes an `applying` snapshot before content, then progress
    *  snapshots after each item transition, then one terminal snapshot. */
   save(required: { record: PublishContentRunRecord }, optional?: {}): Promise<void>;
-  findById(input: { workspaceId: string; id: string }): Promise<PublishContentRunRecord | null>;
+  findById(input: { workspaceId: string; id: string }, optional?: {}): Promise<PublishContentRunRecord | null>;
 }
 
 export interface PublishContentRunStatus {

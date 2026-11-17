@@ -60,8 +60,8 @@ export class FileBlobUnavailableError extends Error {
 /** The narrow `BlobStorePort` read seam this module needs — never the write half, so a composite
  *  source can never be mistaken for something that writes to the media blob store. */
 export interface CompositeBlobStoreRead {
-  exists(input: { storageKey: string }): Promise<boolean>;
-  get(input: { storageKey: string }): Promise<Uint8Array>;
+  exists(input: { storageKey: string }, optional?: {}): Promise<boolean>;
+  get(input: { storageKey: string }, optional?: {}): Promise<Uint8Array>;
 }
 
 /** @complexity O(bytes) — one file read plus one sha256 digest. */
