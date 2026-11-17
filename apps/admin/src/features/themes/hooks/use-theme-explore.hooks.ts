@@ -340,9 +340,7 @@ function fileLabel({ path, kind }: { path: string; kind: ThemeFileGroup }, _opti
 }
 
 /** The path's own filename segment, extension included — what an inline rename edits. */
-function basenameOf({ path }: { path: string }, _options = {}): string {
-  return path.slice(path.lastIndexOf("/") + 1);
-}
+function basenameOf({ path }: { path: string }, _options = {}): string { return path.slice(path.lastIndexOf("/") + 1); }
 
 /**
  * Why the HTML tab shows a read-only viewer instead of a textarea, for a file that IS readable but

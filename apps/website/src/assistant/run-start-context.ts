@@ -49,6 +49,32 @@ function readRecoveryContext(
   };
 }
 
+/** The optional per-run settings of the envelope: each is omitted, never defaulted, when absent. */
+function readRunSettings(
+  { parsed }: { parsed: { model?: unknown; reasoning?: unknown; conversationId?: unknown; pageContext?: unknown } }, _optional = {},
+): { model?: string; reasoning?: string; conversationId?: string; pageContext?: RunPageContext } {
+  const model = readOptionalContextString({ value: parsed.model });
+  // The model field's twin, decoded with byte-identical rules: the Execution tab's
+  // "Reasoning effort" pick rides this same envelope so the def's own `buildArgs` can turn it into
+  // `--effort <level>` (claude) or `-c model_reasoning_effort=...` (codex). A runtime that encodes
+  // effort inside the model id (antigravity) never sends this — its level is already part of
+  // `model`.
+  const reasoning = readOptionalContextString({ value: parsed.reasoning });
+  // Optional, same "silently degrade to none" convention as `model`/`attachmentIds`/
+  // `pluginRefIds` above: a caller that never sends one (any daemon client other than the admin
+  // chat pane, today) just never gets session-resume behavior, rather than the whole run failing.
+  const conversationId = readOptionalContextString({ value: parsed.conversationId });
+  // The admin screen the message was sent from — same "silently degrade to none" convention; see
+  // `run-page-context.ts` for why it rides here rather than behind a tool.
+  const pageContext = readRunPageContext({ value: parsed.pageContext });
+  return {
+    ...(model === undefined ? {} : { model }),
+    ...(reasoning === undefined ? {} : { reasoning }),
+    ...(conversationId === undefined ? {} : { conversationId }),
+    ...(pageContext === undefined ? {} : { pageContext }),
+  };
+}
+
 /**
  * Decodes a run's `contextRef` JSON into the fields `onStarted` needs.
  *
@@ -118,20 +144,6 @@ export function parseRunStartContextRef({ contextRef }: { contextRef: string }, 
   const coldStartContext = readOptionalContextString({ value: parsed.coldStartContext });
   const attachmentIds = readContextStringArray({ value: parsed.attachmentIds });
   const pluginRefIds = readContextStringArray({ value: parsed.pluginRefIds });
-  const model = readOptionalContextString({ value: parsed.model });
-  // The model field's twin, decoded with byte-identical rules: the Execution tab's
-  // "Reasoning effort" pick rides this same envelope so the def's own `buildArgs` can turn it into
-  // `--effort <level>` (claude) or `-c model_reasoning_effort=...` (codex). A runtime that encodes
-  // effort inside the model id (antigravity) never sends this — its level is already part of
-  // `model`.
-  const reasoning = readOptionalContextString({ value: parsed.reasoning });
-  // Optional, same "silently degrade to none" convention as `model`/`attachmentIds`/
-  // `pluginRefIds` above: a caller that never sends one (any daemon client other than the admin
-  // chat pane, today) just never gets session-resume behavior, rather than the whole run failing.
-  const conversationId = readOptionalContextString({ value: parsed.conversationId });
-  // The admin screen the message was sent from — same "silently degrade to none" convention; see
-  // `run-page-context.ts` for why it rides here rather than behind a tool.
-  const pageContext = readRunPageContext({ value: parsed.pageContext });
   return {
     prompt,
     ...(coldStartContext === undefined ? {} : { coldStartContext: withPickedFoldersBlock({ text: guardUserText({ text: coldStartContext.slice(-500_000) }, guardOptions), folders }) }),
@@ -140,10 +152,7 @@ export function parseRunStartContextRef({ contextRef }: { contextRef: string }, 
     pluginRefIds,
     agentPluginState: readChatAgentPluginState({ value: parsed.agentPluginState }),
     ...(typeof parsed.userPrompt === "string" ? { userPrompt: guardUserText({ text: parsed.userPrompt.slice(0, 16000) }, guardOptions) } : {}),
-    ...(model === undefined ? {} : { model }),
-    ...(reasoning === undefined ? {} : { reasoning }),
-    ...(conversationId === undefined ? {} : { conversationId }),
-    ...(pageContext === undefined ? {} : { pageContext }),
+    ...readRunSettings({ parsed }, {}),
     ...readRecoveryContext({ parsed }, {}),
   };
 }

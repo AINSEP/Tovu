@@ -1,6 +1,6 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/post.js';
 import { type Clock } from "@jini-ai/core/primitives";
-import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
+import { adaptLegacyAuthorize, ForbiddenError, requireToolPermission } from "@jini-ai/cms/core";
 /**
  * @file Posts + Pages' half of ADR-049 Decision 4: maps `agent-tools.ts`'s 6 catalog entries onto
  * `post.ts`'s `createPost`/`updatePost`/`deletePost`/`listAdminPosts`/`listAdminPages`/
@@ -49,25 +49,21 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import { isDeepStrictEqual } from "node:util";
 import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalNumber, optionalString, requireInputRecord, requireObject, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { type JsonObject } from "@jini-ai/core/primitives";
-import { requireToolPermission } from "@jini-ai/cms/core";
 import { type EventBusPort, type OutboxPort, type AuthorizeFn, type ChangeSetRepoPort } from "@jini-ai/core/contracts/events";
 // Sourced from `assistant/` — an explicitly out-of-scope back-edge for this pass (see the dispatch
 // notes this file's narrowing was reported under), not a field this file could re-source from a
 // domain-owned port: the MCP-UI/exchange transport is genuinely assistant-owned.
 // `ToolInputError` specifically — the marker `@jini-ai/daemon`'s `ToolExecutor` reads to tag a
 // rejection `errorKind: 'validation'`. Everything else this file needs comes from `@jini-ai/cms/core`.
-import { ToolInputError } from "@jini-ai/core";
+import { ToolInputError, type AgentToolDefinition as PostAgentToolDefinition, type ToolContributor } from "@jini-ai/core";
 import { type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import { ForbiddenError } from "@jini-ai/cms/core";
 import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withPluginHookRefusals } from "../../contracts/core/plugin-hook-failed-error.js";
 import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import { executeCommand } from "../../contracts/core/commands/index.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
 import { entryPublicPath } from "#src/platform/routing/index";
-import type { ToolContributor } from "@jini-ai/core";
 import type { DuplicateResourceHandlerContributor } from "../../assistant/tool-contributions.js";
-import { type AgentToolDefinition as PostAgentToolDefinition } from "@jini-ai/core";
 import { POST_LIST_FIELDS, postAgentToolCatalog } from "./agent-tools.js";
 import {
   createPost,

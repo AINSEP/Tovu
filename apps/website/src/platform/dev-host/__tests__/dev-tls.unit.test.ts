@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 
-import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../dev-tls.js";
+import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../../dev-host/dev-tls.js";
 
 /**
  * @file Regression coverage for `dev-tls.ts` — the gate that decides whether `index.ts` terminates
@@ -38,7 +38,7 @@ test("resolveDevTls production defaults read real files and obey the subprocess 
   const paths = { certPath: join(dir, "cert.pem"), keyPath: join(dir, "key.pem") };
   writeFileSync(paths.certPath, "distinct-cert-bytes");
   writeFileSync(paths.keyPath, "distinct-key-bytes");
-  const script = `import { resolveDevTls } from ${JSON.stringify(new URL("../dev-tls.ts", import.meta.url).href)};
+  const script = `import { resolveDevTls } from ${JSON.stringify(new URL("../../dev-host/dev-tls.ts", import.meta.url).href)};
     const out = resolveDevTls(${JSON.stringify(paths)});
     process.stdout.write(JSON.stringify({ active: out.active, ...(out.credentials ? { cert: out.credentials.cert.toString(), key: out.credentials.key.toString() } : {}) }));`;
   for (const optOut of [undefined, "true", "false"]) {

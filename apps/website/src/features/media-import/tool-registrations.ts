@@ -270,6 +270,16 @@ function requireReplacementSource(
   return remote;
 }
 
+/** Refuses unless the caller holds `permission` on media — on one entity when `entityId` is given. */
+async function requireMediaPermission(
+  { routeDeps, principalId, permission }: { routeDeps: MediaImportToolDeps; principalId: string; permission: string },
+  { entityId }: { entityId?: string } = {},
+): Promise<void> {
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
+    workspaceId: routeDeps.workspaceId, principalId, permission },
+  { entityType: "media", ...(entityId === undefined ? {} : { entityId }) });
+}
+
 /** Builds this domain's permission-gated durable import handlers; root/path validation precedes I/O.
  * @complexity O(1) registration work; handlers are bounded by the upload cap.
  */
@@ -280,9 +290,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
       const input = requireInputRecord({ input: ctx.input });
       refuseUnexpectedKeys(input, ["mediaId", "url", "root", "path"]);
       const mediaId = requireString({ input, key: "mediaId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
-        workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "media.update" },
-      { entityType: "media", entityId: mediaId });
+      await requireMediaPermission({ routeDeps, principalId: ctx.principal.id, permission: "media.update" }, { entityId: mediaId });
       return withSchemaOnRejection({
         toolId: "media_replace_file", catalog: CATALOG_BY_ID,
         isShapeRejection: ({ error }) => isImportShapeRejection({ error }) || error instanceof FsFilePathError || error instanceof MediaValidationError,
@@ -316,12 +324,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
       const input = requireInputRecord({ input: ctx.input });
       const root = requireString({ input, key: "root" });
       const relativePath = requireString({ input, key: "path" });
-      await requireToolPermission({
-        authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
-        workspaceId: routeDeps.workspaceId,
-        principalId: ctx.principal.id,
-        permission: "media.upload",
-      }, { entityType: "media" });
+      await requireMediaPermission({ routeDeps, principalId: ctx.principal.id, permission: "media.upload" });
 
       return withSchemaOnRejection({
         toolId: "media_import_local_file", catalog: CATALOG_BY_ID,
@@ -355,12 +358,7 @@ export function buildMediaImportRegistrations(routeDeps: MediaImportToolDeps): T
     media_import_from_url: async (ctx): Promise<unknown> => {
       const input = requireInputRecord({ input: ctx.input });
       const url = requireString({ input, key: "url" });
-      await requireToolPermission({
-        authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
-        workspaceId: routeDeps.workspaceId,
-        principalId: ctx.principal.id,
-        permission: "media.upload",
-      }, { entityType: "media" });
+      await requireMediaPermission({ routeDeps, principalId: ctx.principal.id, permission: "media.upload" });
 
       const logEgressRefusal = routeDeps.mediaImportEgressRefusalLog ?? ((line: string) => console.warn(line));
       return withSchemaOnRejection({

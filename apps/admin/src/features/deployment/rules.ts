@@ -436,8 +436,14 @@ export function exportRunStatusLabelKey({ run }: { run: Pick<AdminExportRunSnaps
  *  `StaticPublishOutcome`'s own `code` union). @complexity O(1). */
 export function publishRunStatusLabelKey({ run }: { run: Pick<AdminPublishRunSnapshot, "status" | "result"> | undefined }, _options = {}): string {
   const status = run?.status ?? "idle";
-  if (status === "idle") return "Not started";
-  if (status === "running") return "Publishing…";
-  if (status === "errored") return "Publish failed";
+  const fixedLabel = PUBLISH_RUN_FIXED_LABEL_KEYS[status];
+  if (fixedLabel) return fixedLabel;
   return run?.result?.ok === false ? "Publish failed" : "Published";
 }
+
+/** The statuses whose label does not depend on the run's result. */
+const PUBLISH_RUN_FIXED_LABEL_KEYS: Readonly<Partial<Record<AdminPublishRunSnapshot["status"] | "idle", string>>> = {
+  idle: "Not started",
+  running: "Publishing…",
+  errored: "Publish failed",
+};

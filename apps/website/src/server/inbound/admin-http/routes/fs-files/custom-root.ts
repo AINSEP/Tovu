@@ -13,7 +13,7 @@ import {
   type CustomFsRootStoreOptional,
 } from "#src/features/fs-files/custom-root-store";
 import type { RouteDeps } from "#src/server/routes/types";
-import { asyncRoute } from "../../../shared/async-route.js";
+import { asyncRoute } from "../../../../../platform/express/async-route.js";
 
 /**
  * @file Admin chat composer's folder control: `GET`/`PUT`/`DELETE` on

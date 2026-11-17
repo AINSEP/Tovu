@@ -1,8 +1,10 @@
-import { basename, join, resolve } from "node:path";
+import { existsSync, mkdirSync, realpathSync } from "node:fs";
+import { basename, dirname, join, resolve, sep } from "node:path";
+import { isInMemoryDbPath } from "#src/features/plugins/snapshot";
 // Path reads must not initialize the site registry or database adapters.
 import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 import { resolveSiteRoot } from "#src/platform/site-dir/site-root";
-import { resolveSiteDatabasePaths } from "#src/platform/site-dir/site-databases";
+import { resolveSiteDatabasePaths, resolveSiteDirForDatabase } from "#src/platform/site-dir/site-databases";
 import type { SiteStoragePaths } from "../../routes/types.js";
 import { resolveChatAttachmentUploadDirectory } from "../../inbound/assistant/chat-attachment-directory.js";
 
@@ -219,3 +221,147 @@ export { bundledAgentPluginsDir } from "#src/platform/site-dir/product-root";
  * composition root to receive it from; re-exported here so every product path stays listed in one file.
  */
 export { agentPluginOverlaysDir } from "#src/features/agent-plugins/host-plugin-guidance";
+
+/**
+ * `TOVU_THEMES_DIR` env, then `<site>/themes` — the site's OWN themes root, and the only theme tree
+ * anything reads or writes at runtime (`RouteDeps.themesDir`: the Theme Studio's file editor, the
+ * agent theme tools, `__original-themes__/` resets, and both static-asset
+ * mounts in `apps/website/src/server/runtime/composition/app.ts`).
+ *
+ * Seeded from {@link builtInThemesDir} on a site's first boot — see `seedSiteThemes()`'s own header
+ * for why that copies the whole ~19MB tree rather than filling in on demand.
+ *
+ * `optional.siteDir` defaults to {@link siteDir}, same split as {@link mediaUploadsDir}.
+ */
+export function siteThemesDir(optional: SitePathResolverOptional & { siteDir?: string } = {}): string {
+  const env = optional.env ?? process.env;
+  return env.TOVU_THEMES_DIR ?? join(optional.siteDir ?? siteDir(), "themes");
+}
+
+/**
+ * The read-only STOCK content seed a self-hosted container image ships for one specific site:
+ * `content/seed-sites/<site>/content.seed.db`, copied there — from the tracked
+ * `sites/<site>/content.seed.db` (`npm run seed:site`, development/scripts/seed-site.mjs) — by the
+ * Dockerfile's OWN build stage only, deliberately never by the shared `npm run build` that
+ * {@link builtInThemesDir} above also relies on: that script also produces the npm-publishable CLI
+ * package, which must ship blank starter content, not this owner's own pruned site.
+ *
+ * SEED SOURCE ONLY, same split as {@link builtInThemesDir}/{@link siteThemesDir}:
+ * `hydrateContentDbFromSeed()` copies this into {@link defaultContentDbPath} once, on a site's first
+ * boot where `content.db` does not exist yet, and never again — an existing `content.db` is
+ * production data, and overwriting it on a later redeploy is unrecoverable data loss. Living under
+ * `content/`, not `sites/`, is what lets it survive a hosting plugin's generated volume mount over
+ * `/workspace/Tovu/sites`: that mount shadows the ENTIRE image `sites/` tree at runtime, so anything
+ * shipped there for a fresh volume to read would be invisible the moment the mount takes effect.
+ *
+ * The env var is `TOVU_STOCK_CONTENT_SEED_DIR`, mirroring `TOVU_STOCK_THEMES_DIR`'s own escape
+ * hatch. `siteName` is the served site's (`siteBinding.name`) — decoupled from
+ * `TOVU_CONTENT_DB`, which can relocate `content.db` itself without changing which site's stock
+ * seed applies. It used to default to `basename(siteDir())`, the env/cwd site, which is a different
+ * one for any composition that does not pin `TOVU_SITE_DIR` (see {@link resolveExportOutputRootDir}).
+ */
+export function builtInContentSeedDbPath({ siteName }: { siteName: string }, _optional = {}): string {
+  const stockRoot = process.env.TOVU_STOCK_CONTENT_SEED_DIR ?? join(resolveProductRoot({}), "content", "seed-sites");
+  return join(stockRoot, siteName, "content.seed.db");
+}
+
+/**
+ * The read-only STOCK upload payload a self-hosted container image ships for one specific site:
+ * `content/seed-sites/<site>/uploads/`, the sibling the Dockerfile's build stage now stages
+ * alongside `content.seed.db` (see that file's comment at the extraction loop). Same stock root as
+ * {@link builtInContentSeedDbPath} — deliberately not a second env var: the two are always shipped
+ * together, at the same physical location, as one seed payload for one site.
+ *
+ * SOURCE ONLY, consumed by `hydrateBlobStoreFromSeed()` — see that function's own header for why it
+ * tops up the live `blobStore` one content-addressed key at a time rather than copying this
+ * directory wholesale the way {@link builtInThemesDir}/`seedSiteThemes()` copy `themes/`.
+ */
+export function builtInSeedUploadsDir({ siteName }: { siteName: string }, _optional = {}): string {
+  const stockRoot = process.env.TOVU_STOCK_CONTENT_SEED_DIR ?? join(resolveProductRoot({}), "content", "seed-sites");
+  return join(stockRoot, siteName, "uploads");
+}
+
+
+
+/**
+ * `TOVU_PLUGINS_DIR` env, then `<site>/plugins` — the per-site root `discoverPlugins()`
+ * scans for site-installed plugins (SPEC-005 REQ-02's `<install-dir>/plugins/<id>/<version>/`
+ * layout; this function resolves the `<install-dir>/plugins` segment itself, matching what
+ * `discoverPlugins({ installDir })`'s own fixtures pass — see `discovery.ts`'s
+ * `listInstalledPluginIdFolders`, which lists `<installDir>/<id>/` directly).
+ *
+ * Deliberately instance-wide, not per-workspace (unlike `src/features/agent-plugins/layout.ts`'s
+ * `ws/<workspaceId>/` tenant isolation, a DIFFERENT feature with its own later, separate tenancy
+ * decision): SPEC-005's `plugin_activations` table is already the per-workspace boundary (REQ-07,
+ * `workspaceId`+`pluginId` primary key) — an installed plugin ARTIFACT is shared across every
+ * workspace on this instance, same as `siteThemesDir()`'s themes; only its enabled/disabled
+ * state is workspace-scoped. Read ONCE here, same reasoning (and same served-site
+ * `required.siteDir`) as {@link resolveExportOutputRootDir}.
+ */
+export function pluginsInstallDir(required: { siteDir: string }, optional: SitePathResolverOptional = {}): string {
+  const env = optional.env ?? process.env;
+  return env.TOVU_PLUGINS_DIR !== undefined ? resolve(env.TOVU_PLUGINS_DIR) : join(required.siteDir, "plugins");
+}
+
+/**
+ * ADR-041 §2 — the sidecar `ops/database-journal.db` lives as a sibling of `content.db` in the
+ * install-dir tree, never inside it (a physically separate SQLite file so a `content.db` restore
+ * never erases the incident record narrating that very restore). Defaults to `<dirname of
+ * content.db>/ops/database-journal.db`; overridable independently via `TOVU_DATABASE_JOURNAL_DB`
+ * for deployments that relocate the sidecar journal on its own.
+ */
+export function defaultDatabaseJournalDbPath(
+  _required: Record<string, never> = {},
+  { contentDbPath = defaultContentDbPath() }: { contentDbPath?: string } = {}
+): string {
+  return process.env.TOVU_DATABASE_JOURNAL_DB ?? join(dirname(contentDbPath), "ops", "database-journal.db");
+}
+
+/**
+ * `chat.db` lives as a sibling of `content.db` (ADS-memory/reports/2026-09-05-db-split-scoping.md
+ * §6), for the same physical-separation reason `defaultDatabaseJournalDbPath` above exists: a
+ * whole-file restore/duplicate of `content.db` must never carry (or erase) conversation history.
+ * Defaults to `<dirname of content.db>/chat.db`; overridable independently via `TOVU_CHAT_DB`.
+ */
+export function defaultChatDbPath(
+  _required: Record<string, never> = {},
+  { contentDbPath = defaultContentDbPath() }: { contentDbPath?: string } = {}
+): string {
+  if (process.env.TOVU_CHAT_DB !== undefined) return process.env.TOVU_CHAT_DB;
+  if (isInMemoryDbPath({ dbPath: contentDbPath })) return join(dirname(contentDbPath), "chat.db");
+  const root = resolveSiteDirForDatabase({ dbPath: contentDbPath });
+  const paths = resolveSiteDatabasePaths({ dir: root });
+  return paths.contentDbPath === contentDbPath ? paths.chatDbPath : join(dirname(contentDbPath), "chat.db");
+}
+
+/**
+ * Where this site's shares live: `<database dir>/ops/shares` (the site folder for an in-memory database).
+ * `ops/` is the site's private runtime folder beside its database, next to the journal and logs, and every
+ * backup, duplicate and publish walk already leaves it out. The database placement is the site's
+ * identity: an in-site database moves with its folder, an app-data one is keyed by a siteId the sites
+ * registry keeps unique, and boot refuses any database not named content.db, so two catalogs collide only
+ * when two boots open the same database, and then they are the same site. Keying by workspace id merged
+ * every starter site's catalog (`workspace-local`) and a copied `.site-meta.json` id merged a Finder copy's (Codex checks
+ * 2026-10-26/27, design 2026-10-27). Only the transient export snapshot must stay out of the site (tmpdir).
+ * @throws When the folder is inside a served content root.
+ * @complexity O(content roots).
+ */
+export function resolveShareDirectory(required: { siteDir: string; dbPath: string; contentRoots: readonly string[] }): string {
+  const shareDirectory = resolve(isInMemoryDbPath({ dbPath: required.dbPath }) ? required.siteDir : dirname(required.dbPath), "ops", "shares");
+  const refuse = ({ target }: { target: string }, _optional = {}): void => {
+    if (isInsideAny({ target, roots: required.contentRoots })) throw new Error("A site's ops/shares must not be inside a served content folder; give its database its own folder.");
+  };
+  // Checked before anything is created, so a refused folder is never made inside a served root;
+  // checked again on the real path, so a symlink cannot smuggle it back in.
+  refuse({ target: shareDirectory });
+  mkdirSync(shareDirectory, { recursive: true, mode: 0o700 });
+  const physicalShares = realpathSync(shareDirectory);
+  refuse({ target: physicalShares });
+  return physicalShares;
+}
+
+/** `target` equals or sits under one of `roots`, compared as given and as real paths. @complexity O(roots). */
+export function isInsideAny(required: { target: string; roots: readonly string[] }): boolean {
+  return required.roots.some(root => [resolve(root), existsSync(root) ? realpathSync(root) : resolve(root)]
+    .some(candidate => required.target === candidate || required.target.startsWith(candidate + sep)));
+}

@@ -106,6 +106,15 @@ function readItems({ config, library }: { config: Record<string, unknown>; libra
   return Array.isArray(config.images) ? legacyImagesToItems({ images: config.images, library }) : [];
 }
 
+/** Carries the optional layout fields a config already holds onto the draft; absent or blank ones stay unset. */
+function copyOptionalMediaFields({ config, media }: { config: Record<string, unknown>; media: MediaDraft }, _options: Record<string, never> = {}): void {
+  if (typeof config.columns === "number") media.columns = config.columns;
+  for (const key of ["aspectRatio", "cssClass", "htmlAttributes"] as const) {
+    const value = optionalString({ value: config[key] });
+    if (value !== undefined) media[key] = value;
+  }
+}
+
 /**
  * Reads any accepted config (new `mode` content, mode-less `items`/`html`, or legacy `images`) into
  * both tabs' state. The inactive tab starts empty; the default layout follows the widget type.
@@ -122,11 +131,7 @@ export function readMediaContent(
   const layout = layouts.find((candidate) => candidate === config.layout) ?? layouts[0];
   if (layout === undefined) throw new Error(`media widget ${widgetType} has no layouts`);
   const media: MediaDraft = { items: readItems({ config, library: optional.library ?? null }), layout };
-  if (typeof config.columns === "number") media.columns = config.columns;
-  for (const key of ["aspectRatio", "cssClass", "htmlAttributes"] as const) {
-    const value = optionalString({ value: config[key] });
-    if (value !== undefined) media[key] = value;
-  }
+  copyOptionalMediaFields({ config, media });
   return { mode, media, html: mode === "html" ? optionalString({ value: config.html }) ?? "" : "" };
 }
 

@@ -12,7 +12,7 @@ import { installServerLogCapture } from "../../../platform/server-logs/index.js"
 import { processBuildRelease, telemetryEnvironment } from "../../runtime/composition/build-release.js";
 import { AGENT_DAEMON_EXIT_CODE } from "#src/assistant/daemon-exit-codes";
 import { TOOL_EXEC_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
-import { initializeStartupSecrets, startupSecretEnvironment } from '../../runtime/boot/startup-secrets.js';
+import { initializeStartupSecrets, startupSecretEnvironment } from '../../../platform/secrets/startup-secrets.js';
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
 const scopes = new Map<SiteScopeKey, Promise<Awaited<ReturnType<typeof createSiteScope>>>>();

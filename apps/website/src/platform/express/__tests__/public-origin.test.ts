@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { Request } from "express";
 
-import { isHttpsRequest, resolvePublicOrigin, resolveProtocol } from "../public-origin.js";
+import { isHttpsRequest, resolvePublicOrigin, resolveProtocol } from "../../express/public-origin.js";
 
 /**
  * @file Unit coverage for `resolveProtocol`/`isHttpsRequest`/`resolvePublicOrigin`, tested in

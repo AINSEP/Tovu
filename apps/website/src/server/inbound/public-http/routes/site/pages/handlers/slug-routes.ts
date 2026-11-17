@@ -5,7 +5,7 @@ import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/active-them
 import type { DiscoveredTheme } from "#src/features/theme/theme";
 import { checkSiteRelativeTarget } from "#src/platform/routing/index";
 import type { RouteRegistrar } from "#src/server/routes/types";
-import { asyncRoute } from "../../../../../shared/async-route.js";
+import { asyncRoute } from "../../../../../../../platform/express/async-route.js";
 import { resolveRequestedSlug, redirectLookupPath } from "../request-policy.js";
 import { withListingBatch } from "../listing/listing-batch.js";
 import { resolveMemberContextForRequest, decidePostMemberAccess, filterVisiblePosts } from "../render-context/member-access.js";

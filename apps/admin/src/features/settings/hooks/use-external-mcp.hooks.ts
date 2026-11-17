@@ -68,6 +68,32 @@ function joinArgs(args: readonly string[]): string {
   return args.map((arg) => (/\s/.test(arg) ? `"${arg}"` : arg)).join(" ");
 }
 
+/** The OAuth half of an item's form fields. Everything but the client secret round-trips the stored view. */
+function oauthItemFields({ server }: { server: AdminExternalMcpServer }, _options: Record<string, never> = {}): Record<string, string> {
+  return {
+    // The rest of the OAuth block is NOT secret (a client id travels in the authorization URL by
+    // design, same as the store's own doc comment on this), so it round-trips the real stored
+    // value — only `oauthClientSecret` stays blank, matching `env`.
+    oauthProviderId: server.oauth.providerId ?? "",
+    oauthGrant: server.oauth.grant ?? "",
+    oauthClientId: server.oauth.clientId ?? "",
+    oauthClientSecret: "",
+    oauthScopes: server.oauth.scopes.join(" "),
+    oauthTokenEnvName: server.oauth.tokenEnvName ?? "",
+    // Read-only: drives the row's Connect button. `toWriteBody` never sends it.
+    oauthStatus: server.oauth.status,
+    // The store's `ExternalMcpOAuthView` does not carry a connection's own endpoints back —
+    // `providerId` is enough to identify a registered one, and a connection with its own
+    // endpoints has no other read model for them today. Left blank rather than guessed; an
+    // operator editing a custom-endpoint connection re-enters them, the same disclosed gap
+    // `env`/`oauthClientSecret` already accept for secret-shaped fields (this one isn't secret,
+    // it just isn't surfaced yet — a future `oauthEndpoints` field on the view would close it).
+    oauthAuthorizationEndpoint: "",
+    oauthTokenEndpoint: "",
+    oauthDeviceAuthorizationEndpoint: "",
+  };
+}
+
 function toItem({ server }: { server: AdminExternalMcpServer }, { locale = "en" }: { locale?: string } = {}): SourceConfigItem {
   return {
     id: server.serverId,
@@ -90,26 +116,7 @@ function toItem({ server }: { server: AdminExternalMcpServer }, { locale = "en" 
       // Never populated — see this file's header. The names are surfaced in `statusMessage` instead,
       // so an operator can still see which variables are set.
       env: "",
-      // The rest of the OAuth block is NOT secret (a client id travels in the authorization URL by
-      // design, same as the store's own doc comment on this), so it round-trips the real stored
-      // value — only `oauthClientSecret` stays blank, matching `env`.
-      oauthProviderId: server.oauth.providerId ?? "",
-      oauthGrant: server.oauth.grant ?? "",
-      oauthClientId: server.oauth.clientId ?? "",
-      oauthClientSecret: "",
-      oauthScopes: server.oauth.scopes.join(" "),
-      oauthTokenEnvName: server.oauth.tokenEnvName ?? "",
-      // Read-only: drives the row's Connect button. `toWriteBody` never sends it.
-      oauthStatus: server.oauth.status,
-      // The store's `ExternalMcpOAuthView` does not carry a connection's own endpoints back —
-      // `providerId` is enough to identify a registered one, and a connection with its own
-      // endpoints has no other read model for them today. Left blank rather than guessed; an
-      // operator editing a custom-endpoint connection re-enters them, the same disclosed gap
-      // `env`/`oauthClientSecret` already accept for secret-shaped fields (this one isn't secret,
-      // it just isn't surfaced yet — a future `oauthEndpoints` field on the view would close it).
-      oauthAuthorizationEndpoint: "",
-      oauthTokenEndpoint: "",
-      oauthDeviceAuthorizationEndpoint: "",
+      ...oauthItemFields({ server }),
       // Write-only, exactly like `oauthClientSecret`: the store seals it and no read model returns it,
       // so it always arrives blank and {@link toAccessTokenWriteBody} treats blank as "keep".
       accessToken: "",

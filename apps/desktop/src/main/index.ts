@@ -112,7 +112,7 @@ import { createElectronUrlCapturePool } from "@jini-ai/desktop-host/electron";
 
 import { startTovuServer, DEFAULT_STOP_GRACE_MS } from "../tovu-server.ts";
 import { startDesktopCaptureBridge } from "../desktop-capture.ts";
-import { initializeStartupSecrets } from '../../../website/src/server/runtime/boot/startup-secrets.ts';
+import { initializeStartupSecrets } from '../../../website/src/platform/secrets/startup-secrets.ts';
 import { createDesktopMcpHttpRuntime } from "../desktop-mcp-http.ts";
 import { writeNodeToolchain, buildNodeToolchainEnv } from "../node-toolchain.ts";
 import { resolveAdminDevProxyUrl } from "../admin-dev-proxy.ts";
@@ -519,9 +519,7 @@ function trackAppWindow({ window }: { window: BrowserWindow }, _optional = {}): 
 }
 
 /** App windows for the Dock-click check. `getAllWindows()` also lists hidden capture windows, which would stop a click reopening the app. The self-test does not watch windows, so it keeps the plain count. */
-function appWindowCount(): number {
-  return SELFTEST ? BrowserWindow.getAllWindows().length : lastWindowQuit.openCount();
-}
+function appWindowCount(): number { return SELFTEST ? BrowserWindow.getAllWindows().length : lastWindowQuit.openCount(); }
 
 /** One sandboxed admin window (own-server site or attach mode) — see `app-window.ts`. */
 function createWindow({ url }: { url: string }, { title, partition }: { title?: string; partition?: string } = {}): BrowserWindow {

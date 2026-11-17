@@ -339,11 +339,14 @@ export function Plugins({ tabId, focusPluginId, usePluginsHook = useWiredPlugins
   return <LoadedPlugins plugins={plugins} controller={controller} activeTabId={resolvePluginsTabId({ tabId, canInstall: controller.canInstallFolder === true })} focusPluginId={focusPluginId} />;
 }
 
-/** The screen once `PLUGINS_LIST` has settled: header, row error, tab bar, the active tab's panel,
- *  and the package-files viewer and Remove confirm dialog (both opened through the controller). */
-function LoadedPlugins({ plugins, controller, activeTabId, focusPluginId }: { plugins: AdminPlugin[]; controller: PluginsController; activeTabId: PluginsTabId; focusPluginId?: string | null }) {
-  const { error, rowError, t, locale, inspectedPlugin, pendingRemovePlugin, settingsPlugin } = controller;
-
+/**
+ * Per-row agent handles, computed once from the FULL unfiltered list, plus the handles of the plugin
+ * whose settings or remove dialog is open (a dialog for a plugin with no row is a bug, so it throws).
+ */
+function deriveRowHandles(
+  { plugins, settingsPlugin, pendingRemovePlugin }: { plugins: AdminPlugin[]; settingsPlugin: AdminPlugin | null; pendingRemovePlugin: AdminPlugin | null },
+  _options: Record<string, never> = {},
+) {
   // Plugin ids are stable and unique, same per-row-handle derivation every other list on this
   // workstream uses (`buildAgentListHandles`), computed once from the FULL unfiltered list so a
   // plugin's handle is identical whichever tab currently lists it (mirrors `AgentPluginRow`'s own
@@ -355,15 +358,55 @@ function LoadedPlugins({ plugins, controller, activeTabId, focusPluginId }: { pl
   if (settingsPlugin && settingsHandle === undefined) throw new Error(`plugin ${settingsPlugin.id} has no settings handle`);
   const removeHandle = pendingRemovePlugin ? rowHandleById.get(pendingRemovePlugin.id) : undefined;
   if (pendingRemovePlugin && removeHandle === undefined) throw new Error(`plugin ${pendingRemovePlugin.id} has no remove handle`);
-  const ActivePanel = PLUGINS_TAB_PANELS[activeTabId];
-  const canInstall = controller.canInstallFolder === true;
+  return { rowHandleById, settingsHandle, removeHandle };
+}
 
-  const tabs: TabBarTab[] = [
+/** The four tabs, in order; "Add a plugin" is disabled (and tagged soon) where folder install is unavailable. */
+function buildPluginTabs({ t, locale, canInstall }: { t: PluginsController["t"]; locale: PluginsController["locale"]; canInstall: boolean }, _options: Record<string, never> = {}): TabBarTab[] {
+  return [
     { id: "installed", label: t("Installed"), icon: <InstalledTabIcon />, handle: "plugins-tab-installed", handleLabel: "Switch to the Installed tab — every plugin installed for this site, on or off" },
     { id: "downloaded", label: t("Downloaded"), icon: <DownloadedTabIcon />, handle: "plugins-tab-downloaded", handleLabel: "Switch to the Downloaded tab — every plugin on disk for this site, regardless of whether it's turned on" },
     { id: "add", label: t("Add a plugin"), tag: addPluginTabSoonTag({ locale }, { enabled: canInstall ? undefined : true }), disabled: !canInstall, icon: <UploadIcon />, handle: "plugins-tab-add", handleLabel: "Switch to the Add a plugin tab — install a plugin from a folder on this server or a .zip" },
     { id: "marketplace", label: t("Marketplace"), tag: marketplaceTabSoonTag({ locale }), icon: <MarketplaceTabIcon />, handle: "plugins-tab-marketplace", handleLabel: "Switch to the Marketplace tab — a future place to discover plugins" },
   ];
+}
+
+/** The package-files viewer, provider settings dialog and its toast, and the Remove confirm dialog. */
+function PluginsOverlays({ controller, settingsHandle, removeHandle }: { controller: PluginsController; settingsHandle: string | undefined; removeHandle: string | undefined }) {
+  const { t, inspectedPlugin, pendingRemovePlugin, settingsPlugin } = controller;
+  return (
+    <>
+      {inspectedPlugin ? <PluginPackageFilesModal plugin={inspectedPlugin} onClose={controller.onCloseInspector} /> : null}
+
+      {settingsPlugin && settingsHandle !== undefined ? (
+        <PluginProviderSettingsDialog plugin={settingsPlugin} agentHandleBase={settingsHandle} onClose={controller.onCloseSettings} onSaved={controller.onSettingsSaved} />
+      ) : null}
+      {/* A toast, like Themes' and Library's: it confirms what the owner just did and clears itself. */}
+      {controller.settingsNotice ? <Toast message={controller.settingsNotice} role="status" tone="success" ttlMs={6000} onDismiss={controller.dismissSettingsNotice} /> : null}
+
+      {pendingRemovePlugin && removeHandle !== undefined ? (
+        <PluginRemoveConfirmDialog
+          name={pendingRemovePlugin.name}
+          agentHandleBase={removeHandle}
+          onConfirm={() => controller.onConfirmRemove(pendingRemovePlugin)}
+          onCancel={controller.onCancelRemove}
+          t={t}
+        />
+      ) : null}
+    </>
+  );
+}
+
+/** The screen once `PLUGINS_LIST` has settled: header, row error, tab bar, the active tab's panel,
+ *  and the package-files viewer and Remove confirm dialog (both opened through the controller). */
+function LoadedPlugins({ plugins, controller, activeTabId, focusPluginId }: { plugins: AdminPlugin[]; controller: PluginsController; activeTabId: PluginsTabId; focusPluginId?: string | null }) {
+  const { error, rowError, t, locale, pendingRemovePlugin, settingsPlugin } = controller;
+
+  const { rowHandleById, settingsHandle, removeHandle } = deriveRowHandles({ plugins, settingsPlugin, pendingRemovePlugin });
+  const ActivePanel = PLUGINS_TAB_PANELS[activeTabId];
+  const canInstall = controller.canInstallFolder === true;
+
+  const tabs = buildPluginTabs({ t, locale, canInstall });
 
   return (
     <div className="page plugins-page">
@@ -394,23 +437,7 @@ function LoadedPlugins({ plugins, controller, activeTabId, focusPluginId }: { pl
 
       <ActivePanel plugins={plugins} controller={controller} rowHandleById={rowHandleById} focusPluginId={focusPluginId} />
 
-      {inspectedPlugin ? <PluginPackageFilesModal plugin={inspectedPlugin} onClose={controller.onCloseInspector} /> : null}
-
-      {settingsPlugin && settingsHandle !== undefined ? (
-        <PluginProviderSettingsDialog plugin={settingsPlugin} agentHandleBase={settingsHandle} onClose={controller.onCloseSettings} onSaved={controller.onSettingsSaved} />
-      ) : null}
-      {/* A toast, like Themes' and Library's: it confirms what the owner just did and clears itself. */}
-      {controller.settingsNotice ? <Toast message={controller.settingsNotice} role="status" tone="success" ttlMs={6000} onDismiss={controller.dismissSettingsNotice} /> : null}
-
-      {pendingRemovePlugin && removeHandle !== undefined ? (
-        <PluginRemoveConfirmDialog
-          name={pendingRemovePlugin.name}
-          agentHandleBase={removeHandle}
-          onConfirm={() => controller.onConfirmRemove(pendingRemovePlugin)}
-          onCancel={controller.onCancelRemove}
-          t={t}
-        />
-      ) : null}
+      <PluginsOverlays controller={controller} settingsHandle={settingsHandle} removeHandle={removeHandle} />
     </div>
   );
 }

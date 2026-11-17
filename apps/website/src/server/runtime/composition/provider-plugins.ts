@@ -326,6 +326,13 @@ function composePorts({ leases, consent, consentRevision, site, warn, product }:
 
 function isTelemetrySlot(slot: ProviderSlot): slot is ProviderSlot & { contract: ProviderContract } { return slot.contract !== 'payments'; }
 
+/** One slot per provider declaration whose contract this host knows; unknown contracts are skipped. */
+async function listKnownSlots({ runtime }: { runtime: BootProviderPluginsRequired["runtime"] }, _optional = {}): Promise<ProviderSlot[]> {
+  return (await runtime.listProviderPlugins({})).flatMap(({ pluginId, providers }) =>
+    providers.filter(declaration => KNOWN_CONTRACTS.has(declaration.contract)).map(declaration => ({ pluginId,
+      contract: declaration.contract as ProviderSlotContract, id: declaration.id, declaration, retirement: new AbortController() })));
+}
+
 /**
  * Selects, loads and initializes provider plugins, then composes one port per contract.
  * @param required Plugin runtime, saved-settings source, service identity and the operator's telemetry consent.
@@ -343,9 +350,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   const delivery = createTelemetryDeliveryMonitor({ warn });
   const testProbe = createTelemetryTestProbe({});
   const timeoutMs = optional.initializeTimeoutMs ?? 10_000;
-  const slots: ProviderSlot[] = (await required.runtime.listProviderPlugins({})).flatMap(({ pluginId, providers }) =>
-    providers.filter(declaration => KNOWN_CONTRACTS.has(declaration.contract)).map(declaration => ({ pluginId,
-      contract: declaration.contract as ProviderSlotContract, id: declaration.id, declaration, retirement: new AbortController() })));
+  const slots = await listKnownSlots({ runtime: required.runtime });
   let formCollectionRegistry = createFormCollectionRegistry({});
   const loaded = new Set<string>();
   const host = createPluginProviderHost({ contributions: required.runtime.providerContributions, contracts: PROVIDER_CONTRACTS }, {

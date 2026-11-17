@@ -12,7 +12,7 @@ import {
   useSiteSectionAvailability,
   withoutSiteSection,
   type SiteSectionAvailability,
-} from "../../App.hooks";
+} from "../../site-section-availability.hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { sitesApi } from "../../features/sites/api/sites-api";
 import type { AdminUser } from "../../features/auth/api/auth-api.types";

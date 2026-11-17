@@ -1,6 +1,6 @@
 import type { Request } from 'express';
 import { normalizeOriginCandidate } from '@jini-ai/core/contracts/server/verified-origin';
-import { resolveProtocol } from '#src/server/inbound/public-http/routes/oauth/public-origin';
+import { resolveProtocol } from '#src/platform/express/public-origin';
 
 /** Shared site visitor policy for confirmations and frontend control.
  * Fetch metadata alone is spoofable; every request must match a validated origin.

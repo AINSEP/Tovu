@@ -10,8 +10,8 @@ test("server boot schedules cleanup once without waiting and warns on cleanup fa
   t.mock.module(new URL("../../../features/site-backup/import-database.ts", import.meta.url).href, { namedExports: {
     ...database, tidyImportDatabases: () => { calls.push("cleanup"); return outcome === "pending" ? new Promise<void>(() => {}) : Promise.reject(new Error("Temporary root unavailable.")); },
   } });
-  const startup = await import("../../../server/runtime/boot/startup-secrets.js");
-  t.mock.module(new URL("../../../server/runtime/boot/startup-secrets.ts", import.meta.url).href, { namedExports: {
+  const startup = await import("../../../platform/secrets/startup-secrets.js");
+  t.mock.module(new URL("../../../platform/secrets/startup-secrets.ts", import.meta.url).href, { namedExports: {
     ...startup, initializeStartupSecrets: async () => { calls.push("continue"); throw stopped; },
   } });
   const logs = await import("../../../platform/server-logs/index.js");

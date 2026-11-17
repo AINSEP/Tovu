@@ -145,7 +145,7 @@ const EXTERNAL_MCP_OAUTH_CALLBACK_PATH = "/api/mcp-servers/oauth/callback";
  * would make `resolveExternalMcpOAuthRedirectUri` silently fall back to the derived origin —
  * localhost in dev — handing the provider a callback the operator never configured. The operator
  * override must win whenever it is present, so its invalidity cannot be indistinguishable from its
- * absence. `server/inbound/public-http/routes/oauth/public-origin.ts`'s `resolvePublicOrigin` fails
+ * absence. `platform/express/public-origin.ts`'s `resolvePublicOrigin` fails
  * the same way for the same reason.
  *
  * @throws {ToolInputError} `TOVU_PUBLIC_URL` is set but is not a valid `http(s)` URL — named so the
@@ -311,10 +311,6 @@ function buildSaveExternalMcpServerInputFromFormParams(
       .map(key => [key, optionalStringField({ input: params, key })])
       .filter(([, value]) => value !== undefined),
   );
-  const env = optionalSecretField({ input: params, key: "env" });
-  const accessToken = optionalSecretField({ input: params, key: "accessToken" });
-  const oauth = buildOAuthSaveInputFromFormParams(params);
-
   const serverIdRaw = params.id;
   const transportRaw = params.transport;
   if (typeof serverIdRaw !== "string" || typeof transportRaw !== "string") {
@@ -333,10 +329,22 @@ function buildSaveExternalMcpServerInputFromFormParams(
     args: optionalStringField({ input: params, key: "args" }) ?? "",
     allowedToolNames: optionalStringField({ input: params, key: "allowedToolNames" }) ?? "",
     writeAllowedToolNames: optionalStringField({ input: params, key: "writeAllowedToolNames" }) ?? "",
+    ...readOptionalSecretInputs({ params }),
+    principalId,
+  };
+}
+
+/** The save form's optional secret-bearing fields; each is omitted, never defaulted, when absent. */
+function readOptionalSecretInputs(
+  { params }: { params: Record<string, unknown> }, _optional = {},
+): Pick<SaveExternalMcpServerInput, "env" | "accessToken" | "oauth"> {
+  const env = optionalSecretField({ input: params, key: "env" });
+  const accessToken = optionalSecretField({ input: params, key: "accessToken" });
+  const oauth = buildOAuthSaveInputFromFormParams(params);
+  return {
     ...(env !== undefined ? { env } : {}),
     ...(accessToken !== undefined ? { accessToken } : {}),
     ...(oauth !== undefined ? { oauth } : {}),
-    principalId,
   };
 }
 

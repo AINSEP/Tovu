@@ -20,7 +20,6 @@ import { TaskList, TaskItem } from "@tiptap/extension-list";
 
 import type { ThemeTier } from "@/features/themes/api/themes-api.types";
 import type { AdminPost } from "@/features/posts/api/posts-api.types";
-import { isUnexpectedServerFailure } from "@/lib/server-failure";
 import { useSettlementGeneration, useDirtyGuard } from "@jini-ai/ui/panel-kit";
 
 import { MediaImage } from "@/lib/media-image-extension";
@@ -43,10 +42,8 @@ import {
 import {
   buildPostAutosaveDraft,
   isoToLocalDateTimeInput,
-  isScheduledPost,
   localDateTimeInputToIso,
   handleImageDrop,
-  readFileAsDataUrl,
   titleNodeText,
   withTitleNode,
   type PostSaveConflict,
@@ -56,6 +53,8 @@ import {
 import { t as translate } from "../posts-i18n";
 import { t as translatePageEditor } from "../../pages/page-editor-i18n";
 import { defaultPostEditorPort } from "./post-editor-dependencies.hooks";
+import { formatOutsideChangeMessage, formatSaveErrorMessage, formatSaveSuccessMessage, type SaveStatusOverride } from "./post-editor-messages";
+import { FILE_HANDLER_ALLOWED_MIME_TYPES, handleFileDrop, handleFilePaste, uploadFailureReporter } from "./post-editor-file-upload";
 import type { PostEditorPort } from "./post-editor-port.hooks";
 import { usePostEditorUi, type PostEditorUiController } from "./use-post-editor-ui.hooks";
 import {
@@ -68,7 +67,6 @@ import {
 import { buildPostUpdatePatch, keepNewerEdit, savedPostFields, withEverPublished } from "./post-editor-save.rules";
 
 /** A save that also moves the post to this status; `undefined` keeps its current one. */
-type SaveStatusOverride = "draft" | "published" | undefined;
 
 /**
  * @file Everything the post/page EDITOR does, so `PostEditor.tsx` is only markup.
@@ -111,7 +109,7 @@ type SaveStatusOverride = "draft" | "published" | undefined;
 export type { PostFormState } from './post-editor-state.rules';
 import type { PostFormState } from './post-editor-state.rules';
 
-import { type Translate, interpolate } from '@jini-ai/core/text';
+import { type Translate } from '@jini-ai/core/text';
 /** The two things the editor's main pane can show — the rich-text editor, or a rendered preview
  *  of the post. Named for what an author sees, not the library underneath ("Tiptap" never appears
  *  in the UI) — mirrors `features/pages/hooks/use-page-editor.hooks.ts`'s `PageEditorView`, minus
@@ -406,183 +404,6 @@ function schedulePendingContentPreviewSubmit(input: {
 }
 
 /**
- * Mirrors the server's own advisory upload allowlist (`DEFAULT_ALLOWED_MIME_TYPES`,
- * `@jini-ai/cms/media`'s `media-service.ts`) rather than importing it: that subpath is the full
- * server-side upload/DB implementation, which has no place in a browser bundle — unlike
- * `@jini-ai/core/settings`'s plain i18n dictionaries, which `SettingsUi.tsx` already imports safely
- * elsewhere in this app. Hand-copied, not derived — kept in sync manually with the server list (see
- * the regression test pinning this exactly against a literal copy of `DEFAULT_ALLOWED_MIME_TYPES`);
- * a future addition to the server ceiling needs a matching edit here too, or this comment goes false
- * again (as `video/mp4`/`video/webm` did, added server-side 2026-08-24 but never mirrored here until
- * 2026-09-07). The server sanitises SVG at ingest. Advisory only —
- * `FileHandler` filters what reaches `onDrop`/`onPaste` client-side, but `port.uploadMedia` still
- * goes through the server's own authoritative allowlist regardless of what gets past this filter.
- */
-export const FILE_HANDLER_ALLOWED_MIME_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-  "image/avif",
-  "image/svg+xml",
-  "video/mp4",
-  "video/webm",
-];
-
-/**
- * `@tiptap/extension-file-handler`'s shared upload step (2026-08-12, B1 — drag & paste image
- * upload) — uploads one dropped/pasted `File` through `port.uploadMedia`, the SAME media-upload
- * path `MediaPickerDialog`'s own upload flow already calls (confirmed against
- * `use-media.hooks.ts`'s `upload()`: `readFileAsDataUrl` then `port.uploadMedia({filename,
- * contentType, dataBase64}, ...)` — this reuses `readFileAsDataUrl` from `../rules.ts`, the same
- * helper `handleImageDrop` used to inline directly; here the `data:` prefix is stripped instead of
- * kept, since `uploadMedia` wants the bare base64 payload). Returns the `{assetId, alt}` pair a
- * ref-based image node needs, or `null` on upload failure so a caller can skip just that one file
- * rather than throwing out of a FileHandler callback ProseMirror never awaits — the same "failure is
- * silently absorbed, not a full-screen error" reasoning the mention-list effect above already states
- * for its own non-critical, best-effort background fetch.
- *
- * Split to a top-level function taking `port` as an explicit parameter, not a closure inside
- * `usePostEditor`, for the same reason `computeContentDirty` above already is: this project's
- * complexity metric folds nested closures into the enclosing function's own score, so only
- * top-level extraction keeps `usePostEditor` under the ceiling.
- *
- * @complexity Time: O(f) in file bytes (one `FileReader` read + one upload request); space: O(f) for
- * the base64 payload — same cost {@link readFileAsDataUrl}'s own doc already states.
- */
-export async function uploadDroppedFile(
-  port: PostEditorPort,
-  file: File,
-  { onError }: { onError?: UploadFailureHandler } = {},
-): Promise<{ assetId: string; alt: string } | null> {
-  try {
-    const dataUrl = await readFileAsDataUrl(file);
-    const dataBase64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
-    const { media } = await port.uploadMedia({ filename: file.name, contentType: file.type, dataBase64 });
-    return { assetId: media.id, alt: file.name };
-  } catch (error) {
-    // Reported, not swallowed: a dropped image that quietly never appears reads as a broken editor.
-    onError?.({ file, error });
-    return null;
-  }
-}
-
-/** Called once per dropped or pasted file whose upload failed, with the file and the cause. */
-export type UploadFailureHandler = (failure: { file: File; error: unknown }) => void;
-
-/**
- * The plain-words editor message for a failed drop/paste upload: names the file and keeps the
- * cause (already redacted by the admin API) so the operator can paste it into a report.
- * @complexity O(1).
- */
-export function formatUploadFailureMessage({ file, error, t }: { file: File; error: unknown; t: Translate }, _options: Record<string, never> = {}): string {
-  const cause = error instanceof Error && error.message ? error.message : t("no reason was given");
-  return interpolate({ template: t("Could not add {name}. Nothing was inserted. Cause: {cause}"), vars: { name: file.name, cause } });
-}
-
-/**
- * `save`'s success-toast copy (complexity-ceiling pass, 2026-09-05 — same "nested ternary moves to a
- * top-level function" reasoning {@link computeContentDirty} above already states). Split out purely
- * so `save`'s own cognitive-complexity score doesn't carry this string's branching on top of the
- * stale-settlement guard added the same day.
- */
-function formatSaveSuccessMessage({ statusOverride, saved, t }: { statusOverride: SaveStatusOverride; saved: AdminPost; t: Translate }, { expectedVersion }: { expectedVersion?: number } = {}): string {
-  // The server skips a save whose content matches what's stored and answers with the SAME version
-  // (2026-10-10, no-op save guard), so an unchanged version means nothing new was written.
-  if (statusOverride === undefined && expectedVersion !== undefined && saved.version === expectedVersion) {
-    return interpolate({ template: t("No changes found · nothing new saved (version {version})"), vars: { version: saved.version } });
-  }
-  // A Publish whose time is still ahead does not go live yet (2026-10-05) — saying "Published" next
-  // to the "Scheduled" badge contradicted it. The time is shown in local time, as the operator typed it.
-  if (statusOverride === "published" && isScheduledPost({ input: { status: saved.status, publishAt: saved.publishAt ?? null }, nowMs: Date.now() })) {
-    return interpolate({ template: t("Scheduled for {time} · version {version}"), vars: {
-      time: isoToLocalDateTimeInput({ iso: saved.publishAt }).replace("T", " "),
-      version: saved.version,
-    } });
-  }
-  return interpolate({ template: t(statusOverride === "published" ? "Published · version {version}" : "Saved · version {version}"), vars: { version: saved.version } });
-}
-
-/**
- * The status line once a version saved outside this editor (the assistant, another tab) is the
- * stored one. Without it the line kept naming this editor's own last save ("Saved · version 2")
- * after the assistant had saved versions 3 and 4 (UI check 2026-10-31).
- */
-function formatOutsideChangeMessage({ version, t }: { version: number; t: Translate }, _options: Record<string, never> = {}): string {
-  return interpolate({ template: t("Changed outside the editor · version {version}"), vars: { version } });
-}
-
-/**
- * `save`'s failure copy — same extraction reasoning as {@link formatSaveSuccessMessage} just above.
- * A thrown `Error`'s own message wins; otherwise falls back to a verb-specific default so the
- * operator hears "publish failed" rather than the generic "save failed" when the Publish button is
- * what triggered this call.
- */
-function formatSaveErrorMessage({ error, statusOverride, t }: { error: unknown; statusOverride: SaveStatusOverride; t: Translate }, _options: Record<string, never> = {}
-): string {
-  // A server or network failure already raised the shared failure notice with plain words and
-  // copyable details; repeating its raw message here would show the same string twice.
-  if (isUnexpectedServerFailure({ error })) return t(statusOverride === "published" ? "Not published. Your edits are still here." : "Not saved. Your edits are still here.");
-  if (error instanceof Error) return error.message;
-  return t(statusOverride === "published" ? "publish failed" : "save failed");
-}
-
-/**
- * `FileHandler`'s `onDrop` callback body (2026-08-12, B1; switched from the `image` node to the
- * generic `media` node 2026-09-11 — see `lib/media-embed-extension.tsx`'s own file header) —
- * uploads each dropped file via {@link uploadDroppedFile} and inserts it at the drop position with
- * `insertContentAt`, producing the IDENTICAL `{assetId, transformName: "public", alt}` node shape
- * `insertMediaEmbed` (`lib/media-embed-extension.tsx`, the Media picker's own insert command)
- * builds. `insertMediaEmbed` itself isn't called here because it always inserts at the CURRENT
- * SELECTION, never an arbitrary position, and `pos` (the drop point) is very often not the
- * selection — `insertContentAt(pos, ...)` is TipTap's own documented pattern for a file-handler drop
- * for exactly this reason. Never base64-inlines into `bodyJson` — see `handleImageDrop`
- * (`../rules.ts`) for the legacy local-file behavior this supersedes, and why that function now
- * deliberately leaves local files unhandled so this one is reachable at all.
- *
- * `FILE_HANDLER_ALLOWED_MIME_TYPES` (above) already includes `video/mp4`/`video/webm`, so a dropped
- * video file reaches this same path — inserting it as a `media` node (not `image`) is what makes
- * that video actually play once saved, instead of rendering `image`'s broken `<img>` for a video
- * asset (see `render.ts`'s `renderDocMedia` for the render-side half).
- *
- * Each file is uploaded and inserted independently, as its own upload resolves — not
- * `Promise.all`-batched, and this function itself does not await any of them (`onDrop` is a
- * synchronous callback) — a multi-file drop with one slow or failing upload still lands every other
- * file rather than blocking on the slowest or losing the whole batch to one failure.
- */
-export function handleFileDrop({ port, editor, files, pos, onError }: { port: PostEditorPort; editor: Editor; files: File[]; pos: number; onError?: UploadFailureHandler }, _options: Record<string, never> = {}): void {
-  for (const file of files) {
-    uploadDroppedFile(port, file, { ...(onError ? { onError } : {}) }).then((result) => {
-      if (!result) return;
-      editor
-        .chain()
-        .insertContentAt(pos, { type: "media", attrs: { assetId: result.assetId, transformName: "public", alt: result.alt } })
-        .focus()
-        .run();
-    });
-  }
-}
-
-/**
- * `FileHandler`'s `onPaste` callback body (2026-08-12, B1; switched from `insertMediaRef` to
- * `insertMediaEmbed` 2026-09-11, same reasoning as {@link handleFileDrop} immediately above) — same
- * upload step as {@link handleFileDrop}, but inserts through the real `insertMediaEmbed` command
- * (`lib/media-embed-extension.tsx`) rather than `insertContentAt`: `@tiptap/extension-file-handler`'s
- * own `onPaste` signature carries no position argument (unlike `onDrop`'s `pos`), and inserting at
- * the current selection is exactly what a paste is supposed to do — exactly what `insertMediaEmbed`
- * does with no position argument (after the selected node when a node is selected, see
- * `lib/block-atom-insert.ts`).
- */
-export function handleFilePaste({ port, editor, files, onError }: { port: PostEditorPort; editor: Editor; files: File[]; onError?: UploadFailureHandler }, _options: Record<string, never> = {}): void {
-  for (const file of files) {
-    uploadDroppedFile(port, file, { ...(onError ? { onError } : {}) }).then((result) => {
-      if (!result) return;
-      editor.commands.insertMediaEmbed({ assetId: result.assetId, transformName: "public", alt: result.alt });
-    });
-  }
-}
-
-/**
  * The loaded post when it is a real, saved row; `null` before the load settles and for a new
  * post's local working copy, whose id is still `""` until its first Save creates the row.
  *
@@ -701,11 +522,7 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
   // same-tick Save/Publish clicks use one record, then apply the latest intent to its real id.
   const firstSaveRequest = useRef<{ patch: Parameters<PostEditorPort["updatePost"]>[0]["patch"]; response: Promise<{ post: AdminPost }> } | null>(null);
 
-  // A failed drop/paste upload shows in the editor's own error line; nothing is inserted.
-  const reportUploadFailure: UploadFailureHandler = ({ file, error }) => {
-    setMessage(null);
-    setError(formatUploadFailureMessage({ file, error, t }));
-  };
+  const reportUploadFailure = uploadFailureReporter({ setMessage, setError, t });
   const editor = useEditor({
     // Link and Underline ship as part of StarterKit already (verified against its own bundle) —
     // only TextAlign needed adding. `document: false` turns off StarterKit's own `doc` node so
@@ -985,9 +802,7 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [previewExpanded]);
 
-  function togglePreviewExpanded(): void {
-    setPreviewExpanded((on) => !on);
-  }
+  function togglePreviewExpanded(): void { setPreviewExpanded((on) => !on); }
 
   const hasSlugCollision = staticPageIds.includes(slug);
 
@@ -1245,9 +1060,7 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
   }
 
   /** Hides the conflict banner without saving — see {@link PostEditorController.dismissSaveConflict}. */
-  function dismissSaveConflict(): void {
-    setSaveConflict(null);
-  }
+  function dismissSaveConflict(): void { setSaveConflict(null); }
 
   /**
    * Soft delete — distinct from the Draft/Published status select, and the copy in the view says so

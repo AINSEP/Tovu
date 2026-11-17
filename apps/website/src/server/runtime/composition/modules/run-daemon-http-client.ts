@@ -6,6 +6,7 @@ import { RUN_PRINCIPAL_HEADER } from "#src/assistant/index";
 import { assistantDaemonToken } from "../../lifecycle/assistant-daemon-connection.js";
 import { fetchWithDaemonParkRecovery } from "../../lifecycle/daemon-demand-fetch.js";
 import { ensureAssistantDaemonReady } from "../../lifecycle/daemon-supervisor.js";
+import { releaseUnreadBody } from "./run-finalizer/release-body.js";
 import { createRunDaemonOrigins, type RunDaemonAddress, type RunDaemonOrigins } from "./run-daemon-origins.js";
 
 /**
@@ -63,7 +64,7 @@ async function statusAt(
     });
     // The response headers establish the status; a stalled body must not stall recovery.
     // The status is already known; disposing the unused response body is best effort.
-    void response.body?.cancel().catch(() => undefined);
+    releaseUnreadBody({ response });
     return response.status;
   } catch {
     return null;

@@ -6,7 +6,8 @@ import path from "node:path";
 import test from "node:test";
 import Database from "better-sqlite3";
 
-import { createSiteRouteDeps, defaultDatabaseJournalDbPath } from "../../runtime/composition/deps.js";
+import { createSiteRouteDeps } from "../../runtime/composition/deps.js";
+import { defaultDatabaseJournalDbPath } from "../../runtime/composition/site-paths.js";
 import { buildBootModules } from "../../runtime/boot/bootstrap.js";
 import { runBootLifecycle } from "../../runtime/lifecycle/boot-lifecycle.js";
 import { createApp } from "../../runtime/composition/app.js";

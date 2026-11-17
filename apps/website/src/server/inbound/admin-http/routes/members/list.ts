@@ -16,11 +16,19 @@ import type { MembersRouteDeps } from "./deps.js";
  *  that id's position. A cursor this list did not issue is refused by the repo (400), never read as
  *  page one. @complexity O(1). */
 function parseMembersListQuery(query: Request["query"]): { limit?: number; cursor: string | null } {
-  const rawLimit = typeof query.limit === "string" ? Number(query.limit) : undefined;
-  const limit = rawLimit !== undefined && Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : undefined;
-  const cursor = typeof query.cursor === "string" && query.cursor !== "" ? query.cursor : null;
-  const afterId = typeof query.afterId === "string" && query.afterId !== "" ? query.afterId : undefined;
+  const limit = readPositiveLimit({ raw: query.limit });
+  const cursor = readNonEmptyQueryString({ raw: query.cursor }) ?? null;
+  const afterId = readNonEmptyQueryString({ raw: query.afterId });
   return { ...(limit === undefined ? {} : { limit }), cursor: cursor ?? (afterId === undefined ? null : encodeListCursor({ position: [afterId] })) };
+}
+
+function readPositiveLimit({ raw }: { raw: unknown }, _options = {}): number | undefined {
+  const limit = typeof raw === "string" ? Number(raw) : undefined;
+  return limit !== undefined && Number.isFinite(limit) && limit > 0 ? limit : undefined;
+}
+
+function readNonEmptyQueryString({ raw }: { raw: unknown }, _options = {}): string | undefined {
+  return typeof raw === "string" && raw !== "" ? raw : undefined;
 }
 
 /**

@@ -233,13 +233,6 @@
       "value": 11
     },
     {
-      "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/backstop.ts",
-      "function": "handleUndoRequest#1",
-      "line": 205,
-      "rule": "complexity",
-      "value": 12
-    },
-    {
       "file": "apps/website/src/server/inbound/assistant/agent-daemon-scope.ts",
       "function": "createSiteScope#1.onStarted#1.onEvent#2",
       "line": 802,

@@ -7,7 +7,7 @@ import { toAdminUserResponse } from "#src/server/inbound/admin-http/http/users";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { UsernameInTrashError } from "#src/features/identity/delete-user-service";
 import { identityServiceDepsFrom, type UsersRouteDeps, type UsersRouteRegistrar } from "./deps.js";
-import { asyncRoute } from "../../../shared/async-route.js";
+import { asyncRoute } from "../../../../../platform/express/async-route.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** This route's three body fields, read off an untyped body in one place.

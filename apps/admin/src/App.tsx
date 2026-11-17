@@ -45,7 +45,6 @@ import { closePublishRequest, usePublishRequest } from "./features/publish-conte
 import { t as translateDashboard } from "./features/dashboard/dashboard-i18n";
 import {
   resolveChatFabClearance,
-  resolveSiteSectionRouteGate,
   createAdminShellTranslators,
   useAdminAssistantAvailability,
   useAdminSession,
@@ -58,12 +57,15 @@ import {
   usePublishCriteriaDeepLink,
   useScreenshotAnnouncement,
   useSidebarDrawer,
+  type UseLogoutConfirm,
+} from "./App.hooks";
+import {
+  resolveSiteSectionRouteGate,
   useSiteSectionAvailability,
   useSidebarSiteSection,
   withoutSiteSection,
   type SiteSectionAvailability,
-  type UseLogoutConfirm,
-} from "./App.hooks";
+} from "./site-section-availability.hooks";
 
 /**
  * A resolved route, plus Tovu's legacy sections and URL migration metadata — see `parseRoute`.
@@ -191,17 +193,10 @@ interface RouteAccess {
 }
 
 /**
- * The screen for this route: `Placeholder` for a legacy `/section/:id` naming an id that no longer
- * exists (see `Route.unknownSectionId`), otherwise the matched panel's own render — each panel does
- * its own small `view` switch (see `panels.tsx`), which is what lets a panel own its URL space
- * without a shared dispatch to edit.
+ * What replaces the panel when this deployment or operator may not show it, or `undefined` when the
+ * route proceeds to its panel (`null` is a real answer: hold the screen while availability loads).
  */
-function renderRoute({ route, siteSection, access }: { route: Route; siteSection: SiteSectionAvailability; access: RouteAccess }, _options: Record<string, never> = {}): ReactNode {
-  // Replace the old URL before mounting its screen; the canonical route retains the same gate.
-  if (route.redirectPath) return <IntegrationsRedirect routePath={route.redirectPath} />;
-  if (route.unknownSectionId !== undefined) {
-    return <Placeholder sectionId={route.unknownSectionId} />;
-  }
+function gatedRouteElement({ route, siteSection, access }: { route: Route; siteSection: SiteSectionAvailability; access: RouteAccess }, _options: Record<string, never> = {}): ReactNode | undefined {
   // The Sites section does not exist on every deployment — see `resolveSiteSectionRouteGate`. The
   // gate sits HERE rather than inside `panels.tsx`'s own `sites` render thunk so the panel manifest
   // stays a pure declaration of what this admin can show, and so "which sections this deployment
@@ -215,6 +210,23 @@ function renderRoute({ route, siteSection, access }: { route: Route; siteSection
   if (resolvePanelAccessGate({ panelId: route.panelId, panels: ADMIN_PANELS, permissions: access.permissions }) === "denied") {
     return <NoAccess locale={access.locale} />;
   }
+  return undefined;
+}
+
+/**
+ * The screen for this route: `Placeholder` for a legacy `/section/:id` naming an id that no longer
+ * exists (see `Route.unknownSectionId`), otherwise the matched panel's own render — each panel does
+ * its own small `view` switch (see `panels.tsx`), which is what lets a panel own its URL space
+ * without a shared dispatch to edit.
+ */
+function renderRoute({ route, siteSection, access }: { route: Route; siteSection: SiteSectionAvailability; access: RouteAccess }, _options: Record<string, never> = {}): ReactNode {
+  // Replace the old URL before mounting its screen; the canonical route retains the same gate.
+  if (route.redirectPath) return <IntegrationsRedirect routePath={route.redirectPath} />;
+  if (route.unknownSectionId !== undefined) {
+    return <Placeholder sectionId={route.unknownSectionId} />;
+  }
+  const gated = gatedRouteElement({ route, siteSection, access });
+  if (gated !== undefined) return gated;
   // Non-null by construction, so there is no `panel ? … : null` fallback: `parseRoute` (via
   // `matchRoute` over this same `ADMIN_PANELS`) only ever yields a registered panel id, the root's
   // `"dashboard"`, or `null` (mapped to `"dashboard"` here) — and `panels.tsx` registers
