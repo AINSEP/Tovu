@@ -6,14 +6,13 @@ import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler } from "#src/contracts/core/human-confirm";
 import { mailDeliveryAgentToolCatalog } from "./delivery-agent-tools.js";
-import { getMailActivity, listMailActivity, MailActivityForbiddenError, MailActivityUnavailableError, readMailActivityId, readMailActivityQuery } from "./activity.js";
+import {
+  getMailActivity, listMailActivity, listMailSuppressions, MailActivityForbiddenError, MailActivityUnavailableError, MailSuppressionsUnavailableError, planMailSuppressionRemoval,
+  readMailActivityId, readMailActivityQuery, readMailSuppressionQuery, readMailSuppressionRemoval, runMailSuppressionRemoval, type MailSuppressionRemovalPlan,
+} from "@jini-ai/platform/mail";
 import { mailDomainDepsFrom, type MailHostActivityDeps } from "./domain-deps.js";
 import { readMailFeedbackSetup, type MailFeedbackSetupDeps } from "./feedback-setup.js";
 import { MAIL_STATUS_PERMISSION } from "./permissions.js";
-import {
-  listMailSuppressions, MailSuppressionsUnavailableError, planMailSuppressionRemoval, readMailSuppressionQuery, readMailSuppressionRemoval, runMailSuppressionRemoval,
-  type MailSuppressionRemovalPlan,
-} from "./suppressions.js";
 import { mailUseReadinessDepsFrom, readMailUseReadiness, type MailUseReadinessHostDeps } from "./use-readiness.js";
 
 /**

@@ -690,11 +690,11 @@ export interface MembersDeps {
   mailLaneReady?: (required: { lane: "transactional" | "bulk" }) => Promise<boolean>;
   mailTestSendLimiter?: import("#src/features/mail-status/test-send").MailTestSendLimiter;
   /** Email page phase 4: body-free send history joined with provider feedback (`features/mail/activity.repo.ts`). */
-  mailActivity?: import("#src/features/mail/activity-ports").MailActivityRepo;
+  mailActivity?: import("@jini-ai/platform/mail").MailActivityRepo;
   /** Asks the live mailer's purpose gate whether a use would pass, without sending (`platform/mail/purpose-gate-probe.ts`). */
   mailPurposeGate?: import("#src/platform/mail/purpose-gate-probe").MailPurposeGateProbe;
   /** Email page phase 5: suppression list, audited removal and last verified feedback event (`features/mail/suppression-admin.repo.ts`). */
-  mailSuppressionAdmin?: import("#src/features/mail/activity-ports").MailSuppressionAdminRepo;
+  mailSuppressionAdmin?: import("@jini-ai/platform/mail").MailSuppressionAdminRepo;
 }
 
 /**

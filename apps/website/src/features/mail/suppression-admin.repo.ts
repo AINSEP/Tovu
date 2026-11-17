@@ -10,7 +10,7 @@
 import { randomUUID } from "node:crypto";
 import { sql, type RawBuilder } from "kysely";
 import type { MailSuppressionScope } from "@jini-ai/platform/mail";
-import type { MailSuppressionAdminRepo, MailSuppressionEntry, MailSuppressionListFilter, MailSuppressionReason, MailSuppressionRemoval } from "./activity-ports.js";
+import type { MailSuppressionAdminRepo, MailSuppressionEntry, MailSuppressionListFilter, MailSuppressionReason, MailSuppressionRemoval } from "@jini-ai/platform/mail";
 import type { MailRepoDeps } from "./ledger.repo.js";
 
 type Row = { normalized_address: string; scope: MailSuppressionScope; reason: MailSuppressionReason; created_at: string; revision: string };

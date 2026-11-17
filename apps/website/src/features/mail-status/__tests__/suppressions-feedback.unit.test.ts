@@ -7,14 +7,13 @@ import { createSystemClock } from "@jini-ai/platform/system";
 
 import type { MailerPort } from "../../../platform/mail/index.js";
 import type { MailProviderConfiguration } from "../../../platform/mail/mail-status.js";
-import type { MailSuppressionAdminRepo, MailSuppressionEntry } from "../../mail/activity-ports.js";
-import { MailActivityForbiddenError } from "../activity.js";
 import { buildMailDeliveryRegistrations, type MailDeliveryToolDeps } from "../delivery-tool-registrations.js";
 import { readMailFeedbackSetup, type MailFeedbackSetupDeps } from "../feedback-setup.js";
 import { MAIL_PERMISSION_IDS } from "../permissions.js";
 import {
-  listMailSuppressions, MailSuppressionsUnavailableError, planMailSuppressionRemoval, readMailSuppressionQuery, readMailSuppressionRemoval, runMailSuppressionRemoval, type MailSuppressionDeps,
-} from "../suppressions.js";
+  listMailSuppressions, MailActivityForbiddenError, MailSuppressionsUnavailableError, planMailSuppressionRemoval, readMailSuppressionQuery, readMailSuppressionRemoval, runMailSuppressionRemoval,
+  type MailSuppressionAdminRepo, type MailSuppressionDeps, type MailSuppressionEntry,
+} from "@jini-ai/platform/mail";
 
 /**
  * @file Email phase 5's shared operations with DI fakes: suppression list input, permission and

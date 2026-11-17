@@ -1,6 +1,14 @@
-import type { MailActivityDeps } from "./activity.js";
+import type { MailActivityDeps, MailSuppressionDeps } from "@jini-ai/platform/mail";
 import { MAIL_PERMISSION_IDS } from "./permissions.js";
-import type { MailSuppressionDeps } from "./suppressions.js";
+
+/**
+ * @file Tovu's binding of the activity and suppression operations in `@jini-ai/platform/mail`
+ * (email phases 4-5): behind `mail_list_activity`, `mail_get_activity`, `mail_list_suppressions`,
+ * `mail_remove_suppression` and the admin routes `system/mail-activity` and
+ * `system/mail-suppressions[/remove]`. Removal needs a fresh confirmation every time: the tool's
+ * card has no remember option and the route performs only with `confirmed: true`. The owner-only
+ * rule for removal is declared with the permission ids in `./permissions.ts`.
+ */
 
 /** What the host's deps bag supplies to the activity and suppression operations. */
 export type MailHostActivityDeps = Omit<MailActivityDeps, "permissions"> & Omit<MailSuppressionDeps, "permissions">;

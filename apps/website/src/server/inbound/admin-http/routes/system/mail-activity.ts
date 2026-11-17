@@ -2,14 +2,14 @@ import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from "express";
 import { ToolInputError } from "@jini-ai/core";
 
-import { getMailActivity, listMailActivity, MailActivityForbiddenError, MailActivityUnavailableError, readMailActivityId, readMailActivityQuery } from "#src/features/mail-status/activity";
+import {
+  getMailActivity, listMailActivity, listMailSuppressions, MailActivityForbiddenError, MailActivityUnavailableError, MailSuppressionsUnavailableError, planMailSuppressionRemoval,
+  readMailActivityId, readMailActivityQuery, readMailSuppressionQuery, readMailSuppressionRemoval, runMailSuppressionRemoval,
+} from "@jini-ai/platform/mail";
 import type { MailDeliveryToolDeps } from "#src/features/mail-status/delivery-tool-registrations";
 import { mailDomainDepsFrom } from "#src/features/mail-status/domain-deps";
 import { readMailFeedbackSetup } from "#src/features/mail-status/feedback-setup";
 import { MAIL_STATUS_PERMISSION } from "#src/features/mail-status/permissions";
-import {
-  listMailSuppressions, MailSuppressionsUnavailableError, planMailSuppressionRemoval, readMailSuppressionQuery, readMailSuppressionRemoval, runMailSuppressionRemoval,
-} from "#src/features/mail-status/suppressions";
 import { mailUseReadinessDepsFrom, readMailUseReadiness } from "#src/features/mail-status/use-readiness";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 

@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { MailActivityRecord, MailActivityRepo, MailFeedbackRecord } from "../../mail/activity-ports.js";
 import {
-  getMailActivity, listMailActivity, MailActivityForbiddenError, maskRecipient, nextMailCursor, readMailActivityQuery, readMailCursor, readMailPageLimit, type MailActivityDeps,
-} from "../activity.js";
+  getMailActivity, listMailActivity, MailActivityForbiddenError, maskRecipient, nextMailCursor, readMailActivityQuery, readMailCursor, readMailPageLimit,
+  type MailActivityDeps, type MailActivityRecord, type MailActivityRepo, type MailFeedbackRecord,
+} from "@jini-ai/platform/mail";
 import { MAIL_ACTIVITY_READ_PERMISSION, MAIL_PERMISSION_IDS, MAIL_STATUS_PERMISSION } from "../permissions.js";
 
 /**

@@ -6,12 +6,11 @@ import type { MailerPort } from "../../../platform/mail/index.js";
 import { SenderIdentityNotConfiguredError } from "../../../platform/mail/sender-identity.js";
 import { createMailPurposeGateProbe, type MailPurposeGateProbe } from "../../../platform/mail/purpose-gate-probe.js";
 import { createPermissionGrantRegistry } from "../../identity/permission-grants.js";
-import type { MailActivityRecord, MailActivityRepo } from "../../mail/activity-ports.js";
 import type { LaunchGateDeps } from "../../newsletter/launch-gate.js";
 import {
   DEFAULT_MAIL_ACTIVITY_LIMIT, getMailActivity, listMailActivity, MailActivityForbiddenError, MailActivityUnavailableError, maskRecipient,
-  readMailActivityId, readMailActivityQuery, resolveMailActivityAccess, type MailActivityDeps,
-} from "../activity.js";
+  readMailActivityId, readMailActivityQuery, resolveMailActivityAccess, type MailActivityDeps, type MailActivityRecord, type MailActivityRepo,
+} from "@jini-ai/platform/mail";
 import { buildMailDeliveryRegistrations, contributeMailDeliveryTools, mailDeliveryDerivedRisk, type MailDeliveryToolDeps } from "../delivery-tool-registrations.js";
 import { MAIL_ACTIVITY_READ_PERMISSION, MAIL_PERMISSION_IDS, MAIL_SUPPRESSIONS_MANAGE_PERMISSION, registerMailPermissionGrants } from "../permissions.js";
 import { mailUseReadinessDepsFrom, readMailUseReadiness, type MailUseReadinessDeps } from "../use-readiness.js";
