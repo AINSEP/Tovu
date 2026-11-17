@@ -1,0 +1,39 @@
+path	kind	lines	blob12	prod_importers	test_importers	export_stmts	env_reads	outbound_hits	vendor_word_hits	sql_hits	secret_word_hits	node_builtins	jini_pkgs	npm	classify_label	classify_target	outside_prod_importer_dirs
+apps/website/src/features/mail-status/__tests__/delivery-visibility.unit.test.ts	test	329	d9031b5a26ec	0	0	0	0	0	0	0	0	assert/strict,test	core				
+apps/website/src/features/mail-status/__tests__/mail-status-tool.test.ts	test	206	5a1abb071141	0	0	0	0	0	0	0	3	assert/strict,test	core,daemon,platform				
+apps/website/src/features/mail-status/__tests__/provider-operations.unit.test.ts	test	186	7a9ae8b39168	0	0	0	0	0	0	0	103	assert/strict,test					
+apps/website/src/features/mail-status/__tests__/provider-tools.unit.test.ts	test	159	d6a25d8cb737	0	0	0	0	0	0	0	26	assert/strict,test	core,daemon,platform				
+apps/website/src/features/mail-status/__tests__/suppressions-feedback.unit.test.ts	test	272	9cd043ce4f73	0	0	0	0	0	0	0	46	assert/strict,test	core,daemon,platform				
+apps/website/src/features/mail-status/__tests__/test-send.test.ts	test	239	69bd36df4b83	0	0	0	0	0	0	0	8	assert/strict,test	core,daemon,platform				
+apps/website/src/features/mail-status/activity.ts	src	222	e5e962cdea40	3	2	19	0	0	0	0	0		core		MOVE-AFTER	platform/mail	server/inbound/admin-http/routes/system
+apps/website/src/features/mail-status/agent-tools.ts	src	21	c9dffa7f9f4d	1	1	1	0	0	0	0	2				MIXED	platform/mail	
+apps/website/src/features/mail-status/delivery-agent-tools.ts	src	56	1a37760efede	1	1	1	0	0	1	0	4				MIXED		
+apps/website/src/features/mail-status/delivery-tool-registrations.ts	src	104	69b3ef8dd1d0	2	2	4	0	0	0	0	1		cms,core,daemon		MOVE-AFTER	platform/mail	server/inbound/admin-http/routes/system,server/runtime/composition
+apps/website/src/features/mail-status/feedback-setup.ts	src	108	3a7b67efdd1c	2	1	5	0	0	0	0	28		core		MOVE-AFTER	platform/mail	server/inbound/admin-http/routes/system
+apps/website/src/features/mail-status/permissions.ts	src	41	bb96d16ce1d0	5	1	4	0	0	0	0	0		user-management				server/inbound/admin-http/routes/system,server/runtime/composition
+apps/website/src/features/mail-status/provider-agent-tools.ts	src	16	28365c2bfc80	1	1	1	0	0	0	0	14				MIXED		
+apps/website/src/features/mail-status/provider-operations.ts	src	167	cc0862f1b7cf	3	1	9	0	0	0	0	82		core		MIXED	platform/mail	server/inbound/admin-http/routes/system
+apps/website/src/features/mail-status/provider-tool-registrations.ts	src	130	4f6833474c9b	2	2	7	0	0	0	0	38		cms,core,daemon				server/runtime/composition
+apps/website/src/features/mail-status/suppressions.ts	src	161	a69954c830a3	2	1	11	0	0	0	0	0		core,platform		MOVE-AFTER	platform/mail	server/inbound/admin-http/routes/system
+apps/website/src/features/mail-status/test-send.ts	src	258	806793dd4e22	4	3	12	0	0	0	0	3		core,platform,user-management		MIXED	platform/mail	server/inbound/admin-http/routes/system,server/routes,server/runtime/composition
+apps/website/src/features/mail-status/tool-registrations.ts	src	137	ae86a59f4751	2	4	4	0	0	0	0	0		cms,core,daemon,user-management		MOVE-AFTER	platform/mail	assistant,server/runtime/composition
+apps/website/src/features/mail-status/use-readiness.ts	src	197	f59545016629	2	2	8	0	0	0	0	0		cms,platform				server/inbound/admin-http/routes/system
+apps/website/src/features/mail/__tests__/activity.repo.dialects.test.ts	test	129	16dbeb19a050	0	0	0	0	0	0	9	0	assert/strict,test	db	kysely			
+apps/website/src/features/mail/__tests__/attempts-retention.dialects.test.ts	test	118	10feda3a4979	0	0	0	0	0	0	13	3	assert/strict,test		kysely			
+apps/website/src/features/mail/__tests__/capture-auth.dialects.test.ts	test	99	42f06a34524a	0	0	0	0	0	0	7	24	assert/strict,test	core	kysely			
+apps/website/src/features/mail/__tests__/feedback-route.test.ts	test	124	92111a29b53b	0	0	0	0	0	9	0	43	assert/strict,test	platform				
+apps/website/src/features/mail/__tests__/repos.dialects.test.ts	test	156	db7ba4924d1e	0	0	0	0	0	7	9	0	assert/strict,test	db,platform	kysely			
+apps/website/src/features/mail/__tests__/retention.unit.test.ts	test	20	60bf1b31c503	0	0	0	0	0	0	3	0	assert/strict,test	db				
+apps/website/src/features/mail/__tests__/suppression-admin.repo.dialects.test.ts	test	149	99a2da7f0b4f	0	0	0	0	0	0	16	0	assert/strict,test	db	kysely			
+apps/website/src/features/mail/activity.repo.ts	src	194	149d39142d42	7	4	11	0	0	1	22	0			kysely	MIXED	platform/mail	features/mail-status,server/routes,server/runtime/composition
+apps/website/src/features/mail/attempts.repo.ts	src	37	9300f5d94c3e	2	2	2	0	0	0	2	0	crypto	platform	kysely	MOVE-AFTER	platform/mail	server/runtime/boot,server/runtime/composition
+apps/website/src/features/mail/capture.repo.ts	src	93	8a5c89471532	1	2	5	0	0	0	3	2	crypto	core,platform	kysely	MOVE-AFTER	platform/mail	
+apps/website/src/features/mail/feedback-inbox.repo.ts	src	33	76fd00fdc5db	2	0	1	0	0	0	4	0		platform	kysely	MOVE-AFTER		
+apps/website/src/features/mail/feedback-route.ts	src	77	f3241f32b671	2	0	6	0	0	0	0	8		platform		MOVE	platform/mail	
+apps/website/src/features/mail/feedback-sources.ts	src	66	f96ce6feee2c	3	0	4	0	0	0	0	29		platform				features/mail-status
+apps/website/src/features/mail/index.ts	src	11	4d6e7f5fe90a	3	3	7	0	0	0	0	3						server/inbound/public-http/routes,server/routes,server/runtime/composition
+apps/website/src/features/mail/ledger.repo.ts	src	77	43de5f617fa1	8	3	3	0	0	1	11	0	crypto	db,platform	kysely	MOVE-AFTER	db	
+apps/website/src/features/mail/retention.ts	src	45	9adaebaa7275	2	3	5	0	0	0	6	0			kysely	DEDUPE		server/runtime/composition
+apps/website/src/features/mail/site-feedback-route.ts	src	28	7a40e9457efa	1	0	1	0	0	0	2	13		db		DELETE		
+apps/website/src/features/mail/suppression-admin.repo.ts	src	115	e451884344e8	4	3	6	0	0	0	12	0	crypto	platform	kysely	MOVE-AFTER		features/mail-status,server/routes,server/runtime/composition
+apps/website/src/features/mail/suppression.repo.ts	src	37	6ea9a25a40c7	2	3	1	0	0	0	4	0	crypto	platform	kysely	MOVE-AFTER		

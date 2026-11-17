@@ -1,0 +1,54 @@
+path	kind	lines	blob12	prod_importers	test_importers	export_stmts	env_reads	outbound_hits	vendor_word_hits	sql_hits	secret_word_hits	node_builtins	jini_pkgs	npm	classify_label	classify_target	outside_prod_importer_dirs
+apps/admin/src/features/source-control/ProvidersTab.tsx	src	464	4f7d4a25fa1d	1	1	2	0	0	10	0	149		core		DEDUPE-AFTER-HARDENING	admin	
+apps/admin/src/features/source-control/SourceControl.hooks.ts	src	6	178853cbfa21	1	0	1	0	0	0	0	0						
+apps/admin/src/features/source-control/SourceControl.tsx	src	118	3517a817db72	1	1	2	0	0	3	0	7		core,ui		DELETE-AFTER-PARITY	admin/source-control/react	
+apps/admin/src/features/source-control/__tests__/ProvidersTab.unit.test.tsx	test	109	98cbbf7c0f3c	0	0	0	0	0	0	0	57			@testing-library/user-event,vitest			
+apps/admin/src/features/source-control/__tests__/SourceControl.unit.test.tsx	test	447	567f7f279437	0	0	0	0	0	59	0	114			@testing-library/user-event,passed as
+  // undefined,vitest			
+apps/admin/src/features/source-control/__tests__/rules.unit.test.ts	test	234	38c23c66f47c	0	0	0	0	0	37	0	152			vitest			
+apps/admin/src/features/source-control/__tests__/source-control-credentials-dependencies.unit.test.ts	test	107	c344adefdd09	0	0	0	0	0	5	0	80			vitest			
+apps/admin/src/features/source-control/__tests__/source-control-i18n.unit.test.ts	test	20	84c3422b10f3	0	0	0	0	0	0	0	15			vitest			
+apps/admin/src/features/source-control/__tests__/source-control-providers.fixture.ts	test	35	810e2bdcbdd1	0	3	4	0	0	6	0	16						
+apps/admin/src/features/source-control/__tests__/source-control-visuals.unit.test.tsx	test	22	f93fcc6b4ded	0	0	0	0	0	0	0	0			@testing-library/react,vitest			
+apps/admin/src/features/source-control/__tests__/use-source-control-credentials.unit.test.tsx	test	317	2da8149602c7	0	0	0	0	0	80	0	173		ui	@testing-library/react,react,vitest			
+apps/admin/src/features/source-control/hooks/source-control-credentials-dependencies.hooks.ts	src	57	1f65f82a88c4	1	3	2	0	0	0	0	52				DELETE		
+apps/admin/src/features/source-control/hooks/source-control-credentials-port.hooks.ts	src	36	c33523f5106f	2	0	1	0	0	0	0	18				DEDUPE		
+apps/admin/src/features/source-control/hooks/use-source-control-credentials.hooks.ts	src	213	9ddf82e19a77	2	3	4	0	0	0	0	97		core,ui	react	DELETE-AFTER-PARITY		
+apps/admin/src/features/source-control/index.ts	src	7	178c69560276	1	0	1	0	0	0	0	0						apps/admin/src
+apps/admin/src/features/source-control/rules.ts	src	165	a80a48728d8c	2	3	11	0	0	0	0	101				DELETE-AFTER-PARITY		features/security
+apps/admin/src/features/source-control/source-control-i18n.ts	src	600	3d1a49cd45f6	2	1	3	0	0	0	0	318		core				
+apps/admin/src/features/source-control/source-control-visuals.tsx	src	63	f579dcbaea14	2	1	3	0	0	3	0	3		ui		MIXED	ui	
+apps/website/src/features/source-control/__tests__/commit-site-export-resolution.unit.test.ts	test	124	af9daca95acb	0	0	0	0	0	0	1	2	assert/strict,fs,module,path,test		typescript			
+apps/website/src/features/source-control/__tests__/commit-site.unit.test.ts	test	880	78b110efe1ce	0	0	0	1	1	0	0	167	assert/strict,fs,os,path,test	platform	express			
+apps/website/src/features/source-control/__tests__/credential-form.unit.test.ts	test	99	439efb678b67	0	0	0	0	0	0	0	103	assert/strict,test					
+apps/website/src/features/source-control/__tests__/credential-setup-projections.unit.test.ts	test	108	53e4be77e7af	0	0	0	0	0	20	1	49	assert/strict,test	core,ui				
+apps/website/src/features/source-control/__tests__/fixtures/example-provider.ts	test	31	a76d3f13d0e9	0	12	3	0	1	0	0	9						
+apps/website/src/features/source-control/__tests__/fixtures/github-from-source.ts	test	19	740e6c87c992	0	13	3	0	0	12	0	0	path					
+apps/website/src/features/source-control/__tests__/github-backup-restore-accounts.integration.test.ts	test	82	011eb5f5678d	0	0	0	0	0	4	5	12	assert/strict,test	agent-plugins				
+apps/website/src/features/source-control/__tests__/github-backup-secrets.integration.test.ts	test	123	3fe49f0fd390	0	0	0	0	0	18	11	37	assert/strict,fs/promises,os,path,test		better-sqlite3			
+apps/website/src/features/source-control/__tests__/github-code-boundary.unit.test.ts	test	73	f2c23ff44afc	0	0	0	0	5	26	0	2	assert/strict,fs/promises,path,test		typescript			
+apps/website/src/features/source-control/__tests__/project-scope.unit.test.ts	test	233	b36746505129	0	0	0	0	0	0	0	147	assert/strict,test	diagnostics	express			
+apps/website/src/features/source-control/__tests__/propose-credential-tool.test.ts	test	362	4056a0e9d6a1	0	0	0	0	0	42	0	204	assert/strict,events,test	core,daemon,platform	express			
+apps/website/src/features/source-control/__tests__/provider-kit.observability.unit.test.ts	test	129	2baba9fa2b40	0	0	0	0	16	13	0	9	assert/strict,http,net,test		@opentelemetry/api			
+apps/website/src/features/source-control/__tests__/provider-registry.unit.test.ts	test	381	584a32baa57a	0	0	0	11	7	0	0	14	assert/strict,crypto,fs/promises,os,path,test		fixture-git			
+apps/website/src/features/source-control/__tests__/repository-target.unit.test.ts	test	30	8b7332746e05	0	0	0	0	0	0	0	0	assert/strict,test					
+apps/website/src/features/source-control/__tests__/shared-key-reader.unit.test.ts	test	23	efa8d5d24f2a	0	0	0	0	0	5	0	7	assert/strict,test					
+apps/website/src/features/source-control/__tests__/store.resolve.unit.test.ts	test	157	0eb08e71313a	0	0	0	0	0	0	0	61	assert/strict,test					
+apps/website/src/features/source-control/__tests__/store.unit.test.ts	test	899	8bb87a2ac3fc	0	0	0	0	0	0	0	509	assert/strict,test	platform				
+apps/website/src/features/source-control/__tests__/tool-registrations.dry-run.test.ts	test	224	761e9a57e0a1	0	0	0	0	0	0	0	18	assert/strict,fs,os,path,test	core,daemon,platform				
+apps/website/src/features/source-control/__tests__/tool-registrations.unit.test.ts	test	809	8f5b517d6f15	0	0	0	1	3	63	0	147	assert/strict,fs,os,path,test,util,vm	core,daemon,platform				
+apps/website/src/features/source-control/commit-schema.ts	src	31	3da36dee78c3	1	1	1	0	0	0	0	0						
+apps/website/src/features/source-control/commit-site.ts	src	541	52215517d15e	2	3	14	1	0	1	0	88	fs,path	core,devops		DELETE-AFTER-PARITY	devops/source-control	server/routes
+apps/website/src/features/source-control/credential-form.ts	src	108	d7cd8976cdfd	2	1	3	0	0	0	0	54				DEDUPE-AFTER-HARDENING	devops	
+apps/website/src/features/source-control/credential-setup.ts	src	226	9578cbd768b2	1	2	6	0	0	0	0	168		cms,core,daemon,ui		MIXED	ui	
+apps/website/src/features/source-control/index.ts	src	32	39572b52ae77	4	2	3	0	0	0	0	20						server/inbound/admin-http/routes/system,server/routes,server/runtime/composition
+apps/website/src/features/source-control/provider-kit.ts	src	50	ff2109f52cd1	1	5	1	0	12	0	0	3		core,devops,diagnostics		DELETE-AFTER-PARITY	devops/source-control	
+apps/website/src/features/source-control/provider-module.ts	src	228	6eaea9f9f2ed	11	13	26	0	6	12	0	22		devops		MIXED	devops/source-control	cli/commands,features/custom-credentials,features/site-backup,server/runtime/composition
+apps/website/src/features/source-control/provider-registry.ts	src	318	c6387f0631fa	12	17	19	0	7	2	0	25	path	core,devops,diagnostics	${plugin.pluginId}	MIXED	devops/source-control	cli/commands,features/custom-credentials,features/site-backup,server/routes,server/runtime/composition
+apps/website/src/features/source-control/repo.memory.ts	src	15	2c4c41942b36	1	11	1	0	0	0	0	27		core,platform		DEDUPE		
+apps/website/src/features/source-control/repository-target.ts	src	20	3221d8d15fa7	2	1	1	0	0	3	0	1		devops				features/custom-credentials
+apps/website/src/features/source-control/source-control-credential-repo.sqlite.ts	src	10	51850d76debf	1	1	1	0	0	0	1	7						server/runtime/composition
+apps/website/src/features/source-control/source-control-credential-repo.ts	src	18	5fb6627b6f0f	1	1	1	0	0	0	2	28		db		DEDUPE		
+apps/website/src/features/source-control/store.ts	src	559	8ee95be6212b	6	13	16	0	0	0	0	271		core,diagnostics		MIXED	integrations	features/site-backup,server/runtime/composition
+apps/website/src/features/source-control/tool-registrations.ts	src	511	eba4bb1c8ead	2	6	6	0	0	5	0	128		cms,core,daemon,devops,diagnostics		MIXED	core	assistant,server/runtime/composition
+apps/website/src/features/source-control/types.ts	src	107	12a14659db36	10	4	6	0	0	0	0	48		core,devops				features/site-backup,features/vendor-credentials,server/runtime/composition

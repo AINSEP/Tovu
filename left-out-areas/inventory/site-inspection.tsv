@@ -1,0 +1,33 @@
+path	kind	lines	blob12	prod_importers	test_importers	export_stmts	env_reads	outbound_hits	vendor_word_hits	sql_hits	secret_word_hits	node_builtins	jini_pkgs	npm	classify_label	classify_target	outside_prod_importer_dirs
+apps/website/src/features/site-evidence/__tests__/integration/playwright-browser.integration.test.ts	test	244	0f619550a108	0	0	0	1	1	0	0	7	assert/strict,http,net,test	core,diagnostics	playwright			
+apps/website/src/features/site-evidence/__tests__/unit/collect-page-evidence.unit.test.ts	test	321	2fdf56e8ff5b	0	0	0	0	0	0	0	3	assert/strict,test	core,diagnostics				
+apps/website/src/features/site-evidence/__tests__/unit/page-structure-script.unit.test.ts	test	845	dd07a233613d	0	0	0	0	0	0	0	0	assert/strict,test	diagnostics				
+apps/website/src/features/site-evidence/__tests__/unit/same-origin.unit.test.ts	test	151	9f0613043a4b	0	0	0	0	0	0	0	0	assert/strict,test	diagnostics				
+apps/website/src/features/site-evidence/__tests__/unit/tool-registrations.unit.test.ts	test	276	741f3bee356a	0	0	0	0	0	0	0	2	assert/strict,test	cms,core,diagnostics				
+apps/website/src/features/site-evidence/agent-tools.ts	src	94	d4478f0bc3cf	1	2	4	0	0	0	0	1		core		MIXED	core	
+apps/website/src/features/site-evidence/collect-page-evidence.ts	src	162	b8e0b7700cd9	1	2	2	0	0	0	0	8		core,diagnostics		MIXED	diagnostics/web-evidence	
+apps/website/src/features/site-evidence/tool-registrations.ts	src	239	5c3da8b12b57	2	1	6	0	14	0	0	0		cms,core,diagnostics				assistant,server/runtime/composition
+apps/website/src/features/site-inspection/__tests__/L131-characterization.unit.test.ts	test	166	f30394c5f793	0	0	0	0	2	0	0	1	assert/strict,http,test	core				
+apps/website/src/features/site-inspection/__tests__/deps.unit.test.ts	test	86	3a08f26e4ef5	0	0	0	0	0	0	0	0	assert/strict,test					
+apps/website/src/features/site-inspection/__tests__/fetch-live-url.test.ts	test	241	3c8e0c797940	0	0	0	0	12	1	0	10	assert/strict,test	core				
+apps/website/src/features/site-inspection/__tests__/loopback-site-server.unit.test.ts	test	40	43a732c1a4db	0	0	0	0	0	0	0	0	assert/strict,test					
+apps/website/src/features/site-inspection/__tests__/page-body.T4-07-characterization.unit.test.ts	test	27	3499808062a0	0	0	0	0	0	0	0	0	assert/strict,test					
+apps/website/src/features/site-inspection/__tests__/page-body.test.ts	test	101	b0e880e68841	0	0	0	0	0	0	0	1	assert/strict,http,test					
+apps/website/src/features/site-inspection/__tests__/published-page-body.unit.test.ts	test	12	82b9955bf8a9	0	0	0	0	0	0	0	0	assert/strict,test					
+apps/website/src/features/site-inspection/__tests__/published-page.observability.unit.test.ts	test	97	bd508c9480a7	0	0	0	0	0	0	0	0	assert/strict,http,test	core	@opentelemetry/api			
+apps/website/src/features/site-inspection/__tests__/published-page.unit.test.ts	test	339	5bb7681b2b97	0	0	0	0	0	0	0	6	assert/strict,http,test		express			
+apps/website/src/features/site-inspection/__tests__/section-collector.unit.test.ts	test	91	b53c816a6a4f	0	0	0	0	0	0	0	2	assert/strict,test					
+apps/website/src/features/site-inspection/__tests__/site-capabilities.unit.test.ts	test	340	89ffd5e337b1	0	0	0	0	0	0	0	6	assert/strict,test					
+apps/website/src/features/site-inspection/__tests__/site-profile.unit.test.ts	test	503	ef4f661f0687	0	0	0	0	0	0	0	7	assert/strict,test					
+apps/website/src/features/site-inspection/__tests__/tool-registrations.unit.test.ts	test	407	5c122023615d	0	0	0	0	0	0	0	10	assert/strict,test	core				
+apps/website/src/features/site-inspection/admin-screens.generated.ts	src	63	d21419fab18d	2	2	1	0	0	0	0	8		agentic				assistant
+apps/website/src/features/site-inspection/agent-tools.ts	src	189	1cb17cba73c5	2	2	6	0	0	0	0	5		core		MIXED	core	
+apps/website/src/features/site-inspection/deps.ts	src	166	34629774e893	2	2	4	0	0	0	0	3	http	cms,core,diagnostics				
+apps/website/src/features/site-inspection/index.ts	src	98	d4e920b35490	5	3	7	0	0	0	0	1						assistant,features/site-guide,server/inbound/admin-http/routes/site,server/runtime/composition
+apps/website/src/features/site-inspection/live-url.ts	src	188	80309dcd46ab	2	2	6	0	6	0	0	6		core		MIXED	diagnostics/web-evidence	
+apps/website/src/features/site-inspection/page-body.ts	src	114	837e91a458e2	5	3	6	0	0	0	0	0		core	parse5	MIXED	agentic	features/post,features/web
+apps/website/src/features/site-inspection/published-page.ts	src	528	1877aafb7fc2	6	8	15	0	1	0	0	3	events,http,net	core,diagnostics		MIXED	diagnostics/web-evidence/same-origin.ts	features/consent,server/runtime/composition
+apps/website/src/features/site-inspection/section-collector.ts	src	177	492db58ca1d7	3	1	8	0	0	0	0	1				MOVE	core	
+apps/website/src/features/site-inspection/site-capabilities.ts	src	316	fc9c8d780606	4	2	18	0	0	0	0	3				MIXED	agentic	
+apps/website/src/features/site-inspection/site-profile.ts	src	663	f358046a277b	4	2	28	0	0	0	0	16			looked, found nothing			
+apps/website/src/features/site-inspection/tool-registrations.ts	src	205	507e3f62be54	1	4	4	0	5	0	0	3		cms,core	that section came back empty			

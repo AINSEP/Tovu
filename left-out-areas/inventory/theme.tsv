@@ -1,0 +1,175 @@
+path	kind	lines	blob12	prod_importers	test_importers	export_stmts	env_reads	outbound_hits	vendor_word_hits	sql_hits	secret_word_hits	node_builtins	jini_pkgs	npm	classify_label	classify_target	outside_prod_importer_dirs
+apps/website/src/features/theme/__tests__/active-theme.test.ts	test	243	c35ad92519b0	0	0	0	0	1	0	0	2	assert/strict,test					
+apps/website/src/features/theme/__tests__/astro-real-bundler-conformance.test.ts	test	135	1bfa0d47129c	0	0	0	0	0	0	0	2	assert/strict,child_process,crypto,fs,os,path,test,url					
+apps/website/src/features/theme/__tests__/build-conformance.test.ts	test	445	ce8fb130975f	0	0	0	0	2	0	0	4	assert/strict,child_process,crypto,fs,os,path,test					
+apps/website/src/features/theme/__tests__/bundled-template-fallback.unit.test.ts	test	80	aee881403e85	0	0	0	0	0	0	0	1	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/__tests__/chromeless-templates.fixture.ts	test	6	a77d1811a2ec	0	3	1	0	0	0	0	0						
+apps/website/src/features/theme/__tests__/code-tier-asset-normalizer.test.ts	test	340	30e9ed2e028c	0	0	0	0	0	0	0	4	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/__tests__/declared-scripts.unit.test.ts	test	40	6054db03c0cd	0	0	0	0	0	0	0	1	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/__tests__/discover-themes-staging-exclusion.test.ts	test	110	7c5d5224e704	0	0	0	0	1	0	0	0	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/__tests__/duplicate-theme.test.ts	test	464	517b7977f12c	0	0	0	0	0	0	0	6	assert/strict,child_process,crypto,fs,os,path,test		${copyPrefix}css/base.css,${sourcePrefix}css/base.css			
+apps/website/src/features/theme/__tests__/entry-list-render-layouts.test.ts	test	98	87bf94855cec	0	0	0	0	0	0	0	0	assert/strict,test					
+apps/website/src/features/theme/__tests__/entry-list-render.test.ts	test	278	06705dc948c9	0	0	0	0	0	0	0	0	assert/strict,test					
+apps/website/src/features/theme/__tests__/existing-site-template-fallback.integration.test.ts	test	67	c7c1ba854889	0	0	0	0	0	0	0	0	assert/strict,fs,os,path,test	core,daemon,platform				
+apps/website/src/features/theme/__tests__/file-identity-lock.canonical-path.test.ts	test	66	86badc8374f9	0	0	0	0	0	0	0	0	assert/strict,test					
+apps/website/src/features/theme/__tests__/font-links.contract.test.ts	test	55	d9eb52cabaf6	0	0	0	0	0	0	0	0	assert/strict,fs,path,test					
+apps/website/src/features/theme/__tests__/footer-menu-defaults.test.ts	test	22	b38a5c2aeff4	0	0	0	0	0	0	0	0	assert/strict,fs,path,test					
+apps/website/src/features/theme/__tests__/handlebars-allowlist.test.ts	test	393	8d2fe63ef130	0	0	0	0	0	0	0	0	assert/strict,fs,path,test		handlebars			
+apps/website/src/features/theme/__tests__/hardcoded-link-lists.test.ts	test	166	7a1760db5f4b	0	0	0	0	0	0	0	1	assert/strict,fs,os,path,test	core				
+apps/website/src/features/theme/__tests__/heading-phone-overflow.test.ts	test	30	debaa6f4b77f	0	0	0	0	0	0	0	0	assert/strict,fs,test		postcss			
+apps/website/src/features/theme/__tests__/inject-current-entity-content-id.test.ts	test	93	95e72290e4dd	0	0	0	0	0	3	0	0	assert/strict,test					
+apps/website/src/features/theme/__tests__/inject-page-title.test.ts	test	49	e7e004cda7d2	0	0	0	0	0	0	0	1	assert/strict,test					
+apps/website/src/features/theme/__tests__/kuinetic-local-vendor.test.ts	test	147	b0cbb55a92c8	0	0	0	0	0	0	0	0	assert/strict,fs,path,test					
+apps/website/src/features/theme/__tests__/landing-deck-fab-clearance.test.ts	test	45	8057f67300f0	0	0	0	0	0	0	0	0	assert/strict,fs,test		postcss			
+apps/website/src/features/theme/__tests__/liquid-allowlist.test.ts	test	141	ee96e2f02db1	0	0	0	0	0	0	0	6	assert/strict,fs,path,test					
+apps/website/src/features/theme/__tests__/menu-authored-html.test.ts	test	68	a73f057c76d7	0	0	0	0	0	0	0	2	assert/strict,test					
+apps/website/src/features/theme/__tests__/menu-html-mode.test.ts	test	65	697c6dbb26bf	0	0	0	0	0	0	0	2	assert/strict,test		parse5			
+apps/website/src/features/theme/__tests__/menu-tree-render.test.ts	test	575	997fd10f83aa	0	0	0	0	0	0	0	11	assert/strict,test		parse5			
+apps/website/src/features/theme/__tests__/next-available-theme-id.test.ts	test	74	c48af53b4ba1	0	0	0	0	0	0	0	0	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/__tests__/page-publish-tool.test.ts	test	93	6c9f767208a9	0	0	0	0	0	0	0	0	assert/strict,fs,os,path,test	core				
+apps/website/src/features/theme/__tests__/pages-blank-template.canary.test.ts	test	45	4c7bade4198c	0	0	0	0	0	0	0	4	assert/strict,fs,path,test					
+apps/website/src/features/theme/__tests__/preview-refresh.test.ts	test	284	2f1487f6ac48	0	0	0	0	0	0	0	3	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts	test	94	ae5ef91b4f21	0	0	0	0	0	0	0	0	assert/strict,test		playwright			
+apps/website/src/features/theme/__tests__/preview-switcher.integration.test.ts	test	244	e489d25ddffa	0	0	0	0	13	0	0	2	assert/strict,fs,os,path,test	core				
+apps/website/src/features/theme/__tests__/preview-switcher.lost-update.test.ts	test	36	92311f08936f	0	0	0	0	0	0	0	0	assert/strict,test	core,user-management				
+apps/website/src/features/theme/__tests__/preview-switcher.test.ts	test	111	d247da2ef4eb	0	0	0	0	0	0	0	1	assert/strict,test	core	jsdom,parse5			
+apps/website/src/features/theme/__tests__/public-resources-lazy.test.ts	test	27	23bc0960d07e	0	0	0	0	0	0	0	0	assert/strict,fs,test					
+apps/website/src/features/theme/__tests__/publish-content.apply.test.ts	test	745	6b267ad48bef	0	0	0	0	0	0	0	3	assert/strict,crypto,fs,fs/promises,module,os,path,test					
+apps/website/src/features/theme/__tests__/publish-content.pack.test.ts	test	419	035d4ecd8556	0	0	0	0	0	0	0	4	assert/strict,child_process,crypto,fs,fs/promises,module,os,path,test					
+apps/website/src/features/theme/__tests__/save-theme-original.test.ts	test	77	f8896a9d3b82	0	0	0	0	0	0	0	0	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/__tests__/set-active-theme-tool.test.ts	test	49	aaaa10215b13	0	0	0	0	0	0	0	0	assert/strict,test	core				
+apps/website/src/features/theme/__tests__/shipped-site-theme-drift.canary.test.ts	test	96	6006ee14d516	0	0	0	0	0	0	0	1	assert/strict,child_process,fs,path,test					
+apps/website/src/features/theme/__tests__/shipped-theme-original-drift.canary.test.ts	test	144	00dab6510c71	0	0	0	0	3	0	0	0	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/__tests__/starter-theme-neutral.canary.test.ts	test	192	7aee2c550c5b	0	0	0	0	0	0	0	3	assert/strict,crypto,fs,path,test		parse5,sharp,typescript			
+apps/website/src/features/theme/__tests__/static-portability-index.test.ts	test	367	dd551cd245a3	0	0	0	0	0	0	0	21	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/__tests__/static-render-api-version.test.ts	test	90	10865553be1f	0	0	0	0	1	0	0	9	assert/strict,test					
+apps/website/src/features/theme/__tests__/static-render-asset-quotes.test.ts	test	103	ccb294dacf0d	0	0	0	0	1	0	0	4	assert/strict,test					
+apps/website/src/features/theme/__tests__/static-render-author.test.ts	test	74	0169074e1233	0	0	0	0	0	0	0	4	assert/strict,fs,path,test	cms				
+apps/website/src/features/theme/__tests__/static-render-collection.test.ts	test	209	99c19d70ec47	0	0	0	0	0	0	0	2	assert/strict,test	cms				
+apps/website/src/features/theme/__tests__/static-render-expand-partials.test.ts	test	114	0a14a7bf8c6c	0	0	0	0	0	0	0	5	assert/strict,test					
+apps/website/src/features/theme/__tests__/static-render-featured-image.test.ts	test	62	c568e1aa743c	0	0	0	0	0	0	0	0	assert/strict,fs,path,test	cms				
+apps/website/src/features/theme/__tests__/static-render-listings.test.ts	test	119	f42efff4e1f6	0	0	0	0	0	0	0	4	assert/strict,test	cms				
+apps/website/src/features/theme/__tests__/static-render-page-shell-fallback.test.ts	test	305	d11ab39a2587	0	0	0	0	1	0	0	4	assert/strict,test					
+apps/website/src/features/theme/__tests__/static-render-paging.test.ts	test	63	43b368bfc342	0	0	0	0	0	0	0	2	assert/strict,test					
+apps/website/src/features/theme/__tests__/static-render-post-previews.test.ts	test	134	9c6dffc2dd45	0	0	0	0	0	0	0	2	assert/strict,test					
+apps/website/src/features/theme/__tests__/static-render-token-sentinel.test.ts	test	77	c22f91e0865a	0	0	0	0	0	0	0	8	assert/strict,test					
+apps/website/src/features/theme/__tests__/static-theme-migrated-asset-paths.test.ts	test	97	8198ec2d1369	0	0	0	0	1	0	0	4	assert/strict,fs,path,test		parse5			
+apps/website/src/features/theme/__tests__/sync-originals.test.ts	test	204	374cc2202bf5	0	0	0	0	1	0	0	0	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/__tests__/template-applicability.unit.test.ts	test	74	0313accc4433	0	0	0	0	0	0	0	1	assert/strict,fs,os,path,test,url					
+apps/website/src/features/theme/__tests__/template-eligibility.test.ts	test	178	2eed0b8a02f5	0	0	0	0	1	0	0	2	assert/strict,test					
+apps/website/src/features/theme/__tests__/template-id-resolution.test.ts	test	139	a5599913548c	0	0	0	0	0	0	0	0	assert/strict,test					
+apps/website/src/features/theme/__tests__/template-render.canary.test.ts	test	326	a321609722e0	0	0	0	0	0	0	0	4	assert/strict,crypto,fs,path,test					
+apps/website/src/features/theme/__tests__/template-resolution.test.ts	test	231	3cb0a7f344ec	0	0	0	0	2	0	0	2	assert/strict,test		this template
+  // was meant for a Page			
+apps/website/src/features/theme/__tests__/theme-build-manifest.test.ts	test	257	8e29f3bc3a30	0	0	0	0	0	0	0	2	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/__tests__/theme-compiled-load-gate.test.ts	test	262	6528f425ee40	0	0	0	0	0	0	0	6	assert/strict,crypto,fs,os,path,test					
+apps/website/src/features/theme/__tests__/theme-file-differs-from-original.test.ts	test	161	c5467955a7c4	0	0	0	0	0	0	0	4	assert/strict,fs,os,path,test		opened and read the bytes			
+apps/website/src/features/theme/__tests__/theme-file-import.test.ts	test	211	1d8951e23f70	0	0	0	0	6	0	0	5	assert/strict,fs,os,path,test	cms				
+apps/website/src/features/theme/__tests__/theme-file-reset-to-original.test.ts	test	177	c2ff222da044	0	0	0	0	0	0	0	0	assert/strict,fs,module,os,path,test					
+apps/website/src/features/theme/__tests__/theme-file-safety.test.ts	test	231	670c0df26322	0	0	0	0	0	0	0	0	assert/strict,fs,module,os,path,test	core,daemon,platform				
+apps/website/src/features/theme/__tests__/theme-file-write-scope.test.ts	test	84	20fb6ffb3f3c	0	0	0	0	0	0	0	0	assert/strict,test					
+apps/website/src/features/theme/__tests__/theme-files.edge-cases.test.ts	test	129	01702d333a9c	0	0	0	0	0	0	0	0	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/__tests__/theme-files.test.ts	test	542	ec1568d8af52	0	0	0	0	0	0	0	6	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/__tests__/theme-layout.test.ts	test	63	72575cc1ae10	0	0	0	0	0	0	0	2	assert/strict,test					
+apps/website/src/features/theme/__tests__/theme-list-active.test.ts	test	105	ece12547c443	0	0	0	0	0	0	0	2	assert/strict,test	cms,core				
+apps/website/src/features/theme/__tests__/theme-list-build-view.test.ts	test	114	42b8d4600fa6	0	0	0	0	0	0	0	2	assert/strict,crypto,fs,os,path,test	core				
+apps/website/src/features/theme/__tests__/theme-load-api-version.test.ts	test	116	568d43178a77	0	0	0	0	1	0	0	5	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/__tests__/theme-original-reset-refusal.test.ts	test	75	db6214749ef5	0	0	0	0	0	0	0	0	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/__tests__/theme-page-publish.test.ts	test	124	1a6b97a57a55	0	0	0	0	0	0	0	1	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/__tests__/theme-pages-render.canary.test.ts	test	433	24cf7c77a9d2	0	0	0	0	2	0	0	8	assert/strict,fs,os,path,test	cms				
+apps/website/src/features/theme/__tests__/theme-preview-image.test.ts	test	113	59aa732fc170	0	0	0	0	0	0	0	0	assert/strict,child_process,fs,os,path,test					
+apps/website/src/features/theme/__tests__/theme-read-file-window.test.ts	test	452	851805b99d00	0	0	0	0	0	0	0	1	assert/strict,fs,os,path,test	core				
+apps/website/src/features/theme/__tests__/theme-rescan-tool.test.ts	test	66	9f1d480506aa	0	0	0	0	0	0	0	1	assert/strict,fs,os,path,test	core				
+apps/website/src/features/theme/__tests__/theme-reset-package-source-probe.test.ts	test	205	3873e604a9ee	0	0	0	0	0	0	0	0	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/__tests__/theme-restore-generated-tree.test.ts	test	126	2e992786c198	0	0	0	0	0	0	0	3	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/__tests__/theme-roster-sync.test.ts	test	124	eccb41a2eeaf	0	0	0	0	0	0	0	5	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/__tests__/theme-slot-honors-current-page.test.ts	test	134	48b9f220aada	0	0	0	0	0	0	0	1	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/__tests__/theme-static-tier.test.ts	test	250	f7bab6ed9fa2	0	0	0	0	0	0	0	15	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/__tests__/theme-tier-validation.test.ts	test	56	bdce72108920	0	0	0	0	0	0	0	1	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/__tests__/theme-trash.test.ts	test	458	7da987c5e007	0	0	0	0	2	0	0	1	assert/strict,fs,os,path,test	cms,core	express			
+apps/website/src/features/theme/__tests__/theme-watcher.test.ts	test	224	a6f4786ca3d2	0	0	0	0	0	0	0	8	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/__tests__/theme-write-file-built-gate.test.ts	test	210	68e552381367	0	0	0	0	0	0	0	6	assert/strict,crypto,fs,os,path,test	core				
+apps/website/src/features/theme/__tests__/theme-write-file-generated-path-gate.test.ts	test	121	3595b983ae99	0	0	0	0	0	0	0	3	assert/strict,fs,os,path,test	core				
+apps/website/src/features/theme/__tests__/theme-write-file-overwrite-confirmation.test.ts	test	115	438a653ec7e5	0	0	0	0	0	0	0	1	assert/strict,fs,os,path,test	core,daemon				
+apps/website/src/features/theme/__tests__/theme-write-preflight.unit.test.ts	test	34	89a7705b7d61	0	0	0	0	0	0	0	0	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/__tests__/theme.test.ts	test	314	1dd217d5ad15	0	0	0	0	0	0	0	21	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/__tests__/token-aliases.test.ts	test	125	8421a9dff839	0	0	0	0	1	0	0	23	assert/strict,test					
+apps/website/src/features/theme/__tests__/tool-registrations.edge-refusals.test.ts	test	164	a028cc8c5f3c	0	0	0	0	0	0	0	3	assert/strict,crypto,fs,os,path,test	core				
+apps/website/src/features/theme/__tests__/tool-registrations.page-publication-read.test.ts	test	36	bebba4e8a9a8	0	0	0	0	0	0	0	0	assert/strict,fs,os,path,test	core				
+apps/website/src/features/theme/__tests__/verify-active-theme.test.ts	test	110	e88ce96eb425	0	0	0	0	0	0	0	1	assert/strict,fs,os,path,test	core				
+apps/website/src/features/theme/__tests__/visitor-handles.unit.test.ts	test	30	8b1a208c92a9	0	0	0	0	0	0	0	0	assert/strict,fs,test					
+apps/website/src/features/theme/__tests__/visitor-tool-marks.fixture.ts	test	17	4a5573646e9d	0	2	1	0	0	0	0	0						
+apps/website/src/features/theme/__tests__/write-file-atomically-eloop.unit.test.ts	test	76	5288ce8f74fa	0	0	0	0	0	0	0	0	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/active-theme-publish-content.ts	src	110	20be95efe807	1	1	3	0	0	0	0	0	path	cms				server/runtime/composition
+apps/website/src/features/theme/active-theme.ts	src	223	c558c20ab59b	15	7	10	0	0	0	0	1						features/site-backup,features/site-inspection,server/inbound/public-http/middleware,server/inbound/public-http/routes/site,server/runtime/composition
+apps/website/src/features/theme/agent-tools.ts	src	453	b7c36d021d7d	6	6	6	0	0	0	0	4		core				
+apps/website/src/features/theme/asset-operations.ts	src	237	8aa7467cb66d	8	0	16	0	0	0	0	0		core		MIXED		features/asset-transfer,features/image-transform
+apps/website/src/features/theme/asset-path-rewrites.ts	src	23	4708ca750d75	2	0	1	0	0	0	0	0						
+apps/website/src/features/theme/build-conformance.ts	src	542	edbd86646175	2	3	2	0	1	0	0	12	crypto,fs,path		listed-file-only			
+apps/website/src/features/theme/capability-card.ts	src	29	4fb20591294a	1	1	1	0	0	0	0	0		agentic				server/runtime/composition
+apps/website/src/features/theme/catalog.ts	src	3	0f8203adb48f	2	0	3	0	0	0	0	0						features/publish-content,features/site-backup
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	src	413	61dca2954796	1	1	7	0	0	0	0	4	fs,path		other.css			
+apps/website/src/features/theme/duplicate-theme-tool.ts	src	174	7d106308740a	1	2	5	0	0	0	0	0		cms,core				
+apps/website/src/features/theme/duplicate-theme.ts	src	416	2dcd3b63de23	2	1	8	0	0	0	0	0	buffer,crypto,fs,path					
+apps/website/src/features/theme/entry-list-render.ts	src	375	1e09be16bc13	5	3	9	0	0	0	0	1		cms		MOVE-AFTER	cms/listing	server/inbound/public-http/http/site,server/inbound/public-http/routes/site
+apps/website/src/features/theme/file-identity-lock.ts	src	283	fd57dde6a92d	5	2	13	0	0	0	0	2						
+apps/website/src/features/theme/file-mutation-tools.ts	src	64	0e049e0b9eea	2	0	1	0	0	0	0	0		cms,core				
+apps/website/src/features/theme/font-links.ts	src	36	352b44a603b6	2	1	1	0	0	0	0	0						server/inbound/public-http/http/site
+apps/website/src/features/theme/handlebars-allowlist.ts	src	424	21ad730881fb	3	1	5	0	0	0	0	0			handlebars,template author			server/inbound/public-http/http/site
+apps/website/src/features/theme/hardcoded-link-lists.ts	src	118	3d5bc77251c8	1	1	3	0	0	0	0	0		cms				
+apps/website/src/features/theme/import-theme-file-tool.ts	src	179	7e1ded8b6996	1	5	5	0	1	0	0	1		cms,core,daemon,platform				
+apps/website/src/features/theme/index.ts	src	221	4cb5c8accd89	33	110	26	0	1	0	0	2						cli/commands/theme,development/scripts,features/pages,features/post,features/site-backup,features/site-export,server/inbound/admin-http/routes/posts,server/inbound/admin-http/routes/presentation,server/inbound/admin-http/routes/settings,server/inbound/admin-http/routes/themes,server/inbound/admin-http/routes/widgets,server/inbound/public-http/http/site,server/inbound/public-http/middleware,server/
+apps/website/src/features/theme/liquid-allowlist.ts	src	297	dc4f14be649b	3	1	3	0	0	0	0	5			liquidjs			server/inbound/public-http/http/site
+apps/website/src/features/theme/migration/__tests__/migrate-theme.test.ts	test	315	82c0d4684f13	0	0	0	0	0	0	0	17	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/migration/__tests__/theme-migration-plan.test.ts	test	242	7d27c6a30ae8	0	0	0	0	0	0	0	4	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/migration/migrate-theme.ts	src	370	ee3faca1d217	1	2	5	0	0	0	0	13	crypto,fs,path					
+apps/website/src/features/theme/migration/theme-migration-plan.ts	src	280	2c2518e33c22	2	1	5	0	0	0	0	5	fs,path					
+apps/website/src/features/theme/page-publication.ts	src	60	bb0fe7f5bb64	2	2	2	0	0	0	0	0						
+apps/website/src/features/theme/page-publish-tool.ts	src	57	323d40bfc109	1	2	5	0	0	0	0	0		cms,core				
+apps/website/src/features/theme/preview-refresh.ts	src	81	3b48c4a06828	11	2	5	0	0	0	0	1	crypto,fs,path	core				server/inbound/public-http/middleware
+apps/website/src/features/theme/preview-switcher-html.ts	src	127	6a0bbaca7645	2	3	2	0	0	0	0	0			parse5			features/site-export,server/inbound/public-http/middleware
+apps/website/src/features/theme/preview-switcher-tools.ts	src	74	53fa33612690	1	3	4	0	0	1	0	0		cms,core				
+apps/website/src/features/theme/preview-switcher.ts	src	127	6530b55d5747	6	4	12	0	0	0	0	0		core				features/site-export,server/inbound/public-http/middleware,server/runtime/composition
+apps/website/src/features/theme/public-page-security-headers.ts	src	51	f8e3f06ac791	5	6	3	0	0	0	0	0	fs,path	cms				features/deployments/static-publish,features/site-export,server/inbound/public-http/middleware,server/runtime/composition
+apps/website/src/features/theme/publish-content.ts	src	831	1da256292f64	1	4	3	0	0	0	0	9	crypto,fs,fs/promises,path	cms,core		MIXED	cms	server/runtime/composition
+apps/website/src/features/theme/render-contract.ts	src	361	b90d551425cd	6	0	8	0	1	0	0	5		cookie-consent,core		MIXED	core	server/inbound/public-http/http/site
+apps/website/src/features/theme/rendering.ts	src	18	6182aafa7d81	1	0	6	0	0	0	0	2						server/inbound/admin-http/routes/widgets
+apps/website/src/features/theme/save-theme-original.ts	src	54	2a441c07c1c9	1	1	2	0	0	0	0	0	path					
+apps/website/src/features/theme/set-active-theme-tool.ts	src	193	2c6b4b490d63	4	5	6	0	0	0	0	0		cms,core,diagnostics				
+apps/website/src/features/theme/static-asset-contract.ts	src	115	44df411aeb47	5	1	5	0	0	0	0	17						server/inbound/public-http/routes/site
+apps/website/src/features/theme/static-portability-index.ts	src	234	0345f7221492	1	1	4	0	0	0	0	13	fs,path	cms		MIXED		
+apps/website/src/features/theme/static-render.ts	src	1396	50ddf9b5f5d9	6	32	30	0	6	1	0	53		cms,core	this
+    // theme has no such template	MIXED	cms/navigation	server/inbound/public-http/http/site,server/inbound/public-http/routes/site,server/runtime/composition
+apps/website/src/features/theme/structure-only-theme.ts	src	54	d9cfa6e3837b	1	0	2	0	0	0	0	16	fs,path	platform				
+apps/website/src/features/theme/sync-originals.ts	src	197	68382fcd34bc	3	4	6	0	0	0	0	0	fs,path					
+apps/website/src/features/theme/template-applicability.ts	src	47	478624a1ec67	4	3	4	0	0	0	0	0						
+apps/website/src/features/theme/theme-file-import.ts	src	178	6f5e5147176e	2	1	7	0	5	0	0	0		cms		MIXED	cms/media	
+apps/website/src/features/theme/theme-files.ts	src	1344	d81d3c1c4374	18	16	30	0	2	0	0	1	async_hooks,crypto,fs,path	platform		MIXED	platform/fs	
+apps/website/src/features/theme/theme-id-aliases.ts	src	34	6fee9309491d	5	0	2	0	0	0	0	0						features/site-inspection,server/inbound/public-http/middleware
+apps/website/src/features/theme/theme-layout.ts	src	160	14941cb6e1e6	8	1	7	0	0	0	0	4						server/runtime/composition
+apps/website/src/features/theme/theme-preview-image.ts	src	114	cdc5664b94b1	2	1	3	0	0	0	0	0	fs,path					server/inbound/admin-http/routes/presentation,server/inbound/admin-http/routes/themes
+apps/website/src/features/theme/theme-roster-sync.ts	src	89	44995a49d251	8	1	2	0	0	0	0	0	fs,path					server/inbound/public-http/middleware
+apps/website/src/features/theme/theme-trash.ts	src	243	e0504b0048a9	2	1	5	0	0	0	0	0	fs,fs/promises,path	cms				server/runtime/composition
+apps/website/src/features/theme/theme-watcher.ts	src	97	2c5bfaec5cfd	1	1	2	0	0	0	0	0	fs					server/runtime/composition
+apps/website/src/features/theme/theme.ts	src	1168	a9a10233edb7	30	76	20	0	0	0	0	44	fs,path	cms,cookie-consent,core	it			development/scripts,server/inbound/public-http/routes/site
+apps/website/src/features/theme/token-aliases.ts	src	53	c0eacfc69925	3	1	1	0	0	0	0	23						server/inbound/public-http/http/site
+apps/website/src/features/theme/tool-registrations.ts	src	1028	6bf0afb19f1c	2	23	11	0	0	0	0	0	fs,path	cms,core,daemon,platform		MIXED	core/text	assistant,server/runtime/composition
+apps/website/src/features/theme/trash-theme-tool.ts	src	193	a993ae6a55f3	2	3	8	0	0	0	0	0		cms,core				server/runtime/composition
+apps/website/src/features/theme/validation/__tests__/manifest-v2.test.ts	test	49	0ea0511c29ba	0	0	0	0	0	0	0	0	assert/strict,test					
+apps/website/src/features/theme/validation/__tests__/markup.test.ts	test	95	6468ae0bed3c	0	0	0	0	0	0	0	0	assert/strict,test	cms				
+apps/website/src/features/theme/validation/__tests__/profiles.test.ts	test	24	a61f37b13b00	0	0	0	0	0	0	0	0	assert/strict,test					
+apps/website/src/features/theme/validation/__tests__/references.test.ts	test	54	129927b8bfe4	0	0	0	0	0	0	0	0	assert/strict,fs,os,path,test					
+apps/website/src/features/theme/validation/__tests__/structure.test.ts	test	300	c200b8cd6f2f	0	0	0	0	0	0	0	4	assert/strict,child_process,fs,module,os,path,test					
+apps/website/src/features/theme/validation/__tests__/validate-theme-package.test.ts	test	805	3cc23e53d445	0	0	0	0	0	0	0	33	assert/strict,fs,module,os,path,test					
+apps/website/src/features/theme/validation/__tests__/webmcp-markup.test.ts	test	28	93d35a94ab9c	0	0	0	0	0	0	0	6	assert/strict,test					
+apps/website/src/features/theme/validation/__tests__/webmcp-markup.unit.test.ts	test	136	7fe5cf58d622	0	0	0	0	0	0	0	15	assert/strict,test					
+apps/website/src/features/theme/validation/__tests__/webmcp-scaffolds.test.ts	test	17	e4a735b3721c	0	0	0	0	0	0	0	0	assert/strict,fs,test					
+apps/website/src/features/theme/validation/manifest-v2.ts	src	548	2cc5da125323	1	3	1	0	0	0	0	33		cookie-consent,core				
+apps/website/src/features/theme/validation/markup.ts	src	129	49b7dba4cc62	1	5	1	0	0	0	0	0		cms		MIXED	cms/widgets/page-embed-types	
+apps/website/src/features/theme/validation/profiles.ts	src	95	4a16b6140b89	6	2	4	0	0	0	0	1						
+apps/website/src/features/theme/validation/references.ts	src	105	273dd76d72ab	1	1	1	0	0	0	0	0	fs,path					
+apps/website/src/features/theme/validation/structure.ts	src	314	5b6fd9097816	2	2	5	0	0	0	0	7	fs,path					
+apps/website/src/features/theme/validation/validate-theme-package.ts	src	260	18c29fa142b0	2	1	4	0	0	0	0	0	fs,path					
+apps/website/src/features/theme/validation/webmcp-markup.ts	src	210	f0f7060fc76f	1	1	1	0	0	0	0	9			parse5	MOVE-AFTER	cms/forms/html	
+apps/website/src/features/theme/verify-active-theme.ts	src	69	7fd7d5e9e11a	1	1	2	0	0	0	0	0		core				
+apps/website/src/features/theme/visitor-publication.ts	src	156	863085afdae8	5	4	2	0	0	0	0	0	crypto	agentic,core	parse5	MOVE-AFTER	agentic	assistant/site,development/e2e/journeys,server/inbound/public-http/middleware
