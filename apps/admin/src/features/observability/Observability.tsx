@@ -178,6 +178,8 @@ export interface ObservabilityProps {
   /** Adapter/owner visibility seam; the panel itself mounts only on tab selection. */
   useQueriesTabHook?: typeof useWiredQueriesTab;
   QueriesPanelComponent?: typeof QueriesPanel;
+  useAdminThemeBoundaryHook?: typeof useAdminThemeBoundary;
+  useObservabilityTabHook?: typeof useObservabilityTab;
 }
 
 /**
@@ -206,8 +208,8 @@ export interface ObservabilityProps {
  * The page header reuses the active tab's translated subtitle. Its hook adapts Jini's tab state
  * to `?tab=` navigation; the controlled shell renders only that tab's panel.
  */
-export function Observability({ tabId, useObservabilityStatusHook = useWiredObservabilityStatus, useRecentServerErrorsHook = useWiredRecentServerErrors, useQueriesTabHook = useWiredQueriesTab, QueriesPanelComponent = QueriesPanel }: ObservabilityProps = {}) {
-  const themeBoundary = useAdminThemeBoundary({}, {});
+export function Observability({ tabId, useObservabilityStatusHook = useWiredObservabilityStatus, useRecentServerErrorsHook = useWiredRecentServerErrors, useQueriesTabHook = useWiredQueriesTab, QueriesPanelComponent = QueriesPanel, useAdminThemeBoundaryHook = useAdminThemeBoundary, useObservabilityTabHook = useObservabilityTab }: ObservabilityProps = {}) {
+  const themeBoundary = useAdminThemeBoundaryHook({}, {});
   const controller = useObservabilityStatusHook();
   const queriesTab = useQueriesTabHook();
   const { t, locale } = controller;
@@ -252,7 +254,7 @@ export function Observability({ tabId, useObservabilityStatusHook = useWiredObse
     }] : []),
   ];
 
-  const { activeTabId, onTabChange, subtitle } = useObservabilityTab({ tabs, tabId });
+  const { activeTabId, onTabChange, subtitle } = useObservabilityTabHook({ tabs, tabId });
   return (
     <div className="page observability-page">
       <div
