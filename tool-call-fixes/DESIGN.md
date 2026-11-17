@@ -288,12 +288,14 @@ Client (`mcp/src/server/daemon-client.ts`, formatting moves to a sibling `daemon
 
 - Decode with `decodeApiError` (nested and flat). Keep `code`, `message`, `requestId`/`errorId`.
 - Non-JSON body: the first non-empty line, tags stripped, sanitized, at most 200 characters.
-- Always a sentence chosen by status class, then the detail, then the id. Exact texts:
-  - 5xx with an id: `The tool service failed (HTTP 500). <detail> Error ID: ERR-…. Do not retry the same call; give the user this ID.`
-  - 5xx without an id: the same sentence with `Reference: <ref>` where `<ref>` comes from an injected `ids` port and
-    is written once to the MCP process log with status, route, content type and body length (no body text).
-  - 503: `The tool service is restarting or closed (HTTP 503). Wait a few seconds and retry once.`
-  - 4xx without detail: `The tool service refused the request (HTTP 404) and gave no reason. Reference: <ref>.`
+- A well-formed envelope keeps today's form `HTTP <status>: <CODE>: <message>` byte for byte (tests in both repos read
+  it) and gains ` Error ID: <id>.` when the server sent one. Only answers that would be a status alone change.
+  Exact texts are in sheet S8; in short:
+  - 5xx without a readable envelope: `The tool service failed (HTTP 500). Server said: "<first line>". Reference: <ref>. Do not retry the same call; give the user this reference.`
+    `<ref>` comes from an injected `ids` port and is written once to the MCP process log with status, route, content
+    type and body length (no body text).
+  - 503: `The tool service is restarting or closed (HTTP 503): <detail>. Wait a few seconds and retry once.`
+  - a flat `{ error: "<text>" }` answer: `HTTP 404: <text>` (decoded instead of dropped).
 - `DaemonHttpError` keeps `status` and gains `code` and `requestId`, so callers stop parsing text.
 
 Server: `http-kit` gains `mountJsonErrorBoundary({ app }, { onInternalError, logSource })`, a last middleware that
