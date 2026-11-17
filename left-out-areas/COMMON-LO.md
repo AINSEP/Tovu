@@ -6,6 +6,7 @@ Derived from `COMMON-KT.md` revision 2 (`plan/lanes-k-t-2026-11-16` cafebcaa); c
 ## Session
 - One sheet = one run. Stop before 300k tokens of context; near 250k start nothing new, finish or restore the current step, push, report done/left.
 - Clones: Tovu `{TOVU_CLONE}`, Jini `{JINI_CLONE}` (directory named exactly `Jini`, sibling of the Tovu clone), both on `{BRANCH}`, both created from the SAME final integration merge (`{BASE_TOVU}` / `{BASE_JINI}` written by the dispatcher). Different merges = STOP.
+- Owner decisions reach a run only as `{DECISIONS}` (a list like `D-SI1=approved D-DB1=approved`, written by the dispatcher from the owner's recorded answers). A decision-gated sheet checks it with its `precondition:` command; an unset or missing decision = SKIPPED "decision not made". A run never decides for the owner.
 - Bootstrap files do not apply. No subagents. Edit only files the sheet names. Never touch `node_modules`, `ADS-memory`, `*.sql`, `platform/db/drizzle/**`, applied files under `platform/db/migrations/**`, `content-database.generated.ts`. Lockfiles and `package.json` dependency lists change only in a sheet whose `manifest:` line says so.
 - Nothing is left "for the coordinator". A step that needs an edit the sheet does not list = STOP.
 
