@@ -60,11 +60,11 @@ Tests first (GREEN on old code, each shown RED under its mutation):
 | Lines | Export | Kind | After |
 |---|---|---|---|
 | 2 | `credentialText`, `formatCredentialHint`, `formatCredentialHints`, `translateCredentialMessage` | forwarding of website `contracts/core/credential-copy.ts` | line deleted; each importer of one of these names imports it from `@tovu/contracts/credential-copy` |
-| 3-4 | `assertCredentialToken`, `CredentialInputError`, `CREDENTIAL_MESSAGES`, type `CredentialTokenHint` | forwarding of website `contracts/core/credential-token.ts` | lines deleted; importers import from `@tovu/contracts/credential-token` |
+| 3-4 | `assertCredentialToken`, `CredentialInputError`, `CREDENTIAL_MESSAGES`, type `CredentialTokenHint` | forwarding of website `contracts/core/credential-token.ts`, which is itself a re-export of `@jini-ai/platform/secrets/credential-token` (lines 3-5; `universal` entry) | lines deleted; importers import from the REAL owner `@jini-ai/platform/secrets/credential-token` (admin already declares `@jini-ai/platform`, `apps/admin/package.json:32`). Revision 3 (Opus M1): `credential-token.ts` is NOT moved; moving it would create a new forwarder in `@tovu/contracts` |
 | 10-16 | `storedCredentialHint` | **live function** (stored-key hint; hides the hint when the key belongs to another endpoint) | **stays in `lib/credential-copy.ts`**, unchanged, with its comment |
 | 21-31 | `credentialDraftError` | **live function** (only the validator's own `CredentialInputError` becomes display copy; any other exception is rethrown) | **stays in `lib/credential-copy.ts`**, unchanged, with its comment |
 `lib/credential-copy.ts` is NOT deleted. After Step D it is the admin owner of the two helpers and its own imports
-(lines 6-7) read `@tovu/contracts/credential-token` and `@tovu/contracts/credential-copy`.
+(lines 6-7) read `@jini-ai/platform/secrets/credential-token` and `@tovu/contracts/credential-copy`.
 1. Census (paste into the report): `rg -n "lib/credential-copy" apps/admin/src` (15 production files at `e801e9ae`,
    among them `features/security/hooks/use-access-tokens.hooks.ts`, `features/deployment/hooks/use-publish-credentials.hooks.ts`,
    `components/CredentialHint.tsx`; tests are extra). For each importer write the names it imports and tag each
@@ -78,13 +78,15 @@ Tests first (GREEN on old code, each shown RED under its mutation):
    | D2 | `credentialDraftError` with an invalid value returns the translated message for `locale: 'de'`, and `null` for `''` when not required | the translation call or the blank-keeps-secret rule is dropped |
    | D3 | `storedCredentialHint` returns `undefined` when `storedKeyIsForOtherEndpoint` is true even though `stored.isSet` | the other-endpoint guard is dropped |
    | D4 | `storedCredentialHint` prefers the formatted `tokenHint`, falls back to `masked`, then `undefined` | the fallback order changes |
-3. One commit: `git mv` the two website files to `packages/contracts/src/{credential-copy,credential-token}.ts`
-   (`credential-token.ts` already imports `@tovu/contracts/secret-redaction`); add the two subpaths to
-   `packages/contracts/package.json` `exports` the way `secret-redaction` is declared there (this run edits that
-   file; `npm install` regenerates the lockfile if it changes); move the size exception: the row in
+3. One commit: `git mv` ONLY `apps/website/src/contracts/core/credential-copy.ts` to `packages/contracts/src/credential-copy.ts`
+   and change its line 1 import from `./credential-token.js` to `@jini-ai/platform/secrets/credential-token` (the real owner of
+   `CREDENTIAL_MESSAGES`, `CredentialMessageId`, `CredentialTokenHint`); add `"@jini-ai/platform"` to `packages/contracts/package.json`
+   `dependencies` with the SAME range `apps/admin/package.json:32` uses (declared, imported statically; `npm install` regenerates the
+   lockfile; no `exports` edit: the package already exports the wildcard `./*`). `credential-token.ts` STAYS in website (it holds
+   the live `assertCredentialFreeField` binding, lines 6-10; its website re-export lines are a separate cleanup, INDEX "Opus fixes - remaining"); move the size exception: the row in
    `development/scripts/size-exceptions.json:20` names `apps/website/src/contracts/core/credential-copy.ts` — change
    its `file` to the new path in this same commit (it is a data table: the exception stays valid; `npm run check:size`
-   proves it); repoint the website importers of both files (`rg -ln "contracts/core/credential-(copy|token)" apps/website/src`);
+   proves it); repoint the website importers of `credential-copy.ts` only (`rg -ln "contracts/core/credential-copy" apps/website/src`);
    in admin delete lines 2-4 of `lib/credential-copy.ts`, repoint its lines 6-7, and repoint only the FORWARDED
    names of each importer. LIVE names keep importing `lib/credential-copy`.
 4. Proof: `rg -n "^export \{|^export type \{" apps/admin/src/lib/credential-copy.ts` prints nothing;

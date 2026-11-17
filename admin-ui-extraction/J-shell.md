@@ -56,7 +56,7 @@ Class: client-side visibility only. The server stays the authority; keep that se
 **The model** (this is the part round 1 left out). `resolveAdminShellModel` computes two sets:
 | Set | Built from | Used for |
 |---|---|---|
-| routable | `resolvePanels({ panels }, { capabilities })` with **no** permissions argument: capability-gated only | `matchRoute`, `resolveAgentPageId`, `panel` lookup |
+| routable | `resolvePanels({ panels }, { capabilities, permissions: ['*'] })`: capability-gated only. The `['*']` is REQUIRED (revision 3, Opus blocker B1): `resolvePanels` defaults a missing `permissions` to `[]` (`core/manifest/rules.ts:34`) and then drops every panel that declares all-of `permissions` (`:38`), so revision 2's "no permissions argument" made every all-of panel unroutable for every user, permission held or not. The real user permissions are applied by `isPanelAccessible` (visible set and `access`), never by route recognition: passing them to `resolvePanels` would turn a denied all-of URL back into the default-panel fallback (change 2 would then hold for any-of panels only) and would still drop all-of panels while permissions are unknown | `matchRoute`, `resolveAgentPageId`, `panel` lookup |
 | visible | routable filtered by `isPanelAccessible` with `session.effectivePermissions` passed through **as is** (`undefined` stays `undefined`; delete the `?? []` at `model.ts:27`) | `buildNav` |
 and gains `readonly access: 'allowed' | 'denied'` = the rule applied to the routed panel. An unmatched path still
 falls back to the default panel (unchanged); a **matched but denied** path keeps its own `panelId` and `access: 'denied'`.
@@ -79,6 +79,10 @@ Tests first (RED before the edit):
 | T8 | through `<AdminShell>` with `effectivePermissions: undefined` and the same path: the panel renders | unknown is collapsed to `[]` anywhere in the model |
 | T9 | `import { isPanelAccessible, withoutInaccessiblePanels } from '@jini-ai/admin/core'` resolves in a built package (public-surface test beside the existing one) | the export is missing (T1a could not import it) |
 | T10 | `resolvePanels` with all-of `permissions` and no permissions argument returns exactly what it returned before (pin 3 fixtures on the old code) | the shared rule was changed instead of the shell model |
+| T11 | through `<AdminShell>`: a panel declaring all-of `permissions: ['posts.read']`, session `effectivePermissions: ['posts.read']`, its path: the panel renders and its nav row exists | routable is built without `permissions: ['*']` (revision 2's bug: RED under that mutation) |
+| T12 | same panel, `effectivePermissions: []`: the `noAccess` slot renders, neither the panel's nor the default panel's `render` is called | real permissions are passed to `resolvePanels` (the denied all-of URL falls back to the default panel). RED on today's Jini `model.ts:25-28` |
+| T13 | same panel, `effectivePermissions: undefined`: the panel renders | unknown collapsed to `[]` (today's `model.ts:27`) or routable built without `['*']` |
+V3 for T11/T13: delete `permissions: ['*']` from the routable call, show both RED, restore.
 Done: `(cd $J && pnpm --filter @jini-ai/admin build) && npm --prefix $J/packages/admin run test`; changeset file added.
 STOP: another caller of `resolveAdminShellModel` exists and depends on permission filtering (`rg -n "resolveAdminShellModel" packages examples`): report it.
 
