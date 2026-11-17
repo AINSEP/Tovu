@@ -545,3 +545,11 @@ it("shows the empty activity state when there are no posts or pages yet", async 
   render(<Dashboard />);
   expect(await screen.findByText("Nothing published or drafted yet.")).toBeInTheDocument();
 });
+
+it("hides Publish All when the injected usePublishToLiveAvailableHook reports the live site unavailable", async () => {
+  fetchMock.mockImplementation(routeFetch(successRoutes()));
+  setPublishToLiveAvailable({ next: true });
+  render(<Dashboard usePublishToLiveAvailableHook={() => false} />);
+  await screen.findByText("editorial");
+  expect(screen.queryByRole("button", { name: "Publish All" })).not.toBeInTheDocument();
+});
