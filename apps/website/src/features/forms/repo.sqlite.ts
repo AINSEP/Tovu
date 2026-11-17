@@ -1,6 +1,6 @@
 import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
-import type { KyselyKernel } from "@jini-ai/db/kernel";
+import { listColumns, type KyselyKernel } from "@jini-ai/db/kernel";
 import {
   SqlFormDefinitionRepo, SqlFormSubmissionRepo,
   createSubmissionIpRetentionRepo as createPackageRetentionRepo,
@@ -31,5 +31,5 @@ export class SqliteFormSubmissionRepo extends SqlFormSubmissionRepo {
 
 /** Bind the site's connection and table names; retention policy and query stay in Jini. */
 export function createSubmissionIpRetentionRepo({ kernel }: { kernel: ContentKernel }, _optional = {}) {
-  return createPackageRetentionRepo({ kernel, tables: FORMS_TABLES }, {});
+  return createPackageRetentionRepo({ kernel, tables: FORMS_TABLES, columns: ({ table }) => listColumns(kernel, table) }, {});
 }
