@@ -1,0 +1,532 @@
+{
+  "widgets_list_instances": {
+    "id": "widgets_list_instances",
+    "description": "Lists widget instances in the workspace (id, slug, title, status, widgetType, config, version). Defaults to active-only; set includeInactive to also see trashed/purged instances. Narrow by widgetType.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {
+        "widgetType": {
+          "type": "string",
+          "enum": [
+            "media",
+            "gallery",
+            "text",
+            "social-links",
+            "recent-entries",
+            "menu",
+            "contact-form"
+          ],
+          "description": "Narrow the list to one widget type. Omit to list every type."
+        },
+        "includeInactive": {
+          "type": "boolean",
+          "description": "Include trash/purged instances too. Defaults to false (active-only)."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "widget widgets list existing placed blocks",
+        "queries": [
+          "What widgets do we have set up on the site?",
+          "Can you show me only active widgets, not trashed ones?",
+          "I want to filter widgets by type.",
+          "Show me every widget instance and its current config.",
+          "What widgets are currently active in the workspace?"
+        ]
+      },
+      "approval": {
+        "class": "read",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": true,
+    "sideEffects": "none"
+  },
+  "widgets_get_instance": {
+    "id": "widgets_get_instance",
+    "description": "Reads one widget instance's current state (id, slug, title, status, widgetType, config, version) plus its where-used disclosure: every region placement and inline embed currently referencing it.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "widgetInstanceId"
+      ],
+      "properties": {
+        "widgetInstanceId": {
+          "type": "string",
+          "description": "The widget instance's entry id, as returned by widgets_create_instance or content_read.widget_instance."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "widget read view details one existing current where used which pages use uses used usage where banner",
+        "queries": [
+          "Where is this widget actually being used on the site?",
+          "Can you show me one widget's config and everywhere it's placed?",
+          "I want to see a widget's current state plus its region placements.",
+          "Is this widget embedded inline anywhere?",
+          "Can you show me the full details for a single widget instance?"
+        ]
+      },
+      "approval": {
+        "class": "read",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": true,
+    "sideEffects": "none"
+  },
+  "widgets_list_regions": {
+    "id": "widgets_list_regions",
+    "description": "Lists every currently-bound widget region (regionKey, the widget_area entry id it fills, and its placement count). Only actively-bound regions appear — a region a theme switch orphaned is not listed.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {}
+    },
+    "metadata": {
+      "search": {
+        "keywords": "widget regions areas slots sidebar footer available",
+        "queries": [
+          "What widget regions are currently bound on the site?",
+          "Can you show me each region and how many widgets are placed there?",
+          "I want to see which theme areas have widgets assigned.",
+          "Are there any regions that got orphaned after a theme switch?",
+          "What widget slots exist right now?"
+        ]
+      },
+      "approval": {
+        "class": "read",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": true,
+    "sideEffects": "none"
+  },
+  "widgets_get_region": {
+    "id": "widgets_get_region",
+    "description": "Reads one region's full placement list, each entry resolved with the widget's title/type and whether it is broken (its target widget is missing, wrong-type, or not active). Use this before widgets_set_region_placements to see the current baseVersion and existing placementIds.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "regionKey"
+      ],
+      "properties": {
+        "regionKey": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A theme-declared widget region key (e.g. 'header', 'footer', 'sidebar'). Call content_read.widget_region to see which are currently bound."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "widget region read view current placements existing",
+        "queries": [
+          "What widgets are placed in this specific region?",
+          "Can you show me if any widget in this region is broken?",
+          "I need the current version of a region before I update its placements.",
+          "What's actually filling the sidebar widget area right now?",
+          "Is a widget in this region missing or the wrong type?"
+        ]
+      },
+      "approval": {
+        "class": "read",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": true,
+    "sideEffects": "none"
+  },
+  "widgets_create_instance": {
+    "id": "widgets_create_instance",
+    "description": "Creates a new widget instance of a given type with a validated config bag (validated against that type's own registered schema). The instance is NOT placed anywhere by this call — use widgets_set_region_placements or widgets_insert_embed afterward to make it appear on the site.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "widgetType",
+        "title",
+        "config"
+      ],
+      "properties": {
+        "widgetType": {
+          "type": "string",
+          "enum": [
+            "media",
+            "gallery",
+            "text",
+            "social-links",
+            "recent-entries",
+            "menu",
+            "contact-form"
+          ],
+          "description": "One of the registered widget types. An unregistered type is rejected."
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable instance title, shown in the admin library."
+        },
+        "config": {
+          "type": "object",
+          "description": "Media config: {mode:media,items:[{slug,alt?,caption?}],layout:single|grid|carousel|masonry,columns:1..6,aspectRatio:16/9,htmlAttributes?} or {mode:html,html}. Use media library slugs only; Raw HTML supports {{media:slug}} and data-media-slug. At most 50 items; HTML at most 65536 characters. Placement content overrides saved config. Legacy Gallery images/mediaId still read. Other types: their config shape depends on widgetType — see that type's own registered schema; a rejection names every failing field."
+        },
+        "slug": {
+          "type": "string",
+          "description": "Optional stable slug. Auto-derived from title if omitted."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "widget gallery images photos grid carousel masonry create add new block sidebar footer",
+        "queries": [
+          "Can you create a new widget?",
+          "How do I make a new widget instance with a specific config?",
+          "If I create a widget, does it automatically show up on the site?",
+          "I want to set up a new widget of a certain type.",
+          "Can you validate a widget's config against its schema when creating it?"
+        ]
+      },
+      "approval": {
+        "class": "edit",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  },
+  "widgets_update_instance": {
+    "id": "widgets_update_instance",
+    "description": "Replaces an existing widget instance's config bag (re-validated against its type's registered schema). The widgetType itself cannot be changed.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "widgetInstanceId",
+        "baseVersion",
+        "config"
+      ],
+      "properties": {
+        "widgetInstanceId": {
+          "type": "string",
+          "description": "The widget instance's entry id, as returned by widgets_create_instance or content_read.widget_instance."
+        },
+        "baseVersion": {
+          "type": "integer",
+          "description": "The entry's current 'version', as last returned by a read or write on it — the optimistic-concurrency guard. A stale value is rejected with a conflict naming the current version."
+        },
+        "config": {
+          "type": "object",
+          "description": "The COMPLETE replacement config bag. Media: {mode:media,items:[{slug,alt?,caption?}],layout:single|grid|carousel|masonry,columns:1..6,aspectRatio?,htmlAttributes?} or {mode:html,html} with {{media:slug}} / data-media-slug. Maximum 50 items or 65536 HTML characters; empty items allowed. Raw HTML is sanitized by the page-body policy. Legacy Gallery images/mediaId still read."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "widget update edit change config settings instance",
+        "queries": [
+          "Can you change the settings on this existing widget?",
+          "How do I edit a widget's config?",
+          "Can I change what type this widget is?",
+          "I want to replace a widget's configuration entirely.",
+          "How do I update the content inside a widget instance?"
+        ]
+      },
+      "approval": {
+        "class": "edit",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  },
+  "widgets_trash_instance": {
+    "id": "widgets_trash_instance",
+    "description": "Moves a widget instance to the Trash, where it can be restored for 60 days. UNCONDITIONAL: never blocked by references, even if the instance is currently placed somewhere (every referencing placement degrades to a placeholder at render time rather than this call being rejected). This is the only delete-adjacent tool in this catalog — there is no purge/force-delete tool (see this file's header for why).",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "widgetInstanceId"
+      ],
+      "properties": {
+        "widgetInstanceId": {
+          "type": "string",
+          "description": "The widget instance's entry id, as returned by widgets_create_instance or content_read.widget_instance."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "widget delete remove trash soft delete remove delete take off widget footer sidebar header",
+        "queries": [
+          "Can you delete this widget?",
+          "What happens to the places this widget is used if I trash it?",
+          "How do I remove a widget instance — is it a hard delete?",
+          "Can I trash a widget even if it's currently placed somewhere?",
+          "Is there a way to permanently purge a widget, or just trash it?"
+        ]
+      },
+      "approval": {
+        "class": "trash",
+        "confirmation": "policy"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  },
+  "widgets_bind_region": {
+    "id": "widgets_bind_region",
+    "description": "Binds a new region key to a fresh, empty placement list. Idempotent — a region key already bound returns its existing area entry rather than creating a duplicate.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "regionKey"
+      ],
+      "properties": {
+        "regionKey": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A theme-declared widget region key (e.g. 'header', 'footer', 'sidebar'). Call content_read.widget_region to see which are currently bound."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "widget sidebar footer region area slot place put add section",
+        "queries": [
+          "How do I set up a new widget area?",
+          "Can you bind a new region key for widgets?",
+          "If I bind a region that already exists, does it create a duplicate?",
+          "I want to create an empty widget slot to fill later.",
+          "How do I register a new widget region on the theme?"
+        ]
+      },
+      "approval": {
+        "class": "edit",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  },
+  "widgets_set_region_placements": {
+    "id": "widgets_set_region_placements",
+    "description": "Replaces a bound region's WHOLE placement list in one atomic, version-guarded write (never a partial patch). Every widgetEntryId referenced must be an existing, active widget instance in this workspace — a nonexistent, trashed, or purged target is rejected before anything is written. Call content_read.widget_region first to see the current baseVersion and existing placements to preserve.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "regionKey",
+        "baseVersion",
+        "placements"
+      ],
+      "properties": {
+        "regionKey": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A theme-declared widget region key (e.g. 'header', 'footer', 'sidebar'). Call content_read.widget_region to see which are currently bound."
+        },
+        "baseVersion": {
+          "type": "integer",
+          "description": "The entry's current 'version', as last returned by a read or write on it — the optimistic-concurrency guard. A stale value is rejected with a conflict naming the current version."
+        },
+        "placements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "widgetEntryId",
+              "enabled"
+            ],
+            "properties": {
+              "placementId": {
+                "type": "string",
+                "description": "Stable id for this placement slot. Omit when adding a NEW placement — one is minted automatically. Supply an EXISTING placementId (from content_read.widget_region) to keep editing the same slot rather than creating a new one."
+              },
+              "widgetEntryId": {
+                "type": "string",
+                "description": "The widget instance's entry id, as returned by widgets_create_instance or content_read.widget_instance."
+              },
+              "content": {
+                "type": "object",
+                "description": "Optional per-placement Media config overlay: slug items or raw HTML; omitted display settings inherit saved config."
+              },
+              "enabled": {
+                "type": "boolean",
+                "description": "Whether this placement renders. A disabled placement stays in the list but is skipped at render time."
+              }
+            }
+          },
+          "description": "The COMPLETE ordered replacement placement list for this region."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "widget region replace set whole list sidebar footer bulk update",
+        "queries": [
+          "How do I change which widgets show up in the sidebar?",
+          "Can you replace the whole list of widgets in this region?",
+          "What happens if I reference a widget that's trashed in the placement list?",
+          "I need to see the current placements before I overwrite them, right?",
+          "How do I reorder or swap out widgets in a region all at once?"
+        ]
+      },
+      "approval": {
+        "class": "edit",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  },
+  "widgets_insert_embed": {
+    "id": "widgets_insert_embed",
+    "description": "Inserts one new inline widgetEmbed node, referencing an existing widget instance, appended to the end of a host's rich-text body (a post, a page, or a custom content entry). Rejects if the host does not exist, is trashed, or is an HTML-format page; if the target widget does not exist or is trashed; if the host is itself a widget instance (no widget-in-widget recursion); or if the resulting embed count would exceed the per-document cap. Writing into a post or page also requires content.write on it. Returns the newly-minted placementId and the host's new version.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hostEntryId",
+        "baseVersion",
+        "widgetEntryId"
+      ],
+      "properties": {
+        "hostEntryId": {
+          "type": "string",
+          "description": "The id of the host whose rich-text body holds the embed: a post or page (as returned by content_post_create or content_read.content_post) or a custom content entry. Use that host's own 'version' as baseVersion. An HTML-format page is not a valid host — embed widgets there with a data-embed-config marker via pages_write_region instead."
+        },
+        "baseVersion": {
+          "type": "integer",
+          "description": "The entry's current 'version', as last returned by a read or write on it — the optimistic-concurrency guard. A stale value is rejected with a conflict naming the current version."
+        },
+        "widgetEntryId": {
+          "type": "string",
+          "description": "The widget instance's entry id, as returned by widgets_create_instance or content_read.widget_instance."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "widget embed insert add put inline post entry body content",
+        "queries": [
+          "Can you embed a widget inside this post's body?",
+          "How do I add an inline widget to a page's content?",
+          "Can I put a widget inside another widget?",
+          "What happens if I try to embed too many widgets in one document?",
+          "How do I insert a widget reference into the middle of a page?"
+        ]
+      },
+      "approval": {
+        "class": "edit",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  },
+  "widgets_remove_embed": {
+    "id": "widgets_remove_embed",
+    "description": "Removes one inline widgetEmbed node (by placementId) from a host entry's body. The referenced widget instance itself is untouched. The host may be a post, a page, or a custom content entry (not an HTML-format page); writing into a post or page also requires content.write.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hostEntryId",
+        "baseVersion",
+        "placementId"
+      ],
+      "properties": {
+        "hostEntryId": {
+          "type": "string",
+          "description": "The id of the host whose rich-text body holds the embed: a post or page (as returned by content_post_create or content_read.content_post) or a custom content entry. Use that host's own 'version' as baseVersion. An HTML-format page is not a valid host — embed widgets there with a data-embed-config marker via pages_write_region instead."
+        },
+        "baseVersion": {
+          "type": "integer",
+          "description": "The entry's current 'version', as last returned by a read or write on it — the optimistic-concurrency guard. A stale value is rejected with a conflict naming the current version."
+        },
+        "placementId": {
+          "type": "string",
+          "description": "The embed placement's id, as returned by widgets_insert_embed or seen in the host entry's body."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "widget embed remove delete take out inline post body",
+        "queries": [
+          "Can you remove this inline widget from the page body?",
+          "How do I delete one embedded widget without deleting the widget itself?",
+          "I want to take out a widget embed by its placement id.",
+          "Can you pull a widget out of the page content?",
+          "How do I remove an inline widget slot from an entry?"
+        ]
+      },
+      "approval": {
+        "class": "edit",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  },
+  "widgets_reorder_embeds": {
+    "id": "widgets_reorder_embeds",
+    "description": "Reassigns which widget occupies which EXISTING inline embed slot, in document order. The document's own shape (surrounding content, slot count/position) is unchanged — only each slot's target widget changes. Must supply exactly one widgetEntryId per embed slot currently present, or the call is rejected before writing anything. The host may be a post, a page, or a custom content entry (not an HTML-format page); writing into a post or page also requires content.write.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hostEntryId",
+        "baseVersion",
+        "orderedWidgetEntryIds"
+      ],
+      "properties": {
+        "hostEntryId": {
+          "type": "string",
+          "description": "The id of the host whose rich-text body holds the embed: a post or page (as returned by content_post_create or content_read.content_post) or a custom content entry. Use that host's own 'version' as baseVersion. An HTML-format page is not a valid host — embed widgets there with a data-embed-config marker via pages_write_region instead."
+        },
+        "baseVersion": {
+          "type": "integer",
+          "description": "The entry's current 'version', as last returned by a read or write on it — the optimistic-concurrency guard. A stale value is rejected with a conflict naming the current version."
+        },
+        "orderedWidgetEntryIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "One widgetEntryId per existing embed slot, in document order. Length must exactly match the current embed count."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "widget embed reorder rearrange change order position swap",
+        "queries": [
+          "Can you swap which widget shows in each embed slot?",
+          "How do I change the widgets assigned to existing embed slots without changing the layout?",
+          "I want to reassign what fills each inline widget spot in a document.",
+          "Can this add new embed slots, or only reshuffle existing ones?",
+          "Do I need to specify a widget for every single slot, or can I skip some?"
+        ]
+      },
+      "approval": {
+        "class": "edit",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  }
+}
