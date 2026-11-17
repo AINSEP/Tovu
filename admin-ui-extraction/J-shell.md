@@ -21,7 +21,7 @@ rg -c "^\s+anyOfPermissions:" $T/apps/admin/src/panels.tsx
 | # | Gap found by the round-1 judge (verified at Jini `dde69a6d`, Tovu `e801e9ae`) | Sheet |
 |---|---|---|
 | G7 | `react/shell/model.ts:25-29` filters panels by permission **before** `matchRoute`, and `:34-35` turns an unmatched route into the default panel: a denied direct URL silently shows the default panel, so a "no access" screen can never know which panel was asked for. `core/manifest/rules.ts:34` turns unknown permissions into `[]`. | J1 |
-| G8 | `ShellSidebar` (`AdminShell.tsx:55-69`) is a fixed arrangement (header slot, one `Sidebar.Nav`, footer with the rail toggle). Tovu's sidebar (`App.tsx:603-641`) is a different composition: mobile header, empty-click toggle, label tooltips, the first nav group rendered by `SitesSidebarNav`, the rail toggle **between** two nav slices, logout in the footer, and `{...dockRail}` (`railOverride`, `onRailCollapsedChange` from `hooks/use-dock-auto-rail.hooks.ts:59-61`). No list of small slots represents that. | J2 |
+| G8 | `ShellSidebar` (`AdminShell.tsx:55-69`) is a fixed arrangement (header slot, one `Sidebar.Nav`, footer with the rail toggle). Tovu's sidebar (`App.tsx:603-641`) is a different composition: mobile header, empty-click toggle, label tooltips, the first nav group rendered by `SitesSidebarNav`, the rail toggle **between** two nav slices, logout in the footer, and `{...dockRail}` (`railOverride`, `onRailCollapsedChange` from `hooks/use-dock-auto-rail.hooks.ts:75-108`, returned at `:108`). No list of small slots represents that. | J2 |
 | G9 | Providers that must wrap shell + dock + overlays as one boundary (`App.tsx:678-680`) have no seam: the Jini shell renders its own root `<div>`. | J2 |
 | G10 | `AdminThemePreferenceStorePort` (`theme-ports.ts:10-13`) is synchronous and scheme-only; Tovu's controller (`admin-themes/use-admin-theme.hooks.ts:34-41`) is four async settings calls for two values (theme id + scheme), paints three root attributes and keeps a pre-paint storage hint (`admin-themes/apply.ts:60-74`). | J3 |
 
@@ -151,9 +151,29 @@ Do not redesign the shell. Close G2-G5, G8, G9 in five green commits.
    `useDrawerHook`, each defaulted to today's hook. Signatures are the present ones; do not change argument shapes
    (lesson 12). Fake-hook output test per hook: with a fake returning `anonymous`, the login slot renders and the
    real session port is never called. Then the by-file hook check of COMMON-ADMIN section 1 on `packages/admin/src/react/shell`: CLEAN.
+   Second judge: the one-liner prints exactly 4 keys at `65d73b0d5` (`AdminShell::useAdminShellSession`,
+   `::useAdminTheme`, `::useShellDrawer`, `::useShellRoute`). Delete exactly those 4 by hand from
+   `scripts/hook-injection-debt.json` in this commit (section 1, C11); never `--update`. Jini's hook gate is red on
+   the base (32 "(new)" lines in `packages/ui`, PRE-EXISTING): the step is green when no line is added.
+   **1b. Host-owned session (second judge; needed by T1b, see its "Session" row).** Tovu's session machine
+   (`App.hooks.ts:109-228`: boot-token fragment, guarded local bootstrap, epoch guard, settings-change feed, permission
+   refresh) also feeds `AdminBootScopeContext` *above* the shell (`App.tsx:460-462`, read by locale, interface
+   preferences, admin theme and assistant hooks while `checking`). A second reader behind `AdminShellSessionPort` would
+   duplicate it (S4 fails) or re-implement it (lesson 12). So the props take **exactly one session source**, enforced by
+   the type, with no change to `AdminShellSessionPort`:
+   ```ts
+   type AdminShellSessionSource =
+     | { readonly session: AdminShellSessionPort; readonly useSessionHook?: typeof useAdminShellSession }  // today; hook defaulted
+     | { readonly session?: undefined; readonly useHostSession: () => AdminShellSessionController };     // host owns the session
+   ```
+   `useHostSession` is a hook prop with no default because there is no real hook to default to without a port; a host
+   that passes it passes no port. Tests: the existing `session.test.tsx` count unchanged (port path); with
+   `useHostSession` returning `authenticated`, the panel renders and no port method exists to be called; with
+   `anonymous`, the login slot renders. Name it in the report if a cleaner shape is found; do not add a dummy port.
 2. **Memoized navigation (G5).** Read `AdminShell.hooks.ts` (27) and `model.ts`. Memoize the nav build on
    `panels`, `capabilities`, permissions, `translateNav`, and route. Test: re-render with identical props; a
-   counting `translateNav` fake is called once.
+   counting `translateNav` fake is called once. (A host must pass a stable `translateNav`: Tovu's will close over
+   locale and site-section availability, so T1b wraps it in `useCallback`; say so in the TSDoc.)
 3. **Sidebar composition seam (G8).** One render slot, because `Sidebar` is a compound component designed for
    host-composed children (`react/components/Sidebar.tsx:23` "Why children rather than props"):
    ```ts
@@ -169,6 +189,12 @@ Do not redesign the shell. Close G2-G5, G8, G9 in five green commits.
    with its own children; rail override stays a `Sidebar` prop the host passes (`railOverride`,
    `onRailCollapsedChange` already exist on `Sidebar`: confirm with `rg -n "railOverride|onRailCollapsedChange" packages/admin/src/react`;
    if they do not exist on `Sidebar`, STOP: T1b cannot keep the auto-rail and the sheet needs a review).
+   Second judge ran it at `65d73b0d5`: they exist (`Sidebar.tsx:283,286`, `hooks/use-sidebar-rail.ts:83-86`); no STOP.
+   `sidebarProps.id` and `label`: Tovu passes neither today, so its `<nav>` is `id="admin-sidebar"` and
+   `aria-label="Admin"` (`Sidebar.tsx:354` defaults). Four Tovu hooks find the nav by that id
+   (`use-sidebar-empty-click-toggle.hooks.ts:81`, `use-cms-sidebar-label-tooltips.hooks.ts:13`,
+   `use-sites-sidebar-nav.hooks.ts:65`, `use-drawer-active-item-centring.hooks.ts:73`), so `id` must be host-settable:
+   see `ids` in step 4. `label` comes from `labels.navigation`; T1b decides whether to keep "Admin" (no a11y-name change).
    Tests: (a) a host slot that renders `MobileHeader`, a custom first group, `RailToggle`, `Nav` for the rest and a
    footer produces that DOM order; (b) `sidebarProps.activeId` equals the routed panel id, also when `access` is denied;
    (c) `setDrawerOpen(false)` closes the drawer the topbar toggle opened (one drawer state, not two).
@@ -179,9 +205,22 @@ Do not redesign the shell. Close G2-G5, G8, G9 in five green commits.
      checking / anonymous / error states. Tests: a context provided in `frame` is readable from `panel.render`,
      from `slots.assistant` content and from `slots.overlays`; a child that counts mounts is mounted once across
      three route changes; the host re-keying its provider on `session.user.id` remounts it on identity switch.
-   - `slots.beforeMain?: ReactNode` (the logout confirm dialog, mounted where Tovu mounts it, `App.tsx:686`).
-   - `slots.assistant` gains `aside?: ReactNode` rendered **instead of** the built-in `<aside>` when present, so the
-     host keeps its resizable dock (`App.chrome.tsx:65-134`).
+   - `slots.beforeMain?: ReactNode` (the logout confirm dialog, mounted where Tovu mounts it, `App.tsx:685`),
+     rendered **between the sidebar and the backdrop** (Tovu's order, `App.tsx:683-690`; S6 pins DOM order).
+   - `slots.assistantAside?: ReactNode` rendered **instead of** the built-in `<aside>` (second judge: not a field of
+     `slots.assistant`, whose `content`/`label`/`open` are required and would be meaningless beside it). Tovu passes
+     `AssistantChrome` (`App.tsx:348-385`, it returns at :366-384: `ChatDockAside` + `ChatFab`, `App.chrome.tsx:65-134`). Both present: the
+     shell renders `assistantAside` only (test).
+   - `slots.afterMain?: ReactNode` inside `.admin-main-col`, after `<main>` (second judge: Tovu renders
+     `ScrollJumpButtons` there, `App.chrome.tsx:195-198`; no other seam reaches inside the main column).
+   - `ids?: { readonly sidebar?: string; readonly main?: string }`, each defaulting to today's `useId()` value
+     (second judge: Tovu's `#admin-sidebar` lookups above, `styles.css:247` `#main-content:focus`, the skip link
+     `href="#main-content"` and `__tests__/unit/focus-ring-css.unit.test.ts`). The skip link, the topbar's
+     `aria-controls`, `<nav id>` and `<main id>` all read from it (test: one value, four places).
+   - Markup parity the Tovu swap needs, no host consumes the shell today: the topbar toggle `<path>` gets
+     `strokeLinecap="round"` (Tovu `App.chrome.tsx:149`). The backdrop stays a `<button>` with `aria-label` (Jini) where
+     Tovu has a `<div>` (`App.tsx:690`): an a11y gain, but a `<button>` brings a UA border and padding that Tovu's
+     `.sidebar-backdrop` (`styles.css:1453`) does not reset, so T1b step 3 adds `border: 0; padding: 0` to that rule.
    - layout class: the existing `className` prop (no new prop). `noAccess` came with J1.
    Each slot has a render test and an "absent slot renders exactly today's markup" snapshot test.
    Before adding any slot, write in the report which Tovu element it hosts, by `App.tsx`/`App.chrome.tsx` line.
@@ -192,13 +231,31 @@ Do not redesign the shell. Close G2-G5, G8, G9 in five green commits.
    because the size gate counts code lines only (`scripts/check-size.mjs:57` skips blank lines and comments); it has
    no row in `scripts/size-debt.json` or `scripts/size-exceptions.json` (Opus m1); keep it under 500 code lines, and if a
    rename pushes a function over a limit, STOP) to `jini-admin-<name>`
-   (including `.cms-section`, which `App.tsx:625` relies on). Update `packages/admin/src/themes/default/admin.css`
-   selectors in the same commit. List old → new in `packages/admin/docs/shell-classes.md` (T1b consumes this list
-   to rename Tovu's CSS). Tovu imports `Sidebar` and `useSidebar` today (`App.tsx:15`): this commit changes what
-   Tovu renders, so it is the **last** J2 commit and **T1b step 3 is its Tovu half**: until T1b step 3 lands, Tovu
-   stays linked to the J2 commit *before* this one (name that SHA in the report). Do not leave both class sets in the markup.
-STOP: a needed change alters `AdminShellSessionPort` or `AdminShellNavigationPort` (both are used by
-`createAdminShellNavigation`, which Tovu calls at `App.hooks.ts:9`): report the proposed change instead.
+   (including `.cms-section`, which `App.tsx:624` relies on). List old → new in `packages/admin/docs/shell-classes.md`
+   (T1b consumes this list to rename Tovu's CSS, TS selectors and e2e journeys). Tovu imports `Sidebar` and
+   `useSidebar` today (`App.tsx:15`): this commit changes what Tovu renders, so it is the **last** J2 commit and
+   **T1b step 3 is its Tovu half**. Do not leave both class sets in the markup.
+   **Second judge corrections to step 5:**
+   - `packages/admin/src/themes/default/admin.css` (51 lines) holds **tokens only, no selector**: nothing to update
+     there. The one Jini stylesheet that styles a shell class is **`packages/ui/src/styles/admin.css:294-295`**
+     (`.admin-layout`, `.admin-layout :is(h1, h2, h3)`): it is in the write set (CSS, not an import, so the
+     admin-may-not-import-ui rule is not crossed). Also in the write set: `packages/admin/src/react/components/__tests__/Sidebar.test.tsx`,
+     `react/shell/__tests__/*.test.tsx` class assertions, `docs/spec/ui.spec.md`. Find them all:
+     ```
+     rg -l -P 'cms-(item|section|nav|group|foot|rail|tooltip)|admin-(layout|topbar|content|main-col|sidebar|assistant-pane)\b|sidebar-backdrop|skip-link|boot-screen' $J/packages $J/examples -g '!**/dist/**' -g '!**/node_modules/**'
+     ```
+   - **Merge timing.** Tovu consumes Jini through `link:jini` (`file:../Jini/packages/*`): once step 5 is on the Jini
+     integration branch, *every* Tovu run that links it (A-, S-, JM- sheets) renders an unstyled sidebar and breaks
+     Tovu e2e selectors until T1b step 3 lands. "Tovu stays linked to the J2 commit before" cannot hold for other
+     lanes. So J2's lane branch `admin-ui/J2` carries steps 1-4 only; step 5 is built on `admin-ui/J2-classes` (green
+     alone in Jini) and is merged **in the same window as T1b step 3**, by the T1b run, never earlier.
+   - Ripple measured on Tovu `232764af5` with the same pattern: `apps/admin/src` 65 files (378 lines; 174 CSS selector
+     lines in `styles.css` + 5 `styles/*.css`), `development/e2e` 20 files (91 lines, journeys and fixtures),
+     `apps/desktop` 3 files (4 lines). Production TS that queries the classes: `use-cms-sidebar-label-tooltips.hooks.ts:21`
+     (`a.cms-item`), `use-sites-sidebar-nav.hooks.ts:69` (`a.cms-item[href$="/sites"]`). T1b step 3 owns all of it.
+STOP: a needed change alters `AdminShellSessionPort` or `AdminShellNavigationPort` (`createAdminShellNavigation`
+returns the latter; Tovu imports it at `App.hooks.ts:9` and calls it at `:1087` for the agent page bridge): report
+the proposed change instead.
 
 ## J3: theme seam (the host keeps its theme controller)
 Round 1 planned to push theme id + scheme through `AdminThemePreferenceStorePort`. That port cannot express it
