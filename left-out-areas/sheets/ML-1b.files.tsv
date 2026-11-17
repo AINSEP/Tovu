@@ -1,0 +1,5 @@
+path	lines	blob	prod_importers	test_importers
+apps/website/src/features/mail-status/activity.ts	222	e5e962cdea401890b26af54b100a45791292c3f2	3	2
+apps/website/src/features/mail-status/suppressions.ts	161	a69954c830a3a0a2882dfdf576562a49a7b9f950	2	1
+apps/website/src/features/mail-status/permissions.ts	41	bb96d16ce1d01ab4004c7ad325bbac969ef53311	5	1
+apps/website/src/features/mail/activity.repo.ts	194	149d39142d429c05e3db1797ef8042c98053d513	7	4

@@ -1,13 +1,4 @@
 file	importer	kind	line	specifier
-apps/website/src/features/site-inspection/page-body.ts	apps/website/src/features/post/preview-tool.ts	prod	10	#src/features/site-inspection/page-body
-apps/website/src/features/site-inspection/page-body.ts	apps/website/src/features/site-inspection/__tests__/L131-characterization.unit.test.ts	test	11	../page-body.js
-apps/website/src/features/site-inspection/page-body.ts	apps/website/src/features/site-inspection/__tests__/page-body.T4-07-characterization.unit.test.ts	test	3	../page-body.js
-apps/website/src/features/site-inspection/page-body.ts	apps/website/src/features/site-inspection/__tests__/page-body.test.ts	test	5	../page-body.js
-apps/website/src/features/site-inspection/page-body.ts	apps/website/src/features/site-inspection/live-url.ts	prod	9	./page-body.js
-apps/website/src/features/site-inspection/page-body.ts	apps/website/src/features/site-inspection/published-page.ts	prod	1	./page-body.js
-apps/website/src/features/site-inspection/page-body.ts	apps/website/src/features/site-inspection/published-page.ts	prod	59	./page-body.js
-apps/website/src/features/site-inspection/page-body.ts	apps/website/src/features/site-inspection/tool-registrations.ts	prod	5	./page-body.js
-apps/website/src/features/site-inspection/page-body.ts	apps/website/src/features/web/tool-registrations.ts	prod	9	../site-inspection/page-body.js
 apps/website/src/features/site-inspection/published-page.ts	apps/website/src/features/consent/request.ts	prod	3	#src/features/site-inspection/published-page
 apps/website/src/features/site-inspection/published-page.ts	apps/website/src/features/site-inspection/__tests__/L131-characterization.unit.test.ts	test	12	../published-page.js
 apps/website/src/features/site-inspection/published-page.ts	apps/website/src/features/site-inspection/__tests__/loopback-site-server.unit.test.ts	test	4	../published-page.js
@@ -23,7 +14,3 @@ apps/website/src/features/site-inspection/published-page.ts	apps/website/src/fea
 apps/website/src/features/site-inspection/published-page.ts	apps/website/src/features/site-inspection/tool-registrations.ts	prod	14	./published-page.js
 apps/website/src/features/site-inspection/published-page.ts	apps/website/src/platform/routing/__tests__/reserved-paths.test.ts	test	5	#src/features/site-inspection/published-page
 apps/website/src/features/site-inspection/published-page.ts	apps/website/src/server/runtime/composition/site-consent.ts	prod	10	#src/features/site-inspection/published-page
-apps/website/src/features/site-inspection/live-url.ts	apps/website/src/features/site-inspection/__tests__/L131-characterization.unit.test.ts	test	10	../live-url.js
-apps/website/src/features/site-inspection/live-url.ts	apps/website/src/features/site-inspection/__tests__/fetch-live-url.test.ts	test	7	../live-url.js
-apps/website/src/features/site-inspection/live-url.ts	apps/website/src/features/site-inspection/deps.ts	prod	8	./live-url.js
-apps/website/src/features/site-inspection/live-url.ts	apps/website/src/features/site-inspection/tool-registrations.ts	prod	6	./live-url.js

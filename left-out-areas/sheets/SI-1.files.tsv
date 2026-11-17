@@ -1,4 +1,0 @@
-path	lines	blob	prod_importers	test_importers
-apps/website/src/features/site-inspection/page-body.ts	114	837e91a458e213e3be797ac5b310bffab7ff3b18	5	3
-apps/website/src/features/site-inspection/published-page.ts	528	1877aafb7fc2357306950c6db969b1f53eb32932	6	8
-apps/website/src/features/site-inspection/live-url.ts	188	80309dcd46ab7b5ef6f09324dd2a0477881b2ccd	2	2

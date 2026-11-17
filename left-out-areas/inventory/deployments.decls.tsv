@@ -31,34 +31,49 @@ apps/admin/src/features/deployment/OverviewTab.tsx	OverviewTab	function	export	2
 apps/admin/src/features/deployment/PublishRunResult.tsx	PublishRunResult	function	export	12	57	46
 apps/admin/src/features/deployment/StaticSiteTab.hooks.ts	createStaticSiteTabTranslator	function	export	5	7	3
 apps/admin/src/features/deployment/StaticSiteTab.hooks.ts	useCopyLine	function	export	10	24	15
-apps/admin/src/features/deployment/StaticSiteTab.tsx	PublishFailureNotice	function		45	48	4
-apps/admin/src/features/deployment/StaticSiteTab.tsx	CopyLine	function		185	223	39
-apps/admin/src/features/deployment/StaticSiteTab.tsx	ExportRunCounts	function		232	261	30
-apps/admin/src/features/deployment/StaticSiteTab.tsx	ExportRunFailures	function		267	296	30
-apps/admin/src/features/deployment/StaticSiteTab.tsx	ExportRunResult	function		302	317	16
-apps/admin/src/features/deployment/StaticSiteTab.tsx	BuildExportCard	function		322	370	49
-apps/admin/src/features/deployment/StaticSiteTab.tsx	ExportTriggerAction	function		380	433	54
-apps/admin/src/features/deployment/StaticSiteTab.tsx	StaticSiteTabProps	interface	export	435	441	7
-apps/admin/src/features/deployment/StaticSiteTab.tsx	StaticSiteTab	function	export	443	506	64
-apps/admin/src/features/deployment/StaticSiteTab.tsx	GettingItOnlineCard	function		517	598	82
-apps/admin/src/features/deployment/StaticSiteTab.tsx	ManageAccessTokensLink	function		619	636	18
-apps/admin/src/features/deployment/StaticSiteTab.tsx	publishCredentialsSectionContent	function		646	681	36
-apps/admin/src/features/deployment/StaticSiteTab.tsx	PublishCredentialsSection	function		724	739	16
-apps/admin/src/features/deployment/StaticSiteTab.tsx	PublishCredentialFields	function		760	800	41
-apps/admin/src/features/deployment/StaticSiteTab.tsx	FieldLabel	function		804	812	9
-apps/admin/src/features/deployment/StaticSiteTab.tsx	CredentialFieldInput	function		819	851	33
-apps/admin/src/features/deployment/StaticSiteTab.tsx	TokenFieldHints	function		855	881	27
-apps/admin/src/features/deployment/StaticSiteTab.tsx	CredentialStepTodo	function		890	923	34
-apps/admin/src/features/deployment/StaticSiteTab.tsx	TemplateWithNode	function		982	991	10
-apps/admin/src/features/deployment/StaticSiteTab.tsx	CredentialStepDone	function		993	1042	50
-apps/admin/src/features/deployment/StaticSiteTab.tsx	CredentialVerifyAction	function		1058	1093	36
-apps/admin/src/features/deployment/StaticSiteTab.tsx	CredentialTokenPicker	function		1109	1157	49
-apps/admin/src/features/deployment/StaticSiteTab.tsx	StaticPublishTargetFields	function		1165	1191	27
-apps/admin/src/features/deployment/StaticSiteTab.tsx	PublishPreviewAction	function		1200	1228	29
-apps/admin/src/features/deployment/StaticSiteTab.tsx	PublishTriggerAction	function		1241	1292	52
-apps/admin/src/features/deployment/StaticSiteTab.tsx	chosenCredentialIdForTarget	function		1309	1311	3
-apps/admin/src/features/deployment/StaticSiteTab.tsx	StaticPublishForm	function		1313	1392	80
-apps/admin/src/features/deployment/StaticSiteTab.tsx	PublishPreviewFacts	function		1397	1424	28
+apps/admin/src/features/deployment/StaticSiteTab.tsx	PublishFailureNotice	function		41	44	4
+apps/admin/src/features/deployment/StaticSiteTab.tsx	CopyLine	function		181	219	39
+apps/admin/src/features/deployment/StaticSiteTab.tsx	ExportRunCounts	function		228	257	30
+apps/admin/src/features/deployment/StaticSiteTab.tsx	ExportRunFailures	function		263	292	30
+apps/admin/src/features/deployment/StaticSiteTab.tsx	ExportRunResult	function		298	313	16
+apps/admin/src/features/deployment/StaticSiteTab.tsx	BuildExportCard	function		318	366	49
+apps/admin/src/features/deployment/StaticSiteTab.tsx	ExportTriggerAction	function		376	429	54
+apps/admin/src/features/deployment/StaticSiteTab.tsx	StaticSiteTabProps	interface	export	431	437	7
+apps/admin/src/features/deployment/StaticSiteTab.tsx	StaticSiteTab	function	export	439	502	64
+apps/admin/src/features/deployment/StaticSiteTab.tsx	GettingItOnlineCard	function		513	594	82
+apps/admin/src/features/deployment/StaticSiteTab.tsx	ManageAccessTokensLink	function		615	632	18
+apps/admin/src/features/deployment/StaticSiteTab.tsx	publishCredentialsSectionContent	function		642	677	36
+apps/admin/src/features/deployment/StaticSiteTab.tsx	PublishCredentialsSection	function		720	735	16
+apps/admin/src/features/deployment/StaticSiteTab.tsx	PublishCredentialFields	function		756	796	41
+apps/admin/src/features/deployment/StaticSiteTab.tsx	FieldLabel	function		800	808	9
+apps/admin/src/features/deployment/StaticSiteTab.tsx	CredentialFieldInput	function		815	847	33
+apps/admin/src/features/deployment/StaticSiteTab.tsx	TokenFieldHints	function		851	877	27
+apps/admin/src/features/deployment/StaticSiteTab.tsx	CredentialStepTodo	function		886	919	34
+apps/admin/src/features/deployment/StaticSiteTab.tsx	TemplateWithNode	function		978	987	10
+apps/admin/src/features/deployment/StaticSiteTab.tsx	CredentialStepDone	function		989	1038	50
+apps/admin/src/features/deployment/StaticSiteTab.tsx	CredentialVerifyAction	function		1054	1089	36
+apps/admin/src/features/deployment/StaticSiteTab.tsx	CredentialTokenPicker	function		1105	1153	49
+apps/admin/src/features/deployment/StaticSiteTab.tsx	StaticPublishTargetFields	function		1161	1187	27
+apps/admin/src/features/deployment/StaticSiteTab.tsx	PublishPreviewAction	function		1196	1224	29
+apps/admin/src/features/deployment/StaticSiteTab.tsx	PublishTriggerAction	function		1237	1288	52
+apps/admin/src/features/deployment/StaticSiteTab.tsx	chosenCredentialIdForTarget	function		1305	1307	3
+apps/admin/src/features/deployment/StaticSiteTab.tsx	StaticPublishForm	function		1309	1388	80
+apps/admin/src/features/deployment/StaticSiteTab.tsx	PublishPreviewFacts	function		1393	1420	28
+apps/admin/src/features/deployment/api/deployment-api.ts	deploymentApi	const	export	6	87	82
+apps/admin/src/features/deployment/api/deployment-api.types.ts	AdminDeploymentEnvVarStatus	interface	export	5	13	9
+apps/admin/src/features/deployment/api/deployment-api.types.ts	AdminDeploymentOverview	interface	export	17	25	9
+apps/admin/src/features/deployment/api/deployment-api.types.ts	AdminDockerfileSource	interface	export	28	45	18
+apps/admin/src/features/deployment/api/deployment-api.types.ts	AdminStaticPublishTargetId	type	export	51	51	1
+apps/admin/src/features/deployment/api/deployment-api.types.ts	AdminDescriptorI18n	type	export	55	55	1
+apps/admin/src/features/deployment/api/deployment-api.types.ts	AdminPublishTargetField	interface	export	58	68	11
+apps/admin/src/features/deployment/api/deployment-api.types.ts	AdminPublishTargetCredentialSpec	interface	export	72	84	13
+apps/admin/src/features/deployment/api/deployment-api.types.ts	AdminPublishTargetDescriptor	interface	export	89	96	8
+apps/admin/src/features/deployment/api/deployment-api.types.ts	AdminStaticPublishConfig	interface	export	100	103	4
+apps/admin/src/features/deployment/api/deployment-api.types.ts	AdminStaticPublishOutcome	type	export	107	109	3
+apps/admin/src/features/deployment/api/deployment-api.types.ts	AdminPublishRunStatus	type	export	112	112	1
+apps/admin/src/features/deployment/api/deployment-api.types.ts	AdminPublishRunSnapshot	interface	export	117	127	11
+apps/admin/src/features/deployment/api/deployment-api.types.ts	AdminPublishDestination	type	export	132	157	26
+apps/admin/src/features/deployment/api/deployment-api.types.ts	AdminStaticPublishPreview	interface	export	162	172	11
 apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_TRANSLATIONS	const		17	1641	1625
 apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_STRINGS	const		1645	1697	53
 apps/admin/src/features/deployment/deployment-i18n.tsx	DEPLOYMENT_AUDIT_ES	const		1699	1751	53
@@ -108,98 +123,94 @@ apps/admin/src/features/deployment/deployment-visuals.tsx	StepDoneIcon	function	
 apps/admin/src/features/deployment/deployment-visuals.tsx	DisclosureChevron	function	export	117	121	5
 apps/admin/src/features/deployment/deployment-visuals.tsx	CapabilityMark	function	export	133	143	11
 apps/admin/src/features/deployment/deployment-visuals.tsx	CapabilityList	function	export	152	163	12
-apps/admin/src/features/deployment/hooks/deployment-overview-dependencies.hooks.ts	defaultDeploymentOverviewPort	const	export	6	8	3
-apps/admin/src/features/deployment/hooks/deployment-overview-dependencies.hooks.ts	createFakeDeploymentOverviewPort	function	export	15	22	8
+apps/admin/src/features/deployment/hooks/deployment-overview-dependencies.hooks.ts	defaultDeploymentOverviewPort	const	export	7	9	3
+apps/admin/src/features/deployment/hooks/deployment-overview-dependencies.hooks.ts	createFakeDeploymentOverviewPort	function	export	16	23	8
 apps/admin/src/features/deployment/hooks/deployment-overview-port.hooks.ts	DeploymentOverviewPort	interface	export	8	10	3
-apps/admin/src/features/deployment/hooks/dockerfile-source-dependencies.hooks.ts	defaultDockerfileSourcePort	const	export	6	9	4
-apps/admin/src/features/deployment/hooks/dockerfile-source-dependencies.hooks.ts	FAKE_DOCKERFILE_ETAG	const	export	16	16	1
-apps/admin/src/features/deployment/hooks/dockerfile-source-dependencies.hooks.ts	createFakeDockerfileSourcePort	function	export	29	39	11
+apps/admin/src/features/deployment/hooks/dockerfile-source-dependencies.hooks.ts	defaultDockerfileSourcePort	const	export	7	10	4
+apps/admin/src/features/deployment/hooks/dockerfile-source-dependencies.hooks.ts	FAKE_DOCKERFILE_ETAG	const	export	17	17	1
+apps/admin/src/features/deployment/hooks/dockerfile-source-dependencies.hooks.ts	createFakeDockerfileSourcePort	function	export	30	40	11
 apps/admin/src/features/deployment/hooks/dockerfile-source-port.hooks.ts	DockerfileSourcePort	interface	export	16	24	9
-apps/admin/src/features/deployment/hooks/publish-credentials-dependencies.hooks.ts	withSaveVerification	function		6	8	3
-apps/admin/src/features/deployment/hooks/publish-credentials-dependencies.hooks.ts	defaultPublishCredentialsPort	const	export	12	18	7
-apps/admin/src/features/deployment/hooks/publish-credentials-dependencies.hooks.ts	createFakePublishCredentialsPort	function	export	22	45	24
-apps/admin/src/features/deployment/hooks/publish-credentials-port.hooks.ts	PublishCredentialSaveResult	type	export	11	13	3
-apps/admin/src/features/deployment/hooks/publish-credentials-port.hooks.ts	PublishCredentialsPort	interface	export	19	39	21
-apps/admin/src/features/deployment/hooks/static-export-dependencies.hooks.ts	defaultStaticExportPort	const	export	6	9	4
-apps/admin/src/features/deployment/hooks/static-export-dependencies.hooks.ts	createFakeStaticExportPort	function	export	16	28	13
+apps/admin/src/features/deployment/hooks/publish-credentials-dependencies.hooks.ts	withSaveVerification	function		7	9	3
+apps/admin/src/features/deployment/hooks/publish-credentials-dependencies.hooks.ts	defaultPublishCredentialsPort	const	export	13	19	7
+apps/admin/src/features/deployment/hooks/publish-credentials-dependencies.hooks.ts	createFakePublishCredentialsPort	function	export	23	46	24
+apps/admin/src/features/deployment/hooks/publish-credentials-port.hooks.ts	PublishCredentialSaveResult	type	export	6	8	3
+apps/admin/src/features/deployment/hooks/publish-credentials-port.hooks.ts	PublishCredentialsPort	interface	export	14	34	21
+apps/admin/src/features/deployment/hooks/static-export-dependencies.hooks.ts	defaultStaticExportPort	const	export	7	10	4
+apps/admin/src/features/deployment/hooks/static-export-dependencies.hooks.ts	createFakeStaticExportPort	function	export	17	29	13
 apps/admin/src/features/deployment/hooks/static-export-port.hooks.ts	StaticExportPort	interface	export	8	16	9
-apps/admin/src/features/deployment/hooks/static-publish-dependencies.hooks.ts	defaultStaticPublishPort	const	export	6	11	6
-apps/admin/src/features/deployment/hooks/static-publish-dependencies.hooks.ts	createFakeStaticPublishPort	function	export	17	41	25
+apps/admin/src/features/deployment/hooks/static-publish-dependencies.hooks.ts	defaultStaticPublishPort	const	export	7	12	6
+apps/admin/src/features/deployment/hooks/static-publish-dependencies.hooks.ts	createFakeStaticPublishPort	function	export	18	42	25
 apps/admin/src/features/deployment/hooks/static-publish-port.hooks.ts	StaticPublishPort	interface	export	7	22	16
-apps/admin/src/features/deployment/hooks/use-deployment-overview.hooks.ts	DeploymentOverviewController	interface	export	22	29	8
-apps/admin/src/features/deployment/hooks/use-deployment-overview.hooks.ts	useDeploymentOverview	function	export	31	45	15
-apps/admin/src/features/deployment/hooks/use-deployment-overview.hooks.ts	useWiredDeploymentOverview	function	export	55	59	5
-apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	DockerfileSourceController	interface	export	61	120	60
-apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	readSaveConflictPayload	function		131	137	7
-apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	useDockerfileDraft	function		140	166	27
-apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	useDockerfileCopy	function		169	184	16
-apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	DockerfileDraft	type		186	186	1
-apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	useDockerfileSave	function		189	273	85
-apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	useDockerfileSource	function	export	275	299	25
-apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	useWiredDockerfileSource	function	export	306	310	5
-apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	PublishCredentialRowState	interface	export	94	129	36
-apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	PublishCredentialsController	interface	export	131	186	56
-apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	RowFormState	interface		190	200	11
-apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	SelectionState	interface		204	207	4
-apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	blankRowFormState	function		209	211	3
-apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	rowFormStateAfterSave	function		221	223	3
-apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	rowFormStateFor	function		226	228	3
-apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	publishCredentialSubmitErrorMessage	function		241	246	6
-apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	usePublishCredentials	function	export	248	448	201
-apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	useWiredPublishCredentials	function	export	455	459	5
-apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	verifiedCredentialSummary	function		462	466	5
-apps/admin/src/features/deployment/hooks/use-static-export.hooks.ts	StaticExportController	interface	export	51	97	47
-apps/admin/src/features/deployment/hooks/use-static-export.hooks.ts	EXPORT_POLL_INTERVAL_MS	const		103	103	1
-apps/admin/src/features/deployment/hooks/use-static-export.hooks.ts	POLL_FAILURE_LIMIT	const		110	110	1
-apps/admin/src/features/deployment/hooks/use-static-export.hooks.ts	useStaticExport	function	export	112	238	127
-apps/admin/src/features/deployment/hooks/use-static-export.hooks.ts	useWiredStaticExport	function	export	245	249	5
-apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts	UNKNOWN_ERROR	const		37	37	1
-apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts	StaticPublishController	interface	export	67	136	70
-apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts	StaticPublishOptions	interface	export	139	142	4
-apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts	PUBLISH_POLL_INTERVAL_MS	const		148	148	1
-apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts	PUBLISH_POLL_FAILURE_LIMIT	const		153	153	1
-apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts	useStaticPublish	function	export	155	382	228
-apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts	publishRequestFor	function		386	398	13
-apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts	useWiredStaticPublish	function	export	405	409	5
-apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts	selectedPublishTargetId	function		412	417	6
-apps/admin/src/features/deployment/rules.ts	DEPLOYMENT_EXPORT_RESOURCE	const	export	39	39	1
-apps/admin/src/features/deployment/rules.ts	PUBLISH_CREDENTIAL_ROW_LABEL	const	export	51	51	1
-apps/admin/src/features/deployment/rules.ts	credentialsForProvider	function	export	58	63	6
-apps/admin/src/features/deployment/rules.ts	defaultCredentialForProvider	function	export	76	82	7
-apps/admin/src/features/deployment/rules.ts	withPromotedDefault	function	export	99	108	10
-apps/admin/src/features/deployment/rules.ts	PublishCredentialSubmitFailure	type	export	116	116	1
-apps/admin/src/features/deployment/rules.ts	publishTargetById	function	export	120	125	6
-apps/admin/src/features/deployment/rules.ts	requiredFieldsFilled	function	export	131	136	6
-apps/admin/src/features/deployment/rules.ts	declaredFieldValues	function	export	141	153	13
-apps/admin/src/features/deployment/rules.ts	buildStaticPublishConfig	function	export	157	162	6
-apps/admin/src/features/deployment/rules.ts	staticPublishFormReadyForPreview	function	export	166	171	6
-apps/admin/src/features/deployment/rules.ts	staticPublishFormReadyToPublish	function	export	175	181	7
-apps/admin/src/features/deployment/rules.ts	staticPublishProjectNameToSend	function	export	186	191	6
-apps/admin/src/features/deployment/rules.ts	credentialFormReadyToSave	function	export	196	201	6
-apps/admin/src/features/deployment/rules.ts	buildCredentialConnectionInput	function	export	205	215	11
-apps/admin/src/features/deployment/rules.ts	StaticPublishProjectNameCopy	interface	export	221	224	4
-apps/admin/src/features/deployment/rules.ts	staticPublishProjectNameCopy	function	export	226	230	5
-apps/admin/src/features/deployment/rules.ts	fieldNameHandleSegment	function	export	235	237	3
-apps/admin/src/features/deployment/rules.ts	publishConfigFieldHandleId	function	export	242	244	3
-apps/admin/src/features/deployment/rules.ts	credentialFieldHandleId	function	export	249	255	7
-apps/admin/src/features/deployment/rules.ts	credentialNoun	function	export	260	263	4
-apps/admin/src/features/deployment/rules.ts	credentialStepSubtitle	function	export	270	278	9
-apps/admin/src/features/deployment/rules.ts	fieldHelpText	function	export	283	285	3
-apps/admin/src/features/deployment/rules.ts	fieldLabelParts	function	export	290	292	3
-apps/admin/src/features/deployment/rules.ts	DeploymentCapability	interface	export	296	300	5
-apps/admin/src/features/deployment/rules.ts	STATIC_SITE_CAPABILITIES	const	export	316	321	6
-apps/admin/src/features/deployment/rules.ts	FULL_SITE_CAPABILITIES	const	export	331	334	4
-apps/admin/src/features/deployment/rules.ts	deploymentEnvVarNoteKey	function	export	350	358	9
-apps/admin/src/features/deployment/rules.ts	isEnvVarRowUnsafe	function	export	369	371	3
-apps/admin/src/features/deployment/rules.ts	envVarStatusLabelKey	function	export	379	383	5
-apps/admin/src/features/deployment/rules.ts	credentialVerifyStatusClass	function	export	390	396	7
-apps/admin/src/features/deployment/rules.ts	runtimeModeLabelKey	function	export	399	401	3
-apps/admin/src/features/deployment/rules.ts	productionGateLabelKey	function	export	407	409	3
-apps/admin/src/features/deployment/rules.ts	daemonStatusLabelKey	function	export	412	414	3
-apps/admin/src/features/deployment/rules.ts	ownerPasswordLabelKey	function	export	417	419	3
-apps/admin/src/features/deployment/rules.ts	runStatusTone	function	export	425	433	9
-apps/admin/src/features/deployment/rules.ts	exportRunStatusLabelKey	function	export	438	444	7
-apps/admin/src/features/deployment/rules.ts	publishRunStatusLabelKey	function	export	450	456	7
+apps/admin/src/features/deployment/hooks/use-deployment-overview.hooks.ts	DeploymentOverviewController	interface	export	23	30	8
+apps/admin/src/features/deployment/hooks/use-deployment-overview.hooks.ts	useDeploymentOverview	function	export	32	46	15
+apps/admin/src/features/deployment/hooks/use-deployment-overview.hooks.ts	useWiredDeploymentOverview	function	export	56	60	5
+apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	DockerfileSourceController	interface	export	62	121	60
+apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	readSaveConflictPayload	function		132	138	7
+apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	useDockerfileSource	function	export	140	280	141
+apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts	useWiredDockerfileSource	function	export	287	291	5
+apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	PublishCredentialRowState	interface	export	88	123	36
+apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	PublishCredentialsController	interface	export	125	180	56
+apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	RowFormState	interface		184	194	11
+apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	SelectionState	interface		198	201	4
+apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	blankRowFormState	function		203	205	3
+apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	rowFormStateAfterSave	function		215	217	3
+apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	rowFormStateFor	function		220	222	3
+apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	publishCredentialSubmitErrorMessage	function		235	240	6
+apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	usePublishCredentials	function	export	242	442	201
+apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	useWiredPublishCredentials	function	export	449	453	5
+apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts	verifiedCredentialSummary	function		456	460	5
+apps/admin/src/features/deployment/hooks/use-static-export.hooks.ts	StaticExportController	interface	export	52	98	47
+apps/admin/src/features/deployment/hooks/use-static-export.hooks.ts	EXPORT_POLL_INTERVAL_MS	const		104	104	1
+apps/admin/src/features/deployment/hooks/use-static-export.hooks.ts	POLL_FAILURE_LIMIT	const		111	111	1
+apps/admin/src/features/deployment/hooks/use-static-export.hooks.ts	useStaticExport	function	export	113	239	127
+apps/admin/src/features/deployment/hooks/use-static-export.hooks.ts	useWiredStaticExport	function	export	246	250	5
+apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts	UNKNOWN_ERROR	const		31	31	1
+apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts	StaticPublishController	interface	export	61	130	70
+apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts	StaticPublishOptions	interface	export	133	136	4
+apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts	PUBLISH_POLL_INTERVAL_MS	const		142	142	1
+apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts	PUBLISH_POLL_FAILURE_LIMIT	const		147	147	1
+apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts	useStaticPublish	function	export	149	376	228
+apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts	publishRequestFor	function		380	392	13
+apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts	useWiredStaticPublish	function	export	399	403	5
+apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts	selectedPublishTargetId	function		406	411	6
+apps/admin/src/features/deployment/rules.ts	DEPLOYMENT_EXPORT_RESOURCE	const	export	26	26	1
+apps/admin/src/features/deployment/rules.ts	PUBLISH_CREDENTIAL_ROW_LABEL	const	export	38	38	1
+apps/admin/src/features/deployment/rules.ts	credentialsForProvider	function	export	45	50	6
+apps/admin/src/features/deployment/rules.ts	defaultCredentialForProvider	function	export	63	69	7
+apps/admin/src/features/deployment/rules.ts	withPromotedDefault	function	export	86	95	10
+apps/admin/src/features/deployment/rules.ts	PublishCredentialSubmitFailure	type	export	103	103	1
+apps/admin/src/features/deployment/rules.ts	publishTargetById	function	export	107	112	6
+apps/admin/src/features/deployment/rules.ts	requiredFieldsFilled	function	export	118	123	6
+apps/admin/src/features/deployment/rules.ts	declaredFieldValues	function	export	128	140	13
+apps/admin/src/features/deployment/rules.ts	buildStaticPublishConfig	function	export	144	149	6
+apps/admin/src/features/deployment/rules.ts	staticPublishFormReadyForPreview	function	export	153	158	6
+apps/admin/src/features/deployment/rules.ts	staticPublishFormReadyToPublish	function	export	162	168	7
+apps/admin/src/features/deployment/rules.ts	staticPublishProjectNameToSend	function	export	173	178	6
+apps/admin/src/features/deployment/rules.ts	credentialFormReadyToSave	function	export	183	188	6
+apps/admin/src/features/deployment/rules.ts	buildCredentialConnectionInput	function	export	192	202	11
+apps/admin/src/features/deployment/rules.ts	StaticPublishProjectNameCopy	interface	export	208	211	4
+apps/admin/src/features/deployment/rules.ts	staticPublishProjectNameCopy	function	export	213	217	5
+apps/admin/src/features/deployment/rules.ts	fieldNameHandleSegment	function	export	222	224	3
+apps/admin/src/features/deployment/rules.ts	publishConfigFieldHandleId	function	export	229	231	3
+apps/admin/src/features/deployment/rules.ts	credentialFieldHandleId	function	export	236	242	7
+apps/admin/src/features/deployment/rules.ts	credentialNoun	function	export	247	250	4
+apps/admin/src/features/deployment/rules.ts	credentialStepSubtitle	function	export	257	265	9
+apps/admin/src/features/deployment/rules.ts	fieldHelpText	function	export	270	272	3
+apps/admin/src/features/deployment/rules.ts	fieldLabelParts	function	export	277	279	3
+apps/admin/src/features/deployment/rules.ts	DeploymentCapability	interface	export	283	287	5
+apps/admin/src/features/deployment/rules.ts	STATIC_SITE_CAPABILITIES	const	export	303	308	6
+apps/admin/src/features/deployment/rules.ts	FULL_SITE_CAPABILITIES	const	export	318	321	4
+apps/admin/src/features/deployment/rules.ts	deploymentEnvVarNoteKey	function	export	337	345	9
+apps/admin/src/features/deployment/rules.ts	isEnvVarRowUnsafe	function	export	356	358	3
+apps/admin/src/features/deployment/rules.ts	envVarStatusLabelKey	function	export	366	370	5
+apps/admin/src/features/deployment/rules.ts	credentialVerifyStatusClass	function	export	377	383	7
+apps/admin/src/features/deployment/rules.ts	runtimeModeLabelKey	function	export	386	388	3
+apps/admin/src/features/deployment/rules.ts	productionGateLabelKey	function	export	394	396	3
+apps/admin/src/features/deployment/rules.ts	daemonStatusLabelKey	function	export	399	401	3
+apps/admin/src/features/deployment/rules.ts	ownerPasswordLabelKey	function	export	404	406	3
+apps/admin/src/features/deployment/rules.ts	runStatusTone	function	export	412	420	9
+apps/admin/src/features/deployment/rules.ts	exportRunStatusLabelKey	function	export	425	431	7
+apps/admin/src/features/deployment/rules.ts	publishRunStatusLabelKey	function	export	437	443	7
 apps/website/src/features/deployments/agent-tools.ts	AgentToolSideEffect	type	export	27	27	1
 apps/website/src/features/deployments/agent-tools.ts	AgentToolActorClassRule	type	export	29	29	1
 apps/website/src/features/deployments/agent-tools.ts	AgentToolDefinition	type	export	35	35	1
@@ -208,20 +219,20 @@ apps/website/src/features/deployments/agent-tools.ts	TRIGGER_EXPORT_SCHEMA	const
 apps/website/src/features/deployments/agent-tools.ts	SET_DOCKERFILE_SCHEMA	const		77	93	17
 apps/website/src/features/deployments/agent-tools.ts	deploymentsAgentToolCatalog	const	export	101	142	42
 apps/website/src/features/deployments/capability-card.ts	capabilityCard	const	export	4	34	31
-apps/website/src/features/deployments/deploy-config-registry.ts	DEPLOY_CONFIGS_FILENAME	const	export	40	40	1
-apps/website/src/features/deployments/deploy-config-registry.ts	configContribution	const		42	47	6
-apps/website/src/features/deployments/deploy-config-registry.ts	loadDeployConfigGeneratorsFromSource	function	export	56	59	4
-apps/website/src/features/deployments/deploy-config-registry.ts	readDeployConfigTargetIdsFromSource	function	export	69	78	10
-apps/website/src/features/deployments/deploy-config-registry.ts	loadBundledDeployConfigGenerators	function	export	82	91	10
-apps/website/src/features/deployments/deploy-config-registry.ts	readBundledDeployConfigTargetIds	function	export	95	97	3
-apps/website/src/features/deployments/deploy-config-registry.ts	buildRegistry	function		100	113	14
-apps/website/src/features/deployments/deploy-config-registry.ts	readBundledDeployConfigDescriptors	function	export	117	130	14
-apps/website/src/features/deployments/deploy-config-registry.ts	readBundledDeployConfigCandidatePaths	function	export	133	138	6
-apps/website/src/features/deployments/deploy-config-registry.ts	readBundledDeployWorkflowFile	function	export	141	144	4
-apps/website/src/features/deployments/deploy-config-registry.ts	loadDeployWorkflowFiles	function	export	148	157	10
-apps/website/src/features/deployments/deploy-config-registry.ts	readBundledDeployWorkflowFiles	function	export	160	162	3
-apps/website/src/features/deployments/deploy-config-registry.ts	workflowFilesOf	function		163	165	3
-apps/website/src/features/deployments/deploy-config-registry.ts	parseDeployConfigsFile	function	export	173	175	3
+apps/website/src/features/deployments/deploy-config-registry.ts	DEPLOY_CONFIGS_FILENAME	const	export	39	39	1
+apps/website/src/features/deployments/deploy-config-registry.ts	configContribution	const		41	46	6
+apps/website/src/features/deployments/deploy-config-registry.ts	loadDeployConfigGeneratorsFromSource	function	export	55	58	4
+apps/website/src/features/deployments/deploy-config-registry.ts	readDeployConfigTargetIdsFromSource	function	export	68	77	10
+apps/website/src/features/deployments/deploy-config-registry.ts	loadBundledDeployConfigGenerators	function	export	81	90	10
+apps/website/src/features/deployments/deploy-config-registry.ts	readBundledDeployConfigTargetIds	function	export	94	96	3
+apps/website/src/features/deployments/deploy-config-registry.ts	buildRegistry	function		99	112	14
+apps/website/src/features/deployments/deploy-config-registry.ts	readBundledDeployConfigDescriptors	function	export	116	129	14
+apps/website/src/features/deployments/deploy-config-registry.ts	readBundledDeployConfigCandidatePaths	function	export	132	137	6
+apps/website/src/features/deployments/deploy-config-registry.ts	readBundledDeployWorkflowFile	function	export	140	143	4
+apps/website/src/features/deployments/deploy-config-registry.ts	loadDeployWorkflowFiles	function	export	147	156	10
+apps/website/src/features/deployments/deploy-config-registry.ts	readBundledDeployWorkflowFiles	function	export	159	161	3
+apps/website/src/features/deployments/deploy-config-registry.ts	workflowFilesOf	function		162	164	3
+apps/website/src/features/deployments/deploy-config-registry.ts	parseDeployConfigsFile	function	export	172	174	3
 apps/website/src/features/deployments/deploy-config.ts	HOST_DEPLOY_ENV	const	export	49	49	1
 apps/website/src/features/deployments/deploy-config.ts	OVERLAYS_DIR	const		53	53	1
 apps/website/src/features/deployments/deploy-config.ts	HostDeployNotesPorts	interface	export	55	60	6
@@ -451,9 +462,9 @@ apps/website/src/features/deployments/publish-credentials/store.ts	resolveForPub
 apps/website/src/features/deployments/publish-credentials/store.ts	resolveFromInventory	function		631	648	18
 apps/website/src/features/deployments/publish-credentials/store.ts	selectedCandidateProviderId	function		650	656	7
 apps/website/src/features/deployments/publish-credentials/store.ts	openPublishVaultRecord	function		659	666	8
-apps/website/src/features/deployments/publish-credentials/store.ts	publishConnectionFromPayload	function		668	677	10
-apps/website/src/features/deployments/publish-credentials/store.ts	resolveDefaultForPublish	function	export	682	693	12
-apps/website/src/features/deployments/publish-credentials/store.ts	healAccountLabel	function	export	711	714	4
+apps/website/src/features/deployments/publish-credentials/store.ts	publishConnectionFromPayload	function		668	678	11
+apps/website/src/features/deployments/publish-credentials/store.ts	resolveDefaultForPublish	function	export	683	694	12
+apps/website/src/features/deployments/publish-credentials/store.ts	healAccountLabel	function	export	712	715	4
 apps/website/src/features/deployments/publish-credentials/types.ts	PublishProviderId	type	export	41	41	1
 apps/website/src/features/deployments/publish-credentials/types.ts	PublishConnectionInput	type	export	54	54	1
 apps/website/src/features/deployments/publish-credentials/types.ts	PublishCredentialSummary	interface	export	59	87	29
@@ -581,14 +592,13 @@ apps/website/src/features/deployments/tool-registrations.ts	DeploymentsToolDeps	
 apps/website/src/features/deployments/tool-registrations.ts	CATALOG_BY_ID	const		66	66	1
 apps/website/src/features/deployments/tool-registrations.ts	deploymentsDerivedRisk	const	export	73	85	13
 apps/website/src/features/deployments/tool-registrations.ts	pickExportSiteOptions	function	export	95	97	3
-apps/website/src/features/deployments/tool-registrations.ts	triggerExportTool	function		99	115	17
-apps/website/src/features/deployments/tool-registrations.ts	buildDeploymentsRegistrations	function	export	117	188	72
-apps/website/src/features/deployments/tool-registrations.ts	deployment_trigger_export	handler		127	128	2
-apps/website/src/features/deployments/tool-registrations.ts	deployment_diagnose_static_export	handler		129	134	6
-apps/website/src/features/deployments/tool-registrations.ts	deployment_get_export_status	handler		135	141	7
-apps/website/src/features/deployments/tool-registrations.ts	deployment_get_dockerfile	handler		142	147	6
-apps/website/src/features/deployments/tool-registrations.ts	deployment_set_dockerfile	handler		148	188	41
-apps/website/src/features/deployments/tool-registrations.ts	contributeDeploymentsTools	function	export	196	198	3
+apps/website/src/features/deployments/tool-registrations.ts	buildDeploymentsRegistrations	function	export	99	185	87
+apps/website/src/features/deployments/tool-registrations.ts	deployment_trigger_export	handler		109	125	17
+apps/website/src/features/deployments/tool-registrations.ts	deployment_diagnose_static_export	handler		126	131	6
+apps/website/src/features/deployments/tool-registrations.ts	deployment_get_export_status	handler		132	138	7
+apps/website/src/features/deployments/tool-registrations.ts	deployment_get_dockerfile	handler		139	144	6
+apps/website/src/features/deployments/tool-registrations.ts	deployment_set_dockerfile	handler		145	185	41
+apps/website/src/features/deployments/tool-registrations.ts	contributeDeploymentsTools	function	export	193	195	3
 apps/website/src/features/deployments/types.ts	DeploymentProviderId	type	export	11	11	1
 apps/website/src/features/deployments/types.ts	DeploymentTargetRecord	interface	export	17	27	11
 apps/website/src/features/deployments/types.ts	ReleaseSource	type	export	32	34	3

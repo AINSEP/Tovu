@@ -1,4 +1,4 @@
 path	lines	blob	prod_importers	test_importers
-apps/website/src/features/theme/visitor-publication.ts	156	863085afdae86a363ef87d0a9b2568807e2087d5	5	4
-apps/website/src/features/theme/active-theme.ts	223	c558c20ab59be75e988188ba9fb015da078dae5a	15	7
+apps/website/src/features/theme/visitor-publication.ts	156	863085afdae86a363ef87d0a9b2568807e2087d5	5	5
+apps/website/src/features/theme/active-theme.ts	223	c558c20ab59be75e988188ba9fb015da078dae5a	18	7
 apps/website/src/features/theme/verify-active-theme.ts	69	7fd7d5e9e11a5b0e71c358b2b1b059291c2d0c8b	1	1

@@ -24,8 +24,8 @@ apps/website/src/features/site-inspection/admin-screens.generated.ts	src	63	d214
 apps/website/src/features/site-inspection/agent-tools.ts	src	189	1cb17cba73c5	2	2	6	0	0	0	0	5		core		MIXED	core	
 apps/website/src/features/site-inspection/deps.ts	src	166	34629774e893	2	2	4	0	0	0	0	3	http	cms,core,diagnostics				
 apps/website/src/features/site-inspection/index.ts	src	98	d4e920b35490	5	3	7	0	0	0	0	1						assistant,features/site-guide,server/inbound/admin-http/routes/site,server/runtime/composition
-apps/website/src/features/site-inspection/live-url.ts	src	188	80309dcd46ab	2	2	6	0	6	0	0	6		core		MIXED	diagnostics/web-evidence	
-apps/website/src/features/site-inspection/page-body.ts	src	114	837e91a458e2	5	3	6	0	0	0	0	0		core	parse5	MIXED	agentic	features/post,features/web
+apps/website/src/features/site-inspection/live-url.ts	src	188	0ab272d0da05	2	2	6	0	6	0	0	6		core		MIXED	diagnostics/web-evidence	
+apps/website/src/features/site-inspection/page-body.ts	src	114	8c9d38fe811b	5	3	6	0	0	0	0	0		core	parse5	MIXED	agentic	features/post,features/web
 apps/website/src/features/site-inspection/published-page.ts	src	528	1877aafb7fc2	6	8	15	0	1	0	0	3	events,http,net	core,diagnostics		MIXED	diagnostics/web-evidence/same-origin.ts	features/consent,server/runtime/composition
 apps/website/src/features/site-inspection/section-collector.ts	src	177	492db58ca1d7	3	1	8	0	0	0	0	1				MOVE	core	
 apps/website/src/features/site-inspection/site-capabilities.ts	src	316	fc9c8d780606	4	2	18	0	0	0	0	3				MIXED	agentic	

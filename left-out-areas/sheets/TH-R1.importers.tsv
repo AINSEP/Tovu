@@ -27,8 +27,9 @@ apps/website/src/features/theme/preview-switcher.ts	apps/website/src/features/th
 apps/website/src/features/theme/preview-switcher.ts	apps/website/src/features/theme/preview-switcher-html.ts	prod	3	./preview-switcher.js
 apps/website/src/features/theme/preview-switcher.ts	apps/website/src/features/theme/preview-switcher-tools.ts	prod	11	./preview-switcher.js
 apps/website/src/features/theme/preview-switcher.ts	apps/website/src/server/inbound/public-http/middleware/theme-preview-switcher.ts	prod	6	#src/features/theme/preview-switcher
-apps/website/src/features/theme/preview-switcher.ts	apps/website/src/server/runtime/composition/app.ts	prod	26	#src/features/theme/preview-switcher
+apps/website/src/features/theme/preview-switcher.ts	apps/website/src/server/runtime/composition/app.ts	prod	29	#src/features/theme/preview-switcher
 apps/website/src/features/theme/preview-switcher.ts	apps/website/src/server/runtime/composition/deps.ts	prod	37	#src/features/theme/preview-switcher
+apps/website/src/features/theme/preview-switcher.ts	apps/website/src/server/runtime/composition/memory-deps/slices/site-title-settings.ts	prod	6	#src/features/theme/preview-switcher
 apps/website/src/features/theme/preview-switcher-html.ts	apps/website/src/features/site-export/theme-preview-manifest.ts	prod	3	#src/features/theme/preview-switcher-html
 apps/website/src/features/theme/preview-switcher-html.ts	apps/website/src/features/theme/__tests__/preview-switcher-layout.test.ts	test	11	../preview-switcher-html.js
 apps/website/src/features/theme/preview-switcher-html.ts	apps/website/src/features/theme/__tests__/preview-switcher.test.ts	test	8	../preview-switcher-html.js

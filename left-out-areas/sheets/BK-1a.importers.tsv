@@ -16,8 +16,3 @@ apps/website/src/features/site-backup/plan-store.ts	apps/website/src/features/si
 apps/website/src/features/site-backup/plan-store.ts	apps/website/src/features/site-backup/share-preparation.ts	prod	12	./plan-store.js
 apps/website/src/features/site-backup/plan-store.ts	apps/website/src/features/site-backup/share-zip.ts	prod	6	./plan-store.js
 apps/website/src/features/site-backup/plan-store.ts	apps/website/src/features/source-control/__tests__/github-backup-secrets.integration.test.ts	test	17	../../site-backup/plan-store.js
-apps/website/src/features/site-backup/push-jobs.ts	apps/website/src/features/site-backup/__tests__/push-jobs.unit.test.ts	test	4	../push-jobs.js
-apps/website/src/features/site-backup/push-jobs.ts	apps/website/src/features/site-backup/__tests__/tool-registrations.unit.test.ts	test	24	../push-jobs.js
-apps/website/src/features/site-backup/push-jobs.ts	apps/website/src/features/site-backup/backup-service.ts	prod	39	./push-jobs.js
-apps/website/src/features/site-backup/push-jobs.ts	apps/website/src/features/site-backup/share-backend.ts	prod	10	./push-jobs.js
-apps/website/src/features/site-backup/push-jobs.ts	apps/website/src/features/source-control/__tests__/github-backup-secrets.integration.test.ts	test	18	../../site-backup/push-jobs.js

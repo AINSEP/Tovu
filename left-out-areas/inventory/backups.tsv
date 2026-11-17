@@ -1,33 +1,37 @@
 path	kind	lines	blob12	prod_importers	test_importers	export_stmts	env_reads	outbound_hits	vendor_word_hits	sql_hits	secret_word_hits	node_builtins	jini_pkgs	npm	classify_label	classify_target	outside_prod_importer_dirs
 apps/admin/src/features/import-export/GitBackupCard.tsx	src	141	f7f4da36ac43	1	1	3	0	0	0	0	0		core		MOVE-AFTER	admin	
 apps/admin/src/features/import-export/ImportExport.tsx	src	121	548723e0ca2e	1	1	2	0	0	0	0	0		core,ui				
-apps/admin/src/features/import-export/__tests__/GitBackupCard.unit.test.tsx	test	297	df4216fb3276	0	0	0	0	0	22	0	21		agentic	vitest			
+apps/admin/src/features/import-export/__tests__/GitBackupCard.unit.test.tsx	test	298	4bd8ff020651	0	0	0	0	0	22	0	21		agentic	vitest			
 apps/admin/src/features/import-export/__tests__/ImportExport.unit.test.tsx	test	141	5b331d36db34	0	0	0	0	0	0	0	0			vitest			
-apps/admin/src/features/import-export/git-backup-rules.ts	src	64	3a87950c7d3d	1	1	9	0	0	0	0	10		core		MOVE-AFTER		
-apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	src	77	669bf7450e15	2	2	8	0	0	0	0	6				MIXED	admin	
-apps/admin/src/features/import-export/hooks/use-git-backup.hooks.ts	src	139	cf4126e25b05	2	2	5	0	0	0	0	0		core,ui	react	MOVE-AFTER		
-apps/admin/src/features/import-export/hooks/use-import-export.hooks.ts	src	40	e170809882e9	1	1	3	0	0	0	0	0		core	react			
+apps/admin/src/features/import-export/api/import-export-api.ts	src	21	433f0f44ee03	1	4	1	0	0	0	0	0						features/deployment/hooks
+apps/admin/src/features/import-export/api/import-export-api.types.ts	src	21	bd663b67349c	6	2	2	0	0	0	0	0						features/deployment,features/deployment/hooks
+apps/admin/src/features/import-export/git-backup-rules.ts	src	64	123c8957b1cb	1	1	9	0	0	0	0	10		core		MOVE-AFTER		
+apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	src	80	2736a85a58a7	2	2	8	0	0	0	0	6				MIXED	admin	
+apps/admin/src/features/import-export/hooks/use-git-backup.hooks.ts	src	139	491682cfae10	2	2	5	0	0	0	0	0		core,ui	react	MOVE-AFTER		
+apps/admin/src/features/import-export/hooks/use-import-export.hooks.ts	src	40	ce83db79dcfa	1	1	3	0	0	0	0	0		core	react			
 apps/admin/src/features/import-export/import-export-i18n.ts	src	35	2bb1a5fc72aa	1	1	2	0	0	0	0	0		core				
 apps/admin/src/features/import-export/import-export-links.ts	src	18	1c0570884408	1	0	2	0	0	0	0	0						
-apps/admin/src/features/import-export/import-export-tabs.tsx	src	54	d9cb6578af03	1	1	4	0	0	0	0	0		core,ui				
+apps/admin/src/features/import-export/import-export-tabs.tsx	src	67	4549e675f04f	1	1	4	0	0	0	0	0		core,ui				
 apps/admin/src/features/import-export/index.ts	src	5	810a2c2fdc25	1	1	1	0	0	0	0	0						apps/admin/src
-apps/admin/src/features/recovery/Recovery.tsx	src	572	9e5dd81a11e5	1	2	3	0	0	0	0	8		admin,core,ui		MOVE-AFTER	db/recovery	
-apps/admin/src/features/recovery/__tests__/Recovery.unit.test.tsx	test	526	f19d8b01fffd	0	0	0	0	1	0	0	2			@testing-library/user-event,vitest			
+apps/admin/src/features/recovery/Recovery.tsx	src	572	e7fa99c5882b	1	2	3	0	0	0	0	8		admin,core,ui		MOVE-AFTER	db/recovery	
+apps/admin/src/features/recovery/__tests__/Recovery.unit.test.tsx	test	526	70966ebc45ef	0	0	0	0	1	0	0	2			@testing-library/user-event,vitest			
 apps/admin/src/features/recovery/__tests__/recovery-i18n.unit.test.tsx	test	47	b7594fc4b430	0	0	0	0	0	0	0	2			@testing-library/react,vitest			
-apps/admin/src/features/recovery/__tests__/rules.unit.test.ts	test	138	46634e994283	0	0	0	0	0	0	0	0			vitest			
-apps/admin/src/features/recovery/__tests__/use-recovery-navigation.unit.test.ts	test	56	12e071f404c4	0	0	0	0	0	0	0	0			@testing-library/react,vitest			
-apps/admin/src/features/recovery/__tests__/use-recovery.unit.test.ts	test	533	f3b87a16105a	0	0	0	0	0	0	0	0			vitest			
-apps/admin/src/features/recovery/__tests__/use-restore-flow.unit.test.ts	test	459	fca892878096	0	0	0	0	0	0	0	18			vitest			
-apps/admin/src/features/recovery/hooks/recovery-dependencies.hooks.ts	src	96	3e7a298bfee3	1	2	3	0	0	0	0	0				MIXED		
-apps/admin/src/features/recovery/hooks/recovery-port.hooks.ts	src	21	9de251951322	2	0	1	0	0	0	0	0						
-apps/admin/src/features/recovery/hooks/restore-flow-dependencies.hooks.ts	src	71	c0c23f73e8a8	1	1	3	0	0	0	0	4						
-apps/admin/src/features/recovery/hooks/restore-flow-port.hooks.ts	src	13	61d560017c13	2	0	1	0	0	0	0	1						
-apps/admin/src/features/recovery/hooks/use-recovery-navigation.hooks.ts	src	43	e76f2267254a	1	1	2	0	0	0	0	0		core	react			
-apps/admin/src/features/recovery/hooks/use-recovery.hooks.ts	src	176	4983f2b50065	1	4	4	0	1	0	0	0		core,ui	react			
-apps/admin/src/features/recovery/hooks/use-restore-flow.hooks.ts	src	180	de285d89c703	1	1	4	0	0	0	0	9		core	react	DEDUPE-UNVERIFIED	ui	
+apps/admin/src/features/recovery/__tests__/rules.unit.test.ts	test	138	fe6cc8ad706b	0	0	0	0	0	0	0	0			vitest			
+apps/admin/src/features/recovery/__tests__/use-recovery-navigation.unit.test.ts	test	56	d55790370c38	0	0	0	0	0	0	0	0			@testing-library/react,vitest			
+apps/admin/src/features/recovery/__tests__/use-recovery.unit.test.ts	test	533	f2a8e67b602d	0	0	0	0	0	0	0	0			vitest			
+apps/admin/src/features/recovery/__tests__/use-restore-flow.unit.test.ts	test	459	02303266ece7	0	0	0	0	0	0	0	18			vitest			
+apps/admin/src/features/recovery/api/recovery-api.ts	src	46	d12b48996d4c	2	2	1	0	0	0	0	3						
+apps/admin/src/features/recovery/api/recovery-api.types.ts	src	68	bed3ffc419ee	10	5	10	0	0	0	0	0						
+apps/admin/src/features/recovery/hooks/recovery-dependencies.hooks.ts	src	92	f9bd618618ee	1	2	3	0	0	0	0	0				MIXED		
+apps/admin/src/features/recovery/hooks/recovery-port.hooks.ts	src	16	505c5fc40dca	2	0	1	0	0	0	0	0						
+apps/admin/src/features/recovery/hooks/restore-flow-dependencies.hooks.ts	src	67	e80f935a7c08	1	1	3	0	0	0	0	4						
+apps/admin/src/features/recovery/hooks/restore-flow-port.hooks.ts	src	14	cef95dd55b8c	2	0	1	0	0	0	0	1						
+apps/admin/src/features/recovery/hooks/use-recovery-navigation.hooks.ts	src	43	f78bb1646c14	1	1	2	0	0	0	0	0		core	react			
+apps/admin/src/features/recovery/hooks/use-recovery.hooks.ts	src	177	e9b16e461381	1	4	4	0	1	0	0	0		core,ui	react			
+apps/admin/src/features/recovery/hooks/use-restore-flow.hooks.ts	src	181	3f5896df8086	1	1	4	0	0	0	0	9		core	react	DEDUPE-UNVERIFIED	ui	
 apps/admin/src/features/recovery/index.ts	src	9	e3e3de6f8bb7	1	0	1	0	0	0	0	0						apps/admin/src
 apps/admin/src/features/recovery/recovery-i18n.tsx	src	1400	fae778230835	4	3	6	0	0	0	0	9		core	react			
-apps/admin/src/features/recovery/rules.ts	src	163	c2f951a172a7	2	2	8	0	0	0	0	1		core		MIXED	admin	
+apps/admin/src/features/recovery/rules.ts	src	163	b2aa81b6244d	2	2	8	0	0	0	0	1		core		MIXED	admin	
 apps/website/src/features/recovery/__tests__/integration/recovery-orchestrator.execute-restore.integration.test.ts	test	193	7b2f3a67f171	0	0	0	0	0	0	0	27	assert/strict,test					
 apps/website/src/features/recovery/__tests__/integration/restore-flow-ordering.integration.test.ts	test	83	b88d8d678bf2	0	0	0	0	0	0	0	14	assert/strict,test					
 apps/website/src/features/recovery/__tests__/unit/agent-tools.unit.test.ts	test	63	f4b9d1d99d50	0	0	0	0	0	0	0	0	assert/strict,test					
@@ -41,7 +45,7 @@ apps/website/src/features/recovery/__tests__/unit/recovery-orchestrator.plan-res
 apps/website/src/features/recovery/__tests__/unit/restore-points.unit.test.ts	test	109	34283c65170a	0	0	0	0	0	0	0	4	assert/strict,test	db				
 apps/website/src/features/recovery/__tests__/unit/tool-registrations.deep-link-validation-status.unit.test.ts	test	71	e75ec029e1a2	0	0	0	0	0	0	0	0	assert/strict,test	core				
 apps/website/src/features/recovery/agent-tools.ts	src	174	dd2e6be0f52b	1	3	4	0	0	0	0	4		core		MIXED	core	
-apps/website/src/features/recovery/capability-card.ts	src	27	2b3298768f3e	1	0	1	0	0	0	0	5		agentic				server/runtime/composition
+apps/website/src/features/recovery/capability-card.ts	src	27	636a4b4dd1c1	1	0	1	0	0	0	0	5						server/runtime/composition
 apps/website/src/features/recovery/gated-hooks.ts	src	11	266b62623513	2	2	4	0	0	0	0	0		db				server/inbound/admin-http/routes/recovery
 apps/website/src/features/recovery/recovery-orchestrator.ts	src	2	81b5a08a3458	2	5	1	0	0	0	0	0		db				server/inbound/admin-http/routes/recovery
 apps/website/src/features/recovery/tool-registrations.ts	src	415	93022a9f57b9	2	3	4	0	0	0	0	7		cms,core,daemon,db,platform		MOVE-AFTER	db/tools	assistant,server/runtime/composition
@@ -73,7 +77,7 @@ apps/website/src/features/site-backup/__tests__/integration/archive-sanitization
 apps/website/src/features/site-backup/__tests__/integration/archive-v2.integration.test.ts	test	328	976d4a35b8a9	0	0	0	0	0	0	17	8	assert/strict,crypto,fs,os,path,test	agent-plugins	better-sqlite3,sharp,yauzl			
 apps/website/src/features/site-backup/__tests__/integration/import-sanitization-history.integration.test.ts	test	56	39c6a8192403	0	0	0	0	0	0	4	20	assert/strict,fs,path,test					
 apps/website/src/features/site-backup/__tests__/integration/import-schema-version.integration.test.ts	test	114	5a9e612ca5d5	0	0	0	0	0	0	8	0	assert/strict,test	agent-plugins	better-sqlite3,yauzl			
-apps/website/src/features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts	test	182	73b346ee60f3	0	0	0	0	0	4	4	86	assert/strict,fs,http,net,path,stream,test	agent-plugins,integrations,platform	express			
+apps/website/src/features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts	test	183	6ecb150826e1	0	0	0	0	0	4	4	88	assert/strict,fs,http,net,path,stream,test	agent-plugins,integrations,platform	express			
 apps/website/src/features/site-backup/__tests__/integration/saved-keys-store.fixture.ts	test	15	ab842007cfa3	0	1	1	0	0	0	3	24		core,db,platform				
 apps/website/src/features/site-backup/__tests__/integration/share-database-blobs.integration.test.ts	test	70	107959f57fa0	0	0	0	0	0	0	2	12	assert/strict,test	agent-plugins,db	better-sqlite3,yauzl			
 apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts	test	358	fc14314bfc4b	0	0	0	0	5	8	29	16	assert/strict,crypto,fs,http,path,test,url	agent-plugins,cms	better-sqlite3,express			
@@ -116,21 +120,21 @@ apps/website/src/features/site-backup/__tests__/unit/archive-manifest-entry.unit
 apps/website/src/features/site-backup/__tests__/unit/archive-manifest.unit.test.ts	test	27	d067cc58ca07	0	0	0	0	0	0	0	0	assert/strict,test					
 apps/website/src/features/site-backup/__tests__/unit/archive-media.unit.test.ts	test	33	ff4cb32fc88b	0	0	0	0	0	0	0	0	assert/strict,crypto,test					
 apps/website/src/features/site-backup/__tests__/unit/archive-paths.unit.test.ts	test	52	cae61dba0a81	0	0	0	0	0	0	0	0	assert/strict,test					
-apps/website/src/features/site-backup/archive-extensions.ts	src	120	a6c2fe20f44e	1	2	1	0	0	0	0	0	crypto	plugins				
+apps/website/src/features/site-backup/archive-extensions.ts	src	122	718cc76a6f7d	1	2	1	0	0	0	0	0	crypto	plugins				
 apps/website/src/features/site-backup/archive-manifest.ts	src	177	5237bc05ed4e	9	7	9	0	0	0	0	1						
 apps/website/src/features/site-backup/archive-media.ts	src	93	469b051522fa	2	3	4	0	0	0	0	0	crypto,path					
-apps/website/src/features/site-backup/archive-paths.ts	src	90	210455b3f06e	5	3	7	0	0	0	0	1						
+apps/website/src/features/site-backup/archive-paths.ts	src	90	a493abd4add4	5	3	7	0	0	0	0	1						
 apps/website/src/features/site-backup/backup-service.ts	src	788	74936160b41d	2	3	10	2	4	4	0	195	fs/promises,os,path	cms,core,diagnostics,integrations		MIXED	devops/source-control	server/inbound/admin-http/routes/system
-apps/website/src/features/site-backup/bundled-export-file-policy.ts	src	42	d12e7ed22aa5	1	2	2	0	0	0	0	0	fs/promises,module,path	agent-plugins				
-apps/website/src/features/site-backup/credential-warnings.ts	src	51	64463e46a402	13	7	3	0	0	0	0	25				MOVE-AFTER	diagnostics/redaction	
+apps/website/src/features/site-backup/bundled-export-file-policy.ts	src	42	b7c06bb7c4b0	1	2	2	0	0	0	0	0	fs/promises,module,path	agent-plugins				
+apps/website/src/features/site-backup/credential-warnings.ts	src	51	7414d965787a	13	7	3	0	0	0	0	25				MOVE-AFTER	diagnostics/redaction	
 apps/website/src/features/site-backup/import-archive-reader.ts	src	85	8bd5026aea13	2	15	1	0	0	0	0	0		agent-plugins	yauzl	MOVE	agent-plugins/lifecycle/yauzl	server/runtime/composition
 apps/website/src/features/site-backup/import-backend-steps.ts	src	174	7aea4366f6ea	1	3	15	0	2	0	0	15	fs	core,platform				
-apps/website/src/features/site-backup/import-backend.ts	src	215	1d2a06ec3c70	7	14	4	0	2	0	0	27	crypto,fs,path	agent-plugins,diagnostics				cli/commands,server/inbound/admin-http/routes/system,server/routes,server/runtime/composition
+apps/website/src/features/site-backup/import-backend.ts	src	193	e6f0fbba2174	7	14	4	0	2	0	0	25	crypto,fs,path	agent-plugins,diagnostics				cli/commands,server/inbound/admin-http/routes/system,server/routes,server/runtime/composition
 apps/website/src/features/site-backup/import-database.ts	src	139	f0b9ff4d2111	3	4	5	2	0	0	0	12	child_process,crypto,fs,fs/promises,os,path,readline,stream,url	core,platform				cli/commands,server/runtime/composition
-apps/website/src/features/site-backup/import-keep-off.ts	src	188	f8e7a5706904	1	0	3	0	0	0	2	0	fs,path	db	parse5			
-apps/website/src/features/site-backup/import-plugin-state.ts	src	82	55866e041ea7	1	1	2	0	0	0	0	0	fs,path					
+apps/website/src/features/site-backup/import-keep-off.ts	src	188	f0af9c156a1f	1	0	3	0	0	0	2	0	fs,path	db	parse5			
+apps/website/src/features/site-backup/import-plugin-state.ts	src	82	495006679794	1	1	2	0	0	0	0	0	fs,path					
 apps/website/src/features/site-backup/import-registry.ts	src	162	1e2008bf6031	3	6	5	0	0	0	0	3	crypto,fs,path	platform				server/runtime/composition
-apps/website/src/features/site-backup/import-restore-placement.ts	src	122	a2bb8800d8b3	2	1	5	0	0	0	0	0	fs,path					
+apps/website/src/features/site-backup/import-restore-placement.ts	src	122	20ab6c68489c	2	1	5	0	0	0	0	0	fs,path					
 apps/website/src/features/site-backup/import-restore.ts	src	104	fa904c4500fd	2	3	3	0	0	0	2	4	fs,path	db				server/runtime/composition
 apps/website/src/features/site-backup/import-verifier-inventory.ts	src	264	bc36717dee1a	2	2	11	0	0	0	0	13	crypto	agent-plugins				
 apps/website/src/features/site-backup/import-verifier-projection.ts	src	99	92f711961261	1	1	3	0	0	0	0	0						
@@ -141,7 +145,7 @@ apps/website/src/features/site-backup/push-engine.ts	src	191	10b38dc49bc9	4	2	7	
 apps/website/src/features/site-backup/push-jobs.ts	src	121	982ea190f0fd	2	3	4	0	0	0	0	0				MOVE	core/primitives	
 apps/website/src/features/site-backup/saved-keys-port.ts	src	18	411acc25f848	11	1	3	0	0	0	0	13		platform				server/runtime/composition
 apps/website/src/features/site-backup/saved-keys.ts	src	43	a039effa7cac	2	4	3	0	0	0	0	14		core				cli/commands,server/runtime/composition
-apps/website/src/features/site-backup/share-backend.ts	src	279	9a511cd39739	5	10	3	0	0	1	1	40	crypto	agent-plugins,db				server/inbound/admin-http/routes/system,server/routes,server/runtime/composition
+apps/website/src/features/site-backup/share-backend.ts	src	244	a0f844b3cef7	5	10	3	0	0	1	1	37	crypto	agent-plugins,db				server/inbound/admin-http/routes/system,server/routes,server/runtime/composition
 apps/website/src/features/site-backup/share-database/repo.sqlite.ts	src	445	85bf2cb41c6b	2	2	5	0	0	0	5	37	fs/promises,os,path,timers/promises	core,db	kysely	MIXED	db/data-modules	server/runtime/composition,server/runtime/composition/import-database
 apps/website/src/features/site-backup/share-export-failure.ts	src	26	2488fde72be3	2	2	3	0	0	0	0	0						server/inbound/admin-http/routes/system
 apps/website/src/features/site-backup/share-file-policy.ts	src	146	0fc300ffbd0c	13	10	8	0	0	0	0	44				MIXED	devops/static-export	

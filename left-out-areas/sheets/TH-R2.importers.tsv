@@ -19,5 +19,5 @@ apps/website/src/features/theme/theme-file-import.ts	apps/website/src/features/t
 apps/website/src/features/theme/theme-trash.ts	apps/website/src/features/theme/__tests__/theme-trash.test.ts	test	14	#src/features/theme/theme-trash
 apps/website/src/features/theme/theme-trash.ts	apps/website/src/features/theme/__tests__/theme-trash.test.ts	test	395	#src/features/theme/theme-trash
 apps/website/src/features/theme/theme-trash.ts	apps/website/src/features/theme/__tests__/theme-trash.test.ts	test	416	#src/features/theme/theme-trash
-apps/website/src/features/theme/theme-trash.ts	apps/website/src/server/runtime/composition/app.ts	prod	144	#src/features/theme/theme-trash
+apps/website/src/features/theme/theme-trash.ts	apps/website/src/server/runtime/composition/app.ts	prod	87	#src/features/theme/theme-trash
 apps/website/src/features/theme/theme-trash.ts	apps/website/src/server/runtime/composition/deps.ts	prod	186	#src/features/theme/theme-trash

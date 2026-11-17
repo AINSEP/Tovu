@@ -1,0 +1,10 @@
+file	importer	kind	line	specifier
+apps/website/src/features/site-inspection/page-body.ts	apps/website/src/features/post/preview-tool.ts	prod	10	#src/features/site-inspection/page-body
+apps/website/src/features/site-inspection/page-body.ts	apps/website/src/features/site-inspection/__tests__/L131-characterization.unit.test.ts	test	11	../page-body.js
+apps/website/src/features/site-inspection/page-body.ts	apps/website/src/features/site-inspection/__tests__/page-body.T4-07-characterization.unit.test.ts	test	3	../page-body.js
+apps/website/src/features/site-inspection/page-body.ts	apps/website/src/features/site-inspection/__tests__/page-body.test.ts	test	5	../page-body.js
+apps/website/src/features/site-inspection/page-body.ts	apps/website/src/features/site-inspection/live-url.ts	prod	9	./page-body.js
+apps/website/src/features/site-inspection/page-body.ts	apps/website/src/features/site-inspection/published-page.ts	prod	1	./page-body.js
+apps/website/src/features/site-inspection/page-body.ts	apps/website/src/features/site-inspection/published-page.ts	prod	59	./page-body.js
+apps/website/src/features/site-inspection/page-body.ts	apps/website/src/features/site-inspection/tool-registrations.ts	prod	5	./page-body.js
+apps/website/src/features/site-inspection/page-body.ts	apps/website/src/features/web/tool-registrations.ts	prod	9	../site-inspection/page-body.js

@@ -1,25 +1,29 @@
 path	kind	lines	blob12	prod_importers	test_importers	export_stmts	env_reads	outbound_hits	vendor_word_hits	sql_hits	secret_word_hits	node_builtins	jini_pkgs	npm	classify_label	classify_target	outside_prod_importer_dirs
 apps/admin/src/features/database/Database.hooks.ts	src	6	1260ca99d3f3	1	0	1	0	0	0	0	0						
-apps/admin/src/features/database/Database.tsx	src	535	5e3296c38e3f	1	1	5	0	0	0	0	8		admin,core,ui				
-apps/admin/src/features/database/__tests__/Database.unit.test.tsx	test	520	3b9a37194e6c	0	0	0	0	0	0	0	8			@testing-library/user-event,react,vitest			
-apps/admin/src/features/database/__tests__/database-i18n.unit.test.tsx	test	69	dba7a472e059	0	0	0	0	0	0	0	4			@testing-library/react,vitest			
-apps/admin/src/features/database/__tests__/schema-state-rules.unit.test.ts	test	95	7c7115da636b	0	0	0	0	0	0	0	0			vitest			
-apps/admin/src/features/database/__tests__/use-migrate-forward-section.unit.test.tsx	test	454	ea98a6891d74	0	0	0	0	1	0	0	17			@testing-library/react,vitest			
-apps/admin/src/features/database/__tests__/use-schema-state-section.unit.test.tsx	test	104	706775b568e0	0	0	0	0	0	0	0	0			@testing-library/react,vitest			
+apps/admin/src/features/database/Database.tsx	src	535	f77615516dcc	1	1	5	0	0	0	0	8		admin,core,ui				
+apps/admin/src/features/database/__tests__/Database.unit.test.tsx	test	520	e19841a37ffa	0	0	0	0	0	0	0	8			@testing-library/user-event,react,vitest			
+apps/admin/src/features/database/__tests__/database-i18n.unit.test.tsx	test	69	320086eb3c79	0	0	0	0	0	0	0	4			@testing-library/react,vitest			
+apps/admin/src/features/database/__tests__/database-visuals.unit.test.tsx	test	23	98b290272530	0	0	0	0	0	0	0	0			@testing-library/react,vitest			
+apps/admin/src/features/database/__tests__/schema-state-rules.unit.test.ts	test	95	790d3d49c893	0	0	0	0	0	0	0	0			vitest			
+apps/admin/src/features/database/__tests__/use-migrate-forward-section.unit.test.tsx	test	454	e159e4df64e5	0	0	0	0	1	0	0	17			@testing-library/react,vitest			
+apps/admin/src/features/database/__tests__/use-schema-state-section.unit.test.tsx	test	104	1f31c0cc8960	0	0	0	0	0	0	0	0			@testing-library/react,vitest			
 apps/admin/src/features/database/__tests__/use-schema-state-section.wired.unit.test.tsx	test	28	e97918777786	0	0	0	0	0	0	0	0			vitest			
-apps/admin/src/features/database/__tests__/use-timeline-section.unit.test.tsx	test	390	e7e21b9c9904	0	0	0	0	0	0	0	0			@testing-library/react,vitest			
+apps/admin/src/features/database/__tests__/use-timeline-section.unit.test.tsx	test	390	30653e61e7b4	0	0	0	0	0	0	0	0			@testing-library/react,vitest			
+apps/admin/src/features/database/api/database-api.ts	src	60	e12ad4b591f0	4	4	1	0	0	0	0	3						features/recovery/hooks
+apps/admin/src/features/database/api/database-api.types.ts	src	40	d11a394f35c4	13	6	7	0	0	0	0	0						features/recovery/api,features/recovery/hooks
 apps/admin/src/features/database/database-i18n.tsx	src	1231	ac7c954185c3	5	1	2	0	0	0	0	8		core	react			
-apps/admin/src/features/database/hooks/migrate-forward-section-dependencies.hooks.ts	src	58	5df8315ce7cb	1	1	3	0	0	0	0	6				DELETE		
-apps/admin/src/features/database/hooks/migrate-forward-section-port.hooks.ts	src	12	83c13fc6de9a	2	0	1	0	0	0	0	1				DELETE		
-apps/admin/src/features/database/hooks/schema-state-section-dependencies.hooks.ts	src	34	464e708f73a4	1	1	3	0	0	0	0	0				DELETE		
-apps/admin/src/features/database/hooks/schema-state-section-port.hooks.ts	src	18	83b680534615	2	0	1	0	0	0	0	0				DELETE		
-apps/admin/src/features/database/hooks/timeline-section-dependencies.hooks.ts	src	45	fa500ca99f50	1	2	3	0	0	0	0	0				DELETE		
-apps/admin/src/features/database/hooks/timeline-section-port.hooks.ts	src	19	5864b388a8b4	2	0	1	0	0	0	0	0				DELETE		
-apps/admin/src/features/database/hooks/use-migrate-forward-section.hooks.ts	src	193	ee002f266850	1	2	5	0	0	0	0	15		core,ui	react			
+apps/admin/src/features/database/database-visuals.tsx	src	39	322d38d38909	1	1	2	0	0	0	0	0						
+apps/admin/src/features/database/hooks/migrate-forward-section-dependencies.hooks.ts	src	60	c3b108059dbd	1	1	3	0	0	0	0	6				DELETE		
+apps/admin/src/features/database/hooks/migrate-forward-section-port.hooks.ts	src	13	e37bcd3670bf	2	0	1	0	0	0	0	1				DELETE		
+apps/admin/src/features/database/hooks/schema-state-section-dependencies.hooks.ts	src	35	5d3b606bda5f	1	1	3	0	0	0	0	0				DELETE		
+apps/admin/src/features/database/hooks/schema-state-section-port.hooks.ts	src	18	da3419f40a1f	2	0	1	0	0	0	0	0				DELETE		
+apps/admin/src/features/database/hooks/timeline-section-dependencies.hooks.ts	src	46	d7029ca8f415	1	2	3	0	0	0	0	0				DELETE		
+apps/admin/src/features/database/hooks/timeline-section-port.hooks.ts	src	19	cbbec5ae3203	2	0	1	0	0	0	0	0				DELETE		
+apps/admin/src/features/database/hooks/use-migrate-forward-section.hooks.ts	src	193	6220a919163d	1	2	5	0	0	0	0	15		core,ui	react			
 apps/admin/src/features/database/hooks/use-schema-state-section.hooks.ts	src	79	65c33dd6f8fa	1	4	4	0	0	0	0	0		core,ui				
-apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts	src	190	301d5b6dcc84	1	4	5	0	0	0	0	0		ui	react	MIXED	ui/fetch-query	
+apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts	src	233	aa85640d3b85	1	4	5	0	0	0	0	0		ui	react	MIXED	ui/fetch-query	
 apps/admin/src/features/database/index.ts	src	9	026dd4351c74	1	0	1	0	0	0	0	0						apps/admin/src
-apps/admin/src/features/database/rules.ts	src	172	674f4f42e1fc	4	2	5	0	0	0	0	0		core				
+apps/admin/src/features/database/rules.ts	src	172	d5146de6d456	4	2	5	0	0	0	0	0		core				
 apps/website/src/features/database/__tests__/db-tool-descriptors.snapshot.unit.test.ts	test	177	7f245da7436d	0	0	0	0	0	0	5	3	assert/strict,test					
 apps/website/src/features/database/__tests__/integration/boot-sequence.integration.test.ts	test	196	1927ca1df678	0	0	0	0	0	0	0	0	assert/strict,test	db				
 apps/website/src/features/database/__tests__/unit/agent-tools.unit.test.ts	test	79	28eb1c4ab7c9	0	0	0	0	0	0	0	1	assert/strict,test					
@@ -34,7 +38,7 @@ apps/website/src/features/database/adapter.sqlite.ts	src	77	e71933a2ab2d	4	1	4	0
 apps/website/src/features/database/agent-tools.ts	src	9	683c8bf0bad7	1	4	2	0	0	0	0	0		core,db		DELETE	core	
 apps/website/src/features/database/db-messages.ts	src	22	31378855c6d8	2	0	1	0	0	0	0	0		db				
 apps/website/src/features/database/gated-hooks.ts	src	10	de1b7fa7ac59	4	1	3	0	0	0	0	0		db				features/recovery,server/inbound/admin-http/routes/database,server/routes
-apps/website/src/features/database/repo.memory.ts	src	217	8a7cb8dbd911	2	5	6	0	0	0	0	0		db		MIXED	db	server/runtime/composition
+apps/website/src/features/database/repo.memory.ts	src	217	8a7cb8dbd911	3	5	6	0	0	0	0	0		db		MIXED	db	server/runtime/composition,server/runtime/composition/memory-deps/slices
 apps/website/src/features/database/timeline.ts	src	3	fdc0f0d8227e	5	2	2	0	0	0	0	0		db		SHIM		platform/db/sqlite,server/inbound/admin-http/routes/database,server/routes
 apps/website/src/features/database/tool-registrations.ts	src	263	77ee4d8a906d	2	2	4	0	0	0	1	4		cms,core,daemon,db,platform				assistant,server/runtime/composition
 apps/website/src/platform/db/__tests__/drift.unit.test.ts	test	71	750dc0864684	0	0	0	0	0	0	0	0	assert/strict,test					
@@ -49,7 +53,7 @@ apps/website/src/platform/db/__tests__/migration-manifest.test.ts	test	931	a62bb
 apps/website/src/platform/db/__tests__/oauth-pending-store.sqlite.test.ts	test	207	f32deccbbecd	0	0	0	0	0	0	1	11	assert/strict,crypto,fs,os,path,test	core	drizzle-orm			
 apps/website/src/platform/db/__tests__/page-empty-template-choice-migration.test.ts	test	150	5ac193ab292b	0	0	0	0	0	0	7	0	assert/strict,fs,os,path,test		better-sqlite3			
 apps/website/src/platform/db/__tests__/parity/capture-vault-golden.ts	test	48	91c4d558faa3	0	0	0	0	0	0	0	6	fs,path,util					
-apps/website/src/platform/db/__tests__/parity/parity-harness.ts	test	621	ab7d9fe4a362	0	8	39	0	0	10	16	241	assert/strict,path,url	db,platform	kysely			
+apps/website/src/platform/db/__tests__/parity/parity-harness.ts	test	621	49df528b23a5	0	8	39	0	0	10	16	241	assert/strict,path,url	db,platform	kysely			
 apps/website/src/platform/db/__tests__/parity/vault-boundary-parity.test.ts	test	93	77bf8b7513bd	0	0	0	0	0	0	0	38	assert/strict,fs,path,test					
 apps/website/src/platform/db/__tests__/parity/vault-cascade-parity.test.ts	test	39	bab89e0b2d4c	0	0	0	0	0	0	0	8	assert/strict,fs,test					
 apps/website/src/platform/db/__tests__/parity/vault-hot-path.test.ts	test	122	04df8ccb7594	0	0	0	0	0	0	0	42	assert/strict,test					
@@ -68,7 +72,7 @@ apps/website/src/platform/db/__tests__/schema-migration-drift.test.ts	test	496	a
 apps/website/src/platform/db/__tests__/schema-postgres-drift.test.ts	test	97	c92f24cb0591	0	0	0	0	0	0	0	7	assert/strict,child_process,fs,os,path,test					
 apps/website/src/platform/db/__tests__/schema-postgres-generator-fixtures.test.ts	test	167	4154dd4daf16	0	0	0	0	1	0	17	0	assert/strict,test		drizzle-orm,drizzle-orm/pg-core,drizzle-orm/sqlite-core			
 apps/website/src/platform/db/__tests__/schema-postgres-parity.test.ts	test	517	add83e9365ae	0	0	0	0	2	0	22	71	assert/strict,fs,path,test		drizzle-orm,drizzle-orm/pg-core,drizzle-orm/sqlite-core			
-apps/website/src/platform/db/__tests__/sealed-credential-discard.test.ts	test	242	3f74db9058d5	0	0	0	0	0	0	25	112	assert/strict,test	platform	kysely			
+apps/website/src/platform/db/__tests__/sealed-credential-discard.test.ts	test	243	8189c95c329e	0	0	0	0	0	0	25	112	assert/strict,test	platform	kysely			
 apps/website/src/platform/db/__tests__/sealed-credential-inventory.test.ts	test	159	870c2648a8fb	0	0	0	0	0	0	15	69	assert/strict,test		kysely			
 apps/website/src/platform/db/__tests__/seed-content-store.postgres.test.ts	test	133	9e4576415c69	0	0	0	0	0	0	2	0	assert/strict,test	db				
 apps/website/src/platform/db/__tests__/site-title-preexisting-marker-migration.test.ts	test	100	37db9cc47600	0	0	0	0	0	0	5	0	assert/strict,fs,os,path,test					
@@ -79,10 +83,11 @@ apps/website/src/platform/db/chat-kernel.ts	src	65	b011fb096d7b	12	11	8	0	0	0	4	
 apps/website/src/platform/db/client/__tests__/open-site-db-client.unit.test.ts	test	275	4ebbea27bbe2	0	0	0	0	0	0	10	1	assert/strict,fs,os,path,test	db	typescript,…			
 apps/website/src/platform/db/client/open-site-db-client.ts	src	161	aa5026f06c1e	2	2	7	2	0	0	4	3	fs,path	db				server/runtime/composition
 apps/website/src/platform/db/content-database.generated.ts	src	1112	8b156fc2d4a5	44	26	86	0	1	0	2	32			kysely			features/content-types,features/entries,features/external-mcp,features/identity,features/members,features/navigation,features/newsletter,features/pages,features/post,features/presentation,features/settings,features/site-backup,features/site-search,features/taxonomy,features/trash,features/trash/adapters,features/workspace,platform/site-dir,server/runtime/composition
-apps/website/src/platform/db/content-kernel.ts	src	23	20e8fb29b9bb	137	163	2	0	0	0	4	0		db				assistant,cli/commands/plugin,features/comments,features/content-types,features/custom-credentials,features/database-transfer,features/entries,features/external-mcp,features/forms,features/identity,features/media,features/member-login,features/members,features/navigation,features/newsletter,features/pages,features/permanent-delete,features/plugin-runtime,features/post,features/presentation,feature
+apps/website/src/platform/db/content-kernel.ts	src	23	20e8fb29b9bb	138	163	2	0	0	0	4	0		db				assistant,cli/commands/plugin,features/comments,features/content-types,features/custom-credentials,features/database-transfer,features/entries,features/external-mcp,features/forms,features/identity,features/media,features/member-login,features/members,features/navigation,features/newsletter,features/pages,features/permanent-delete,features/plugin-runtime,features/post,features/presentation,feature
 apps/website/src/platform/db/drift.ts	src	57	7c044a9e7ae6	2	1	3	0	0	0	1	0						features/database
 apps/website/src/platform/db/journal-kernel.ts	src	116	901de3cd4232	4	2	6	0	0	0	4	0		db	kysely	MIXED	db/kernel	server/runtime/composition
 apps/website/src/platform/db/kernel/__tests__/backup.test.ts	test	43	d81cdb111c56	0	0	0	0	0	0	7	0	assert/strict,fs,os,path,test		better-sqlite3,kysely			
+apps/website/src/platform/db/kernel/__tests__/checkpoint-stopped-wal.unit.test.ts	test	84	285f262d174d	0	0	0	0	0	0	0	0	assert/strict,fs,os,path,test		better-sqlite3			
 apps/website/src/platform/db/kernel/__tests__/content-seeds.ts	test	34	ef72ed4fe7dc	0	11	2	0	0	0	0	0						
 apps/website/src/platform/db/kernel/__tests__/database-types.test.ts	test	128	629cd1c4cf81	0	0	0	1	0	0	5	7	assert/strict,fs,path,test,url	db				
 apps/website/src/platform/db/kernel/__tests__/dialect-json.test.ts	test	122	762f38371f23	0	0	0	0	0	0	11	0	assert/strict,test	db	better-sqlite3,drizzle-orm/better-sqlite3,kysely			
@@ -103,6 +108,7 @@ apps/website/src/platform/db/kernel/__tests__/postgres-pool-error.postgres.test.
 apps/website/src/platform/db/kernel/__tests__/raw-sqlite-scan.ts	test	239	f1b9305c334f	0	4	6	0	0	0	5	15	fs,path		typescript			
 apps/website/src/platform/db/kernel/__tests__/sqlite-only.test.ts	test	122	6a02a2b88943	0	0	0	0	0	0	17	0	assert/strict,test		better-sqlite3,kysely			
 apps/website/src/platform/db/kernel/__tests__/sqlite-same-file.test.ts	test	65	6214e40018fc	0	0	0	0	0	0	4	0	assert/strict,fs,os,path,test		better-sqlite3,kysely			
+apps/website/src/platform/db/kernel/checkpoint-stopped-wal.ts	src	19	7411b4ae2a07	1	1	1	0	0	0	0	0	fs		better-sqlite3	MOVE	db/sqlite	
 apps/website/src/platform/db/kernel/drivers/pglite-owner.ts	src	34	25eca0a33856	5	20	7	0	0	0	0	0		db	@electric-sql/pglite			platform/site-dir,server/runtime/composition
 apps/website/src/platform/db/kernel/drivers/pglite-socket.ts	src	10	208a378dc246	2	3	1	0	0	0	2	0		db	pg			server/runtime/composition
 apps/website/src/platform/db/kernel/drivers/pglite.ts	src	11	fdabc8dfdbaa	4	35	2	0	0	0	0	0		db	@electric-sql/pglite			platform/site-dir,server/runtime/composition
@@ -111,7 +117,7 @@ apps/website/src/platform/db/kernel/drivers/sqlite.ts	src	59	4e8383182f0d	27	85	
 apps/website/src/platform/db/kernel/index.ts	src	17	f6afedd5b41b	7	15	5	0	0	0	1	0						features/comments,features/trash,platform/site-dir,server/runtime/composition
 apps/website/src/platform/db/kernel/ops.ts	src	37	d438e450c9d6	3	3	4	0	0	0	2	0		db	@electric-sql/pglite	MIXED		platform/site-dir
 apps/website/src/platform/db/kernel/sqlite-only.ts	src	120	b6595b0f33e6	4	7	8	0	0	0	13	0		db	kysely	MOVE	db/kernel/sqlite	features/publish-content,server/runtime/composition,server/runtime/composition/import-database
-apps/website/src/platform/db/kernel/stopped-database.ts	src	13	15312aa20bed	1	0	2	0	0	0	0	0		db		MOVE	db/sqlite	platform/site-dir
+apps/website/src/platform/db/kernel/stopped-database.ts	src	52	77413d216b74	1	0	2	0	0	0	0	0	fs,path	db		MOVE	db/sqlite	platform/site-dir
 apps/website/src/platform/db/key-dependent-data.ts	src	106	63734c04e222	2	1	3	0	0	0	9	10		core,db	kysely	MOVE-AFTER	db/secrets-vault	platform/site-dir,server/inbound/admin-http/routes/system
 apps/website/src/platform/db/migration/manifest.ts	src	843	04fc112b5dd3	2	9	27	0	1	0	20	5		db	drizzle-orm/sqlite-core	MIXED		development/scripts,server/runtime/composition
 apps/website/src/platform/db/migrations/0000_legacy_baseline.postgres.ts	src	265	45e3b1160246	1	0	1	0	1	0	158	57						
@@ -204,7 +210,7 @@ apps/website/src/platform/db/migrations/__tests__/runner.postgres.test.ts	test	1
 apps/website/src/platform/db/migrations/__tests__/runner.test.ts	test	124	4d3bf678822e	0	0	0	0	0	0	12	0	assert/strict,test	core,db	kysely			
 apps/website/src/platform/db/migrations/__tests__/search-index-retired-step.test.ts	test	52	fac6f6787160	0	0	0	0	0	0	7	0	assert/strict,test	db	kysely			
 apps/website/src/platform/db/migrations/__tests__/search-index-step.test.ts	test	85	6b1a494f0d2e	0	0	0	0	0	0	13	0	assert/strict,test	db	kysely			
-apps/website/src/platform/db/migrations/__tests__/secrets-vault-step.test.ts	test	279	ff19ac853a68	0	0	0	0	0	0	39	113	assert/strict,test	db	kysely			
+apps/website/src/platform/db/migrations/__tests__/secrets-vault-step.test.ts	test	279	b2fd5e22a70d	0	0	0	0	0	0	39	113	assert/strict,test	db	kysely			
 apps/website/src/platform/db/migrations/__tests__/secrets-vault.fixture.ts	test	160	20aa8051cc0c	0	13	7	0	0	9	7	116		core,db,platform	kysely			
 apps/website/src/platform/db/migrations/__tests__/unify-vault-credentials-step.test.ts	test	56	d57dfb61202c	0	0	0	0	0	10	7	33	assert/strict,test		kysely			
 apps/website/src/platform/db/migrations/__tests__/vault-api-connection-kind.test.ts	test	65	2ef25548064c	0	0	0	0	0	0	13	66	assert/strict,test		kysely			
@@ -222,7 +228,8 @@ apps/website/src/platform/db/migrations/project/0001_project_credential_kinds.ts
 apps/website/src/platform/db/migrations/project/0002_site_key_attachments.ts	src	20	c9fadb8d75a9	1	1	2	0	0	0	5	0		core,db	kysely			
 apps/website/src/platform/db/migrations/runner.ts	src	28	168e01d7e8e0	5	20	5	0	0	0	4	0		core,db		DEDUPE-AFTER-HARDENING	db/migrate	platform/site-dir
 apps/website/src/platform/db/migrations/source-digests.ts	src	60	4d3e3eea09db	0	1	1	0	0	0	0	8						
-apps/website/src/platform/db/postgres/db-ops-adapter.ts	src	87	90afba7d5871	1	2	4	0	0	0	0	4						server/runtime/composition
+apps/website/src/platform/db/postgres/db-ops-adapter.ts	src	42	5ae6ffdffc21	1	1	2	0	0	0	0	1						server/runtime/composition
+apps/website/src/platform/db/postgres/db-ops.ts	src	51	f0ae79da9217	1	1	2	0	0	0	0	3				DELETE		
 apps/website/src/platform/db/prepare-content-store.ts	src	83	81d7aa5789e5	4	13	3	0	0	0	7	0		db	drizzle-orm			platform/site-dir,server/runtime/composition
 apps/website/src/platform/db/repos/__tests__/change-set-repo.test.ts	test	218	add5cb435204	0	0	0	0	0	0	0	0	assert/strict,test	core				
 apps/website/src/platform/db/repos/__tests__/custom-credential-repo.test.ts	test	381	8783aff8ef7c	0	0	0	0	0	1	0	164	assert/strict,test	core,platform				
@@ -246,7 +253,7 @@ apps/website/src/platform/db/repos/__tests__/source-control-credential-repo.test
 apps/website/src/platform/db/repos/__tests__/vault-repo.fixture.ts	test	12	0be542e82b45	0	16	1	0	0	0	2	8		db				
 apps/website/src/platform/db/repos/__tests__/vendor-credential-repo.test.ts	test	304	3e714013a38f	0	0	0	0	0	30	3	65	assert/strict,test		drizzle-orm			
 apps/website/src/platform/db/repos/analytics-sink.ts	src	120	dab5b976c36c	1	1	1	0	0	0	2	0			kysely	MOVE-AFTER	analytics/sql	
-apps/website/src/platform/db/repos/change-set-repo.ts	src	178	d1f992280830	1	2	1	0	0	0	2	0		core	kysely	MOVE-AFTER	cms/core/sql	
+apps/website/src/platform/db/repos/change-set-repo.ts	src	178	2be3ea0a1f43	1	2	1	0	0	0	2	0		core	kysely	MOVE-AFTER	cms/core/sql	
 apps/website/src/platform/db/repos/entry-refs-repo.ts	src	126	42001fded69c	2	2	2	0	0	0	2	0		core	kysely	MOVE-AFTER	cms	scripts
 apps/website/src/platform/db/repos/external-mcp-tool-approval-repo.ts	src	74	4f3426206d3a	1	1	1	0	0	0	2	0		core	kysely	MOVE-AFTER	mcp/federation	
 apps/website/src/platform/db/repos/form-delivery-repo.ts	src	266	285b2b03f98e	2	5	3	0	0	0	4	12		cms,core	kysely	MOVE-AFTER	cms/forms/sql	server/runtime/composition
@@ -300,9 +307,9 @@ apps/website/src/platform/db/sqlite/__tests__/webhook-delivery-repo.sqlite.test.
 apps/website/src/platform/db/sqlite/__tests__/webhook-subscription-repo.sqlite.test.ts	test	131	664c297d7757	0	0	0	0	0	0	2	4	assert/strict,fs,os,path,test					
 apps/website/src/platform/db/sqlite/analytics-sink.sqlite.ts	src	15	1018d1374d22	1	1	1	0	0	0	1	0						server/runtime/composition
 apps/website/src/platform/db/sqlite/change-set-repo.sqlite.ts	src	15	f9bc1957d64d	2	6	1	0	0	0	1	0						server/runtime/composition
-apps/website/src/platform/db/sqlite/chat-db.ts	src	75	33acf3db4fba	3	18	3	0	0	0	0	0		core,db		MIXED		assistant/persistence,development/scripts,server/runtime/composition
+apps/website/src/platform/db/sqlite/chat-db.ts	src	75	33acf3db4fba	3	19	3	0	0	0	0	0		core,db		MIXED		assistant/persistence,development/scripts,server/runtime/composition
 apps/website/src/platform/db/sqlite/chat-orphan-check.ts	src	191	94478581b27d	4	2	6	0	0	0	2	0		db	kysely			features/site-backup/share-database,platform/site-dir,server/runtime/composition
-apps/website/src/platform/db/sqlite/content-db.ts	src	189	787dff9ddda4	59	201	8	0	0	0	17	1	fs,path,url	core,db	drizzle-orm/better-sqlite3,drizzle-orm/better-sqlite3/migrator	MIXED		assistant,development/scripts,features/content-types,features/entries,features/external-mcp,features/forms,features/identity,features/members,features/navigation,features/newsletter,features/pages,features/plugin-runtime,features/post,features/presentation,features/redirects,features/settings,features/site-backup/share-database,features/taxonomy,features/tool-audit,features/widgets,features/worksp
+apps/website/src/platform/db/sqlite/content-db.ts	src	189	787dff9ddda4	60	201	8	0	0	0	17	1	fs,path,url	core,db	drizzle-orm/better-sqlite3,drizzle-orm/better-sqlite3/migrator	MIXED		assistant,development/scripts,features/content-types,features/entries,features/external-mcp,features/forms,features/identity,features/members,features/navigation,features/newsletter,features/pages,features/plugin-runtime,features/post,features/presentation,features/redirects,features/settings,features/site-backup/share-database,features/taxonomy,features/tool-audit,features/widgets,features/worksp
 apps/website/src/platform/db/sqlite/database-introspection-adapter.sqlite.ts	src	289	cb4d585ea293	2	2	1	0	0	0	33	1	fs,path,url	db	kysely	DEDUPE-AFTER-HARDENING		server/runtime/composition
 apps/website/src/platform/db/sqlite/database-journal-db.ts	src	46	87124ef0ae21	2	6	3	0	0	0	2	0			kysely			server/runtime/composition
 apps/website/src/platform/db/sqlite/database-journal-repo.ts	src	385	b1bf9f2dcfcd	2	6	3	0	0	0	2	1	fs/promises,path	cms,core,db	kysely	MOVE-AFTER	core	server/runtime/composition

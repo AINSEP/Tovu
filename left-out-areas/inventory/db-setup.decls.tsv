@@ -21,22 +21,32 @@ apps/admin/src/features/database/Database.tsx	SchemaStateWarningBanner	function	
 apps/admin/src/features/database/Database.tsx	databaseTabPanel	function		491	494	4
 apps/admin/src/features/database/Database.tsx	DatabaseProps	interface	export	496	500	5
 apps/admin/src/features/database/Database.tsx	Database	function	export	502	535	34
+apps/admin/src/features/database/api/database-api.ts	databaseApi	const	export	7	60	54
+apps/admin/src/features/database/api/database-api.types.ts	AdminLedgerRow	interface	export	2	8	7
+apps/admin/src/features/database/api/database-api.types.ts	RestorePointCostClass	type	export	10	10	1
+apps/admin/src/features/database/api/database-api.types.ts	AdminRestorePointSummary	interface	export	12	16	5
+apps/admin/src/features/database/api/database-api.types.ts	AdminSchemaDriftStatus	type	export	22	22	1
+apps/admin/src/features/database/api/database-api.types.ts	AdminSchemaSnapshot	interface	export	25	28	4
+apps/admin/src/features/database/api/database-api.types.ts	AdminSchemaState	interface	export	32	36	5
+apps/admin/src/features/database/api/database-api.types.ts	MigrateForwardExecuteResult	interface	export	38	40	3
 apps/admin/src/features/database/database-i18n.tsx	DATABASE_DICT	const		19	1125	1107
 apps/admin/src/features/database/database-i18n.tsx	t	const	export	1127	1127	1
 apps/admin/src/features/database/database-i18n.tsx	PLAN_READY_FRAGMENTS	const		1131	1220	90
 apps/admin/src/features/database/database-i18n.tsx	planReadyMessage	function	export	1222	1231	10
-apps/admin/src/features/database/hooks/migrate-forward-section-dependencies.hooks.ts	defaultMigrateForwardSectionPort	const	export	10	14	5
-apps/admin/src/features/database/hooks/migrate-forward-section-dependencies.hooks.ts	FakeMigrateForwardSectionPortOptions	interface	export	17	30	14
-apps/admin/src/features/database/hooks/migrate-forward-section-dependencies.hooks.ts	DEFAULT_PLAN	const		32	32	1
-apps/admin/src/features/database/hooks/migrate-forward-section-dependencies.hooks.ts	createFakeMigrateForwardSectionPort	function	export	41	58	18
-apps/admin/src/features/database/hooks/migrate-forward-section-port.hooks.ts	MigrateForwardSectionPort	interface	export	8	12	5
-apps/admin/src/features/database/hooks/schema-state-section-dependencies.hooks.ts	defaultSchemaStateSectionPort	const	export	10	12	3
-apps/admin/src/features/database/hooks/schema-state-section-dependencies.hooks.ts	FakeSchemaStateSectionPortOptions	interface	export	16	21	6
-apps/admin/src/features/database/hooks/schema-state-section-dependencies.hooks.ts	createFakeSchemaStateSectionPort	function	export	27	34	8
+apps/admin/src/features/database/database-visuals.tsx	TimelineIcon	function	export	17	28	12
+apps/admin/src/features/database/database-visuals.tsx	MigrateForwardIcon	function	export	31	39	9
+apps/admin/src/features/database/hooks/migrate-forward-section-dependencies.hooks.ts	defaultMigrateForwardSectionPort	const	export	12	16	5
+apps/admin/src/features/database/hooks/migrate-forward-section-dependencies.hooks.ts	FakeMigrateForwardSectionPortOptions	interface	export	19	32	14
+apps/admin/src/features/database/hooks/migrate-forward-section-dependencies.hooks.ts	DEFAULT_PLAN	const		34	34	1
+apps/admin/src/features/database/hooks/migrate-forward-section-dependencies.hooks.ts	createFakeMigrateForwardSectionPort	function	export	43	60	18
+apps/admin/src/features/database/hooks/migrate-forward-section-port.hooks.ts	MigrateForwardSectionPort	interface	export	9	13	5
+apps/admin/src/features/database/hooks/schema-state-section-dependencies.hooks.ts	defaultSchemaStateSectionPort	const	export	11	13	3
+apps/admin/src/features/database/hooks/schema-state-section-dependencies.hooks.ts	FakeSchemaStateSectionPortOptions	interface	export	17	22	6
+apps/admin/src/features/database/hooks/schema-state-section-dependencies.hooks.ts	createFakeSchemaStateSectionPort	function	export	28	35	8
 apps/admin/src/features/database/hooks/schema-state-section-port.hooks.ts	SchemaStateSectionPort	interface	export	13	18	6
-apps/admin/src/features/database/hooks/timeline-section-dependencies.hooks.ts	defaultTimelineSectionPort	const	export	10	12	3
-apps/admin/src/features/database/hooks/timeline-section-dependencies.hooks.ts	FakeTimelineSectionPortOptions	interface	export	15	21	7
-apps/admin/src/features/database/hooks/timeline-section-dependencies.hooks.ts	createFakeTimelineSectionPort	function	export	31	45	15
+apps/admin/src/features/database/hooks/timeline-section-dependencies.hooks.ts	defaultTimelineSectionPort	const	export	11	13	3
+apps/admin/src/features/database/hooks/timeline-section-dependencies.hooks.ts	FakeTimelineSectionPortOptions	interface	export	16	22	7
+apps/admin/src/features/database/hooks/timeline-section-dependencies.hooks.ts	createFakeTimelineSectionPort	function	export	32	46	15
 apps/admin/src/features/database/hooks/timeline-section-port.hooks.ts	TimelineSectionPort	interface	export	8	19	12
 apps/admin/src/features/database/hooks/use-migrate-forward-section.hooks.ts	CeremonyStep	type	export	58	58	1
 apps/admin/src/features/database/hooks/use-migrate-forward-section.hooks.ts	MIGRATION_CHANGES_READS	const		63	63	1
@@ -49,13 +59,13 @@ apps/admin/src/features/database/hooks/use-schema-state-section.hooks.ts	SchemaS
 apps/admin/src/features/database/hooks/use-schema-state-section.hooks.ts	SchemaStateSectionDependencies	interface	export	42	44	3
 apps/admin/src/features/database/hooks/use-schema-state-section.hooks.ts	useSchemaStateSection	function	export	50	67	18
 apps/admin/src/features/database/hooks/use-schema-state-section.hooks.ts	useWiredSchemaStateSection	function	export	77	79	3
-apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts	navigateToRecoveryWithDeepLink	function	export	65	79	15
-apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts	TimelineSectionController	interface	export	81	103	23
-apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts	TimelineFilters	interface		105	110	6
-apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts	BLANK_FILTERS	const		112	112	1
-apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts	TimelineSectionDependencies	interface	export	114	116	3
-apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts	useTimelineSection	function	export	123	179	57
-apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts	useWiredTimelineSection	function	export	188	190	3
+apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts	navigateToRecoveryWithDeepLink	function	export	63	77	15
+apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts	TimelineSectionController	interface	export	79	101	23
+apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts	TimelineFilters	interface		103	108	6
+apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts	BLANK_FILTERS	const		110	110	1
+apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts	TimelineSectionDependencies	interface	export	112	114	3
+apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts	useTimelineSection	function	export	121	222	102
+apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts	useWiredTimelineSection	function	export	231	233	3
 apps/admin/src/features/database/rules.ts	TIMELINE_ROOT	const		31	31	1
 apps/admin/src/features/database/rules.ts	KEYS	const	export	33	48	16
 apps/admin/src/features/database/rules.ts	SchemaStateWarningTone	type	export	63	63	1
@@ -207,6 +217,7 @@ apps/website/src/platform/db/journal-kernel.ts	RestorePointsTable	type	export	54
 apps/website/src/platform/db/journal-kernel.ts	JournalDatabase	type	export	71	75	5
 apps/website/src/platform/db/journal-kernel.ts	JournalKernel	type	export	77	77	1
 apps/website/src/platform/db/journal-kernel.ts	gateJournalKernel	function	export	84	116	33
+apps/website/src/platform/db/kernel/checkpoint-stopped-wal.ts	checkpointStoppedSqliteWal	function	export	14	19	6
 apps/website/src/platform/db/kernel/drivers/pglite-owner.ts	OWNER_LOCK_FILE	const	export	15	15	1
 apps/website/src/platform/db/kernel/drivers/pglite-owner.ts	PGLITE_LOW_MEMORY_START_PARAMS	const	export	16	16	1
 apps/website/src/platform/db/kernel/drivers/pglite-owner.ts	defaultPgliteSocketDir	function	export	19	21	3
@@ -236,8 +247,8 @@ apps/website/src/platform/db/kernel/sqlite-only.ts	sqliteTableExtendedInfo	funct
 apps/website/src/platform/db/kernel/sqlite-only.ts	sqliteSchemaObjects	function	export	76	81	6
 apps/website/src/platform/db/kernel/sqlite-only.ts	sqliteTableInfo	function	export	89	99	11
 apps/website/src/platform/db/kernel/sqlite-only.ts	sqliteForeignKeyCheckedTransaction	function	export	107	120	14
-apps/website/src/platform/db/kernel/stopped-database.ts	assertDatabaseStopped	function	export	6	8	3
-apps/website/src/platform/db/kernel/stopped-database.ts	inspectStoppedDatabase	function	export	11	13	3
+apps/website/src/platform/db/kernel/stopped-database.ts	assertDatabaseStopped	function	export	14	28	15
+apps/website/src/platform/db/kernel/stopped-database.ts	inspectStoppedDatabase	function	export	36	51	16
 apps/website/src/platform/db/key-dependent-data.ts	WEBHOOK_SUBSCRIPTIONS_TABLE	const		27	27	1
 apps/website/src/platform/db/key-dependent-data.ts	hasKeyDependentData	function	export	36	42	7
 apps/website/src/platform/db/key-dependent-data.ts	tableHasSealedValue	function		50	59	10
@@ -523,10 +534,10 @@ apps/website/src/platform/db/migrations/runner.ts	MigrationOptions	type	export	1
 apps/website/src/platform/db/migrations/runner.ts	runMigrations	function	export	17	23	7
 apps/website/src/platform/db/migrations/runner.ts	hasLedger	function	export	26	28	3
 apps/website/src/platform/db/migrations/source-digests.ts	MIGRATION_SOURCE_DIGESTS	const	export	8	60	53
-apps/website/src/platform/db/postgres/db-ops-adapter.ts	PostgresRestoreToolingConfig	interface	export	23	32	10
-apps/website/src/platform/db/postgres/db-ops-adapter.ts	evaluatePostgresRestoreCapability	function	export	47	58	12
-apps/website/src/platform/db/postgres/db-ops-adapter.ts	RestorePointsUnavailableError	class	export	61	66	6
-apps/website/src/platform/db/postgres/db-ops-adapter.ts	PostgresDbOpsAdapter	class	export	68	87	20
+apps/website/src/platform/db/postgres/db-ops-adapter.ts	RestorePointsUnavailableError	class	export	16	21	6
+apps/website/src/platform/db/postgres/db-ops-adapter.ts	PostgresDbOpsAdapter	class	export	23	42	20
+apps/website/src/platform/db/postgres/db-ops.ts	PostgresRestoreToolingConfig	interface	export	16	25	10
+apps/website/src/platform/db/postgres/db-ops.ts	evaluatePostgresRestoreCapability	function	export	40	51	12
 apps/website/src/platform/db/prepare-content-store.ts	AnyRow	type		15	15	1
 apps/website/src/platform/db/prepare-content-store.ts	AnyTables	type		16	16	1
 apps/website/src/platform/db/prepare-content-store.ts	columnRow	function	export	24	33	10

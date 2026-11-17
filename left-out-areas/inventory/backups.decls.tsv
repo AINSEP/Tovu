@@ -15,6 +15,9 @@ apps/admin/src/features/import-export/ImportExport.tsx	OtherTab	function		56	66	
 apps/admin/src/features/import-export/ImportExport.tsx	TransferTab	function		70	84	15
 apps/admin/src/features/import-export/ImportExport.tsx	goToImportExportTab	function		87	89	3
 apps/admin/src/features/import-export/ImportExport.tsx	ImportExport	function	export	91	121	31
+apps/admin/src/features/import-export/api/import-export-api.ts	importExportApi	const	export	6	21	16
+apps/admin/src/features/import-export/api/import-export-api.types.ts	AdminExportRunStatus	type	export	2	2	1
+apps/admin/src/features/import-export/api/import-export-api.types.ts	AdminExportRunSnapshot	interface	export	7	21	15
 apps/admin/src/features/import-export/git-backup-rules.ts	GitBackupForm	interface	export	11	16	6
 apps/admin/src/features/import-export/git-backup-rules.ts	EMPTY_GIT_BACKUP_FORM	const	export	18	18	1
 apps/admin/src/features/import-export/git-backup-rules.ts	backupConnectionLabels	function	export	22	24	3
@@ -25,15 +28,15 @@ apps/admin/src/features/import-export/git-backup-rules.ts	isGitBackupInProgress	
 apps/admin/src/features/import-export/git-backup-rules.ts	isGitBackupPushed	function	export	45	47	3
 apps/admin/src/features/import-export/git-backup-rules.ts	REFUSAL_KEYS	const		51	56	6
 apps/admin/src/features/import-export/git-backup-rules.ts	gitBackupRefusalMessage	function	export	59	64	6
-apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	GitBackupPlanInput	interface	export	11	16	6
-apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	GitBackupRefusal	interface	export	19	26	8
-apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	GitBackupPlan	interface	export	29	39	11
-apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	GitBackupProgress	interface	export	41	44	4
-apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	GitBackupPushResult	type	export	46	49	4
-apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	GitBackupPort	interface	export	51	57	7
-apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	BACKUPS	const		59	59	1
-apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	defaultGitBackupPort	const	export	61	65	5
-apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	createFakeGitBackupPort	function	export	69	77	9
+apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	GitBackupPlanInput	interface	export	14	19	6
+apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	GitBackupRefusal	interface	export	22	29	8
+apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	GitBackupPlan	interface	export	32	42	11
+apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	GitBackupProgress	interface	export	44	47	4
+apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	GitBackupPushResult	type	export	49	52	4
+apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	GitBackupPort	interface	export	54	60	7
+apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	BACKUPS	const		62	62	1
+apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	defaultGitBackupPort	const	export	64	68	5
+apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	createFakeGitBackupPort	function	export	72	80	9
 apps/admin/src/features/import-export/hooks/use-git-backup.hooks.ts	GIT_BACKUP_CONNECTIONS_KEY	const	export	25	25	1
 apps/admin/src/features/import-export/hooks/use-git-backup.hooks.ts	MAX_PUSH_POLLS	const		29	29	1
 apps/admin/src/features/import-export/hooks/use-git-backup.hooks.ts	GitBackupPhase	type	export	31	31	1
@@ -51,7 +54,8 @@ apps/admin/src/features/import-export/import-export-links.ts	IMPORT_EXPORT_LINKS
 apps/admin/src/features/import-export/import-export-tabs.tsx	IMPORT_EXPORT_TAB_IDS	const	export	14	14	1
 apps/admin/src/features/import-export/import-export-tabs.tsx	ImportExportTabId	type	export	15	15	1
 apps/admin/src/features/import-export/import-export-tabs.tsx	resolveImportExportTabId	function	export	19	21	3
-apps/admin/src/features/import-export/import-export-tabs.tsx	resolveImportExportTabs	function	export	27	54	28
+apps/admin/src/features/import-export/import-export-tabs.tsx	OtherIcon	function		26	34	9
+apps/admin/src/features/import-export/import-export-tabs.tsx	resolveImportExportTabs	function	export	40	67	28
 apps/admin/src/features/recovery/Recovery.tsx	DegradedBannerView	function		86	126	41
 apps/admin/src/features/recovery/Recovery.tsx	RestorePointsList	function		128	182	55
 apps/admin/src/features/recovery/Recovery.tsx	RestorePointsPanel	function		191	215	25
@@ -67,30 +71,41 @@ apps/admin/src/features/recovery/Recovery.tsx	RestoreFlow	function		417	489	73
 apps/admin/src/features/recovery/Recovery.tsx	RestoreTabPanel	function		496	505	10
 apps/admin/src/features/recovery/Recovery.tsx	RecoveryProps	interface	export	507	519	13
 apps/admin/src/features/recovery/Recovery.tsx	Recovery	function	export	521	572	52
-apps/admin/src/features/recovery/hooks/recovery-dependencies.hooks.ts	defaultRecoveryPort	const	export	17	22	6
-apps/admin/src/features/recovery/hooks/recovery-dependencies.hooks.ts	fakeRestorePointSummary	function		25	33	9
-apps/admin/src/features/recovery/hooks/recovery-dependencies.hooks.ts	FakeRecoveryPortOptions	interface	export	36	49	14
-apps/admin/src/features/recovery/hooks/recovery-dependencies.hooks.ts	DEFAULT_STATUS	const		51	51	1
-apps/admin/src/features/recovery/hooks/recovery-dependencies.hooks.ts	createFakeRecoveryPort	function	export	59	96	38
-apps/admin/src/features/recovery/hooks/recovery-port.hooks.ts	RecoveryPort	interface	export	14	21	8
-apps/admin/src/features/recovery/hooks/restore-flow-dependencies.hooks.ts	defaultRestoreFlowPort	const	export	16	21	6
-apps/admin/src/features/recovery/hooks/restore-flow-dependencies.hooks.ts	FakeRestoreFlowPortOptions	interface	export	24	40	17
-apps/admin/src/features/recovery/hooks/restore-flow-dependencies.hooks.ts	DEFAULT_DISCLOSURE	const		42	42	1
-apps/admin/src/features/recovery/hooks/restore-flow-dependencies.hooks.ts	DEFAULT_PLAN	const		43	43	1
-apps/admin/src/features/recovery/hooks/restore-flow-dependencies.hooks.ts	createFakeRestoreFlowPort	function	export	52	71	20
-apps/admin/src/features/recovery/hooks/restore-flow-port.hooks.ts	RestoreFlowPort	interface	export	8	13	6
+apps/admin/src/features/recovery/api/recovery-api.ts	recoveryApi	const	export	6	46	41
+apps/admin/src/features/recovery/api/recovery-api.types.ts	AdminRestorePoint	interface	export	4	11	8
+apps/admin/src/features/recovery/api/recovery-api.types.ts	CategoryCount	type	export	14	14	1
+apps/admin/src/features/recovery/api/recovery-api.types.ts	AdminDisclosureResult	interface	export	16	20	5
+apps/admin/src/features/recovery/api/recovery-api.types.ts	DegradedBannerKind	type	export	22	27	6
+apps/admin/src/features/recovery/api/recovery-api.types.ts	DegradedBannerActionKind	type	export	29	29	1
+apps/admin/src/features/recovery/api/recovery-api.types.ts	AdminDegradedBanner	interface	export	31	35	5
+apps/admin/src/features/recovery/api/recovery-api.types.ts	AdminRecoveryStatus	interface	export	37	40	4
+apps/admin/src/features/recovery/api/recovery-api.types.ts	DatabaseContextEnvelope	interface	export	44	53	10
+apps/admin/src/features/recovery/api/recovery-api.types.ts	AdminRecoveryDeepLinkResult	interface	export	55	58	4
+apps/admin/src/features/recovery/api/recovery-api.types.ts	RestoreExecuteResult	interface	export	60	68	9
+apps/admin/src/features/recovery/hooks/recovery-dependencies.hooks.ts	defaultRecoveryPort	const	export	13	18	6
+apps/admin/src/features/recovery/hooks/recovery-dependencies.hooks.ts	fakeRestorePointSummary	function		21	29	9
+apps/admin/src/features/recovery/hooks/recovery-dependencies.hooks.ts	FakeRecoveryPortOptions	interface	export	32	45	14
+apps/admin/src/features/recovery/hooks/recovery-dependencies.hooks.ts	DEFAULT_STATUS	const		47	47	1
+apps/admin/src/features/recovery/hooks/recovery-dependencies.hooks.ts	createFakeRecoveryPort	function	export	55	92	38
+apps/admin/src/features/recovery/hooks/recovery-port.hooks.ts	RecoveryPort	interface	export	9	16	8
+apps/admin/src/features/recovery/hooks/restore-flow-dependencies.hooks.ts	defaultRestoreFlowPort	const	export	12	17	6
+apps/admin/src/features/recovery/hooks/restore-flow-dependencies.hooks.ts	FakeRestoreFlowPortOptions	interface	export	20	36	17
+apps/admin/src/features/recovery/hooks/restore-flow-dependencies.hooks.ts	DEFAULT_DISCLOSURE	const		38	38	1
+apps/admin/src/features/recovery/hooks/restore-flow-dependencies.hooks.ts	DEFAULT_PLAN	const		39	39	1
+apps/admin/src/features/recovery/hooks/restore-flow-dependencies.hooks.ts	createFakeRestoreFlowPort	function	export	48	67	20
+apps/admin/src/features/recovery/hooks/restore-flow-port.hooks.ts	RestoreFlowPort	interface	export	9	14	6
 apps/admin/src/features/recovery/hooks/use-recovery-navigation.hooks.ts	RECOVERY_TAB_IDS	const		6	6	1
 apps/admin/src/features/recovery/hooks/use-recovery-navigation.hooks.ts	RecoveryNavigationPort	interface	export	8	10	3
 apps/admin/src/features/recovery/hooks/use-recovery-navigation.hooks.ts	defaultNavigationPort	const		12	12	1
 apps/admin/src/features/recovery/hooks/use-recovery-navigation.hooks.ts	useRecoveryNavigation	function	export	16	43	28
-apps/admin/src/features/recovery/hooks/use-recovery.hooks.ts	RecoveryController	interface	export	52	71	20
-apps/admin/src/features/recovery/hooks/use-recovery.hooks.ts	RecoveryDependencies	interface	export	73	75	3
-apps/admin/src/features/recovery/hooks/use-recovery.hooks.ts	useRecovery	function	export	83	165	83
-apps/admin/src/features/recovery/hooks/use-recovery.hooks.ts	useWiredRecovery	function	export	174	176	3
-apps/admin/src/features/recovery/hooks/use-restore-flow.hooks.ts	CeremonyStep	type	export	37	37	1
-apps/admin/src/features/recovery/hooks/use-restore-flow.hooks.ts	RestoreFlowController	interface	export	39	60	22
-apps/admin/src/features/recovery/hooks/use-restore-flow.hooks.ts	useRestoreFlow	function	export	70	167	98
-apps/admin/src/features/recovery/hooks/use-restore-flow.hooks.ts	useWiredRestoreFlow	function	export	178	180	3
+apps/admin/src/features/recovery/hooks/use-recovery.hooks.ts	RecoveryController	interface	export	53	72	20
+apps/admin/src/features/recovery/hooks/use-recovery.hooks.ts	RecoveryDependencies	interface	export	74	76	3
+apps/admin/src/features/recovery/hooks/use-recovery.hooks.ts	useRecovery	function	export	84	166	83
+apps/admin/src/features/recovery/hooks/use-recovery.hooks.ts	useWiredRecovery	function	export	175	177	3
+apps/admin/src/features/recovery/hooks/use-restore-flow.hooks.ts	CeremonyStep	type	export	38	38	1
+apps/admin/src/features/recovery/hooks/use-restore-flow.hooks.ts	RestoreFlowController	interface	export	40	61	22
+apps/admin/src/features/recovery/hooks/use-restore-flow.hooks.ts	useRestoreFlow	function	export	71	168	98
+apps/admin/src/features/recovery/hooks/use-restore-flow.hooks.ts	useWiredRestoreFlow	function	export	179	181	3
 apps/admin/src/features/recovery/recovery-i18n.tsx	RECOVERY_DICT	const		17	1115	1099
 apps/admin/src/features/recovery/recovery-i18n.tsx	t	const	export	1119	1119	1
 apps/admin/src/features/recovery/recovery-i18n.tsx	SINCE_DISCARD_FRAGMENTS	const		1123	1146	24
@@ -150,10 +165,10 @@ apps/website/src/features/recovery/tool-registrations.ts	run	handler		344	400	57
 apps/website/src/features/recovery/tool-registrations.ts	contributeRecoveryTools	function	export	413	415	3
 apps/website/src/features/site-backup/archive-extensions.ts	prepareArchiveExtensions	function	export	14	39	26
 apps/website/src/features/site-backup/archive-extensions.ts	isSupersededBundledRevision	function		43	48	6
-apps/website/src/features/site-backup/archive-extensions.ts	includeThemeOriginals	function		50	73	24
-apps/website/src/features/site-backup/archive-extensions.ts	sitePluginRecords	function		75	95	21
-apps/website/src/features/site-backup/archive-extensions.ts	unindexedAgentRecords	function		98	113	16
-apps/website/src/features/site-backup/archive-extensions.ts	sitePluginVersion	function		117	120	4
+apps/website/src/features/site-backup/archive-extensions.ts	includeThemeOriginals	function		50	74	25
+apps/website/src/features/site-backup/archive-extensions.ts	sitePluginRecords	function		76	96	21
+apps/website/src/features/site-backup/archive-extensions.ts	unindexedAgentRecords	function		99	115	17
+apps/website/src/features/site-backup/archive-extensions.ts	sitePluginVersion	function		119	122	4
 apps/website/src/features/site-backup/archive-manifest.ts	ARCHIVE_MANIFEST_PATH	const	export	9	9	1
 apps/website/src/features/site-backup/archive-manifest.ts	ARCHIVE_DATABASE_PATH	const	export	10	10	1
 apps/website/src/features/site-backup/archive-manifest.ts	ArchiveFile	interface	export	11	11	1
@@ -297,17 +312,7 @@ apps/website/src/features/site-backup/import-backend-steps.ts	startImportedSite	
 apps/website/src/features/site-backup/import-backend-steps.ts	siteImportView	function	export	164	174	11
 apps/website/src/features/site-backup/import-backend.ts	SiteImportBackend	interface	export	22	30	9
 apps/website/src/features/site-backup/import-backend.ts	parseSiteImportInput	function	export	34	36	3
-apps/website/src/features/site-backup/import-backend.ts	ImportBackendRequired	type		38	47	10
-apps/website/src/features/site-backup/import-backend.ts	ImportBackendOptional	type		48	51	4
-apps/website/src/features/site-backup/import-backend.ts	ImportBackendContext	type		54	58	5
-apps/website/src/features/site-backup/import-backend.ts	createImportContext	function		60	74	15
-apps/website/src/features/site-backup/import-backend.ts	fetchArchive	function		77	84	8
-apps/website/src/features/site-backup/import-backend.ts	verifyAndStage	function		88	104	17
-apps/website/src/features/site-backup/import-backend.ts	createImportedSite	function		108	134	27
-apps/website/src/features/site-backup/import-backend.ts	uploadImportArchive	function		136	147	12
-apps/website/src/features/site-backup/import-backend.ts	startImportFromSource	function		149	166	18
-apps/website/src/features/site-backup/import-backend.ts	completeImportOwner	function		168	198	31
-apps/website/src/features/site-backup/import-backend.ts	createSiteImportBackend	function	export	204	215	12
+apps/website/src/features/site-backup/import-backend.ts	createSiteImportBackend	function	export	42	193	152
 apps/website/src/features/site-backup/import-database.ts	ImportWorkerChild	interface	export	16	21	6
 apps/website/src/features/site-backup/import-database.ts	RebuildImportDatabaseOptions	interface	export	24	29	6
 apps/website/src/features/site-backup/import-database.ts	importWorkerLaunch	function	export	32	36	5
@@ -459,22 +464,7 @@ apps/website/src/features/site-backup/share-backend.ts	staticRoster	function		79
 apps/website/src/features/site-backup/share-backend.ts	retainStaticCapture	function		91	100	10
 apps/website/src/features/site-backup/share-backend.ts	captureSelection	function		106	127	22
 apps/website/src/features/site-backup/share-backend.ts	requireCredentialFreeExport	function		131	134	4
-apps/website/src/features/site-backup/share-backend.ts	ShareBackendRequired	type		136	145	10
-apps/website/src/features/site-backup/share-backend.ts	ShareBackendOptional	type		146	146	1
-apps/website/src/features/site-backup/share-backend.ts	ShareBackendContext	type		148	148	1
-apps/website/src/features/site-backup/share-backend.ts	ShareExportInput	type		149	149	1
-apps/website/src/features/site-backup/share-backend.ts	ShareExportStage	type		150	150	1
-apps/website/src/features/site-backup/share-backend.ts	exportStaticShare	function		153	164	12
-apps/website/src/features/site-backup/share-backend.ts	exportBackupShare	function		167	187	21
-apps/website/src/features/site-backup/share-backend.ts	exportShare	function		190	196	7
-apps/website/src/features/site-backup/share-backend.ts	startExport	function		199	205	7
-apps/website/src/features/site-backup/share-backend.ts	staticShareOptions	function		207	213	7
-apps/website/src/features/site-backup/share-backend.ts	ShareCreateInput	type		215	215	1
-apps/website/src/features/site-backup/share-backend.ts	createShare	function		217	227	11
-apps/website/src/features/site-backup/share-backend.ts	acknowledgeShare	function		229	239	11
-apps/website/src/features/site-backup/share-backend.ts	revealSharePassword	function		241	248	8
-apps/website/src/features/site-backup/share-backend.ts	revokeShare	function		250	261	12
-apps/website/src/features/site-backup/share-backend.ts	createSiteShareBackend	function	export	267	279	13
+apps/website/src/features/site-backup/share-backend.ts	createSiteShareBackend	function	export	140	244	105
 apps/website/src/features/site-backup/share-database/repo.sqlite.ts	Row	type		24	24	1
 apps/website/src/features/site-backup/share-database/repo.sqlite.ts	Tables	type		25	25	1
 apps/website/src/features/site-backup/share-database/repo.sqlite.ts	Kernel	type		26	26	1

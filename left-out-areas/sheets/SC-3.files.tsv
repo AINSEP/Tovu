@@ -1,6 +1,0 @@
-path	lines	blob	prod_importers	test_importers
-apps/website/src/features/source-control/provider-module.ts	228	6eaea9f9f2ed573604f116e1fe3e84ebbc85d6aa	11	13
-apps/website/src/features/source-control/provider-kit.ts	50	ff2109f52cd1d08763a9170a086eb56362e06261	1	5
-apps/website/src/features/source-control/provider-registry.ts	318	c6387f0631faf611190cc0aaa060f1605e1da906	12	17
-apps/website/src/features/source-control/repository-target.ts	20	3221d8d15fa79308970b123827f661d84f7efccc	2	1
-apps/website/src/features/source-control/credential-form.ts	108	d7cd8976cdfd1ed6a5110396fc662bf60f31c709	2	1

@@ -12,7 +12,7 @@ apps/website/src/features/source-control/store.ts	apps/website/src/features/sour
 apps/website/src/features/source-control/store.ts	apps/website/src/features/source-control/__tests__/store.unit.test.ts	test	25	../store.js
 apps/website/src/features/source-control/store.ts	apps/website/src/features/source-control/__tests__/tool-registrations.dry-run.test.ts	test	16	../store.js
 apps/website/src/features/source-control/store.ts	apps/website/src/features/source-control/__tests__/tool-registrations.unit.test.ts	test	19	../store.js
-apps/website/src/features/source-control/store.ts	apps/website/src/features/source-control/commit-site.ts	prod	20	./store.js
+apps/website/src/features/source-control/store.ts	apps/website/src/features/source-control/commit-site.ts	prod	19	./store.js
 apps/website/src/features/source-control/store.ts	apps/website/src/features/source-control/credential-setup.ts	prod	15	./store.js
 apps/website/src/features/source-control/store.ts	apps/website/src/features/source-control/index.ts	prod	30	./store.js
 apps/website/src/features/source-control/store.ts	apps/website/src/features/source-control/tool-registrations.ts	prod	40	./store.js
@@ -20,7 +20,7 @@ apps/website/src/features/source-control/store.ts	apps/website/src/server/inboun
 apps/website/src/features/source-control/store.ts	apps/website/src/server/runtime/composition/source-control-key-binding.ts	prod	5	#src/features/source-control/store
 apps/website/src/features/source-control/types.ts	apps/website/src/features/site-backup/backup-service.ts	prod	33	../source-control/types.js
 apps/website/src/features/source-control/types.ts	apps/website/src/features/source-control/__tests__/project-scope.unit.test.ts	test	16	../types.js
-apps/website/src/features/source-control/types.ts	apps/website/src/features/source-control/commit-site.ts	prod	21	./types.js
+apps/website/src/features/source-control/types.ts	apps/website/src/features/source-control/commit-site.ts	prod	20	./types.js
 apps/website/src/features/source-control/types.ts	apps/website/src/features/source-control/index.ts	prod	11	./types.js
 apps/website/src/features/source-control/types.ts	apps/website/src/features/source-control/repo.memory.ts	prod	4	./types.js
 apps/website/src/features/source-control/types.ts	apps/website/src/features/source-control/source-control-credential-repo.ts	prod	4	#src/features/source-control/types
@@ -58,5 +58,5 @@ apps/website/src/features/source-control/index.ts	apps/website/src/server/__test
 apps/website/src/features/source-control/index.ts	apps/website/src/server/__tests__/routes/source-control-credentials-route.test.ts	test	6	#src/features/source-control/index
 apps/website/src/features/source-control/index.ts	apps/website/src/server/inbound/admin-http/routes/system/source-control-credentials.ts	prod	15	#src/features/source-control/index
 apps/website/src/features/source-control/index.ts	apps/website/src/server/routes/types.ts	prod	75	../../features/source-control/index.js
-apps/website/src/features/source-control/index.ts	apps/website/src/server/runtime/composition/app.ts	prod	117	#src/features/source-control/index
+apps/website/src/features/source-control/index.ts	apps/website/src/server/runtime/composition/app.ts	prod	70	#src/features/source-control/index
 apps/website/src/features/source-control/index.ts	apps/website/src/server/runtime/composition/permanent-delete-deps.ts	prod	10	#src/features/source-control/index

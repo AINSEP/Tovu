@@ -1,4 +1,4 @@
 path	lines	blob	prod_importers	test_importers
 apps/website/src/features/theme/asset-operations.ts	237	8aa7467cb66d921b256582ec9f4f21bcad63bf4b	8	0
 apps/website/src/features/theme/theme-file-import.ts	178	6f5e5147176e1b1648b0df7b68d72f4c786c857b	2	1
-apps/website/src/features/theme/theme-trash.ts	243	e0504b0048a998566c62b5c95997ba10c6b82e18	2	1
+apps/website/src/features/theme/theme-trash.ts	211	69bbabb48e0938915711cc90bceb9bb0f0a10197	2	1
