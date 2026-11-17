@@ -2,7 +2,7 @@
  * @file Tool-call fix S5: "Reads…" wording must match the tool's real class.
  *
  * The registration kit (`@jini-ai/core` `registration-kit.ts`) derives `descriptor.readOnly` in one
- * place from the corroborated `sideEffects`, so a tool built there can never be mislabelled. What
+ * place from the corroborated declared risk, so a tool built there can never be mislabelled. What
  * can still go wrong is the sentence a model reads first: `external_mcp_get_admissions` is a write
  * (starting federation may store a refreshed OAuth grant, so the read-only gateway refuses it) yet
  * its description began "Reads…". This test keeps wording, approval metadata and the hand-built
@@ -14,14 +14,37 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { realToolCatalog } from "./real-tool-catalog.fixture.js";
 
-type Descriptor = { id: string; description?: string; readOnly?: boolean; sideEffects?: string; metadata?: { approval?: { class?: string } } };
+type Descriptor = { id: string; description?: string; readOnly?: boolean; metadata?: { approval?: { class?: string } } };
 
+const READ_LIKE_OPENING = /^(Reads|Lists|Gets|Tests|Checks|Reports)\b/;
+/** The fixed clause a write-class tool adds to its first sentence when it opens like a pure read. */
+const FULL_GATEWAY_CLAUSE = "(needs the full gateway: it can store data)";
 const WEBSITE_SRC = fileURLToPath(new URL("../../", import.meta.url));
+
+const firstSentence = (text: string): string => text.split(/(?<=\.)\s/)[0] ?? "";
 
 async function listedDescriptors(): Promise<readonly Descriptor[]> {
   const { registry } = await realToolCatalog();
   return registry.list({}) as readonly Descriptor[];
 }
+
+test("a write-class tool never opens like a pure read unless its first sentence names the full gateway", async () => {
+  const offenders = (await listedDescriptors())
+    .filter(d => d.readOnly !== true && READ_LIKE_OPENING.test(d.description ?? "") && !firstSentence(d.description ?? "").includes(FULL_GATEWAY_CLAUSE))
+    .map(d => `${d.id}: ${(d.description ?? "").slice(0, 70)}`);
+  assert.deepEqual(offenders, []);
+});
+
+test("the three external MCP tools that store a refreshed grant carry the clause and stay writes", async () => {
+  const listed = await listedDescriptors();
+  for (const id of ["external_mcp_get_admissions", "external_mcp_probe_connection", "external_mcp_test_connection"]) {
+    const descriptor = listed.find(d => d.id === id);
+    assert.ok(descriptor, `${id} is registered`);
+    assert.equal(descriptor.readOnly, false, `${id} stays a write: the read-only gateway must keep refusing it`);
+    assert.equal(descriptor.metadata?.approval?.class, "edit", id);
+    assert.ok(firstSentence(descriptor.description ?? "").includes(FULL_GATEWAY_CLAUSE), `${id} first sentence names the full gateway`);
+  }
+});
 
 test("approval class and the read-only flag agree for every registered tool", async () => {
   const mismatches: string[] = [];
