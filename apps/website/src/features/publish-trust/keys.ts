@@ -90,7 +90,7 @@ function fromBase64Url({ value, expectedBytes }: { value: string; expectedBytes:
 export async function deriveInstallationId(input: {
   keyring: KeyringPort;
   workspaceId: string;
-}): Promise<string> {
+}, _optional = {}): Promise<string> {
   const material = await input.keyring.derive({
     workspaceId: input.workspaceId as never,
     purpose: INSTALLATION_ID_PURPOSE,
@@ -134,7 +134,7 @@ export async function derivePublishSigningKey(input: {
   sourceInstallationId: string;
   targetOrigin: string;
   generation: number;
-}): Promise<PublishSigningKey> {
+}, _optional = {}): Promise<PublishSigningKey> {
   const seed = await input.keyring.derive({
     workspaceId: input.workspaceId as never,
     purpose: SIGNING_KEY_PURPOSE,

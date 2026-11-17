@@ -55,12 +55,15 @@ async function gateFixture({ grants, generation }: { grants: readonly PublishTru
     grants: async () => resolutionOf(grants),
     revocations: async () => ({ ok: true, revocations: [] }),
   };
-  const { token } = await mintPublishSession(deps, {
-    sourceInstallationId: SOURCE_INSTALL,
-    targetInstallationId: DESTINATION_INSTALL,
-    capabilities: ["publish_content.read", "publish_content.apply"],
-    generation,
-  });
+  const { token } = await mintPublishSession({
+                                               deps,
+                                               input: {
+      sourceInstallationId: SOURCE_INSTALL,
+      targetInstallationId: DESTINATION_INSTALL,
+      capabilities: ["publish_content.read", "publish_content.apply"],
+      generation,
+    }
+                                             });
   return { deps, token };
 }
 

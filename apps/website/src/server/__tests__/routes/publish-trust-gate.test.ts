@@ -176,12 +176,15 @@ async function directGateFixture(
     grants: async () => resolution,
     revocations: async () => ({ ok: true, revocations: [] }),
   };
-  const { token } = await mintPublishSession(deps, {
-    sourceInstallationId: SOURCE_INSTALL,
-    targetInstallationId: await deps.targetInstallationId,
-    capabilities,
-    generation: 1,
-  });
+  const { token } = await mintPublishSession({
+                                               deps,
+                                               input: {
+      sourceInstallationId: SOURCE_INSTALL,
+      targetInstallationId: await deps.targetInstallationId,
+      capabilities,
+      generation: 1,
+    }
+                                             });
   return { deps, token, resolution };
 }
 

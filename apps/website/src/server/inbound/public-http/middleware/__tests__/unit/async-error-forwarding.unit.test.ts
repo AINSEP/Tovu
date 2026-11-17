@@ -72,8 +72,10 @@ for (const failingSource of ["grants", "revocations"] as const) {
     const keyring = { derive: async () => new Uint8Array(32) } as never;
     const clock = { nowIso: () => "2026-10-01T00:00:00.000Z" };
     const { token } = await mintPublishSession(
-      { keyring, clock, workspaceId: "ws-error" },
-      { sourceInstallationId: "source", targetInstallationId: "target", capabilities: ["publish_content.read"], generation: 1 }
+      {
+        deps: { keyring, clock, workspaceId: "ws-error" },
+        input: { sourceInstallationId: "source", targetInstallationId: "target", capabilities: ["publish_content.read"], generation: 1 }
+      }
     );
     const failure = new Error("publishing store unavailable");
     const middleware = requirePublishTrust({

@@ -86,7 +86,7 @@ export function buildChallengeMessage(input: {
   sourceInstallationId: string;
   generation: number;
   capabilities: readonly string[];
-}): string {
+}, _optional = {}): string {
   return [
     CHALLENGE_MESSAGE_VERSION,
     input.nonce,
@@ -109,7 +109,7 @@ export async function issuePublishChallenge(deps: {
   clock: { nowIso(): string };
   idGen: { newId(): string };
   targetInstallationId: string;
-}): Promise<PublishChallengeRecord> {
+}, _optional = {}): Promise<PublishChallengeRecord> {
   const issuedAtIso = deps.clock.nowIso();
   const record: PublishChallengeRecord = {
     nonce: deps.idGen.newId(),
@@ -245,12 +245,15 @@ function signatureRefusal({ grant, targetInstallationId, response }: {
  * @complexity O(n) in the grant's key count plus one Ed25519 verification.
  */
 export async function verifyChallengeResponse(
-  deps: { store: PublishChallengeStorePort; clock: { nowIso(): string } },
-  input: {
-    grant: PublishTrustGrant;
-    targetInstallationId: string;
-    response: PublishChallengeResponse;
-  }
+  { deps, input }: {
+    deps: { store: PublishChallengeStorePort; clock: { nowIso(): string } };
+    input: {
+      grant: PublishTrustGrant;
+      targetInstallationId: string;
+      response: PublishChallengeResponse;
+    };
+  },
+  _optional = {}
 ): Promise<ChallengeVerification> {
   const { response, grant } = input;
   if (typeof response?.nonce !== "string" || response.nonce === "") return refuse({ reason: "no nonce supplied" });

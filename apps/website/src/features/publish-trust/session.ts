@@ -80,13 +80,16 @@ function macOf({ key, encodedPayload }: { key: Buffer; encodedPayload: string },
  * @complexity O(n) in the payload length, plus one HKDF and one HMAC.
  */
 export async function mintPublishSession(
-  deps: { keyring: KeyringPort; workspaceId: string; clock: { nowIso(): string } },
-  input: {
-    sourceInstallationId: string;
-    targetInstallationId: string;
-    capabilities: readonly PublishingCapability[];
-    generation: number;
-  }
+  { deps, input }: {
+    deps: { keyring: KeyringPort; workspaceId: string; clock: { nowIso(): string } };
+    input: {
+      sourceInstallationId: string;
+      targetInstallationId: string;
+      capabilities: readonly PublishingCapability[];
+      generation: number;
+    };
+  },
+  _optional = {}
 ): Promise<{ token: string; payload: PublishSessionPayload }> {
   const payload: PublishSessionPayload = {
     v: SESSION_PAYLOAD_VERSION,
@@ -188,8 +191,11 @@ function claimRefusal({ payload, nowIso, expectedAudience, workspaceId }: {
  * @complexity O(n) in the token length, plus one HKDF and one HMAC.
  */
 export async function verifyPublishSession(
-  deps: { keyring: KeyringPort; workspaceId: string; clock: { nowIso(): string } },
-  input: { token: string; expectedAudience: string }
+  { deps, input }: {
+    deps: { keyring: KeyringPort; workspaceId: string; clock: { nowIso(): string } };
+    input: { token: string; expectedAudience: string };
+  },
+  _optional = {}
 ): Promise<PublishSessionVerification> {
   const split = splitToken({ token: input.token });
   if (typeof split === "string") return refuse({ reason: split });

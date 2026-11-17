@@ -69,8 +69,10 @@ test("T-FROZEN: the three key-derivation purposes and their info strings", async
   const sourceInstallationId = await deriveInstallationId({ keyring, workspaceId: "ws" });
   await derivePublishSigningKey({ keyring, workspaceId: "ws", sourceInstallationId, targetOrigin: "https://d.example", generation: 1 });
   await mintPublishSession(
-    { keyring, workspaceId: "ws", clock: { nowIso: () => "2026-11-16T00:00:00.000Z" } },
-    { sourceInstallationId, targetInstallationId: "t", capabilities: [], generation: 1 }
+    {
+      deps: { keyring, workspaceId: "ws", clock: { nowIso: () => "2026-11-16T00:00:00.000Z" } },
+      input: { sourceInstallationId, targetInstallationId: "t", capabilities: [], generation: 1 }
+    }
   );
 
   assert.deepEqual(derives, [

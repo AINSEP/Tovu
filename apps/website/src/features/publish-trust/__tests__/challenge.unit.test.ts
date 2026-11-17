@@ -91,8 +91,10 @@ async function verify(
 ) {
   const { store, takes } = recordingStore(input.records);
   const result = await verifyChallengeResponse(
-    { store, clock: { nowIso: () => input.nowIso ?? NOW } },
-    { grant: input.grant ?? grant(), targetInstallationId: TARGET, response: input.response }
+    {
+      deps: { store, clock: { nowIso: () => input.nowIso ?? NOW } },
+      input: { grant: input.grant ?? grant(), targetInstallationId: TARGET, response: input.response }
+    }
   );
   return { result, takes };
 }
@@ -174,8 +176,10 @@ for (const expiresAtIso of ["corrupt", "", undefined]) {
     const record: PublishChallengeRecord = JSON.parse(JSON.stringify({ ...issued(), expiresAtIso }));
     const { store, takes } = recordingStore([record]);
     const result = await verifyChallengeResponse(
-      { store, clock: { nowIso: () => NOW } },
-      { grant: grant(), targetInstallationId: TARGET, response: response() }
+      {
+        deps: { store, clock: { nowIso: () => NOW } },
+        input: { grant: grant(), targetInstallationId: TARGET, response: response() }
+      }
     );
     assert.deepEqual(result, { ok: false, reason: "nonce has expired" });
     assert.deepEqual(takes, [NONCE]);
@@ -207,8 +211,10 @@ test("the nonce and the grant are judged at one clock reading", async () => {
   const readings = [NOW, "2100-01-01T00:00:00.000Z"];
   const { store } = recordingStore();
   const result = await verifyChallengeResponse(
-    { store, clock: { nowIso: () => readings.shift() ?? "exhausted" } },
-    { grant: grant(), targetInstallationId: TARGET, response: response() }
+    {
+      deps: { store, clock: { nowIso: () => readings.shift() ?? "exhausted" } },
+      input: { grant: grant(), targetInstallationId: TARGET, response: response() }
+    }
   );
   assert.equal(result.ok, true);
 });
