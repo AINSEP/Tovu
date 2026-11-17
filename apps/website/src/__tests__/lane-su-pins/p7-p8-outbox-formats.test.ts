@@ -58,6 +58,10 @@ test("P8 enqueue writes the frozen row and the outcome writers use the frozen st
   assert.deepEqual(await stored(), { event_json: FROZEN_EVENT_JSON, status: "failed", last_error: "delivery-failed" });
   await outbox.markDelivered({ id: FROZEN_EVENT.id });
   assert.equal((await stored())?.status, "failed", "a settled row is not revived by a late outcome");
+  await outbox.enqueue({ ...FROZEN_EVENT, id: "post-1-post.published-4" });
+  await outbox.markDelivered({ id: "post-1-post.published-4" });
+  const delivered = await kernel.query<{ status: string }>(sql`SELECT status FROM outbox_events WHERE id = 'post-1-post.published-4'`);
+  assert.deepEqual(delivered, [{ status: "delivered" }]);
 });
 
 test("P7 the notification summary counts outbox rows by the forms:notify:<submission>: id prefix", async () => {
