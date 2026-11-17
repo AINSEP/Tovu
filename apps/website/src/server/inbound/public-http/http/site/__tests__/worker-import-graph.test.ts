@@ -99,8 +99,10 @@ const FORBIDDEN_FORM_SERVICES = /\/(?:packages\/cms|node_modules\/@jini-ai\/cms)
  * rendered HTML; retain a small margin for them while banning non-rendering forms code explicitly.
  */
 // raised by 10 for the render.ts split into feature files (no new code); owner 2026-11-16
+// +1 (merge-a 2026-11-16): Jini core's text barrel now carries format-byte-size.js (6f8dc8c24, "one byte-size
+// label in core/text"), which the Handlebars worker loads through that barrel; no Tovu module was added.
 const WORKER_MODULE_BUDGETS = {
-  "handlebars-worker.ts": 175,
+  "handlebars-worker.ts": 176,
   "liquid-worker.ts": 135,
 } as const;
 
