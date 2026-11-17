@@ -385,11 +385,7 @@ function checkOneArtifactHashEntry({ relativePath, expected, discovered, rejecte
   const absolutePath = discovered.get(relativePath);
   if (absolutePath === undefined) {
     return {
-      issue: {
-        page: relativePath,
-        rule: ARTIFACT_HASH_RULE,
-        message: `build.artifactHashes references '${relativePath}', which does not exist on disk (or is outside the generated tree)`,
-      },
+      issue: artifactHashIssue({ relativePath, message: `build.artifactHashes references '${relativePath}', which does not exist on disk (or is outside the generated tree)` }),
       bytesHashed: totalHashedBytesSoFar,
       stop: false,
     };
@@ -398,11 +394,7 @@ function checkOneArtifactHashEntry({ relativePath, expected, discovered, rejecte
   const size = statSync(absolutePath).size;
   if (size > MAX_HASHED_FILE_BYTES) {
     return {
-      issue: {
-        page: relativePath,
-        rule: ARTIFACT_HASH_RULE,
-        message: `'${relativePath}' is ${size} bytes, over the ${MAX_HASHED_FILE_BYTES}-byte per-file verification cap`,
-      },
+      issue: artifactHashIssue({ relativePath, message: `'${relativePath}' is ${size} bytes, over the ${MAX_HASHED_FILE_BYTES}-byte per-file verification cap` }),
       bytesHashed: totalHashedBytesSoFar,
       stop: false,
     };
@@ -411,11 +403,7 @@ function checkOneArtifactHashEntry({ relativePath, expected, discovered, rejecte
   const bytesHashed = totalHashedBytesSoFar + size;
   if (bytesHashed > MAX_TOTAL_HASHED_BYTES) {
     return {
-      issue: {
-        page: relativePath,
-        rule: ARTIFACT_HASH_RULE,
-        message: `the generated tree's total verified size exceeds the ${MAX_TOTAL_HASHED_BYTES}-byte cap at '${relativePath}'`,
-      },
+      issue: artifactHashIssue({ relativePath, message: `the generated tree's total verified size exceeds the ${MAX_TOTAL_HASHED_BYTES}-byte cap at '${relativePath}'` }),
       bytesHashed,
       stop: true, // matches agent-plugins' own fail-fast on TOTAL_SIZE_EXCEEDED
     };
@@ -427,17 +415,18 @@ function checkOneArtifactHashEntry({ relativePath, expected, discovered, rejecte
   const normalizedExpected = expected.replace(/^sha256[:-]/, "").toLowerCase();
   if (actual !== normalizedExpected) {
     return {
-      issue: {
-        page: relativePath,
-        rule: ARTIFACT_HASH_RULE,
-        message: `'${relativePath}' does not match its recorded build.artifactHashes digest — the file changed after the build produced it`,
-      },
+      issue: artifactHashIssue({ relativePath, message: `'${relativePath}' does not match its recorded build.artifactHashes digest — the file changed after the build produced it` }),
       bytesHashed,
       stop: false,
     };
   }
 
   return { bytesHashed, stop: false };
+}
+
+/** One `artifactHashes` entry's conformance issue, always under the artifact-hash rule. */
+function artifactHashIssue({ relativePath, message }: { relativePath: string; message: string }, _optional = {}): ConformanceIssue {
+  return { page: relativePath, rule: ARTIFACT_HASH_RULE, message };
 }
 
 /** Phase 2 of {@link checkArtifactHashes}: every `artifactHashes` entry against the inventory

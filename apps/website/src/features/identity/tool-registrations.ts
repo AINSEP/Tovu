@@ -26,7 +26,8 @@ import { buildIdentityRegistrations, identityDerivedRisk, type IdentityToolDeps 
 import { assertCallerHasAnyPermission, normalizeUsername, parseIdentityToolInput } from "@jini-ai/user-management/server";
 import { ToolInputError, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import type { Clock } from "@jini-ai/core/primitives";
-import { defineSecretCardTool } from "@jini-ai/ui/mcp-ui/secret-card";
+import { defineSecretCardTool, type SecretCardForm, type SecretCardRun } from "@jini-ai/ui/mcp-ui/secret-card";
+import type { SurfaceOutcomeSpec } from "@jini-ai/core/contracts/cards";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createUsernameChangePort } from "./username-change-ports.js";
@@ -85,6 +86,34 @@ function identityReferenceDetails(
     const names = rows.map(row => row.permission ? `${row.permission} (${row.id})` : row.id).join(", ") || "none";
     return { label, value: `${rows.length}: ${names}` };
   });
+}
+
+function userCreateForm(required: { username: string; emailSuffix: string }, _optional = {}): SecretCardForm {
+  const { username, emailSuffix } = required;
+  return {
+    title: `Create the user ${username}?`,
+    description: `A new login named ${username}${emailSuffix} will be created with no roles. Type their first password below.`,
+    submitLabel: "Create user",
+    fields: [{ kind: "string", name: "password", label: "Password", hint: "Typed here only, never shown to the assistant.", required: true,
+      ...SECRET_FORM_CARD_DEFINITIONS.identity_user_create?.secretField }],
+    cancelLabel: "Cancel", app: { appName: "tovu-identity-user-create", appVersion: "1" },
+    preferredFrameSize: ["100%", "360px"],
+  };
+}
+
+function userCreateOutcome(required: { run: SecretCardRun<Record<string, unknown>>; username: string }, _optional = {}): SurfaceOutcomeSpec | undefined {
+  const { run, username } = required;
+  if (run.status !== "saved" && run.status !== "blank" && run.status !== "failed") return undefined;
+  let message: string;
+  if (run.status === "saved") message = `${username} can now sign in with the password you typed.`;
+  else if (run.status === "blank") message = "No password was entered. Nothing was created.";
+  else message = run.safeMessage;
+  return {
+    title: run.status === "saved" ? "User created" : "User not created",
+    details: [{ label: "Username", value: username }], state: run.status === "saved" ? "success" : "failure",
+    message,
+    app: { appName: "tovu-identity-user-create-outcome", appVersion: "1" }, preferredFrameSize: ["100%", "240px"],
+  };
 }
 
 /**
@@ -163,15 +192,7 @@ export function buildGatedIdentityRegistrations(
           callerPrincipalId: ctx.principal.id, permissions: ["user.manage"] });
         return input;
       },
-      form: () => ({
-        title: `Create the user ${username}?`,
-        description: `A new login named ${username}${emailSuffix} will be created with no roles. Type their first password below.`,
-        submitLabel: "Create user",
-        fields: [{ kind: "string", name: "password", label: "Password", hint: "Typed here only, never shown to the assistant.", required: true,
-          ...SECRET_FORM_CARD_DEFINITIONS.identity_user_create?.secretField }],
-        cancelLabel: "Cancel", app: { appName: "tovu-identity-user-create", appVersion: "1" },
-        preferredFrameSize: ["100%", "360px"],
-      }),
+      form: () => userCreateForm({ username, emailSuffix }),
       save: async ({ values, prep, signal }) => (await inner({ ...ctx, signal, input: { ...prep, password: values.password } }, options)) as Record<string, unknown>,
       result: ({ run }) => {
         if (run.status === "saved") return { created: true, ...run.saved };
@@ -179,19 +200,7 @@ export function buildGatedIdentityRegistrations(
         if (run.status === "failed") { failureMessage = run.safeMessage; return undefined; }
         return { created: false, ...notConfirmedResult({ confirmed: false, reason: run.status === "cancelled" ? "declined" : run.status }) };
       },
-      outcome: ({ run }) => {
-        if (run.status !== "saved" && run.status !== "blank" && run.status !== "failed") return undefined;
-        let message: string;
-        if (run.status === "saved") message = `${username} can now sign in with the password you typed.`;
-        else if (run.status === "blank") message = "No password was entered. Nothing was created.";
-        else message = run.safeMessage;
-        return {
-          title: run.status === "saved" ? "User created" : "User not created",
-          details: [{ label: "Username", value: username }], state: run.status === "saved" ? "success" : "failure",
-          message,
-          app: { appName: "tovu-identity-user-create-outcome", appVersion: "1" }, preferredFrameSize: ["100%", "240px"],
-        };
-      },
+      outcome: ({ run }) => userCreateOutcome({ run, username }),
     }, {
       uriHost: "tovu",
       text: { noEmitter: `IDENTITY_NO_CONFIRMATION_CHANNEL: ${USER_CREATE_TOOL_ID}: this execution context has no interactive ` +

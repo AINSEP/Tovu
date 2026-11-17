@@ -6,7 +6,7 @@ import {
   type AgentToRendererMessage,
 } from "@jini-ai/protocol/a2ui";
 
-import { buildDomainRegistrations, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, type AgentToolDefinition, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolExecutionOptions, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 
 import type { AssistantSurfaceDeps, SurfaceExchange, SurfaceMessage } from "@jini-ai/daemon/surface-exchanges";
 
@@ -95,6 +95,65 @@ function rejectionMessageOf({ ack }: { ack: SurfaceMessage | null }, _optional =
   return typeof error?.message === "string" ? error.message : "The browser rejected this surface.";
 }
 
+type EmitSurface = NonNullable<ToolExecutionOptions["emitSurface"]>;
+
+async function emitValidatedA2ui(required: { emitSurface: EmitSurface; message: AgentToRendererMessage }, _optional = {}): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const validated = parseAgentToRendererMessage({ raw: required.message });
+  if (!validated.ok) return { ok: false, reason: validated.message };
+  await required.emitSurface({ channel: "a2ui", payload: { message: validated.message } });
+  return { ok: true };
+}
+
+async function renderUiTool(
+  required: { ctx: ToolExecutionContext; surfaces: AssistantSurfaceDeps; rejectionGraceMs: number; emitSurface: EmitSurface | undefined },
+  _optional = {},
+): Promise<unknown> {
+  const { ctx, surfaces, rejectionGraceMs, emitSurface } = required;
+  if (!emitSurface) {
+    return { rendered: false, reason: "no-surface-channel", note: "No live surface channel on this execution." };
+  }
+  const components = (ctx.input as { components?: unknown[] }).components ?? [];
+
+  const catalog = createLabCatalog({});
+  const exchange = surfaces.surfaceExchanges.open({ binding: { toolId: RENDER_UI_TOOL_ID, principalId: ctx.principal.id, channel: "a2ui" }, emit: emitSurface });
+  const surfaceId = exchange.id;
+
+  const emitA2ui = (message: AgentToRendererMessage) => emitValidatedA2ui({ emitSurface, message });
+
+  try {
+    // Display-only: this tool draws and asks nothing, so the chat must not read the surface as
+    // a question ("Waiting for your answer above") while the call waits out its refusal grace
+    // period below. `surfaceProperties` is an open record; renderers ignore it.
+    const created = await emitA2ui({
+      version: "v1.0",
+      createSurface: { surfaceId, catalogId: catalog.catalogId, surfaceProperties: { [A2UI_DISPLAY_ONLY_PROPERTY]: true }, dataModel: {} },
+    });
+    if (!created.ok) return { rendered: false, reason: "schema-rejected", detail: created.reason };
+
+    const updated = await emitA2ui({ version: "v1.0", updateComponents: { surfaceId, components: components as never } });
+    if (!updated.ok) return { rendered: false, reason: "schema-rejected", detail: updated.reason };
+
+    const rejection = rejectionMessageOf({ ack: await receiveRejectionWithGrace({ exchange: exchange, graceMs: rejectionGraceMs }) });
+    if (rejection) {
+      return {
+        rendered: false,
+        reason: "rejected-by-renderer",
+        detail: rejection,
+        note: "The browser refused to render this — it was NOT drawn and is not visible anywhere. Fix the reported prop and try again; do not tell the user it rendered.",
+      };
+    }
+
+    return {
+      rendered: true,
+      note:
+        "The surface is now visible to the administrator: on this screen's canvas or in the chat, as the Current admin screen " +
+        "block's 'Where drawings appear' line says (in the chat when there is no such line). Briefly describe what it shows and say where it is.",
+    };
+  } finally {
+    exchange.close({});
+  }
+}
+
 export function buildRenderUiRegistrations(
   { _routeDeps, surfaces }: { _routeDeps: unknown; surfaces: AssistantSurfaceDeps },
   /** Test-only seam: production callers never pass this, so `RENDER_REJECTION_GRACE_MS` always
@@ -106,56 +165,7 @@ export function buildRenderUiRegistrations(
   const rejectionGraceMs = options.rejectionGraceMs ?? RENDER_REJECTION_GRACE_MS;
 
   const handlers: Record<string, ToolHandler> = {
-    [RENDER_UI_TOOL_ID]: async (ctx, { emitSurface } = {}) => {
-      if (!emitSurface) {
-        return { rendered: false, reason: "no-surface-channel", note: "No live surface channel on this execution." };
-      }
-      const components = (ctx.input as { components?: unknown[] }).components ?? [];
-
-      const catalog = createLabCatalog({});
-      const exchange = surfaces.surfaceExchanges.open({ binding: { toolId: RENDER_UI_TOOL_ID, principalId: ctx.principal.id, channel: "a2ui" }, emit: emitSurface });
-      const surfaceId = exchange.id;
-
-      const emitA2ui = async (message: AgentToRendererMessage): Promise<{ ok: true } | { ok: false; reason: string }> => {
-        const validated = parseAgentToRendererMessage({ raw: message });
-        if (!validated.ok) return { ok: false, reason: validated.message };
-        await emitSurface({ channel: "a2ui", payload: { message: validated.message } });
-        return { ok: true };
-      };
-
-      try {
-        // Display-only: this tool draws and asks nothing, so the chat must not read the surface as
-        // a question ("Waiting for your answer above") while the call waits out its refusal grace
-        // period below. `surfaceProperties` is an open record; renderers ignore it.
-        const created = await emitA2ui({
-          version: "v1.0",
-          createSurface: { surfaceId, catalogId: catalog.catalogId, surfaceProperties: { [A2UI_DISPLAY_ONLY_PROPERTY]: true }, dataModel: {} },
-        });
-        if (!created.ok) return { rendered: false, reason: "schema-rejected", detail: created.reason };
-
-        const updated = await emitA2ui({ version: "v1.0", updateComponents: { surfaceId, components: components as never } });
-        if (!updated.ok) return { rendered: false, reason: "schema-rejected", detail: updated.reason };
-
-        const rejection = rejectionMessageOf({ ack: await receiveRejectionWithGrace({ exchange: exchange, graceMs: rejectionGraceMs }) });
-        if (rejection) {
-          return {
-            rendered: false,
-            reason: "rejected-by-renderer",
-            detail: rejection,
-            note: "The browser refused to render this — it was NOT drawn and is not visible anywhere. Fix the reported prop and try again; do not tell the user it rendered.",
-          };
-        }
-
-        return {
-          rendered: true,
-          note:
-            "The surface is now visible to the administrator: on this screen's canvas or in the chat, as the Current admin screen " +
-            "block's 'Where drawings appear' line says (in the chat when there is no such line). Briefly describe what it shows and say where it is.",
-        };
-      } finally {
-        exchange.close({});
-      }
-    },
+    [RENDER_UI_TOOL_ID]: (ctx, { emitSurface } = {}) => renderUiTool({ ctx, surfaces, rejectionGraceMs, emitSurface }),
   };
 
   return buildDomainRegistrations({ metadata: toolMetadata,

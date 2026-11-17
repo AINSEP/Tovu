@@ -136,6 +136,51 @@ function ownIndex({ ownership, bindingId }: { ownership: Ownership; bindingId: s
   return own.index;
 }
 
+type BindingScope = SurfaceDeliveryBindingsDeps & { readonly pluginId: string; readonly workspaceId: string; readonly principalId?: string };
+
+/** @complexity O(b + c + a + forms), four reads in parallel. */
+async function readOwnership(required: BindingScope): Promise<Ownership> {
+  const { pluginId, workspaceId } = required;
+  if (workspaceId !== required.siteWorkspaceId) return NOTHING_OWNED;
+  const [all, adapterIds, connectionIds, forms] = await Promise.all([
+    required.bindings.read({ workspaceId }), required.contributedAdapterIds({ workspaceId, pluginId }),
+    required.declaredConnectionIds({ pluginId }), required.forms.list({ workspaceId }),
+  ]);
+  const refs = connectionIds.map((connectionId) => [connectionId, deriveApiConnectionKey({ workspaceId, pluginId, connectionId })] as const);
+  return {
+    all, adapterIds: new Set(adapterIds),
+    refByConnectionId: new Map(refs), connectionIdByRef: new Map(refs.map(([connectionId, ref]) => [ref, connectionId])),
+    slugByFormId: new Map(forms.map((form) => [form.id, form.slug])), formIdBySlug: new Map(forms.map((form) => [form.slug, form.id])),
+  };
+}
+
+/**
+ * Merges against fresh ownership and writes through the binding owner; one conflict retries the
+ * whole ownership check, so a concurrent removal or ownership change cannot be undone.
+ * Validation keeps its people-facing message; a second conflict asks the panel to refresh.
+ * @complexity At most two ownership reads and guarded writes; O(b + f) merge time/space per try.
+ */
+async function updateBindings<T>(
+  required: BindingScope,
+  input: { callerPrincipalId: string; merge: (required: { owned: Ownership }, optional?: Record<string, never>) => { value: readonly FormDeliveryBinding[]; result: T } },
+  optional: { retry?: boolean } = {},
+): Promise<T> {
+  const owned = await readOwnership(required);
+  const { value, result } = input.merge({ owned });
+  const { workspaceId } = required;
+  try {
+    await required.bindings.write({ workspaceId, callerPrincipalId: input.callerPrincipalId, value, expectedValue: owned.all });
+    return result;
+  } catch (error) {
+    if (required.bindings.isConflict({ error })) {
+      if (optional.retry !== false) return updateBindings(required, input, { retry: false });
+      throw new AdminSurfaceActionError({ code: "delivery-binding-conflict", message: "Delivery settings changed in another panel. List the bindings again and retry your change." }, { cause: error });
+    }
+    if (!(error instanceof ValueValidationFailedError)) throw error;
+    throw new AdminSurfaceActionError({ code: "delivery-binding-invalid", message: error.message }, { cause: error });
+  }
+}
+
 /**
  * Builds the per-call port for one plugin, workspace and signed-in admin.
  * @param required.principalId - The admin the route authenticated; every call is refused without one,
@@ -144,66 +189,26 @@ function ownIndex({ ownership, bindingId }: { ownership: Ownership; bindingId: s
  *   then O(b + f); `save` and `remove` add one guarded settings write and retry once on conflict.
  */
 export function createSurfaceDeliveryBindings(
-  required: SurfaceDeliveryBindingsDeps & { readonly pluginId: string; readonly workspaceId: string; readonly principalId?: string },
+  required: BindingScope,
   _optional: Record<string, never> = {},
 ): AdminSurfaceDeliveryBindings {
-  const { pluginId, workspaceId, principalId } = required;
+  const { principalId } = required;
 
   function admin(): string {
     if (principalId === undefined) throw refusal({ code: "admin-required", message: "Delivery settings need a signed-in admin. Open the plugin's settings from this site's admin and retry." });
     return principalId;
   }
 
-  /** @complexity O(b + c + a + forms), four reads in parallel. */
-  async function ownership(): Promise<Ownership> {
-    if (workspaceId !== required.siteWorkspaceId) return NOTHING_OWNED;
-    const [all, adapterIds, connectionIds, forms] = await Promise.all([
-      required.bindings.read({ workspaceId }), required.contributedAdapterIds({ workspaceId, pluginId }),
-      required.declaredConnectionIds({ pluginId }), required.forms.list({ workspaceId }),
-    ]);
-    const refs = connectionIds.map((connectionId) => [connectionId, deriveApiConnectionKey({ workspaceId, pluginId, connectionId })] as const);
-    return {
-      all, adapterIds: new Set(adapterIds),
-      refByConnectionId: new Map(refs), connectionIdByRef: new Map(refs.map(([connectionId, ref]) => [ref, connectionId])),
-      slugByFormId: new Map(forms.map((form) => [form.id, form.slug])), formIdBySlug: new Map(forms.map((form) => [form.slug, form.id])),
-    };
-  }
-
-  /**
-   * Merges against fresh ownership and writes through the binding owner; one conflict retries the
-   * whole ownership check, so a concurrent removal or ownership change cannot be undone.
-   * Validation keeps its people-facing message; a second conflict asks the panel to refresh.
-   * @complexity At most two ownership reads and guarded writes; O(b + f) merge time/space per try.
-   */
-  async function update<T>(
-    input: { callerPrincipalId: string; merge: (required: { owned: Ownership }, optional?: Record<string, never>) => { value: readonly FormDeliveryBinding[]; result: T } },
-    optional: { retry?: boolean } = {},
-  ): Promise<T> {
-    const owned = await ownership();
-    const { value, result } = input.merge({ owned });
-    try {
-      await required.bindings.write({ workspaceId, callerPrincipalId: input.callerPrincipalId, value, expectedValue: owned.all });
-      return result;
-    } catch (error) {
-      if (required.bindings.isConflict({ error })) {
-        if (optional.retry !== false) return update(input, { retry: false });
-        throw new AdminSurfaceActionError({ code: "delivery-binding-conflict", message: "Delivery settings changed in another panel. List the bindings again and retry your change." }, { cause: error });
-      }
-      if (!(error instanceof ValueValidationFailedError)) throw error;
-      throw new AdminSurfaceActionError({ code: "delivery-binding-invalid", message: error.message }, { cause: error });
-    }
-  }
-
   return {
     async list() {
       admin();
-      const owned = await ownership();
+      const owned = await readOwnership(required);
       return ownEntries(owned).map((entry) => toView({ ownership: owned, binding: entry.binding, connectionId: entry.connectionId }));
     },
     async save(draft) {
       const callerPrincipalId = admin();
       const bindingId = draft.bindingId ?? required.newBindingId();
-      return update({ callerPrincipalId, merge: ({ owned }, _optional = {}) => {
+      return updateBindings(required, { callerPrincipalId, merge: ({ owned }, _optional = {}) => {
         const replaced = draft.bindingId === undefined ? owned.all.length : ownIndex({ ownership: owned, bindingId: draft.bindingId });
         const stored = keepHiddenFormIds({ ownership: owned, stored: toStored({ ownership: owned, draft, bindingId }), previous: owned.all[replaced] });
         return { value: [...owned.all.slice(0, replaced), stored, ...owned.all.slice(replaced + 1)], result: toView({ ownership: owned, binding: stored, connectionId: draft.connectionId }) };
@@ -211,7 +216,7 @@ export function createSurfaceDeliveryBindings(
     },
     async remove({ bindingId }) {
       const callerPrincipalId = admin();
-      return update({ callerPrincipalId, merge: ({ owned }, _optional = {}) => {
+      return updateBindings(required, { callerPrincipalId, merge: ({ owned }, _optional = {}) => {
         const index = ownIndex({ ownership: owned, bindingId });
         return { value: owned.all.filter((_binding, at) => at !== index), result: undefined };
       } });

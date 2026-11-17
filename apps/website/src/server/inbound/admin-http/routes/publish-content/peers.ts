@@ -90,8 +90,17 @@ function presentPeerFields(body: Record<string, unknown>): Partial<Record<(typeo
   return Object.fromEntries(PEER_FIELDS.filter((field) => field in body).map((field) => [field, body[field]]));
 }
 
-export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
-  const base = "/api/admin/v1/workspaces/:workspaceId/publish-content/peers";
+type PeerRoute = Parameters<PublishContentRouteRegistrar>[0];
+
+const PEER_BASE = "/api/admin/v1/workspaces/:workspaceId/publish-content/peers";
+
+export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = (route, _options = {}) => {
+  registerPeerListAndCreate(route);
+  registerPeerUpdateAndDelete(route);
+};
+
+function registerPeerListAndCreate({ app, deps }: PeerRoute, _options = {}): void {
+  const base = PEER_BASE;
 
   app.get(base, async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
@@ -121,6 +130,10 @@ export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = ({
       respondToPeerFailure({ res, error: err });
     }
   });
+}
+
+function registerPeerUpdateAndDelete({ app, deps }: PeerRoute, _options = {}): void {
+  const base = PEER_BASE;
 
   app.patch(`${base}/:peerId`, async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
@@ -152,4 +165,4 @@ export const registerPublishContentPeerRoutes: PublishContentRouteRegistrar = ({
       respondToPeerFailure({ res, error: err });
     }
   });
-};
+}

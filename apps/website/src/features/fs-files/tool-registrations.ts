@@ -1,6 +1,6 @@
 import { basename } from "node:path";
 import { toolMetadata } from '../../contracts/core/tool-metadata/fs-files.js';
-import { ToolInputError, buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalNumber, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { ToolInputError, buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalNumber, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
@@ -145,47 +145,53 @@ export function preparePickedFolderBatch({ routeDeps, files }: { routeDeps: FsFi
   }
 }
 
+async function listFilesTool(required: { routeDeps: FsFilesToolDeps; ctx: ToolExecutionContext }, _optional = {}): Promise<unknown> {
+  const { routeDeps, ctx } = required;
+  const input = requireInputRecord({ input: ctx.input });
+  requireCurrentSite({ input }, {});
+  const root = requireFsRootInput({ input, toolId: FS_LIST_FILES_TOOL_ID });
+  const relativePath = optionalString({ input: input, key: "path" });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: FS_FILES_READ_PERMISSION }, { entityType: "fs-root", entityId: root });
+
+  return withSchemaOnRejection({ toolId: FS_LIST_FILES_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => {
+    const fileRequest = resolveSiteFileRequest({ routeDeps, root, ...(relativePath === undefined ? {} : { relativePath }) }, {});
+    // `truncated` is forwarded rather than dropped: `listFsFiles` stops at its own bounds, and a
+    // caller handed only a short array cannot tell a small directory from a cut-off listing —
+    // which is exactly the wrong thing for a model about to conclude "that file does not exist".
+    const recursive = optionalBoolean({ input, key: "recursive" });
+    const depth = optionalNumber({ input, key: "depth" }) ?? (recursive ? 12 : 1);
+    const limit = optionalNumber({ input, key: "limit" }) ?? 100;
+    const cursor = optionalString({ input, key: "cursor" });
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100)
+      throw new ToolInputError({ message: "limit must be an integer between 1 and 100" });
+    const listing = listFsFiles({ ...fileRequest, depth, limit, ...(cursor === undefined ? {} : { cursor }) });
+    return { root, path: relativePath ?? "", ...listing };
+  } });
+}
+
+async function readFileTool(required: { routeDeps: FsFilesToolDeps; ctx: ToolExecutionContext }, _optional = {}): Promise<unknown> {
+  const { routeDeps, ctx } = required;
+  const input = requireInputRecord({ input: ctx.input });
+  requireCurrentSite({ input }, {});
+  const root = requireFsRootInput({ input, toolId: FS_READ_FILE_TOOL_ID });
+  const relativePath = requireString({ input: input, key: "path" });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: FS_FILES_READ_PERMISSION }, { entityType: "fs-root", entityId: root });
+
+  return withSchemaOnRejection({ toolId: FS_READ_FILE_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => {
+    const fileRequest = resolveSiteFileRequest({ routeDeps, root, relativePath }, {});
+    const { content, bytes } = readFsFile(fileRequest);
+    return { root, path: relativePath, content, bytes };
+  } });
+}
+
 export function buildFsFilesRegistrations(
   routeDeps: FsFilesToolDeps,
   surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
-    [FS_LIST_FILES_TOOL_ID]: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      requireCurrentSite({ input }, {});
-      const root = requireFsRootInput({ input, toolId: FS_LIST_FILES_TOOL_ID });
-      const relativePath = optionalString({ input: input, key: "path" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: FS_FILES_READ_PERMISSION }, { entityType: "fs-root", entityId: root });
+    [FS_LIST_FILES_TOOL_ID]: (ctx) => listFilesTool({ routeDeps, ctx }),
 
-      return withSchemaOnRejection({ toolId: FS_LIST_FILES_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => {
-        const fileRequest = resolveSiteFileRequest({ routeDeps, root, ...(relativePath === undefined ? {} : { relativePath }) }, {});
-        // `truncated` is forwarded rather than dropped: `listFsFiles` stops at its own bounds, and a
-        // caller handed only a short array cannot tell a small directory from a cut-off listing —
-        // which is exactly the wrong thing for a model about to conclude "that file does not exist".
-        const recursive = optionalBoolean({ input, key: "recursive" });
-        const depth = optionalNumber({ input, key: "depth" }) ?? (recursive ? 12 : 1);
-        const limit = optionalNumber({ input, key: "limit" }) ?? 100;
-        const cursor = optionalString({ input, key: "cursor" });
-        if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100)
-          throw new ToolInputError({ message: "limit must be an integer between 1 and 100" });
-        const listing = listFsFiles({ ...fileRequest, depth, limit, ...(cursor === undefined ? {} : { cursor }) });
-        return { root, path: relativePath ?? "", ...listing };
-      } });
-    },
-
-    [FS_READ_FILE_TOOL_ID]: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      requireCurrentSite({ input }, {});
-      const root = requireFsRootInput({ input, toolId: FS_READ_FILE_TOOL_ID });
-      const relativePath = requireString({ input: input, key: "path" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: FS_FILES_READ_PERMISSION }, { entityType: "fs-root", entityId: root });
-
-      return withSchemaOnRejection({ toolId: FS_READ_FILE_TOOL_ID, catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => {
-        const fileRequest = resolveSiteFileRequest({ routeDeps, root, relativePath }, {});
-        const { content, bytes } = readFsFile(fileRequest);
-        return { root, path: relativePath, content, bytes };
-      } });
-    },
+    [FS_READ_FILE_TOOL_ID]: (ctx) => readFileTool({ routeDeps, ctx }),
 
     [FS_WRITE_FILES_TOOL_ID]: approvalToolHandler<PreparedWriteBatch>({ surfaces,
       prepare: async ({ ctx }) => {

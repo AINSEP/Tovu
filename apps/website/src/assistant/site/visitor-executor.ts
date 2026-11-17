@@ -36,20 +36,15 @@ export interface VisitorExecutor {
   invoke(required: { name: string; input: unknown; caller: string }, optional?: { refuseOnly?: boolean }): Promise<VisitorToolOutcome>;
 }
 
-/** Create a request-lifetime executor over reviewed CMS handlers only. Registration is private.
- * Rollback omits policy ports and retains the literal capability surface. The attempt increment
- * and check are synchronous, so parallel calls cannot exceed four even after the audit append.
- * @complexity O(t) registration, O(1) gate plus the CMS handler and two limiter checks per call.
- * @example createVisitorExecutor({ capabilities }, { ports });
- */
-export function createVisitorExecutor({ capabilities }: { capabilities: readonly VisitorCapabilityContract[] }, { ports }: { ports?: VisitorExecutionPorts } = {}): VisitorExecutor {
-  const registry = createToolRegistry({});
-  const scopedPorts = ports ? { ...ports, requiresConfirmation: ({ toolId, input }: { toolId: string; input: unknown }) => capabilityNeedsApproval({ capabilities, toolId, input }) } : undefined;
-  const confirmation = scopedPorts ? createVisitorConfirmationGate({ ports: scopedPorts, resume: args => executor.resumeConfirmation(args) }) : undefined;
-  registerCapabilities({ capabilities, registry, ports, confirmation });
-  const executor = createToolExecutor({ registry }, { now: ports?.clock.nowMs.bind(ports.clock), delegate: confirmation?.delegate });
-  const runId = ports?.runId ?? "visitor-turn";
-  const signal = ports?.signal;
+type VisitorToolRegistry = ReturnType<typeof createToolRegistry>;
+type VisitorToolExecutor = ReturnType<typeof createToolExecutor>;
+
+/** Builds the per-call audited executor; the turn-wide attempt budget lives in this closure so every call shares it. */
+function createAuditedExecutor(
+  required: { capabilities: readonly VisitorCapabilityContract[]; registry: VisitorToolRegistry; executor: VisitorToolExecutor; ports: VisitorExecutionPorts | undefined },
+  _optional = {},
+) {
+  const { capabilities, registry, executor, ports } = required;
   let attempts = 0;
 
   /** Refuse unpublished calls inside the audit wrapper even if policy changes during its append.
@@ -75,6 +70,25 @@ export function createVisitorExecutor({ capabilities }: { capabilities: readonly
       readErrorId: () => undefined,
     }, { onSinkError: (error) => ports.reportError({ error }) }) : gated;
   };
+
+  return audited;
+}
+
+/** Create a request-lifetime executor over reviewed CMS handlers only. Registration is private.
+ * Rollback omits policy ports and retains the literal capability surface. The attempt increment
+ * and check are synchronous, so parallel calls cannot exceed four even after the audit append.
+ * @complexity O(t) registration, O(1) gate plus the CMS handler and two limiter checks per call.
+ * @example createVisitorExecutor({ capabilities }, { ports });
+ */
+export function createVisitorExecutor({ capabilities }: { capabilities: readonly VisitorCapabilityContract[] }, { ports }: { ports?: VisitorExecutionPorts } = {}): VisitorExecutor {
+  const registry = createToolRegistry({});
+  const scopedPorts = ports ? { ...ports, requiresConfirmation: ({ toolId, input }: { toolId: string; input: unknown }) => capabilityNeedsApproval({ capabilities, toolId, input }) } : undefined;
+  const confirmation = scopedPorts ? createVisitorConfirmationGate({ ports: scopedPorts, resume: args => executor.resumeConfirmation(args) }) : undefined;
+  registerCapabilities({ capabilities, registry, ports, confirmation });
+  const executor = createToolExecutor({ registry }, { now: ports?.clock.nowMs.bind(ports.clock), delegate: confirmation?.delegate });
+  const runId = ports?.runId ?? "visitor-turn";
+  const signal = ports?.signal;
+  const audited = createAuditedExecutor({ capabilities, registry, executor, ports });
 
   return {
     /** The guide uses a fresh grant snapshot, so its prose never advertises a disabled tool. */

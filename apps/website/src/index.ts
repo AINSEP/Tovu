@@ -230,29 +230,54 @@ function createBootHttpServer({ handler }: { handler: import("node:http").Reques
   return devTls.active && devTls.credentials ? createHttpsServer(devTls.credentials, handler) : createHttpServer(handler);
 }
 
+/** A request listener that answers 503 until {@link attach} swaps the real app in, keeping one socket bound. */
+function createSwappableRequestHandler(_optional = {}): { handler: import("node:http").RequestListener; attach: (next: import("node:http").RequestListener) => void } {
+  let requestHandler: import("node:http").RequestListener = (_request, response) => {
+    response.writeHead(503, { "Retry-After": "1" });
+    response.end("Server is starting");
+  };
+  return {
+    handler: (request, response) => requestHandler(request, response),
+    attach: (next) => { requestHandler = next; },
+  };
+}
+
+/** Opens the route deps; `opened.store` is the store the composition opens (a PGlite owner's socket goes to the agent daemon). */
+async function openSiteDeps(_optional = {}) {
+  const opened: { store: SiteStore | undefined } = { store: undefined };
+  // The in-memory root scans no plugin folder unless one is named: an explicit TOVU_PLUGINS_DIR
+  // (journeys, local opt-in installs) gets the same installer the SQLite root always has.
+  const memoryOptions = useMemory && process.env.TOVU_PLUGINS_DIR ? { installDir: resolvePath(process.env.TOVU_PLUGINS_DIR) } : {};
+  const deps = useMemory
+    ? createRouteDeps(memoryOptions)
+    : await createSiteRouteDeps({}, { dbPath: defaultContentDbPath(), overrides: { onStoreOpened: ({ store }, _optional = {}) => (opened.store = store) } });
+  return { deps, opened };
+}
+
+/** Runs the boot modules and publishes the readiness snapshot; a failed critical module ends the process. */
+async function runBootModulesOrExit(deps: Awaited<ReturnType<typeof openSiteDeps>>["deps"], _optional = {}): Promise<void> {
+  const bootResult = await runBootLifecycle(buildBootModules(deps, { useMemory, defaultContentDbPath }));
+  setReadinessSnapshot(bootResult);
+  if (!bootResult.ok) {
+    logCriticalBootFailures(bootResult);
+    console.error("Refusing to boot — a critical module failed. See failures above.");
+    process.exit(1);
+  }
+}
+
 async function main(): Promise<void> {
   const runningLease = await prepareSiteBoot({ useMemory }, {});
   if (runningLease?.attached) return;
 
   // Reserve the actual HTTP(S) listener before composition derives origins or spawns daemons.
   // During boot it answers 503; attaching the app later keeps this SAME socket bound throughout.
-  let requestHandler: import("node:http").RequestListener = (_request, response) => {
-    response.writeHead(503, { "Retry-After": "1" });
-    response.end("Server is starting");
-  };
-  const server = createBootHttpServer({ handler: (request, response) => requestHandler(request, response) });
+  const startingHandler = createSwappableRequestHandler();
+  const server = createBootHttpServer({ handler: startingHandler.handler });
   await reserveSiteBootListener({ server, runningLease }, {});
 
   server.on("error", (error: Error) => { throw error; });
 
-  // The store the composition opens: a PGlite owner's socket goes to the agent daemon below.
-  let siteStore: SiteStore | undefined;
-  // The in-memory root scans no plugin folder unless one is named: an explicit TOVU_PLUGINS_DIR
-  // (journeys, local opt-in installs) gets the same installer the SQLite root always has.
-  const memoryOptions = useMemory && process.env.TOVU_PLUGINS_DIR ? { installDir: resolvePath(process.env.TOVU_PLUGINS_DIR) } : {};
-  const deps = useMemory
-    ? createRouteDeps(memoryOptions)
-    : await createSiteRouteDeps({}, { dbPath: defaultContentDbPath(), overrides: { onStoreOpened: ({ store }, _optional = {}) => (siteStore = store) } });
+  const { deps, opened } = await openSiteDeps();
   // Unhandled rejections/exceptions reach the error tracker too, now that its port exists.
   installProcessErrorReporting({ tracker: deps.tracker, processRole: "server" }, { flush: deps.flushTelemetry });
   if (!useMemory) await completeDevSiteMetaOrWarn({ dir: siteDir() });
@@ -268,20 +293,14 @@ async function main(): Promise<void> {
   // Every store closes on shutdown; SQLite close checkpoints and removes its WAL/SHM sidecars.
   const storeOwnsShutdown =
     closeStoreOnShutdown(
-      { store: siteStore, onShutdown: shutdownAssistantDaemon },
+      { store: opened.store, onShutdown: shutdownAssistantDaemon },
       { bootWork: () => bootWork, registerStop: ({ stop }, _optional = {}) => { requestStop = stop; }, stopServing: () => stopServing() }
     );
 
   // ADR-046 Phase 3 (SPEC-031): the boot-module composition itself now lives in
   // `server/runtime/boot/bootstrap.ts` (unit-testable, unlike this file — see the note above on why
   // boot-only enforcement stays here while the composable logic does not).
-  const bootResult = await runBootLifecycle(buildBootModules(deps, { useMemory, defaultContentDbPath }));
-  setReadinessSnapshot(bootResult);
-  if (!bootResult.ok) {
-    logCriticalBootFailures(bootResult);
-    console.error("Refusing to boot — a critical module failed. See failures above.");
-    process.exit(1);
-  }
+  await runBootModulesOrExit(deps);
 
   // Self-allocation fix (2026-08-28): must resolve — and, when neither `JINI_AGENT_DAEMON_URL` nor
   // `JINI_AGENT_DAEMON_PORT` is set, allocate — the daemon's origin BEFORE `createApp()` wires the
@@ -347,7 +366,7 @@ async function main(): Promise<void> {
     void themeWatcher.stop();
     void shutdownLocalSiteHosts({}).catch((error: unknown) => console.error("[local-sites] Could not shut down local site hosts", describeErrorForLog({ err: error })));
   });
-  requestHandler = app;
+  startingHandler.attach(app);
 
   // Forwards Vite's HMR WebSocket through this server's own `upgrade` event when
   // `TOVU_ADMIN_DEV_PROXY_URL` is set — the one thing `admin-static.ts`'s ordinary Express routing
@@ -356,31 +375,42 @@ async function main(): Promise<void> {
   // doc for the precedence this mirrors. Registered on `server` directly rather than `app`, so it
   // works identically whether TLS is active or not.
   registerAdminDevProxyUpgrade(server);
-  onListening();
+  onSiteListening({ server, deps, opened, daemonCallback, storeOwnsShutdown });
 
-  function onListening() {
-    const address = server.address();
-    if (address === null || typeof address === "string") throw new Error("the site listener has no TCP address");
-    const siteApiOrigin = pinSiteListenerOrigin({ scheme: devTls.active ? "https" : "http", host: bindHost, port: address.port });
-    const store = useMemory ? "in-memory" : `sqlite (${defaultContentDbPath()})`;
-    console.log(`tovu server running on ${devScheme}://localhost:${port} — store: ${store}`);
-    // Watch restarts keep dev.mjs's session; boot must not wait for a Sites request to recover.
-    const cancelSiteResume = resumeLocalSitesForHost({ binding: deps.siteBinding });
-    server.once("close", cancelSiteResume);
+}
 
-    // Cold registration retains readiness before spawn: listening says nothing about whether the
-    // boot-time seeders have settled, and spawning the daemon early raced them (duplicate identity
-    // and `core.execution.mode` rows). The list and the full why live in
-    // `server/runtime/boot/site-boot-readiness.ts`, shared with `cli/commands/serve.ts`.
-    startAssistantDaemon(
-      { workspaceId: deps.workspaceId, siteDir: siteDir(), pgSocketPath: siteStore?.pgliteSocketPath, siteApiOrigin, siteCallbackOrigin: daemonCallback.origin },
-      { registerProcessSignalHandlers: !storeOwnsShutdown, beforeStart: async () => {
-        await awaitSiteBootReadiness({ deps });
-        if (!(await agentDaemonWanted(deps))) throw new Error("the assistant daemon is disabled for this site");
-      } }
-    );
-  }
+/** Logs the bound listener, resumes local sites and starts the assistant daemon once the socket is listening. */
+function onSiteListening(
+  required: {
+    server: ReturnType<typeof createBootHttpServer>;
+    deps: Awaited<ReturnType<typeof openSiteDeps>>["deps"];
+    opened: Awaited<ReturnType<typeof openSiteDeps>>["opened"];
+    daemonCallback: Awaited<ReturnType<typeof startSiteDaemonListener>>;
+    storeOwnsShutdown: boolean;
+  },
+  _optional = {}
+): void {
+  const { server, deps, opened, daemonCallback, storeOwnsShutdown } = required;
+  const address = server.address();
+  if (address === null || typeof address === "string") throw new Error("the site listener has no TCP address");
+  const siteApiOrigin = pinSiteListenerOrigin({ scheme: devTls.active ? "https" : "http", host: bindHost, port: address.port });
+  const store = useMemory ? "in-memory" : `sqlite (${defaultContentDbPath()})`;
+  console.log(`tovu server running on ${devScheme}://localhost:${port} — store: ${store}`);
+  // Watch restarts keep dev.mjs's session; boot must not wait for a Sites request to recover.
+  const cancelSiteResume = resumeLocalSitesForHost({ binding: deps.siteBinding });
+  server.once("close", cancelSiteResume);
 
+  // Cold registration retains readiness before spawn: listening says nothing about whether the
+  // boot-time seeders have settled, and spawning the daemon early raced them (duplicate identity
+  // and `core.execution.mode` rows). The list and the full why live in
+  // `server/runtime/boot/site-boot-readiness.ts`, shared with `cli/commands/serve.ts`.
+  startAssistantDaemon(
+    { workspaceId: deps.workspaceId, siteDir: siteDir(), pgSocketPath: opened.store?.pgliteSocketPath, siteApiOrigin, siteCallbackOrigin: daemonCallback.origin },
+    { registerProcessSignalHandlers: !storeOwnsShutdown, beforeStart: async () => {
+      await awaitSiteBootReadiness({ deps });
+      if (!(await agentDaemonWanted(deps))) throw new Error("the assistant daemon is disabled for this site");
+    } }
+  );
 }
 
 // ADR-049 (process-shape correction) — Tovu never spawns a coding-agent CLI itself; that lives

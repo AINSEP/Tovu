@@ -846,6 +846,36 @@ function loadThemeCss({ themeDir, manifest }: { themeDir: string; manifest: Them
 }
 
 /**
+ * The pages/partials half of loading: the static tier's on-disk layout, bundled-template inheritance,
+ * and the declaration and compiled-build conformance checks over them, errors in discovery order.
+ */
+function loadThemeAssets(required: { themeDir: string; siteManifest: ThemeManifest; packageThemesDir: string | null }, _optional = {}) {
+  const { themeDir, siteManifest, packageThemesDir } = required;
+  const errors: string[] = [];
+  // The static tier's whole on-disk layout — light tokens, pages/, root partials — loaded in one
+  // call rather than as branches threaded through the tier-agnostic loading below. Empty for every
+  // other tier, so nothing here needs to re-test which tier this is.
+  const { tokensLight, pages: sitePages, partials, errors: staticErrors } = loadStaticTierAssets({
+    themeDir,
+    tier: siteManifest.tier,
+    slots: siteManifest.slots,
+    apiVersion: siteManifest.apiVersion,
+  });
+  errors.push(...staticErrors);
+  const { manifest, pages, inheritedTemplateSources } = inheritBundledTemplates({
+    manifest: siteManifest,
+    pages: sitePages,
+    bundled: readBundledTemplateFallback({ manifest: siteManifest, packageThemesDir }),
+  });
+  if (manifest.tier === "static") {
+    errors.push(...validateTemplateDeclarations({ templates: manifest.templates, pages, pagesDirName: resolveThemeLayout({}, { apiVersion: manifest.apiVersion }).pagesDir }));
+  }
+
+  errors.push(...checkCompiledBuildConformance({ manifest, themeDir, pages, partials }));
+  return { manifest, tokensLight, pages, partials, inheritedTemplateSources, errors };
+}
+
+/**
  * Load one theme folder. Returns a DiscoveredTheme with `status: "invalid"` and
  * a populated `errors` list instead of throwing, so one bad theme never breaks
  * discovery (SPEC-004 REQ-10 spirit).
@@ -865,27 +895,12 @@ export function loadTheme(
   const { tokens, errors: tokenErrors } = loadThemeTokens({ themeDir });
   errors.push(...tokenErrors);
 
-  // The static tier's whole on-disk layout — light tokens, pages/, root partials — loaded in one
-  // call rather than as branches threaded through the tier-agnostic loading below. Empty for every
-  // other tier, so nothing here needs to re-test which tier this is.
-  const { tokensLight, pages: sitePages, partials, errors: staticErrors } = loadStaticTierAssets({
+  const { manifest, tokensLight, pages, partials, inheritedTemplateSources, errors: assetErrors } = loadThemeAssets({
     themeDir,
-    tier: siteManifest.tier,
-    slots: siteManifest.slots,
-    apiVersion: siteManifest.apiVersion,
+    siteManifest,
+    packageThemesDir: optional.packageThemesDir === undefined ? stockThemesDir() : optional.packageThemesDir,
   });
-  errors.push(...staticErrors);
-  const packageThemesDir = optional.packageThemesDir === undefined ? stockThemesDir() : optional.packageThemesDir;
-  const { manifest, pages, inheritedTemplateSources } = inheritBundledTemplates({
-    manifest: siteManifest,
-    pages: sitePages,
-    bundled: readBundledTemplateFallback({ manifest: siteManifest, packageThemesDir }),
-  });
-  if (manifest.tier === "static") {
-    errors.push(...validateTemplateDeclarations({ templates: manifest.templates, pages, pagesDirName: resolveThemeLayout({}, { apiVersion: manifest.apiVersion }).pagesDir }));
-  }
-
-  errors.push(...checkCompiledBuildConformance({ manifest, themeDir, pages, partials }));
+  errors.push(...assetErrors);
 
   const { templatesDirName, templates, liquidTemplates, handlebarsTemplates, errors: templateErrors } =
     loadTemplateSources({ themeDir, manifest });

@@ -130,6 +130,58 @@ function sendUploadFailure({ res, error }: { res: Response; error: unknown }): v
   sendValidationOrInternalError({ res, error });
 }
 
+type MediaUploadDeps = Parameters<MediaRouteRegistrar>[0]["deps"];
+type UploadFields = NonNullable<ReturnType<typeof parseUploadRequestFieldsOrRespond>>;
+
+/** Decodes and stores the upload, then records the sniffed type of a media blob. */
+async function persistUpload(required: { deps: MediaUploadDeps; fields: UploadFields; principalId: string }, _optional = {}) {
+  const { deps, fields, principalId } = required;
+  const { kind, filename, alt, caption, credit } = fields;
+  const { bytes, contentType: verifiedContentType } = decodeUploadPayload(fields);
+
+  const { media } = await uploadMedia({
+    deps: {
+      clock: deps.clock,
+      idGen: deps.idGen,
+      mediaRepo: deps.mediaRepo,
+      blobRepo: deps.assetBlobRepo,
+      renditionRepo: deps.assetRenditionRepo,
+      blobStore: deps.blobStore,
+      documentArchiveReader: createDocumentArchiveReader({}),
+    },
+    input: {
+      workspaceId: deps.workspaceId,
+      kind,
+      bytes,
+      filename,
+      contentType: verifiedContentType,
+      alt,
+      caption,
+      credit,
+      createdByPrincipal: principalId,
+    },
+  }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
+
+  // Only media uses the per-blob sniff cache; document type is its validated filename policy.
+  // Record the sniffed type so the admin's type filter agrees with what `original.ts` serves
+  // (it never trusts the upload-time string either). Written AFTER `uploadMedia` because the
+  // blob row it updates is created there.
+  if (kind === "media") await deps.mediaContentTypeStore.set({
+    workspaceId: deps.workspaceId,
+    sha256: media.source.sha256,
+    contentType: verifiedContentType,
+  });
+  return { media, bytes, verifiedContentType };
+}
+
+/** The product-event kind of an upload: its document/media kind refined by the verified MIME family. */
+function uploadedMediaKind(required: { kind: string; contentType: string }, _optional = {}): "document" | "image" | "audio" | "video" | "other" {
+  const family = required.contentType.split("/")[0];
+  if (required.kind === "document") return "document";
+  if (family === "image" || family === "audio" || family === "video") return family;
+  return "other";
+}
+
 /**
  * POST a new media upload. Gated by `media.upload` (SPEC-021 REQ-39/OQ-01, ADR-027 §7).
  *
@@ -147,7 +199,7 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = ({ app, deps }
 
     const fields = parseUploadRequestFieldsOrRespond(req, res);
     if (!fields) return;
-    const { kind, filename, alt, caption, credit } = fields;
+    const { kind } = fields;
 
     try {
       // Inside the try: requireAdminSession always sets res.locals.principal before this
@@ -162,46 +214,8 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = ({ app, deps }
       } });
       if (!authorized) return;
 
-      const { bytes, contentType: verifiedContentType } = decodeUploadPayload(fields);
-
-      const { media } = await uploadMedia({
-        deps: {
-          clock: deps.clock,
-          idGen: deps.idGen,
-          mediaRepo: deps.mediaRepo,
-          blobRepo: deps.assetBlobRepo,
-          renditionRepo: deps.assetRenditionRepo,
-          blobStore: deps.blobStore,
-          documentArchiveReader: createDocumentArchiveReader({}),
-        },
-        input: {
-          workspaceId: deps.workspaceId,
-          kind,
-          bytes,
-          filename,
-          contentType: verifiedContentType,
-          alt,
-          caption,
-          credit,
-          createdByPrincipal: principal.id,
-        },
-      }, { maxUploadBytes: TOVU_MAX_UPLOAD_BYTES });
-
-      // Only media uses the per-blob sniff cache; document type is its validated filename policy.
-      // Record the sniffed type so the admin's type filter agrees with what `original.ts` serves
-      // (it never trusts the upload-time string either). Written AFTER `uploadMedia` because the
-      // blob row it updates is created there.
-      if (kind === "media") await deps.mediaContentTypeStore.set({
-        workspaceId: deps.workspaceId,
-        sha256: media.source.sha256,
-        contentType: verifiedContentType,
-      });
-
-      const family = verifiedContentType.split("/")[0];
-      let uploadedKind: "document" | "image" | "audio" | "video" | "other";
-      if (kind === "document") uploadedKind = "document";
-      else if (family === "image" || family === "audio" || family === "video") uploadedKind = family;
-      else uploadedKind = "other";
+      const { media, bytes, verifiedContentType } = await persistUpload({ deps, fields, principalId: principal.id });
+      const uploadedKind = uploadedMediaKind({ kind, contentType: verifiedContentType });
       captureMediaUploaded({ tracker: deps.tracker, actorId: principal.id, byteLength: bytes.byteLength,
         kind: uploadedKind, source: "admin" });
       res.status(201).json(await toStoredMediaResponse({ deps, media, contentType: verifiedContentType, byteLength: bytes.byteLength }));

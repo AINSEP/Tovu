@@ -120,6 +120,10 @@ function parseAutosaveBody({ rawBody }: { rawBody: unknown }, _optional = {}): P
   return { ...common, ...content, ...byline };
 }
 
+type AutosaveRoute = Parameters<ContentRouteRegistrar>[0];
+
+const AUTOSAVE_PATH = "/api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave";
+
 /**
  * PUT `/api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave` — parks a standing draft.
  *
@@ -141,8 +145,13 @@ function parseAutosaveBody({ rawBody }: { rawBody: unknown }, _optional = {}): P
  * the recovery-banner check on editor mount. DELETE clears it unconditionally (`{ ok: true }`) —
  * called after a real Save/Publish succeeds, and on an explicit operator Discard.
  */
-export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
-  const path = "/api/admin/v1/workspaces/:workspaceId/posts/:postId/autosave";
+export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = (route, _options = {}) => {
+  registerAutosaveWrite(route);
+  registerAutosaveReadAndClear(route);
+};
+
+function registerAutosaveWrite({ app, deps }: AutosaveRoute, _options = {}): void {
+  const path = AUTOSAVE_PATH;
 
   app.put(path, rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }), asyncRoute({ handler: async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
@@ -175,6 +184,10 @@ export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = ({ app, dep
       sendAdminFailure({ res, error }, { operation: "routes/posts/autosave/save", code: "INTERNAL_ERROR", message: "The post draft could not be saved." });
     }
   } }));
+}
+
+function registerAutosaveReadAndClear({ app, deps }: AutosaveRoute, _options = {}): void {
+  const path = AUTOSAVE_PATH;
 
   app.get(path, asyncRoute({ handler: async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
@@ -201,4 +214,4 @@ export const registerAdminPostAutosaveRoute: ContentRouteRegistrar = ({ app, dep
       sendAdminFailure({ res, error }, { operation: "routes/posts/autosave/clear", code: "INTERNAL_ERROR", message: "The post draft could not be cleared." });
     }
   } }));
-};
+}

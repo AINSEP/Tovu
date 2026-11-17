@@ -1829,6 +1829,12 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
     },
   });
 
+  subscribeSeoAndSearchHandlers(routeDeps);
+  subscribeNewsletterBatchHandler(routeDeps);
+  startFormsAndIntegrationsModules(routeDeps);
+}
+
+function subscribeSeoAndSearchHandlers(routeDeps: NewsletterRouteDeps): void {
   // SPEC-008 (ADR-PIPE-008 Decision §5, T038) — SEO subscribes to the 3 entry-lifecycle events
   // `post.ts`'s `updatePost()` now emits, invalidating that workspace's sitemap cache entry on
   // delivery (idempotent per ADR-009 — a duplicate delivery is a no-op, `invalidateSitemapCache`
@@ -1844,7 +1850,9 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
   // current truth (document or tombstone) to every current index. Errors propagate so the outbox
   // redelivers. A composition without `siteSearch` subscribes nothing (`modules/site-search.ts`).
   subscribeSiteSearchIndexer({ bus: routeDeps.bus, runtime: routeDeps.siteSearch });
+}
 
+function subscribeNewsletterBatchHandler(routeDeps: NewsletterRouteDeps): void {
   const newsletterAdminDeps = routeDeps;
   // T040 (tasks.md Phase 4) — the `newsletter.send.batch.claimed` bus subscriber `send-pipeline.ts`'s
   // own file header names as the one piece of Stage 4 wiring no composition root had done yet
@@ -1864,7 +1872,9 @@ function subscribeSiteEventHandlersOnce(routeDeps: NewsletterRouteDeps): void {
       await handleSendBatchClaimed({ deps: toSendPipelineDeps(newsletterAdminDeps), job: event.payload });
     },
   });
+}
 
+function startFormsAndIntegrationsModules(routeDeps: NewsletterRouteDeps): void {
   /**
    * ADR-046 Phase 3 (SPEC-031) — SPEC-010 (Forms) outbox wiring, now split across two
    * feature-owned modules instead of two inline blocks: `forms` owns the C-009 notify

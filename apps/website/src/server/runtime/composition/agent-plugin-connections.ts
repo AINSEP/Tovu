@@ -114,25 +114,16 @@ export function sharedApiConnectionOptions(required: Omit<SharedSiteConnections,
   return { ...site, scope: projectStore.vault, attachments: projectStore.attachments, transaction: projectStore.transaction };
 }
 
-/**
- * Builds the shared connection port and the three seams over it.
- * @param required.customCredentialRepo - The site's saved custom credentials (an admin's own OAuth client lives there).
- * @param required.http - The site's guarded outbound HTTP client (OAuth, plugin hooks and plugin tools all use it).
- * @param required.env - Host configuration plugin client names resolve in (`process.env` in production).
- * @param required.derivedPublicOrigin - The listener origin, for the hosted callback when `TOVU_PUBLIC_URL` is unset.
- * @param optional.deliveryBindings - The site's settings and forms; absent, surfaces get no `deliveryBindings`.
- * @complexity O(1); every lookup is deferred to call time.
- */
-export function composeAgentPluginConnections(
-  required: {
-    readonly workspaceId: string; readonly loadContributions: LoadPluginContributions;
-    readonly vaultRepo: VaultRepoPort; readonly keyring: KeyringPort; readonly sealer: SecretSealerPort;
-    readonly customCredentialRepo: CustomCredentialSetRepoPort;
-    readonly clock: { nowMs(): number; nowIso(): string }; readonly http: HttpClientPort;
-    readonly env: Readonly<Record<string, string | undefined>>; readonly derivedPublicOrigin: string | undefined;
-  },
-  optional: { readonly deliveryBindings?: AgentPluginDeliveryBindingsDeps; readonly shared?: SharedSiteConnections } = {},
-): AgentPluginConnectionsComposition {
+type AgentPluginConnectionsRequired = {
+  readonly workspaceId: string; readonly loadContributions: LoadPluginContributions;
+  readonly vaultRepo: VaultRepoPort; readonly keyring: KeyringPort; readonly sealer: SecretSealerPort;
+  readonly customCredentialRepo: CustomCredentialSetRepoPort;
+  readonly clock: { nowMs(): number; nowIso(): string }; readonly http: HttpClientPort;
+  readonly env: Readonly<Record<string, string | undefined>>; readonly derivedPublicOrigin: string | undefined;
+};
+
+/** The shared connection host and the runtime it was resolved for. */
+function createConnectionHost(required: AgentPluginConnectionsRequired, optional: { readonly shared?: SharedSiteConnections } = {}) {
   const { workspaceId, loadContributions, clock, http, env } = required;
   const runtime = resolveApiConnectionRuntime({ env });
   const host = createApiConnectionHost({
@@ -145,6 +136,35 @@ export function composeAgentPluginConnections(
     runtime, env,
     publicOrigin: () => apiConnectionPublicOrigin({ env, derivedPublicOrigin: required.derivedPublicOrigin }),
   }, optional.shared ? { shared: { ...optional.shared, storage: createSharedOAuthOwnerStorage({ scope: optional.shared.scope, clock }) } } : {});
+  return { host, runtime };
+}
+
+/** The per-call delivery-bindings port factory: one plugin, workspace and signed-in admin per call. */
+function deliveryBindingsPortFor(required: { readonly delivery: AgentPluginDeliveryBindingsDeps; readonly host: ReturnType<typeof createConnectionHost>["host"]; readonly workspaceId: string; readonly loadContributions: LoadPluginContributions }, _optional = {}) {
+  const { delivery, host, workspaceId, loadContributions } = required;
+  return (scope: { readonly pluginId: string; readonly workspaceId: string; readonly principalId?: string }) => createSurfaceDeliveryBindings({
+    ...scope, siteWorkspaceId: workspaceId, forms: delivery.forms, newBindingId: delivery.newBindingId, bindings: formDeliveryBindingsStore({ settings: delivery.settings }),
+    declaredConnectionIds: async ({ pluginId }) => (await host.listConnections({ pluginId })).map((connection) => connection.descriptor.connectionId),
+    contributedAdapterIds: async ({ workspaceId: scopeWorkspaceId, pluginId }) => (await loadFormDestinationRegistry({ workspaceId: scopeWorkspaceId }, { loadContributions })).list()
+      .filter((destination) => destination.pluginId === pluginId).map((destination) => destination.descriptor.id),
+  });
+}
+
+/**
+ * Builds the shared connection port and the three seams over it.
+ * @param required.customCredentialRepo - The site's saved custom credentials (an admin's own OAuth client lives there).
+ * @param required.http - The site's guarded outbound HTTP client (OAuth, plugin hooks and plugin tools all use it).
+ * @param required.env - Host configuration plugin client names resolve in (`process.env` in production).
+ * @param required.derivedPublicOrigin - The listener origin, for the hosted callback when `TOVU_PUBLIC_URL` is unset.
+ * @param optional.deliveryBindings - The site's settings and forms; absent, surfaces get no `deliveryBindings`.
+ * @complexity O(1); every lookup is deferred to call time.
+ */
+export function composeAgentPluginConnections(
+  required: AgentPluginConnectionsRequired,
+  optional: { readonly deliveryBindings?: AgentPluginDeliveryBindingsDeps; readonly shared?: SharedSiteConnections } = {},
+): AgentPluginConnectionsComposition {
+  const { workspaceId, loadContributions, clock, http, env } = required;
+  const { host, runtime } = createConnectionHost(required, { shared: optional.shared });
   const limiter = createRateLimiter({ profile: AGENT_PLUGIN_OUTBOUND_BUDGET, clock });
   const connections = host.toolConnections;
   // One plugin-settings store: surfaces write it, tools (and later form delivery) only read it.
@@ -159,12 +179,7 @@ export function composeAgentPluginConnections(
   const issuedTokens = createIssuedTokenMemories();
   const signIns = createIssuedSignInCollector();
   const delivery = optional.deliveryBindings;
-  const deliveryBindingsFor = delivery && ((scope: { readonly pluginId: string; readonly workspaceId: string; readonly principalId?: string }) => createSurfaceDeliveryBindings({
-    ...scope, siteWorkspaceId: workspaceId, forms: delivery.forms, newBindingId: delivery.newBindingId, bindings: formDeliveryBindingsStore({ settings: delivery.settings }),
-    declaredConnectionIds: async ({ pluginId }) => (await host.listConnections({ pluginId })).map((connection) => connection.descriptor.connectionId),
-    contributedAdapterIds: async ({ workspaceId: scopeWorkspaceId, pluginId }) => (await loadFormDestinationRegistry({ workspaceId: scopeWorkspaceId }, { loadContributions })).list()
-      .filter((destination) => destination.pluginId === pluginId).map((destination) => destination.descriptor.id),
-  }));
+  const deliveryBindingsFor = delivery && deliveryBindingsPortFor({ delivery, host, workspaceId, loadContributions });
   const capabilities = createAdminSurfaceCapabilities({
     tools, publicConfig: createAdminSurfacePublicConfig({ env }),
     stateFor: (scope) => host.pluginState.forPlugin(scope),

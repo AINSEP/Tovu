@@ -39,6 +39,27 @@ export interface TovuPluginHostDeps extends AgentPluginUninstallToolDeps {
   readonly assertAgentPluginActivationsWritable?: typeof agentPluginActivations.assertAgentPluginActivationsWritable;
 }
 
+async function resolvePluginEnabled(
+  required: { workspaceRoot: string; pluginId: string; resolveEnabled: ((required: { workspaceRoot: string; pluginId: string }, optional?: Record<string, never>) => Promise<boolean>) | undefined },
+  _optional = {},
+): Promise<boolean> {
+  const { workspaceRoot, pluginId, resolveEnabled } = required;
+  if (resolveEnabled) return resolveEnabled({ workspaceRoot, pluginId });
+  return (await agentPluginActivations.resolveAgentPluginActivation({ workspaceRoot, pluginId })).verdict === 'active';
+}
+
+async function readInactivePluginIds(required: { workspaceRoot: string }, _optional = {}): Promise<Set<string>> {
+  const activations = await agentPluginActivations.readAgentPluginActivations({ workspaceRoot: required.workspaceRoot });
+  return new Set(Object.entries(activations.plugins).filter(([, activation]) => !activation.enabled).map(([id]) => id));
+}
+
+async function setTovuPluginEnabled(required: { deps: TovuPluginHostDeps; input: Omit<Parameters<typeof setAgentPluginEnabled>[0], 'agentPluginLayout'> }, _optional = {}) {
+  const { deps, input } = required;
+  const result = await (deps.setAgentPluginEnabled ?? (input => setAgentPluginEnabled(input, { notifyRosterChanged: options => deps.mcp.notifyRosterChanged(options ?? {}) })))({ ...input, agentPluginLayout: deps.agentPluginLayout });
+  if (!result.enabled && deps.setAgentPluginEnabled) await deps.mcp.notifyRosterChanged({ lowered: { pluginIds: [input.pluginId] } }, {});
+  return result;
+}
+
 /** Bind both plugin families to one workspace. Read manifests through the same installed-package
  * index; the extra manifest read bridges existing compiled lifecycle versions until Jini builds.
  * @throws Unreadable activation (fail closed).
@@ -75,21 +96,10 @@ export function createTovuPluginHost(
       listInstalled,
       preferInstalled: async ({ installed }) => preferBundledAgentPluginDigests([...installed], await readBundledAgentPluginDigests({ workspaceRoot: resolveWorkspaceRoot() })),
       readIdentity: readAgentIdentity,
-      isEnabled: async ({ pluginId }) => {
-        const workspaceRoot = resolveWorkspaceRoot();
-        if (optional.resolveEnabled) return optional.resolveEnabled({ workspaceRoot, pluginId });
-        return (await agentPluginActivations.resolveAgentPluginActivation({ workspaceRoot, pluginId })).verdict === 'active';
-      },
-      inactivePluginIds: async () => {
-        const activations = await agentPluginActivations.readAgentPluginActivations({ workspaceRoot: resolveWorkspaceRoot() });
-        return new Set(Object.entries(activations.plugins).filter(([, activation]) => !activation.enabled).map(([id]) => id));
-      },
+      isEnabled: ({ pluginId }) => resolvePluginEnabled({ workspaceRoot: resolveWorkspaceRoot(), pluginId, resolveEnabled: optional.resolveEnabled }),
+      inactivePluginIds: () => readInactivePluginIds({ workspaceRoot: resolveWorkspaceRoot() }),
       assertWritable: async () => (deps.assertAgentPluginActivationsWritable ?? agentPluginActivations.assertAgentPluginActivationsWritable)({ workspaceRoot: resolveWorkspaceRoot() }),
-      setEnabled: async input => {
-        const result = await (deps.setAgentPluginEnabled ?? (input => setAgentPluginEnabled(input, { notifyRosterChanged: options => deps.mcp.notifyRosterChanged(options ?? {}) })))({ ...input, agentPluginLayout: deps.agentPluginLayout });
-        if (!result.enabled && deps.setAgentPluginEnabled) await deps.mcp.notifyRosterChanged({ lowered: { pluginIds: [input.pluginId] } }, {});
-        return result;
-      },
+      setEnabled: input => setTovuPluginEnabled({ deps, input }),
       uninstall: input => runAgentPluginUninstall({ routeDeps: deps, surfaces: input.surfaces, ctx: input.ctx, pluginId: input.pluginId }, input.executionOptions),
     },
     withLock: ({ run }) => withFileLock({ lockPath: path.join(deps.agentPluginLayout.root, '.publisher-identity.lock'), run }, { createParent: true }),
