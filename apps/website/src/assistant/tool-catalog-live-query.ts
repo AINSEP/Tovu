@@ -13,9 +13,9 @@ import type { ToolCatalogQuery } from "@jini-ai/daemon/http";
  * `describe_tool` too, not only `execute_delegated_tool` — `ToolExecutor.execute`
  * (`@jini-ai/daemon`) already resolves a named tool id against the live `registry` on every call, so
  * execution was never the gap; discovery is, because it only ever saw whatever snapshot was current
- * the one time `@jini-ai/http-kit`'s `registerToolCatalogRoutes` was called.
+ * the one time `@jini-ai/daemon`'s `toolCatalogRoutes` was called.
  *
- * `registerToolCatalogRoutes` captures its `{catalog}` deps object ONCE, at registration time
+ * `toolCatalogRoutes` captures its `{catalog}` deps object ONCE, at registration time
  * (`@jini-ai/http-kit`'s `tool-catalog.ts` — `mountJsonRoute(app, route, deps, adapter)` closes over
  * `deps`), and calls `deps.catalog.search(...)`/`.describe(...)` by property lookup on that SAME
  * object every request. That is exactly the seam this file uses: the returned `query` object's
@@ -27,7 +27,7 @@ import type { ToolCatalogQuery } from "@jini-ai/daemon/http";
  */
 
 export interface LiveToolCatalogQuery {
-  /** Stable identity — pass this into `registerToolCatalogRoutes` exactly once. */
+  /** Stable identity — pass this into `toolCatalogRoutes` exactly once. */
   readonly query: ToolCatalogQuery;
   /** Swaps the snapshot every subsequent `search`/`describe` call delegates to. */
   rebind(next: ToolCatalogQuery): void;

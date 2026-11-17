@@ -39,6 +39,21 @@ test("a list is mounted at the line of the call: a gate above it runs first, a r
   assert.equal(await from(await fetch(`${origin}/shared-below`, { headers })), "list");
 });
 
+test("a mounted list answers the spellings Express answered: another case, a trailing slash, OPTIONS, and 400 for a bad escape in an id", async t => {
+  const app = express();
+  mountJiniRoutes({ app, routes: [
+    { method: "GET", path: "/api/things", handler: says("list") },
+    { method: "GET", path: "/api/things/:id", handler: ({ params }) => jsonResponse({ status: 200, body: { from: params.id } }) },
+  ] });
+  const origin = await listen(t, app);
+  assert.equal(await from(await fetch(`${origin}/API/Things/`)), "list");
+  assert.equal(await from(await fetch(`${origin}/api/things/Ab/`)), "Ab");
+  const options = await fetch(`${origin}/api/things`, { method: "OPTIONS" });
+  assert.deepEqual([options.status, options.headers.get("allow"), await options.text()], [200, "GET,HEAD", "GET,HEAD"]);
+  const bad = await fetch(`${origin}/api/things/%E0%A4%A`);
+  assert.deepEqual([bad.status, bad.headers.get("content-type")], [400, "text/html; charset=utf-8"]);
+});
+
 test("a path the list does not own and a method it does not have fall through to the routes below", async t => {
   const app = express();
   mountJiniRoutes({ app, routes: [{ method: "GET", path: "/api/runs", handler: says("list") }] });

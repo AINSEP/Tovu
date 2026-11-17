@@ -36,7 +36,8 @@ import express, { type NextFunction, type Request, type Response } from "express
 import type { Principal, ToolDescriptor, ToolRegistration, ToolRegistry } from "@jini-ai/core";
 import type { NativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, createToolExecutor, type AgentExecutor, type AgentExecutorRunInput, type RunLifecycle } from "@jini-ai/daemon";
-import { registerDelegatedToolRoutes, registerToolCatalogRoutes, type ToolCatalogQuery } from "@jini-ai/daemon/http";
+import { registerDelegatedToolRoutes, toolCatalogRoutes, type ToolCatalogQuery } from "@jini-ai/daemon/http";
+import { daemonRouteHost, mountJiniRoutes } from "../../website/src/server/runtime/composition/jini-routes.ts";
 import { createNodeCredentialCrypto, createRunScopedCredentials, type RunScopedCredentials } from "@jini-ai/daemon/run-credentials";
 import type { TurnAddressee } from "./desktop-agent-tools.ts";
 import { createToolGapCollector, type ToolGapEntry } from "@jini-ai/daemon/tool-audit";
@@ -377,7 +378,8 @@ async function startBridgeServer(
   const portRef = { current: 0 };
   const adapter = { originPolicy: createLocalSameOriginPolicy({ port: () => portRef.current, env: hostEnv,
     config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
-  registerToolCatalogRoutes({ app, deps: { catalog: registryCatalog(registry) }, adapter });
+  // 4 MiB: the byte size of the `express.json({ limit: "4mb" })` parser above; the list derives its body limit from it.
+  mountJiniRoutes({ app, routes: toolCatalogRoutes({ deps: { catalog: registryCatalog(registry) }, host: daemonRouteHost({ context: adapter, parserLimitBytes: 4 * 1024 * 1024 }) }) });
   registerDelegatedToolRoutes({
     app,
     deps: { lifecycle, toolExecutor, toolRegistry: registry, resolvePrincipal: () => DESKTOP_OPERATOR },

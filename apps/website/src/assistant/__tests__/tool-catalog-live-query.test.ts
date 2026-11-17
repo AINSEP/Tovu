@@ -7,7 +7,7 @@ import { createLiveToolCatalogQuery } from "../tool-catalog-live-query.js";
 
 /**
  * @file `createLiveToolCatalogQuery` — the discovery-side half of federation hot-reload. See that
- * module's own header for why `@jini-ai/http-kit`'s `registerToolCatalogRoutes` needs an object whose
+ * module's own header for why `@jini-ai/daemon`'s `toolCatalogRoutes` needs an object whose
  * IDENTITY never changes even though what it delegates to does.
  */
 
@@ -30,7 +30,7 @@ test("rebind swaps what the SAME query object delegates to — object identity n
 
   live.rebind(stubCatalog("second"));
 
-  assert.equal(live.query, queryReference, "the object handed to registerToolCatalogRoutes must stay the same reference across a rebind");
+  assert.equal(live.query, queryReference, "the object handed to toolCatalogRoutes must stay the same reference across a rebind");
   assert.deepEqual(live.query.search({ query: "q" }), [{ id: "second:q", description: "second", source: "test", score: 1 }]);
 });
 
