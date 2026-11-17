@@ -7,12 +7,16 @@ The Jini shell cannot host Tovu today. Measured gaps:
 
 | # | Gap (Jini file) | Tovu has (file:line) | Sheet |
 |---|---|---|---|
-| G1 | panels gate on `permissions` = all-of (`core/manifest/types.ts:168`); no any-of; no "unknown yet" state | `lib/panel-access.ts` (94): `anyOfPermissions`, unknown permissions show everything, 31 of 51 panels declare it (`rg -c "^\s+anyOfPermissions:" apps/admin/src/panels.tsx`) | J1 |
+| G1 | panels gate on `permissions` = all-of (`core/manifest/types.ts:168`); no any-of; no "unknown yet" state | `lib/panel-access.ts` (94): `anyOfPermissions`, unknown permissions show everything, 31 of 51 panels declare it (command below the table) | J1 |
 | G2 | the shell calls `useAdminShellSession`, `useAdminTheme`, `useShellRoute`, `useShellDrawer` directly (`AdminShell.tsx`) | hooks arrive as props (`App.tsx:433-446` `resolve*Hook`) | J2 |
 | G3 | class names are unprefixed (`admin-layout`, `skip-link`, `admin-topbar`, `sidebar-backdrop`, `admin-content`, …) | same names, styled in `styles.css` (6,799 lines) | J2 |
 | G4 | slots: `login`, `sessionError`, `sidebarHeader`, `sidebarFooter`, `topbar`, `overlays`, `assistant {content,label,open}` | needs also: a layout class from interface preferences, sidebar label tooltips, empty-click toggle, logout button + confirm, sheet bar and resizable dock aside (`App.chrome.tsx:26-134`), chat FAB clearance, per-route `NoAccess` | J2 |
 | G5 | navigation is rebuilt on every shell render (11-06 survey) | `buildShellNav` (`App.tsx:555`) | J2 |
 | G6 | theme: `use-admin-theme.ts` (62) + `theme-ports.ts` (27), one default theme | registry of themes, scheme resolution, server-backed preference (`admin-themes/*.ts` 374 lines + `features/admin-themes` 149) | J3 |
+G1 count (prints 31 at `e801e9ae`):
+```
+rg -c "^\s+anyOfPermissions:" $T/apps/admin/src/panels.tsx
+```
 
 | # | Gap found by the round-1 judge (verified at Jini `dde69a6d`, Tovu `e801e9ae`) | Sheet |
 |---|---|---|
@@ -129,8 +133,10 @@ Do not redesign the shell. Close G2-G5, G8, G9 in five green commits.
    The T1b mapping table lists every Tovu shell element and its seam; an element missing from that table is
    reported, not solved by a new prop.
 5. **`jini-` classes (G3).** Rename every class in `packages/admin/src/react/shell/**` and
-   `react/components/Sidebar.tsx` (593 lines; over the 500 limit **today**: its row is in `scripts/size-debt.json` or
-   `scripts/size-exceptions.json`; do not grow it; if a rename pushes a function over a limit, STOP) to `jini-admin-<name>`
+   `react/components/Sidebar.tsx` (593 raw lines, about 351 code lines at Jini `65d73b0d5`: under the 500 limit,
+   because the size gate counts code lines only (`scripts/check-size.mjs:57` skips blank lines and comments); it has
+   no row in `scripts/size-debt.json` or `scripts/size-exceptions.json` (Opus m1); keep it under 500 code lines, and if a
+   rename pushes a function over a limit, STOP) to `jini-admin-<name>`
    (including `.cms-section`, which `App.tsx:625` relies on). Update `packages/admin/src/themes/default/admin.css`
    selectors in the same commit. List old → new in `packages/admin/docs/shell-classes.md` (T1b consumes this list
    to rename Tovu's CSS). Tovu imports `Sidebar` and `useSidebar` today (`App.tsx:15`): this commit changes what

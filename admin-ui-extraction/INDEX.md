@@ -1,6 +1,8 @@
 # Admin UI extraction: plan index (2026-11-17, planning only, nothing executed)
 
-Status: **PARTIAL, revision 2** (2026-11-17). Round 2 answered all 17 findings of `CODEX-JUDGE.md` (table at the
+Status: **PARTIAL, revision 3** (2026-11-16 PT; Opus review answered in full, table at the end). **Base from
+revision 3: `integ/merge-final-2026-11-16`** (Tovu `232764af5`, Jini `65d73b0d5`; contains merge-a, merge-b and
+size-05); `inventory.tsv` regenerated there. Revision 2 (2026-11-17): Round 2 answered all 17 findings of `CODEX-JUDGE.md` (table at the
 end: 17 accepted, 0 rebutted) and re-verified the plan against Tovu merge-a `e801e9ae` / merge-b `450ac748` and Jini
 merge-a `dde69a6d` / merge-b `9c982fd9` (`integ/merge-final-2026-11-16` did not exist). Written: common rules, the
 screen recipe, the design-run brief (T-DESIGN), **31 specified runs** in 7 sheet files, 4 generated inventories.
@@ -23,8 +25,8 @@ contract) — see section 9. No source was edited, no test was run, no browser w
 |---|---|---|
 | `integ/merge-a` (read here) | 468 | size-06 API split, size-04 pages, hook gate, import-cycle |
 | `integ/merge-b` @ `dd70b057` | 61 | `moves/*`: dock split (`AssistantDock.state.hooks.ts`, `DockChatPane.tsx` added), members/users local ports deleted, sites/themes/database visuals files deleted, `use-focus-trap` deleted |
-| `refactor/size-05-posteditor` @ `d0d599e4` | 30 (29 added) | PostEditor split into `posts/editor/`; in neither merge branch |
-Neither merge branch is an ancestor of the other. Every sheet starts with a blob guard (`inventory.tsv`), so a
+| `refactor/size-05-posteditor` @ `d0d599e4` | 30 (29 added) | PostEditor split into `posts/editor/`. **Revision 3: wrong, it is in merge-a** as squash `ffba5e382` (same `features/posts` tree) |
+Revision 3: `integ/merge-final-2026-11-16` now contains both merge branches (and so size-05); it is the base. Before it existed, neither merge branch was an ancestor of the other. Every sheet starts with a blob guard (`inventory.tsv`), so a
 stale base is detected, not silently used. Sheets safe on merge-a alone: A0, A1, J1, J2, J3, T1a.
 
 ## 3. Size now (re-measured; both surveys were stale)
@@ -153,14 +155,15 @@ ready screens.
   `admin`; dock: `chat`; the cms screens share `packages/cms/package.json` and are serial).
   Order forced by coupling: taxonomy before S-ENTRY-EDITOR (term picker), posts with pages (mutual imports),
   security a before deploy, S-COLLECTIONS a with audit2 a04 (`WidgetConfigFields` imports collections 6 times),
-  S-DOCK after merge-b, S-DOCK b after T1b (chart provider boundary).
+  S-DOCK b after T1b (chart provider boundary).
 - Never parallel with xpkg R1c/R2a/R2b/R3 on the same Jini folder: those go first. xpkg G-TESTS skips the nine
   JM folders (their tests are classified by the JM pre-runs) and provides the integration test package.
 
 ## 7. Owner decisions
 | # | Decision | Recommendation |
 |---|---|---|
-| D-0 | Which branch is the base? merge-a, merge-b and size-05 each change admin differently | merge all three into one branch before any S sheet |
+| D-0 | Which branch is the base? | **answered by revision 3**: `integ/merge-final-2026-11-16` contains merge-a (with size-05) and merge-b; COMMON-ADMIN section 0 checks ancestry |
+| D-14 (new) | Website follow-up A2: drop the re-export lines of `contracts/core/credential-token.ts` (40 website importers) with a port on the media credential store instead of the test's `mock.module` | run after A1 Step D; small (120k), removes the last re-export shell on that path |
 | D-11 (new) | The shell's two declared behaviour changes in J1 (unknown permissions show all-of panels; a denied URL shows `noAccess` instead of the default panel) | approve; no host consumes the Jini shell today |
 | D-12 (new) | Proposed security hardening list that S-SECURITY run a will produce (show-once plaintext, hiding write controls) | decide after run a; nothing is implemented before |
 | D-13 (new) | Multi-theme registry inside Jini | not now; only when a second host needs it |
@@ -205,8 +208,8 @@ ready screens.
 3. Screens marked "later": email, database, recovery, observability, integrations, source-control, library,
    content-analysis, voice-input, providers, skills, analytics, fs-files, authentication, `components/*` other than
    the dock (about 17k source lines) — not in the named goal; no sheet.
-4. Re-run `inventory.tsv` on the merged base (script logic: areas = top folder; blobs from `git ls-tree`). Round 2
-   did not regenerate it: merge-a moved 4 admin files since `f354cfbd` (2 production: `use-admin-subagents.hooks.ts`,
+4. DONE in revision 3: `inventory.tsv` regenerated on merge-final `232764af5` (the script reproduces the
+   `f354cfbd` file byte for byte before it was pointed at merge-final). Round 2 had not regenerated it: merge-a moved 4 admin files since `f354cfbd` (2 production: `use-admin-subagents.hooks.ts`,
    `lib/assistant-transport-ag-ui.ts`), and the guard in COMMON-ADMIN section 0 reports them.
 5. Tovu size work that is not extraction: split `AssistantDock.hooks.tsx` (2,134).
 6. A second adversarial judge pass on J1/J2 (new seams) and T1b before they run; round 1's item 5 was done by the judge.
@@ -236,18 +239,34 @@ Code read: Tovu `integ/merge-a-2026-11-16` @ `e801e9ae`, `integ/merge-b-2026-11-
 Counts the judge called stale, re-run: translated locales 21 (was 20); production files importing website source 7
 (unchanged), admin test files mentioning `website/src/` 30 (unchanged); panels 51, any-of 31 (unchanged).
 
-## Revision 3 - Opus review response (PARTIAL: stopped at the 250k context line)
+## Revision 3 - Opus review response (complete; first part B1 + M1, second part below)
 Review: Opus, plan @ 5f5f211ce (scratchpad `opus-review/admin-ui.md`, itself partial). Checked on `integ/merge-final-2026-11-16` (Tovu f70017dc5, Jini 65d73b0d5).
 | item | verdict | change | evidence |
 |---|---|---|---|
 | B1 routable set drops every all-of panel | ACCEPT (mechanism differs from the coordinator's wording) | `J-shell.md` J1: routable = `resolvePanels({ panels }, { capabilities, permissions: ['*'] })`; real permissions go to `isPanelAccessible` (visible + `access`); new tests T11-T13 + V3 (T11/T13 RED without `['*']`, T12 RED on today's `model.ts`). Passing the real permissions into `resolvePanels` was not used: a denied all-of URL would fall back to the default panel again and unknown permissions would still drop all-of panels | Jini `core/manifest/rules.ts:34,38`; `core/permissions/rules.ts` (`'*'` wildcard); `react/shell/model.ts:25-28` |
 | M1 Step D moves a re-export shell | ACCEPT | `A-prereqs.md` Step D: admin imports the 4 token names from `@jini-ai/platform/secrets/credential-token` (declared in admin, `universal` entry); only `credential-copy.ts` moves, its import repointed to platform; `@tovu/contracts` gains the declared `@jini-ai/platform` dependency; no `exports` edit (wildcard) | website `contracts/core/credential-token.ts:3-5` re-export, `:6-10` live binding; `packages/contracts/package.json` exports `./*`, deps analytics + diagnostics only; Jini platform `jini.entries["./secrets/credential-token"] = universal` |
 
-## Opus fixes - remaining (for the next agent; nothing below was changed in revision 3)
-1. M2: COMMON-ADMIN lines 15-17 tell the run to obey the xpkg `COMMON.md` and "this file wins", while line 10-11 says disagreement = STOP. Read the xpkg COMMON; either list the inherited clauses or drop the reference.
-2. Move every command that sits in a markdown table into a fenced code block: COMMON-ADMIN.md:100-108 (the rule table; several contain `|` alternations that break the table), A-prereqs.md:34,39, J-shell.md:10. (No `\|` escapes exist in this plan; the risk is unescaped `|` inside table cells.)
-3. Add S-FN50 to COMMON-ADMIN section 0/2 V-steps: Tovu `npx eslint --no-inline-config --rule '{"max-lines-per-function":["error",{"max":50,"skipBlankLines":true,"skipComments":true}]}' <files>` (complexity 10 / admin 9 already error in `eslint.config.mjs` via `complexity-eslint.config.mjs:43-48`, do NOT override them); Jini adds `"complexity":["error",10],"sonarjs/cognitive-complexity":["error",10]` like its `complexity:strict` script. Same text as lanes K/T COMMON-KT revision 3.
-4. Re-check S-SECURITY-and-DOCK.md, S-design-first.md, S-screens-ready.md and judge rows 8, 9, 10, 11, 14 against merge-final (never reviewed).
-5. m1: J2 step 5 claims `react/components/Sidebar.tsx` has a size-debt/exception row; it has none: state the measured number. m2: COMMON-ADMIN section 0 reads `admin-ui-extraction/inventory.tsv` from `$T`; say how the dispatcher puts it there. m3: regenerate `inventory.tsv` on merge-final. m4: T1a P1 snapshot must compare with Tovu's panel access today.
-6. Website follow-up (not admin): `contracts/core/credential-token.ts` lines 3-5 re-export platform; ~45 website importers would be repointed and the file reduced to `assertCredentialFreeField`. Trap: `features/media/__tests__/provider-credential-store.rethrow.test.ts:17-18` `mock.module`s that path, so a repoint breaks the test (and mocking another package is forbidden): needs a seam design first.
+Revision 3, second part (all remaining items; checked on Tovu merge-final `232764af5`, Jini `65d73b0d5`):
+| item | verdict | change | evidence |
+|---|---|---|---|
+| M2 COMMON-ADMIN obeyed the xpkg COMMON and also "won" over it | ACCEPT | `COMMON-ADMIN.md`: the reference is dropped; the file is self-contained and names which xpkg clauses it copied (S3→C4, S8→C8, S9→C12, S11→C9, S13→C6, hand-deleted debt keys) and which do not apply (census, compliance classes, single-branch git, report path). Real conflicts found and settled: (1) base merge-a vs merge-final → merge-final, with ancestry checks; (2) `check-hook-injection.mjs --update` (rewrites the whole debt file) vs xpkg "delete only your own keys, never regenerate" → hand deletion | xpkg `COMMON.md` rev 3 line 3 (disagreement = STOP), line 31 (never regenerate); Jini `scripts/check-hook-injection.mjs:3,22` (`--update` rewrites) |
+| Commands inside tables | ACCEPT | `COMMON-ADMIN.md` section 2 is now a rule table C1-C12 with no commands plus one fenced block per rule; `A-prereqs.md` rows 1 and 6 and `J-shell.md` G1 commands moved to blocks. No `\|` pattern existed anywhere in the plan (searched all sheets); the table cells held raw `|` alternations | old `COMMON-ADMIN.md:100-108`, `A-prereqs.md:34,39`, `J-shell.md:10` |
+| S-FN50 missing | ACCEPT | `COMMON-ADMIN.md` C8: eslint 50-line functions + 500-line files on changed files, compared with the base (model: xpkg S8). Tovu passes NO complexity rule (config already errors at 10, admin 9; a command-line 10 would loosen admin); Jini repeats complexity 10 + cognitive 10 | Tovu `development/scripts/complexity-eslint.config.mjs:43-48`, `size-eslint.config.mjs` (warn 50, gate 80, `IIFEs: true`); Jini `eslint.config.mjs:66-75`, `package.json` `complexity:strict` |
+| Judge row 8 (security trace) | CONFIRMED | facts re-read; sizes added to `S-SECURITY-and-DOCK.md` | `use-security-permissions.hooks.ts:8-17` (unknown = hidden), `Security.tsx:153-163`, `security-api.types.ts:9-18`; `AccessTokensTab.tsx` reads no permission (0 hits) |
+| Judge row 9 (collections → content types; entry editor joined to TipTap) | CONFIRMED | none | `CollectionEntryEditor.tsx:1` `@tiptap/react`, `:4,466` widget embed; hook `:2-3` tiptap, `:9` widget embed; `@tiptap` in 8 `lib` and 11 `features/posts` source files |
+| Judge row 10 (pin the write contract; fake must refuse stale versions) | CONFIRMED | none | hook `:244-254` sends title + `fieldsJson` + `bodyJson` + `expectedVersion`; publish saves first and publishes with the returned version (`:296-318`); fake `collection-entry-editor-dependencies.hooks.ts:75-79` returns `expectedVersion + 1` without comparing |
+| Judge row 11 (menus) | CONFIRMED | none | `menus-port.hooks.ts:25` optional `listPages`; `menus-dependencies.hooks.ts:19` binds `pagesApi` + `pagePublicPath`; `MenuEditor.tsx:17-19` "No drag-and-drop"; hook `:216` refusal, `:219` query disabled, `:320` `toSlug`, `:338` `moveAt` |
+| Judge row 14 (dock) | CONFIRMED, sizes updated | `S-SECURITY-and-DOCK.md` S-DOCK now measured on merge-final | the 6 files 79/59/72/41/63/79 unchanged; `OverflowAwareMcpUiSurfaceCard.tsx:25-42`; `RoutedA2uiSurfaceCard.tsx:75`; `use-dock-renderer-registry.hooks.ts:186-193`; `AssistantDock.tsx` 242 (merge-a 665) |
+| New: S-POSTS said size-05 is in no merge branch | FIXED (found while checking row 9) | `S-design-first.md` S-POSTS (1), INDEX section 2 and D-0 | `ffba5e382` "Squash refactor/size-05-posteditor (merge-a #6)"; `git diff size-05 ffba5e382 -- apps/admin/src/features/posts` is empty; `posts/editor/` 28 files already at `f354cfbd` |
+| m1 Sidebar.tsx "has a debt/exception row" | ACCEPT | `J-shell.md` J2 step 5: 593 raw, about 351 code lines, under the gate, no row | Jini `scripts/check-size.mjs:57` (skips blanks and comments); no `Sidebar` in `size-debt.json`, `size-exceptions.json` |
+| m2 guard read inventory from `$T` | ACCEPT | `COMMON-ADMIN.md` section 0: the run fetches the plan branch and reads the file from `FETCH_HEAD` into `$INV`; the dispatcher pastes it if the fetch fails; the NEW check now uses the inventory's own file filter | plan branch is on the Tovu remote |
+| m3 inventory stale | DONE | `inventory.tsv` regenerated: 1,068 rows (2 new: `AssistantDock.state.hooks.ts`, `DockChatPane.tsx`, verdict copied from their area; 8 gone). Drift vs `f354cfbd` over a third: `f/members`, `f/users`, `f/library` (no sheet moves them); everything else under | script logic: areas from the path, kind from the name, blobs from `git ls-tree --abbrev=10` |
+| m4 T1a P1 snapshot source | ACCEPT | `T1-adopt-shell.md` P1: expected sets computed by Tovu `withoutInaccessiblePanels` on the base and pinned as literals | `lib/panel-access.ts:64` |
+| Website `credential-token.ts` re-export | DESIGNED, owner decision D-14 | `A-prereqs.md` new sheet A2: optional `credentialPolicy` port on the media credential store replaces the test's `mock.module`; re-export lines deleted; 40 importers repointed by name; tests W1-W2 | `credential-token.ts:3-5` re-export, `:6-10` binding; `provider-credential-store.rethrow.test.ts:17-27`; store call sites `:154,169,200`; root `package.json:127` declares platform |
 
+## What remains after revision 3
+- Not regenerated: the section 4 per-screen table (its `screens.gen.md` source was never committed) and the size columns of the S sheets (still `f354cfbd`; the guard reports each
+  changed file, and only `f/members`, `f/users`, `f/library` drifted by more than a third).
+- Section 9 items 1-3, 5, 6 (design runs, S-SECURITY run a, "later" screens, `AssistantDock.hooks.tsx` split, a
+  second adversarial pass on J1/J2/T1b) and the xpkg G-TESTS ownership confirmation (section 8).
+- Owner decisions D-1..D-14 (D-0 answered).

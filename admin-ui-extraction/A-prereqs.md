@@ -31,13 +31,22 @@ Re-take the census first; a different result is reported before editing:
 
 | # | Admin file:line | Website module (lines; website importers) | Fix |
 |---|---|---|---|
-| 1 | `App.hooks.ts:2` | `assistant/assistant-tool-approval-policy.ts` (48; 14) `directPageAction` | The name is imported and **not used** in this file (`rg -n directPageAction apps/admin/src/App.hooks.ts` prints line 2 only). Delete the import. Confirm with `npm --prefix apps/admin run typecheck`. |
+| 1 | `App.hooks.ts:2` | `assistant/assistant-tool-approval-policy.ts` (48; 14) `directPageAction` | The name is imported and **not used** in this file (row-1 block below prints line 2 only). Delete the import; the typecheck in that block confirms. |
 | 2 | `features/webmcp/admin-page-tools.ts:1,64` | same module | Step B below. |
 | 3 | `hooks/assistant-chats-dependencies.hooks.ts:1` | `assistant/content-chat-title.ts` (104; 1) | Move the file to `packages/contracts/src/content-chat-title.ts` (it imports only `@jini-ai/chat/core`; check `packages/contracts/package.json` may take that dependency: if not, STOP for this row). Repoint the 1 website importer and its tests. |
 | 4 | `features/menus/hooks/use-menu-editor.hooks.ts:16` | `platform/html/slug.ts` (28; 71) `toSlug` | Step C. |
 | 5 | `features/posts/rules.ts:1` | `features/post/slug.ts` (23; 71) | Step C. |
-| 6 | `features/ai-assistant/hooks/use-admin-subagents.hooks.ts:6` | `assistant/assistant-subagents-policy.ts` (1 line: a re-export of `contracts/core/assistant-native-fallbacks.js`) | Find the real declaration (`rg -n "assistantCliPermissions" apps/website/src/contracts/core`). If that file is pure data, move it to `packages/contracts/src/assistant-native-fallbacks.ts`, delete the 1-line re-export shell, repoint its 7 website importers. |
+| 6 | `features/ai-assistant/hooks/use-admin-subagents.hooks.ts:6` | `assistant/assistant-subagents-policy.ts` (1 line: a re-export of `contracts/core/assistant-native-fallbacks.js`) | Find the real declaration (row-6 block below). If that file is pure data, move it to `packages/contracts/src/assistant-native-fallbacks.ts`, delete the 1-line re-export shell, repoint its 7 website importers. |
 | 7 | `lib/credential-copy.ts:2-7` | `contracts/core/credential-copy.ts` (601, a dictionary) + `credential-token.ts` (10) | Step D below. **This file is not a re-export shell** (round-1 error, judge blocker 1): it also declares two live helpers. |
+Row 1 (before: prints only line 2; after the edit: prints nothing, and the typecheck passes):
+```
+rg -n directPageAction $T/apps/admin/src/App.hooks.ts
+npm --prefix $T/apps/admin run typecheck
+```
+Row 6 (find the real declaration):
+```
+rg -n "assistantCliPermissions" $T/apps/website/src/contracts/core
+```
 
 **Step B (class: tool-approval gate, client side).** `directPageAction` decides whether a page action runs without
 asking. Its table `TOOL_APPROVAL_POLICY` already lives in `apps/website/src/contracts/headless/assistant-tool-approval-policy.ts`,
@@ -83,7 +92,7 @@ Tests first (GREEN on old code, each shown RED under its mutation):
    `CREDENTIAL_MESSAGES`, `CredentialMessageId`, `CredentialTokenHint`); add `"@jini-ai/platform"` to `packages/contracts/package.json`
    `dependencies` with the SAME range `apps/admin/package.json:32` uses (declared, imported statically; `npm install` regenerates the
    lockfile; no `exports` edit: the package already exports the wildcard `./*`). `credential-token.ts` STAYS in website (it holds
-   the live `assertCredentialFreeField` binding, lines 6-10; its website re-export lines are a separate cleanup, INDEX "Opus fixes - remaining"); move the size exception: the row in
+   the live `assertCredentialFreeField` binding, lines 6-10; its website re-export lines are a separate cleanup, sheet A2 below); move the size exception: the row in
    `development/scripts/size-exceptions.json:20` names `apps/website/src/contracts/core/credential-copy.ts` — change
    its `file` to the new path in this same commit (it is a data table: the exception stays valid; `npm run check:size`
    proves it); repoint the website importers of `credential-copy.ts` only (`rg -ln "contracts/core/credential-copy" apps/website/src`);
@@ -113,3 +122,41 @@ STOP
   table does not list (the file changed): stop Step D, report the export.
 - A website module turns out to read env, the database or the request (not pure): leave it, report it.
 - More than 80 files would change in one commit other than Step C's scripted rewrite.
+
+## A2 (website follow-up, after A1 Step D; not admin): drop the re-export lines of `contracts/core/credential-token.ts`
+Owner decision D-14 (INDEX): run it now or leave it. Estimate (Sonnet) 120k. Class: credential input validation.
+Facts at Tovu merge-final `232764af5`: `apps/website/src/contracts/core/credential-token.ts` lines 3-5 re-export six
+values and three types of `@jini-ai/platform/secrets/credential-token`; lines 6-10 are the live binding
+`assertCredentialFreeField` (injects Tovu's secret-shape detector); lines 1-2 are its why-comment. 41 files import the
+path (40 in `apps/website`, 1 in `apps/admin` that Step D removes; 9 are tests). One test is the trap:
+`features/media/__tests__/provider-credential-store.rethrow.test.ts:17-27` replaces the whole module with
+`mock.module("#src/contracts/core/credential-token", …)` to make the policy throw a plain `Error`, because the real
+policy only throws `CredentialInputError` (its own header says so, lines 5-13). If the store imported
+`normalizeCredentialToken` from platform directly, that mock would stop reaching it and the third test would fail
+for the wrong reason; and mocking another package's module is forbidden (COMMON-ADMIN C5).
+Design: **a port on the store, not a mock.** No re-export shell is kept.
+1. `provider-credential-store.ts`: `MediaProviderCredentialWriteDeps` (`:110-117`) gains an optional
+   `credentialPolicy?: { assertCredentialFreeField; normalizeCredentialToken }` (typed from the two real functions).
+   The store resolves `deps.credentialPolicy ?? { assertCredentialFreeField, normalizeCredentialToken }` once per
+   call and passes it to the three call sites (`:154`, `:169`, `:200`; through `assertValidEntry` and
+   `sealNewProviderKeys`). `CredentialInputError` and `CREDENTIAL_MESSAGES` are imported from platform.
+2. The rethrow test passes its substitute through `deps.credentialPolicy` and imports nothing with `mock.module`.
+3. `credential-token.ts` keeps lines 6-10 only. Its lines 1-2 comment is rewritten, not deleted: it states why the
+   binding exists (Tovu's detector injected into the platform rule); the "parallel credential-save work" clause is
+   obsolete and its removal is listed in the report.
+4. The 40 website importers: each name from lines 3-5 is imported from `@jini-ai/platform/secrets/credential-token`
+   (website code is declared by the root `package.json`, which has `"@jini-ai/platform"` at line 127 on `232764af5`); `assertCredentialFreeField` keeps the website path.
+   One scripted rewrite commit, the file count in the report.
+Tests first (GREEN on today's code; RED under the mutation):
+| # | Asserts | Fails when |
+|---|---|---|
+| W1 | the three existing rethrow cases, now through `deps.credentialPolicy`: the plain `Error` surfaces unchanged and nothing is written | `rethrowAsValidation` converts every error (its `throw err` becomes a validation error) |
+| W2 | with no `credentialPolicy`, a `baseUrl` holding a secret-shaped value is refused as `MediaProviderCredentialValidationError` | the default policy is dropped or replaced by a no-op |
+Proof:
+```
+rg -n "mock\.module" $T/apps/website/src/features/media/__tests__/provider-credential-store.rethrow.test.ts   # prints nothing
+rg -n "^export \{|^export type \{" $T/apps/website/src/contracts/core/credential-token.ts                     # prints nothing
+rg -l "contracts/core/credential-token" $T/apps $T/packages | wc -l    # only importers of assertCredentialFreeField remain
+```
+STOP: any importer uses a name from lines 3-5 through a namespace import or a dynamic path; the root
+`package.json` no longer declares `@jini-ai/platform`.

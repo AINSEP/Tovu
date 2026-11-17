@@ -36,8 +36,10 @@ the Sonnet runs listed. Sizes at Tovu `f354cfbd`; files and blobs in `inventory.
 Total: 41,701 source lines, 21,060 dictionary lines, 16 files over 500.
 
 ## Blockers and facts per screen (what the design must answer)
-**S-POSTS.** (1) `refactor/size-05-posteditor` (PostEditor split into `posts/editor/`, 29 files added) is **not** in
-merge-a or merge-b: design on the branch that has it. (2) Owner 11-15: the TipTap toolbar goes to Jini, but no Jini
+**S-POSTS.** (1) Revision 3 correction: `refactor/size-05-posteditor` (PostEditor split into `posts/editor/`) **is**
+in merge-a, as the squash `ffba5e382` "Squash refactor/size-05-posteditor (merge-a #6)": `features/posts/editor/` has
+28 files and the same tree on merge-a and merge-final (it was already there at `f354cfbd`, so this sheet's sizes
+include it). Design on merge-final; `use-post-editor.hooks.ts` is 1,426 lines there. (2) Owner 11-15: the TipTap toolbar goes to Jini, but no Jini
 package declares `@tiptap/*` (lane K/T decision D-T4, still open): the editor core cannot move until it is
 answered. (3) Posts and pages import each other (3 and 4 edges): the shared pieces (`DevicePreview` 5+3,
 `TemplateSource` 2+2) need one owner or SLOT props; design posts and pages **together**. (4) `use-post-editor.hooks.ts`

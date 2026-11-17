@@ -18,7 +18,9 @@ components/AdminFailureNotice/AdminFailureNotice.tsx	22	code	0a315761de	c/(other
 components/AdminFailureNotice/admin-failure-notice.css	13	css	b86d2cca11	c/(other)	later	@jini-ai/ui or domain, case by case
 components/AssistantDock/AgentFailureCard.hooks.ts	82	code	1b8f7b975c	c/AssistantDock	SPLIT	@jini-ai/chat/react (generic part) + Tovu wiring
 components/AssistantDock/AgentFailureCard.tsx	21	code	4d8ef0f3de	c/AssistantDock	SPLIT	@jini-ai/chat/react (generic part) + Tovu wiring
-components/AssistantDock/AssistantDock.tsx	665	code	56e8e2bc52	c/AssistantDock	SPLIT	@jini-ai/chat/react (generic part) + Tovu wiring
+components/AssistantDock/AssistantDock.state.hooks.ts	305	code	9bcef8cc07	c/AssistantDock	SPLIT	@jini-ai/chat/react (generic part) + Tovu wiring
+components/AssistantDock/AssistantDock.tsx	242	code	f511401950	c/AssistantDock	SPLIT	@jini-ai/chat/react (generic part) + Tovu wiring
+components/AssistantDock/DockChatPane.tsx	262	code	3ee0549138	c/AssistantDock	SPLIT	@jini-ai/chat/react (generic part) + Tovu wiring
 components/AssistantDock/DockHeader.tsx	118	code	e42bbdc47e	c/AssistantDock	SPLIT	@jini-ai/chat/react (generic part) + Tovu wiring
 components/AssistantDock/DockHeaderTip.hooks.ts	46	code	ae187f0866	c/AssistantDock	SPLIT	@jini-ai/chat/react (generic part) + Tovu wiring
 components/AssistantDock/DockHeaderTip.tsx	31	code	518b6795df	c/AssistantDock	SPLIT	@jini-ai/chat/react (generic part) + Tovu wiring
@@ -76,14 +78,13 @@ components/DevicePreview/DevicePreviewToggle.tsx	52	code	0f7e2b6e8a	c/(other)	la
 components/EmbedInsertControl/EmbedInsertControl.hooks.tsx	76	code	64a57dae90	c/(other)	later	@jini-ai/ui or domain, case by case
 components/EmbedInsertControl/EmbedInsertControl.tsx	293	code	d687b1db1b	c/(other)	later	@jini-ai/ui or domain, case by case
 components/InstallTabCard/InstallTabCard.tsx	175	code	0e71102281	c/(other)	later	@jini-ai/ui or domain, case by case
-components/InstallTabCard/install-archive-size.ts	6	code	2d7b25e1ce	c/(other)	later	@jini-ai/ui or domain, case by case
 components/InstallTabCard/install-tab-card.css	67	css	588ff62f05	c/(other)	later	@jini-ai/ui or domain, case by case
 components/InstallTabCard/use-folder-upload.hooks.ts	68	code	434d1c77c0	c/(other)	later	@jini-ai/ui or domain, case by case
 components/InstallTabCard/use-zip-drop.hooks.ts	32	code	d74f45c3cf	c/(other)	later	@jini-ai/ui or domain, case by case
 components/MailStatusBanner/MailStatusBanner.tsx	41	code	6bcd6a1fc1	c/(other)	later	@jini-ai/ui or domain, case by case
 components/MailStatusBanner/hooks/use-mail-status-banner.hooks.ts	78	code	62fc204203	c/(other)	later	@jini-ai/ui or domain, case by case
 components/MailStatusBanner/mail-status-banner.css	30	css	dcfd8c2afe	c/(other)	later	@jini-ai/ui or domain, case by case
-components/MediaEditDialog/MediaEditDialog.hooks.tsx	131	code	7f5244272f	c/(other)	later	@jini-ai/ui or domain, case by case
+components/MediaEditDialog/MediaEditDialog.hooks.tsx	132	code	f4039185f7	c/(other)	later	@jini-ai/ui or domain, case by case
 components/MediaEditDialog/MediaEditDialog.tsx	143	code	422f54f977	c/(other)	later	@jini-ai/ui or domain, case by case
 components/MediaPickerDialog/JiniMediaPicker.hooks.ts	32	code	c1f97f1e07	c/(other)	later	@jini-ai/ui or domain, case by case
 components/MediaPickerDialog/MediaPickerDialog.hooks.tsx	155	code	4a8200b706	c/(other)	later	@jini-ai/ui or domain, case by case
@@ -107,13 +108,13 @@ components/TemplateSource/template-source-port.hooks.ts	23	code	f16f0e539f	c/(ot
 components/TemplateSource/use-template-source.hooks.ts	141	code	dfdd362312	c/(other)	later	@jini-ai/ui or domain, case by case
 components/WidgetConfigFields/HtmlAttributeRows.hooks.ts	49	code	aeb4fc5196	c/WidgetConfigFields	covered elsewhere	cms/widgets (audit2 a04 sheet exists)
 components/WidgetConfigFields/HtmlAttributeRows.tsx	56	code	596af34bed	c/WidgetConfigFields	covered elsewhere	cms/widgets (audit2 a04 sheet exists)
-components/WidgetConfigFields/MediaContentEditor.hooks.ts	264	code	a59cae4a53	c/WidgetConfigFields	covered elsewhere	cms/widgets (audit2 a04 sheet exists)
+components/WidgetConfigFields/MediaContentEditor.hooks.ts	315	code	4d8b30d507	c/WidgetConfigFields	covered elsewhere	cms/widgets (audit2 a04 sheet exists)
 components/WidgetConfigFields/MediaContentEditor.tsx	377	code	b7811cd8d4	c/WidgetConfigFields	covered elsewhere	cms/widgets (audit2 a04 sheet exists)
 components/WidgetConfigFields/PlacementContentFields.tsx	41	code	a690a788e6	c/WidgetConfigFields	covered elsewhere	cms/widgets (audit2 a04 sheet exists)
 components/WidgetConfigFields/WidgetConfigFields.hooks.tsx	332	code	73a0c7a431	c/WidgetConfigFields	covered elsewhere	cms/widgets (audit2 a04 sheet exists)
 components/WidgetConfigFields/WidgetConfigFields.tsx	601	code	9ba5e2a0f1	c/WidgetConfigFields	covered elsewhere	cms/widgets (audit2 a04 sheet exists)
 components/WidgetConfigFields/WidgetPreview.hooks.ts	15	code	f469e13b3c	c/WidgetConfigFields	covered elsewhere	cms/widgets (audit2 a04 sheet exists)
-components/WidgetConfigFields/media-content-rules.ts	395	code	3326a280ae	c/WidgetConfigFields	covered elsewhere	cms/widgets (audit2 a04 sheet exists)
+components/WidgetConfigFields/media-content-rules.ts	395	code	b2fb54f350	c/WidgetConfigFields	covered elsewhere	cms/widgets (audit2 a04 sheet exists)
 components/WidgetConfigFields/widget-config-fields-dependencies.hooks.ts	70	code	3537e0539a	c/WidgetConfigFields	covered elsewhere	cms/widgets (audit2 a04 sheet exists)
 components/WidgetConfigFields/widget-config-fields-port.hooks.ts	21	code	45e39958b1	c/WidgetConfigFields	covered elsewhere	cms/widgets (audit2 a04 sheet exists)
 components/WidgetPickerDialog/WidgetPickerDialog.hooks.tsx	297	code	bfd51aceea	c/(other)	later	@jini-ai/ui or domain, case by case
@@ -154,7 +155,7 @@ features/ai-assistant/hooks/assistant-daemon-restart-port.hooks.ts	20	code	181dc
 features/ai-assistant/hooks/use-admin-assistant-switch.hooks.ts	33	code	805cb732db	f/ai-assistant	STAY	Tovu
 features/ai-assistant/hooks/use-admin-execution-mode.hooks.ts	73	code	956984bd4c	f/ai-assistant	STAY	Tovu
 features/ai-assistant/hooks/use-admin-permanent-deletes.hooks.ts	35	code	1f76e1d2b9	f/ai-assistant	STAY	Tovu
-features/ai-assistant/hooks/use-admin-subagents.hooks.ts	114	code	ce26e86154	f/ai-assistant	STAY	Tovu
+features/ai-assistant/hooks/use-admin-subagents.hooks.ts	114	code	27aebab3cf	f/ai-assistant	STAY	Tovu
 features/ai-assistant/hooks/use-ai-assistant-locale-sync.hooks.ts	51	i18n	f0c1e4c731	f/ai-assistant	STAY	Tovu
 features/ai-assistant/hooks/use-ai-assistant.hooks.ts	129	code	5df8ded2d1	f/ai-assistant	STAY	Tovu
 features/ai-assistant/hooks/use-assistant-daemon-restart.hooks.ts	130	code	68d6667fbb	f/ai-assistant	STAY	Tovu
@@ -241,15 +242,14 @@ features/dashboard/dashboard-i18n.ts	2217	i18n	39b2e52ed4	f/dashboard	STAY	Tovu
 features/dashboard/hooks/dashboard-dependencies.hooks.ts	108	code	4f8bd50f63	f/dashboard	STAY	Tovu
 features/dashboard/hooks/dashboard-port.hooks.ts	41	code	f753476ec5	f/dashboard	STAY	Tovu
 features/dashboard/hooks/use-dashboard.hooks.ts	290	code	58a1c21f7e	f/dashboard	STAY	Tovu
-features/dashboard/hooks/use-recent-activity-disclosure.hooks.ts	55	code	65fc82ff8a	f/dashboard	STAY	Tovu
+features/dashboard/hooks/use-recent-activity-disclosure.hooks.ts	21	code	1d7336ba3a	f/dashboard	STAY	Tovu
 features/dashboard/index.ts	9	code	f2554d9247	f/dashboard	STAY	Tovu
 features/dashboard/rules.ts	136	code	b747962af9	f/dashboard	STAY	Tovu
 features/database/Database.hooks.ts	6	code	1260ca99d3	f/database	STAY for now	later (ops)
-features/database/Database.tsx	535	code	f77615516d	f/database	STAY for now	later (ops)
+features/database/Database.tsx	535	code	d14e6bbafe	f/database	STAY for now	later (ops)
 features/database/api/database-api.ts	60	code	e12ad4b591	f/database	STAY for now	later (ops)
 features/database/api/database-api.types.ts	40	code	d11a394f35	f/database	STAY for now	later (ops)
 features/database/database-i18n.tsx	1231	i18n	ac7c954185	f/database	STAY for now	later (ops)
-features/database/database-visuals.tsx	39	code	322d38d389	f/database	STAY for now	later (ops)
 features/database/hooks/migrate-forward-section-dependencies.hooks.ts	60	code	c3b108059d	f/database	STAY for now	later (ops)
 features/database/hooks/migrate-forward-section-port.hooks.ts	13	code	e37bcd3670	f/database	STAY for now	later (ops)
 features/database/hooks/schema-state-section-dependencies.hooks.ts	35	code	5d3b606bda	f/database	STAY for now	later (ops)
@@ -258,7 +258,7 @@ features/database/hooks/timeline-section-dependencies.hooks.ts	46	code	d7029ca8f
 features/database/hooks/timeline-section-port.hooks.ts	19	code	cbbec5ae32	f/database	STAY for now	later (ops)
 features/database/hooks/use-migrate-forward-section.hooks.ts	193	code	6220a91916	f/database	STAY for now	later (ops)
 features/database/hooks/use-schema-state-section.hooks.ts	79	code	65c33dd6f8	f/database	STAY for now	later (ops)
-features/database/hooks/use-timeline-section.hooks.ts	233	code	aa85640d3b	f/database	STAY for now	later (ops)
+features/database/hooks/use-timeline-section.hooks.ts	191	code	ae153f8bb4	f/database	STAY for now	later (ops)
 features/database/index.ts	9	code	026dd4351c	f/database	STAY for now	later (ops)
 features/database/rules.ts	172	code	d5146de6d4	f/database	STAY for now	later (ops)
 features/deployment/Deployment.hooks.ts	6	code	deae3d1976	f/deployment	SPLIT	@jini-ai/devops/deploy/react
@@ -284,7 +284,7 @@ features/deployment/hooks/static-export-port.hooks.ts	16	code	371a4f75c9	f/deplo
 features/deployment/hooks/static-publish-dependencies.hooks.ts	42	code	ad37bb210b	f/deployment	SPLIT	@jini-ai/devops/deploy/react
 features/deployment/hooks/static-publish-port.hooks.ts	22	code	18187fc044	f/deployment	SPLIT	@jini-ai/devops/deploy/react
 features/deployment/hooks/use-deployment-overview.hooks.ts	60	code	ffcc1dd760	f/deployment	SPLIT	@jini-ai/devops/deploy/react
-features/deployment/hooks/use-dockerfile-source.hooks.ts	291	code	9934e31a3c	f/deployment	SPLIT	@jini-ai/devops/deploy/react
+features/deployment/hooks/use-dockerfile-source.hooks.ts	311	code	95183823f0	f/deployment	SPLIT	@jini-ai/devops/deploy/react
 features/deployment/hooks/use-publish-credentials.hooks.ts	460	code	b99989a98c	f/deployment	SPLIT	@jini-ai/devops/deploy/react
 features/deployment/hooks/use-static-export.hooks.ts	250	code	0033c35755	f/deployment	SPLIT	@jini-ai/devops/deploy/react
 features/deployment/hooks/use-static-publish.hooks.ts	411	code	acebdf33ac	f/deployment	SPLIT	@jini-ai/devops/deploy/react
@@ -338,7 +338,7 @@ features/import-export/hooks/use-git-backup.hooks.ts	139	code	491682cfae	f/impor
 features/import-export/hooks/use-import-export.hooks.ts	40	code	ce83db79dc	f/import-export	STAY	Tovu
 features/import-export/import-export-i18n.ts	35	i18n	2bb1a5fc72	f/import-export	STAY	Tovu
 features/import-export/import-export-links.ts	18	code	1c05708844	f/import-export	STAY	Tovu
-features/import-export/import-export-tabs.tsx	67	code	4549e675f0	f/import-export	STAY	Tovu
+features/import-export/import-export-tabs.tsx	54	code	d9cb6578af	f/import-export	STAY	Tovu
 features/import-export/index.ts	5	code	810a2c2fdc	f/import-export	STAY	Tovu
 features/integrations/IntegrationDeliveries.tsx	76	code	21c7590419	f/integrations	STAY for now	later
 features/integrations/Integrations.tsx	314	code	a2846015a9	f/integrations	STAY for now	later
@@ -355,15 +355,15 @@ features/integrations/hooks/use-integrations.hooks.ts	212	code	8b31333c4c	f/inte
 features/integrations/index.ts	23	code	cfeeaf14bc	f/integrations	STAY for now	later
 features/integrations/integrations-i18n.tsx	847	i18n	0fa81c4eea	f/integrations	STAY for now	later
 features/integrations/rules.ts	130	code	a74c659030	f/integrations	STAY for now	later
-features/library/Library.hooks.tsx	85	code	3440fe0361	f/library	STAY for now	later
-features/library/Library.tsx	371	code	0a84eb4896	f/library	STAY for now	later
+features/library/Library.hooks.tsx	67	code	a328c4f77f	f/library	STAY for now	later
+features/library/Library.tsx	371	code	efb2a068a5	f/library	STAY for now	later
 features/library/hooks/library-dependencies.hooks.ts	143	code	2bdb052b69	f/library	STAY for now	later
 features/library/hooks/library-port.hooks.ts	22	code	68bb2cd8d8	f/library	STAY for now	later
-features/library/hooks/use-library.hooks.ts	329	code	78807ddd33	f/library	STAY for now	later
+features/library/hooks/use-library.hooks.ts	346	code	d6e2bb84cf	f/library	STAY for now	later
 features/library/index.ts	2	code	ebe0d2305c	f/library	STAY for now	later
 features/library/library-i18n.ts	454	i18n	69dfeac39e	f/library	STAY for now	later
 features/library/rules.ts	115	code	d24ade98ac	f/library	STAY for now	later
-features/media/Media.hooks.tsx	125	code	2fede27673	f/media	SPLIT	@jini-ai/cms/media/react (dedupe with Jini admin/media)
+features/media/Media.hooks.tsx	68	code	18da8f45c7	f/media	SPLIT	@jini-ai/cms/media/react (dedupe with Jini admin/media)
 features/media/Media.tsx	1578	code	a50188c84c	f/media	SPLIT	@jini-ai/cms/media/react (dedupe with Jini admin/media)
 features/media/RemoteImageImport.tsx	50	code	159bc8b92e	f/media	SPLIT	@jini-ai/cms/media/react (dedupe with Jini admin/media)
 features/media/api/media-api.ts	102	code	e261a64e33	f/media	SPLIT	@jini-ai/cms/media/react (dedupe with Jini admin/media)
@@ -372,7 +372,7 @@ features/media/hooks/media-dependencies.hooks.ts	130	code	33e7e67f78	f/media	SPL
 features/media/hooks/media-import-dependencies.hooks.ts	11	code	28bc39558b	f/media	SPLIT	@jini-ai/cms/media/react (dedupe with Jini admin/media)
 features/media/hooks/media-port.hooks.ts	70	code	19d04d9bd6	f/media	SPLIT	@jini-ai/cms/media/react (dedupe with Jini admin/media)
 features/media/hooks/use-edit-media-modal.hooks.ts	66	code	51bdcb5762	f/media	SPLIT	@jini-ai/cms/media/react (dedupe with Jini admin/media)
-features/media/hooks/use-edit-media-panel.hooks.ts	311	code	39afa455b1	f/media	SPLIT	@jini-ai/cms/media/react (dedupe with Jini admin/media)
+features/media/hooks/use-edit-media-panel.hooks.ts	311	code	d2b6cf7ff6	f/media	SPLIT	@jini-ai/cms/media/react (dedupe with Jini admin/media)
 features/media/hooks/use-media-card-details.hooks.ts	26	code	6d9d0c1201	f/media	SPLIT	@jini-ai/cms/media/react (dedupe with Jini admin/media)
 features/media/hooks/use-media-card-metadata.hooks.ts	42	code	c5a24076ec	f/media	SPLIT	@jini-ai/cms/media/react (dedupe with Jini admin/media)
 features/media/hooks/use-media-grid-size.hooks.ts	15	code	2b312e3b72	f/media	SPLIT	@jini-ai/cms/media/react (dedupe with Jini admin/media)
@@ -385,14 +385,13 @@ features/media/index.ts	9	code	dc97c8e814	f/media	SPLIT	@jini-ai/cms/media/react
 features/media/media-i18n.ts	1888	i18n	0fa96ecd57	f/media	SPLIT	@jini-ai/cms/media/react (dedupe with Jini admin/media)
 features/media/media-provider-catalog.ts	87	code	363795cfcb	f/media	SPLIT	@jini-ai/cms/media/react (dedupe with Jini admin/media)
 features/media/media-providers-port.ts	57	code	5a9dac66cb	f/media	SPLIT	@jini-ai/cms/media/react (dedupe with Jini admin/media)
-features/media/rules.ts	759	code	3f839b375c	f/media	SPLIT	@jini-ai/cms/media/react (dedupe with Jini admin/media)
+features/media/rules.ts	499	code	3acdb53cc4	f/media	SPLIT	@jini-ai/cms/media/react (dedupe with Jini admin/media)
 features/members/MembersPanel.hooks.ts	11	code	8b866d151a	f/members	STAY (binding)	host binding of user-management/react/members
-features/members/MembersPanel.tsx	27	code	6d2e8610fb	f/members	STAY (binding)	host binding of user-management/react/members
+features/members/MembersPanel.tsx	27	code	bed7feedc4	f/members	STAY (binding)	host binding of user-management/react/members
 features/members/api/members-api.ts	20	code	ad37d705b5	f/members	STAY (binding)	host binding of user-management/react/members
 features/members/api/members-api.types.ts	11	code	1e537d8773	f/members	STAY (binding)	host binding of user-management/react/members
-features/members/hooks/members-controller.hooks.ts	40	code	bee5368ad3	f/members	STAY (binding)	host binding of user-management/react/members
-features/members/hooks/members-dependencies.hooks.ts	82	code	827f2d5687	f/members	STAY (binding)	host binding of user-management/react/members
-features/members/hooks/members-port.hooks.ts	18	code	1961f43cca	f/members	STAY (binding)	host binding of user-management/react/members
+features/members/hooks/members-controller.hooks.ts	38	code	2cd06626f4	f/members	STAY (binding)	host binding of user-management/react/members
+features/members/hooks/members-dependencies.hooks.ts	23	code	2cc9d407b3	f/members	STAY (binding)	host binding of user-management/react/members
 features/members/index.ts	9	code	9b269b1f72	f/members	STAY (binding)	host binding of user-management/react/members
 features/members/members-i18n.ts	625	i18n	b5dc9eaa81	f/members	STAY (binding)	host binding of user-management/react/members
 features/menus/MenuEditor.hooks.tsx	56	code	77a24a6fca	f/menus	MOVE	@jini-ai/cms/navigation/react
@@ -424,7 +423,7 @@ features/observability/hooks/use-recent-error-item.hooks.ts	38	code	28aa63e35e	f
 features/observability/hooks/use-recent-server-errors.hooks.ts	128	code	b8bb7555af	f/observability	STAY for now	later
 features/observability/index.ts	7	code	266123e5aa	f/observability	STAY for now	later
 features/observability/observability-i18n.ts	1154	i18n	fe3398a93a	f/observability	STAY for now	later
-features/observability/observability-visuals.tsx	82	code	cc50fc5eeb	f/observability	STAY for now	later
+features/observability/observability-visuals.tsx	82	code	e7ff8e1e06	f/observability	STAY for now	later
 features/observability/queries-panel.tsx	28	code	3567db3bd5	f/observability	STAY for now	later
 features/observability/recent-errors-panel.tsx	148	code	b14acbd370	f/observability	STAY for now	later
 features/observability/recent-errors-rules.ts	236	code	44f27181fb	f/observability	STAY for now	later
@@ -438,7 +437,7 @@ features/pages/ThemePageDetailsModal.tsx	273	code	1351e35111	f/pages	SPLIT	@jini
 features/pages/ThemePagesTab.tsx	396	code	a88fa89d66	f/pages	SPLIT	@jini-ai/cms/pages/react (D-3)
 features/pages/api/pages-api.ts	50	code	870977e764	f/pages	SPLIT	@jini-ai/cms/pages/react (D-3)
 features/pages/api/pages-api.types.ts	7	code	0008a6859d	f/pages	SPLIT	@jini-ai/cms/pages/react (D-3)
-features/pages/hooks/page-editor-dependencies.hooks.ts	226	code	00f62d5834	f/pages	SPLIT	@jini-ai/cms/pages/react (D-3)
+features/pages/hooks/page-editor-dependencies.hooks.ts	263	code	f863ac7ea1	f/pages	SPLIT	@jini-ai/cms/pages/react (D-3)
 features/pages/hooks/page-editor-port.hooks.ts	63	code	4dc9337b1d	f/pages	SPLIT	@jini-ai/cms/pages/react (D-3)
 features/pages/hooks/pages-dependencies.hooks.ts	113	code	8cbdccff22	f/pages	SPLIT	@jini-ai/cms/pages/react (D-3)
 features/pages/hooks/pages-port.hooks.ts	32	code	34f33e0a4e	f/pages	SPLIT	@jini-ai/cms/pages/react (D-3)
@@ -450,7 +449,7 @@ features/pages/hooks/theme-pages-dependencies.hooks.ts	70	code	de99aebad6	f/page
 features/pages/hooks/theme-pages-port.hooks.ts	79	code	ac662a1a49	f/pages	SPLIT	@jini-ai/cms/pages/react (D-3)
 features/pages/hooks/use-editor-html-jump.hooks.ts	104	code	d1af89cb29	f/pages	SPLIT	@jini-ai/cms/pages/react (D-3)
 features/pages/hooks/use-interactive-flush.hooks.ts	103	code	c4c859454a	f/pages	SPLIT	@jini-ai/cms/pages/react (D-3)
-features/pages/hooks/use-page-editor.hooks.ts	1404	code	23cb5de032	f/pages	SPLIT	@jini-ai/cms/pages/react (D-3)
+features/pages/hooks/use-page-editor.hooks.ts	1406	code	0b4430f4d8	f/pages	SPLIT	@jini-ai/cms/pages/react (D-3)
 features/pages/hooks/use-pages.hooks.ts	269	code	8e9db48894	f/pages	SPLIT	@jini-ai/cms/pages/react (D-3)
 features/pages/hooks/use-theme-canvas-styling.hooks.ts	362	code	6250ea664d	f/pages	SPLIT	@jini-ai/cms/pages/react (D-3)
 features/pages/hooks/use-theme-pages.hooks.ts	247	code	b3734d7d33	f/pages	SPLIT	@jini-ai/cms/pages/react (D-3)
@@ -507,8 +506,8 @@ features/plugins/hooks/plugins-dependencies.hooks.ts	153	code	65edab2cb5	f/plugi
 features/plugins/hooks/plugins-port.hooks.ts	33	code	810a74fc79	f/plugins	SPLIT	@jini-ai/plugins/react + @jini-ai/agent-plugins/react
 features/plugins/hooks/use-admin-surface-frame.hooks.ts	153	code	53450c9c29	f/plugins	SPLIT	@jini-ai/plugins/react + @jini-ai/agent-plugins/react
 features/plugins/hooks/use-agent-plugin-details-modal.hooks.ts	64	code	bd2970cb07	f/plugins	SPLIT	@jini-ai/plugins/react + @jini-ai/agent-plugins/react
-features/plugins/hooks/use-agent-plugin-disable-confirm.hooks.ts	53	code	b36b49a310	f/plugins	SPLIT	@jini-ai/plugins/react + @jini-ai/agent-plugins/react
-features/plugins/hooks/use-agent-plugin-install.hooks.ts	192	code	7bdb7dffdc	f/plugins	SPLIT	@jini-ai/plugins/react + @jini-ai/agent-plugins/react
+features/plugins/hooks/use-agent-plugin-disable-confirm.hooks.ts	53	code	5ebf68d4bd	f/plugins	SPLIT	@jini-ai/plugins/react + @jini-ai/agent-plugins/react
+features/plugins/hooks/use-agent-plugin-install.hooks.ts	192	code	23a082f526	f/plugins	SPLIT	@jini-ai/plugins/react + @jini-ai/agent-plugins/react
 features/plugins/hooks/use-agent-plugin-memory.hooks.ts	91	code	49a00bac4a	f/plugins	SPLIT	@jini-ai/plugins/react + @jini-ai/agent-plugins/react
 features/plugins/hooks/use-agent-plugin-surfaces.hooks.ts	25	code	8761b48837	f/plugins	SPLIT	@jini-ai/plugins/react + @jini-ai/agent-plugins/react
 features/plugins/hooks/use-agent-plugin-tab.hooks.ts	21	code	2c371df242	f/plugins	SPLIT	@jini-ai/plugins/react + @jini-ai/agent-plugins/react
@@ -516,10 +515,10 @@ features/plugins/hooks/use-agent-plugin-update.hooks.ts	27	code	7f84c014f0	f/plu
 features/plugins/hooks/use-agent-plugins.hooks.ts	222	code	5390659213	f/plugins	SPLIT	@jini-ai/plugins/react + @jini-ai/agent-plugins/react
 features/plugins/hooks/use-linked-lock-tip.hooks.ts	51	code	b833a0e760	f/plugins	SPLIT	@jini-ai/plugins/react + @jini-ai/agent-plugins/react
 features/plugins/hooks/use-package-file-tree.hooks.ts	119	code	da28dc2327	f/plugins	SPLIT	@jini-ai/plugins/react + @jini-ai/agent-plugins/react
-features/plugins/hooks/use-plugin-install.hooks.ts	123	code	c6b7ce8f27	f/plugins	SPLIT	@jini-ai/plugins/react + @jini-ai/agent-plugins/react
+features/plugins/hooks/use-plugin-install.hooks.ts	123	code	0fcbd213c5	f/plugins	SPLIT	@jini-ai/plugins/react + @jini-ai/agent-plugins/react
 features/plugins/hooks/use-plugin-package-files.hooks.ts	87	code	50748a148f	f/plugins	SPLIT	@jini-ai/plugins/react + @jini-ai/agent-plugins/react
 features/plugins/hooks/use-plugin-provider-settings.hooks.ts	99	code	a5b0193ce0	f/plugins	SPLIT	@jini-ai/plugins/react + @jini-ai/agent-plugins/react
-features/plugins/hooks/use-plugin-remove-confirm.hooks.ts	50	code	d122626c06	f/plugins	SPLIT	@jini-ai/plugins/react + @jini-ai/agent-plugins/react
+features/plugins/hooks/use-plugin-remove-confirm.hooks.ts	50	code	8c5e00cfb9	f/plugins	SPLIT	@jini-ai/plugins/react + @jini-ai/agent-plugins/react
 features/plugins/hooks/use-plugin-row-focus.hooks.ts	20	code	57d2cc38d1	f/plugins	SPLIT	@jini-ai/plugins/react + @jini-ai/agent-plugins/react
 features/plugins/hooks/use-plugins.hooks.ts	262	code	2e3a2a8e25	f/plugins	SPLIT	@jini-ai/plugins/react + @jini-ai/agent-plugins/react
 features/plugins/index.ts	10	code	5e4ba2cfd4	f/plugins	SPLIT	@jini-ai/plugins/react + @jini-ai/agent-plugins/react
@@ -578,7 +577,7 @@ features/posts/hooks/posts-list-dependencies.hooks.ts	86	code	ee663df7ab	f/posts
 features/posts/hooks/posts-list-port.hooks.ts	30	code	f27bdbf176	f/posts	SPLIT	@jini-ai/cms/posts/react
 features/posts/hooks/use-post-editor-screen.hooks.ts	256	code	73f2eb4ecf	f/posts	SPLIT	@jini-ai/cms/posts/react
 features/posts/hooks/use-post-editor-ui.hooks.ts	231	code	4c6af2ddcd	f/posts	SPLIT	@jini-ai/cms/posts/react
-features/posts/hooks/use-post-editor.hooks.ts	1400	code	a7a985c756	f/posts	SPLIT	@jini-ai/cms/posts/react
+features/posts/hooks/use-post-editor.hooks.ts	1426	code	00d4ce843c	f/posts	SPLIT	@jini-ai/cms/posts/react
 features/posts/hooks/use-post-featured-image.hooks.ts	79	code	4ac8a62915	f/posts	SPLIT	@jini-ai/cms/posts/react
 features/posts/hooks/use-post-url-dialog.hooks.ts	108	code	24a04d8aaa	f/posts	SPLIT	@jini-ai/cms/posts/react
 features/posts/hooks/use-posts.hooks.ts	249	code	39841b82b8	f/posts	SPLIT	@jini-ai/cms/posts/react
@@ -633,7 +632,7 @@ features/roles/Roles.tsx	869	code	c202100b2d	f/roles	MOVE (dedupe with um admin 
 features/roles/api/roles-api.ts	38	code	d5a26e3dda	f/roles	MOVE (dedupe with um admin roles)	@jini-ai/user-management/react/roles
 features/roles/api/roles-api.types.ts	28	code	635e576f31	f/roles	MOVE (dedupe with um admin roles)	@jini-ai/user-management/react/roles
 features/roles/hooks/roles-dependencies.hooks.ts	195	code	4501cd1edb	f/roles	MOVE (dedupe with um admin roles)	@jini-ai/user-management/react/roles
-features/roles/hooks/roles-port.hooks.ts	38	code	48d5dc389e	f/roles	MOVE (dedupe with um admin roles)	@jini-ai/user-management/react/roles
+features/roles/hooks/roles-port.hooks.ts	38	code	a86218760b	f/roles	MOVE (dedupe with um admin roles)	@jini-ai/user-management/react/roles
 features/roles/hooks/use-roles.hooks.ts	629	code	0b380e01b6	f/roles	MOVE (dedupe with um admin roles)	@jini-ai/user-management/react/roles
 features/roles/index.ts	9	code	18c37ce8ad	f/roles	MOVE (dedupe with um admin roles)	@jini-ai/user-management/react/roles
 features/roles/roles-i18n.ts	1523	i18n	7eb11dbe7a	f/roles	MOVE (dedupe with um admin roles)	@jini-ai/user-management/react/roles
@@ -684,7 +683,7 @@ features/settings/ExternalMcpSharedChoice.hooks.ts	38	code	2020cf9d49	f/settings
 features/settings/ExternalMcpSharedChoice.tsx	30	code	497b4190a3	f/settings	SPLIT	owner panels per tab; assembled page stays
 features/settings/ExternalMcpToolPicker.hooks.tsx	161	code	1ea5751501	f/settings	SPLIT	owner panels per tab; assembled page stays
 features/settings/ExternalMcpToolPicker.tsx	383	code	d719e37a26	f/settings	SPLIT	owner panels per tab; assembled page stays
-features/settings/ExternalMcpToolsModal.hooks.ts	71	code	9e339bae0c	f/settings	SPLIT	owner panels per tab; assembled page stays
+features/settings/ExternalMcpToolsModal.hooks.ts	71	code	bea8e3cc19	f/settings	SPLIT	owner panels per tab; assembled page stays
 features/settings/ExternalMcpToolsModal.tsx	117	code	93d449e019	f/settings	SPLIT	owner panels per tab; assembled page stays
 features/settings/SettingsUi.hooks.ts	66	code	56e1327bb1	f/settings	SPLIT	owner panels per tab; assembled page stays
 features/settings/SettingsUi.tsx	744	code	d6175cb1c4	f/settings	SPLIT	owner panels per tab; assembled page stays
@@ -700,7 +699,7 @@ features/settings/hooks/use-admin-appearance-settings.hooks.ts	21	code	9aa4802c1
 features/settings/hooks/use-ai-agent-presentation.hooks.ts	28	code	0a58c70bd0	f/settings	SPLIT	owner panels per tab; assembled page stays
 features/settings/hooks/use-external-mcp-admissions.hooks.ts	326	code	f14c8c461a	f/settings	SPLIT	owner panels per tab; assembled page stays
 features/settings/hooks/use-external-mcp-oauth-connect.hooks.ts	150	code	6ef02cca0d	f/settings	SPLIT	owner panels per tab; assembled page stays
-features/settings/hooks/use-external-mcp-remove-confirm.hooks.ts	52	code	f314a6e318	f/settings	SPLIT	owner panels per tab; assembled page stays
+features/settings/hooks/use-external-mcp-remove-confirm.hooks.ts	52	code	51f12d6ad3	f/settings	SPLIT	owner panels per tab; assembled page stays
 features/settings/hooks/use-external-mcp-tool-picker.hooks.ts	207	code	8e6765d43d	f/settings	SPLIT	owner panels per tab; assembled page stays
 features/settings/hooks/use-external-mcp.hooks.ts	415	code	26b7c27ba4	f/settings	SPLIT	owner panels per tab; assembled page stays
 features/settings/hooks/use-settings-active-tab-scroll.hooks.ts	38	code	4fe02cbaaf	f/settings	SPLIT	owner panels per tab; assembled page stays
@@ -715,14 +714,14 @@ features/settings/settings-i18n.ts	61	i18n	79e52e5e29	f/settings	SPLIT	owner pan
 features/settings/settings-interface-i18n.ts	29	i18n	0280c55192	f/settings	SPLIT	owner panels per tab; assembled page stays
 features/settings/settings-memory-i18n.ts	869	i18n	82a567ebda	f/settings	SPLIT	owner panels per tab; assembled page stays
 features/settings/user-interface-settings.css	9	css	c8f765ba42	f/settings	SPLIT	owner panels per tab; assembled page stays
-features/sites/AllSitesTab.tsx	378	code	9da889c230	f/sites	STAY	Tovu (multi-site product)
+features/sites/AllSitesTab.tsx	378	code	8cda4d37e0	f/sites	STAY	Tovu (multi-site product)
 features/sites/CreateSiteOnboarding.tsx	351	code	ad8794ebea	f/sites	STAY	Tovu (multi-site product)
-features/sites/CredentialWarnings.tsx	66	code	115b334d00	f/sites	STAY	Tovu (multi-site product)
-features/sites/LocalSiteConfirmDialog.tsx	11	code	9572ab9001	f/sites	STAY	Tovu (multi-site product)
+features/sites/CredentialWarnings.tsx	66	code	19d23383e1	f/sites	STAY	Tovu (multi-site product)
+features/sites/LocalSiteConfirmDialog.tsx	10	code	e1c0675133	f/sites	STAY	Tovu (multi-site product)
 features/sites/SiteExportTab.tsx	241	code	216bd5bb6e	f/sites	STAY	Tovu (multi-site product)
 features/sites/SiteImportTab.tsx	391	code	f1179702d9	f/sites	STAY	Tovu (multi-site product)
 features/sites/SiteTrashTab.tsx	43	code	79d9a91246	f/sites	STAY	Tovu (multi-site product)
-features/sites/Sites.hooks.tsx	568	code	57da4090e1	f/sites	STAY	Tovu (multi-site product)
+features/sites/Sites.hooks.tsx	568	code	08bc8217e1	f/sites	STAY	Tovu (multi-site product)
 features/sites/Sites.tsx	410	code	93b6d97fb3	f/sites	STAY	Tovu (multi-site product)
 features/sites/SitesHomeSetting.tsx	161	code	bdf8f3a94b	f/sites	STAY	Tovu (multi-site product)
 features/sites/StaticExportPicker.tsx	66	code	66934acc51	f/sites	STAY	Tovu (multi-site product)
@@ -738,43 +737,41 @@ features/sites/hooks/use-live-import-site.hooks.ts	116	code	d131380aa0	f/sites	S
 features/sites/hooks/use-local-sites.hooks.ts	133	code	a3d23ab383	f/sites	STAY	Tovu (multi-site product)
 features/sites/hooks/use-share-credential-gate.hooks.ts	108	code	678129cfd3	f/sites	STAY	Tovu (multi-site product)
 features/sites/hooks/use-site-card-preview.hooks.ts	45	code	e06c7bc251	f/sites	STAY	Tovu (multi-site product)
-features/sites/hooks/use-site-confirm.hooks.ts	53	code	7037b24ec8	f/sites	STAY	Tovu (multi-site product)
+features/sites/hooks/use-site-confirm.hooks.ts	42	code	533c62db46	f/sites	STAY	Tovu (multi-site product)
 features/sites/hooks/use-site-list-prefs.hooks.ts	76	code	ffa3a80f4b	f/sites	STAY	Tovu (multi-site product)
 features/sites/hooks/use-site-transfer.hooks.ts	502	code	41ad7da02c	f/sites	STAY	Tovu (multi-site product)
 features/sites/hooks/use-sites-config.hooks.ts	52	code	4edbc1593d	f/sites	STAY	Tovu (multi-site product)
-features/sites/hooks/use-sites-home.hooks.ts	17	code	97a79e1fdf	f/sites	STAY	Tovu (multi-site product)
 features/sites/hooks/use-sites-snapshot.hooks.ts	27	code	c32ace3a1e	f/sites	STAY	Tovu (multi-site product)
-features/sites/hooks/use-sites.hooks.ts	332	code	fcbdb1ad7a	f/sites	STAY	Tovu (multi-site product)
+features/sites/hooks/use-sites.hooks.ts	353	code	8c34f66d7e	f/sites	STAY	Tovu (multi-site product)
 features/sites/hooks/use-static-export-selection.hooks.ts	44	code	810dcd0abc	f/sites	STAY	Tovu (multi-site product)
 features/sites/import-handoff-port.ts	32	code	b7581e9d7b	f/sites	STAY	Tovu (multi-site product)
-features/sites/index.ts	16	code	99849ffd60	f/sites	STAY	Tovu (multi-site product)
+features/sites/index.ts	15	code	40d38f0d83	f/sites	STAY	Tovu (multi-site product)
 features/sites/rules.ts	262	code	a2213ed20d	f/sites	STAY	Tovu (multi-site product)
 features/sites/site-export-error.ts	32	code	97acd0a79a	f/sites	STAY	Tovu (multi-site product)
 features/sites/site-publish-i18n.ts	34	i18n	1da75796dc	f/sites	STAY	Tovu (multi-site product)
 features/sites/site-transfer-i18n.ts	393	i18n	f24692eb24	f/sites	STAY	Tovu (multi-site product)
-features/sites/site-transfer-rules.ts	80	code	2cb13b1c69	f/sites	STAY	Tovu (multi-site product)
+features/sites/site-transfer-rules.ts	77	code	8581e0528e	f/sites	STAY	Tovu (multi-site product)
 features/sites/sites-i18n.ts	365	i18n	240ec3896c	f/sites	STAY	Tovu (multi-site product)
 features/sites/sites-settings-i18n.ts	553	i18n	9a27e412bb	f/sites	STAY	Tovu (multi-site product)
-features/sites/sites-visuals.tsx	78	code	666ce8c8ff	f/sites	STAY	Tovu (multi-site product)
 features/skills/SkillInstallConfirmation.hooks.ts	6	code	58c20b4089	f/skills	STAY for now	later (ui/features/skills exists)
 features/skills/SkillInstallConfirmation.tsx	37	code	e3b9e6d133	f/skills	STAY for now	later (ui/features/skills exists)
 features/skills/SkillRemoveConfirmDialog.tsx	19	code	4441707110	f/skills	STAY for now	later (ui/features/skills exists)
-features/skills/SkillRow.tsx	44	code	d6e63e3739	f/skills	STAY for now	later (ui/features/skills exists)
+features/skills/SkillRow.tsx	45	code	5d62cd8ec5	f/skills	STAY for now	later (ui/features/skills exists)
 features/skills/Skills.hooks.ts	7	code	81bd7d53bb	f/skills	STAY for now	later (ui/features/skills exists)
-features/skills/Skills.tsx	102	code	0ed80dbe20	f/skills	STAY for now	later (ui/features/skills exists)
+features/skills/Skills.tsx	101	code	fcde3f89fb	f/skills	STAY for now	later (ui/features/skills exists)
 features/skills/api.ts	24	code	8e7bb3eba9	f/skills	STAY for now	later (ui/features/skills exists)
 features/skills/skill-drop.ts	75	code	5defbf1637	f/skills	STAY for now	later (ui/features/skills exists)
 features/skills/skill-failure.ts	21	code	5f14e39ff3	f/skills	STAY for now	later (ui/features/skills exists)
 features/skills/skill-upload.ts	20	code	b3f475d8dc	f/skills	STAY for now	later (ui/features/skills exists)
 features/skills/skills-i18n.ts	39	i18n	1e4fc06cd1	f/skills	STAY for now	later (ui/features/skills exists)
 features/skills/skills-page-dictionary.ts	258	i18n	64e8758243	f/skills	STAY for now	later (ui/features/skills exists)
-features/skills/skills-visuals.tsx	12	code	672a534979	f/skills	STAY for now	later (ui/features/skills exists)
+features/skills/skills-visuals.tsx	4	code	93dc87dabd	f/skills	STAY for now	later (ui/features/skills exists)
 features/skills/skills.css	44	css	d6630289ff	f/skills	STAY for now	later (ui/features/skills exists)
-features/skills/use-skill-confirmation.hooks.ts	34	code	91fdbdac09	f/skills	STAY for now	later (ui/features/skills exists)
+features/skills/use-skill-confirmation.hooks.ts	34	code	8352ec75ce	f/skills	STAY for now	later (ui/features/skills exists)
 features/skills/use-skill-files.hooks.ts	63	code	bb39147212	f/skills	STAY for now	later (ui/features/skills exists)
 features/skills/use-skill-install.hooks.ts	37	code	71e06a1a5c	f/skills	STAY for now	later (ui/features/skills exists)
 features/skills/use-skills-tabs.hooks.ts	20	code	f7ab9c1c9d	f/skills	STAY for now	later (ui/features/skills exists)
-features/skills/use-skills.hooks.ts	165	code	a5b71e879e	f/skills	STAY for now	later (ui/features/skills exists)
+features/skills/use-skills.hooks.ts	199	code	b1c854bc4b	f/skills	STAY for now	later (ui/features/skills exists)
 features/source-control/ProvidersTab.tsx	464	code	9144c5fa69	f/source-control	STAY for now	later (devops/source-control)
 features/source-control/SourceControl.hooks.ts	6	code	178853cbfa	f/source-control	STAY for now	later (devops/source-control)
 features/source-control/SourceControl.tsx	118	code	3517a817db	f/source-control	STAY for now	later (devops/source-control)
@@ -818,7 +815,7 @@ features/taxonomy/taxonomy-i18n.ts	1282	i18n	799019b4fa	f/taxonomy	MOVE	@jini-ai
 features/themes/ThemeExplore.hooks.tsx	119	code	a1cf7cacd7	f/themes	SPLIT	@jini-ai/cms/theme/react
 features/themes/ThemeExplore.tsx	1493	code	3ac9cb0aa1	f/themes	SPLIT	@jini-ai/cms/theme/react
 features/themes/ThemePreviewReloadButton.tsx	40	code	0c81592887	f/themes	SPLIT	@jini-ai/cms/theme/react
-features/themes/Themes.tsx	666	code	761e2218b9	f/themes	SPLIT	@jini-ai/cms/theme/react
+features/themes/Themes.tsx	665	code	4652d8c8f6	f/themes	SPLIT	@jini-ai/cms/theme/react
 features/themes/api/themes-api.ts	201	code	2f8ae38737	f/themes	SPLIT	@jini-ai/cms/theme/react
 features/themes/api/themes-api.types.ts	50	code	9c5be04ada	f/themes	SPLIT	@jini-ai/cms/theme/react
 features/themes/hooks/theme-explore-dependencies.hooks.ts	118	code	be0b0cd6ab	f/themes	SPLIT	@jini-ai/cms/theme/react
@@ -834,13 +831,12 @@ features/themes/hooks/use-theme-explore-preview.hooks.ts	111	code	2e68c42d74	f/t
 features/themes/hooks/use-theme-explore-theme.hooks.ts	45	code	2afbc00ef4	f/themes	SPLIT	@jini-ai/cms/theme/react
 features/themes/hooks/use-theme-explore.hooks.ts	1718	code	83606aecc4	f/themes	SPLIT	@jini-ai/cms/theme/react
 features/themes/hooks/use-theme-preview-refresh.hooks.ts	79	code	b5036e48ea	f/themes	SPLIT	@jini-ai/cms/theme/react
-features/themes/hooks/use-themes.hooks.ts	340	code	36fcd90ec4	f/themes	SPLIT	@jini-ai/cms/theme/react
+features/themes/hooks/use-themes.hooks.ts	358	code	ce97d72918	f/themes	SPLIT	@jini-ai/cms/theme/react
 features/themes/index.ts	10	code	052431abc7	f/themes	SPLIT	@jini-ai/cms/theme/react
 features/themes/rules.ts	261	code	f3e36d6c58	f/themes	SPLIT	@jini-ai/cms/theme/react
 features/themes/theme-card-menu.ts	84	code	b0dff4f33f	f/themes	SPLIT	@jini-ai/cms/theme/react
 features/themes/theme-preview-refresh.ts	66	code	1d92a205ca	f/themes	SPLIT	@jini-ai/cms/theme/react
 features/themes/themes-i18n.ts	3655	i18n	4b7e1a0564	f/themes	SPLIT	@jini-ai/cms/theme/react
-features/themes/themes-visuals.tsx	26	code	64145b5d29	f/themes	SPLIT	@jini-ai/cms/theme/react
 features/trash/Trash.tsx	290	code	62c8b22349	f/trash	MOVE	@jini-ai/cms/trash/react
 features/trash/api/trash-api.ts	33	code	4f4f19ba55	f/trash	MOVE	@jini-ai/cms/trash/react
 features/trash/api/trash-api.types.ts	66	code	6b068371fb	f/trash	MOVE	@jini-ai/cms/trash/react
@@ -851,12 +847,11 @@ features/trash/index.ts	8	code	1d6a9c1503	f/trash	MOVE	@jini-ai/cms/trash/react
 features/trash/rules.ts	248	code	d7fbd2293d	f/trash	MOVE	@jini-ai/cms/trash/react
 features/trash/trash-i18n.ts	1242	i18n	8db3d79079	f/trash	MOVE	@jini-ai/cms/trash/react
 features/users/UsersPanel.hooks.ts	11	code	105f90cdc7	f/users	STAY (binding)	host binding of user-management/react/users
-features/users/UsersPanel.tsx	29	code	e74edfe6d4	f/users	STAY (binding)	host binding of user-management/react/users
+features/users/UsersPanel.tsx	29	code	dc3d58b304	f/users	STAY (binding)	host binding of user-management/react/users
 features/users/api/users-api.ts	61	code	c2371b3f0e	f/users	STAY (binding)	host binding of user-management/react/users
 features/users/api/users-api.types.ts	15	code	99fc9d9c85	f/users	STAY (binding)	host binding of user-management/react/users
-features/users/hooks/users-controller.hooks.ts	57	code	ca3809bc85	f/users	STAY (binding)	host binding of user-management/react/users
-features/users/hooks/users-dependencies.hooks.ts	185	code	090a86d48e	f/users	STAY (binding)	host binding of user-management/react/users
-features/users/hooks/users-port.hooks.ts	51	code	3f8813b5b3	f/users	STAY (binding)	host binding of user-management/react/users
+features/users/hooks/users-controller.hooks.ts	55	code	49f83389f5	f/users	STAY (binding)	host binding of user-management/react/users
+features/users/hooks/users-dependencies.hooks.ts	38	code	528b1a8a16	f/users	STAY (binding)	host binding of user-management/react/users
 features/users/index.ts	9	code	7441885ebe	f/users	STAY (binding)	host binding of user-management/react/users
 features/users/users-i18n.ts	1584	i18n	5a007b9c2d	f/users	STAY (binding)	host binding of user-management/react/users
 features/voice-input/PushToTalkMicButton.tsx	97	code	e201150b70	f/voice-input	STAY for now	later (chat/react or ui)
@@ -912,7 +907,6 @@ hooks/use-desktop-view-release.hooks.ts	17	code	e2fd960686	hooks	MOVE PART	Tovu;
 hooks/use-dock-auto-rail.hooks.ts	109	code	09b3b3a20e	hooks	MOVE PART	Tovu; shell hooks -> J2
 hooks/use-drawer-active-item-centring.hooks.ts	91	code	88c1a3d03a	hooks	MOVE PART	Tovu; shell hooks -> J2
 hooks/use-external-entry-refresh.hooks.ts	173	code	78e218ab4d	hooks	MOVE PART	Tovu; shell hooks -> J2
-hooks/use-focus-trap.hooks.ts	15	code	fc5680085f	hooks	MOVE PART	Tovu; shell hooks -> J2
 hooks/use-interface-preferences.hooks.ts	60	code	4ddf8b5fcb	hooks	MOVE PART	Tovu; shell hooks -> J2
 hooks/use-list-table-cell-labels.hooks.ts	76	code	1c55c33183	hooks	MOVE PART	Tovu; shell hooks -> J2
 hooks/use-settings-slice.hooks.ts	34	code	381a42d849	hooks	MOVE PART	Tovu; shell hooks -> J2
@@ -934,7 +928,7 @@ integrations/jini-admin/forms-module.hooks.ts	26	code	584b955241	integrations	ST
 integrations/jini-admin/forms-ports.ts	43	code	7a96da4ed4	integrations	STAY	Tovu host bindings (grow with every move)
 integrations/jini-admin/jini-media.css	1500	css	04ef348be3	integrations	STAY	Tovu host bindings (grow with every move)
 integrations/jini-admin/kit.ts	22	code	bad282e636	integrations	STAY	Tovu host bindings (grow with every move)
-integrations/jini-admin/media-ports.ts	170	code	b78978910f	integrations	STAY	Tovu host bindings (grow with every move)
+integrations/jini-admin/media-ports.ts	63	code	cbd3a883ad	integrations	STAY	Tovu host bindings (grow with every move)
 integrations/jini-admin/media.css	2	css	e63bcd42f3	integrations	STAY	Tovu host bindings (grow with every move)
 integrations/jini-admin/module-context.ts	12	code	001a6dfe02	integrations	STAY	Tovu host bindings (grow with every move)
 integrations/jini-admin/modules.hooks.ts	84	code	9452885532	integrations	STAY	Tovu host bindings (grow with every move)
@@ -966,14 +960,14 @@ lib/agent-screenshot-bus.ts	73	code	1e17eb2dde	lib	MOVE PART	mostly Tovu host ad
 lib/agent-screenshot.ts	282	code	cfb80b45e7	lib	MOVE PART	mostly Tovu host adapters; panel-access.ts -> Jini
 lib/app-version.ts	15	code	78befc4278	lib	MOVE PART	mostly Tovu host adapters; panel-access.ts -> Jini
 lib/ascii-slug.ts	7	code	0f375cc72c	lib	MOVE PART	mostly Tovu host adapters; panel-access.ts -> Jini
-lib/assistant-agents-snapshot.ts	52	code	b866b63243	lib	MOVE PART	mostly Tovu host adapters; panel-access.ts -> Jini
+lib/assistant-agents-snapshot.ts	37	code	0fe8113c98	lib	MOVE PART	mostly Tovu host adapters; panel-access.ts -> Jini
 lib/assistant-chats.ts	105	code	e45e0a5ae5	lib	MOVE PART	mostly Tovu host adapters; panel-access.ts -> Jini
 lib/assistant-daemon-activation.ts	61	code	9923f4fc84	lib	MOVE PART	mostly Tovu host adapters; panel-access.ts -> Jini
 lib/assistant-dock-bus.ts	124	code	832a70251c	lib	MOVE PART	mostly Tovu host adapters; panel-access.ts -> Jini
 lib/assistant-permanent-deletes.ts	15	code	7b5a64322f	lib	MOVE PART	mostly Tovu host adapters; panel-access.ts -> Jini
 lib/assistant-prompt-bus.ts	63	code	e07bd75a86	lib	MOVE PART	mostly Tovu host adapters; panel-access.ts -> Jini
 lib/assistant-subagents.ts	31	code	562d8c9cf0	lib	MOVE PART	mostly Tovu host adapters; panel-access.ts -> Jini
-lib/assistant-transport-ag-ui.ts	74	code	31bc1a9560	lib	MOVE PART	mostly Tovu host adapters; panel-access.ts -> Jini
+lib/assistant-transport-ag-ui.ts	73	code	6215b5fdad	lib	MOVE PART	mostly Tovu host adapters; panel-access.ts -> Jini
 lib/assistant-transport.ts	159	code	8ad15e78eb	lib	MOVE PART	mostly Tovu host adapters; panel-access.ts -> Jini
 lib/block-atom-insert.ts	65	code	d73534821d	lib	MOVE PART	mostly Tovu host adapters; panel-access.ts -> Jini
 lib/boot-token-fragment.ts	55	code	feb02712ed	lib	MOVE PART	mostly Tovu host adapters; panel-access.ts -> Jini
@@ -1047,7 +1041,7 @@ nav.ts	76	code	0f48032add	root	SPLIT	@jini-ai/admin/react/shell (generic) + Tovu
 panel-contracts.ts	11	code	e563b97513	root	SPLIT	@jini-ai/admin/react/shell (generic) + Tovu composition
 panel-pages.ts	61	code	8205ba79d4	root	SPLIT	@jini-ai/admin/react/shell (generic) + Tovu composition
 panels.tsx	1311	code	2f93e39280	root	SPLIT	@jini-ai/admin/react/shell (generic) + Tovu composition
-styles.css	6799	css	df80ee63ce	root	SPLIT	@jini-ai/admin/react/shell (generic) + Tovu composition
+styles.css	6799	css	561bd5343f	root	SPLIT	@jini-ai/admin/react/shell (generic) + Tovu composition
 styles/access-tokens.css	201	css	ce89b9527e	styles	STAY	Tovu host CSS (styles the jini- classes)
 styles/admin-theme-bridge.css	103	css	caa4efcfc1	styles	STAY	Tovu host CSS (styles the jini- classes)
 styles/assistant.css	1866	css	6d06b4739a	styles	STAY	Tovu host CSS (styles the jini- classes)

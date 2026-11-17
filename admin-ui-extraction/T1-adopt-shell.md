@@ -23,7 +23,11 @@ Root files at `f354cfbd`: `App.hooks.ts` 1,205, `App.tsx` 703, `App.chrome.tsx` 
 4. Delete `lib/panel-access.ts` and move its tests: generic cases are already in Jini (J1 T6); Tovu keeps the
    cases that exercise real `panels.tsx` entries.
 Tests first: P1 for a fixed permission list, the set of visible panel ids before and after is identical (snapshot
-the 51 ids against 4 lists: unknown, empty, `['*']`, one editor-like list taken from an existing test). P2 a routed
+the 51 ids against 4 lists: unknown, empty, `['*']`, one editor-like list taken from an existing test). **The expected
+sets come from Tovu's rule today** (Opus m4): on the base commit, run `withoutInaccessiblePanels` from
+`lib/panel-access.ts` (`:64`) over the real `panels.tsx` list for each of the 4 lists and pin the results as
+literals in the test before any edit; never compute them from Jini's `resolvePanels`/`isPanelAccessible` (J1
+changed that rule on purpose, D-11). After T1a the Jini rule must reproduce the literals. P2 a routed
 panel that fails the gate renders `NoAccess`, and renders the panel while permissions are unknown.
 STOP: a panel is visible before and hidden after (or the reverse) for any of the 4 lists.
 

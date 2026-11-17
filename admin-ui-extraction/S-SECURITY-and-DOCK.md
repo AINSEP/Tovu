@@ -29,7 +29,10 @@ passkeys already delegate), `@jini-ai/core/agent-handles` 10. Edge in: `deployme
 | d | Tovu switches to the Jini module (`panels.tsx`, `modules.hooks.ts`, `jini-kits.ts` edited by this run), retires `features/security`, Chrome check | 200k | b, c, and the `deployment → security` 3 imports resolved (S-DEPLOY or a slot) |
 **Run a, step 1: the operation trace (characterize, never invent; lesson 31; round-1 judge finding 8).**
 Round 1 listed tests for behaviour nobody had read ("a created token's plaintext is shown once", "every write
-control is absent without the manage permission"). Both are removed. Verified instead at `e801e9ae`:
+control is absent without the manage permission"). Both are removed. Verified instead at `e801e9ae`, and
+re-verified at merge-final `232764af5` in revision 3 (same lines; Tovu sizes unchanged: 6,108 code lines in 32 files
+plus the 5-line `copy-keys-dialog.css`; Jini `packages/admin/src/security` still 746 code lines in 22 files, plus
+`PORT.md` and `SOURCE-RATIONALE.md`):
 - the only permission the screen reads is `admin.security.site-key.manage`
   (`hooks/use-security-permissions.hooks.ts:8-17`); it decides whether the **Site key tab is offered**
   (`Security.tsx:153-163`) and is `false` while the `/auth/me` read is in flight, on purpose (unknown = hidden);
@@ -60,11 +63,13 @@ STOP for runs b-d: any secret-bearing value would pass through a Jini cache or a
 against the trace table's last column); or a run needs a behaviour that has no row in the trace table.
 
 ## S-DOCK: the assistant dock's generic part → `@jini-ai/chat/react`
-Measured: `components/AssistantDock` = **6,395 source lines in 48 files + 2,197 dictionary + 7,821 test lines**; 50
-hook-debt keys (the largest area); files over 500: `hooks/AssistantDock.hooks.tsx` 2,134, `AssistantDock.tsx` 665.
-On merge-b (`450ac748`) the dock is already partly split (`AssistantDock.state.hooks.ts`, `DockChatPane.tsx` added;
-`AssistantDock.tsx` is 240 lines there, `AssistantDock.hooks.tsx` still 2,134): **take the guard on the merged
-branch; this section's line numbers are merge-a's.** The files in the table below exist with the same names on both.
+Measured on merge-final `232764af5` (revision 3; merge-b's partial split is in it): `components/AssistantDock` =
+**6,539 code lines in 50 files** (merge-a: 6,395 in 48) + 2,197 dictionary + 7,821 test lines (merge-a count); 50
+hook-debt keys (the largest area). `AssistantDock.tsx` is 242 lines (merge-a 665); merge-b added
+`AssistantDock.state.hooks.ts` (305) and `DockChatPane.tsx` (262); `hooks/AssistantDock.hooks.tsx` is still 2,134 and
+the only file over 500. Every file and line in the table below, and the cited lines `OverflowAwareMcpUiSurfaceCard.tsx:25-42`,
+`RoutedA2uiSurfaceCard.tsx:75` and `use-dock-renderer-registry.hooks.ts:186-193`, were re-read on merge-final and are
+unchanged.
 Imports: `@jini-ai/chat` 33, `@jini-ai/ui` 25, features `fs-files` 3, `voice-input` 3, `skills` 2, `settings` 2, `webmcp` 1.
 `chat/react` has no failure card, overflow modal or slow-run notice today (`rg -l "AgentFailure|OverflowModal|SlowRun" packages/chat/src` finds only an unrelated `MidRunUserMessage.tsx`): these are moves, not dedupes. Confirm by behaviour, not by name, before each.
 
@@ -85,7 +90,7 @@ Stays in Tovu: `execution-config-write.ts`, `chat-package-kind.ts`, `resolve-com
 |---|---|---|---|
 | a | Pure pieces: agent-failure (434 lines + tests) into `chat/src/core`; class: **redaction of failure text**. Lesson 24: redaction is not disclosure permission; the card shows the redacted text only, and "Copy details" copies the redacted text. Tests: each scanner's fixture still redacts; an unknown secret shape is not shown raw. | 160k | D-6 |
 | b | Surface cards (`RoutedA2uiSurfaceCard`, its hook) + the registration-lifecycle half of the renderer registry + header/menu/preferences as `chat/react` components, hooks as props, `jini-chat-*` classes, `messages.en.ts`; Tovu repoints, dictionary parity test. `RoutedA2uiSurfaceCard` reads `AdminChartRegistryContext` (`:75`): the registry snapshot becomes a **prop** supplied by the Tovu wrapper, which keeps reading the context (T1b test S8 must stay green). | 240k | a; T1b; xpkg D-CHAT rulings |
-| c | Overflow modal + overflow-aware card + overflow detection, slow-run notice, folder-drop notices (587 lines in 10 existing files): move as components, hooks as props. **No split design of `AssistantDock.hooks.tsx` is needed for this run** (round 1 required one because it believed the code was embedded). | 200k | b; merge-b merged |
+| c | Overflow modal + overflow-aware card + overflow detection, slow-run notice, folder-drop notices (587 lines in 10 existing files): move as components, hooks as props. **No split design of `AssistantDock.hooks.tsx` is needed for this run** (round 1 required one because it believed the code was embedded). | 200k | b (merge-b is in merge-final) |
 The 2,134-line `AssistantDock.hooks.tsx` stays Tovu wiring; splitting it is Tovu size work (`development/scripts/size-debt.json`), not part of this extraction. It is listed in INDEX section 9.
 Run c, tests first (GREEN on the Tovu code, RED under the mutation, still GREEN after the move):
 | # | Asserts | Fails when |
