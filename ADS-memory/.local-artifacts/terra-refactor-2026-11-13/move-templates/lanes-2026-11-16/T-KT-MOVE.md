@@ -1,5 +1,5 @@
 # T-KT-MOVE (revision 2): move one or more generic Tovu files into a Jini package, in green steps
-Used by K-02b, K-06b, T-TH-01, T-PO-01, T-PO-01g, T-PO-02. Self-contained with the sheet and COMMON-KT (no other template).
+Used by K-02b, T-TH-01, T-PO-01, T-PO-01g, T-PO-02. Self-contained with the sheet and COMMON-KT (no other template).
 Inputs per sheet: `<id>.files.tsv` (blob guards), `<id>.decls.tsv` (top-level declarations), `<id>.fnsize.tsv` (functions over 40 code lines, file sizes), `<id>.importers.tsv` (every importer with the imported NAMES, including importers that reach a moved name through a feature `index.ts`; `re-export` rows are barrel lines to delete), `<id>.census.txt`.
 
 ## Steps

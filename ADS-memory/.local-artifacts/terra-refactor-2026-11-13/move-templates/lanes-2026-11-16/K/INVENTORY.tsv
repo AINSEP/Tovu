@@ -41,16 +41,16 @@ apps/website/src/features/taxonomy/index.ts	60	8a7effa2b02ced59e2c818becab159478
 apps/website/src/features/taxonomy/publish-content.ts	116	527d083dac14d2b8d473fb4951e5b668c222f6b6	MOVE-AFTER	publish framework (audit2 B02/B08, row 140): BLOCKED, listed in INDEX	BLOCKED-PUBLISH	audit2-B08	1	7
 apps/website/src/features/taxonomy/publish-term-ids.ts	116	3ec3e8bbbe6e8a7b777b0f0fb82ff23fe73844ce	MOVE-AFTER	publish framework (audit2 B02 / row 140)	K-BLOCKED	signals	1	1
 apps/website/src/features/taxonomy/render-entry.ts	38	c0128b8dd163f0f20bc84d0f88c2419f91829e63	MOVE-AFTER	holds a real renderer + cycle handling (rev 2, judge 18), not a forwarder: generic part -> @jini-ai/cms/taxonomy, design with K-05b	K-05b	read	2	0
-apps/website/src/features/taxonomy/repo.rows.ts	81	baea5a6977982c3af6a5b69fc37753bddd84be8f	MOVE	@jini-ai/cms/taxonomy/sql (NEW subpath; kysely is a cms peer already)	K-06	signals	1	0
+apps/website/src/features/taxonomy/repo.rows.ts	81	baea5a6977982c3af6a5b69fc37753bddd84be8f	LANE-S	lane S run S1a (K-06 retired, coordinator decision 1)	S1a	signals	1	0
 apps/website/src/features/taxonomy/repo.sqlite.ts	44	98be9d81a558bb6e6edd677897330f514bbc3543	STAY	Tovu store binding (CLASSIFY: DELETE/inline where listed)	-	rule	5	9
-apps/website/src/features/taxonomy/repo.ts	555	ea1cb9827ebe04f7011e176bbda176552a1976dc	MOVE	@jini-ai/cms/taxonomy/sql (NEW subpath; kysely is a cms peer already)	K-06	signals	1	1
+apps/website/src/features/taxonomy/repo.ts	555	ea1cb9827ebe04f7011e176bbda176552a1976dc	LANE-S	lane S run S1a (K-06 retired, coordinator decision 1)	S1a	signals	1	1
 apps/website/src/features/taxonomy/taxonomy-trash-follow-ups.ts	182	9048734169a334723870c0325654b2825934c64b	MOVE-AFTER	@jini-ai/cms/taxonomy after K-05 (they are K-05 ports first)	K-05b	signals	2	2
 apps/website/src/features/taxonomy/term-sync.ts	2	1b76c8d5c718f9f0319d416116df6f7e511e7d5e	STAY	thin Tovu forwarders/bindings; DELETE candidates are CLASSIFY rows, not this lane	-	signals	2	0
 apps/website/src/features/taxonomy/tool-registrations.ts	450	51ca8e974d46abd1d0b6fb8a5dfdb261140fd558	SPLIT	@jini-ai/cms/taxonomy (tool-registrations.ts); gateway/human-confirm/slug as ports	K-05	read	2	4
 apps/website/src/features/taxonomy/trash-term.ts	116	e7e6cc8b5e45f135b8cf62a788b33d28f313db09	MOVE-AFTER	@jini-ai/cms/taxonomy after K-05 (they are K-05 ports first)	K-05b	signals	2	1
 apps/website/src/features/trash/adapters/comment.ts	74	ddc480f72a7ba96b9a3e474c62bf46ff5ac17ab7	STAY	per-entity adapters bind Tovu tables/features; 4 are DEDUPE-AFTER-HARDENING in CLASSIFY (own rows)	-	signals	4	1
 apps/website/src/features/trash/adapters/directory.ts	253	882f7424dab6e4bf99888b908c39d69357a2508f	STAY	per-entity adapters bind Tovu tables/features; 4 are DEDUPE-AFTER-HARDENING in CLASSIFY (own rows)	-	signals	1	1
-apps/website/src/features/trash/adapters/marker-sql.ts	147	a9b4b2dc837f8cb535e1cb40abd512b8e3054232	MOVE	@jini-ai/cms/trash/sql	K-08	signals	5	1
+apps/website/src/features/trash/adapters/marker-sql.ts	147	a9b4b2dc837f8cb535e1cb40abd512b8e3054232	LANE-S	lane S S4 (stays in Tovu per S4; K-08 retired)	S4a	signals	5	1
 apps/website/src/features/trash/adapters/media.ts	95	5f52eb6dc4b12fa45995fc158c6805cfc46a7e9d	STAY	per-entity adapters bind Tovu tables/features; 4 are DEDUPE-AFTER-HARDENING in CLASSIFY (own rows)	-	signals	4	3
 apps/website/src/features/trash/adapters/member.ts	64	198f819cc57da91efad9d6c11554ac4f1b34f882	STAY	per-entity adapters bind Tovu tables/features; 4 are DEDUPE-AFTER-HARDENING in CLASSIFY (own rows)	-	signals	1	2
 apps/website/src/features/trash/adapters/plugin.ts	1	7eb6549c5c38c1b4985172b0af63ad78c3984707	STAY	per-entity adapters bind Tovu tables/features; 4 are DEDUPE-AFTER-HARDENING in CLASSIFY (own rows)	-	signals	2	0
@@ -61,21 +61,21 @@ apps/website/src/features/trash/adapters/user.ts	228	efed28901c7e183c9a8dd55513f
 apps/website/src/features/trash/agent-delete-policy.ts	5	e8922df75040dcd027e00fb8c1ab56a554c24e89	STAY	not in lane K scope (CLASSIFY rows own them: MIXED cms/trash, DEDUPE daemon/scheduler)	-	classify	0	1
 apps/website/src/features/trash/agent-tools.ts	154	fba503a086519107570f304f79409460c5b13927	MOVE	@jini-ai/cms/trash (agent-tools.ts)	K-07	read	1	3
 apps/website/src/features/trash/db-port.ts	19	6f3933aa623bf14e6db7a23652e85772102ae03b	STAY	not in lane K scope (CLASSIFY rows own them: MIXED cms/trash, DEDUPE daemon/scheduler)	-	classify	5	0
-apps/website/src/features/trash/entry-sql.ts	83	3b6118b1142a1c9f481ae089739f5bf45d0726fb	MOVE	@jini-ai/cms/trash/sql (NEW subpath)	K-08	signals	6	2
-apps/website/src/features/trash/entry-sql.types.ts	9	40dfd4247ddc905606ecd900b29a73811eda6c4a	MOVE	@jini-ai/cms/trash/sql (NEW subpath)	K-08	signals	2	0
+apps/website/src/features/trash/entry-sql.ts	83	3b6118b1142a1c9f481ae089739f5bf45d0726fb	LANE-S	lane S runs S4a/S4b (K-08 retired, coordinator decision 1)	S4a	signals	6	2
+apps/website/src/features/trash/entry-sql.types.ts	9	40dfd4247ddc905606ecd900b29a73811eda6c4a	LANE-S	lane S runs S4a/S4b (K-08 retired, coordinator decision 1)	S4a	signals	2	0
 apps/website/src/features/trash/index.ts	110	08a3e014afbaa0158233162be51a479d6bf3b78f	STAY	Tovu feature barrel/forwarder (not a re-export shell of moved code; shrinks as importers repoint)	-	rule	27	15
 apps/website/src/features/trash/move-to-trash.ts	167	a450664f4c846b3ed99ba9c72c5729b65c234da1	STAY	not in lane K scope (CLASSIFY rows own them: MIXED cms/trash, DEDUPE daemon/scheduler)	-	classify	2	8
-apps/website/src/features/trash/not-trashed.ts	117	52f16e518731c309b242a23ad61f6bcc5fd519de	MOVE	@jini-ai/cms/trash/sql (NEW subpath)	K-08	signals	2	1
+apps/website/src/features/trash/not-trashed.ts	117	52f16e518731c309b242a23ad61f6bcc5fd519de	LANE-S	lane S runs S4a/S4b (K-08 retired, coordinator decision 1)	S4a	signals	2	1
 apps/website/src/features/trash/permissions.ts	147	ce905dbc88373de2333631cb9fd8ee6ce0fe2673	STAY	entity-type -> permission map is product policy (Codex, plan-v6 K4)	-	plan-v6	4	4
 apps/website/src/features/trash/ports.ts	61	259001ccbb8641aea194b24c9892eae43845d5fd	STAY	not in lane K scope (CLASSIFY rows own them: MIXED cms/trash, DEDUPE daemon/scheduler)	-	classify	3	1
 apps/website/src/features/trash/registry.ts	365	9f57eab631aa59db2bfd9b20e77cb7549ca558bb	STAY	plan-v6 S4: registry.ts stays; NO registry contract exists in @jini-ai/cms/trash (rev 2, judge 5): K-07 uses a local structural port	-	plan-v6	10	21
 apps/website/src/features/trash/remove-without-blocker.ts	37	e7e4b43b983d140b9d1c74e4fdebd35bcf2c8e4a	STAY	not in lane K scope (CLASSIFY rows own them: MIXED cms/trash, DEDUPE daemon/scheduler)	-	classify	1	5
 apps/website/src/features/trash/repo.sqlite.ts	34	81037d83f9347cce1c19f31693a50a0aaccc8d39	STAY	Tovu store binding (CLASSIFY: DELETE/inline where listed)	-	rule	2	22
-apps/website/src/features/trash/repo.ts	232	6d021f772491f7b07751ebe1903252d8dc458429	MOVE	@jini-ai/cms/trash/sql (NEW subpath)	K-08	signals	2	1
+apps/website/src/features/trash/repo.ts	232	6d021f772491f7b07751ebe1903252d8dc458429	LANE-S	lane S runs S4a/S4b (K-08 retired, coordinator decision 1)	S4a	signals	2	1
 apps/website/src/features/trash/scheduler.node.ts	18	b3cfa30db812799689bd54ca4460945387b3ec57	STAY	not in lane K scope (CLASSIFY rows own them: MIXED cms/trash, DEDUPE daemon/scheduler)	-	classify	1	1
-apps/website/src/features/trash/table-adapter.ts	362	130fb351f7c2a7b94f24ace3bb4dbcd93de163d2	MOVE	@jini-ai/cms/trash/sql (NEW subpath)	K-08	signals	1	15
+apps/website/src/features/trash/table-adapter.ts	362	130fb351f7c2a7b94f24ace3bb4dbcd93de163d2	LANE-S	lane S runs S4a/S4b (K-08 retired, coordinator decision 1)	S4a	signals	1	15
 apps/website/src/features/trash/tool-registrations.ts	252	8c5a27d777ca702e9b99c06891ef4d2dafe42c1e	SPLIT	@jini-ai/cms/trash (tool-registrations.ts); permission map injected	K-07	read	2	2
-apps/website/src/features/trash/trash-item-tool.ts	518	2151539b5dc9f1602541a5ed1b518a291db2f70f	MOVE-AFTER	host-bound today (6 adapter consts, TrashDb, moveToTrash, readLiveSnapshot, registry): DESIGN after K-08 + registry contract (rev 2, judge 5)	K-07b	read	1	8
+apps/website/src/features/trash/trash-item-tool.ts	518	2151539b5dc9f1602541a5ed1b518a291db2f70f	MOVE-AFTER	host-bound today (6 adapter consts, TrashDb, moveToTrash, readLiveSnapshot, registry): DESIGN after lane S S4b (K-08 retired; registry types land in S4a)	K-07b	read	1	8
 apps/website/src/features/trash/widget-removal.ts	13	f8dad0d2ff01a585a6d63c64d7db1632ca80524c	STAY	not in lane K scope (CLASSIFY rows own them: MIXED cms/trash, DEDUPE daemon/scheduler)	-	classify	1	1
 apps/website/src/features/webhooks/agent-tools.ts	205	7f0025873564b2a12333c8186b8b646acb7bece5	MOVE	@jini-ai/integrations/webhooks/tools (agent-tools.ts)	K-09	signals	1	2
 apps/website/src/features/webhooks/delivery.ts	72	c267f491aec86a6a4e7a8516917005ed4b5ac182	STAY	NOT lane K: keyring/sealer/site-key = row 57 + audit2 B09; delivery/subscriptions already bind @jini-ai/integrations	-	signals	2	3

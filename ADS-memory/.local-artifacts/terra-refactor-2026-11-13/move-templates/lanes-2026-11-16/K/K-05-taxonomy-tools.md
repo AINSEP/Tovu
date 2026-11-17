@@ -2,7 +2,12 @@
 files: `K-05.files.tsv` (`taxonomy/tool-registrations.ts` 450). The catalog is ALREADY in Jini (`packages/cms/src/taxonomy/agent-tools.ts`); Tovu `taxonomy/agent-tools.ts` (39-line binding) stays. So `K-05.tools.tsv` shows `NOT-IN-CATALOG` for the Tovu-side check: expected; S0 (a) compares against the Jini catalog names instead. tools = 10 (round 1 said 12); one wrapped by `humanConfirmedToolHandler` (key `MERGE_TOOL_ID`, 66 code lines). pkg: cms.
 writes: `development/scripts/size-debt.json` entry `buildTaxonomyRegistrations#1`, deleted in S1. tests: `apps/website/src/features/taxonomy/**/*.test.ts`.
 over the limit: `buildTaxonomyRegistrations` 223; the merge handler 66: S1 splits it into `mergePrepare`, `mergeDialog` (stays in Tovu if it reads host wording), `mergeRun` (each <= 50).
-prerequisite: K-06b pushed (both touch importers of `taxonomy/index.ts`).
+prerequisite (revision 3, coordinator decision 1): S1a's T1 pushed (lane S; both touch importers of `taxonomy/index.ts`
+and Jini `packages/cms/src/taxonomy/index.ts`). Check, from the Tovu root; prints `ok`:
+```bash
+test ! -e apps/website/src/features/taxonomy/repo.ts && echo ok
+```
+Then regenerate the `K-05.*` sidecars on that commit before step S0. K-05 never runs at the same time as S1a.
 BINDINGS:
 | import | class | action |
 |---|---|---|
