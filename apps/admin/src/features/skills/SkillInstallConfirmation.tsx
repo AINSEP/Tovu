@@ -8,8 +8,8 @@ import { skillFailure } from "./skill-failure";
 import "./skills.css";
 
 /** `locale` is the caller's admin locale (the dock and the Skills page each resolve one); English when omitted. */
-export function SkillInstallConfirmation({ install, locale = "en" }: { install: ReturnType<typeof useSkillInstall>; locale?: string }) {
-  const confirmation = useSkillInstallConfirmation(install);
+export function SkillInstallConfirmation({ install, locale = "en", useSkillInstallConfirmationHook = useSkillInstallConfirmation }: { install: ReturnType<typeof useSkillInstall>; locale?: string; useSkillInstallConfirmationHook?: typeof useSkillInstallConfirmation; }) {
+  const confirmation = useSkillInstallConfirmationHook(install);
   const tr = createSkillInstallConfirmationTranslator({ locale });
   const failure = install.error ? skillFailure({ error: install.cause ?? new Error(install.error), message: install.error, t: tr }) : null;
   // A read failure has no confirmation dialog. Keep it in a compact, dismissible row;

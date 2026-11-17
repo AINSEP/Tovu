@@ -66,14 +66,17 @@ function AddSkillPanel({ controller, t }: { controller: SkillsController; t: Tra
 }
 
 /** Agent Plugins' shared tab shell; navigation and installation behavior live in hooks. */
-export function Skills({ useSkillsHook = useSkills, useLocaleHook = useAdminLocale }: {
+export function Skills({ useSkillsHook = useSkills, useLocaleHook = useAdminLocale, useAdminThemeBoundaryHook = useAdminThemeBoundary, useSkillsTranslatorHook = useSkillsTranslator, useSkillFilesModalHook = useSkillFilesModal }: {
   useSkillsHook?: typeof useSkills; useLocaleHook?: typeof useAdminLocale;
+  useAdminThemeBoundaryHook?: typeof useAdminThemeBoundary;
+  useSkillsTranslatorHook?: typeof useSkillsTranslator;
+  useSkillFilesModalHook?: typeof useSkillFilesModal;
 } = {}) {
-  const themeBoundary = useAdminThemeBoundary({}, {});
+  const themeBoundary = useAdminThemeBoundaryHook({}, {});
   const locale = useLocaleHook();
-  const t = useSkillsTranslator({ locale });
+  const t = useSkillsTranslatorHook({ locale });
   const controller = useSkillsHook({ t });
-  const filesModal = useSkillFilesModal({ skill: controller.inspecting, onClose: controller.onCloseFiles }, { t });
+  const filesModal = useSkillFilesModalHook({ skill: controller.inspecting, onClose: controller.onCloseFiles }, { t });
   const tabs: SettingsDialogTab[] = [
     { id: "skills", label: t("Skills"), icon: <Icon name="document-marked" size={18} strokeWidth={1.5} />, title: t("Skills"), subtitle: t("Instructions for your assistant. Type /sk in chat to use one."), panel: <InstalledSkillsPanel controller={controller} t={t} /> },
     { id: "add", label: t("Add a skill"), title: t("Skills"), subtitle: t("Instructions for your assistant. Type /sk in chat to use one."), panel: <AddSkillPanel controller={controller} t={t} /> },
