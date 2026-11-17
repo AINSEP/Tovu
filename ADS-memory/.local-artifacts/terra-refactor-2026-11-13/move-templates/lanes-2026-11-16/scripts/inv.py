@@ -1,5 +1,5 @@
 import os,re,sys,subprocess,json,collections
-ROOT='/home/user/code'
+ROOT=os.environ.get('LANE_ROOT','/home/user/code'); SP=os.path.dirname(os.path.abspath(__file__)); PLAN=os.path.dirname(SP); GRAPH=os.environ.get('LANE_GRAPH','/tmp/lane-su-graph.json')
 os.chdir(ROOT)
 files=subprocess.check_output(['git','ls-files','apps','scripts','development','packages'],text=True).split('\n')
 src=[f for f in files if re.search(r'\.(ts|tsx|mts|cts|js|mjs)$',f) and 'node_modules' not in f]
@@ -29,5 +29,5 @@ for f in src:
         if r: imports[f].add(r); importers[r].add(f)
         elif not s.startswith('.') and not s.startswith('#src/'): ext[f].add(s)
 def istest(f): return bool(re.search(r'__tests__|__specs__|\.test\.|\.spec\.|/e2e/|/tests?/',f))
-json.dump({'imports':{k:sorted(v) for k,v in imports.items()},'ext':{k:sorted(v) for k,v in ext.items()},'importers':{k:sorted(v) for k,v in importers.items()}},open('/tmp/claude-0/-home-user/ac9f4aa2-2de4-5d94-b62a-c3e90073299d/scratchpad/graph.json','w'))
+json.dump({'imports':{k:sorted(v) for k,v in imports.items()},'ext':{k:sorted(v) for k,v in ext.items()},'importers':{k:sorted(v) for k,v in importers.items()}},open(GRAPH,'w'))
 print(len(src),'files',sum(len(v) for v in imports.values()),'edges')

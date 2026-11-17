@@ -1,6 +1,6 @@
 # S3-identity-sql — machine-verified facts (generated; do not hand-edit)
 
-Source: Tovu `origin/integ/merge-b-2026-11-16` @ `491632dc5`. Regenerate: `python3 scripts/inv.py && python3 scripts/rep.py && python3 scripts/facts.py <out>`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
+Source: Tovu tree at `LANE_ROOT` (committed copy: `origin/integ/merge-a-2026-11-16`) @ `e801e9aee`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
 
 Files: 9, 1144 lines (tests not counted).
 
@@ -133,7 +133,7 @@ Files: 9, 1144 lines (tests not counted).
 | server/inbound/admin-http/routes/api-keys/__tests__/handler-failures.test.ts | 143 | 880c66fd104b782779fdc0a23ccff038a8f02755 |
 | features/identity/__tests__/user-purge.test.ts | 226 | 87120e92a1482de7e7a99d4544754f4fbf33579d |
 | features/trash/__tests__/user-adapter.dialects.test.ts | 159 | 1e0a44cf78630b894463e2ee8ed54d352bbaa4b7 |
-| server/inbound/public-http/routes/site/__tests__/commerce-strip-parity.test.ts | 254 | 62f92dbfe67658515236600433c53f4f4f1280ac |
+| server/inbound/public-http/routes/site/__tests__/commerce-strip-parity.test.ts | 262 | 17653b0d2fb31b7dce2eff9f68b83e80a40ddaad |
 | features/identity/__tests__/delete-user-service.test.ts | 641 | 9837eaa9de771bd4327307d151e13e5e91819657 |
 | features/trash/__tests__/user-adapter.test.ts | 439 | ff290189d5ea5e12890242da7a4a48bb100f3c7c |
 | platform/db/sqlite/__tests__/repo-transactions.sqlite.test.ts | 164 | 8f569ac0dc98f915d9928cf0356c605308067c2b |
@@ -145,8 +145,8 @@ Files: 9, 1144 lines (tests not counted).
 - none found by pattern (re-check with the census at execution)
 
 ## Path-keyed baselines / configs that name a file of this sheet (lesson 10: debt does not follow moved code silently)
-- development/scripts/check-architecture.baseline.json: `src/features/identity/user-purge-types.ts` at lines 425 (1 hits)
-- development/scripts/size-debt.json: `src/features/identity/repo.ts` at lines 1020 (1 hits)
+- development/scripts/check-architecture.baseline.json: `src/features/identity/user-purge-types.ts` at lines 433 (1 hits)
+- development/scripts/size-debt.json: `src/features/identity/repo.ts` at lines 971 (1 hits)
 
 ## Census command (run from the Tovu clone root; every hit must be listed above)
 ```

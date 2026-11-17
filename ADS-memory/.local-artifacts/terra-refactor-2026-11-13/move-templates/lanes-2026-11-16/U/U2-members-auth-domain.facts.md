@@ -1,18 +1,18 @@
 # U2-members-auth-domain — machine-verified facts (generated; do not hand-edit)
 
-Source: Tovu `origin/integ/merge-b-2026-11-16` @ `491632dc5`. Regenerate: `python3 scripts/inv.py && python3 scripts/rep.py && python3 scripts/facts.py <out>`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
+Source: Tovu tree at `LANE_ROOT` (committed copy: `origin/integ/merge-a-2026-11-16`) @ `e801e9aee`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
 
 Files: 15, 3469 lines (tests not counted).
 
 ## Files
 | path (under apps/website/src) | lines | blob | CLASSIFY label | audit row | existing sheet/design mention | prod importers | test importers |
 |---|---|---|---|---|---|---|---|
-| features/members/access-resolver.ts | 237 | 00941106f75fb68a0102d3a8547114e45f8148cd | MOVE-AFTER | - | - | 8 | 4 |
+| features/members/access-resolver.ts | 237 | 00941106f75fb68a0102d3a8547114e45f8148cd | MOVE-AFTER | - | - | 10 | 5 |
 | features/members/agent-tools.ts | 157 | f0f22c026b2fc85b402c91081e03cc3a251b4489 | - | audit2:A07 | audit2-sheets-a3:split-a07-members-server-domain.md;w1-sheets-c:dedupe-admin-members.md | 1 | 3 |
 | features/members/auth-mail.ts | 25 | 1f3578a9650cb69ff147d1a3dee38e5175d9857c | MOVE-AFTER | - | - | 1 | 0 |
-| features/members/capability-card.ts | 29 | 370d296ce9612c4a155f7c39fcc996a312f15321 | - | - | w1-sheets-d:delete-site-guide.gen.md | 1 | 0 |
+| features/members/capability-card.ts | 29 | 7434d127c5416ab52ef173e4d845f93922e6a053 | - | - | w1-sheets-d:delete-site-guide.gen.md | 1 | 0 |
 | features/members/consent-service.ts | 261 | 8fc2d60b80d018c4cdae854c876fe1123c573b6a | DELETE | - | - | 1 | 1 |
-| features/members/index.ts | 134 | baba94f173833f504710ba5c0dd5bd965b22d4e7 | - | - | - | 35 | 25 |
+| features/members/index.ts | 134 | baba94f173833f504710ba5c0dd5bd965b22d4e7 | - | - | - | 44 | 26 |
 | features/members/mailer.console.ts | 93 | 04c24d36b96f92f0d69ed4d5f1e900c1ca73d549 | MOVE | - | - | 1 | 2 |
 | features/members/password-auth.ts | 204 | 784c43d36923ecba69e870bbdd55de0014d97804 | MOVE-AFTER | - | - | 1 | 2 |
 | features/members/ports.ts | 329 | de4363a1a6f7a23a2270deedede16fd94d0bf537 | - | audit2:A07 | audit2-sheets-a3:split-a07-members-server-domain.md | 10 | 10 |
@@ -33,8 +33,8 @@ Files: 15, 3469 lines (tests not counted).
 - npm/@jini-ai imports: node:crypto
 - same-folder imports: features/members/ports.ts, features/members/types.ts
 - imports leaving the folder: -
-- prod importers (8): features/members/index.ts, features/members/password-auth.ts, server/inbound/public-http/routes/commerce/purchase.ts, server/inbound/public-http/routes/content/posts/get-by-slug.ts, server/inbound/public-http/routes/plugin-contributions.ts, server/inbound/public-http/routes/site/media-rendition.ts, server/inbound/public-http/routes/site/member-pages.ts, server/inbound/public-http/routes/site/pages.ts
-- test importers (4): features/members/__tests__/access-resolver.test.ts, features/members/__tests__/restart.integration.test.ts, features/members/__tests__/write-service.test.ts, server/inbound/admin-http/routes/members/__tests__/disable.test.ts
+- prod importers (10): features/members/index.ts, features/members/password-auth.ts, server/inbound/public-http/routes/commerce/purchase.ts, server/inbound/public-http/routes/content/posts/get-by-slug.ts, server/inbound/public-http/routes/plugin-contributions.ts, server/inbound/public-http/routes/site/media-rendition.ts, server/inbound/public-http/routes/site/member-pages.ts, server/inbound/public-http/routes/site/pages/handlers/home.ts, server/inbound/public-http/routes/site/pages/handlers/slug-routes.ts, server/inbound/public-http/routes/site/pages/render-context/member-access.ts
+- test importers (5): features/members/__tests__/access-resolver.test.ts, features/members/__tests__/restart.integration.test.ts, features/members/__tests__/write-service.test.ts, server/inbound/admin-http/routes/members/__tests__/disable.test.ts, server/inbound/public-http/routes/site/__tests__/pages.response-matrix.characterization.test.ts
 
 ### features/members/agent-tools.ts (157 lines)
 - exports (3): AgentToolSideEffect, AgentToolDefinition, membersAgentToolCatalog
@@ -64,9 +64,9 @@ Files: 15, 3469 lines (tests not counted).
 - tables touched: -
 - lock keys: -
 - flags: -
-- npm/@jini-ai imports: @jini-ai/agentic/core
+- npm/@jini-ai imports: -
 - same-folder imports: -
-- imports leaving the folder: -
+- imports leaving the folder: features/site-guide/contracts.ts
 - prod importers (1): server/runtime/composition/site-guide.ts
 - test importers (0): -
 
@@ -157,8 +157,8 @@ Files: 15, 3469 lines (tests not counted).
 - npm/@jini-ai imports: -
 - same-folder imports: features/members/access-resolver.ts, features/members/consent-service.ts, features/members/mailer.console.ts, features/members/password-auth.ts, features/members/ports.ts, features/members/repo.memory.ts, features/members/repo.sqlite.ts, features/members/repo.ts, features/members/subscriber-directory.ts, features/members/trash-member.ts, features/members/types.ts, features/members/write-service.ts
 - imports leaving the folder: platform/mail/index.ts
-- prod importers (35): assistant/site/public-content.ts, features/member-login/link-policy.ts, features/member-login/link-service.ts, features/seo/index.ts, features/site-search/access.ts, features/site-search/cms-document-source.ts, server/inbound/admin-http/http/members.ts, server/inbound/admin-http/routes/members/delete.ts, server/inbound/admin-http/routes/members/deps.ts, server/inbound/admin-http/routes/members/disable.ts, server/inbound/admin-http/routes/members/get-by-id.ts, server/inbound/admin-http/routes/members/request-magic-link.ts, server/inbound/admin-http/routes/posts/template-preview-render.ts, server/inbound/public-http/http/members.ts, server/inbound/public-http/routes/content/posts/get-by-slug.ts, server/inbound/public-http/routes/members/analytics.ts, server/inbound/public-http/routes/members/complete-sign-in.ts, server/inbound/public-http/routes/members/deps.ts, server/inbound/public-http/routes/members/forgot-password.ts, server/inbound/public-http/routes/members/me.ts, server/inbound/public-http/routes/members/oidc-deps.ts, server/inbound/public-http/routes/members/password-sign-in.ts, server/inbound/public-http/routes/members/reset-password.ts, server/inbound/public-http/routes/members/set-password.ts, server/inbound/public-http/routes/members/sign-in.ts, server/inbound/public-http/routes/members/unlink-identity.ts, server/inbound/public-http/routes/site/media-rendition.ts, server/inbound/public-http/routes/site/pages.ts, server/routes/types.ts, server/runtime/composition/app.ts, server/runtime/composition/deps.ts, server/runtime/composition/modules/members.ts, server/runtime/composition/modules/site-assistant.ts, server/runtime/composition/peer-site-reads.ts, server/runtime/composition/visitor-page-targets.ts
-- test importers (25): assistant/__tests__/tool-registrations.members.test.ts, assistant/site/__tests__/member-access.fixture.ts, features/mail-status/__tests__/mail-status-tool.test.ts, features/mail-status/__tests__/provider-tools.unit.test.ts, features/site-backup/__tests__/library-share.integration.test.ts, server/__tests__/media-original-video-route.test.ts, server/__tests__/media-rendition-gating-bypass.test.ts, server/__tests__/media-rendition-route.test.ts, server/__tests__/routes/bare-page-site-serving.test.ts, server/__tests__/routes/content-post-get-by-slug.test.ts, server/__tests__/routes/member-oidc-auth.test.ts, server/__tests__/routes/member-oidc-callback.unit.test.ts, server/__tests__/routes/member-password-auth.test.ts, server/__tests__/routes/members-auth.test.ts, server/__tests__/routes/members-public-complete-sign-in.test.ts, server/__tests__/routes/members-public-sign-in.test.ts, server/__tests__/unit/server-modules.unit.test.ts, server/inbound/admin-http/routes/members/__tests__/disable.test.ts, server/inbound/admin-http/routes/members/__tests__/disable.unit.test.ts, server/inbound/admin-http/routes/members/__tests__/unit/h4-magic-link.unit.test.ts, server/inbound/public-http/routes/members/__tests__/unit/h4-oidc.unit.test.ts, server/inbound/public-http/routes/site/__tests__/integration/media-replace-cache.integration.test.ts, server/inbound/public-http/routes/site/__tests__/member-pages.route.test.ts, server/inbound/public-http/routes/site/__tests__/pages.member-access.route.test.ts, server/inbound/public-http/routes/site/__tests__/static-post-previews-resolution.test.ts
+- prod importers (44): assistant/site/public-content.ts, features/member-login/link-policy.ts, features/member-login/link-service.ts, features/seo/index.ts, features/site-search/access.ts, features/site-search/cms-document-source.ts, server/inbound/admin-http/http/members.ts, server/inbound/admin-http/routes/members/delete.ts, server/inbound/admin-http/routes/members/deps.ts, server/inbound/admin-http/routes/members/disable.ts, server/inbound/admin-http/routes/members/get-by-id.ts, server/inbound/admin-http/routes/members/request-magic-link.ts, server/inbound/admin-http/routes/posts/template-preview-render.ts, server/inbound/public-http/http/members.ts, server/inbound/public-http/routes/content/posts/get-by-slug.ts, server/inbound/public-http/routes/members/analytics.ts, server/inbound/public-http/routes/members/complete-sign-in.ts, server/inbound/public-http/routes/members/deps.ts, server/inbound/public-http/routes/members/forgot-password.ts, server/inbound/public-http/routes/members/me.ts, server/inbound/public-http/routes/members/oidc-deps.ts, server/inbound/public-http/routes/members/password-sign-in.ts, server/inbound/public-http/routes/members/reset-password.ts, server/inbound/public-http/routes/members/set-password.ts, server/inbound/public-http/routes/members/sign-in.ts, server/inbound/public-http/routes/members/unlink-identity.ts, server/inbound/public-http/routes/site/media-rendition.ts, server/inbound/public-http/routes/site/pages/handlers/home.ts, server/inbound/public-http/routes/site/pages/handlers/marketing.ts, server/inbound/public-http/routes/site/pages/handlers/post.ts, server/inbound/public-http/routes/site/pages/render-context/deps.ts, server/inbound/public-http/routes/site/pages/render-context/member-access.ts, server/inbound/public-http/routes/site/pages/render-context/post-previews.ts, server/inbound/public-http/routes/site/pages/static-tier.ts, server/inbound/public-http/routes/site/pages/template-render.ts, server/routes/types.ts, server/runtime/composition/app.ts, server/runtime/composition/deps.ts, server/runtime/composition/http-app/mount-members-newsletter.ts, server/runtime/composition/memory-deps/slices/member-secrets.ts, server/runtime/composition/modules/members.ts, server/runtime/composition/modules/site-assistant.ts, server/runtime/composition/peer-site-reads.ts, server/runtime/composition/visitor-page-targets.ts
+- test importers (26): assistant/__tests__/tool-registrations.members.test.ts, assistant/site/__tests__/member-access.fixture.ts, features/mail-status/__tests__/mail-status-tool.test.ts, features/mail-status/__tests__/provider-tools.unit.test.ts, features/site-backup/__tests__/library-share.integration.test.ts, server/__tests__/media-original-video-route.test.ts, server/__tests__/media-rendition-gating-bypass.test.ts, server/__tests__/media-rendition-route.test.ts, server/__tests__/routes/bare-page-site-serving.test.ts, server/__tests__/routes/content-post-get-by-slug.test.ts, server/__tests__/routes/member-oidc-auth.test.ts, server/__tests__/routes/member-oidc-callback.unit.test.ts, server/__tests__/routes/member-password-auth.test.ts, server/__tests__/routes/members-auth.test.ts, server/__tests__/routes/members-public-complete-sign-in.test.ts, server/__tests__/routes/members-public-sign-in.test.ts, server/__tests__/unit/server-modules.unit.test.ts, server/inbound/admin-http/routes/members/__tests__/disable.test.ts, server/inbound/admin-http/routes/members/__tests__/disable.unit.test.ts, server/inbound/admin-http/routes/members/__tests__/unit/h4-magic-link.unit.test.ts, server/inbound/public-http/routes/members/__tests__/unit/h4-oidc.unit.test.ts, server/inbound/public-http/routes/site/__tests__/integration/media-replace-cache.integration.test.ts, server/inbound/public-http/routes/site/__tests__/member-pages.route.test.ts, server/inbound/public-http/routes/site/__tests__/pages.member-access.route.test.ts, server/inbound/public-http/routes/site/__tests__/pages.response-matrix.characterization.test.ts, server/inbound/public-http/routes/site/__tests__/static-post-previews-resolution.test.ts
 
 ### features/members/mailer.console.ts (93 lines)
 - exports (2): ConsoleMailerAdapterDeps, ConsoleMailerAdapter
@@ -266,6 +266,7 @@ Files: 15, 3469 lines (tests not counted).
 | features/members/__tests__/restart.integration.test.ts | 86 | 523fedf1b32a1edb481f8c0661abe3008330ffd2 |
 | features/members/__tests__/write-service.test.ts | 1137 | 08702037e2e5d7d783a2ad7397b4dafaea1f6a32 |
 | server/inbound/admin-http/routes/members/__tests__/disable.test.ts | 217 | 0224ac4bcb1fa8a476f38bdfecd2b218045c4eee |
+| server/inbound/public-http/routes/site/__tests__/pages.response-matrix.characterization.test.ts | 376 | 8d05b7d6699ed210aacd3f51e112f25c0a632342 |
 | assistant/__tests__/tool-registrations.contracts.test.ts | 897 | ad6d976fa9a8f9ff9a7a6f4a75642af3147a570a |
 | assistant/__tests__/tool-registrations.members.test.ts | 451 | 1a77afccedd7b45e61c009a92a0ebc673bed157b |
 | features/members/__tests__/agent-tools.contract.test.ts | 35 | edd24b618ba280a7daedc5c59455d27f632b75ed |
@@ -322,18 +323,19 @@ Files: 15, 3469 lines (tests not counted).
 - none found by pattern (re-check with the census at execution)
 
 ## Path-keyed baselines / configs that name a file of this sheet (lesson 10: debt does not follow moved code silently)
-- development/scripts/write-path-inventory.baseline.json: `src/features/members/consent-service.ts` at lines 2120, 2129, 2138, 2147, 2156, 2165, 2174, 2183, 2192, 2201, 2210, 2219, 2228, 2237, 2246, 2255, 2264, 2273 (18 hits)
-- development/scripts/write-path-inventory.baseline.json: `src/features/members/mailer.console.ts` at lines 2282, 2291 (2 hits)
-- development/scripts/write-path-inventory.baseline.json: `src/features/members/repo.memory.ts` at lines 2300, 2309 (2 hits)
-- development/scripts/write-path-inventory.baseline.json: `src/features/members/write-service.ts` at lines 2416, 2425, 2434, 2443, 2452, 2461, 2470, 2479, 2488, 2497, 2506, 2515, 2524, 2533, 2542, 2551, 2560, 2569, 2578, 2587, 2596, 2605 (22 hits)
-- development/scripts/check-architecture.baseline.json: `src/features/members/access-resolver.ts` at lines 370 (1 hits)
-- development/scripts/check-architecture.baseline.json: `src/features/members/auth-mail.ts` at lines 217 (1 hits)
-- development/scripts/check-architecture.baseline.json: `src/features/members/index.ts` at lines 305 (1 hits)
-- development/scripts/check-architecture.baseline.json: `src/features/members/ports.ts` at lines 209 (1 hits)
-- development/scripts/check-architecture.baseline.json: `src/features/members/subscriber-directory.ts` at lines 218 (1 hits)
-- development/scripts/check-architecture.baseline.json: `src/features/members/types.ts` at lines 208, 210, 368 (3 hits)
-- development/scripts/check-architecture.baseline.json: `src/features/members/write-service.ts` at lines 211 (1 hits)
-- development/scripts/size-debt.json: `src/features/members/tool-registrations.ts` at lines 1041 (1 hits)
+- development/scripts/write-path-inventory.baseline.json: `src/features/members/consent-service.ts` at lines 2138, 2147, 2156, 2165, 2174, 2183, 2192, 2201, 2210, 2219, 2228, 2237, 2246, 2255, 2264, 2273, 2282, 2291 (18 hits)
+- development/scripts/write-path-inventory.baseline.json: `src/features/members/mailer.console.ts` at lines 2300, 2309 (2 hits)
+- development/scripts/write-path-inventory.baseline.json: `src/features/members/repo.memory.ts` at lines 2318, 2327 (2 hits)
+- development/scripts/write-path-inventory.baseline.json: `src/features/members/write-service.ts` at lines 2434, 2443, 2452, 2461, 2470, 2479, 2488, 2497, 2506, 2515, 2524, 2533, 2542, 2551, 2560, 2569, 2578, 2587, 2596, 2605, 2614, 2623 (22 hits)
+- development/scripts/check-architecture.baseline.json: `src/features/members/access-resolver.ts` at lines 377 (1 hits)
+- development/scripts/check-architecture.baseline.json: `src/features/members/auth-mail.ts` at lines 219 (1 hits)
+- development/scripts/check-architecture.baseline.json: `src/features/members/capability-card.ts` at lines 220 (1 hits)
+- development/scripts/check-architecture.baseline.json: `src/features/members/index.ts` at lines 312 (1 hits)
+- development/scripts/check-architecture.baseline.json: `src/features/members/ports.ts` at lines 211 (1 hits)
+- development/scripts/check-architecture.baseline.json: `src/features/members/subscriber-directory.ts` at lines 221 (1 hits)
+- development/scripts/check-architecture.baseline.json: `src/features/members/types.ts` at lines 210, 212, 375 (3 hits)
+- development/scripts/check-architecture.baseline.json: `src/features/members/write-service.ts` at lines 213 (1 hits)
+- development/scripts/size-debt.json: `src/features/members/tool-registrations.ts` at lines 992 (1 hits)
 
 ## Census command (run from the Tovu clone root; every hit must be listed above)
 ```

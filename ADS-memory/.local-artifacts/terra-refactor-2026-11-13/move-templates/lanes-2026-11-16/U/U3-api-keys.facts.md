@@ -1,6 +1,6 @@
 # U3-api-keys — machine-verified facts (generated; do not hand-edit)
 
-Source: Tovu `origin/integ/merge-b-2026-11-16` @ `491632dc5`. Regenerate: `python3 scripts/inv.py && python3 scripts/rep.py && python3 scripts/facts.py <out>`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
+Source: Tovu tree at `LANE_ROOT` (committed copy: `origin/integ/merge-a-2026-11-16`) @ `e801e9aee`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
 
 Files: 4, 877 lines (tests not counted).
 
@@ -73,7 +73,7 @@ Files: 4, 877 lines (tests not counted).
 - none found by pattern (re-check with the census at execution)
 
 ## Path-keyed baselines / configs that name a file of this sheet (lesson 10: debt does not follow moved code silently)
-- development/scripts/check-architecture.baseline.json: `src/features/identity/site-key-permission.ts` at lines 87 (1 hits)
+- development/scripts/check-architecture.baseline.json: `src/features/identity/site-key-permission.ts` at lines 88 (1 hits)
 
 ## Census command (run from the Tovu clone root; every hit must be listed above)
 ```

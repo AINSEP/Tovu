@@ -1,6 +1,6 @@
 # S1-taxonomy-navigation-presentation-sql — machine-verified facts (generated; do not hand-edit)
 
-Source: Tovu `origin/integ/merge-b-2026-11-16` @ `491632dc5`. Regenerate: `python3 scripts/inv.py && python3 scripts/rep.py && python3 scripts/facts.py <out>`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
+Source: Tovu tree at `LANE_ROOT` (committed copy: `origin/integ/merge-a-2026-11-16`) @ `e801e9aee`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
 
 Files: 8, 1130 lines (tests not counted).
 
@@ -50,7 +50,7 @@ Files: 8, 1130 lines (tests not counted).
 - npm/@jini-ai imports: -
 - same-folder imports: features/taxonomy/contracts.ts, features/taxonomy/repo.ts
 - imports leaving the folder: platform/db/content-kernel.ts, platform/db/sqlite/content-db.ts
-- prod importers (5): server/routes/types.ts, server/runtime/composition/app.ts, server/runtime/composition/deps.ts, server/runtime/composition/peer-site-reads.ts, server/runtime/composition/publish-content-seed-hash.ts
+- prod importers (5): server/routes/types.ts, server/runtime/composition/deps.ts, server/runtime/composition/memory-deps/slices/taxonomy-trash-repos.ts, server/runtime/composition/peer-site-reads.ts, server/runtime/composition/publish-content-seed-hash.ts
 - test importers (9): features/entries/__tests__/unit/publish-content.test.ts, features/publish-content/__tests__/round-trip-harness.ts, features/taxonomy/__tests__/integration/repo.sqlite.integration.test.ts, features/taxonomy/__tests__/publish-content.test.ts, features/trash/__tests__/term-trash-flow.test.ts, server/inbound/admin-http/routes/taxonomy/__tests__/assign-terms.not-live.test.ts, server/inbound/admin-http/routes/taxonomy/__tests__/list.test.ts, server/inbound/public-http/routes/site/__tests__/integration/taxonomy-render-surface.integration.test.ts, server/inbound/public-http/routes/site/__tests__/pages.edge-paths.route.test.ts
 
 ### features/navigation/repo.ts (332 lines)
@@ -120,7 +120,7 @@ Files: 8, 1130 lines (tests not counted).
 | server/inbound/admin-http/routes/taxonomy/__tests__/assign-terms.not-live.test.ts | 83 | d56f5c70db3c08f806b143462664ae26877f9c9d |
 | server/inbound/admin-http/routes/taxonomy/__tests__/list.test.ts | 121 | 1a09b6f40a12e8357034d4cca488d0f85ff4e575 |
 | server/inbound/public-http/routes/site/__tests__/integration/taxonomy-render-surface.integration.test.ts | 346 | 58703782999c9ee2c889a633704ac4cb48288526 |
-| server/inbound/public-http/routes/site/__tests__/pages.edge-paths.route.test.ts | 385 | 9fd43d6e80f68f60e26687d1c9bd969fe11c4864 |
+| server/inbound/public-http/routes/site/__tests__/pages.edge-paths.route.test.ts | 383 | c221df0710feda72c3b9c134571827b6e8ddc1ff |
 | features/navigation/__tests__/footer-page-links.test.ts | 265 | 0fdcfe771b064c5bb72b927d22b8f37479dbb26e |
 | features/navigation/__tests__/repo.compare-and-set.postgres.test.ts | 134 | cd837f5dc66e3bb6d1303d91c1fe6e3b57e3e823 |
 | features/navigation/__tests__/repo.sqlite.compare-and-set.test.ts | 239 | d8467cfe51b01f5ed0d31b621070a27b16726038 |
@@ -134,8 +134,8 @@ Files: 8, 1130 lines (tests not counted).
 - none found by pattern (re-check with the census at execution)
 
 ## Path-keyed baselines / configs that name a file of this sheet (lesson 10: debt does not follow moved code silently)
-- development/scripts/write-path-inventory.baseline.json: `src/features/presentation/repo.sqlite.ts` at lines 297 (1 hits)
-- development/scripts/check-architecture.baseline.json: `src/features/taxonomy/repo.sqlite.ts` at lines 290 (1 hits)
+- development/scripts/write-path-inventory.baseline.json: `src/features/presentation/repo.sqlite.ts` at lines 315 (1 hits)
+- development/scripts/check-architecture.baseline.json: `src/features/taxonomy/repo.sqlite.ts` at lines 295 (1 hits)
 
 ## Census command (run from the Tovu clone root; every hit must be listed above)
 ```

@@ -1,6 +1,6 @@
 # S8-memory-bus-expand-partials — machine-verified facts (generated; do not hand-edit)
 
-Source: Tovu `origin/integ/merge-b-2026-11-16` @ `491632dc5`. Regenerate: `python3 scripts/inv.py && python3 scripts/rep.py && python3 scripts/facts.py <out>`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
+Source: Tovu tree at `LANE_ROOT` (committed copy: `origin/integ/merge-a-2026-11-16`) @ `e801e9aee`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
 
 Files: 8, 946 lines (tests not counted).
 
@@ -9,12 +9,12 @@ Files: 8, 946 lines (tests not counted).
 |---|---|---|---|---|---|---|---|
 | contracts/core/entry-refs/extractor.ts | 412 | 36fa39f0449d9b07172a0425a646196d88eec723 | MOVE | - | w1-sheets-d:move-entry-refs.md | 5 | 9 |
 | contracts/core/entry-refs/ports.ts | 40 | 6f2bc9231f7d09b85a539a7bac24991a290989ae | DEDUPE | - | w1-sheets-d:move-entry-refs.md | 8 | 1 |
-| contracts/core/entry-refs/repo.memory.ts | 50 | d430739f820bad0f5cef6dd3004cb7e375f0e338 | DEDUPE-UNVERIFIED | - | w1-sheets-d:move-entry-refs.md | 1 | 31 |
+| contracts/core/entry-refs/repo.memory.ts | 50 | d430739f820bad0f5cef6dd3004cb7e375f0e338 | DEDUPE-UNVERIFIED | - | w1-sheets-d:move-entry-refs.md | 4 | 31 |
 | contracts/core/entry-refs/types.ts | 58 | 41043733f2d6113d867de10955949bb34dddf671 | DEDUPE | - | w1-sheets-d:move-entry-refs.md | 5 | 3 |
 | platform/db/repos/entry-refs-repo.ts | 126 | 42001fded69c60c6d0d548147d20829cc447120a | MOVE-AFTER | - | w1-sheets-d:move-entry-refs.md | 2 | 2 |
 | platform/db/sqlite/entry-refs-repo.sqlite.ts | 15 | 7184294695524a0f298d6a0c6de3701997f6df1b | - | - | - | 4 | 5 |
-| contracts/core/events/memory-bus.ts | 161 | 9e173257d7680a4b162b7b419cc4bd310d41d980 | MOVE | - | - | 1 | 8 |
-| contracts/core/expand-partials.ts | 84 | 762d3e5ebc1a47944107922cd97ff75186f826e9 | MOVE-AFTER | - | - | 3 | 2 |
+| contracts/core/events/memory-bus.ts | 161 | 9e173257d7680a4b162b7b419cc4bd310d41d980 | MOVE | - | - | 1 | 9 |
+| contracts/core/expand-partials.ts | 84 | 762d3e5ebc1a47944107922cd97ff75186f826e9 | MOVE-AFTER | - | - | 4 | 2 |
 
 ## Per file: exports, tables, lock keys, imports that leave the folder, importers
 
@@ -48,7 +48,7 @@ Files: 8, 946 lines (tests not counted).
 - npm/@jini-ai imports: @jini-ai/core/primitives
 - same-folder imports: contracts/core/entry-refs/ports.ts, contracts/core/entry-refs/types.ts
 - imports leaving the folder: -
-- prod importers (1): server/runtime/composition/app.ts
+- prod importers (4): server/runtime/composition/memory-deps/slices/form-attachment-purge.ts, server/runtime/composition/memory-deps/slices/memory-trash.ts, server/runtime/composition/memory-deps/slices/nav-form-content-repos.ts, server/runtime/composition/memory-deps/slices/trash-adapters-forms-widgets.ts
 - test importers (31): assistant/__tests__/mcp-ui-tool-calls-route.delete-confirmation-family.integration.test.ts, assistant/__tests__/merged-readers-batch.test.ts, assistant/__tests__/tool-registrations.widgets-authorization.test.ts, assistant/__tests__/tool-registrations.widgets-contracts.test.ts, contracts/core/entry-refs/__tests__/form-reference-chain.unit.test.ts, contracts/core/entry-refs/__tests__/repo.contract.test.ts, contracts/core/events/__tests__/outbox-workspace-id.integration.test.ts, features/forms/__tests__/common-fields.test.ts, features/media/__tests__/mediawidget-where-used.test.ts, features/pages/__tests__/html-document-store.memory.test.ts, features/pages/__tests__/html-document-store.noop-save.test.ts, features/pages/__tests__/html-document-store.sqlite.test.ts, features/widgets/__tests__/agent-tools.trash-confirmation.test.ts, features/widgets/__tests__/integration/embed-service.integration.test.ts, features/widgets/__tests__/integration/embed-service.post-host.integration.test.ts, features/widgets/__tests__/integration/region-area-service.integration.test.ts, features/widgets/__tests__/integration/tool-registrations.delegated-error-status.test.ts, features/widgets/__tests__/integration/tool-registrations.handler-gaps.test.ts, features/widgets/__tests__/integration/tool-registrations.input-validation-status.test.ts, features/widgets/__tests__/integration/tool-registrations.plugin-hook-failed.test.ts, features/widgets/__tests__/integration/tool-registrations.region-gaps.test.ts, features/widgets/__tests__/integration/tool-registrations.shape-rejection.test.ts, features/widgets/__tests__/integration/write-service.integration.test.ts, features/widgets/__tests__/unit/publish-content.test.ts, server/__tests__/b07-admin-read-gaps.test.ts, server/__tests__/b07-widget-create-gaps.test.ts, server/__tests__/widgets-error-code-parity.test.ts, server/inbound/admin-http/routes/widgets/__tests__/unit/library.unit.test.ts, server/inbound/admin-http/routes/widgets/__tests__/unit/region-bind.unit.test.ts, server/inbound/admin-http/routes/widgets/__tests__/unit/route-guards.unit.test.ts, server/inbound/admin-http/routes/widgets/__tests__/unit/update.unit.test.ts
 
 ### contracts/core/entry-refs/types.ts (58 lines)
@@ -93,7 +93,7 @@ Files: 8, 946 lines (tests not counted).
 - same-folder imports: contracts/core/events/outbox-worker.ts
 - imports leaving the folder: -
 - prod importers (1): contracts/core/events/index.ts
-- test importers (8): contracts/core/events/__tests__/enqueue-only-outbox.payload.test.ts, contracts/core/events/__tests__/outbox-drainer.scheduling.test.ts, contracts/core/events/__tests__/outbox-repo.contract.test.ts, contracts/core/events/__tests__/outbox-retry-policies.unit.test.ts, features/plugin-runtime/__tests__/fixtures/plugins-tool-harness.ts, features/post/__tests__/post.schedule-events.test.ts, server/__tests__/integration/create-app-event-subscriptions-once.integration.test.ts, server/runtime/composition/__tests__/sqlite-create-site-app-module-identity.integration.test.ts
+- test importers (9): contracts/core/events/__tests__/enqueue-only-outbox.payload.test.ts, contracts/core/events/__tests__/outbox-drainer.scheduling.test.ts, contracts/core/events/__tests__/outbox-repo.contract.test.ts, contracts/core/events/__tests__/outbox-retry-policies.unit.test.ts, features/plugin-runtime/__tests__/fixtures/plugins-tool-harness.ts, features/post/__tests__/post.schedule-events.test.ts, server/__tests__/integration/create-app-event-subscriptions-once.integration.test.ts, server/runtime/composition/__tests__/create-app-lifecycle.pin.test.ts, server/runtime/composition/__tests__/sqlite-create-site-app-module-identity.integration.test.ts
 
 ### contracts/core/expand-partials.ts (84 lines)
 - exports (1): expandPartials
@@ -103,7 +103,7 @@ Files: 8, 946 lines (tests not counted).
 - npm/@jini-ai imports: @jini-ai/cms/widgets/markers
 - same-folder imports: contracts/core/theme-slots.ts
 - imports leaving the folder: -
-- prod importers (3): features/plugin-runtime/widget-partials.ts, features/theme/static-render.ts, server/inbound/public-http/routes/site/pages.ts
+- prod importers (4): features/plugin-runtime/widget-partials.ts, features/theme/static-render.ts, server/inbound/public-http/routes/site/pages/static-tier.ts, server/inbound/public-http/routes/site/pages/template-render.ts
 - test importers (2): features/theme/__tests__/static-render-expand-partials.test.ts, features/theme/__tests__/static-theme-migrated-asset-paths.test.ts
 
 ## Test files that import a file of this sheet (blob-guard each before editing)
@@ -115,16 +115,16 @@ Files: 8, 946 lines (tests not counted).
 | contracts/core/entry-refs/__tests__/integration/extractor.integration.test.ts | 295 | 06604f10fc05e79af5bdcc6f46af777a48fa0d20 |
 | contracts/core/entry-refs/__tests__/integration/html-entry-refs-consistency.integration.test.ts | 136 | 8f8ac4c57a779c7d47bffaaaf04f03d7cdf422b0 |
 | features/media/__tests__/mediawidget-where-used.test.ts | 100 | 49cdc064c13da9379d1820b72438d2944c62c619 |
-| features/widgets/__tests__/integration/gallery-widget.integration.test.ts | 53 | 4e441c8fb22dd261d9e6c5b36519b5bbe7b30380 |
-| features/widgets/__tests__/integration/gallery.integration.test.ts | 71 | ab36accd42025f2e1a8f9ac16e1ba0709c946a5d |
-| features/widgets/__tests__/integration/mediawidget.integration.test.ts | 177 | 5f63b07965380260efcee5be9d317ee4035cd055 |
+| features/widgets/__tests__/integration/gallery-widget.integration.test.ts | 54 | 247fa278245ba283ae799fe31be1e0319939f8e7 |
+| features/widgets/__tests__/integration/gallery.integration.test.ts | 71 | dacf78e54c2a05f96351c2d2a1c9914b23839d11 |
+| features/widgets/__tests__/integration/mediawidget.integration.test.ts | 178 | 004eeb0028ae27e0fd8b4f8d587db4bb578caffa |
 | contracts/core/entry-refs/__tests__/repo.contract.test.ts | 141 | dc0401fcb1e1e0acce9862b72873c36b44aa3e6b |
 | assistant/__tests__/mcp-ui-tool-calls-route.delete-confirmation-family.integration.test.ts | 479 | 0f256b6c262d17c84124f66acfa9e21e58f90754 |
 | assistant/__tests__/merged-readers-batch.test.ts | 323 | 7c93e12c311b630a3d777c449a5ac7b785066ebf |
 | assistant/__tests__/tool-registrations.widgets-authorization.test.ts | 290 | ede53b04e0bb4abd44a018a6d1605bec3a51263b |
 | assistant/__tests__/tool-registrations.widgets-contracts.test.ts | 432 | 1af885320af5d83729601664bf4b3545677cb86d |
 | contracts/core/events/__tests__/outbox-workspace-id.integration.test.ts | 429 | 70b28131ea1569d83780ce32b530335863c8ea95 |
-| features/forms/__tests__/common-fields.test.ts | 127 | 3e81247540320a41d4d4cd4fcd5e8e42cc422d53 |
+| features/forms/__tests__/common-fields.test.ts | 127 | 7bf1240a2b9a7a4096b3895734045b0cc7b0c1a5 |
 | features/pages/__tests__/html-document-store.memory.test.ts | 339 | c2242992450782956acf87331199d38e7cf17858 |
 | features/pages/__tests__/html-document-store.noop-save.test.ts | 135 | 896a1ee5e347b99d9221ef3b7fa062686c5f2eb1 |
 | features/pages/__tests__/html-document-store.sqlite.test.ts | 473 | d07d85afc15a67eb6812a3fe6ccf35c8f7c0e3c3 |
@@ -159,6 +159,7 @@ Files: 8, 946 lines (tests not counted).
 | features/plugin-runtime/__tests__/fixtures/plugins-tool-harness.ts | 185 | ebcb030471dae6b70b0965b759d4bb9f11ab1ee6 |
 | features/post/__tests__/post.schedule-events.test.ts | 224 | 6365ac698cd619d87370ff3ebf44588ac1d34d14 |
 | server/__tests__/integration/create-app-event-subscriptions-once.integration.test.ts | 161 | f59f62a54445d0b4f9f793fd1a56b2fed98f0dd3 |
+| server/runtime/composition/__tests__/create-app-lifecycle.pin.test.ts | 167 | 181d0849ed923b53af24b6de9ddd2077a12e6cec |
 | server/runtime/composition/__tests__/sqlite-create-site-app-module-identity.integration.test.ts | 283 | 71f7f7fa9d4eb0d585f988a0c2d9cf2538ad7d78 |
 | features/theme/__tests__/static-render-expand-partials.test.ts | 114 | 0a14a7bf8c6c1382c237a651f53057058aedd18b |
 | features/theme/__tests__/static-theme-migrated-asset-paths.test.ts | 97 | 8198ec2d136924a6132a140f315ad0cf4a911c85 |
@@ -167,7 +168,7 @@ Files: 8, 946 lines (tests not counted).
 - none found by pattern (re-check with the census at execution)
 
 ## Path-keyed baselines / configs that name a file of this sheet (lesson 10: debt does not follow moved code silently)
-- development/scripts/write-path-inventory.baseline.json: `src/contracts/core/events/memory-bus.ts` at lines 148, 157, 166 (3 hits)
+- development/scripts/write-path-inventory.baseline.json: `src/contracts/core/events/memory-bus.ts` at lines 166, 175, 184 (3 hits)
 
 ## Census command (run from the Tovu clone root; every hit must be listed above)
 ```

@@ -12,7 +12,7 @@ S1	features/workspace/repo.sqlite.ts	15	5847bf86df	1	1			platform/db/content-ker
 S2	features/entries/repo.ts	272	2367c246f3	1	3	@jini-ai/core/contracts/storage,@jini-ai/db/kernel	kysely	features/media/access-evidence.ts,platform/db/content-database.generated.ts,platform/db/content-kernel.ts
 S2	features/entries/repo.rows.ts	62	b64c51a76e	1	1		kysely	platform/db/content-database.generated.ts
 S2	features/entries/repo.sqlite.ts	17	66c6534034	4	7			platform/db/content-kernel.ts,platform/db/sqlite/content-db.ts
-S2	features/entries/trash-aware-memory-repo.ts	209	09e5e7af77	2	15			features/media/access-evidence.ts
+S2	features/entries/trash-aware-memory-repo.ts	209	09e5e7af77	5	15			features/media/access-evidence.ts
 S2	features/content-types/repo.ts	69	5ed4919f89	1	1			platform/db/content-kernel.ts
 S2	features/content-types/repo.rows.ts	93	ff55f936ac	1	0		kysely	platform/db/content-database.generated.ts
 S2	features/content-types/repo.sqlite.ts	15	1ee3df32ce	3	4			platform/db/content-kernel.ts,platform/db/sqlite/content-db.ts
@@ -52,7 +52,7 @@ S5	platform/db/sqlite/gated-mutation-token-repo.sqlite.ts	15	f763ef22b6	1	1			pl
 S5	platform/db/repos/origin-repo.ts	230	e71bd9228d	1	1	@jini-ai/core/contracts/server/verified-origin,@jini-ai/core/primitives	kysely	platform/db/content-database.generated.ts,platform/db/content-kernel.ts
 S5	platform/db/sqlite/origin-repo.sqlite.ts	47	71fa83158c	2	2	@jini-ai/core/contracts/server/verified-origin,@jini-ai/core/primitives		platform/db/content-kernel.ts,platform/db/repos/origin-repo.ts
 S5	features/origin/configured-origin.ts	82	c85964afa6	1	1	@jini-ai/core/contracts/server/verified-origin,@jini-ai/core/primitives		contracts/core/runtime-mode.ts
-S6	platform/db/repos/change-set-repo.ts	178	d1f9922808	1	2	@jini-ai/core/contracts/events	kysely	platform/db/content-database.generated.ts,platform/db/content-kernel.ts
+S6	platform/db/repos/change-set-repo.ts	178	2be3ea0a1f	1	2	@jini-ai/core/contracts/events	kysely	platform/db/content-database.generated.ts,platform/db/content-kernel.ts
 S6	platform/db/sqlite/change-set-repo.sqlite.ts	15	f9bc1957d6	2	6			platform/db/content-kernel.ts,platform/db/repos/change-set-repo.ts
 S6	platform/db/repos/outbox-repo.ts	156	57373f897e	7	20	@jini-ai/core/contracts/events,@jini-ai/core/primitives	kysely	contracts/core/events/index.ts,platform/db/content-database.generated.ts,platform/db/content-kernel.ts
 S6	platform/db/sqlite/outbox-repo.sqlite.ts	19	c0aa30b8ec	1	5			platform/db/content-kernel.ts,platform/db/repos/outbox-repo.ts
@@ -71,18 +71,18 @@ S7	features/media/versioned-media-repo.ts	208	0d6b08b48c	3	7	@jini-ai/cms/media,
 S7	features/media/guard-rendition-repo.ts	24	f7ca58518a	2	2	@jini-ai/cms/media		
 S8	contracts/core/entry-refs/extractor.ts	412	36fa39f044	5	9	@jini-ai/cms/widgets/markers,@jini-ai/core/primitives,@jini-ai/core/records		
 S8	contracts/core/entry-refs/ports.ts	40	6f2bc9231f	8	1	@jini-ai/core/primitives		
-S8	contracts/core/entry-refs/repo.memory.ts	50	d430739f82	1	31	@jini-ai/core/primitives		
+S8	contracts/core/entry-refs/repo.memory.ts	50	d430739f82	4	31	@jini-ai/core/primitives		
 S8	contracts/core/entry-refs/types.ts	58	41043733f2	5	3	@jini-ai/core/primitives		
 S8	platform/db/repos/entry-refs-repo.ts	126	42001fded6	2	2	@jini-ai/core/primitives	kysely	contracts/core/entry-refs/ports.ts,contracts/core/entry-refs/types.ts,platform/db/content-database.generated.ts,platform/db/content-kernel.ts
 S8	platform/db/sqlite/entry-refs-repo.sqlite.ts	15	7184294695	4	5			platform/db/content-kernel.ts,platform/db/repos/entry-refs-repo.ts
-S8	contracts/core/events/memory-bus.ts	161	9e173257d7	1	8	@jini-ai/core/contracts/events		
-S8	contracts/core/expand-partials.ts	84	762d3e5ebc	3	2	@jini-ai/cms/widgets/markers		
-U12	features/members/access-resolver.ts	237	00941106f7	8	4		node:crypto	
+S8	contracts/core/events/memory-bus.ts	161	9e173257d7	1	9	@jini-ai/core/contracts/events		
+S8	contracts/core/expand-partials.ts	84	762d3e5ebc	4	2	@jini-ai/cms/widgets/markers		
+U12	features/members/access-resolver.ts	237	00941106f7	10	5		node:crypto	
 U12	features/members/agent-tools.ts	157	f0f22c026b	1	3	@jini-ai/core		
 U12	features/members/auth-mail.ts	25	1f3578a965	1	0	@jini-ai/platform/mail/email-template		
-U12	features/members/capability-card.ts	29	370d296ce9	1	0	@jini-ai/agentic/core		
+U12	features/members/capability-card.ts	29	7434d127c5	1	0			features/site-guide/contracts.ts
 U12	features/members/consent-service.ts	261	8fc2d60b80	1	1	@jini-ai/core/primitives		
-U12	features/members/index.ts	134	baba94f173	35	25			platform/mail/index.ts
+U12	features/members/index.ts	134	baba94f173	44	26			platform/mail/index.ts
 U12	features/members/mailer.console.ts	93	04c24d36b9	1	2	@jini-ai/core/primitives	node:crypto	platform/mail/index.ts
 U12	features/members/password-auth.ts	204	784c43d369	1	2	@jini-ai/core/primitives,@jini-ai/user-management/server		
 U12	features/members/ports.ts	329	de4363a1a6	10	10	@jini-ai/core/contracts/server/verified-origin,@jini-ai/core/list-page,@jini-ai/core/primitives,@jini-ai/db/kernel,@jini-ai/platform/mail,@jini-ai/user-management		platform/mail/index.ts

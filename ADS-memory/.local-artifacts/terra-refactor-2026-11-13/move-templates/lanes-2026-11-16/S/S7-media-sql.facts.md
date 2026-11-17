@@ -1,6 +1,6 @@
 # S7-media-sql — machine-verified facts (generated; do not hand-edit)
 
-Source: Tovu `origin/integ/merge-b-2026-11-16` @ `491632dc5`. Regenerate: `python3 scripts/inv.py && python3 scripts/rep.py && python3 scripts/facts.py <out>`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
+Source: Tovu tree at `LANE_ROOT` (committed copy: `origin/integ/merge-a-2026-11-16`) @ `e801e9aee`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
 
 Files: 4, 997 lines (tests not counted).
 
@@ -74,7 +74,7 @@ Files: 4, 997 lines (tests not counted).
 | features/media-import/__tests__/replace-file.test.ts | 228 | 2f3840f2cf5310c6a27bffbb1eebd03134540f9f |
 | features/media/__tests__/import-media-entity.test.ts | 439 | 7be12daa6f02eff0e4e7ea486f577fad5f396a11 |
 | features/media/__tests__/media-producing-previews.test.ts | 134 | 19c8db321dcdf73cbb8bde4062f1e5ad89ec3171 |
-| features/media/__tests__/publish-content.apply.test.ts | 696 | 718c74235412dfadebc3e4da8055b00c19b470ff |
+| features/media/__tests__/publish-content.apply.test.ts | 697 | 08e1e883cfbd9042a4e7884bcc80a58b6a09c123 |
 | features/media/__tests__/publish-content.overwrite.test.ts | 255 | 4587ff4d5610e12deb6e46f621352cedc3127739 |
 | features/site-backup/__tests__/library-share.integration.test.ts | 358 | fc14314bfc4bb7915cc7370365ff7b58dc7a69b4 |
 | platform/db/sqlite/__tests__/repo-transactions.sqlite.test.ts | 164 | 8f569ac0dc98f915d9928cf0356c605308067c2b |
@@ -85,9 +85,9 @@ Files: 4, 997 lines (tests not counted).
 | features/media/__tests__/mediawidget-where-used.test.ts | 100 | 49cdc064c13da9379d1820b72438d2944c62c619 |
 | features/media/__tests__/verify-published-media.test.ts | 142 | 60bd8a660ac4737711bdd9c19745b31c4d6d7c7d |
 | features/media/__tests__/versioned-rendition.unit.test.ts | 36 | 5e404db6309578f8ae454bca1fbf2740b7d3cf04 |
-| server/inbound/public-http/http/site/__tests__/leading-style-regression.test.ts | 87 | aba67f8fe58d9f05bef76bc41eed1f59fe6f0d33 |
+| server/inbound/public-http/http/site/__tests__/leading-style-regression.test.ts | 90 | 1755a29e0beee1472ad9da45aec7bbaa9eaa77fd |
 | server/inbound/public-http/routes/site/__tests__/integration/media-validation.integration.test.ts | 151 | 2b9acf2cdbc03b755b2a7902a28c55256aa3e4e4 |
-| server/inbound/public-http/routes/site/__tests__/resolve-html-format-content-markers.test.ts | 304 | 8d5ac6c3ab6cc67b7f62a47243f2c36a412a4eaa |
+| server/inbound/public-http/routes/site/__tests__/resolve-html-format-content-markers.test.ts | 300 | f2989d6c001ab3c71cd398c7d3ebb50355010603 |
 
 ## vi.mock / vi.doMock / importActual sites that name a file of this sheet (lesson 2: mock factories are consumers)
 - none found by pattern (re-check with the census at execution)

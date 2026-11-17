@@ -1,6 +1,6 @@
 # S4-trash-sql — machine-verified facts (generated; do not hand-edit)
 
-Source: Tovu `origin/integ/merge-b-2026-11-16` @ `491632dc5`. Regenerate: `python3 scripts/inv.py && python3 scripts/rep.py && python3 scripts/facts.py <out>`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
+Source: Tovu tree at `LANE_ROOT` (committed copy: `origin/integ/merge-a-2026-11-16`) @ `e801e9aee`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
 
 Files: 19, 2311 lines (tests not counted).
 
@@ -266,8 +266,8 @@ Files: 19, 2311 lines (tests not counted).
 | server/inbound/admin-http/routes/trash/__tests__/request-contracts.test.ts | 219 | e556239a0e976b29588907707416be8efb8d62b8 |
 | features/trash/__tests__/table-adapter.dialects.test.ts | 260 | c60bbaf51895774cc606ab2fdc53d60047f4bb20 |
 | features/trash/__tests__/trash-item-user.test.ts | 185 | aff47f602ca138a340175d2f10859305caa0ce32 |
-| server/inbound/public-http/routes/site/__tests__/commerce-strip-parity.test.ts | 254 | 62f92dbfe67658515236600433c53f4f4f1280ac |
-| apps/admin/src/features/trash/__tests__/rules.unit.test.ts | 226 | 2cfbab2de4be77a413510268ad1747d206f6996c |
+| server/inbound/public-http/routes/site/__tests__/commerce-strip-parity.test.ts | 262 | 17653b0d2fb31b7dce2eff9f68b83e80a40ddaad |
+| apps/admin/src/features/trash/__tests__/rules.unit.test.ts | 226 | 5b207d0a9083811f26d16f0a5ec10ec65d29d7d2 |
 | features/trash/__tests__/not-trashed.test.ts | 43 | bbe1d9624f39cc111e80808e7aa91ea7517b8e53 |
 | features/trash/__tests__/tool-registrations.test.ts | 451 | fe1bec18447f64dad0e5177bb03ca8b3cc14bf89 |
 | server/__tests__/b07-trash-handler-gaps.test.ts | 208 | 910a96151034e562cab1c3e83fa13d2ebf4832ff |
@@ -287,10 +287,10 @@ Files: 19, 2311 lines (tests not counted).
 - none found by pattern (re-check with the census at execution)
 
 ## Path-keyed baselines / configs that name a file of this sheet (lesson 10: debt does not follow moved code silently)
-- development/scripts/check-architecture.baseline.json: `src/features/trash/adapters/redirect.ts` at lines 424 (1 hits)
-- development/scripts/check-architecture.baseline.json: `src/features/trash/adapters/user.ts` at lines 425 (1 hits)
-- development/scripts/size-debt.json: `src/features/trash/table-adapter.ts` at lines 1356 (1 hits)
-- development/scripts/size-debt.json: `src/features/trash/adapters/user.ts` at lines 1349 (1 hits)
+- development/scripts/check-architecture.baseline.json: `src/features/trash/adapters/redirect.ts` at lines 432 (1 hits)
+- development/scripts/check-architecture.baseline.json: `src/features/trash/adapters/user.ts` at lines 433 (1 hits)
+- development/scripts/size-debt.json: `src/features/trash/table-adapter.ts` at lines 1307 (1 hits)
+- development/scripts/size-debt.json: `src/features/trash/adapters/user.ts` at lines 1300 (1 hits)
 
 ## Census command (run from the Tovu clone root; every hit must be listed above)
 ```

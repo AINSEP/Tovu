@@ -1,6 +1,6 @@
 # S2-entries-content-types-sql — machine-verified facts (generated; do not hand-edit)
 
-Source: Tovu `origin/integ/merge-b-2026-11-16` @ `491632dc5`. Regenerate: `python3 scripts/inv.py && python3 scripts/rep.py && python3 scripts/facts.py <out>`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
+Source: Tovu tree at `LANE_ROOT` (committed copy: `origin/integ/merge-a-2026-11-16`) @ `e801e9aee`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
 
 Files: 8, 754 lines (tests not counted).
 
@@ -10,7 +10,7 @@ Files: 8, 754 lines (tests not counted).
 | features/entries/repo.ts | 272 | 2367c246f3d7f5c9422f321a6cd90f1bdebd20cf | MOVE-AFTER | - | - | 1 | 3 |
 | features/entries/repo.rows.ts | 62 | b64c51a76e45d0eb6ebbc187313f16a234c80f46 | MOVE-AFTER | - | - | 1 | 1 |
 | features/entries/repo.sqlite.ts | 17 | 66c6534034bdbe14ad1b3f6175ccc6e8c2ca71e7 | DELETE | - | - | 4 | 7 |
-| features/entries/trash-aware-memory-repo.ts | 209 | 09e5e7af77dc0dc131469dad385a3f7d212e0c40 | DEDUPE | - | - | 2 | 15 |
+| features/entries/trash-aware-memory-repo.ts | 209 | 09e5e7af77dc0dc131469dad385a3f7d212e0c40 | DEDUPE | - | - | 5 | 15 |
 | features/content-types/repo.ts | 69 | 5ed4919f8925009b36292d0a011faf46d7e9400a | MOVE | - | - | 1 | 1 |
 | features/content-types/repo.rows.ts | 93 | ff55f936ac5ca654232d3ba466faa889f0f079f8 | MOVE | - | - | 1 | 0 |
 | features/content-types/repo.sqlite.ts | 15 | 1ee3df32cebc43f582812b0655696c050c0146d7 | - | - | - | 3 | 4 |
@@ -62,7 +62,7 @@ Files: 8, 754 lines (tests not counted).
 - npm/@jini-ai imports: -
 - same-folder imports: features/entries/contracts.ts, features/entries/index.ts, features/entries/public-list.ts
 - imports leaving the folder: features/media/access-evidence.ts
-- prod importers (2): features/entries/publish-content.ts, server/runtime/composition/app.ts
+- prod importers (5): features/entries/publish-content.ts, server/runtime/composition/memory-deps/slices/comments.ts, server/runtime/composition/memory-deps/slices/memory-trash.ts, server/runtime/composition/memory-deps/slices/repos.ts, server/runtime/composition/memory-deps/slices/trash-adapters-forms-widgets.ts
 - test importers (15): assistant/__tests__/tool-registrations.trash-item.test.ts, assistant/__tests__/tool-registrations.widgets-contracts.test.ts, features/entries/__tests__/integration/repo.compare-and-set.test.ts, features/entries/__tests__/unit/trash-aware-memory-repo.display.unit.test.ts, features/widgets/__tests__/agent-tools.trash-confirmation.test.ts, features/widgets/__tests__/support/memory-widget-trash.ts, features/widgets/__tests__/unit/create-core-resolvers.unit.test.ts, features/widgets/__tests__/unit/gallery-resolver-wiring.unit.test.ts, features/widgets/__tests__/unit/publish-content.test.ts, features/widgets/__tests__/unit/resolvers-recent-entries.unit.test.ts, server/inbound/public-http/http/site/__tests__/leading-style-regression.test.ts, server/inbound/public-http/routes/site/__tests__/embeds-everywhere.route.test.ts, server/inbound/public-http/routes/site/__tests__/integration/media-validation.integration.test.ts, server/inbound/public-http/routes/site/__tests__/pages.edge-paths.route.test.ts, server/inbound/public-http/routes/site/__tests__/resolve-html-format-content-markers.test.ts
 
 ### features/content-types/repo.ts (69 lines)
@@ -135,10 +135,10 @@ Files: 8, 754 lines (tests not counted).
 | features/widgets/__tests__/unit/gallery-resolver-wiring.unit.test.ts | 22 | 22c31db835a3e5347f3263fb42f10dc2ba0c9b5c |
 | features/widgets/__tests__/unit/publish-content.test.ts | 225 | 938686c20b35470dbf62f38aa07c9fbf4d0cb0f5 |
 | features/widgets/__tests__/unit/resolvers-recent-entries.unit.test.ts | 400 | 8ed3bcc5b49fa24e7b4cc4cf1e1dc2f81abd8c5f |
-| server/inbound/public-http/http/site/__tests__/leading-style-regression.test.ts | 87 | aba67f8fe58d9f05bef76bc41eed1f59fe6f0d33 |
+| server/inbound/public-http/http/site/__tests__/leading-style-regression.test.ts | 90 | 1755a29e0beee1472ad9da45aec7bbaa9eaa77fd |
 | server/inbound/public-http/routes/site/__tests__/embeds-everywhere.route.test.ts | 719 | 95159f095db6c7450001880c47d2ceab0f83fb5b |
-| server/inbound/public-http/routes/site/__tests__/pages.edge-paths.route.test.ts | 385 | 9fd43d6e80f68f60e26687d1c9bd969fe11c4864 |
-| server/inbound/public-http/routes/site/__tests__/resolve-html-format-content-markers.test.ts | 304 | 8d5ac6c3ab6cc67b7f62a47243f2c36a412a4eaa |
+| server/inbound/public-http/routes/site/__tests__/pages.edge-paths.route.test.ts | 383 | c221df0710feda72c3b9c134571827b6e8ddc1ff |
+| server/inbound/public-http/routes/site/__tests__/resolve-html-format-content-markers.test.ts | 300 | f2989d6c001ab3c71cd398c7d3ebb50355010603 |
 | features/content-types/__tests__/repo.dialects.test.ts | 154 | e92dcbbec0f1785f87e19b803cfdbca8c2579377 |
 | features/content-types/__tests__/integration/repo.sqlite.integration.test.ts | 176 | 09c29b6b8b83c815fdc43430d1a860e7ea3f9683 |
 | assistant/__tests__/tool-registrations.widgets-authorization.test.ts | 290 | ede53b04e0bb4abd44a018a6d1605bec3a51263b |
@@ -147,9 +147,9 @@ Files: 8, 754 lines (tests not counted).
 - none found by pattern (re-check with the census at execution)
 
 ## Path-keyed baselines / configs that name a file of this sheet (lesson 10: debt does not follow moved code silently)
-- development/scripts/hardwiring-debt.json: `src/features/entries/repo.rows.ts` at lines 146, 153, 160 (3 hits)
-- development/scripts/hardwiring-debt.json: `src/features/content-types/repo.rows.ts` at lines 111, 118, 125, 132 (4 hits)
-- development/scripts/check-architecture.baseline.json: `src/features/entries/repo.sqlite.ts` at lines 285 (1 hits)
+- development/scripts/hardwiring-debt.json: `src/features/entries/repo.rows.ts` at lines 160, 167, 174 (3 hits)
+- development/scripts/hardwiring-debt.json: `src/features/content-types/repo.rows.ts` at lines 125, 132, 139, 146 (4 hits)
+- development/scripts/check-architecture.baseline.json: `src/features/entries/repo.sqlite.ts` at lines 290 (1 hits)
 
 ## Census command (run from the Tovu clone root; every hit must be listed above)
 ```

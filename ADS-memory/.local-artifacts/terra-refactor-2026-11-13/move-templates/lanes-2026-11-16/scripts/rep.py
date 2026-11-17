@@ -1,6 +1,6 @@
 import json,os,re,subprocess,sys
-ROOT='/home/user/code'; W='apps/website/src/'
-g=json.load(open('graph.json'))
+ROOT=os.environ.get('LANE_ROOT','/home/user/code'); SP=os.path.dirname(os.path.abspath(__file__)); PLAN=os.path.dirname(SP); GRAPH=os.environ.get('LANE_GRAPH','/tmp/lane-su-graph.json'); W='apps/website/src/'
+g=json.load(open(GRAPH))
 def istest(f): return bool(re.search(r'__tests__|__specs__|\.test\.|\.spec\.|/e2e/|/tests?/',f))
 def short(p): return p.replace(W,'')
 groups={
@@ -15,7 +15,7 @@ groups={
 'U12':['features/members/'+x for x in 'access-resolver.ts agent-tools.ts auth-mail.ts capability-card.ts consent-service.ts index.ts mailer.console.ts password-auth.ts ports.ts repo.memory.ts repo.rows.ts repo.sqlite.ts repo.ts subscriber-directory.ts tool-registrations.ts trash-member.ts types.ts write-service.ts'.split()],
 'U3':['features/identity/api-key-secret.ts','features/identity/api-key-service.ts','features/identity/api-key-types.ts','features/identity/site-key-permission.ts'],
 }
-out=open('inventory.tsv','w'); out.write('group\tpath\tlines\tblob\tprod_importers\ttest_importers\tjini_imports\tother_ext\tcross_feature_imports\n')
+out=open(os.path.join(PLAN,'inventory.tsv'),'w'); out.write('group\tpath\tlines\tblob\tprod_importers\ttest_importers\tjini_imports\tother_ext\tcross_feature_imports\n')
 tot={}
 for gk,fl in groups.items():
     for f in fl:
