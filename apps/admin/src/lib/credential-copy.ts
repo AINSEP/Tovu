@@ -1,9 +1,9 @@
 /** Tovu credential copy is shared with the server cards; every offered locale has translations. */
 export { credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage } from '../../../website/src/contracts/core/credential-copy.js';
-export { assertCredentialToken, CredentialInputError, CREDENTIAL_MESSAGES } from '../../../website/src/contracts/core/credential-token.js';
-export type { CredentialTokenHint } from '../../../website/src/contracts/core/credential-token.js';
+export { assertCredentialToken, CredentialInputError, CREDENTIAL_MESSAGES } from '@jini-ai/platform/secrets/credential-token';
+export type { CredentialTokenHint } from '@jini-ai/platform/secrets/credential-token';
 
-import { assertCredentialToken, CredentialInputError, type CredentialTokenHint } from '../../../website/src/contracts/core/credential-token.js';
+import { assertCredentialToken, CredentialInputError, type CredentialTokenHint } from '@jini-ai/platform/secrets/credential-token';
 import { translateCredentialMessage, formatCredentialHint } from '../../../website/src/contracts/core/credential-copy.js';
 
 /** Only server-derived metadata describes a stored key. A legacy server may still send a mask. */

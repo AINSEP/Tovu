@@ -7,7 +7,7 @@ import {
   type VaultRepoPort,
 } from "@jini-ai/core/contracts/vault";
 import type { KeyringPort, SecretSealerPort } from "../features/webhooks/index.js";
-import { credentialTokenHint, type CredentialTokenHint } from "../contracts/core/credential-token.js";
+import { credentialTokenHint, type CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
 import { createTovuStoreVault, parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
 import { credentialWriteFields } from "./credential-store-fields.js";
 

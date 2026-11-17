@@ -3,7 +3,7 @@ import { requireHumanConfirm } from "../../contracts/core/human-confirm.js";
 import { createDestinationExchangeReporter } from './destination-exchange.js';
 import { resolveOperatorLocale } from '../settings/index.js';
 import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
-import { assertCredentialToken, CredentialInputError } from '../../contracts/core/credential-token.js';
+import { assertCredentialToken, CredentialInputError } from '@jini-ai/platform/secrets/credential-token';
 
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission, adaptLegacyAuthorize } from "@jini-ai/cms/core";

@@ -4,7 +4,7 @@ import test from 'node:test';
 import { createHmac } from 'node:crypto';
 import { InMemoryKeyring } from '../../webhooks/keyring.memory.js';
 import { AesGcmSecretSealer } from '../../webhooks/secret-sealer.aesgcm.js';
-import { CREDENTIAL_MESSAGES } from '../../../contracts/core/credential-token.js';
+import { CREDENTIAL_MESSAGES } from '@jini-ai/platform/secrets/credential-token';
 import { InMemoryExternalMcpServerRepo } from "../../external-mcp/external-mcp-store.memory.js";
 import { saveExternalMcpServer, readEnabledExternalMcpConfigs, listExternalMcpServerViews } from "../../external-mcp/external-mcp-store.js";
 import { InMemoryCustomCredentialSetRepo } from '../../custom-credentials/repo.memory.js';

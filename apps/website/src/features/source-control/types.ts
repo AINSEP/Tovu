@@ -1,5 +1,5 @@
 import type { VaultRepoPort } from "@jini-ai/core/contracts/vault";
-import type { CredentialTokenHint, CredentialConnection } from '../../contracts/core/credential-token.js';
+import type { CredentialTokenHint, CredentialConnection } from '@jini-ai/platform/secrets/credential-token';
 import type { ISODateTime, UUID } from "@jini-ai/core/primitives";
 
 import type { SealedSecret } from "../webhooks/index.js";

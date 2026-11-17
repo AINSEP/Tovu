@@ -1,4 +1,4 @@
-import type { CredentialTokenHint } from '../../contracts/core/credential-token.js';
+import type { CredentialTokenHint } from '@jini-ai/platform/secrets/credential-token';
 import { saveMediaProviderCredentials, type MediaProviderCredentialRepoPort, type MediaProviderCredentialWriteDeps } from '../media/provider-credential-store.js';
 
 /**
