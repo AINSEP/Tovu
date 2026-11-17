@@ -13,7 +13,7 @@ export interface PublishContentPullDeps {
   publishContentPeerHttpClient: PublishDestinationCredentialDeps["httpClient"];
   siteAssistantSecretSealer: PublishDestinationCredentialDeps["sealer"];
   siteAssistantSecretKeyring: PublishDestinationCredentialDeps["keyring"];
-  blobStore: Parameters<typeof pullBlobsFromPeer>[0]["blobSink"];
+  blobStore: Parameters<typeof pullBlobsFromPeer>[0]["deps"]["blobSink"];
 }
 
 export interface StagedPeerPull {
@@ -58,11 +58,14 @@ export async function pullAndStageFromPeer(
   // after planning would make the plan stale immediately. A hash mismatch aborts without staging.
   // Use this instance's workspace for local storage; the peer's workspace belongs only in its URL.
   const blobs = await pullBlobsFromPeer({
-    ...peer,
-    blobSink: deps.blobStore,
-    workspaceId: deps.workspaceId,
-    computeStorageKey: ({ sha256 }: { sha256: string }, _options: Record<string, never> = {}) => computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 }),
-  }, { blobManifest: envelope.blobManifest });
+                                          deps: {
+      ...peer,
+      blobSink: deps.blobStore,
+      workspaceId: deps.workspaceId,
+      computeStorageKey: ({ sha256 }: { sha256: string }, _options: Record<string, never> = {}) => computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 }),
+    },
+                                          required: { blobManifest: envelope.blobManifest }
+                                        });
   const staged = await stageBundle({
                                      input: {
       // The common staging path computes expiry server-side and binds baselines to the authenticated

@@ -155,11 +155,14 @@ async function confirmationPlan({ chosen, nothingSelected, selection, plan }: { 
 }
 
 async function confirmAndExecute({ peer, confirmed }: { peer: ToolPlanContext["peer"]; confirmed: PublishContentPlanResult }): Promise<Record<string, unknown>> {
-  const { confirmationToken } = await confirmPeerImport(peer, { planId: confirmed.planId, planHash: confirmed.planHash });
-  return executePeerImport(peer, {
-    bundleId: confirmed.bundleId, confirmationToken,
-    ...(confirmed.overwriteEntityKeys?.length ? { overwriteEntityKeys: confirmed.overwriteEntityKeys } : {})
-  });
+  const { confirmationToken } = await confirmPeerImport({ deps: peer, required: { planId: confirmed.planId, planHash: confirmed.planHash } });
+  return executePeerImport({
+                             deps: peer,
+                             required: {
+      bundleId: confirmed.bundleId, confirmationToken,
+      ...(confirmed.overwriteEntityKeys?.length ? { overwriteEntityKeys: confirmed.overwriteEntityKeys } : {})
+    }
+                           });
 }
 
 function legacyResult({ summary, selectionRows, execution }: { summary: PublishSummary; selectionRows: readonly ToolReportRow[]; execution: Record<string, unknown> }, _optional: Record<string, never> = {}) {

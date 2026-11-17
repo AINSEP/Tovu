@@ -309,7 +309,7 @@ function registerPushConfirmRoute({ app, deps, base, pushGuard }: PeerRouteConte
       }
 
       const peer = await openPeer({ deps, peerId: readRouteParam({ req, name: "peerId" }) });
-      res.json(await confirmPeerImport(peer, { planId, planHash }));
+      res.json(await confirmPeerImport({ deps: peer, required: { planId, planHash } }));
     } catch (err) {
       respondWithError({ res, err });
     }
@@ -333,11 +333,14 @@ function registerPushExecuteRoute({ app, deps, base, pushGuard }: PeerRouteConte
 
       const peer = await openPeer({ deps, peerId: readRouteParam({ req, name: "peerId" }) });
       res.json(
-        await executePeerImport(peer, {
-          bundleId,
-          confirmationToken,
-          ...(overwriteEntityKeys === null ? {} : { overwriteEntityKeys }),
-        })
+        await executePeerImport({
+                                  deps: peer,
+                                  required: {
+            bundleId,
+            confirmationToken,
+            ...(overwriteEntityKeys === null ? {} : { overwriteEntityKeys }),
+          }
+                                })
       );
     } catch (err) {
       respondWithError({ res, err });

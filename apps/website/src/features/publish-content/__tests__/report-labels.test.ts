@@ -42,11 +42,13 @@ function rowsOf(plan: Record<string, unknown>): Array<Record<string, unknown>> {
 
 test("names an unlabelled peer row from the bundle this side sent", () => {
   const labelled = labelPeerPlanRows(
-    planWith([
-      { entityType: "post", entityId: "p1", outcome: "applied", writes: true, reason: null },
-      { entityType: "media", entityId: "m1", outcome: "unchanged", writes: false, reason: null },
-    ]),
-    ENTITIES
+    {
+      plan: planWith([
+        { entityType: "post", entityId: "p1", outcome: "applied", writes: true, reason: null },
+        { entityType: "media", entityId: "m1", outcome: "unchanged", writes: false, reason: null },
+      ]),
+      entities: ENTITIES
+    }
   );
 
   assert.deepEqual(
@@ -57,8 +59,10 @@ test("names an unlabelled peer row from the bundle this side sent", () => {
 
 test("leaves every decision-bearing field of the peer's row exactly as it arrived", () => {
   const labelled = labelPeerPlanRows(
-    planWith([{ entityType: "post", entityId: "p1", outcome: "conflict", writes: false, reason: "edited on the live site" }]),
-    ENTITIES
+    {
+      plan: planWith([{ entityType: "post", entityId: "p1", outcome: "conflict", writes: false, reason: "edited on the live site" }]),
+      entities: ENTITIES
+    }
   );
 
   assert.deepEqual(rowsOf(labelled)[0], {
@@ -74,8 +78,10 @@ test("leaves every decision-bearing field of the peer's row exactly as it arrive
 
 test("never overwrites a label the peer supplied itself", () => {
   const labelled = labelPeerPlanRows(
-    planWith([{ entityType: "post", entityId: "p1", entityLabel: "the-peers-own-name", outcome: "applied", writes: true, reason: null }]),
-    ENTITIES
+    {
+      plan: planWith([{ entityType: "post", entityId: "p1", entityLabel: "the-peers-own-name", outcome: "applied", writes: true, reason: null }]),
+      entities: ENTITIES
+    }
   );
 
   assert.equal(rowsOf(labelled)[0].entityLabel, "the-peers-own-name");
@@ -83,11 +89,13 @@ test("never overwrites a label the peer supplied itself", () => {
 
 test("leaves a row it cannot name alone rather than inventing one", () => {
   const labelled = labelPeerPlanRows(
-    planWith([
-      { entityType: "media", entityId: "m2", outcome: "blocked", writes: false, reason: "required blob is absent" },
-      { entityType: "widget", entityId: "not-in-this-bundle", outcome: "blocked", writes: false, reason: "no handler" },
-    ]),
-    ENTITIES
+    {
+      plan: planWith([
+        { entityType: "media", entityId: "m2", outcome: "blocked", writes: false, reason: "required blob is absent" },
+        { entityType: "widget", entityId: "not-in-this-bundle", outcome: "blocked", writes: false, reason: "no handler" },
+      ]),
+      entities: ENTITIES
+    }
   );
 
   assert.equal("entityLabel" in rowsOf(labelled)[0], false, "an entity with no human field stays unlabelled");
@@ -96,13 +104,13 @@ test("leaves a row it cannot name alone rather than inventing one", () => {
 
 test("passes an envelope it does not recognize straight through", () => {
   for (const plan of [{}, { details: null }, { details: { rows: "not an array" } }, { details: {} }]) {
-    assert.equal(labelPeerPlanRows(plan, ENTITIES), plan, `${JSON.stringify(plan)} must be returned by identity`);
+    assert.equal(labelPeerPlanRows({ plan, entities: ENTITIES }), plan, `${JSON.stringify(plan)} must be returned by identity`);
   }
 });
 
 test("passes a refused report through with no rows invented", () => {
   const refused = { planId: "p", planHash: "h", details: { refused: true, refusalReason: "version mismatch", applyOrder: [], rows: [] } };
-  const labelled = labelPeerPlanRows(refused, ENTITIES);
+  const labelled = labelPeerPlanRows({ plan: refused, entities: ENTITIES });
   assert.deepEqual(rowsOf(labelled), []);
   assert.equal((labelled.details as { refusalReason: string }).refusalReason, "version mismatch");
 });
@@ -124,7 +132,7 @@ const SKIPPED: readonly SkippedPackEntity[] = [
 ];
 
 test("appendSkippedRowsToPeerPlan adds one non-writing blocked row per skipped unit", () => {
-  const withSkipped = appendSkippedRowsToPeerPlan(planWith([{ entityType: "post", entityId: "p1", outcome: "applied", writes: true, reason: null }]), SKIPPED);
+  const withSkipped = appendSkippedRowsToPeerPlan({ plan: planWith([{ entityType: "post", entityId: "p1", outcome: "applied", writes: true, reason: null }]), skipped: SKIPPED });
 
   assert.deepEqual(rowsOf(withSkipped), [
     { entityType: "post", entityId: "p1", outcome: "applied", writes: true, reason: null },
@@ -143,18 +151,18 @@ test("appendSkippedRowsToPeerPlan adds one non-writing blocked row per skipped u
 
 test("appendSkippedRowsToPeerPlan is a no-op with an empty skipped list", () => {
   const plan = planWith([{ entityType: "post", entityId: "p1", outcome: "applied", writes: true, reason: null }]);
-  assert.equal(appendSkippedRowsToPeerPlan(plan, []), plan);
+  assert.equal(appendSkippedRowsToPeerPlan({ plan, skipped: [] }), plan);
 });
 
 test("appendSkippedRowsToPeerPlan passes an envelope it does not recognize straight through", () => {
   for (const plan of [{}, { details: null }, { details: { rows: "not an array" } }]) {
-    assert.equal(appendSkippedRowsToPeerPlan(plan, SKIPPED), plan);
+    assert.equal(appendSkippedRowsToPeerPlan({ plan, skipped: SKIPPED }), plan);
   }
 });
 
 test("appendSkippedRowsToPeerPlan adds nothing to a refused report", () => {
   const refused = { planId: "p", planHash: "h", details: { refused: true, refusalReason: "version mismatch", applyOrder: [], rows: [] } };
-  const withSkipped = appendSkippedRowsToPeerPlan(refused, SKIPPED);
+  const withSkipped = appendSkippedRowsToPeerPlan({ plan: refused, skipped: SKIPPED });
   assert.deepEqual(rowsOf(withSkipped), []);
 });
 
@@ -183,7 +191,7 @@ test("keepChangingIncludedEntities tags created/updated/overwritten carried-alon
     ["media:m-same", ["page:pg1"]],
   ]);
 
-  const rows = rowsOf(keepChangingIncludedEntities(plan, includedFor));
+  const rows = rowsOf(keepChangingIncludedEntities({ plan, includedFor }));
 
   assert.deepEqual(
     rows.map((row) => [row.entityId, row.includedFor ?? null]),
@@ -211,20 +219,20 @@ test("keepChangingIncludedEntities keeps a conflicting or blocked carried-along 
     ["media:m-block", ["post:po1"]],
   ]);
 
-  const rows = rowsOf(keepChangingIncludedEntities(plan, includedFor));
+  const rows = rowsOf(keepChangingIncludedEntities({ plan, includedFor }));
 
   assert.deepEqual(rows, [conflict, blocked]);
 });
 
 test("keepChangingIncludedEntities leaves an ordinary media row alone whatever its outcome", () => {
   const plan = planWith([mediaRow("m-own", "unchanged", false)]);
-  const rows = rowsOf(keepChangingIncludedEntities(plan, new Map()));
+  const rows = rowsOf(keepChangingIncludedEntities({ plan, includedFor: new Map() }));
   assert.deepEqual(rows, [mediaRow("m-own", "unchanged", false)]);
 });
 
 test("keepChangingIncludedEntities passes an envelope it does not recognize straight through", () => {
   const odd = { planId: "x", details: "not a report" };
-  assert.equal(keepChangingIncludedEntities(odd, new Map([["media:m1", ["page:p"]]])), odd);
+  assert.equal(keepChangingIncludedEntities({ plan: odd, includedFor: new Map([["media:m1", ["page:p"]]]) }), odd);
 });
 
 test("a source-set displayLabel names the row even over the peer's own state-derived label", () => {
@@ -235,11 +243,13 @@ test("a source-set displayLabel names the row even over the peer's own state-der
     displayLabel: "Tovu Theme",
   };
   const labelled = labelPeerPlanRows(
-    planWith([
-      { entityType: "theme-files", entityId: "static/tovu-theme", entityLabel: "Theme: static/tovu-theme", outcome: "applied", writes: true, reason: null },
-      { entityType: "post", entityId: "p1", entityLabel: "peer-name", outcome: "applied", writes: true, reason: null },
-    ]),
-    [...ENTITIES, named]
+    {
+      plan: planWith([
+        { entityType: "theme-files", entityId: "static/tovu-theme", entityLabel: "Theme: static/tovu-theme", outcome: "applied", writes: true, reason: null },
+        { entityType: "post", entityId: "p1", entityLabel: "peer-name", outcome: "applied", writes: true, reason: null },
+      ]),
+      entities: [...ENTITIES, named]
+    }
   );
 
   assert.deepEqual(
@@ -266,7 +276,7 @@ test("tagTrashingRows marks an update or overwrite whose local item is trashed, 
     { entityType: "media", entityId: "kept", outcome: "applied", writes: true, reason: null },
   ]);
 
-  const tagged = rowsOf(tagTrashingRows(plan, entities));
+  const tagged = rowsOf(tagTrashingRows({ plan, entities }));
 
   assert.deepEqual(
     tagged.map((row) => `${String(row.entityId)}:${String(row.trashes ?? false)}`),
@@ -277,7 +287,7 @@ test("tagTrashingRows marks an update or overwrite whose local item is trashed, 
 
 test("tagTrashingRows passes an envelope it does not recognize straight through", () => {
   const odd = { planId: "plan-1", details: "not a report" };
-  assert.equal(tagTrashingRows(odd, ENTITIES), odd);
+  assert.equal(tagTrashingRows({ plan: odd, entities: ENTITIES }), odd);
 });
 
 test("L163 included rows preserve malformed and ordinary values while filtering only included unchanged rows", () => {
@@ -288,12 +298,12 @@ test("L163 included rows preserve malformed and ordinary values while filtering 
   const same = { entityType: "media", entityId: "same", outcome: "unchanged" };
   const plan = { details: { rows: [...malformed, ordinary, conflict, created, same] } };
   const included = new Map(["conflict", "new", "same"].map(id => [`media:${id}`, ["page:p"]]));
-  const result = keepChangingIncludedEntities(plan, included);
+  const result = keepChangingIncludedEntities({ plan, includedFor: included });
   assert.deepEqual(result, { details: { rows: [...malformed, ordinary, conflict, { ...created, includedFor: ["page:p"] }] } });
   assert.equal(plan.details.rows.length, 8);
-  assert.equal(keepChangingIncludedEntities(plan, new Map()), plan);
+  assert.equal(keepChangingIncludedEntities({ plan, includedFor: new Map() }), plan);
   const odd = { details: { rows: null } };
-  assert.equal(keepChangingIncludedEntities(odd, included), odd);
+  assert.equal(keepChangingIncludedEntities({ plan: odd, includedFor: included }), odd);
 });
 
 test("labelPeerPlanRows passes malformed rows and id-less rows through untouched", () => {
@@ -301,12 +311,12 @@ test("labelPeerPlanRows passes malformed rows and id-less rows through untouched
   const idless = { outcome: "created", writes: true };
   const plan = planWith([...malformed, idless, { entityType: "post", entityId: "p1", outcome: "created" }]);
 
-  const rows = rowsOf(labelPeerPlanRows(plan, ENTITIES));
+  const rows = rowsOf(labelPeerPlanRows({ plan, entities: ENTITIES }));
 
   assert.deepEqual(rows.slice(0, 5), [...malformed, idless]);
   assert.equal(rows[5]?.entityLabel, "spring-sale");
   const notRows = { details: { rows: "not rows" } };
-  assert.equal(labelPeerPlanRows(notRows, ENTITIES), notRows);
+  assert.equal(labelPeerPlanRows({ plan: notRows, entities: ENTITIES }), notRows);
 });
 
 test("tagTrashingRows leaves malformed rows and id-less update rows alone", () => {
@@ -315,9 +325,9 @@ test("tagTrashingRows leaves malformed rows and id-less update rows alone", () =
   const idless = { outcome: "applied", writes: true };
   const plan = planWith([...malformed, idless, { entityType: "media", entityId: "gone", outcome: "applied" }]);
 
-  const rows = rowsOf(tagTrashingRows(plan, entities));
+  const rows = rowsOf(tagTrashingRows({ plan, entities }));
 
   assert.deepEqual(rows.slice(0, 3), [...malformed, idless]);
   assert.equal(rows[3]?.trashes, true);
-  assert.equal(tagTrashingRows(plan, ENTITIES), plan, "nothing trashed locally: the plan is returned as-is");
+  assert.equal(tagTrashingRows({ plan, entities: ENTITIES }), plan, "nothing trashed locally: the plan is returned as-is");
 });

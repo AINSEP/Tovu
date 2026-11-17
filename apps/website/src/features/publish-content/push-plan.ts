@@ -45,22 +45,24 @@ async function selectBundleToPush(
   const workspace = await deps.workspaceRepo.findById({ id: deps.workspaceId });
   const publishContentDeps = deps.publishContentDeps;
   const fullBundle = await buildExportBundle({
-    workspaceId: deps.workspaceId,
-    principalId,
-    authorize: deps.authorize,
-    publishContentDeps,
-    sourceLabel: workspace?.name ?? deps.workspaceId,
-  });
+                                               deps: {
+      workspaceId: deps.workspaceId,
+      principalId,
+      authorize: deps.authorize,
+      publishContentDeps,
+      sourceLabel: workspace?.name ?? deps.workspaceId,
+    }
+                                             });
   // `scope` narrows first (`plan-publish-sections-2026-09-25.md` §1 — "Publish pages" never even
   // uploads a media blob), THEN `selectedEntityKeys` narrows that result further, so an operator's
   // row selection inside a scoped dialog can only ever shrink what the scope already allowed.
   // `skipped` is narrowed by `scope` alone: a skipped unit was never selectable in the first place
   // (`export-bundle.ts`'s own `selectBundleEntities` doc), so a row selection has nothing to add.
-  const scoped = input.scope == null ? fullBundle : applyPublishScope(fullBundle, input.scope);
+  const scoped = input.scope == null ? fullBundle : applyPublishScope({ envelope: fullBundle, scope: input.scope });
   // A selection narrows what is STAGED, before the peer plans it — so a deselected entity is
   // never uploaded, never planned and never applied, rather than being filtered out by some
   // later step that could forget. See `export-bundle.ts`'s `selectBundleEntities`.
-  const selected = input.selectedEntityKeys == null ? scoped : selectBundleEntities(scoped, new Set(input.selectedEntityKeys));
+  const selected = input.selectedEntityKeys == null ? scoped : selectBundleEntities({ envelope: scoped, selectedKeys: new Set(input.selectedEntityKeys) });
   // Owner decision 2026-09-25 (plan G3): a SCOPED run carries along what its (still-selected)
   // rows use — a page's images and widgets, a widget's form, an entry's collection — drawn from
   // the full bundle, derived after the selection, so a deselected page brings nothing and a
@@ -79,14 +81,16 @@ function pushSelectedBundle(
 ) {
   return pushBundleToPeer(
     {
-      ...peer,
-      // S18 (S-F3) — sources a blob from the media blob store FIRST, falling back to
-      // `RouteDeps.fileBlobIndex` (a file-tree type's `pack()` fill) so a blob that was never
-      // copied into the blob store can still be pushed. See `composite-blob-source.ts`'s header.
-      blobSource: createCompositePeerBlobSource({ blobStore: deps.blobStore, fileBlobIndex: deps.fileBlobIndex }),
-      computeStorageKey: ({ sha256 }: { sha256: string }, _options = {}) => computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 }),
-    },
-    { bundle, ...(overwriteEntityKeys == null ? {} : { overwriteEntityKeys }) }
+      deps: {
+        ...peer,
+        // S18 (S-F3) — sources a blob from the media blob store FIRST, falling back to
+        // `RouteDeps.fileBlobIndex` (a file-tree type's `pack()` fill) so a blob that was never
+        // copied into the blob store can still be pushed. See `composite-blob-source.ts`'s header.
+        blobSource: createCompositePeerBlobSource({ blobStore: deps.blobStore, fileBlobIndex: deps.fileBlobIndex }),
+        computeStorageKey: ({ sha256 }: { sha256: string }, _options = {}) => computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 }),
+      },
+      required: { bundle, ...(overwriteEntityKeys == null ? {} : { overwriteEntityKeys }) }
+    }
   );
 }
 
@@ -128,11 +132,15 @@ function annotatedPeerPlan(
 ) {
   const { scoped, bundle, includedFor } = selection;
   return appendSkippedRowsToPeerPlan(
-    keepChangingIncludedEntities(
-      tagTrashingRows(labelPeerPlanRows(result.plan, bundle.entities), bundle.entities),
-      includedFor
-    ),
-    scoped.skipped
+    {
+      plan: keepChangingIncludedEntities(
+        {
+          plan: tagTrashingRows({ plan: labelPeerPlanRows({ plan: result.plan, entities: bundle.entities }), entities: bundle.entities }),
+          includedFor
+        }
+      ),
+      skipped: scoped.skipped
+    }
   );
 }
 

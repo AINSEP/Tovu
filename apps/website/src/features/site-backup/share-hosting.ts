@@ -68,12 +68,12 @@ export function createPeerShareDelivery(required: { peer: PeerCallDeps; http: Ht
   };
   return { provider: "tovu-server", binding: baseUrl, store: {
     async upload({ key, bytes }, options = {}) {
-      await callPeer(required.peer, { method: "PUT", path: artifactPath({ key }), archive: bytes, signal: options.signal });
+      await callPeer({ deps: required.peer, request: { method: "PUT", path: artifactPath({ key }), archive: bytes, signal: options.signal } });
       return { url: peerUrl({ baseUrl, path: `/${key}` }) };
     },
     async delete({ key }, options = {}) {
       // DELETE is idempotent, including after a previous successful remote cleanup.
-      try { await callPeer(required.peer, { method: "DELETE", path: artifactPath({ key }), signal: options.signal }); }
+      try { await callPeer({ deps: required.peer, request: { method: "DELETE", path: artifactPath({ key }), signal: options.signal } }); }
       catch (error) { if ((error as { peerStatus?: number }).peerStatus !== 404) throw error; }
     },
     verify: (input, options = {}) => verifyServerShare({ ...input, http: required.http, expectedUrl: peerUrl({ baseUrl, path: `/${input.key}` }) }, options),
