@@ -85,7 +85,7 @@ import { bridgePreflightEntry } from "./bridge-preflight-entry.js";
 import type { PromptAugmenter } from "@jini-ai/core/contracts/agents";
 import { createAgentSelectionResolver, createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";
 import { executorDefinitionPolicies } from "./executor-definition-policies.js";
-import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, registerFrontendRequestRoute, registerAgentRoutes, registerAttachmentRoutes, componentCatalogRoutes, registerDelegatedToolRoutes, registerMessageRelayRoutes, registerRunRoutes, toolCatalogRoutes } from "@jini-ai/daemon/http";
+import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, registerFrontendRequestRoute, agentRoutes, registerAttachmentRoutes, componentCatalogRoutes, registerDelegatedToolRoutes, registerMessageRelayRoutes, registerRunRoutes, toolCatalogRoutes } from "@jini-ai/daemon/http";
 import { adminFrontendOwner, adminFrontendRunOwner } from "#src/assistant/admin-frontend-owner";
 import { bearerTokenFromHeader, createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
 import type { AttachmentStore, DelegatedToolExecuteRequest, RunMessageRequest, RunStartHandler, StoredAttachment } from "@jini-ai/daemon/http";
@@ -1472,7 +1472,7 @@ registerRunRoutes({ app, deps: { lifecycle, onStarted,
 // default): `listAssistantAgents` is now cached (see `agents.ts`'s module doc — this file's own
 // gap was the fallback silently serving the same stale cache `POST /api/agents/rescan` exists to
 // bypass). `rescanAssistantAgents` is the one path that actually forces a fresh PATH probe.
-registerAgentRoutes({ app, deps: { listAgents: assistantInventory.listAssistantAgents, rescanAgents: assistantInventory.rescanAssistantAgents }, adapter });
+mountJiniRoutes({ app, routes: agentRoutes({ deps: { listAgents: assistantInventory.listAssistantAgents, rescanAgents: assistantInventory.rescanAssistantAgents }, host: routeHost }) });
 // `GET /api/active` — the one route `jini-mcp` calls (`get_active_context`) that this daemon never
 // served, so it answered 404. Behind the bearer gate above like every route but the delegated one.
 registerRunActiveContextRoute(app, runActiveContexts);
