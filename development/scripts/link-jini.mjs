@@ -1,6 +1,6 @@
 /**
- * `npm run link:jini` — point every `@jini-ai/*` package in Tovu's three `node_modules` trees
- * (root, `apps/admin`, `apps/site-chat`) at a local Jini checkout, so editing Jini and rebuilding
+ * `npm run link:jini` — point every `@jini-ai/*` package in Tovu's `node_modules` trees
+ * (the root and every app under `apps/` that depends on `@jini-ai/*`) at a local Jini checkout, so editing Jini and rebuilding
  * it shows up in Tovu immediately, without publishing a version or touching the committed npm
  * version ranges in any package.json. Machine-specific and leaves no repo footprint: the only file
  * it writes, `.jini-link-state.json`, is gitignored.
@@ -58,7 +58,7 @@ function linkStatus(linkPath, target) {
   return resolved === target ? "ok" : "wrong-link";
 }
 
-const consumers = jiniConsumers();
+const consumers = jiniConsumers({ root: repoRoot });
 
 const missingDirect = [...new Set(consumers.flatMap((consumer) => consumer.direct))].filter(
   (name) => !existsSync(path.join(jiniPackagesDir, name)),
