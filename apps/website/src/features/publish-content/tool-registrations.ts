@@ -149,7 +149,7 @@ export function plainSentence({ text, fallback }: { text: string; fallback: stri
  *  the one a person will have meant.
  *  @complexity O(n) in the workspace's destination count. */
 function chooseDestination(rows: readonly PublishContentPeerRecord[]): PublishContentPeerRecord | null {
-  const connected = selectConnectedDestination(rows);
+  const connected = selectConnectedDestination({ rows });
   if (connected) return connected;
   return rows.length === 1 ? (rows[0] as PublishContentPeerRecord) : null;
 }
@@ -158,7 +158,7 @@ function chooseDestination(rows: readonly PublishContentPeerRecord[]): PublishCo
  *  @complexity O(n) in the workspace's destination count. */
 async function readReadiness({ deps, findCandidate }: { deps: PublishContentToolDeps; findCandidate: () => Promise<string | null> }, _optional = {}): Promise<{ readiness: PublishReadiness; rows: readonly PublishContentPeerRecord[] }> {
   const rows = await deps.publishContentPeerRepo.listByWorkspace({ workspaceId: deps.workspaceId });
-  const connected = selectConnectedDestination(rows);
+  const connected = selectConnectedDestination({ rows });
   const readiness = describePublishReadiness({
     connectedSiteLabel: connected ? connected.label : null,
     otherSiteLabels: rows.filter((row) => row.sealed !== null).map((row) => row.label),
@@ -225,13 +225,15 @@ async function connectWithTrust(
     };
     const { site, grant } = await connectAndRecordDestination(
       {
-        repo: routeDeps.publishContentPeerRepo,
-        clock: routeDeps.clock,
-        idGen: routeDeps.idGen,
-        connectGrant: (connectInput, _options: Record<string, never> = {}) => connectDestination({ deps: trustDeps, input: connectInput }),
-        reverseGrant: () => disconnectDestination({ deps: trustDeps }),
-      },
-      { workspaceId: routeDeps.workspaceId, baseUrl: baseUrl, entityTypes }
+        deps: {
+          repo: routeDeps.publishContentPeerRepo,
+          clock: routeDeps.clock,
+          idGen: routeDeps.idGen,
+          connectGrant: (connectInput, _options: Record<string, never> = {}) => connectDestination({ deps: trustDeps, input: connectInput }),
+          reverseGrant: () => disconnectDestination({ deps: trustDeps }),
+        },
+        input: { workspaceId: routeDeps.workspaceId, baseUrl: baseUrl, entityTypes }
+      }
     );
 
     return {
@@ -293,7 +295,7 @@ export function buildPublishContentRegistrations(
       refuseUnexpectedKeys(input, ["peerId"]);
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PUBLISH_CONTENT_APPLY_PERMISSION });
       const peerId = await selectPullPeer({ deps: routeDeps, supplied: input.peerId });
-      const staged = await pullAndStageFromPeer(routeDeps, { peerId, principalId: ctx.principal.id });
+      const staged = await pullAndStageFromPeer({ deps: routeDeps, input: { peerId, principalId: ctx.principal.id } });
       const planned = await gatewayPlan({ deps: routeDeps.gatedMutations.gatewayDeps, principalId: ctx.principal.id, principalKind: "agent", hooks: pullHooks({ deps: routeDeps, bundleId: staged.bundleId, actorId: ctx.principal.id }) });
       const report = acceptedPullReport(planned.details as PublishContentReport);
       // The bundle table has no source-label column. An existing audit row retains this display
@@ -423,7 +425,7 @@ async function selectPullPeer({ deps, supplied }: { deps: PublishContentToolDeps
   if (rows.length === 0) throw new ToolInputError({ message: "No live destination is connected. Connect this computer with publish_content_connect, then plan the pull again." });
   const connectedRows = rows.filter(row => row.sealed === null);
   if (connectedRows.length <= 1) {
-    const connected = selectConnectedDestination(rows);
+    const connected = selectConnectedDestination({ rows });
     if (connected) return connected.id;
     if (rows.length === 1) {
       const only = rows[0];

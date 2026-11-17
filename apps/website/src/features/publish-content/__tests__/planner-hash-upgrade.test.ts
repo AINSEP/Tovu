@@ -96,7 +96,7 @@ test("v2 apply replaces v1 baselines for matching and seed-matched rows, preserv
   const report = await planImport(bundle, { publishContentDeps,
     getBaseline: input => baselineRepo.findOne(key(input.entityId)), hasBlob: async () => true });
   assert.deepEqual(report.rows.map(row => row.outcome), ["unchanged", "applied", "conflict"]);
-  const staged = await stageBundle({ ...bundle, workspaceId: "ws", sourcePrincipalId: "peer", blobManifest: [] }, { repo: bundleRepo, clock, idGen });
+  const staged = await stageBundle({ input: { ...bundle, workspaceId: "ws", sourcePrincipalId: "peer", blobManifest: [] }, deps: { repo: bundleRepo, clock, idGen } });
   const port = createPublishContentApplyPort({ workspaceId: "ws", bundleRepo, baselineRepo, runRepo, publishContentDeps, clock, idGen });
   await port.applyReport({ report, bundleId: staged.bundleId, principalId: "owner", restorePointId: "restore" });
   assert.deepEqual(writes, ["seed"], "a current seed match must remain applicable at execute time");

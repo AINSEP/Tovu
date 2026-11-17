@@ -67,8 +67,10 @@ function harness() {
     return script;
   };
   const stage = async (entities: PackedEntity[]) => (await stageBundle(
-    { workspaceId: WS, sourcePrincipalId: SRC, artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities, blobManifest: [] },
-    { repo: bundleRepo, clock, idGen: { newId: () => "bundle-1" } },
+    {
+      input: { workspaceId: WS, sourcePrincipalId: SRC, artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities, blobManifest: [] },
+      deps: { repo: bundleRepo, clock, idGen: { newId: () => "bundle-1" } }
+    },
   )).bundleId;
   const port = (extra: Partial<Parameters<typeof createPublishContentApplyPort>[0]> = {}) => createPublishContentApplyPort({
     workspaceId: WS, bundleRepo, baselineRepo, runRepo, publishContentDeps, clock, idGen, ...extra,

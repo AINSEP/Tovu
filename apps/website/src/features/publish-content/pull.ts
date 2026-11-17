@@ -40,8 +40,11 @@ export interface StagedPeerPull {
  * @example await pullAndStageFromPeer(deps, { peerId: "live", principalId: "owner" });
  */
 export async function pullAndStageFromPeer(
-  deps: PublishContentPullDeps,
-  input: { peerId: string; principalId: string },
+  { deps, input }: {
+    deps: PublishContentPullDeps;
+    input: { peerId: string; principalId: string };
+  },
+  _optional = {},
 ): Promise<StagedPeerPull> {
   const credential = await resolvePublishDestinationCredential({ deps: {
     repo: deps.publishContentPeerRepo,
@@ -61,16 +64,19 @@ export async function pullAndStageFromPeer(
     computeStorageKey: ({ sha256 }: { sha256: string }, _options: Record<string, never> = {}) => computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 }),
   }, { blobManifest: envelope.blobManifest });
   const staged = await stageBundle({
-    // The common staging path computes expiry server-side and binds baselines to the authenticated
-    // principal. A peer-declared identity must never claim another operator's sync memory.
-    workspaceId: deps.workspaceId,
-    sourcePrincipalId: input.principalId,
-    artifactFormatVersion: envelope.artifactFormatVersion,
-    hashVersion: envelope.hashVersion,
-    sourceLabel: envelope.sourceLabel,
-    entities: envelope.entities,
-    blobManifest: envelope.blobManifest,
-  }, { repo: deps.publishContentBundleRepo, clock: deps.clock, idGen: deps.idGen });
+                                     input: {
+      // The common staging path computes expiry server-side and binds baselines to the authenticated
+      // principal. A peer-declared identity must never claim another operator's sync memory.
+      workspaceId: deps.workspaceId,
+      sourcePrincipalId: input.principalId,
+      artifactFormatVersion: envelope.artifactFormatVersion,
+      hashVersion: envelope.hashVersion,
+      sourceLabel: envelope.sourceLabel,
+      entities: envelope.entities,
+      blobManifest: envelope.blobManifest,
+    },
+                                     deps: { repo: deps.publishContentBundleRepo, clock: deps.clock, idGen: deps.idGen }
+                                   });
   return {
     peerId: credential.id,
     peerLabel: credential.label,

@@ -208,7 +208,7 @@ async function destinationCredential({ deps, input }: { deps: PublishContentTool
 }
 
 function defaultPeerId({ peers }: { peers: Awaited<ReturnType<PublishContentToolDeps["publishContentPeerRepo"]["listByWorkspace"]>> }, _optional: Record<string, never> = {}) {
-  return (selectConnectedDestination(peers) ?? (peers.length === 1 ? peers[0] : null))?.id;
+  return (selectConnectedDestination({ rows: peers }) ?? (peers.length === 1 ? peers[0] : null))?.id;
 }
 
 function planningDeps({ deps, credential }: { deps: PublishContentToolDeps; credential: Awaited<ReturnType<typeof resolvePublishDestinationCredential>> }, _optional: Record<string, never> = {}) {

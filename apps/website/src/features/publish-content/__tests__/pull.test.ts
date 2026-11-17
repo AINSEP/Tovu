@@ -20,7 +20,7 @@ test("pull verifies and stores blobs before staging; the authenticated caller ow
     assert.deepEqual(f.blobs.get(computeBlobStorageKey({ workspaceId: "local", sha256: sha })), bytes);
     return save(row);
   };
-  const result = await (await pull())(f.deps, { peerId: "live", principalId: OWNER });
+  const result = await (await pull())({ deps: f.deps, input: { peerId: "live", principalId: OWNER } });
   assert.deepEqual(result, { peerId: "live", peerLabel: "Live site", bundleId: "pull-1", expiresAt: "2026-10-02T12:00:00.000Z", entityCount: 1, blobManifest: [sha, sha], blobsDownloaded: [sha], blobsAlreadyPresent: [], blobsUnavailable: [], blobsDeferred: [] });
   const row = await f.bundleRepo.findById({ workspaceId: "local", id: result.bundleId });
   assert.equal(row?.sourcePrincipalId, OWNER);
@@ -37,7 +37,7 @@ test("a valid blob followed by mismatched bytes aborts the whole pull without st
   let stagedRows = 0;
   const save = f.bundleRepo.save.bind(f.bundleRepo);
   f.bundleRepo.save = async row => { stagedRows++; return save(row); };
-  await assert.rejects(() => pull().then(fn => fn(f.deps, { peerId: "live", principalId: OWNER })), (err: any) => {
+  await assert.rejects(() => pull().then(fn => fn({ deps: f.deps, input: { peerId: "live", principalId: OWNER } })), (err: any) => {
     assert.equal(err.code, "PEER_RESPONSE_INVALID");
     assert.equal(err.message, `the peer's bytes for blob '${badSha}' do not hash to it — refusing to store them under that sha256, because the hash IS the identity this feature addresses content by`);
     return true;

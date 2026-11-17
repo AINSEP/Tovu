@@ -115,7 +115,7 @@ test("sites list: registered active site and pending choice stay distinct", asyn
 
 test("disconnect: removes connected destination, reverses grant, and is idempotent", async () => {
   const repo = new InMemoryPublishContentPeerRepo();
-  await saveConnectedDestination({ repo, clock, idGen }, { workspaceId: ws, label: "Live", baseUrl: "https://live.example", remoteWorkspaceId: "remote" });
+  await saveConnectedDestination({ deps: { repo, clock, idGen }, input: { workspaceId: ws, label: "Live", baseUrl: "https://live.example", remoteWorkspaceId: "remote" } });
   let reversals = 0;
   const r = await registration("publish_content_disconnect", { ...auth().deps, clock, idGen, publishContentPeerRepo: repo,
     siteAssistantSecretKeyring: { derive: async () => new Uint8Array(32).fill(1) },
@@ -130,7 +130,7 @@ test("disconnect: removes connected destination, reverses grant, and is idempote
 
 test("disconnect: failed grant reversal restores peer and exposes an actionable refusal", async () => {
   const repo = new InMemoryPublishContentPeerRepo();
-  await saveConnectedDestination({ repo, clock, idGen }, { workspaceId: ws, label: "Live", baseUrl: "https://live.example", remoteWorkspaceId: "remote" });
+  await saveConnectedDestination({ deps: { repo, clock, idGen }, input: { workspaceId: ws, label: "Live", baseUrl: "https://live.example", remoteWorkspaceId: "remote" } });
   const r = await registration("publish_content_disconnect", { ...auth().deps, clock, idGen, publishContentPeerRepo: repo,
     siteAssistantSecretKeyring: { derive: async () => new Uint8Array(32).fill(1) },
     publishTrustProvisioning: { disconnect: async () => ({ ok: false, reason: "read-only disk" }) },

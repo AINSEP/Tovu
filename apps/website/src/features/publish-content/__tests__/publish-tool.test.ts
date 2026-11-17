@@ -66,8 +66,10 @@ async function fixture(entities = [post("one", "How Tovu Saves You Time"), post(
     if (path.endsWith("/capabilities")) result = { entityTypes: supportedTypes, features: ["overwrite-live"] };
     else if (path.endsWith("/bundles")) {
       staged.push(body.entities);
-      result = await stageBundle({ ...body, workspaceId: "local", sourcePrincipalId: OWNER },
-        { repo: f.bundleRepo, clock: f.deps.clock, idGen: f.deps.idGen });
+      result = await stageBundle({
+                                   input: { ...body, workspaceId: "local", sourcePrincipalId: OWNER },
+                                   deps: { repo: f.bundleRepo, clock: f.deps.clock, idGen: f.deps.idGen }
+                                 });
       activeBundle = (result as { bundleId: string }).bundleId;
     } else if (path.endsWith("/import/plan")) {
       beforePlan?.(++planCount);

@@ -215,15 +215,17 @@ export const registerPublishContentBundleCreateRoute: PublishContentRouteRegistr
 
         const { bundleId, expiresAt } = await stageBundle(
           {
-            workspaceId: deps.workspaceId,
-            sourcePrincipalId: principalId,
-            artifactFormatVersion: validated.artifactFormatVersion,
-            hashVersion: validated.hashVersion,
-            sourceLabel: validated.sourceLabel,
-            entities: validated.entities,
-            blobManifest: validated.blobManifest,
-          },
-          { repo: deps.publishContentBundleRepo, clock: deps.clock, idGen: deps.idGen }
+            input: {
+              workspaceId: deps.workspaceId,
+              sourcePrincipalId: principalId,
+              artifactFormatVersion: validated.artifactFormatVersion,
+              hashVersion: validated.hashVersion,
+              sourceLabel: validated.sourceLabel,
+              entities: validated.entities,
+              blobManifest: validated.blobManifest,
+            },
+            deps: { repo: deps.publishContentBundleRepo, clock: deps.clock, idGen: deps.idGen }
+          }
         );
 
         res.status(201).json({ bundleId, expiresAt });

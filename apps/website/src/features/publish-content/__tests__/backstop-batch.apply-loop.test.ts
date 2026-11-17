@@ -49,7 +49,7 @@ test("the real apply loop joins every raw write in one FK-checked transaction an
   const baselineRepo = new InMemoryPublishContentBaselineRepo();
   const runRepo = new InMemoryPublishContentRunRepo();
   const bundleRepo = new InMemoryPublishContentBundleRepo();
-  const staged = await stageBundle({ ...bundle, workspaceId: "ws", sourcePrincipalId: "source" }, { repo: bundleRepo, clock, idGen });
+  const staged = await stageBundle({ input: { ...bundle, workspaceId: "ws", sourcePrincipalId: "source" }, deps: { repo: bundleRepo, clock, idGen } });
   const report = await planImport(bundle, { publishContentDeps: deps, getBaseline: async () => null, hasBlob: async () => true });
   assert.deepEqual(report.rows.map((r) => r.outcome), ["created", "created"]);
   const apply = createPublishContentApplyPort({ workspaceId: "ws", bundleRepo, baselineRepo, runRepo, publishContentDeps: deps, clock, idGen });

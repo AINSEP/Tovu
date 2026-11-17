@@ -84,8 +84,11 @@ async function rawRowPlanDeps(t: TestContext, bundleRepo: InMemoryPublishContent
   const clock = { nowMs: () => Date.parse("2026-10-04T00:00:00Z"), nowIso: () => "2026-10-04T00:00:00.000Z" };
   let serial = 0;
   const idGen = { newId: () => `id-${++serial}` };
-  const staged = await stageBundle({ workspaceId: "ws", sourcePrincipalId: "owner", artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
-    hashVersion: CONTENT_HASH_VERSION, entities: [entity], blobManifest: [] }, { repo: bundleRepo, clock, idGen });
+  const staged = await stageBundle({
+                                     input: { workspaceId: "ws", sourcePrincipalId: "owner", artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
+      hashVersion: CONTENT_HASH_VERSION, entities: [entity], blobManifest: [] },
+                                     deps: { repo: bundleRepo, clock, idGen }
+                                   });
   const authorize = async () => ({ allowed: true, reason: "fixture" });
   const deps = routeDeps({ contentKernel: kernel, clock, idGen, authorize, publishContentBundleRepo: bundleRepo,
     publishContentBaselineRepo: new InMemoryPublishContentBaselineRepo(), gatedMutations: { gatewayDeps: buildGatewayDeps({ clock, idGen, authorize }) } });

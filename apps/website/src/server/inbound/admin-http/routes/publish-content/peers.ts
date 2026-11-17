@@ -106,7 +106,7 @@ function registerPeerListAndCreate({ app, deps }: PeerRoute, _options = {}): voi
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       if ((await authorizedPrincipalId({ res, deps, permission: "publish_content.read" })) === null) return;
-      const peers = await listPublishContentPeers({ repo: deps.publishContentPeerRepo }, { workspaceId: deps.workspaceId });
+      const peers = await listPublishContentPeers({ deps: { repo: deps.publishContentPeerRepo }, input: { workspaceId: deps.workspaceId } });
       res.json({ peers });
     } catch (err) {
       respondToPeerFailure({ res, error: err });
@@ -118,13 +118,16 @@ function registerPeerListAndCreate({ app, deps }: PeerRoute, _options = {}): voi
     try {
       if ((await authorizedPrincipalId({ res, deps, permission: "publish_content.apply" })) === null) return;
       const body = bodyRecord({ body: req.body });
-      const peer = await createPublishContentPeer(toWriteDeps(deps), {
-        workspaceId: deps.workspaceId,
-        label: body.label,
-        baseUrl: body.baseUrl,
-        remoteWorkspaceId: body.remoteWorkspaceId,
-        apiKey: body.apiKey,
-      });
+      const peer = await createPublishContentPeer({
+                                                    deps: toWriteDeps(deps),
+                                                    input: {
+          workspaceId: deps.workspaceId,
+          label: body.label,
+          baseUrl: body.baseUrl,
+          remoteWorkspaceId: body.remoteWorkspaceId,
+          apiKey: body.apiKey,
+        }
+                                                  });
       res.status(201).json({ peer });
     } catch (err) {
       respondToPeerFailure({ res, error: err });
@@ -139,11 +142,14 @@ function registerPeerUpdateAndDelete({ app, deps }: PeerRoute, _options = {}): v
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {
       if ((await authorizedPrincipalId({ res, deps, permission: "publish_content.apply" })) === null) return;
-      const peer = await updatePublishContentPeer(toWriteDeps(deps), {
-        workspaceId: deps.workspaceId,
-        id: readRouteParam({ req, name: "peerId" }),
-        ...presentPeerFields(bodyRecord({ body: req.body })),
-      });
+      const peer = await updatePublishContentPeer({
+                                                    deps: toWriteDeps(deps),
+                                                    input: {
+          workspaceId: deps.workspaceId,
+          id: readRouteParam({ req, name: "peerId" }),
+          ...presentPeerFields(bodyRecord({ body: req.body })),
+        }
+                                                  });
       res.json({ peer });
     } catch (err) {
       respondToPeerFailure({ res, error: err });
@@ -156,10 +162,13 @@ function registerPeerUpdateAndDelete({ app, deps }: PeerRoute, _options = {}): v
       if ((await authorizedPrincipalId({ res, deps, permission: "publish_content.apply" })) === null) return;
       // Idempotent 204, matching this codebase's other credential DELETE routes: deleting an
       // already-absent peer is a success, not a 404.
-      await deletePublishContentPeer({ repo: deps.publishContentPeerRepo }, {
-        workspaceId: deps.workspaceId,
-        id: readRouteParam({ req, name: "peerId" }),
-      });
+      await deletePublishContentPeer({
+                                       deps: { repo: deps.publishContentPeerRepo },
+                                       input: {
+          workspaceId: deps.workspaceId,
+          id: readRouteParam({ req, name: "peerId" }),
+        }
+                                     });
       res.status(204).end();
     } catch (err) {
       respondToPeerFailure({ res, error: err });

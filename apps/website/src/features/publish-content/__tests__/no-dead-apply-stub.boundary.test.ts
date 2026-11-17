@@ -52,8 +52,10 @@ for (const root of ["memory", "sqlite"] as const) {
       hashVersion: CONTENT_HASH_VERSION, contentHash: contentHash({ entityType: "post", state }), requiredBlobs: [], state };
     const bundle = { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
       hashVersion: CONTENT_HASH_VERSION, entities: [entity], blobManifest: [] };
-    const { bundleId } = await stageBundle({ ...bundle, workspaceId: deps.workspaceId,
-      sourcePrincipalId: "peer-source" }, { repo: deps.publishContentBundleRepo, clock: deps.clock, idGen: deps.idGen });
+    const { bundleId } = await stageBundle({
+      input: { ...bundle, workspaceId: deps.workspaceId, sourcePrincipalId: "peer-source" },
+      deps: { repo: deps.publishContentBundleRepo, clock: deps.clock, idGen: deps.idGen },
+    });
     const report = await planImport(bundle, {
       publishContentDeps: { workspaceId: deps.workspaceId, clock: deps.clock, idGen: deps.idGen,
         ports: { post: { repo: deps.postRepo } } },

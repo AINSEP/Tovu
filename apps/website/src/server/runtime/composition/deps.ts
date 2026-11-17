@@ -3012,7 +3012,7 @@ async function composeSiteRouteDeps(
             http: guardedOutboundHttpClient,
             peer: async () => {
               const rows = await routeDeps.publishContentPeerRepo.listByWorkspace({ workspaceId });
-              const connected = selectConnectedDestination(rows);
+              const connected = selectConnectedDestination({ rows });
               if (!connected || selection.binding !== undefined && selection.binding !== connected.baseUrl) return undefined;
               const credential = await resolvePublishDestinationCredential({ deps: { repo: routeDeps.publishContentPeerRepo,
                 sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring, httpClient: publishContentPeerHttpClient },

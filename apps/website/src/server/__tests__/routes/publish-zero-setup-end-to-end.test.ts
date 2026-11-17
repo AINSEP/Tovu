@@ -201,12 +201,14 @@ async function connectAndDeploy(s: Awaited<ReturnType<typeof scenario>>, siteKey
     }
   );
   const site = await saveConnectedDestination(
-    { repo: s.peerRepo, clock: s.clock, idGen: s.idGen },
     {
-      workspaceId: s.sourceDeps.workspaceId,
-      label: "destination.test",
-      baseUrl: connected.baseUrl,
-      remoteWorkspaceId: connected.identity.workspaceId,
+      deps: { repo: s.peerRepo, clock: s.clock, idGen: s.idGen },
+      input: {
+        workspaceId: s.sourceDeps.workspaceId,
+        label: "destination.test",
+        baseUrl: connected.baseUrl,
+        remoteWorkspaceId: connected.identity.workspaceId,
+      }
     }
   );
   await s.redeploy();

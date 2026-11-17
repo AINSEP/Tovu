@@ -277,14 +277,16 @@ async function stage(
 ): Promise<string> {
   const { bundleId } = await stageBundle(
     {
-      workspaceId: WORKSPACE_ID,
-      sourcePrincipalId,
-      artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
-      hashVersion: CONTENT_HASH_VERSION,
-      entities,
-      blobManifest: [],
-    },
-    { repo: bundleRepo, clock, idGen: makeCounterIdGen("bundle") }
+      input: {
+        workspaceId: WORKSPACE_ID,
+        sourcePrincipalId,
+        artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
+        hashVersion: CONTENT_HASH_VERSION,
+        entities,
+        blobManifest: [],
+      },
+      deps: { repo: bundleRepo, clock, idGen: makeCounterIdGen("bundle") }
+    }
   );
   return bundleId;
 }

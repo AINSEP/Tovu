@@ -118,7 +118,7 @@ test("a failed peer-row write during connect reverses the grant instead of leavi
   const repo = repoFailingOn("insert", "sqlite: disk I/O error");
 
   await assert.rejects(
-    () => connectAndRecordDestination(connectDeps(repo, provisioning), { workspaceId: WORKSPACE, baseUrl: SITE, entityTypes: ["post"] }),
+    () => connectAndRecordDestination({ deps: connectDeps(repo, provisioning), input: { workspaceId: WORKSPACE, baseUrl: SITE, entityTypes: ["post"] } }),
     /sqlite: disk I\/O error/,
     "the original failure must reach the caller, not be swallowed by the compensation"
   );
@@ -146,7 +146,7 @@ test("a failed grant reversal during disconnect puts the peer row back", async (
   };
 
   await assert.rejects(
-    () => disconnectAndForgetDestination(deps, { workspaceId: WORKSPACE }),
+    () => disconnectAndForgetDestination({ deps, input: { workspaceId: WORKSPACE } }),
     /config file is read-only/
   );
 
@@ -165,15 +165,17 @@ test("a clean disconnect removes both halves", async () => {
 
   const result = await disconnectAndForgetDestination(
     {
-      repo: inner,
-      clock: { nowMs: () => Date.parse("2026-09-20T12:00:00.000Z") },
-      idGen: { newId: () => "peer-2" },
-      reverseGrant: async () => {
-        provisioning.calls.push("disconnect");
-        return { changed: true, target: provisioning.target };
+      deps: {
+        repo: inner,
+        clock: { nowMs: () => Date.parse("2026-09-20T12:00:00.000Z") },
+        idGen: { newId: () => "peer-2" },
+        reverseGrant: async () => {
+          provisioning.calls.push("disconnect");
+          return { changed: true, target: provisioning.target };
+        },
       },
-    },
-    { workspaceId: WORKSPACE }
+      input: { workspaceId: WORKSPACE }
+    }
   );
 
   assert.equal(result.site?.baseUrl, SITE);
@@ -186,11 +188,14 @@ test("a clean connect writes both halves and reports the saved row", async () =>
   const provisioning = new RecordingProvisioning();
   const inner = new InMemoryPublishContentPeerRepo();
 
-  const result = await connectAndRecordDestination(connectDeps(inner, provisioning), {
-    workspaceId: WORKSPACE,
-    baseUrl: SITE,
-    entityTypes: ["post"],
-  });
+  const result = await connectAndRecordDestination({
+                                                     deps: connectDeps(inner, provisioning),
+                                                     input: {
+      workspaceId: WORKSPACE,
+      baseUrl: SITE,
+      entityTypes: ["post"],
+    }
+                                                   });
 
   assert.equal(result.site.baseUrl, SITE);
   assert.equal(result.site.hasCredential, false);
@@ -206,7 +211,7 @@ test("when both the peer-row write and the grant reversal fail during connect, t
   const deps = { ...connectDeps(repo, provisioning), reverseGrant: async (): Promise<never> => { provisioning.calls.push("disconnect"); throw new Error("config file is read-only"); } };
 
   await assert.rejects(
-    () => connectAndRecordDestination(deps, { workspaceId: WORKSPACE, baseUrl: SITE, entityTypes: ["post"] }),
+    () => connectAndRecordDestination({ deps, input: { workspaceId: WORKSPACE, baseUrl: SITE, entityTypes: ["post"] } }),
     /sqlite: disk I\/O error/,
   );
   assert.deepEqual(provisioning.calls, ["disconnect"], "the reversal was still attempted");
@@ -222,17 +227,17 @@ test("when the grant reversal and the peer-row restore both fail during disconne
     reverseGrant: async (): Promise<never> => { throw new Error("config file is read-only"); },
   };
 
-  await assert.rejects(() => disconnectAndForgetDestination(deps, { workspaceId: WORKSPACE }), /config file is read-only/);
+  await assert.rejects(() => disconnectAndForgetDestination({ deps, input: { workspaceId: WORKSPACE } }), /config file is read-only/);
   assert.deepEqual(await repo.inner.listByWorkspace({ workspaceId: WORKSPACE }), [], "the failed restore leaves the row gone, as before this fix");
 });
 
 test("disconnecting a computer that was not connected still reverses any grant and reports no site", async () => {
   const provisioning = new RecordingProvisioning();
   const deps = connectDeps(new InMemoryPublishContentPeerRepo(), provisioning);
-  const result = await disconnectAndForgetDestination(deps, { workspaceId: WORKSPACE });
+  const result = await disconnectAndForgetDestination({ deps, input: { workspaceId: WORKSPACE } });
   assert.deepEqual(result, { site: null, changed: true, target: provisioning.target });
   assert.deepEqual(provisioning.calls, ["disconnect"]);
 
   const failing = { ...deps, reverseGrant: async (): Promise<never> => { throw new Error("config file is read-only"); } };
-  await assert.rejects(() => disconnectAndForgetDestination(failing, { workspaceId: WORKSPACE }), /config file is read-only/);
+  await assert.rejects(() => disconnectAndForgetDestination({ deps: failing, input: { workspaceId: WORKSPACE } }), /config file is read-only/);
 });

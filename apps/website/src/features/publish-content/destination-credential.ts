@@ -71,7 +71,7 @@ export async function resolvePublishDestinationCredential(
     // Deliberately re-entered rather than inlined: `resolvePeerCredential` is the ONLY function
     // allowed to decrypt (`peers.ts`'s header), and it is worth one extra indexed read to keep that
     // property literally true instead of "true apart from here".
-    return resolvePeerCredential({ repo: deps.repo, sealer: deps.sealer }, input);
+    return resolvePeerCredential({ deps: { repo: deps.repo, sealer: deps.sealer }, input });
   }
 
   const session = await openSession({

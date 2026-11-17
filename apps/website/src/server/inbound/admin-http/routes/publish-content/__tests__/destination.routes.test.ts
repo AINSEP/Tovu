@@ -132,8 +132,10 @@ async function post(url: string, body: unknown): Promise<{ status: number; body:
 
 async function seedConnected(repo: InMemoryPublishContentPeerRepo, baseUrl: string): Promise<void> {
   await saveConnectedDestination(
-    { repo, clock: CLOCK, idGen: { newId: () => "seeded-peer" } },
-    { workspaceId: WORKSPACE_ID, label: new URL(baseUrl).host, baseUrl, remoteWorkspaceId: "remote-workspace" }
+    {
+      deps: { repo, clock: CLOCK, idGen: { newId: () => "seeded-peer" } },
+      input: { workspaceId: WORKSPACE_ID, label: new URL(baseUrl).host, baseUrl, remoteWorkspaceId: "remote-workspace" }
+    }
   );
 }
 

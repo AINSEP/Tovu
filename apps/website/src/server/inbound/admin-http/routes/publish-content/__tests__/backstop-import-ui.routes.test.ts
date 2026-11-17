@@ -32,8 +32,11 @@ test("real import plan returns safe before/after values for raw rows without req
   const clock = { nowMs: () => Date.parse("2026-10-04T00:00:00Z") }; let serial = 0;
   const idGen = { newId: () => `id-${++serial}` };
   const bundleRepo = new InMemoryPublishContentBundleRepo();
-  const staged = await stageBundle({ workspaceId: "ws", sourcePrincipalId: "owner", artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
-    hashVersion: CONTENT_HASH_VERSION, entities: [entity], blobManifest: [] }, { repo: bundleRepo, clock, idGen });
+  const staged = await stageBundle({
+                                     input: { workspaceId: "ws", sourcePrincipalId: "owner", artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
+      hashVersion: CONTENT_HASH_VERSION, entities: [entity], blobManifest: [] },
+                                     deps: { repo: bundleRepo, clock, idGen }
+                                   });
   let allowValues = true;
   const authorize = async ({ permission }: { permission: string }) => ({ allowed: permission !== "publish.backstop" || allowValues, reason: "fixture permission" });
   const deps = { workspaceId: "ws", contentKernel: kernel, clock, idGen, authorize,

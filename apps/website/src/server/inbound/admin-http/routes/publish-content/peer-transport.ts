@@ -351,10 +351,13 @@ function registerPullRoute({ app, deps, base, guard }: PeerRouteContext): void {
       const principalId = await guard({ req, res });
       if (principalId === null) return;
 
-      res.status(201).json(await pullAndStageFromPeer(deps, {
-        peerId: readRouteParam({ req, name: "peerId" }),
-        principalId,
-      }));
+      res.status(201).json(await pullAndStageFromPeer({
+                                                        deps,
+                                                        input: {
+          peerId: readRouteParam({ req, name: "peerId" }),
+          principalId,
+        }
+                                                      }));
     } catch (err) {
       respondWithError({ res, err });
     }

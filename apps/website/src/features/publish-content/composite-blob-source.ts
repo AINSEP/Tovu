@@ -88,7 +88,7 @@ async function readAndVerify({ entry, sha256 }: { entry: { absPath: string; size
 export function createCompositePeerBlobSource(deps: {
   readonly blobStore: CompositeBlobStoreRead;
   readonly fileBlobIndex: FileBlobIndexPort;
-}): PeerBlobSource {
+}, _optional = {}): PeerBlobSource {
   return {
     async exists({ sha256, storageKey }) {
       if (await deps.blobStore.exists({ storageKey })) return true;
