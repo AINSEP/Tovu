@@ -1,6 +1,6 @@
 # Admin UI extraction: plan index (2026-11-17, planning only, nothing executed)
 
-Second judge pass 2026-11-17 (`admin-judge2-REPORT.md`): J1 READY-WITH-NOTE, J2 READY-WITH-NOTE, T1b BLOCKED (AU-D15); owner decisions of 2026-11-17: AU-D1, D2, D3, D7, D8, D9, D10, D11, D13, D14 = Rec; D4, D6, D12 decide later.
+Second judge pass 2026-11-17 ([`admin-judge2-REPORT.md`](admin-judge2-REPORT.md)): J1 READY-WITH-NOTE, J2 READY-WITH-NOTE, T1b BLOCKED (AU-D15); owner decisions of 2026-11-17: AU-D1, D2, D3, D7, D8, D9, D10, D11, D13, D14 = Rec; D4, D6, D12 decide later.
 
 Status: **PARTIAL, revision 3** (2026-11-16 PT; Opus review answered in full, table at the end). **Base from
 revision 3: `integ/merge-final-2026-11-16`** (Tovu `232764af5`, Jini `65d73b0d5`; contains merge-a, merge-b and
