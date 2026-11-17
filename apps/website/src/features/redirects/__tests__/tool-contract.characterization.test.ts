@@ -23,7 +23,7 @@ import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/
 
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
-import { contributeRedirectsTools, redirectsDerivedRisk, type RedirectsToolDeps } from "../tool-registrations.js";
+import { contributeRedirectsTools, type RedirectsToolDeps } from "../tool-registrations.js";
 import { removeVia, restoreVia } from "./remove-redirect-double.js";
 
 const WORKSPACE_ID = "ws-redirects-contract";
@@ -138,9 +138,8 @@ test("(b) every descriptor equals the committed golden, metadata included", () =
   assert.deepEqual(Object.keys(GOLDEN), [...TOOL_IDS]);
 });
 
-test("(c) the derived-risk map is the seven authored entries", () => {
-  assert.deepEqual([...redirectsDerivedRisk.entries()], DERIVED_RISK.map(([id, risk]) => [id, risk]));
-  assert.equal(contributeRedirectsTools().risk, redirectsDerivedRisk);
+test("(c) the contributor's derived-risk map is the seven authored entries", () => {
+  assert.deepEqual([...contributeRedirectsTools().risk.entries()], DERIVED_RISK.map(([id, risk]) => [id, risk]));
 });
 
 for (const toolId of TOOL_IDS) {
