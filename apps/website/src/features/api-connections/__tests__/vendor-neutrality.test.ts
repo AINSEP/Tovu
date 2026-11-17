@@ -45,8 +45,10 @@ const SEAMS = [
 
 /**
  * Lines that may name the vocabulary, matched by exact text, so any NEW hit, even in this file, still
- * fails; an entry whose line is reworded makes the test fail until the entry is removed. Empty since
- * `federate-mcp.ts` stopped using "picker" for its plain-English tool list (its two entries were stale).
+ * fails; an entry whose line is reworded makes the test fail until the entry is removed. The list is
+ * empty now. It used to hold two `federate-mcp.ts` lines: that file predates the feature and used
+ * "picker" as the plain English word for a UI list of tools (not the provider's file picker); it no
+ * longer does, so both entries went stale and were removed.
  */
 const ALLOWED = new Set<string>();
 
