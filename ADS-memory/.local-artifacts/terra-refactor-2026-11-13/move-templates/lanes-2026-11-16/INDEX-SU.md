@@ -145,7 +145,9 @@ T-PO-03, T-PO-04; `server/runtime/composition/deps.ts` (S4b, U2b) -> K-05b, K-11
 `server/runtime/composition/memory-deps/slices/trash-adapters-taxonomy.ts` (S4b) -> K-05b; `features/seo/index.ts` (U2b)
 -> K-04b, T-PO-01, T-PO-03; `features/site-search/cms-document-source.ts` (U2b) -> T-PO-01, T-PO-04;
 `server/inbound/admin-http/routes/posts/template-preview-render.ts` (U2b) -> T-PO-03, T-TH-06;
-`server/runtime/composition/modules/site-assistant.ts` (U2b) -> T-PO-03. New row-level edges: **T-PO-01g never with S4**
+`server/runtime/composition/modules/site-assistant.ts` (U2b) -> T-PO-03. Re-running the command (su-refresh): 111 rows on S/U `c2be1ce9` + K/T `ed2a75243`; the pre-refresh S/U ref `0ae79ee2` against the
+same K/T `ed2a75243` gives 110 (K/T moved since the 109 count). The one added row, `jini packages/core/src/gated-mutations/ S5 K-05`,
+comes from S5b's new note that only READS core's `TokenStorePort` (`token.ts:14`): no constraint. New row-level edges: **T-PO-01g never with S4**
 (was not listed); **K-04b never with U2** (design queue). The other files the refresh added (`features/entries/unreadable-owner-entries-repair.ts`,
 `server/inbound/admin-http/routes/trash/deps.ts`, the trash / outbox tests, the members routes, `features/member-login/link-service.ts`,
 `features/publish-content/tovu-publish-ports.ts`) are in no K/T sidecar.
