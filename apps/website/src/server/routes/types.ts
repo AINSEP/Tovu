@@ -1719,6 +1719,8 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   sourceControlExportRootDir: string;
   /** Existing site/theme resolvers, bound for portable static packaging. */
   staticSiteContext: import("../../features/source-control/commit-site.js").StaticSiteContextFn;
+  /** `site-backup`'s packager, bound here so `source-control` never imports `site-backup`. Stateless. */
+  staticSitePackager: import("../../features/source-control/index.js").StaticSitePackagerPort;
   /**
    * The real export engine pre-bound to this exact `RouteDeps` object, so source-control
    * and static-publish callers provide only `{outputDir; clean?; basePath?}`. Their local

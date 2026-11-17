@@ -1,7 +1,7 @@
 import type { LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
 import { describeCredentialByLabel, resolveCustomCredentialByLabel, type CustomCredentialSetRepoPort } from "../custom-credentials/index.js";
 import { executeCommitSchema } from "./commit-schema.js";
-import { LANDING_FILE } from "../site-backup/static-download-landing.js";
+import type { StaticSitePackagerPort } from "./static-site-packager-port.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/source-control.js';
 import { normalizeRepositoryFolder, prefixRepositoryPath } from "@jini-ai/devops/source-control";
 import { type Clock } from "@jini-ai/core/primitives";
@@ -223,6 +223,8 @@ export const sourceControlDerivedRisk: DerivedRiskByToolId = new Map<string, Age
  */
 export interface SourceControlToolDeps {
   readonly staticSiteContext: StaticSiteContextFn;
+  /** Bound by composition to `site-backup`'s packager, so this feature never imports `site-backup`. */
+  readonly staticSitePackager: StaticSitePackagerPort;
   readonly loadPluginCredentialCards?: LoadPluginCredentialCards;
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;
@@ -300,7 +302,7 @@ function requireValidTarget({ command, validateTarget }: { command: ParsedCommit
  */
 function commitInput({ deps, command }: { deps: SourceControlToolDeps; command: ParsedCommitCommand }, _options = {}): CommitSiteInput {
   return { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir,
-    idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, staticSiteContext: deps.staticSiteContext,
+    idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, staticSiteContext: deps.staticSiteContext, packager: deps.staticSitePackager,
     owner: command.owner, repo: command.repo, folder: command.folder, commitMessage: command.commitMessage,
     ...(command.branch !== undefined ? { branch: command.branch } : {}) };
 }
@@ -456,7 +458,7 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
           totalBytes: preview.totalBytes,
           paths: preview.paths,
           folder: command.folder,
-          entryPath: prefixRepositoryPath({ folder: command.folder, path: LANDING_FILE }),
+          entryPath: prefixRepositoryPath({ folder: command.folder, path: deps.staticSitePackager.entryFile }),
           note: "Nothing was sent. Call again without dryRun to commit.",
         };
       }

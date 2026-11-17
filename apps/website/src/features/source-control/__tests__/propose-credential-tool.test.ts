@@ -84,6 +84,7 @@ function fixture(allowed = true, exchangeOptions: NonNullable<Parameters<typeof 
     siteAssistantSecretKeyring: keyring, clock: { nowMs: () => Date.parse('2026-10-01T00:00:00.000Z'), nowIso: () => '2026-10-01T00:00:00.000Z' }, idGen: { newId: () => 'credential-t10' },
     sourceControlExportRootDir: '/unused', exportSiteBound: async () => assert.fail('setup must not export'),
     staticSiteContext: async () => assert.fail('credential setup must not read export context'),
+    staticSitePackager: { get entryFile(): string { return assert.fail('credential setup must not package a site'); }, packageSite: () => assert.fail('credential setup must not package a site') },
     loadSourceControlProviders: githubFromSource,
     fetchFn: (async (url: string | URL | Request, init?: RequestInit) => {
       assert.equal(String(url), 'https://api.github.com/user');

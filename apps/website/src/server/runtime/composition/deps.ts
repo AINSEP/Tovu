@@ -43,6 +43,7 @@ import { resolveClientIp } from '#src/contracts/core/rate-limit/rate-limit';
 import { registerContentAnalytics } from './content-events.js';
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { createSiteShareBackend } from "#src/features/site-backup/share-backend";
+import { createStaticSitePackager } from "#src/features/site-backup/static-site-packager";
 import { composeSiteImportBackend } from "./site-import-backend.js";
 import { composeSiteSavedKeys } from "#src/server/runtime/composition/site-portability";
 import { startLocalSiteWhenRunning } from "#src/platform/site-dir/local-site-supervisor";
@@ -2705,6 +2706,7 @@ async function composeSiteRouteDeps(
     // `apps/website/src/server/runtime/composition/app.ts`'s matching field for the identical closure-ordering reasoning (`routeDeps`
     // spread LAST, so it always wins over anything a caller's `opts` might also carry).
     exportSiteBound: (opts) => exportSite({ ...opts, routeDeps }),
+    staticSitePackager: createStaticSitePackager(),
     staticSiteContext: async () => {
       const theme = resolveActiveTheme({ deps: routeDeps, activeThemeId: await routeDeps.resolveActiveThemeId() });
       return { name: routeDeps.siteDisplayName.read() ?? resolvedSiteBinding.name, slug: resolvedSiteBinding.name,

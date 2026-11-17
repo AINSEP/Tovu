@@ -42,6 +42,7 @@ import { resolveMenuDoc } from "@jini-ai/cms/navigation";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import { readBuiltInExternalMcpServerIds } from "#src/features/external-mcp/built-in-connections";
 import { bindWidgetRemoval } from "#src/features/trash/index";
+import { createStaticSitePackager } from "#src/features/site-backup/static-site-packager";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import { executeCommand } from "@jini-ai/cms/core";
 import express from "express";
@@ -899,6 +900,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // 2026-09-05 (fix-cycle) — plain static reference now; see `runExportSite`'s doc below for why
     // the lazy `require()` this used to carry is gone.
     exportSiteBound: (opts) => exportSite({ ...opts, routeDeps }),
+    staticSitePackager: createStaticSitePackager(),
     staticSiteContext: async () => {
       const theme = resolveActiveTheme({ deps: routeDeps, activeThemeId: await routeDeps.resolveActiveThemeId() });
       return { name: routeDeps.siteDisplayName.read() ?? siteBinding.name, slug: siteBinding.name,
