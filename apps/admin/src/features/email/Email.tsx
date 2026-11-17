@@ -188,11 +188,11 @@ function ActivityTab(props: PartProps & { label: string }) {
  * The Email screen. `tabId` is the `?tab=` query value and `part` the `?p=` one (the section shown
  * inside that tab); `useEmailHook` and `tabHooks` are the DI seams — a test mounts them over fakes.
  */
-export function Email(props: { tabId?: string | null; part?: string | null; useEmailHook?: () => EmailController; tabHooks?: Partial<EmailTabHooks> } = {}) {
+export function Email({ useAdminThemeBoundaryHook = useAdminThemeBoundary, ...props }: { tabId?: string | null; part?: string | null; useEmailHook?: () => EmailController; tabHooks?: Partial<EmailTabHooks>; useAdminThemeBoundaryHook?: typeof useAdminThemeBoundary } = {}) {
   const controller = (props.useEmailHook ?? useWiredEmail)();
   const hooks: EmailTabHooks = { ...WIRED_TAB_HOOKS, ...props.tabHooks };
   const { view, locale } = controller;
-  const themeBoundary = useAdminThemeBoundary({}, {});
+  const themeBoundary = useAdminThemeBoundaryHook({}, {});
   const activeId = resolveActiveTabId({ tabId: props.tabId, validIds: TAB_IDS, defaultId: "overview" });
   const tabs: TabBarTab[] = TAB_IDS.map((id) => ({
     id, label: t({ locale, key: TAB_LABELS[id] }), handle: `email-tab-${id}`, handleLabel: `Switch to the ${TAB_LABELS[id]} tab of Email`,
