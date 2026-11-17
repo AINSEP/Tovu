@@ -145,7 +145,7 @@ export function gatewayDeps({ deps, entityType }: { deps: PublishContentDeps; en
 }
 
 /** Unwraps a Jini-style `Result`, throwing its error for `errors` to map. */
-export function okOrThrow<T>(result: { ok: true; value: T } | { ok: false; error: Error }): T {
+export function okOrThrow<T>({ result }: { result: { ok: true; value: T } | { ok: false; error: Error } }, _optional = {}): T {
   if (!result.ok) throw result.error;
   return result.value;
 }
@@ -422,7 +422,7 @@ function buildRepoHandler<Row, Ports>({ codec, deps }: { codec: RepoCodec<Row, P
 }
 
 /** Builds a `PublishContentContributor` from a {@link RepoPublishTypeConfig}. */
-export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConfig<Row, Ports>): PublishContentContributor {
+export function createRepoPublishHandler<Row, Ports>(config: RepoPublishTypeConfig<Row, Ports>, _optional = {}): PublishContentContributor {
   const codec = createRepoCodec({ config });
   return {
     entityType: codec.entityType,

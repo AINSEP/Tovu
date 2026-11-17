@@ -298,10 +298,13 @@ async function handleImportRunStatus({ deps, req, res }: ImportRouteInput): Prom
     if ((await authorizedPrincipalId({ res, deps, permission: "publish_content.read" })) === null) return;
 
     const runId = req.params.runId;
-    const status = await getPublishContentRunStatus(deps.publishContentRunRepo, {
-      workspaceId: deps.workspaceId,
-      runId,
-    });
+    const status = await getPublishContentRunStatus({
+                                                      repo: deps.publishContentRunRepo,
+                                                      input: {
+        workspaceId: deps.workspaceId,
+        runId,
+      }
+                                                    });
     if (!status) {
       res.status(404).json({ error: "publish-content run was not found", code: "RUN_NOT_FOUND" });
       return;

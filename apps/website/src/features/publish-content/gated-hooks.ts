@@ -225,7 +225,7 @@ export interface PublishContentImportResult {
 }
 
 export function buildPublishContentImportHooks(
-  input: BuildPublishContentImportHooksInput
+  input: BuildPublishContentImportHooksInput, _optional = {}
 ): GatedMutationHooks<PublishContentReport, PublishContentImportResult> {
   return {
     domain: "publish_content.import",
@@ -277,13 +277,16 @@ async function planStagedImport({ input }: { input: BuildPublishContentImportHoo
   const hasBlob = async ({ sha256 }: { sha256: string }, _optional = {}): Promise<boolean> =>
     input.blobStore.exists({ storageKey: computeBlobStorageKey({ workspaceId: input.workspaceId, sha256 }) });
 
-  return planImport(bundle, {
-    publishContentDeps: input.publishContentDeps,
-    getBaseline,
-    hasBlob,
-    ...(input.getSeedHash === undefined ? {} : { getSeedHash: input.getSeedHash }),
-    ...(input.forcedEntityKeys === undefined ? {} : { forcedEntityKeys: input.forcedEntityKeys }),
-  });
+  return planImport({
+                      bundle,
+                      deps: {
+      publishContentDeps: input.publishContentDeps,
+      getBaseline,
+      hasBlob,
+      ...(input.getSeedHash === undefined ? {} : { getSeedHash: input.getSeedHash }),
+      ...(input.forcedEntityKeys === undefined ? {} : { forcedEntityKeys: input.forcedEntityKeys }),
+    }
+                    });
 }
 
 /** Restore-point step: snapshots the workspace and records the snapshot, attributed to the acting

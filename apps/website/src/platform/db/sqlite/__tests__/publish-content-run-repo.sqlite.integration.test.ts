@@ -74,16 +74,19 @@ test("SQLite run snapshots upsert durable per-item progress and remain workspace
       ]),
     });
 
-    const status = await getPublishContentRunStatus(repo, {
-      workspaceId: initial.workspaceId,
-      runId: initial.id,
-    });
+    const status = await getPublishContentRunStatus({
+                                                      repo,
+                                                      input: {
+        workspaceId: initial.workspaceId,
+        runId: initial.id,
+      }
+                                                    });
     assert.equal(status?.phase, "failed");
     assert.deepEqual(status?.changeSetIds, ["cs-1"]);
     assert.equal(status?.items[0]?.phase, "content_applied");
     assert.equal(status?.items[0]?.idempotencyKey, "publish-content:v1:exact");
     assert.equal(
-      await getPublishContentRunStatus(repo, { workspaceId: "another-workspace", runId: initial.id }),
+      await getPublishContentRunStatus({ repo, input: { workspaceId: "another-workspace", runId: initial.id } }),
       null,
       "a run id alone must not cross workspace boundaries"
     );

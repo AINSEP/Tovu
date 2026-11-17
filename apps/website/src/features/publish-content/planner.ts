@@ -345,7 +345,7 @@ async function attachReferencedBy(
  * number of distinct types `t` — dominated by whatever I/O `getBaseline`/`hasBlob`/`inspect`/
  * `precheck` themselves cost, not by this function's own control flow.
  */
-export async function planImport(bundle: PublishContentBundle, deps: PlanImportDeps): Promise<PublishContentReport> {
+export async function planImport({ bundle, deps }: { bundle: PublishContentBundle; deps: PlanImportDeps }, _optional = {}): Promise<PublishContentReport> {
   if (bundle.artifactFormatVersion !== PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION) {
     return {
       refused: true,

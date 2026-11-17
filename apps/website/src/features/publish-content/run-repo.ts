@@ -96,8 +96,11 @@ export interface PublishContentRunStatus {
 
 /** Read-side status lookup used by the HTTP status route and retry diagnostics. */
 export async function getPublishContentRunStatus(
-  repo: PublishContentRunRepoPort,
-  input: { workspaceId: string; runId: string }
+  { repo, input }: {
+    repo: PublishContentRunRepoPort;
+    input: { workspaceId: string; runId: string };
+  },
+  _optional = {}
 ): Promise<PublishContentRunStatus | null> {
   const record = await repo.findById({ workspaceId: input.workspaceId, id: input.runId });
   if (!record) return null;

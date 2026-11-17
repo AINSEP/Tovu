@@ -95,7 +95,7 @@ const NO_SURFACES: AssistantSurfaceDeps = {
 } as unknown as AssistantSurfaceDeps;
 
 function registrationFor(deps: PublishContentToolDeps, toolId: string): ToolRegistration {
-  const found = buildPublishContentRegistrations(deps, NO_SURFACES).find((r) => r.descriptor.id === toolId);
+  const found = buildPublishContentRegistrations({ routeDeps: deps, surfaces: NO_SURFACES }).find((r) => r.descriptor.id === toolId);
   assert.ok(found, `${toolId} was not built`);
   return found;
 }

@@ -56,18 +56,23 @@ for (const root of ["memory", "sqlite"] as const) {
       input: { ...bundle, workspaceId: deps.workspaceId, sourcePrincipalId: "peer-source" },
       deps: { repo: deps.publishContentBundleRepo, clock: deps.clock, idGen: deps.idGen },
     });
-    const report = await planImport(bundle, {
-      publishContentDeps: { workspaceId: deps.workspaceId, clock: deps.clock, idGen: deps.idGen,
-        ports: { post: { repo: deps.postRepo } } },
-      getBaseline: async () => null, hasBlob: async () => true,
+    const report = await planImport({
+      bundle,
+      deps: {
+        publishContentDeps: { workspaceId: deps.workspaceId, clock: deps.clock, idGen: deps.idGen,
+          ports: { post: { repo: deps.postRepo } } },
+        getBaseline: async () => null, hasBlob: async () => true,
+      },
     });
     assert.equal(report.rows[0]?.outcome, "created", report.rows[0]?.reason ?? report.refusalReason ?? "");
     const result = await deps.publishContentApplyPort.applyReport({ report, bundleId,
       principalId: await deps.ownerPrincipalId, restorePointId: "test-restore-point" });
     assert.equal(result.changeSetIds.length, 1);
     assert.equal((await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: entity.id }))?.title, state.title);
-    const status = await getPublishContentRunStatus(deps.publishContentRunRepo,
-      { workspaceId: deps.workspaceId, runId: result.runId });
+    const status = await getPublishContentRunStatus({
+      repo: deps.publishContentRunRepo,
+      input: { workspaceId: deps.workspaceId, runId: result.runId },
+    });
     assert.equal(status?.phase, "applied");
     assert.deepEqual(status?.changeSetIds, result.changeSetIds);
     assert.equal(status?.report?.rows[0]?.outcome, "created");

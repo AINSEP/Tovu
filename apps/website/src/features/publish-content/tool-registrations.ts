@@ -268,8 +268,11 @@ async function connectWithTrust(
  * @complexity O(t) for t catalog entries; handler I/O runs only when invoked.
  */
 export function buildPublishContentRegistrations(
-  routeDeps: PublishContentToolDeps,
-  surfaces: AssistantSurfaceDeps
+  { routeDeps, surfaces }: {
+    routeDeps: PublishContentToolDeps;
+    surfaces: AssistantSurfaceDeps;
+  },
+  _optional = {}
 ): ToolRegistration[] {
   const findCandidate = routeDeps.findPublishCandidate ?? (async () => null);
   const provisioning = routeDeps.publishTrustProvisioning ?? defaultProvisioning();
@@ -352,7 +355,7 @@ export function buildPublishContentRegistrations(
         const applied = await executePublishContentImport({ workspaceId: routeDeps.workspaceId, costClass: capabilities.restorePoint.costClass,
           gatewayExecute: () => gatewayExecute({ deps: routeDeps.gatedMutations.gatewayDeps, principalId: ctx.principal.id, principalKind: "agent", hooks, confirmationToken: token.confirmationToken }),
         });
-        const status = await getPublishContentRunStatus(routeDeps.publishContentRunRepo, { workspaceId: routeDeps.workspaceId, runId: applied.runId });
+        const status = await getPublishContentRunStatus({ repo: routeDeps.publishContentRunRepo, input: { workspaceId: routeDeps.workspaceId, runId: applied.runId } });
         if (!status?.report) throw new ToolInputError({ message: "The pull ran, but its report could not be loaded. Check import history before retrying." });
         // Use the persisted APPLY report, including any optimistic-concurrency downgrades.
         return { executed: true, counts: pullCounts(status.report), entities: status.report.rows.map(row => ({ entityKey: entityKey({ entityType: row.entityType, entityId: row.entityId }), title: pullTitle(row), outcome: row.outcome, reason: row.reason })) };
@@ -392,7 +395,7 @@ export function contributePublishContentTools<TDeps extends PublishContentToolDe
 } = {}): ToolContributor<TDeps, AssistantSurfaceDeps> {
   return { domain: "publish-content", risk: publishContentDerivedRisk, build: (deps, surfaces) => {
     const buildDeps = options.buildPublishContentDeps;
-    return buildPublishContentRegistrations(buildDeps ? { ...deps, makePublishContentDeps: () => buildDeps(deps) } : deps, surfaces);
+    return buildPublishContentRegistrations({ routeDeps: buildDeps ? { ...deps, makePublishContentDeps: () => buildDeps(deps) } : deps, surfaces });
   } };
 }
 

@@ -117,7 +117,7 @@ test("a plugin refusing item 2 of 3 says PLUGIN_HOOK_FAILED with the plugin id a
   // The wording's claim, observed: the item before the refusal landed; the refused one and every
   // item after it did not.
   assert.deepEqual((await postRepo.list({ workspaceId: "local" })).map(row => row.id), ["p-1"]);
-  const run = await getPublishContentRunStatus(runRepo, { workspaceId: "local", runId: "apply-run" });
+  const run = await getPublishContentRunStatus({ repo: runRepo, input: { workspaceId: "local", runId: "apply-run" } });
   assert.equal(run?.phase, "failed");
   assert.deepEqual(run?.items.map(item => [item.entityId, item.phase]), [["p-1", "completed"], ["p-2", "failed"], ["p-3", "pending"]]);
 });

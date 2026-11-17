@@ -101,7 +101,7 @@ export async function fixture(entities: PackedEntity[] = [packed("new")]) {
 }
 export async function tool(deps: PublishContentToolDeps, id: string, surfaces: any = { surfaceExchanges: { open: () => { throw new Error("unexpected dialog"); } } }) {
   const { buildPublishContentRegistrations } = await import("../tool-registrations.js");
-  const registration = buildPublishContentRegistrations(deps, surfaces).find(r => r.descriptor.id === id);
+  const registration = buildPublishContentRegistrations({ routeDeps: deps, surfaces }).find(r => r.descriptor.id === id);
   assert.notEqual(registration, undefined, `${id} must be registered`);
   return registration!;
 }

@@ -132,7 +132,7 @@ test("reviewed file reverts use the destination version in both command and dura
     const result = await h.applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp" });
     const expected = publishContentItemIdempotencyKey({ workspaceId: WORKSPACE_ID, sourcePrincipalId: SOURCE_PRINCIPAL_ID, entity }) + `:${reviewedVersion}`;
     assert.ok(keys.has(expected));
-    const status = await getPublishContentRunStatus(h.runRepo, { workspaceId: WORKSPACE_ID, runId: result.runId });
+    const status = await getPublishContentRunStatus({ repo: h.runRepo, input: { workspaceId: WORKSPACE_ID, runId: result.runId } });
     assert.equal(status?.items[0]?.idempotencyKey, expected);
     const baseline = await h.baselineRepo.findOne({ workspaceId: WORKSPACE_ID, peerPrincipalId: SOURCE_PRINCIPAL_ID, entityType: "media", entityId: "photo" });
     assert.equal(baseline?.hashAtLastSync, "sanitized-destination", "baseline describes the record actually written");
@@ -305,14 +305,17 @@ async function plan(
     hashVersion: CONTENT_HASH_VERSION,
     entities,
   };
-  return planImport(bundle, {
-    publishContentDeps,
-    getBaseline: async ({ entityType, entityId }) => {
-      const record = await baselineRepo.findOne({ workspaceId: WORKSPACE_ID, peerPrincipalId: sourcePrincipalId, entityType, entityId });
-      return record ? { hashAtLastSync: record.hashAtLastSync, hashVersion: record.hashVersion } : null;
-    },
-    hasBlob: async () => true,
-  });
+  return planImport({
+                      bundle,
+                      deps: {
+      publishContentDeps,
+      getBaseline: async ({ entityType, entityId }) => {
+        const record = await baselineRepo.findOne({ workspaceId: WORKSPACE_ID, peerPrincipalId: sourcePrincipalId, entityType, entityId });
+        return record ? { hashAtLastSync: record.hashAtLastSync, hashVersion: record.hashVersion } : null;
+      },
+      hasBlob: async () => true,
+    }
+                    });
 }
 
 // ---------------------------------------------------------------------------
@@ -419,12 +422,15 @@ async function planWithForce(
     hashVersion: CONTENT_HASH_VERSION,
     entities,
   };
-  return planImport(bundle, {
-    publishContentDeps,
-    getBaseline: async () => null,
-    hasBlob: async () => true,
-    forcedEntityKeys,
-  });
+  return planImport({
+                      bundle,
+                      deps: {
+      publishContentDeps,
+      getBaseline: async () => null,
+      hasBlob: async () => true,
+      forcedEntityKeys,
+    }
+                    });
 }
 
 test("address-clash overwrite: the live holder is retired to Trash and the incoming row is created under its own id, with the create's changeSetId and the retire's tracked separately", async () => {
@@ -447,7 +453,7 @@ test("address-clash overwrite: the live holder is retired to Trash and the incom
 
   assert.equal(result.changeSetIds.length, 1, "the create is the only id this port's own changeSetIds surfaces — the retire's stays separate (this file's own doc)");
 
-  const status = await getPublishContentRunStatus(runRepo, { workspaceId: WORKSPACE_ID, runId: "run-1" });
+  const status = await getPublishContentRunStatus({ repo: runRepo, input: { workspaceId: WORKSPACE_ID, runId: "run-1" } });
   assert.equal(status?.retiredChangeSetIds.length, 1, "the retire must produce its own change set");
   assert.notEqual(status?.retiredChangeSetIds[0], result.changeSetIds[0], "the retire and the create are two distinct change sets, never the same id twice");
 
@@ -488,7 +494,7 @@ test("the live holder changing between plan and apply downgrades the retire-forc
   assert.equal(persistedReport.rows[0].outcome, "conflict");
   assert.match(persistedReport.rows[0].reason ?? "", /changed after this run's plan was built/);
 
-  const status = await getPublishContentRunStatus(runRepo, { workspaceId: WORKSPACE_ID, runId: "run-1" });
+  const status = await getPublishContentRunStatus({ repo: runRepo, input: { workspaceId: WORKSPACE_ID, runId: "run-1" } });
   assert.deepEqual(status?.retiredChangeSetIds, [], "a stale retire target must never actually be retired");
 
   const stillHolder = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-about" });
@@ -666,7 +672,7 @@ test("a baseline failure AFTER the create landed must not undo the retire — th
     true,
     "undo() after a landed create would put the holder back at an address the new row now holds"
   );
-  const status = await getPublishContentRunStatus(runRepo, { workspaceId: WORKSPACE_ID, runId: "run-1" });
+  const status = await getPublishContentRunStatus({ repo: runRepo, input: { workspaceId: WORKSPACE_ID, runId: "run-1" } });
   assert.equal(status?.items[0]?.phase, "content_applied");
   assert.equal(status?.items[0]?.changeSetId, "cs-create-1");
   assert.deepEqual(status?.retiredChangeSetIds, ["cs-retire-1"], "the landed retire's change set must survive the later failure too");
@@ -706,7 +712,7 @@ test("a row without `retires` behaves exactly as before S5 — the generic creat
   const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
 
   assert.equal(result.changeSetIds.length, 1);
-  const status = await getPublishContentRunStatus(runRepo, { workspaceId: WORKSPACE_ID, runId: "run-1" });
+  const status = await getPublishContentRunStatus({ repo: runRepo, input: { workspaceId: WORKSPACE_ID, runId: "run-1" } });
   assert.deepEqual(status?.retiredChangeSetIds, [], "a row with no retires must never produce a retiredChangeSetId");
 
   const created = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-plain" });
@@ -911,7 +917,7 @@ test("a baseline failure after the content command durably records the landed it
     "Content lands first",
     "precondition: the domain write really landed before the simulated accounting failure"
   );
-  const status = await getPublishContentRunStatus(runRepo, { workspaceId: WORKSPACE_ID, runId: "run-1" });
+  const status = await getPublishContentRunStatus({ repo: runRepo, input: { workspaceId: WORKSPACE_ID, runId: "run-1" } });
   assert.equal(status?.phase, "failed");
   assert.equal(status?.items.length, 1);
   assert.equal(status?.items[0]?.phase, "content_applied");
@@ -1328,7 +1334,7 @@ async function planWithSeed(
   entities: readonly PackedEntity[]
 ): Promise<PublishContentReport> {
   const bundle: PublishContentBundle = { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities };
-  return planImport(bundle, { publishContentDeps, getBaseline: async () => null, hasBlob: async () => true, getSeedHash });
+  return planImport({ bundle, deps: { publishContentDeps, getBaseline: async () => null, hasBlob: async () => true, getSeedHash } });
 }
 
 test("D1: a row still matching the seed with NO baseline plans 'applied' AND is actually written at apply time", async () => {
