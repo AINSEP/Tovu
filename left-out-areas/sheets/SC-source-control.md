@@ -1,89 +1,122 @@
-# SC: source control (contract + GitHub provider plugin)
+# SC: source control (contract + GitHub provider plugin) — revision 2
 
-Measured on Tovu `integ/merge-b-2026-11-16` dd70b057, Jini `integ/merge-b-2026-11-16` 674a19ea.
-Inventory: `../inventory/source-control.tsv` (+ `.decls.tsv`). Guards: `SC-*.files.tsv`, `JINI.blobs.txt`. Importer sites: `SC-*.importers.tsv`.
-Assemble a run: `cat <move-templates>/T-<KIND>.md SC-source-control.md(the one sheet section) <move-templates>/COMMON.md`.
+Verified on Tovu `integ/merge-a-2026-11-16` e801e9ae (cross-checked with `integ/merge-b` 450ac748: the only difference in this folder is that merge-a deleted `repository-target.ts` and repointed `commit-site.ts` to Jini `repositoryTargetError`) and Jini `integ/merge-final-2026-11-16` af33fcdb.
+Inventory `../inventory/source-control.tsv` (+ `.decls.tsv`). Guards `SC-*.files.tsv`, `JINI.blobs.txt`. Importer sites `SC-*.importers.tsv`. Run contract: `../COMMON-LO.md`.
 
 ## What exists today (verified)
-- Website `features/source-control`: 15 files, 2,774 lines; 19 test files, 4,786 lines. Admin `features/source-control`: 10 files, 1,729 lines (labels exist in CLASSIFY-files; not sheeted here, needs a Chrome check).
-- **The contract already exists in Jini**: `packages/devops/src/source-control/contracts.ts` (108 lines): provider operations (`commitSite`, `readAccountLabel`, `planFileWrite`, `commitFiles`, `inspectBackupRepository`, `uploadBackupBlob`, `commitBackupTree`), host facts, provider kit, registry, catalog port, commit orchestration ports.
-- **GitHub is already a plugin in Jini**: `packages/agent-plugins/github/` with `tovu-source-control.json` (descriptor, 117 lines) and `source-control/{github,commit-site,write-files,backup-push}.mjs` (1,262 lines). No GitHub API origin string is left in `apps/website/src/features/source-control` production code (`rg -n "api.github.com" apps/website/src/features/source-control -g '!__tests__'` prints nothing on merge-b).
-- **Tovu still carries legacy twins** of code Jini owns: `commit-site.ts` 541 vs Jini `commit.ts` 92; `provider-module.ts` 228 (types) vs Jini `contracts.ts`; `provider-registry.ts` 318 vs Jini `registry.ts` 203. `provider-kit.ts` (50) already delegates to Jini `createSourceControlProviderKit`.
-- No other plan claims any file of this folder (checked: lanes K/T/S/U, xpkg, publish-engine, env-schema, lost-updates). Other features import it: `site-backup`, `custom-credentials`, `vendor-credentials`, `cli/commands`, `server/routes`, `server/runtime/composition`, `assistant`.
+- Website `features/source-control`: 14 files, 2,760 lines; 19 test files, 4,786. Admin `features/source-control`: 12 files, 1,825 (not sheeted; needs a Chrome check).
+- Jini `packages/devops/src/source-control/`: `contracts.ts` 108, `commit.ts` 92, `registry.ts` 203, `kit.ts` 27, `repository-path.ts`, `repository-target.ts`, `entry.ts`. Blobs unchanged from round 1 (`JINI.blobs.txt`).
+- GitHub is a plugin in Jini: `packages/agent-plugins/github/` (`tovu-source-control.json` + four `.mjs`, 1,262 lines). It imports no `@jini-ai/*` in production code (`rg -n "from ['\"]@jini-ai" packages/agent-plugins/github -g '!**/__tests__/**'` prints nothing; one test imports `@jini-ai/devops/source-control`).
+- Tovu already consumes Jini pieces: `provider-kit.ts` wraps Jini `createSourceControlProviderKit`; `provider-registry.ts` uses Jini `registry.ts` generics (`import * as sourceControl`); `commit-site.ts` imports `normalizeRepositoryFolder`, `prefixRepositoryPath`, `repositoryTargetError`.
+
+## Two ABIs exist, and the shipped plugin speaks the Tovu one (judge finding 4: ACCEPTED)
+Jini `contracts.ts:33-41` ("New module ABI") and Tovu `provider-module.ts:160-175` are NOT the same contract, and the GitHub plugin implements the Tovu one. No module implements the Jini object ABI today. Complete member matrix:
+| Member | Tovu `provider-module.ts` = what `github/source-control/*.mjs` implements | Jini `contracts.ts` | Disposition |
+|---|---|---|---|
+| runtime value `sourceControlSavedApiKeyLabels` (:22) | `Map([["github","github"]])`; readers: `server/runtime/composition/source-control-key-binding.ts:2,18,23`, `tool-registrations.ts:38,132,159`, `cli/commands/owner-store-mapping.ts:3,11` | absent | STAYS in Tovu (which saved custom API key may stand in for which provider is host policy). SC-3a moves it to its own file so `provider-module.ts` is types only |
+| `commitSite` | `(input: CommitSiteInput)`; `branch` inside `input` | `(required, optional?: { branch })` | differs: the SC-2b binding adapts (does not spread `branch` into the first object) |
+| `readAccountLabel` | `(token: string)` positional (`github.mjs:70`) | `(required: { token })` | differs: plugin ABI of record is positional |
+| `commitFiles` | `(input, plan)` two positional arguments | one object with `plan` inside | differs |
+| `inspectBackupRepository` | `(input)` with `branch?` inside | `(required, optional?: { branch })` | differs |
+| `uploadBackupBlob` | `(target, file)` two positional arguments | `(required: { target, file })` | differs |
+| `commitBackupTree` input | `entries: readonly (UploadedBackupBlob \| InlineBackupText)[]` (`backup-push.mjs:200-205`) | `blobs: readonly UploadedBackupBlob[]` | differs in NAME and in CONTENT: Jini has no inline text entry |
+| `backupInlineTextMaxBytes` | optional number (`github.mjs:87`) | absent | Tovu-only; backup inline behaviour must be kept |
+| kit `fetch` | `(url, init)` | `(required: { url, init })` | differs |
+| kit `redirectGuardInit` / `assertNotRedirected` / `isRedirectRefusal` / `describeTransportError` | positional | one object each | differs (Tovu `provider-kit.ts:39-47` adapts positional -> object today) |
+| kit `sleep` | present (`write-files.mjs:161` reads `kit.sleep ?? timer`) | absent | Tovu-only |
+| kit `httpClient` | Tovu `HttpClientPort` (`send(request)`) | core `HttpClientPort` (`send({ request })`) | differs in argument shape (`provider-kit.ts:36` adapts) |
+| `CommitFile.data` | `string \| Buffer` | `string \| Buffer` | same; names a Node type, so the type cannot live in `@jini-ai/core` |
+| `SourceControlHostFacts`, `WriteFile`, `FileWritePlan`, `FileWriteState`, result unions, `BackupRepositoryState`, `UploadedBackupBlob`, `RepositoryTarget`, `DescribedTransportError` | same members | same members | identical shape: DEDUPE is safe for these only |
+| `RepositoryTargetValidator` | `(target) => string \| null` | `(required) => string \| null` | same call shape (one object) |
+Consequences: (1) the round-1 "types READY, differing members = STOP" classification is withdrawn; (2) the contract of record for a provider PLUGIN is the positional ABI installed plugins already implement (plugins are plain `.mjs`: a structural type check cannot catch a mismatch, lesson 12); (3) provider ABI and orchestration ports are separate contracts: the orchestration ports (`CommitOrchestrationArgs`, `CredentialResolverPort`, `FileSourcePort`, `CommitLayoutPort`) stay where they are in `devops`; (4) Jini's unimplemented object ABI is owner decision D-SC3 (retire, or schedule a plugin ABI v2 with an adapter); no sheet here depends on it.
 
 ## Target shape
 | Layer | Home | Content |
 |---|---|---|
-| Contract (types only) | `@jini-ai/core/contracts/source-control` (NEW, owner decision D-SC1) | provider operations ABI, host facts, result unions, `SourceControlProviderModule`, kit shape. No Node, no library types. |
-| Mechanism | `@jini-ai/devops/source-control` (exists) | registry loader, commit orchestration, repository path/target rules. Imports core only. |
-| Provider plugin | `packages/agent-plugins/github` (exists) | every GitHub endpoint, header and limit. One default provider: `github`. |
-| Host (Tovu) | `features/source-control` | credential store over the Tovu vault, tool wording and registration, static-download file layout, descriptor file name, trusted-plugin gate binding, error wording. |
+| Plugin ABI v1 (types) | `@jini-ai/devops/source-control/plugin-abi` (NEW `node` subpath; SC-3b). Not `@jini-ai/core`: `CommitFile.data` is `string \| Buffer`, and no plugin imports the types (plugins import nothing). D-SC1 is therefore NOT a prerequisite; a later move to core is a repoint | the positional operations, kit, module, backup entry types, exactly as shipped |
+| Mechanism | `@jini-ai/devops/source-control` (exists) | registry generics, commit orchestration, repository path / target rules |
+| Provider plugin | `packages/agent-plugins/github` (exists) | every GitHub endpoint, header and limit |
+| Host (Tovu) | `features/source-control` | credential store over the Tovu vault, saved-key bindings, tool wording and registration, static-download layout, descriptor file name (D-SC2), trusted-plugin gate binding, kit binding (which transport is guarded), error wording |
 
-## Credential and outbound-call trace (security; class and location only)
-| Step | Where | Gate that must survive |
-|---|---|---|
-| Token entered | admin form -> `routes/system/source-control-credentials.ts` -> `store.ts:createSourceControlCredential` (375-395) | `assertCredentialFreeField`, `normalizeCredentialToken`, sealed by `SecretSealerPort`; label uniqueness per site |
-| Token read for a commit | `commit-site.ts:resolveCommitCredential` (315-359) -> `store.ts:resolveDefaultForSourceControl` (544-559); fallback `resolveSavedApiKey` | provider-id match check before use; storage errors collapse to one fixed sentence |
-| Outbound call | plugin `.mjs` -> kit `fetch` -> Tovu `platform/http` `HttpClientPort` (`provider-kit.ts`) | egress guard (`EgressRefusedError`), redirect refusal (`assertNotRedirected`), `trackFetch` telemetry; plugin code never gets a raw `fetch` |
-| Plugin code load | `provider-registry.ts:loadBundledSourceControlProviderRegistry` (120-152) | trusted-plugin gate: active + recorded digest + path inside plugin root + `.mjs` |
-| Provider failure text returned to the model | `commit-site.ts:commitOutcome` (511-541) | message redacted with the exact token; unknown failure code falls back to `PROVIDER_ERROR` |
-| Thrown provider error | `commit-site.ts:commitSiteToSourceControl` (466-506) | fixed sentence to the caller; detail only to the log through `describeErrorForLog` |
+## Credential and outbound-call trace (judge finding 5: ACCEPTED; class and location only)
+Two transports and two loaders exist; round 1 merged them. Each row names the gate that really applies.
+| Path | Where | Gate that applies today | Gate that does NOT apply |
+|---|---|---|---|
+| Credential CRUD over HTTP | `server/inbound/admin-http/routes/system/source-control-credentials.ts:106-112` (`rejectUnlessAuthorized`) | foreign-workspace refusal (`rejectForeignWorkspace`), authenticated principal, direct authorization for the credentials-write permission; then `store.ts` field checks (`assertCredentialFreeField`, `normalizeCredentialToken`), sealing through `SecretSealerPort`, label uniqueness | - |
+| Token read for a commit | `commit-site.ts` `resolveCommitCredential` (:321) -> `store.ts` default lookup; fallback `resolveSavedApiKey` only for providers in `sourceControlSavedApiKeyLabels` | provider-id match before use; storage errors collapse to one fixed sentence | - |
+| Outbound A: site commit | `github/source-control/commit-site.mjs:88-89` -> `kit.fetch` | NATIVE `fetch` (`provider-kit.ts:33`, `options.fetchFn ?? fetch`) wrapped in `trackFetch` (host/status span). Redirects: the kit is built with `fetchRedirectPolicy: "caller"` (`provider-kit.ts:42`), so the PLUGIN applies `kit.redirectGuardInit` + `kit.assertNotRedirected` itself | the egress guard of `HttpClientPort` does not see this call |
+| Outbound B: account-label probe | `github/source-control/github.mjs:70-75` -> `kit.fetch` with the bearer token | native `fetch`, 1 timeout signal, failure = `null` | no egress guard; no `redirectGuardInit` at this call site (class: credentialed request that follows redirects). Recorded as hardening item SC-H1; not changed by a move sheet |
+| Outbound C: custom file writes, backup inspect / upload / tree | `github/source-control/write-files.mjs:186` -> `kit.httpClient.send` (`backup-push.mjs` goes through the same request helper: confirm with `rg -n "postJson\|httpClient" packages/agent-plugins/github/source-control/backup-push.mjs`) | guarded `HttpClientPort` (egress refusal -> `EgressRefusedError.callerSafeMessage` via `describeTransportError`) | - |
+| Missing guarded client | `provider-kit.ts:16-18` `NO_HTTP_CLIENT` | every `httpClient.send` rejects with a transport error (the admin credential form path builds the kit without one and only probes the account name) | - |
+| Plugin load, INSTALLED | `provider-registry.ts:90-100` `loadSourceControlProviderRegistry` -> `loadContributions` of the plugin lifecycle (composition `deps.ts:2800,2815`) | trusted-plugin gate: active + recorded digest + path inside the plugin root; a switched-off plugin's JSON is read as data, no module imported | - |
+| Plugin load, BUNDLED | `provider-registry.ts:120-152` `loadBundledSourceControlProviderRegistry` -> `loadSourceControlProviderRegistryFromSource` (`:109-112`); callers `server/runtime/composition/app.ts:851`, `cli/commands/owner-store-mapping.ts:13` | location only: the root is the product payload (`bundledAgentPluginsDir()`), "never an operator-writable installation directory" (`:116`); duplicate ids refused; a bad package refuses only itself | NO install, activation or digest check (`:103-105` says so) |
+| Provider failure text returned to the model | `commit-site.ts` `commitOutcome` (:517) | message redacted with the exact token; unknown failure code -> `PROVIDER_ERROR` | - |
+| Thrown provider error | `commit-site.ts` `commitSiteToSourceControl` (:472) | fixed sentence to the caller; detail only to the log | - |
 
-## SC-1 (Jini, behaviour change, failing tests FIRST): close four gaps in `commitSiteToSourceControl`
-kind HARDEN. Files: `packages/devops/src/source-control/{commit.ts,contracts.ts}` + tests. Prerequisite: none. Opus review of the diff before it merges (security).
-Verified gaps (Tovu behaviour that Jini's twin does not have; each is a regression if Tovu adopts Jini as is):
+## Sheets
+### SC-0 (TESTS, Tovu): gate tests on the real gates and production bindings
+tests: new `features/source-control/__tests__/gates.characterization.unit.test.ts`, `server/inbound/admin-http/routes/system/__tests__/source-control-credentials.gates.test.ts` (extend the existing route test file if one exists: `ls apps/website/src/server/inbound/admin-http/routes/system/__tests__ | rg source-control`). precondition: none.
+Each test fails when its gate is removed (mutation named in a comment, V3):
+1. Installed loader: an inactive plugin contributes no provider and appears in `switchedOff`; a digest mismatch, a module path escaping the plugin root, and a non-`.mjs` module each drop only that provider (fake `loadContributions` built from the real `providerContribution` definition; one clause per test).
+2. Bundled loader: with a fake `sources` that returns a package, the loader imports it with NO activation or digest input (assert the fake `load` receives the package unchanged); a throwing `sources` yields zero providers and the fixed refusal text; duplicate provider ids are refused. This pins that the bundled path's only gate is its root: a comment in the test says so.
+3. Kit transports: build the production kit with a recording `fetchFn` and a recording `httpClient`; `kit.fetch(url, init)` reaches `fetchFn` only, with `init` UNCHANGED (caller redirect policy); `kit.httpClient.send` reaches the client only; without `httpClient`, `send` rejects with a transport error. Mutation: change `"caller"` to `"guard"` -> the unchanged-`init` assertion is RED.
+4. `describeTransportError`: an `EgressRefusedError` yields its caller-safe message as `refusal`; any other error yields `refusal: undefined` and never the error text in `refusal`.
+5. Route: a request for another workspace is refused before `authorize` is asked (recording fake: zero calls); a principal without the credentials-write permission is refused and the store fake records zero calls; both for every verb the route registers (enumerate them from the router, do not hard-code).
+6. Saved-key fallback: used only for a provider id present in `sourceControlSavedApiKeyLabels`; never when the store throws.
+STOP: a test needs the real network (S-NET); a gate cannot be reached without `mock.module` (report the missing seam, do not add one). Estimate: 120k.
+
+### SC-1 (HARDEN, Jini): close five gaps in `commitSiteToSourceControl`
+Files: `packages/devops/src/source-control/{commit.ts,contracts.ts}` + tests. precondition: `test "$(git hash-object packages/devops/src/source-control/commit.ts)" = 3fcf3201b62d4a2beee565b859dcabc4e915dfcb && echo ok`. Opus review of the diff before the wave is released (security). THIRD_PARTY_ALLOWED: none.
 | # | Tovu (`commit-site.ts`) | Jini (`commit.ts`) | Change |
 |---|---|---|---|
-| G1 | provider failure message passes `redactSecrets(..., { exactSecrets: [token] })` | `commitExportedFiles` returns `result.message` unchanged | redact with the resolved token (import `redactSecrets` from `@jini-ai/core`); also redact the caught-error text |
-| G2 | `Object.hasOwn(codeMap, result.code) ? ... : "PROVIDER_ERROR"` | direct index: an unknown code from a plain-JS module yields `code: undefined` | own-property check + fallback |
-| G3 | three stages have three texts: export throw -> `export failed before committing could start: <message>`; credential store throw -> one fixed sentence; provider throw -> one fixed sentence + log | one `describeError({ error })` for all three | add `stage: 'export' \| 'arrange' \| 'credential' \| 'commit'` to the `describeError` argument (additive; old hosts ignore it) |
-| G4 | commit files come from the static-download layout (readme, landing file, metadata, redirects) after `claimArchivePaths` | files are `report.routes.succeeded + report.assets.succeeded` only | add optional `CommitLayoutPort.arrangeFiles(required: { report }): readonly CommitFile[]`; absent = today's mapping; a throw maps to `EXPORT_FAILED` with `describeError({ stage: 'arrange' })` as the whole message |
-| G5 | missing credential text ends with a host sentence (admin screen pointer) | generic sentence | add optional `describeMissingCredential(required: { providerId }): string` |
-Tests (vitest, fakes of the ports; each must be RED on the parent):
-1. G1: fake adapter returns `{ ok:false, code:'provider-error', message:'x <TOKEN> y' }`; assert the outcome message does not contain the token and still contains `x` and `y`. Mutation: delete the redact call -> RED.
-2. G1b: fake adapter throws an Error whose message holds the token, host `describeError` echoes it; assert no token in the outcome.
-3. G2: adapter returns `code: 'made-up'`; assert `code === 'PROVIDER_ERROR'`. Also `code: 'constructor'` and `'__proto__'` (prototype keys).
-4. G3: `describeError` fake records stages; assert `['export']`, `['credential']`, `['commit']` for the three failure injections, in that order of calls, exactly once each.
-5. G4: with `arrangeFiles`, assert the adapter receives exactly the arranged files (paths and bytes) and that `prefixRepositoryPath` still rejects an escaping path from the arranged list (deny test first); without it, assert today's list.
-6. G4 order: `cleanup` runs once after arrange, also when arrange throws (recording fake; assert order `export, arrange, cleanup`).
-7. G5: both branches (with and without the port).
-STOP: `git hash-object packages/devops/src/source-control/commit.ts` is not `3fcf3201b62d4a2beee565b859dcabc4e915dfcb` -> re-diff the table first. STOP if any changed function exceeds 50 lines / complexity 10 (`node_modules/.bin/eslint -f json packages/devops/src/source-control/commit.ts`): extract a helper, never exempt. Changeset `patch` (G1, G2) + `minor` (new optional ports) in one file.
-Estimate: 110k tokens.
+| G1 | provider failure message passes `redactSecrets(..., { exactSecrets: [token] })` | returns `result.message` unchanged | redact with the resolved token (`redactSecrets` from `@jini-ai/core`); also the caught-error text |
+| G2 | `Object.hasOwn(codeMap, result.code) ? ... : "PROVIDER_ERROR"` | direct index | own-property check + fallback |
+| G3 | three stages, three texts | one `describeError({ error })` | add optional `stage: 'export' \| 'arrange' \| 'credential' \| 'commit'` to the argument (additive) |
+| G4 | commit files come from the static-download layout after `claimArchivePaths` | `report.routes.succeeded + report.assets.succeeded` only | optional `CommitLayoutPort.arrangeFiles(required: { report }): readonly CommitFile[]`; absent = today's mapping; a throw -> `EXPORT_FAILED` with `describeError({ stage: 'arrange' })` |
+| G5 | missing-credential text ends with a host sentence | generic sentence | optional `describeMissingCredential(required: { providerId }): string` |
+Tests (vitest, fakes of the ports), each RED on the parent by V4, in the same commit as its fix; one commit per gap (G1+G1b, G2, G3, G4+order, G5), each green alone:
+1. G1: adapter returns `{ ok:false, code:'provider-error', message:'x <TOKEN> y' }`; the outcome message has no token and still has `x` and `y`. G1b: adapter throws an Error holding the token, `describeError` echoes it; no token in the outcome.
+2. G2: `code: 'made-up'`, `'constructor'`, `'__proto__'` each give `PROVIDER_ERROR`.
+3. G3: recording `describeError`; stages `['export']`, `['credential']`, `['commit']` for the three injections, exactly once each.
+4. G4: with `arrangeFiles` the adapter receives exactly the arranged files; `prefixRepositoryPath` still refuses an escaping arranged path (deny test first); without it, today's list; `cleanup` runs once after arrange, also when arrange throws (order `export, arrange, cleanup`).
+5. G5: both branches.
+Changesets: one per commit (`patch` G1, G2; `minor` G3-G5). STOP: a changed function over 50 lines / complexity 10 (S-SIZE): extract a helper, never exempt. Estimate: 110k.
 
-## SC-2 (Tovu): adopt Jini commit orchestration, delete the twin `commit-site.ts`
-kind DEDUPE (DELETE-AFTER-PARITY). Prerequisite: SC-1 published and installed (`rg -n "arrangeFiles" node_modules/@jini-ai/devops/dist/source-control/contracts.d.ts` prints a line; else SKIPPED).
-Commit T0 (tests only, on unmoved code; `features/source-control/__tests__/commit-site.characterization.unit.test.ts`): pin, through `commitSiteToSourceControl` and `previewCommitExport` with fakes of every dep:
-- the seven refusal messages byte for byte (invalid target, folder unsupported, credential storage failure, no credential, wrong provider, export throw, export failures summary, packaging collision, packaging generic, provider throw);
-- the success object including `folder` and `entryPath` (landing file under the folder);
-- G1/G2 behaviour (token never in the message; unknown code);
-- call order: validate -> credential -> export -> adapter; adapter is NOT called when export fails; export is NOT called when the credential is missing;
-- `resolveSavedApiKey` fallback is used only when the default credential is absent, and is not called when the store throws;
-- the run directory is removed on success and on throw (temp dir, assert it is gone).
-Each test names its one-line mutation in a comment (the cloud run applies it, expects RED, reverts).
-Commit T1: `commit-site.ts` becomes a binding of at most 150 lines: builds `CommitOrchestrationArgs` (`files` = closure over `staticSiteContext` + `exportSiteBound`; `layout.arrangeFiles` = `prepareStaticReport` + `staticDownloadLayout` + `claimArchivePaths`; `credentials.resolve` = default credential then saved-key fallback; `describeError` by stage; `describeMissingCredential`), calls the Jini function, adds `folder` + `entryPath` to a success. Port compatibility is checked member by member, not by `implements`: `commitSite(required, optional)` takes `branch` in the SECOND argument in Jini but Tovu's `gitAdapter.commit` takes it in the first (`commit-site.ts` 486-494): the binding must not spread `branch` into the first object. T0 must stay green unchanged; a T0 test that needs editing = STOP.
-Importers to keep working: `server/routes` (1 prod), 3 test files (`SC-2.importers.tsv`). Keep `validateCommitTarget`, `toCommitFile`, `commitExportDir`, `previewCommitExport`, `commitSiteToSourceControl` export names (14 export statements today; list them with `rg -n "^export" apps/website/src/features/source-control/commit-site.ts` and account for every one in the report: kept | now imported from Jini by each caller | deleted with zero importers).
-STOP: `process.env` appears in the binding; a `vi.mock` of `@jini-ai/devops` internals is needed; the file `commit-site.ts` differs from blob in `SC-2.files.tsv` (merge-a changed this file: regenerate sidecars on the merged tree first).
-Estimate: 170k tokens.
+### SC-2a (TESTS, Tovu): characterize `commit-site.ts` before it becomes a binding
+tests: new `features/source-control/__tests__/commit-site.characterization.unit.test.ts`. precondition: none (does not need SC-1).
+Through `commitSiteToSourceControl` (:472) and `previewCommitExport` (:435) with fakes of every dep, GREEN on the parent, each with a one-line V3 mutation:
+- every refusal message byte for byte (invalid target, folder unsupported, credential storage failure, no credential, wrong provider, export throw, export failures summary, packaging collision, packaging generic, provider throw);
+- the success object including `folder` and `entryPath`;
+- token never in a returned message; unknown provider code -> `PROVIDER_ERROR`;
+- call order validate -> credential -> export -> adapter; adapter NOT called when export fails; export NOT called when the credential is missing;
+- `resolveSavedApiKey` used only when the default credential is absent, and not when the store throws;
+- the run directory is gone after success and after a throw (temp dir).
+Estimate: 110k.
 
-## SC-3 (both repos): provider types and registry
-kind DEDUPE + MOVE. Files: `SC-3.files.tsv` (5 files, 724 lines). Prerequisite: D-SC1 decided; SC-2 landed (it removes the last local user of `SourceControlCommitResult`).
-- `provider-module.ts` (26 export statements, 11 prod / 13 test importers): diff each exported type against Jini `contracts.ts` (`diff <(rg -o "export (interface|type) \w+" -r '$0' apps/website/src/features/source-control/provider-module.ts | sort) <(rg -o "export (interface|type) \w+" -r '$0' <jini>/packages/devops/src/source-control/contracts.ts | sort)`). Identical-shape types: repoint every importer to Jini and delete. Any type whose members differ: list the member, STOP (do not pick a side).
-- `provider-registry.ts`: 19 export statements. Generic (already or to Jini): descriptor parse, reserved/workflow path checks (`findReservedPath`, `isUnderWorkflowPath`), provider build. STAY (Tovu): `SOURCE_CONTROL_PROVIDERS_FILENAME` (D-SC2), bundled sources, trusted-plugin gate binding, `noSourceControlProviderMessage` / `switchedOffPluginSentence` / `AGENT_PLUGINS_SCREEN` (product wording), module-level `sharedRegistry` (state cell: one registry per process; its owner stays the composition root).
-- `credential-form.ts` (108): descriptor form parser; generic -> `@jini-ai/devops/source-control` next to the descriptor reader (Jini already has `DescriptorExtensionReader`: check whether the parser duplicates it before moving).
-Characterization first: registry loads only trusted entries (deny tests per clause: inactive plugin, digest mismatch, path escaping the root, non-`.mjs` extension, bad module drops only itself); refusal sentences contain no file-system path outside the plugin root.
-State: READY for the type DEDUPE; the registry split needs a short Opus pass (dependency graph of the 19 exports; late-bound `sharedRegistry` read). Estimate: 160k + 60k Opus.
+### SC-2b (SEAM, Tovu): `commit-site.ts` becomes a binding over Jini's orchestration
+precondition (S-PRE): `rg -n "arrangeFiles" node_modules/@jini-ai/devops/dist/source-control/contracts.d.ts` (the linked Jini clone is at an SC-1 SHA) and `ls apps/website/src/features/source-control/__tests__/commit-site.characterization.unit.test.ts`.
+One commit: `commit-site.ts` (547) becomes at most 150 lines. It builds `CommitOrchestrationArgs`: `files` = closure over the static-site context and export; `layout.arrangeFiles` = static-download layout + `claimArchivePaths`; `credentials.resolve` = default credential then saved-key fallback; `describeError` by stage; `describeMissingCredential`; `adapter.commitSite = (required, optional) => provider.commitSite({ ...required, ...(optional?.branch ? { branch: optional.branch } : {}) })` (the plugin ABI takes `branch` inside the one input object: matrix above). It calls the Jini function and adds `folder` + `entryPath` to a success.
+The SC-2a tests stay green UNEDITED; a test that needs editing = STOP. Export accounting: `rg -n "^export" apps/website/src/features/source-control/commit-site.ts` before and after; every name is reported as kept | now imported from Jini by each caller in `SC-2b.importers.tsv` | deleted with zero importers (S-CENSUS).
+STOP: `rg -n "process\.env" apps/website/src/features/source-control/commit-site.ts` prints a line; S-MOCK; S-BLOB (merge-a and merge-b differ on this file: guard is the merge-a blob). Estimate: 150k.
 
-## SC-4 (design needed): credential store (`store.ts` 559, `types.ts` 107, repos, `credential-setup.ts` 226)
-CLASSIFY says `integrations` / `ui`; neither was diffed. Jini has `packages/platform/src/secrets/credential-sets/` (the deployments store targets it too). Outline only:
-1. Diff `store.ts` against `features/deployments/publish-credentials/store.ts` (714) and Jini `platform/secrets/credential-sets`: three credential-set stores with shared invariants (label rules, default selection, account-label probe, sealed token, unique-label race). The reuse rule applies: one shared mechanism, or a written reason for three.
-2. Never change a saved credential automatically: the account-label probe (`probeAccountLabel` 64-92, `probeSavedConnection` 411-423) writes a label; pin that it never rewrites the token or connection fields.
-3. `proposeSourceControlCredential` is 106 lines (limit 50): split in Tovu before any move.
-Not runnable. Estimate for the design: 150k Opus; execution 300k-450k.
+### SC-3a (SEAM, Tovu only): `provider-module.ts` becomes types only
+One commit. New `features/source-control/saved-key-bindings.ts` holds `sourceControlSavedApiKeyLabels` with its comment (`provider-module.ts:20-22`); the three readers are repointed in the same commit: `server/runtime/composition/source-control-key-binding.ts:2`, `features/source-control/tool-registrations.ts:38` (keep `RepositoryTargetValidator` on the old import line), `cli/commands/owner-store-mapping.ts:3`. No test file imports the map today (`rg -l sourceControlSavedApiKeyLabels apps -g '**/__tests__/**'` prints nothing): add one unit test pinning the map's single entry.
+End check: `rg -n "^export (const|function|class|let|enum)" apps/website/src/features/source-control/provider-module.ts` prints nothing. Estimate: 40k.
 
-## SC-5 (outline): tools -> `@jini-ai/devops/source-control/tools`
-`tool-registrations.ts` 511 (`buildSourceControlRegistrations` 120 lines, `source_control_execute_commit` handler 83 lines: both over 50) + `commit-schema.ts` 31. Pattern: `K/K-TOOLS-PATTERN.md` (lane K). After SC-2 and SC-3. The approval gate of `source_control_execute_commit` (`sourceControlDerivedRisk` 204-212) and `contracts/core/tool-metadata/source-control.ts` must be traced end to end before the handler moves: a test must fail when the approval requirement is removed. Estimate: 220k.
+### SC-3b (SEAM+MOVE, both repos): plugin ABI v1 types to Jini
+precondition: SC-3a landed (the `rg` above prints nothing) and SC-2b landed (`wc -l` of `commit-site.ts` <= 150).
+- M1 (Jini TESTS, own commit): `packages/agent-plugins/github/source-control/__tests__/abi-shape.test.mjs`: `create(kit)` with a recording kit returns exactly the seven operations plus `backupInlineTextMaxBytes`; `readAccountLabel.length === 1`; `uploadBackupBlob.length === 2`; `commitFiles.length === 2`; calling `readAccountLabel("t")` reaches the kit's `fetch` as `(url, init)` (two positional arguments, recorded). This pins the positional ABI at runtime.
+- M3 (Jini): `packages/devops/src/source-control/plugin-abi.ts` = the seamed `provider-module.ts` copied with its doc comments, neutral wording (the descriptor file name is described as "the host's descriptor file"); `repositoryPaths` typed from the local `repository-path.js` leaf. New subpath `./source-control/plugin-abi` (exports + `jini.entries: node` + README line + changeset `minor`) in this commit. The existing `contracts.ts` is not edited; names that exist in both are NOT re-exported from `entry.ts` (two different shapes share names: the subpath keeps them apart).
+- M4 (Tovu): delete `provider-module.ts`; repoint every row of `SC-3b.importers.tsv` (11 prod / 13 test importers at round 1: recount with the sidecar) to `@jini-ai/devops/source-control/plugin-abi`; `provider-kit.ts` keeps its positional adaptation and its own why-comment.
+THIRD_PARTY_ALLOWED: none (the `Buffer` type is global). STOP: an importer row uses `*` or a dynamic import; S-TEXT. Estimate: 150k.
+
+## Design queue (not dispatchable; each needs an Opus pass that produces one-run sheets)
+- SC-3d registry split: `provider-registry.ts` 318 (19 export statements; module-level `sharedRegistry` state cell, owner = composition root; product wording `noSourceControlProviderMessage`, `switchedOffPluginSentence`, `AGENT_PLUGINS_SCREEN`; `SOURCE_CONTROL_PROVIDERS_FILENAME` = D-SC2) and `credential-form.ts` 108 (check against Jini `DescriptorExtensionReader` first). Input: the SC-0 loader tests. Opus 60k.
+- SC-4 credential store: `store.ts` 559, `types.ts` 107, repos, `credential-setup.ts` 226. Diff against `features/deployments/publish-credentials/store.ts` and Jini `platform/secrets/credential-sets` (one shared mechanism or a written reason for three). Constraint: a saved credential is never changed automatically: the account-label probe writes a label only; pin that it never rewrites the token or connection fields before any move. `proposeSourceControlCredential` is over 50 lines: split in Tovu first. Opus 150k; execution about three runs, 360k.
+- SC-5 tools: `tool-registrations.ts` 511 (two units over 50 lines) + `commit-schema.ts` 31; lane K's tools pattern; the approval gate of `source_control_execute_commit` is traced end to end and a test fails when the approval requirement is removed, before the handler moves. After SC-3b and SC-3d. About two runs, 220k.
+- SC-H1 (hardening item found by the trace, not scheduled): the account-label probe sends a bearer token through native `fetch` without the redirect guard. Owner decision D-SC4.
 
 ## Could not verify
-- That the plugin `.mjs` modules import nothing from `@jini-ai/*` (`rg -n "from ['\"]@jini-ai" <jini>/packages/agent-plugins/github` at execution).
-- Whether `credential-form.ts` duplicates a Jini parser. Whether admin `ProvidersTab.tsx` (464) already has a Jini twin (CLASSIFY says DEDUPE-AFTER-HARDENING).
-- No test was run; message strings above were read, not executed.
+- No test was run. Message strings were read, not executed.
+- That `backup-push.mjs` reaches the network only through the guarded client (command given in the trace).
+- The admin screens (`ProvidersTab.tsx` and others).
