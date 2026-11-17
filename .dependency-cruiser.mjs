@@ -16,6 +16,8 @@
  * per-file Category 1/2/3 triage the plan doc's §3.8 gives the other 12 — see that doc before
  * promoting any one of these past `warn`.
  */
+import { readFileSync } from "node:fs";
+
 const HAND_WRITTEN_RULES = [
     {
       // Added 2026-08-28 — this repo had NO circular-dependency rule at all until now (confirmed by
@@ -818,8 +820,55 @@ function noDeepImportRules(mod) {
   ];
 }
 
+// ---------------------------------------------------------------------------------------------
+// feature-rank:<n> — no runtime import cycle between feature folders. Generated from one table,
+// `development/boundaries/feature-ranks.json` (one row per feature folder; the same file
+// `development/scripts/check-feature-ranks.mjs` checks against the folder list, because an edge
+// rule cannot see a folder that has no edges).
+//
+// Rank = the longest runtime import chain below the feature. The rule: a feature may value-import
+// only features of a STRICTLY lower rank. Same rank is not allowed, so no pair can ever be mutual,
+// and any graph that obeys a strict rank is acyclic. The table is a ratchet of today's legitimate
+// edges, not an ideal architecture: lowering a rank is a one-line change this rule itself
+// verifies; a new upward need is solved with a port the composition root binds, not by re-ranking
+// around it.
+//
+// `severity: "warn"` while the known violations are being removed (the import statements of the
+// feature edges that close the cycle; the count only goes down). It becomes "error" when the count
+// is 0.
+//
+// `dependencyTypesNot` needs BOTH values: "type-only" covers `import type`, and dependency-cruiser
+// tags an `import("x").T` type node as "type-import" (without it such a node is reported as a
+// value import). The filter is safe here although `no-circular` above explains why it cannot be
+// used on a reachability rule: this rule judges one edge at a time, the same use
+// `only-composition-constructs-concrete-adapters` makes of it.
+//
+// The filter is right ONLY while Tovu's compiler drops `import { type A } from "x"` (no
+// `verbatimModuleSyntax` in tsconfig.json), so "type-only before compilation" equals "not in the
+// emitted JavaScript". If `verbatimModuleSyntax` is ever turned on, such an import is emitted as
+// `import {} from "x"` and still loads the module: this rule must then read imports after
+// compilation (`tsPreCompilationDeps: false`) and drop the type filter.
+//
+// Tests are out of scope (they may import any feature), matching the rules above.
+const FEATURE_RANK = JSON.parse(readFileSync(new URL("./development/boundaries/feature-ranks.json", import.meta.url), "utf8"));
+const FEATURES = "apps/website/src/features";
+const FEATURE_RANK_TESTS = ".*/__tests__/.*|\\.test\\.ts$";
+const featureAlternatives = (names) => names.map((name) => name.replace(/-/g, "\\-")).join("|");
+const FEATURE_RANK_RULES = [...new Set(Object.values(FEATURE_RANK))].sort((a, b) => a - b).map((rank) => {
+  const here = Object.keys(FEATURE_RANK).filter((name) => FEATURE_RANK[name] === rank);
+  const sameOrHigher = Object.keys(FEATURE_RANK).filter((name) => FEATURE_RANK[name] >= rank);
+  return {
+    name: `feature-rank:${rank}`,
+    severity: "warn",
+    comment: "A feature may value-import only features of a strictly lower rank (development/boundaries/feature-ranks.json). Need something from above? Declare a port and let the composition root bind it.",
+    // The group in `from.path` is the importing feature; `$1` in `to.pathNot` then skips imports inside that feature.
+    from: { path: `^${FEATURES}/(${featureAlternatives(here)})/`, pathNot: FEATURE_RANK_TESTS },
+    to: { path: `^${FEATURES}/(${featureAlternatives(sameOrHigher)})/`, pathNot: `^${FEATURES}/$1/`, dependencyTypesNot: ["type-only", "type-import"] },
+  };
+});
+
 export default {
-  forbidden: [...HAND_WRITTEN_RULES, ...GUARDED_MODULES.flatMap(noDeepImportRules)],
+  forbidden: [...HAND_WRITTEN_RULES, ...FEATURE_RANK_RULES, ...GUARDED_MODULES.flatMap(noDeepImportRules)],
   options: {
     doNotFollow: { path: "node_modules" },
     tsPreCompilationDeps: true,

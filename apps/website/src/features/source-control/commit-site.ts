@@ -4,7 +4,7 @@ import path from "node:path";
 import type { UUID } from "@jini-ai/core/primitives";
 import { redactSecrets } from "@jini-ai/core";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
-import { normalizeRepositoryFolder, prefixRepositoryPath } from "@jini-ai/devops/source-control";
+import { normalizeRepositoryFolder, prefixRepositoryPath, repositoryTargetError } from "@jini-ai/devops/source-control";
 import { prepareStaticReport } from "../site-backup/static-copy.js";
 import { staticDownloadLayout } from "../site-backup/static-download-layout.js";
 import { LANDING_FILE } from "../site-backup/static-download-landing.js";
@@ -16,7 +16,6 @@ import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import { firstExportFailure, type ExportReport } from "#src/features/site-export/index";
 
 import type { CommitFile, RepositoryTargetValidator, SourceControlCommitResult, SourceControlProvider } from "./provider-module.js";
-import { repositoryTargetError } from "./repository-target.js";
 import { resolveDefaultForSourceControl } from "./store.js";
 import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "./types.js";
 
@@ -83,7 +82,8 @@ const MAX_COMMIT_MESSAGE_LENGTH = 500;
  * {@link commitSiteToSourceControl} that skips the tool layer's own check.
  *
  * Owner/repo rules belong to the host: `validateTarget` is the plugin module's own check, run first,
- * then the generic one-path-segment rule (`./repository-target.ts`, shared with the other writers).
+ * then the generic one-path-segment rule (`repositoryTargetError` in `@jini-ai/devops/source-control`,
+ * shared with the other writers).
  *
  * @returns `null` when valid, else a human-readable reason safe to return over a tool-result boundary
  *   (never echoes more than the offending field, capped, never a token — there is none in scope here).
@@ -93,7 +93,13 @@ export function validateCommitTarget(
   input: { owner: string; repo: string; branch?: string; folder?: string; commitMessage: string },
   validateTarget?: RepositoryTargetValidator,
 ): string | null {
-  const targetError = repositoryTargetError({ owner: input.owner, repo: input.repo }, validateTarget);
+  // The owner/repo check every source-control write runs before anything is built or sent: this
+  // file (`source_control_execute_commit`), `custom_credential_write_files` and `site_backup_plan`.
+  // The host's own, stricter rules come first (the plugin module's `validateTarget`, e.g. GitHub's
+  // name patterns and its "invalid GitHub owner" text live in the `github` plugin), so a host's
+  // refusal reads the same whichever tool hit it. Then one generic rule applies to every host: each
+  // value is one URL path segment.
+  const targetError = repositoryTargetError({ owner: input.owner, repo: input.repo }, { validateTarget });
   if (targetError !== null) return targetError;
   try { normalizeRepositoryFolder({ folder: input.folder }); }
   catch (error) { return (error as Error).message; }

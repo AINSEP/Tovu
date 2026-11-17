@@ -70,7 +70,6 @@ export {
 } from "./deploy-config.js";
 export {
   DEPLOY_CONFIGS_FILENAME,
-  isContainedDeployConfigPath,
   readBundledDeployConfigDescriptors,
   readBundledDeployConfigCandidatePaths,
   readBundledDeployWorkflowFile,

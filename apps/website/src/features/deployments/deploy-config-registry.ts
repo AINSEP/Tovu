@@ -5,15 +5,14 @@ import path from "node:path";
 import { defineExecutablePluginContribution, loadPluginContributionsFromSource, type LoadPluginContributions, type PluginContributionDefinition, type TrustedPluginPackage } from "../agent-plugins/lifecycle.js";
 
 import {
-  asDeployConfigGeneratorModule, isContainedDeployConfigPath, parseDeployConfigsFile as parseDeployConfigDescriptors,
+  asDeployConfigGeneratorModule, parseDeployConfigsFile as parseDeployConfigDescriptors,
   type DeployConfigGeneratorDescriptor, type DeployConfigGeneratorRegistry, type LoadedDeployConfigGenerator,
 } from "@jini-ai/devops/deploy";
 
 import type { DeployConfigGeneratorModule } from "./deploy-config.js";
 
-/** The generator descriptor, loaded-generator and registry shapes, and the declaration-path guard,
- *  live in `@jini-ai/devops/deploy`; this path keeps the host's existing imports. */
-export { isContainedDeployConfigPath };
+/** The generator descriptor, loaded-generator and registry shapes live in `@jini-ai/devops/deploy`;
+ *  this path keeps the host's existing imports. */
 export type { DeployConfigGeneratorDescriptor, DeployConfigGeneratorRegistry, LoadedDeployConfigGenerator };
 
 /**

@@ -3,7 +3,6 @@ import { createHash } from "node:crypto";
 import { SecretsVaultService, createVaultMetaParsers, type VaultArchiveEntry } from "@jini-ai/platform/secrets/credential-sets";
 import {
   VaultError,
-  type VaultContext,
   type VaultMeta,
   type VaultRepoPort,
 } from "@jini-ai/core/contracts/vault";
@@ -15,8 +14,10 @@ import {
   type ApiConnectionAttempt, type ApiConnectionRecord, type ApiConnectionRecordStore, type ApiConnectionTokenStore,
 } from "@jini-ai/integrations/api-connections";
 import { parseTovuStoreMeta } from "#src/platform/secrets/vault-kinds";
-import { API_CONNECTION_RECORD_FORMAT as RECORD_FORMAT, API_CONNECTION_ATTEMPT_FORMAT as ATTEMPT_FORMAT, PLUGIN_STATE_FORMAT } from "#src/platform/secrets/vault-api-connection-meta";
-export { PLUGIN_STATE_FORMAT } from "#src/platform/secrets/vault-api-connection-meta";
+import {
+  API_CONNECTION_RECORD_FORMAT as RECORD_FORMAT, API_CONNECTION_ATTEMPT_FORMAT as ATTEMPT_FORMAT, PLUGIN_STATE_FORMAT,
+  API_CONNECTION_VAULT_KIND, apiConnectionVaultScope,
+} from "#src/platform/secrets/vault-api-connection-meta";
 
 /**
  * @file Tovu's storage for plugin-declared API connections, all in the existing secrets vault under
@@ -31,7 +32,6 @@ export { PLUGIN_STATE_FORMAT } from "#src/platform/secrets/vault-api-connection-
  * connection key itself.
  */
 
-export const API_CONNECTION_VAULT_KIND = "api-connection" as const;
 const recordId = ({ key }: { key: string }, _optional = {}): string => `record:${key}`;
 // State is sealed inside the attempt only: row ids and labels are visible to vault listings.
 const attemptId = ({ state }: { state: string }, _optional = {}): string => `attempt:${createHash("sha256").update(state).digest("hex")}`;
@@ -61,11 +61,6 @@ export interface ApiConnectionVaultDeps {
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/** The one vault context every api-connection row of a workspace lives under. */
-export function apiConnectionVaultScope(required: { readonly workspaceId: string }, _optional: Record<string, never> = {}): VaultContext {
-  return { workspaceId: required.workspaceId, kind: API_CONNECTION_VAULT_KIND, ownerKey: "tovu", principalId: null, binding: null };
 }
 
 /**
