@@ -2,8 +2,9 @@
 
 Status: **COMPLETE, revision 3** (design and plan only; no source file edited, nothing built, no test run).
 Revision 3 answers the Opus review of revision 2: table "Revision 3 - Opus review response" at the end of this file.
-**Base is now `integ/merge-final-2026-11-16`: Jini `65d73b0d`, Tovu `a28cb1bf`** (`sheets/README.md` §1.1;
-`sheets/BLOBS.tsv` regenerated there). The revision 2 notes below about merge-a and merge-b are kept as history.
+**Base (re-pinned 2026-11-17): `origin/refactor/terra` = `integ/merge-final-2026-11-16`: Jini `65d73b0d5`, Tovu `232764af5`**
+(contains revision 3's Tovu `a28cb1bf`; `sheets/README.md` §1.1; `sheets/BLOBS.tsv` regenerated there). Wave 1 progress and
+the command fixes of the 2026-11-17 housekeeping run: section "Housekeeping 2026-11-17" at the end. The revision 2 notes below about merge-a and merge-b are kept as history.
 Branch: `plan/tool-call-fixes-2026-11-16`.
 Revision 2 answers `CODEX-JUDGE.md` ("needs rework": 4 blockers, 15 majors, 1 minor). Each finding was verified in
 the code first. **20 accepted, 0 rebutted.** Table at the end of this file.
@@ -75,14 +76,14 @@ branch its header names.
 | S7 | Route sends `details.toolId` / `inputNames` | Jini, Tovu tests | S1, S6 | envelope has no `details` | 130k |
 | S8 | Client never prints a status alone or an unrecognized body; reporter wired | Jini | E2 in base; S3, S15 (shared files) | four responses give a bare status | 190k |
 | S9 | Terminal JSON error answer; flat answers become envelopes | Tovu | S8 | bodies are HTML or flat | 150k |
-| S10 | Chained batch handler in core | Jini | none | no such function; item 2 refuses | 160k |
+| S10 | **DONE** (Jini `wave1/tc-S10`: c46d03c2, 402d81a7; report 5ca2bafd; not merged into refactor/terra) Chained batch handler in core | Jini | none | no such function; item 2 refuses | 160k |
 | S11 | Theme tools adopt it; wording | Tovu | S10; before T-TH-05 / T-TH-08 | "changed during review" on the second edit | 150k |
 | S12a | `clamp` in the normalizer and for MCP-local tools | Jini | S3, S6 (shared files); OD-8 | 8300 refused | 160k |
 | S12b | `obtainFrom` on the typed and the gateway path | Jini | S12a, S1 | no pointer to the listing tool | 150k |
 | S13 | Tovu schemas declare repairs; bounds gate | Tovu | S12b, S4a, OD-8; br. OD-9; before T-TH-08 | alias refused; nothing declares `clamp` | 150k |
-| S14a | Clock seam; work deadline, reserve, hard stop in `renderPage` | Jini | none | no fallback when the wait uses the budget | 170k |
+| S14a | **DONE** (Jini `wave1/tc-S14a`: 6a57eb5a..98f40732, 5 commits; report b2d8d8ce; not merged) Clock seam; work deadline, reserve, hard stop in `renderPage` | Jini | none | no fallback when the wait uses the budget | 170k |
 | S14b | Tovu computes the budget; current frame after load | Tovu | S14a; br. OD-5 (OPEN: cap stays 20 s) | no image when the wait uses the budget | 150k |
-| S15 | Progress pump; long-wait fetch; approval window pinned | Jini | none | zero notifications in 120 s; headers wait fails | 200k (+30k) |
+| S15 | **DONE** (Jini `wave1/tc-S15`: 6ed4fd19..99677518, 7 commits; report 082f833f; not merged) Progress pump; long-wait fetch; approval window pinned | Jini | none | zero notifications in 120 s; headers wait fails | 200k (+30k) |
 | S16a | Probe each CLI; commit the support matrix | Jini | S15; br. OD-11 | matrix test (new) | 150k |
 | S16b | Timeouts as adapter data; Tovu binding | Jini (incl. core), Tovu | S16a, lane K, OD-6 | config has no timeout key (measured CLIs only) | 170k |
 | S17 | One lease per daemon; default | Jini, Tovu | br. OD-4 (OPEN: lease only) | two site scopes both get the integration | 170k |
@@ -251,3 +252,24 @@ fix), 1 partly rebutted (two sub-points of B2), 3 new findings fixed.** J = Jini
 Not executed in revision 3: no command block was run against a real checkout (only the regex patterns, on sample
 input, and the `rg` lines through `git grep`). Owner decisions OD-1..OD-11 are still `OPEN`; with B3 fixed, the sheets
 safe to start now are S5, S10, S14a, S15, S17 (lease part) in wave 1, and S1 once OD-1 is decided.
+
+## Housekeeping 2026-11-17 (plan-edit run; no product code)
+Every sheet's symbol / landed / STOP command and every fenced block of `sheets/README.md` was run on real checkouts of
+`origin/refactor/terra` (Jini 65d73b0d5, Tovu 232764af5, side by side as `Jini` and `Tovu`): 115 commands extracted from the
+22 sheets, each run in the Jini root, Jini `packages/` and the Tovu root; blocks 4.3-4.8, 4.15-4.17 also run against a
+throwaway local Jini commit with planted violations (lazy import, `vi.mock`, `eslint-disable`, `export *`, `.skip`, empty
+catch, 64-line function): every block printed its violation. Block 4.10 printed `STOP` for each OPEN blocking decision
+(S1, S12a, S13, S16b, S2b) and nothing once a copy of this INDEX marked OD-1 `DECIDED: yes`.
+| # | Where | Defect | Fix |
+|---|---|---|---|
+| H1 | README §1.4 drift check | read `tool-call-fixes/sheets/BLOBS.tsv` relative to the current directory; from a Tovu or Jini checkout the file is absent, `tail` fails on stderr and the loop prints nothing = pass (fail open, reproduced on Tovu 232764af5) | `PLAN` + `ROOT` variables, `test -s` STOP line, `MISSING` vs `DRIFT` lines |
+| H2 | README §1.1, `BLOBS.tsv` | pinned to Tovu `a28cb1bf` / merge-final blobs | re-pinned to refactor/terra; 1 of 49 blobs changed: Tovu `agent-daemon-scope.ts` (497d4dde -> 1a21e6ef: `executorDefinitionPolicies` spread replaces two inline options, lines after :85 shift by +1, after :531 by -1; every sheet symbol line for it still matches). DESIGN line cites of that file are off by one; symbols, not lines, are the contract |
+| H3 | README §4.11 (landed checks) | pass = "prints at least one line"; an `rg` on a not-yet-created file prints an error line (exit 2), which reads as a line | pass = exit 0 per command (new block 4.11, `; echo "rc=$?"`); run-directory rule stated |
+| H4 | S7 landed check | one `rg` over two files passed when either matched | two commands, each must exit 0 |
+| H5 | S5 acceptance | `rg -n "sideEffects" $(git diff --name-only ...)` listed unchanged lines and, on an empty diff, searched the whole tree (723 lines on Tovu terra: fires wrongly) | the `-U0` diff piped into an `rg` for added or removed `sideEffects` lines must print nothing (exact command in S5, outside any table) |
+| H6 | S9 acceptance | `rg -n randomUUID <new file>` printed nothing when the file was missing or misnamed (fail open) | `test -f` + `! rg -q` + `echo ok` |
+| H7 | README block 4.16 | printed every eslint rule's message (a repo rule such as `sonarjs/no-inconsistent-returns` showed up as a limit finding: fires wrongly) | `msgs` keeps only the four limit rules; re-run on the planted 64-line function: still printed |
+Commands that legitimately fail on refactor/terra (not defects): every landed check of a sheet whose prerequisite has not
+merged (S2a, S2b, S3, S4a, S4b, S6, S7, S8, S9, S11, S12a, S12b, S13, S14b, S16a, S16b). The landed checks that the DONE
+sheets satisfy were checked on their branches: S11's `createChainedBatchHandler` (wave1/tc-S10), S14b's `softDeadlineMs`
+(wave1/tc-S14a), S16a/S8's `startCallProgress` (wave1/tc-S15) all match, so S11, S14b, S16a release once those branches merge.

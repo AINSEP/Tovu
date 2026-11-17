@@ -3,7 +3,7 @@
 Repos: Jini (`daemon`), then one Tovu characterization and one Tovu end-to-end test. Estimate: 130k Sonnet.
 Blocking decision: none.
 Prerequisites: S1 (the route resolves the target once), S6 (the client reads `details`).
-Landed check: `rg -n "inputNames" packages/mcp/src/server/daemon-client.ts packages/core/src/text/diagnostic-vocabulary.ts`.
+Landed checks (two commands, each must exit 0, README block 4.11; revision 3 had one `rg` over both files, which passed when only one file matched): `rg -n "inputNames" packages/mcp/src/server/daemon-client.ts` and `rg -n "inputNames" packages/core/src/text/diagnostic-vocabulary.ts`.
 
 Revision 2 replaced this sheet. Revision 1 planned to change the daemon's failure redaction; the code shows that layer
 is an injected, secrets-only port in Tovu and masks no names (S6 "Where names are really lost"). What is missing on

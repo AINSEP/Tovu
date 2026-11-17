@@ -38,5 +38,5 @@ So the audit's "get tool refused by the read-only gateway" class is a wording cl
 ## Acceptance
 - The test passes; every reworded description is listed old → new; search-eval fixtures that embed a changed
   description are updated in the same commit and named.
-- `rg -n "sideEffects" $(git diff --name-only $BASE...HEAD)` shows no changed `sideEffects` line (`git diff` proof pasted).
+- No changed `sideEffects` line: `git diff "$BASE...HEAD" -U0 | rg -n '^[-+].*sideEffects'` prints nothing (paste the empty output). Revision 3's `rg -n "sideEffects" $(git diff --name-only $BASE...HEAD)` searched whole files (unchanged lines too) and, on an empty diff, the whole tree: 723 lines on Tovu 232764af5 (fires wrongly).
 - Gate green; counts recorded.

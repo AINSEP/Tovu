@@ -5,13 +5,13 @@ This file and the sheet are **one contract**. If they disagree, stop and report;
 
 ## 1. Setup (before reading source)
 
-1. Checkouts side by side, named exactly `Jini` and `Tovu`. **Base = `integ/merge-final-2026-11-16`: Jini
-   `65d73b0d`, Tovu `a28cb1bf`** (revision 3; it contains merge-a in both repos and has
-   `packages/core/src/errors/reporter.ts`. The Tovu branch tip has moved past `a28cb1bf` with merge fixes; any commit
-   that contains it is fine). Both lines must print `ok`; otherwise STOP:
+1. Checkouts side by side, named exactly `Jini` and `Tovu`. **Base = `origin/refactor/terra` (= `integ/merge-final-2026-11-16`):
+   Jini `65d73b0d5`, Tovu `232764af5`** (re-pinned 2026-11-17; it contains merge-a in both repos, revision 3's Tovu
+   `a28cb1bf`, and `packages/core/src/errors/reporter.ts`). Any commit that contains these is fine. Run from the
+   directory that holds both checkouts. Both lines must print `ok`; otherwise STOP:
    ```bash
    git -C Jini merge-base --is-ancestor 65d73b0d HEAD && echo ok
-   git -C Tovu merge-base --is-ancestor a28cb1bf HEAD && echo ok
+   git -C Tovu merge-base --is-ancestor 232764af5 HEAD && echo ok
    ```
    Never start from `merge-b` alone (it lacks the reporter). Record both SHAs in the report.
 2. Jini: `pnpm install && pnpm -r build`.
@@ -22,10 +22,16 @@ This file and the sheet are **one contract**. If they disagree, stop and report;
    Never run `npm run build` while linked (`check-no-linked-jini` refuses, by design). Never edit Tovu's `@jini-ai/*`
    version ranges or the lockfile: that is the release step **REL** in `../INDEX.md` §3, not part of any sheet.
    After every Jini change that Tovu reads: `pnpm --filter @jini-ai/<pkg> build` again.
-4. Drift check against the plan's base (generated table at merge-final, 49 files):
+4. Drift check against the plan's base (`BLOBS.tsv`, 49 files, re-generated on refactor/terra 2026-11-17). Revision 3's
+   form read `tool-call-fixes/sheets/BLOBS.tsv` relative to the current directory and printed NOTHING when that file
+   was absent (a Tovu or Jini checkout has no plan folder), so it passed without checking anything (fail open, found
+   2026-11-17). This form names both places and says when the table is missing:
    ```bash
-   tail -n +2 tool-call-fixes/sheets/BLOBS.tsv | while IFS=$'\t' read repo path blob sheets; do
-     [ "$(git -C ../$repo rev-parse HEAD:$path 2>/dev/null)" = "$blob" ] || echo "DRIFT $repo $path ($sheets)"; done
+   PLAN=<path of this tool-call-fixes folder>; ROOT=<directory that holds Jini and Tovu>
+   test -s "$PLAN/sheets/BLOBS.tsv" || echo "STOP: no BLOBS.tsv at $PLAN/sheets"
+   tail -n +2 "$PLAN/sheets/BLOBS.tsv" | while IFS=$'\t' read -r repo path blob sheets; do
+     got=$(git -C "$ROOT/$repo" rev-parse "HEAD:$path" 2>/dev/null) || { echo "MISSING $repo $path ($sheets)"; continue; }
+     [ "$got" = "$blob" ] || echo "DRIFT $repo $path ($sheets)"; done
    ```
    A `DRIFT` line for a file your sheet names means: re-run the sheet's inventory step and re-find every symbol with
    the sheet's `rg` lines. A symbol with **zero** hits is a STOP (§4.2).
@@ -79,7 +85,7 @@ paste their output into the report.
 | 4.8 | a why-comment is lost | block 4.8: every printed line is in the report with its reason (the code it explained was deleted, or behaviour changed and the comment was rewritten). An unexplained line is a STOP |
 | 4.9 | a new cross-package symbol has no public entry | block 4.9 for each new file another package imports: `exports["./<entry>"]` and `jini.entries["./<entry>"]` are in the **same commit** as the file |
 | 4.10 | a **blocking** owner decision is open | block 4.10 prints nothing |
-| 4.11 | a prerequisite sheet or lane has not landed | every `Landed check:` command in the sheet header prints at least one line (or exits 0 for a `test` line) |
+| 4.11 | a prerequisite sheet or lane has not landed | every `Landed check:` command in the sheet header EXITS 0 (block 4.11). Printed lines never count: `rg` on a missing file prints an error line and exits 2 |
 | 4.12 | a security gate would move or run in a different order than `../DESIGN.md` M1 | the sheet's gate-order test passes, and removing each named gate in a scratch edit makes a named test fail (prove once, restore, paste the failures) |
 | 4.13 | the red-first test passes without a change | step 2.3 output; report "already fixed", do not invent work |
 | 4.14 | a measured fact contradicts the design | the sheet's measured value (for example `pinnedFit`) against the number the sheet states |
@@ -125,6 +131,14 @@ done
 ```
 (`\|` here is meant: these patterns match the table's literal pipes. `OD-1( |\|)` does not match `OD-10`.)
 
+Block 4.11. Run each `Landed check:` command of the sheet exactly as written (a command whose path starts with `packages/`
+runs in the Jini checkout, every other one in the Tovu checkout), then print its exit status. Pass = every line is
+`rc=0` (`rg` exits 1 for no match and 2 for a missing file; `test -f` exits 1). One command per line: a check that
+names two files is two commands (each must match).
+```bash
+<the landed check command>; echo "rc=$?"
+```
+
 Block 4.15 (prints nothing):
 ```bash
 git diff "$BASE...HEAD" | rg -n '^\+.*\.(skip|only|todo)\('
@@ -137,7 +151,7 @@ report. The repo ratchets fail only at 80 lines (Jini `scripts/check-size.mjs:15
 ```bash
 LIM='{"max-lines-per-function":["error",{"max":50,"skipBlankLines":true,"skipComments":true}],"complexity":["error",10],"sonarjs/cognitive-complexity":["error",10],"max-lines":["error",{"max":500,"skipBlankLines":true,"skipComments":true}]}'
 FILES=$(git diff --name-only --diff-filter=AM "$BASE...HEAD" -- packages apps development | rg '\.(ts|tsx)$' | rg -v '(__tests__|__mocks__|/fixtures/|\.test\.|\.spec\.|\.typecheck\.|\.d\.ts$)')
-msgs() { node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{for(const r of JSON.parse(s||"[]"))for(const m of r.messages)console.log(`${m.ruleId} ${m.message}`)})' | sort; }
+msgs() { node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{for(const r of JSON.parse(s||"[]"))for(const m of r.messages)console.log(`${m.ruleId} ${m.message}`)})' | rg '^(max-lines-per-function|max-lines|complexity|sonarjs/cognitive-complexity) ' | sort; }
 for f in $FILES; do
   npx eslint --no-inline-config --rule "$LIM" -f json "$f" | msgs > /tmp/lim-after
   { git show "$BASE:$f" 2>/dev/null || true; } | npx eslint --no-inline-config --rule "$LIM" -f json --stdin --stdin-filename "$f" | msgs > /tmp/lim-before

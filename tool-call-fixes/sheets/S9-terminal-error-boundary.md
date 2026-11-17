@@ -82,5 +82,5 @@ the status or body of any existing well-formed answer.
 
 ## Acceptance
 Seven cases green with exact text; every id this sheet shows has core's `ERR-` format (no `randomUUID` in the new file:
-`rg -n "randomUUID" apps/website/src/server/inbound/assistant/daemon-error-boundary.ts` prints nothing); removing the boundary makes case 1 fail and removing the bearer gate makes case 4
+`F=apps/website/src/server/inbound/assistant/daemon-error-boundary.ts; test -f "$F" && ! rg -q randomUUID "$F" && echo ok` prints `ok`; revision 3's bare `rg` printed nothing when the file was missing or named differently, so it passed without checking); removing the boundary makes case 1 fail and removing the bearer gate makes case 4
 fail (README §4.12: prove once, restore, paste); the existing run-stream (SSE) tests pass unchanged; gate green.

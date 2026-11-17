@@ -1,4 +1,4 @@
-repo	path	blob_at_merge_final	sheets
+repo	path	blob_at_refactor_terra	sheets
 Jini	packages/protocol/src/errors.ts	cba13165135f58f605d10a4afb88e91d11fb7a26	S1
 Jini	packages/core/src/contracts/server/api-error.ts	6ae4159e08f286a0d9c12dcff757b54e2c917506	S1
 Jini	packages/daemon/src/http/delegated-tools.ts	ce79d09b4c6d0007bd81802cee607ddb07b3aded	S1,S2a,S7
@@ -29,7 +29,7 @@ Jini	packages/agent-runtime/src/defs/codex.ts	1693ac2cf3f0bb5d842323201e2cbbf9e3
 Jini	packages/agent-runtime/src/defs/opencode.ts	906bd4d9115049973f07293d76c034e89732267d	S16a,S16b
 Jini	packages/agent-runtime/src/defs/aider.ts	bf18c3deca1e4feb03cad0f54ad35453873497c2	S16a
 Jini	packages/daemon/src/agent-executor/launch.ts	1fd94b37d34a4dfa89f40c1ba6d47b3c65e679f5	S17
-Tovu	apps/website/src/server/inbound/assistant/agent-daemon-scope.ts	497d4dde31ded686556112c40819a5f5eb901205	S2a,S4b,S9,S17
+Tovu	apps/website/src/server/inbound/assistant/agent-daemon-scope.ts	1a21e6efa568af5252269642d3691cd2d56ad472	S2a,S4b,S9,S17
 Tovu	apps/website/src/server/inbound/assistant/agent-daemon-server.ts	fed1ee956933c7c2644ef2429632c9235339f314	S9,S17
 Tovu	apps/website/src/server/inbound/assistant/durable-run-routes.ts	129eefdbbffcec0a209ef8ece80d521eadeba31d	S2b
 Tovu	apps/website/src/server/inbound/shared/admin-failure.ts	d041ff65f04979c0f5ded4de4bc388b9e51e29b1	S9
