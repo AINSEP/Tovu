@@ -14,7 +14,7 @@ import {
 } from "@jini-ai/cms/media";
 import type { TransformDefinitionRepoPort } from "@jini-ai/cms/media";
 
-import { renderDocNode } from "#src/server/inbound/public-http/http/site/render";
+import { renderDocNode } from "#src/server/inbound/public-http/http/site/render/content-html";
 import { CORE_PUBLIC_TRANSFORM_NAME, ensureCoreMediaTransform } from "../bootstrap.js";
 
 /**

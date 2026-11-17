@@ -6,7 +6,7 @@ import { Liquid } from "liquidjs";
 
 import type { PublicPostRecord } from "#src/features/post/index";
 import { renderLiquidInSandbox } from "../liquid-sandbox.js";
-import type { SiteRenderContext } from "../render.js";
+import type { SiteRenderContext } from "../render-context.js";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**

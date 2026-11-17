@@ -69,7 +69,7 @@ import { openContentDb, openContentDbReadOnly, type ContentDb } from "../../apps
 import { SqliteDbOpsAdapter } from "../../apps/website/src/platform/db/sqlite/db-ops.js";
 import { SqliteEntryRefsRepo } from "../../apps/website/src/platform/db/sqlite/entry-refs-repo.sqlite.js";
 import { PagesHtmlDocumentStore } from "../../apps/website/src/features/pages/html-document-store.sqlite.js";
-import { renderDocNode } from "../../apps/website/src/server/inbound/public-http/http/site/render.js";
+import { renderDocNode } from "../../apps/website/src/server/inbound/public-http/http/site/render/content-html.js";
 import { resolveExistingDbPath } from "./backfill-db-path.js";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");

@@ -22,14 +22,12 @@ import { registerResolvePhase } from "#src/platform/routing/adapter";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { assertDefaultConsentPage } from "#src/server/__tests__/helpers/default-consent-page";
-import {
-  finishStaticTierDocument,
-  placeAfterCurrentContent,
-  registerSiteRoutes,
-  resolveHtmlFormatContentMarkers,
-  resolveMarketingPageOrOverride,
-  resolveStaticMenusForRender,
-} from "../pages.js";
+import { registerSiteRoutes } from "../pages.js";
+import { resolveMarketingPageOrOverride } from "../pages/handlers/marketing.js";
+import { finishStaticTierDocument } from "../pages/static-tier.js";
+import { resolveStaticMenusForRender } from "../pages/render-context/static-menus.js";
+import { resolveHtmlFormatContentMarkers } from "../pages/render-context/content-markers.js";
+import { placeAfterCurrentContent } from "../pages/render-context/taxonomy.js";
 
 type Deps = ReturnType<typeof createRouteDeps>;
 
@@ -225,7 +223,7 @@ async function datedCollectionHtml(entry: EntryRecord): Promise<string> {
   const deps = { ...createRouteDeps(), contentTypeRepo, entryRepo };
   const marker = `<section data-embed-config='{"type":"collection","typeKey":"gadget"}'><template><p class="dated">{{title}}|{{date}}</p></template>No gadgets</section>`;
   const theme = staticTheme({ pricing: "<html><body></body></html>" }, ["pricing"]);
-  return finishStaticTierDocument(deps, { theme, pageId: "pricing", html: `<html><body><main>${marker}</main></body></html>`, currentPath: "/pricing", staticMenus: undefined });
+  return finishStaticTierDocument({ deps, input: { theme, pageId: "pricing", html: `<html><body><main>${marker}</main></body></html>`, currentPath: "/pricing", staticMenus: undefined } }, {});
 }
 
 test("collection list: an entry with no publishedAt is dated by its updatedAt", async () => {

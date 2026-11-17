@@ -48,7 +48,8 @@ import { contentHash, CONTENT_HASH_VERSION } from "#src/features/publish-content
 import { planImport } from "#src/features/publish-content/planner";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests } from "#src/features/publish-content/type-registry";
 import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
-import { renderDocNode, type MediaAssetRenderMeta } from "#src/server/inbound/public-http/http/site/render";
+import type { MediaAssetRenderMeta } from "#src/server/inbound/public-http/http/site/render-context";
+import { renderDocNode } from "#src/server/inbound/public-http/http/site/render/content-html";
 
 import { contributeMediaPublish, MediaApplyBlockedError, MediaApplyConflictError } from "../publish-content.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";

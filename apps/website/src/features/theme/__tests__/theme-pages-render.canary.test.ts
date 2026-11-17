@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { scanEmbedMarkers, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
-import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render";
+import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
 import { injectCurrentEntityContentId, renderStaticPage, resolveTemplate, scanMenuEmbedIds } from "../static-render.js";
 import type { DiscoveredTheme, StaticMenuItem } from "../index.js";
 import { loadTheme } from "../theme.js";

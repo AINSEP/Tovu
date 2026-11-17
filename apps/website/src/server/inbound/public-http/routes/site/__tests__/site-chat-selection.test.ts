@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { setPublicAssistantSettings, setSiteAssistantCredential } from "#src/assistant/index";
-import { resolveSiteAssistantWidgetForRequest } from "../pages.js";
+import { resolveSiteAssistantWidgetForRequest } from "../pages/render-context/widgets.js";
 
 test("wcmp: page selection reads the site choice, retains off, and leaves static exports widget-free", async () => {
   const deps = createRouteDeps();

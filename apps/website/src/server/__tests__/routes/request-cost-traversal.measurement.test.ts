@@ -7,7 +7,7 @@ import express from "express";
 import type { JsonObject } from "@jini-ai/core/primitives";
 
 import { InMemoryPostRepo } from "#src/features/post/index";
-import { renderDocNode } from "../../inbound/public-http/http/site/render.js";
+import { renderDocNode } from "../../inbound/public-http/http/site/render/content-html.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
 import { startTestServer } from "../helpers/http-test-server.js";

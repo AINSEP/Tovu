@@ -6,7 +6,10 @@ import type { RouteDeps } from '#src/server/routes/types';
 import type { DiscoveredTheme, StaticMenuItem } from '#src/features/theme/index';
 import { NAV_DOC_TYPE, type NavMenuEntry } from '#src/features/navigation/index';
 import type { PublicPostRecord } from '#src/features/post/index';
-import { resolveSiteAssistantWidgetForRequest, resolveStaticMenusForRender, resolveMediaAssetMetadataForRender, type TemplateRenderDeps, type RenderContextResolutionDeps } from '../../pages.js';
+import { resolveMediaAssetMetadataForRender } from "../../pages/render-context/media-metadata.js";
+import { resolveStaticMenusForRender } from "../../pages/render-context/static-menus.js";
+import { resolveSiteAssistantWidgetForRequest } from "../../pages/render-context/widgets.js";
+import type { TemplateRenderDeps, RenderContextResolutionDeps } from "../../pages/render-context/deps.js";
 
 test('static export suppresses the assistant before consulting settings or credentials', async t => {
   const request: Request = Object.create(express.request, { headers: { value: { 'x-tovu-static-export': '1' } } });

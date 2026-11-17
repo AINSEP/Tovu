@@ -6,7 +6,7 @@ import { embedMarkerSnippetFromConfig, markersOfType } from "@jini-ai/cms/widget
 import { InMemoryEntryRepo } from "#src/features/entries/index";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
-import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render";
+import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
 import { config, definition, harness, owner, workspaceId } from "../fixtures/plugin-exports.js";
 
 async function render(html: string, runtime = harness().runtime) {

@@ -7,7 +7,7 @@ import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixtur
 import { InMemoryPostRepo, type PublicPostRecord } from "#src/features/post/index";
 import { loadTheme, type DiscoveredTheme } from "#src/features/theme/index";
 import { createRouteDeps } from "../../runtime/composition/app.js";
-import { renderViaTemplate } from "../../inbound/public-http/routes/site/pages.js";
+import { renderViaTemplate } from "../../inbound/public-http/routes/site/pages/template-render.js";
 
 const marker = `<p class="post-author" data-embed-config='{"type":"post-author"}'>fallback credit</p>`;
 const content = `<div data-embed-config='{"type":"content"}'></div>`;

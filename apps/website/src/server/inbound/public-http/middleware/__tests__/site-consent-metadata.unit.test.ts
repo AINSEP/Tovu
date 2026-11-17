@@ -4,7 +4,7 @@ import test from 'node:test';
 import { JSDOM } from 'jsdom';
 import { renderBanner } from '@jini-ai/cookie-consent/render';
 import { consentDeclarationReadiness } from '#src/features/consent/readiness';
-import { pageShell } from '../../http/site/render.js';
+import { pageShell } from '../../http/site/render/document-shell.js';
 import { serializeHeadElements } from '../../http/site/page-head.js';
 
 function documentWithAssets(head: string): string {

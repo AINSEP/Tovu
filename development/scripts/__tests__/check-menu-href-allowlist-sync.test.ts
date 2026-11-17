@@ -167,7 +167,7 @@ test("loadHrefChecker: extracts a real, callable checker from render.ts that beh
     "..",
     "..",
     "..",
-    "apps/website/src/server/inbound/public-http/http/site/render.ts"
+    "apps/website/src/platform/html/safe-url.ts"
   );
   const checker = await loadHrefChecker(renderTsPath);
   assert.equal(checker("/quickstart"), true);
@@ -200,7 +200,7 @@ for (const scenario of ["mismatch", "extraction"] as const) {
         import { syncBuiltinESMExports } from "node:module";
         const read = fs.readFileSync;
         fs.readFileSync = (file, ...args) => {
-          if (String(file).endsWith("/server/inbound/public-http/http/site/render.ts")) return ${JSON.stringify(fixture)};
+          if (String(file).endsWith("/platform/html/safe-url.ts")) return ${JSON.stringify(fixture)};
           return read(file, ...args);
         };
         syncBuiltinESMExports();

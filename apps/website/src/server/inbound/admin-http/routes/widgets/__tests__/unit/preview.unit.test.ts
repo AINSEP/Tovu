@@ -10,7 +10,7 @@ import { InMemoryPresentationSettingsRepo } from '#src/features/presentation/ind
 import { buildWidgetInstanceFieldsJson, resolvePageWidgets, InMemoryWidgetRegionBindingRepo } from '@jini-ai/cms/widgets';
 import { CORE_RESOLVERS, registerCoreResolver, createGalleryWidgetResolver } from '@jini-ai/cms/widgets/resolvers';
 import { resolveGalleryWidgetMedia } from '@jini-ai/cms/widgets/html';
-import { renderWidgetIr } from '#src/server/inbound/public-http/http/site/render';
+import { renderWidgetIr } from '#src/server/inbound/public-http/http/site/render/content-html';
 import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
 import type { RouteDeps } from '#src/server/routes/types';
 import { registerAdminWidgetPreviewRoute, parseWidgetPreviewBody } from '../../preview.js';

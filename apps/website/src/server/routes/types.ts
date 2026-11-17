@@ -8,7 +8,7 @@ import type { SettingsToolDeps } from "#src/features/settings/tool-registrations
 import type { createSitemapService } from "@jini-ai/cms/seo";
 import type { SeoHostBindings } from "#src/features/seo/index";
 import type { PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
-import type { SiteProduct } from "../inbound/public-http/http/site/render.js";
+import type { SiteProduct } from "../inbound/public-http/http/site/render-context.js";
 
 import type { ExportReport } from "#src/features/site-export/index";
 import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";

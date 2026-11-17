@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { renderSite } from "#src/server/inbound/public-http/http/site/render";
+import { renderSite } from "#src/server/inbound/public-http/http/site/render-site";
 
 import { renderStaticPage } from "../static-render.js";
 import type { DiscoveredTheme, ThemeTokens } from "../theme.js";

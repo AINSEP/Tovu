@@ -3,7 +3,7 @@ import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { DOC_NODE_HANDLERS } from "#src/server/inbound/public-http/http/site/render";
+import { DOC_NODE_HANDLERS } from "#src/server/inbound/public-http/http/site/render/doc/doc-nodes";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 

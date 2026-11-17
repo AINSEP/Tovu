@@ -6,12 +6,8 @@ import { InMemoryPostRepo } from "#src/features/post/index";
 import type { PostRecord } from "#src/features/post/index";
 import { InMemoryMediaContentTypeStore, InMemoryTransformDefinitionRepo } from "#src/features/media/index";
 import { InMemoryVersionedMediaRepo } from "#src/features/media/versioned-media-repo";
-import {
-  MAX_CONTENT_EMBED_DEPTH,
-  MAX_CONTENT_EMBED_FETCHES,
-  resolveHtmlFormatContentMarkers,
-  type ContentMarkerResolutionDeps,
-} from "../pages.js";
+import { MAX_CONTENT_EMBED_DEPTH, MAX_CONTENT_EMBED_FETCHES, resolveHtmlFormatContentMarkers } from "../pages/render-context/content-markers.js";
+import type { ContentMarkerResolutionDeps } from "../pages/render-context/deps.js";
 
 /**
  * @file Guard 3 of the unified-content-marker design (`ADS-memory/reports/design/

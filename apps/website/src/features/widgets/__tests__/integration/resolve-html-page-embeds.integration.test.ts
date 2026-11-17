@@ -20,7 +20,7 @@ import { registerCoreResolver, createContactFormResolver } from "@jini-ai/cms/wi
 // out `__tests__/` for exactly this shape of cross-layer integration test). Used below to prove a
 // `media` node's resolved `contentType` actually reaches a `<video>` tag, not just that the resolved
 // JSON prop looks right.
-import { renderWidgetIr } from "#src/server/inbound/public-http/http/site/render";
+import { renderWidgetIr } from "#src/server/inbound/public-http/http/site/render/content-html";
 import { WIDGET_CONTENT_TYPE, WIDGET_FIELD_NAMESPACE } from "@jini-ai/cms/widgets";
 
 /**

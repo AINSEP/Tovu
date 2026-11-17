@@ -14,8 +14,8 @@ import { InMemoryPostRepo } from "#src/features/post/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { renderMediaRawHtml, sanitizePageHtml } from "#src/features/widgets/media-html";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { renderViaTemplate } from "#src/server/inbound/public-http/routes/site/pages";
-import { renderSite } from "../render.js";
+import { renderViaTemplate } from "#src/server/inbound/public-http/routes/site/pages/template-render";
+import { renderSite } from "../render-site.js";
 
 type Node = DefaultTreeAdapterMap["parentNode"];
 type Element = DefaultTreeAdapterMap["element"];

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { renderHtmlForm } from "@jini-ai/cms/forms";
 import { injectFormAttemptTokens, injectFormSubmissionResultIntoHtml } from "../form-render.js";
-import { renderWidgetIr } from "../render.js";
+import { renderWidgetIr } from "../render/content-html.js";
 
 /**
  * @file The per-response `_attempt` token every public form carries (2026-10-05 double-submit fix):

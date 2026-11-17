@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { NO_ACCESS_PARTIALS, runHandlebarsRender } from "../handlebars-render.js";
-import type { SiteRenderContext } from "../render.js";
+import type { SiteRenderContext } from "../render-context.js";
 
 /**
  * @file In-process tests of the Handlebars worker's render logic (`handlebars-render.ts`). The

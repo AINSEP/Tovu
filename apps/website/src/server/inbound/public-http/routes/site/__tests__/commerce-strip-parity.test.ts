@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { describe, test } from "node:test";
 
 import { sql } from "kysely";
-import type { SiteProduct } from "#src/server/inbound/public-http/http/site/render";
+import type { SiteProduct } from "#src/server/inbound/public-http/http/site/render-context";
 type Product = SiteProduct & { version?: number };
 type StoreApi = { listProducts(): Promise<Product[]>; findProduct(required: { idOrSlug: string }): Promise<Product | null> };
 import { createRouteDeps } from "#src/server/runtime/composition/app";

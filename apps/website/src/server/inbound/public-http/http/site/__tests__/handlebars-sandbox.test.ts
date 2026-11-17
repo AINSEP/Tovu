@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { PublicPostRecord } from "#src/features/post/index";
 import { renderHandlebarsInSandbox } from "../handlebars-sandbox.js";
-import type { SiteRenderContext } from "../render.js";
+import type { SiteRenderContext } from "../render-context.js";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 
 /**

@@ -6,7 +6,7 @@ import { InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryAssetRenditi
 import { InMemoryEntryRefsRepo } from "../../../contracts/core/entry-refs/repo.memory.js";
 import { InMemoryPostRepo } from "../../post/repo.memory.js";
 import { formsAgentToolCatalog } from "../agent-tools.js";
-import { renderWidgetIr } from "../../../server/inbound/public-http/http/site/render.js";
+import { renderWidgetIr } from "../../../server/inbound/public-http/http/site/render/content-html.js";
 import { injectFormSubmissionResultIntoHtml } from "../../../server/inbound/public-http/http/site/form-render.js";
 
 const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 1]);

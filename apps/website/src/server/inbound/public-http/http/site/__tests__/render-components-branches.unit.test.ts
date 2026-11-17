@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
-import { COMPONENTS, renderWidgetIr, type SiteRenderContext } from "../render.js";
+import type { SiteRenderContext } from "../render-context.js";
+import { COMPONENTS } from "../render/components/registry.js";
+import { renderWidgetIr } from "../render/content-html.js";
 
 // ---------------------------------------------------------------------------
 // Branch coverage for `render.ts`'s theme component registry (`COMPONENTS`) and the widget IR

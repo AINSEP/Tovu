@@ -6,7 +6,7 @@ import test from "node:test";
 import express from "express";
 
 import { createRouteDeps } from "../../runtime/composition/app.js";
-import { FORM_FLASH_COOKIE_NAME } from "../../inbound/public-http/http/site/render.js";
+import { FORM_FLASH_COOKIE_NAME } from "../../inbound/public-http/http/site/form-render.js";
 import { MEMBER_SESSION_COOKIE } from "../../inbound/public-http/routes/members/complete-sign-in.js";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
 import { registerProductRoutes, type CommerceSiteAdapterDeps } from "../../inbound/public-http/routes/site/products.js";

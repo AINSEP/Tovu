@@ -17,7 +17,7 @@ import {
   type OriginRegistryPort,
 } from "@jini-ai/core/contracts/server/verified-origin";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
-import { resolveMarketingPageOrOverride } from "../pages.js";
+import { resolveMarketingPageOrOverride } from "../pages/handlers/marketing.js";
 import { registerResolvePhase } from "#src/platform/routing/adapter";
 import type { PageHeadHook } from "../../../http/site/page-head.js";
 import { assertDefaultConsentPage } from "#src/server/__tests__/helpers/default-consent-page";

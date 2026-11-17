@@ -8,7 +8,7 @@ import test from "node:test";
 import type { PostRecord } from "#src/features/post/index";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { renderStaticPage, type DiscoveredTheme } from "#src/features/theme/index";
-import { resolveStaticMenusForRender } from "../pages.js";
+import { resolveStaticMenusForRender } from "../pages/render-context/static-menus.js";
 import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo, NAV_DOC_TYPE } from "#src/features/navigation/index";
 import type { NavMenuEntry } from "#src/features/navigation/index";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";

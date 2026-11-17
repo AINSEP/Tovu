@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { captureSubmissionEvidence, type HtmlFormDefinitionRecord } from '@jini-ai/cms/forms';
 import { createContactFormResolver } from '@jini-ai/cms/widgets/resolvers';
-import { renderWidgetIr } from '../../../server/inbound/public-http/http/site/render.js';
+import { renderWidgetIr } from '../../../server/inbound/public-http/http/site/render/content-html.js';
 import { buildFormDestinationManifest } from '../form-destination-manifest.js';
 
 const builder: HtmlFormDefinitionRecord = {

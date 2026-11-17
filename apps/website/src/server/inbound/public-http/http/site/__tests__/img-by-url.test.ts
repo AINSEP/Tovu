@@ -3,7 +3,8 @@ import test from "node:test";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import { projectPostBody, resolveCoverImage } from "#src/features/post/cover-image";
-import { featuredImageView, renderDocNode, renderWidgetIr } from "../render.js";
+import { featuredImageView } from "../render/template-render-data.js";
+import { renderDocNode, renderWidgetIr } from "../render/content-html.js";
 
 test("Img by URL: public rendering preserves safe src-only images and refuses javascript URLs without broadening covers", () => {
   const mediaLookup = () => null;

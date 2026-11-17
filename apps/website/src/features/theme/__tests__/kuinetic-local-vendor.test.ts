@@ -6,7 +6,7 @@ import test from "node:test";
 import { renderStaticPage } from "../static-render.js";
 import { loadTheme } from "../theme.js";
 import { checkApprovedRoots } from "../validation/structure.js";
-import { renderSite } from "#src/server/inbound/public-http/http/site/render";
+import { renderSite } from "#src/server/inbound/public-http/http/site/render-site";
 import { CHROMELESS_TEMPLATES } from "./chromeless-templates.fixture.js";
 
 const ROOT = path.resolve(import.meta.dirname, "../../../../../..");

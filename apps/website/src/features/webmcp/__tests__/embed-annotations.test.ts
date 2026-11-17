@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { renderHtmlForm } from '@jini-ai/cms/forms';
 import { renderHtmlMenu, type HtmlMenuItem } from '#src/features/navigation/html-render';
-import { renderWidgetIr } from '#src/server/inbound/public-http/http/site/render';
+import { renderWidgetIr } from '#src/server/inbound/public-http/http/site/render/content-html';
 
 test('rendered HTML forms advertise native tools and preserve human submission and transport', () => {
   const html = renderHtmlForm({ slug: 'contact', action: '/forms/contact', fields: [{ id: 'email', type: 'email', label: 'Email', required: true }] , hooks: { field: "data-tovu-field", form: "data-tovu-form", success: "data-tovu-form-success", error: "data-tovu-form-error" } });

@@ -7,7 +7,7 @@ import { embedMarkerSnippetFromConfig } from "@jini-ai/cms/widgets/markers";
 import { InMemoryEntryRepo } from "#src/features/entries/index";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
-import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render";
+import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
 import { createPluginExportRuntime } from "../../exports/runtime.js";
 import { owner, workspaceId } from "../fixtures/plugin-exports.js";
 

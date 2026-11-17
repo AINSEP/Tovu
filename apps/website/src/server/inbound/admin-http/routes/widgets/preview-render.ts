@@ -4,7 +4,8 @@ import { resolveWidgetType } from '@jini-ai/cms/widgets/resolvers';
 import { resolveActiveThemeId } from '#src/features/presentation/index';
 import { resolveActiveTheme, NO_THEME_ID } from '#src/features/theme/index';
 import { renderStaticFragment } from '#src/features/theme/rendering';
-import { pageShell, renderWidgetIr } from '../../../public-http/http/site/render.js';
+import { renderWidgetIr } from '../../../public-http/http/site/render/content-html.js';
+import { pageShell } from '../../../public-http/http/site/render/document-shell.js';
 import type { RouteDeps } from '#src/server/routes/types';
 
 export interface WidgetPreviewInput { widgetType: string; content: JsonObject }

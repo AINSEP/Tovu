@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
-import { renderDocNode, renderWidgetIr, type MediaAssetRenderMeta } from "../render.js";
+import type { MediaAssetRenderMeta } from "../render-context.js";
+import { renderDocNode, renderWidgetIr } from "../render/content-html.js";
 
 // ---------------------------------------------------------------------------
 // Branch coverage for `render.ts`'s TipTap doc walk and its media-tag attribute merge (L082b).

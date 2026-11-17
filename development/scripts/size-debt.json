@@ -1612,32 +1612,11 @@
       "value": 92
     },
     {
-      "file": "apps/website/src/server/inbound/public-http/http/site/render.ts",
-      "function": "<file>",
-      "line": 1243,
-      "rule": "max-lines",
-      "value": 1664
-    },
-    {
       "file": "apps/website/src/server/inbound/public-http/routes/publish-trust/handshake.ts",
       "function": "registerPublishTrustHandshakeRoutes#1",
       "line": 130,
       "rule": "max-lines-per-function",
       "value": 96
-    },
-    {
-      "file": "apps/website/src/server/inbound/public-http/routes/site/pages.ts",
-      "function": "<file>",
-      "line": 1093,
-      "rule": "max-lines",
-      "value": 1489
-    },
-    {
-      "file": "apps/website/src/server/inbound/public-http/routes/site/pages.ts",
-      "function": "registerSiteRoutes#1",
-      "line": 2990,
-      "rule": "max-lines-per-function",
-      "value": 88
     },
     {
       "file": "apps/website/src/server/routes/types.ts",

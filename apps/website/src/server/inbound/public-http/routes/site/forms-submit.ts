@@ -10,8 +10,7 @@ import { submitForm, type SubmitFormDeps } from "#src/features/forms/index";
 import { siteRelativeTargetReason } from "@jini-ai/cms/redirects";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { isHttpsRequest } from "../oauth/public-origin.js";
-import { clearFormSubmissionResultQueryParams, encodeFormSubmissionResultQuery,
-  encodeFormFlashCookieValue, FORM_FLASH_COOKIE_NAME } from "../../http/site/render.js";
+import { clearFormSubmissionResultQueryParams, encodeFormSubmissionResultQuery, encodeFormFlashCookieValue, FORM_FLASH_COOKIE_NAME } from "../../http/site/form-render.js";
 
 /**
  * @file Public submission route for `forms` (SPEC-010 `FORMS_POST_SUBMIT`, REQ-05).

@@ -8,26 +8,16 @@ import { loadTheme, type DiscoveredTheme } from "#src/features/theme/index";
 import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import type { ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
+import { renderSite } from "../render-site.js";
+import { decodeFormSubmissionResultFromQuery, encodeFormSubmissionResultQuery, injectFormSubmissionResultIntoHtml, decodeFormFlashCookieValue, encodeFormFlashCookieValue, mergeFormFlashIntoResult, type FormSubmissionRedirectResult, type FormFlashPayload } from "../form-render.js";
+import type { MediaAssetRenderMeta, SiteProduct, SiteRenderContext } from "../render-context.js";
+import { renderBlockSeam } from "../render/blocks.js";
+import { renderHtmlPageBody } from "../render/page-body.js";
+import { renderDocNode, renderWidgetIr } from "../render/content-html.js";
 import {
   injectExtraHeadIntoStaticPage,
   injectSiteAssistantIntoStaticPage,
-  renderBlockSeam,
-  renderDocNode,
-  renderHtmlPageBody,
-  renderSite,
-  renderWidgetIr,
-  decodeFormSubmissionResultFromQuery,
-  encodeFormSubmissionResultQuery,
-  injectFormSubmissionResultIntoHtml,
-  decodeFormFlashCookieValue,
-  encodeFormFlashCookieValue,
-  mergeFormFlashIntoResult,
-  type FormSubmissionRedirectResult,
-  type FormFlashPayload,
-  type MediaAssetRenderMeta,
-  type SiteProduct,
-  type SiteRenderContext,
-} from "../render.js";
+} from "../render/static-page-injection.js";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import { useSiteChatBuild } from "./site-chat.fixture.js";
 

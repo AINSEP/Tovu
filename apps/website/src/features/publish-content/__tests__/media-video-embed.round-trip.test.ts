@@ -30,7 +30,7 @@ import {
 } from "#src/features/media/index";
 import { contributeMediaPublish } from "#src/features/media/publish-content";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
-import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render";
+import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
 
 import { includeReferencedEntities } from "../export-bundle.js";
 import { buildPublishContentCatalog, type PublishContentPorts } from "../type-registry.js";

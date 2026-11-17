@@ -8,7 +8,8 @@ import { createSiteAssistantModule } from "../runtime/composition/modules/site-a
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { registerAdminSettingsSetRoute } from "../inbound/admin-http/routes/settings/set.js";
 import { registerAdminSettingsRegisterDefinitionsRoute } from "../inbound/admin-http/routes/settings/register-definitions.js";
-import { registerSiteRoutes, resolveSiteAssistantWidgetForRequest } from "../inbound/public-http/routes/site/pages.js";
+import { registerSiteRoutes } from "../inbound/public-http/routes/site/pages.js";
+import { resolveSiteAssistantWidgetForRequest } from "../inbound/public-http/routes/site/pages/render-context/widgets.js";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { setSiteAssistantCredential, deleteSiteAssistantCredential } from "#src/assistant/index";
 import { set as setLedgerValue } from "@jini-ai/core/settings";

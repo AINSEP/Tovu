@@ -4,11 +4,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { InMemoryEntryRepo } from "#src/features/entries/index";
 import type { Taxonomy, Term } from "#src/features/taxonomy/index";
-import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render";
+import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
 import { checkMarkupFile } from "#src/features/theme/validation/markup";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { finishStaticTierDocument } from "#src/server/inbound/public-http/routes/site/pages";
+import { finishStaticTierDocument } from "#src/server/inbound/public-http/routes/site/pages/static-tier";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
 
 const taxonomy: Taxonomy = { id: "tax-1", name: "Categories", hierarchical: true, status: "active", version: 1, updatedAt: "2026-10-04" };
@@ -65,7 +65,7 @@ test("the public static-page pipeline wires taxonomy read ports and resolves mar
     pages: { index: source }, partials: { nav: marker("tax-1") },
     css: "", source: "site", status: "valid", errors: [],
   };
-  const rendered = await finishStaticTierDocument(dependencies, { theme, pageId: "index", html: source, currentPath: "/", staticMenus: undefined });
+  const rendered = await finishStaticTierDocument({ deps: dependencies, input: { theme, pageId: "index", html: source, currentPath: "/", staticMenus: undefined } }, {});
   assert.match(rendered, /data-tovu-term="from-the-public-pipeline"/);
   assert.doesNotMatch(rendered, /class=|style=|data-embed-config|widget-placeholder/);
 });
