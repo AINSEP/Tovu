@@ -1,4 +1,4 @@
-# Lanes S (database code) and U (users): plan index — revision 3 complete, 2026-11-16. Planning only, nothing executed.
+# Lanes S (database code) and U (users): plan index — revision 3 complete, 2026-11-16; su-refresh 2026-11-17 (§1b). Planning only, nothing executed.
 
 Revision 3 (table at the end) re-pinned every facts file on Tovu `integ/merge-final-2026-11-16` @ `232764af5` / Jini
 `65d73b0d5`; the paragraphs below that name merge-a describe revision 2. Cross-plan collisions with lanes K/T: §3a.
@@ -18,6 +18,44 @@ Facts files were regenerated on that Tovu tree (`scripts/` now take `LANE_ROOT`)
 | S | **9,705** | 78 | S1 18, S2 27, S3 19, S4 40, S5 12, S6 40, S7 27, S8 54 (overlapping) |
 | U | **5,320** | 22 | members 56 + 16, API keys 7 |
 `coverage.tsv`: 60 of the 100 files have a CLASSIFY label, 40 have none; 51 labelled files have no other sheet or design.
+
+## 1b. Sheet status after su-refresh (2026-11-17, on `origin/refactor/terra` = Tovu `232764af5` / Jini `65d73b0d5`)
+Labels: **READY** = body matches the tree, no edit needed; **READY-WITH-NOTE** = body matches after this refresh's fixes,
+or carries a note the executor must read; dispatch still waits for the prerequisites named (each has a command; on the
+base every xpkg / audit2 prerequisite prints nothing: R6-R9 `rg -q ColumnCatalogPort packages/cms/src/forms/sql`, N1
+`test -f packages/node-adapters/package.json`, C9c, R3b, A07 `ls packages/user-management/src/members/ports.ts`; S0 has not
+run); **BLOCKED** = cannot start even when those land (an open owner decision with no sheet-side answer, or unwritten work).
+Base gates measured: Tovu `typecheck` green; `check:size`, `check:complexity`, `check:boundaries`, `check:architecture` RED
+on the unmodified base (not lane-caused; T-SQLREPO §1 now captures them and §5 compares); `write-path-inventory.ts --check`
+cannot run (T-SQLREPO §1); Jini `check:size`, `check:complexity`, `guard` green. Facts: all 12 regenerate byte-identical.
+| Sheet | Status | What the refresh found / changed (details in the sheet) | Waits for |
+|---|---|---|---|
+| S3a | READY-WITH-NOTE | partition range fixed (:58-630); the cited open-bugs entry does not exist (reworded: carried in the report, no edit to `open-bugs.md`) | S0; xpkg C9c + R3b (both print nothing on the base) |
+| S3b | READY-WITH-NOTE | `createMfaStore` 48 lines: measure with `limits` | S3a |
+| S4a | READY-WITH-NOTE | barrel lines of moved symbols DELETED (were "repointed": fires xpkg S3) + 4 barrel importers listed with a command; `db-port.ts` STAYS (barrel fan-out 11 files); `notTrashed` has 1 call site, `isTrashedRecord` options required | S0; R6-R9; S2c (cms chain) |
+| S4b | READY-WITH-NOTE | full constructor-call list (deps.ts:1641, taxonomy slice :23/:33, entries repair :100, 9 tests); `index.ts:60` deleted; `deps.ts` shared file | S4a |
+| S5a | READY | 20 methods, ranges, lock line all match | S0; OD-1 |
+| S5b | READY-WITH-NOTE | Tovu already adapts the port the other way (`token.ts:76 adaptTokenStore`): round trip accepted, follow-up named | S5a; OD-1 |
+| S5c | READY-WITH-NOTE | origin gate rows rewritten: the "security profile" admin-Origin gate does not exist; real consumers are the egress / redirect allowlists and canonical host | S5b; OD-1 |
+| S6a | READY-WITH-NOTE | `claimLeaseMs` is optional today; 3 positional test sites + 10 test importers listed | S5c; OD-1 + **OD-6 (sheet SKIPs without it)** |
+| S6b | READY-WITH-NOTE | `DeliveryEnvelopeStore` is already an alias of the Jini port: comparison removed | xpkg R11b-3; OD-2 |
+| S6c | READY-WITH-NOTE | invented "clamp" row replaced by today's behaviour (no clamp, default limit) | R6-R9; S8b (cms chain) |
+| S7a | READY-WITH-NOTE | the port extends `MediaFileReplacementRepoPort` (not `MediaRepoPort`); lines :39/:49/:58/:80 | S4b; R6-R9 |
+| S7b | READY-WITH-NOTE | partition ranges fixed; content-type port decided (Tovu-only; Jini-local interface, dedupe follow-up) | S7a |
+| S8a | READY-WITH-NOTE | DD-entry-refs-1 re-pinned into the sheet: 9 blobs + survivor match, ONE importer moved (`type-registry.ts` -> `tovu-publish-ports.ts:22`), guard command proven both ways; S8a runs DD first if it has not landed | S7b; R6-R9 |
+| S8b | READY | imports and `expandPartials` signature match | S8a |
+| S8c | BLOCKED (OD-6 + the unwritten memory-outbox behaviour comparison, R3-1) | - | - |
+| U1a | READY-WITH-NOTE | `withoutId` conditional resolved (used at :400/:477/:570) | A07; S3a; OD-3 |
+| U1b | READY-WITH-NOTE | `findByTokenHash` does NOT filter revoked/expired: pinned as such | U1a; S4a |
+| U2a | READY-WITH-NOTE | construction site `app.ts:627` under `wrapMailerWithPurposeGate`; `MailerPort` lives in `@jini-ai/core/contracts/mail` | xpkg N1 |
+| U2b | READY-WITH-NOTE | members-barrel rule rewritten (delete + repoint 11 importers; command); `credentialLifecycle` binding keeps its `??` in-memory branch | U2c-2; S4a |
+| U2c-1 | READY-WITH-NOTE | all 40 declaration lines match; S3 allowance for Tovu-internal barrel specifier changes | S0 only |
+| U2c-2 | READY-WITH-NOTE | 2 barrel importers of `issueMemberSession` | A07; S3a; U2c-1 |
+| U2c-3 | READY-WITH-NOTE | 3 barrel importers; `catch` at :676 | U2c-2 |
+| U3 (U3a/U3b) | READY-WITH-NOTE | "per security profile" replaced by the real `localOwnerSignIn` input; `currentCredential` :268-292; command K, hasher/scheme STOP and declaration map re-run and match | S3b; OD-4 |
+Shared-rule fixes this refresh (T-SQLREPO): §6 (a)/(c) guarded (an empty `NEW_JINI` made them search the whole clone: 570 /
+746 false hits); §1 base captures + §5 comparisons for the four red Tovu ratchets; write-path baseline gated by a diff.
+No STOP command sits in a markdown table with `\|` in any S/U sheet (checked: 0 hits).
 
 ## 2. Sheets (assemble per `T-SQLREPO.md` §0: xpkg `COMMON.md` + `T-SQLREPO.md` + sheet + facts)
 | Run | Sheet | Target | Est. tokens | Needs (beyond S0) |
@@ -61,10 +99,14 @@ sheet's facts diff then fails until its table is regenerated: lost-updates (`ide
    - single runs: S6b (integrations), U2a (platform)
 4. Shared Tovu files are serialized by the table in `T-SQLREPO.md` §3 (no coordinator edits; baselines and the `kysely`
    peers travel in the commit that needs them). Two additions:
-   - `server/runtime/composition/deps.ts`: at most one sheet per wave whose `wiring` names a line there (S6a is the only
-     one known; a census hit in another sheet moves that sheet to the next wave).
-   - `features/members/index.ts` (134-line barrel, 60 importers; round-1 item 7): U2c-1, U1a, U1b, U2c-2, U2b, U2c-3 each
-     change only the specifier of lines naming a symbol they move, serially on the user-management chain. **R-BARRELS
+   - `server/runtime/composition/deps.ts`: at most one sheet per wave whose `wiring` names a line there. Known (su-refresh):
+     S6a (outbox binding), S4b (`deps.ts:355` barrel import + `:1641` `createTableTrashAdapter`), U2b (barrel importer of
+     the resolver symbols). A census hit in another sheet moves that sheet to the next wave.
+   - `features/members/index.ts` (134-line barrel, 63 importers; round-1 item 7): serially on the user-management chain.
+     su-refresh: a barrel line may NOT be repointed to a Jini specifier (xpkg COMMON S3 fails on it; owner rule: no
+     forwarders). A run that moves a symbol to Jini DELETES its barrel line and repoints that symbol's barrel importers
+     (`U/U2` "Barrel rule": U2b 11 files, U2c-2 2, U2c-3 3). Only U2c-1 (Tovu-internal split) changes `./…` specifiers
+     of existing lines. U1a/U1b touch no barrel line (`repo.sqlite.ts` keeps its names). **R-BARRELS
      runs on this barrel either before U2c-1 or after U2c-3, never in between**; if after, it repoints the importers to
      the final owners these sheets created.
 
@@ -96,6 +138,17 @@ Both plans live in this folder on two branches: `plan/lanes-s-u-2026-11-16` (`IN
 | T-PO-01g | S1, S2, S8, U2, U3 | `server/routes/types.ts` (S1, S2, S8, U2, U3); html-document-store (S8); `features/post/__tests__/post.schedule-events.test.ts` (S8) |
 | T-PO-02 | the whole S/U cms chain (S1w ... S6c, INDEX-SU §3: each adds an export entry to `packages/cms/package.json`) | Jini `cms/package.json` + README; `cms/src/media/` (S7); `cms/src/widgets/` (S8). Runs before S1w or between two cms-chain runs |
 | T-TH-01 | S8 | `features/theme/static-render.ts` (S8) |
+**su-refresh additions (2026-11-17; not in the generated table, which reads facts importer lists and so misses barrel
+importers).** Re-reading the bodies added these Tovu write-set files; checked against the K/T sidecars (`[KT]/*.tsv` on
+`origin/plan/lanes-k-t-2026-11-16`): `server/routes/types.ts` (S4a: trash registry types) -> T-PO-01g, K-05b, K-11,
+T-PO-03, T-PO-04; `server/runtime/composition/deps.ts` (S4b, U2b) -> K-05b, K-11, T-PO-03, T-PO-04, T-TH-07;
+`server/runtime/composition/memory-deps/slices/trash-adapters-taxonomy.ts` (S4b) -> K-05b; `features/seo/index.ts` (U2b)
+-> K-04b, T-PO-01, T-PO-03; `features/site-search/cms-document-source.ts` (U2b) -> T-PO-01, T-PO-04;
+`server/inbound/admin-http/routes/posts/template-preview-render.ts` (U2b) -> T-PO-03, T-TH-06;
+`server/runtime/composition/modules/site-assistant.ts` (U2b) -> T-PO-03. New row-level edges: **T-PO-01g never with S4**
+(was not listed); **K-04b never with U2** (design queue). The other files the refresh added (`features/entries/unreadable-owner-entries-repair.ts`,
+`server/inbound/admin-http/routes/trash/deps.ts`, the trash / outbox tests, the members routes, `features/member-login/link-service.ts`,
+`features/publish-content/tovu-publish-ports.ts`) are in no K/T sidecar.
 Design-queue items also collide (generated rows name them): T-PO-03/04 with S1, S2, S4, S5, S7, S8, U2; K-07b with S3, S4, S6
 (and the hard edge above); K-11 with S6, S7, S8; K-05b with S1, S4; T-TH-06/07, T-NL-01 with U2, S8. Order them when they
 are written. Run on S/U `7f4f663aa` + K/T `5b4b28a56`: 109 rows (99 Tovu, 9 Jini, 1 bookkeeping).

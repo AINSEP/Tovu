@@ -18,7 +18,8 @@ Assemble: `cat <X>/untangle/sheets-2026-11-16/COMMON.md T-SQLREPO.md <sheet>.md 
 
 ## 1. Base and setup
 Pinned for revision 3 on Tovu `integ/merge-final-2026-11-16` @ `232764af5` and Jini `integ/merge-final-2026-11-16` @
-`65d73b0d5`. Every facts file was regenerated on that Tovu commit (`LANE_SHA=232764af5`); it contains the earlier bases
+`65d73b0d5`; su-refresh (2026-11-17): `origin/refactor/terra` is exactly that pair in both repos (same SHAs), and every facts
+file regenerates byte-identical on it. Every facts file was regenerated on that Tovu commit (`LANE_SHA=232764af5`); it contains the earlier bases
 (Tovu merge-a `e801e9ae`, merge-b `450ac748`; Jini `af33fcdb`). Start only from a pair where each repo contains both
 merges (xpkg COMMON "Base" commands) and whose Tovu side contains `232764af5`. Then, before reading source:
 ```
@@ -26,6 +27,24 @@ merges (xpkg COMMON "Base" commands) and whose Tovu side contains `232764af5`. T
 pnpm install --config.prefer-workspace-packages=true     npm ci && npm run link:jini
 pnpm -r build && pnpm guard > /tmp/guard-before.txt      npm run typecheck && npm run typecheck:tests     # red on the unmodified pair = STOP
 npm --prefix packages/<pkg> run test   (each package the sheet touches; record the summary line)
+```
+**Base gates that are already red (su-refresh, measured on refactor/terra 2026-11-17).** Tovu `npm run typecheck` exits 0,
+but `npm run check:size` exits 1 (17 `Worsened violation` lines, none in a lane S/U file) and `npm run check:complexity` exits
+1 (22 `New violation` + 1 `Worsened violation`, none in a lane S/U file), `npm run check:boundaries` exits 16 (16
+`no-deep-imports` errors, 7 of them on `features/members` / `features/media` edges no sheet edits) and `npm run
+check:architecture` exits 1 (4 metrics regressed against a hard constraint: propagation cost runtime-only, back-edges into
+the composition root 0 -> 6, module API surface 821 -> 852, bidirectional hubs 335 -> 363; largest SCC 22 -> 60). Jini's
+`pnpm check:size` and `pnpm check:complexity` exit 0. These are not lane-caused and are not a STOP; the
+T1 gate compares against a capture taken on the unmodified tree (below and §5). `development/scripts/write-path-inventory.ts
+--check` CANNOT run on refactor/terra: its `ROOT` is `path.resolve(import.meta.dirname, "..")` = `development/`, which has no
+`tsconfig.json` (ts-morph `FileNotFoundError`); it is in no npm script and no CI workflow. Its baseline file is therefore
+maintained by hand (§3 row) and gated by the diff command in §5, not by the script.
+```bash
+cd "$TOVU"   # once, on the unmodified tree; the exit status may be 1: record, do not STOP
+P='^(Added debt|Increased debt|New violation|Worsened violation|Delete stale debt entry)'
+for c in size complexity; do npm run check:$c 2>&1 | rg "$P" | sed -E 's/:[0-9]+ / /' | sort > /tmp/$c-before.txt; done
+npm run check:boundaries 2>&1 | rg '^\s+error ' | sort > /tmp/bound-before.txt
+npm run check:architecture 2>&1 | rg '^\s+regressed:' > /tmp/arch-before.txt
 ```
 Shell setup used by every command below (paste once per shell; `<tovu>` / `<jini>` are the two clone roots):
 ```bash
@@ -127,8 +146,16 @@ cd "$TOVU"
 npm run link:jini                   # linked to the J1 SHA; record `git -C "$JINI" rev-parse HEAD`
 npm run typecheck && npm run typecheck:tests
 TT <T0 test files> <every test file listed in the facts file>        # all green, same count as before the run
-npx tsx development/scripts/write-path-inventory.ts --check
-npm run check:boundaries && npm run check:architecture && npm run check:size && npm run check:complexity
+# write-path baseline (hand-maintained, §1): this run only DELETES rows; prints nothing
+git diff "$TOVU_BASE"..HEAD -- development/scripts/write-path-inventory.baseline.json | rg '^\+[^+]'
+# boundaries / architecture against the §1 capture (both red on refactor/terra); each line prints nothing
+npm run check:boundaries 2>&1 | rg '^\s+error ' | sort | comm -13 /tmp/bound-before.txt -
+npm run check:architecture 2>&1 | rg '^\s+regressed:' | tee /tmp/arch-after.txt | sed -E 's/^\s+//; s/ {2,}.*//' | sort | comm -13 <(sed -E 's/^\s+//; s/ {2,}.*//' /tmp/arch-before.txt | sort) -
+diff /tmp/arch-before.txt /tmp/arch-after.txt   # NOT a pass/fail line: paste into the report (a metric that got worse is reviewed there)
+# size / complexity against the §1 capture (refactor/terra is red on both); prints nothing. A "Delete stale debt
+# entry" line here means: delete that entry in THIS commit (xpkg COMMON), then re-run.
+P='^(Added debt|Increased debt|New violation|Worsened violation|Delete stale debt entry)'
+for c in size complexity; do npm run check:$c 2>&1 | rg "$P" | sed -E 's/:[0-9]+ / /' | sort | comm -13 /tmp/$c-before.txt -; done
 BASE=$TOVU_BASE; limits
 rg -n "<each deleted path stem>" apps development -g '!**/node_modules/**'                 # must print nothing
 ```
@@ -164,7 +191,8 @@ cd "$JINI"
 NEW_JINI=$(git diff --name-only --diff-filter=A "$JINI_BASE"..HEAD -- packages | rg -v '__tests__|\.test\.')
 
 # (a) A moved body reads a table the sheet did not list: prints each query target; compare with the sheet's `tables`
-rg -n "(selectFrom|insertInto|updateTable|deleteFrom|innerJoin|leftJoin)\(" $NEW_JINI
+# su-refresh: guarded, an empty NEW_JINI made rg search the whole clone (570 false hits on the base)
+[ -z "$NEW_JINI" ] || rg -n "(selectFrom|insertInto|updateTable|deleteFrom|innerJoin|leftJoin)\(" $NEW_JINI
 
 # (b) A moved body imports something the sheet did not turn into a port. Reads whole files, so multi-line imports count.
 #     Allowed: relative paths that stay inside the same package's src, @jini-ai/core[/...], @jini-ai/protocol[/...],
@@ -183,7 +211,7 @@ for f in sys.argv[1:]:
 EOF
 
 # (c) Raw SQL or a dialect branch the sheet did not list: every hit must be named in the sheet
-rg -n 'sql`|\.dialect\b|sql\.raw' $NEW_JINI
+[ -z "$NEW_JINI" ] || rg -n 'sql`|\.dialect\b|sql\.raw' $NEW_JINI      # same guard (746 false hits unguarded)
 
 # (d) A permanent delete was added (owner rule: never permanent deletes). Run after T1.
 #     Tovu production code adds no deleteFrom; Jini gains at most as many deleteFrom lines as Tovu lost.

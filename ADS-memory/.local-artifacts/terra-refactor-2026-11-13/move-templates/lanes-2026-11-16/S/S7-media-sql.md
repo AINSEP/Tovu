@@ -13,8 +13,8 @@ successor_of: S4b (cms manifest); S7b: S7a
 ```
 
 ## S7a
-- `versioned-media-repo.ts`: `VersionedMediaRepoPort` (the optimistic `saveIfVersion` / `insertIfAbsent` / retire-list
-  extension of `MediaRepoPort`) MOVE to `packages/cms/src/media/versioned-repo.ts`. `InMemoryVersionedMediaRepo`: step 0
+- `versioned-media-repo.ts`: `VersionedMediaRepoPort` (:39; the optimistic `saveIfVersion` :49 / `insertIfAbsent` :58 /
+  retire-list extension of `MediaFileReplacementRepoPort`, su-refresh: not `MediaRepoPort`) MOVE to `packages/cms/src/media/versioned-repo.ts`. `InMemoryVersionedMediaRepo`: step 0
   diffs it against Jini's `media/repo.memory.ts` method by method and writes the table into the report; if the Jini
   memory repo can gain the three methods with every existing test green, EXTEND it (one owner); otherwise MOVE the class
   beside it. The sheet does not guess: the table decides, and the T0 rows below run against whichever class results.

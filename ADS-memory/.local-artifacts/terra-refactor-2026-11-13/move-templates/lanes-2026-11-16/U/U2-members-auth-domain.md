@@ -68,6 +68,12 @@ passes `console.log` at its one construction site. T0: the composition selects t
 condition (pin it; a console mailer prints sign-in links, so it must not become reachable in another mode), and the
 printed link equals the URL the real mail carries. Mutation: select it unconditionally. Stop: `MailerPort` in Jini
 platform differs from Tovu's member by member (SKIPPED).
+su-refresh (refactor/terra): the one production construction site is `server/runtime/composition/app.ts:627`
+(`inner: new ConsoleMailerAdapter()` inside `wrapMailerWithPurposeGate({ inner, mode: resolveRuntimeMode(), durableOutboxReady })`:
+that wrapper and `mode` ARE the selection condition T0 pins). The adapter imports `MailerPort` from Tovu's
+`platform/mail/index.js` (`mailer.console.ts:17-24`); Jini declares `MailerPort` in `@jini-ai/core/contracts/mail`
+(`ports.ts:12`), not in platform: the member comparison is against that file. Jini platform's `./mail` entry is already
+`node` (`jini.entries`), so no new subpath is needed.
 `auth-mail.ts` STAY (with C). `trash-member.ts` STAY-WIRING (imports `@jini-ai/cms/trash`). `consent-service.ts` (261,
 labelled DELETE, exported by the barrel at `index.ts:123`): no action until OD-7; it writes privacy records.
 
