@@ -122,8 +122,8 @@ apps/website/src/features/post/expected-version.ts	16	prod	direct	./post.js	Post
 apps/website/src/features/post/featured-image.ts	3	prod	moves-too	./post.js	PostValidationError	apps/website/src/features/post/post.ts
 apps/website/src/features/post/index.ts	77	barrel	re-export	-	resolveFeaturedImageRef,resolveFeaturedMediaIdForWrite,FeaturedImageDeps	DELETE this re-export line in the Tovu commit (no forwarders)
 apps/website/src/features/post/preview-tool.ts	9	prod	direct	./post.js	getAdminPostById,PostNotFoundError,PublicPostRecord,PostRepoPort	apps/website/src/features/post/post.ts
-apps/website/src/features/post/publish-content.ts	21	prod	direct	./post.js	importPostEntity,isTrashed,presentScheduleFields,restorePostForward,retirePostForReplacement,PostConflictError,PostNotFoundError,ROOT_SLUG	apps/website/src/features/post/post.ts
-apps/website/src/features/post/publish-content.ts	22	prod	direct	./post.js	PostRecord	apps/website/src/features/post/post.ts
+apps/website/src/features/post/publish-content.ts	20	prod	direct	./post.js	importPostEntity,isTrashed,presentScheduleFields,restorePostForward,retirePostForReplacement,PostConflictError,PostNotFoundError,ROOT_SLUG	apps/website/src/features/post/post.ts
+apps/website/src/features/post/publish-content.ts	21	prod	direct	./post.js	PostRecord	apps/website/src/features/post/post.ts
 apps/website/src/features/post/repo.memory.ts	4	prod	direct	./post.js	PostAutosaveSnapshot,PostRecord,PostRepoPort,PostRevisionAppendResult,PostRevisionInput,PostRevisionRecord	apps/website/src/features/post/post.ts
 apps/website/src/features/post/repo.rows.ts	8	prod	direct	./post.js	DEFAULT_BODY_JSON,presentScheduleFields,PostBodyFormat,PostRecord,PostRevisionInput,PostRevisionOp,PostRevisionRecord	apps/website/src/features/post/post.ts
 apps/website/src/features/post/repo.ts	7	prod	direct	./post.js	PostAutosaveSnapshot,PostRecord,PostRepoPort,PostRevisionAppendResult,PostRevisionInput,PostRevisionRecord	apps/website/src/features/post/post.ts
@@ -138,7 +138,7 @@ apps/website/src/features/publish-content/__tests__/execute-pull-tool.plugin-hoo
 apps/website/src/features/publish-content/push-plan.ts	8	prod	barrel:apps/website/src/features/post/contracts.ts	../post/contracts.js	PostRecord	apps/website/src/features/post/post.ts
 apps/website/src/features/publish-content/tool-deps.ts	11	prod	barrel:apps/website/src/features/post/index.ts	#src/features/post/index	BeforeSaveHookPort	apps/website/src/features/post/post.ts
 apps/website/src/features/publish-content/tool-registrations.ts	53	prod	barrel:apps/website/src/features/post/index.ts	#src/features/post/index	BeforeSaveHookPort	apps/website/src/features/post/post.ts
-apps/website/src/features/publish-content/type-registry.ts	3	prod	barrel:apps/website/src/features/post/contracts.ts	#src/features/post/contracts	BeforeSaveHookPort,ForgetRemovedPostFn,PostRepoPort,RemovePostFn	apps/website/src/features/post/post.ts
+apps/website/src/features/publish-content/tovu-publish-ports.ts	1	prod	barrel:apps/website/src/features/post/contracts.ts	#src/features/post/contracts	BeforeSaveHookPort,ForgetRemovedPostFn,PostRepoPort,RemovePostFn	apps/website/src/features/post/post.ts
 apps/website/src/features/seo/__tests__/sitemap-invalidation.integration.test.ts	6	test	barrel:apps/website/src/features/post/index.ts	../../post/index.js	createPost,updatePost,PostRecord	apps/website/src/features/post/post.ts
 apps/website/src/features/seo/__tests__/sitemap.test.ts	4	test	barrel:apps/website/src/features/post/index.ts	../../post/index.js	PostRecord	apps/website/src/features/post/post.ts
 apps/website/src/features/seo/__tests__/write-service.revision.test.ts	6	test	barrel:apps/website/src/features/post/index.ts	../../post/index.js	PostRecord	apps/website/src/features/post/post.ts

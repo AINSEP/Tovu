@@ -3,7 +3,7 @@ Assembly (one run = one sheet): `cat K/K-TOOLS-PATTERN.md K/<sheet>.md COMMON-KT
 
 ## Session
 - Stop before 300k tokens of context. Near 250k: start nothing new, finish or restore the current step, push, report done/left.
-- Clones: Tovu `{TOVU_CLONE}`, Jini `{JINI_CLONE}` (directory named exactly `Jini`, sibling of the Tovu clone). Both on `{BRANCH}`, both created from the SAME integration merge (`{BASE_TOVU}` / `{BASE_JINI}` recorded by the dispatcher); else STOP.
+- Clones: Tovu `{TOVU_CLONE}`, Jini `{JINI_CLONE}` (directory named exactly `Jini`, sibling of the Tovu clone). Both on `{BRANCH}`, both created from `origin/refactor/terra` (= `integ/merge-final-2026-11-16`): `{BASE_TOVU}` = Tovu 232764af5, `{BASE_JINI}` = Jini 65d73b0d5, or a later refactor/terra tip recorded by the dispatcher AFTER it regenerated the sidecars there; else STOP. Check: `git merge-base --is-ancestor 232764af5 HEAD` (Tovu) and `git merge-base --is-ancestor 65d73b0d5 HEAD` (Jini) both exit 0.
 - Bootstrap files (AI-Dev-Shop/AGENTS.md, CLAUDE.md startup) do not apply. No subagents.
 - Edit only the sheet's WRITE SET: its source files, the rows of `<id>.importers.tsv`, the new files it names, and the bookkeeping files on its `writes:` line (`development/scripts/size-debt.json`, `src-complexity-debt.json`, `size-exceptions.json`, `error-gate-debt.json`: only the entries the sheet names). Never touch `node_modules`, `ADS-memory`, lockfiles, package versions, `*.sql`, migration folders. Nothing is left "for the coordinator": a step that needs an edit the sheet does not list = STOP.
 
@@ -34,7 +34,7 @@ V3 proof a characterization test can fail: apply the ONE mutation the sheet name
 "Green" for a Tovu commit means green against the linked Jini clone at the Jini SHA written in the Tovu commit body (Tovu's package.json keeps the published range; the coordinated publish is not part of a sheet).
 
 ## STOP-on-mismatch (a SKIP is a good outcome)
-- Every file in `<sheet>.files.tsv` must match its blob (`git hash-object <path>`). Files listed in `BLOB-DRIFT.tsv` differ between the two 11-16 integration merges: the dispatcher regenerates sidecars (`scripts/gen.py`, `decls.py`, `symbols.cjs`) on the final merged tree first.
+- Every file in `<sheet>.files.tsv` must match its blob (`git hash-object <path>`). The sidecars were generated on `origin/refactor/terra` @ Tovu 232764af5 (2026-11-17); `BLOB-DRIFT.tsv` lists the 3 sheet files whose blob changed from the merge-a planning sidecars to that tree. If refactor/terra has moved since, the dispatcher regenerates the sidecars (`scripts/gen.py`, `decls.py`, `symbols.cjs`) on the new tip first; a mismatching blob at run time = STOP.
 - Census: run `<sheet>.census.txt`; every hit must be a row of `<sheet>.importers.tsv` (direct, barrel or moves-too). Any other hit, any Jini name the sheet assumes that is missing, any decision the sheet did not make: restore your files, report SKIPPED + reason.
 
 ## Owner rules (acceptance criteria)

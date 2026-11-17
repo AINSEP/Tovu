@@ -86,4 +86,9 @@ apps/website/src/features/theme/theme-trash.ts	decl	assertThemeIdSegment		45	49	
 apps/website/src/features/theme/theme-trash.ts	decl	locateThemeFolder	export	62	81	20
 apps/website/src/features/theme/theme-trash.ts	decl	tierDirs		84	87	4
 apps/website/src/features/theme/theme-trash.ts	decl	locateThemeOriginal	export	100	114	15
-apps/website/src/features/theme/theme-trash.ts	decl	createThemeTrashAdapter	export	128	211	84
+apps/website/src/features/theme/theme-trash.ts	decl	createThemeTrashAdapter	export	128	155	28
+apps/website/src/features/theme/theme-trash.ts	decl	createThemeOriginalTrashAdapter		158	175	18
+apps/website/src/features/theme/theme-trash.ts	decl	ThemeTrashPair		178	182	5
+apps/website/src/features/theme/theme-trash.ts	decl	settled		185	185	1
+apps/website/src/features/theme/theme-trash.ts	decl	hideThemeWithOriginal		187	216	30
+apps/website/src/features/theme/theme-trash.ts	decl	unhideThemeWithOriginal		218	243	26

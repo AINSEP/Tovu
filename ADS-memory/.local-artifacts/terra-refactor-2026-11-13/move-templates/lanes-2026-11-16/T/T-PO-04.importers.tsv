@@ -169,9 +169,10 @@ apps/website/src/features/post/search-index.ts	6	prod	moves-too	./search-index.s
 apps/website/src/features/post/tool-registrations.ts	108	prod	direct	./search.js	extractPostPlainText,searchAdminPosts,PostSearchPort	apps/website/src/features/post/search.ts
 apps/website/src/features/publish-content/__tests__/apply-loop.test.ts	28	test	direct	#src/features/post/repo.memory	InMemoryPostRepo	apps/website/src/features/post/repo.memory.ts
 apps/website/src/features/publish-content/__tests__/execute-pull-tool.plugin-hook-refusal.test.ts	26	test	direct	#src/features/post/repo.memory	InMemoryPostRepo	apps/website/src/features/post/repo.memory.ts
+apps/website/src/features/publish-content/__tests__/gated-hooks.baseline-principal.test.ts	23	test	direct	../../post/repo.memory.js	InMemoryPostRepo	apps/website/src/features/post/repo.memory.ts
 apps/website/src/features/publish-content/__tests__/gated-hooks.confirmed-report.test.ts	37	test	direct	../../post/repo.memory.js	InMemoryPostRepo	apps/website/src/features/post/repo.memory.ts
-apps/website/src/features/publish-content/__tests__/planner.test.ts	941	test	direct	../../post/repo.memory.js	<dynamic import>	apps/website/src/features/post/repo.memory.ts
-apps/website/src/features/publish-content/__tests__/planner.test.ts	989	test	direct	../../post/repo.memory.js	<dynamic import>	apps/website/src/features/post/repo.memory.ts
+apps/website/src/features/publish-content/__tests__/planner.test.ts	933	test	direct	../../post/repo.memory.js	<dynamic import>	apps/website/src/features/post/repo.memory.ts
+apps/website/src/features/publish-content/__tests__/planner.test.ts	981	test	direct	../../post/repo.memory.js	<dynamic import>	apps/website/src/features/post/repo.memory.ts
 apps/website/src/features/seo/__tests__/index.unit.test.ts	8	test	direct	../../post/repo.memory.js	InMemoryPostRepo	apps/website/src/features/post/repo.memory.ts
 apps/website/src/features/seo/__tests__/sitemap-invalidation.integration.test.ts	6	test	barrel:apps/website/src/features/post/index.ts	../../post/index.js	InMemoryPostRepo	apps/website/src/features/post/repo.memory.ts
 apps/website/src/features/seo/__tests__/sitemap.test.ts	4	test	barrel:apps/website/src/features/post/index.ts	../../post/index.js	InMemoryPostRepo	apps/website/src/features/post/repo.memory.ts

@@ -1,7 +1,7 @@
 # K-04 SEO agent tools -> `@jini-ai/cms/seo` (one run, est 160k)
-files: `K-04.files.tsv` (`seo/agent-tools.ts`, `seo/tool-registrations.ts`; `agent-tools.ts` is in `BLOB-DRIFT.tsv`: 11 lines differ between the two merges, regenerate first). tools: `K-04.tools.tsv` = 6 (round 1 said 7), longest 22. pkg: cms. THIRD_PARTY_ALLOWED: none.
+files: `K-04.files.tsv` (`seo/agent-tools.ts`, `seo/tool-registrations.ts`; `agent-tools.ts` is 280 lines on refactor/terra, 11 more than merge-a: sidecars regenerated 2026-11-17, row in `BLOB-DRIFT.tsv`). tools: `K-04.tools.tsv` = 6 (round 1 said 7), longest 22. pkg: cms. THIRD_PARTY_ALLOWED: none.
 writes: `development/scripts/size-debt.json` entry `buildSeoRegistrations#1`, deleted in S1. (`check-architecture.baseline.json` is NOT edited: the gate fails only on an introduced edge, `check-architecture.ts:277-281`; a removed edge needs no baseline change, and `--update` is forbidden.) tests: `apps/website/src/features/seo/**/*.test.ts`.
-over the limit: `buildSeoRegistrations` 88, `getSeoAgentToolCatalog` 51 (same split as K-01: one module const per entry).
+over the limit: `buildSeoRegistrations` 88. (`getSeoAgentToolCatalog` 51 is already split on refactor/terra into `seoEntryTools()` + `seoSettingsTools()`, `agent-tools.ts:219-280`; `K-04.fnsize.tsv` no longer lists it, so S1 does not split it again.)
 BINDINGS:
 | import | class | action |
 |---|---|---|

@@ -26,7 +26,7 @@ apps/website/src/features/theme/sync-originals.ts	4	prod	barrel:apps/website/src
 apps/website/src/features/theme/theme-files.ts	27	prod	direct	./render-contract.js	ThemeManifest	apps/website/src/features/theme/render-contract.ts
 apps/website/src/features/theme/theme.ts	4	prod	direct	./render-contract.js	TemplateNode,ThemeManifest,ThemeBuildInfo,ThemeTier	apps/website/src/features/theme/render-contract.ts
 apps/website/src/features/theme/theme.ts	5	barrel	re-export	-	TemplateNode,ThemeManifest,ThemeBuildInfo,ThemeTier	DELETE this re-export line in the Tovu commit (no forwarders)
-apps/website/src/features/theme/theme.ts	1139	barrel	re-export	-	resolveTemplateId,resolveLiquidTemplateId,resolveHandlebarsTemplateId	DELETE this re-export line in the Tovu commit (no forwarders)
+apps/website/src/features/theme/theme.ts	1154	barrel	re-export	-	resolveTemplateId,resolveLiquidTemplateId,resolveHandlebarsTemplateId	DELETE this re-export line in the Tovu commit (no forwarders)
 apps/website/src/features/theme/validation/structure.ts	6	prod	barrel:apps/website/src/features/theme/theme.ts	../theme.js	ThemeBuildInfo	apps/website/src/features/theme/render-contract.ts
 apps/website/src/server/inbound/admin-http/routes/settings/__tests__/preview-feed-access.test.ts	38	test	barrel:apps/website/src/features/theme/index.ts	#src/features/theme/index	<dynamic import>	apps/website/src/features/theme/index.ts
 apps/website/src/server/inbound/public-http/http/site/__tests__/render-blocks-site-branches.unit.test.ts	5	test	barrel:apps/website/src/features/theme/index.ts	#src/features/theme/index	TemplateNode	apps/website/src/features/theme/render-contract.ts

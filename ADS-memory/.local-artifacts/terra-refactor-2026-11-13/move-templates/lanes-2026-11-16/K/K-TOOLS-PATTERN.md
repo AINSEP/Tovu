@@ -1,6 +1,6 @@
 # K-TOOLS-PATTERN (revision 3): one domain's agent-tool catalog + handlers -> the Jini package that owns the domain
 Assembly: `cat K/K-TOOLS-PATTERN.md K/<sheet>.md COMMON-KT.md`. Used by K-01, K-02, K-03, K-04, K-05, K-07, K-09, K-10a/b.
-Verified on Tovu `integ/merge-a-2026-11-16` e801e9ae + Jini `integ/merge-a-2026-11-16` dde69a6d (planning read only; nothing executed).
+Verified on Tovu `integ/merge-a-2026-11-16` e801e9ae + Jini `integ/merge-a-2026-11-16` dde69a6d (planning read only; nothing executed); sidecars regenerated on `origin/refactor/terra` (Tovu 232764af5 / Jini 65d73b0d5) 2026-11-17.
 
 ## Existing owners (do not invent a second one)
 - Shape: Jini `packages/cms/src/navigation/tool-registrations.ts` (`MenusToolDeps`, `menusDerivedRisk`, `buildMenusRegistrations`) and Tovu's binding `apps/website/src/features/navigation/tool-registrations.ts` (`contributeMenusTools`).

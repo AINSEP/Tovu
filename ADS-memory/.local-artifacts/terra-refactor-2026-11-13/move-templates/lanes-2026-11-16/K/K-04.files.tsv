@@ -1,3 +1,3 @@
 path	loc	blob	label	jini_target
-apps/website/src/features/seo/agent-tools.ts	269	ca1232e67adda83a04f1cbb1062d58769063f40e	MOVE	@jini-ai/cms/seo (agent-tools.ts)
+apps/website/src/features/seo/agent-tools.ts	280	28ed80b5830d171ed369f3ac00e5115d813710db	MOVE	@jini-ai/cms/seo (agent-tools.ts)
 apps/website/src/features/seo/tool-registrations.ts	259	261697eefde242ecd3b061beadb87e5e5225492d	SPLIT	@jini-ai/cms/seo (tool-registrations.ts); settings + repos as ports

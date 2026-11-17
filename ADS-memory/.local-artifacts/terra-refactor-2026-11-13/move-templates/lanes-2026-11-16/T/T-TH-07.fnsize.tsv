@@ -6,5 +6,4 @@ apps/website/src/features/theme/page-publication.ts	(file)	60
 apps/website/src/features/theme/save-theme-original.ts	(file)	54	
 apps/website/src/features/theme/sync-originals.ts	(file)	197	
 apps/website/src/features/theme/theme-preview-image.ts	(file)	114	
-apps/website/src/features/theme/theme-trash.ts	(file)	211	
-apps/website/src/features/theme/theme-trash.ts	createThemeTrashAdapter	75	128-211
+apps/website/src/features/theme/theme-trash.ts	(file)	243	

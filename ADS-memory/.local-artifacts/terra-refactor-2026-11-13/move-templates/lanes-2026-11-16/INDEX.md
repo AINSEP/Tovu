@@ -1,15 +1,15 @@
-# Lanes K and T: extraction plan index - REVISION 3 (2026-11-16, planning only; revision 3 = Opus review response + coordinator decisions 1-5, tables at the end) - STATUS: PARTIAL (see "What remains")
+# Lanes K and T: extraction plan index - REVISION 3 (2026-11-16, planning only; revision 3 = Opus review response + coordinator decisions 1-5, tables at the end) - STATUS: PARTIAL (see "What remains"; revision 4 housekeeping 2026-11-17: sidecars on refactor/terra, dispatch blocked on Tovu baseline red, see end)
 Revision 3 coordinator edits (2026-11-16): lane S owns the taxonomy and trash SQL, so K-06a, K-06b and K-08 are RETIRED ("Coordinator decisions"); cross-plan collisions with lanes S/U: "Cross-plan".
 Docs only. No source edited; no build or test was run (the generator scripts were run to produce the sidecars).
-Revision 3 checks were made on `integ/merge-final-2026-11-16` (Tovu f70017dc5, Jini 65d73b0d5), which now exists; the sidecars are still the merge-a ones (regenerate on merge-final before dispatch). Revision 2: `integ/merge-final-2026-11-16` did not exist. Used Tovu `integ/merge-a-2026-11-16` e801e9ae (has the size-03/04/05 shapes: `http/site/render/`, `routes/site/pages/`, `posts/editor/`) for every sidecar, cross-checked with Tovu `integ/merge-b-2026-11-16` 450ac748 (7 sheet files differ: `BLOB-DRIFT.tsv`), and Jini `integ/merge-a-2026-11-16` dde69a6d. Regenerate on the final merge before dispatch: `python3 scripts/gen.py <dir> && python3 scripts/decls.py <dir> && node scripts/symbols.cjs <dir>` from the Tovu code root.
+Housekeeping 2026-11-17 (section "Revision 4 housekeeping" at the end): EVERY sidecar and both `INVENTORY.tsv` were regenerated on `origin/refactor/terra` (= `integ/merge-final-2026-11-16`, Tovu 232764af5 / Jini 65d73b0d5) with the commands below; that is now the base every blob guard and prerequisite is pinned to. Revision 3 checks were made on `integ/merge-final-2026-11-16` at Tovu f70017dc5 (an earlier tip of the same branch). Revision 2: `integ/merge-final-2026-11-16` did not exist. Used Tovu `integ/merge-a-2026-11-16` e801e9ae (has the size-03/04/05 shapes: `http/site/render/`, `routes/site/pages/`, `posts/editor/`) for every sidecar, cross-checked with Tovu `integ/merge-b-2026-11-16` 450ac748 (7 sheet files differ: `BLOB-DRIFT.tsv`), and Jini `integ/merge-a-2026-11-16` dde69a6d. Regenerate on the final merge before dispatch: `python3 scripts/gen.py <dir> && python3 scripts/decls.py <dir> && node scripts/symbols.cjs <dir>` from the Tovu code root.
 Personas: software-architect (lead), refactor, programmer, tdd, security. Skills: implementation-guardrails, feature-slice-design, refactor-patterns, architecture-migration, hexagonal-architecture, testable-design-patterns, test-design, security-review. Lessons 1-39 read.
 
-## Size now (merge-a; source files, tests excluded)
+## Size now (origin/refactor/terra 232764af5, regenerated 2026-11-17; source files, tests excluded)
 | lane | source files | lines | by label |
 |---|---|---|---|
-| K | 125 | 17,452 | MOVE 3,344 + SPLIT 3,381 + MOVE-AFTER 3,315 + STAY 7,412 (3,297 of STAY is webhooks keyring/sealer = row 57 / audit2 B09). Revision 3: 8 files / 1,586 lines of MOVE (K-06, K-08) are relabelled `LANE-S` in `K/INVENTORY.tsv` (lane S runs S1a, S4a/S4b) |
-| T | 116 | 30,291 | covered by B04/B05 4,305 + MOVE 1,845 + SPLIT 6,561 + MOVE-AFTER 13,210 + owner decision 797 + STAY 3,573 |
-241 source files (round 1's "233" was stale; its inventories held 240; merge-a adds `theme/public-theme-resources.ts`). Tests: K 175 files / 30,534 lines, T 217 files / 40,031 lines = 392 files, still not classified per test.
+| K | 125 | 17,467 | MOVE 1,769 + LANE-S 1,586 + SPLIT 3,381 + MOVE-AFTER 3,319 + STAY 7,412 (3,297 of STAY is webhooks keyring/sealer = row 57 / audit2 B09). LANE-S = the 8 files of K-06/K-08 that lane S runs (S1a, S4a/S4b); merge-a was 17,452 with them counted in MOVE |
+| T | 116 | 30,346 | covered by B04/B05 4,328 + MOVE 1,845 + SPLIT 6,561 + MOVE-AFTER 13,209 + owner decision 797 + STAY 3,606 (merge-a: 30,291) |
+241 source files (round 1's "233" was stale; its inventories held 240; merge-a adds `theme/public-theme-resources.ts`). Tests on refactor/terra: K 175 files / 30,534 lines, T 217 files / 40,032 lines = 392 files, still not classified per test.
 
 ## How a sheet is assembled (one run = one sheet file; the assembled text is one contract)
 - Tool sheets: `cat K/K-TOOLS-PATTERN.md K/<sheet>.md COMMON-KT.md`. Move sheets: `cat T-KT-MOVE.md <K|T>/<sheet>.md COMMON-KT.md`.
@@ -23,7 +23,7 @@ Personas: software-architect (lead), refactor, programmer, tdd, security. Skills
 | K-02 | K/K-02-widgets-tools.md | 12 widgets tools -> cms/widgets (+ file partition) | - | 230k |
 | K-02b | K/K-02b-widgets-media-html.md | media-html -> cms/widgets/html | none (first step decides move vs skip by command) | 70k |
 | K-03 | K/K-03-comments-tools.md | 10 comments tools -> cms/comments | - | 200k |
-| K-04 | K/K-04-seo-tools.md | 6 SEO tools -> cms/seo | sidecars regenerated (drift) | 160k |
+| K-04 | K/K-04-seo-tools.md | 6 SEO tools -> cms/seo | - (drift resolved: sidecars regenerated on refactor/terra 2026-11-17) | 160k |
 | K-05 | K/K-05-taxonomy-tools.md | 10 taxonomy handlers -> cms/taxonomy | lane S S1a T1 pushed (revision 3) | 240k |
 | K-07 | K/K-07-trash-tools.md | 2 trash tools -> cms/trash | never at the same time as lane S S4a/S4b ("Cross-plan") | 150k |
 | K-09 | K/K-09-webhook-tools.md | 6 webhook tools -> integrations/webhooks/tools | - | 190k |
@@ -31,7 +31,7 @@ Personas: software-architect (lead), refactor, programmer, tdd, security. Skills
 | K-10b | K/K-10b-forms-tools-move.md | 9 forms tools -> cms/forms | K-10a | 130k |
 | T-PO-01 | T/T-PO-01-post-leaves.md | 3 pure post leaves | - | 140k |
 | T-PO-01g | T/T-PO-01g-go-live-seam.md | go-live: pure part vs sweep lifecycle, Tovu only | - | 90k |
-| T-PO-02 | T/T-PO-02-post-cover-image.md | cover image -> NEW universal `cms/media/cover-image` entry | sidecars regenerated (drift); T-PO-01g pushed | 125k |
+| T-PO-02 | T/T-PO-02-post-cover-image.md | cover image -> NEW universal `cms/media/cover-image` entry | T-PO-01g pushed (drift resolved 2026-11-17) | 125k |
 | T-TH-01 | T/T-TH-01-theme-render-leaves.md | 4 theme render leaves | B04 T1 landed (SKIPs today) | 100k |
 Dispatchable total: about 2.19M executor tokens (K 1.74M, T 0.45M); revision 3 removed K-06a (160k) and K-06b (120k), previously 2.47M. Round 1 called 1.9M "runnable now"; the difference is the seam/characterization work the judge showed was missing, minus T-TH-03 and K-07b which left the runnable set.
 Not dispatchable (`K/K-DESIGN-QUEUE.md`, `T/T-DESIGN-QUEUE.md`): K-04b, K-05b, K-07b (waits for lane S S4b), K-11 (K-08 retired); T-TH-02..08, T-PO-01v, T-PO-03..05, T-NL-01..03, admin post editor. Rough estimate unchanged from round 1 plus the added designs: K about 0.9M after K-08's ~0.42M left (was 1.3M), T about 6.3M, B04 0.57M, B05 0.15M. Whole programme about 10.8M (round 1: 9.9M).
@@ -52,7 +52,7 @@ for s in K/K-01 K/K-02b T/T-PO-01; do ws "$s"; done | sort | uniq -d
 # chain K vs chain T
 comm -12 <(ws K/K-02 K/K-03 K/K-04 K/K-07 K/K-09 K/K-10 K/K-05) <(ws T/T-PO-01g T/T-PO-02)
 ```
-Revision-3 run of both commands on the merge-a sidecars: both printed nothing. Re-run after the coordinator edits (wave 1 = K-01, K-02b, T-PO-01; chain K without K-06): both printed nothing.
+Run on the refactor/terra sidecars (2026-11-17): both printed nothing. Revision-3 run of both commands on the merge-a sidecars: both printed nothing. Re-run after the coordinator edits (wave 1 = K-01, K-02b, T-PO-01; chain K without K-06): both printed nothing.
 
 ## Cross-plan: lanes S/U vs K/T (revision 3, R4-1; INDEX-SU §3a holds the same text)
 Both plans live in this folder on two branches: `plan/lanes-s-u-2026-11-16` (`INDEX-SU.md`, sheets `S/`, `U/`) and
@@ -146,8 +146,8 @@ comm -12 <(git ls-tree -r --name-only "$SU" -- "$P" | sort) <(git ls-tree -r --n
    is RETIRED (queue entry, `K-08.*` deleted). Lane K owns only the agent-tool layers: K-05 waits for S1a T1, K-07b for S4b.
    Wave 1 loses K-06a; `scripts/gen.py` labels those 8 files `LANE-S`, so regeneration makes no K sidecar for them.
 2. Index files: lanes S/U use `INDEX-SU.md` / `CODEX-JUDGE-SU.md`; lanes K/T keep `INDEX.md` / `CODEX-JUDGE.md`.
-3. Facts: lanes S/U re-pinned every facts file on Tovu `integ/merge-final-2026-11-16` @ `232764af5`. (K/T sidecars are still
-   the merge-a ones: regenerate before dispatch, as the header says.)
+3. Facts: lanes S/U re-pinned every facts file on Tovu `integ/merge-final-2026-11-16` @ `232764af5`. (K/T sidecars were regenerated on
+   `origin/refactor/terra` = merge-final @ 232764af5 on 2026-11-17.)
 4. Prerequisites: `move-workspace` is folded into lane S's `S1w` (the calibration run); `move-entry-refs` stays on `plan/w1-sheets-d`.
 5. U2c-3 (lane U): the observer error goes to a required `report` port bound to `ObservabilityPort.reportError`. No K/T sheet affected.
 
@@ -225,5 +225,54 @@ Review: Opus, plan @ cafebcaa5 (scratchpad `opus-review/k-t.md`) + coordinator i
 Rebutted: only the `check-architecture.baseline.json` part of N2 (see row).
 
 ## Opus fixes - remaining
-None of the review's items is open; coordinator items R4-1 and R4-2 are done (rows above). Still open from before (unchanged): "What remains" 1-7 above, sidecar regeneration on merge-final (then re-run the disjointness command), owner decisions D-K1 confirm, D-K2, D-T1..D-T6.
+None of the review's items is open; coordinator items R4-1 and R4-2 are done (rows above). Still open from before (unchanged): "What remains" 1-7 above, sidecar regeneration on merge-final (DONE 2026-11-17 on refactor/terra, disjointness re-run: empty), owner decisions D-K1 confirm, D-K2, D-T1..D-T6.
 
+
+## Revision 4 housekeeping (2026-11-17, plan-edit run; no product code)
+Base: `origin/refactor/terra` = `integ/merge-final-2026-11-16`, Tovu 232764af5 / Jini 65d73b0d5. Every sidecar (`.files/.decls/.fnsize/.importers/.tools/.census`) and both `INVENTORY.tsv` regenerated from the Tovu terra checkout root with the plan's own generators:
+```bash
+python3 <dir>/scripts/gen.py <dir> && python3 <dir>/scripts/decls.py <dir> && node <dir>/scripts/symbols.cjs <dir>
+```
+All three exited 0. Before -> after (before = the merge-a sidecars of revision 2/3):
+| sheet | files | lines | importer rows | tools | fns > 40 code lines | blobs changed |
+|---|---|---|---|---|---|---|
+| K-01 | 2->2 | 517->517 | 13->13 | 7->7 | 4->4 | 0 |
+| K-02 | 2->2 | 853->853 | 20->20 | 12->12 | 3->3 | 0 |
+| K-02b | 1->1 | 179->179 | 10->10 | - | 1->1 | 0 |
+| K-03 | 2->2 | 594->594 | 16->16 | 10->10 | 3->3 | 0 |
+| K-04 | 2->2 | 528->539 | 9->9 | 6->6 | 4->3 | 1 |
+| K-04b | 2->2 | 139->139 | 10->10 | - | 2->2 | 0 |
+| K-05 | 1->1 | 450->450 | 6->6 | 12->12 | 2->2 | 0 |
+| K-05b | 5->5 | 519->519 | 23->23 | - | 6->6 | 0 |
+| K-07 | 2->2 | 406->406 | 8->8 | 2->2 | 3->3 | 0 |
+| K-07b | 1->1 | 518->518 | 14->14 | 3->3 | 1->1 | 0 |
+| K-09 | 2->2 | 595->595 | 13->13 | 6->6 | 4->4 | 0 |
+| K-10 | 2->2 | 1017->1017 | 17->17 | 9->9 | 4->4 | 0 |
+| K-11 | 17->17 | 1414->1414 | 55->55 | - | 17->17 | 0 |
+| T-NL-01 | 4->4 | 1113->1113 | 39->39 | - | 8->8 | 0 |
+| T-NL-02 | 2->2 | 1009->1009 | 6->6 | - | 2->2 | 0 |
+| T-NL-03 | 3->3 | 996->996 | 21->21 | 18->18 | 5->5 | 0 |
+| T-PO-01 | 3->3 | 224->224 | 32->32 | - | 3->3 | 0 |
+| T-PO-01g | 1->1 | 185->185 | 13->13 | - | 1->1 | 0 |
+| T-PO-01v | 1->1 | 76->76 | 7->7 | - | 1->1 | 0 |
+| T-PO-02 | 1->1 | 268->268 | 10->10 | - | 1->1 | 0 |
+| T-PO-03 | 2->2 | 2675->2675 | 287->287 | - | 5->5 | 0 |
+| T-PO-04 | 9->9 | 2067->2067 | 265->266 | - | 11->11 | 1 |
+| T-PO-05 | 4->4 | 2802->2802 | 61->61 | 8->8 | 11->11 | 0 |
+| T-TH-01 | 4->4 | 230->230 | 10->10 | - | 4->4 | 0 |
+| T-TH-02 | 5->5 | 1427->1427 | 29->29 | - | 6->6 | 0 |
+| T-TH-03 | 2->2 | 736->736 | 44->44 | - | 2->2 | 0 |
+| T-TH-04 | 2->2 | 721->721 | 16->16 | - | 2->2 | 0 |
+| T-TH-05 | 1->1 | 1344->1344 | 52->52 | - | 1->1 | 0 |
+| T-TH-06 | 3->3 | 2043->2043 | 74->74 | - | 3->3 | 0 |
+| T-TH-07 | 8->8 | 1705->1737 | 43->43 | - | 9->8 | 1 |
+| T-TH-08 | 9->9 | 2423->2423 | 73->73 | 21->21 | 11->11 | 0 |
+
+- **No sheet moved by more than 1/3** on files, lines, importer rows or tools (largest change: K-04 lines 528 -> 539, +2%). Nothing to re-plan for size.
+- Real changes: K-04 `seo/agent-tools.ts` 269 -> 280 lines, and `getSeoAgentToolCatalog` (51) is already split on terra (sheet updated); T-TH-07 `theme/theme-trash.ts` 211 -> 243 lines, `createThemeTrashAdapter` (75) already split on terra (T-DESIGN-QUEUE updated); T-PO-04 `post/reverters.ts` blob changed (same 338 lines) and one new test importer (`publish-content/__tests__/gated-hooks.baseline-principal.test.ts:23`); T-PO-01/T-PO-03/T-TH-03/T-TH-06 importer rows moved line numbers only.
+- `BLOB-DRIFT.tsv` rewritten: it now lists merge-a planning blob -> terra blob (3 rows), not merge-a vs merge-b. The K-04 and T-PO-02 "sidecars regenerated (drift)" prerequisites are satisfied and removed from the table.
+- Disjointness proof ("Order") re-run on the terra sidecars: both commands printed nothing.
+- COMMON-KT session/blob-guard lines re-pinned to refactor/terra with an executable ancestor check (`git merge-base --is-ancestor 232764af5 HEAD` / `65d73b0d5`).
+
+### Dispatch blocker found (owner decision, NOT changed here)
+Wave 1 was dispatched on 2026-11-17 and all three runs stopped at COMMON-KT V1 "baseline red" before any source step (reports on Tovu branches `wave1/kt-K-01` 013726fe, `wave1/kt-K-02b` f7338471, `wave1/kt-T-PO-01` 30310c84; none merged into refactor/terra). On the unmodified terra tree `check:size` (17 lines), `check:complexity` (23), `check:architecture` (4 regressed hard metrics) and `check:errors` (`New:` lines) are red; none in a K/T file. The V1 rule did what it says, so no sheet is wrong, but **no K/T sheet can run until one of these is chosen**: (a) a separate gate-repair run re-locks or fixes the Tovu debt/architecture/error baselines on refactor/terra, then wave 1 re-runs unchanged; or (b) COMMON-KT V1/V2 switch to "no line beyond the base output" (save each gate's output on the base, diff per commit). This plan does not pick one.

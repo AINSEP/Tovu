@@ -13,7 +13,7 @@ apps/website/src/features/theme/__tests__/menu-authored-html.test.ts	9	test	dire
 apps/website/src/features/theme/__tests__/menu-html-mode.test.ts	4	test	direct	../static-render.js	renderStaticPage,StaticMenuItem	apps/website/src/features/theme/static-render.ts
 apps/website/src/features/theme/__tests__/menu-tree-render.test.ts	5	test	direct	../static-render.js	renderStaticPage,renderStaticPartial,scanMenuEmbedIds,StaticMenuItem	apps/website/src/features/theme/static-render.ts
 apps/website/src/features/theme/__tests__/pages-blank-template.canary.test.ts	8	test	direct	../static-render.js	injectPageTitle,renderStaticPage,resolveTemplate	apps/website/src/features/theme/static-render.ts
-apps/website/src/features/theme/__tests__/publish-content.apply.test.ts	35	test	direct	../static-render.js	renderStaticPartial	apps/website/src/features/theme/static-render.ts
+apps/website/src/features/theme/__tests__/publish-content.apply.test.ts	36	test	direct	../static-render.js	renderStaticPartial	apps/website/src/features/theme/static-render.ts
 apps/website/src/features/theme/__tests__/shipped-site-theme-drift.canary.test.ts	9	test	direct	../static-render.js	renderStaticPage,resolveTemplate	apps/website/src/features/theme/static-render.ts
 apps/website/src/features/theme/__tests__/static-portability-index.test.ts	7	test	direct	../static-portability-index.js	buildStaticPortabilityIndex,generateStaticPortabilityIndex	apps/website/src/features/theme/static-portability-index.ts
 apps/website/src/features/theme/__tests__/static-render-api-version.test.ts	4	test	direct	../static-render.js	renderStaticPage	apps/website/src/features/theme/static-render.ts
