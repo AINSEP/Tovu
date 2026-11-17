@@ -1,6 +1,6 @@
 import { checkSitePathname } from "#src/platform/routing/index";
 import type { SitePathCheck } from "#src/platform/routing/index";
-import { resolveSameOriginPath, type PathnameVerdict } from "./published-page.js";
+import { resolveSameOriginPath, type PathnameVerdict } from "@jini-ai/diagnostics/web-evidence";
 
 /**
  * @file This site's pathname policy for the published-page path guard.
@@ -39,7 +39,7 @@ function toPathnameVerdict({ check }: { check: SitePathCheck }, _optional = {}):
  * @param required.raw - The caller's path, untrusted.
  * @param required.base - The origin the path is resolved against, e.g. `http://127.0.0.1:53142`.
  * @returns The canonical `pathname + search` to request.
- * @throws {PublishedPagePathError} With a message naming the rule that rejected the path.
+ * @throws {SameOriginPathError} With a message naming the rule that rejected the path.
  * @complexity O(L) in the path length.
  * @example resolveSitePath({ raw: "/blog/hello", base: "http://127.0.0.1:53142" }); // => "/blog/hello"
  */

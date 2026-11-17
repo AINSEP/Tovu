@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readBoundedBody } from "../published-page.js";
+import { readBoundedBody } from "@jini-ai/diagnostics/web-evidence";
 
 test("readBoundedBody: exact cap is complete, one extra byte is truncated", async () => {
   assert.deepEqual(await readBoundedBody({ response: new Response("abcde"), maxBytes: 5 }), {

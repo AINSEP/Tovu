@@ -11,7 +11,8 @@ import type { ToolContributor } from "@jini-ai/core";
 
 import { SITE_INSPECTION_READ_PERMISSION, siteInspectionAgentToolCatalog } from "./agent-tools.js";
 import { toSiteCapabilitiesDeps, toSiteProfileDeps, type SiteInspectionToolDeps } from "./deps.js";
-import { fetchPublishedPage, PublishedPagePathError } from "./published-page.js";
+import { SameOriginPathError as PublishedPagePathError } from "@jini-ai/diagnostics/web-evidence";
+import { fetchPublishedPage } from "./published-page.js";
 import { buildSiteCapabilities, SITE_CAPABILITIES_SECTION_NAMES } from "./site-capabilities.js";
 import { buildSiteProfile, SITE_PROFILE_SECTION_NAMES } from "./site-profile.js";
 

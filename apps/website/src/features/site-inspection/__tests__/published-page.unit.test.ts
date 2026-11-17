@@ -8,11 +8,8 @@ import {
   DEFAULT_MAX_BODY_BYTES,
   fetchPublishedPage,
   MAX_MAX_BODY_BYTES,
-  MAX_PATH_LENGTH,
-  PublishedPagePathError,
-  readBoundedBody,
-  toCookieShapes,
 } from "../published-page.js";
+import { MAX_PATH_LENGTH, readBoundedBody, SameOriginPathError as PublishedPagePathError, toCookieShapes } from "@jini-ai/diagnostics/web-evidence";
 import { resolveSitePath as resolveSameOriginPath } from "../site-path-policy.js";
 
 /**
@@ -266,7 +263,7 @@ test("toCookieShapes: keeps the cookie name and attributes and drops the value",
   headers.append("set-cookie", "sid=SUPER_SECRET_SESSION_VALUE; Path=/; HttpOnly; SameSite=Lax");
   headers.append("set-cookie", "consent=; Max-Age=0");
 
-  const shapes = toCookieShapes(headers);
+  const shapes = toCookieShapes({ headers });
   assert.deepEqual(shapes, [
     { name: "sid", attributes: ["Path=/", "HttpOnly", "SameSite=Lax"] },
     { name: "consent", attributes: ["Max-Age=0"] },
@@ -376,7 +373,7 @@ test("toCookieShapes: no cookie VALUE survives, whatever shape the value has", (
   headers.append("set-cookie", `__Host-dated=${sentinel}; Expires=Wed, 21 Oct 2026 07:28:00 GMT; Path=/`);
   headers.append("set-cookie", "bare; Secure");
 
-  const shapes = toCookieShapes(headers);
+  const shapes = toCookieShapes({ headers });
   assert.deepEqual(shapes, [
     { name: "plain", attributes: ["Path=/", "HttpOnly"] },
     { name: "with-equals", attributes: ["Secure"] },
@@ -390,8 +387,8 @@ test("toCookieShapes: no cookie VALUE survives, whatever shape the value has", (
 test("toCookieShapes: attributes are trimmed, empty ones dropped, and no Set-Cookie header gives no shapes", () => {
   const headers = new Headers();
   headers.append("set-cookie", " spaced = v ;; Path=/ ;  ; SameSite=Lax ");
-  assert.deepEqual(toCookieShapes(headers), [{ name: "spaced", attributes: ["Path=/", "SameSite=Lax"] }]);
-  assert.deepEqual(toCookieShapes(new Headers({ "content-type": "text/html" })), []);
+  assert.deepEqual(toCookieShapes({ headers }), [{ name: "spaced", attributes: ["Path=/", "SameSite=Lax"] }]);
+  assert.deepEqual(toCookieShapes({ headers: new Headers({ "content-type": "text/html" }) }), []);
 });
 
 // ---------------------------------------------------------------------------
