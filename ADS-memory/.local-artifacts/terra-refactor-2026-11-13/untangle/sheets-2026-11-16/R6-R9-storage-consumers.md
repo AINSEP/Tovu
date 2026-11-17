@@ -15,7 +15,7 @@ tovu_file: apps/website/src/server/runtime/composition/jini-storage-consumers.ts
 ```
 
 ## 1. commerce → db (`runMigrations`, `MigrationOptions`, `MigrationReport`, `KyselyKernel`)
-Read the file first; it exports a function that runs commerce's payment-ledger migrations by calling db's `runMigrations`.
+Verified: the file already exports the data, `COMMERCE_PAYMENTS_MIGRATIONS: readonly MigrationStep<KyselyKernel<unknown>>[]` (`:34`), and a runner `migrateCommercePayments` (`:47`) that calls db's `runMigrations` (`db/src/migrate/runner.ts:217`). The runner is what leaves; the list is retyped.
 - **Target (registration, DESIGN §2.2; C3's worked binding `migrateCommercePayments`):** commerce exports data, `export const COMMERCE_PAYMENTS_MIGRATIONS: readonly MigrationStep[]` typed from `@jini-ai/core/contracts/storage` (`migration.ts`; check the exported step type name with `rg -n "^export" packages/core/src/contracts/storage/migration.ts`). The host calls db's `runMigrations({ kernel, steps: COMMERCE_PAYMENTS_MIGRATIONS }, options)`.
 - The existing exported runner function is **deleted** (no shell). Inventory its callers first: `rg -n "<its name>" packages apps examples` in both repos. Tests that call it inside commerce take a fake kernel only if they do not run SQL; tests that run real SQL keep `@jini-ai/db` as a **devDependency** through `@jini-ai/db/testing` (Q5; owner question Q-G1 in GAPS covers the same case for chat: until answered, move the SQL suite to `packages/integration-tests` is the fallback, and the report must say which was done).
 - `KyselyKernel` (type): if a commerce signature still needs a kernel type after the runner is gone, use `StorageKernel` from core. No Kysely type may appear in commerce's public surface (owner rule: no library types).
@@ -23,7 +23,7 @@ Read the file first; it exports a function that runs commerce's payment-ledger m
 - Test first: a characterization test that lists the step ids and their order (`expect(ids).toEqual([...])`, written against the old runner's step source) so a dropped or reordered step fails.
 
 ## 2. cms → db (`listColumns`, `KyselyKernel`) in `forms/sql/submission-ip-retention-repo.ts:2`
-- `listColumns` moved to core in C3 (`core/contracts/storage/rows.ts`; verify with `rg -n "export (async )?function listColumns" packages/core/src/contracts/storage`). If it is there: repoint the import to `@jini-ai/core/contracts/storage` and retype `KyselyKernel` as core's `StorageKernel` (C3 worked binding `ColumnCatalogPort`). If `listColumns` is **not** in core (it needs a live connection), the repo's factory takes `columns: ColumnCatalogPort` as a required dependency and the host binds db's function.
+- Verified: `listColumns` is **not** in core at the merged state (`rg -n "function listColumns" packages/core/src` prints nothing), so there is no repoint. Retype `KyselyKernel` as core's `StorageKernel`, and the repo's factory takes `columns: ColumnCatalogPort` as a required dependency and the host binds db's function.
 - Test first: the repo's existing tests must pass with the injected/ repointed helper; add one case where the column is absent, asserting the repo's current behaviour for the legacy-schema branch (read the code: it calls `listColumns` to decide a branch). That case must fail if the branch is inverted.
 
 ## 3. cms → http-kit (`RateLimiter` type) in `comments/ingress.ts:29`
