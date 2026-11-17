@@ -38,11 +38,12 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseEnv } from "node:util";
-import { omitEnvironmentKeys, waitForHttpOk } from "@jini-ai/platform";
+import { waitForHttpOk } from "@jini-ai/platform";
+import { collectProcessTreePids, omitEnvironmentKeys } from "@jini-ai/core/contracts/runtime";
 import { probeLoopbackHttp } from "@jini-ai/platform/net";
 import { createNodeAtomicFilesystem, createNodeDirectoryWorkspace, upsertEnvLine, writeFileAtomic } from "@jini-ai/platform/fs";
 import { createCommandInvocation } from "@jini-ai/platform/command";
-import { collectProcessTreePids, listProcessSnapshots, stopProcesses } from "@jini-ai/platform/process";
+import { listProcessSnapshots, stopProcesses } from "@jini-ai/platform/process";
 
 import { devSitesHome, prepareDevSitesHome } from "./dev-sites-home.mjs";
 import { apiWatchArgs } from "./dev-api-watch.mjs";

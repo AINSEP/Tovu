@@ -69,7 +69,8 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { collectProcessTreePids, listProcessSnapshots, listProcessUsage, parseProcessFootprint as parseFootprint, sampleProcessPrivateMemory } from "@jini-ai/platform/process";
+import { collectProcessTreePids } from "@jini-ai/core/contracts/runtime";
+import { listProcessSnapshots, listProcessUsage, parseProcessFootprint as parseFootprint, sampleProcessPrivateMemory } from "@jini-ai/platform/process";
 
 export { parseFootprint };
 
