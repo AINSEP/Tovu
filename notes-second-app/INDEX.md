@@ -189,7 +189,7 @@ Each finding was checked at merge-a before deciding. J = Jini `packages/…` or 
 
 ## Revision 2 - still open (PARTIAL)
 
-1. **In-place rewrite of step text.** 15 sheets carry an authoritative corrections block above older step text
+1. **In-place rewrite of step text.** 15 live sheets (and the withdrawn G8) carry an authoritative corrections block above older step text
    (`N0, N1, N2, N3, N4, N5, G1, G2, G4, G5, G6, G7, G8, D0, D1, D2`); the steps below the block were not rewritten.
    Until they are, a reviewer should read block-then-steps together before dispatch. `DESIGN.md` §4 to §6 were not
    rewritten either: §0 of this file overrides them where they differ.
