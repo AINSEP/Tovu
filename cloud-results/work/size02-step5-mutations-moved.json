@@ -1,0 +1,91 @@
+[
+ {
+  "name": "MM1-fragment-dropped-from-assemble",
+  "file": "apps/website/src/server/runtime/composition/memory-deps/route-deps/assemble.ts",
+  "old": "    ...memoryTrashSweepDeps(required),\n",
+  "new": "",
+  "tests": [
+   "apps/website/src/server/runtime/composition/__tests__/memory-root-shared-instances.pin.test.ts",
+   "apps/website/src/server/runtime/composition/__tests__/memory-root-route-deps-shape.pin.test.ts"
+  ]
+ },
+ {
+  "name": "MM2-fragments-swapped-in-assemble",
+  "file": "apps/website/src/server/runtime/composition/memory-deps/route-deps/assemble.ts",
+  "old": "    ...memoryPostChatDeps(required),\n    ...memorySettingsSeoDeps(required),\n",
+  "new": "    ...memorySettingsSeoDeps(required),\n    ...memoryPostChatDeps(required),\n",
+  "tests": [
+   "apps/website/src/server/runtime/composition/__tests__/memory-root-shared-instances.pin.test.ts",
+   "apps/website/src/server/runtime/composition/__tests__/memory-root-route-deps-shape.pin.test.ts"
+  ]
+ },
+ {
+  "name": "MM3-routeDeps-getter-not-final-object",
+  "file": "apps/website/src/server/runtime/composition/app.ts",
+  "old": "options, routeDeps: () => routeDeps, createSiteApp,",
+  "new": "options, routeDeps: () => createRouteDeps(), createSiteApp,",
+  "tests": [
+   "apps/website/src/server/runtime/composition/__tests__/memory-root-shared-instances.pin.test.ts",
+   "apps/website/src/server/runtime/composition/__tests__/memory-root-route-deps-shape.pin.test.ts"
+  ]
+ },
+ {
+  "name": "MM4-activeTheme-captured-in-fragment",
+  "file": "apps/website/src/server/runtime/composition/memory-deps/route-deps/publish-export.ts",
+  "old": "resolveActiveThemeId: () => resolveActiveThemeId(routeDeps()),",
+  "new": "resolveActiveThemeId: () => resolveActiveThemeId({ presentationRepo: required.presentationRepo, workspaceId: required.workspaceId }),",
+  "tests": [
+   "apps/website/src/server/runtime/composition/__tests__/memory-root-shared-instances.pin.test.ts",
+   "apps/website/src/server/runtime/composition/__tests__/memory-root-route-deps-shape.pin.test.ts"
+  ]
+ },
+ {
+  "name": "MM5-listPublishedPosts-captured-in-fragment",
+  "file": "apps/website/src/server/runtime/composition/memory-deps/route-deps/publish-export.ts",
+  "old": "{ deps: { repo: routeDeps().postRepo }, input: { workspaceId: routeDeps().workspaceId } }",
+  "new": "{ deps: { repo: required.postRepo }, input: { workspaceId: required.workspaceId } }",
+  "tests": [
+   "apps/website/src/server/runtime/composition/__tests__/memory-root-shared-instances.pin.test.ts",
+   "apps/website/src/server/runtime/composition/__tests__/memory-root-route-deps-shape.pin.test.ts"
+  ]
+ },
+ {
+  "name": "MM6-staticSiteContext-ignores-live-siteDisplayName",
+  "file": "apps/website/src/server/runtime/composition/memory-deps/route-deps/publish-export.ts",
+  "old": "name: routeDeps().siteDisplayName.read() ?? siteBinding.name",
+  "new": "name: undefined ?? siteBinding.name",
+  "tests": [
+   "apps/website/src/server/runtime/composition/__tests__/memory-root-shared-instances.pin.test.ts",
+   "apps/website/src/server/runtime/composition/__tests__/memory-root-route-deps-shape.pin.test.ts"
+  ]
+ },
+ {
+  "name": "MM7-key-value-kind-changed",
+  "file": "apps/website/src/server/runtime/composition/memory-deps/route-deps/trash-and-content.ts",
+  "old": "siteBackupSanitize: sanitizeShareDatabase,",
+  "new": "siteBackupSanitize: undefined,",
+  "tests": [
+   "apps/website/src/server/runtime/composition/__tests__/memory-root-shared-instances.pin.test.ts",
+   "apps/website/src/server/runtime/composition/__tests__/memory-root-route-deps-shape.pin.test.ts"
+  ]
+ },
+ {
+  "name": "MM8-roots-share-a-module-level-instance",
+  "file": "apps/website/src/server/runtime/composition/memory-deps/route-deps/trash-and-content.ts",
+  "old": "    postRepo,\n    // Mirrors",
+  "new": "    postRepo: ((globalThis as any).__pinPost ??= postRepo),\n    // Mirrors",
+  "tests": [
+   "apps/website/src/server/runtime/composition/__tests__/memory-root-shared-instances.pin.test.ts",
+   "apps/website/src/server/runtime/composition/__tests__/memory-root-route-deps-shape.pin.test.ts"
+  ]
+ },
+ {
+  "name": "MM9-removePost-bound-to-wrong-entity",
+  "file": "apps/website/src/server/runtime/composition/memory-deps/route-deps/trash-and-content.ts",
+  "old": "      entityType: POST_ENTITY_TYPE\n    }) }),\n    removeComment",
+  "new": "      entityType: MEDIA_ENTITY_TYPE\n    }) }),\n    removeComment",
+  "tests": [
+   "apps/website/src/server/__tests__/admin-post-page-delete-routes.test.ts"
+  ]
+ }
+]
