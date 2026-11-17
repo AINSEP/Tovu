@@ -34,19 +34,19 @@ function rendition(): AssetRenditionRecord {
 describe("P1 media lock keys", () => {
   const slugKey = `media_slugs:${WS}`;
 
-  test("save", async () => {
+  test("media save()", async () => {
     const { kernel, keys } = recordingKernel();
     await new SqlMediaRepo(kernel).save(media());
     assert.deepEqual(keys, [slugKey]);
   });
 
-  test("saveIfVersion", async () => {
+  test("media saveIfVersion()", async () => {
     const { kernel, keys } = recordingKernel();
     assert.deepEqual(await new SqlMediaRepo(kernel).saveIfVersion({ record: media(), ifVersion: 1 }), { applied: false });
     assert.deepEqual(keys, [slugKey]);
   });
 
-  test("replaceFileIfVersion", async () => {
+  test("media replaceFileIfVersion()", async () => {
     const { kernel, keys } = recordingKernel();
     const restore = { version: 1, updatedAt: NOW, source: { sha256: "a".repeat(64) } };
     const applied = await new SqlMediaRepo(kernel).replaceFileIfVersion({
@@ -56,14 +56,14 @@ describe("P1 media lock keys", () => {
     assert.deepEqual(keys, [slugKey]);
   });
 
-  test("saveRenditionIfSource", async () => {
+  test("media saveRenditionIfSource()", async () => {
     const { kernel, keys } = recordingKernel();
     const applied = await new SqlMediaRepo(kernel).saveRenditionIfSource({ record: rendition(), sourceSha256: "a".repeat(64) });
     assert.deepEqual(applied, { applied: false });
     assert.deepEqual(keys, [slugKey]);
   });
 
-  test("insertIfAbsent", async () => {
+  test("media insertIfAbsent()", async () => {
     const { kernel, keys } = recordingKernel();
     assert.deepEqual(await new SqlMediaRepo(kernel).insertIfAbsent(media()), { applied: true });
     assert.deepEqual(keys, [slugKey]);
