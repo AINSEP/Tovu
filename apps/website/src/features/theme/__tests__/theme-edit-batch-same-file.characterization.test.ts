@@ -3,16 +3,16 @@ import test from 'node:test';
 import { edit, themeBatchFixture } from './theme-batch-fixture.js';
 
 /**
- * @file Pins what a same-file `theme_edit_file` batch does TODAY: the second item is pinned to the bytes read
- * before the first one wrote, so it is refused as stale, the call throws that one sentence (reworded when the chain landed: it
- * was 'The theme file changed during review. ... this file was not replaced.'), and the first edit stays applied.
+ * @file Was the pin of what a same-file `theme_edit_file` batch did before the chain: edit 2 was pinned to the
+ * bytes read before edit 1 wrote, so it was refused as stale, the call threw that one sentence ('The theme file
+ * changed during review. Read it again and retry; this file was not replaced.'), and only edit 1 was applied.
+ * The chain changed exactly that: both edits apply. The other pins of this folder (single-call shape, foreign
+ * writers, permission) are in `theme-edit-batch-same-file.test.ts`.
  */
 
-test('two edits to one file in one call: edit 1 is on disk, edit 2 is not, and the call throws the stale words', async t => {
+test('two edits to one file in one call: both are applied in order and the call no longer throws', async t => {
   const f = themeBatchFixture(t, { files: { 'p.css': 'a b' } });
-  await assert.rejects(
-    f.run('theme_edit_file', { items: [edit('p.css', 'a', 'A'), edit('p.css', 'b', 'B')] }),
-    { message: 'This theme file changed after it was read. Read it again and retry; this change was not applied.' },
-  );
-  assert.equal(f.read('p.css'), 'A b', 'edit 1 applied, edit 2 not');
+  const result = await f.run('theme_edit_file', { items: [edit('p.css', 'a', 'A'), edit('p.css', 'b', 'B')] }) as { batch: boolean; total: number };
+  assert.equal(f.read('p.css'), 'A B', 'edit 1 and edit 2 applied');
+  assert.deepEqual([result.batch, result.total], [true, 2]);
 });

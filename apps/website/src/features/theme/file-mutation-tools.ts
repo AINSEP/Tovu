@@ -1,4 +1,5 @@
-import { createPreparedBatchHandler, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolDefinition, type ToolRegistration } from '@jini-ai/core';
+import { requireInputRecord, requireString, withSchemaOnRejection, type AgentToolDefinition, type ToolRegistration } from '@jini-ai/core';
+import { createChainedBatchHandler } from '@jini-ai/core/approval-batch-chain';
 import { adaptLegacyAuthorize, requireToolPermission } from '@jini-ai/cms/core';
 import { assertThemeFileWritable, findThemeOrThrow, isShapeRejection, type ThemeToolDeps } from './asset-operations.js';
 import { readThemeFileVersion, validateThemeFileWrite } from './theme-files.js';
@@ -14,7 +15,8 @@ type PreparedThemeFile = {
   target: string; version: string | null;
 };
 
-/** Theme replacements reuse Jini's prepare/run lifecycle for single calls and complete batches.
+/** Theme replacements reuse Jini's prepare/run lifecycle for single calls and complete batches; items of one batch that
+ * write the same file apply in order, each pinned to the version the previous item's own write committed.
  * Paths and permission are checked before effects; the original handler rechecks its domain rules.
  * New and byte-identical writes run directly too. The persistence owner's SHA-256 version pins
  * the destination without buffering it; no remembered permission widens a later batch.
@@ -30,7 +32,7 @@ export function protectThemeFileTools(
   return registrations.map(registration => {
     const toolId = registration.descriptor.id;
     if (!CONTENT_TOOLS.has(toolId)) return registration;
-    return { ...registration, handler: createPreparedBatchHandler<PreparedThemeFile>({
+    return { ...registration, handler: createChainedBatchHandler<PreparedThemeFile, string>({
         prepare: async ({ ctx }) => {
           const input = requireInputRecord({ input: ctx.input });
           // These five catalog contracts require string fields. Reuse their declared requirements
@@ -55,11 +57,14 @@ export function protectThemeFileTools(
         // import downloads can yield before persistence. Never overwrite an intervening change.
         run: async ({ ctx, prepared }, options) => {
           const current = readThemeFileVersion(prepared.file);
-          if (current.target !== prepared.target || current.version !== prepared.version) {
-            throw new ThemeFileChangedError();
-          }
-          return (await runReviewedThemeFileWrite({ prepared, run: async () => registration.handler(ctx, options) })).result;
+          if (current.target !== prepared.target || current.version !== prepared.version) throw new ThemeFileChangedError();
+          const { result, committedVersion } = await runReviewedThemeFileWrite({ prepared, run: async () => registration.handler(ctx, options) });
+          return { output: result, committed: committedVersion };
         },
-    }) };
+        // Items that write the same real file chain: the next one is pinned to what this one's own write committed,
+        // so an earlier edit of the same call is never taken for a foreign change, and a real foreign change still is.
+        targetKey: ({ prepared }) => prepared.target,
+        successor: ({ prepared, committed, previous }) => ({ ...prepared, version: committed ?? previous.version }),
+    }, { targetNoun: 'file' }) };
   });
 }
