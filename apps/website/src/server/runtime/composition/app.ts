@@ -88,7 +88,7 @@ import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
 import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
 import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
 import { bundledAgentPluginsDir, builtInThemesDir, defaultContentDbPath, mediaUploadsDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSiteStoragePaths, resolveSourceControlExportRootDir } from "./site-paths.js";
-import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../boot/dev-tls.js";
+import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../../../platform/http/dev-tls.js";
 import { describeSiteBinding, resolveCheckoutRoot } from "#src/platform/site-dir/index";
 import {
   seededPosts,

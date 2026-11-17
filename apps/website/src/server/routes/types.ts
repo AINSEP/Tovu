@@ -431,7 +431,7 @@ export interface CredentialsDeps {
    * This process's listener origin, pinned by the boot entrypoint in TOVU_SITE_LISTENER_ORIGIN
    * and inherited by the assistant daemon. Also reported by site_guide overview for browser use.
    * Without that pin, a best-effort origin (`"https://localhost:3000"`-shaped) — the scheme
-   * from whether THIS process terminates TLS itself (`server/runtime/boot/dev-tls.ts`) and the port
+   * from whether THIS process terminates TLS itself (`platform/http/dev-tls.ts`) and the port
    * from `PORT`, host assumed `localhost` since a composition root has no live client request to
    * read a `Host` header from. Computed once per boot by both composition roots
    * (`server/runtime/composition/{deps,app}.ts`), mirroring the identical `devCapabilityScheme`

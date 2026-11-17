@@ -50,7 +50,7 @@ const redirectBareAdmin: Plugin = {
 // crashing.
 //
 // Certs live at the REPO ROOT, not under `apps/admin/`: `apps/website/src/index.ts`'s own API
-// server now gates its own TLS the same way (`server/runtime/boot/dev-tls.ts`), reading this exact
+// server now gates its own TLS the same way (`platform/http/dev-tls.ts`), reading this exact
 // same pair, so one directory serves both dev servers instead of the API reaching across into
 // `apps/admin`'s own folder. The toggle is still a single rename, just from the repo root now:
 // `mv .certs .certs.disabled` to turn TLS off, `mv .certs.disabled .certs` to turn it back on.

@@ -284,7 +284,7 @@ import {
 } from "@jini-ai/core/contracts/server/verified-origin";
 import { planOriginBoot } from "#src/features/origin/index";
 import { registerConfiguredOrigin, seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "#src/platform/db/sqlite/origin-repo.sqlite";
-import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../boot/dev-tls.js";
+import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../../../platform/http/dev-tls.js";
 import {
   SqliteAssetBlobRepo,
   SqliteAssetRenditionRepo,
@@ -1440,7 +1440,7 @@ async function composeSiteRouteDeps(
   //
   // `devCapabilityScheme` is DERIVED, not the `"https"` literal this used to hardcode (2026-09-05
   // audit finding, Chunk D finding 3): the dev API server only terminates TLS when `resolveDevTls`
-  // (`server/runtime/boot/dev-tls.ts`) says so, same as `index.ts`'s own real boot path computes —
+  // (`platform/http/dev-tls.ts`) says so, same as `index.ts`'s own real boot path computes —
   // this composition root calls it independently rather than threading `index.ts`'s result through,
   // mirroring how `isAdminAssistantEnabled()` above is also called directly here rather than passed
   // in. Two real, disclosed cases fall to plain HTTP: a fresh clone with no `.certs/`, and

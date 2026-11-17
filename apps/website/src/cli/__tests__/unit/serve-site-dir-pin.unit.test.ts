@@ -6,7 +6,7 @@ import os from "node:os";
 import test from "node:test";
 
 import { pinPlainHttpIntoEnv, pinServedSiteDirIntoEnv } from "../../commands/serve.js";
-import { resolveDevTls } from "../../../server/runtime/boot/dev-tls.js";
+import { resolveDevTls } from "../../../platform/http/dev-tls.js";
 import { buildDaemonSpawnEnvOverrides } from "../../../server/runtime/lifecycle/daemon-supervisor.js";
 import { defaultChatDbPath, defaultContentDbPath, resolveSiteStoragePaths } from "../../../server/runtime/composition/deps.js";
 import { resolveSiteDatabasePaths } from "../../../platform/site-dir/site-databases.js";

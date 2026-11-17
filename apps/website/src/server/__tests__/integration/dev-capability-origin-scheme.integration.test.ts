@@ -67,7 +67,7 @@ for (const hasCerts of [true, false]) {
 /**
  * REGRESSION (2026-09-05 audit finding, Chunk D finding 3): `seedDevCapabilityOrigin`'s `scheme`
  * was a hardcoded `"https"` literal that never consulted `resolveDevTls`/`deriveDevScheme`
- * (`server/runtime/boot/dev-tls.ts`) — the very functions this window's own commit introduced for
+ * (`platform/http/dev-tls.ts`) — the very functions this window's own commit introduced for
  * exactly this purpose. Two real, disclosed dev/CI environments boot the API on plain HTTP:
  * a fresh clone with no `.certs/` (dev-tls.ts's own header), and `TOVU_DISABLE_DEV_TLS`, which every
  * hermetic Playwright `webServer` under `development/*.config.ts` sets. In both, this seed kept

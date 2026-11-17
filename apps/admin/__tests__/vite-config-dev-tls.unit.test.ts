@@ -6,7 +6,7 @@ import { isDevTlsExplicitlyDisabled } from "../dev-tls-disable-flag";
 
 /**
  * @file Regression coverage for `vite.config.ts`'s `TOVU_DISABLE_DEV_TLS` gate — the admin sibling of
- * `apps/website/src/server/runtime/boot/dev-tls.ts`'s and `development/scripts/dev.mjs`'s own copies
+ * `apps/website/src/platform/http/dev-tls.ts`'s and `development/scripts/dev.mjs`'s own copies
  * of this same parse (see each file's own header for why there are three copies, not one shared
  * module).
  *
