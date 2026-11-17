@@ -6,12 +6,13 @@ import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import type { ToolContributor } from "@jini-ai/core";
 import { approvalToolHandler } from "#src/contracts/core/human-confirm";
 import { mailDeliveryAgentToolCatalog } from "./delivery-agent-tools.js";
-import { getMailActivity, listMailActivity, MailActivityForbiddenError, MailActivityUnavailableError, readMailActivityId, readMailActivityQuery, type MailActivityDeps } from "./activity.js";
+import { getMailActivity, listMailActivity, MailActivityForbiddenError, MailActivityUnavailableError, readMailActivityId, readMailActivityQuery } from "./activity.js";
+import { mailDomainDepsFrom, type MailHostActivityDeps } from "./domain-deps.js";
 import { readMailFeedbackSetup, type MailFeedbackSetupDeps } from "./feedback-setup.js";
 import { MAIL_STATUS_PERMISSION } from "./permissions.js";
 import {
   listMailSuppressions, MailSuppressionsUnavailableError, planMailSuppressionRemoval, readMailSuppressionQuery, readMailSuppressionRemoval, runMailSuppressionRemoval,
-  type MailSuppressionDeps, type MailSuppressionRemovalPlan,
+  type MailSuppressionRemovalPlan,
 } from "./suppressions.js";
 import { mailUseReadinessDepsFrom, readMailUseReadiness, type MailUseReadinessHostDeps } from "./use-readiness.js";
 
@@ -22,7 +23,7 @@ import { mailUseReadinessDepsFrom, readMailUseReadiness, type MailUseReadinessHo
  * routes call. Kept apart from the status and provider slices so each evolves independently.
  */
 
-export type MailDeliveryToolDeps = MailActivityDeps & MailUseReadinessHostDeps & MailSuppressionDeps & MailFeedbackSetupDeps;
+export type MailDeliveryToolDeps = MailHostActivityDeps & MailUseReadinessHostDeps & MailFeedbackSetupDeps;
 
 export const mailDeliveryDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
   // -> owner checks (sender read, launch gate, form list, gate probe that sends nothing) + one activity row per use.
@@ -69,21 +70,21 @@ export function buildMailDeliveryRegistrations(deps: MailDeliveryToolDeps, surfa
     },
     mail_list_activity: async (ctx) => {
       const query = readMailActivityQuery({ input: requireInputRecord({ input: ctx.input }) });
-      return listMailActivity({ ...{ principalId: ctx.principal.id, query }, deps: deps });
+      return listMailActivity({ ...{ principalId: ctx.principal.id, query }, deps: mailDomainDepsFrom({ deps }) });
     },
     mail_get_activity: async (ctx) => {
       const activityId = readMailActivityId({ value: requireInputRecord({ input: ctx.input }).activityId });
-      const found = await getMailActivity({ ...{ principalId: ctx.principal.id, activityId }, deps: deps });
+      const found = await getMailActivity({ ...{ principalId: ctx.principal.id, activityId }, deps: mailDomainDepsFrom({ deps }) });
       if (!found) throw new ToolInputError({ message: "No email send with that id exists on this site. List them with mail_list_activity." });
       return found;
     },
-    mail_list_suppressions: async (ctx) => listMailSuppressions({ ...{ principalId: ctx.principal.id, query: readMailSuppressionQuery({ input: requireInputRecord({ input: ctx.input }) }) }, deps: deps }),
+    mail_list_suppressions: async (ctx) => listMailSuppressions({ ...{ principalId: ctx.principal.id, query: readMailSuppressionQuery({ input: requireInputRecord({ input: ctx.input }) }) }, deps: mailDomainDepsFrom({ deps }) }),
     // No rememberKey: each removal lets mail reach someone who bounced or complained, so it always asks.
     mail_remove_suppression: approvalToolHandler({ surfaces,
-      prepare: async ({ ctx }) => planMailSuppressionRemoval({ ...{ principalId: ctx.principal.id, input: readMailSuppressionRemoval({ input: requireInputRecord({ input: ctx.input }) }) }, deps: deps }),
+      prepare: async ({ ctx }) => planMailSuppressionRemoval({ ...{ principalId: ctx.principal.id, input: readMailSuppressionRemoval({ input: requireInputRecord({ input: ctx.input }) }) }, deps: mailDomainDepsFrom({ deps }) }),
       describe: removalCard,
       // The card may sit open for minutes: the run re-checks the grant at the moment of the write.
-      run: async ({ ctx, prepared }) => runMailSuppressionRemoval({ ...{ principalId: ctx.principal.id, plan: prepared }, deps: deps }),
+      run: async ({ ctx, prepared }) => runMailSuppressionRemoval({ ...{ principalId: ctx.principal.id, plan: prepared }, deps: mailDomainDepsFrom({ deps }) }),
     }, { flag: "removed" }),
     mail_get_feedback_setup: async (ctx) => {
       requireInputRecord({ input: ctx.input });

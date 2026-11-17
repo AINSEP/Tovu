@@ -14,12 +14,12 @@ import { ToolInputError } from "@jini-ai/core";
 import type { MailSuppressionScope } from "@jini-ai/platform/mail";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { MailActivityPosition, MailSuppressionAdminRepo, MailSuppressionEntry, MailSuppressionReason, MailSuppressionRemoval } from "../mail/activity-ports.js";
-import { MailActivityForbiddenError, nextMailCursor, readMailCursor, readMailPageLimit } from "./activity.js";
-import { MAIL_ACTIVITY_READ_PERMISSION, MAIL_SUPPRESSIONS_MANAGE_PERMISSION } from "./permissions.js";
+import { MailActivityForbiddenError, nextMailCursor, readMailCursor, readMailPageLimit, type MailPermissionIds } from "./activity.js";
 
 export interface MailSuppressionDeps {
   workspaceId: string;
   authorize: AuthorizeFn;
+  permissions: MailPermissionIds;
   ownerPrincipalId?: Promise<string>;
   /** Absent in hermetic roots: every call refuses with {@link MailSuppressionsUnavailableError}. */
   mailSuppressionAdmin?: MailSuppressionAdminRepo;
@@ -73,7 +73,7 @@ export function readMailSuppressionQuery({ input }: { input: Record<string, unkn
 async function authorizedRepo({ deps, principalId, permission }: { deps: MailSuppressionDeps; principalId: string; permission: string }, _options: Record<string, never> = {}): Promise<MailSuppressionAdminRepo> {
   const auth = await deps.authorize({ principalId, permission, workspaceId: deps.workspaceId, entityType: "mail" });
   if (!auth.allowed) throw new MailActivityForbiddenError({ permission, message: `principal '${principalId}' is not authorized for '${permission}'` });
-  if (permission === MAIL_SUPPRESSIONS_MANAGE_PERMISSION && principalId !== await deps.ownerPrincipalId) {
+  if (permission === deps.permissions.suppressionsManage && principalId !== await deps.ownerPrincipalId) {
     throw new MailActivityForbiddenError({ permission, message: "Only the site owner may remove a suppression." });
   }
   if (!deps.mailSuppressionAdmin) throw new MailSuppressionsUnavailableError();
@@ -82,13 +82,13 @@ async function authorizedRepo({ deps, principalId, permission }: { deps: MailSup
 
 /**
  * One page of blocked recipients, newest first: address, scope, reason and time.
- * @throws {MailActivityForbiddenError} Without `mail.activity.read`.
+ * @throws {MailActivityForbiddenError} Without the activity-read permission.
  * @complexity One indexed page read.
  */
 export async function listMailSuppressions(required: { principalId: string; query: MailSuppressionQuery ; deps: MailSuppressionDeps }, _options: Record<string, never> = {}): Promise<MailSuppressionPage> {
   const { deps } = required;
   const { query } = required;
-  const repo = await authorizedRepo({ deps: deps, principalId: required.principalId, permission: MAIL_ACTIVITY_READ_PERMISSION });
+  const repo = await authorizedRepo({ deps: deps, principalId: required.principalId, permission: deps.permissions.activityRead });
   const rows = await repo.list({ workspaceId: deps.workspaceId, limit: query.limit + 1 }, { ...query.filter, ...(query.before ? { before: query.before } : {}) });
   const items = rows.slice(0, query.limit);
   const filtered = Object.keys(query.filter).length > 0;
@@ -135,12 +135,12 @@ const WARNINGS: Record<MailSuppressionReason, string | undefined> = {
 
 /**
  * Checks the permission and that the suppression exists, and describes the removal.
- * @throws {MailActivityForbiddenError} Without `mail.suppressions.manage`.
+ * @throws {MailActivityForbiddenError} Without the suppressions-manage permission, or when the principal is not the owner.
  * @throws {ToolInputError} When the address is not suppressed in that scope.
  */
 export async function planMailSuppressionRemoval(required: { principalId: string; input: MailSuppressionRemovalInput ; deps: MailSuppressionDeps }, _options: Record<string, never> = {}): Promise<MailSuppressionRemovalPlan> {
   const { deps } = required;
-  const repo = await authorizedRepo({ deps: deps, principalId: required.principalId, permission: MAIL_SUPPRESSIONS_MANAGE_PERMISSION });
+  const repo = await authorizedRepo({ deps: deps, principalId: required.principalId, permission: deps.permissions.suppressionsManage });
   const entry = await repo.find({ workspaceId: deps.workspaceId, address: required.input.address, scope: required.input.scope });
   if (!entry) throw new ToolInputError({ message: `${required.input.address} is not suppressed for ${required.input.scope} mail. Nothing was changed.` });
   const warning = WARNINGS[entry.reason];
@@ -153,7 +153,7 @@ export async function planMailSuppressionRemoval(required: { principalId: string
  */
 export async function runMailSuppressionRemoval(required: { principalId: string; plan: MailSuppressionRemovalPlan ; deps: MailSuppressionDeps }, _options: Record<string, never> = {}): Promise<{ removed: boolean; removal?: MailSuppressionRemoval }> {
   const { deps } = required;
-  const repo = await authorizedRepo({ deps: deps, principalId: required.principalId, permission: MAIL_SUPPRESSIONS_MANAGE_PERMISSION });
+  const repo = await authorizedRepo({ deps: deps, principalId: required.principalId, permission: deps.permissions.suppressionsManage });
   const { address, scope, reason } = required.plan;
   const removal = await repo.remove({ workspaceId: deps.workspaceId, address, scope, removalReason: reason, removedBy: required.principalId, revision: required.plan.revision });
   return removal ? { removed: true, removal } : { removed: false };

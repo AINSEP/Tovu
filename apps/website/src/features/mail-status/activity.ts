@@ -16,16 +16,26 @@ import { ToolInputError } from "@jini-ai/core";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { MailActivityFilter, MailActivityPosition, MailActivityRecord, MailActivityRepo, MailFeedbackRecord } from "../mail/activity-ports.js";
 import { MAIL_ACTIVITY_OUTCOMES, MAIL_ACTIVITY_USES } from "../mail/activity-vocabulary.js";
-import { MAIL_ACTIVITY_READ_PERMISSION, MAIL_STATUS_PERMISSION } from "./permissions.js";
 
 export const DEFAULT_MAIL_ACTIVITY_LIMIT = 25;
 export const MAX_MAIL_ACTIVITY_LIMIT = 100;
 
 export type MailActivityAccess = "full" | "masked";
 
+/** The ids the host grants the three roles of the mail operations; the operations never spell one. */
+export interface MailPermissionIds {
+  /** Full recipient details of the send history, and reading the suppression list. */
+  activityRead: string;
+  /** The Email page's status permission: the masked tier of the history. */
+  status: string;
+  /** Removing an address from the do-not-send list (a holder must also be the owner). */
+  suppressionsManage: string;
+}
+
 export interface MailActivityDeps {
   workspaceId: string;
   authorize: AuthorizeFn;
+  permissions: MailPermissionIds;
   /** Absent in hermetic roots: every read refuses with {@link MailActivityUnavailableError}. */
   mailActivity?: MailActivityRepo;
 }
@@ -140,17 +150,18 @@ export function readMailActivityQuery({ input }: { input: Record<string, unknown
 }
 
 /**
- * Full with `mail.activity.read`, masked with only `admin.forms.manage`, else refused.
+ * Full with the activity-read permission, masked with only the status permission, else refused.
  * @throws {MailActivityForbiddenError} Holding neither (or, with `requireFull`, lacking the first).
  */
 export async function resolveMailActivityAccess(
-  required: { deps: Pick<MailActivityDeps, "authorize" | "workspaceId">; principalId: string },
+  required: { deps: Pick<MailActivityDeps, "authorize" | "workspaceId" | "permissions">; principalId: string },
   optional: { requireFull?: boolean } = {},
 ): Promise<MailActivityAccess> {
   const ask = ({ permission }: { permission: string }, _optional = {}) => required.deps.authorize({ principalId: required.principalId, permission, workspaceId: required.deps.workspaceId, entityType: "mail" });
-  if ((await ask({ permission: MAIL_ACTIVITY_READ_PERMISSION })).allowed) return "full";
-  if (!optional.requireFull && (await ask({ permission: MAIL_STATUS_PERMISSION })).allowed) return "masked";
-  const permission = optional.requireFull ? MAIL_ACTIVITY_READ_PERMISSION : `${MAIL_ACTIVITY_READ_PERMISSION} or ${MAIL_STATUS_PERMISSION}`;
+  const { activityRead, status } = required.deps.permissions;
+  if ((await ask({ permission: activityRead })).allowed) return "full";
+  if (!optional.requireFull && (await ask({ permission: status })).allowed) return "masked";
+  const permission = optional.requireFull ? activityRead : `${activityRead} or ${status}`;
   throw new MailActivityForbiddenError({ permission, message: `principal '${required.principalId}' is not authorized for '${permission}'` });
 }
 
