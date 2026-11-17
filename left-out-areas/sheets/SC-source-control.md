@@ -1,6 +1,6 @@
 # SC: source control (contract + GitHub provider plugin) — revision 2
 
-Verified on Tovu `integ/merge-a-2026-11-16` e801e9ae (cross-checked with `integ/merge-b` 450ac748: the only difference in this folder is that merge-a deleted `repository-target.ts` and repointed `commit-site.ts` to Jini `repositoryTargetError`) and Jini `integ/merge-final-2026-11-16` af33fcdb.
+Re-verified 2026-11-17 on `origin/refactor/terra` = `integ/merge-final-2026-11-16` (Tovu 232764af5, Jini 65d73b0d5): every guard in this file's `*.files.tsv` and `JINI.blobs.txt` matches and `scripts/sidecars.py` regenerates the sidecars byte-identical. Revision-2 reading: Tovu `integ/merge-a-2026-11-16` e801e9ae (cross-checked with `integ/merge-b` 450ac748: the only difference in this folder is that merge-a deleted `repository-target.ts` and repointed `commit-site.ts` to Jini `repositoryTargetError`) and Jini `integ/merge-final-2026-11-16` af33fcdb.
 Inventory `../inventory/source-control.tsv` (+ `.decls.tsv`). Guards `SC-*.files.tsv`, `JINI.blobs.txt`. Importer sites `SC-*.importers.tsv`. Run contract: `../COMMON-LO.md`.
 
 ## What exists today (verified)
@@ -19,21 +19,21 @@ Jini `contracts.ts:33-41` ("New module ABI") and Tovu `provider-module.ts:160-17
 | `commitFiles` | `(input, plan)` two positional arguments | one object with `plan` inside | differs |
 | `inspectBackupRepository` | `(input)` with `branch?` inside | `(required, optional?: { branch })` | differs |
 | `uploadBackupBlob` | `(target, file)` two positional arguments | `(required: { target, file })` | differs |
-| `commitBackupTree` input | `entries: readonly (UploadedBackupBlob \| InlineBackupText)[]` (`backup-push.mjs:200-205`) | `blobs: readonly UploadedBackupBlob[]` | differs in NAME and in CONTENT: Jini has no inline text entry |
+| `commitBackupTree` input | `entries`: a readonly array whose items are either `UploadedBackupBlob` or `InlineBackupText` (`backup-push.mjs:200-205`) | `blobs: readonly UploadedBackupBlob[]` | differs in NAME and in CONTENT: Jini has no inline text entry |
 | `backupInlineTextMaxBytes` | optional number (`github.mjs:87`) | absent | Tovu-only; backup inline behaviour must be kept |
 | kit `fetch` | `(url, init)` | `(required: { url, init })` | differs |
 | kit `redirectGuardInit` / `assertNotRedirected` / `isRedirectRefusal` / `describeTransportError` | positional | one object each | differs (Tovu `provider-kit.ts:39-47` adapts positional -> object today) |
 | kit `sleep` | present (`write-files.mjs:161` reads `kit.sleep ?? timer`) | absent | Tovu-only |
 | kit `httpClient` | Tovu `HttpClientPort` (`send(request)`) | core `HttpClientPort` (`send({ request })`) | differs in argument shape (`provider-kit.ts:36` adapts) |
-| `CommitFile.data` | `string \| Buffer` | `string \| Buffer` | same; names a Node type, so the type cannot live in `@jini-ai/core` |
+| `CommitFile.data` | a `string` or a `Buffer` | a `string` or a `Buffer` | same; names a Node type, so the type cannot live in `@jini-ai/core` |
 | `SourceControlHostFacts`, `WriteFile`, `FileWritePlan`, `FileWriteState`, result unions, `BackupRepositoryState`, `UploadedBackupBlob`, `RepositoryTarget`, `DescribedTransportError` | same members | same members | identical shape: DEDUPE is safe for these only |
-| `RepositoryTargetValidator` | `(target) => string \| null` | `(required) => string \| null` | same call shape (one object) |
+| `RepositoryTargetValidator` | `(target)` returning a `string` or `null` | `(required)` returning a `string` or `null` | same call shape (one object) |
 Consequences: (1) the round-1 "types READY, differing members = STOP" classification is withdrawn; (2) the contract of record for a provider PLUGIN is the positional ABI installed plugins already implement (plugins are plain `.mjs`: a structural type check cannot catch a mismatch, lesson 12); (3) provider ABI and orchestration ports are separate contracts: the orchestration ports (`CommitOrchestrationArgs`, `CredentialResolverPort`, `FileSourcePort`, `CommitLayoutPort`) stay where they are in `devops`; (4) Jini's unimplemented object ABI is owner decision D-SC3 (retire, or schedule a plugin ABI v2 with an adapter); no sheet here depends on it.
 
 ## Target shape
 | Layer | Home | Content |
 |---|---|---|
-| Plugin ABI v1 (types) | `@jini-ai/devops/source-control/plugin-abi` (NEW `node` subpath; SC-3b). Not `@jini-ai/core`: `CommitFile.data` is `string \| Buffer`, and no plugin imports the types (plugins import nothing). D-SC1 is therefore NOT a prerequisite; a later move to core is a repoint | the positional operations, kit, module, backup entry types, exactly as shipped |
+| Plugin ABI v1 (types) | `@jini-ai/devops/source-control/plugin-abi` (NEW `node` subpath; SC-3b). Not `@jini-ai/core`: `CommitFile.data` is a `string` or a `Buffer`, and no plugin imports the types (plugins import nothing). D-SC1 is therefore NOT a prerequisite; a later move to core is a repoint | the positional operations, kit, module, backup entry types, exactly as shipped |
 | Mechanism | `@jini-ai/devops/source-control` (exists) | registry generics, commit orchestration, repository path / target rules |
 | Provider plugin | `packages/agent-plugins/github` (exists) | every GitHub endpoint, header and limit |
 | Host (Tovu) | `features/source-control` | credential store over the Tovu vault, saved-key bindings, tool wording and registration, static-download layout, descriptor file name (D-SC2), trusted-plugin gate binding, kit binding (which transport is guarded), error wording |
@@ -46,12 +46,21 @@ Two transports and two loaders exist; round 1 merged them. Each row names the ga
 | Token read for a commit | `commit-site.ts` `resolveCommitCredential` (:321) -> `store.ts` default lookup; fallback `resolveSavedApiKey` only for providers in `sourceControlSavedApiKeyLabels` | provider-id match before use; storage errors collapse to one fixed sentence | - |
 | Outbound A: site commit | `github/source-control/commit-site.mjs:88-89` -> `kit.fetch` | NATIVE `fetch` (`provider-kit.ts:33`, `options.fetchFn ?? fetch`) wrapped in `trackFetch` (host/status span). Redirects: the kit is built with `fetchRedirectPolicy: "caller"` (`provider-kit.ts:42`), so the PLUGIN applies `kit.redirectGuardInit` + `kit.assertNotRedirected` itself | the egress guard of `HttpClientPort` does not see this call |
 | Outbound B: account-label probe | `github/source-control/github.mjs:70-75` -> `kit.fetch` with the bearer token | native `fetch`, 1 timeout signal, failure = `null` | no egress guard; no `redirectGuardInit` at this call site (class: credentialed request that follows redirects). Recorded as hardening item SC-H1; not changed by a move sheet |
-| Outbound C: custom file writes, backup inspect / upload / tree | `github/source-control/write-files.mjs:186` -> `kit.httpClient.send` (`backup-push.mjs` goes through the same request helper: confirm with `rg -n "postJson\|httpClient" packages/agent-plugins/github/source-control/backup-push.mjs`) | guarded `HttpClientPort` (egress refusal -> `EgressRefusedError.callerSafeMessage` via `describeTransportError`) | - |
+| Outbound C: custom file writes, backup inspect / upload / tree | `github/source-control/write-files.mjs:186` -> `kit.httpClient.send` (`backup-push.mjs` goes through the same request helper: confirm with check SC-T1 in the fenced block under this table) | guarded `HttpClientPort` (egress refusal -> `EgressRefusedError.callerSafeMessage` via `describeTransportError`) | - |
 | Missing guarded client | `provider-kit.ts:16-18` `NO_HTTP_CLIENT` | every `httpClient.send` rejects with a transport error (the admin credential form path builds the kit without one and only probes the account name) | - |
 | Plugin load, INSTALLED | `provider-registry.ts:90-100` `loadSourceControlProviderRegistry` -> `loadContributions` of the plugin lifecycle (composition `deps.ts:2800,2815`) | trusted-plugin gate: active + recorded digest + path inside the plugin root; a switched-off plugin's JSON is read as data, no module imported | - |
 | Plugin load, BUNDLED | `provider-registry.ts:120-152` `loadBundledSourceControlProviderRegistry` -> `loadSourceControlProviderRegistryFromSource` (`:109-112`); callers `server/runtime/composition/app.ts:851`, `cli/commands/owner-store-mapping.ts:13` | location only: the root is the product payload (`bundledAgentPluginsDir()`), "never an operator-writable installation directory" (`:116`); duplicate ids refused; a bad package refuses only itself | NO install, activation or digest check (`:103-105` says so) |
 | Provider failure text returned to the model | `commit-site.ts` `commitOutcome` (:517) | message redacted with the exact token; unknown failure code -> `PROVIDER_ERROR` | - |
 | Thrown provider error | `commit-site.ts` `commitSiteToSourceControl` (:472) | fixed sentence to the caller; detail only to the log | - |
+
+Check SC-T1 (Jini clone; copy from here, never from the table): the backup helper sends only through the git-data client, and that client sends only through `kit.httpClient`. Pass = command 1 prints at least one `git.postJson` line, commands 2 and 4 print nothing, command 3 prints the `kit.httpClient.send` line (`write-files.mjs:186` on Jini 65d73b0d5). Run 2026-11-17 on 65d73b0d5: 1 printed `:185,209,219`; 2 and 4 empty; 3 printed `:186`.
+```bash
+cd packages/agent-plugins/github/source-control
+rg -n 'git\.postJson' backup-push.mjs                                      # 1: >= 1 line
+rg -n -e 'kit\.fetch' -e '[^.]fetch\(' backup-push.mjs                     # 2: prints nothing
+rg -n 'kit\.httpClient\.send' write-files.mjs                              # 3: >= 1 line
+rg -n -e 'kit\.fetch' -e '[^.]fetch\(' write-files.mjs                     # 4: prints nothing
+```
 
 ## Sheets
 ### SC-0 (TESTS, Tovu): gate tests on the real gates and production bindings
@@ -71,7 +80,7 @@ Files: `packages/devops/src/source-control/{commit.ts,contracts.ts}` + tests. pr
 |---|---|---|---|
 | G1 | provider failure message passes `redactSecrets(..., { exactSecrets: [token] })` | returns `result.message` unchanged | redact with the resolved token (`redactSecrets` from `@jini-ai/core`); also the caught-error text |
 | G2 | `Object.hasOwn(codeMap, result.code) ? ... : "PROVIDER_ERROR"` | direct index | own-property check + fallback |
-| G3 | three stages, three texts | one `describeError({ error })` | add optional `stage: 'export' \| 'arrange' \| 'credential' \| 'commit'` to the argument (additive) |
+| G3 | three stages, three texts | one `describeError({ error })` | add an optional `stage` (one of `'export'`, `'arrange'`, `'credential'`, `'commit'`) to the argument (additive) |
 | G4 | commit files come from the static-download layout after `claimArchivePaths` | `report.routes.succeeded + report.assets.succeeded` only | optional `CommitLayoutPort.arrangeFiles(required: { report }): readonly CommitFile[]`; absent = today's mapping; a throw -> `EXPORT_FAILED` with `describeError({ stage: 'arrange' })` |
 | G5 | missing-credential text ends with a host sentence | generic sentence | optional `describeMissingCredential(required: { providerId }): string` |
 Tests (vitest, fakes of the ports), each RED on the parent by V4, in the same commit as its fix; one commit per gap (G1+G1b, G2, G3, G4+order, G5), each green alone:
@@ -97,7 +106,7 @@ Estimate: 110k.
 precondition (S-PRE): `rg -n "arrangeFiles" node_modules/@jini-ai/devops/dist/source-control/contracts.d.ts` (the linked Jini clone is at an SC-1 SHA) and `ls apps/website/src/features/source-control/__tests__/commit-site.characterization.unit.test.ts`.
 One commit: `commit-site.ts` (547) becomes at most 150 lines. It builds `CommitOrchestrationArgs`: `files` = closure over the static-site context and export; `layout.arrangeFiles` = static-download layout + `claimArchivePaths`; `credentials.resolve` = default credential then saved-key fallback; `describeError` by stage; `describeMissingCredential`; `adapter.commitSite = (required, optional) => provider.commitSite({ ...required, ...(optional?.branch ? { branch: optional.branch } : {}) })` (the plugin ABI takes `branch` inside the one input object: matrix above). It calls the Jini function and adds `folder` + `entryPath` to a success.
 The SC-2a tests stay green UNEDITED; a test that needs editing = STOP. Export accounting: `rg -n "^export" apps/website/src/features/source-control/commit-site.ts` before and after; every name is reported as kept | now imported from Jini by each caller in `SC-2b.importers.tsv` | deleted with zero importers (S-CENSUS).
-STOP: `rg -n "process\.env" apps/website/src/features/source-control/commit-site.ts` prints a line; S-MOCK; S-BLOB (merge-a and merge-b differ on this file: guard is the merge-a blob). Estimate: 150k.
+STOP: `rg -n "process\.env" apps/website/src/features/source-control/commit-site.ts` prints a line; S-MOCK; S-BLOB (guard re-pinned: `commit-site.ts` 547 lines, faa002ba, matches refactor/terra 232764af5). Estimate: 150k.
 
 ### SC-3a (SEAM, Tovu only): `provider-module.ts` becomes types only
 One commit. New `features/source-control/saved-key-bindings.ts` holds `sourceControlSavedApiKeyLabels` with its comment (`provider-module.ts:20-22`); the three readers are repointed in the same commit: `server/runtime/composition/source-control-key-binding.ts:2`, `features/source-control/tool-registrations.ts:38` (keep `RepositoryTargetValidator` on the old import line), `cli/commands/owner-store-mapping.ts:3`. No test file imports the map today (`rg -l sourceControlSavedApiKeyLabels apps -g '**/__tests__/**'` prints nothing): add one unit test pinning the map's single entry.

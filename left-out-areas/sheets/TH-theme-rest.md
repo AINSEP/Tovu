@@ -1,6 +1,6 @@
 # TH-R: the rest of the theme feature (what lane T left) — revision 2
 
-Verified on Tovu `integ/merge-a-2026-11-16` e801e9ae (merge-b 450ac748 differs only in `theme-trash.ts`: 211 lines on merge-a, 243 on merge-b). Inventory `../inventory/theme.tsv` (62 source files, 15,918 lines; tests 111 files, 18,626). Guards and importer sites `TH-R1.*`, `TH-R2.*`, `TH-R3.*`. Run contract: `../COMMON-LO.md`.
+Re-verified 2026-11-17 on `origin/refactor/terra` = `integ/merge-final-2026-11-16` (Tovu 232764af5, Jini 65d73b0d5): every guard in this file's `*.files.tsv` and `JINI.blobs.txt` matches and `scripts/sidecars.py` regenerates the sidecars byte-identical. Revision-2 reading: Tovu `integ/merge-a-2026-11-16` e801e9ae (merge-b 450ac748 differed only in `theme-trash.ts`: 211 lines on merge-a, 243 on merge-b = terra). Inventory `../inventory/theme.tsv` (62 source files, 15,918 lines; tests 111 files, 18,626). Guards and importer sites `TH-R1.*`, `TH-R2.*`, `TH-R3.*`. Run contract: `../COMMON-LO.md`.
 **State of this area after the judgment: nothing here is dispatchable.** All three items are in the design queue (findings 15, 16, 17). What this sheet now provides is the corrected inventory of behaviour owners and the tests a design must carry.
 
 ## Reconciliation with lane T (`plan/lanes-k-t-2026-11-16` cafebcaa, revision 2)
@@ -25,7 +25,7 @@ Generic parts: settle-debounce over a watch port; preview switcher HTML and its 
 Prerequisites: T-TH-05 landed; xpkg N1 landed. Estimate: Opus 80k; execution about two runs, 200k.
 
 ## TH-R2 (design queue): asset operations, file import, trash workflow
-`asset-operations.ts` 237 (8 prod importers, 0 tests: tests first), `theme-file-import.ts` 178, `theme-trash.ts` 211 on merge-a (`createThemeTrashAdapter` 75 code lines at 128-211: split in Tovu first; blobs differ between merge-a and merge-b: regenerate on the final merge).
+`asset-operations.ts` 237 (8 prod importers, 0 tests: tests first), `theme-file-import.ts` 178, `theme-trash.ts` 243 on refactor/terra (blob e0504b00, `TH-R2.files.tsv`). Revision 3 (N5): the "split `createThemeTrashAdapter` in Tovu first" step is VOID: on terra it is 28 lines (`theme-trash.ts:128-155`, split into `createThemeTrashAdapter` + `createThemeOriginalTrashAdapter`; lane T's regenerated `T-TH-07.fnsize.tsv` lists no function over 40 code lines). Prerequisite (X1 d): lane K/T K-07 and lane S S4a/S4b (trash SQL moved to lane S; K-08 is retired).
 Constraints for the design: never a permanent delete (the paired theme + original move goes through a trash port; `@jini-ai/cms/trash` has the domain); trash then restore returns byte-identical theme AND original; a failure between the two moves rolls the first back and is reported, never swallowed (throwing fake on the second move); import refuses a file whose sniffed type disagrees with its extension, at size limit-1 / limit / limit+1; path containment deny tests.
 Prerequisites: lane T's T-TH-05 landed and its T-TH-07 design written (it claims `theme-trash.ts` as STAY and `page-publication.ts`); K-07, K-08 (trash tools and SQL); xpkg N1. Estimate: Opus 60k; execution about two runs, 220k.
 
