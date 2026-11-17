@@ -29,7 +29,7 @@ interface PinnedRecord {
   envNames: string | null; sealedEnv: SealedSecret | null; oauthProviderId: string | null; oauthGrant: string | null;
   oauthClientId: string | null; oauthEndpointsJson: string | null; oauthScopesJson: string | null; oauthStatus: string | null;
   oauthExpiresAt: ISODateTime | null; oauthTokenEnvName: string | null; oauthRefreshLeaseUntil: ISODateTime | null;
-  sealedOAuth: SealedSecret | null; aadVersion: number; oauthAadVersion: number; createdAt: ISODateTime; updatedAt: ISODateTime;
+  sealedOAuth: SealedSecret | null; aadVersion: number; oauthAadVersion: number; createdAt: ISODateTime; updatedAt: ISODateTime; version: number;
 }
 interface PinnedSnapshot {
   readonly admissionRevision: string; readonly enabled: boolean; readonly allowedToolNames: string | null; readonly writeAllowedToolNames: string | null;
@@ -73,7 +73,7 @@ type PinnedConnectStart =
   | { readonly kind: "redirect_required"; readonly authorizationUrl: string; readonly expiresAt: string }
   | { readonly kind: "device_code"; readonly userCode: string; readonly verificationUri: string; readonly verificationUriComplete: string | null; readonly expiresAt: ISODateTime; readonly intervalSeconds: number };
 type PinnedReason = "removed" | "turned-off" | "disconnected" | "changed" | "tool-not-allowed" | "write-not-allowed" | "unverifiable";
-type PinnedRepoKeys = "listByWorkspaceId" | "findByServerId" | "upsert" | "updateAccessIfCurrent" | "deleteByServerId" | "tryClaimOAuthRefreshLease" | "releaseOAuthRefreshLease";
+type PinnedRepoKeys = "listByWorkspaceId" | "findByServerId" | "upsert" | "insert" | "updateIfVersion" | "updateOAuthRuntime" | "updateAccessIfCurrent" | "deleteByServerId" | "tryClaimOAuthRefreshLease" | "releaseOAuthRefreshLease";
 type PinnedServiceKeys = "beginConnect" | "completeAuthorizationCallback" | "pollDeviceAuthorization" | "disconnect" | "reportAuthFailure" | "tokenResolver" | "listSharedConnections" | "assertSharedAuthorized" | "useLocalConnection" | "useSharedConnection";
 type PinnedDepsKeys = "shared" | "workspaceId" | "repo" | "sealer" | "keyring" | "clock" | "devices" | "httpPorts" | "providers" | "lookupProvider" | "onConnected";
 

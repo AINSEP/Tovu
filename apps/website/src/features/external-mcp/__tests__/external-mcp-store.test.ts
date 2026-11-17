@@ -596,6 +596,7 @@ function storedRow(fields: Pick<ExternalMcpServerRecord, "serverId"> & Partial<E
     oauthAadVersion: 0,
     createdAt: "2026-08-09T00:00:00.000Z",
     updatedAt: "2026-08-09T00:00:00.000Z",
+    version: 1,
     ...fields,
   };
 }
@@ -628,6 +629,7 @@ test("a NULL and a '[]' writeAllowedToolNames column both read as an empty list"
     oauthAadVersion: 0,
     createdAt: "2026-08-09T00:00:00.000Z",
     updatedAt: "2026-08-09T00:00:00.000Z",
+    version: 1,
   };
   await repo.upsert({
     ...base,

@@ -35,7 +35,7 @@ test('independent connections cannot both apply an access decision from the same
     allowedToolNames: '[]', writeAllowedToolNames: '[]', writeGrantsUpdatedByPrincipalId: null, writeGrantsUpdatedAt: null,
     envNames: null, sealedEnv: null, oauthProviderId: null, oauthGrant: null, oauthClientId: null, oauthEndpointsJson: null,
     oauthScopesJson: null, oauthStatus: null, oauthExpiresAt: null, oauthTokenEnvName: null, oauthRefreshLeaseUntil: null,
-    sealedOAuth: null, aadVersion: 1, oauthAadVersion: 1, createdAt: nowIso, updatedAt: nowIso };
+    sealedOAuth: null, aadVersion: 1, oauthAadVersion: 1, createdAt: nowIso, updatedAt: nowIso, version: 1 };
   const repos = [new SqlExternalMcpServerRepo(first), new SqlExternalMcpServerRepo(second)];
   await repos[0]!.upsert(original);
   const expected = externalMcpAccessSnapshot({ record: original });

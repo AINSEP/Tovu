@@ -98,9 +98,9 @@ test("frozen fixture: leased refresh, static re-save and env update survive a re
   assert.equal(await h.service.tokenResolver.resolveAccessToken({ serverId: FROZEN_SERVERS.oauth }), REFRESHED.accessToken);
   assert.equal(h.server.requests.length, 1);
   assert.deepEqual(h.server.requests[0]?.form.grant_type, "refresh_token");
-  assert.deepEqual(nonZero(h.io.repo), { findByServerId: 4, releaseOAuthRefreshLease: 1, tryClaimOAuthRefreshLease: 1, upsert: 1 });
+  assert.deepEqual(nonZero(h.io.repo), { findByServerId: 4, releaseOAuthRefreshLease: 1, tryClaimOAuthRefreshLease: 1, updateOAuthRuntime: 1 });
   assert.deepEqual(nonZero(h.io.sealer), { open: 4, seal: 1 });
-  assert.deepEqual(nonZero(h.io.kernel), { lockKey: 3, query: 4, run: 13, transaction: 3 });
+  assert.deepEqual(nonZero(h.io.kernel), { lockKey: 3, query: 4, run: 12, transaction: 3 });
   assert.deepEqual(nonZero(h.io.keyring), { activeKey: 1 });
   // A second call within the new lifetime is served from the row: no lease, no request, no seal.
   resetCounts(h.io.repo, h.io.sealer, h.io.kernel, h.io.keyring);

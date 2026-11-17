@@ -513,6 +513,7 @@ test("external_mcp_test_connection: unknown id reports ok:false with a named rea
 test("external_mcp_test_connection: a disabled server reports ok:false without decrypting anything", async () => {
   const { deps, repo } = fakeDeps();
   await repo.upsert({
+    version: 1,
     workspaceId: WORKSPACE_ID,
     serverId: "disabled-one",
     label: null,
@@ -552,6 +553,7 @@ test("external_mcp_test_connection: a disabled server reports ok:false without d
 test("external_mcp_test_connection: an enabled, resolvable server reports ok:true, and never launches or connects", async (t) => {
   const { deps, repo } = fakeDeps();
   await repo.upsert({
+    version: 1,
     workspaceId: WORKSPACE_ID,
     serverId: "ready-one",
     label: null,

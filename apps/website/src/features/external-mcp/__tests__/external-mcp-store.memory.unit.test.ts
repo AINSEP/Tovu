@@ -17,7 +17,7 @@ function serverRecord(overrides: Partial<ExternalMcpServerRecord> = {}): Externa
     url: null, args: null, allowedToolNames: null, writeAllowedToolNames: null, writeGrantsUpdatedByPrincipalId: null, writeGrantsUpdatedAt: null,
     envNames: null, sealedEnv: null, oauthProviderId: null, oauthGrant: null, oauthClientId: null, oauthEndpointsJson: null,
     oauthScopesJson: null, oauthStatus: null, oauthExpiresAt: null, oauthTokenEnvName: null, oauthRefreshLeaseUntil: null, sealedOAuth: null,
-    aadVersion: 1, oauthAadVersion: 1, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", ...overrides };
+    aadVersion: 1, oauthAadVersion: 1, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", version: 1, ...overrides };
 }
 const sealEnv = (value: string): Promise<SealedSecret> => sealExternalMcpVaultPayload({ deps, identity: IDENTITY, kind: "mcp-env", payload: { TOKEN: value } });
 const sealOAuth = (value: string): Promise<SealedSecret> => sealExternalMcpVaultPayload({ deps, identity: IDENTITY, kind: "mcp-auth", payload: { clientSecret: value } });

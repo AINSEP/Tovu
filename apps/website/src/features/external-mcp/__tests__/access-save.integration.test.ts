@@ -20,7 +20,7 @@ function source(): ExternalMcpServerRecord {
     writeGrantsUpdatedByPrincipalId: null, writeGrantsUpdatedAt: null, envNames: null, sealedEnv: null,
     oauthProviderId: null, oauthGrant: null, oauthClientId: null, oauthEndpointsJson: null, oauthScopesJson: null,
     oauthStatus: null, oauthExpiresAt: null, oauthTokenEnvName: null, oauthRefreshLeaseUntil: null,
-    sealedOAuth: null, aadVersion: 1, oauthAadVersion: 1, createdAt: now, updatedAt: now };
+    sealedOAuth: null, aadVersion: 1, oauthAadVersion: 1, createdAt: now, updatedAt: now, version: 1 };
 }
 async function fixture({ knownNames = ['read', 'write'], configuration = false, stdio = false }: { knownNames?: readonly string[] | null; configuration?: boolean; stdio?: boolean } = {}) {
   const repo = new InMemoryExternalMcpServerRepo();

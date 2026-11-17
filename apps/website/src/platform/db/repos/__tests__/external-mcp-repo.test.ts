@@ -63,6 +63,7 @@ function makeRecord(overrides: Partial<ExternalMcpServerRecord> = {}): ExternalM
     oauthAadVersion: 1,
     createdAt: NOW,
     updatedAt: NOW,
+    version: 1,
     ...overrides,
   };
   for (const kind of ["mcp-env", "mcp-auth"] as const) {
