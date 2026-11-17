@@ -75,6 +75,12 @@ panel adapter, used by the **old** shell's `renderRoute` (so the 26 `app-*` file
 shell in the same place; (3) the class rename (Tovu CSS, TS selectors, e2e, desktop) **together with** merging J2's
 `admin-ui/J2-classes` (J2 step 5 merge timing), relinked to that Jini SHA; (4) swap to Jini `AdminShell`; (5) delete
 dead Tovu shell code, retire the `AdminShell::*` hook-debt keys and the size/complexity keys of deleted functions.
+**Limits at the base (second judge ran the C8 eslint command on Tovu `232764af5`):** `App.tsx:199` `renderRoute`
+complexity **10** (admin limit 9, pre-existing); `App.hooks.ts` is **518** code lines (over 500) with
+`useChatDockLayout` (`:723`) 78 lines and `useAgentPageBridge` (`:1067`) 56 lines. So: step 0 must lower or keep
+`renderRoute`'s value (the redirect, Placeholder and Sites branches leave it), and every new adapter (canonical route
+hook, panel adapter, `useHostSession` adapter, drawer adapter, nav `translateNav`) goes in **new files** under
+`apps/admin/src/shell/` (or `integrations/jini-admin/`), never into `App.hooks.ts`. C8 must print nothing new.
 Tests first (GREEN on the old shell, each RED under its mutation; they must keep passing after the swap):
 | # | Asserts | Fails when |
 |---|---|---|
