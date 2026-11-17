@@ -1,0 +1,9 @@
+path	lines	blob	prod_importers	test_importers
+apps/website/src/features/mail/activity.repo.ts	194	149d39142d429c05e3db1797ef8042c98053d513	7	4
+apps/website/src/features/mail/attempts.repo.ts	37	9300f5d94c3e29351c8c81df86413b21e325609e	2	2
+apps/website/src/features/mail/capture.repo.ts	93	8a5c8947153290e1b19e986bd69a420f49573846	1	2
+apps/website/src/features/mail/feedback-inbox.repo.ts	33	76fd00fdc5dbbeda933f96fa12874fc860dfd1e3	2	0
+apps/website/src/features/mail/ledger.repo.ts	77	43de5f617fa1160820ffbfe624640b5e65c3a1c8	8	3
+apps/website/src/features/mail/suppression-admin.repo.ts	115	e451884344e80544be0885f1b26df58ddbf92f40	4	3
+apps/website/src/features/mail/suppression.repo.ts	37	6ea9a25a40c7c6ef5da5d0a1d24c0668de511ffd	2	3
+apps/website/src/features/mail/retention.ts	45	9adaebaa7275af0e3aacf829c18c986cac489c3e	2	3

@@ -1,0 +1,171 @@
+file	name	kind	exported	first_line	last_line	span
+apps/website/src/features/site-evidence/agent-tools.ts	AgentToolSideEffect	type	export	26	26	1
+apps/website/src/features/site-evidence/agent-tools.ts	AgentToolDefinition	type	export	28	28	1
+apps/website/src/features/site-evidence/agent-tools.ts	SITE_EVIDENCE_TOOL_ID	const	export	30	30	1
+apps/website/src/features/site-evidence/agent-tools.ts	siteEvidenceAgentToolCatalog	const	export	32	94	63
+apps/website/src/features/site-evidence/collect-page-evidence.ts	CollectPageEvidenceDeps	interface	export	16	21	6
+apps/website/src/features/site-evidence/collect-page-evidence.ts	redactText	function		24	26	3
+apps/website/src/features/site-evidence/collect-page-evidence.ts	redactNullableText	function		29	32	4
+apps/website/src/features/site-evidence/collect-page-evidence.ts	redactObservation	function		42	90	49
+apps/website/src/features/site-evidence/collect-page-evidence.ts	TOVU_OBSERVATION_POLICY	const		93	96	4
+apps/website/src/features/site-evidence/collect-page-evidence.ts	collectPageEvidence	function	export	154	162	9
+apps/website/src/features/site-evidence/tool-registrations.ts	siteEvidenceDerivedRisk	const		84	87	4
+apps/website/src/features/site-evidence/tool-registrations.ts	CATALOG_BY_ID	const		89	89	1
+apps/website/src/features/site-evidence/tool-registrations.ts	TOVU_BROWSER_LAUNCH_OPTIONS	const		95	98	4
+apps/website/src/features/site-evidence/tool-registrations.ts	SiteEvidenceToolDeps	interface	export	100	106	7
+apps/website/src/features/site-evidence/tool-registrations.ts	readPathsArgument	function	export	120	136	17
+apps/website/src/features/site-evidence/tool-registrations.ts	readOptionalEvidenceFlag	function		139	148	10
+apps/website/src/features/site-evidence/tool-registrations.ts	readOptionalEvidenceArguments	function	export	156	172	17
+apps/website/src/features/site-evidence/tool-registrations.ts	buildSiteEvidenceRegistrations	function	export	174	231	58
+apps/website/src/features/site-evidence/tool-registrations.ts	SITE_EVIDENCE_TOOL_ID	handler		178	231	54
+apps/website/src/features/site-evidence/tool-registrations.ts	contributeSiteEvidenceTools	function	export	237	239	3
+apps/website/src/features/site-inspection/admin-screens.generated.ts	ADMIN_SCREENS	const	export	14	63	50
+apps/website/src/features/site-inspection/agent-tools.ts	AgentToolSideEffect	type	export	52	52	1
+apps/website/src/features/site-inspection/agent-tools.ts	AgentToolDefinition	type	export	54	54	1
+apps/website/src/features/site-inspection/agent-tools.ts	SITE_INSPECTION_READ_PERMISSION	const	export	59	59	1
+apps/website/src/features/site-inspection/agent-tools.ts	SITE_CAPABILITIES_VISIBILITY_PERMISSION	const	export	63	63	1
+apps/website/src/features/site-inspection/agent-tools.ts	SITE_PROFILE_INPUT_SCHEMA	const		65	84	20
+apps/website/src/features/site-inspection/agent-tools.ts	SITE_CAPABILITIES_INPUT_SCHEMA	const		86	99	14
+apps/website/src/features/site-inspection/agent-tools.ts	FETCH_PUBLISHED_PAGE_INPUT_SCHEMA	const	export	101	122	22
+apps/website/src/features/site-inspection/agent-tools.ts	siteInspectionAgentToolCatalog	const	export	129	189	61
+apps/website/src/features/site-inspection/deps.ts	SiteProfileSourceDeps	interface	export	53	67	15
+apps/website/src/features/site-inspection/deps.ts	SiteInspectionToolDeps	interface	export	74	96	23
+apps/website/src/features/site-inspection/deps.ts	toSiteProfileDeps	function	export	112	142	31
+apps/website/src/features/site-inspection/deps.ts	toSiteCapabilitiesDeps	function	export	157	166	10
+apps/website/src/features/site-inspection/live-url.ts	LiveOriginSourceDeps	interface	export	13	18	6
+apps/website/src/features/site-inspection/live-url.ts	FetchLiveUrlDeps	interface	export	19	26	8
+apps/website/src/features/site-inspection/live-url.ts	FetchLiveUrlInput	interface	export	27	27	1
+apps/website/src/features/site-inspection/live-url.ts	LivePageResult	type	export	28	28	1
+apps/website/src/features/site-inspection/live-url.ts	REDIRECTS	const		29	29	1
+apps/website/src/features/site-inspection/live-url.ts	NO_LIVE_ADDRESS	const		30	30	1
+apps/website/src/features/site-inspection/live-url.ts	DEADLINE_MESSAGE	const		31	31	1
+apps/website/src/features/site-inspection/live-url.ts	liveOrigin	function		34	39	6
+apps/website/src/features/site-inspection/live-url.ts	listKnownLiveOrigins	function	export	42	51	10
+apps/website/src/features/site-inspection/live-url.ts	configuredLiveOrigins	function		54	66	13
+apps/website/src/features/site-inspection/live-url.ts	selectOrigin	function		69	83	15
+apps/website/src/features/site-inspection/live-url.ts	resolveLivePath	function		86	92	7
+apps/website/src/features/site-inspection/live-url.ts	redirectTarget	function		95	106	12
+apps/website/src/features/site-inspection/live-url.ts	fetchLiveUrl	function	export	114	118	5
+apps/website/src/features/site-inspection/live-url.ts	fetchWithinDeadline	function		121	139	19
+apps/website/src/features/site-inspection/live-url.ts	pageHeaders	function		142	148	7
+apps/website/src/features/site-inspection/live-url.ts	livePageResult	function		151	161	11
+apps/website/src/features/site-inspection/live-url.ts	sendPage	function		164	176	13
+apps/website/src/features/site-inspection/live-url.ts	awaitWithDeadline	function		179	188	10
+apps/website/src/features/site-inspection/page-body.ts	DEFAULT_MAX_BODY_BYTES	const	export	5	5	1
+apps/website/src/features/site-inspection/page-body.ts	MAX_MAX_BODY_BYTES	const	export	6	6	1
+apps/website/src/features/site-inspection/page-body.ts	PageBodyOptions	interface	export	7	7	1
+apps/website/src/features/site-inspection/page-body.ts	ShapedPageBody	type	export	8	11	4
+apps/website/src/features/site-inspection/page-body.ts	readPageBodyOptions	function	export	14	20	7
+apps/website/src/features/site-inspection/page-body.ts	assertMaxBodyBytes	function		23	26	4
+apps/website/src/features/site-inspection/page-body.ts	OMITTED_ELEMENTS	const		28	28	1
+apps/website/src/features/site-inspection/page-body.ts	BLOCK_ELEMENTS	const		29	29	1
+apps/website/src/features/site-inspection/page-body.ts	visibleText	function		31	40	10
+apps/website/src/features/site-inspection/page-body.ts	appendVisibleNode	function		43	52	10
+apps/website/src/features/site-inspection/page-body.ts	scheduleVisibleChildren	function		55	68	14
+apps/website/src/features/site-inspection/page-body.ts	capText	function		71	77	7
+apps/website/src/features/site-inspection/page-body.ts	findMatches	function		80	97	18
+apps/website/src/features/site-inspection/page-body.ts	shapePageBody	function	export	105	114	10
+apps/website/src/features/site-inspection/published-page.ts	MAX_PATH_LENGTH	const	export	62	62	1
+apps/website/src/features/site-inspection/published-page.ts	DEFAULT_FETCH_TIMEOUT_MS	const	export	65	65	1
+apps/website/src/features/site-inspection/published-page.ts	LOOPBACK_HOST	const		68	68	1
+apps/website/src/features/site-inspection/published-page.ts	PublishedPagePathError	class	export	74	79	6
+apps/website/src/features/site-inspection/published-page.ts	PublishedPageCookieShape	interface	export	82	86	5
+apps/website/src/features/site-inspection/published-page.ts	PublishedPageMetadata	interface	export	88	102	15
+apps/website/src/features/site-inspection/published-page.ts	PublishedPageResult	type	export	104	104	1
+apps/website/src/features/site-inspection/published-page.ts	FetchPublishedPageDeps	interface	export	106	132	27
+apps/website/src/features/site-inspection/published-page.ts	UNTRACED	const		134	134	1
+apps/website/src/features/site-inspection/published-page.ts	FetchPublishedPageOptions	interface	export	136	141	6
+apps/website/src/features/site-inspection/published-page.ts	assertNoTraversalSegment	function		158	174	17
+apps/website/src/features/site-inspection/published-page.ts	assertRawPathShape	function		184	209	26
+apps/website/src/features/site-inspection/published-page.ts	resolveWithinOrigin	function		218	230	13
+apps/website/src/features/site-inspection/published-page.ts	disallowedFormReason	function		250	265	16
+apps/website/src/features/site-inspection/published-page.ts	assertNoDisallowedDecodedForm	function		275	278	4
+apps/website/src/features/site-inspection/published-page.ts	resolveSameOriginPath	function	export	319	324	6
+apps/website/src/features/site-inspection/published-page.ts	toCookieShapes	function	export	338	349	12
+apps/website/src/features/site-inspection/published-page.ts	readBoundedBody	function	export	364	396	33
+apps/website/src/features/site-inspection/published-page.ts	resolveMaxBytes	function		399	402	4
+apps/website/src/features/site-inspection/published-page.ts	LoopbackSiteServer	interface	export	405	409	5
+apps/website/src/features/site-inspection/published-page.ts	openLoopbackSiteServer	function	export	424	440	17
+apps/website/src/features/site-inspection/published-page.ts	requestPublishedPage	function		443	461	19
+apps/website/src/features/site-inspection/published-page.ts	fetchPublishedPage	function	export	489	528	40
+apps/website/src/features/site-inspection/section-collector.ts	InspectionSectionStatus	type	export	19	19	1
+apps/website/src/features/site-inspection/section-collector.ts	InspectionSection	interface	export	21	35	15
+apps/website/src/features/site-inspection/section-collector.ts	CollectedSection	interface	export	38	41	4
+apps/website/src/features/site-inspection/section-collector.ts	InspectionAuthorizeFn	type	export	47	53	7
+apps/website/src/features/site-inspection/section-collector.ts	DEFAULT_SECTION_TIMEOUT_MS	const	export	57	57	1
+apps/website/src/features/site-inspection/section-collector.ts	SectionUnavailableError	class	export	64	72	9
+apps/website/src/features/site-inspection/section-collector.ts	withTimeout	function		83	99	17
+apps/website/src/features/site-inspection/section-collector.ts	authorizeAndCollectSection	function	export	122	158	37
+apps/website/src/features/site-inspection/section-collector.ts	resolveRequestedSections	function	export	170	177	8
+apps/website/src/features/site-inspection/site-capabilities.ts	SITE_CAPABILITIES_SECTION_NAMES	const	export	38	38	1
+apps/website/src/features/site-inspection/site-capabilities.ts	SiteCapabilitiesSectionName	type	export	40	40	1
+apps/website/src/features/site-inspection/site-capabilities.ts	SITE_CAPABILITIES_SECTION_PERMISSIONS	const	export	52	56	5
+apps/website/src/features/site-inspection/site-capabilities.ts	MAX_TOOL_SUMMARY_CHARS	const	export	62	62	1
+apps/website/src/features/site-inspection/site-capabilities.ts	TOOLS_NOT_WIRED_REASON	const	export	65	65	1
+apps/website/src/features/site-inspection/site-capabilities.ts	TOOLS_NOTE	const		67	68	2
+apps/website/src/features/site-inspection/site-capabilities.ts	ADMIN_SCREENS_NOTE	const		70	71	2
+apps/website/src/features/site-inspection/site-capabilities.ts	SiteCapabilityToolRow	interface	export	78	84	7
+apps/website/src/features/site-inspection/site-capabilities.ts	SiteCapabilityAdminScreen	interface	export	87	96	10
+apps/website/src/features/site-inspection/site-capabilities.ts	SiteCapabilityContentTypeRow	interface	export	99	103	5
+apps/website/src/features/site-inspection/site-capabilities.ts	SiteCapabilitiesDeps	interface	export	106	115	10
+apps/website/src/features/site-inspection/site-capabilities.ts	BuildSiteCapabilitiesOptions	interface	export	117	122	6
+apps/website/src/features/site-inspection/site-capabilities.ts	SiteCapabilitiesToolSummary	interface	export	128	131	4
+apps/website/src/features/site-inspection/site-capabilities.ts	SiteCapabilitiesToolDomain	interface	export	133	137	5
+apps/website/src/features/site-inspection/site-capabilities.ts	SiteCapabilitiesTools	interface	export	139	144	6
+apps/website/src/features/site-inspection/site-capabilities.ts	SiteCapabilitiesAdminScreens	interface	export	146	150	5
+apps/website/src/features/site-inspection/site-capabilities.ts	SiteCapabilitiesContentTypes	interface	export	152	155	4
+apps/website/src/features/site-inspection/site-capabilities.ts	SiteCapabilities	interface	export	157	168	12
+apps/website/src/features/site-inspection/site-capabilities.ts	summarizeToolDescription	function	export	182	193	12
+apps/website/src/features/site-inspection/site-capabilities.ts	compareCodeUnits	function		196	199	4
+apps/website/src/features/site-inspection/site-capabilities.ts	collectTools	function		208	227	20
+apps/website/src/features/site-inspection/site-capabilities.ts	collectAdminScreens	function		234	243	10
+apps/website/src/features/site-inspection/site-capabilities.ts	collectContentTypes	function		253	258	6
+apps/website/src/features/site-inspection/site-capabilities.ts	buildSiteCapabilities	function	export	274	316	43
+apps/website/src/features/site-inspection/site-profile.ts	SITE_PROFILE_SECTION_NAMES	const	export	83	83	1
+apps/website/src/features/site-inspection/site-profile.ts	SiteProfileSectionName	type	export	85	85	1
+apps/website/src/features/site-inspection/site-profile.ts	SITE_PROFILE_SECTION_PERMISSIONS	const	export	101	107	7
+apps/website/src/features/site-inspection/site-profile.ts	SiteProfileSectionStatus	type	export	112	112	1
+apps/website/src/features/site-inspection/site-profile.ts	SiteProfileSection	type	export	115	115	1
+apps/website/src/features/site-inspection/site-profile.ts	SiteProfileJsonValue	type	export	118	124	7
+apps/website/src/features/site-inspection/site-profile.ts	SiteProfilePageSummary	interface	export	129	137	9
+apps/website/src/features/site-inspection/site-profile.ts	SiteProfilePages	interface	export	139	145	7
+apps/website/src/features/site-inspection/site-profile.ts	SiteProfileThemeSummary	interface	export	147	156	10
+apps/website/src/features/site-inspection/site-profile.ts	SiteProfileTheme	interface	export	158	179	22
+apps/website/src/features/site-inspection/site-profile.ts	SiteProfilePluginSummary	interface	export	181	190	10
+apps/website/src/features/site-inspection/site-profile.ts	SiteProfileSettingSummary	interface	export	194	201	8
+apps/website/src/features/site-inspection/site-profile.ts	SiteProfileContentTypeSummary	interface	export	203	209	7
+apps/website/src/features/site-inspection/site-profile.ts	SiteProfile	interface	export	211	224	14
+apps/website/src/features/site-inspection/site-profile.ts	SiteProfilePostRow	interface	export	231	240	10
+apps/website/src/features/site-inspection/site-profile.ts	SiteProfileThemeRow	interface	export	243	248	6
+apps/website/src/features/site-inspection/site-profile.ts	SiteProfilePluginRow	interface	export	251	258	8
+apps/website/src/features/site-inspection/site-profile.ts	SiteProfilePluginActivationRow	interface	export	261	265	5
+apps/website/src/features/site-inspection/site-profile.ts	SiteProfileContentTypeRow	interface	export	268	275	8
+apps/website/src/features/site-inspection/site-profile.ts	SiteProfileAuthorizeFn	type	export	279	279	1
+apps/website/src/features/site-inspection/site-profile.ts	SiteProfileDeps	interface	export	287	299	13
+apps/website/src/features/site-inspection/site-profile.ts	BuildSiteProfileOptions	interface	export	301	308	8
+apps/website/src/features/site-inspection/site-profile.ts	DEFAULT_PAGE_ITEMS	const	export	312	312	1
+apps/website/src/features/site-inspection/site-profile.ts	MAX_PAGE_ITEMS	const	export	317	317	1
+apps/website/src/features/site-inspection/site-profile.ts	MAX_SETTING_VALUE_CHARS	const	export	321	325	5
+apps/website/src/features/site-inspection/site-profile.ts	INVENTORY_SAFE_SETTINGS	const	export	342	351	10
+apps/website/src/features/site-inspection/site-profile.ts	authorizeAndCollect	function		372	392	21
+apps/website/src/features/site-inspection/site-profile.ts	tally	function		396	403	8
+apps/website/src/features/site-inspection/site-profile.ts	toPageSummary	function		406	416	11
+apps/website/src/features/site-inspection/site-profile.ts	toThemeSummary	function		420	430	11
+apps/website/src/features/site-inspection/site-profile.ts	collectPages	function		449	459	11
+apps/website/src/features/site-inspection/site-profile.ts	collectTheme	function		479	495	17
+apps/website/src/features/site-inspection/site-profile.ts	collectPlugins	function		512	529	18
+apps/website/src/features/site-inspection/site-profile.ts	collectSettings	function		544	557	14
+apps/website/src/features/site-inspection/site-profile.ts	collectContentTypes	function		573	586	14
+apps/website/src/features/site-inspection/site-profile.ts	resolvePageLimit	function		591	594	4
+apps/website/src/features/site-inspection/site-profile.ts	buildSiteProfile	function	export	619	663	45
+apps/website/src/features/site-inspection/tool-registrations.ts	CATALOG_BY_ID	const		54	56	3
+apps/website/src/features/site-inspection/tool-registrations.ts	siteInspectionDerivedRisk	const	export	63	77	15
+apps/website/src/features/site-inspection/tool-registrations.ts	SiteInspectionInputError	class		82	87	6
+apps/website/src/features/site-inspection/tool-registrations.ts	isShapeRejection	function		92	94	3
+apps/website/src/features/site-inspection/tool-registrations.ts	normalizePublishedPageInput	function		99	102	4
+apps/website/src/features/site-inspection/tool-registrations.ts	readSections	function		120	134	15
+apps/website/src/features/site-inspection/tool-registrations.ts	buildSiteInspectionRegistrations	function	export	136	183	48
+apps/website/src/features/site-inspection/tool-registrations.ts	site_get_profile	handler		138	146	9
+apps/website/src/features/site-inspection/tool-registrations.ts	site_describe_capabilities	handler		147	164	18
+apps/website/src/features/site-inspection/tool-registrations.ts	fetch_published_page	handler		165	183	19
+apps/website/src/features/site-inspection/tool-registrations.ts	contributeSiteInspectionTools	function	export	192	205	14

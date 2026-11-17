@@ -1,0 +1,15 @@
+file	importer	kind	line	specifier
+apps/website/src/features/mail-status/activity.ts	apps/website/src/features/mail-status/__tests__/delivery-visibility.unit.test.ts	test	14	../activity.js
+apps/website/src/features/mail-status/activity.ts	apps/website/src/features/mail-status/__tests__/suppressions-feedback.unit.test.ts	test	11	../activity.js
+apps/website/src/features/mail-status/activity.ts	apps/website/src/features/mail-status/delivery-tool-registrations.ts	prod	9	./activity.js
+apps/website/src/features/mail-status/activity.ts	apps/website/src/features/mail-status/suppressions.ts	prod	18	./activity.js
+apps/website/src/features/mail-status/activity.ts	apps/website/src/server/inbound/admin-http/routes/system/mail-activity.ts	prod	5	#src/features/mail-status/activity
+apps/website/src/features/mail-status/suppressions.ts	apps/website/src/features/mail-status/__tests__/suppressions-feedback.unit.test.ts	test	16	../suppressions.js
+apps/website/src/features/mail-status/suppressions.ts	apps/website/src/features/mail-status/delivery-tool-registrations.ts	prod	15	./suppressions.js
+apps/website/src/features/mail-status/suppressions.ts	apps/website/src/server/inbound/admin-http/routes/system/mail-activity.ts	prod	11	#src/features/mail-status/suppressions
+apps/website/src/features/mail-status/permissions.ts	apps/website/src/features/mail-status/__tests__/delivery-visibility.unit.test.ts	test	16	../permissions.js
+apps/website/src/features/mail-status/permissions.ts	apps/website/src/features/mail-status/activity.ts	prod	20	./permissions.js
+apps/website/src/features/mail-status/permissions.ts	apps/website/src/features/mail-status/delivery-tool-registrations.ts	prod	11	./permissions.js
+apps/website/src/features/mail-status/permissions.ts	apps/website/src/features/mail-status/suppressions.ts	prod	19	./permissions.js
+apps/website/src/features/mail-status/permissions.ts	apps/website/src/server/inbound/admin-http/routes/system/mail-activity.ts	prod	8	#src/features/mail-status/permissions
+apps/website/src/features/mail-status/permissions.ts	apps/website/src/server/runtime/composition/app-permission-grants.ts	prod	8	#src/features/mail-status/permissions

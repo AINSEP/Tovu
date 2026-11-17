@@ -1,0 +1,236 @@
+file	name	kind	exported	first_line	last_line	span
+apps/website/src/features/mail-status/activity.ts	DEFAULT_MAIL_ACTIVITY_LIMIT	const	export	22	22	1
+apps/website/src/features/mail-status/activity.ts	MAX_MAIL_ACTIVITY_LIMIT	const	export	23	23	1
+apps/website/src/features/mail-status/activity.ts	MailActivityAccess	type	export	25	25	1
+apps/website/src/features/mail-status/activity.ts	MailActivityDeps	interface	export	27	32	6
+apps/website/src/features/mail-status/activity.ts	MailActivityQuery	interface	export	34	38	5
+apps/website/src/features/mail-status/activity.ts	MailActivityItem	interface	export	40	56	17
+apps/website/src/features/mail-status/activity.ts	MailActivityPage	interface	export	58	64	7
+apps/website/src/features/mail-status/activity.ts	MailActivityForbiddenError	class	export	67	74	8
+apps/website/src/features/mail-status/activity.ts	MailActivityUnavailableError	class	export	76	81	6
+apps/website/src/features/mail-status/activity.ts	encode	const		83	83	1
+apps/website/src/features/mail-status/activity.ts	decode	function		84	90	7
+apps/website/src/features/mail-status/activity.ts	maskRecipient	function	export	93	97	5
+apps/website/src/features/mail-status/activity.ts	oneOf	function		99	103	5
+apps/website/src/features/mail-status/activity.ts	readMailPageLimit	function	export	106	111	6
+apps/website/src/features/mail-status/activity.ts	readMailCursor	function	export	114	119	6
+apps/website/src/features/mail-status/activity.ts	readRecipient	function		121	125	5
+apps/website/src/features/mail-status/activity.ts	readMailActivityQuery	function	export	131	141	11
+apps/website/src/features/mail-status/activity.ts	resolveMailActivityAccess	function	export	147	156	10
+apps/website/src/features/mail-status/activity.ts	toItem	function		158	162	5
+apps/website/src/features/mail-status/activity.ts	nextMailCursor	function	export	166	170	5
+apps/website/src/features/mail-status/activity.ts	repo	function		172	175	4
+apps/website/src/features/mail-status/activity.ts	listMailActivity	function	export	183	197	15
+apps/website/src/features/mail-status/activity.ts	readMailActivityId	function	export	200	204	5
+apps/website/src/features/mail-status/activity.ts	MailActivityDetail	interface	export	206	210	5
+apps/website/src/features/mail-status/activity.ts	getMailActivity	function	export	217	222	6
+apps/website/src/features/mail-status/agent-tools.ts	mailStatusAgentToolCatalog	const	export	3	21	19
+apps/website/src/features/mail-status/delivery-agent-tools.ts	mailDeliveryAgentToolCatalog	const	export	4	56	53
+apps/website/src/features/mail-status/delivery-tool-registrations.ts	MailDeliveryToolDeps	type	export	25	25	1
+apps/website/src/features/mail-status/delivery-tool-registrations.ts	mailDeliveryDerivedRisk	const	export	27	40	14
+apps/website/src/features/mail-status/delivery-tool-registrations.ts	removalCard	function		43	48	6
+apps/website/src/features/mail-status/delivery-tool-registrations.ts	permission	function		50	52	3
+apps/website/src/features/mail-status/delivery-tool-registrations.ts	buildMailDeliveryRegistrations	function	export	63	99	37
+apps/website/src/features/mail-status/delivery-tool-registrations.ts	mail_get_readiness	handler		65	69	5
+apps/website/src/features/mail-status/delivery-tool-registrations.ts	mail_list_activity	handler		70	73	4
+apps/website/src/features/mail-status/delivery-tool-registrations.ts	mail_get_activity	handler		74	79	6
+apps/website/src/features/mail-status/delivery-tool-registrations.ts	mail_list_suppressions	handler		80	81	2
+apps/website/src/features/mail-status/delivery-tool-registrations.ts	mail_remove_suppression	handler		82	82	1
+apps/website/src/features/mail-status/delivery-tool-registrations.ts	prepare	handler		83	85	3
+apps/website/src/features/mail-status/delivery-tool-registrations.ts	run	handler		86	87	2
+apps/website/src/features/mail-status/delivery-tool-registrations.ts	mail_get_feedback_setup	handler		88	99	12
+apps/website/src/features/mail-status/delivery-tool-registrations.ts	contributeMailDeliveryTools	function	export	102	104	3
+apps/website/src/features/mail-status/feedback-setup.ts	MailFeedbackSetupDeps	interface	export	23	29	7
+apps/website/src/features/mail-status/feedback-setup.ts	MailWebhookSecretSlot	interface	export	31	35	5
+apps/website/src/features/mail-status/feedback-setup.ts	MailFeedbackProviderSetup	interface	export	37	49	13
+apps/website/src/features/mail-status/feedback-setup.ts	MailFeedbackSetupReport	interface	export	51	55	5
+apps/website/src/features/mail-status/feedback-setup.ts	originUrl	function		58	63	6
+apps/website/src/features/mail-status/feedback-setup.ts	siteOrigin	function		65	72	8
+apps/website/src/features/mail-status/feedback-setup.ts	slot	function		74	76	3
+apps/website/src/features/mail-status/feedback-setup.ts	stateOf	function		78	82	5
+apps/website/src/features/mail-status/feedback-setup.ts	providerSetup	function		84	93	10
+apps/website/src/features/mail-status/feedback-setup.ts	readMailFeedbackSetup	function	export	100	108	9
+apps/website/src/features/mail-status/permissions.ts	MAIL_ACTIVITY_READ_PERMISSION	const	export	18	18	1
+apps/website/src/features/mail-status/permissions.ts	MAIL_SUPPRESSIONS_MANAGE_PERMISSION	const	export	21	21	1
+apps/website/src/features/mail-status/permissions.ts	MAIL_STATUS_PERMISSION	const	export	24	24	1
+apps/website/src/features/mail-status/permissions.ts	registerMailPermissionGrants	function	export	30	41	12
+apps/website/src/features/mail-status/provider-agent-tools.ts	mailProviderAgentToolCatalog	const	export	4	16	13
+apps/website/src/features/mail-status/provider-operations.ts	MAIL_CREDENTIAL_CATEGORY	const		19	19	1
+apps/website/src/features/mail-status/provider-operations.ts	MailProviderOperationCode	type	export	21	21	1
+apps/website/src/features/mail-status/provider-operations.ts	MailProviderOperationError	class	export	24	31	8
+apps/website/src/features/mail-status/provider-operations.ts	MailProviderCredentialPlan	interface	export	34	44	11
+apps/website/src/features/mail-status/provider-operations.ts	requireControl	function		46	49	4
+apps/website/src/features/mail-status/provider-operations.ts	readMailProviderConfigurations	function	export	56	58	3
+apps/website/src/features/mail-status/provider-operations.ts	planMailProviderCredential	function	export	65	77	13
+apps/website/src/features/mail-status/provider-operations.ts	MailProviderCredentialInput	interface	export	80	84	5
+apps/website/src/features/mail-status/provider-operations.ts	saveMailProviderCredential	function	export	96	110	15
+apps/website/src/features/mail-status/provider-operations.ts	create	function		113	120	8
+apps/website/src/features/mail-status/provider-operations.ts	rotate	function		124	132	9
+apps/website/src/features/mail-status/provider-operations.ts	activateMailProvider	function	export	142	157	16
+apps/website/src/features/mail-status/provider-operations.ts	checkMailProvider	function	export	163	167	5
+apps/website/src/features/mail-status/provider-tool-registrations.ts	MailProviderToolDeps	interface	export	21	27	7
+apps/website/src/features/mail-status/provider-tool-registrations.ts	mailProviderDerivedRisk	const	export	29	34	6
+apps/website/src/features/mail-status/provider-tool-registrations.ts	asToolInputError	function	export	37	44	8
+apps/website/src/features/mail-status/provider-tool-registrations.ts	readCurrentLanes	function	export	47	53	7
+apps/website/src/features/mail-status/provider-tool-registrations.ts	currentLanesDetail	function	export	56	60	5
+apps/website/src/features/mail-status/provider-tool-registrations.ts	credentialPrefill	function		63	67	5
+apps/website/src/features/mail-status/provider-tool-registrations.ts	followUps	function		74	79	6
+apps/website/src/features/mail-status/provider-tool-registrations.ts	permission	function		81	83	3
+apps/website/src/features/mail-status/provider-tool-registrations.ts	readProviderId	function		85	90	6
+apps/website/src/features/mail-status/provider-tool-registrations.ts	buildMailProviderRegistrations	function	export	99	125	27
+apps/website/src/features/mail-status/provider-tool-registrations.ts	mail_list_providers	handler		101	112	12
+apps/website/src/features/mail-status/provider-tool-registrations.ts	mail_configure_provider	handler		113	125	13
+apps/website/src/features/mail-status/provider-tool-registrations.ts	contributeMailProviderTools	function	export	128	130	3
+apps/website/src/features/mail-status/suppressions.ts	MailSuppressionDeps	interface	export	21	27	7
+apps/website/src/features/mail-status/suppressions.ts	MailSuppressionsUnavailableError	class	export	29	34	6
+apps/website/src/features/mail-status/suppressions.ts	SCOPES	const		36	36	1
+apps/website/src/features/mail-status/suppressions.ts	REASONS	const		37	37	1
+apps/website/src/features/mail-status/suppressions.ts	MIN_REASON	const		38	38	1
+apps/website/src/features/mail-status/suppressions.ts	MAX_REASON	const		39	39	1
+apps/website/src/features/mail-status/suppressions.ts	MailSuppressionQuery	interface	export	41	45	5
+apps/website/src/features/mail-status/suppressions.ts	MailSuppressionPage	interface	export	47	51	5
+apps/website/src/features/mail-status/suppressions.ts	pick	function		53	57	5
+apps/website/src/features/mail-status/suppressions.ts	readSearch	function		59	63	5
+apps/website/src/features/mail-status/suppressions.ts	readMailSuppressionQuery	function	export	66	72	7
+apps/website/src/features/mail-status/suppressions.ts	authorizedRepo	function		74	82	9
+apps/website/src/features/mail-status/suppressions.ts	listMailSuppressions	function	export	89	102	14
+apps/website/src/features/mail-status/suppressions.ts	MailSuppressionRemovalInput	interface	export	104	108	5
+apps/website/src/features/mail-status/suppressions.ts	readMailSuppressionRemoval	function	export	111	120	10
+apps/website/src/features/mail-status/suppressions.ts	MailSuppressionRemovalPlan	interface	export	122	128	7
+apps/website/src/features/mail-status/suppressions.ts	NO_CONSENT	const		130	130	1
+apps/website/src/features/mail-status/suppressions.ts	WARNINGS	const		131	135	5
+apps/website/src/features/mail-status/suppressions.ts	planMailSuppressionRemoval	function	export	142	149	8
+apps/website/src/features/mail-status/suppressions.ts	runMailSuppressionRemoval	function	export	155	161	7
+apps/website/src/features/mail-status/test-send.ts	TEST_FALLBACK_SENDER	const		20	20	1
+apps/website/src/features/mail-status/test-send.ts	MailTestSendRefusal	type	export	23	23	1
+apps/website/src/features/mail-status/test-send.ts	MailTestSendLimiter	interface	export	26	28	3
+apps/website/src/features/mail-status/test-send.ts	MailTestSendDeps	interface	export	31	48	18
+apps/website/src/features/mail-status/test-send.ts	MailTestSendPlan	interface	export	51	61	11
+apps/website/src/features/mail-status/test-send.ts	Common	interface		63	63	1
+apps/website/src/features/mail-status/test-send.ts	MailTestSendResult	type	export	64	72	9
+apps/website/src/features/mail-status/test-send.ts	MAX_ADDRESS	const		74	74	1
+apps/website/src/features/mail-status/test-send.ts	ADDRESS	const		76	76	1
+apps/website/src/features/mail-status/test-send.ts	readTestRecipient	function	export	82	92	11
+apps/website/src/features/mail-status/test-send.ts	operatorAddress	function		98	103	6
+apps/website/src/features/mail-status/test-send.ts	planMailTestSend	function	export	112	125	14
+apps/website/src/features/mail-status/test-send.ts	REFUSALS	const		127	130	4
+apps/website/src/features/mail-status/test-send.ts	outcomeOf	function		133	137	5
+apps/website/src/features/mail-status/test-send.ts	successResult	function		139	147	9
+apps/website/src/features/mail-status/test-send.ts	runMailTestSend	function	export	159	177	19
+apps/website/src/features/mail-status/test-send.ts	performMailTestSend	function		180	202	23
+apps/website/src/features/mail-status/test-send.ts	SAFE_SEND_FAILURES	const		205	214	10
+apps/website/src/features/mail-status/test-send.ts	testSendFailureMessage	function		217	220	4
+apps/website/src/features/mail-status/test-send.ts	TEST_SEND_BURST	const	export	223	223	1
+apps/website/src/features/mail-status/test-send.ts	TEST_SEND_REFILL_MS	const	export	224	224	1
+apps/website/src/features/mail-status/test-send.ts	TEST_SEND_DUPLICATE_MS	const	export	225	225	1
+apps/website/src/features/mail-status/test-send.ts	createMailTestSendLimiter	function	export	235	258	24
+apps/website/src/features/mail-status/tool-registrations.ts	MailStatusToolDeps	interface	export	18	34	17
+apps/website/src/features/mail-status/tool-registrations.ts	mailStatusDerivedRisk	const	export	35	42	8
+apps/website/src/features/mail-status/tool-registrations.ts	permission	function		44	46	3
+apps/website/src/features/mail-status/tool-registrations.ts	providerControl	function		49	52	4
+apps/website/src/features/mail-status/tool-registrations.ts	readProviderId	function		55	60	6
+apps/website/src/features/mail-status/tool-registrations.ts	testModeDetails	function		63	66	4
+apps/website/src/features/mail-status/tool-registrations.ts	buildMailStatusRegistrations	function	export	77	132	56
+apps/website/src/features/mail-status/tool-registrations.ts	mail_set_provider	handler		87	87	1
+apps/website/src/features/mail-status/tool-registrations.ts	prepare	handler		88	96	9
+apps/website/src/features/mail-status/tool-registrations.ts	describe	handler		97	101	5
+apps/website/src/features/mail-status/tool-registrations.ts	run	handler		102	109	8
+apps/website/src/features/mail-status/tool-registrations.ts	mail_send_test	handler		110	110	1
+apps/website/src/features/mail-status/tool-registrations.ts	prepare	handler		111	121	11
+apps/website/src/features/mail-status/tool-registrations.ts	describe	handler		122	123	2
+apps/website/src/features/mail-status/tool-registrations.ts	run	handler		124	132	9
+apps/website/src/features/mail-status/tool-registrations.ts	contributeMailStatusTools	function	export	135	137	3
+apps/website/src/features/mail-status/use-readiness.ts	MailUseState	type	export	27	27	1
+apps/website/src/features/mail-status/use-readiness.ts	MailUseId	type	export	28	28	1
+apps/website/src/features/mail-status/use-readiness.ts	MailUseRow	interface	export	30	47	18
+apps/website/src/features/mail-status/use-readiness.ts	MailUseReadinessReport	interface	export	49	52	4
+apps/website/src/features/mail-status/use-readiness.ts	MailUseReadinessDeps	interface	export	54	66	13
+apps/website/src/features/mail-status/use-readiness.ts	Finding	type		68	68	1
+apps/website/src/features/mail-status/use-readiness.ts	Check	type		69	69	1
+apps/website/src/features/mail-status/use-readiness.ts	UseSpec	type		70	70	1
+apps/website/src/features/mail-status/use-readiness.ts	RANK	const		72	72	1
+apps/website/src/features/mail-status/use-readiness.ts	SENDER_FALLBACK	const		73	73	1
+apps/website/src/features/mail-status/use-readiness.ts	SPECS	const		75	80	6
+apps/website/src/features/mail-status/use-readiness.ts	LAUNCH_GATE_STATE	const		83	88	6
+apps/website/src/features/mail-status/use-readiness.ts	senderFinding	function		90	98	9
+apps/website/src/features/mail-status/use-readiness.ts	gateFinding	function		100	103	4
+apps/website/src/features/mail-status/use-readiness.ts	sharedFindings	function		106	111	6
+apps/website/src/features/mail-status/use-readiness.ts	launchGateFindings	function		113	117	5
+apps/website/src/features/mail-status/use-readiness.ts	CHECKS	const		119	138	20
+apps/website/src/features/mail-status/use-readiness.ts	stateOf	function		140	142	3
+apps/website/src/features/mail-status/use-readiness.ts	evidenceFor	function		144	152	9
+apps/website/src/features/mail-status/use-readiness.ts	rowFor	function		154	167	14
+apps/website/src/features/mail-status/use-readiness.ts	readMailUseReadiness	function	export	174	177	4
+apps/website/src/features/mail-status/use-readiness.ts	MailUseReadinessHostDeps	type	export	180	185	6
+apps/website/src/features/mail-status/use-readiness.ts	mailUseReadinessDepsFrom	function	export	193	197	5
+apps/website/src/features/mail/activity.repo.ts	MAIL_ACTIVITY_OUTCOMES	const	export	25	25	1
+apps/website/src/features/mail/activity.repo.ts	MailActivityOutcome	type	export	26	26	1
+apps/website/src/features/mail/activity.repo.ts	MAIL_ACTIVITY_USES	const	export	27	27	1
+apps/website/src/features/mail/activity.repo.ts	MailActivityUse	type	export	28	28	1
+apps/website/src/features/mail/activity.repo.ts	MailActivityRecord	interface	export	30	45	16
+apps/website/src/features/mail/activity.repo.ts	MailFeedbackRecord	interface	export	47	53	7
+apps/website/src/features/mail/activity.repo.ts	MailActivityPosition	interface	export	56	59	4
+apps/website/src/features/mail/activity.repo.ts	MailActivityFilter	interface	export	61	66	6
+apps/website/src/features/mail/activity.repo.ts	MailActivityRepo	interface	export	68	71	4
+apps/website/src/features/mail/activity.repo.ts	Row	type		73	76	4
+apps/website/src/features/mail/activity.repo.ts	USE_PREFIXES	const		78	81	4
+apps/website/src/features/mail/activity.repo.ts	mailActivityUse	function	export	84	86	3
+apps/website/src/features/mail/activity.repo.ts	legacyUse	function		89	96	8
+apps/website/src/features/mail/activity.repo.ts	feedbackExists	const		98	99	2
+apps/website/src/features/mail/activity.repo.ts	SourceQuery	type		101	101	1
+apps/website/src/features/mail/activity.repo.ts	sourceConditions	function		104	114	11
+apps/website/src/features/mail/activity.repo.ts	recipientCondition	function		117	122	6
+apps/website/src/features/mail/activity.repo.ts	activitySources	function		125	141	17
+apps/website/src/features/mail/activity.repo.ts	projection	function		144	153	10
+apps/website/src/features/mail/activity.repo.ts	toRecord	function		155	161	7
+apps/website/src/features/mail/activity.repo.ts	createMailActivityRepo	function	export	172	194	23
+apps/website/src/features/mail/attempts.repo.ts	MailAttemptObserver	type	export	12	12	1
+apps/website/src/features/mail/attempts.repo.ts	createMailAttemptObserver	function	export	16	37	22
+apps/website/src/features/mail/capture.repo.ts	CapturedMail	interface	export	13	21	9
+apps/website/src/features/mail/capture.repo.ts	MailCaptureRepo	interface	export	23	26	4
+apps/website/src/features/mail/capture.repo.ts	DEFAULT_CAPTURE_LIST	const	export	28	28	1
+apps/website/src/features/mail/capture.repo.ts	MAX_CAPTURE_LIST	const	export	29	29	1
+apps/website/src/features/mail/capture.repo.ts	Row	type		31	31	1
+apps/website/src/features/mail/capture.repo.ts	clampLimit	const		33	34	2
+apps/website/src/features/mail/capture.repo.ts	createMailCaptureRepo	function	export	43	66	24
+apps/website/src/features/mail/capture.repo.ts	capturePayload	function		75	93	19
+apps/website/src/features/mail/feedback-inbox.repo.ts	createMailFeedbackInboxRepo	function	export	14	33	20
+apps/website/src/features/mail/feedback-route.ts	MAIL_FEEDBACK_MAX_BODY_BYTES	const	export	19	19	1
+apps/website/src/features/mail/feedback-route.ts	MailFeedbackRouteDeps	interface	export	21	29	9
+apps/website/src/features/mail/feedback-route.ts	MailFeedbackRequest	interface	export	31	36	6
+apps/website/src/features/mail/feedback-route.ts	MailFeedbackRoute	interface	export	38	41	4
+apps/website/src/features/mail/feedback-route.ts	flattenHeaders	function	export	44	51	8
+apps/website/src/features/mail/feedback-route.ts	createMailFeedbackRoute	function	export	58	77	20
+apps/website/src/features/mail/feedback-sources.ts	MailAdapterSource	interface	export	14	16	3
+apps/website/src/features/mail/feedback-sources.ts	mailWebhookSecretLabels	function	export	19	22	4
+apps/website/src/features/mail/feedback-sources.ts	asParser	function		24	27	4
+apps/website/src/features/mail/feedback-sources.ts	createPluginMailFeedbackSources	function	export	33	40	8
+apps/website/src/features/mail/feedback-sources.ts	createVaultMailWebhookSecrets	function	export	47	66	20
+apps/website/src/features/mail/ledger.repo.ts	MailRepoDeps	interface	export	9	11	3
+apps/website/src/features/mail/ledger.repo.ts	MailRepoOptions	interface	export	13	16	4
+apps/website/src/features/mail/ledger.repo.ts	Key	type		18	18	1
+apps/website/src/features/mail/ledger.repo.ts	ReserveResult	type		19	19	1
+apps/website/src/features/mail/ledger.repo.ts	StoredRow	type		20	20	1
+apps/website/src/features/mail/ledger.repo.ts	lockName	function		23	25	3
+apps/website/src/features/mail/ledger.repo.ts	existingOf	function		27	32	6
+apps/website/src/features/mail/ledger.repo.ts	createMailSendLedgerRepo	function	export	43	77	35
+apps/website/src/features/mail/retention.ts	MAIL_ACTIVITY_RETENTION_MS	const	export	5	5	1
+apps/website/src/features/mail/retention.ts	MAIL_CAPTURE_RETENTION_MS	const	export	6	6	1
+apps/website/src/features/mail/retention.ts	MAIL_RETENTION_INTERVAL_MS	const	export	7	7	1
+apps/website/src/features/mail/retention.ts	purgeExpiredMail	function	export	11	28	18
+apps/website/src/features/mail/retention.ts	startMailRetention	function	export	32	45	14
+apps/website/src/features/mail/site-feedback-route.ts	createSiteMailFeedbackRoute	function	export	14	28	15
+apps/website/src/features/mail/suppression-admin.repo.ts	MailSuppressionReason	type	export	15	15	1
+apps/website/src/features/mail/suppression-admin.repo.ts	MailSuppressionEntry	interface	export	17	23	7
+apps/website/src/features/mail/suppression-admin.repo.ts	MailSuppressionRemoval	interface	export	25	34	10
+apps/website/src/features/mail/suppression-admin.repo.ts	MailSuppressionListFilter	interface	export	36	42	7
+apps/website/src/features/mail/suppression-admin.repo.ts	MailSuppressionAdminRepo	interface	export	44	51	8
+apps/website/src/features/mail/suppression-admin.repo.ts	Row	type		53	53	1
+apps/website/src/features/mail/suppression-admin.repo.ts	toEntry	const		55	55	1
+apps/website/src/features/mail/suppression-admin.repo.ts	normalize	const		56	56	1
+apps/website/src/features/mail/suppression-admin.repo.ts	likeLiteral	const		57	60	4
+apps/website/src/features/mail/suppression-admin.repo.ts	conditions	function		62	69	8
+apps/website/src/features/mail/suppression-admin.repo.ts	createMailSuppressionAdminRepo	function	export	75	115	41
+apps/website/src/features/mail/suppression.repo.ts	BLOCKING_SCOPES	const		8	11	4
+apps/website/src/features/mail/suppression.repo.ts	normalize	const		14	14	1
+apps/website/src/features/mail/suppression.repo.ts	createMailSuppressionRepo	function	export	22	37	16

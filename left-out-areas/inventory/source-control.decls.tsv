@@ -1,0 +1,240 @@
+file	name	kind	exported	first_line	last_line	span
+apps/admin/src/features/source-control/ProvidersTab.tsx	ProvidersTabProps	interface	export	80	84	5
+apps/admin/src/features/source-control/ProvidersTab.tsx	resolveSourceControlCredentialsHook	function		90	94	5
+apps/admin/src/features/source-control/ProvidersTab.tsx	ProvidersTab	function	export	96	115	20
+apps/admin/src/features/source-control/ProvidersTab.tsx	ManageAccessTokensLink	function		133	150	18
+apps/admin/src/features/source-control/ProvidersTab.tsx	SourceControlCredentialsList	function		157	189	33
+apps/admin/src/features/source-control/ProvidersTab.tsx	firstUnconnectedProviderId	function		198	200	3
+apps/admin/src/features/source-control/ProvidersTab.tsx	SourceControlProviderRow	function		237	269	33
+apps/admin/src/features/source-control/ProvidersTab.tsx	SourceControlRowSummary	function		294	330	37
+apps/admin/src/features/source-control/ProvidersTab.tsx	SourceControlScopeGuidance	function		333	360	28
+apps/admin/src/features/source-control/ProvidersTab.tsx	SourceControlCredentialFields	function		380	464	85
+apps/admin/src/features/source-control/SourceControl.hooks.ts	navigateSourceControlTab	function	export	4	6	3
+apps/admin/src/features/source-control/SourceControl.tsx	SOURCE_CONTROL_TAB_IDS	const		50	50	1
+apps/admin/src/features/source-control/SourceControl.tsx	SourceControlTabId	type		51	51	1
+apps/admin/src/features/source-control/SourceControl.tsx	resolveSourceControlTabId	function		59	61	3
+apps/admin/src/features/source-control/SourceControl.tsx	SourceControlProps	interface	export	63	72	10
+apps/admin/src/features/source-control/SourceControl.tsx	SourceControl	function	export	74	118	45
+apps/admin/src/features/source-control/hooks/source-control-credentials-dependencies.hooks.ts	defaultSourceControlCredentialsPort	const	export	25	33	9
+apps/admin/src/features/source-control/hooks/source-control-credentials-dependencies.hooks.ts	createFakeSourceControlCredentialsPort	function	export	37	57	21
+apps/admin/src/features/source-control/hooks/source-control-credentials-port.hooks.ts	SourceControlCredentialsPort	interface	export	13	36	24
+apps/admin/src/features/source-control/hooks/use-source-control-credentials.hooks.ts	SourceControlCredentialRowState	interface	export	55	69	15
+apps/admin/src/features/source-control/hooks/use-source-control-credentials.hooks.ts	SourceControlCredentialsController	interface	export	71	86	16
+apps/admin/src/features/source-control/hooks/use-source-control-credentials.hooks.ts	RowFormState	interface		90	95	6
+apps/admin/src/features/source-control/hooks/use-source-control-credentials.hooks.ts	blankRowFormState	function		97	99	3
+apps/admin/src/features/source-control/hooks/use-source-control-credentials.hooks.ts	sourceControlCredentialSubmitErrorMessage	function		105	110	6
+apps/admin/src/features/source-control/hooks/use-source-control-credentials.hooks.ts	useSourceControlCredentials	function	export	112	202	91
+apps/admin/src/features/source-control/hooks/use-source-control-credentials.hooks.ts	useWiredSourceControlCredentials	function	export	209	213	5
+apps/admin/src/features/source-control/rules.ts	SourceControlProviderInfo	interface	export	25	40	16
+apps/admin/src/features/source-control/rules.ts	sourceControlProviderInfoFromDescriptor	function	export	44	60	17
+apps/admin/src/features/source-control/rules.ts	unlistedSourceControlProviderInfo	function		63	65	3
+apps/admin/src/features/source-control/rules.ts	sourceControlProviders	function	export	72	80	9
+apps/admin/src/features/source-control/rules.ts	SourceControlCredentialFormFields	interface	export	83	87	5
+apps/admin/src/features/source-control/rules.ts	buildSourceControlConnectionInput	function	export	96	107	12
+apps/admin/src/features/source-control/rules.ts	SOURCE_CONTROL_CREDENTIAL_ROW_LABEL	const	export	114	114	1
+apps/admin/src/features/source-control/rules.ts	sourceControlCredentialsForProvider	function	export	120	125	6
+apps/admin/src/features/source-control/rules.ts	defaultSourceControlCredentialForProvider	function	export	131	137	7
+apps/admin/src/features/source-control/rules.ts	sourceControlCredentialRowReadyToSave	function	export	145	148	4
+apps/admin/src/features/source-control/rules.ts	SourceControlCredentialSubmitFailure	type	export	153	153	1
+apps/admin/src/features/source-control/rules.ts	classifySourceControlCredentialSubmitError	function	export	163	165	3
+apps/admin/src/features/source-control/source-control-i18n.ts	SOURCE_CONTROL_TRANSLATIONS	const		22	544	523
+apps/admin/src/features/source-control/source-control-i18n.ts	ACCESS_TOKEN_LINK_TRANSLATIONS	const		546	568	23
+apps/admin/src/features/source-control/source-control-i18n.ts	SOURCE_CONTROL_DICT	const		570	570	1
+apps/admin/src/features/source-control/source-control-i18n.ts	t	const	export	572	572	1
+apps/admin/src/features/source-control/source-control-i18n.ts	SOURCE_CONTROL_CREDENTIALS_LOAD_ERROR_TEMPLATE	const		579	581	3
+apps/admin/src/features/source-control/source-control-i18n.ts	sourceControlCredentialsLoadErrorMessage	function	export	583	586	4
+apps/admin/src/features/source-control/source-control-i18n.ts	SOURCE_CONTROL_CREDENTIAL_SAVE_ERROR_TEMPLATE	const		593	595	3
+apps/admin/src/features/source-control/source-control-i18n.ts	sourceControlCredentialSaveErrorMessage	function	export	597	600	4
+apps/admin/src/features/source-control/source-control-visuals.tsx	SourceControlIcon	function	export	27	35	9
+apps/admin/src/features/source-control/source-control-visuals.tsx	ConnectedMarkIcon	function	export	42	46	5
+apps/admin/src/features/source-control/source-control-visuals.tsx	DisclosureChevronIcon	function	export	59	63	5
+apps/website/src/features/source-control/commit-schema.ts	executeCommitSchema	const	export	2	31	30
+apps/website/src/features/source-control/commit-site.ts	BRANCH_PATTERN	const		67	67	1
+apps/website/src/features/source-control/commit-site.ts	isValidBranchName	function		72	75	4
+apps/website/src/features/source-control/commit-site.ts	MAX_COMMIT_MESSAGE_LENGTH	const		76	76	1
+apps/website/src/features/source-control/commit-site.ts	validateCommitTarget	function	export	92	107	16
+apps/website/src/features/source-control/commit-site.ts	toCommitFile	function	export	113	115	3
+apps/website/src/features/source-control/commit-site.ts	ResolvedSourceControlCredential	interface	export	118	120	3
+apps/website/src/features/source-control/commit-site.ts	SourceControlCommitAdapter	interface	export	125	127	3
+apps/website/src/features/source-control/commit-site.ts	SourceControlCommitOutcome	type	export	138	163	26
+apps/website/src/features/source-control/commit-site.ts	CommitSiteDeps	interface	export	165	183	19
+apps/website/src/features/source-control/commit-site.ts	ExportSiteBoundFn	type	export	202	202	1
+apps/website/src/features/source-control/commit-site.ts	StaticSiteContextFn	type	export	205	205	1
+apps/website/src/features/source-control/commit-site.ts	CommitSiteInput	interface	export	207	222	16
+apps/website/src/features/source-control/commit-site.ts	commitExportDir	function	export	252	254	3
+apps/website/src/features/source-control/commit-site.ts	cleanupCommitRunDir	function		263	269	7
+apps/website/src/features/source-control/commit-site.ts	CommitCredentialResult	type		303	305	3
+apps/website/src/features/source-control/commit-site.ts	resolveCommitCredential	function		315	359	45
+apps/website/src/features/source-control/commit-site.ts	CommitExportResult	type		361	361	1
+apps/website/src/features/source-control/commit-site.ts	exportForCommit	function		369	410	42
+apps/website/src/features/source-control/commit-site.ts	PreviewCommitExportResult	type	export	412	414	3
+apps/website/src/features/source-control/commit-site.ts	previewCommitExport	function	export	429	439	11
+apps/website/src/features/source-control/commit-site.ts	commitSiteToSourceControl	function	export	466	506	41
+apps/website/src/features/source-control/commit-site.ts	commitOutcome	function		511	541	31
+apps/website/src/features/source-control/credential-form.ts	SourceControlCredentialField	interface	export	12	18	7
+apps/website/src/features/source-control/credential-form.ts	SourceControlCredentialForm	interface	export	20	28	9
+apps/website/src/features/source-control/credential-form.ts	FIELD_NAME_PATTERN	const		30	30	1
+apps/website/src/features/source-control/credential-form.ts	MAX_FIELDS	const		31	31	1
+apps/website/src/features/source-control/credential-form.ts	MAX_LABEL_LENGTH	const		32	32	1
+apps/website/src/features/source-control/credential-form.ts	MAX_HELP_LENGTH	const		33	33	1
+apps/website/src/features/source-control/credential-form.ts	RESERVED_FIELD_NAMES	const		35	35	1
+apps/website/src/features/source-control/credential-form.ts	parseSourceControlCredentialForm	function	export	42	53	12
+apps/website/src/features/source-control/credential-form.ts	parseFormDetails	function		56	64	9
+apps/website/src/features/source-control/credential-form.ts	parseFields	function		67	77	11
+apps/website/src/features/source-control/credential-form.ts	parseField	function		79	88	10
+apps/website/src/features/source-control/credential-form.ts	parseFieldFlags	function		91	95	5
+apps/website/src/features/source-control/credential-form.ts	isHttpsUrl	function		97	104	8
+apps/website/src/features/source-control/credential-form.ts	isPlainObject	function		106	108	3
+apps/website/src/features/source-control/credential-setup.ts	SourceControlCredentialSetupDeps	interface	export	22	34	13
+apps/website/src/features/source-control/credential-setup.ts	ProposalResult	interface		38	38	1
+apps/website/src/features/source-control/credential-setup.ts	PROPOSE_CREDENTIAL_CANCELLED	const	export	42	42	1
+apps/website/src/features/source-control/credential-setup.ts	PROPOSE_CREDENTIAL_CLOSED	const	export	43	43	1
+apps/website/src/features/source-control/credential-setup.ts	PROPOSE_CREDENTIAL_ABORTED	const	export	44	44	1
+apps/website/src/features/source-control/credential-setup.ts	PROPOSE_CREDENTIAL_SAVE_FAILED	const	export	45	45	1
+apps/website/src/features/source-control/credential-setup.ts	BACKUP_REPOSITORY_RULES	const		48	48	1
+apps/website/src/features/source-control/credential-setup.ts	proposeSourceControlCredential	function	export	56	161	106
+apps/website/src/features/source-control/credential-setup.ts	sourceControlSaveVault	function		164	178	15
+apps/website/src/features/source-control/credential-setup.ts	connectionFromForm	function		182	193	12
+apps/website/src/features/source-control/credential-setup.ts	parseProposalInput	function		196	206	11
+apps/website/src/features/source-control/credential-setup.ts	CredentialPrep	type		208	208	1
+apps/website/src/features/source-control/credential-setup.ts	SavedCredential	type		209	209	1
+apps/website/src/features/source-control/credential-setup.ts	declinedMessage	function		212	220	9
+apps/website/src/features/source-control/credential-setup.ts	savedMessage	function		223	226	4
+apps/website/src/features/source-control/provider-kit.ts	NO_HTTP_CLIENT	const		15	17	3
+apps/website/src/features/source-control/provider-kit.ts	createSourceControlProviderKit	function	export	27	50	24
+apps/website/src/features/source-control/provider-module.ts	sourceControlSavedApiKeyLabels	const	export	22	22	1
+apps/website/src/features/source-control/provider-module.ts	CommitFile	interface	export	25	28	4
+apps/website/src/features/source-control/provider-module.ts	SourceControlCommitResult	type	export	31	45	15
+apps/website/src/features/source-control/provider-module.ts	CommitSiteInput	interface	export	47	56	10
+apps/website/src/features/source-control/provider-module.ts	ProviderCallFailure	type	export	59	61	3
+apps/website/src/features/source-control/provider-module.ts	CredentialedRepositoryTarget	interface	export	65	70	6
+apps/website/src/features/source-control/provider-module.ts	WriteFile	interface	export	72	75	4
+apps/website/src/features/source-control/provider-module.ts	FileWriteState	interface	export	77	80	4
+apps/website/src/features/source-control/provider-module.ts	FileWritePlan	interface	export	84	88	5
+apps/website/src/features/source-control/provider-module.ts	FileWritePlanResult	type	export	90	90	1
+apps/website/src/features/source-control/provider-module.ts	CommitFilesResult	type	export	92	92	1
+apps/website/src/features/source-control/provider-module.ts	BackupRepositoryState	interface	export	94	100	7
+apps/website/src/features/source-control/provider-module.ts	InspectBackupRepositoryFailureCode	type	export	102	102	1
+apps/website/src/features/source-control/provider-module.ts	InspectBackupRepositoryResult	type	export	104	107	4
+apps/website/src/features/source-control/provider-module.ts	UploadedBackupBlob	interface	export	109	114	6
+apps/website/src/features/source-control/provider-module.ts	InlineBackupText	interface	export	118	123	6
+apps/website/src/features/source-control/provider-module.ts	BackupTreeEntry	type	export	125	125	1
+apps/website/src/features/source-control/provider-module.ts	CommitBackupTreeInput	interface	export	127	135	9
+apps/website/src/features/source-control/provider-module.ts	SourceControlHostFacts	interface	export	139	157	19
+apps/website/src/features/source-control/provider-module.ts	SourceControlProviderOperations	interface	export	160	175	16
+apps/website/src/features/source-control/provider-module.ts	SourceControlProvider	type	export	179	179	1
+apps/website/src/features/source-control/provider-module.ts	DescribedTransportError	interface	export	183	186	4
+apps/website/src/features/source-control/provider-module.ts	SourceControlProviderKit	interface	export	194	209	16
+apps/website/src/features/source-control/provider-module.ts	RepositoryTarget	interface	export	212	215	4
+apps/website/src/features/source-control/provider-module.ts	RepositoryTargetValidator	type	export	219	219	1
+apps/website/src/features/source-control/provider-module.ts	SourceControlProviderModule	interface	export	222	228	7
+apps/website/src/features/source-control/provider-registry.ts	SOURCE_CONTROL_PROVIDERS_FILENAME	const	export	37	37	1
+apps/website/src/features/source-control/provider-registry.ts	SourceControlProviderDescriptor	interface	export	39	47	9
+apps/website/src/features/source-control/provider-registry.ts	LoadedSourceControlProvider	interface	export	49	53	5
+apps/website/src/features/source-control/provider-registry.ts	SourceControlProviderRegistry	interface	export	55	65	11
+apps/website/src/features/source-control/provider-registry.ts	ParseResult	type		67	67	1
+apps/website/src/features/source-control/provider-registry.ts	providerContribution	const		69	74	6
+apps/website/src/features/source-control/provider-registry.ts	ProviderPackage	type		76	76	1
+apps/website/src/features/source-control/provider-registry.ts	toRegistry	function		78	80	3
+apps/website/src/features/source-control/provider-registry.ts	loadSourceControlProviderRegistry	function	export	90	101	12
+apps/website/src/features/source-control/provider-registry.ts	loadSourceControlProviderRegistryFromSource	function	export	109	112	4
+apps/website/src/features/source-control/provider-registry.ts	loadBundledSourceControlProviderRegistry	function	export	120	152	33
+apps/website/src/features/source-control/provider-registry.ts	declaredProviderIds	function		155	158	4
+apps/website/src/features/source-control/provider-registry.ts	asProviderModule	function		161	163	3
+apps/website/src/features/source-control/provider-registry.ts	parseSourceControlProvidersFile	function	export	170	182	13
+apps/website/src/features/source-control/provider-registry.ts	findReservedPath	function	export	190	192	3
+apps/website/src/features/source-control/provider-registry.ts	isUnderWorkflowPath	function	export	201	203	3
+apps/website/src/features/source-control/provider-registry.ts	buildLoadedSourceControlProvider	function	export	207	209	3
+apps/website/src/features/source-control/provider-registry.ts	LoadSourceControlProviders	type	export	212	212	1
+apps/website/src/features/source-control/provider-registry.ts	BuildSourceControlProviderResult	type	export	214	216	3
+apps/website/src/features/source-control/provider-registry.ts	buildSourceControlProvider	function	export	224	239	16
+apps/website/src/features/source-control/provider-registry.ts	buildSourceControlProviders	function	export	246	259	14
+apps/website/src/features/source-control/provider-registry.ts	AGENT_PLUGINS_SCREEN	const		262	262	1
+apps/website/src/features/source-control/provider-registry.ts	noSourceControlProviderMessage	function	export	270	277	8
+apps/website/src/features/source-control/provider-registry.ts	switchedOffPluginSentence	function	export	280	283	4
+apps/website/src/features/source-control/provider-registry.ts	pickSourceControlProviderForApi	function	export	291	298	8
+apps/website/src/features/source-control/provider-registry.ts	buildSourceControlProviderForApi	function	export	301	313	13
+apps/website/src/features/source-control/provider-registry.ts	sharedRegistry	function		316	318	3
+apps/website/src/features/source-control/repo.memory.ts	InMemorySourceControlCredentialSetRepo	class	export	8	15	8
+apps/website/src/features/source-control/repository-target.ts	repositoryTargetError	function	export	18	20	3
+apps/website/src/features/source-control/source-control-credential-repo.sqlite.ts	SqliteSourceControlCredentialSetRepo	class	export	10	10	1
+apps/website/src/features/source-control/source-control-credential-repo.ts	SqlSourceControlCredentialSetRepo	class	export	9	18	10
+apps/website/src/features/source-control/store.ts	MAX_LABEL_LENGTH	const		25	25	1
+apps/website/src/features/source-control/store.ts	SourceControlCredentialValidationError	class	export	26	26	1
+apps/website/src/features/source-control/store.ts	SourceControlCredentialDuplicateLabelError	class	export	29	29	1
+apps/website/src/features/source-control/store.ts	SourceControlCredentialSecretStoreUnconfiguredError	class	export	34	34	1
+apps/website/src/features/source-control/store.ts	SourceControlCredentialNotFoundError	class	export	36	36	1
+apps/website/src/features/source-control/store.ts	toSummary	function		38	42	5
+apps/website/src/features/source-control/store.ts	vaultSummary	function		43	47	5
+apps/website/src/features/source-control/store.ts	vault	function		48	50	3
+apps/website/src/features/source-control/store.ts	probeAccountLabel	function		64	92	29
+apps/website/src/features/source-control/store.ts	SourceControlCredentialReadDeps	interface	export	94	97	4
+apps/website/src/features/source-control/store.ts	Located	interface		101	101	1
+apps/website/src/features/source-control/store.ts	reportedScope	const		104	105	2
+apps/website/src/features/source-control/store.ts	locateById	function		108	114	7
+apps/website/src/features/source-control/store.ts	listEffective	function		121	130	10
+apps/website/src/features/source-control/store.ts	describeCredential	function	export	139	145	7
+apps/website/src/features/source-control/store.ts	listSourceControlCredentials	function	export	155	161	7
+apps/website/src/features/source-control/store.ts	SourceControlCredentialWriteDeps	interface	export	163	174	12
+apps/website/src/features/source-control/store.ts	validateLabel	function		179	188	10
+apps/website/src/features/source-control/store.ts	requireNonEmptyString	function		190	195	6
+apps/website/src/features/source-control/store.ts	optionalBoolean	function		199	205	7
+apps/website/src/features/source-control/store.ts	isEmptyTokenPatch	function		208	211	4
+apps/website/src/features/source-control/store.ts	connectionObject	function		214	219	6
+apps/website/src/features/source-control/store.ts	canonicalConnection	function		223	227	5
+apps/website/src/features/source-control/store.ts	normalizeConnectionPatch	function		232	243	12
+apps/website/src/features/source-control/store.ts	assertBlankPatchChangesNoField	function		249	258	10
+apps/website/src/features/source-control/store.ts	preservedProvider	function		262	273	12
+apps/website/src/features/source-control/store.ts	requireProvider	function		276	280	5
+apps/website/src/features/source-control/store.ts	credentialRegistry	function		283	286	4
+apps/website/src/features/source-control/store.ts	normalizeStoredToken	function		288	291	4
+apps/website/src/features/source-control/store.ts	assertPlainField	function		292	295	4
+apps/website/src/features/source-control/store.ts	validateConnection	function		300	306	7
+apps/website/src/features/source-control/store.ts	collectDeclaredFields	function		310	319	10
+apps/website/src/features/source-control/store.ts	validateDeclaredField	function		322	330	9
+apps/website/src/features/source-control/store.ts	isUniqueLabelViolation	function	export	335	337	3
+apps/website/src/features/source-control/store.ts	CreateSourceControlCredentialInput	interface	export	339	349	11
+apps/website/src/features/source-control/store.ts	assertLabelFreeOnSite	function		355	361	7
+apps/website/src/features/source-control/store.ts	assertMoveFreeOnSite	function		365	369	5
+apps/website/src/features/source-control/store.ts	createSourceControlCredential	function	export	375	395	21
+apps/website/src/features/source-control/store.ts	saveConnection	function		398	408	11
+apps/website/src/features/source-control/store.ts	probeSavedConnection	function		411	423	13
+apps/website/src/features/source-control/store.ts	assertPlainAccountLabel	function		424	427	4
+apps/website/src/features/source-control/store.ts	UpdateSourceControlCredentialInput	interface	export	429	439	11
+apps/website/src/features/source-control/store.ts	updateSourceControlCredential	function	export	445	477	33
+apps/website/src/features/source-control/store.ts	deleteSourceControlCredential	function	export	488	492	5
+apps/website/src/features/source-control/store.ts	selectSourceControlCredential	function		501	512	12
+apps/website/src/features/source-control/store.ts	findDefaultSourceControlCredential	function	export	515	524	10
+apps/website/src/features/source-control/store.ts	findDefaultOpened	function		528	540	13
+apps/website/src/features/source-control/store.ts	resolveDefaultForSourceControl	function	export	544	559	16
+apps/website/src/features/source-control/tool-registrations.ts	NO_INPUT_SCHEMA	const		69	74	6
+apps/website/src/features/source-control/tool-registrations.ts	hostFacts	function		77	79	3
+apps/website/src/features/source-control/tool-registrations.ts	reportedProviderIds	function		88	91	4
+apps/website/src/features/source-control/tool-registrations.ts	providerLoader	function		95	97	3
+apps/website/src/features/source-control/tool-registrations.ts	resolveCommitAdapter	function		100	104	5
+apps/website/src/features/source-control/tool-registrations.ts	requireKnownHost	function		115	127	13
+apps/website/src/features/source-control/tool-registrations.ts	findSavedApiKey	function		131	135	5
+apps/website/src/features/source-control/tool-registrations.ts	findConfiguredCredential	function		140	151	12
+apps/website/src/features/source-control/tool-registrations.ts	resolveSavedApiKey	function		156	165	10
+apps/website/src/features/source-control/tool-registrations.ts	sourceControlAgentToolCatalog	const	export	174	196	23
+apps/website/src/features/source-control/tool-registrations.ts	CATALOG_BY_ID	const		198	198	1
+apps/website/src/features/source-control/tool-registrations.ts	sourceControlDerivedRisk	const	export	204	212	9
+apps/website/src/features/source-control/tool-registrations.ts	SourceControlToolDeps	interface	export	224	249	26
+apps/website/src/features/source-control/tool-registrations.ts	EXECUTE_COMMIT_TOOL_ID	const		251	251	1
+apps/website/src/features/source-control/tool-registrations.ts	ParsedCommitCommand	interface		254	262	9
+apps/website/src/features/source-control/tool-registrations.ts	parseCommitCommand	function		267	281	15
+apps/website/src/features/source-control/tool-registrations.ts	requireValidTarget	function		290	296	7
+apps/website/src/features/source-control/tool-registrations.ts	commitInput	function		301	306	6
+apps/website/src/features/source-control/tool-registrations.ts	buildCommitOutcomeResult	function		313	335	23
+apps/website/src/features/source-control/tool-registrations.ts	buildCapabilityGuidance	function		344	359	16
+apps/website/src/features/source-control/tool-registrations.ts	buildSourceControlCredentialHandler	function	export	378	380	3
+apps/website/src/features/source-control/tool-registrations.ts	buildSourceControlRegistrations	function	export	382	501	120
+apps/website/src/features/source-control/tool-registrations.ts	source_control_get_capabilities	handler		384	418	35
+apps/website/src/features/source-control/tool-registrations.ts	source_control_execute_commit	handler		419	501	83
+apps/website/src/features/source-control/tool-registrations.ts	contributeSourceControlTools	function	export	509	511	3
+apps/website/src/features/source-control/types.ts	SourceControlProviderId	type	export	11	11	1
+apps/website/src/features/source-control/types.ts	SourceControlConnectionInput	interface	export	14	18	5
+apps/website/src/features/source-control/types.ts	SourceControlCredentialSetRecord	interface	export	23	37	15
+apps/website/src/features/source-control/types.ts	SourceControlCredentialSummary	interface	export	42	57	16
+apps/website/src/features/source-control/types.ts	CanonicalSourceControlKeys	interface	export	71	76	6
+apps/website/src/features/source-control/types.ts	SourceControlCredentialSetRepoPort	interface	export	78	107	30

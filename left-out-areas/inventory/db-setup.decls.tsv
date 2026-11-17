@@ -1,0 +1,930 @@
+file	name	kind	exported	first_line	last_line	span
+apps/admin/src/features/database/Database.hooks.ts	navigateDatabaseTab	function	export	4	6	3
+apps/admin/src/features/database/Database.tsx	DATABASE_TAB_IDS	const		71	71	1
+apps/admin/src/features/database/Database.tsx	DatabaseTabId	type		72	72	1
+apps/admin/src/features/database/Database.tsx	resolveDatabaseTabId	function		78	80	3
+apps/admin/src/features/database/Database.tsx	KIND_OPTIONS	const		82	91	10
+apps/admin/src/features/database/Database.tsx	TimelineSectionProps	interface	export	93	99	7
+apps/admin/src/features/database/Database.tsx	TimelineFilterForm	function		104	174	71
+apps/admin/src/features/database/Database.tsx	timelineColumns	function		183	225	43
+apps/admin/src/features/database/Database.tsx	TimelineBody	function		230	269	40
+apps/admin/src/features/database/Database.tsx	TimelineSection	function		271	314	44
+apps/admin/src/features/database/Database.tsx	MigrateForwardSectionProps	interface	export	316	320	5
+apps/admin/src/features/database/Database.tsx	PlanMigrationStep	function		323	335	13
+apps/admin/src/features/database/Database.tsx	PlannedStep	function		341	356	16
+apps/admin/src/features/database/Database.tsx	ConfirmedStep	function		360	375	16
+apps/admin/src/features/database/Database.tsx	DoneStep	function		378	384	7
+apps/admin/src/features/database/Database.tsx	migrateForwardStep	function		392	412	21
+apps/admin/src/features/database/Database.tsx	MigrateForwardSection	function		414	451	38
+apps/admin/src/features/database/Database.tsx	SchemaStateWarningBannerProps	interface	export	453	456	4
+apps/admin/src/features/database/Database.tsx	SchemaStateWarningBanner	function		473	483	11
+apps/admin/src/features/database/Database.tsx	databaseTabPanel	function		491	494	4
+apps/admin/src/features/database/Database.tsx	DatabaseProps	interface	export	496	500	5
+apps/admin/src/features/database/Database.tsx	Database	function	export	502	535	34
+apps/admin/src/features/database/database-i18n.tsx	DATABASE_DICT	const		19	1125	1107
+apps/admin/src/features/database/database-i18n.tsx	t	const	export	1127	1127	1
+apps/admin/src/features/database/database-i18n.tsx	PLAN_READY_FRAGMENTS	const		1131	1220	90
+apps/admin/src/features/database/database-i18n.tsx	planReadyMessage	function	export	1222	1231	10
+apps/admin/src/features/database/hooks/migrate-forward-section-dependencies.hooks.ts	defaultMigrateForwardSectionPort	const	export	10	14	5
+apps/admin/src/features/database/hooks/migrate-forward-section-dependencies.hooks.ts	FakeMigrateForwardSectionPortOptions	interface	export	17	30	14
+apps/admin/src/features/database/hooks/migrate-forward-section-dependencies.hooks.ts	DEFAULT_PLAN	const		32	32	1
+apps/admin/src/features/database/hooks/migrate-forward-section-dependencies.hooks.ts	createFakeMigrateForwardSectionPort	function	export	41	58	18
+apps/admin/src/features/database/hooks/migrate-forward-section-port.hooks.ts	MigrateForwardSectionPort	interface	export	8	12	5
+apps/admin/src/features/database/hooks/schema-state-section-dependencies.hooks.ts	defaultSchemaStateSectionPort	const	export	10	12	3
+apps/admin/src/features/database/hooks/schema-state-section-dependencies.hooks.ts	FakeSchemaStateSectionPortOptions	interface	export	16	21	6
+apps/admin/src/features/database/hooks/schema-state-section-dependencies.hooks.ts	createFakeSchemaStateSectionPort	function	export	27	34	8
+apps/admin/src/features/database/hooks/schema-state-section-port.hooks.ts	SchemaStateSectionPort	interface	export	13	18	6
+apps/admin/src/features/database/hooks/timeline-section-dependencies.hooks.ts	defaultTimelineSectionPort	const	export	10	12	3
+apps/admin/src/features/database/hooks/timeline-section-dependencies.hooks.ts	FakeTimelineSectionPortOptions	interface	export	15	21	7
+apps/admin/src/features/database/hooks/timeline-section-dependencies.hooks.ts	createFakeTimelineSectionPort	function	export	31	45	15
+apps/admin/src/features/database/hooks/timeline-section-port.hooks.ts	TimelineSectionPort	interface	export	8	19	12
+apps/admin/src/features/database/hooks/use-migrate-forward-section.hooks.ts	CeremonyStep	type	export	58	58	1
+apps/admin/src/features/database/hooks/use-migrate-forward-section.hooks.ts	MIGRATION_CHANGES_READS	const		63	63	1
+apps/admin/src/features/database/hooks/use-migrate-forward-section.hooks.ts	MigrateForwardSectionController	interface	export	65	83	19
+apps/admin/src/features/database/hooks/use-migrate-forward-section.hooks.ts	MigrateForwardSectionDependencies	interface	export	85	87	3
+apps/admin/src/features/database/hooks/use-migrate-forward-section.hooks.ts	migrateForwardErrorKey	function		90	98	9
+apps/admin/src/features/database/hooks/use-migrate-forward-section.hooks.ts	useMigrateForwardSection	function	export	105	181	77
+apps/admin/src/features/database/hooks/use-migrate-forward-section.hooks.ts	useWiredMigrateForwardSection	function	export	191	193	3
+apps/admin/src/features/database/hooks/use-schema-state-section.hooks.ts	SchemaStateSectionController	interface	export	29	40	12
+apps/admin/src/features/database/hooks/use-schema-state-section.hooks.ts	SchemaStateSectionDependencies	interface	export	42	44	3
+apps/admin/src/features/database/hooks/use-schema-state-section.hooks.ts	useSchemaStateSection	function	export	50	67	18
+apps/admin/src/features/database/hooks/use-schema-state-section.hooks.ts	useWiredSchemaStateSection	function	export	77	79	3
+apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts	navigateToRecoveryWithDeepLink	function	export	65	79	15
+apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts	TimelineSectionController	interface	export	81	103	23
+apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts	TimelineFilters	interface		105	110	6
+apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts	BLANK_FILTERS	const		112	112	1
+apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts	TimelineSectionDependencies	interface	export	114	116	3
+apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts	useTimelineSection	function	export	123	179	57
+apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts	useWiredTimelineSection	function	export	188	190	3
+apps/admin/src/features/database/rules.ts	TIMELINE_ROOT	const		31	31	1
+apps/admin/src/features/database/rules.ts	KEYS	const	export	33	48	16
+apps/admin/src/features/database/rules.ts	SchemaStateWarningTone	type	export	63	63	1
+apps/admin/src/features/database/rules.ts	SchemaStateWarning	interface	export	70	74	5
+apps/admin/src/features/database/rules.ts	COULD_NOT_CHECK_TITLE	const		79	79	1
+apps/admin/src/features/database/rules.ts	resolveSchemaStateWarning	function	export	102	151	50
+apps/admin/src/features/database/rules.ts	viewInRecoveryAccessibleName	function	export	170	172	3
+apps/website/src/features/database/adapter.sqlite.ts	DatabaseHealthSummary	interface	export	13	21	9
+apps/website/src/features/database/adapter.sqlite.ts	SchemaStateSummary	interface	export	23	27	5
+apps/website/src/features/database/adapter.sqlite.ts	PendingMigration	interface	export	29	32	4
+apps/website/src/features/database/adapter.sqlite.ts	DatabaseIntrospectionPort	interface	export	73	77	5
+apps/website/src/features/database/agent-tools.ts	getDatabaseAgentToolCatalog	function	export	6	9	4
+apps/website/src/features/database/db-messages.ts	TOVU_DATABASE_MESSAGES	const	export	9	22	14
+apps/website/src/features/database/gated-hooks.ts	BuildMigrateForwardHooksInput	type	export	4	4	1
+apps/website/src/features/database/gated-hooks.ts	buildMigrateForwardHooks	function	export	7	10	4
+apps/website/src/features/database/repo.memory.ts	InMemoryDatabaseLedgerRepo	class	export	14	75	62
+apps/website/src/features/database/repo.memory.ts	InMemoryRestorePointsRepo	class	export	84	131	48
+apps/website/src/features/database/repo.memory.ts	InMemorySiteStatusRepo	class	export	139	149	11
+apps/website/src/features/database/repo.memory.ts	InMemoryMigrationRunsRepo	class	export	155	172	18
+apps/website/src/features/database/repo.memory.ts	InMemoryDbOpsAdapter	class	export	180	198	19
+apps/website/src/features/database/repo.memory.ts	InMemoryDatabaseIntrospectionAdapter	class	export	204	217	14
+apps/website/src/features/database/tool-registrations.ts	DatabaseToolDeps	interface	export	62	72	11
+apps/website/src/features/database/tool-registrations.ts	CATALOG_BY_ID	const		83	83	1
+apps/website/src/features/database/tool-registrations.ts	databaseDerivedRisk	const	export	90	115	26
+apps/website/src/features/database/tool-registrations.ts	MIGRATE_TOOL_ID	const		117	117	1
+apps/website/src/features/database/tool-registrations.ts	UNWIRED_DATABASE_TOOL_IDS	const		120	124	5
+apps/website/src/features/database/tool-registrations.ts	buildDatabaseRegistrations	function	export	126	244	119
+apps/website/src/features/database/tool-registrations.ts	database_plan_migrate_forward	handler		153	181	29
+apps/website/src/features/database/tool-registrations.ts	MIGRATE_TOOL_ID	handler		182	183	2
+apps/website/src/features/database/tool-registrations.ts	prepare	handler		184	199	16
+apps/website/src/features/database/tool-registrations.ts	dialog	handler		200	209	10
+apps/website/src/features/database/tool-registrations.ts	run	handler		210	244	35
+apps/website/src/features/database/tool-registrations.ts	contributeDatabaseTools	function	export	252	254	3
+apps/website/src/features/database/tool-registrations.ts	databaseInputReaders	const		257	263	7
+apps/website/src/platform/db/chat-kernel.ts	AssistantAgentSessionsTable	type	export	22	27	6
+apps/website/src/platform/db/chat-kernel.ts	AssistantConversationToolApprovalsTable	type	export	30	37	8
+apps/website/src/platform/db/chat-kernel.ts	ChatDatabase	type	export	39	41	3
+apps/website/src/platform/db/chat-kernel.ts	ChatKernel	type	export	43	43	1
+apps/website/src/platform/db/chat-kernel.ts	chatKernel	function	export	49	53	5
+apps/website/src/platform/db/chat-kernel.ts	AI_CHAT_SCHEMA	const	export	56	56	1
+apps/website/src/platform/db/chat-kernel.ts	pgChatKernel	function	export	63	65	3
+apps/website/src/platform/db/client/open-site-db-client.ts	PG_SOCKET_ENV	const		26	26	1
+apps/website/src/platform/db/client/open-site-db-client.ts	SiteDbDrivers	interface	export	29	33	5
+apps/website/src/platform/db/client/open-site-db-client.ts	ImportSiteDbDriver	type	export	36	39	4
+apps/website/src/platform/db/client/open-site-db-client.ts	ResolvePostgresConnectionString	type	export	42	45	4
+apps/website/src/platform/db/client/open-site-db-client.ts	DRIVER_IMPORTS	const		47	51	5
+apps/website/src/platform/db/client/open-site-db-client.ts	importDefaultDriver	function		53	58	6
+apps/website/src/platform/db/client/open-site-db-client.ts	SiteDbClient	interface	export	60	65	6
+apps/website/src/platform/db/client/open-site-db-client.ts	OpenSiteDbClientRequired	interface	export	67	77	11
+apps/website/src/platform/db/client/open-site-db-client.ts	OpenSiteDbClientOptional	interface	export	79	83	5
+apps/website/src/platform/db/client/open-site-db-client.ts	openSiteDbClient	function	export	98	112	15
+apps/website/src/platform/db/client/open-site-db-client.ts	openSqliteClient	function		114	139	26
+apps/website/src/platform/db/client/open-site-db-client.ts	openPgliteKernel	function		141	147	7
+apps/website/src/platform/db/client/open-site-db-client.ts	openPostgresKernel	function		149	161	13
+apps/website/src/platform/db/content-database.generated.ts	Bool	type	export	8	8	1
+apps/website/src/platform/db/content-database.generated.ts	GeneratedBool	type	export	9	9	1
+apps/website/src/platform/db/content-database.generated.ts	NullableBool	type	export	10	10	1
+apps/website/src/platform/db/content-database.generated.ts	ContentDatabase	interface	export	12	95	84
+apps/website/src/platform/db/content-database.generated.ts	AgentToolAttemptsTable	interface	export	97	108	12
+apps/website/src/platform/db/content-database.generated.ts	AnalyticsEventsTable	interface	export	110	131	22
+apps/website/src/platform/db/content-database.generated.ts	ApiKeysTable	interface	export	133	145	13
+apps/website/src/platform/db/content-database.generated.ts	AssetBlobsTable	interface	export	147	158	12
+apps/website/src/platform/db/content-database.generated.ts	AssetRenditionsTable	interface	export	160	168	9
+apps/website/src/platform/db/content-database.generated.ts	ChangeSetItemsTable	interface	export	170	181	12
+apps/website/src/platform/db/content-database.generated.ts	ChangeSetsTable	interface	export	183	194	12
+apps/website/src/platform/db/content-database.generated.ts	ContentTypeRevisionsTable	interface	export	196	207	12
+apps/website/src/platform/db/content-database.generated.ts	ContentTypesTable	interface	export	209	218	10
+apps/website/src/platform/db/content-database.generated.ts	DatabaseWriteWatermarkTable	interface	export	220	224	5
+apps/website/src/platform/db/content-database.generated.ts	EntriesTable	interface	export	226	240	15
+apps/website/src/platform/db/content-database.generated.ts	EntryRefsTable	interface	export	242	250	9
+apps/website/src/platform/db/content-database.generated.ts	EntryRevisionsTable	interface	export	252	262	11
+apps/website/src/platform/db/content-database.generated.ts	EntryTermsTable	interface	export	264	271	8
+apps/website/src/platform/db/content-database.generated.ts	ExternalMcpServersTable	interface	export	273	303	31
+apps/website/src/platform/db/content-database.generated.ts	ExternalMcpToolApprovalsTable	interface	export	305	312	8
+apps/website/src/platform/db/content-database.generated.ts	FormDefinitionsTable	interface	export	314	326	13
+apps/website/src/platform/db/content-database.generated.ts	FormDeliveryJobsTable	interface	export	328	334	7
+apps/website/src/platform/db/content-database.generated.ts	FormDeliveryPlansTable	interface	export	336	340	5
+apps/website/src/platform/db/content-database.generated.ts	FormReceiverPullsTable	interface	export	342	348	7
+apps/website/src/platform/db/content-database.generated.ts	FormSubmissionRemoteReceiptsTable	interface	export	350	356	7
+apps/website/src/platform/db/content-database.generated.ts	FormSubmissionsTable	interface	export	358	367	10
+apps/website/src/platform/db/content-database.generated.ts	GatedMutationTokensTable	interface	export	369	377	9
+apps/website/src/platform/db/content-database.generated.ts	IdentityUsersTable	interface	export	379	387	9
+apps/website/src/platform/db/content-database.generated.ts	MediaTable	interface	export	389	410	22
+apps/website/src/platform/db/content-database.generated.ts	MediaSlugHistoryTable	interface	export	412	417	6
+apps/website/src/platform/db/content-database.generated.ts	MemberConsentsTable	interface	export	419	431	13
+apps/website/src/platform/db/content-database.generated.ts	MemberExternalIdentitiesTable	interface	export	433	442	10
+apps/website/src/platform/db/content-database.generated.ts	MemberMagicTokensTable	interface	export	444	456	13
+apps/website/src/platform/db/content-database.generated.ts	MemberRevisionsTable	interface	export	458	470	13
+apps/website/src/platform/db/content-database.generated.ts	MemberSessionsTable	interface	export	472	483	12
+apps/website/src/platform/db/content-database.generated.ts	MemberSubscriptionsTable	interface	export	485	499	15
+apps/website/src/platform/db/content-database.generated.ts	MemberTiersTable	interface	export	501	517	17
+apps/website/src/platform/db/content-database.generated.ts	MembersTable	interface	export	519	533	15
+apps/website/src/platform/db/content-database.generated.ts	MenusTable	interface	export	535	545	11
+apps/website/src/platform/db/content-database.generated.ts	NavLocationBindingsTable	interface	export	547	552	6
+apps/website/src/platform/db/content-database.generated.ts	NewsletterCampaignRevisionsTable	interface	export	554	561	8
+apps/website/src/platform/db/content-database.generated.ts	NewsletterCampaignsTable	interface	export	563	581	19
+apps/website/src/platform/db/content-database.generated.ts	OauthDeviceAuthorizationsTable	interface	export	583	596	14
+apps/website/src/platform/db/content-database.generated.ts	OriginSettingsTable	interface	export	598	608	11
+apps/website/src/platform/db/content-database.generated.ts	OutboxEventsTable	interface	export	610	619	10
+apps/website/src/platform/db/content-database.generated.ts	OwnerMfaFactorsTable	interface	export	621	626	6
+apps/website/src/platform/db/content-database.generated.ts	OwnerMfaPendingTable	interface	export	628	636	9
+apps/website/src/platform/db/content-database.generated.ts	OwnerPasskeysTable	interface	export	638	645	8
+apps/website/src/platform/db/content-database.generated.ts	OwnerRecoveryCodesTable	interface	export	647	651	5
+apps/website/src/platform/db/content-database.generated.ts	PluginActivationsTable	interface	export	653	662	10
+apps/website/src/platform/db/content-database.generated.ts	PoliciesTable	interface	export	664	672	9
+apps/website/src/platform/db/content-database.generated.ts	PolicyPermissionsTable	interface	export	674	681	8
+apps/website/src/platform/db/content-database.generated.ts	PostRevisionsTable	interface	export	683	696	14
+apps/website/src/platform/db/content-database.generated.ts	PostsTable	interface	export	698	723	26
+apps/website/src/platform/db/content-database.generated.ts	PresentationSettingsTable	interface	export	725	729	5
+apps/website/src/platform/db/content-database.generated.ts	PrincipalPoliciesTable	interface	export	731	736	6
+apps/website/src/platform/db/content-database.generated.ts	PrincipalRolesTable	interface	export	738	743	6
+apps/website/src/platform/db/content-database.generated.ts	PrincipalsTable	interface	export	745	753	9
+apps/website/src/platform/db/content-database.generated.ts	PublishBackstopLogTable	interface	export	755	769	15
+apps/website/src/platform/db/content-database.generated.ts	PublishContentBaselinesTable	interface	export	771	780	10
+apps/website/src/platform/db/content-database.generated.ts	PublishContentBundlesTable	interface	export	782	793	12
+apps/website/src/platform/db/content-database.generated.ts	PublishContentRunsTable	interface	export	795	809	15
+apps/website/src/platform/db/content-database.generated.ts	PublishHistoryTable	interface	export	811	830	20
+apps/website/src/platform/db/content-database.generated.ts	PublishTrustRevocationsTable	interface	export	832	836	5
+apps/website/src/platform/db/content-database.generated.ts	RedirectHitsTable	interface	export	838	843	6
+apps/website/src/platform/db/content-database.generated.ts	RedirectRevisionsTable	interface	export	845	855	11
+apps/website/src/platform/db/content-database.generated.ts	RedirectsTable	interface	export	857	876	20
+apps/website/src/platform/db/content-database.generated.ts	RolePoliciesTable	interface	export	878	883	6
+apps/website/src/platform/db/content-database.generated.ts	RolesTable	interface	export	885	891	7
+apps/website/src/platform/db/content-database.generated.ts	SecretsVaultTable	interface	export	893	913	21
+apps/website/src/platform/db/content-database.generated.ts	SessionsTable	interface	export	915	925	11
+apps/website/src/platform/db/content-database.generated.ts	SettingDefinitionsTable	interface	export	927	945	19
+apps/website/src/platform/db/content-database.generated.ts	SettingRevisionsTable	interface	export	947	962	16
+apps/website/src/platform/db/content-database.generated.ts	SettingValuesGlobalTable	interface	export	964	973	10
+apps/website/src/platform/db/content-database.generated.ts	SettingValuesUserTable	interface	export	975	986	12
+apps/website/src/platform/db/content-database.generated.ts	SettingValuesWorkspaceTable	interface	export	988	998	11
+apps/website/src/platform/db/content-database.generated.ts	SiteTitlePreexistingWorkspacesTable	interface	export	1000	1003	4
+apps/website/src/platform/db/content-database.generated.ts	TaxonomiesTable	interface	export	1005	1013	9
+apps/website/src/platform/db/content-database.generated.ts	TaxonomyRevisionsTable	interface	export	1015	1023	9
+apps/website/src/platform/db/content-database.generated.ts	TermsTable	interface	export	1025	1034	10
+apps/website/src/platform/db/content-database.generated.ts	TransformRegistryTable	interface	export	1036	1044	9
+apps/website/src/platform/db/content-database.generated.ts	TrashedItemsTable	interface	export	1046	1061	16
+apps/website/src/platform/db/content-database.generated.ts	WebhookDeliveriesTable	interface	export	1063	1079	17
+apps/website/src/platform/db/content-database.generated.ts	WebhookSubscriptionsTable	interface	export	1081	1097	17
+apps/website/src/platform/db/content-database.generated.ts	WidgetRegionBindingsTable	interface	export	1099	1104	6
+apps/website/src/platform/db/content-database.generated.ts	WorkspacesTable	interface	export	1106	1112	7
+apps/website/src/platform/db/content-kernel.ts	ContentKernel	type	export	12	12	1
+apps/website/src/platform/db/content-kernel.ts	contentKernel	function	export	19	23	5
+apps/website/src/platform/db/drift.ts	SchemaSnapshot	interface	export	28	31	4
+apps/website/src/platform/db/drift.ts	DriftStatus	type	export	33	33	1
+apps/website/src/platform/db/drift.ts	getDriftStatus	function	export	47	57	11
+apps/website/src/platform/db/journal-kernel.ts	DatabaseLedgerTable	type	export	15	33	19
+apps/website/src/platform/db/journal-kernel.ts	MigrationRunsTable	type	export	35	52	18
+apps/website/src/platform/db/journal-kernel.ts	RestorePointsTable	type	export	54	69	16
+apps/website/src/platform/db/journal-kernel.ts	JournalDatabase	type	export	71	75	5
+apps/website/src/platform/db/journal-kernel.ts	JournalKernel	type	export	77	77	1
+apps/website/src/platform/db/journal-kernel.ts	gateJournalKernel	function	export	84	116	33
+apps/website/src/platform/db/kernel/drivers/pglite-owner.ts	OWNER_LOCK_FILE	const	export	15	15	1
+apps/website/src/platform/db/kernel/drivers/pglite-owner.ts	PGLITE_LOW_MEMORY_START_PARAMS	const	export	16	16	1
+apps/website/src/platform/db/kernel/drivers/pglite-owner.ts	defaultPgliteSocketDir	function	export	19	21	3
+apps/website/src/platform/db/kernel/drivers/pglite-owner.ts	acquireOwnerLock	function	export	24	26	3
+apps/website/src/platform/db/kernel/drivers/pglite-owner.ts	startPgliteOwner	function	export	29	34	6
+apps/website/src/platform/db/kernel/drivers/pglite-socket.ts	openPgliteSocketKernel	function	export	8	10	3
+apps/website/src/platform/db/kernel/drivers/pglite.ts	openPgliteKernel	function	export	9	11	3
+apps/website/src/platform/db/kernel/drivers/postgres.ts	openPostgresKernel	function	export	8	10	3
+apps/website/src/platform/db/kernel/drivers/sqlite.ts	NativeSqliteDatabase	type	export	16	18	3
+apps/website/src/platform/db/kernel/drivers/sqlite.ts	SqliteConnectionSource	type	export	21	21	1
+apps/website/src/platform/db/kernel/drivers/sqlite.ts	sqliteKernel	const	export	24	24	1
+apps/website/src/platform/db/kernel/drivers/sqlite.ts	closeSqliteConnection	const	export	25	25	1
+apps/website/src/platform/db/kernel/drivers/sqlite.ts	openSqliteFileKernel	function	export	28	30	3
+apps/website/src/platform/db/kernel/drivers/sqlite.ts	openMemorySqliteKernel	function	export	33	35	3
+apps/website/src/platform/db/kernel/drivers/sqlite.ts	sqliteClientOf	function	export	38	40	3
+apps/website/src/platform/db/kernel/drivers/sqlite.ts	sqliteConnectionOf	function	export	43	45	3
+apps/website/src/platform/db/kernel/drivers/sqlite.ts	openNativeSqlite	const	export	48	48	1
+apps/website/src/platform/db/kernel/drivers/sqlite.ts	openSqliteSnapshot	function	export	52	59	8
+apps/website/src/platform/db/kernel/ops.ts	storageOps	function	export	14	32	19
+apps/website/src/platform/db/kernel/ops.ts	copyServedPgliteTo	function	export	35	37	3
+apps/website/src/platform/db/kernel/sqlite-only.ts	SqliteTableColumn	interface	export	21	28	8
+apps/website/src/platform/db/kernel/sqlite-only.ts	SqliteExtendedTableColumn	interface	export	31	35	5
+apps/website/src/platform/db/kernel/sqlite-only.ts	SqliteForeignKeyViolation	interface	export	38	42	5
+apps/website/src/platform/db/kernel/sqlite-only.ts	SqliteSchemaObject	interface	export	45	50	6
+apps/website/src/platform/db/kernel/sqlite-only.ts	requireSqlite	function		52	56	5
+apps/website/src/platform/db/kernel/sqlite-only.ts	sqliteTableExtendedInfo	function	export	63	68	6
+apps/website/src/platform/db/kernel/sqlite-only.ts	sqliteSchemaObjects	function	export	76	81	6
+apps/website/src/platform/db/kernel/sqlite-only.ts	sqliteTableInfo	function	export	89	99	11
+apps/website/src/platform/db/kernel/sqlite-only.ts	sqliteForeignKeyCheckedTransaction	function	export	107	120	14
+apps/website/src/platform/db/kernel/stopped-database.ts	assertDatabaseStopped	function	export	6	8	3
+apps/website/src/platform/db/kernel/stopped-database.ts	inspectStoppedDatabase	function	export	11	13	3
+apps/website/src/platform/db/key-dependent-data.ts	WEBHOOK_SUBSCRIPTIONS_TABLE	const		27	27	1
+apps/website/src/platform/db/key-dependent-data.ts	hasKeyDependentData	function	export	36	42	7
+apps/website/src/platform/db/key-dependent-data.ts	tableHasSealedValue	function		50	59	10
+apps/website/src/platform/db/key-dependent-data.ts	hasWebhookSubscription	function		62	66	5
+apps/website/src/platform/db/key-dependent-data.ts	findKeyDependentData	function	export	78	84	7
+apps/website/src/platform/db/key-dependent-data.ts	scanOpenedKernel	function	export	92	106	15
+apps/website/src/platform/db/migration/manifest.ts	DRIZZLE_IS_TABLE	const		72	72	1
+apps/website/src/platform/db/migration/manifest.ts	SourceTable	interface	export	89	92	4
+apps/website/src/platform/db/migration/manifest.ts	collectCoreTables	function	export	95	99	5
+apps/website/src/platform/db/migration/manifest.ts	tsPropertyNames	function		104	111	8
+apps/website/src/platform/db/migration/manifest.ts	coreColumnsOf	function		123	125	3
+apps/website/src/platform/db/migration/manifest.ts	IdGrowthClass	type	export	150	150	1
+apps/website/src/platform/db/migration/manifest.ts	PG_BIGINT53_SAFE_INTEGER_CEILING	const	export	177	185	9
+apps/website/src/platform/db/migration/manifest.ts	AutoIncrementReview	interface	export	187	190	4
+apps/website/src/platform/db/migration/manifest.ts	REVIEWED_INTEGER_ID_COLUMNS	const	export	204	268	65
+apps/website/src/platform/db/migration/manifest.ts	TIMESTAMP_ORDERING_REQUIRES_CANONICAL_Z	const	export	325	334	10
+apps/website/src/platform/db/migration/manifest.ts	isTimestampColumnName	function	export	340	342	3
+apps/website/src/platform/db/migration/manifest.ts	isJsonColumnName	function	export	359	361	3
+apps/website/src/platform/db/migration/manifest.ts	REVIEWED_JSON_COLUMNS	const	export	391	417	27
+apps/website/src/platform/db/migration/manifest.ts	SemanticColumnClass	type	export	442	448	7
+apps/website/src/platform/db/migration/manifest.ts	classifyCoreIntegerColumn	function		457	469	13
+apps/website/src/platform/db/migration/manifest.ts	classifyCoreTextColumn	function		483	487	5
+apps/website/src/platform/db/migration/manifest.ts	classifyCoreColumn	function	export	493	509	17
+apps/website/src/platform/db/migration/manifest.ts	ClassifiedColumn	interface	export	511	517	7
+apps/website/src/platform/db/migration/manifest.ts	classifyAllCoreColumns	function	export	521	538	18
+apps/website/src/platform/db/migration/manifest.ts	IdentityColumn	interface	export	544	548	5
+apps/website/src/platform/db/migration/manifest.ts	collectIdentityColumns	function	export	553	563	11
+apps/website/src/platform/db/migration/manifest.ts	reseedSequenceSql	function	export	588	600	13
+apps/website/src/platform/db/migration/manifest.ts	IDENTITY_COLUMN_INSERT_OVERRIDE	const	export	618	618	1
+apps/website/src/platform/db/migration/manifest.ts	ForeignKeyEdge	interface	export	627	630	4
+apps/website/src/platform/db/migration/manifest.ts	collectForeignKeyEdges	function	export	639	664	26
+apps/website/src/platform/db/migration/manifest.ts	computeCoreTableCopyOrder	function	export	674	677	4
+apps/website/src/platform/db/migration/manifest.ts	PluginSemanticColumnClass	type	export	683	690	8
+apps/website/src/platform/db/migration/manifest.ts	classifyPluginColumn	function	export	712	740	29
+apps/website/src/platform/db/migration/manifest.ts	DerivedObject	interface	export	746	752	7
+apps/website/src/platform/db/migration/manifest.ts	DERIVED_OBJECTS	const	export	768	800	33
+apps/website/src/platform/db/migration/manifest.ts	WATERMARK_IS_NOT_A_MIGRATION_BOUNDARY	const	export	819	819	1
+apps/website/src/platform/db/migration/manifest.ts	MAX_IDENTIFIER_BYTES	const		825	825	1
+apps/website/src/platform/db/migration/manifest.ts	assertIdentifierFits	function	export	836	843	8
+apps/website/src/platform/db/migrations/0000_legacy_baseline.postgres.ts	POSTGRES_BASELINE	const	export	8	265	258
+apps/website/src/platform/db/migrations/0000_legacy_baseline.ts	LEGACY_BASELINE_ID	const	export	24	24	1
+apps/website/src/platform/db/migrations/0000_legacy_baseline.ts	legacyBaselineChecksum	function	export	27	30	4
+apps/website/src/platform/db/migrations/0000_legacy_baseline.ts	up	function		32	45	14
+apps/website/src/platform/db/migrations/0000_legacy_baseline.ts	legacyBaseline	const	export	47	47	1
+apps/website/src/platform/db/migrations/0001_post_search.ts	POST_SEARCH_ID	const	export	18	18	1
+apps/website/src/platform/db/migrations/0001_post_search.ts	STATEMENTS	const		20	32	13
+apps/website/src/platform/db/migrations/0001_post_search.ts	up	function		34	37	4
+apps/website/src/platform/db/migrations/0001_post_search.ts	postSearch	const	export	39	39	1
+apps/website/src/platform/db/migrations/0002_drop_empty_legacy_chat_tables.ts	DROP_EMPTY_LEGACY_CHAT_TABLES_ID	const	export	22	22	1
+apps/website/src/platform/db/migrations/0002_drop_empty_legacy_chat_tables.ts	LEGACY_CHAT_TABLES	const		24	24	1
+apps/website/src/platform/db/migrations/0002_drop_empty_legacy_chat_tables.ts	up	function		26	37	12
+apps/website/src/platform/db/migrations/0002_drop_empty_legacy_chat_tables.ts	dropEmptyLegacyChatTables	const	export	39	39	1
+apps/website/src/platform/db/migrations/0003_coercion_json_as_json.ts	COERCION_JSON_AS_JSON_ID	const	export	16	16	1
+apps/website/src/platform/db/migrations/0003_coercion_json_as_json.ts	up	function		18	23	6
+apps/website/src/platform/db/migrations/0003_coercion_json_as_json.ts	coercionJsonAsJson	const	export	25	25	1
+apps/website/src/platform/db/migrations/0004_drop_unused_deployment_tables.ts	DROP_UNUSED_DEPLOYMENT_TABLES_ID	const	export	13	13	1
+apps/website/src/platform/db/migrations/0004_drop_unused_deployment_tables.ts	TABLES_IN_DROP_ORDER	const		15	21	7
+apps/website/src/platform/db/migrations/0004_drop_unused_deployment_tables.ts	up	function		26	30	5
+apps/website/src/platform/db/migrations/0004_drop_unused_deployment_tables.ts	dropUnusedDeploymentTables	const	export	33	36	4
+apps/website/src/platform/db/migrations/0005_media_createdby.ts	up	function		5	7	3
+apps/website/src/platform/db/migrations/0005_media_createdby.ts	mediaCreatedBy	const	export	9	12	4
+apps/website/src/platform/db/migrations/0006_submission_ip_retention.ts	SUBMISSION_IP_RETENTION_MIGRATION_ID	const	export	11	11	1
+apps/website/src/platform/db/migrations/0006_submission_ip_retention.ts	up	function		13	65	53
+apps/website/src/platform/db/migrations/0006_submission_ip_retention.ts	submissionIpRetentionMigration	function	export	67	72	6
+apps/website/src/platform/db/migrations/0007_publish_backstop.ts	up	function		5	16	12
+apps/website/src/platform/db/migrations/0007_publish_backstop.ts	publishBackstop	const	export	18	21	4
+apps/website/src/platform/db/migrations/0008_posts_publish_at_featured_media.ts	up	function		7	10	4
+apps/website/src/platform/db/migrations/0008_posts_publish_at_featured_media.ts	postsPublishAtFeaturedMedia	const	export	12	15	4
+apps/website/src/platform/db/migrations/0009_posts_author.ts	POSTS_AUTHOR_SQLITE_STATEMENTS	const	export	6	9	4
+apps/website/src/platform/db/migrations/0009_posts_author.ts	up	function		13	18	6
+apps/website/src/platform/db/migrations/0009_posts_author.ts	postsAuthor	const	export	20	23	4
+apps/website/src/platform/db/migrations/0010_members_credentials_revoked_at.ts	MEMBERS_CREDENTIALS_REVOKED_AT_SQL	const	export	6	6	1
+apps/website/src/platform/db/migrations/0010_members_credentials_revoked_at.ts	up	function		10	12	3
+apps/website/src/platform/db/migrations/0010_members_credentials_revoked_at.ts	membersCredentialsRevokedAt	function	export	14	17	4
+apps/website/src/platform/db/migrations/0011_archive_legacy_commerce.ts	ARCHIVE_LEGACY_COMMERCE_ID	const	export	9	9	1
+apps/website/src/platform/db/migrations/0011_archive_legacy_commerce.ts	ARCHIVE_PREFIX	const		10	10	1
+apps/website/src/platform/db/migrations/0011_archive_legacy_commerce.ts	CORE_COMMERCE_ARCHIVE_TABLES	const	export	12	12	1
+apps/website/src/platform/db/migrations/0011_archive_legacy_commerce.ts	existingTables	function		17	23	7
+apps/website/src/platform/db/migrations/0011_archive_legacy_commerce.ts	hasRows	function		28	34	7
+apps/website/src/platform/db/migrations/0011_archive_legacy_commerce.ts	up	function		42	60	19
+apps/website/src/platform/db/migrations/0011_archive_legacy_commerce.ts	archiveLegacyCommerce	const	export	67	70	4
+apps/website/src/platform/db/migrations/0011_drop_empty_core_commerce_tables.ts	DROP_EMPTY_CORE_COMMERCE_TABLES_ID	const	export	163	163	1
+apps/website/src/platform/db/migrations/0011_drop_empty_core_commerce_tables.ts	CORE_COMMERCE_TABLES_IN_DROP_ORDER	const	export	166	173	8
+apps/website/src/platform/db/migrations/0011_drop_empty_core_commerce_tables.ts	up	function		180	208	29
+apps/website/src/platform/db/migrations/0011_drop_empty_core_commerce_tables.ts	dropEmptyCoreCommerceTables	const	export	213	216	4
+apps/website/src/platform/db/migrations/0012_secrets_vault.ts	SECRETS_VAULT_ID	const	export	13	13	1
+apps/website/src/platform/db/migrations/0012_secrets_vault.ts	SOURCES	const		14	24	11
+apps/website/src/platform/db/migrations/0012_secrets_vault.ts	KINDS	const		25	26	2
+apps/website/src/platform/db/migrations/0012_secrets_vault.ts	CRYPTO_COLUMNS	const		27	28	2
+apps/website/src/platform/db/migrations/0012_secrets_vault.ts	LegacyRow	type		29	29	1
+apps/website/src/platform/db/migrations/0012_secrets_vault.ts	Coverage	type		30	30	1
+apps/website/src/platform/db/migrations/0012_secrets_vault.ts	secretsVaultStatements	function	export	33	70	38
+apps/website/src/platform/db/migrations/0012_secrets_vault.ts	createVault	function		71	73	3
+apps/website/src/platform/db/migrations/0012_secrets_vault.ts	text	function		75	79	5
+apps/website/src/platform/db/migrations/0012_secrets_vault.ts	nullable	function		80	82	3
+apps/website/src/platform/db/migrations/0012_secrets_vault.ts	count	function		85	92	8
+apps/website/src/platform/db/migrations/0012_secrets_vault.ts	freeValue	function		96	102	7
+apps/website/src/platform/db/migrations/0012_secrets_vault.ts	freeLabel	function		108	117	10
+apps/website/src/platform/db/migrations/0012_secrets_vault.ts	metadata	function		121	141	21
+apps/website/src/platform/db/migrations/0012_secrets_vault.ts	originalId	function		143	146	4
+apps/website/src/platform/db/migrations/0012_secrets_vault.ts	insertMapped	function		149	176	28
+apps/website/src/platform/db/migrations/0012_secrets_vault.ts	MCP_VAULT_SQLITE_STATEMENTS	const	export	179	214	36
+apps/website/src/platform/db/migrations/0012_secrets_vault.ts	finishMcp	function		220	255	36
+apps/website/src/platform/db/migrations/0012_secrets_vault.ts	up	function		260	336	77
+apps/website/src/platform/db/migrations/0012_secrets_vault.ts	secretsVault	function	export	339	341	3
+apps/website/src/platform/db/migrations/0013_unify_vault_credentials.ts	UNIFY_VAULT_CREDENTIALS_ID	const	export	10	10	1
+apps/website/src/platform/db/migrations/0013_unify_vault_credentials.ts	CATALOG	const		14	21	8
+apps/website/src/platform/db/migrations/0013_unify_vault_credentials.ts	Meta	type		23	23	1
+apps/website/src/platform/db/migrations/0013_unify_vault_credentials.ts	Row	type		24	25	2
+apps/website/src/platform/db/migrations/0013_unify_vault_credentials.ts	inferredWorksFor	function		30	34	5
+apps/website/src/platform/db/migrations/0013_unify_vault_credentials.ts	up	function		41	62	22
+apps/website/src/platform/db/migrations/0013_unify_vault_credentials.ts	unifyVaultCredentials	function	export	65	67	3
+apps/website/src/platform/db/migrations/0014_media_library.ts	MEDIA_LIBRARY_STATEMENTS	const	export	5	8	4
+apps/website/src/platform/db/migrations/0014_media_library.ts	up	function		10	12	3
+apps/website/src/platform/db/migrations/0014_media_library.ts	mediaLibrary	const	export	14	17	4
+apps/website/src/platform/db/migrations/0015_document_blob_ownership.ts	documentBlobOwnershipStatements	function	export	8	15	8
+apps/website/src/platform/db/migrations/0015_document_blob_ownership.ts	up	function		17	19	3
+apps/website/src/platform/db/migrations/0015_document_blob_ownership.ts	documentBlobOwnership	const	export	21	24	4
+apps/website/src/platform/db/migrations/0016_publish_destination_history.ts	up	function		7	10	4
+apps/website/src/platform/db/migrations/0016_publish_destination_history.ts	publishDestinationHistory	function	export	13	15	3
+apps/website/src/platform/db/migrations/0017_publish_history_kind.ts	up	function		6	8	3
+apps/website/src/platform/db/migrations/0017_publish_history_kind.ts	publishHistoryKind	function	export	11	13	3
+apps/website/src/platform/db/migrations/0018_form_submission_remote_receipts.ts	FORM_SUBMISSION_REMOTE_RECEIPTS_STATEMENTS	const	export	8	10	3
+apps/website/src/platform/db/migrations/0018_form_submission_remote_receipts.ts	up	function		12	14	3
+apps/website/src/platform/db/migrations/0018_form_submission_remote_receipts.ts	formSubmissionRemoteReceipts	function	export	17	19	3
+apps/website/src/platform/db/migrations/0019_form_delivery_plans.ts	FORM_DELIVERY_PLANS_STATEMENTS	const	export	18	24	7
+apps/website/src/platform/db/migrations/0019_form_delivery_plans.ts	up	function		26	28	3
+apps/website/src/platform/db/migrations/0019_form_delivery_plans.ts	formDeliveryPlans	function	export	31	33	3
+apps/website/src/platform/db/migrations/0020_vault_api_connection_kind.ts	VAULT_API_CONNECTION_KIND_ID	const	export	22	22	1
+apps/website/src/platform/db/migrations/0020_vault_api_connection_kind.ts	OLD_KINDS	const		23	23	1
+apps/website/src/platform/db/migrations/0020_vault_api_connection_kind.ts	NEW_KINDS	const		24	24	1
+apps/website/src/platform/db/migrations/0020_vault_api_connection_kind.ts	KIND_LIST	const		25	25	1
+apps/website/src/platform/db/migrations/0020_vault_api_connection_kind.ts	widenedVaultTableDdl	function	export	29	37	9
+apps/website/src/platform/db/migrations/0020_vault_api_connection_kind.ts	upSqlite	function		39	64	26
+apps/website/src/platform/db/migrations/0020_vault_api_connection_kind.ts	up	function		66	70	5
+apps/website/src/platform/db/migrations/0020_vault_api_connection_kind.ts	vaultApiConnectionKind	function	export	73	75	3
+apps/website/src/platform/db/migrations/0021_site_consent_revisions.ts	SITE_CONSENT_REVISION_STATEMENTS	const	export	7	10	4
+apps/website/src/platform/db/migrations/0021_site_consent_revisions.ts	up	function		13	15	3
+apps/website/src/platform/db/migrations/0021_site_consent_revisions.ts	siteConsentRevisions	function	export	18	20	3
+apps/website/src/platform/db/migrations/0022_workspace_mcp_cascade.ts	WORKSPACE_MCP_CASCADE_ID	const	export	12	12	1
+apps/website/src/platform/db/migrations/0022_workspace_mcp_cascade.ts	WORKSPACE_MCP_CASCADE_SQLITE	const	export	15	19	5
+apps/website/src/platform/db/migrations/0022_workspace_mcp_cascade.ts	up	function		24	26	3
+apps/website/src/platform/db/migrations/0022_workspace_mcp_cascade.ts	workspaceMcpCascade	function	export	29	31	3
+apps/website/src/platform/db/migrations/0023_mail_ledgers.ts	MAIL_LEDGERS_ID	const	export	22	22	1
+apps/website/src/platform/db/migrations/0023_mail_ledgers.ts	WORKSPACE	const		24	24	1
+apps/website/src/platform/db/migrations/0023_mail_ledgers.ts	LANE	const		25	25	1
+apps/website/src/platform/db/migrations/0023_mail_ledgers.ts	MAIL_LEDGERS_STATEMENTS	const	export	27	34	8
+apps/website/src/platform/db/migrations/0023_mail_ledgers.ts	up	function		36	38	3
+apps/website/src/platform/db/migrations/0023_mail_ledgers.ts	mailLedgers	function	export	41	43	3
+apps/website/src/platform/db/migrations/0024_domain_bindings.ts	DOMAIN_BINDINGS_ID	const	export	21	21	1
+apps/website/src/platform/db/migrations/0024_domain_bindings.ts	DOMAIN_BINDINGS_STATEMENTS	const	export	23	27	5
+apps/website/src/platform/db/migrations/0024_domain_bindings.ts	up	function		29	31	3
+apps/website/src/platform/db/migrations/0024_domain_bindings.ts	domainBindings	function	export	34	36	3
+apps/website/src/platform/db/migrations/0025_mail_feedback_processed.ts	MAIL_FEEDBACK_PROCESSED_ID	const	export	17	17	1
+apps/website/src/platform/db/migrations/0025_mail_feedback_processed.ts	MAIL_FEEDBACK_PROCESSED_STATEMENTS	const	export	19	21	3
+apps/website/src/platform/db/migrations/0025_mail_feedback_processed.ts	up	function		23	25	3
+apps/website/src/platform/db/migrations/0025_mail_feedback_processed.ts	mailFeedbackProcessed	function	export	28	30	3
+apps/website/src/platform/db/migrations/0026_domain_binding_version.ts	DOMAIN_BINDING_VERSION_ID	const	export	16	16	1
+apps/website/src/platform/db/migrations/0026_domain_binding_version.ts	DOMAIN_BINDING_VERSION_STATEMENTS	const	export	18	20	3
+apps/website/src/platform/db/migrations/0026_domain_binding_version.ts	up	function		22	24	3
+apps/website/src/platform/db/migrations/0026_domain_binding_version.ts	domainBindingVersion	function	export	27	29	3
+apps/website/src/platform/db/migrations/0027_search_index.ts	SEARCH_INDEX_ID	const	export	20	20	1
+apps/website/src/platform/db/migrations/0027_search_index.ts	SEARCH_INDEX_STATEMENTS	const	export	22	29	8
+apps/website/src/platform/db/migrations/0027_search_index.ts	up	function		31	33	3
+apps/website/src/platform/db/migrations/0027_search_index.ts	searchIndex	function	export	36	38	3
+apps/website/src/platform/db/migrations/0028_search_index_retired.ts	SEARCH_INDEX_RETIRED_ID	const	export	15	15	1
+apps/website/src/platform/db/migrations/0028_search_index_retired.ts	SEARCH_INDEX_RETIRED_STATEMENTS	const	export	17	19	3
+apps/website/src/platform/db/migrations/0028_search_index_retired.ts	up	function		21	23	3
+apps/website/src/platform/db/migrations/0028_search_index_retired.ts	searchIndexRetired	function	export	26	28	3
+apps/website/src/platform/db/migrations/0029_mail_activity_indexes.ts	MAIL_ACTIVITY_INDEXES_ID	const	export	21	21	1
+apps/website/src/platform/db/migrations/0029_mail_activity_indexes.ts	mailActivitySchema	function	export	24	47	24
+apps/website/src/platform/db/migrations/0029_mail_activity_indexes.ts	sqliteSchema	const		50	50	1
+apps/website/src/platform/db/migrations/0029_mail_activity_indexes.ts	MAIL_ACTIVITY_INDEXES_STATEMENTS	const	export	51	51	1
+apps/website/src/platform/db/migrations/0029_mail_activity_indexes.ts	up	function		53	58	6
+apps/website/src/platform/db/migrations/0029_mail_activity_indexes.ts	mailActivityIndexes	function	export	61	63	3
+apps/website/src/platform/db/migrations/0030_mail_suppression_admin.ts	MAIL_SUPPRESSION_ADMIN_ID	const	export	22	22	1
+apps/website/src/platform/db/migrations/0030_mail_suppression_admin.ts	mailSuppressionSchema	function	export	25	42	18
+apps/website/src/platform/db/migrations/0030_mail_suppression_admin.ts	sqliteSchema	const		44	44	1
+apps/website/src/platform/db/migrations/0030_mail_suppression_admin.ts	MAIL_SUPPRESSION_ADMIN_STATEMENTS	const	export	45	45	1
+apps/website/src/platform/db/migrations/0030_mail_suppression_admin.ts	up	function		47	51	5
+apps/website/src/platform/db/migrations/0030_mail_suppression_admin.ts	mailSuppressionAdmin	function	export	54	56	3
+apps/website/src/platform/db/migrations/0031_mail_activity_retention.ts	MAIL_ACTIVITY_RETENTION_ID	const	export	12	12	1
+apps/website/src/platform/db/migrations/0031_mail_activity_retention.ts	mailActivityRetentionSchema	function	export	15	27	13
+apps/website/src/platform/db/migrations/0031_mail_activity_retention.ts	sqliteSchema	const		29	29	1
+apps/website/src/platform/db/migrations/0031_mail_activity_retention.ts	MAIL_ACTIVITY_RETENTION_STATEMENTS	const	export	30	30	1
+apps/website/src/platform/db/migrations/0031_mail_activity_retention.ts	up	function		32	41	10
+apps/website/src/platform/db/migrations/0031_mail_activity_retention.ts	mailActivityRetention	function	export	44	46	3
+apps/website/src/platform/db/migrations/0032_member_signup_email.ts	MEMBER_SIGNUP_EMAIL_SQL	const	export	6	6	1
+apps/website/src/platform/db/migrations/0032_member_signup_email.ts	up	function		11	13	3
+apps/website/src/platform/db/migrations/0032_member_signup_email.ts	memberSignupEmail	function	export	16	18	3
+apps/website/src/platform/db/migrations/0033_mail_activity_message.ts	MAIL_ACTIVITY_MESSAGE_SQL	const	export	6	6	1
+apps/website/src/platform/db/migrations/0033_mail_activity_message.ts	up	function		11	13	3
+apps/website/src/platform/db/migrations/0033_mail_activity_message.ts	mailActivityMessage	function	export	16	18	3
+apps/website/src/platform/db/migrations/0034_member_auth.ts	memberAuthStatements	function	export	6	12	7
+apps/website/src/platform/db/migrations/0034_member_auth.ts	up	function		17	19	3
+apps/website/src/platform/db/migrations/0034_member_auth.ts	memberAuth	function	export	22	24	3
+apps/website/src/platform/db/migrations/0035_member_external_identities.ts	MEMBER_EXTERNAL_IDENTITIES_STATEMENTS	const	export	9	13	5
+apps/website/src/platform/db/migrations/0035_member_external_identities.ts	up	function		18	20	3
+apps/website/src/platform/db/migrations/0035_member_external_identities.ts	memberExternalIdentities	function	export	23	25	3
+apps/website/src/platform/db/migrations/0036_publish_history_config_jsonb.ts	up	function		9	12	4
+apps/website/src/platform/db/migrations/0036_publish_history_config_jsonb.ts	publishHistoryConfigJsonb	function	export	15	17	3
+apps/website/src/platform/db/migrations/0037_media_source_metadata.ts	up	function		5	8	4
+apps/website/src/platform/db/migrations/0037_media_source_metadata.ts	mediaSourceMetadata	function	export	10	12	3
+apps/website/src/platform/db/migrations/0038_newsletter_sending_index.ts	newsletterSendingIndexSchema	function	export	6	9	4
+apps/website/src/platform/db/migrations/0038_newsletter_sending_index.ts	sqliteSchema	const		12	12	1
+apps/website/src/platform/db/migrations/0038_newsletter_sending_index.ts	NEWSLETTER_SENDING_INDEX_SQL	const	export	13	13	1
+apps/website/src/platform/db/migrations/0038_newsletter_sending_index.ts	newsletterSendingIndex	function	export	19	25	7
+apps/website/src/platform/db/migrations/0039_owner_recovery_codes.ts	ownerRecoveryCodesSchema	function	export	6	12	7
+apps/website/src/platform/db/migrations/0039_owner_recovery_codes.ts	sqliteSchema	const		14	14	1
+apps/website/src/platform/db/migrations/0039_owner_recovery_codes.ts	OWNER_RECOVERY_CODES_SQL	const	export	15	15	1
+apps/website/src/platform/db/migrations/0039_owner_recovery_codes.ts	ownerRecoveryCodes	function	export	21	27	7
+apps/website/src/platform/db/migrations/0040_owner_mfa.ts	ownerMfaSchema	function	export	6	29	24
+apps/website/src/platform/db/migrations/0040_owner_mfa.ts	sqliteSchema	const		31	31	1
+apps/website/src/platform/db/migrations/0040_owner_mfa.ts	OWNER_MFA_SQL	const	export	32	32	1
+apps/website/src/platform/db/migrations/0040_owner_mfa.ts	ownerMfa	function	export	37	45	9
+apps/website/src/platform/db/migrations/0041_owner_passkeys.ts	ownerPasskeysSchema	function	export	6	16	11
+apps/website/src/platform/db/migrations/0041_owner_passkeys.ts	schema	const		17	17	1
+apps/website/src/platform/db/migrations/0041_owner_passkeys.ts	OWNER_PASSKEYS_SQL	const	export	18	18	1
+apps/website/src/platform/db/migrations/0041_owner_passkeys.ts	ownerPasskeys	function	export	20	26	7
+apps/website/src/platform/db/migrations/0042_optimistic_concurrency_versions.ts	OPTIMISTIC_CONCURRENCY_VERSIONS_ID	const	export	17	17	1
+apps/website/src/platform/db/migrations/0042_optimistic_concurrency_versions.ts	OPTIMISTIC_CONCURRENCY_VERSION_TABLES	const	export	19	26	8
+apps/website/src/platform/db/migrations/0042_optimistic_concurrency_versions.ts	OPTIMISTIC_CONCURRENCY_VERSIONS_STATEMENTS	const	export	28	30	3
+apps/website/src/platform/db/migrations/0042_optimistic_concurrency_versions.ts	up	function		32	34	3
+apps/website/src/platform/db/migrations/0042_optimistic_concurrency_versions.ts	optimisticConcurrencyVersions	function	export	37	39	3
+apps/website/src/platform/db/migrations/chat/0000_chat_baseline.ts	CHAT_BASELINE_ID	const	export	19	19	1
+apps/website/src/platform/db/migrations/chat/0000_chat_baseline.ts	STATEMENTS	const		21	74	54
+apps/website/src/platform/db/migrations/chat/0000_chat_baseline.ts	up	function		76	79	4
+apps/website/src/platform/db/migrations/chat/0000_chat_baseline.ts	chatBaseline	const	export	81	81	1
+apps/website/src/platform/db/migrations/chat/0001_sqlite_chat_tables.ts	SQLITE_CHAT_TABLES_ID	const	export	17	17	1
+apps/website/src/platform/db/migrations/chat/0001_sqlite_chat_tables.ts	SQLITE_CHAT_STATEMENTS	const	export	19	71	53
+apps/website/src/platform/db/migrations/chat/0001_sqlite_chat_tables.ts	up	function		73	76	4
+apps/website/src/platform/db/migrations/chat/0001_sqlite_chat_tables.ts	sqliteChatTables	const	export	78	78	1
+apps/website/src/platform/db/migrations/chat/0002_durable_run_attempts.ts	durableRunStatements	function	export	7	26	20
+apps/website/src/platform/db/migrations/chat/0002_durable_run_attempts.ts	durableRunAttempts	const	export	28	33	6
+apps/website/src/platform/db/migrations/chat/0003_active_run_index.ts	activeRunIndexStatement	function	export	9	12	4
+apps/website/src/platform/db/migrations/chat/0003_active_run_index.ts	activeRunIndex	const	export	15	18	4
+apps/website/src/platform/db/migrations/checksums.ts	MIGRATION_CHECKSUMS	const	export	15	68	54
+apps/website/src/platform/db/migrations/commerce/0000_catalog.ts	COMMERCE_CATALOG_STATEMENTS	const	export	6	42	37
+apps/website/src/platform/db/migrations/commerce/0000_catalog.ts	commerceCatalog	function	export	49	55	7
+apps/website/src/platform/db/migrations/index.ts	CHAT_LEDGER_TABLE	const	export	69	69	1
+apps/website/src/platform/db/migrations/index.ts	COMMERCE_LEDGER_TABLE	const	export	70	70	1
+apps/website/src/platform/db/migrations/index.ts	pinned	function		72	76	5
+apps/website/src/platform/db/migrations/index.ts	CONTENT_MIGRATIONS	const	export	78	123	46
+apps/website/src/platform/db/migrations/index.ts	CHAT_MIGRATIONS	const	export	125	130	6
+apps/website/src/platform/db/migrations/index.ts	PROJECT_LEDGER_TABLE	const	export	133	133	1
+apps/website/src/platform/db/migrations/index.ts	PROJECT_MIGRATIONS	const	export	134	138	5
+apps/website/src/platform/db/migrations/index.ts	COMMERCE_MIGRATIONS	const	export	141	143	3
+apps/website/src/platform/db/migrations/index.ts	migrateCommerceDatabase	function	export	150	152	3
+apps/website/src/platform/db/migrations/index.ts	migrateProjectDatabase	function	export	155	157	3
+apps/website/src/platform/db/migrations/index.ts	migrateContentDatabase	function	export	160	166	7
+apps/website/src/platform/db/migrations/index.ts	migrateChatDatabase	function	export	173	178	6
+apps/website/src/platform/db/migrations/legacy-sqlite.ts	LEGACY_DRIZZLE_DIR	const	export	27	27	1
+apps/website/src/platform/db/migrations/legacy-sqlite.ts	FROZEN_CHAIN	const	export	30	30	1
+apps/website/src/platform/db/migrations/legacy-sqlite.ts	DRIZZLE_TABLE	const		32	32	1
+apps/website/src/platform/db/migrations/legacy-sqlite.ts	LegacyEntry	interface	export	34	42	9
+apps/website/src/platform/db/migrations/legacy-sqlite.ts	readFrozenChain	function	export	45	66	22
+apps/website/src/platform/db/migrations/legacy-sqlite.ts	LegacyReconciliation	interface	export	68	75	8
+apps/website/src/platform/db/migrations/legacy-sqlite.ts	LegacyHistoryError	class	export	78	83	6
+apps/website/src/platform/db/migrations/legacy-sqlite.ts	reconcileLegacyHistory	function	export	92	114	23
+apps/website/src/platform/db/migrations/legacy-sqlite.ts	applyLegacyEntries	function	export	117	124	8
+apps/website/src/platform/db/migrations/legacy-sqlite.ts	DROPPABLE	const		127	127	1
+apps/website/src/platform/db/migrations/legacy-sqlite.ts	BOOKKEEPING	const		128	128	1
+apps/website/src/platform/db/migrations/legacy-sqlite.ts	frozenHeadShape	function	export	131	139	9
+apps/website/src/platform/db/migrations/legacy-sqlite.ts	ShapeDifference	interface	export	141	146	6
+apps/website/src/platform/db/migrations/legacy-sqlite.ts	missingEntries	function		148	152	5
+apps/website/src/platform/db/migrations/legacy-sqlite.ts	compareTableParts	function		154	165	12
+apps/website/src/platform/db/migrations/legacy-sqlite.ts	compareShapes	function	export	168	182	15
+apps/website/src/platform/db/migrations/legacy-sqlite.ts	adoptLegacySqlite	function	export	188	206	19
+apps/website/src/platform/db/migrations/project/0000_project_vault.ts	PROJECT_VAULT_ID	const	export	18	18	1
+apps/website/src/platform/db/migrations/project/0000_project_vault.ts	PROJECT_VAULT_STATEMENTS	const	export	20	47	28
+apps/website/src/platform/db/migrations/project/0000_project_vault.ts	up	function		49	52	4
+apps/website/src/platform/db/migrations/project/0000_project_vault.ts	projectVault	const	export	54	54	1
+apps/website/src/platform/db/migrations/project/0001_project_credential_kinds.ts	PROJECT_CREDENTIAL_KINDS_ID	const	export	19	19	1
+apps/website/src/platform/db/migrations/project/0001_project_credential_kinds.ts	GROUP	const		21	21	1
+apps/website/src/platform/db/migrations/project/0001_project_credential_kinds.ts	PROJECT_CREDENTIAL_KINDS_STATEMENTS	const	export	23	60	38
+apps/website/src/platform/db/migrations/project/0001_project_credential_kinds.ts	up	function		62	65	4
+apps/website/src/platform/db/migrations/project/0001_project_credential_kinds.ts	projectCredentialKinds	const	export	67	67	1
+apps/website/src/platform/db/migrations/project/0002_site_key_attachments.ts	SITE_KEY_ATTACHMENTS_STATEMENTS	const	export	6	12	7
+apps/website/src/platform/db/migrations/project/0002_site_key_attachments.ts	up	function		14	16	3
+apps/website/src/platform/db/migrations/project/0002_site_key_attachments.ts	siteKeyAttachments	function	export	18	20	3
+apps/website/src/platform/db/migrations/runner.ts	LEDGER_TABLE	const	export	13	13	1
+apps/website/src/platform/db/migrations/runner.ts	MigrationOptions	type	export	14	14	1
+apps/website/src/platform/db/migrations/runner.ts	runMigrations	function	export	17	23	7
+apps/website/src/platform/db/migrations/runner.ts	hasLedger	function	export	26	28	3
+apps/website/src/platform/db/migrations/source-digests.ts	MIGRATION_SOURCE_DIGESTS	const	export	8	60	53
+apps/website/src/platform/db/postgres/db-ops-adapter.ts	PostgresRestoreToolingConfig	interface	export	23	32	10
+apps/website/src/platform/db/postgres/db-ops-adapter.ts	evaluatePostgresRestoreCapability	function	export	47	58	12
+apps/website/src/platform/db/postgres/db-ops-adapter.ts	RestorePointsUnavailableError	class	export	61	66	6
+apps/website/src/platform/db/postgres/db-ops-adapter.ts	PostgresDbOpsAdapter	class	export	68	87	20
+apps/website/src/platform/db/prepare-content-store.ts	AnyRow	type		15	15	1
+apps/website/src/platform/db/prepare-content-store.ts	AnyTables	type		16	16	1
+apps/website/src/platform/db/prepare-content-store.ts	columnRow	function	export	24	33	10
+apps/website/src/platform/db/prepare-content-store.ts	insertRow	function		35	38	4
+apps/website/src/platform/db/prepare-content-store.ts	seedContentStore	function	export	48	67	20
+apps/website/src/platform/db/prepare-content-store.ts	prepareContentStore	function	export	74	83	10
+apps/website/src/platform/db/repos/analytics-sink.ts	DEFAULT_LIST_LIMIT	const		31	31	1
+apps/website/src/platform/db/repos/analytics-sink.ts	MAX_LIST_LIMIT	const		32	32	1
+apps/website/src/platform/db/repos/analytics-sink.ts	clampListLimit	function		35	38	4
+apps/website/src/platform/db/repos/analytics-sink.ts	toNormalizedHit	function		40	64	25
+apps/website/src/platform/db/repos/analytics-sink.ts	toRow	function		66	88	23
+apps/website/src/platform/db/repos/analytics-sink.ts	SqlBufferSink	class	export	91	120	30
+apps/website/src/platform/db/repos/change-set-repo.ts	toRecord	function		44	57	14
+apps/website/src/platform/db/repos/change-set-repo.ts	toItemRecord	function		59	72	14
+apps/website/src/platform/db/repos/change-set-repo.ts	toRow	function		75	88	14
+apps/website/src/platform/db/repos/change-set-repo.ts	toItemRow	function		91	104	14
+apps/website/src/platform/db/repos/change-set-repo.ts	SqlChangeSetRepo	class	export	106	178	73
+apps/website/src/platform/db/repos/entry-refs-repo.ts	EntryRefsDbRow	type		24	24	1
+apps/website/src/platform/db/repos/entry-refs-repo.ts	toRecord	function		26	35	10
+apps/website/src/platform/db/repos/entry-refs-repo.ts	toRow	function		37	46	10
+apps/website/src/platform/db/repos/entry-refs-repo.ts	SqlEntryRefsRepo	class	export	48	121	74
+apps/website/src/platform/db/repos/entry-refs-repo.ts	entryRefsRepoFor	function	export	124	126	3
+apps/website/src/platform/db/repos/external-mcp-tool-approval-repo.ts	ApprovalKey	type		16	16	1
+apps/website/src/platform/db/repos/external-mcp-tool-approval-repo.ts	toRecord	function		18	27	10
+apps/website/src/platform/db/repos/external-mcp-tool-approval-repo.ts	SqlExternalMcpToolApprovalRepo	class	export	29	74	46
+apps/website/src/platform/db/repos/form-delivery-repo.ts	JOB_WORKSPACE_ID	const		14	14	1
+apps/website/src/platform/db/repos/form-delivery-repo.ts	JOB_SUBMISSION_ID	const		15	30	16
+apps/website/src/platform/db/repos/form-delivery-repo.ts	UNFINISHED_STATUSES	const		33	33	1
+apps/website/src/platform/db/repos/form-delivery-repo.ts	PURGED_JOB_ERROR	const		36	36	1
+apps/website/src/platform/db/repos/form-delivery-repo.ts	StatusSqlRow	interface		38	41	4
+apps/website/src/platform/db/repos/form-delivery-repo.ts	statusQuery	function		44	50	7
+apps/website/src/platform/db/repos/form-delivery-repo.ts	purgedJobColumns	function		54	61	8
+apps/website/src/platform/db/repos/form-delivery-repo.ts	toStatusRow	function		63	68	6
+apps/website/src/platform/db/repos/form-delivery-repo.ts	assertSameIdentity	function		73	78	6
+apps/website/src/platform/db/repos/form-delivery-repo.ts	SqlFormDeliveryRepo	class	export	81	198	118
+apps/website/src/platform/db/repos/form-delivery-repo.ts	PullRow	interface		200	200	1
+apps/website/src/platform/db/repos/form-delivery-repo.ts	refusalOf	function		205	211	7
+apps/website/src/platform/db/repos/form-delivery-repo.ts	leaseExpiresAt	function		215	221	7
+apps/website/src/platform/db/repos/form-delivery-repo.ts	SqlFormPullLeaseRepo	class	export	227	266	40
+apps/website/src/platform/db/repos/form-submission-receipt-repo.ts	SqlFormSubmissionReceiptRepo	class	export	11	24	14
+apps/website/src/platform/db/repos/gated-mutation-token-repo.ts	toRecord	function		33	43	11
+apps/website/src/platform/db/repos/gated-mutation-token-repo.ts	toRow	function		45	55	11
+apps/website/src/platform/db/repos/gated-mutation-token-repo.ts	SqlTokenStore	class	export	57	128	72
+apps/website/src/platform/db/repos/media-repo.ts	ContentQueries	type		44	44	1
+apps/website/src/platform/db/repos/media-repo.ts	toMediaRecord	function		46	75	30
+apps/website/src/platform/db/repos/media-repo.ts	toMediaRow	function		84	103	20
+apps/website/src/platform/db/repos/media-repo.ts	translateSlugConflict	function		114	119	6
+apps/website/src/platform/db/repos/media-repo.ts	findSlugClaimant	function		124	133	10
+apps/website/src/platform/db/repos/media-repo.ts	assertSlugReclaimable	function		138	142	5
+apps/website/src/platform/db/repos/media-repo.ts	deleteHistoryRow	function		146	148	3
+apps/website/src/platform/db/repos/media-repo.ts	retireSlug	function		153	156	4
+apps/website/src/platform/db/repos/media-repo.ts	slugLockKey	function		161	163	3
+apps/website/src/platform/db/repos/media-repo.ts	SqlMediaRepo	class	export	165	457	293
+apps/website/src/platform/db/repos/media-repo.ts	toAssetBlobRecord	function		459	475	17
+apps/website/src/platform/db/repos/media-repo.ts	SqlAssetBlobRepo	class	export	477	534	58
+apps/website/src/platform/db/repos/media-repo.ts	SqlMediaContentTypeStore	class	export	546	583	38
+apps/website/src/platform/db/repos/media-repo.ts	toAssetRenditionRecord	function		585	595	11
+apps/website/src/platform/db/repos/media-repo.ts	SqlAssetRenditionRepo	class	export	597	651	55
+apps/website/src/platform/db/repos/media-repo.ts	toTransformDefinitionRecord	function		653	663	11
+apps/website/src/platform/db/repos/media-repo.ts	SqlTransformDefinitionRepo	class	export	665	719	55
+apps/website/src/platform/db/repos/oauth-pending-store.ts	SealedColumns	interface		24	29	6
+apps/website/src/platform/db/repos/oauth-pending-store.ts	toSealedSecret	function		31	33	3
+apps/website/src/platform/db/repos/oauth-pending-store.ts	sealedColumnValues	function		35	37	3
+apps/website/src/platform/db/repos/oauth-pending-store.ts	SqlDeviceAuthorizationStoreDeps	interface	export	39	45	7
+apps/website/src/platform/db/repos/oauth-pending-store.ts	deviceAad	function	export	52	54	3
+apps/website/src/platform/db/repos/oauth-pending-store.ts	createSqlDeviceAuthorizationStore	function	export	65	122	58
+apps/website/src/platform/db/repos/origin-repo.ts	Row	type		49	49	1
+apps/website/src/platform/db/repos/origin-repo.ts	toVerifiedOrigin	function		51	65	15
+apps/website/src/platform/db/repos/origin-repo.ts	normalizeHostList	function		67	69	3
+apps/website/src/platform/db/repos/origin-repo.ts	SqlOriginSettingRepo	class	export	71	102	32
+apps/website/src/platform/db/repos/origin-repo.ts	LOOPBACK_HOSTS	const		104	104	1
+apps/website/src/platform/db/repos/origin-repo.ts	seedDevCapabilityOriginOn	function	export	112	140	29
+apps/website/src/platform/db/repos/origin-repo.ts	ConfiguredOriginWriteResult	type	export	143	143	1
+apps/website/src/platform/db/repos/origin-repo.ts	originColumns	function		147	156	10
+apps/website/src/platform/db/repos/origin-repo.ts	sameOrigin	function		165	175	11
+apps/website/src/platform/db/repos/origin-repo.ts	registerConfiguredOriginOn	function	export	206	230	25
+apps/website/src/platform/db/repos/outbox-repo.ts	toRecord	function		30	40	11
+apps/website/src/platform/db/repos/outbox-repo.ts	CLAIMABLE_STATUSES	const		43	43	1
+apps/website/src/platform/db/repos/outbox-repo.ts	UNSETTLED_STATUSES	const		52	52	1
+apps/website/src/platform/db/repos/outbox-repo.ts	outboxEventValues	function	export	58	68	11
+apps/website/src/platform/db/repos/outbox-repo.ts	SqlOutboxAdapter	class	export	70	156	87
+apps/website/src/platform/db/repos/publish-content-baseline-repo.ts	toRecord	function		16	27	12
+apps/website/src/platform/db/repos/publish-content-baseline-repo.ts	SqlPublishContentBaselineRepo	class	export	29	73	45
+apps/website/src/platform/db/repos/publish-content-bundle-repo.ts	toRecord	function		16	29	14
+apps/website/src/platform/db/repos/publish-content-bundle-repo.ts	SqlPublishContentBundleRepo	class	export	31	76	46
+apps/website/src/platform/db/repos/publish-content-run-repo.ts	toRecord	function		17	33	17
+apps/website/src/platform/db/repos/publish-content-run-repo.ts	SqlPublishContentRunRepo	class	export	35	90	56
+apps/website/src/platform/db/repos/publish-history-repo.ts	toRecord	function		27	42	16
+apps/website/src/platform/db/repos/publish-history-repo.ts	providerFields	function		47	58	12
+apps/website/src/platform/db/repos/publish-history-repo.ts	publishLocationValues	function		60	66	7
+apps/website/src/platform/db/repos/publish-history-repo.ts	publishDeploymentValues	function		68	74	7
+apps/website/src/platform/db/repos/publish-history-repo.ts	toValues	function		77	93	17
+apps/website/src/platform/db/repos/publish-history-repo.ts	SqlPublishHistoryStore	class	export	95	151	57
+apps/website/src/platform/db/repos/webhook-repo.ts	topicsToJson	function		45	47	3
+apps/website/src/platform/db/repos/webhook-repo.ts	topicsFromJson	function		49	51	3
+apps/website/src/platform/db/repos/webhook-repo.ts	toSubscriptionRecord	function		53	71	19
+apps/website/src/platform/db/repos/webhook-repo.ts	toSubscriptionRow	function		73	91	19
+apps/website/src/platform/db/repos/webhook-repo.ts	topicMatches	function		98	108	11
+apps/website/src/platform/db/repos/webhook-repo.ts	SqlWebhookSubscriptionRepo	class	export	110	176	67
+apps/website/src/platform/db/repos/webhook-repo.ts	toDeliveryRecord	function		178	195	18
+apps/website/src/platform/db/repos/webhook-repo.ts	SqlWebhookDeliveryRepo	class	export	197	394	198
+apps/website/src/platform/db/schema.postgres.ts	jsonText	const		18	22	5
+apps/website/src/platform/db/schema.postgres.ts	agentToolAttempts	const	export	24	38	15
+apps/website/src/platform/db/schema.postgres.ts	analyticsEvents	const	export	40	63	24
+apps/website/src/platform/db/schema.postgres.ts	apiKeys	const	export	65	80	16
+apps/website/src/platform/db/schema.postgres.ts	assetBlobs	const	export	82	95	14
+apps/website/src/platform/db/schema.postgres.ts	assetRenditions	const	export	97	108	12
+apps/website/src/platform/db/schema.postgres.ts	changeSetItems	const	export	110	123	14
+apps/website/src/platform/db/schema.postgres.ts	changeSets	const	export	125	139	15
+apps/website/src/platform/db/schema.postgres.ts	contentTypeRevisions	const	export	141	154	14
+apps/website/src/platform/db/schema.postgres.ts	contentTypes	const	export	156	168	13
+apps/website/src/platform/db/schema.postgres.ts	databaseWriteWatermark	const	export	170	174	5
+apps/website/src/platform/db/schema.postgres.ts	entries	const	export	176	193	18
+apps/website/src/platform/db/schema.postgres.ts	entryRefs	const	export	195	206	12
+apps/website/src/platform/db/schema.postgres.ts	entryRevisions	const	export	208	220	13
+apps/website/src/platform/db/schema.postgres.ts	entryTerms	const	export	222	231	10
+apps/website/src/platform/db/schema.postgres.ts	externalMcpServers	const	export	233	268	36
+apps/website/src/platform/db/schema.postgres.ts	externalMcpToolApprovals	const	export	270	280	11
+apps/website/src/platform/db/schema.postgres.ts	formDefinitions	const	export	282	297	16
+apps/website/src/platform/db/schema.postgres.ts	formDeliveryJobs	const	export	299	307	9
+apps/website/src/platform/db/schema.postgres.ts	formDeliveryPlans	const	export	309	315	7
+apps/website/src/platform/db/schema.postgres.ts	formReceiverPulls	const	export	317	325	9
+apps/website/src/platform/db/schema.postgres.ts	formSubmissionRemoteReceipts	const	export	327	335	9
+apps/website/src/platform/db/schema.postgres.ts	formSubmissions	const	export	337	351	15
+apps/website/src/platform/db/schema.postgres.ts	gatedMutationTokens	const	export	353	361	9
+apps/website/src/platform/db/schema.postgres.ts	identityUsers	const	export	363	373	11
+apps/website/src/platform/db/schema.postgres.ts	media	const	export	375	399	25
+apps/website/src/platform/db/schema.postgres.ts	mediaSlugHistory	const	export	401	409	9
+apps/website/src/platform/db/schema.postgres.ts	memberConsents	const	export	411	425	15
+apps/website/src/platform/db/schema.postgres.ts	memberExternalIdentities	const	export	427	439	13
+apps/website/src/platform/db/schema.postgres.ts	memberMagicTokens	const	export	441	455	15
+apps/website/src/platform/db/schema.postgres.ts	memberRevisions	const	export	457	471	15
+apps/website/src/platform/db/schema.postgres.ts	memberSessions	const	export	473	487	15
+apps/website/src/platform/db/schema.postgres.ts	memberSubscriptions	const	export	489	505	17
+apps/website/src/platform/db/schema.postgres.ts	memberTiers	const	export	507	526	20
+apps/website/src/platform/db/schema.postgres.ts	members	const	export	528	544	17
+apps/website/src/platform/db/schema.postgres.ts	menus	const	export	546	559	14
+apps/website/src/platform/db/schema.postgres.ts	navLocationBindings	const	export	561	569	9
+apps/website/src/platform/db/schema.postgres.ts	newsletterCampaignRevisions	const	export	571	580	10
+apps/website/src/platform/db/schema.postgres.ts	newsletterCampaigns	const	export	582	603	22
+apps/website/src/platform/db/schema.postgres.ts	oauthDeviceAuthorizations	const	export	605	621	17
+apps/website/src/platform/db/schema.postgres.ts	originSettings	const	export	623	633	11
+apps/website/src/platform/db/schema.postgres.ts	outboxEvents	const	export	635	646	12
+apps/website/src/platform/db/schema.postgres.ts	ownerMfaFactors	const	export	648	655	8
+apps/website/src/platform/db/schema.postgres.ts	ownerMfaPending	const	export	657	668	12
+apps/website/src/platform/db/schema.postgres.ts	ownerPasskeys	const	export	670	680	11
+apps/website/src/platform/db/schema.postgres.ts	ownerRecoveryCodes	const	export	682	688	7
+apps/website/src/platform/db/schema.postgres.ts	pluginActivations	const	export	690	701	12
+apps/website/src/platform/db/schema.postgres.ts	policies	const	export	703	713	11
+apps/website/src/platform/db/schema.postgres.ts	policyPermissions	const	export	715	724	10
+apps/website/src/platform/db/schema.postgres.ts	postRevisions	const	export	726	741	16
+apps/website/src/platform/db/schema.postgres.ts	posts	const	export	743	772	30
+apps/website/src/platform/db/schema.postgres.ts	presentationSettings	const	export	774	778	5
+apps/website/src/platform/db/schema.postgres.ts	principalPolicies	const	export	780	787	8
+apps/website/src/platform/db/schema.postgres.ts	principalRoles	const	export	789	796	8
+apps/website/src/platform/db/schema.postgres.ts	principals	const	export	798	806	9
+apps/website/src/platform/db/schema.postgres.ts	publishBackstopLog	const	export	808	826	19
+apps/website/src/platform/db/schema.postgres.ts	publishContentBaselines	const	export	828	839	12
+apps/website/src/platform/db/schema.postgres.ts	publishContentBundles	const	export	841	854	14
+apps/website/src/platform/db/schema.postgres.ts	publishContentRuns	const	export	856	872	17
+apps/website/src/platform/db/schema.postgres.ts	publishHistory	const	export	874	897	24
+apps/website/src/platform/db/schema.postgres.ts	publishTrustRevocations	const	export	899	903	5
+apps/website/src/platform/db/schema.postgres.ts	redirectHits	const	export	905	910	6
+apps/website/src/platform/db/schema.postgres.ts	redirectRevisions	const	export	912	924	13
+apps/website/src/platform/db/schema.postgres.ts	redirects	const	export	926	948	23
+apps/website/src/platform/db/schema.postgres.ts	rolePolicies	const	export	950	957	8
+apps/website/src/platform/db/schema.postgres.ts	roles	const	export	959	967	9
+apps/website/src/platform/db/schema.postgres.ts	secretsVault	const	export	969	1013	45
+apps/website/src/platform/db/schema.postgres.ts	sessions	const	export	1015	1027	13
+apps/website/src/platform/db/schema.postgres.ts	settingDefinitions	const	export	1029	1050	22
+apps/website/src/platform/db/schema.postgres.ts	settingRevisions	const	export	1052	1069	18
+apps/website/src/platform/db/schema.postgres.ts	settingValuesGlobal	const	export	1071	1080	10
+apps/website/src/platform/db/schema.postgres.ts	settingValuesUser	const	export	1082	1096	15
+apps/website/src/platform/db/schema.postgres.ts	settingValuesWorkspace	const	export	1098	1111	14
+apps/website/src/platform/db/schema.postgres.ts	siteTitlePreexistingWorkspaces	const	export	1113	1116	4
+apps/website/src/platform/db/schema.postgres.ts	taxonomies	const	export	1118	1128	11
+apps/website/src/platform/db/schema.postgres.ts	taxonomyRevisions	const	export	1130	1140	11
+apps/website/src/platform/db/schema.postgres.ts	terms	const	export	1142	1153	12
+apps/website/src/platform/db/schema.postgres.ts	transformDefinitions	const	export	1155	1165	11
+apps/website/src/platform/db/schema.postgres.ts	trashedItems	const	export	1167	1187	21
+apps/website/src/platform/db/schema.postgres.ts	webhookDeliveries	const	export	1189	1208	20
+apps/website/src/platform/db/schema.postgres.ts	webhookSubscriptions	const	export	1210	1228	19
+apps/website/src/platform/db/schema.postgres.ts	widgetRegionBindings	const	export	1230	1238	9
+apps/website/src/platform/db/schema.postgres.ts	workspaces	const	export	1240	1246	7
+apps/website/src/platform/db/schema.sqlite.ts	workspaces	const	export	24	31	8
+apps/website/src/platform/db/schema.sqlite.ts	posts	const	export	33	236	204
+apps/website/src/platform/db/schema.sqlite.ts	postRevisions	const	export	273	290	18
+apps/website/src/platform/db/schema.sqlite.ts	presentationSettings	const	export	292	296	5
+apps/website/src/platform/db/schema.sqlite.ts	pluginActivations	const	export	304	317	14
+apps/website/src/platform/db/schema.sqlite.ts	settingDefinitions	const	export	324	355	32
+apps/website/src/platform/db/schema.sqlite.ts	settingValuesGlobal	const	export	357	366	10
+apps/website/src/platform/db/schema.sqlite.ts	settingValuesWorkspace	const	export	368	384	17
+apps/website/src/platform/db/schema.sqlite.ts	settingValuesUser	const	export	395	414	20
+apps/website/src/platform/db/schema.sqlite.ts	menus	const	export	425	442	18
+apps/website/src/platform/db/schema.sqlite.ts	navLocationBindings	const	export	451	466	16
+apps/website/src/platform/db/schema.sqlite.ts	settingRevisions	const	export	469	488	20
+apps/website/src/platform/db/schema.sqlite.ts	siteTitlePreexistingWorkspaces	const	export	497	500	4
+apps/website/src/platform/db/schema.sqlite.ts	formDefinitions	const	export	509	538	30
+apps/website/src/platform/db/schema.sqlite.ts	formSubmissions	const	export	551	576	26
+apps/website/src/platform/db/schema.sqlite.ts	formSubmissionRemoteReceipts	const	export	584	594	11
+apps/website/src/platform/db/schema.sqlite.ts	formDeliveryPlans	const	export	602	610	9
+apps/website/src/platform/db/schema.sqlite.ts	formDeliveryJobs	const	export	612	622	11
+apps/website/src/platform/db/schema.sqlite.ts	formReceiverPulls	const	export	625	635	11
+apps/website/src/platform/db/schema.sqlite.ts	redirects	const	export	650	676	27
+apps/website/src/platform/db/schema.sqlite.ts	redirectRevisions	const	export	684	700	17
+apps/website/src/platform/db/schema.sqlite.ts	redirectHits	const	export	707	712	6
+apps/website/src/platform/db/schema.sqlite.ts	members	const	export	723	742	20
+apps/website/src/platform/db/schema.sqlite.ts	memberExternalIdentities	const	export	745	761	17
+apps/website/src/platform/db/schema.sqlite.ts	memberTiers	const	export	763	796	34
+apps/website/src/platform/db/schema.sqlite.ts	memberSubscriptions	const	export	798	816	19
+apps/website/src/platform/db/schema.sqlite.ts	memberSessions	const	export	818	836	19
+apps/website/src/platform/db/schema.sqlite.ts	memberMagicTokens	const	export	838	856	19
+apps/website/src/platform/db/schema.sqlite.ts	memberConsents	const	export	865	887	23
+apps/website/src/platform/db/schema.sqlite.ts	memberRevisions	const	export	900	916	17
+apps/website/src/platform/db/schema.sqlite.ts	newsletterCampaigns	const	export	925	948	24
+apps/website/src/platform/db/schema.sqlite.ts	newsletterCampaignRevisions	const	export	951	962	12
+apps/website/src/platform/db/schema.sqlite.ts	webhookSubscriptions	const	export	965	986	22
+apps/website/src/platform/db/schema.sqlite.ts	webhookDeliveries	const	export	997	1024	28
+apps/website/src/platform/db/schema.sqlite.ts	principals	const	export	1032	1040	9
+apps/website/src/platform/db/schema.sqlite.ts	identityUsers	const	export	1042	1055	14
+apps/website/src/platform/db/schema.sqlite.ts	ownerRecoveryCodes	const	export	1058	1066	9
+apps/website/src/platform/db/schema.sqlite.ts	ownerMfaFactors	const	export	1069	1074	6
+apps/website/src/platform/db/schema.sqlite.ts	ownerMfaPending	const	export	1076	1087	12
+apps/website/src/platform/db/schema.sqlite.ts	sessions	const	export	1089	1103	15
+apps/website/src/platform/db/schema.sqlite.ts	roles	const	export	1105	1116	12
+apps/website/src/platform/db/schema.sqlite.ts	policies	const	export	1118	1131	14
+apps/website/src/platform/db/schema.sqlite.ts	policyPermissions	const	export	1133	1144	12
+apps/website/src/platform/db/schema.sqlite.ts	rolePolicies	const	export	1146	1155	10
+apps/website/src/platform/db/schema.sqlite.ts	principalRoles	const	export	1157	1166	10
+apps/website/src/platform/db/schema.sqlite.ts	principalPolicies	const	export	1168	1179	12
+apps/website/src/platform/db/schema.sqlite.ts	apiKeys	const	export	1197	1216	20
+apps/website/src/platform/db/schema.sqlite.ts	databaseWriteWatermark	const	export	1226	1230	5
+apps/website/src/platform/db/schema.sqlite.ts	contentTypes	const	export	1240	1256	17
+apps/website/src/platform/db/schema.sqlite.ts	contentTypeRevisions	const	export	1259	1282	24
+apps/website/src/platform/db/schema.sqlite.ts	entries	const	export	1284	1307	24
+apps/website/src/platform/db/schema.sqlite.ts	entryRevisions	const	export	1310	1324	15
+apps/website/src/platform/db/schema.sqlite.ts	taxonomies	const	export	1336	1348	13
+apps/website/src/platform/db/schema.sqlite.ts	terms	const	export	1350	1363	14
+apps/website/src/platform/db/schema.sqlite.ts	entryTerms	const	export	1366	1379	14
+apps/website/src/platform/db/schema.sqlite.ts	taxonomyRevisions	const	export	1381	1393	13
+apps/website/src/platform/db/schema.sqlite.ts	changeSets	const	export	1401	1419	19
+apps/website/src/platform/db/schema.sqlite.ts	changeSetItems	const	export	1424	1439	16
+apps/website/src/platform/db/schema.sqlite.ts	outboxEvents	const	export	1450	1463	14
+apps/website/src/platform/db/schema.sqlite.ts	gatedMutationTokens	const	export	1475	1483	9
+apps/website/src/platform/db/schema.sqlite.ts	originSettings	const	export	1496	1506	11
+apps/website/src/platform/db/schema.sqlite.ts	media	const	export	1515	1579	65
+apps/website/src/platform/db/schema.sqlite.ts	mediaSlugHistory	const	export	1595	1607	13
+apps/website/src/platform/db/schema.sqlite.ts	assetBlobs	const	export	1611	1651	41
+apps/website/src/platform/db/schema.sqlite.ts	assetRenditions	const	export	1656	1671	16
+apps/website/src/platform/db/schema.sqlite.ts	transformDefinitions	const	export	1677	1689	13
+apps/website/src/platform/db/schema.sqlite.ts	entryRefs	const	export	1710	1725	16
+apps/website/src/platform/db/schema.sqlite.ts	widgetRegionBindings	const	export	1734	1746	13
+apps/website/src/platform/db/schema.sqlite.ts	agentToolAttempts	const	export	1764	1782	19
+apps/website/src/platform/db/schema.sqlite.ts	publishHistory	const	export	1812	1853	42
+apps/website/src/platform/db/schema.sqlite.ts	secretsVault	const	export	1867	1918	52
+apps/website/src/platform/db/schema.sqlite.ts	externalMcpServers	const	export	1960	2056	97
+apps/website/src/platform/db/schema.sqlite.ts	externalMcpToolApprovals	const	export	2072	2093	22
+apps/website/src/platform/db/schema.sqlite.ts	oauthDeviceAuthorizations	const	export	2107	2127	21
+apps/website/src/platform/db/schema.sqlite.ts	analyticsEvents	const	export	2129	2154	26
+apps/website/src/platform/db/schema.sqlite.ts	publishTrustRevocations	const	export	2164	2168	5
+apps/website/src/platform/db/schema.sqlite.ts	publishBackstopLog	const	export	2177	2195	19
+apps/website/src/platform/db/schema.sqlite.ts	publishContentBaselines	const	export	2228	2252	25
+apps/website/src/platform/db/schema.sqlite.ts	publishContentRuns	const	export	2266	2293	28
+apps/website/src/platform/db/schema.sqlite.ts	publishContentBundles	const	export	2304	2324	21
+apps/website/src/platform/db/schema.sqlite.ts	trashedItems	const	export	2356	2398	43
+apps/website/src/platform/db/schema.sqlite.ts	ownerPasskeys	const	export	2400	2410	11
+apps/website/src/platform/db/site-store-copy.ts	MOVED_SCHEMAS	const	export	7	7	1
+apps/website/src/platform/db/site-store-copy.ts	LEDGERS	const	export	9	9	1
+apps/website/src/platform/db/site-store-copy.ts	scope	const		10	14	5
+apps/website/src/platform/db/site-store-copy.ts	readCatalog	const	export	15	15	1
+apps/website/src/platform/db/site-store-copy.ts	nonEmptyTables	const	export	16	16	1
+apps/website/src/platform/db/site-store-copy.ts	copyPgStore	const	export	17	17	1
+apps/website/src/platform/db/sqlite/analytics-sink.sqlite.ts	SqliteBufferSink	class	export	10	15	6
+apps/website/src/platform/db/sqlite/change-set-repo.sqlite.ts	SqliteChangeSetRepo	class	export	10	15	6
+apps/website/src/platform/db/sqlite/chat-db.ts	ChatDbOpenOptions	interface	export	31	31	1
+apps/website/src/platform/db/sqlite/chat-db.ts	openChatConnection	function		33	40	8
+apps/website/src/platform/db/sqlite/chat-db.ts	openSiteChatDb	function	export	49	59	11
+apps/website/src/platform/db/sqlite/chat-db.ts	openChatDb	function	export	68	75	8
+apps/website/src/platform/db/sqlite/chat-orphan-check.ts	OrphanedChatRowCounts	interface	export	47	51	5
+apps/website/src/platform/db/sqlite/chat-orphan-check.ts	OrphanedChatRowsCheck	interface	export	53	58	6
+apps/website/src/platform/db/sqlite/chat-orphan-check.ts	CHAT_TABLES	const		66	70	5
+apps/website/src/platform/db/sqlite/chat-orphan-check.ts	CHAT_TABLE_NAMES	const	export	83	83	1
+apps/website/src/platform/db/sqlite/chat-orphan-check.ts	checkForOrphanedChatRows	function	export	97	114	18
+apps/website/src/platform/db/sqlite/chat-orphan-check.ts	countLine	function		118	120	3
+apps/website/src/platform/db/sqlite/chat-orphan-check.ts	formatOrphanedChatRowsWarning	function	export	134	161	28
+apps/website/src/platform/db/sqlite/chat-orphan-check.ts	warnOnOrphanedChatRows	function	export	178	191	14
+apps/website/src/platform/db/sqlite/content-db.ts	ContentDb	type	export	47	47	1
+apps/website/src/platform/db/sqlite/content-db.ts	MIGRATIONS_DIR	const		50	50	1
+apps/website/src/platform/db/sqlite/content-db.ts	ContentDbSeedData	interface	export	53	66	14
+apps/website/src/platform/db/sqlite/content-db.ts	ContentDbOpenOptions	interface	export	73	73	1
+apps/website/src/platform/db/sqlite/content-db.ts	openSqliteContentConnection	function	export	75	85	11
+apps/website/src/platform/db/sqlite/content-db.ts	MIGRATION_BACKUP_PREFIX	const	export	88	88	1
+apps/website/src/platform/db/sqlite/content-db.ts	migrateSqliteContentFile	function	export	101	117	17
+apps/website/src/platform/db/sqlite/content-db.ts	isDiskFull	function		120	122	3
+apps/website/src/platform/db/sqlite/content-db.ts	migrationBackupPath	function		124	127	4
+apps/website/src/platform/db/sqlite/content-db.ts	removeOlderMigrationBackups	function		132	140	9
+apps/website/src/platform/db/sqlite/content-db.ts	openContentDb	function	export	154	164	11
+apps/website/src/platform/db/sqlite/content-db.ts	openContentDbReadOnly	function	export	185	189	5
+apps/website/src/platform/db/sqlite/database-introspection-adapter.sqlite.ts	DRIZZLE_MIGRATIONS_TABLE	const		22	22	1
+apps/website/src/platform/db/sqlite/database-introspection-adapter.sqlite.ts	DrizzleJournalEntry	interface		81	85	5
+apps/website/src/platform/db/sqlite/database-introspection-adapter.sqlite.ts	DrizzleJournal	interface		87	89	3
+apps/website/src/platform/db/sqlite/database-introspection-adapter.sqlite.ts	DEFAULT_JOURNAL_PATH	const		94	94	1
+apps/website/src/platform/db/sqlite/database-introspection-adapter.sqlite.ts	SqliteDatabaseIntrospectionAdapter	class	export	104	289	186
+apps/website/src/platform/db/sqlite/database-journal-db.ts	DatabaseJournalDb	type	export	27	27	1
+apps/website/src/platform/db/sqlite/database-journal-db.ts	journalKernel	function	export	36	43	8
+apps/website/src/platform/db/sqlite/database-journal-db.ts	openDatabaseJournalDb	const	export	46	46	1
+apps/website/src/platform/db/sqlite/database-journal-repo.ts	DATE_ONLY	const		38	38	1
+apps/website/src/platform/db/sqlite/database-journal-repo.ts	inclusiveUpperBound	function		43	45	3
+apps/website/src/platform/db/sqlite/database-journal-repo.ts	orNull	function		49	51	3
+apps/website/src/platform/db/sqlite/database-journal-repo.ts	SqliteDatabaseLedgerRepo	class	export	55	172	118
+apps/website/src/platform/db/sqlite/database-journal-repo.ts	SqliteMigrationRunsRepo	class	export	176	266	91
+apps/website/src/platform/db/sqlite/database-journal-repo.ts	SqliteRestorePointsRepo	class	export	271	385	115
+apps/website/src/platform/db/sqlite/database-journal-schema.ts	MIGRATION_RUN_TERMINAL_STATUSES	const	export	33	33	1
+apps/website/src/platform/db/sqlite/database-journal-schema.ts	DATABASE_JOURNAL_DDL	const		41	99	59
+apps/website/src/platform/db/sqlite/database-journal-schema.ts	applyDatabaseJournalSchema	function	export	106	116	11
+apps/website/src/platform/db/sqlite/db-ops.ts	SqliteDbOpsAdapter	class	export	34	93	60
+apps/website/src/platform/db/sqlite/entry-refs-repo.sqlite.ts	SqliteEntryRefsRepo	class	export	10	15	6
+apps/website/src/platform/db/sqlite/external-mcp-tool-approval-repo.sqlite.ts	SqliteExternalMcpToolApprovalRepo	class	export	11	16	6
+apps/website/src/platform/db/sqlite/fresh-content-db.ts	bootstrapFreshContentDb	function	export	57	265	209
+apps/website/src/platform/db/sqlite/gated-mutation-token-repo.sqlite.ts	SqliteTokenStore	class	export	10	15	6
+apps/website/src/platform/db/sqlite/hydrate-content-db-from-seed.ts	HydrateContentDbFromSeedStatus	type	export	47	53	7
+apps/website/src/platform/db/sqlite/hydrate-content-db-from-seed.ts	HydrateContentDbFromSeedResult	interface	export	55	59	5
+apps/website/src/platform/db/sqlite/hydrate-content-db-from-seed.ts	HydrateContentDbFromSeedRequired	interface	export	61	66	6
+apps/website/src/platform/db/sqlite/hydrate-content-db-from-seed.ts	STAGING_FILE_SUFFIX	const		74	74	1
+apps/website/src/platform/db/sqlite/hydrate-content-db-from-seed.ts	removeWithSidecars	function		77	81	5
+apps/website/src/platform/db/sqlite/hydrate-content-db-from-seed.ts	hydrateContentDbFromSeed	function	export	95	116	22
+apps/website/src/platform/db/sqlite/media-repo.sqlite.ts	SqliteMediaRepo	class	export	18	22	5
+apps/website/src/platform/db/sqlite/media-repo.sqlite.ts	SqliteAssetBlobRepo	class	export	24	28	5
+apps/website/src/platform/db/sqlite/media-repo.sqlite.ts	SqliteMediaContentTypeStore	class	export	30	34	5
+apps/website/src/platform/db/sqlite/media-repo.sqlite.ts	SqliteAssetRenditionRepo	class	export	36	40	5
+apps/website/src/platform/db/sqlite/media-repo.sqlite.ts	SqliteTransformDefinitionRepo	class	export	42	46	5
+apps/website/src/platform/db/sqlite/oauth-pending-store.sqlite.ts	SqliteDeviceAuthorizationStoreDeps	interface	export	15	22	8
+apps/website/src/platform/db/sqlite/oauth-pending-store.sqlite.ts	createSqliteDeviceAuthorizationStore	function	export	25	27	3
+apps/website/src/platform/db/sqlite/origin-repo.sqlite.ts	SqliteOriginSettingRepo	class	export	20	28	9
+apps/website/src/platform/db/sqlite/origin-repo.sqlite.ts	seedDevCapabilityOrigin	function	export	31	39	9
+apps/website/src/platform/db/sqlite/origin-repo.sqlite.ts	registerConfiguredOrigin	function	export	42	47	6
+apps/website/src/platform/db/sqlite/outbox-repo.sqlite.ts	SqliteOutboxAdapter	class	export	11	19	9
+apps/website/src/platform/db/sqlite/publish-backstop-audit.sqlite.ts	createBackstopAuditSqlitePort	function	export	7	34	28
+apps/website/src/platform/db/sqlite/publish-content-baseline-repo.sqlite.ts	SqlitePublishContentBaselineRepo	class	export	10	15	6
+apps/website/src/platform/db/sqlite/publish-content-bundle-repo.sqlite.ts	SqlitePublishContentBundleRepo	class	export	10	15	6
+apps/website/src/platform/db/sqlite/publish-content-run-repo.sqlite.ts	SqlitePublishContentRunRepo	class	export	10	15	6
+apps/website/src/platform/db/sqlite/publish-history-repo.sqlite.ts	SqlitePublishHistoryStore	class	export	10	15	6
+apps/website/src/platform/db/sqlite/reset-legacy-site-title-pin.ts	SITE_TITLE_PIN_NAMESPACE	const	export	31	31	1
+apps/website/src/platform/db/sqlite/reset-legacy-site-title-pin.ts	SITE_TITLE_PIN_KEY	const	export	33	33	1
+apps/website/src/platform/db/sqlite/reset-legacy-site-title-pin.ts	SITE_TITLE_PIN_ACTOR	const	export	35	35	1
+apps/website/src/platform/db/sqlite/reset-legacy-site-title-pin.ts	MARKER_TABLE	const		37	37	1
+apps/website/src/platform/db/sqlite/reset-legacy-site-title-pin.ts	VALUES_TABLE	const		38	38	1
+apps/website/src/platform/db/sqlite/reset-legacy-site-title-pin.ts	DEFINITIONS_TABLE	const		39	39	1
+apps/website/src/platform/db/sqlite/reset-legacy-site-title-pin.ts	ResetLegacySiteTitlePinResult	interface	export	41	46	6
+apps/website/src/platform/db/sqlite/reset-legacy-site-title-pin.ts	resetLegacySiteTitlePin	function	export	64	90	27
+apps/website/src/platform/db/sqlite/webhook-repo.sqlite.ts	SqliteWebhookSubscriptionRepo	class	export	13	18	6
+apps/website/src/platform/db/sqlite/webhook-repo.sqlite.ts	SqliteWebhookDeliveryRepo	class	export	21	26	6
+apps/website/src/platform/db/vault-credential-inventory.ts	OpensUnderActiveKey	type	export	19	19	1
+apps/website/src/platform/db/vault-credential-inventory.ts	SealedCredentialUnknownReason	type	export	20	21	2
+apps/website/src/platform/db/vault-credential-inventory.ts	SealedCredentialEntry	interface	export	22	26	5
+apps/website/src/platform/db/vault-credential-inventory.ts	SealedColumnSummary	interface	export	27	29	3
+apps/website/src/platform/db/vault-credential-inventory.ts	SealedCredentialInventory	interface	export	30	37	8
+apps/website/src/platform/db/vault-credential-inventory.ts	VaultCredentialKeyDeps	interface	export	38	42	5
+apps/website/src/platform/db/vault-credential-inventory.ts	SealedCredentialInventoryDeps	interface	export	43	47	5
+apps/website/src/platform/db/vault-credential-inventory.ts	SealedCredentialInventoryOptions	interface	export	48	48	1
+apps/website/src/platform/db/vault-credential-inventory.ts	SealedCredentialInventoryLimitError	class	export	49	56	8
+apps/website/src/platform/db/vault-credential-inventory.ts	DiscoveredSealedColumn	interface	export	57	59	3
+apps/website/src/platform/db/vault-credential-inventory.ts	VaultCredentialValue	interface	export	61	67	7
+apps/website/src/platform/db/vault-credential-inventory.ts	VaultCredentialSnapshot	interface	export	68	70	3
+apps/website/src/platform/db/vault-credential-inventory.ts	SEALED_COLUMN_SUFFIX	const	export	73	73	1
+apps/website/src/platform/db/vault-credential-inventory.ts	siblingColumns	function	export	75	78	4
+apps/website/src/platform/db/vault-credential-inventory.ts	isVaultRestoreArtifact	function	export	80	82	3
+apps/website/src/platform/db/vault-credential-inventory.ts	discoverSealedColumns	function	export	84	95	12
+apps/website/src/platform/db/vault-credential-inventory.ts	VaultScope	interface		96	96	1
+apps/website/src/platform/db/vault-credential-inventory.ts	readVault	function		98	116	19
+apps/website/src/platform/db/vault-credential-inventory.ts	selectVaultAad	function		123	129	7
+apps/website/src/platform/db/vault-credential-inventory.ts	readOther	function		131	142	12
+apps/website/src/platform/db/vault-credential-inventory.ts	isDeviceCodeColumn	function		144	147	4
+apps/website/src/platform/db/vault-credential-inventory.ts	deviceIdentity	function		149	152	4
+apps/website/src/platform/db/vault-credential-inventory.ts	sealedQuad	function		154	157	4
+apps/website/src/platform/db/vault-credential-inventory.ts	otherValue	function		164	177	14
+apps/website/src/platform/db/vault-credential-inventory.ts	otherEntry	function		179	185	7
+apps/website/src/platform/db/vault-credential-inventory.ts	countSealedRows	function		187	194	8
+apps/website/src/platform/db/vault-credential-inventory.ts	snapshotVaultCredentials	function	export	196	215	20
+apps/website/src/platform/db/vault-credential-inventory.ts	opensVaultCredential	function	export	217	220	4
+apps/website/src/platform/db/vault-credential-inventory.ts	probe	function		222	229	8
+apps/website/src/platform/db/vault-credential-inventory.ts	ActiveKeyCheck	interface		231	231	1
+apps/website/src/platform/db/vault-credential-inventory.ts	checkActiveKey	function		238	244	7
+apps/website/src/platform/db/vault-credential-inventory.ts	readyKeyFor	function		251	258	8
+apps/website/src/platform/db/vault-credential-inventory.ts	verdictFor	function		265	272	8
+apps/website/src/platform/db/vault-credential-inventory.ts	tallyVerdicts	function		274	278	5
+apps/website/src/platform/db/vault-credential-inventory.ts	inventoryVaultCredentials	function	export	280	290	11
+apps/website/src/platform/db/vault-credential-recovery.ts	SealedCredentialKeyDeps	type	export	12	12	1
+apps/website/src/platform/db/vault-credential-recovery.ts	ResealCredentialsDeps	interface	export	13	17	5
+apps/website/src/platform/db/vault-credential-recovery.ts	OPTIONAL_ENVELOPES	const		18	18	1
+apps/website/src/platform/db/vault-credential-recovery.ts	lockWorkspaces	function		21	24	4
+apps/website/src/platform/db/vault-credential-recovery.ts	currentValues	function		26	35	10
+apps/website/src/platform/db/vault-credential-recovery.ts	unlinkMcp	function		39	45	7
+apps/website/src/platform/db/vault-credential-recovery.ts	discardVaultValue	function		47	60	14
+apps/website/src/platform/db/vault-credential-recovery.ts	mutateOther	function		64	83	20
+apps/website/src/platform/db/vault-credential-recovery.ts	discardVaultCredentialsNotOpening	function	export	85	97	13
+apps/website/src/platform/db/vault-credential-recovery.ts	resealVaultCredentialsOpeningUnder	function	export	101	124	24
+apps/website/src/platform/db/vault-credential-recovery.ts	resealVaultValue	function		127	139	13
+apps/website/src/platform/db/watermark-kernel.ts	kernelStampWatermark	function	export	22	32	11
+apps/website/src/platform/db/watermark-kernel.ts	readKernelWatermark	function	export	39	42	4
+apps/website/src/platform/db/watermark-kernel.ts	reconcileMirror	function	export	52	59	8

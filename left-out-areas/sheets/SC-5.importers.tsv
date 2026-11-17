@@ -1,0 +1,11 @@
+file	importer	kind	line	specifier
+apps/website/src/features/source-control/tool-registrations.ts	apps/website/src/assistant/__tests__/moved-tools.credential-cards.golden.test.ts	test	20	../../features/source-control/tool-registrations.js
+apps/website/src/features/source-control/tool-registrations.ts	apps/website/src/assistant/__tests__/tool-approval-policy.test.ts	test	11	../../features/source-control/tool-registrations.js
+apps/website/src/features/source-control/tool-registrations.ts	apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts	test	82	../../features/source-control/tool-registrations.js
+apps/website/src/features/source-control/tool-registrations.ts	apps/website/src/assistant/tool-registrations.ts	prod	54	../features/source-control/tool-registrations.js
+apps/website/src/features/source-control/tool-registrations.ts	apps/website/src/features/source-control/__tests__/propose-credential-tool.test.ts	test	17	../tool-registrations.js
+apps/website/src/features/source-control/tool-registrations.ts	apps/website/src/features/source-control/__tests__/tool-registrations.dry-run.test.ts	test	17	../tool-registrations.js
+apps/website/src/features/source-control/tool-registrations.ts	apps/website/src/features/source-control/__tests__/tool-registrations.unit.test.ts	test	25	../tool-registrations.js
+apps/website/src/features/source-control/tool-registrations.ts	apps/website/src/server/runtime/composition/tool-catalog-manifest.ts	prod	128	#src/features/source-control/tool-registrations
+apps/website/src/features/source-control/commit-schema.ts	apps/admin/src/components/AssistantDock/__tests__/commit-folder-approval.contract.unit.test.ts	test	3	../../../../../website/src/features/source-control/commit-schema
+apps/website/src/features/source-control/commit-schema.ts	apps/website/src/features/source-control/tool-registrations.ts	prod	3	./commit-schema.js

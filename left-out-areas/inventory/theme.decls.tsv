@@ -1,0 +1,890 @@
+file	name	kind	exported	first_line	last_line	span
+apps/website/src/features/theme/active-theme-publish-content.ts	ACTIVE_THEME_ID	const	export	30	30	1
+apps/website/src/features/theme/active-theme-publish-content.ts	ActiveThemeRow	interface	export	32	41	10
+apps/website/src/features/theme/active-theme-publish-content.ts	Ports	type		43	43	1
+apps/website/src/features/theme/active-theme-publish-content.ts	installedTheme	function		46	48	3
+apps/website/src/features/theme/active-theme-publish-content.ts	treeOf	function		51	53	3
+apps/website/src/features/theme/active-theme-publish-content.ts	nameOf	function		56	59	4
+apps/website/src/features/theme/active-theme-publish-content.ts	findActiveTheme	function		62	69	8
+apps/website/src/features/theme/active-theme-publish-content.ts	notInstalled	const		72	72	1
+apps/website/src/features/theme/active-theme-publish-content.ts	contributeActiveThemePublish	const	export	74	110	37
+apps/website/src/features/theme/active-theme.ts	UNSTYLED_THEME_MARKER	const	export	4	4	1
+apps/website/src/features/theme/active-theme.ts	THEME_STYLING_REQUIRED_MESSAGE	const	export	6	6	1
+apps/website/src/features/theme/active-theme.ts	ThemeStylingRequiredError	class	export	8	10	3
+apps/website/src/features/theme/active-theme.ts	ActiveThemeResolutionDeps	interface	export	44	46	3
+apps/website/src/features/theme/active-theme.ts	DEFAULT_THEME_ID	const	export	71	71	1
+apps/website/src/features/theme/active-theme.ts	DEFAULT_THEME_IDS	const	export	82	82	1
+apps/website/src/features/theme/active-theme.ts	NO_THEME_ID	const	export	106	106	1
+apps/website/src/features/theme/active-theme.ts	ActiveThemeResolution	type	export	120	120	1
+apps/website/src/features/theme/active-theme.ts	resolveActiveTheme	function	export	157	174	18
+apps/website/src/features/theme/active-theme.ts	substituteFirstTheme	function		177	185	9
+apps/website/src/features/theme/active-theme.ts	writableThemeIds	function	export	216	223	8
+apps/website/src/features/theme/agent-tools.ts	MUTATES_DURABLE_STATE	const		4	4	1
+apps/website/src/features/theme/agent-tools.ts	AgentToolSideEffect	type	export	96	96	1
+apps/website/src/features/theme/agent-tools.ts	AgentToolDefinition	type	export	104	104	1
+apps/website/src/features/theme/agent-tools.ts	THEME_READ_PERMISSION	const	export	112	112	1
+apps/website/src/features/theme/agent-tools.ts	THEME_WRITE_PERMISSION	const	export	123	123	1
+apps/website/src/features/theme/agent-tools.ts	THEME_FILE_REPLACEMENT_GUIDANCE	const	export	126	126	1
+apps/website/src/features/theme/agent-tools.ts	THEME_ID_PROPERTY	const		128	132	5
+apps/website/src/features/theme/agent-tools.ts	RELATIVE_PATH_PROPERTY	const		134	139	6
+apps/website/src/features/theme/agent-tools.ts	LIST_SCHEMA	const		141	158	18
+apps/website/src/features/theme/agent-tools.ts	THEME_ID_ONLY_SCHEMA	const		160	165	6
+apps/website/src/features/theme/agent-tools.ts	LIST_FILES_SCHEMA	const		167	179	13
+apps/website/src/features/theme/agent-tools.ts	READ_FILE_SCHEMA	const		181	209	29
+apps/website/src/features/theme/agent-tools.ts	WRITE_FILE_SCHEMA	const		211	228	18
+apps/website/src/features/theme/agent-tools.ts	EDIT_FILE_SCHEMA	const		236	267	32
+apps/website/src/features/theme/agent-tools.ts	RENAME_FILE_SCHEMA	const		269	283	15
+apps/website/src/features/theme/agent-tools.ts	TRASH_FILE_SCHEMA	const		288	293	6
+apps/website/src/features/theme/agent-tools.ts	RESET_FILE_SCHEMA	const		298	303	6
+apps/website/src/features/theme/agent-tools.ts	COPY_FILE_SCHEMA	const		308	313	6
+apps/website/src/features/theme/agent-tools.ts	RESTORE_TRASHED_FILE_SCHEMA	const		315	334	20
+apps/website/src/features/theme/agent-tools.ts	getThemesAgentToolCatalog	function	export	343	453	111
+apps/website/src/features/theme/asset-operations.ts	ThemeToolDeps	interface	export	28	45	18
+apps/website/src/features/theme/asset-operations.ts	ThemeRosterDeps	type	export	48	48	1
+apps/website/src/features/theme/asset-operations.ts	ThemeNotFoundError	class	export	52	57	6
+apps/website/src/features/theme/asset-operations.ts	ThemeFileReadOnlyError	class	export	63	68	6
+apps/website/src/features/theme/asset-operations.ts	ThemeFileEditMatchError	class	export	75	80	6
+apps/website/src/features/theme/asset-operations.ts	ThemeFileNoOriginalError	class	export	89	94	6
+apps/website/src/features/theme/asset-operations.ts	ThemeOriginalLayoutMismatchError	class	export	101	106	6
+apps/website/src/features/theme/asset-operations.ts	ThemeFileIdentityLockedError	class	export	116	121	6
+apps/website/src/features/theme/asset-operations.ts	isShapeRejection	function	export	126	130	5
+apps/website/src/features/theme/asset-operations.ts	findThemeOrThrow	function	export	132	139	8
+apps/website/src/features/theme/asset-operations.ts	assertThemeFileWritable	function	export	153	172	20
+apps/website/src/features/theme/asset-operations.ts	reloadThemeInPlace	function	export	182	188	7
+apps/website/src/features/theme/asset-operations.ts	trashThemeFile	function	export	203	237	35
+apps/website/src/features/theme/asset-path-rewrites.ts	rewriteThemeAssetPaths	function	export	13	23	11
+apps/website/src/features/theme/build-conformance.ts	ARTIFACT_HASH_RULE	const		8	8	1
+apps/website/src/features/theme/build-conformance.ts	ISLAND_MARKER	const		63	63	1
+apps/website/src/features/theme/build-conformance.ts	ConformanceIssue	interface	export	66	70	5
+apps/website/src/features/theme/build-conformance.ts	countOccurrences	function		77	79	3
+apps/website/src/features/theme/build-conformance.ts	checkStylesheetSentinel	function		87	101	15
+apps/website/src/features/theme/build-conformance.ts	checkAssetPaths	function		122	139	18
+apps/website/src/features/theme/build-conformance.ts	visibleIslandText	function		146	161	16
+apps/website/src/features/theme/build-conformance.ts	checkIslandContent	function		168	181	14
+apps/website/src/features/theme/build-conformance.ts	GeneratedTreeInventoryLimitExceeded	class		186	186	1
+apps/website/src/features/theme/build-conformance.ts	MAX_INVENTORY_FILES	const		191	191	1
+apps/website/src/features/theme/build-conformance.ts	MAX_INVENTORY_WALK_DEPTH	const		194	194	1
+apps/website/src/features/theme/build-conformance.ts	MAX_HASHED_FILE_BYTES	const		212	212	1
+apps/website/src/features/theme/build-conformance.ts	MAX_TOTAL_HASHED_BYTES	const		213	213	1
+apps/website/src/features/theme/build-conformance.ts	isInGeneratedTree	function		228	236	9
+apps/website/src/features/theme/build-conformance.ts	GeneratedTreeInventory	interface		244	247	4
+apps/website/src/features/theme/build-conformance.ts	GeneratedTreeEntryKind	type		277	277	1
+apps/website/src/features/theme/build-conformance.ts	classifyGeneratedTreeEntry	function		279	286	8
+apps/website/src/features/theme/build-conformance.ts	visitGeneratedTreeEntry	function		294	313	20
+apps/website/src/features/theme/build-conformance.ts	walkGeneratedTree	function		315	337	23
+apps/website/src/features/theme/build-conformance.ts	ArtifactHashEntryResult	interface		376	380	5
+apps/website/src/features/theme/build-conformance.ts	checkOneArtifactHashEntry	function		382	425	44
+apps/website/src/features/theme/build-conformance.ts	artifactHashIssue	function		428	430	3
+apps/website/src/features/theme/build-conformance.ts	verifyArtifactHashEntries	function		436	446	11
+apps/website/src/features/theme/build-conformance.ts	findUndeclaredGeneratedFiles	function		451	467	17
+apps/website/src/features/theme/build-conformance.ts	checkArtifactHashes	function		469	487	19
+apps/website/src/features/theme/build-conformance.ts	checkBuiltThemeConformance	function	export	516	542	27
+apps/website/src/features/theme/capability-card.ts	capabilityCard	const	export	4	29	26
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	DISCARDED_FRAMEWORK_ARTIFACTS	const		116	116	1
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	AssetRelocation	interface	export	121	124	4
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	AssetRelocationPlan	interface	export	129	131	3
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	RELOCATED_CSS_EXTENSIONS	const		153	153	1
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	RELOCATED_JS_EXTENSIONS	const		155	155	1
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	classifyAssetRelocation	function		160	173	14
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	planAssetRelocation	function	export	175	185	11
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	rewriteExactBareAttributeValue	function		197	203	7
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	rewriteBundlerHtml	function	export	230	266	37
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	CSS_URL_START	const		273	273	1
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	rewriteCssUrlSegment	function		277	301	25
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	cssUrlContent	function		305	313	9
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	isRelativeCssUrl	function		319	325	7
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	rewriteCssRelativeUrls	function	export	337	341	5
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	NormalizeBuildOutputResult	interface	export	346	350	5
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	normalizeBuildOutputDirectory	function	export	382	413	32
+apps/website/src/features/theme/duplicate-theme-tool.ts	DuplicateThemeToolDeps	type	export	32	32	1
+apps/website/src/features/theme/duplicate-theme-tool.ts	DUPLICATE_THEME_CATALOG	const		34	82	49
+apps/website/src/features/theme/duplicate-theme-tool.ts	duplicateThemeAgentToolCatalog	const	export	85	85	1
+apps/website/src/features/theme/duplicate-theme-tool.ts	CATALOG_BY_ID	const		87	87	1
+apps/website/src/features/theme/duplicate-theme-tool.ts	duplicationMode	function		90	99	10
+apps/website/src/features/theme/duplicate-theme-tool.ts	duplicateThemeDerivedRisk	const	export	102	102	1
+apps/website/src/features/theme/duplicate-theme-tool.ts	buildDuplicateThemeHandlers	function		104	151	48
+apps/website/src/features/theme/duplicate-theme-tool.ts	buildDuplicateThemeRegistrations	function	export	153	161	9
+apps/website/src/features/theme/duplicate-theme-tool.ts	handlers	handler		158	161	4
+apps/website/src/features/theme/duplicate-theme-tool.ts	contributeDuplicateThemeTools	function	export	168	174	7
+apps/website/src/features/theme/duplicate-theme.ts	MAX_DUPLICATE_THEME_BYTES	const	export	37	37	1
+apps/website/src/features/theme/duplicate-theme.ts	MAX_THEME_NAME_LENGTH	const		40	40	1
+apps/website/src/features/theme/duplicate-theme.ts	THEME_ID_PATTERN	const		45	45	1
+apps/website/src/features/theme/duplicate-theme.ts	DUPLICATE_INITIAL_VERSION	const		48	48	1
+apps/website/src/features/theme/duplicate-theme.ts	DuplicateThemeErrorCode	type	export	50	58	9
+apps/website/src/features/theme/duplicate-theme.ts	DuplicateThemeError	class	export	62	69	8
+apps/website/src/features/theme/duplicate-theme.ts	DuplicateThemeResult	interface	export	71	82	12
+apps/website/src/features/theme/duplicate-theme.ts	DuplicateThemeOptions	interface	export	85	89	5
+apps/website/src/features/theme/duplicate-theme.ts	validateStructureSource	function		92	96	5
+apps/website/src/features/theme/duplicate-theme.ts	themeIdFromName	function	export	104	113	10
+apps/website/src/features/theme/duplicate-theme.ts	validateThemeName	function		116	124	9
+apps/website/src/features/theme/duplicate-theme.ts	assignThemeId	function		131	151	21
+apps/website/src/features/theme/duplicate-theme.ts	PlannedFile	interface		154	157	4
+apps/website/src/features/theme/duplicate-theme.ts	ThemeCopyPlan	interface		160	164	5
+apps/website/src/features/theme/duplicate-theme.ts	planThemeCopy	function		174	178	5
+apps/website/src/features/theme/duplicate-theme.ts	planThemeFolder	function		185	195	11
+apps/website/src/features/theme/duplicate-theme.ts	planThemeEntry	function		203	215	13
+apps/website/src/features/theme/duplicate-theme.ts	addPlannedFile	function		223	233	11
+apps/website/src/features/theme/duplicate-theme.ts	rewriteCopiedManifest	function		240	259	20
+apps/website/src/features/theme/duplicate-theme.ts	copyStagedTheme	function		263	276	14
+apps/website/src/features/theme/duplicate-theme.ts	rewriteCopiedAssetPaths	function		289	309	21
+apps/website/src/features/theme/duplicate-theme.ts	writeCopyOriginal	function		325	333	9
+apps/website/src/features/theme/duplicate-theme.ts	duplicateTheme	function	export	352	390	39
+apps/website/src/features/theme/duplicate-theme.ts	duplicateDiscoveredTheme	function	export	402	416	15
+apps/website/src/features/theme/entry-list-render.ts	EntryListFieldValue	interface	export	25	30	6
+apps/website/src/features/theme/entry-list-render.ts	EntryListItem	interface	export	37	43	7
+apps/website/src/features/theme/entry-list-render.ts	EntryListRenderOptions	interface	export	50	65	16
+apps/website/src/features/theme/entry-list-render.ts	EntryListLayout	type	export	68	68	1
+apps/website/src/features/theme/entry-list-render.ts	EntryListStructuredData	type	export	70	70	1
+apps/website/src/features/theme/entry-list-render.ts	ENTRY_LIST_STYLE_OPEN_TAG	const		83	83	1
+apps/website/src/features/theme/entry-list-render.ts	ENTRY_LIST_DEFAULT_STYLE	const	export	91	108	18
+apps/website/src/features/theme/entry-list-render.ts	formatFieldValue	function		117	120	4
+apps/website/src/features/theme/entry-list-render.ts	renderFieldRow	function		123	125	3
+apps/website/src/features/theme/entry-list-render.ts	renderTitle	function		128	132	5
+apps/website/src/features/theme/entry-list-render.ts	renderCard	function		136	139	4
+apps/website/src/features/theme/entry-list-render.ts	renderListItem	function		142	145	4
+apps/website/src/features/theme/entry-list-render.ts	nonEmptyFieldValues	function		148	150	3
+apps/website/src/features/theme/entry-list-render.ts	renderAccordionItem	function		156	161	6
+apps/website/src/features/theme/entry-list-render.ts	renderFaqPageJsonLd	function		170	178	9
+apps/website/src/features/theme/entry-list-render.ts	resolvePlaceholderRawValue	function		184	193	10
+apps/website/src/features/theme/entry-list-render.ts	PLACEHOLDER_PATTERN	const		195	195	1
+apps/website/src/features/theme/entry-list-render.ts	QUOTED_VALUE_SOURCE	const		200	200	1
+apps/website/src/features/theme/entry-list-render.ts	PLACEHOLDER_SOURCE	const		201	201	1
+apps/website/src/features/theme/entry-list-render.ts	TEMPLATE_TAG_OR_PLACEHOLDER	const		202	202	1
+apps/website/src/features/theme/entry-list-render.ts	TAG_ATTRIBUTE_OR_PLACEHOLDER	const		206	209	4
+apps/website/src/features/theme/entry-list-render.ts	URL_ATTRIBUTE_NAMES	const		213	213	1
+apps/website/src/features/theme/entry-list-render.ts	HAS_PLACEHOLDER	const		216	216	1
+apps/website/src/features/theme/entry-list-render.ts	PlaceholderEscape	type		218	218	1
+apps/website/src/features/theme/entry-list-render.ts	substitutePlaceholders	function		222	224	3
+apps/website/src/features/theme/entry-list-render.ts	escapeForUnquotedAttribute	function		228	230	3
+apps/website/src/features/theme/entry-list-render.ts	renderUrlAttributeValue	function		240	244	5
+apps/website/src/features/theme/entry-list-render.ts	renderTemplateAttribute	function		255	261	7
+apps/website/src/features/theme/entry-list-render.ts	fillAttributeValue	function		264	268	5
+apps/website/src/features/theme/entry-list-render.ts	renderTemplateTag	function		272	281	10
+apps/website/src/features/theme/entry-list-render.ts	renderTemplateItem	function		292	296	5
+apps/website/src/features/theme/entry-list-render.ts	renderEntryList	function	export	310	313	4
+apps/website/src/features/theme/entry-list-render.ts	renderEntryListStructuredData	function	export	322	324	3
+apps/website/src/features/theme/entry-list-render.ts	renderEntryListBody	function		327	350	24
+apps/website/src/features/theme/entry-list-render.ts	withEntryListStyleOnce	function	export	369	375	7
+apps/website/src/features/theme/file-identity-lock.ts	ThemeFileGroup	type	export	39	39	1
+apps/website/src/features/theme/file-identity-lock.ts	ASSET_EXTENSIONS	const		46	55	10
+apps/website/src/features/theme/file-identity-lock.ts	isAssetExtension	function		57	60	4
+apps/website/src/features/theme/file-identity-lock.ts	fileExtension	function	export	64	68	5
+apps/website/src/features/theme/file-identity-lock.ts	fileGroup	function	export	75	83	9
+apps/website/src/features/theme/file-identity-lock.ts	IDENTITY_LOCKED_GROUPS	const	export	94	94	1
+apps/website/src/features/theme/file-identity-lock.ts	FRAMEWORK_SOURCE_EXTENSIONS	const		100	100	1
+apps/website/src/features/theme/file-identity-lock.ts	SOURCE_DIR_WRITABLE_EXTENSIONS	const		102	102	1
+apps/website/src/features/theme/file-identity-lock.ts	isInsideCompiledSourceDir	function	export	107	109	3
+apps/website/src/features/theme/file-identity-lock.ts	isSourceDirWritableExtension	function	export	113	115	3
+apps/website/src/features/theme/file-identity-lock.ts	requiredThemeFiles	function	export	123	146	24
+apps/website/src/features/theme/file-identity-lock.ts	normalizedPathSegments	function		154	165	12
+apps/website/src/features/theme/file-identity-lock.ts	isTrashedThemePath	function	export	168	170	3
+apps/website/src/features/theme/file-identity-lock.ts	trashDestinationFor	function	export	186	193	8
+apps/website/src/features/theme/file-identity-lock.ts	originalPathFromTrashedPath	function	export	204	209	6
+apps/website/src/features/theme/file-identity-lock.ts	isFileIdentityChangeAllowed	function		217	224	8
+apps/website/src/features/theme/file-identity-lock.ts	FileIdentityLockResult	interface	export	231	235	5
+apps/website/src/features/theme/file-identity-lock.ts	validateFileIdentityChange	function	export	258	283	26
+apps/website/src/features/theme/file-mutation-tools.ts	CONTENT_TOOLS	const		9	9	1
+apps/website/src/features/theme/file-mutation-tools.ts	PreparedThemeFile	type		11	14	4
+apps/website/src/features/theme/file-mutation-tools.ts	protectThemeFileTools	function	export	25	64	40
+apps/website/src/features/theme/font-links.ts	renderThemeFontLinks	function	export	13	23	11
+apps/website/src/features/theme/font-links.ts	legacyStylesheets	function		27	31	5
+apps/website/src/features/theme/font-links.ts	attribute	function		34	36	3
+apps/website/src/features/theme/handlebars-allowlist.ts	ALLOWED_HANDLEBARS_BLOCK_HELPERS	const	export	63	63	1
+apps/website/src/features/theme/handlebars-allowlist.ts	ALLOWED_HANDLEBARS_HELPERS	const	export	80	80	1
+apps/website/src/features/theme/handlebars-allowlist.ts	ALLOWED_HANDLEBARS_RAW_PATHS	const	export	106	106	1
+apps/website/src/features/theme/handlebars-allowlist.ts	ALLOWED_HANDLEBARS_DATA_VARS	const	export	120	120	1
+apps/website/src/features/theme/handlebars-allowlist.ts	FORBIDDEN_PATH_SEGMENTS	const		133	141	9
+apps/website/src/features/theme/handlebars-allowlist.ts	MAX_TEMPLATE_SOURCE_BYTES	const		151	151	1
+apps/website/src/features/theme/handlebars-allowlist.ts	MAX_BLOCK_NESTING_DEPTH	const		164	164	1
+apps/website/src/features/theme/handlebars-allowlist.ts	HbsNode	interface		178	187	10
+apps/website/src/features/theme/handlebars-allowlist.ts	HbsPath	interface		189	195	7
+apps/website/src/features/theme/handlebars-allowlist.ts	isInvocation	function		198	200	3
+apps/website/src/features/theme/handlebars-allowlist.ts	pathText	function		203	205	3
+apps/website/src/features/theme/handlebars-allowlist.ts	checkPath	function		211	230	20
+apps/website/src/features/theme/handlebars-allowlist.ts	exceedsNestingDepth	function		241	245	5
+apps/website/src/features/theme/handlebars-allowlist.ts	walkParamsAndHash	function		249	254	6
+apps/website/src/features/theme/handlebars-allowlist.ts	handleBlockStatement	function		258	266	9
+apps/website/src/features/theme/handlebars-allowlist.ts	handleMustacheStatement	function		271	289	19
+apps/website/src/features/theme/handlebars-allowlist.ts	handleNoopStatement	function		292	292	1
+apps/website/src/features/theme/handlebars-allowlist.ts	handlePartialStatement	function		299	301	3
+apps/website/src/features/theme/handlebars-allowlist.ts	handleDecoratorStatement	function		306	308	3
+apps/website/src/features/theme/handlebars-allowlist.ts	handleUnknownStatement	function		312	315	4
+apps/website/src/features/theme/handlebars-allowlist.ts	STATEMENT_HANDLERS	const		322	331	10
+apps/website/src/features/theme/handlebars-allowlist.ts	walkHandlebarsNodes	function		339	346	8
+apps/website/src/features/theme/handlebars-allowlist.ts	walkExpression	function		355	368	14
+apps/website/src/features/theme/handlebars-allowlist.ts	lintHandlebarsTemplate	function	export	391	424	34
+apps/website/src/features/theme/hardcoded-link-lists.ts	MIN_HARDCODED_LINK_LIST	const	export	19	19	1
+apps/website/src/features/theme/hardcoded-link-lists.ts	MAX_NAMED_LINKS	const		21	21	1
+apps/website/src/features/theme/hardcoded-link-lists.ts	CHROME_PARTIAL	const		24	24	1
+apps/website/src/features/theme/hardcoded-link-lists.ts	ANCHOR_START	const		25	25	1
+apps/website/src/features/theme/hardcoded-link-lists.ts	HREF_PREFIX	const		26	26	1
+apps/website/src/features/theme/hardcoded-link-lists.ts	HREF_VALUE	const		27	27	1
+apps/website/src/features/theme/hardcoded-link-lists.ts	URL_SCHEME	const		29	29	1
+apps/website/src/features/theme/hardcoded-link-lists.ts	isInternalHref	function		31	37	7
+apps/website/src/features/theme/hardcoded-link-lists.ts	maskMenusAndNonRenderable	function		40	46	7
+apps/website/src/features/theme/hardcoded-link-lists.ts	findHardcodedLinks	function	export	54	66	13
+apps/website/src/features/theme/hardcoded-link-lists.ts	anchorHref	function		70	85	16
+apps/website/src/features/theme/hardcoded-link-lists.ts	anchorHrefAt	function		89	98	10
+apps/website/src/features/theme/hardcoded-link-lists.ts	describeHardcodedLinkList	function	export	107	118	12
+apps/website/src/features/theme/import-theme-file-tool.ts	ImportThemeFileToolDeps	type	export	36	37	2
+apps/website/src/features/theme/import-theme-file-tool.ts	IMPORT_THEME_FILE_CATALOG	const		39	71	33
+apps/website/src/features/theme/import-theme-file-tool.ts	importThemeFileAgentToolCatalog	const	export	74	94	21
+apps/website/src/features/theme/import-theme-file-tool.ts	CATALOG_BY_ID	const		96	96	1
+apps/website/src/features/theme/import-theme-file-tool.ts	importThemeFileDerivedRisk	const	export	99	99	1
+apps/website/src/features/theme/import-theme-file-tool.ts	localThemeSource	function		102	106	5
+apps/website/src/features/theme/import-theme-file-tool.ts	buildImportThemeFileHandler	function		114	150	37
+apps/website/src/features/theme/import-theme-file-tool.ts	buildImportThemeFileRegistrations	function	export	152	166	15
+apps/website/src/features/theme/import-theme-file-tool.ts	theme_import_file_from_url	handler		161	161	1
+apps/website/src/features/theme/import-theme-file-tool.ts	theme_import_local_file	handler		162	166	5
+apps/website/src/features/theme/import-theme-file-tool.ts	contributeImportThemeFileTools	function	export	173	179	7
+apps/website/src/features/theme/liquid-allowlist.ts	ALLOWED_LIQUID_TAGS	const	export	44	62	19
+apps/website/src/features/theme/liquid-allowlist.ts	ALLOWED_LIQUID_FILTERS	const	export	76	143	68
+apps/website/src/features/theme/liquid-allowlist.ts	parser	const		153	161	9
+apps/website/src/features/theme/liquid-allowlist.ts	MAX_FOR_RANGE_SPAN	const		180	180	1
+apps/website/src/features/theme/liquid-allowlist.ts	WalkableNode	interface		191	197	7
+apps/website/src/features/theme/liquid-allowlist.ts	collectNodeTag	function		200	202	3
+apps/website/src/features/theme/liquid-allowlist.ts	collectNodeValueFilters	function		205	207	3
+apps/website/src/features/theme/liquid-allowlist.ts	collectNodeArgumentFilters	function		210	215	6
+apps/website/src/features/theme/liquid-allowlist.ts	collectForRangeViolation	function		218	225	8
+apps/website/src/features/theme/liquid-allowlist.ts	drainChildren	function		230	236	7
+apps/website/src/features/theme/liquid-allowlist.ts	collectLiquidUsage	function		253	262	10
+apps/website/src/features/theme/liquid-allowlist.ts	lintLiquidTemplate	function	export	277	297	21
+apps/website/src/features/theme/migration/migrate-theme.ts	MigrationStatus	type	export	24	24	1
+apps/website/src/features/theme/migration/migrate-theme.ts	MigrateThemeResult	interface	export	26	41	16
+apps/website/src/features/theme/migration/migrate-theme.ts	isObject	function		43	45	3
+apps/website/src/features/theme/migration/migrate-theme.ts	TIER_ENGINE_NAME	const		50	53	4
+apps/website/src/features/theme/migration/migrate-theme.ts	convertEngineField	function		62	67	6
+apps/website/src/features/theme/migration/migrate-theme.ts	createStagingDir	function		76	80	5
+apps/website/src/features/theme/migration/migrate-theme.ts	readRawManifest	function		82	86	5
+apps/website/src/features/theme/migration/migrate-theme.ts	applyMoves	function		94	100	7
+apps/website/src/features/theme/migration/migrate-theme.ts	copyCarryOverFiles	function		118	132	15
+apps/website/src/features/theme/migration/migrate-theme.ts	applyAssetPathRewrites	function		145	155	11
+apps/website/src/features/theme/migration/migrate-theme.ts	rewriteStaticAssetHtml	function	export	169	173	5
+apps/website/src/features/theme/migration/migrate-theme.ts	rewriteRelativeStaticAssetReferences	function		192	200	9
+apps/website/src/features/theme/migration/migrate-theme.ts	buildV2Manifest	function		207	213	7
+apps/website/src/features/theme/migration/migrate-theme.ts	MigrationPlanResult	type		217	221	5
+apps/website/src/features/theme/migration/migrate-theme.ts	resolveMigrationPlan	function		228	247	20
+apps/website/src/features/theme/migration/migrate-theme.ts	StagedMigration	interface		251	256	6
+apps/website/src/features/theme/migration/migrate-theme.ts	stageAndVerifyMigration	function		264	276	13
+apps/website/src/features/theme/migration/migrate-theme.ts	finalizeMigration	function		283	314	32
+apps/website/src/features/theme/migration/migrate-theme.ts	migrateThemeToV2	function	export	343	363	21
+apps/website/src/features/theme/migration/migrate-theme.ts	cleanupMigrationOutput	function	export	368	370	3
+apps/website/src/features/theme/migration/theme-migration-plan.ts	MigrationFileMove	interface	export	23	26	4
+apps/website/src/features/theme/migration/theme-migration-plan.ts	AssetPathRewriteRule	interface	export	32	35	4
+apps/website/src/features/theme/migration/theme-migration-plan.ts	ThemeMigrationPlan	interface	export	37	44	8
+apps/website/src/features/theme/migration/theme-migration-plan.ts	CARRY_OVER_UNCHANGED	const		52	52	1
+apps/website/src/features/theme/migration/theme-migration-plan.ts	TOKENS_MODE_FILE_PATTERN	const	export	54	54	1
+apps/website/src/features/theme/migration/theme-migration-plan.ts	NON_STATIC_TIER_EXTENSIONS	const		59	63	5
+apps/website/src/features/theme/migration/theme-migration-plan.ts	planTemplatesFolderMoves	function		69	83	15
+apps/website/src/features/theme/migration/theme-migration-plan.ts	planFlatAssetsFolderMoves	function		88	94	7
+apps/website/src/features/theme/migration/theme-migration-plan.ts	NON_STATIC_TIER_SKIP_ROOTS	const		98	98	1
+apps/website/src/features/theme/migration/theme-migration-plan.ts	planNonStaticRootScan	function		100	107	8
+apps/website/src/features/theme/migration/theme-migration-plan.ts	planNonStaticTierMigration	function		120	131	12
+apps/website/src/features/theme/migration/theme-migration-plan.ts	walkFilesRecursive	function		139	150	12
+apps/website/src/features/theme/migration/theme-migration-plan.ts	PARTIAL_SLOT_STEMS	const		158	158	1
+apps/website/src/features/theme/migration/theme-migration-plan.ts	isConventionalPartialFile	function		160	163	4
+apps/website/src/features/theme/migration/theme-migration-plan.ts	planCssFolderMoves	function		167	178	12
+apps/website/src/features/theme/migration/theme-migration-plan.ts	planScriptsFolderMoves	function		183	187	5
+apps/website/src/features/theme/migration/theme-migration-plan.ts	planImagesFolderMoves	function		192	198	7
+apps/website/src/features/theme/migration/theme-migration-plan.ts	planPagesFolderMoves	function		202	213	12
+apps/website/src/features/theme/migration/theme-migration-plan.ts	STATIC_TIER_SKIP_ROOTS	const		216	216	1
+apps/website/src/features/theme/migration/theme-migration-plan.ts	planStaticRootScan	function		220	234	15
+apps/website/src/features/theme/migration/theme-migration-plan.ts	planStaticTierMigration	function		254	265	12
+apps/website/src/features/theme/migration/theme-migration-plan.ts	planV2Migration	function	export	271	280	10
+apps/website/src/features/theme/page-publication.ts	ThemePagePublicationError	class	export	6	15	10
+apps/website/src/features/theme/page-publication.ts	togglePages	function		18	25	8
+apps/website/src/features/theme/page-publication.ts	setThemePagePublished	function	export	39	60	22
+apps/website/src/features/theme/page-publish-tool.ts	Deps	interface	export	13	13	1
+apps/website/src/features/theme/page-publish-tool.ts	catalog	const	export	14	22	9
+apps/website/src/features/theme/page-publish-tool.ts	derivedRisk	const	export	23	26	4
+apps/website/src/features/theme/page-publish-tool.ts	buildRegistrations	function	export	35	52	18
+apps/website/src/features/theme/page-publish-tool.ts	contributeThemeSetPagePublishedTools	function	export	55	57	3
+apps/website/src/features/theme/preview-refresh.ts	ThemePreviewRefresh	interface	export	7	10	4
+apps/website/src/features/theme/preview-refresh.ts	MARKER	const		11	11	1
+apps/website/src/features/theme/preview-refresh.ts	validatePreviewPath	function	export	13	32	20
+apps/website/src/features/theme/preview-refresh.ts	requestThemePreviewRefresh	function	export	35	53	19
+apps/website/src/features/theme/preview-refresh.ts	readThemePreviewRefresh	function	export	55	67	13
+apps/website/src/features/theme/preview-refresh.ts	createThemePreviewFeed	function	export	70	81	12
+apps/website/src/features/theme/preview-switcher-html.ts	PreviewPage	interface		5	8	4
+apps/website/src/features/theme/preview-switcher-html.ts	Element	type		9	9	1
+apps/website/src/features/theme/preview-switcher-html.ts	Node	type		10	10	1
+apps/website/src/features/theme/preview-switcher-html.ts	previewThemePath	function	export	13	15	3
+apps/website/src/features/theme/preview-switcher-html.ts	BANNER_CSS	const		21	29	9
+apps/website/src/features/theme/preview-switcher-html.ts	BANNER_SCRIPT	const		34	44	11
+apps/website/src/features/theme/preview-switcher-html.ts	measure	function		45	51	7
+apps/website/src/features/theme/preview-switcher-html.ts	renderBanner	function		53	59	7
+apps/website/src/features/theme/preview-switcher-html.ts	attr	function		61	63	3
+apps/website/src/features/theme/preview-switcher-html.ts	isSeoOverride	function		65	68	4
+apps/website/src/features/theme/preview-switcher-html.ts	rewriteNavigation	function		71	81	11
+apps/website/src/features/theme/preview-switcher-html.ts	transformDocument	function		84	94	11
+apps/website/src/features/theme/preview-switcher-html.ts	previewHead	function		97	103	7
+apps/website/src/features/theme/preview-switcher-html.ts	decoratePreviewPage	function	export	107	119	13
+apps/website/src/features/theme/preview-switcher-html.ts	insertMarkup	function		122	127	6
+apps/website/src/features/theme/preview-switcher-tools.ts	PreviewSwitcherToolDeps	type	export	15	17	3
+apps/website/src/features/theme/preview-switcher-tools.ts	previewSwitcherAgentToolCatalog	const	export	19	30	12
+apps/website/src/features/theme/preview-switcher-tools.ts	risk	const		31	33	3
+apps/website/src/features/theme/preview-switcher-tools.ts	buildPreviewSwitcherRegistrations	function	export	36	66	31
+apps/website/src/features/theme/preview-switcher-tools.ts	catalog	handler		43	66	24
+apps/website/src/features/theme/preview-switcher-tools.ts	contributePreviewSwitcherTools	function	export	69	74	6
+apps/website/src/features/theme/preview-switcher-tools.ts	registrations	handler		71	74	4
+apps/website/src/features/theme/preview-switcher.ts	PREVIEW_SWITCHER_NAMESPACE	const	export	6	6	1
+apps/website/src/features/theme/preview-switcher.ts	PREVIEW_SWITCHER_KEY	const	export	7	7	1
+apps/website/src/features/theme/preview-switcher.ts	PreviewTheme	interface	export	8	8	1
+apps/website/src/features/theme/preview-switcher.ts	PreviewSwitcher	interface	export	9	9	1
+apps/website/src/features/theme/preview-switcher.ts	PreviewThemeRoster	interface	export	10	10	1
+apps/website/src/features/theme/preview-switcher.ts	DISABLED	const		11	11	1
+apps/website/src/features/theme/preview-switcher.ts	ensurePreviewSwitcherSetting	function	export	14	19	6
+apps/website/src/features/theme/preview-switcher.ts	invalid	function		21	23	3
+apps/website/src/features/theme/preview-switcher.ts	previewRecord	function		26	29	4
+apps/website/src/features/theme/preview-switcher.ts	parseTheme	function		31	37	7
+apps/website/src/features/theme/preview-switcher.ts	parseConfigShape	function		40	45	6
+apps/website/src/features/theme/preview-switcher.ts	parsePreviewSwitcher	function	export	49	56	8
+apps/website/src/features/theme/preview-switcher.ts	validatePreviewSwitcher	function	export	59	65	7
+apps/website/src/features/theme/preview-switcher.ts	readPreviewSwitcher	function	export	69	81	13
+apps/website/src/features/theme/preview-switcher.ts	readPreviewSwitcherWithRevision	function	export	86	101	16
+apps/website/src/features/theme/preview-switcher.ts	preparePreviewSwitcherWrite	function	export	106	115	10
+apps/website/src/features/theme/preview-switcher.ts	choosePreviewTheme	function	export	118	127	10
+apps/website/src/features/theme/public-page-security-headers.ts	readPublicThemeResources	function	export	15	20	6
+apps/website/src/features/theme/public-page-security-headers.ts	resources	let		22	22	1
+apps/website/src/features/theme/public-page-security-headers.ts	headers	let		23	23	1
+apps/website/src/features/theme/public-page-security-headers.ts	providerHeaders	const		24	24	1
+apps/website/src/features/theme/public-page-security-headers.ts	publicThemeResources	function	export	28	33	6
+apps/website/src/features/theme/public-page-security-headers.ts	publicPageSecurityHeaders	function	export	38	51	14
+apps/website/src/features/theme/publish-content.ts	THEME_FILES_KIND	const		34	34	1
+apps/website/src/features/theme/publish-content.ts	THEME_FILES_DEPENDS_ON	const		79	79	1
+apps/website/src/features/theme/publish-content.ts	THEME_FILE_TREE_TIERS	const		83	83	1
+apps/website/src/features/theme/publish-content.ts	ThemeTreeLocation	interface		86	90	5
+apps/website/src/features/theme/publish-content.ts	isMissing	function		93	95	3
+apps/website/src/features/theme/publish-content.ts	readDirIfPresent	function		99	106	8
+apps/website/src/features/theme/publish-content.ts	lstatIfPresent	function		109	116	8
+apps/website/src/features/theme/publish-content.ts	realpathIfPresent	function		119	126	8
+apps/website/src/features/theme/publish-content.ts	compareAscending	function		130	132	3
+apps/website/src/features/theme/publish-content.ts	isThemeTreeEntry	function		135	137	3
+apps/website/src/features/theme/publish-content.ts	compareTreeLocations	function		140	142	3
+apps/website/src/features/theme/publish-content.ts	discoverThemeTreeDirs	function		152	161	10
+apps/website/src/features/theme/publish-content.ts	WalkedThemeFile	interface		168	175	8
+apps/website/src/features/theme/publish-content.ts	childRelPath	function		178	180	3
+apps/website/src/features/theme/publish-content.ts	walkStep	function		183	194	12
+apps/website/src/features/theme/publish-content.ts	readWalkedFile	function		198	210	13
+apps/website/src/features/theme/publish-content.ts	walkThemeTree	function		223	240	18
+apps/website/src/features/theme/publish-content.ts	SkippedThemeTree	interface	export	244	249	6
+apps/website/src/features/theme/publish-content.ts	treeTitle	function		252	254	3
+apps/website/src/features/theme/publish-content.ts	themeDisplayName	function		263	273	11
+apps/website/src/features/theme/publish-content.ts	sortByPath	function		276	278	3
+apps/website/src/features/theme/publish-content.ts	buildTreeState	function		287	290	4
+apps/website/src/features/theme/publish-content.ts	packOneThemeTree	function		304	349	46
+apps/website/src/features/theme/publish-content.ts	packThemeFilesEntities	function	export	359	372	14
+apps/website/src/features/theme/publish-content.ts	LINK_REASON	const		379	379	1
+apps/website/src/features/theme/publish-content.ts	KEEP_PREVIOUS_COPIES	const		382	382	1
+apps/website/src/features/theme/publish-content.ts	ThemeTreeAddress	interface		385	389	5
+apps/website/src/features/theme/publish-content.ts	parseTreeAddress	function		398	405	8
+apps/website/src/features/theme/publish-content.ts	hashTreeAt	function		414	419	6
+apps/website/src/features/theme/publish-content.ts	checkDestinationLinks	function		429	445	17
+apps/website/src/features/theme/publish-content.ts	componentLinkReason	function		448	453	6
+apps/website/src/features/theme/publish-content.ts	IncomingThemeFile	interface		456	461	6
+apps/website/src/features/theme/publish-content.ts	readIncomingFiles	function		469	476	8
+apps/website/src/features/theme/publish-content.ts	isIncomingFileShape	function		479	483	5
+apps/website/src/features/theme/publish-content.ts	isBlockedLibraryBlob	function		488	492	5
+apps/website/src/features/theme/publish-content.ts	readBlob	function		497	510	14
+apps/website/src/features/theme/publish-content.ts	sha256Of	function		513	515	3
+apps/website/src/features/theme/publish-content.ts	prunePreviousCopies	function		524	550	27
+apps/website/src/features/theme/publish-content.ts	incomingPolicyInputs	function		556	565	10
+apps/website/src/features/theme/publish-content.ts	incomingTextSample	function		575	579	5
+apps/website/src/features/theme/publish-content.ts	requireApplyWiring	function		582	594	13
+apps/website/src/features/theme/publish-content.ts	swapPaths	function		598	604	7
+apps/website/src/features/theme/publish-content.ts	buildHandler	function		606	822	217
+apps/website/src/features/theme/publish-content.ts	contributeThemeFilesPublish	function	export	829	831	3
+apps/website/src/features/theme/render-contract.ts	ThemeTier	type	export	16	16	1
+apps/website/src/features/theme/render-contract.ts	ThemeBuildInfo	interface	export	39	78	40
+apps/website/src/features/theme/render-contract.ts	ThemeManifest	interface	export	81	226	146
+apps/website/src/features/theme/render-contract.ts	TemplateNode	type	export	229	229	1
+apps/website/src/features/theme/render-contract.ts	TemplateRoute	type		240	240	1
+apps/website/src/features/theme/render-contract.ts	ROUTE_TEMPLATE_CANDIDATES	const		241	246	6
+apps/website/src/features/theme/render-contract.ts	resolveRouteTemplateId	function		256	264	9
+apps/website/src/features/theme/render-contract.ts	resolveTemplateId	function	export	271	276	6
+apps/website/src/features/theme/render-contract.ts	resolveLiquidTemplateId	function	export	283	288	6
+apps/website/src/features/theme/render-contract.ts	resolveHandlebarsTemplateId	function	export	295	300	6
+apps/website/src/features/theme/render-contract.ts	SAFE_HREF_RESOLUTION_BASE	const		306	309	4
+apps/website/src/features/theme/render-contract.ts	SAFE_HREF_RESOLUTION_ORIGIN	const		310	310	1
+apps/website/src/features/theme/render-contract.ts	safeHref	function	export	347	361	15
+apps/website/src/features/theme/save-theme-original.ts	SaveThemeOriginalRefusal	type	export	18	20	3
+apps/website/src/features/theme/save-theme-original.ts	saveThemeAsOriginal	function	export	38	54	17
+apps/website/src/features/theme/set-active-theme-tool.ts	SetActiveThemeToolDeps	interface	export	49	60	12
+apps/website/src/features/theme/set-active-theme-tool.ts	SET_ACTIVE_THEME_CATALOG	const		62	84	23
+apps/website/src/features/theme/set-active-theme-tool.ts	setActiveThemeAgentToolCatalog	const	export	87	87	1
+apps/website/src/features/theme/set-active-theme-tool.ts	CATALOG_BY_ID	const		89	89	1
+apps/website/src/features/theme/set-active-theme-tool.ts	setActiveThemeDerivedRisk	const	export	93	93	1
+apps/website/src/features/theme/set-active-theme-tool.ts	activationInputError	function		96	105	10
+apps/website/src/features/theme/set-active-theme-tool.ts	applyActiveTheme	function	export	122	154	33
+apps/website/src/features/theme/set-active-theme-tool.ts	buildSetActiveThemeHandlers	function		156	167	12
+apps/website/src/features/theme/set-active-theme-tool.ts	buildSetActiveThemeRegistrations	function	export	169	177	9
+apps/website/src/features/theme/set-active-theme-tool.ts	handlers	handler		174	177	4
+apps/website/src/features/theme/set-active-theme-tool.ts	contributeSetActiveThemeTools	function	export	187	193	7
+apps/website/src/features/theme/static-asset-contract.ts	TOKEN_STYLESHEET_SENTINEL	const	export	26	26	1
+apps/website/src/features/theme/static-asset-contract.ts	TOKEN_STYLESHEET_SENTINEL_V2	const	export	34	34	1
+apps/website/src/features/theme/static-asset-contract.ts	tokenStylesheetSentinel	function	export	46	48	3
+apps/website/src/features/theme/static-asset-contract.ts	rewriteAssetPaths	function	export	74	88	15
+apps/website/src/features/theme/static-asset-contract.ts	UNREWRITTEN_ASSET_PATTERN_V1	const		91	91	1
+apps/website/src/features/theme/static-asset-contract.ts	UNREWRITTEN_ASSET_PATTERN_V2	const		99	99	1
+apps/website/src/features/theme/static-asset-contract.ts	findUnrewrittenAssetPaths	function	export	112	115	4
+apps/website/src/features/theme/static-portability-index.ts	LIVE_CONTENT_PLACEHOLDER	const		54	54	1
+apps/website/src/features/theme/static-portability-index.ts	STATIC_PORTABILITY_INDEX_FILENAME	const	export	59	59	1
+apps/website/src/features/theme/static-portability-index.ts	partialIdFromSource	function		63	65	3
+apps/website/src/features/theme/static-portability-index.ts	rewriteRootRelativeAssetPaths	function		85	95	11
+apps/website/src/features/theme/static-portability-index.ts	tokensToRootCss	function		103	107	5
+apps/website/src/features/theme/static-portability-index.ts	injectDefaultColorMode	function		112	115	4
+apps/website/src/features/theme/static-portability-index.ts	injectTokenStyleBlock	function		128	136	9
+apps/website/src/features/theme/static-portability-index.ts	spliceRootPartials	function		146	154	9
+apps/website/src/features/theme/static-portability-index.ts	placeholderRemainingMarkers	function		177	179	3
+apps/website/src/features/theme/static-portability-index.ts	buildStaticPortabilityIndex	function	export	189	200	12
+apps/website/src/features/theme/static-portability-index.ts	GenerateStaticPortabilityIndexResult	type	export	202	204	3
+apps/website/src/features/theme/static-portability-index.ts	generateStaticPortabilityIndex	function	export	218	234	17
+apps/website/src/features/theme/static-render.ts	tokensToRootCss	function		32	40	9
+apps/website/src/features/theme/static-render.ts	rewritePageLinks	function		61	63	3
+apps/website/src/features/theme/static-render.ts	hasAuthoredSlug	function		68	71	4
+apps/website/src/features/theme/static-render.ts	injectCurrentEntityContentId	function	export	109	114	6
+apps/website/src/features/theme/static-render.ts	injectPageTitle	function	export	140	142	3
+apps/website/src/features/theme/static-render.ts	StaticMenuItem	interface	export	152	171	20
+apps/website/src/features/theme/static-render.ts	StaticHtmlMenu	interface	export	175	177	3
+apps/website/src/features/theme/static-render.ts	StaticMenuContent	type	export	180	182	3
+apps/website/src/features/theme/static-render.ts	renderMenuLinks	function		193	201	9
+apps/website/src/features/theme/static-render.ts	menuItemClasses	function		232	243	12
+apps/website/src/features/theme/static-render.ts	menuItemInnerHtml	function		248	255	8
+apps/website/src/features/theme/static-render.ts	menuItemLinkAttrs	function		258	265	8
+apps/website/src/features/theme/static-render.ts	menuItemBody	function		272	276	5
+apps/website/src/features/theme/static-render.ts	MenuDropdown	type		279	279	1
+apps/website/src/features/theme/static-render.ts	renderMenuItem	function		287	297	11
+apps/website/src/features/theme/static-render.ts	renderDropdownBranch	function		301	310	10
+apps/website/src/features/theme/static-render.ts	renderMenuItems	function		312	317	6
+apps/website/src/features/theme/static-render.ts	renderMenuTree	function		319	323	5
+apps/website/src/features/theme/static-render.ts	injectMenuEmbeds	function		338	364	27
+apps/website/src/features/theme/static-render.ts	injectAuthoredMenuHtml	function		372	377	6
+apps/website/src/features/theme/static-render.ts	scanMenuEmbedIds	function	export	390	398	9
+apps/website/src/features/theme/static-render.ts	LEGACY_POST_PREVIEWS_LIMIT	const		412	412	1
+apps/website/src/features/theme/static-render.ts	StaticPostPreview	interface	export	420	432	13
+apps/website/src/features/theme/static-render.ts	postPreviewsBatchSize	function	export	439	441	3
+apps/website/src/features/theme/static-render.ts	isPagedPostPreviewsMarker	function	export	446	448	3
+apps/website/src/features/theme/static-render.ts	StaticPostPreviewsPage	interface	export	452	455	4
+apps/website/src/features/theme/static-render.ts	StaticListingBatch	interface	export	459	462	4
+apps/website/src/features/theme/static-render.ts	renderPostPreviewCard	function		465	473	9
+apps/website/src/features/theme/static-render.ts	injectPostPreviewsEmbeds	function		493	503	11
+apps/website/src/features/theme/static-render.ts	renderKeyedPostPreviews	function		506	515	10
+apps/website/src/features/theme/static-render.ts	renderPagedPostPreviews	function		519	525	7
+apps/website/src/features/theme/static-render.ts	StaticCollectionList	interface	export	538	542	5
+apps/website/src/features/theme/static-render.ts	collectionMarkerKey	function	export	563	569	7
+apps/website/src/features/theme/static-render.ts	splitCollectionMarkerInner	function	export	581	591	11
+apps/website/src/features/theme/static-render.ts	injectCollectionEmbeds	function		607	620	14
+apps/website/src/features/theme/static-render.ts	StaticFeaturedImage	interface	export	627	632	6
+apps/website/src/features/theme/static-render.ts	renderCoverImageTag	function	export	641	646	6
+apps/website/src/features/theme/static-render.ts	injectFeaturedImage	function	export	658	663	6
+apps/website/src/features/theme/static-render.ts	injectPostAuthor	function	export	672	689	18
+apps/website/src/features/theme/static-render.ts	postAuthorForContentHeader	function	export	704	715	12
+apps/website/src/features/theme/static-render.ts	injectColorMode	function		728	731	4
+apps/website/src/features/theme/static-render.ts	injectTokenStylesheet	function		739	752	14
+apps/website/src/features/theme/static-render.ts	warnUnrewrittenAssetPaths	function		759	768	10
+apps/website/src/features/theme/static-render.ts	renderStaticPage	function	export	804	840	37
+apps/website/src/features/theme/static-render.ts	wrapPartialInHostDocument	function		850	862	13
+apps/website/src/features/theme/static-render.ts	renderStaticPartial	function	export	881	889	9
+apps/website/src/features/theme/static-render.ts	renderStaticFragment	function	export	894	906	13
+apps/website/src/features/theme/static-render.ts	PostTemplateResolution	type	export	914	916	3
+apps/website/src/features/theme/static-render.ts	LEGACY_TEMPLATE_FILENAME_ALIASES	const		944	948	5
+apps/website/src/features/theme/static-render.ts	resolveTemplate	function	export	1015	1042	28
+apps/website/src/features/theme/static-render.ts	isPageTemplateChoiceEligible	function		1117	1119	3
+apps/website/src/features/theme/static-render.ts	isBarePageChoice	function	export	1141	1143	3
+apps/website/src/features/theme/static-render.ts	STATIC_TIER_PAGE_SHELL_IDS	const		1152	1152	1
+apps/website/src/features/theme/static-render.ts	warnedPageShellFallbackMisses	const		1229	1229	1
+apps/website/src/features/theme/static-render.ts	warnPageShellFallbackMissOnce	function		1238	1242	5
+apps/website/src/features/theme/static-render.ts	PageShellCandidateOutcome	type		1246	1246	1
+apps/website/src/features/theme/static-render.ts	findPageShellCandidate	function		1260	1269	10
+apps/website/src/features/theme/static-render.ts	pageShellMissMessage	function		1274	1281	8
+apps/website/src/features/theme/static-render.ts	resolveStaticTierPageShellFallback	function	export	1283	1307	25
+apps/website/src/features/theme/static-render.ts	isEligibleForTemplateBranch	function	export	1309	1326	18
+apps/website/src/features/theme/static-render.ts	TemplateBranchChoice	type	export	1339	1342	4
+apps/website/src/features/theme/static-render.ts	resolveTemplateBranchChoice	function	export	1378	1390	13
+apps/website/src/features/theme/static-render.ts	renderVisitorMenuToggle	function		1393	1396	4
+apps/website/src/features/theme/structure-only-theme.ts	keepStructureFile	function	export	7	10	4
+apps/website/src/features/theme/structure-only-theme.ts	neutralToken	function		13	20	8
+apps/website/src/features/theme/structure-only-theme.ts	prepareStructureTheme	function	export	30	54	25
+apps/website/src/features/theme/sync-originals.ts	SyncThemeOriginalsThemeResult	interface	export	42	45	4
+apps/website/src/features/theme/sync-originals.ts	SyncThemeOriginalsResult	interface	export	48	50	3
+apps/website/src/features/theme/sync-originals.ts	STAGING_DIR_PREFIX	const		59	59	1
+apps/website/src/features/theme/sync-originals.ts	writeGeneratedThemeOriginal	function	export	85	111	27
+apps/website/src/features/theme/sync-originals.ts	syncThemeOriginals	function	export	133	150	18
+apps/website/src/features/theme/sync-originals.ts	relativeFilePaths	function	export	161	169	9
+apps/website/src/features/theme/sync-originals.ts	diffThemeFolders	function	export	184	197	14
+apps/website/src/features/theme/template-applicability.ts	ThemeTemplateKind	type	export	2	2	1
+apps/website/src/features/theme/template-applicability.ts	ThemeTemplateFor	type	export	3	3	1
+apps/website/src/features/theme/template-applicability.ts	parseTemplateFor	function	export	9	31	23
+apps/website/src/features/theme/template-applicability.ts	applicableThemeTemplates	function	export	37	47	11
+apps/website/src/features/theme/theme-file-import.ts	THEME_IMPORT_MAX_BYTES	const	export	32	32	1
+apps/website/src/features/theme/theme-file-import.ts	EXTENSIONS_BY_TYPE	const		40	51	12
+apps/website/src/features/theme/theme-file-import.ts	IMPORTABLE_TYPES	const		53	53	1
+apps/website/src/features/theme/theme-file-import.ts	IMPORTABLE_EXTENSIONS	const		54	54	1
+apps/website/src/features/theme/theme-file-import.ts	FONT_AND_ICON_MAGIC	const		57	64	8
+apps/website/src/features/theme/theme-file-import.ts	sniffThemeImportType	function	export	72	77	6
+apps/website/src/features/theme/theme-file-import.ts	THEME_IMPORT_ACCEPT	const	export	80	80	1
+apps/website/src/features/theme/theme-file-import.ts	THEME_IMPORT_POLICY	const	export	81	85	5
+apps/website/src/features/theme/theme-file-import.ts	ImportedThemeFile	interface	export	88	93	6
+apps/website/src/features/theme/theme-file-import.ts	ThemeImportDestination	type		95	95	1
+apps/website/src/features/theme/theme-file-import.ts	validateThemeImportDestination	function		101	107	7
+apps/website/src/features/theme/theme-file-import.ts	persistThemeImport	function		116	133	18
+apps/website/src/features/theme/theme-file-import.ts	importThemeFileFromUrl	function	export	149	161	13
+apps/website/src/features/theme/theme-file-import.ts	importThemeFileFromLocalFile	function	export	171	178	8
+apps/website/src/features/theme/theme-files.ts	ThemePathError	class	export	69	74	6
+apps/website/src/features/theme/theme-files.ts	MAX_THEME_FILE_BYTES	const	export	81	81	1
+apps/website/src/features/theme/theme-files.ts	MAX_LISTED_FILES	const	export	84	84	1
+apps/website/src/features/theme/theme-files.ts	MAX_WALK_DEPTH	const	export	87	87	1
+apps/website/src/features/theme/theme-files.ts	GENERATED_THEME_DIRS	const	export	113	113	1
+apps/website/src/features/theme/theme-files.ts	GENERATED_THEME_ROOT_FILES	const	export	124	124	1
+apps/website/src/features/theme/theme-files.ts	isGeneratedThemePath	function	export	159	163	5
+apps/website/src/features/theme/theme-files.ts	isSourceDirGeneratedConflict	function	export	197	208	12
+apps/website/src/features/theme/theme-files.ts	normalizeThemeRelativePath	function		219	230	12
+apps/website/src/features/theme/theme-files.ts	isRecognizedThemeRoot	function	export	249	257	9
+apps/website/src/features/theme/theme-files.ts	isWithin	function		261	265	5
+apps/website/src/features/theme/theme-files.ts	assertNoSymlinkEscape	function		275	287	13
+apps/website/src/features/theme/theme-files.ts	resolveThemeFilePath	function	export	307	341	35
+apps/website/src/features/theme/theme-files.ts	visitThemeDirEntry	function		349	365	17
+apps/website/src/features/theme/theme-files.ts	walkThemeDir	function		372	380	9
+apps/website/src/features/theme/theme-files.ts	listThemeFiles	function	export	396	411	16
+apps/website/src/features/theme/theme-files.ts	statOrThemePathError	function		433	440	8
+apps/website/src/features/theme/theme-files.ts	readThemeFile	function	export	449	461	13
+apps/website/src/features/theme/theme-files.ts	COMPARE_CHUNK_BYTES	const		465	465	1
+apps/website/src/features/theme/theme-files.ts	readFullChunk	function		469	477	9
+apps/website/src/features/theme/theme-files.ts	filesHaveSameBytes	function		485	497	13
+apps/website/src/features/theme/theme-files.ts	compareOpenThemeFiles	function		499	514	16
+apps/website/src/features/theme/theme-files.ts	originalRegularFile	function		523	540	18
+apps/website/src/features/theme/theme-files.ts	themeFileDiffersFromOriginal	function	export	563	574	12
+apps/website/src/features/theme/theme-files.ts	writeFileAtomically	function		607	639	33
+apps/website/src/features/theme/theme-files.ts	pruneCommittedThemeRevision	function		643	653	11
+apps/website/src/features/theme/theme-files.ts	ReviewedThemeFile	type		655	659	5
+apps/website/src/features/theme/theme-files.ts	reviewedThemeWrite	const		660	660	1
+apps/website/src/features/theme/theme-files.ts	withReviewedThemeFileWrite	function	export	667	669	3
+apps/website/src/features/theme/theme-files.ts	assertReviewedThemeFileCurrent	function		671	678	8
+apps/website/src/features/theme/theme-files.ts	readThemeFileVersion	function	export	684	690	7
+apps/website/src/features/theme/theme-files.ts	THEME_REVISION_ROOT	const		693	693	1
+apps/website/src/features/theme/theme-files.ts	MAX_THEME_FILE_REVISIONS	const		694	694	1
+apps/website/src/features/theme/theme-files.ts	ThemeRevisionFile	type		695	695	1
+apps/website/src/features/theme/theme-files.ts	themeRevisionDirectories	function		699	702	4
+apps/website/src/features/theme/theme-files.ts	saveThemeFileRevision	function		709	728	20
+apps/website/src/features/theme/theme-files.ts	createThemeRevisionDirectory	function		734	744	11
+apps/website/src/features/theme/theme-files.ts	pruneThemeFileRevisions	function		751	762	12
+apps/website/src/features/theme/theme-files.ts	regularRevisionFile	function		767	778	12
+apps/website/src/features/theme/theme-files.ts	removeEmptyRevisionParents	function		783	788	6
+apps/website/src/features/theme/theme-files.ts	assertOverwritableTarget	function		799	807	9
+apps/website/src/features/theme/theme-files.ts	validateThemeFileWrite	function	export	823	840	18
+apps/website/src/features/theme/theme-files.ts	writeThemeFile	function	export	848	862	15
+apps/website/src/features/theme/theme-files.ts	writeThemeBinaryFile	function	export	876	886	11
+apps/website/src/features/theme/theme-files.ts	resetThemeFileToOriginal	function	export	918	936	19
+apps/website/src/features/theme/theme-files.ts	ThemeOriginalSource	type	export	947	951	5
+apps/website/src/features/theme/theme-files.ts	resolveThemeOriginalSource	function	export	988	1012	25
+apps/website/src/features/theme/theme-files.ts	isPackageShippedTheme	function	export	1027	1034	8
+apps/website/src/features/theme/theme-files.ts	ThemeOriginalResetRefusal	type	export	1038	1038	1
+apps/website/src/features/theme/theme-files.ts	ORIGINAL_LAYOUT_MISMATCH_REFUSAL	const		1040	1043	4
+apps/website/src/features/theme/theme-files.ts	manifestApiVersionOnDisk	function		1053	1064	12
+apps/website/src/features/theme/theme-files.ts	themeOriginalResetRefusal	function	export	1089	1099	11
+apps/website/src/features/theme/theme-files.ts	resolveCopyOrRenameTargets	function		1114	1135	22
+apps/website/src/features/theme/theme-files.ts	copyThemeFile	function	export	1148	1172	25
+apps/website/src/features/theme/theme-files.ts	nextAvailableFileName	function	export	1191	1212	22
+apps/website/src/features/theme/theme-files.ts	renameThemeFile	function	export	1223	1231	9
+apps/website/src/features/theme/theme-files.ts	ThemeFileWriteScope	type	export	1257	1259	3
+apps/website/src/features/theme/theme-files.ts	resolveThemeFileWriteScope	function	export	1261	1285	25
+apps/website/src/features/theme/theme-files.ts	restoreBuiltThemeGeneratedTree	function	export	1311	1344	34
+apps/website/src/features/theme/theme-id-aliases.ts	RENAMED_THEME_IDS	const	export	21	21	1
+apps/website/src/features/theme/theme-id-aliases.ts	themeIdCandidates	function	export	29	34	6
+apps/website/src/features/theme/theme-layout.ts	TRASH_DIR_NAME	const	export	29	29	1
+apps/website/src/features/theme/theme-layout.ts	ThemeLayout	interface	export	33	64	32
+apps/website/src/features/theme/theme-layout.ts	V1_LAYOUT	const		66	75	10
+apps/website/src/features/theme/theme-layout.ts	V2_LAYOUT	const		77	86	10
+apps/website/src/features/theme/theme-layout.ts	resolveThemeLayout	function	export	96	98	3
+apps/website/src/features/theme/theme-layout.ts	isPageFilePath	function	export	108	110	3
+apps/website/src/features/theme/theme-layout.ts	isPartialFilePath	function	export	120	124	5
+apps/website/src/features/theme/theme-layout.ts	ENGINE_SUBFOLDERS	const	export	144	144	1
+apps/website/src/features/theme/theme-layout.ts	THEME_CATALOG_DIR	const	export	160	160	1
+apps/website/src/features/theme/theme-preview-image.ts	themePreviewImage	function	export	6	18	13
+apps/website/src/features/theme/theme-preview-image.ts	themeContentVersion	function	export	33	44	12
+apps/website/src/features/theme/theme-preview-image.ts	ContentWalkFs	type		47	47	1
+apps/website/src/features/theme/theme-preview-image.ts	ContentWalk	interface		50	54	5
+apps/website/src/features/theme/theme-preview-image.ts	walkThemeContent	function		62	71	10
+apps/website/src/features/theme/theme-preview-image.ts	visitThemeContentEntry	function		78	93	16
+apps/website/src/features/theme/theme-preview-image.ts	themeCardPreviewUrl	function	export	102	114	13
+apps/website/src/features/theme/theme-roster-sync.ts	syncedFingerprints	const		37	37	1
+apps/website/src/features/theme/theme-roster-sync.ts	themeRosterFingerprint	function	export	44	58	15
+apps/website/src/features/theme/theme-roster-sync.ts	syncThemeRoster	function	export	76	89	14
+apps/website/src/features/theme/theme-trash.ts	ThemeTrashLocationError	class	export	33	38	6
+apps/website/src/features/theme/theme-trash.ts	themeTrashRoot	function	export	41	43	3
+apps/website/src/features/theme/theme-trash.ts	assertThemeIdSegment	function		45	49	5
+apps/website/src/features/theme/theme-trash.ts	locateThemeFolder	function	export	62	81	20
+apps/website/src/features/theme/theme-trash.ts	tierDirs	function		84	87	4
+apps/website/src/features/theme/theme-trash.ts	locateThemeOriginal	function	export	100	114	15
+apps/website/src/features/theme/theme-trash.ts	createThemeTrashAdapter	function	export	128	155	28
+apps/website/src/features/theme/theme-trash.ts	createThemeOriginalTrashAdapter	function		158	175	18
+apps/website/src/features/theme/theme-trash.ts	ThemeTrashPair	interface		178	182	5
+apps/website/src/features/theme/theme-trash.ts	settled	const		185	185	1
+apps/website/src/features/theme/theme-trash.ts	hideThemeWithOriginal	function		187	216	30
+apps/website/src/features/theme/theme-trash.ts	unhideThemeWithOriginal	function		218	243	26
+apps/website/src/features/theme/theme-watcher.ts	ThemeWatchPort	interface	export	8	14	7
+apps/website/src/features/theme/theme-watcher.ts	nativeThemeWatch	const		16	22	7
+apps/website/src/features/theme/theme-watcher.ts	stopActiveWatcher	let		26	26	1
+apps/website/src/features/theme/theme-watcher.ts	ignoredThemeWatchPath	function		29	35	7
+apps/website/src/features/theme/theme-watcher.ts	startThemeWatcher	function	export	45	97	53
+apps/website/src/features/theme/theme.ts	THEME_TIERS	const		38	38	1
+apps/website/src/features/theme/theme.ts	ThemeTokens	type	export	43	43	1
+apps/website/src/features/theme/theme.ts	DiscoveredTheme	interface	export	46	96	51
+apps/website/src/features/theme/theme.ts	isObject	function		98	100	3
+apps/website/src/features/theme/theme.ts	readJson	function		102	104	3
+apps/website/src/features/theme/theme.ts	parseTier	function		107	113	7
+apps/website/src/features/theme/theme.ts	parseOptionalString	function		118	120	3
+apps/website/src/features/theme/theme.ts	parseOptionalStringArray	function		124	126	3
+apps/website/src/features/theme/theme.ts	pickTruthy	function		133	135	3
+apps/website/src/features/theme/theme.ts	parseBuildFramework	function		140	142	3
+apps/website/src/features/theme/theme.ts	parseBuildSourceDir	function		147	149	3
+apps/website/src/features/theme/theme.ts	parseBuildArtifactHashes	function		154	157	4
+apps/website/src/features/theme/theme.ts	parseThemeBuildInfo	function		169	182	14
+apps/website/src/features/theme/theme.ts	parseSlotHonorsCurrentPage	function		190	192	3
+apps/website/src/features/theme/theme.ts	parseSlotVariants	function		195	201	7
+apps/website/src/features/theme/theme.ts	parseSlots	function		214	227	14
+apps/website/src/features/theme/theme.ts	StaticTierAssets	interface		230	236	7
+apps/website/src/features/theme/theme.ts	NO_STATIC_TIER_ASSETS	const		239	244	6
+apps/website/src/features/theme/theme.ts	readLightTokens	function		252	267	16
+apps/website/src/features/theme/theme.ts	loadSlotPartials	function		288	306	19
+apps/website/src/features/theme/theme.ts	TEMPLATE_SLOT_MARKER_TYPE	const		309	309	1
+apps/website/src/features/theme/theme.ts	validateTemplateDeclarations	function		333	359	27
+apps/website/src/features/theme/theme.ts	NON_ROUTABLE_THEME_PAGE_IDS	const		367	367	1
+apps/website/src/features/theme/theme.ts	isPublishableThemePageCandidate	function	export	383	387	5
+apps/website/src/features/theme/theme.ts	isStandaloneThemePage	function	export	424	432	9
+apps/website/src/features/theme/theme.ts	loadStaticTierAssets	function		450	493	44
+apps/website/src/features/theme/theme.ts	readBundledTemplateFallback	function		501	512	12
+apps/website/src/features/theme/theme.ts	matchesSiteTheme	function		515	517	3
+apps/website/src/features/theme/theme.ts	inheritBundledTemplates	function		525	551	27
+apps/website/src/features/theme/theme.ts	parseRawManifestFields	function		559	590	32
+apps/website/src/features/theme/theme.ts	validateCompiledBuildManifest	function		600	624	25
+apps/website/src/features/theme/theme.ts	validateManifestCrossFields	function		631	646	16
+apps/website/src/features/theme/theme.ts	emptyThemeManifest	function		651	653	3
+apps/website/src/features/theme/theme.ts	parseThemeManifest	function		660	669	10
+apps/website/src/features/theme/theme.ts	loadThemeTokens	function		673	681	9
+apps/website/src/features/theme/theme.ts	checkCompiledBuildConformance	function		690	701	12
+apps/website/src/features/theme/theme.ts	classifyTemplateFile	function		706	711	6
+apps/website/src/features/theme/theme.ts	loadJsonTemplateFile	function		714	721	8
+apps/website/src/features/theme/theme.ts	loadLiquidTemplateFile	function		729	738	10
+apps/website/src/features/theme/theme.ts	loadHandlebarsTemplateFile	function		750	760	11
+apps/website/src/features/theme/theme.ts	loadTemplateSources	function		770	808	39
+apps/website/src/features/theme/theme.ts	requiredTemplatesForTier	function		813	817	5
+apps/website/src/features/theme/theme.ts	validateRequiredTemplates	function		825	832	8
+apps/website/src/features/theme/theme.ts	loadThemeCss	function		841	846	6
+apps/website/src/features/theme/theme.ts	loadThemeAssets	function		852	876	25
+apps/website/src/features/theme/theme.ts	loadTheme	function	export	885	930	46
+apps/website/src/features/theme/theme.ts	discoverThemes	function	export	947	964	18
+apps/website/src/features/theme/theme.ts	MIGRATION_STAGING_DIR_PREFIX	const	export	982	982	1
+apps/website/src/features/theme/theme.ts	LEGACY_MARKETPLACE_DIR	const		990	990	1
+apps/website/src/features/theme/theme.ts	PUBLISH_STAGING_DIR	const	export	998	998	1
+apps/website/src/features/theme/theme.ts	PUBLISH_PREVIOUS_DIR	const	export	999	999	1
+apps/website/src/features/theme/theme.ts	discoverAllBuiltInThemes	function	export	1007	1019	13
+apps/website/src/features/theme/theme.ts	nextAvailableThemeId	function	export	1049	1064	16
+apps/website/src/features/theme/theme.ts	rescanThemes	function	export	1084	1101	18
+apps/website/src/features/theme/theme.ts	duplicateThemeIds	function	export	1116	1124	9
+apps/website/src/features/theme/theme.ts	validThemeIds	function	export	1127	1129	3
+apps/website/src/features/theme/theme.ts	findTheme	function	export	1132	1138	7
+apps/website/src/features/theme/theme.ts	findStoredTheme	function	export	1146	1154	9
+apps/website/src/features/theme/theme.ts	resolveThemeScripts	function	export	1159	1168	10
+apps/website/src/features/theme/token-aliases.ts	TOKEN_ALIASES	const		22	33	12
+apps/website/src/features/theme/token-aliases.ts	themeTokenAliasDeclarations	function	export	44	53	10
+apps/website/src/features/theme/tool-registrations.ts	MUTATES_DURABLE_STATE	const		89	89	1
+apps/website/src/features/theme/tool-registrations.ts	CATALOG_BY_ID	const		92	92	1
+apps/website/src/features/theme/tool-registrations.ts	toThemeToolView	function		110	131	22
+apps/website/src/features/theme/tool-registrations.ts	assertCompiledWriteBoundaryUnchanged	function		134	148	15
+apps/website/src/features/theme/tool-registrations.ts	originalSourceForTool	function		157	163	7
+apps/website/src/features/theme/tool-registrations.ts	resetFromOriginalForTool	function		181	202	22
+apps/website/src/features/theme/tool-registrations.ts	countOccurrences	function		207	209	3
+apps/website/src/features/theme/tool-registrations.ts	applyThemeFileEdit	function		220	232	13
+apps/website/src/features/theme/tool-registrations.ts	replaceThemeFileText	function		234	248	15
+apps/website/src/features/theme/tool-registrations.ts	invalidRenameTargetNameReason	function		255	260	6
+apps/website/src/features/theme/tool-registrations.ts	performThemeFileRename	function	export	274	308	35
+apps/website/src/features/theme/tool-registrations.ts	THEME_TRASH_TOOL_ID	const		310	310	1
+apps/website/src/features/theme/tool-registrations.ts	themesDerivedRisk	const	export	317	350	34
+apps/website/src/features/theme/tool-registrations.ts	ThemeReadSelection	type		352	355	4
+apps/website/src/features/theme/tool-registrations.ts	pruneRestoredThemeTrash	function		364	381	18
+apps/website/src/features/theme/tool-registrations.ts	normalizeThemeReadInput	function		387	395	9
+apps/website/src/features/theme/tool-registrations.ts	optionalThemeReadInteger	function		407	418	12
+apps/website/src/features/theme/tool-registrations.ts	themeReadSelection	function		427	438	12
+apps/website/src/features/theme/tool-registrations.ts	ThemeReadWindow	interface		441	444	4
+apps/website/src/features/theme/tool-registrations.ts	findThemeReadWindows	function		455	468	14
+apps/website/src/features/theme/tool-registrations.ts	collectThemeReadMatches	function		476	496	21
+apps/website/src/features/theme/tool-registrations.ts	mergeThemeReadWindow	function		503	508	6
+apps/website/src/features/theme/tool-registrations.ts	renderThemeReadWindows	function		515	532	18
+apps/website/src/features/theme/tool-registrations.ts	selectThemeReadContent	function		541	551	11
+apps/website/src/features/theme/tool-registrations.ts	pageThemeReadContent	function		559	571	13
+apps/website/src/features/theme/tool-registrations.ts	buildThemesRegistrations	function	export	573	1019	447
+apps/website/src/features/theme/tool-registrations.ts	preview_reload	handler		578	591	14
+apps/website/src/features/theme/tool-registrations.ts	theme_rescan	handler		592	602	11
+apps/website/src/features/theme/tool-registrations.ts	theme_list	handler		603	620	18
+apps/website/src/features/theme/tool-registrations.ts	theme_list_page_publications	handler		621	632	12
+apps/website/src/features/theme/tool-registrations.ts	theme_list_files	handler		633	654	22
+apps/website/src/features/theme/tool-registrations.ts	theme_read_file	handler		655	676	22
+apps/website/src/features/theme/tool-registrations.ts	theme_write_file	handler		677	723	47
+apps/website/src/features/theme/tool-registrations.ts	theme_edit_file	handler		724	781	58
+apps/website/src/features/theme/tool-registrations.ts	theme_reset_file	handler		782	816	35
+apps/website/src/features/theme/tool-registrations.ts	theme_rename_file	handler		817	876	60
+apps/website/src/features/theme/tool-registrations.ts	theme_copy_file	handler		877	914	38
+apps/website/src/features/theme/tool-registrations.ts	theme_trash_file	handler		915	941	27
+apps/website/src/features/theme/tool-registrations.ts	theme_restore_trashed_file	handler		942	1019	78
+apps/website/src/features/theme/tool-registrations.ts	contributeThemesTools	function	export	1026	1028	3
+apps/website/src/features/theme/trash-theme-tool.ts	TrashThemeToolDeps	type	export	36	39	4
+apps/website/src/features/theme/trash-theme-tool.ts	ASSISTANT_ACTOR_PLUGIN_ID	const		42	42	1
+apps/website/src/features/theme/trash-theme-tool.ts	TRASH_THEME_CATALOG	const		44	65	22
+apps/website/src/features/theme/trash-theme-tool.ts	trashThemeAgentToolCatalog	const	export	68	68	1
+apps/website/src/features/theme/trash-theme-tool.ts	CATALOG_BY_ID	const		70	70	1
+apps/website/src/features/theme/trash-theme-tool.ts	trashThemeDerivedRisk	const	export	73	73	1
+apps/website/src/features/theme/trash-theme-tool.ts	removalRefusal	function		76	84	9
+apps/website/src/features/theme/trash-theme-tool.ts	TrashThemeOutcome	type	export	87	91	5
+apps/website/src/features/theme/trash-theme-tool.ts	trashTheme	function	export	102	120	19
+apps/website/src/features/theme/trash-theme-tool.ts	createThemeTrashMover	function	export	129	140	12
+apps/website/src/features/theme/trash-theme-tool.ts	buildTrashThemeHandlers	function		142	171	30
+apps/website/src/features/theme/trash-theme-tool.ts	buildTrashThemeRegistrations	function	export	173	181	9
+apps/website/src/features/theme/trash-theme-tool.ts	handlers	handler		178	181	4
+apps/website/src/features/theme/trash-theme-tool.ts	contributeTrashThemeTools	function	export	187	193	7
+apps/website/src/features/theme/validation/manifest-v2.ts	V2_TOP_LEVEL_KEYS	const		85	118	34
+apps/website/src/features/theme/validation/manifest-v2.ts	V2_FIELDS_READ_BY_LOADER	const		129	149	21
+apps/website/src/features/theme/validation/manifest-v2.ts	V2_RESERVED_METADATA_FIELDS	const		161	169	9
+apps/website/src/features/theme/validation/manifest-v2.ts	V2_TIERS	const		171	171	1
+apps/website/src/features/theme/validation/manifest-v2.ts	V2_BUILD_SOURCES	const		172	172	1
+apps/website/src/features/theme/validation/manifest-v2.ts	V2_BUILD_FRAMEWORKS	const		177	186	10
+apps/website/src/features/theme/validation/manifest-v2.ts	V2_ENGINE_NAMES	const		191	191	1
+apps/website/src/features/theme/validation/manifest-v2.ts	SEMVER_PATTERN	const		193	193	1
+apps/website/src/features/theme/validation/manifest-v2.ts	isObject	function		195	197	3
+apps/website/src/features/theme/validation/manifest-v2.ts	checkUnknownTopLevelFields	function		200	211	12
+apps/website/src/features/theme/validation/manifest-v2.ts	checkApiVersion	function		213	216	4
+apps/website/src/features/theme/validation/manifest-v2.ts	checkId	function		218	221	4
+apps/website/src/features/theme/validation/manifest-v2.ts	checkName	function		223	226	4
+apps/website/src/features/theme/validation/manifest-v2.ts	checkVersionField	function		228	231	4
+apps/website/src/features/theme/validation/manifest-v2.ts	checkTier	function		233	239	7
+apps/website/src/features/theme/validation/manifest-v2.ts	isFontStylesheet	function		243	247	5
+apps/website/src/features/theme/validation/manifest-v2.ts	checkFontStylesheets	function		251	255	5
+apps/website/src/features/theme/validation/manifest-v2.ts	checkEngine	function		271	292	22
+apps/website/src/features/theme/validation/manifest-v2.ts	checkTokens	function		306	329	24
+apps/website/src/features/theme/validation/manifest-v2.ts	checkLicense	function		331	334	4
+apps/website/src/features/theme/validation/manifest-v2.ts	checkAuthors	function		336	339	4
+apps/website/src/features/theme/validation/manifest-v2.ts	checkAttributions	function		341	344	4
+apps/website/src/features/theme/validation/manifest-v2.ts	checkPartials	function		358	369	12
+apps/website/src/features/theme/validation/manifest-v2.ts	checkRegions	function		371	374	4
+apps/website/src/features/theme/validation/manifest-v2.ts	checkRenderer	function		384	391	8
+apps/website/src/features/theme/validation/manifest-v2.ts	checkUnimplementedFieldSweep	function		406	417	12
+apps/website/src/features/theme/validation/manifest-v2.ts	validateManifestV2	function	export	426	492	67
+apps/website/src/features/theme/validation/manifest-v2.ts	checkBuildSource	function		494	504	11
+apps/website/src/features/theme/validation/manifest-v2.ts	checkBuildFramework	function		506	516	11
+apps/website/src/features/theme/validation/manifest-v2.ts	checkCompiledBuildRequirements	function		518	537	20
+apps/website/src/features/theme/validation/manifest-v2.ts	validateBuildV2	function		539	548	10
+apps/website/src/features/theme/validation/markup.ts	KNOWN_EMBED_TYPES	const		24	40	17
+apps/website/src/features/theme/validation/markup.ts	UNQUOTED_EMBED_CONFIG_PATTERN	const		49	49	1
+apps/website/src/features/theme/validation/markup.ts	DATA_AGENT_ELEMENT_PATTERN	const		51	51	1
+apps/website/src/features/theme/validation/markup.ts	Issue	type		53	53	1
+apps/website/src/features/theme/validation/markup.ts	FileInput	type		54	54	1
+apps/website/src/features/theme/validation/markup.ts	Marker	type		55	55	1
+apps/website/src/features/theme/validation/markup.ts	Rejection	type		56	56	1
+apps/website/src/features/theme/validation/markup.ts	dataAgentElementIssues	function		58	65	8
+apps/website/src/features/theme/validation/markup.ts	unquotedEmbedConfigIssues	function		67	74	8
+apps/website/src/features/theme/validation/markup.ts	rejectionIssue	const		76	80	5
+apps/website/src/features/theme/validation/markup.ts	isGalleryMarker	function		83	88	6
+apps/website/src/features/theme/validation/markup.ts	galleryIssues	function		90	98	9
+apps/website/src/features/theme/validation/markup.ts	unknownTypeIssues	function		100	107	8
+apps/website/src/features/theme/validation/markup.ts	checkMarkupFile	function	export	116	129	14
+apps/website/src/features/theme/validation/profiles.ts	ThemeValidationProfile	type	export	26	26	1
+apps/website/src/features/theme/validation/profiles.ts	ThemeValidationSeverity	type	export	28	28	1
+apps/website/src/features/theme/validation/profiles.ts	ThemeValidationIssue	interface	export	33	37	5
+apps/website/src/features/theme/validation/profiles.ts	PUBLISH_ONLY_RULES	const		44	48	5
+apps/website/src/features/theme/validation/profiles.ts	UNIMPLEMENTED_V2_FIELD_PATTERN	const		73	73	1
+apps/website/src/features/theme/validation/profiles.ts	resolveSeverity	function	export	81	95	15
+apps/website/src/features/theme/validation/references.ts	isObject	function		21	23	3
+apps/website/src/features/theme/validation/references.ts	collectDeclaredSources	function		29	39	11
+apps/website/src/features/theme/validation/references.ts	checkMissingFilesAndCollectOwners	function		44	67	24
+apps/website/src/features/theme/validation/references.ts	checkDuplicateSources	function		71	86	16
+apps/website/src/features/theme/validation/references.ts	checkDeclaredReferences	function	export	96	105	10
+apps/website/src/features/theme/validation/structure.ts	MAX_PACKAGE_FILES	const		25	25	1
+apps/website/src/features/theme/validation/structure.ts	MAX_PACKAGE_DEPTH	const		26	26	1
+apps/website/src/features/theme/validation/structure.ts	MAX_FILE_BYTES	const		30	30	1
+apps/website/src/features/theme/validation/structure.ts	V2_APPROVED_ROOTS	const		44	60	17
+apps/website/src/features/theme/validation/structure.ts	INSTALL_LOCAL_FILES	const		74	74	1
+apps/website/src/features/theme/validation/structure.ts	TOKENS_MODE_FILE_PATTERN	const		78	78	1
+apps/website/src/features/theme/validation/structure.ts	isApprovedV2Root	function		80	82	3
+apps/website/src/features/theme/validation/structure.ts	PackageWalkEntry	interface	export	84	88	5
+apps/website/src/features/theme/validation/structure.ts	PackageWalkResult	interface	export	90	93	4
+apps/website/src/features/theme/validation/structure.ts	visitPackageEntry	function		109	148	40
+apps/website/src/features/theme/validation/structure.ts	walkThemePackage	function	export	150	193	44
+apps/website/src/features/theme/validation/structure.ts	checkApprovedRoots	function	export	201	223	23
+apps/website/src/features/theme/validation/structure.ts	normalizeSourceDirOrIssue	function		244	261	18
+apps/website/src/features/theme/validation/structure.ts	checkSourceDirRootConflict	function		265	276	12
+apps/website/src/features/theme/validation/structure.ts	checkSourceDirContainment	function	export	291	314	24
+apps/website/src/features/theme/validation/validate-theme-package.ts	MARKUP_EXTENSIONS	const		59	59	1
+apps/website/src/features/theme/validation/validate-theme-package.ts	ThemeValidationFinding	interface	export	61	63	3
+apps/website/src/features/theme/validation/validate-theme-package.ts	ValidateThemePackageResult	interface	export	65	70	6
+apps/website/src/features/theme/validation/validate-theme-package.ts	isObject	function		72	74	3
+apps/website/src/features/theme/validation/validate-theme-package.ts	loadRawManifest	function		81	103	23
+apps/website/src/features/theme/validation/validate-theme-package.ts	checkV2ManifestIdMatch	function		105	111	7
+apps/website/src/features/theme/validation/validate-theme-package.ts	checkV2BuildContainment	function		117	126	10
+apps/website/src/features/theme/validation/validate-theme-package.ts	checkV2References	function		128	137	10
+apps/website/src/features/theme/validation/validate-theme-package.ts	checkV2PublishReadiness	function		145	163	19
+apps/website/src/features/theme/validation/validate-theme-package.ts	runV2StrictChecks	function		171	183	13
+apps/website/src/features/theme/validation/validate-theme-package.ts	runV1FallbackCheck	function		187	190	4
+apps/website/src/features/theme/validation/validate-theme-package.ts	checkMarkupFiles	function		196	211	16
+apps/website/src/features/theme/validation/validate-theme-package.ts	resolveFindings	function		213	225	13
+apps/website/src/features/theme/validation/validate-theme-package.ts	validateThemePackage	function	export	239	260	22
+apps/website/src/features/theme/validation/webmcp-markup.ts	Node	type		4	4	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	Element	type		5	5	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	ElementCheck	type		8	13	6
+apps/website/src/features/theme/validation/webmcp-markup.ts	NAME	const		15	15	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	FORM_NAMES	const		16	16	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	PARAM_NAMES	const		17	17	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	ACTION_NAMES	const		18	18	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	NON_ELEMENTS	const		19	19	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	PARAM_CONTROLS	const		20	20	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	PRIVATE_PARAM_TYPES	const		21	21	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	SECRET_INPUT_TYPES	const		22	22	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	SUBMITTERS	const		23	23	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	WEBMCP_LIKE	const		27	27	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	isLocal	const		28	31	4
+apps/website/src/features/theme/validation/webmcp-markup.ts	isTemplated	const		32	32	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	isExposableTarget	const		34	34	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	attr	const		35	38	4
+apps/website/src/features/theme/validation/webmcp-markup.ts	inputType	const		39	39	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	hasAttrIn	const		40	40	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	owningForm	function		42	51	10
+apps/website/src/features/theme/validation/webmcp-markup.ts	advertisedOwningForm	function		54	57	4
+apps/website/src/features/theme/validation/webmcp-markup.ts	collectElements	function		61	74	14
+apps/website/src/features/theme/validation/webmcp-markup.ts	isActionHost	const		76	76	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	isPagePublicationHost	const		77	84	8
+apps/website/src/features/theme/validation/webmcp-markup.ts	checkPlacement	function		86	91	6
+apps/website/src/features/theme/validation/webmcp-markup.ts	checkToolIdentity	function		93	103	11
+apps/website/src/features/theme/validation/webmcp-markup.ts	checkToolTarget	function		105	113	9
+apps/website/src/features/theme/validation/webmcp-markup.ts	checkAnnotatedTool	function		116	122	7
+apps/website/src/features/theme/validation/webmcp-markup.ts	checkAutosubmit	function		124	128	5
+apps/website/src/features/theme/validation/webmcp-markup.ts	isPublicNamedControl	const		130	131	2
+apps/website/src/features/theme/validation/webmcp-markup.ts	ownsParameters	const		133	136	4
+apps/website/src/features/theme/validation/webmcp-markup.ts	checkParameters	function		138	144	7
+apps/website/src/features/theme/validation/webmcp-markup.ts	checkSecretInput	function		146	150	5
+apps/website/src/features/theme/validation/webmcp-markup.ts	checkSubmitterOverrides	function		152	160	9
+apps/website/src/features/theme/validation/webmcp-markup.ts	isSupportedAnnotation	const		162	165	4
+apps/website/src/features/theme/validation/webmcp-markup.ts	checkUnknownAttributes	function		167	171	5
+apps/website/src/features/theme/validation/webmcp-markup.ts	checkElement	function		174	192	19
+apps/website/src/features/theme/validation/webmcp-markup.ts	checkWebMcpMarkup	function	export	197	210	14
+apps/website/src/features/theme/verify-active-theme.ts	ActiveThemeVerificationDeps	interface	export	28	34	7
+apps/website/src/features/theme/verify-active-theme.ts	verifyActiveThemeResolves	function	export	44	69	26
+apps/website/src/features/theme/visitor-publication.ts	Element	type		9	9	1
+apps/website/src/features/theme/visitor-publication.ts	Node	type		10	10	1
+apps/website/src/features/theme/visitor-publication.ts	Publication	interface		11	11	1
+apps/website/src/features/theme/visitor-publication.ts	snapshots	const		12	12	1
+apps/website/src/features/theme/visitor-publication.ts	ACTIONS	const		13	13	1
+apps/website/src/features/theme/visitor-publication.ts	attr	const		14	14	1
+apps/website/src/features/theme/visitor-publication.ts	excluded	const		15	16	2
+apps/website/src/features/theme/visitor-publication.ts	annotated	function*		19	30	12
+apps/website/src/features/theme/visitor-publication.ts	declaration	function		32	43	12
+apps/website/src/features/theme/visitor-publication.ts	publishVisitorPage	function	export	48	75	28
+apps/website/src/features/theme/visitor-publication.ts	withoutHandleCollisions	function		78	82	5
+apps/website/src/features/theme/visitor-publication.ts	readVisitorPagePublication	function	export	85	90	6
+apps/website/src/features/theme/visitor-publication.ts	inMainMenu	function		93	100	8
+apps/website/src/features/theme/visitor-publication.ts	actionHost	function		102	106	5
+apps/website/src/features/theme/visitor-publication.ts	rememberPublication	function		107	118	12
+apps/website/src/features/theme/visitor-publication.ts	projectedAttributes	function		120	126	7
+apps/website/src/features/theme/visitor-publication.ts	submissionTarget	function		129	135	7
+apps/website/src/features/theme/visitor-publication.ts	owningForm	function		136	143	8
+apps/website/src/features/theme/visitor-publication.ts	effectiveSubmitTarget	function		144	147	4
+apps/website/src/features/theme/visitor-publication.ts	targetMetadata	function		148	152	5
+apps/website/src/features/theme/visitor-publication.ts	safeFormAction	function		153	155	3

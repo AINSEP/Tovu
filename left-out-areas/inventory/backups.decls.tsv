@@ -1,0 +1,760 @@
+file	name	kind	exported	first_line	last_line	span
+apps/admin/src/features/import-export/GitBackupCard.tsx	SOURCE_CONTROL_HREF	const	export	12	12	1
+apps/admin/src/features/import-export/GitBackupCard.tsx	GitBackupCardProps	interface	export	14	17	4
+apps/admin/src/features/import-export/GitBackupCard.tsx	GitBackupCard	function	export	19	31	13
+apps/admin/src/features/import-export/GitBackupCard.tsx	GitBackupBody	function		33	41	9
+apps/admin/src/features/import-export/GitBackupCard.tsx	NoConnection	function		43	52	10
+apps/admin/src/features/import-export/GitBackupCard.tsx	GitBackupFormFields	function		54	80	27
+apps/admin/src/features/import-export/GitBackupCard.tsx	TextField	function		82	89	8
+apps/admin/src/features/import-export/GitBackupCard.tsx	PlanSummary	function		91	114	24
+apps/admin/src/features/import-export/GitBackupCard.tsx	BackupDone	function		116	130	15
+apps/admin/src/features/import-export/GitBackupCard.tsx	BackupRefused	function		132	141	10
+apps/admin/src/features/import-export/ImportExport.tsx	ImportExportProps	interface	export	22	33	12
+apps/admin/src/features/import-export/ImportExport.tsx	ImportExportCard	function		35	52	18
+apps/admin/src/features/import-export/ImportExport.tsx	OtherTab	function		56	66	11
+apps/admin/src/features/import-export/ImportExport.tsx	TransferTab	function		70	84	15
+apps/admin/src/features/import-export/ImportExport.tsx	goToImportExportTab	function		87	89	3
+apps/admin/src/features/import-export/ImportExport.tsx	ImportExport	function	export	91	121	31
+apps/admin/src/features/import-export/git-backup-rules.ts	GitBackupForm	interface	export	11	16	6
+apps/admin/src/features/import-export/git-backup-rules.ts	EMPTY_GIT_BACKUP_FORM	const	export	18	18	1
+apps/admin/src/features/import-export/git-backup-rules.ts	backupConnectionLabels	function	export	22	24	3
+apps/admin/src/features/import-export/git-backup-rules.ts	gitBackupFormReady	function	export	27	29	3
+apps/admin/src/features/import-export/git-backup-rules.ts	gitBackupPlanInput	function	export	32	35	4
+apps/admin/src/features/import-export/git-backup-rules.ts	isGitBackupPlan	function	export	37	39	3
+apps/admin/src/features/import-export/git-backup-rules.ts	isGitBackupInProgress	function	export	41	43	3
+apps/admin/src/features/import-export/git-backup-rules.ts	isGitBackupPushed	function	export	45	47	3
+apps/admin/src/features/import-export/git-backup-rules.ts	REFUSAL_KEYS	const		51	56	6
+apps/admin/src/features/import-export/git-backup-rules.ts	gitBackupRefusalMessage	function	export	59	64	6
+apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	GitBackupPlanInput	interface	export	11	16	6
+apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	GitBackupRefusal	interface	export	19	26	8
+apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	GitBackupPlan	interface	export	29	39	11
+apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	GitBackupProgress	interface	export	41	44	4
+apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	GitBackupPushResult	type	export	46	49	4
+apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	GitBackupPort	interface	export	51	57	7
+apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	BACKUPS	const		59	59	1
+apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	defaultGitBackupPort	const	export	61	65	5
+apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	createFakeGitBackupPort	function	export	69	77	9
+apps/admin/src/features/import-export/hooks/use-git-backup.hooks.ts	GIT_BACKUP_CONNECTIONS_KEY	const	export	25	25	1
+apps/admin/src/features/import-export/hooks/use-git-backup.hooks.ts	MAX_PUSH_POLLS	const		29	29	1
+apps/admin/src/features/import-export/hooks/use-git-backup.hooks.ts	GitBackupPhase	type	export	31	31	1
+apps/admin/src/features/import-export/hooks/use-git-backup.hooks.ts	GitBackupController	interface	export	33	49	17
+apps/admin/src/features/import-export/hooks/use-git-backup.hooks.ts	pushUntilDone	function		53	61	9
+apps/admin/src/features/import-export/hooks/use-git-backup.hooks.ts	useGitBackup	function	export	67	135	69
+apps/admin/src/features/import-export/hooks/use-git-backup.hooks.ts	useWiredGitBackup	function	export	137	139	3
+apps/admin/src/features/import-export/hooks/use-import-export.hooks.ts	useImportExportTranslate	function	export	12	15	4
+apps/admin/src/features/import-export/hooks/use-import-export.hooks.ts	useSiteTransferTranslate	function	export	19	22	4
+apps/admin/src/features/import-export/hooks/use-import-export.hooks.ts	useSitesSectionAvailable	function	export	34	40	7
+apps/admin/src/features/import-export/import-export-i18n.ts	IMPORT_EXPORT_DICT	const	export	11	33	23
+apps/admin/src/features/import-export/import-export-i18n.ts	t	const	export	35	35	1
+apps/admin/src/features/import-export/import-export-links.ts	ImportExportLink	interface	export	9	14	6
+apps/admin/src/features/import-export/import-export-links.ts	IMPORT_EXPORT_LINKS	const	export	16	18	3
+apps/admin/src/features/import-export/import-export-tabs.tsx	IMPORT_EXPORT_TAB_IDS	const	export	14	14	1
+apps/admin/src/features/import-export/import-export-tabs.tsx	ImportExportTabId	type	export	15	15	1
+apps/admin/src/features/import-export/import-export-tabs.tsx	resolveImportExportTabId	function	export	19	21	3
+apps/admin/src/features/import-export/import-export-tabs.tsx	resolveImportExportTabs	function	export	27	54	28
+apps/admin/src/features/recovery/Recovery.tsx	DegradedBannerView	function		86	126	41
+apps/admin/src/features/recovery/Recovery.tsx	RestorePointsList	function		128	182	55
+apps/admin/src/features/recovery/Recovery.tsx	RestorePointsPanel	function		191	215	25
+apps/admin/src/features/recovery/Recovery.tsx	DisclosurePanel	function		222	273	52
+apps/admin/src/features/recovery/Recovery.tsx	RestoreDisclosureStatus	function		280	293	14
+apps/admin/src/features/recovery/Recovery.tsx	RestoreIdleStep	function		300	317	18
+apps/admin/src/features/recovery/Recovery.tsx	RestorePlannedStep	function		320	336	17
+apps/admin/src/features/recovery/Recovery.tsx	RestoreConfirmedStep	function		339	355	17
+apps/admin/src/features/recovery/Recovery.tsx	RestoreDoneStep	function		361	375	15
+apps/admin/src/features/recovery/Recovery.tsx	RestoreCeremonySteps	function		380	406	27
+apps/admin/src/features/recovery/Recovery.tsx	RestoreFlowProps	interface	export	408	415	8
+apps/admin/src/features/recovery/Recovery.tsx	RestoreFlow	function		417	489	73
+apps/admin/src/features/recovery/Recovery.tsx	RestoreTabPanel	function		496	505	10
+apps/admin/src/features/recovery/Recovery.tsx	RecoveryProps	interface	export	507	519	13
+apps/admin/src/features/recovery/Recovery.tsx	Recovery	function	export	521	572	52
+apps/admin/src/features/recovery/hooks/recovery-dependencies.hooks.ts	defaultRecoveryPort	const	export	17	22	6
+apps/admin/src/features/recovery/hooks/recovery-dependencies.hooks.ts	fakeRestorePointSummary	function		25	33	9
+apps/admin/src/features/recovery/hooks/recovery-dependencies.hooks.ts	FakeRecoveryPortOptions	interface	export	36	49	14
+apps/admin/src/features/recovery/hooks/recovery-dependencies.hooks.ts	DEFAULT_STATUS	const		51	51	1
+apps/admin/src/features/recovery/hooks/recovery-dependencies.hooks.ts	createFakeRecoveryPort	function	export	59	96	38
+apps/admin/src/features/recovery/hooks/recovery-port.hooks.ts	RecoveryPort	interface	export	14	21	8
+apps/admin/src/features/recovery/hooks/restore-flow-dependencies.hooks.ts	defaultRestoreFlowPort	const	export	16	21	6
+apps/admin/src/features/recovery/hooks/restore-flow-dependencies.hooks.ts	FakeRestoreFlowPortOptions	interface	export	24	40	17
+apps/admin/src/features/recovery/hooks/restore-flow-dependencies.hooks.ts	DEFAULT_DISCLOSURE	const		42	42	1
+apps/admin/src/features/recovery/hooks/restore-flow-dependencies.hooks.ts	DEFAULT_PLAN	const		43	43	1
+apps/admin/src/features/recovery/hooks/restore-flow-dependencies.hooks.ts	createFakeRestoreFlowPort	function	export	52	71	20
+apps/admin/src/features/recovery/hooks/restore-flow-port.hooks.ts	RestoreFlowPort	interface	export	8	13	6
+apps/admin/src/features/recovery/hooks/use-recovery-navigation.hooks.ts	RECOVERY_TAB_IDS	const		6	6	1
+apps/admin/src/features/recovery/hooks/use-recovery-navigation.hooks.ts	RecoveryNavigationPort	interface	export	8	10	3
+apps/admin/src/features/recovery/hooks/use-recovery-navigation.hooks.ts	defaultNavigationPort	const		12	12	1
+apps/admin/src/features/recovery/hooks/use-recovery-navigation.hooks.ts	useRecoveryNavigation	function	export	16	43	28
+apps/admin/src/features/recovery/hooks/use-recovery.hooks.ts	RecoveryController	interface	export	52	71	20
+apps/admin/src/features/recovery/hooks/use-recovery.hooks.ts	RecoveryDependencies	interface	export	73	75	3
+apps/admin/src/features/recovery/hooks/use-recovery.hooks.ts	useRecovery	function	export	83	165	83
+apps/admin/src/features/recovery/hooks/use-recovery.hooks.ts	useWiredRecovery	function	export	174	176	3
+apps/admin/src/features/recovery/hooks/use-restore-flow.hooks.ts	CeremonyStep	type	export	37	37	1
+apps/admin/src/features/recovery/hooks/use-restore-flow.hooks.ts	RestoreFlowController	interface	export	39	60	22
+apps/admin/src/features/recovery/hooks/use-restore-flow.hooks.ts	useRestoreFlow	function	export	70	167	98
+apps/admin/src/features/recovery/hooks/use-restore-flow.hooks.ts	useWiredRestoreFlow	function	export	178	180	3
+apps/admin/src/features/recovery/recovery-i18n.tsx	RECOVERY_DICT	const		17	1115	1099
+apps/admin/src/features/recovery/recovery-i18n.tsx	t	const	export	1119	1119	1
+apps/admin/src/features/recovery/recovery-i18n.tsx	SINCE_DISCARD_FRAGMENTS	const		1123	1146	24
+apps/admin/src/features/recovery/recovery-i18n.tsx	sinceDiscardMessage	function	export	1148	1157	10
+apps/admin/src/features/recovery/recovery-i18n.tsx	UNKNOWN_DISCARD_COUNT_PREFIX	const		1162	1185	24
+apps/admin/src/features/recovery/recovery-i18n.tsx	discardCountLine	function	export	1203	1223	21
+apps/admin/src/features/recovery/recovery-i18n.tsx	BASELINE_UNAVAILABLE_TEXT	const		1228	1251	24
+apps/admin/src/features/recovery/recovery-i18n.tsx	baselineUnavailableMessage	function	export	1253	1255	3
+apps/admin/src/features/recovery/recovery-i18n.tsx	RESTORE_PLAN_READY_FRAGMENTS	const		1259	1348	90
+apps/admin/src/features/recovery/recovery-i18n.tsx	restorePlanReadyMessage	function	export	1350	1359	10
+apps/admin/src/features/recovery/recovery-i18n.tsx	RESTORE_DONE_FRAGMENTS	const		1364	1387	24
+apps/admin/src/features/recovery/recovery-i18n.tsx	restoreDoneMessage	function	export	1389	1400	12
+apps/admin/src/features/recovery/rules.ts	RECOVERY_RESOURCE	const	export	22	22	1
+apps/admin/src/features/recovery/rules.ts	CATEGORY_LABELS	const		24	27	4
+apps/admin/src/features/recovery/rules.ts	UNTAUGHT_CATEGORY_TEMPLATE	const		29	49	21
+apps/admin/src/features/recovery/rules.ts	categoryLabel	function	export	58	62	5
+apps/admin/src/features/recovery/rules.ts	COST_CLASS_LABELS	const		71	75	5
+apps/admin/src/features/recovery/rules.ts	costClassLabel	function	export	77	80	4
+apps/admin/src/features/recovery/rules.ts	recoveryBannerTone	function	export	96	101	6
+apps/admin/src/features/recovery/rules.ts	isAssertiveRecoveryBanner	function	export	114	116	3
+apps/admin/src/features/recovery/rules.ts	DeepLinkEnvelopeParseResult	type	export	120	120	1
+apps/admin/src/features/recovery/rules.ts	parseDeepLinkEnvelope	function	export	135	141	7
+apps/admin/src/features/recovery/rules.ts	restoreButtonAccessibleName	function	export	161	163	3
+apps/website/src/features/recovery/agent-tools.ts	BACKUP_READ_PERMISSION	const		35	35	1
+apps/website/src/features/recovery/agent-tools.ts	AgentToolSideEffect	type	export	37	39	3
+apps/website/src/features/recovery/agent-tools.ts	AgentToolDefinition	type	export	46	46	1
+apps/website/src/features/recovery/agent-tools.ts	NO_INPUT_SCHEMA	const		49	54	6
+apps/website/src/features/recovery/agent-tools.ts	RESTORE_POINT_ID_SCHEMA	const		56	60	5
+apps/website/src/features/recovery/agent-tools.ts	PLAN_RESTORE_SCHEMA	const		62	69	8
+apps/website/src/features/recovery/agent-tools.ts	DEEP_LINK_ENVELOPE_SCHEMA	const		75	99	25
+apps/website/src/features/recovery/agent-tools.ts	recoveryAgentToolCatalog	const	export	108	174	67
+apps/website/src/features/recovery/capability-card.ts	capabilityCard	const	export	4	27	24
+apps/website/src/features/recovery/gated-hooks.ts	BuildRestoreHooksInput	type	export	4	4	1
+apps/website/src/features/recovery/gated-hooks.ts	buildRestoreHooks	function	export	7	11	5
+apps/website/src/features/recovery/tool-registrations.ts	BACKUP_READ_PERMISSION	const		58	58	1
+apps/website/src/features/recovery/tool-registrations.ts	RESTORE_POINT_ENTITY	const		59	59	1
+apps/website/src/features/recovery/tool-registrations.ts	CATALOG_BY_ID	const		62	62	1
+apps/website/src/features/recovery/tool-registrations.ts	RecoveryToolDeps	interface	export	73	86	14
+apps/website/src/features/recovery/tool-registrations.ts	recoveryDerivedRisk	const	export	94	112	19
+apps/website/src/features/recovery/tool-registrations.ts	RESTORE_TOOL_ID	const		114	114	1
+apps/website/src/features/recovery/tool-registrations.ts	RECOVERY_DISCLOSURE_COVERED_CATEGORIES	const		119	119	1
+apps/website/src/features/recovery/tool-registrations.ts	UNWIRED_RECOVERY_TOOL_IDS	const		121	132	12
+apps/website/src/features/recovery/tool-registrations.ts	requireEnvelopeNumber	function		136	139	4
+apps/website/src/features/recovery/tool-registrations.ts	requireEnvelopeString	function		142	145	4
+apps/website/src/features/recovery/tool-registrations.ts	requireEnvelopeStringOrNull	function		149	152	4
+apps/website/src/features/recovery/tool-registrations.ts	requireDeepLinkEnvelope	function		167	182	16
+apps/website/src/features/recovery/tool-registrations.ts	buildRecoveryRegistrations	function	export	184	400	217
+apps/website/src/features/recovery/tool-registrations.ts	backup_list_restore_points	handler		238	245	8
+apps/website/src/features/recovery/tool-registrations.ts	backup_get_capabilities	handler		246	258	13
+apps/website/src/features/recovery/tool-registrations.ts	backup_plan_restore	handler		259	282	24
+apps/website/src/features/recovery/tool-registrations.ts	recovery_get_status	handler		283	303	21
+apps/website/src/features/recovery/tool-registrations.ts	recovery_resolve_deep_link	handler		304	320	17
+apps/website/src/features/recovery/tool-registrations.ts	RESTORE_TOOL_ID	handler		321	322	2
+apps/website/src/features/recovery/tool-registrations.ts	prepare	handler		323	332	10
+apps/website/src/features/recovery/tool-registrations.ts	dialog	handler		333	343	11
+apps/website/src/features/recovery/tool-registrations.ts	run	handler		344	400	57
+apps/website/src/features/recovery/tool-registrations.ts	contributeRecoveryTools	function	export	413	415	3
+apps/website/src/features/site-backup/archive-extensions.ts	prepareArchiveExtensions	function	export	14	39	26
+apps/website/src/features/site-backup/archive-extensions.ts	isSupersededBundledRevision	function		43	48	6
+apps/website/src/features/site-backup/archive-extensions.ts	includeThemeOriginals	function		50	73	24
+apps/website/src/features/site-backup/archive-extensions.ts	sitePluginRecords	function		75	95	21
+apps/website/src/features/site-backup/archive-extensions.ts	unindexedAgentRecords	function		98	113	16
+apps/website/src/features/site-backup/archive-extensions.ts	sitePluginVersion	function		117	120	4
+apps/website/src/features/site-backup/archive-manifest.ts	ARCHIVE_MANIFEST_PATH	const	export	9	9	1
+apps/website/src/features/site-backup/archive-manifest.ts	ARCHIVE_DATABASE_PATH	const	export	10	10	1
+apps/website/src/features/site-backup/archive-manifest.ts	ArchiveFile	interface	export	11	11	1
+apps/website/src/features/site-backup/archive-manifest.ts	ArchiveMedia	interface	export	12	12	1
+apps/website/src/features/site-backup/archive-manifest.ts	ArchivePlugin	interface	export	13	20	8
+apps/website/src/features/site-backup/archive-manifest.ts	ArchiveManifest	interface	export	21	33	13
+apps/website/src/features/site-backup/archive-manifest.ts	HASH	const		34	34	1
+apps/website/src/features/site-backup/archive-manifest.ts	ID	const		35	35	1
+apps/website/src/features/site-backup/archive-manifest.ts	ROOT	const		36	36	1
+apps/website/src/features/site-backup/archive-manifest.ts	invalid	function		38	38	1
+apps/website/src/features/site-backup/archive-manifest.ts	buildArchiveManifest	function	export	41	45	5
+apps/website/src/features/site-backup/archive-manifest.ts	parseArchiveManifest	function	export	51	57	7
+apps/website/src/features/site-backup/archive-manifest.ts	validateManifest	function		60	71	12
+apps/website/src/features/site-backup/archive-manifest.ts	validateFiles	function		73	87	15
+apps/website/src/features/site-backup/archive-manifest.ts	validateEncryptedKeys	function		90	95	6
+apps/website/src/features/site-backup/archive-manifest.ts	validateMedia	function		97	106	10
+apps/website/src/features/site-backup/archive-manifest.ts	validatePlugins	function		108	118	11
+apps/website/src/features/site-backup/archive-manifest.ts	validatePluginPackage	function		120	125	6
+apps/website/src/features/site-backup/archive-manifest.ts	validateSiteName	function		127	129	3
+apps/website/src/features/site-backup/archive-manifest.ts	validMediaIdentity	function		130	132	3
+apps/website/src/features/site-backup/archive-manifest.ts	validMediaPath	function		133	135	3
+apps/website/src/features/site-backup/archive-manifest.ts	validPluginIdentity	function		136	138	3
+apps/website/src/features/site-backup/archive-manifest.ts	validPluginVersion	function		139	141	3
+apps/website/src/features/site-backup/archive-manifest.ts	requirePluginCoverage	function		143	148	6
+apps/website/src/features/site-backup/archive-manifest.ts	validateIdentity	function		151	156	6
+apps/website/src/features/site-backup/archive-manifest.ts	validateSchemaVersion	function		162	166	5
+apps/website/src/features/site-backup/archive-manifest.ts	requireArchiveFileRecord	function	export	171	177	7
+apps/website/src/features/site-backup/archive-media.ts	ArchiveMediaCopy	interface	export	11	15	5
+apps/website/src/features/site-backup/archive-media.ts	ArchiveMediaRewriter	type	export	16	16	1
+apps/website/src/features/site-backup/archive-media.ts	EXTENSIONS	const		17	17	1
+apps/website/src/features/site-backup/archive-media.ts	bufferArchiveMedia	function	export	23	38	16
+apps/website/src/features/site-backup/archive-media.ts	readCopy	function		41	45	5
+apps/website/src/features/site-backup/archive-media.ts	publicCopy	function		47	53	7
+apps/website/src/features/site-backup/archive-media.ts	rasterCopy	function		55	67	13
+apps/website/src/features/site-backup/archive-media.ts	originalExtension	function		69	72	4
+apps/website/src/features/site-backup/archive-media.ts	mediaPath	function		73	84	12
+apps/website/src/features/site-backup/archive-media.ts	portableExtension	function		88	93	6
+apps/website/src/features/site-backup/archive-paths.ts	OVERRIDES_ARCHIVE_PREFIX	const		8	8	1
+apps/website/src/features/site-backup/archive-paths.ts	OVERRIDES_UNIT	const	export	10	10	1
+apps/website/src/features/site-backup/archive-paths.ts	runtimeToArchivePath	function	export	13	26	14
+apps/website/src/features/site-backup/archive-paths.ts	AGENT_PLUGIN_FILE	const		28	28	1
+apps/website/src/features/site-backup/archive-paths.ts	pluginArchivePath	function		30	36	7
+apps/website/src/features/site-backup/archive-paths.ts	archiveToRuntimePath	function	export	39	55	17
+apps/website/src/features/site-backup/archive-paths.ts	archiveCodeUnit	function	export	58	62	5
+apps/website/src/features/site-backup/archive-paths.ts	archiveSecretScanPath	function	export	67	72	6
+apps/website/src/features/site-backup/archive-paths.ts	UNIT_LABELS	const		74	74	1
+apps/website/src/features/site-backup/archive-paths.ts	unitLabel	function		75	78	4
+apps/website/src/features/site-backup/archive-paths.ts	editedArchiveWarnings	function	export	81	83	3
+apps/website/src/features/site-backup/archive-paths.ts	keptOffArchiveWarnings	function	export	86	90	5
+apps/website/src/features/site-backup/backup-service.ts	SITE_BACKUP_DOMAIN	const	export	94	94	1
+apps/website/src/features/site-backup/backup-service.ts	DOMAIN	const		95	95	1
+apps/website/src/features/site-backup/backup-service.ts	PLAN_TOOL_ID	const	export	96	96	1
+apps/website/src/features/site-backup/backup-service.ts	SITE_BACKUP_PUSH_TOOL_ID	const	export	97	97	1
+apps/website/src/features/site-backup/backup-service.ts	PUSH_PERMISSION	const	export	99	99	1
+apps/website/src/features/site-backup/backup-service.ts	CREDENTIAL_WRITE_PERMISSION	const		102	102	1
+apps/website/src/features/site-backup/backup-service.ts	SNAPSHOT_SCOPE_ID	const		104	104	1
+apps/website/src/features/site-backup/backup-service.ts	SiteBackupCall	interface	export	108	112	5
+apps/website/src/features/site-backup/backup-service.ts	SiteBackupToolDeps	interface	export	116	155	40
+apps/website/src/features/site-backup/backup-service.ts	Refusal	interface		158	162	5
+apps/website/src/features/site-backup/backup-service.ts	failureLog	function		164	166	3
+apps/website/src/features/site-backup/backup-service.ts	logFailureDetail	function		169	171	3
+apps/website/src/features/site-backup/backup-service.ts	ResolvedBackupCredential	interface		177	184	8
+apps/website/src/features/site-backup/backup-service.ts	backupTarget	function		187	189	3
+apps/website/src/features/site-backup/backup-service.ts	loadBackupProviders	function		192	205	14
+apps/website/src/features/site-backup/backup-service.ts	originOf	function		207	213	7
+apps/website/src/features/site-backup/backup-service.ts	labelList	function		215	217	3
+apps/website/src/features/site-backup/backup-service.ts	pickCredentialLabel	function		225	248	24
+apps/website/src/features/site-backup/backup-service.ts	siteAwareSiteKeyStatus	function		268	273	6
+apps/website/src/features/site-backup/backup-service.ts	unreadableCredentialMessage	function		278	293	16
+apps/website/src/features/site-backup/backup-service.ts	resolveHostConnection	function		304	313	10
+apps/website/src/features/site-backup/backup-service.ts	HostConnection	type		315	315	1
+apps/website/src/features/site-backup/backup-service.ts	findHostConnection	function		318	331	14
+apps/website/src/features/site-backup/backup-service.ts	hostCredential	function		334	339	6
+apps/website/src/features/site-backup/backup-service.ts	resolveBackupCredential	function		347	366	20
+apps/website/src/features/site-backup/backup-service.ts	INSPECT_CODES	const		372	382	11
+apps/website/src/features/site-backup/backup-service.ts	providerRefusal	function		385	388	4
+apps/website/src/features/site-backup/backup-service.ts	inspect	function		390	396	7
+apps/website/src/features/site-backup/backup-service.ts	ParsedPlanInput	interface		402	411	10
+apps/website/src/features/site-backup/backup-service.ts	optionalString	function		413	418	6
+apps/website/src/features/site-backup/backup-service.ts	parseInclude	function		421	426	6
+apps/website/src/features/site-backup/backup-service.ts	requireIncludeRecord	function		429	436	8
+apps/website/src/features/site-backup/backup-service.ts	readIncludeSwitches	function		439	447	9
+apps/website/src/features/site-backup/backup-service.ts	parseFolder	function		451	454	4
+apps/website/src/features/site-backup/backup-service.ts	requireUnreservedFolder	function		463	466	4
+apps/website/src/features/site-backup/backup-service.ts	parsePlanInput	function		470	483	14
+apps/website/src/features/site-backup/backup-service.ts	requireBackupPermissions	function		485	488	4
+apps/website/src/features/site-backup/backup-service.ts	UNAVAILABLE	const		490	490	1
+apps/website/src/features/site-backup/backup-service.ts	readSiteName	function		493	501	9
+apps/website/src/features/site-backup/backup-service.ts	planResult	function		504	529	26
+apps/website/src/features/site-backup/backup-service.ts	planSiteBackup	function	export	538	560	23
+apps/website/src/features/site-backup/backup-service.ts	savePlan	function		566	601	36
+apps/website/src/features/site-backup/backup-service.ts	PreparedContent	type		603	603	1
+apps/website/src/features/site-backup/backup-service.ts	captureBackupDatabase	function		615	629	15
+apps/website/src/features/site-backup/backup-service.ts	prepareContent	function		637	656	20
+apps/website/src/features/site-backup/backup-service.ts	PushResult	type	export	662	667	6
+apps/website/src/features/site-backup/backup-service.ts	pushRefusal	function		669	671	3
+apps/website/src/features/site-backup/backup-service.ts	pushPlannedBackup	function		681	729	49
+apps/website/src/features/site-backup/backup-service.ts	PLAN_TAKE_MESSAGES	const		731	734	4
+apps/website/src/features/site-backup/backup-service.ts	PUSH_WAIT_MS	const	export	738	738	1
+apps/website/src/features/site-backup/backup-service.ts	DEFAULT_PUSH_JOBS	const		740	740	1
+apps/website/src/features/site-backup/backup-service.ts	inProgressResult	function		743	754	12
+apps/website/src/features/site-backup/backup-service.ts	pushWaitBudget	function		756	758	3
+apps/website/src/features/site-backup/backup-service.ts	pushSiteBackup	function	export	766	788	23
+apps/website/src/features/site-backup/bundled-export-file-policy.ts	BundledExportFilePolicy	type	export	8	8	1
+apps/website/src/features/site-backup/bundled-export-file-policy.ts	createBundledExportFilePolicy	function	export	17	42	26
+apps/website/src/features/site-backup/credential-warnings.ts	CredentialWarning	interface	export	4	4	1
+apps/website/src/features/site-backup/credential-warnings.ts	MATCH_KINDS	const		6	10	5
+apps/website/src/features/site-backup/credential-warnings.ts	warnCredentialContent	function	export	16	29	14
+apps/website/src/features/site-backup/credential-warnings.ts	existingMarkerCounts	function		34	41	8
+apps/website/src/features/site-backup/credential-warnings.ts	addCredentialWarning	function	export	46	51	6
+apps/website/src/features/site-backup/import-archive-reader.ts	ShareZipEntry	interface		5	10	6
+apps/website/src/features/site-backup/import-archive-reader.ts	ShareYauzl	interface		12	18	7
+apps/website/src/features/site-backup/import-archive-reader.ts	requireMatchingLocalHeader	function		21	29	9
+apps/website/src/features/site-backup/import-archive-reader.ts	readLocalExtraFields	function		32	39	8
+apps/website/src/features/site-backup/import-archive-reader.ts	hasAmbiguousDirectoryMetadata	function		42	45	4
+apps/website/src/features/site-backup/import-archive-reader.ts	hasUnsupportedFeature	function		48	57	10
+apps/website/src/features/site-backup/import-archive-reader.ts	createShareArchiveReader	function	export	64	85	22
+apps/website/src/features/site-backup/import-backend-steps.ts	SiteImportSource	type	export	17	17	1
+apps/website/src/features/site-backup/import-backend-steps.ts	SiteImportView	interface	export	18	25	8
+apps/website/src/features/site-backup/import-backend-steps.ts	ParsedSiteImportInput	interface	export	26	26	1
+apps/website/src/features/site-backup/import-backend-steps.ts	refusal	function	export	28	28	1
+apps/website/src/features/site-backup/import-backend-steps.ts	INPUT_KEYS	const		30	30	1
+apps/website/src/features/site-backup/import-backend-steps.ts	REQUEST_ID	const		31	31	1
+apps/website/src/features/site-backup/import-backend-steps.ts	UPLOAD_ID	const		32	32	1
+apps/website/src/features/site-backup/import-backend-steps.ts	ARCHIVE_CONTENT_TYPES	const		33	33	1
+apps/website/src/features/site-backup/import-backend-steps.ts	parseImportInput	function	export	36	42	7
+apps/website/src/features/site-backup/import-backend-steps.ts	requireSourceShape	function		44	50	7
+apps/website/src/features/site-backup/import-backend-steps.ts	isDisplayName	function		52	54	3
+apps/website/src/features/site-backup/import-backend-steps.ts	parseUrlSource	function		56	62	7
+apps/website/src/features/site-backup/import-backend-steps.ts	parseUploadSource	function		64	67	4
+apps/website/src/features/site-backup/import-backend-steps.ts	requireFreeSpace	function	export	70	73	4
+apps/website/src/features/site-backup/import-backend-steps.ts	requireStagingBudget	function	export	76	81	6
+apps/website/src/features/site-backup/import-backend-steps.ts	deadlineSignal	function	export	84	86	3
+apps/website/src/features/site-backup/import-backend-steps.ts	consumeUpload	function	export	89	94	6
+apps/website/src/features/site-backup/import-backend-steps.ts	downloadShareArchive	function	export	101	111	11
+apps/website/src/features/site-backup/import-backend-steps.ts	reconcileInterruptedImports	function	export	119	126	8
+apps/website/src/features/site-backup/import-backend-steps.ts	reconcileCreatingRow	function		129	133	5
+apps/website/src/features/site-backup/import-backend-steps.ts	importSiteSlug	function	export	139	144	6
+apps/website/src/features/site-backup/import-backend-steps.ts	requireOwnerSetup	function	export	147	150	4
+apps/website/src/features/site-backup/import-backend-steps.ts	startImportedSite	function	export	153	161	9
+apps/website/src/features/site-backup/import-backend-steps.ts	siteImportView	function	export	164	174	11
+apps/website/src/features/site-backup/import-backend.ts	SiteImportBackend	interface	export	22	30	9
+apps/website/src/features/site-backup/import-backend.ts	parseSiteImportInput	function	export	34	36	3
+apps/website/src/features/site-backup/import-backend.ts	ImportBackendRequired	type		38	47	10
+apps/website/src/features/site-backup/import-backend.ts	ImportBackendOptional	type		48	51	4
+apps/website/src/features/site-backup/import-backend.ts	ImportBackendContext	type		54	58	5
+apps/website/src/features/site-backup/import-backend.ts	createImportContext	function		60	74	15
+apps/website/src/features/site-backup/import-backend.ts	fetchArchive	function		77	84	8
+apps/website/src/features/site-backup/import-backend.ts	verifyAndStage	function		88	104	17
+apps/website/src/features/site-backup/import-backend.ts	createImportedSite	function		108	134	27
+apps/website/src/features/site-backup/import-backend.ts	uploadImportArchive	function		136	147	12
+apps/website/src/features/site-backup/import-backend.ts	startImportFromSource	function		149	166	18
+apps/website/src/features/site-backup/import-backend.ts	completeImportOwner	function		168	198	31
+apps/website/src/features/site-backup/import-backend.ts	createSiteImportBackend	function	export	204	215	12
+apps/website/src/features/site-backup/import-database.ts	ImportWorkerChild	interface	export	16	21	6
+apps/website/src/features/site-backup/import-database.ts	RebuildImportDatabaseOptions	interface	export	24	29	6
+apps/website/src/features/site-backup/import-database.ts	importWorkerLaunch	function	export	32	36	5
+apps/website/src/features/site-backup/import-database.ts	requireWorkerSuccess	function		43	48	6
+apps/website/src/features/site-backup/import-database.ts	rebuildImportDatabase	function	export	55	112	58
+apps/website/src/features/site-backup/import-database.ts	tidyImportDatabases	function	export	118	129	12
+apps/website/src/features/site-backup/import-database.ts	isImportDatabaseLeftover	function		132	134	3
+apps/website/src/features/site-backup/import-database.ts	isLockedByAnotherOwner	function		137	139	3
+apps/website/src/features/site-backup/import-keep-off.ts	LIVE_THEME_FILE	const		18	18	1
+apps/website/src/features/site-backup/import-keep-off.ts	INERT_DROPS	const		20	20	1
+apps/website/src/features/site-backup/import-keep-off.ts	MAX_PAGE_NOTICES	const		21	21	1
+apps/website/src/features/site-backup/import-keep-off.ts	MAX_NOTICE_TITLE	const		22	22	1
+apps/website/src/features/site-backup/import-keep-off.ts	Kernel	type		24	24	1
+apps/website/src/features/site-backup/import-keep-off.ts	unrecognisedThemes	function	export	31	39	9
+apps/website/src/features/site-backup/import-keep-off.ts	sameBytes	function		41	43	3
+apps/website/src/features/site-backup/import-keep-off.ts	pageBodyMayRunScript	function	export	50	54	5
+apps/website/src/features/site-backup/import-keep-off.ts	formBodyMayRunScript	function		57	76	20
+apps/website/src/features/site-backup/import-keep-off.ts	attributeHoldsMarkup	function		78	89	12
+apps/website/src/features/site-backup/import-keep-off.ts	keepThemesOff	function		97	108	12
+apps/website/src/features/site-backup/import-keep-off.ts	keepPagesOff	function		115	123	9
+apps/website/src/features/site-backup/import-keep-off.ts	keepImportedCodeOff	function	export	130	142	13
+apps/website/src/features/site-backup/import-keep-off.ts	keepMenusOff	function		149	165	17
+apps/website/src/features/site-backup/import-keep-off.ts	keepFormsOff	function		172	188	17
+apps/website/src/features/site-backup/import-plugin-state.ts	InstalledPlugin	type		10	10	1
+apps/website/src/features/site-backup/import-plugin-state.ts	MemoryDirs	type		11	11	1
+apps/website/src/features/site-backup/import-plugin-state.ts	ImportedExtensionState	interface	export	14	21	8
+apps/website/src/features/site-backup/import-plugin-state.ts	restoreImportedPluginState	function	export	27	52	26
+apps/website/src/features/site-backup/import-plugin-state.ts	importedActivation	function		63	68	6
+apps/website/src/features/site-backup/import-plugin-state.ts	placeImportedMemory	function		72	82	11
+apps/website/src/features/site-backup/import-registry.ts	UPLOAD_METADATA_SUFFIX	const		8	8	1
+apps/website/src/features/site-backup/import-registry.ts	SiteImportRecord	interface	export	10	29	20
+apps/website/src/features/site-backup/import-registry.ts	SiteImportUpload	interface	export	30	30	1
+apps/website/src/features/site-backup/import-registry.ts	ID	const		31	31	1
+apps/website/src/features/site-backup/import-registry.ts	UPLOAD_TTL_MS	const		33	33	1
+apps/website/src/features/site-backup/import-registry.ts	STAGED_STATUSES	const		35	35	1
+apps/website/src/features/site-backup/import-registry.ts	withoutQuery	function	export	37	42	6
+apps/website/src/features/site-backup/import-registry.ts	importSourceDigest	function	export	44	48	5
+apps/website/src/features/site-backup/import-registry.ts	recordIdOf	function		50	53	4
+apps/website/src/features/site-backup/import-registry.ts	SiteImportRegistry	class	export	58	162	105
+apps/website/src/features/site-backup/import-restore-placement.ts	ThemeManifestFindings	interface	export	13	16	4
+apps/website/src/features/site-backup/import-restore-placement.ts	ThemeManifestVerdict	type		18	18	1
+apps/website/src/features/site-backup/import-restore-placement.ts	CompiledBuild	type		20	20	1
+apps/website/src/features/site-backup/import-restore-placement.ts	PLAIN	const		21	21	1
+apps/website/src/features/site-backup/import-restore-placement.ts	QUARANTINE	const		22	22	1
+apps/website/src/features/site-backup/import-restore-placement.ts	THEME_MANIFEST	const		24	24	1
+apps/website/src/features/site-backup/import-restore-placement.ts	THEME_FILE	const		25	25	1
+apps/website/src/features/site-backup/import-restore-placement.ts	THEME_ID	const		26	26	1
+apps/website/src/features/site-backup/import-restore-placement.ts	STATIC_ASSETS	const		27	30	4
+apps/website/src/features/site-backup/import-restore-placement.ts	inspectThemeManifests	function	export	37	49	13
+apps/website/src/features/site-backup/import-restore-placement.ts	inspectThemeManifest	function		51	58	8
+apps/website/src/features/site-backup/import-restore-placement.ts	inspectCompiledTheme	function		61	71	11
+apps/website/src/features/site-backup/import-restore-placement.ts	liveThemeTrees	function	export	78	92	15
+apps/website/src/features/site-backup/import-restore-placement.ts	isCompiledSource	function		94	97	4
+apps/website/src/features/site-backup/import-restore-placement.ts	restoreDestination	function	export	103	110	8
+apps/website/src/features/site-backup/import-restore-placement.ts	writeExclusive	function	export	116	122	7
+apps/website/src/features/site-backup/import-restore.ts	stageVerifiedImport	function	export	14	22	9
+apps/website/src/features/site-backup/import-restore.ts	keptOffUnits	function		31	37	7
+apps/website/src/features/site-backup/import-restore.ts	stagedCodeUnit	function		40	45	6
+apps/website/src/features/site-backup/import-restore.ts	restoreStagedImport	function	export	52	75	24
+apps/website/src/features/site-backup/import-restore.ts	restoreOptionalSavedKeys	function		80	88	9
+apps/website/src/features/site-backup/import-restore.ts	addStagedWarnings	function		91	96	6
+apps/website/src/features/site-backup/import-restore.ts	stagedImportWarnings	function	export	99	104	6
+apps/website/src/features/site-backup/import-verifier-inventory.ts	FileEntry	type		17	17	1
+apps/website/src/features/site-backup/import-verifier-inventory.ts	InventoryRecord	interface	export	20	20	1
+apps/website/src/features/site-backup/import-verifier-inventory.ts	SupportedShareManifest	type	export	23	23	1
+apps/website/src/features/site-backup/import-verifier-inventory.ts	ArchiveScan	interface	export	26	32	7
+apps/website/src/features/site-backup/import-verifier-inventory.ts	EntryClaims	interface		35	40	6
+apps/website/src/features/site-backup/import-verifier-inventory.ts	SHARE_INVENTORY_ROOTS	const		42	42	1
+apps/website/src/features/site-backup/import-verifier-inventory.ts	SHARE_SETTINGS_FILES	const		43	43	1
+apps/website/src/features/site-backup/import-verifier-inventory.ts	refuseArchive	function	export	45	45	1
+apps/website/src/features/site-backup/import-verifier-inventory.ts	sha256Hex	function	export	48	48	1
+apps/website/src/features/site-backup/import-verifier-inventory.ts	scanArchiveMetadata	function	export	57	73	17
+apps/website/src/features/site-backup/import-verifier-inventory.ts	sharedWrapperFolder	function		81	88	8
+apps/website/src/features/site-backup/import-verifier-inventory.ts	readManifest	function		92	98	7
+apps/website/src/features/site-backup/import-verifier-inventory.ts	ignoredArchivePath	function	export	101	103	3
+apps/website/src/features/site-backup/import-verifier-inventory.ts	stripArchiveWrapper	function		104	109	6
+apps/website/src/features/site-backup/import-verifier-inventory.ts	claimEntry	function		112	121	10
+apps/website/src/features/site-backup/import-verifier-inventory.ts	claimDirectory	function		123	128	6
+apps/website/src/features/site-backup/import-verifier-inventory.ts	claimFile	function		130	139	10
+apps/website/src/features/site-backup/import-verifier-inventory.ts	parseShareManifest	function	export	146	148	3
+apps/website/src/features/site-backup/import-verifier-inventory.ts	buildManifestInventory	function	export	156	167	12
+apps/website/src/features/site-backup/import-verifier-inventory.ts	refusedInventoryPath	function		169	174	6
+apps/website/src/features/site-backup/import-verifier-inventory.ts	checkArchiveMatchesInventory	function	export	181	185	5
+apps/website/src/features/site-backup/import-verifier-inventory.ts	readListedFiles	function	export	193	207	15
+apps/website/src/features/site-backup/import-verifier-inventory.ts	retainListedFile	function		210	214	5
+apps/website/src/features/site-backup/import-verifier-inventory.ts	readListedFile	function		216	226	11
+apps/website/src/features/site-backup/import-verifier-inventory.ts	readBounded	function		229	240	12
+apps/website/src/features/site-backup/import-verifier-inventory.ts	validateRawEntry	function		242	247	6
+apps/website/src/features/site-backup/import-verifier-inventory.ts	claimNormalizedEntries	function		249	257	9
+apps/website/src/features/site-backup/import-verifier-inventory.ts	verifyListedIntegrity	function		260	264	5
+apps/website/src/features/site-backup/import-verifier-projection.ts	DocumentAdmission	type	export	15	15	1
+apps/website/src/features/site-backup/import-verifier-projection.ts	applyShareProjection	function	export	23	31	9
+apps/website/src/features/site-backup/import-verifier-projection.ts	placeArchiveMedia	function		34	49	16
+apps/website/src/features/site-backup/import-verifier-projection.ts	checkProjectedMedia	function		51	58	8
+apps/website/src/features/site-backup/import-verifier-projection.ts	admitProjectedDocuments	function	export	65	76	12
+apps/website/src/features/site-backup/import-verifier-projection.ts	defaultDocumentAdmission	function		78	81	4
+apps/website/src/features/site-backup/import-verifier-projection.ts	applyDestinationMoves	function		87	99	13
+apps/website/src/features/site-backup/import-verifier.ts	VerifiedSiteImport	interface	export	13	23	11
+apps/website/src/features/site-backup/import-verifier.ts	verifySiteImport	function	export	31	58	28
+apps/website/src/features/site-backup/import-verifier.ts	bundledIdentical	function		61	69	9
+apps/website/src/features/site-backup/package-file-inventory.ts	readBundledPackageFiles	function	export	25	44	20
+apps/website/src/features/site-backup/package-file-inventory.ts	readBundledImportPluginIds	function	export	51	54	4
+apps/website/src/features/site-backup/package-file-inventory.ts	bundledSourceRoot	function		56	58	3
+apps/website/src/features/site-backup/package-file-inventory.ts	packedFileHashes	function		61	70	10
+apps/website/src/features/site-backup/plan-store.ts	SiteBackupCommonContent	interface	export	24	39	16
+apps/website/src/features/site-backup/plan-store.ts	SiteBackupPlanContent	interface	export	42	52	11
+apps/website/src/features/site-backup/plan-store.ts	SiteSharePlanContent	interface	export	54	66	13
+apps/website/src/features/site-backup/plan-store.ts	SiteBackupPlan	type	export	68	73	6
+apps/website/src/features/site-backup/plan-store.ts	TakeSiteBackupPlanResult	type	export	75	75	1
+apps/website/src/features/site-backup/plan-store.ts	DEFAULT_PLAN_TTL_MS	const	export	77	77	1
+apps/website/src/features/site-backup/plan-store.ts	DEFAULT_MAX_PLANS	const	export	78	78	1
+apps/website/src/features/site-backup/plan-store.ts	DEFAULT_MAX_TOTAL_PLANS	const	export	79	79	1
+apps/website/src/features/site-backup/plan-store.ts	SiteBackupPlanStore	class	export	81	135	55
+apps/website/src/features/site-backup/plan-store.ts	siteBackupPlanStore	const	export	138	138	1
+apps/website/src/features/site-backup/push-engine.ts	SITE_BACKUP_UPLOAD_CONCURRENCY	const	export	25	25	1
+apps/website/src/features/site-backup/push-engine.ts	INLINE_TEXT_BUDGET_BYTES	const		28	28	1
+apps/website/src/features/site-backup/push-engine.ts	PushFailure	interface	export	30	34	5
+apps/website/src/features/site-backup/push-engine.ts	SiteBackupPushProgress	interface	export	37	42	6
+apps/website/src/features/site-backup/push-engine.ts	UploadPlannedContentInput	interface	export	44	54	11
+apps/website/src/features/site-backup/push-engine.ts	CANCELLED	const	export	56	56	1
+apps/website/src/features/site-backup/push-engine.ts	initialPushProgress	function	export	59	61	3
+apps/website/src/features/site-backup/push-engine.ts	PendingFile	interface		64	67	4
+apps/website/src/features/site-backup/push-engine.ts	asUtf8Text	function		70	77	8
+apps/website/src/features/site-backup/push-engine.ts	EntryBuilder	class		81	116	36
+apps/website/src/features/site-backup/push-engine.ts	pendingFiles	function		119	130	12
+apps/website/src/features/site-backup/push-engine.ts	runBounded	function		138	151	14
+apps/website/src/features/site-backup/push-engine.ts	uploadPlannedContent	function	export	158	191	34
+apps/website/src/features/site-backup/push-jobs.ts	PushJobKey	interface	export	19	23	5
+apps/website/src/features/site-backup/push-jobs.ts	PushJob	interface		25	34	10
+apps/website/src/features/site-backup/push-jobs.ts	PushJobWait	type	export	36	39	4
+apps/website/src/features/site-backup/push-jobs.ts	FINISHED_JOB_TTL_MS	const	export	41	41	1
+apps/website/src/features/site-backup/push-jobs.ts	SiteBackupPushJobs	class	export	43	121	79
+apps/website/src/features/site-backup/saved-keys-port.ts	SiteSavedKeysPort	interface	export	7	15	9
+apps/website/src/features/site-backup/saved-keys-port.ts	SAVED_KEYS_PATH	const	export	17	17	1
+apps/website/src/features/site-backup/saved-keys-port.ts	ENCRYPTED_KEYS_DESCRIPTOR	const	export	18	18	1
+apps/website/src/features/site-backup/saved-keys.ts	SiteSavedKeysDeps	interface	export	5	8	4
+apps/website/src/features/site-backup/saved-keys.ts	passwordAad	function		10	13	4
+apps/website/src/features/site-backup/saved-keys.ts	leaveSavedKeysOut	const	export	18	21	4
+apps/website/src/features/site-backup/saved-keys.ts	createSiteSavedKeys	function	export	32	43	12
+apps/website/src/features/site-backup/share-backend.ts	SiteShareBackend	interface	export	19	29	11
+apps/website/src/features/site-backup/share-backend.ts	SiteShareView	type	export	30	30	1
+apps/website/src/features/site-backup/share-backend.ts	ExportedShare	type		32	32	1
+apps/website/src/features/site-backup/share-backend.ts	DOMAINLESS_DISCOVERY_NOTICE	const		34	34	1
+apps/website/src/features/site-backup/share-backend.ts	exportFailure	function		37	40	4
+apps/website/src/features/site-backup/share-backend.ts	runExportStage	function		47	57	11
+apps/website/src/features/site-backup/share-backend.ts	view	function		60	63	4
+apps/website/src/features/site-backup/share-backend.ts	createOutcome	function		66	74	9
+apps/website/src/features/site-backup/share-backend.ts	staticRoster	function		79	84	6
+apps/website/src/features/site-backup/share-backend.ts	retainStaticCapture	function		91	100	10
+apps/website/src/features/site-backup/share-backend.ts	captureSelection	function		106	127	22
+apps/website/src/features/site-backup/share-backend.ts	requireCredentialFreeExport	function		131	134	4
+apps/website/src/features/site-backup/share-backend.ts	ShareBackendRequired	type		136	145	10
+apps/website/src/features/site-backup/share-backend.ts	ShareBackendOptional	type		146	146	1
+apps/website/src/features/site-backup/share-backend.ts	ShareBackendContext	type		148	148	1
+apps/website/src/features/site-backup/share-backend.ts	ShareExportInput	type		149	149	1
+apps/website/src/features/site-backup/share-backend.ts	ShareExportStage	type		150	150	1
+apps/website/src/features/site-backup/share-backend.ts	exportStaticShare	function		153	164	12
+apps/website/src/features/site-backup/share-backend.ts	exportBackupShare	function		167	187	21
+apps/website/src/features/site-backup/share-backend.ts	exportShare	function		190	196	7
+apps/website/src/features/site-backup/share-backend.ts	startExport	function		199	205	7
+apps/website/src/features/site-backup/share-backend.ts	staticShareOptions	function		207	213	7
+apps/website/src/features/site-backup/share-backend.ts	ShareCreateInput	type		215	215	1
+apps/website/src/features/site-backup/share-backend.ts	createShare	function		217	227	11
+apps/website/src/features/site-backup/share-backend.ts	acknowledgeShare	function		229	239	11
+apps/website/src/features/site-backup/share-backend.ts	revealSharePassword	function		241	248	8
+apps/website/src/features/site-backup/share-backend.ts	revokeShare	function		250	261	12
+apps/website/src/features/site-backup/share-backend.ts	createSiteShareBackend	function	export	267	279	13
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	Row	type		24	24	1
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	Tables	type		25	25	1
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	Kernel	type		26	26	1
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	StagingSpacePort	type	export	28	28	1
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	prepareSharePluginTables	function	export	35	45	11
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	sharePluginPlan	function		51	62	12
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	portableColumnsOnly	function		66	70	5
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	declarePortableTables	function		75	83	9
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	refuseUnknownShareTables	function	export	91	97	7
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	ADDITIVE_COLUMN_DEFAULTS	const		101	104	4
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	requireTrustedColumns	function		110	114	5
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	copyTable	function		121	137	17
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	omitMediaReferences	function		142	148	7
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	SIDECAR_TABLES	const		150	150	1
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	MediaOwners	interface		153	158	6
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	ownerKey	function		161	163	3
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	mediaRowProjection	function		169	180	12
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	projectMediaRow	function		184	188	5
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	indexMediaOwners	function		192	208	17
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	projectAssetBlob	function		211	215	5
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	projectRendition	function		220	231	12
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	documentReferences	function		236	249	14
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	warnPortableRow	function		255	260	6
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	copySettings	function		263	274	12
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	portableDefinitionSchema	function		279	285	7
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	copyWorkspaceValues	function		289	297	9
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	portableValue	function		302	307	6
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	sanitizeShareDatabase	function	export	317	352	36
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	copyPortableTables	function		355	365	11
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	archiveMediaSources	function		368	387	20
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	rewriteArchiveMedia	function	export	394	407	14
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	rewriteMediaRows	function		409	431	23
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	archiveBlobRow	function		434	440	7
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts	renditionHash	function		442	445	4
+apps/website/src/features/site-backup/share-export-failure.ts	SiteShareExportStep	type	export	2	2	1
+apps/website/src/features/site-backup/share-export-failure.ts	SiteShareExportFailure	class	export	5	19	15
+apps/website/src/features/site-backup/share-export-failure.ts	SITE_EXPORT_FAILURE_MESSAGES	const	export	22	26	5
+apps/website/src/features/site-backup/share-file-policy.ts	PACKAGE_CONTENT_ROOT	const		7	7	1
+apps/website/src/features/site-backup/share-file-policy.ts	PACKAGE_MANIFEST_NAMES	const		9	9	1
+apps/website/src/features/site-backup/share-file-policy.ts	PackageFileInventory	type	export	13	13	1
+apps/website/src/features/site-backup/share-file-policy.ts	SHARED_PLUGIN_MEMORY	const	export	17	17	1
+apps/website/src/features/site-backup/share-file-policy.ts	PRIVATE_PLUGIN_MEMORY	const		18	18	1
+apps/website/src/features/site-backup/share-file-policy.ts	AGENT_PLUGIN_RUNTIME	const		19	19	1
+apps/website/src/features/site-backup/share-file-policy.ts	excludedRuntimeSharePath	function		21	32	12
+apps/website/src/features/site-backup/share-file-policy.ts	CREDENTIAL_NAME	const		35	35	1
+apps/website/src/features/site-backup/share-file-policy.ts	suspiciousSharePart	function		38	42	5
+apps/website/src/features/site-backup/share-file-policy.ts	secretSharePath	function	export	47	57	11
+apps/website/src/features/site-backup/share-file-policy.ts	credentialFileName	function		60	64	5
+apps/website/src/features/site-backup/share-file-policy.ts	excludedSharePath	function	export	67	78	12
+apps/website/src/features/site-backup/share-file-policy.ts	hasUnportableSpelling	function		81	87	7
+apps/website/src/features/site-backup/share-file-policy.ts	validateSharePath	function	export	90	103	14
+apps/website/src/features/site-backup/share-file-policy.ts	requireShareSecretFree	function	export	110	118	9
+apps/website/src/features/site-backup/share-file-policy.ts	unsafeSharePath	function		120	120	1
+apps/website/src/features/site-backup/share-file-policy.ts	sharePathAlias	function	export	123	123	1
+apps/website/src/features/site-backup/share-file-policy.ts	claimSharePath	function	export	129	145	17
+apps/website/src/features/site-backup/share-hosting.ts	ARTIFACT_KEY	const		10	10	1
+apps/website/src/features/site-backup/share-hosting.ts	parseArtifactKey	function		13	17	5
+apps/website/src/features/site-backup/share-hosting.ts	isPublicAttachment	function		20	24	5
+apps/website/src/features/site-backup/share-hosting.ts	verifyServerShare	function		27	34	8
+apps/website/src/features/site-backup/share-hosting.ts	createRuntimeShareDelivery	function	export	37	59	23
+apps/website/src/features/site-backup/share-hosting.ts	createPeerShareDelivery	function	export	63	81	19
+apps/website/src/features/site-backup/share-hosting.ts	ShareDeliverySources	type		83	90	8
+apps/website/src/features/site-backup/share-hosting.ts	SavedShareDelivery	type		91	91	1
+apps/website/src/features/site-backup/share-hosting.ts	bindingMatches	function		94	96	3
+apps/website/src/features/site-backup/share-hosting.ts	resolveServerDelivery	function		99	106	8
+apps/website/src/features/site-backup/share-hosting.ts	runtimeDelivery	function		110	116	7
+apps/website/src/features/site-backup/share-hosting.ts	resolveObjectStoreDelivery	function		119	125	7
+apps/website/src/features/site-backup/share-hosting.ts	resolveShareDelivery	function	export	129	137	9
+apps/website/src/features/site-backup/share-policy.ts	SHARE_VERSION_MISMATCH_MESSAGE	const	export	7	7	1
+apps/website/src/features/site-backup/share-policy.ts	IMPORT_SCHEMA_MISMATCH_EXIT_CODE	const	export	9	9	1
+apps/website/src/features/site-backup/share-policy.ts	IMPORT_REFUSAL_EXIT_CODE	const	export	11	11	1
+apps/website/src/features/site-backup/share-policy.ts	SHARE_TABLES	const	export	13	19	7
+apps/website/src/features/site-backup/share-policy.ts	SHARE_LEGACY_PRIVATE_TABLES	const	export	22	33	12
+apps/website/src/features/site-backup/share-policy.ts	SiteShareRefusal	class	export	35	38	4
+apps/website/src/features/site-backup/share-policy.ts	archiveRefusalName	function	export	44	49	6
+apps/website/src/features/site-backup/share-policy.ts	checkShareLimits	function	export	52	58	7
+apps/website/src/features/site-backup/share-policy.ts	ArchiveMediaSource	interface	export	61	67	7
+apps/website/src/features/site-backup/share-policy.ts	ShareDatabaseProjection	interface	export	69	77	9
+apps/website/src/features/site-backup/share-policy.ts	ShareDatabaseSanitizer	type	export	78	78	1
+apps/website/src/features/site-backup/share-preparation-steps.ts	ShareBlobStore	type		15	15	1
+apps/website/src/features/site-backup/share-preparation-steps.ts	ShareLedger	interface	export	18	22	5
+apps/website/src/features/site-backup/share-preparation-steps.ts	PROVENANCE_KEYS	const		24	24	1
+apps/website/src/features/site-backup/share-preparation-steps.ts	PROVENANCE_TEXT	const		25	25	1
+apps/website/src/features/site-backup/share-preparation-steps.ts	addBuffered	function	export	28	32	5
+apps/website/src/features/site-backup/share-preparation-steps.ts	captureProjectedDatabase	function	export	41	47	7
+apps/website/src/features/site-backup/share-preparation-steps.ts	collectShareFiles	function	export	50	58	9
+apps/website/src/features/site-backup/share-preparation-steps.ts	reportedBlobSize	function	export	60	68	9
+apps/website/src/features/site-backup/share-preparation-steps.ts	fetchVerifiedBlob	function	export	70	75	6
+apps/website/src/features/site-backup/share-preparation-steps.ts	addPortableSettings	function	export	81	87	7
+apps/website/src/features/site-backup/share-preparation-steps.ts	pickProvenance	function		89	99	11
+apps/website/src/features/site-backup/share-preparation-steps.ts	readPortableJson	function		102	112	11
+apps/website/src/features/site-backup/share-preparation.ts	prepareShareContent	function	export	22	43	22
+apps/website/src/features/site-backup/share-preparation.ts	preparationNotices	function		46	48	3
+apps/website/src/features/site-backup/share-registry.ts	SiteShareRecord	interface	export	6	24	19
+apps/website/src/features/site-backup/share-registry.ts	ID	const		25	25	1
+apps/website/src/features/site-backup/share-registry.ts	ASCII_LETTERS	const		29	29	1
+apps/website/src/features/site-backup/share-registry.ts	SHARE_TOKEN_ALPHABET	const	export	30	30	1
+apps/website/src/features/site-backup/share-registry.ts	SHARE_TOKEN_LENGTH	const	export	31	31	1
+apps/website/src/features/site-backup/share-registry.ts	SHARE_TOKEN_PATTERN	const	export	32	32	1
+apps/website/src/features/site-backup/share-registry.ts	SHARE_TOKEN	const	export	33	33	1
+apps/website/src/features/site-backup/share-registry.ts	SHARE_FILE	const	export	34	34	1
+apps/website/src/features/site-backup/share-registry.ts	SiteShareRegistry	class	export	42	136	95
+apps/website/src/features/site-backup/share-registry.ts	servesToken	function		139	141	3
+apps/website/src/features/site-backup/share-registry.ts	newShareIdentity	function	export	148	151	4
+apps/website/src/features/site-backup/share-service.ts	SHARE_DOWNLOAD_HEADERS	const	export	8	14	7
+apps/website/src/features/site-backup/share-service.ts	ShareDelivery	interface	export	15	15	1
+apps/website/src/features/site-backup/share-service.ts	privateExportMetadata	function		18	21	4
+apps/website/src/features/site-backup/share-service.ts	receiveSiteShareArtifact	function	export	24	33	10
+apps/website/src/features/site-backup/share-service.ts	createSiteShare	function	export	36	45	10
+apps/website/src/features/site-backup/share-service.ts	shareFileStem	function	export	48	50	3
+apps/website/src/features/site-backup/share-service.ts	deliveryStorage	function		52	54	3
+apps/website/src/features/site-backup/share-service.ts	isOwnShareFolder	function	export	62	64	3
+apps/website/src/features/site-backup/share-service.ts	cancelReceivedShare	function		66	70	5
+apps/website/src/features/site-backup/share-service.ts	deliverShare	function		72	93	22
+apps/website/src/features/site-backup/share-service.ts	purgeFailedDelivery	function		95	104	10
+apps/website/src/features/site-backup/share-service.ts	revokeSiteShare	function	export	107	114	8
+apps/website/src/features/site-backup/share-service.ts	deleteRemoteArtifact	function		116	124	9
+apps/website/src/features/site-backup/share-service.ts	acknowledgeSiteShare	function	export	132	145	14
+apps/website/src/features/site-backup/share-service.ts	assertOriginalDelivery	function		148	152	5
+apps/website/src/features/site-backup/share-zip.ts	ShareZipEntry	type		17	17	1
+apps/website/src/features/site-backup/share-zip.ts	ShareZipProgressOptions	type		18	18	1
+apps/website/src/features/site-backup/share-zip.ts	CollectedShareEntries	interface		20	20	1
+apps/website/src/features/site-backup/share-zip.ts	inMemoryEntries	function		23	26	4
+apps/website/src/features/site-backup/share-zip.ts	claimArchivePaths	function	export	29	33	5
+apps/website/src/features/site-backup/share-zip.ts	addEntry	function		36	53	18
+apps/website/src/features/site-backup/share-zip.ts	addBackupEntry	function		58	63	6
+apps/website/src/features/site-backup/share-zip.ts	addDiskFiles	function		66	73	8
+apps/website/src/features/site-backup/share-zip.ts	buildManifestFile	function		76	86	11
+apps/website/src/features/site-backup/share-zip.ts	retainedPlugins	function		88	90	3
+apps/website/src/features/site-backup/share-zip.ts	encodeShareZip	function		93	100	8
+apps/website/src/features/site-backup/share-zip.ts	buildShareZipContent	function		108	123	16
+apps/website/src/features/site-backup/share-zip.ts	buildShareZip	function	export	128	132	5
+apps/website/src/features/site-backup/share-zip.ts	staticCopyOmission	function		135	139	5
+apps/website/src/features/site-backup/share-zip.ts	buildStaticSiteZip	function	export	142	151	10
+apps/website/src/features/site-backup/sources.ts	SiteBackupScope	type	export	43	43	1
+apps/website/src/features/site-backup/sources.ts	SITE_BACKUP_SCOPES	const	export	46	46	1
+apps/website/src/features/site-backup/sources.ts	SiteBackupInclude	type	export	49	49	1
+apps/website/src/features/site-backup/sources.ts	MIB	const		51	51	1
+apps/website/src/features/site-backup/sources.ts	SITE_BACKUP_LIMITS	const	export	56	56	1
+apps/website/src/features/site-backup/sources.ts	SiteBackupHostLimit	interface	export	60	63	4
+apps/website/src/features/site-backup/sources.ts	SiteBackupLimits	interface	export	65	68	4
+apps/website/src/features/site-backup/sources.ts	SITE_BACKUP_MANIFEST_PATH	const	export	71	71	1
+apps/website/src/features/site-backup/sources.ts	SITE_BACKUP_DATABASE_PATH	const	export	72	72	1
+apps/website/src/features/site-backup/sources.ts	SiteBackupSources	interface	export	77	98	22
+apps/website/src/features/site-backup/sources.ts	PlannedDiskFile	interface	export	102	114	13
+apps/website/src/features/site-backup/sources.ts	SkippedSiteBackupFile	interface	export	116	119	4
+apps/website/src/features/site-backup/sources.ts	CollectedSiteBackupFiles	interface	export	121	126	6
+apps/website/src/features/site-backup/sources.ts	IGNORED_NAMES	const		133	133	1
+apps/website/src/features/site-backup/sources.ts	SYMLINK_REASON	const		135	135	1
+apps/website/src/features/site-backup/sources.ts	WalkSink	interface		138	144	7
+apps/website/src/features/site-backup/sources.ts	SiteBackupWalkFileSystem	interface	export	147	151	5
+apps/website/src/features/site-backup/sources.ts	WALK_FILE_SYSTEM	const		153	157	5
+apps/website/src/features/site-backup/sources.ts	isMissing	function		159	161	3
+apps/website/src/features/site-backup/sources.ts	readdirOrEmpty	function		165	172	8
+apps/website/src/features/site-backup/sources.ts	addFile	function		180	201	22
+apps/website/src/features/site-backup/sources.ts	checkShareFile	function		204	209	6
+apps/website/src/features/site-backup/sources.ts	walkTree	function		218	225	8
+apps/website/src/features/site-backup/sources.ts	enterShareDirectory	function		228	235	8
+apps/website/src/features/site-backup/sources.ts	skippedWalkEntry	function		237	245	9
+apps/website/src/features/site-backup/sources.ts	walkEntry	function		247	258	12
+apps/website/src/features/site-backup/sources.ts	PLUGIN_WORKSPACE_FILES	const		263	263	1
+apps/website/src/features/site-backup/sources.ts	agentPluginsRelPath	function		266	268	3
+apps/website/src/features/site-backup/sources.ts	walkOwnedDir	function		277	290	14
+apps/website/src/features/site-backup/sources.ts	walkAgentPlugins	function		302	307	6
+apps/website/src/features/site-backup/sources.ts	PluginWorkspace	type		309	309	1
+apps/website/src/features/site-backup/sources.ts	installerWorkspace	function		312	333	22
+apps/website/src/features/site-backup/sources.ts	walkPluginWorkspace	function		335	343	9
+apps/website/src/features/site-backup/sources.ts	walkInstalledPlugin	function		345	366	22
+apps/website/src/features/site-backup/sources.ts	MEDIA_IN_OBJECT_STORAGE_NOTE	const		369	370	2
+apps/website/src/features/site-backup/sources.ts	collectSiteBackupFiles	function	export	382	402	21
+apps/website/src/features/site-backup/sources.ts	pinShareThemeFiles	function		409	426	18
+apps/website/src/features/site-backup/sources.ts	byPath	function		429	431	3
+apps/website/src/features/site-backup/sources.ts	collectMediaScope	function		434	438	5
+apps/website/src/features/site-backup/sources.ts	collectPluginScope	function		441	451	11
+apps/website/src/features/site-backup/sources.ts	collectShareOnlyTrees	function		454	458	5
+apps/website/src/features/site-backup/sources.ts	walkSitePlugins	function		469	482	14
+apps/website/src/features/site-backup/sources.ts	sitePluginPackageFiles	function		488	513	26
+apps/website/src/features/site-backup/sources.ts	sha256Hex	function		515	517	3
+apps/website/src/features/site-backup/sources.ts	DatabaseSnapshotResult	type	export	519	519	1
+apps/website/src/features/site-backup/sources.ts	SNAPSHOT_FAILED	const		521	521	1
+apps/website/src/features/site-backup/sources.ts	captureDatabaseSnapshot	function	export	536	556	21
+apps/website/src/features/site-backup/sources.ts	readRestorePoint	function		559	579	21
+apps/website/src/features/site-backup/sources.ts	oneDecimal	function		582	584	3
+apps/website/src/features/site-backup/sources.ts	formatByteSize	function	export	587	592	6
+apps/website/src/features/site-backup/sources.ts	skipOversizedFiles	function	export	602	609	8
+apps/website/src/features/site-backup/sources.ts	SiteBackupLimitsResult	type	export	611	611	1
+apps/website/src/features/site-backup/sources.ts	checkSiteBackupLimits	function	export	621	641	21
+apps/website/src/features/site-backup/sources.ts	ReadPlannedFileResult	type	export	643	643	1
+apps/website/src/features/site-backup/sources.ts	SiteBackupReadHandle	type	export	646	646	1
+apps/website/src/features/site-backup/sources.ts	ReadPlannedFileOptions	type		647	647	1
+apps/website/src/features/site-backup/sources.ts	readPlannedFile	function	export	659	662	4
+apps/website/src/features/site-backup/sources.ts	staleResult	function		664	666	3
+apps/website/src/features/site-backup/sources.ts	readDiskFile	function		670	682	13
+apps/website/src/features/site-backup/sources.ts	SiteBackupManifestInput	interface	export	684	694	11
+apps/website/src/features/site-backup/sources.ts	buildSiteBackupManifest	function	export	703	722	20
+apps/website/src/features/site-backup/static-copy.ts	StaticSiteMetadata	interface	export	8	16	9
+apps/website/src/features/site-backup/static-copy.ts	StaticSiteCopy	type	export	17	17	1
+apps/website/src/features/site-backup/static-copy.ts	StaticSitePorts	interface	export	18	24	7
+apps/website/src/features/site-backup/static-copy.ts	isStaticSitePath	function	export	27	29	3
+apps/website/src/features/site-backup/static-copy.ts	exportStamp	function		32	41	10
+apps/website/src/features/site-backup/static-copy.ts	readmeText	function	export	47	66	20
+apps/website/src/features/site-backup/static-copy.ts	failedAssetNote	function		69	72	4
+apps/website/src/features/site-backup/static-copy.ts	serverFeatureName	function		75	78	4
+apps/website/src/features/site-backup/static-copy.ts	copyCounts	function		81	85	5
+apps/website/src/features/site-backup/static-copy.ts	downloadableFiles	function		88	98	11
+apps/website/src/features/site-backup/static-copy.ts	reportFiles	function		101	103	3
+apps/website/src/features/site-backup/static-copy.ts	prepareStaticReport	function	export	109	117	9
+apps/website/src/features/site-backup/static-copy.ts	partialFiles	function		120	127	8
+apps/website/src/features/site-backup/static-copy.ts	renderCopy	function		130	141	12
+apps/website/src/features/site-backup/static-copy.ts	stampedCopy	function		144	153	10
+apps/website/src/features/site-backup/static-copy.ts	captureStaticSite	function	export	160	171	12
+apps/website/src/features/site-backup/static-download-landing.ts	LandingPage	interface	export	5	5	1
+apps/website/src/features/site-backup/static-download-landing.ts	LandingTheme	interface	export	7	7	1
+apps/website/src/features/site-backup/static-download-landing.ts	TITLE_LIMIT	const		9	9	1
+apps/website/src/features/site-backup/static-download-landing.ts	pageTitle	function		12	18	7
+apps/website/src/features/site-backup/static-download-landing.ts	pageLabel	function		21	24	4
+apps/website/src/features/site-backup/static-download-landing.ts	relativeHref	function		27	29	3
+apps/website/src/features/site-backup/static-download-landing.ts	landingPages	function	export	35	43	9
+apps/website/src/features/site-backup/static-download-landing.ts	withoutSharedSuffix	function		46	50	5
+apps/website/src/features/site-backup/static-download-landing.ts	STYLE	const		52	78	27
+apps/website/src/features/site-backup/static-download-landing.ts	themeCard	function		81	89	9
+apps/website/src/features/site-backup/static-download-landing.ts	staticLandingPage	function	export	97	105	9
+apps/website/src/features/site-backup/static-download-landing.ts	LANDING_FILE	const	export	108	108	1
+apps/website/src/features/site-backup/static-download-layout.ts	StaticDownloadCopy	interface	export	11	20	10
+apps/website/src/features/site-backup/static-download-layout.ts	Copy	type		21	21	1
+apps/website/src/features/site-backup/static-download-layout.ts	File	type		22	22	1
+apps/website/src/features/site-backup/static-download-layout.ts	RewriteUrl	type		23	23	1
+apps/website/src/features/site-backup/static-download-layout.ts	LOCAL_ORIGIN	const		24	24	1
+apps/website/src/features/site-backup/static-download-layout.ts	localUrl	function		27	34	8
+apps/website/src/features/site-backup/static-download-layout.ts	withoutExportPrefix	function		39	43	5
+apps/website/src/features/site-backup/static-download-layout.ts	rewriteSrcset	function		46	58	13
+apps/website/src/features/site-backup/static-download-layout.ts	rewriteCss	function		61	72	12
+apps/website/src/features/site-backup/static-download-layout.ts	rewriteHtml	function		75	87	13
+apps/website/src/features/site-backup/static-download-layout.ts	rewriteHtmlValue	function		90	94	5
+apps/website/src/features/site-backup/static-download-layout.ts	rewriteManifest	function		97	102	6
+apps/website/src/features/site-backup/static-download-layout.ts	rewriteFile	function		105	111	7
+apps/website/src/features/site-backup/static-download-layout.ts	rewriteMarkdown	function		116	124	9
+apps/website/src/features/site-backup/static-download-layout.ts	downloadRobots	function		129	131	3
+apps/website/src/features/site-backup/static-download-layout.ts	referencedFiles	function		136	150	15
+apps/website/src/features/site-backup/static-download-layout.ts	allocateDownloadPath	function		153	163	11
+apps/website/src/features/site-backup/static-download-layout.ts	mediaPath	function		166	170	5
+apps/website/src/features/site-backup/static-download-layout.ts	sharedMediaPath	function		173	179	7
+apps/website/src/features/site-backup/static-download-layout.ts	themeAssetPath	function		182	192	11
+apps/website/src/features/site-backup/static-download-layout.ts	themeDownloadPath	function		195	199	5
+apps/website/src/features/site-backup/static-download-layout.ts	downloadPaths	function		202	215	14
+apps/website/src/features/site-backup/static-download-layout.ts	relocatedUrl	function		220	233	14
+apps/website/src/features/site-backup/static-download-layout.ts	staticDownloadLayout	function	export	244	267	24
+apps/website/src/features/site-backup/static-download-layout.ts	landingFile	function		270	272	3
+apps/website/src/features/site-backup/static-download-layout.ts	readmeFile	function		275	277	3
+apps/website/src/features/site-backup/static-download-layout.ts	landingTheme	function		280	284	5
+apps/website/src/features/site-backup/static-download-layout.ts	downloadReadme	function		287	291	5
+apps/website/src/features/site-backup/static-download-layout.ts	downloadPlans	function		294	302	9
+apps/website/src/features/site-backup/static-download-layout.ts	relocatedFiles	function		307	319	13
+apps/website/src/features/site-backup/static-export-selection.ts	StaticExportInput	interface	export	4	4	1
+apps/website/src/features/site-backup/static-export-selection.ts	StaticExportTheme	interface	export	5	5	1
+apps/website/src/features/site-backup/static-export-selection.ts	StaticExportOptions	interface	export	6	6	1
+apps/website/src/features/site-backup/static-export-selection.ts	parseStaticExportInput	function	export	12	22	11
+apps/website/src/features/site-backup/static-export-selection.ts	readPublicUrl	function		25	29	5
+apps/website/src/features/site-backup/static-export-selection.ts	readStaticJobId	function		32	35	4
+apps/website/src/features/site-backup/static-export-selection.ts	invalidInput	function		37	39	3
+apps/website/src/features/site-backup/static-export-selection.ts	readThemeIds	function		42	51	10
+apps/website/src/features/site-backup/static-export-selection.ts	allocateStaticExportThemes	function	export	57	77	21
+apps/website/src/features/site-backup/tool-registrations.ts	MUTATES_DURABLE_STATE	const		30	33	4
+apps/website/src/features/site-backup/tool-registrations.ts	INCLUDE_SCHEMA	const		42	53	12
+apps/website/src/features/site-backup/tool-registrations.ts	PLAN_SCHEMA	const		55	74	20
+apps/website/src/features/site-backup/tool-registrations.ts	PUSH_SCHEMA	const		76	81	6
+apps/website/src/features/site-backup/tool-registrations.ts	siteBackupAgentToolCatalog	const	export	83	138	56
+apps/website/src/features/site-backup/tool-registrations.ts	CATALOG_BY_ID	const		140	140	1
+apps/website/src/features/site-backup/tool-registrations.ts	siteBackupDerivedRisk	const	export	143	157	15
+apps/website/src/features/site-backup/tool-registrations.ts	SITE_BACKUP_MODEL_FACING_ERRORS	const		165	168	4
+apps/website/src/features/site-backup/tool-registrations.ts	ShareAction	type		171	171	1
+apps/website/src/features/site-backup/tool-registrations.ts	SHARE_ACTIONS	const		173	187	15
+apps/website/src/features/site-backup/tool-registrations.ts	handleShare	function		190	201	12
+apps/website/src/features/site-backup/tool-registrations.ts	buildSiteBackupRegistrations	function	export	208	226	19
+apps/website/src/features/site-backup/tool-registrations.ts	PLAN_TOOL_ID	handler		212	212	1
+apps/website/src/features/site-backup/tool-registrations.ts	SITE_BACKUP_PUSH_TOOL_ID	handler		213	213	1
+apps/website/src/features/site-backup/tool-registrations.ts	site_share_create	handler		214	214	1
+apps/website/src/features/site-backup/tool-registrations.ts	site_export_static	handler		215	215	1
+apps/website/src/features/site-backup/tool-registrations.ts	site_share_list	handler		216	216	1
+apps/website/src/features/site-backup/tool-registrations.ts	site_share_revoke	handler		217	222	6
+apps/website/src/features/site-backup/tool-registrations.ts	handlers	handler		223	226	4
+apps/website/src/features/site-backup/tool-registrations.ts	contributeSiteBackupTools	function	export	230	232	3
+apps/website/src/features/site-backup/tool-registrations.ts	handleImport	function		235	250	16
