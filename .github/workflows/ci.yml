@@ -241,6 +241,18 @@ jobs:
         continue-on-error: true
         run: npm run check:hooks
 
+      - name: Check error-gate rule copies
+        # The three error rules are owned by Jini; the copies in development/eslint-rules/ must stay
+        # byte-identical (hash recorded in error-gate-rules.lock.json). Fails when a copy is edited here.
+        id: gate-error-rule-copies
+        continue-on-error: true
+        run: npm run check:error-rule-copies
+
+      - name: Error gate (WARN mode)
+        # error-system E0: prints new or worsened entries against development/scripts/error-gate-debt.json
+        # and always exits 0. E11 turns it to ERROR per package (--strict) once that package's rows reach 0.
+        run: npm run check:errors
+
       - name: Check seed-content drift
         # Added 2026-08-21 (Sol audit finding, MEDIUM): development/scripts/ci-local.sh has run
         # this gate since 2026-08-21 but this workflow never did — 0 occurrences before this
@@ -404,6 +416,7 @@ jobs:
           check "${{ steps.gate-src-complexity.outcome }}"     "check:complexity"
           check "${{ steps.gate-size.outcome }}"               "check:size"
           check "${{ steps.gate-hooks.outcome }}"              "check:hooks"
+          check "${{ steps.gate-error-rule-copies.outcome }}"  "check:error-rule-copies"
           check "${{ steps.gate-seed-content-drift.outcome }}" "check:seed-content-drift"
           check "${{ steps.gate-shipped-theme-drift.outcome }}" "shipped theme/reference/reset drift"
           check "${{ steps.gate-coverage-integrity.outcome }}" "check:coverage-integrity"

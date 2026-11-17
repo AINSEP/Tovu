@@ -7,8 +7,9 @@ import { buildFormSurface, type SurfaceField } from "@jini-ai/ui/mcp-ui/surfaces
 import { type UIResource, type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import type { SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+import { mintToolErrorId as mintCoreErrorId } from "@jini-ai/core/errors/error-id";
 import { withToolFailureRecovery as withDaemonRecovery, withRedactedToolFailures as withDaemonRedaction,
-  createAssistantToolExecutor as createDaemonToolExecutor, mintToolErrorId as mintDaemonErrorId,
+  createAssistantToolExecutor as createDaemonToolExecutor,
   describeDelegatedInternalError as describeDaemonError, delegatedToolErrorDisclosure as daemonErrorDisclosure } from "@jini-ai/daemon/tool-recovery";
 import type { ToolFailureRecord, RedactedToolFailuresDeps as DaemonFailureDeps,
   DelegatedInternalErrorContext } from "@jini-ai/daemon/tool-recovery";
@@ -68,7 +69,7 @@ function buildRecoveryFormResource(input: { exchangeId: string; hint: string; re
 
 export interface RedactedToolFailuresDeps { readonly mintErrorId?: () => string; readonly onFailure?: (record: ToolFailureRecord) => void }
 export function mintToolErrorId(required: Record<string, never>, optional = {}): string {
-  return mintDaemonErrorId({ randomHex: ({ bytes }) => randomBytes(bytes).toString("hex") }, optional);
+  return mintCoreErrorId({ randomHex: ({ bytes }) => randomBytes(bytes).toString("hex") }, optional);
 }
 /** Default reporter receives only already-redacted messages from the shared owner. */
 function failurePorts(options: RedactedToolFailuresDeps): DaemonFailureDeps {
