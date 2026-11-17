@@ -1,5 +1,6 @@
 import { createToolRegistry, ToolInputError, type ToolExecutionContext, type SurfaceEmitter, type ToolRegistration } from '@jini-ai/core';
 import { createToolExecutor } from '@jini-ai/daemon';
+import { createLocalSameOriginPolicy } from '@jini-ai/core/contracts/server';
 
 /** Exercise the real normalization/authorization gate over a domain's actual registration. */
 export function executeRegisteredTool(
@@ -43,7 +44,7 @@ export async function executeDelegatedRegisteredTool(
   const app = express();
   app.use(express.json());
   http.registerDelegatedToolRoutes({ app, deps: { lifecycle, toolExecutor, toolRegistry: registry, resolvePrincipal: () => ({ id: principalId }) },
-    adapter: { resolvedPortRef: { current: 7456 }, env: {}, allowedOriginsEnvVar: 'JINI_ALLOWED_ORIGINS', webPortEnvVar: 'JINI_WEB_PORT', bindHostEnvVar: 'JINI_BIND_HOST' } });
+    adapter: { originPolicy: createLocalSameOriginPolicy({ port: () => 7456, env: {}, config: { allowedOriginsEnvVar: 'JINI_ALLOWED_ORIGINS', webPortEnvVar: 'JINI_WEB_PORT', bindHostEnvVar: 'JINI_BIND_HOST' } }) } });
   const fetchImpl: typeof fetch = async (url, init) => {
     if (String(url) !== 'http://localhost:7456/api/delegated-tool-calls' || init?.method !== 'POST') throw new Error('unexpected delegated transport request');
     const socket = new PassThrough();

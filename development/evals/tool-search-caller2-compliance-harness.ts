@@ -78,6 +78,7 @@ import express from "express";
 import type { RouteHostContext } from "@jini-ai/core/contracts/server";
 import type { RunStartHandler } from "@jini-ai/daemon/http";
 import { registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/http";
+import { createLocalSameOriginPolicy } from "@jini-ai/core/contracts/server";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
 import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
 import type { PromptAugmenter } from "@jini-ai/agent-runtime";
@@ -261,8 +262,9 @@ async function main(): Promise<void> {
       });
   };
 
-  registerRunRoutes({ app, deps: { lifecycle, onStarted }, adapter: { resolvedPortRef: { current: PORT } } as RouteHostContext });
-  registerToolCatalogRoutes({ app, deps: { catalog }, adapter: { resolvedPortRef: { current: PORT } } as RouteHostContext });
+  const harnessAdapter: RouteHostContext = { originPolicy: createLocalSameOriginPolicy({ port: () => PORT, env: {}, config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
+  registerRunRoutes({ app, deps: { lifecycle, onStarted }, adapter: harnessAdapter });
+  registerToolCatalogRoutes({ app, deps: { catalog }, adapter: harnessAdapter });
 
   const server = app.listen(PORT, "127.0.0.1");
   await new Promise<void>((resolve, reject) => {

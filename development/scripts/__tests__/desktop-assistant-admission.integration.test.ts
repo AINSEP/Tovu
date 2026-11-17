@@ -14,6 +14,7 @@ import { createDaemonSiteTools } from '../../../apps/website/src/server/inbound/
 import { assistantRunFinalizerFor } from '../../../apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.js';
 import { onTeardown } from '../../../apps/website/src/__tests__/fixtures/teardown.js';
 import { acceptRuns } from '../../e2e/desktop/_assistant-release-gate.js';
+import { createLocalSameOriginPolicy } from '@jini-ai/core/contracts/server';
 
 test('the release journey creates an admitted site attempt before catalog discovery', async t => {
   const deps = createRouteDeps();
@@ -24,8 +25,8 @@ test('the release journey creates an admitted site attempt before catalog discov
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   registerDurableRunStartRoute({ app: daemon, lifecycle, onStarted: () => {}, store: deps.chatRunLedger.durable! });
   const resolvedPortRef = { current: 0 };
-  registerRunRoutes({ app: daemon, deps: { lifecycle }, adapter: { resolvedPortRef, env: {},
-    allowedOriginsEnvVar: 'JINI_ALLOWED_ORIGINS', webPortEnvVar: 'JINI_WEB_PORT', bindHostEnvVar: 'JINI_BIND_HOST' } });
+  registerRunRoutes({ app: daemon, deps: { lifecycle }, adapter: { originPolicy: createLocalSameOriginPolicy({ port: () => resolvedPortRef.current, env: {},
+    config: { allowedOriginsEnvVar: 'JINI_ALLOWED_ORIGINS', webPortEnvVar: 'JINI_WEB_PORT', bindHostEnvVar: 'JINI_BIND_HOST' } }) } });
   registerRunActiveContextRoute(daemon, createRunActiveContextStore());
   const daemonUrl = await startTestServer(daemon, t);
   resolvedPortRef.current = Number(new URL(daemonUrl).port);

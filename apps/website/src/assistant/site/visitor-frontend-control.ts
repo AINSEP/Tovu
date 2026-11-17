@@ -1,6 +1,7 @@
 /** Separate visitor façade; no admin daemon, registry or proxy enters this composition. */
 import { createFrontendControl, createFrontendGuestScope } from '@jini-ai/daemon/http';
 import { PAGE_CAPABILITIES } from '@jini-ai/agentic';
+import { createLocalSameOriginPolicy } from '@jini-ai/core/contracts/server';
 import {
   isSameOrigin,
   normalizeOriginCandidate,
@@ -64,8 +65,10 @@ export function createVisitorFrontendControl({ workspaceId, enabled, canonicalOr
           res.json(issued);
         } catch { res.sendStatus(403); }
       });
-      control.httpExtension({ app, context: { adapter: { env: {}, resolvedPortRef: { current: 0 },
-        allowedOriginsEnvVar: 'TOVU_ALLOWED_ORIGINS', webPortEnvVar: 'PORT', bindHostEnvVar: 'HOST' } } });
+      // Port 0 and an empty env: no browser origin is ever same-origin here, only a header-less loopback request.
+      const originPolicy = createLocalSameOriginPolicy({ port: () => 0, env: {},
+        config: { allowedOriginsEnvVar: 'TOVU_ALLOWED_ORIGINS', webPortEnvVar: 'PORT', bindHostEnvVar: 'HOST' } });
+      control.httpExtension({ app, context: { adapter: { originPolicy } } });
     },
   };
 }

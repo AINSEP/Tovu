@@ -1,4 +1,5 @@
 import { formatErrorForLog } from "@jini-ai/core";
+import { createLocalSameOriginPolicy } from "@jini-ai/core/contracts/server";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { installOwnedJsonAgent, type McpLaunchSpec } from "@jini-ai/mcp";
@@ -373,7 +374,9 @@ async function startBridgeServer(
     if (decision.allowed) { next(); return; }
     res.status(decision.status).json({ error: decision.error });
   });
-  const adapter = { resolvedPortRef: { current: 0 }, env: hostEnv, allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" };
+  const portRef = { current: 0 };
+  const adapter = { originPolicy: createLocalSameOriginPolicy({ port: () => portRef.current, env: hostEnv,
+    config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
   registerToolCatalogRoutes({ app, deps: { catalog: registryCatalog(registry) }, adapter });
   registerDelegatedToolRoutes({
     app,
@@ -381,7 +384,7 @@ async function startBridgeServer(
     adapter,
   });
   const { server, url: daemonUrl } = await listenOnLoopback(app);
-  adapter.resolvedPortRef.current = (server.address() as AddressInfo).port;
+  portRef.current = (server.address() as AddressInfo).port;
   return { server, daemonUrl };
 }
 
