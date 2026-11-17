@@ -1,6 +1,7 @@
 # S12b. Declared repair `obtainFrom`: a missing argument names the tool that lists valid values, on both paths (C5, M7, Jini)
 
 Repo: Jini. Packages: `core`, `mcp`, `daemon`. Estimate: 150k Sonnet. Prerequisites: S12a, S1.
+Blocking decision: none.
 Landed checks: `rg -n "assertRepairKeywords" packages/core/src/tool-input-repairs.ts` and `rg -n "resolveToolTarget" packages/daemon/src/http/delegated-tools.ts`.
 
 ## Two paths, one contract (judge finding 11)

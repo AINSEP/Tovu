@@ -1,8 +1,10 @@
 # S4b. Fix every guide mention, pin the named tools, switch the lint to strict (C1b, mechanism M2)
 
 Repo: Tovu (and the Jini texts S4a listed, as a Jini part first). Estimate: 220k Sonnet.
-Prerequisites: S4a merged with `candidates.unclassified` empty and the fit result reviewed. Needs decision: **OD-7**
-only when S4a reported that the named set does not fit.
+Prerequisites: S4a merged with `candidates.unclassified` empty and the fit result reviewed.
+Blocking decision: none.
+Branching decision: **OD-7** (applies only when S4a reported that the named set does not fit. While OPEN and it
+does not fit: STOP under §4.14 before any edit. When it fits, OD-7 does not apply).
 Landed check: `test -f development/parity/tool-guides.json && node -e "const j=require('./development/parity/tool-guides.json'); process.exit(j.candidates.unclassified.length?1:0)"`.
 
 ## Lane check before editing (judge finding 17)

@@ -1,6 +1,8 @@
 # S17. One browser integration at a time per daemon; the default follows the owner (C8, mechanism M10)
 
-Repos: Jini (`daemon`, one small pure file), then Tovu. Estimate: 170k Sonnet. Needs decision: **OD-4** (the default; the lease is built either way).
+Repos: Jini (`daemon`, one small pure file), then Tovu. Estimate: 170k Sonnet.
+Blocking decision: none.
+Branching decision: **OD-4** (while OPEN: the lease only; red-first case 6 and change 5 wait for "yes" and are listed in the report as "waiting for OD-4").
 Prerequisites: none in Jini (this sheet does not edit `agent-executor/launch.ts`; Tovu already computes `chromeIntegration` itself).
 Tovu order: `agent-daemon-scope.ts` is on reconcile SEQUENCE H3; land after R7 P1 if that is in flight (INDEX §3).
 
@@ -49,7 +51,11 @@ Tovu (`agent-daemon-server.browser-lease.integration.test.ts`, fake executor, fa
    child that exited without a terminal event). The scope file is on the size ratchet: put the acquire/release pair in
    a new `assistant-browser-lease.ts` and keep net growth in the scope file ≤ 4 lines.
 4. Guidance: keep "prefer it for checking pages the owner is logged into"; add that screenshots and page tools come
-   first. `npm run check:tool-guides` must pass.
+   first. The only tool id the new words name is `web_screenshot_page`; check it is registered
+   (`rg -n '"web_screenshot_page"' apps/website/src/contracts/core/tool-metadata/web-screenshot.ts` has a hit) and assert
+   the exact sentence in the case 3 test. Do **not** run `npm run check:tool-guides`: it does not exist until S4a
+   (wave 3; Tovu merge-final `package.json` has no such script). S4a lists `assistant-runtime-guidance.ts` as a declared
+   guide module (S4a "What is scanned", row C), so it scans this sentence when it lands (Opus review B1).
 5. OD-4 = yes: change `defaultValue` in `admin-interface.ts` **and** the fallback object in the same commit.
 
 ## Acceptance

@@ -1,6 +1,7 @@
 # S2a. A tool family answers as a group; the product name leaves Jini (C1a, mechanism M1)
 
 Repos: Jini (`daemon`), then Tovu. Estimate: 150k Sonnet. Prerequisites: S1.
+Blocking decision: none.
 Landed check: `rg -n "resolveToolTarget" ../Jini/packages/daemon/src/core/tool-target.ts`.
 **No routing in this sheet.** A family id never executes anything here, so no host gate changes. Routing is S2b.
 

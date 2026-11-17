@@ -1,6 +1,7 @@
 # S10. Batch items for the same target apply in order, each pinned to what the batch itself wrote (C4, M6, Jini core)
 
 Repo: Jini. Package: `core`. Estimate: 160k Sonnet. Prerequisites: none.
+Blocking decision: none.
 
 ## The rule this sheet enforces (judge finding 2)
 After item 1 writes, item 2 must be pinned to **the version item 1's own write committed**, reported by that write.
@@ -10,7 +11,7 @@ committed; core hands that value to the next item with the same key.
 
 ## Read first
 `../DESIGN.md` §2.6, M6. `rg -n "export function createPreparedBatchHandler|export function createBatchApprovalHandler" packages/core/src/approval.ts`
-(373 lines; the `prepare` loop and the `run` loop) · `rg -n "batchOutcomeFor|BatchItemResult|withBatchInput" packages/core/src/batch-tool-inputs.ts` · their tests.
+(400 lines at merge-final, 373 at merge-a: expect a `DRIFT` line and re-find the symbols; the `prepare` loop and the `run` loop) · `rg -n "batchOutcomeFor|BatchItemResult|withBatchInput" packages/core/src/batch-tool-inputs.ts` · their tests.
 
 ## Characterization (passes today; answers DESIGN "not verified" item 7)
 `core/src/__tests__/approval.batch-same-target.characterization.test.ts`, fake store `{ version, bytes }`:
@@ -45,7 +46,7 @@ The fake store's `write` returns the new version; `run` returns `{ output, commi
                  run(required: { ctx: ToolExecutionContext; prepared: TPrepared }, optional?: object): Promise<{ output: unknown; committed: TCommitted | undefined }>;
                  targetKey(required: { prepared: TPrepared }): string;
                  successor(required: { prepared: TPrepared; committed: TCommitted | undefined; previous: TPrepared }): TPrepared },
-     optional?: { maxItems?: number; targetNoun?: string }): ToolHandler;
+     optional: { maxItems?: number; targetNoun?: string } = {}): ToolHandler;
    ```
    It reuses the approval owner's input snapshot, item cap, duplicate detection and cancellation checks by calling the
    existing exported pieces; if a needed piece is not exported from `approval.ts`, export that one function (no copy).

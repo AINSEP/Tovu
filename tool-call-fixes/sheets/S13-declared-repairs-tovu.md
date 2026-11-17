@@ -1,6 +1,8 @@
 # S13. Tovu tools declare their repairs; a bounds gate keeps it that way (C5, mechanism M7)
 
-Repo: Tovu. Estimate: 150k Sonnet. Prerequisites: S12a, S12b, S4a (the guide lint must know `obtainFrom`). Needs decision: **OD-8**, **OD-9**.
+Repo: Tovu. Estimate: 150k Sonnet. Prerequisites: S12a, S12b, S4a (the guide lint must know `obtainFrom`).
+Blocking decision: **OD-8**.
+Branching decision: **OD-9** (while OPEN: the "yes" branch, which is today's behaviour: a missing `themeId` is not defaulted. "No" is a separate change for read tools, outside this sheet).
 Landed checks: `rg -n "missingArgumentGuidance|clampDeclaredBounds" ../Jini/packages/core/src/tool-input-repairs.ts` and `test -f development/scripts/check-tool-guides.ts`.
 
 ## Lane order (judge finding 17)

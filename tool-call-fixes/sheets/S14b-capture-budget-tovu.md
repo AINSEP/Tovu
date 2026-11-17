@@ -1,6 +1,8 @@
 # S14b. Screenshot budget from the request; current frame once the page has loaded (C6, mechanism M8, Tovu)
 
-Repo: Tovu. Estimate: 150k Sonnet. Prerequisites: S14a. Needs decision: **OD-5** (the cap; no = cap stays 20 s, only the fallback is adopted).
+Repo: Tovu. Estimate: 150k Sonnet. Prerequisites: S14a.
+Blocking decision: none.
+Branching decision: **OD-5** (while OPEN: the "no" branch: the cap stays 20 s and only the current-frame fallback is adopted, case 6).
 Landed check: `rg -n "softDeadlineMs" ../Jini/packages/diagnostics/src/web-evidence/render-page.ts`.
 
 ## Read first

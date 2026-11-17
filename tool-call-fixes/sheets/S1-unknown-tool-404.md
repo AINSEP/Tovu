@@ -1,7 +1,8 @@
 # S1. Unknown tool id answers `404 UNKNOWN_TOOL` on every path (C1a, mechanism M1)
 
 Repos: Jini (`protocol`, `core`, `daemon`, `mcp`), then Tovu (tests that read the old answer). Estimate: 190k Sonnet.
-Needs decision: **OD-1**. Prerequisites: none. No family handling here (S2a, S2b).
+Blocking decision: **OD-1**.
+Prerequisites: none. No family handling here (S2a, S2b).
 Coordinate: error-system E5a reads the same status table; R7 moves `daemon/src/http/*`. If `delegated-tools.ts` is
 not at the path below, find `delegatedToolExecuteRoute` with `rg` and apply there; say so in the report.
 

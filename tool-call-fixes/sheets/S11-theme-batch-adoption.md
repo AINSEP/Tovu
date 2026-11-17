@@ -1,6 +1,7 @@
 # S11. Theme file tools adopt chained batches; the stale-file words are fixed (C4, mechanism M6, Tovu)
 
 Repo: Tovu. Estimate: 150k Sonnet. Prerequisites: S10.
+Blocking decision: none.
 Landed check: `rg -n "export function createChainedBatchHandler" ../Jini/packages/core/src/approval-batch-chain.ts`.
 
 ## Lane order (judge finding 17)

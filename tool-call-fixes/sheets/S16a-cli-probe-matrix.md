@@ -1,6 +1,8 @@
 # S16a. Measure each agent CLI's tool-call behaviour; commit the support matrix (C7, mechanism M9)
 
 Repo: Jini. Package: `agent-runtime` (docs + a probe test helper). Estimate: 150k Sonnet. Prerequisites: S15.
+Blocking decision: none.
+Branching decision: **OD-11** (while OPEN: record the Gemini and Aider rows as the code shows them, below; "no" starts a separate design, outside this plan).
 Landed check: `rg -n "export function startCallProgress" packages/mcp/src/server/call-progress.ts`.
 This sheet changes **no** runtime behaviour and no generated config.
 

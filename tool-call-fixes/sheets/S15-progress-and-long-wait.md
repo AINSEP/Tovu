@@ -1,6 +1,7 @@
 # S15. Progress while a call waits; no hidden 300 s wall in the HTTP hop (C7, mechanism M9, Jini mcp)
 
-Repo: Jini. Packages: `mcp` (+ one characterization test in `daemon`). Estimate: 200k Sonnet. Prerequisites: none.
+Repo: Jini. Packages: `mcp` (+ one characterization test in `daemon`). Estimate: 200k Sonnet (+30k if step 0b proves the wall and change 3 builds the `node:http` adapter). Prerequisites: none.
+Blocking decision: none.
 
 ## What progress does and does not do (judge finding 13)
 There are three separate clocks. This sheet touches only the first.
@@ -47,11 +48,20 @@ frames for a client that sent a token, and no frame arrives after the response.
 
 ## Change (one gated commit per item)
 1. `mcp/src/server/call-progress.ts` (new, ≤ 80 lines): `startCallProgress({ extra }, { scheduler, intervalMs = 25_000, logger })` → `{ stop() }`.
-2. `tool-server.ts`: widen the handler's `extra` type with the two SDK fields; wrap the single `handleToolCall` await
-   in `start` / `stop` with `try/finally`. Net growth ≤ 8 lines. The scheduler and logger come from `McpToolServerOptions` (defaults: real timers, the host logger).
+2. `tool-server.ts`: widen the handler's `extra` type with the two SDK fields; wrap the **top-level** `handleToolCall`
+   await in `start` / `stop` with `try/finally`. At merge-final the handler is `createCallToolHandler` (438-line file;
+   it moved there after merge-a); its nested `callLocalTool` also awaits `handleToolCall` and is **not** wrapped (one
+   pump per CLI call). Net growth ≤ 8 lines. The scheduler and logger come from `McpToolServerOptions` (defaults: real timers, the host logger).
 3. `bin/serve.ts`: build the run's `fetchImpl` with an unlimited response-header wait and pass it through
-   `assembleRunToolHost`'s existing `fetchImpl` option (static import of the dispatcher module; it is a declared
-   dependency or a Node built-in: check `packages/mcp/package.json` first, and STOP if a new dependency would be needed).
+   `assembleRunToolHost`'s existing `fetchImpl` option. *(rev 3, Opus review B8)* An undici dispatcher is **not** an
+   option: `packages/mcp/package.json` declares no `undici` (only `@jini-ai/core`, `protocol`, `platform`,
+   `@cfworker/json-schema`, `@modelcontextprotocol/sdk`), `node:undici` does not exist, and Jini already records both
+   facts (`agent-runtime/src/providers/connection-guard.ts:214,229`: global `fetch` uses undici's 300 000 ms
+   `headersTimeout`; "`require('node:undici')` throws"). The no-new-dependency path is a small fetch-shaped adapter
+   over `node:http` for the loopback daemon URL only (new `mcp/src/server/loopback-fetch.ts`, ≤ 80 lines, static
+   `node:http` import, no timeout of its own: the caller's `AbortSignal` ends it), the same pattern as agent-runtime's
+   `pinnedFetch`. If that adapter needs more than 80 lines or a header-wait test still fails, STOP and report; do not
+   add a dependency.
    The limit on a delegated call stays the caller's signal; all other calls keep `DEFAULT_TIMEOUT_MS`.
 4. Idle exit: confirm a waiting call counts as activity (`createActivityTracker`); add a test that a 20-minute wait does not trigger idle exit.
 

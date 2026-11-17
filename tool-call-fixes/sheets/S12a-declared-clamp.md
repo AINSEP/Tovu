@@ -1,6 +1,9 @@
 # S12a. Declared repair `clamp` in the one normalizer, used by registry tools and MCP-local tools (C5, M7, Jini)
 
-Repo: Jini. Packages: `core`, `mcp`. Estimate: 160k Sonnet. Prerequisites: none. Needs decision: **OD-8**.
+Repo: Jini. Packages: `core`, `mcp`. Estimate: 160k Sonnet.
+Blocking decision: **OD-8**.
+Prerequisites: S3, S6 (shared files only: `tool-catalog-tools.ts` after S3, `tool-protocol.ts` after S6; INDEX §3).
+Landed checks: `rg -n "toolCallText" packages/core/src/tool-call-text.ts` and `rg -n "diagnosticVocabulary" packages/mcp/src/server/tool-protocol.ts`.
 
 ## Facts that shape this sheet (judge finding 11)
 - `normalizeCallArguments` (`mcp/src/server/tool-protocol.ts`) calls core's `normalizeToolInput` **only** when the tool

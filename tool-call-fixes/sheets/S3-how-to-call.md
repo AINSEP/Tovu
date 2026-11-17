@@ -1,6 +1,7 @@
 # S3. Every answer says how to call the tool, by its real published name (C1b, mechanism M2, Jini half)
 
 Repo: Jini. Packages: `core`, `mcp`. Estimate: 170k Sonnet. Prerequisites: S1 (creates `core/src/tool-call-text.ts`).
+Blocking decision: none.
 Landed check: `rg -n "unknownToolSentence" packages/core/src/tool-call-text.ts`.
 
 ## The fact this sheet is built on (judge finding 7; lesson 36)
@@ -46,7 +47,7 @@ indexed under a name matching `/^tool_content_read_menu_[0-9a-f]{8}$/`, not unde
    its existing wire name). Update the port type and every implementer found by `rg -n "publishTool" packages/mcp/src`.
 3. `describeToolTool`: add `callAs` / `call` from that return value. Replace the one sentence of its description that
    promises publication with: `The result's callAs and call fields say exactly how to call it.`
-4. `tool-server.ts` is 409 lines: result shaping stays in `tools/tool-catalog-tools.ts`.
+4. `tool-server.ts` is 438 lines at merge-final: result shaping stays in `tools/tool-catalog-tools.ts`.
 
 ## Acceptance
 - No path leaves a described tool without an exact, working call text (case 7).

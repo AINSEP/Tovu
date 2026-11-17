@@ -8,6 +8,9 @@ first; all 20 were right and are accepted (table in `INDEX.md`, "Revision 2 - ju
 `integ/merge-b-2026-11-16` (Tovu `450ac748`, Jini `9c982fd9`): all exist there except Jini
 `core/src/errors/reporter.ts` (error-system E2 is on merge-a only). `integ/merge-final-2026-11-16` did not exist.
 Sections changed in revision 2 are marked *(rev 2)*.
+**Revision 3** answers the Opus review of revision 2 (table in `INDEX.md`, "Revision 3 - Opus review response"). The
+base is now `integ/merge-final-2026-11-16` (Jini `65d73b0d`, Tovu `a28cb1bf`); of the 49 files in `sheets/BLOBS.tsv`
+only `mcp/src/server/tool-server.ts` and `core/src/approval.ts` differ from merge-a. Changes are marked *(rev 3)*.
 Input: `ADS-memory/.local-artifacts/codex/2026-11-10/tool-failure-audit.md` (1,324 failed tool calls of about 27,000, 10-20 to 11-10).
 Code read: `integ/merge-a-2026-11-16`, Tovu `f354cfbd`, Jini `96aade8c`. Paths below are Jini `packages/…` or Tovu `apps/…`.
 Line numbers are from those commits. Every sheet tells the executor to find the symbol by name first, because both
@@ -237,7 +240,7 @@ SSE keepalive between browser and server. It does not touch the hop from the age
 Each mechanism has one owner. A Jini package imports itself, `@jini-ai/core` and `@jini-ai/protocol` only, and holds
 no web framework: Express middleware is Tovu code. New functions take `(required, optional = {})`, stay under 50
 lines and complexity 10, and new files stay under 500 lines. Files close to or over the limit get a new sibling file
-(`tool-server.ts` 409, `delegated-tools.ts` 392, `approval.ts` 373, `tool-protocol.ts` 333, `registration-kit.ts` 593,
+(at merge-final: `tool-server.ts` 438, `delegated-tools.ts` 392, `approval.ts` 400, `tool-protocol.ts` 333, `registration-kit.ts` 593,
 Tovu `theme-files.ts` 1,344 and `agent-daemon-scope.ts` 1,670, both on the size ratchet).
 
 **Publication (judge finding 6).** A new symbol that another package or Tovu imports is a public entry, created in
@@ -356,9 +359,9 @@ Client (`mcp/src/server/daemon-client.ts`, formatting in a sibling `daemon-error
 - A recognized envelope (nested, or the flat `{ error: "<text>" }` shape `decodeApiError` already reads) keeps today's
   form `HTTP <status>: <CODE>: <message>` byte for byte and gains ` Error ID: <id>.` when the server sent one.
 - **Anything else is never quoted (blocker 4).** HTML, plain text, invalid JSON and empty bodies give fixed words and
-  a reference: `The tool service failed (HTTP 500) and its answer was not readable. Reference: <ref>. Do not retry the same call; give the user this reference.`
+  an error ID: `The tool service failed (HTTP 500) and its answer was not readable. Error ID: <id>. Do not retry the same call; give the user this error ID.`
   503 with a flat envelope: `The tool service is restarting or closed (HTTP 503): <text>. Wait a few seconds and retry once.`
-- The reference is minted and recorded by the **one reporter**: an injected `reportFailure` port with the shape of
+- The error ID (core's `ERR-XXXX-XXXX-XXXX-XXXX`, `mintToolErrorId`) is minted and recorded by the **one reporter**: an injected `reportFailure` port with the shape of
   `ErrorReporter['record']` from `@jini-ai/core/errors/reporter`. The record holds status, route, content type and
   body length, never body text. Wiring (finding 19) is explicit and tested through the assembled host:
   `bin/serve.ts` (`createErrorReporter`) → `RunToolHostOptions` → `McpToolServerOptions` → `McpToolContext` →
@@ -367,14 +370,17 @@ Client (`mcp/src/server/daemon-client.ts`, formatting in a sibling `daemon-error
 
 Server (blocker 3): **no Jini code**. Tovu adds `server/inbound/assistant/daemon-error-boundary.ts`, an Express error
 handler mounted last on the scope app. Body-parser refusals keep their status (413, 400) with a plain sentence;
-everything else goes through the existing `reportRouteInternalError` (`@jini-ai/http-kit`) with `onInternalError`
-bound to Tovu's existing sink `reportServerFailure`, so one failure is one incident whose id is the `requestId` the
-caller sees. The three flat answers become `createApiError` envelopes. This matches R7 §3.5, which keeps the host
+everything else gets an id from core's `mintToolErrorId` (through Tovu's existing wrapper in
+`assistant/tool-recovery-preset.ts`) and is reported once through Tovu's existing sink `reportServerFailure` with that
+id, so one failure is one incident whose id is the `requestId` the caller sees. *(rev 3)* It does not go through
+`reportRouteInternalError`: that function mints a `randomUUID()` (`http-kit/src/internal-error.ts:38`) and has no id
+port, which would give the caller a second id format next to S8's (Opus review B4). The three flat answers become `createApiError` envelopes. This matches R7 §3.5, which keeps the host
 parser and host gates as Express middleware in Tovu.
 
 Coordination with the error-system design (nothing planned twice): its E2 (reporter, id function in core) has landed
 on merge-a and is what S8 binds to. Its E4 makes `reportRouteInternalError` and `reportServerFailure` call the
-reporter; S9 uses both as they are, so E4 converts this site with its other call sites and S9 needs no second edit.
+reporter. *(rev 3)* S9 uses `reportServerFailure` and core's id function as they are; E4 rebinds the boundary's two
+ports where the scope file mounts it, with its other call sites; the boundary file itself does not change.
 Its site list has no row for `daemon-client.ts` or `delegated-tools.ts`.
 
 ### M6. Same-target batch items chain on what the batch itself committed (Jini `core`, Tovu theme adoption)
@@ -461,7 +467,7 @@ driven by one fake clock. Messages state the real number.
 
 ## 5. Lessons applied (the ones that shaped this plan)
 
-- 2 / 9 / "search for existing mechanisms": reused `decodeApiError`, `reportRouteInternalError`, `normalizeToolInput`
+- 2 / 9 / "search for existing mechanisms": reused `decodeApiError`, core `mintToolErrorId` and Tovu `reportServerFailure`, `normalizeToolInput`
   and its `aliases`, `toolCandidates`, `targetToolIds`, `buildEvalToolRegistry`, the `chromeIntegration` option, the screenshot fallback.
 - 5: every sheet lists its prerequisites and is green alone; text-changing sheets update the tests that read the text in the same commit.
 - 6: each characterization test names the failure it must show before the fix (INDEX §2, column "red-first test").

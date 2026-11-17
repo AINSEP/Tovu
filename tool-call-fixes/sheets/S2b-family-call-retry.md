@@ -1,7 +1,8 @@
 # S2b. A family call that names exactly one member is retried once as that member (C1a, mechanism M1)
 
 Repos: Jini (`mcp`), then one Tovu integration test. Estimate: 140k Sonnet.
-Needs decision: **OD-2 = yes** (if no: do not run this sheet). Prerequisites: S2a, S8.
+Blocking decision: **OD-2** (it must be `DECIDED: yes`; if `DECIDED: no`, do not run this sheet).
+Prerequisites: S2a, S8.
 Landed checks: `rg -n "toolFamilies" ../Jini/packages/daemon/src/http/delegated-tools.ts` and
 `rg -n "readonly details" ../Jini/packages/mcp/src/server/daemon-client.ts` (S8 puts `code` and `details` on `DaemonHttpError`).
 

@@ -1,6 +1,7 @@
 # S14a. One deadline model for page capture: work, fallback reserve, hard stop (C6, mechanism M8, Jini)
 
 Repo: Jini. Package: `diagnostics`. Estimate: 170k Sonnet. Prerequisites: none. No owner decision (the cap is a host value, S14b).
+Blocking decision: none.
 
 ## The three deadlines, defined together (judge finding 12; lesson 35)
 For one capture with hard limit `T` and reserve `R` (`R < T`):

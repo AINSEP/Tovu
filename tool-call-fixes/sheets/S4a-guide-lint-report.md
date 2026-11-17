@@ -1,6 +1,7 @@
 # S4a. `check:tool-guides` in report mode, over model-facing text only (C1b, mechanism M2)
 
 Repo: Tovu (reads Jini sources from `../Jini`). Estimate: 200k Sonnet. Prerequisites: S3.
+Blocking decision: none.
 Landed check: `rg -n "toolCallText" ../Jini/packages/core/src/tool-call-text.ts`.
 This sheet changes **no** guide text and no runtime behaviour. Files outside `development/` and `package.json` do not change.
 

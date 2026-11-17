@@ -1,6 +1,7 @@
 # S5. "Reads…" wording must match the tool's real class (C1c, mechanism M3)
 
 Repo: Tovu. Estimate: 100k Sonnet. Prerequisites: none.
+Blocking decision: none.
 
 ## What is already true (judge finding 8; do not rebuild it)
 - Jini `core/src/registration-kit.ts` (`assertRiskIsCorroborated`) refuses a registration whose declared `sideEffects`

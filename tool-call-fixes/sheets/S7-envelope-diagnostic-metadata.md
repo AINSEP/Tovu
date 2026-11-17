@@ -1,6 +1,7 @@
 # S7. The daemon route sends trusted names in the error envelope (C2, mechanism M4, server side)
 
 Repos: Jini (`daemon`), then one Tovu characterization and one Tovu end-to-end test. Estimate: 130k Sonnet.
+Blocking decision: none.
 Prerequisites: S1 (the route resolves the target once), S6 (the client reads `details`).
 Landed check: `rg -n "inputNames" packages/mcp/src/server/daemon-client.ts packages/core/src/text/diagnostic-vocabulary.ts`.
 

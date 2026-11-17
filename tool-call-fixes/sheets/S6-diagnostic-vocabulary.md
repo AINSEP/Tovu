@@ -1,7 +1,9 @@
 # S6. Trusted vocabulary for model-facing errors, built before the first lossy pass (C2, mechanism M4, MCP side)
 
 Repo: Jini. Packages: `core`, `mcp`. Estimate: 200k Sonnet. Prerequisites: S8 (envelope `details` on `DaemonHttpError`,
-the formatter file). Needs decision: **OD-3** for source 4 only (run without it; source 4 is then left out).
+the formatter file).
+Blocking decision: none.
+Branching decision: **OD-3** (while OPEN: run without source 4; row 3 then stays masked and the `echoed` option is not built).
 Landed check: `rg -n "describeDaemonFailure" packages/mcp/src/server/daemon-error-text.ts`.
 
 ## Where names are really lost (judge findings 9 and 10; lesson 34)
