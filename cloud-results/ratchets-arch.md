@@ -65,4 +65,4 @@ How the 32 were reduced (the "accidental" exposures; nothing was exposed only fo
 
 ## Overlaps with other runs
 
-`server/routes/types.ts`, `composition/app.ts`, `composition/deps.ts`, `features/source-control/*`, the 5 feature indexes touched by `a6a4de78` (`sites`, `workspace`, `email-templates`, `site-guide`, `member-login`) and 31 importer files across `server/` and `features/` repointed by `73020166` (list in the diff), and `development/scripts/check-architecture.baseline.json` (11 edge renames). A parallel run touching those files will conflict on rebase; the baseline JSON change is a pure renamed-line edit.
+`server/routes/types.ts`, `composition/app.ts`, `composition/deps.ts`, `features/source-control/*`, the 5 feature indexes touched by `a6a4de78` (`sites`, `workspace`, `email-templates`, `site-guide`, `member-login`) and 24 importer files across `server/` and `features/` repointed by `73020166` (list in the diff), and `development/scripts/check-architecture.baseline.json` (11 edge renames). A parallel run touching those files will conflict on rebase; the baseline JSON change is a pure renamed-line edit.
