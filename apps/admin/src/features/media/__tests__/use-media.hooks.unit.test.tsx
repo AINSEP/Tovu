@@ -1,7 +1,9 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, ApiError, describeApiError, type AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
+import { mediaApi } from "@/features/media/api/media-api";
+import { ApiError, describeApiError } from "@/lib/admin-http/request";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
@@ -241,7 +243,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
   });
 
   it("loads the list from the injected port and never touches the real api client", async () => {
-    const listSpy = vi.spyOn(api, "listMedia");
+    const listSpy = vi.spyOn(mediaApi, "listMedia");
     const port = createFakeMediaPort({
       media: [
         {

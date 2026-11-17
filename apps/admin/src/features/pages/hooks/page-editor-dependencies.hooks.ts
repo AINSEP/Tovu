@@ -1,5 +1,10 @@
 import { getAdminDraftIdentity } from "@/lib/admin-draft-identity";
-import { api, ApiError, type AdminPost, type ThemeTier } from "@/lib/api";
+import type { ThemeTier } from "@/features/themes/api/themes-api.types";
+import { themesApi } from "@/features/themes/api/themes-api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import { postsApi } from "@/features/posts/api/posts-api";
+import { pagesApi } from "@/features/pages/api/pages-api";
+import { ApiError } from "@/lib/admin-http/request";
 import type { StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot } from "@/hooks/use-standing-draft-autosave.hooks";
 import type { PageEditorPort } from "./page-editor-port.hooks";
 import { PAGE_VERSION_CONFLICT_CODE } from "../rules";
@@ -13,9 +18,9 @@ import { PAGE_VERSION_CONFLICT_CODE } from "../rules";
  *  `redirectsHostPorts`. `getPresentation` narrows `api.getPresentation()`'s wider response down to
  *  the fields this port promises. */
 export const defaultPageEditorPort: PageEditorPort = {
-  getPage: ({ routeSlug }, _options = {}) => api.getPage({ id: routeSlug }),
+  getPage: ({ routeSlug }, _options = {}) => pagesApi.getPage({ id: routeSlug }),
   getPresentation: async () => {
-    const { activeThemeTemplates, settings, availableThemes } = await api.getPresentation({ kind: "page" });
+    const { activeThemeTemplates, settings, availableThemes } = await themesApi.getPresentation({ kind: "page" });
     const activeTheme = availableThemes.find((theme) => theme.id === settings.activeThemeId);
     return {
       activeThemeTemplates,
@@ -26,15 +31,15 @@ export const defaultPageEditorPort: PageEditorPort = {
       activeThemeTier: activeTheme?.tier ?? null,
     };
   },
-  updatePageHtml: ({ id, html }, _options = {}) => api.updatePageHtml({ id, html }),
+  updatePageHtml: ({ id, html }, _options = {}) => pagesApi.updatePageHtml({ id, html }),
   // The shared posts route saves pages too; `entry` makes a failure notice say "page".
-  updatePost: ({ target, patch }, _options = {}) => api.updatePost(target, { options: patch, entry: "page" }),
-  deletePage: ({ id }, _options = {}) => api.deletePage({ id }),
-  templatePreviewUrl: ({ id, templateChoice }, _options = {}) => api.templatePreviewUrl({ id, templateChoice }),
-  putAutosave: ({ id, draft }, options = {}) => api.putAutosave({ id, draft }, options),
+  updatePost: ({ target, patch }, _options = {}) => postsApi.updatePost(target, { options: patch, entry: "page" }),
+  deletePage: ({ id }, _options = {}) => pagesApi.deletePage({ id }),
+  templatePreviewUrl: ({ id, templateChoice }, _options = {}) => postsApi.templatePreviewUrl({ id, templateChoice }),
+  putAutosave: ({ id, draft }, options = {}) => postsApi.putAutosave({ id, draft }, options),
   getBackupPrincipalId: () => getAdminDraftIdentity(),
-  getAutosave: ({ id }, _options = {}) => api.getAutosave({ id }),
-  discardAutosave: ({ id }, _options = {}) => api.discardAutosave({ id }),
+  getAutosave: ({ id }, _options = {}) => postsApi.getAutosave({ id }),
+  discardAutosave: ({ id }, _options = {}) => postsApi.discardAutosave({ id }),
 };
 
 /** Seed state for {@link createFakePageEditorPort}. */

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatMessage } from "@jini-ai/chat/core";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 import type { ExecutionConfig } from "@jini-ai/ui";
-import { onUnauthenticated } from "../../lib/api";
+import { onUnauthenticated } from "../../lib/admin-http/request";
 import { adminFrontendTabId } from "../../lib/admin-frontend-session";
 
 /**

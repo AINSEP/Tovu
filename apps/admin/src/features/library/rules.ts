@@ -1,5 +1,5 @@
 import type { QueryKey } from "@jini-ai/ui/fetch-query";
-import type { AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
 
 /**
  * @file Pure rules for the Library screen: which files the Upload tab accepts, how a document row

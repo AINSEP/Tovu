@@ -1,4 +1,5 @@
-import { api, type AdminObservabilityStatus } from "@/lib/api";
+import type { AdminObservabilityStatus } from "@/features/observability/api/observability-api.types";
+import { observabilityApi } from "@/features/observability/api/observability-api";
 import type { ObservabilityStatusPort } from "./observability-status-port.hooks";
 
 /**
@@ -10,8 +11,8 @@ import type { ObservabilityStatusPort } from "./observability-status-port.hooks"
 
 /** The live implementation, as a module-level singleton — matches `defaultAgentPluginsPort`. */
 export const defaultObservabilityStatusPort: ObservabilityStatusPort = {
-  getObservabilityStatus: () => api.getObservabilityStatus(),
-  sendTestError: () => api.sendObservabilityTestError(),
+  getObservabilityStatus: () => observabilityApi.getObservabilityStatus(),
+  sendTestError: () => observabilityApi.sendObservabilityTestError(),
 };
 
 /** Seed state for {@link createFakeObservabilityStatusPort}. */

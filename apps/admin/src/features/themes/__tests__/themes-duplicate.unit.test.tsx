@@ -2,7 +2,8 @@ import { act, render, renderHook, screen, waitFor } from "@/__tests__/fetch-quer
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { api, type PresentationSettings } from "@/lib/api";
+import type { PresentationSettings } from "@/features/themes/api/themes-api.types";
+import { themesApi } from "@/features/themes/api/themes-api";
 import { Themes } from "../Themes";
 import { createFakeThemesPort } from "../hooks/themes-dependencies.hooks";
 import { useThemes, type ThemesController } from "../hooks/use-themes.hooks";
@@ -18,7 +19,7 @@ const identity = (key: string): string => key;
 
 describe("useThemes — duplicate", () => {
   it("duplicates through the port as '<name> copy', reloads the list, and announces the copy", async () => {
-    const duplicateSpy = vi.spyOn(api, "duplicateTheme");
+    const duplicateSpy = vi.spyOn(themesApi, "duplicateTheme");
     const port = createFakeThemesPort({ availableThemeIds: ["basic"], availableThemes: [{ id: "basic", name: "Basic", tier: "declarative" }] });
     const portSpy = vi.spyOn(port, "duplicateTheme");
     const { result } = renderHook(() => useThemes({ port, t: identity }));

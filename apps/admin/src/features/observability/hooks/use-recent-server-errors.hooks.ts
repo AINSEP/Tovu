@@ -2,7 +2,8 @@ import { useCallback as useQueryFetchCallback } from "react";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useCallback, useMemo } from "react";
 
-import { describeApiError, type AdminServerLogEntry, type AdminServerLogs } from "@/lib/api";
+import type { AdminServerLogEntry, AdminServerLogs } from "@/features/observability/api/observability-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translateObservability } from "../observability-i18n";
 import {

@@ -67,7 +67,7 @@ it("keeps the draft after a non-Error failure and accepts the server's normalize
 import { SitesHomeSetting } from "../SitesHomeSetting";
 import { t as translate } from "../sites-i18n";
 import type { useSitesConfig } from "../hooks/use-sites-config.hooks";
-import type { SitesUserConfig } from "@/lib/api";
+import type { SitesUserConfig } from "@/features/sites/api/sites-api.types";
 afterEach(cleanup);
 
 type SitesSettings = ReturnType<typeof useSitesConfig>;

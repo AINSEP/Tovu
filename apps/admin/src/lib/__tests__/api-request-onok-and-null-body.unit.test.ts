@@ -1,6 +1,8 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { api, ApiError, authenticatedAdminRequest, onUnauthenticated, requestOnce, requestRidingOutRestart } from "../api";
+import { deploymentApi } from "../../features/deployment/api/deployment-api";
+import { authApi } from "../../features/auth/api/auth-api";
+import { ApiError, authenticatedAdminRequest, onUnauthenticated, requestOnce, requestRidingOutRestart } from "../admin-http/request";
 
 /**
  * @file Characterization tests for `request()`'s two branches that no existing suite exercised
@@ -37,7 +39,7 @@ test("onOk merges the ETag response header into a successful getDockerfileSource
       })
   );
 
-  await expect(api.getDockerfileSource()).resolves.toEqual({
+  await expect(deploymentApi.getDockerfileSource()).resolves.toEqual({
     exists: true,
     contents: "FROM node:22\n",
     etag: '"abc123"',
@@ -53,7 +55,7 @@ test("onOk falls back to an empty-string etag when the response has no ETag head
       })
   );
 
-  await expect(api.getDockerfileSource()).resolves.toEqual({ exists: false, contents: null, etag: "" });
+  await expect(deploymentApi.getDockerfileSource()).resolves.toEqual({ exists: false, contents: null, etag: "" });
 });
 
 test("onOk is not invoked on a non-2xx response", async () => {
@@ -67,17 +69,17 @@ test("onOk is not invoked on a non-2xx response", async () => {
     return res;
   });
 
-  await expect(api.getDockerfileSource()).rejects.toThrow("not found");
+  await expect(deploymentApi.getDockerfileSource()).rejects.toThrow("not found");
   expect(headersGet.mock.calls).toEqual([["x-tovu-upstream-status"]]);
 });
 
 test("a literal JSON null error body is treated as a body with no code/error field, not as UNPARSEABLE", async () => {
   stubFetch(async () => new Response("null", { status: 500, headers: { "Content-Type": "application/json" } }));
 
-  const error = await api.login({ username: "a", password: "b" }).catch((e: unknown) => e);
+  const error = await authApi.login({ username: "a", password: "b" }).catch((e: unknown) => e);
 
   expect(error).toBeInstanceOf(Error);
-  const apiError = error as import("../api").ApiError;
+  const apiError = error as import("../admin-http/request").ApiError;
   // Parseable JSON (even `null`) proves an application answered, so name the failed request
   // rather than the "cannot reach the API" message an unparseable 5xx gets.
   expect(apiError.message).toBe("The API could not finish POST /auth/login (HTTP 500). Check whether your change was saved before trying again. Copy details and report this problem.");
@@ -91,7 +93,7 @@ test("a literal JSON null 401 body does not notify unauthenticated listeners —
   const listener = vi.fn();
   const unsubscribe = onUnauthenticated(listener);
   try {
-    const error = await api.login({ username: "a", password: "b" }).catch((e: unknown) => e);
+    const error = await authApi.login({ username: "a", password: "b" }).catch((e: unknown) => e);
     expect((error as Error).message).toBe("The API could not finish POST /auth/login (HTTP 401). Check whether your change was saved before trying again. Copy details and report this problem.");
     expect(listener).not.toHaveBeenCalled();
   } finally {

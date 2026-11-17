@@ -1,4 +1,4 @@
-import { ApiError } from '@/lib/api';
+import { ApiError } from '@/lib/admin-http/request';
 import { render, screen, fireEvent } from "@/__tests__/render-with-jini-kits";
 import { it, expect, vi } from 'vitest';
 import { OwnerRecoverySignIn } from '../OwnerRecoverySignIn';

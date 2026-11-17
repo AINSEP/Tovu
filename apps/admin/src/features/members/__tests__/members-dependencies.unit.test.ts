@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminMember } from "@/lib/api";
+import type { AdminMember } from "@/features/members/api/members-api.types";
 
 /**
  * @file Coverage for `members-dependencies.hooks.ts` (3/12 funcs, 0% branch) —
@@ -17,9 +17,9 @@ const { listMembers, getMember, disableMember, requestMemberMagicLink } = vi.hoi
   requestMemberMagicLink: vi.fn(),
 }));
 
-vi.mock("../../../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../lib/api")>();
-  return { ...actual, api: { ...actual.api, listMembers, getMember, disableMember, requestMemberMagicLink } };
+vi.mock("../api/members-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/members-api")>();
+  return { ...actual, membersApi: { ...actual.membersApi, listMembers, getMember, disableMember, requestMemberMagicLink } };
 });
 
 const { createFakeMembersPort, defaultMembersPort } = await import("../hooks/members-dependencies.hooks");

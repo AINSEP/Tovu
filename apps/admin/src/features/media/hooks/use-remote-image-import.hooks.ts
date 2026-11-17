@@ -1,7 +1,7 @@
 import { useRef, useState, type FormEvent, type MouseEvent } from "react";
 import { parseImportUrl } from "@jini-ai/cms/media/import";
 import { useFetchMutation } from "@jini-ai/ui/fetch-query";
-import { describeApiError } from "@/lib/api";
+import { describeApiError } from "@/lib/admin-http/request";
 import { KEYS } from "../rules";
 import { defaultMediaImportPort, type MediaImportPort } from "./media-import-dependencies.hooks";
 

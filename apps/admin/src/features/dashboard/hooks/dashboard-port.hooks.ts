@@ -1,4 +1,5 @@
-import type { AdminPost, AdminSiteKeyState } from "@/lib/api";
+import type { AdminSiteKeyState } from "@/features/sites/api/sites-api.types";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 
 /**
  * @file What `use-dashboard.hooks.ts` needs from the outside world, as an interface rather than a

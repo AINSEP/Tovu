@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import { useExecutionCredential, type UseExecutionCredentialInput, type ExecutionCredentialController, type ExecutionCredentialPort, type ExecutionCredentialEffects, type ExecutionCredentialSaveState } from "@jini-ai/ui";
 
-import { ApiError, type AdminExecutionCredential, describeApiError as describeApiErrorDefault } from "../lib/api";
+import type { AdminExecutionCredential } from "../features/ai-assistant/api/ai-assistant-api.types";
+import { ApiError, describeApiError as describeApiErrorDefault } from "../lib/admin-http/request";
 import {
   EXECUTION_NAMESPACE,
   clearLegacyLocalCredential,

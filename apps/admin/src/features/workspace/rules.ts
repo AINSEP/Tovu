@@ -1,4 +1,5 @@
-import { ApiError, describeApiError as describeApiErrorDefault, type AdminWorkspace } from "../../lib/api";
+import type { AdminWorkspace } from "./api/workspace-api.types";
+import { ApiError, describeApiError as describeApiErrorDefault } from "../../lib/admin-http/request";
 import { t } from "./workspace-i18n";
 
 /**

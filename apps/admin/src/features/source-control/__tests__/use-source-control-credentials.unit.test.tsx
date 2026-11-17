@@ -6,7 +6,8 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { useSourceControlCredentials, useWiredSourceControlCredentials } from "../hooks/use-source-control-credentials.hooks";
 import { createFakeSourceControlCredentialsPort } from "../hooks/source-control-credentials-dependencies.hooks";
-import { ApiError, type AdminSourceControlCredentialSummary } from "@/lib/api";
+import type { AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import { SOURCE_CONTROL_PROVIDERS_SNAPSHOT } from "./source-control-providers.fixture";
 
 /** The fake port with the fixture hosts listed (GitHub, and Forge with a required username). */

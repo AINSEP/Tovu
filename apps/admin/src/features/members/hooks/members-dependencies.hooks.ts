@@ -1,4 +1,5 @@
-import { api, type AdminMember } from "@/lib/api";
+import type { AdminMember } from "@/features/members/api/members-api.types";
+import { membersApi } from "@/features/members/api/members-api";
 import type { MembersPort } from "./members-port.hooks";
 
 /**
@@ -8,10 +9,10 @@ import type { MembersPort } from "./members-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultMembersPort: MembersPort = {
-  listMembers: () => api.listMembers(),
-  getMember: ({ id }, _optional = {}) => api.getMember({ id }),
-  disableMember: ({ id }, _optional = {}) => api.disableMember({ id }),
-  requestMemberMagicLink: (input, _optional = {}) => api.requestMemberMagicLink(input),
+  listMembers: () => membersApi.listMembers(),
+  getMember: ({ id }, _optional = {}) => membersApi.getMember({ id }),
+  disableMember: ({ id }, _optional = {}) => membersApi.disableMember({ id }),
+  requestMemberMagicLink: (input, _optional = {}) => membersApi.requestMemberMagicLink(input),
 };
 
 /** Seed state for {@link createFakeMembersPort}. */

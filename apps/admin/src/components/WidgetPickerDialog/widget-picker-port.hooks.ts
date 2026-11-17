@@ -1,4 +1,4 @@
-import type { AdminWidget, AdminWidgetType } from "../../lib/api";
+import type { AdminWidget, AdminWidgetType } from "../../features/widgets/api/widgets-api.types";
 
 /**
  * @file What `WidgetPickerDialog.hooks.tsx` needs from the outside world, as an interface rather

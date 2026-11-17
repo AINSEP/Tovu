@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useDeploymentOverview } from "../use-deployment-overview.hooks";
 import { createFakeDeploymentOverviewPort } from "../deployment-overview-dependencies.hooks";
-import type { AdminDeploymentOverview } from "@/lib/api";
+import type { AdminDeploymentOverview } from "@/features/deployment/api/deployment-api.types";
 
 /**
  * @file `useDeploymentOverview` — the Overview tab's single read. Injected-port coverage, same

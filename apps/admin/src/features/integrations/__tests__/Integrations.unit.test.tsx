@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import type { AdminWebhookSubscription } from "@/lib/api";
+import type { AdminWebhookSubscription } from "@/features/integrations/api/integrations-api.types";
 import { Integrations } from "../Integrations";
 import { createFakeIntegrationsPort } from "../hooks/integrations-dependencies.hooks";
 import { useIntegrations, type IntegrationsController } from "../hooks/use-integrations.hooks";

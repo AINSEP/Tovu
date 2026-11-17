@@ -1,6 +1,19 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { api } from "../api";
+import { securityApi } from "../../features/security/api/security-api";
+import { sourceControlApi } from "../../features/source-control/api/source-control-api";
+import { integrationsApi } from "../../features/integrations/api/integrations-api";
+import { mediaApi } from "../../features/media/api/media-api";
+import { rolesApi } from "../../features/roles/api/roles-api";
+import { taxonomyApi } from "../../features/taxonomy/api/taxonomy-api";
+import { postsApi } from "../../features/posts/api/posts-api";
+import { usersApi } from "../../features/users/api/users-api";
+import { collectionsApi } from "../../features/collections/api/collections-api";
+import { pluginsApi } from "../../features/plugins/api/plugins-api";
+import { pagesApi } from "../../features/pages/api/pages-api";
+import { menusApi } from "../../features/menus/api/menus-api";
+import { membersApi } from "../../features/members/api/members-api";
+import { widgetsApi } from "../../features/widgets/api/widgets-api";
 
 /**
  * @file id-encoding sweep (2026-09-05, `fix-apienc` dispatch) — TASK 1.
@@ -62,153 +75,153 @@ type Case = [name: string, run: () => unknown, expectedUrl: string];
 // the URL-building line; unrelated fields (`expectedVersion`, `baseVersion`, required companion
 // ids) get innocuous fixed values since only the URL is asserted.
 const singleIdCases: Case[] = [
-  ["getPost", () => api.getPost({ id: SLASH_ID }), `${BASE_WORKSPACE}/posts/${ENC}`],
-  ["updatePost", () => api.updatePost({ id: SLASH_ID }), `${BASE_WORKSPACE}/posts/${ENC}`],
-  ["deletePost", () => api.deletePost({ id: SLASH_ID }), `${BASE_WORKSPACE}/posts/${ENC}`],
-  ["getPage", () => api.getPage({ id: SLASH_ID }), `${BASE_WORKSPACE}/pages/${ENC}`],
-  ["updatePageHtml", () => api.updatePageHtml({ id: SLASH_ID, html: "<p>x</p>" }), `${BASE_WORKSPACE}/pages/${ENC}/html`],
-  ["deletePage", () => api.deletePage({ id: SLASH_ID }), `${BASE_WORKSPACE}/pages/${ENC}`],
-  ["getMember", () => api.getMember({ id: SLASH_ID }), `${BASE_WORKSPACE}/members/${ENC}`],
-  ["disableMember", () => api.disableMember({ id: SLASH_ID }), `${BASE_WORKSPACE}/members/${ENC}/disable`],
-  ["getMenu", () => api.getMenu({ id: SLASH_ID }), `${BASE_WORKSPACE}/menus/${ENC}`],
+  ["getPost", () => postsApi.getPost({ id: SLASH_ID }), `${BASE_WORKSPACE}/posts/${ENC}`],
+  ["updatePost", () => postsApi.updatePost({ id: SLASH_ID }), `${BASE_WORKSPACE}/posts/${ENC}`],
+  ["deletePost", () => postsApi.deletePost({ id: SLASH_ID }), `${BASE_WORKSPACE}/posts/${ENC}`],
+  ["getPage", () => pagesApi.getPage({ id: SLASH_ID }), `${BASE_WORKSPACE}/pages/${ENC}`],
+  ["updatePageHtml", () => pagesApi.updatePageHtml({ id: SLASH_ID, html: "<p>x</p>" }), `${BASE_WORKSPACE}/pages/${ENC}/html`],
+  ["deletePage", () => pagesApi.deletePage({ id: SLASH_ID }), `${BASE_WORKSPACE}/pages/${ENC}`],
+  ["getMember", () => membersApi.getMember({ id: SLASH_ID }), `${BASE_WORKSPACE}/members/${ENC}`],
+  ["disableMember", () => membersApi.disableMember({ id: SLASH_ID }), `${BASE_WORKSPACE}/members/${ENC}/disable`],
+  ["getMenu", () => menusApi.getMenu({ id: SLASH_ID }), `${BASE_WORKSPACE}/menus/${ENC}`],
   [
     "updateMenuTree",
-    () => api.updateMenuTree({ id: SLASH_ID, expectedVersion: 1, items: [] }),
+    () => menusApi.updateMenuTree({ id: SLASH_ID, expectedVersion: 1, items: [] }),
     `${BASE_WORKSPACE}/menus/${ENC}`,
   ],
   [
     "pauseIntegrationSubscription",
-    () => api.pauseIntegrationSubscription({ id: SLASH_ID, paused: true }),
+    () => integrationsApi.pauseIntegrationSubscription({ id: SLASH_ID, paused: true }),
     `${BASE_WORKSPACE}/integrations/subscriptions/${ENC}/pause`,
   ],
   [
     "deleteIntegrationSubscription",
-    () => api.deleteIntegrationSubscription({ id: SLASH_ID }),
+    () => integrationsApi.deleteIntegrationSubscription({ id: SLASH_ID }),
     `${BASE_WORKSPACE}/integrations/subscriptions/${ENC}`,
   ],
   [
     "listIntegrationDeliveries",
-    () => api.listIntegrationDeliveries({ subscriptionId: SLASH_ID }),
+    () => integrationsApi.listIntegrationDeliveries({ subscriptionId: SLASH_ID }),
     `${BASE_WORKSPACE}/integrations/subscriptions/${ENC}/deliveries`,
   ],
-  ["updateMedia", () => api.updateMedia({ id: SLASH_ID }), `${BASE_WORKSPACE}/media/${ENC}`],
-  ["trashMedia", () => api.trashMedia({ id: SLASH_ID }), `${BASE_WORKSPACE}/media/${ENC}/trash`],
-  ["deleteMedia", () => api.deleteMedia({ id: SLASH_ID }), `${BASE_WORKSPACE}/media/${ENC}`],
-  ["updateUser", () => api.updateUser({ principalId: SLASH_ID }), `${BASE_WORKSPACE}/users/${ENC}`],
-  ["disableUser", () => api.disableUser({ principalId: SLASH_ID }), `${BASE_WORKSPACE}/users/${ENC}/disable`],
-  ["enableUser", () => api.enableUser({ principalId: SLASH_ID }), `${BASE_WORKSPACE}/users/${ENC}/enable`],
+  ["updateMedia", () => mediaApi.updateMedia({ id: SLASH_ID }), `${BASE_WORKSPACE}/media/${ENC}`],
+  ["trashMedia", () => mediaApi.trashMedia({ id: SLASH_ID }), `${BASE_WORKSPACE}/media/${ENC}/trash`],
+  ["deleteMedia", () => mediaApi.deleteMedia({ id: SLASH_ID }), `${BASE_WORKSPACE}/media/${ENC}`],
+  ["updateUser", () => usersApi.updateUser({ principalId: SLASH_ID }), `${BASE_WORKSPACE}/users/${ENC}`],
+  ["disableUser", () => usersApi.disableUser({ principalId: SLASH_ID }), `${BASE_WORKSPACE}/users/${ENC}/disable`],
+  ["enableUser", () => usersApi.enableUser({ principalId: SLASH_ID }), `${BASE_WORKSPACE}/users/${ENC}/enable`],
   [
     "resetUserPassword",
-    () => api.resetUserPassword({ principalId: SLASH_ID, password: "x" }),
+    () => usersApi.resetUserPassword({ principalId: SLASH_ID, password: "x" }),
     `${BASE_WORKSPACE}/users/${ENC}/reset-password`,
   ],
   [
     "assignRole",
-    () => api.assignRole({ principalId: SLASH_ID, roleId: "r1" }),
+    () => usersApi.assignRole({ principalId: SLASH_ID, roleId: "r1" }),
     `${BASE_WORKSPACE}/users/${ENC}/roles`,
   ],
   [
     "attachPolicy",
-    () => api.attachPolicy({ principalId: SLASH_ID, policyId: "p1" }),
+    () => usersApi.attachPolicy({ principalId: SLASH_ID, policyId: "p1" }),
     `${BASE_WORKSPACE}/users/${ENC}/policies`,
   ],
-  ["updateRole", () => api.updateRole({ roleId: SLASH_ID, name: "x" }), `${BASE_WORKSPACE}/roles/${ENC}`],
-  ["deleteRole", () => api.deleteRole({ roleId: SLASH_ID }), `${BASE_WORKSPACE}/roles/${ENC}`],
-  ["updatePolicy", () => api.updatePolicy({ policyId: SLASH_ID }), `${BASE_WORKSPACE}/policies/${ENC}`],
-  ["deletePolicy", () => api.deletePolicy({ policyId: SLASH_ID }), `${BASE_WORKSPACE}/policies/${ENC}`],
+  ["updateRole", () => rolesApi.updateRole({ roleId: SLASH_ID, name: "x" }), `${BASE_WORKSPACE}/roles/${ENC}`],
+  ["deleteRole", () => rolesApi.deleteRole({ roleId: SLASH_ID }), `${BASE_WORKSPACE}/roles/${ENC}`],
+  ["updatePolicy", () => rolesApi.updatePolicy({ policyId: SLASH_ID }), `${BASE_WORKSPACE}/policies/${ENC}`],
+  ["deletePolicy", () => rolesApi.deletePolicy({ policyId: SLASH_ID }), `${BASE_WORKSPACE}/policies/${ENC}`],
   [
     "writePolicyPermission",
-    () => api.writePolicyPermission({ policyId: SLASH_ID, permission: "read" }),
+    () => rolesApi.writePolicyPermission({ policyId: SLASH_ID, permission: "read" }),
     `${BASE_WORKSPACE}/policies/${ENC}/permissions`,
   ],
   [
     "listPolicyPermissions",
-    () => api.listPolicyPermissions({ policyId: SLASH_ID }),
+    () => rolesApi.listPolicyPermissions({ policyId: SLASH_ID }),
     `${BASE_WORKSPACE}/policies/${ENC}/permissions`,
   ],
 
   [
     "updateContentTypeFields",
-    () => api.updateContentTypeFields({ key: SLASH_ID, fields: [], expectedVersion: 1 }),
+    () => collectionsApi.updateContentTypeFields({ key: SLASH_ID, fields: [], expectedVersion: 1 }),
     `${BASE_API}/content-types/${ENC}/fields`,
   ],
   [
     "contentTypeLifecycle",
-    () => api.contentTypeLifecycle({ key: SLASH_ID, op: "deprecate", expectedVersion: 1 }),
+    () => collectionsApi.contentTypeLifecycle({ key: SLASH_ID, op: "deprecate", expectedVersion: 1 }),
     `${BASE_API}/content-types/${ENC}/lifecycle`,
   ],
-  ["updateEntry", () => api.updateEntry({ id: SLASH_ID, expectedVersion: 1 }), `${BASE_API}/entries/${ENC}`],
+  ["updateEntry", () => collectionsApi.updateEntry({ id: SLASH_ID, expectedVersion: 1 }), `${BASE_API}/entries/${ENC}`],
   [
     "entryLifecycle",
-    () => api.entryLifecycle({ id: SLASH_ID, op: "publish", expectedVersion: 1 }),
+    () => collectionsApi.entryLifecycle({ id: SLASH_ID, op: "publish", expectedVersion: 1 }),
     `${BASE_API}/entries/${ENC}/lifecycle`,
   ],
   [
     "createTerm",
-    () => api.createTerm({ taxonomyId: SLASH_ID, name: "x" }),
+    () => taxonomyApi.createTerm({ taxonomyId: SLASH_ID, name: "x" }),
     `${BASE_API}/taxonomy/${ENC}/terms`,
   ],
   [
     "renameTerm",
-    () => api.renameTerm({ termId: SLASH_ID, newName: "x" }),
+    () => taxonomyApi.renameTerm({ termId: SLASH_ID, newName: "x" }),
     `${BASE_API}/taxonomy/terms/${ENC}`,
   ],
   [
     "planMergeTerm",
-    () => api.planMergeTerm({ fromTermId: SLASH_ID, intoTermId: "t2" }),
+    () => taxonomyApi.planMergeTerm({ fromTermId: SLASH_ID, intoTermId: "t2" }),
     `${BASE_API}/taxonomy/terms/${ENC}/merge/plan`,
   ],
   [
     "confirmMergeTerm",
-    () => api.confirmMergeTerm({ fromTermId: SLASH_ID, planId: "p1", planHash: "h1" }),
+    () => taxonomyApi.confirmMergeTerm({ fromTermId: SLASH_ID, planId: "p1", planHash: "h1" }),
     `${BASE_API}/taxonomy/terms/${ENC}/merge/confirm`,
   ],
   [
     "executeMergeTerm",
-    () => api.executeMergeTerm({ fromTermId: SLASH_ID, intoTermId: "t2", confirmationToken: "tok" }),
+    () => taxonomyApi.executeMergeTerm({ fromTermId: SLASH_ID, intoTermId: "t2", confirmationToken: "tok" }),
     `${BASE_API}/taxonomy/terms/${ENC}/merge/execute`,
   ],
 
-  ["getWidget", () => api.getWidget({ id: SLASH_ID }), `${BASE_WORKSPACE}/widgets/${ENC}`],
+  ["getWidget", () => widgetsApi.getWidget({ id: SLASH_ID }), `${BASE_WORKSPACE}/widgets/${ENC}`],
 
   [
     "setPluginEnabled",
-    () => api.setPluginEnabled({ pluginId: SLASH_ID, enabled: true }),
+    () => pluginsApi.setPluginEnabled({ pluginId: SLASH_ID, enabled: true }),
     `${BASE_WORKSPACE}/plugins/${ENC}`,
   ],
   [
     "updatePublishCredential",
-    () => api.updatePublishCredential({ id: SLASH_ID, input: {} }),
+    () => securityApi.updatePublishCredential({ id: SLASH_ID, input: {} }),
     `${BASE_WORKSPACE}/system/publish/credentials/${ENC}`,
   ],
   [
     "deletePublishCredential",
-    () => api.deletePublishCredential({ id: SLASH_ID }),
+    () => securityApi.deletePublishCredential({ id: SLASH_ID }),
     `${BASE_WORKSPACE}/system/publish/credentials/${ENC}`,
   ],
   [
     "verifyPublishCredential",
-    () => api.verifyPublishCredential({ id: SLASH_ID }),
+    () => securityApi.verifyPublishCredential({ id: SLASH_ID }),
     `${BASE_WORKSPACE}/system/publish/credentials/${ENC}/verify`,
   ],
   [
     "updateSourceControlCredential",
-    () => api.updateSourceControlCredential({ id: SLASH_ID, input: {} }),
+    () => sourceControlApi.updateSourceControlCredential({ id: SLASH_ID, input: {} }),
     `${BASE_WORKSPACE}/system/source-control/credentials/${ENC}`,
   ],
   [
     "deleteSourceControlCredential",
-    () => api.deleteSourceControlCredential({ id: SLASH_ID }),
+    () => sourceControlApi.deleteSourceControlCredential({ id: SLASH_ID }),
     `${BASE_WORKSPACE}/system/source-control/credentials/${ENC}`,
   ],
   [
     "updateCustomCredential",
-    () => api.updateCustomCredential({ id: SLASH_ID, input: {} }),
+    () => securityApi.updateCustomCredential({ id: SLASH_ID, input: {} }),
     `${BASE_WORKSPACE}/system/custom/credentials/${ENC}`,
   ],
   [
     "deleteCustomCredential",
-    () => api.deleteCustomCredential({ id: SLASH_ID }),
+    () => securityApi.deleteCustomCredential({ id: SLASH_ID }),
     `${BASE_WORKSPACE}/system/custom/credentials/${ENC}`,
   ],
 ];
@@ -223,20 +236,20 @@ test.each(singleIdCases)("%s encodes an id containing '/' in the request URL", a
 // to a DOM element's `src` (same shape as `templatePreviewUrl`, which already encodes). No stub
 // needed.
 test("mediaOriginalUrl encodes an id containing '/' in the URL string it builds", () => {
-  expect(api.mediaOriginalUrl({ id: SLASH_ID })).toBe(`${BASE_API}/workspaces/workspace-local/media/${ENC}/original`);
+  expect(mediaApi.mediaOriginalUrl({ id: SLASH_ID })).toBe(`${BASE_API}/workspaces/workspace-local/media/${ENC}/original`);
 });
 
 // The Edit post cover slot shows the same `public` rendition the published post's cover uses, not the
 // cropped `og` share card (owner 2026-10-11: the slot must match the published page).
 test("mediaPreviewRenditionUrl builds the published cover's public.v1 URL with the id encoded", () => {
-  expect(api.mediaPreviewRenditionUrl({ id: SLASH_ID })).toMatch(new RegExp(`/m/${ENC}/public\\.v1/image\\.jpg$`));
+  expect(mediaApi.mediaPreviewRenditionUrl({ id: SLASH_ID })).toMatch(new RegExp(`/m/${ENC}/public\\.v1/image\\.jpg$`));
 });
 
 // --- Two-id call sites: each segment asserted independently ----------------
 
 test("removePolicyPermission encodes both policyId and policyPermissionId", async () => {
   const { calls } = stubFetchCapturing();
-  await api.removePolicyPermission({ policyId: SLASH_ID, policyPermissionId: SECOND_ID });
+  await rolesApi.removePolicyPermission({ policyId: SLASH_ID, policyPermissionId: SECOND_ID });
   expect(calls[0].url).toBe(`${BASE_WORKSPACE}/policies/${ENC}/permissions/${ENC2}`);
 });
 

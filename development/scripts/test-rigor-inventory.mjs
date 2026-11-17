@@ -360,6 +360,8 @@ const IMPORT_PATTERNS = [
   /\brequire\s*\(\s*["']([^"']+)["']\s*\)/g,
 ];
 const MOCK_PATTERN = /\b(?:vi\.(?:mock|doMock)|jest\.mock|mock\.module|t\.mock\.module)\s*\(\s*["']([^"']+)["']/g;
+/** The admin app's API clients, one per feature (they replaced `apps/admin/src/lib/api.ts`). */
+const ADMIN_API_CLIENT = /^apps\/admin\/src\/features\/[^/]+\/api\/[^/]+-api\.ts$/;
 
 function extractImports(code) {
   const specs = new Set();
@@ -617,7 +619,7 @@ function tagSelfMocks({ code, file, imports, resolve, lineOf, add }, _options = 
     const r = resolve(file, m[1]);
     const ln = lineOf(m.index);
     if (r && subjects.has(r)) add("self-mock", ln, null, `mocks its own subject ${r}`);
-    else if (r === "apps/admin/src/lib/api.ts") add("self-mock", ln, null, "mocks apps/admin/src/lib/api.ts");
+    else if (r && ADMIN_API_CLIENT.test(r)) add("self-mock", ln, null, `mocks the admin API client ${r}`);
   }
 
 }

@@ -1,4 +1,8 @@
-import { ApiError, api, authenticatedAdminRequest, WORKSPACE_ID, type AdminPlugin, type AdminPluginFiles, type AdminPluginProviderSettings } from "@/lib/api";
+import type { AdminPlugin, AdminPluginFiles, AdminPluginProviderSettings } from "@/features/plugins/api/plugins-api.types";
+import { pluginsApi } from "@/features/plugins/api/plugins-api";
+import { providersApi } from "@/features/providers/api/providers-api";
+import { ApiError, authenticatedAdminRequest } from "@/lib/admin-http/request";
+import { WORKSPACE_ID } from "@/lib/admin-http/config";
 import { providerSettingRequiredHere } from "../rules";
 import type { PluginsPort } from "./plugins-port.hooks";
 
@@ -10,13 +14,13 @@ import type { PluginsPort } from "./plugins-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultPluginsPort: PluginsPort = {
-  useProjectKey: (input, _optional = {}) => api.useProjectKey(input),
+  useProjectKey: (input, _optional = {}) => providersApi.useProjectKey(input),
   listPlugins: () => authenticatedAdminRequest({ path: `/workspaces/${WORKSPACE_ID}/plugins`, method: "GET" }),
-  setPluginEnabled: ({ id, patch }, _optional = {}) => api.setPluginEnabled({ pluginId: id, enabled: patch.enabled }),
-  uninstallPlugin: ({ id }, _optional = {}) => api.uninstallPlugin({ pluginId: id }),
-  getPluginFiles: ({ id }, _optional = {}) => api.getPluginFiles({ pluginId: id }),
-  getProviderSettings: ({ id }, _optional = {}) => api.getPluginProviderSettings({ pluginId: id }),
-  saveProviderSettings: ({ id, values }, _optional = {}) => api.savePluginProviderSettings({ pluginId: id, values }),
+  setPluginEnabled: ({ id, patch }, _optional = {}) => pluginsApi.setPluginEnabled({ pluginId: id, enabled: patch.enabled }),
+  uninstallPlugin: ({ id }, _optional = {}) => pluginsApi.uninstallPlugin({ pluginId: id }),
+  getPluginFiles: ({ id }, _optional = {}) => pluginsApi.getPluginFiles({ pluginId: id }),
+  getProviderSettings: ({ id }, _optional = {}) => pluginsApi.getPluginProviderSettings({ pluginId: id }),
+  saveProviderSettings: ({ id, values }, _optional = {}) => pluginsApi.savePluginProviderSettings({ pluginId: id, values }),
 };
 
 /** Seed state for {@link createFakePluginsPort}. */

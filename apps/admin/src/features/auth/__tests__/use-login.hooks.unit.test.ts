@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { useLogin } from "../hooks/use-login.hooks";
 import { createFakeLoginPort } from "../hooks/login-dependencies.hooks";
 import type { LoginPort } from "../hooks/login-port.hooks";
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 
 /**
  * @file `useLogin` — the Login screen's submit lifecycle, extracted verbatim from `Login.tsx`.

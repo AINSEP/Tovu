@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError, type AdminPlugin } from "@/lib/api";
+import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import { describeApiError, pluginConflictLines, pluginQuarantineHeadline, pluginRowDetailView } from "../rules";
 import { t as translatePlugins } from "../plugins-i18n";
 

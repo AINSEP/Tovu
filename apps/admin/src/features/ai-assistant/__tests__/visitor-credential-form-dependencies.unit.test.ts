@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { SiteAssistantCredential } from "@/lib/api";
+import type { SiteAssistantCredential } from "@/features/ai-assistant/api/ai-assistant-api.types";
 
 /**
  * @file Coverage for `visitor-credential-form-dependencies.hooks.ts` (2/6 funcs) —
@@ -15,9 +15,9 @@ const { getAssistantSiteCredential, setAssistantSiteCredential } = vi.hoisted(()
   setAssistantSiteCredential: vi.fn(),
 }));
 
-vi.mock("../../../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../lib/api")>();
-  return { ...actual, api: { ...actual.api, getAssistantSiteCredential, setAssistantSiteCredential } };
+vi.mock("../api/ai-assistant-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/ai-assistant-api")>();
+  return { ...actual, aiAssistantApi: { ...actual.aiAssistantApi, getAssistantSiteCredential, setAssistantSiteCredential } };
 });
 
 const { createFakeVisitorCredentialFormPort, defaultVisitorCredentialFormPort } = await import("../hooks/visitor-credential-form-dependencies.hooks");

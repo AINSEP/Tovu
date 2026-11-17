@@ -1,4 +1,11 @@
-import { api, authenticatedAdminRequest, WORKSPACE_ID, type AdminContentType, type AdminFormDefinition, type AdminMenu } from "../../lib/api";
+import type { AdminContentType } from "../../features/collections/api/collections-api.types";
+import { collectionsApi } from "../../features/collections/api/collections-api";
+import type { AdminMenu } from "../../features/menus/api/menus-api.types";
+import { menusApi } from "../../features/menus/api/menus-api";
+import type { AdminFormDefinition } from "../../features/forms/api/forms-api.types";
+import { formsApi } from "../../features/forms/api/forms-api";
+import { authenticatedAdminRequest } from "../../lib/admin-http/request";
+import { WORKSPACE_ID } from "../../lib/admin-http/config";
 import type { WidgetConfigFieldsPort } from "./widget-config-fields-port.hooks";
 
 /**
@@ -9,9 +16,9 @@ import type { WidgetConfigFieldsPort } from "./widget-config-fields-port.hooks";
 /** The live implementation, as a module-level singleton — matches `theme-pages-
  *  dependencies.hooks.ts`'s `defaultThemePagesPort`. */
 export const defaultWidgetConfigFieldsPort: WidgetConfigFieldsPort = {
-  listMenus: () => api.listMenus(),
-  listForms: () => api.listForms(),
-  listContentTypes: () => api.listContentTypes(),
+  listMenus: () => menusApi.listMenus(),
+  listForms: () => formsApi.listForms(),
+  listContentTypes: () => collectionsApi.listContentTypes(),
 };
 
 /** Tovu's authenticated preview adapter; the server owns widget rendering and active-theme CSS.

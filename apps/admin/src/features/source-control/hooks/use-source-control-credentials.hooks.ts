@@ -2,7 +2,8 @@ import { classifyCredentialSubmitError } from "../../../lib/credential-submit-er
 import { credentialDraftError, translateCredentialMessage } from "@/lib/credential-copy";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { describeApiError, type AdminSourceControlCredentialSummary, type AdminSourceControlProviderId } from "@/lib/api";
+import type { AdminSourceControlCredentialSummary, AdminSourceControlProviderId } from "@/features/source-control/api/source-control-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
 import { localizeSourceControlProviders } from "@/lib/descriptor-i18n";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";

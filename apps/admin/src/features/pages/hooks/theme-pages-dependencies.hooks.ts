@@ -1,4 +1,4 @@
-import { api } from "@/lib/api";
+import { themesApi } from "@/features/themes/api/themes-api";
 import type { ThemePagesFileEntry, ThemePagesPort } from "./theme-pages-port.hooks";
 
 /**
@@ -8,9 +8,9 @@ import type { ThemePagesFileEntry, ThemePagesPort } from "./theme-pages-port.hoo
 
 /** The live implementation, as a module-level singleton. */
 export const defaultThemePagesPort: ThemePagesPort = {
-  getPresentation: () => api.getPresentation(),
-  getThemeDetail: ({ themeId }, _options = {}) => api.getThemeDetail({ themeId }),
-  setPagePublished: ({ themeId, page, published }, _options = {}) => api.setThemePagePublished({ themeId, page, published }),
+  getPresentation: () => themesApi.getPresentation(),
+  getThemeDetail: ({ themeId }, _options = {}) => themesApi.getThemeDetail({ themeId }),
+  setPagePublished: ({ themeId, page, published }, _options = {}) => themesApi.setThemePagePublished({ themeId, page, published }),
 };
 
 /** Seed state for {@link createFakeThemePagesPort}. */

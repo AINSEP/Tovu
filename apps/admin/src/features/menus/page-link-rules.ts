@@ -1,4 +1,4 @@
-import type { AdminMenuItem, AdminMenuTarget } from "@/lib/api";
+import type { AdminMenuItem, AdminMenuTarget } from "@/features/menus/api/menus-api.types";
 export interface MenuPageChoice { id: string; title: string; status: "draft" | "published"; publicPath?: string; }
 /** Release compatibility: installed DTO types predate the optional JSON content-type hint. */
 export type PageMenuTarget = AdminMenuTarget & { entryType?: string; lastKnownHref?: string };

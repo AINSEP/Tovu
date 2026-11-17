@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ExecutionConfig } from '@jini-ai/ui';
-import { api, type AdminDeploymentOverview } from '@/lib/api';
+import type { AdminDeploymentOverview } from '@/features/deployment/api/deployment-api.types';
+import { deploymentApi } from '@/features/deployment/api/deployment-api';
 import { effectiveExecutionConfig, localCliAllowed, preserveSavedExecutionMode, DEPLOYED_LOCAL_CLI_NOTE } from '@/lib/tovu-execution-policy';
 import { isDesktopAdmin } from '@/features/settings/ai-agent-presentation';
 import { t } from '@/features/settings/settings-execution-i18n';
@@ -13,7 +14,7 @@ type RuntimeSnapshot = Pick<AdminDeploymentOverview, 'mode'>;
  * No execution-setting write occurs here: the displayed fallback is not a preference migration. */
 export function useTovuExecutionPolicy(
   { config, locale }: { config: ExecutionConfig; locale: string },
-  { desktop = isDesktopAdmin({}), loadRuntime = api.getDeploymentOverview }: {
+  { desktop = isDesktopAdmin({}), loadRuntime = deploymentApi.getDeploymentOverview }: {
     desktop?: boolean; loadRuntime?: () => Promise<RuntimeSnapshot>;
   } = {},
 ) {

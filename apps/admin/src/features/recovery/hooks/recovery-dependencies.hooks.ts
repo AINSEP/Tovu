@@ -1,11 +1,7 @@
-import {
-  api,
-  type AdminRecoveryDeepLinkResult,
-  type AdminRecoveryStatus,
-  type AdminRestorePoint,
-  type AdminRestorePointSummary,
-  type DatabaseContextEnvelope,
-} from "@/lib/api";
+import type { AdminRecoveryDeepLinkResult, AdminRecoveryStatus, AdminRestorePoint, DatabaseContextEnvelope } from "@/features/recovery/api/recovery-api.types";
+import { recoveryApi } from "@/features/recovery/api/recovery-api";
+import type { AdminRestorePointSummary } from "@/features/database/api/database-api.types";
+import { databaseApi } from "@/features/database/api/database-api";
 import type { RecoveryPort } from "./recovery-port.hooks";
 
 /**
@@ -15,10 +11,10 @@ import type { RecoveryPort } from "./recovery-port.hooks";
 
 /** The live implementation, as a module-level singleton. */
 export const defaultRecoveryPort: RecoveryPort = {
-  getRecoveryStatus: () => api.getRecoveryStatus(),
-  listRecoveryRestorePoints: () => api.listRecoveryRestorePoints(),
-  createRestorePoint: (_input, options = {}) => api.createRecoveryRestorePoint(options),
-  resolveRecoveryDeepLink: (envelope, _options = {}) => api.resolveRecoveryDeepLink(envelope),
+  getRecoveryStatus: () => recoveryApi.getRecoveryStatus(),
+  listRecoveryRestorePoints: () => recoveryApi.listRecoveryRestorePoints(),
+  createRestorePoint: (_input, options = {}) => databaseApi.createRecoveryRestorePoint(options),
+  resolveRecoveryDeepLink: (envelope, _options = {}) => recoveryApi.resolveRecoveryDeepLink(envelope),
 };
 
 /** Every caller names the point's `id` (it is derived from the store size), so it is required. */

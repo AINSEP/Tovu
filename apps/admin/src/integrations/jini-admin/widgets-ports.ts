@@ -2,7 +2,7 @@
 import { createHttpWidgetsApi, type WidgetsTransportPort } from '@jini-ai/admin/widgets/adapters/http';
 import type { AdminWidgetsPort, WidgetsEventsPort, WidgetsNavigationPort, WidgetsTranslate } from '@jini-ai/admin/widgets';
 
-import { WORKSPACE_ID } from '../../lib/api';
+import { WORKSPACE_ID } from '../../lib/admin-http/config';
 import { contentRefreshApplies, subscribeToContentRefresh } from '../../lib/content-refresh-bus';
 import { navigate } from '../../lib/router';
 import { t as translateWidgets } from '../../features/widgets/widgets-i18n';

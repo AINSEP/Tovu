@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Themes } from "../Themes";
 import type { ThemesController } from "../hooks/use-themes.hooks";
-import { NO_THEME_ID, type PresentationSettings } from "@/lib/api";
+import { NO_THEME_ID, type PresentationSettings } from "@/features/themes/api/themes-api.types";
 
 /**
  * @file `Themes` (Themes screen) — driven through the `useThemesHook` dependency-injection

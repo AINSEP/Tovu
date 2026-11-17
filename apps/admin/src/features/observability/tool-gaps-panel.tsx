@@ -1,10 +1,10 @@
 import { useFetchQuery } from '@jini-ai/ui/fetch-query';
-import { api } from '@/lib/api';
+import { observabilityApi } from '@/features/observability/api/observability-api';
 
 import { type Translate } from '@jini-ai/core/text';
 /** The Tool gaps filter reads the server's owner-only audit projection on mount/Refresh.
  * Native inputs/outputs are never fetched; the endpoint returns redacted metadata only. */
-export function ToolGapsPanel({ t, read = api.getToolGaps }: { t: Translate; read?: typeof api.getToolGaps }) {
+export function ToolGapsPanel({ t, read = observabilityApi.getToolGaps }: { t: Translate; read?: typeof observabilityApi.getToolGaps }) {
   const query = useFetchQuery({ key: ['observability', 'tool-gaps'], fetch: read }, { staleTime: 0 });
   return <section className="jini-settings-section" aria-label={t('Tool gaps')}>
     <p>{t('Bash and file-edit tool gaps, plus other native CLI tool use.')}</p>

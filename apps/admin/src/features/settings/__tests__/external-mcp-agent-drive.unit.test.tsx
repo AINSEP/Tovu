@@ -6,7 +6,7 @@ import { executePageCapability } from "@jini-ai/agentic/core";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import type { AdminRemoteToolSurfaceEntry } from "@/lib/api";
+import type { AdminRemoteToolSurfaceEntry } from "@/features/integrations/api/integrations-api.types";
 
 import { ExternalMcpSettingsPanel } from "../ExternalMcpSettingsPanel";
 

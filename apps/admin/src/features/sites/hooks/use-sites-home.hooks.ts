@@ -1,11 +1,11 @@
 import { useCallback, useState } from "react";
 import { useAsyncAction } from "@jini-ai/ui/panel-kit";
 import { useInvalidate } from "@jini-ai/ui/fetch-query";
-import { api } from "@/lib/api";
+import { sitesApi } from "@/features/sites/api/sites-api";
 import { KEYS } from "../rules";
 
 /** Home edits are a settings action; changing it never moves existing site folders. */
-export function useSitesHome({ home }: { home: string }, { port = api }: { port?: Pick<typeof api, "setSitesHome"> } = {}) {
+export function useSitesHome({ home }: { home: string }, { port = sitesApi }: { port?: Pick<typeof sitesApi, "setSitesHome"> } = {}) {
   const [path, setPath] = useState(home);
   const invalidate = useInvalidate();
   const { saving, error, run } = useAsyncAction();

@@ -6,7 +6,7 @@ import { Recovery } from "../Recovery";
 import { t as recoveryT } from "../recovery-i18n";
 import type { RecoveryController } from "../hooks/use-recovery.hooks";
 import { navigate } from "@/lib/router";
-import type { AdminDegradedBanner, AdminRecoveryStatus, AdminRestorePoint } from "@/lib/api";
+import type { AdminDegradedBanner, AdminRecoveryStatus, AdminRestorePoint } from "@/features/recovery/api/recovery-api.types";
 
 // Tabs (2026-09-10): `Recovery` now navigates between "restore-points" and "restore" via `?tab=`,
 // The inline SettingsDialogShell stays URL-controlled; Database's test file mocks

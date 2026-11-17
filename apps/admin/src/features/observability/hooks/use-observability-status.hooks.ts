@@ -1,7 +1,8 @@
 import { useCallback as useQueryFetchCallback, useState } from "react";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 
-import { describeApiError, type AdminObservabilityStatus, type AdminTelemetryTestResult } from "@/lib/api";
+import type { AdminObservabilityStatus, AdminTelemetryTestResult } from "@/features/observability/api/observability-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translateObservability } from "../observability-i18n";
 import { defaultObservabilityStatusPort } from "./observability-status-dependencies.hooks";

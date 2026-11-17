@@ -1,7 +1,7 @@
 import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
 import { useCallback, useMemo, useState } from "react";
 
-import { NO_THEME_ID } from "@/lib/api";
+import { NO_THEME_ID } from "@/features/themes/api/themes-api.types";
 
 import { pageAdminPath } from "../rules";
 import { themePagePublishState, themePagePublishTooltip } from "../lib/theme-page-publish-state";

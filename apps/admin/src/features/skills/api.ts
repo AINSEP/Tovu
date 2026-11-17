@@ -1,5 +1,6 @@
-import { authenticatedAdminRequest, WORKSPACE_ID } from "../../lib/api";
-import type { AdminPluginFiles } from "../../lib/api";
+import { authenticatedAdminRequest } from "../../lib/admin-http/request";
+import { WORKSPACE_ID } from "../../lib/admin-http/config";
+import type { AdminPluginFiles } from "../plugins/api/plugins-api.types";
 export const SKILLS_CHANGED_EVENT = "tovu-skills-changed";
 const base = `/workspaces/${WORKSPACE_ID}/skills`;
 export interface InstalledSkill { toolId: string; name: string; description: string; enabled: boolean; source: "uploaded" | { githubUrl: string; commit: string } }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { AdminFederatedAdmissionEntry } from "@/lib/api";
+import type { AdminFederatedAdmissionEntry } from "@/features/integrations/api/integrations-api.types";
 
 import {
   admissionRestartHelps,

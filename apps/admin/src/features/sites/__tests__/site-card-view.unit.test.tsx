@@ -1,7 +1,7 @@
 import { act, fireEvent, render, renderHook, screen } from "@/__tests__/render-with-jini-kits";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
-import type { AdminSiteListEntry, AdminSitesSnapshot } from "@/lib/api";
+import type { AdminSiteListEntry, AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
 import { LocalSiteConfirmDialog } from "../LocalSiteConfirmDialog";
 import { useSiteConfirm } from "../hooks/use-site-confirm.hooks";
 import type { LocalSitesController } from "../hooks/use-local-sites.hooks";

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 
-import { describeApiError } from "@/lib/api";
+import { describeApiError } from "@/lib/admin-http/request";
 import type { SiteTransferPort } from "./site-transfer-dependencies.hooks";
 
 import { type Translate } from '@jini-ai/core/text';

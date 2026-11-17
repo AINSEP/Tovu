@@ -21,7 +21,7 @@ import {
   type PrivacyConsentState,
   type SettingsThemeChoice,
 } from "@jini-ai/ui";
-import type { SettingScope } from "./api";
+import type { SettingScope } from "@jini-ai/core/settings";
 import {
   loadNamespaceValues,
   readBoolean,

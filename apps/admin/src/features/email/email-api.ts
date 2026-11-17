@@ -1,4 +1,6 @@
-import { authenticatedAdminRequest, WORKSPACE_ID, type ProviderDomainVerification } from "@/lib/api";
+import type { ProviderDomainVerification } from "@/features/email/api/mail-status-api.types";
+import { authenticatedAdminRequest } from "@/lib/admin-http/request";
+import { WORKSPACE_ID } from "@/lib/admin-http/config";
 
 /**
  * @file The Email page's client for the round-2 mail routes (2026-10-22). Each shape mirrors its
@@ -70,7 +72,7 @@ export interface MailDnsRecordView {
   note?: string;
 }
 
-export type { ProviderDomainVerification } from "@/lib/api";
+export type { ProviderDomainVerification } from "@/features/email/api/mail-status-api.types";
 
 export interface MailDnsStatus {
   state: "checked" | "no_sender" | "no_provider" | "verification_unavailable" | "requirements_unavailable" | "requirements_failed" | "check_failed";

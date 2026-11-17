@@ -1,7 +1,7 @@
 /** wcmp: real query/mutation hook, injected settings port, no module mocks. */
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it } from "vitest";
-import type { PublicAssistantSettings } from "@/lib/api";
+import type { PublicAssistantSettings } from "@/features/ai-assistant/api/ai-assistant-api.types";
 import type { AiAssistantPort } from "../hooks/ai-assistant-port.hooks";
 import { useAiAssistant } from "../hooks/use-ai-assistant.hooks";
 

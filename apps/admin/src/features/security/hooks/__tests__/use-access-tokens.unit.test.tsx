@@ -5,7 +5,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useFetchQuery, useInvalidate } from "@jini-ai/ui/fetch-query";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
-import { ApiError, type AdminCustomCredentialSummary, type AdminPublishCredentialSummary, type AdminSourceControlCredentialSummary } from "@/lib/api";
+import type { AdminCustomCredentialSummary, AdminPublishCredentialSummary } from "@/features/security/api/security-api.types";
+import type { AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import { useAccessTokens, useWiredAccessTokens } from "../use-access-tokens.hooks";
 import { createFakeAccessTokensPort } from "../access-tokens-dependencies.hooks";
 import { ACCESS_TOKENS_RESOURCE } from "../../rules";
@@ -1759,17 +1761,13 @@ const { listPublishCredentials, listSourceControlCredentials, listCustomCredenti
 // which calls straight through to `api.list*Credentials` — mocking just those three keeps every
 // other `lib/api` export (`ApiError`, `describeApiError`, ...) real, same convention
 // `use-other-credentials.unit.test.tsx`'s own `useWiredOtherCredentials` block establishes.
-vi.mock("../../../../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../../lib/api")>();
-  return {
-    ...actual,
-    api: {
-      ...actual.api,
-      listPublishCredentials,
-      listSourceControlCredentials,
-      listCustomCredentials,
-    },
-  };
+vi.mock("../../api/security-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/security-api")>();
+  return { ...actual, securityApi: { ...actual.securityApi, listPublishCredentials, listCustomCredentials } };
+});
+vi.mock("../../../source-control/api/source-control-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../source-control/api/source-control-api")>();
+  return { ...actual, sourceControlApi: { ...actual.sourceControlApi, listSourceControlCredentials } };
 });
 
 describe("useWiredAccessTokens", () => {

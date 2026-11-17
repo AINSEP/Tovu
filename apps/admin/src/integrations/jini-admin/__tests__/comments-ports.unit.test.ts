@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { CommentsTransportPort } from '@jini-ai/admin/comments/adapters/http';
 import { commentsEvents, commentsSessionGrants, createCommentsHostPorts, createCommentsQueueScope, createCommentsTranslator } from '../comments-ports';
-import { WORKSPACE_ID } from '../../../lib/api';
+import { WORKSPACE_ID } from '../../../lib/admin-http/config';
 import { publishContentRefresh, resetContentRefreshBus } from '../../../lib/content-refresh-bus';
 
 afterEach(resetContentRefreshBus);

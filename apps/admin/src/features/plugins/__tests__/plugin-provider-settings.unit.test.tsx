@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminPluginProviderSettings } from "@/lib/api";
+import type { AdminPluginProviderSettings } from "@/features/plugins/api/plugins-api.types";
 import { PluginProviderSettingsDialog } from "../PluginProviderSettingsDialog";
 import { PluginRow } from "../PluginRow";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";

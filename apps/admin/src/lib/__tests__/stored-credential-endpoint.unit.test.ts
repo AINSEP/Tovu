@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError, type AdminExecutionCredential } from "../api";
+import type { AdminExecutionCredential } from "../../features/ai-assistant/api/ai-assistant-api.types";
+import { ApiError } from "../admin-http/request";
 import {
   STORED_KEY_NO_ENDPOINT_COPY,
   STORED_KEY_OTHER_PROVIDER_COPY,

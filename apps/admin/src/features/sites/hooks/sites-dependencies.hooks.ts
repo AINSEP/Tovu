@@ -1,15 +1,16 @@
-import { api, type AdminSitesSnapshot } from "@/lib/api";
+import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
+import { sitesApi } from "@/features/sites/api/sites-api";
 import type { SitesPort } from "./sites-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches
  *  `deployment-overview-dependencies.hooks.ts`'s `defaultDeploymentOverviewPort`. */
 export const defaultSitesPort: SitesPort = {
   openSite: ({ url }, _optional = {}) => window.location.assign(url),
-  manageLocalSite: (input, _optional = {}) => api.manageLocalSite(input),
-  listSites: () => api.listSites(),
-  createSite: (input, _optional = {}) => api.createSite(input),
-  listTokenSignInPlugins: () => api.listTokenSignInPlugins(),
-  activateSite: ({ name }, _optional = {}) => api.activateSite({ name }),
+  manageLocalSite: (input, _optional = {}) => sitesApi.manageLocalSite(input),
+  listSites: () => sitesApi.listSites(),
+  createSite: (input, _optional = {}) => sitesApi.createSite(input),
+  listTokenSignInPlugins: () => sitesApi.listTokenSignInPlugins(),
+  activateSite: ({ name }, _optional = {}) => sitesApi.activateSite({ name }),
 };
 
 /** Overrides for {@link createFakeSitesPort} — anything not supplied rejects, so a test that

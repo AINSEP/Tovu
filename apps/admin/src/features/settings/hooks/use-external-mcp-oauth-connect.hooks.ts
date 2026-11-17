@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { api, describeApiError } from "@/lib/api";
+import { integrationsApi } from "@/features/integrations/api/integrations-api";
+import { describeApiError } from "@/lib/admin-http/request";
 
 /**
  * @file The row-level "Connect" button behind Settings → External MCP (2026-10-23): starts the
@@ -22,7 +23,7 @@ import { api, describeApiError } from "@/lib/api";
 /** Must match `EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE` in the website's `routes/oauth/callback-page.ts`. */
 export const EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE = "tovu:external-mcp-connected";
 
-export type ExternalMcpOAuthConnectPort = Pick<typeof api, "connectExternalMcpOAuth" | "pollExternalMcpOAuthDevice">;
+export type ExternalMcpOAuthConnectPort = Pick<typeof integrationsApi, "connectExternalMcpOAuth" | "pollExternalMcpOAuthDevice">;
 
 export type ExternalMcpOAuthConnectState =
   | { phase: "idle"; error?: string }
@@ -56,7 +57,7 @@ const browserWindow = (): ExternalMcpOAuthConnectWindow => ({
  */
 export function useExternalMcpOAuthConnect(
   { serverId, grant, onConnected }: { serverId: string; grant: string; onConnected: () => void },
-  { port = api, win = browserWindow, fallbackError = "Sign-in could not start." }: { port?: ExternalMcpOAuthConnectPort; win?: () => ExternalMcpOAuthConnectWindow; fallbackError?: string } = {},
+  { port = integrationsApi, win = browserWindow, fallbackError = "Sign-in could not start." }: { port?: ExternalMcpOAuthConnectPort; win?: () => ExternalMcpOAuthConnectWindow; fallbackError?: string } = {},
 ) {
   const [state, setState] = useState<ExternalMcpOAuthConnectState>({ phase: "idle" });
   // Everything that must stop on cancel/unmount: a poll timer, the message/focus listeners.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError } from "../api";
+import { ApiError } from "../admin-http/request";
 import { classifyCredentialSubmitError } from "../credential-submit-error";
 
 describe("publish credential cases", () => {

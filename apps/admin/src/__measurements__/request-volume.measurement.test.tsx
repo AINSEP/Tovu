@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useWiredRedirects } from "./redirects-harness";
 import { Media } from "../features/media/Media";
-import type { AdminFormDefinition } from "../lib/api";
+import type { AdminFormDefinition } from "../features/forms/api/forms-api.types";
 
 /**
  * @file Measurement instrument — TM-TOVU-2026-08-12-A follow-up ("did `@jini-ai/ui/fetch-query` actually

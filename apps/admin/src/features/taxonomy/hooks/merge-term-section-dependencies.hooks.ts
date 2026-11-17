@@ -1,4 +1,4 @@
-import { api } from "@/lib/api";
+import { taxonomyApi } from "@/features/taxonomy/api/taxonomy-api";
 import type { MergeTermSectionPort } from "./merge-term-section-port.hooks";
 
 /**
@@ -9,9 +9,9 @@ import type { MergeTermSectionPort } from "./merge-term-section-port.hooks";
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s
  *  `redirectsHostPorts`. */
 export const defaultMergeTermSectionPort: MergeTermSectionPort = {
-  planMergeTerm: (target) => api.planMergeTerm(target),
-  confirmMergeTerm: (target) => api.confirmMergeTerm(target),
-  executeMergeTerm: (target) => api.executeMergeTerm(target),
+  planMergeTerm: (target) => taxonomyApi.planMergeTerm(target),
+  confirmMergeTerm: (target) => taxonomyApi.confirmMergeTerm(target),
+  executeMergeTerm: (target) => taxonomyApi.executeMergeTerm(target),
 };
 
 /** Seed state for {@link createFakeMergeTermSectionPort}. */

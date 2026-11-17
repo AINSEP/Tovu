@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError, type AdminWorkspace } from "@/lib/api";
+import type { AdminWorkspace } from "@/features/workspace/api/workspace-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import { describeApiError, isWorkspaceDirty } from "../rules";
 import { t } from "../workspace-i18n";
 

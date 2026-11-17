@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminPublishCredentialSummary } from "@/lib/api";
+import type { AdminPublishCredentialSummary } from "@/features/security/api/security-api.types";
 import { CLOUDFLARE_PAGES_TARGET } from "../../deployment/__tests__/publish-targets.fixture";
 import { AccessTokensTab } from "../AccessTokensTab";
 import { createFakeAccessTokensPort } from "../hooks/access-tokens-dependencies.hooks";

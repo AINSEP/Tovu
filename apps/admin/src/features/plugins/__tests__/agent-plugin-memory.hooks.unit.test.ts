@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { expect, test } from 'vitest';
-import { ApiError } from '@/lib/api';
+import { ApiError } from '@/lib/admin-http/request';
 import { adminFailureChannel } from '@/lib/admin-failure-channel';
 import { useAgentPluginMemory } from '../hooks/use-agent-plugin-memory.hooks';
 import type { AgentPluginMemoryPort, PluginMemoryListing } from '../hooks/agent-plugin-memory-port.hooks';

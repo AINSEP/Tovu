@@ -5,7 +5,7 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 import { Sites } from "../Sites";
 import { staticListPrefs } from "./site-list-prefs.fixture";
 import type { SitesController } from "../hooks/use-sites.hooks";
-import type { AdminSitesSnapshot } from "@/lib/api";
+import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
 
 /**
  * @file `Sites` — driven entirely through the `useSitesHook` DI seam, so no `FetchQueryProvider` or

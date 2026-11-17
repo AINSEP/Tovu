@@ -1,4 +1,4 @@
-import { ApiError } from "./api";
+import { ApiError } from "./admin-http/request";
 
 import { trimCharsEnd } from "@jini-ai/core/primitives";
 

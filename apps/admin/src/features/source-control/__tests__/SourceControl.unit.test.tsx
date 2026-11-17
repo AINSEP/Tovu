@@ -7,7 +7,7 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 import { useSourceControlCredentials } from "../hooks/use-source-control-credentials.hooks";
 import { createFakeSourceControlCredentialsPort } from "../hooks/source-control-credentials-dependencies.hooks";
 import type { SourceControlCredentialRowState, SourceControlCredentialsController } from "../hooks/use-source-control-credentials.hooks";
-import type { AdminSourceControlCredentialSummary, AdminSourceControlProviderId } from "@/lib/api";
+import type { AdminSourceControlCredentialSummary, AdminSourceControlProviderId } from "@/features/source-control/api/source-control-api.types";
 import { sourceControlProviders, type SourceControlProviderInfo } from "../rules";
 import { FORGE_PROVIDER, GITHUB_PROVIDER } from "./source-control-providers.fixture";
 

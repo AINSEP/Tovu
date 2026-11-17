@@ -3,7 +3,7 @@ import type { Translate } from "@jini-ai/core/text";
 import { useTabBarKeyboard } from "@jini-ai/ui/tab-strip";
 
 import { useDevicePreviewDevice } from "../../../components/DevicePreview/DevicePreview.hooks";
-import type { AdminPost } from "../../../lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import type { PostDeleteConfirmDialog } from "../editor/PostDeleteConfirmDialog";
 import type { PostEditorBody } from "../editor/PostEditorBody";
 import type { PostSavedPanels } from "../editor/PostSavedPanels";

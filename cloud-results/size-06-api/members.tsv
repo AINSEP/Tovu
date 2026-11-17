@@ -1,0 +1,220 @@
+member	route (first path literal)	client	file	rule	api.<member> uses	signature class (phase 2)
+login	"/auth/login"	authApi	apps/admin/src/features/auth/api/auth-api.ts	segment auth	20	(required, optional = {}) or placeholder
+completeMfa	"/auth/mfa/login"	authApi	apps/admin/src/features/auth/api/auth-api.ts	segment auth	1	one required object
+logout	"/auth/logout"	authApi	apps/admin/src/features/auth/api/auth-api.ts	segment auth	4	zero parameters
+redeemBootSession	"/auth/boot-session"	authApi	apps/admin/src/features/auth/api/auth-api.ts	segment auth	2	(required, optional = {}) or placeholder
+signInLocalOwner	"/auth/local-boot-session"	authApi	apps/admin/src/features/auth/api/auth-api.ts	segment auth	1	(required, optional = {}) or placeholder
+me	"/auth/me"	authApi	apps/admin/src/features/auth/api/auth-api.ts	segment auth	13	zero parameters
+getPasswordStatus	"/auth/me/password-status"	authApi	apps/admin/src/features/auth/api/auth-api.ts	segment auth	2	zero parameters
+listPosts	`/workspaces/${WORKSPACE_ID}/posts`	postsApi	apps/admin/src/features/posts/api/posts-api.ts	segment posts	7	zero parameters
+createPost	`/workspaces/${WORKSPACE_ID}/posts`	postsApi	apps/admin/src/features/posts/api/posts-api.ts	segment posts	3	(required, optional = {}) or placeholder
+getPost	`/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}`	postsApi	apps/admin/src/features/posts/api/posts-api.ts	segment posts	5	(required, optional = {}) or placeholder
+templatePreviewUrl	`${BASE}/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}/template-preview${ templateChoice === null ? "" : `?templateChoice=${encodeURIComponent(templateChoice)}` }`	postsApi	apps/admin/src/features/posts/api/posts-api.ts	segment posts	12	(required, optional = {}) or placeholder
+updatePost	`/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}`	postsApi	apps/admin/src/features/posts/api/posts-api.ts	segment posts	10	(required, optional = {}) or placeholder
+deletePost	`/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}`	postsApi	apps/admin/src/features/posts/api/posts-api.ts	segment posts	4	(required, optional = {}) or placeholder
+putAutosave	`/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}/autosave`	postsApi	apps/admin/src/features/posts/api/posts-api.ts	segment posts	5	(required, optional = {}) or placeholder
+getAutosave	`/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}/autosave`	postsApi	apps/admin/src/features/posts/api/posts-api.ts	segment posts	3	(required, optional = {}) or placeholder
+discardAutosave	`/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}/autosave`	postsApi	apps/admin/src/features/posts/api/posts-api.ts	segment posts	3	(required, optional = {}) or placeholder
+listPages	`/workspaces/${WORKSPACE_ID}/pages`	pagesApi	apps/admin/src/features/pages/api/pages-api.ts	segment pages	5	zero parameters
+createPage	`/workspaces/${WORKSPACE_ID}/pages`	pagesApi	apps/admin/src/features/pages/api/pages-api.ts	segment pages	2	(required, optional = {}) or placeholder
+getPage	`/workspaces/${WORKSPACE_ID}/pages/${encodeURIComponent(id)}`	pagesApi	apps/admin/src/features/pages/api/pages-api.ts	segment pages	4	(required, optional = {}) or placeholder
+updatePageHtml	`/workspaces/${WORKSPACE_ID}/pages/${encodeURIComponent(id)}/html`	pagesApi	apps/admin/src/features/pages/api/pages-api.ts	segment pages	3	(required, optional = {}) or placeholder
+deletePage	`/workspaces/${WORKSPACE_ID}/pages/${encodeURIComponent(id)}`	pagesApi	apps/admin/src/features/pages/api/pages-api.ts	segment pages	4	(required, optional = {}) or placeholder
+getPresentation	`/workspaces/${WORKSPACE_ID}/presentation${querySuffix({ query: required.kind ? "kind=" + required.kind : "" })}`	themesApi	apps/admin/src/features/themes/api/themes-api.ts	segment presentation	8	(required, optional = {}) or placeholder
+getThemeDetail	`/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}`	themesApi	apps/admin/src/features/themes/api/themes-api.ts	segment themes	4	(required, optional = {}) or placeholder
+resetThemeFile	`/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file/reset`	themesApi	apps/admin/src/features/themes/api/themes-api.ts	segment themes	3	(required, optional = {}) or placeholder
+saveThemeOriginal	`/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/original`	themesApi	apps/admin/src/features/themes/api/themes-api.ts	segment themes	2	(required, optional = {}) or placeholder
+getThemeFile	`/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file?path=${encodeURIComponent(path)}`	themesApi	apps/admin/src/features/themes/api/themes-api.ts	segment themes	3	(required, optional = {}) or placeholder
+putThemeFile	`/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file`	themesApi	apps/admin/src/features/themes/api/themes-api.ts	segment themes	3	(required, optional = {}) or placeholder
+copyThemeFile	`/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file/copy`	themesApi	apps/admin/src/features/themes/api/themes-api.ts	segment themes	2	(required, optional = {}) or placeholder
+renameThemeFile	`/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file/rename`	themesApi	apps/admin/src/features/themes/api/themes-api.ts	segment themes	4	(required, optional = {}) or placeholder
+deleteThemeFile	`/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file/delete`	themesApi	apps/admin/src/features/themes/api/themes-api.ts	segment themes	3	(required, optional = {}) or placeholder
+setThemePagePublished	`/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/page/publish`	themesApi	apps/admin/src/features/themes/api/themes-api.ts	segment themes	5	(required, optional = {}) or placeholder
+rescanThemes	`/workspaces/${WORKSPACE_ID}/themes/rescan`	themesApi	apps/admin/src/features/themes/api/themes-api.ts	segment themes	2	zero parameters
+duplicateTheme	`/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/duplicate`	themesApi	apps/admin/src/features/themes/api/themes-api.ts	segment themes	2	(required, optional = {}) or placeholder
+setActiveTheme	`/workspaces/${WORKSPACE_ID}/presentation`	themesApi	apps/admin/src/features/themes/api/themes-api.ts	segment presentation	2	(required, optional = {}) or placeholder
+listMembers	`/workspaces/${WORKSPACE_ID}/members`	membersApi	apps/admin/src/features/members/api/members-api.ts	segment members	2	zero parameters
+getMember	`/workspaces/${WORKSPACE_ID}/members/${encodeURIComponent(id)}`	membersApi	apps/admin/src/features/members/api/members-api.ts	segment members	3	(required, optional = {}) or placeholder
+disableMember	`/workspaces/${WORKSPACE_ID}/members/${encodeURIComponent(id)}/disable`	membersApi	apps/admin/src/features/members/api/members-api.ts	segment members	2	(required, optional = {}) or placeholder
+requestMemberMagicLink	`/workspaces/${WORKSPACE_ID}/members/request-magic-link`	membersApi	apps/admin/src/features/members/api/members-api.ts	segment members	3	(required, optional = {}) or placeholder
+listRecentAnalyticsHits	`/workspaces/${WORKSPACE_ID}/analytics/recent-hits${querySuffix({ query: options.limit ? "limit=" + options.limit : "" })}`	analyticsApi	apps/admin/src/features/analytics/api/analytics-api.ts	segment analytics	3	one optional object
+listMenus	`/workspaces/${WORKSPACE_ID}/menus`	menusApi	apps/admin/src/features/menus/api/menus-api.ts	segment menus	3	zero parameters
+getMenu	`/workspaces/${WORKSPACE_ID}/menus/${encodeURIComponent(id)}`	menusApi	apps/admin/src/features/menus/api/menus-api.ts	segment menus	3	(required, optional = {}) or placeholder
+createMenu	`/workspaces/${WORKSPACE_ID}/menus`	menusApi	apps/admin/src/features/menus/api/menus-api.ts	segment menus	3	(required, optional = {}) or placeholder
+updateMenuTree	`/workspaces/${WORKSPACE_ID}/menus/${encodeURIComponent(id)}`	menusApi	apps/admin/src/features/menus/api/menus-api.ts	segment menus	4	(required, optional = {}) or placeholder
+listIntegrationSubscriptions	`/workspaces/${WORKSPACE_ID}/integrations/subscriptions`	integrationsApi	apps/admin/src/features/integrations/api/integrations-api.ts	segment integrations	2	zero parameters
+createIntegrationSubscription	`/workspaces/${WORKSPACE_ID}/integrations/subscriptions`	integrationsApi	apps/admin/src/features/integrations/api/integrations-api.ts	segment integrations	2	one required object
+pauseIntegrationSubscription	`/workspaces/${WORKSPACE_ID}/integrations/subscriptions/${encodeURIComponent(id)}/pause`	integrationsApi	apps/admin/src/features/integrations/api/integrations-api.ts	segment integrations	4	(required, optional = {}) or placeholder
+deleteIntegrationSubscription	`/workspaces/${WORKSPACE_ID}/integrations/subscriptions/${encodeURIComponent(id)}`	integrationsApi	apps/admin/src/features/integrations/api/integrations-api.ts	segment integrations	3	(required, optional = {}) or placeholder
+listIntegrationDeliveries	`/workspaces/${WORKSPACE_ID}/integrations/subscriptions/${encodeURIComponent(subscriptionId)}/deliveries`	integrationsApi	apps/admin/src/features/integrations/api/integrations-api.ts	segment integrations	3	(required, optional = {}) or placeholder
+listMedia	`/workspaces/${WORKSPACE_ID}/media`	mediaApi	apps/admin/src/features/media/api/media-api.ts	segment media	5	zero parameters
+getMediaProviders	`/workspaces/${WORKSPACE_ID}/media/providers`	mediaApi	apps/admin/src/features/media/api/media-api.ts	segment media	3	zero parameters
+saveMediaProviders	`/workspaces/${WORKSPACE_ID}/media/providers`	mediaApi	apps/admin/src/features/media/api/media-api.ts	segment media	5	one required object
+listExternalMcpServers	`/workspaces/${WORKSPACE_ID}/mcp-servers`	integrationsApi	apps/admin/src/features/integrations/api/integrations-api.ts	segment mcp-servers	4	zero parameters
+saveExternalMcpServer	`/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}`	integrationsApi	apps/admin/src/features/integrations/api/integrations-api.ts	segment mcp-servers	2	(required, optional = {}) or placeholder
+deleteExternalMcpServer	`/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}`	integrationsApi	apps/admin/src/features/integrations/api/integrations-api.ts	segment mcp-servers	2	(required, optional = {}) or placeholder
+probeExternalMcpServer	`/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/probe`	integrationsApi	apps/admin/src/features/integrations/api/integrations-api.ts	segment mcp-servers	2	(required, optional = {}) or placeholder
+connectExternalMcpOAuth	`/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth/connect`	integrationsApi	apps/admin/src/features/integrations/api/integrations-api.ts	segment mcp-servers	1	(required, optional = {}) or placeholder
+useLocalMcpConnection	`/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth/shared`	integrationsApi	apps/admin/src/features/integrations/api/integrations-api.ts	segment mcp-servers	1	(required, optional = {}) or placeholder
+stopSharedMcpConnection	`/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth`	integrationsApi	apps/admin/src/features/integrations/api/integrations-api.ts	segment mcp-servers	1	(required, optional = {}) or placeholder
+listSharedMcpConnections	`/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth/shared`	integrationsApi	apps/admin/src/features/integrations/api/integrations-api.ts	segment mcp-servers	1	(required, optional = {}) or placeholder
+useSharedMcpConnection	`/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(input.serverId)}/oauth/shared`	integrationsApi	apps/admin/src/features/integrations/api/integrations-api.ts	segment mcp-servers	1	one required object
+pollExternalMcpOAuthDevice	`/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/oauth/device/poll`	integrationsApi	apps/admin/src/features/integrations/api/integrations-api.ts	segment mcp-servers	1	(required, optional = {}) or placeholder
+getExternalMcpAdmissions	`/workspaces/${WORKSPACE_ID}/mcp-servers/admissions`	integrationsApi	apps/admin/src/features/integrations/api/integrations-api.ts	segment mcp-servers	7	zero parameters
+listExternalMcpToolApprovals	`/workspaces/${WORKSPACE_ID}/mcp-servers/tool-approvals`	integrationsApi	apps/admin/src/features/integrations/api/integrations-api.ts	segment mcp-servers	2	zero parameters
+revokeExternalMcpToolApproval	`/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/tool-approvals/${encodeURIComponent(toolName)}`	integrationsApi	apps/admin/src/features/integrations/api/integrations-api.ts	segment mcp-servers	2	(required, optional = {}) or placeholder
+mediaOriginalUrl	(no request path)	mediaApi	apps/admin/src/features/media/api/media-api.ts	member rule	25	(required, optional = {}) or placeholder
+mediaPreviewRenditionUrl	`/m/${encodeURIComponent(id)}/public.v1/image.jpg`	mediaApi	apps/admin/src/features/media/api/media-api.ts	segment m	2	(required, optional = {}) or placeholder
+mediaContentType	(no request path)	mediaApi	apps/admin/src/features/media/api/media-api.ts	member rule	6	(required, optional = {}) or placeholder
+importMediaFromUrl	`/workspaces/${WORKSPACE_ID}/media/import-url`	mediaApi	apps/admin/src/features/media/api/media-api.ts	segment media	3	(required, optional = {}) or placeholder
+uploadMedia	`/workspaces/${WORKSPACE_ID}/media`	mediaApi	apps/admin/src/features/media/api/media-api.ts	segment media	6	(required, optional = {}) or placeholder
+updateMedia	`/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}`	mediaApi	apps/admin/src/features/media/api/media-api.ts	segment media	6	(required, optional = {}) or placeholder
+trashMedia	`/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}/trash`	mediaApi	apps/admin/src/features/media/api/media-api.ts	segment media	4	(required, optional = {}) or placeholder
+deleteMedia	`/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}`	mediaApi	apps/admin/src/features/media/api/media-api.ts	segment media	4	(required, optional = {}) or placeholder
+listDocuments	`/workspaces/${WORKSPACE_ID}/media?kind=document`	mediaApi	apps/admin/src/features/media/api/media-api.ts	segment media	2	zero parameters
+uploadDocument	`/workspaces/${WORKSPACE_ID}/media`	mediaApi	apps/admin/src/features/media/api/media-api.ts	segment media	2	one required object
+readDocumentText	`/workspaces/${WORKSPACE_ID}/media/${encodeURIComponent(id)}/text${querySuffix({ query: options.offset ? "offset=" + options.offset : "" })}`	mediaApi	apps/admin/src/features/media/api/media-api.ts	segment media	3	(required, optional = {}) or placeholder
+listUsers	`/workspaces/${WORKSPACE_ID}/users`	usersApi	apps/admin/src/features/users/api/users-api.ts	segment users	6	zero parameters
+createUser	`/workspaces/${WORKSPACE_ID}/users`	usersApi	apps/admin/src/features/users/api/users-api.ts	segment users	5	(required, optional = {}) or placeholder
+updateUser	`/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}`	usersApi	apps/admin/src/features/users/api/users-api.ts	segment users	6	(required, optional = {}) or placeholder
+disableUser	`/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}/disable`	usersApi	apps/admin/src/features/users/api/users-api.ts	segment users	4	(required, optional = {}) or placeholder
+enableUser	`/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}/enable`	usersApi	apps/admin/src/features/users/api/users-api.ts	segment users	4	(required, optional = {}) or placeholder
+deleteUser	`/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}`	usersApi	apps/admin/src/features/users/api/users-api.ts	segment users	2	(required, optional = {}) or placeholder
+resetUserPassword	`/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}/reset-password`	usersApi	apps/admin/src/features/users/api/users-api.ts	segment users	6	(required, optional = {}) or placeholder
+assignRole	`/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}/roles`	usersApi	apps/admin/src/features/users/api/users-api.ts	segment users	6	(required, optional = {}) or placeholder
+attachPolicy	`/workspaces/${WORKSPACE_ID}/users/${encodeURIComponent(principalId)}/policies`	usersApi	apps/admin/src/features/users/api/users-api.ts	segment users	6	(required, optional = {}) or placeholder
+listRoles	`/workspaces/${WORKSPACE_ID}/roles`	rolesApi	apps/admin/src/features/roles/api/roles-api.ts	segment roles	3	zero parameters
+createRole	`/workspaces/${WORKSPACE_ID}/roles`	rolesApi	apps/admin/src/features/roles/api/roles-api.ts	segment roles	2	(required, optional = {}) or placeholder
+updateRole	`/workspaces/${WORKSPACE_ID}/roles/${encodeURIComponent(roleId)}`	rolesApi	apps/admin/src/features/roles/api/roles-api.ts	segment roles	4	(required, optional = {}) or placeholder
+deleteRole	`/workspaces/${WORKSPACE_ID}/roles/${encodeURIComponent(roleId)}`	rolesApi	apps/admin/src/features/roles/api/roles-api.ts	segment roles	3	(required, optional = {}) or placeholder
+listPolicies	`/workspaces/${WORKSPACE_ID}/policies`	rolesApi	apps/admin/src/features/roles/api/roles-api.ts	segment policies	3	zero parameters
+createPolicy	`/workspaces/${WORKSPACE_ID}/policies`	rolesApi	apps/admin/src/features/roles/api/roles-api.ts	segment policies	4	(required, optional = {}) or placeholder
+updatePolicy	`/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}`	rolesApi	apps/admin/src/features/roles/api/roles-api.ts	segment policies	5	(required, optional = {}) or placeholder
+deletePolicy	`/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}`	rolesApi	apps/admin/src/features/roles/api/roles-api.ts	segment policies	4	(required, optional = {}) or placeholder
+writePolicyPermission	`/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}/permissions`	rolesApi	apps/admin/src/features/roles/api/roles-api.ts	segment policies	5	(required, optional = {}) or placeholder
+listPolicyPermissions	`/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}/permissions`	rolesApi	apps/admin/src/features/roles/api/roles-api.ts	segment policies	3	(required, optional = {}) or placeholder
+removePolicyPermission	`/workspaces/${WORKSPACE_ID}/policies/${encodeURIComponent(policyId)}/permissions/${encodeURIComponent(policyPermissionId)}`	rolesApi	apps/admin/src/features/roles/api/roles-api.ts	segment policies	3	one required object
+getWorkspace	`/workspaces/${WORKSPACE_ID}`	workspaceApi	apps/admin/src/features/workspace/api/workspace-api.ts	member rule	6	zero parameters
+updateWorkspace	`/workspaces/${WORKSPACE_ID}`	workspaceApi	apps/admin/src/features/workspace/api/workspace-api.ts	member rule	3	one optional object
+getSettingsEffective	(no request path)	settingsApi	apps/admin/src/features/settings/api/settings-api.ts	member rule	13	(required, optional = {}) or placeholder
+setSetting	`/workspaces/${WORKSPACE_ID}/settings/value`	settingsApi	apps/admin/src/features/settings/api/settings-api.ts	segment settings	5	(required, optional = {}) or placeholder
+detectExecutionAgents	`/workspaces/${WORKSPACE_ID}/assistant/execution/detect-agents`	aiAssistantApi	apps/admin/src/features/ai-assistant/api/ai-assistant-api.ts	segment assistant	8	(required, optional = {}) or placeholder
+testExecutionConnection	`/workspaces/${WORKSPACE_ID}/assistant/execution/test-connection`	aiAssistantApi	apps/admin/src/features/ai-assistant/api/ai-assistant-api.ts	segment assistant	5	one required object
+testExecutionAgent	`/workspaces/${WORKSPACE_ID}/assistant/execution/test-agent`	aiAssistantApi	apps/admin/src/features/ai-assistant/api/ai-assistant-api.ts	segment assistant	3	one required object
+listExecutionModels	`/workspaces/${WORKSPACE_ID}/assistant/execution/models`	aiAssistantApi	apps/admin/src/features/ai-assistant/api/ai-assistant-api.ts	segment assistant	4	one required object
+listForms	`/workspaces/${WORKSPACE_ID}/forms`	formsApi	apps/admin/src/features/forms/api/forms-api.ts	segment forms	2	zero parameters
+getAssistantSettings	`/workspaces/${WORKSPACE_ID}/assistant/settings`	aiAssistantApi	apps/admin/src/features/ai-assistant/api/ai-assistant-api.ts	segment assistant	3	zero parameters
+setAssistantSettings	`/workspaces/${WORKSPACE_ID}/assistant/settings`	aiAssistantApi	apps/admin/src/features/ai-assistant/api/ai-assistant-api.ts	segment assistant	3	one required object
+getFsFilesCustomRoot	`/workspaces/${WORKSPACE_ID}/fs-files/custom-root`	fsFilesApi	apps/admin/src/features/fs-files/api/fs-files-api.ts	segment fs-files	2	zero parameters
+setFsFilesCustomRoot	`/workspaces/${WORKSPACE_ID}/fs-files/custom-root`	fsFilesApi	apps/admin/src/features/fs-files/api/fs-files-api.ts	segment fs-files	2	(required, optional = {}) or placeholder
+clearFsFilesCustomRoot	`/workspaces/${WORKSPACE_ID}/fs-files/custom-root`	fsFilesApi	apps/admin/src/features/fs-files/api/fs-files-api.ts	segment fs-files	0	zero parameters
+getFolderPicker	`/workspaces/${WORKSPACE_ID}/fs-files/folder-picker`	fsFilesApi	apps/admin/src/features/fs-files/api/fs-files-api.ts	segment fs-files	2	zero parameters
+pickFolder	`/workspaces/${WORKSPACE_ID}/fs-files/folder-picker`	fsFilesApi	apps/admin/src/features/fs-files/api/fs-files-api.ts	segment fs-files	2	zero parameters
+restartAssistantDaemon	`/workspaces/${WORKSPACE_ID}/system/assistant-daemon/restart`	aiAssistantApi	apps/admin/src/features/ai-assistant/api/ai-assistant-api.ts	segment system/assistant-daemon	7	zero parameters
+getAssistantDaemonReadyz	(no request path)	aiAssistantApi	apps/admin/src/features/ai-assistant/api/ai-assistant-api.ts	member rule	9	zero parameters
+getAssistantSiteCredential	`/workspaces/${WORKSPACE_ID}/assistant/site-credential`	aiAssistantApi	apps/admin/src/features/ai-assistant/api/ai-assistant-api.ts	segment assistant	3	zero parameters
+setAssistantSiteCredential	`/workspaces/${WORKSPACE_ID}/assistant/site-credential`	aiAssistantApi	apps/admin/src/features/ai-assistant/api/ai-assistant-api.ts	segment assistant	4	one required object
+deleteAssistantSiteCredential	`/workspaces/${WORKSPACE_ID}/assistant/site-credential`	aiAssistantApi	apps/admin/src/features/ai-assistant/api/ai-assistant-api.ts	segment assistant	2	zero parameters
+getAdminExecutionCredential	`/workspaces/${WORKSPACE_ID}/assistant/execution-credential`	aiAssistantApi	apps/admin/src/features/ai-assistant/api/ai-assistant-api.ts	segment assistant	3	zero parameters
+setAdminExecutionCredential	`/workspaces/${WORKSPACE_ID}/assistant/execution-credential`	aiAssistantApi	apps/admin/src/features/ai-assistant/api/ai-assistant-api.ts	segment assistant	4	one required object
+deleteAdminExecutionCredential	`/workspaces/${WORKSPACE_ID}/assistant/execution-credential`	aiAssistantApi	apps/admin/src/features/ai-assistant/api/ai-assistant-api.ts	segment assistant	2	zero parameters
+listContentTypes	"/content-types"	collectionsApi	apps/admin/src/features/collections/api/collections-api.ts	segment content-types	6	zero parameters
+createContentType	"/content-types"	collectionsApi	apps/admin/src/features/collections/api/collections-api.ts	segment content-types	2	one required object
+updateContentTypeFields	`/content-types/${encodeURIComponent(key)}/fields`	collectionsApi	apps/admin/src/features/collections/api/collections-api.ts	segment content-types	3	(required, optional = {}) or placeholder
+contentTypeLifecycle	`/content-types/${encodeURIComponent(key)}/lifecycle`	collectionsApi	apps/admin/src/features/collections/api/collections-api.ts	segment content-types	3	(required, optional = {}) or placeholder
+listEntries	`/entries${querySuffix({ query: options.type ? "type=" + encodeURIComponent(options.type) : "" })}`	collectionsApi	apps/admin/src/features/collections/api/collections-api.ts	segment entries	4	one optional object
+createEntry	"/entries"	collectionsApi	apps/admin/src/features/collections/api/collections-api.ts	segment entries	2	(required, optional = {}) or placeholder
+updateEntry	`/entries/${encodeURIComponent(id)}`	collectionsApi	apps/admin/src/features/collections/api/collections-api.ts	segment entries	3	(required, optional = {}) or placeholder
+entryLifecycle	`/entries/${encodeURIComponent(id)}/lifecycle`	collectionsApi	apps/admin/src/features/collections/api/collections-api.ts	segment entries	3	(required, optional = {}) or placeholder
+listTaxonomies	"/taxonomy"	taxonomyApi	apps/admin/src/features/taxonomy/api/taxonomy-api.ts	segment taxonomy	3	zero parameters
+createTaxonomy	"/taxonomy"	taxonomyApi	apps/admin/src/features/taxonomy/api/taxonomy-api.ts	segment taxonomy	2	one required object
+createTerm	`/taxonomy/${encodeURIComponent(taxonomyId)}/terms`	taxonomyApi	apps/admin/src/features/taxonomy/api/taxonomy-api.ts	segment taxonomy	4	(required, optional = {}) or placeholder
+renameTerm	`/taxonomy/terms/${encodeURIComponent(termId)}`	taxonomyApi	apps/admin/src/features/taxonomy/api/taxonomy-api.ts	segment taxonomy	3	(required, optional = {}) or placeholder
+assignTerms	"/taxonomy/assign-terms"	taxonomyApi	apps/admin/src/features/taxonomy/api/taxonomy-api.ts	segment taxonomy	2	one required object
+unassignTerms	"/taxonomy/unassign-terms"	taxonomyApi	apps/admin/src/features/taxonomy/api/taxonomy-api.ts	segment taxonomy	2	one required object
+assignedTerms	`/taxonomy/assigned-terms?contentType=${encodeURIComponent(contentType)}&contentId=${encodeURIComponent(contentId)}`	taxonomyApi	apps/admin/src/features/taxonomy/api/taxonomy-api.ts	segment taxonomy	2	one required object
+planMergeTerm	`/taxonomy/terms/${encodeURIComponent(fromTermId)}/merge/plan`	taxonomyApi	apps/admin/src/features/taxonomy/api/taxonomy-api.ts	segment taxonomy	3	(required, optional = {}) or placeholder
+confirmMergeTerm	`/taxonomy/terms/${encodeURIComponent(fromTermId)}/merge/confirm`	taxonomyApi	apps/admin/src/features/taxonomy/api/taxonomy-api.ts	segment taxonomy	3	(required, optional = {}) or placeholder
+executeMergeTerm	`/taxonomy/terms/${encodeURIComponent(fromTermId)}/merge/execute`	taxonomyApi	apps/admin/src/features/taxonomy/api/taxonomy-api.ts	segment taxonomy	3	(required, optional = {}) or placeholder
+getDatabaseTimeline	`/database/timeline${querySuffix({ query: qs })}`	databaseApi	apps/admin/src/features/database/api/database-api.ts	segment database	4	one optional object
+getDatabaseSchemaState	"/database/schema-state"	databaseApi	apps/admin/src/features/database/api/database-api.ts	segment database	2	zero parameters
+planMigrateForward	"/database/migrate-forward/plan"	databaseApi	apps/admin/src/features/database/api/database-api.ts	segment database	2	zero parameters
+confirmMigrateForward	"/database/migrate-forward/confirm"	databaseApi	apps/admin/src/features/database/api/database-api.ts	segment database	3	(required, optional = {}) or placeholder
+executeMigrateForward	"/database/migrate-forward/execute"	databaseApi	apps/admin/src/features/database/api/database-api.ts	segment database	2	(required, optional = {}) or placeholder
+listRecoveryRestorePoints	"/recovery/restore-points"	recoveryApi	apps/admin/src/features/recovery/api/recovery-api.ts	segment recovery	2	zero parameters
+createRecoveryRestorePoint	"/database/restore-points"	databaseApi	apps/admin/src/features/database/api/database-api.ts	segment database	3	one optional object
+computeRecoveryDisclosure	"/recovery/disclosure"	recoveryApi	apps/admin/src/features/recovery/api/recovery-api.ts	segment recovery	2	(required, optional = {}) or placeholder
+resolveRecoveryDeepLink	"/recovery/deep-link"	recoveryApi	apps/admin/src/features/recovery/api/recovery-api.ts	segment recovery	2	one required object
+getRecoveryStatus	"/recovery/status"	recoveryApi	apps/admin/src/features/recovery/api/recovery-api.ts	segment recovery	2	zero parameters
+planRestore	"/recovery/restore/plan"	recoveryApi	apps/admin/src/features/recovery/api/recovery-api.ts	segment recovery	2	(required, optional = {}) or placeholder
+confirmRestore	"/recovery/restore/confirm"	recoveryApi	apps/admin/src/features/recovery/api/recovery-api.ts	segment recovery	2	(required, optional = {}) or placeholder
+executeRestore	"/recovery/restore/execute"	recoveryApi	apps/admin/src/features/recovery/api/recovery-api.ts	segment recovery	2	(required, optional = {}) or placeholder
+listCommentsQueue	`/workspaces/${WORKSPACE_ID}/comments/queue${querySuffix({ query: qs })}`	commentsApi	apps/admin/src/features/comments/api/comments-api.ts	segment comments	5	one optional object
+listTrash	`/workspaces/${WORKSPACE_ID}/trash${querySuffix({ query: qs })}`	trashApi	apps/admin/src/features/trash/api/trash-api.ts	segment trash	3	one optional object
+restoreTrashItems	`/workspaces/${WORKSPACE_ID}/trash/restore`	trashApi	apps/admin/src/features/trash/api/trash-api.ts	segment trash	3	one required object
+purgeTrashItems	`/workspaces/${WORKSPACE_ID}/trash/purge`	trashApi	apps/admin/src/features/trash/api/trash-api.ts	segment trash	2	one required object
+trash	`/workspaces/${WORKSPACE_ID}/trash/items`	trashApi	apps/admin/src/features/trash/api/trash-api.ts	segment trash	6	one required object
+listWidgets	`/workspaces/${WORKSPACE_ID}/widgets${querySuffix({ query: qs })}`	widgetsApi	apps/admin/src/features/widgets/api/widgets-api.ts	segment widgets	4	one optional object
+getWidget	`/workspaces/${WORKSPACE_ID}/widgets/${encodeURIComponent(id)}`	widgetsApi	apps/admin/src/features/widgets/api/widgets-api.ts	segment widgets	5	(required, optional = {}) or placeholder
+createWidget	`/workspaces/${WORKSPACE_ID}/widgets`	widgetsApi	apps/admin/src/features/widgets/api/widgets-api.ts	segment widgets	4	(required, optional = {}) or placeholder
+listPlugins	`/workspaces/${WORKSPACE_ID}/plugins`	pluginsApi	apps/admin/src/features/plugins/api/plugins-api.ts	segment plugins	1	zero parameters
+getPluginProviderSettings	`/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}/provider-settings`	pluginsApi	apps/admin/src/features/plugins/api/plugins-api.ts	segment plugins	1	(required, optional = {}) or placeholder
+savePluginProviderSettings	`/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}/provider-settings`	pluginsApi	apps/admin/src/features/plugins/api/plugins-api.ts	segment plugins	1	(required, optional = {}) or placeholder
+useProjectKey	`/workspaces/${WORKSPACE_ID}/project-keys/${encodeURIComponent(keyId)}/use`	providersApi	apps/admin/src/features/providers/api/providers-api.ts	segment project-keys	2	(required, optional = {}) or placeholder
+setPluginEnabled	`/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}`	pluginsApi	apps/admin/src/features/plugins/api/plugins-api.ts	segment plugins	3	(required, optional = {}) or placeholder
+uninstallPlugin	`/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}`	pluginsApi	apps/admin/src/features/plugins/api/plugins-api.ts	segment plugins	2	(required, optional = {}) or placeholder
+getPluginFiles	`/workspaces/${WORKSPACE_ID}/plugins/${encodeURIComponent(pluginId)}/files`	pluginsApi	apps/admin/src/features/plugins/api/plugins-api.ts	segment plugins	2	(required, optional = {}) or placeholder
+listAgentPlugins	`/workspaces/${WORKSPACE_ID}/agent-plugins`	integrationsApi	apps/admin/src/features/integrations/api/integrations-api.ts	segment agent-plugins	3	zero parameters
+getAgentPluginFiles	`/workspaces/${WORKSPACE_ID}/agent-plugins/${encodeURIComponent(pluginId)}/files`	integrationsApi	apps/admin/src/features/integrations/api/integrations-api.ts	segment agent-plugins	2	(required, optional = {}) or placeholder
+setAgentPluginEnabled	`/workspaces/${WORKSPACE_ID}/agent-plugins/${encodeURIComponent(pluginId)}`	integrationsApi	apps/admin/src/features/integrations/api/integrations-api.ts	segment agent-plugins	2	(required, optional = {}) or placeholder
+getDeploymentOverview	`/workspaces/${WORKSPACE_ID}/system/deployment-overview`	deploymentApi	apps/admin/src/features/deployment/api/deployment-api.ts	segment system/deployment-overview	3	zero parameters
+getObservabilityStatus	`/workspaces/${WORKSPACE_ID}/system/observability-status`	observabilityApi	apps/admin/src/features/observability/api/observability-api.ts	segment system/observability-status	2	zero parameters
+sendObservabilityTestError	`/workspaces/${WORKSPACE_ID}/system/observability/test-error`	observabilityApi	apps/admin/src/features/observability/api/observability-api.ts	segment system/observability	1	zero parameters
+getToolGaps	`/workspaces/${WORKSPACE_ID}/system/tool-gaps`	observabilityApi	apps/admin/src/features/observability/api/observability-api.ts	segment system/tool-gaps	2	zero parameters
+getServerLogs	`/workspaces/${WORKSPACE_ID}/system/server-logs${querySuffix({ query: qs })}`	observabilityApi	apps/admin/src/features/observability/api/observability-api.ts	segment system/server-logs	3	one optional object
+getMailStatus	`/workspaces/${WORKSPACE_ID}/system/mail-status`	mailStatusApi	apps/admin/src/features/email/api/mail-status-api.ts	segment system/mail-status	2	zero parameters
+getSitesConfig	`/workspaces/${WORKSPACE_ID}/system/sites/config`	sitesApi	apps/admin/src/features/sites/api/sites-api.ts	segment system/sites	1	zero parameters
+setSitesConfig	`/workspaces/${WORKSPACE_ID}/system/sites/config`	sitesApi	apps/admin/src/features/sites/api/sites-api.ts	segment system/sites	1	one required object
+setSitesHome	`/workspaces/${WORKSPACE_ID}/system/sites/home`	sitesApi	apps/admin/src/features/sites/api/sites-api.ts	segment system/sites	1	one required object
+listSites	`/workspaces/${WORKSPACE_ID}/system/sites`	sitesApi	apps/admin/src/features/sites/api/sites-api.ts	segment system/sites	2	zero parameters
+createSite	`/workspaces/${WORKSPACE_ID}/system/sites`	sitesApi	apps/admin/src/features/sites/api/sites-api.ts	segment system/sites	2	one required object
+listTokenSignInPlugins	`/workspaces/${WORKSPACE_ID}/system/sites/token-sign-in-plugins`	sitesApi	apps/admin/src/features/sites/api/sites-api.ts	segment system/sites	2	zero parameters
+activateSite	`/workspaces/${WORKSPACE_ID}/system/sites/${encodeURIComponent(name)}/activate`	sitesApi	apps/admin/src/features/sites/api/sites-api.ts	segment system/sites	3	(required, optional = {}) or placeholder
+manageLocalSite	`/workspaces/${WORKSPACE_ID}/system/sites/${name}/activate`	sitesApi	apps/admin/src/features/sites/api/sites-api.ts	segment system/sites	4	one required object
+getDockerfileSource	`/workspaces/${WORKSPACE_ID}/system/dockerfile`	deploymentApi	apps/admin/src/features/deployment/api/deployment-api.ts	segment system/dockerfile	4	zero parameters
+setDockerfileSource	`/workspaces/${WORKSPACE_ID}/system/dockerfile`	deploymentApi	apps/admin/src/features/deployment/api/deployment-api.ts	segment system/dockerfile	5	(required, optional = {}) or placeholder
+triggerSiteExport	`/workspaces/${WORKSPACE_ID}/system/export`	importExportApi	apps/admin/src/features/import-export/api/import-export-api.ts	segment system/export	3	one required object
+getSiteExportStatus	`/workspaces/${WORKSPACE_ID}/system/export`	importExportApi	apps/admin/src/features/import-export/api/import-export-api.ts	segment system/export	2	zero parameters
+getPublishPreview	`/workspaces/${WORKSPACE_ID}/system/publish/preview?${query.toString()}`	deploymentApi	apps/admin/src/features/deployment/api/deployment-api.ts	member rule	3	one required object
+getPublishTargets	`/workspaces/${WORKSPACE_ID}/system/publish-targets`	deploymentApi	apps/admin/src/features/deployment/api/deployment-api.ts	segment system/publish-targets	3	zero parameters
+triggerPublish	`/workspaces/${WORKSPACE_ID}/system/publish`	deploymentApi	apps/admin/src/features/deployment/api/deployment-api.ts	member rule	5	one required object
+getPublishStatus	`/workspaces/${WORKSPACE_ID}/system/publish`	deploymentApi	apps/admin/src/features/deployment/api/deployment-api.ts	member rule	2	zero parameters
+listPublishDestinations	`/workspaces/${WORKSPACE_ID}/system/publish/destinations`	deploymentApi	apps/admin/src/features/deployment/api/deployment-api.ts	member rule	1	zero parameters
+listPublishCredentials	`/workspaces/${WORKSPACE_ID}/system/publish/credentials`	securityApi	apps/admin/src/features/security/api/security-api.ts	system/publish credentials	3	zero parameters
+createPublishCredential	`/workspaces/${WORKSPACE_ID}/system/publish/credentials`	securityApi	apps/admin/src/features/security/api/security-api.ts	system/publish credentials	4	one required object
+updatePublishCredential	`/workspaces/${WORKSPACE_ID}/system/publish/credentials/${encodeURIComponent(id)}`	securityApi	apps/admin/src/features/security/api/security-api.ts	system/publish credentials	4	(required, optional = {}) or placeholder
+deletePublishCredential	`/workspaces/${WORKSPACE_ID}/system/publish/credentials/${encodeURIComponent(id)}`	securityApi	apps/admin/src/features/security/api/security-api.ts	system/publish credentials	4	(required, optional = {}) or placeholder
+verifyPublishCredential	`/workspaces/${WORKSPACE_ID}/system/publish/credentials/${encodeURIComponent(id)}/verify`	securityApi	apps/admin/src/features/security/api/security-api.ts	system/publish credentials	3	(required, optional = {}) or placeholder
+getSiteKeyStatus	`/workspaces/${WORKSPACE_ID}/system/site-key`	sitesApi	apps/admin/src/features/sites/api/sites-api.ts	segment system/site-key	3	zero parameters
+revealSiteKey	`/workspaces/${WORKSPACE_ID}/system/site-key/reveal`	sitesApi	apps/admin/src/features/sites/api/sites-api.ts	segment system/site-key	3	zero parameters
+generateSiteKey	`/workspaces/${WORKSPACE_ID}/system/site-key/generate`	sitesApi	apps/admin/src/features/sites/api/sites-api.ts	segment system/site-key	3	zero parameters
+importSiteKey	`/workspaces/${WORKSPACE_ID}/system/site-key/import`	sitesApi	apps/admin/src/features/sites/api/sites-api.ts	segment system/site-key	2	(required, optional = {}) or placeholder
+previewSiteKeyStartFresh	`/workspaces/${WORKSPACE_ID}/system/site-key/start-fresh`	sitesApi	apps/admin/src/features/sites/api/sites-api.ts	segment system/site-key	2	zero parameters
+startFreshSiteKey	`/workspaces/${WORKSPACE_ID}/system/site-key/start-fresh`	sitesApi	apps/admin/src/features/sites/api/sites-api.ts	segment system/site-key	2	(required, optional = {}) or placeholder
+listSourceControlProviders	`/workspaces/${WORKSPACE_ID}/system/source-control/providers`	sourceControlApi	apps/admin/src/features/source-control/api/source-control-api.ts	segment system/source-control	3	zero parameters
+listSourceControlCredentials	`/workspaces/${WORKSPACE_ID}/system/source-control/credentials`	sourceControlApi	apps/admin/src/features/source-control/api/source-control-api.ts	segment system/source-control	4	zero parameters
+createSourceControlCredential	`/workspaces/${WORKSPACE_ID}/system/source-control/credentials`	sourceControlApi	apps/admin/src/features/source-control/api/source-control-api.ts	segment system/source-control	3	one required object
+updateSourceControlCredential	`/workspaces/${WORKSPACE_ID}/system/source-control/credentials/${encodeURIComponent(id)}`	sourceControlApi	apps/admin/src/features/source-control/api/source-control-api.ts	segment system/source-control	4	(required, optional = {}) or placeholder
+deleteSourceControlCredential	`/workspaces/${WORKSPACE_ID}/system/source-control/credentials/${encodeURIComponent(id)}`	sourceControlApi	apps/admin/src/features/source-control/api/source-control-api.ts	segment system/source-control	4	(required, optional = {}) or placeholder
+listCredentialCopySources	`/workspaces/${WORKSPACE_ID}/system/credential-copy`	securityApi	apps/admin/src/features/security/api/security-api.ts	segment system/credential-copy	1	(required, optional = {}) or placeholder
+copyCredentials	`/workspaces/${WORKSPACE_ID}/system/credential-copy`	securityApi	apps/admin/src/features/security/api/security-api.ts	segment system/credential-copy	2	(required, optional = {}) or placeholder
+listCustomCredentials	`/workspaces/${WORKSPACE_ID}/system/custom/credentials`	securityApi	apps/admin/src/features/security/api/security-api.ts	segment system/custom	2	zero parameters
+createCustomCredential	`/workspaces/${WORKSPACE_ID}/system/custom/credentials`	securityApi	apps/admin/src/features/security/api/security-api.ts	segment system/custom	3	one required object
+updateCustomCredential	`/workspaces/${WORKSPACE_ID}/system/custom/credentials/${encodeURIComponent(id)}`	securityApi	apps/admin/src/features/security/api/security-api.ts	segment system/custom	4	(required, optional = {}) or placeholder
+deleteCustomCredential	`/workspaces/${WORKSPACE_ID}/system/custom/credentials/${encodeURIComponent(id)}`	securityApi	apps/admin/src/features/security/api/security-api.ts	segment system/custom	3	(required, optional = {}) or placeholder
+listPublishContentPeers	`/workspaces/${WORKSPACE_ID}/publish-content/peers`	publishContentApi	apps/admin/src/features/publish-content/api/publish-content-api.ts	segment publish-content	2	zero parameters
+getPublishDestination	publishContentDestinationPath()	publishContentApi	apps/admin/src/features/publish-content/api/publish-content-api.ts	member rule	2	zero parameters
+connectPublishDestination	`${publishContentDestinationPath()}/connect`	publishContentApi	apps/admin/src/features/publish-content/api/publish-content-api.ts	member rule	3	one optional object
+planPublishContent	`${publishContentPeerPath({ peerId })}/push/plan`	publishContentApi	apps/admin/src/features/publish-content/api/publish-content-api.ts	member rule	6	one required object
+confirmPublishContent	`${publishContentPeerPath({ peerId })}/push/confirm`	publishContentApi	apps/admin/src/features/publish-content/api/publish-content-api.ts	member rule	2	(required, optional = {}) or placeholder
+executePublishContent	`${publishContentPeerPath({ peerId })}/push/execute`	publishContentApi	apps/admin/src/features/publish-content/api/publish-content-api.ts	member rule	3	(required, optional = {}) or placeholder

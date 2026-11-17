@@ -4,7 +4,7 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 
 import { SiteCard as SiteCardFrame, SiteCardPin, SiteCardStatus, SiteListToolbar, useSiteListView, type SiteCardTone, type SiteListController } from "@jini-ai/ui/site-card";
 
-import type { AdminSiteListEntry, AdminSitesSnapshot } from "../../lib/api";
+import type { AdminSiteListEntry, AdminSitesSnapshot } from "./api/sites-api.types";
 
 import type { SiteListPrefsController } from "./hooks/use-site-list-prefs.hooks";
 import {

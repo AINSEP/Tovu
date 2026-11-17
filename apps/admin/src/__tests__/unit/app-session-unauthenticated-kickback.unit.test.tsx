@@ -3,8 +3,10 @@ import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__
 import { afterEach, expect, it, vi } from "vitest";
 
 import { useAdminSession } from "../../App.hooks";
-import { api } from "../../lib/api";
-import * as apiModule from "../../lib/api";
+import { integrationsApi } from "../../features/integrations/api/integrations-api";
+import { postsApi } from "../../features/posts/api/posts-api";
+import { settingsApi } from "../../features/settings/api/settings-api";
+import * as apiModule from "../../lib/admin-http/request";
 import { Login } from "../../features/auth";
 
 /**
@@ -73,14 +75,14 @@ it.each([false, true])("settings 401 after a site switch shows login without boo
   switched = true;
   await act(async () => {
     await Promise.all([
-      api.getSettingsEffective({ namespace: "core.language" }).catch(() => undefined),
-      api.getSettingsEffective({ namespace: "core.appearance" }).catch(() => undefined),
+      settingsApi.getSettingsEffective({ namespace: "core.language" }).catch(() => undefined),
+      settingsApi.getSettingsEffective({ namespace: "core.appearance" }).catch(() => undefined),
     ]);
   });
   await screen.findByLabelText("Username");
   expect(screen.getByLabelText("Password")).toBeTruthy();
   await act(async () => {
-    await api.getSettingsEffective({ namespace: "core.language" }).catch(() => undefined);
+    await settingsApi.getSettingsEffective({ namespace: "core.language" }).catch(() => undefined);
   });
   expect(screen.queryByText("Loading Tovu…")).toBeNull();
   expect(screen.getByLabelText("Username")).toBeTruthy();
@@ -117,7 +119,7 @@ it("a 401 from an unrelated screen's own api call clears the session, not just t
   // Some unrelated screen's own request hits the now-expired session. Before this fix, this 401
   // only ever reached THAT screen's own catch block — `useAdminSession`'s `user` never learned
   // about it, so `App.tsx` kept rendering the real shell around a dead session.
-  await api.listPosts().catch(() => undefined);
+  await postsApi.listPosts().catch(() => undefined);
 
   await waitFor(() => expect(result.current.user).toBeNull());
 });
@@ -142,7 +144,7 @@ it("a 403 (authenticated but forbidden) does NOT clear the session — a real pe
   const { result } = renderHook(() => useAdminSession());
   await waitFor(() => expect(result.current.checking).toBe(false));
 
-  await act(async () => { await expect(api.listPosts()).rejects.toMatchObject({ status: 403 }); });
+  await act(async () => { await expect(postsApi.listPosts()).rejects.toMatchObject({ status: 403 }); });
   expect(result.current.user).toEqual({ id: "u1", username: "admin" });
 });
 
@@ -168,7 +170,7 @@ it("a 401 WITHOUT code UNAUTHENTICATED (e.g. a relayed third-party 401) does NOT
   const { result } = renderHook(() => useAdminSession());
   await waitFor(() => expect(result.current.checking).toBe(false));
 
-  await act(async () => { await expect(api.listExternalMcpServers()).rejects.toMatchObject({ status: 401 }); });
+  await act(async () => { await expect(integrationsApi.listExternalMcpServers()).rejects.toMatchObject({ status: 401 }); });
   expect(result.current.user).toEqual({ id: "u1", username: "admin" });
 });
 
@@ -188,6 +190,6 @@ it("unsubscribes on unmount so a later 401 cannot notify the removed session", a
   expect(registration).toHaveBeenCalledTimes(1);
   unmount();
   expect(unsubscribe).toHaveBeenCalledTimes(1);
-  await expect(api.listPosts()).rejects.toMatchObject({ status: 401 });
+  await expect(postsApi.listPosts()).rejects.toMatchObject({ status: 401 });
   expect(notified).not.toHaveBeenCalled();
 });

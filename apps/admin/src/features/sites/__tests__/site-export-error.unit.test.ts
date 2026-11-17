@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { ApiError } from '@/lib/api';
+import { ApiError } from '@/lib/admin-http/request';
 import { siteExportFailure } from '../site-export-error';
 
 it('reformats raw export evidence with the host key policy before display or copying', () => {

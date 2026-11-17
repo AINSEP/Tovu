@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { AdminServerLogEntry } from "@/lib/api";
+import type { AdminServerLogEntry } from "@/features/observability/api/observability-api.types";
 import {
   SUMMARY_MAX_LENGTH,
   formatErrorCopyText,

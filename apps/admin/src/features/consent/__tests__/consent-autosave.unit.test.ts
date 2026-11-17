@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ApiError } from '@/lib/api';
+import { ApiError } from '@/lib/admin-http/request';
 import { createConsentAutosave, type ConsentTimers } from '../consent-autosave';
 import type { ConsentDraftSaved } from '../settings.hooks';
 import { CONSENT_CONFIG, conflict, saved } from './consent-fixtures';

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react';
 
-import { api, type AdminCredentialCopySource, type AdminCredentialCopyResult } from '@/lib/api';
+import type { AdminCredentialCopySource, AdminCredentialCopyResult } from '@/features/security/api/security-api.types';
+import { securityApi } from '@/features/security/api/security-api';
 import { publishContentRefresh } from '@/lib/content-refresh-bus';
 import { ACCESS_TOKENS_RESOURCE } from '../rules';
 
 import { type Translate } from '@jini-ai/core/text';
-export type CopyKeysPort = Pick<typeof api, 'listCredentialCopySources' | 'copyCredentials'>;
+export type CopyKeysPort = Pick<typeof securityApi, 'listCredentialCopySources' | 'copyCredentials'>;
 const SHARED_KEYS = 'shared-keys';
 const LOAD_FAILED = "Couldn't load Shared Keys. Open Shared Keys and try again. Details: P25_KEY_PICKER_LOAD_FAILED; secret values omitted.";
 const GRANT_FAILED = 'Using the saved key failed. Reopen Shared Keys and choose the key again. Details: P25_KEY_GRANT_FAILED; secret values omitted.';
@@ -20,7 +21,7 @@ function copyKeyRows({ source, credentialId }: { source: AdminCredentialCopySour
  * @returns The existing dialog controller with secret-free labels and outcomes.
  * @complexity O(k) time/space per open for at most 50 owner metadata rows; no background polling.
  */
-export function useCopyKeys({ t }: { t: Translate }, { port = api }: { port?: CopyKeysPort } = {}) {
+export function useCopyKeys({ t }: { t: Translate }, { port = securityApi }: { port?: CopyKeysPort } = {}) {
   const client = useRef(port).current;
   const [open, setOpen] = useState(false);
   const [source, setSource] = useState<AdminCredentialCopySource>();
@@ -73,5 +74,5 @@ export function useCopyKeys({ t }: { t: Translate }, { port = api }: { port?: Co
 export type CopyKeysController = ReturnType<typeof useCopyKeys>;
 /** Browser and desktop use the same owner-authenticated HTTP port. */
 export function useWiredCopyKeys(required: { t: Translate }): CopyKeysController {
-  return useCopyKeys(required, { port: api });
+  return useCopyKeys(required, { port: securityApi });
 }

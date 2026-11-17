@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, type AdminPlugin } from "@/lib/api";
+import type { AdminPlugin } from "@/features/plugins/api/plugins-api.types";
+import { pluginsApi } from "@/features/plugins/api/plugins-api";
 import { createFakePluginsPort } from "../hooks/plugins-dependencies.hooks";
 import { usePlugins } from "../hooks/use-plugins.hooks";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
@@ -20,7 +21,7 @@ afterEach(() => {
 
 describe("usePlugins — injected port (no fetch stub, no api spy)", () => {
   it("loads the list from the injected port and never touches the real api client", async () => {
-    const listSpy = vi.spyOn(api, "listPlugins");
+    const listSpy = vi.spyOn(pluginsApi, "listPlugins");
     const port = createFakePluginsPort({
       plugins: [{ id: "p1", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: true, quarantine: null, errors: [] }],
     });
@@ -32,7 +33,7 @@ describe("usePlugins — injected port (no fetch stub, no api spy)", () => {
   });
 
   it("routes onToggleEnabled through the injected port and never touches the real api client", async () => {
-    const setEnabledSpy = vi.spyOn(api, "setPluginEnabled");
+    const setEnabledSpy = vi.spyOn(pluginsApi, "setPluginEnabled");
     const port = createFakePluginsPort({
       plugins: [{ id: "p1", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: false, quarantine: null, errors: [] }],
     });

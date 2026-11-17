@@ -1,6 +1,12 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { api, onUnauthenticated } from "../api";
+import { taxonomyApi } from "../../features/taxonomy/api/taxonomy-api";
+import { pluginsApi } from "../../features/plugins/api/plugins-api";
+import { pagesApi } from "../../features/pages/api/pages-api";
+import { menusApi } from "../../features/menus/api/menus-api";
+import { membersApi } from "../../features/members/api/members-api";
+import { workspaceApi } from "../../features/workspace/api/workspace-api";
+import { onUnauthenticated } from "../admin-http/request";
 
 /**
  * @file Coverage-gap-fill pass (2026-09-05, `fix-apienc` dispatch TASK 2) closing the remaining gap
@@ -61,7 +67,7 @@ test("listPages GETs the workspace pages collection and resolves the parsed enve
   const { calls, method } = stubFetchCapturing(() =>
     jsonResponse({ posts: [{ post: { id: "pg1", kind: "page" } }] })
   );
-  await expect(api.listPages()).resolves.toEqual({ posts: [{ post: { id: "pg1", kind: "page" } }] });
+  await expect(pagesApi.listPages()).resolves.toEqual({ posts: [{ post: { id: "pg1", kind: "page" } }] });
   expect(calls[0].url).toBe(`${BASE_WORKSPACE}/pages`);
   expect(method()).toBe("GET");
 });
@@ -70,7 +76,7 @@ test("createPage POSTs { title } and resolves the created page", async () => {
   const { body, method, calls } = stubFetchCapturing(() =>
     jsonResponse({ post: { id: "pg1", title: "Hello", kind: "page" } })
   );
-  await expect(api.createPage({ title: "Hello" })).resolves.toEqual({ post: { id: "pg1", title: "Hello", kind: "page" } });
+  await expect(pagesApi.createPage({ title: "Hello" })).resolves.toEqual({ post: { id: "pg1", title: "Hello", kind: "page" } });
   expect(calls[0].url).toBe(`${BASE_WORKSPACE}/pages`);
   expect(body()).toEqual({ title: "Hello" });
   expect(method()).toBe("POST");
@@ -80,14 +86,14 @@ test("listMembers GETs the workspace members collection and resolves the parsed 
   const { calls, method } = stubFetchCapturing(() =>
     jsonResponse({ members: [{ id: "m1", email: "a@b.com", status: "active" }] })
   );
-  await expect(api.listMembers()).resolves.toEqual({ members: [{ id: "m1", email: "a@b.com", status: "active" }] });
+  await expect(membersApi.listMembers()).resolves.toEqual({ members: [{ id: "m1", email: "a@b.com", status: "active" }] });
   expect(calls[0].url).toBe(`${BASE_WORKSPACE}/members`);
   expect(method()).toBe("GET");
 });
 
 test("listMenus GETs the workspace menus collection and resolves the parsed envelope", async () => {
   const { calls, method } = stubFetchCapturing(() => jsonResponse({ menus: [{ id: "mn1", slug: "main" }] }));
-  await expect(api.listMenus()).resolves.toEqual({ menus: [{ id: "mn1", slug: "main" }] });
+  await expect(menusApi.listMenus()).resolves.toEqual({ menus: [{ id: "mn1", slug: "main" }] });
   expect(calls[0].url).toBe(`${BASE_WORKSPACE}/menus`);
   expect(method()).toBe("GET");
 });
@@ -96,7 +102,7 @@ test("getWorkspace GETs /workspaces/:id (workspace IS the resource, no sub-resou
   const { calls, method } = stubFetchCapturing(() =>
     jsonResponse({ workspace: { id: "workspace-local", name: "Tovu" } })
   );
-  await expect(api.getWorkspace()).resolves.toEqual({ workspace: { id: "workspace-local", name: "Tovu" } });
+  await expect(workspaceApi.getWorkspace()).resolves.toEqual({ workspace: { id: "workspace-local", name: "Tovu" } });
   expect(calls[0].url).toBe(BASE_WORKSPACE);
   expect(method()).toBe("GET");
 });
@@ -105,7 +111,7 @@ test("updateWorkspace PATCHes /workspaces/:id with the given options and resolve
   const { calls, method, body } = stubFetchCapturing(() =>
     jsonResponse({ workspace: { id: "workspace-local", name: "New Name" } })
   );
-  await expect(api.updateWorkspace({ name: "New Name" })).resolves.toEqual({
+  await expect(workspaceApi.updateWorkspace({ name: "New Name" })).resolves.toEqual({
     workspace: { id: "workspace-local", name: "New Name" },
   });
   expect(calls[0].url).toBe(BASE_WORKSPACE);
@@ -115,7 +121,7 @@ test("updateWorkspace PATCHes /workspaces/:id with the given options and resolve
 
 test("updateWorkspace sends an empty body when the caller passes no options", async () => {
   const { body } = stubFetchCapturing();
-  await api.updateWorkspace();
+  await workspaceApi.updateWorkspace();
   expect(body()).toEqual({});
 });
 
@@ -123,7 +129,7 @@ test("listTaxonomies GETs the top-level /taxonomy collection (no /workspaces/:id
   const { calls, method } = stubFetchCapturing(() =>
     jsonResponse({ items: [{ taxonomy: { id: "t1", name: "Category" }, terms: [] }] })
   );
-  await expect(api.listTaxonomies()).resolves.toEqual({
+  await expect(taxonomyApi.listTaxonomies()).resolves.toEqual({
     items: [{ taxonomy: { id: "t1", name: "Category" }, terms: [] }],
   });
   expect(calls[0].url).toBe("/api/admin/v1/taxonomy");
@@ -134,7 +140,7 @@ test("listPlugins GETs the workspace plugins collection and resolves the parsed 
   const { calls, method } = stubFetchCapturing(() =>
     jsonResponse({ plugins: [{ id: "lipay-plugin", version: "1.0.0", enabled: true }] })
   );
-  await expect(api.listPlugins()).resolves.toEqual({
+  await expect(pluginsApi.listPlugins()).resolves.toEqual({
     plugins: [{ id: "lipay-plugin", version: "1.0.0", enabled: true }],
   });
   expect(calls[0].url).toBe(`${BASE_WORKSPACE}/plugins`);
@@ -150,11 +156,11 @@ test("a real 401 carrying code: UNAUTHENTICATED notifies every registered listen
   const unsubscribe = onUnauthenticated(listener);
   const unsubscribeSecond = onUnauthenticated(second);
   try {
-    await api.getWorkspace().catch(() => {});
+    await workspaceApi.getWorkspace().catch(() => {});
     expect(listener).toHaveBeenCalledTimes(1);
     expect(second).toHaveBeenCalledTimes(1);
     unsubscribe();
-    await api.getWorkspace().catch(() => {});
+    await workspaceApi.getWorkspace().catch(() => {});
     expect(listener).toHaveBeenCalledTimes(1);
     expect(second).toHaveBeenCalledTimes(2);
   } finally {
@@ -168,7 +174,7 @@ test("a 401 that does NOT carry code: UNAUTHENTICATED (e.g. a relayed third-part
   const listener = vi.fn();
   const unsubscribe = onUnauthenticated(listener);
   try {
-    await api.getWorkspace().catch(() => {});
+    await workspaceApi.getWorkspace().catch(() => {});
     expect(listener).not.toHaveBeenCalled();
   } finally {
     unsubscribe();
@@ -180,6 +186,6 @@ test("onUnauthenticated's returned unsubscribe function stops further notificati
   const listener = vi.fn();
   const unsubscribe = onUnauthenticated(listener);
   unsubscribe();
-  await api.getWorkspace().catch(() => {});
+  await workspaceApi.getWorkspace().catch(() => {});
   expect(listener).not.toHaveBeenCalled();
 });

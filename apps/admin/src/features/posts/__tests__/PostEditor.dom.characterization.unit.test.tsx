@@ -2,7 +2,7 @@ import { act, render, screen, waitFor, within } from "@/__tests__/fetch-query-re
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { PostEditor } from "../PostEditor";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { usePostEditor, type PostEditorController } from "../hooks/use-post-editor.hooks";

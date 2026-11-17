@@ -24,7 +24,12 @@ import {
 } from "./lib/agent-screenshot";
 import { publishScreenshotCaptured, subscribeToScreenshotCaptured } from "./lib/agent-screenshot-bus";
 import { ADMIN_BASE, installInternalLinkInterceptor, navigate, useRouteLocation } from "./lib/router";
-import { WORKSPACE_ID, api, onUnauthenticated, type AdminUser } from "./lib/api";
+import { sitesApi } from "./features/sites/api/sites-api";
+import { aiAssistantApi } from "./features/ai-assistant/api/ai-assistant-api";
+import type { AdminUser } from "./features/auth/api/auth-api.types";
+import { authApi } from "./features/auth/api/auth-api";
+import { WORKSPACE_ID } from "./lib/admin-http/config";
+import { onUnauthenticated } from "./lib/admin-http/request";
 import { takeBootToken } from "./lib/boot-token-fragment";
 import { readInitialAdminSession } from "./lib/local-owner-signin";
 import { takePublishCriteriaFromQuery } from "./lib/publish-criteria-deep-link";
@@ -102,7 +107,7 @@ export interface UseAdminSession {
  * const { user, checking, handleLogin, logout } = useAdminSession();
  */
 export function useAdminSession(_required: Record<string, never> = {}, {
-  sessionApi = api, location = window.location, history = window.history,
+  sessionApi = authApi, location = window.location, history = window.history,
   subscribeUnauthenticated = onUnauthenticated,
   subscribeSettingsChanges = subscribeToSettingsChanges,
 }: AdminSessionOptions = {}): UseAdminSession {
@@ -277,7 +282,7 @@ export function useAdminAssistantAvailability({ user }: { user: AdminUser | null
   useEffect(() => {
     if (!user) return undefined;
     let cancelled = false;
-    api
+    aiAssistantApi
       .getAssistantSettings()
       .then((response) => {
         if (!cancelled) setEnabled(response.adminAssistantEnabled ?? true);
@@ -366,7 +371,7 @@ export function useSiteSectionAvailability(
 ): SiteSectionAvailability {
   // Identity belongs in the query key: logout/401 must not paint the previous user's answer,
   // and an ordinary remount in this session should reuse the already authorized snapshot.
-  const snapshot = useSitesSnapshot({ port: api }, { enabled: !!user && !desktop, principalId: user?.id });
+  const snapshot = useSitesSnapshot({ port: sitesApi }, { enabled: !!user && !desktop, principalId: user?.id });
   return siteSectionAvailability({ desktop, user, snapshot });
 }
 

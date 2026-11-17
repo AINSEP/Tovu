@@ -13,9 +13,9 @@ import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper
 
 const { listPublishCredentials } = vi.hoisted(() => ({ listPublishCredentials: vi.fn() }));
 
-vi.mock("@/lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/api")>();
-  return { ...actual, api: { ...actual.api, listPublishCredentials } };
+vi.mock("@/features/security/api/security-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/security/api/security-api")>();
+  return { ...actual, securityApi: { ...actual.securityApi, listPublishCredentials } };
 });
 
 vi.mock("@/hooks/use-admin-locale.hooks", () => ({ useAdminLocale: () => "en" }));

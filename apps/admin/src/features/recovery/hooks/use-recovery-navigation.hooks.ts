@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import type { AdminRestorePoint } from "@/lib/api";
+import type { AdminRestorePoint } from "@/features/recovery/api/recovery-api.types";
 import { navigate } from "@/lib/router";
 
 import { resolveActiveTabId } from '@jini-ai/core/text';

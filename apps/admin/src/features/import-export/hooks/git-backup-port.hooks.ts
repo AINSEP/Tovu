@@ -1,4 +1,7 @@
-import { WORKSPACE_ID, api, authenticatedAdminRequest, type AdminSourceControlCredentialSummary } from "@/lib/api";
+import type { AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
+import { sourceControlApi } from "@/features/source-control/api/source-control-api";
+import { WORKSPACE_ID } from "@/lib/admin-http/config";
+import { authenticatedAdminRequest } from "@/lib/admin-http/request";
 
 /**
  * @file The Git backup card's port onto `admin-http/routes/system/site-backups.ts` (plan, push) and
@@ -59,7 +62,7 @@ export interface GitBackupPort {
 const BACKUPS = `/workspaces/${WORKSPACE_ID}/site-backups`;
 
 export const defaultGitBackupPort: GitBackupPort = {
-  listConnections: () => api.listSourceControlCredentials().then((snapshot) => snapshot.credentials),
+  listConnections: () => sourceControlApi.listSourceControlCredentials().then((snapshot) => snapshot.credentials),
   plan: (input, _options = {}) => authenticatedAdminRequest({ method: "POST", path: `${BACKUPS}/plan`, body: input }),
   push: (input, _options = {}) => authenticatedAdminRequest({ method: "POST", path: `${BACKUPS}/push`, body: input }),
 };

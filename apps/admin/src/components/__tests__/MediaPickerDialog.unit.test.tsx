@@ -2,7 +2,10 @@ import { fireEvent, render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { api, ApiError, type AdminMedia } from "../../lib/api";
+import type { AdminMedia } from "../../features/media/api/media-api.types";
+import { mediaApi } from "../../features/media/api/media-api";
+import { settingsApi } from "../../features/settings/api/settings-api";
+import { ApiError } from "../../lib/admin-http/request";
 import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
 import type { MediaPickerDialogController, useWiredMediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog.hooks";
 
@@ -51,7 +54,7 @@ beforeEach(() => {
   // .test.tsx`'s sibling fix, this file mocks at the `api` method level (matching `api.listMedia`'s
   // own mocking here), not global `fetch` — `getSettingsEffective` is its own `api` method, so no
   // shared-`Response`-body race is possible.
-  vi.spyOn(api, "getSettingsEffective").mockResolvedValue({ data: [] });
+  vi.spyOn(settingsApi, "getSettingsEffective").mockResolvedValue({ data: [] });
 });
 
 afterEach(() => {
@@ -60,19 +63,19 @@ afterEach(() => {
 
 describe("MediaPickerDialog — loading/error/empty", () => {
   it("shows a loading notice before the fetch resolves", () => {
-    vi.spyOn(api, "listMedia").mockReturnValue(new Promise(() => {}));
+    vi.spyOn(mediaApi, "listMedia").mockReturnValue(new Promise(() => {}));
     render(<MediaPickerDialog onSelect={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.getByText("Loading media…")).toBeInTheDocument();
   });
 
   it("shows a describable error notice on a failed fetch", async () => {
-    vi.spyOn(api, "listMedia").mockRejectedValue(new ApiError({ message: "media table locked", status: 500 }));
+    vi.spyOn(mediaApi, "listMedia").mockRejectedValue(new ApiError({ message: "media table locked", status: 500 }));
     render(<MediaPickerDialog onSelect={vi.fn()} onCancel={vi.fn()} />);
     expect(await screen.findByText("media table locked")).toBeInTheDocument();
   });
 
   it("points to the Media screen when nothing has been uploaded yet", async () => {
-    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [] });
+    vi.spyOn(mediaApi, "listMedia").mockResolvedValue({ media: [] });
     render(<MediaPickerDialog onSelect={vi.fn()} onCancel={vi.fn()} />);
     expect(await screen.findByText(/No media uploaded yet/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Media" })).toHaveAttribute("href", "/admin/media");
@@ -81,7 +84,7 @@ describe("MediaPickerDialog — loading/error/empty", () => {
 
 describe("MediaPickerDialog — populated grid", () => {
   it("renders one button per active item, with its thumbnail and title", async () => {
-    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [mediaItem()] });
+    vi.spyOn(mediaApi, "listMedia").mockResolvedValue({ media: [mediaItem()] });
     render(<MediaPickerDialog onSelect={vi.fn()} onCancel={vi.fn()} />);
 
     // Queried by `title` rather than accessible name: the button's computed name is its content
@@ -89,13 +92,13 @@ describe("MediaPickerDialog — populated grid", () => {
     // only wins as an accessible-name fallback when there's no content — not the case here.
     const item = await screen.findByTitle("Sunset");
     const img = item.querySelector("img");
-    expect(img).toHaveAttribute("src", api.mediaOriginalUrl({ id: "m1" }));
+    expect(img).toHaveAttribute("src", mediaApi.mediaOriginalUrl({ id: "m1" }));
     expect(img).toHaveAttribute("alt", "A sunset over water");
     expect(item).toHaveTextContent("Sunset");
   });
 
   it("falls back to the title as alt text when the asset has none", async () => {
-    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [mediaItem({ alt: "" })] });
+    vi.spyOn(mediaApi, "listMedia").mockResolvedValue({ media: [mediaItem({ alt: "" })] });
     render(<MediaPickerDialog onSelect={vi.fn()} onCancel={vi.fn()} />);
 
     const img = await screen.findByRole("img");
@@ -104,7 +107,7 @@ describe("MediaPickerDialog — populated grid", () => {
 
   it("calls onSelect with the clicked item", async () => {
     const user = userEvent.setup();
-    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [mediaItem()] });
+    vi.spyOn(mediaApi, "listMedia").mockResolvedValue({ media: [mediaItem()] });
     const onSelect = vi.fn();
     render(<MediaPickerDialog onSelect={onSelect} onCancel={vi.fn()} />);
 
@@ -120,8 +123,8 @@ describe("MediaPickerDialog — populated grid", () => {
   // could never produce still ends up as the thumbnail's `src` verbatim, which is only possible if
   // the component reads it off the injected port rather than calling `api.mediaOriginalUrl` itself.
   it("thumbnail src is exactly the injected port's mediaOriginalUrl, not one this component computed itself", async () => {
-    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [mediaItem()] });
-    const mediaOriginalUrlSpy = vi.spyOn(api, "mediaOriginalUrl");
+    vi.spyOn(mediaApi, "listMedia").mockResolvedValue({ media: [mediaItem()] });
+    const mediaOriginalUrlSpy = vi.spyOn(mediaApi, "mediaOriginalUrl");
     render(<MediaPickerDialog onSelect={vi.fn()} onCancel={vi.fn()} />);
 
     const img = await screen.findByRole("img");
@@ -129,14 +132,14 @@ describe("MediaPickerDialog — populated grid", () => {
     // real client is exercised through the port here — the assertion below is the seam proof; the
     // "useDialog injection" describe block further down is the fake-value proof.
     expect(mediaOriginalUrlSpy).toHaveBeenCalledWith({ id: "m1" });
-    expect(img).toHaveAttribute("src", api.mediaOriginalUrl({ id: "m1" }));
+    expect(img).toHaveAttribute("src", mediaApi.mediaOriginalUrl({ id: "m1" }));
   });
 });
 
 describe("MediaPickerDialog — dismissal", () => {
   it("calls onCancel on Cancel button click", async () => {
     const user = userEvent.setup();
-    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [] });
+    vi.spyOn(mediaApi, "listMedia").mockResolvedValue({ media: [] });
     const onCancel = vi.fn();
     render(<MediaPickerDialog onSelect={vi.fn()} onCancel={onCancel} />);
 
@@ -146,7 +149,7 @@ describe("MediaPickerDialog — dismissal", () => {
 
   it("calls onCancel on a backdrop click but not on a click inside the dialog panel", async () => {
     const user = userEvent.setup();
-    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [] });
+    vi.spyOn(mediaApi, "listMedia").mockResolvedValue({ media: [] });
     const onCancel = vi.fn();
     render(<MediaPickerDialog onSelect={vi.fn()} onCancel={onCancel} />);
 
@@ -158,7 +161,7 @@ describe("MediaPickerDialog — dismissal", () => {
   });
 
   it("calls onCancel on Escape, via the real useMediaPickerDialog hook", async () => {
-    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [] });
+    vi.spyOn(mediaApi, "listMedia").mockResolvedValue({ media: [] });
     const onCancel = vi.fn();
     render(<MediaPickerDialog onSelect={vi.fn()} onCancel={onCancel} />);
 
@@ -171,8 +174,8 @@ describe("MediaPickerDialog — dismissal", () => {
 
 describe("MediaPickerDialog — useDialog injection", () => {
   it("renders entirely off an injected useDialog — api.listMedia and api.mediaOriginalUrl are never called", () => {
-    const listMedia = vi.spyOn(api, "listMedia");
-    const mediaOriginalUrlSpy = vi.spyOn(api, "mediaOriginalUrl");
+    const listMedia = vi.spyOn(mediaApi, "listMedia");
+    const mediaOriginalUrlSpy = vi.spyOn(mediaApi, "mediaOriginalUrl");
     const select = vi.fn();
     const fakeUseDialog: typeof useWiredMediaPickerDialog = ({ onSelect }) => ({
       items: [mediaItem({ id: "fake-1", title: "Fake asset" })],
@@ -264,7 +267,7 @@ describe("MediaPickerDialog — translated copy (t injection)", () => {
 describe("MediaPickerDialog — focus management", () => {
 
   it("renders an open native dialog; browser Tab containment is provided by showModal", async () => {
-    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [mediaItem()] });
+    vi.spyOn(mediaApi, "listMedia").mockResolvedValue({ media: [mediaItem()] });
     render(<MediaPickerDialog onSelect={vi.fn()} onCancel={vi.fn()} />);
     await screen.findByTitle("Sunset");
     const cancel = screen.getByRole("button", { name: "Cancel" });
@@ -283,7 +286,7 @@ describe("MediaPickerDialog — focus management", () => {
   // component only ever exists in the DOM while open, so mount/unmount IS the open/close
   // transition.
   it("moves focus onto Cancel when it opens, not left on whatever had focus before", () => {
-    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [] });
+    vi.spyOn(mediaApi, "listMedia").mockResolvedValue({ media: [] });
     const trigger = document.createElement("button");
     trigger.textContent = "Insert from Media Library";
     document.body.appendChild(trigger);
@@ -299,7 +302,7 @@ describe("MediaPickerDialog — focus management", () => {
   });
 
   it("returns focus to the element that opened it once the dialog closes (unmounts)", () => {
-    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [] });
+    vi.spyOn(mediaApi, "listMedia").mockResolvedValue({ media: [] });
     const trigger = document.createElement("button");
     trigger.textContent = "Insert from Media Library";
     document.body.appendChild(trigger);

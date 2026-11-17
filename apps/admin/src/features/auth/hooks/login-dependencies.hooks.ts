@@ -1,4 +1,5 @@
-import { api, type AdminUser } from "@/lib/api";
+import type { AdminUser } from "@/features/auth/api/auth-api.types";
+import { authApi } from "@/features/auth/api/auth-api";
 import type { LoginPort } from "./login-port.hooks";
 
 /**
@@ -8,8 +9,8 @@ import type { LoginPort } from "./login-port.hooks";
 
 /** The live implementation, as a module-level singleton. */
 export const defaultLoginPort: LoginPort = {
-  login: (credentials, _optional = {}) => api.login(credentials),
-  completeMfa: (input, _optional = {}) => api.completeMfa(input),
+  login: (credentials, _optional = {}) => authApi.login(credentials),
+  completeMfa: (input, _optional = {}) => authApi.completeMfa(input),
 };
 
 /** Fallback fake user returned by {@link createFakeLoginPort} when the caller doesn't seed one —

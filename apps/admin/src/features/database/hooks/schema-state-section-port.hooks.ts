@@ -1,4 +1,4 @@
-import type { AdminSchemaState } from "@/lib/api";
+import type { AdminSchemaState } from "@/features/database/api/database-api.types";
 
 /**
  * @file What `use-schema-state-section.hooks.ts` needs from the outside world, as an interface

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createMediaProvidersPort, mediaSessionGrants } from '../media-ports';
 import { MEDIA_PROVIDER_CATALOG } from '../../../features/media/media-provider-catalog';
-import type { AdminMediaProviderMap } from '../../../lib/api';
+import type { AdminMediaProviderMap } from '../../../features/media/api/media-api.types';
 
 /**
  * Boundary pins for the provider credential port (security-sensitive: it writes API keys).

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { emailApi, type EmailApi, type EmailTemplateDetail, type EmailTemplatePreview } from "../email-api";
 import { errorMessage, useLoad, type LoadView } from "./email-load.hooks";
 

@@ -2,7 +2,7 @@ import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminMenu, AdminMenuItem } from "@/lib/api";
+import type { AdminMenu, AdminMenuItem } from "@/features/menus/api/menus-api.types";
 import { MenuEditor } from "../MenuEditor";
 import { createFakeMenusPort } from "../hooks/menus-dependencies.hooks";
 import { useMenuEditor } from "../hooks/use-menu-editor.hooks";

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminExportRunSnapshot } from "@/lib/api";
+import type { AdminExportRunSnapshot } from "@/features/import-export/api/import-export-api.types";
 
 /**
  * @file Coverage for `static-export-dependencies.hooks.ts`. `defaultStaticExportPort
@@ -17,12 +17,9 @@ const { triggerSiteExport, getSiteExportStatus } = vi.hoisted(() => ({
   getSiteExportStatus: vi.fn(),
 }));
 
-vi.mock("../../../../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../../lib/api")>();
-  return {
-    ...actual,
-    api: { ...actual.api, triggerSiteExport, getSiteExportStatus },
-  };
+vi.mock("../../../import-export/api/import-export-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../import-export/api/import-export-api")>();
+  return { ...actual, importExportApi: { ...actual.importExportApi, triggerSiteExport, getSiteExportStatus } };
 });
 
 const { createFakeStaticExportPort, defaultStaticExportPort } = await import("../static-export-dependencies.hooks");

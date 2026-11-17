@@ -1,5 +1,11 @@
 import { getAdminDraftIdentity } from "@/lib/admin-draft-identity";
-import { ApiError, api, type AdminMedia, type AdminPost, type AdminThemeSummary, type PresentationSettings } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
+import { mediaApi } from "@/features/media/api/media-api";
+import type { AdminThemeSummary, PresentationSettings } from "@/features/themes/api/themes-api.types";
+import { themesApi } from "@/features/themes/api/themes-api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
+import { postsApi } from "@/features/posts/api/posts-api";
+import { ApiError } from "@/lib/admin-http/request";
 import { postSlugForTitle, POST_VERSION_CONFLICT_CODE } from "../rules";
 import type { StandingDraftAutosaveInput, StandingDraftAutosaveSnapshot } from "@/hooks/use-standing-draft-autosave.hooks";
 import type { PostEditorPort } from "./post-editor-port.hooks";
@@ -11,22 +17,22 @@ import type { PostEditorPort } from "./post-editor-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultPostEditorPort: PostEditorPort = {
-  getPost: ({ id }, _optional = {}) => api.getPost({ id }),
-  createPost: (input, options = {}) => api.createPost(input, options),
-  getPresentation: () => api.getPresentation({ kind: "post" }),
-  updatePost: ({ target, patch }, _optional = {}) => api.updatePost(target, { options: patch }),
-  deletePost: ({ id }, _optional = {}) => api.deletePost({ id }),
-  listPosts: () => api.listPosts(),
-  uploadMedia: (input, _optional = {}) => api.uploadMedia(input),
-  templatePreviewUrl: ({ id, templateChoice }, _optional = {}) => api.templatePreviewUrl({ id, templateChoice }),
-  putAutosave: ({ id, draft }, options = {}) => api.putAutosave({ id, draft }, options),
+  getPost: ({ id }, _optional = {}) => postsApi.getPost({ id }),
+  createPost: (input, options = {}) => postsApi.createPost(input, options),
+  getPresentation: () => themesApi.getPresentation({ kind: "post" }),
+  updatePost: ({ target, patch }, _optional = {}) => postsApi.updatePost(target, { options: patch }),
+  deletePost: ({ id }, _optional = {}) => postsApi.deletePost({ id }),
+  listPosts: () => postsApi.listPosts(),
+  uploadMedia: (input, _optional = {}) => mediaApi.uploadMedia(input),
+  templatePreviewUrl: ({ id, templateChoice }, _optional = {}) => postsApi.templatePreviewUrl({ id, templateChoice }),
+  putAutosave: ({ id, draft }, options = {}) => postsApi.putAutosave({ id, draft }, options),
   getBackupPrincipalId: () => getAdminDraftIdentity(),
-  getAutosave: ({ id }, _optional = {}) => api.getAutosave({ id }),
-  discardAutosave: ({ id }, _optional = {}) => api.discardAutosave({ id }),
+  getAutosave: ({ id }, _optional = {}) => postsApi.getAutosave({ id }),
+  discardAutosave: ({ id }, _optional = {}) => postsApi.discardAutosave({ id }),
 };
 
 /** The featured/cover image preview's resized URL — `usePostFeaturedImage`'s `renditionUrl` seam. */
-export const defaultFeaturedImageRenditionUrl = ({ id }: { id: string }, _optional = {}): string => api.mediaPreviewRenditionUrl({ id });
+export const defaultFeaturedImageRenditionUrl = ({ id }: { id: string }, _optional = {}): string => mediaApi.mediaPreviewRenditionUrl({ id });
 
 /** Seed state for {@link createFakePostEditorPort}. */
 export interface FakePostEditorPortOptions {

@@ -1,4 +1,4 @@
-import type { AdminMedia } from "../../lib/api";
+import type { AdminMedia } from "../../features/media/api/media-api.types";
 
 /**
  * @file What `MediaPickerDialog.hooks.tsx` needs from the outside world, as an interface rather

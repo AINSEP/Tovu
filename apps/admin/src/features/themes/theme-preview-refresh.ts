@@ -1,4 +1,5 @@
-import { authenticatedAdminRequest, WORKSPACE_ID } from "@/lib/api";
+import { authenticatedAdminRequest } from "@/lib/admin-http/request";
+import { WORKSPACE_ID } from "@/lib/admin-http/config";
 /** Theme-only notification seam. Each admin document belongs to one site; SSE is workspace-scoped. */
 export interface ThemePreviewRefresh {
   revision: string;

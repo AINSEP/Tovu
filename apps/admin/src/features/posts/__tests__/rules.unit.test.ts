@@ -17,7 +17,7 @@ import {
   toolbarBtnClass,
   withTitleNode,
 } from "../rules";
-import type { AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 
 /** Identity translator — same convention `pages/__tests__/rules.unit.test.ts` uses for its
  *  `columnSortLabel`/`updatedColumnSortLabel` tests: asserts against the English key

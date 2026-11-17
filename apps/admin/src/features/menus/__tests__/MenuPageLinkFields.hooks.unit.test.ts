@@ -1,7 +1,7 @@
 import { renderHook } from "@testing-library/react";
 import type { ChangeEvent } from "react";
 import { describe, expect, it } from "vitest";
-import type { AdminMenuItem } from "@/lib/api";
+import type { AdminMenuItem } from "@/features/menus/api/menus-api.types";
 import { useMenuPageLinkFields, useMenuTargetEditor } from "../MenuPageLinkFields.hooks";
 
 /**

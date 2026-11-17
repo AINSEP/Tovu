@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { api, type AdminRemoteToolSurfaceEntry } from "@/lib/api";
+import type { AdminRemoteToolSurfaceEntry } from "@/features/integrations/api/integrations-api.types";
+import { integrationsApi } from "@/features/integrations/api/integrations-api";
 
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 
@@ -52,7 +53,7 @@ export interface ExternalMcpToolPickerPort {
 }
 
 export const defaultExternalMcpToolPickerPort: ExternalMcpToolPickerPort = {
-  probe: ({ serverId }, _options = {}) => api.probeExternalMcpServer({ serverId }),
+  probe: ({ serverId }, _options = {}) => integrationsApi.probeExternalMcpServer({ serverId }),
 };
 
 export interface ExternalMcpToolPickerController {

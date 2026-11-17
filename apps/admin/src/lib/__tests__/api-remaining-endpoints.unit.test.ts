@@ -1,6 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, adminSitePreviewUrl, api, authenticatedAdminRequest, authenticatedAdminUrl } from "../api";
+import { sitesApi } from "../../features/sites/api/sites-api";
+import { deploymentApi } from "../../features/deployment/api/deployment-api";
+import { observabilityApi } from "../../features/observability/api/observability-api";
+import { integrationsApi } from "../../features/integrations/api/integrations-api";
+import { aiAssistantApi } from "../../features/ai-assistant/api/ai-assistant-api";
+import { mediaApi } from "../../features/media/api/media-api";
+import { postsApi } from "../../features/posts/api/posts-api";
+import { usersApi } from "../../features/users/api/users-api";
+import { authApi } from "../../features/auth/api/auth-api";
+import { databaseApi } from "../../features/database/api/database-api";
+import { pluginsApi } from "../../features/plugins/api/plugins-api";
+import { ApiError, authenticatedAdminRequest } from "../admin-http/request";
+import { adminSitePreviewUrl, authenticatedAdminUrl } from "../admin-http/urls";
 
 /**
  * @file The `api.ts` endpoints and request options no other `api-*` suite pinned: each call's exact
@@ -57,8 +69,8 @@ describe("request options", () => {
 describe("endpoints", () => {
   it("auth: local owner sign-in and password status", async () => {
     const calls = stubFetch();
-    await api.signInLocalOwner({});
-    await api.getPasswordStatus();
+    await authApi.signInLocalOwner({});
+    await authApi.getPasswordStatus();
     expect(calls).toEqual([
       { url: "/api/admin/v1/auth/local-boot-session", method: "POST" },
       { url: "/api/admin/v1/auth/me/password-status", method: "GET" },
@@ -67,8 +79,8 @@ describe("endpoints", () => {
 
   it("post autosave read and discard", async () => {
     const calls = stubFetch();
-    await api.getAutosave({ id: "p/1" });
-    await api.discardAutosave({ id: "p/1" });
+    await postsApi.getAutosave({ id: "p/1" });
+    await postsApi.discardAutosave({ id: "p/1" });
     expect(calls.map(({ url, method }) => [url, method])).toEqual([[`${W}/posts/p%2F1/autosave`, "GET"], [`${W}/posts/p%2F1/autosave`, "DELETE"]]);
   });
 
@@ -79,16 +91,16 @@ describe("endpoints", () => {
       new Response(null, { status: 404, headers: { "content-type": "text/html" } }),
     ];
     const calls = stubFetch(() => replies.shift()!);
-    expect(await api.mediaContentType({ id: "m1" })).toBe("video/mp4");
-    expect(await api.mediaContentType({ id: "m1" })).toBe("");
-    expect(await api.mediaContentType({ id: "m1" })).toBe("");
-    expect(calls.every((call) => call.method === "HEAD" && call.url === api.mediaOriginalUrl({ id: "m1" }))).toBe(true);
+    expect(await mediaApi.mediaContentType({ id: "m1" })).toBe("video/mp4");
+    expect(await mediaApi.mediaContentType({ id: "m1" })).toBe("");
+    expect(await mediaApi.mediaContentType({ id: "m1" })).toBe("");
+    expect(calls.every((call) => call.method === "HEAD" && call.url === mediaApi.mediaOriginalUrl({ id: "m1" }))).toBe(true);
   });
 
   it("media import from URL, with and without descriptive options", async () => {
     const calls = stubFetch();
-    await api.importMediaFromUrl({ url: "https://example.com/a.png" });
-    await api.importMediaFromUrl({ url: "https://example.com/a.png" }, { alt: "A", filename: "a.png" });
+    await mediaApi.importMediaFromUrl({ url: "https://example.com/a.png" });
+    await mediaApi.importMediaFromUrl({ url: "https://example.com/a.png" }, { alt: "A", filename: "a.png" });
     expect(calls).toEqual([
       { url: `${W}/media/import-url`, method: "POST", body: { url: "https://example.com/a.png" } },
       { url: `${W}/media/import-url`, method: "POST", body: { url: "https://example.com/a.png", alt: "A", filename: "a.png" } },
@@ -97,11 +109,11 @@ describe("endpoints", () => {
 
   it("documents: list, upload as a document, and read text pages", async () => {
     const calls = stubFetch();
-    await api.listDocuments();
-    await api.uploadDocument({ filename: "notes.md", dataBase64: "aGk=" });
-    await api.readDocumentText({ id: "d 1" });
-    await api.readDocumentText({ id: "d 1" }, { offset: 0 });
-    await api.readDocumentText({ id: "d 1" }, { offset: 65536 });
+    await mediaApi.listDocuments();
+    await mediaApi.uploadDocument({ filename: "notes.md", dataBase64: "aGk=" });
+    await mediaApi.readDocumentText({ id: "d 1" });
+    await mediaApi.readDocumentText({ id: "d 1" }, { offset: 0 });
+    await mediaApi.readDocumentText({ id: "d 1" }, { offset: 65536 });
     expect(calls).toEqual([
       { url: `${W}/media?kind=document`, method: "GET" },
       { url: `${W}/media`, method: "POST", body: { filename: "notes.md", dataBase64: "aGk=", kind: "document" } },
@@ -113,22 +125,22 @@ describe("endpoints", () => {
 
   it("deletes a user by encoded principal id", async () => {
     const calls = stubFetch(() => new Response(null, { status: 204 }));
-    await api.deleteUser({ principalId: "user/1" });
+    await usersApi.deleteUser({ principalId: "user/1" });
     expect(calls).toEqual([{ url: `${W}/users/user%2F1`, method: "DELETE" }]);
   });
 
   it("detects execution agents, forcing a re-probe only when asked", async () => {
     const calls = stubFetch();
-    await api.detectExecutionAgents();
-    await api.detectExecutionAgents({}, { force: true });
+    await aiAssistantApi.detectExecutionAgents();
+    await aiAssistantApi.detectExecutionAgents({}, { force: true });
     expect(calls.map((call) => call.body)).toEqual([{}, { force: true }]);
     expect(calls[0]!.url).toBe(`${W}/assistant/execution/detect-agents`);
   });
 
   it("creates a recovery restore point with or without options", async () => {
     const calls = stubFetch();
-    await api.createRecoveryRestorePoint();
-    await api.createRecoveryRestorePoint({ trigger: "manual", costAck: true });
+    await databaseApi.createRecoveryRestorePoint();
+    await databaseApi.createRecoveryRestorePoint({ trigger: "manual", costAck: true });
     expect(calls).toEqual([
       { url: "/api/admin/v1/database/restore-points", method: "POST", body: {} },
       { url: "/api/admin/v1/database/restore-points", method: "POST", body: { trigger: "manual", costAck: true } },
@@ -137,11 +149,11 @@ describe("endpoints", () => {
 
   it("site and agent plugins: uninstall, files, list, enable", async () => {
     const calls = stubFetch();
-    await api.uninstallPlugin({ pluginId: "seo/x" });
-    await api.getPluginFiles({ pluginId: "seo/x" });
-    await api.listAgentPlugins();
-    await api.getAgentPluginFiles({ pluginId: "agent/y" });
-    await api.setAgentPluginEnabled({ pluginId: "agent/y", enabled: false });
+    await pluginsApi.uninstallPlugin({ pluginId: "seo/x" });
+    await pluginsApi.getPluginFiles({ pluginId: "seo/x" });
+    await integrationsApi.listAgentPlugins();
+    await integrationsApi.getAgentPluginFiles({ pluginId: "agent/y" });
+    await integrationsApi.setAgentPluginEnabled({ pluginId: "agent/y", enabled: false });
     expect(calls).toEqual([
       { url: `${W}/plugins/seo%2Fx`, method: "DELETE" },
       { url: `${W}/plugins/seo%2Fx/files`, method: "GET" },
@@ -153,21 +165,21 @@ describe("endpoints", () => {
 
   it("system reads: observability status, tool gaps, publish destinations", async () => {
     const calls = stubFetch();
-    await api.getObservabilityStatus();
-    await api.getToolGaps();
-    await api.listPublishDestinations();
+    await observabilityApi.getObservabilityStatus();
+    await observabilityApi.getToolGaps();
+    await deploymentApi.listPublishDestinations();
     expect(calls.map((call) => call.url)).toEqual([`${W}/system/observability-status`, `${W}/system/tool-gaps`, `${W}/system/publish/destinations`]);
   });
 
   it("site key lifecycle: status, reveal, generate, import, start-fresh preview and confirm", async () => {
     const calls = stubFetch();
-    await api.getSiteKeyStatus();
-    await api.revealSiteKey();
-    await api.generateSiteKey();
+    await sitesApi.getSiteKeyStatus();
+    await sitesApi.revealSiteKey();
+    await sitesApi.generateSiteKey();
     const imported = ["tovu", "sk", "fixture"].join("_");
-    await api.importSiteKey({ siteKey: imported });
-    await api.previewSiteKeyStartFresh();
-    await api.startFreshSiteKey({ confirm: "START FRESH" });
+    await sitesApi.importSiteKey({ siteKey: imported });
+    await sitesApi.previewSiteKeyStartFresh();
+    await sitesApi.startFreshSiteKey({ confirm: "START FRESH" });
     expect(calls).toEqual([
       { url: `${W}/system/site-key`, method: "GET" },
       { url: `${W}/system/site-key/reveal`, method: "POST" },
@@ -180,8 +192,8 @@ describe("endpoints", () => {
 
   it("an endpoint failure surfaces as an ApiError with the server's status", async () => {
     stubFetch(() => new Response(JSON.stringify({ error: "nope", code: "SITE_KEY_MISSING" }), { status: 404 }));
-    await expect(api.revealSiteKey()).rejects.toMatchObject({ status: 404, code: "SITE_KEY_MISSING" });
+    await expect(sitesApi.revealSiteKey()).rejects.toMatchObject({ status: 404, code: "SITE_KEY_MISSING" });
     stubFetch(() => new Response(JSON.stringify({ error: "nope" }), { status: 409 }));
-    await expect(api.generateSiteKey()).rejects.toBeInstanceOf(ApiError);
+    await expect(sitesApi.generateSiteKey()).rejects.toBeInstanceOf(ApiError);
   });
 });

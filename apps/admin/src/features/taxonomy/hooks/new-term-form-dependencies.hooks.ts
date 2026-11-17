@@ -1,4 +1,4 @@
-import { api } from "@/lib/api";
+import { taxonomyApi } from "@/features/taxonomy/api/taxonomy-api";
 import type { NewTermFormPort } from "./new-term-form-port.hooks";
 
 /**
@@ -9,7 +9,7 @@ import type { NewTermFormPort } from "./new-term-form-port.hooks";
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s
  *  `redirectsHostPorts`. */
 export const defaultNewTermFormPort: NewTermFormPort = {
-  createTerm: (target, options) => api.createTerm(target, options),
+  createTerm: (target, options) => taxonomyApi.createTerm(target, options),
 };
 
 /** Seed state for {@link createFakeNewTermFormPort}. */

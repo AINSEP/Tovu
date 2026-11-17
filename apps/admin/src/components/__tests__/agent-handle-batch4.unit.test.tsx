@@ -2,7 +2,8 @@ import { render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api } from "../../lib/api";
+import { mediaApi } from "../../features/media/api/media-api";
+import { widgetsApi } from "../../features/widgets/api/widgets-api";
 import { EmbedInsertControl } from "../EmbedInsertControl/EmbedInsertControl";
 import { ChatFab } from "../ChatFab/ChatFab";
 
@@ -57,7 +58,7 @@ describe("EmbedInsertControl agentHandle", () => {
 
   it("forwards <base>-media-dialog into the opened MediaPickerDialog's own Cancel button", async () => {
     const user = userEvent.setup();
-    vi.spyOn(api, "listMedia").mockReturnValue(new Promise(() => {})); // never resolves — Cancel renders regardless
+    vi.spyOn(mediaApi, "listMedia").mockReturnValue(new Promise(() => {})); // never resolves — Cancel renders regardless
     render(<EmbedInsertControl editor={fakeEditor()} agentHandle="post-embed" />);
 
     await openMenu(user);
@@ -67,7 +68,7 @@ describe("EmbedInsertControl agentHandle", () => {
 
   it("forwards <base>-form-dialog into the WidgetPickerDialog opened by the Form shortcut", async () => {
     const user = userEvent.setup();
-    vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [] });
+    vi.spyOn(widgetsApi, "listWidgets").mockResolvedValue({ widgets: [] });
     render(<EmbedInsertControl editor={fakeEditor()} agentHandle="post-embed" />);
 
     await openMenu(user);
@@ -78,7 +79,7 @@ describe("EmbedInsertControl agentHandle", () => {
 
   it("forwards <base>-widget-control into the native picker once Widget… is picked", async () => {
     const user = userEvent.setup();
-    vi.spyOn(api, "listWidgets").mockResolvedValue({ widgets: [] });
+    vi.spyOn(widgetsApi, "listWidgets").mockResolvedValue({ widgets: [] });
     render(<EmbedInsertControl editor={fakeEditor()} agentHandle="post-embed" />);
 
     await openMenu(user);

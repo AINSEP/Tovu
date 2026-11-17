@@ -3,7 +3,7 @@ import type { Translate } from "@jini-ai/core/text";
 
 import { createFocusedEditorChain } from "../../PostEditor.hooks";
 import { EmbedInsertControl } from "../../../../components/EmbedInsertControl/EmbedInsertControl";
-import type { AdminPost } from "../../../../lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import type { PostUrlDialogController } from "../../hooks/use-post-url-dialog.hooks";
 
 /** Insertion controls: embed, image/YouTube by URL, and mentioning another post. Tovu CMS code (it

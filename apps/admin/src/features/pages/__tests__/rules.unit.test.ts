@@ -1,7 +1,7 @@
 import { compareAdminPostsByTitle, compareAdminPostsBySlug, compareAdminPostsByStatus, compareAdminPostsByUpdated, columnSortLabel, updatedColumnSortLabel, DEFAULT_ADMIN_POST_SORT } from "../../../lib/admin-post-list-sort";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import {
   pageVersionConflictMessage,
   buildPageAutosaveDraft,

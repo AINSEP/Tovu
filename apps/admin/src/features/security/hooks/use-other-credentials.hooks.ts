@@ -1,7 +1,8 @@
 import { credentialDraftError, formatCredentialHint, formatCredentialHints, translateCredentialMessage } from "@/lib/credential-copy";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { describeApiError, type AdminMediaProviderMap } from "@/lib/api";
+import type { AdminMediaProviderMap } from "@/features/media/api/media-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { useSerialWrites } from "@jini-ai/ui/panel-kit";

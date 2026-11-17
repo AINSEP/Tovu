@@ -1,6 +1,7 @@
 import { useState } from "react";
 
-import { ApiError, describeApiError, type AdminSiteKeyAffectedWebhook, type AdminSiteKeyStartFreshPreview, type AdminSiteKeyStatus } from "@/lib/api";
+import type { AdminSiteKeyAffectedWebhook, AdminSiteKeyStartFreshPreview, AdminSiteKeyStatus } from "@/features/sites/api/sites-api.types";
+import { ApiError, describeApiError } from "@/lib/admin-http/request";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 
 import { t as defaultT } from "../security-i18n";

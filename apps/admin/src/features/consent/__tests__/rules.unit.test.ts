@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ApiError } from '@/lib/api';
+import { ApiError } from '@/lib/admin-http/request';
 import { canPublishConsent, canResetConsentCss, CONSENT_PREVIEW_DESKTOP_WIDTH, consentPreviewScale, consentProblemTab, consentStatusKey, isConsentConflict, pausedByCategory, resolveConsentTabId } from '../rules';
 
 describe('resolveConsentTabId', () => {

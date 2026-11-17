@@ -2,7 +2,10 @@ import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { api, ApiError, type AdminMedia } from "../../lib/api";
+import type { AdminMedia } from "../../features/media/api/media-api.types";
+import { mediaApi } from "../../features/media/api/media-api";
+import { settingsApi } from "../../features/settings/api/settings-api";
+import { ApiError } from "../../lib/admin-http/request";
 import { createFakeMediaPickerPort } from "../MediaPickerDialog/media-picker-dependencies.hooks";
 import { useMediaPickerDialog, useMediaPickerItems, useWiredMediaPickerDialog, useWiredMediaPickerItems } from "../MediaPickerDialog/MediaPickerDialog.hooks";
 
@@ -44,7 +47,7 @@ beforeEach(() => {
   // reads `api.getSettingsEffective` — stub it to no rows so it resolves to `DEFAULT_LOCALE` ("en")
   // without a real network call. `useWiredMediaPickerItems` does not call `useAdminLocale()` at all
   // (its `locale` param stays defaulted), so this stub is a no-op for those tests.
-  vi.spyOn(api, "getSettingsEffective").mockResolvedValue({ data: [] });
+  vi.spyOn(settingsApi, "getSettingsEffective").mockResolvedValue({ data: [] });
 });
 
 afterEach(() => {
@@ -53,13 +56,13 @@ afterEach(() => {
 
 describe("useMediaPickerItems", () => {
   it("starts with items null and no error before the fetch resolves", () => {
-    vi.spyOn(api, "listMedia").mockReturnValue(new Promise(() => {})); // never resolves — pins the loading shape
+    vi.spyOn(mediaApi, "listMedia").mockReturnValue(new Promise(() => {})); // never resolves — pins the loading shape
     const { result } = renderHook(() => useWiredMediaPickerItems());
     expect(result.current).toEqual({ items: null, error: null });
   });
 
   it("filters trashed assets out, keeping only active ones", async () => {
-    vi.spyOn(api, "listMedia").mockResolvedValue({
+    vi.spyOn(mediaApi, "listMedia").mockResolvedValue({
       media: [media({ id: "a", status: "active" }), media({ id: "b", status: "trashed" })],
     });
     const { result } = renderHook(() => useWiredMediaPickerItems());
@@ -70,7 +73,7 @@ describe("useMediaPickerItems", () => {
   });
 
   it("describes a failed fetch instead of leaving items stuck loading", async () => {
-    vi.spyOn(api, "listMedia").mockRejectedValue(new ApiError({ message: "media table locked", status: 500 }));
+    vi.spyOn(mediaApi, "listMedia").mockRejectedValue(new ApiError({ message: "media table locked", status: 500 }));
     const { result } = renderHook(() => useWiredMediaPickerItems());
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
@@ -82,7 +85,7 @@ describe("useMediaPickerItems", () => {
     // An empty-message ApiError, not a plain Error — `describeApiError` only falls back to the
     // default on the ApiError branch's `e.message || fallback`; a plain `Error` with `message: ""`
     // would return that empty string as-is (see `describeApiError`'s own two branches).
-    vi.spyOn(api, "listMedia").mockRejectedValue(new ApiError({ message: "", status: 500 }));
+    vi.spyOn(mediaApi, "listMedia").mockRejectedValue(new ApiError({ message: "", status: 500 }));
     const { result } = renderHook(() => useWiredMediaPickerItems());
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
@@ -92,7 +95,7 @@ describe("useMediaPickerItems", () => {
 
 describe("useMediaPickerDialog", () => {
   it("exposes select bound to the onSelect callback it was given", async () => {
-    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [media()] });
+    vi.spyOn(mediaApi, "listMedia").mockResolvedValue({ media: [media()] });
     const onSelect = vi.fn();
     const { result } = renderHook(() => useWiredMediaPickerDialog({ onSelect, onCancel: vi.fn() }));
 
@@ -103,7 +106,7 @@ describe("useMediaPickerDialog", () => {
   });
 
   it("native cancel calls the current onCancel through the rendered dialog", () => {
-    vi.spyOn(api, "listMedia").mockReturnValue(new Promise(() => {}));
+    vi.spyOn(mediaApi, "listMedia").mockReturnValue(new Promise(() => {}));
     const onCancel = vi.fn();
     render(<MediaPickerDialog onSelect={vi.fn()} onCancel={onCancel} />);
 
@@ -112,7 +115,7 @@ describe("useMediaPickerDialog", () => {
   });
 
   it("ignores non-Escape keys", () => {
-    vi.spyOn(api, "listMedia").mockReturnValue(new Promise(() => {}));
+    vi.spyOn(mediaApi, "listMedia").mockReturnValue(new Promise(() => {}));
     const onCancel = vi.fn();
     render(<MediaPickerDialog onSelect={vi.fn()} onCancel={onCancel} />);
 
@@ -121,7 +124,7 @@ describe("useMediaPickerDialog", () => {
   });
 
   it("removes native cancellation on unmount, so a stray cancel afterward is a no-op", () => {
-    vi.spyOn(api, "listMedia").mockReturnValue(new Promise(() => {}));
+    vi.spyOn(mediaApi, "listMedia").mockReturnValue(new Promise(() => {}));
     const onCancel = vi.fn();
     const { unmount } = render(<MediaPickerDialog onSelect={vi.fn()} onCancel={onCancel} />);
 
@@ -157,7 +160,7 @@ describe("useMediaPickerDialog / useMediaPickerItems — locale wiring (real dic
     vi.stubGlobal("fetch", fetchFake);
     try {
       const { result } = renderHook(() => useMediaPickerDialog({ onSelect: vi.fn(), _onCancel: vi.fn(), deps: {} }));
-      expect(result.current.mediaOriginalUrl({ id: "m1" })).toBe(api.mediaOriginalUrl({ id: "m1" }));
+      expect(result.current.mediaOriginalUrl({ id: "m1" })).toBe(mediaApi.mediaOriginalUrl({ id: "m1" }));
       await waitFor(() => expect(result.current.items?.map((item) => item.id)).toEqual(["m1"]));
       expect(String((fetchFake.mock.calls[0] as unknown as [string])[0])).toMatch(/\/media/);
     } finally {
@@ -196,7 +199,7 @@ describe("useMediaPickerDialog / useMediaPickerItems — locale wiring (real dic
  */
 describe("useMediaPickerItems / useMediaPickerDialog — injected port (no api spy)", () => {
   it("filters to active assets from the injected port and never touches the real api client", async () => {
-    const listSpy = vi.spyOn(api, "listMedia");
+    const listSpy = vi.spyOn(mediaApi, "listMedia");
     const port = createFakeMediaPickerPort({ media: [media({ id: "a", status: "active" }), media({ id: "b", status: "trashed" })] });
     const { result } = renderHook(() => useMediaPickerItems({ port }));
 

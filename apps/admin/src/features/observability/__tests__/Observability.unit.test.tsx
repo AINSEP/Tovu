@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { Observability } from "../Observability";
 import type { ObservabilityStatusController } from "../hooks/use-observability-status.hooks";
-import type { AdminObservabilityStatus } from "@/lib/api";
+import type { AdminObservabilityStatus } from "@/features/observability/api/observability-api.types";
 
 /**
  * @file `Observability` driven entirely through the `useObservabilityStatusHook` DI seam — no

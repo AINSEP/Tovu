@@ -1,4 +1,4 @@
-import type { AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
 
 /**
  * @file Everything the Library screen reads or writes, as one injectable port — the same

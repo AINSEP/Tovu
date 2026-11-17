@@ -1,7 +1,7 @@
 /** Folder install consent: no write before confirmation; stale previews never authorize install. */
 import { act, renderHook } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { usePluginInstall } from "../hooks/use-plugin-install.hooks";
 import { createFakePluginInstallPort } from "../hooks/plugin-install-dependencies.hooks";
 import type { PluginInstallPreview } from "../hooks/plugin-install-port.hooks";

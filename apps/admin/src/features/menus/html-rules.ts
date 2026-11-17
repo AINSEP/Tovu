@@ -1,4 +1,4 @@
-import type { AdminMenuAuthoring, AdminMenuItem, AdminMenuMode } from "@/lib/api";
+import type { AdminMenuAuthoring, AdminMenuItem, AdminMenuMode } from "@/features/menus/api/menus-api.types";
 import type { PageMenuTarget } from "./page-link-rules";
 
 /** Same marker shape and attribute escaping as the forms Copy HTML embed control. */

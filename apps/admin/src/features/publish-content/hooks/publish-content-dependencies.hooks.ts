@@ -7,7 +7,8 @@ import type {
   PublishScope,
 } from "@tovu/publish-content-ui";
 
-import { api, type AdminPublishDestinationView } from "@/lib/api";
+import type { AdminPublishDestinationView } from "@/features/publish-content/api/publish-content-api.types";
+import { publishContentApi } from "@/features/publish-content/api/publish-content-api";
 
 import type { PublishContentPort } from "./publish-content-port.hooks";
 
@@ -20,12 +21,12 @@ import type { PublishContentPort } from "./publish-content-port.hooks";
  *  explicitly rather than pointing at it directly, matching `dashboard-dependencies.hooks.ts`'s own
  *  reasoning — a route's own parameter shape stays `lib/api.ts`'s to own. */
 export const defaultPublishContentPort: PublishContentPort = {
-  listPeers: () => api.listPublishContentPeers(),
-  getDestination: () => api.getPublishDestination(),
-  connectDestination: (_input, options = {}) => api.connectPublishDestination(options),
-  planPublish: (input, _options = {}) => api.planPublishContent(input),
-  confirmPublish: (input, _options = {}) => api.confirmPublishContent(input),
-  executePublish: (input, _options = {}) => api.executePublishContent(input),
+  listPeers: () => publishContentApi.listPublishContentPeers(),
+  getDestination: () => publishContentApi.getPublishDestination(),
+  connectDestination: (_input, options = {}) => publishContentApi.connectPublishDestination(options),
+  planPublish: (input, _options = {}) => publishContentApi.planPublishContent(input),
+  confirmPublish: (input, _options = {}) => publishContentApi.confirmPublishContent(input),
+  executePublish: (input, _options = {}) => publishContentApi.executePublishContent(input),
 };
 
 /** Seed state for {@link createFakePublishContentPort}. Every stage can be made to fail

@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 
-import { ApiError, describeApiError } from "../api";
+import { ApiError, describeApiError } from "../admin-http/request";
 
 /**
  * @file `describeApiError` — the shared base translation every screen's own per-`code` override

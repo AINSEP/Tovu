@@ -1,6 +1,6 @@
 import { Icon } from "@jini-ai/ui";
 
-import type { AdminMailStatus } from "@/lib/api";
+import type { AdminMailStatus } from "@/features/email/api/mail-status-api.types";
 import { adminHref } from "@/lib/router";
 
 import { useMailStatusBanner, type MailBannerStorage } from "./hooks/use-mail-status-banner.hooks";

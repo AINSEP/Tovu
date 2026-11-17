@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { PublishContentReport, PublishCriteria, PublishRequestResult, PublishScope } from "@tovu/publish-content-ui";
 
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 import { t as dashboardT } from "../../dashboard/dashboard-i18n";
 
 import { PublishContentDialog } from "../PublishContentDialog";

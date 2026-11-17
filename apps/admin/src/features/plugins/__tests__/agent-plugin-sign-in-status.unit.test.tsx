@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import { AgentPluginRow } from '../AgentPluginRow';
-import type { AdminAgentPlugin } from '@/lib/api';
+import type { AdminAgentPlugin } from '@/features/integrations/api/integrations-api.types';
 import { t } from '../plugins-i18n';
 
 it.each([

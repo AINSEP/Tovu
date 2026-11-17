@@ -1,4 +1,5 @@
-import { api, type AdminAgentPlugin, type AdminAgentPluginFiles } from "@/lib/api";
+import type { AdminAgentPlugin, AdminAgentPluginFiles } from "@/features/integrations/api/integrations-api.types";
+import { integrationsApi } from "@/features/integrations/api/integrations-api";
 import type { AgentPluginsPort } from "./agent-plugins-port.hooks";
 
 /**
@@ -9,9 +10,9 @@ import type { AgentPluginsPort } from "./agent-plugins-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches `defaultPluginsPort`. */
 export const defaultAgentPluginsPort: AgentPluginsPort = {
-  listAgentPlugins: () => api.listAgentPlugins(),
-  setAgentPluginEnabled: ({ pluginId, input }, _optional = {}) => api.setAgentPluginEnabled({ pluginId, enabled: input.enabled }),
-  getAgentPluginFiles: ({ pluginId }, _optional = {}) => api.getAgentPluginFiles({ pluginId }),
+  listAgentPlugins: () => integrationsApi.listAgentPlugins(),
+  setAgentPluginEnabled: ({ pluginId, input }, _optional = {}) => integrationsApi.setAgentPluginEnabled({ pluginId, enabled: input.enabled }),
+  getAgentPluginFiles: ({ pluginId }, _optional = {}) => integrationsApi.getAgentPluginFiles({ pluginId }),
 };
 
 /** Seed state for {@link createFakeAgentPluginsPort}. */

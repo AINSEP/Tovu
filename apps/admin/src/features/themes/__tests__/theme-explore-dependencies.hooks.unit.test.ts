@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api } from "@/lib/api";
+import { themesApi } from "@/features/themes/api/themes-api";
 import { createFakeThemeExplorePort, defaultThemeExplorePort } from "../hooks/theme-explore-dependencies.hooks";
 
 /**
@@ -31,13 +31,13 @@ describe("defaultThemeExplorePort — real api wiring", () => {
       hasOriginal: true,
       files: [],
     };
-    const spy = vi.spyOn(api, "getThemeDetail").mockResolvedValue(detail as never);
+    const spy = vi.spyOn(themesApi, "getThemeDetail").mockResolvedValue(detail as never);
     await expect(defaultThemeExplorePort.getThemeDetail({ themeId: "basic" })).resolves.toEqual(detail);
     expect(spy).toHaveBeenCalledWith({ themeId: "basic" });
   });
 
   it("getThemeFile delegates to api.getThemeFile with the theme id and path", async () => {
-    const spy = vi.spyOn(api, "getThemeFile").mockResolvedValue({ path: "pages/index.html", content: "<html></html>" });
+    const spy = vi.spyOn(themesApi, "getThemeFile").mockResolvedValue({ path: "pages/index.html", content: "<html></html>" });
     await expect(defaultThemeExplorePort.getThemeFile({ themeId: "basic", path: "pages/index.html" })).resolves.toMatchObject({
       content: "<html></html>",
     });
@@ -45,7 +45,7 @@ describe("defaultThemeExplorePort — real api wiring", () => {
   });
 
   it("putThemeFile delegates to api.putThemeFile with the theme id, path, and content", async () => {
-    const spy = vi.spyOn(api, "putThemeFile").mockResolvedValue({ path: "pages/index.html", bytes: 42 });
+    const spy = vi.spyOn(themesApi, "putThemeFile").mockResolvedValue({ path: "pages/index.html", bytes: 42 });
     await expect(defaultThemeExplorePort.putThemeFile({ themeId: "basic", path: "pages/index.html", content: "<html/>" })).resolves.toEqual({
       path: "pages/index.html",
       bytes: 42,
@@ -55,7 +55,7 @@ describe("defaultThemeExplorePort — real api wiring", () => {
 
   it("resetThemeFile delegates to api.resetThemeFile with the theme id and path", async () => {
     const spy = vi
-      .spyOn(api, "resetThemeFile")
+      .spyOn(themesApi, "resetThemeFile")
       .mockResolvedValue({ path: "pages/index.html", wasModified: true, bytes: 10, content: "orig" });
     await expect(defaultThemeExplorePort.resetThemeFile({ themeId: "basic", path: "pages/index.html" })).resolves.toMatchObject({
       content: "orig",
@@ -64,13 +64,13 @@ describe("defaultThemeExplorePort — real api wiring", () => {
   });
 
   it("saveThemeOriginal delegates to api.saveThemeOriginal with the theme id", async () => {
-    const spy = vi.spyOn(api, "saveThemeOriginal").mockResolvedValue({ themeId: "basic", saved: true });
+    const spy = vi.spyOn(themesApi, "saveThemeOriginal").mockResolvedValue({ themeId: "basic", saved: true });
     await expect(defaultThemeExplorePort.saveThemeOriginal({ themeId: "basic" })).resolves.toMatchObject({ saved: true });
     expect(spy).toHaveBeenCalledWith({ themeId: "basic" });
   });
 
   it("renameThemeFile delegates to api.renameThemeFile with the theme id, path, and new name", async () => {
-    const spy = vi.spyOn(api, "renameThemeFile").mockResolvedValue({
+    const spy = vi.spyOn(themesApi, "renameThemeFile").mockResolvedValue({
       path: "pages/about.html",
       group: "page",
       readable: true,
@@ -86,7 +86,7 @@ describe("defaultThemeExplorePort — real api wiring", () => {
   });
 
   it("copyThemeFile delegates to api.copyThemeFile with the theme id and path", async () => {
-    const spy = vi.spyOn(api, "copyThemeFile").mockResolvedValue({
+    const spy = vi.spyOn(themesApi, "copyThemeFile").mockResolvedValue({
       path: "pages/about-1.html",
       group: "page",
       readable: true,
@@ -102,7 +102,7 @@ describe("defaultThemeExplorePort — real api wiring", () => {
   });
 
   it("deleteThemeFile delegates to api.deleteThemeFile with the theme id and path", async () => {
-    const spy = vi.spyOn(api, "deleteThemeFile").mockResolvedValue({ path: "pages/about.html", deleted: true });
+    const spy = vi.spyOn(themesApi, "deleteThemeFile").mockResolvedValue({ path: "pages/about.html", deleted: true });
     await expect(defaultThemeExplorePort.deleteThemeFile({ themeId: "basic", path: "pages/about.html" })).resolves.toMatchObject({
       path: "pages/about.html",
     });
@@ -110,7 +110,7 @@ describe("defaultThemeExplorePort — real api wiring", () => {
   });
 
   it("setPagePublished delegates to api.setThemePagePublished with the theme id, page, and published flag", async () => {
-    const spy = vi.spyOn(api, "setThemePagePublished").mockResolvedValue({
+    const spy = vi.spyOn(themesApi, "setThemePagePublished").mockResolvedValue({
       page: "about",
       published: true,
       publishedPages: ["about"],

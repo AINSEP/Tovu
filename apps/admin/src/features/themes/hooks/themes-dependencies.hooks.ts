@@ -1,4 +1,6 @@
-import { api, type PresentationSettings, type ThemeTier } from "@/lib/api";
+import type { PresentationSettings, ThemeTier } from "@/features/themes/api/themes-api.types";
+import { themesApi } from "@/features/themes/api/themes-api";
+import { trashApi } from "@/features/trash/api/trash-api";
 import type { ThemesPort } from "./themes-port.hooks";
 import { asciiSlug } from "../../../lib/ascii-slug";
 
@@ -9,12 +11,12 @@ import { asciiSlug } from "../../../lib/ascii-slug";
 
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultThemesPort: ThemesPort = {
-  getPresentation: () => api.getPresentation(),
-  rescanThemes: () => api.rescanThemes(),
-  setActiveTheme: ({ activeThemeId }, _optional = {}) => api.setActiveTheme({ activeThemeId }),
-  duplicateTheme: ({ themeId, newName }, _optional = {}) => api.duplicateTheme({ themeId, newName }),
+  getPresentation: () => themesApi.getPresentation(),
+  rescanThemes: () => themesApi.rescanThemes(),
+  setActiveTheme: ({ activeThemeId }, _optional = {}) => themesApi.setActiveTheme({ activeThemeId }),
+  duplicateTheme: ({ themeId, newName }, _optional = {}) => themesApi.duplicateTheme({ themeId, newName }),
   trashTheme: async ({ themeId }) => {
-    await api.trash({ type: "theme", id: themeId });
+    await trashApi.trash({ type: "theme", id: themeId });
   },
 };
 

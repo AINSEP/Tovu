@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { AdminTaxonomy, AdminTaxonomyWithTerms } from "@/lib/api";
+import type { AdminTaxonomy, AdminTaxonomyWithTerms } from "@/features/taxonomy/api/taxonomy-api.types";
 import { adminFailureChannel, isClipboardRefusal, publishLocalAdminFailure } from "@/lib/admin-failure-channel";
 import { taxonomyHtmlEmbed } from "../html-rules";
 

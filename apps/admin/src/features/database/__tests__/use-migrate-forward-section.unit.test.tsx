@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import type { AdminSchemaState } from "@/lib/api";
+import type { AdminSchemaState } from "@/features/database/api/database-api.types";
 import { useMigrateForwardSection, useWiredMigrateForwardSection } from "../hooks/use-migrate-forward-section.hooks";
 import { createFakeMigrateForwardSectionPort } from "../hooks/migrate-forward-section-dependencies.hooks";
 import { useSchemaStateSection } from "../hooks/use-schema-state-section.hooks";

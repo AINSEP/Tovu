@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 
-import { describeApiError } from "@/lib/api";
+import { describeApiError } from "@/lib/admin-http/request";
 import {
   EMPTY_GIT_BACKUP_FORM,
   backupConnectionLabels,

@@ -6,7 +6,8 @@ import StarterKit from "@tiptap/starter-kit";
 import { EditorContent, type NodeViewProps } from "@tiptap/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { api, type AdminMedia } from "../api";
+import type { AdminMedia } from "../../features/media/api/media-api.types";
+import { mediaApi } from "../../features/media/api/media-api";
 import { Media, MediaEmbedNodeView } from "../media-embed-extension";
 import { PostTitle, PostTitleDocument } from "../post-title-extension";
 
@@ -72,7 +73,7 @@ function fakeNodeViewProps(
 
 // Every rendered node view asks for its asset's content type; tests that care override this.
 beforeEach(() => {
-  vi.spyOn(api, "mediaContentType").mockResolvedValue("image/png");
+  vi.spyOn(mediaApi, "mediaContentType").mockResolvedValue("image/png");
 });
 
 afterEach(() => {
@@ -82,7 +83,7 @@ afterEach(() => {
 
 describe("MediaEmbedNodeView", () => {
   it("resolved ref whose asset is a VIDEO (Content-Type video/*): previews as a <video> against api.mediaOriginalUrl(assetId)", async () => {
-    const contentType = vi.spyOn(api, "mediaContentType").mockResolvedValue("video/mp4");
+    const contentType = vi.spyOn(mediaApi, "mediaContentType").mockResolvedValue("video/mp4");
     const { container } = render(
       <MediaEmbedNodeView {...fakeNodeViewProps({ assetId: "asset-1", transformName: "public", alt: "Rocket launch" })} />
     );
@@ -90,7 +91,7 @@ describe("MediaEmbedNodeView", () => {
     await waitFor(() => expect(container.querySelector("video")).not.toBeNull());
     const video = container.querySelector("video") as HTMLVideoElement;
     expect(contentType).toHaveBeenCalledWith({ id: "asset-1" });
-    expect(video.src).toContain(api.mediaOriginalUrl({ id: "asset-1" }));
+    expect(video.src).toContain(mediaApi.mediaOriginalUrl({ id: "asset-1" }));
     expect(video).toHaveAttribute("controls");
     expect(video).toHaveTextContent("Rocket launch");
     expect(container.querySelector("img")).toBeNull();
@@ -98,27 +99,27 @@ describe("MediaEmbedNodeView", () => {
   });
 
   it("video fallback text defaults when alt is empty", async () => {
-    vi.spyOn(api, "mediaContentType").mockResolvedValue("video/webm");
+    vi.spyOn(mediaApi, "mediaContentType").mockResolvedValue("video/webm");
     const { container } = render(<MediaEmbedNodeView {...fakeNodeViewProps({ assetId: "asset-1", transformName: "public" })} />);
     await waitFor(() => expect(container.querySelector("video")).not.toBeNull());
     expect(container.querySelector("video")).toHaveTextContent("Your browser does not support the video tag.");
   });
 
   it("resolved ref whose asset is an IMAGE (Content-Type image/png): previews as an <img> with no event needed — never an empty <video> player (Chrome fires no error for an image src on <video>)", async () => {
-    vi.spyOn(api, "mediaContentType").mockResolvedValue("image/png");
+    vi.spyOn(mediaApi, "mediaContentType").mockResolvedValue("image/png");
     const { container } = render(
       <MediaEmbedNodeView {...fakeNodeViewProps({ assetId: "asset-2", transformName: "public", alt: "A photo" })} />
     );
 
     await waitFor(() => expect(container.querySelector("img")).not.toBeNull());
     const img = container.querySelector("img") as HTMLImageElement;
-    expect(img.src).toContain(api.mediaOriginalUrl({ id: "asset-2" }));
+    expect(img.src).toContain(mediaApi.mediaOriginalUrl({ id: "asset-2" }));
     expect(img).toHaveAttribute("alt", "A photo");
     expect(container.querySelector("video")).toBeNull();
   });
 
   it("before the content type resolves, neither a <video> nor an <img> is rendered", () => {
-    vi.spyOn(api, "mediaContentType").mockReturnValue(new Promise(() => {}));
+    vi.spyOn(mediaApi, "mediaContentType").mockReturnValue(new Promise(() => {}));
     const { container } = render(<MediaEmbedNodeView {...fakeNodeViewProps({ assetId: "asset-2", transformName: "public" })} />);
     expect(container.querySelector("video")).toBeNull();
     expect(container.querySelector("img")).toBeNull();
@@ -213,7 +214,7 @@ describe("MediaEmbedNodeView", () => {
       const updateAttributes = vi.fn();
       // Same "spy on the api boundary" pattern media-image-extension.unit.test.tsx already uses for
       // MediaPickerDialog's own listMedia call, not a raw network stub.
-      vi.spyOn(api, "listMedia").mockResolvedValue({ media: [media({ id: "asset-3", title: "New pick", alt: "" })] });
+      vi.spyOn(mediaApi, "listMedia").mockResolvedValue({ media: [media({ id: "asset-3", title: "New pick", alt: "" })] });
       render(
         <MediaEmbedNodeView {...fakeNodeViewProps({ assetId: "asset-1", transformName: "public", alt: "Old" }, { updateAttributes })} />
       );
@@ -227,7 +228,7 @@ describe("MediaEmbedNodeView", () => {
     it("closes the dialog on cancel without updating anything", async () => {
       const user = userEvent.setup();
       const updateAttributes = vi.fn();
-      vi.spyOn(api, "listMedia").mockResolvedValue({ media: [] });
+      vi.spyOn(mediaApi, "listMedia").mockResolvedValue({ media: [] });
       render(<MediaEmbedNodeView {...fakeNodeViewProps({ assetId: "asset-1", transformName: "public" }, { updateAttributes })} />);
 
       await user.click(screen.getByRole("button", { name: "Replace" }));
@@ -385,20 +386,20 @@ describe("Media — real @tiptap/core Editor integration", () => {
 
 describe("Media mounted node view", () => {
   it("Replace updates editor JSON and its preview through the registered React node view", async () => {
-    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [media({ id: "asset-new", title: "New pick", alt: "New alt" })] });
+    vi.spyOn(mediaApi, "listMedia").mockResolvedValue({ media: [media({ id: "asset-new", title: "New pick", alt: "New alt" })] });
     const editor = new Editor({ extensions: [StarterKit, Media], content: { type: "doc", content: [
       { type: "media", attrs: { assetId: "asset-old", transformName: "public", alt: "Old" } }, { type: "paragraph" },
     ] } });
     const mounted = render(<EditorContent editor={editor} />);
     try {
       const user = userEvent.setup();
-      expect(await screen.findByAltText("Old")).toHaveAttribute("src", api.mediaOriginalUrl({ id: "asset-old" }));
+      expect(await screen.findByAltText("Old")).toHaveAttribute("src", mediaApi.mediaOriginalUrl({ id: "asset-old" }));
       await user.click(screen.getByRole("button", { name: "Replace" }));
       await user.click(await screen.findByTitle("New pick"));
       expect(editor.getJSON().content?.find((node) => node.type === "media")?.attrs).toEqual({
         assetId: "asset-new", transformName: "public", alt: "New alt", cssClass: null, htmlAttributes: null,
       });
-      expect(await screen.findByAltText("New alt")).toHaveAttribute("src", api.mediaOriginalUrl({ id: "asset-new" }));
+      expect(await screen.findByAltText("New alt")).toHaveAttribute("src", mediaApi.mediaOriginalUrl({ id: "asset-new" }));
       expect(screen.queryByAltText("Old")).not.toBeInTheDocument();
     } finally { mounted.unmount(); editor.destroy(); }
   });

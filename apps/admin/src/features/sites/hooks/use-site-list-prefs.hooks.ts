@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DEFAULT_SITE_LIST_PREFS, parseSiteListPrefs, type SiteListPrefs } from "@jini-ai/ui/site-card";
-import { describeApiError } from "@/lib/api";
+import { describeApiError } from "@/lib/admin-http/request";
 import { loadNamespaceValues, saveChangedEntries } from "@/lib/ledger-slice";
 import { INTERFACE_NAMESPACE } from "@/lib/settings-tabs";
 

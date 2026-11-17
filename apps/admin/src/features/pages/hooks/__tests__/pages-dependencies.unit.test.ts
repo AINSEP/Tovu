@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 
 /**
  * @file Coverage for `pages-dependencies.hooks.ts`'s `createFakePagesPort` gaps. Every existing
@@ -83,9 +83,9 @@ describe("createFakePagesPort — simulateConcurrentSave", () => {
 
 describe("defaultPagesPort.updatePost", () => {
   it("saves through the shared route as a page, so a failure reads page and not post", async () => {
-    const { api } = await import("@/lib/api");
+    const { postsApi } = await import("@/features/posts/api/posts-api");
     const { vi } = await import("vitest");
-    const spy = vi.spyOn(api, "updatePost").mockResolvedValue({} as never);
+    const spy = vi.spyOn(postsApi, "updatePost").mockResolvedValue({} as never);
     const { defaultPagesPort } = await import("../pages-dependencies.hooks");
     await defaultPagesPort.updatePost({ target: { id: "page-1" }, patch: { title: "x" } });
     expect(spy).toHaveBeenCalledWith({ id: "page-1" }, { options: { title: "x" }, entry: "page" });

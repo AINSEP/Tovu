@@ -1,9 +1,4 @@
-import type {
-  AdminExternalMcpAdmissionsSnapshot,
-  AdminExternalMcpConfigFailure,
-  AdminFederatedAdmissionEntry,
-  AdminToolRefusalReason,
-} from "@/lib/api";
+import type { AdminExternalMcpAdmissionsSnapshot, AdminExternalMcpConfigFailure, AdminFederatedAdmissionEntry, AdminToolRefusalReason } from "@/features/integrations/api/integrations-api.types";
 
 /**
  * @file What the RUNNING assistant actually admitted, turned into operator-facing rows — the

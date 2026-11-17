@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { ApiError, onUnauthenticated } from "../api";
+import { ApiError, onUnauthenticated } from "../admin-http/request";
 import { listSkills, enableSkill, loadSkillDraft } from "../../features/skills/api";
 import { createInstalledSkillsComposerCapabilitySource } from "../../features/plugins/installed-skills-composer-source";
 import { reloadThemePreviews } from "../../features/themes/theme-preview-refresh";

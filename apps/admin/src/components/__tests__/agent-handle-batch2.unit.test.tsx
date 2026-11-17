@@ -1,7 +1,8 @@
 import { render, screen, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api } from "../../lib/api";
+import { menusApi } from "../../features/menus/api/menus-api";
+import { formsApi } from "../../features/forms/api/forms-api";
 import { WidgetConfigFields } from "../WidgetConfigFields/WidgetConfigFields";
 
 /**
@@ -79,7 +80,7 @@ describe("recent-entries", () => {
 
 describe("menu", () => {
   it("publishes the real <select> under <base>-menu-ref once loaded", async () => {
-    vi.spyOn(api, "listMenus").mockResolvedValue({ menus: [] });
+    vi.spyOn(menusApi, "listMenus").mockResolvedValue({ menus: [] });
     render(<WidgetConfigFields widgetType="menu" config={{}} onChange={vi.fn()} agentHandle="footer-menu" />);
     await waitFor(() => expect(screen.getByLabelText("Menu")).toBeInTheDocument());
     const select = screen.getByLabelText("Menu");
@@ -89,7 +90,7 @@ describe("menu", () => {
   });
 
   it("omits data-agent-* when agentHandle is not passed", async () => {
-    vi.spyOn(api, "listMenus").mockResolvedValue({ menus: [] });
+    vi.spyOn(menusApi, "listMenus").mockResolvedValue({ menus: [] });
     render(<WidgetConfigFields widgetType="menu" config={{}} onChange={vi.fn()} />);
     await waitFor(() => expect(screen.getByLabelText("Menu")).toBeInTheDocument());
     expect(screen.getByLabelText("Menu")).not.toHaveAttribute(AGENT_ELEMENT);
@@ -98,7 +99,7 @@ describe("menu", () => {
 
 describe("contact-form", () => {
   it("publishes the select and the success-message input under <base>-form-definition-id/-success-message", async () => {
-    vi.spyOn(api, "listForms").mockResolvedValue({ data: [] });
+    vi.spyOn(formsApi, "listForms").mockResolvedValue({ data: [] });
     render(<WidgetConfigFields widgetType="contact-form" config={{}} onChange={vi.fn()} agentHandle="contact" />);
     await waitFor(() => expect(screen.getByLabelText("Form")).toBeInTheDocument());
     expect(screen.getByLabelText("Form")).toHaveAttribute(AGENT_ELEMENT, "contact-form-definition-id");

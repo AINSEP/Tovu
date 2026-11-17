@@ -1,4 +1,6 @@
-import type { AdminPostCreateInput, AdminMedia, AdminPost, AdminThemeSummary, PresentationSettings } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
+import type { AdminThemeSummary, PresentationSettings } from "@/features/themes/api/themes-api.types";
+import type { AdminPostCreateInput, AdminPost } from "@/features/posts/api/posts-api.types";
 import type { StandingDraftAutosavePort } from "@/hooks/use-standing-draft-autosave.hooks";
 
 /**

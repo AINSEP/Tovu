@@ -1,4 +1,5 @@
-import { authenticatedAdminRequest, WORKSPACE_ID } from "./api";
+import { authenticatedAdminRequest } from "./admin-http/request";
+import { WORKSPACE_ID } from "./admin-http/config";
 export { ASSISTANT_SUBAGENTS_NAMESPACE as SUBAGENTS_NAMESPACE } from "@tovu/headless";
 
 export const SUBAGENT_DANGERS = [

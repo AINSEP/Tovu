@@ -1,4 +1,4 @@
-import type { AdminLocalSiteAction, AdminCreatedSite, AdminCreatedSiteAgentPluginTokens, AdminSiteActivation, AdminSitesSnapshot, AdminTokenSignInPlugin } from "@/lib/api";
+import type { AdminLocalSiteAction, AdminCreatedSite, AdminCreatedSiteAgentPluginTokens, AdminSiteActivation, AdminSitesSnapshot, AdminTokenSignInPlugin } from "@/features/sites/api/sites-api.types";
 
 /**
  * @file What `use-sites.hooks.ts` needs from the outside world, as an interface rather than a direct

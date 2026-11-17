@@ -11,11 +11,11 @@ import { act } from "@testing-library/react";
 import { executePageCapability, type FindElementsResult } from "@jini-ai/agentic";
 import { createDomPageDriver, createDriverPagePort } from "@jini-ai/agentic/dom";
 import { buildAdminAgentPages } from "@/lib/agent-pages";
-import { api } from "@/lib/api";
+import { integrationsApi } from "@/features/integrations/api/integrations-api";
 
 import { AgentPlugins } from "../AgentPlugins";
 import { useWiredAgentPlugins, type AgentPluginsController, type InspectedAgentPlugin } from "../hooks/use-agent-plugins.hooks";
-import type { AdminAgentPlugin } from "@/lib/api";
+import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
 
 /**
  * @file `AgentPlugins` driven entirely through the `useAgentPluginsHook` DI seam — no `fetch` stub,
@@ -683,7 +683,7 @@ describe("assistant admin navigation regression", () => {
     const detailsControl = view.container.querySelector('.agent-plugin-row-summary')!;
     const scroll = vi.fn();
     detailsControl.scrollIntoView = scroll;
-    vi.spyOn(api, "listAgentPlugins").mockResolvedValue({ agentPlugins: [plugin] });
+    vi.spyOn(integrationsApi, "listAgentPlugins").mockResolvedValue({ agentPlugins: [plugin] });
     const driver = createDomPageDriver({ root: view.container, pages: buildAdminAgentPages() });
     const source = Object.assign(new EventTarget(), { close() {} });
     const responses: Record<string, unknown>[] = [];

@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AdminSiteKeyStatus } from "@/lib/api";
+import type { AdminSiteKeyStatus } from "@/features/sites/api/sites-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import { useSiteKey, useWiredSiteKey } from "../hooks/use-site-key.hooks";
 import type { SiteKeyPort } from "../hooks/site-key-port.hooks";
 import { useRevealedKeyCopy } from "../SiteKeyTab.hooks";

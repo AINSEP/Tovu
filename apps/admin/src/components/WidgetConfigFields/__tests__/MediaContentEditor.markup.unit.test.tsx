@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { HtmlPreviewPort } from "@jini-ai/ui/admin-widgets";
-import type { AdminMedia } from "../../../lib/api";
+import type { AdminMedia } from "../../../features/media/api/media-api.types";
 import { MediaContentEditor } from "../MediaContentEditor";
 import type { MediaContentEditorController, MediaItemRow } from "../MediaContentEditor.hooks";
 import type { MediaSlugProblem } from "../media-content-rules";

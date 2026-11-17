@@ -1,13 +1,14 @@
-import { api, type AdminPublishRunSnapshot, type AdminStaticPublishPreview } from "@/lib/api";
+import type { AdminPublishRunSnapshot, AdminStaticPublishPreview } from "@/features/deployment/api/deployment-api.types";
+import { deploymentApi } from "@/features/deployment/api/deployment-api";
 import type { StaticPublishPort } from "./static-publish-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches
  *  `static-export-dependencies.hooks.ts`'s `defaultStaticExportPort`. */
 export const defaultStaticPublishPort: StaticPublishPort = {
-  listPublishTargets: () => api.getPublishTargets(),
-  getPublishPreview: (config, _options = {}) => api.getPublishPreview(config),
-  triggerPublish: (input, _options = {}) => api.triggerPublish(input),
-  getPublishStatus: () => api.getPublishStatus(),
+  listPublishTargets: () => deploymentApi.getPublishTargets(),
+  getPublishPreview: (config, _options = {}) => deploymentApi.getPublishPreview(config),
+  triggerPublish: (input, _options = {}) => deploymentApi.triggerPublish(input),
+  getPublishStatus: () => deploymentApi.getPublishStatus(),
 };
 
 /** An in-memory {@link StaticPublishPort} for tests. Each of the four calls defaults to a neutral,

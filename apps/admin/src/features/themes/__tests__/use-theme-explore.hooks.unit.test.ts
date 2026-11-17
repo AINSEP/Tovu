@@ -2,7 +2,8 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { defaultAdminLocalePort } from "@/hooks/admin-locale-dependencies.hooks";
-import { api, ApiError } from "@/lib/api";
+import { themesApi } from "@/features/themes/api/themes-api";
+import { ApiError } from "@/lib/admin-http/request";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 
 import { t as translateThemes } from "../themes-i18n";
@@ -59,7 +60,7 @@ describe("useThemeExplore — injected port (no fetch stub, no api spy)", () => 
   });
 
   it("loads detail/files from the injected port and never touches the real api client", async () => {
-    const getDetailSpy = vi.spyOn(api, "getThemeDetail");
+    const getDetailSpy = vi.spyOn(themesApi, "getThemeDetail");
     const port = createFakeThemeExplorePort({
       detail: { id: "basic", name: "Basic", tier: "declarative", status: "active", errors: [], hasOriginal: true },
       files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
@@ -74,7 +75,7 @@ describe("useThemeExplore — injected port (no fetch stub, no api spy)", () => 
   });
 
   it("routes save through the injected port and clears dirty", async () => {
-    const putSpy = vi.spyOn(api, "putThemeFile");
+    const putSpy = vi.spyOn(themesApi, "putThemeFile");
     const port = createFakeThemeExplorePort({
       files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
       contents: { "pages/index.html": "<h1>Home</h1>" },
@@ -2746,7 +2747,7 @@ describe("useWiredThemeExplore", () => {
 
   it("wires the real api-backed port and a themes-i18n-bound translator", async () => {
     vi.spyOn(defaultAdminLocalePort, "loadLanguage").mockResolvedValue("es");
-    const getDetailSpy = vi.spyOn(api, "getThemeDetail").mockResolvedValue({
+    const getDetailSpy = vi.spyOn(themesApi, "getThemeDetail").mockResolvedValue({
       id: "basic",
       name: "Basic",
       tier: "declarative",

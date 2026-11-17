@@ -1,4 +1,4 @@
-import type { AdminPost } from "../../../lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { ContentAnalysisCard } from "../../content-analysis/ContentAnalysisCard";
 import { TermPicker } from "../../taxonomy/TermPicker";
 

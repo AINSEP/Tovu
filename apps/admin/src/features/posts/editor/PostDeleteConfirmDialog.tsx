@@ -1,4 +1,4 @@
-import type { AdminPost } from "../../../lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 import { type Translate } from "@jini-ai/core/text";

@@ -1,7 +1,7 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import type { AdminSchemaState } from "@/lib/api";
+import type { AdminSchemaState } from "@/features/database/api/database-api.types";
 import { ADMIN_LOCALES } from "@/lib/settings-tabs";
 import { planReadyMessage, t } from "../database-i18n";
 import { resolveSchemaStateWarning } from "../rules";

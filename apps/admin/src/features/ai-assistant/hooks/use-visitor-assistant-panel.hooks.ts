@@ -1,4 +1,4 @@
-import type { PublicAssistantSettings } from "@/lib/api";
+import type { PublicAssistantSettings } from "@/features/ai-assistant/api/ai-assistant-api.types";
 import { VISITOR_STATUS_COPY, visitorAssistantStatus, type VisitorAssistantStatus } from "../rules";
 import type { AiAssistantController } from "./use-ai-assistant.hooks";
 

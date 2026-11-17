@@ -1,11 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type {
-  AdminExecutionCredential,
-  AdminExternalMcpServer,
-  AdminMediaProviderMap,
-  SiteAssistantCredential,
-} from "@/lib/api";
+import type { AdminExternalMcpServer } from "@/features/integrations/api/integrations-api.types";
+import type { AdminExecutionCredential, SiteAssistantCredential } from "@/features/ai-assistant/api/ai-assistant-api.types";
+import type { AdminMediaProviderMap } from "@/features/media/api/media-api.types";
 
 /**
  * @file Coverage for `other-credentials-dependencies.hooks.ts` — two independent surfaces:
@@ -42,24 +39,17 @@ const {
   deleteExternalMcpServer: vi.fn(),
 }));
 
-vi.mock("../../../../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../../lib/api")>();
-  return {
-    ...actual,
-    api: {
-      ...actual.api,
-      getAssistantSiteCredential,
-      setAssistantSiteCredential,
-      deleteAssistantSiteCredential,
-      getAdminExecutionCredential,
-      setAdminExecutionCredential,
-      deleteAdminExecutionCredential,
-      getMediaProviders,
-      saveMediaProviders,
-      listExternalMcpServers,
-      deleteExternalMcpServer,
-    },
-  };
+vi.mock("../../../integrations/api/integrations-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../integrations/api/integrations-api")>();
+  return { ...actual, integrationsApi: { ...actual.integrationsApi, listExternalMcpServers, deleteExternalMcpServer } };
+});
+vi.mock("../../../ai-assistant/api/ai-assistant-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../ai-assistant/api/ai-assistant-api")>();
+  return { ...actual, aiAssistantApi: { ...actual.aiAssistantApi, getAssistantSiteCredential, setAssistantSiteCredential, deleteAssistantSiteCredential, getAdminExecutionCredential, setAdminExecutionCredential, deleteAdminExecutionCredential } };
+});
+vi.mock("../../../media/api/media-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../media/api/media-api")>();
+  return { ...actual, mediaApi: { ...actual.mediaApi, getMediaProviders, saveMediaProviders } };
 });
 
 const { createFakeOtherCredentialsPort, defaultOtherCredentialsPort } = await import("../other-credentials-dependencies.hooks");

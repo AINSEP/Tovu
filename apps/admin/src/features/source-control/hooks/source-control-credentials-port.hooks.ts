@@ -1,9 +1,4 @@
-import type {
-  AdminSourceControlConnectionInput,
-  AdminSourceControlCredentialSummary,
-  AdminSourceControlCredentialsSnapshot,
-  AdminSourceControlProvidersSnapshot,
-} from "@/lib/api";
+import type { AdminSourceControlConnectionInput, AdminSourceControlCredentialSummary, AdminSourceControlCredentialsSnapshot, AdminSourceControlProvidersSnapshot } from "@/features/source-control/api/source-control-api.types";
 
 /**
  * @file What `useSourceControlCredentials` needs from the outside world, as an interface rather

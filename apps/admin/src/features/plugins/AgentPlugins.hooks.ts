@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { AdminAgentPlugin } from "@/lib/api";
+import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
 import type { AgentPluginsController } from "./hooks/use-agent-plugins.hooks";
 
 /** Route disabling and removing enabled plugins through their shared confirmation. */

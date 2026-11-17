@@ -35,7 +35,7 @@ vi.mock("../../lib/settings-refresh-bus", () => ({
 vi.mock("@/features/fs-files/hooks/use-folder-drop.hooks", () => ({ useFolderDrop: vi.fn() }));
 
 import { useExecutionConfig } from "../AssistantDock/hooks/AssistantDock.hooks";
-import { API_UNREACHABLE_CODE, ApiError } from "../../lib/api";
+import { API_UNREACHABLE_CODE, ApiError } from "../../lib/admin-http/request";
 import {
   DEFAULT_EXECUTION_CONFIG,
   loadAdminExecutionCredential,

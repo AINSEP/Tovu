@@ -9,7 +9,7 @@ import { useUsers, type UsersController } from "../hooks/users-controller.hooks"
 import { createFakeUsersPort } from "../hooks/users-dependencies.hooks";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import userEvent from "@testing-library/user-event";
-import type { AdminIdentityUser } from "@/lib/api";
+import type { AdminIdentityUser } from "@/features/users/api/users-api.types";
 
 /**
  * @file Regression test for this batch's agent-control tagging on `Users.tsx` — same shape as

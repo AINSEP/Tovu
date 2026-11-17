@@ -1,7 +1,8 @@
 import type { RowMenuItem } from "@jini-ai/admin/react";
 import { embedMarkerSnippet } from "@jini-ai/cms/widgets/markers";
 
-import { ApiError, describeApiError, type AdminContentType, type ContentTypeFieldDef } from "../../lib/api";
+import type { AdminContentType, ContentTypeFieldDef } from "./api/collections-api.types";
+import { ApiError, describeApiError } from "../../lib/admin-http/request";
 
 import type { QueryKey } from "@jini-ai/core/fetch";
 import { isVersionConflict } from "../../lib/version-conflict";

@@ -3,7 +3,7 @@ import { expect, it } from "vitest";
 import { AllSitesTab } from "../AllSitesTab";
 import { staticListPrefs } from "./site-list-prefs.fixture";
 import { SiteTrashTab } from "../SiteTrashTab";
-import type { AdminSitesSnapshot } from "@/lib/api";
+import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
 import type { LocalSitesController } from "../hooks/use-local-sites.hooks";
 
 function localSnapshot(): AdminSitesSnapshot {

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminSourceControlCredentialSummary } from "@/lib/api";
+import type { AdminSourceControlCredentialSummary } from "@/features/source-control/api/source-control-api.types";
 
 /**
  * @file Coverage for `source-control-credentials-dependencies.hooks.ts` (1/11 funcs) —
@@ -18,12 +18,9 @@ const { listSourceControlProviders, listSourceControlCredentials, createSourceCo
   deleteSourceControlCredential: vi.fn(),
 }));
 
-vi.mock("../../../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../lib/api")>();
-  return {
-    ...actual,
-    api: { ...actual.api, listSourceControlProviders, listSourceControlCredentials, createSourceControlCredential, updateSourceControlCredential, deleteSourceControlCredential },
-  };
+vi.mock("../api/source-control-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/source-control-api")>();
+  return { ...actual, sourceControlApi: { ...actual.sourceControlApi, listSourceControlProviders, listSourceControlCredentials, createSourceControlCredential, updateSourceControlCredential, deleteSourceControlCredential } };
 });
 
 const { createFakeSourceControlCredentialsPort, defaultSourceControlCredentialsPort } = await import("../hooks/source-control-credentials-dependencies.hooks");

@@ -1,0 +1,592 @@
+file	members used (count)	named imports
+apps/admin/src/App.hooks.ts	getAssistantSettings(1)	api AdminUser
+apps/admin/src/App.session.ts		api AdminUser
+apps/admin/src/App.tsx		AdminUser
+apps/admin/src/__measurements__/request-volume.measurement.test.tsx		AdminFormDefinition
+apps/admin/src/__tests__/fqfix-editor-reopen.unit.test.tsx		AdminMenu AdminPost AdminWorkspace
+apps/admin/src/__tests__/unit/app-admin-assistant-dock-visibility.unit.test.tsx		api
+apps/admin/src/__tests__/unit/app-session-boot-token.unit.test.tsx	getSettingsEffective(2)	api
+apps/admin/src/__tests__/unit/app-session-unauthenticated-kickback.unit.test.tsx	getSettingsEffective(3) listPosts(3) listExternalMcpServers(1)	api
+apps/admin/src/__tests__/unit/app-sites-section-visibility.unit.test.tsx		api AdminUser
+apps/admin/src/components/EmbedInsertControl/EmbedInsertControl.tsx		AdminWidgetType
+apps/admin/src/components/MailStatusBanner/MailStatusBanner.tsx		AdminMailStatus
+apps/admin/src/components/MailStatusBanner/hooks/use-mail-status-banner.hooks.ts		AdminMailStatus
+apps/admin/src/components/MediaPickerDialog/MediaPickerDialog.hooks.tsx		AdminMedia
+apps/admin/src/components/MediaPickerDialog/MediaPickerDialog.tsx		AdminMedia
+apps/admin/src/components/MediaPickerDialog/media-picker-dependencies.hooks.ts	listMedia(1) mediaOriginalUrl(1)	api AdminMedia
+apps/admin/src/components/MediaPickerDialog/media-picker-port.hooks.ts		AdminMedia
+apps/admin/src/components/TemplateSource/TemplateSourceModal.tsx		ThemeTier
+apps/admin/src/components/TemplateSource/use-template-source.hooks.ts		ThemeTier
+apps/admin/src/components/WidgetConfigFields/MediaContentEditor.hooks.ts		AdminMedia
+apps/admin/src/components/WidgetConfigFields/MediaContentEditor.tsx		AdminMedia
+apps/admin/src/components/WidgetConfigFields/WidgetConfigFields.hooks.tsx		ContentTypeFieldKind
+apps/admin/src/components/WidgetConfigFields/WidgetConfigFields.tsx		AdminContentType AdminFormDefinition AdminMenu AdminWidgetType ContentTypeFieldKind
+apps/admin/src/components/WidgetConfigFields/__tests__/MediaContentEditor.markup.unit.test.tsx		AdminMedia
+apps/admin/src/components/WidgetConfigFields/__tests__/MediaContentEditor.unit.test.tsx		AdminMedia
+apps/admin/src/components/WidgetConfigFields/__tests__/media-content-rules.unit.test.ts		AdminMedia
+apps/admin/src/components/WidgetConfigFields/media-content-rules.ts		AdminMedia
+apps/admin/src/components/WidgetConfigFields/widget-config-fields-dependencies.hooks.ts	listMenus(1) listForms(1) listContentTypes(1)	api AdminContentType AdminFormDefinition AdminMenu
+apps/admin/src/components/WidgetConfigFields/widget-config-fields-port.hooks.ts		AdminContentType AdminFormDefinition AdminMenu
+apps/admin/src/components/WidgetPickerDialog/WidgetPickerDialog.hooks.tsx		AdminWidgetType
+apps/admin/src/components/WidgetPickerDialog/WidgetPickerDialog.tsx		AdminWidget AdminWidgetType
+apps/admin/src/components/WidgetPickerDialog/widget-picker-dependencies.hooks.ts	listWidgets(1) createWidget(1)	api AdminWidget
+apps/admin/src/components/WidgetPickerDialog/widget-picker-port.hooks.ts		AdminWidget AdminWidgetType
+apps/admin/src/components/__tests__/EmbedInsertControl.unit.test.tsx		api AdminMedia AdminWidget
+apps/admin/src/components/__tests__/JiniMediaPicker.hooks.unit.test.tsx		AdminMedia
+apps/admin/src/components/__tests__/MediaPickerDialog.hooks.unit.test.tsx	mediaOriginalUrl(1)	api AdminMedia
+apps/admin/src/components/__tests__/MediaPickerDialog.unit.test.tsx	mediaOriginalUrl(2)	api AdminMedia
+apps/admin/src/components/__tests__/SitesSidebarNav.unit.test.tsx		AdminSitesSnapshot
+apps/admin/src/components/__tests__/WidgetConfigFields.unit.test.tsx	listContentTypes(1)	api AdminWidgetType
+apps/admin/src/components/__tests__/WidgetPickerDialog.hooks.unit.test.tsx		AdminWidgetType
+apps/admin/src/components/__tests__/agent-handle-batch2.unit.test.tsx		api
+apps/admin/src/components/__tests__/agent-handle-batch3.unit.test.tsx		api AdminMedia AdminWidget
+apps/admin/src/components/__tests__/agent-handle-batch4.unit.test.tsx		api
+apps/admin/src/components/__tests__/widget-config-fields-dependencies.unit.test.ts		api
+apps/admin/src/features/ai-assistant/__tests__/AdminExecutionMode.unit.test.tsx		AdminExecutionCredential
+apps/admin/src/features/ai-assistant/__tests__/ai-assistant-dependencies.unit.test.ts		PublicAssistantSettings
+apps/admin/src/features/ai-assistant/__tests__/assistant-daemon-restart-dependencies.unit.test.ts		api
+apps/admin/src/features/ai-assistant/__tests__/rules.unit.test.ts		SiteAssistantCredential
+apps/admin/src/features/ai-assistant/__tests__/use-visitor-credential-form.unit.test.ts		api SiteAssistantCredential SiteAssistantCredentialPatch
+apps/admin/src/features/ai-assistant/__tests__/visitor-credential-form-dependencies.unit.test.ts		SiteAssistantCredential
+apps/admin/src/features/ai-assistant/__tests__/visitor-widget-setting.unit.test.tsx		PublicAssistantSettings
+apps/admin/src/features/ai-assistant/hooks/ai-assistant-dependencies.hooks.ts	getAssistantSettings(1) setAssistantSettings(1)	api PublicAssistantSettings
+apps/admin/src/features/ai-assistant/hooks/ai-assistant-port.hooks.ts		PublicAssistantSettings
+apps/admin/src/features/ai-assistant/hooks/assistant-daemon-restart-dependencies.hooks.ts	restartAssistantDaemon(1) getAssistantDaemonReadyz(1)	api
+apps/admin/src/features/ai-assistant/hooks/use-ai-assistant.hooks.ts		PublicAssistantSettings
+apps/admin/src/features/ai-assistant/hooks/use-visitor-assistant-panel.hooks.ts		PublicAssistantSettings
+apps/admin/src/features/ai-assistant/hooks/use-visitor-credential-form.hooks.ts		SiteAssistantCredential SiteAssistantCredentialPatch
+apps/admin/src/features/ai-assistant/hooks/visitor-credential-form-dependencies.hooks.ts	getAssistantSiteCredential(1) setAssistantSiteCredential(1)	api SiteAssistantCredential
+apps/admin/src/features/ai-assistant/hooks/visitor-credential-form-port.hooks.ts		SiteAssistantCredential SiteAssistantCredentialPatch
+apps/admin/src/features/ai-assistant/rules.ts		SiteAssistantCredential
+apps/admin/src/features/analytics/hooks/analytics-dependencies.hooks.ts	listRecentAnalyticsHits(1)	api AdminAnalyticsHit
+apps/admin/src/features/analytics/hooks/analytics-port.hooks.ts		AdminAnalyticsHit
+apps/admin/src/features/analytics/hooks/use-analytics.hooks.ts		AdminAnalyticsHit
+apps/admin/src/features/auth/Login.tsx	me(1)	api AdminUser
+apps/admin/src/features/auth/hooks/login-dependencies.hooks.ts	login(1) completeMfa(1)	api AdminUser
+apps/admin/src/features/auth/hooks/login-port.hooks.ts		AdminUser
+apps/admin/src/features/auth/hooks/use-login.hooks.ts		AdminUser
+apps/admin/src/features/collections/CollectionEntryEditor.tsx		ContentTypeFieldDef
+apps/admin/src/features/collections/Collections.tsx		CONTENT_TYPE_FIELD_KINDS AdminContentType ContentTypeFieldKind
+apps/admin/src/features/collections/__tests__/CollectionEntryEditor.dynamic-field.unit.test.tsx		AdminContentType AdminEntry ContentTypeFieldDef
+apps/admin/src/features/collections/__tests__/Collections.unit.test.tsx		AdminContentType
+apps/admin/src/features/collections/__tests__/collections-agent-drive.unit.test.tsx		AdminContentType
+apps/admin/src/features/collections/__tests__/rules.unit.test.ts		AdminContentType ContentTypeFieldDef
+apps/admin/src/features/collections/__tests__/use-collection-entries.unit.test.tsx		AdminContentType AdminEntry
+apps/admin/src/features/collections/__tests__/use-collection-entry-editor.unit.test.tsx		AdminContentType AdminEntry
+apps/admin/src/features/collections/__tests__/use-collections.unit.test.tsx		AdminContentType
+apps/admin/src/features/collections/__tests__/use-edit-fields-dialog.unit.test.tsx		AdminContentType
+apps/admin/src/features/collections/__tests__/use-lifecycle-confirm-dialog.unit.test.tsx		AdminContentType
+apps/admin/src/features/collections/__tests__/use-new-content-type-dialog.unit.test.tsx		AdminContentType
+apps/admin/src/features/collections/hooks/collection-entries-dependencies.hooks.ts	listContentTypes(1) listEntries(1)	api AdminContentType AdminEntry
+apps/admin/src/features/collections/hooks/collection-entries-port.hooks.ts		AdminContentType AdminEntry
+apps/admin/src/features/collections/hooks/collection-entry-editor-dependencies.hooks.ts	listContentTypes(1) listEntries(1) updateEntry(1) createEntry(1) entryLifecycle(1)	api AdminContentType AdminEntry
+apps/admin/src/features/collections/hooks/collection-entry-editor-port.hooks.ts		AdminContentType AdminEntry
+apps/admin/src/features/collections/hooks/collections-dependencies.hooks.ts	listContentTypes(1) contentTypeLifecycle(1)	api AdminContentType
+apps/admin/src/features/collections/hooks/collections-port.hooks.ts		AdminContentType ContentTypeLifecycleOp
+apps/admin/src/features/collections/hooks/edit-fields-dialog-dependencies.hooks.ts	updateContentTypeFields(1)	api AdminContentType ContentTypeFieldDef
+apps/admin/src/features/collections/hooks/edit-fields-dialog-port.hooks.ts		AdminContentType ContentTypeFieldDef
+apps/admin/src/features/collections/hooks/new-content-type-dialog-dependencies.hooks.ts	createContentType(1)	api AdminContentType ContentTypeFieldDef
+apps/admin/src/features/collections/hooks/new-content-type-dialog-port.hooks.ts		AdminContentType ContentTypeFieldDef
+apps/admin/src/features/collections/hooks/use-collection-entries.hooks.ts		AdminContentType AdminEntry
+apps/admin/src/features/collections/hooks/use-collection-entry-editor.hooks.ts		AdminContentType AdminEntry
+apps/admin/src/features/collections/hooks/use-collections.hooks.ts		AdminContentType ContentTypeLifecycleOp
+apps/admin/src/features/collections/hooks/use-edit-fields-dialog.hooks.ts		AdminContentType
+apps/admin/src/features/collections/rules.ts		AdminContentType ContentTypeFieldDef
+apps/admin/src/features/dashboard/Dashboard.tsx		AdminPost
+apps/admin/src/features/dashboard/__tests__/use-dashboard-port.unit.test.ts		AdminPost
+apps/admin/src/features/dashboard/hooks/dashboard-dependencies.hooks.ts	listPosts(1) listPages(1) listMedia(1) listCommentsQueue(1) getPresentation(1) getPasswordStatus(1) me(1) getSiteKeyStatus(1)	api AdminPost AdminSiteKeyState
+apps/admin/src/features/dashboard/hooks/dashboard-port.hooks.ts		AdminPost AdminSiteKeyState
+apps/admin/src/features/dashboard/hooks/use-dashboard.hooks.ts		AdminPost
+apps/admin/src/features/dashboard/rules.ts		AdminPost AdminSiteKeyState
+apps/admin/src/features/database/Database.tsx		AdminLedgerRow
+apps/admin/src/features/database/__tests__/Database.unit.test.tsx		AdminLedgerRow
+apps/admin/src/features/database/__tests__/database-i18n.unit.test.tsx		AdminSchemaState
+apps/admin/src/features/database/__tests__/schema-state-rules.unit.test.ts		AdminSchemaState
+apps/admin/src/features/database/__tests__/use-migrate-forward-section.unit.test.tsx		AdminSchemaState
+apps/admin/src/features/database/__tests__/use-schema-state-section.unit.test.tsx		AdminSchemaState
+apps/admin/src/features/database/__tests__/use-timeline-section.unit.test.tsx		AdminLedgerRow
+apps/admin/src/features/database/hooks/migrate-forward-section-dependencies.hooks.ts	planMigrateForward(1) confirmMigrateForward(1) executeMigrateForward(1)	api GatedConfirmResult GatedPlanResult MigrateForwardExecuteResult
+apps/admin/src/features/database/hooks/migrate-forward-section-port.hooks.ts		GatedConfirmResult GatedPlanResult MigrateForwardExecuteResult
+apps/admin/src/features/database/hooks/schema-state-section-dependencies.hooks.ts	getDatabaseSchemaState(1)	api AdminSchemaState
+apps/admin/src/features/database/hooks/schema-state-section-port.hooks.ts		AdminSchemaState
+apps/admin/src/features/database/hooks/timeline-section-dependencies.hooks.ts	getDatabaseTimeline(1)	api AdminLedgerRow
+apps/admin/src/features/database/hooks/timeline-section-port.hooks.ts		AdminLedgerRow
+apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts		AdminLedgerRow
+apps/admin/src/features/database/rules.ts		AdminLedgerRow AdminSchemaState
+apps/admin/src/features/deployment/DockerfileTab.tsx		AdminDockerfileSource
+apps/admin/src/features/deployment/OverviewTab.tsx		AdminDeploymentEnvVarStatus AdminDeploymentOverview
+apps/admin/src/features/deployment/PublishRunResult.tsx		AdminPublishRunSnapshot
+apps/admin/src/features/deployment/StaticSiteTab.tsx		AdminExportRunSnapshot AdminPublishExecutionMode AdminPublishTargetField AdminStaticPublishPreview AdminStaticPublishTargetId
+apps/admin/src/features/deployment/__tests__/OverviewTab.unit.test.tsx		AdminDeploymentOverview
+apps/admin/src/features/deployment/__tests__/StaticSiteTab.unit.test.tsx		AdminPublishCredentialProviderId AdminPublishCredentialSummary
+apps/admin/src/features/deployment/__tests__/publish-targets.fixture.ts		AdminPublishTargetDescriptor
+apps/admin/src/features/deployment/__tests__/rules.unit.test.ts		AdminPublishCredentialSummary
+apps/admin/src/features/deployment/hooks/__tests__/dockerfile-source-dependencies.unit.test.ts		
+apps/admin/src/features/deployment/hooks/__tests__/publish-credentials-dependencies.unit.test.ts		AdminPublishCredentialSummary AdminPublishCredentialVerification
+apps/admin/src/features/deployment/hooks/__tests__/static-export-dependencies.unit.test.ts		AdminExportRunSnapshot
+apps/admin/src/features/deployment/hooks/__tests__/static-publish-dependencies.unit.test.ts		AdminPublishRunSnapshot AdminStaticPublishConfig AdminStaticPublishPreview
+apps/admin/src/features/deployment/hooks/__tests__/use-deployment-overview.unit.test.tsx		AdminDeploymentOverview
+apps/admin/src/features/deployment/hooks/__tests__/use-publish-credentials-wired.unit.test.tsx		
+apps/admin/src/features/deployment/hooks/__tests__/use-publish-credentials.unit.test.tsx		AdminPublishCredentialSummary AdminPublishCredentialsSnapshot
+apps/admin/src/features/deployment/hooks/__tests__/use-static-export.unit.test.tsx		AdminExportRunSnapshot
+apps/admin/src/features/deployment/hooks/__tests__/use-static-publish.unit.test.tsx		AdminPublishRunSnapshot AdminStaticPublishConfig AdminStaticPublishPreview
+apps/admin/src/features/deployment/hooks/deployment-overview-dependencies.hooks.ts	getDeploymentOverview(1)	api AdminDeploymentOverview
+apps/admin/src/features/deployment/hooks/deployment-overview-port.hooks.ts		AdminDeploymentOverview
+apps/admin/src/features/deployment/hooks/dockerfile-source-dependencies.hooks.ts	getDockerfileSource(1) setDockerfileSource(1)	api AdminDockerfileSource
+apps/admin/src/features/deployment/hooks/dockerfile-source-port.hooks.ts		AdminDockerfileSource
+apps/admin/src/features/deployment/hooks/publish-credentials-dependencies.hooks.ts	listPublishCredentials(1) createPublishCredential(1) updatePublishCredential(1) deletePublishCredential(1) verifyPublishCredential(1)	api AdminPublishCredentialSummary AdminPublishCredentialVerification AdminPublishCredentialsSnapshot
+apps/admin/src/features/deployment/hooks/publish-credentials-port.hooks.ts		AdminPublishConnectionInput AdminPublishCredentialSummary AdminPublishCredentialsSnapshot AdminPublishCredentialVerification
+apps/admin/src/features/deployment/hooks/static-export-dependencies.hooks.ts	triggerSiteExport(1) getSiteExportStatus(1)	api AdminExportRunSnapshot
+apps/admin/src/features/deployment/hooks/static-export-port.hooks.ts		AdminExportRunSnapshot
+apps/admin/src/features/deployment/hooks/static-publish-dependencies.hooks.ts	getPublishTargets(1) getPublishPreview(1) triggerPublish(1) getPublishStatus(1)	api AdminPublishRunSnapshot AdminStaticPublishPreview
+apps/admin/src/features/deployment/hooks/static-publish-port.hooks.ts		AdminPublishRunSnapshot AdminPublishTargetDescriptor AdminStaticPublishConfig AdminStaticPublishPreview
+apps/admin/src/features/deployment/hooks/use-deployment-overview.hooks.ts		AdminDeploymentOverview
+apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts		AdminDockerfileSource
+apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts		AdminPublishCredentialProviderId AdminPublishCredentialSummary AdminPublishCredentialVerification AdminPublishExecutionMode AdminPublishTargetCredentialSpec AdminPublishTargetDescriptor
+apps/admin/src/features/deployment/hooks/use-static-export.hooks.ts		AdminExportRunSnapshot
+apps/admin/src/features/deployment/hooks/use-static-publish.hooks.ts		AdminPublishRunSnapshot AdminPublishTargetDescriptor AdminStaticPublishConfig AdminStaticPublishPreview AdminStaticPublishTargetId
+apps/admin/src/features/deployment/rules.ts		AdminDeploymentEnvVarStatus AdminDeploymentOverview AdminExportRunSnapshot AdminPublishConnectionInput AdminPublishCredentialProviderId AdminPublishCredentialSummary AdminPublishCredentialVerification AdminPublishExecutionMode AdminPublishRunSnapshot AdminPublishTargetCredentialSpec AdminPublishTargetDescriptor AdminPublishTargetField AdminStaticPublishConfig AdminStaticPublishTargetId
+apps/admin/src/features/email/EmailProviderTab.tsx		AdminMailStatus
+apps/admin/src/features/email/__tests__/Email.unit.test.tsx		AdminMailStatus
+apps/admin/src/features/email/__tests__/email.test-helpers.ts		api AdminAgentPlugin
+apps/admin/src/features/email/__tests__/use-email.unit.test.ts		AdminMailStatus
+apps/admin/src/features/email/email-api.ts		ProviderDomainVerification
+apps/admin/src/features/email/hooks/use-email-provider.hooks.ts		api AdminAgentPlugin
+apps/admin/src/features/email/hooks/use-email.hooks.ts	getMailStatus(1)	api AdminMailStatus
+apps/admin/src/features/forms/__tests__/rules.unit.test.ts		AdminFormDefinition
+apps/admin/src/features/fs-files/hooks/use-folder-drop.hooks.ts	getFsFilesCustomRoot(1) setFsFilesCustomRoot(1)	api
+apps/admin/src/features/fs-files/hooks/use-native-folder-picker.hooks.ts	getFolderPicker(1) pickFolder(1)	api
+apps/admin/src/features/import-export/__tests__/GitBackupCard.unit.test.tsx		AdminSourceControlCredentialSummary
+apps/admin/src/features/import-export/git-backup-rules.ts		AdminSourceControlCredentialSummary
+apps/admin/src/features/import-export/hooks/git-backup-port.hooks.ts	listSourceControlCredentials(1)	api AdminSourceControlCredentialSummary
+apps/admin/src/features/import-export/hooks/use-import-export.hooks.ts		api
+apps/admin/src/features/integrations/__tests__/IntegrationDeliveries.unit.test.tsx		AdminWebhookDelivery
+apps/admin/src/features/integrations/__tests__/Integrations.unit.test.tsx		AdminWebhookSubscription
+apps/admin/src/features/integrations/__tests__/rules.unit.test.ts		AdminWebhookDelivery AdminWebhookSubscription
+apps/admin/src/features/integrations/__tests__/use-integration-deliveries.unit.test.tsx		AdminWebhookDelivery
+apps/admin/src/features/integrations/__tests__/use-integrations.unit.test.tsx		AdminWebhookSubscription
+apps/admin/src/features/integrations/hooks/integration-deliveries-dependencies.hooks.ts	listIntegrationDeliveries(1)	api AdminWebhookDelivery
+apps/admin/src/features/integrations/hooks/integration-deliveries-port.hooks.ts		AdminWebhookDelivery
+apps/admin/src/features/integrations/hooks/integrations-dependencies.hooks.ts	listIntegrationSubscriptions(1) createIntegrationSubscription(1) pauseIntegrationSubscription(1) deleteIntegrationSubscription(1)	api AdminWebhookSubscription
+apps/admin/src/features/integrations/hooks/integrations-port.hooks.ts		AdminWebhookSubscription
+apps/admin/src/features/integrations/hooks/use-integration-deliveries.hooks.ts		AdminWebhookDelivery
+apps/admin/src/features/integrations/hooks/use-integrations.hooks.ts		AdminWebhookSubscription
+apps/admin/src/features/integrations/rules.ts		AdminWebhookDelivery AdminWebhookSubscription
+apps/admin/src/features/library/Library.tsx		AdminMedia
+apps/admin/src/features/library/__tests__/Library.unit.test.tsx	uploadDocument(1) listDocuments(1) mediaOriginalUrl(1)	api
+apps/admin/src/features/library/__tests__/rules.unit.test.ts		AdminMedia
+apps/admin/src/features/library/hooks/library-dependencies.hooks.ts		api AdminMedia
+apps/admin/src/features/library/hooks/library-port.hooks.ts		AdminMedia
+apps/admin/src/features/library/hooks/use-library.hooks.ts		AdminMedia
+apps/admin/src/features/library/rules.ts		AdminMedia
+apps/admin/src/features/media/Media.tsx		AdminMedia
+apps/admin/src/features/media/__tests__/Media.unit.test.tsx	mediaOriginalUrl(6)	api
+apps/admin/src/features/media/__tests__/media-agent-drive.unit.test.tsx		AdminMedia
+apps/admin/src/features/media/__tests__/media-order-by.unit.test.tsx		AdminMedia
+apps/admin/src/features/media/__tests__/media-providers-port.unit.test.ts		
+apps/admin/src/features/media/__tests__/media-rules.unit.test.ts		AdminMedia
+apps/admin/src/features/media/__tests__/media-screen-states.unit.test.tsx		AdminMedia
+apps/admin/src/features/media/__tests__/media-tab-counts.unit.test.tsx		AdminMedia
+apps/admin/src/features/media/__tests__/media-type-filter.unit.test.tsx		AdminMedia
+apps/admin/src/features/media/__tests__/use-edit-media-panel.hooks.unit.test.tsx		api AdminMedia
+apps/admin/src/features/media/__tests__/use-media-card-details.hooks.unit.test.tsx		AdminMedia
+apps/admin/src/features/media/__tests__/use-media-preview.hooks.unit.test.tsx		api AdminMedia
+apps/admin/src/features/media/__tests__/use-media.hooks.unit.test.tsx		api AdminMedia
+apps/admin/src/features/media/hooks/media-dependencies.hooks.ts	listMedia(1) uploadMedia(1) updateMedia(1) trashMedia(1) deleteMedia(1) restoreTrashItems(1) mediaOriginalUrl(1) listUsers(1)	api AdminMedia
+apps/admin/src/features/media/hooks/media-import-dependencies.hooks.ts	importMediaFromUrl(1)	api AdminMedia
+apps/admin/src/features/media/hooks/media-port.hooks.ts		AdminMedia
+apps/admin/src/features/media/hooks/use-edit-media-panel.hooks.ts		AdminMedia
+apps/admin/src/features/media/hooks/use-media-card-details.hooks.ts		AdminMedia
+apps/admin/src/features/media/hooks/use-media-card-metadata.hooks.ts		AdminMedia
+apps/admin/src/features/media/hooks/use-media-item-link.hooks.ts		AdminMedia
+apps/admin/src/features/media/hooks/use-media-preview.hooks.ts		AdminMedia
+apps/admin/src/features/media/hooks/use-media.hooks.ts		AdminMedia
+apps/admin/src/features/media/media-providers-port.ts	getMediaProviders(1) saveMediaProviders(1)	api
+apps/admin/src/features/media/rules.ts		AdminMedia
+apps/admin/src/features/members/__tests__/members-dependencies.unit.test.ts		AdminMember
+apps/admin/src/features/members/__tests__/rules.unit.test.ts		AdminMember
+apps/admin/src/features/members/__tests__/use-members.hooks.unit.test.ts		AdminMember
+apps/admin/src/features/members/hooks/members-dependencies.hooks.ts	listMembers(1) getMember(1) disableMember(1) requestMemberMagicLink(1)	api AdminMember
+apps/admin/src/features/members/hooks/members-port.hooks.ts		AdminMember
+apps/admin/src/features/menus/MenuEditor.hooks.tsx		AdminMenuItem
+apps/admin/src/features/menus/MenuEditor.tsx		AdminMenuItem AdminMenuItemAttrs AdminMenuMode
+apps/admin/src/features/menus/MenuPageLinkFields.hooks.ts		AdminMenuItem
+apps/admin/src/features/menus/MenuPageLinkFields.tsx		AdminMenuItem
+apps/admin/src/features/menus/__tests__/MenuEditor.header-characterization.unit.test.tsx		AdminMenu
+apps/admin/src/features/menus/__tests__/MenuEditor.remove-hook.unit.test.tsx		AdminMenuItem
+apps/admin/src/features/menus/__tests__/MenuEditor.unit.test.tsx		AdminMenuItem
+apps/admin/src/features/menus/__tests__/MenuPageLinkFields.hooks.unit.test.ts		AdminMenuItem
+apps/admin/src/features/menus/__tests__/html-embed.unit.test.tsx		AdminMenu
+apps/admin/src/features/menus/__tests__/legacy-page-picker.unit.test.tsx		AdminMenu
+apps/admin/src/features/menus/__tests__/menu-authoring-ux.unit.test.tsx		AdminMenu
+apps/admin/src/features/menus/__tests__/menu-html-mode.unit.test.tsx		AdminMenu AdminMenuItem
+apps/admin/src/features/menus/__tests__/menu-page-catalogue.unit.test.ts		api
+apps/admin/src/features/menus/__tests__/page-choices.hooks.unit.test.tsx		AdminMenu
+apps/admin/src/features/menus/__tests__/page-link-fields.unit.test.tsx		AdminMenuItem
+apps/admin/src/features/menus/__tests__/use-menu-editor.hooks.unit.test.tsx		api AdminMenu
+apps/admin/src/features/menus/__tests__/use-menus.hooks.unit.test.tsx		api AdminMenu
+apps/admin/src/features/menus/hooks/menus-dependencies.hooks.ts	listPages(1) listMenus(1) getMenu(1) createMenu(1) updateMenuTree(1) trash(1)	api AdminMenu
+apps/admin/src/features/menus/hooks/menus-port.hooks.ts		AdminMenu AdminMenuAuthoring AdminMenuItem
+apps/admin/src/features/menus/hooks/use-menu-editor.hooks.ts		AdminMenu AdminMenuItem AdminMenuMode
+apps/admin/src/features/menus/hooks/use-menus.hooks.ts		AdminMenu
+apps/admin/src/features/menus/html-rules.ts		AdminMenuAuthoring AdminMenuItem AdminMenuMode
+apps/admin/src/features/menus/page-link-rules.ts		AdminMenuItem AdminMenuTarget
+apps/admin/src/features/observability/__tests__/Observability.unit.test.tsx		AdminObservabilityStatus
+apps/admin/src/features/observability/__tests__/recent-errors-rules.unit.test.ts		AdminServerLogEntry
+apps/admin/src/features/observability/__tests__/use-observability-status.hooks.unit.test.ts		api
+apps/admin/src/features/observability/__tests__/use-recent-server-errors.hooks.unit.test.ts		AdminServerLogs
+apps/admin/src/features/observability/hooks/observability-status-dependencies.hooks.ts	getObservabilityStatus(1) sendObservabilityTestError(1)	api AdminObservabilityStatus
+apps/admin/src/features/observability/hooks/observability-status-port.hooks.ts		AdminObservabilityStatus AdminTelemetryTestResult
+apps/admin/src/features/observability/hooks/recent-server-errors-dependencies.hooks.ts	getServerLogs(1)	api AdminServerLogs
+apps/admin/src/features/observability/hooks/recent-server-errors-port.hooks.ts		AdminServerLogs AdminServerLogsQuery
+apps/admin/src/features/observability/hooks/use-observability-status.hooks.ts		AdminObservabilityStatus AdminTelemetryTestResult
+apps/admin/src/features/observability/hooks/use-queries-tab.hooks.ts		api
+apps/admin/src/features/observability/hooks/use-recent-server-errors.hooks.ts		AdminServerLogEntry AdminServerLogs
+apps/admin/src/features/observability/recent-errors-rules.ts		AdminServerLogEntry
+apps/admin/src/features/observability/tool-gaps-panel.tsx	getToolGaps(1)	api
+apps/admin/src/features/pages/PageEditor.tsx		ThemeTier
+apps/admin/src/features/pages/Pages.tsx		AdminPost
+apps/admin/src/features/pages/__tests__/PageEditor.interactive-flush.unit.test.tsx	templatePreviewUrl(1)	api AdminPost
+apps/admin/src/features/pages/__tests__/PageEditor.preview-remount.unit.test.tsx		AdminPost
+apps/admin/src/features/pages/__tests__/PageEditor.unit.test.tsx	templatePreviewUrl(1)	api AdminPost
+apps/admin/src/features/pages/__tests__/Pages.unit.test.tsx		AdminPost
+apps/admin/src/features/pages/__tests__/ThemePagesTab.unit.test.tsx		AdminPost
+apps/admin/src/features/pages/__tests__/html-tab-new-page.unit.test.ts		AdminPost
+apps/admin/src/features/pages/__tests__/rules.unit.test.ts		AdminPost
+apps/admin/src/features/pages/__tests__/scriptblocks-controller.unit.test.ts		AdminPost
+apps/admin/src/features/pages/__tests__/use-pages.unit.test.ts		api
+apps/admin/src/features/pages/__tests__/use-theme-pages.unit.test.ts		NO_THEME_ID
+apps/admin/src/features/pages/hooks/__tests__/page-editor-dependencies.unit.test.ts		AdminPost
+apps/admin/src/features/pages/hooks/__tests__/pages-dependencies.unit.test.ts		AdminPost
+apps/admin/src/features/pages/hooks/__tests__/theme-pages-dependencies.unit.test.ts		
+apps/admin/src/features/pages/hooks/page-editor-dependencies.hooks.ts	getPage(1) getPresentation(1) updatePageHtml(1) updatePost(1) deletePage(1) templatePreviewUrl(1) putAutosave(1) getAutosave(1) discardAutosave(1)	api AdminPost ThemeTier
+apps/admin/src/features/pages/hooks/page-editor-port.hooks.ts		AdminPagePluginEmbed AdminPost ThemeTier
+apps/admin/src/features/pages/hooks/pages-dependencies.hooks.ts	listPages(1) createPage(1) updatePost(1) deletePage(1)	api AdminPost
+apps/admin/src/features/pages/hooks/pages-port.hooks.ts		AdminPost
+apps/admin/src/features/pages/hooks/theme-pages-dependencies.hooks.ts	getPresentation(1) getThemeDetail(1) setThemePagePublished(1)	api
+apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts		AdminPagePluginEmbed AdminPost ThemeTier
+apps/admin/src/features/pages/hooks/use-pages.hooks.ts		AdminPost
+apps/admin/src/features/pages/hooks/use-theme-pages.hooks.ts		NO_THEME_ID
+apps/admin/src/features/pages/lib/embed-placeholder.ts		AdminPagePluginEmbed
+apps/admin/src/features/pages/rules.ts		AdminPost
+apps/admin/src/features/plugins/AgentPluginLinkedLock.tsx		AdminAgentPlugin
+apps/admin/src/features/plugins/AgentPluginMaturity.tsx		AdminAgentPlugin
+apps/admin/src/features/plugins/AgentPluginRow.tsx		AdminAgentPlugin
+apps/admin/src/features/plugins/AgentPlugins.hooks.ts		AdminAgentPlugin
+apps/admin/src/features/plugins/AgentPlugins.tsx		AdminAgentPlugin
+apps/admin/src/features/plugins/PluginPackageFilesModal.tsx		AdminPlugin
+apps/admin/src/features/plugins/PluginProviderSettingField.hooks.ts		AdminPluginProviderSettingField
+apps/admin/src/features/plugins/PluginProviderSettingField.tsx		AdminPluginProviderSettingField
+apps/admin/src/features/plugins/PluginProviderSettingsDialog.tsx		AdminPlugin AdminPluginProviderSettings
+apps/admin/src/features/plugins/PluginRow.tsx		AdminPlugin
+apps/admin/src/features/plugins/Plugins.tsx		AdminPlugin
+apps/admin/src/features/plugins/__tests__/AgentPlugins.unit.test.tsx		api AdminAgentPlugin
+apps/admin/src/features/plugins/__tests__/AgentPluginsAddTab.unit.test.tsx		AdminAgentPlugin
+apps/admin/src/features/plugins/__tests__/Plugins.unit.test.tsx		AdminPlugin
+apps/admin/src/features/plugins/__tests__/agent-plugin-sign-in-refresh.hooks.unit.test.ts		AdminAgentPlugin
+apps/admin/src/features/plugins/__tests__/agent-plugin-sign-in-status.unit.test.tsx		AdminAgentPlugin
+apps/admin/src/features/plugins/__tests__/agent-plugin-update.unit.test.tsx		AdminAgentPlugin
+apps/admin/src/features/plugins/__tests__/b15-row-panel-ownership.unit.test.tsx		AdminAgentPlugin AdminPlugin
+apps/admin/src/features/plugins/__tests__/plugin-conflicts-rules.unit.test.ts		AdminPlugin
+apps/admin/src/features/plugins/__tests__/plugin-ports.unit.test.ts		AdminAgentPlugin AdminPlugin
+apps/admin/src/features/plugins/__tests__/plugin-provider-settings.unit.test.tsx		AdminPluginProviderSettings
+apps/admin/src/features/plugins/__tests__/plugins-rules.unit.test.ts		AdminPlugin
+apps/admin/src/features/plugins/__tests__/use-agent-plugin-details-modal.hooks.unit.test.ts		AdminAgentPluginFiles
+apps/admin/src/features/plugins/__tests__/use-agent-plugin-install.hooks.unit.test.ts		AdminAgentPlugin
+apps/admin/src/features/plugins/__tests__/use-agent-plugins.hooks.unit.test.ts		api AdminAgentPlugin
+apps/admin/src/features/plugins/__tests__/use-plugin-package-files.hooks.unit.test.ts		AdminPluginFiles
+apps/admin/src/features/plugins/__tests__/use-plugins.hooks.unit.test.ts		api AdminPlugin
+apps/admin/src/features/plugins/hooks/agent-plugin-install-dependencies.hooks.ts		AdminAgentPlugin
+apps/admin/src/features/plugins/hooks/agent-plugin-install-port.hooks.ts		AdminAgentPlugin
+apps/admin/src/features/plugins/hooks/agent-plugins-dependencies.hooks.ts	listAgentPlugins(1) setAgentPluginEnabled(1) getAgentPluginFiles(1)	api AdminAgentPlugin AdminAgentPluginFiles
+apps/admin/src/features/plugins/hooks/agent-plugins-port.hooks.ts		AdminAgentPlugin AdminAgentPluginFiles
+apps/admin/src/features/plugins/hooks/plugin-install-port.hooks.ts		AdminPluginConflict
+apps/admin/src/features/plugins/hooks/plugins-dependencies.hooks.ts	useProjectKey(1) setPluginEnabled(1) uninstallPlugin(1) getPluginFiles(1) getPluginProviderSettings(1) savePluginProviderSettings(1)	api AdminPlugin AdminPluginFiles AdminPluginProviderSettings
+apps/admin/src/features/plugins/hooks/plugins-port.hooks.ts		AdminPlugin AdminPluginFiles AdminPluginProviderSettings
+apps/admin/src/features/plugins/hooks/use-agent-plugin-install.hooks.ts		AdminAgentPlugin
+apps/admin/src/features/plugins/hooks/use-agent-plugin-update.hooks.ts		AdminAgentPlugin
+apps/admin/src/features/plugins/hooks/use-agent-plugins.hooks.ts		AdminAgentPlugin
+apps/admin/src/features/plugins/hooks/use-plugin-provider-settings.hooks.ts		AdminPluginProviderSettings
+apps/admin/src/features/plugins/hooks/use-plugins.hooks.ts		AdminPlugin
+apps/admin/src/features/plugins/rules.ts		AdminAgentPlugin AdminPlugin AdminPluginConflict AdminPluginFiles AdminPluginPackageFile AdminPluginProviderSettingField
+apps/admin/src/features/posts/PostEditor.tsx		AdminPost ThemeTier
+apps/admin/src/features/posts/Posts.tsx		AdminPost
+apps/admin/src/features/posts/__tests__/PostEditor.unit.test.tsx	templatePreviewUrl(1)	api AdminPost
+apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx		AdminPost
+apps/admin/src/features/posts/__tests__/post-author.unit.test.tsx		AdminPost
+apps/admin/src/features/posts/__tests__/post-cover-image.unit.test.tsx		AdminPost
+apps/admin/src/features/posts/__tests__/post-editor-agent-drive.unit.test.tsx	templatePreviewUrl(1)	api AdminPost
+apps/admin/src/features/posts/__tests__/post-editor-dependencies.unit.test.ts		api
+apps/admin/src/features/posts/__tests__/post-editor-external-refresh.unit.test.tsx		AdminPost
+apps/admin/src/features/posts/__tests__/post-editor-new-posts-navigation.unit.test.tsx		AdminPost
+apps/admin/src/features/posts/__tests__/post-editor-save.rules.unit.test.ts		AdminPost
+apps/admin/src/features/posts/__tests__/post-editor-state.rules.unit.test.ts		AdminPost AdminThemeSummary PresentationSettings
+apps/admin/src/features/posts/__tests__/post-schedule-featured.unit.test.tsx		AdminMedia AdminPost
+apps/admin/src/features/posts/__tests__/posts-agent-drive.unit.test.tsx		AdminPost
+apps/admin/src/features/posts/__tests__/posts-i18n.unit.test.ts		api
+apps/admin/src/features/posts/__tests__/posts-list-dependencies.unit.test.ts		AdminPost
+apps/admin/src/features/posts/__tests__/rules.unit.test.ts		AdminPost
+apps/admin/src/features/posts/__tests__/use-post-editor.hooks.unit.test.tsx		AdminMedia AdminPost
+apps/admin/src/features/posts/__tests__/use-posts.unit.test.ts		api AdminPost
+apps/admin/src/features/posts/hooks/post-editor-dependencies.hooks.ts	getPost(1) createPost(1) getPresentation(1) updatePost(1) deletePost(1) listPosts(1) uploadMedia(1) templatePreviewUrl(1) putAutosave(1) getAutosave(1) discardAutosave(1) mediaPreviewRenditionUrl(1)	api AdminMedia AdminPost AdminThemeSummary PresentationSettings
+apps/admin/src/features/posts/hooks/post-editor-port.hooks.ts		AdminPostCreateInput AdminMedia AdminPost AdminThemeSummary PresentationSettings
+apps/admin/src/features/posts/hooks/post-editor-save.rules.ts		AdminPost
+apps/admin/src/features/posts/hooks/post-editor-state.rules.ts		AdminPost ThemeTier
+apps/admin/src/features/posts/hooks/posts-list-dependencies.hooks.ts	listPosts(1) updatePost(1) deletePost(1)	api AdminPost
+apps/admin/src/features/posts/hooks/posts-list-port.hooks.ts		AdminPost
+apps/admin/src/features/posts/hooks/use-post-editor.hooks.ts		AdminPost ThemeTier
+apps/admin/src/features/posts/hooks/use-post-featured-image.hooks.ts		AdminMedia
+apps/admin/src/features/posts/hooks/use-posts.hooks.ts		AdminPost
+apps/admin/src/features/posts/rules.ts		AdminPost
+apps/admin/src/features/providers/__tests__/always-allow.unit.test.tsx		AdminExternalMcpToolApproval
+apps/admin/src/features/providers/always-allow-rules.ts		AdminExternalMcpServer AdminExternalMcpToolApproval
+apps/admin/src/features/providers/hooks/always-allow-dependencies.hooks.ts	listExternalMcpToolApprovals(1) listExternalMcpServers(1) revokeExternalMcpToolApproval(1)	api AdminExternalMcpServer AdminExternalMcpToolApproval
+apps/admin/src/features/providers/hooks/always-allow-port.hooks.ts		AdminExternalMcpServer AdminExternalMcpToolApproval
+apps/admin/src/features/publish-content/hooks/__tests__/use-publish-content-confirm-T4-03.characterization.unit.test.ts		AdminPublishDestinationView
+apps/admin/src/features/publish-content/hooks/publish-content-dependencies.hooks.ts	listPublishContentPeers(1) getPublishDestination(1) connectPublishDestination(1) planPublishContent(1) confirmPublishContent(1) executePublishContent(1)	api AdminPublishDestinationView
+apps/admin/src/features/publish-content/hooks/publish-content-port.hooks.ts		AdminPublishDestinationView
+apps/admin/src/features/publish-content/hooks/use-publish-content-confirm.hooks.ts		AdminPublishDestinationView
+apps/admin/src/features/recovery/Recovery.tsx		AdminDisclosureResult AdminRecoveryStatus AdminRestorePoint
+apps/admin/src/features/recovery/__tests__/Recovery.unit.test.tsx		AdminDegradedBanner AdminRecoveryStatus AdminRestorePoint
+apps/admin/src/features/recovery/__tests__/rules.unit.test.ts		AdminDegradedBanner
+apps/admin/src/features/recovery/__tests__/use-recovery-navigation.unit.test.ts		AdminRestorePoint
+apps/admin/src/features/recovery/__tests__/use-recovery.unit.test.ts		AdminRecoveryStatus AdminRestorePoint DatabaseContextEnvelope
+apps/admin/src/features/recovery/__tests__/use-restore-flow.unit.test.ts		AdminRestorePoint
+apps/admin/src/features/recovery/hooks/recovery-dependencies.hooks.ts	getRecoveryStatus(1) listRecoveryRestorePoints(1) createRecoveryRestorePoint(1) resolveRecoveryDeepLink(1)	api AdminRecoveryDeepLinkResult AdminRecoveryStatus AdminRestorePoint AdminRestorePointSummary DatabaseContextEnvelope
+apps/admin/src/features/recovery/hooks/recovery-port.hooks.ts		AdminRecoveryDeepLinkResult AdminRecoveryStatus AdminRestorePoint AdminRestorePointSummary DatabaseContextEnvelope
+apps/admin/src/features/recovery/hooks/restore-flow-dependencies.hooks.ts	computeRecoveryDisclosure(1) planRestore(1) confirmRestore(1) executeRestore(1)	api AdminDisclosureResult GatedConfirmResult GatedPlanResult RestoreExecuteResult
+apps/admin/src/features/recovery/hooks/restore-flow-port.hooks.ts		AdminDisclosureResult GatedConfirmResult GatedPlanResult RestoreExecuteResult
+apps/admin/src/features/recovery/hooks/use-recovery-navigation.hooks.ts		AdminRestorePoint
+apps/admin/src/features/recovery/hooks/use-recovery.hooks.ts		AdminRecoveryStatus AdminRestorePoint
+apps/admin/src/features/recovery/hooks/use-restore-flow.hooks.ts		AdminDisclosureResult AdminRestorePoint
+apps/admin/src/features/recovery/rules.ts		AdminDegradedBanner AdminRestorePoint DatabaseContextEnvelope
+apps/admin/src/features/roles/Roles.tsx		AdminPolicy AdminPolicyPermission AdminRole
+apps/admin/src/features/roles/__tests__/Roles.unit.test.tsx		AdminPolicy AdminRole
+apps/admin/src/features/roles/__tests__/rules.unit.test.ts		AdminPolicy AdminRole
+apps/admin/src/features/roles/__tests__/use-roles.unit.test.tsx		AdminPolicyPermission
+apps/admin/src/features/roles/hooks/roles-dependencies.hooks.ts	listRoles(1) listPolicies(1) createRole(1) updateRole(1) deleteRole(1) createPolicy(1) updatePolicy(1) deletePolicy(1) writePolicyPermission(1) listPolicyPermissions(1) removePolicyPermission(1)	api AdminPolicy AdminPolicyPermission AdminRole
+apps/admin/src/features/roles/hooks/roles-port.hooks.ts		AdminPolicy AdminPolicyPermission AdminRole
+apps/admin/src/features/roles/hooks/use-roles.hooks.ts		AdminPolicy AdminPolicyPermission AdminRole
+apps/admin/src/features/roles/rules.ts		AdminPolicy AdminRole
+apps/admin/src/features/security/AccessTokensTab.tsx		AdminPublishTargetField
+apps/admin/src/features/security/__tests__/AccessTokensTab.unit.test.tsx		AdminPublishCredentialSummary
+apps/admin/src/features/security/__tests__/SiteKeyTab.agent-secrecy.unit.test.tsx		AdminSiteKeyStatus
+apps/admin/src/features/security/__tests__/SiteKeyTab.unit.test.tsx		AdminSiteKeyStatus
+apps/admin/src/features/security/__tests__/access-token-providers.fixture.ts		AdminSourceControlProviderDescriptor
+apps/admin/src/features/security/__tests__/copy-keys.fixture.ts		AdminCredentialCopySource
+apps/admin/src/features/security/__tests__/use-site-key-recovery.unit.test.ts		AdminSiteKeyStatus
+apps/admin/src/features/security/__tests__/use-site-key.unit.test.tsx		AdminSiteKeyStatus
+apps/admin/src/features/security/hooks/__tests__/access-tokens-dependencies.unit.test.ts		AdminCustomCredentialSummary AdminPublishCredentialSummary AdminSourceControlCredentialSummary
+apps/admin/src/features/security/hooks/__tests__/other-credentials-dependencies.unit.test.ts		AdminExecutionCredential AdminExternalMcpServer AdminMediaProviderMap SiteAssistantCredential
+apps/admin/src/features/security/hooks/__tests__/use-access-tokens.unit.test.tsx		AdminCustomCredentialSummary AdminPublishCredentialSummary AdminSourceControlCredentialSummary
+apps/admin/src/features/security/hooks/__tests__/use-other-credentials.unit.test.tsx		AdminMediaProviderMap AdminExternalMcpServer
+apps/admin/src/features/security/hooks/access-tokens-dependencies.hooks.ts	getPublishTargets(1) listSourceControlProviders(1) listPublishCredentials(1) createPublishCredential(1) updatePublishCredential(1) deletePublishCredential(1) listSourceControlCredentials(1) createSourceControlCredential(1) updateSourceControlCredential(1) deleteSourceControlCredential(1) listCustomCredentials(1) useProjectKey(1) createCustomCredential(1) updateCustomCredential(1) deleteCustomCredential(1)	api AdminCustomCredentialsSnapshot AdminPublishCredentialsSnapshot AdminSourceControlCredentialsSnapshot
+apps/admin/src/features/security/hooks/access-tokens-port.hooks.ts		AdminCustomConnectionInput AdminCustomCredentialCategoryId AdminCustomCredentialSummary AdminCustomCredentialsSnapshot AdminPublishConnectionInput AdminPublishCredentialSummary AdminPublishCredentialsSnapshot AdminPublishTargetDescriptor AdminSourceControlConnectionInput AdminSourceControlProviderDescriptor AdminSourceControlCredentialSummary AdminSourceControlCredentialsSnapshot
+apps/admin/src/features/security/hooks/other-credentials-dependencies.hooks.ts	getAssistantSiteCredential(1) setAssistantSiteCredential(1) deleteAssistantSiteCredential(1) getAdminExecutionCredential(1) setAdminExecutionCredential(1) deleteAdminExecutionCredential(1) getMediaProviders(1) saveMediaProviders(1) listExternalMcpServers(1) deleteExternalMcpServer(1)	api AdminMediaProviderMap
+apps/admin/src/features/security/hooks/other-credentials-port.hooks.ts		AdminExecutionCredential AdminExecutionCredentialPatch AdminExternalMcpServer AdminMediaProviderMap SiteAssistantCredential SiteAssistantCredentialPatch
+apps/admin/src/features/security/hooks/security-permissions-dependencies.hooks.ts	me(1)	api
+apps/admin/src/features/security/hooks/site-key-dependencies.hooks.ts	getSiteKeyStatus(1) revealSiteKey(1) generateSiteKey(1) importSiteKey(1) previewSiteKeyStartFresh(1) startFreshSiteKey(1)	api
+apps/admin/src/features/security/hooks/site-key-port.hooks.ts		AdminGeneratedSiteKey AdminImportedSiteKey AdminRevealedSiteKey AdminSiteKeyStartFreshPreview AdminSiteKeyStatus AdminStartedFreshSiteKey
+apps/admin/src/features/security/hooks/site-key-status.rules.ts		AdminSiteKeyStatus
+apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts		AdminCustomCredentialCategoryId AdminCustomCredentialSummary AdminPublishConnectionInput AdminPublishCredentialSummary AdminSourceControlConnectionInput AdminSourceControlCredentialSummary
+apps/admin/src/features/security/hooks/use-copy-keys.hooks.ts		api AdminCredentialCopySource AdminCredentialCopyResult
+apps/admin/src/features/security/hooks/use-other-credentials.hooks.ts		AdminMediaProviderMap
+apps/admin/src/features/security/hooks/use-site-key-recovery.hooks.ts		AdminSiteKeyAffectedWebhook AdminSiteKeyStartFreshPreview AdminSiteKeyStatus
+apps/admin/src/features/security/hooks/use-site-key.hooks.ts		AdminSiteKeyStatus
+apps/admin/src/features/security/rules.ts		AdminCustomConnectionInput AdminPublishConnectionInput AdminPublishCredentialProviderId AdminPublishTargetCredentialSpec AdminPublishTargetDescriptor AdminPublishTargetField AdminSourceControlConnectionInput AdminSourceControlProviderDescriptor
+apps/admin/src/features/security/security-i18n.ts		
+apps/admin/src/features/settings/ExternalMcpSharedChoice.hooks.ts	listSharedMcpConnections(1) useSharedMcpConnection(1) stopSharedMcpConnection(1) useLocalMcpConnection(1)	api
+apps/admin/src/features/settings/__tests__/ExternalMcpSharedChoice.unit.test.tsx		api
+apps/admin/src/features/settings/__tests__/ExternalMcpToolsModal.unit.test.tsx		AdminRemoteToolSurfaceEntry
+apps/admin/src/features/settings/__tests__/SettingsUi.unit.test.tsx		AdminExecutionCredential
+apps/admin/src/features/settings/__tests__/built-in-mcp.unit.test.tsx		AdminExternalMcpServer
+apps/admin/src/features/settings/__tests__/external-mcp-admissions-rules.unit.test.ts		AdminFederatedAdmissionEntry
+apps/admin/src/features/settings/__tests__/external-mcp-agent-drive.unit.test.tsx		AdminRemoteToolSurfaceEntry
+apps/admin/src/features/settings/__tests__/external-mcp-tool-picker-rules.unit.test.ts		AdminRemoteToolSurfaceEntry
+apps/admin/src/features/settings/__tests__/rules.unit.test.ts		AdminExternalMcpOAuthInput AdminExternalMcpServerInput
+apps/admin/src/features/settings/__tests__/use-external-mcp-tool-picker.cached-server.unit.test.tsx		AdminRemoteToolSurfaceEntry
+apps/admin/src/features/settings/__tests__/use-external-mcp-tool-picker.hooks.unit.test.tsx		AdminRemoteToolSurfaceEntry
+apps/admin/src/features/settings/external-mcp-admissions-rules.ts		AdminExternalMcpAdmissionsSnapshot AdminExternalMcpConfigFailure AdminFederatedAdmissionEntry AdminToolRefusalReason
+apps/admin/src/features/settings/external-mcp-tool-picker-rules.ts		AdminRemoteToolSurfaceEntry
+apps/admin/src/features/settings/hooks/__tests__/use-external-mcp-admissions.unit.test.tsx		AdminExternalMcpAdmissionsSnapshot
+apps/admin/src/features/settings/hooks/__tests__/use-external-mcp-oauth-connect.unit.test.ts	connectExternalMcpOAuth(1) pollExternalMcpOAuthDevice(1)	api
+apps/admin/src/features/settings/hooks/__tests__/use-external-mcp.unit.test.ts		AdminExternalMcpServer
+apps/admin/src/features/settings/hooks/use-external-mcp-admissions.hooks.ts	getExternalMcpAdmissions(1) me(1) restartAssistantDaemon(1)	api AdminExternalMcpAdmissionsSnapshot
+apps/admin/src/features/settings/hooks/use-external-mcp-oauth-connect.hooks.ts		api
+apps/admin/src/features/settings/hooks/use-external-mcp-tool-picker.hooks.ts	probeExternalMcpServer(1)	api AdminRemoteToolSurfaceEntry
+apps/admin/src/features/settings/hooks/use-external-mcp.hooks.ts		api AdminExternalMcpOAuthInput AdminExternalMcpServer AdminExternalMcpServerInput
+apps/admin/src/features/sites/AllSitesTab.tsx		AdminSiteListEntry AdminSitesSnapshot
+apps/admin/src/features/sites/SiteTrashTab.tsx		AdminTrashedSite AdminSitesSnapshot
+apps/admin/src/features/sites/Sites.hooks.tsx		AdminSiteListEntry AdminSitesSnapshot
+apps/admin/src/features/sites/Sites.tsx		AdminSitesSnapshot
+apps/admin/src/features/sites/__tests__/Sites.hooks.unit.test.tsx		AdminSiteListEntry AdminSitesSnapshot
+apps/admin/src/features/sites/__tests__/Sites.unit.test.tsx		AdminSitesSnapshot
+apps/admin/src/features/sites/__tests__/create-site-admin-password.unit.test.tsx		AdminSitesSnapshot
+apps/admin/src/features/sites/__tests__/create-site-plugin-tokens.unit.test.tsx		AdminSitesSnapshot AdminTokenSignInPlugin
+apps/admin/src/features/sites/__tests__/local-site-cards.unit.test.tsx		AdminSitesSnapshot
+apps/admin/src/features/sites/__tests__/rules.unit.test.ts		AdminSiteListEntry AdminSitesSnapshot
+apps/admin/src/features/sites/__tests__/site-card-preview.unit.test.tsx		AdminSitesSnapshot
+apps/admin/src/features/sites/__tests__/site-card-view.unit.test.tsx		AdminSiteListEntry AdminSitesSnapshot
+apps/admin/src/features/sites/__tests__/sites-config.unit.test.tsx		SitesUserConfig SitesUserConfigPatch
+apps/admin/src/features/sites/__tests__/sites-home-setting.unit.test.tsx		SitesUserConfig
+apps/admin/src/features/sites/__tests__/use-live-import-site.hooks.unit.test.tsx		AdminLocalSiteState AdminSitesSnapshot
+apps/admin/src/features/sites/__tests__/use-local-sites.unit.test.tsx		AdminSitesSnapshot
+apps/admin/src/features/sites/__tests__/use-sites.hooks.unit.test.tsx		AdminSiteActivation AdminSitesSnapshot
+apps/admin/src/features/sites/hooks/site-transfer-dependencies.hooks.ts	me(1) listUsers(1)	api
+apps/admin/src/features/sites/hooks/sites-dependencies.hooks.ts	manageLocalSite(1) listSites(1) createSite(1) listTokenSignInPlugins(1) activateSite(1)	api AdminSitesSnapshot
+apps/admin/src/features/sites/hooks/sites-port.hooks.ts		AdminLocalSiteAction AdminCreatedSite AdminCreatedSiteAgentPluginTokens AdminSiteActivation AdminSitesSnapshot AdminTokenSignInPlugin
+apps/admin/src/features/sites/hooks/use-create-site-plugin-tokens.hooks.ts		AdminTokenSignInPlugin
+apps/admin/src/features/sites/hooks/use-live-import-site.hooks.ts		AdminLocalSiteState
+apps/admin/src/features/sites/hooks/use-local-sites.hooks.ts		AdminLocalSiteAction AdminSitesSnapshot
+apps/admin/src/features/sites/hooks/use-site-card-preview.hooks.ts		AdminSiteListEntry AdminSitesSnapshot
+apps/admin/src/features/sites/hooks/use-sites-config.hooks.ts		api SitesUserConfig SitesUserConfigPatch
+apps/admin/src/features/sites/hooks/use-sites-home.hooks.ts		api
+apps/admin/src/features/sites/hooks/use-sites-snapshot.hooks.ts		AdminSitesSnapshot
+apps/admin/src/features/sites/hooks/use-sites.hooks.ts		AdminSiteActivation AdminSiteListEntry AdminSitesSnapshot
+apps/admin/src/features/sites/rules.ts		AdminSiteListEntry AdminSitesSnapshot
+apps/admin/src/features/skills/api.ts		AdminPluginFiles
+apps/admin/src/features/source-control/ProvidersTab.tsx		AdminSourceControlProviderId
+apps/admin/src/features/source-control/__tests__/SourceControl.unit.test.tsx		AdminSourceControlCredentialSummary AdminSourceControlProviderId
+apps/admin/src/features/source-control/__tests__/rules.unit.test.ts		AdminSourceControlCredentialSummary
+apps/admin/src/features/source-control/__tests__/source-control-credentials-dependencies.unit.test.ts		AdminSourceControlCredentialSummary
+apps/admin/src/features/source-control/__tests__/source-control-providers.fixture.ts		AdminSourceControlProviderDescriptor AdminSourceControlProvidersSnapshot
+apps/admin/src/features/source-control/__tests__/use-source-control-credentials.unit.test.tsx		AdminSourceControlCredentialSummary
+apps/admin/src/features/source-control/hooks/source-control-credentials-dependencies.hooks.ts	listSourceControlProviders(1) listSourceControlCredentials(1) createSourceControlCredential(1) updateSourceControlCredential(1) deleteSourceControlCredential(1)	api AdminSourceControlConnectionInput AdminSourceControlCredentialsSnapshot AdminSourceControlProvidersSnapshot
+apps/admin/src/features/source-control/hooks/source-control-credentials-port.hooks.ts		AdminSourceControlConnectionInput AdminSourceControlCredentialSummary AdminSourceControlCredentialsSnapshot AdminSourceControlProvidersSnapshot
+apps/admin/src/features/source-control/hooks/use-source-control-credentials.hooks.ts		AdminSourceControlCredentialSummary AdminSourceControlProviderId
+apps/admin/src/features/source-control/rules.ts		AdminPublishTargetField AdminSourceControlConnectionInput AdminSourceControlCredentialSummary AdminSourceControlProviderDescriptor AdminSourceControlProviderId
+apps/admin/src/features/taxonomy/Taxonomy.tsx		AdminTaxonomy AdminTaxonomyWithTerms AdminTerm
+apps/admin/src/features/taxonomy/TermPicker.tsx		AdminTaxonomyWithTerms
+apps/admin/src/features/taxonomy/__tests__/Taxonomy.unit.test.tsx		AdminTaxonomyWithTerms AdminTerm
+apps/admin/src/features/taxonomy/__tests__/TermPicker.unit.test.tsx		AdminTaxonomyWithTerms
+apps/admin/src/features/taxonomy/__tests__/html-embed.unit.test.tsx		AdminTaxonomy
+apps/admin/src/features/taxonomy/__tests__/rules.unit.test.ts		AdminTaxonomy AdminTaxonomyWithTerms AdminTerm
+apps/admin/src/features/taxonomy/__tests__/taxonomy-agent-drive.unit.test.tsx		AdminTaxonomyWithTerms AdminTerm
+apps/admin/src/features/taxonomy/__tests__/use-merge-term-section.stale-failures.unit.test.tsx		AdminTerm
+apps/admin/src/features/taxonomy/__tests__/use-merge-term-section.unit.test.tsx		AdminTerm GatedPlanResult MergeTermPlanDetails
+apps/admin/src/features/taxonomy/__tests__/use-new-term-form.unit.test.tsx		AdminTaxonomyWithTerms
+apps/admin/src/features/taxonomy/__tests__/use-taxonomy-html-embed.unit.test.tsx		AdminTaxonomy AdminTaxonomyWithTerms
+apps/admin/src/features/taxonomy/__tests__/use-term-detail-panel.unit.test.tsx		AdminTerm
+apps/admin/src/features/taxonomy/__tests__/use-term-picker.unit.test.tsx		AdminTaxonomyWithTerms
+apps/admin/src/features/taxonomy/hooks/merge-term-section-dependencies.hooks.ts	planMergeTerm(1) confirmMergeTerm(1) executeMergeTerm(1)	api
+apps/admin/src/features/taxonomy/hooks/merge-term-section-port.hooks.ts		GatedConfirmResult GatedPlanResult MergeTermPlanDetails
+apps/admin/src/features/taxonomy/hooks/new-taxonomy-form-dependencies.hooks.ts	createTaxonomy(1)	api
+apps/admin/src/features/taxonomy/hooks/new-taxonomy-form-port.hooks.ts		AdminTaxonomy
+apps/admin/src/features/taxonomy/hooks/new-term-form-dependencies.hooks.ts	createTerm(1)	api
+apps/admin/src/features/taxonomy/hooks/new-term-form-port.hooks.ts		AdminTerm
+apps/admin/src/features/taxonomy/hooks/taxonomy-dependencies.hooks.ts	listTaxonomies(1) trash(2) renameTerm(1)	api AdminTaxonomyWithTerms AdminTerm
+apps/admin/src/features/taxonomy/hooks/taxonomy-port.hooks.ts		AdminTaxonomyWithTerms AdminTerm
+apps/admin/src/features/taxonomy/hooks/term-picker-dependencies.hooks.ts	listTaxonomies(1) assignedTerms(1) assignTerms(1) unassignTerms(1) me(1)	api AdminTaxonomyWithTerms
+apps/admin/src/features/taxonomy/hooks/term-picker-port.hooks.ts		AdminTaxonomyWithTerms
+apps/admin/src/features/taxonomy/hooks/use-merge-term-section.hooks.ts		AdminTerm
+apps/admin/src/features/taxonomy/hooks/use-new-term-form.hooks.ts		AdminTaxonomyWithTerms
+apps/admin/src/features/taxonomy/hooks/use-taxonomy-html-embed.hooks.ts		AdminTaxonomy AdminTaxonomyWithTerms
+apps/admin/src/features/taxonomy/hooks/use-taxonomy.hooks.ts		AdminTaxonomy AdminTaxonomyWithTerms AdminTerm
+apps/admin/src/features/taxonomy/hooks/use-term-detail-panel.hooks.ts		AdminTerm
+apps/admin/src/features/taxonomy/hooks/use-term-list-reveal.hooks.ts		AdminTerm
+apps/admin/src/features/taxonomy/hooks/use-term-picker.hooks.ts		AdminTaxonomyWithTerms
+apps/admin/src/features/taxonomy/rules.ts		AdminTaxonomyWithTerms AdminTerm
+apps/admin/src/features/themes/Themes.tsx		NO_THEME_ID PresentationSettings ThemeTier
+apps/admin/src/features/themes/__tests__/ThemeExplore.unit.test.tsx		api
+apps/admin/src/features/themes/__tests__/Themes.unit.test.tsx		NO_THEME_ID PresentationSettings
+apps/admin/src/features/themes/__tests__/rules.unit.test.ts		NO_THEME_ID PresentationSettings
+apps/admin/src/features/themes/__tests__/theme-explore-dependencies.hooks.unit.test.ts		api
+apps/admin/src/features/themes/__tests__/theme-preview-dirty.unit.test.tsx		AdminPost
+apps/admin/src/features/themes/__tests__/themes-delete.unit.test.tsx		api PresentationSettings
+apps/admin/src/features/themes/__tests__/themes-dependencies.hooks.unit.test.ts		api
+apps/admin/src/features/themes/__tests__/themes-duplicate.unit.test.tsx		api PresentationSettings
+apps/admin/src/features/themes/__tests__/use-theme-explore.hooks.unit.test.ts		api
+apps/admin/src/features/themes/__tests__/use-themes.hooks.unit.test.ts		api PresentationSettings
+apps/admin/src/features/themes/hooks/theme-explore-dependencies.hooks.ts	getThemeDetail(1) getThemeFile(1) putThemeFile(1) resetThemeFile(1) saveThemeOriginal(1) renameThemeFile(1) copyThemeFile(1) deleteThemeFile(1) setThemePagePublished(1)	api
+apps/admin/src/features/themes/hooks/theme-explore-port.hooks.ts		ThemeFileGroup
+apps/admin/src/features/themes/hooks/themes-dependencies.hooks.ts	getPresentation(1) rescanThemes(1) setActiveTheme(1) duplicateTheme(1) trash(1)	api PresentationSettings ThemeTier
+apps/admin/src/features/themes/hooks/themes-port.hooks.ts		PresentationSettings ThemeTier
+apps/admin/src/features/themes/hooks/use-themes.hooks.ts		PresentationSettings ThemeTier
+apps/admin/src/features/themes/rules.ts		NO_THEME_ID PresentationSettings ThemeTier
+apps/admin/src/features/themes/theme-card-menu.ts		PresentationSettings
+apps/admin/src/features/trash/Trash.tsx		AdminTrashItem
+apps/admin/src/features/trash/__tests__/Trash.unit.test.tsx		AdminTrashItem
+apps/admin/src/features/trash/__tests__/rules.unit.test.ts		AdminTrashItem
+apps/admin/src/features/trash/__tests__/use-trash.unit.test.tsx		AdminIdentityUser AdminTrashItem AdminTrashPage AdminTrashRestoreReport
+apps/admin/src/features/trash/hooks/trash-dependencies.hooks.ts	listTrash(1) restoreTrashItems(1) purgeTrashItems(1) listUsers(1)	api AdminIdentityUser AdminTrashItem AdminTrashPurgeReport AdminTrashRestoreReport
+apps/admin/src/features/trash/hooks/trash-port.hooks.ts		AdminIdentityUser AdminTrashPage AdminTrashPurgeReport AdminTrashRestoreReport
+apps/admin/src/features/trash/hooks/use-trash.hooks.ts		AdminTrashItem
+apps/admin/src/features/trash/rules.ts		AdminTrashItem AdminTrashPurgeOutcome AdminTrashRestoreOutcome
+apps/admin/src/features/users/__tests__/account-protections.unit.test.tsx		AdminIdentityUser
+apps/admin/src/features/users/__tests__/rules.unit.test.ts		AdminIdentityUser
+apps/admin/src/features/users/__tests__/use-reset-password-fields.unit.test.tsx		AdminIdentityUser
+apps/admin/src/features/users/__tests__/use-users.unit.test.tsx		AdminIdentityUser
+apps/admin/src/features/users/__tests__/users-agent-drive.unit.test.tsx		AdminIdentityUser
+apps/admin/src/features/users/hooks/users-dependencies.hooks.ts	listUsers(1) me(1) listRoles(1) listPolicies(1) createUser(1) updateUser(1) disableUser(1) enableUser(1) resetUserPassword(1) assignRole(1) attachPolicy(1) deleteUser(1)	api AdminIdentityUser AdminPolicy AdminRole
+apps/admin/src/features/users/hooks/users-port.hooks.ts		AdminIdentityUser AdminPolicy AdminRole
+apps/admin/src/features/workspace/__tests__/Workspace.unit.test.tsx		AdminWorkspace
+apps/admin/src/features/workspace/__tests__/rules.unit.test.ts		AdminWorkspace
+apps/admin/src/features/workspace/__tests__/use-workspace.hooks.unit.test.ts		AdminWorkspace
+apps/admin/src/features/workspace/hooks/use-workspace.hooks.ts		AdminWorkspace
+apps/admin/src/features/workspace/hooks/workspace-dependencies.hooks.ts	getWorkspace(1) updateWorkspace(1)	api AdminWorkspace
+apps/admin/src/features/workspace/hooks/workspace-port.hooks.ts		AdminWorkspace
+apps/admin/src/features/workspace/rules.ts		AdminWorkspace
+apps/admin/src/hooks/__tests__/editor-session-expiry.unit.test.ts		AdminPost
+apps/admin/src/hooks/__tests__/use-admin-execution-credential.hooks.test.ts		AdminExecutionCredential AdminExecutionCredentialPatch
+apps/admin/src/hooks/__tests__/use-sites-sidebar-nav.tw2-pin.test.tsx		AdminSitesSnapshot
+apps/admin/src/hooks/admin-execution-credential-dependencies.hooks.ts		AdminExecutionCredential AdminExecutionCredentialPatch
+apps/admin/src/hooks/admin-execution-credential-port.hooks.ts		AdminExecutionCredential AdminExecutionCredentialPatch
+apps/admin/src/hooks/use-admin-execution-credential.hooks.ts		AdminExecutionCredential
+apps/admin/src/hooks/use-tovu-execution-policy.hooks.ts	getDeploymentOverview(1)	api AdminDeploymentOverview
+apps/admin/src/integrations/jini-admin/__tests__/media-providers-port.unit.test.ts		AdminMediaProviderMap
+apps/admin/src/integrations/jini-admin/__tests__/media-session.unit.test.ts	me(1)	api
+apps/admin/src/integrations/jini-admin/__tests__/media-swap.unit.test.tsx		AdminMedia
+apps/admin/src/integrations/jini-admin/__tests__/widgets-swap.unit.test.tsx		AdminWidgetType
+apps/admin/src/integrations/jini-admin/media-ports.ts		AdminMediaProviderCredentials AdminMediaProviderMap
+apps/admin/src/integrations/jini-admin/widgets-module.hooks.ts		AdminWidgetType
+apps/admin/src/lib/__tests__/admin-failure-channel.unit.test.ts	login(1) me(1) manageLocalSite(1) listPages(1) updatePost(3)	api
+apps/admin/src/lib/__tests__/agent-navigation-entities.unit.test.ts		api AdminAgentPlugin AdminPost
+apps/admin/src/lib/__tests__/api-assistant-daemon-readyz.unit.test.ts	getAssistantDaemonReadyz(8)	api
+apps/admin/src/lib/__tests__/api-assistant.unit.test.ts	detectExecutionAgents(3) testExecutionConnection(4) testExecutionAgent(2) listExecutionModels(3) getAssistantSettings(1) setAssistantSettings(2) restartAssistantDaemon(1) getAssistantSiteCredential(1) setAssistantSiteCredential(2) deleteAssistantSiteCredential(1) getAdminExecutionCredential(1) setAdminExecutionCredential(2) deleteAdminExecutionCredential(1)	api
+apps/admin/src/lib/__tests__/api-autosave-keepalive.unit.test.ts	putAutosave(3)	api
+apps/admin/src/lib/__tests__/api-boot-session.unit.test.ts	redeemBootSession(2)	api
+apps/admin/src/lib/__tests__/api-connectors-policies-forms-seo-redirects-posts.unit.test.ts	listPosts(1) createPost(2) getPost(2) updatePost(2) deletePost(1) templatePreviewUrl(6) listPolicies(1) createPolicy(1) updatePolicy(1) deletePolicy(2) writePolicyPermission(1) listPolicyPermissions(1) removePolicyPermission(1) listForms(1)	api
+apps/admin/src/lib/__tests__/api-endpoint-option-branches.unit.test.ts	requestMemberMagicLink(2) listRecentAnalyticsHits(2) createMenu(2) updateMenuTree(2) pauseIntegrationSubscription(2) uploadMedia(2) createUser(2) updateUser(2) resetUserPassword(2) assignRole(2) attachPolicy(2) updateRole(2) createPolicy(2) updatePolicy(2) writePolicyPermission(2) getSettingsEffective(2) setSetting(2) restartAssistantDaemon(4) listEntries(1) getDatabaseTimeline(3) confirmMigrateForward(2) listCommentsQueue(4) listWidgets(3) createWidget(2) setDockerfileSource(4) triggerSiteExport(2) getPublishPreview(2) getPublishTargets(1)	api
+apps/admin/src/lib/__tests__/api-external-mcp-admissions.unit.test.ts	getExternalMcpAdmissions(4)	api
+apps/admin/src/lib/__tests__/api-fs-files-custom-root.unit.test.ts	getFsFilesCustomRoot(1) setFsFilesCustomRoot(1) getFolderPicker(1) pickFolder(1)	api
+apps/admin/src/lib/__tests__/api-id-url-encoding.unit.test.ts	getPost(1) updatePost(1) deletePost(1) getPage(1) updatePageHtml(1) deletePage(1) getMember(1) disableMember(1) getMenu(1) updateMenuTree(1) pauseIntegrationSubscription(1) deleteIntegrationSubscription(1) listIntegrationDeliveries(1) updateMedia(1) trashMedia(1) deleteMedia(1) updateUser(1) disableUser(1) enableUser(1) resetUserPassword(1) assignRole(1) attachPolicy(1) updateRole(1) deleteRole(1) updatePolicy(1) deletePolicy(1) writePolicyPermission(1) listPolicyPermissions(1) updateContentTypeFields(1) contentTypeLifecycle(1) updateEntry(1) entryLifecycle(1) createTerm(1) renameTerm(1) planMergeTerm(1) confirmMergeTerm(1) executeMergeTerm(1) getWidget(1) setPluginEnabled(1) updatePublishCredential(1) deletePublishCredential(1) verifyPublishCredential(1) updateSourceControlCredential(1) deleteSourceControlCredential(1) updateCustomCredential(1) deleteCustomCredential(1) mediaOriginalUrl(1) mediaPreviewRenditionUrl(1) removePolicyPermission(1)	api
+apps/admin/src/lib/__tests__/api-long-tail-endpoints.unit.test.ts	listExternalMcpToolApprovals(1) revokeExternalMcpToolApproval(1) getPublishDestination(1) connectPublishDestination(2) listPublishContentPeers(1) planPublishContent(5) confirmPublishContent(1) executePublishContent(2) me(1) getPage(1) updatePageHtml(1) deletePage(1) listRoles(1) createRole(1) deleteRole(1) setPluginEnabled(1) getExternalMcpAdmissions(2) listIntegrationSubscriptions(1) createIntegrationSubscription(1) deleteIntegrationSubscription(1) listIntegrationDeliveries(1) listContentTypes(1) createContentType(1) updateContentTypeFields(1) contentTypeLifecycle(1) listEntries(1) createEntry(1) updateEntry(1) entryLifecycle(1) createTaxonomy(1) createTerm(2) renameTerm(1) assignTerms(1) unassignTerms(1) assignedTerms(1) planMergeTerm(1) confirmMergeTerm(1) executeMergeTerm(1) getDatabaseSchemaState(1) planMigrateForward(1) executeMigrateForward(1) listRecoveryRestorePoints(1) computeRecoveryDisclosure(1) resolveRecoveryDeepLink(1) getRecoveryStatus(1) planRestore(1) confirmRestore(1) executeRestore(1) getPresentation(3) setActiveTheme(1) getMember(1) listExternalMcpServers(1) saveExternalMcpServer(2) deleteExternalMcpServer(1) probeExternalMcpServer(1)	api
+apps/admin/src/lib/__tests__/api-media.unit.test.ts	listMedia(2) getMediaProviders(1) saveMediaProviders(3) mediaOriginalUrl(1) mediaContentType(2) uploadMedia(2) updateMedia(4) trashMedia(2) deleteMedia(2)	api AdminMedia AdminMediaProviderMap
+apps/admin/src/lib/__tests__/api-remaining-endpoints.unit.test.ts	signInLocalOwner(1) getPasswordStatus(1) getAutosave(1) discardAutosave(1) mediaContentType(3) mediaOriginalUrl(1) importMediaFromUrl(2) listDocuments(1) uploadDocument(1) readDocumentText(3) deleteUser(1) detectExecutionAgents(2) createRecoveryRestorePoint(2) uninstallPlugin(1) getPluginFiles(1) listAgentPlugins(1) getAgentPluginFiles(1) setAgentPluginEnabled(1) getObservabilityStatus(1) getToolGaps(1) listPublishDestinations(1) getSiteKeyStatus(1) revealSiteKey(2) generateSiteKey(2) importSiteKey(1) previewSiteKeyStartFresh(1) startFreshSiteKey(1)	api
+apps/admin/src/lib/__tests__/api-request-onok-and-null-body.unit.test.ts	getDockerfileSource(3) login(2)	api
+apps/admin/src/lib/__tests__/api-request-page-unload.unit.test.ts	me(2)	api
+apps/admin/src/lib/__tests__/api-request-shapes.clients.ts		api
+apps/admin/src/lib/__tests__/api-request-unreachable.unit.test.ts	login(16) logout(1)	api
+apps/admin/src/lib/__tests__/api-request.characterization.test.ts	logout(3) me(1)	api
+apps/admin/src/lib/__tests__/api-system-endpoints.unit.test.ts	getMailStatus(1) listCredentialCopySources(1) copyCredentials(2) getServerLogs(2) getSitesConfig(1) setSitesConfig(1) setSitesHome(1) listTokenSignInPlugins(1) manageLocalSite(2) getDeploymentOverview(1) listSites(1) createSite(1) activateSite(2) getSiteExportStatus(1) triggerPublish(4) getPublishStatus(1) listPublishCredentials(1) createPublishCredential(2) updatePublishCredential(1) deletePublishCredential(1) verifyPublishCredential(1) listSourceControlCredentials(1) listSourceControlProviders(1) createSourceControlCredential(1) updateSourceControlCredential(1) deleteSourceControlCredential(1) listCustomCredentials(1) createCustomCredential(2) updateCustomCredential(2) deleteCustomCredential(1)	api
+apps/admin/src/lib/__tests__/api-themes.unit.test.ts	saveThemeOriginal(1) duplicateTheme(1) getThemeDetail(2) resetThemeFile(2) getThemeFile(2) putThemeFile(2) copyThemeFile(1) renameThemeFile(3) deleteThemeFile(2) setThemePagePublished(3) rescanThemes(1)	api
+apps/admin/src/lib/__tests__/api-trash-items.unit.test.ts	trash(2) listTrash(2) restoreTrashItems(1) purgeTrashItems(1)	api
+apps/admin/src/lib/__tests__/api-users.test-d.ts		AdminIdentityUser
+apps/admin/src/lib/__tests__/api-users.unit.test.ts	listUsers(2) createUser(2) updateUser(2) disableUser(2) enableUser(2) resetUserPassword(2) assignRole(2) attachPolicy(2)	api AdminIdentityUser
+apps/admin/src/lib/__tests__/api-widgets-endpoints.unit.test.ts	getWidget(2)	api
+apps/admin/src/lib/__tests__/api-workspace-taxonomy-plugins-and-unauthenticated-listener.unit.test.ts	listPages(1) createPage(1) listMembers(1) listMenus(1) getWorkspace(5) updateWorkspace(2) listTaxonomies(1) listPlugins(1)	api
+apps/admin/src/lib/__tests__/cli-probe-rescan.unit.test.ts	detectExecutionAgents(2)	api
+apps/admin/src/lib/__tests__/content-type-field-kind.sync.test.ts		CONTENT_TYPE_FIELD_KINDS
+apps/admin/src/lib/__tests__/credential-fidelity.unit.test.ts		AdminExternalMcpServer
+apps/admin/src/lib/__tests__/descriptor-i18n.unit.test.ts		AdminPublishTargetDescriptor AdminSourceControlProviderDescriptor
+apps/admin/src/lib/__tests__/execution-settings.test.ts		
+apps/admin/src/lib/__tests__/ledger-slice.test.ts		
+apps/admin/src/lib/__tests__/media-embed-extension.hooks.unit.test.tsx	mediaOriginalUrl(1)	api
+apps/admin/src/lib/__tests__/media-embed-extension.unit.test.tsx	mediaOriginalUrl(4)	api AdminMedia
+apps/admin/src/lib/__tests__/media-image-extension.unit.test.tsx	mediaOriginalUrl(3)	api AdminMedia
+apps/admin/src/lib/__tests__/settings-effective-reads.integration.test.ts	getSettingsEffective(4)	api
+apps/admin/src/lib/__tests__/site-key-state-parity.unit.test.ts		ADMIN_SITE_KEY_STATES
+apps/admin/src/lib/__tests__/stored-credential-endpoint.test-helpers.ts		AdminExecutionCredential
+apps/admin/src/lib/__tests__/stored-credential-endpoint.unit.test.ts		AdminExecutionCredential
+apps/admin/src/lib/__tests__/widget-embed-extension.hooks.unit.test.ts		api
+apps/admin/src/lib/__tests__/widget-embed-extension.unit.test.tsx		api
+apps/admin/src/lib/admin-post-list-sort.ts		AdminPost
+apps/admin/src/lib/agent-navigation-entities.ts	listAgentPlugins(1) getPage(1) getPost(1) getMenu(1) getWidget(1)	api
+apps/admin/src/lib/descriptor-i18n.ts		AdminDescriptorI18n AdminPublishTargetCredentialSpec AdminPublishTargetDescriptor AdminPublishTargetField AdminSourceControlProviderDescriptor
+apps/admin/src/lib/execution-settings.ts	getAdminExecutionCredential(1) setAdminExecutionCredential(1) getSettingsEffective(1) setSetting(2) detectExecutionAgents(1) testExecutionConnection(1) testExecutionAgent(1) listExecutionModels(1)	api AdminExecutionCredential AdminExecutionCredentialPatch
+apps/admin/src/lib/ledger-slice.ts	getSettingsEffective(1) setSetting(1)	api
+apps/admin/src/lib/media-embed-extension.hooks.ts	mediaOriginalUrl(1) mediaContentType(1)	api
+apps/admin/src/lib/media-image-extension.tsx	mediaOriginalUrl(1)	api
+apps/admin/src/lib/tovu-execution-policy.ts		AdminDeploymentOverview
+apps/admin/src/lib/widget-embed-extension.hooks.ts	getWidget(1) createWidget(1)	api AdminWidget
+apps/admin/src/lib/widget-embed-extension.tsx		AdminWidget

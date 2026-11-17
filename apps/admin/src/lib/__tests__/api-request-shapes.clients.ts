@@ -1,0 +1,36 @@
+import { aiAssistantApi } from "../../features/ai-assistant/api/ai-assistant-api";
+import { analyticsApi } from "../../features/analytics/api/analytics-api";
+import { authApi } from "../../features/auth/api/auth-api";
+import { collectionsApi } from "../../features/collections/api/collections-api";
+import { commentsApi } from "../../features/comments/api/comments-api";
+import { databaseApi } from "../../features/database/api/database-api";
+import { deploymentApi } from "../../features/deployment/api/deployment-api";
+import { formsApi } from "../../features/forms/api/forms-api";
+import { fsFilesApi } from "../../features/fs-files/api/fs-files-api";
+import { importExportApi } from "../../features/import-export/api/import-export-api";
+import { integrationsApi } from "../../features/integrations/api/integrations-api";
+import { mailStatusApi } from "../../features/email/api/mail-status-api";
+import { mediaApi } from "../../features/media/api/media-api";
+import { membersApi } from "../../features/members/api/members-api";
+import { menusApi } from "../../features/menus/api/menus-api";
+import { observabilityApi } from "../../features/observability/api/observability-api";
+import { pagesApi } from "../../features/pages/api/pages-api";
+import { pluginsApi } from "../../features/plugins/api/plugins-api";
+import { postsApi } from "../../features/posts/api/posts-api";
+import { providersApi } from "../../features/providers/api/providers-api";
+import { publishContentApi } from "../../features/publish-content/api/publish-content-api";
+import { recoveryApi } from "../../features/recovery/api/recovery-api";
+import { rolesApi } from "../../features/roles/api/roles-api";
+import { securityApi } from "../../features/security/api/security-api";
+import { settingsApi } from "../../features/settings/api/settings-api";
+import { sitesApi } from "../../features/sites/api/sites-api";
+import { sourceControlApi } from "../../features/source-control/api/source-control-api";
+import { taxonomyApi } from "../../features/taxonomy/api/taxonomy-api";
+import { themesApi } from "../../features/themes/api/themes-api";
+import { trashApi } from "../../features/trash/api/trash-api";
+import { usersApi } from "../../features/users/api/users-api";
+import { widgetsApi } from "../../features/widgets/api/widgets-api";
+import { workspaceApi } from "../../features/workspace/api/workspace-api";
+
+/** Every admin API client object the request-shape table calls; a member must belong to exactly one. */
+export const API_CLIENTS: Record<string, object> = { aiAssistantApi, analyticsApi, authApi, collectionsApi, commentsApi, databaseApi, deploymentApi, formsApi, fsFilesApi, importExportApi, integrationsApi, mailStatusApi, mediaApi, membersApi, menusApi, observabilityApi, pagesApi, pluginsApi, postsApi, providersApi, publishContentApi, recoveryApi, rolesApi, securityApi, settingsApi, sitesApi, sourceControlApi, taxonomyApi, themesApi, trashApi, usersApi, widgetsApi, workspaceApi };

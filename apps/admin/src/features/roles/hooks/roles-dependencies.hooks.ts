@@ -1,4 +1,5 @@
-import { api, type AdminPolicy, type AdminPolicyPermission, type AdminRole } from "@/lib/api";
+import type { AdminPolicy, AdminPolicyPermission, AdminRole } from "@/features/roles/api/roles-api.types";
+import { rolesApi } from "@/features/roles/api/roles-api";
 import type { RolesPort } from "./roles-port.hooks";
 
 /**
@@ -8,17 +9,17 @@ import type { RolesPort } from "./roles-port.hooks";
 
 /** The live implementation, as a module-level singleton. */
 export const defaultRolesPort: RolesPort = {
-  listRoles: () => api.listRoles(),
-  listPolicies: () => api.listPolicies(),
-  createRole: ({ name }, _optional = {}) => api.createRole({ name }),
-  updateRole: (input, _optional = {}) => api.updateRole(input),
-  deleteRole: ({ roleId }, _optional = {}) => api.deleteRole({ roleId }),
-  createPolicy: (input, options = {}) => api.createPolicy(input, options),
-  updatePolicy: (target, options = {}) => api.updatePolicy(target, options),
-  deletePolicy: ({ policyId }, _optional = {}) => api.deletePolicy({ policyId }),
-  writePolicyPermission: (input, options = {}) => api.writePolicyPermission(input, options),
-  listPolicyPermissions: ({ policyId }, _optional = {}) => api.listPolicyPermissions({ policyId }),
-  removePolicyPermission: (input, _optional = {}) => api.removePolicyPermission(input),
+  listRoles: () => rolesApi.listRoles(),
+  listPolicies: () => rolesApi.listPolicies(),
+  createRole: ({ name }, _optional = {}) => rolesApi.createRole({ name }),
+  updateRole: (input, _optional = {}) => rolesApi.updateRole(input),
+  deleteRole: ({ roleId }, _optional = {}) => rolesApi.deleteRole({ roleId }),
+  createPolicy: (input, options = {}) => rolesApi.createPolicy(input, options),
+  updatePolicy: (target, options = {}) => rolesApi.updatePolicy(target, options),
+  deletePolicy: ({ policyId }, _optional = {}) => rolesApi.deletePolicy({ policyId }),
+  writePolicyPermission: (input, options = {}) => rolesApi.writePolicyPermission(input, options),
+  listPolicyPermissions: ({ policyId }, _optional = {}) => rolesApi.listPolicyPermissions({ policyId }),
+  removePolicyPermission: (input, _optional = {}) => rolesApi.removePolicyPermission(input),
 };
 
 const FAKE_WORKSPACE_ID = "fake-ws";

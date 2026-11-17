@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { ApiError } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
 
 /**
  * @file The one read-state shape every Email tab uses: loading, 403, failed (with the server's

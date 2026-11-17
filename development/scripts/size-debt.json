@@ -716,13 +716,6 @@
       "value": 85
     },
     {
-      "file": "apps/admin/src/lib/api.ts",
-      "function": "<file>",
-      "line": 1045,
-      "rule": "max-lines",
-      "value": 2522
-    },
-    {
       "file": "apps/admin/src/lib/browser-stream.ts",
       "function": "startBrowserStream#1",
       "line": 48,

@@ -8,7 +8,7 @@ import type { TimelineSectionController } from "../hooks/use-timeline-section.ho
 import type { MigrateForwardSectionController } from "../hooks/use-migrate-forward-section.hooks";
 import type { SchemaStateSectionController } from "../hooks/use-schema-state-section.hooks";
 import { navigate } from "@/lib/router";
-import type { AdminLedgerRow } from "@/lib/api";
+import type { AdminLedgerRow } from "@/features/database/api/database-api.types";
 
 /**
  * @file `Database` — the `/admin/database` screen (design-spec.md §3, ADR-041). Markup only for

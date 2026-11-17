@@ -1,4 +1,4 @@
-import type { AdminLedgerRow, AdminSchemaState } from "../../lib/api";
+import type { AdminLedgerRow, AdminSchemaState } from "./api/database-api.types";
 import type { QueryKey } from "@jini-ai/core/fetch";
 
 import { t } from "./database-i18n";

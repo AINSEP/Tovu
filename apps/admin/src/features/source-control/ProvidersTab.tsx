@@ -5,7 +5,7 @@ import { agentHandle } from "@jini-ai/core/agent-handles";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
 
-import type { AdminSourceControlProviderId } from "../../lib/api";
+import type { AdminSourceControlProviderId } from "./api/source-control-api.types";
 import { fieldHelpText, fieldNameHandleSegment } from "../deployment/rules";
 import { ConnectedMarkIcon, DisclosureChevronIcon } from "./source-control-visuals";
 import { useWiredSourceControlCredentials } from "./hooks/use-source-control-credentials.hooks";

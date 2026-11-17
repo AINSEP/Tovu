@@ -4,7 +4,7 @@ import { Suspense, type ReactElement, type ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import { api } from "@/lib/api";
+import { mediaApi } from "@/features/media/api/media-api";
 import { ADMIN_PANELS } from "@/panels";
 import { Library as LibraryRoute } from "@/panel-pages";
 import { Placeholder } from "@/components/Placeholder";
@@ -196,7 +196,7 @@ describe("Library upload", () => {
   it("api.uploadDocument posts kind=document to the media endpoint", async () => {
     const fetchFake = vi.fn(async () => new Response(JSON.stringify({ media: fakeDocument({ filename: "a.md" }) }), { status: 201, headers: { "content-type": "application/json" } }));
     vi.stubGlobal("fetch", fetchFake);
-    await api.uploadDocument({ filename: "a.md", dataBase64: "IyBoaQ==" });
+    await mediaApi.uploadDocument({ filename: "a.md", dataBase64: "IyBoaQ==" });
     const [url, init] = fetchFake.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toMatch(/\/workspaces\/workspace-local\/media$/);
     expect(init.method).toBe("POST");
@@ -206,7 +206,7 @@ describe("Library upload", () => {
   it("api.listDocuments asks for kind=document", async () => {
     const fetchFake = vi.fn(async () => new Response(JSON.stringify({ media: [] }), { status: 200, headers: { "content-type": "application/json" } }));
     vi.stubGlobal("fetch", fetchFake);
-    await api.listDocuments();
+    await mediaApi.listDocuments();
     expect(String((fetchFake.mock.calls[0] as unknown as [string])[0])).toMatch(/\/media\?kind=document$/);
   });
 });
@@ -523,7 +523,7 @@ describe("Library production port (createApiLibraryPort)", () => {
     const blob = await defaultLibraryPort.fetchDocumentBlob({ id: "doc 1" });
     expect(await blob.text()).toBe("bytes");
     const [url, init] = fetchFake.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe(api.mediaOriginalUrl({ id: "doc 1" }));
+    expect(url).toBe(mediaApi.mediaOriginalUrl({ id: "doc 1" }));
     expect(init).toEqual({ credentials: "same-origin" });
   });
 });

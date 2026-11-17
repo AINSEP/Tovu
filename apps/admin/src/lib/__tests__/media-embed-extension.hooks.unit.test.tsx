@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import type { NodeViewProps } from "@tiptap/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { api } from "../api";
+import { mediaApi } from "../../features/media/api/media-api";
 import { mediaPreviewKind, readMediaEmbedAttrs, useMediaEmbedNodeView } from "../media-embed-extension.hooks";
 
 /**
@@ -54,7 +54,7 @@ describe("readMediaEmbedAttrs", () => {
 describe("useMediaEmbedNodeView", () => {
   it("a complete ref previews api.mediaOriginalUrl(assetId); an incomplete one previews nothing", () => {
     const complete = renderHook(() => useMediaEmbedNodeView(fakeProps({ assetId: "a1", transformName: "public" }).props, deps("en")));
-    expect(complete.result.current.previewSrc).toBe(api.mediaOriginalUrl({ id: "a1" }));
+    expect(complete.result.current.previewSrc).toBe(mediaApi.mediaOriginalUrl({ id: "a1" }));
 
     const incomplete = renderHook(() => useMediaEmbedNodeView(fakeProps({ assetId: "a1" }).props, deps("en")));
     expect(incomplete.result.current.previewSrc).toBe("");

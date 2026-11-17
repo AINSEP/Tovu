@@ -1,5 +1,5 @@
-import { ApiError } from "../../lib/api";
-import type { AdminSiteListEntry, AdminSitesSnapshot } from "../../lib/api";
+import { ApiError } from "../../lib/admin-http/request";
+import type { AdminSiteListEntry, AdminSitesSnapshot } from "./api/sites-api.types";
 import type { QueryKey } from "@jini-ai/core/fetch";
 
 /**

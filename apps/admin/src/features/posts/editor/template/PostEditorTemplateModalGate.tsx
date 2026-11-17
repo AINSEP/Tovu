@@ -1,5 +1,5 @@
 import { TemplateSourceModal } from "../../../../components/TemplateSource/TemplateSourceModal";
-import type { ThemeTier } from "../../../../lib/api";
+import type { ThemeTier } from "@/features/themes/api/themes-api.types";
 import { type Translate } from "@jini-ai/core/text";
 
 /**

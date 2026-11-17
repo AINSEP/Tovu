@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MenuEditor, MenuItemTargetFields, targetForKind } from "../MenuEditor";
 import type { MenuEditorController } from "../hooks/use-menu-editor.hooks";
-import type { AdminMenuItem } from "../../../lib/api";
+import type { AdminMenuItem } from "../api/menus-api.types";
 import { installInternalLinkInterceptor, useRouteLocation } from "../../../lib/router";
 
 /**

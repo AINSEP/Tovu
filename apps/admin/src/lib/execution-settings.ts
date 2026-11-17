@@ -65,14 +65,12 @@ import { VENDOR_API_BASE_URLS } from "@jini-ai/integrations/media-providers/cata
  *    `createExecutionPort` below.
  */
 
-import {
-  api,
-  ApiError,
-  type AdminExecutionCredential,
-  type AdminExecutionCredentialPatch,
-  type SettingResolvedValue,
-  type SettingScope,
-} from "./api";
+import type { AdminExecutionCredential, AdminExecutionCredentialPatch } from "../features/ai-assistant/api/ai-assistant-api.types";
+import { aiAssistantApi } from "../features/ai-assistant/api/ai-assistant-api";
+import { settingsApi } from "../features/settings/api/settings-api";
+import { ApiError } from "./admin-http/request";
+import type { SettingResolvedValue } from "./settings-effective-reads";
+import type { SettingScope } from "@jini-ai/core/settings";
 import { createExecutionHttpAdapter, requireExecutionResponseData, type CreateExecutionPortOptions, type ByokConfig, type ExecutionConfig, type ExecutionPort } from "@jini-ai/ui";
 
 /** SPEC-007 namespace holding every NON-SECRET execution-mode key. No
@@ -195,7 +193,7 @@ function requireData<T>({ response, callSite }: { response: { data?: T | null } 
  * @overallScore 100
  */
 export async function loadAdminExecutionCredential(): Promise<AdminExecutionCredential> {
-  return requireData({ response: await api.getAdminExecutionCredential(), callSite: "getAdminExecutionCredential" });
+  return requireData({ response: await aiAssistantApi.getAdminExecutionCredential(), callSite: "getAdminExecutionCredential" });
 }
 
 /**
@@ -213,7 +211,7 @@ export async function loadAdminExecutionCredential(): Promise<AdminExecutionCred
 export async function saveAdminExecutionCredential(
   patch: AdminExecutionCredentialPatch,
 ): Promise<AdminExecutionCredential> {
-  return requireData({ response: await api.setAdminExecutionCredential(patch), callSite: "setAdminExecutionCredential" });
+  return requireData({ response: await aiAssistantApi.setAdminExecutionCredential(patch), callSite: "setAdminExecutionCredential" });
 }
 
 /** A key exists — either just typed in this form, or already stored on the server. Both make the
@@ -356,7 +354,7 @@ export function buildLocalCliConfigFromLedger({ byKey }: { byKey: Map<string, un
 export async function loadExecutionConfig(): Promise<ExecutionConfig> {
   let rows: SettingResolvedValue[];
   try {
-    rows = requireData({ response: await api.getSettingsEffective({ namespace: EXECUTION_NAMESPACE }), callSite: "getSettingsEffective" });
+    rows = requireData({ response: await settingsApi.getSettingsEffective({ namespace: EXECUTION_NAMESPACE }), callSite: "getSettingsEffective" });
   } catch (error) {
     // A namespace with no registered definitions is the expected cold-start
     // state, not an error worth surfacing — fall back to defaults.
@@ -476,7 +474,7 @@ export async function saveExecutionConfig(
   const written: string[] = [];
   try {
     for (const { key, valueJson } of changed) {
-      await api.setSetting({ namespace: EXECUTION_NAMESPACE, key, scope: executionSettingScope({ key }), valueJson });
+      await settingsApi.setSetting({ namespace: EXECUTION_NAMESPACE, key, scope: executionSettingScope({ key }), valueJson });
       written.push(key);
     }
   } catch (error) {
@@ -495,7 +493,7 @@ export async function saveExecutionConfig(
  *  Never rejects. */
 async function restoreLedgerKeys(keys: readonly string[], previousValues: ReadonlyMap<string, unknown>): Promise<void> {
   for (const key of [...keys].reverse()) {
-    await api
+    await settingsApi
       .setSetting({ namespace: EXECUTION_NAMESPACE, key, scope: executionSettingScope({ key }), valueJson: previousValues.get(key) })
       .catch((error: unknown) => console.error("[execution-settings] Could not restore a setting", describeErrorForLog({ err: error })));
   }
@@ -536,10 +534,10 @@ export function reconcileExecutionConfigRefresh(current: ExecutionConfig, loaded
 
 /** Routes and authenticated HTTP remain host-owned; one adapter shares detection across mounts. */
 const executionHttpAdapter = createExecutionHttpAdapter({ transport: {
-  detectExecutionAgents: (input, options) => api.detectExecutionAgents(input, options),
-  testExecutionConnection: (input) => api.testExecutionConnection(input),
-  testExecutionAgent: (input) => api.testExecutionAgent(input),
-  listExecutionModels: (input) => api.listExecutionModels(input),
+  detectExecutionAgents: (input, options) => aiAssistantApi.detectExecutionAgents(input, options),
+  testExecutionConnection: (input) => aiAssistantApi.testExecutionConnection(input),
+  testExecutionAgent: (input) => aiAssistantApi.testExecutionAgent(input),
+  listExecutionModels: (input) => aiAssistantApi.listExecutionModels(input),
 } }, {});
 export type { CreateExecutionPortOptions } from "@jini-ai/ui";
 /** Existing screens retain their flags; the package boundary receives two objects. */

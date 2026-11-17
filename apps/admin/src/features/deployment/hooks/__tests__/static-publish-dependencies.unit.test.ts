@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminPublishRunSnapshot, AdminStaticPublishConfig, AdminStaticPublishPreview } from "@/lib/api";
+import type { AdminPublishRunSnapshot, AdminStaticPublishConfig, AdminStaticPublishPreview } from "@/features/deployment/api/deployment-api.types";
 import { PLAIN_TARGET } from "../../__tests__/publish-targets.fixture";
 
 /**
@@ -22,12 +22,9 @@ const { getPublishTargets, getPublishPreview, triggerPublish, getPublishStatus }
   getPublishStatus: vi.fn(),
 }));
 
-vi.mock("../../../../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../../lib/api")>();
-  return {
-    ...actual,
-    api: { ...actual.api, getPublishTargets, getPublishPreview, triggerPublish, getPublishStatus },
-  };
+vi.mock("../../api/deployment-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/deployment-api")>();
+  return { ...actual, deploymentApi: { ...actual.deploymentApi, getPublishTargets, getPublishPreview, triggerPublish, getPublishStatus } };
 });
 
 const { createFakeStaticPublishPort, defaultStaticPublishPort } = await import("../static-publish-dependencies.hooks");

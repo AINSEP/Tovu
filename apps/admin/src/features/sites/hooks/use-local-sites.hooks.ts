@@ -2,7 +2,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useInvalidate } from "@jini-ai/ui/fetch-query";
 import { startVisibleInterval, type VisibilitySource, type IntervalTimers } from "@/lib/visible-interval";
-import { describeApiError, type AdminLocalSiteAction, type AdminSitesSnapshot } from "@/lib/api";
+import type { AdminLocalSiteAction, AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
+import { describeApiError } from "@/lib/admin-http/request";
 
 import { KEYS, SERVING_CHAT_WARNING_KEY, siteWriteErrorKey } from "../rules";
 import type { SitesPort } from "./sites-port.hooks";

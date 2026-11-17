@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminPost } from "@/lib/api";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 
 /**
  * @file Coverage for `page-editor-dependencies.hooks.ts`'s remaining gaps:
@@ -25,9 +25,9 @@ import type { AdminPost } from "@/lib/api";
 
 const { deletePage } = vi.hoisted(() => ({ deletePage: vi.fn() }));
 
-vi.mock("../../../../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../../lib/api")>();
-  return { ...actual, api: { ...actual.api, deletePage } };
+vi.mock("../../api/pages-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/pages-api")>();
+  return { ...actual, pagesApi: { ...actual.pagesApi, deletePage } };
 });
 
 const { createFakePageEditorPort, defaultPageEditorPort } = await import("../page-editor-dependencies.hooks");

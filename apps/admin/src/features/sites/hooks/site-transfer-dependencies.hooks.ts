@@ -1,4 +1,8 @@
-import { api, WORKSPACE_ID, authenticatedAdminRequest, authenticatedAdminUrl } from "@/lib/api";
+import { usersApi } from "@/features/users/api/users-api";
+import { authApi } from "@/features/auth/api/auth-api";
+import { WORKSPACE_ID } from "@/lib/admin-http/config";
+import { authenticatedAdminRequest } from "@/lib/admin-http/request";
+import { authenticatedAdminUrl } from "@/lib/admin-http/urls";
 
 /**
  * @file The Export Site / Import Site tabs' port onto the committed share and import routes
@@ -125,7 +129,7 @@ export const defaultSiteTransferPort: SiteTransferPort = {
   savedKeysAccess: async (_required, _optional = {}) => {
     // The roster's isOwner includes wildcard policy owners. Only the bootstrap owner has
     // canRename=false (users/list.ts); match that identity, never its display name or grants.
-    const [session, users] = await Promise.all([api.me(), api.listUsers()]);
+    const [session, users] = await Promise.all([authApi.me(), usersApi.listUsers()]);
     const current = users.users.find(user => user.principalId === session.user.id);
     return { isOwner: current?.isOwner === true && current.canRename === false };
   },

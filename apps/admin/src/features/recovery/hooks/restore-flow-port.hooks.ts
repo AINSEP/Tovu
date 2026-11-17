@@ -1,4 +1,5 @@
-import type { AdminDisclosureResult, GatedConfirmResult, GatedPlanResult, RestoreExecuteResult } from "@/lib/api";
+import type { GatedConfirmResult, GatedPlanResult } from "@/features/taxonomy/api/taxonomy-api.types";
+import type { AdminDisclosureResult, RestoreExecuteResult } from "@/features/recovery/api/recovery-api.types";
 
 /**
  * @file What `use-restore-flow.hooks.ts` needs from the outside world, as an interface rather than

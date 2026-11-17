@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminPublishCredentialSummary, AdminPublishCredentialVerification } from "@/lib/api";
+import type { AdminPublishCredentialSummary, AdminPublishCredentialVerification } from "@/features/security/api/security-api.types";
 
 /**
  * @file Coverage for `publish-credentials-dependencies.hooks.ts` (3/14 funcs) —
@@ -17,12 +17,9 @@ const { listPublishCredentials, createPublishCredential, updatePublishCredential
   verifyPublishCredential: vi.fn(),
 }));
 
-vi.mock("../../../../lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../../lib/api")>();
-  return {
-    ...actual,
-    api: { ...actual.api, listPublishCredentials, createPublishCredential, updatePublishCredential, deletePublishCredential, verifyPublishCredential },
-  };
+vi.mock("../../../security/api/security-api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../security/api/security-api")>();
+  return { ...actual, securityApi: { ...actual.securityApi, listPublishCredentials, createPublishCredential, updatePublishCredential, deletePublishCredential, verifyPublishCredential } };
 });
 
 const { createFakePublishCredentialsPort, defaultPublishCredentialsPort } = await import("../publish-credentials-dependencies.hooks");

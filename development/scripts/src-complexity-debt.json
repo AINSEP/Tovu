@@ -58,13 +58,6 @@
       "value": 11
     },
     {
-      "file": "apps/admin/src/lib/api.ts",
-      "function": "request#1",
-      "line": 2719,
-      "rule": "complexity",
-      "value": 10
-    },
-    {
       "file": "apps/desktop/src/nested-sites-migration.ts",
       "function": "migrateNestedSitesHome#1",
       "line": 65,

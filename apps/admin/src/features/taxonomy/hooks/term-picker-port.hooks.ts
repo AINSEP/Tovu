@@ -1,4 +1,4 @@
-import type { AdminTaxonomyWithTerms } from "@/lib/api";
+import type { AdminTaxonomyWithTerms } from "@/features/taxonomy/api/taxonomy-api.types";
 import type { NewTermFormPort } from "./new-term-form-port.hooks";
 
 /**

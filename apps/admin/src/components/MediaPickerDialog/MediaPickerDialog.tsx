@@ -2,7 +2,7 @@ import { useJiniMediaPicker } from "./JiniMediaPicker.hooks";
 import { Dialog } from "@jini-ai/ui-kit/react";
 import "../../styles/native-domain-dialogs.css";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
-import type { AdminMedia } from "../../lib/api";
+import type { AdminMedia } from "../../features/media/api/media-api.types";
 
 import { acceptedMediaItems, useWiredMediaPickerDialog } from "./MediaPickerDialog.hooks";
 

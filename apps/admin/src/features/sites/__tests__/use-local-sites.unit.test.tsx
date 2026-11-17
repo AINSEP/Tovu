@@ -6,7 +6,8 @@ import { createFakeSitesPort } from "../hooks/sites-dependencies.hooks";
 import { useSiteConfirm } from "../hooks/use-site-confirm.hooks";
 import { useLocalSites } from "../hooks/use-local-sites.hooks";
 import { resolveLocalSiteCard, resolveTrashDeleteDisabled } from "../Sites.hooks";
-import { ApiError, type AdminSitesSnapshot } from "@/lib/api";
+import type { AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import type { IntervalTimers, VisibilitySource } from "@/lib/visible-interval";
 import { KEYS } from "../rules";
 

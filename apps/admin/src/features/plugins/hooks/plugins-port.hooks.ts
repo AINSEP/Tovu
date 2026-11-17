@@ -1,4 +1,4 @@
-import type { AdminPlugin, AdminPluginFiles, AdminPluginProviderSettings } from "@/lib/api";
+import type { AdminPlugin, AdminPluginFiles, AdminPluginProviderSettings } from "@/features/plugins/api/plugins-api.types";
 
 /**
  * @file What `use-plugins.hooks.ts` needs from the outside world, as an interface rather than a

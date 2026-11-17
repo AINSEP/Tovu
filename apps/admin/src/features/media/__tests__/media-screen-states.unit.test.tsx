@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { Media } from "../Media";
 import type { MediaController } from "../hooks/use-media.hooks";
-import type { AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 
 /**

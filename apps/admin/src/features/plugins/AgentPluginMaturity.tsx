@@ -1,6 +1,6 @@
 import { InfoTip } from "@jini-ai/ui/admin-widgets";
 
-import type { AdminAgentPlugin } from "@/lib/api";
+import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
 
 import { type Translate } from '@jini-ai/core/text';
 /** Why a "Soon" plugin is locked off (owner, 2026-11-10); shared by the tag and the disabled switch. */

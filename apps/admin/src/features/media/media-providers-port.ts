@@ -1,6 +1,6 @@
 import type { MediaProviderMap, MediaProvidersPort } from "@jini-ai/ui";
 
-import { api } from "../../lib/api";
+import { mediaApi } from "./api/media-api";
 
 /**
  * @file The real `MediaProvidersPort` — Tovu's own implementation of the transport
@@ -29,7 +29,7 @@ import { api } from "../../lib/api";
  */
 async function fetchMediaProviders(): Promise<MediaProviderMap | null> {
   try {
-    return await api.getMediaProviders();
+    return await mediaApi.getMediaProviders();
   } catch {
     return null;
   }
@@ -46,7 +46,7 @@ async function fetchMediaProviders(): Promise<MediaProviderMap | null> {
  * @overallScore 100
  */
 async function saveMediaProviders(providers: MediaProviderMap): Promise<MediaProviderMap> {
-  return api.saveMediaProviders(providers);
+  return mediaApi.saveMediaProviders(providers);
 }
 
 /**

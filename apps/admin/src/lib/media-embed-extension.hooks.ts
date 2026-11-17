@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { NodeViewProps } from "@tiptap/react";
 
-import { api } from "./api";
+import { mediaApi } from "../features/media/api/media-api";
 import { t as mediaT } from "../features/media/media-i18n";
 import { useAdminLocale } from "../hooks/use-admin-locale.hooks";
 import type { MediaEditDialogValue } from "../components/MediaEditDialog/MediaEditDialog.hooks";
@@ -135,7 +135,7 @@ export function useMediaEmbedNodeView(
   return {
     assetId,
     alt,
-    previewSrc: isRef ? api.mediaOriginalUrl({ id: assetId }) : "",
+    previewSrc: isRef ? mediaApi.mediaOriginalUrl({ id: assetId }) : "",
     editInitial: { alt, cssClass, htmlAttributes },
     previewKind,
     picking,
@@ -160,5 +160,5 @@ export function useMediaEmbedNodeView(
 /** Binds the real `useAdminLocale()` and `api.mediaContentType` — what `MediaEmbedNodeView` composes. */
 export function useWiredMediaEmbedNodeView(props: NodeViewProps): MediaEmbedNodeViewController {
   const locale = useAdminLocale();
-  return useMediaEmbedNodeView(props, { locale, contentTypeOf: api.mediaContentType });
+  return useMediaEmbedNodeView(props, { locale, contentTypeOf: mediaApi.mediaContentType });
 }

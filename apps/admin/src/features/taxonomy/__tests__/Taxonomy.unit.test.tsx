@@ -2,7 +2,7 @@ import { render, screen, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminTaxonomyWithTerms, AdminTerm } from "@/lib/api";
+import type { AdminTaxonomyWithTerms, AdminTerm } from "@/features/taxonomy/api/taxonomy-api.types";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { Taxonomy } from "../Taxonomy";
 import type { TaxonomyController } from "../hooks/use-taxonomy.hooks";

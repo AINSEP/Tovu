@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, WORKSPACE_ID } from "@/lib/api";
+import { ApiError } from "@/lib/admin-http/request";
+import { WORKSPACE_ID } from "@/lib/admin-http/config";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { createFakeContentAnalysisPort } from "../hooks/content-analysis-dependencies.hooks";
 import { useContentAnalysis, useWiredContentAnalysis, type ContentAnalysisTarget } from "../hooks/use-content-analysis.hooks";

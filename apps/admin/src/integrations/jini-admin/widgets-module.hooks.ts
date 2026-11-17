@@ -1,6 +1,6 @@
 import { createElement, useMemo, type ReactElement, type ComponentProps } from 'react';
 import { widgets, useWidgetsOptions, type WidgetsReactOptions, type WidgetsSlots } from '@jini-ai/admin/widgets/react';
-import type { AdminWidgetType as HostWidgetType } from '../../lib/api';
+import type { AdminWidgetType as HostWidgetType } from '../../features/widgets/api/widgets-api.types';
 import { useWiredAdminLocale } from '../../hooks/use-admin-locale.hooks';
 import { WidgetConfigFields, WIDGET_TYPE_OPTIONS, defaultWidgetConfig } from '../../components/WidgetConfigFields/WidgetConfigFields';
 import { WidgetAddControl } from '../../components/WidgetPickerDialog/WidgetPickerDialog';

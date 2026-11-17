@@ -1,4 +1,4 @@
-import type { AdminAgentPlugin } from "@/lib/api";
+import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
 
 /**
  * @file What `use-agent-plugin-install.hooks.ts` needs from outside: the "Add a plugin" upload

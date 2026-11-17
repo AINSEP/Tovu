@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { AdminPost, AdminThemeSummary, PresentationSettings } from "@/lib/api";
+import type { AdminThemeSummary, PresentationSettings } from "@/features/themes/api/themes-api.types";
+import type { AdminPost } from "@/features/posts/api/posts-api.types";
 import {
   loadedPostForm,
   loadedPostHandles,

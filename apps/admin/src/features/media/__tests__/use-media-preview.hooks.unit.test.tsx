@@ -1,7 +1,8 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, type AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
+import { mediaApi } from "@/features/media/api/media-api";
 import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
 import { useMediaPreview } from "../hooks/use-media-preview.hooks";
 
@@ -52,7 +53,7 @@ describe("useMediaPreview — injected port (no fetch stub)", () => {
   // `api.mediaOriginalUrl` could never produce still ends up as `src` verbatim, which is only
   // possible if the hook reads it off `port` rather than calling `api.mediaOriginalUrl` itself.
   it("src is exactly the injected port's mediaOriginalUrl, not one this hook computed itself", () => {
-    const mediaOriginalUrlSpy = vi.spyOn(api, "mediaOriginalUrl");
+    const mediaOriginalUrlSpy = vi.spyOn(mediaApi, "mediaOriginalUrl");
     const port = createFakeMediaPort({ media: [ITEM] });
     const { result } = renderHook(() => useMediaPreview(ITEM, { port }));
 

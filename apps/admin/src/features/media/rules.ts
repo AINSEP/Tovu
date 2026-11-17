@@ -1,4 +1,5 @@
-import { describeApiError, type AdminMedia } from "../../lib/api";
+import type { AdminMedia } from "./api/media-api.types";
+import { describeApiError } from "../../lib/admin-http/request";
 import type { RowMenuItem } from "@jini-ai/admin/react";
 import type { QueryKey } from "@jini-ai/core/fetch";
 import type { MediaContentTabId } from "./hooks/use-media-tabs.hooks";

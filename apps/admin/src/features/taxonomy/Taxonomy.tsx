@@ -1,4 +1,4 @@
-import type { AdminTaxonomy, AdminTaxonomyWithTerms, AdminTerm } from "../../lib/api";
+import type { AdminTaxonomy, AdminTaxonomyWithTerms, AdminTerm } from "./api/taxonomy-api.types";
 import { useState } from "react";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { TaxonomyRowMenu } from "./TaxonomyRowMenu";

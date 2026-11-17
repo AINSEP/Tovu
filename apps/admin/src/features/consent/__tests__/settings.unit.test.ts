@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError } from '@/lib/api';
+import { ApiError } from '@/lib/admin-http/request';
 import { createConsentRevisionsPort, defaultConsentRevisionsPort, type ConsentRequest } from '../settings.hooks';
 import { CONSENT_CONFIG } from './consent-fixtures';
 

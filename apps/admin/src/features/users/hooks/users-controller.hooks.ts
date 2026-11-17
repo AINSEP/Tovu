@@ -2,7 +2,7 @@ import { useCallback, useMemo } from "react";
 import { useUsers as useJiniUsers, type UsersController as JiniController } from "@jini-ai/user-management/react";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { navigate as realNavigate } from "@/lib/router";
-import { WORKSPACE_ID } from "@/lib/api";
+import { WORKSPACE_ID } from "@/lib/admin-http/config";
 import { passwordResetNotice, t } from "../users-i18n";
 import { defaultUsersPort, toJiniUsersPort } from "./users-dependencies.hooks";
 import type { UsersPort } from "./users-port.hooks";

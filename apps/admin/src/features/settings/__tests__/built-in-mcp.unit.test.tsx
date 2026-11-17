@@ -2,7 +2,7 @@ import { render, renderHook, screen, waitFor, within } from "@testing-library/re
 import { expect, it } from "vitest";
 import { createFakeSourceConfigDependencies, type SourceConfigItem } from "@jini-ai/ui";
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
-import type { AdminExternalMcpServer } from "../../../lib/api";
+import type { AdminExternalMcpServer } from "../../integrations/api/integrations-api.types";
 import { ExternalMcpSettingsPanel } from "../ExternalMcpSettingsPanel";
 import { useOtherCredentials } from "../../security/hooks/use-other-credentials.hooks";
 import { createFakeOtherCredentialsPort } from "../../security/hooks/other-credentials-dependencies.hooks";

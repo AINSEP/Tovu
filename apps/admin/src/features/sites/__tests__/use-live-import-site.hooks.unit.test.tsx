@@ -1,7 +1,8 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AdminLocalSiteState, type AdminSitesSnapshot } from "@/lib/api";
+import type { AdminLocalSiteState, AdminSitesSnapshot } from "@/features/sites/api/sites-api.types";
+import { ApiError } from "@/lib/admin-http/request";
 import { liveImportAdminUrl, liveImportSiteName, useLiveImportSite } from "../hooks/use-live-import-site.hooks";
 import type { SitesPort } from "../hooks/sites-port.hooks";
 

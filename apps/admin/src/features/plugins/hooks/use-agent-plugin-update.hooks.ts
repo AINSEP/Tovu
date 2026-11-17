@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import type { AdminAgentPlugin } from "@/lib/api";
+import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
 
 import { agentPluginDisplayName } from "../rules";
 import type { AgentPluginInstallPort } from "./agent-plugin-install-port.hooks";

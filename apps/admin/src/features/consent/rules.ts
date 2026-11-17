@@ -1,6 +1,6 @@
 import type { ConsentFieldProblem } from '@jini-ai/admin/consent/react';
 
-import { ApiError } from '@/lib/api';
+import { ApiError } from '@/lib/admin-http/request';
 import type { ConsentDetectedItem } from './settings.hooks';
 
 import { resolveActiveTabId } from '@jini-ai/core/text';

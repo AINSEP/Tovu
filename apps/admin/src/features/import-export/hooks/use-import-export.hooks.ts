@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { api } from "@/lib/api";
+import { sitesApi } from "@/features/sites/api/sites-api";
 import { isDesktopAdmin } from "@/features/settings/ai-agent-presentation";
 import { sitesTranslator, useSitesSnapshot } from "../../sites";
 import { t as dictionaryT } from "../import-export-i18n";
@@ -35,6 +35,6 @@ export function useSitesSectionAvailable(
   _required: Record<string, never> = {},
   { desktop = isDesktopAdmin({}) }: { desktop?: boolean } = {},
 ): boolean {
-  const snapshot = useSitesSnapshot({ port: api }, { enabled: !desktop });
+  const snapshot = useSitesSnapshot({ port: sitesApi }, { enabled: !desktop });
   return !desktop && !snapshot.error && snapshot.data?.switchingEnabled === true;
 }

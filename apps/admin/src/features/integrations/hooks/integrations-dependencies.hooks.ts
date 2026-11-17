@@ -1,4 +1,5 @@
-import { api, type AdminWebhookSubscription } from "@/lib/api";
+import type { AdminWebhookSubscription } from "@/features/integrations/api/integrations-api.types";
+import { integrationsApi } from "@/features/integrations/api/integrations-api";
 import type { IntegrationsPort } from "./integrations-port.hooks";
 
 /**
@@ -9,10 +10,10 @@ import type { IntegrationsPort } from "./integrations-port.hooks";
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s
  *  `redirectsHostPorts`. */
 export const defaultIntegrationsPort: IntegrationsPort = {
-  listIntegrationSubscriptions: () => api.listIntegrationSubscriptions(),
-  createIntegrationSubscription: (input, _optional = {}) => api.createIntegrationSubscription(input),
-  pauseIntegrationSubscription: ({ id, paused }) => api.pauseIntegrationSubscription({ id, paused }),
-  deleteIntegrationSubscription: ({ id }, _optional = {}) => api.deleteIntegrationSubscription({ id }),
+  listIntegrationSubscriptions: () => integrationsApi.listIntegrationSubscriptions(),
+  createIntegrationSubscription: (input, _optional = {}) => integrationsApi.createIntegrationSubscription(input),
+  pauseIntegrationSubscription: ({ id, paused }) => integrationsApi.pauseIntegrationSubscription({ id, paused }),
+  deleteIntegrationSubscription: ({ id }, _optional = {}) => integrationsApi.deleteIntegrationSubscription({ id }),
 };
 
 /** Seed state for {@link createFakeIntegrationsPort}. */

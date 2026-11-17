@@ -1,4 +1,4 @@
-import type { AdminAgentPlugin, AdminAgentPluginFiles } from "@/lib/api";
+import type { AdminAgentPlugin, AdminAgentPluginFiles } from "@/features/integrations/api/integrations-api.types";
 
 /**
  * @file What `use-agent-plugins.hooks.ts` needs from the outside world, as an interface rather than

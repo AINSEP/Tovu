@@ -1,4 +1,5 @@
-import { api, type PublicAssistantSettings } from "@/lib/api";
+import type { PublicAssistantSettings } from "@/features/ai-assistant/api/ai-assistant-api.types";
+import { aiAssistantApi } from "@/features/ai-assistant/api/ai-assistant-api";
 import type { AiAssistantPort } from "./ai-assistant-port.hooks";
 
 /**
@@ -8,8 +9,8 @@ import type { AiAssistantPort } from "./ai-assistant-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultAiAssistantPort: AiAssistantPort = {
-  getAssistantSettings: () => api.getAssistantSettings(),
-  setAssistantSettings: (patch, _optional: Record<string, never> = {}) => api.setAssistantSettings(patch),
+  getAssistantSettings: () => aiAssistantApi.getAssistantSettings(),
+  setAssistantSettings: (patch, _optional: Record<string, never> = {}) => aiAssistantApi.setAssistantSettings(patch),
 };
 
 /** Seed state for {@link createFakeAiAssistantPort}. */

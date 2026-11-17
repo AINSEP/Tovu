@@ -1,4 +1,8 @@
-import { api, type AdminIdentityUser, type AdminPolicy, type AdminRole } from "@/lib/api";
+import type { AdminPolicy, AdminRole } from "@/features/roles/api/roles-api.types";
+import { rolesApi } from "@/features/roles/api/roles-api";
+import type { AdminIdentityUser } from "@/features/users/api/users-api.types";
+import { usersApi } from "@/features/users/api/users-api";
+import { authApi } from "@/features/auth/api/auth-api";
 import type { UsersPort } from "./users-port.hooks";
 
 /**
@@ -8,24 +12,24 @@ import type { UsersPort } from "./users-port.hooks";
 
 /** The live implementation, as a module-level singleton. */
 export const defaultUsersPort: UsersPort = {
-  listUsers: () => api.listUsers(),
+  listUsers: () => usersApi.listUsers(),
   // `canManageUserTrash` defaults to `false` against an older server build that predates the field
   // (delete-user plan v2) — same "absent means not yet supported" convention `effectivePermissions`
   // already uses elsewhere on this same response.
   me: async () => {
-    const res = await api.me();
+    const res = await authApi.me();
     return { user: { id: res.user.id }, canManageUserTrash: res.canManageUserTrash ?? false, effectivePermissions: res.effectivePermissions ?? [] };
   },
-  listRoles: () => api.listRoles(),
-  listPolicies: () => api.listPolicies(),
-  createUser: (input, options = {}) => api.createUser(input, options),
-  updateUser: (target, options = {}) => api.updateUser(target, options),
-  disableUser: ({ principalId }, _options = {}) => api.disableUser({ principalId }),
-  enableUser: ({ principalId }, _options = {}) => api.enableUser({ principalId }),
-  resetUserPassword: (input, _options = {}) => api.resetUserPassword(input),
-  assignRole: (input, _options = {}) => api.assignRole(input),
-  attachPolicy: (input, _options = {}) => api.attachPolicy(input),
-  deleteUser: ({ principalId }, _options = {}) => api.deleteUser({ principalId }),
+  listRoles: () => rolesApi.listRoles(),
+  listPolicies: () => rolesApi.listPolicies(),
+  createUser: (input, options = {}) => usersApi.createUser(input, options),
+  updateUser: (target, options = {}) => usersApi.updateUser(target, options),
+  disableUser: ({ principalId }, _options = {}) => usersApi.disableUser({ principalId }),
+  enableUser: ({ principalId }, _options = {}) => usersApi.enableUser({ principalId }),
+  resetUserPassword: (input, _options = {}) => usersApi.resetUserPassword(input),
+  assignRole: (input, _options = {}) => usersApi.assignRole(input),
+  attachPolicy: (input, _options = {}) => usersApi.attachPolicy(input),
+  deleteUser: ({ principalId }, _options = {}) => usersApi.deleteUser({ principalId }),
 };
 
 const FAKE_WORKSPACE_ID = "fake-ws";

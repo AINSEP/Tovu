@@ -1,4 +1,5 @@
-import { api, type AdminSchemaState } from "@/lib/api";
+import type { AdminSchemaState } from "@/features/database/api/database-api.types";
+import { databaseApi } from "@/features/database/api/database-api";
 import type { SchemaStateSectionPort } from "./schema-state-section-port.hooks";
 
 /**
@@ -8,7 +9,7 @@ import type { SchemaStateSectionPort } from "./schema-state-section-port.hooks";
 
 /** The live implementation, as a module-level singleton. */
 export const defaultSchemaStateSectionPort: SchemaStateSectionPort = {
-  getDatabaseSchemaState: () => api.getDatabaseSchemaState(),
+  getDatabaseSchemaState: () => databaseApi.getDatabaseSchemaState(),
 };
 
 /** Seed state for {@link createFakeSchemaStateSectionPort}. Exactly one of `state`/`error` is

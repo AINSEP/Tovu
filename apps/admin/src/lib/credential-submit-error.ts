@@ -1,4 +1,4 @@
-import { ApiError } from "./api";
+import { ApiError } from "./admin-http/request";
 
 /** A dictionary-key-shaped result; callers translate it and handle generic errors themselves. */
 export type CredentialSubmitFailure = { kind: "duplicate-label" } | { kind: "validation"; detail: string } | { kind: "generic" };

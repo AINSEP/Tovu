@@ -1,4 +1,5 @@
-import type { AdminPost, AdminSiteKeyState } from "../../lib/api";
+import type { AdminSiteKeyState } from "../sites/api/sites-api.types";
+import type { AdminPost } from "../posts/api/posts-api.types";
 
 import { type Translate } from '@jini-ai/core/text';
 /**

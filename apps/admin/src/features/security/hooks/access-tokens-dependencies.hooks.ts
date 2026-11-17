@@ -1,9 +1,9 @@
-import {
-  api,
-  type AdminCustomCredentialsSnapshot,
-  type AdminPublishCredentialsSnapshot,
-  type AdminSourceControlCredentialsSnapshot,
-} from "@/lib/api";
+import type { AdminCustomCredentialsSnapshot, AdminPublishCredentialsSnapshot } from "@/features/security/api/security-api.types";
+import { securityApi } from "@/features/security/api/security-api";
+import { deploymentApi } from "@/features/deployment/api/deployment-api";
+import type { AdminSourceControlCredentialsSnapshot } from "@/features/source-control/api/source-control-api.types";
+import { sourceControlApi } from "@/features/source-control/api/source-control-api";
+import { providersApi } from "@/features/providers/api/providers-api";
 import type { AccessTokensPort } from "./access-tokens-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches
@@ -12,26 +12,26 @@ import type { AccessTokensPort } from "./access-tokens-port.hooks";
  *  adds no new HTTP surface, only a second reader/writer of the same two endpoints. */
 // Forward optional Works for metadata unchanged: omission preserves, [] clears, no token needed.
 export const defaultAccessTokensPort: AccessTokensPort = {
-  publishTargets: { list: () => api.getPublishTargets() },
-  sourceControlProviders: { list: () => api.listSourceControlProviders().then((res) => res.providers) },
+  publishTargets: { list: () => deploymentApi.getPublishTargets() },
+  sourceControlProviders: { list: () => sourceControlApi.listSourceControlProviders().then((res) => res.providers) },
   publish: {
-    list: () => api.listPublishCredentials(),
-    create: (input, _optional = {}) => api.createPublishCredential(input).then((res) => res.credential),
-    update: ({ id, input }, _optional = {}) => api.updatePublishCredential({ id, input }).then((res) => res.credential),
-    remove: ({ id }, _optional = {}) => api.deletePublishCredential({ id }),
+    list: () => securityApi.listPublishCredentials(),
+    create: (input, _optional = {}) => securityApi.createPublishCredential(input).then((res) => res.credential),
+    update: ({ id, input }, _optional = {}) => securityApi.updatePublishCredential({ id, input }).then((res) => res.credential),
+    remove: ({ id }, _optional = {}) => securityApi.deletePublishCredential({ id }),
   },
   sourceControl: {
-    list: () => api.listSourceControlCredentials(),
-    create: (input, _optional = {}) => api.createSourceControlCredential(input).then((res) => res.credential),
-    update: ({ id, input }, _optional = {}) => api.updateSourceControlCredential({ id, input }).then((res) => res.credential),
-    remove: ({ id }, _optional = {}) => api.deleteSourceControlCredential({ id }),
+    list: () => sourceControlApi.listSourceControlCredentials(),
+    create: (input, _optional = {}) => sourceControlApi.createSourceControlCredential(input).then((res) => res.credential),
+    update: ({ id, input }, _optional = {}) => sourceControlApi.updateSourceControlCredential({ id, input }).then((res) => res.credential),
+    remove: ({ id }, _optional = {}) => sourceControlApi.deleteSourceControlCredential({ id }),
   },
   custom: {
-    list: () => api.listCustomCredentials(),
-    useKey: (input, _optional = {}) => api.useProjectKey(input),
-    create: (input, _optional = {}) => api.createCustomCredential(input).then((res) => res.credential),
-    update: ({ id, input }, _optional = {}) => api.updateCustomCredential({ id, input }).then((res) => res.credential),
-    remove: ({ id }, _optional = {}) => api.deleteCustomCredential({ id }),
+    list: () => securityApi.listCustomCredentials(),
+    useKey: (input, _optional = {}) => providersApi.useProjectKey(input),
+    create: (input, _optional = {}) => securityApi.createCustomCredential(input).then((res) => res.credential),
+    update: ({ id, input }, _optional = {}) => securityApi.updateCustomCredential({ id, input }).then((res) => res.credential),
+    remove: ({ id }, _optional = {}) => securityApi.deleteCustomCredential({ id }),
   },
 };
 

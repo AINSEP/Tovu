@@ -25,7 +25,7 @@
  *  Declared here (the wire-contract side) rather than in `use-theme-explore.hooks.ts`, which
  *  imports it from this file — the reverse would make the port file import from the hook it's
  *  meant to be injected into. */
-import type { ThemeFileGroup } from "@/lib/api";
+import type { ThemeFileGroup } from "@/features/themes/api/themes-api.types";
 export type { ThemeFileGroup };
 
 /** The live content record occupying a theme page's own slug — mirrors the server's

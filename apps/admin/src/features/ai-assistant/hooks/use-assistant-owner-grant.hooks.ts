@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFetchQuery, useFetchMutation, useCachedLoader } from "@jini-ai/ui/fetch-query";
 import { useConfirmRequest } from "@jini-ai/admin/react";
-import { describeApiError } from "@/lib/api";
+import { describeApiError } from "@/lib/admin-http/request";
 import { subscribeToSettingsRefresh, publishSettingsRefresh } from "@/lib/settings-refresh-bus";
 import { useAdminBootScope } from "@/lib/admin-boot-scope";
 type Grant = { enabled: boolean; canEdit: boolean };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AdminMedia } from "@/lib/api";
+import type { AdminMedia } from "@/features/media/api/media-api.types";
 import {
   mediaAltText,
   parseMediaHtmlAttributes,

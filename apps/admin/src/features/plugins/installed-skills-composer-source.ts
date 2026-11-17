@@ -1,4 +1,5 @@
-import { ApiError, authenticatedAdminRequest, WORKSPACE_ID } from "../../lib/api";
+import { ApiError, authenticatedAdminRequest } from "../../lib/admin-http/request";
+import { WORKSPACE_ID } from "../../lib/admin-http/config";
 
 import type { ComposerCapabilitySource, TovuComposerCapability } from "./composer-capabilities";
 

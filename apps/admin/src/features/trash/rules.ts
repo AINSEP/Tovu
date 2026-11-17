@@ -1,7 +1,7 @@
 import type { QueryKey } from "@jini-ai/core/fetch";
-import type { AdminTrashItem, AdminTrashPurgeOutcome, AdminTrashRestoreOutcome } from "@/lib/api";
+import type { AdminTrashItem, AdminTrashPurgeOutcome, AdminTrashRestoreOutcome } from "@/features/trash/api/trash-api.types";
 import { t } from "./trash-i18n";
-import { ApiError, REQUEST_TIMEOUT_CODE, describeApiError } from "@/lib/api";
+import { ApiError, REQUEST_TIMEOUT_CODE, describeApiError } from "@/lib/admin-http/request";
 
 /** A timeout settles the load; give the operator a localized next action. */
 export function describeTrashLoadError({ error, locale }: { error: unknown; locale: string }, _optional = {}): string {

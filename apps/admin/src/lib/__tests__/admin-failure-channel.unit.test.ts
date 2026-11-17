@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { formatUserFacingError } from "@jini-ai/core";
-import { api, ApiError, authenticatedAdminRequest, API_UNREACHABLE_CODE } from "../api";
+import { sitesApi } from "../../features/sites/api/sites-api";
+import { postsApi } from "../../features/posts/api/posts-api";
+import { authApi } from "../../features/auth/api/auth-api";
+import { pagesApi } from "../../features/pages/api/pages-api";
+import { ApiError, authenticatedAdminRequest, API_UNREACHABLE_CODE } from "../admin-http/request";
 import { adminFailureChannel } from "../admin-failure-channel";
 import { setAdminDraftIdentity } from "../admin-draft-identity";
 import { serverReconnect } from "../server-reconnect";
@@ -38,7 +42,7 @@ it("anonymous failures disclose only synthesized safe wording and the incident r
   setAdminDraftIdentity({ id: null });
   const failure = formatUserFacingError({ message: "HOST_SECRET_CANARY", action: "HOST_SECRET_CANARY", step: "HOST_SECRET_CANARY", cause: "HOST_SECRET_CANARY" }, { errorId: "incident-3" });
   vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: "HOST_SECRET_CANARY", errorId: "incident-3", details: { failure } }), { status: 500 })));
-  await api.login({ username: "a", password: "b" }).catch(() => undefined);
+  await authApi.login({ username: "a", password: "b" }).catch(() => undefined);
   expect(adminFailureChannel.getSnapshot()?.errorId).toBe("incident-3");
   expect(adminFailureChannel.getSnapshot()?.copyText).not.toContain("HOST_SECRET_CANARY");
 });
@@ -87,11 +91,11 @@ it("clears retained details on genuine session invalidation and accepted site sw
   const failure = formatUserFacingError({ message: "Pages could not be loaded.", action: "Try again.", step: "Loading pages", cause: "Safe report" });
   adminFailureChannel.publish({ failure });
   vi.stubGlobal("fetch", vi.fn(async () => new Response('{"error":"Sign in","code":"UNAUTHENTICATED"}', { status: 401 })));
-  await api.me().catch(() => undefined);
+  await authApi.me().catch(() => undefined);
   expect(adminFailureChannel.getSnapshot()).toBeNull();
   adminFailureChannel.publish({ failure });
   vi.stubGlobal("fetch", vi.fn(async () => new Response('{"restart":{"accepted":true}}')));
-  await api.manageLocalSite({ name: "other-site", action: "switch" });
+  await sitesApi.manageLocalSite({ name: "other-site", action: "switch" });
   expect(adminFailureChannel.getSnapshot()).toBeNull();
 });
 
@@ -135,7 +139,7 @@ it("describes an implicit GET failure as a read without exposing legacy error te
   vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
     error: "PRIVATE_BACKEND SECRET_CANARY", code: "INTERNAL_ERROR", errorId: "incident-default-get",
   }), { status: 500 })));
-  const error = await api.listPages().catch(error => error) as ApiError;
+  const error = await pagesApi.listPages().catch(error => error) as ApiError;
   expect(error).toBeInstanceOf(ApiError);
   expect(adminFailureChannel.getSnapshot()).toMatchObject({
     message: "The pages could not be loaded.",
@@ -150,7 +154,7 @@ it("a page saved through the shared posts route is called a page in the notice, 
   const failure = formatUserFacingError({ message: "The post save could not be completed.", action: "Check whether your changes were saved before repeating the save.", step: "Save post", cause: "The error ID identifies the server report." }, { errorId: "incident-9" });
   const body = { error: { code: "INTERNAL_ERROR", message: "boom", requestId: "request-9", details: { errorId: "incident-9", failure } } };
   vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(body), { status: 500 })));
-  await api.updatePost({ id: "p1" }, { options: { title: "x" }, entry: "page" }).catch(() => undefined);
+  await postsApi.updatePost({ id: "p1" }, { options: { title: "x" }, entry: "page" }).catch(() => undefined);
   const approved = adminFailureChannel.getSnapshot();
   expect(approved?.message).toBe("The page save could not be completed.");
   expect(approved?.copyText).toMatch(/Save page/);
@@ -158,9 +162,9 @@ it("a page saved through the shared posts route is called a page in the notice, 
   adminFailureChannel.reset();
   setAdminDraftIdentity({ id: null });
   vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: "x" }), { status: 500 })));
-  await api.updatePost({ id: "p1" }, { options: { title: "x" }, entry: "page" }).catch(() => undefined);
+  await postsApi.updatePost({ id: "p1" }, { options: { title: "x" }, entry: "page" }).catch(() => undefined);
   expect(adminFailureChannel.getSnapshot()?.message).toMatch(/page save/);
   adminFailureChannel.reset();
-  await api.updatePost({ id: "p1" }, { options: { title: "x" } }).catch(() => undefined);
+  await postsApi.updatePost({ id: "p1" }, { options: { title: "x" } }).catch(() => undefined);
   expect(adminFailureChannel.getSnapshot()?.message).toMatch(/post save/);
 });

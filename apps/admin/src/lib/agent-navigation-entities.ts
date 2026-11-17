@@ -1,29 +1,33 @@
 import type { PageEntityLookup, ResolvedPageEntity } from "@jini-ai/agentic";
-import { api } from "./api";
+import { integrationsApi } from "../features/integrations/api/integrations-api";
+import { postsApi } from "../features/posts/api/posts-api";
+import { pagesApi } from "../features/pages/api/pages-api";
+import { menusApi } from "../features/menus/api/menus-api";
+import { widgetsApi } from "../features/widgets/api/widgets-api";
 
 /** Product lookups use the same authenticated read APIs as each editor. A missing row refuses
  * navigation; an authorization or transport error propagates. No handle suffix is constructed. */
 const lookups: Readonly<Record<string, (required: { id: string }) => Promise<ResolvedPageEntity | null>>> = {
   "agent-plugin": async ({ id }, _options = {}) => {
-    const { agentPlugins } = await api.listAgentPlugins();
+    const { agentPlugins } = await integrationsApi.listAgentPlugins();
     const plugin = agentPlugins.find(row => row.pluginId === id);
     if (!plugin) return null;
     return { params: {}, query: { tab: plugin.enabled ? "installed" : "downloaded" }, control: { query: plugin.pluginId, role: "button", intent: "details" } };
   },
   page: async ({ id }, _options = {}) => {
-    const { post } = await api.getPage({ id });
+    const { post } = await pagesApi.getPage({ id });
     return { params: { slug: post.slug } };
   },
   post: async ({ id }, _options = {}) => {
-    const { post } = await api.getPost({ id });
+    const { post } = await postsApi.getPost({ id });
     return { params: { postId: post.id } };
   },
   menu: async ({ id }, _options = {}) => {
-    const { menu } = await api.getMenu({ id });
+    const { menu } = await menusApi.getMenu({ id });
     return { params: { menuId: menu.id } };
   },
   widget: async ({ id }, _options = {}) => {
-    const { widget } = await api.getWidget({ id });
+    const { widget } = await widgetsApi.getWidget({ id });
     return { params: { widgetId: widget.id } };
   },
 };

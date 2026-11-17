@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { ApiError } from '@/lib/api';
+import { ApiError } from '@/lib/admin-http/request';
 import type { ConsentTimers } from '../consent-autosave';
 import type { ConsentDraftSaved, ConsentPreview, ConsentReadiness, ConsentRevisionsPort, ConsentSettingsSnapshot } from '../settings.hooks';
 import { useConsentPage, useConsentPreview, useConsentPreviewScale, useConsentReadiness } from '../use-consent-page.hooks';

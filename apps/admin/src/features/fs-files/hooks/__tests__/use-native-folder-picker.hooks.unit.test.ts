@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 
-import { ApiError } from "../../../../lib/api";
+import { ApiError } from "../../../../lib/admin-http/request";
 import { useNativeFolderPicker } from "../use-native-folder-picker.hooks";
 
 /**

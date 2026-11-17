@@ -1,4 +1,5 @@
-import type { api as pluginApi, AdminAgentPlugin } from "@/lib/api";
+import type { AdminAgentPlugin } from "@/features/integrations/api/integrations-api.types";
+import type { integrationsApi } from "@/features/integrations/api/integrations-api";
 import { vi } from "vitest";
 
 import type { EmailApi, EmailTemplateDetail, EmailTemplatePreview, MailActivityItem, MailDnsStatus, MailProviderConfiguration, MailSuppressionEntry, MailSuppressionRemovalPlan } from "../email-api";
@@ -39,8 +40,8 @@ export const PLAN: MailSuppressionRemovalPlan = {
 /** Fresh spies per case; each scenario changes only the needed API response. */
 export function createEmailFake(_required = {}, _optional = {}) {
   return {
-    listAgentPlugins: vi.fn<typeof pluginApi.listAgentPlugins>().mockResolvedValue({ agentPlugins: [] }),
-    setAgentPluginEnabled: vi.fn<typeof pluginApi.setAgentPluginEnabled>().mockResolvedValue({ agentPlugin: { ...MAIL_PLUGIN, enabled: true } }),
+    listAgentPlugins: vi.fn<typeof integrationsApi.listAgentPlugins>().mockResolvedValue({ agentPlugins: [] }),
+    setAgentPluginEnabled: vi.fn<typeof integrationsApi.setAgentPluginEnabled>().mockResolvedValue({ agentPlugin: { ...MAIL_PLUGIN, enabled: true } }),
     listProviders: vi.fn<EmailApi["listProviders"]>().mockResolvedValue({ setting: { transactional: null, bulk: null }, providers: [PROVIDER], refusals: [] }),
     saveProviderKey: vi.fn<EmailApi["saveProviderKey"]>().mockResolvedValue({ provider: { ...PROVIDER, credential: { required: true, saved: true } } }),
     activateProvider: vi.fn<EmailApi["activateProvider"]>().mockResolvedValue({ set: true, providerId: PROVIDER.id, label: PROVIDER.label }),
@@ -62,5 +63,5 @@ export function createEmailFake(_required = {}, _optional = {}) {
     renameTemplate: vi.fn<EmailApi["renameTemplate"]>().mockImplementation(async (input) => ({ ...TEMPLATE, name: input.name, version: input.expectedVersion + 1 })),
     trashTemplate: vi.fn<EmailApi["trashTemplate"]>().mockResolvedValue({ ok: true }),
     previewTemplate: vi.fn<EmailApi["previewTemplate"]>().mockResolvedValue(PREVIEW),
-  } satisfies EmailApi & Pick<typeof pluginApi, "listAgentPlugins" | "setAgentPluginEnabled">;
+  } satisfies EmailApi & Pick<typeof integrationsApi, "listAgentPlugins" | "setAgentPluginEnabled">;
 }

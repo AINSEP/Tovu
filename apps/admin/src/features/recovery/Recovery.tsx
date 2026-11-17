@@ -4,7 +4,7 @@ import { I18nProvider, SETTINGS_DIALOG_DICTIONARIES, SettingsDialogShell, type S
 import "@jini-ai/ui/settings-dialog.css";
 
 
-import type { AdminDisclosureResult, AdminRecoveryStatus, AdminRestorePoint } from "../../lib/api";
+import type { AdminDisclosureResult, AdminRecoveryStatus, AdminRestorePoint } from "./api/recovery-api.types";
 import {
   categoryLabel,
   costClassLabel,
