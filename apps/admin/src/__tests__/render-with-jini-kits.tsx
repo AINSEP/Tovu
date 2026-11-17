@@ -20,7 +20,8 @@ function scope(wrapper?: ComponentType<{ children: ReactNode }>) {
   return function JiniKitsScope({ children }: { children: ReactNode }) {
     const inner = wrapper ? createElement(wrapper, { children }) : children;
     return createElement(KitProvider, { kit: tovuKit, agent: tovuAgentAttrs, children: createElement(FetchQueryProvider, {
-      children: createElement(UiKitProvider, { kit: uiKit, children: createElement(AdminKitProvider, { kit: adminKit, children: createElement(ChatSurfacesProvider, { surfaces: chatSurfaces, children: inner }) }) }),
+      children: createElement(UiKitProvider, { kit: uiKit, children: createElement(AdminKitProvider, { kit: adminKit, children: createElement(UserManagementKitProvider, { kit: userManagementKit,
+        children: createElement(ChatSurfacesProvider, { surfaces: chatSurfaces, children: inner }) }) }) }),
     }) });
   };
 }
