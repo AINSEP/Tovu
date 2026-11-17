@@ -241,6 +241,16 @@ jobs:
         continue-on-error: true
         run: npm run check:hooks
 
+      - name: Check why-comments ratchet
+        # Owner HARD rule: refactors MOVE "why" comments with the code, never delete them. Fails when a
+        # comment block deleted in this push/PR survives nowhere (this repo, or ../Jini when checked out)
+        # and has no reasoned entry in development/why-comments-debt.json. Non-blocking like check:size.
+        env:
+          WHY_COMMENTS_BASE_REF: ${{ github.event.pull_request.base.sha || (github.event.before != '0000000000000000000000000000000000000000' && github.event.before) || format('origin/{0}', github.event.repository.default_branch) }}
+        id: gate-why-comments
+        continue-on-error: true
+        run: npm run check:why-comments -- --merge-base
+
       - name: Check error-gate rule copies
         # The three error rules are owned by Jini; the copies in development/eslint-rules/ must stay
         # byte-identical (hash recorded in error-gate-rules.lock.json). Fails when a copy is edited here.
@@ -416,6 +426,7 @@ jobs:
           check "${{ steps.gate-src-complexity.outcome }}"     "check:complexity"
           check "${{ steps.gate-size.outcome }}"               "check:size"
           check "${{ steps.gate-hooks.outcome }}"              "check:hooks"
+          check "${{ steps.gate-why-comments.outcome }}"       "check:why-comments"
           check "${{ steps.gate-error-rule-copies.outcome }}"  "check:error-rule-copies"
           check "${{ steps.gate-seed-content-drift.outcome }}" "check:seed-content-drift"
           check "${{ steps.gate-shipped-theme-drift.outcome }}" "shipped theme/reference/reset drift"
