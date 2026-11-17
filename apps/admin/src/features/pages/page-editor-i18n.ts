@@ -54,6 +54,8 @@ const postEditorKeys = new Set([
   "to trash? It will disappear from the site and from this list.", "Exit full screen (Esc)",
   "Show full screen", "Exit full screen", "Nothing changed", "Nothing has changed since the last save. Save anyway?",
   "No changes found · nothing new saved (version {version})",
+  // Same recovered-draft banner as the Post editor: one sentence, translated once in `lib/editor-failure-i18n.ts`.
+  "Could not discard the recovered draft. It is still saved and the banner is still here, so you can try Discard again or Restore it.",
 ] as const);
 
 const pageEditorControlTranslations: Record<string, Record<string, string>> = {

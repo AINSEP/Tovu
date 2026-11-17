@@ -1,3 +1,4 @@
+import { EDITOR_FAILURE_DICT } from "../../lib/editor-failure-i18n";
 import { COMMON_I18N } from "../../lib/i18n-common";
 import { createDictionaryTranslator } from '@jini-ai/core/text';
 /**
@@ -3264,7 +3265,7 @@ const POST_SCREEN_COPY: Record<string, Record<string, string>> = {
   }
 };
 for (const [locale, copy] of Object.entries(POST_SCREEN_COPY)) {
-  Object.assign(POSTS_DICT[locale], copy);
+  Object.assign(POSTS_DICT[locale], copy, EDITOR_FAILURE_DICT[locale]);
 }
 
 export const t = createDictionaryTranslator({ featureDictionary: POSTS_DICT }, { commonDictionary: COMMON_I18N });
