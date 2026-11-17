@@ -6,7 +6,7 @@ import { Posts } from "../Posts";
 import { PostEditor } from "../PostEditor";
 import { PostPublishAtField } from "../PostPublishingFields";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
-import { usePostEditor } from "../hooks/use-post-editor.hooks";
+import { formatUploadFailureMessage, usePostEditor } from "../hooks/use-post-editor.hooks";
 import type { PostEditorController } from "../hooks/use-post-editor.hooks";
 
 import { COMMON_I18N } from "@/lib/i18n-common";
@@ -122,6 +122,9 @@ const REQUIRED_POST_COPY = [
   "failed to load post", "could not re-read the current version — your changes are still here, try again",
   "delete failed", "failed to load posts", "failed to create post", "failed to publish post",
   "failed to unpublish post", "failed to delete post", "Publish at", "Scheduled", "Alt text (optional)", "Insert",
+  // Added by fix/hang-bugs: a failed recovered-draft discard and a failed drop/paste upload.
+  "Could not discard the recovered draft. It is still saved and the banner is still here, so you can try Discard again or Restore it.",
+  "Could not add {name}. Nothing was inserted. Cause: {cause}", "no reason was given",
 ];
 
 it.each(REQUIRED_POST_COPY)("provides the required screen key %j in every locale", (key) => {
@@ -258,3 +261,24 @@ for (const copy of LOCALIZED) {
     });
   });
 }
+
+describe("upload failure message", () => {
+  const key = "Could not add {name}. Nothing was inserted. Cause: {cause}";
+
+  it("keeps both placeholders in every locale, so the file name and the cause are never lost", () => {
+    for (const locale of Object.keys(POSTS_DICT)) {
+      const copy = t({ locale, key });
+      expect(copy, `${locale} keeps {name}`).toContain("{name}");
+      expect(copy, `${locale} keeps {cause}`).toContain("{cause}");
+    }
+  });
+
+  it("names the file and the cause in the operator's language", () => {
+    const file = new File(["x"], "photo.png", { type: "image/png" });
+    const translated = (locale: string) => (copyKey: string) => t({ locale, key: copyKey });
+    expect(formatUploadFailureMessage({ file, error: new Error("quota reached"), t: translated("es") }))
+      .toBe("No se pudo añadir photo.png. No se insertó nada. Causa: quota reached");
+    expect(formatUploadFailureMessage({ file, error: new Error(""), t: translated("de") }))
+      .toBe("photo.png konnte nicht hinzugefügt werden. Es wurde nichts eingefügt. Ursache: es wurde kein Grund angegeben");
+  });
+});

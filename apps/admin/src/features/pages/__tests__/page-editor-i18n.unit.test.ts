@@ -82,6 +82,11 @@ describe("PAGE_EDITOR_DICT: cross-locale key parity", () => {
     expect(CALL_SITE_KEYS.slice().sort()).toEqual(referenceKeys);
   });
 
+  it("translates the failed recovered-draft discard message in every locale, not left in English", () => {
+    const key = "Could not discard the recovered draft. It is still saved and the banner is still here, so you can try Discard again or Restore it.";
+    for (const locale of locales) expect(t({ locale, key }), locale).not.toBe(key);
+  });
+
   it("translates every PageEditor markup key in every locale through the page translator", () => {
     const MARKUP_KEYS = [
       "Pages", "Content", "Edit page", "Ask the assistant to build this page, or edit the HTML directly.",
