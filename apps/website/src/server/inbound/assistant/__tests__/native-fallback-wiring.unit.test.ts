@@ -8,7 +8,7 @@ import test from 'node:test';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { captureDaemonRun, daemonInitializer, evaluateDaemonExpression } from './helpers/daemon-source.js';
 import { buildBaseSystemOverlay, buildAssistantSubagentsOverlay } from '../assistant-system-overlay.js';
-import { evaluateHostSignals } from "#src/contracts/core/host-signals";
+import { evaluateHostSignals } from "@tovu/contracts/host-signals";
 import { TOOLS_FIRST_RULE } from '#src/contracts/core/assistant-native-fallbacks';
 import type { RunProtocolEvent } from '@jini-ai/protocol';
 import type { ToolAttemptEvent } from '@jini-ai/daemon/tool-audit';

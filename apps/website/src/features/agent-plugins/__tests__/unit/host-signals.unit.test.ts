@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { parseHostSignalDeclaration, readBundledHostSignalDeclaration, resolveBundledHostSignals } from "../../host-signals.js";
 import { agentPluginSourceDir } from "../../../../../../../development/test-support/agent-plugin-source.mjs";
-import { CORE_HOST_SIGNAL_FALLBACK } from "#src/contracts/core/host-signals";
+import { CORE_HOST_SIGNAL_FALLBACK } from "@tovu/contracts/host-signals";
 
 const signal = { env: "EXAMPLE_APP", facts: { hosted: true, nativeToolsRestricted: true, trustProxyHops: 1 }, label: "Example host" };
 const manifest = (hostSignals: unknown, deploymentAdvice?: unknown) => ({ extensions: { tovu: { hostSignals, deploymentAdvice } } });

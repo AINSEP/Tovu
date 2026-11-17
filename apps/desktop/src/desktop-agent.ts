@@ -45,7 +45,7 @@ import { assistantCliPermissions } from "../../website/src/assistant/assistant-s
 import { type AssistantCliPermissions } from "../../website/src/contracts/headless/index.ts";
 import { resolveFullCliAccess, resolveAssistantCliPermissions, isHostedAssistantRuntime, TOOLS_FIRST_RULE, resolveAssistantDisallowedTools } from "../../website/src/contracts/core/assistant-native-fallbacks.ts";
 import { resolveDesktopHostSignals } from "./desktop-host-signals.ts";
-import type { HostSignals } from "../../website/src/contracts/core/host-signals.ts";
+import type { HostSignals } from "@tovu/contracts/host-signals";
 import { createConversationStore, type ConversationStore } from "./workspace-conversation-store.ts";
 
 /** The one identity every desktop-agent tool call acts as: the local operator. */

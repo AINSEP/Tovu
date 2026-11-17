@@ -19,6 +19,8 @@ export const EXCEPTIONS_PATH = path.join(import.meta.dirname, "vendor-exceptions
 export const SCAN_ROOTS: readonly string[] = [
   "apps/website/src/", "apps/admin/src/",
   "apps/desktop/src/desktop-agent.ts", "apps/desktop/src/desktop-host-signals.ts",
+  // Moved out of the website tree (desktop extraction D0a); still core policy, so still scanned.
+  "packages/contracts/src/host-signals.ts",
 ];
 
 type Io = Pick<typeof fs, "existsSync" | "readFileSync" | "readdirSync">;
@@ -196,7 +198,7 @@ export function scanVendorSources({ rules }: { rules: readonly VendorRule[] }, {
 /** Reject absolute/traversing paths and unsupported glob syntax; Node owns glob matching. */
 function validPath({ value }: { value: unknown }, _options = {}): boolean {
   if (typeof value !== "string") return false;
-  return value.startsWith("apps/") && !value.includes("\\") && !value.split("/").includes("..")
+  return (value.startsWith("apps/") || value.startsWith("packages/contracts/")) && !value.includes("\\") && !value.split("/").includes("..")
     && !/[\[\]!?]/.test(value) && !value.endsWith("/");
 }
 

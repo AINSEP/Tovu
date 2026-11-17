@@ -29,7 +29,7 @@ export { catalog, PLUGINS_INSTALL_TOOL_ID } from './install-tool-catalog.js';
  */
 
 export type PluginsInstallToolDeps = Pick<PluginsToolDeps, "workspaceId" | "authorize" | "pluginInstaller" | "pluginSourcePolicy" | "tracker"> & {
-  readonly hostSignals: import("../../contracts/core/host-signals.js").HostSignals;
+  readonly hostSignals: import("@tovu/contracts/host-signals").HostSignals;
   readonly readInstallAttachment?: InstallAttachmentReader;
   /** Defaults to `process.env`; read per call so the switch matches the admin route's. */
   readonly env?: Readonly<Record<string, string | undefined>>;

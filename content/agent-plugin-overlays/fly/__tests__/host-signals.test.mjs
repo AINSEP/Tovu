@@ -7,7 +7,7 @@ import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "nod
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { evaluateHostSignals } from "../../../../apps/website/src/contracts/core/host-signals.ts";
+import { evaluateHostSignals } from "@tovu/contracts/host-signals";
 import { readBundledHostSignalDeclaration, resolveBundledHostSignals } from "../../../../apps/website/src/features/agent-plugins/host-signals.ts";
 import { resolveTrustProxySetting } from "../../../../apps/website/src/server/inbound/shared/trust-proxy.ts";
 import { createSitePluginPolicy, sitePluginLocalInstallEnabled } from "../../../../apps/website/src/features/plugin-runtime/install.ts";
