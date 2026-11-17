@@ -4,6 +4,7 @@ Planning only; nothing here was built, typechecked or run. Written 2026-11-17 (U
 after the Codex judge review; re-checked on Tovu `integ/merge-b-2026-11-16` @ `450ac748` (the held desktop patch is
 now committed there, so `apps/desktop` on merge-b is the desktop-args form) and `integ/merge-a` @ `e801e9ae`; Jini
 merge-b @ `9c982fd9`. A sheet and this file are one contract: where they disagree, STOP and report both lines.
+**Revision 3 (2026-11-16, Opus review):** `integ/merge-final-2026-11-16` now exists (Tovu `f70017dc`, Jini `65d73b0d`); the facts re-checked in revision 3 cite it. It becomes BASE only when the six desktop gates are green on it **without** `--no-verify` (INDEX P0).
 
 ## 1. Base (what the counts were measured on)
 
@@ -26,34 +27,104 @@ The patch conflicts with merge-a in **13 files** (11 tests, `src/main/index.ts`,
 cd ../Jini && pnpm install --config.prefer-workspace-packages=true && pnpm -r build
 # Tovu
 cd ../Tovu && npm ci && npm --prefix packages/contracts run build && npm ci --prefix apps/desktop
-cd apps/desktop && npm run build && npm run typecheck && npm test      # record as the baseline
+cd apps/desktop && npm run build && npm run typecheck      # record as the baseline
+# the full desktop test suite is NOT run on this machine: use the last cloud gate run on BASE as the test baseline (S1)
 ```
 A red baseline is **reported, not fixed**. Record both repo SHAs. Then run your sheet's **Inventory** block and compare with the sheet's numbers; a difference of more than the stated tolerance, or a file the sheet does not name: **STOP** and report.
 
 ## 3. STOP conditions (each has the command that detects it; `B` = your starting SHA)
 
-| # | Mistake a build run already made | Command (run before every push; must print nothing unless stated) |
+**Revision 3 (Opus review): every command is in the fenced blocks below the table, never inside the table.** A table cell must escape `|` as `\|`, and a command copied from the raw file then passes a literal `\|` (git gets a path argument, `rg`/`grep -E` match a literal pipe) and prints nothing, so the STOP silently passes. Copy commands from the fenced blocks only. Run them from the repository root of the repo you changed (Jini or Tovu), with `B` set first.
+
+| # | Mistake a build run already made | Rule (command: block of the same number below; it must print nothing unless stated) |
 |---|---|---|
-| S1 | Red commit, "fixed forward" | Work in progress goes to `wip/desktop-x/<sheet>` (push every 5-10 min, red allowed, never merged). The lane branch `desktop-x/<sheet>` gets a step only after its gate passes, and every lane commit is proven green alone before the push: `git rebase --exec '<gate>' B`, gate = Jini `pnpm --filter @jini-ai/<pkg> build && npm --prefix packages/<pkg> run test`; Tovu `npm --prefix apps/desktop run typecheck && npm --prefix apps/desktop test`. A failure not in the baseline stops the rebase: fix on wip, rebuild the lane commit. |
-| S2 | Custom hook imported, not injected | For every `.ts`/`.tsx` file you created, moved or edited (`git diff --name-only B..HEAD -- '*.ts' '*.tsx'`): `rg -n -U "import\s+(type\s+)?\{[^}]*\buse[A-Z]\w*[^}]*\}\s+from\s+['\"](?!react['\"])" -P <file>` (multiline-safe, whole file, not only added lines), then for each imported hook name `rg -n "\b<useName>\(" <file>`: a **call** of the imported name inside a component or hook body is a violation; the only allowed use is as the default value of a prop/option. Jini also: `node scripts/check-hook-injection.mjs` with no new key. Includes `useT`, `useAdminLocale`, kit hooks. |
-| S3 | Lazy import of a declared dependency | `git diff B..HEAD \| rg -n "^\+.*(await import\(\|[^.\w]import\(['\"]\|loadOptionalPeer\|createRequire\()"`. A missing module is fixed by **declaring the dependency** in `package.json`, never by deferring the import. `electron-updater` stays a static import. Existing lazy sites are not exempt: `rg -n "await import\(|[^.\w]import\(['\"]" apps/desktop/src apps/desktop/bin -g '!*.test.*'` (8 at planning) is the list sheet **D0e** removes (INDEX); a run that **moves** a file containing one stops unless its sheet names that site. |
-| S4 | Re-export shell left at the old path | `git diff B..HEAD \| rg -n "^\+\s*export (\*\|(type )?\{[^}]*\}) from"`. The old file is **deleted** and every importer repointed in the same commit. |
-| S5 | `vi.mock` / `mock.module` of another package's file | `git diff B..HEAD \| rg -n "^\+.*(vi\.mock\|mock\.module)\(['\"](@jini-ai/\|@tovu/\|(\.\./)+website/)"`. Tests pass a fake that implements the port type. |
-| S6 | Why-comments dropped in a move | by content, not count: `diff <(git show B:<old file> \| rg "^\s*(//\|/?\*)" \| sed 's/^\s*//' \| sort) <(rg -I "^\s*(//\|/?\*)" <new file(s)> \| sed 's/^\s*//' \| sort)`; every printed line needs a reason in the report. |
-| S7 | Stale counts | the sheet's Inventory block (section 2). |
-| S8 | Test weakened or deleted | report `# tests` / `# pass` before and after (desktop `npm test` prints both; Jini vitest prints `Tests N passed`). A moved test moves with its file; none is dropped. `git diff B..HEAD \| rg -n "^\+.*(\.skip\(\|\.todo\(\|toBeDefined\(\)\|istanbul ignore\|c8 ignore)"` |
-| S9 | Limits broken inside a new or grown file | functions <= 50 lines, complexity <= 10, file <= 500. Tovu: `npm --prefix apps/desktop run gates` and `npm run check:size && npm run check:complexity` at the repo root (ratchets in `development/scripts/size-debt.json`, `src-complexity-debt.json`). Jini: **`pnpm check:size && pnpm check:complexity`** (`package.json:27-28`); `pnpm guard` checks boundaries and neutrality only, not size. No new debt entry (`git diff B..HEAD -- '*debt*.json' \| rg "^\+" \| rg -v "^\+\+\+"` prints nothing); a moved file's old debt key is **deleted** in the same commit. A function that is over a limit **before** the move is split in its own commit first (the sheet names them). |
-| S10 | Package rule broken | Jini: `rg -n "from ['\"]@jini-ai/(?!core\|protocol)" -P packages/<pkg>/src` shows nothing new. Approved exceptions, applied before planning (lesson 27; owner rules in the round-2 brief): React entries may import `@jini-ai/ui-kit/react` (option C); host presets `server`/`cli`; `sqlite`/`infra` frozen. No `express`/`fastify`/`hono` import in any Jini domain package. The only new package directory allowed is the owner-approved **`packages/node-adapters`** (`@jini-ai/node-adapters`: Node fs/lock/process bindings); no `desktop-*` package. |
+| S1 | Red commit, "fixed forward" | Work in progress goes to `wip/desktop-x/<sheet>` (push every 5-10 min, red allowed, never merged). The lane branch `desktop-x/<sheet>` gets a step only after its gate passes, and every lane commit is proven green alone before the push with `git rebase --exec`. The gate is typecheck + build + the tests of the files the commit changed (owner rule: only changed files locally); the full desktop suite runs once per wave in the cloud gate run (INDEX section 5), never on this machine. A failure not in the baseline stops the rebase: fix on wip, rebuild the lane commit. |
+| S2 | Custom hook imported, not injected | Every `.ts`/`.tsx` file you created, moved or edited, whole file (not only added lines, multiline-safe): a **call** of an imported `use*` name inside a component or hook body is a violation; the only allowed use is as the default value of a prop/option. Plus the repo's hook gate with no new key. Includes `useT`, `useAdminLocale`, kit hooks. |
+| S3 | Lazy import of a declared dependency | No **new** runtime `import()` call, `createRequire(` or `loadOptionalPeer`. Counted on the TypeScript syntax tree, so type-position `typeof import("x")`, `x: import("x").T` and JSDoc `{@link import(...)}` are not counted (the round-2 regex counted about 28 such lines on the desktop; the real runtime `import()` calls are the 8 sites D0e owns). A missing module is fixed by **declaring the dependency** in `package.json`, never by deferring the import. `electron-updater` stays a static import. A run that **moves** a file containing one of the existing sites stops unless its sheet names that site. |
+| S4 | Re-export shell left at the old path | The old file is **deleted** and every importer repointed in the same commit. A pre-existing alias line in a real module (for example `apps/admin/src/lib/assistant-subagents.ts:3`) that is only repointed is listed in the report with its line at `B`. |
+| S5 | `vi.mock` / `mock.module` of another package's file | Tests pass a fake that implements the port type. |
+| S6 | Why-comments dropped in a move | By content, not count; every printed line needs a reason in the report. |
+| S7 | Stale counts | the sheet's Inventory block (section 2). A sheet whose Inventory is its "Measured" table (D3-D6) runs block S7. |
+| S8 | Test weakened or deleted | Report `# tests` / `# pass` before and after (desktop `node --test` prints both; Jini vitest prints `Tests N passed`). A moved test moves with its file; none is dropped. |
+| S9 | Limits broken inside a new or grown file | Functions <= 50 lines (blank and comment lines not counted), cyclomatic complexity <= 10, cognitive complexity <= 10, file <= 500. **The repo gates do not enforce 50**: Jini `check:size` errors only at 80 (`scripts/check-size.mjs:15` sets `max-lines-per-function: 80`; 50 is a warning, `:39`), and Tovu's ratchets compare against debt lists. So block S9 runs ESLint with the limits as errors: files created or moved by the run must pass outright; files edited in place may not gain an error. Also run the repo gates (Tovu `npm --prefix apps/desktop run gates`, root `npm run check:size && npm run check:complexity`; Jini `pnpm check:size && pnpm check:complexity`, `package.json:27-28` on merge-final; `pnpm guard` checks boundaries and neutrality only). No new debt entry; a moved file's old debt key is **deleted** in the same commit. A function that is over a limit **before** the move is split in its own commit first (the sheet names them). |
+| S10 | Package rule broken | Jini: no new import of another `@jini-ai/*` package than `core`/`protocol`. Approved exceptions, applied before planning (lesson 27; owner rules in the round-2 brief): React entries may import `@jini-ai/ui-kit/react` (option C); host presets `server`/`cli`; `sqlite`/`infra` frozen; `@jini-ai/node-adapters` (kind `runtime-adapter`) may import `@jini-ai/platform`, and only a host, a preset or an example may import it (xpkg N1's gate rule). No `express`/`fastify`/`hono` import in any Jini domain package. **No new package directory.** `@jini-ai/node-adapters` is created only by xpkg sheet **N1** (`plan/xpkg-lane-sheets-2026-11-16`, wave 0b); this plan adds subpaths to it, never creates it, and puts only fs/lock/process bindings in it (OD-3, decided 2026-11-16). No `desktop-*` package. |
 | S11 | Pre-push gate bypassed | never `--no-verify`. If the desktop hook cannot run here (no Electron binary), push the Jini branch, save the Tovu desktop commits as `cloud-results/desktop-extraction/<sheet>.patch` on a docs-only branch, and say so first in the report. |
-| S12 | Export-map entry that does not build | for every `exports` key you add: `node -e "import('@jini-ai/<pkg>/<entry>').then(m=>console.log(Object.keys(m).length))"` from a host that depends on it, in the commit that adds the key. Add the same key to `jini.entries` with its runtime; `pnpm guard` must pass. |
+| S12 | Export-map entry that does not build | for every `exports` key you add, from a host that depends on it, in the commit that adds the key. Add the same key to `jini.entries` with its runtime; `pnpm guard` must pass. |
+
+```bash
+B=<your starting SHA>            # set once; every block below uses it
+SRC='\.(ts|tsx|mts|cts|js|mjs)$'; TESTS='(__tests__/|\.test\.|\.spec\.|\.d\.ts$)'
+
+# S1: gate each lane commit. GATE = typecheck + build + the changed files' tests. Tovu example:
+git rebase --exec 'npm --prefix apps/desktop run typecheck && T=$(git diff --name-only HEAD~1 -- apps/desktop/src | sed -E "s#\.(ts|tsx)\$#.test.\1#" | while read f; do [ -f "$f" ] && echo "${f#apps/desktop/}"; done; git diff --name-only HEAD~1 -- "apps/desktop/src/**/*.test.ts*" | sed "s#^apps/desktop/##"); [ -z "$T" ] || (cd apps/desktop && node --experimental-test-module-mocks --import ./scripts/resolve-ts-ext.ts --test $T)' "$B"
+# Jini example (one package): git rebase --exec 'pnpm --filter @jini-ai/<pkg> build && pnpm --filter @jini-ai/<pkg> exec vitest run --changed HEAD~1' "$B"
+# (renderer tests use the desktop's second runner: node --import ./scripts/one-react.ts --import tsx --test <files>)
+
+# S2: hooks
+for f in $(git diff --name-only --diff-filter=ACMR "$B"..HEAD -- '*.ts' '*.tsx'); do
+  rg -n -U -P "import\s+(type\s+)?\{[^}]*\buse[A-Z]\w*[^}]*\}\s+from\s+['\"](?!react['\"])" "$f"
+done   # for each hook name printed: rg -n "\b<useName>\(" <file>  -> a call in a body is a violation
+node scripts/check-hook-injection.mjs          # Jini (Tovu: npm run check:hooks); no new key
+
+# S3: lazy imports (runtime import() calls on the syntax tree; prints "<call>\t<file>:<line>")
+lazy() { node --input-type=module -e '
+import ts from "typescript"; import { readFileSync } from "node:fs";
+for (const f of process.argv.slice(1)) {
+  const sf = ts.createSourceFile(f, readFileSync(f, "utf8"), ts.ScriptTarget.Latest, true);
+  const walk = (n) => { if (ts.isCallExpression(n) && n.expression.kind === ts.SyntaxKind.ImportKeyword)
+    console.log(n.getText(sf).replace(/\s+/g, " ") + "\t" + f + ":" + (sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1));
+    ts.forEachChild(n, walk); };
+  walk(sf);
+}' "$@"; }
+S3() {   # usage: S3 <dirs the run touched>, e.g. S3 apps/desktop/src apps/desktop/bin   or   S3 packages/sidecar/src
+  T=$(mktemp -d); git archive "$B" -- "$@" | tar -x -C "$T"
+  lazy $(cd "$T" && rg --files "$@" -g '*.{ts,tsx,mts,cts,js,mjs}' -g '!*.test.*' | sed "s#^#$T/#") | cut -f1 | sort > "$T/.before"
+  lazy $(rg --files "$@" -g '*.{ts,tsx,mts,cts,js,mjs}' -g '!*.test.*') | cut -f1 | sort > "$T/.after"
+  comm -13 "$T/.before" "$T/.after"            # new runtime import() calls: must print nothing
+}
+git diff "$B"..HEAD | rg -n '^\+.*(loadOptionalPeer|createRequire\()'          # must print nothing
+lazy $(rg --files apps/desktop/src apps/desktop/bin -g '*.{ts,tsx,mts,cts}' -g '!*.test.*')   # census of existing sites (D0e list; 8 on merge-final)
+
+# S4: re-export shells
+git diff "$B"..HEAD | rg -n '^\+\s*export (\*|(type )?\{[^}]*\}) from'
+# S5: mocks of another package's file
+git diff "$B"..HEAD | rg -n "^\+.*(vi\.mock|mock\.module)\(['\"](@jini-ai/|@tovu/|(\.\./)+website/)"
+# S6: why-comments (one pair per moved file)
+diff <(git show "$B":<old file> | rg '^\s*(//|/?\*)' | sed -E 's/^[[:space:]]*//' | sort) \
+     <(rg -I '^\s*(//|/?\*)' <new file(s)> | sed -E 's/^[[:space:]]*//' | sort)
+# S7: Measured-table inventory (D3-D6): every file in the sheet's table, with the line count it states
+wc -l <each file named in the sheet's Measured table>     # missing file, or > 5 % off the stated count: STOP
+# S8: weakened tests
+git diff "$B"..HEAD | rg -n '^\+.*(\.skip\(|\.todo\(|toBeDefined\(\)|istanbul ignore|c8 ignore)'
+
+# S9: function <= 50 (blank/comment lines skipped), complexity <= 10, cognitive <= 10, file <= 500
+LIMITS='{"max-lines-per-function":["error",{"max":50,"skipBlankLines":true,"skipComments":true}],"complexity":["error",10],"sonarjs/cognitive-complexity":["error",10],"max-lines":["error",{"max":500,"skipBlankLines":true,"skipComments":true}]}'
+esl() { npx eslint --no-inline-config --rule "$LIMITS" "$@"; }             # Jini: root eslint.config.mjs registers sonarjs + TS parser
+# Tovu: esl() { npx eslint --no-config-lookup --config development/scripts/complexity-eslint.config.mjs --no-inline-config --rule "$LIMITS" "$@"; }
+NEW=$(git diff --name-only --diff-filter=AR "$B"..HEAD | rg "$SRC" | rg -v "$TESTS")
+[ -z "$NEW" ] || esl $NEW       # (a) created or moved files: must print nothing; a "File ignored" warning = not checked: STOP
+for f in $(git diff --name-only --diff-filter=M "$B"..HEAD | rg "$SRC" | rg -v "$TESTS"); do   # (b) edited files may not gain an error
+  b=$(git show "$B:$f" | esl --stdin --stdin-filename "$f" | rg -c '^\s+[0-9]+:[0-9]+\s+error\s' || true)
+  h=$(esl "$f" | rg -c '^\s+[0-9]+:[0-9]+\s+error\s' || true)
+  [ "${h:-0}" -le "${b:-0}" ] || echo "GREW $f: ${b:-0} -> $h"
+done
+git diff "$B"..HEAD -- '*debt*.json' | rg '^\+' | rg -v '^\+\+\+'           # no new debt entry
+
+# S10: package rule (Jini; new lines only)
+git diff "$B"..HEAD -- 'packages/*/src' | rg -n -P "^\+.*from ['\"]@jini-ai/(?!core['\"/]|protocol['\"/])"   # each line must be an approved exception
+git diff --name-only --diff-filter=A "$B"..HEAD -- 'packages/*/package.json'   # a new package: STOP
+
+# S12: each added export key (run from a host that depends on it)
+node -e "import('@jini-ai/<pkg>/<entry>').then(m=>console.log(Object.keys(m).length))"
+```
 
 ## 4. Rules in force (acceptance criteria)
 
 - Dependencies arrive through **typed ports** as arguments. Exported functions take `(required, optional = {})`.
 - A Jini package imports only itself, `@jini-ai/core`, `@jini-ai/protocol`. `desktop-host` has **no** `electron` dependency: Electron objects are passed in as structurally typed ports (as `speech/speech-ipc.ts` does).
-- No new `desktop-*` package. Node bindings of ports (process observation and signalling, file locks) go to the owner-approved new `@jini-ai/node-adapters`; a domain package declares the port and never imports it. Homes: `desktop-host` subpaths, `sidecar`, `platform/fs`, `ui`, `chat`, `diagnostics`, `devops/packaging/electron`.
+- No new `desktop-*` package. Node bindings of ports (process observation and signalling, file locks) go to `@jini-ai/node-adapters` (created by xpkg N1 only; fs/lock/process bindings only, OD-3 decided 2026-11-16); a domain package declares the port and never imports it. Homes: `desktop-host` subpaths, `sidecar`, `platform/fs`, `ui`, `chat`, `diagnostics`, `devops/packaging/electron`.
 - New entry files are real modules (the `sidecar` pattern: `"./supervisor" -> supervision/supervisor.js`), not barrels.
-- **Windows is a target.** Any process, path or signal code needs a Windows branch and a test that runs with `platform: 'win32'` injected. No `ps`, no POSIX-only signal as the only path.
+- **Windows is a target.** Any process, path or signal code needs a Windows branch and a test that runs with `platform: 'win32'` injected. No `ps`, no POSIX-only signal as the only path. Where today's Windows branch is "unknown, do nothing" (orphan identity, D3b), a move keeps that behaviour, says so as a stated limit, and owes a manual Windows check; changing it is its own owner decision (OD-5b).
 - Errors: plain words for the user plus a details field; typed errors at module boundaries; no `catch {}`.
 - Security text in commits, sheets and reports: **class and location only** (the repositories are public).
 - Port bindings are checked for **behaviour**: argument order, object versus positional, which object a field sits in. Each sheet names the binding lines and the test that fails when an argument is dropped.

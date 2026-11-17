@@ -38,7 +38,9 @@ Rows 9 to 16 are Tovu product code that two Tovu apps share and that runs in Nod
 
 ---
 
-## D0a: pure contracts to `@tovu/contracts` (Tovu only; ~110k; proof T)
+## D0a: pure contracts to `@tovu/contracts` (Tovu only; ~120k; proof T, then **P steps 1-3**)
+
+Revision 3 (judge finding 6): `daemon-exit-codes` and `hosted-sign-in-links` are loaded by the packaged main process at runtime (`main/index.ts`), so this run owes COMMON section 6 P steps 1-3 (stage, package, `verify-staged-closure.ts --asar <archive>` shows `@tovu/contracts` resolving inside the archive). Tovu only, so no Jini snapshot is needed.
 
 ```
 id: D0a-contracts
@@ -51,7 +53,23 @@ moves (git mv; old path deleted; no shell):
 delete: apps/website/src/assistant/assistant-subagents-policy.ts (shell; its 8 importers go to the package)
 ```
 1. **Inventory every importer first** (website, admin, site-chat, development, desktop, tests): `rg -l "contracts/core/host-signals|contracts/core/assistant-native-fallbacks|assistant/daemon-exit-codes|hosted-sign-in-links|assistant-subagents-policy" apps development packages -g '*.{ts,tsx,mts,mjs}'`. Planning count: 45 non-test files outside desktop, plus desktop's 9 and their tests. More than 80 files in total: split after step 3 and report.
-2. `contracts/headless/index.ts` references the deleted shell **twice**: `:13` (`export type { AssistantCliCapability, AssistantCliPermissions }`) and `:14` (five value names). No re-export exception is taken (round 1 granted itself one; judge findings 15, 16). In the commit that deletes `assistant-subagents-policy.ts`: delete **both** barrel lines and repoint every file that takes one of those seven names through the headless barrel to `@tovu/contracts/assistant-native-fallbacks`. Census: `rg -l "\b(AssistantCliCapability|AssistantCliPermissions|ASSISTANT_SUBAGENTS_NAMESPACE|ASSISTANT_SUBAGENTS_KEY|ASSISTANT_CLI_PERMISSIONS_KEY|ASSISTANT_CLI_CAPABILITIES|ASSISTANT_SUBAGENTS_WRITE_REASON)\b" apps packages development -g '*.{ts,tsx,mts,mjs}' | xargs rg -l "contracts/headless|@tovu/headless"` (type and value importers both). More than 80 files: land the repoint as its own earlier commit (importers take the names from the still-existing shell's package target), then the delete. Proof: `rg -n "assistant-subagents-policy" apps packages development` prints nothing; website, admin and desktop typecheck.
+2. **Headless barrel (revision 3; round-2 text was wrong, Opus review).** `contracts/headless/index.ts:13-14` export the seven names from `./assistant-subagents-policy.js`: that is the **headless definitions file** `contracts/headless/assistant-subagents-policy.ts`, which this run **moves** to `packages/contracts/src/assistant-subagents-policy.ts`. It is not the shell `assistant/assistant-subagents-policy.ts`, which only does `export { assistantCliPermissions } from "../contracts/core/assistant-native-fallbacks.js"` (merge-final, its only line). `assistant-native-fallbacks.ts` does **not** export the seven names; it imports them (`:1`). So:
+   - In the commit that moves the definitions file: delete **both** barrel lines and repoint every file that takes one of the seven names through the headless barrel (`#src/contracts/headless/index`, relative `contracts/headless/index.js`, or the `@tovu/headless` alias in `apps/admin`) to **`@tovu/contracts/assistant-subagents-policy`** (the package's `./*` export map already serves it). Direct importers of the definitions file (merge-final: `assistant/daemon-core-protocol.ts:5`, `contracts/core/assistant-native-fallbacks.ts:1`) are repointed in the same commit. No re-export exception is taken (judge findings 15, 16). `apps/admin` already depends on `@tovu/contracts` (`apps/admin/package.json:21`); `apps/admin/src/lib/assistant-subagents.ts:3` is a pre-existing alias line in a real module: repoint it and list it in the report (S4).
+   - In the commit that deletes the shell `assistant/assistant-subagents-policy.ts`: its importers (23 files on merge-final, tests included) take `assistantCliPermissions` from **`@tovu/contracts/assistant-native-fallbacks`**.
+   - More than 80 files in either census: land the repoint as its own earlier commit, then the move/delete.
+   ```bash
+   # census A: the seven names through the headless barrel (type and value importers)
+   rg -l "\b(AssistantCliCapability|AssistantCliPermissions|ASSISTANT_SUBAGENTS_NAMESPACE|ASSISTANT_SUBAGENTS_KEY|ASSISTANT_CLI_PERMISSIONS_KEY|ASSISTANT_CLI_CAPABILITIES|ASSISTANT_SUBAGENTS_WRITE_REASON)\b" apps packages development -g '*.{ts,tsx,mts,mjs}' \
+     | xargs rg -l "contracts/headless(/index)?(\.js)?['\"]|@tovu/headless['\"]"
+   # census B: the shell and the definitions file by path
+   rg -l "(assistant|headless)/assistant-subagents-policy" apps packages development -g '*.{ts,tsx,mts,mjs}'
+   # proof (after the run): all four print nothing
+   test -e apps/website/src/assistant/assistant-subagents-policy.ts && echo "shell still exists"
+   test -e apps/website/src/contracts/headless/assistant-subagents-policy.ts && echo "definitions file not moved"
+   rg -n "(assistant|headless)/assistant-subagents-policy" apps packages development -g '!**/node_modules/**' -g '!**/dist/**'
+   rg -n "assistant-subagents-policy" apps/website/src/contracts/headless/index.ts
+   ```
+   The proof does not search for the bare name `assistant-subagents-policy`: the moved file keeps that name in `packages/contracts`, so that search could never pass. Then website, admin and desktop typecheck.
 3. One commit per moved file, each green alone: move, repoint every importer, run website typecheck (`npx tsc -p apps/website --noEmit` or the repo's `npm run typecheck`), `packages/contracts` build, desktop `npm run typecheck && npm test`.
 4. Compiler check (lesson 22): `packages/contracts/tsconfig.json` is `module: NodeNext`, no `verbatimModuleSyntax`. The moved files use `.js` relative specifiers already; `#src/...` aliases inside them must become relative `./x.js`. A type-only import that the website compiled away must be written `import type` so the built `.js` has no runtime edge to it.
 5. `@tovu/contracts` gains no dependency. If a moved file needs one: **STOP**.
@@ -62,7 +80,9 @@ delete: apps/website/src/assistant/assistant-subagents-policy.ts (shell; its 8 i
 
 ---
 
-## D0b: generic log helpers to `@jini-ai/diagnostics` (Jini + Tovu pair; ~120k; proof T, then P with D0c2)
+## D0b: generic log helpers to `@jini-ai/diagnostics` (Jini + Tovu pair; ~120k; proof T, then **P steps 1-3** on the published diagnostics snapshot, OD-10)
+
+Revision 3: `console-tee` is used by `tovu-server.ts` in the packaged main process, so P steps 1-3 are owed by this run itself (COMMON section 6), not deferred to D0c2.
 
 Existing-owner search (done): Jini has `redactText` with a `username` option (`diagnostics/src/redaction.ts:58`) but nothing that masks a literal home directory, and no console tee or redacting output sink (`rg -i "consoletee|createRedactedOutputSink|LogBuffer" packages/*/src` is empty).
 
@@ -87,7 +107,7 @@ tovu: every importer repointed; the three website files deleted
 ## D0c1: telemetry boot shared code to `@tovu/host-shared` — **NOT EXECUTABLE in revision 2: needs the D0c design run first** [needs OD-1]
 Round 1 scheduled four module moves "one per green commit" while the import closures were unresolved (judge blocker 5). Verified on merge-b `450ac748`: `server/runtime/composition/product-telemetry.ts` imports `#src/server/runtime/composition/build-release` (`:16`, no move assigned); computes `INSTALL_ROOT` and `KEEP_ROOTS` **from its own file location** (`:32-37`, "five levels above composition/") and resolves provider packages relative to it (`:123-125`); and dynamically imports the host plugin binding and provider contracts (`:120-121`). Moving the file changes those roots (lesson 32) and drags host composition into a shared package. Injecting `resolvePackage` alone does not preserve them.
 **Decisions fixed now (the design may not reopen them):**
-1. Host composition stays in each app. `loadProductProviders` and everything that reads `import.meta.url`, the plugin host binding or the provider contracts stays in `apps/website` (unchanged) and gets a desktop twin written in `apps/desktop/src/main/updates/` that passes the desktop's own roots. No dynamic import moves (S3).
+1. Host composition stays in each app. `loadProductProviders` and everything that reads `import.meta.url`, the plugin host binding or the provider contracts stays in `apps/website` (unchanged) and gets a desktop twin written in `apps/desktop/src/main/updates/` that passes the desktop's own roots. No dynamic import moves (S3), and **the twin does not copy them**: the website's `product-telemetry.ts:120-121` dynamic imports of the host plugin binding and the provider contracts stay in the website only; the desktop twin imports what it needs statically (declared dependencies) or receives it as an argument. A twin that contains `import(` fails S3.
 2. Only code with a **closed, location-free closure** moves to `@tovu/host-shared`, and it takes what it used to derive as required arguments: `{ installRoot, keepRoots, release, providers }`.
 3. `process-error-guards.ts`: installations are **independent** — the file documents that a second registration is harmless and deliberately not guarded (`:59-63`), each call adds its own listener (`:75-85`) and each disposer removes only its own (`:139-141`). Round 1's "idempotent: two installs, one dispose, back to baseline" would be a behaviour change (judge finding 14). Characterization: two installs add two listeners; disposing the first leaves exactly one; disposing the second returns to the baseline; the first disposer called twice removes nothing more.
 **D0c design run (one Opus-class run, about 200k, edits no source; output `desktop-extraction/designs/D0c.md`):**
@@ -113,9 +133,11 @@ Rows 13 to 16.
 
 ## D0d: renderer-safe bridge entry in `desktop-host`; unused desktop deps (Jini + Tovu; ~40k; proof T)
 
+**One owner (coordinator decision, 2026-11-16):** this run is the only one that adds `desktop-host` `./bridge`. The notes plan's former D0 sheet no longer builds it; notes `D1` (notes-desktop) lists this run as a prerequisite and consumes the entry.
+
 1. `packages/desktop-host/src/index.ts` (22 lines) re-exports `sidecar.ts` (`node:child_process`), `logging.ts` and `windows-registry.ts` beside `bridge.ts` (180 lines, no imports). Add export key `"./bridge": dist/bridge.js` with `jini.entries` runtime `"universal"`. Do **not** remove anything from the root entry (hosts import `RenderServiceError`, `withRenderTimeout`, `UrlCapturePort` from it: 6 Tovu sites).
 2. Test first (`src/__tests__/bridge-entry.test.ts`): read the built `dist/bridge.js` import graph (or `bridge.ts` source) and assert it has no `node:` specifier and no relative import. Red when someone adds one.
-3. Tovu: `apps/desktop/package.json` declares `@mcp-ui/client` and `@cfworker/json-schema` with **0** import sites in `src`, `scripts`, `bin` (verified by `rg`). Before removing: `rg -n "mcp-ui/client|cfworker" apps/desktop/src/stage-payload-lib.ts apps/desktop/electron-builder.yml apps/website/package.json` and `npm ls @mcp-ui/client --prefix apps/desktop`. If the staged payload or a Jini package's peer range needs them, **keep and report why**; otherwise remove both, run `npm install --prefix apps/desktop`, report the lock diff for the coordinator. Proof P rides on D0c2's packaged run.
+3. Tovu: `apps/desktop/package.json` declares `@mcp-ui/client` and `@cfworker/json-schema` with **0** import sites in `src`, `scripts`, `bin` (verified by `rg`). Before removing: `rg -n "mcp-ui/client|cfworker" apps/desktop/src/stage-payload-lib.ts apps/desktop/electron-builder.yml apps/website/package.json` and `npm ls @mcp-ui/client --prefix apps/desktop`. If the staged payload or a Jini package's peer range needs them, **keep and report why**; otherwise remove both, run `npm install --prefix apps/desktop`, and commit the regenerated `apps/desktop/package-lock.json` **in the same commit** as the manifest change (COMMON section 5: the landing unit includes the lockfile; nothing is left for a coordinator). Proof: T here; the packaged check of the smaller dependency set rides on D0c2's P run.
 
 ## Starting inventory per run (round-1 judge finding 18: one fixed 16-module table cannot be every run's start)
 Each run's Inventory block is this command, and its expected result is the table's rows **minus what earlier runs removed**:
@@ -130,3 +152,4 @@ A different set (not only a different count) is a STOP: report the module names.
 
 ## D0e: remove the existing lazy imports of declared dependencies (new in revision 2; outline, design-first)
 Owner rule: declared dependencies are imported statically. Round 1 left the 8 existing `await import(` sites to OD-7 with no sheet. They are now a scheduled run **after D0c2** with proof P (it needs one deduplicated `@jini-ai/core` in the staged closure; the "resolve core from the daemon's location" site at `desktop-agent.ts:219-221` is the hard one and is shared with daemon R7/R8). Not yet an executable sheet: its first step is the per-site table (site | what the lazy load works around | the static form | what must be true in the packaged closure). About 150k after that table is reviewed.
+**The 8 runtime sites (merge-final, counted on the syntax tree by COMMON block S3; the round-2 regex's other ~20 matches are type-position `import()` and JSDoc, not lazy loads):** `desktop-agent.ts:222` (core from the daemon's location; the `import.meta.resolve`/`createRequire` pair at `:220-221`), `renderer/app-render-harness.ts:45,47,48`, `smoke-bridge.ts:76,77,86`, `smoke-native.ts:257`. Also in scope as the same class: `site-directory-identity.ts:94` (`createRequire(import.meta.url)('node:sqlite')`). The website's `product-telemetry.ts:120-121` dynamic imports stay in the website and are **not** copied into the desktop twin (D0c1 decision 1).

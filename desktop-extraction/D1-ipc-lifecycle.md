@@ -6,16 +6,24 @@ Inherits `COMMON.md`. Survey step 1. Order inside: D1a -> D1b1 -> D1b2; D1c1 and
 
 | Fact | Count | How |
 |---|---|---|
-| `ipcMain.handle/on` registrations, non-test | **57** in 13 files: `project-ipc.ts` 23, `workspace-chat-ipc.ts` 18, `site-view-preference.ts` 4, `site-theme-preview-ipc.ts` 2, `app-version-ipc.ts` 2, and 1 each in `update-check-now.ts`, `speech/speech-ipc.ts`, `runner-ipc-stubs.ts`, `resources-ipc.ts`, `product-telemetry-ipc.ts`, `owner-store-ipc.ts`, `import-handoff-ipc.ts`, `find-in-page-ipc.ts` | `rg -n "ipcMain\.(handle\|on\|once)\(" src -g '!*.test.*'` |
+| `ipcMain.handle/on` registrations, non-test | **57** in 13 files: `project-ipc.ts` 23, `workspace-chat-ipc.ts` 18, `site-view-preference.ts` 4, `site-theme-preview-ipc.ts` 2, `app-version-ipc.ts` 2, and 1 each in `update-check-now.ts`, `speech/speech-ipc.ts`, `runner-ipc-stubs.ts`, `resources-ipc.ts`, `product-telemetry-ipc.ts`, `owner-store-ipc.ts`, `import-handoff-ipc.ts`, `find-in-page-ipc.ts` | command M1 below |
 | Channel string literals in `src/contracts/*` | **70** (`runner:sites` 26, `workspace:chat` 8, `runner:owner-store` 6, `workspace:conversations` 6, `runner:site-view-preference` 5, `runner:find` 4, `runner:working-directory` 4, 11 others) | see INDEX section 2 |
 | Preload: `ipcRenderer.invoke/send` call sites / `subscribe` uses | 60 / 7 (`src/preload/preload.mts`, 225 lines) | `rg -c` |
 | Bridges exposed | 6 globals: `tovuRunner`, `tovuOwnerStore`, `tovuTelemetry` (ESM preload, sites-home window, unsandboxed), `tovuVoice`, `tovuFiles`, `tovuImport` (`speech/preload-speech.cts`, sandboxed site-admin windows; also read by `apps/admin`) | `rg -n exposeInMainWorld src` |
-| Files that check the sender today | 8: `speech-ipc`, `import-handoff-ipc`, `owner-store-ipc`, `product-telemetry-ipc` (main frame **and** page URL), `resources-ipc`, `workspace-chat-ipc`, `find-in-page-ipc`, `main/index.ts`; in `project-ipc.ts` only `SITE_PRESENCE_CHANNEL` and `keepRunning` read `sender`; **21 of its 23 handlers take `_event`** | `rg -n "isTrustedSender\|senderFrame\|event\.sender" src -g '!*.test.*'` |
+| Files that check the sender today | 8: `speech-ipc`, `import-handoff-ipc`, `owner-store-ipc`, `product-telemetry-ipc` (main frame **and** page URL), `resources-ipc`, `workspace-chat-ipc`, `find-in-page-ipc`, `main/index.ts`; in `project-ipc.ts` only `SITE_PRESENCE_CHANNEL` and `keepRunning` read `sender`; **21 of its 23 handlers take `_event`** | command M2 below |
 | Existing Jini owner of the check | `desktop-host/src/speech/speech-ipc.ts:22` `assertTrustedSender` (private; refuses a null `senderFrame`). No general kit (`rg -n "ipcMain" packages/desktop-host/src` shows speech and find-in-page only). | |
+
+```bash
+# from apps/desktop
+rg -n "ipcMain\.(handle|on|once)\(" src -g '!*.test.*'                    # M1
+rg -n "isTrustedSender|senderFrame|event\.sender" src -g '!*.test.*'       # M2
+```
 
 ---
 
-## D1a: `desktop-host` IPC kit (Jini; ~150k; proof T)
+## D1a: `desktop-host` IPC kit (Jini; ~160k; proof T) — **this plan is the one owner of the kit** (revision 3)
+
+Coordinator decision (2026-11-16): one owner per shared surface. The IPC kit lives at **`./electron/ipc`** (main side) and **`./electron/ipc/preload`** (preload side). Neither name exists today (merge-final `packages/desktop-host/package.json` exports: `./electron`, `./electron/navigation-policy`, `./electron/updates`, `./electron/usability`, `./speech`, ...); `./electron/ipc` follows the existing `./electron/*` naming, so the notes plan's `./ipc` (`defineChannels`/`exposeBridge`/`handleTrusted`) is withdrawn and the notes plan consumes this kit.
 
 ```
 id: D1a-ipc-kit
@@ -25,23 +33,29 @@ new: packages/desktop-host/src/electron/ipc/trusted-sender.ts   (the one sender 
 edit: packages/desktop-host/src/speech/speech-ipc.ts            (uses trusted-sender.ts; its private copy is deleted)
       packages/desktop-host/package.json                        (exports + jini.entries: "./electron/ipc" -> trusted-ipc.js, "./electron/ipc/preload" -> preload-bridge.js; both "desktop")
       examples/reference-desktop/src/{main.ts,preload.cts,security.ts}  (adopts the kit)
+      examples/reference-desktop/package.json                   (preload bundling step, below)
 ```
-**Contract (no `electron` import; Electron objects arrive as structural ports):**
+**Contract (revision 3: a `'main-frame'` policy; the policy is a required field of every registration; refusals are reported; no `electron` import, Electron objects arrive as structural ports):**
 ```ts
 // trusted-sender.ts
 export interface IpcSenderEvent { senderFrame?: { url: string; parent?: unknown | null } | null; sender?: { getURL(): string } }
-export type SenderPolicy = 'frame' | 'main-frame-and-page';
-/** Refuses unless the sender frame URL passes. A null or missing frame never passes. */
-export function isTrustedIpcSender(required: { event: IpcSenderEvent | undefined; isTrustedSender: (r: { senderUrl: string }) => boolean }, optional?: { policy?: SenderPolicy }): boolean
+export type SenderPolicy = 'frame' | 'main-frame' | 'main-frame-and-page';
+export type SenderPredicate = (r: { senderUrl: string }) => boolean;
+/** Refuses unless the event passes `policy` under `isTrustedSender`. A null or missing frame never passes. No default policy. */
+export function isTrustedIpcSender(required: { event: IpcSenderEvent | undefined; isTrustedSender: SenderPredicate; policy: SenderPolicy }): boolean
 // trusted-ipc.ts
 export interface IpcMainPort {              // Electron's own positional shape (Electron-dictated, exempt from object args)
   handle(channel: string, listener: (event: IpcSenderEvent, ...args: unknown[]) => unknown): void
   on(channel: string, listener: (event: IpcSenderEvent, ...args: unknown[]) => void): unknown
   removeHandler(channel: string): void
   removeListener(channel: string, listener: (...args: never[]) => void): unknown }
-export function createTrustedIpc(required: { ipcMain: IpcMainPort; isTrustedSender: (r: { senderUrl: string }) => boolean; messages: { senderRefused: string; missingSenderGuard: string } }, optional?: { policy?: SenderPolicy }):
-  { handle(r: { channel: string; handler: (r: { event: IpcSenderEvent; args: readonly unknown[] }) => unknown }): void
-    on(r: { channel: string; listener: (r: { event: IpcSenderEvent; args: readonly unknown[] }) => void }): void
+export interface IpcRefusal { channel: string; kind: 'handle' | 'on'; policy: SenderPolicy; senderUrl: string | null }   // never the payload
+export function createTrustedIpc(required: {
+    ipcMain: IpcMainPort;
+    messages: { senderRefused: string; missingSenderGuard: string; missingPolicy: string };
+    reportRefusal: (r: IpcRefusal) => void }):
+  { handle(r: { channel: string; policy: SenderPolicy; isTrustedSender: SenderPredicate; handler: (r: { event: IpcSenderEvent; args: readonly unknown[] }) => unknown }): void
+    on(r: { channel: string; policy: SenderPolicy; isTrustedSender: SenderPredicate; listener: (r: { event: IpcSenderEvent; args: readonly unknown[] }) => void }): void
     dispose(): void }
 // preload-bridge.ts
 export function createPreloadBridge(required: { ipcRenderer: { invoke(channel: string, ...a: unknown[]): Promise<unknown>; send(channel: string, ...a: unknown[]): void; on(c: string, l: (...a: unknown[]) => void): unknown; removeListener(c: string, l: (...a: unknown[]) => void): unknown } }):
@@ -49,33 +63,35 @@ export function createPreloadBridge(required: { ipcRenderer: { invoke(channel: s
     subscribe<P>(r: { channel: string; listener: (payload: P) => void }): () => void }   // never forwards the event object
 ```
 Decisions:
-1. **`handle` refuses by throwing** `messages.senderRefused` (the renderer's `invoke` rejects); **`on` refuses by dropping silently** (a `send` has no reply; this matches `product-telemetry-ipc.ts` today). Two contracts, kept apart (lesson 7).
-2. A missing `isTrustedSender` throws `missingSenderGuard` at construction: fail closed, as speech does today. There is no trust-all default and no option to turn the check off.
-3. Three policies, kept apart because today's handlers use three different gates (round-1 judge blocker 1): `'frame'` = the sender frame's URL passes (today's speech rule); `'main-frame'` = the sender frame exists, **has no parent**, and its URL passes (today's rule in `resources-ipc.ts:25-28` and `owner-store-ipc.ts:210-216`: "a subframe can share the file URL but is not the sites home document"); `'main-frame-and-page'` = main frame **and** both the frame URL and `event.sender.getURL()` pass (today's telemetry rule). There is **no default policy**: every registration names one, and a missing policy throws at construction. A null `senderFrame` is refused under every policy.
-4. `dispose()` removes exactly the handlers and listeners this instance registered, in reverse order.
-5. `preload-bridge.ts` has **no import at all**: a sandboxed preload can only `require('electron')`, so hosts bundle this file into their CJS preload (Tovu already bundles the speech bridge with esbuild). Test: the source has no `import`/`require`.
-6. `speech-ipc.ts` keeps its object-shaped `SpeechIpcPort` and its messages; only `assertTrustedSender` is replaced by `isTrustedIpcSender` + throw. Its existing tests must pass unchanged.
+1. **`handle` refuses by throwing** `messages.senderRefused` (the renderer's `invoke` rejects). **`on` refuses by not calling the listener** (a `send` has no reply). Both call `reportRefusal` once with the channel, kind, policy and the sender URL (or `null`); never the payload. Today's `product-telemetry-ipc.ts` drops a refused `send` silently; the owner rule is that errors are never swallowed, so the kit reports and Tovu binds `reportRefusal` to its diagnostics log (class and location only). Two contracts, kept apart (lesson 7).
+2. Policy and predicate are **per registration** (a `handle`/`on` call), because one Tovu module registers channels with different gates (`project-ipc.ts`: presence vs `keepRunning` vs the rest). A registration with a missing `policy` throws `messages.missingPolicy`, with a missing `isTrustedSender` throws `messages.missingSenderGuard`, both at registration time: fail closed, as speech does today. There is no trust-all predicate, no default policy and no option to turn the check off.
+3. Three policies, kept apart because today's handlers use three different gates (round-1 judge blocker 1): `'frame'` = the sender frame's URL passes (today's speech rule); `'main-frame'` = the sender frame exists, **has no parent**, and its URL passes (today's rule in `resources-ipc.ts:25-28` and `owner-store-ipc.ts:210-216`: "a subframe can share the file URL but is not the sites home document"); `'main-frame-and-page'` = main frame **and** both the frame URL and `event.sender.getURL()` pass (today's telemetry rule). A null `senderFrame` is refused under every policy.
+4. **Parity path for handlers with no gate today** (the 21 `runner:sites` handlers that take `_event`, and any other row the D1b1 inventory marks "none"). The kit has no trust-all, so those rows are **not registered through the kit** in the parity commit: they stay on the raw `ipcMain` port, unchanged, and a characterization test pins the exact list of raw channels (adding or removing one fails it). Each moves onto the kit (`'main-frame'` + `isSitesHomePageUrl`) only in an OD-2 hardening commit after the owner's yes. Parity and "no trust-all" therefore both hold.
+5. `dispose()` removes exactly the handlers and listeners this instance registered, in reverse order.
+6. `preload-bridge.ts` has **no import at all**. A sandboxed preload can only `require('electron')`, so every sandboxed host **bundles** its preload: Tovu already bundles the speech preload with esbuild (`apps/desktop/package.json` `build:preload`). Test: the source has no `import`/`require`.
+7. **`examples/reference-desktop` gets a bundling step (revision 3).** Its window is `sandbox: true` (`examples/reference-desktop/src/main.ts:59`) and it loads `preload.cjs` from the built main's directory (`:31`); today `preload.cts` only does `require('electron')` (`preload.cts:1`) and its `build` is `tsc -p tsconfig.json`. Once the preload imports the kit, `tsc` output would `require('@jini-ai/desktop-host/electron/ipc/preload')`, which a sandboxed preload cannot load. In the same commit: `build` becomes `tsc -p tsconfig.json && esbuild src/preload.cts --bundle --platform=node --format=cjs --external:electron --outfile=<the directory tsc emits main.js into>/preload.cjs`, and `esbuild` is declared in the example's `devDependencies` (it is already in the Jini lockfile through `agent-plugins`, `analytics`, `cookie-consent`, `provider-plugins`). Test (`examples/reference-desktop/src/__tests__/preload-bundle.test.ts`, runs after build): the built `preload.cjs` contains no `require(` call other than `require("electron")`/`require('electron')`. Red when the esbuild step is removed.
+8. `speech-ipc.ts` keeps its object-shaped `SpeechIpcPort` and its messages; only `assertTrustedSender` is replaced by `isTrustedIpcSender({ ..., policy: 'frame' })` + throw. Its existing tests must pass unchanged.
 
-**Tests first** (`electron/ipc/__tests__/`, fakes of `IpcMainPort`): refuses null frame; refuses when the predicate is false; refuses a child frame under `'main-frame-and-page'` even when the URL passes; refuses when the page URL fails but the frame URL passes (same policy); `handle` rejects with the plain message and **the handler is not called** (assert a spy; fails when the gate is removed); `on` drops without calling; missing guard throws at construction; `dispose` leaves the fake with zero registrations; `subscribe` passes the payload only and its teardown removes the same listener.
+**Tests first** (`electron/ipc/__tests__/`, fakes of `IpcMainPort`): refuses null frame under each of the three policies; refuses when the predicate is false; `'main-frame'` refuses a child frame whose URL passes and serves the main frame; `'main-frame-and-page'` refuses a child frame even when the URL passes, and refuses when the page URL fails but the frame URL passes; `'frame'` serves a child frame whose URL passes (so `'frame'` is not silently `'main-frame'`); `handle` rejects with the plain message and **the handler is not called** (assert a spy; fails when the gate is removed); `on` refused: the listener is not called **and `reportRefusal` is called once** with the channel and no payload (fails when the report is removed); a registration without `policy` throws `missingPolicy`; without `isTrustedSender` throws `missingSenderGuard`; `dispose` leaves the fake with zero registrations; `subscribe` passes the payload only and its teardown removes the same listener.
 **Not in scope:** channel naming, schema validation of payloads (each handler keeps its own validation).
 
 ---
 
 ## D1b1 and D1b2: Tovu adopts the kit (Tovu; ~130k each; proof T, then **E** and **P**)
 
-This is a **security hardening**, not a pure move: 21 `runner:sites` handlers and others gain a sender check they do not have. It needs the owner's yes (INDEX OD-2) because a wrong predicate locks a real window out.
+**Adoption is at parity (revision 3).** Every registration keeps exactly the gate it has today: rows with a gate move onto the kit with the policy that reproduces it; rows with no gate today stay on the raw `ipcMain` port (D1a decision 4). No sender becomes refused in D1b1 or D1b2. The hardening (adding a sender check to the ungated rows and narrowing `runner:*`/`workspace:*` to the sites-home page) is **not** part of these runs: it is INDEX OD-2, one commit per channel group after the owner's yes, each with its own E proof.
 
 **Step 0 (both runs), before any edit: the channel table.** Produce `cloud-results/desktop-extraction/D1b-channels.tsv`: channel constant, literal, registering file:line, kind (handle/on), sender check today (none / frame / main-frame-and-page / reads sender for another purpose), which preload exposes it, which renderer or admin file calls it (`rg -n "tovuRunner|tovuOwnerStore|tovuTelemetry|tovuVoice|tovuFiles|tovuImport" apps/desktop/src/renderer apps/admin/src`). The 57 registrations and 70 literals must reconcile; say which literals are push channels (main to renderer) and so have no registration.
 
-**Predicates (class: IPC trusted-sender; location: `main/index.ts` wiring and each `register*Ipc`).** `main/index.ts:658` `isShellPage` accepts the sites-home page **and every supervised site origin** (it is the speech rule: site admin pages may use the microphone). That is too wide for `runner:*` and `workspace:*`, which can create and delete projects. Add in `window-navigation-policy.ts` (already the owner of `isShellPageUrl`) a narrower `isSitesHomePageUrl` (renderer file URL or the attach URL; **not** supervised sites) and use:
+**Predicates (class: IPC trusted-sender; location: `main/index.ts` wiring and each `register*Ipc`).** `main/index.ts` `isShellPage` accepts the sites-home page **and every supervised site origin** (it is the speech rule: site admin pages may use the microphone). For the OD-2 hardening commits only (not D1b1/D1b2), `window-navigation-policy.ts` (already the owner of `isShellPageUrl`) gets a narrower `isSitesHomePageUrl` (renderer file URL or the attach URL; **not** supervised sites).
 
-**Step 0 of D1b1 (before any adoption): the gate inventory.** One row per registration (57 at planning: `rg -n "ipcMain\.(handle|on)\(" apps/desktop/src -g '!*.test.*'`), written into the report: channel | file:line | the **complete** predicate today, including any wrapper the host puts around it at the call site (`rg -n "isShellPage|isTrustedSender|allowed:" apps/desktop/src/main -g '!*.test.*'`) | frame condition today (none / frame URL / main frame only / main frame + page) | policy after. **Adoption keeps each row's gate exactly**; a row may only become stricter through OD-2, listed separately and landed as its own commit after the parity commit.
+**Step 0 of D1b1 (before any adoption): the gate inventory.** One row per registration (57 at planning: `rg -n "ipcMain\.(handle|on)\(" apps/desktop/src -g '!*.test.*'`), written into the report: channel | file:line | the **complete** predicate today, including any wrapper the host puts around it at the call site (`rg -n "isShellPage|isTrustedSender|allowed:" apps/desktop/src/main -g '!*.test.*'`) | frame condition today (none / frame URL / main frame only / main frame + page) | policy after. **Adoption keeps each row's gate exactly**; a row may only become stricter through OD-2, listed separately and landed as its own commit after the parity commit. Rows whose gate today is "none" are listed as **raw** (they stay on `ipcMain`, D1a decision 4).
 | Channel group | Predicate (complete, as wired today) | Policy |
 |---|---|---|
 | `tovu:speech`, `tovu:import`, files (the sandboxed admin preload's channels) | `isShellPage` | `frame` |
 | `tovu:product-telemetry` | **`isShellPage({ url }) && url.startsWith("file:")`** — the host wrapper at `main/updates/product-telemetry-boot.ts:115-117` ("speech's shared predicate also admits supervised admin origins; product IPC is shell-only"); round 1 called this "`isShellPage` unchanged", which would have admitted supervised site origins | `main-frame-and-page` |
 | resource monitor (`RUNNER_RESOURCES_GET_CHANNEL`, `resources-ipc.ts`) and every owner-store / shared-keys channel (`OWNER_STORE_CHANNELS`, `owner-store-ipc.ts`) | the `allowed` predicate each is wired with today | **`main-frame`** |
-| the remaining `runner:*` / `workspace:*` channels | whatever step 0 finds per channel; where a handler has no sender check today, parity = `isSitesHomePage` is **not** added in the parity commit | per row; hardening only via OD-2 |
+| the remaining `runner:*` / `workspace:*` channels | whatever step 0 finds per channel | the policy that reproduces today's gate; a row with **no** gate today (the 21 `runner:sites` handlers that take `_event`, at planning) stays **raw** on `ipcMain` and is pinned by the raw-channel test; it reaches the kit only via OD-2 |
 Tests first, on today's handlers (GREEN), each RED when its one restriction is removed, GREEN again on the kit:
 | # | Asserts | Fails when |
 |---|---|---|
@@ -89,9 +105,9 @@ Tests first, on today's handlers (GREEN), each RED when its one restriction is r
 
 **Binding trap already present in the inputs (lesson 12).** `registerSpeechIpc` and `registerImportHandoffIpc` take `isTrustedSender: (required: { senderUrl: string }) => boolean`. `refactor/desktop-args` wires `({ senderUrl }) => isShellPage({ raw: senderUrl })`; `fix/desktop-waveb` and merge-a still have `(raw) => isShellPage({ raw })`, which passes the **object** where the URL string is expected. `main/index.ts` is one of the 13 conflicted files. First check of this sheet: `rg -n "isTrustedSender: \(raw\)" apps/desktop/src/main/index.ts` prints nothing; if it prints, BASE was resolved to the wrong side: **STOP**.
 
-**Tests first (characterization; node:test; one file per run).** For each registration: build the real `register*` function over a fake `ipcMain`, call the handler with (a) a sites-home frame, (b) a supervised-site frame, (c) a foreign frame, (d) a null frame. Record today's result on the old code and commit it green. Then the adoption commit changes **only** the rows the table says change (non-shell and null senders become refusals), and the diff of that test file is the reviewable statement of the hardening. A handler must not run its effect when refused (assert the injected port spy has zero calls).
+**Tests first (characterization; node:test; one file per run).** For each registration: build the real `register*` function over a fake `ipcMain`, call the handler with (a) a sites-home frame, (b) a supervised-site frame, (c) a foreign frame, (d) a null frame. Record today's result on the old code and commit it green. The adoption commit must leave this file's expectations **unchanged** (parity): a changed expectation in D1b1/D1b2 is a STOP. A later OD-2 commit changes only its own rows (non-sites-home and null senders become refusals), and the diff of that test file is the reviewable statement of that hardening. A handler must not run its effect when refused (assert the injected port spy has zero calls). Plus one test that lists the raw (ungated) channels and fails when one is added or removed.
 
-- **D1b1:** `project-ipc.ts` (23) + `site-view-preference.ts` (4) + `site-theme-preview-ipc.ts` (2). `project-ipc.ts`'s registration block is lines ~1528 to 1635 of a 1,730-line file listed in `size-debt.json`: do not grow the file; the registration function takes the `createTrustedIpc` result instead of `ipcMain` and the 23 lines change shape only. D4a1 splits this file later and assumes this run is merged.
+- **D1b1:** `project-ipc.ts` (23) + `site-view-preference.ts` (4) + `site-theme-preview-ipc.ts` (2). `project-ipc.ts`'s registration block is lines ~1528 to 1635 of a 1,730-line file listed in `size-debt.json`: do not grow the file; the registration function takes the `createTrustedIpc` result **and** the raw `ipcMain` port (for the ungated rows); the gated lines change shape only and the raw lines do not change. D4a1 splits this file later and assumes this run is merged.
 - **D1b2:** `workspace-chat-ipc.ts` (18) + the nine single-registration files + `preload.mts` (its local `subscribe` at line 75 is replaced by the kit's; the 60 call sites keep their channel constants; the bridge objects stay frozen) + `speech/preload-speech.cts` if it has its own subscribe. Preload build: `tsconfig.preload.json` emits native ESM for the unsandboxed sites-home preload, so the kit import resolves from `node_modules` there; the `.cts` preload is bundled by the `build:preload` esbuild line, which already inlines `@jini-ai/desktop-host/speech`. `runner-ipc-stubs.ts` registers "not ported" answers: they also go through the kit.
 
 **Proof owed.** E: in the running app, sites home (list, start, stop, rename, delete, add folder, chat send, find, zoom, settings), a site admin window (voice input, file drop, import hand-off). P: `smoke-bridge` on macOS and Windows (it exercises the preload bridge in a packaged app).
