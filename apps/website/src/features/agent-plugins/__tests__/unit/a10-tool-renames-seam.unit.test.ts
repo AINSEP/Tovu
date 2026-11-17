@@ -11,7 +11,7 @@ function harness() {
   const row = { provisionedByPluginId: 'acme', url: URL_, allowedToolNames: '["old_read"]', writeAllowedToolNames: '["old_write"]' } as unknown as AgentPluginMcpRecord;
   const saved: AgentPluginMcpRecord[] = [];
   const repo = {
-    findByServerId: async () => row, upsert: async (next: AgentPluginMcpRecord) => { saved.push(next); return next; },
+    findByServerId: async () => row, updateIfVersion: async ({ record }: { record: AgentPluginMcpRecord }) => { saved.push(record); return true; },
     deleteByServerId: async () => false, updateAccessIfCurrent: async () => null,
   } as unknown as AgentPluginMcpRepo;
   const servers: Record<string, McpServerConfig> = { main: { type: 'streamable-http', url: URL_, renamedTools: { old_read: 'new_read', old_write: 'new_write' } } };

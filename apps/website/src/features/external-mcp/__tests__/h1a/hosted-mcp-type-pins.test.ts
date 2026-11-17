@@ -47,14 +47,14 @@ interface PinnedSaveOAuth { providerId?: string; grant?: string; clientId?: stri
 interface PinnedSave {
   workspaceId: UUID; serverId: string; label?: string; transport: string; authMode?: string; enabled: boolean; command: string; url?: string; args: string;
   allowedToolNames: string; writeAllowedToolNames: string; env?: string; accessToken?: string; accessTokenEnvName?: string; oauth?: PinnedSaveOAuth;
-  provisionedByPluginId?: string; principalId: string;
+  provisionedByPluginId?: string; principalId: string; expectedVersion?: number;
 }
 interface PinnedOAuthView { providerId: string | null; grant: string | null; clientId: string | null; scopes: string[]; status: "disconnected" | "pending" | "connected" | "needs_reauth"; expiresAt: ISODateTime | null; tokenEnvName: string | null; hasStoredToken: boolean }
 interface PinnedView {
   serverId: string; label: string; provisionedByPluginId: string | null; transport: string; authMode: string; enabled: boolean; command: string; url: string | null;
   args: string[]; allowedToolNames: string[]; writeAllowedToolNames: string[]; writeGrantsUpdatedByPrincipalId: string | null; writeGrantsUpdatedAt: ISODateTime | null;
   envNames: string[]; hasAccessToken: boolean; accessTokenHint?: CredentialTokenHint | null; envTokenHints?: Readonly<Record<string, CredentialTokenHint>>;
-  accessTokenEnvName: string | null; oauth: PinnedOAuthView;
+  accessTokenEnvName: string | null; oauth: PinnedOAuthView; version: number;
 }
 type PinnedBearer = (request: { readonly url: string }, options?: { readonly signal?: AbortSignal | undefined }) => string | undefined | Promise<string | undefined>;
 type PinnedTarget =

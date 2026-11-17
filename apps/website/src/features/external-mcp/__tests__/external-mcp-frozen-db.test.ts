@@ -142,8 +142,9 @@ test("frozen fixture: leased refresh, static re-save and env update survive a re
   const serversBefore = before.external_mcp_servers as Row[];
   const serversAfter = after.external_mcp_servers as Row[];
   const expectedChanges: Record<string, string[]> = {
-    [FROZEN_SERVERS.env]: ["env_secret_id", "updated_at"],
-    [FROZEN_SERVERS.static]: ["label", "updated_at"],
+    // A form save is an edit and advances `version`; the token refresh on the oauth row is a runtime write and does not.
+    [FROZEN_SERVERS.env]: ["env_secret_id", "updated_at", "version"],
+    [FROZEN_SERVERS.static]: ["label", "updated_at", "version"],
     [FROZEN_SERVERS.oauth]: ["oauth_expires_at", "oauth_secret_id", "updated_at"],
   };
   for (const serverId of Object.values(FROZEN_SERVERS)) {

@@ -195,7 +195,7 @@ test("env import uses the declared URL when its connection lookup returns no row
     // guard; the save's fresh read still uses the real repository and finds the connection.
     return ++reads === 2 ? null : find(input);
   });
-  const writes = t.mock.method(repo, "upsert");
+  const writes = t.mock.method(repo, "updateIfVersion");
 
   await importAgentPluginAccessTokensFromEnv({ deps, env: { [ENV_VAR]: TOKEN }, log });
 
@@ -205,10 +205,11 @@ test("env import uses the declared URL when its connection lookup returns no row
   assert.equal(row?.authMode, "static_env");
   assert.equal(row?.enabled, true);
   assert.equal((await openExternalMcpOAuthPayload(sealer, row)).staticAccessToken, TOKEN);
-  assert.deepEqual(writes.mock.calls.map(({ arguments: [record] }) => ({
+  assert.deepEqual(writes.mock.calls.map(({ arguments: [{ record }] }) => ({
     workspaceId: record.workspaceId, serverId: record.serverId, url: record.url, authMode: record.authMode,
   })), [
-    { workspaceId: WORKSPACE, serverId: "supabase", url: "https://mcp.supabase.com/mcp", authMode: "static_env" },
+    // The save that read "no row" tried to insert, was refused (the row exists) and re-read; it no
+    // longer overwrites the existing row blind, so only the conditional update is a write.
     { workspaceId: WORKSPACE, serverId: "supabase", url: "https://mcp.supabase.com/mcp", authMode: "static_env" },
   ]);
   assert.deepEqual(connected, ["supabase"]);
@@ -234,7 +235,7 @@ test("env import saves a token without retiredEnv and continues to the next plug
     if (pluginId === "supabase") return { servers: SUPABASE_SERVERS };
     return null;
   });
-  const writes = t.mock.method(deps.mcp.repo, "upsert");
+  const writes = t.mock.method(deps.mcp.repo, "updateIfVersion");
   assert.equal(Object.hasOwn(firstAuth, "retiredEnv"), false);
   assert.equal(await deps.mcp.repo.findByServerId({ workspaceId: WORKSPACE, serverId: "first" }), null);
 
@@ -248,8 +249,8 @@ test("env import saves a token without retiredEnv and continues to the next plug
   }, env: { FIRST_TOKEN: "first_plugin_token", [ENV_VAR]: TOKEN }, log }));
 
   assert.deepEqual(resolveInstalledPlugin.mock.calls.map(({ arguments: args }) => args), [["first"], ["supabase"]]);
-  assert.deepEqual(writes.mock.calls.filter(({ arguments: [record] }) => record.authMode === "static_env" && !record.enabled)
-    .map(({ arguments: [record] }) => ({ workspaceId: record.workspaceId, serverId: record.serverId })), [
+  assert.deepEqual(writes.mock.calls.filter(({ arguments: [{ record }] }) => record.authMode === "static_env" && !record.enabled)
+    .map(({ arguments: [{ record }] }) => ({ workspaceId: record.workspaceId, serverId: record.serverId })), [
     { workspaceId: WORKSPACE, serverId: "first" },
     { workspaceId: WORKSPACE, serverId: "supabase" },
   ]);
@@ -393,7 +394,7 @@ test("env import never sends the token to a row pointed at a URL the bundled plu
   const { deps, connected, readRow, logs, log } = await setup();
   const row = await readRow();
   assert.ok(row);
-  await deps.mcp.repo.upsert({ ...row, provisionedByPluginId: null, url: "https://elsewhere.example/mcp", enabled: true, allowedToolNames: '["x"]' });
+  await deps.mcp.repo.updateIfVersion({ record: { ...row, provisionedByPluginId: null, url: "https://elsewhere.example/mcp", enabled: true, allowedToolNames: '["x"]' }, expectedVersion: row.version, replaces: { sealedEnv: row.sealedEnv, sealedOAuth: row.sealedOAuth } });
   await importAgentPluginAccessTokensFromEnv({ deps, env: { [ENV_VAR]: TOKEN }, log });
   const after = await readRow();
   assert.equal(after?.authMode, "oauth", "the token must not be saved onto that row");
@@ -481,7 +482,7 @@ test("a row an operator already set up and switched on still gets its plugin swi
   const { deps, connected, pluginsSwitchedOn, readRow } = await setup();
   const row = await readRow();
   assert.ok(row);
-  await deps.mcp.repo.upsert({ ...row, enabled: true, allowedToolNames: '["list_projects"]' });
+  await deps.mcp.repo.updateIfVersion({ record: { ...row, enabled: true, allowedToolNames: '["list_projects"]' }, expectedVersion: row.version, replaces: { sealedEnv: row.sealedEnv, sealedOAuth: row.sealedOAuth } });
   assert.equal(await importAgentPluginAccessToken(deps, { pluginId: "supabase", token: TOKEN }), "saved");
   assert.deepEqual(connected, ["supabase"]);
   assert.deepEqual(pluginsSwitchedOn, ["supabase"], "the plugin's own activation must be switched on too");
@@ -489,7 +490,7 @@ test("a row an operator already set up and switched on still gets its plugin swi
   const { deps: refusedDeps, readRow: readRefused } = await setup();
   const refusedRow = await readRefused();
   assert.ok(refusedRow);
-  await refusedDeps.mcp.repo.upsert({ ...refusedRow, enabled: true, allowedToolNames: '["list_projects"]' });
+  await refusedDeps.mcp.repo.updateIfVersion({ record: { ...refusedRow, enabled: true, allowedToolNames: '["list_projects"]' }, expectedVersion: refusedRow.version, replaces: { sealedEnv: refusedRow.sealedEnv, sealedOAuth: refusedRow.sealedOAuth } });
   const refused: ImportAgentPluginAccessTokensFromEnvDeps = testSiteLayoutContext({ ...siteLayouts.deps, ...refusedDeps, switchPluginOn: async () => false });
   assert.equal(await importAgentPluginAccessToken(refused, { pluginId: "supabase", token: TOKEN }), "saved-left-off", "an operator's off switch that won the race is reported");
 });

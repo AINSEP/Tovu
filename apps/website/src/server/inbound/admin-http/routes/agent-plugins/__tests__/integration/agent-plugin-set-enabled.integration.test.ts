@@ -510,7 +510,7 @@ test("AGENT_PLUGIN_SET_ENABLED: enabling adopts an operator's pre-existing row a
     assert.deepEqual(JSON.parse(row?.allowedToolNames ?? "[]"), ["generate_image"]);
     assert.deepEqual(JSON.parse(row?.writeAllowedToolNames ?? "[]"), ["generate_image"]);
     assert.equal(row?.provisionedByPluginId, "higgsfield-fixture", "the association is recorded even though the row itself was untouched");
-    assertAdminResponse({ actual: { ...row, provisionedByPluginId: before.provisionedByPluginId }, expected: before });
+    assertAdminResponse({ actual: { ...row, provisionedByPluginId: before.provisionedByPluginId, version: before.version }, expected: before });
   });
 });
 

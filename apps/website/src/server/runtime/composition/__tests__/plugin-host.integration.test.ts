@@ -352,7 +352,7 @@ for (const separatelyConfigured of [false, true]) test(`a signed-in connection r
       principalId: 'operator', provisionedByPluginId: separatelyConfigured ? undefined : 'media-fixture' });
     const signedOut = await ctx.deps.mcp.repo.findByServerId({ workspaceId: ctx.deps.workspaceId, serverId: 'media' });
     assert.equal(signedOut?.provisionedByPluginId, separatelyConfigured ? null : 'media-fixture');
-    await ctx.deps.mcp.repo.upsert({ ...signedOut!, oauthStatus: 'connected' });
+    await ctx.deps.mcp.repo.updateIfVersion({ record: { ...signedOut!, oauthStatus: 'connected' }, expectedVersion: signedOut!.version, replaces: { sealedEnv: signedOut!.sealedEnv, sealedOAuth: signedOut!.sealedOAuth } });
     await agentPluginActivations.setAgentPluginActivation({ workspaceRoot, pluginId: 'media-fixture', enabled: true, actor: 'operator' });
 
     const agentPlugins = ctx.host.getHostCapability({ capability: 'agent-plugin-lifecycle' })!;

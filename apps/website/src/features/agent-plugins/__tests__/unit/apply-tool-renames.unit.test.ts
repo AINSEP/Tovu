@@ -191,7 +191,7 @@ test("a plugin listing that throws is a warning, never a boot failure", async ()
   assert.deepEqual(logs, ["[agent-plugins] could not list plugins to apply tool renames: Error"]); // fixed class label, not the message (describeErrorForLog)
 });
 
-for (const operation of ["findByServerId", "upsert"] as const) {
+for (const operation of ["findByServerId", "updateIfVersion"] as const) {
   test(`a per-server ${operation} failure preserves that row and still renames a later server`, async (t) => {
     const h = await makeHarness({ allowedToolNames: "get_logs", writeAllowedToolNames: "get_logs" });
     const before = await h.read();
@@ -204,9 +204,9 @@ for (const operation of ["findByServerId", "upsert"] as const) {
         return original(input);
       });
     } else {
-      const original = h.repo.upsert.bind(h.repo);
-      t.mock.method(h.repo, "upsert", async (input: Parameters<typeof original>[0]) => {
-        if (input.serverId === SERVER) throw new Error("repository unavailable");
+      const original = h.repo.updateIfVersion.bind(h.repo);
+      t.mock.method(h.repo, "updateIfVersion", async (input: Parameters<typeof original>[0]) => {
+        if (input.record.serverId === SERVER) throw new Error("repository unavailable");
         return original(input);
       });
     }
@@ -314,10 +314,10 @@ test("an empty stored read list counts as no tools, not as an unreadable list", 
   assert.deepEqual(JSON.parse((await h.read()).writeAllowedToolNames ?? "null"), ["query_logs"]);
 });
 
-test("a non-Error upsert failure is reported by its typeof, never its text, and the row is kept", async () => {
+test("a non-Error write failure is reported by its typeof, never its text, and the row is kept", async () => {
   const h = await makeHarness({ allowedToolNames: "get_logs" });
   const before = await h.read();
-  h.repo.upsert = async () => { throw "disk full"; };
+  h.repo.updateIfVersion = async () => { throw "disk full"; };
   await h.run();
   assert.deepEqual(await h.read(), before);
   assert.deepEqual(h.logs, ["warn: [agent-plugins] could not apply the 'supabase' plugin's tool renames to 'supabase': string"]);

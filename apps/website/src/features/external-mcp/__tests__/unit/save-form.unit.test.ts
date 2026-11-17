@@ -39,6 +39,7 @@ function existingView(overrides: Partial<ExternalMcpServerView> = {}): ExternalM
     envNames: [],
     hasAccessToken: false,
     accessTokenEnvName: null,
+    version: 1,
     oauth: { providerId: null, grant: null, clientId: null, scopes: ["read", "write"], status: "disconnected", expiresAt: null, tokenEnvName: null, hasStoredToken: false },
     ...overrides,
   };

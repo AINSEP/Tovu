@@ -440,7 +440,8 @@ test("provisionAgentPluginMcpServers: an operator's pre-existing row with a live
   // Byte-identical otherwise: comparing with provisionedByPluginId normalized back to `before`'s
   // value proves every other column (url, transport, authMode, enabled, allowlist, write grants,
   // sealed env, timestamps, aad versions) is untouched.
-  assert.deepEqual({ ...after, provisionedByPluginId: before.provisionedByPluginId }, before);
+  assert.deepEqual({ ...after, provisionedByPluginId: before.provisionedByPluginId, version: before.version }, before);
+  assert.equal(after.version, before.version + 1, "adoption is an edit of the row: it advances the version");
   assert.deepEqual(await openExternalMcpOAuthPayload(deps.sealer, after), payload);
   // Named explicitly, since these are exactly what a careless upsert would wipe.
   assert.deepEqual(JSON.parse(after.allowedToolNames ?? "[]"), ["search", "fetch"]);
@@ -539,10 +540,10 @@ test("provisioning reports created, recognized, adopted, refused, and failed ser
   assert.ok(adopted && refused);
   await deps.repo.upsert({ ...adopted, provisionedByPluginId: null });
   await deps.repo.upsert({ ...refused, provisionedByPluginId: "other", url: "https://other.example/mcp" });
-  const write = deps.repo.upsert.bind(deps.repo);
-  t.mock.method(deps.repo, "upsert", async (record: Parameters<typeof write>[0]) => {
-    if (record.serverId === "broken") throw new Error("write unavailable");
-    return write(record);
+  const write = deps.repo.insert.bind(deps.repo);
+  t.mock.method(deps.repo, "insert", async (input: Parameters<typeof write>[0]) => {
+    if (input.record.serverId === "broken") throw new Error("write unavailable");
+    return write(input);
   });
   const result = await provisionAgentPluginMcpServers(deps, { ...input, servers: { ...input.servers, broken: REMOTE_SERVER, created: REMOTE_SERVER, local: STDIO_SERVER } });
   assert.deepEqual(result.provisioned, ["created"]);
@@ -560,10 +561,10 @@ for (const failure of [new Error("adoption unavailable"), "adoption unavailable"
     const input = { workspaceId: "ws-adoption", pluginId: "original", principalId: "principal", servers: { existing: REMOTE_SERVER } };
     await provisionAgentPluginMcpServers(deps, input);
     const before = await deps.repo.findByServerId({ workspaceId: input.workspaceId, serverId: "existing" });
-    const write = deps.repo.upsert.bind(deps.repo);
-    t.mock.method(deps.repo, "upsert", async (record: Parameters<typeof write>[0]) => {
-      if (record.serverId === "existing") throw failure;
-      return write(record);
+    const write = deps.repo.updateIfVersion.bind(deps.repo);
+    t.mock.method(deps.repo, "updateIfVersion", async (input: Parameters<typeof write>[0]) => {
+      if (input.record.serverId === "existing") throw failure;
+      return write(input);
     });
     const result = await provisionAgentPluginMcpServers(deps, { ...input, pluginId: "new-owner", servers: { existing: REMOTE_SERVER, later: REMOTE_SERVER } });
     // Jini's failed entries carry the original thrown value as `error` for the host sink (federate-mcp.ts), beside the safe reason.
