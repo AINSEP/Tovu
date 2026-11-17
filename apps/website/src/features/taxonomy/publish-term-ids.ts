@@ -1,5 +1,6 @@
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
-import type { PublishContentDeps, TaxonomyPublishPorts } from "#src/features/publish-content/type-registry";
+import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
+import type { TaxonomyPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 
 import { assignTerms, toTaxonomyOutbox, unassignTerms } from "./index.js";
 

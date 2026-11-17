@@ -4,7 +4,8 @@ import type { JsonValue } from "@jini-ai/core/primitives";
 
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
 import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-content/repo-handler";
-import type { PublishContentContributor, PublishContentPorts } from "#src/features/publish-content/type-registry";
+import type { PublishContentContributor } from "#src/features/publish-content/type-registry";
+import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 
 import {
   clear,
@@ -56,7 +57,7 @@ export interface SiteSettingRow {
   readonly version: number;
 }
 
-type Ports = PublishContentPorts["site-setting"];
+type Ports = TovuPublishPorts["site-setting"];
 
 /** Loopback, private-range and `.local` hosts: a URL naming one only works on this computer. */
 const LOCAL_HOSTS = [

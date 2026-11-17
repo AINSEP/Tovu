@@ -14,7 +14,7 @@
  * fails.
  */
 
-import type { PublishContentOutcomeKind, PublishContentReport } from "./planner.js";
+import type { PublishContentOutcomeKind, PublishContentReport } from "./plan-rows.js";
 
 export type PublishContentRunItemPhase = "pending" | "content_applied" | "completed" | "failed";
 

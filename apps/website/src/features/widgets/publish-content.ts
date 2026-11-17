@@ -3,7 +3,8 @@ import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import { collectPlacementReferences } from "#src/features/publish-content/content-references";
 import { collectMediaConfigKeys, collectMediaUrlKeys } from "#src/features/publish-content/media-references";
 import { createRepoPublishHandler, gatewayDeps, type RepoWriteContext } from "#src/features/publish-content/repo-handler";
-import type { PublishContentContributor, PublishContentReference, WidgetPublishPorts } from "#src/features/publish-content/type-registry";
+import type { PublishContentContributor, PublishContentReference } from "#src/features/publish-content/type-registry";
+import type { WidgetPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 
 import { ContentTypeNotActiveError, EntryFieldValidationError, EntrySlugConflictError, VersionConflictError, type EntryRecord } from "../entries/index.js";
 import { getEntryLockState, collectWidgetConfigStrings, validateWidgetConfig } from "@jini-ai/cms/widgets";

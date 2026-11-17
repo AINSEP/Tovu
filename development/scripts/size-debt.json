@@ -975,53 +975,11 @@
       "value": 85
     },
     {
-      "file": "apps/website/src/features/publish-content/apply-loop.ts",
-      "function": "applyOneRow#1",
-      "line": 262,
-      "rule": "max-lines-per-function",
-      "value": 195
-    },
-    {
-      "file": "apps/website/src/features/publish-content/apply-loop.ts",
-      "function": "createPublishContentApplyPort#1",
-      "line": 500,
-      "rule": "max-lines-per-function",
-      "value": 344
-    },
-    {
-      "file": "apps/website/src/features/publish-content/apply-loop.ts",
-      "function": "createPublishContentApplyPort#1.applyReport#1",
-      "line": 531,
-      "rule": "max-lines-per-function",
-      "value": 312
-    },
-    {
-      "file": "apps/website/src/features/publish-content/apply-loop.ts",
-      "function": "<file>",
-      "line": 735,
-      "rule": "max-lines",
-      "value": 717
-    },
-    {
       "file": "apps/website/src/features/publish-content/publish-backstop-file.ts",
       "function": "createRawFileSitePort#1",
       "line": 45,
       "rule": "max-lines-per-function",
       "value": 102
-    },
-    {
-      "file": "apps/website/src/features/publish-content/repo-handler.ts",
-      "function": "createRepoPublishHandler#1",
-      "line": 154,
-      "rule": "max-lines-per-function",
-      "value": 177
-    },
-    {
-      "file": "apps/website/src/features/publish-content/repo-handler.ts",
-      "function": "createRepoPublishHandler#1.build#1",
-      "line": 192,
-      "rule": "max-lines-per-function",
-      "value": 143
     },
     {
       "file": "apps/website/src/features/publish-content/tool-registrations.ts",

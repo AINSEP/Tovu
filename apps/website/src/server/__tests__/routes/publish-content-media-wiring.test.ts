@@ -6,7 +6,7 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import type { MediaRecord } from "#src/features/media/index";
-import type { PublishContentReport } from "#src/features/publish-content/planner";
+import type { PublishContentReport } from "#src/features/publish-content/plan-rows";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 

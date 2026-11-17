@@ -49,7 +49,7 @@ export interface CreateSqlitePublishContentSeedHashInput {
 }
 
 /**
- * A port {@link PublishContentPorts} requires present but which this lookup's own callers
+ * A port {@link TovuPublishPorts} requires present but which this lookup's own callers
  * (`inspect()` on every registered handler) never actually invoke — `media.assetBlobRepo`/
  * `.blobStore` and `menu.bindingRepo` fall in this bucket (see the field comments above the ports
  * bag below for which handler reads which field). Throws loudly if that assumption is ever wrong,
@@ -92,7 +92,7 @@ export function loadSqliteSeedDeps(input: CreateSqlitePublishContentSeedHashInpu
     // F2 — one ports bag. Only the ports each registered type's `inspect()` actually reads need
     // real seed-backed instances (see this file's own header: "the redirect handler's `inspect()`
     // reads nothing but `repo`" is one example of this already being partial by design). The
-    // fields `PublishContentPorts` requires but no `inspect()` reads get a throwing stand-in
+    // fields `TovuPublishPorts` requires but no `inspect()` reads get a throwing stand-in
     // ({@link unusedBySeedInspect}) instead of a real instance, so a future handler that DOES
     // start reading one fails loudly here rather than silently hashing against the wrong store.
     ports: {

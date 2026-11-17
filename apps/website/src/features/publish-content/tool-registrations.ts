@@ -21,7 +21,7 @@ import { loadActiveBundle } from "./bundle-staging.js";
 import { buildPublishContentImportHooks, PublishContentBundleNotFoundError, type BuildPublishContentImportHooksInput } from "./gated-hooks.js";
 import { executePublishContentImport, RestorePointUnavailableError } from "./execute-import.js";
 import { getPublishContentRunStatus, type PublishContentRunRepoPort } from "./run-repo.js";
-import { entityKey, type PublishContentReport } from "./planner.js";
+import { entityKey, type PublishContentReport } from "./plan-rows.js";
 import { pullAndStageFromPeer, type PublishContentPullDeps } from "./pull.js";
 import { PublishContentPeerNotFoundError, PublishContentPeerCredentialMissingError, PublishContentPeerSecretStoreUnconfiguredError } from "./peers.js";
 import { PublishContentPeerTransportError } from "./peer-transport.js";
@@ -57,7 +57,8 @@ import { publishContentFromTool } from "./publish-tool.js";
 import type { CompositeBlobStoreRead } from "./composite-blob-source.js";
 
 import { listPublishContentContributors } from "./type-registry.js";
-import type { PublishContentPorts, PublishContentDeps, EntryPublishPorts, WidgetPublishPorts } from "./type-registry.js";
+import type { PublishContentDeps } from "./type-registry.js";
+import type { TovuPublishPorts, EntryPublishPorts, WidgetPublishPorts } from "./tovu-publish-ports.js";
 
 /**
  * @file Wires readiness, connection, autonomous publishing and live-content pulls into the assistant catalog.
@@ -438,7 +439,7 @@ async function selectPullPeer({ deps, supplied }: { deps: PublishContentToolDeps
 function pullHooks({ deps, bundleId, actorId }: { deps: PublishContentToolDeps; bundleId: string; actorId: string }, { forcedEntityKeys }: { forcedEntityKeys?: ReadonlySet<string> } = {}) {
   const contentDeps = deps.makePublishContentDeps?.() ?? {
     workspaceId: deps.workspaceId, clock: deps.clock, idGen: deps.idGen,
-    ports: deps.publishContentPorts ?? {}, outbox: deps.outbox, beforeSaveHook: deps.pluginBeforeSaveHook,
+    ports: { ...(deps.publishContentPorts ?? {}), hooks: { beforeSave: deps.pluginBeforeSaveHook } }, outbox: deps.outbox,
   };
   return buildPublishContentImportHooks({
     workspaceId: deps.workspaceId, bundleId, actorId, clock: deps.clock, idGen: deps.idGen,

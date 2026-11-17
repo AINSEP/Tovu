@@ -3,7 +3,8 @@ import { PublishContentApplyRowError } from "#src/features/publish-content/apply
 import { collectMediaUrlKeys } from "#src/features/publish-content/media-references";
 import { isValidSha256Hex } from "#src/features/publish-content/blob-staging";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
-import type { PublishContentContributor, PublishContentPorts, OverwritablePrecheckRefusal } from "#src/features/publish-content/type-registry";
+import type { PublishContentContributor, OverwritablePrecheckRefusal } from "#src/features/publish-content/type-registry";
+import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 
 import { importMediaEntity, restoreImportedMedia, type ImportMediaEntityResult } from "./import-media-entity.js";
 import { computeBlobStorageKey, sniffContentType, isDocumentOnlyBlob } from "./index.js";
@@ -113,7 +114,7 @@ const MEDIA_FIELDS: Record<keyof MediaRecord, FieldDisposition> = {
 
 const LIBRARY_DOCUMENT_REFUSAL = "Library documents cannot be published";
 
-type MediaPorts = PublishContentPorts["media"];
+type MediaPorts = TovuPublishPorts["media"];
 
 /** Changed bytes require explicit review even when live still matches its last baseline.
  * @returns An overwrite offer, a hard capability refusal, or no source change. No I/O.
@@ -185,7 +186,7 @@ function importedOrThrow(
 
 /** Called from a composition root (`server/runtime/composition/publish-content-manifest.ts`). */
 export const contributeMediaPublish = (): PublishContentContributor =>
-  createRepoPublishHandler<MediaRecord, PublishContentPorts["media"]>({
+  createRepoPublishHandler<MediaRecord, TovuPublishPorts["media"]>({
     entityType: "media",
     // Operational sidecars are also media-owned; raw-row fallback must not export a private
     // document's slug history or original-rendition storage key after typed pack excluded it.

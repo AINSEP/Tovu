@@ -30,7 +30,7 @@ import { removeVia } from "#src/features/post/__tests__/remove-post-double";
 import { contributeMediaPublish } from "#src/features/media/publish-content";
 import { contributeTaxonomyPublish, contributeTermPublish } from "#src/features/taxonomy/publish-content";
 
-import { createPublishContentApplyPort } from "../apply-loop.js";
+import { createPublishContentApplyPort } from "../apply-port.js";
 import { CONTENT_HASH_VERSION, contentHash } from "../content-hash.js";
 import { getPublishContentRunStatus } from "../run-repo.js";
 import { registerPublishContentContributor, type PackedEntity, type PublishContentDeps } from "../type-registry.js";
@@ -77,7 +77,7 @@ async function pullOfThreePosts(beforeSaveHook: BeforeSaveHookPort) {
   const publishContentDeps: PublishContentDeps = {
     workspaceId: "local", clock: f.deps.clock, idGen: { newId: () => `cs-${++changeSetCount}` }, outbox,
     changeSets: new InMemoryChangeSetRepo([], [], outbox), authorize: async () => ({ allowed: true, reason: "matched" }),
-    beforeSaveHook, ports,
+    ports: { ...ports, hooks: { beforeSave: beforeSaveHook } },
   };
   const deps = {
     ...f.deps, publishContentPorts: ports,

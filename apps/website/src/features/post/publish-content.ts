@@ -10,12 +10,11 @@ import { createRepoPublishHandler, gatewayDeps } from "#src/features/publish-con
 import type {
   PublishContentContributor,
   PublishContentDeps,
-  PublishContentPorts,
   PackedEntity,
   PublishContentReference,
   RetireTarget,
-  TaxonomyPublishPorts,
 } from "#src/features/publish-content/type-registry";
+import type { TovuPublishPorts, TaxonomyPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 import { prepareTermSync, readTermIds, TERM_SYNC_PERMISSION, withTermIds } from "#src/features/taxonomy/term-sync";
 
 import { importPostEntity, isTrashed, presentScheduleFields, restorePostForward, retirePostForReplacement, PostConflictError, PostNotFoundError, ROOT_SLUG } from "./post.js";
@@ -275,7 +274,7 @@ function postReferences(state: Readonly<Record<string, unknown>>): readonly Publ
 type PostRow = PostRecord & { readonly termIds?: readonly string[] };
 
 /** The post port plus the taxonomy ports `termIds` needs. */
-type PostPorts = PublishContentPorts["post"] & { readonly term?: TaxonomyPublishPorts };
+type PostPorts = TovuPublishPorts["post"] & { readonly term?: TaxonomyPublishPorts };
 
 /** Attaches sorted `termIds`, non-enumerable (this file's header), without changing stored fields.
  * @returns A copy suitable for the gateway's compensation row as well as the transport.
@@ -386,7 +385,7 @@ function contributePostKind(kind: PostKind): PublishContentContributor {
       // Terms first on rollback: Jini resolves the post to (un)assign, and a create's undo deletes it.
       onRollback({ undo: terms.revert });
       const imported = await importPostEntity({
-        deps: { repo, clock: deps.clock, outbox, beforeSaveHook: deps.beforeSaveHook },
+        deps: { repo, clock: deps.clock, outbox, beforeSaveHook: deps.ports.hooks?.beforeSave },
         // The revision ledger's actor is the IMPORTING operator; the source author is on the record.
         input: { workspaceId, record: toImportableRecord({ state, workspaceId, id, existing }), expectedVersion, actorId: principalId },
       });

@@ -1,4 +1,4 @@
-import { entityKey, packedEntityLabel } from "./planner.js";
+import { entityKey, packedEntityLabel } from "./plan-rows.js";
 import type { PackedEntity, SkippedPackEntity } from "./type-registry.js";
 
 /**

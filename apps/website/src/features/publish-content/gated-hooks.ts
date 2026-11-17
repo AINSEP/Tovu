@@ -9,7 +9,8 @@ import type { PublishContentBundleRepoPort } from "./bundle-staging.js";
 import type { PublishContentBaselineRepoPort } from "./baseline-repo.js";
 import { planImport } from "./planner.js";
 import type { PublishContentSeedHashFn } from "./seed-hash.js";
-import type { PlanImportDeps, PublishContentBundle, PublishContentReport } from "./planner.js";
+import type { PlanImportDeps } from "./planner.js";
+import type { PublishContentBundle, PublishContentReport } from "./plan-rows.js";
 import type { PublishContentDeps, PackedEntity } from "./type-registry.js";
 
 /**
@@ -191,7 +192,7 @@ export interface BuildPublishContentImportHooksInput {
    * A route builds fresh hooks per request, closing over THAT request's own set (`import.ts`'s
    * `buildHooks`) — never a value cached across `plan`/`confirm`/`execute`. That is what makes this
    * file's existing plan-staleness property (see this file's header) also police an operator's ticks
-   * changing between plan/confirm and execute for free: `buildReport()` re-derives from whatever set
+   * changing between plan/confirm and execute for free: `planStagedImport()` re-derives from whatever set
    * THIS call passed, so a different set at execute changes which rows are `forced`, which changes
    * `planHashOf({ details: report })`, which `gateway.execute()` step 4 rejects as `PLAN_STALE` before ever
    * reaching {@link PublishContentApplyPort.applyReport}. No code here is dedicated to detecting a
@@ -200,8 +201,17 @@ export interface BuildPublishContentImportHooksInput {
   forcedEntityKeys?: ReadonlySet<string>;
 }
 
-/** What `executeMutation` returns once the report has been applied. */
-type PublishContentImportExecution = {
+/**
+ * SPEC publish-content — the `publish_content` import ceremony's `GatedMutationHooks`. See this
+ * file's header for the `PLAN_STALE`-for-free property and the Task 8 seam.
+ *
+ * @complexity O(n) in the staged bundle's entity count, via `planImport()` — dominated by
+ * `planImport`'s own cost (its file header documents this precisely), not by anything in this file.
+ * @overallScore 100
+ */
+/** What a confirmed import reports back: the restore point taken before the first write, and what the
+ *  apply run did. */
+export interface PublishContentImportResult {
   restorePointId: string;
   /** Actual outcomes after apply, including race-time conflict downgrades. */
   report?: PublishContentReport;
@@ -212,13 +222,29 @@ type PublishContentImportExecution = {
   menuLinksUpdated: number;
   menuLinksNotUpdated: readonly string[];
   verificationProblems: readonly string[];
-};
+}
 
-/** Re-derives the current `PublishContentReport` from live state, never cached across calls (this
- *  file's header). `computePlan()` is its ONLY caller: `executeMutation()` deliberately does not
- *  call it, because a second derivation is a second, unverified judgment call — see that
- *  function's own comment. */
-async function buildImportReport(input: BuildPublishContentImportHooksInput): Promise<PublishContentReport> {
+export function buildPublishContentImportHooks(
+  input: BuildPublishContentImportHooksInput
+): GatedMutationHooks<PublishContentReport, PublishContentImportResult> {
+  return {
+    domain: "publish_content.import",
+    readPermission: "publish_content.read",
+    mutatePermission: "publish_content.apply",
+    scopeId: input.workspaceId,
+    computePlan: async () => {
+      const report = await planStagedImport({ input });
+      return { planHash: planHashOf({ details: report }), details: report };
+    },
+    executeMutation: async (verified) => executeConfirmedImport({ input, report: verified.details }),
+    resolveActorClassIdentity,
+  };
+}
+
+/** Plan step: derives the report for the staged bundle from LIVE destination state. Every call
+ *  reads again; nothing is cached between the plan a person confirms and a later call.
+ *  @complexity One bundle read, then `planImport`'s cost over the bundle's entities. */
+async function planStagedImport({ input }: { input: BuildPublishContentImportHooksInput }, _optional = {}): Promise<PublishContentReport> {
   const now = clockNowIso({ clock: input.clock });
   const staged = await loadActiveBundle({ repo: input.bundleRepo, workspaceId: input.workspaceId, id: input.bundleId, now });
   if (!staged) {
@@ -260,98 +286,77 @@ async function buildImportReport(input: BuildPublishContentImportHooksInput): Pr
   });
 }
 
-/** Captures and saves the restore point before any write this run might make. */
-async function captureImportRestorePoint(input: BuildPublishContentImportHooksInput): Promise<string> {
-    // Restore point captured BEFORE any write this run might make (plan §4 task 7's own
-    // instruction), mirroring `buildMigrateForwardHooks`'s identical ordering. The
-    // `costClass: 'unavailable'` refusal itself lives in `execute-import.ts`, called by the
-    // route BEFORE `gateway.execute()` ever reaches this function — see this file's header.
-    const captured = await input.dbOps.captureRestorePoint({ scopeId: input.workspaceId });
-    const restorePointId = input.idGen.newId();
-    const now = clockNowIso({ clock: input.clock });
-    await input.restorePointsRepo.save({
-      restorePointId,
-      idempotencyKey: restorePointId,
-      trigger: "publish-content-import",
-      createdAt: now,
-      createdBy: input.actorId,
-      artifactRef: captured.artifactRef,
-      watermarkAtCapture: captured.watermarkAtCapture,
-    });
+/** Restore-point step: snapshots the workspace and records the snapshot, attributed to the acting
+ *  person, before the run writes anything. @complexity One workspace snapshot plus one row write. */
+async function captureImportRestorePoint({ input }: { input: BuildPublishContentImportHooksInput }, _optional = {}): Promise<string> {
+  // Restore point captured BEFORE any write this run might make (plan §4 task 7's own
+  // instruction), mirroring `buildMigrateForwardHooks`'s identical ordering. The
+  // `costClass: 'unavailable'` refusal itself lives in `execute-import.ts`, called by the
+  // route BEFORE `gateway.execute()` ever reaches this function — see this file's header.
+  const captured = await input.dbOps.captureRestorePoint({ scopeId: input.workspaceId });
+  const restorePointId = input.idGen.newId();
+  const now = clockNowIso({ clock: input.clock });
+  await input.restorePointsRepo.save({
+    restorePointId,
+    idempotencyKey: restorePointId,
+    trigger: "publish-content-import",
+    createdAt: now,
+    createdBy: input.actorId,
+    artifactRef: captured.artifactRef,
+    watermarkAtCapture: captured.watermarkAtCapture,
+  });
   return restorePointId;
 }
 
-/** Applies the report the gateway already re-derived and hash-matched, after capturing a restore point. */
-async function executeImportMutation({ input, verified }: { input: BuildPublishContentImportHooksInput; verified: { details: PublishContentReport } }): Promise<PublishContentImportExecution> {
-  const restorePointId = await captureImportRestorePoint(input);
-    // The report `gateway.execute()` step 4 just re-derived and hash-matched against the
-    // confirmed token — NOT a fresh `buildReport()` call.
-    //
-    // This used to re-derive, on the claim that `gateway.execute()` having hash-compared
-    // "moments ago" made a second derivation "guaranteed consistent". That claim was false
-    // (sol review 2026-09-20, High finding 1). `buildReport()` reads live state on every call
-    // (this file's header) and the two derivations are separated by the token redemption plus
-    // this function's own restore-point capture, which is a whole-workspace snapshot —
-    // `execute-import.ts` classes its cost `cheap | expensive | unavailable`, so a slow one is a
-    // supported state, not a pathology. That same file (line 14) records that this ceremony
-    // deliberately takes no cross-domain operation lock. Nothing held the destination still, so a
-    // row the operator confirmed as `conflict` (no write) could re-derive as `applied` (a write)
-    // and be applied unseen: the operator authorises one write set and gets another.
-    const report = verified.details;
-    const {
-      report: appliedReport,
-      runId,
-      changeSetIds,
-      retiredChangeSetIds,
-      repointChangeSetIds,
-      menuLinksUpdated,
-      menuLinksNotUpdated,
-      verificationProblems,
-    } = await input.applyPort.applyReport({
-      report,
-      principalId: input.actorId,
-      bundleId: input.bundleId,
-      restorePointId,
-      // This hooks bag's OWN authorize, which the route may have attenuated for a publishing
-      // credential. Threaded rather than left to the port because the port is built once per
-      // process and this decision is per request.
-      ...(input.publishContentDeps.authorize === undefined ? {} : { authorize: input.publishContentDeps.authorize }),
-      ...(input.publishContentDeps.backstop === undefined ? {} : { backstop: input.publishContentDeps.backstop }),
-    });
-    return {
-      ...(appliedReport ? { report: appliedReport } : {}),
-      restorePointId,
-      runId,
-      changeSetIds,
-      retiredChangeSetIds,
-      repointChangeSetIds,
-      menuLinksUpdated,
-      menuLinksNotUpdated,
-      verificationProblems,
-    };
-}
+/** Execute step: applies exactly the report the gateway hash-matched against the confirmed token.
+ *  @param report - The verified report, never a fresh derivation (see the comment in the body).
+ *  @complexity One restore point, then the apply run's cost over the report's rows. */
+async function executeConfirmedImport({ input, report: confirmedReport }: { input: BuildPublishContentImportHooksInput; report: PublishContentReport }, _optional = {}): Promise<PublishContentImportResult> {
+  const restorePointId = await captureImportRestorePoint({ input });
 
-/**
- * SPEC publish-content — the `publish_content` import ceremony's `GatedMutationHooks`. See this
- * file's header for the `PLAN_STALE`-for-free property and the Task 8 seam.
- *
- * @complexity O(n) in the staged bundle's entity count, via `planImport()` — dominated by
- * `planImport`'s own cost (its file header documents this precisely), not by anything in this file.
- * @overallScore 100
- */
-export function buildPublishContentImportHooks(
-  input: BuildPublishContentImportHooksInput
-): GatedMutationHooks<PublishContentReport, PublishContentImportExecution> {
+  // The report `gateway.execute()` step 4 just re-derived and hash-matched against the
+  // confirmed token — NOT a fresh `planStagedImport()` call.
+  //
+  // This used to re-derive, on the claim that `gateway.execute()` having hash-compared
+  // "moments ago" made a second derivation "guaranteed consistent". That claim was false
+  // (sol review 2026-09-20, High finding 1). `planStagedImport()` reads live state on every call
+  // (this file's header) and the two derivations are separated by the token redemption plus
+  // this function's own restore-point capture, which is a whole-workspace snapshot —
+  // `execute-import.ts` classes its cost `cheap | expensive | unavailable`, so a slow one is a
+  // supported state, not a pathology. That same file (line 14) records that this ceremony
+  // deliberately takes no cross-domain operation lock. Nothing held the destination still, so a
+  // row the operator confirmed as `conflict` (no write) could re-derive as `applied` (a write)
+  // and be applied unseen: the operator authorises one write set and gets another.
+  const report = confirmedReport;
+  const {
+    report: appliedReport,
+    runId,
+    changeSetIds,
+    retiredChangeSetIds,
+    repointChangeSetIds,
+    menuLinksUpdated,
+    menuLinksNotUpdated,
+    verificationProblems,
+  } = await input.applyPort.applyReport({
+    report,
+    principalId: input.actorId,
+    bundleId: input.bundleId,
+    restorePointId,
+    // This hooks bag's OWN authorize, which the route may have attenuated for a publishing
+    // credential. Threaded rather than left to the port because the port is built once per
+    // process and this decision is per request.
+    ...(input.publishContentDeps.authorize === undefined ? {} : { authorize: input.publishContentDeps.authorize }),
+    ...(input.publishContentDeps.backstop === undefined ? {} : { backstop: input.publishContentDeps.backstop }),
+  });
   return {
-    domain: "publish_content.import",
-    readPermission: "publish_content.read",
-    mutatePermission: "publish_content.apply",
-    scopeId: input.workspaceId,
-    computePlan: async () => {
-      const report = await buildImportReport(input);
-      return { planHash: planHashOf({ details: report }), details: report };
-    },
-    executeMutation: (verified) => executeImportMutation({ input, verified }),
-    resolveActorClassIdentity,
+    ...(appliedReport ? { report: appliedReport } : {}),
+    restorePointId,
+    runId,
+    changeSetIds,
+    retiredChangeSetIds,
+    repointChangeSetIds,
+    menuLinksUpdated,
+    menuLinksNotUpdated,
+    verificationProblems,
   };
 }

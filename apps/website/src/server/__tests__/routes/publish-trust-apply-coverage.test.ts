@@ -25,7 +25,7 @@ import {
 } from "#src/features/publish-content/type-registry";
 import { createCompositePeerBlobSource } from "#src/features/publish-content/composite-blob-source";
 import type { BackstopSelection } from "#src/features/publish-content/backstop-ports";
-import { entityKey } from "#src/features/publish-content/planner";
+import { entityKey } from "#src/features/publish-content/plan-rows";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { installFirstPartyPublishContentTypes } from "#src/server/runtime/composition/publish-content-manifest";
 import { buildPublishBackstopPorts } from "#src/server/runtime/composition/publish-backstop-ports";

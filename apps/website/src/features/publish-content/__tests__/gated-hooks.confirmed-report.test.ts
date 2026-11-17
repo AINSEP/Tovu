@@ -33,7 +33,7 @@ import {
   type PublishContentDbOpsPort,
   type PublishContentRestorePointSavePort,
 } from "../gated-hooks.js";
-import type { PublishContentReport } from "../planner.js";
+import type { PublishContentReport } from "../plan-rows.js";
 import { InMemoryPostRepo } from "../../post/repo.memory.js";
 import {
   registerPublishContentContributor,

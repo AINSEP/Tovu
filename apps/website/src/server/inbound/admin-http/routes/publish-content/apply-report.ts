@@ -1,5 +1,5 @@
 import type { BackstopAuditPort } from "#src/features/publish-content/backstop-audit";
-import type { PublishContentReport } from "#src/features/publish-content/planner";
+import type { PublishContentReport } from "#src/features/publish-content/plan-rows";
 import type { PublishContentReportDto } from "#src/features/publish-content/report-contract";
 import { toPublishContentReportDto } from "./report-dto.js";
 

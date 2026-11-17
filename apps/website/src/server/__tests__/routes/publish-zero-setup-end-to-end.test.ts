@@ -13,7 +13,7 @@ import { buildExportBundle } from "#src/features/publish-content/export-bundle";
 import { resolvePublishDestinationCredential } from "#src/features/publish-content/destination-credential";
 import { pushBundleToPeer, confirmPeerImport, executePeerImport } from "#src/features/publish-content/peer-transport";
 import { saveConnectedDestination, InMemoryPublishContentPeerRepo, type PublishContentPeerRepoPort } from "#src/features/publish-content/peers";
-import { entityKey } from "#src/features/publish-content/planner";
+import { entityKey } from "#src/features/publish-content/plan-rows";
 import { listPublishContentContributors } from "#src/features/publish-content/type-registry";
 import { connectDestination, disconnectDestination, findCandidateDestination } from "#src/features/publish-trust/connect";
 import { PublishTrustHandshakeError } from "#src/features/publish-trust/handshake-client";

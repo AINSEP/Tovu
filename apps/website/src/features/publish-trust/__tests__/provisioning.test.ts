@@ -8,8 +8,6 @@ import type { ProvisioningEvent, ProvisioningFileIo, PublishTrustResolution } fr
 import {
   COMMITTED_JSON_CODEC,
   createFileProvisioning,
-  describeConnection,
-  describePublishTrustState,
   findGrantForSource,
   grantNotAfterFrom,
   MAX_PROVISIONED_GRANTS,
@@ -20,6 +18,7 @@ import {
   resolvePublishTrust,
   serializeGrantDocument,
 } from "../provisioning.js";
+import { describeConnection, describePublishTrustState } from "../provisioning-status.js";
 
 /**
  * @file Proofs for how a grant reaches the destination.

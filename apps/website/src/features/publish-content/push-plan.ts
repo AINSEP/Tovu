@@ -1,5 +1,5 @@
 import { computeBlobStorageKey } from "@jini-ai/cms/media";
-import { applyPublishScope, buildExportBundle, includeReferencedEntities, selectBundleEntities, type PublishContentAuthorize } from "./export-bundle.js";
+import { applyPublishScope, buildExportBundle, includeReferencedEntities, selectBundleEntities, type PublishContentAuthorize, type PublishContentExportEnvelope } from "./export-bundle.js";
 import { buildPublishContentCatalog, type PublishContentDeps } from "./type-registry.js";
 import { pushBundleToPeer, type PeerCallDeps, type NotSupportedByLiveEntry } from "./peer-transport.js";
 import { createCompositePeerBlobSource, type CompositeBlobStoreRead } from "./composite-blob-source.js";
@@ -8,21 +8,40 @@ import { entryPublicPath } from "#src/platform/routing/index";
 import type { PostRecord } from "../post/contracts.js";
 import type { PublishScope } from "./ui/contract.js";
 
-/** Owner decision 2026-10-05: the assistant must publish on its own. The HTTP dialog and chat
- * share this outbound plan builder, and the destination remains the sole import gateway.
- * Selection narrows the staged bundle, never an execute-time filter an older live could ignore. */
-export async function planPublishToPeer(
-  required: {
-    deps: { workspaceId: string; authorize: PublishContentAuthorize; publishContentDeps: PublishContentDeps;
-      workspaceRepo: { findById(input: { id: string }): Promise<{ name?: string } | null> };
-      blobStore: CompositeBlobStoreRead; fileBlobIndex: Parameters<typeof createCompositePeerBlobSource>[0]["fileBlobIndex"] };
-    peer: PeerCallDeps;
-    principalId: string;
-  },
-  input: { scope?: PublishScope | null; selectedEntityKeys?: readonly string[] | null; overwriteEntityKeys?: readonly string[] | null } = {},
-): Promise<Record<string, unknown> & { publicUrls: Record<string, string>; itemNames: Record<string, string[]>;
-  bundleId: string; liveCanOverwrite: boolean; overwriteEntityKeys?: readonly string[]; notSupportedByLive: readonly NotSupportedByLiveEntry[] }> {
-  const { deps, peer, principalId } = required;
+export interface PlanPublishToPeerDeps {
+  workspaceId: string;
+  authorize: PublishContentAuthorize;
+  publishContentDeps: PublishContentDeps;
+  workspaceRepo: { findById(input: { id: string }): Promise<{ name?: string } | null> };
+  blobStore: CompositeBlobStoreRead;
+  fileBlobIndex: Parameters<typeof createCompositePeerBlobSource>[0]["fileBlobIndex"];
+}
+
+interface PlanPublishToPeerInput {
+  scope?: PublishScope | null;
+  selectedEntityKeys?: readonly string[] | null;
+  overwriteEntityKeys?: readonly string[] | null;
+}
+
+export type PublishToPeerPlan = Record<string, unknown> & {
+  publicUrls: Record<string, string>; itemNames: Record<string, string[]>;
+  bundleId: string; liveCanOverwrite: boolean; overwriteEntityKeys?: readonly string[]; notSupportedByLive: readonly NotSupportedByLiveEntry[];
+};
+
+/** What the plan sends: the scoped bundle (kept for its `skipped` list), the bundle after the row
+ *  selection and the carried-along rows, and which in-scope rows each carried row is for. */
+interface StagedSelection {
+  readonly scoped: PublishContentExportEnvelope;
+  readonly bundle: PublishContentExportEnvelope;
+  readonly includedFor: ReadonlyMap<string, readonly string[]>;
+}
+
+/** Packs the full bundle, then narrows it: scope first, then the row selection, then the rows the
+ *  remaining ones use. */
+async function selectBundleToPush(
+  { deps, principalId, input }: { deps: PlanPublishToPeerDeps; principalId: string; input: PlanPublishToPeerInput },
+  _optional = {}
+): Promise<StagedSelection> {
   const workspace = await deps.workspaceRepo.findById({ id: deps.workspaceId });
   const publishContentDeps = deps.publishContentDeps;
   const fullBundle = await buildExportBundle({
@@ -51,18 +70,83 @@ export async function planPublishToPeer(
     input.scope == null
       ? { envelope: selected, includedFor: new Map<string, readonly string[]>() }
       : includeReferencedEntities({ envelope: selected, source: fullBundle, handlers: buildPublishContentCatalog(publishContentDeps).handlerByType });
+  return { scoped, bundle, includedFor };
+}
 
-  const result = await pushBundleToPeer(
+function pushSelectedBundle(
+  { deps, peer, bundle, overwriteEntityKeys }: { deps: PlanPublishToPeerDeps; peer: PeerCallDeps; bundle: PublishContentExportEnvelope; overwriteEntityKeys: readonly string[] | null | undefined },
+  _optional = {}
+) {
+  return pushBundleToPeer(
     {
       ...peer,
       // S18 (S-F3) — sources a blob from the media blob store FIRST, falling back to
       // `RouteDeps.fileBlobIndex` (a file-tree type's `pack()` fill) so a blob that was never
       // copied into the blob store can still be pushed. See `composite-blob-source.ts`'s header.
       blobSource: createCompositePeerBlobSource({ blobStore: deps.blobStore, fileBlobIndex: deps.fileBlobIndex }),
-      computeStorageKey: ({ sha256 }: { sha256: string }, _options: Record<string, never> = {}) => computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 }),
+      computeStorageKey: ({ sha256 }: { sha256: string }, _options = {}) => computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 }),
     },
-    { bundle, ...(input.overwriteEntityKeys == null ? {} : { overwriteEntityKeys: input.overwriteEntityKeys }) }
+    { bundle, ...(overwriteEntityKeys == null ? {} : { overwriteEntityKeys }) }
   );
+}
+
+function publicUrlsOf(
+  { deps, peer, bundle }: { deps: PlanPublishToPeerDeps; peer: PeerCallDeps; bundle: PublishContentExportEnvelope },
+  _optional = {}
+): Record<string, string> {
+  return Object.fromEntries(bundle.entities.flatMap(entity => {
+    if (entity.entityType !== "post" && entity.entityType !== "page") return [];
+    const url = entryPublicPath({ post: entity.state as unknown as PostRecord, ctx: { workspaceId: deps.workspaceId, originOverride: peer.credential.baseUrl } });
+    return url ? [[`${entity.entityType}:${entity.id}`, url.canonicalUrl]] : [];
+  }));
+}
+
+function itemNamesOf({ bundle }: { bundle: PublishContentExportEnvelope }, _optional = {}): Record<string, string[]> {
+  return Object.fromEntries(bundle.entities.map(entity => [`${entity.entityType}:${entity.id}`,
+    [entity.state.title, entity.state.slug, entity.displayLabel].filter((name): name is string => typeof name === "string" && name.length > 0)]));
+}
+
+/** The peer's plan, with each row named from the bundle we just sent it — a live site
+ * deployed before `entityLabel` existed answers rows with no label, and this side can name
+ * its own content regardless. See `features/publish-content/report-labels.ts`.
+ *
+ * Then: every whole unit THIS instance refused to pack (`scoped.skipped` — e.g. a theme
+ * tree `file-tree-policy.ts` blocked) appended as its own non-selectable row. It never
+ * reached the peer's bundle at all, so the peer's own plan has no way to report it — this is
+ * the one place a caller holds both reports at once. Read off `scoped`, not the
+ * (possibly selection-narrowed) `bundle`: a skipped unit was never selectable, so an
+ * operator's row selection has nothing to say about whether it is still shown, but `scope`
+ * itself still applies — a refused theme tree only belongs in a theme-files-scoped plan.
+ *
+ * Last, a carried-along row that live would write is tagged with the rows that use it, an
+ * unchanged one is dropped, and a conflicting/blocked one stays as an ordinary row so the
+ * operator sees it — `report-labels.ts`'s `keepChangingIncludedEntities`. An update whose local
+ * item is trashed is tagged `trashes` so the dialog says it trashes on live (`tagTrashingRows`). */
+function annotatedPeerPlan(
+  { result, selection }: { result: Awaited<ReturnType<typeof pushBundleToPeer>>; selection: StagedSelection },
+  _optional = {}
+) {
+  const { scoped, bundle, includedFor } = selection;
+  return appendSkippedRowsToPeerPlan(
+    keepChangingIncludedEntities(
+      tagTrashingRows(labelPeerPlanRows(result.plan, bundle.entities), bundle.entities),
+      includedFor
+    ),
+    scoped.skipped
+  );
+}
+
+/** Owner decision 2026-10-05: the assistant must publish on its own. The HTTP dialog and chat
+ * share this outbound plan builder, and the destination remains the sole import gateway.
+ * Selection narrows the staged bundle, never an execute-time filter an older live could ignore. */
+export async function planPublishToPeer(
+  required: { deps: PlanPublishToPeerDeps; peer: PeerCallDeps; principalId: string },
+  input: PlanPublishToPeerInput = {},
+): Promise<PublishToPeerPlan> {
+  const { deps, peer, principalId } = required;
+  const selection = await selectBundleToPush({ deps, principalId, input });
+  const { bundle } = selection;
+  const result = await pushSelectedBundle({ deps, peer, bundle, overwriteEntityKeys: input.overwriteEntityKeys });
 
   // S-F1: `pushBundleToPeer` probes the peer's own capabilities and trims the bundle to what it
   // accepts BEFORE staging anything, so `bundle.entities.length` (the selection this route built)
@@ -80,15 +164,9 @@ export async function planPublishToPeer(
   // same bundle it planned, so a client MUST carry this value from here into `push/execute`.
   // Holding it server-side instead would mean remembering per-operator state between two
   // requests, which is exactly the kind of implicit session the gated ceremony avoids.
-  const publicUrls = Object.fromEntries(bundle.entities.flatMap(entity => {
-    if (entity.entityType !== "post" && entity.entityType !== "page") return [];
-    const url = entryPublicPath({ post: entity.state as unknown as PostRecord, ctx: { workspaceId: deps.workspaceId, originOverride: peer.credential.baseUrl } });
-    return url ? [[`${entity.entityType}:${entity.id}`, url.canonicalUrl]] : [];
-  }));
   return {
-    publicUrls,
-    itemNames: Object.fromEntries(bundle.entities.map(entity => [`${entity.entityType}:${entity.id}`,
-      [entity.state.title, entity.state.slug, entity.displayLabel].filter((name): name is string => typeof name === "string" && name.length > 0)])),
+    publicUrls: publicUrlsOf({ deps, peer, bundle }),
+    itemNames: itemNamesOf({ bundle }),
     peerId: peer.credential.id,
     peerLabel: peer.credential.label,
     bundleId: result.bundleId,
@@ -106,28 +184,6 @@ export async function planPublishToPeer(
     // the same "absent, not an empty real answer" contract `selectedEntityKeys` itself reads by
     // (the HTTP route's `readSelectedEntityKeys` doc).
     ...(input.overwriteEntityKeys == null ? {} : { overwriteEntityKeys: input.overwriteEntityKeys }),
-    // The peer's plan, with each row named from the bundle we just sent it — a live site
-    // deployed before `entityLabel` existed answers rows with no label, and this side can name
-    // its own content regardless. See `features/publish-content/report-labels.ts`.
-    //
-    // Then: every whole unit THIS instance refused to pack (`scoped.skipped` — e.g. a theme
-    // tree `file-tree-policy.ts` blocked) appended as its own non-selectable row. It never
-    // reached the peer's bundle at all, so the peer's own plan has no way to report it — this is
-    // the one place a caller holds both reports at once. Read off `scoped`, not the
-    // (possibly selection-narrowed) `bundle`: a skipped unit was never selectable, so an
-    // operator's row selection has nothing to say about whether it is still shown, but `scope`
-    // itself still applies — a refused theme tree only belongs in a theme-files-scoped plan.
-    //
-    // Last, a carried-along row that live would write is tagged with the rows that use it, an
-    // unchanged one is dropped, and a conflicting/blocked one stays as an ordinary row so the
-    // operator sees it — `report-labels.ts`'s `keepChangingIncludedEntities`. An update whose local
-    // item is trashed is tagged `trashes` so the dialog says it trashes on live (`tagTrashingRows`).
-    ...appendSkippedRowsToPeerPlan(
-      keepChangingIncludedEntities(
-        tagTrashingRows(labelPeerPlanRows(result.plan, bundle.entities), bundle.entities),
-        includedFor
-      ),
-      scoped.skipped
-    ),
+    ...annotatedPeerPlan({ result, selection }),
   };
 }

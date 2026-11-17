@@ -132,7 +132,7 @@ import { SqlitePublishContentBaselineRepo } from "#src/platform/db/sqlite/publis
 import { SqlitePublishContentRunRepo } from "#src/platform/db/sqlite/publish-content-run-repo.sqlite";
 import { publishTrustRevocationStoreFor } from "#src/features/publish-trust/publish-trust-revocations";
 import { type ContentKernel, contentKernel } from "#src/platform/db/content-kernel";
-import { createPublishContentApplyPort, toPublishContentApplyDeps } from "#src/features/publish-content/apply-loop";
+import { createPublishContentApplyPort, toPublishContentApplyDeps } from "#src/features/publish-content/apply-port";
 import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
 import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";
 import { composeFormSubmissions } from "#src/server/runtime/composition/form-submissions";

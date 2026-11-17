@@ -1,0 +1,3971 @@
+[
+ {
+  "id": "K1a",
+  "what": "installation-id purpose string changed",
+  "file": "apps/website/src/features/publish-trust/keys.ts",
+  "find": "const INSTALLATION_ID_PURPOSE = \"publish-trust-installation-id\";",
+  "replace": "const INSTALLATION_ID_PURPOSE = \"publish-trust-installation-idX\";",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/keys.test.ts"
+  ]
+ },
+ {
+  "id": "K2a",
+  "what": "signing-key purpose string changed",
+  "file": "apps/website/src/features/publish-trust/keys.ts",
+  "find": "const SIGNING_KEY_PURPOSE = \"publish-trust-signing-key\";",
+  "replace": "const SIGNING_KEY_PURPOSE = \"publish-trust-signing-keyX\";",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/keys.test.ts"
+  ]
+ },
+ {
+  "id": "K2b",
+  "what": "target origin dropped from the signing-key derivation input",
+  "file": "apps/website/src/features/publish-trust/keys.ts",
+  "find": "info: `${input.sourceInstallationId}:${input.targetOrigin}:v${input.generation}`,",
+  "replace": "info: `${input.sourceInstallationId}:v${input.generation}`,",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/keys.test.ts"
+  ]
+ },
+ {
+  "id": "K2c",
+  "what": "generation dropped from the signing-key derivation input",
+  "file": "apps/website/src/features/publish-trust/keys.ts",
+  "find": "info: `${input.sourceInstallationId}:${input.targetOrigin}:v${input.generation}`,",
+  "replace": "info: `${input.sourceInstallationId}:${input.targetOrigin}`,",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/keys.test.ts"
+  ]
+ },
+ {
+  "id": "K2d",
+  "what": "signature verifier fails open on a crypto throw",
+  "file": "apps/website/src/features/publish-trust/keys.ts",
+  "find": "  } catch {\n    return false;\n  }\n}",
+  "replace": "  } catch {\n    return true;\n  }\n}",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/keys.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/keys-fail-closed-guard.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K2e",
+  "what": "malformed key/signature length guard removed",
+  "file": "apps/website/src/features/publish-trust/keys.ts",
+  "find": "if (!rawPublicKey || !signature) return false;",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/keys.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/keys-fail-closed-guard.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K3a",
+  "what": "challenge domain tag renamed",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "const CHALLENGE_MESSAGE_VERSION = \"tovu-publish-challenge-v1\";",
+  "replace": "const CHALLENGE_MESSAGE_VERSION = \"publish-challenge-v1\";",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K3b",
+  "what": "challenge message field order swapped (target/source)",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "    input.targetInstallationId,\n    input.sourceInstallationId,\n    String(input.generation),",
+  "replace": "    input.sourceInstallationId,\n    input.targetInstallationId,\n    String(input.generation),",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K3c",
+  "what": "capabilities dropped from the signed message",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "    [...input.capabilities].sort().join(\",\"),\n  ].join(\"\\n\");",
+  "replace": "  ].join(\"\\n\");",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K4a1",
+  "what": "identity required-field check removed",
+  "file": "apps/website/src/features/publish-trust/handshake-client.ts",
+  "find": "if (!isNonEmptyString(installationId) || !isNonEmptyString(workspaceId)) throw notATovuSite({ site: siteNameOf({ baseUrl: input.baseUrl }) });",
+  "replace": "if (!isNonEmptyString(installationId)) throw notATovuSite({ site: siteNameOf({ baseUrl: input.baseUrl }) });",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/handshake-client.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K4a2",
+  "what": "identity installationId check removed",
+  "file": "apps/website/src/features/publish-trust/handshake-client.ts",
+  "find": "if (!isNonEmptyString(installationId) || !isNonEmptyString(workspaceId)) throw notATovuSite({ site: siteNameOf({ baseUrl: input.baseUrl }) });",
+  "replace": "if (!isNonEmptyString(workspaceId)) throw notATovuSite({ site: siteNameOf({ baseUrl: input.baseUrl }) });",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/handshake-client.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K4a3",
+  "what": "challenge nonce check removed",
+  "file": "apps/website/src/features/publish-trust/handshake-client.ts",
+  "find": "if (!isNonEmptyString(nonce) || !isNonEmptyString(targetInstallationId)) throw",
+  "replace": "if (!isNonEmptyString(targetInstallationId)) throw",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/handshake-client.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K4a4",
+  "what": "challenge targetInstallationId check removed",
+  "file": "apps/website/src/features/publish-trust/handshake-client.ts",
+  "find": "if (!isNonEmptyString(nonce) || !isNonEmptyString(targetInstallationId)) throw",
+  "replace": "if (!isNonEmptyString(nonce)) throw",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/handshake-client.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K4a5",
+  "what": "session token check removed",
+  "file": "apps/website/src/features/publish-trust/handshake-client.ts",
+  "find": "if (!isNonEmptyString(token)) throw notATovuSite({ site: siteNameOf({ baseUrl: input.baseUrl }) });",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/handshake-client.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K4b1",
+  "what": "identity origin fallback changed",
+  "file": "apps/website/src/features/publish-trust/handshake-client.ts",
+  "find": "origin: typeof origin === \"string\" ? origin : input.baseUrl };",
+  "replace": "origin: typeof origin === \"string\" ? origin : \"\" };",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/handshake-client.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K4b2",
+  "what": "session expiresAt fallback changed",
+  "file": "apps/website/src/features/publish-trust/handshake-client.ts",
+  "find": "expiresAt: typeof minted.expiresAt === \"string\" ? minted.expiresAt : \"\",",
+  "replace": "expiresAt: typeof minted.expiresAt === \"string\" ? minted.expiresAt : \"never\",",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/handshake-client.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K4b3",
+  "what": "session capabilities fallback changed",
+  "file": "apps/website/src/features/publish-trust/handshake-client.ts",
+  "find": "      : requested,",
+  "replace": "      : [],",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/handshake-client.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K4c",
+  "what": "handshake timeout removed from the request",
+  "file": "apps/website/src/features/publish-trust/handshake-client.ts",
+  "find": "      timeoutMs: HANDSHAKE_TIMEOUT_MS,\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/handshake-client.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K5",
+  "what": "destination workspace re-check removed",
+  "file": "apps/website/src/features/publish-content/destination-credential.ts",
+  "find": "if (session.identity.workspaceId !== record.remoteWorkspaceId) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/destination-credential.test.ts"
+  ]
+ },
+ {
+  "id": "D1a",
+  "what": "nonce not consumed (replay allowed)",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "if (record) this.records.delete(nonce);",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D1b",
+  "what": "nonce expiry check removed",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "if (isChallengeExpired({ record: issued, now })) return \"nonce has expired\";",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D1c",
+  "what": "unknown nonce accepted",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "if (!issued) return refuse({ reason: \"nonce is unknown or was already used\" });",
+  "replace": "if (!issued) return { ok: true, verified: { sourceInstallationId: response.sourceInstallationId, targetInstallationId: input.targetInstallationId, generation: response.generation, capabilities: [] } };",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D1d",
+  "what": "nonce audience check removed",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "if (issued.targetInstallationId !== targetInstallationId) return \"nonce was issued for another destination\";",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D2a",
+  "what": "grant-active check removed",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "if (!isGrantActive({ grant, nowIso })) return \"the publishing grant has expired or been revoked\";",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D2b",
+  "what": "source-matches-grant check removed",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "if (response.sourceInstallationId !== grant.sourceInstallationId) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D2c",
+  "what": "capability-within-grant check removed",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "if (!grantAllowsCapability({ grant, capability })) return `'${String(capability)}' is outside this grant`;",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D2d",
+  "what": "signature check removed",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "if (!verifyPublishSignature({ publicKeyB64u: key.publicKeyB64u, message, signatureB64u: response.signatureB64u })) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D2e",
+  "what": "key looked up without the claimed generation",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "grant.publicKeys.find((candidate) => candidate.generation === response.generation);",
+  "replace": "grant.publicKeys[0];",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D2f",
+  "what": "empty capability list accepted",
+  "file": "apps/website/src/features/publish-trust/challenge.ts",
+  "find": "if (!Array.isArray(capabilities) || capabilities.length === 0) return \"no capabilities requested\";",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/challenge.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D3a",
+  "what": "unreadable revocations no longer refuse",
+  "file": "apps/website/src/features/publish-trust/revocations.ts",
+  "find": "if (input.revocations === null) return refuse(\"revocations-unreadable\");\n  if (isRevoked({ revocations: input.revocations, sourceInstallationId: input.sourceInstallationId })) return refuse(\"disconnected\");",
+  "replace": "if (input.revocations !== null && isRevoked({ revocations: input.revocations, sourceInstallationId: input.sourceInstallationId })) return refuse(\"disconnected\");",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/revocations.test.ts"
+  ]
+ },
+ {
+  "id": "D3b",
+  "what": "revoked check removed",
+  "file": "apps/website/src/features/publish-trust/revocations.ts",
+  "find": "if (isRevoked({ revocations: input.revocations, sourceInstallationId: input.sourceInstallationId })) return refuse(\"disconnected\");",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/revocations.test.ts"
+  ]
+ },
+ {
+  "id": "D3c",
+  "what": "site-configured check removed",
+  "file": "apps/website/src/features/publish-trust/revocations.ts",
+  "find": "if (input.resolution.state !== \"configured\") return refuse(\"site-not-configured\");",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/revocations.test.ts"
+  ]
+ },
+ {
+  "id": "D3d",
+  "what": "grant-active (expiry) check removed",
+  "file": "apps/website/src/features/publish-trust/revocations.ts",
+  "find": "if (!isGrantActive({ grant, nowIso: input.nowIso })) return refuse(\"expired\");",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/revocations.test.ts"
+  ]
+ },
+ {
+  "id": "D3e",
+  "what": "superseded-key check removed",
+  "file": "apps/website/src/features/publish-trust/revocations.ts",
+  "find": "if (!grant.publicKeys.some((k) => k.publicKeyB64u === input.publicKeyB64u)) return refuse(\"superseded-key\");",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/revocations.test.ts"
+  ]
+ },
+ {
+  "id": "D4a1",
+  "what": "MAC check always passes",
+  "file": "apps/website/src/features/publish-trust/session.ts",
+  "find": "return presented.length === expected.length && timingSafeEqual(presented, expected);",
+  "replace": "return true;",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/session.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D4a2",
+  "what": "expiry claim check removed",
+  "file": "apps/website/src/features/publish-trust/session.ts",
+  "find": "if (now >= Date.parse(payload.expiresAtIso)) return \"session token has expired\";",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/session.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D4a3",
+  "what": "audience claim check removed",
+  "file": "apps/website/src/features/publish-trust/session.ts",
+  "find": "if (payload.targetInstallationId !== expectedAudience) return \"session token was minted for another destination\";",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/session.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D4a4",
+  "what": "workspace claim check removed",
+  "file": "apps/website/src/features/publish-trust/session.ts",
+  "find": "if (payload.workspaceId !== workspaceId) return \"session token was minted for another workspace\";",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/session.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D4a5",
+  "what": "session key derived without the workspace",
+  "file": "apps/website/src/features/publish-trust/session.ts",
+  "find": "workspaceId: deps.workspaceId as never,\n    purpose: SESSION_KEY_PURPOSE,",
+  "replace": "workspaceId: \"fixed\" as never,\n    purpose: SESSION_KEY_PURPOSE,",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/session.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D4a6",
+  "what": "session key purpose string changed",
+  "file": "apps/website/src/features/publish-trust/session.ts",
+  "find": "const SESSION_KEY_PURPOSE = \"publish-trust-session-key\";",
+  "replace": "const SESSION_KEY_PURPOSE = \"publish-trust-session-keyX\";",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/session.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D4b",
+  "what": "payload parsed before the MAC is checked",
+  "file": "apps/website/src/features/publish-trust/session.ts",
+  "find": "  const key = await sessionKey(deps);\n  if (!macMatches({ key, ...split })) return refuse({ reason: \"session token signature is invalid\" });\n\n  const payload = decodePayload({ encoded: split.encoded });\n  if (typeof payload === \"string\") return refuse({ reason: payload });\n",
+  "replace": "  const payload = decodePayload({ encoded: split.encoded });\n  if (typeof payload === \"string\") return refuse({ reason: payload });\n  const key = await sessionKey(deps);\n  if (!macMatches({ key, ...split })) return refuse({ reason: \"session token signature is invalid\" });\n",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/session.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K1b",
+  "what": "installation-id length 16 -> 15 bytes",
+  "file": "apps/website/src/features/publish-trust/keys.ts",
+  "find": "const INSTALLATION_ID_BYTES = 16;",
+  "replace": "const INSTALLATION_ID_BYTES = 15;",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/trust-key-pins.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "D4c",
+  "what": "MAC compared with a plain string compare instead of timingSafeEqual",
+  "file": "apps/website/src/features/publish-trust/session.ts",
+  "find": "return presented.length === expected.length && timingSafeEqual(presented, expected);",
+  "replace": "return presentedMac === expectedMac;",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/trust-key-pins.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "D4b2",
+  "what": "payload parsed before the MAC is checked (outcome pin)",
+  "file": "apps/website/src/features/publish-trust/session.ts",
+  "find": "  const key = await sessionKey(deps);\n  if (!macMatches({ key, ...split })) return refuse({ reason: \"session token signature is invalid\" });\n\n  const payload = decodePayload({ encoded: split.encoded });\n  if (typeof payload === \"string\") return refuse({ reason: payload });\n",
+  "replace": "  const payload = decodePayload({ encoded: split.encoded });\n  if (typeof payload === \"string\") return refuse({ reason: payload });\n  const key = await sessionKey(deps);\n  if (!macMatches({ key, ...split })) return refuse({ reason: \"session token signature is invalid\" });\n",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/trust-key-pins.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "D3f",
+  "what": "grant-not-found check replaced by first grant",
+  "file": "apps/website/src/features/publish-trust/revocations.ts",
+  "find": "if (grant === null) return refuse(\"not-connected\");",
+  "replace": "if (grant === null) return { allowed: true, grant: (input.resolution as { grants: readonly never[] }).grants[0] };",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/revocations.test.ts"
+  ]
+ },
+ {
+  "id": "D5a",
+  "what": "grant version check removed",
+  "file": "apps/website/src/features/publish-trust/grant.ts",
+  "find": "if (doc.version !== PUBLISH_TRUST_GRANT_VERSION) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/grant-parse.unit.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/grant.test.ts"
+  ]
+ },
+ {
+  "id": "D5b",
+  "what": "grant notAfter validation removed",
+  "file": "apps/website/src/features/publish-trust/grant.ts",
+  "find": "if (!isBoundedString(notAfter) || Number.isNaN(Date.parse(notAfter))) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/grant-parse.unit.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/grant.test.ts"
+  ]
+ },
+ {
+  "id": "D5c",
+  "what": "grant expiry boundary: active at exactly notAfter",
+  "file": "apps/website/src/features/publish-trust/grant.ts",
+  "find": "return now < notAfter;",
+  "replace": "return now <= notAfter;",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/grant-parse.unit.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/grant.test.ts"
+  ]
+ },
+ {
+  "id": "D5d",
+  "what": "provisioned grant count bound raised",
+  "file": "apps/website/src/features/publish-trust/provisioning.ts",
+  "find": "export const MAX_PROVISIONED_GRANTS = 8;",
+  "replace": "export const MAX_PROVISIONED_GRANTS = 9;",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/provisioning.test.ts"
+  ]
+ },
+ {
+  "id": "D5e",
+  "what": "provisioning document byte bound raised",
+  "file": "apps/website/src/features/publish-trust/provisioning.ts",
+  "find": "const MAX_DOCUMENT_BYTES = 16_384;",
+  "replace": "const MAX_DOCUMENT_BYTES = 16_385_000;",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/provisioning.test.ts"
+  ]
+ },
+ {
+  "id": "D5f",
+  "what": "grant lifetime changed",
+  "file": "apps/website/src/features/publish-trust/provisioning.ts",
+  "find": "export const GRANT_LIFETIME_DAYS = 365;",
+  "replace": "export const GRANT_LIFETIME_DAYS = 3650;",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/provisioning.test.ts"
+  ]
+ },
+ {
+  "id": "D6a",
+  "what": "a route added to the trusted list",
+  "file": "apps/website/src/features/publish-trust/grant.ts",
+  "find": "  { method: \"POST\", path: \"/api/admin/v1/workspaces/:workspaceId/publish-content/import/execute\" },\n",
+  "replace": "  { method: \"POST\", path: \"/api/admin/v1/workspaces/:workspaceId/publish-content/import/execute\" },\n  { method: \"POST\", path: \"/api/admin/v1/workspaces/:workspaceId/publish-content/peers\" },\n",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/frozen-values.pins.test.ts"
+  ]
+ },
+ {
+  "id": "D6b",
+  "what": "dot-segment guard removed from the route matcher",
+  "file": "apps/website/src/features/publish-trust/grant.ts",
+  "find": "value.length > 0 && value !== \".\" && value !== \"..\"",
+  "replace": "value.length > 0",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/frozen-values.pins.test.ts"
+  ]
+ },
+ {
+  "id": "D6c",
+  "what": "method no longer compared by the route matcher",
+  "file": "apps/website/src/features/publish-trust/grant.ts",
+  "find": "if (route.method !== wanted) return false;",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/frozen-values.pins.test.ts"
+  ]
+ },
+ {
+  "id": "F1",
+  "what": "vault scope owner key renamed",
+  "file": "apps/website/src/features/publish-content/peers.ts",
+  "find": "ownerKey: \"tovu\", principalId: null, provider: null };",
+  "replace": "ownerKey: \"host\", principalId: null, provider: null };",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/frozen-values.pins.test.ts"
+  ]
+ },
+ {
+  "id": "F2",
+  "what": "history row kind renamed",
+  "file": "apps/website/src/features/publish-content/peer-transport.ts",
+  "find": "kind: \"tovu-peer\",",
+  "replace": "kind: \"peer\",",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/frozen-values.pins.test.ts"
+  ]
+ },
+ {
+  "id": "F3",
+  "what": "handshake base path renamed",
+  "file": "apps/website/src/features/publish-trust/handshake-client.ts",
+  "find": "\"/api/publish-trust/v1\"",
+  "replace": "\"/api/trust/v1\"",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/frozen-values.pins.test.ts"
+  ]
+ },
+ {
+  "id": "F4",
+  "what": "failure code renamed",
+  "file": "apps/website/src/features/publish-trust/handshake-client.ts",
+  "find": "Check the address.`, failure: \"not-a-tovu-site\" });",
+  "replace": "Check the address.`, failure: \"not-a-peer-site\" as never });",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/frozen-values.pins.test.ts"
+  ]
+ },
+ {
+  "id": "F5",
+  "what": "principal id prefix renamed",
+  "file": "apps/website/src/features/publish-trust/keys.ts",
+  "find": "PUBLISH_PRINCIPAL_ID_PREFIX = \"pub:\"",
+  "replace": "PUBLISH_PRINCIPAL_ID_PREFIX = \"publisher:\"",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/frozen-values.pins.test.ts"
+  ]
+ },
+ {
+  "id": "F6",
+  "what": "provisioning env var renamed",
+  "file": "apps/website/src/features/publish-trust/provisioning.ts",
+  "find": "\"TOVU_PUBLISH_TRUST\"",
+  "replace": "\"PUBLISH_TRUST\"",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/frozen-values.pins.test.ts"
+  ]
+ },
+ {
+  "id": "F7",
+  "what": "public URL deploy key renamed",
+  "file": "apps/website/src/features/publish-trust/connect.ts",
+  "find": "const PUBLIC_URL_KEY = \"TOVU_PUBLIC_URL\";",
+  "replace": "const PUBLIC_URL_KEY = \"PUBLIC_URL\";",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/frozen-values.pins.test.ts"
+  ]
+ },
+ {
+  "id": "K6a",
+  "what": "summary reports a credential for every row",
+  "file": "apps/website/src/features/publish-content/peers.ts",
+  "find": "hasCredential: record.sealed !== null,",
+  "replace": "hasCredential: true,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/peers.test.ts",
+   "apps/website/src/features/publish-content/__tests__/peers.one-connected-destination.test.ts"
+  ]
+ },
+ {
+  "id": "K6b",
+  "what": "missing-credential refusal removed from the one decrypting function",
+  "file": "apps/website/src/features/publish-content/peers.ts",
+  "find": "  if (!record.sealed) {\n    throw new PublishContentPeerCredentialMissingError(",
+  "replace": "  if (false) {\n    throw new PublishContentPeerCredentialMissingError(",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/peers.test.ts",
+   "apps/website/src/features/publish-content/__tests__/peers.one-connected-destination.test.ts",
+   "apps/website/src/features/publish-content/__tests__/destination-credential.test.ts"
+  ]
+ },
+ {
+  "id": "K6c",
+  "what": "vault context check on write/read authorize removed",
+  "file": "apps/website/src/features/publish-content/peers.ts",
+  "find": "if (context.kind !== peerScope.kind || context.ownerKey !== peerScope.ownerKey || context.principalId !== null) throw new VaultError({ code: \"context\" });",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/peers.test.ts",
+   "apps/website/src/features/publish-content/__tests__/peers.l061.test.ts"
+  ]
+ },
+ {
+  "id": "K6d",
+  "what": "record kind/owner check on read removed",
+  "file": "apps/website/src/features/publish-content/peers.ts",
+  "find": "if (wrongKind || record.principalId !== null || record.provider !== null || record.binding !== null) throw new VaultError({ code: \"context\" });",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/peers.test.ts",
+   "apps/website/src/features/publish-content/__tests__/peers.l061.test.ts"
+  ]
+ },
+ {
+  "id": "K6e",
+  "what": "a connected destination with a saved key is treated as connected (sealed row candidate)",
+  "file": "apps/website/src/features/publish-content/peers.ts",
+  "find": "    if (row.sealed !== null) continue;\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/peers.test.ts",
+   "apps/website/src/features/publish-content/__tests__/peers.one-connected-destination.test.ts"
+  ]
+ },
+ {
+  "id": "K7a",
+  "what": "transport error message no longer redacted",
+  "file": "apps/website/src/features/publish-content/peer-transport.ts",
+  "find": "super(redactSecretShapes({ text: message }).text);",
+  "replace": "super(message);",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/peer-transport.l061.test.ts",
+   "apps/website/src/features/publish-content/__tests__/peer-transport.test.ts"
+  ]
+ },
+ {
+  "id": "K7b",
+  "what": "bearer credential header dropped",
+  "file": "apps/website/src/features/publish-content/peer-transport.ts",
+  "find": "        authorization: `Bearer ${apiKey}`,\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/peer-transport.test.ts"
+  ]
+ },
+ {
+  "id": "K7c",
+  "what": "egress refusal no longer turned into the owner sentence",
+  "file": "apps/website/src/features/publish-content/peer-transport.ts",
+  "find": "if (err instanceof EgressRefusedError) return describePeerEgressRefusal({ err, baseUrl });",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/peer-transport.test.ts",
+   "apps/website/src/features/publish-content/__tests__/peer-transport.l061.test.ts"
+  ]
+ },
+ {
+  "id": "K9a",
+  "what": "pulled blob hash check removed",
+  "file": "apps/website/src/features/publish-content/peer-transport.ts",
+  "find": "if (!bytesMatchSha256({ bytes, claimedSha256: sha256 })) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/peer-transport-blob-pull.test.ts"
+  ]
+ },
+ {
+  "id": "K9b",
+  "what": "peer may ask for a blob outside the selected manifest",
+  "file": "apps/website/src/features/publish-content/peer-transport.ts",
+  "find": "if (missing.some(sha256 => !selectedHashes.has(sha256))) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/peer-transport.test.ts",
+   "apps/website/src/features/publish-content/__tests__/peer-transport-blob-pull.test.ts"
+  ]
+ },
+ {
+  "id": "K9c",
+  "what": "pull cap raised",
+  "file": "apps/website/src/features/publish-content/peer-transport.ts",
+  "find": "export const PUBLISH_CONTENT_PULL_MAX_BLOBS = 2000;",
+  "replace": "export const PUBLISH_CONTENT_PULL_MAX_BLOBS = 2001;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/publish-guards.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "D8",
+  "what": "publish-type stamp spread first (caller can override)",
+  "file": "apps/website/src/features/publish-content/type-registry.ts",
+  "find": "authorize({ ...params, publishType } as Parameters<AuthorizeFn>[0]);",
+  "replace": "authorize({ publishType, ...params } as Parameters<AuthorizeFn>[0]);",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/type-registry.test.ts"
+  ]
+ },
+ {
+  "id": "D9a",
+  "what": "staged bundle readable from another workspace",
+  "file": "apps/website/src/features/publish-content/bundle-staging.ts",
+  "find": "if (!record || record.workspaceId !== input.workspaceId) return null;",
+  "replace": "if (!record) return null;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/bundle-staging.test.ts"
+  ]
+ },
+ {
+  "id": "D9b",
+  "what": "expired bundle still loads",
+  "file": "apps/website/src/features/publish-content/bundle-staging.ts",
+  "find": "return isBundleActive({ record, now }) ? record : null;",
+  "replace": "return record;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/bundle-staging.test.ts"
+  ]
+ },
+ {
+  "id": "D9c",
+  "what": "bundle body cap raised",
+  "file": "apps/website/src/features/publish-content/bundle-staging.ts",
+  "find": "PUBLISH_CONTENT_BUNDLE_MAX_BODY_BYTES = 20 * 1024 * 1024;",
+  "replace": "PUBLISH_CONTENT_BUNDLE_MAX_BODY_BYTES = 21 * 1024 * 1024;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/publish-guards.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "D10a",
+  "what": "plan hash no longer binds the report",
+  "file": "apps/website/src/features/publish-content/gated-hooks.ts",
+  "find": "return { planHash: planHashOf({ details: report }), details: report };",
+  "replace": "return { planHash: planHashOf({ details: {} }), details: report };",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/gated-hooks.confirmed-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/import.routes.pins.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-pull-tool.test.ts"
+  ]
+ },
+ {
+  "id": "D10b",
+  "what": "restore point no longer attributed to the actor",
+  "file": "apps/website/src/features/publish-content/gated-hooks.ts",
+  "find": "    createdBy: input.actorId,\n",
+  "replace": "    createdBy: \"someone\",\n",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/gated-hooks.confirmed-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/import.routes.pins.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-pull-tool.test.ts"
+  ]
+ },
+ {
+  "id": "D11a",
+  "what": "a forbidden write is no longer downgraded to a blocked row",
+  "file": "apps/website/src/features/publish-content/apply-failure.ts",
+  "find": "  if (error instanceof ForbiddenError) {\n    return { outcome: \"blocked\", reason: error.message };\n  }\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "D12a",
+  "what": "who-may-use-backstop always true",
+  "file": "apps/website/src/features/publish-content/backstop-service.ts",
+  "find": "return actorId === ownerId || (await roles.list()).some((role) => role.isBuiltin && (role.name === \"admin\" || role.name === \"owner\"));",
+  "replace": "return true;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/backstop-service.test.ts"
+  ]
+ },
+ {
+  "id": "D12b",
+  "what": "denied core tables no longer consulted",
+  "file": "apps/website/src/features/publish-content/backstop-policy.ts",
+  "find": "if (BACKSTOP_DENIED_CORE_TABLES.has(table.toLowerCase()) || BACKSTOP_DENIED_TABLE_PATTERNS",
+  "replace": "if (BACKSTOP_DENIED_TABLE_PATTERNS",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/backstop-policy.boundary.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-policy.private-tables.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D12c",
+  "what": "denied table patterns no longer consulted",
+  "file": "apps/website/src/features/publish-content/backstop-policy.ts",
+  "find": "if (BACKSTOP_DENIED_CORE_TABLES.has(table.toLowerCase()) || BACKSTOP_DENIED_TABLE_PATTERNS.some((pattern) => pattern.test(table))) {",
+  "replace": "if (BACKSTOP_DENIED_CORE_TABLES.has(table.toLowerCase())) {",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/backstop-policy.boundary.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-policy.private-tables.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D12d",
+  "what": "denied column pattern no longer consulted",
+  "file": "apps/website/src/features/publish-content/backstop-policy.ts",
+  "find": "if (BACKSTOP_DENIED_COLUMN_PATTERN.test(column)) return",
+  "replace": "if (false) return",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/backstop-policy.boundary.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-policy.private-tables.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D12e",
+  "what": "denied file roots no longer consulted",
+  "file": "apps/website/src/features/publish-content/backstop-policy.ts",
+  "find": "if (BACKSTOP_DENIED_FILE_ROOTS.some((root) => root === lower) || lower.startsWith(\"restore-point-\")) return true;",
+  "replace": "if (lower.startsWith(\"restore-point-\")) return true;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/backstop-policy.boundary.test.ts"
+  ]
+ },
+ {
+  "id": "D12f",
+  "what": "secret scan of raw values removed",
+  "file": "apps/website/src/features/publish-content/backstop-policy.ts",
+  "find": "if (hit) return `Value '${column}' looks like it holds a key (${hit.patternName}); it was not sent.`;",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/backstop-policy.boundary.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-service.test.ts"
+  ]
+ },
+ {
+  "id": "D12g",
+  "what": "audit-storage-ready check removed",
+  "file": "apps/website/src/features/publish-content/backstop-service.ts",
+  "find": "if (!(await audit.ready())) throw new Error(\"Send by hand needs its audit storage installed before it can send anything.\");",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/publish-guards.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "D12h",
+  "what": "pending audit record no longer written before the work",
+  "file": "apps/website/src/features/publish-content/backstop-service.ts",
+  "find": "  await audit.save({ record: { ...record, result: \"pending\" } });\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/publish-guards.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "D12i",
+  "what": "typed-host confirmation removed",
+  "file": "apps/website/src/features/publish-content/backstop-service.ts",
+  "find": "if (b.typedHost !== destinationHost) return { error: `Type ${destinationHost} to confirm where this send will go.` };",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/backstop-service.test.ts"
+  ]
+ },
+ {
+  "id": "D12j",
+  "what": "raw grant capability check: apply capability no longer required",
+  "file": "apps/website/src/features/publish-trust/grant.ts",
+  "find": "return grant !== null && grant.capabilities.includes(\"publish_content.apply\") &&\n    grant.capabilities.includes(\"publish_content.backstop\") && grant.entityTypes.includes(entityType);",
+  "replace": "return grant !== null && grant.entityTypes.includes(entityType);",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/grant-backstop.test.ts"
+  ]
+ },
+ {
+  "id": "D12k",
+  "what": "mixed raw/normal bundle no longer refused",
+  "file": "apps/website/src/features/publish-content/backstop-service.ts",
+  "find": "if (raw.length !== entities.length) throw new Error(\"Send by hand cannot include normally published items.\");",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/backstop-service.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop.l061.test.ts",
+   "apps/website/src/features/publish-content/__tests__/planner-hash-upgrade.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "D13a",
+  "what": "parent-directory segment allowed in a tree path",
+  "file": "apps/website/src/features/publish-content/file-tree-policy.ts",
+  "find": "if (segment === \".\" || segment === \"..\") return",
+  "replace": "if (false) return",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/file-tree-policy.boundary.test.ts"
+  ]
+ },
+ {
+  "id": "D13b",
+  "what": "absolute path allowed",
+  "file": "apps/website/src/features/publish-content/file-tree-policy.ts",
+  "find": "if (relPath.startsWith(\"/\")) return",
+  "replace": "if (false) return",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/file-tree-policy.boundary.test.ts",
+   "apps/website/src/features/publish-content/__tests__/file-tree-policy.l044.test.ts"
+  ]
+ },
+ {
+  "id": "D13c",
+  "what": "environment file name allowed",
+  "file": "apps/website/src/features/publish-content/file-tree-policy.ts",
+  "find": "if (base === \".env\" || base.startsWith(\".env.\")) return \"looks like an environment file\";",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/file-tree-policy.boundary.test.ts",
+   "apps/website/src/features/publish-content/__tests__/file-tree-policy.backup-suffix.unit.test.ts"
+  ]
+ },
+ {
+  "id": "D13d",
+  "what": "secret scan hit ignored",
+  "file": "apps/website/src/features/publish-content/file-tree-policy.ts",
+  "find": "      return `\"${file.path}\" looks like it holds a key (${hit.patternName})`;",
+  "replace": "      continue;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/file-tree-policy.boundary.test.ts",
+   "apps/website/src/features/publish-content/__tests__/file-tree-policy.l044.test.ts"
+  ]
+ },
+ {
+  "id": "D13e",
+  "what": "missing text sample for the secret scan accepted",
+  "file": "apps/website/src/features/publish-content/file-tree-policy.ts",
+  "find": "if (file.textSample === undefined) return `\"${file.path}\" is missing the text required for its secret scan`;",
+  "replace": "if (file.textSample === undefined) continue;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/file-tree-policy.boundary.test.ts",
+   "apps/website/src/features/publish-content/__tests__/file-tree-policy.l044.test.ts"
+  ]
+ },
+ {
+  "id": "D13f",
+  "what": "private key file extension allowed",
+  "file": "apps/website/src/features/publish-content/file-tree-policy.ts",
+  "find": "if (/\\.(?:pem|key|p12|pfx)$/.test(base)) return \"looks like a private key or certificate file\";",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/file-tree-policy.boundary.test.ts",
+   "apps/website/src/features/publish-content/__tests__/file-tree-policy.backup-suffix.unit.test.ts"
+  ]
+ },
+ {
+  "id": "C1",
+  "what": "connect: grant not reversed when recording the connection fails",
+  "file": "apps/website/src/features/publish-content/connect-destination.ts",
+  "find": "    try {\n      await deps.reverseGrant();\n    } catch {\n      /* the original failure below is the one worth reporting */\n    }\n    throw err;\n  }\n\n  return { site, grant };",
+  "replace": "    throw err;\n  }\n\n  return { site, grant };",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/connect-destination.compensation.test.ts"
+  ]
+ },
+ {
+  "id": "C1b",
+  "what": "connect: a failed reversal replaces the primary error",
+  "file": "apps/website/src/features/publish-content/connect-destination.ts",
+  "find": "    try {\n      await deps.reverseGrant();\n    } catch {\n      /* the original failure below is the one worth reporting */\n    }\n    throw err;\n  }\n\n  return { site, grant };",
+  "replace": "    await deps.reverseGrant();\n    throw err;\n  }\n\n  return { site, grant };",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/connect-destination.compensation.test.ts"
+  ]
+ },
+ {
+  "id": "C2",
+  "what": "disconnect: row not restored when the grant reversal fails",
+  "file": "apps/website/src/features/publish-content/connect-destination.ts",
+  "find": "    if (row) {",
+  "replace": "    if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/connect-destination.compensation.test.ts"
+  ]
+ },
+ {
+  "id": "H1a",
+  "what": "a token that does not verify is answered 401 instead of falling through",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "    if (verified === null || !verified.ok) {\n      next();\n      return;\n    }",
+  "replace": "    if (verified === null || !verified.ok) {\n      res.status(401).json(UNAUTHENTICATED_BODY);\n      return;\n    }",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts",
+   "apps/website/src/server/inbound/admin-http/__tests__/publish-trust-keyless.unit.test.ts"
+  ]
+ },
+ {
+  "id": "H1b",
+  "what": "an unverified token is given a publishing context",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "    if (verified === null || !verified.ok) {\n      next();\n      return;\n    }",
+  "replace": "    if (verified === null || !verified.ok) {\n      res.locals.publishTrust = { sourceInstallationId: \"x\", capabilities: [\"publish_content.apply\", \"publish_content.read\"], entityTypes: [\"post\"], generation: 1 };\n      next();\n      return;\n    }",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts"
+  ]
+ },
+ {
+  "id": "H2",
+  "what": "trusted-route check removed",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "if (!isPublishTrustRoute({ method: req.method, path: req.originalUrl })) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts"
+  ]
+ },
+ {
+  "id": "H3a",
+  "what": "unreadable revocations treated as an empty list",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "revocations: revocations.ok ? revocations.revocations : null,",
+  "replace": "revocations: revocations.ok ? revocations.revocations : [],",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-revocation-gate.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts"
+  ]
+ },
+ {
+  "id": "H3b",
+  "what": "a rejecting revocation/grant source no longer refuses",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "      // Preserve the same fail-closed refusal if a source rejects instead of returning its contract.\n      res.status(401).json(UNAUTHENTICATED_BODY);\n      return;",
+  "replace": "      revocations = { ok: true, revocations: [] } as RevocationRead;\n      resolution = await deps.grants();",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-revocation-gate.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts"
+  ]
+ },
+ {
+  "id": "H4",
+  "what": "admission refusal ignored when a grant exists (revoked source admitted)",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "revocations: revocations.ok ? revocations.revocations : null,",
+  "replace": "revocations: [],",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-revocation-gate.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts"
+  ]
+ },
+ {
+  "id": "H5",
+  "what": "accepted key looked up without the claimed generation",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "grant?.publicKeys.find((key) => key.generation === generation)?.publicKeyB64u ?? \"\";",
+  "replace": "grant?.publicKeys[0]?.publicKeyB64u ?? \"\";",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-gate-predicates.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "H6a",
+  "what": "token capabilities no longer intersected with the grant",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "verified.payload.capabilities.filter((capability) =>\n      grantAllowsCapability({ grant, capability })\n    );",
+  "replace": "verified.payload.capabilities.filter(() => true);",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts"
+  ]
+ },
+ {
+  "id": "H6b",
+  "what": "empty capability intersection no longer refused",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "    if (capabilities.length === 0) {",
+  "replace": "    if (false) {",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts"
+  ]
+ },
+ {
+  "id": "H7a",
+  "what": "principal no longer rewritten to the system kind",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "      kind: \"system\",",
+  "replace": "      kind: \"user\",",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-gate-predicates.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "H7b",
+  "what": "credential kind no longer set to publish_key",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "    res.locals.authCredentialKind = \"publish_key\";\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-gate-predicates.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "H7c",
+  "what": "principal id no longer the pub: id of the source",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "id: publishPrincipalIdFor({ sourceInstallationId: context.sourceInstallationId }),",
+  "replace": "id: context.sourceInstallationId,",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-gate-predicates.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "H8",
+  "what": "authorize allows a permission outside the context capabilities",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "const allowed = context.capabilities.includes(params.permission as PublishingCapability);",
+  "replace": "const allowed = true;",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-shared-permission.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts"
+  ]
+ },
+ {
+  "id": "H9a",
+  "what": "per-type permission map check removed",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "    if (!permissions?.includes(permission)) {",
+  "replace": "    if (false) {",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-content-authorize.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-trust-apply-coverage.test.ts"
+  ]
+ },
+ {
+  "id": "H9b",
+  "what": "apply capability conjunct removed",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "context.capabilities.includes(\"publish_content.apply\") && context.entityTypes.includes(publishType) &&",
+  "replace": "context.entityTypes.includes(publishType) &&",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-content-authorize.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-trust-apply-coverage.test.ts"
+  ]
+ },
+ {
+  "id": "H9c",
+  "what": "entity-type-in-grant conjunct removed",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "context.capabilities.includes(\"publish_content.apply\") && context.entityTypes.includes(publishType) &&",
+  "replace": "context.capabilities.includes(\"publish_content.apply\") &&",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-content-authorize.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-trust-apply-coverage.test.ts"
+  ]
+ },
+ {
+  "id": "H9d",
+  "what": "raw-grant conjunct removed",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "(!isBackstopEntityType({ entityType: publishType }) || backstopGrantAllows({ grant: context, entityType: publishType }));",
+  "replace": "true;",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-content-authorize.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-trust-apply-coverage.test.ts"
+  ]
+ },
+ {
+  "id": "H9e",
+  "what": "unregistered publish type passes when the permission map lacks it",
+  "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
+  "find": "    if (!permissions?.includes(permission)) {",
+  "replace": "    if (permissions && !permissions.includes(permission)) {",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-content-authorize.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-trust-apply-coverage.test.ts"
+  ]
+ },
+ {
+  "id": "H10a",
+  "what": "bundle staging accepts a raw type without the raw grant",
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/bundle-create.ts",
+  "find": "if (entities.some(({ entityType }) => isBackstopEntityType({ entityType }) && !backstopGrantAllows({ grant: publishTrust, entityType }))) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/bundle-create.routes.pins.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/backstop.routes.pins.test.ts"
+  ]
+ },
+ {
+  "id": "H10b",
+  "what": "bundle staging accepts an entity type outside the grant",
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/bundle-create.ts",
+  "find": "if (publishTrust && entities.some(({ entityType }) => !publishTrust.entityTypes.includes(entityType))) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/bundle-create.routes.pins.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/backstop.routes.pins.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts"
+  ]
+ },
+ {
+  "id": "H11",
+  "what": "raw values disclosed without publish.backstop for every type",
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/import.ts",
+  "find": "      if (!allowed.allowed) return false;\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/backstop-import-ui.routes.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/import.routes.pins.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/backstop.routes.pins.test.ts"
+  ]
+ },
+ {
+  "id": "H12a",
+  "what": "handshake session route: grant-active check removed",
+  "file": "apps/website/src/server/inbound/public-http/routes/publish-trust/handshake.ts",
+  "find": "if (!grant || !isGrantActive({ grant, nowIso: deps.clock.nowIso() })) {",
+  "replace": "if (!grant) {",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-gate-predicates.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "H12b",
+  "what": "handshake session route: failed verification still mints",
+  "file": "apps/website/src/server/inbound/public-http/routes/publish-trust/handshake.ts",
+  "find": "    if (!verification.ok) {\n      res.status(401).json(HANDSHAKE_REFUSAL);\n      return;\n    }",
+  "replace": "    if (!verification.ok) {\n      res.json({ token: \"x\" });\n      return;\n    }",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/handshake.test.ts",
+   "apps/website/src/server/inbound/public-http/routes/publish-trust/__tests__/handshake-keyless.unit.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts"
+  ]
+ },
+ {
+  "id": "H12c",
+  "what": "handshake rate limit removed",
+  "file": "apps/website/src/server/inbound/public-http/routes/publish-trust/handshake.ts",
+  "find": "    if (result.allowed) return true;",
+  "replace": "    return true;",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/handshake.test.ts",
+   "apps/website/src/server/inbound/public-http/routes/publish-trust/__tests__/handshake-keyless.unit.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-trust-gate.test.ts"
+  ]
+ },
+ {
+  "id": "H12d",
+  "what": "handshake without a site key no longer answers 503",
+  "file": "apps/website/src/server/inbound/public-http/routes/publish-trust/handshake.ts",
+  "find": "if (id === null) res.status(503).json(NO_SITE_KEY);",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/handshake.test.ts",
+   "apps/website/src/server/inbound/public-http/routes/publish-trust/__tests__/handshake-keyless.unit.test.ts"
+  ]
+ },
+ {
+  "id": "K8a",
+  "what": "peer URL refusal reason ignored",
+  "file": "apps/website/src/features/publish-content/peer-url.ts",
+  "find": "if (reason) return { error: `baseUrl was refused because ${reason}` };",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/peer-url.test.ts"
+  ]
+ },
+ {
+  "id": "K8b",
+  "what": "forbidden raw URL character check removed",
+  "file": "apps/website/src/features/publish-content/peer-url.ts",
+  "find": "if (hasForbiddenRawUrlCharacter({ raw: trimmed })) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/peer-url.test.ts"
+  ]
+ },
+ {
+  "id": "H12e",
+  "what": "handshake session route: unknown source no longer refused before the nonce is taken",
+  "file": "apps/website/src/server/inbound/public-http/routes/publish-trust/handshake.ts",
+  "find": "if (!grant || !isGrantActive({ grant, nowIso: deps.clock.nowIso() })) {",
+  "replace": "if (grant && !isGrantActive({ grant, nowIso: deps.clock.nowIso() })) {",
+  "tests": [
+   "apps/website/src/server/__tests__/routes/publish-trust-gate-predicates.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "HOOKa",
+  "what": "route producer drops the before-save hook from the publish bag",
+  "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/deps.ts",
+  "find": "      hooks: { beforeSave: deps.pluginBeforeSaveHook },\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/deps.hooks.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "HOOKb",
+  "what": "post apply no longer reads the before-save hook from the bag",
+  "file": "apps/website/src/features/post/publish-content.ts",
+  "find": "beforeSaveHook: deps.ports.hooks?.beforeSave },",
+  "replace": "beforeSaveHook: undefined },",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/execute-pull-tool.plugin-hook-refusal.test.ts"
+  ]
+ },
+ {
+  "id": "D11b",
+  "what": "retire write shares the item idempotency key (no per-run retire key)",
+  "file": "apps/website/src/features/publish-content/apply-retire.ts",
+  "find": "idempotencyKey: `${itemIdempotencyKey}:retire:${ctx.runId}`,",
+  "replace": "idempotencyKey: itemIdempotencyKey,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "D11c",
+  "what": "run-scoped types no longer get a per-run idempotency key",
+  "file": "apps/website/src/features/publish-content/apply-row.ts",
+  "find": "+ (handler.idempotencyScope === \"run\" ? `:${ctx.runId}` : \"\"),",
+  "replace": "+ \"\",",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "P6a",
+  "what": "file provisioning: changed grant list no longer written",
+  "file": "apps/website/src/features/publish-trust/provisioning.ts",
+  "find": "  await io.write({ path, contents: encoded.contents });\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/provisioning.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/provisioning.node-io.test.ts",
+   "apps/website/src/server/runtime/composition/__tests__/publish-trust-sources.unit.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/provisioning.file-port.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "P6b",
+  "what": "file provisioning: unchanged edit still writes the file",
+  "file": "apps/website/src/features/publish-trust/provisioning.ts",
+  "find": "  if (!next.changed) {",
+  "replace": "  if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/provisioning.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/provisioning.node-io.test.ts",
+   "apps/website/src/server/runtime/composition/__tests__/publish-trust-sources.unit.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/provisioning.file-port.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "P6c",
+  "what": "file provisioning: read event no longer reported",
+  "file": "apps/website/src/features/publish-trust/provisioning.ts",
+  "find": "  if (current.ok) file.onEvent?.({ kind: \"read\", target: file.target, grants: current.grants.length });\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/provisioning.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/provisioning.node-io.test.ts",
+   "apps/website/src/server/runtime/composition/__tests__/publish-trust-sources.unit.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/provisioning.file-port.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "P6d",
+  "what": "file provisioning: edit re-encoded into different file contents than were decoded",
+  "file": "apps/website/src/features/publish-trust/provisioning.ts",
+  "find": "  const encoded = codec.encode({\n    fileContents,",
+  "replace": "  const encoded = codec.encode({\n    fileContents: null,",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/provisioning.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/provisioning.node-io.test.ts",
+   "apps/website/src/server/runtime/composition/__tests__/publish-trust-sources.unit.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/provisioning.file-port.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "P6e",
+  "what": "file provisioning: an unparsable document no longer stops an edit",
+  "file": "apps/website/src/features/publish-trust/provisioning.ts",
+  "find": "  if (!current.ok) return current;\n\n  const next = edit(current.grants);",
+  "replace": "  const next = edit(current.ok ? current.grants : []);",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/provisioning.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/provisioning.node-io.test.ts",
+   "apps/website/src/server/runtime/composition/__tests__/publish-trust-sources.unit.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/provisioning.file-port.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "P6f",
+  "what": "file provisioning: parse error no longer reported as an event",
+  "file": "apps/website/src/features/publish-trust/provisioning.ts",
+  "find": "    file.onEvent?.({ kind: \"error\", target: file.target, reason: parsed.reason });\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/provisioning.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/provisioning.node-io.test.ts",
+   "apps/website/src/server/runtime/composition/__tests__/publish-trust-sources.unit.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/provisioning.file-port.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "P6g",
+  "what": "file provisioning: the file is read a second time for the parse",
+  "file": "apps/website/src/features/publish-trust/provisioning.ts",
+  "find": "  const current = grantsInFile({ file, fileContents });\n  if (!current.ok) return current;",
+  "replace": "  const current = grantsInFile({ file, fileContents: await io.read({ path }) });\n  if (!current.ok) return current;",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/provisioning.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/provisioning.node-io.test.ts",
+   "apps/website/src/server/runtime/composition/__tests__/publish-trust-sources.unit.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/provisioning.file-port.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "P6h",
+  "what": "file provisioning: a codec encode failure no longer stops the write",
+  "file": "apps/website/src/features/publish-trust/provisioning.ts",
+  "find": "  if (!encoded.ok) {\n    onEvent?.({ kind: \"error\", target, reason: encoded.reason });\n    return encoded;\n  }\n  await io.write({ path, contents: encoded.contents });",
+  "replace": "  await io.write({ path, contents: encoded.ok ? encoded.contents : \"\" });",
+  "tests": [
+   "apps/website/src/features/publish-trust/__tests__/provisioning.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/provisioning.node-io.test.ts",
+   "apps/website/src/server/runtime/composition/__tests__/publish-trust-sources.unit.test.ts",
+   "apps/website/src/features/publish-trust/__tests__/provisioning.file-port.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "D10c",
+  "what": "execute re-derives the report instead of applying the confirmed one",
+  "file": "apps/website/src/features/publish-content/gated-hooks.ts",
+  "find": "  const report = confirmedReport;",
+  "replace": "  const report = await planStagedImport({ input });",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/gated-hooks.confirmed-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/import.routes.pins.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-pull-tool.test.ts"
+  ]
+ },
+ {
+  "id": "D10d",
+  "what": "no restore point is taken before the run writes",
+  "file": "apps/website/src/features/publish-content/gated-hooks.ts",
+  "find": "  const restorePointId = await captureImportRestorePoint({ input });",
+  "replace": "  const restorePointId = \"none\";",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/gated-hooks.confirmed-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/import.routes.pins.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-pull-tool.test.ts"
+  ]
+ },
+ {
+  "id": "D10e",
+  "what": "baseline looked up under the acting admin instead of the bundle source",
+  "file": "apps/website/src/features/publish-content/gated-hooks.ts",
+  "find": "peerPrincipalId: staged.sourcePrincipalId,",
+  "replace": "peerPrincipalId: input.actorId,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/gated-hooks.baseline-principal.test.ts",
+   "apps/website/src/features/publish-content/__tests__/gated-hooks.confirmed-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/import.routes.pins.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-pull-tool.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-zero-setup-end-to-end.test.ts",
+   "apps/website/src/server/__tests__/routes/publish-content-types-round-trip.test.ts",
+   "apps/website/src/features/publish-content/__tests__/planner.test.ts"
+  ]
+ },
+ {
+  "id": "RH1",
+  "what": "an omitWhenAbsent field is packed as null instead of left out",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "(omittable.has(field) && (row as Record<string, unknown>)[field] === undefined)",
+  "replace": "(false)",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH2",
+  "what": "schemaVersion defaults to 2",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "config.schemaVersion ?? 1",
+  "replace": "config.schemaVersion ?? 2",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH3",
+  "what": "requiredBlobs default is not empty",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "config.requiredBlobs?.(row) ?? []",
+  "replace": "config.requiredBlobs?.(row) ?? [\"x\"]",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH4",
+  "what": "displayLabel always present",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "...(displayLabel ? { displayLabel } : {}),",
+  "replace": "displayLabel,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH5",
+  "what": "legacyHashState gets the hashed fields instead of the packed ones",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "packedState: pick(row, packedFields) }) : pick(row, hashedFields)",
+  "replace": "packedState: pick(row, hashedFields) }) : pick(row, hashedFields)",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH6",
+  "what": "portsKey default is not the entity type",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "config.portsKey ?? entityType",
+  "replace": "config.portsKey ?? \"ports\"",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH7",
+  "what": "unwired apply message reworded",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "requires ${what} — wire it",
+  "replace": "needs ${what} — wire it",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH8",
+  "what": "custom conflictError ignored",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "return config.conflictError?.({ message }) ?? new PublishContentApplyRowError({ rowOutcome: \"conflict\", message });",
+  "replace": "return new PublishContentApplyRowError({ rowOutcome: \"conflict\", message });",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH9",
+  "what": "sourceReplacement always set on the write context",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "...(input.sourceReplacement ? { sourceReplacement: input.sourceReplacement } : {}),",
+  "replace": "sourceReplacement: input.sourceReplacement,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH10",
+  "what": "default change-set summary reworded",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "`Import ${env.entityType} '${entity.id}' via publish-content`",
+  "replace": "`Import ${env.entityType} ${entity.id}`",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH11",
+  "what": "rollback side effects run first-registered first",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "for (const sideEffect of run.rollbacks.reverse())",
+  "replace": "for (const sideEffect of run.rollbacks)",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH12",
+  "what": "inverse not captured",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "return prior ? ({ ...prior } as unknown as JsonObject) : null;",
+  "replace": "return null;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH13",
+  "what": "gatewayDeps does not require the outbox",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "if (!changeSets || !authorize || !outbox) {\n    throw new Error(`publish-content: ${entityType}",
+  "replace": "if (!changeSets || !authorize) {\n    throw new Error(`publish-content: ${entityType}",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH14",
+  "what": "okOrThrow returns the value of a failed result",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "if (!result.ok) throw result.error;",
+  "replace": "if (false) throw result.error;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH15",
+  "what": "coversRoots dropped from the contributor",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "    coversTables: config.coversTables,\n    coversRoots: config.coversRoots,\n",
+  "replace": "    coversTables: config.coversTables,\n",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RH16",
+  "what": "apply with undo does not refuse a missing outbox",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "if (!changeSets || !authorize || !outbox) throw unwired",
+  "replace": "if (!changeSets || !authorize) throw unwired",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.test.ts"
+  ]
+ },
+ {
+  "id": "RH17",
+  "what": "a conflict-class error maps to blocked",
+  "file": "apps/website/src/features/publish-content/repo-handler.ts",
+  "find": "if (config.errors?.conflict?.some((cls) => err instanceof cls)) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/repo-handler.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR1",
+  "what": "pack does not reset the skipped list",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "  env.skipped.length = 0;\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR2",
+  "what": "row cap off by one (201 allowed -> 200 refused)",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "selection.length > BACKSTOP_LIMITS.rows",
+  "replace": "selection.length >= BACKSTOP_LIMITS.rows",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR3",
+  "what": "missing-row reason reworded",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "\"The selected row no longer exists.\"",
+  "replace": "\"The row is gone.\"",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR4",
+  "what": "pack reads a covered table instead of skipping it",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "?? blockedTable({ env, table: selected.table });",
+  "replace": ";",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR5",
+  "what": "skipped label dropped",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "label: id, reason",
+  "replace": "label: \"\", reason",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR6",
+  "what": "inspect throws a read failure",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "try { row = await port.read(address); } catch { return null; }",
+  "replace": "row = await port.read(address);",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR7",
+  "what": "inspect no longer refuses private live columns",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "if (checkRawTable({ table: row.table, columns: row.columns.map((c) => c.name) })) return null;",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR8",
+  "what": "version derived from fewer hash digits",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "rowHash(row).slice(0, 12), 16)",
+  "replace": "rowHash(row).slice(0, 11), 16)",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR9",
+  "what": "gateway-not-wired message reworded",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "\"The raw row command gateway is not wired.\"",
+  "replace": "\"Gateway missing.\"",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR10",
+  "what": "apply does not require the outbox",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "!port || !changeSets || !authorize || !outbox",
+  "replace": "!port || !changeSets || !authorize",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR11",
+  "what": "second precheck inside the transaction removed",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "const freshReason = await precheckRawRow({ env, entity: input.entity });",
+  "replace": "const freshReason: string | null = null as string | null;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR12",
+  "what": "inverse records no prior row",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "before: prior, afterHash",
+  "replace": "before: null, afterHash",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR13",
+  "what": "OCC ignores a version mismatch on update",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "prior === null || rowVersion(prior) !== input.expectedVersion",
+  "replace": "prior === null",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR14",
+  "what": "OCC lets a create overwrite an existing row",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "input.expectedVersion === undefined ? prior !== null :",
+  "replace": "input.expectedVersion === undefined ? false :",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR15",
+  "what": "rollback of a create does not remove the row",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "else await port.removeCreated(incoming); },",
+  "replace": "},",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR16",
+  "what": "workspace_id of another workspace accepted",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "Object.hasOwn(values, \"workspace_id\") &&",
+  "replace": "false &&",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR17",
+  "what": "listSkipped hands out the live list",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "listSkipped: async () => [...env.skipped],",
+  "replace": "listSkipped: async () => env.skipped,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR18",
+  "what": "inspect reads a covered table",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "if (!address || !port || blockedTable({ env, table: address.table })) return null;",
+  "replace": "if (!address || !port) return null;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR19",
+  "what": "per-run command key dropped",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "dependsOn: [], idempotencyScope: \"run\",",
+  "replace": "dependsOn: [],",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR20",
+  "what": "handler permission changed",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "permission: \"publish.backstop\", dependsOn",
+  "replace": "permission: \"publish.other\", dependsOn",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR21",
+  "what": "first precheck of apply removed",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "  const reason = await precheckRawRow({ env, entity: input.entity });\n  if (reason) throw new PublishContentApplyRowError({ rowOutcome: \"blocked\", message: reason });\n  const { changeSets",
+  "replace": "  const { changeSets",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR22",
+  "what": "pack with no port does not return early",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "  if (!env.port) return;\n  const selection",
+  "replace": "  const selection",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "RR23",
+  "what": "non-refusal read failure swallowed in pack",
+  "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
+  "find": "    if (!(error instanceof BackstopRefusal)) throw error;\n    return { row: null",
+  "replace": "    return { row: null",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts"
+  ]
+ },
+ {
+  "id": "RF1",
+  "what": "small files are not scanned for secrets",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "if (size <= BACKSTOP_LIMITS.scanBytes) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF2",
+  "what": "state hash not compared",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "return contentHash({ entityType: \"raw-file\", state: entity.state }) === entity.contentHash ? null : \"The raw file does not match its checked content hash.\";",
+  "replace": "return null;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF3",
+  "what": "byte length not compared with the stated size",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "bytes.byteLength !== size || ",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF4",
+  "what": "sha256 of the bytes not compared",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "|| sha(bytes) !== sha256) return \"The file's verified",
+  "replace": ") return \"The file's verified",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF5",
+  "what": "a destination with no blob store does not treat bytes as missing",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "  if (!deps.backstop?.blobs) return null;\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF6",
+  "what": "missing media policy deps do not fail closed",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "if (!media || await isDocumentOnlyBlob",
+  "replace": "if (await isDocumentOnlyBlob",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF7",
+  "what": "document-only refusal reworded",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "\"Library documents cannot be published\"",
+  "replace": "\"Not allowed\"",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF8",
+  "what": "blob read does not ask exists() first",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "return await deps.backstop.blobs.exists({ storageKey }) ? deps.backstop.blobs.get({ storageKey }) : null;",
+  "replace": "return deps.backstop.blobs.get({ storageKey });",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF9",
+  "what": "non-string path refusal reworded",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "\"Choose a regular file inside the site folder.\"",
+  "replace": "\"Bad path\"",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF10",
+  "what": "files.check not consulted",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "const denied = pathReason({ deps, relPath }) ?? await files.check({ relPath });",
+  "replace": "const denied = pathReason({ deps, relPath });",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF11",
+  "what": "wire metadata not validated",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "if (!validRawFileMetadata({ entity, relPath })) return \"The raw file has an invalid address, size, mode or checksum.\";",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF12",
+  "what": "missing selected file reason reworded",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "reason = \"The selected file no longer exists.\";\n  return { reason, file };",
+  "replace": "reason = \"Gone.\";\n  return { reason, file };",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF13",
+  "what": "unexpected read failure swallowed in pack",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "    if (!(error instanceof BackstopRefusal)) throw error;\n    reason = error.message;",
+  "replace": "    reason = (error as Error).message;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF14",
+  "what": "blob index records a zero size",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "entry: { absPath: file.absPath, size: file.bytes.byteLength } }",
+  "replace": "entry: { absPath: file.absPath, size: 0 } }",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF15",
+  "what": "undo inverse not recorded",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "deps.backstop?.inverses?.push({ kind: \"raw-file\", entity, before: inverse, afterHash: entity.contentHash });",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF16",
+  "what": "compensation not registered",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "deps.backstop?.fileRollbacks?.push(async () => {",
+  "replace": "void (async () => {",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF17",
+  "what": "compensation failure swallowed",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "    if (reason) throw new Error(reason);\n  });",
+  "replace": "    void reason;\n  });",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF18",
+  "what": "pack does not need the blob index to run",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "if (!env.files || !deps.backstop?.fileBlobIndex) return null;",
+  "replace": "if (!env.files) return null;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF19",
+  "what": "file cap off by one",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "selected.length > BACKSTOP_LIMITS.files",
+  "replace": "selected.length >= BACKSTOP_LIMITS.files",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF20",
+  "what": "file cap message reworded",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "\"Choose at most 50 files per send.\"",
+  "replace": "\"Too many.\"",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF21",
+  "what": "pack does not reset skipped",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "  env.skipped.length = 0;\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF22",
+  "what": "total byte cap removed",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "if (total > BACKSTOP_LIMITS.bytes) throw",
+  "replace": "if (false) throw",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF23",
+  "what": "total byte cap message reworded",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "\"Choose files totaling at most 50 MB per send.\"",
+  "replace": "\"Too big.\"",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF24",
+  "what": "inspect reads a refused path",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "if (!files || pathReason({ deps, relPath })) return null;",
+  "replace": "if (!files) return null;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF25",
+  "what": "inspect throws a read failure",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "try { file = await files.read({ relPath }); } catch { return null; }",
+  "replace": "file = await files.read({ relPath });",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF26",
+  "what": "precheck lets a row error escape",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "    if (error instanceof PublishContentApplyRowError) return error.message;\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF27",
+  "what": "apply does not require the outbox",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "!files || !changeSets || !outbox || !authorize",
+  "replace": "!files || !changeSets || !authorize",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF28",
+  "what": "OCC ignores the captured prior version",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "state.priorVersion !== input.expectedVersion || currentVersion !== input.expectedVersion",
+  "replace": "currentVersion !== input.expectedVersion",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF29",
+  "what": "OCC ignores the current version",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "state.priorVersion !== input.expectedVersion || currentVersion !== input.expectedVersion",
+  "replace": "state.priorVersion !== input.expectedVersion",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF30",
+  "what": "bytes not re-verified before the write",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "if (!bytes || sha(bytes) !== input.entity.state.sha256) throw new Error(\"The raw file bytes changed before apply.\");",
+  "replace": "if (!bytes) throw new Error(\"The raw file bytes changed before apply.\");",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF31",
+  "what": "rollback never knows the file was written",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "  state.written = true;\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF32",
+  "what": "rollback restores a file that was never written (equivalent: the gateway calls rollback only after execute returned, so `written` is always true there)",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "if (state.written && state.prior) await files.restore",
+  "replace": "if (state.prior) await files.restore",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF33",
+  "what": "written mode ignores the entity mode",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "mode: input.entity.state.mode as number }",
+  "replace": "mode: 0o644 }",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF34",
+  "what": "prior version of a missing file is not undefined",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "priorVersion = prior.sha256 === null ? undefined :",
+  "replace": "priorVersion =",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF35",
+  "what": "reported version derived from fewer digits",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "version: Number.parseInt(input.entity.contentHash.slice(0, 12), 16)",
+  "replace": "version: Number.parseInt(input.entity.contentHash.slice(0, 11), 16)",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF36",
+  "what": "undo accepts an inverse of another file",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "  if (before.relPath !== entity.id) return \"The saved undo file does not match this item.\";\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF37",
+  "what": "undo ignores a newly covered root",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "  if (isCoveredPath({ deps, relPath: entity.id })) return `File '${entity.id}' already publishes normally; it was left alone.`;\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF38",
+  "what": "undo ignores a later edit",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "if (!current || hash({ relPath: entity.id, file: current }) !== afterHash) return",
+  "replace": "if (!current) return",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF39",
+  "what": "coverage is case-sensitive",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "const normalizedPath = relPath.toLowerCase();",
+  "replace": "const normalizedPath = relPath;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF40",
+  "what": "a trailing slash on a root breaks coverage",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "root.toLowerCase().replace(/\\/$/, \"\")",
+  "replace": "root.toLowerCase()",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF41",
+  "what": "requiredBlobs not checked",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "return entity.requiredBlobs.length === 1 && entity.requiredBlobs[0] === sha256;",
+  "replace": "return true;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF42",
+  "what": "mode not validated",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "  if (mode !== 0o644 && mode !== 0o755) return false;\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF43",
+  "what": "listSkipped hands out the live list",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "listSkipped: async () => [...env.skipped],",
+  "replace": "listSkipped: async () => env.skipped,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF44",
+  "what": "per-run command key dropped",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "dependsOn: [], idempotencyScope: \"run\",",
+  "replace": "dependsOn: [],",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF45",
+  "what": "mode not normalized in state",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "mode: normalizeMode({ mode: file.mode }) }",
+  "replace": "mode: file.mode }",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF46",
+  "what": "size upper bound not checked",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "Number.isSafeInteger(size) && size >= 0 && size <= BACKSTOP_LIMITS.bytes",
+  "replace": "Number.isSafeInteger(size) && size >= 0",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF47",
+  "what": "handler permission changed",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "permission: \"publish.backstop\", dependsOn",
+  "replace": "permission: \"publish.other\", dependsOn",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF48",
+  "what": "gateway-not-wired message reworded",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "\"The raw file command gateway is not wired.\"",
+  "replace": "\"Missing.\"",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "RF49",
+  "what": "summary reworded",
+  "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
+  "find": "summary: `Send '${input.entity.id}' by hand`",
+  "replace": "summary: `Send ${input.entity.id}`",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts"
+  ]
+ },
+ {
+  "id": "PP1",
+  "what": "scope not applied to the bundle",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "input.scope == null ? fullBundle : applyPublishScope(fullBundle, input.scope)",
+  "replace": "fullBundle",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP2",
+  "what": "row selection not applied",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "input.selectedEntityKeys == null ? scoped : selectBundleEntities(scoped, new Set(input.selectedEntityKeys))",
+  "replace": "scoped",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP3",
+  "what": "carried-along rows drawn from the selected bundle, not the full one",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "source: fullBundle, handlers",
+  "replace": "source: selected, handlers",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP4",
+  "what": "source label ignores the workspace name",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "sourceLabel: workspace?.name ?? deps.workspaceId,",
+  "replace": "sourceLabel: deps.workspaceId,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP5",
+  "what": "ticked overwrite keys not sent to the peer",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "{ bundle, ...(overwriteEntityKeys == null ? {} : { overwriteEntityKeys }) }",
+  "replace": "{ bundle }",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP6",
+  "what": "ticked overwrite keys not echoed back",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "    ...(input.overwriteEntityKeys == null ? {} : { overwriteEntityKeys: input.overwriteEntityKeys }),\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP7",
+  "what": "entityCount counts held-back rows",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "entityCount: bundle.entities.length - heldBackCount,",
+  "replace": "entityCount: bundle.entities.length,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP8",
+  "what": "held-back count ignores each entry's count",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "sum + entry.count",
+  "replace": "sum + 1",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP9",
+  "what": "itemNames keeps empty names",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "name.length > 0",
+  "replace": "true",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP10",
+  "what": "itemNames drops the slug",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "[entity.state.title, entity.state.slug, entity.displayLabel]",
+  "replace": "[entity.state.title, entity.displayLabel]",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP11",
+  "what": "public URLs for every type",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "entity.entityType !== \"post\" && entity.entityType !== \"page\"",
+  "replace": "false",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP12",
+  "what": "public URL not built on the peer's origin",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "originOverride: peer.credential.baseUrl",
+  "replace": "originOverride: \"https://other.example\"",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP13",
+  "what": "peer label dropped",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "peerLabel: peer.credential.label,",
+  "replace": "peerLabel: \"\",",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP14",
+  "what": "liveCanOverwrite always false",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "liveCanOverwrite: result.liveCanOverwrite,",
+  "replace": "liveCanOverwrite: false,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP15",
+  "what": "blobsUploaded dropped",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "blobsUploaded: result.blobsUploaded,",
+  "replace": "blobsUploaded: 0,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP16",
+  "what": "trashing rows not tagged",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "tagTrashingRows(labelPeerPlanRows(result.plan, bundle.entities), bundle.entities),",
+  "replace": "labelPeerPlanRows(result.plan, bundle.entities),",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP17",
+  "what": "skipped units read from the selected bundle (equivalent: selectBundleEntities and includeReferencedEntities both keep the scoped list, so the two reads are the same value)",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "    scoped.skipped\n",
+  "replace": "    bundle.skipped\n",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP18",
+  "what": "carried-along rows never filtered",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "      includedFor\n    ),\n    scoped.skipped",
+  "replace": "      new Map<string, readonly string[]>()\n    ),\n    scoped.skipped",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP19",
+  "what": "blob storage key built for another workspace",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 })",
+  "replace": "computeBlobStorageKey({ workspaceId: \"other\", sha256 })",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP20",
+  "what": "bundleId dropped",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "bundleId: result.bundleId,",
+  "replace": "bundleId: \"\",",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP21",
+  "what": "peer id dropped",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "peerId: peer.credential.id,",
+  "replace": "peerId: \"\",",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP22",
+  "what": "blobsUnavailable dropped",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "blobsUnavailable: result.blobsUnavailable,",
+  "replace": "blobsUnavailable: [],",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "PP23",
+  "what": "notSupportedByLive dropped",
+  "file": "apps/website/src/features/publish-content/push-plan.ts",
+  "find": "    notSupportedByLive: result.notSupportedByLive,\n",
+  "replace": "    notSupportedByLive: [],\n",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/push-plan.characterization.test.ts",
+   "apps/website/src/features/publish-content/__tests__/publish-tool.test.ts"
+  ]
+ },
+ {
+  "id": "AL1",
+  "what": "non-writing rows are not short-circuited",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "  if (!row.writes) {\n    return refreshNonWritingRow({ row, ctx });",
+  "replace": "  if (false) {\n    return refreshNonWritingRow({ row, ctx });",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL2",
+  "what": "a conflict row also refreshes the baseline",
+  "file": "apps/website/src/features/publish-content/apply-row.ts",
+  "find": "if (row.outcome === \"unchanged\") {\n    const entity",
+  "replace": "if (row.outcome === \"unchanged\" || row.outcome === \"conflict\") {\n    const entity",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL3",
+  "what": "missing entity/handler message reworded",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "internal inconsistency: no packed entity/handler for",
+  "replace": "inconsistent: no packed entity/handler for",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL4",
+  "what": "retire row not refused when the id is held at apply time",
+  "file": "apps/website/src/features/publish-content/apply-retire.ts",
+  "find": "  if (current !== null) {\n    return downgradedRow({ row, outcome: \"conflict\", reason: `${row.entityType} '${row.entityId}' was created on the destination between plan and apply` });\n  }\n  if (!handler.planRetire",
+  "replace": "  if (false) {\n    return downgradedRow({ row, outcome: \"conflict\", reason: `${row.entityType} '${row.entityId}' was created on the destination between plan and apply` });\n  }\n  if (!handler.planRetire",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL5",
+  "what": "removed-row reason reworded",
+  "file": "apps/website/src/features/publish-content/apply-row.ts",
+  "find": "was removed from the destination between plan and apply",
+  "replace": "was removed on the destination",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL6",
+  "what": "missing planRetire/retire not refused",
+  "file": "apps/website/src/features/publish-content/apply-retire.ts",
+  "find": "  if (!handler.planRetire || !handler.retire) {\n    return downgradedRow",
+  "replace": "  if (false) {\n    return downgradedRow",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL7",
+  "what": "fresh retire target id not compared",
+  "file": "apps/website/src/features/publish-content/apply-retire.ts",
+  "find": "!freshTarget || freshTarget.entityId !== row.retires.entityId || freshTarget.hash !== row.retires.hash",
+  "replace": "!freshTarget || freshTarget.hash !== row.retires.hash",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL8",
+  "what": "fresh retire target hash not compared",
+  "file": "apps/website/src/features/publish-content/apply-retire.ts",
+  "find": "!freshTarget || freshTarget.entityId !== row.retires.entityId || freshTarget.hash !== row.retires.hash",
+  "replace": "!freshTarget || freshTarget.entityId !== row.retires.entityId",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL9",
+  "what": "retire key not scoped to the run",
+  "file": "apps/website/src/features/publish-content/apply-retire.ts",
+  "find": "idempotencyKey: `${itemIdempotencyKey}:retire:${ctx.runId}`,",
+  "replace": "idempotencyKey: `${itemIdempotencyKey}:retire`,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL10",
+  "what": "create after retire given an expected version",
+  "file": "apps/website/src/features/publish-content/apply-retire.ts",
+  "find": "expectedVersion: undefined, // current === null",
+  "replace": "expectedVersion: 1, // current === null",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL11",
+  "what": "retire not undone when the create fails",
+  "file": "apps/website/src/features/publish-content/apply-retire.ts",
+  "find": "    await undoRetire({ error, retireResult, row });\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL12",
+  "what": "undo-failure message reworded",
+  "file": "apps/website/src/features/publish-content/apply-retire.ts",
+  "find": "and putting the retired",
+  "replace": "and restoring the retired",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL13",
+  "what": "retire change set id not recorded",
+  "file": "apps/website/src/features/publish-content/apply-retire.ts",
+  "find": "changeSetId, retiredChangeSetId: retireResult.changeSetId });\n  await refreshBaseline",
+  "replace": "changeSetId });\n  await refreshBaseline",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL14",
+  "what": "baseline not refreshed after a retire+create",
+  "file": "apps/website/src/features/publish-content/apply-retire.ts",
+  "find": "  await refreshBaseline({ row, entity, ctx });\n  return { row, changeSetId, retiredChangeSetId: retireResult.changeSetId };",
+  "replace": "  return { row, changeSetId, retiredChangeSetId: retireResult.changeSetId };",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL15",
+  "what": "a created row over an existing destination row is not a conflict",
+  "file": "apps/website/src/features/publish-content/apply-row.ts",
+  "find": "if (row.outcome === \"created\" && current !== null) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL16",
+  "what": "a row gone at apply time is not a conflict",
+  "file": "apps/website/src/features/publish-content/apply-row.ts",
+  "find": "if (row.outcome !== \"created\" && current === null) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL17",
+  "what": "applied rows skip the baseline agreement check",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "if (row.outcome === \"applied\" && current) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL18",
+  "what": "obsolete baseline hash generation accepted",
+  "file": "apps/website/src/features/publish-content/apply-row.ts",
+  "find": "baseline?.hashVersion === CONTENT_HASH_VERSION\n    ? baseline.hashAtLastSync",
+  "replace": "baseline\n    ? baseline.hashAtLastSync",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL19",
+  "what": "handler seed fallback dropped",
+  "file": "apps/website/src/features/publish-content/apply-row.ts",
+  "find": "      (await handler.seedHash?.({ id: entity.id })) ??\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL20",
+  "what": "sourceReplacement passed for any row",
+  "file": "apps/website/src/features/publish-content/apply-row.ts",
+  "find": "row.outcome === \"forced\" && row.canOverwrite && row.sourceReplacement",
+  "replace": "row.sourceReplacement",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL21",
+  "what": "apply gets no expected version",
+  "file": "apps/website/src/features/publish-content/apply-row.ts",
+  "find": "expectedVersion: current?.version,",
+  "replace": "expectedVersion: undefined,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL22",
+  "what": "run-scoped key suffix dropped",
+  "file": "apps/website/src/features/publish-content/apply-row.ts",
+  "find": "(handler.idempotencyScope === \"run\" ? `:${ctx.runId}` : \"\")",
+  "replace": "\"\"",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL23",
+  "what": "baseline written before the change set is recorded",
+  "file": "apps/website/src/features/publish-content/apply-row.ts",
+  "find": "    await ctx.recordContentApplied({ itemKey: key, changeSetId });\n    await refreshBaseline({ row, entity, ctx });",
+  "replace": "    await refreshBaseline({ row, entity, ctx });\n    await ctx.recordContentApplied({ itemKey: key, changeSetId });",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL24",
+  "what": "a row error is not downgraded",
+  "file": "apps/website/src/features/publish-content/apply-failure.ts",
+  "find": "  if (error instanceof PublishContentApplyRowError) {\n    return { outcome: error.rowOutcome, reason: error.message };\n  }\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL25",
+  "what": "post-style conflicts not downgraded",
+  "file": "apps/website/src/features/publish-content/apply-failure.ts",
+  "find": "if (handler.isApplyConflict?.(error)) {",
+  "replace": "if (false) {",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL26",
+  "what": "post-style conflict reason reworded",
+  "file": "apps/website/src/features/publish-content/apply-failure.ts",
+  "find": "changed on the destination during apply:",
+  "replace": "changed on the destination:",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL27",
+  "what": "a genuine failure in the retire path is swallowed",
+  "file": "apps/website/src/features/publish-content/apply-failure.ts",
+  "find": "  if (!downgrade) throw error; // genuine failure — the caller's own try/catch persists a `failed` run row and rethrows.\n",
+  "replace": "  if (!downgrade) return { row, changeSetId: null, retiredChangeSetId: null }; // mutation\n",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL28",
+  "what": "baseline hash ignores the destination's sanitized state",
+  "file": "apps/website/src/features/publish-content/apply-row.ts",
+  "find": "hashAtLastSync: destination?.hash ?? entity.contentHash,",
+  "replace": "hashAtLastSync: entity.contentHash,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL29",
+  "what": "destination not re-read for a replaced source",
+  "file": "apps/website/src/features/publish-content/apply-row.ts",
+  "find": "const destination = row.sourceReplacement ? await ctx.handlerByType.get(row.entityType)?.inspect({ id: row.entityId }) : null;",
+  "replace": "const destination = null as { hash: string } | null | undefined;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL30",
+  "what": "baseline keyed on the executing operator",
+  "file": "apps/website/src/features/publish-content/apply-row.ts",
+  "find": "    peerPrincipalId: ctx.sourcePrincipalId,\n    entityType: row.entityType,\n    entityId: row.entityId,\n    hashAtLastSync",
+  "replace": "    peerPrincipalId: ctx.principalId,\n    entityType: row.entityType,\n    entityId: row.entityId,\n    hashAtLastSync",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL31",
+  "what": "apply-time baseline read keyed on the operator",
+  "file": "apps/website/src/features/publish-content/apply-row.ts",
+  "find": "    peerPrincipalId: ctx.sourcePrincipalId,\n    entityType: row.entityType,\n    entityId: row.entityId,\n  });",
+  "replace": "    peerPrincipalId: ctx.principalId,\n    entityType: row.entityType,\n    entityId: row.entityId,\n  });",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AL32",
+  "what": "a genuine failure in the ordinary path is swallowed",
+  "file": "apps/website/src/features/publish-content/apply-row.ts",
+  "find": "  } catch (error) {\n    return downgradeOrRethrow({ error, row, handler });\n  }\n}\n",
+  "replace": "  } catch (error) {\n    void error;\n    return { row, changeSetId: null, retiredChangeSetId: null };\n  }\n}\n",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR1",
+  "what": "bundle-not-found message reworded",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "was not found, or has expired, for workspace",
+  "replace": "was missing for workspace",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR2",
+  "what": "a refused report is recorded as applied",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "    fields: { phase: \"abandoned\",",
+  "replace": "    fields: { phase: \"applied\",",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR3",
+  "what": "caller's authorize ignored",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "...(authorize === undefined ? {} : { authorize }), ",
+  "replace": "  ",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR4",
+  "what": "caller's backstop ignored",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "...(backstop === undefined ? {} : { backstop })\n",
+  "replace": "\n",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR5",
+  "what": "audit-not-ready message reworded",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "Send by hand needs its audit storage installed before it can send anything.",
+  "replace": "audit missing",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR6",
+  "what": "report does not carry the backstop metadata",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "  progress.report = { ...progress.report, backstop: metadata };\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR7",
+  "what": "audit item before-hash not read",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "beforeHash: (await handlerByType.get(e.entityType)?.inspect({ id: e.id }))?.hash ?? null,",
+  "replace": "beforeHash: null,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR8",
+  "what": "audit record starts as success",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "result: \"pending\", runId",
+  "replace": "result: \"success\", runId",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR9",
+  "what": "missing-entity item key reworded",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "publish-content:v1:missing:",
+  "replace": "publish-content:v1:gone:",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR10",
+  "what": "items start completed",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "    phase: \"pending\",",
+  "replace": "    phase: \"completed\",",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR11",
+  "what": "pending items not saved before the first write",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "  // Persist the run and every pending item before the first content write.\n  await saveRunSnapshot({ run, phase: \"applying\", finishedAt: null });\n",
+  "replace": "  // Persist the run and every pending item before the first content write.\n",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR12",
+  "what": "seed hash not defaulted",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "getSeedHash: input.getSeedHash ?? NO_PUBLISH_CONTENT_SEED_HASH,",
+  "replace": "getSeedHash: input.getSeedHash as never,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR13",
+  "what": "content-applied item phase wrong",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "        phase: \"content_applied\",\n        changeSetId,",
+  "replace": "        phase: \"completed\",\n        changeSetId,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR14",
+  "what": "retire rows without a landed retire are repointed",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "    if (item && item.retiredChangeSetId !== null) {",
+  "replace": "    if (item) {",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR15",
+  "what": "repoint ignores the ids this run wrote",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "      .filter((item) => item.changeSetId !== null)\n      .map((item) => item.entityId)",
+  "replace": "      .map((item) => item.entityId)",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR16",
+  "what": "repoint failure message reworded",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "links were not updated: ${message}",
+  "replace": "links not updated: ${message}",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR17",
+  "what": "verify includes blocked and conflict rows",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "return entity && outcome !== \"blocked\" && outcome !== \"conflict\" ? [entity] : [];",
+  "replace": "return entity ? [entity] : [];",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR18",
+  "what": "verify failure message reworded",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "could not be checked after publishing: ${message}",
+  "replace": "could not be checked: ${message}",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR19",
+  "what": "completed item keeps the old change set id",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "      changeSetId: result.changeSetId ?? item.changeSetId,",
+  "replace": "      changeSetId: result.changeSetId,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR20",
+  "what": "completed item keeps the old retired change set id",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "      retiredChangeSetId: result.retiredChangeSetId ?? item.retiredChangeSetId,",
+  "replace": "      retiredChangeSetId: result.retiredChangeSetId,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR21",
+  "what": "completed item phase wrong",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "      phase: \"completed\",\n      outcome: result.row.outcome,",
+  "replace": "      phase: \"applying\" as never,\n      outcome: result.row.outcome,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR22",
+  "what": "audit not marked success",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "        ...auditRecord, result: \"success\",",
+  "replace": "        ...auditRecord, result: \"failure\",",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR23",
+  "what": "file rollbacks not run last first",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "for (const rollback of [...(run.handlerDeps.backstop?.fileRollbacks ?? [])].reverse())",
+  "replace": "for (const rollback of [...(run.handlerDeps.backstop?.fileRollbacks ?? [])])",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR24",
+  "what": "file rollback failure message reworded",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "\"A file could not be rolled back.\"",
+  "replace": "\"rollback failed\"",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR25",
+  "what": "a raw file that may remain is not flagged",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "const mayRemain = row.entityType === \"raw-file\" && item.changeSetId !== null && rollbackErrors.length > 0;",
+  "replace": "const mayRemain = false;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR26",
+  "what": "rollback reason joined differently",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "...rollbackErrors].join(\" \");",
+  "replace": "...rollbackErrors].join(\", \");",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR27",
+  "what": "content_applied not preserved on failure",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "phase: item.phase === \"content_applied\" ? \"content_applied\" : \"failed\",",
+  "replace": "phase: \"failed\",",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR28",
+  "what": "unknown failure summary reworded",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "\"unknown apply failure\"",
+  "replace": "\"failure\"",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR29",
+  "what": "raw rollback skipped on failure",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "  if (transactional) await rollbackRawRun({ run, error, rollbackErrors });\n",
+  "replace": "",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR30",
+  "what": "failed run not repointed",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "  await runRepointPass({ run });\n  await saveRunSnapshot({ run, phase: \"failed\"",
+  "replace": "  await saveRunSnapshot({ run, phase: \"failed\"",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR31",
+  "what": "failed run recorded as applied",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "await saveRunSnapshot({ run, phase: \"failed\", finishedAt: clockNowIso({ clock: run.input.clock }) });",
+  "replace": "await saveRunSnapshot({ run, phase: \"applied\", finishedAt: clockNowIso({ clock: run.input.clock }) });",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR32",
+  "what": "failure audit keeps every inverse",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "(run.handlerDeps.backstop?.inverses ?? []).filter((i) => i.kind === \"raw-file\")",
+  "replace": "(run.handlerDeps.backstop?.inverses ?? [])",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR33",
+  "what": "refused item not named on a row-by-row failure",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "throw transactional ? error : withRefusedItem({ error, itemKey: progress.activeItemKey });",
+  "replace": "throw error;",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR34",
+  "what": "only raw rows run in a transaction",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "entity.entityType === \"raw-row\" || entity.entityType === \"raw-file\"),\n    progress",
+  "replace": "entity.entityType === \"raw-row\"),\n    progress",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR35",
+  "what": "transaction-port message reworded",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "The raw-row transaction port is not wired.",
+  "replace": "no transaction",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR36",
+  "what": "final report is the plan's, not the effective one",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "    report: currentReport({ run }),\n    runId: run.runId,",
+  "replace": "    report: run.progress.report,\n    runId: run.runId,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR37",
+  "what": "retired change set ids not reported",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "retiredChangeSetIds: currentRetiredChangeSetIds({ run }),",
+  "replace": "retiredChangeSetIds: [],",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR38",
+  "what": "change set ids not de-duplicated",
+  "file": "apps/website/src/features/publish-content/apply-run.ts",
+  "find": "Array.from(\n    new Set(runItemStates({ run }).flatMap((item) => (item.changeSetId === null ? [] : [item.changeSetId])))\n  )",
+  "replace": "runItemStates({ run }).flatMap((item) => (item.changeSetId === null ? [] : [item.changeSetId]))",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR39",
+  "what": "raw-row before-hash computed as a raw file",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "beforeHash = contentHash({ entityType: \"raw-row\", state: inverse.before",
+  "replace": "beforeHash = contentHash({ entityType: \"raw-file\", state: inverse.before",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR40",
+  "what": "run row actor is the source principal",
+  "file": "apps/website/src/features/publish-content/apply-run.ts",
+  "find": "    actorId: identity.principalId,",
+  "replace": "    actorId: identity.sourcePrincipalId,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR41",
+  "what": "run row peer is the operator",
+  "file": "apps/website/src/features/publish-content/apply-run.ts",
+  "find": "    peerPrincipalId: identity.sourcePrincipalId,",
+  "replace": "    peerPrincipalId: identity.principalId,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR42",
+  "what": "run row direction changed",
+  "file": "apps/website/src/features/publish-content/apply-run.ts",
+  "find": "    direction: \"import\",",
+  "replace": "    direction: \"push\" as never,",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR43",
+  "what": "final snapshot not saved as applied",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "  await saveRunSnapshot({ run, phase: \"applied\", finishedAt: clockNowIso({ clock: run.input.clock }) });\n  return {",
+  "replace": "  return {",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ },
+ {
+  "id": "AR44",
+  "what": "audit failure details lose the rollback errors",
+  "file": "apps/website/src/features/publish-content/apply-report.ts",
+  "find": "details: { error: error instanceof Error ? error.message : \"This send was rolled back.\", rollbackErrors }",
+  "replace": "details: { error: error instanceof Error ? error.message : \"This send was rolled back.\" }",
+  "tests": [
+   "apps/website/src/features/publish-content/__tests__/apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/backstop-batch.apply-loop.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-row-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/raw-file-contributor.test.ts",
+   "apps/website/src/features/publish-content/__tests__/execute-import.test.ts",
+   "apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/apply-report.test.ts",
+   "apps/website/src/features/publish-content/__tests__/apply-loop.characterization.test.ts"
+  ]
+ }
+]

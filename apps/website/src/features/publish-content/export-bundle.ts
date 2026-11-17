@@ -1,6 +1,6 @@
 import { CONTENT_HASH_VERSION } from "./content-hash.js";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "./artifact-format.js";
-import { entityKey } from "./planner.js";
+import { entityKey } from "./plan-rows.js";
 import {
   buildPublishContentCatalog,
   type PackedEntity,

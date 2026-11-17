@@ -45,8 +45,9 @@ import { InMemoryPublishContentBaselineRepo } from "../baseline-repo.js";
 import type { PublishContentBaselineRepoPort } from "../baseline-repo.js";
 import { InMemoryPublishContentBundleRepo, stageBundle } from "../bundle-staging.js";
 import { getPublishContentRunStatus, InMemoryPublishContentRunRepo } from "../run-repo.js";
-import { entityKey, planImport } from "../planner.js";
-import type { PublishContentBundle, PublishContentReport } from "../planner.js";
+import { planImport } from "../planner.js";
+import { entityKey } from "../plan-rows.js";
+import type { PublishContentBundle, PublishContentReport } from "../plan-rows.js";
 import {
   registerPublishContentContributor,
   resetPublishContentContributorsForTests,
@@ -60,7 +61,8 @@ import type {
   RepointResult,
   RetireTarget,
 } from "../type-registry.js";
-import { createPublishContentApplyPort, publishContentItemIdempotencyKey } from "../apply-loop.js";
+import { createPublishContentApplyPort } from "../apply-port.js";
+import { publishContentItemIdempotencyKey } from "../idempotency.js";
 
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
 /** `post` depends on `term`; no taxonomy ports are wired here, so both pack nothing. */
@@ -1638,3 +1640,36 @@ test("TW2 pins a missing packed entity as blocked without a write", async () => 
   assert.match(result.report?.rows[0]?.reason ?? "", /internal inconsistency/);
   assert.deepEqual(result.changeSetIds, []);
 });
+
+// T-D11c (publish-engine P0.1). A type that declares `idempotencyScope: "run"` (the raw "send by
+// hand" types) must get a fresh command key on every run, so sending the same bytes again is a new,
+// separately audited write and not a replay of the earlier command. Every other type keeps the
+// run-independent key, which is what makes a retried run of the same item idempotent.
+for (const scope of ["run", "item"] as const) {
+  test(`T-D11c: a type with ${scope} idempotency scope gets ${scope === "run" ? "a per-run" : "the run-independent"} command key`, async () => {
+    const h = makeHarness();
+    resetPublishContentContributorsForTests();
+    const keys: string[] = [];
+    const entity: PackedEntity = { entityType: "media", id: "photo", schemaVersion: 1, hashVersion: CONTENT_HASH_VERSION,
+      contentHash: "incoming", requiredBlobs: [], state: {} };
+    const handler: PublishContentHandler = { entityType: "media", schemaVersion: 1, permission: "content.write", dependsOn: [],
+      ...(scope === "run" ? { idempotencyScope: "run" as const } : {}),
+      pack: async function* () {}, inspect: async () => ({ version: 3, hash: "before" }), precheck: async () => null,
+      apply: async input => { keys.push(input.idempotencyKey); return { changeSetId: `cs-${keys.length}` }; } };
+    registerPublishContentContributor({ entityType: "media", dependsOn: [], build: () => handler });
+    const itemKey = publishContentItemIdempotencyKey({ workspaceId: WORKSPACE_ID, sourcePrincipalId: SOURCE_PRINCIPAL_ID, entity });
+
+    const runIds: string[] = [];
+    for (let run = 0; run < 2; run++) {
+      const bundleId = await stage(h.bundleRepo, h.clock, [entity]);
+      const report: PublishContentReport = { refused: false, refusalReason: null, applyOrder: ["media"], rows: [{
+        entityType: "media", entityId: "photo", entityLabel: "Photo", outcome: "forced", writes: true,
+        canOverwrite: true, reason: null, retires: null,
+      }] };
+      runIds.push((await h.applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp" })).runId);
+    }
+
+    assert.notEqual(runIds[0], runIds[1]);
+    assert.deepEqual(keys, scope === "run" ? [`${itemKey}:${runIds[0]}`, `${itemKey}:${runIds[1]}`] : [itemKey, itemKey]);
+  });
+}

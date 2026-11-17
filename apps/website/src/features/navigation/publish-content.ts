@@ -8,10 +8,10 @@ import type {
   EntityReplacement,
   PublishContentContributor,
   PublishContentDeps,
-  PublishContentPorts,
   ReferenceHolder,
   RepointResult,
 } from "#src/features/publish-content/type-registry";
+import type { TovuPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 
 import { importMenuEntity } from "./import-menu.js";
 import { menuHoldersReferencing, repointMenuItems } from "./repoint-menu-refs.js";
@@ -90,7 +90,7 @@ function menuRecordFromState(required: { id: string; workspaceId: string; state:
 
 /** Called from a composition root (`server/runtime/composition/publish-content-manifest.ts`). */
 export const contributeMenusPublish = (): PublishContentContributor =>
-  createRepoPublishHandler<NavMenuEntry, PublishContentPorts["menu"]>({
+  createRepoPublishHandler<NavMenuEntry, TovuPublishPorts["menu"]>({
     entityType: "menu",
     coversTables: ["menus", "nav_location_bindings"],
     // Menus' own write permission (`Jini/.../navigation/agent-tools.ts`, `routes/admin/content/menus/*`).

@@ -32,7 +32,7 @@
  */
 
 import type { PublishTrustGrant } from "./grant.js";
-import { isGrantActive, parsePublishTrustGrant } from "./grant.js";
+import { parsePublishTrustGrant } from "./grant.js";
 
 /** The env var a destination reads at boot. Non-secret by construction — see this file's header. */
 export const PUBLISH_TRUST_ENV_VAR = "TOVU_PUBLISH_TRUST";
@@ -65,7 +65,7 @@ export const GRANT_LIFETIME_DAYS = 365;
 /** How far ahead of `notAfter` the source starts saying "renew this on your next deploy". */
 export const RENEWAL_WARNING_DAYS = 30;
 
-const MS_PER_DAY = 86_400_000;
+export const MS_PER_DAY = 86_400_000;
 
 // ---------------------------------------------------------------------------
 // The document: a LIST of grants, never one
@@ -299,108 +299,6 @@ export function findGrantForSource(
   return res.grants.find((g) => g.sourceInstallationId === sourceInstallationId) ?? null;
 }
 
-/**
- * One plain sentence describing what this site currently accepts — the destination-side empty
- * state, and the reason a fresh install shows a sentence instead of an error code.
- *
- * @complexity O(1).
- */
-export function describePublishTrustState(res: PublishTrustResolution): string {
-  switch (res.state) {
-    case "configured": {
-      const n = res.grants.length;
-      return `${n} ${n === 1 ? "computer" : "computers"} can publish to this site.`;
-    }
-    case "revoked":
-      return res.origin === "env"
-        ? `Publishing to this site is switched off in this deployment's own settings (${PUBLISH_TRUST_ENV_VAR}), which overrides whatever the repository carries.`
-        : "Publishing to this site is switched off. No computer is connected.";
-    case "invalid":
-      return `This site's publishing settings could not be read, so nobody can publish to it. ${res.reason ?? ""}`.trim();
-    case "absent":
-      return "No computer is connected to this site for publishing yet. Connect one, then deploy — the connection travels with the deploy, and there is nothing to copy.";
-    default:
-      return undefined as never;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// The source's question: is this computer connected to that site?
-// ---------------------------------------------------------------------------
-
-export type ConnectionVerdict =
-  | "connected"
-  | "expiring-soon"
-  | "expired"
-  | "superseded-key"
-  | "not-connected"
-  | "unavailable";
-
-export interface ConnectionStatus {
-  readonly verdict: ConnectionVerdict;
-  /** Plain language, naming the site and the next action. Never an error code. */
-  readonly message: string;
-}
-
-/** @complexity O(1). */
-function daysUntil({ iso, nowIso }: { iso: string; nowIso: string }, _optional = {}): number {
-  return Math.floor((Date.parse(iso) - Date.parse(nowIso)) / MS_PER_DAY);
-}
-
-/**
- * Whether the destination described by `resolution` currently accepts publishes signed by
- * `publicKeyB64u` from `sourceInstallationId`.
- *
- * MATCHES ON THE PUBLIC KEY, NOT THE GENERATION, and that distinction is the whole point. Rotation
- * bumps the generation, but regenerating the site key changes the derived key while leaving the
- * generation alone (`keys.ts`: the key is HKDF over the site key). A grant naming the right
- * generation and the previous key is therefore DEAD, and a generation comparison would report it
- * as current — publishing would fail with the destination insisting it was connected.
- *
- * @complexity O(n) in the grant's public-key count (at most four, per `grant.ts`).
- */
-export function describeConnection(input: {
-  readonly resolution: PublishTrustResolution;
-  readonly sourceInstallationId: string;
-  readonly publicKeyB64u: string;
-  readonly siteLabel: string;
-  readonly nowIso: string;
-}): ConnectionStatus {
-  const { resolution: res, siteLabel, nowIso } = input;
-  if (res.state !== "configured") {
-    return { verdict: "unavailable", message: `${siteLabel}: ${describePublishTrustState(res)}` };
-  }
-
-  const grant = findGrantForSource({ res, sourceInstallationId: input.sourceInstallationId });
-  if (grant === null) {
-    return {
-      verdict: "not-connected",
-      message: `${siteLabel} does not recognise this computer yet. Connect it and deploy once — nothing to copy, and no key to keep.`,
-    };
-  }
-  if (!isGrantActive({ grant, nowIso })) {
-    return {
-      verdict: "expired",
-      message: `This computer's connection to ${siteLabel} expired on ${grant.notAfter}. Reconnect and deploy to restore it.`,
-    };
-  }
-  if (!grant.publicKeys.some((k) => k.publicKeyB64u === input.publicKeyB64u)) {
-    return {
-      verdict: "superseded-key",
-      message: `${siteLabel} is still carrying an older key for this computer, so it will refuse a publish. This happens after the Site key is regenerated. Reconnect and deploy to finish the change.`,
-    };
-  }
-
-  const remaining = daysUntil({ iso: grant.notAfter, nowIso });
-  if (remaining <= RENEWAL_WARNING_DAYS) {
-    return {
-      verdict: "expiring-soon",
-      message: `This computer can publish to ${siteLabel} for ${remaining} more ${remaining === 1 ? "day" : "days"}. Reconnecting and deploying renews it.`,
-    };
-  }
-  return { verdict: "connected", message: `This computer can publish to ${siteLabel}.` };
-}
-
 // ---------------------------------------------------------------------------
 // The port, and the one flow every adapter shares
 // ---------------------------------------------------------------------------
@@ -495,33 +393,74 @@ export const COMMITTED_JSON_CODEC: ProvisioningCodec = {
   encode: ({ document }) => ({ ok: true, contents: document }),
 };
 
-type FileProvisioningDeps = {
+/**
+ * Builds a provisioning port over one config file.
+ *
+ * Every adapter in this feature is this function plus a codec. Keeping the read/decode/parse/edit/
+ * encode/write sequence in one place means a provider cannot accidentally get different merge
+ * semantics from another — the bug that would show up as "connecting my desktop disconnected my
+ * laptop, but only on the hosted server".
+ *
+ * @param deps - `path` overrides the codec's conventional location; callers pass an absolute path.
+ * @complexity O(n) in the provisioned grant count per call; one file read and at most one write.
+ */
+export function createFileProvisioning(deps: {
   readonly io: ProvisioningFileIo;
   readonly codec: ProvisioningCodec;
   readonly path: string;
   readonly onEvent?: (event: ProvisioningEvent) => void;
-};
+}): PublishTrustProvisioningPort {
+  const { io, codec, path, onEvent } = deps;
+  const target: ProvisioningTarget = { kind: codec.kind, path, nextStep: codec.nextStep };
+  const file: ProvisioningFile = { io, codec, path, target, onEvent };
 
-function grantsIn(required: { deps: FileProvisioningDeps; target: ProvisioningTarget; fileContents: string | null }, _optional = {}): ProvisionedRead {
-  const { deps, target, fileContents } = required;
-  const parsed = parseGrantDocument({ text: deps.codec.decode({ fileContents }) ?? "" });
+  return {
+    target,
+    readProvisioned: () => readProvisionedGrants({ file }),
+    connect: ({ grant }) => applyGrantEdit({ file, edit: (grants) => mergeGrant(grants, grant) }),
+    disconnect: ({ sourceInstallationId }) => applyGrantEdit({ file, edit: (grants) => removeGrant({ existing: grants, sourceInstallationId }) }),
+  };
+}
+
+/** The one config file a provisioning port works on. Every field is fixed when the port is built,
+ *  so the functions below read nothing that can change between two calls on the same port. */
+interface ProvisioningFile {
+  readonly io: ProvisioningFileIo;
+  readonly codec: ProvisioningCodec;
+  readonly path: string;
+  readonly target: ProvisioningTarget;
+  readonly onEvent?: (event: ProvisioningEvent) => void;
+}
+
+/** Decodes and parses the grant document out of the file's text; a parse failure is reported as an
+ *  event and returned, never thrown. @complexity O(n) in the document length. */
+function grantsInFile({ file, fileContents }: { file: ProvisioningFile; fileContents: string | null }, _optional = {}): ProvisionedRead {
+  const parsed = parseGrantDocument({ text: file.codec.decode({ fileContents }) ?? "" });
   if (!parsed.ok) {
-    deps.onEvent?.({ kind: "error", target, reason: parsed.reason });
+    file.onEvent?.({ kind: "error", target: file.target, reason: parsed.reason });
     return { ok: false, reason: parsed.reason };
   }
   return { ok: true, grants: parsed.grants };
 }
 
-async function applyEdit(
-  required: { deps: FileProvisioningDeps; target: ProvisioningTarget; edit: (grants: readonly PublishTrustGrant[]) => GrantListEdit },
-  _optional = {},
-): Promise<ProvisioningWrite> {
-  const { deps, target, edit } = required;
-  const { io, codec, path, onEvent } = deps;
+/** Reads the provisioned grants and reports the read. @complexity One file read, O(n) parse. */
+async function readProvisionedGrants({ file }: { file: ProvisioningFile }, _optional = {}): Promise<ProvisionedRead> {
+  const current = grantsInFile({ file, fileContents: await file.io.read({ path: file.path }) });
+  if (current.ok) file.onEvent?.({ kind: "read", target: file.target, grants: current.grants.length });
+  return current;
+}
+
+/** Applies one edit to the grant list: read, decode, parse, edit, encode, write. An edit that
+ *  changes nothing writes nothing. @complexity One file read and at most one write. */
+async function applyGrantEdit({ file, edit }: {
+  file: ProvisioningFile;
+  edit: (grants: readonly PublishTrustGrant[]) => GrantListEdit;
+}, _optional = {}): Promise<ProvisioningWrite> {
+  const { io, codec, path, target, onEvent } = file;
   // One read, reused for both the parse and the re-encode: reading twice could decode one
   // version of the file and write its edit back into another.
   const fileContents = await io.read({ path });
-  const current = grantsIn({ deps, target, fileContents });
+  const current = grantsInFile({ file, fileContents });
   if (!current.ok) return current;
 
   const next = edit(current.grants);
@@ -545,33 +484,4 @@ async function applyEdit(
   await io.write({ path, contents: encoded.contents });
   onEvent?.({ kind: "write", target, grants: next.grants.length, changed: true });
   return { ok: true, grants: next.grants, changed: true, target };
-}
-
-/**
- * Builds a provisioning port over one config file.
- *
- * Every adapter in this feature is this function plus a codec. Keeping the read/decode/parse/edit/
- * encode/write sequence in one place means a provider cannot accidentally get different merge
- * semantics from another — the bug that would show up as "connecting my desktop disconnected my
- * laptop, but only on the hosted server".
- *
- * @param deps - `path` overrides the codec's conventional location; callers pass an absolute path.
- * @complexity O(n) in the provisioned grant count per call; one file read and at most one write.
- */
-export function createFileProvisioning(deps: FileProvisioningDeps): PublishTrustProvisioningPort {
-  const { io, codec, path, onEvent } = deps;
-  const target: ProvisioningTarget = { kind: codec.kind, path, nextStep: codec.nextStep };
-
-  const readGrants = async (): Promise<ProvisionedRead> => {
-    const current = grantsIn({ deps, target, fileContents: await io.read({ path }) });
-    if (current.ok) onEvent?.({ kind: "read", target, grants: current.grants.length });
-    return current;
-  };
-
-  return {
-    target,
-    readProvisioned: readGrants,
-    connect: ({ grant }) => applyEdit({ deps, target, edit: (grants) => mergeGrant(grants, grant) }),
-    disconnect: ({ sourceInstallationId }) => applyEdit({ deps, target, edit: (grants) => removeGrant({ existing: grants, sourceInstallationId }) }),
-  };
 }

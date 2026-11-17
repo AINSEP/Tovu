@@ -33,7 +33,8 @@ import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
 import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
 
 import { includeReferencedEntities } from "../export-bundle.js";
-import { buildPublishContentCatalog, type PublishContentPorts } from "../type-registry.js";
+import { buildPublishContentCatalog } from "../type-registry.js";
+import type { TovuPublishPorts } from "../tovu-publish-ports.js";
 import { applyReport, makeSite, packAll, plan, registerOnly, WORKSPACE_ID } from "./round-trip-harness.js";
 
 /** A minimal ISO-BMFF `ftyp` box with an `isom` major brand — what `sniffContentType` reads as
@@ -97,7 +98,7 @@ async function mediaSite(records: MediaRecord[], blobs: readonly Uint8Array[], t
     });
     if (typed) await contentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256, contentType: bytes === VIDEO_BYTES ? "video/mp4" : "image/jpeg" });
   }
-  const media: PublishContentPorts["media"] = { repo, assetBlobRepo, blobStore, contentTypeStore };
+  const media: TovuPublishPorts["media"] = { repo, assetBlobRepo, blobStore, contentTypeStore };
   return { repo, blobStore, contentTypeStore, ports: { media } };
 }
 
