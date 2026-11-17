@@ -92,6 +92,7 @@ export interface PublishContentDialogProps {
   onPlanned?: (result: PublishRequestResult) => void;
   /** Threaded straight through to `usePublishContentConfirm` — tests pass 0 to skip the arming delay. */
   confirmArmDelayMs?: number;
+  usePublishContentConfirmHook?: typeof usePublishContentConfirm;
 }
 
 export function PublishContentDialog({
@@ -102,8 +103,9 @@ export function PublishContentDialog({
   scope,
   onPlanned,
   confirmArmDelayMs,
+  usePublishContentConfirmHook = usePublishContentConfirm,
 }: PublishContentDialogProps) {
-  const view = usePublishContentConfirm({ onCancel, t, port, criteria, scope, onPlanned, confirmArmDelayMs });
+  const view = usePublishContentConfirmHook({ onCancel, t, port, criteria, scope, onPlanned, confirmArmDelayMs });
 
   return (
     <Dialog
