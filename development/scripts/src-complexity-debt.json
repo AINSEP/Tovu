@@ -392,13 +392,6 @@
       "line": 207,
       "rule": "complexity",
       "value": 11
-    },
-    {
-      "file": "apps/website/src/server/runtime/services/external-mcp-admissions.ts",
-      "function": "readServerAdmissions#1",
-      "line": 23,
-      "rule": "complexity",
-      "value": 11
     }
   ]
 }

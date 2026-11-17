@@ -10,7 +10,8 @@ import type { McpHttpLaunchSpec, McpSessionPort, RemoteToolDescriptor } from "@j
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createExternalMcpModule } from "../runtime/composition/modules/external-mcp.js";
-import type { ExternalMcpProbeRouteDeps, ExternalMcpProbeSessionFactory } from "../inbound/admin-http/routes/external-mcp/probe.js";
+import type { ExternalMcpProbeSessionFactory } from "@jini-ai/mcp/federation/hosted";
+import type { ExternalMcpProbeRouteDeps } from "../inbound/admin-http/routes/external-mcp/probe.js";
 import { registerAdminExternalMcpProbeRoute } from "../inbound/admin-http/routes/external-mcp/probe.js";
 import { createRateLimiter, type RateLimiter } from "../../contracts/core/rate-limit/rate-limit.js";
 import { FEDERATED_CONNECTION_DEFAULTS } from "@jini-ai/mcp/federation";

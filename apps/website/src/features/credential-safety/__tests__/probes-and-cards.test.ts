@@ -5,7 +5,7 @@ import { InMemoryKeyring } from '../../webhooks/keyring.memory.js';
 import { AesGcmSecretSealer } from '../../webhooks/secret-sealer.aesgcm.js';
 import { InMemoryExternalMcpServerRepo } from "../../external-mcp/external-mcp-store.memory.js";
 import { saveExternalMcpServer, readEnabledExternalMcpConfigs } from "../../external-mcp/external-mcp-store.js";
-import { probeExternalMcpServer } from '../../../server/runtime/services/external-mcp-probe.js';
+import { probeExternalMcpServer } from '../../external-mcp/external-mcp-probe.js';
 import { buildExternalMcpRegistrations } from '../../external-mcp/tool-registrations.js';
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryVaultRepo } from '@jini-ai/platform/secrets/credential-sets';
