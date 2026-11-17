@@ -98,6 +98,8 @@ declare global {
  */
 
 export interface AssistantDockProps {
+  /** The dock's state hook seam (`useAssistantDockState`); a test passes a fake. */
+  useAssistantDockStateHook?: typeof useAssistantDockState;
   /** Pane implementation seam: host wiring tests inject a recorder without replacing Jini's module. */
   ChatPane?: typeof ChatPane;
   useExecutionPolicy?: typeof useTovuExecutionPolicy;
@@ -234,7 +236,7 @@ export interface AssistantDockProps {
  * 2026-10-20 moved them into `DockHeader`, `DockLeadingAccessory` and `assistant-dock-props.tsx`'s
  * pure builders, which own those branches (and their tests) now.
  */
-export function AssistantDock(props: AssistantDockProps) {
-  const dock = useAssistantDockState(props);
+export function AssistantDock({ useAssistantDockStateHook = useAssistantDockState, ...props }: AssistantDockProps) {
+  const dock = useAssistantDockStateHook(props);
   return <DockChatPane dock={dock} />;
 }
