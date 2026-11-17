@@ -1,35 +1,50 @@
-# TH-R: the rest of the theme feature (what lane T left)
+# TH-R: the rest of the theme feature (what lane T left) — revision 2
 
-Measured on Tovu merge-b dd70b057. Inventory `../inventory/theme.tsv` (61 source files, 15,934 lines; tests 111 files, 18,626). Guards and importer sites: `TH-R1.*`, `TH-R2.*`, `TH-R3.*`.
+Verified on Tovu `integ/merge-a-2026-11-16` e801e9ae (merge-b 450ac748 differs only in `theme-trash.ts`: 211 lines on merge-a, 243 on merge-b). Inventory `../inventory/theme.tsv` (62 source files, 15,918 lines; tests 111 files, 18,626). Guards and importer sites `TH-R1.*`, `TH-R2.*`, `TH-R3.*`. Run contract: `../COMMON-LO.md`.
+**State of this area after the judgment: nothing here is dispatchable.** All three items are in the design queue (findings 15, 16, 17). What this sheet now provides is the corrected inventory of behaviour owners and the tests a design must carry.
 
-## Reconciliation with lane T (plan/lanes-k-t-2026-11-16, `T/INVENTORY.tsv`)
-Lane T labels all 61 files: already covered by audit2 B04 8 files 2,546; MOVE 10 / 1,717; SPLIT 4 / 3,476; MOVE-AFTER 17 / 4,496; owner 2 / 721; STAY 20 / 2,978. **The tools (2,415 lines) are T-TH-08, the file lifecycle is T-TH-07, the render engine is T-TH-06**: they are NOT planned again here. The task text's "tools/previews/publish/assets ~5-6k" is therefore smaller: what no sheet covers is the STAY group, where the 11-05 survey and lane T disagree:
-| Files (lane T: STAY) | Lines | Survey said | This plan |
+## Reconciliation with lane T (`plan/lanes-k-t-2026-11-16` cafebcaa, revision 2)
+Lane T labels every theme file. The tools are T-TH-08, the file lifecycle is T-TH-07, the render engine is T-TH-06; T-TH-07 and T-TH-08 are now in lane T's DESIGN QUEUE (not dispatchable). What no sheet covers is lane T's STAY group:
+| Files (lane T: STAY) | Lines | This plan |
+|---|---|---|
+| `preview-refresh` 81, `preview-switcher` 127, `preview-switcher-html` 127, `theme-watcher` 97, `theme-roster-sync` 89 | 521 | TH-R1 (design queue) |
+| `asset-operations` 237, `theme-file-import` 178, `theme-trash` 211 | 626 | TH-R2 (design queue) |
+| `visitor-publication` 156, `active-theme` 223, `verify-active-theme` 69 | 448 | TH-R3 (design queue) |
+| `publish-content` 831, `active-theme-publish-content` 110 | 941 | BLOCKED on the publish framework (audit2 B02/B08) |
+| `index` 221, `public-page-security-headers` 51, `structure-only-theme` 54, `theme-id-aliases` 34, `capability-card` 29, `rendering` 18, `catalog` 3 | 410 | STAY |
+| `page-publication` 60, `public-theme-resources` (new on merge-a) | - | lane T owns both (T-TH-07; STAY host resource loader). Not touched here |
+`theme/index.ts` is an existing barrel with 33 outside importers; lane T mentions it in 166 places and owns its removal. The "no re-export shells" rule is met here by: no sheet of this plan adds a line to it; a sheet that moves a name deletes that name's re-export line in the same Tovu commit; nothing here is parallel with a T-TH sheet. (Judge finding 17's barrel point: the barrel is not "retained by this plan"; it is another lane's file.)
+Correction (judge finding 18): round 1 said "T-TH-07 moves only the fs move helper" of `theme-trash.ts`. Lane T says the file STAYS and schedules no extraction from it; `createThemeTrashAdapter` is 75 code lines (over the limit). That handoff is removed: TH-R2 owns the function split and the workflow design, and it waits for lane T's T-TH-07 design to exist.
+
+## TH-R1 (design queue): previews, watcher, roster
+What the watcher really does (judge finding 15: ACCEPTED; `theme-watcher.ts:45-97`, read line by line): `startThemeWatcher` FIRST stops the previous watcher synchronously (`stopActiveWatcher?.()`, `:57`), then opens a replacement. One module-level cell (`stopActiveWatcher`) guarantees one LIVE watcher per process, not one `open` call. `stop()` is idempotent, clears the pending settle timer, closes exactly once, and a stale handle never closes a replacement (`:62-69`). A watch error or an open failure stops the watcher and reports through `onError`, never throws from the callback. A settled burst (default 400 ms, timer `unref`ed) runs `syncThemeRoster(..., { force: true })` then `requestThemePreviewRefresh`. `ThemeWatchPort` is already an injected port with a native default.
+Round 1's "start twice = one underlying watch" contradicted this and the existing test (`__tests__/theme-watcher.test.ts:127-148`: restarts, site switches, stale-stop isolation). Removed.
+The design must carry, unedited, the existing tests for: restart = previous closed once + one new open; site switch (a different `themesDir`) replaces; a stale `stop()` does not close the replacement; roster identity; discovery before notification. And add: `stop()` leaves no timer and no handle; a burst of N events yields one refresh; an event after `stop()` schedules nothing; `onError` receives the watch error and the watcher is stopped.
+Open design question the Opus pass must answer (not an executor decision): which object owns replacement when the module-level cell becomes an instance. Recommendation: a `createThemeWatcherSlot()` owned by the Tovu composition root holds the one live handle (`slot.start(required)` stops the previous, `slot.stop()`); the generic `createThemeWatcher({ watch, settleMs, onChange, onError, setTimer })` in Jini has no shared state. Two slots must not be creatable by accident: the composition root is the only caller (guard: `rg -n "createThemeWatcherSlot\(" apps/website/src -g '!**/__tests__/**'` prints one line).
+Generic parts: settle-debounce over a watch port; preview switcher HTML and its state. Tovu: settings access, preview endpoints, the roster source, the switcher's saved setting (concurrency-guarded: lost-updates SITES row 63). Node `fs.watch` binding belongs in `@jini-ai/node-adapters` (xpkg N1). `startThemeWatcher` is 53 lines: split in Tovu first.
+Prerequisites: T-TH-05 landed; xpkg N1 landed. Estimate: Opus 80k; execution about two runs, 200k.
+
+## TH-R2 (design queue): asset operations, file import, trash workflow
+`asset-operations.ts` 237 (8 prod importers, 0 tests: tests first), `theme-file-import.ts` 178, `theme-trash.ts` 211 on merge-a (`createThemeTrashAdapter` 75 code lines at 128-211: split in Tovu first; blobs differ between merge-a and merge-b: regenerate on the final merge).
+Constraints for the design: never a permanent delete (the paired theme + original move goes through a trash port; `@jini-ai/cms/trash` has the domain); trash then restore returns byte-identical theme AND original; a failure between the two moves rolls the first back and is reported, never swallowed (throwing fake on the second move); import refuses a file whose sniffed type disagrees with its extension, at size limit-1 / limit / limit+1; path containment deny tests.
+Prerequisites: lane T's T-TH-05 landed and its T-TH-07 design written (it claims `theme-trash.ts` as STAY and `page-publication.ts`); K-07, K-08 (trash tools and SQL); xpkg N1. Estimate: Opus 60k; execution about two runs, 220k.
+
+## TH-R3 (design queue; was "READY" in round 1): visitor publication and active-theme resolution
+Round 1 described "routing/storage ports and resolution snapshots". The files own more than that (judge finding 16: ACCEPTED). Behaviour owners that a design must give an explicit state lifetime, ports and tests:
+| Owner | Where | What it holds or does | Port a design must inject |
 |---|---|---|---|
-| `preview-refresh` 81, `preview-switcher` 127, `preview-switcher-html` 127, `theme-watcher` 97, `theme-roster-sync` 89 | 521 | MOVE PART -> themes/preview | TH-R1 |
-| `asset-operations` 237, `theme-file-import` 178, `theme-trash` 243 | 658 | MOVE PART -> themes/files | TH-R2 (`theme-trash` is ALSO in T-TH-07's file list: double claim, see INDEX) |
-| `visitor-publication` 156, `active-theme` 223, `verify-active-theme` 69 | 448 | MOVE PART | TH-R3 |
-| `publish-content` 831, `active-theme-publish-content` 110 | 941 | MOVE PART -> themes/publish | BLOCKED on the publish framework (audit2 B02/B08; publish-engine design keeps domain contributors out of its 48 files). `buildHandler` 606-822 is one 217-line function: split in Tovu is the only work possible now |
-| `index` 221, `public-page-security-headers` 51, `structure-only-theme` 54, `theme-id-aliases` 34, `capability-card` 29, `rendering` 18, `catalog` 3 | 410 | STAY | STAY (barrel, security headers policy, product defaults) |
-Sum 2,978 = lane T's STAY total.
-
-## TH-R1 (design + run): previews, watcher, roster
-State cells (verified from the survey and file names; read the files before the design is accepted): watcher singleton (`theme-watcher.ts`, `startThemeWatcher` 45-97 is 53 lines: over 50), roster cache (`theme-roster-sync.ts`), refresh delivery (`preview-refresh.ts`, 11 prod importers). Generic: debounce + file-watch -> refresh event; preview switcher HTML and its state machine. Tovu: settings access, mounting preview endpoints, roster source, the switcher's saved setting (`theme_update_preview_switcher` is concurrency-guarded: lost-updates SITES row 63).
-Target `@jini-ai/cms/theme/preview` (universal: switcher HTML and state) and `@jini-ai/cms/theme/node` (watcher). Instance ownership becomes explicit: `createThemeWatcher({ watch, onChange, clock })` returns `{ stop() }`; Tovu's composition root owns the one instance.
-Characterization first: watcher start twice = one underlying watch; `stop()` leaves no timer and no handle (fake timers + recording fake of the watch port: assert `close` called once); a burst of N events yields one refresh; switcher HTML escapes theme names (sentinel `<script>` name, assert escaped) and is byte-identical for a fixed roster; roster cache invalidates on rename/delete.
-Prerequisites: T-TH-05 (theme-files split) landed, because the watcher reads theme paths. `theme/index.ts` has 33 outside importers: serial with every T-TH sheet. Estimate: 80k Opus design + 180k run.
-
-## TH-R2 (after T-TH-05 and T-TH-07): asset operations, file import, trash
-`asset-operations.ts` 237 (8 prod importers, 0 tests: write the tests first), `theme-file-import.ts` 178 (CLASSIFY: cms/media sniffer), `theme-trash.ts` 243 (paired theme + original rollback at about :128).
-- `theme-trash.ts`: resolve the double claim first: T-TH-07 lists it and marks it STAY ("binds Tovu trash feature; generic part is the fs move helper only"). Decision here: T-TH-07 keeps the fs move helper; TH-R2 moves the paired-rollback WORKFLOW behind a `TrashPort` (`@jini-ai/cms/trash` already has the domain; never a permanent delete). Run TH-R2 after T-TH-07 and K-07/K-08 (trash tools and SQL).
-- Characterization first: trash then restore returns byte-identical theme AND original; a failure between the two moves rolls the first back (inject a throwing fake for the second move; assert the first is restored and the failure is reported, never swallowed); import refuses a file whose sniffed type disagrees with its extension, at size limit-1 / limit / limit+1; path containment deny tests.
-Estimate: 220k tokens.
-
-## TH-R3 (small, READY after T-TH-06): visitor publication and active-theme resolution
-`visitor-publication.ts` 156 (CLASSIFY: MOVE-AFTER agentic; lane T says CLASSIFY owns it): move to `@jini-ai/agentic` only with routing/storage ports; no sheet existed. `active-theme.ts` 223 (15 prod importers): generic resolution (fallback chain, alias map applied) vs Tovu default theme ids (`theme-id-aliases.ts` stays). `verify-active-theme.ts` 69 is in audit2 B15's file list (label only).
-Characterization: resolution table (configured, missing on disk, alias, preview override, structure-only fallback) with the exact theme id returned; the public-page security headers are unchanged for a page rendered through a preview override (header snapshot).
-Estimate: 150k tokens.
+| Publication snapshot store | `visitor-publication.ts:12`, `rememberPublication` :107-117 | process-local `Map` of revision -> publication with a 30-minute expiry; expired entries are swept on write; bounded eviction | clock; the store instance owned by the composition root (state cell) |
+| Document revision | `:61` | sha256 over a fresh random document id + elements + path + workspace: a NEW revision per render, so a re-render does not revoke a live document | randomness (id source) |
+| Read gate | `readVisitorPagePublication` :85-89 | returns null on unknown revision, workspace mismatch, or expiry (and deletes the expired entry) | clock |
+| Submit-target validation | `:128-154` (`submissionTarget`, `effectiveSubmitTarget`, `safeFormAction`) | which form actions a visitor action may target | none (pure), but security tests first |
+| Deliberate "no theme" | `active-theme.ts:106` `NO_THEME_ID` | a distinct resolution result, not a failure | - |
+| Fallback chain with warnings | `resolveActiveTheme` :157-175, `substituteFirstTheme` :177-184 | two fallbacks, each warns with distinct wording through `console.warn` | `report` port (no `console` in Jini) |
+| Styling write allow-list | `writableThemeIds` :216-222 | which theme ids a write may target | - |
+| Product defaults | `DEFAULT_THEME_ID`, `DEFAULT_THEME_IDS` :71-82, `UNSTYLED_THEME_MARKER`, the styling-required message | Tovu theme ids and wording | STAY in Tovu |
+| Compensation | `verify-active-theme.ts:44-69` | when the active theme does not resolve: a compensating settings write and a refresh notification | settings write port, refresh port; the failure of the compensation itself must be reported |
+Tests a design must specify before any extraction step: snapshot expiry at 30 min -1 ms / exact / +1 ms; a read with another workspace id returns null; eviction at the bound and bound+1; two renders of the same page give two revisions and both read back; every clause of `safeFormAction` with a deny case; `resolveActiveTheme` table (configured, missing on disk, alias, "none", fallback 1, fallback 2) with the exact warning text per fallback and none for "none"; `writableThemeIds` allow and deny; `verifyActiveThemeResolves` writes the compensating setting exactly once, notifies once, and reports when the write throws; the public-page security headers are unchanged for a preview override (header snapshot).
+Prerequisite: T-TH-06 landed. Estimate: Opus 70k; execution about two runs, 200k.
 
 ## Could not verify
-- None of the 11 TH-R files was read line by line in this run (lane T's inventory, the survey and the declaration map were used). The TH-R1 design must start by reading them.
-- That T-TH-05/06/07 will leave these files' blobs unchanged (they will not: regenerate `TH-R*.files.tsv` after each lands).
+- `preview-refresh`, `preview-switcher`, `preview-switcher-html`, `theme-roster-sync`, `asset-operations`, `theme-file-import` were not read line by line (declaration map and importer counts only). `theme-watcher`, the named parts of `visitor-publication` and `active-theme` were read.
+- That T-TH-05/06/07 leave these blobs unchanged (they will not: regenerate `TH-R*.files.tsv` after each lands).
