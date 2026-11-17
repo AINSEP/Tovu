@@ -1,4 +1,4 @@
-owner	target	spec	kind	file	line	file_loc	names	fix_11_15	clane_11_15	rlane
-cms	http-kit	@jini-ai/http-kit/rate-limit	type	packages/cms/src/comments/ingress.ts	29	274	RateLimiter	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	L-ROUTES	R9
-cms	db	@jini-ai/db/kernel	value	packages/cms/src/forms/sql/submission-ip-retention-repo.ts	2	44	listColumns,KyselyKernel	CONTRACT/PURE -> core/contracts/storage	L-STORAGE	R9
-cms-forms	cms	@jini-ai/cms/core	type+inline	packages/cms/forms/src/ports.ts	69	70	executeCommand	CONTRACT -> core/contracts/events (generic command/event/outbox vocabulary)	L-STORAGE	R9
+owner	target	spec	kind	file	line	file_loc	names	fix_11_15	clane_11_15	rlane	class
+cms	http-kit	@jini-ai/http-kit/rate-limit	type	packages/cms/src/comments/ingress.ts	29	274	RateLimiter	CONTRACT/PURE -> core/contracts/server (+ core origin checks)	L-ROUTES	R9	work
+cms	db	@jini-ai/db/kernel	value	packages/cms/src/forms/sql/submission-ip-retention-repo.ts	2	44	listColumns,KyselyKernel	CONTRACT/PURE -> core/contracts/storage	L-STORAGE	R9	work
+cms-forms	cms	@jini-ai/cms/core	type+inline	packages/cms/forms/src/ports.ts	69	70	executeCommand	CONTRACT -> core/contracts/events (generic command/event/outbox vocabulary)	L-STORAGE	R9	work

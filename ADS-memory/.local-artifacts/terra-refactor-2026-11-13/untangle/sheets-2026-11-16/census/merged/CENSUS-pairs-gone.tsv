@@ -8,6 +8,7 @@ cli→platform	1
 cms→platform	2
 commerce→agentic	1
 commerce→ui	1
+daemon→db	8
 db→platform	1
 http-kit→platform	2
 integrations→db	3

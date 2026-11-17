@@ -67,6 +67,8 @@ chat	agent-runtime	@jini-ai/agent-runtime	value	packages/chat/src/core/__tests__
 chat	agent-runtime	@jini-ai/agent-runtime/model-selection	value	packages/chat/src/core/__tests__/agents-port.typecheck.ts	3
 chat	agent-runtime	@jini-ai/agent-runtime/native-tool-policy	value	packages/chat/src/core/__tests__/agents-port.typecheck.ts	4
 chat	agent-runtime	@jini-ai/agent-runtime/providers/sse-decode	vi.mock	packages/chat/src/core/run-events/__tests__/boundary.test.ts	6
+chat	agentic	@jini-ai/agentic	type	packages/chat/src/embed-widget/browser/__tests__/frontend-session-bridge.replay-cancel.test.ts	6
+chat	agentic	@jini-ai/agentic/dom	value	packages/chat/src/embed-widget/browser/__tests__/frontend-session-bridge.replay-cancel.test.ts	7
 chat	agentic	@jini-ai/agentic	type	packages/chat/src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts	3
 chat	agentic	@jini-ai/agentic/dom	value	packages/chat/src/embed-widget/browser/__tests__/frontend-session-bridge.test.ts	4
 chat	agent-runtime	@jini-ai/agent-runtime/providers/sse-decode	value	packages/chat/src/embed-widget/transports/__tests__/fetch-sse.test.ts	7
@@ -151,11 +153,7 @@ daemon	agent-runtime	@jini-ai/agent-runtime	value	packages/daemon/src/__tests__/
 daemon	chat	@jini-ai/chat/server/durable-runs	value	packages/daemon/src/__tests__/delegated-tool-bridge.test.ts	8
 daemon	db	@jini-ai/db/sqlite	value	packages/daemon/src/__tests__/memory-recovery.db-contract.test.ts	2
 daemon	agent-runtime	@jini-ai/agent-runtime	value	packages/daemon/src/__tests__/session-fixture.ts	3
-daemon	platform	@jini-ai/platform	type	packages/daemon/src/__tests__/terminal-session.test.ts	3
-daemon	platform	@jini-ai/platform	value	packages/daemon/src/__tests__/terminal-session.test.ts	13
-daemon	platform	@jini-ai/platform	type+inline	packages/daemon/src/__tests__/terminal-session.test.ts	33
-daemon	platform	@jini-ai/platform	vi.mock	packages/daemon/src/__tests__/terminal-session.test.ts	34
-daemon	platform	@jini-ai/platform	type+inline	packages/daemon/src/__tests__/terminal-session.test.ts	35
+daemon	platform	@jini-ai/platform	value	packages/daemon/src/__tests__/terminal-session.test.ts	9
 daemon	agent-runtime	@jini-ai/agent-runtime	value	packages/daemon/src/agent-executor/__tests__/access-approval-transport.test.ts	3
 daemon	agent-runtime	@jini-ai/agent-runtime	value	packages/daemon/src/agent-executor/__tests__/agent-executor-capability-probe.test.ts	4
 daemon	agent-runtime	@jini-ai/agent-runtime	value	packages/daemon/src/agent-executor/__tests__/agent-executor-filesystem-policy.test.ts	8
@@ -189,6 +187,7 @@ daemon	http-kit	@jini-ai/http-kit	value	packages/daemon/src/http/__tests__/args-
 daemon	http-kit	@jini-ai/http-kit	value	packages/daemon/src/http/__tests__/args-convention.test.ts	10
 daemon	http-kit	@jini-ai/http-kit	value	packages/daemon/src/http/__tests__/attachment-lookup.test.ts	12
 daemon	chat	@jini-ai/chat	type	packages/daemon/src/http/__tests__/attachments.test.ts	38
+daemon	platform	@jini-ai/platform	value	packages/daemon/src/http/__tests__/terminals.test.ts	14
 daemon	chat	@jini-ai/chat/server/durable-runs	value	packages/daemon/src/http/__tests__/tool-execution-rpc.test.ts	19
 daemon	chat	@jini-ai/chat/core/run-events	value	packages/daemon/src/http/__tests__/tool-execution-rpc.test.ts	20
 daemon	agent-runtime	@jini-ai/agent-runtime	value	packages/daemon/src/http/__tests__/xai.test.ts	9
@@ -368,9 +367,11 @@ search	agent-plugins	@jini-ai/agent-plugins/lifecycle	value	packages/search/src/
 server	http-kit	@jini-ai/http-kit	value	packages/server/src/__tests__/builtin-features.mounts.test.ts	7
 server	agent-runtime	@jini-ai/agent-runtime	type	packages/server/src/__tests__/builtin-features.mounts.test.ts	10
 server	http-kit	@jini-ai/http-kit	value	packages/server/src/__tests__/builtin-features.terminal-lifecycle.test.ts	2
-server	daemon	@jini-ai/daemon	type	packages/server/src/__tests__/builtin-features.terminal-lifecycle.test.ts	3
-server	daemon	@jini-ai/daemon	vi.mock	packages/server/src/__tests__/builtin-features.terminal-lifecycle.test.ts	17
-server	daemon	@jini-ai/daemon	type+inline	packages/server/src/__tests__/builtin-features.terminal-lifecycle.test.ts	18
+server	platform	@jini-ai/platform	vi.mock	packages/server/src/__tests__/builtin-features.terminal-lifecycle.test.ts	17
+server	platform	@jini-ai/platform	type+inline	packages/server/src/__tests__/builtin-features.terminal-lifecycle.test.ts	18
+server	http-kit	@jini-ai/http-kit	value	packages/server/src/__tests__/builtin-features.terminal-service.test.ts	2
+server	platform	@jini-ai/platform	vi.mock	packages/server/src/__tests__/builtin-features.terminal-service.test.ts	17
+server	platform	@jini-ai/platform	type+inline	packages/server/src/__tests__/builtin-features.terminal-service.test.ts	18
 server	agent-runtime	@jini-ai/agent-runtime	value	packages/server/src/__tests__/builtin-features.test.ts	1
 server	http-kit	@jini-ai/http-kit	value	packages/server/src/__tests__/builtin-features.test.ts	9
 server	db	@jini-ai/db/sqlite	value+dynamic	packages/server/src/__tests__/builtin-features.test.ts	713
@@ -390,6 +391,11 @@ server	daemon	@jini-ai/daemon/http	type	packages/server/src/__tests__/route-host
 server	agent-runtime	@jini-ai/agent-runtime	value	packages/server/src/__tests__/runtime-port-bindings.typecheck.ts	3
 server	daemon	@jini-ai/daemon/ports/agent-runtime	type	packages/server/src/__tests__/runtime-port-bindings.typecheck.ts	4
 server	agent-runtime	@jini-ai/agent-runtime	value	packages/server/src/__tests__/runtime-port-bindings.typecheck.ts	5
+server	platform	@jini-ai/platform	type	packages/server/src/adapters/__tests__/node-pty.test.ts	2
+server	daemon	@jini-ai/daemon	value	packages/server/src/adapters/__tests__/node-pty.test.ts	4
+server	platform	@jini-ai/platform	value	packages/server/src/adapters/__tests__/node-pty.test.ts	5
+server	platform	@jini-ai/platform	vi.mock	packages/server/src/adapters/__tests__/node-pty.test.ts	13
+server	platform	@jini-ai/platform	type+inline	packages/server/src/adapters/__tests__/node-pty.test.ts	14
 server	platform	@jini-ai/platform/secrets	value	packages/server/src/owner-store/__tests__/backup.test.ts	1
 server	db	@jini-ai/db/kernel/sqlite	value	packages/server/src/owner-store/__tests__/fixture.ts	7
 server	db	@jini-ai/db/migrate	value	packages/server/src/owner-store/__tests__/fixture.ts	8

@@ -16,9 +16,8 @@ cms→db	1	1	0	R9	L-STORAGE	6
 cms→http-kit	1	1	1	R9	L-ROUTES	13
 commerce→db	2	1	1	R6	L-STORAGE	16
 daemon→agent-runtime	10	10	2	R8,R7	L-AGENTS	29
-daemon→db	1	1	0	R8	L-STORAGE	8
 daemon→http-kit	37	23	0	R7	L-ROUTES	69
-daemon→platform	10	8	2	R8,R7	L-PLATFORM	11
+daemon→platform	8	6	2	R8,R7	L-PLATFORM	11
 devops→platform	1	1	0	R11	L-PLATFORM	1
 infra→db	4	2	2	R13	Q2	4
 integrations→platform	3	3	0	R11	L-PLATFORM	11
@@ -32,10 +31,10 @@ provider-plugins→ui	2	2	0	R12	L-PROV	7
 search→agent-plugins	2	1	0	R11	L-REG-MISC	2
 server→agent-runtime	3	3	1	R13	Q1	3
 server→chat	1	1	0	R13	Q1	1
-server→daemon	13	8	6	R13	Q1,NONE	10
+server→daemon	14	9	7	R13	Q1,NONE	10
 server→db	6	4	1	R13	Q1	11
 server→http-kit	5	4	0	R13	Q1,NONE	3
-server→platform	5	3	0	R13	NONE,Q1	6
+server→platform	7	5	0	R13	NONE,Q1	6
 server→registry	1	1	0	R13	Q1	1
 server→sidecar	1	1	0	R13	Q1	1
 sidecar→platform	3	2	0	R11	L-PLATFORM	4

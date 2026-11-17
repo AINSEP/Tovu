@@ -1,19 +1,19 @@
-owner	target	spec	kind	file	line	file_loc	names	fix_11_15	clane_11_15	rlane
-chat	diagnostics	@jini-ai/diagnostics/redaction/secrets-only	value	packages/chat/src/core/user-text-redaction.ts	2	149	redactSecretShapes,RedactionRule	DEDUPE -> core redact (pure)	L-PLATFORM	R4
-chat	ui	@jini-ai/ui/panel-kit	react	packages/chat/src/embed-widget/react/dialog.hooks.ts	2	75	useFocusTrap	KIT slot (KIT-INJECTION)	L-KIT-CHAT	R4
-chat	ui	@jini-ai/ui/tab-strip	react	packages/chat/src/react/components/ChatSettingsDialog.tsx	2	129	TabBar	KIT slot (KIT-INJECTION)	L-KIT-CHAT	R4
-chat	ui	@jini-ai/ui/admin-widgets	react	packages/chat/src/react/components/ChatSettingsDialog.tsx	3	129	InfoTip	KIT slot (KIT-INJECTION)	L-KIT-CHAT	R4
-chat	ui	@jini-ai/ui	react	packages/chat/src/react/components/Composer.tsx	21	418	RemixIcon,useAgentHandle	KIT slot (KIT-INJECTION)	L-KIT-CHAT	R4
-chat	ui	@jini-ai/ui	react	packages/chat/src/react/components/ComposerDiscovery.tsx	2	207	RemixIcon	KIT slot (KIT-INJECTION)	L-KIT-CHAT	R4
-chat	ui	@jini-ai/ui	react	packages/chat/src/react/components/QuestionForm.tsx	22	546	SecretInput,SecretTextarea	KIT slot (KIT-INJECTION)	L-KIT-CHAT	R4
-chat	agent-runtime	@jini-ai/agent-runtime/model-selection	react	packages/chat/src/react/features/chat-pane/components/AgentRuntimePicker.tsx	1	611	modelReasoningOptions	PORT: agent-runtime policy helpers via chat agents port	L-AGENTS	R4
-chat	ui	@jini-ai/ui	react	packages/chat/src/react/features/chat-pane/components/AgentRuntimePicker.tsx	5	611	AgentIcon,RemixIcon,SearchableModelSelect,useAgentHandle,useOverlayContainer	KIT slot (KIT-INJECTION)	L-KIT-CHAT	R4
-chat	ui	@jini-ai/ui/admin-widgets	react	packages/chat/src/react/features/chat-pane/components/AgentRuntimePicker.tsx	7	611	InfoTip	KIT slot (KIT-INJECTION)	L-KIT-CHAT	R4
-chat	agent-runtime	@jini-ai/agent-runtime/native-tool-policy	react	packages/chat/src/react/features/chat-pane/components/AgentRuntimePicker.tsx	8	611	assessNativeToolPolicy	PORT: agent-runtime policy helpers via chat agents port	L-AGENTS	R4
-chat	ui	@jini-ai/ui	react	packages/chat/src/react/features/chat-pane/components/ChatPane.tsx	6	942	WorkingDirPicker,useAgentHandle	KIT slot (KIT-INJECTION)	L-KIT-CHAT	R4
-chat	ui	@jini-ai/ui	react	packages/chat/src/react/features/chat-pane/components/RuntimeDropUp.tsx	3	151	RemixIcon,infoTipBubbleStyle,useInfoTip,useAgentHandle	KIT slot (KIT-INJECTION)	L-KIT-CHAT	R4
-chat	ui	@jini-ai/ui	react	packages/chat/src/react/features/chat-pane/hooks/useChatPaneFileDrop.hooks.ts	7	103	useFileDropTarget	KIT slot (KIT-INJECTION)	L-KIT-CHAT	R4
-chat	agent-runtime	@jini-ai/agent-runtime/model-selection	react	packages/chat/src/react/features/chat-pane/model-options.ts	1	107	concreteModelOptions,modelIdentityKind	PORT: agent-runtime policy helpers via chat agents port	L-AGENTS	R4
-chat	agent-runtime	@jini-ai/agent-runtime/model-selection	react	packages/chat/src/react/features/chat-pane/rules.ts	1	424	modelReasoningOptions	PORT: agent-runtime policy helpers via chat agents port	L-AGENTS	R4
-chat	agent-runtime	@jini-ai/agent-runtime	value	packages/chat/src/server/durable-runs/recover.ts	2	320	classifyAgentServiceFailure,startupFailureMessage	PORT: agent-runtime policy helpers via chat agents port	L-AGENTS	R4
-chat	db	@jini-ai/db/kernel/sqlite	value	packages/chat/src/store/sqlite/index.ts	33	47	sqliteKernel,SqliteConnectionSource	PORT: opener/kernel/adapter injected by host	L-STORAGE	R4
+owner	target	spec	kind	file	line	file_loc	names	fix_11_15	clane_11_15	rlane	class
+chat	diagnostics	@jini-ai/diagnostics/redaction/secrets-only	value	packages/chat/src/core/user-text-redaction.ts	2	149	redactSecretShapes,RedactionRule	DEDUPE -> core redact (pure)	L-PLATFORM	R4	work
+chat	ui	@jini-ai/ui/panel-kit	react	packages/chat/src/embed-widget/react/dialog.hooks.ts	2	75	useFocusTrap	KIT slot (KIT-INJECTION)	L-KIT-CHAT	R4	work
+chat	ui	@jini-ai/ui/tab-strip	react	packages/chat/src/react/components/ChatSettingsDialog.tsx	2	129	TabBar	KIT slot (KIT-INJECTION)	L-KIT-CHAT	R4	work
+chat	ui	@jini-ai/ui/admin-widgets	react	packages/chat/src/react/components/ChatSettingsDialog.tsx	3	129	InfoTip	KIT slot (KIT-INJECTION)	L-KIT-CHAT	R4	work
+chat	ui	@jini-ai/ui	react	packages/chat/src/react/components/Composer.tsx	21	418	RemixIcon,useAgentHandle	KIT slot (KIT-INJECTION)	L-KIT-CHAT	R4	work
+chat	ui	@jini-ai/ui	react	packages/chat/src/react/components/ComposerDiscovery.tsx	2	207	RemixIcon	KIT slot (KIT-INJECTION)	L-KIT-CHAT	R4	work
+chat	ui	@jini-ai/ui	react	packages/chat/src/react/components/QuestionForm.tsx	22	546	SecretInput,SecretTextarea	KIT slot (KIT-INJECTION)	L-KIT-CHAT	R4	work
+chat	agent-runtime	@jini-ai/agent-runtime/model-selection	react	packages/chat/src/react/features/chat-pane/components/AgentRuntimePicker.tsx	1	611	modelReasoningOptions	PORT: agent-runtime policy helpers via chat agents port	L-AGENTS	R4	work
+chat	ui	@jini-ai/ui	react	packages/chat/src/react/features/chat-pane/components/AgentRuntimePicker.tsx	5	611	AgentIcon,RemixIcon,SearchableModelSelect,useAgentHandle,useOverlayContainer	KIT slot (KIT-INJECTION)	L-KIT-CHAT	R4	work
+chat	ui	@jini-ai/ui/admin-widgets	react	packages/chat/src/react/features/chat-pane/components/AgentRuntimePicker.tsx	7	611	InfoTip	KIT slot (KIT-INJECTION)	L-KIT-CHAT	R4	work
+chat	agent-runtime	@jini-ai/agent-runtime/native-tool-policy	react	packages/chat/src/react/features/chat-pane/components/AgentRuntimePicker.tsx	8	611	assessNativeToolPolicy	PORT: agent-runtime policy helpers via chat agents port	L-AGENTS	R4	work
+chat	ui	@jini-ai/ui	react	packages/chat/src/react/features/chat-pane/components/ChatPane.tsx	6	942	WorkingDirPicker,useAgentHandle	KIT slot (KIT-INJECTION)	L-KIT-CHAT	R4	work
+chat	ui	@jini-ai/ui	react	packages/chat/src/react/features/chat-pane/components/RuntimeDropUp.tsx	3	151	RemixIcon,infoTipBubbleStyle,useInfoTip,useAgentHandle	KIT slot (KIT-INJECTION)	L-KIT-CHAT	R4	work
+chat	ui	@jini-ai/ui	react	packages/chat/src/react/features/chat-pane/hooks/useChatPaneFileDrop.hooks.ts	7	103	useFileDropTarget	KIT slot (KIT-INJECTION)	L-KIT-CHAT	R4	work
+chat	agent-runtime	@jini-ai/agent-runtime/model-selection	react	packages/chat/src/react/features/chat-pane/model-options.ts	1	107	concreteModelOptions,modelIdentityKind	PORT: agent-runtime policy helpers via chat agents port	L-AGENTS	R4	work
+chat	agent-runtime	@jini-ai/agent-runtime/model-selection	react	packages/chat/src/react/features/chat-pane/rules.ts	1	424	modelReasoningOptions	PORT: agent-runtime policy helpers via chat agents port	L-AGENTS	R4	work
+chat	agent-runtime	@jini-ai/agent-runtime	value	packages/chat/src/server/durable-runs/recover.ts	2	320	classifyAgentServiceFailure,startupFailureMessage	PORT: agent-runtime policy helpers via chat agents port	L-AGENTS	R4	work
+chat	db	@jini-ai/db/kernel/sqlite	value	packages/chat/src/store/sqlite/index.ts	33	47	sqliteKernel,SqliteConnectionSource	PORT: opener/kernel/adapter injected by host	L-STORAGE	R4	work

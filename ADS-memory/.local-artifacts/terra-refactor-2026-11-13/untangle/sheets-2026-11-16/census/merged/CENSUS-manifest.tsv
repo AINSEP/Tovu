@@ -85,7 +85,7 @@ daemon	agent-runtime	devDependencies		dev
 daemon	chat	devDependencies		dev
 daemon	core	dependencies		base
 daemon	core	devDependencies		base
-daemon	db	dependencies		USED
+daemon	db	dependencies		STALE
 daemon	db	devDependencies		dev
 daemon	http-kit	dependencies		USED
 daemon	http-kit	devDependencies		dev

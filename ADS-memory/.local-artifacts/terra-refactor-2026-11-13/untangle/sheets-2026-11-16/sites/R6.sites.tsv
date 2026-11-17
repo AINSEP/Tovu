@@ -1,3 +1,3 @@
-owner	target	spec	kind	file	line	file_loc	names	fix_11_15	clane_11_15	rlane
-commerce	db	@jini-ai/db/migrate	value	packages/commerce/src/payments/ledger/migrations/index.ts	1	53	MigrationOptions,MigrationReport,runMigrations	REG: commerce exports migrations; host runs them	L-STORAGE	R6
-commerce	db	@jini-ai/db/kernel	type	packages/commerce/src/payments/ledger/migrations/index.ts	3	53	KyselyKernel	CONTRACT/PURE -> core/contracts/storage	L-STORAGE	R6
+owner	target	spec	kind	file	line	file_loc	names	fix_11_15	clane_11_15	rlane	class
+commerce	db	@jini-ai/db/migrate	value	packages/commerce/src/payments/ledger/migrations/index.ts	1	53	MigrationOptions,MigrationReport,runMigrations	REG: commerce exports migrations; host runs them	L-STORAGE	R6	work
+commerce	db	@jini-ai/db/kernel	type	packages/commerce/src/payments/ledger/migrations/index.ts	3	53	KyselyKernel	CONTRACT/PURE -> core/contracts/storage	L-STORAGE	R6	work

@@ -1,40 +1,40 @@
-owner	target	spec	kind	file	line	file_loc	names	fix_11_15	clane_11_15	rlane
-user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/components/DestructiveDialog.tsx	1	6	ConfirmDialog	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui-kit	@jini-ai/ui-kit/react	type	packages/user-management/src/admin/react/components/DestructiveDialog.tsx	2	6	ConfirmDialogProps	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/components/MemberRow.tsx	1	17	Badge,Button,Menu,Notice,Spinner	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/components/MembersConfirmation.tsx	1	6	ConfirmDialog	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/components/PermissionPanel.tsx	1	18	Button,TextField,Spinner	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/components/PolicyRow.tsx	1	17	Button,TextField,Menu,Badge	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/components/RoleRow.tsx	1	14	Button,TextField,Menu,Badge	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/components/UserRow.tsx	1	15	Button,Badge,Menu,TextField,Select,Notice	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/components/UsersConfirmation.tsx	1	20	ConfirmDialog,Notice,SecretInput	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui-kit	@jini-ai/ui-kit/react	type	packages/user-management/src/admin/react/hooks/MembersPage.hooks.ts	6	56	MenuItem	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui-kit	@jini-ai/ui-kit/react	type	packages/user-management/src/admin/react/hooks/PoliciesTab.hooks.ts	3	40	MenuItem	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui-kit	@jini-ai/ui-kit/react	type	packages/user-management/src/admin/react/hooks/RolesPage.hooks.ts	7	58	ConfirmDialogProps	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui-kit	@jini-ai/ui-kit/react	type	packages/user-management/src/admin/react/hooks/RolesTab.hooks.ts	3	29	MenuItem	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui-kit	@jini-ai/ui-kit/react	type	packages/user-management/src/admin/react/hooks/UsersTab.hooks.ts	6	63	MenuItem	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui-kit	@jini-ai/ui-kit	react	packages/user-management/src/admin/react/index.ts	1	34	needs	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/pages/LoginPage.tsx	2	11	Notice,Spinner	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/pages/MembersPage.tsx	2	17	Notice,Spinner,Button	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/pages/RolesPage.tsx	2	34	Button,Notice,Spinner,Tabs	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/pages/UsersPage.tsx	2	27	Button,Notice,Spinner	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/tabs/AuthTab.tsx	1	9	Button,TextField,Notice	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/tabs/MembersTab.tsx	1	9	Notice	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/tabs/PoliciesTab.tsx	1	18	Button,TextField,Notice	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/tabs/RolesTab.tsx	1	17	Button,TextField,Notice	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/tabs/UsersTab.tsx	1	19	Button,TextField,Notice	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui	@jini-ai/ui	react	packages/user-management/src/react/auth/Login.tsx	2	50	SecretInput	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui	@jini-ai/ui	react	packages/user-management/src/react/auth/TotpSettings.tsx	1	50	SecretInput	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	admin	@jini-ai/admin/react	react	packages/user-management/src/react/members/Members.tsx	2	262	RowMenu,ConfirmDialog	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui	@jini-ai/ui/fetch-query	react	packages/user-management/src/react/members/hooks/use-members.hooks.ts	6	241	useCachedLoader,useFetchMutation,useFetchQuery,useInvalidate	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	admin	@jini-ai/admin/react	type	packages/user-management/src/react/members/rules.ts	4	82	RowMenuItem	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	admin	@jini-ai/admin/react	react	packages/user-management/src/react/users/ChangeUsernameDialog.tsx	1	23	ConfirmDialog	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	admin	@jini-ai/admin/react	type	packages/user-management/src/react/users/UserRowParts.tsx	2	115	RowMenuItem	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	admin	@jini-ai/admin/react	react	packages/user-management/src/react/users/Users.tsx	3	969	RowMenu,ConfirmDialog	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui	@jini-ai/ui/admin-widgets	react	packages/user-management/src/react/users/Users.tsx	11	969	InfoTip	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui	@jini-ai/ui	react	packages/user-management/src/react/users/Users.tsx	12	969	SecretInput	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui	@jini-ai/ui/panel-kit	react	packages/user-management/src/react/users/hooks/use-change-username.hooks.ts	2	57	useFetchMutation	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui	@jini-ai/ui/panel-kit	react	packages/user-management/src/react/users/hooks/use-users.hooks.ts	5	730	useFetchMutation,useFetchQuery	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui	@jini-ai/ui/panel-kit	react	packages/user-management/src/react/users/hooks/use-users.hooks.ts	6	730	useAsyncAction	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	ui	@jini-ai/ui/panel-kit	type	packages/user-management/src/react/users/rules.ts	2	217	QueryKey	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
-user-management	admin	@jini-ai/admin/react	type	packages/user-management/src/react/users/rules.ts	4	217	RowMenuItem	KIT slot (KIT-INJECTION)	L-KIT-UM	R3
+owner	target	spec	kind	file	line	file_loc	names	fix_11_15	clane_11_15	rlane	class
+user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/components/DestructiveDialog.tsx	1	6	ConfirmDialog	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	allowed-optionC
+user-management	ui-kit	@jini-ai/ui-kit/react	type	packages/user-management/src/admin/react/components/DestructiveDialog.tsx	2	6	ConfirmDialogProps	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	allowed-optionC
+user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/components/MemberRow.tsx	1	17	Badge,Button,Menu,Notice,Spinner	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	allowed-optionC
+user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/components/MembersConfirmation.tsx	1	6	ConfirmDialog	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	allowed-optionC
+user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/components/PermissionPanel.tsx	1	18	Button,TextField,Spinner	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	allowed-optionC
+user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/components/PolicyRow.tsx	1	17	Button,TextField,Menu,Badge	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	allowed-optionC
+user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/components/RoleRow.tsx	1	14	Button,TextField,Menu,Badge	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	allowed-optionC
+user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/components/UserRow.tsx	1	15	Button,Badge,Menu,TextField,Select,Notice	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	allowed-optionC
+user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/components/UsersConfirmation.tsx	1	20	ConfirmDialog,Notice,SecretInput	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	allowed-optionC
+user-management	ui-kit	@jini-ai/ui-kit/react	type	packages/user-management/src/admin/react/hooks/MembersPage.hooks.ts	6	56	MenuItem	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	allowed-optionC
+user-management	ui-kit	@jini-ai/ui-kit/react	type	packages/user-management/src/admin/react/hooks/PoliciesTab.hooks.ts	3	40	MenuItem	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	allowed-optionC
+user-management	ui-kit	@jini-ai/ui-kit/react	type	packages/user-management/src/admin/react/hooks/RolesPage.hooks.ts	7	58	ConfirmDialogProps	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	allowed-optionC
+user-management	ui-kit	@jini-ai/ui-kit/react	type	packages/user-management/src/admin/react/hooks/RolesTab.hooks.ts	3	29	MenuItem	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	allowed-optionC
+user-management	ui-kit	@jini-ai/ui-kit/react	type	packages/user-management/src/admin/react/hooks/UsersTab.hooks.ts	6	63	MenuItem	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	allowed-optionC
+user-management	ui-kit	@jini-ai/ui-kit	react	packages/user-management/src/admin/react/index.ts	1	34	needs	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	work
+user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/pages/LoginPage.tsx	2	11	Notice,Spinner	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	allowed-optionC
+user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/pages/MembersPage.tsx	2	17	Notice,Spinner,Button	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	allowed-optionC
+user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/pages/RolesPage.tsx	2	34	Button,Notice,Spinner,Tabs	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	allowed-optionC
+user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/pages/UsersPage.tsx	2	27	Button,Notice,Spinner	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	allowed-optionC
+user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/tabs/AuthTab.tsx	1	9	Button,TextField,Notice	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	allowed-optionC
+user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/tabs/MembersTab.tsx	1	9	Notice	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	allowed-optionC
+user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/tabs/PoliciesTab.tsx	1	18	Button,TextField,Notice	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	allowed-optionC
+user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/tabs/RolesTab.tsx	1	17	Button,TextField,Notice	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	allowed-optionC
+user-management	ui-kit	@jini-ai/ui-kit/react	react	packages/user-management/src/admin/react/tabs/UsersTab.tsx	1	19	Button,TextField,Notice	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	allowed-optionC
+user-management	ui	@jini-ai/ui	react	packages/user-management/src/react/auth/Login.tsx	2	50	SecretInput	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	work
+user-management	ui	@jini-ai/ui	react	packages/user-management/src/react/auth/TotpSettings.tsx	1	50	SecretInput	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	work
+user-management	admin	@jini-ai/admin/react	react	packages/user-management/src/react/members/Members.tsx	2	262	RowMenu,ConfirmDialog	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	work
+user-management	ui	@jini-ai/ui/fetch-query	react	packages/user-management/src/react/members/hooks/use-members.hooks.ts	6	241	useCachedLoader,useFetchMutation,useFetchQuery,useInvalidate	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	work
+user-management	admin	@jini-ai/admin/react	type	packages/user-management/src/react/members/rules.ts	4	82	RowMenuItem	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	work
+user-management	admin	@jini-ai/admin/react	react	packages/user-management/src/react/users/ChangeUsernameDialog.tsx	1	23	ConfirmDialog	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	work
+user-management	admin	@jini-ai/admin/react	type	packages/user-management/src/react/users/UserRowParts.tsx	2	115	RowMenuItem	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	work
+user-management	admin	@jini-ai/admin/react	react	packages/user-management/src/react/users/Users.tsx	3	969	RowMenu,ConfirmDialog	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	work
+user-management	ui	@jini-ai/ui/admin-widgets	react	packages/user-management/src/react/users/Users.tsx	11	969	InfoTip	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	work
+user-management	ui	@jini-ai/ui	react	packages/user-management/src/react/users/Users.tsx	12	969	SecretInput	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	work
+user-management	ui	@jini-ai/ui/panel-kit	react	packages/user-management/src/react/users/hooks/use-change-username.hooks.ts	2	57	useFetchMutation	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	work
+user-management	ui	@jini-ai/ui/panel-kit	react	packages/user-management/src/react/users/hooks/use-users.hooks.ts	5	730	useFetchMutation,useFetchQuery	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	work
+user-management	ui	@jini-ai/ui/panel-kit	react	packages/user-management/src/react/users/hooks/use-users.hooks.ts	6	730	useAsyncAction	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	work
+user-management	ui	@jini-ai/ui/panel-kit	type	packages/user-management/src/react/users/rules.ts	2	217	QueryKey	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	work
+user-management	admin	@jini-ai/admin/react	type	packages/user-management/src/react/users/rules.ts	4	217	RowMenuItem	KIT slot (KIT-INJECTION)	L-KIT-UM	R3	work
