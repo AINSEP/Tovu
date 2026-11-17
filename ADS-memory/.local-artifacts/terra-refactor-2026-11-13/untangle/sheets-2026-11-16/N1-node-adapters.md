@@ -66,7 +66,7 @@ Thread `adapters` through `injectedEdgeFindings` and its caller (`rg -n "injecte
 - Take the exact version, `workspace:` range style, `tsconfig.json` and `vitest.config.ts` from `packages/platform` (same compiler flags: lesson 22). If `pnpm guard` demands `jini.entries["."]` or an `isolation` block for a package without a root entry, **STOP** and paste the message (command: `pnpm guard`).
 - Inside the moved files the relative imports become package imports: `../fs/backup-once.js` → the platform entry that exports `backupOriginalOnce` (`rg -n "backupOriginalOnce\|writeFileAtomicAsync\|withFileLock\|listProcessSnapshots" packages/platform/package.json packages/platform/src/fs/index.ts packages/platform/src/index.ts`; use the narrowest existing entry: `@jini-ai/platform/fs`, `@jini-ai/platform/process`). If a function has **no** public platform entry, **STOP** (command: the `rg` above prints no export for it): adding a platform export is a separate decision.
 - The header comment of each moved file moves with it; reword only the sentence that names `./runtime-ports/*` (why-comments move with the code).
-- Later lanes add **their own entry in their own commit**, each with its source file and test: R11a `./agent-plugins`, R11b `./http`, R11c `./net`, R10b `./agent-runtime`. N1 does not pre-create empty entries.
+- Later lanes add **their own entry in their own commit**, each with its source file and test: R11a `./agent-plugins`, R11b-3 `./http`, R10b-1 `./agent-runtime`. N1 does not pre-create empty entries.
 
 ## Tests to write first
 | # | Where | Asserts | Fails when |

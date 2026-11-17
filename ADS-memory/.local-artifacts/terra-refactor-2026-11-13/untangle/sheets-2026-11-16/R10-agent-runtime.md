@@ -1,11 +1,12 @@
 # R10 sheet: agent-runtime off platform, oauth and integrations (2 sub-sheets)
 
-Read `COMMON.md` first. Sites: `sites/R10.sites.tsv` (11 sites, 8 files, all in `packages/agent-runtime/src`). Needs: C5 (landed), C6 (done on `refactor/c6`). `analytics → agent-runtime` (the other half of the old R10 row) is **gone**: C6 moved the ai-trace types to core; only a stale optional peer is left (G-STALE-DEPS).
+Read `COMMON.md` first. Sites: `sites/R10.sites.tsv` (11 sites, 8 files, all in `packages/agent-runtime/src`). Needs: C5 (landed), C6 (landed in `integ/merge-a-2026-11-16`). Revision 2: R10b is rewritten (judge finding 4) and split in two runs. `analytics → agent-runtime` (the other half of the old R10 row) is **gone**: C6 moved the ai-trace types to core; only a stale optional peer is left (G-STALE-DEPS).
 
 | Sub-sheet | Sites | Estimate (Sonnet) |
 |---|---|---|
 | R10a pure moves (command plan, OAuth URL redaction) | 4 | 45k |
-| R10b ports (guarded reader, proxy env, toolchain bins, vendor base URLs, OAuth client) | 7 | 140k |
+| R10b-1 host ports (guarded reader, proxy env, toolchain bins) through `createNativeAgentRuntime` | 5 | 150k |
+| R10b-2 vendor base URLs, OAuth client | 2 + pkce | 90k |
 
 R10a and R10b touch different files except `model-discovery-adapters.ts` (R10a line 6/271, R10b lines 309–332). Run R10a first.
 
@@ -35,72 +36,91 @@ jini_files:
 To simulate platform in T1, the three call sites take `platform` from one small local helper `currentPlatform()` in `invocation.ts` that tests can override through the function's existing optional argument; do not stub `process.platform` globally.
 
 ### Steps
-1. T1–T2 (RED on the helper's absence), then the three repoints. Commit. 2. Pair: move `redactOAuthUrls` to core + repoint all importers (Jini commit, Tovu commit if any). Coordinator: no new core subpath (it joins `./text`); changesets for core (minor) and oauth (breaking).
+1. T1–T2 (RED on the helper's absence), then the three repoints. Commit. 2. Pair: move `redactOAuthUrls` to core + repoint all importers (Jini commit, Tovu commit if any). No new core subpath (it joins `./text`); the same commits carry `pnpm api:update`, the debt keys for the removed `agent-runtime → platform/command` and `→ oauth` (redact) edges, and changesets for core (minor) and oauth (breaking).
 
-## R10b: ports
+## R10b: ports (revision 2: two runs, R10b-1 then R10b-2)
+
+Judge finding 4 was right: adding ports to "the state" does not reach `spawnEnvForAgent` (`env.ts:95`), `validateFilesystemLaunch` (`claude-filesystem-policy.ts:12`) or `providers/pkce.ts` (no state argument; pkce builds `guard` at module load, `:135`), and the default state is one **module instance** (`runtime-state.ts:41` `defaultRuntimeState`, 25 references in 7 production files), so a port stored there would be shared by every host. **OD-4 is closed by the owner rule "DI via typed ports from the host":** the dependency owner is the existing `createNativeAgentRuntime` (`native-runtime.ts:36`); ports are **required** there; functions without a state take the port as an explicit required field; nothing falls back to a shared instance.
 
 ```
-id: R10b-agent-runtime-ports
-jini_files:
+id: R10b-1-agent-runtime-host-ports   (~150k)      id: R10b-2-agent-runtime-oauth-catalog   (~90k)
+needs: N1, R10a, R8b (see precondition)             needs: R10b-1
+jini_files (R10b-1):
   - packages/agent-runtime/src/ports.ts                              | NEW (≤ 80 lines)
-  - packages/agent-runtime/src/claude-filesystem-policy.ts:4,19     | edit
-  - packages/agent-runtime/src/env.ts:10,95,98                       | edit
-  - packages/agent-runtime/src/executables.ts:12,27,158              | edit (reword the header note at :12)
-  - packages/agent-runtime/src/model-discovery-adapters.ts:309-332   | edit
-  - packages/agent-runtime/src/providers/pkce.ts:28-33 + its users   | edit (175 lines)
-tovu_file: apps/website/src/server/runtime/composition/jini-agent-runtime-ports.ts (NEW)
+  - packages/agent-runtime/src/runtime-state.ts                      | edit (optional `ports` on the state; `requirePlatformPorts`)
+  - packages/agent-runtime/src/native-runtime.ts:36-58               | edit (`ports` required; `runtime.ports`)
+  - packages/agent-runtime/src/runtime-def-binding.ts                | edit (binds the Claude builder, same pattern as Codex at :18)
+  - packages/agent-runtime/src/runtime-port-bindings.ts:65-68        | edit (`bindFilesystem({ runtime })`)
+  - packages/agent-runtime/src/claude-filesystem-policy.ts:4,12-27   | edit
+  - packages/agent-runtime/src/defs/claude.ts:140-150,247-249        | edit
+  - packages/agent-runtime/src/env.ts:10,95,98 ; detection.ts:247    | edit
+  - packages/agent-runtime/src/executables.ts:12,27,150-161          | edit (reword the header note at :12, keep its reason)
+  - packages/agent-runtime/src/__tests__/fakes/platform-ports.ts     | NEW
+  - packages/node-adapters/src/agent-runtime.ts + test + `./agent-runtime` export | NEW (type-only import of `@jini-ai/agent-runtime`)
+  - packages/server/src/kernel-base.ts:122 ; examples/minimal-host/src/index.ts:50 ; examples/reference-web/src/daemon.ts:344 | edit (the 3 Jini constructions)
+  - packages/agent-runtime/package.json, scripts/injection-debt.json, pnpm-lock.yaml | same commit as the last platform import
+tovu_files (R10b-1 pair): apps/website/src/server/runtime/composition/jini-agent-runtime-ports.ts (NEW);
+  the 7 constructions: apps/website/src/assistant/agents.ts:80,180,266 ; server/inbound/assistant/agent-daemon-scope.ts:202 ;
+  server/runtime/composition/app.ts:382 ; composition/deps.ts:1093 ; apps/desktop/src/main/index.ts:452 (+ a desktop ports file beside it)
+jini_files (R10b-2): model-discovery-adapters.ts:309-332 ; providers/pkce.ts ; providers/oauth-provider.ts:34 ; providers/index.ts:34 ; package.json ; debt ; lockfile
 ```
+**Precondition (command; otherwise STOP):** `rg -n "validateFilesystemLaunch|spawnEnvForAgent|defaultRuntimeState" packages/daemon/src -g '!**/__tests__/**'` prints nothing. Today daemon calls `validateFilesystemLaunch` directly three times (`daemon/src/agent-executor/launch.ts:1135,1159,1164`); R8b step 5 routes them through `AgentRuntimePort.filesystem.validateLaunch`. Until that has landed, a required reader port would break daemon in a file R8 owns.
 
-### Ports (all local to agent-runtime, `src/ports.ts`; one consumer each, DESIGN B4)
+### Ports (local to agent-runtime, `src/ports.ts`; one consumer each)
 ```ts
-import type { GuardedReaderPort } from '@jini-ai/core/contracts/runtime';
-export interface ToolchainBinsPort { wellKnownUserToolchainBins(required: { home: string; includeSystemBins: boolean; env: Readonly<Record<string, string | undefined>> }): string[] }
+import type { GuardedReaderPort, RuntimePlatform } from '@jini-ai/core/contracts/runtime';
+type Env = Readonly<Record<string, string | undefined>>;
+export interface ToolchainBinsPort { wellKnownUserToolchainBins(required: { home: string; includeSystemBins: boolean; env: Env }): string[] }
 export interface ProxyEnvPort {
-  resolveSystemProxyEnv(required?: Record<string, never>): Readonly<Record<string, string | undefined>>;
-  mergeProxyAwareEnv(required: { platform: string; systemProxyEnv: Readonly<Record<string, string | undefined>>; baseEnv: Readonly<Record<string, string | undefined>>; configuredEnv: Readonly<Record<string, string | undefined>> }): Record<string, string | undefined>;
+  resolveSystemProxyEnv(required?: Record<string, never>): Env;
+  mergeProxyAwareEnv(required: { platform: RuntimePlatform; systemProxyEnv: Env; baseEnv: Env; configuredEnv: Env }): Record<string, string | undefined>;
 }
 export type VendorBaseUrlsPort = () => Promise<Readonly<Record<string, string>>>;
-export interface OAuthClientPort { /* exactly the 8 functions pkce.ts imports today; copy each signature from packages/oauth/src */ }
+export interface OAuthClientPort { /* exactly the 8 values pkce.ts imports from @jini-ai/oauth today (pkce.ts:28-33); copy each signature */ }
 export interface AgentRuntimePlatformPorts { readonly guardedReader: GuardedReaderPort; readonly toolchain: ToolchainBinsPort; readonly proxyEnv: ProxyEnvPort; readonly vendorBaseUrls: VendorBaseUrlsPort; readonly oauth: OAuthClientPort }
 ```
-**Behavioural traps:**
-- `mergeProxyAwareEnv` is **positional** in platform: `(process.platform, systemProxyEnv, baseEnv, expandedConfiguredEnv)` (`env.ts:98`, `platform/src/proxy-env.ts:81`). The port is object-shaped, so the host binding is an arrow that maps the four fields to the four positions **in that order**. T3 fails when two are swapped.
-- `spawnEnvForAgent`'s `systemProxyEnv = resolveSystemProxyEnv()` is a **default parameter**, so it is read on every call, not once at load (`env.ts:95`). Keep it per call: the new default is `ports.proxyEnv.resolveSystemProxyEnv()` evaluated in the same position. Do not hoist it.
-- `wellKnownUserToolchainBins` is called inside a cache keyed by home/env (`executables.ts:150-161`); the comment at `:152-157` explains why an override home passes an **empty env**. The comment and the `env: hasOverride ? {} : env` argument both stay.
-- `claude-filesystem-policy.ts:19` passes `filesystem: createNodeGuardedReaderFilesystem({})` to platform; `GuardedReaderPort.createReader({ rootPath, denyRules, limits }, { excludedListingDirs })` has **no filesystem field**: the host binding supplies the Node filesystem. T4 asserts the deny rules and limits object arrive unchanged (class: filesystem read guard).
-- `model-discovery-adapters.ts:318-326` already has an injectable `ProviderCatalogImport` with a default that does `import('@jini-ai/integrations/media-providers/catalog')` through `loadOptionalPeer`. Remove the default (it is a lazy import of another package); the catalog function becomes the required `vendorBaseUrls` port; the two inline `import('…')` types at `:316,332` are replaced by `Readonly<Record<string, string>>` keyed by the provider ids agent-runtime itself uses (declare the id union locally).
+The whole interface exists from R10b-1, so hosts bind all five fields once; R10b-2 only starts **reading** the last two (no second host pair). If `RuntimePlatform` does not line up with platform's `mergeProxyAwareEnv` first parameter without a cast, **STOP** (`pnpm --filter @jini-ai/node-adapters build`).
 
-### How the ports reach free functions (owner decision OD-4, recommendation applied here)
-agent-runtime's functions are free functions with an optional `state?: AgentRuntimeState` argument defaulting to a module instance (`executables.ts:89,277`). The sheet adds `platformPorts?: AgentRuntimePlatformPorts` to that state object and one exported `bindAgentRuntimePlatformPorts({ ports }, { state })`. A function that needs a port and finds none throws `AgentRuntimeConfigError` (new, typed, names the missing port). This keeps every existing call signature. The alternative (thread a `ports` argument through every exported function and every caller in daemon, server and Tovu) is cleaner but is ~+150k and touches R8's files; do it only if the owner says so.
-
-Inventory before editing (lesson 2): `rg -n "spawnEnvForAgent|userToolchainBinDirs|agentSearchDirs|resolveOnPath|validateFilesystemLaunch|resolveProviderBaseUrl|generateCodeVerifier|exchangeCodeForToken|refreshAccessToken" packages apps examples -g '!**/dist/**'` in both repos; list callers and tests in the report. Tests that construct their own `state` must bind fake ports (a `createFakeAgentRuntimePlatformPorts()` in `src/__tests__/fakes/platform-ports.ts`, Map-backed, no platform import).
+### How each function reaches its port (the complete path)
+| Function | Path |
+|---|---|
+| `createNativeAgentRuntime({ env, ports }, optional)` | `ports` is required. It builds `createAgentRuntimeState({}, { ports })` when no state is passed; when a state is passed, `state.ports` must be absent (then it is set) or the same object; a different object throws `AgentRuntimeConfigError` ("this state is bound to another host's ports"). `NativeAgentRuntime` gains `readonly ports`. |
+| `requirePlatformPorts({ state })` (new, `runtime-state.ts`) | returns `state.ports` or throws `AgentRuntimeConfigError` naming the function that asked. `defaultRuntimeState` **never** gets ports: a call that falls back to it fails closed. |
+| `wellKnownUserToolchainBins` at `executables.ts:158` | `requirePlatformPorts({ state }).toolchain…` (`state` is already in scope there). Comment at `:152-157` and `env: hasOverride ? {} : env` stay. |
+| `spawnEnvForAgent({ agentId, baseEnv, proxyEnv }, { configuredEnv, systemProxyEnv = proxyEnv.resolveSystemProxyEnv(), hooks })` | `proxyEnv` is a new **required** field. The default stays a default parameter (read on every call, not hoisted). Only production caller: `detection.ts:247` (`probeEnvForLaunch` has `state`): passes `requirePlatformPorts({ state }).proxyEnv`. Line 98 becomes `proxyEnv.mergeProxyAwareEnv({ platform: process.platform, systemProxyEnv, baseEnv, configuredEnv: expandedConfiguredEnv })`. |
+| `validateFilesystemLaunch({ …, guardedReader })` | new required field; the body calls `guardedReader.createReader({ rootPath: root, denyRules, limits })` with today's literals (`:19-22`). Callers: (1) `runtime-port-bindings.ts:68` → `bindFilesystem({ runtime })` closes over `runtime.ports.guardedReader`; the bound `validateLaunch(required)` keeps its public shape (the launcher never passes ports: file header). (2) `defs/claude.ts:145` → next row. |
+| Claude `buildArgs` (`defs/claude.ts:247`) | export `createClaudeBuildArgs({ guardedReader })` holding today's body; the static def's `buildArgs` is that builder made with a reader whose `createReader` throws `AgentRuntimeConfigError` (an unbound def cannot validate a filesystem launch: fail closed). `bindRuntimeAgentDef` swaps it when `def.buildArgs === claudeAgentDef.buildArgs`, exactly as it already does for Codex (`runtime-def-binding.ts:18`), using `requirePlatformPorts({ state }).guardedReader`. |
+| `resolveProviderBaseUrl` / `defaultProviderBaseUrl` (`model-discovery-adapters.ts:309-332`) — R10b-2 | the lazy `import('@jini-ai/integrations/…')` default and `ProviderCatalogImport` are deleted; the function reads `requirePlatformPorts({ state }).vendorBaseUrls()` (its caller chain starts at `getRuntimeModelDiscoveryDeps({ state })`). The two inline `import('…')` types (`:316`, `:332`) become a local union of the provider ids this file uses. The existing error message for a failed load is kept for a rejected port call (cause attached). |
+| `providers/pkce.ts` — R10b-2 | becomes `createPkceClient({ oauth }: { oauth: OAuthClientPort }, _optional = {})` returning today's exported functions; `guard`, `clock` and the pending-authorization store are created **inside** the factory (no module-load read of a port). `providers/index.ts:34` `export * from './pkce.js'` is a barrel line: replace it with the named exports that remain. `providers/oauth-provider.ts:34` takes the client as a required field of its own factory/required object; trace upward (`rg -n "oauth-provider" packages/agent-runtime/src`) until a function that has `state` or a `NativeAgentRuntime`, and take `requirePlatformPorts({ state }).oauth` there. If the chain ends at a module-level constant with no state, **STOP** and report the chain. |
 
 ### Tests to write first
 | # | Asserts | Fails when |
 |---|---|---|
-| T3 | `spawnEnvForAgent` passes `{ platform, systemProxyEnv, baseEnv, configuredEnv }` with the four distinct sentinel objects in the right fields; resolver called once per call (call twice → 2) | swapped fields; hoisted default |
-| T4 | `validateFilesystemLaunch` calls `createReader` with `rootPath` = the realpath, empty deny rules and the exact limits literal | limits changed |
-| T5 | with an override home, the toolchain port receives `env: {}` and `includeSystemBins: false` | env leak |
-| T6 | unbound state → `AgentRuntimeConfigError` naming the port, not `TypeError` | generic error |
-| T7 | `resolveProviderBaseUrl` returns the port's value for a known id and the existing fallback for an unknown one (read the old behaviour first and pin it) | fallback changed |
-| T8 (pkce) | pin `Date`/entropy; `buildAuthorizeUrl`, `exchangeCodeForToken`, `refreshAccessToken` produce the same URL, body and headers through a fake `OAuthClientPort` that records its arguments as through the real functions (characterize on old code first) | argument renamed or dropped |
+| T3 | `spawnEnvForAgent` passes `{ platform, systemProxyEnv, baseEnv, configuredEnv }` as four distinct sentinels in the right fields; resolver called once per call (two calls → 2) | swapped fields; hoisted default |
+| T4 | `validateFilesystemLaunch` calls `createReader` with `rootPath` = the realpath, empty deny rules and the exact limits literal; a path outside the root still throws (existing cases, now with a fake reader **and** once with the real Node binding in node-adapters' test) | limits changed; guard removed |
+| T5 | with an override home the toolchain port receives `env: {}` and `includeSystemBins: false` | env leak |
+| T6 | a port-needing function called with no state (falls to `defaultRuntimeState`) throws `AgentRuntimeConfigError`; an unbound Claude def with `filesystemRoot` set throws the same class | shared fallback; silent skip of the filesystem check |
+| T9 (isolation) | two runtimes built with two different fake port sets: each runtime's detection/launch calls reach only its own fakes; passing runtime A's state to `createNativeAgentRuntime` with B's ports throws | ports shared between hosts |
+| T7 (R10b-2) | known id → the port's value; unknown id → today's behaviour (characterize on old code first); rejected port → today's message with `cause` | fallback changed |
+| T8 (R10b-2) | pinned `Date` and entropy; authorize URL, token-exchange and refresh requests are byte-identical before and after (characterize through the real `@jini-ai/oauth` first, then through a recording fake); two clients do not share pending authorizations | argument renamed or dropped; module-level store |
+| T10 (node-adapters) | recording fakes of platform's functions: `mergeProxyAwareEnv` gets the four values **positionally in order**; `createGuardedFileReader` gets `filesystem` from `createNodeGuardedReaderFilesystem({})` and `excludedListingDirs` in the object platform expects | order or field placement wrong |
 
-### Steps
-1. `ports.ts` + fakes + `bind…` + T6. 2. reader (T4). 3. proxy env (T3). 4. toolchain (T5). 5. vendor base URLs (T7). 6. pkce (T8). 7. Pair: Tovu wiring file; then delete `@jini-ai/platform`, `@jini-ai/oauth`, `@jini-ai/integrations` from `packages/agent-runtime/package.json` and update any manifest-assertion test.
-Each of steps 2–6 is a pair only if the default binding disappears for a host: because the state starts unbound, **step 1's pair must land the Tovu and `packages/server` bind calls first** (bind before first use; put the call where each host creates its agent executor: `packages/server/src/kernel-base.ts`, Tovu `rg -n "createAgentExecutor" apps/website/src`).
+### Steps (each commit green alone)
+R10b-1: 1. `ports.ts`, `requirePlatformPorts`, fakes, optional `ports` on the state, T6 (state part). No caller changes yet. 2. node-adapters `./agent-runtime` (`nodeAgentRuntimeHostPorts` = `{ guardedReader, toolchain, proxyEnv } satisfies Pick<AgentRuntimePlatformPorts, …>`) + T10. 3. **One pair:** `ports` required on `createNativeAgentRuntime` + the 3 Jini constructions + every agent-runtime test that constructs a runtime (use the fakes) — then the Tovu commit (7 constructions + the two port files). 4. toolchain (T5). 5. proxy env (T3). 6. reader + Claude builder + `bindFilesystem` (T4, T6 def part, T9). 7. Delete `@jini-ai/platform` from agent-runtime's manifest with its debt keys.
+R10b-2: 1. T7 + vendor base URLs. 2. T8 + pkce factory. 3. Delete `@jini-ai/oauth` and `@jini-ai/integrations` from the manifest with their debt keys and any manifest-assertion test.
 
-### Tovu wiring
+### Host wiring
 ```ts
-// apps/website/src/server/runtime/composition/jini-agent-runtime-ports.ts
+// Tovu apps/website/src/server/runtime/composition/jini-agent-runtime-ports.ts (the desktop file has the same body)
+import { nodeAgentRuntimeHostPorts } from '@jini-ai/node-adapters/agent-runtime';
+import { VENDOR_API_BASE_URLS } from '@jini-ai/integrations/media-providers/catalog';   // static: declared deps are never imported lazily
+import { /* the 8 names */ } from '@jini-ai/oauth';
 export const agentRuntimePlatformPorts = {
-  guardedReader: { createReader: (r, o) => createGuardedFileReader({ ...r, filesystem: createNodeGuardedReaderFilesystem({}), ...o }) },
-  toolchain: { wellKnownUserToolchainBins: (r) => wellKnownUserToolchainBins(r) },
-  proxyEnv: { resolveSystemProxyEnv: () => resolveSystemProxyEnv(), mergeProxyAwareEnv: (r) => mergeProxyAwareEnv(r.platform as NodeJS.Platform, r.systemProxyEnv, r.baseEnv, r.configuredEnv) },
-  vendorBaseUrls: async () => (await import('@jini-ai/integrations/media-providers/catalog')).VENDOR_API_BASE_URLS,
-  oauth: { /* the 8 @jini-ai/oauth functions, one arrow each */ },
+  ...nodeAgentRuntimeHostPorts, vendorBaseUrls: async () => VENDOR_API_BASE_URLS, oauth: { /* the 8 names, by reference */ },
 } satisfies AgentRuntimePlatformPorts;
 ```
-The `as NodeJS.Platform` above is a cast on a binding line and is therefore **not allowed as written**: type the port's `platform` field as core's `RuntimePlatform` (`core/contracts/runtime/platform.ts`) and check it lines up with platform's parameter; if it does not, STOP. Check whether `createGuardedFileReader` takes `excludedListingDirs` in the first or second object before spreading `o`.
+`packages/server/src/kernel-base.ts` builds the same object in the preset (it may import all three packages). A static catalog import changes when that module loads in Tovu (today it loads on first use): confirm it has no import-time side effect (`rg -n "^(const|let) .*= (await|new |create)" packages/integrations/src/media-providers/catalog*`); if it does, **STOP**.
 
-### STOP
-- `platform/src/command.ts` does more than the pure planner (R10a). The OAuth port would need more than the 8 imported functions. A caller outside this lane's inventory constructs agent-runtime state.
+### STOP (commands above)
+- the daemon precondition; a cast is needed on a binding; the pkce chain ends in a module constant; a caller outside this inventory constructs a runtime or a state (`rg -n "createNativeAgentRuntime\(|createAgentRuntimeState\(" packages apps examples -g '!**/dist/**'` in both repos lists more production sites than this sheet).
+- R10a's own STOP: `platform/src/command.ts` does more than the pure planner.
