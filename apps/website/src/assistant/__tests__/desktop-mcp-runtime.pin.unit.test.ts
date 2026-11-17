@@ -9,6 +9,13 @@ const cap = { url: "http://127.0.0.1:4100/mcp", token: "a".repeat(64) };
 const other = { url: "http://127.0.0.1:4999/mcp", token: "e".repeat(64) };
 const handoff = "b".repeat(64);
 
+/** `launch` is a stdio-or-hosted union; the desktop runtime only ever builds the hosted arm, so a stdio
+ * launch here is a failure of the pin, not a value to read a URL from. */
+function hostedUrl(connection: { launch: object } | null | undefined): string {
+  assert.ok(connection && "url" in connection.launch && typeof connection.launch.url === "string", "the connection launches the hosted arm");
+  return connection.launch.url;
+}
+
 test("the runtime keeps its five members; none but the bearer supplier and the handoff token yields a token", async () => {
   const runtime = createDesktopMcpRuntime({ env: { TOVU_DESKTOP_MCP_URL: cap.url, TOVU_DESKTOP_MCP_TOKEN: cap.token, TOVU_DESKTOP_MCP_HANDOFF_TOKEN: handoff } });
   assert.deepEqual(Object.keys(runtime).sort(), ["accept", "bearerToken", "connection", "handoffToken", "owned"]);
@@ -39,7 +46,7 @@ test("a later change to the delivered object or to the environment object cannot
   assert.equal(runtime.accept(delivered), true);
   Object.assign(delivered, other);
   Object.assign(env, { TOVU_DESKTOP_MCP_URL: other.url, TOVU_DESKTOP_MCP_TOKEN: other.token });
-  assert.equal(runtime.connection({})?.launch.url, cap.url);
+  assert.equal(hostedUrl(runtime.connection({})), cap.url);
   assert.equal(await runtime.bearerToken({ url: cap.url }), cap.token);
   assert.equal(await runtime.bearerToken({ url: other.url }), undefined);
   assert.equal(runtime.accept(other), false);
@@ -52,6 +59,6 @@ test("a delivered object that answers differently on a later read pins only what
   const shifting = { get url() { reads += 1; return reads === 1 ? cap.url : other.url; }, token: cap.token };
   assert.equal(runtime.accept(shifting), true);
   assert.equal(reads, 1, "the delivered URL is read once, then only the detached copy is used");
-  assert.equal(runtime.connection({})?.launch.url, cap.url);
+  assert.equal(hostedUrl(runtime.connection({})), cap.url);
   assert.equal(await runtime.bearerToken({ url: other.url }), undefined);
 });
