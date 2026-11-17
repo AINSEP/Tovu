@@ -1,6 +1,6 @@
-# Lanes K and T: extraction plan index - REVISION 2 (2026-11-17, planning only) - STATUS: PARTIAL (see "What remains")
+# Lanes K and T: extraction plan index - REVISION 3 (2026-11-16, planning only; revision 3 = Opus review response, table at the end) - STATUS: PARTIAL (see "What remains")
 Docs only. No source edited; no build or test was run (the generator scripts were run to produce the sidecars).
-Code verified against: `integ/merge-final-2026-11-16` did not exist. Used Tovu `integ/merge-a-2026-11-16` e801e9ae (has the size-03/04/05 shapes: `http/site/render/`, `routes/site/pages/`, `posts/editor/`) for every sidecar, cross-checked with Tovu `integ/merge-b-2026-11-16` 450ac748 (7 sheet files differ: `BLOB-DRIFT.tsv`), and Jini `integ/merge-a-2026-11-16` dde69a6d. Regenerate on the final merge before dispatch: `python3 scripts/gen.py <dir> && python3 scripts/decls.py <dir> && node scripts/symbols.cjs <dir>` from the Tovu code root.
+Revision 3 checks were made on `integ/merge-final-2026-11-16` (Tovu f70017dc5, Jini 65d73b0d5), which now exists; the sidecars are still the merge-a ones (regenerate on merge-final before dispatch). Revision 2: `integ/merge-final-2026-11-16` did not exist. Used Tovu `integ/merge-a-2026-11-16` e801e9ae (has the size-03/04/05 shapes: `http/site/render/`, `routes/site/pages/`, `posts/editor/`) for every sidecar, cross-checked with Tovu `integ/merge-b-2026-11-16` 450ac748 (7 sheet files differ: `BLOB-DRIFT.tsv`), and Jini `integ/merge-a-2026-11-16` dde69a6d. Regenerate on the final merge before dispatch: `python3 scripts/gen.py <dir> && python3 scripts/decls.py <dir> && node scripts/symbols.cjs <dir>` from the Tovu code root.
 Personas: software-architect (lead), refactor, programmer, tdd, security. Skills: implementation-guardrails, feature-slice-design, refactor-patterns, architecture-migration, hexagonal-architecture, testable-design-patterns, test-design, security-review. Lessons 1-39 read.
 
 ## Size now (merge-a; source files, tests excluded)
@@ -25,24 +25,38 @@ Personas: software-architect (lead), refactor, programmer, tdd, security. Skills
 | K-04 | K/K-04-seo-tools.md | 6 SEO tools -> cms/seo | sidecars regenerated (drift) | 160k |
 | K-05 | K/K-05-taxonomy-tools.md | 10 taxonomy handlers -> cms/taxonomy | K-06b | 240k |
 | K-06a | K/K-06a-taxonomy-sql-seam.md | taxonomy SQL seam + 5-file split, Tovu only | - | 160k |
-| K-06b | K/K-06b-taxonomy-sql-move.md | -> cms/taxonomy/sql (new node entry) | K-06a | 110k |
+| K-06b | K/K-06b-taxonomy-sql-move.md | -> cms/taxonomy/sql (new node entry) + `contracts.ts` -> universal taxonomy entry | K-06a; T-PO-02 (same package.json) | 120k |
 | K-07 | K/K-07-trash-tools.md | 2 trash tools -> cms/trash | - | 150k |
 | K-09 | K/K-09-webhook-tools.md | 6 webhook tools -> integrations/webhooks/tools | - | 190k |
 | K-10a | K/K-10a-forms-tools-seam.md | forms tools seam, Tovu only | - | 210k |
 | K-10b | K/K-10b-forms-tools-move.md | 9 forms tools -> cms/forms | K-10a | 130k |
 | T-PO-01 | T/T-PO-01-post-leaves.md | 3 pure post leaves | - | 140k |
 | T-PO-01g | T/T-PO-01g-go-live-seam.md | go-live: pure part vs sweep lifecycle, Tovu only | - | 90k |
-| T-PO-02 | T/T-PO-02-post-cover-image.md | cover image -> cms/media/node | sidecars regenerated (drift) | 120k |
+| T-PO-02 | T/T-PO-02-post-cover-image.md | cover image -> NEW universal `cms/media/cover-image` entry | sidecars regenerated (drift); T-PO-01g pushed | 125k |
 | T-TH-01 | T/T-TH-01-theme-render-leaves.md | 4 theme render leaves | B04 T1 landed (SKIPs today) | 100k |
 Dispatchable total: about 2.47M executor tokens (K 2.02M, T 0.45M). Round 1 called 1.9M "runnable now"; the difference is the seam/characterization work the judge showed was missing, minus T-TH-03 and K-07b which left the runnable set.
 Not dispatchable (`K/K-DESIGN-QUEUE.md`, `T/T-DESIGN-QUEUE.md`): K-04b, K-05b, K-07b, K-08, K-11; T-TH-02..08, T-PO-01v, T-PO-03..05, T-NL-01..03, admin post editor. Rough estimate unchanged from round 1 plus the added designs: K about 1.3M, T about 6.3M, B04 0.57M, B05 0.15M. Whole programme about 10.8M (round 1: 9.9M).
 
-## Order
-Wave 1 (file-disjoint in Tovu; Jini `packages/cms/package.json` is edited only by K-06b; `packages/integrations/package.json` only by K-09): K-01, K-02, K-03, K-04, K-06a, K-07, K-09, K-10a, T-PO-01, T-PO-01g, T-PO-02. Wave 2: K-02b, K-06b, K-10b, then K-05; T-TH-01 after B04 T1. `post/index.ts` is touched by T-PO-01, T-PO-01g, T-PO-02 (barrel re-export lines): run those three serially.
-Untangle lanes that touch the same files (R-BARRELS, C3, C4, C11) go first; regenerate sidecars after them.
+## Order (revision 3: every parallel group is file-disjoint, proven by a command)
+A file edited by two sheets that run at the same time = not allowed. The shared files are: `assistant/__tests__/tool-registrations.contracts.test.ts` (K-01, K-02, K-03, K-04, K-07, K-09, K-10b: catalog import repoints), `assistant/__tests__/tool-registrations.trash-item.test.ts` (K-01, K-03), `development/scripts/size-debt.json` (K-02, K-03, K-04, K-05, K-09, K-10a), `post/index.ts` + `post/rendering.ts` + `pages/html-document-store*.ts` (T-PO-01, T-PO-01g, T-PO-02), Jini `packages/cms/package.json` + README (T-PO-02, K-06b). Under the revision-3 identity rule `assistant/tool-registrations.ts` and `server/runtime/composition/tool-catalog-manifest.ts` are edited by NO sheet (they import only `contribute<X>Tools`, `build<X>Registrations` and host `<X>ToolDeps`, which keep their names).
+- Wave 1, in parallel: K-01, K-02b, K-06a, T-PO-01. Tovu write sets disjoint (the command below prints nothing); Jini write sets disjoint: K-01 `cms/src/redirects/*`, K-02b `cms/src/widgets/html/*`, K-06a none, T-PO-01 `cms/src/core/{post-vocabulary,index}.ts`, `cms/src/seo/{html-plain-text,index,ports}.ts`, `cms/src/widgets/{duplicate-embeds,index,host-ports}.ts`; bookkeeping: K-01 `size-exceptions.json`, K-02b `src-complexity-debt.json`, others none.
+- Then two serial chains that run in parallel with each other (each chain is one sheet at a time):
+  - chain K: K-02 -> K-03 -> K-04 -> K-07 -> K-09 -> K-10a -> K-10b -> K-06b -> K-05.
+  - chain T: T-PO-01g -> T-PO-02. K-06b waits for T-PO-02 (its precondition 2) and, being after it, also for the render files both touch (`render/post-body.ts`).
+  - The two chains share no Tovu file (command below with the chain lists prints nothing), no bookkeeping file (chain K: `size-debt.json`, `integrations/package.json`; chain T: `error-gate-debt.json`, `cms/package.json`) and no Jini file.
+- T-TH-01 after B04 T1 (SKIPs until then). Untangle lanes that touch the same files (R-BARRELS, C3, C4, C11) go first; regenerate sidecars after them, then re-run the disjointness command.
+Disjointness proof (run in this folder after regenerating sidecars; prints nothing = disjoint):
+```bash
+ws() { for s in "$@"; do tail -n +2 "$s.files.tsv" | cut -f1; tail -n +2 "$s.importers.tsv" | cut -f1; done | sort -u; }
+# wave 1: no file in two sheets
+for s in K/K-01 K/K-02b K/K-06 T/T-PO-01; do ws "$s"; done | sort | uniq -d
+# chain K vs chain T
+comm -12 <(ws K/K-02 K/K-03 K/K-04 K/K-07 K/K-09 K/K-10 K/K-05) <(ws T/T-PO-01g T/T-PO-02)
+```
+Revision-3 run of both commands on the merge-a sidecars: both printed nothing.
 
 ## Owner decisions
-- D-K1 positional `ToolContributor.build(deps, surfaces)` is core's contract; Jini builders take `({ deps, surfaces }, optional = {})`, adapter line in the Tovu binding. Confirm.
+- D-K1 positional `ToolContributor.build(deps, surfaces)` is core's contract; Jini builders are `build<X>ToolRegistrations({ deps, surfaces }, optional = {})`; the adapter is the Tovu `build<X>Registrations`, which keeps today's name and positional signature (revision 3 identity rule). Confirm.
 - D-K2 K-11 destinations: `cms/forms` or `integrations`.
 - D-T1 newsletter has no second user: move now or seams only. Recommendation: wait.
 - D-T2 `handlebars`/`liquidjs` in Jini or linters stay in Tovu behind an injected validator. Recommendation: stay.
@@ -88,3 +102,28 @@ Rebutted: none. Found while verifying, beyond the judge's list: K-03 also import
 5. B04/B05 blob guards refresh; B22/B08 sheets.
 6. Owner decisions D-K2, D-T1..D-T6.
 7. Handler-by-handler body text is still produced by the seam steps under green tests, not pre-written.
+
+## Revision 3 - Opus review response
+Review: Opus, plan @ cafebcaa5 (scratchpad `opus-review/k-t.md`) + coordinator items. Every item re-checked on `integ/merge-final-2026-11-16` (Tovu f70017dc5, Jini 65d73b0d5).
+| item | verdict | change | evidence |
+|---|---|---|---|
+| N1 S2 breaks identity assertions + direct-builder tests | ACCEPT | pattern "Identity rule": Tovu keeps `build<X>Registrations(routeDeps, surfaces = <default>)` (same name, positional, default) as one `withToolMetadata` call over Jini `build<X>ToolRegistrations({ deps, surfaces }, optional = {})`; contributor unedited; only moved-name imports repointed (COMMON-KT rule 7(a)). `delete` class for default surfaces removed (K-01/02/03/05/09 rows now `host`; K-03 test helper dropped; `CommentsHostToolDeps` -> `CommentsToolDeps` unchanged) | comments `tool-registrations.update-settings-validation-status.test.ts:141`; webhooks `tool-registrations.handlers.test.ts:74`; direct-builder test files: redirects 3, comments 7, forms 8, webhooks 5, trash 5, seo 2, widgets 9, taxonomy 4 |
+| N2 V2 lacks CI gates | ACCEPT (part REBUT) | V2 (COMMON-KT code block) now runs `check:architecture` and `check:errors` with "no New/Worse line" as the pass condition. REBUT the "baseline goes stale" part for `check-architecture.baseline.json`: removed edges never fail, only introduced ones, so no sheet edits it and `--update` is forbidden. `error-gate-debt.json` go-live entry moved in T-PO-01g `writes:` | `ci.yml:212,254`; `check-architecture.ts:277-281` (`introducedCrossFeatureEdges` counts additions only); `check-error-gate.mjs:120-127` (WARN mode, exit 0 without `--strict`) |
+| N3 stale size-debt fails check:size | ACCEPT | COMMON-KT rule 4 + "write set" clause; `writes:` line in K-01 (size-exceptions row), K-02, K-03, K-04, K-05, K-09, K-10a (builder entries, deleted in S1) | `check-size-drift.ts:156,158` ("Delete stale debt entry", exit 1); `size-debt.json:817,859,999,1027,1111,1118`; `size-exceptions.json:26` |
+| N3 wave 1 not file-disjoint | ACCEPT | INDEX "Order": wave 1 = K-01, K-02b, K-06a, T-PO-01; then chain K and chain T, each serial; disjointness command included and run | shared files listed in "Order"; both commands print nothing on the current sidecars |
+| N4 K-07 missing bindings | ACCEPT | `TRASH_TOOL_ENTITY_TYPES` + `trashToolEntityTypes` + the 4 adapter imports + `TRASH_PERMISSION_BY_ENTITY_TYPE` stay in NEW Tovu `trash/tool-kinds.ts`; Jini gets `trashPolicy.messageKinds()` (line 192, not de-duplicated) and `catalogKinds()` (line 217); `registry` leaves the Jini deps type; tests (h)(i) | `trash/agent-tools.ts:2-6,40-44,152-154`; `trash/tool-registrations.ts:166,192,217`; `TRASH_TOOL_ENTITY_TYPES` has no importer |
+| N5 K-06 contracts.ts port types | ACCEPT | K-06a: `./index.js` names mapped to Jini leaves, line-20 re-export deleted; K-06b: `contracts.ts` -> `cms/src/taxonomy/publish-read-ports.ts` on the universal taxonomy entry, 6 render importers + `repo.sqlite.ts:14` re-export handled | `taxonomy/repo.ts:5-20`; `taxonomy/index.ts:57`; `taxonomy/contracts.ts` (35 lines, imports only `@jini-ai/cms/taxonomy`); importers via `git grep taxonomy/contracts` |
+| N6 T-PO-02 target | ACCEPT | NEW universal entry `./media/cover-image` (`cms/src/media/cover-image.ts`, modelled on `./media/slug`); worker-import-graph test added to `tests:`; serial with K-06b | Jini `packages/cms/src/media/node.ts` is a file, `jini.entries["./media/node"] = node`; `./widgets/markers` is universal and already uses parse5 (`widgets/markers/marker.ts`) |
+| N7 K-09 guard non-recursive | ACCEPT | guard is `rg -n "ToolPermissionDeniedError as ForbiddenError" packages/cms/src/core` hits + `rg -n "class ForbiddenError" packages/cms/src` empty | Jini `cms/src/core/commands/command.ts:1,55` |
+| N8 T-PO-01g fake dedup + invented `report` | ACCEPT | M1(b) asserts equal event ids on two calls only; console line stays as the default of the existing `optional.onError` | `post/go-live.ts:124-125,141,151,155` |
+| N9 K-06a @file comment | ACCEPT | lines 22-40 go whole to `repo.predicates.ts`; class files get verbatim paragraphs; predicates = 41-62 | `taxonomy/repo.ts:22-40` |
+| N10 PostKind not generic | ACCEPT | T-PO-01 item 1 split: Jini gets `PostStatus` + `PublicPostKind` (post, page); Tovu keeps `PostKind` = `PublicPostKind` plus `email-template`; only 15 importer rows move | `post/post-vocabulary.ts:3-11`; Jini `widgets/host-ports.ts:15-16`, `seo/ports.ts:49` |
+| judge #12 T-PO-02 barrel | ACCEPT | sheet + INDEX name `post/rendering.ts` (2 re-export lines) | `T-PO-02.importers.tsv` |
+| coordinator: STOP commands in `\|` tables | ACCEPT | COMMON-KT STOP matrix is now one fenced `bash` block; no `\|` command remains in any K/T sheet | `grep -n -F '\|' *.md K/*.md T/*.md` hits only prose |
+| coordinator: enforce 50 lines / complexity 10 | ACCEPT | NEW S-FN50 (eslint `--rule max-lines-per-function` 50 error; Tovu config already errors on complexity 10/admin 9; Jini adds `complexity` + `sonarjs/cognitive-complexity` 10 like its `complexity:strict` script) in V2 both repos | Tovu `size-eslint.config.mjs:37` (50 = warn only), `complexity-eslint.config.mjs:43`; Jini `package.json` `complexity:strict` |
+| found: K-02b complexity debt | NEW | K-02b M2 first splits `resolveMediaTree` (cognitive 11) and deletes its `src-complexity-debt.json` entry | `src-complexity-debt.json:201-205` |
+Rebutted: only the `check-architecture.baseline.json` part of N2 (see row).
+
+## Opus fixes - remaining
+None of the review's items is open. Still open from before (unchanged): "What remains" 1-7 above, sidecar regeneration on merge-final (then re-run the disjointness command), owner decisions D-K1 confirm, D-K2, D-T1..D-T6.
+

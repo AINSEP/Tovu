@@ -1,5 +1,6 @@
 # K-05 taxonomy agent tool handlers -> `@jini-ai/cms/taxonomy` (one run, est 240k; hand off at 200k after a pushed step)
-files: `K-05.files.tsv` (`taxonomy/tool-registrations.ts` 450). The catalog is ALREADY in Jini (`packages/cms/src/taxonomy/agent-tools.ts`); Tovu `taxonomy/agent-tools.ts` (39-line binding) stays. So `K-05.tools.tsv` shows `NOT-IN-CATALOG` for the Tovu-side check: expected; S0 (a) compares against the Jini catalog names instead. tools = 10 (round 1 said 12); one wrapped by `humanConfirmedToolHandler` (key `MERGE_TOOL_ID`, 66 code lines). pkg: cms. tests: `apps/website/src/features/taxonomy/**/*.test.ts`.
+files: `K-05.files.tsv` (`taxonomy/tool-registrations.ts` 450). The catalog is ALREADY in Jini (`packages/cms/src/taxonomy/agent-tools.ts`); Tovu `taxonomy/agent-tools.ts` (39-line binding) stays. So `K-05.tools.tsv` shows `NOT-IN-CATALOG` for the Tovu-side check: expected; S0 (a) compares against the Jini catalog names instead. tools = 10 (round 1 said 12); one wrapped by `humanConfirmedToolHandler` (key `MERGE_TOOL_ID`, 66 code lines). pkg: cms.
+writes: `development/scripts/size-debt.json` entry `buildTaxonomyRegistrations#1`, deleted in S1. tests: `apps/website/src/features/taxonomy/**/*.test.ts`.
 over the limit: `buildTaxonomyRegistrations` 223; the merge handler 66: S1 splits it into `mergePrepare`, `mergeDialog` (stays in Tovu if it reads host wording), `mergeRun` (each <= 50).
 prerequisite: K-06b pushed (both touch importers of `taxonomy/index.ts`).
 BINDINGS:
@@ -12,6 +13,6 @@ BINDINGS:
 | `PostRepoPort` | structural | members called only |
 | `./collection-term-policy.js`, `./gated-hooks.js`, `./index.js` names | port | fields of `TaxonomyToolDeps` holding the BUILT objects (`collectionTermPolicy`, `mergeTermHooks`, ...); the contributor builds them as the handler does today. K-05b (design queue) moves their generic parts later |
 | `Clock`, `OutboxPort`, `TransactionalRepoPort`, `@jini-ai/core*` | core | as is |
-| daemon/platform default surfaces | delete | `surfaces` REQUIRED |
+| daemon/platform default surfaces | host | stays as the default of Tovu `buildTaxonomyRegistrations` (identity rule); `surfaces` REQUIRED in Jini |
 S0 extra: (f) merge: plan -> confirm with a stale token is refused with the same code; execute after confirm calls the outbox fake with the same events in the same order; declined -> no repo write, no outbox call; (g) assign to a content type off the allow-list is refused.
 changeset: cms minor.

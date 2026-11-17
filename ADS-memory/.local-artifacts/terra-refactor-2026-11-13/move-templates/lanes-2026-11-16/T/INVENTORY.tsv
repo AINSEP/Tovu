@@ -66,7 +66,7 @@ apps/website/src/features/post/author.ts	1	983363376b83edbc51ef055693dbe71a5cfa4
 apps/website/src/features/post/capability-card.ts	29	0f63d7e8465a47e3442cd3ebd0d3c098744e02da	STAY	product wording (site-guide card)	-	rule	1	0
 apps/website/src/features/post/content-stats-tool.ts	173	a0611802771d31cdf75eb451ede8097c296a4f21	MOVE-AFTER	@jini-ai/cms/posts tools after T-PO-03; size split first	T-PO-05	classify	1	2
 apps/website/src/features/post/contracts.ts	9	aad73043b6707f84148891c8bf7c4ab2b74ad805	STAY	Tovu feature barrel/forwarder (not a re-export shell of moved code; shrinks as importers repoint)	-	rule	26	0
-apps/website/src/features/post/cover-image.ts	268	8e19eb42ded5310bd661857c7fc6c3e8f2a03440	SPLIT	@jini-ai/cms/media/node (cover policy); unblocks K-04b	T-PO-02	classify	1	3
+apps/website/src/features/post/cover-image.ts	268	8e19eb42ded5310bd661857c7fc6c3e8f2a03440	SPLIT	@jini-ai/cms/media/cover-image (new universal entry; cover policy); unblocks K-04b	T-PO-02	classify	1	3
 apps/website/src/features/post/duplicate-embeds.ts	114	53d6e39de13518adf2ed33916e8287b4dd07d483	MOVE	per CLASSIFY: cms/core, cms/seo, cms/widgets	T-PO-01	read	1	2
 apps/website/src/features/post/expected-version.ts	76	764000f7a0f74f5fef3864d7e1bb8c93e950131a	OWNER	DEDUPE onto existing @jini-ai/core/optimistic-concurrency parseExpectedVersion; safe-integer + error-class differences = D-T6 (rev 2, judge 11)	T-PO-01v	read	2	1
 apps/website/src/features/post/featured-image.ts	79	41be3e70f1dd0d2df48fbffcb04e56ad0e8f6a12	MOVE-AFTER	@jini-ai/cms/media; throws PostValidationError from post.ts, so it moves with the posts domain (rev 2)	T-PO-03	read	2	2

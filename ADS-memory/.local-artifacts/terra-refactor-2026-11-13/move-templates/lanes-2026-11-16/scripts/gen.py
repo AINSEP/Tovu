@@ -106,7 +106,7 @@ RULES = [
  (r'^post/featured-image\.ts$', 'MOVE-AFTER', '@jini-ai/cms/media; throws PostValidationError from post.ts, so it moves with the posts domain (rev 2)', 'T-PO-03', 'read'),
  (r'^post/go-live\.ts$', 'SPLIT', 'pure decisions + announce functions -> @jini-ai/cms/posts; startPostGoLiveSweep (timers, mutable state) STAYS as host scheduling (rev 2, judge 10)', 'T-PO-01g', 'read'),
  (r'^post/expected-version\.ts$', 'OWNER', 'DEDUPE onto existing @jini-ai/core/optimistic-concurrency parseExpectedVersion; safe-integer + error-class differences = D-T6 (rev 2, judge 11)', 'T-PO-01v', 'read'),
- (r'^post/cover-image\.ts$', 'SPLIT', '@jini-ai/cms/media/node (cover policy); unblocks K-04b', 'T-PO-02', 'classify'),
+ (r'^post/cover-image\.ts$', 'SPLIT', '@jini-ai/cms/media/cover-image (new universal entry; cover policy); unblocks K-04b', 'T-PO-02', 'classify'),
  (r'^post/post\.ts$', 'SPLIT', '@jini-ai/cms/posts (NEW domain); size split first', 'T-PO-03', 'classify'),
  (r'^post/(repo|repo\.rows|repo\.memory|search-index\.contract|search-index\.postgres|search-index\.sqlite|search-index|search)\.ts$', 'MOVE-AFTER', '@jini-ai/cms/posts(/sql) after T-PO-03', 'T-PO-04', 'classify'),
  (r'^post/reverters\.ts$', 'MOVE-AFTER', '@jini-ai/cms/posts (audit2 B18) after T-PO-04', 'T-PO-04', 'audit2-B18'),
