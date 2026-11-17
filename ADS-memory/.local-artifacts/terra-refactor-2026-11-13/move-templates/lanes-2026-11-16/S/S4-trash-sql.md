@@ -25,9 +25,9 @@ its first file, and nothing in S4a depends on S4b.
 | `registry.ts:164-365` `buildTrashRegistry()` | **STAY-PRODUCT, whole** | it takes no input and returns a fixed `Map` of Tovu's trashable tables; it validates nothing today and gains no validator here. The file keeps its name and imports the types from `@jini-ai/cms/trash` |
 | NEW `trashEntityLockKey({ entityType, workspaceId, entityId }, _optional = {})` returning `` `trash:${entityType}:${workspaceId}:${entityId}` `` | NEW (pure) | `packages/cms/src/trash/lock-keys.ts`, exported from `./trash`. The string is today's template at `table-adapter.ts:85`; hosts bind other packages' member/user locks to it |
 | `entry-sql.types.ts` (`LooseTables`, `LooseExpressionBuilder`), `entry-sql.ts` (`loose`, `qualified`, `EntitySnapshotRow`, `readLiveSnapshot`, `entryWhere`) | MOVE | `trash/sql/entry-sql.types.ts`, `trash/sql/entry-sql.ts`. `loose(db)` takes `Kysely<unknown>`. The re-export line `entry-sql.ts:18` is not copied: importers take the types from the types file |
-| `not-trashed.ts` (`TrashCondition`, `notTrashed`, `isTrashedRecord`) | MOVE | `trash/sql/not-trashed.ts`. `notTrashed(required, options: { registry })` becomes `notTrashed({ entityType, registry }, _optional = {})`; 2 production call sites (`rg -n "notTrashed\(" apps/website/src -g '!**/__tests__/**'`) + tests are updated in T1. `isTrashedRecord`: same treatment if its second argument is required (read it) |
+| `not-trashed.ts` (`TrashCondition`, `notTrashed`, `isTrashedRecord`) | MOVE | `trash/sql/not-trashed.ts`. `notTrashed(required, options: { registry })` becomes `notTrashed({ entityType, registry }, _optional = {})`; its only production call site is `entry-sql.ts:62`, which moves in the same J1 (the command `rg -n "notTrashed\(" apps/website/src -g '!**/__tests__/**'` prints that line plus doc-comment mentions); `__tests__/not-trashed.test.ts` and `move-to-trash.test.ts` change only their call shape (allowed edit (b)). `isTrashedRecord(required, options: { registry })` (`not-trashed.ts:109-112`; `options` is required, read 2026-11-17) becomes `isTrashedRecord({ entityType, record, registry }, _optional = {})`; it has no production caller outside the file |
 | `repo.ts` `SqlTrashRepo` (232), `SWEEP_LOCK_KEY = "trash:sweep-claim"` | MOVE | `trash/sql/repo.ts`; `tables: { trashedItems: string }`; implements `TrashRepoPort` (`packages/cms/src/trash/ports.ts:246`); its `deleteById` / `deleteByEntity` remove the Trash's own bookkeeping row and move verbatim |
-| `db-port.ts` (`TrashDb = ContentKernel`, 19 lines) | DELETE | importers (`table-adapter.ts`, `adapters/member.ts`, others in the facts file) use `ContentKernel` directly |
+| `db-port.ts` (`TrashDb = ContentKernel`, 19 lines) | **STAY-WIRING** (su-refresh: was DELETE) | `TrashDb` reaches 11 files, most through the barrel (`index.ts:58`: `server/routes/types.ts`, `server/inbound/admin-http/routes/trash/deps.ts`, composition, memory slices, tests), which the facts importer list (direct importers only) does not show. Deleting a 19-line host type alias would widen the write set into T-PO-01g's `server/routes/types.ts` for no gain. Only the moved files stop importing it (Jini files use `StorageKernel`) |
 | `ports.ts` (61) | STAY | `TRASH_RETENTION_DAYS = 60` equals Jini's `DEFAULT_TRASH_RETENTION_DAYS = 60` (`cms/src/trash/write-service.ts:93`, both read 2026-11-17). Not deduped here: `RemoveEntity` / `TransactionRunner` are host types |
 | `repo.sqlite.ts` (`SqliteTrashRepo`, `createContentDbTransactionRunner`) | STAY-WIRING | `super({ kernel: schemaErasedKernel({ store }), tables: { trashedItems: "trashed_items" } }, {})` |
 **port_compat (step 0).** `sed -n 246,300p packages/cms/src/trash/ports.ts` vs the 8 methods of `SqlTrashRepo`
@@ -47,8 +47,19 @@ its first file, and nothing in S4a depends on S4b.
 **tree after S4a's T1 (compiles alone).** `features/trash/`: `registry.ts` (fixed Map), `table-adapter.ts` (unmoved; its
 imports of `./entry-sql.js`, `./registry.js` types and `./db-port.js` repointed to `@jini-ai/cms/trash/sql`,
 `@jini-ai/cms/trash`, `ContentKernel`; its lock template untouched), `adapters/*` (imports of `loose` repointed),
-`ports.ts`, `repo.sqlite.ts`, the rest untouched. `features/trash/index.ts` (110-line barrel, R-BARRELS): only the
-re-export lines that named a moved symbol change their specifier; nothing is added.
+`ports.ts`, `repo.sqlite.ts`, the rest untouched. `features/trash/index.ts` (110-line barrel, R-BARRELS): the re-export lines of moved
+symbols are **deleted**, never repointed (a `+export { … } from "@jini-ai/…"` line is a forwarder and fires xpkg COMMON S3):
+`index.ts:47-56` (the eight registry types), `:64` (`isTrashedRecord`, `notTrashed`), `:85` (`SqlTrashRepo`). Their barrel
+importers, found with the multi-line command below (none of them is in the facts list), import from `@jini-ai/cms/trash`
+(types) in the same T1: `features/entries/unreadable-owner-entries-repair.ts` (`TrashEntry`), `server/routes/types.ts`
+(`TrashBlockerSpec`, `TrashRegistry`), `server/inbound/admin-http/routes/trash/deps.ts` (`TrashRegistry`),
+`server/__tests__/admin-trash-items-blocker.test.ts` (`TrashEntry`; allowed test edit: import line only). `notTrashed`,
+`isTrashedRecord`, `SqlTrashRepo` have no barrel importer (2026-11-17). `server/routes/types.ts` is also in T-PO-01g's set:
+INDEX-SU §3a row added.
+```bash
+cd "$TOVU"   # barrel importers of moved trash symbols (multi-line imports included); every file must be in the list above
+rg -l -U 'import[^;]*\b(isTrashedRecord|notTrashed|SqlTrashRepo|TrashEntry|TrashRegistry|TrashMarkerSpec|TrashDisplaySpec|TrashCascadeSpec|TrashBlockerSpec|TrashHiddenWithParentSpec|TrashDisplayJoin|createTableTrashAdapter)\b[^;]*from "[^"]*trash/index(\.js)?"' apps/website/src | sort
+```
 
 ## S4b
 **partition (finding 12).** `createTableTrashAdapter` is ONE function, lines 76-362: a closure over `entry` and a lazily
@@ -82,8 +93,14 @@ may hand in a lazy proxy. The Jini factory must NOT destructure `kernel` in its 
 **marker-sql parity (test only, no production edit).** One Tovu test runs the rows above that apply (hide / unhide /
 purge classification, version precedence) against `adapters/marker-sql.ts` `flipMarker` / `compareAndDelete` and against the
 table adapter over the same fixture, and commits the result table as test expectations. It decides S4d below.
-**wiring.** `features/trash/table-adapter.ts` is deleted; its constructor calls (`rg -n "createTableTrashAdapter\(" apps/website/src`)
-pass `{ entry, kernel: <the same lazy value passed as db today>, tables: { trashedItems: "trashed_items" } }`.
+**wiring.** `features/trash/table-adapter.ts` is deleted and `index.ts:60` (`export { createTableTrashAdapter }`) is deleted with
+it (no forwarder). Its production constructor calls on refactor/terra (`rg -n "createTableTrashAdapter\(" apps/website/src`):
+`server/runtime/composition/deps.ts:1641` (import at `:355` from the barrel), `server/runtime/composition/memory-deps/slices/trash-adapters-taxonomy.ts:23,33`
+(import `:1`, type `:9`), `features/entries/unreadable-owner-entries-repair.ts:100` (import `:4`); tests: `assistant/__tests__/tool-registrations.trash-item.test.ts:140`,
+`features/trash/__tests__/{move-to-trash:46,table-adapter.dialects:36,205,sweeper:195,245,term-trash-flow:84,member-adapter:46,269,follow-ups:73}`,
+`server/__tests__/{admin-trash-items-blocker,admin-trash-routes}.test.ts`. Each passes `{ entry, kernel: <the same lazy value
+passed as db today>, tables: { trashedItems: "trashed_items" } }` and imports from `@jini-ai/cms/trash/sql`. **`deps.ts` is a
+shared file** (INDEX-SU §3.4: one sheet per wave whose wiring names a line there): S4b is the second known sheet after S6a.
 
 ## Round-1 item 1: the nine other adapters, per file (S4c is closed as a single sheet)
 | File (lines) | Decision | Owner / when |
@@ -95,6 +112,7 @@ pass `{ entry, kernel: <the same lazy value passed as db today>, tables: { trash
 | `adapters/plugin.ts` (1), `theme.ts` (3) | **STAY-PRODUCT** (entity-type names of Tovu folders) | - |
 
 ## stops
+- Limits: T-SQLREPO §5 `limits` (eslint 50/10/10; `check:size` only errors at 80) on every new Jini file, after J1.
 - An adapter must move for S4a or S4b to compile: `npm run typecheck` after each T1 is the command; do not move it, report.
 - A trashable table's marker column, status value or `trashed_items` column would change: S0-P6 + the T0 tables.
 - Facts-file flags `npm import "moved"` / `"Red"` on these files are generator false positives: `rg -n "from ['\"](moved|Red)" apps/website/src/features/trash` prints nothing.

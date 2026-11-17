@@ -23,12 +23,16 @@ test -f packages/user-management/src/react/kit.tsx && echo ok          # C9c cre
 node -e 'const j=require(process.argv[1]); const prod={...j.dependencies,...j.peerDependencies}; process.exit(prod["@jini-ai/ui"]||prod["@jini-ai/admin"]?1:0)' "$PWD/packages/user-management/package.json" && echo ok
 rg -q "export interface StorageKernel" packages/core/src/contracts/storage/kernel.ts && echo ok   # C3
 ```
-**`kysely` (replaces round-1 P-DEP).** `packages/user-management/package.json` does not declare it (checked on Jini
-`af33fcdb`). S3a's J1 adds it as an optional peer exactly the way `packages/cms/package.json` does (peer + `peerDependenciesMeta`
+**Run on refactor/terra (su-refresh, 2026-11-17; Jini `65d73b0d5`).** C3 prints `ok`; C9c and R3b print nothing
+(`react/kit.tsx` absent; `@jini-ai/ui` and `@jini-ai/admin` are still peers). The guards fire correctly on the base: S3 is
+BLOCKED until xpkg C9c and R3b are on the base branch. Facts: regenerated on Tovu `232764af5`, byte-identical.
+**`kysely` (replaces round-1 P-DEP).** `packages/user-management/package.json` does not declare it (re-checked on Jini
+`65d73b0d5` = refactor/terra, 2026-11-17). S3a's J1 adds it as an optional peer exactly the way `packages/cms/package.json` does (peer + `peerDependenciesMeta`
 optional + the `jini` opt-in message naming `@jini-ai/user-management/server/sql`) and commits `pnpm-lock.yaml` in the same commit.
 
 ## S3a
-**partition.** The nine classes span `repo.ts:70-646` (577 lines): one Jini file would break the 500 limit.
+**partition.** The nine classes with their mappers span `repo.ts:58-630` (573 lines; `SqlApiKeyRepo` starts at :631; re-read on
+refactor/terra `232764af5`): one Jini file would break the 500 limit.
 | New file (`packages/user-management/src/server/sql/`) | From `features/identity/repo.ts` | ~Lines |
 |---|---|---|
 | `tables.ts` | Jini-local interfaces for `principals`, `identity_users`, `sessions`, `roles`, `policies`, `policy_permissions`, `role_policies`, `principal_roles`, `principal_policies`; `IdentitySqlTables`; `IdentitySqlRequired = { kernel; tables }` | 120 |
@@ -69,7 +73,8 @@ Postgres must contend on the same key). Pinned by S0-P1 through the Tovu binding
 **split.** `mfa.repo.ts` (56) -> `sql/mfa.ts`; `passkeys.repo.ts` (34) -> `sql/passkeys.ts`; `recovery-codes.repo.ts` (34)
 -> `sql/recovery-codes.ts`; each `create*Store({ kernel, tables }, _optional = {})`, bodies verbatim, queries from
 `db.withTables<...>()`. Tables: `{ mfaFactors: "owner_mfa_factors", mfaPending: "owner_mfa_pending", passkeys: "owner_passkeys", recoveryCodes: "owner_recovery_codes" }`.
-`createMfaStore` is one ~45-line function of six closures: measure; if over 50, each closure becomes a top-level
+`createMfaStore` is one 48-line function (`mfa.repo.ts:9-56`) of six closures: measure with T-SQLREPO §5 `limits` (the eslint
+50/10/10 gate; `check:size` only errors at 80); if it prints a finding, each closure becomes a top-level
 `({ ctx, input })` function in the same file, order of statements unchanged.
 The three Tovu files are deleted; `wiring.ts:1,2,4` repoint; `wiring.ts:377` passes `tables`.
 The existing `deleteFrom` calls on pending proofs, factors, passkeys and recovery digests are credential removal that
@@ -86,7 +91,7 @@ arguments and statements in order.
 |---|---|---|---|---|
 | 1 | Every identity read is `(workspace_id, …)`-scoped (all nine classes) | `sql/*.ts` | two workspaces seeded with the same ids, usernames and token digests: every `find*` / `list*` returns only its own rows | delete one workspace predicate (one mutation per method) |
 | 2 | Session lookup matches the exact stored digest (`repo.ts` `findByTokenHash`); `revoke` sets `revoked_at` under the identity transaction | `sql/sessions.ts` | S0-P5c fixture found; one-character-different digest not found; after `revoke`, the row carries the instant; recording kernel shows lock before the UPDATE | drop the digest predicate; make `revoke` skip the write |
-| 3 | `SqlSessionRepo.save` is a whole-row upsert on `id` (`repo.ts` `save`) | `sql/sessions.ts` | pin EXACTLY what a second `save` does to every column, `revoked_at` included, whatever that is; do not change it in a move. The concern (class "stale write on a revocation field", this method) is already logged in `development/open-bugs.md` (entry of 2026-11-16 ~8:05 PM PT, lost-updates class); its fix belongs to the lost-updates design, not to this sheet. This characterization test stays and is the regression baseline that fix will change on purpose | change the conflict update set |
+| 3 | `SqlSessionRepo.save` is a whole-row upsert on `id` (`repo.ts` `save`) | `sql/sessions.ts` | pin EXACTLY what a second `save` does to every column, `revoked_at` included, whatever that is; do not change it in a move. The concern (class "stale write on a revocation field", this method) is NOT logged in `development/open-bugs.md` on refactor/terra (`rg -n -i 'revoked_at|revocation' development/open-bugs.md` prints nothing, 2026-11-17; revision 2's "entry of 2026-11-16" was never committed). This lane does not edit `open-bugs.md`: the run report names the class as carried forward to the lost-updates design, whose fix it is. This characterization test stays and is the regression baseline that fix will change on purpose | change the conflict update set |
 | 4 | The guard: `transaction` -> `lockKey("identity:<ws>")` -> `execute`; nested calls join the open transaction; a throw rolls everything back (`repo.ts:46-56`) | `sql/transactions.ts` | recording kernel order; nested `run` inside `run` shows one outermost transaction and the lock before the first statement; a body that writes then throws leaves no row | remove `lockKey`; call `execute()` without `kernel.transaction` |
 | 5 | Each MFA store method opens its OWN guard (`mfa.repo.ts:22-32`): `factor` and `saveFactor` are NOT atomic together. Anti-replay comes from the CALLER wrapping the whole proof in one outer guard | caller: `@jini-ai/user-management/server` MFA service (unchanged); store: `sql/mfa.ts` | the existing `__tests__/mfa.repo.dialects.test.ts:59-67` case (two concurrent complete-proof bodies, each in ONE outer `transactions.run`: results `[false, true]`, `lastStep` advanced once, pending gone) stays and runs on every dialect of the matrix; plus the recording-kernel form: inside an outer guard, `factor` + `saveFactor` + `clearPending` add no second outermost transaction | mutation 4's; and make the store call `kernel.run` through a second kernel (not joining) -> the test's rollback half fails |
 | 6 | `clear` deletes that principal's pending proofs, **passkeys** and factor, in that order, in one guard (`mfa.repo.ts:48-53`). The MFA store never reads passkeys | `sql/mfa.ts` | two principals each with factor, pending and a passkey: after `clear(A)`, A has none of the three, B has all three; `clear` then throw inside an outer guard restores all (existing test, kept) | remove the passkey delete; drop a principal predicate |

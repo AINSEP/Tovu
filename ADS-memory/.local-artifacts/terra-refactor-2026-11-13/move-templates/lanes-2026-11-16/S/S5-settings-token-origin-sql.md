@@ -51,6 +51,11 @@ but declares its own port with positional `save(record)` and an extra `count()`;
 checked by `redeemToken` in `@jini-ai/core/gated-mutations`, not here** (not lane code, not moved).
 **split.** `SqlTokenStore` MOVE -> `packages/db/src/gated-mutations/repo.sql.ts`, implementing CORE's `TokenStorePort`
 (`save({ record })`), `isRedeemable` imported from `@jini-ai/core/gated-mutations`; `count()` moves as an extra method.
+**Note (su-refresh).** Tovu already adapts the other way: `contracts/core/gated-mutations/token.ts:76` `adaptTokenStore`
+turns Tovu's positional port into core's object port at every redeem / expire / gateway call (`token.ts:118,129`,
+`gateway.ts:125`). After S5b a save therefore goes object -> positional -> object. Accepted as the smallest change that keeps
+`token.ts` unedited (it is not lane code); deleting Tovu's `TokenStorePort` and both adapters is a follow-up for the
+`contracts/core/gated-mutations` owner, not this sheet. The binding test asserts the SAME record object reaches the SQL store.
 `platform/db/sqlite/gated-mutation-token-repo.sqlite.ts` STAY-WIRING and becomes the shape adapter: `SqliteTokenStore`
 keeps implementing Tovu's port, `save(record)` -> `inner.save({ record })` (an argument-shape adaptation, allowed by xpkg
 COMMON; binding test: a recording fake `inner` receives `{ record }` with the same object). Tovu's `token.ts` is not edited.
@@ -71,11 +76,14 @@ decides from the host's runtime mode) STAY-PRODUCT, not edited.
 |---|---|---|
 | Origin read for the wrong workspace | two workspaces: `findByWorkspaceId`, `findRedirectAllowlist`, `findEgressAllowlist` each return only their own | drop a predicate |
 | Configured origin write races / reports the wrong result | same origin twice: `inserted` then `unchanged` and no second write; changed origin: `updated`; recording kernel: lock before the read | remove the lock; always write |
-| The gate that consumes the repo stops consulting it (LESSONS 13; not moved) | one route-level test per shipped security profile: a state-changing admin request with a non-matching `Origin` is refused, and the same request is ALSO refused when the bound repo returns no origin (pin today's outcome for that case, whatever it is), while a matching `Origin` succeeds (positive control) | bind a repo that returns the request's own origin |
+| The gates that consume the repo stop consulting it (LESSONS 13; not moved). su-refresh: revision 2 named a "state-changing admin request with a non-matching `Origin`" per "security profile"; neither exists (`rg -n -i security.?profile apps/website/src/server` prints nothing). The real consumer is `OriginRegistry` (core `verified-origin/origin.ts`), built at `deps.ts:1488` over `SqliteOriginSettingRepo`; its gates: outbound-target allowlist `isAllowedEgressTarget` (`server/inbound/admin-http/routes/integrations/deps.ts:34`, `features/webhooks/tool-registrations.ts:205`), the redirect allowlist (`server/inbound/admin-http/http/redirects.ts:25`), canonical host (`server/inbound/public-http/middleware/canonical-site-host.ts`, existing test `__tests__/canonical-site-host.test.ts`) | `OriginRegistry` over the REAL SQL repo (T0, unmoved): a target in workspace A's egress allowlist is allowed for A and refused for B; a target in no allowlist is refused; an unconfigured workspace keeps today's outcome (pin it, whatever it is); positive control: the configured canonical origin is returned | bind a repo whose `findEgressAllowlist` returns the requested target -> the refusal rows go RED |
 
 ## commits / stops
 Each run T0 -> J1 -> T1 (T-SQLREPO §5). Trees after each T1 compile alone (three disjoint source files).
 - STOP: any change to setting keys, value encodings or the revisions table (S0-P6; no migration is planned because nothing stored changes).
 - STOP: the env-schema design renames a setting or an env-backed default used here (`git log --oneline $BASE..origin/<integration> -- apps/website/src/features/settings` shows its commit): re-take facts.
-Not verified while planning: bodies of the settings methods beyond the lines cited; `origin-repo.ts:6-11` imports and
-`:112-205`; the route-level test's profile list (`rg -n "securityProfile|SECURITY_PROFILE" apps/website/src/server -g '!**/__tests__/**'`).
+Not verified while planning: bodies of the settings methods beyond the lines cited; `origin-repo.ts:112-205` bodies.
+su-refresh (2026-11-17, refactor/terra): `origin-repo.ts:6-11` is the one import of `createVerifiedOrigin`, `OriginScheme`,
+`OriginSource`, `VerifiedOrigin` from `@jini-ai/core/contracts/server/verified-origin` (Jini-safe); the 20 settings methods,
+`SqlTokenStore` :57-128 (`tryRedeem` :79, lock :81), origin :71/:112/:143/:206/:211 and core's `TokenStorePort`
+(`core/src/gated-mutations/token.ts:14`) all match; the lost-updates detector prints nothing (no `expectedRevision` yet).
