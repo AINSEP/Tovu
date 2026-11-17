@@ -57,7 +57,7 @@ Imports:
   then `describeErrorForLog(err)`; admin/desktop `import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";`
   then `describeErrorForLog({ err })`. Never throws.
 - server incident sink, website: `import { reportServerFailure, sendAdminFailure } from "#src/server/inbound/shared/admin-failure";`
-  (the shared module; `admin-http/routes/system/site-share-errors.ts` no longer re-exports it).
+  (the shared module; the share routes call it through `sendSiteShareFailure` in `admin-http/routes/system/site-share-password.ts`).
   - `reportServerFailure({ error, operation: "<area>:<step>" }, { tracker: res.locals.adminFailureTracker }): { errorId: string }`
   - `sendAdminFailure({ res, error }, { operation: "<area>:<step>", message?: "<specific plain words>" }): void`
 - admin local failure: `import { adminFailureChannel, isClipboardRefusal, publishLocalAdminFailure } from "@/lib/admin-failure-channel";`
