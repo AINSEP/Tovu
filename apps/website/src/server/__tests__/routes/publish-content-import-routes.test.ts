@@ -8,7 +8,7 @@ import test from "node:test";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { confirm as gatewayConfirm, ForbiddenError } from "#src/contracts/core/gated-mutations/gateway";
 import { buildGatewayDeps, buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
-import { entityKey } from "#src/features/publish-content/planner";
+import { entityKey } from "#src/features/publish-content/plan-rows";
 import type { PublishContentApplyPort } from "#src/features/publish-content/gated-hooks";
 import { loginAsBarePrincipal } from "../helpers/http-test-server.js";
 

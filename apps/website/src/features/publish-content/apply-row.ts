@@ -4,7 +4,7 @@ import { downgradedRow, downgradeOrRethrow, type ApplyRowResult } from "./apply-
 import type { PublishContentBaselineRepoPort } from "./baseline-repo.js";
 import { CONTENT_HASH_VERSION } from "./content-hash.js";
 import { publishContentItemIdempotencyKey } from "./idempotency.js";
-import { entityKey, type PublishContentOutcomeRow } from "./planner.js";
+import { entityKey, type PublishContentOutcomeRow } from "./plan-rows.js";
 import type { PublishContentSeedHashFn } from "./seed-hash.js";
 import type { PackedEntity, PublishContentHandler } from "./type-registry.js";
 

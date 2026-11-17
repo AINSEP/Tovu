@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { PublishContentOutcomeRow, PublishContentReport } from "../contract.js";
-import { entityKey } from "../../planner.js";
+import { entityKey } from "../../plan-rows.js";
 import {
   addressHeldByOther,
   addressHeldInTrash,

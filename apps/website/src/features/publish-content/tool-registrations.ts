@@ -21,7 +21,7 @@ import { loadActiveBundle } from "./bundle-staging.js";
 import { buildPublishContentImportHooks, PublishContentBundleNotFoundError, type BuildPublishContentImportHooksInput } from "./gated-hooks.js";
 import { executePublishContentImport, RestorePointUnavailableError } from "./execute-import.js";
 import { getPublishContentRunStatus, type PublishContentRunRepoPort } from "./run-repo.js";
-import { entityKey, type PublishContentReport } from "./planner.js";
+import { entityKey, type PublishContentReport } from "./plan-rows.js";
 import { pullAndStageFromPeer, type PublishContentPullDeps } from "./pull.js";
 import { PublishContentPeerNotFoundError, PublishContentPeerCredentialMissingError, PublishContentPeerSecretStoreUnconfiguredError } from "./peers.js";
 import { PublishContentPeerTransportError } from "./peer-transport.js";

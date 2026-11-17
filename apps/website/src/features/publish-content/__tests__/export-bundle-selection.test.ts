@@ -11,7 +11,7 @@ import {
   type ReferenceHandlers,
 } from "../export-bundle.js";
 import { collectBodyReferences } from "../content-references.js";
-import { entityKey } from "../planner.js";
+import { entityKey } from "../plan-rows.js";
 import type { PackedEntity } from "../type-registry.js";
 
 /**

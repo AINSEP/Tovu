@@ -30,17 +30,9 @@ import {
   type PublishContentHandler,
   type PackedEntity,
 } from "../type-registry.js";
-import {
-  entityDisplayLabel,
-  entityKey,
-  packedEntityLabel,
-  planImport,
-  type BaselineRecord,
-  type PlanImportDeps,
-  type PublishContentBundle,
-  type RetireTarget,
-  type ReferenceHolder,
-} from "../planner.js";
+import { planImport, type PlanImportDeps } from "../planner.js";
+import { entityDisplayLabel, entityKey, packedEntityLabel, type BaselineRecord, type PublishContentBundle } from "../plan-rows.js";
+import { type RetireTarget, type ReferenceHolder } from "../type-registry.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 test.beforeEach(() => {

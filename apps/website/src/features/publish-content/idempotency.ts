@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import type { PublishContentOutcomeRow } from "./planner.js";
+import type { PublishContentOutcomeRow } from "./plan-rows.js";
 import type { PackedEntity } from "./type-registry.js";
 
 /** Stable command key for one source version; reviewed file reverts also bind the destination version. */

@@ -19,7 +19,7 @@ import { InMemoryPublishContentBaselineRepo } from "../baseline-repo.js";
 import { InMemoryPublishContentBundleRepo } from "../bundle-staging.js";
 import { CONTENT_HASH_VERSION, contentHash } from "../content-hash.js";
 import { buildPublishContentImportHooks } from "../gated-hooks.js";
-import type { PublishContentReport } from "../planner.js";
+import type { PublishContentReport } from "../plan-rows.js";
 import { InMemoryPostRepo } from "../../post/repo.memory.js";
 import {
   registerPublishContentContributor,

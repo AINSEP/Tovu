@@ -45,8 +45,9 @@ import { InMemoryPublishContentBaselineRepo } from "../baseline-repo.js";
 import type { PublishContentBaselineRepoPort } from "../baseline-repo.js";
 import { InMemoryPublishContentBundleRepo, stageBundle } from "../bundle-staging.js";
 import { getPublishContentRunStatus, InMemoryPublishContentRunRepo } from "../run-repo.js";
-import { entityKey, planImport } from "../planner.js";
-import type { PublishContentBundle, PublishContentReport } from "../planner.js";
+import { planImport } from "../planner.js";
+import { entityKey } from "../plan-rows.js";
+import type { PublishContentBundle, PublishContentReport } from "../plan-rows.js";
 import {
   registerPublishContentContributor,
   resetPublishContentContributorsForTests,

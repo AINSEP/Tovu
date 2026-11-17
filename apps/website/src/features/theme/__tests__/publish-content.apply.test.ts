@@ -21,7 +21,8 @@ import { InMemoryBlobStore, InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, I
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
 import { createFileBlobIndex } from "#src/features/publish-content/file-blob-index";
 import { CONTENT_HASH_VERSION, contentHash } from "#src/features/publish-content/content-hash";
-import { entityKey, planImport } from "#src/features/publish-content/planner";
+import { planImport } from "#src/features/publish-content/planner";
+import { entityKey } from "#src/features/publish-content/plan-rows";
 import { PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION } from "#src/features/publish-content/artifact-format";
 import {
   registerPublishContentContributor,

@@ -5,7 +5,7 @@ import test from "node:test";
 import type { JsonValue } from "@jini-ai/core/primitives";
 
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";
-import { entityKey } from "#src/features/publish-content/planner";
+import { entityKey } from "#src/features/publish-content/plan-rows";
 import { friendlyPublishReason } from "#src/features/publish-content/ui/report-rows";
 import { buildPublishContentCatalog, type PackedEntity } from "#src/features/publish-content/type-registry";
 import { contributeActiveThemePublish } from "#src/features/theme/active-theme-publish-content";

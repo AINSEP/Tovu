@@ -16,7 +16,7 @@ import { createPublishContentApplyPort } from "../apply-port.js";
 import { InMemoryPublishContentBaselineRepo } from "../baseline-repo.js";
 import { InMemoryPublishContentBundleRepo, stageBundle } from "../bundle-staging.js";
 import { CONTENT_HASH_VERSION, contentHash } from "../content-hash.js";
-import type { PublishContentOutcomeRow, PublishContentReport } from "../planner.js";
+import type { PublishContentOutcomeRow, PublishContentReport } from "../plan-rows.js";
 import { InMemoryPublishContentRunRepo, type PublishContentRunRecord } from "../run-repo.js";
 import { registerPublishContentContributor, resetPublishContentContributorsForTests, type PackedEntity, type PublishContentDeps, type PublishContentHandler } from "../type-registry.js";
 

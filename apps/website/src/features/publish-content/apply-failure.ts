@@ -3,7 +3,7 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 import { PluginHookFailedError } from "../../contracts/core/plugin-hook-failed-error.js";
 
 import { PublishContentApplyRowError } from "./apply-errors.js";
-import type { PublishContentOutcomeRow } from "./planner.js";
+import type { PublishContentOutcomeRow } from "./plan-rows.js";
 import type { PublishContentHandler } from "./type-registry.js";
 
 /**

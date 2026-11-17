@@ -9,7 +9,8 @@ import type { PublishContentBundleRepoPort } from "./bundle-staging.js";
 import type { PublishContentBaselineRepoPort } from "./baseline-repo.js";
 import { planImport } from "./planner.js";
 import type { PublishContentSeedHashFn } from "./seed-hash.js";
-import type { PlanImportDeps, PublishContentBundle, PublishContentReport } from "./planner.js";
+import type { PlanImportDeps } from "./planner.js";
+import type { PublishContentBundle, PublishContentReport } from "./plan-rows.js";
 import type { PublishContentDeps, PackedEntity } from "./type-registry.js";
 
 /**

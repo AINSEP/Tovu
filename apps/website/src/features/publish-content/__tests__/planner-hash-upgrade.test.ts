@@ -1,3 +1,4 @@
+import { entityKey } from "../plan-rows.js";
 import assert from "node:assert/strict";
 import { mock, test } from "node:test";
 import { contentHash } from "../content-hash.js";
@@ -6,7 +7,7 @@ import { contentHash } from "../content-hash.js";
 mock.module(new URL("../content-hash.ts", import.meta.url).href, {
   namedExports: { CONTENT_HASH_VERSION: 2, contentHash },
 });
-const { planImport, entityKey } = await import("../planner.js");
+const { planImport } = await import("../planner.js");
 const { registerPublishContentContributor, resetPublishContentContributorsForTests } = await import("../type-registry.js");
 
 test("v2 planner re-baselines stored v1/unknown history without trusting obsolete hashes", async () => {

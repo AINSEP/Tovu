@@ -1,7 +1,7 @@
 import { downgradedRow, downgradeOrRethrow, type ApplyRowResult } from "./apply-failure.js";
 import { refreshBaseline, type ApplyRowStep } from "./apply-row.js";
 import { publishContentItemIdempotencyKey } from "./idempotency.js";
-import type { PublishContentOutcomeRow } from "./planner.js";
+import type { PublishContentOutcomeRow } from "./plan-rows.js";
 
 type RetiringRow = PublishContentOutcomeRow & { retires: NonNullable<PublishContentOutcomeRow["retires"]> };
 

@@ -11,7 +11,7 @@ import { buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/compo
 import { buildPublishContentImportHooks } from "#src/features/publish-content/gated-hooks";
 import { executePublishContentImport } from "#src/features/publish-content/execute-import";
 import { getPublishContentRunStatus } from "#src/features/publish-content/run-repo";
-import type { PublishContentReport } from "#src/features/publish-content/planner";
+import type { PublishContentReport } from "#src/features/publish-content/plan-rows";
 import { gatedPrincipalKindFor, getAuthedCredentialKind, getAuthedPrincipal, type CredentialKindForbiddenBody } from "#src/server/inbound/admin-http/dev-auth";
 import { withPublishTrustAuthorize, withPublishTrustContentAuthorize } from "#src/server/inbound/admin-http/publish-trust-auth";
 import { registeredPublishTypePermissions } from "#src/features/publish-content/type-registry";
