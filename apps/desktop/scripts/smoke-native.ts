@@ -106,10 +106,16 @@ function spawnSmoke({ targets, ports }: { targets: SmokeTargets; ports: SmokeNat
   if (spawned.error) {
     fail({ message: `smoke-native: failed to spawn ${targets.executablePath}: ${spawned.error.message}` });
   }
-  if (spawned.stdout) ports.out(sanitizeUntrustedText({ text: redactLocalText({ text: spawned.stdout }) }, { maxLength: 2_000 }) + "\n");
-  if (spawned.stderr) ports.err(sanitizeUntrustedText({ text: redactLocalText({ text: spawned.stderr }) }, { maxLength: 2_000 }) + "\n");
+  relaySmokeOutput({ spawned, ports });
   if (spawned.status !== 0) fail({ message: `smoke-native: child failed (code ${spawned.status ?? "none"}, signal ${spawned.signal ?? "none"})\n${spawned.stdout ?? ""}` });
   return spawned.stdout ?? "";
+}
+
+/** Prints the child's stdout and stderr as safe excerpts. Split from {@link spawnSmoke} to keep it under the
+ *  desktop's 9/9 complexity ceiling. */
+function relaySmokeOutput({ spawned, ports }: { spawned: { stdout?: string | null; stderr?: string | null }; ports: SmokeNativePorts }, _options = {}): void {
+  if (spawned.stdout) ports.out(sanitizeUntrustedText({ text: redactLocalText({ text: spawned.stdout }) }, { maxLength: 2_000 }) + "\n");
+  if (spawned.stderr) ports.err(sanitizeUntrustedText({ text: redactLocalText({ text: spawned.stderr }) }, { maxLength: 2_000 }) + "\n");
 }
 
 /** Sequential packaged checks share the isolation lifetime; owner-store diagnostics stay private. */
