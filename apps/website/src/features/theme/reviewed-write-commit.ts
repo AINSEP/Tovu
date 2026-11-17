@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { ToolInputError } from '@jini-ai/core';
 
 /** What a tool reviewed before it asked the persistence owner to write: the file and the SHA-256 it had then. */
 export type ReviewedThemeFile = {
@@ -29,4 +30,16 @@ export async function runReviewedThemeFileWrite<T>(
   const scope: ReviewedWriteScope = { prepared, committed: undefined };
   const result = await reviewedThemeWrite.run(scope, run);
   return { result, committedVersion: scope.committed };
+}
+
+/** The one sentence for a theme file that changed after the tool read it. It says what to do (read again, retry) and that
+ * nothing was written; it is its own error type so it is shown as written, never with a "fix the input" note, because
+ * a different input would not help. */
+export const THEME_FILE_CHANGED_MESSAGE = 'This theme file changed after it was read. Read it again and retry; this change was not applied.';
+
+export class ThemeFileChangedError extends ToolInputError {
+  constructor(_required: Record<string, never> = {}) {
+    super({ message: THEME_FILE_CHANGED_MESSAGE });
+    this.name = 'ThemeFileChangedError';
+  }
 }

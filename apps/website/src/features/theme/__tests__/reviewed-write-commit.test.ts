@@ -38,7 +38,7 @@ test('a write that fails the pin commits nothing and the error propagates', asyn
   const { file } = themeFolder(t);
   const prepared = { file, ...readThemeFileVersion(file) };
   fs.writeFileSync(path.join(file.themeDir, 'p.css'), 'foreign');
-  await assert.rejects(runReviewedThemeFileWrite({ prepared, run: async () => { writeThemeFile({ ...file, content: 'new' }); } }), /changed during review/);
+  await assert.rejects(runReviewedThemeFileWrite({ prepared, run: async () => { writeThemeFile({ ...file, content: 'new' }); } }), /changed after it was read/);
   assert.equal(fs.readFileSync(path.join(file.themeDir, 'p.css'), 'utf8'), 'foreign');
 });
 

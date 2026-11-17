@@ -24,7 +24,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "nod
 import { fileDigest } from '@jini-ai/platform/fs';
 
 import type { ThemeManifest } from "./render-contract.js";
-import { reviewedWriteScope } from "./reviewed-write-commit.js";
+import { ThemeFileChangedError, reviewedWriteScope } from "./reviewed-write-commit.js";
 import { resolveThemeLayout, ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "./theme-layout.js";
 
 /**
@@ -670,7 +670,7 @@ function assertReviewedThemeFileCurrent({ target }: { target: string }, _options
   if (!prepared) return;
   const current = readThemeFileVersion(prepared.file);
   if (target !== prepared.target || current.target !== prepared.target || current.version !== prepared.version) {
-    throw new ThemePathError({ message: 'The theme file changed during review. Read it again and retry; this file was not replaced.' });
+    throw new ThemeFileChangedError();
   }
 }
 
