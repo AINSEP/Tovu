@@ -1,0 +1,350 @@
+{
+  "dashboard": {
+    "total": 27,
+    "byMethod": {
+      "GET": 25,
+      "POST": 2
+    }
+  },
+  "sites": {
+    "total": 28,
+    "byMethod": {
+      "GET": 26,
+      "POST": 2
+    }
+  },
+  "import-export": {
+    "total": 23,
+    "byMethod": {
+      "GET": 22,
+      "POST": 1
+    }
+  },
+  "ai-assistant": {
+    "total": 21,
+    "byMethod": {
+      "GET": 20,
+      "POST": 1
+    }
+  },
+  "pages": {
+    "total": 22,
+    "byMethod": {
+      "GET": 21,
+      "POST": 1
+    }
+  },
+  "posts": {
+    "total": 20,
+    "byMethod": {
+      "GET": 19,
+      "POST": 1
+    }
+  },
+  "media": {
+    "total": 20,
+    "byMethod": {
+      "GET": 19,
+      "POST": 1
+    }
+  },
+  "library": {
+    "total": 22,
+    "byMethod": {
+      "GET": 21,
+      "POST": 1
+    }
+  },
+  "collections": {
+    "total": 20,
+    "byMethod": {
+      "GET": 19,
+      "POST": 1
+    }
+  },
+  "menus": {
+    "total": 20,
+    "byMethod": {
+      "GET": 19,
+      "POST": 1
+    }
+  },
+  "widgets": {
+    "total": 20,
+    "byMethod": {
+      "GET": 19,
+      "POST": 1
+    }
+  },
+  "taxonomy": {
+    "total": 20,
+    "byMethod": {
+      "GET": 19,
+      "POST": 1
+    }
+  },
+  "forms": {
+    "total": 20,
+    "byMethod": {
+      "GET": 19,
+      "POST": 1
+    }
+  },
+  "users": {
+    "total": 23,
+    "byMethod": {
+      "GET": 22,
+      "POST": 1
+    }
+  },
+  "authentication": {
+    "total": 19,
+    "byMethod": {
+      "GET": 18,
+      "POST": 1
+    }
+  },
+  "roles": {
+    "total": 21,
+    "byMethod": {
+      "GET": 20,
+      "POST": 1
+    }
+  },
+  "members": {
+    "total": 20,
+    "byMethod": {
+      "GET": 19,
+      "POST": 1
+    }
+  },
+  "comments": {
+    "total": 22,
+    "byMethod": {
+      "GET": 21,
+      "POST": 1
+    }
+  },
+  "themes": {
+    "total": 20,
+    "byMethod": {
+      "GET": 19,
+      "POST": 1
+    }
+  },
+  "admin-ui": {
+    "total": 19,
+    "byMethod": {
+      "GET": 18,
+      "POST": 1
+    }
+  },
+  "admin-themes": {
+    "total": 19,
+    "byMethod": {
+      "GET": 18,
+      "POST": 1
+    }
+  },
+  "admin-appearance": {
+    "total": 19,
+    "byMethod": {
+      "GET": 18,
+      "POST": 1
+    }
+  },
+  "design-system": {
+    "total": 20,
+    "byMethod": {
+      "GET": 19,
+      "POST": 1
+    }
+  },
+  "playground": {
+    "total": 19,
+    "byMethod": {
+      "GET": 18,
+      "POST": 1
+    }
+  },
+  "plugins": {
+    "total": 20,
+    "byMethod": {
+      "GET": 19,
+      "POST": 1
+    }
+  },
+  "agent-plugins": {
+    "total": 24,
+    "byMethod": {
+      "GET": 22,
+      "POST": 2
+    }
+  },
+  "skills": {
+    "total": 22,
+    "byMethod": {
+      "GET": 20,
+      "POST": 2
+    }
+  },
+  "providers": {
+    "total": 22,
+    "byMethod": {
+      "GET": 21,
+      "POST": 1
+    }
+  },
+  "integrations": {
+    "total": 20,
+    "byMethod": {
+      "GET": 19,
+      "POST": 1
+    }
+  },
+  "orders": {
+    "total": 19,
+    "byMethod": {
+      "GET": 18,
+      "POST": 1
+    }
+  },
+  "products": {
+    "total": 19,
+    "byMethod": {
+      "GET": 18,
+      "POST": 1
+    }
+  },
+  "subscriptions": {
+    "total": 19,
+    "byMethod": {
+      "GET": 18,
+      "POST": 1
+    }
+  },
+  "billing": {
+    "total": 19,
+    "byMethod": {
+      "GET": 18,
+      "POST": 1
+    }
+  },
+  "database": {
+    "total": 21,
+    "byMethod": {
+      "GET": 20,
+      "POST": 1
+    }
+  },
+  "recovery": {
+    "total": 21,
+    "byMethod": {
+      "GET": 20,
+      "POST": 1
+    }
+  },
+  "deployment": {
+    "total": 20,
+    "byMethod": {
+      "GET": 19,
+      "POST": 1
+    }
+  },
+  "source-control": {
+    "total": 21,
+    "byMethod": {
+      "GET": 20,
+      "POST": 1
+    }
+  },
+  "access-tokens": {
+    "total": 32,
+    "byMethod": {
+      "GET": 31,
+      "POST": 1
+    }
+  },
+  "observability": {
+    "total": 20,
+    "byMethod": {
+      "GET": 20
+    }
+  },
+  "activity-log": {
+    "total": 18,
+    "byMethod": {
+      "GET": 18
+    }
+  },
+  "settings": {
+    "total": 29,
+    "byMethod": {
+      "GET": 27,
+      "POST": 2
+    }
+  },
+  "consent": {
+    "total": 21,
+    "byMethod": {
+      "GET": 20,
+      "POST": 1
+    }
+  },
+  "workspace": {
+    "total": 29,
+    "byMethod": {
+      "GET": 28,
+      "POST": 1
+    }
+  },
+  "email": {
+    "total": 20,
+    "byMethod": {
+      "GET": 20
+    }
+  },
+  "notifications": {
+    "total": 21,
+    "byMethod": {
+      "GET": 20,
+      "POST": 1
+    }
+  },
+  "trash": {
+    "total": 20,
+    "byMethod": {
+      "GET": 20
+    }
+  },
+  "seo": {
+    "total": 19,
+    "byMethod": {
+      "GET": 19
+    }
+  },
+  "redirects": {
+    "total": 19,
+    "byMethod": {
+      "GET": 19
+    }
+  },
+  "newsletter": {
+    "total": 18,
+    "byMethod": {
+      "GET": 18
+    }
+  },
+  "analytics": {
+    "total": 19,
+    "byMethod": {
+      "GET": 19
+    }
+  },
+  "appearance": {
+    "total": 19,
+    "byMethod": {
+      "GET": 19
+    }
+  }
+}
