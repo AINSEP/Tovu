@@ -1,3 +1,6 @@
+> **REVISION 2 HOLD (2026-11-17): do NOT dispatch this sheet as written.** The Codex judge's finding(s) below were checked against the code and accepted; the redesign is not written yet (INDEX §7 and "Revision 2 - judge response"). Until this banner is removed the sheet is input for the next planning run, not an executor brief.
+> Findings 12, 16: `features/taxonomy/repo.ts` is 555 lines and needs a file partition before it can land under the 500-line limit; line 24 calls navigation's SQLite binding unused while this sheet's own facts list 3 production + 2 test importers.
+
 # S1 — taxonomy, navigation and presentation SQL repos -> `@jini-ai/cms/{taxonomy,navigation,presentation}/sql`
 
 Template: T-SQLREPO. Facts: `S1-taxonomy-navigation-presentation-sql.facts.md` (8 files, 1,130 lines, 18 test files).

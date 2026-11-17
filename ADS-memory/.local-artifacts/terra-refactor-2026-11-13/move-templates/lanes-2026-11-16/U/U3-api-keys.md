@@ -1,3 +1,6 @@
+> **REVISION 2 HOLD (2026-11-17): do NOT dispatch this sheet as written.** The Codex judge's finding(s) below were checked against the code and accepted; the redesign is not written yet (INDEX §7 and "Revision 2 - judge response"). Until this banner is removed the sheet is input for the next planning run, not an executor brief.
+> Findings 11, 12, 15: the middleware test needs a valid-key positive control (resolved principal + credential kind) before the revoked/unknown denial cases; `issueApiKey` (`api-key-service.ts:277-361`) is over the 50-line limit and `findIssuableTargetOrThrow` (`:193`) and `collectSnapshotSourceRows` (`:222`) are missing from the declaration map; Jini's `assertGrantClamp` **is exported** from its leaf (`packages/user-management/src/server/grant-service.ts:174`), so U3b compares and reuses it and U3c disappears.
+
 # U3 — API keys (types, secret hasher, service, SQL repo) -> `@jini-ai/user-management`
 
 Security code. Kind: SPLIT + SQLREPO. Facts: `U3-api-keys.facts.md` (4 files, 877 lines; plus `SqlApiKeyRepo`,

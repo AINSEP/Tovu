@@ -1,3 +1,6 @@
+> **REVISION 2 HOLD (2026-11-17): do NOT dispatch this sheet as written.** The Codex judge's finding(s) below were checked against the code and accepted; the redesign is not written yet (INDEX §7 and "Revision 2 - judge response"). Until this banner is removed the sheet is input for the next planning run, not an executor brief.
+> Finding 10: `features/settings/repo.ts` has no `expectedRevision` (0 matches); writes are unconditional upserts and the revision lock orders ledger commits. Either the lost-updates lane lands first and this sheet is regenerated, or the test characterizes today's behaviour. Token action/target checks are not in the store adapter (`redeem` takes `{ token, now }`). Prerequisite text: xpkg `R11 (db)` no longer exists (the `db → platform` edge is gone on merge-a); nothing to wait for there.
+
 # S5 — settings repo, gated-mutation token store, verified-origin repo -> `@jini-ai/db/{settings,gated-mutations,verified-origin}`
 
 Template: T-SQLREPO. Facts: `S5-settings-token-origin-sql.facts.md` (7 files, 943 lines, 12 test files).

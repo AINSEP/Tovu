@@ -1,3 +1,6 @@
+> **REVISION 2 HOLD (2026-11-17): do NOT dispatch this sheet as written.** The Codex judge's finding(s) below were checked against the code and accepted; the redesign is not written yet (INDEX §7 and "Revision 2 - judge response"). Until this banner is removed the sheet is input for the next planning run, not an executor brief.
+> Finding 7 (S6c only; S6a/S6b are not affected by it): `platform/db/repos/form-delivery-repo.ts:12,131` calls `outboxEventValues` inside the plan transaction; S6a moves that mapper to `@jini-ai/db/events` and cms may not import db, so S6c needs a host-injected mapper port that inserts in the caller's transaction, with rollback and exact stored-row tests. Prerequisites renamed by the xpkg revision: S6b waits for xpkg `R11b-3` (integrations), S6c for xpkg `R6-R9`.
+
 # S6 — change-set, outbox, webhook and form-delivery SQL repos
 
 Template: T-SQLREPO. Facts: `S6-changeset-outbox-webhook-formdelivery-sql.facts.md` (13 files, 1,364 lines, 40 test files).

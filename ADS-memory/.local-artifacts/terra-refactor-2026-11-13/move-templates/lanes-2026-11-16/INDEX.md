@@ -1,6 +1,7 @@
 # Lanes S (database code) and U (users): plan index — 2026-11-16/17, planning only, nothing executed
 
-Status: **PARTIAL** (context budget reached). Written: 12 hand sheets + 11 generated facts files + 1 template.
+Status: **PARTIAL, revision 2 (2026-11-17): every sheet is on HOLD** (banner at the top of each; context budget reached again). All 16 judge findings were verified against code and accepted; none is fixed in a sheet body yet. See "Revision 2 - judge response" at the end.
+Round-1 status: PARTIAL (context budget reached). Written: 12 hand sheets + 11 generated facts files + 1 template.
 Remaining work is numbered in "Not written".
 
 Code read from Tovu `origin/integ/merge-b-2026-11-16` @ `491632dc5` (it exists, so it replaced `refactor/terra`; all seven
@@ -25,7 +26,7 @@ Scope was re-derived by role (Kysely repos, their bindings, the named contracts 
 | S, new sheets here | 7,222 | S1-S8 below |
 | U, new sheets here | 2,695 | U1, U2a, U2b, U3 |
 | S/U, no executable sheet (planned-not-written, STAY, or another lane's) | 2,332 | see "Not written"; includes `trash/ports.ts` 61 and `origin/configured-origin.ts` 82 (STAY) |
-69 of the 100 files had a CLASSIFY label and no sheet; 31 had no label at all (among them `identity/repo.ts` 710, `members/repo.ts` 604, `settings/repo.ts` 426).
+Recount from `coverage.tsv` (judge finding 16; round 1 said 69/31): **60 of the 100 files have a CLASSIFY label, 40 have none; 51 labelled files have no sheet or design mention** (`awk -F'\t' 'NR>1{l=($4==""||$4=="-")?"unlabelled":"labelled"; m=($6==""||$6=="-")?"nomention":"mention"; c[l" "m]++} END{for(k in c) print c[k], k}' coverage.tsv`). Unlabelled files include `identity/repo.ts` 710, `members/repo.ts` 604, `settings/repo.ts` 426.
 
 ## 3. Sheets (assemble: `cat T-SQLREPO.md <sheet>.md <sheet>.facts.md ../COMMON.md`)
 | Run | Sheet | Lines | Target | Est. tokens (one Sonnet run) | Needs |
@@ -111,3 +112,37 @@ and its Tovu class (made a guarded step 0, not a claim); per-function size/compl
 dynamic `import()`/string-built paths and non-TS consumers beyond the four baseline JSON files; tests importing through
 barrels (counted against the barrel, not the repo); nothing was compiled or run. The generator's "npm imports" column has
 regex false positives from comments (noted in S4). The sandbox clock was unreliable, so no wall-clock figures are given.
+
+## Revision 2 - prerequisites aligned with the revised xpkg sheets (`plan/xpkg-lane-sheets-2026-11-16`, revision 2)
+- Base: the same paired state as xpkg COMMON (both repos contain merge-a **and** merge-b; Tovu merge-b alone does not typecheck against Jini merge-a). Round 1 read Tovu merge-b and Jini `refactor/terra`: every guard and facts file must be regenerated on the pair.
+- Names: xpkg `R11` is now `R11a`, `R11b-1..3`, `R11c`. S5's "R11 (db)" has no remaining edge (nothing to wait for); S6b waits for `R11b-3` (integrations); S6c waits for `R6-R9`; user-management sheets wait for `C9c` + `R3b` (xpkg R3a was deleted: option C keeps `@jini-ai/ui-kit/react`).
+- Rule: a Jini package imports only itself + core + protocol. xpkg `R6-R9` §2 removes the one existing `cms/forms/sql → @jini-ai/db/kernel` import by injecting a `ColumnCatalogPort`, so **OD-5 here has one answer left: inject the dialect helpers as a small port per package**; the alternative ("allow `*/sql` subpaths to import `@jini-ai/db/kernel`") contradicts the owner rule and is withdrawn.
+- Node bindings: any S/U adapter that needs a Node fs/lock/process binding takes the port and the host passes `@jini-ai/node-adapters` (xpkg N1, owner decision of 2026-11-16); nothing moves to the server preset.
+- Decision ids: this file's OD-1..OD-7 are local to lanes S/U (its OD-3 is the members-SQL destination, not the xpkg OD-3 about `@jini-ai/node-adapters`).
+- No coordinator-applied edits: `write-path-inventory.baseline.json` rows and the P-DEP `kysely` peer + lockfile belong to the commit that needs them, serialized by chain order (to be written into T-SQLREPO; finding 13).
+
+## Revision 2 - judge response
+Verified on Tovu merge-a `e801e9ae` (paths under `apps/website/src/`) and Jini merge-a `dde69a6d` + merge-b `9c982fd9`. **16 accepted, 0 rebutted. Fixed in this revision: 16 (counts) and the prerequisite names; the other 15 are accepted and put on HOLD by banner, redesign not written (PARTIAL items R2-1..R2-15 below).**
+
+| # | Severity | Verdict | What changed (file) | Evidence |
+|---|---|---|---|---|
+| 1 | Blocker | ACCEPT, not yet redesigned | HOLD banner `S/S2`; PARTIAL R2-1 | `features/media/access-evidence.ts:35` takes `{ owner: object }`; `features/entries/repo.ts:129-130,223` invalidate in `finally` |
+| 2 | Blocker | ACCEPT, not yet redesigned | HOLD banner `U/U2`; R2-2 (same work as round-1 item 4, U2c) | `features/members/password-auth.ts:7-9` imports 5 helpers from `./write-service.js` |
+| 3 | Blocker | ACCEPT, not yet redesigned | HOLD banner `U/U2`; R2-3 | `features/members/access-resolver.ts:16` imports `node:crypto` |
+| 4 | Blocker | ACCEPT, not yet redesigned | HOLD banner `S/S4`; R2-4 | `features/trash/registry.ts:164` `buildTrashRegistry(): TrashRegistry` (no input) |
+| 5 | Major | ACCEPT, not yet redesigned | HOLD banner `U/U1`; R2-5 | judge's lines; not re-read beyond the banner facts |
+| 6 | Major | ACCEPT, not yet redesigned | HOLD banner `S/S2`; R2-6 | judge's lines (`content-types/repo.rows.ts:10,31,51-53`); not re-read |
+| 7 | Major | ACCEPT, not yet redesigned | HOLD banner `S/S6` (S6c); R2-7 | owner rule (cms may not import db); judge's lines not re-read |
+| 8 | Major | ACCEPT, not yet redesigned | HOLD banners `S/S0`, `S/S3`; R2-8 | judge's lines; not re-read |
+| 9 | Major | ACCEPT, not yet redesigned | HOLD banner `U/U2`; R2-9 | `access-resolver.ts` has `createHash` only; no `timingSafeEqual` in the file |
+| 10 | Major | ACCEPT, not yet redesigned | HOLD banner `S/S5`; R2-10 | `rg -c expectedRevision features/settings/repo.ts` → 0 |
+| 11 | Major | ACCEPT, not yet redesigned | HOLD banner `U/U3`; R2-11 | logic of the test (equal denial does not prove the call) |
+| 12 | Major | ACCEPT, not yet redesigned | HOLD banners `S/S1`, `U/U3`; R2-12 | `features/taxonomy/repo.ts` 555 lines; `api-key-service.ts:193,222,277` |
+| 13 | Major | ACCEPT, not yet redesigned | HOLD banners `T-SQLREPO`, `S/S0`; R2-13 | Tovu root `package.json:37` `typecheck:tests` (`tsconfig.tests.json`) |
+| 14 | Major | ACCEPT, not yet redesigned | HOLD banners `T-SQLREPO`, `S/S0`; R2-14 | judge's lines; not re-read |
+| 15 | Major | ACCEPT, not yet redesigned | HOLD banner `U/U3`; R2-15 | Jini `packages/user-management/src/server/grant-service.ts:174` `export async function assertGrantClamp` |
+| 16 | Minor | ACCEPT, counts fixed | INDEX §2 recount (60 / 40 / 51); the two contradictory "unused binding" lines are named in the `S/S1`, `S/S2` banners | `coverage.tsv` (awk above) |
+
+### PARTIAL: not yet addressed (numbered)
+R2-1 S2 owner-preserving invalidation callback incl. transaction completion and failure; test real linked-cache invalidation. R2-2 design the shared owner of the five password helpers (token generation, fallback hasher, dummy-hash cache) before U2b. R2-3 split universal member contracts from a Node auth entry (manifest lines, importer updates). R2-4 land registry contracts with or before S4a; fixed registry stays in Tovu; drop the invented validator. R2-5 U1a/U1b exact intermediate file, bindings, `withoutId` owner, successor guards. R2-6 S2 declared-owner lookup + diagnostics contract, `EntryPublishReadPort` and query contract destinations (`offset`). R2-7 S6c mapper port inside the caller's transaction. R2-8 re-trace each stored credential to its producer; mutation per pin; outer anti-replay transaction; MFA clear deletes passkeys. R2-9 replace U2 rows 27-28 with the real resolver/sign-in chain. R2-10 S5 against lost-updates (prerequisite) or today's behaviour. R2-11 U3 positive control, session precedence, machine-credential restrictions. R2-12 partitions for taxonomy repo and `issueApiKey`; full U3 declaration map. R2-13 T-SQLREPO adopts the xpkg COMMON verification table (per-commit commands incl. `typecheck:tests`, STOP protocol, no coordinator edits). R2-14 schedule `repo-transactions.sqlite.test.ts` across S3/S5/S6/S7; regenerate importer inventories after S0. R2-15 U3b grant-clamp comparison and reuse (removes U3c).
+Round-1 items 1-8 (§7) are all still open; the judge's reading of them is accepted: item 4 (U2c) is a prerequisite of U2b (= R2-2); item 5 (U3c) folds into U3b (= R2-15); item 8 (exact wiring texts, table types) is acceptance-critical content of the existing sheets, not a later feature; item 1 needs per-file ownership; item 3 stays blocked on OD-6; item 7's importer edits must enter the execution graph; items 2 and 6 unchanged.

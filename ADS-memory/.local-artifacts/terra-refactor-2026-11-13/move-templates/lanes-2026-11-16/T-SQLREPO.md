@@ -1,3 +1,6 @@
+> **REVISION 2 HOLD (2026-11-17): do NOT dispatch this sheet as written.** The Codex judge's finding(s) below were checked against the code and accepted; the redesign is not written yet (INDEX §7 and "Revision 2 - judge response"). Until this banner is removed the sheet is input for the next planning run, not an executor brief.
+> Findings 13, 14: the template promises green commits while `../COMMON.md:9` forbids tests, typechecks and builds, and it leaves `write-path-inventory.baseline.json` and P-DEP to a coordinator (same contradiction the xpkg COMMON removed: see `untangle/sheets-2026-11-16/COMMON.md` "There are no coordinator-only files" and its STOP table, which this template must adopt); `platform/db/sqlite/__tests__/repo-transactions.sqlite.test.ts` is assigned to S3, S5, S6 and S7 in parallel chains.
+
 # T-SQLREPO: a Tovu Kysely repo moves into the Jini package that owns its port; Tovu keeps the binding
 
 Lane-local template for lanes S and U (2026-11-16). It generalises the one worked SQL-repo sheet,

@@ -1,3 +1,6 @@
+> **REVISION 2 HOLD (2026-11-17): do NOT dispatch this sheet as written.** The Codex judge's finding(s) below were checked against the code and accepted; the redesign is not written yet (INDEX §7 and "Revision 2 - judge response"). Until this banner is removed the sheet is input for the next planning run, not an executor brief.
+> Findings 1, 6, 16: the invalidation port must keep today's contract `invalidateMediaAccessEvidence({ owner: object })` keyed by repository identity, called in `finally` from `save` (`features/entries/repo.ts:129-130`) and `transaction` (`:223`), i.e. **also after a failed write**; `declaredOwnerFor` / `DECLARED_CONTENT_TYPE_OWNERS`, `EntryPublishReadPort` and the query contracts (incl. `offset`) have no destination yet; line 31 calls the content-type SQLite binding production-unused while the facts list 3 production importers.
+
 # S2 — entries and content-types SQL repos -> `@jini-ai/cms/{entries,content-types}/sql`
 
 Template: T-SQLREPO. Facts: `S2-entries-content-types-sql.facts.md` (8 files, 754 lines, 27 test files).

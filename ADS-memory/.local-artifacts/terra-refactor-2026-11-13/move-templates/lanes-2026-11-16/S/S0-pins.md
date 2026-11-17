@@ -1,3 +1,6 @@
+> **REVISION 2 HOLD (2026-11-17): do NOT dispatch this sheet as written.** The Codex judge's finding(s) below were checked against the code and accepted; the redesign is not written yet (INDEX §7 and "Revision 2 - judge response"). Until this banner is removed the sheet is input for the next planning run, not an executor brief.
+> Findings 8, 13, 14: P5 names the wrong hash producer (member-session and magic-token hashes come from the `NodeSessionTokens` instance in `features/members/write-service.ts:58,80-85`, not from identity wiring); P6 is a type-level test under `__tests__`, which only `npm run typecheck:tests` (root `package.json:37`, `tsconfig.tests.json`) compiles; the new `__tests__/lane-su-pins/` files are importers that every later sheet's frozen importer list must be regenerated to include.
+
 # S0 — pins on UNMOVED code (gate for every other S and U sheet). Tests only, Tovu only, no production edit.
 
 ```

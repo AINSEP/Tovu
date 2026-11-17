@@ -1,3 +1,6 @@
+> **REVISION 2 HOLD (2026-11-17): do NOT dispatch this sheet as written.** The Codex judge's finding(s) below were checked against the code and accepted; the redesign is not written yet (INDEX §7 and "Revision 2 - judge response"). Until this banner is removed the sheet is input for the next planning run, not an executor brief.
+> Finding 4: S4a moves `entry-sql.ts` and `not-trashed.ts`, which import registry contracts that only S4b moves (S4a cannot compile alone); `buildTrashRegistry()` (`features/trash/registry.ts:164`) takes no input and returns a fixed map: there is no validator to extract, the fixed product registry stays in Tovu, and the planned duplicate/unknown-table characterization has nothing to characterize.
+
 # S4 — trash: SQL repo, table adapter kit, registry contracts -> `@jini-ai/cms/trash/sql` (adapters for other domains stay in Tovu)
 
 Template: T-SQLREPO for S4a; T-SPLIT for S4b. Facts: `S4-trash-sql.facts.md` (19 files, 2,311 lines, 40 test files).

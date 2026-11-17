@@ -1,3 +1,6 @@
+> **REVISION 2 HOLD (2026-11-17): do NOT dispatch this sheet as written.** The Codex judge's finding(s) below were checked against the code and accepted; the redesign is not written yet (INDEX §7 and "Revision 2 - judge response"). Until this banner is removed the sheet is input for the next planning run, not an executor brief.
+> Finding 8: row 61 describes an MFA-store passkey read (the only `owner_passkeys` operation in `mfa.repo.ts:48-53` is the delete in `clear`); row 59 treats `factor` + `saveFactor` as one locked sequence (each opens its own transaction; the anti-replay unit is the caller's outer identity transaction, pinned by `mfa.repo.dialects.test.ts:59-67`).
+
 # S3 — identity SQL adapters (principals, users, sessions, roles, policies, MFA, passkeys, recovery codes) -> `@jini-ai/user-management/server/sql`
 
 Security code. Template: T-SQLREPO. Facts: `S3-identity-sql.facts.md` (9 files, 1,144 lines, 19 test files).

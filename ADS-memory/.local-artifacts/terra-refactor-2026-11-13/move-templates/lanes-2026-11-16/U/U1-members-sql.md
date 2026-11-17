@@ -1,3 +1,6 @@
+> **REVISION 2 HOLD (2026-11-17): do NOT dispatch this sheet as written.** The Codex judge's finding(s) below were checked against the code and accepted; the redesign is not written yet (INDEX §7 and "Revision 2 - judge response"). Until this banner is removed the sheet is input for the next planning run, not an executor brief.
+> Finding 5: the U1a/U1b split has no compilable middle state (all seven bindings import one `repo.ts`, which T1 deletes; `withoutId` at `features/members/repo.ts:122` is shared by both halves). Needs U1a's exact remaining file, bindings and successor guards.
+
 # U1 — members SQL repos -> `@jini-ai/user-management/members/sql`
 
 Template: T-SQLREPO. Facts: `U1-members-sql.facts.md` (3 files, 974 lines, 16 test files).

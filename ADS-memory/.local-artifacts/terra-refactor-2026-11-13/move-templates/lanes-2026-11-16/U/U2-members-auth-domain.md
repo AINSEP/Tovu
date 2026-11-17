@@ -1,3 +1,6 @@
+> **REVISION 2 HOLD (2026-11-17): do NOT dispatch this sheet as written.** The Codex judge's finding(s) below were checked against the code and accepted; the redesign is not written yet (INDEX §7 and "Revision 2 - judge response"). Until this banner is removed the sheet is input for the next planning run, not an executor brief.
+> Findings 2, 3, 9: `password-auth.ts:7-9` imports five runtime helpers from `write-service.ts` (U2c, unwritten), so U2b cannot run before a design for their shared owner; the target entry `@jini-ai/user-management/members` is universal while `access-resolver.ts:16` imports `node:crypto` (needs a separate Node entry with manifest lines); the resolver has **no** constant-time compare (it only imports `createHash`) and reads sessions/subscriptions/tiers, not member status: rows 27-28 must be replaced by the real chain.
+
 # U2 — members auth domain (write service, access resolver, password auth, mail glue)
 
 Facts: `U2-members-auth-domain.facts.md` (15 files, 3,469 lines, 55 test files, 54 prod importers, 12 baseline rows).
