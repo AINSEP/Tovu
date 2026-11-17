@@ -22,9 +22,12 @@ async function collect(entries: readonly DropEntry[]) {
     if (files.length >= 256 || total > 8 * 1024 * 1024) throw limit({ message: "Choose up to 256 files, 8 MiB total." });
     files.push(file); paths.push(entry.fullPath.replace(/^\/+/, ""));
   }
-  async function walk({ entry, depth }: { entry: DropEntry; depth: number }, _optional = {}): Promise<void> {
+  function countVisit({ depth }: { depth: number }, _optional = {}): void {
     visited += 1;
     if (visited > 512 || depth > 16) throw limit({ message: "Skill folder has too many entries or is too deep." });
+  }
+  async function walk({ entry, depth }: { entry: DropEntry; depth: number }, _optional = {}): Promise<void> {
+    countVisit({ depth });
     if (entry.isFile) {
       await collectFile({ entry });
       return;
