@@ -1,87 +1,90 @@
-# Lanes K and T: extraction plan index (2026-11-16/17, planning only) — STATUS: PARTIAL (see "What remains")
+# Lanes K and T: extraction plan index - REVISION 2 (2026-11-17, planning only) - STATUS: PARTIAL (see "What remains")
+Docs only. No source edited; no build or test was run (the generator scripts were run to produce the sidecars).
+Code verified against: `integ/merge-final-2026-11-16` did not exist. Used Tovu `integ/merge-a-2026-11-16` e801e9ae (has the size-03/04/05 shapes: `http/site/render/`, `routes/site/pages/`, `posts/editor/`) for every sidecar, cross-checked with Tovu `integ/merge-b-2026-11-16` 450ac748 (7 sheet files differ: `BLOB-DRIFT.tsv`), and Jini `integ/merge-a-2026-11-16` dde69a6d. Regenerate on the final merge before dispatch: `python3 scripts/gen.py <dir> && python3 scripts/decls.py <dir> && node scripts/symbols.cjs <dir>` from the Tovu code root.
+Personas: software-architect (lead), refactor, programmer, tdd, security. Skills: implementation-guardrails, feature-slice-design, refactor-patterns, architecture-migration, hexagonal-architecture, testable-design-patterns, test-design, security-review. Lessons 1-39 read.
 
-Unattended planning run, docs only. No source edited, nothing executed, no tests run.
-Code read from: Tovu `integ/merge-b-2026-11-16` 491632dc (contains `refactor/terra` and all seven `moves/*` branches; `integ/merge-a` did not exist), `refactor/size-04-pages` 4efdc527 and `refactor/size-05-posteditor` d0d599e4 for the new folder shapes (neither is in merge-b), Jini `refactor/terra` 02edbb68.
-Personas: software-architect (lead), refactor, programmer, tdd. Skills: implementation-guardrails, feature-slice-design, refactor-patterns, architecture-migration, hexagonal-architecture, testable-design-patterns, test-design.
-
-## Verified size now (source lines, tests excluded; `K/INVENTORY.tsv`, `T/INVENTORY.tsv`, one row per file with blob)
-| lane | folders (`apps/website/src/features/`) | lines | 11-05 number |
+## Size now (merge-a; source files, tests excluded)
+| lane | source files | lines | by label |
 |---|---|---|---|
-| K | redirects 806, widgets 1,480, comments 1,423, seo 1,244, taxonomy 2,022, trash 3,732, webhooks 3,892, forms 2,178, form-destinations 686 | 17,463 | ~7.3k |
-| T | theme 15,934, post 9,169, newsletter 5,223 | 30,326 | ~21.9k |
-The 11-05 numbers counted only the parts then planned to move. By label now: K = MOVE 3,873 + SPLIT 3,381 + MOVE-AFTER 2,759 (in scope 10,013) + STAY 7,450 (3,297 of it is webhooks keyring/sealer/site-key code that belongs to row 57 and audit2 B09, not lane K). T = already covered 4,328 + MOVE 2,281 + SPLIT 6,340 + MOVE-AFTER 13,063 + owner decision 721 + STAY 3,593.
-Tests in these folders: K 175 files / 30,531 lines, T 217 files / 40,028 lines (counted, not classified per test).
+| K | 125 | 17,452 | MOVE 3,344 + SPLIT 3,381 + MOVE-AFTER 3,315 + STAY 7,412 (3,297 of STAY is webhooks keyring/sealer = row 57 / audit2 B09) |
+| T | 116 | 30,291 | covered by B04/B05 4,305 + MOVE 1,845 + SPLIT 6,561 + MOVE-AFTER 13,210 + owner decision 797 + STAY 3,573 |
+241 source files (round 1's "233" was stale; its inventories held 240; merge-a adds `theme/public-theme-resources.ts`). Tests: K 175 files / 30,534 lines, T 217 files / 40,031 lines = 392 files, still not classified per test.
 
-## Already covered (not planned twice)
-- Domain layers of redirects, widgets, comments, seo, taxonomy, trash, forms are already in `@jini-ai/cms` (subpaths exist); what is left in Tovu is tools, SQL repos, bindings.
-- audit2 B04 theme engine (5 slices, 2,546 lines; T1-T3 ready, T4 blocked, T5 design) and B05 newsletter campaign (1,782 lines): sheets exist on `plan/audit2-sheets-b`. Their blobs are from `integ/wave-b` and two files have changed size since: refresh before running.
-- audit2 a04 (admin widget config editors), B12 (form delivery source-gone): sheets exist.
-- Done on `moves/*` (all in merge-b): only two K/T-adjacent slices: content scoring -> `@jini-ai/cms/seo/content-analysis`, sitemap/llms serializers -> `@jini-ai/cms/seo`. No K/T feature file moved yet.
-- Size designs 03 (render.ts), 04 (pages.ts), 05 (PostEditor) are done on their branches; they changed the CONSUMERS of theme/post code, not the feature folders (size-04 touches 3 theme source files by a few lines).
-- Blocked on the publish framework (audit2 B02/B08, CLASSIFY row 140), listed only: `publish-content.ts` of redirects 157, widgets 255, taxonomy 116 (+ `publish-term-ids.ts` 116), forms 81, post 580, theme 831, `theme/active-theme-publish-content.ts` 110.
-- Finding: audit2's index lists sheets B06, B13, B17, B26, B28, B30, B31, B33 as written, but none of those files is on `plan/audit2-sheets-b2` (the commits changed only the index). K-09 here replaces B17.
+## How a sheet is assembled (one run = one sheet file; the assembled text is one contract)
+- Tool sheets: `cat K/K-TOOLS-PATTERN.md K/<sheet>.md COMMON-KT.md`. Move sheets: `cat T-KT-MOVE.md <K|T>/<sheet>.md COMMON-KT.md`.
+- The shared `COMMON.md`, `T-MOVE.md`, `T-SPLIT.md` are NOT used by these lanes (they forbid tests and defer edits to a coordinator).
+- Sidecars per id: `.files.tsv` (blobs), `.decls.tsv`, `.fnsize.tsv` (functions > 40 code lines, file sizes), `.importers.tsv` (symbol-level, incl. barrel consumers and re-export lines to delete), `.tools.tsv` (real tools from the AST, checked against catalog + risk map), `.census.txt`.
 
-## Sheets (assemble: `cat T-<KIND>.md [K/K-TOOLS-PATTERN.md] <sheet>.md COMMON.md`; sidecars `<id>.files.tsv` blobs, `.decls.tsv` declarations + measured spans, `.repoint.tsv` import sites, `.census.txt`)
-| id | what | lines | state | prerequisites | est tokens |
-|---|---|---|---|---|---|
-| K-01 | redirects tools -> cms/redirects | 517 | READY | - | 150k |
-| K-02 (+02b) | widgets tools -> cms/widgets (+ media-html) | 853 + 179 | READY (02b: diff first) | - | 210k + 60k |
-| K-03 | comments tools -> cms/comments | 594 | READY | - | 170k |
-| K-04 (+04b) | seo tools -> cms/seo (+ cover/head = B21) | 539 + 139 | READY (04b blocked) | 04b: T-PO-02 | 140k + 60k |
-| K-05 (+05b) | taxonomy tool handlers (+ follow-ups) | 450 + 481 | READY (05b design) | 05b: K-05 | 230k + 120k |
-| K-06 | taxonomy SQL repo -> cms/taxonomy/sql (new) | 636 | READY | - | 110k |
-| K-07 | trash tools -> cms/trash | 924 | READY | - | 200k |
-| K-08 | trash SQL + table adapter -> cms/trash/sql (new) | 950 | needs Opus split of one 287-line factory | - | 220k |
-| K-09 | webhook tools -> integrations/webhooks/tools | 595 | READY | - | 180k |
-| K-10 | forms tools -> cms/forms (2 runs) | 1,017 | READY | - | 310k |
-| K-11 | forms leftovers + destinations | 1,414 | DESIGN | Opus pass | 150k + 450k |
-| T-TH-01 | theme pure render leaves | 290 | READY | B04 T1 | 90k |
-| T-TH-02 | theme validation (manifest, markup, webmcp, package) | 1,427 | READY | B04 T1, T3, T4 | 200k |
-| T-TH-03 | listing render + render contract | 736 | READY, Opus review | - | 170k |
-| T-TH-04 | template linters | 721 | OWNER D-T2 | D-T2 | 120k |
-| T-TH-05 | theme-files | 1,344 | DESIGN | size split | 150k + 400k |
-| T-TH-06 | static-render engine (+2 files) | 2,043 | DESIGN | size split, T-TH-05 | 200k + 600k |
-| T-TH-07 | theme file lifecycle (= B10) | 1,677 | outline | T-TH-05 | 360k |
-| T-TH-08 | theme tools | 2,415 | outline | T-TH-06, T-TH-07 | 550k |
-| T-PO-01 | post pure leaves (6 files, 6 pairs) | 564 | READY | - | 150k |
-| T-PO-02 | post cover image -> cms/media/node | 268 | READY, Opus review | - | 130k |
-| T-PO-03 | post.ts domain | 2,596 | DESIGN | size split | 200k + 800k |
-| T-PO-04 | post repos, search, reverters (= B18) | 2,067 | outline | T-PO-03 | 510k |
-| T-PO-05 | post tools | 2,802 | outline | T-PO-03 | 900k |
-| T-NL-01 | newsletter send/subscribe/confirm | 1,113 | READY after B05 | B05, D-T1 | 330k |
-| T-NL-02 | newsletter SQL | 1,009 | READY after B05 | B05, D-T1 | 170k |
-| T-NL-03 | newsletter tools | 996 | outline | T-NL-01 | 320k |
-Total estimate, new sheets: K about 2.8M, T about 6.4M (theme 2.8M, posts 2.7M, newsletter 0.8M), plus B04 0.57M and B05 0.15M from their own sheets: about 9.9M executor tokens. Runnable now without a decision or a design: K-01..K-04, K-06, K-07, K-09, K-10, T-PO-01, T-PO-02, T-TH-03 = about 1.9M.
-"READY" means: files, blobs, declarations, importers, ports and tests are specified; the handler-by-handler body text is NOT pre-written (the seam steps produce it in Tovu under green tests). "outline" = files and risks only.
+## Dispatchable sheets (each: one Sonnet run, every commit green and pushed)
+| id | file | what | prerequisite (command in the sheet) | est |
+|---|---|---|---|---|
+| K-01 | K/K-01-redirects-tools.md | 7 redirects tools -> cms/redirects | - | 170k |
+| K-02 | K/K-02-widgets-tools.md | 12 widgets tools -> cms/widgets (+ file partition) | - | 230k |
+| K-02b | K/K-02b-widgets-media-html.md | media-html -> cms/widgets/html | none (first step decides move vs skip by command) | 70k |
+| K-03 | K/K-03-comments-tools.md | 10 comments tools -> cms/comments | - | 200k |
+| K-04 | K/K-04-seo-tools.md | 6 SEO tools -> cms/seo | sidecars regenerated (drift) | 160k |
+| K-05 | K/K-05-taxonomy-tools.md | 10 taxonomy handlers -> cms/taxonomy | K-06b | 240k |
+| K-06a | K/K-06a-taxonomy-sql-seam.md | taxonomy SQL seam + 5-file split, Tovu only | - | 160k |
+| K-06b | K/K-06b-taxonomy-sql-move.md | -> cms/taxonomy/sql (new node entry) | K-06a | 110k |
+| K-07 | K/K-07-trash-tools.md | 2 trash tools -> cms/trash | - | 150k |
+| K-09 | K/K-09-webhook-tools.md | 6 webhook tools -> integrations/webhooks/tools | - | 190k |
+| K-10a | K/K-10a-forms-tools-seam.md | forms tools seam, Tovu only | - | 210k |
+| K-10b | K/K-10b-forms-tools-move.md | 9 forms tools -> cms/forms | K-10a | 130k |
+| T-PO-01 | T/T-PO-01-post-leaves.md | 3 pure post leaves | - | 140k |
+| T-PO-01g | T/T-PO-01g-go-live-seam.md | go-live: pure part vs sweep lifecycle, Tovu only | - | 90k |
+| T-PO-02 | T/T-PO-02-post-cover-image.md | cover image -> cms/media/node | sidecars regenerated (drift) | 120k |
+| T-TH-01 | T/T-TH-01-theme-render-leaves.md | 4 theme render leaves | B04 T1 landed (SKIPs today) | 100k |
+Dispatchable total: about 2.47M executor tokens (K 2.02M, T 0.45M). Round 1 called 1.9M "runnable now"; the difference is the seam/characterization work the judge showed was missing, minus T-TH-03 and K-07b which left the runnable set.
+Not dispatchable (`K/K-DESIGN-QUEUE.md`, `T/T-DESIGN-QUEUE.md`): K-04b, K-05b, K-07b, K-08, K-11; T-TH-02..08, T-PO-01v, T-PO-03..05, T-NL-01..03, admin post editor. Rough estimate unchanged from round 1 plus the added designs: K about 1.3M, T about 6.3M, B04 0.57M, B05 0.15M. Whole programme about 10.8M (round 1: 9.9M).
 
-## Order and parallel runs
-1. Wave 1 (file-disjoint, parallel): K-01, K-02, K-03, K-04, K-06, K-07, K-09, K-10a, T-PO-01, T-PO-02. Each edits only its own feature folder in Tovu. Jini side: the cms sheets all append to `packages/cms/src/<domain>/index.ts` of DIFFERENT domains, but K-06 and K-08 both edit `packages/cms/package.json` (new entries) and every cms sheet adds a changeset file: run K-06 and K-08 serially, others in parallel.
-2. Wave 2: K-02b, K-04b (after T-PO-02), K-05 (it shares `taxonomy/index.ts` importers with K-06: after K-06), K-08, K-10b, T-TH-03, B04 T1-T3 then T-TH-01.
-3. Wave 3 (after an Opus design each): K-11, T-TH-05 -> B04 T4/T5 -> T-TH-02, T-TH-06, T-PO-03.
-4. Wave 4: T-TH-07, T-TH-08, T-PO-04, T-PO-05; newsletter (B05 -> T-NL-01, T-NL-02 -> T-NL-03) only after D-T1.
-Not parallel with each other: anything on `theme/index.ts` (33 outside importers), `post/index.ts` (47 outside, 145 test importers), `trash/index.ts`; untangle lanes (R-BARRELS, C3, C4, C11) that touch the same file go first.
-Re-run `scripts/gen.py` + `scripts/decls.py` on the merged tree before any wave: all blobs here are from merge-b.
+## Order
+Wave 1 (file-disjoint in Tovu; Jini `packages/cms/package.json` is edited only by K-06b; `packages/integrations/package.json` only by K-09): K-01, K-02, K-03, K-04, K-06a, K-07, K-09, K-10a, T-PO-01, T-PO-01g, T-PO-02. Wave 2: K-02b, K-06b, K-10b, then K-05; T-TH-01 after B04 T1. `post/index.ts` is touched by T-PO-01, T-PO-01g, T-PO-02 (barrel re-export lines): run those three serially.
+Untangle lanes that touch the same files (R-BARRELS, C3, C4, C11) go first; regenerate sidecars after them.
 
 ## Owner decisions
-- D-K1: `ToolContributor.build` in `@jini-ai/core` is positional `(deps, surfaces)`. Sheets use the rule-compliant `build<X>Registrations({ deps, surfaces })` with a one-line adapter in Tovu. Alternative: approve the positional form as an exception because it is the core contract's own shape.
-- D-K2: K-11 destinations: `cms/forms` or `integrations`?
-- D-T1: newsletter has no second user: move now (about 1M incl. B05) or keep in Tovu and do only seams. Recommendation: wait.
-- D-T2: `handlebars`/`liquidjs` in Jini (optional-peer subpaths) or keep the two linters in Tovu behind an injected validator option. Recommendation: keep in Tovu for now.
-- D-T3: listing/render class names are a saved surface of installed themes: sheets pass the current prefix as a value instead of renaming to `jini-`. Confirm, or schedule a theme CSS migration.
-- D-T4: TipTap toolbar to Jini needs `@tiptap/*` as a new Jini dependency (no Jini package declares it today): which package (`ui`, `admin`, or a new editor package)?
-- D-T5: posts/theme/static-render moves need size splits first (no size design exists for `post.ts` 2,596, `static-render.ts` 1,396, `theme-files.ts` 1,344, or the seven tool-registration files): approve the split-in-Tovu-first order, or grant size exceptions.
+- D-K1 positional `ToolContributor.build(deps, surfaces)` is core's contract; Jini builders take `({ deps, surfaces }, optional = {})`, adapter line in the Tovu binding. Confirm.
+- D-K2 K-11 destinations: `cms/forms` or `integrations`.
+- D-T1 newsletter has no second user: move now or seams only. Recommendation: wait.
+- D-T2 `handlebars`/`liquidjs` in Jini or linters stay in Tovu behind an injected validator. Recommendation: stay.
+- D-T3 listing markup (attribute, style sentinel, selectors, class names) is a saved surface of installed themes: keep it as host-passed values (recommended, contract in T-DESIGN-QUEUE) or schedule a theme CSS migration. T-TH-03 is blocked on this.
+- D-T4 TipTap toolbar needs `@tiptap/*` as a new Jini dependency: which package.
+- D-T5 posts/theme/static-render need size splits first: approve split-in-Tovu-first.
+- D-T6 (new) `expectedVersion`: accept core's safe-integer check and `ToolInputError` -> host adapter (a small behaviour change for integers above 2^53), or leave Tovu's parser where it is.
+
+## Revision 2 - judge response (CODEX-JUDGE.md; every finding re-checked in the code named above)
+| # | sev | verdict | what changed (file) | evidence |
+|---|---|---|---|---|
+| 1 | blocker | ACCEPT | NEW `COMMON-KT.md` (V0-V3 setup/baseline/per-commit commands, push per green commit) and `T-KT-MOVE.md`; pattern rewritten; shared COMMON/T-MOVE no longer assembled | root `package.json` scripts `typecheck`, `test`, `link:jini`, `check:size`, `check:complexity`; Jini `packages/cms/package.json:429-431` |
+| 2 | blocker | ACCEPT | pattern "Existing owners" + S0(b) + S2/S4 `withToolMetadata`; every K sheet has a `toolMetadata` host row | all 8 files import `contracts/core/tool-metadata/<domain>.js` at line 1-5 and pass it to `buildDomainRegistrations`; Jini `core/src/tool-metadata.ts:18`; `navigation/tool-registrations.ts` `contributeMenusTools` |
+| 3 | blocker | ACCEPT | K-10 split into `K-10a` (seam) / `K-10b` (move); wrappers become the `formWrites` port; tests f-l | `forms/index.ts:94-132`; calls at `forms/tool-registrations.ts:358,382,402,592,616` |
+| 4 | blocker | ACCEPT | `page-publication.ts` -> T-TH-07 (queue, with ordering/ports/test); `font-links` takes `resources` as required, loader stays (T-TH-01) | `theme/page-publication.ts:1-3`; `theme/font-links.ts:2,16`; `theme/public-theme-resources.ts:1-4,28` |
+| 5 | major | ACCEPT | K-07 reduced to 2 files with a local `TrashKindSource` port; `trash-item-tool.ts` -> K-07b (queue, 5 prerequisites) | no `TrashRegistry` under Jini `packages/cms/src/trash` (`index.ts` exports 7 leaves); `trash/trash-item-tool.ts:60-70` |
+| 6 | major | ACCEPT | NEW `scripts/symbols.cjs` (TypeScript AST) writes `.tools.tsv`; regex handler rows removed from `decls.py`; counts fixed in every sheet | real counts 7/12/10/6/10/2/6/9 (round 1: 8/12/13/7/12/-/10/10); webhooks delete handler 309-351 |
+| 7 | major | ACCEPT | pattern: catalog key `name`, field `sideEffects`, descriptor `deepStrictEqual`; K-09 (f) marker-value test keeps `secretVersion`; T-TH-03 fixtures rewritten | `redirects/agent-tools.ts` 8 x `sideEffects:` 0 x `sideEffect:`; `webhooks/tool-registrations.ts:116-117`; `theme/entry-list-render.ts:37-43,68` |
+| 8 | major | ACCEPT | K-06 split into `K-06a` (row types, 4 constructors with workspace scope + tables, qualified-ref rewrite, 5-file split) and `K-06b` | `taxonomy/repo.ts:3,48,68,186,355,524`; Jini `redirects/sql/repo.ts:26-47` |
+| 9 | major | ACCEPT | file partitions given for K-02 (518), K-06 (555), K-10 (660); K-01 catalog split corrected; K-07b/T-TH-02/T-NL-01/T-NL-02 moved to the queues with "needs partition"; `.fnsize.tsv` measures code lines | `K-*.fnsize.tsv`; `redirects/agent-tools.ts:59-168` constants already module-level |
+| 10 | major | ACCEPT | NEW `T-PO-01g` (Tovu-only split: pure part vs `go-live-sweep.ts`); tests for retry window, overlap, stop-wait, outbox dedup | `post/go-live.ts:109-118,147-184` |
+| 11 | major | ACCEPT | `expected-version.ts` out of T-PO-01 -> T-PO-01v (queue) + D-T6; no second parser | Jini `core/src/optimistic-concurrency.ts:66-76` vs `post/expected-version.ts:49-54` |
+| 12 | major | ACCEPT | every sidecar rebuilt on merge-a; `.importers.tsv` lists imported names and barrel consumers and the re-export lines to delete; `SIZE04-importers.tsv` and `.repoint.tsv` deleted | e.g. T-PO-01 11 direct + 17 barrel, T-TH-03 12 + 25 |
+| 13 | major | ACCEPT | T-TH-03 no longer READY: queue entry with the full markup contract + test list, blocked on D-T3 | `theme/entry-list-render.ts:74-108` (attribute, sentinel, selectors), 21 product-text hits |
+| 14 | major | ACCEPT | K-09 BINDINGS: permission names from `@jini-ai/core` with an identity guard; S-IMPORT is now an allow-list | `webhooks/tool-registrations.ts:21,27`; Jini `core/src/index.ts:55-64` |
+| 15 | major | ACCEPT | T-NL-01 queue entry: node entry or token ports, consent order + no-activation tests, sender resolution | `newsletter/confirmation.ts:6-10,127,153-164` |
+| 16 | major | ACCEPT | pattern S3 probes the export chain and relies on the typecheck | Jini `core/src/index.ts:18` `export * from './surface-exchanges.js'`; `surface-exchanges.ts:141` |
+| 17 | major | ACCEPT (partly still open) | one file per run (16 sheet files); K-03 complete typed binding; STOP matrix with a command per condition incl. suppressions, cross-package mocks, locales/hooks for UI sheets; unfinished scope is in the two queue files and "What remains" | `COMMON-KT.md` STOP matrix |
+| 18 | minor | ACCEPT | counts regenerated (241 files); `taxonomy/render-entry.ts` relabelled MOVE-AFTER K-05b; `form-destinations/registry.ts` generic part owned by K-11c; `comments/public-markers.ts` flagged for read-through | `scripts/gen.py` RULES; `K/INVENTORY.tsv` |
+Rebutted: none. Found while verifying, beyond the judge's list: K-03 also imports `approvalToolHandler`/`refuseUnexpectedKeys` and `@jini-ai/capability-providers/comments` (now BINDINGS rows); `SettingsForbiddenError` is a class used in the rule list, not a predicate; `post/featured-image.ts` throws `PostValidationError` (moved to T-PO-03); `cover-image.ts` has no product part at all; K-05's merge handler is 66 code lines.
 
 ## Could not verify
-- `development/todos.md` has no "LATER - rest of the Tovu -> Jini extraction" section on any fetched branch; scope taken from the task text and plan-v6 sections 9/12.
-- `owner-rules.md` is not on the inputs branch; rules taken from the task text and COMMON.md.
-- STAY labels marked `rule`/`signals` in the INVENTORY `basis` column were assigned from measured signals (imports, env, SQL, text), not by reading each file; `read` = I read the imports/exports; none of the 233 source files was read line by line.
-- That `SurfaceExchangeStore` is exported from the `@jini-ai/core` barrel; which tests can move; Jini's file-size gate value; whether `widgets/media-html.ts` duplicates an existing cms file.
-- `.repoint.tsv` lists resolved import sites only; names reached through a feature `index.ts` barrel must be traced per moved name at execution (the census files say so).
+- No build, typecheck or test was run here: the V0/V1 commands are read from package.json scripts, not executed.
+- That cms re-exports core's `ForbiddenError` (K-09 has the guard command). That `ContentKernel` is assignable to `StorageKernel<Kysely<unknown>, unknown>` (K-06a step 4 stops if not).
+- Per-name ownership of `webhooks/{subscriptions,ports,types}.js` (K-09 decides per name by command).
+- STAY labels with basis `rule`/`signals` in the inventories were not read line by line.
 
 ## What remains (numbered)
-1. Admin screens were measured but NOT sheeted: `apps/admin/src/features/` posts 9,317, themes 9,452, taxonomy 4,640, trash 2,216, forms 1,872, seo 1,625, widgets 1,483 (a04 exists), comments 960, redirects 925 = 32,490 lines on merge-b. All need a Chrome visual check after any move (list screens, editors, dialogs; light + dark); CLASSIFY-files already labels 19 taxonomy, 4 trash, 4 themes, 7 posts, 2 forms rows.
-2. K-05b, K-11, T-TH-05, T-TH-06, T-PO-03: Opus designs (dependency-graph partitions, state owners, migration graph).
-3. T-TH-07, T-TH-08, T-PO-04, T-PO-05, T-NL-03: outlines to full sheets after their prerequisites land.
-4. Per-test move/keep classification for the 392 test files.
-5. Refresh B04/B05 blob guards; write the missing B21/B22/B08 sheets (B21 is K-04b here).
-6. lost-updates and error-system designs were not read in this run; T-PO-03 must be checked against both before its design is accepted.
+1. Admin screens (32,490 lines in 9 `apps/admin/src/features/*` folders) are not sheeted.
+2. Designs: K-05b, K-07b, K-08, K-11, T-TH-02, T-TH-05, T-TH-06, T-TH-07, T-PO-03, T-NL-01/02 partitions.
+3. Outlines to sheets after their prerequisites: T-TH-08, T-PO-04, T-PO-05, T-NL-03.
+4. Per-test move/keep classification for the 392 test files (sheets name test globs, not a per-file disposition).
+5. B04/B05 blob guards refresh; B22/B08 sheets.
+6. Owner decisions D-K2, D-T1..D-T6.
+7. Handler-by-handler body text is still produced by the seam steps under green tests, not pre-written.

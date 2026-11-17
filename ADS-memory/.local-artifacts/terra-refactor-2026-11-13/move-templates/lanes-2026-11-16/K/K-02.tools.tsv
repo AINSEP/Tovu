@@ -1,0 +1,13 @@
+file	tool_id	first_line	last_line	code_lines	wrapper	in_catalog	risk	sideEffects
+apps/website/src/features/widgets/tool-registrations.ts	widgets_list_instances	240	253	14	inline	y	"none"	"none"
+apps/website/src/features/widgets/tool-registrations.ts	widgets_get_instance	255	263	9	inline	y	"none"	"none"
+apps/website/src/features/widgets/tool-registrations.ts	widgets_list_regions	265	276	12	inline	y	"none"	"none"
+apps/website/src/features/widgets/tool-registrations.ts	widgets_get_region	278	291	13	inline	y	"none"	"none"
+apps/website/src/features/widgets/tool-registrations.ts	widgets_create_instance	293	309	17	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/widgets/tool-registrations.ts	widgets_update_instance	311	326	16	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/widgets/tool-registrations.ts	widgets_trash_instance	345	372	23	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/widgets/tool-registrations.ts	widgets_bind_region	374	385	9	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/widgets/tool-registrations.ts	widgets_set_region_placements	387	414	25	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/widgets/tool-registrations.ts	widgets_insert_embed	416	431	16	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/widgets/tool-registrations.ts	widgets_remove_embed	433	446	14	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/widgets/tool-registrations.ts	widgets_reorder_embeds	448	473	19	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE

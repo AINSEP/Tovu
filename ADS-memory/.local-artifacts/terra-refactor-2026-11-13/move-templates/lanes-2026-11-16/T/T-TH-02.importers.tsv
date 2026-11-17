@@ -1,0 +1,30 @@
+importer	line	kind	via	specifier	names	origin_or_action
+apps/website/src/cli/__tests__/unit/theme-validate-normalize-output.unit.test.ts	7	test	barrel:apps/website/src/features/theme/index.ts	#src/features/theme/index	ValidateThemePackageResult	apps/website/src/features/theme/validation/validate-theme-package.ts
+apps/website/src/cli/commands/theme/validate.ts	4	prod	barrel:apps/website/src/features/theme/index.ts	#src/features/theme/index	validateThemePackage,ThemeValidationFinding,ValidateThemePackageResult	apps/website/src/features/theme/validation/validate-theme-package.ts
+apps/website/src/features/admin-parity/__tests__/tools.unit.test.ts	23	test	barrel:apps/website/src/features/theme/index.ts	../../theme/index.js	<dynamic import>	apps/website/src/features/theme/index.ts
+apps/website/src/features/theme/__tests__/declared-scripts.unit.test.ts	7	test	direct	../validation/manifest-v2.js	validateManifestV2	apps/website/src/features/theme/validation/manifest-v2.ts
+apps/website/src/features/theme/__tests__/template-applicability.unit.test.ts	10	test	direct	../validation/manifest-v2.js	validateManifestV2	apps/website/src/features/theme/validation/manifest-v2.ts
+apps/website/src/features/theme/__tests__/theme-files.test.ts	38	test	barrel:apps/website/src/features/theme/index.ts	../index.js	<dynamic import>	apps/website/src/features/theme/index.ts
+apps/website/src/features/theme/__tests__/theme-trash.test.ts	404	test	barrel:apps/website/src/features/theme/index.ts	#src/features/theme/index	<dynamic import>	apps/website/src/features/theme/index.ts
+apps/website/src/features/theme/asset-path-rewrites.ts	1	prod	direct	./migration/theme-migration-plan.js	AssetPathRewriteRule	apps/website/src/features/theme/migration/theme-migration-plan.ts
+apps/website/src/features/theme/index.ts	49	barrel	re-export	-	validateThemePackage,ThemeValidationProfile,ThemeValidationIssue,ThemeValidationSeverity,ThemeValidationFinding,ValidateThemePackageResult	DELETE this re-export line in the Tovu commit (no forwarders)
+apps/website/src/features/theme/migration/__tests__/theme-migration-plan.test.ts	7	test	direct	../theme-migration-plan.js	planV2Migration	apps/website/src/features/theme/migration/theme-migration-plan.ts
+apps/website/src/features/theme/migration/migrate-theme.ts	7	prod	direct	../validation/validate-theme-package.js	validateThemePackage,ValidateThemePackageResult	apps/website/src/features/theme/validation/validate-theme-package.ts
+apps/website/src/features/theme/migration/migrate-theme.ts	8	prod	direct	./theme-migration-plan.js	planV2Migration,TOKENS_MODE_FILE_PATTERN,ThemeMigrationPlan	apps/website/src/features/theme/migration/theme-migration-plan.ts
+apps/website/src/features/theme/validation/__tests__/manifest-v2.test.ts	4	test	direct	../manifest-v2.js	validateManifestV2	apps/website/src/features/theme/validation/manifest-v2.ts
+apps/website/src/features/theme/validation/__tests__/markup.test.ts	3	test	direct	../markup.js	checkMarkupFile	apps/website/src/features/theme/validation/markup.ts
+apps/website/src/features/theme/validation/__tests__/validate-theme-package.test.ts	8	test	direct	../validate-theme-package.js	validateThemePackage	apps/website/src/features/theme/validation/validate-theme-package.ts
+apps/website/src/features/theme/validation/__tests__/webmcp-markup.test.ts	3	test	direct	../markup.js	checkMarkupFile	apps/website/src/features/theme/validation/markup.ts
+apps/website/src/features/theme/validation/__tests__/webmcp-markup.unit.test.ts	3	test	direct	../webmcp-markup.js	checkWebMcpMarkup	apps/website/src/features/theme/validation/webmcp-markup.ts
+apps/website/src/features/theme/validation/__tests__/webmcp-scaffolds.test.ts	4	test	direct	../markup.js	checkMarkupFile	apps/website/src/features/theme/validation/markup.ts
+apps/website/src/features/theme/validation/markup.ts	3	prod	moves-too	./webmcp-markup.js	checkWebMcpMarkup	apps/website/src/features/theme/validation/webmcp-markup.ts
+apps/website/src/features/theme/validation/validate-theme-package.ts	7	prod	moves-too	./markup.js	checkMarkupFile	apps/website/src/features/theme/validation/markup.ts
+apps/website/src/features/theme/validation/validate-theme-package.ts	8	prod	moves-too	./manifest-v2.js	validateManifestV2	apps/website/src/features/theme/validation/manifest-v2.ts
+apps/website/src/features/widgets/__tests__/integration/html-form-embeds.integration.test.ts	10	test	direct	#src/features/theme/validation/markup	checkMarkupFile	apps/website/src/features/theme/validation/markup.ts
+apps/website/src/features/widgets/__tests__/integration/html-taxonomy-embeds.integration.test.ts	8	test	direct	#src/features/theme/validation/markup	checkMarkupFile	apps/website/src/features/theme/validation/markup.ts
+apps/website/src/server/inbound/admin-http/routes/settings/__tests__/preview-feed-access.test.ts	38	test	barrel:apps/website/src/features/theme/index.ts	#src/features/theme/index	<dynamic import>	apps/website/src/features/theme/index.ts
+apps/website/src/server/inbound/public-http/middleware/__tests__/theme-preview-refresh.test.ts	188	test	barrel:apps/website/src/features/theme/index.ts	#src/features/theme/index	<dynamic import>	apps/website/src/features/theme/index.ts
+apps/website/src/server/inbound/public-http/middleware/__tests__/theme-preview-refresh.test.ts	235	test	barrel:apps/website/src/features/theme/index.ts	#src/features/theme/index	<dynamic import>	apps/website/src/features/theme/index.ts
+apps/website/src/server/inbound/public-http/middleware/__tests__/theme-preview-refresh.test.ts	254	test	barrel:apps/website/src/features/theme/index.ts	#src/features/theme/index	<dynamic import>	apps/website/src/features/theme/index.ts
+apps/website/src/server/inbound/public-http/middleware/__tests__/theme-preview-refresh.test.ts	266	test	barrel:apps/website/src/features/theme/index.ts	#src/features/theme/index	<dynamic import>	apps/website/src/features/theme/index.ts
+apps/website/src/server/inbound/public-http/middleware/__tests__/theme-preview-refresh.test.ts	280	test	barrel:apps/website/src/features/theme/index.ts	#src/features/theme/index	<dynamic import>	apps/website/src/features/theme/index.ts

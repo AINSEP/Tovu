@@ -1,0 +1,5 @@
+file	function	code_lines	lines
+apps/website/src/features/webhooks/agent-tools.ts	(file)	205	
+apps/website/src/features/webhooks/agent-tools.ts	getWebhooksAgentToolCatalog	55	144-205
+apps/website/src/features/webhooks/tool-registrations.ts	(file)	390	
+apps/website/src/features/webhooks/tool-registrations.ts	buildWebhooksRegistrations	130	198-363

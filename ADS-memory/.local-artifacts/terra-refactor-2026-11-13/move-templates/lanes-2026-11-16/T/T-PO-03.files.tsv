@@ -1,2 +1,3 @@
 path	loc	blob	label	jini_target
+apps/website/src/features/post/featured-image.ts	79	41be3e70f1dd0d2df48fbffcb04e56ad0e8f6a12	MOVE-AFTER	@jini-ai/cms/media; throws PostValidationError from post.ts, so it moves with the posts domain (rev 2)
 apps/website/src/features/post/post.ts	2596	e52e7ab92493c589bbd793857c71bdb1ab7cb07a	SPLIT	@jini-ai/cms/posts (NEW domain); size split first

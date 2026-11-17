@@ -16,8 +16,5 @@ apps/website/src/features/theme/hardcoded-link-lists.ts	decl	findHardcodedLinks	
 apps/website/src/features/theme/hardcoded-link-lists.ts	decl	anchorHref		70	85	16
 apps/website/src/features/theme/hardcoded-link-lists.ts	decl	anchorHrefAt		89	98	10
 apps/website/src/features/theme/hardcoded-link-lists.ts	decl	describeHardcodedLinkList	export	107	118	12
-apps/website/src/features/theme/page-publication.ts	decl	ThemePagePublicationError	export	6	15	10
-apps/website/src/features/theme/page-publication.ts	decl	togglePages		18	25	8
-apps/website/src/features/theme/page-publication.ts	decl	setThemePagePublished	export	39	60	22
 apps/website/src/features/theme/token-aliases.ts	decl	TOKEN_ALIASES		22	33	12
 apps/website/src/features/theme/token-aliases.ts	decl	themeTokenAliasDeclarations	export	44	53	10

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Declaration map for every file of every <sheet>.files.tsv. Run from the Tovu CODE worktree root.
-usage: decls.py <lanes dir>. Writes <sheet>.decls.tsv: file, kind (decl|handler), name, exported, first_line, last_line, span.
+usage: decls.py <lanes dir>. Writes <sheet>.decls.tsv (top-level declarations only; tools are in <sheet>.tools.tsv): file, kind, name, exported, first_line, last_line, span.
 Spans include comments and blank lines (upper bound for the 50-line function rule)."""
 import glob, os, re, sys
 D = re.compile(r'^(export\s+)?(?:default\s+)?(?:async\s+)?(?:declare\s+)?(const|let|function\*?|class|type|interface|enum)\s+([A-Za-z0-9_$]+)')
@@ -16,7 +16,7 @@ for ft in sorted(glob.glob(os.path.join(sys.argv[1], '[KT]', '*.files.tsv'))):
             while end > i and (src[end - 1].strip() == '' or src[end - 1].lstrip().startswith(('//', '/*', '*', '*/'))): end -= 1
             rows.append((path, 'decl', m.group(3), 'export' if m.group(1) else '', i, end, end - i + 1))
             if m.group(2).startswith('function') or '=>' in src[i - 1] or '(' in src[i - 1]: worst.append((end - i + 1, m.group(3)))
-            hs = [(j, h.group(1)) for j in range(i + 1, end + 1) if (h := H.match(src[j - 1])) and 'Registrations' in m.group(3)]
+            hs = []  # rev 2 (judge 6): handler rows were regex guesses that counted nested callbacks; real tools are in <sheet>.tools.tsv (symbols.cjs, AST)
             for q, (j, name) in enumerate(hs):
                 e2 = (hs[q + 1][0] - 1) if q + 1 < len(hs) else end
                 rows.append((path, 'handler', name.strip('"[]'), '', j, e2, e2 - j + 1))

@@ -1,0 +1,4 @@
+# Re-run at execution time; every hit must be a row of T-PO-01v.importers.tsv (importer:line; written by scripts/symbols.cjs). Any other hit = STOP.
+rg -n --no-heading -e "(from|import|mock|importActual)[^'\"]*['\"][^'\"]*(expected\-version)(\.js|\.ts)?['\"]" apps development scripts --glob '!**/node_modules/**' | rg "(post)"
+# importers that reach a moved name through a feature index.ts are the barrel: rows of the importers.tsv (not matched by this rg).
+# planning-time rows: 3

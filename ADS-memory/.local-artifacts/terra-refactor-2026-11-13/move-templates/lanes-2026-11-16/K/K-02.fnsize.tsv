@@ -1,0 +1,4 @@
+file	function	code_lines	lines
+apps/website/src/features/widgets/agent-tools.ts	(file)	335	
+apps/website/src/features/widgets/tool-registrations.ts	(file)	518	
+apps/website/src/features/widgets/tool-registrations.ts	buildWidgetsRegistrations	213	235-502

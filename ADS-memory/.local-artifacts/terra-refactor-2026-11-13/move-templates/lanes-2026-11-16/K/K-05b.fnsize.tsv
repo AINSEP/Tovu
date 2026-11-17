@@ -1,0 +1,7 @@
+file	function	code_lines	lines
+apps/website/src/features/taxonomy/collection-term-policy.ts	(file)	80	
+apps/website/src/features/taxonomy/gated-hooks.ts	(file)	103	
+apps/website/src/features/taxonomy/gated-hooks.ts	buildMergeTermHooks	42	59-103
+apps/website/src/features/taxonomy/render-entry.ts	(file)	38	
+apps/website/src/features/taxonomy/taxonomy-trash-follow-ups.ts	(file)	182	
+apps/website/src/features/taxonomy/trash-term.ts	(file)	116	

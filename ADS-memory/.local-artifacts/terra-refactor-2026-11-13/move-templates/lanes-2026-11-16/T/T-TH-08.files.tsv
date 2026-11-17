@@ -6,5 +6,5 @@ apps/website/src/features/theme/import-theme-file-tool.ts	179	7e1ded8b6996d7a1ee
 apps/website/src/features/theme/page-publish-tool.ts	57	323d40bfc10941346ab235a02d47bfa22bf08645	MOVE-AFTER	@jini-ai/cms/theme tools after the engine is in Jini
 apps/website/src/features/theme/preview-switcher-tools.ts	74	53fa3361269022ad2740deeaaa2d69d79b92dcf8	MOVE-AFTER	@jini-ai/cms/theme tools after the engine is in Jini
 apps/website/src/features/theme/set-active-theme-tool.ts	193	2c6b4b490d6363f3a4288b57b9b8bf59837dfe56	MOVE-AFTER	@jini-ai/cms/theme tools after the engine is in Jini
-apps/website/src/features/theme/tool-registrations.ts	1028	6bf0afb19f1ce6aacdfec1d0110fabee317a684a	MOVE-AFTER	@jini-ai/cms/theme tools after the engine is in Jini
+apps/website/src/features/theme/tool-registrations.ts	1036	1972928c4c05abc21336950b00d78ac4f973c2e3	MOVE-AFTER	@jini-ai/cms/theme tools after the engine is in Jini
 apps/website/src/features/theme/trash-theme-tool.ts	193	a993ae6a55f3ab2a30b0e49807a768856a7d7344	MOVE-AFTER	@jini-ai/cms/theme tools after the engine is in Jini

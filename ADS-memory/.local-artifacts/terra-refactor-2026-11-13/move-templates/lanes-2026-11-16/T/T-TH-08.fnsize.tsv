@@ -1,0 +1,12 @@
+file	function	code_lines	lines
+apps/website/src/features/theme/agent-tools.ts	(file)	453	
+apps/website/src/features/theme/agent-tools.ts	getThemesAgentToolCatalog	111	343-453
+apps/website/src/features/theme/duplicate-theme-tool.ts	(file)	174	
+apps/website/src/features/theme/file-mutation-tools.ts	(file)	64	
+apps/website/src/features/theme/import-theme-file-tool.ts	(file)	179	
+apps/website/src/features/theme/page-publish-tool.ts	(file)	57	
+apps/website/src/features/theme/preview-switcher-tools.ts	(file)	74	
+apps/website/src/features/theme/set-active-theme-tool.ts	(file)	193	
+apps/website/src/features/theme/tool-registrations.ts	(file)	1036	
+apps/website/src/features/theme/tool-registrations.ts	buildThemesRegistrations	297	581-1027
+apps/website/src/features/theme/trash-theme-tool.ts	(file)	193	

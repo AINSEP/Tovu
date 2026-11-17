@@ -1,0 +1,8 @@
+file	tool_id	first_line	last_line	code_lines	wrapper	in_catalog	risk	sideEffects
+apps/website/src/features/redirects/tool-registrations.ts	redirects_list	133	148	14	inline	y	"none"	"none"
+apps/website/src/features/redirects/tool-registrations.ts	redirects_get	150	157	7	inline	y	"none"	"none"
+apps/website/src/features/redirects/tool-registrations.ts	redirects_get_hits	159	168	8	inline	y	"none"	"none"
+apps/website/src/features/redirects/tool-registrations.ts	redirects_create	170	189	19	inline	y	"mutates-durable-state"	"mutates-durable-state"
+apps/website/src/features/redirects/tool-registrations.ts	redirects_update	191	213	22	inline	y	"mutates-durable-state"	"mutates-durable-state"
+apps/website/src/features/redirects/tool-registrations.ts	redirects_tombstone	216	229	11	inline	y	"mutates-durable-state"	"mutates-durable-state"
+apps/website/src/features/redirects/tool-registrations.ts	redirects_import	234	264	28	inline	y	"mutates-durable-state"	"mutates-durable-state"

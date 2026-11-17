@@ -1,7 +1,4 @@
 path	loc	blob	label	jini_target
-apps/website/src/features/post/duplicate-embeds.ts	114	53d6e39de13518adf2ed33916e8287b4dd07d483	MOVE	per CLASSIFY: cms/core, cms/seo, core, cms/widgets, cms/media, cms/core
-apps/website/src/features/post/expected-version.ts	76	764000f7a0f74f5fef3864d7e1bb8c93e950131a	MOVE	per CLASSIFY: cms/core, cms/seo, core, cms/widgets, cms/media, cms/core
-apps/website/src/features/post/featured-image.ts	79	41be3e70f1dd0d2df48fbffcb04e56ad0e8f6a12	MOVE	per CLASSIFY: cms/core, cms/seo, core, cms/widgets, cms/media, cms/core
-apps/website/src/features/post/go-live.ts	185	36f0271b15f21fd64476c38fcd3d6b80be43bb99	MOVE	per CLASSIFY: cms/core, cms/seo, core, cms/widgets, cms/media, cms/core
-apps/website/src/features/post/html-plain-text.ts	99	4d8dc08495c4e86092284001e0fa279c027550e7	MOVE	per CLASSIFY: cms/core, cms/seo, core, cms/widgets, cms/media, cms/core
-apps/website/src/features/post/post-vocabulary.ts	11	86e64d6ba927c4567277fff12363d9f998b663ac	MOVE	per CLASSIFY: cms/core, cms/seo, core, cms/widgets, cms/media, cms/core
+apps/website/src/features/post/duplicate-embeds.ts	114	53d6e39de13518adf2ed33916e8287b4dd07d483	MOVE	per CLASSIFY: cms/core, cms/seo, cms/widgets
+apps/website/src/features/post/html-plain-text.ts	99	4d8dc08495c4e86092284001e0fa279c027550e7	MOVE	per CLASSIFY: cms/core, cms/seo, cms/widgets
+apps/website/src/features/post/post-vocabulary.ts	11	86e64d6ba927c4567277fff12363d9f998b663ac	MOVE	per CLASSIFY: cms/core, cms/seo, cms/widgets

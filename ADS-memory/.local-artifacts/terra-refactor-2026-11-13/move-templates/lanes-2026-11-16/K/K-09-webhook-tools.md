@@ -1,12 +1,18 @@
-# K-09 SP-webhook-tools-1: webhook agent tools -> `@jini-ai/integrations/webhooks/tools`
-Replaces audit2 B17: its row says a sheet `split-B17-webhook-tool-handlers.md` exists, but that file is on no branch (commit b9e9a9b9 changed only the index).
-kind: SPLIT (K-TOOLS-PATTERN, package = integrations). est: 180k Sonnet + Opus review of the approval port.
-tovu_files: `K-09.files.tsv`: `webhooks/agent-tools.ts` 205, `webhooks/tool-registrations.ts` 390. decls: `K-09.decls.tsv` (27 declarations, 10 handlers, longest 27).
-over the limit: `buildWebhooksRegistrations` 166, `getWebhooksAgentToolCatalog` 62.
-jini_target: `packages/integrations/src/webhooks/tools/{agent-tools,tool-registrations}.ts` (guard: directory absent; read `packages/integrations/src/credentialed-http/tools/tool-registrations.ts` `createCredentialToolRegistrations` for the package's own convention and follow it).
-ports: `approvalToolHandler`, `notConfirmedResult` (`contracts/core/human-confirm.js`) -> `deps.approval: { wrap(handler, spec), notConfirmed() }`; behavioural check (LESSON 12): the wrapper's argument ORDER and which object carries `toolId` must match `approvalToolHandler` exactly: write the port from its real signature, do not infer it. `ChatDeleteSurfaceDeps` (`contracts/core/chat-delete-grant`) = `AssistantSurfaceDeps & {...}` -> surfaces type declared locally from core types. `./subscriptions.js`, `./ports.js`, `./types.js` are bindings over `@jini-ai/integrations` webhooks services already: import the Jini leaves directly (verify each name with rg; a name that exists only in Tovu = port).
-`isDeepStrictEqual` (`node:util`) -> the new entry is runtime `node`.
-`toWebhookDeliveryView` uses `_optional: Record<string, never> = {}` -> `(required, optional = {})` with a real empty optional object (COMMON 10); callers in `K-09.repoint.tsv`.
-security (by class only): the views must keep omitting secret material. S0 adds (f): no view returned by any handler has a key matching `/secret|key|token/i` with a non-redacted value, using a fake record that carries marker values.
-NOT in this sheet: `keyring.env.ts`, `site-key-ensure.ts`, `site-key-sources.ts`, `secret-sealer.aesgcm.ts`, `seal-aad-invariant.ts`, `secret-scan-guard.ts` (row 57, audit2 B09).
-changeset: integrations minor. census: `K-09.census.txt`.
+# K-09 webhook agent tools -> `@jini-ai/integrations/webhooks/tools` (one run, est 190k). Replaces the never-pushed audit2 B17 sheet.
+files: `K-09.files.tsv` (`webhooks/agent-tools.ts` 205, `webhooks/tool-registrations.ts` 390). tools: `K-09.tools.tsv` = 6 (round 1 said 10): `webhooks_list_subscriptions, _get_deliveries, _create_subscription, _update_subscription, _pause_subscription` inline, `webhooks_delete_subscription` wrapped by `approvalToolHandler` (lines 309-351, 33 code lines). pkg: integrations. THIRD_PARTY_ALLOWED: `node:util`. tests: `apps/website/src/features/webhooks/**/*tool*.test.ts apps/website/src/features/webhooks/__tests__/tool-contract.characterization.test.ts`.
+over the limit: `buildWebhooksRegistrations` 130, `getWebhooksAgentToolCatalog` 55 (one module const per entry).
+target: NEW folder `packages/integrations/src/webhooks/tools/` exported through a new `node` entry `./webhooks/tools` (`entry:` exports + `jini.entries` + README line in the S3 commit; follow `packages/integrations/src/credentialed-http/tools/`).
+BINDINGS:
+| import | class | action |
+|---|---|---|
+| `toolMetadata` (`tool-metadata/webhooks.js`) | host | `withToolMetadata` |
+| `adaptLegacyAuthorize`, `requireToolPermission`, `ForbiddenError` from `@jini-ai/cms/core` | core | integrations may NOT import cms. `@jini-ai/core` exports `requireToolPermission`, `adaptLegacyAuthorize` and `ForbiddenError as ToolPermissionDeniedError` (`packages/core/src/index.ts:55-64`). Identity guard BEFORE S2: `rg -n "ForbiddenError" packages/cms/src/core/*.ts` must show cms re-exporting core's class (no `class ForbiddenError` in cms); a separate class = STOP (error identity would change). S2 switches the Tovu file to the core names first, tests green, so S3 is a pure copy |
+| `approvalToolHandler`, `notConfirmedResult` (`contracts/core/human-confirm.js`) | port | `deps.approvalHandler` (pattern); `deps.notConfirmedResult` typed from its real signature |
+| `ChatDeleteSurfaceDeps` (`#src/contracts/core/chat-delete-grant`) | structural | `surfaces` type declared locally with the members the delete tool reads; REQUIRED |
+| `./subscriptions.js`, `./ports.js`, `./types.js` | own or port | per NAME: `rg -n "export .*<Name>" packages/integrations/src/webhooks` hit -> own leaf; no hit -> field of `WebhooksToolDeps` (list each decision in the report) |
+| `OriginRegistryPort`, `requireExpectedVersion`, `@jini-ai/core*` | core | as is |
+| daemon/platform default surfaces | delete | |
+`toWebhookDeliveryView` and other `_optional: Record<string, never>` signatures -> `(required, optional = {})` in S2 with every caller.
+S0 extra, security by class: (f) views expose NO secret MATERIAL: the fake record carries distinct marker strings in every secret-bearing field (signing secret, previous secret, sealed blob); `JSON.stringify` of every handler result contains none of the markers. The numeric `secretVersion` / `previousSecretVersion` fields ARE part of the public view today (`tool-registrations.ts:116-117`) and are asserted present with their numbers (round 1's key-name regex would have failed on them). V3: add the secret field to one view -> RED. (g) delete: declined -> no repo write; a stale `expectedVersion` -> the same conflict envelope.
+NOT in this sheet: keyring, sealer, site-key and secret-scan files (row 57, audit2 B09).
+changeset: integrations minor.

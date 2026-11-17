@@ -1,0 +1,4 @@
+file	function	code_lines	lines
+apps/website/src/features/comments/agent-tools.ts	(file)	207	
+apps/website/src/features/comments/tool-registrations.ts	(file)	387	
+apps/website/src/features/comments/tool-registrations.ts	buildCommentsRegistrations	127	219-375

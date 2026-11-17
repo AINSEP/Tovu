@@ -1,0 +1,11 @@
+importer	line	kind	via	specifier	names	origin_or_action
+apps/website/src/features/seo/__tests__/cover-image-defaults.test.ts	6	test	direct	../cover-image.js	withCoverSeoDefaults	apps/website/src/features/seo/cover-image.ts
+apps/website/src/features/seo/__tests__/cover-image-head.test.ts	9	test	direct	../page-head-contributor.js	createSeoPageHeadHook	apps/website/src/features/seo/page-head-contributor.ts
+apps/website/src/features/seo/__tests__/cover-image-resolve.test.ts	10	test	direct	../cover-image.js	resolveSeoCoverImage,withCoverReadDeps	apps/website/src/features/seo/cover-image.ts
+apps/website/src/features/seo/__tests__/cover-image-source.test.ts	11	test	direct	../cover-image.js	withContentImageSource	apps/website/src/features/seo/cover-image.ts
+apps/website/src/features/seo/index.ts	25	barrel	re-export	-	withCoverReadDeps,withContentImageSource	DELETE this re-export line in the Tovu commit (no forwarders)
+apps/website/src/features/seo/page-head-contributor.ts	2	prod	moves-too	./cover-image.js	withCoverReadDeps	apps/website/src/features/seo/cover-image.ts
+apps/website/src/server/inbound/admin-http/routes/seo/get-entry-analyze.ts	4	prod	barrel:apps/website/src/features/seo/index.ts	#src/features/seo/index	withCoverReadDeps	apps/website/src/features/seo/cover-image.ts
+apps/website/src/server/inbound/admin-http/routes/seo/get-entry.ts	4	prod	barrel:apps/website/src/features/seo/index.ts	#src/features/seo/index	withContentImageSource,withCoverReadDeps	apps/website/src/features/seo/cover-image.ts
+apps/website/src/server/inbound/admin-http/routes/seo/put-entry.ts	14	prod	barrel:apps/website/src/features/seo/index.ts	#src/features/seo/index	withContentImageSource,withCoverReadDeps	apps/website/src/features/seo/cover-image.ts
+apps/website/src/server/inbound/public-http/routes/site/pages/extra-head.ts	1	prod	direct	#src/features/seo/page-head-contributor	createSeoPageHeadHook	apps/website/src/features/seo/page-head-contributor.ts

@@ -1,5 +1,6 @@
 path	loc	blob	label	jini_target
 apps/website/src/features/taxonomy/collection-term-policy.ts	80	79b981bb00cd1edd81af9b716e9b6d326750d1fa	MOVE-AFTER	@jini-ai/cms/taxonomy after K-05 (they are K-05 ports first)
 apps/website/src/features/taxonomy/gated-hooks.ts	103	c958773ee9fbc46915e1306d82529d0f8033884f	MOVE-AFTER	@jini-ai/cms/taxonomy after K-05 (they are K-05 ports first)
+apps/website/src/features/taxonomy/render-entry.ts	38	c0128b8dd163f0f20bc84d0f88c2419f91829e63	MOVE-AFTER	holds a real renderer + cycle handling (rev 2, judge 18), not a forwarder: generic part -> @jini-ai/cms/taxonomy, design with K-05b
 apps/website/src/features/taxonomy/taxonomy-trash-follow-ups.ts	182	9048734169a334723870c0325654b2825934c64b	MOVE-AFTER	@jini-ai/cms/taxonomy after K-05 (they are K-05 ports first)
 apps/website/src/features/taxonomy/trash-term.ts	116	e7e6cc8b5e45f135b8cf62a788b33d28f313db09	MOVE-AFTER	@jini-ai/cms/taxonomy after K-05 (they are K-05 ports first)

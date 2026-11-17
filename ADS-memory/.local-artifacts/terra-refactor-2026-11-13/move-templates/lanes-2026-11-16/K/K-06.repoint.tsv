@@ -1,4 +1,0 @@
-importer	line	kind	old_specifier	resolves_to	action
-apps/website/src/features/taxonomy/repo.ts	21	prod	./repo.rows.js	apps/website/src/features/taxonomy/repo.rows.ts	moves-too: rewrite to the Jini leaf (./x.js)
-apps/website/src/features/taxonomy/__tests__/repo.dialects.test.ts	11	test	../repo.js	apps/website/src/features/taxonomy/repo.ts	repoint to the Jini specifier in the sheet
-apps/website/src/features/taxonomy/repo.sqlite.ts	3	prod	./repo.js	apps/website/src/features/taxonomy/repo.ts	repoint to the Jini specifier in the sheet

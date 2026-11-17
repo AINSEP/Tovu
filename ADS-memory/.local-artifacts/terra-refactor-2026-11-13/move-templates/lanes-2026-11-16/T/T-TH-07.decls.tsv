@@ -61,6 +61,9 @@ apps/website/src/features/theme/migration/migrate-theme.ts	decl	stageAndVerifyMi
 apps/website/src/features/theme/migration/migrate-theme.ts	decl	finalizeMigration		283	314	32
 apps/website/src/features/theme/migration/migrate-theme.ts	decl	migrateThemeToV2	export	343	363	21
 apps/website/src/features/theme/migration/migrate-theme.ts	decl	cleanupMigrationOutput	export	368	370	3
+apps/website/src/features/theme/page-publication.ts	decl	ThemePagePublicationError	export	6	15	10
+apps/website/src/features/theme/page-publication.ts	decl	togglePages		18	25	8
+apps/website/src/features/theme/page-publication.ts	decl	setThemePagePublished	export	39	60	22
 apps/website/src/features/theme/save-theme-original.ts	decl	SaveThemeOriginalRefusal	export	18	20	3
 apps/website/src/features/theme/save-theme-original.ts	decl	saveThemeAsOriginal	export	38	54	17
 apps/website/src/features/theme/sync-originals.ts	decl	SyncThemeOriginalsThemeResult	export	42	45	4
@@ -83,9 +86,4 @@ apps/website/src/features/theme/theme-trash.ts	decl	assertThemeIdSegment		45	49	
 apps/website/src/features/theme/theme-trash.ts	decl	locateThemeFolder	export	62	81	20
 apps/website/src/features/theme/theme-trash.ts	decl	tierDirs		84	87	4
 apps/website/src/features/theme/theme-trash.ts	decl	locateThemeOriginal	export	100	114	15
-apps/website/src/features/theme/theme-trash.ts	decl	createThemeTrashAdapter	export	128	155	28
-apps/website/src/features/theme/theme-trash.ts	decl	createThemeOriginalTrashAdapter		158	175	18
-apps/website/src/features/theme/theme-trash.ts	decl	ThemeTrashPair		178	182	5
-apps/website/src/features/theme/theme-trash.ts	decl	settled		185	185	1
-apps/website/src/features/theme/theme-trash.ts	decl	hideThemeWithOriginal		187	216	30
-apps/website/src/features/theme/theme-trash.ts	decl	unhideThemeWithOriginal		218	243	26
+apps/website/src/features/theme/theme-trash.ts	decl	createThemeTrashAdapter	export	128	211	84

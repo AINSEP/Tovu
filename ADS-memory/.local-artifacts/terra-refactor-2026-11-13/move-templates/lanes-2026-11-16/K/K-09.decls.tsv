@@ -25,14 +25,4 @@ apps/website/src/features/webhooks/tool-registrations.ts	decl	toWebhookDeliveryV
 apps/website/src/features/webhooks/tool-registrations.ts	decl	webhooksDerivedRisk	export	153	170	18
 apps/website/src/features/webhooks/tool-registrations.ts	decl	WEBHOOKS_MODEL_FACING_ERRORS		191	196	6
 apps/website/src/features/webhooks/tool-registrations.ts	decl	buildWebhooksRegistrations	export	198	363	166
-apps/website/src/features/webhooks/tool-registrations.ts	handler	webhooks_list_subscriptions		208	225	18
-apps/website/src/features/webhooks/tool-registrations.ts	handler	webhooks_get_deliveries		226	242	17
-apps/website/src/features/webhooks/tool-registrations.ts	handler	webhooks_create_subscription		243	266	24
-apps/website/src/features/webhooks/tool-registrations.ts	handler	webhooks_update_subscription		267	284	18
-apps/website/src/features/webhooks/tool-registrations.ts	handler	webhooks_pause_subscription		285	308	24
-apps/website/src/features/webhooks/tool-registrations.ts	handler	webhooks_delete_subscription		309	309	1
-apps/website/src/features/webhooks/tool-registrations.ts	handler	prepare		310	325	16
-apps/website/src/features/webhooks/tool-registrations.ts	handler	describe		326	332	7
-apps/website/src/features/webhooks/tool-registrations.ts	handler	run		333	359	27
-apps/website/src/features/webhooks/tool-registrations.ts	handler	handlers		360	363	4
 apps/website/src/features/webhooks/tool-registrations.ts	decl	contributeWebhooksTools	export	388	390	3

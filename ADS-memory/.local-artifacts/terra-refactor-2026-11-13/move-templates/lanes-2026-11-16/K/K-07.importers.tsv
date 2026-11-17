@@ -1,0 +1,9 @@
+importer	line	kind	via	specifier	names	origin_or_action
+apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts	38	test	direct	../../features/trash/agent-tools.js	buildTrashAgentToolCatalog,trashToolEntityTypes	apps/website/src/features/trash/agent-tools.ts
+apps/website/src/assistant/tool-registrations.ts	83	prod	direct	../features/trash/tool-registrations.js	TrashToolDeps	apps/website/src/features/trash/tool-registrations.ts
+apps/website/src/features/trash/__tests__/member-adapter.test.ts	26	test	direct	../tool-registrations.js	buildTrashRegistrations	apps/website/src/features/trash/tool-registrations.ts
+apps/website/src/features/trash/__tests__/member-adapter.test.ts	28	test	direct	../agent-tools.js	buildTrashAgentToolCatalog,trashToolEntityTypes	apps/website/src/features/trash/agent-tools.ts
+apps/website/src/features/trash/__tests__/tool-registrations.test.ts	11	test	direct	../tool-registrations.js	buildTrashRegistrations,TrashToolDeps	apps/website/src/features/trash/tool-registrations.ts
+apps/website/src/features/trash/__tests__/trash-list-items-honesty.test.ts	4	test	direct	../agent-tools.js	buildTrashAgentToolCatalog	apps/website/src/features/trash/agent-tools.ts
+apps/website/src/features/trash/tool-registrations.ts	34	prod	moves-too	./agent-tools.js	buildTrashAgentToolCatalog,trashToolEntityTypes	apps/website/src/features/trash/agent-tools.ts
+apps/website/src/server/runtime/composition/tool-catalog-manifest.ts	129	prod	direct	#src/features/trash/tool-registrations	contributeTrashTools	apps/website/src/features/trash/tool-registrations.ts

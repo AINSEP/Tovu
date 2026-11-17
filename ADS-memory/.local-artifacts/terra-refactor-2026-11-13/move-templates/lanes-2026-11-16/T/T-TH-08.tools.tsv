@@ -1,0 +1,22 @@
+file	tool_id	first_line	last_line	code_lines	wrapper	in_catalog	risk	sideEffects
+apps/website/src/features/theme/import-theme-file-tool.ts	theme_import_file_from_url	161	161	1	buildImportThemeFileHandler	y	"mutates-durable-state"	"mutates-durable-state"
+apps/website/src/features/theme/import-theme-file-tool.ts	theme_import_local_file	162	162	1	buildImportThemeFileHandler	y	"mutates-durable-state"	"mutates-durable-state"
+apps/website/src/features/theme/page-publish-tool.ts	theme_set_page_published	37	50	14	inline	y	NO-RISK-ROW	"mutates-durable-state"
+apps/website/src/features/theme/preview-switcher-tools.ts	theme_get_preview_switcher	45	48	4	inline	y	NO-RISK-ROW	"none"
+apps/website/src/features/theme/preview-switcher-tools.ts	theme_update_preview_switcher	49	64	16	inline	y	NO-RISK-ROW	"mutates-durable-state"
+apps/website/src/features/theme/tool-registrations.ts	preview_reload	586	592	7	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/theme/tool-registrations.ts	theme_rescan	600	609	10	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/theme/tool-registrations.ts	theme_list	611	626	13	inline	y	"none"	"none"
+apps/website/src/features/theme/tool-registrations.ts	theme_list_page_publications	629	640	11	inline	y	"none"	"none"
+apps/website/src/features/theme/tool-registrations.ts	theme_list_files	641	655	11	inline	y	"none"	"none"
+apps/website/src/features/theme/tool-registrations.ts	theme_read_file	663	683	19	inline	y	"none"	"none"
+apps/website/src/features/theme/tool-registrations.ts	theme_write_file	685	730	31	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/theme/tool-registrations.ts	theme_edit_file	732	771	31	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/theme/tool-registrations.ts	theme_reset_file	790	823	22	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/theme/tool-registrations.ts	theme_rename_file	825	874	35	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/theme/tool-registrations.ts	theme_copy_file	885	920	26	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/theme/tool-registrations.ts	theme_trash_file	923	948	22	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/theme/tool-registrations.ts	theme_restore_trashed_file	950	1007	40	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+(catalog only)	theme_duplicate				NOT-WIRED-HERE	y	"mutates-durable-state"	"mutates-durable-state"
+(catalog only)	theme_set_active				NOT-WIRED-HERE	y	"mutates-durable-state"	"mutates-durable-state"
+(catalog only)	theme_trash				NOT-WIRED-HERE	y	"deletes-durable-state"	"deletes-durable-state"

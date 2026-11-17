@@ -1,0 +1,6 @@
+file	function	code_lines	lines
+apps/website/src/features/newsletter/agent-tools.ts	(file)	265	
+apps/website/src/features/newsletter/delivery/tool-registrations.ts	(file)	207	
+apps/website/src/features/newsletter/delivery/tool-registrations.ts	buildNewsletterDeliveryRegistrations	91	106-202
+apps/website/src/features/newsletter/tool-registrations.ts	(file)	524	
+apps/website/src/features/newsletter/tool-registrations.ts	buildNewsletterRegistrations	182	298-512

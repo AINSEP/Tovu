@@ -1,0 +1,2 @@
+path	loc	blob	label	jini_target
+apps/website/src/features/trash/trash-item-tool.ts	518	2151539b5dc9f1602541a5ed1b518a291db2f70f	MOVE-AFTER	host-bound today (6 adapter consts, TrashDb, moveToTrash, readLiveSnapshot, registry): DESIGN after K-08 + registry contract (rev 2, judge 5)

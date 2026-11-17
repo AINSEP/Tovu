@@ -1,0 +1,13 @@
+file	tool_id	first_line	last_line	code_lines	wrapper	in_catalog	risk	sideEffects
+apps/website/src/features/taxonomy/tool-registrations.ts	SPREAD withModelFacingErrors({ handlers: { taxonomy_get_term: async	208	214		spread			
+apps/website/src/features/taxonomy/tool-registrations.ts	taxonomy_list	215	218	4	inline	NOT-IN-CATALOG	"none"	
+apps/website/src/features/taxonomy/tool-registrations.ts	SPREAD withModelFacingErrors({ handlers: { taxonomy_get_assig	220	240		spread			
+apps/website/src/features/taxonomy/tool-registrations.ts	taxonomy_create_taxonomy	242	251	10	inline	NOT-IN-CATALOG	MUTATES_DURABLE_STATE	
+apps/website/src/features/taxonomy/tool-registrations.ts	taxonomy_create_term	253	262	10	inline	NOT-IN-CATALOG	MUTATES_DURABLE_STATE	
+apps/website/src/features/taxonomy/tool-registrations.ts	taxonomy_rename_term	264	273	10	inline	NOT-IN-CATALOG	MUTATES_DURABLE_STATE	
+apps/website/src/features/taxonomy/tool-registrations.ts	taxonomy_assign_terms	275	299	20	inline	NOT-IN-CATALOG	MUTATES_DURABLE_STATE	
+apps/website/src/features/taxonomy/tool-registrations.ts	taxonomy_unassign_terms	301	324	19	inline	NOT-IN-CATALOG	MUTATES_DURABLE_STATE	
+apps/website/src/features/taxonomy/tool-registrations.ts	taxonomy_plan_merge_term	326	359	29	inline	NOT-IN-CATALOG	"none"	
+apps/website/src/features/taxonomy/tool-registrations.ts	MERGE_TOOL_ID	363	428	66	humanConfirmedToolHandler	NOT-IN-CATALOG	NO-RISK-ROW	
+apps/website/src/features/taxonomy/tool-registrations.ts	taxonomy_get_term	208	214	7	inline	y	"none"	"none"
+apps/website/src/features/taxonomy/tool-registrations.ts	taxonomy_get_assigned_terms	221	239	17	inline	y	"none"	"none"

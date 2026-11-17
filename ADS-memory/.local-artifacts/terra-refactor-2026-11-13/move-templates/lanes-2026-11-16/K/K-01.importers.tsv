@@ -1,0 +1,14 @@
+importer	line	kind	via	specifier	names	origin_or_action
+apps/website/src/assistant/__tests__/byok-provider-turn.test.ts	7	test	direct	../../features/redirects/agent-tools.js	getRedirectsAgentToolCatalog	apps/website/src/features/redirects/agent-tools.ts
+apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.delete-confirmation-family.integration.test.ts	49	test	direct	#src/features/redirects/tool-registrations	buildRedirectsRegistrations,RedirectsToolDeps	apps/website/src/features/redirects/tool-registrations.ts
+apps/website/src/assistant/__tests__/merged-readers-batch.test.ts	22	test	direct	../../features/redirects/tool-registrations.js	contributeRedirectsTools	apps/website/src/features/redirects/tool-registrations.ts
+apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts	115	test	direct	../../features/redirects/agent-tools.js	getRedirectsAgentToolCatalog	apps/website/src/features/redirects/agent-tools.ts
+apps/website/src/assistant/__tests__/tool-registrations.redirects.test.ts	30	test	direct	../../features/redirects/agent-tools.js	getRedirectsAgentToolCatalog	apps/website/src/features/redirects/agent-tools.ts
+apps/website/src/assistant/__tests__/tool-registrations.redirects.test.ts	41	test	direct	../../features/redirects/tool-registrations.js	contributeRedirectsTools	apps/website/src/features/redirects/tool-registrations.ts
+apps/website/src/assistant/__tests__/tool-registrations.trash-item.test.ts	21	test	direct	#src/features/redirects/agent-tools	getRedirectsAgentToolCatalog	apps/website/src/features/redirects/agent-tools.ts
+apps/website/src/assistant/tool-registrations.ts	91	prod	direct	../features/redirects/tool-registrations.js	RedirectsToolDeps	apps/website/src/features/redirects/tool-registrations.ts
+apps/website/src/features/redirects/__tests__/agent-tools.tombstone-confirmation.test.ts	19	test	direct	../tool-registrations.js	buildRedirectsRegistrations,RedirectsToolDeps	apps/website/src/features/redirects/tool-registrations.ts
+apps/website/src/features/redirects/__tests__/agent-tools.tombstone-confirmation.test.ts	20	test	direct	../agent-tools.js	getRedirectsAgentToolCatalog	apps/website/src/features/redirects/agent-tools.ts
+apps/website/src/features/redirects/__tests__/tool-registrations.model-facing-errors.test.ts	27	test	direct	../tool-registrations.js	buildRedirectsRegistrations,RedirectsToolDeps	apps/website/src/features/redirects/tool-registrations.ts
+apps/website/src/features/redirects/tool-registrations.ts	25	prod	moves-too	./agent-tools.js	getRedirectsAgentToolCatalog	apps/website/src/features/redirects/agent-tools.ts
+apps/website/src/server/runtime/composition/tool-catalog-manifest.ts	121	prod	direct	#src/features/redirects/tool-registrations	contributeRedirectsTools	apps/website/src/features/redirects/tool-registrations.ts

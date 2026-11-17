@@ -23,12 +23,4 @@ apps/website/src/features/redirects/tool-registrations.ts	decl	ASSISTANT_ACTOR_P
 apps/website/src/features/redirects/tool-registrations.ts	decl	redirectsDerivedRisk	export	86	103	18
 apps/website/src/features/redirects/tool-registrations.ts	decl	REDIRECTS_MODEL_FACING_RULES		119	126	8
 apps/website/src/features/redirects/tool-registrations.ts	decl	buildRedirectsRegistrations	export	128	274	147
-apps/website/src/features/redirects/tool-registrations.ts	handler	redirects_list		133	149	17
-apps/website/src/features/redirects/tool-registrations.ts	handler	redirects_get		150	158	9
-apps/website/src/features/redirects/tool-registrations.ts	handler	redirects_get_hits		159	169	11
-apps/website/src/features/redirects/tool-registrations.ts	handler	redirects_create		170	190	21
-apps/website/src/features/redirects/tool-registrations.ts	handler	redirects_update		191	215	25
-apps/website/src/features/redirects/tool-registrations.ts	handler	redirects_tombstone		216	233	18
-apps/website/src/features/redirects/tool-registrations.ts	handler	redirects_import		234	270	37
-apps/website/src/features/redirects/tool-registrations.ts	handler	handlers		271	274	4
 apps/website/src/features/redirects/tool-registrations.ts	decl	contributeRedirectsTools	export	284	286	3

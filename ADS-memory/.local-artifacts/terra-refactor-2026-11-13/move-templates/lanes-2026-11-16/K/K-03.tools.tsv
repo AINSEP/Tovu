@@ -1,0 +1,11 @@
+file	tool_id	first_line	last_line	code_lines	wrapper	in_catalog	risk	sideEffects
+apps/website/src/features/comments/tool-registrations.ts	comments_get_provider	232	240	9	inline	y	'none'	'none'
+apps/website/src/features/comments/tool-registrations.ts	comments_set_provider	241	266	26	approvalToolHandler	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/comments/tool-registrations.ts	comments_get_comment	268	275	8	inline	y	"none"	"none"
+apps/website/src/features/comments/tool-registrations.ts	comments_list_moderation_queue	276	288	10	inline	y	"none"	"none"
+apps/website/src/features/comments/tool-registrations.ts	comments_get_settings	290	299	6	inline	y	"none"	"none"
+apps/website/src/features/comments/tool-registrations.ts	comments_update_settings	301	326	19	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/comments/tool-registrations.ts	comments_approve_comment	328	328	1	buildCommentsModerationHandler	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/comments/tool-registrations.ts	comments_mark_comment_spam	329	329	1	buildCommentsModerationHandler	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/comments/tool-registrations.ts	comments_trash_comment	332	361	24	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/comments/tool-registrations.ts	comments_restore_comment	363	363	1	buildCommentsModerationHandler	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE

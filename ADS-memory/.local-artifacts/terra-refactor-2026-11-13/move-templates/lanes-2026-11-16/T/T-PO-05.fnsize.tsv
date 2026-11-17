@@ -1,0 +1,12 @@
+file	function	code_lines	lines
+apps/website/src/features/post/agent-tools.ts	(file)	1000	
+apps/website/src/features/post/content-stats-tool.ts	(file)	173	
+apps/website/src/features/post/preview-tool.ts	(file)	86	
+apps/website/src/features/post/tool-registrations.ts	(file)	1543	
+apps/website/src/features/post/tool-registrations.ts	buildPostRegistrations	278	904-1331
+apps/website/src/features/post/tool-registrations.ts	handlers.content_post_create	62	1002-1080
+apps/website/src/features/post/tool-registrations.ts	handlers.content_post_create.fn	59	1004-1079
+apps/website/src/features/post/tool-registrations.ts	handlers.content_post_update	89	1082-1226
+apps/website/src/features/post/tool-registrations.ts	handlers.content_post_update.fn	86	1084-1225
+apps/website/src/features/post/tool-registrations.ts	handlers.content_post_delete	59	1230-1311
+apps/website/src/features/post/tool-registrations.ts	duplicatePostOrPage	83	1378-1498

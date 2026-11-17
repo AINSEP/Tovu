@@ -1,0 +1,11 @@
+importer	line	kind	via	specifier	names	origin_or_action
+apps/website/src/features/post/__tests__/cover-image.test.ts	6	test	direct	../cover-image.js	collectCoverMediaRefs,projectPostBody,resolveCoverImage,CoverImagePost	apps/website/src/features/post/cover-image.ts
+apps/website/src/features/post/rendering.ts	1	barrel	re-export	-	collectCoverMediaRefs,resolveCoverImage,projectPostBody	DELETE this re-export line in the Tovu commit (no forwarders)
+apps/website/src/features/post/rendering.ts	2	barrel	re-export	-	CoverImage,CoverMedia	DELETE this re-export line in the Tovu commit (no forwarders)
+apps/website/src/features/seo/__tests__/cover-image-defaults.test.ts	4	test	direct	../../post/cover-image.js	CoverImage	apps/website/src/features/post/cover-image.ts
+apps/website/src/features/seo/cover-image.ts	3	prod	barrel:apps/website/src/features/post/rendering.ts	../post/rendering.js	collectCoverMediaRefs,resolveCoverImage,CoverImage,CoverMedia	apps/website/src/features/post/cover-image.ts
+apps/website/src/server/inbound/public-http/http/site/__tests__/img-by-url.test.ts	5	test	direct	#src/features/post/cover-image	projectPostBody,resolveCoverImage	apps/website/src/features/post/cover-image.ts
+apps/website/src/server/inbound/public-http/http/site/render/page-body.ts	9	prod	barrel:apps/website/src/features/post/rendering.ts	#src/features/post/rendering	projectPostBody	apps/website/src/features/post/cover-image.ts
+apps/website/src/server/inbound/public-http/http/site/render/post-body.ts	8	prod	barrel:apps/website/src/features/post/rendering.ts	#src/features/post/rendering	projectPostBody	apps/website/src/features/post/cover-image.ts
+apps/website/src/server/inbound/public-http/http/site/render/template-render-data.ts	7	prod	barrel:apps/website/src/features/post/rendering.ts	#src/features/post/rendering	resolveCoverImage	apps/website/src/features/post/cover-image.ts
+apps/website/src/server/inbound/public-http/routes/site/pages/render-context/media-metadata.ts	2	prod	barrel:apps/website/src/features/post/rendering.ts	#src/features/post/rendering	collectCoverMediaRefs	apps/website/src/features/post/cover-image.ts

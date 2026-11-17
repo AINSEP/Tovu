@@ -26,16 +26,4 @@ apps/website/src/features/widgets/tool-registrations.ts	decl	toWidgetAreaToolVie
 apps/website/src/features/widgets/tool-registrations.ts	decl	resolveWidgetPlacementView		215	227	13
 apps/website/src/features/widgets/tool-registrations.ts	decl	placementContent		229	233	5
 apps/website/src/features/widgets/tool-registrations.ts	decl	buildWidgetsRegistrations	export	235	502	268
-apps/website/src/features/widgets/tool-registrations.ts	handler	widgets_list_instances		240	254	15
-apps/website/src/features/widgets/tool-registrations.ts	handler	widgets_get_instance		255	264	10
-apps/website/src/features/widgets/tool-registrations.ts	handler	widgets_list_regions		265	277	13
-apps/website/src/features/widgets/tool-registrations.ts	handler	widgets_get_region		278	292	15
-apps/website/src/features/widgets/tool-registrations.ts	handler	widgets_create_instance		293	310	18
-apps/website/src/features/widgets/tool-registrations.ts	handler	widgets_update_instance		311	344	34
-apps/website/src/features/widgets/tool-registrations.ts	handler	widgets_trash_instance		345	373	29
-apps/website/src/features/widgets/tool-registrations.ts	handler	widgets_bind_region		374	386	13
-apps/website/src/features/widgets/tool-registrations.ts	handler	widgets_set_region_placements		387	415	29
-apps/website/src/features/widgets/tool-registrations.ts	handler	widgets_insert_embed		416	432	17
-apps/website/src/features/widgets/tool-registrations.ts	handler	widgets_remove_embed		433	447	15
-apps/website/src/features/widgets/tool-registrations.ts	handler	widgets_reorder_embeds		448	502	55
 apps/website/src/features/widgets/tool-registrations.ts	decl	contributeWidgetsTools	export	516	518	3

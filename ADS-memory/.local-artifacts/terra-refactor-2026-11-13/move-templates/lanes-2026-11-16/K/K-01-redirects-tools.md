@@ -1,11 +1,15 @@
-# K-01 SP-redirects-tools-1: redirects agent tools -> `@jini-ai/cms/redirects`
-kind: SPLIT (K-TOOLS-PATTERN). est: 150k Sonnet. prerequisites: none in lane K; untangle lanes that touch `redirects/tool-registrations.ts` first.
-tovu_files: `K-01.files.tsv` (2 files, 517 lines, blob-guarded). decls: `K-01.decls.tsv` (25 declarations, 8 handlers, longest handler 37 lines).
-over the 50-line limit: `buildRedirectsRegistrations` 147 (S1 splits it into 8 handlers), `getRedirectsAgentToolCatalog` 55 (split: schema constants out of the function body).
-jini_target: `packages/cms/src/redirects/{agent-tools,tool-registrations}.ts`, exported from the existing `./redirects` entry (guard: neither file exists; `rg -n "buildRedirectsRegistrations|redirectsDerivedRisk" packages/*/src` prints nothing).
-ports: none new. Tovu imports are already only `./agent-tools.js`. `surfaces` is unused by the handlers (1 occurrence: the signature) -> Jini signature `buildRedirectsRegistrations({ deps })`; Tovu adapter ignores its second argument.
-illegal imports to remove in S2: `@jini-ai/daemon/scheduler`, `@jini-ai/daemon/surface-exchanges`, `@jini-ai/platform/system` (default-surfaces builder only).
-callers: prod 1 (`contributeRedirectsTools`), tests 3 files call `buildRedirectsRegistrations(` (in `K-01.repoint.tsv`).
-characterization (S0): tool ids from `K-01.decls.tsv` handler rows; add (f): `redirects_list` leaves out a rule whose `isInTrash` is true (the "Bug B" comment at the list handler names this).
-tovu wiring after: `features/redirects/tool-registrations.ts` exports only `contributeRedirectsTools`; why-comment block above it (2026-08-17 seam note) stays in Tovu.
-changeset: cms minor "redirect agent tools and catalog". census: `K-01.census.txt`.
+# K-01 redirects agent tools -> `@jini-ai/cms/redirects` (one run, est 170k)
+files: `K-01.files.tsv` (`redirects/agent-tools.ts` 231, `redirects/tool-registrations.ts` 286). tools: `K-01.tools.tsv` = 7 (`redirects_list, _get, _get_hits, _create, _update, _tombstone, _import`), all `inline`, longest 28 code lines. THIRD_PARTY_ALLOWED: none. pkg: cms. tests: `apps/website/src/features/redirects/**/*.test.ts apps/website/src/assistant/__tests__/tool-registrations.redirects.test.ts`.
+over the limit (`K-01.fnsize.tsv`): `buildRedirectsRegistrations` 123 (S1 turns it into a 7-row table), `getRedirectsAgentToolCatalog` 55: the schema constants are ALREADY module-level (lines 59-168); the function is one array literal of 7 entries. Split in S1: each entry becomes a module const (`REDIRECTS_LIST_TOOL` ...), the function returns `[...]` of them in the same order.
+target files: `packages/cms/src/redirects/agent-tools.ts` (about 235 lines), `tool-registrations.ts` (about 260). Guard: neither exists; `rg -n "buildRedirectsRegistrations|redirectsDerivedRisk" packages/*/src` prints nothing.
+BINDINGS (imports of `redirects/tool-registrations.ts`):
+| import | class | action |
+|---|---|---|
+| `toolMetadata` (`contracts/core/tool-metadata/redirects.js`; holds the `redirects_tombstone` confirmation policy) | host | stays; bound with `withToolMetadata` |
+| `@jini-ai/cms/core` (`adaptLegacyAuthorize`, `requireToolPermission`, `ForbiddenError`) | own | leaf file found with `rg -n "export .*requireToolPermission" packages/cms/src/core` |
+| `@jini-ai/cms/redirects` (services, errors, types, constants) | own | leaf files |
+| `@jini-ai/core`, `@jini-ai/core/*` | core | as is |
+| `@jini-ai/daemon/surface-exchanges`, `@jini-ai/daemon/scheduler`, `@jini-ai/platform/system` | delete | used only by the default `surfaces` value; handlers never read `surfaces` -> Jini signature `buildRedirectsRegistrations({ deps }, optional = {})`; the contributor type keeps `AssistantSurfaceDeps` in Tovu and ignores it |
+| `./agent-tools.js` | own | moves |
+`REDIRECTS_MODEL_FACING_RULES` uses only cms/core + core classes: moves with the builder.
+S0 extra: (f) `redirects_list` leaves out a rule whose `isInTrash` is true; (g) `redirects_tombstone` descriptor metadata equals the golden (confirmation policy). changeset: cms minor "redirect agent tools and catalog".

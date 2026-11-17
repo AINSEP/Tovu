@@ -1,7 +1,15 @@
-# K-04 SP-seo-tools-1 (+ K-04b cover/head, blocked): SEO agent tools -> `@jini-ai/cms/seo`
-kind: SPLIT (K-TOOLS-PATTERN). est: K-04 140k Sonnet; K-04b 60k after T-PO-02.
-tovu_files: `K-04.files.tsv` (2 files, 539 lines). decls: `K-04.decls.tsv` (21 declarations, 7 handlers, longest 26). over the limit: `buildSeoRegistrations` 106.
-ports: `getSeoSettings`/`setSeoSettings` (`./settings.js`, 411 lines, STAY) -> `deps.seoSettings`; `PostRepoPort` (`../post`), `SettingsRepoPort`, four media ports (`../media`), `PrincipalRepoPort`: type-only -> local structural ports, methods actually called only; `SeoHostBindings` (`./index.js`) -> move the TYPE to Jini only if every member is already a Jini type, else keep it Tovu and pass the resolved values. `contributeSeoTools` is `ToolContributor<SeoToolDeps, unknown>`: no surfaces.
-K-04b (= audit2 B21, never sheeted): `seo/cover-image.ts` 96 + `seo/page-head-contributor.ts` 43 (`K-04b.files.tsv`). BLOCKED until T-PO-02 lands `collectCoverMediaRefs`/`resolveCoverImage` in Jini (precondition rg: `rg -n "resolveCoverImage" packages/cms/src` hits). Then T-MOVE into `packages/cms/src/seo/`, extending the existing `getEntryMeta`/`buildHeadElements` owner (`packages/cms/src/seo/page-head.ts`), with a `coverSource` port.
-characterization (S0): pattern plus (f) the settings tool refuses an unknown key with the same message.
-changeset: cms minor. census: `K-04.census.txt`, `K-04b.census.txt`.
+# K-04 SEO agent tools -> `@jini-ai/cms/seo` (one run, est 160k)
+files: `K-04.files.tsv` (`seo/agent-tools.ts`, `seo/tool-registrations.ts`; `agent-tools.ts` is in `BLOB-DRIFT.tsv`: 11 lines differ between the two merges, regenerate first). tools: `K-04.tools.tsv` = 6 (round 1 said 7), longest 22. pkg: cms. THIRD_PARTY_ALLOWED: none. tests: `apps/website/src/features/seo/**/*.test.ts`.
+over the limit: `buildSeoRegistrations` 88, `getSeoAgentToolCatalog` 51 (same split as K-01: one module const per entry).
+BINDINGS:
+| import | class | action |
+|---|---|---|
+| `toolMetadata` (`tool-metadata/seo.js`) | host | `withToolMetadata` |
+| `getSeoSettings`, `setSeoSettings` (`./settings.js`, STAY) | port | `deps.seoSettings: { get(input), set(input) }`: types = the second parameter and return type of the two functions today; Tovu binding closes over the settings deps the handler builds today |
+| `PostRepoPort`, `SettingsRepoPort`, four media ports, `PrincipalRepoPort` (type-only) | structural | declared locally ONLY if a handler calls a member; a port only forwarded into `seoSettings`/host bindings leaves the Jini deps type |
+| `SeoHostBindings` (`./index.js`) | host | stays a Tovu type; Jini gets the resolved values as fields (list them in the report) |
+| `OriginRegistryPort`, `@jini-ai/core/*` | core | as is |
+| `@jini-ai/cms/seo`, `@jini-ai/cms/core` | own | leaf files |
+no surfaces (`ToolContributor<SeoToolDeps, unknown>`).
+S0 extra: (f) the settings tool refuses an unknown key with the same message; (g) a write with a stale `expectedVersion` returns the same version-conflict envelope.
+changeset: cms minor.

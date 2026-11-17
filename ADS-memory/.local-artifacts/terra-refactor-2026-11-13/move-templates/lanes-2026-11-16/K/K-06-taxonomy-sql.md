@@ -1,9 +1,0 @@
-# K-06 MV-taxonomy-sql-1: taxonomy Kysely repo -> `@jini-ai/cms/taxonomy/sql` (new subpath)
-kind: MOVE (T-MOVE). est: 110k Sonnet. Independent of K-05 (file-disjoint).
-tovu_files: `K-06.files.tsv`: `taxonomy/repo.ts` (555, 26 query sites) + `taxonomy/repo.rows.ts` (81). Largest declaration span in `K-06.decls.tsv` is under 50.
-jini_target: `packages/cms/src/taxonomy/sql/{repo,rows}.ts` + new entry `./taxonomy/sql` (runtime `node`), following `./redirects/sql`, `./comments/sql`, `./forms/sql`, `./widgets/sql` exactly (exports block, `jini.entries`, isolation domain, README line). kysely is already a cms peer: no new dependency.
-ports: `platform/db` (2 imports: kernel/handle types) -> the same `StorageKernel`/table-name inputs the four existing `*/sql` repos take: READ `packages/cms/src/redirects/sql/repo.ts` first and copy its constructor shape; a different shape = STOP (two repo conventions in one package).
-values_injected: table names if the file hardcodes them (executor: `rg -n "\"[a-z_]+\"" repo.ts` for `.selectFrom("...")` literals) -> constructor option with the current names as Tovu-passed values, not Jini defaults.
-tovu wiring: `taxonomy/repo.sqlite.ts` (44, STAY) constructs the Jini class; 5 outside importers of `repo.sqlite.ts` are untouched.
-characterization FIRST (Tovu, green on parent): the existing repo test (1 file imports `repo.ts`) is not enough: add a round-trip test over a real SQLite file for list/assign/unassign/merge ordering and the unique-slug violation error class, then move it to Jini with the repo if `packages/cms` tests already run SQLite (check `packages/cms/src/redirects/sql/__tests__`), else it stays in Tovu repointed.
-STOP: Kysely types in an exported signature that reaches `@jini-ai/core` (COMMON 21). census: `K-06.census.txt`. changeset: cms minor.

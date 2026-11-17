@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate lane K/T inventories and per-sheet sidecars. Run from the Tovu CODE worktree root.
 usage: gen.py <out-dir (lanes-2026-11-16)>
-Sidecars per sheet: <id>.files.tsv (blob guards), <id>.repoint.tsv (importer edits), <id>.census.txt."""
+Sidecars per sheet: <id>.files.tsv (blob guards), <id>.importers.tsv comes from symbols.cjs, <id>.census.txt."""
 import os, re, subprocess, sys, collections
 
 OUT = sys.argv[1]
@@ -61,11 +61,13 @@ RULES = [
  (r'^taxonomy/repo(\.rows)?\.ts$', 'MOVE', '@jini-ai/cms/taxonomy/sql (NEW subpath; kysely is a cms peer already)', 'K-06', 'signals'),
  (r'^taxonomy/(taxonomy-trash-follow-ups|trash-term|gated-hooks|collection-term-policy)\.ts$', 'MOVE-AFTER', '@jini-ai/cms/taxonomy after K-05 (they are K-05 ports first)', 'K-05b', 'signals'),
  (r'^taxonomy/publish-term-ids\.ts$', 'MOVE-AFTER', 'publish framework (audit2 B02 / row 140)', 'K-BLOCKED', 'signals'),
- (r'^taxonomy/(content-targets|html-render|term-sync|contracts|render-entry)\.ts$', 'STAY', 'thin Tovu forwarders/bindings (2-38 lines); DELETE candidates are CLASSIFY rows, not this lane', '-', 'signals'),
- (r'^trash/(agent-tools|trash-item-tool)\.ts$', 'MOVE', '@jini-ai/cms/trash (agent-tools.ts, trash-item-tool.ts)', 'K-07', 'signals'),
+ (r'^taxonomy/render-entry\.ts$', 'MOVE-AFTER', 'holds a real renderer + cycle handling (rev 2, judge 18), not a forwarder: generic part -> @jini-ai/cms/taxonomy, design with K-05b', 'K-05b', 'read'),
+ (r'^taxonomy/(content-targets|html-render|term-sync|contracts)\.ts$', 'STAY', 'thin Tovu forwarders/bindings; DELETE candidates are CLASSIFY rows, not this lane', '-', 'signals'),
+ (r'^trash/agent-tools\.ts$', 'MOVE', '@jini-ai/cms/trash (agent-tools.ts)', 'K-07', 'read'),
+ (r'^trash/trash-item-tool\.ts$', 'MOVE-AFTER', 'host-bound today (6 adapter consts, TrashDb, moveToTrash, readLiveSnapshot, registry): DESIGN after K-08 + registry contract (rev 2, judge 5)', 'K-07b', 'read'),
  (r'^trash/tool-registrations\.ts$', 'SPLIT', '@jini-ai/cms/trash (tool-registrations.ts); permission map injected', 'K-07', 'read'),
  (r'^trash/permissions\.ts$', 'STAY', 'entity-type -> permission map is product policy (Codex, plan-v6 K4)', '-', 'plan-v6'),
- (r'^trash/registry\.ts$', 'STAY', 'plan-v6 S4: registry.ts stays; contracts already in @jini-ai/cms/trash', '-', 'plan-v6'),
+ (r'^trash/registry\.ts$', 'STAY', 'plan-v6 S4: registry.ts stays; NO registry contract exists in @jini-ai/cms/trash (rev 2, judge 5): K-07 uses a local structural port', '-', 'plan-v6'),
  (r'^trash/(repo|table-adapter|entry-sql|entry-sql\.types|not-trashed)\.ts$', 'MOVE', '@jini-ai/cms/trash/sql (NEW subpath)', 'K-08', 'signals'),
  (r'^trash/adapters/marker-sql\.ts$', 'MOVE', '@jini-ai/cms/trash/sql', 'K-08', 'signals'),
  (r'^trash/adapters/', 'STAY', 'per-entity adapters bind Tovu tables/features; 4 are DEDUPE-AFTER-HARDENING in CLASSIFY (own rows)', '-', 'signals'),
@@ -80,7 +82,10 @@ RULES = [
  # ---- T theme
  (r'^theme/(template-applicability|theme-layout|static-asset-contract|build-conformance|theme)\.ts$', 'COVERED', 'audit2 B04 T1/T2/T5 (@jini-ai/cms/theme[/node])', 'B04', 'audit2-B04'),
  (r'^theme/validation/(profiles|references|structure)\.ts$', 'COVERED', 'audit2 B04 T1/T3/T4', 'B04', 'audit2-B04'),
- (r'^theme/(font-links|asset-path-rewrites|token-aliases|hardcoded-link-lists|page-publication)\.ts$', 'MOVE', '@jini-ai/cms/theme (universal leaves; audit2 B15 files)', 'T-TH-01', 'signals'),
+ (r'^theme/(asset-path-rewrites|token-aliases|hardcoded-link-lists)\.ts$', 'MOVE', '@jini-ai/cms/theme (universal leaves; audit2 B15 files)', 'T-TH-01', 'read'),
+ (r'^theme/font-links\.ts$', 'SPLIT', '@jini-ai/cms/theme: pure renderer with resources REQUIRED; host loader public-theme-resources.ts stays (rev 2, judge 4)', 'T-TH-01', 'read'),
+ (r'^theme/public-theme-resources\.ts$', 'STAY', 'host resource loader: node:fs + product root + module cache (rev 2, judge 4)', '-', 'read'),
+ (r'^theme/page-publication\.ts$', 'MOVE-AFTER', 'filesystem write + live-theme replace + preview refresh: lifecycle, after T-TH-05 (rev 2, judge 4)', 'T-TH-07', 'read'),
  (r'^theme/validation/(manifest-v2|markup|validate-theme-package)\.ts$', 'MOVE', '@jini-ai/cms/theme/node validation', 'T-TH-02', 'signals'),
  (r'^theme/validation/webmcp-markup\.ts$', 'MOVE', '@jini-ai/cms/theme/node (parse5 already a cms dep)', 'T-TH-02', 'signals'),
  (r'^theme/migration/theme-migration-plan\.ts$', 'MOVE', '@jini-ai/cms/theme (pure plan)', 'T-TH-02', 'signals'),
@@ -97,7 +102,10 @@ RULES = [
  (r'^theme/(visitor-publication|theme-file-import)\.ts$', 'STAY', 'CLASSIFY rows own them (agentic node entry; cms/media sniffer)', '-', 'classify'),
  (r'^theme/', 'STAY', 'active theme, preview switcher, watcher, roster, security headers, id aliases: one-site policy/wiring', '-', 'signals'),
  # ---- T post
- (r'^post/(post-vocabulary|html-plain-text|expected-version|duplicate-embeds|featured-image|go-live)\.ts$', 'MOVE', 'per CLASSIFY: cms/core, cms/seo, core, cms/widgets, cms/media, cms/core', 'T-PO-01', 'classify'),
+ (r'^post/(post-vocabulary|html-plain-text|duplicate-embeds)\.ts$', 'MOVE', 'per CLASSIFY: cms/core, cms/seo, cms/widgets', 'T-PO-01', 'read'),
+ (r'^post/featured-image\.ts$', 'MOVE-AFTER', '@jini-ai/cms/media; throws PostValidationError from post.ts, so it moves with the posts domain (rev 2)', 'T-PO-03', 'read'),
+ (r'^post/go-live\.ts$', 'SPLIT', 'pure decisions + announce functions -> @jini-ai/cms/posts; startPostGoLiveSweep (timers, mutable state) STAYS as host scheduling (rev 2, judge 10)', 'T-PO-01g', 'read'),
+ (r'^post/expected-version\.ts$', 'OWNER', 'DEDUPE onto existing @jini-ai/core/optimistic-concurrency parseExpectedVersion; safe-integer + error-class differences = D-T6 (rev 2, judge 11)', 'T-PO-01v', 'read'),
  (r'^post/cover-image\.ts$', 'SPLIT', '@jini-ai/cms/media/node (cover policy); unblocks K-04b', 'T-PO-02', 'classify'),
  (r'^post/post\.ts$', 'SPLIT', '@jini-ai/cms/posts (NEW domain); size split first', 'T-PO-03', 'classify'),
  (r'^post/(repo|repo\.rows|repo\.memory|search-index\.contract|search-index\.postgres|search-index\.sqlite|search-index|search)\.ts$', 'MOVE-AFTER', '@jini-ai/cms/posts(/sql) after T-PO-03', 'T-PO-04', 'classify'),
@@ -158,22 +166,13 @@ for (lane, sid), files in sorted(sheets.items()):
         fh.write('path\tloc\tblob\tlabel\tjini_target\n')
         for f, loc, blob, lab, tgt, _ in files: fh.write(f'{f}\t{loc}\t{blob}\t{lab}\t{tgt}\n')
     names = set()
-    with open(base + '.repoint.tsv', 'w') as fh:
-        fh.write('importer\tline\tkind\told_specifier\tresolves_to\taction\n')
-        for f, loc, blob, lab, tgt, imps in files:
-            for imp, ln, spec in sorted(imps):
-                kind = 'test' if is_test(imp) else 'prod'
-                if imp in moved: act = 'moves-too: rewrite to the Jini leaf (./x.js)'
-                elif lab == 'MOVE': act = 'repoint to the Jini specifier in the sheet'
-                else: act = 'repoint the MOVED names only; names that stay keep this import'
-                fh.write(f'{imp}\t{ln}\t{kind}\t{spec}\t{f}\t{act}\n')
-            names.add(re.sub(r'\.tsx?$', '', os.path.basename(f)))
+    for f, *_ in files: names.add(re.sub(r'\.tsx?$', '', os.path.basename(f)))
     feats = sorted({f[len(F):].split('/')[0] for f in moved})
     pat = '|'.join(f'{ft}/(?:[a-z-]+/)?(?:{"|".join(sorted(re.escape(n) for n in names))})' for ft in feats)
     with open(base + '.census.txt', 'w') as fh:
-        fh.write('# Re-run at execution time; every hit must be a row of ' + sid + '.repoint.tsv (importer:line). Any other hit = STOP.\n')
+        fh.write('# Re-run at execution time; every hit must be a row of ' + sid + '.importers.tsv (importer:line; written by scripts/symbols.cjs). Any other hit = STOP.\n')
         fh.write(f"rg -n --no-heading -e \"(from|import|mock|importActual)[^'\\\"]*['\\\"][^'\\\"]*({'|'.join(sorted(re.escape(n) for n in names))})(\\.js|\\.ts)?['\\\"]\" apps development scripts --glob '!**/node_modules/**' | rg \"({'|'.join(feats)})\"\n")
-        fh.write('# index-barrel importers are NOT in the census: names re-exported by the feature index.ts are listed in the sheet (barrel_names).\n')
+        fh.write('# importers that reach a moved name through a feature index.ts are the barrel: rows of the importers.tsv (not matched by this rg).\n')
         n = sum(len(i) for *_, i in files)
         fh.write(f'# planning-time rows: {n}\n')
 

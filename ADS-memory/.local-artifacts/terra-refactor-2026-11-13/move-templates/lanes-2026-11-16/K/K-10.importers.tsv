@@ -1,0 +1,18 @@
+importer	line	kind	via	specifier	names	origin_or_action
+apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts	29	test	direct	../../features/forms/tool-registrations.js	buildFormsRegistrations	apps/website/src/features/forms/tool-registrations.ts
+apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts	88	test	direct	../../features/forms/agent-tools.js	formsAgentToolCatalog	apps/website/src/features/forms/agent-tools.ts
+apps/website/src/assistant/__tests__/tool-registrations.forms.test.ts	23	test	direct	../../features/forms/agent-tools.js	formsAgentToolCatalog	apps/website/src/features/forms/agent-tools.ts
+apps/website/src/assistant/__tests__/tool-registrations.forms.test.ts	30	test	direct	../../features/forms/tool-registrations.js	contributeFormsTools	apps/website/src/features/forms/tool-registrations.ts
+apps/website/src/assistant/tool-registrations.ts	79	prod	direct	../features/forms/tool-registrations.js	FormsToolDeps	apps/website/src/features/forms/tool-registrations.ts
+apps/website/src/features/forms/__tests__/agent-tools.unit.test.ts	3	test	direct	../agent-tools.js	formsAgentToolCatalog	apps/website/src/features/forms/agent-tools.ts
+apps/website/src/features/forms/__tests__/agent-tools.unit.test.ts	17	test	direct	../tool-registrations.js	buildFormsRegistrations,FormsToolDeps	apps/website/src/features/forms/tool-registrations.ts
+apps/website/src/features/forms/__tests__/common-field-tools.test.ts	8	test	direct	../tool-registrations.js	buildFormsRegistrations,FormsToolDeps	apps/website/src/features/forms/tool-registrations.ts
+apps/website/src/features/forms/__tests__/common-fields.test.ts	8	test	direct	../agent-tools.js	formsAgentToolCatalog	apps/website/src/features/forms/agent-tools.ts
+apps/website/src/features/forms/__tests__/content-duplicate.form.test.ts	11	test	direct	../tool-registrations.js	contributeFormsDuplicateHandlers,FormsToolDeps	apps/website/src/features/forms/tool-registrations.ts
+apps/website/src/features/forms/__tests__/lost-update-boundaries.test.ts	12	test	direct	../tool-registrations.js	buildFormsRegistrations	apps/website/src/features/forms/tool-registrations.ts
+apps/website/src/features/forms/__tests__/tool-definition-view.unit.test.ts	6	test	direct	../tool-registrations.js	buildFormsRegistrations,FormsToolDeps	apps/website/src/features/forms/tool-registrations.ts
+apps/website/src/features/forms/__tests__/tool-registrations.model-facing-errors.test.ts	25	test	direct	../tool-registrations.js	buildFormsRegistrations,FormsToolDeps	apps/website/src/features/forms/tool-registrations.ts
+apps/website/src/features/forms/index.ts	204	barrel	re-export	-	DELIVERY_STATUS_MAX_LIMIT	DELETE this re-export line in the Tovu commit (no forwarders)
+apps/website/src/features/forms/tool-registrations.ts	30	prod	moves-too	./agent-tools.js	formsAgentToolCatalog	apps/website/src/features/forms/agent-tools.ts
+apps/website/src/server/runtime/composition/__tests__/form-delivery.security.test.ts	12	test	direct	#src/features/forms/tool-registrations	buildFormsRegistrations	apps/website/src/features/forms/tool-registrations.ts
+apps/website/src/server/runtime/composition/tool-catalog-manifest.ts	108	prod	direct	#src/features/forms/tool-registrations	contributeFormsTools,contributeFormsDuplicateHandlers	apps/website/src/features/forms/tool-registrations.ts

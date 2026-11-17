@@ -1,0 +1,5 @@
+file	function	code_lines	lines
+apps/website/src/features/seo/agent-tools.ts	(file)	269	
+apps/website/src/features/seo/agent-tools.ts	getSeoAgentToolCatalog	51	219-269
+apps/website/src/features/seo/tool-registrations.ts	(file)	259	
+apps/website/src/features/seo/tool-registrations.ts	buildSeoRegistrations	88	139-244

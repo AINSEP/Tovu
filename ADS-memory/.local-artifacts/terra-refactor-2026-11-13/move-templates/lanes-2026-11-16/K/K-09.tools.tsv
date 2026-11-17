@@ -1,0 +1,7 @@
+file	tool_id	first_line	last_line	code_lines	wrapper	in_catalog	risk	sideEffects
+apps/website/src/features/webhooks/tool-registrations.ts	webhooks_list_subscriptions	208	224	16	inline	y	"none"	"none"
+apps/website/src/features/webhooks/tool-registrations.ts	webhooks_get_deliveries	226	241	14	inline	y	"none"	"none"
+apps/website/src/features/webhooks/tool-registrations.ts	webhooks_create_subscription	243	264	18	inline	y	"mutates-durable-state"	"mutates-durable-state"
+apps/website/src/features/webhooks/tool-registrations.ts	webhooks_update_subscription	267	284	18	inline	y	"mutates-durable-state"	"mutates-durable-state"
+apps/website/src/features/webhooks/tool-registrations.ts	webhooks_pause_subscription	285	298	13	inline	y	"mutates-durable-state"	"mutates-durable-state"
+apps/website/src/features/webhooks/tool-registrations.ts	webhooks_delete_subscription	309	351	33	approvalToolHandler	y	"deletes-durable-state"	"deletes-durable-state"

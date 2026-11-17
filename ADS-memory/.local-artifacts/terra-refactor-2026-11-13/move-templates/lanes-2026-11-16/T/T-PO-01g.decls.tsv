@@ -1,0 +1,12 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/post/go-live.ts	decl	POST_GO_LIVE_SWEEP_INTERVAL_MS	export	35	35	1
+apps/website/src/features/post/go-live.ts	decl	POST_GO_LIVE_LOOKBACK_MS	export	40	40	1
+apps/website/src/features/post/go-live.ts	decl	GoLiveCandidatesPort	export	43	50	8
+apps/website/src/features/post/go-live.ts	decl	GoLiveRow	export	54	62	9
+apps/website/src/features/post/go-live.ts	decl	wentLiveSinceSave	export	66	71	6
+apps/website/src/features/post/go-live.ts	decl	goLiveEvent	export	75	85	11
+apps/website/src/features/post/go-live.ts	decl	announcePendingGoLive	export	96	99	4
+apps/website/src/features/post/go-live.ts	decl	announceDueGoLives	export	112	120	9
+apps/website/src/features/post/go-live.ts	decl	IntervalHandle		122	122	1
+apps/website/src/features/post/go-live.ts	decl	warn		124	126	3
+apps/website/src/features/post/go-live.ts	decl	startPostGoLiveSweep	export	147	185	39

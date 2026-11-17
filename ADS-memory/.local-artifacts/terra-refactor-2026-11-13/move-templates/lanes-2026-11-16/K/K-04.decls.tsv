@@ -9,9 +9,7 @@ apps/website/src/features/seo/agent-tools.ts	decl	SEO_STRING_FIELD		99	103	5
 apps/website/src/features/seo/agent-tools.ts	decl	SEO_URL_FIELD		107	111	5
 apps/website/src/features/seo/agent-tools.ts	decl	SET_ENTRY_OVERRIDES_SCHEMA		117	153	37
 apps/website/src/features/seo/agent-tools.ts	decl	SET_SETTINGS_SCHEMA		158	210	53
-apps/website/src/features/seo/agent-tools.ts	decl	getSeoAgentToolCatalog	export	219	221	3
-apps/website/src/features/seo/agent-tools.ts	decl	seoEntryTools		224	251	28
-apps/website/src/features/seo/agent-tools.ts	decl	seoSettingsTools		254	280	27
+apps/website/src/features/seo/agent-tools.ts	decl	getSeoAgentToolCatalog	export	219	269	51
 apps/website/src/features/seo/tool-registrations.ts	decl	MANAGE_SEO_PERMISSION		48	48	1
 apps/website/src/features/seo/tool-registrations.ts	decl	CATALOG_BY_ID		50	50	1
 apps/website/src/features/seo/tool-registrations.ts	decl	SeoToolDeps	export	62	81	20
@@ -19,11 +17,4 @@ apps/website/src/features/seo/tool-registrations.ts	decl	seoOverridesPatchFromIn
 apps/website/src/features/seo/tool-registrations.ts	decl	seoSettingsPatchFromInput		111	113	3
 apps/website/src/features/seo/tool-registrations.ts	decl	seoDerivedRisk	export	120	137	18
 apps/website/src/features/seo/tool-registrations.ts	decl	buildSeoRegistrations	export	139	244	106
-apps/website/src/features/seo/tool-registrations.ts	handler	seo_get_entry_meta		148	156	9
-apps/website/src/features/seo/tool-registrations.ts	handler	seo_analyze_entry		157	165	9
-apps/website/src/features/seo/tool-registrations.ts	handler	seo_set_entry_overrides		166	190	25
-apps/website/src/features/seo/tool-registrations.ts	handler	seo_get_settings		191	199	9
-apps/website/src/features/seo/tool-registrations.ts	handler	seo_set_settings		200	225	26
-apps/website/src/features/seo/tool-registrations.ts	handler	seo_regenerate_sitemap		226	240	15
-apps/website/src/features/seo/tool-registrations.ts	handler	handlers		241	244	4
 apps/website/src/features/seo/tool-registrations.ts	decl	contributeSeoTools	export	257	259	3

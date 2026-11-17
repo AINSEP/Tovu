@@ -1,0 +1,15 @@
+importer	line	kind	via	specifier	names	origin_or_action
+apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts	40	test	direct	../../features/trash/trash-item-tool.js	getTrashItemAgentToolCatalog	apps/website/src/features/trash/trash-item-tool.ts
+apps/website/src/assistant/__tests__/tool-registrations.trash-item.test.ts	33	test	direct	#src/features/trash/trash-item-tool	deriveTrashItemRegistrations,TRASH_ITEM_DELEGATES,TRASH_ITEM_TOOL_ID,TrashItemToolDeps	apps/website/src/features/trash/trash-item-tool.ts
+apps/website/src/assistant/tool-registrations.ts	84	prod	barrel:apps/website/src/features/trash/index.ts	../features/trash/index.js	TrashItemToolDeps	apps/website/src/features/trash/trash-item-tool.ts
+apps/website/src/features/email-templates/__tests__/operations.test.ts	238	test	direct	../../trash/trash-item-tool.js	<dynamic import>	apps/website/src/features/trash/trash-item-tool.ts
+apps/website/src/features/theme/__tests__/theme-trash.test.ts	17	test	direct	#src/features/trash/trash-item-tool	deriveTrashItemRegistrations,TrashItemToolDeps	apps/website/src/features/trash/trash-item-tool.ts
+apps/website/src/features/trash/__tests__/member-adapter.test.ts	27	test	direct	../trash-item-tool.js	deriveTrashItemRegistrations	apps/website/src/features/trash/trash-item-tool.ts
+apps/website/src/features/trash/__tests__/trash-item-outcome-errors.test.ts	5	test	direct	../trash-item-tool.js	moveToTrashOutcomeToError	apps/website/src/features/trash/trash-item-tool.ts
+apps/website/src/features/trash/__tests__/trash-item-page.unit.test.ts	6	test	direct	../trash-item-tool.js	deriveTrashItemRegistrations,TrashItemToolDeps	apps/website/src/features/trash/trash-item-tool.ts
+apps/website/src/features/trash/__tests__/trash-item-user.test.ts	9	test	direct	#src/features/trash/trash-item-tool	deriveTrashItemRegistrations,TrashItemToolDeps,TrashUserPort,TrashItemDelegate	apps/website/src/features/trash/trash-item-tool.ts
+apps/website/src/features/trash/index.ts	90	barrel	re-export	-	deriveTrashItemRegistrations,TRASH_ITEM_DELEGATES,TRASH_ITEM_TOOL_ID,trashItemDerivedRisk	DELETE this re-export line in the Tovu commit (no forwarders)
+apps/website/src/features/trash/index.ts	96	barrel	re-export	-	TrashItemDelegate,TrashItemToolDeps,TrashUserPort	DELETE this re-export line in the Tovu commit (no forwarders)
+apps/website/src/server/runtime/composition/__tests__/trash-user-tool-port.test.ts	15	test	barrel:apps/website/src/features/trash/index.ts	#src/features/trash/index	deriveTrashItemRegistrations,TrashItemToolDeps	apps/website/src/features/trash/trash-item-tool.ts
+apps/website/src/server/runtime/composition/tool-catalog-manifest.ts	130	prod	barrel:apps/website/src/features/trash/index.ts	#src/features/trash/index	deriveTrashItemRegistrations,trashItemDerivedRisk	apps/website/src/features/trash/trash-item-tool.ts
+apps/website/src/server/runtime/composition/trash-user-tool-port.ts	5	prod	barrel:apps/website/src/features/trash/index.ts	#src/features/trash/index	TrashUserPort	apps/website/src/features/trash/trash-item-tool.ts

@@ -1,0 +1,45 @@
+importer	line	kind	via	specifier	names	origin_or_action
+apps/website/src/features/admin-parity/__tests__/tools.unit.test.ts	23	test	barrel:apps/website/src/features/theme/index.ts	../../theme/index.js	<dynamic import>	apps/website/src/features/theme/index.ts
+apps/website/src/features/theme/__tests__/entry-list-render-layouts.test.ts	4	test	direct	../entry-list-render.js	ENTRY_LIST_DEFAULT_STYLE,renderEntryList,EntryListItem,EntryListRenderOptions	apps/website/src/features/theme/entry-list-render.ts
+apps/website/src/features/theme/__tests__/entry-list-render.test.ts	4	test	direct	../entry-list-render.js	renderEntryList,withEntryListStyleOnce,ENTRY_LIST_DEFAULT_STYLE	apps/website/src/features/theme/entry-list-render.ts
+apps/website/src/features/theme/__tests__/entry-list-render.test.ts	9	test	direct	../entry-list-render.js	EntryListItem,EntryListRenderOptions	apps/website/src/features/theme/entry-list-render.ts
+apps/website/src/features/theme/__tests__/preview-refresh.test.ts	74	test	barrel:apps/website/src/features/theme/theme.ts	../theme.js	<dynamic import>	apps/website/src/features/theme/theme.ts
+apps/website/src/features/theme/__tests__/preview-refresh.test.ts	132	test	barrel:apps/website/src/features/theme/theme.ts	../theme.js	<dynamic import>	apps/website/src/features/theme/theme.ts
+apps/website/src/features/theme/__tests__/static-render-collection.test.ts	3	test	direct	../entry-list-render.js	ENTRY_LIST_DEFAULT_STYLE	apps/website/src/features/theme/entry-list-render.ts
+apps/website/src/features/theme/__tests__/static-render-page-shell-fallback.test.ts	5	test	barrel:apps/website/src/features/theme/theme.ts	../theme.js	ThemeTier	apps/website/src/features/theme/render-contract.ts
+apps/website/src/features/theme/__tests__/template-id-resolution.test.ts	4	test	barrel:apps/website/src/features/theme/theme.ts	../theme.js	resolveHandlebarsTemplateId,resolveLiquidTemplateId,resolveTemplateId	apps/website/src/features/theme/render-contract.ts
+apps/website/src/features/theme/__tests__/theme-files.test.ts	38	test	barrel:apps/website/src/features/theme/index.ts	../index.js	<dynamic import>	apps/website/src/features/theme/index.ts
+apps/website/src/features/theme/__tests__/theme-trash.test.ts	404	test	barrel:apps/website/src/features/theme/index.ts	#src/features/theme/index	<dynamic import>	apps/website/src/features/theme/index.ts
+apps/website/src/features/theme/duplicate-theme.ts	11	prod	barrel:apps/website/src/features/theme/theme.ts	./theme.js	ThemeTier	apps/website/src/features/theme/render-contract.ts
+apps/website/src/features/theme/entry-list-render.ts	3	prod	moves-too	./render-contract.js	safeHref	apps/website/src/features/theme/render-contract.ts
+apps/website/src/features/theme/file-identity-lock.ts	5	prod	barrel:apps/website/src/features/theme/theme.ts	./theme.js	ThemeManifest	apps/website/src/features/theme/render-contract.ts
+apps/website/src/features/theme/font-links.ts	1	prod	barrel:apps/website/src/features/theme/theme.ts	./theme.js	ThemeManifest	apps/website/src/features/theme/render-contract.ts
+apps/website/src/features/theme/index.ts	100	barrel	re-export	-	renderEntryList,withEntryListStyleOnce,EntryListItem,EntryListFieldValue,EntryListRenderOptions	DELETE this re-export line in the Tovu commit (no forwarders)
+apps/website/src/features/theme/migration/migrate-theme.ts	6	prod	barrel:apps/website/src/features/theme/theme.ts	../theme.js	ThemeTier	apps/website/src/features/theme/render-contract.ts
+apps/website/src/features/theme/migration/theme-migration-plan.ts	20	prod	barrel:apps/website/src/features/theme/theme.ts	../theme.js	ThemeTier	apps/website/src/features/theme/render-contract.ts
+apps/website/src/features/theme/rendering.ts	2	barrel	re-export	-	renderEntryList,renderEntryListStructuredData,withEntryListStyleOnce	DELETE this re-export line in the Tovu commit (no forwarders)
+apps/website/src/features/theme/rendering.ts	7	barrel	re-export	-	EntryListItem,EntryListFieldValue,EntryListRenderOptions	DELETE this re-export line in the Tovu commit (no forwarders)
+apps/website/src/features/theme/static-render.ts	4	prod	direct	./render-contract.js	safeHref	apps/website/src/features/theme/render-contract.ts
+apps/website/src/features/theme/static-render.ts	11	prod	direct	./entry-list-render.js	withEntryListStyleOnce	apps/website/src/features/theme/entry-list-render.ts
+apps/website/src/features/theme/static-render.ts	182	barrel	re-export	-	safeHref	DELETE this re-export line in the Tovu commit (no forwarders)
+apps/website/src/features/theme/sync-originals.ts	4	prod	barrel:apps/website/src/features/theme/theme.ts	./theme.js	ThemeTier	apps/website/src/features/theme/render-contract.ts
+apps/website/src/features/theme/theme-files.ts	27	prod	direct	./render-contract.js	ThemeManifest	apps/website/src/features/theme/render-contract.ts
+apps/website/src/features/theme/theme.ts	4	prod	direct	./render-contract.js	TemplateNode,ThemeManifest,ThemeBuildInfo,ThemeTier	apps/website/src/features/theme/render-contract.ts
+apps/website/src/features/theme/theme.ts	5	barrel	re-export	-	TemplateNode,ThemeManifest,ThemeBuildInfo,ThemeTier	DELETE this re-export line in the Tovu commit (no forwarders)
+apps/website/src/features/theme/theme.ts	1139	barrel	re-export	-	resolveTemplateId,resolveLiquidTemplateId,resolveHandlebarsTemplateId	DELETE this re-export line in the Tovu commit (no forwarders)
+apps/website/src/features/theme/validation/structure.ts	6	prod	barrel:apps/website/src/features/theme/theme.ts	../theme.js	ThemeBuildInfo	apps/website/src/features/theme/render-contract.ts
+apps/website/src/server/inbound/admin-http/routes/settings/__tests__/preview-feed-access.test.ts	38	test	barrel:apps/website/src/features/theme/index.ts	#src/features/theme/index	<dynamic import>	apps/website/src/features/theme/index.ts
+apps/website/src/server/inbound/public-http/http/site/__tests__/render-blocks-site-branches.unit.test.ts	5	test	barrel:apps/website/src/features/theme/index.ts	#src/features/theme/index	TemplateNode	apps/website/src/features/theme/render-contract.ts
+apps/website/src/server/inbound/public-http/http/site/page-head.ts	2	prod	barrel:apps/website/src/features/theme/index.ts	#src/features/theme/index	ThemeTier	apps/website/src/features/theme/render-contract.ts
+apps/website/src/server/inbound/public-http/http/site/render-site.ts	8	prod	direct	#src/features/theme/render-contract	resolveTemplateId,resolveLiquidTemplateId,resolveHandlebarsTemplateId	apps/website/src/features/theme/render-contract.ts
+apps/website/src/server/inbound/public-http/http/site/render/blocks.ts	9	prod	barrel:apps/website/src/features/theme/index.ts	#src/features/theme/index	TemplateNode	apps/website/src/features/theme/render-contract.ts
+apps/website/src/server/inbound/public-http/http/site/render/document-shell.ts	7	prod	direct	#src/features/theme/entry-list-render	withEntryListStyleOnce	apps/website/src/features/theme/entry-list-render.ts
+apps/website/src/server/inbound/public-http/http/site/render/widgets/social-entries.ts	6	prod	direct	#src/features/theme/entry-list-render	renderEntryList,renderEntryListStructuredData,EntryListItem,EntryListFieldValue,EntryListRenderOptions	apps/website/src/features/theme/entry-list-render.ts
+apps/website/src/server/inbound/public-http/middleware/__tests__/theme-preview-refresh.test.ts	188	test	barrel:apps/website/src/features/theme/index.ts	#src/features/theme/index	<dynamic import>	apps/website/src/features/theme/index.ts
+apps/website/src/server/inbound/public-http/middleware/__tests__/theme-preview-refresh.test.ts	235	test	barrel:apps/website/src/features/theme/index.ts	#src/features/theme/index	<dynamic import>	apps/website/src/features/theme/index.ts
+apps/website/src/server/inbound/public-http/middleware/__tests__/theme-preview-refresh.test.ts	254	test	barrel:apps/website/src/features/theme/index.ts	#src/features/theme/index	<dynamic import>	apps/website/src/features/theme/index.ts
+apps/website/src/server/inbound/public-http/middleware/__tests__/theme-preview-refresh.test.ts	266	test	barrel:apps/website/src/features/theme/index.ts	#src/features/theme/index	<dynamic import>	apps/website/src/features/theme/index.ts
+apps/website/src/server/inbound/public-http/middleware/__tests__/theme-preview-refresh.test.ts	280	test	barrel:apps/website/src/features/theme/index.ts	#src/features/theme/index	<dynamic import>	apps/website/src/features/theme/index.ts
+apps/website/src/server/inbound/public-http/routes/site/pages/render-context/collection-lists.ts	3	prod	direct	#src/features/theme/entry-list-render	renderEntryList,EntryListItem,EntryListFieldValue	apps/website/src/features/theme/entry-list-render.ts
+development/scripts/__tests__/unit/script-inventory-characterization.unit.test.ts	130	test	barrel:apps/website/src/features/theme/theme.ts	../../../../apps/website/src/features/theme/theme.js	<mock:t.mock.module>	apps/website/src/features/theme/theme.ts
+development/scripts/theme-tool.ts	28	prod	barrel:apps/website/src/features/theme/theme.ts	../../apps/website/src/features/theme/theme.js	ThemeTier	apps/website/src/features/theme/render-contract.ts

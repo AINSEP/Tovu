@@ -1,0 +1,10 @@
+file	function	code_lines	lines
+apps/website/src/features/trash/adapters/marker-sql.ts	(file)	147	
+apps/website/src/features/trash/entry-sql.ts	(file)	83	
+apps/website/src/features/trash/entry-sql.types.ts	(file)	9	
+apps/website/src/features/trash/not-trashed.ts	(file)	117	
+apps/website/src/features/trash/repo.ts	(file)	232	
+apps/website/src/features/trash/table-adapter.ts	(file)	362	
+apps/website/src/features/trash/table-adapter.ts	createTableTrashAdapter	191	76-362
+apps/website/src/features/trash/table-adapter.ts	createTableTrashAdapter.purge	44	307-360
+apps/website/src/features/trash/table-adapter.ts	createTableTrashAdapter.purge	42	308-359

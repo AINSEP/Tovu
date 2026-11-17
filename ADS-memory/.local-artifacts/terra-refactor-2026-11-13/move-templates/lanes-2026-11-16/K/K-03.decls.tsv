@@ -23,17 +23,4 @@ apps/website/src/features/comments/tool-registrations.ts	decl	COMMENTS_TRASH_TOO
 apps/website/src/features/comments/tool-registrations.ts	decl	ASSISTANT_ACTOR_PLUGIN_ID		202	202	1
 apps/website/src/features/comments/tool-registrations.ts	decl	requireCommentsSettingsPatch		205	217	13
 apps/website/src/features/comments/tool-registrations.ts	decl	buildCommentsRegistrations	export	219	375	157
-apps/website/src/features/comments/tool-registrations.ts	handler	comments_set_provider		241	241	1
-apps/website/src/features/comments/tool-registrations.ts	handler	prepare		242	253	12
-apps/website/src/features/comments/tool-registrations.ts	handler	describe		254	258	5
-apps/website/src/features/comments/tool-registrations.ts	handler	run		259	267	9
-apps/website/src/features/comments/tool-registrations.ts	handler	comments_get_comment		268	275	8
-apps/website/src/features/comments/tool-registrations.ts	handler	comments_list_moderation_queue		276	289	14
-apps/website/src/features/comments/tool-registrations.ts	handler	comments_get_settings		290	300	11
-apps/website/src/features/comments/tool-registrations.ts	handler	comments_update_settings		301	327	27
-apps/website/src/features/comments/tool-registrations.ts	handler	comments_approve_comment		328	328	1
-apps/website/src/features/comments/tool-registrations.ts	handler	comments_mark_comment_spam		329	331	3
-apps/website/src/features/comments/tool-registrations.ts	handler	comments_trash_comment		332	362	31
-apps/website/src/features/comments/tool-registrations.ts	handler	comments_restore_comment		363	371	9
-apps/website/src/features/comments/tool-registrations.ts	handler	handlers		372	375	4
 apps/website/src/features/comments/tool-registrations.ts	decl	contributeCommentsTools	export	385	387	3

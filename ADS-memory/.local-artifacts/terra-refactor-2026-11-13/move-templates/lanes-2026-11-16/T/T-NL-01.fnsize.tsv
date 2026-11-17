@@ -1,0 +1,9 @@
+file	function	code_lines	lines
+apps/website/src/features/newsletter/confirmation.ts	(file)	186	
+apps/website/src/features/newsletter/confirmation.ts	issueConfirmationToken	51	61-123
+apps/website/src/features/newsletter/confirmation.ts	consumeConfirmationToken	46	130-186
+apps/website/src/features/newsletter/send-pipeline.ts	(file)	614	
+apps/website/src/features/newsletter/send-pipeline.ts	freezeAudience	65	126-199
+apps/website/src/features/newsletter/send-pipeline.ts	dispatchRow	49	227-289
+apps/website/src/features/newsletter/subscriptions.ts	(file)	171	
+apps/website/src/features/newsletter/unsubscribe.ts	(file)	142	

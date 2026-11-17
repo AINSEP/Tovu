@@ -1,0 +1,17 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/trash/trash-item-tool.ts	decl	WIDGET_ENTITY_TYPE		76	76	1
+apps/website/src/features/trash/trash-item-tool.ts	decl	ASSISTANT_ACTOR_PLUGIN_ID		90	90	1
+apps/website/src/features/trash/trash-item-tool.ts	decl	TRASH_ITEM_TOOL_ID	export	92	92	1
+apps/website/src/features/trash/trash-item-tool.ts	decl	TrashItemToolDeps	export	98	119	22
+apps/website/src/features/trash/trash-item-tool.ts	decl	TrashItemDelegate	export	130	139	10
+apps/website/src/features/trash/trash-item-tool.ts	decl	TrashUserPort	export	153	153	1
+apps/website/src/features/trash/trash-item-tool.ts	decl	TRASH_ITEM_DELEGATES	export	156	236	81
+apps/website/src/features/trash/trash-item-tool.ts	decl	trashItemToolDefinition		247	273	27
+apps/website/src/features/trash/trash-item-tool.ts	decl	getTrashItemAgentToolCatalog	export	286	288	3
+apps/website/src/features/trash/trash-item-tool.ts	decl	trashItemDerivedRisk	export	296	299	4
+apps/website/src/features/trash/trash-item-tool.ts	decl	moveToTrashOutcomeToError	export	316	332	17
+apps/website/src/features/trash/trash-item-tool.ts	decl	buildGenericTrashHandler		342	375	34
+apps/website/src/features/trash/trash-item-tool.ts	decl	buildDelegateTrashHandler		384	403	20
+apps/website/src/features/trash/trash-item-tool.ts	decl	buildUserTrashHandler		413	420	8
+apps/website/src/features/trash/trash-item-tool.ts	decl	buildDelegateTrashHandlers		423	436	14
+apps/website/src/features/trash/trash-item-tool.ts	decl	deriveTrashItemRegistrations	export	459	518	60

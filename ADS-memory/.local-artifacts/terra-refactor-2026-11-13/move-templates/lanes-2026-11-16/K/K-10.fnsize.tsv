@@ -1,0 +1,5 @@
+file	function	code_lines	lines
+apps/website/src/features/forms/agent-tools.ts	(file)	357	
+apps/website/src/features/forms/tool-registrations.ts	(file)	660	
+apps/website/src/features/forms/tool-registrations.ts	buildFormsRegistrations	164	325-511
+apps/website/src/features/forms/tool-registrations.ts	duplicateFormDefinition	47	557-624

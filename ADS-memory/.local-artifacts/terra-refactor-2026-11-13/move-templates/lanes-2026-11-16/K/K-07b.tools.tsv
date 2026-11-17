@@ -1,0 +1,4 @@
+file	tool_id	first_line	last_line	code_lines	wrapper	in_catalog	risk	sideEffects
+apps/website/src/features/trash/trash-item-tool.ts	trash_item	493	508	11	inline	NOT-IN-CATALOG	NO-RISK-ROW	
+(catalog only)	trash_list_items				NOT-WIRED-HERE	y	NO-RISK-ROW	"none"
+(catalog only)	trash_restore_item				NOT-WIRED-HERE	y	NO-RISK-ROW	"mutates-durable-state"

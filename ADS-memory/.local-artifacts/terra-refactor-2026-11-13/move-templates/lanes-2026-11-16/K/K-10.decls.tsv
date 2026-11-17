@@ -32,16 +32,6 @@ apps/website/src/features/forms/tool-registrations.ts	decl	requireFormsStatus		2
 apps/website/src/features/forms/tool-registrations.ts	decl	requireFormsPatch		282	292	11
 apps/website/src/features/forms/tool-registrations.ts	decl	FORMS_MODEL_FACING_ERRORS		315	323	9
 apps/website/src/features/forms/tool-registrations.ts	decl	buildFormsRegistrations	export	325	511	187
-apps/website/src/features/forms/tool-registrations.ts	handler	forms_list_providers		327	335	9
-apps/website/src/features/forms/tool-registrations.ts	handler	forms_list_definitions		336	350	15
-apps/website/src/features/forms/tool-registrations.ts	handler	forms_create_definition		351	373	23
-apps/website/src/features/forms/tool-registrations.ts	handler	forms_update_definition		374	394	21
-apps/website/src/features/forms/tool-registrations.ts	handler	forms_set_definition_status		395	415	21
-apps/website/src/features/forms/tool-registrations.ts	handler	forms_list_submissions		416	441	26
-apps/website/src/features/forms/tool-registrations.ts	handler	forms_get_submission		442	463	22
-apps/website/src/features/forms/tool-registrations.ts	handler	forms_delivery_status		464	480	17
-apps/website/src/features/forms/tool-registrations.ts	handler	forms_pull_submissions		481	507	27
-apps/website/src/features/forms/tool-registrations.ts	handler	handlers		508	511	4
 apps/website/src/features/forms/tool-registrations.ts	decl	deriveDefaultDuplicateFormName		547	555	9
 apps/website/src/features/forms/tool-registrations.ts	decl	duplicateFormDefinition		557	624	68
 apps/website/src/features/forms/tool-registrations.ts	decl	contributeFormsDuplicateHandlers	export	636	646	11

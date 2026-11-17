@@ -1,0 +1,4 @@
+file	function	code_lines	lines
+apps/website/src/features/trash/agent-tools.ts	(file)	154	
+apps/website/src/features/trash/tool-registrations.ts	(file)	252	
+apps/website/src/features/trash/tool-registrations.ts	buildTrashRegistrations	53	141-226

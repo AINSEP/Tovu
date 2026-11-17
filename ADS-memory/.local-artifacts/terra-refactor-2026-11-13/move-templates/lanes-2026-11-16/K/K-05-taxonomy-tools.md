@@ -1,8 +1,17 @@
-# K-05 SP-taxonomy-tools-1 (+ K-05b follow-ups): taxonomy agent tool handlers -> `@jini-ai/cms/taxonomy`
-kind: SPLIT (K-TOOLS-PATTERN; catalog already in Jini: `packages/cms/src/taxonomy/agent-tools.ts`, Tovu `taxonomy/agent-tools.ts` is a 39-line binding and STAYS). est: K-05 230k Sonnet + Opus review of the merge-term gateway port (expect a handoff); K-05b 120k.
-tovu_files: `K-05.files.tsv` (1 file, 450 lines). decls: `K-05.decls.tsv` (9 declarations, 12 handlers, longest 42). over the limit: `buildTaxonomyRegistrations` 253.
-ports (8 Tovu imports, the most in lane K): gated-mutations gateway `plan/confirm/execute` + `GatewayDeps` (`contracts/core/gated-mutations/gateway.js`) -> FIRST check `rg -n "export (async )?function (plan|confirm|execute)" packages/core/src/gated-mutations` : if core already owns it, import core (CLASSIFY says `taxonomy -> core/gated-mutations` MOVE-AFTER); else port `deps.mergeGateway`. `humanConfirmedToolHandler`, `refuseUnexpectedKeys` (`contracts/core/human-confirm`) -> `deps.humanConfirmed(handler)` + local `refuseUnexpectedKeys` only if core has no equal. `toSlug` (`platform/html/slug.js`) -> `deps.toSlug` (slug rules are a saved format: do not swap for a Jini slug helper without a diff test). `PostRepoPort` -> local structural port. `./collection-term-policy.js`, `./gated-hooks.js`, `./index.js` names -> K-05b moves them; until then they are fields of `TaxonomyToolDeps`.
-surfaces: 2 occurrences -> REQUIRED.
-K-05b (`K-05b.files.tsv`, 4 files, 481 lines): `collection-term-policy.ts`, `gated-hooks.ts`, `taxonomy-trash-follow-ups.ts`, `trash-term.ts` -> `packages/cms/src/taxonomy/`. T-MOVE per file after K-05; each depends on `contracts/core` names: same core-first check. Design level: ports not enumerated at planning time.
-characterization (S0): pattern plus (f) merge-term: plan -> confirm with a stale token is refused; execute after confirm writes outbox event(s) in the same order (assert the outbox fake's call list); (g) assign to a content type off the allow-list is refused.
-changeset: cms minor. census: `K-05.census.txt`, `K-05b.census.txt`.
+# K-05 taxonomy agent tool handlers -> `@jini-ai/cms/taxonomy` (one run, est 240k; hand off at 200k after a pushed step)
+files: `K-05.files.tsv` (`taxonomy/tool-registrations.ts` 450). The catalog is ALREADY in Jini (`packages/cms/src/taxonomy/agent-tools.ts`); Tovu `taxonomy/agent-tools.ts` (39-line binding) stays. So `K-05.tools.tsv` shows `NOT-IN-CATALOG` for the Tovu-side check: expected; S0 (a) compares against the Jini catalog names instead. tools = 10 (round 1 said 12); one wrapped by `humanConfirmedToolHandler` (key `MERGE_TOOL_ID`, 66 code lines). pkg: cms. tests: `apps/website/src/features/taxonomy/**/*.test.ts`.
+over the limit: `buildTaxonomyRegistrations` 223; the merge handler 66: S1 splits it into `mergePrepare`, `mergeDialog` (stays in Tovu if it reads host wording), `mergeRun` (each <= 50).
+prerequisite: K-06b pushed (both touch importers of `taxonomy/index.ts`).
+BINDINGS:
+| import | class | action |
+|---|---|---|
+| `toolMetadata` (`tool-metadata/taxonomy.js`) | host | `withToolMetadata` |
+| `plan/confirm/execute` + types (`contracts/core/gated-mutations/gateway.js`) | port | that Tovu file BINDS the core gateway to Tovu's token policy and storage ports (its header says so), so the handlers must keep calling the bound functions: `deps.mergeGateway: { plan, confirm, execute }` typed with `@jini-ai/core` gated-mutations types (`packages/core/src/gated-mutations/{gateway,ports}.ts`); Tovu passes its three bound functions unchanged |
+| `humanConfirmedToolHandler`, `refuseUnexpectedKeys` | port | `deps.humanConfirmedHandler` typed from the real signature `(surfaces, { flag, prepare, dialog, run })`; `deps.refuseUnexpectedKeys` |
+| `toSlug` (`platform/html/slug.js`) | port | `deps.toSlug: (value: string) => string` (slug output is a saved format; no Jini slug helper is substituted) |
+| `PostRepoPort` | structural | members called only |
+| `./collection-term-policy.js`, `./gated-hooks.js`, `./index.js` names | port | fields of `TaxonomyToolDeps` holding the BUILT objects (`collectionTermPolicy`, `mergeTermHooks`, ...); the contributor builds them as the handler does today. K-05b (design queue) moves their generic parts later |
+| `Clock`, `OutboxPort`, `TransactionalRepoPort`, `@jini-ai/core*` | core | as is |
+| daemon/platform default surfaces | delete | `surfaces` REQUIRED |
+S0 extra: (f) merge: plan -> confirm with a stale token is refused with the same code; execute after confirm calls the outbox fake with the same events in the same order; declined -> no repo write, no outbox call; (g) assign to a content type off the allow-list is refused.
+changeset: cms minor.

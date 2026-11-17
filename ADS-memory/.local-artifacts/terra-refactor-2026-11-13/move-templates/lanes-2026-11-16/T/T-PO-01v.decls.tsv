@@ -1,0 +1,5 @@
+file	kind	name	exported	first_line	last_line	span
+apps/website/src/features/post/expected-version.ts	decl	EXPECTED_VERSION_REJECTION	export	19	19	1
+apps/website/src/features/post/expected-version.ts	decl	VERSION_CONFLICT_CODE	export	28	28	1
+apps/website/src/features/post/expected-version.ts	decl	parseExpectedVersion	export	49	55	7
+apps/website/src/features/post/expected-version.ts	decl	versionConflictEnvelope	export	66	76	11

@@ -1,0 +1,19 @@
+file	tool_id	first_line	last_line	code_lines	wrapper	in_catalog	risk	sideEffects
+apps/website/src/features/newsletter/delivery/tool-registrations.ts	newsletter_send_test	108	123	15	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/newsletter/tool-registrations.ts	newsletter_list_campaigns	300	311	11	inline	y	"none"	"none"
+apps/website/src/features/newsletter/tool-registrations.ts	newsletter_get_campaign	313	321	8	inline	y	"none"	"none"
+apps/website/src/features/newsletter/tool-registrations.ts	newsletter_list_lists	323	330	7	inline	y	"none"	"none"
+apps/website/src/features/newsletter/tool-registrations.ts	newsletter_list_subscriptions	332	342	10	inline	y	"none"	"none"
+apps/website/src/features/newsletter/tool-registrations.ts	newsletter_list_send_log	344	353	9	inline	y	"none"	"none"
+apps/website/src/features/newsletter/tool-registrations.ts	newsletter_create_campaign	355	377	22	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/newsletter/tool-registrations.ts	newsletter_update_campaign	379	406	26	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/newsletter/tool-registrations.ts	newsletter_cancel_campaign	408	419	11	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/newsletter/tool-registrations.ts	newsletter_pause_campaign	421	428	7	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/newsletter/tool-registrations.ts	newsletter_create_list	430	441	11	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/newsletter/tool-registrations.ts	newsletter_archive_list	443	451	8	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/newsletter/tool-registrations.ts	newsletter_create_subscription	453	466	13	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/newsletter/tool-registrations.ts	newsletter_remove_subscription	468	485	16	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+apps/website/src/features/newsletter/tool-registrations.ts	newsletter_resend_confirmation	487	499	12	inline	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+(catalog only)	newsletter_send_campaign				NOT-WIRED-HERE	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+(catalog only)	newsletter_schedule_campaign				NOT-WIRED-HERE	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE
+(catalog only)	newsletter_resume_campaign				NOT-WIRED-HERE	y	MUTATES_DURABLE_STATE	MUTATES_DURABLE_STATE

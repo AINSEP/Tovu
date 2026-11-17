@@ -1,10 +1,15 @@
-# K-02 SP-widgets-tools-1 (+ K-02b media-html): widgets agent tools -> `@jini-ai/cms/widgets`
-kind: SPLIT (K-TOOLS-PATTERN). est: K-02 210k Sonnet (largest handler table in lane K; plan a handoff at 200k), K-02b 60k. prerequisites: audit2 a04 (widget config editors) is independent.
-tovu_files: `K-02.files.tsv` (2 files, 853 lines). decls: `K-02.decls.tsv` (28 declarations, 12 handlers, longest 55 -> split at its branch).
-over the limit: `buildWidgetsRegistrations` 268.
-ports (Tovu imports found): `withPluginHookRefusals` (`contracts/core/plugin-hook-failed-error.js`) -> `deps.wrapHookRefusals(handler)`; `buildWidgetsDeps`, `buildWidgetsRegionDeps`, `WidgetsRouteDeps` (`./deps.js`, composition over content-types/media/post) -> stay in Tovu: `WidgetsToolDeps` in Jini declares the two BUILT dep objects as fields; Tovu's `contributeWidgetsTools` builds them. `deps.ts` (140 lines, 12 outside importers) is STAY.
-surfaces: 1 occurrence (signature only) -> not in the Jini signature.
-callers: prod 1, tests 9 files.
-characterization (S0): pattern (a)-(e) plus (f) a plugin-hook refusal thrown inside a handler surfaces as the same model-facing refusal (fails if the wrapper is dropped in extraction).
-K-02b `widgets/media-html.ts` (179 lines, `K-02b.files.tsv`): parse5 is already a cms dependency; 3 `console.*` calls -> `report` port; target `packages/cms/src/widgets/html/media-html.ts`. FIRST diff against the existing `packages/cms/src/widgets/html/*` (44 files in `cms/src/widgets`): if a function with the same output exists it is a DEDUPE and needs one real caller compared, not a move. Not diffed at planning time.
-changeset: cms minor. census: `K-02.census.txt`, `K-02b.census.txt`.
+# K-02 widgets agent tools -> `@jini-ai/cms/widgets` (one run, est 230k; hand off at 200k after a pushed step)
+files: `K-02.files.tsv` (`widgets/agent-tools.ts` 335, `widgets/tool-registrations.ts` 518). tools: `K-02.tools.tsv` = 12, all `inline`, longest 25. pkg: cms. THIRD_PARTY_ALLOWED: none. tests: `apps/website/src/features/widgets/**/*.test.ts`.
+over the limit: `buildWidgetsRegistrations` 213; FILE 518 > 500. Target partition (S1 creates it in Tovu): `tool-registrations.ts` (deps type, risk, table, about 150) + `tool-handlers.instances.ts` (instance list/get/create/update/trash handlers + their view mappers) + `tool-handlers.areas.ts` (area + embed handlers). Rule for the cut: a helper used by both groups stays in `tool-registrations.ts`; `wc -l` of each <= 400.
+target: `packages/cms/src/widgets/{agent-tools,tool-registrations,tool-handlers.instances,tool-handlers.areas}.ts`.
+BINDINGS:
+| import | class | action |
+|---|---|---|
+| `toolMetadata` (`tool-metadata/widgets.js`) | host | `withToolMetadata` |
+| `withPluginHookRefusals` (`contracts/core/plugin-hook-failed-error.js`) | port | `deps.wrapHookRefusals: (handlers: Record<string, ToolHandler>) => Record<string, ToolHandler>`; write the type from the real signature (read it first; a different shape = use the real one, same call site) |
+| `buildWidgetsDeps`, `buildWidgetsRegionDeps`, `WidgetsRouteDeps` (`./deps.js`) | host | `deps.ts` STAYS; the contributor calls both builders and passes the BUILT objects as `deps.widgets`, `deps.regions`; Jini declares those two field types structurally from what the handlers read |
+| `@jini-ai/cms/widgets` | own | leaf files |
+| `@jini-ai/core*` | core | as is |
+| daemon/platform default surfaces | delete | handlers never read `surfaces` |
+S0 extra: (f) a plugin-hook refusal thrown inside a handler reaches the model as the same refusal object (V3: remove the wrapper call -> RED).
+changeset: cms minor.

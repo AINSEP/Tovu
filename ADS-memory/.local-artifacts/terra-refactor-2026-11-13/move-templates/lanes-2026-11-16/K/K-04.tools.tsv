@@ -1,0 +1,7 @@
+file	tool_id	first_line	last_line	code_lines	wrapper	in_catalog	risk	sideEffects
+apps/website/src/features/seo/tool-registrations.ts	seo_get_entry_meta	148	155	7	inline	y	"none"	"none"
+apps/website/src/features/seo/tool-registrations.ts	seo_analyze_entry	157	164	7	inline	y	"none"	"none"
+apps/website/src/features/seo/tool-registrations.ts	seo_set_entry_overrides	166	189	22	inline	y	"mutates-durable-state"	"mutates-durable-state"
+apps/website/src/features/seo/tool-registrations.ts	seo_get_settings	191	198	7	inline	y	"none"	"none"
+apps/website/src/features/seo/tool-registrations.ts	seo_set_settings	200	224	20	inline	y	"mutates-durable-state"	"mutates-durable-state"
+apps/website/src/features/seo/tool-registrations.ts	seo_regenerate_sitemap	226	234	8	inline	y	"mutates-durable-state"	"mutates-durable-state"

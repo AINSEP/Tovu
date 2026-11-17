@@ -92,13 +92,6 @@ apps/website/src/features/post/tool-registrations.ts	decl	assertTemplateAvailabl
 apps/website/src/features/post/tool-registrations.ts	decl	assertHtmlBodyUnchanged		859	866	8
 apps/website/src/features/post/tool-registrations.ts	decl	updateInverse		875	888	14
 apps/website/src/features/post/tool-registrations.ts	decl	buildPostRegistrations	export	904	1331	428
-apps/website/src/features/post/tool-registrations.ts	handler	content_post_search		918	953	36
-apps/website/src/features/post/tool-registrations.ts	handler	content_post_list		954	983	30
-apps/website/src/features/post/tool-registrations.ts	handler	content_post_get		984	1001	18
-apps/website/src/features/post/tool-registrations.ts	handler	content_post_create		1002	1081	80
-apps/website/src/features/post/tool-registrations.ts	handler	content_post_update		1082	1229	148
-apps/website/src/features/post/tool-registrations.ts	handler	content_post_delete		1230	1327	98
-apps/website/src/features/post/tool-registrations.ts	handler	handlers		1328	1331	4
 apps/website/src/features/post/tool-registrations.ts	decl	deriveDefaultDuplicateTitle		1346	1356	11
 apps/website/src/features/post/tool-registrations.ts	decl	duplicatePostOrPage		1378	1498	121
 apps/website/src/features/post/tool-registrations.ts	decl	contributePostDuplicateHandlers	export	1515	1532	18

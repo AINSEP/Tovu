@@ -1,0 +1,9 @@
+file	tool_id	first_line	last_line	code_lines	wrapper	in_catalog	risk	sideEffects
+apps/website/src/features/post/content-stats-tool.ts	content_stats	150	166	17	inline	y	"none"	"none" as const
+apps/website/src/features/post/preview-tool.ts	content_post_preview	65	80	16	inline	y	"none"	"none" as const
+apps/website/src/features/post/tool-registrations.ts	content_post_search	918	944	21	inline	y	"none"	"none"
+apps/website/src/features/post/tool-registrations.ts	content_post_list	954	982	25	inline	y	"none"	"none"
+apps/website/src/features/post/tool-registrations.ts	content_post_get	984	1000	11	inline	y	"none"	"none"
+apps/website/src/features/post/tool-registrations.ts	content_post_create	1002	1080	62	inline	y	"mutates-durable-state"	"mutates-durable-state"
+apps/website/src/features/post/tool-registrations.ts	content_post_update	1082	1226	89	inline	y	"mutates-durable-state"	"mutates-durable-state"
+apps/website/src/features/post/tool-registrations.ts	content_post_delete	1230	1311	59	inline	y	"deletes-durable-state"	"deletes-durable-state"

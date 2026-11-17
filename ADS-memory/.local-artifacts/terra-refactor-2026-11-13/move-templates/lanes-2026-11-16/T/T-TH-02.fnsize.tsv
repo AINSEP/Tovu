@@ -1,0 +1,7 @@
+file	function	code_lines	lines
+apps/website/src/features/theme/migration/theme-migration-plan.ts	(file)	280	
+apps/website/src/features/theme/validation/manifest-v2.ts	(file)	548	
+apps/website/src/features/theme/validation/manifest-v2.ts	validateManifestV2	43	426-492
+apps/website/src/features/theme/validation/markup.ts	(file)	129	
+apps/website/src/features/theme/validation/validate-theme-package.ts	(file)	260	
+apps/website/src/features/theme/validation/webmcp-markup.ts	(file)	210	

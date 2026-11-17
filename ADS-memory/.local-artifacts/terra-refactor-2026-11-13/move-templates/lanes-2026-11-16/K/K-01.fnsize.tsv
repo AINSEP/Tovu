@@ -1,0 +1,5 @@
+file	function	code_lines	lines
+apps/website/src/features/redirects/agent-tools.ts	(file)	231	
+apps/website/src/features/redirects/agent-tools.ts	getRedirectsAgentToolCatalog	55	177-231
+apps/website/src/features/redirects/tool-registrations.ts	(file)	286	
+apps/website/src/features/redirects/tool-registrations.ts	buildRedirectsRegistrations	123	128-274

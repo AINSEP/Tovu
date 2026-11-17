@@ -1,0 +1,17 @@
+importer	line	kind	via	specifier	names	origin_or_action
+apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.delete-confirmation-family.integration.test.ts	22	test	direct	#src/features/comments/tool-registrations	buildCommentsRegistrations,CommentsToolDeps	apps/website/src/features/comments/tool-registrations.ts
+apps/website/src/assistant/__tests__/tool-contribution-registry.test.ts	30	test	direct	../../features/comments/agent-tools.js	commentsAgentToolCatalog	apps/website/src/features/comments/agent-tools.ts
+apps/website/src/assistant/__tests__/tool-contribution-registry.test.ts	413	test	direct	../../features/comments/tool-registrations.js	<dynamic import>	apps/website/src/features/comments/tool-registrations.ts
+apps/website/src/assistant/__tests__/tool-registrations.comments.test.ts	24	test	direct	../../features/comments/agent-tools.js	commentsAgentToolCatalog	apps/website/src/features/comments/agent-tools.ts
+apps/website/src/assistant/__tests__/tool-registrations.comments.test.ts	36	test	direct	../../features/comments/tool-registrations.js	contributeCommentsTools	apps/website/src/features/comments/tool-registrations.ts
+apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts	51	test	direct	../../features/comments/agent-tools.js	commentsAgentToolCatalog	apps/website/src/features/comments/agent-tools.ts
+apps/website/src/assistant/__tests__/tool-registrations.trash-item.test.ts	19	test	direct	#src/features/comments/agent-tools	commentsAgentToolCatalog	apps/website/src/features/comments/agent-tools.ts
+apps/website/src/assistant/tool-registrations.ts	26	prod	direct	../features/comments/tool-registrations.js	CommentsToolDeps	apps/website/src/features/comments/tool-registrations.ts
+apps/website/src/features/comments/__tests__/agent-tools.trash-confirmation.test.ts	14	test	direct	../tool-registrations.js	buildCommentsRegistrations,CommentsToolDeps	apps/website/src/features/comments/tool-registrations.ts
+apps/website/src/features/comments/__tests__/provider-tools.test.ts	11	test	direct	../tool-registrations.js	buildCommentsRegistrations,commentsDerivedRisk,CommentsToolDeps	apps/website/src/features/comments/tool-registrations.ts
+apps/website/src/features/comments/__tests__/tool-registrations.get-comment.test.ts	5	test	direct	../tool-registrations.js	buildCommentsRegistrations,CommentsToolDeps	apps/website/src/features/comments/tool-registrations.ts
+apps/website/src/features/comments/__tests__/tool-registrations.list-validation.test.ts	12	test	direct	../tool-registrations.js	buildCommentsRegistrations,CommentsToolDeps	apps/website/src/features/comments/tool-registrations.ts
+apps/website/src/features/comments/__tests__/tool-registrations.model-facing-errors.test.ts	14	test	direct	../tool-registrations.js	buildCommentsRegistrations,CommentsToolDeps	apps/website/src/features/comments/tool-registrations.ts
+apps/website/src/features/comments/__tests__/tool-registrations.update-settings-validation-status.test.ts	11	test	direct	../tool-registrations.js	buildCommentsRegistrations,commentsDerivedRisk,contributeCommentsTools,CommentsToolDeps	apps/website/src/features/comments/tool-registrations.ts
+apps/website/src/features/comments/tool-registrations.ts	28	prod	moves-too	./agent-tools.js	commentsAgentToolCatalog	apps/website/src/features/comments/agent-tools.ts
+apps/website/src/server/runtime/composition/tool-catalog-manifest.ts	55	prod	direct	#src/features/comments/tool-registrations	contributeCommentsTools	apps/website/src/features/comments/tool-registrations.ts

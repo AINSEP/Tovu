@@ -1,4 +1,4 @@
-# Re-run at execution time; every hit must be a row of T-TH-04.repoint.tsv (importer:line). Any other hit = STOP.
+# Re-run at execution time; every hit must be a row of T-TH-04.importers.tsv (importer:line; written by scripts/symbols.cjs). Any other hit = STOP.
 rg -n --no-heading -e "(from|import|mock|importActual)[^'\"]*['\"][^'\"]*(handlebars\-allowlist|liquid\-allowlist)(\.js|\.ts)?['\"]" apps development scripts --glob '!**/node_modules/**' | rg "(theme)"
-# index-barrel importers are NOT in the census: names re-exported by the feature index.ts are listed in the sheet (barrel_names).
+# importers that reach a moved name through a feature index.ts are the barrel: rows of the importers.tsv (not matched by this rg).
 # planning-time rows: 8
