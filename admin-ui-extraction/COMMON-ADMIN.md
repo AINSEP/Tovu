@@ -34,7 +34,8 @@ BASE_J=$(git -C $J rev-parse HEAD); BASE_T=$(git -C $T rev-parse HEAD)
 (cd $J && pnpm guard && pnpm typecheck)            # baseline; a red baseline is REPORTED, not fixed
 npm --prefix $J/packages/<pkg> run test            # each package you will touch; record the test count
 # Tovu
-(cd $T && npm ci && npm run link:jini)             # link to the Jini checkout you just built
+(cd $T && npm ci && npm --prefix apps/admin ci)     # apps/admin is its own npm project: without its own ci, vitest/@vitejs/plugin-react are missing (judge 2, ENV)
+(cd $T && JINI_PACKAGES_DIR=$J/packages npm run link:jini)   # the script's default path is the owner's machine; in a cloud run it reports every package missing without the variable (judge 2)
 npm --prefix $T/apps/admin run typecheck
 npm --prefix $T/apps/admin run test -- <the feature's __tests__ folders, relative to apps/admin>   # record the count
 (cd $T && npm run check:hooks && npm run check:size && npm run check:complexity && npm run check:boundaries)
@@ -196,6 +197,8 @@ C10, for every new `exports` key:
 ```
 (cd $J && pnpm --filter @jini-ai/<pkg> build)
 (cd $J/examples/minimal-host && node -e "import('@jini-ai/<pkg>/<subpath>')")    # universal and node entries
+# judge 2: minimal-host declares only 9 @jini-ai packages (not admin, among others); for a package it does not
+# declare, use the package's self-reference instead: (cd $J/packages/<pkg> && node --input-type=module -e "await import('@jini-ai/<pkg>/<subpath>')")
 (cd $T/apps/admin && npx vite build)    # browser (/react) entries, linked to the Jini commit; `npm run build` refuses a linked Jini on purpose
 rg -n "from ['\"]node:|require\(" $J/packages/<pkg>/src/<the entry's source folder>    # prints nothing
 ```

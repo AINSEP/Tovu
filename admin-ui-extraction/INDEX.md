@@ -1,5 +1,7 @@
 # Admin UI extraction: plan index (2026-11-17, planning only, nothing executed)
 
+Second judge pass 2026-11-17 (`admin-judge2-REPORT.md`): J1 READY-WITH-NOTE, J2 READY-WITH-NOTE, T1b BLOCKED (AU-D15); owner decisions of 2026-11-17: AU-D1, D2, D3, D7, D8, D9, D10, D11, D13, D14 = Rec; D4, D6, D12 decide later.
+
 Status: **PARTIAL, revision 3** (2026-11-16 PT; Opus review answered in full, table at the end). **Base from
 revision 3: `integ/merge-final-2026-11-16`** (Tovu `232764af5`, Jini `65d73b0d5`; contains merge-a, merge-b and
 size-05); `inventory.tsv` regenerated there. Revision 2 (2026-11-17): Round 2 answered all 17 findings of `CODEX-JUDGE.md` (table at the
@@ -92,12 +94,12 @@ Findings that change the plan:
 | f/trash | 1,072 (8) | 1,242 | 1,482 | 0 | 0 | 0 | MOVE | @jini-ai/cms/trash/react | S-TRASH | YES |
 | c/WidgetConfigFields | 2,221 (11) | 0 | 1,054 | 0 | 1: WidgetConfigFields.tsx 601 | 3 | covered elsewhere | cms/widgets (audit2 a04 sheet exists) | a04 | YES |
 | hooks | 1,873 (26) | 196 | 8,278 | 0 | 0 | 0 | MOVE PART | Tovu; shell hooks -> J2 | J2 | no |
-| f/users | 418 (8) | 1,584 | 3,068 | 0 | 0 | 0 | STAY (binding) | host binding of user-management/react/users | - | no |
+| f/users | **218 (7)** (judge 2, `232764af5`) | 1,584 | 3,069 | 0 | 0 | 0 | STAY (binding) | host binding of user-management/react/users | - | no |
 | f/forms | 102 (4) | 1,821 | 389 | 0 | 0 | 0 | STAY (repoint in JM1) | host binding + dictionary of Jini forms | JM1 | YES |
 | f/source-control | 1,225 (11) | 600 | 1,290 | 0 | 0 | 3 | STAY for now | later (devops/source-control) | - | no |
 | f/seo | 145 (2) | 1,606 | 113 | 0 | 0 | 0 | STAY (repoint in JM2) | host binding + dictionary of Jini seo | JM2 | YES |
 | f/widgets | 114 (3) | 1,449 | 109 | 0 | 0 | 0 | STAY (repoint in JM4) | host binding + dictionary of Jini widgets | JM4 | YES |
-| f/library | 1,067 (7) | 454 | 1,409 | 0 | 0 | 0 | STAY for now | later | - | no |
+| f/library | **1,066 (7)** (judge 2, `232764af5`; the drift was blobs, not lines) | 454 | 1,409 | 0 | 0 | 0 | STAY for now | later | - | no |
 | f/content-analysis | 712 (5) | 712 | 795 | 0 | 0 | 1 | STAY for now | later, with posts (cms/seo/content-analysis) | - | no |
 | f/voice-input | 1,032 (12) | 0 | 1,572 | 91 | 0 | 5 | STAY for now | later (chat/react or ui) | - | no |
 | f/comments | 82 (3) | 943 | 45 | 0 | 0 | 0 | STAY (repoint in JM4) | host binding + dictionary of Jini comments | JM4 | YES |
@@ -106,7 +108,7 @@ Findings that change the plan:
 | integrations | 973 (23) | 0 | 2,406 | 1,502 | 0 | 4 | STAY | Tovu host bindings (grow with every move) | every sheet | no |
 | f/redirects | 63 (2) | 908 | 46 | 0 | 0 | 0 | STAY (repoint in JM2) | host binding + dictionary of Jini redirects | JM2 | YES |
 | f/workspace | 495 (10) | 435 | 615 | 0 | 0 | 1 | STAY | Tovu | - | no |
-| f/members | 218 (8) | 625 | 702 | 0 | 0 | 0 | STAY (binding) | host binding of user-management/react/members | - | no |
+| f/members | **139 (7)** (judge 2, `232764af5`) | 625 | 703 | 0 | 0 | 0 | STAY (binding) | host binding of user-management/react/members | - | no |
 | f/import-export | 717 (11) | 35 | 439 | 0 | 0 | 3 | STAY | Tovu | - | no |
 | f/analytics | 233 (7) | 376 | 336 | 0 | 0 | 0 | STAY for now | later | - | no |
 | f/admin-themes | 149 (2) | 306 | 162 | 41 | 0 | 4 | STAY (rev 2) | Tovu theme controller, injected through the shell's `useThemeHook` | J3, T1b | YES |
@@ -118,15 +120,15 @@ Findings that change the plan:
 | f/playground | 131 (4) | 29 | 147 | 0 | 0 | 1 | STAY | Tovu dev tool | - | no |
 | f/admin-ui | 45 (2) | 0 | 122 | 3 | 0 | 1 | STAY | Tovu | - | no |
 | styles | 0 (0) | 0 | 645 | 6,498 | 0 | 0 | STAY | Tovu host CSS (styles the jini- classes) | - | no |
-| **total** | **118,112 (951)** | **66,281** | **182,593** | **16,796** | 38 | 285 | | | | |
+| **total** (`f354cfbd`; the three judge-2 rows sum 279 lines / 2 files lower) | **118,112 (951)** | **66,281** | **182,593** | **16,796** | 38 | 285 | | | | |
 
 ## 5. Sheets, order, prerequisites, estimates (revision 2)
 Owner-package subpaths in section 4 read `<owner>/<domain>/admin/react` (exact table: `JM-jini-domains-out.md`).
 | Order | Sheet (file) | Runs | Estimate | Needs | Chrome check |
 |---|---|---|---|---|---|
 | 1 | A0 baselines, A1 website imports incl. Step D (`A-prereqs.md`) | 2 | 0.34M | - | A0 is the check's baseline |
-| 1 | J1 access rule + `noAccess`, J2 shell contract, J3 theme seam (`J-shell.md`) | 3 | 0.45M | J2: order with xpkg R1c | no (Jini only) |
-| 2 | T1a permissions, T1b shell swap (`T1-adopt-shell.md`) | 2 | 0.36M | J1-J3, A0, A1; Opus review of T1b | **every panel**, 3 widths |
+| 1 | J1 access rule + `noAccess`, J2 shell contract, J3 theme seam (`J-shell.md`) | 3 | 0.50M (judge 2: J2 +50k for its new seams) | J2: order with xpkg R1c | no (Jini only) |
+| 2 | T1a permissions, T1b shell swap (`T1-adopt-shell.md`) | 2 | 0.48M (judge 2: T1b 260k → 380k) | J1-J3, A0, A1; Opus review of T1b | **every panel**, 3 widths |
 | 2 | J4 module runtime (`JM-jini-domains-out.md`) | 1 | 0.15M | D-1 | no |
 | 3 | JM1-pre … JM5-pre: debt, barrels, `SeoPage` split, test classification | 5 | 0.92M | J4 | no (Jini only) |
 | 4 | JM1 forms, JM2 seo+redirects, JM3 media, JM4 widgets+comments, JM5 agent-plugins+consent+source-control | 5 | 0.95M | its pre-run; xpkg R1c, R2a (JM1), R2b (JM3-5); xpkg G-TESTS integration home if a pre-run reports INTEGRATION tests | forms, seo, redirects, widgets, comments, consent |
@@ -138,7 +140,7 @@ Owner-package subpaths in section 4 read `<owner>/<domain>/admin/react` (exact t
 design-first screens. What moved the number: +0.92M pre-runs (debt may not follow moved code; round 1 did not cost
 it), +0.03M A1 Step D, +0.02M T1b, +0.04M J1, -0.06M J3, -0.17M dock (no split design needed), -0.20M collections b
 moved to design-first, +0.65M S-ENTRY-EDITOR design + runs, +0.03M security design, -0.03M JM moves (security stays).
-Runnable now with no owner decision: A0, A1, J1, J2, J3, T1a, T1b = 1.15M. After D-1: J4, the pre-runs, JM1-5, the
+Runnable now with no owner decision: A0, A1, J1, J2, J3, T1a = 0.91M (judge 2: T1b now also needs AU-D15). After D-1: J4, the pre-runs, JM1-5, the
 ready screens.
 
 ## 6. Order of runs (revision 2: serial wherever a shared file is edited; nothing is applied by a coordinator)
@@ -212,7 +214,24 @@ ready screens.
    `f354cfbd` file byte for byte before it was pointed at merge-final). Round 2 had not regenerated it: merge-a moved 4 admin files since `f354cfbd` (2 production: `use-admin-subagents.hooks.ts`,
    `lib/assistant-transport-ag-ui.ts`), and the guard in COMMON-ADMIN section 0 reports them.
 5. Tovu size work that is not extraction: split `AssistantDock.hooks.tsx` (2,134).
-6. A second adversarial judge pass on J1/J2 (new seams) and T1b before they run; round 1's item 5 was done by the judge.
+6. DONE 2026-11-17 by `admin-judge2` (`admin-judge2-REPORT.md`): J1, J2, T1b judged against the code and their commands run; see "Sheet status" below.
+
+## Sheet status (second judge, 2026-11-17; facts on Tovu `232764af5`, Jini `65d73b0d5`)
+| Sheet | Status | Note |
+|---|---|---|
+| A0 | DONE (build run `admin-a0-a1`, Tovu `wave2/admin-a` @ `2eacf8519`, not merged) | only classic-light 1440/390 committed; no editor/dialog/dock-open or 1024 px pictures: J/T1/S runs capture their own "before" at 1024 |
+| A1 | PARTIAL (same run) | rows 1, 3 and Step B done; row 6, Step C, Step D not done (report `cloud-results/admin-a0-a1.md` on that branch). Row 1 removes one import from `App.hooks.ts`: T1b line numbers there shift by one after it merges |
+| A2 | DONE (same run) | AU-D14 |
+| J1 | **READY-WITH-NOTE** | routable fix verified for 8 panel kinds x 9 permission sets on built `dist`; two existing assertions change by AU-D11 (named in the sheet); T9 needs the package self-reference command (minimal-host does not depend on admin); STOP command made exact |
+| J2 | **READY-WITH-NOTE** | judge 2 added seams T1b needs (1b host-owned session, `ids`, `afterMain`, `assistantAside`, topbar icon parity); step 5 (class rename) stays on `admin-ui/J2-classes` and merges only with T1b step 3; its write set is `packages/ui/src/styles/admin.css`, not the theme file; Jini hook gate is red on the base (PRE-EXISTING, BASE-RED) |
+| J3 | not re-judged in this pass | T1b depends on it unchanged (`useThemeHook={() => undefined}`) |
+| T1a | not re-judged; its census ran (`panel-access` users: `App.tsx:28,215,576`, `panels.tsx:3,119`, `lib/__tests__/panel-access.unit.test.ts`, plus comments) | Tovu panels declare **no** all-of `permissions` (0 hits), so J1's all-of changes cannot move a Tovu panel; P1 stands |
+| T1b | **BLOCKED (owner decision AU-D15, new; then READY-WITH-NOTE)** | revision 3's mapping would have broken legacy `/section/:id`, the `/assistant` alias, moved import-export/add-ons URLs, the Sites gate, `#admin-sidebar`/`#main-content` lookups and link interception (26 baseline `app-*` files, 259 tests pin them). Mapping rewritten with a route-parity step 0; estimate 260k → 380k |
+
+New owner decision:
+| # | Decision | Recommendation |
+|---|---|---|
+| AU-D15 (new, judge 2) | After T1b, a legacy `/admin/section/<unknown id>` URL still shows the Placeholder, but `main[data-agent-page]` reports the hidden `section` panel's id instead of the unknown id (no Jini seam reports a route param as the page id; unknown ids are not published agent pages) | accept |
 
 ## Revision 2 - judge response (`CODEX-JUDGE.md`; every finding verified against the code first)
 Code read: Tovu `integ/merge-a-2026-11-16` @ `e801e9ae`, `integ/merge-b-2026-11-16` @ `450ac748`; Jini merge-a @
