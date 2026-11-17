@@ -7,8 +7,8 @@ import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { API_CONNECTION_OAUTH_CALLBACK_PATH, type ApiConnectionHost } from "#src/features/api-connections/host";
 import { clearedBrowserBindingCookie, readBrowserBinding } from "#src/features/api-connections/browser-binding";
 import { renderOAuthCallbackPage, type OAuthCallbackFailureReason } from "../oauth/callback-page.js";
-import { resolvePublicOrigin } from "../../../../../platform/http/public-origin.js";
-import { asyncRoute } from "../../../../../platform/http/async-route.js";
+import { resolvePublicOrigin } from "../../../../../platform/express/public-origin.js";
+import { asyncRoute } from "../../../../../platform/express/async-route.js";
 
 const consoleLogger = createConsoleLogger({ prefix: "" });
 

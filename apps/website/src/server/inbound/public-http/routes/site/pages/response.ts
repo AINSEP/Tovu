@@ -9,7 +9,7 @@ import { injectExtraHeadIntoStaticPage } from "../../../http/site/render/static-
 import { markOffSiteLinksOpenInNewTab } from "../../../http/site/external-links.js";
 import { injectFormAttemptTokens } from "../../../http/site/form-render.js";
 import { injectMemberAuthScript } from "../../../http/site/member-auth-script.js";
-import { isHttpsRequest } from "../../../../../../platform/http/public-origin.js";
+import { isHttpsRequest } from "../../../../../../platform/express/public-origin.js";
 import { MEMBER_SESSION_COOKIE } from "../../../http/members.js";
 import type { RouteDeps } from "#src/server/routes/types";
 import { listingBatchBody, assertListingPageServed } from "./listing/listing-state.js";

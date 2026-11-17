@@ -26,7 +26,7 @@ import { siteBannerMode, toSiteCookieConsent } from '#src/features/consent/cooki
 import type { RouteDeps } from '#src/server/routes/types';
 import { isStaticExportRequest } from "../routes/site/pages/request-policy.js";
 import { CONSENT_RECEIPTS_DIR_NAME, CONSENT_SAVE_PROFILE, readSiteConsentPolicy, resolveSiteConsentOrigin } from './site-consent.js';
-import { asyncRoute } from "../../../../platform/http/async-route.js";
+import { asyncRoute } from "../../../../platform/express/async-route.js";
 
 export type { SiteCookieConsentDeps, ConsentPluginHttp, ConsentPluginContribution } from '#src/contracts/headless/index';
 

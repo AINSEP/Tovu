@@ -3,7 +3,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { asyncRoute } from "../async-route.js";
+import { asyncRoute } from "../../express/async-route.js";
 import { captureRouteError } from "../../../server/inbound/shared/observability-middleware.js";
 import { extractRouteHandler, startTestServer } from "../../../server/__tests__/helpers/http-test-server.js";
 import { lastRouteHandler } from "../../../server/__tests__/helpers/last-route-handler.js";

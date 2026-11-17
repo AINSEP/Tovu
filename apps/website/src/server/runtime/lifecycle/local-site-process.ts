@@ -22,7 +22,7 @@ import type { LocalSiteProcessPort, LocalSiteProcess } from "#src/platform/site-
 import { LocalSiteError, assertLocalSiteName } from "#src/platform/site-dir/index";
 import { readSiteDir } from "#src/platform/site-dir/read-site-dir";
 import { resolveCheckoutRoot } from "#src/platform/site-dir/product-root";
-import { resolveDevTls, resolveDevTlsCertPaths } from "../../../platform/http/dev-tls.js";
+import { resolveDevTls, resolveDevTlsCertPaths } from "../../../platform/dev-host/dev-tls.js";
 import { resolveLocalOwnerSignIn } from "../boot/local-owner-signin.js";
 import { createLogBuffer, createRotatingLogFileSink } from "#src/platform/server-logs/index";
 import { redactSecretShapes, TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";

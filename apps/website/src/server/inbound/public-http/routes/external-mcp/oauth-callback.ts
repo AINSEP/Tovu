@@ -10,7 +10,7 @@ import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE, renderOAuthCallbackPage, type OAuthCallbackFailureReason } from "../oauth/callback-page.js";
 import { EXTERNAL_MCP_OAUTH_CALLBACK_PATH, externalMcpOAuthCallbackUrl } from "./oauth-callback-url.js";
-import { asyncRoute } from "../../../../../platform/http/async-route.js";
+import { asyncRoute } from "../../../../../platform/express/async-route.js";
 
 const consoleLogger = createConsoleLogger({ prefix: "" });
 

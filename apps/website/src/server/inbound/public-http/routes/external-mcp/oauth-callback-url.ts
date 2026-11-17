@@ -1,6 +1,6 @@
 import type { Request } from "express";
 
-import { resolvePublicOrigin } from "../../../../../platform/http/public-origin.js";
+import { resolvePublicOrigin } from "../../../../../platform/express/public-origin.js";
 
 /**
  * @file The public mount point and absolute URL for the external-MCP OAuth callback.

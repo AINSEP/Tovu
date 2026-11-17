@@ -86,7 +86,7 @@ test("resolveDevTlsActive: false when disableFlag is true, even with both files 
  * `TOVU_DISABLE_DEV_TLS` string, checked with a bare `if (disableFlag)` — so ANY non-empty string,
  * including the literal `"false"` or `"0"`, disabled TLS, inverting an operator's explicit intent to
  * keep it on. The fix moves parsing to `isDevTlsExplicitlyDisabled` (mirroring
- * `apps/website/src/platform/http/dev-tls.ts`'s and `apps/admin/vite.config.ts`'s own copies of
+ * `apps/website/src/platform/dev-host/dev-tls.ts`'s and `apps/admin/vite.config.ts`'s own copies of
  * this same parse), called at `main()`'s call site before `resolveDevTlsActive` ever sees the value.
  */
 test("isDevTlsExplicitlyDisabled: \"false\" and \"0\" do NOT count as disabled", () => {

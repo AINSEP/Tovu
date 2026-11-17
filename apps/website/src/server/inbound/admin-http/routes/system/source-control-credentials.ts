@@ -15,7 +15,7 @@ import {
 } from "#src/features/source-control/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
-import { asyncRoute } from "../../../../../platform/http/async-route.js";
+import { asyncRoute } from "../../../../../platform/express/async-route.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 

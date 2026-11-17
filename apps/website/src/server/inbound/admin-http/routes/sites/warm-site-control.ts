@@ -4,7 +4,7 @@ import { requestLoopbackHttp } from '@jini-ai/platform/net';
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { SiteBinding } from '#src/platform/site-dir/index';
 import { resolveCheckoutRoot } from '#src/platform/site-dir/product-root';
-import { resolveDevTls, resolveDevTlsCertPaths } from '#src/platform/http/dev-tls';
+import { resolveDevTls, resolveDevTlsCertPaths } from '#src/platform/dev-host/dev-tls';
 
 /** Preserve the child's actual serving binding in a host-owned listing. O(sites) time/space. */
 export function warmSiteListing({ snapshot, binding }: { snapshot: Record<string, unknown>; binding: SiteBinding }, _options = {}) {

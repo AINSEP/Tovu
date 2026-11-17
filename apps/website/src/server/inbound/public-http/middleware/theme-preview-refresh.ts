@@ -4,7 +4,7 @@ import { syncThemeRoster } from "#src/features/theme/theme-roster-sync";
 import { requireAdminSession, getAuthedPrincipal } from "../../admin-http/dev-auth.js";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { RouteDeps } from "#src/server/routes/types";
-import { asyncRoute } from "../../../../platform/http/async-route.js";
+import { asyncRoute } from "../../../../platform/express/async-route.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Unique asset directory also versions relative CSS imports, url() assets and JS module imports. */

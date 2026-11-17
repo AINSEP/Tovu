@@ -13,7 +13,7 @@ import {
   SURFACE_TYPED_ANSWER_PARAM,
   type SurfaceExchangeStore,
 } from "@jini-ai/daemon/surface-exchanges";
-import { asyncRoute } from "#src/platform/http/async-route";
+import { asyncRoute } from "#src/platform/express/async-route";
 
 /**
  * @file The daemon-side half of the MCP-UI callback endpoint — where a rendered surface's answer

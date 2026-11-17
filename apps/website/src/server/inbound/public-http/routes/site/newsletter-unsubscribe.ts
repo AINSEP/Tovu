@@ -4,7 +4,7 @@ import { processUnsubscribe } from "#src/features/newsletter/unsubscribe";
 import { NewsletterUnsubscribeTokenInvalidError } from "#src/features/newsletter/index";
 import { escapeHtml } from "#src/platform/html/escape";
 import { toPublicUnsubscribeDeps, type NewsletterPublicRouteDeps } from "./newsletter-deps.js";
-import { asyncRoute } from "../../../../../platform/http/async-route.js";
+import { asyncRoute } from "../../../../../platform/express/async-route.js";
 
 /**
  * @file `UNSUBSCRIBE` (api.spec.md §1a) — `GET|POST /newsletter/unsubscribe?token=...`. Public,

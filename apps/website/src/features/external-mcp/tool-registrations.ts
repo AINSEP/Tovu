@@ -145,7 +145,7 @@ const EXTERNAL_MCP_OAUTH_CALLBACK_PATH = "/api/mcp-servers/oauth/callback";
  * would make `resolveExternalMcpOAuthRedirectUri` silently fall back to the derived origin —
  * localhost in dev — handing the provider a callback the operator never configured. The operator
  * override must win whenever it is present, so its invalidity cannot be indistinguishable from its
- * absence. `platform/http/public-origin.ts`'s `resolvePublicOrigin` fails
+ * absence. `platform/express/public-origin.ts`'s `resolvePublicOrigin` fails
  * the same way for the same reason.
  *
  * @throws {ToolInputError} `TOVU_PUBLIC_URL` is set but is not a valid `http(s)` URL — named so the
