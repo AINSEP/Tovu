@@ -102,6 +102,20 @@ const DEFAULT_MEDIA: AdminMedia = {
   publicUrl: null,
 };
 
+
+/** The real route's optimistic-concurrency guard: a send that names a version other than the stored one is a 409. */
+function assertExpectedVersion(
+  { expectedVersion, post }: { expectedVersion: number | undefined; post: { id: string; version: number } }, _optional = {},
+): void {
+  if (expectedVersion === undefined || expectedVersion === post.version) return;
+  throw new ApiError(
+    { message: `post '${post.id}' was modified by another save (expected version ${expectedVersion}, current version ${post.version})`,
+    status: 409 },
+    { code: POST_VERSION_CONFLICT_CODE,
+    body: { details: { expectedVersion, currentVersion: post.version } } }
+  );
+}
+
 /**
  * An in-memory {@link PostEditorPort} for tests — the fake that lets a test describe "this post is
  * loaded, published, with these theme templates" directly instead of stubbing global `fetch` or a
@@ -188,14 +202,7 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
       // by seeding a canned rejection that would pass just as happily if the editor never sent a
       // version at all.
       const { expectedVersion, hideCoverImageInBody, slugFromTitle, ...fields } = patch;
-      if (expectedVersion !== undefined && expectedVersion !== state.post.version) {
-        throw new ApiError(
-          { message: `post '${state.post.id}' was modified by another save (expected version ${expectedVersion}, current version ${state.post.version})`,
-          status: 409 },
-          { code: POST_VERSION_CONFLICT_CODE,
-          body: { details: { expectedVersion, currentVersion: state.post.version } } }
-        );
-      }
+      assertExpectedVersion({ expectedVersion, post: state.post });
       // `fields`, not `patch` — `expectedVersion` is a basis to compare, never a column to store.
       state.post = { ...state.post, ...fields,
         ...(slugFromTitle ? { slug: postSlugForTitle({ title: fields.title ?? state.post.title }) } : {}),
