@@ -36,3 +36,6 @@ export { getWorkspaceAgentToolCatalog } from "./agent-tools.js";
 export type { AgentToolDefinition as WorkspaceAgentToolDefinition, AgentToolSideEffect as WorkspaceAgentToolSideEffect, AgentToolActorClassRule as WorkspaceAgentToolActorClassRule } from "@jini-ai/core";
 
 export { SqliteWorkspaceRepo } from "./repo.sqlite.js";
+
+export { contributeWorkspaceTools } from "./tool-registrations.js";
+export type { WorkspaceToolDeps } from "./tool-registrations.js";

@@ -36,3 +36,7 @@ export {
 } from "./site-preview/site-preview-service.js";
 
 export { createPlaywrightSitePreviewCapture, createSitePreviewCaptureForHost } from "./site-preview/playwright-site-preview-capture.js";
+
+export { contributeSitesListTools } from "./list-tool.js";
+export type { Deps as SitesListToolDeps } from "./list-tool.js";
+export { activateSiteWithWarmServer } from "./warm-switch.js";

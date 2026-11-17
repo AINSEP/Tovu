@@ -25,7 +25,7 @@ import { createProjectKeys, providerPluginOf } from "#src/features/project-keys/
 import { siteProviderRevisions } from "./provider-revision-watch.js";
 
 import { setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
-import { createReadyLoginProviderList } from "#src/features/member-login/ready-providers";
+import { createReadyLoginProviderList } from "#src/features/member-login/index";
 import { createPluginExportRuntime } from "#src/features/agent-plugins/exports/runtime";
 import { createPluginExportSource } from "#src/features/agent-plugins/exports/source";
 import { readSiteListenerOrigin } from "../boot/site-listener-origin.js";

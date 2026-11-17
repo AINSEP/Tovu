@@ -4,7 +4,7 @@ import { composePluginCredentials } from "#src/server/runtime/composition/agent-
 import { registerSitesHomeRoutes } from "../sites/sites-home.js";
 import { registerLocalSitesRoutes, type LocalSitesRouteDeps } from "../sites/local-sites.js";
 import { localSiteSupervisorForHost, warmSiteServerForHost } from "#src/server/runtime/lifecycle/local-site-host";
-import { activateSiteWithWarmServer } from "#src/features/sites/warm-switch";
+import { activateSiteWithWarmServer } from "#src/features/sites/index";
 import { registerWarmSiteControl } from "../sites/warm-site-control.js";
 import { registerSitePreviewRoutes, servingAddressOf, sitePreviewTargets } from "../sites/site-previews.js";
 import { sitePreviewServiceForHost } from "#src/server/runtime/lifecycle/site-preview-host";
