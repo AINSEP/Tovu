@@ -48,7 +48,7 @@ export class SqlPublishContentRunRepo implements PublishContentRunRepoPort {
     }));
   }
 
-  async save(record: PublishContentRunRecord): Promise<void> {
+  async save({ record }: { record: PublishContentRunRecord }): Promise<void> {
     const progress = {
       phase: record.phase,
       restore_point_id: record.restorePointId,

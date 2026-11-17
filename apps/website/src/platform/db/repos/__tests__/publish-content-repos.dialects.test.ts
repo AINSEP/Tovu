@@ -111,10 +111,10 @@ describeEachDialect("publish-content repos", { tables: TABLES, make: makeAll }, 
     const key = { workspaceId: WS, peerPrincipalId: "p", entityType: "post", entityId: "e1" };
     assert.equal(await baselines.findOne(key), null);
     const first = { ...key, hashAtLastSync: "h1", hashVersion: 1, syncedAt: "2026-09-19T00:00:00.000Z", runId: "r1" };
-    await baselines.upsert(first);
+    await baselines.upsert({ record: first });
     assert.deepEqual(await baselines.findOne(key), first);
     const second = { ...first, hashAtLastSync: "h2", hashVersion: 2, runId: "r2" };
-    await baselines.upsert(second);
+    await baselines.upsert({ record: second });
     assert.deepEqual(await baselines.findOne(key), second);
       assert.equal(await baselines.findOne({ ...key, workspaceId: OTHER }), null);
       const neighbors = [
@@ -123,12 +123,12 @@ describeEachDialect("publish-content repos", { tables: TABLES, make: makeAll }, 
         { ...second, entityId: "e2", hashAtLastSync: "entity-hash" },
         { ...second, workspaceId: OTHER, hashAtLastSync: "workspace-hash" },
       ];
-      for (const neighbor of neighbors) await baselines.upsert(neighbor);
+      for (const neighbor of neighbors) await baselines.upsert({ record: neighbor });
       for (const expected of [second, ...neighbors]) {
         assert.deepEqual(await baselines.findOne(expected), expected);
       }
       const third = { ...second, hashAtLastSync: "h3", hashVersion: 3, runId: "r3" };
-      await baselines.upsert(third);
+      await baselines.upsert({ record: third });
       assert.deepEqual(await baselines.findOne(key), third);
       for (const neighbor of neighbors) assert.deepEqual(await baselines.findOne(neighbor), neighbor);
   });
@@ -146,8 +146,8 @@ describeEachDialect("publish-content repos", { tables: TABLES, make: makeAll }, 
       sizeBytes: 10,
       receivedAt: "2026-09-18T00:00:00.000Z",
     };
-    await bundles.save({ ...base, id: "old", expiresAt: "2026-09-18T00:00:01.000Z" });
-    await bundles.save({ ...base, id: "edge", expiresAt: "2026-09-18T00:00:02.000Z" });
+    await bundles.save({ record: { ...base, id: "old", expiresAt: "2026-09-18T00:00:01.000Z" } });
+    await bundles.save({ record: { ...base, id: "edge", expiresAt: "2026-09-18T00:00:02.000Z" } });
     assert.deepEqual(await bundles.findById({ workspaceId: WS, id: "old" }), {
       ...base,
       id: "old",
@@ -162,11 +162,11 @@ describeEachDialect("publish-content repos", { tables: TABLES, make: makeAll }, 
   test("peers: sealed group round-trips, update replaces, list scoped, delete idempotent", async () => {
     const { seeded, peers } = make();
     await seeded;
-    await peers.insert(PEER);
-    await peers.insert({ ...PEER, id: "peer-2", label: "Bare", sealed: null, masked: null });
+    await peers.insert({ record: PEER });
+    await peers.insert({ record: { ...PEER, id: "peer-2", label: "Bare", sealed: null, masked: null } });
     assert.deepEqual(await peers.findById({ workspaceId: WS, id: "peer-1" }), PEER);
     assert.equal((await peers.findById({ workspaceId: WS, id: "peer-2" }))?.sealed, null);
-    await peers.update({ ...PEER, label: "Renamed", updatedAt: "2026-09-19T00:00:00.000Z" });
+    await peers.update({ record: { ...PEER, label: "Renamed", updatedAt: "2026-09-19T00:00:00.000Z" } });
     assert.equal((await peers.findById({ workspaceId: WS, id: "peer-1" }))?.label, "Renamed");
     assert.deepEqual((await peers.listByWorkspace({ workspaceId: WS })).map((p) => p.id).sort(), ["peer-1", "peer-2"]);
     assert.deepEqual(await peers.listByWorkspace({ workspaceId: OTHER }), []);
@@ -178,9 +178,9 @@ describeEachDialect("publish-content repos", { tables: TABLES, make: makeAll }, 
   test("peers: the (workspace_id, label) UNIQUE index rejects a duplicate label", async () => {
     const { seeded, peers } = make();
     await seeded;
-    await peers.insert(PEER);
+    await peers.insert({ record: PEER });
         await assert.rejects(
-          peers.insert({ ...PEER, id: "peer-dup" }),
+          peers.insert({ record: { ...PEER, id: "peer-dup" } }),
           /UNIQUE constraint failed: publish_content_peers.workspace_id, publish_content_peers.label|violates unique constraint "publish_content_peers_workspace_label_unique"/,
         );
         assert.deepEqual(await peers.findById({ workspaceId: WS, id: "peer-1" }), PEER);
@@ -190,7 +190,7 @@ describeEachDialect("publish-content repos", { tables: TABLES, make: makeAll }, 
   test("runs: save inserts, a second save updates only the progress columns, scoped read", async () => {
     const { seeded, runs } = make();
     await seeded;
-    await runs.save(RUN);
+    await runs.save({ record: RUN });
     assert.deepEqual(parsedRun(await runs.findById({ workspaceId: WS, id: "run-1" })), parsedRun(RUN));
     const done = {
       ...RUN,
@@ -200,7 +200,7 @@ describeEachDialect("publish-content repos", { tables: TABLES, make: makeAll }, 
       finishedAt: "2026-09-19T00:00:01.000Z",
       reportJson: '{"refused":false}',
     };
-    await runs.save(done);
+    await runs.save({ record: done });
     assert.deepEqual(parsedRun(await runs.findById({ workspaceId: WS, id: "run-1" })), parsedRun({ ...done, actorId: RUN.actorId }));
     assert.equal(await runs.findById({ workspaceId: OTHER, id: "run-1" }), null);
   });

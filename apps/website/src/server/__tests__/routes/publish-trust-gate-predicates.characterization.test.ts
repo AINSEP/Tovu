@@ -137,7 +137,7 @@ function countingChallengeStore(): { store: PublishChallengeStorePort; taken: st
   const records = new Map<string, PublishChallengeRecord>();
   const taken: string[] = [];
   const store: PublishChallengeStorePort = {
-    put: async (record) => { records.set(record.nonce, record); },
+    put: async ({ record }) => { records.set(record.nonce, record); },
     takeOnce: async ({ nonce }) => {
       taken.push(nonce);
       const record = records.get(nonce) ?? null;

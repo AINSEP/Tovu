@@ -109,7 +109,7 @@ test("moving the connection leaves a hand-configured destination and its credent
     createdAt: "2026-09-01T00:00:00.000Z",
     updatedAt: "2026-09-01T00:00:00.000Z",
   };
-  await repo.insert(sealedRow);
+  await repo.insert({ record: sealedRow });
 
   const idGen = sequentialIdGen();
   await saveConnectedDestination(

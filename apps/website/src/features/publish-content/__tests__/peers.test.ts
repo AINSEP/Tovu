@@ -154,7 +154,7 @@ test("a ciphertext sealed for one peer cannot be opened as another peer's — th
   );
   const second = await deps.repo.findById({ workspaceId: WORKSPACE, id: "peer-2" });
   assert.ok(second);
-  await deps.repo.update({ ...second, sealed: first.sealed });
+  await deps.repo.update({ record: { ...second, sealed: first.sealed } });
   await assert.rejects(
     () => resolvePeerCredential({ deps, input: { workspaceId: WORKSPACE, id: "peer-2" } }),
     PublishContentPeerSecretStoreUnconfiguredError
@@ -167,7 +167,7 @@ test("an unopenable ciphertext surfaces as the typed secret-store error, never a
   const stored = await deps.repo.findById({ workspaceId: WORKSPACE, id: "peer-1" });
   assert.ok(stored);
   // Corrupt the ciphertext in place — the shape a rotated/lost site key produces.
-  await deps.repo.update({ ...stored, sealed: { ...stored.sealed!, ciphertext: Buffer.from("garbage").toString("base64") } });
+  await deps.repo.update({ record: { ...stored, sealed: { ...stored.sealed!, ciphertext: Buffer.from("garbage").toString("base64") } } });
 
   await assert.rejects(
     () => resolvePeerCredential({ deps: { repo: deps.repo, sealer: deps.sealer }, input: { workspaceId: WORKSPACE, id: "peer-1" } }),
@@ -284,7 +284,7 @@ test("a peer row with no sealed credential refuses at resolve rather than pushin
   await createDefaultPeer(deps);
   const stored = await deps.repo.findById({ workspaceId: WORKSPACE, id: "peer-1" });
   assert.ok(stored);
-  await deps.repo.update({ ...stored, sealed: null, masked: null });
+  await deps.repo.update({ record: { ...stored, sealed: null, masked: null } });
 
   assert.deepEqual(toPeerSummary({ record: { ...stored, sealed: null, masked: null } }).hasCredential, false);
   await assert.rejects(
@@ -330,8 +330,8 @@ test("peers are workspace-scoped — another workspace's rows are never listed",
 
 test("metadata-only peers need no key and remain removable after vault storage", async () => {
   const deps = writeDeps();
-  await deps.repo.insert({ workspaceId: WORKSPACE, id: "bare", label: "connected", baseUrl: "https://peer.example.test",
-    remoteWorkspaceId: "remote", sealed: null, masked: null, aadVersion: 1, createdAt: "now", updatedAt: "now" });
+  await deps.repo.insert({ record: { workspaceId: WORKSPACE, id: "bare", label: "connected", baseUrl: "https://peer.example.test",
+    remoteWorkspaceId: "remote", sealed: null, masked: null, aadVersion: 1, createdAt: "now", updatedAt: "now" } });
   const vault = (await deps.repo.vault.find({ workspaceId: WORKSPACE, id: "bare" }))!;
   assert.equal(vault.sealed, null);
   assert.equal(vault.last4, null);

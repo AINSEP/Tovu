@@ -89,8 +89,8 @@ test("v2 apply replaces v1 baselines for matching and seed-matched rows, preserv
     },
   }) } });
   const key = (id: string) => ({ workspaceId: "ws", peerPrincipalId: "peer", entityType: "widget", entityId: id });
-  for (const entity of entities) await baselineRepo.upsert({ ...key(entity.id), hashVersion: 1,
-    hashAtLastSync: "obsolete", syncedAt: "2026-10-01T00:00:00Z", runId: "v1-run" });
+  for (const entity of entities) await baselineRepo.upsert({ record: { ...key(entity.id), hashVersion: 1,
+    hashAtLastSync: "obsolete", syncedAt: "2026-10-01T00:00:00Z", runId: "v1-run" } });
   const publishContentDeps = { workspaceId: "ws", ports: {}, clock, idGen };
   const bundle = { artifactFormatVersion: 1, hashVersion: 2, entities };
   const report = await planImport({ bundle, deps: { publishContentDeps,

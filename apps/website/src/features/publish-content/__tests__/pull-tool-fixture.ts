@@ -31,7 +31,7 @@ export async function fixture(entities: PackedEntity[] = [packed("new")]) {
   const bundleRepo = new InMemoryPublishContentBundleRepo();
   const runRepo = new InMemoryPublishContentRunRepo();
   const peerRepo = new InMemoryPublishContentPeerRepo();
-  await peerRepo.insert(peerRow());
+  await peerRepo.insert({ record: peerRow() });
   const baselineRepo = new InMemoryPublishContentBaselineRepo();
   const destination = new Map<string, { version: number; hash: string; title: string }>();
   const blobs = new Map<string, Buffer>();
@@ -95,7 +95,7 @@ export async function fixture(entities: PackedEntity[] = [packed("new")]) {
         const entity = entities.find(e => e.id === row.entityId)!;
         destination.set(entity.id, { version: 1, hash: entity.contentHash, title: (entity.state as { title: string }).title });
       }
-      await runRepo.save({ id: "applied-run", workspaceId: "local", direction: "import", peerPrincipalId: OWNER, peerLabel: "Live site", phase: "applied", restorePointId: args.restorePointId, changeSetIdsJson: "[]", actorId: args.principalId, startedAt: NOW, finishedAt: NOW, reportJson: JSON.stringify(args.report), itemsJson: "[]" });
+      await runRepo.save({ record: { id: "applied-run", workspaceId: "local", direction: "import", peerPrincipalId: OWNER, peerLabel: "Live site", phase: "applied", restorePointId: args.restorePointId, changeSetIdsJson: "[]", actorId: args.principalId, startedAt: NOW, finishedAt: NOW, reportJson: JSON.stringify(args.report), itemsJson: "[]" } });
       return { runId: "applied-run", changeSetIds: [], retiredChangeSetIds: [], repointChangeSetIds: [], menuLinksUpdated: 0, menuLinksNotUpdated: [], verificationProblems: [] };
     } },
   } as unknown as PublishContentToolDeps;

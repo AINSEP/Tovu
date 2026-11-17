@@ -117,9 +117,9 @@ export interface PublishContentPeerSummary {
  *  {@link PublishContentPeerDuplicateLabelError} rather than propagating it raw. */
 export interface PublishContentPeerRepoPort {
   readonly vault: VaultRepoPort;
-  insert(record: PublishContentPeerRecord): Promise<void>;
+  insert(required: { record: PublishContentPeerRecord }, optional?: {}): Promise<void>;
   /** Full-row replace by `(workspaceId, id)`. */
-  update(record: PublishContentPeerRecord): Promise<void>;
+  update(required: { record: PublishContentPeerRecord }, optional?: {}): Promise<void>;
   findById(input: { workspaceId: string; id: string }): Promise<PublishContentPeerRecord | null>;
   /** Every peer a workspace has saved. Inherently small — bounded by how many peers a human types
    *  into this one form, never by a caller-supplied N — so no pagination or cap, the same reasoning
@@ -429,8 +429,8 @@ export class VaultPublishContentPeerRepo implements PublishContentPeerRepoPort {
   constructor({ vault }: { vault: VaultRepoPort }, _options = {}) { this.vault = vault; }
   readonly vault: VaultRepoPort;
 
-  async insert(record: PublishContentPeerRecord): Promise<void> { await this.write({ record, insert: true }); }
-  async update(record: PublishContentPeerRecord): Promise<void> { await this.write({ record, insert: false }); }
+  async insert({ record }: { record: PublishContentPeerRecord }): Promise<void> { await this.write({ record, insert: true }); }
+  async update({ record }: { record: PublishContentPeerRecord }): Promise<void> { await this.write({ record, insert: false }); }
 
   /** Preserve opaque bytes for metadata edits; Jini guards the replacement revision.
    * @complexity O(metadata size), one read and one CAS write; only conflicts query labels.
@@ -577,8 +577,8 @@ export async function saveConnectedDestination(
   // exists to prevent. Being briefly disconnected is truthful; publishing to the wrong site is not.
   for (const row of superseded) await deps.repo.delete({ workspaceId: input.workspaceId, id: row.id });
 
-  if (match) await deps.repo.update(record);
-  else await deps.repo.insert(record);
+  if (match) await deps.repo.update({ record });
+  else await deps.repo.insert({ record });
   return toPeerSummary({ record });
 }
 
@@ -630,7 +630,7 @@ async function rethrowPeerWriteError(
 }
 
 async function updatePeerMetadata({ repo }: PublishContentPeerReadDeps, { record }: { record: PublishContentPeerRecord }): Promise<void> {
-  try { await repo.update(record); }
+  try { await repo.update({ record }); }
   catch (err) {
     if (isUniqueViolation(err)) throw new PublishContentPeerDuplicateLabelError({ message: `a peer labelled '${record.label}' already exists in this workspace` });
     throw err;

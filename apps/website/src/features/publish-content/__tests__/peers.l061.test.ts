@@ -39,7 +39,7 @@ test("L061 vault facade handles absent updates and nullable/short/legacy hints w
   const created = await createPublishContentPeer({ deps, input });
   const record = await repo.findById({ workspaceId: "ws", id: created.id });
   assert.ok(record);
-  await repo.update({ ...record, id: "absent" });
+  await repo.update({ record: { ...record, id: "absent" } });
   assert.equal(await repo.findById({ workspaceId: "ws", id: "absent" }), null);
   const vault = await repo.vault.find({ workspaceId: "ws", id: created.id });
   assert.ok(vault);
@@ -55,7 +55,7 @@ test("L061 vault facade handles absent updates and nullable/short/legacy hints w
   }
   const current = await repo.findById({ workspaceId: "ws", id: created.id });
   assert.ok(current);
-  await repo.update(current);
+  await repo.update({ record: current });
   assert.equal((await repo.vault.find({ workspaceId: "ws", id: created.id }))?.last4, null);
 });
 
@@ -96,7 +96,7 @@ test("L061 facade rethrows write failures that are not label conflicts", async (
       find: repo.vault.find.bind(repo.vault), list: repo.vault.list.bind(repo.vault),
       put: async () => { throw failure; }, delete: repo.vault.delete.bind(repo.vault), patchMeta: repo.vault.patchMeta.bind(repo.vault),
     };
-    await assert.rejects(new VaultPublishContentPeerRepo({ vault }).update(record), (err: unknown) => err === failure);
+    await assert.rejects(new VaultPublishContentPeerRepo({ vault }).update({ record }), (err: unknown) => err === failure);
   }
 });
 

@@ -29,7 +29,7 @@ test.beforeEach(() => resetPublishContentContributorsForTests());
 
 class SpyRunRepo extends InMemoryPublishContentRunRepo {
   readonly saved: PublishContentRunRecord[] = [];
-  override async save(record: PublishContentRunRecord) { this.saved.push(structuredClone(record)); return super.save(record); }
+  override async save({ record }: { record: PublishContentRunRecord }) { this.saved.push(structuredClone(record)); return super.save({ record }); }
 }
 
 const pack = (type: string, id: string, extra: Partial<PackedEntity> = {}): PackedEntity => {
@@ -150,7 +150,7 @@ test("a post-style conflict named by the handler downgrades the row with the pre
   class Clash extends Error {}
   h.register("thing", { current: new Map([["a", { version: 1, hash: "h" }]]), apply: async () => { throw new Clash("version moved"); },
     extra: { isApplyConflict: (error: unknown): error is Error => error instanceof Clash } });
-  h.baselineRepo.upsert({ workspaceId: WS, peerPrincipalId: SRC, entityType: "thing", entityId: "a", hashAtLastSync: "h", hashVersion: CONTENT_HASH_VERSION, syncedAt: clock.nowIso(), runId: "r0" });
+  h.baselineRepo.upsert({ record: { workspaceId: WS, peerPrincipalId: SRC, entityType: "thing", entityId: "a", hashAtLastSync: "h", hashVersion: CONTENT_HASH_VERSION, syncedAt: clock.nowIso(), runId: "r0" } });
   const result = await h.apply([pack("thing", "a")], reportOf([row("thing", "a", "applied")]));
   assert.deepEqual([result.report!.rows[0]!.outcome, result.report!.rows[0]!.writes, result.report!.rows[0]!.reason],
     ["conflict", false, "thing 'a' changed on the destination during apply: version moved"]);
@@ -159,11 +159,11 @@ test("a post-style conflict named by the handler downgrades the row with the pre
 test("an applied row is checked against the baseline of its OWN hash generation; an obsolete one never authorizes it", async () => {
   const h = harness();
   h.register("thing", { current: new Map([["a", { version: 1, hash: "live-hash" }]]) });
-  await h.baselineRepo.upsert({ workspaceId: WS, peerPrincipalId: SRC, entityType: "thing", entityId: "a", hashAtLastSync: "live-hash", hashVersion: CONTENT_HASH_VERSION + 1, syncedAt: clock.nowIso(), runId: "r0" });
+  await h.baselineRepo.upsert({ record: { workspaceId: WS, peerPrincipalId: SRC, entityType: "thing", entityId: "a", hashAtLastSync: "live-hash", hashVersion: CONTENT_HASH_VERSION + 1, syncedAt: clock.nowIso(), runId: "r0" } });
   const obsolete = await h.apply([pack("thing", "a")], reportOf([row("thing", "a", "applied")]));
   assert.equal(obsolete.report!.rows[0]!.outcome, "conflict");
   assert.equal(obsolete.report!.rows[0]!.reason, "thing 'a' was edited on the destination again after this run's own plan was built");
-  await h.baselineRepo.upsert({ workspaceId: WS, peerPrincipalId: SRC, entityType: "thing", entityId: "a", hashAtLastSync: "live-hash", hashVersion: CONTENT_HASH_VERSION, syncedAt: clock.nowIso(), runId: "r0" });
+  await h.baselineRepo.upsert({ record: { workspaceId: WS, peerPrincipalId: SRC, entityType: "thing", entityId: "a", hashAtLastSync: "live-hash", hashVersion: CONTENT_HASH_VERSION, syncedAt: clock.nowIso(), runId: "r0" } });
   assert.equal((await h.apply([pack("thing", "a")], reportOf([row("thing", "a", "applied")]))).report!.rows[0]!.outcome, "applied");
 });
 

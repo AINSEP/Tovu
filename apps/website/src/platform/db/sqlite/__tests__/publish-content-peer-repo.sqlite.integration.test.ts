@@ -147,7 +147,7 @@ test("a row whose sealed group is absent reads back as hasCredential:false, not 
                                    });
     const stored = await deps.repo.findById({ workspaceId: WORKSPACE_ID, id: "peer-1" });
     assert.ok(stored);
-    await deps.repo.update({ ...stored, sealed: null, masked: null });
+    await deps.repo.update({ record: { ...stored, sealed: null, masked: null } });
 
     const [summary] = await listPublishContentPeers({ deps: { repo: deps.repo }, input: { workspaceId: WORKSPACE_ID } });
     assert.equal(summary.hasCredential, false);

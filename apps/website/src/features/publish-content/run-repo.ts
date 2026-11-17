@@ -71,7 +71,7 @@ export interface PublishContentRunRecord {
 export interface PublishContentRunRepoPort {
   /** Upserts one run snapshot. Apply writes an `applying` snapshot before content, then progress
    *  snapshots after each item transition, then one terminal snapshot. */
-  save(record: PublishContentRunRecord): Promise<void>;
+  save(required: { record: PublishContentRunRecord }, optional?: {}): Promise<void>;
   findById(input: { workspaceId: string; id: string }): Promise<PublishContentRunRecord | null>;
 }
 
@@ -132,7 +132,7 @@ export async function getPublishContentRunStatus(
 export class InMemoryPublishContentRunRepo implements PublishContentRunRepoPort {
   private readonly recordsById = new Map<string, PublishContentRunRecord>();
 
-  async save(record: PublishContentRunRecord): Promise<void> {
+  async save({ record }: { record: PublishContentRunRecord }): Promise<void> {
     this.recordsById.set(record.id, { ...record });
   }
 

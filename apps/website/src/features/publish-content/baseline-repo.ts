@@ -52,7 +52,7 @@ export interface PublishContentBaselineRepoPort {
    *  own `publish_content_baselines_unique` index target. Not called anywhere in Task 7; Task 8's
    *  apply loop is the real caller (plan §4 task 8's own "baseline upserted for created/unchanged/
    *  applied/forced only"). */
-  upsert(record: PublishContentBaselineRecord): Promise<void>;
+  upsert(required: { record: PublishContentBaselineRecord }, optional?: {}): Promise<void>;
 }
 
 /** In-process `PublishContentBaselineRepoPort` — hermetic tests and this feature's own unit tests.
@@ -76,7 +76,7 @@ export class InMemoryPublishContentBaselineRepo implements PublishContentBaselin
     return record ? { ...record } : null;
   }
 
-  async upsert(record: PublishContentBaselineRecord): Promise<void> {
+  async upsert({ record }: { record: PublishContentBaselineRecord }): Promise<void> {
     this.recordsByKey.set(InMemoryPublishContentBaselineRepo.keyOf(record), { ...record });
   }
 }

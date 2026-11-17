@@ -56,7 +56,7 @@ async function planRowWithBaselineUnder({ baselinePeer }: { baselinePeer: string
   registerPublishContentContributor({ contributor: { entityType: ENTITY_TYPE, dependsOn: [], build: () => handler } });
 
   const bundleRepo = new InMemoryPublishContentBundleRepo();
-  await bundleRepo.save({
+  await bundleRepo.save({ record: {
     id: BUNDLE_ID, workspaceId: WORKSPACE_ID, sourcePrincipalId: SOURCE_PEER_ID,
     artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION,
     entitiesJson: JSON.stringify([{
@@ -65,12 +65,12 @@ async function planRowWithBaselineUnder({ baselinePeer }: { baselinePeer: string
     }]),
     blobManifestJson: JSON.stringify([]), sizeBytes: 64,
     receivedAt: "2026-09-20T00:00:00.000Z", expiresAt: "2026-09-21T00:00:00.000Z",
-  });
+  } });
   const baselineRepo = new InMemoryPublishContentBaselineRepo();
-  await baselineRepo.upsert({
+  await baselineRepo.upsert({ record: {
     workspaceId: WORKSPACE_ID, peerPrincipalId: baselinePeer, entityType: ENTITY_TYPE, entityId: ENTITY_ID,
     hashAtLastSync: SYNCED_HASH, hashVersion: CONTENT_HASH_VERSION, syncedAt: "2026-09-19T00:00:00.000Z", runId: "run-0",
-  });
+  } });
 
   let nextId = 0;
   const idGen = { newId: () => `id-${++nextId}` };

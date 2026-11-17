@@ -328,7 +328,7 @@ test("a destination edit landing AFTER plan but BEFORE apply downgrades 'applied
   const { postRepo, clock, baselineRepo, bundleRepo, runRepo, publishContentDeps, applyPort } = makeHarness([original]);
 
   // Prior sync recorded a baseline matching the CURRENT (original) destination hash.
-  await baselineRepo.upsert({
+  await baselineRepo.upsert({ record: {
     workspaceId: WORKSPACE_ID,
     peerPrincipalId: SOURCE_PRINCIPAL_ID,
     entityType: "post",
@@ -337,7 +337,7 @@ test("a destination edit landing AFTER plan but BEFORE apply downgrades 'applied
     hashVersion: CONTENT_HASH_VERSION,
     syncedAt: clock.nowIso(),
     runId: "prior-run",
-  });
+  } });
 
   const sourceUpdate = makePost({ ...original, title: "Updated from peer" });
   const entities = [packedFrom(sourceUpdate)];
@@ -733,7 +733,7 @@ for (const outcome of ["applied", "forced"] as const) {
       hashAtLastSync: packedFrom(original).contentHash, hashVersion: CONTENT_HASH_VERSION,
       syncedAt: clock.nowIso(), runId: "prior-run",
     };
-    await baselineRepo.upsert(baseline);
+    await baselineRepo.upsert({ record: baseline });
     const entities = [packedFrom({ ...original, title: "Incoming update" })];
     const planned = await plan(publishContentDeps, baselineRepo, SOURCE_PRINCIPAL_ID, entities);
     assert.equal(planned.rows[0]?.outcome, "applied");
@@ -760,7 +760,7 @@ test("baselines are upserted for created/unchanged/applied/forced and NEVER for 
   const { postRepo, clock, baselineRepo, bundleRepo, runRepo, publishContentDeps, applyPort } = makeHarness([applied, forced, unchangedSource]);
 
   // "applied" needs a baseline matching the CURRENT destination hash so it does not itself downgrade.
-  await baselineRepo.upsert({
+  await baselineRepo.upsert({ record: {
     workspaceId: WORKSPACE_ID,
     peerPrincipalId: SOURCE_PRINCIPAL_ID,
     entityType: "post",
@@ -769,7 +769,7 @@ test("baselines are upserted for created/unchanged/applied/forced and NEVER for 
     hashVersion: CONTENT_HASH_VERSION,
     syncedAt: clock.nowIso(),
     runId: "prior-run",
-  });
+  } });
 
   const createdSource = makePost({ id: "p-created", title: "New from peer", slug: "p-created", createdByPrincipalId: "author-c" });
   const appliedSource = makePost({ ...applied, title: "Updated from peer" });

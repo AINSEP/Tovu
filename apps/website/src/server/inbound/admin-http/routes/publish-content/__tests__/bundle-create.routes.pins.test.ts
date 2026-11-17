@@ -72,7 +72,7 @@ test("POST .../bundles with no principal (requireAdminSession did not run) is th
 
 /** A bundle repo whose save fails, as a full disk would. */
 class FailingBundleRepo extends InMemoryPublishContentBundleRepo {
-  override async save(_record: StagedBundleRecord): Promise<void> {
+  override async save({ record: _record }: { record: StagedBundleRecord }): Promise<void> {
     throw new Error("SQLITE_FULL");
   }
 }

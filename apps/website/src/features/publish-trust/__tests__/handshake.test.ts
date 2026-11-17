@@ -637,7 +637,7 @@ for (const expiresAtIso of ["corrupt", undefined]) {
     const clock = movableClock();
     const { store, grant, response, challenge } = await handshake({ clock });
     // Simulate a corrupt adapter record while retaining a valid signature and grant.
-    await store.put({ ...challenge, expiresAtIso: expiresAtIso as unknown as string });
+    await store.put({ record: { ...challenge, expiresAtIso: expiresAtIso as unknown as string } });
     assert.deepEqual(await verifyChallengeResponse({
                                                      deps: { store, clock },
                                                      input: {
@@ -651,9 +651,9 @@ for (const expiresAtIso of ["corrupt", undefined]) {
     const clock = movableClock();
     const store = new InMemoryPublishChallengeStore(clock);
     const live = await issuePublishChallenge({ store, clock, idGen, targetInstallationId: TARGET_INSTALL });
-    await store.put({ ...live, nonce: "corrupt", expiresAtIso: expiresAtIso as unknown as string });
-    await store.put({ ...live, nonce: "due", expiresAtIso: clock.nowIso() });
-    await store.put({ ...live, nonce: "trigger" });
+    await store.put({ record: { ...live, nonce: "corrupt", expiresAtIso: expiresAtIso as unknown as string } });
+    await store.put({ record: { ...live, nonce: "due", expiresAtIso: clock.nowIso() } });
+    await store.put({ record: { ...live, nonce: "trigger" } });
     assert.equal(await store.takeOnce({ nonce: "corrupt" }), null);
     assert.equal(await store.takeOnce({ nonce: "due" }), null);
     assert.deepEqual(await store.takeOnce({ nonce: live.nonce }), live);

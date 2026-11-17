@@ -300,12 +300,12 @@ export function buildPublishContentRegistrations(
       const report = acceptedPullReport(planned.details as PublishContentReport);
       // The bundle table has no source-label column. An existing audit row retains this display
       // metadata across tool calls/restarts; no cached plan is trusted at execute time.
-      await routeDeps.publishContentRunRepo.save({
+      await routeDeps.publishContentRunRepo.save({ record: {
         id: staged.bundleId, workspaceId: routeDeps.workspaceId, direction: "import", phase: "planned",
         peerPrincipalId: ctx.principal.id, peerLabel: staged.peerLabel, actorId: ctx.principal.id,
         restorePointId: null, changeSetIdsJson: null, startedAt: nowIso({ clock: routeDeps.clock }), finishedAt: null,
         reportJson: JSON.stringify(report), itemsJson: null,
-      });
+      } });
       return { bundleId: staged.bundleId, expiresAt: staged.expiresAt, peerLabel: staged.peerLabel,
         counts: pullCounts(report), conflicts: report.rows.filter(row => row.canOverwrite).slice(0, 50).map(row => ({
           entityKey: entityKey({ entityType: row.entityType, entityId: row.entityId }), title: pullTitle(row), reason: row.reason,

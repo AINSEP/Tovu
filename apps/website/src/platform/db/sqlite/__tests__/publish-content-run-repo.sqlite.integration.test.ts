@@ -52,8 +52,8 @@ test("SQLite run snapshots upsert durable per-item progress and remain workspace
         },
       ]),
     };
-    await repo.save(initial);
-    await repo.save({
+    await repo.save({ record: initial });
+    await repo.save({ record: {
       ...initial,
       phase: "failed",
       changeSetIdsJson: '["cs-1"]',
@@ -72,7 +72,7 @@ test("SQLite run snapshots upsert durable per-item progress and remain workspace
           updatedAt: "2026-09-19T00:00:01.000Z",
         },
       ]),
-    });
+    } });
 
     const status = await getPublishContentRunStatus({
                                                       repo,

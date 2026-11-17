@@ -72,13 +72,13 @@ function repoFailingOn(
   return {
     inner,
     vault: inner.vault,
-    insert: async (record) => {
+    insert: async ({ record }) => {
       if (method === "insert") throw new Error(message);
-      return inner.insert(record);
+      return inner.insert({ record });
     },
-    update: async (record) => {
+    update: async ({ record }) => {
       if (method === "update") throw new Error(message);
-      return inner.update(record);
+      return inner.update({ record });
     },
     findById: (input) => inner.findById(input),
     listByWorkspace: (input) => inner.listByWorkspace(input),
@@ -134,7 +134,7 @@ test("a failed peer-row write during connect reverses the grant instead of leavi
 test("a failed grant reversal during disconnect puts the peer row back", async () => {
   const provisioning = new RecordingProvisioning();
   const inner = new InMemoryPublishContentPeerRepo();
-  await inner.insert(connectedRow());
+  await inner.insert({ record: connectedRow() });
 
   const deps = {
     repo: inner,
@@ -161,7 +161,7 @@ test("a failed grant reversal during disconnect puts the peer row back", async (
 test("a clean disconnect removes both halves", async () => {
   const provisioning = new RecordingProvisioning();
   const inner = new InMemoryPublishContentPeerRepo();
-  await inner.insert(connectedRow());
+  await inner.insert({ record: connectedRow() });
 
   const result = await disconnectAndForgetDestination(
     {
@@ -219,7 +219,7 @@ test("when both the peer-row write and the grant reversal fail during connect, t
 
 test("when the grant reversal and the peer-row restore both fail during disconnect, the reversal failure is what is reported", async () => {
   const repo = repoFailingOn("insert", "restore failed too");
-  await repo.inner.insert(connectedRow());
+  await repo.inner.insert({ record: connectedRow() });
   const deps = {
     repo,
     clock: { nowMs: () => Date.parse("2026-09-20T12:00:00.000Z") },

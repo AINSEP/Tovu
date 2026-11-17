@@ -60,7 +60,7 @@ export interface StagedBundleRecord {
 }
 
 export interface PublishContentBundleRepoPort {
-  save(record: StagedBundleRecord): Promise<void>;
+  save(required: { record: StagedBundleRecord }, optional?: {}): Promise<void>;
   findById(input: { workspaceId: string; id: string }): Promise<StagedBundleRecord | null>;
   /** Deletes rows whose expiry is strictly before `expiredBefore` and returns the number removed. */
   deleteExpired(input: { expiredBefore: string }): Promise<number>;
@@ -173,7 +173,7 @@ export async function stageBundle(
   // bound; if traffic stops, the table is finite and incurs no further growth. Strictly-before
   // matches `isBundleActive`'s inclusive boundary (`now === expiresAt` remains usable).
   await deps.repo.deleteExpired({ expiredBefore: receivedAt });
-  await deps.repo.save(record);
+  await deps.repo.save({ record });
   return { bundleId: record.id, expiresAt };
 }
 
@@ -200,7 +200,7 @@ export async function loadActiveBundle(
 export class InMemoryPublishContentBundleRepo implements PublishContentBundleRepoPort {
   private readonly recordsById = new Map<string, StagedBundleRecord>();
 
-  async save(record: StagedBundleRecord): Promise<void> {
+  async save({ record }: { record: StagedBundleRecord }): Promise<void> {
     this.recordsById.set(record.id, { ...record });
   }
 
