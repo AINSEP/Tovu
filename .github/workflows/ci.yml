@@ -234,6 +234,13 @@ jobs:
         continue-on-error: true
         run: npm run check:size
 
+      - name: Check hook-injection ratchet
+        # Owner HARD rule 2026-11-16: custom hooks are injected as props defaulted to the real hook.
+        # Baseline development/hook-injection-debt.json is keyed Component::hook, so moves are not new debt.
+        id: gate-hooks
+        continue-on-error: true
+        run: npm run check:hooks
+
       - name: Check seed-content drift
         # Added 2026-08-21 (Sol audit finding, MEDIUM): development/scripts/ci-local.sh has run
         # this gate since 2026-08-21 but this workflow never did — 0 occurrences before this
@@ -396,6 +403,7 @@ jobs:
           check "${{ steps.gate-inventory.outcome }}"          "check:inventory"
           check "${{ steps.gate-src-complexity.outcome }}"     "check:complexity"
           check "${{ steps.gate-size.outcome }}"               "check:size"
+          check "${{ steps.gate-hooks.outcome }}"              "check:hooks"
           check "${{ steps.gate-seed-content-drift.outcome }}" "check:seed-content-drift"
           check "${{ steps.gate-shipped-theme-drift.outcome }}" "shipped theme/reference/reset drift"
           check "${{ steps.gate-coverage-integrity.outcome }}" "check:coverage-integrity"
