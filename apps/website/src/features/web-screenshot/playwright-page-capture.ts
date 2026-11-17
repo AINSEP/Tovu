@@ -1,4 +1,5 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
+import { REAL_CAPTURE_CLOCK, type CaptureClock } from "@jini-ai/diagnostics/web-evidence/capture-clock";
 import { renderPage, PageWorkTimeout, PUBLIC_RENDER_LAUNCH_OPTIONS, createRenderBrowserPool, type RenderBrowserPool, type RenderBrowserLease } from "@jini-ai/diagnostics/web-evidence/playwright";
 import { importPlaywrightChromium } from "#src/platform/headless-browser/playwright-loader";
 import type { HttpClientPort } from "#src/platform/http/index";
@@ -84,6 +85,8 @@ export interface PlaywrightPageCaptureOptions {
   /** Only for hosts that cannot run Chromium's sandbox; never set from env. */
   allowUnsandboxed?: boolean;
   deadlineMs?: number;
+  /** One time source for the render's budget, its hard stop and this adapter's outer race; tests pass a fake of it. */
+  clock?: CaptureClock;
   idleCloseMs?: number;
 }
 
@@ -102,7 +105,7 @@ function clampHeight({ raw, fallback }: { raw: unknown; fallback: number }, _opt
  */
 export function createPlaywrightPageCapture(
   { httpClient }: { httpClient: HttpClientPort },
-  { loadLauncher = loadPlaywrightLauncher, ownSiteFetch = fetchOwnSiteResource, routerOptions = {}, allowUnsandboxed = false, deadlineMs = CAPTURE_DEADLINE_MS, idleCloseMs = IDLE_CLOSE_MS, browserPool }: PlaywrightPageCaptureOptions = {},
+  { loadLauncher = loadPlaywrightLauncher, ownSiteFetch = fetchOwnSiteResource, routerOptions = {}, allowUnsandboxed = false, deadlineMs = CAPTURE_DEADLINE_MS, clock = REAL_CAPTURE_CLOCK, idleCloseMs = IDLE_CLOSE_MS, browserPool }: PlaywrightPageCaptureOptions = {},
 ): PageCapturePort {
   const browser = browserPool ?? createRenderBrowserPool(
     { launch: async () => {
@@ -144,7 +147,7 @@ export function createPlaywrightPageCapture(
           const title = (await budget.run({ work: () => page.title() })).slice(0, 300);
           return { png, finalUrl, status: response?.status() ?? null, title, pageHeight, capturedHeight, blockedRequests: router.report().blocked, ...(note ? { note } : {}) };
         },
-      }, { originPolicy: "public", router, signal, timeoutMs: deadlineMs,
+      }, { originPolicy: "public", router, signal, timeoutMs: deadlineMs, clock,
         waitFor: request.waitFor ?? request.settleMs / 1000,
         dismissCookieBanners: request.dismissCookieBanners === true, loadWaitMs: 5_000,
       });
@@ -161,9 +164,9 @@ export function createPlaywrightPageCapture(
       const onAbort = () => controller.abort();
       signal?.addEventListener("abort", onAbort, { once: true });
       if (signal?.aborted) controller.abort();
-      let timer: NodeJS.Timeout | undefined;
+      let timer: unknown;
       const deadline = new Promise<never>((_, reject) => {
-        timer = setTimeout(() => {
+        timer = clock.setTimeout(() => {
           controller.abort();
           reject(new PageCaptureError({ kind: "timeout", message: `exceeded ${deadlineMs}ms` }));
         }, deadlineMs);
@@ -178,7 +181,7 @@ export function createPlaywrightPageCapture(
         if (!browserPool && error instanceof PageCaptureError && error.kind === "timeout") void browser.close().catch((closeError: unknown) => console.error("[screenshot] Could not close the timed-out browser", describeErrorForLog({ err: closeError })));
         throw error;
       } finally {
-        clearTimeout(timer);
+        clock.clearTimeout(timer);
         signal?.removeEventListener("abort", onAbort);
       }
     },
