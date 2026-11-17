@@ -43,7 +43,7 @@ admin page: AgentPluginDetailsModal → one tab per surface → AgentPluginSurfa
 | `createAgentPluginAdminSurfaceHandlers({ workspaceId, loadContributions, capabilities }, { signIns })` | `handlers.ts` | the real `AdminSurfaceHost`: plugin `handlerModule`s through Jini's handler host, plus `refresh()` |
 | `createAdminSurfaceCapabilities({ tools, connectionsFor, stateFor, publicConfig })` | `capabilities.ts` | Tovu's `AdminSurfaceCapabilitiesPort`: the tool port's `http`/`limiter`/`artifacts` (when the tool port has one) plus surface-only `connections`, `state`, `publicConfig` |
 | `createSurfaceDeliveryBindings({ pluginId, workspaceId, principalId, siteWorkspaceId, declaredConnectionIds, contributedAdapterIds, forms, bindings, newBindingId })` | `delivery-bindings.ts` | Tovu's `deliveryBindings` port: the plugin's own form-delivery bindings, written through `core.forms/deliveryBindings` |
-| `createIssuedSignInCollector()` | `issued-sign-ins.ts` | per-request registry (AsyncLocalStorage) of the https sign-in links the connections port issued; the action route returns them as `hostSignIns` |
+| `createIssuedSignInCollector()` | `issued-sign-ins.ts` | Tovu binding of `@jini-ai/agent-plugins/admin-surfaces/node`'s per-request registry of the sign-in links the connections port issued (https, or http on Tovu's hosted sign-in path); the action route returns them as `hostSignIns` |
 | `createAdminSurfacePublicConfig({ env })` | `public-config.ts` | `publicConfig.get({ name })` from host config; secret-shaped names refused; unset → `null` |
 
 ## Extension points
