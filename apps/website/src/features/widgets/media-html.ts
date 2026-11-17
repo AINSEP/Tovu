@@ -122,6 +122,12 @@ function pruneMediaChildren({ elements, dropped }: { elements: Element[]; droppe
   }
 }
 
+/** A rejected node leaves the tree; a rejected text node also takes its immediate parent element. */
+function dropRejectedNode({ node, parent, dropped }: { node: Child; parent: Element | DefaultTreeAdapterMap['documentFragment']; dropped: Set<Child> }, _options: Record<string, never> = {}): void {
+  dropped.add(node);
+  if (node.nodeName === '#text' && 'tagName' in parent) dropped.add(parent);
+}
+
 function resolveMediaTree({ root, visit }: { root: DefaultTreeAdapterMap['documentFragment']; visit: (node: Child) => boolean }, _options: Record<string, never> = {}): void {
   // Iterative tree walk: deeply nested owner/import HTML cannot consume the JS call stack.
   const dropped = new Set<Child>();
@@ -132,8 +138,7 @@ function resolveMediaTree({ root, visit }: { root: DefaultTreeAdapterMap['docume
     if (pending === undefined) throw new Error('Media HTML scan has no pending node');
     const { node, parent } = pending;
     if (!visit(node)) {
-      dropped.add(node);
-      if (node.nodeName === '#text' && 'tagName' in parent) dropped.add(parent);
+      dropRejectedNode({ node, parent, dropped });
       continue;
     }
     if ('tagName' in node) {
