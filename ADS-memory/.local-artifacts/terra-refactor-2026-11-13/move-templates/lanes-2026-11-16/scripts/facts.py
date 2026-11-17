@@ -29,7 +29,7 @@ BASE=[b for b in BASE if os.path.exists(os.path.join(ROOT,b))]
 TBL=re.compile(r'''\.(selectFrom|insertInto|updateTable|deleteFrom|innerJoin|leftJoin|replaceInto|mergeInto|withTables)\(\s*["'`]([A-Za-z0-9_]+)''')
 for sid,pred in SHEETS.items():
     fl=[r for r in rows if pred(r)]
-    L=[f'# {sid.split("/")[1]} — machine-verified facts (generated; do not hand-edit)','',f'Source: Tovu tree at `LANE_ROOT` (ref `{REF}`) @ `{SHA}`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).','']
+    L=[f'# {sid.split("/")[1]} — machine-verified facts (generated; do not hand-edit)','',f'Source: Tovu tree at `LANE_ROOT` (ref `{REF}`) @ `{SHA}`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv-su.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).','']
     tot=sum(int(r['lines']) for r in fl)
     L+=[f'Files: {len(fl)}, {tot} lines (tests not counted).','', '## Files','| path (under apps/website/src) | lines | blob | CLASSIFY label | audit row | existing sheet/design mention | prod importers | test importers |','|---|---|---|---|---|---|---|---|']
     alltests=collections.OrderedDict(); allprod=collections.OrderedDict()

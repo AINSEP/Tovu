@@ -1,4 +1,7 @@
-# Lanes S (database code) and U (users): plan index — revision 2 complete, 2026-11-17. Planning only, nothing executed.
+# Lanes S (database code) and U (users): plan index — revision 3 complete, 2026-11-16. Planning only, nothing executed.
+
+Revision 3 (table at the end) re-pinned every facts file on Tovu `integ/merge-final-2026-11-16` @ `232764af5` / Jini
+`65d73b0d5`; the paragraphs below that name merge-a describe revision 2. Cross-plan collisions with lanes K/T: §3a.
 
 Status: **revision 2 written for every sheet; no sheet carries a HOLD banner.** All 16 judge findings are fixed in the
 sheet bodies ("Revision 2 - judge response" below). Of the 8 round-1 remainder items, 6 are closed and 2 stay open
@@ -20,8 +23,8 @@ Facts files were regenerated on that Tovu tree (`scripts/` now take `LANE_ROOT`)
 | Run | Sheet | Target | Est. tokens | Needs (beyond S0) |
 |---|---|---|---|---|
 | S0 | `S/S0-pins.md` | Tovu: 8 pins + `schemaErasedKernel` | 120k | base pair green; OD-8 |
-| — | `move-workspace.md` (existing, plan/w1-sheets-d) | cms/workspace/sql | ~80k | calibrates the template |
-| S1a / S1b / S1c | `S/S1-…` | cms taxonomy / navigation / presentation `/sql` | 210k / 150k / 80k | move-workspace, xpkg R6-R9 |
+| S1w | `S/S1w-workspace-sql.md` (replaces `move-workspace.md`) | cms/workspace/sql | 90k | calibrates the template; xpkg R6-R9, C3 |
+| S1a / S1b / S1c | `S/S1-…` | cms taxonomy / navigation / presentation `/sql` (+ `taxonomy/read-ports.ts` on `./taxonomy`) | 210k / 150k / 80k | S1w, xpkg R6-R9 |
 | S2a / S2b / S2c | `S/S2-…` | cms content-types/sql, entries/sql, entries memory twin | 100k / 200k / 110k | xpkg R6-R9; not with A08 |
 | S3a / S3b | `S/S3-identity-sql.md` | user-management/server/sql | 220k / 120k | xpkg C9c + R3b |
 | S4a / S4b | `S/S4-trash-sql.md` | cms/trash (contracts) + trash/sql | 200k / 210k | xpkg R6-R9 |
@@ -32,24 +35,26 @@ Facts files were regenerated on that Tovu tree (`scripts/` now take `LANE_ROOT`)
 | U1a / U1b | `U/U1-members-sql.md` | user-management/members/sql | 200k / 190k | A07, S3a, OD-3; U1b: S4a |
 | U2c-1 / U2a / U2c-2 / U2b / U2c-3 | `U/U2-members-auth-domain.md` | Tovu split; platform/mail; user-management/members/server | 170k / 90k / 170k / 210k / 200k | U2c-1: nothing; others: A07; U2b: S4a |
 | U3a / U3b | `U/U3-api-keys.md` | user-management core + server/api-keys + server/sql | 190k / 210k | S3a, OD-4 |
-**Total: 30 runs, about 4.85M Sonnet tokens** (S 3.22M in 21 runs, U 1.63M in 9), every run under 250k. Round 1 said 26
+**Total: 31 runs, about 4.94M Sonnet tokens** (S 3.31M in 22 runs incl. S1w, U 1.63M in 9), every run under 250k. Revision 2
+said 30 runs / 4.85M without the calibration run; revision 3 added S1w (90k) in place of the external `move-workspace`. Round 1 said 26
 runs / 4.15M plus ~0.9M unwritten and one ~250k Opus design: the design (U2c) and the unwritten S2c are now inside the
-total; U3c is gone. Not included: `move-workspace` and `move-entry-refs` (existing sheets), the open items of §7
+total; U3c is gone. Not included: `move-entry-refs` (existing sheet on `plan/w1-sheets-d`; S8a needs only its DD slice, see `S/S8`), the open items of §7
 (~0.5M if all are done), one batched cloud verification run per wave. Estimates use 30k + 25 tokens/line plus the
 test-repoint load; none is measured.
 
 ## 3. Order and prerequisites
 Outside this lane, first: xpkg waves 0b-3 for the packages named above (`N1` before U2a; `R6-R9`, `C9c` in wave 1;
 `R3b` in wave 2; `R11b-3` in wave 3); audit2 A07 (before U1 and U2c-2) and A08 (never in a wave with S2b or S7);
-existing `move-workspace`, `move-entry-refs`. Designs that edit a file a sheet moves run BEFORE that sheet, and the
+existing `move-entry-refs` (S8a only). Designs that edit a file a sheet moves run BEFORE that sheet, and the
 sheet's facts diff then fails until its table is regenerated: lost-updates (`identity/repo.ts`, `members/repo.ts`,
 `settings/repo.ts`, `entries/repo.ts`), error-system (`members/write-service.ts`, `jini-outbox-adapter.ts`), env-schema
 (settings defaults), publish-engine (outbox / change-set callers).
 1. **S0**, alone: green, every mutation red, facts regenerated and committed.
-2. **move-workspace** (calibration). If it does not land clean, fix `T-SQLREPO.md` before any fan-out.
+2. **S1w** (calibration, `S/S1w-workspace-sql.md`; replaces `move-workspace`). If it does not land clean, fix `T-SQLREPO.md`
+   before any fan-out.
 3. Four chains, parallel with each other, serial inside (each run adds an export entry to ONE `package.json`, and an
    export must build in the commit that introduces it):
-   - cms: S1a -> S1b -> S1c -> S2a -> S2b -> S2c -> S4a -> S4b -> S7a -> S7b -> S8a -> S8b -> S6c
+   - cms: S1w (step 2) -> S1a -> S1b -> S1c -> S2a -> S2b -> S2c -> S4a -> S4b -> S7a -> S7b -> S8a -> S8b -> S6c
    - db: S5a -> S5b -> S5c -> S6a
    - user-management: U2c-1 (Tovu only, may start right after S0) -> S3a -> S3b -> U3a -> U3b -> U1a -> U1b -> U2c-2 -> U2b -> U2c-3
      (U1b and U2b also wait for S4a on the cms chain)
@@ -165,7 +170,7 @@ Rebuttal: P4 "sheets cannot be found" - they exist (origin `plan/w1-sheets-d`, c
 R4-1 Cross-plan collision table in this file AND K/T `INDEX.md`, generated by one fenced command comparing the two plans'
      write sets (S/U: facts "Files" + importer lines; K/T: `*.files.tsv` + `*.importers.tsv`). Known shared files to
      expect: Jini `packages/cms/package.json` + README (S/U cms chain vs T-PO-02), `packages/cms/src/taxonomy/index.ts`
-     (S1a vs K-05), `packages/cms/src/trash/index.ts` (S4a vs K-07), `scripts/inv.py` (same path on both branches:
+     (S1a vs K-05), `packages/cms/src/trash/index.ts` (S4a vs K-07), `scripts/inv-su.py` (same path on both branches:
      rename one, e.g. S/U `scripts/inv-su.py`).
 R4-2 K/T branch edits: retire K-06a/K-06b (+ `K-06.*` sidecars) and K-08 (`K-08.*`, queue entry) pointing to S1a / S4;
      K-05 prerequisite -> S1a T1 (`test ! -e apps/website/src/features/taxonomy/repo.ts`); K-07b prerequisite (2) -> S4b;

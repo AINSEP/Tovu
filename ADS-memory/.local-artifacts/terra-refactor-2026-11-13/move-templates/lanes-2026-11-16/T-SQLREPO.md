@@ -63,7 +63,7 @@ TT() { TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import
   `export *` lines in the comments precedent are not copied: write named exports).
 
 ## 3. Facts, successor guards, shared files (finding 14)
-- Regenerate before step 1: `LANE_ROOT=<tovu> python3 scripts/inv.py && LANE_ROOT=<tovu> python3 scripts/rep.py &&
+- Regenerate before step 1: `LANE_ROOT=<tovu> python3 scripts/inv-su.py && LANE_ROOT=<tovu> python3 scripts/rep.py &&
   LANE_ROOT=<tovu> python3 scripts/facts.py /tmp/facts && diff /tmp/facts/<sheet>.facts.md <sheet>.facts.md`.
   Allowed differences, and only these: (a) blob and line changes of files that a sheet listed in this sheet's
   `successor_of` edited, exactly in the declarations that sheet names; (b) new test importers under

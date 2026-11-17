@@ -1,4 +1,4 @@
-# S6 (revision 2) — change-set, outbox, webhook and form-delivery SQL repos
+# S6 (revision 3) — change-set, outbox, webhook and form-delivery SQL repos
 
 Template: T-SQLREPO rev 2. Facts: `S6-changeset-outbox-webhook-formdelivery-sql.facts.md` (13 files, 1,364 lines, 40 test files).
 Revision 2 fixes judge finding 7 (S6c lost its stored-row mapper across the package boundary) and schedules the shared
@@ -14,8 +14,9 @@ prerequisites (all): S0 DONE (P1 `outbox_events:claim`, `webhook_deliveries:clai
 ```
 
 ## S6a — change sets and the outbox
-- `change-set-repo.ts` (178) `SqlChangeSetRepo` MOVE; `sqlite/change-set-repo.sqlite.ts` STAY-WIRING. This is the one lane
-  file that differs between Tovu merge-a and merge-b (2 lines): take blobs from the base pair, not from this sheet.
+- `change-set-repo.ts` (178) `SqlChangeSetRepo` MOVE; `sqlite/change-set-repo.sqlite.ts` STAY-WIRING. (Revision 3: the
+  merge-a / merge-b difference noted in revision 2 is gone. merge-final `232764af5` contains both, and its blob is the one
+  in the facts file, which differs from merge-a only in a comment. The facts check of T-SQLREPO §3 applies as for every file.)
   The compensating rollback that uses change sets stays in Tovu; do not touch the `InMemoryChangeSetRepo` import that
   already comes from `@jini-ai/cms`.
 - `outbox-repo.ts` (156): `SqlOutboxAdapter` MOVE; `outboxEventValues` (:58) MOVE and is exported from `@jini-ai/db/events`:
