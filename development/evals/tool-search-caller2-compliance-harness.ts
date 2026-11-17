@@ -10,8 +10,8 @@
  * (the BYOK provider-model path) and `src/assistant/agent-daemon-server.ts` (the spawned-CLI path,
  * this harness). This harness targets the SECOND one. It is NOT the full production daemon, but it
  * reuses every component that actually shapes what the model sees: the real tool registry
- * (`buildAssistantToolRegistrations`), the real tool-catalog search routes (`@jini-ai/http-kit`'s
- * `registerToolCatalogRoutes`), the real `jini-mcp` MCP subprocess (via the real
+ * (`buildAssistantToolRegistrations`), the real tool-catalog search routes (`@jini-ai/daemon`'s
+ * `toolCatalogRoutes`), the real `jini-mcp` MCP subprocess (via the real
  * `resolveMcpJsonInjection`, spawned fresh per run — so it reads whatever schema is ACTUALLY on
  * disk in `@jini-ai/mcp`'s built `dist/` at run time, not a mock), a real `AgentExecutor` spawning
  * a real local `claude` CLI, and the real system-overlay text copied verbatim from
@@ -77,7 +77,7 @@ import { join } from "node:path";
 import express from "express";
 import type { RouteHostContext } from "@jini-ai/core/contracts/server";
 import type { RunStartHandler } from "@jini-ai/daemon/http";
-import { registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/http";
+import { registerRunRoutes, toolCatalogRoutes } from "@jini-ai/daemon/http";
 import { createLocalSameOriginPolicy } from "@jini-ai/core/contracts/server";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
 import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
@@ -88,6 +88,7 @@ import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "../../apps/website/src/
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { daemonRouteHost, mountJiniRoutes } from "../../apps/website/src/server/runtime/composition/jini-routes.js";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
 import { resolveMcpJsonInjection } from "../../apps/website/src/assistant/mcp-injection.js";
 import { initializeStartupSecrets } from '../../apps/website/src/platform/secrets/startup-secrets.js';
@@ -264,7 +265,8 @@ async function main(): Promise<void> {
 
   const harnessAdapter: RouteHostContext = { originPolicy: createLocalSameOriginPolicy({ port: () => PORT, env: {}, config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
   registerRunRoutes({ app, deps: { lifecycle, onStarted }, adapter: harnessAdapter });
-  registerToolCatalogRoutes({ app, deps: { catalog }, adapter: harnessAdapter });
+  // 100 KiB: the default limit of the `express.json()` parser above.
+  mountJiniRoutes({ app, routes: toolCatalogRoutes({ deps: { catalog }, host: daemonRouteHost({ context: harnessAdapter, parserLimitBytes: 100 * 1024 }) }) });
 
   const server = app.listen(PORT, "127.0.0.1");
   await new Promise<void>((resolve, reject) => {

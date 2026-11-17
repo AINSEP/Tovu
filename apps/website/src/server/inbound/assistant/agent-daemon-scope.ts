@@ -85,7 +85,7 @@ import { bridgePreflightEntry } from "./bridge-preflight-entry.js";
 import type { PromptAugmenter } from "@jini-ai/core/contracts/agents";
 import { createAgentSelectionResolver, createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";
 import { executorDefinitionPolicies } from "./executor-definition-policies.js";
-import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, registerFrontendRequestRoute, registerAgentRoutes, registerAttachmentRoutes, registerComponentCatalogRoutes, registerDelegatedToolRoutes, registerMessageRelayRoutes, registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/http";
+import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, registerFrontendRequestRoute, registerAgentRoutes, registerAttachmentRoutes, registerComponentCatalogRoutes, registerDelegatedToolRoutes, registerMessageRelayRoutes, registerRunRoutes, toolCatalogRoutes } from "@jini-ai/daemon/http";
 import { adminFrontendOwner, adminFrontendRunOwner } from "#src/assistant/admin-frontend-owner";
 import { bearerTokenFromHeader, createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
 import type { AttachmentStore, DelegatedToolExecuteRequest, RunMessageRequest, RunStartHandler, StoredAttachment } from "@jini-ai/daemon/http";
@@ -117,7 +117,7 @@ import {
 } from "./assistant-system-overlay.js";
 import { buildAssistantRuntimeGuidance, createAssistantChromeProbe, resolveAssistantRuntimeLaunch, type AssistantRuntimeGuidanceInput } from "./assistant-runtime-guidance.js";
 import { getCustomFsRoot } from "../../../features/fs-files/custom-root-store.js";
-import { createAgentDaemonCoreDeps, type AgentDaemonCoreOptions, type AgentDaemonResource } from "../../runtime/composition/agent-daemon-core-deps.js";
+import { createAgentDaemonCoreDeps, type AgentDaemonCoreOptions, type AgentDaemonResource } from "../../runtime/composition/agent-daemon-core-deps.js"; import { daemonRouteHost, mountJiniRoutes } from "../../runtime/composition/jini-routes.js";
 import { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission-mode";
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
 import { pageApprovalOptions } from "#src/assistant/page-approval-context";
@@ -1433,7 +1433,7 @@ app.post(DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken({ env: authEnv, runS
 const adapter: RouteHostContext = { originPolicy: createLocalSameOriginPolicy({ port: () => port, env,
   // These are the environment names the previously imported http-kit origin guard read.
   // Preserve that deployed contract when supplying the now-explicit origin configuration.
-  config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
+  config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) }; const routeHost = daemonRouteHost({ context: adapter, parserLimitBytes: 6 * 1024 * 1024 }); // 6 MiB = the `express.json({ limit: "6mb" })` parser above; route lists derive their own body limit from it.
 
 // Per-run authorization, mounted between the bearer gate and the run routes it protects. The gate
 // above proves the caller is Tovu's proxy; these two prove *which admin* the proxy is speaking for,
@@ -1551,7 +1551,7 @@ registerFrontendRequestRoute({ app, path: "/api/frontend-sessions/request", cont
 
   // Discovery is scoped by each run's credential; the server refreshes its own plugin/settings
   // state before returning descriptors. The native FTS owner is released with the final run.
-  registerToolCatalogRoutes({ app, deps: { catalog: siteTools.catalog }, adapter });
+  mountJiniRoutes({ app, routes: toolCatalogRoutes({ deps: { catalog: siteTools.catalog }, host: routeHost }) });
   app.use("/api/components", (req, res, next) => {
     const caller = resolveDiscoveryCaller(req);
     if (!caller) { res.status(404).json({ error: "a live run is required" }); return; }
