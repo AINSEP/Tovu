@@ -10,6 +10,8 @@ import {
   handleFileDrop,
   handleFilePaste,
   uploadDroppedFile,
+} from "../hooks/post-editor-file-upload";
+import {
   usePostEditor,
   useWiredPostEditor,
 } from "../hooks/use-post-editor.hooks";
