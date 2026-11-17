@@ -176,6 +176,15 @@ function scopeConfiguration({ siteId, env: suppliedEnv, token }: { siteId: strin
   return { env, authEnv, daemonUrl, port };
 }
 
+/** Until the executor takes the bound runtime port (daemon R8b), it still receives the two definition policies by value.
+ * Kept outside {@link createSiteScope}, whose body is already at the complexity ceiling. */
+function executorDefinitionPolicies(
+  { runtime }: { runtime: ReturnType<typeof createNativeAgentRuntime> },
+  _optional: Record<string, never> = {},
+): { codexDisablePlugins: boolean; piGracefulShutdownMs: number } {
+  return { codexDisablePlugins: runtime.codex.disablePlugins === true, piGracefulShutdownMs: runtime.pi.gracefulShutdownMs ?? 5000 };
+}
+
 /** Instantiate the existing lean composition with private site configuration and authority.
  * @param required Canonical server workspace, copied environment and private site RPC credential.
  * @param optional Retained-client test seams and the process-owned union activity monitor.
@@ -528,9 +537,7 @@ const agentExecutor = createAgentExecutor({
   runtimeState: assistantRuntime.state,
   hostEnv: assistantRuntime.hostEnv,
   onCleanupFailure: ({ runId }) => { cleanupFailures.add(runId); console.error('[agent-daemon] CLI cleanup failed'); },
-  // Until the executor takes the bound runtime port (daemon R8b), it still receives the two definition policies by value.
-  codexDisablePlugins: assistantRuntime.codex.disablePlugins === true,
-  piGracefulShutdownMs: assistantRuntime.pi.gracefulShutdownMs ?? 5000,
+  ...executorDefinitionPolicies({ runtime: assistantRuntime }),
   mcpJsonInjection: bridgeInjection,
   promptAugmenter: assistantPromptAugmenter,
   // `claudeConfigDirIsolationEnabled` deliberately left at its `@jini-ai/daemon` default (`false`) —

@@ -758,13 +758,6 @@
       "value": 101
     },
     {
-      "file": "apps/desktop/src/tovu-server.ts",
-      "function": "<file>",
-      "line": 1136,
-      "rule": "max-lines",
-      "value": 514
-    },
-    {
       "file": "apps/website/src/assistant/byok-tool-surface.ts",
       "function": "createByokToolSurface#1",
       "line": 621,
