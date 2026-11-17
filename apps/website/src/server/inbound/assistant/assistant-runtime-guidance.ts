@@ -2,7 +2,8 @@
  * The launch resolves every input once, so the guidance and the argv come from one snapshot; every
  * builder below is pure and the one async resolver takes its reads and def lookup as ports. */
 import type { ChatSettingsSnapshot } from "@jini-ai/daemon/chat-settings";
-import { agentSupportsChromeIntegration, agentSupportsSubagents, type RuntimeAgentDef, type RuntimeCapabilityMap } from "@jini-ai/agent-runtime";
+import { agentSupportsChromeIntegration, agentSupportsSubagents } from "@jini-ai/agent-runtime";
+import { type RuntimeAgentDef, type RuntimeCapabilityMap } from "@jini-ai/core/contracts/agents";
 import { readAssistantRuntimePreferences, type AssistantRuntimePreferenceDeps, type AssistantRuntimePreferences } from "../../../assistant/runtime-settings.js";
 
 /** Reply guidance; Normal deliberately contributes no text to the existing overlay. */

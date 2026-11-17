@@ -2,7 +2,7 @@ import { screen } from "@testing-library/react";
 import { render } from "@/__tests__/chat-surfaces-render";
 import { isValidElement } from "react";
 import { describe, expect, it, vi } from "vitest";
-import type { NativeToolPolicyInput } from "@jini-ai/agent-runtime/native-tool-policy";
+import type { NativeToolPolicyInput } from "@jini-ai/core/contracts/agents";
 
 import { PushToTalkMicButton } from "../../../features/voice-input/PushToTalkMicButton";
 import { composerFooterLeading, executionChatPaneProps, folderWindowOpenElsewhere, optionalChatPaneProps, renameActiveConversation, voiceFooterAccessory } from "../assistant-dock-props";

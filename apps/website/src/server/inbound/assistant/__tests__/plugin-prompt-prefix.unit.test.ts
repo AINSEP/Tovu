@@ -3,7 +3,8 @@ import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 import assert from "node:assert/strict";
 import { AsyncLocalStorage } from "node:async_hooks";
-import { getAgentDef, type PromptAugmenter } from "@jini-ai/agent-runtime";
+import { getAgentDef } from "@jini-ai/agent-runtime";
+import { type PromptAugmenter } from "@jini-ai/core/contracts/agents";
 import { captureDaemonRun, daemonInitializer, evaluateDaemonExpression } from "./helpers/daemon-source.js";
 import { buildBaseSystemOverlay, buildAssistantSubagentsOverlay } from "../assistant-system-overlay.js";
 import { buildAssistantRuntimeGuidance } from "../assistant-runtime-guidance.js";

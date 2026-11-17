@@ -3,7 +3,7 @@ import { admittedToolSources, stopRunsForToolAccessChange, type ToolAccessRun, t
 import { ASSISTANT_CONTENT_EDIT_GUIDANCE } from "#src/contracts/core/assistant-content-guidance";
 import { createAutomaticPluginRuns } from "#src/features/agent-plugins/automatic-agent-plugins";
 import { askAgentPluginChoice } from "#src/assistant/ask-choice-tool";
-import { createAiTraceRecorder } from "@jini-ai/agent-runtime/ai-trace";
+import { createAiTraceRecorder } from "@jini-ai/core/contracts/ai-trace";
 import { readChatAgentPluginState } from "@jini-ai/agent-plugins/lifecycle";
 import { resolveAgentPluginRefs } from "#src/features/agent-plugins/lifecycle";
 import { translateRetiredPluginRefs } from "#src/features/agent-plugins/bundled-catalog";

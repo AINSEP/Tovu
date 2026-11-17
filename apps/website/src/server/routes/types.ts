@@ -1008,7 +1008,7 @@ export interface ObservabilityDeps {
   telemetryStatus?: ReturnType<typeof import("@jini-ai/diagnostics/observability").createTelemetryDeliveryMonitor>["read"];
   sendTelemetryTest?: (required: Record<string, never>, optional?: Record<string, never>) => Promise<import("@jini-ai/diagnostics/observability").TelemetryTestResult>;
   /** AI-trace sink of trace providers and optional analytics generation hooks; absent means off. */
-  aiTraceSink?: import("@jini-ai/agent-runtime/ai-trace").AiTraceSink;
+  aiTraceSink?: import("@jini-ai/core/contracts/ai-trace").AiTraceSink;
   /** Saved provider-plugin settings (project store, else site vault); the admin settings card reads/writes it. */
   projectKeys?: import("#src/features/project-keys/service").ProjectKeysPort;
   providerAppliesAt?: (required: { pluginId: string }) => "now" | "restart" | "failed";

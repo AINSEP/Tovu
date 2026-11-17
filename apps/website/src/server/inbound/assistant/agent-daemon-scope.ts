@@ -82,7 +82,7 @@ import { createRoutingToolExecutor, createAgentExecutor, createInMemoryEventLog,
 import { formatBridgePreflightLogLine, formatRunEndLogLine, formatRunErrorLogLine } from "./run-log-lines.js";
 import { bridgePreflightEntry } from "./bridge-preflight-entry.js";
 // @jini-ai/agent-runtime owns this seam; @jini-ai/daemon accepts it as an option.
-import type { PromptAugmenter } from "@jini-ai/agent-runtime";
+import type { PromptAugmenter } from "@jini-ai/core/contracts/agents";
 import { createAgentSelectionResolver, createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";
 import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, registerFrontendRequestRoute, registerAgentRoutes, registerAttachmentRoutes, registerComponentCatalogRoutes, registerDelegatedToolRoutes, registerMessageRelayRoutes, registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/http";
 import { adminFrontendOwner, adminFrontendRunOwner } from "#src/assistant/admin-frontend-owner";
@@ -528,8 +528,9 @@ const agentExecutor = createAgentExecutor({
   runtimeState: assistantRuntime.state,
   hostEnv: assistantRuntime.hostEnv,
   onCleanupFailure: ({ runId }) => { cleanupFailures.add(runId); console.error('[agent-daemon] CLI cleanup failed'); },
-  codexDisablePlugins: assistantRuntime.codexDisablePlugins,
-  piGracefulShutdownMs: assistantRuntime.piGracefulShutdownMs,
+  // Until the executor takes the bound runtime port (daemon R8b), it still receives the two definition policies by value.
+  codexDisablePlugins: assistantRuntime.codex.disablePlugins === true,
+  piGracefulShutdownMs: assistantRuntime.pi.gracefulShutdownMs ?? 5000,
   mcpJsonInjection: bridgeInjection,
   promptAugmenter: assistantPromptAugmenter,
   // `claudeConfigDirIsolationEnabled` deliberately left at its `@jini-ai/daemon` default (`false`) —

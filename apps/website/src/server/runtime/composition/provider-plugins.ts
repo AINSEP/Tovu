@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { createTelemetryDeliveryMonitor, describeTelemetryFailure, type Tracker, type ProviderTelemetryReport, type TelemetryTestResult } from "@jini-ai/diagnostics/observability";
 import { combineObservabilityPorts, createNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import { createAiGenerationSink, createNoopProductAnalytics, fanOutProductAnalytics, withProductAnalyticsGuards, type ProductAnalyticsConsent, type ProductAnalyticsConsentRevision, type ProductAnalyticsPort, type BrowserAnalyticsContribution } from "@jini-ai/analytics/product";
-import { createFanOutAiTraceSink, type AiTraceSink } from "@jini-ai/agent-runtime/ai-trace";
+import { createFanOutAiTraceSink, type AiTraceSink } from "@jini-ai/core/contracts/ai-trace";
 import { createPluginProviderHost, isProviderSettingRequired, type PluginContributionRegistry, type PluginProviderLease } from "@jini-ai/plugins/host";
 import {
   pluginProviderStartupGuidance,

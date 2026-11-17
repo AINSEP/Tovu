@@ -282,8 +282,8 @@ function defaultAgentExecutor(
     resolveAgentLaunch: runtime.resolveAgentLaunch,
     runtimeState: runtime.state,
     hostEnv: runtime.hostEnv,
-    codexDisablePlugins: runtime.codexDisablePlugins,
-    piGracefulShutdownMs: runtime.piGracefulShutdownMs,
+    codexDisablePlugins: runtime.codex.disablePlugins === true,
+    piGracefulShutdownMs: runtime.pi.gracefulShutdownMs ?? 5000,
     mcpJsonInjection: {
       toolApprovalOwner: "host",
       ...desktopBridgeLaunch(optional),

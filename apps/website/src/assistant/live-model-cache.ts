@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { VENDOR_API_BASE_URLS } from "@jini-ai/integrations/media-providers/catalog";
-import { listProviderModels, type ProviderModelOption } from "@jini-ai/agent-runtime";
+import { listProviderModels } from "@jini-ai/agent-runtime";
+import { type ProviderModelOption } from "@jini-ai/core/contracts/agents";
 import { ModelCatalogCache, unionModels as unionModelCatalog } from "@jini-ai/agent-runtime/model-catalog/cache";
 import type { Clock } from "@jini-ai/core/primitives";
 import type { AgentModelSummary } from "@jini-ai/daemon/http";

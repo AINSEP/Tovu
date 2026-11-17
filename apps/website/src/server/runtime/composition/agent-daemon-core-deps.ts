@@ -5,7 +5,7 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import path from "node:path";
 import { getEffective, InMemorySettingsRepo, INSTRUCTIONS_NAMESPACE, type SettingsRepoPort } from "@jini-ai/core/settings";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
-import type { AiTraceSink } from "@jini-ai/agent-runtime/ai-trace";
+import type { AiTraceSink } from "@jini-ai/core/contracts/ai-trace";
 import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
 import type { AgentSessionStore } from "#src/assistant/persistence/agent-session-store";
 import type { ConversationToolApprovalStore } from "#src/assistant/external-mcp-tool-approval-ports";

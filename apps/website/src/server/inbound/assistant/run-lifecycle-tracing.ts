@@ -1,5 +1,5 @@
 import { withAiTracing, type RunLifecycle } from "@jini-ai/daemon";
-import type { AiTraceSink } from "@jini-ai/agent-runtime/ai-trace";
+import type { AiTraceSink } from "@jini-ai/core/contracts/ai-trace";
 
 /**
  * Assistant runs → AI trace (provider wave 2, 2026-10-25). Only when an AI-trace provider plugin is

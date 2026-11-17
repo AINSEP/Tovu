@@ -89,7 +89,7 @@ test("daemon diagnostics and every AI trace event use the site's configured prov
   const { createNoopTracker } = await import("@jini-ai/diagnostics/observability");
   const errors: { message: string; process: unknown }[] = [];
   const captures: unknown[] = [];
-  const events: import("@jini-ai/agent-runtime/ai-trace").AiTraceEvent[] = [];
+  const events: import("@jini-ai/core/contracts/ai-trace").AiTraceEvent[] = [];
   let flushed = 0; let disposed = 0;
   const f = await fixture(t, { tracker: { ...createNoopTracker({}),
     capture: (event, options) => { captures.push({ ...event, ...options }); },
@@ -124,7 +124,7 @@ test("attempt lookup carries live authority without copying the answer event log
 });
 
 test("the next daemon run reads live provider capture policy from its site authority", async t => {
-  let capture: import("@jini-ai/agent-runtime/ai-trace").AiContentCapture = "metadata";
+  let capture: import("@jini-ai/core/contracts/ai-trace").AiContentCapture = "metadata";
   const f = await fixture(t, { aiTraceSink: { get capture() { return capture; }, record() {} } });
   assert.equal(f.core.aiTraceSink?.capture, "metadata");
   capture = "full";

@@ -81,7 +81,7 @@ import { registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/ht
 import { createLocalSameOriginPolicy } from "@jini-ai/core/contracts/server";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
 import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
-import type { PromptAugmenter } from "@jini-ai/agent-runtime";
+import type { PromptAugmenter } from "@jini-ai/core/contracts/agents";
 
 import { createRouteDeps } from "../../apps/website/src/server/runtime/composition/app.js";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "../../apps/website/src/contracts/core/rate-limit/rate-limit.js";
