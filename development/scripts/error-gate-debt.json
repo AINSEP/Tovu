@@ -7,7 +7,7 @@
   {
     "file": "apps/admin/src/App.hooks.ts",
     "rule": "catch-reads-error",
-    "value": 4
+    "value": 2
   },
   {
     "file": "apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx",
@@ -205,6 +205,11 @@
     "value": 1
   },
   {
+    "file": "apps/admin/src/features/pages/hooks/page-editor-save.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
     "file": "apps/admin/src/features/pages/hooks/theme-canvas-dependencies.hooks.ts",
     "rule": "catch-reads-error",
     "value": 1
@@ -217,7 +222,7 @@
   {
     "file": "apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts",
     "rule": "catch-reads-error",
-    "value": 3
+    "value": 2
   },
   {
     "file": "apps/admin/src/features/pages/hooks/use-theme-canvas-styling.hooks.ts",
@@ -488,6 +493,11 @@
     "file": "apps/admin/src/lib/widget-embed-extension.hooks.ts",
     "rule": "catch-reads-error",
     "value": 1
+  },
+  {
+    "file": "apps/admin/src/site-section-availability.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 2
   },
   {
     "file": "apps/desktop/src/app-version-ipc.ts",
