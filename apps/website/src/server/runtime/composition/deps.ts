@@ -932,6 +932,17 @@ function logMediaProviderRefusals({ refusals }: { refusals: readonly string[] },
   for (const refusal of refusals) console.error(`[media-providers] ${refusal}`);
 }
 
+type AgentPluginIdentityAdmission = NonNullable<NonNullable<Parameters<typeof createTovuAgentPluginLifecycle>[1]>["identityAdmission"]>;
+
+/** Admits an agent plugin's install identity through the plugin host, read lazily because the host is composed after the lifecycle. */
+function agentPluginIdentityAdmission({ pluginHost }: { pluginHost: () => RouteDeps["pluginHost"] }, _optional = {}): AgentPluginIdentityAdmission {
+  return ({ id, localId, run }) => {
+    const host = pluginHost();
+    if (!host) throw new Error("agent plugin installation has no plugin host");
+    return host.withInstallIdentity({ candidate: { id, localId, family: "agent-plugin" }, run });
+  };
+}
+
 /**
  * {@link createSiteRouteDeps}'s body, over the store it opened. Every `await` sits in the prelude
  * (workspace → deny store → orphaned-chat check), before the body starts any fire-and-forget boot
@@ -964,11 +975,7 @@ async function composeSiteRouteDeps(
   const agentPluginLifecycle = createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, {
     bundledSourceRoot: bundledAgentPluginsDir(),
     productTracker: () => lifecycleTracker,
-    identityAdmission: ({ id, localId, run }) => {
-      const host = routeDeps.pluginHost;
-      if (!host) throw new Error("agent plugin installation has no plugin host");
-      return host.withInstallIdentity({ candidate: { id, localId, family: "agent-plugin" }, run });
-    },
+    identityAdmission: agentPluginIdentityAdmission({ pluginHost: () => routeDeps.pluginHost }),
     // Boot recovery re-provisions a restored revision's MCP servers through the same store; read
     // lazily because that store is composed below.
     mcpProvisioning: createDeferredAgentPluginUpdateEffects({ resolveDeps: () => routeDeps }),
