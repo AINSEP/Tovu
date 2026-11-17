@@ -185,12 +185,12 @@ export async function loadHrefChecker(filePath: string): Promise<HrefChecker> {
   const tmpFile = path.join(tmpDir, "extracted-safe-href.ts");
   try {
     fs.writeFileSync(tmpFile, declaration, "utf8");
-    const mod = (await import(pathToFileURL(tmpFile).href)) as { safeHref: (value: string) => string };
+    const mod = (await import(pathToFileURL(tmpFile).href)) as { safeHref: (required: { value: string }) => string };
     if (typeof mod.safeHref !== "function") {
       throw new Error(`loadHrefChecker: extracted module from ${filePath} did not export a 'safeHref' function`);
     }
     const safeHref = mod.safeHref;
-    return (href: string) => safeHref(href) !== "#";
+    return (href: string) => safeHref({ value: href }) !== "#";
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }

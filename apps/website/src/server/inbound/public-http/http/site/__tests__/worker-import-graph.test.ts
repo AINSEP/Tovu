@@ -101,8 +101,10 @@ const FORBIDDEN_FORM_SERVICES = /\/(?:packages\/cms|node_modules\/@jini-ai\/cms)
 // raised by 10 for the render.ts split into feature files (no new code); owner 2026-11-16
 // +1 (merge-a 2026-11-16): Jini core's text barrel now carries format-byte-size.js (6f8dc8c24, "one byte-size
 // label in core/text"), which the Handlebars worker loads through that barrel; no Tovu module was added.
+// +1 (merge-final 2026-11-16): `safeTextAlign`/`safeAspectRatio` now come from `@jini-ai/cms/html/style-values` (merge-b), while
+// the render split (merge-a) keeps the four CSS-value allowlists in `platform/html/style-values.ts`; the worker loads both files.
 const WORKER_MODULE_BUDGETS = {
-  "handlebars-worker.ts": 176,
+  "handlebars-worker.ts": 177,
   "liquid-worker.ts": 135,
 } as const;
 

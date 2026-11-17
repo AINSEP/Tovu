@@ -66,7 +66,7 @@ import type { JsonValue } from "somewhere";
 const SAFE_HREF_RESOLUTION_BASE = "http://tovu-safehref.invalid/";
 const SAFE_HREF_RESOLUTION_ORIGIN = new URL(SAFE_HREF_RESOLUTION_BASE).origin;
 
-function safeHref(value: string): string {
+function safeHref({ value }: { value: string }): string {
   if (value.startsWith("#")) return value;
   return "#";
 }
@@ -78,7 +78,7 @@ test("extractSafeHrefDeclaration: pulls the const pair and the whole function, a
   const declaration = extractSafeHrefDeclaration(FIXTURE_SOURCE, "fixture.ts");
   assert.match(declaration, /const SAFE_HREF_RESOLUTION_BASE/);
   assert.match(declaration, /const SAFE_HREF_RESOLUTION_ORIGIN/);
-  assert.match(declaration, /function safeHref\(value: string\): string \{/);
+  assert.match(declaration, /function safeHref\(\{ value \}: \{ value: string \}\): string \{/);
   assert.match(declaration, /export \{ safeHref \};/);
   assert.doesNotMatch(declaration, /unrelated/, "must not pull in an unrelated sibling function");
 });
