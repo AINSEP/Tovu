@@ -13,7 +13,7 @@ import { buildComponentCatalogQuery } from "./component-catalog-query.js";
  * ## The gap this closes
  *
  * `component-catalog-query.ts`'s `buildComponentCatalogQuery()` already backs `@jini-ai/mcp`'s own
- * top-level `search_components`/`describe_component` tools (via `registerComponentCatalogRoutes` in
+ * top-level `search_components`/`describe_component` tools (via `componentCatalogRoutes` in
  * `agent-daemon-server.ts`) — real, callable MCP tools, but ONLY for the spawned-CLI path, which
  * gets the full native MCP tool list. The BYOK path (`byok-tool-surface.ts`) publishes exactly 3
  * meta-tools (`search_tools`/`describe_tool`/`execute_delegated_tool`) and reaches every other tool
