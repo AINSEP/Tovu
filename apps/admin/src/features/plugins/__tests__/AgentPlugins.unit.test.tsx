@@ -1,6 +1,6 @@
 import { createAgUiRunClient } from "@jini-ai/chat/transports/ag-ui";
 import { createFrontendSessionBridge } from "@jini-ai/chat/react";
-import { directPageAction } from "../../../../../website/src/assistant/assistant-tool-approval-policy";
+import { directPageAction } from "@tovu/headless";
 import type { RunAgentInput } from "@ag-ui/core";
 import { fireEvent, render, screen, waitFor, within } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
