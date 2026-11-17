@@ -135,7 +135,7 @@ export function createPlaywrightPageCapture(
       return await renderPage({
         browser: { newContext: () => lease.browser.newContext({ ...contextOptions }), close: () => lease.browser.close() },
         url: request.url,
-        consume: session => consumeCapture({ session, request, router, plan }),
+        consume: session => consumeCapture({ session, request, router, plan, clock }),
       }, { originPolicy: "public", router, signal, timeoutMs: plan.totalMs, softDeadlineMs: plan.softDeadlineMs, onSoftDeadline: "consume-current", clock,
         waitFor: request.waitFor ?? request.settleMs / 1000,
         dismissCookieBanners: request.dismissCookieBanners === true, loadWaitMs: 5_000,
@@ -194,26 +194,67 @@ function budgetRequestOf({ request }: { request: PageCaptureRequest }, _optional
 /**
  * The work `renderPage` hands over once the page has loaded: scroll (full page), measure, shoot, read the title.
  * `session.phaseTimedOut` is set when ordinary work hit its deadline on a page that had already loaded: that page
- * is shot as it is, inside what is left of the total.
+ * is shot as it is, inside what is left of the total. The scroll is ordinary work too, so it gets the same treatment.
  * @complexity O(1) beyond the page work.
  */
 async function consumeCapture(
-  { session: { page, response, finalUrl, budget, phaseTimedOut }, request, router, plan }: { session: RenderSession; request: PageCaptureRequest; router: { report(): { blocked: number } }; plan: CaptureBudget },
+  { session: { page, response, finalUrl, budget, phaseTimedOut }, request, router, plan, clock }: { session: RenderSession; request: PageCaptureRequest; router: { report(): { blocked: number } }; plan: CaptureBudget; clock: CaptureClock },
   _optional = {},
 ): Promise<PageCapture> {
   const { viewport } = request;
-  if (request.fullPage) await budget.run({ work: () => page.evaluate(scrollThroughExpression({ cap: request.maxPageHeightPx })) }).catch(error => { if (error instanceof PageWorkTimeout) throw error; });
-  const pageHeight = request.fullPage
-    ? clampHeight({ raw: await budget.run({ work: () => page.evaluate("Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0)") }), fallback: viewport.height })
-    : viewport.height;
-  const capturedHeight = Math.min(pageHeight, request.fullPage ? request.maxPageHeightPx : viewport.height);
+  const scrollCutShort = request.fullPage && await scrollWithinWorkTime({ page, budget, cap: request.maxPageHeightPx, plan, clock });
+  const pageHeight = request.fullPage ? await measuredHeight({ page, budget, fallback: viewport.height }) : viewport.height;
+  const { capturedHeight, clip } = frameGeometry({ request, pageHeight });
   if (!page.screenshot) throw new Error("Browser cannot take screenshots");
-  const clip = request.fullPage ? { clip: { x: 0, y: 0, width: viewport.width, height: capturedHeight } } : {};
   // NEEDS-JINI: `RenderPage.screenshot` narrows `animations` to "disabled"; the object is
   // Playwright's Page, whose documented option also takes "allow" (the fallback below).
-  const { png, note } = await shootFrame({ page: page as unknown as FrameShooter, budget, fullPage: request.fullPage, clip, plan, settleCutShort: phaseTimedOut !== undefined });
+  const { png, note } = await shootFrame({ page: page as unknown as FrameShooter, budget, fullPage: request.fullPage, clip, plan, settleCutShort: phaseTimedOut !== undefined || scrollCutShort });
   const title = (await budget.run({ work: () => page.title() })).slice(0, 300);
   return { png, finalUrl, status: response?.status() ?? null, title, pageHeight, capturedHeight, blockedRequests: router.report().blocked, ...(note ? { note } : {}) };
+}
+
+/** What a capture keeps of the page: the height (a full page is capped) and, for a full page, the clip that spans it. */
+function frameGeometry(
+  { request, pageHeight }: { request: PageCaptureRequest; pageHeight: number },
+  _optional = {},
+): { capturedHeight: number; clip: FrameClip } {
+  if (!request.fullPage) return { capturedHeight: Math.min(pageHeight, request.viewport.height), clip: {} };
+  const capturedHeight = Math.min(pageHeight, request.maxPageHeightPx);
+  return { capturedHeight, clip: { clip: { x: 0, y: 0, width: request.viewport.width, height: capturedHeight } } };
+}
+
+/** The document's full height in CSS px, or `fallback` when the page reports none; within the page budget. */
+async function measuredHeight(
+  { page, budget, fallback }: { page: Pick<RenderSession["page"], "evaluate">; budget: ScreenshotBudget; fallback: number },
+  _optional = {},
+): Promise<number> {
+  const raw = await budget.run({ work: () => page.evaluate("Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0)") });
+  return clampHeight({ raw, fallback });
+}
+
+/**
+ * Scrolls a full page, but only until the work deadline (the total minus the reserve): a page that is still
+ * scrolling by then is shot as it is, like one still settling, instead of failing with nothing.
+ * The scroll that lost the race is abandoned; the race already handled its late rejection (the budget's own timeout).
+ * @returns true when the work deadline cut the scroll short.
+ * @throws PageWorkTimeout when the total budget ends first; a scroll script that fails on its own is best-effort.
+ * @complexity O(1) beyond the page work.
+ */
+async function scrollWithinWorkTime(
+  { page, budget, cap, plan, clock }: { page: Pick<RenderSession["page"], "evaluate">; budget: ScreenshotBudget; cap: number; plan: CaptureBudget; clock: CaptureClock },
+  _optional = {},
+): Promise<boolean> {
+  const workLeftMs = budget.remainingMs() - plan.reserveMs;
+  if (workLeftMs <= 0) return true;
+  let timer: unknown;
+  const cutShort = new Promise<true>(resolve => { timer = clock.setTimeout(() => resolve(true), workLeftMs); });
+  const scrolled = budget.run({ work: () => page.evaluate(scrollThroughExpression({ cap })) })
+    .then(() => false, (error: unknown) => { if (error instanceof PageWorkTimeout) throw error; return false; });
+  try {
+    return await Promise.race([scrolled, cutShort]);
+  } finally {
+    clock.clearTimeout(timer);
+  }
 }
 
 /**

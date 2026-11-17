@@ -92,3 +92,32 @@ test("the budget grows with the request and never passes the 45 s cap", async t 
     assert.deepEqual(fixture.clock.deadlineSignals, [total]);
   }
 });
+
+test("a full-page scroll still running at the work deadline is cut there and the page is shot as it is (was: a 'timeout' with nothing)", async t => {
+  // fullPage, settleMs 0 → T = 30 s, work deadline 26 s.
+  const fixture = capturing({ times: { scroll: "never" } });
+  t.after(() => fixture.capture.close());
+  const run = watch(fixture.capture.capture(captureRequest({ fullPage: true, settleMs: 0 })));
+  await fixture.clock.advance(25_999);
+  assert.equal(run.outcome(), undefined);
+  assert.deepEqual(fixture.screenshots, []);
+  await fixture.clock.advance(1);
+  const outcome = run.outcome();
+  assert.ok(outcome && "image" in outcome, "an image, not a timeout");
+  assert.equal(outcome.image.note, "page loaded but did not settle within 26 s; captured the current frame (content may still be loading).");
+  assert.deepEqual(fixture.screenshots, [{ at: 26_000, timeout: 4_000, animations: "allow" }]);
+});
+
+test("a full-page scroll that ends before the work deadline keeps the stable-frame attempt, with the reserve taken from what is left", async t => {
+  const fixture = capturing({ times: { scroll: 25_000 } });
+  t.after(() => fixture.capture.close());
+  const run = watch(fixture.capture.capture(captureRequest({ fullPage: true, settleMs: 0 })));
+  await fixture.clock.advance(25_000);
+  const outcome = run.outcome();
+  assert.ok(outcome === undefined || "image" in outcome);
+  await fixture.clock.advance(1);
+  const done = run.outcome();
+  assert.ok(done && "image" in done);
+  assert.equal(done.image.note, undefined, "it settled in time: no note");
+  assert.deepEqual(fixture.screenshots, [{ at: 25_000, timeout: 1_000, animations: "disabled" }], "30 s − 25 s left, minus the 4 s reserve");
+});
