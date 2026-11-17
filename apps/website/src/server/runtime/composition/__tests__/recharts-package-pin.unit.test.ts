@@ -9,7 +9,7 @@ import path from "node:path";
 import test from "node:test";
 import {
   RECHARTS_BROWSER_APPROVAL, RECHARTS_DEFAULT_PROVIDER, RECHARTS_PACKAGE_NAME, RECHARTS_RUNTIME_SOURCE, rechartsSourceDir,
-} from "../charts-recharts-source.js";
+} from "../default-chart-provider-source.js";
 
 type PackagedManifest = { id: string; version: string; browserProviders: unknown; integrity: Record<string, string> };
 
@@ -30,7 +30,7 @@ test("the approval equals the packaged manifest: id, version, browser providers 
   assert.equal(packaged.id, RECHARTS_BROWSER_APPROVAL.pluginId);
   assert.equal(packaged.version, RECHARTS_BROWSER_APPROVAL.version);
   assert.deepEqual(packaged.browserProviders, RECHARTS_BROWSER_APPROVAL.browserProviders);
-  // On failure the message is the map to review and paste into charts-recharts-source.ts.
+  // On failure the message is the map to review and paste into default-chart-provider-source.ts.
   assert.deepEqual({ ...RECHARTS_BROWSER_APPROVAL.integrity }, packaged.integrity,
     `paste the reviewed packaged pins:\n${JSON.stringify(packaged.integrity, null, 2)}`);
   assert.ok(Object.keys(packaged.integrity).some((file) => /licen[cs]e|notice/i.test(file)), "the packaged map pins license files too");

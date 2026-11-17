@@ -45,14 +45,10 @@ const SEAMS = [
 
 /**
  * Lines that may name the vocabulary, matched by exact text, so any NEW hit, even in this file, still
- * fails; an entry whose line is reworded makes the test fail until the entry is removed:
- * - `federate-mcp.ts` predates the feature and uses "picker" as the plain English word for a UI list
- *   of tools (not the provider's file picker);
+ * fails; an entry whose line is reworded makes the test fail until the entry is removed. Empty since
+ * `federate-mcp.ts` stopped using "picker" for its plain-English tool list (its two entries were stale).
  */
-const ALLOWED = new Set([
-  'apps/website/src/features/agent-plugins/federate-mcp.ts: * like an operator-typed one: the same allowlist/"may write" tool picker, the same enable toggle,',
-  "apps/website/src/features/agent-plugins/federate-mcp.ts: *    execution. The operator ticks tools in Settings → External MCP's picker, which already lets",
-]);
+const ALLOWED = new Set<string>();
 
 /** Every scannable file under `target` (a file or a folder), skipping installs and build output. */
 function filesUnder(target: string): string[] {

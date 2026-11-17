@@ -309,7 +309,7 @@ import { adoptLegacyTrashedWidgets, restoreWidgetPriorStatus } from "@jini-ai/cm
 import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
 import { sqlitePluginActivationRepoFor } from "#src/features/plugin-runtime/repo.sqlite";
 import { readAdminChartProviderSnapshot } from "./chart-providers.js";
-import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL, RECHARTS_DEFAULT_PROVIDER } from "./charts-recharts-source.js";
+import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL, RECHARTS_DEFAULT_PROVIDER } from "./default-chart-provider-source.js";
 import { ensureChartProviderSetting } from "#src/features/settings/chart-provider";
 import { ensureFormDestinationSetting } from "#src/features/settings/form-destination";
 import { createSiteConsentReadiness } from "#src/features/consent/settings";

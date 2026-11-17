@@ -13,8 +13,10 @@ Where a plugin lives:
 - A plugin any host can use ships from Jini inside `@jini-ai/agent-plugins`, as the
   subpath `@jini-ai/agent-plugins/<id>` (source: `packages/agent-plugins/<id>/` in the Jini
   repo), and is written host-neutral. Tovu selects
-  it in `apps/website/src/features/agent-plugins/bundled-catalog.ts`
-  (`SELECTED_AGENT_PLUGIN_PACKAGES`); the build composes it into the bundle.
+  it by adding its id to `selectedFromJini` in
+  `apps/website/src/platform/plugin-selection/bundled-selection.json` (read by
+  `SELECTED_AGENT_PLUGIN_PACKAGES` in `features/agent-plugins/bundled-catalog.ts`); the build
+  composes it into the bundle.
 - Its Tovu-only text (tool names, routes, product routing) lives in
   `content/agent-plugin-overlays/<id>/`: `GUIDANCE.md`, read before the plugin's skill, and
   `host/<name>.md`, read with the plugin's tool and `file: "host/<name>.md"`. Overlay tests

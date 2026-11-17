@@ -30,7 +30,7 @@ const repeats = (items: string[]) => items.filter((item, index) => items.indexOf
 // ("One more comparison, already paid for" / "Follow the run").
 const intendedRepeat = (pluginId: string, block: string) => pluginId === 'github' && block.includes('/runs?per_page=1"');
 
-// A merge once left google-login's overlay with its member steps, troubleshooting and embed
+// A merge once left a sign-in plugin's overlay with its member steps, troubleshooting and embed
 // block twice; the assistant read both copies ahead of the plugin's own skill.
 test('no overlay GUIDANCE.md repeats a ## heading or a fenced/embed block', () => {
   const plugins = readdirSync(overlayRoot, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name);

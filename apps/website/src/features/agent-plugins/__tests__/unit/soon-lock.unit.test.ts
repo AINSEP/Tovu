@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 
+import { HOST_SOON_AGENT_PLUGINS } from "../../bundled-catalog.js";
 import { createTovuAgentPluginLifecycle, explicitRootAgentPluginActivations } from "../../lifecycle.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { setAgentPluginEnabled } from "../../set-enabled.js";
@@ -86,10 +87,12 @@ test("an untested plugin is only a warning: it still switches on", async t => {
 });
 
 test("Tovu's host list marks the faces Jini ships without a flag as Soon; a manifest flag still wins", () => {
-  for (const pluginId of ["posthog", "opentelemetry", "stripe", "sentry", "google-forms"]) assert.equal(readHostPluginMaturity({ manifest: {}, pluginId }), "soon");
+  assert.ok(HOST_SOON_AGENT_PLUGINS.size > 0, "the host Soon list is data in the bundled selection, and must not be empty");
+  for (const pluginId of HOST_SOON_AGENT_PLUGINS) assert.equal(readHostPluginMaturity({ manifest: {}, pluginId }), "soon");
   assert.equal(readHostPluginMaturity({ manifest: {}, pluginId: "github" }), undefined);
   assert.equal(readHostPluginMaturity({ manifest: { extensions: { jini: { maturity: "untested" } } }, pluginId: "github" }), "untested");
-  assert.equal(readHostPluginMaturity({ manifest: { extensions: { jini: { maturity: "untested" } } }, pluginId: "posthog" }), "untested");
+  const [listed = ""] = HOST_SOON_AGENT_PLUGINS;
+  assert.equal(readHostPluginMaturity({ manifest: { extensions: { jini: { maturity: "untested" } } }, pluginId: listed }), "untested");
 });
 
 test("a host-listed plugin with no flag is refused, and the admin listing shows it as Soon", async t => {

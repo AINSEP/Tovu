@@ -6,7 +6,7 @@ import test from "node:test";
 import { createSystemClock } from "@jini-ai/platform/system";
 import { InMemoryPluginActivationRepo, setPluginEnabled } from "@jini-ai/plugins/host";
 import { composePluginRuntime } from "../plugin-runtime.js";
-import { RECHARTS_BROWSER_APPROVAL, RECHARTS_RUNTIME_SOURCE } from "../charts-recharts-source.js";
+import { RECHARTS_BROWSER_APPROVAL, RECHARTS_RUNTIME_SOURCE } from "../default-chart-provider-source.js";
 
 function fixture(repo = new InMemoryPluginActivationRepo()) {
   const clock = createSystemClock();

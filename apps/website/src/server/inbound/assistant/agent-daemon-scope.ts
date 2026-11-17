@@ -1,3 +1,4 @@
+import { DEFAULT_AGENT_ID } from '#src/assistant/default-agent';
 import { assistantRunToolFacts } from './assistant-run-tool-facts.js';
 import { readAssistantRunToolPolicy, assistantRunPlan, assistantToolSetupMessage } from './assistant-run-tool-policy.js';
 import { requestAssistantToolConsent, requestAssistantToolAlternative } from './assistant-tool-consent.js';
@@ -197,7 +198,6 @@ export async function createSiteScope(
   let activeWork = 0;
   let resolveDrained: (() => void) | undefined;
   const ownerRetentionTimers = new Set<ReturnType<typeof setTimeout>>();
-const DEFAULT_AGENT_ID = "claude";
 // Adopt the supervisor's private RPC credential before CLI probes or plugin hosts can spawn.
 const siteToolToken = ensureToolExecToken({ env, holder: toolExecTokenHolder }, {});
 const assistantRuntime = createNativeAgentRuntime({ env: env });

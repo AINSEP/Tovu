@@ -1,6 +1,6 @@
 /**
  * Mounts the exact Recharts bundle Tovu ships: the reviewed payload in `@jini-ai/provider-plugins`
- * at the version pinned in `charts-recharts-source.ts` (whose pin test ties those bytes to the approval).
+ * at the version pinned in `default-chart-provider-source.ts` (whose pin test ties those bytes to the approval).
  * The source and its own tests live in Jini (`packages/provider-plugins/src/charts-recharts`); these cases
  * stay here so the PACKAGED build is checked for the owner-reported bugs, not a re-creation of it.
  *

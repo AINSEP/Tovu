@@ -2,6 +2,7 @@
 import { json, type RequestHandler } from "express";
 import { requireToolExecutionCaller, type ToolExecutionRouteTarget } from "@jini-ai/daemon/http";
 import { DaemonCoreError, daemonCoreRequest, type DaemonCoreRequest, type DaemonAttemptHead } from "#src/assistant/daemon-core-protocol";
+import { DEFAULT_AGENT_ID } from "#src/assistant/default-agent";
 import { currentToolExecToken, TOOL_EXEC_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
 import { getAgentDef } from "@jini-ai/agent-runtime";
 import { readAssistantToolConsentSnapshot, allowAssistantRunTools } from "#src/server/inbound/assistant/assistant-tool-access";
@@ -124,7 +125,7 @@ async function telemetry({ deps, request }: { deps: CoreDeps; request: DaemonCor
  * @complexity One indexed lookup; terminal/missing attempts return no locator. */
 async function sessionForAttempt({ deps, run }: { deps: CoreDeps; run: Awaited<ReturnType<NonNullable<CoreDeps["chatRunLedger"]["durable"]>["find"]>> }): Promise<string | null> {
   if (!run || run.cancelReason || !["queued", "running"].includes(run.message.runStatus ?? "")) return null;
-  return deps.agentSessions.getSessionId({ conversationId: run.conversationId, agentId: run.request.agentId ?? "claude" });
+  return deps.agentSessions.getSessionId({ conversationId: run.conversationId, agentId: run.request.agentId ?? DEFAULT_AGENT_ID });
 }
 
 /** Project this fresh owner read onto the retained start/gate contract, excluding saved events.

@@ -114,7 +114,7 @@ import { getSlugChangeCapture, registerSlugChangeCapture } from "#src/platform/r
 import { InMemoryDbOpsAdapter, InMemoryDatabaseIntrospectionAdapter, InMemoryMigrationRunsRepo, InMemorySiteStatusRepo, InMemoryDatabaseLedgerRepo } from "#src/features/database/repo.memory";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { readAdminChartProviderSnapshot } from "./chart-providers.js";
-import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL, RECHARTS_DEFAULT_PROVIDER } from "./charts-recharts-source.js";
+import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL, RECHARTS_DEFAULT_PROVIDER } from "./default-chart-provider-source.js";
 import { createSiteConsentReadiness } from "#src/features/consent/settings";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
 import { CONTENT_ANALYZER_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/content-analyzer/index";

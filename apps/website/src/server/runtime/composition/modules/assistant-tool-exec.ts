@@ -1,3 +1,4 @@
+import { DEFAULT_AGENT_ID } from "#src/assistant/default-agent";
 import { assistantDaemonToken, delegatedAssistantDaemonConnection, type AssistantDaemonConnection } from "../../lifecycle/assistant-daemon-connection.js";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 /**
@@ -161,7 +162,7 @@ async function prepareAutomaticSitePlugins({ run, context, pinnedPrefix, plugins
   const pluginContext: AutomaticPluginRun = {
     principal: { id: run.principalId }, conversationId: run.conversationId, state: context.agentPluginState,
     query: context.userPrompt ?? context.prompt, pinned: context.pluginRefIds, signal: abort.signal,
-    maxPromptArgBytes: getAgentDef({ id: run.request.agentId ?? 'claude' })?.maxPromptArgBytes,
+    maxPromptArgBytes: getAgentDef({ id: run.request.agentId ?? DEFAULT_AGENT_ID })?.maxPromptArgBytes,
     emitSurface: emission => emit({ ...emission.payload, type: emission.channel,
       ...(emission.channel === "mcp-ui" ? { toolUseId: `agent-plugins:${runId}` } : {}) }),
     publish: value => emit({ type: "agent_plugins", ...value }),

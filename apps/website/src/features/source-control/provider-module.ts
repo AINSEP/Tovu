@@ -1,4 +1,5 @@
 import type { HttpClientPort } from "../../platform/http/index.js";
+import savedApiKeyLabels from "./saved-api-key-labels.json" with { type: "json" };
 
 /**
  * @file The contract a git-host provider MODULE (shipped inside an Agent Plugin) is written against.
@@ -17,9 +18,9 @@ import type { HttpClientPort } from "../../platform/http/index.js";
  * and refused; `diverged` means the branch moved and nothing was overwritten.
  */
 
-/** Provider id -> saved custom API-key label. Only declared bindings may supply a commit fallback;
+/** Provider id -> saved custom API-key label (data in `saved-api-key-labels.json`: a binding is a catalog entry, not core code). Only declared bindings may supply a commit fallback;
  * explicit source-control connections always win. */
-export const sourceControlSavedApiKeyLabels: ReadonlyMap<string, string> = new Map([["github", "github"]]);
+export const sourceControlSavedApiKeyLabels: ReadonlyMap<string, string> = new Map(Object.entries(savedApiKeyLabels));
 
 /** One file of a site export, relative to the selected folder. The provider prefixes it once. */
 export interface CommitFile {

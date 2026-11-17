@@ -1,0 +1,50 @@
+{
+  "selectedFromJini": [
+    "jev",
+    "site-compliance",
+    "site-import",
+    "wordpress",
+    "ui-ux-design",
+    "slide-design",
+    "software-engineering",
+    "cloudflare",
+    "netlify",
+    "vercel",
+    "github-pages",
+    "s3-compatible",
+    "fly",
+    "render",
+    "railway",
+    "github",
+    "resend",
+    "meilisearch",
+    "google-login",
+    "composio",
+    "supabase",
+    "higgsfield-media",
+    "commerce",
+    "stripe",
+    "posthog",
+    "sentry",
+    "opentelemetry",
+    "google-workspace",
+    "charts-recharts",
+    "google-forms",
+    "calendly"
+  ],
+  "hostSoon": [
+    "posthog",
+    "opentelemetry",
+    "stripe",
+    "sentry",
+    "google-forms"
+  ],
+  "seededEnabled": [
+    "github",
+    "site-import",
+    "tovu-theme",
+    "how-tovu-works",
+    "ui-ux-design"
+  ],
+  "defaultChartProviderPluginId": "charts-recharts"
+}

@@ -39,7 +39,7 @@ export type VendorPolicy = {
 const CONTEXTUAL = new Set(["render", "resend", "replicate"]);
 
 // Owner 10-22: Tovu's first-party plugins are product features, not vendor vocabulary.
-const FIRST_PARTY_PLUGINS = new Set(["tovu-theme", "site-import", "ui-ux-design", "site-compliance", "how-tovu-works", "deploy", "jev"]);
+const FIRST_PARTY_PLUGINS = new Set(["tovu-theme", "site-import", "ui-ux-design", "site-compliance", "how-tovu-works", "deploy", "jev", "commerce"]);
 
 function literal({ value }: { value: string }, _options = {}): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

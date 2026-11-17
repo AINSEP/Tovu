@@ -1,3 +1,5 @@
+import bundledSelection from "../../platform/plugin-selection/bundled-selection.json" with { type: "json" };
+
 /**
  * Bundled plugins that seed ENABLED, not disabled, because a core product path runs through them.
  * Hosting plugins seed disabled (owner, 2026-10-22): operators enable their chosen host in
@@ -17,7 +19,7 @@
  * is on from first boot; `recordBundledAgentPluginIfAbsent` also switches on an existing site's
  * untouched disabled seed. An operator's explicit off decision still survives later boots.
  */
-export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(["github", "site-import", "tovu-theme", "how-tovu-works", "ui-ux-design"]);
+export const BUNDLED_AGENT_PLUGINS_SEEDED_ENABLED: ReadonlySet<string> = new Set(bundledSelection.seededEnabled);
 
 /** Agent plugins ship as subpaths of ONE Jini package (owner, 11-02: no per-plugin npm packages). */
 const JINI_AGENT_PLUGINS = "@jini-ai/agent-plugins";
@@ -31,18 +33,21 @@ const JINI_AGENT_PLUGINS = "@jini-ai/agent-plugins";
  * Every row is `@jini-ai/agent-plugins/<id>` (`<id>/plugin.json` via the package's `./<id>/*` export).
  * Vendor plugins may ship by default as long as each installs on its own (owner Q1, 11-02).
  * `charts-recharts` is the agent face of the default chart provider, whose runtime comes from
- * `@jini-ai/provider-plugins` (`charts-recharts-source.ts`). Not selected: `charts-echarts`
+ * `@jini-ai/provider-plugins` (`default-chart-provider-source.ts`). Not selected: `charts-echarts`
  * (Jini ships it; Tovu does not bundle it by default).
  *
- * Keep this file import-free and type-erasable: `build-server.mjs` loads it with Node's type
- * stripping, which cannot follow `./x.js` imports or compile enums.
+ * The three id lists (`seededEnabled`, `selectedFromJini`, `hostSoon`) are data in
+ * `platform/plugin-selection/bundled-selection.json`, not code: vendor plugin ids are catalog
+ * entries, so core code names no vendor (owner OLD-VENDOR, 2026-11-17). Order in `selectedFromJini`
+ * is the composition order.
+ *
+ * Keep this file free of `./x.js` imports and type-erasable: `build-server.mjs` loads it with Node's
+ * type stripping, which cannot follow `./x.js` imports or compile enums. The one JSON import is
+ * explicit-extension and uses an import attribute, which type stripping does handle.
  */
-export const SELECTED_AGENT_PLUGIN_PACKAGES: ReadonlyMap<string, string> = new Map([
-  "jev", "site-compliance", "site-import", "wordpress", "ui-ux-design", "slide-design", "software-engineering",
-  "cloudflare", "netlify", "vercel", "github-pages", "s3-compatible", "fly", "render", "railway",
-  "github", "resend", "meilisearch", "google-login", "composio", "supabase", "higgsfield-media", "commerce", "stripe",
-  "posthog", "sentry", "opentelemetry", "google-workspace", "charts-recharts", "google-forms", "calendly",
-].map((pluginId): [string, string] => [pluginId, `${JINI_AGENT_PLUGINS}/${pluginId}`]));
+export const SELECTED_AGENT_PLUGIN_PACKAGES: ReadonlyMap<string, string> = new Map(
+  bundledSelection.selectedFromJini.map((pluginId): [string, string] => [pluginId, `${JINI_AGENT_PLUGINS}/${pluginId}`]),
+);
 
 /**
  * Bundled plugins Tovu marks "soon" although their Jini manifest carries no maturity flag (owner,
@@ -50,7 +55,7 @@ export const SELECTED_AGENT_PLUGIN_PACKAGES: ReadonlyMap<string, string> = new M
  * (`soon-lock.ts`) reads this list beside the manifest flag, so they are locked off exactly like a
  * manifest-flagged Soon plugin. Drop an id here once it is tested; a manifest flag still wins.
  */
-export const HOST_SOON_AGENT_PLUGINS: ReadonlySet<string> = new Set(["posthog", "opentelemetry", "stripe", "sentry", "google-forms"]);
+export const HOST_SOON_AGENT_PLUGINS: ReadonlySet<string> = new Set(bundledSelection.hostSoon);
 
 /**
  * Retired bundled plugin id -> the bundled plugin(s) that absorbed it. `seed-bundled.ts` never seeds a

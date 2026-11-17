@@ -14,6 +14,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createTempSiteLayoutFixture } from "#src/__tests__/fixtures/site-layout-context";
 import { resolveAgentPluginRefs } from "#src/features/agent-plugins/lifecycle";
+import { DEFAULT_AGENT_ID } from "#src/assistant/default-agent";
 import { createAssistantByokModule } from "../assistant-byok.js";
 
 test("preflight keeps pinned guidance when its credential-bearing controller fails", async (t) => {
@@ -22,8 +23,8 @@ test("preflight keeps pinned guidance when its credential-bearing controller fai
   assert.ok(declaration, "the preflight function exists");
   const code = ts.transpileModule(`return (${declaration.getText(source)});`, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText;
   const warnings = t.mock.method(console, "warn", () => undefined);
-  const prepare = new Function("delegatedAssistantDaemonConnection", "getAgentDef", "describeErrorForLog", code)(
-    () => ({ token: "private", url: "http://localhost" }), () => undefined, describeErrorForLog,
+  const prepare = new Function("delegatedAssistantDaemonConnection", "getAgentDef", "describeErrorForLog", "DEFAULT_AGENT_ID", code)(
+    () => ({ token: "private", url: "http://localhost" }), () => undefined, describeErrorForLog, DEFAULT_AGENT_ID,
   );
   const result = await prepare({ run: { runId: "run", principalId: "owner", conversationId: "chat", request: {} },
     context: { pluginRefIds: [], prompt: "question" }, pinnedPrefix: "pinned guidance", res: { once() {} }, lookup: async () => undefined,

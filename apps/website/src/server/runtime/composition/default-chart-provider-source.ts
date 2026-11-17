@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { definePlugin } from "@tovu/sdk";
+import bundledSelection from "../../../platform/plugin-selection/bundled-selection.json" with { type: "json" };
 import type { BundledBrowserProviderApproval, PluginManifest } from "@jini-ai/plugins/host";
 
 /**
@@ -23,7 +24,7 @@ export const RECHARTS_DEFAULT_PROVIDER = "plugin.recharts";
 // The reviewed build carries the three-line labels (bd018de69), whole-number ticks (6ca90820a,
 // 194095b1a) and the middle-dot separator wrapping (47b4199e0) that used to be patched into the bundle.
 export const RECHARTS_BROWSER_APPROVAL: BundledBrowserProviderApproval = {
-  pluginId: "charts-recharts",
+  pluginId: bundledSelection.defaultChartProviderPluginId,
   version: "0.7.0",
   browserProviders: [{ id: RECHARTS_DEFAULT_PROVIDER, kind: "chart", contractVersion: 1,
     kinds: ["bar", "line", "pie"], javascript: "client/provider.js", stylesheet: "client/styles.css" }],
@@ -102,7 +103,7 @@ export const RECHARTS_BROWSER_APPROVAL: BundledBrowserProviderApproval = {
 
 const manifest: PluginManifest = {
   id: RECHARTS_BROWSER_APPROVAL.pluginId, name: "Recharts", version: RECHARTS_BROWSER_APPROVAL.version,
-  extensions: { tovu: { id: "tovu/charts-recharts" } },
+  extensions: { tovu: { id: `tovu/${RECHARTS_BROWSER_APPROVAL.pluginId}` } },
   sdkRange: "^0.1.0 || ^0.2.0", engine: 1, tier: "tier-3", capabilities: [], hooks: [], fields: [],
   browserProviders: RECHARTS_BROWSER_APPROVAL.browserProviders, integrity: RECHARTS_BROWSER_APPROVAL.integrity,
 };
