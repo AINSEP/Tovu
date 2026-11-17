@@ -2,9 +2,10 @@ import React from "react";
 import { KitProvider } from "@jini-ai/ui-kit/react";
 import { AdminKitProvider } from "@jini-ai/admin/react/kit";
 import { UiKitProvider } from "@jini-ai/ui/react-kit";
+import { UserManagementKitProvider } from "@jini-ai/user-management/react/kit";
 import { ChatSurfacesProvider } from "@jini-ai/chat/react";
 import { chatSurfaces } from "./integrations/jini-surfaces";
-import { adminKit, uiKit } from "./integrations/jini-kits";
+import { adminKit, uiKit, userManagementKit } from "./integrations/jini-kits";
 import { tovuAgentAttrs, tovuKit } from "./integrations/jini-admin/kit";
 import ReactDOM from "react-dom/client";
 import { App } from "./App";
@@ -84,10 +85,12 @@ ReactDOM.createRoot(rootElement, reactRootErrorOptions({ telemetry: adminTelemet
       <UiKitProvider kit={uiKit}>
       <ChatSurfacesProvider surfaces={chatSurfaces}>
       <AdminKitProvider kit={adminKit}>
+      <UserManagementKitProvider kit={userManagementKit}>
       {/* Outside `App` so it also shows on the login and boot screens while the API restarts. */}
       <ServerRestartingBanner />
       <AdminFailureNotice />
       <SessionApp />
+      </UserManagementKitProvider>
       </AdminKitProvider>
       </ChatSurfacesProvider>
       </UiKitProvider>
