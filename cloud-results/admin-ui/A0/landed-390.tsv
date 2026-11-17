@@ -1,0 +1,129 @@
+dashboard__list__classic-light-390	/admin/	Dashboard
+sites__list__classic-light-390	/admin/	Dashboard
+import-export__list__classic-light-390	/admin/import-export	Import & Export
+import-export__tab-1-export__classic-light-390	/admin/import-export?tab=export	Import & Export
+import-export__tab-2-import__classic-light-390	/admin/import-export?tab=import	Import & Export
+import-export__tab-3-other__classic-light-390	/admin/import-export?tab=other	Import & Export
+ai-assistant__list__classic-light-390	/admin/ai-assistant	AI Assistant
+ai-assistant__tab-1-ai-provider__classic-light-390	/admin/ai-assistant	AI Assistant
+ai-assistant__tab-2-visitor-tools__classic-light-390	/admin/ai-assistant	AI Assistant
+pages__list__classic-light-390	/admin/pages	Pages
+pages__tab-1-my-pages2__classic-light-390	/admin/pages	Pages
+pages__tab-2-theme-pages7__classic-light-390	/admin/pages?tab=themes	Pages
+posts__list__classic-light-390	/admin/posts	Posts
+media__list__classic-light-390	/admin/media	Media
+media__tab-1-all0__classic-light-390	/admin/media?tab=all	Media
+media__tab-2-images0__classic-light-390	/admin/media?tab=images	Media
+media__tab-3-videos0__classic-light-390	/admin/media?tab=videos	Media
+media__tab-4-external-providers23__classic-light-390	/admin/media?tab=external-providers	Media
+media__tab-5-trash0__classic-light-390	/admin/media?tab=trash	Media
+library__list__classic-light-390	/admin/library	Library
+library__tab-1-upload__classic-light-390	/admin/library?tab=upload	Library
+library__tab-2-documents0__classic-light-390	/admin/library?tab=documents	Library
+collections__list__classic-light-390	/admin/collections	Collections
+menus__list__classic-light-390	/admin/menus	Menus
+widgets__list__classic-light-390	/admin/widgets	Widgets
+taxonomy__list__classic-light-390	/admin/taxonomy	Categories & Tags
+forms__list__classic-light-390	/admin/forms	Forms
+users__list__classic-light-390	/admin/users	Usersⓘ
+authentication__list__classic-light-390	/admin/authentication	Authentication
+roles__list__classic-light-390	/admin/roles	Roles & Permissions
+roles__tab-1-roles__classic-light-390	/admin/roles?tab=roles	Roles & Permissions
+roles__tab-2-policies__classic-light-390	/admin/roles?tab=policies	Roles & Permissions
+members__list__classic-light-390	/admin/members	Members
+comments__list__classic-light-390	/admin/comments	Comments
+themes__list__classic-light-390	/admin/themes	Themes
+themes__tab-1-declarativesoon0__classic-light-390	/admin/themes?tab=declarative	Themes
+themes__tab-2-static2__classic-light-390	/admin/themes?tab=static	Themes
+themes__tab-3-templatedsoon2__classic-light-390	/admin/themes?tab=templated	Themes
+themes__tab-4-codesoon0__classic-light-390	/admin/themes?tab=code	Themes
+admin-ui__list__classic-light-390	/admin/admin-ui	Admin UI
+admin-ui__tab-1-theme__classic-light-390	/admin/admin-ui?tab=theme	Admin UI
+admin-ui__tab-2-appearance__classic-light-390	/admin/admin-ui?tab=appearance	Admin UI
+admin-themes__list__classic-light-390	/admin/admin-ui?tab=theme	Admin UI
+admin-themes__tab-1-theme__classic-light-390	/admin/admin-ui?tab=theme	Admin UI
+admin-themes__tab-2-appearance__classic-light-390	/admin/admin-ui?tab=appearance	Admin UI
+admin-appearance__list__classic-light-390	/admin/admin-ui?tab=appearance	Admin UI
+admin-appearance__tab-1-theme__classic-light-390	/admin/admin-ui?tab=theme	Admin UI
+admin-appearance__tab-2-appearance__classic-light-390	/admin/admin-ui?tab=appearance	Admin UI
+design-system__list__classic-light-390	/admin/admin-ui?tab=appearance	Admin UI
+design-system__tab-1-theme__classic-light-390	/admin/admin-ui?tab=theme	Admin UI
+design-system__tab-2-appearance__classic-light-390	/admin/admin-ui?tab=appearance	Admin UI
+playground__list__classic-light-390	/admin/playground	Playground
+plugins__list__classic-light-390	/admin/addons/plugins	Plugins
+plugins__tab-1-installed__classic-light-390	/admin/addons/plugins?tab=installed	Plugins
+plugins__tab-2-downloaded__classic-light-390	/admin/addons/plugins?tab=downloaded	Plugins
+plugins__tab-3-add-a-plugin__classic-light-390	/admin/addons/plugins?tab=add	Plugins
+plugins__tab-4-marketplacesoon__classic-light-390	/admin/addons/plugins?tab=marketplace	Plugins
+agent-plugins__list__classic-light-390	/admin/addons/agent-plugins	
+skills__list__classic-light-390	/admin/addons/skills	
+providers__list__classic-light-390	/admin/addons/integrations	Integrations
+providers__tab-1-external-mcp__classic-light-390	/admin/addons/integrations?tab=external-mcp	Integrations
+providers__tab-2-always-allow__classic-light-390	/admin/addons/integrations?tab=always-allow	Integrations
+providers__tab-3-mcp-serversoon__classic-light-390	/admin/addons/integrations?tab=mcp-server	Integrations
+providers__tab-4-webhookssoon__classic-light-390	/admin/addons/integrations?tab=webhooks	Integrations
+integrations__list__classic-light-390	/admin/addons/integrations?tab=webhooks	Integrations
+integrations__tab-1-external-mcp__classic-light-390	/admin/addons/integrations?tab=external-mcp	Integrations
+integrations__tab-2-always-allow__classic-light-390	/admin/addons/integrations?tab=always-allow	Integrations
+integrations__tab-3-mcp-serversoon__classic-light-390	/admin/addons/integrations?tab=mcp-server	Integrations
+integrations__tab-4-webhookssoon__classic-light-390	/admin/addons/integrations?tab=webhooks	Integrations
+orders__list__classic-light-390	/admin/orders	Orders
+products__list__classic-light-390	/admin/products	Products
+subscriptions__list__classic-light-390	/admin/subscriptions	Subscriptions
+billing__list__classic-light-390	/admin/billing	Billing
+database__list__classic-light-390	/admin/database	Database
+database__tab-1-timeline__classic-light-390	/admin/database?tab=timeline	Database
+database__tab-2-migrate-forward__classic-light-390	/admin/database?tab=migrate-forward	Database
+recovery__list__classic-light-390	/admin/recovery	Recovery
+deployment__list__classic-light-390	/admin/deployment	Deployment
+deployment__tab-1-overview__classic-light-390	/admin/deployment?tab=overview	Deployment
+deployment__tab-2-static-site__classic-light-390	/admin/deployment?tab=static-site	Deployment
+deployment__tab-3-dockerfile__classic-light-390	/admin/deployment?tab=dockerfile	Deployment
+deployment__tab-4-history__classic-light-390	/admin/deployment?tab=history	Deployment
+source-control__list__classic-light-390	/admin/source-control	Source Control
+source-control__tab-1-providers__classic-light-390	/admin/source-control?tab=providers	Source Control
+access-tokens__list__classic-light-390	/admin/access-tokens	Secrets
+access-tokens__tab-1-access-tokens__classic-light-390	/admin/access-tokens?tab=access-tokens	Secrets
+access-tokens__tab-2-site-key__classic-light-390	/admin/access-tokens?tab=site-key	Secrets
+access-tokens__tab-3-all__classic-light-390	/admin/access-tokens	Secrets
+access-tokens__tab-4-source-control__classic-light-390	/admin/access-tokens	Secrets
+access-tokens__tab-5-hosting__classic-light-390	/admin/access-tokens	Secrets
+access-tokens__tab-6-media__classic-light-390	/admin/access-tokens	Secrets
+access-tokens__tab-7-ai__classic-light-390	/admin/access-tokens	Secrets
+access-tokens__tab-8-ops__classic-light-390	/admin/access-tokens	Secrets
+observability__list__classic-light-390	/admin/observability	Observability
+activity-log__list__classic-light-390	/admin/activity-log	Activity Log
+settings__list__classic-light-390	/admin/settings	
+settings__tab-1-local-clirun-an-agent-installed-__classic-light-390	/admin/settings	
+settings__tab-2-byokuse-your-own-api-credentials__classic-light-390	/admin/settings	
+consent__list__classic-light-390	/admin/consent	Cookie Consent
+consent__tab-1-overview__classic-light-390	/admin/consent?tab=overview	Cookie Consent
+consent__tab-2-banner__classic-light-390	/admin/consent?tab=banner	Cookie Consent
+consent__tab-3-look-position__classic-light-390	/admin/consent?tab=look	Cookie Consent
+consent__tab-4-rules__classic-light-390	/admin/consent?tab=rules	Cookie Consent
+workspace__list__classic-light-390	/admin/settings?tab=workspace	
+email__list__classic-light-390	/admin/email	Email
+email__tab-1-overview__classic-light-390	/admin/email?tab=overview	Email
+email__tab-2-provider__classic-light-390	/admin/email?tab=provider	Email
+email__tab-3-sender-dns__classic-light-390	/admin/email?tab=sender	Email
+email__tab-4-templates__classic-light-390	/admin/email?tab=templates	Email
+email__tab-5-activity__classic-light-390	/admin/email?tab=activity	Email
+notifications__list__classic-light-390	/admin/email	Email
+notifications__tab-1-overview__classic-light-390	/admin/email?tab=overview	Email
+notifications__tab-2-provider__classic-light-390	/admin/email?tab=provider	Email
+notifications__tab-3-sender-dns__classic-light-390	/admin/email?tab=sender	Email
+notifications__tab-4-templates__classic-light-390	/admin/email?tab=templates	Email
+notifications__tab-5-activity__classic-light-390	/admin/email?tab=activity	Email
+trash__list__classic-light-390	/admin/trash	Trashⓘ
+seo__list__classic-light-390	/admin/seo	SEO
+seo__tab-1-site-defaults__classic-light-390	/admin/seo?tab=defaults	SEO
+seo__tab-2-sitemap__classic-light-390	/admin/seo?tab=sitemap	SEO
+seo__tab-3-pages-posts__classic-light-390	/admin/seo?tab=entries	SEO
+redirects__list__classic-light-390	/admin/redirects	Redirects
+newsletter__list__classic-light-390	/admin/newsletter	Newsletter
+analytics__list__classic-light-390	/admin/analytics	Analytics
+appearance__list__classic-light-390	/admin/appearance	Themes
+appearance__tab-1-declarativesoon0__classic-light-390	/admin/appearance?tab=declarative	Themes
+appearance__tab-2-static2__classic-light-390	/admin/appearance?tab=static	Themes
+appearance__tab-3-templatedsoon2__classic-light-390	/admin/appearance?tab=templated	Themes
+appearance__tab-4-codesoon0__classic-light-390	/admin/appearance?tab=code	Themes
