@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor } from "@/__tests__/render-with-jini
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { Users } from "../UsersPanel";
 import { useUsers } from "../hooks/users-controller.hooks";
-import { createFakeUsersPort } from "../hooks/users-dependencies.hooks";
+import { createFakeUsersPort } from "@jini-ai/user-management/react/testing";
 import { describe, expect, it } from "vitest";
 import type { AdminIdentityUser } from "@/lib/api";
 import { formatGrantLabel, userRowMenuItems, userAccountCapabilities, isOwnerAccount } from "@jini-ai/user-management/react";
@@ -56,7 +56,7 @@ it("Owner badge uses server owner classification or builtin role; never username
 });
 
 it("rendered owner row keeps admin login, shows the Owner role, and hides Delete/Disable", async () => {
-  const port = createFakeUsersPort({ users: [{ ...user, isOwner: true, isProtectedAccount: true }],
+  const port = createFakeUsersPort({}, { users: [{ ...user, isOwner: true, isProtectedAccount: true }],
     roles: [{ id: "owner-role", workspaceId: "w", name: "owner", isBuiltin: true }], meId: "owner" });
   render(<FetchQueryProvider><Users useUsersHook={() => useUsers({ port })} /></FetchQueryProvider>);
   // why: Jini 86e44994 dropped the "Owner" badge beside the username (the Roles column already shows it), so the row shows Owner once, in its Roles cell.
@@ -68,7 +68,7 @@ it("rendered owner row keeps admin login, shows the Owner role, and hides Delete
   expect(screen.queryByRole("menuitem", { name: "Disable" })).toBeNull();
 });
 it("rendered admin sees only Manage on an owner target", async () => {
-  const port = createFakeUsersPort({ users: [{ ...user, isOwner: true, isProtectedAccount: true }],
+  const port = createFakeUsersPort({}, { users: [{ ...user, isOwner: true, isProtectedAccount: true }],
     roles: [{ id: "owner-role", workspaceId: "w", name: "owner", isBuiltin: true }], meId: "another-admin" });
   render(<FetchQueryProvider><Users useUsersHook={() => useUsers({ port })} /></FetchQueryProvider>);
   await waitFor(() => expect(screen.getByRole("button", { name: "admin" })).toBeTruthy());

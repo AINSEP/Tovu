@@ -24,13 +24,6 @@
     },
     {
       "rule": "HW5-jini-export",
-      "file": "apps/admin/src/features/members/hooks/members-dependencies.hooks.ts",
-      "line": 27,
-      "reason": "Export createFakeMembersPort duplicates a Jini function without using its owner.",
-      "fingerprint": "8528b17a15d6bc68fd45b35701e10d60f0710ae76dfa404e19235e26a044e87d"
-    },
-    {
-      "rule": "HW5-jini-export",
       "file": "apps/admin/src/features/roles/hooks/roles-dependencies.hooks.ts",
       "line": 80,
       "reason": "Export createFakeRolesPort duplicates a Jini function without using its owner.",
@@ -49,13 +42,6 @@
       "line": 7,
       "reason": "Export SkillRow duplicates a Jini function without using its owner.",
       "fingerprint": "bfbbb041a4274a35fddbe664e1241c541c8077e768b6a3971bccc3fe060e2b18"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/admin/src/features/users/hooks/users-dependencies.hooks.ts",
-      "line": 83,
-      "reason": "Export createFakeUsersPort duplicates a Jini function without using its owner.",
-      "fingerprint": "69d895dbd44eb85c9ee27974cabde11ae66ace5eb12ffed0cb739cc43c9f4aaf"
     },
     {
       "rule": "HW2-vendor-adapter",

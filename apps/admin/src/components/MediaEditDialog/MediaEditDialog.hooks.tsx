@@ -1,7 +1,8 @@
 import { useState } from "react";
 
 import { t as mediaT } from "../../features/media/media-i18n";
-import { describeMediaHtmlAttributeError, parseMediaHtmlAttributes } from "../../features/media/rules";
+import { parseMediaHtmlAttributes } from "@jini-ai/admin/media";
+import { describeMediaHtmlAttributeError } from "../../features/media/rules";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 
 /**
@@ -99,7 +100,7 @@ export function useMediaEditDialog(
   // open/close transition. The component marks Alt (or CSS class when Alt is hidden) with Jini's
   // autofocus attribute so the native owner can focus it and restore the opener on unmount.
 
-  const parsed = parseMediaHtmlAttributes(htmlAttributes);
+  const parsed = parseMediaHtmlAttributes({ text: htmlAttributes });
   const htmlAttributesError = parsed.error ? describeMediaHtmlAttributeError(parsed.error, deps.locale) : null;
 
   function save() {

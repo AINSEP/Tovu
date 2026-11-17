@@ -21,7 +21,8 @@ import type { DeployHostKit } from "../deployments/contracts.js";
  * this file is only Tovu's wiring.
  */
 
-/** The file a plugin ships at its root to contribute object-store providers. */
+/** The file a plugin ships at its root to contribute object-store providers: `{ schemaVersion: 1, providers: [{ id, module, label? }] }`,
+ * parsed by `@jini-ai/platform/object-store`; ids are checked against the shared grammar before any module is imported. */
 export const OBJECT_STORES_FILENAME = "tovu-object-stores.json";
 
 /** What a plain-JS provider module cannot import: SigV4 signing, plus optional request tracing. */
@@ -42,7 +43,7 @@ export type { ObjectStoreEnvDeclaration };
 
 const objectStoreContribution = defineProviderContribution<ProviderContributionDescriptor, TovuObjectStoreProvider>({
   contract: OBJECT_STORE_CONTRACT, filename: OBJECT_STORES_FILENAME,
-  parse: ({ raw }) => parseObjectStoresFile({ raw }),
+  parse: ({ raw }) => parseObjectStoreDescriptors({ raw }),
   validate: ({ exported }) => objectStoreProviderFault({ provider: exported }) ?? exported as TovuObjectStoreProvider,
 });
 
@@ -87,23 +88,13 @@ export async function loadBundledObjectStoreRegistry(
   return { registry, refusals };
 }
 
-/**
- * Parses `tovu-object-stores.json`: `{ schemaVersion: 1, providers: [{ id, module, label? }] }`. Ids
- * are checked against the shared grammar by the loader before any module is imported.
- * The parser lives in `@jini-ai/platform/object-store`; this keeps the host's name and signature.
- * @complexity O(n) entries.
- */
-export function parseObjectStoresFile(required: { readonly raw: string }, _optional: Record<string, never> = {}): ReturnType<typeof parseObjectStoreDescriptors> {
-  return parseObjectStoreDescriptors(required);
-}
-
 /** Synchronous media env mappings from immutable bundled sources; never imports provider modules.
  * @param required Product-owned source root. @returns Mappings in declaration order.
  * @throws {Error} Unreadable/invalid data or duplicate selectors; an opt-in never silently becomes local. */
 export function readBundledObjectStoreEnvDeclarations(required: { readonly sourceRoot: string }, _optional = {}): readonly ObjectStoreEnvDeclaration[] {
   const entries: ObjectStoreEnvDeclaration[] = [];
   for (const plugin of bundledContributionSources({ ...required, filename: OBJECT_STORES_FILENAME })) {
-    const parsed = parseObjectStoresFile({ raw: readFileSync(path.join(plugin.packageRoot, OBJECT_STORES_FILENAME), "utf8") });
+    const parsed = parseObjectStoreDescriptors({ raw: readFileSync(path.join(plugin.packageRoot, OBJECT_STORES_FILENAME), "utf8") });
     if (!parsed.ok) throw new Error(`Object store env declarations from '${plugin.pluginId}' were not loaded: ${parsed.reason}`);
     appendDeclaredEnvironments({ descriptors: parsed.descriptors, entries });
   }
