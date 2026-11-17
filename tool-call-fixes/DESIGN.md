@@ -1,6 +1,13 @@
-# Tool-call structural fixes: design (2026-11-17)
+# Tool-call structural fixes: design (2026-11-17, revision 2)
 
 Design and plan only. No source file was edited, nothing was built, no test was run.
+
+**Revision 2** answers `CODEX-JUDGE.md` (4 blockers, 15 majors, 1 minor). Every finding was checked in the code
+first; all 20 were right and are accepted (table in `INDEX.md`, "Revision 2 - judge response"). Re-read against
+`integ/merge-a-2026-11-16` at Tovu `e801e9ae` / Jini `dde69a6d`; every cited path was also checked on
+`integ/merge-b-2026-11-16` (Tovu `450ac748`, Jini `9c982fd9`): all exist there except Jini
+`core/src/errors/reporter.ts` (error-system E2 is on merge-a only). `integ/merge-final-2026-11-16` did not exist.
+Sections changed in revision 2 are marked *(rev 2)*.
 Input: `ADS-memory/.local-artifacts/codex/2026-11-10/tool-failure-audit.md` (1,324 failed tool calls of about 27,000, 10-20 to 11-10).
 Code read: `integ/merge-a-2026-11-16`, Tovu `f354cfbd`, Jini `96aade8c`. Paths below are Jini `packages/…` or Tovu `apps/…`.
 Line numbers are from those commits. Every sheet tells the executor to find the symbol by name first, because both
@@ -12,16 +19,16 @@ Repos are public. Security notes here name classes and locations only.
 
 | # | Class (audit count) | Today | Root cause (verified) | One mechanism | Sheets |
 |---|---|---|---|---|---|
-| C1a | Unknown tool id answered as "denied" (68 + part of 11) | **Live** | Four different answers for the same mistake (§2.1) | M1: one tool-target decision in the daemon route, `404 UNKNOWN_TOOL` | S1, S2 |
+| C1a | Unknown tool id answered as "denied" (68 + part of 11) | **Live** | Four different answers for the same mistake (§2.1) | M1: one tool-target decision in the daemon route, `404 UNKNOWN_TOOL` | S1, S2a, S2b |
 | C1b | Guides name tools the CLI cannot call directly (12) | **Live** | Direct set is the first 64 of one list; guides are free text; a full list silently skips promotion (§2.2) | M2: every answer says how to call the tool, plus a lint over every guide text | S3, S4a, S4b |
-| C1c | Read-only gateway refuses a "get" tool (11) | **Live** | Three fields say "read" and are not checked against each other (§2.3) | M3: one registry-wide truth test | S5 |
-| C2 | Tool, input and slug names masked in errors (78) | **Live, narrower** | Shape guessing: any run of 20+ characters is a secret unless it looks like a lowercase slug (§2.4) | M4: a trusted vocabulary built from registration data, used by both redaction layers | S6, S7 |
+| C1c | Read-only gateway refuses a "get" tool (11) | **Live, as wording** *(rev 2)* | Risk and the read-only flag are already checked centrally; the refused tool is a real write whose description starts with "Reads" (§2.3) | M3: a wording gate plus the one unchecked field | S5 |
+| C2 | Tool, input and slug names masked in errors (78) | **Live, narrower** | Shape guessing: any run of 20+ characters is a secret unless it looks like a lowercase slug (§2.4) | M4: a trusted vocabulary, complete before the MCP client's first lossy pass; the server sends trusted names in the envelope | S6, S7 |
 | C3 | Bare `HTTP 500` (40) | **Live, cause found** | The MCP client reads one envelope shape; the daemon app has no last-resort JSON error answer (§2.5) | M5: client never prints a status alone; one terminal error boundary on the server | S8, S9 |
 | C4 | Same-file batch edits (21) | **Live** | Plan-mode batches pin every item before the first one runs (§2.6) | M6: the batch owner chains pins for items with the same target | S10, S11 |
-| C5 | Refuse where clamp or help is safe (about 35) | **Live** | Repairs are per tool; the one normalizer knows aliases and number strings only (§2.7) | M7: declared repairs in the schema (`aliases`, `clamp`, `obtainFrom`) | S12, S13 |
-| C6 | Screenshot 20 s deadline (20) | **Partly fixed** | A current-frame fallback exists; the deadline is still one constant for every request (§2.8) | M8: budget computed from the request, best effort after navigation | S14 |
-| C7 | Calls silent for 300 s lose approvals (5 to 13) | **Live** | No progress notifications; a second 300 s wall is likely in the HTTP hop (§2.9) | M9: one progress pump in the MCP host, a long-wait fetch, per-CLI timeouts as adapter data | S15, S16 |
-| C8 | Chrome tab collisions (192, rising) | **Changed** | Chrome is now a per-person switch, owner only, but it defaults to on and two runs can hold it at once (§2.10) | M10: one browser-integration lease per host; default is an owner decision | S17 |
+| C5 | Refuse where clamp or help is safe (about 35) | **Live** | Repairs are per tool; the one normalizer knows aliases and number strings only (§2.7) | M7: declared repairs in the schema (`aliases`, `clamp`, `obtainFrom`), one contract for typed and gateway calls | S12a, S12b, S13 |
+| C6 | Screenshot 20 s deadline (20) | **Partly fixed** | A current-frame fallback exists; the deadline is still one constant for every request (§2.8) | M8: work deadline, fallback reserve and hard stop defined together; budget from the request | S14a, S14b |
+| C7 | Calls silent for 300 s lose approvals (5 to 13) | **Live** | No progress notifications; a second 300 s wall is likely in the HTTP hop (§2.9) | M9: one progress pump in the MCP host, a long-wait fetch, per-CLI timeouts as adapter data | S15, S16a, S16b |
+| C8 | Chrome tab collisions (192, rising) | **Changed** | Chrome is now a per-person switch, owner only, but it defaults to on and two runs can hold it at once (§2.10) | M10: one browser-integration lease per daemon process; default is an owner decision | S17 |
 
 Audit items checked and **not planned** because they are fixed or expected: result too large (paged since 11-02),
 FS root wording, plugin off / OAuth refusals, owner rejections, media limits, egress block.
@@ -52,9 +59,14 @@ engine holds no product names.
   `tool-server.ts:310`), **plus** typed tools for the ids in `startupToolIds`.
 - Tovu passes every visible id, theme file tools first (`apps/website/src/server/inbound/assistant/agent-daemon-scope.ts:511-518`).
   Jini keeps the first 64 that fit 256 KiB of schema (`core/src/tool-exposure.ts:210`, limit check `:162`).
+  *(rev 2)* The limit counts **exposed registry descriptors** (`limitReason`: `snapshot.tools.length >= maxTools`);
+  MCP-local tools are reserved names and are not in that count.
+- *(rev 2)* A registry id is not the callable name. `tool-exposure.ts` (`nameBase`, `assignName`) publishes an id with
+  dots, hyphens or too many characters as `tool_<readable>_<hash>`, with `_1`… on collision, and `tool-server.ts`
+  indexes tools by that wire name. `content_read.*` and `page.*` ids are all published under transformed names.
 - `describe_tool` promises that a described tool "also" appears in `tools/list`
   (`mcp/src/server/tools/tool-catalog-tools.ts`, `describeToolTool`). When the list is full, promotion is skipped with
-  reason `tool-limit` and nobody is told. The model then calls `mcp__jini__<id>` and the CLI answers "No such tool".
+  reason `tool-limit` or `schema-byte-limit` and nobody is told. The model then calls `mcp__jini__<id>` and the CLI answers "No such tool".
 - Guide text is free text in many places. Found so far, by kind:
 
 | Kind | Example site | Names tools as |
@@ -72,12 +84,19 @@ finds 65 non-test files. **I did not count every guide site or every registered 
 Sheet S4a produces that inventory as a committed file before anything is changed, and S4b may not start until its
 unclassified count is zero.
 
-### 2.3 C1c: three fields for one fact
+### 2.3 C1c: a correct refusal with misleading words *(rev 2)*
 
-`external_mcp_get_admissions` says "Reads…" in its description and is registered `sideEffects: "mutates-durable-state"`
-(`apps/website/src/features/external-mcp/operations-tools.ts:33-34`), while its metadata row sits in
-`apps/website/src/contracts/core/tool-metadata/external-mcp.ts:6`. The gate reads a third field: `descriptor.readOnly === true`
-(`core/src/tool-registry.ts:100-102`). Nothing compares the three.
+Revision 1 said nothing compares the "read" fields and named `external_mcp_get_admissions` as drift. Both were wrong.
+
+- `core/src/registration-kit.ts` (`assertRiskIsCorroborated`, `:428-440`) refuses a registration whose declared
+  `sideEffects` differs from the wiring layer's derived risk, and derives the flag every read-only gate reads in one
+  place: `readOnly: catalogEntry.sideEffects === "none"` (`:533`).
+- `external_mcp_get_admissions` is a real write: `approval.class: 'edit'` with the reason in a comment
+  (`contracts/core/tool-metadata/external-mcp.ts:17-18`), `sideEffects: "mutates-durable-state"` and the same derived
+  risk (`features/external-mcp/operations-tools.ts:33-44`): starting federation may store a refreshed OAuth grant.
+  The read-only gateway refusing it is correct.
+- What misleads the model is the description's first word, "Reads". And one field is still unchecked against the
+  others: metadata `approval.class`. Registrations built outside the registration kit are the other gap.
 
 ### 2.4 C2: shape guessing
 
@@ -89,10 +108,16 @@ unclassified count is zero.
 - **Changed since the audit:** the full registry now reaches the MCP process at launch
   (`agent-daemon-scope.ts:504` → `daemon/src/agent-executor/mcp-bridge.ts:84`, `JINI_DIAGNOSTIC_TOOL_IDS`), and
   `handleToolCall` adds the local tool names (`tool-protocol.ts:301`). Tool ids known at launch are no longer masked on the MCP side.
-- There are **two** redaction layers: the daemon's tool-failure redaction (`daemon/src/tool-recovery/redaction.ts`, on
-  `redactSecrets`, which has its own opaque-token pass at `redact.ts:852-861`) and the MCP client's `safeDiagnostic`
-  (`mcp/src/server/daemon-client.ts:144-165`). **Not verified:** which layer produced each of the audit's examples
-  ("Call [redacted] with {}"). S6 starts with a test that sends each example through both layers and records which one masks it.
+- *(rev 2)* The daemon side does not mask names in Tovu. `redactFailedResult` (`daemon/src/tool-recovery/redaction.ts:171,204-214`)
+  calls an **injected** `redactSecretShapes` port. Tovu binds `@tovu/contracts/secret-redaction`
+  (`assistant/tool-recovery-preset.ts:19,72-76`), which is secrets-only and documents that tool ids and ordinary
+  diagnostics must stay (`packages/contracts/src/secret-redaction.ts:30-46`).
+- *(rev 2)* The masking happens in the MCP process, **twice**: `requestDaemonJson` formats a non-2xx answer through
+  `safeDiagnostic` before it throws (`daemon-client.ts:168-174,244`), and `handleToolCall` sanitizes the thrown message
+  again (`tool-protocol.ts:329-331`). What the first pass masks, the second cannot restore.
+- *(rev 2)* A gateway call's MCP schema is `{ toolId, input: object }` (`tools/delegated-tool.ts:182-199`); the domain
+  tool's property names are not in it. And `ctx.diagnosticToolIds` doubles as an "is registered" predicate
+  (`delegated-tool.ts:223`), so it cannot carry other vocabulary.
 
 ### 2.5 C3: where a bare status comes from
 
@@ -116,6 +141,12 @@ default handler logs to stderr only outside production mode.
 A decoder for both envelope shapes already exists: `decodeApiError` (`protocol/src/errors.ts:111-121`).
 `@jini-ai/mcp` already imports `@jini-ai/protocol`.
 
+*(rev 2)* Verified: the parent app (`agent-daemon-server.ts:188-199`) forwards `next` into the scope app and adds no
+error handler, so row 1 ends in Express's default HTML page. Reporter state on merge-a: `createErrorReporter` exists in
+core (`core/src/errors/reporter.ts:219`, error-system E2) with one Jini caller; Tovu builds no reporter yet (E3/E4
+open). Tovu's one incident sink today is `reportServerFailure` (`server/inbound/shared/admin-failure.ts:52`).
+`mintToolErrorId` already lives in core (`core/src/errors/error-id.ts:22`).
+
 ### 2.6 C4: pins taken before the first write
 
 - Theme content tools are batched in plan mode (`apps/website/src/assistant/batch-tool-inputs.ts:14`,
@@ -124,6 +155,8 @@ A decoder for both envelope shapes already exists: `decodeApiError` (`protocol/s
   `createBatchApprovalHandler` without a question (`core/src/approval.ts:182-191`).
 - `prepare` runs for **every** item first (`approval.ts:226`). Each `prepare` stores the file's digest
   (`file-mutation-tools.ts:50`, `theme-files.ts:684-690`).
+- *(rev 2)* The persistence owner checks the pin again with no `await` before the rename
+  (`theme-files.ts:625-629`, `assertReviewedThemeFileCurrent`). That is the property a fix must keep.
 - `run` then goes item by item (`approval.ts:243-246`). Item 1 writes. Item 2 compares its stored digest with the file,
   sees item 1's bytes, and throws "The theme file changed during review…" (`file-mutation-tools.ts:55-58`, second copy `theme-files.ts:676`).
 - The throw ends the loop. Earlier items stay applied, later items never run, and the message says nothing was replaced.
@@ -146,6 +179,12 @@ A decoder for both envelope shapes already exists: `decodeApiError` (`protocol/s
 
 ### 2.8 C6: one constant for every capture
 
+*(rev 2)* Three owners hold a deadline today, all with the same number: Tovu's outer race
+(`playwright-page-capture.ts:165-175`, aborts and drops the browser), Jini's `renderPage` hard signal
+(`render-page.ts:294-295`, `AbortSignal.timeout`) whose abort closes the context (`:311-313`), and the work budget
+(`page-work-budget.ts`, `Date.now()` + `setTimeout`). A fallback that starts when the budget is spent has no time left
+under either hard stop.
+
 `CAPTURE_DEADLINE_MS = 20_000` (`apps/website/src/features/web-screenshot/web-screenshot.ts:35`), message at `:230`.
 The budget is spent in Jini's `renderPage` (`diagnostics/src/web-evidence/render-page.ts`, `timeoutMs` `:44`, navigation
 `:205`, wait `:228-234`, load wait `:252`). A fallback already takes the current frame when only the **stable-frame
@@ -164,6 +203,16 @@ scrolling (`fullPage`) or its requested wait still fails with nothing, and the o
    **Not verified in this run** (nothing was executed), but it matches the audit's unexplained `fetch failed` ×10 on
    publish and credential tools. S15's first test proves or disproves it against a real local server.
 
+3. *(rev 2)* A third clock exists and is **not** a wall this plan moves: the human-approval window.
+   `APPROVAL_WAIT_TIMEOUT_MS = 120_000` (`core/src/approval.ts:14`) is armed in `daemon/src/tool-executor.ts:403-411`,
+   once per call, and its comment says progress cannot extend it. Revision 1's OD-6 text ("no limit on a human wait
+   other than the run") did not match this code. Progress frames (M9) go from the MCP host to the CLI only.
+
+*(rev 2)* CLI coverage, from the defs: Claude, Codex and OpenCode inject MCP (`claude-mcp-json`, `codex-toml`,
+`opencode-env-content`). The Gemini def is retired (`defs/__tests__/gemini.test.ts:5-10` asserts it cannot be
+selected; Antigravity, `env-passthrough`, is the Google CLI in the registry). Aider has no MCP client
+(`defs/aider.ts:8,80-86`, `mcpIsolation: 'no-client'`), so no tool call reaches it at all.
+
 No generated MCP config sets a per-server tool timeout (`mcp/src/core/config.ts`, `core/opencode/config.ts`,
 `daemon/src/agent-executor/mcp-bridge.ts`: no match for any timeout key).
 
@@ -172,7 +221,10 @@ SSE keepalive between browser and server. It does not touch the hop from the age
 
 ### 2.10 C8: Chrome is a switch now, on by default
 
-- `useClaudeInChrome` defaults to `true` (`apps/website/src/assistant/runtime-preferences.ts:25`).
+- `useClaudeInChrome` defaults to `true` in **two** places *(rev 2)*: the registered setting
+  (`features/settings/admin-interface.ts:81`, `defaultValue: true`), which the runtime reader asks first, and the
+  fallback object (`apps/website/src/assistant/runtime-preferences.ts:25`).
+- *(rev 2)* One daemon process hosts many site scopes (`agent-daemon-server.ts:194-201`, `createSiteScope(input, { idlePark })`).
 - It applies only to the owner on a runtime that supports it, and a supporting runtime is always told `--chrome` or
   `--no-chrome` explicitly (`apps/website/src/server/inbound/assistant/assistant-runtime-guidance.ts:55-72`;
   Jini `agent-runtime/src/defs/claude.ts:127-128`).
@@ -180,218 +232,217 @@ SSE keepalive between browser and server. It does not touch the hop from the age
   **Not verified:** whether the CLI offers a per-session tab group; I found no such option in the adapter.
 - Collisions with the owner's own non-Tovu sessions cannot be fixed from here.
 
-## 3. Mechanisms
+## 3. Mechanisms *(rev 2: rewritten; sheets are the executable form)*
 
-Each mechanism has one owner. A Jini package imports itself, `@jini-ai/core` and `@jini-ai/protocol` only. New
-functions take `(required, optional = {})`, stay under 50 lines and complexity 10, and new files stay under 500 lines.
-Files that are already close to the limit get a new sibling file instead of more lines
-(`tool-server.ts` 409, `delegated-tools.ts` 392, `approval.ts` 373, `tool-protocol.ts` 333).
+Each mechanism has one owner. A Jini package imports itself, `@jini-ai/core` and `@jini-ai/protocol` only, and holds
+no web framework: Express middleware is Tovu code. New functions take `(required, optional = {})`, stay under 50
+lines and complexity 10, and new files stay under 500 lines. Files close to or over the limit get a new sibling file
+(`tool-server.ts` 409, `delegated-tools.ts` 392, `approval.ts` 373, `tool-protocol.ts` 333, `registration-kit.ts` 593,
+Tovu `theme-files.ts` 1,344 and `agent-daemon-scope.ts` 1,670, both on the size ratchet).
 
-### M1. One tool-target decision (Jini `daemon`, codes in `protocol` + `core`)
+**Publication (judge finding 6).** A new symbol that another package or Tovu imports is a public entry, created in
+the commit that creates the file: `exports["./<entry>"]` plus `jini.entries["./<entry>"]` in that package's
+`package.json`, pointing at the concrete file. New entries in this plan:
+
+| Entry | Sheet | Consumers |
+|---|---|---|
+| `@jini-ai/core/tool-call-text` | S1 (S3 adds to it) | `daemon`, `mcp`, Tovu |
+| `@jini-ai/core/text/masked-identifier-rows`, `@jini-ai/core/text/diagnostic-vocabulary` | S6 | `mcp`, Tovu tests |
+| `@jini-ai/core/approval-batch-chain` | S10 | Tovu |
+| `@jini-ai/core/tool-input-repairs` | S12a | `mcp`, `daemon`, Tovu gate |
+| `@jini-ai/diagnostics/web-evidence/capture-budget`, `…/web-evidence/testing` | S14a | Tovu |
+| `@jini-ai/daemon/exclusive-run-lease` | S17 | Tovu |
+
+Tovu pins `@jini-ai/*` to registry versions (`^0.7.0`, `package.json:135-156`), so a sibling build is invisible until
+linked. Executors link with the repo's own script (`npm run link:jini`, `sheets/README.md` §1). The version bump and
+lockfile are release nodes (**REL**) in INDEX §3, placed before each Tovu sheet merges to an unlinked branch.
+
+### M1. One tool-target decision; families answered, never routed by the server (Jini `daemon`; `protocol`, `core`, `mcp`)
 
 ```ts
 // daemon/src/core/tool-target.ts (new)
 export type ToolTarget =
-  | { readonly kind: 'tool'; readonly toolId: string; readonly input: unknown; readonly notes: readonly string[] }
-  | { readonly kind: 'unknown'; readonly toolId: string; readonly candidates: readonly string[]; readonly family?: readonly string[] };
+  | { readonly kind: 'tool'; readonly toolId: string; readonly descriptor: ToolDescriptor }
+  | { readonly kind: 'unknown'; readonly toolId: string; readonly candidates: readonly string[];
+      readonly family?: { readonly id: string; readonly members: readonly string[]; readonly selector?: FamilySelector } };
+export interface FamilySelector { readonly keys: readonly string[]; readonly byValue: Readonly<Record<string, string>> }
 export interface ToolFamilyPort {   // host-owned; absent means "no families"
-  resolveMember(required: { familyId: string; input: unknown }): { memberId: string; input: unknown } | { members: readonly string[] } | undefined;
+  describeFamily(required: { familyId: string }): { members: readonly string[]; selector?: FamilySelector } | undefined;
 }
-export function resolveToolTarget(required: { toolId: string; input: unknown; registry: Pick<ToolRegistry, 'list'> },
+export function resolveToolTarget(required: { toolId: string; registry: Pick<ToolRegistry, 'list'> },
                                   optional?: { families?: ToolFamilyPort }): ToolTarget;
-export function unknownToolMessage(required: { target: Extract<ToolTarget, { kind: 'unknown' }> }, optional?: {}): string;
 ```
 
 - The delegated route calls it **once**, after the run-existence check and before the read-only check, the principal
-  lookup and the bridge. Everything after that line uses the resolved id. An unknown target answers
-  `404 UNKNOWN_TOOL` for both gateways.
-- Exact message, one format: `There is no tool named "x". Closest names: a, b. Find tools with search_tools.`
-  For a family id: `"content_read" is a group of tools, not one tool. Call one of: content_read.menu, content_read.page.`
-- `UNKNOWN_TOOL` joins `GENERIC_ERROR_CODES` and the status table (404). `TOOL_OPERATION_DENIED` keeps meaning a real refusal.
-- The MCP-local "unknown tool: x" answer uses the same sentence builder with the local names as candidates, so the
-  fourth path matches. `check_messages` keeps its dedicated sentence.
-- Family routing (owner decision OD-2): when the port returns one member, the call continues as that member with the
-  selector key removed and a note `"content_read" is a group; ran content_read.menu`. Tovu supplies the port from the
-  same catalog snapshot that already builds `targetToolIds`. The `content_read` string leaves Jini.
+  lookup and the bridge. An unknown target answers `404 UNKNOWN_TOOL` on both gateways (OD-1).
+- One sentence format, built in `@jini-ai/core/tool-call-text`:
+  `There is no tool named "x". Closest names: a, b. Find tools with search_tools.` For a family:
+  `"content_read" is a group of tools, not one tool. Call one of: content_read.menu, content_read.page.` plus
+  `details.family` (members and selector, filtered by the route's own registry). The MCP-local "unknown tool" answer
+  uses the same builder. The `content_read` string leaves Jini (guard rule).
+- **The server never turns a family id into a member (blocker 1).** Tovu mounts `registerDurableToolGuard`
+  (`agent-daemon-scope.ts:1512`, `durable-run-routes.ts:49-84`) before the Jini route. It rejects stale attempts and
+  ledgers mutations by the request's `toolId`, and lets unregistered ids pass (`:60`). A server-side reroute would run
+  the member without those two gates. Instead (OD-2) the **MCP gateway tool** reads the 404's `details.family` and,
+  when the caller's input selects exactly one member, sends a second ordinary request for that concrete member (S2b).
+  Every host gate sees the concrete id from the first byte; the first request executed nothing and ledgered nothing.
 
-Security trace (lesson 13): the order of gates on the delegated path stays bearer → run credential matches `body.runId`
-→ run exists → **target decision** → read-only check on the **resolved** id → principal → attenuation → executor
-(policy, confirmation card, deny by default). The target decision reads descriptors only. It never executes, never
-widens what a read-only caller can reach (the member is checked by the same `isReadOnlyTool`), and never answers
-"unknown" for a tool the caller may not see in a way that differs from a tool that does not exist: the registry passed
-in is the run-scoped one the route already uses (`siteTools.registry` under `withRun`, `agent-daemon-scope.ts:1424-1429,1496`).
-S1 pins that with a test: a tool hidden from the run and a made-up id produce the same answer and the same candidates.
-A 404 instead of a 403 must not change any gate that keys on the status: S1 lists every reader of
-`TOOL_OPERATION_DENIED` and of `DaemonHttpError.status` first.
+Security trace (lesson 13), unchanged order: scope-closed check → idle park → bearer → 6 MB parser → run credential
+matches `body.runId` → run-ownership → durable guard (registered ids only) → run exists → **target decision** →
+read-only check → principal → attenuation → executor (policy, confirmation card, deny by default) → result capture.
+The target decision reads descriptors only, from the run-scoped registry the route already uses; a tool hidden from
+the run and a made-up id get the byte-identical answer (S1 test). A 404 instead of a 403 must not change any gate
+keyed on the status: S1 lists every reader of `TOOL_OPERATION_DENIED` and of `DaemonHttpError.status` first.
 
-### M2. Every answer says how to call the tool; a lint reads every guide (Jini `mcp`, Tovu check)
+### M2. Every answer says how to call the tool, by its published name; a lint reads model-facing text (Jini `mcp`, `core`; Tovu check)
 
-- `McpToolContext` gains `isDirectTool(required: { name })`. `describe_tool` adds `callAs: 'direct' | 'gateway'` and,
-  for a gateway-only tool, the exact call: `execute_delegated_tool({"toolId":"x","input":{…}})` (the read-only gateway
-  when the descriptor is read-only). The false "also appears in tools/list" promise is removed from the description and
-  made conditional in the result. A skipped promotion (`tool-limit`, `schema-limit`) is no longer silent.
-- One text helper renders a tool mention for model-facing text: `toolCallText({ toolId, input? }, { direct })`. It lives
-  in `@jini-ai/core` so Tovu features and Jini packages share it.
-- Tovu pins: `startupToolIds` puts the **named** set first (the ids the lint finds in guide text), then the four theme
-  file tools, then the rest. The named set is a generated, committed list, so launch does not scan source.
-- Lint `check:tool-guides` (Tovu `development/scripts/check-tool-guides.ts`, registry from the existing
-  `development/evals/tool-search-eval-registry.ts`; Jini half in `scripts/`): reads every string literal and template
-  chunk in non-test source plus every descriptor and schema description from the booted registry.
-  1. A registered id or MCP-local name inside a longer string is a **mention**.
-  2. A mention must be in the pinned list, or written in gateway call form.
-  3. A snake_case token in call form (`name(` or `name({`) or in backticks that is **not** a registered id fails as "names a tool that does not exist".
-  4. `pinned + local` must fit the 64-tool and 256 KiB limits; the check prints the margin.
-  It also covers `obtainFrom` values (M7) and plugin guidance files shipped as content.
-- Guessed `agent_plugin_<id>`: rule 3 catches guides that invite it, and M1's candidates answer it
-  (`agent_plugin_google-login` → `agent_plugin_google-login__…` members).
+- Callable names come from the publisher (finding 7). `publishTool` returns `{ wireName } | { skipped: reason }`.
+  `describe_tool` adds `callAs: 'direct' | 'gateway' | 'none'` and `call`: the **wire name** for a direct tool, or
+  `execute_delegated_tool({"toolId":"<registry id>","input":{…}})` (the read-only gateway for a read-only descriptor).
+  The false "also appears in tools/list" promise leaves the description. A skipped promotion is no longer silent.
+- `toolCallText({ toolId }, { wireName, readOnly, input })` in `@jini-ai/core/tool-call-text` renders a mention.
+- Tovu pins: `startupToolIds` puts the named set first, then the four theme file tools, then the rest. The named
+  set is a generated, committed list.
+- Lint `check:tool-guides` (finding 18). It reads text by **provenance**, never "every string": (A) descriptor and
+  schema descriptions from the booted registry, (B) MCP-local tool text and `INSTRUCTIONS`, (C) the files listed in a
+  committed `tool-guide-sources.json`. A report-only candidate pass lists other files where a registered id sits in
+  prose, for a person to classify; it never fails the build and never judges a call. Negative fixtures: SQL
+  (`json_extract(`…), template placeholders, identifiers, schema syntax.
+  1. A registered id or local name inside model-facing text is a mention. 2. A mention must be pinned or in gateway
+  form. 3. In sources A to C, a snake_case token in call form or backticks that is no id, local name, wire name or
+  declared property fails. 4. The **named registry descriptors** must fit 64 tools and 256 KiB (local tools are not
+  in that count); the margin is printed.
 
-Consumers that will move with this (lesson 2): tool-description snapshot tests, the search-eval fixtures that embed
-descriptions (`development/evals/*`), the doc2query index built from descriptions, and source-reading tests. S4a lists
-them by running the suites before any text changes and recording which tests read description text.
+### M3. A wording gate for "read" (Tovu)
 
-### M3. One truth test for "read" (Tovu)
+The central risk check stays as it is (§2.3). Added: a registry-wide test that (1) a description starting with
+"Reads", "Lists", "Gets", "Tests", "Checks" or "Reports" on a tool that is not read-only fails unless it says it needs
+the full gateway; (2) `approval.class === 'read'` ⇒ `readOnly`, and the reverse; (3) lists every registration not
+built through the registration kit with the evidence for its flag. The sheet may reword and may fix `approval.class`
+toward the corroborated risk. It never sets a tool to read-only.
 
-A test over the full registry: `approval.class === 'read'` ⇔ `descriptor.readOnly === true` ⇔ `sideEffects` is not a
-mutating value, and a description that starts with "Reads", "Lists", "Gets" or "Tests" on a non-read tool fails unless
-listed with a reason. Mismatches are fixed by changing the registration to what the handler really does, after reading
-the handler. A tool that writes (for example an admission cache) stays a write and is **reworded**, never relabelled.
-
-### M4. Trusted vocabulary instead of shape guessing (Jini `core`, used by `mcp` and `daemon`)
+### M4. Trusted vocabulary, complete before the first lossy pass (Jini `core`, `mcp`, `daemon` route)
 
 ```ts
 // core/src/text/diagnostic-vocabulary.ts (new)
 export function buildDiagnosticVocabulary(required: { toolIds: readonly string[] },
-  optional?: { inputSchema?: unknown; envelope?: { requestId?: string; details?: unknown }; echoed?: { input: unknown; schema?: unknown } }): readonly string[];
+  optional?: { inputSchema?: unknown; envelopeDetails?: unknown; echoed?: { input: unknown; schema?: unknown } }): readonly string[];
 ```
 
-Sources, all from trusted positions, never from the error text itself:
+Sources, all from trusted positions, never from the error text:
+1. Registered tool ids (today's `diagnosticToolIds`) and local tool names.
+2. Property names of the **domain** tool's schema: the MCP tool's own schema for a typed call; for a gateway call the
+   descriptor this run already holds, else `details.inputNames` sent by the server.
+3. Named envelope fields: `requestId`, `errorId`, `details.executionId`, `details.jobId`, `details.toolId`,
+   `details.pendingToolId`, `details.inputNames`. Each must match its expected shape.
+4. (OD-3) Scalar string arguments of this same call, except secret-marked properties and anything a secret rule matches.
 
-1. Registered tool ids (today's `diagnosticToolIds`), refreshed per call from the daemon's answer when it names the tool it ran.
-2. Property names of the called tool's input schema, walked to a fixed depth. This is what keeps `dismissCookieBanners` readable.
-3. Ids the server put in **named envelope fields**: `requestId`, `errorId`, `details.executionId`, `details.jobId`,
-   `details.toolId`, `details.pendingToolId`. Each must match its expected shape.
-4. (Owner decision OD-3) Scalar string arguments the caller sent in this same call, except any property whose schema
-   marks it secret (`writeOnly`, `format: password`, or the project's secret marker) and except any value a secret rule matches.
+Where it is applied (finding 10, lesson 34): at the MCP client's **first** format of a daemon error
+(`requestDaemonJson`), from the decoded envelope, and again in `handleToolCall`'s second pass with the same tokens.
+The server half (S7): the delegated route attaches `details.toolId` and `details.inputNames` from the **registered
+descriptor** for a tool that resolved in the run's registry, and `executionId` when the result has one. It adds no
+sentence. The daemon's failure redaction is not changed: in Tovu it is secrets-only already (finding 9).
 
-Rules that do not change: credential and labelled-secret rules run first; a vocabulary entry exempts a **whole** token
-only; UUIDs and letter+digit runs are not exempt by shape (some providers issue UUID-shaped keys); the 20-character
-rule stays for everything else. Both layers call the same builder, so a name kept by the daemon is not masked again by
-the MCP client. The publish error's `Call [redacted] with {}` becomes readable through source 1 or 3 once S6's first
-test shows which layer masks it.
+Kept separate (finding 10): the vocabulary travels as `trustedTokens` / `ctx.diagnosticVocabulary`.
+`ctx.diagnosticToolIds` keeps its two meanings and gains nothing.
 
-Disclosure (lesson 24): the vocabulary only stops masking of names. It does not add any text to an error. What an error
-may say stays with the error-system design's disclosure rules.
+Rules that do not change: credential and labelled-secret rules run first; an entry exempts a **whole** token only;
+UUIDs and letter+digit runs are not exempt by shape; the 20-character rule stays for everything else.
+Disclosure (lesson 24): the vocabulary only stops masking of names the caller could already see with `describe_tool`.
 
-### M5. Never a status alone (Jini `mcp` client, Jini `http-kit` boundary, Tovu wiring)
+### M5. Never a status alone, never text that was not written for the caller (Jini `mcp` client; Tovu boundary)
 
-Client (`mcp/src/server/daemon-client.ts`, formatting moves to a sibling `daemon-error-text.ts`):
+Client (`mcp/src/server/daemon-client.ts`, formatting in a sibling `daemon-error-text.ts`):
+- A recognized envelope (nested, or the flat `{ error: "<text>" }` shape `decodeApiError` already reads) keeps today's
+  form `HTTP <status>: <CODE>: <message>` byte for byte and gains ` Error ID: <id>.` when the server sent one.
+- **Anything else is never quoted (blocker 4).** HTML, plain text, invalid JSON and empty bodies give fixed words and
+  a reference: `The tool service failed (HTTP 500) and its answer was not readable. Reference: <ref>. Do not retry the same call; give the user this reference.`
+  503 with a flat envelope: `The tool service is restarting or closed (HTTP 503): <text>. Wait a few seconds and retry once.`
+- The reference is minted and recorded by the **one reporter**: an injected `reportFailure` port with the shape of
+  `ErrorReporter['record']` from `@jini-ai/core/errors/reporter`. The record holds status, route, content type and
+  body length, never body text. Wiring (finding 19) is explicit and tested through the assembled host:
+  `bin/serve.ts` (`createErrorReporter`) → `RunToolHostOptions` → `McpToolServerOptions` → `McpToolContext` →
+  `daemonCallOptions` → `DaemonRequestOptions`.
+- `DaemonHttpError` gains `code`, `requestId`, `details`, so callers stop parsing text.
 
-- Decode with `decodeApiError` (nested and flat). Keep `code`, `message`, `requestId`/`errorId`.
-- Non-JSON body: the first non-empty line, tags stripped, sanitized, at most 200 characters.
-- A well-formed envelope keeps today's form `HTTP <status>: <CODE>: <message>` byte for byte (tests in both repos read
-  it) and gains ` Error ID: <id>.` when the server sent one. Only answers that would be a status alone change.
-  Exact texts are in sheet S8; in short:
-  - 5xx without a readable envelope: `The tool service failed (HTTP 500). Server said: "<first line>". Reference: <ref>. Do not retry the same call; give the user this reference.`
-    `<ref>` comes from an injected `ids` port and is written once to the MCP process log with status, route, content
-    type and body length (no body text).
-  - 503: `The tool service is restarting or closed (HTTP 503): <detail>. Wait a few seconds and retry once.`
-  - a flat `{ error: "<text>" }` answer: `HTTP 404: <text>` (decoded instead of dropped).
-- `DaemonHttpError` keeps `status` and gains `code` and `requestId`, so callers stop parsing text.
+Server (blocker 3): **no Jini code**. Tovu adds `server/inbound/assistant/daemon-error-boundary.ts`, an Express error
+handler mounted last on the scope app. Body-parser refusals keep their status (413, 400) with a plain sentence;
+everything else goes through the existing `reportRouteInternalError` (`@jini-ai/http-kit`) with `onInternalError`
+bound to Tovu's existing sink `reportServerFailure`, so one failure is one incident whose id is the `requestId` the
+caller sees. The three flat answers become `createApiError` envelopes. This matches R7 §3.5, which keeps the host
+parser and host gates as Express middleware in Tovu.
 
-Server: `http-kit` gains `mountJsonErrorBoundary({ app }, { onInternalError, logSource })`, a last middleware that
-answers JSON for any error or unmatched API path: body-parser refusals keep their own status (413, 400) with a plain
-sentence; everything else is `reportRouteInternalError(...)`, so it carries a `requestId` and reaches the host's
-incident sink. Tovu mounts it last on the daemon app and turns the three flat `{ error: "…" }` answers into
-`createApiError` envelopes with codes.
+Coordination with the error-system design (nothing planned twice): its E2 (reporter, id function in core) has landed
+on merge-a and is what S8 binds to. Its E4 makes `reportRouteInternalError` and `reportServerFailure` call the
+reporter; S9 uses both as they are, so E4 converts this site with its other call sites and S9 needs no second edit.
+Its site list has no row for `daemon-client.ts` or `delegated-tools.ts`.
 
-Coordination with the error-system design (no change planned twice):
-
-- That design's E4 makes `reportRouteInternalError` call `createErrorReporter` and E2 moves the `ERR-…` id minting to
-  core. M5 **calls** `reportRouteInternalError` and takes its `ids` port from the same core function once E2 lands.
-  It adds no second reporter, no second id format and no new envelope.
-- If S9 runs before E2/E4, it uses today's `reportRouteInternalError` (UUID `requestId`) and E4 converts it with the
-  other six call sites. The sheet says so. S8's exact-text tests take the id as a fixture value, so they do not change.
-- The error-system site list has no row for `daemon-client.ts` or `delegated-tools.ts`; nothing here duplicates its sweeps.
-- R7 (daemon `src/http` → `ServerRoute[]`) moves the route files. S1 and S9 touch `delegated-tools.ts` and the Tovu
-  scope file. Order is in INDEX §3.
-
-### M6. Chained pins for same-target batch items (Jini `core/src/approval.ts`, Tovu theme adoption)
+### M6. Same-target batch items chain on what the batch itself committed (Jini `core`, Tovu theme adoption)
 
 ```ts
-// added option on createPreparedBatchHandler only
-chain?: { targetKey(required: { prepared: TPrepared }): string;
-          repin(required: { prepared: TPrepared; ctx: ToolExecutionContext }): TPrepared | Promise<TPrepared> }
+// core/src/approval-batch-chain.ts (new)
+createChainedBatchHandler<TPrepared, TCommitted>({ prepare, run, targetKey, successor }, { maxItems, targetNoun })
+//   run(...)       → Promise<{ output: unknown; committed: TCommitted | undefined }>
+//   targetKey({ prepared }) → string
+//   successor({ prepared, committed, previous }) → TPrepared     // synchronous, no I/O
 ```
 
-- After an item runs successfully, the next item **with the same key** is re-pinned before its own `run`. Items with
-  other keys keep the pin taken at prepare time.
-- If an item fails, later items with the same key are not run and report
-  `Skipped: an earlier change to this file in the same call failed.` Items for other files still run. The result lists
-  every item as applied, failed or skipped. A batch never reports "nothing was replaced" after something was.
-- Only for direct batches. A batch that asks a person keeps one pin per item, because the person approved a
-  description computed from the first bytes. Its refusal gets the corrected words.
-- Protection kept: a change made by anyone else between two items still refuses, because `repin` reads the version
-  right after this call's own write and the existing check in `run` compares again before the next write. The window
-  between a write and the re-read is the same size as the existing window between check and write; S10 states it and does not claim to remove it.
-- New wording, both sites: `This theme file changed after it was read. Read it again and retry; this change was not applied.`
+- **No re-read (blocker 2).** After an item's `run`, the next item with the same key is pinned to the version that
+  `run` reported it committed. In Tovu that value is the digest of the temp file taken inside `writeFileAtomically`
+  before the rename, which already happens with no `await` after the pin check. A foreign write in any window
+  (before the successor is computed, after it, or during asynchronous preparation) therefore fails the next item's
+  existing pin checks, and is never adopted as a baseline.
+- If an item fails, later items with the same key report `Skipped: an earlier change to this file in the same call failed.`
+  Items for other targets still run. The result lists every item as applied, failed or skipped.
+- Only for direct batches. The asking variant is untouched; `createPreparedBatchHandler` is untouched.
+- New wording, both Tovu sites: `This theme file changed after it was read. Read it again and retry; this change was not applied.`
 
-### M7. Declared repairs in the schema (Jini `core` normalizer, MCP-local opt-in, Tovu data)
+### M7. Declared repairs in the schema, one contract for both call paths (Jini `core`, `mcp`, `daemon`; Tovu data)
 
 - `aliases` (exists): add `sourceId` on `theme_duplicate.sourceThemeId`.
-- `clamp: true` (new) on a numeric property with `minimum`/`maximum`: an out-of-range number is set to the bound with a
-  value-free note (`limit was lowered to its maximum, 8000`). Opt-in per property (OD-8). Never on a property that
-  selects, addresses or authorizes something. MCP-local `read_tool_result` opts in through `schemaInput`.
-- `obtainFrom: "<tool id>"` (new) on a required property: the missing-argument message becomes
-  `supply required argument \`themeId\`; list valid values with theme_list`. M2's lint checks the id.
-- Gate: a registry-wide test that every integer property named like a page or size control (`limit`, `offset`,
-  `pageSize`, `maxResults`, `width`, `height`, `waitMs`) with a `maximum` states `clamp` as true or false. Report-only
-  until its list is classified, then strict.
-- One domain message edit that no keyword covers: the `pages_read_html` not-found text names the listing tool.
-- Both extension keywords are published with the schema, as `aliases` already is. S12 checks the three schema
-  consumers that might reject unknown keywords: the MCP validator (`@cfworker/json-schema`, strict flag at
-  `tool-protocol.ts:246`), `parseMcpToolInputSchema`, and each CLI's schema loader (the Gemini union-schema fix shows
-  one of them is strict).
+- `clamp: true` on a numeric property with a bound: an out-of-range number is set to the bound with a value-free note.
+  Implemented once in `@jini-ai/core/tool-input-repairs` (`clampDeclaredBounds`) and called by `normalizeToolInput`
+  (typed MCP tools, the registry's execution path, batch inputs). MCP-local tools do not run that normalizer
+  (finding 11: `schemaInput` is off for `search_tools` and `read_tool_result`), so they opt in to the clamp alone with
+  `argumentNormalization.clamp`; their other refusal texts do not change. The MCP layer's silent integer-string
+  coercion stays silent: a clamped `"8300"` yields one note.
+- `obtainFrom: "<tool id>"` on a required property. Typed path: the MCP validator's message gains
+  `; list valid values with theme_list`. Gateway path: the handler refuses in the daemon, so the route's validation
+  answer appends ` List valid values for \`themeId\` with theme_list.` from the registered descriptor. Both call
+  `missingArgumentGuidance`. A tool the run cannot see is never named.
+- Gate (Tovu): every integer page, size or wait control with a `maximum` declares `clamp` as true or false.
 
-### M8. A budget computed from the request (Jini `diagnostics/web-evidence`, Tovu adoption)
+### M8. Work deadline, fallback reserve and hard stop, defined together (Jini `diagnostics`; Tovu adoption)
 
-```ts
-// diagnostics/src/web-evidence/capture-budget.ts (new, pure)
-export function captureBudget(required: { settleMs: number; fullPage: boolean; waitForSeconds?: number },
-                              optional?: { baseMs?: number; fullPageMs?: number; capMs?: number }): { totalMs: number; reserveMs: number };
-```
-
-- Total = base 20 s + requested wait + a full-page allowance, capped (OD-5 proposes 45 s). The reserve for the
-  fallback frame stays 4 s.
-- Best effort is widened: once navigation has committed, a budget timeout in the wait, load or scroll phase takes the
-  current frame with the existing note instead of failing. A timeout before navigation commits still fails, with the
-  phase named: `this site did not answer within N seconds` versus `this site loaded but did not settle…`.
-- The message at `web-screenshot.ts:230` states the real number used.
-- The outer race keeps its job (a hung renderer) with the computed total.
+For a capture with hard limit `T` and reserve `R`: ordinary work must end by `T − R`; if navigation has committed, the
+fallback (`consume` on the current page) runs in `[T − R, T]`; at `T` the existing hard signal closes the context and
+Tovu's outer race drops the browser. The fallback never needs time after `T` (finding 12). A caller cancel is not a
+deadline and never starts fallback work. `captureBudget(...)` returns `{ totalMs, softDeadlineMs, reserveMs }`; the
+total grows with the request up to a host cap (OD-5). S14a first adds a clock port so the three deadlines can be
+driven by one fake clock. Messages state the real number.
 
 ### M9. Progress from one place, a long-wait fetch, timeouts as adapter data (Jini `mcp`, `agent-runtime`)
 
-- `mcp/src/server/call-progress.ts` (new): `startCallProgress({ extra, scheduler, intervalMs })` returns `stop()`.
-  When the request carries `_meta.progressToken` and `extra.sendNotification` exists, it sends
-  `notifications/progress` with an increasing counter and the fixed message `waiting` every 25 s. No token: it does nothing.
-  It is started and stopped in the one `tools/call` handler, so the gateways, typed tools, local tools and `wait_for`
-  are all covered. It stops on settle and on `extra.signal` abort, before the response is written; a failed send stops it and is logged once.
-  It carries no tool output, no card text and no ids (lessons 18, 19).
-- The composition root (`mcp/src/bin/serve.ts`) passes a `fetchImpl` whose response-header wait is unlimited. The bound
-  on a delegated call stays what it is today: the caller's signal and the run. Short calls keep `DEFAULT_TIMEOUT_MS`.
-- Per-CLI behaviour is adapter data: each agent def declares `mcpToolCall: { sendsProgressToken, resetsOnProgress,
-  timeoutConfig? }`, and the MCP config writers emit the vendor's own timeout key where one exists. **None of these
-  values were verified here.** S16 measures them with a recording fake MCP server before writing any value; a CLI that
-  cannot be measured gets no entry and is listed as unknown.
-- Approvals: unchanged owner (the chat-card exchange). When a CLI still aborts, the existing signal path expires the card.
+- `mcp/src/server/call-progress.ts`: when the request carries `_meta.progressToken`, send `notifications/progress`
+  (`{ progressToken, progress: n, message: "waiting" }`) every 25 s from the one `tools/call` handler; stop on settle
+  and on abort; carry no output, no arguments, no ids (lessons 18, 19).
+- **Progress is a keepalive to the CLI only (finding 13).** It does not reach the executor. The 120 s
+  human-approval window and "zero effects after expiry or cancel" are pinned by characterization tests that must
+  still pass unchanged after the pump lands. Changing 120 s is OD-10.
+- `bin/serve.ts` passes a `fetchImpl` whose response-header wait is unlimited, if S15's first step proves the wall.
+- CLI coverage (finding 14): everything in M1 to M8 sits behind the transport, so it applies to every CLI with a tool
+  transport. S16a commits a support matrix with a measured row for Claude, Codex, OpenCode and Antigravity and two
+  recorded `unsupported` rows: Gemini (retired def) and Aider (no MCP client, so no tool call exists to fix), OD-11.
+  S16b emits a timeout key only for measured CLIs and schedules the Tovu binding in the same sheet.
 
-### M10. One browser integration at a time (Jini `daemon` launch port, Tovu wiring)
+### M10. One browser integration at a time per daemon (Jini `daemon` lease; Tovu composition)
 
-- `browserIntegrationLease` port on the launch path: a run that asks for `chromeIntegration: true` takes the host
-  lease; a second run launches with `false` and gets one guidance sentence: `Another chat is using the browser
-  integration. Use web_screenshot_page and page tools.` The lease is released on every run ending, including crash and cancel (lesson 21).
-- Generic by category: the def already declares browser integration as a capability; the lease is not Claude-specific.
-- Default (OD-4): proposal is off by default, on when the owner turns it on. With M8 the common reason to reach for
-  Chrome shrinks.
+- `createExclusiveRunLease()` (pure, `@jini-ai/daemon/exclusive-run-lease`). **One instance per daemon process**,
+  created in `agent-daemon-server.ts` beside `idlePark` and passed to every `createSiteScope` (finding 16).
+- A run that would get the integration acquires; a second run launches with `false` and one guidance sentence.
+  Release is idempotent and happens on the run's terminal wait (completed, failed, cancelled, launch failure,
+  scope disposal) **and** when the executor's run promise settles (a child that exited without a terminal event).
+- Default (OD-4, finding 15): changed in the registered definition and the fallback together; stored choices are not rewritten.
 
 ## 4. Gates that stop each class from coming back
 
@@ -399,14 +450,14 @@ export function captureBudget(required: { settleMs: number; fullPage: boolean; w
 |---|---|---|
 | C1a | Route test: unknown id on either gateway is `404 UNKNOWN_TOOL` with the exact sentence; guard rule: no product tool name in `packages/**` | Jini daemon tests, `pnpm guard` |
 | C1b | `check:tool-guides` (strict after S4b), pinned-fit test | Tovu check, Jini `scripts/` |
-| C1c | Read-truth registry test | Tovu test |
-| C2 | Table test of real masked examples through both layers; property test that a credential-shaped value is still masked even when it is in the vocabulary sources that must not be trusted | Jini core + mcp tests |
-| C3 | Property test: for any status 400–599 and any body the message is never only a status and always has an id or reference; wire test that a throwing middleware answers JSON with a request id | Jini mcp tests, Tovu integration test |
-| C4 | Core test for chain and skip; Tovu test with three edits to one file | Jini core, Tovu |
+| C1c | Read-wording registry test; the existing risk corroboration in the registration kit | Tovu test, Jini core |
+| C2 | Table test of real masked examples, each redactor in its own package plus one Tovu end-to-end test; property test that a credential-shaped value is still masked even when it is in the vocabulary sources that must not be trusted | Jini core + mcp tests |
+| C3 | Property test: for any status 400–599 and any body the message is never only a status, always has an id or reference, and never contains body text of an unrecognized answer; wire test that a throwing middleware answers JSON with a request id | Jini mcp tests, Tovu integration test |
+| C4 | Core test for chain and skip; Tovu tests with three edits to one file and a foreign write in each of three windows | Jini core, Tovu |
 | C5 | Bounds-declared registry test; normalizer tests | Jini core, Tovu |
-| C6 | Pure budget tests; fake-page tests per phase | Jini diagnostics, Tovu |
-| C7 | Fake-scheduler test of the pump (token, no token, abort, settle); real-server test of the header wait | Jini mcp |
-| C8 | Lease tests (two runs, release on each ending) | Jini daemon |
+| C6 | Pure budget tests; one-clock tests of work deadline, reserve and hard stop; cancel never starts a fallback | Jini diagnostics, Tovu |
+| C7 | Fake-scheduler test of the pump; real-server test of the header wait; pinned approval-window tests; CLI matrix test | Jini mcp |
+| C8 | Lease tests (two site scopes, release on six endings); default read through a fresh settings repository | Jini daemon, Tovu |
 
 ## 5. Lessons applied (the ones that shaped this plan)
 
@@ -420,16 +471,23 @@ export function captureBudget(required: { settleMs: number; fullPage: boolean; w
 - 20: making the screenshot deadline configurable revisits the outer race and the message that quoted the constant.
 - 21: the lease is released on process death, not only on promise settlement.
 - 24: un-masking names is separated from disclosure; both directions of old client × new server are covered in S8 and S9.
+- *(rev 2)* 27: host-preset and Express-in-Tovu exceptions applied before planning (S9 has no Jini code).
+- *(rev 2)* 29 / 30: `sheets/README.md` is one contract with a command per STOP; red tests are never committed alone;
+  split sheets (S2a/b, S12a/b, S14a/b, S16a/b) each compile alone, and a Jini part is always committed before the Tovu part that reads it.
+- *(rev 2)* 31: every security or deadline test names its seam; where none exists the sheet creates it first (S14a clock, S11 file port).
+- *(rev 2)* 34: vocabulary is built before the first lossy pass (M4). 35: the fallback reserve sits inside every hard deadline (M8).
+  36: call text uses the publisher's wire name (M2). 37: the guide lint is scoped by provenance with negative fixtures (M2).
 
 ## 6. Not verified
 
-1. Nothing was executed. All claims come from reading the two commits named at the top.
-2. The number of registered tools, the number of guide sites, and whether the named set fits the 64-tool limit (S4a measures).
-3. Which redaction layer masks each audit example (S6 measures).
-4. Which bare-status source caused the 11-09 storm; whether `agent-daemon-server.ts` adds an error handler above the scope app.
-5. The 300 s response-header wait of Node's fetch on the versions in use (S15 measures).
-6. Whether each agent CLI sends a progress token, resets its timer on progress, or has a per-server timeout key (S16 measures).
-7. How a failed plan-mode batch reaches the model today (S10 measures).
-8. `web_fetch_page sitePath`, `web_screenshot_page width`, and the publish "status could not be confirmed" case (the audit marks it unclear; not planned here).
-9. `integ/merge-b-2026-11-16` was not read. It was moving in parallel and may have changed the cited lines.
+1. Nothing was executed. All claims come from reading the commits named at the top.
+2. The number of registered tools, the number of guide sites, and whether the named descriptors fit the 64-tool limit (S4a measures).
+3. Which bare-status source caused the 11-09 storm (the parent app adds no error handler: verified in rev 2).
+4. The 300 s response-header wait of Node's fetch on the versions in use (S15 measures).
+5. Whether each agent CLI sends a progress token, resets its timer on progress, or has a per-server timeout key (S16a measures).
+6. How a failed plan-mode batch reaches the model today (S10 measures).
+7. `web_fetch_page sitePath`, `web_screenshot_page width`, and the publish "status could not be confirmed" case (S13 step 0; the last is not planned here).
+8. Whether the audit's 300 s approval losses happened before or after the 120 s approval window existed (S15 step 0a pins today's behaviour).
+9. Whether the MCP validator and each CLI's schema loader accept the two new schema keywords (S12a step 0).
 10. Tool names leaking into assistant replies (audit item 16) is a prompt and UI matter and is not planned here.
+11. No registry release process was read; REL nodes in INDEX §3 name what must be released, not how.
