@@ -1,40 +1,81 @@
-> **REVISION 2 HOLD (2026-11-17): do NOT dispatch this sheet as written.** The Codex judge's finding(s) below were checked against the code and accepted; the redesign is not written yet (INDEX §7 and "Revision 2 - judge response"). Until this banner is removed the sheet is input for the next planning run, not an executor brief.
-> Finding 10: `features/settings/repo.ts` has no `expectedRevision` (0 matches); writes are unconditional upserts and the revision lock orders ledger commits. Either the lost-updates lane lands first and this sheet is regenerated, or the test characterizes today's behaviour. Token action/target checks are not in the store adapter (`redeem` takes `{ token, now }`). Prerequisite text: xpkg `R11 (db)` no longer exists (the `db → platform` edge is gone on merge-a); nothing to wait for there.
+# S5 (revision 2) — settings repo, confirmation-token store, verified-origin repo -> `@jini-ai/db/{settings,gated-mutations,verified-origin}`
 
-# S5 — settings repo, gated-mutation token store, verified-origin repo -> `@jini-ai/db/{settings,gated-mutations,verified-origin}`
-
-Template: T-SQLREPO. Facts: `S5-settings-token-origin-sql.facts.md` (7 files, 943 lines, 12 test files).
-All three ports live in `@jini-ai/core` (`core/settings/ports.ts:20 SettingsRepoPort`, `core/gated-mutations/token.ts:14
-TokenStorePort`, `core/contracts/server/verified-origin/ports.ts:29 OriginSettingRepoPort`). Kysely may not enter core
-(COMMON 21), so their SQL adapters go to `@jini-ai/db`, beside the existing `db/secrets-vault/repo.sql.ts` (OD-1).
-CLASSIFY's target for origin-repo (`http-kit/verified-origin`, "adds @jini-ai/db") is REJECTED: http-kit has no kysely and
-may not import db.
+Template: T-SQLREPO rev 2. Facts: `S5-settings-token-origin-sql.facts.md` (7 files, 943 lines, 12 test files).
+The three ports are declared in `@jini-ai/core` (`core/settings`, `core/gated-mutations`, `core/contracts/server/verified-origin`);
+kysely may not enter core, so their SQL adapters go to `@jini-ai/db`, beside `db/secrets-vault/repo.sql.ts` (OD-1).
+`@jini-ai/db` already declares kysely. Revision 2 fixes judge finding 10: the settings repo has NO expected-revision
+contract and the token adapter does not see the action binding; both tables now describe what the code does.
 
 ```
-id: S5a-settings-sql (~170k) | S5b-token-store-sql (~90k) | S5c-origin-sql (~130k)      file-disjoint, parallel
-jini_target: db NEW subpaths ./settings, ./gated-mutations, ./verified-origin (node), each {repo.sql.ts, index.ts} (naming follows db/secrets-vault)
-prerequisites: S0 green (P1: `setting_revisions`, `gated_mutation_tokens:<token>`, `origin_settings:<ws>`). OD-1 YES.
-  Untangle R11 (db): landed or no TSV row on `packages/db/package.json`.
-  S5a: lost-updates design status on settings (settings writes carry `expectedRevision`; `setting_revisions` is its lock):
-  if a lost-updates sheet edits `features/settings/repo.ts`, it runs first.
+id: S5a-settings-sql (~180k) -> S5b-token-store-sql (~100k) -> S5c-origin-sql (~130k)     serial (one manifest: packages/db/package.json)
+jini_target: db NEW subpaths ./settings, ./gated-mutations, ./verified-origin (node); files named like db/secrets-vault (`repo.sql.ts`, `index.ts`)
+prerequisites: S0 DONE (P1: `setting_revisions`, `gated_mutation_tokens:<token>`, `origin_settings:<ws>`; P6). OD-1 YES.
+  No xpkg lane owns `packages/db/**` (xpkg R11 no longer touches db).
+successor_of: S0.  S6a follows on the same manifest.
 ```
 
-## split
-- `features/settings/repo.ts` `SqlSettingsRepo` (426 lines, one class) MOVE; `repo.sqlite.ts` STAY-WIRING (3 prod + 4 tests). The class is the largest single class in lane S: measure every method; expect to extract the revision-append sequence into a private helper.
-- `platform/db/repos/gated-mutation-token-repo.ts` `SqlTokenStore` MOVE. It imports `isRedeemable`, `ConfirmationTokenRecord`, `TokenStorePort` from TOVU's `contracts/core/gated-mutations/token.ts` (146 lines) while Jini has `core/gated-mutations/token.ts` (123 lines). They are NOT assumed identical: step 0 runs `diff <(sed 's/[[:space:]]*$//' apps/website/src/contracts/core/gated-mutations/token.ts) packages/core/src/gated-mutations/token.ts` and records every differing declaration. If `isRedeemable` or the record shape differs: SKIP S5b and report (a redeemability rule is a security predicate; picking one silently changes which confirmation tokens are honoured). `platform/db/sqlite/gated-mutation-token-repo.sqlite.ts` STAY-WIRING.
-- `platform/db/repos/origin-repo.ts`: `SqlOriginSettingRepo` MOVE. `seedDevCapabilityOriginOn`, `registerConfiguredOriginOn`, `ConfiguredOriginWriteResult`: read first; label each MOVE (generic write of a verified origin) or STAY-PRODUCT (dev-capability seeding is a host boot policy; default STAY). `sqlite/origin-repo.sqlite.ts` STAY-WIRING. `features/origin/configured-origin.ts` (82 lines; imports `contracts/core/runtime-mode.ts`) STAY-PRODUCT: it decides from the host's runtime mode; not edited.
-
-## Characterization (T0)
-| Risk | Test | Mutation -> RED |
+## S5a — settings
+**What it is today.** `features/settings/repo.ts` (426): lines 1-149 are row types and mappers, `SqlSettingsRepo` is
+:150-426. Value writes (`saveGlobalValue` :257, `saveWorkspaceValue` :268, `saveUserValue` :281) are **unconditional
+upserts**: there is no `expectedRevision` anywhere in the file. `appendRevision` (:350) takes `lockKey("setting_revisions")`
+inside a transaction to allocate the next `seq`: it ORDERS ledger rows, it does not reject a stale writer.
+`deleteWorkspaceValue` / `deleteUserValue` (:322, :332) remove an override row (the value falls back to its default);
+they exist today and move verbatim.
+**split.** Mappers and row types (:1-149) -> `packages/db/src/settings/repo.rows.ts`; `SqlSettingsRepo` -> `repo.sql.ts`
+(277 lines); `features/settings/repo.sqlite.ts` STAY-WIRING (3 prod + 4 tests). port_compat (step 0):
+`rg -n "export interface SettingsRepoPort" -A60 packages/core/src/settings/ports.ts` vs the 20 methods listed by
+`rg -n "^  async " apps/website/src/features/settings/repo.ts`; positional methods (`getGlobalValue(settingId)`,
+`saveDefinition(record)`, `transaction(fn)`) keep the PORT's signature.
+Tables: `setting_definitions`, `setting_values_global`, `setting_values_workspace`, `setting_values_user`,
+`setting_revisions` (confirm against the facts file "tables touched"; a name not there = STOP).
+**characterization (T0).**
+| Risk | Test (unmoved code, real kernel) | Mutation -> RED |
 |---|---|---|
-| Lost update on a setting | two writers with the same `expectedRevision`: exactly one succeeds, one gets the conflict; a no-op write (same value) appends no revision and bumps nothing (LESSONS 17) | drop the revision predicate; append unconditionally |
-| Revision history gap | concurrent appends under a recording kernel take `setting_revisions` before reading the last revision | remove the lock |
-| Confirmation token redeemed twice / after expiry / for another action | redeem twice -> second refused; expired -> refused; wrong action/target binding -> refused; all under `gated_mutation_tokens:<token>` | make redeem not consume; remove the lock |
-| Verified origin accepted for the wrong workspace or downgraded | two workspaces; write then read; a second write with a different origin follows today's rule (pin it) | drop the workspace predicate |
-| Origin check elsewhere in the chain (LESSONS 13) | not moved: one route-level test that a state-changing admin request with a non-matching Origin is refused, per security profile; it must fail if the origin repo binding returns nothing | bind an empty repo |
+| Revision sequence gap or duplicate | two concurrent `appendRevision` calls: `seq` values are consecutive and distinct; recording kernel: `transaction` -> `lockKey("setting_revisions")` -> the max-`seq` read | remove the lock; read `seq` before the lock |
+| A value write silently becomes conditional (or stops being last-write-wins) | two `saveWorkspaceValue` calls for one setting: the second wins, one row; same for global and user scope. This PINS today's behaviour; it is not a lost-update guard | add a version predicate; change the conflict target |
+| Scope leak | workspace A's and user U's values are not returned for workspace B / user V by each `get*` / `list*` | drop a predicate |
+| Reset removes the wrong override | `deleteUserValue` removes exactly `(workspace, principal, setting)`; the workspace and global rows stay; revisions are untouched | drop the principal predicate |
+| `listRevisionsSince` ordering / bound | fixture of 5 revisions: exact `seq` list for a cursor in the middle | change the comparison |
+| Definition lookup by `workspaceId: null` vs a workspace | active definition resolution for both, as today | drop the null branch |
+**Lost-updates.** The lost-updates design names this file. Either order works, never the same wave: if it lands first,
+`rg -c "expectedRevision|expectedVersion" apps/website/src/features/settings/repo.ts` is non-zero and the facts diff
+fails -> STOP, and this table is regenerated against the new contract before S5a runs.
 
-## stops
-- Any change to `settings` keys, value encodings or the revisions table (stored format; no N-1 migration is planned because
-  nothing stored changes — if a change appears necessary, STOP).
-- The env-schema design (`plan/env-schema-design-2026-11-16`) renames a setting or an env-backed default used here.
-Not verified while planning: the token.ts diff; bodies of all three repos; origin-repo's three non-class exports.
+## S5b — confirmation-token store
+**What it is today.** `platform/db/repos/gated-mutation-token-repo.ts` `SqlTokenStore` implements TOVU's `TokenStorePort`
+from `contracts/core/gated-mutations/token.ts`. That Tovu file re-exports `isRedeemable` and `ConfirmationTokenRecord`
+FROM `@jini-ai/core/gated-mutations` (so the redeemability predicate and the record shape are already the Jini ones),
+but declares its own port with positional `save(record)` and an extra `count()`; core's port is `save(required: { record })`.
+`tryRedeem({ token, now })` (:79) reads, checks `isRedeemable`, and conditionally writes inside one transaction under
+`lockKey("gated_mutation_tokens:<token>")`. It receives only `{ token, now }`: **the plan / scope / confirmer binding is
+checked by `redeemToken` in `@jini-ai/core/gated-mutations`, not here** (not lane code, not moved).
+**split.** `SqlTokenStore` MOVE -> `packages/db/src/gated-mutations/repo.sql.ts`, implementing CORE's `TokenStorePort`
+(`save({ record })`), `isRedeemable` imported from `@jini-ai/core/gated-mutations`; `count()` moves as an extra method.
+`platform/db/sqlite/gated-mutation-token-repo.sqlite.ts` STAY-WIRING and becomes the shape adapter: `SqliteTokenStore`
+keeps implementing Tovu's port, `save(record)` -> `inner.save({ record })` (an argument-shape adaptation, allowed by xpkg
+COMMON; binding test: a recording fake `inner` receives `{ record }` with the same object). Tovu's `token.ts` is not edited.
+| Risk | Test (T0) | Mutation -> RED |
+|---|---|---|
+| Token redeemed twice | two concurrent `tryRedeem`: exactly one `{ redeemed: true }`; stored status `redeemed` once; recording kernel: lock before the read | remove the lock; make the write unconditional |
+| Expired / unknown / already expired by `expire` | each returns `redeemed: false` with the record (or `null` for unknown), fixed `now` | skip `isRedeemable` |
+| The store drops a binding field the service checks | `save` then `findByToken`: `planHash`, `scopeId`, `confirmerPrincipalId`, `expiresAt` round-trip; then Tovu's own redeem wrapper over the SQL store refuses a mismatched plan exactly as it does today over the memory store (read `token.ts` for the wrapper's name; if it exposes no such check, record that and add nothing) | null one mapped column |
+
+## S5c — verified origin
+`platform/db/repos/origin-repo.ts`: `SqlOriginSettingRepo` (:71-110) MOVE -> `packages/db/src/verified-origin/repo.sql.ts`;
+`registerConfiguredOriginOn` (:206, read + write under `lockKey("origin_settings:<ws>")`) and `ConfiguredOriginWriteResult`
+MOVE with it as `registerConfiguredOrigin({ kernel, tables, workspaceId, ... }, _optional = {})`;
+`seedDevCapabilityOriginOn` (:112-142) **STAY-PRODUCT** (dev-capability seeding is host boot policy) in the reduced Tovu
+file, calling the Jini repo. `sqlite/origin-repo.sqlite.ts` STAY-WIRING. `features/origin/configured-origin.ts` (82;
+decides from the host's runtime mode) STAY-PRODUCT, not edited.
+| Risk | Test (T0) | Mutation -> RED |
+|---|---|---|
+| Origin read for the wrong workspace | two workspaces: `findByWorkspaceId`, `findRedirectAllowlist`, `findEgressAllowlist` each return only their own | drop a predicate |
+| Configured origin write races / reports the wrong result | same origin twice: `inserted` then `unchanged` and no second write; changed origin: `updated`; recording kernel: lock before the read | remove the lock; always write |
+| The gate that consumes the repo stops consulting it (LESSONS 13; not moved) | one route-level test per shipped security profile: a state-changing admin request with a non-matching `Origin` is refused, and the same request is ALSO refused when the bound repo returns no origin (pin today's outcome for that case, whatever it is), while a matching `Origin` succeeds (positive control) | bind a repo that returns the request's own origin |
+
+## commits / stops
+Each run T0 -> J1 -> T1 (T-SQLREPO §5). Trees after each T1 compile alone (three disjoint source files).
+- STOP: any change to setting keys, value encodings or the revisions table (S0-P6; no migration is planned because nothing stored changes).
+- STOP: the env-schema design renames a setting or an env-backed default used here (`git log --oneline $BASE..origin/<integration> -- apps/website/src/features/settings` shows its commit): re-take facts.
+Not verified while planning: bodies of the settings methods beyond the lines cited; `origin-repo.ts:6-11` imports and
+`:112-205`; the route-level test's profile list (`rg -n "securityProfile|SECURITY_PROFILE" apps/website/src/server -g '!**/__tests__/**'`).

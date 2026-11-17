@@ -1,110 +1,90 @@
-> **REVISION 2 HOLD (2026-11-17): do NOT dispatch this sheet as written.** The Codex judge's finding(s) below were checked against the code and accepted; the redesign is not written yet (INDEX §7 and "Revision 2 - judge response"). Until this banner is removed the sheet is input for the next planning run, not an executor brief.
-> Finding 8: row 61 describes an MFA-store passkey read (the only `owner_passkeys` operation in `mfa.repo.ts:48-53` is the delete in `clear`); row 59 treats `factor` + `saveFactor` as one locked sequence (each opens its own transaction; the anti-replay unit is the caller's outer identity transaction, pinned by `mfa.repo.dialects.test.ts:59-67`).
+# S3 (revision 2) — identity SQL adapters -> `@jini-ai/user-management/server/sql`
 
-# S3 — identity SQL adapters (principals, users, sessions, roles, policies, MFA, passkeys, recovery codes) -> `@jini-ai/user-management/server/sql`
-
-Security code. Template: T-SQLREPO. Facts: `S3-identity-sql.facts.md` (9 files, 1,144 lines, 19 test files).
-Serialized with U3 (both edit `features/identity/repo.ts`, `repo.sqlite.ts`, `wiring.ts`): S3 first, then U3.
+Security code. Template: T-SQLREPO rev 2. Facts: `S3-identity-sql.facts.md` (9 files, 1,144 lines, 19 test files).
+Revision 2 fixes judge finding 8 (the MFA / passkey / recovery rows named behaviour the code does not have), adds the
+file partition the 710-line source needs (finding 12 class), and withdraws the `SqlUserPurge` split.
+Repos are public: this sheet names security checks by class and location only.
 
 ```
-id: S3-identity-sql      (two runs: S3a = repo.ts minus SqlApiKeyRepo; S3b = the three owner-factor stores + user purge)
-feature: website/features/identity (SQL adapters only)
-jini_target: user-management NEW subpath ./server/sql (runtime node)
-  NEW packages/user-management/src/server/sql/{tables.ts,repo.rows.ts,repo.ts,transactions.ts,mfa.ts,passkeys.ts,recovery-codes.ts,index.ts}
+id: S3a-identity-repos (~220k, cut point after J1)   the nine Sql*Repo classes + createIdentityTransactions
+    S3b-owner-factor-stores (~120k)                  createMfaStore, createPasskeyStore, createRecoveryCodeStore
+jini_target: user-management NEW subpath ./server/sql (node)
 prerequisites:
-  - S0 green + mutations red (P1 identity key, P5 token hashes, P6 shapes).
-  - P-DEP: `kysely` declared by @jini-ai/user-management (INDEX prerequisite). Check: `node -e 'const j=require("./packages/user-management/package.json");if(!((j.peerDependencies||{}).kysely))process.exit(1)'` in the Jini clone. Exit 1 = SKIPPED "kysely not declared" (never lazy-import, never add it yourself).
-  - Untangle R3 (user-management): either landed, or `rg -n "packages/user-management/(package.json|src/server/index.ts)" <untangle>/sheets/*.repoint.tsv` prints nothing. Else run after R3.
-  - C3 landed: `rg -n "export interface StorageKernel" packages/core/src/contracts/storage/kernel.ts` prints a line (verified present on Jini origin/refactor/terra 02edbb68).
+  - S0 DONE (P1 `identity:<ws>`, P5c frozen stored digests, P6).
+  - xpkg C9c and R3b landed (they own `packages/user-management/**` in waves 1-2): `git log --oneline -1 -- packages/user-management` names them.
+  - C3 storage contract: `rg -n "export interface StorageKernel" packages/core/src/contracts/storage/kernel.ts`.
+  - lost-updates: if its sheet is scheduled on `features/identity/repo.ts`, it runs first; re-take facts.
+successor_of: S0.  Then U3a, U3b, U1a (same manifest, same Tovu hot files): serial, INDEX §4.
 ```
+**`kysely` (replaces round-1 P-DEP).** `packages/user-management/package.json` does not declare it (checked on Jini
+`af33fcdb`). S3a's J1 adds it as an optional peer exactly the way `packages/cms/package.json` does (peer + `peerDependenciesMeta`
+optional + the `jini` opt-in message naming `@jini-ai/user-management/server/sql`) and commits `pnpm-lock.yaml` in the same commit.
 
-## port_compat (step 0; a mismatch in any member = SKIPPED)
-| Jini port (print with) | Tovu implementer | What to compare |
+## S3a
+**partition.** The nine classes span `repo.ts:70-646` (577 lines): one Jini file would break the 500 limit.
+| New file (`packages/user-management/src/server/sql/`) | From `features/identity/repo.ts` | ~Lines |
 |---|---|---|
-| `PrincipalRepoPort`, `UserRepoPort`, `SessionRepoPort`, `RoleRepoPort`, `PolicyRepoPort`, `PolicyPermissionRepoPort`, `RolePolicyRepoPort`, `PrincipalRoleRepoPort`, `PrincipalPolicyRepoPort` — `sed -n 1,200p packages/user-management/src/core/ports.ts` | the nine `Sql*Repo` classes in `features/identity/repo.ts` (lines 70-646) | every method: `required` object field names, `null` on miss, list ordering (`ORDER BY`), `save` = upsert on which conflict columns, `revoke` idempotence |
-| `IdentityTransactionPort` (same file, line 146) | `createIdentityTransactions` (repo.ts:46) | `run({ workspaceId, execute })`; nested call joins the open transaction; lock acquired INSIDE the transaction, BEFORE `execute` |
-| `MfaStore` (`server/mfa/ports.ts:12`), `PasskeyStore` (`server/mfa/passkey-ports.ts:9`), `RecoveryCodeStore` (`server/recovery-codes.ts:11`) | `createMfaStore`, `createPasskeyStore`, `createRecoveryCodeStore` | each member; number coercions (`Number(row.last_step)`, `expires_at`, `attempts`); `sealedSecret` omitted (not `undefined`, not `null`) when the column is NULL; the in-memory twin `packages/user-management/src/server/repo.memory.ts` is the behavioural reference: run the SAME contract cases against both |
+| `tables.ts` | Jini-local interfaces for `principals`, `identity_users`, `sessions`, `roles`, `policies`, `policy_permissions`, `role_policies`, `principal_roles`, `principal_policies`; `IdentitySqlTables`; `IdentitySqlRequired = { kernel; tables }` | 120 |
+| `transactions.ts` | `createIdentityTransactions` (:46-56) with its comment; signature `({ kernel }: { kernel: Pick<StorageKernel<unknown, unknown>, "transaction" \| "lockKey"> }, _optional = {})` | 30 |
+| `principals.ts` | `toPrincipalRecord` + `SqlPrincipalRepo` (:58-110), `toUserRecord` + `SqlUserRepo` (:111-181) | 140 |
+| `sessions.ts` | `toSessionRecord` + `SqlSessionRepo` (:182-272) | 100 |
+| `roles-policies.ts` | `SqlRoleRepo` (:273-336), `SqlPolicyRepo` (:337-409), `SqlPolicyPermissionRepo` (:410-473) with their mappers | 215 |
+| `assignments.ts` | `SqlRolePolicyRepo` (:474-519), `SqlPrincipalRoleRepo` (:520-568), `SqlPrincipalPolicyRepo` (:569-630) with their mappers | 170 |
+| `index.ts` | named exports | 15 |
+Mappers stay beside their class as today (no separate rows file: fewer moved edges). Constructors become
+`({ kernel, tables }, _optional = {})` (today positional `(kernel)`; the only callers are the subclasses in `repo.sqlite.ts`).
+The file-header comment (`repo.ts:22-37`, why identity is durable, integer flags) moves to `tables.ts`, reworded neutral.
+`SqlApiKeyRepo` + `toApiKeyRecord` (:631-710) **stay** in a reduced `features/identity/repo.ts` (U3a moves them).
+**port_compat (step 0).** `sed -n 1,200p packages/user-management/src/core/ports.ts` vs each class: field names, `null` on
+miss, list ordering, upsert conflict columns. `IdentityTransactionPort.run({ workspaceId, execute })`.
+**lock_keys.** `` `identity:${workspaceId}` `` moves into `transactions.ts`, byte-identical (an N-1 and an N server on one
+Postgres must contend on the same key). Pinned by S0-P1 through the Tovu binding and by a Jini `lock-keys.test.ts`.
+**tree after S3a's T1 (compiles alone).** `features/identity/repo.ts`: imports + `toApiKeyRecord` + `SqlApiKeyRepo` only.
+`repo.sqlite.ts`: nine subclasses become `super({ kernel: schemaErasedKernel({ store }), tables: IDENTITY_TABLES }, {})`
+(`IDENTITY_TABLES` const in this file; real names: `principals`, `identity_users`, `sessions`, `roles`, `policies`,
+`policy_permissions`, `role_policies`, `principal_roles`, `principal_policies`); `SqliteApiKeyRepo` untouched.
+`mfa.repo.ts:3`, `passkeys.repo.ts:3` and `wiring.ts:35` import `createIdentityTransactions` from
+`@jini-ai/user-management/server/sql` (a `ContentKernel` satisfies the `Pick` without a cast). `wiring.ts:366` unchanged.
 
-## split
-| Declaration | Label | Where |
-|---|---|---|
-| `createIdentityTransactions` | MOVE | `sql/transactions.ts` `createIdentityTransactions({ kernel }, _optional = {})` |
-| `toPrincipalRecord` … `toPrincipalPolicyRecord` (9 mappers) | MOVE | `sql/repo.rows.ts` |
-| `SqlPrincipalRepo`, `SqlUserRepo`, `SqlSessionRepo`, `SqlRoleRepo`, `SqlPolicyRepo`, `SqlPolicyPermissionRepo`, `SqlRolePolicyRepo`, `SqlPrincipalRoleRepo`, `SqlPrincipalPolicyRepo` | MOVE | `sql/repo.ts`; constructor becomes `({ kernel, tables }, _optional = {})` (today positional `(kernel)`: shape change, callers = the 9 subclasses in `repo.sqlite.ts` only) |
-| `SqlApiKeyRepo` + its mapper (repo.ts:647-710), table `api_keys` | STAY in this sheet | U3 moves it. S3a leaves it in a reduced `features/identity/repo.ts` importing the Jini pieces it needs. Do not move it "while here": API keys are independently removable (plan-v6 U3). |
-| `createMfaStore` / `createPasskeyStore` / `createRecoveryCodeStore` | MOVE (S3b) | `sql/mfa.ts`, `sql/passkeys.ts`, `sql/recovery-codes.ts` |
-| `SqlUserPurge` (`user-purge.ts`) | SPLIT (S3b) | the delete of `principals` + `identity_users` rows MOVES as `purgeIdentityRows({ kernel, tables, workspaceId, principalId })`; the `secrets_vault` delete and the `outbox_events` insert STAY in Tovu (other owners' tables: vault = `@jini-ai/db/secrets-vault`, outbox = S6). Tovu's `SqlUserPurge` keeps the ONE transaction that calls all three, in today's order. |
-| `user-purge.sqlite.ts` (8 lines) | DELETE | repoint its one prod importer (`server/runtime/composition/deps.ts`) to `user-purge.ts` (CLASSIFY: DELETE) |
-| `user-purge-types.ts`, `repo.memory.ts` | not this sheet | audit row A26 owns them (no sheet written yet; see INDEX "holes") |
-| `repo.sqlite.ts` (10 subclasses) | STAY-WIRING | binding file; text under `wiring` |
+## S3b
+**split.** `mfa.repo.ts` (56) -> `sql/mfa.ts`; `passkeys.repo.ts` (34) -> `sql/passkeys.ts`; `recovery-codes.repo.ts` (34)
+-> `sql/recovery-codes.ts`; each `create*Store({ kernel, tables }, _optional = {})`, bodies verbatim, queries from
+`db.withTables<...>()`. Tables: `{ mfaFactors: "owner_mfa_factors", mfaPending: "owner_mfa_pending", passkeys: "owner_passkeys", recoveryCodes: "owner_recovery_codes" }`.
+`createMfaStore` is one ~45-line function of six closures: measure; if over 50, each closure becomes a top-level
+`({ ctx, input })` function in the same file, order of statements unchanged.
+The three Tovu files are deleted; `wiring.ts:1,2,4` repoint; `wiring.ts:377` passes `tables`.
+The existing `deleteFrom` calls on pending proofs, factors, passkeys and recovery digests are credential removal that
+exists today; they move verbatim and nothing new is added (T-SQLREPO §6 delete gate).
+**`SqlUserPurge` (`user-purge.ts`, 92) and `user-purge.sqlite.ts` (8): STAY in Tovu, unsplit.** The purge is ONE
+transaction over nine tables of five owners (role and policy assignments, sessions, API keys, per-user settings, the
+secrets vault, users, principals, then the outbox event). It is host orchestration; moving a slice would only risk the
+statement order. `user-purge-types.ts` and `repo.memory.ts` belong to audit row A26 (INDEX remainder).
 
-## table_types / tables_binding
-Jini declares interfaces for: `principals`, `identity_users`, `sessions`, `roles`, `policies`, `policy_permissions`,
-`role_policies`, `principal_roles`, `principal_policies` (S3a) and `owner_mfa_factors`, `owner_mfa_pending`, `owner_passkeys`,
-`owner_recovery_codes` (S3b). Copy each column set from `platform/db/content-database.generated.ts`; S0-P6 holds the same
-unions. Tovu passes `tables: { principals: "principals", users: "identity_users", sessions: "sessions", roles: "roles",
-policies: "policies", policyPermissions: "policy_permissions", rolePolicies: "role_policies", principalRoles: "principal_roles",
-principalPolicies: "principal_policies" }` and, for S3b, `{ mfaFactors: "owner_mfa_factors", mfaPending: "owner_mfa_pending",
-passkeys: "owner_passkeys", recoveryCodes: "owner_recovery_codes" }`. No default names in Jini.
+## Security chain (finding 8): today's real behaviour, its owner after the move, the test that fails without it
+All tests are T0, on unmoved code, real kernel; "recording kernel" = a wrapper recording `transaction` depth, `lockKey`
+arguments and statements in order.
+| # | What the code does today (location) | Owner after S3 | Characterization | Mutation -> RED |
+|---|---|---|---|---|
+| 1 | Every identity read is `(workspace_id, …)`-scoped (all nine classes) | `sql/*.ts` | two workspaces seeded with the same ids, usernames and token digests: every `find*` / `list*` returns only its own rows | delete one workspace predicate (one mutation per method) |
+| 2 | Session lookup matches the exact stored digest (`repo.ts` `findByTokenHash`); `revoke` sets `revoked_at` under the identity transaction | `sql/sessions.ts` | S0-P5c fixture found; one-character-different digest not found; after `revoke`, the row carries the instant; recording kernel shows lock before the UPDATE | drop the digest predicate; make `revoke` skip the write |
+| 3 | `SqlSessionRepo.save` is a whole-row upsert on `id` (`repo.ts` `save`) | `sql/sessions.ts` | pin EXACTLY what a second `save` does to every column, `revoked_at` included, whatever that is; do not change it in a move. Concern class "stale write on a revocation field", location this method: report to the security review, not here | change the conflict update set |
+| 4 | The guard: `transaction` -> `lockKey("identity:<ws>")` -> `execute`; nested calls join the open transaction; a throw rolls everything back (`repo.ts:46-56`) | `sql/transactions.ts` | recording kernel order; nested `run` inside `run` shows one outermost transaction and the lock before the first statement; a body that writes then throws leaves no row | remove `lockKey`; call `execute()` without `kernel.transaction` |
+| 5 | Each MFA store method opens its OWN guard (`mfa.repo.ts:22-32`): `factor` and `saveFactor` are NOT atomic together. Anti-replay comes from the CALLER wrapping the whole proof in one outer guard | caller: `@jini-ai/user-management/server` MFA service (unchanged); store: `sql/mfa.ts` | the existing `__tests__/mfa.repo.dialects.test.ts:59-67` case (two concurrent complete-proof bodies, each in ONE outer `transactions.run`: results `[false, true]`, `lastStep` advanced once, pending gone) stays and runs on every dialect of the matrix; plus the recording-kernel form: inside an outer guard, `factor` + `saveFactor` + `clearPending` add no second outermost transaction | mutation 4's; and make the store call `kernel.run` through a second kernel (not joining) -> the test's rollback half fails |
+| 6 | `clear` deletes that principal's pending proofs, **passkeys** and factor, in that order, in one guard (`mfa.repo.ts:48-53`). The MFA store never reads passkeys | `sql/mfa.ts` | two principals each with factor, pending and a passkey: after `clear(A)`, A has none of the three, B has all three; `clear` then throw inside an outer guard restores all (existing test, kept) | remove the passkey delete; drop a principal predicate |
+| 7 | Pending proof: found only by `(workspace_id, token digest)`; `expiresAt` and `attempts` are numbers; `sealedSecret` key is ABSENT when the column is NULL; `savePending` upserts on `(workspace, principal, purpose)`; a second principal cannot hold the same digest | `sql/mfa.ts` | each as stated (`"sealedSecret" in result === false`); the existing rejection case stays | drop a predicate; return `sealedSecret: undefined`; change the conflict target |
+| 8 | Passkeys: `list` is principal-scoped, ordered by credential id, at most 6; `save` on an existing `(workspace, credential id)` updates ONLY the counter and ONLY when principal, stored public key and relying-party id all match, else throws the ownership-conflict error (`passkeys.repo.ts:17-25`) | `sql/passkeys.ts` | same credential id presented by another principal / with another public key / with another relying-party id: each throws, stored row unchanged; matching save changes only `counter` | drop each of the three conflict predicates in turn (three mutations, three tests) |
+| 9 | Recovery digests: the store opens NO transaction and takes NO lock (caller-owned, `recovery-codes.repo.ts`); `replace` refuses more than ten BEFORE any write; `replace` = scoped clear + insert; `contains` matches `(workspace, principal, digest)` exactly. Single use is the Jini service's rule, not the store's | caller: `server/recovery-codes.ts` (unchanged); store: `sql/recovery-codes.ts` | eleven digests: `RangeError` with today's message and the old set intact; inside an outer guard `replace` then throw: old set restored; `contains` false for another principal's digest; recording kernel: no `lockKey` from the store itself | move the limit check after `clear`; drop the principal predicate; add a lock (the "no own transaction" row fails) |
+| 10 | Sealed factor secrets pass through opaque | unchanged (sealing is above the store) | the fixture plaintext never appears in any written row | n/a (assert on rows) |
+The verification steps (password, time-based code, passkey assertion, recovery-code check) already live in
+`@jini-ai/user-management/server` and do not move. No route, middleware, cookie, CSRF or origin file is edited:
+`git diff --stat $BASE..HEAD -- apps/website/src/server` lists only `wiring`-driven specifier changes, else STOP.
 
-## lock_keys
-`identity:<workspaceId>` — owned by the identity domain; moves as a non-exported builder in `sql/transactions.ts`,
-string byte-identical. Pinned by S0-P1 (Tovu, through the binding) and by the new Jini `lock-keys.test.ts`.
-An N-1 server and an N server running against one Postgres must contend on the same key: the string is a compatibility
-surface, not an implementation detail.
-
-## Security chain (each step: owner after the move, and the test that fails if it is removed)
-| Step | Owner after S3 | Characterization (written in T0, on unmoved code) | Mutation -> RED |
-|---|---|---|---|
-| Every identity read is workspace-scoped (`WHERE workspace_id = ?`) | Jini `sql/repo.ts` | two workspaces seeded with the same ids/usernames/token hashes; each `find*`/`list*` of every repo returns only its own workspace's rows | delete one `.where("workspace_id", …)` |
-| Session lookup by token hash returns the row only for the exact hash; `revoke` sets `revoked_at` and a revoked session stays revoked after a later `save` of a stale copy (verify what today's code does first and pin THAT; if a stale `save` can clear `revoked_at`, report it as a finding, do not fix here) | Jini `sql/repo.ts` `SqlSessionRepo` | as described | drop the hash predicate; make `revoke` a no-op |
-| Guarded mutations serialize: lock then execute, in one transaction | Jini `sql/transactions.ts` | recording kernel: order is `transaction` -> `lockKey("identity:<ws>")` -> body; body failure rolls back | move `lockKey` after `execute`; remove it |
-| MFA factor read/write goes through the identity transaction (anti-replay: `last_step` is read and advanced under the lock) | Jini `sql/mfa.ts` | concurrent `factor` + `saveFactor` for one principal cannot interleave (recording kernel order); `last_step` round-trips as a number | call `kernel.run` without `transactions.run` |
-| MFA pending token: found only by `(workspace_id, token_hash)`; `attempts` and `expires_at` round-trip; `clearPending` deletes only that principal's rows | Jini `sql/mfa.ts` | as described, two principals | drop a predicate |
-| MFA store reads `owner_passkeys` (facts: `mfa.repo.ts` touches three tables) | Jini `sql/mfa.ts`, table name from the binding | read the method first; pin exactly what it returns for: no factor + no passkey, passkey only, factor only | return a constant |
-| Recovery codes: single use | Jini `sql/recovery-codes.ts` + the Jini service that calls it | consuming a code twice: second attempt reports not-found/used exactly as today | remove the used/delete write |
-| Sealed MFA secret is stored and returned opaque | unchanged (sealing stays where it is: the service above the store) | the store never receives or returns a plaintext secret: fixture secret string never appears in any row written | n/a (assert on rows) |
-
-The verification steps themselves (password check, TOTP verify, passkey assertion, recovery-code verify) already live in
-`@jini-ai/user-management/server` and do not move here; this sheet moves only their storage. The HTTP layer
-(`server/inbound/admin-http/**`) and every auth predicate in the middleware chain are NOT touched: no route file is in this
-sheet's edit list. If the census shows a route importing a moved symbol directly (it should import through `wiring.ts`),
-repoint the import only.
-
-## tests_split
-All 19 test files in the facts file STAY in Tovu (they run Tovu migrations / the dialect matrix) and are repointed. New Jini
-tests: `sql/__tests__/lock-keys.test.ts`, `sql/__tests__/mappers.test.ts` (row <-> record round-trips, pure).
-The existing Jini contract suite for the memory repos, if one is exported under a `/conformance` or `/testing` subpath
-(`ls packages/user-management/src/admin/conformance`; check for a server one), is ALSO run from a Tovu test against the SQL
-adapters; if none exists for the server ports, do not invent one here (report it).
-
-## wiring (Tovu, commit T1)
-`features/identity/repo.sqlite.ts`: each `Sqlite*Repo` keeps its name and constructor `(store)` and becomes
-`super({ kernel: contentKernel({ store }), tables: IDENTITY_TABLES })` importing the class from
-`@jini-ai/user-management/server/sql`; `IDENTITY_TABLES` is a `const` in this file. `SqliteApiKeyRepo` is unchanged in S3.
-`features/identity/wiring.ts`: lines 1, 2, 4, 35 (imports of the three stores and `createIdentityTransactions`) repoint to
-the Jini subpath; calls at :366 and :377 gain `tables`. Text-guard each OLD line (occurs exactly once) — `wiring.ts` is a hot
-file (CLASSIFY: MIXED, 378 lines; audit row A26 and U3 also edit it).
-`features/identity/mfa.repo.ts`, `passkeys.repo.ts`, `recovery-codes.repo.ts`: deleted in S3b.
-
-## commits
-S3a: T0 (tests) -> J1 (tables, rows, repo, transactions, index, package.json export, changeset) -> T1 (repo.ts reduced to
-`SqlApiKeyRepo`, repo.sqlite.ts, wiring.ts imports, baselines). S3b: J1 (mfa, passkeys, recovery-codes, purge helper;
-`minor` changeset) -> T1 (three files deleted, user-purge.ts reduced, user-purge.sqlite.ts deleted, deps.ts repoint).
-Each commit compiles alone: J1 only adds; T1 deletes a Tovu symbol in the same commit that repoints its last importer.
-
-## stops
-- `repo.ts` holds a declaration not in `split` (file changed) — SKIP.
-- The lost-updates design (`plan/lost-updates-design-2026-11-16`, its CODEX-JUDGE names `identity/repo.ts`) has landed a
-  revision/version column or CAS on any identity table since this sheet was written: re-read; LESSONS 16 says every writer of
-  a protected record takes part in revision advancement. Do not move a writer the design is about to change; SKIP and report.
-- Any need to touch a route, middleware, cookie, CSRF or origin check.
-- `user-purge.ts` split would change statement order inside the transaction.
-
-## estimate
-S3a ~210k tokens (710-line file, 9 classes, 10 bindings, 12 repointed tests). S3b ~150k. Cut point for S3a: after J1.
-
-## Not verified while planning
-Method-by-method port comparison (step 0 does it). Whether `SqlSessionRepo.save` can clear `revoked_at`. What
-`createMfaStore` reads from `owner_passkeys`. Whether R3's repoint TSV touches `server/index.ts`. Per-method size/complexity
-of the nine classes inside the new file (measure in J1; each class is 50-75 lines of several short methods by the line map).
+## tests_split / commits / stops
+All 19 Tovu test files stay (they run Tovu migrations) and are repointed. New Jini tests: `lock-keys.test.ts`, mapper
+round-trips, and the passkey/recovery rows above against a fake `StorageKernel` where they need no real SQL.
+S3a: T0 -> J1 (peer + lockfile + export + files + changeset) -> T1. S3b: T0 (rows 5-9) -> J1 -> T1. Gates: T-SQLREPO §5.
+- STOP: `repo.ts` holds a declaration not in the partition table (`rg -n "^(export )?(class|function|const) " apps/website/src/features/identity/repo.ts` vs the table).
+- STOP: a mutation in rows 1-9 leaves its test green (the row is NOT CHARACTERIZED: do not move that store).
+- STOP: `wiring.ts` OLD line does not occur exactly once (`rg -c -F "<old line>" apps/website/src/features/identity/wiring.ts`).
+Not verified while planning: port members one by one (step 0); whether the server ports have a Jini conformance suite
+(`ls packages/user-management/src/admin/conformance` is the admin one; if none exists for the server ports, report it, do not invent one).
