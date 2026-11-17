@@ -54,6 +54,103 @@ comm -12 <(ws K/K-02 K/K-03 K/K-04 K/K-07 K/K-09 K/K-10 K/K-05) <(ws T/T-PO-01g 
 ```
 Revision-3 run of both commands on the merge-a sidecars: both printed nothing. Re-run after the coordinator edits (wave 1 = K-01, K-02b, T-PO-01; chain K without K-06): both printed nothing.
 
+## Cross-plan: lanes S/U vs K/T (revision 3, R4-1; INDEX-SU §3a holds the same text)
+Both plans live in this folder on two branches: `plan/lanes-s-u-2026-11-16` (`INDEX-SU.md`, sheets `S/`, `U/`) and
+`plan/lanes-k-t-2026-11-16` (`INDEX.md`, sheets `K/`, `T/`). This section is the same text in both index files.
+- **Same-path files.** Only `scripts/inv.py` existed on both branches (two different scripts). S/U's copy is now
+  `scripts/inv-su.py`; its callers were repointed (`scripts/facts.py`, the header line of every `*.facts.md`, `T-SQLREPO.md` §3).
+  The second command below prints nothing after that.
+- **Hard orderings (coordinator decision 1).** K-05 starts only after lane S S1a's T1 is pushed
+  (`test ! -e apps/website/src/features/taxonomy/repo.ts`). K-07b (design queue) waits for S4b. K-06a, K-06b and K-08 are retired.
+- **Rule for every row.** The two runs never run at the same time. The later one regenerates its facts (S/U, T-SQLREPO §3)
+  or sidecars (K/T, `INDEX.md` header command) on the earlier one's pushed commit, then re-runs both commands below.
+- **Runnable side by side now.** K/T wave 1 (K-01, K-02b, T-PO-01) shares no file with S0 (no facts file: it adds
+  `__tests__/lane-su-pins/*` and edits `platform/db/content-kernel.ts`, both in no K/T set) or with S1w.
+
+| K/T run | never at the same time as | shared files (generated; Tovu paths under `apps/website/src/`) |
+|---|---|---|
+| K-01 | S2, S4, S8, U2 | `assistant/__tests__/tool-registrations.trash-item.test.ts` (S2, S4); `assistant/__tests__/merged-readers-batch.test.ts`, `assistant/__tests__/mcp-ui-tool-calls-route.delete-confirmation-family.integration.test.ts` (S8); `assistant/__tests__/tool-registrations.contracts.test.ts` (U2). Jini `cms/src/redirects/` is only READ by S1w (its precedent): no constraint |
+| K-02 | S2, S3, S4, S8, U2 | 14 widgets / assistant test files (S2, S8); contracts test (U2); `development/scripts/size-debt.json` (S3, S4, U2); Jini `cms/src/widgets/` (S8) |
+| K-02b | S2, S7, S8 | `server/inbound/public-http/http/site/__tests__/leading-style-regression.test.ts` (S2, S7); `features/widgets/__tests__/integration/mediawidget.integration.test.ts` (S8); Jini `cms/src/widgets/` (S8) |
+| K-03 | S2, S3, S4, S8, U2 | trash-item test (S2, S4); mcp-ui test (S8); contracts test (U2); `size-debt.json` |
+| K-04 | S3, S4, U2 | contracts test (U2); `size-debt.json` |
+| K-05 | S1 (hard: after S1a T1), S3, S4, U2 | Jini `cms/src/taxonomy/` (`index.ts`: S1a adds `read-ports.ts` to `./taxonomy`); `size-debt.json`; importer rows of `assistant/tool-registrations.ts`, `server/runtime/composition/tool-catalog-manifest.ts` (U2) |
+| K-07 | S4, U1, U2 | `features/trash/{agent-tools,tool-registrations}.ts` + `features/trash/__tests__/tool-registrations.test.ts` (S4 importer rows); `features/trash/__tests__/member-adapter.test.ts` (S4, U1, U2); Jini `cms/src/trash/` (`index.ts`: S4a, U1) |
+| K-09 | S3, S4, S6, S8, U2 | mcp-ui test (S8); contracts test (U2); `size-debt.json`; Jini `integrations/package.json` + README and `integrations/src/webhooks/` (S6b) |
+| K-10a, K-10b | S3, S4, S6, S8, U2 | `server/runtime/composition/__tests__/form-delivery.security.test.ts` (S6); `features/forms/__tests__/common-fields.test.ts` (S8); contracts test (U2); `size-debt.json` (K-10a); Jini `cms/src/forms/` (S6c; S2 only reads it) |
+| T-PO-01 | S8, U2 | `features/pages/html-document-store{,.memory}.ts` (S8); `features/seo/index.ts`, `features/site-search/{access,cms-document-source}.ts` (U2); Jini `cms/src/widgets/` (S8) |
+| T-PO-01g | S1, S2, S8, U2, U3 | `server/routes/types.ts` (S1, S2, S8, U2, U3); html-document-store (S8); `features/post/__tests__/post.schedule-events.test.ts` (S8) |
+| T-PO-02 | the whole S/U cms chain (S1w ... S6c, INDEX-SU §3: each adds an export entry to `packages/cms/package.json`) | Jini `cms/package.json` + README; `cms/src/media/` (S7); `cms/src/widgets/` (S8). Runs before S1w or between two cms-chain runs |
+| T-TH-01 | S8 | `features/theme/static-render.ts` (S8) |
+Design-queue items also collide (generated rows name them): T-PO-03/04 with S1, S2, S4, S5, S7, S8, U2; K-07b with S3, S4, S6
+(and the hard edge above); K-11 with S6, S7, S8; K-05b with S1, S4; T-TH-06/07, T-NL-01 with U2, S8. Order them when they
+are written. Run on S/U `7f4f663aa` + K/T `5b4b28a56`: 109 rows (99 Tovu, 9 Jini, 1 bookkeeping).
+Limits: Tovu sets are importer lists, so they over-approximate (an importer row is a candidate edit; e.g. K/T's identity
+rule leaves `assistant/tool-registrations.ts` unedited). Jini sets are folders named in sheet bodies plus `package.json`
+for a NEW entry, so a row means "same domain folder"; the shared file is usually the folder's `index.ts`. Sheets with
+no facts or sidecars (S0, templates) are not in the command.
+```bash
+# 1) collision table (any Tovu clone with both plan branches fetched; SU= / KT= override the refs)
+SU=${SU:-origin/plan/lanes-s-u-2026-11-16}; KT=${KT:-origin/plan/lanes-k-t-2026-11-16}
+P=ADS-memory/.local-artifacts/terra-refactor-2026-11-13/move-templates/lanes-2026-11-16
+T=$(mktemp -d); for b in SU KT; do mkdir -p "$T/$b"; git archive "${!b}" "$P" | tar -x -C "$T/$b"; done
+python3 -I - "$T/SU/$P" "$T/KT/$P" <<'PY'
+import sys,re,glob,os,collections
+su,kt=sys.argv[1],sys.argv[2]; W='apps/website/src/'; ws=collections.defaultdict(lambda:[set(),set()])
+PK=r'(cms|core|db|user-management|integrations|node-adapters|capability-providers|platform|ui|mail)'
+def jini(text,sid,side):
+    for m in re.finditer(r'(?<![\w/-])(?:packages/)?'+PK+r'/src/([A-Za-z0-9_-]+)',text): ws[('jini',f'packages/{m[1]}/src/{m[2]}/')][side].add(sid)
+    for m in re.finditer(r'packages/'+PK+r'/(package\.json|README\.md)',text): ws[('jini',f'packages/{m[1]}/package.json+README')][side].add(sid)
+    for m in re.finditer(r'(?<![\w/-])development/scripts/[\w.-]+\.json',text): ws[('book',m[0])][side].add(sid)
+# S/U: facts = Tovu write set; sheet body = Jini + bookkeeping
+for f in glob.glob(su+'/[SU]/*.facts.md'):
+    sid=os.path.basename(f).split('-')[0]; t=open(f).read()
+    for m in re.finditer(r'^\| ((?:features|platform|server|contracts|assistant|shared|__tests__)/\S+) \|',t,re.M): ws[('tovu',W+m[1])][0].add(sid)
+    for m in re.finditer(r'^- (?:prod|test) importers \(\d+\): (.+)$',t,re.M):
+        for p in m[1].split(', '):
+            if p!='-': ws[('tovu',W+p)][0].add(sid)
+    for m in re.finditer(r'^- (development/scripts/[\w.-]+\.json):',t,re.M): ws[('book',m[1])][0].add(sid)
+for f in glob.glob(su+'/[SU]/*.md'):
+    if f.endswith('.facts.md'): continue
+    sid=os.path.basename(f).split('-')[0]; t=open(f).read(); jini(t,sid,0)
+    for m in re.finditer(r'(?:jini_target: |-> (?:@jini-ai/)?)'+PK+r'\b(.*)',t):
+        for d in re.findall(r'\./([A-Za-z0-9_-]+)',m[2]): ws[('jini',f'packages/{m[1]}/src/{d}/')][0].add(sid)
+        if re.search(r'NEW (\./|subpath|Node subpath)',m[2]): ws[('jini',f'packages/{m[1]}/package.json+README')][0].add(sid)
+# K/T: sidecars = Tovu write set; jini_target column + sheet body = Jini + bookkeeping
+ids=sorted({os.path.basename(f).split('.')[0] for f in glob.glob(kt+'/[KT]/*.files.tsv')},key=len,reverse=True)
+for f in glob.glob(kt+'/[KT]/*.files.tsv')+glob.glob(kt+'/[KT]/*.importers.tsv'):
+    sid=os.path.basename(f).split('.')[0]
+    for i,l in enumerate(open(f)):
+        c=l.rstrip('\n').split('\t')
+        if i==0 or not c[0]: continue
+        ws[('tovu',c[0])][1].add(sid)
+        if f.endswith('.files.tsv') and len(c)>4:
+            m=re.match(r'@jini-ai/'+PK+r'/([A-Za-z0-9_-]+)',c[4])
+            if m: ws[('jini',f'packages/{m[1]}/src/{m[2]}/')][1].add(sid)
+for f in glob.glob(kt+'/[KT]/*.md'):
+    b=os.path.basename(f)
+    if b=='K-TOOLS-PATTERN.md' or 'RETIRED' in open(f).readline(): continue  # template examples; retired stubs
+    sid=next((i for i in ids if b.startswith(i)),b.split('.')[0]); jini(open(f).read(),sid,1)
+for (k,p),(a,b) in sorted(ws.items()):
+    if a and b: print(f'{k}\t{p}\t{",".join(sorted(a))}\t{",".join(sorted(b))}')
+PY
+rm -rf "$T"
+# 2) same-path files on both branches (prints nothing)
+comm -12 <(git ls-tree -r --name-only "$SU" -- "$P" | sort) <(git ls-tree -r --name-only "$KT" -- "$P" | sort)
+```
+
+## Coordinator decisions (revision 3, 2026-11-16; mirrored from INDEX-SU "Revision 3")
+1. Ownership: lane S owns the SQL repositories. Taxonomy SQL (`features/taxonomy/{repo,repo.rows,repo.sqlite,contracts}.ts`) =
+   S1a, so K-06a / K-06b are RETIRED (stub files kept, `K-06.*` sidecars deleted). Trash SQL
+   (`trash/{repo,table-adapter,entry-sql,entry-sql.types,not-trashed}.ts`, `trash/adapters/marker-sql.ts`) = S4a / S4b, so K-08
+   is RETIRED (queue entry, `K-08.*` deleted). Lane K owns only the agent-tool layers: K-05 waits for S1a T1, K-07b for S4b.
+   Wave 1 loses K-06a; `scripts/gen.py` labels those 8 files `LANE-S`, so regeneration makes no K sidecar for them.
+2. Index files: lanes S/U use `INDEX-SU.md` / `CODEX-JUDGE-SU.md`; lanes K/T keep `INDEX.md` / `CODEX-JUDGE.md`.
+3. Facts: lanes S/U re-pinned every facts file on Tovu `integ/merge-final-2026-11-16` @ `232764af5`. (K/T sidecars are still
+   the merge-a ones: regenerate before dispatch, as the header says.)
+4. Prerequisites: `move-workspace` is folded into lane S's `S1w` (the calibration run); `move-entry-refs` stays on `plan/w1-sheets-d`.
+5. U2c-3 (lane U): the observer error goes to a required `report` port bound to `ObservabilityPort.reportError`. No K/T sheet affected.
+
 ## Owner decisions
 - D-K1 positional `ToolContributor.build(deps, surfaces)` is core's contract; Jini builders are `build<X>ToolRegistrations({ deps, surfaces }, optional = {})`; the adapter is the Tovu `build<X>Registrations`, which keeps today's name and positional signature (revision 3 identity rule). Confirm.
 - D-K2 K-11 destinations: `cms/forms` or `integrations`.
@@ -121,8 +218,12 @@ Review: Opus, plan @ cafebcaa5 (scratchpad `opus-review/k-t.md`) + coordinator i
 | coordinator: STOP commands in `\|` tables | ACCEPT | COMMON-KT STOP matrix is now one fenced `bash` block; no `\|` command remains in any K/T sheet | `grep -n -F '\|' *.md K/*.md T/*.md` hits only prose |
 | coordinator: enforce 50 lines / complexity 10 | ACCEPT | NEW S-FN50 (eslint `--rule max-lines-per-function` 50 error; Tovu config already errors on complexity 10/admin 9; Jini adds `complexity` + `sonarjs/cognitive-complexity` 10 like its `complexity:strict` script) in V2 both repos | Tovu `size-eslint.config.mjs:37` (50 = warn only), `complexity-eslint.config.mjs:43`; Jini `package.json` `complexity:strict` |
 | found: K-02b complexity debt | NEW | K-02b M2 first splits `resolveMediaTree` (cognitive 11) and deletes its `src-complexity-debt.json` entry | `src-complexity-debt.json:201-205` |
+| coordinator decision 1 (2026-11-16) | ACCEPT | K-06a, K-06b, K-08 retired to lane S (S1a, S4a/S4b); K-05 prerequisite -> S1a T1; K-07b (2) -> S4b; K-07 serial with S4a/S4b; `gen.py` + `K/INVENTORY.tsv` relabel 8 files `LANE-S`; T-PO-02, T-KT-MOVE, T-DESIGN-QUEUE references updated | `K/K-06a-*.md`, `K/K-06b-*.md` (stubs), `K/K-DESIGN-QUEUE.md`, `K/K-05-*.md`, `K/K-07-*.md` |
+| wave 1 after decision 1 | DONE | wave 1 = K-01, K-02b, T-PO-01; chain K = K-02 -> K-03 -> K-04 -> K-07 -> K-09 -> K-10a -> K-10b -> K-05; both disjointness commands re-run: print nothing | "Order" |
+| R4-1 cross-plan collisions | DONE | NEW section "Cross-plan" (same text in INDEX-SU §3a): generated table, hard orderings, one command; `scripts/inv.py` collision removed (S/U renamed its copy `inv-su.py`) | command output 109 rows on S/U `7f4f663aa` + K/T `5b4b28a56` |
+| coordinator decisions 1-5 recorded | DONE | "Coordinator decisions" section | INDEX-SU "Revision 3" |
 Rebutted: only the `check-architecture.baseline.json` part of N2 (see row).
 
 ## Opus fixes - remaining
-None of the review's items is open. Still open from before (unchanged): "What remains" 1-7 above, sidecar regeneration on merge-final (then re-run the disjointness command), owner decisions D-K1 confirm, D-K2, D-T1..D-T6.
+None of the review's items is open; coordinator items R4-1 and R4-2 are done (rows above). Still open from before (unchanged): "What remains" 1-7 above, sidecar regeneration on merge-final (then re-run the disjointness command), owner decisions D-K1 confirm, D-K2, D-T1..D-T6.
 
