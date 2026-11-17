@@ -1,8 +1,8 @@
 import { applyApprovalPolicy, isNonArrayRecord, type ApprovalContextPort, type ToolRegistration, type ToolExecutionContext, type ToolExecutionOptions } from '@jini-ai/core';
 import { requireHumanConfirm, notConfirmedResult, toolApprovalConfirmation, type HumanConfirmSpec, type HumanConfirmOutcome } from '../contracts/core/human-confirm.js';
 import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import { TOOL_APPROVAL_POLICY, ASSISTANT_EXECUTION_APPROVAL_SETTINGS, type ToolApprovalClass, type ToolApprovalPolicy } from '../contracts/headless/index.js';
-import { approvalClassAsks, directPageAction, toolApprovalPolicyFor } from './assistant-tool-approval-policy.js';
+import { TOOL_APPROVAL_POLICY, ASSISTANT_EXECUTION_APPROVAL_SETTINGS, directPageAction, type ToolApprovalClass, type ToolApprovalPolicy } from '../contracts/headless/index.js';
+import { approvalClassAsks, toolApprovalPolicyFor } from './assistant-tool-approval-policy.js';
 import type { SurfaceDetail } from '@jini-ai/ui/mcp-ui/surfaces';
 
 /** Classification is an owner-reviewed action policy, separate from read-only admission and auth.

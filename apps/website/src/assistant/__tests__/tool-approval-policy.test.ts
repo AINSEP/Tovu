@@ -7,7 +7,7 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { applyToolApprovalPolicy, approvalClassFor, createToolHumanConfirmer } from '../tool-approval-policy.js';
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { directPageAction } from '../assistant-tool-approval-policy.js';
+import { directPageAction } from '../../contracts/headless/index.js';
 import { sourceControlAgentToolCatalog } from '../../features/source-control/tool-registrations.js';
 
 
