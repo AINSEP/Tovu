@@ -84,6 +84,7 @@ import { bridgePreflightEntry } from "./bridge-preflight-entry.js";
 // @jini-ai/agent-runtime owns this seam; @jini-ai/daemon accepts it as an option.
 import type { PromptAugmenter } from "@jini-ai/core/contracts/agents";
 import { createAgentSelectionResolver, createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";
+import { executorDefinitionPolicies } from "./executor-definition-policies.js";
 import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, registerFrontendRequestRoute, registerAgentRoutes, registerAttachmentRoutes, registerComponentCatalogRoutes, registerDelegatedToolRoutes, registerMessageRelayRoutes, registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/http";
 import { adminFrontendOwner, adminFrontendRunOwner } from "#src/assistant/admin-frontend-owner";
 import { bearerTokenFromHeader, createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
@@ -174,15 +175,6 @@ function scopeConfiguration({ siteId, env: suppliedEnv, token }: { siteId: strin
   if (!daemonUrl || !authEnv[AGENT_DAEMON_TOKEN_ENV_VAR]) throw new Error("site daemon endpoint and credential are required");
   const port = Number(new URL(daemonUrl).port);
   return { env, authEnv, daemonUrl, port };
-}
-
-/** Until the executor takes the bound runtime port (daemon R8b), it still receives the two definition policies by value.
- * Kept outside {@link createSiteScope}, whose body is already at the complexity ceiling. */
-function executorDefinitionPolicies(
-  { runtime }: { runtime: ReturnType<typeof createNativeAgentRuntime> },
-  _optional: Record<string, never> = {},
-): { codexDisablePlugins: boolean; piGracefulShutdownMs: number } {
-  return { codexDisablePlugins: runtime.codex.disablePlugins === true, piGracefulShutdownMs: runtime.pi.gracefulShutdownMs ?? 5000 };
 }
 
 /** Instantiate the existing lean composition with private site configuration and authority.
