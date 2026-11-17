@@ -1,5 +1,4 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
-import { directPageAction } from "../../website/src/assistant/assistant-tool-approval-policy.js";
 import { PAGE_CAPABILITIES as APPROVAL_PAGE_CAPABILITIES } from "@jini-ai/agentic";
 import { adminFailureChannel } from "./lib/admin-failure-channel";
 import { ensureInitialSession, acceptSession, handleSessionUnauthenticated, signInSession, signOutSession, type AdminSessionOptions, type MeResponse } from "./App.session";
