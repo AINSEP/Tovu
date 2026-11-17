@@ -1,5 +1,7 @@
 # R13 sheet: host presets and frozen forwarders (+ G-SERVER-LOGIC)
 
+Revision 2 (judge finding 1; owner decision OD-3). The census now classes all 54 R13 rows as `allowed-preset` (39) or `frozen` (15): **R13 has no import-cleanup work.** What remains is the exception bookkeeping (R13a), moving logic out of the preset (R13b), one shell (R13c) and the adapter audit (R13d, rewritten: adapters no longer arrive in the preset).
+
 Read `COMMON.md` first. Sites: `sites/R13.sites.tsv` (51): `server` 35 in 12 files, `cli` 1, `sqlite` 11 (one file), `infra` 4 (two files).
 
 ## What is already true (verified at the merged state)
@@ -14,10 +16,10 @@ So R13 is four small jobs, not one big one.
 | R13a | Q2 exception entries for `sqlite`/`infra` + a surface freeze test | 25k |
 | R13b | G-SERVER-LOGIC: move logic out of the preset | 120k |
 | R13c | delete the `createFrontendControl` re-export; `cli → platform` stale dep | 20k |
-| R13d | receive the Q8 adapters (after R8, R11): package entries, tests, docs | 40k |
+| R13d | adapter audit after N1, R8b, R10b, R11: nothing Node-specific is left as a default in a domain package; docs | 30k |
 
 ## R13a: Q2 forwarders
-1. Coordinator-only file `scripts/injection-exceptions.json`: one entry per `{owner, target, specGlob}` for `sqlite → chat|daemon|db|registry` and `infra → db`, each with `ownerQuestion: "Q2"`, `approved: "2026-11-15"`, and a `removeAt: "next major"` note. The lane writes the exact JSON into its report; it does not edit the file. Read `scripts/injection-exceptions.json` and `scripts/lib/injection-edges.ts` first for the real entry schema.
+1. **Same commit, three files** (no coordinator): (a) `scripts/injection-exceptions.json`: one entry per `{owner, target, specGlob}` for `sqlite → chat|daemon|db|registry` and `infra → db`, each with `ownerQuestion: "Q2"`, `approved: "2026-11-15"` and a `removeAt: "next major"` note (read `InjectionException` in `scripts/lib/injection-debt.ts` for the real schema first; if it has no free-text field, put the note in `_comment`). Its `_comment` today says the file is "empty by owner rule 2026-11-15" and that the forwarders "are deleted in lane R13": **that sentence is superseded by the owner rule in this run's brief (sqlite/infra frozen); reword it, keeping the "never add one to silence the gate" rule.** (b) `scripts/injection-debt.json`: delete the `sqlite`/`infra` keys the new exceptions now cover (the gate fails on a stale allowance). (c) the gate test that pins the exceptions list, if one exists (`rg -n "injection-exceptions" scripts/__tests__`). `pnpm guard` must be green after this one commit; `diff /tmp/guard-before.txt <(pnpm guard 2>&1)` shows no new finding.
 2. Freeze test: `packages/sqlite/src/__tests__/old-surface` already pins the surface (GAPS §5 names `old-surface.json`); verify it fails when an export is **added** as well as removed (add a throwaway export locally, run, revert). Add the same pin for `infra` if missing (`packages/infra/src/__tests__/surface.test.ts`: sorted export names of each entry equal a checked-in list).
 3. GAPS Q-G2 (keep chat's two `{ db }` wrappers in `sqlite` until the major): follow the recommendation (keep) unless the owner has answered otherwise; C-CHAT-DEPS CH2 creates `chat-history-compat.ts`. R13a does not touch it.
 
@@ -40,16 +42,18 @@ Other preset files over the size limit (`builtin-features.ts` 712, `create-local
 1. `packages/server/src/index.ts:94` `export { createFrontendControl } from '@jini-ai/daemon/http'` is a re-export shell (ruling (d)). Importers: `rg -n "createFrontendControl" apps packages examples` in both repos; each one that imports it from `@jini-ai/server` switches to `@jini-ai/daemon/http`. Pair if Tovu has one. The second `server/src/index.ts` daemon site (line 95 or near): read it; same rule.
 2. `cli → platform` is a declared dependency with no import (G-STALE-DEPS row). `cli → sidecar` (`local-daemon-discovery.ts`) is an allowed preset edge: nothing to do.
 
-## R13d: Q8 adapters arrive (after R8 and R11; depends on OD-3)
-R8 moves `daemon/terminal.adapter.ts`; R11a moves `agent-plugins/lifecycle/node.ts`; R11b/c move or parameterize `sidecar/supervision/supervisor-node.ts`, `integrations/media-providers/dispatch/node.ts`, `devops/deploy/node.ts`; `plugins/host/node/*` and `agentic/skills/install/node-filesystem.ts` are named by DESIGN §2.3 (agentic has **no** remaining cross-package import in the census: verify `rg -n "@jini-ai/platform" packages/agentic/src -g '!**/__tests__/**'`; if empty, it needs no move).
-1. All arrivals live under `packages/server/src/adapters/`, one file per adapter, each with its moved test. Add `"./adapters/<name>"` exports (node runtime) **only if OD-3 = yes** (hosts other than the preset may import them). If OD-3 = no, no export: the preset uses them internally and Tovu keeps its own bindings.
-2. New dependencies of `@jini-ai/server` this creates: `agent-plugins`, `integrations`, `devops`, `sidecar` (already), `platform` (already). Each is an **optional peer** unless the preset's default daemon uses it; report the list for the coordinator (manifest + lockfile).
-3. The owner rule in this run's brief says runtime adapter packages "never assemble services", while `@jini-ai/server` is by definition the package that assembles the standard daemon. Putting the adapters there couples "I want the Node file-lock binding" to "I depend on the whole preset". This is **OD-3** in INDEX; R13d does not start until it is answered.
+## R13d: adapter audit (after N1, R8b, R10b-1, R11a, R11b-1..3)
+OD-3 put the Node bindings in `@jini-ai/node-adapters`; nothing moves into the preset. This run checks the end state and fixes only what the commands below print.
+1. **No domain package binds platform by default:** `node <U>/sheets-2026-11-16/scripts/census.mjs <jini> <U> /tmp/census && awk -F'\t' '$2=="platform" && $12=="work"' /tmp/census/CENSUS-sites.tsv` prints nothing. A row that is left belongs to the lane named in column 11: report it, do not fix another lane's file.
+2. **The adapter package obeys its rule:** N1's commands (surface pin T3, the `rg` for service assembly and for lazy imports) all pass with the entries later lanes added (`./agent-plugins`, `./http`, `./agent-runtime`); `awk -F'\t' '$1=="node-adapters"' /tmp/census/CENSUS-sites.tsv` shows only class `allowed-adapter`.
+3. **The preset uses the bindings, it does not re-declare them:** `rg -n "satisfies (FileLockPort|AtomicFileWriterPort|ProcessControlPort|GuardedHttpPort)" packages/server/src examples -g '!**/__tests__/**'` prints nothing (a hand-written binding outside the adapter package is replaced by the import, in this run, if the file is the preset's or an example's).
+4. `packages/server/src/adapters/node-pty.ts` stays (native dependency; OD-8). `packages/server/src/__tests__/runtime-port-bindings.typecheck.ts` keeps one line per binding the preset passes, each `satisfies` the core port without a cast.
+5. Docs: `packages/node-adapters/README.md` and `source-map.md` list every entry and where each file came from; `CAPABILITIES.md` row; DESIGN §7 Q8 gets a one-line "superseded by OD-3 (2026-11-16)" note.
 
 ## Tests to write first (R13c/d)
 - R13c: a source-level export test for `@jini-ai/server` index that lists allowed exports; `createFrontendControl` absent (RED before the deletion).
-- R13d: each adapter's moved test runs unchanged in its new home; plus one `runtime-port-bindings.typecheck.ts` line per adapter (the file exists from the daemon prerequisites: `packages/server/src/__tests__/runtime-port-bindings.typecheck.ts`) asserting the binding `satisfies` the core port **without casts**.
+- R13d: no new production code; the three commands of items 1–3 are the tests, pasted into the report.
 
 ## STOP
 - R13b: a vault function has a second owner already (extend it, do not add a parallel one), or a characterization test cannot be made to fail under its mutation.
-- R13d: OD-3 unanswered.
+- R13d: item 1 or 2 prints a row.

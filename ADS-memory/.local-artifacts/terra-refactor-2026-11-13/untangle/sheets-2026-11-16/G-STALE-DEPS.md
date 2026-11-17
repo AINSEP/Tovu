@@ -2,7 +2,7 @@
 
 Read `COMMON.md` first. Source: `census/merged/CENSUS-manifest.tsv`, rows with `status = STALE` (a `dependencies` or `peerDependencies` entry on a non-base `@jini-ai/*` package with **no** production import, type-only and dynamic imports included). 19 rows at the merged state. GAPS §3.2 listed 19 at an older base; two rows differ: `db → platform` is already gone, and `analytics → agent-runtime` is new (C6 removed its last import).
 
-This lane edits only `packages/*/package.json` and the manifest-assertion tests named below. `pnpm-lock.yaml` and `scripts/injection-debt.json` are coordinator files: report the keys.
+This lane edits only `packages/*/package.json` and the manifest-assertion tests named below. Revision 2 (judge finding 1): each per-package commit also carries `pnpm-lock.yaml` and deletes that manifest's own keys from `scripts/injection-debt.json` (a stale allowance fails the gate, rule `injection-debt-stale`). The list of stale rows is `awk -F'\t' '$5=="STALE"' census/merged/CENSUS-manifest.tsv` (20 rows on merge-a+b: re-run the census first; `user-management → ui-kit` is **USED** under option C and is not touched).
 
 | # | owner → target | field | test files that still import the target | action |
 |---|---|---|---|---|
@@ -28,7 +28,7 @@ This lane edits only `packages/*/package.json` and the manifest-assertion tests 
 
 ## Step 1 (rows 1–11): delete now
 1. For each row, re-verify: `rg -n "@jini-ai/<target>['\"/]" packages/<owner>` (all files, tests and scripts and `tsup`/`vite` configs included, not only `src`). Any hit outside comments: the row moves to step 2.
-2. Delete the key (and its `peerDependenciesMeta` and `jini.optionalPeers` text if present). One commit per package, so each is green alone: `pnpm install --config.prefer-workspace-packages=true` (lockfile change is expected: **commit it only if the coordinator said so; otherwise report it**), `pnpm --filter @jini-ai/<owner> build`, `npm --prefix packages/<owner> run test`, `pnpm guard`.
+2. Delete the key (and its `peerDependenciesMeta` and `jini.optionalPeers` text if present). One commit per package, so each is green alone: `pnpm install --config.prefer-workspace-packages=true` (lockfile change is expected: commit it in the same commit), `pnpm --filter @jini-ai/<owner> build`, `npm --prefix packages/<owner> run test`, `pnpm guard`.
 3. Manifest-assertion tests to update in the same commit as their package: user-management `src/__tests__/package-entries.test.ts`; anything `rg -n "peerDependencies|optionalPeers" packages/<owner>/src -g '**/__tests__/**'` shows. Update the expected list; do not delete the assertion.
 
 ## Step 2 (rows 12–19): move the declaration to `devDependencies`, do not delete the tests

@@ -1,55 +1,55 @@
-# R3 + C9c sheet: user-management kit and repoint (3 sub-sheets)
+# R3 + C9c sheet: user-management kit for forbidden domain imports only (2 runs)
 
-Read `COMMON.md` first. Sites: `sites/R3.sites.tsv` (39 sites, 34 files): `ui-kit/react` 23, `admin/react` 6, `ui/panel-kit` 4, `ui` 3, `ui/fetch-query` 1, `ui/admin-widgets` 1, `ui-kit` (root, `needs`) 1. By folder: `src/admin/react` 24 sites, `src/react/users` 10, `src/react/members` 3, `src/react/auth` 2. Needs: C7 (landed), C9a (landed; it is the pattern to copy: `packages/admin/src/react/kit.tsx`, 268 lines). `user-management → agentic` is gone from source (stale peer: G-STALE-DEPS). No kit file exists in user-management today (`ls packages/user-management/src/react/kit.tsx` fails).
+Revision 2 (judge findings 1, 10, 12). Read `COMMON.md` first. `sites/R3.sites.tsv` has 39 rows; **23 are class `allowed-optionC`** (`@jini-ai/ui-kit/react` imported by React files under `src/admin/react/**`) and are **not work: keep those imports exactly as they are.** The old sub-sheet R3a (24 sites onto a kit) is **deleted**.
 
-| Sub-sheet | Work | Estimate (Sonnet) |
+Cleanup work = **16 sites** (`awk -F'\t' '$12=="work"' sites/R3.sites.tsv`):
+| Target | Sites | Names |
 |---|---|---|
-| C9c | the kit interface, provider, fake, conformance of the Tovu binding | 90k |
-| R3a | `src/admin/react/**` (24 sites) onto the kit | 110k |
-| R3b | `src/react/{users,members,auth}/**` (15 sites) onto the kit + manifest cleanup | 80k |
-C9c first. R3a and R3b are file-disjoint and may run in parallel after it.
+| `@jini-ai/admin/react` | 6 | `RowMenu`, `ConfirmDialog`, type `RowMenuItem` (`react/users/{Users.tsx:3, ChangeUsernameDialog.tsx:1, UserRowParts.tsx:2, rules.ts:4}`, `react/members/{Members.tsx:2, rules.ts:4}`) |
+| `@jini-ai/ui`, `ui/admin-widgets` | 4 | `SecretInput` (`react/auth/Login.tsx:2`, `TotpSettings.tsx:1`, `react/users/Users.tsx:12`), `InfoTip` (`Users.tsx:11`) |
+| `@jini-ai/ui/panel-kit`, `ui/fetch-query` | 5 | `useFetchQuery`, `useFetchMutation`, `useAsyncAction`, `useCachedLoader`, `useInvalidate`, type `QueryKey` (`react/users/hooks/*.hooks.ts`, `react/users/rules.ts:2`, `react/members/hooks/use-members.hooks.ts:6`) |
+| `@jini-ai/ui-kit` (root) | 1 | `needs` (`admin/react/index.ts:1`) |
+
+| Run | Work | Estimate (Sonnet) |
+|---|---|---|
+| C9c | the kit (4 component slots, 5 hook slots), provider, fake, probe test; Tovu binding + provider mount (pair); the `needs` deletion | 70k |
+| R3b | `src/react/{users,members,auth}/**` (15 sites) onto the kit, page tests per commit, manifest cleanup | 90k |
+C9c first (wave 1), R3b after it (wave 2).
 
 ## C9c: `packages/user-management/src/react/kit.tsx`
 ```
-jini_files (all NEW):
-  - packages/user-management/src/react/kit.tsx                       (≤ 200 lines)
-  - packages/user-management/src/react/__tests__/fake-um-kit.tsx     (fake + renderWithUmKit)
-  - packages/user-management/src/react/__tests__/kit.unit.test.tsx
-  - packages/user-management/package.json                            | lane may add the "./react/kit" export + jini.entries line (universal/react as admin's kit entry is)
-tovu_file: none (the binding joins apps/admin/src/integrations/jini-kits.ts: coordinator-only; the lane reports the lines)
+jini_files:
+  - packages/user-management/src/react/kit.tsx (NEW, ≤ 150 lines) ; src/react/__tests__/{fake-um-kit.tsx, kit.unit.test.tsx} (NEW)
+  - packages/user-management/package.json ("./react/kit" export + jini.entries line, as admin's kit entry is) ; API baseline ; scripts/injection-debt.json (the `needs` key)
+  - packages/user-management/src/admin/react/index.ts:1-21 (the four `*KitNeeds` exports)
+tovu_files (pair): apps/admin/src/integrations/jini-kits.ts (add `userManagementKit`) ; apps/admin/src/main.tsx (mount `UserManagementKitProvider` beside the admin kit provider)
 ```
-1. **Derive the slot list from the census, do not guess.** `cut -f3,8 sites/R3.sites.tsv | sort | uniq -c`. At the merged state the names are:
-   - components (from `@jini-ai/ui-kit/react`, `@jini-ai/admin/react`, `@jini-ai/ui`, `@jini-ai/ui/admin-widgets`): `Button`, `TextField`, `Select`, `Menu`, `Tabs`, `Badge`, `Notice`, `Spinner`, `ConfirmDialog`, `SecretInput`, `RowMenu`, `InfoTip`; types `ConfirmDialogProps`, `MenuItem`, `RowMenuItem`.
-   - hooks (from `@jini-ai/ui/panel-kit`, `@jini-ai/ui/fetch-query`): `useFetchQuery`, `useFetchMutation`, `useAsyncAction`, `useCachedLoader`, `useInvalidate`; type `QueryKey`.
-2. **Interface (B4: the consumer declares it; implementers never import it):**
+1. **Interface (the consumer declares it; implementers never import it):**
    ```ts
-   export interface UserManagementKitComponents { Button: ComponentType<ButtonProps>; TextField: …; Select: …; Menu: …; Tabs: …; Badge: …; Notice: …; Spinner: …; ConfirmDialog: …; SecretInput: …; RowMenu: …; InfoTip: … }
+   export interface UserManagementKitComponents { SecretInput: ComponentType<SecretInputProps>; RowMenu: ComponentType<RowMenuProps>; ConfirmDialog: ComponentType<ConfirmDialogProps>; InfoTip: ComponentType<InfoTipProps> }
    export interface UserManagementKitHooks { useFetchQuery: …; useFetchMutation: …; useAsyncAction: …; useCachedLoader: …; useInvalidate: … }
    export interface UserManagementKit { readonly components: UserManagementKitComponents; readonly hooks: UserManagementKitHooks }
    export function UserManagementKitProvider(props: { kit: UserManagementKit; children: ReactNode }): ReactElement
    export function useUserManagementKit(): UserManagementKit   // throws a typed "kit not provided" error naming the provider
    ```
-   Each `…Props` type restates **only the props user-management passes** (collect them per component: `rg -n "<Button\b" -A3 packages/user-management/src | …`). Two components named `ConfirmDialog` are imported today, one from `ui-kit/react` and one from `admin/react`, and `RowMenuItem`/`MenuItem` differ: compare their props at every call site; if the two `ConfirmDialog`s are used with different props, keep **two slots** (`ConfirmDialog`, `RowConfirmDialog`) rather than merging contracts (lesson 7).
-   Hook slots: copy each hook's signature as user-management calls it (argument object and returned fields it reads). Export thin wrappers `useFetchQuery = (...a) => useUserManagementKit().hooks.useFetchQuery(...a)` as admin's kit does (`kit.tsx:262`), so call sites only change their import line.
-3. **Fake:** `fakeUmKit(overrides?)` renders each component as a plain element with `data-um-kit="<Slot>"` and its label/children, and implements the hooks over in-memory state (query returns the loader's resolved value; mutation calls the function and exposes pending/error). `renderWithUmKit(ui, { kit })`.
-4. **`needs()` exports:** `src/admin/react/index.ts:1-21` declares `rolesKitNeeds`, `usersKitNeeds`, `membersKitNeeds`, `authKitNeeds` with `needs` from `@jini-ai/ui-kit`. GAPS §4.7 found no reader in Jini or Tovu. Re-check (`rg -n "(roles|users|members|auth)KitNeeds" packages apps examples`); with no reader, delete the four exports and the import in **R3a** (breaking: changeset). With a reader: STOP.
-5. **Tests first (`kit.unit.test.tsx`):** rendering a users page without a provider throws the typed error (RED until the hook exists); with the fake, every slot in the interface is rendered at least once across the package's pages (a slot never used fails the test, so the interface cannot carry dead slots).
-6. **Coordinator lines for Tovu `jini-kits.ts`:** `export const userManagementKit = { components: { Button, TextField, … from '@jini-ai/ui-kit/react'; RowMenu, ConfirmDialog from '@jini-ai/admin/react'; SecretInput, InfoTip from '@jini-ai/ui' }, hooks: { … from '@jini-ai/ui/panel-kit' and '@jini-ai/ui/fetch-query' } } satisfies UserManagementKit;` and the provider mounted where user-management's admin pages are registered (`apps/admin/src/integrations/jini-admin/`; C7's worked binding `users-module.ts` shows the place). `rg "@jini-ai/user-management" apps/admin/src` to find the mount points; **not verified by this run**.
+   Each `…Props` type and `RowMenuItem`, `QueryKey` restate **only what user-management passes or reads** (collect per component: `rg -n "<(SecretInput|RowMenu|ConfirmDialog|InfoTip)\b" -A4 packages/user-management/src/react`). This `ConfirmDialog` slot is the **admin** one used under `src/react/**`; the `ui-kit/react` `ConfirmDialog` used under `src/admin/react/**` is an allowed direct import and is not a slot. Hook slots copy each signature as user-management calls it. Export thin hook wrappers (`useFetchQuery = (...a) => useUserManagementKit().hooks.useFetchQuery(...a)`), as admin's kit does (`packages/admin/src/react/kit.tsx:262`).
+2. **Fake:** `fakeUmKit(overrides?)` renders each component as a plain element with `data-um-kit="<Slot>"` and its label/children, and implements the hooks over in-memory state (query: loading → resolved value or error; mutation: pending/error). `renderWithUmKit(ui, { kit })`.
+3. **Tests first, with a dedicated consumer (judge finding 12: no existing page uses the kit yet):** `kit.unit.test.tsx` defines a test-only `KitProbe` component that renders all four component slots and calls all five hook wrappers. (a) `KitProbe` without a provider throws the typed error naming the provider (RED until the hook exists); (b) with `fakeUmKit` every slot renders and every hook returns the fake's output; (c) an override replaces exactly one slot; (d) a type-level case: an object missing one slot does not satisfy `UserManagementKit`. Page-level coverage is **not** claimed here; it belongs to R3b's commits.
+4. **`needs()` exports:** re-check `rg -n "(roles|users|members|auth)KitNeeds" packages apps examples -g '!**/dist/**'` in both repos. No reader → delete the four exports and the `@jini-ai/ui-kit` root import in this run, with the debt key. A reader exists → **STOP**.
+5. **Tovu pair (same run):** `jini-kits.ts` gains `userManagementKit = { components: { SecretInput, InfoTip, RowMenu, ConfirmDialog }, hooks: { … } } satisfies UserManagementKit` from the real packages (Tovu is the host; it may import them), and `main.tsx` mounts the provider. Nothing reads the kit yet, so both repos are green after each commit. A slot that does not `satisfies` without a cast → **STOP**: the restated props are wrong.
 
-## R3a / R3b: call sites
-For each row of `sites/R3.sites.tsv` in the sub-sheet's folder:
-- replace the import from `@jini-ai/ui-kit/react`, `@jini-ai/admin/react`, `@jini-ai/ui*` by `const { Button, … } = useUserManagementKit().components` at the top of the component (hook rules: top level, never in a callback or loop), or by the kit's hook wrappers for the five hooks;
-- a `.hooks.ts` file that imported a ui hook imports the wrapper from `../kit.js` (relative path), nothing else changes;
-- type-only imports (`ConfirmDialogProps`, `MenuItem`, `RowMenuItem`, `QueryKey`) come from `kit.tsx`.
-- Components that today receive hooks as props defaulted to the real hook keep that shape; the default becomes the kit wrapper (owner rule: hooks injected as props defaulted to the real hook).
+## R3b: call sites (15 sites)
+For each `work` row under `src/react/**`:
+- components: `const { RowMenu, … } = useUserManagementKit().components` at the top of the component (hook rules: top level only);
+- a `.hooks.ts` file imports the wrapper from `../kit.js` / `../../kit.js`; components that receive a hook as a prop **keep that prop, defaulted to the kit wrapper** (owner rule), and each such component gets a fake-hook output test (pass a fake hook prop, assert the rendered output);
+- type-only imports (`RowMenuItem`, `QueryKey`) come from `kit.tsx`.
 
-**Tests:** 20 user-management test files import a non-base package today (census). In this lane, every test of an edited component switches to `renderWithUmKit` and drops its `@jini-ai/ui-kit`/`@jini-ai/ui`/`@jini-ai/admin` imports and any `vi.mock` of them. Assertions that looked for ui-kit markup switch to the fake's `data-um-kit` markers **with the same count and text**; report the assertion count per file before and after. A test whose subject is the real ui-kit rendering moves to `packages/integration-tests` (G-TESTS T3), it is not rewritten into a tautology.
+**Tests per commit (this is where page/slot coverage lives):** each commit switches the tests of the pages it edits to `renderWithUmKit`, drops their `@jini-ai/ui`/`@jini-ai/admin` imports and any `vi.mock` of them, and asserts with the fake: the page's **loading** state, its **error** state (the fake query rejects: the plain-words error and its Copy-details control render) and its loaded state, so conditional slots (`ConfirmDialog` open, `RowMenu` items, `InfoTip`) are each rendered at least once. Assertions that looked for real `ui`/`admin` markup switch to the fake's `data-um-kit` attributes; text assertions stay. One real-implementation render per page stays as a host test in Tovu admin (or moves with G-TESTS T4); it is never dropped: report the test count before and after.
 
-**Steps:** one commit per feature folder (`admin/react/roles`, `…/users`, `…/members`, `…/auth`, then `react/users`, `react/members`, `react/auth`: list the real folder names from the site list), each green alone because the real implementations stay importable until the last one. Final commit of R3b: delete `@jini-ai/ui`, `@jini-ai/ui-kit`, `@jini-ai/admin` from `packages/user-management/package.json` (dependencies and peers), update `src/__tests__/package-entries.test.ts`, and report the gate helpers that become dead (`hasReactPeer`, `isAdminIntegration`, `isReactIntegration` in `scripts/check-package-layers.ts`: coordinator).
+**Steps (each commit green alone in both repos, because the Tovu provider is already mounted):** one commit per folder: `react/auth` (2 sites), `react/members` (3), `react/users` (10). Last commit: delete `@jini-ai/ui` and `@jini-ai/admin` from `packages/user-management/package.json` production fields **with** their debt keys and lockfile (`rg -n "@jini-ai/(ui|admin)['/\"]" packages/user-management/src -g '!**/__tests__/**' -g '!*.test.*'` prints only `@jini-ai/ui-kit/react` lines). **`@jini-ai/ui-kit` stays a declared dependency** (option C imports use it).
 
-**Chrome look after landing** (UI lane): users list, roles tabs, member invite, auth settings in Tovu admin, light and dark.
+**Chrome look after landing** (UI lane): users list, row menu, change-username dialog, member invite, login and TOTP settings in Tovu admin, light and dark.
 
-## STOP
-- Two same-named components have different contracts and more than two slots would be needed.
-- A `*KitNeeds` export has a reader.
-- A component needs a ui-kit behaviour the fake cannot express without importing ui-kit (report the component; it is an integration test).
+## STOP (commands above)
+- A `*KitNeeds` export has a reader. A slot needs a cast to fit. A component needs a `ui`/`admin` behaviour the fake cannot express without importing that package (report the component; its test is an integration test).
+- `awk -F'\t' '$12=="allowed-optionC"' /tmp/census/CENSUS-sites.tsv | wc -l` is lower than 23 after your run: you removed a permitted import.
