@@ -17,18 +17,20 @@ import "../../styles/assistant.css";
  * classes, but tab buttons on TabBar's own keyboard/roving-tabindex helpers, so it stays a tablist.
  */
 
-export function VisitorAssistantTabs({ t, providerPanel, toolsPanel }: {
+export function VisitorAssistantTabs({ t, providerPanel, toolsPanel, useVisitorAssistantTabsHook = useVisitorAssistantTabs, useTabBarKeyboardHook = useTabBarKeyboard }: {
   t: (key: string) => string; providerPanel: ReactNode;
   /** Test seam; defaults to the wired tools panel. */
   toolsPanel?: ReactNode;
+  useVisitorAssistantTabsHook?: typeof useVisitorAssistantTabs;
+  useTabBarKeyboardHook?: typeof useTabBarKeyboard;
 }) {
-  const { active, select } = useVisitorAssistantTabs({});
+  const { active, select } = useVisitorAssistantTabsHook({});
   const panelId = useId();
   const tabs = [
     { id: "provider", label: t("AI provider"), handle: "ai-assistant-visitor-tab-provider", handleLabel: "Show the visitor AI provider settings" },
     { id: "tools", label: t("Visitor tools"), handle: "ai-assistant-visitor-tab-tools", handleLabel: "Show the visitor tools" },
   ];
-  const { onKeyDown } = useTabBarKeyboard({ tabs, activeId: active, onChange: select });
+  const { onKeyDown } = useTabBarKeyboardHook({ tabs, activeId: active, onChange: select });
   return (
     <div className="visitor-assistant-tabs">
       <div className="jini-chat-settings-segmented" role="tablist" aria-label={t("Visitor's AI Assistant")} onKeyDown={onKeyDown}>

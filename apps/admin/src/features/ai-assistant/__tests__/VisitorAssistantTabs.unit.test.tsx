@@ -1,6 +1,6 @@
 import { render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { VisitorAssistantTabs } from "../VisitorAssistantTabs";
 import { parseLimitsDraft } from "../hooks/use-visitor-tools.hooks";
@@ -72,5 +72,20 @@ describe("visitor tools strings", () => {
       expect(translate({ locale, key }), `${locale}: ${key}`).not.toBe(key);
     }
     for (const key of copy) expect(translate({ locale: "en", key })).toBe(key);
+  });
+
+  it("shows the tab returned by the injected useVisitorAssistantTabsHook and routes selection through it", async () => {
+    const select = vi.fn();
+    render(
+      <VisitorAssistantTabs
+        t={t}
+        providerPanel={<p>provider screen</p>}
+        toolsPanel={<p>tools screen</p>}
+        useVisitorAssistantTabsHook={() => ({ active: "tools", select })}
+      />,
+    );
+    expect(screen.getByText("tools screen")).toBeTruthy();
+    await userEvent.click(screen.getByRole("tab", { name: "AI provider" }));
+    expect(select).toHaveBeenCalledWith("provider");
   });
 });
