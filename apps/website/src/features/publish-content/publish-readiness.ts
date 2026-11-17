@@ -102,7 +102,7 @@ function nameList(labels: readonly string[]): string {
  * `nextStep` are `null` exactly when there is nothing to say.
  * @complexity O(n) in `otherSiteLabels`.
  */
-export function describePublishReadiness(input: PublishReadinessInput): PublishReadiness {
+export function describePublishReadiness(input: PublishReadinessInput, _optional = {}): PublishReadiness {
   if (input.publishableTypeCount === 0) {
     return {
       ready: false,

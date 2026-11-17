@@ -68,7 +68,7 @@ export function readBackstopMetadata(
   const secret = checkRawValues({ values: { reason: first.reason } });
   if (secret) throw new Error(secret);
   return { ...first, gapLabels: [...new Set(raw.map((e) => e.entityType === "raw-row"
-    ? gapLabelFor({ entityType: "raw-row", table: String(e.state.table) }) : gapLabelFor({ entityType: "raw-file", relPath: e.id })))].sort() };
+    ? gapLabelFor({ item: { entityType: "raw-row", table: String(e.state.table) } }) : gapLabelFor({ item: { entityType: "raw-file", relPath: e.id } })))].sort() };
 }
 
 /** Keep the original untrimmed length cap while accepting surrounding whitespace. */

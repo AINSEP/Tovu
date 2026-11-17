@@ -16,7 +16,7 @@ function stateFor({ relPath, file }: { relPath: string; file: RawFileSnapshot },
 function hash({ relPath, file }: { relPath: string; file: RawFileSnapshot }, _optional = {}): string { return contentHash({ entityType: "raw-file", state: stateFor({ relPath, file }) }); }
 function version({ relPath, file }: { relPath: string; file: RawFileSnapshot }, _optional = {}): number { return Number.parseInt(hash({ relPath, file }).slice(0, 12), 16); }
 
-export function contributeRawFilePublish(_required = {}, _optional = {}): PublishContentContributor {
+export function contributeRawFilePublish(): PublishContentContributor {
   return { entityType: "raw-file", dependsOn: [], build: (deps: PublishContentDeps) => buildRawFileHandler({ deps }) };
 }
 

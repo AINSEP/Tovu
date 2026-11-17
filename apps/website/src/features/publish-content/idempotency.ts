@@ -9,7 +9,7 @@ export function publishContentItemIdempotencyKey(input: {
   sourcePrincipalId: string;
   entity: PackedEntity;
   sourceReplacement?: PublishContentOutcomeRow["sourceReplacement"];
-}): string {
+}, _optional = {}): string {
   const exactVersion = JSON.stringify([
     input.workspaceId,
     input.sourcePrincipalId,

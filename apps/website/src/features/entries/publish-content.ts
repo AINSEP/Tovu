@@ -168,7 +168,7 @@ export const contributeCollectionEntryPublish = (): PublishContentContributor =>
     // A tombstone is terminal, so nothing in the bundle can fix it. A missing type is left to apply:
     // the same bundle may carry it.
     // Its collection, plus whatever its body embeds and its categories/tags.
-    references: ({ entity }) => [{ entityType: "content-type", key: String(entity.state.type) }, ...collectBodyReferences(entity.state)],
+    references: ({ entity }) => [{ entityType: "content-type", key: String(entity.state.type) }, ...collectBodyReferences({ state: entity.state })],
     validate: validateCollectionEntry,
     write: writeCollectionEntry,
     errors: ENTRY_PUBLISH_ERRORS,

@@ -54,7 +54,7 @@ export function labelPeerPlanRows({ plan, entities }: { plan: PeerPlanEnvelope; 
   const labelByKey = new Map<string, string | null>();
   const ownNamed = new Set<string>();
   for (const entity of entities) {
-    labelByKey.set(entityKey({ entityType: entity.entityType, entityId: entity.id }), packedEntityLabel(entity));
+    labelByKey.set(entityKey({ entityType: entity.entityType, entityId: entity.id }), packedEntityLabel({ entity }));
     if (entity.displayLabel !== undefined) ownNamed.add(entityKey({ entityType: entity.entityType, entityId: entity.id }));
   }
 

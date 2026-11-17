@@ -407,7 +407,7 @@ function registerPagesWithMedia(): void {
         bodyHtml: null,
       }),
       withState("page", "p2", { bodyJson: null, bodyHtml: `<img src="/m/same-shot/original">` }),
-    ], ({ entity }) => collectBodyReferences(entity.state))
+    ], ({ entity }) => collectBodyReferences({ state: entity.state }))
   );
 }
 

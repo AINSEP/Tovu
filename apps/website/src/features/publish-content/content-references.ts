@@ -29,9 +29,9 @@ function add({ out, entityType, key }: { out: Map<string, PublishContentReferenc
  *
  * @complexity O(n) in the total size of `bodyJson`, `bodyHtml` and `seoExtJson`.
  */
-export function collectBodyReferences(state: Readonly<Record<string, unknown>>): readonly PublishContentReference[] {
+export function collectBodyReferences({ state }: { state: Readonly<Record<string, unknown>> }, _optional = {}): readonly PublishContentReference[] {
   const out = new Map<string, PublishContentReference>();
-  for (const key of collectReferencedMediaKeys(state)) add({ out, entityType: "media", key });
+  for (const key of collectReferencedMediaKeys({ state })) add({ out, entityType: "media", key });
 
   // Ids are only echoed onto the rows; nothing here reads them.
   const rows = extractEntryRefs({ workspaceId: "", sourceEntryId: "", sourceEntryType: "", bodyJson: state.bodyJson, fieldsExt: {} });
@@ -47,7 +47,7 @@ export function collectBodyReferences(state: Readonly<Record<string, unknown>>):
  *
  * @complexity O(p) in the placement count.
  */
-export function collectPlacementReferences(state: Readonly<Record<string, unknown>>): readonly PublishContentReference[] {
+export function collectPlacementReferences({ state }: { state: Readonly<Record<string, unknown>> }, _optional = {}): readonly PublishContentReference[] {
   const rows = extractEntryRefs({ workspaceId: "", sourceEntryId: "", sourceEntryType: "", bodyJson: { placements: state.placements }, fieldsExt: {} });
   const out = new Map<string, PublishContentReference>();
   for (const row of rows) if (row.sourceKind === "widget-area-placement") add({ out, entityType: "widget", key: row.targetId });

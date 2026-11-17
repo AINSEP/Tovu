@@ -28,6 +28,7 @@ function classify(params) {
   const ps = params.filter((p) => !(ts.isIdentifier(p.name) && p.name.text === "this"));
   if (ps.length === 0) return null;
   const [a, b] = ps;
+  if (ps.length === 1 && isEmptyObj(a.initializer)) return null; // optional-only: `({ x = 1 }: { x?: number } = {})`
   const objFirst = isRequiredObject(a);
   if (ps.length === 1) return objFirst ? "bag-no-options" : "positional";
   if (ps.length === 2) {

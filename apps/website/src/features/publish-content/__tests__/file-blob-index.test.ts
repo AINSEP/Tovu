@@ -32,13 +32,13 @@ test("exports the documented default cap", () => {
 });
 
 test("createFileBlobIndex refuses a non-positive cap", () => {
-  assert.throws(() => createFileBlobIndex({}, { maxEntries: 0 }), RangeError);
-  assert.throws(() => createFileBlobIndex({}, { maxEntries: -1 }), RangeError);
-  assert.throws(() => createFileBlobIndex({}, { maxEntries: 1.5 }), RangeError);
+  assert.throws(() => createFileBlobIndex({ maxEntries: 0 }), RangeError);
+  assert.throws(() => createFileBlobIndex({ maxEntries: -1 }), RangeError);
+  assert.throws(() => createFileBlobIndex({ maxEntries: 1.5 }), RangeError);
 });
 
 test("evicts the least-recently-touched entry once the cap is exceeded", () => {
-  const index = createFileBlobIndex({}, { maxEntries: 3 });
+  const index = createFileBlobIndex({ maxEntries: 3 });
   index.set({ sha256: "sha-1", entry: { absPath: "/1", size: 1 } });
   index.set({ sha256: "sha-2", entry: { absPath: "/2", size: 2 } });
   index.set({ sha256: "sha-3", entry: { absPath: "/3", size: 3 } });
@@ -51,7 +51,7 @@ test("evicts the least-recently-touched entry once the cap is exceeded", () => {
 });
 
 test("a read bumps recency, protecting an entry from an eviction that would otherwise take it", () => {
-  const index = createFileBlobIndex({}, { maxEntries: 3 });
+  const index = createFileBlobIndex({ maxEntries: 3 });
   index.set({ sha256: "sha-1", entry: { absPath: "/1", size: 1 } });
   index.set({ sha256: "sha-2", entry: { absPath: "/2", size: 2 } });
   index.set({ sha256: "sha-3", entry: { absPath: "/3", size: 3 } });
@@ -65,7 +65,7 @@ test("a read bumps recency, protecting an entry from an eviction that would othe
 });
 
 test("re-setting an existing key also bumps its recency", () => {
-  const index = createFileBlobIndex({}, { maxEntries: 3 });
+  const index = createFileBlobIndex({ maxEntries: 3 });
   index.set({ sha256: "sha-1", entry: { absPath: "/1", size: 1 } });
   index.set({ sha256: "sha-2", entry: { absPath: "/2", size: 2 } });
   index.set({ sha256: "sha-3", entry: { absPath: "/3", size: 3 } });

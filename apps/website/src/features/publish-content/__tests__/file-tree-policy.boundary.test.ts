@@ -38,7 +38,7 @@ test("no kind's resolved root can ever equal a site-root file name", () => {
     assert.ok(spec.baseDir.length > 0, `${kind} must have a non-empty baseDir`);
     assert.ok(!spec.baseDir.includes("/"), `${kind}'s baseDir must be one segment`);
     const idSegments = Array.from({ length: spec.idSegmentCount }, (_, i) => `seg${i}`);
-    const resolved = resolveTreeRelativePath(kind, idSegments);
+    const resolved = resolveTreeRelativePath({ kind, idSegments });
     assert.ok(resolved !== null, `${kind} should resolve valid id segments`);
     assert.ok(resolved!.startsWith(`${spec.baseDir}/`), `${kind}'s resolved path must be nested under its baseDir`);
     for (const siteRootFile of siteRootFiles) {
@@ -129,20 +129,20 @@ test("checkTreeFiles refuses an OS junk file that reached it, with a plain reaso
     { path: "theme.json", size: 10, mode: 0o644, textSample: '{"id":"basic"}' },
     { path: "render/.DS_Store", size: 6148, mode: 0o644 },
   ];
-  assert.equal(checkTreeFiles("theme-files", files), `"render/.DS_Store" is a system file that is never published`);
+  assert.equal(checkTreeFiles({ kind: "theme-files", files }), `"render/.DS_Store" is a system file that is never published`);
   assert.equal(
-    checkTreeFiles("theme-files", [{ path: "._id_rsa.png", size: 1, mode: 0o644 }]),
+    checkTreeFiles({ kind: "theme-files", files: [{ path: "._id_rsa.png", size: 1, mode: 0o644 }] }),
     `"._id_rsa.png" is a system file that is never published`
   );
 });
 
 test("checkTreeFiles still runs the '..' and size checks on a junk-looking name", () => {
   assert.equal(
-    checkTreeFiles("theme-files", [{ path: "../outside/._x.png", size: 1, mode: 0o644 }]),
+    checkTreeFiles({ kind: "theme-files", files: [{ path: "../outside/._x.png", size: 1, mode: 0o644 }] }),
     `"../outside/._x.png" contains a '..' segment, which is never allowed`
   );
   assert.notEqual(
-    checkTreeFiles("theme-files", [{ path: "Thumbs.db", size: FILE_TREE_LIMITS.maxTreeBytes + 1, mode: 0o644 }]),
+    checkTreeFiles({ kind: "theme-files", files: [{ path: "Thumbs.db", size: FILE_TREE_LIMITS.maxTreeBytes + 1, mode: 0o644 }] }),
     null
   );
 });
@@ -154,33 +154,33 @@ test("checkTreeFiles blocks a tree holding a planted Anthropic key, exact reason
     { path: "theme.json", size: 10, mode: 0o644, textSample: '{"id":"basic"}' },
     { path: "css/theme.css", size: 200, mode: 0o644, textSample: `body{}\n/* ${planted} */` },
   ];
-  const reason = checkTreeFiles("theme-files", files);
+  const reason = checkTreeFiles({ kind: "theme-files", files });
   assert.equal(reason, `"css/theme.css" looks like it holds a key (Anthropic API key (sk-ant-))`);
 });
 
 test("checkTreeFiles blocks a tree holding a planted GitHub PAT", () => {
   const planted = "ghp_" + "a".repeat(36);
   const files: FileTreeFileInput[] = [{ path: "readme-notes.md", size: 50, mode: 0o644, textSample: planted }];
-  const reason = checkTreeFiles("theme-files", files);
+  const reason = checkTreeFiles({ kind: "theme-files", files });
   assert.match(reason ?? "", /looks like it holds a key/);
 });
 
 test("checkTreeFiles blocks a tree holding a planted PEM private key block", () => {
   const pemHeader = ["-----BEGIN", "PRIVATE", "KEY-----"].join(" ");
   const files: FileTreeFileInput[] = [{ path: "static/blob.txt", size: 50, mode: 0o644, textSample: pemHeader }];
-  const reason = checkTreeFiles("theme-files", files);
+  const reason = checkTreeFiles({ kind: "theme-files", files });
   assert.match(reason ?? "", /looks like it holds a key/);
 });
 
 test("checkTreeFiles does not scan a binary-extension file even if its sample matches a pattern", () => {
   const planted = "sk-ant-" + "a".repeat(95);
   const files: FileTreeFileInput[] = [{ path: "preview/shot.png", size: 50, mode: 0o644, textSample: planted }];
-  assert.equal(checkTreeFiles("theme-files", files), null);
+  assert.equal(checkTreeFiles({ kind: "theme-files", files }), null);
 });
 
 test("checkTreeFiles blocks a qualifying file when textSample is omitted", () => {
   const files: FileTreeFileInput[] = [{ path: "theme.json", size: 50, mode: 0o644 }];
-  assert.equal(checkTreeFiles("theme-files", files), '"theme.json" is missing the text required for its secret scan');
+  assert.equal(checkTreeFiles({ kind: "theme-files", files }), '"theme.json" is missing the text required for its secret scan');
 });
 
 // (e) Every file-backed publish-content contributor uses this module (grep-style source check).
@@ -217,30 +217,30 @@ test("checkTreeFiles blocks case-insensitively duplicate paths", () => {
     { path: "render/Index.html", size: 10, mode: 0o644, textSample: "<html></html>" },
     { path: "render/index.html", size: 10, mode: 0o644, textSample: "<html></html>" },
   ];
-  const reason = checkTreeFiles("theme-files", files);
+  const reason = checkTreeFiles({ kind: "theme-files", files });
   assert.match(reason ?? "", /differ only by letter case/);
 });
 
 test("checkTreeFiles blocks a disallowed extension for theme-files, terse and preformatted", () => {
   const files: FileTreeFileInput[] = [{ path: "server.php", size: 10, mode: 0o644, textSample: "<?php ?>" }];
-  const reason = checkTreeFiles("theme-files", files);
+  const reason = checkTreeFiles({ kind: "theme-files", files });
   assert.equal(reason, "Can't publish: contains a file type that isn't allowed (server.php)");
 });
 
 test("checkTreeFiles names a video extension specifically", () => {
   const files: FileTreeFileInput[] = [{ path: "assets/hero/x.mp4", size: 10, mode: 0o644 }];
-  const reason = checkTreeFiles("theme-files", files);
+  const reason = checkTreeFiles({ kind: "theme-files", files });
   assert.equal(reason, "Can't publish: contains a video file (x.mp4)");
 });
 
 test("checkTreeFiles allows every extension for a code-class kind (agent-skill)", () => {
   const files: FileTreeFileInput[] = [{ path: "scripts/run.py", size: 10, mode: 0o644, textSample: "print(1)" }];
-  assert.equal(checkTreeFiles("agent-skill", files), null);
+  assert.equal(checkTreeFiles({ kind: "agent-skill", files }), null);
 });
 
 test("checkTreeFiles blocks a tree over the per-file byte cap", () => {
   const files: FileTreeFileInput[] = [{ path: "big.png", size: FILE_TREE_LIMITS.maxFileBytes + 1, mode: 0o644 }];
-  assert.match(checkTreeFiles("theme-files", files) ?? "", /per-file limit/);
+  assert.match(checkTreeFiles({ kind: "theme-files", files }) ?? "", /per-file limit/);
 });
 
 test("checkTreeFiles blocks a tree over the total byte cap", () => {
@@ -248,7 +248,7 @@ test("checkTreeFiles blocks a tree over the total byte cap", () => {
     { path: "a.png", size: FILE_TREE_LIMITS.maxTreeBytes, mode: 0o644 },
     { path: "b.png", size: 1, mode: 0o644 },
   ];
-  assert.match(checkTreeFiles("theme-files", files) ?? "", /byte limit/);
+  assert.match(checkTreeFiles({ kind: "theme-files", files }) ?? "", /byte limit/);
 });
 
 test("checkTreeFiles blocks a tree over the file-count cap", () => {
@@ -257,7 +257,7 @@ test("checkTreeFiles blocks a tree over the file-count cap", () => {
     size: 1,
     mode: 0o644,
   }));
-  assert.match(checkTreeFiles("theme-files", files) ?? "", /file limit/);
+  assert.match(checkTreeFiles({ kind: "theme-files", files }) ?? "", /file limit/);
 });
 
 test("normalizeMode collapses any exec bit to 0o755 and everything else to 0o644", () => {
@@ -272,11 +272,11 @@ test("normalizeMode collapses any exec bit to 0o755 and everything else to 0o644
 });
 
 test("resolveTreeRelativePath rejects a wrong segment count and an invalid segment", () => {
-  assert.equal(resolveTreeRelativePath("theme-files", ["static"]), null);
-  assert.equal(resolveTreeRelativePath("theme-files", ["static", "Basic Theme"]), null);
-  assert.equal(resolveTreeRelativePath("theme-files", ["static", ""]), null);
-  assert.equal(resolveTreeRelativePath("theme-files", ["static", "a".repeat(65)]), null);
-  assert.equal(resolveTreeRelativePath("theme-files", ["static", "basic"]), "themes/static/basic");
+  assert.equal(resolveTreeRelativePath({ kind: "theme-files", idSegments: ["static"] }), null);
+  assert.equal(resolveTreeRelativePath({ kind: "theme-files", idSegments: ["static", "Basic Theme"] }), null);
+  assert.equal(resolveTreeRelativePath({ kind: "theme-files", idSegments: ["static", ""] }), null);
+  assert.equal(resolveTreeRelativePath({ kind: "theme-files", idSegments: ["static", "a".repeat(65)] }), null);
+  assert.equal(resolveTreeRelativePath({ kind: "theme-files", idSegments: ["static", "basic"] }), "themes/static/basic");
 });
 
 test("checkMcpJsonSecretPlaceholders allows empty/placeholder env values and blocks a literal token", () => {
@@ -344,12 +344,12 @@ function listFilesRecursive(dir: string): string[] {
 test("license documents are text: accepted by identity, scanned for secrets, and never a blanket extensionless allowance", () => {
   for (const name of ["LICENSE", "COPYING", "NOTICE", "license"]) {
     const path = `assets/vendor/library/${name}`;
-    assert.equal(checkTreeFiles("theme-files", [{ path, size: 12, mode: 0o644, textSample: "License text" }]), null);
-    assert.match(checkTreeFiles("theme-files", [{ path, size: 12, mode: 0o644 }]) ?? "", /missing the text required for its secret scan/);
+    assert.equal(checkTreeFiles({ kind: "theme-files", files: [{ path, size: 12, mode: 0o644, textSample: "License text" }] }), null);
+    assert.match(checkTreeFiles({ kind: "theme-files", files: [{ path, size: 12, mode: 0o644 }] }) ?? "", /missing the text required for its secret scan/);
     const secret = "sk-" + "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789longpathsegment";
-    assert.match(checkTreeFiles("theme-files", [{ path, size: secret.length, mode: 0o644, textSample: secret }]) ?? "", /looks like it holds a key/);
+    assert.match(checkTreeFiles({ kind: "theme-files", files: [{ path, size: secret.length, mode: 0o644, textSample: secret }] }) ?? "", /looks like it holds a key/);
   }
   for (const path of ["assets/vendor/library/RUN", "assets/vendor/library/LICENSE.sh"]) {
-    assert.notEqual(checkTreeFiles("theme-files", [{ path, size: 12, mode: 0o644, textSample: "License text" }]), null);
+    assert.notEqual(checkTreeFiles({ kind: "theme-files", files: [{ path, size: 12, mode: 0o644, textSample: "License text" }] }), null);
   }
 });

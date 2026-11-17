@@ -45,7 +45,7 @@ export function isValidSha256Hex({ value }: { value: string }, _optional = {}): 
  *
  * @complexity O(n) in `bytes.length`.
  */
-export function sha256Hex(bytes: Uint8Array): string {
+export function sha256Hex({ bytes }: { bytes: Uint8Array }, _optional = {}): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
@@ -56,8 +56,8 @@ export function sha256Hex(bytes: Uint8Array): string {
  *
  * @complexity O(n) in `bytes.length` (one hash pass).
  */
-export function bytesMatchSha256(required: { bytes: Uint8Array; claimedSha256: string }): boolean {
-  return sha256Hex(required.bytes) === required.claimedSha256.toLowerCase();
+export function bytesMatchSha256(required: { bytes: Uint8Array; claimedSha256: string }, _optional = {}): boolean {
+  return sha256Hex({ bytes: required.bytes }) === required.claimedSha256.toLowerCase();
 }
 
 /**

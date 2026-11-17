@@ -142,7 +142,7 @@ async function planEntity(
   const identity = {
     entityType: entity.entityType,
     entityId: entity.id,
-    entityLabel: packedEntityLabel(entity),
+    entityLabel: packedEntityLabel({ entity }),
   };
 
   if (!handler) {

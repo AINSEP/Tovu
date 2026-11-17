@@ -310,7 +310,7 @@ async function packOneThemeTree(input: {
   const treeKey = `${input.tier}/${input.id}`;
   const title = treeTitle({ treeKey });
 
-  if (resolveTreeRelativePath(THEME_FILES_KIND, [input.tier, input.id]) === null) {
+  if (resolveTreeRelativePath({ kind: THEME_FILES_KIND, idSegments: [input.tier, input.id] }) === null) {
     return { skippedTree: { treeKey, reason: `${title} was not published: '${treeKey}' is not a valid theme tree address` } };
   }
 
@@ -322,7 +322,7 @@ async function packOneThemeTree(input: {
     mode: file.mode,
     textSample: file.textSample,
   }));
-  const blockReason = checkTreeFiles(THEME_FILES_KIND, policyInputs);
+  const blockReason = checkTreeFiles({ kind: THEME_FILES_KIND, files: policyInputs });
   if (blockReason) {
     return { skippedTree: { treeKey, reason: wrapTreePolicyReason({ title, reason: blockReason }), ...(label ? { label } : {}) } };
   }
@@ -400,7 +400,7 @@ function parseTreeAddress({ id }: { id: string }, _optional = {}): ThemeTreeAddr
   if (segments.length !== 2) return null;
   const [tier, themeId] = segments;
   if (!THEME_FILE_TREE_TIERS.includes(tier)) return null;
-  if (resolveTreeRelativePath(THEME_FILES_KIND, [tier, themeId]) === null) return null;
+  if (resolveTreeRelativePath({ kind: THEME_FILES_KIND, idSegments: [tier, themeId] }) === null) return null;
   return { tier, themeId, treeKey: id };
 }
 
@@ -680,7 +680,7 @@ function buildHandler(deps: PublishContentDeps): PublishContentHandler {
 
     const policy = await incomingPolicyInputs({ deps, files: incoming.files });
     if ("reason" in policy) return policy;
-    const policyReason = checkTreeFiles(THEME_FILES_KIND, policy.inputs);
+    const policyReason = checkTreeFiles({ kind: THEME_FILES_KIND, files: policy.inputs });
     return policyReason ? { reason: wrapTreePolicyReason({ title, reason: policyReason }) } : incoming;
   }
 

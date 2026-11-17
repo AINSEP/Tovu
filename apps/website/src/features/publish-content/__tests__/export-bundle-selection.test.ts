@@ -188,7 +188,7 @@ function stated(entityType: string, id: string, state: Record<string, unknown>, 
   return { ...entity({ entityType, id, requiredBlobs }), state };
 }
 
-const bodyReferences = { references: ({ entity: e }: { entity: PackedEntity }) => collectBodyReferences(e.state) };
+const bodyReferences = { references: ({ entity: e }: { entity: PackedEntity }) => collectBodyReferences({ state: e.state }) };
 const REF_HANDLERS: ReferenceHandlers = new Map([
   ["page", bodyReferences],
   ["post", bodyReferences],

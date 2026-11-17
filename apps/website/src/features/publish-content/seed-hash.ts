@@ -44,7 +44,7 @@ export interface CreatePublishContentSeedHashInput {
  * @complexity O(1) per lookup after the first — one contributor build per type (cheap closures) and
  *   one `inspect()` read against the seed. The first lookup additionally pays `loadSeedDeps()` once.
  */
-export function createPublishContentSeedHash(input: CreatePublishContentSeedHashInput): PublishContentSeedHashFn {
+export function createPublishContentSeedHash(input: CreatePublishContentSeedHashInput, _optional = {}): PublishContentSeedHashFn {
   let seedDeps: PublishContentDeps | null | undefined;
 
   function resolveSeedDeps(): PublishContentDeps | null {

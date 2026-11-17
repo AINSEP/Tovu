@@ -45,9 +45,9 @@ test('gallery media references protect every image and publish keys remain visib
   const refs = extractHtmlEntryRefs({ workspaceId, sourceEntryId: 'page', html });
   assert.deepEqual(refs.map(ref => [ref.targetKind, ref.targetId]), [['asset', 'one'], ['asset', 'two'], ['asset', 'one']]);
   assert.equal(new Set(refs.map(ref => ref.fieldPath)).size, 3);
-  assert.deepEqual([...collectReferencedMediaKeys({ bodyHtml: html })].sort(), ['one', 'three', 'two']);
+  assert.deepEqual([...collectReferencedMediaKeys({ state: { bodyHtml: html } })].sort(), ['one', 'three', 'two']);
   const encoded = html.replace(/data-embed-config='([^']*)'/g, (_match, json: string) => `data-embed-config="${json.replace(/"/g, '&quot;')}"`);
-  assert.deepEqual([...collectReferencedMediaKeys({ bodyHtml: encoded })].sort(), ['one', 'three', 'two']);
+  assert.deepEqual([...collectReferencedMediaKeys({ state: { bodyHtml: encoded } })].sort(), ['one', 'three', 'two']);
 });
 
 test('50 gallery image references do not hide the following ordinary media embed', () => {

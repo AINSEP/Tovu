@@ -1039,33 +1039,33 @@ test("entityKey joins entityType and id with a stable separator", () => {
 // ---------------------------------------------------------------------------
 
 test("entityDisplayLabel prefers the slug, then the title, then name/filename", () => {
-  assert.equal(entityDisplayLabel({ slug: "spring-sale", title: "Spring Sale", name: "n", filename: "f.png" }), "spring-sale");
-  assert.equal(entityDisplayLabel({ title: "Spring Sale", name: "n" }), "Spring Sale");
-  assert.equal(entityDisplayLabel({ name: "n", filename: "f.png" }), "n");
-  assert.equal(entityDisplayLabel({ filename: "f.png" }), "f.png");
+  assert.equal(entityDisplayLabel({ state: { slug: "spring-sale", title: "Spring Sale", name: "n", filename: "f.png" } }), "spring-sale");
+  assert.equal(entityDisplayLabel({ state: { title: "Spring Sale", name: "n" } }), "Spring Sale");
+  assert.equal(entityDisplayLabel({ state: { name: "n", filename: "f.png" } }), "n");
+  assert.equal(entityDisplayLabel({ state: { filename: "f.png" } }), "f.png");
 });
 
 test("entityDisplayLabel names a content type by its label and a widget area by its region", () => {
-  assert.equal(entityDisplayLabel({ key: "recipe", label: "Recipes", fields: [] }), "Recipes");
-  assert.equal(entityDisplayLabel({ regionKey: "sidebar-primary", placements: [] }), "sidebar-primary");
-  assert.equal(entityDisplayLabel({ name: "Category", label: "Categories" }), "Category", "name still outranks label");
+  assert.equal(entityDisplayLabel({ state: { key: "recipe", label: "Recipes", fields: [] } }), "Recipes");
+  assert.equal(entityDisplayLabel({ state: { regionKey: "sidebar-primary", placements: [] } }), "sidebar-primary");
+  assert.equal(entityDisplayLabel({ state: { name: "Category", label: "Categories" } }), "Category", "name still outranks label");
 });
 
 test("entityDisplayLabel returns null rather than an unusable label", () => {
-  assert.equal(entityDisplayLabel({}), null, "no candidate field at all");
-  assert.equal(entityDisplayLabel({ slug: "" }), null, "an empty slug is not a label");
-  assert.equal(entityDisplayLabel({ slug: "   " }), null, "a whitespace-only slug is not a label");
-  assert.equal(entityDisplayLabel({ slug: 42, title: "Fallback" }), "Fallback", "a non-string slug is skipped, not coerced");
-  assert.equal(entityDisplayLabel({ slug: null }), null);
+  assert.equal(entityDisplayLabel({ state: {} }), null, "no candidate field at all");
+  assert.equal(entityDisplayLabel({ state: { slug: "" } }), null, "an empty slug is not a label");
+  assert.equal(entityDisplayLabel({ state: { slug: "   " } }), null, "a whitespace-only slug is not a label");
+  assert.equal(entityDisplayLabel({ state: { slug: 42, title: "Fallback" } }), "Fallback", "a non-string slug is skipped, not coerced");
+  assert.equal(entityDisplayLabel({ state: { slug: null } }), null);
 });
 
 test("packedEntityLabel prefers a non-blank displayLabel, else names the entity from its state", () => {
   const base = { entityType: "theme-files", id: "static/x", schemaVersion: 1, contentHash: "h", hashVersion: 1, requiredBlobs: [], state: { title: "Theme: static/x" } };
-  assert.equal(packedEntityLabel({ ...base, displayLabel: "X Theme" }), "X Theme");
-  assert.equal(packedEntityLabel(base), "Theme: static/x");
-  assert.equal(packedEntityLabel({ ...base, displayLabel: "  " }), "Theme: static/x", "blank is not a label");
+  assert.equal(packedEntityLabel({ entity: { ...base, displayLabel: "X Theme" } }), "X Theme");
+  assert.equal(packedEntityLabel({ entity: base }), "Theme: static/x");
+  assert.equal(packedEntityLabel({ entity: { ...base, displayLabel: "  " } }), "Theme: static/x", "blank is not a label");
   // Off the network on a destination: a non-string is ignored, not coerced.
-  assert.equal(packedEntityLabel({ ...base, displayLabel: 7 as unknown as string }), "Theme: static/x");
+  assert.equal(packedEntityLabel({ entity: { ...base, displayLabel: 7 as unknown as string } }), "Theme: static/x");
 });
 
 test("every planned row carries the label its own packed state named it, whatever the outcome", async () => {

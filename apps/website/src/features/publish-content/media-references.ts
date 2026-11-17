@@ -153,7 +153,7 @@ function addSeoKeys({ raw, out }: { raw: unknown; out: Set<string> }, _optional 
  *
  * @complexity O(n) in the total size of the three fields.
  */
-export function collectReferencedMediaKeys(state: Readonly<Record<string, unknown>>): ReadonlySet<string> {
+export function collectReferencedMediaKeys({ state }: { state: Readonly<Record<string, unknown>> }, _optional = {}): ReadonlySet<string> {
   const keys = new Set<string>();
   addDocKeys({ root: state.bodyJson, out: keys });
   if (typeof state.bodyHtml === "string") addHtmlKeys({ html: state.bodyHtml, out: keys });
