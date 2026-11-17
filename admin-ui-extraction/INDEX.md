@@ -1,8 +1,11 @@
 # Admin UI extraction: plan index (2026-11-17, planning only, nothing executed)
 
-Status: **PARTIAL** (context budget). Written: common rules, the screen recipe, 28 specified runs in 7 sheet files,
-4 generated inventories. Not written: the 7 design-first screens' executable sheets (outlines only) — see section 9.
-No source was edited, no test was run, no browser was opened.
+Status: **PARTIAL, revision 2** (2026-11-17). Round 2 answered all 17 findings of `CODEX-JUDGE.md` (table at the
+end: 17 accepted, 0 rebutted) and re-verified the plan against Tovu merge-a `e801e9ae` / merge-b `450ac748` and Jini
+merge-a `dde69a6d` / merge-b `9c982fd9` (`integ/merge-final-2026-11-16` did not exist). Written: common rules, the
+screen recipe, the design-run brief (T-DESIGN), **31 specified runs** in 7 sheet files, 4 generated inventories.
+Still not written: the designs themselves for the 8 design-first sheets (each is one Opus run with a fixed output
+contract) — see section 9. No source was edited, no test was run, no browser was opened.
 
 ## 1. What I read
 - Tovu `integ/merge-a-2026-11-16` @ `f354cfbd` (worktree). `integ/merge-final-2026-11-16` did not exist. merge-a is
@@ -65,14 +68,14 @@ Findings that change the plan:
 | f/pages | 7,144 (29) | 1,886 | 9,926 | 0 | 3: PageEditor.tsx 1428, rules.ts 615, use-page-editor.hooks.ts 1404 | 4 | SPLIT | @jini-ai/cms/pages/react (D-3) | S-PAGES (design first) | YES |
 | c/AssistantDock | 6,395 (48) | 2,197 | 7,821 | 0 | 2: AssistantDock.tsx 665, AssistantDock.hooks.tsx 2134 | 50 | SPLIT | @jini-ai/chat/react (generic part) + Tovu wiring | S-DOCK a-c | YES |
 | f/settings | 5,910 (32) | 2,667 | 6,765 | 9 | 3: external-mcp-admissions-rules.ts 631, ExternalMcpSettingsPanel.tsx 591, SettingsUi.tsx 744 | 30 | SPLIT | owner panels per tab; assembled page stays | S-SETTINGS (design first) | YES |
-| f/security | 6,108 (32) | 2,394 | 7,980 | 5 | 3: AccessTokensTab.tsx 1068, rules.ts 1133, use-access-tokens.hooks.ts 939 | 19 | MOVE (retire Tovu copy) | Jini security module (D-5: user-management/admin/security) | S-SECURITY a-d | YES |
+| f/security | 6,108 (32) | 2,394 | 7,980 | 5 | 3: AccessTokensTab.tsx 1068, rules.ts 1133, use-access-tokens.hooks.ts 939 | 19 | MOVE (retire Tovu copy) | Jini security module, `@jini-ai/admin/security` (owner 11-10; D-5 not planned) | S-SECURITY a-d | YES |
 | f/ai-assistant | 3,801 (31) | 4,063 | 4,918 | 216 | 2: AiAssistant.tsx 1080, use-visitor-credential-form.hooks.ts 709 | 14 | STAY | Tovu | - | no |
 | f/deployment | 5,072 (28) | 2,561 | 6,644 | 0 | 1: StaticSiteTab.tsx 1420 | 9 | SPLIT | @jini-ai/devops/deploy/react | S-DEPLOY (design first) | YES |
 | c/(other) | 3,973 (47) | 3,449 | 12,989 | 125 | 0 | 12 | later | @jini-ai/ui or domain, case by case | - | no |
 | f/sites | 5,400 (37) | 1,345 | 5,820 | 0 | 2: Sites.hooks.tsx 568, use-site-transfer.hooks.ts 502 | 3 | STAY | Tovu (multi-site product) | - | no |
 | f/media | 4,166 (22) | 1,888 | 5,043 | 0 | 2: Media.tsx 1578, rules.ts 759 | 11 | SPLIT | @jini-ai/cms/media/react (dedupe with Jini admin/media) | S-MEDIA (design first) | YES |
-| f/taxonomy | 3,485 (27) | 1,282 | 4,829 | 0 | 1: Taxonomy.tsx 899 | 7 | MOVE | @jini-ai/cms/taxonomy/react | S-TAXONOMY | YES |
-| f/collections | 3,235 (24) | 1,304 | 4,475 | 0 | 1: Collections.tsx 671 | 2 | SPLIT | @jini-ai/cms/entries/react + cms/content-types/react | S-COLLECTIONS | YES |
+| f/taxonomy | 3,485 (27) | 1,282 | 4,829 | 0 | 1: Taxonomy.tsx 899 | 7 | MOVE | @jini-ai/cms/taxonomy/admin/react | S-TAXONOMY | YES |
+| f/collections | 3,235 (24) | 1,304 | 4,475 | 0 | 1: Collections.tsx 671 | 2 | SPLIT | @jini-ai/cms/content-types/admin/react (ready) + cms/entries/admin/react (design first) | S-COLLECTIONS a, S-ENTRY-EDITOR | YES |
 | root | 3,859 (10) | 257 | 7,958 | 6,799 | 3: App.tsx 703, panels.tsx 1311, App.hooks.ts 1205 | 17 | SPLIT | @jini-ai/admin/react/shell (generic) + Tovu composition | J1 J2 T1a T1b A1 | YES |
 | f/email | 2,949 (24) | 948 | 1,545 | 114 | 0 | 6 | STAY for now | not in the named goal; later (platform mail owner) | - | no |
 | f/roles | 2,036 (9) | 1,523 | 2,579 | 0 | 2: Roles.tsx 869, use-roles.hooks.ts 629 | 0 | MOVE (dedupe with um admin roles) | @jini-ai/user-management/react/roles | S-ROLES | YES |
@@ -104,58 +107,73 @@ Findings that change the plan:
 | f/members | 218 (8) | 625 | 702 | 0 | 0 | 0 | STAY (binding) | host binding of user-management/react/members | - | no |
 | f/import-export | 717 (11) | 35 | 439 | 0 | 0 | 3 | STAY | Tovu | - | no |
 | f/analytics | 233 (7) | 376 | 336 | 0 | 0 | 0 | STAY for now | later | - | no |
-| f/admin-themes | 149 (2) | 306 | 162 | 41 | 0 | 4 | MOVE PART | @jini-ai/admin/react/shell theme port | J3 | YES |
+| f/admin-themes | 149 (2) | 306 | 162 | 41 | 0 | 4 | STAY (rev 2) | Tovu theme controller, injected through the shell's `useThemeHook` | J3, T1b | YES |
 | f/fs-files | 450 (4) | 0 | 969 | 0 | 0 | 0 | STAY for now | later | - | no |
 | f/auth | 321 (10) | 58 | 406 | 0 | 0 | 2 | STAY (binding) | host binding of user-management/react/auth | T1b | YES |
 | f/authentication | 318 (4) | 57 | 177 | 0 | 0 | 2 | STAY for now | later (user-management/react) | - | no |
-| admin-themes | 374 (3) | 0 | 755 | 884 | 0 | 0 | MOVE PART | @jini-ai/admin/react/shell theme port; CSS packs stay (D-7) | J3 | YES |
+| admin-themes | 374 (3) | 0 | 755 | 884 | 0 | 0 | STAY (rev 2) | Tovu: settings binding, painting, pre-paint hint, CSS packs (D-7) | J3, T1b | YES |
 | f/webmcp | 168 (3) | 64 | 505 | 0 | 0 | 1 | STAY | Tovu | A1 touches 1 file | no |
 | f/playground | 131 (4) | 29 | 147 | 0 | 0 | 1 | STAY | Tovu dev tool | - | no |
 | f/admin-ui | 45 (2) | 0 | 122 | 3 | 0 | 1 | STAY | Tovu | - | no |
 | styles | 0 (0) | 0 | 645 | 6,498 | 0 | 0 | STAY | Tovu host CSS (styles the jini- classes) | - | no |
 | **total** | **118,112 (951)** | **66,281** | **182,593** | **16,796** | 38 | 285 | | | | |
 
-## 5. Sheets, order, prerequisites, estimates
+## 5. Sheets, order, prerequisites, estimates (revision 2)
+Owner-package subpaths in section 4 read `<owner>/<domain>/admin/react` (exact table: `JM-jini-domains-out.md`).
 | Order | Sheet (file) | Runs | Estimate | Needs | Chrome check |
 |---|---|---|---|---|---|
-| 1 | A0 baselines, A1 website imports (`A-prereqs.md`) | 2 | 0.31M | - | A0 is the check's baseline |
-| 1 | J1 any-of, J2 shell contract, J3 theme port (`J-shell.md`) | 3 | 0.45M | J2: order with xpkg R1c | no (Jini only) |
-| 2 | T1a permissions, T1b shell swap (`T1-adopt-shell.md`) | 2 | 0.34M | J1-J3, A0, A1; Opus review of T1b | **every panel** |
+| 1 | A0 baselines, A1 website imports incl. Step D (`A-prereqs.md`) | 2 | 0.34M | - | A0 is the check's baseline |
+| 1 | J1 access rule + `noAccess`, J2 shell contract, J3 theme seam (`J-shell.md`) | 3 | 0.45M | J2: order with xpkg R1c | no (Jini only) |
+| 2 | T1a permissions, T1b shell swap (`T1-adopt-shell.md`) | 2 | 0.36M | J1-J3, A0, A1; Opus review of T1b | **every panel**, 3 widths |
 | 2 | J4 module runtime (`JM-jini-domains-out.md`) | 1 | 0.15M | D-1 | no |
-| 3 | JM1 forms, JM2 seo+redirects, JM3 media, JM4 widgets+comments, JM5 agent-plugins+security+consent+source-control | 5 | 1.03M | J4; xpkg R1c, R2a (JM1), R2b (JM3-5) | forms, seo, redirects, widgets, comments, consent |
-| 4 | S-TRASH, S-MENUS, S-ROLES, S-TAXONOMY a/b, S-COLLECTIONS a/b (`S-screens-ready.md` + `T-SCREEN.md`) | 7 | 1.36M | J4; R3 (roles); A1 (menus) | each screen |
-| 4 | S-SECURITY a (design) b c d (`S-SECURITY-and-DOCK.md`) | 4 | 0.93M | JM5, D-5 | security, deployment |
-| 4 | S-DOCK a b, c after a split design | 3 + 1 design | 0.77M | merge-b merged, D-6 | dock, real chat |
-| 5 | S-POSTS, S-PAGES, S-THEMES, S-PLUGINS, S-SETTINGS, S-DEPLOY, S-MEDIA (`S-design-first.md`, outlines) | 7 designs + about 27 runs | 1.75M + 6.1M | merged base; D-3, D-4, lane K/T D-T4; T-PO-01, T-TH-03 | each screen |
-**Total estimate: about 13.2M executor tokens**: 5.3M for the 28 specified runs, 7.9M for the design-first screens.
-Runnable now with no owner decision: A0, A1, J1, J2, J3, T1a, T1b = 1.10M. After D-1: J4, JM1-5, the five ready
-screens = 2.54M more.
+| 3 | JM1-pre … JM5-pre: debt, barrels, `SeoPage` split, test classification | 5 | 0.92M | J4 | no (Jini only) |
+| 4 | JM1 forms, JM2 seo+redirects, JM3 media, JM4 widgets+comments, JM5 agent-plugins+consent+source-control | 5 | 0.95M | its pre-run; xpkg R1c, R2a (JM1), R2b (JM3-5); xpkg G-TESTS integration home if a pre-run reports INTEGRATION tests | forms, seo, redirects, widgets, comments, consent |
+| 5 | S-TRASH, S-MENUS, S-ROLES, S-TAXONOMY a/b, S-COLLECTIONS a (`S-screens-ready.md` + `T-SCREEN.md`) | 6 | 1.16M | J4; R3 (roles); A1 (menus) | each screen |
+| 5 | S-SECURITY a (design) b c d (`S-SECURITY-and-DOCK.md`) | 4 | 0.96M | A1 Step D; d also S-DEPLOY's 3 imports | security, deployment |
+| 5 | S-DOCK a b c | 3 | 0.60M | merge-b merged, D-6; b after T1b | dock, real chat |
+| 6 | S-POSTS, S-PAGES, S-THEMES, S-PLUGINS, S-SETTINGS, S-DEPLOY, S-MEDIA, S-ENTRY-EDITOR (`S-design-first.md`, T-DESIGN + outlines) | 8 designs + about 29 runs | 2.0M + 6.5M | merged base; D-3, D-4, lane K/T D-T4; T-PO-01, T-TH-03 | each screen |
+**Total estimate: about 14.4M executor tokens** (round 1: 13.2M): 5.9M for the 31 specified runs, 8.5M for the
+design-first screens. What moved the number: +0.92M pre-runs (debt may not follow moved code; round 1 did not cost
+it), +0.03M A1 Step D, +0.02M T1b, +0.04M J1, -0.06M J3, -0.17M dock (no split design needed), -0.20M collections b
+moved to design-first, +0.65M S-ENTRY-EDITOR design + runs, +0.03M security design, -0.03M JM moves (security stays).
+Runnable now with no owner decision: A0, A1, J1, J2, J3, T1a, T1b = 1.15M. After D-1: J4, the pre-runs, JM1-5, the
+ready screens.
 
-## 6. File-disjointness for parallel runs
+## 6. Order of runs (revision 2: serial wherever a shared file is edited; nothing is applied by a coordinator)
 - Parallel: A0 ‖ A1 ‖ J1. Then J2, then J3 (same folder `react/shell`).
 - T1a then T1b, alone: they own `App.tsx`, `App.chrome.tsx`, `App.hooks.ts`, `App.session.ts`, `nav.ts`, shell CSS.
-- JM1-JM5 are source-disjoint. They collide on Jini `packages/admin/package.json`, `packages/cms/package.json`
-  (JM1-4) and Tovu `integrations/jini-admin/modules.hooks.ts`: coordinator applies those lines, or run serially.
-- S sheets are disjoint by feature folder. Shared, coordinator-only: `panels.tsx`, `modules.hooks.ts`,
-  `integrations/jini-kits.ts`, owner `package.json`. Known cross-feature couplings that force an order:
-  taxonomy before collections (term picker), posts with pages (mutual imports), security a before deploy,
-  S-COLLECTIONS with audit2 a04 (`WidgetConfigFields` imports collections 6 times), S-DOCK after merge-b.
-- Never parallel with xpkg R1c/R2a/R2b/R3 on the same Jini folder: those go first.
+  T1b step 3 is the Tovu half of J2 step 5 (class rename).
+- J4 alone (`packages/core/package.json`, `packages/ui-kit/package.json`).
+- JM1-pre … JM5-pre: file-disjoint inside `packages/admin/src`, but all edit `scripts/size-debt.json` and
+  `scripts/hook-injection-debt.json`: **serial** (or parallel on separate branches merged one at a time with the
+  debt files regenerated by `--update` after each merge; shrink-only check in COMMON-ADMIN section 1).
+- JM1 → JM5 **serial**: `packages/admin/package.json`, `packages/cms/package.json`, Tovu `modules.hooks.ts`, `jini-kits.ts`.
+- Screen sheets (S-*) **serial in their Tovu halves**: `panels.tsx`, `modules.hooks.ts`, `jini-kits.ts`. Their Jini
+  halves may be prepared in parallel only when the owner packages differ (roles: `user-management`; security:
+  `admin`; dock: `chat`; the cms screens share `packages/cms/package.json` and are serial).
+  Order forced by coupling: taxonomy before S-ENTRY-EDITOR (term picker), posts with pages (mutual imports),
+  security a before deploy, S-COLLECTIONS a with audit2 a04 (`WidgetConfigFields` imports collections 6 times),
+  S-DOCK after merge-b, S-DOCK b after T1b (chart provider boundary).
+- Never parallel with xpkg R1c/R2a/R2b/R3 on the same Jini folder: those go first. xpkg G-TESTS skips the nine
+  JM folders (their tests are classified by the JM pre-runs) and provides the integration test package.
 
 ## 7. Owner decisions
 | # | Decision | Recommendation |
 |---|---|---|
 | D-0 | Which branch is the base? merge-a, merge-b and size-05 each change admin differently | merge all three into one branch before any S sheet |
+| D-11 (new) | The shell's two declared behaviour changes in J1 (unknown permissions show all-of panels; a denied URL shows `noAccess` instead of the default panel) | approve; no host consumes the Jini shell today |
+| D-12 (new) | Proposed security hardening list that S-SECURITY run a will produce (show-once plaintext, hiding write controls) | decide after run a; nothing is implemented before |
+| D-13 (new) | Multi-theme registry inside Jini | not now; only when a second host needs it |
 | D-1 | Home of the module runtime the owners need (`createControllerStore`, errors, `querySuffix`, `hasPermission` → `@jini-ai/core`; `useController`, `bindReact` → `@jini-ai/ui-kit/react`) | approve as written; it is the only home the import rule allows |
 | D-2 | Dictionaries (66k lines): stay in Tovu with a parity test against the owner's `messages.en` (today's precedent: seo, comments, forms), or ship in the owner package | stay in Tovu; a second host can copy them later |
 | D-3 | Pages owner path: new `cms/src/pages/admin` or under `cms/src/entries/admin/pages` | new `pages` (matches lane T's `cms/src/posts`) |
 | D-4 | Settings: approve the tab → owner table after its design | - |
-| D-5 | Security's home. You said Tovu must use "Jini's admin/security"; the rule also says admin's domain code moves to its owner | `user-management/src/admin/security` (API keys go there in lane U3) |
+| D-5 | Security's home. You said Tovu must use "Jini's admin/security" | **rev 2: the plan now does exactly that** (`packages/admin/src/security` stays). Moving it to `user-management` later is optional and unplanned; decide only if lane U3 needs it |
 | D-6 | Which agent-failure scanners are generic (move to chat) and which name Tovu-specific secrets (stay) | decide per scanner in S-DOCK a's report |
 | D-7 | Admin theme CSS packs (classic, glass; 884 lines, `--tovu-*` tokens): stay in Tovu | stay; only mechanics move (J3) |
 | D-8 | The 4 aliases into website source and 30 admin tests importing website files | separate cleanup after A1; not blocking |
 | D-9 | Jini admin `playground` (133 lines) stays in admin as a dev tool | stay |
-| D-10 | Renaming the shell's classes to `jini-admin-*` touches Tovu's 6,799-line `styles.css` selectors | do it in T1b with the full Chrome check |
+| D-10 | Renaming the shell's classes to `jini-admin-*` touches Tovu's 6,799-line `styles.css` selectors | do it in T1b step 3 with the full Chrome check |
 | inherited | Lane K/T D-T4 (which Jini package may depend on `@tiptap/*`) blocks S-POSTS editor | - |
 
 ## 8. Could not verify
@@ -167,16 +185,53 @@ screens = 2.54M more.
 - The body of Tovu's and Jini's roles, media and security implementations: sizes and file lists only; the
   behaviour diffs are step 1 of those sheets.
 - The S sheets' port method lists: derived at run time from the existing `*-port.hooks.ts` files, not pre-written.
-- The 11-10 survey's "about 2.1k generic" dock figure: only files that exist as separate files were re-measured
-  (1,459 lines listed in S-DOCK); overflow, slow-run and folder-drop code sits inside two large files.
+- The 11-10 survey's "about 2.1k generic" dock figure: rev 2 lists 2,106 lines in existing separate files (S-DOCK
+  table; overflow, slow-run and folder-drop are separate files, round 1 was wrong). Whether each folder-drop file is
+  free of Tovu path knowledge is checked in run c step 0.
+- xpkg `G-TESTS.md` could not be read at its recorded path on `plan/xpkg-lane-sheets-2026-11-16` in round 2; the
+  ownership split in JM (pre-runs classify the nine folders, G-TESTS owns the rest and the integration package) is
+  this plan's proposal and must be confirmed against that sheet before JM1-pre starts.
+- Whether `Sidebar` forwards `railOverride` / `onRailCollapsedChange` (they exist on `use-sidebar-rail.ts:83-96`;
+  Tovu spreads them onto `Sidebar` today and typechecks): J2 step 3 confirms.
+- The server-side authorization cells of the security operation trace (run a reads `apps/website`).
 - `development/todos.md` and `owner-rules.md` were not looked for; rules are from the task text and xpkg COMMON.
 - Per-test move/keep classification for 182,593 test lines.
 
-## 9. What remains (numbered)
-1. Seven Opus designs: S-POSTS + S-PAGES (together), S-THEMES, S-PLUGINS, S-SETTINGS, S-DEPLOY, S-MEDIA.
-2. S-SECURITY run a (design) and the split design of `AssistantDock.hooks.tsx` (2,134 lines).
+## 9. What remains (numbered) — revision 2
+1. Eight Opus design runs, each with the T-DESIGN output contract: S-POSTS + S-PAGES + S-ENTRY-EDITOR (one editor
+   owner design, after D-T4), S-THEMES, S-PLUGINS, S-SETTINGS, S-DEPLOY, S-MEDIA. Round 2 wrote the brief and the
+   new facts per screen; it did not do the designs (each is about 250k of reading).
+2. S-SECURITY run a (design; brief and operation-trace table format are written).
 3. Screens marked "later": email, database, recovery, observability, integrations, source-control, library,
    content-analysis, voice-input, providers, skills, analytics, fs-files, authentication, `components/*` other than
    the dock (about 17k source lines) — not in the named goal; no sheet.
-4. Re-run `inventory.tsv` on the merged base (script logic: areas = top folder; blobs from `git ls-tree`).
-5. Adversarial judge pass on J2 (slot list) and T1b (session port behaviour) before they run.
+4. Re-run `inventory.tsv` on the merged base (script logic: areas = top folder; blobs from `git ls-tree`). Round 2
+   did not regenerate it: merge-a moved 4 admin files since `f354cfbd` (2 production: `use-admin-subagents.hooks.ts`,
+   `lib/assistant-transport-ag-ui.ts`), and the guard in COMMON-ADMIN section 0 reports them.
+5. Tovu size work that is not extraction: split `AssistantDock.hooks.tsx` (2,134).
+6. A second adversarial judge pass on J1/J2 (new seams) and T1b before they run; round 1's item 5 was done by the judge.
+
+## Revision 2 - judge response (`CODEX-JUDGE.md`; every finding verified against the code first)
+Code read: Tovu `integ/merge-a-2026-11-16` @ `e801e9ae`, `integ/merge-b-2026-11-16` @ `450ac748`; Jini merge-a @
+`dde69a6d`, merge-b @ `9c982fd9`. The judge read `refactor/terra`; every citation below was re-checked on merge-a.
+| # | Severity | Verdict | What changed (file) | Evidence |
+|---|---|---|---|---|
+| 1 | Blocker | ACCEPT | `A-prereqs.md` row 7 + new Step D: export inventory, the two live helpers stay in `lib/credential-copy.ts`, only the three forwarding lines go, tests D1-D4, size-exception path fixed | `apps/admin/src/lib/credential-copy.ts:2-4` forwarding, `:10` `storedCredentialHint`, `:21` `credentialDraftError` (rethrows non-validator errors `:28-29`); 15 production importers |
+| 2 | Blocker | ACCEPT | `J-shell.md` J2 step 4 `slots.frame`; `T1-adopt-shell.md` provider row, tests S8-S9, Chrome check | `App.tsx:678-680` providers wrap layout, dock, overlays; `RoutedA2uiSurfaceCard.tsx:75`; `chart-registry-context.ts:10-13` core-only default |
+| 3 | Blocker | ACCEPT | `COMMON-ADMIN.md` sections 2, 3, 6: no coordinator-only files, the run edits manifests/lockfile/registrations in the commit that needs them, shared files serialized, wip branch vs lane branch with `git rebase --exec`; `T-SCREEN.md` steps 3-4; `JM` recipe; INDEX section 6 | round-1 `COMMON-ADMIN.md:87-90,112-113` vs `:71` contradicted each other as the judge says |
+| 4 | Blocker | ACCEPT | `JM-jini-domains-out.md`: reverse-edge census for every folder; media note moves `embed-policy.ts` to its owner in commit A and removes the admin export | `packages/admin/src/core/ports/embed-policy.ts:7`, `core/ports/index.ts:130`; no importer of `EmbedPolicyPort` in Jini packages or Tovu apps; `cms/src/media/html-attributes.ts:98` already declares the type |
+| 5 | Major | ACCEPT | `J-shell.md` G8 + J2 step 3 `slots.sidebar` render slot (replaces `sidebarOverlay`); T1b mapping row, tests S10-S11, 1024 px check; `COMMON-ADMIN.md` section 4 | `App.tsx:603-641` (two nav slices, toggle between, `{...dockRail}`); `use-dock-auto-rail.hooks.ts:59-61`; `AdminShell.tsx:55-69` fixed arrangement |
+| 6 | Major | ACCEPT | `J-shell.md` J1 rewritten: file list adds `core/manifest/rules.ts` (read) and `core/index.ts`; routable vs visible sets, `access`, `noAccess` moved into J1, tests T7-T10 through `AdminShell`; two behaviour changes declared (D-11) | `react/shell/model.ts:25-29,34-35`; `core/manifest/rules.ts:34`; `core/index.ts:33` |
+| 7 | Major | ACCEPT | `J-shell.md` J3 redesigned: ownership table, host keeps settings binding, painting and pre-paint; shell gets a theme hook seam, no new port method; inventory rows `admin-themes` → STAY; D-13 | `theme-ports.ts:10-13` sync, scheme-only; `admin-themes/use-admin-theme.hooks.ts:34-41` four async methods; `apply.ts:60-74` three attributes + storage hint |
+| 8 | Major | ACCEPT | `S-SECURITY-and-DOCK.md`: invented tests removed; operation-trace table (cited cells), parity tests only from rows, P1-P4 from verified facts, hardening split out (D-12); `T-SCREEN.md` "characterize, never invent" | `use-security-permissions.hooks.ts:8-17`; `Security.tsx:153-163`; `api/security-api.types.ts:9-18` |
+| 9 | Major | ACCEPT | `S-screens-ready.md`: collections reduced to content types (run a); `S-design-first.md` new S-ENTRY-EDITOR joined to the TipTap decision; `T-SCREEN.md` STOP for third-party editor imports | `CollectionEntryEditor.tsx:1,4,466`; `use-collection-entry-editor.hooks.ts:2-3,9` |
+| 10 | Major | ACCEPT | `S-design-first.md` S-ENTRY-EDITOR items 3-4: pin the present payload and save-then-publish, field-diffing excluded, fake must refuse stale versions first; round-1 test C1 deleted | `use-collection-entry-editor.hooks.ts:244-254`; `collection-entry-editor-dependencies.hooks.ts:75-79` |
+| 11 | Major | ACCEPT | `S-screens-ready.md` S-MENUS: existing `listPages` port reused, `PagePicker` slot removed, M1 is up/down + save payload, M4 added | `menus-port.hooks.ts:25`; `menus-dependencies.hooks.ts:1-19`; `MenuEditor.tsx:17-19`; `use-menu-editor.hooks.ts:216-219,320` |
+| 12 | Major | ACCEPT | `JM-jini-domains-out.md`: five pre-runs; `SeoPage.tsx` partition table by declaration; debt census per folder; cost added (0.92M) | `SeoPage.tsx` 838 lines; `scripts/size-debt.json:108-119`; 20 size keys and 77 hook keys in the nine folders |
+| 13 | Major | ACCEPT | `JM-jini-domains-out.md` pre-run step 4: four test classes, case ledger across destinations, G-TESTS ownership split and prerequisite | 95 of 135 test files in the nine folders import admin internals outside their folder; `media/react/__tests__/media.test.tsx:3-18` |
+| 14 | Major | ACCEPT | `S-SECURITY-and-DOCK.md` S-DOCK table and runs: existing overflow/slow-run/folder-drop files listed, registry split into lifecycle vs host bindings, tests O1-O5, split-design prerequisite removed, estimate 0.77M → 0.60M | files exist on merge-a and merge-b (79/59/72/41/63/79 lines); invariant at `OverflowAwareMcpUiSurfaceCard.tsx:25-42` |
+| 15 | Major | ACCEPT | `COMMON-ADMIN.md` sections 0 and 2: every command names its directory, admin tests via `npm --prefix apps/admin run test --`, debt paths corrected; `A-prereqs.md` exception path | `development/scripts/{size-debt,src-complexity-debt,size-exceptions}.json` exist, `development/size-debt.json` does not; `size-exceptions.json:20` |
+| 16 | Major | ACCEPT | `JM-jini-domains-out.md` exact specifier table (41 keys), existing cms roots preserved, 17 `export *` lines removed in pre-runs; `COMMON-ADMIN.md` browser proof = real `vite build`; INDEX subpaths made consistent (`…/admin/react`) | `packages/cms/package.json` `./forms`, `./media` (node) exist; `user-management/package.json:59-79` precedent; `apps/admin/package.json:12` build refuses linked Jini |
+| 17 | Minor | ACCEPT | `COMMON-ADMIN.md`: locales from `ADMIN_LOCALES` (21 translated), two-way file-set guard, wider lazy-import regex, DOM class assertion, by-file hook check, comment diff by content | `packages/contracts/src/admin-locales.ts` 22 entries; `seo-i18n-parity.unit.test.ts:12` 21; `scripts/check-hook-injection.mjs:41-47` count ratchet |
+Counts the judge called stale, re-run: translated locales 21 (was 20); production files importing website source 7
+(unchanged), admin test files mentioning `website/src/` 30 (unchanged); panels 51, any-of 31 (unchanged).

@@ -2,8 +2,8 @@
 
 | Sheet | Work | Estimate | Needs |
 |---|---|---|---|
-| T1a | panels gate through Jini's any-of rule; delete `lib/panel-access.ts` | 100k | J1 published/linked |
-| T1b | `App.tsx` renders Jini `AdminShell`; Tovu's own shell function and duplicated chrome are deleted | 240k | J2, J3, T1a, A0, A1; Opus review of the diff before merge |
+| T1a | panels gate through Jini's access rule (`@jini-ai/admin/core`, J1 test T9 proves the export); delete `lib/panel-access.ts` | 100k | J1 linked |
+| T1b | `App.tsx` renders Jini `AdminShell`; Tovu's own shell function and duplicated chrome are deleted | 260k | J2, J3, T1a, A0, A1; Opus review of the diff before merge |
 Both edit `App.tsx` and `panels.tsx`: serial. Nothing else in this plan may edit `App.tsx`, `App.chrome.tsx`,
 `App.hooks.ts`, `App.session.ts`, `nav.ts` or `styles.css` shell selectors while T1 is open.
 
@@ -32,9 +32,12 @@ Mapping (verify each line number first; `App.tsx` was changed by merge-a):
 | Tovu today | After |
 |---|---|
 | `AdminShell` function `App.tsx:643-703` | deleted; `App` renders `<AdminShell …/>` from `@jini-ai/admin/react/shell` |
-| providers wrapped around the layout (`AdminModulesProvider`, `ChartRegistryProvider key={user.id}`, `ConfirmDialogDefaultsProvider`) | stay in Tovu, wrapped **around** the Jini shell's authenticated content: put them in the panel render path (`panels[].render`) through one Tovu wrapper component, keyed on the user id exactly as today (the key resets chart state on identity switch: keep the comment) |
+| providers wrapped around the whole layout, dock and overlays included (`AdminModulesProvider`, `ChartRegistryProvider key={user.id}`, `ConfirmDialogDefaultsProvider`, `App.tsx:678-680`) | stay in Tovu as **one boundary around everything**: one Tovu component `AuthenticatedProviders` passed as J2's `slots.frame`, keyed on the user id exactly as today (the key resets chart state on identity switch: keep the comment). **Never** inside `panels[].render`: the dock's `RoutedA2uiSurfaceCard.tsx:75` reads `AdminChartRegistryContext`, whose default (`chart-registry-context.ts:10-13`) is the core registry with no provider stylesheets, and a per-panel provider would also be re-created on every navigation (round-1 judge blocker 2) |
+| `AdminSidebar` (`App.tsx:603-641`: `Sidebar` + `MobileHeader`, `SidebarEmptyClickToggle`, `SidebarLabelTooltips`, `SitesSidebarNav` for group 0, `Sidebar.RailToggle`, `Sidebar.Nav` for the rest, footer logout, `{...dockRail}`, `railDefaultCollapsed`) | stays a Tovu component, rendered through J2's `slots.sidebar`: it receives `nav`, `sidebarProps`, `setDrawerOpen` and adds `{...dockRail}` itself. The two-slice nav comment block (`:613-627`) moves with it unchanged |
+| admin theme (`useAdminThemeDocument`, `useAdminThemeBoundary`, `paintAdminTheme`) | unchanged in Tovu; the shell gets `useThemeHook={() => undefined}` (J3) so it does not paint |
 | `useAdminSession` (`App.hooks.ts:109-228`) + `App.session.ts` | a Tovu adapter `integrations/jini-admin/shell-session-port.ts` implementing `AdminShellSessionPort`. Compare behaviour, not only types (lesson 12): boot-token handling (`lib/boot-token-fragment`), local-owner sign-in, `onUnauthenticated` (`lib/admin-http/request`), draft identity reset (`lib/admin-draft-identity`) on identity switch |
-| `useSidebarDrawer` (`:590`), `useLogoutConfirm` (`:549`), `SidebarLabelTooltips`, `SidebarEmptyClickToggle`, `LogoutConfirmDialog` | passed as J2 hook props / slots (`useDrawerHook`, `slots.sidebarOverlay`, `slots.beforeMain`, `slots.sidebarFooter`) |
+| `useSidebarDrawer` (`:590`), `useLogoutConfirm` (`:549`), `LogoutConfirmDialog` | `useDrawerHook`; `slots.beforeMain` (dialog); the tooltips, empty-click toggle and logout button are children of the Tovu sidebar above |
+| `NoAccess` for a denied route (`renderRoute` + `resolvePanelAccessGate`) | `slots.noAccess` (J1) |
 | `ShellSkipLink`, `AdminTopbar`, `ShellMain` (`App.chrome.tsx:135-241`) | deleted where Jini renders the same element; `ShellMain`'s content ref and `data-agent-page` map to `mainRef` and the model's `agentPageId` |
 | `ChatDockAside`, `SheetBar`, `AssistantChrome`, `useChatDockLayout`, `resolveChatFabClearance` | stay in Tovu for now, passed through `slots.assistant.aside` (S-DOCK moves the generic part later) |
 | `ShellOverlays` | `slots.overlays` |
@@ -42,8 +45,9 @@ Mapping (verify each line number first; `App.tsx` was changed by merge-a):
 | site-section logic (`:311-508`), publish deep link, agent page bridge, WebMCP tools, screenshot announcement | stay in Tovu, unchanged |
 | shell selectors in `styles.css` / `styles/` | renamed to the `jini-admin-*` names listed in Jini `packages/admin/docs/shell-classes.md` (J2 step 4); no selector is duplicated |
 
-Order (each a green commit): (1) session port adapter + its tests, unused; (2) wrapper component for the three
-providers, used by the old shell; (3) CSS + `Sidebar` class rename pair with J2 step 4; (4) swap to Jini
+Order (each a green commit): (1) session port adapter + its tests, unused; (2) `AuthenticatedProviders` component
+for the three providers, used by the old shell in the same place the three sit today; (3) CSS + `Sidebar` class
+rename, the Tovu half of J2 step 5 (relink Tovu to J2's last commit in this step); (4) swap to Jini
 `AdminShell`; (5) delete dead Tovu shell code, retire the `AdminShell::*` hook-debt keys and the size/complexity
 keys of deleted functions.
 Tests first (GREEN on the old shell, each RED under its mutation; they must keep passing after the swap):
@@ -55,10 +59,17 @@ Tests first (GREEN on the old shell, each RED under its mutation; they must keep
 | S4 | the session endpoint is called once at boot (use the `app-boot-request-volume` harness) | the Jini session hook re-reads on a port identity change (11-06 survey trap) |
 | S5 | the drawer closes on route change and on backdrop click; `Escape` is ignored when an inner layer owns it (`lib/escape-owned-by-inner-layer`) | the drawer hook prop is not wired |
 | S6 | DOM order of skip link, sidebar, main, dock aside, overlays is unchanged; `main` keeps `tabIndex=-1` and `data-agent-page` | focus order or the agent page id changes |
+| S8 | a dock card (`RoutedA2uiSurfaceCard` rendered inside the dock) reads the **authenticated** chart snapshot: `generation` is not `"core"` and the provider stylesheets are present | the providers sit below the dock (in a panel render) or the frame slot is not wired |
+| S9 | navigating between two panels does not remount `ChartRegistryProvider` (a mount counter in a test child stays 1); switching principal remounts it (counter 2) | the provider lifetime follows the route, or the `key={user.id}` is lost |
+| S10 | with the dock open in a window inside the auto-rail band, the sidebar is railed; closing the dock restores the operator's saved rail choice (drive `useDockAutoRail` with a fake `matchMedia`) | `dockRail` is not spread onto `Sidebar` in the sidebar slot |
+| S11 | DOM of the sidebar: mobile header, group 0, rail toggle, remaining groups, footer logout, in that order | the two-slice nav arrangement is lost |
 | S7 | rail collapsed state survives reload under the same storage key as today | `railStorageKey` differs from Tovu's present key (documented at `App.tsx:88-89`: Jini's `Sidebar` defaults to its own package key, Tovu passes its historic one; keep passing it) |
-Chrome check (COMMON-ADMIN 4): **every** panel, both themes, both schemes, both widths, plus: mobile drawer open
+Chrome check (COMMON-ADMIN 4): **every** panel, both themes, both schemes, at 1440, 390 **and 1024 px** (inside the
+auto-rail band, dock open and closed: the 1440/390 pair never exercises it), a chart card in the dock, plus: mobile drawer open
 and close animation still runs at 390 px; dock open/resize/sheet mode; logout confirm; server-restart banner.
 STOP
-- A Tovu shell element has no J2 slot. Report the element and line; do not add a prop to Jini from this sheet.
+- A Tovu shell element is in neither the mapping table nor a J2 seam. Report the element and line; do not add a
+  prop to Jini from this sheet. Check before step 4: `rg -n "^function \w+|^export function \w+" apps/admin/src/App.tsx apps/admin/src/App.chrome.tsx`
+  and tick every component name against the table.
 - S4 shows more than today's request count.
 - Any panel differs visibly beyond the class rename.

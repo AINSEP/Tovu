@@ -1,4 +1,24 @@
-# S sheets that need a design before a Sonnet run (7 screens). Outlines with measured facts and named blockers.
+# S sheets that need a design before a Sonnet run (7 screens + the entry editor). Outlines with measured facts and named blockers.
+
+## T-DESIGN: the brief of every design run (one Opus-class run each, about 250k; assemble as `cat COMMON-ADMIN.md T-SCREEN.md S-design-first.md#T-DESIGN <screen section>`)
+A design run edits **no source**. It writes one file, `admin-ui-extraction/designs/<sheet>.md`, on the plan branch.
+Required contents, in this order (a section that cannot be filled is written `BLOCKED: <what is missing>`):
+1. Base: both repo SHAs; the stale-base guard output for the area (COMMON-ADMIN section 0).
+2. Census: T-SCREEN step 0, every outgoing edge classified PORT / KIT / SLOT / PURE / STAYS with `file:line`.
+3. Inventory of every declaration, export, module-level state cell and consumer (incl. tests that read source text)
+   of each file over 500 lines, and its partition by the real dependency graph (calls, state reads, init order),
+   never by line ranges (lessons 1-4). Each new file: its inputs, outputs, owner of mutable state, and that every
+   function in it is <= 50 lines and complexity <= 10 (lesson 8).
+4. Behaviour table for a dedupe (roles/media/plugins style): one row per user action, Tovu `file:line` | Jini `file:line`.
+5. Port list: method, argument object, the Tovu API call it binds to, the test that fails when an argument is
+   dropped or swapped (lesson 12). For security-relevant paths: the operation trace table of S-SECURITY.
+6. Migration graph: an ordered list of runs; each run lists its commits, each commit its prerequisites, the shared
+   files it edits itself, and the command that proves it green alone (lessons 5, 29, 30). No run over 250k.
+7. Test table per run: assertion | cited source line | mutation that turns it RED. No invented behaviour (lesson 31).
+8. Open owner decisions, each with a recommendation.
+STOP (a design run ends BLOCKED, with what it found): the area fails the stale-base guard by more than a third;
+a named prerequisite decision is still open; the screen cannot be partitioned without changing behaviour.
+Proof the design is executable: an adversarial judge pass before any Sonnet run is started from it.
 
 These are NOT executable yet. Each needs one Opus-class design run (output: T-SCREEN step-0 census resolved into a
 port list, a partition of every over-limit file by its dependency graph, the migration graph, a test table), then
@@ -49,13 +69,29 @@ about 100 locale reads: the shared read must stay one owner per admin instance, 
 Likely runs: 4 ≈ 0.8M.
 
 **S-DEPLOY.** `StaticSiteTab.tsx` 1,420. Mutual imports with security (3 out, 5 in) and source-control (3 in):
-design after S-SECURITY run a. Site-specific publish flow stays in Tovu. `devops/src/deploy` has no admin/React
+design after S-SECURITY run a (its operation trace covers the publish-credential rows both screens share). Site-specific publish flow stays in Tovu. `devops/src/deploy` has no admin/React
 code: this creates the first one. Likely runs: 3 ≈ 0.7M.
 
-**S-MEDIA.** A real dedupe decision: Jini has a media admin (2,751 lines, parked; `apps/admin/src/media-panel.ts`
+**S-MEDIA.** A real dedupe decision: Jini has a media admin (2,751 lines, parked; after JM3 at `cms/src/media/admin`; `apps/admin/src/media-panel.ts`
 says the swap is parked) and Tovu has its own (4,166). Design = behaviour diff (as S-ROLES step 1) + which side
 wins per behaviour + parity proof before the swap; never mount both (double reads and subscriptions). The media
 picker contract (`@jini-ai/admin/contracts/media-picker`) is used by 3 Tovu components. Likely runs: 3 ≈ 0.7M.
+
+**S-ENTRY-EDITOR (new in round 2; was round 1's "S-COLLECTIONS b").** Scope: `features/collections/CollectionEntryEditor.tsx`
+(494), `hooks/use-collection-entry-editor.hooks.ts`, `CollectionEntries.tsx` and their tests. Blockers: (1) the same
+TipTap decision as S-POSTS (lane K/T D-T4): `@tiptap/react` and `@tiptap/starter-kit` are imported at
+`CollectionEntryEditor.tsx:1`, `use-collection-entry-editor.hooks.ts:2-3`; `@tiptap` is also imported by 8 files in
+`apps/admin/src/lib` and 11 under `features/posts` — design the editor's owner **once**, with S-POSTS. (2) Tovu's
+widget-embed extension (`lib/widget-embed-extension`, used at `:9` of the hook and `CollectionEntryEditor.tsx:4,466`)
+must reach the editor through an explicit `extensions` + toolbar-control seam; it cannot be imported by Jini.
+(3) The write contract to pin, **as it is** (round-1 judge finding 10): an existing entry is saved with title,
+`fieldsJson` and `bodyJson` **together** plus `expectedVersion` (`use-collection-entry-editor.hooks.ts:244-254`; the
+comment there records the data-loss bug that omitting `bodyJson` caused); publish saves first and publishes with
+the returned version (`:296-318`). "Send only changed fields" is a behaviour change and is not part of this plan.
+(4) The existing fake accepts stale versions (`hooks/collection-entry-editor-dependencies.hooks.ts:75-79` returns
+`expectedVersion + 1` without comparing): the design's first run makes the fake compare the stored version and
+throw the same conflict error the API returns, with a test that a stale save is refused **before** any
+characterization relies on it; check the lost-updates design for the error shape. Likely runs after design: 2 ≈ 0.4M.
 
 ## Screens the brief names that are already Jini screens (no S sheet)
 forms, SEO, comments, redirects, widgets: Tovu holds only the binding (`features/<x>` 63-145 source lines) and

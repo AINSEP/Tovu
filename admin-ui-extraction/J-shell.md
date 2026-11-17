@@ -14,35 +14,57 @@ The Jini shell cannot host Tovu today. Measured gaps:
 | G5 | navigation is rebuilt on every shell render (11-06 survey) | `buildShellNav` (`App.tsx:555`) | J2 |
 | G6 | theme: `use-admin-theme.ts` (62) + `theme-ports.ts` (27), one default theme | registry of themes, scheme resolution, server-backed preference (`admin-themes/*.ts` 374 lines + `features/admin-themes` 149) | J3 |
 
+| # | Gap found by the round-1 judge (verified at Jini `dde69a6d`, Tovu `e801e9ae`) | Sheet |
+|---|---|---|
+| G7 | `react/shell/model.ts:25-29` filters panels by permission **before** `matchRoute`, and `:34-35` turns an unmatched route into the default panel: a denied direct URL silently shows the default panel, so a "no access" screen can never know which panel was asked for. `core/manifest/rules.ts:34` turns unknown permissions into `[]`. | J1 |
+| G8 | `ShellSidebar` (`AdminShell.tsx:55-69`) is a fixed arrangement (header slot, one `Sidebar.Nav`, footer with the rail toggle). Tovu's sidebar (`App.tsx:603-641`) is a different composition: mobile header, empty-click toggle, label tooltips, the first nav group rendered by `SitesSidebarNav`, the rail toggle **between** two nav slices, logout in the footer, and `{...dockRail}` (`railOverride`, `onRailCollapsedChange` from `hooks/use-dock-auto-rail.hooks.ts:59-61`). No list of small slots represents that. | J2 |
+| G9 | Providers that must wrap shell + dock + overlays as one boundary (`App.tsx:678-680`) have no seam: the Jini shell renders its own root `<div>`. | J2 |
+| G10 | `AdminThemePreferenceStorePort` (`theme-ports.ts:10-13`) is synchronous and scheme-only; Tovu's controller (`admin-themes/use-admin-theme.hooks.ts:34-41`) is four async settings calls for two values (theme id + scheme), paints three root attributes and keeps a pre-paint storage hint (`admin-themes/apply.ts:60-74`). | J3 |
+
 | Sheet | Estimate | Needs |
 |---|---|---|
-| J1 any-of permissions | 90k | - |
-| J2 shell contract (hooks as props, `jini-` classes, slots, memo) | 230k | R1c (xpkg: `use-admin-theme.ts` onto the kit) landed, or do J2 first and tell the coordinator R1c must rebase |
-| J3 theme registry port | 130k | J2 |
-J1 and J2 touch different files (`core/manifest`, `core/permissions` vs `react/shell`) except `react/shell/model.ts`
-(44 lines), where J2 calls J1's rule: run J1 first.
+| J1 panel access rule + route/visibility split + `noAccess` | 130k | - |
+| J2 shell contract (hooks as props, sidebar + frame seams, memo, `jini-` classes) | 250k | J1; R1c (xpkg: `use-admin-theme.ts` onto the kit) landed, or do J2 first and tell the coordinator R1c must rebase |
+| J3 theme seam (host-owned theme controller) | 70k | J2 |
+Serial: J1, J2, J3 (all three edit `react/shell`). Each sheet's commits are green without the next sheet.
 
-## J1: `anyOfPermissions`
+## J1: panel access rule, route recognition separate from visibility, `noAccess`
 ```
 jini_files:
-  - packages/admin/src/core/manifest/types.ts:159-168     | edit: add `readonly anyOfPermissions?: readonly string[]` beside `permissions`
-  - packages/admin/src/core/permissions/rules.ts (34)     | edit: add `isPanelAccessible`, `withoutInaccessiblePanels`
-  - packages/admin/src/react/shell/model.ts (44)          | edit: use the rule
-  - a new test file for the rules (the folder holds only `rules.ts`; put it where admin's core tests live:
-    `rg -l "hasPermission" packages/admin/src -g '*test*'`)
+  - packages/admin/src/core/manifest/types.ts:159-168   | edit: add `readonly anyOfPermissions?: readonly string[]` beside `permissions`
+  - packages/admin/src/core/permissions/rules.ts (34)   | edit: add `isPanelAccessible`, `withoutInaccessiblePanels`
+  - packages/admin/src/core/manifest/rules.ts            | READ `resolvePanels` (:29-40); do NOT change it (other callers keep today's result)
+  - packages/admin/src/core/index.ts:33                  | edit: export the two new rules beside `hasPermission` (explicit names)
+  - packages/admin/src/react/shell/model.ts (44)         | edit: two panel sets + `access`
+  - packages/admin/src/react/shell/types.ts              | edit: `slots.noAccess?`
+  - packages/admin/src/react/shell/AdminShell.tsx:108-110| edit: render `noAccess` when denied
+  - tests: beside admin's existing core and shell tests (`rg -l "hasPermission|resolveAdminShellModel" packages/admin/src -g '*test*'`)
 ```
 Search for an existing owner first (lesson 9). Found: `packages/ui/src/features/panel-kit/helpers/permissions.ts:9`
 has a second `hasPermission`. Diff the two bodies; report whether they differ. Do not merge them here (admin may not
-import `ui`); record it for the coordinator.
+import `ui`).
 
-Semantics to port, from `apps/admin/src/lib/panel-access.ts` (read all 94 lines and its tests
-`rg -l "panel-access" apps/admin/src`): (a) a panel with no declaration is visible; (b) `anyOfPermissions` passes
-when the operator holds at least one, or `'*'`; (c) when the permission list is **not known yet** (`undefined`),
-every panel is shown and `withoutInaccessiblePanels` returns the same `groups` reference (`panel-access.ts:60`);
-(d) `permissions` (all-of) keeps its present meaning; (e) both declared: both must pass.
-Keep "unknown" distinct from "empty list" (lesson 7 and 20): the type is `readonly string[] | undefined`, and the
-check is `permissions === undefined`, never truthiness.
+**The rule** (ported from `apps/admin/src/lib/panel-access.ts:43-52,63-77`; read all 94 lines and its tests):
+`isPanelAccessible({ panel, permissions })` where `permissions: readonly string[] | undefined`.
+(a) no declaration → true; (b) `permissions === undefined` (not known yet) → true, checked with `=== undefined`,
+never truthiness (lessons 7, 20); (c) `anyOfPermissions`: at least one held, or `'*'`; (d) `permissions` (all-of):
+every one held; (e) both declared: both must pass. `withoutInaccessiblePanels({ groups, panels, permissions })`
+returns the **same `groups` reference** while permissions are unknown (`panel-access.ts:71`), drops emptied groups,
+keeps a nav row whose id names no panel.
 Class: client-side visibility only. The server stays the authority; keep that sentence in the TSDoc.
+
+**The model** (this is the part round 1 left out). `resolveAdminShellModel` computes two sets:
+| Set | Built from | Used for |
+|---|---|---|
+| routable | `resolvePanels({ panels }, { capabilities })` with **no** permissions argument: capability-gated only | `matchRoute`, `resolveAgentPageId`, `panel` lookup |
+| visible | routable filtered by `isPanelAccessible` with `session.effectivePermissions` passed through **as is** (`undefined` stays `undefined`; delete the `?? []` at `model.ts:27`) | `buildNav` |
+and gains `readonly access: 'allowed' | 'denied'` = the rule applied to the routed panel. An unmatched path still
+falls back to the default panel (unchanged); a **matched but denied** path keeps its own `panelId` and `access: 'denied'`.
+`AdminShell` renders `props.slots.noAccess?.(slotArgs) ?? null` in `<main>` instead of `model.panel.render` when
+`access === 'denied'`; `slots.noAccess?: (args: AdminShellSlotArgs) => ReactNode` (optional: existing hosts compile).
+**Declared behaviour changes in the shell (write both into the changeset; there is no consumer today, `rg -l "AdminShell\b" packages examples` finds only docs, so nobody is broken, but it is not silent):**
+(1) while permissions are unknown, a panel that declares all-of `permissions` is now shown in the nav (before: hidden);
+(2) a denied direct URL no longer redirects to the default panel. `resolvePanels` itself is untouched.
 
 Tests first (RED before the edit):
 | # | Asserts | Fails when |
@@ -53,50 +75,89 @@ Tests first (RED before the edit):
 | T4 | `permissions: []` hides a panel that declares any-of | empty is treated as unknown |
 | T5 | all-of + any-of both declared: fails when either fails | one check short-circuits the other |
 | T6 | Tovu's own `panel-access` test table, copied as data (not imported), gives the same answers | a ported case differs |
-Done: `pnpm --filter @jini-ai/admin build && npm --prefix packages/admin run test`; changeset file added.
+| T7 | **through `<AdminShell>`** (fake session port, `effectivePermissions: []`, path of a panel declaring any-of): the `noAccess` slot renders, the panel's `render` is never called, the default panel's `render` is never called, and the nav has no row for it | filtering happens before route matching again (the denied URL shows the default panel) |
+| T8 | through `<AdminShell>` with `effectivePermissions: undefined` and the same path: the panel renders | unknown is collapsed to `[]` anywhere in the model |
+| T9 | `import { isPanelAccessible, withoutInaccessiblePanels } from '@jini-ai/admin/core'` resolves in a built package (public-surface test beside the existing one) | the export is missing (T1a could not import it) |
+| T10 | `resolvePanels` with all-of `permissions` and no permissions argument returns exactly what it returned before (pin 3 fixtures on the old code) | the shared rule was changed instead of the shell model |
+Done: `(cd $J && pnpm --filter @jini-ai/admin build) && npm --prefix $J/packages/admin run test`; changeset file added.
+STOP: another caller of `resolveAdminShellModel` exists and depends on permission filtering (`rg -n "resolveAdminShellModel" packages examples`): report it.
 
 ## J2: shell contract
-Do not redesign the shell. Close G2-G5 only, in four green commits.
+Do not redesign the shell. Close G2-G5, G8, G9 in five green commits.
 1. **Hooks as props (G2).** `AdminShellProps` gains optional `useSessionHook`, `useThemeHook`, `useRouteHook`,
    `useDrawerHook`, each defaulted to today's hook. Signatures are the present ones; do not change argument shapes
    (lesson 12). Fake-hook output test per hook: with a fake returning `anonymous`, the login slot renders and the
-   real session port is never called. Then run `node scripts/check-hook-injection.mjs`: the `AdminShell::*` keys
-   leave `scripts/hook-injection-debt.json`.
+   real session port is never called. Then the by-file hook check of COMMON-ADMIN section 1 on `packages/admin/src/react/shell`: CLEAN.
 2. **Memoized navigation (G5).** Read `AdminShell.hooks.ts` (27) and `model.ts`. Memoize the nav build on
    `panels`, `capabilities`, permissions, `translateNav`, and route. Test: re-render with identical props; a
    counting `translateNav` fake is called once.
-3. **Slots (G4).** Add only: `layoutClassName?: string` already exists as `className` (use it; no new prop);
-   `slots.sidebarOverlay?: (args) => ReactNode` (label tooltips, empty-click toggle);
-   `slots.beforeMain?: ReactNode` (the logout confirm dialog, mounted where Tovu mounts it);
-   `slots.noAccess?: (args) => ReactNode` (rendered when the routed panel fails J1's rule and permissions are known);
-   `slots.assistant` gains `aside?: ReactNode` rendered **instead of** the built-in `<aside>` when present, so the
-   host keeps its resizable dock (`App.chrome.tsx:65-134`). Each slot has a render test and an "absent slot renders
-   exactly today's markup" snapshot test.
-   Before adding any slot, write in the report which Tovu element it hosts, by `App.tsx`/`App.chrome.tsx` line. A
-   Tovu element with no slot after this list is a finding for T1b, not a reason to add props here.
-4. **`jini-` classes (G3).** Rename every class in `packages/admin/src/react/shell/**` and
-   `react/components/Sidebar.tsx` (593 lines; over the 500 limit **today**: check `scripts/size-debt.json` /
-   `size-exceptions.json`; do not grow it; if a rename pushes a function over a limit, STOP) to `jini-admin-<name>`.
-   Update `packages/admin/src/themes/default/admin.css` selectors in the same commit. List old → new in
-   `packages/admin/docs/shell-classes.md` (T1b consumes this list to rename Tovu's CSS). Tovu imports `Sidebar`
-   and `useSidebar` today (`App.tsx:15`): this commit is a **pair**; the Tovu half belongs to T1b. Until T1b runs, Tovu stays
-   pinned to the previous `@jini-ai/admin` version; say so in the report. Do not leave both class sets in the markup.
+3. **Sidebar composition seam (G8).** One render slot, because `Sidebar` is a compound component designed for
+   host-composed children (`react/components/Sidebar.tsx:23` "Why children rather than props"):
+   ```ts
+   slots.sidebar?: (args: AdminShellSlotArgs & {
+     readonly nav: readonly AdminNavGroup[];            // the visible, translated groups (J1 + translateNav)
+     readonly sidebarProps: { activeId: string; base: string | undefined; open: boolean; id: string; label: string;
+                              railStorageKey: string; railDefaultCollapsed: boolean };   // exactly what ShellSidebar passes today
+     readonly setDrawerOpen: (open: boolean) => void;
+   }) => ReactNode
+   ```
+   Present → the shell renders its result in the place of `<ShellSidebar>` and nothing else changes. Absent → today's
+   `ShellSidebar` (snapshot test: byte-identical markup). The host renders `<Sidebar {...sidebarProps} {...dockRail}>`
+   with its own children; rail override stays a `Sidebar` prop the host passes (`railOverride`,
+   `onRailCollapsedChange` already exist on `Sidebar`: confirm with `rg -n "railOverride|onRailCollapsedChange" packages/admin/src/react`;
+   if they do not exist on `Sidebar`, STOP: T1b cannot keep the auto-rail and the sheet needs a review).
+   Tests: (a) a host slot that renders `MobileHeader`, a custom first group, `RailToggle`, `Nav` for the rest and a
+   footer produces that DOM order; (b) `sidebarProps.activeId` equals the routed panel id, also when `access` is denied;
+   (c) `setDrawerOpen(false)` closes the drawer the topbar toggle opened (one drawer state, not two).
+4. **Frame and small slots (G4, G9).**
+   - `slots.frame?: (args: AdminShellSlotArgs & { readonly children: ReactNode }) => ReactNode` wraps the **whole
+     authenticated layout** (root `<div>` with sidebar, main, assistant and overlays inside `children`). It is where
+     a host puts providers that the panels, the dock and the overlays must share. It is not called for the
+     checking / anonymous / error states. Tests: a context provided in `frame` is readable from `panel.render`,
+     from `slots.assistant` content and from `slots.overlays`; a child that counts mounts is mounted once across
+     three route changes; the host re-keying its provider on `session.user.id` remounts it on identity switch.
+   - `slots.beforeMain?: ReactNode` (the logout confirm dialog, mounted where Tovu mounts it, `App.tsx:686`).
+   - `slots.assistant` gains `aside?: ReactNode` rendered **instead of** the built-in `<aside>` when present, so the
+     host keeps its resizable dock (`App.chrome.tsx:65-134`).
+   - layout class: the existing `className` prop (no new prop). `noAccess` came with J1.
+   Each slot has a render test and an "absent slot renders exactly today's markup" snapshot test.
+   Before adding any slot, write in the report which Tovu element it hosts, by `App.tsx`/`App.chrome.tsx` line.
+   The T1b mapping table lists every Tovu shell element and its seam; an element missing from that table is
+   reported, not solved by a new prop.
+5. **`jini-` classes (G3).** Rename every class in `packages/admin/src/react/shell/**` and
+   `react/components/Sidebar.tsx` (593 lines; over the 500 limit **today**: its row is in `scripts/size-debt.json` or
+   `scripts/size-exceptions.json`; do not grow it; if a rename pushes a function over a limit, STOP) to `jini-admin-<name>`
+   (including `.cms-section`, which `App.tsx:625` relies on). Update `packages/admin/src/themes/default/admin.css`
+   selectors in the same commit. List old → new in `packages/admin/docs/shell-classes.md` (T1b consumes this list
+   to rename Tovu's CSS). Tovu imports `Sidebar` and `useSidebar` today (`App.tsx:15`): this commit changes what
+   Tovu renders, so it is the **last** J2 commit and **T1b step 3 is its Tovu half**: until T1b step 3 lands, Tovu
+   stays linked to the J2 commit *before* this one (name that SHA in the report). Do not leave both class sets in the markup.
 STOP: a needed change alters `AdminShellSessionPort` or `AdminShellNavigationPort` (both are used by
 `createAdminShellNavigation`, which Tovu calls at `App.hooks.ts:9`): report the proposed change instead.
 
-## J3: theme registry port
+## J3: theme seam (the host keeps its theme controller)
+Round 1 planned to push theme id + scheme through `AdminThemePreferenceStorePort`. That port cannot express it
+(G10), and inventing an async two-value store in Jini would re-implement Tovu's settings binding without a second
+host that needs it. Decision (owner rules: hooks injected as props; host binding stays in the host, lesson 9):
+| Concern | Owner | Why |
+|---|---|---|
+| Which themes exist, their CSS packs, `--tovu-*` tokens | Tovu (`admin-themes/registry.ts`, CSS; INDEX D-7) | product content |
+| Reading/writing the two settings (`core.interface.adminTheme`, `core.appearance.theme`), async failure, the error string | Tovu (`AdminThemePort`, `useAdminThemePicker` `:163-190`) | they reuse the shell's own query keys, so they add no boot request (`use-admin-theme.hooks.ts:28-31`) |
+| Painting `data-admin-theme`, `data-color-scheme`, `data-theme` on the root and the pre-paint storage hint (`ADMIN_THEME_STORAGE_KEY`) | Tovu (`apply.ts:60-74`, `paintAdminTheme`) | attribute names and the storage key are an installed surface read by the pre-paint script and by saved CSS (lesson 26) |
+| Scheme resolution (`system` + `prefers-color-scheme`) | Jini kit `resolveColorScheme` (already used by Tovu `apply.ts:57`) | already generic |
+| The shell's own default theme behaviour | Jini `use-admin-theme.ts`, unchanged | hosts without a theme system |
+So J3 is small and adds **no port method**:
 ```
-jini_files: packages/admin/src/react/shell/{use-admin-theme.ts (62), theme-ports.ts (27), types.ts (86)}
-reads (Tovu, not edited): apps/admin/src/admin-themes/*.ts (374 in 3 files), apps/admin/src/features/admin-themes/ (149)
+jini_files: packages/admin/src/react/shell/{AdminShell.tsx, types.ts, use-admin-theme.ts (62, read only)}
 ```
-Port only mechanics: a list of installed themes supplied by the host (`themes: readonly AdminTheme[]`), the selected
-theme id and colour-scheme preference read/written through `AdminThemePreferenceStorePort` (exists), scheme
-resolution, paint and cleanup. Theme **contents** (classic, glass CSS; 884 CSS lines; `--tovu-*` tokens) stay in
-Tovu (INDEX D-7). Lesson 20: Jini assumed one constant default theme; making it a list means every cache key or
-storage key that assumed one theme is revisited (`rg -n "defaultAdminTheme|railStorageKey|storage" packages/admin/src/react/shell`).
-Tests first: T1 switching theme id repaints once and runs the previous cleanup (fails when cleanup is dropped);
-T2 an unknown stored id falls back to the first theme without writing the store; T3 preference store rejection
-shows the plain-words error and keeps the previous theme; T4 `prefers-color-scheme` change repaints only when the
-preference is `system`; T5 Tovu's `admin-themes` test table copied as data gives the same resolved scheme.
-STOP: Tovu's theme code reads a Tovu setting or endpoint directly inside the mechanics (then the port needs a new
-method: report its shape; do not add it unreviewed).
+1. `useThemeHook` (J2 step 1) is typed `(args: { userId: string | null; workspace }, options: ThemeOptions) => AdminShellAppearance | undefined`.
+   Returning `undefined` means "the host paints; the shell exposes no appearance to slots".
+2. Tests first: T1 with a fake `useThemeHook`, the real `useAdminTheme` is never called and the shell writes **no**
+   attribute to the injected `themeEnvironment.target` (fails when the shell still paints: double painting would
+   fight the host's three attributes); T2 the fake's `AdminShellAppearance` reaches `slots.topbar`/`sidebar` args
+   unchanged; T3 absent `useThemeHook`: today's behaviour, pinned by the existing theme tests (count unchanged).
+3. Tovu side is T1b: it passes `useThemeHook={() => undefined}` and keeps calling `useAdminThemeDocument` /
+   `useAdminThemeBoundary` exactly where it does today. Nothing in `apps/admin/src/admin-themes` moves in this plan.
+Not done here, and not needed for the goal: a multi-theme registry inside Jini. It is listed in INDEX section 9 as
+"only when a second host needs it"; `f/admin-themes` and `admin-themes` change from MOVE PART to STAY in the inventory.
+STOP: `useAdminTheme` cannot be skipped without also skipping something the shell needs for layout (report what).

@@ -40,13 +40,21 @@ What moves and what stays:
    for every screen: (a) the request sequence for open / save / delete through a fake port (method, argument object,
    order); (b) the rendered rows for one fixture; (c) error path shows plain words + "Copy details"; (d) permission
    variants render the same controls as today; (e) unmount during a pending request does not set state.
+   **Characterize, never invent (lesson 31):** every assertion cites the Tovu `file:line` that produces the
+   behaviour today. A test for behaviour the code does not have is a proposal: list it under "proposed changes"
+   in the report and do not write it. A fake used for a concurrency or permission assertion must itself refuse
+   what the real server refuses (a fake that accepts a stale revision proves nothing): check the fake first.
 3. Jini commit A: owner module (precedent `packages/user-management/src/admin/`), kit file, `messages.en.ts`,
    memory adapter + conformance suite for the port, fakes under `…/testing`. Hooks are props. Classes `jini-<domain>-*`.
-   Export-map entries built in this commit. Nothing consumes it yet. Green.
+   Export-map keys follow the specifier table in `JM-jini-domains-out.md` (`<owner>/<domain>/admin[/react|/adapters/http|/adapters/memory|/conformance]`),
+   are added to the owner's `package.json` with their `jini` runtime tags **by this run, in this commit**, with
+   `pnpm install`, and are built in this commit. Nothing consumes it yet. Green.
 4. Tovu commit B: `integrations/jini-admin/<x>-ports.ts` (binding; run the owner's conformance suite against it
    with the existing API fake), `<x>-module.hooks.ts` (copy `comments-module.hooks.ts`, 35 lines), thin `index.ts`,
-   i18n parity test, CSS selector renames, delete the moved Tovu files, retire their debt keys. Coordinator lines:
-   `panels.tsx` entry, `modules.hooks.ts`, `jini-kits.ts`.
+   i18n parity test (locales from `ADMIN_LOCALES`), CSS selector renames, delete the moved Tovu files, retire their
+   debt keys, **and in the same commit** the `panels.tsx` entry, the `modules.hooks.ts` line and the `jini-kits.ts`
+   binding (shared files: this is why screen sheets run one at a time, COMMON-ADMIN section 3).
+   `(cd apps/admin && npx vite build)` succeeds linked to commit A.
 5. Chrome check (COMMON-ADMIN 4). 6. Report.
 
 ## Binding checks (lesson 12), for every port method
@@ -55,6 +63,8 @@ fails when one argument is dropped or two are swapped. A structural `satisfies` 
 
 ## STOP (in addition to the ones above)
 - The owner package would need to import another domain package, `@jini-ai/ui` or `@jini-ai/admin`.
+- The feature imports an editor or other third-party UI library (`rg -n "from ['\"]@tiptap/|from ['\"]@codemirror/" apps/admin/src/features/<x>`
+  prints a line): the dependency owner is an open decision (lane K/T D-T4). STOP unless the sheet names the decision.
 - A behaviour exists only in the dictionary (a key with no caller, or a caller with no key): report, do not guess.
 - The screen permanently deletes something without the trash port.
 - An animation is switched off for small screens after your change.
