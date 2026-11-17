@@ -133,7 +133,7 @@ import { createSiteTransitions } from "../site-transitions.ts";
 import { createShutdownTracker, routeQuitSignals, decideBeforeQuit } from "@jini-ai/desktop-host/shutdown";
 // Repeated-quit/drain rationale: Jini/packages/desktop-host/src/shutdown/quit-drain-gate.ts.
 import { isShellPageUrl, isSameOrigin, isExternalBrowserUrl, installGuestWindowOpenPolicy } from "../window-navigation-policy.ts";
-import { isHostedSignInLinkPath, isHostedMcpSignInLinkPath } from "../../../website/src/contracts/core/hosted-sign-in-links.ts";
+import { isHostedSignInLinkPath, isHostedMcpSignInLinkPath } from "@tovu/contracts/hosted-sign-in-links";
 import { registerSpeechIpc } from "../speech/speech-ipc.ts";
 import { registerFindInPageIpc, relayFindResults } from "../find-in-page-ipc.ts";
 import { registerImportHandoffIpc } from "../import-handoff-ipc.ts";

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { test } from "node:test";
 import { API_CONNECTION_BINDING_COOKIE, browserBindingCookie, clearedBrowserBindingCookie, createSignInHandoffs, hostedSignInLink, readBrowserBinding } from "../browser-binding.js";
-import { isHostedSignInLinkPath } from "../../../contracts/core/hosted-sign-in-links.js";
+import { isHostedSignInLinkPath } from "@tovu/contracts/hosted-sign-in-links";
 
 test("MCP reuses browser cookies with an isolated name and callback scope", () => {
   const scope = { cookieName: '__Secure-tovu_mcp_binding', callbackPath: '/api/mcp-servers/oauth/callback' };
