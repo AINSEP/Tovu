@@ -31,7 +31,7 @@ test("preview reports exactly the files the packager returned, and hands it the 
   const seen: unknown[] = [];
   const result = await previewCommitExport(inputWith({
     entryFile: "index.html",
-    packageSite: required => { seen.push(required.site); return { ok: true, files: [{ path: "b.txt", data: new Uint8Array(2) }, { path: "a.txt", data: new Uint8Array(3) }] }; },
+    packageSite: required => { seen.push(required.site); return { ok: true, files: [{ path: "b.txt", data: Buffer.alloc(2) }, { path: "a.txt", data: Buffer.alloc(3) }] }; },
   }), { validateTarget: () => null });
   assert.deepEqual(result, { ok: true, fileCount: 2, totalBytes: 5, paths: ["a.txt", "b.txt"] });
   assert.deepEqual(seen, [{ name: "Demo", slug: "demo", theme: "Fixture", themeId: "fixture" }]);

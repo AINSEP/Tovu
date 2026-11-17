@@ -43,6 +43,7 @@ import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import { readBuiltInExternalMcpServerIds } from "#src/features/external-mcp/built-in-connections";
 import { bindWidgetRemoval } from "#src/features/trash/index";
 import { createStaticSitePackager } from "#src/features/site-backup/static-site-packager";
+import { bindStaticSiteContext } from "./static-site-context.js";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import { executeCommand } from "@jini-ai/cms/core";
 import express from "express";
@@ -84,7 +85,7 @@ import { createInMemoryChatHistory, createInMemoryAgentSessionStore, InMemoryAdm
 // exactly this reason — the same exemption `express.static`'s `/agent-icons` mount below relies on.
 import { InMemoryPresentationSettingsRepo, resolveActiveThemeId } from "#src/features/presentation/index";
 import { InMemorySettingsRepo, getEffective, set, INSTRUCTIONS_NAMESPACE } from "#src/features/settings/index";
-import { discoverAllBuiltInThemes, resolveActiveTheme, NO_THEME_ID } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
 import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
 import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
@@ -901,12 +902,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // the lazy `require()` this used to carry is gone.
     exportSiteBound: (opts) => exportSite({ ...opts, routeDeps }),
     staticSitePackager: createStaticSitePackager(),
-    staticSiteContext: async () => {
-      const theme = resolveActiveTheme({ deps: routeDeps, activeThemeId: await routeDeps.resolveActiveThemeId() });
-      return { name: routeDeps.siteDisplayName.read() ?? siteBinding.name, slug: siteBinding.name,
-        theme: theme && typeof theme === "object" ? theme.manifest.name : "None",
-        themeId: theme && typeof theme === "object" ? theme.manifest.id : NO_THEME_ID };
-    },
+    staticSiteContext: bindStaticSiteContext({ readDeps: () => routeDeps, siteName: siteBinding.name }),
   };
   routeDeps.pluginHost = createTovuPluginHost({ deps: routeDeps });
   routeDeps.pluginRuntimeReady = pluginRuntime.attachEnabledPluginsAtBoot();

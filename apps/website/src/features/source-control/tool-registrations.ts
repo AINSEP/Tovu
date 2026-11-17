@@ -1,7 +1,6 @@
 import type { LoadPluginCredentialCards } from "../custom-credentials/plugin-credential-card.js";
 import { describeCredentialByLabel, resolveCustomCredentialByLabel, type CustomCredentialSetRepoPort } from "../custom-credentials/index.js";
 import { executeCommitSchema } from "./commit-schema.js";
-import type { StaticSitePackagerPort } from "./static-site-packager-port.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/source-control.js';
 import { normalizeRepositoryFolder, prefixRepositoryPath } from "@jini-ai/devops/source-control";
 import { type Clock } from "@jini-ai/core/primitives";
@@ -24,7 +23,7 @@ import {
   validateCommitTarget,
   type ExportSiteBoundFn,
   type CommitSiteInput,
-  type StaticSiteContextFn,
+  type StaticSiteHostPorts,
   type SourceControlCommitAdapter,
   type SourceControlCommitOutcome,
 } from "./commit-site.js";
@@ -221,10 +220,7 @@ export const sourceControlDerivedRisk: DerivedRiskByToolId = new Map<string, Age
  * Passing that one pre-bound operation lets the tool run a real export without importing the
  * composition root's wide RouteDeps type; route callers satisfy the narrower shape structurally.
  */
-export interface SourceControlToolDeps {
-  readonly staticSiteContext: StaticSiteContextFn;
-  /** Bound by composition to `site-backup`'s packager, so this feature never imports `site-backup`. */
-  readonly staticSitePackager: StaticSitePackagerPort;
+export interface SourceControlToolDeps extends StaticSiteHostPorts {
   readonly loadPluginCredentialCards?: LoadPluginCredentialCards;
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;

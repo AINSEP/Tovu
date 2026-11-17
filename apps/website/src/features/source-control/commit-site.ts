@@ -206,6 +206,13 @@ export type ExportSiteBoundFn = (options: { outputDir: string; clean?: boolean; 
 /** Bound to the existing site/theme resolvers by composition, never inferred from output files. */
 export type StaticSiteContextFn = () => Promise<{ name: string; slug: string; theme: string; themeId: string }>;
 
+/** The two host-bound ports that package a site for a commit; `RouteDeps` and `SourceControlToolDeps` both carry exactly these. */
+export interface StaticSiteHostPorts {
+  readonly staticSiteContext: StaticSiteContextFn;
+  /** Bound by composition to `site-backup`'s packager, so this feature never imports `site-backup`. */
+  readonly staticSitePackager: StaticSitePackagerPort;
+}
+
 export interface CommitSiteInput {
   readonly folder?: string;
   readonly staticSiteContext: StaticSiteContextFn;
@@ -404,7 +411,8 @@ async function exportForCommit({ input, providerId }: { input: CommitSiteInput; 
       return { ok: false, code: "EXPORT_FAILED", message: `Static site destination validation failed: ${packaged.message}` };
     }
     return { ok: true, files: packaged.files };
-  } catch {
+  } catch (error) {
+    console.warn("[source-control] static site packaging failed before committing could start", describeErrorForLog({ err: error }));
     return { ok: false, code: "EXPORT_FAILED", message: "Static site packaging failed before committing could start." };
   }
 }

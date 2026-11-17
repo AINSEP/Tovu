@@ -44,6 +44,7 @@ import { registerContentAnalytics } from './content-events.js';
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { createSiteShareBackend } from "#src/features/site-backup/share-backend";
 import { createStaticSitePackager } from "#src/features/site-backup/static-site-packager";
+import { bindStaticSiteContext } from "./static-site-context.js";
 import { composeSiteImportBackend } from "./site-import-backend.js";
 import { composeSiteSavedKeys } from "#src/server/runtime/composition/site-portability";
 import { startLocalSiteWhenRunning } from "#src/platform/site-dir/local-site-supervisor";
@@ -182,7 +183,7 @@ import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
 import { createSiteAssistantErrorReporter } from "#src/assistant/site/public-errors";
 import { formatErrorForLog, redactSecrets } from "@jini-ai/core";
-import { discoverAllBuiltInThemes, rescanThemes, syncThemeRoster, resolveActiveTheme, NO_THEME_ID } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes, rescanThemes, syncThemeRoster } from "#src/features/theme/index";
 import { createMemberTrashAdapter } from "#src/features/trash/adapters/member";
 import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
 import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
@@ -2707,12 +2708,7 @@ async function composeSiteRouteDeps(
     // spread LAST, so it always wins over anything a caller's `opts` might also carry).
     exportSiteBound: (opts) => exportSite({ ...opts, routeDeps }),
     staticSitePackager: createStaticSitePackager(),
-    staticSiteContext: async () => {
-      const theme = resolveActiveTheme({ deps: routeDeps, activeThemeId: await routeDeps.resolveActiveThemeId() });
-      return { name: routeDeps.siteDisplayName.read() ?? resolvedSiteBinding.name, slug: resolvedSiteBinding.name,
-        theme: theme && typeof theme === "object" ? theme.manifest.name : "None",
-        themeId: theme && typeof theme === "object" ? theme.manifest.id : NO_THEME_ID };
-    },
+    staticSiteContext: bindStaticSiteContext({ readDeps: () => routeDeps, siteName: resolvedSiteBinding.name }),
   };
   resolveRouteDeps(routeDeps);
 
