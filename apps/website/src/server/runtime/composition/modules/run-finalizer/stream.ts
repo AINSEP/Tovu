@@ -3,6 +3,7 @@ import { readSseFrames, translateRunFrame } from "#src/contracts/core/assistant-
 
 import type { Checkpointer } from "./checkpointer.js";
 import { interruptionEvents, type Watch } from "./watch-state.js";
+import { releaseUnreadBody } from "./release-body.js";
 
 /**
  * @file Reads one events connection of a watched run. It owns the `events`, `retainedEvents`,
@@ -17,14 +18,6 @@ export type StreamResult = { kind: "ended"; status: RunSettlement["status"] } | 
 export interface StreamReader {
   /** Rejects when the daemon request or the body fails; the caller treats that as a dropped stream. */
   read(required: { watch: Watch }, optional?: {}): Promise<StreamResult>;
-}
-
-/** Releases an events response that will never be read. An unread body stays open, and a run
- * reconnects up to maxReconnects times. Not awaited: a body that never finishes cancelling must
- * not stall the watch. A failed cancel has nothing left to release.
- * @complexity O(1); starts one cancel and returns. */
-function releaseUnreadBody({ response }: { response: Response }, _optional = {}): void {
-  void response.body?.cancel().catch(() => undefined);
 }
 
 function applyStreamFrame(
@@ -49,7 +42,7 @@ async function readStream({ checkpointer, watch }: { checkpointer: Checkpointer;
   const response = await watch.daemon.openEvents({ runId: watch.runId, principalId: watch.principalId }, { signal });
   if (signal.aborted) {
     // The stream was already aborted; body cancellation is best-effort cleanup.
-    void response.body?.cancel().catch(() => undefined);
+    releaseUnreadBody({ response });
     return { kind: "dropped" };
   }
   if (response.status === 404) { releaseUnreadBody({ response }); return { kind: "gone" }; }
