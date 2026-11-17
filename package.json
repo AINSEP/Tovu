@@ -156,7 +156,7 @@
     "@jini-ai/plugin-catalog": "^0.7.0",
     "@jini-ai/plugins": "^0.7.0",
     "@jini-ai/protocol": "^0.7.0",
-    "@jini-ai/provider-plugins": "^0.7.0",
+    "@jini-ai/provider-plugins": "0.7.1",
     "@jini-ai/registry": "^0.7.0",
     "@jini-ai/sandbox": "^0.7.0",
     "@jini-ai/search": "^0.7.0",

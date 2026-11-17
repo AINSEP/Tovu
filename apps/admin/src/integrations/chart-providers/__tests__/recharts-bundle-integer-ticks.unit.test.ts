@@ -10,10 +10,15 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import rootPackage from "../../../../../../package.json";
 import { act } from "@testing-library/react";
 
-/** Keep in step with RECHARTS_BROWSER_APPROVAL.version (the admin cannot import server composition). */
-const PINNED_VERSION = "0.7.0";
+/**
+ * The bundle folder is named for the package version, and the root dependency is EXACT so that version
+ * is the pin (`recharts-package-pin.unit.test.ts` ties it to RECHARTS_BROWSER_APPROVAL.version; the admin
+ * cannot import server composition). Reading it here means a re-pin cannot leave this test on a stale folder.
+ */
+const PINNED_VERSION = rootPackage.dependencies["@jini-ai/provider-plugins"];
 // The package exports `./catalog` (catalog.json at its root), not `package.json`.
 const packageRoot = path.dirname(createRequire(import.meta.url).resolve("@jini-ai/provider-plugins/catalog"));
 const bundleUrl = pathToFileURL(path.join(packageRoot, "plugins/charts-recharts", PINNED_VERSION, "client/provider.js")).href;
