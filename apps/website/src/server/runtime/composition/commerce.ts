@@ -18,6 +18,7 @@ import { createPaymentsService, createPaymentsOperator, createKernelProviderRegi
   LedgerConstraintError, type LedgerTx, type LedgerKeyScope, type QuarantineRecord,
   type PaymentsAlertPort, type PaymentScope, type ProviderContextPort, type WebhookReceiver } from '@jini-ai/commerce/payments/kernel';
 import { migrateCommercePayments, sqlPaymentsLedger } from '@jini-ai/commerce/payments/ledger/sql';
+import { runMigrations } from '@jini-ai/db/migrate';
 import { migrateCommerceDatabase } from '#src/platform/db/migrations/index';
 import { createAgentPluginEnabledReader } from '#src/features/agent-plugins/activation-effects';
 import type { ProviderPluginPorts } from './provider-plugins.js';
@@ -107,7 +108,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
     warnedConfiguration = problem; warn(problem);
   }
   const ensurePaymentSchema = async () => {
-    paymentSchema ??= migrateCommercePayments({ kernel: required.kernel });
+    paymentSchema ??= migrateCommercePayments({ kernel: required.kernel, runMigrations });
     try { await paymentSchema; } catch (error) { paymentSchema = undefined; throw error; }
   };
   const ensureSchema = async () => {
