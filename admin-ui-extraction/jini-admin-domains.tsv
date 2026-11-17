@@ -1,0 +1,489 @@
+path	lines	kind	blob	domain	target
+packages/admin/src/agent-plugins/PORT.md	183	doc	4bf8ebeac1	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/SOURCE-RATIONALE.md	2194	doc	fc0cd5bd98	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/__tests__/adapter-contracts.test.ts	55	test	7f68311a97	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/__tests__/controllers.test.ts	49	test	a2a5d3a074	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/__tests__/http.test.ts	14	test	50c2b5f25e	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/__tests__/package-file-tree.hwa.test.ts	13	test	16f18de672	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/__tests__/package-file-tree.test.ts	53	test	57e60e3b92	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/__tests__/rules.test.ts	10	test	68b5572eb2	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/adapters/http.ts	15	code	6e8c9294d3	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/adapters/memory.ts	20	code	6a953f493f	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/agent-plugins.module.ts	5	code	73d6f09808	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/conformance/agent-plugins-api.conformance.ts	31	code	de448afc4b	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/controllers/agent-plugin-files.controller.ts	35	code	cb8d524f39	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/controllers/agent-plugins.controller.ts	73	code	73ad49393d	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/index.ts	8	code	8dc55d8c14	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/messages.en.ts	13	code	d5641d0f9a	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/models.ts	45	code	9989886d15	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/package-file-tree.ts	271	code	6b8059c492	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/ports.ts	12	code	09a43e1c15	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/react/__tests__/AgentPluginRow.test.tsx	27	test	f26d17c75d	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/react/__tests__/agent-plugins-hooks.test.tsx	252	test	0d811045d8	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/react/__tests__/agent-plugins-states.test.tsx	80	test	09365d73ec	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/react/__tests__/agent-plugins.test.tsx	31	test	62b86b0893	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/react/components/AgentPluginFileContent.tsx	10	code	0d80434b9a	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/react/components/AgentPluginFileTree.tsx	6	code	6105ad0454	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/react/components/AgentPluginInspector.tsx	15	code	c4c6e90967	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/react/components/AgentPluginListPanel.tsx	14	code	7b8a8bb1cf	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/react/components/AgentPluginRow.tsx	27	code	a18e3a9548	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/react/hooks/AgentPluginInspector.hooks.ts	70	code	427ef86048	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/react/hooks/AgentPluginPanel.hooks.ts	66	code	b3813e8695	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/react/hooks/AgentPluginRow.hooks.ts	6	code	3712b7c30a	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/react/hooks/AgentPluginsPage.hooks.ts	56	code	08c8ea7c9e	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/react/hooks/AgentPluginsPorts.hooks.ts	10	code	5696d2af0c	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/react/hooks/MarketplaceTab.hooks.ts	3	code	b42c7b9d3a	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/react/index.ts	12	code	dfb7bc4235	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/react/pages/AgentPluginsPage.tsx	16	code	05d640120f	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/react/tabs/DownloadedTab.tsx	4	code	822b9f6e95	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/react/tabs/InstalledTab.tsx	4	code	ee38c84363	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/react/tabs/MarketplaceTab.tsx	9	code	ec049b7d18	agent-plugins	agent-plugins/src/admin
+packages/admin/src/agent-plugins/rules.ts	51	code	edce8a22db	agent-plugins	agent-plugins/src/admin
+packages/admin/src/comments/PORT.md	152	doc	c179baf11c	comments	cms/src/comments/admin
+packages/admin/src/comments/SOURCE-RATIONALE.md	511	doc	7c253938c4	comments	cms/src/comments/admin
+packages/admin/src/comments/__tests__/comment-queue.controller.unit.test.ts	354	test	cc1f68412f	comments	cms/src/comments/admin
+packages/admin/src/comments/__tests__/comments-api.conformance.test.ts	137	test	5473e19c9b	comments	cms/src/comments/admin
+packages/admin/src/comments/__tests__/comments-surface.unit.test.ts	169	test	c565b3f749	comments	cms/src/comments/admin
+packages/admin/src/comments/__tests__/memory.unit.test.ts	119	test	a4b0c9d558	comments	cms/src/comments/admin
+packages/admin/src/comments/__tests__/rules-support.ts	22	test	6cf0bbf118	comments	cms/src/comments/admin
+packages/admin/src/comments/__tests__/rules.unit.test.ts	311	test	bf649ec8fa	comments	cms/src/comments/admin
+packages/admin/src/comments/__tests__/test-runner.ts	22	test	0650354e6d	comments	cms/src/comments/admin
+packages/admin/src/comments/adapters/http.ts	65	code	99930f70f8	comments	cms/src/comments/admin
+packages/admin/src/comments/adapters/memory.ts	83	code	3baaa11402	comments	cms/src/comments/admin
+packages/admin/src/comments/comments.module.ts	16	code	4f58a6553e	comments	cms/src/comments/admin
+packages/admin/src/comments/conformance/comments-api.conformance.ts	97	code	1807c83b9b	comments	cms/src/comments/admin
+packages/admin/src/comments/controllers/comment-queue.controller.ts	173	code	ab47f568ba	comments	cms/src/comments/admin
+packages/admin/src/comments/controllers/comment-settings.controller.ts	76	code	9b036ce802	comments	cms/src/comments/admin
+packages/admin/src/comments/controllers/comments.controller.ts	17	code	099dea5cfd	comments	cms/src/comments/admin
+packages/admin/src/comments/index.ts	12	code	baf2fe25fc	comments	cms/src/comments/admin
+packages/admin/src/comments/messages.en.ts	56	code	e5ba15cf79	comments	cms/src/comments/admin
+packages/admin/src/comments/models.ts	22	code	1051361137	comments	cms/src/comments/admin
+packages/admin/src/comments/ports.ts	13	code	7f0ba3c0c1	comments	cms/src/comments/admin
+packages/admin/src/comments/react/__tests__/Comments.unit.test.tsx	214	test	a7bee7093b	comments	cms/src/comments/admin
+packages/admin/src/comments/react/__tests__/QueueSection.unit.test.tsx	169	test	f75c43132a	comments	cms/src/comments/admin
+packages/admin/src/comments/react/__tests__/SettingsSection.unit.test.tsx	100	test	92da974db2	comments	cms/src/comments/admin
+packages/admin/src/comments/react/__tests__/comments-states.unit.test.tsx	99	test	a642416b07	comments	cms/src/comments/admin
+packages/admin/src/comments/react/__tests__/support.ts	152	test	ca52fdfa7f	comments	cms/src/comments/admin
+packages/admin/src/comments/react/__tests__/use-comment-queue.boundary.unit.test.tsx	132	test	cff8883c2f	comments	cms/src/comments/admin
+packages/admin/src/comments/react/__tests__/use-comment-queue.unit.test.tsx	603	test	880011e39b	comments	cms/src/comments/admin
+packages/admin/src/comments/react/__tests__/use-comment-settings.boundary.unit.test.tsx	88	test	1d324a7ffd	comments	cms/src/comments/admin
+packages/admin/src/comments/react/__tests__/use-comment-settings.unit.test.tsx	167	test	87fccfd75e	comments	cms/src/comments/admin
+packages/admin/src/comments/react/__tests__/use-comments.unit.test.tsx	66	test	4ae49210da	comments	cms/src/comments/admin
+packages/admin/src/comments/react/components/QueueActionsCell.tsx	45	code	9122185b5d	comments	cms/src/comments/admin
+packages/admin/src/comments/react/components/QueueSection.tsx	205	code	02416256c3	comments	cms/src/comments/admin
+packages/admin/src/comments/react/components/SettingsSection.tsx	137	code	35a9197919	comments	cms/src/comments/admin
+packages/admin/src/comments/react/hooks/CommentsPage.hooks.ts	11	code	1e959acc54	comments	cms/src/comments/admin
+packages/admin/src/comments/react/hooks/CommentsPorts.hooks.ts	21	code	60313a3589	comments	cms/src/comments/admin
+packages/admin/src/comments/react/hooks/QueueActionsCell.hooks.ts	13	code	01748646fd	comments	cms/src/comments/admin
+packages/admin/src/comments/react/hooks/QueueSection.hooks.ts	80	code	54850b18c5	comments	cms/src/comments/admin
+packages/admin/src/comments/react/hooks/SettingsSection.hooks.ts	27	code	d7cbb0d175	comments	cms/src/comments/admin
+packages/admin/src/comments/react/hooks/use-comment-queue.hooks.ts	142	code	5299311cd3	comments	cms/src/comments/admin
+packages/admin/src/comments/react/hooks/use-comment-settings.hooks.ts	50	code	a9ebfbe52c	comments	cms/src/comments/admin
+packages/admin/src/comments/react/hooks/use-comments.hooks.ts	29	code	b9c5004888	comments	cms/src/comments/admin
+packages/admin/src/comments/react/index.ts	43	code	3182f4a0be	comments	cms/src/comments/admin
+packages/admin/src/comments/react/pages/CommentsPage.tsx	42	code	0586069206	comments	cms/src/comments/admin
+packages/admin/src/comments/rules.ts	282	code	5fbd250714	comments	cms/src/comments/admin
+packages/admin/src/consent/react/ConsentFields.tsx	156	code	ad61ffce3d	consent	cookie-consent/src/admin
+packages/admin/src/consent/react/ConsentPreviewFrame.tsx	28	code	d381c77495	consent	cookie-consent/src/admin
+packages/admin/src/consent/react/ConsentSettingsPanel.tsx	72	code	1c9b3f8a7a	consent	cookie-consent/src/admin
+packages/admin/src/consent/react/__tests__/ConsentFields-m1.unit.test.tsx	30	test	fcb762e5f0	consent	cookie-consent/src/admin
+packages/admin/src/consent/react/__tests__/ConsentFields.test.tsx	243	test	8ad0cbe01d	consent	cookie-consent/src/admin
+packages/admin/src/consent/react/__tests__/ConsentSettingsPanel.test.tsx	65	test	bf184d308a	consent	cookie-consent/src/admin
+packages/admin/src/consent/react/__tests__/consent-entry.test.tsx	12	test	a824b56587	consent	cookie-consent/src/admin
+packages/admin/src/consent/react/index.ts	7	code	4502806234	consent	cookie-consent/src/admin
+packages/admin/src/consent/react/settings-panel.hooks.ts	66	code	0ffbe25b2a	consent	cookie-consent/src/admin
+packages/admin/src/forms/PORT.md	55	doc	398dbaa243	forms	cms/src/forms/admin
+packages/admin/src/forms/SOURCE-RATIONALE.md	1604	doc	3e3812c3bb	forms	cms/src/forms/admin
+packages/admin/src/forms/__tests__/answer-format.unit.test.ts	217	test	89612056f1	forms	cms/src/forms/admin
+packages/admin/src/forms/__tests__/field-settings-upload-choices.unit.test.ts	19	test	05a3cd8efe	forms	cms/src/forms/admin
+packages/admin/src/forms/__tests__/field-settings.unit.test.ts	418	test	dfea4329cd	forms	cms/src/forms/admin
+packages/admin/src/forms/__tests__/form-editor-dirty.unit.test.ts	44	test	2447955794	forms	cms/src/forms/admin
+packages/admin/src/forms/__tests__/forms-api.conformance.test.ts	147	test	71ef5a93d7	forms	cms/src/forms/admin
+packages/admin/src/forms/__tests__/forms-surface.unit.test.ts	84	test	5996f052a1	forms	cms/src/forms/admin
+packages/admin/src/forms/__tests__/harness.ts	14	test	fdff0bd999	forms	cms/src/forms/admin
+packages/admin/src/forms/__tests__/html-starter.unit.test.ts	102	test	fd43c005af	forms	cms/src/forms/admin
+packages/admin/src/forms/__tests__/memory-adapter.unit.test.ts	218	test	5346285934	forms	cms/src/forms/admin
+packages/admin/src/forms/__tests__/rules.unit.test.ts	208	test	99a36e3b3d	forms	cms/src/forms/admin
+packages/admin/src/forms/adapters/http.ts	62	code	f7953f832c	forms	cms/src/forms/admin
+packages/admin/src/forms/adapters/memory.ts	91	code	20c5dae5a0	forms	cms/src/forms/admin
+packages/admin/src/forms/conformance/forms-api.conformance.ts	68	code	59254e3784	forms	cms/src/forms/admin
+packages/admin/src/forms/controllers/draft-store.ts	16	code	19cbdaa591	forms	cms/src/forms/admin
+packages/admin/src/forms/controllers/field-attributes-dialog.controller.ts	70	code	8ada610f4c	forms	cms/src/forms/admin
+packages/admin/src/forms/controllers/form-editor.controller.ts	39	code	86f636403b	forms	cms/src/forms/admin
+packages/admin/src/forms/controllers/form-fields-editor.controller.ts	12	code	2030ead976	forms	cms/src/forms/admin
+packages/admin/src/forms/controllers/form-submission-detail.controller.ts	12	code	2aac87d47b	forms	cms/src/forms/admin
+packages/admin/src/forms/controllers/form-submissions.controller.ts	17	code	88dd0ca555	forms	cms/src/forms/admin
+packages/admin/src/forms/controllers/forms-list.controller.ts	14	code	50c1812972	forms	cms/src/forms/admin
+packages/admin/src/forms/field-settings.ts	445	code	64a35ba7e8	forms	cms/src/forms/admin
+packages/admin/src/forms/form-editor-dirty.ts	48	code	ccd2080a93	forms	cms/src/forms/admin
+packages/admin/src/forms/forms.module.ts	16	code	92a2bc3b5e	forms	cms/src/forms/admin
+packages/admin/src/forms/html-rules.ts	184	code	75b07855b6	forms	cms/src/forms/admin
+packages/admin/src/forms/index.ts	13	code	3c82e55c05	forms	cms/src/forms/admin
+packages/admin/src/forms/messages.en.ts	181	code	692f0208eb	forms	cms/src/forms/admin
+packages/admin/src/forms/models.ts	15	code	721c6c6616	forms	cms/src/forms/admin
+packages/admin/src/forms/ports.ts	18	code	f55a2cbd82	forms	cms/src/forms/admin
+packages/admin/src/forms/react/__tests__/FieldSettingsSection.unit.test.tsx	155	test	b7ccb76be2	forms	cms/src/forms/admin
+packages/admin/src/forms/react/__tests__/FormEditor.field-settings.unit.test.tsx	93	test	b8d9a7bba7	forms	cms/src/forms/admin
+packages/admin/src/forms/react/__tests__/FormEditor.leave-and-focus.unit.test.tsx	81	test	36779d2e69	forms	cms/src/forms/admin
+packages/admin/src/forms/react/__tests__/FormEditor.unit.test.tsx	462	test	43944b922d	forms	cms/src/forms/admin
+packages/admin/src/forms/react/__tests__/FormEditorFieldsBody.unit.test.tsx	191	test	2256a6afcc	forms	cms/src/forms/admin
+packages/admin/src/forms/react/__tests__/FormSubmissions.unit.test.tsx	93	test	dd7968f255	forms	cms/src/forms/admin
+packages/admin/src/forms/react/__tests__/FormsList.unit.test.tsx	472	test	f63f129fb8	forms	cms/src/forms/admin
+packages/admin/src/forms/react/__tests__/FormsModule.unit.test.tsx	70	test	309b27c3c8	forms	cms/src/forms/admin
+packages/admin/src/forms/react/__tests__/copy-polish.unit.test.tsx	74	test	500ec61472	forms	cms/src/forms/admin
+packages/admin/src/forms/react/__tests__/field-row-editing.unit.test.tsx	81	test	be5da7e058	forms	cms/src/forms/admin
+packages/admin/src/forms/react/__tests__/forms-agent-drive.unit.test.tsx	187	test	22ca5fc7db	forms	cms/src/forms/admin
+packages/admin/src/forms/react/__tests__/forms-view.hooks.unit.test.tsx	45	test	b49f7e66c8	forms	cms/src/forms/admin
+packages/admin/src/forms/react/__tests__/harness.tsx	32	test	a0d86d818a	forms	cms/src/forms/admin
+packages/admin/src/forms/react/__tests__/html-mode.unit.test.tsx	71	test	6444836906	forms	cms/src/forms/admin
+packages/admin/src/forms/react/__tests__/legacy-ports.ts	76	test	b8272bdbdc	forms	cms/src/forms/admin
+packages/admin/src/forms/react/__tests__/native-dialog-dismissal.unit.test.ts	32	test	50c2469bc8	forms	cms/src/forms/admin
+packages/admin/src/forms/react/__tests__/submissions-states.unit.test.tsx	240	test	860f78b2e8	forms	cms/src/forms/admin
+packages/admin/src/forms/react/__tests__/use-field-attributes-dialog.hooks.unit.test.ts	138	test	4a0104b51e	forms	cms/src/forms/admin
+packages/admin/src/forms/react/__tests__/use-form-editor.branches.unit.test.tsx	159	test	5d1bab7206	forms	cms/src/forms/admin
+packages/admin/src/forms/react/__tests__/use-form-editor.unit.test.tsx	200	test	f66eae0815	forms	cms/src/forms/admin
+packages/admin/src/forms/react/__tests__/use-form-fields-editor.hooks.unit.test.tsx	65	test	c7e400520c	forms	cms/src/forms/admin
+packages/admin/src/forms/react/__tests__/use-form-submission-date.hooks.unit.test.tsx	23	test	6469b39e64	forms	cms/src/forms/admin
+packages/admin/src/forms/react/__tests__/use-form-submission-detail.unit.test.tsx	162	test	b5fde51e48	forms	cms/src/forms/admin
+packages/admin/src/forms/react/__tests__/use-form-submissions.unit.test.tsx	252	test	c7f867ed41	forms	cms/src/forms/admin
+packages/admin/src/forms/react/__tests__/use-forms-list.unit.test.tsx	296	test	4318086c91	forms	cms/src/forms/admin
+packages/admin/src/forms/react/components/FieldAttributesDialog.tsx	179	code	733160d36a	forms	cms/src/forms/admin
+packages/admin/src/forms/react/components/FieldSettingsRows.tsx	197	code	74b29ea34c	forms	cms/src/forms/admin
+packages/admin/src/forms/react/components/FieldSettingsSection.tsx	39	code	6e7ccbfff5	forms	cms/src/forms/admin
+packages/admin/src/forms/react/components/FormEditorFieldsBody.tsx	95	code	4ae8a36692	forms	cms/src/forms/admin
+packages/admin/src/forms/react/components/FormEditorFieldsBodyParts.tsx	81	code	85ddd78b4c	forms	cms/src/forms/admin
+packages/admin/src/forms/react/components/FormEditorHeaderText.tsx	16	code	5e1dc3f190	forms	cms/src/forms/admin
+packages/admin/src/forms/react/components/FormEditorMainPanel.tsx	31	code	f9298124c3	forms	cms/src/forms/admin
+packages/admin/src/forms/react/components/FormEditorTabStrip.tsx	45	code	5044f79c06	forms	cms/src/forms/admin
+packages/admin/src/forms/react/components/FormFieldsEditor.tsx	228	code	1d318f9b50	forms	cms/src/forms/admin
+packages/admin/src/forms/react/components/FormProviderSettings.tsx	38	code	a924d4217c	forms	cms/src/forms/admin
+packages/admin/src/forms/react/components/FormSubmissionDate.tsx	3	code	2f7cd0e941	forms	cms/src/forms/admin
+packages/admin/src/forms/react/components/FormSubmissionDetail.tsx	130	code	94bec3fa41	forms	cms/src/forms/admin
+packages/admin/src/forms/react/components/FormSubmissions.tsx	51	code	ec273d7feb	forms	cms/src/forms/admin
+packages/admin/src/forms/react/components/FormSubmissionsTable.tsx	70	code	1da8ee917d	forms	cms/src/forms/admin
+packages/admin/src/forms/react/hooks/FormsPorts.hooks.ts	31	code	148b2857fc	forms	cms/src/forms/admin
+packages/admin/src/forms/react/hooks/forms-view.hooks.ts	149	code	a7bd2f530a	forms	cms/src/forms/admin
+packages/admin/src/forms/react/hooks/use-field-attributes-dialog.hooks.ts	72	code	be1f92f0f6	forms	cms/src/forms/admin
+packages/admin/src/forms/react/hooks/use-form-editor.hooks.ts	359	code	68a65df1ce	forms	cms/src/forms/admin
+packages/admin/src/forms/react/hooks/use-form-fields-editor.hooks.ts	80	code	d37c911968	forms	cms/src/forms/admin
+packages/admin/src/forms/react/hooks/use-form-submission-date.hooks.ts	13	code	7a9f40bc90	forms	cms/src/forms/admin
+packages/admin/src/forms/react/hooks/use-form-submission-detail.hooks.ts	163	code	67cbb7cb0f	forms	cms/src/forms/admin
+packages/admin/src/forms/react/hooks/use-form-submissions.hooks.ts	181	code	7ace085ad4	forms	cms/src/forms/admin
+packages/admin/src/forms/react/hooks/use-forms-list.hooks.ts	186	code	4bfe14e66f	forms	cms/src/forms/admin
+packages/admin/src/forms/react/index.ts	44	code	a53e6f0128	forms	cms/src/forms/admin
+packages/admin/src/forms/react/pages/FormEditor.tsx	145	code	f041f27603	forms	cms/src/forms/admin
+packages/admin/src/forms/react/pages/FormsList.tsx	165	code	3ffb6fa6c2	forms	cms/src/forms/admin
+packages/admin/src/forms/rules.ts	435	code	02c747fdea	forms	cms/src/forms/admin
+packages/admin/src/media/PORT.md	180	doc	2811d241c6	media	cms/src/media/admin
+packages/admin/src/media/PROTOTYPE.md	76	doc	96059141a1	media	cms/src/media/admin
+packages/admin/src/media/__tests__/controllers.test.ts	177	test	cffb7aec2d	media	cms/src/media/admin
+packages/admin/src/media/__tests__/html-attributes.test.ts	56	test	d9f36f51ff	media	cms/src/media/admin
+packages/admin/src/media/__tests__/http.test.ts	37	test	32c39f3287	media	cms/src/media/admin
+packages/admin/src/media/__tests__/legacy-rules.test.ts	226	test	6b68ff3a47	media	cms/src/media/admin
+packages/admin/src/media/__tests__/library-controller.test.ts	288	test	b1fd9c86a8	media	cms/src/media/admin
+packages/admin/src/media/__tests__/media-file-name.test.ts	20	test	2c370177ed	media	cms/src/media/admin
+packages/admin/src/media/__tests__/media-surface.test.ts	144	test	881ece77ac	media	cms/src/media/admin
+packages/admin/src/media/__tests__/memory.test.ts	260	test	88ab42f690	media	cms/src/media/admin
+packages/admin/src/media/__tests__/metadata-exports.test.ts	8	test	e6b372162f	media	cms/src/media/admin
+packages/admin/src/media/__tests__/parity-controllers.test.ts	158	test	9a747c2ef2	media	cms/src/media/admin
+packages/admin/src/media/__tests__/qa-recovery.test.ts	83	test	1e6dd0f145	media	cms/src/media/admin
+packages/admin/src/media/__tests__/rules.test.ts	131	test	deae6dcabe	media	cms/src/media/admin
+packages/admin/src/media/adapters/http.ts	73	code	291d8cfe8e	media	cms/src/media/admin
+packages/admin/src/media/adapters/memory.ts	154	code	df4da71fcc	media	cms/src/media/admin
+packages/admin/src/media/conformance/media-api.conformance.ts	88	code	ee4613a6b8	media	cms/src/media/admin
+packages/admin/src/media/controllers/edit-media.controller.ts	70	code	61f1d029e6	media	cms/src/media/admin
+packages/admin/src/media/controllers/library.controller.ts	204	code	d654d0fe01	media	cms/src/media/admin
+packages/admin/src/media/controllers/providers.controller.ts	81	code	1e7c9fc985	media	cms/src/media/admin
+packages/admin/src/media/html-attributes.ts	101	code	c25595dd03	media	cms/src/media/admin
+packages/admin/src/media/index.ts	40	code	860b957167	media	cms/src/media/admin
+packages/admin/src/media/media.module.ts	42	code	b0283c704f	media	cms/src/media/admin
+packages/admin/src/media/messages.en.ts	23	code	2269aa2305	media	cms/src/media/admin
+packages/admin/src/media/models.ts	71	code	adbac67e90	media	cms/src/media/admin
+packages/admin/src/media/ports.ts	81	code	2184138081	media	cms/src/media/admin
+packages/admin/src/media/react/__tests__/card-metadata.test.tsx	20	test	e2e796aecb	media	cms/src/media/admin
+packages/admin/src/media/react/__tests__/edit-parity.test.tsx	303	test	e898e4bb66	media	cms/src/media/admin
+packages/admin/src/media/react/__tests__/gallery-selection.test.tsx	21	test	7c9d7ddc61	media	cms/src/media/admin
+packages/admin/src/media/react/__tests__/library-parity.test.tsx	231	test	25074a7141	media	cms/src/media/admin
+packages/admin/src/media/react/__tests__/library-tab-hooks.test.tsx	358	test	80eb498378	media	cms/src/media/admin
+packages/admin/src/media/react/__tests__/media-card-hooks.test.tsx	75	test	4f9d34d079	media	cms/src/media/admin
+packages/admin/src/media/react/__tests__/media-component-states.test.tsx	157	test	45b8d088e4	media	cms/src/media/admin
+packages/admin/src/media/react/__tests__/media-lightbox-hooks.test.tsx	23	test	756a142f46	media	cms/src/media/admin
+packages/admin/src/media/react/__tests__/media.test.tsx	398	test	a18fe08f2c	media	cms/src/media/admin
+packages/admin/src/media/react/__tests__/providers-tab-hooks.test.tsx	269	test	066f62ea54	media	cms/src/media/admin
+packages/admin/src/media/react/__tests__/qa-fixes.test.tsx	142	test	a2a3855573	media	cms/src/media/admin
+packages/admin/src/media/react/__tests__/qa-round2.test.tsx	91	test	28339cbdd1	media	cms/src/media/admin
+packages/admin/src/media/react/__tests__/upload-button-hooks.test.tsx	268	test	6917a93d18	media	cms/src/media/admin
+packages/admin/src/media/react/components/EditMediaPanel.tsx	29	code	f4d866db29	media	cms/src/media/admin
+packages/admin/src/media/react/components/MediaCard.tsx	42	code	99b58f5390	media	cms/src/media/admin
+packages/admin/src/media/react/components/MediaDialog.tsx	7	code	8677fbbe1f	media	cms/src/media/admin
+packages/admin/src/media/react/components/MediaGrid.tsx	23	code	5ec8b7cbc2	media	cms/src/media/admin
+packages/admin/src/media/react/components/MediaIcons.tsx	28	code	6670bf8362	media	cms/src/media/admin
+packages/admin/src/media/react/components/MediaLightbox.tsx	21	code	b50c87e846	media	cms/src/media/admin
+packages/admin/src/media/react/components/MediaPicker.tsx	47	code	60b77aeb9a	media	cms/src/media/admin
+packages/admin/src/media/react/components/MediaPurgeDialog.tsx	13	code	a8076aa0ca	media	cms/src/media/admin
+packages/admin/src/media/react/components/UploadButton.tsx	42	code	8bf6da6a1d	media	cms/src/media/admin
+packages/admin/src/media/react/hooks/EditMediaPanel.hooks.ts	113	code	fd4a694299	media	cms/src/media/admin
+packages/admin/src/media/react/hooks/GallerySelection.hooks.ts	31	code	599237315a	media	cms/src/media/admin
+packages/admin/src/media/react/hooks/LibraryTab.hooks.ts	208	code	5b714cd410	media	cms/src/media/admin
+packages/admin/src/media/react/hooks/MediaCard.hooks.ts	95	code	9bf9b8c451	media	cms/src/media/admin
+packages/admin/src/media/react/hooks/MediaDialog.hooks.ts	22	code	98dd4d1e1c	media	cms/src/media/admin
+packages/admin/src/media/react/hooks/MediaGrid.hooks.ts	14	code	7db029b194	media	cms/src/media/admin
+packages/admin/src/media/react/hooks/MediaLightbox.hooks.ts	25	code	9a393bce34	media	cms/src/media/admin
+packages/admin/src/media/react/hooks/MediaPage.hooks.ts	90	code	2ef82237bf	media	cms/src/media/admin
+packages/admin/src/media/react/hooks/MediaPicker.hooks.ts	39	code	fe9663ebc5	media	cms/src/media/admin
+packages/admin/src/media/react/hooks/MediaPorts.hooks.ts	17	code	23f0a51fac	media	cms/src/media/admin
+packages/admin/src/media/react/hooks/MediaPurgeDialog.hooks.ts	15	code	ad2e071f2c	media	cms/src/media/admin
+packages/admin/src/media/react/hooks/MediaQuery.hooks.ts	42	code	4baae86746	media	cms/src/media/admin
+packages/admin/src/media/react/hooks/ProvidersTab.hooks.ts	207	code	93b673fdd5	media	cms/src/media/admin
+packages/admin/src/media/react/hooks/UploadButton.hooks.ts	138	code	b66566bf4f	media	cms/src/media/admin
+packages/admin/src/media/react/index.ts	94	code	3d602b01fe	media	cms/src/media/admin
+packages/admin/src/media/react/pages/MediaPage.tsx	49	code	dd9bb23105	media	cms/src/media/admin
+packages/admin/src/media/react/tabs/LibraryTab.tsx	56	code	3331b7548a	media	cms/src/media/admin
+packages/admin/src/media/react/tabs/ProvidersTab.tsx	41	code	5e76f8c58f	media	cms/src/media/admin
+packages/admin/src/media/rules.ts	175	code	4e1514fd28	media	cms/src/media/admin
+packages/admin/src/playground/PORT.md	88	doc	8327064f5c	playground	STAY in admin (dev tool, D-9)
+packages/admin/src/playground/SOURCE-RATIONALE.md	168	doc	e1acce205a	playground	STAY in admin (dev tool, D-9)
+packages/admin/src/playground/__tests__/controllers.test.ts	30	test	101896fac9	playground	STAY in admin (dev tool, D-9)
+packages/admin/src/playground/__tests__/http.test.ts	7	test	b8e599a0d9	playground	STAY in admin (dev tool, D-9)
+packages/admin/src/playground/__tests__/targets-contract.test.ts	40	test	65c69260b4	playground	STAY in admin (dev tool, D-9)
+packages/admin/src/playground/adapters/http.ts	3	code	8daa2537e7	playground	STAY in admin (dev tool, D-9)
+packages/admin/src/playground/adapters/memory.ts	26	code	e731d3fb0b	playground	STAY in admin (dev tool, D-9)
+packages/admin/src/playground/conformance/playground-api.conformance.ts	17	code	452284be72	playground	STAY in admin (dev tool, D-9)
+packages/admin/src/playground/controllers/playground.controller.ts	16	code	923d784446	playground	STAY in admin (dev tool, D-9)
+packages/admin/src/playground/index.ts	6	code	1b6a0476a3	playground	STAY in admin (dev tool, D-9)
+packages/admin/src/playground/messages.en.ts	1	code	2fe519e909	playground	STAY in admin (dev tool, D-9)
+packages/admin/src/playground/models.ts	1	code	9a0a05a65a	playground	STAY in admin (dev tool, D-9)
+packages/admin/src/playground/playground.module.ts	4	code	10f40ce2e1	playground	STAY in admin (dev tool, D-9)
+packages/admin/src/playground/ports.ts	2	code	f71ac623af	playground	STAY in admin (dev tool, D-9)
+packages/admin/src/playground/react/__tests__/playground-scope.test.tsx	23	test	288b33bd88	playground	STAY in admin (dev tool, D-9)
+packages/admin/src/playground/react/__tests__/playground.test.tsx	29	test	af1f203690	playground	STAY in admin (dev tool, D-9)
+packages/admin/src/playground/react/components/Canvas.tsx	8	code	dd441e5475	playground	STAY in admin (dev tool, D-9)
+packages/admin/src/playground/react/hooks/Canvas.hooks.ts	17	code	545f1dc53d	playground	STAY in admin (dev tool, D-9)
+packages/admin/src/playground/react/hooks/PlaygroundPage.hooks.ts	2	code	fdc6b17672	playground	STAY in admin (dev tool, D-9)
+packages/admin/src/playground/react/hooks/PlaygroundPorts.hooks.ts	6	code	c88483754d	playground	STAY in admin (dev tool, D-9)
+packages/admin/src/playground/react/index.ts	9	code	1f24b28b0b	playground	STAY in admin (dev tool, D-9)
+packages/admin/src/playground/react/pages/PlaygroundPage.tsx	10	code	8d33396434	playground	STAY in admin (dev tool, D-9)
+packages/admin/src/playground/react/tabs/CanvasTab.tsx	4	code	5561ae2885	playground	STAY in admin (dev tool, D-9)
+packages/admin/src/playground/rules.ts	1	code	6a9e65c844	playground	STAY in admin (dev tool, D-9)
+packages/admin/src/redirects/PORT.md	177	doc	b7f9543853	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/SOURCE-RATIONALE.md	392	doc	e9d1eac834	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/__tests__/memory.conformance.test.ts	31	test	9606598b61	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/__tests__/redirects-api.conformance.unit.test.ts	302	test	ce3297551f	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/__tests__/redirects-surface.unit.test.ts	118	test	a696aa205d	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/__tests__/rules-harness.ts	19	test	e58ed85dc7	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/__tests__/rules.unit.test.ts	251	test	5d2af811cd	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/adapters/http.ts	38	code	a1041da7f6	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/adapters/memory.ts	89	code	6beeab9ede	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/conformance/redirects-api.conformance.ts	115	code	4f9670d0c4	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/controllers/hit-count.controller.ts	9	code	51a895a149	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/controllers/import-redirects.controller.ts	31	code	58d480b606	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/controllers/redirects.controller.ts	43	code	d4bc9af49e	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/index.ts	12	code	77c12c1740	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/messages.en.ts	60	code	604dad0fcb	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/models.ts	10	code	643564d195	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/ports.ts	9	code	c9753a501d	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/react/__tests__/Redirects.unit.test.tsx	137	test	3fe8ec11c0	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/react/__tests__/copy-polish.unit.test.tsx	59	test	c9cc29b051	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/react/__tests__/legacy-harness.ts	134	test	006c03a821	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/react/__tests__/redirects-binding.unit.test.tsx	194	test	ce4254066f	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/react/__tests__/use-hit-count-cell.hooks.unit.test.tsx	175	test	7d7a21380f	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/react/__tests__/use-import-redirects-form.hooks.unit.test.tsx	278	test	17aca3c265	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/react/__tests__/use-redirects.hooks.unit.test.tsx	466	test	4077188121	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/react/components/HitCountCell.tsx	40	code	6679062bc8	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/react/components/ImportRedirectsForm.tsx	79	code	42dc87de5c	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/react/hooks/RedirectsOptions.hooks.ts	27	code	60ec65b72c	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/react/hooks/RedirectsPage.hooks.ts	32	code	6cf3d18697	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/react/hooks/RedirectsPorts.hooks.ts	12	code	69c74ef383	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/react/hooks/use-hit-count-cell.hooks.ts	20	code	f47885e579	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/react/hooks/use-import-redirects-form.hooks.ts	41	code	5c63ace161	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/react/hooks/use-redirects.hooks.ts	68	code	33f9696463	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/react/hooks/wired.hooks.ts	33	code	4457b51688	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/react/index.ts	29	code	e377b94682	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/react/pages/RedirectsPage.tsx	140	code	139f68ef1e	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/redirects.module.ts	12	code	b93d13b77b	redirects	cms/src/redirects/admin
+packages/admin/src/redirects/rules.ts	161	code	80ca22dfea	redirects	cms/src/redirects/admin
+packages/admin/src/security/PORT.md	115	doc	d3fada75ad	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/SOURCE-RATIONALE.md	1856	doc	b46a1fd6ad	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/__tests__/access-tokens.controller.test.ts	96	test	72c3b350b6	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/__tests__/controllers.test.ts	64	test	65c6cdedaf	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/__tests__/http.test.ts	108	test	e003632005	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/__tests__/memory.test.ts	124	test	f97cbd9c9a	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/__tests__/root-key.controller.test.ts	99	test	b344228add	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/__tests__/rules.test.ts	83	test	0e4bc808c7	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/__tests__/security-guards.unit.test.ts	96	test	cf6bd52b42	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/adapters/http.ts	94	code	776d0c4ff2	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/adapters/memory.ts	70	code	3c9dceea9a	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/conformance/security-api.conformance.ts	23	code	e39ca33bef	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/controllers/access-tokens.controller.ts	71	code	8e4d05dd94	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/controllers/other-credentials.controller.ts	46	code	2cee5ae97c	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/controllers/root-key.controller.ts	57	code	cdf4285009	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/index.ts	8	code	7c47659309	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/messages.en.ts	1	code	1978485444	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/models.ts	52	code	c1da5513da	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/ports.ts	34	code	1bf02f2fe5	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/react/__tests__/RootKeyTab.test.tsx	36	test	5bc2c3d2ae	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/react/__tests__/security-editor.test.tsx	131	test	19784755fd	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/react/__tests__/security-hooks.test.tsx	303	test	5d54fd87b9	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/react/__tests__/security.test.tsx	31	test	8f9d416688	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/react/components/CredentialEditor.tsx	12	code	89e5101d8f	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/react/hooks/AccessTokensTab.hooks.ts	65	code	89b203ce8f	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/react/hooks/CredentialEditor.hooks.ts	17	code	7501344665	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/react/hooks/RootKeyTab.hooks.ts	27	code	492e40f265	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/react/hooks/SecurityPage.hooks.ts	12	code	b36f904205	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/react/hooks/SecurityPorts.hooks.ts	12	code	717a2fe801	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/react/index.ts	9	code	b9416b34b0	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/react/pages/SecurityPage.tsx	9	code	92082dc7c1	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/react/tabs/AccessTokensTab.tsx	19	code	02f24b49d8	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/react/tabs/RootKeyTab.tsx	22	code	a4ba1685ee	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/rules.ts	82	code	c22eb3dc22	security	user-management/src/admin/security (D-5)
+packages/admin/src/security/security.module.ts	4	code	a58a0098b1	security	user-management/src/admin/security (D-5)
+packages/admin/src/seo/PORT.md	120	doc	8af5b558fd	seo	cms/src/seo/admin
+packages/admin/src/seo/SOURCE-RATIONALE.md	1077	doc	9515661c4c	seo	cms/src/seo/admin
+packages/admin/src/seo/__tests__/conformance.test.ts	12	test	a5b933eff3	seo	cms/src/seo/admin
+packages/admin/src/seo/__tests__/rules.unit.test.ts	412	test	9b83ce1c7b	seo	cms/src/seo/admin
+packages/admin/src/seo/__tests__/seo-surface.unit.test.ts	208	test	aae7bf0294	seo	cms/src/seo/admin
+packages/admin/src/seo/adapters/http.ts	67	code	2864c410b7	seo	cms/src/seo/admin
+packages/admin/src/seo/adapters/memory.ts	138	code	1ae5807db3	seo	cms/src/seo/admin
+packages/admin/src/seo/conformance/seo-api.conformance.ts	39	code	05c6da542d	seo	cms/src/seo/admin
+packages/admin/src/seo/controllers/entry-picker.controller.ts	17	code	92b56cf5e6	seo	cms/src/seo/admin
+packages/admin/src/seo/controllers/entry-section.controller.ts	6	code	0aebb1d01f	seo	cms/src/seo/admin
+packages/admin/src/seo/controllers/media-ref.controller.ts	14	code	53e1374765	seo	cms/src/seo/admin
+packages/admin/src/seo/controllers/seo-entry.controller.ts	52	code	93ac4996d4	seo	cms/src/seo/admin
+packages/admin/src/seo/controllers/seo.controller.ts	48	code	65a2d1ba3e	seo	cms/src/seo/admin
+packages/admin/src/seo/controllers/sitemap.controller.ts	27	code	727085b4a4	seo	cms/src/seo/admin
+packages/admin/src/seo/index.ts	13	code	497f068c5a	seo	cms/src/seo/admin
+packages/admin/src/seo/messages.en.ts	83	code	e028181b76	seo	cms/src/seo/admin
+packages/admin/src/seo/models.ts	182	code	50abeb1500	seo	cms/src/seo/admin
+packages/admin/src/seo/ports.ts	9	code	28a354be73	seo	cms/src/seo/admin
+packages/admin/src/seo/react/__tests__/MediaRefField.hooks.unit.test.ts	137	test	c20f8d7f07	seo	cms/src/seo/admin
+packages/admin/src/seo/react/__tests__/MediaRefField.unit.test.tsx	212	test	0890be2a90	seo	cms/src/seo/admin
+packages/admin/src/seo/react/__tests__/Seo.unit.test.tsx	908	test	fa6ac73aa2	seo	cms/src/seo/admin
+packages/admin/src/seo/react/__tests__/SitemapModal.unit.test.tsx	290	test	109d97fc2f	seo	cms/src/seo/admin
+packages/admin/src/seo/react/__tests__/copy-polish.unit.test.tsx	122	test	eb2525a1d4	seo	cms/src/seo/admin
+packages/admin/src/seo/react/__tests__/harness/api.ts	69	test	97d8581f21	seo	cms/src/seo/admin
+packages/admin/src/seo/react/__tests__/harness/hooks.ts	20	test	c963e87469	seo	cms/src/seo/admin
+packages/admin/src/seo/react/__tests__/harness/render.tsx	39	test	20c4ba63af	seo	cms/src/seo/admin
+packages/admin/src/seo/react/__tests__/harness/rules.ts	9	test	1e31c5b5d8	seo	cms/src/seo/admin
+packages/admin/src/seo/react/__tests__/seo-binding.unit.test.tsx	159	test	846427a69b	seo	cms/src/seo/admin
+packages/admin/src/seo/react/__tests__/seo-hooks-fallbacks.unit.test.tsx	124	test	92f1deaf9c	seo	cms/src/seo/admin
+packages/admin/src/seo/react/__tests__/share-image-warning.unit.test.tsx	299	test	1833b0c306	seo	cms/src/seo/admin
+packages/admin/src/seo/react/__tests__/use-entry-picker.unit.test.ts	63	test	b6fa5d2b97	seo	cms/src/seo/admin
+packages/admin/src/seo/react/__tests__/use-seo-entry-panel.unit.test.ts	326	test	61cf87146c	seo	cms/src/seo/admin
+packages/admin/src/seo/react/__tests__/use-seo.unit.test.ts	186	test	4131e62acd	seo	cms/src/seo/admin
+packages/admin/src/seo/react/components/MediaPickerBridge.tsx	7	code	7357ed78b7	seo	cms/src/seo/admin
+packages/admin/src/seo/react/components/MediaRefField.tsx	177	code	f33b5ec5d5	seo	cms/src/seo/admin
+packages/admin/src/seo/react/components/SeoIcons.tsx	54	code	d775715d67	seo	cms/src/seo/admin
+packages/admin/src/seo/react/components/SitemapModal.tsx	242	code	4fb8846f61	seo	cms/src/seo/admin
+packages/admin/src/seo/react/hooks/MediaPickerBridge.hooks.ts	21	code	08d3245fd2	seo	cms/src/seo/admin
+packages/admin/src/seo/react/hooks/MediaRefField.hooks.ts	49	code	e1800f811a	seo	cms/src/seo/admin
+packages/admin/src/seo/react/hooks/SeoModuleTabs.ts	18	code	40a1451645	seo	cms/src/seo/admin
+packages/admin/src/seo/react/hooks/SeoPage.hooks.ts	45	code	fe8b55fbdc	seo	cms/src/seo/admin
+packages/admin/src/seo/react/hooks/SeoPorts.hooks.ts	23	code	fa56ecef09	seo	cms/src/seo/admin
+packages/admin/src/seo/react/hooks/SeoQuery.hooks.ts	62	code	9658a7cdd3	seo	cms/src/seo/admin
+packages/admin/src/seo/react/hooks/SitemapModal.hooks.ts	25	code	6fec02557c	seo	cms/src/seo/admin
+packages/admin/src/seo/react/hooks/use-entry-picker.hooks.ts	25	code	d78ec88986	seo	cms/src/seo/admin
+packages/admin/src/seo/react/hooks/use-seo-entry-panel.hooks.ts	44	code	26e6519443	seo	cms/src/seo/admin
+packages/admin/src/seo/react/hooks/use-seo-entry-section.hooks.ts	8	code	8b1328abb7	seo	cms/src/seo/admin
+packages/admin/src/seo/react/hooks/use-seo.hooks.ts	46	code	c1b0b49952	seo	cms/src/seo/admin
+packages/admin/src/seo/react/hooks/use-share-image-warning.hooks.ts	98	code	c4248bf4d3	seo	cms/src/seo/admin
+packages/admin/src/seo/react/hooks/use-sitemap-modal.hooks.ts	28	code	2943ced2df	seo	cms/src/seo/admin
+packages/admin/src/seo/react/index.ts	38	code	1428962941	seo	cms/src/seo/admin
+packages/admin/src/seo/react/options.ts	21	code	159ff6ae2a	seo	cms/src/seo/admin
+packages/admin/src/seo/react/pages/SeoPage.tsx	838	code	85eb274042	seo	cms/src/seo/admin
+packages/admin/src/seo/rules.ts	465	code	01a70ecd03	seo	cms/src/seo/admin
+packages/admin/src/seo/seo.module.ts	13	code	676cd5defd	seo	cms/src/seo/admin
+packages/admin/src/source-control/PORT.md	101	doc	948e42cbe7	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/SOURCE-RATIONALE.md	534	doc	2d60066b00	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/__tests__/conformance.test.ts	66	test	764b611847	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/__tests__/controllers.test.ts	93	test	8bb2db4bfa	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/__tests__/http.test.ts	17	test	1d5eb730dd	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/__tests__/rules.test.ts	6	test	037782eebf	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/adapters/http.ts	14	code	46929b3ff9	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/adapters/memory.ts	22	code	c1dd1a0347	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/conformance/source-control-api.conformance.ts	76	code	a940b87020	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/controllers/source-control.controller.ts	54	code	8de9458f04	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/index.ts	7	code	a4c564eee5	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/messages.en.ts	1	code	0524eda086	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/models.ts	10	code	c2b353a794	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/ports.ts	12	code	b19872c3e6	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/react/__tests__/providers-tab-hooks.test.tsx	105	test	4ea3bbae96	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/react/__tests__/source-control-surface.unit.test.tsx	118	test	22ec30327e	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/react/__tests__/source-control.test.tsx	20	test	de3c07ad6b	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/react/components/SourceControlCredentialFields.tsx	7	code	969a21ec13	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/react/components/SourceControlProviderRow.tsx	10	code	d4254c24d1	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/react/hooks/ProvidersTab.hooks.ts	37	code	9a2c53859b	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/react/hooks/SourceControlCredentialFields.hooks.ts	9	code	224e336740	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/react/hooks/SourceControlPage.hooks.ts	5	code	8bef9eb0f9	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/react/hooks/SourceControlPorts.hooks.ts	8	code	5c0bf70964	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/react/index.ts	9	code	04bab8a2c9	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/react/pages/SourceControlPage.tsx	10	code	46ab57b7bc	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/react/tabs/ProvidersTab.tsx	9	code	6dcecfed87	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/rules.ts	22	code	2a869b560e	source-control	devops/src/source-control/admin
+packages/admin/src/source-control/source-control.module.ts	5	code	9c74bf5d41	source-control	devops/src/source-control/admin
+packages/admin/src/widgets/PORT.md	99	doc	2b603a8910	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/SOURCE-RATIONALE.md	773	doc	b67d95e502	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/__tests__/fixtures/controller-harness.ts	12	test	79039f6401	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/__tests__/instance-editor.controller.unit.test.ts	194	test	8fa524154a	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/__tests__/library.controller.unit.test.ts	166	test	5cdc4b2330	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/__tests__/memory-conformance.test.ts	9	test	ce2c1c0a8e	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/__tests__/region-editor.controller.unit.test.ts	157	test	754e1079fd	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/__tests__/rules.unit.test.ts	178	test	b4fe937537	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/__tests__/widgets-api-conformance.unit.test.ts	34	test	649d4eaaa7	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/__tests__/widgets-surface.unit.test.ts	126	test	ecd96f5fae	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/adapters/http.ts	38	code	507f9d8ac7	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/adapters/memory.ts	88	code	7bb82f1913	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/conformance/widgets-api.conformance.ts	69	code	cfa4ac541a	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/controllers/instance-editor.controller.ts	91	code	4f135081be	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/controllers/library.controller.ts	57	code	1341f16ee6	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/controllers/region-editor.controller.ts	60	code	67474c0a7b	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/controllers/regions.controller.ts	39	code	56a3caff3d	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/index.ts	10	code	613c88fe79	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/messages.en.ts	82	code	710ab01d38	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/models.ts	51	code	82b3d37497	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/ports.ts	26	code	173b11a832	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/WidgetInstanceEditor.unit.test.tsx	202	test	532b780576	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/WidgetRegionEditor.unit.test.tsx	257	test	554870cd2f	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/WidgetRegions.unit.test.tsx	102	test	2d67c5c3b3	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/WidgetsLibrary.unit.test.tsx	242	test	c58a681c10	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/fetch-query-migration.test.ts	47	test	e1ccfd3929	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/fixtures/api.ts	29	test	97982ad630	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/fixtures/bridge.ts	25	test	21629e7cad	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/fixtures/catalog.ts	13	test	9d62cd7a87	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/fixtures/common-i18n.ts	682	test	43a35c3dcd	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/fixtures/events.ts	10	test	75dbfef968	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/fixtures/legacy-ports.ts	69	test	1a8d83c6b8	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/fixtures/memory.ts	21	test	bd4b96646a	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/fixtures/navigation.ts	2	test	be19358330	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/fixtures/pages.tsx	51	test	3e16aff9b3	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/fixtures/rules.ts	14	test	053140e174	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/fixtures/use-widget-instance-editor.ts	10	test	563359ebdb	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/fixtures/use-widget-region-editor.ts	8	test	8f905c2a1d	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/fixtures/use-widget-regions.ts	7	test	5e51d2f758	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/fixtures/use-widgets-library.ts	7	test	78a5155cd3	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/fixtures/widgets-i18n.ts	1410	test	557d3be4ff	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/use-widget-instance-editor.hooks.unit.test.ts	615	test	39065a9b53	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/use-widget-region-editor.hooks.unit.test.tsx	198	test	05ffe46a41	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/use-widget-regions.hooks.unit.test.tsx	149	test	fae7b349c0	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/use-widget-regions.wiring.unit.test.tsx	62	test	bd5d77b40d	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/use-widgets-library.hooks.unit.test.tsx	337	test	bff14bbf86	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/use-widgets-library.wiring.unit.test.tsx	78	test	4d911059da	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/__tests__/widgets-binding.unit.test.tsx	139	test	84f26e78c5	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/components/WidgetInstanceNotices.tsx	41	code	45c2791ee7	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/components/WidgetRegionEditorHeaderActions.tsx	48	code	f54a4084c5	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/components/WidgetsLibraryNotices.tsx	37	code	1e8531c4a6	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/hooks/WidgetsPorts.hooks.ts	35	code	571b3869ca	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/hooks/WidgetsQuery.hooks.ts	70	code	43cb6d3392	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/hooks/navigation.hooks.ts	6	code	3b0c12ada8	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/hooks/page-views.hooks.ts	31	code	0eee6838c0	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/hooks/use-widget-instance-editor.hooks.ts	74	code	04a0dfdc66	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/hooks/use-widget-region-editor.hooks.ts	39	code	ab70933ae2	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/hooks/use-widget-regions.hooks.ts	43	code	a1b4a86252	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/hooks/use-widgets-library.hooks.ts	62	code	e17e71fec2	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/index.ts	41	code	bf622fb90c	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/pages/WidgetInstanceEditor.tsx	151	code	f469c19746	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/pages/WidgetRegionEditor.tsx	150	code	94ee5332f3	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/pages/WidgetRegions.tsx	135	code	8e94ac6399	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/react/pages/WidgetsLibrary.tsx	176	code	78cd8dbb06	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/rules.ts	89	code	658e0c2228	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/source-manifest.json	25	code	1b09339d14	widgets	cms/src/widgets/admin
+packages/admin/src/widgets/widgets.module.ts	20	code	15de7e76e3	widgets	cms/src/widgets/admin
