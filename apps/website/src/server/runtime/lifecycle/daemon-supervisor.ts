@@ -19,7 +19,7 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
  */
 import { isDaemonLifecycleLogQuiet } from "./daemon-lifecycle-log.js";
 import { currentAgentDaemonToken, currentToolExecToken, TOOL_EXEC_TOKEN_ENV_VAR, AGENT_DAEMON_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
-import { STARTUP_SECRET_KEYS, DESKTOP_AGENT_SERVICE_ENV } from '../boot/startup-secrets.js';
+import { STARTUP_SECRET_KEYS, DESKTOP_AGENT_SERVICE_ENV } from '../../../platform/secrets/startup-secrets.js';
 import { execFileSync } from "node:child_process";
 import {
   createNodeDaemonProcessAdapter,

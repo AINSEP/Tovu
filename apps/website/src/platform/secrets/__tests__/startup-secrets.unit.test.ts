@@ -3,10 +3,10 @@ import test from 'node:test';
 import { initializeStartupSecrets, startupSecretEnvironment, STARTUP_SECRET_KEYS } from '../startup-secrets.js';
 import { ensureAgentDaemonToken, requireAgentDaemonToken } from '#src/assistant/daemon-access';
 import express from 'express';
-import { desktopRenderForHost } from '../../../../platform/headless-browser/desktop-render.js';
+import { desktopRenderForHost } from '../../headless-browser/desktop-render.js';
 import { startRenderBridge } from '@jini-ai/desktop-host/render-bridge';
 import { desktopMcpRuntime } from '#src/assistant/desktop-mcp-runtime';
-import { buildDeploymentOverviewSnapshot } from '../../../inbound/admin-http/routes/system/deployment-overview.js';
+import { buildDeploymentOverviewSnapshot } from '../../../server/inbound/admin-http/routes/system/deployment-overview.js';
 import { resolveOwnerCredentials } from '#src/features/identity/wiring';
 import { spawn } from 'node:child_process';
 import { provideNodeStartupSecrets, STARTUP_SECRETS_ENV } from '@jini-ai/sidecar/supervisor/node';
@@ -73,7 +73,7 @@ test('startup delivery preserves the process runtime and configured owner after 
   const script = `
     import assert from 'node:assert/strict';
     await import('#src/platform/site-dir/__tests__/helpers/isolated-catalog-home');
-    const { desktopMcpRuntime } = await import(${JSON.stringify(moduleUrl('../../../../assistant/desktop-mcp-runtime.ts'))});
+    const { desktopMcpRuntime } = await import(${JSON.stringify(moduleUrl('../../../assistant/desktop-mcp-runtime.ts'))});
     const bearer = desktopMcpRuntime.bearerToken;
     const { initializeStartupSecrets } = await import(${JSON.stringify(moduleUrl('../startup-secrets.ts'))});
     await initializeStartupSecrets();
@@ -88,7 +88,7 @@ test('startup delivery preserves the process runtime and configured owner after 
     assert.ok(owner);
     assert.equal(await deps.passwordHasher.verify({ password: 'owner-ipc-fixture', hash: owner.passwordHash }), true);
     assert.equal(await deps.passwordHasher.verify({ password: 'tovu-dev', hash: owner.passwordHash }), false);
-    const { runProductionReadinessGateOrExit } = await import(${JSON.stringify(moduleUrl('../boot-readiness-gate.ts'))});
+    const { runProductionReadinessGateOrExit } = await import(${JSON.stringify(moduleUrl('../../../server/runtime/boot/boot-readiness-gate.ts'))});
     await runProductionReadinessGateOrExit();
     console.log('startup-consumers-ready');
     process.disconnect();

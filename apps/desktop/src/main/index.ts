@@ -112,7 +112,7 @@ import { createElectronUrlCapturePool } from "@jini-ai/desktop-host/electron";
 
 import { startTovuServer, DEFAULT_STOP_GRACE_MS } from "../tovu-server.ts";
 import { startDesktopCaptureBridge } from "../desktop-capture.ts";
-import { initializeStartupSecrets } from '../../../website/src/server/runtime/boot/startup-secrets.ts';
+import { initializeStartupSecrets } from '../../../website/src/platform/secrets/startup-secrets.ts';
 import { createDesktopMcpHttpRuntime } from "../desktop-mcp-http.ts";
 import { writeNodeToolchain, buildNodeToolchainEnv } from "../node-toolchain.ts";
 import { resolveAdminDevProxyUrl } from "../admin-dev-proxy.ts";

@@ -90,7 +90,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
 import { resolveMcpJsonInjection } from "../../apps/website/src/assistant/mcp-injection.js";
-import { initializeStartupSecrets } from '../../apps/website/src/server/runtime/boot/startup-secrets.js';
+import { initializeStartupSecrets } from '../../apps/website/src/platform/secrets/startup-secrets.js';
 import { createRunScopedCredentials } from "../../apps/website/src/assistant/daemon-access.js";
 
 /** CHANGE THIS before each run — confirm free first. See module doc's Safety section. */
