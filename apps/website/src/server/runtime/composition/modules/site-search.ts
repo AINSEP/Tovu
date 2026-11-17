@@ -9,7 +9,7 @@ import { contributeProviders } from "@jini-ai/search/contribution";
 
 import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import { loadSearchProviderContributions, type LoadedSearchProviders } from "#src/features/agent-plugins/search-provider-registry";
-import type { MemberContext } from "#src/features/members/types";
+import type { MemberContext } from "#src/features/members/index";
 import { deriveInstallationId } from "#src/features/publish-trust/keys";
 import { createCmsSearchAccessPort, memberSearchAudiences } from "#src/features/site-search/access";
 import { createCmsSearchDocumentSources } from "#src/features/site-search/cms-document-source";

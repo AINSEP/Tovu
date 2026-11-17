@@ -275,7 +275,7 @@ import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
 import type { IdentityRepos } from "@jini-ai/user-management";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "#src/features/forms/repo.sqlite";
-import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
+import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/index";
 import { formSubmissionAttemptsFor } from "#src/features/forms/index";
 import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
 import type { RouteDeps } from "../../routes/types.js";
@@ -295,8 +295,8 @@ import {
   SqliteTransformDefinitionRepo,
 } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { RedirectHitSinkImpl, redirectMatcher, RedirectSlugChangeCapture, registerRedirectHitOutboxHandler, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
-import { registerRedirectsPhaseHandlers } from "#src/features/redirects/phase-handler";
-import { SqliteRedirectRepo } from "#src/features/redirects/repo.sqlite";
+import { registerRedirectsPhaseHandlers } from "#src/features/redirects/index";
+import { SqliteRedirectRepo } from "#src/features/redirects/index";
 import { getSlugChangeCapture, registerSlugChangeCapture } from "#src/platform/routing/adapter";
 import { SqliteRestorePointsRepo } from "#src/platform/db/sqlite/database-journal-repo";
 import { SqliteDatabaseIntrospectionAdapter } from "#src/platform/db/sqlite/database-introspection-adapter.sqlite";

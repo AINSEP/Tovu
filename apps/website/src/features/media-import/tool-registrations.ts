@@ -1,4 +1,4 @@
-import { captureMediaUploaded } from "../media/analytics.js";
+import { captureMediaUploaded } from "../media/index.js";
 import { withChatPreview } from "../media/chat-preview.js";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
 import { toolMetadata } from '../../contracts/core/tool-metadata/media-import.js';
@@ -22,7 +22,7 @@ import {
   type TransformDefinitionRepoPort,
   type UploadMediaInput,
 } from "../media/index.js";
-import type { MediaContentTypeStorePort } from "../media/content-type-store.js";
+import type { MediaContentTypeStorePort } from "../media/index.js";
 import { resolveMediaPublicUrls } from "../media/tool-registrations.js";
 import { resolveSiteFileRequest } from "../fs-files/site-file-request.js";
 import { FsFilePathError, openFsFileForRead } from "../fs-files/fs-files.js";
