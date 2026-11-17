@@ -21,11 +21,11 @@ server	sidecar	@jini-ai/sidecar	value	packages/server/src/create-local-node-daem
 server	daemon	@jini-ai/daemon/http	type	packages/server/src/feature.ts	24	243	DaemonRouteHost	NEW-SINCE-11-15	NONE	R13	allowed-preset
 server	daemon	@jini-ai/daemon/http	value+reexport	packages/server/src/index.ts	94	104	createFrontendControl	HOST-composition-package (Q1)	Q1	R13	allowed-preset
 server	daemon	@jini-ai/daemon/http	type+reexport	packages/server/src/index.ts	95	104	CreateFrontendControlOptions,FrontendBindErrorContext,FrontendControl,FrontendHttpExtension	HOST-composition-package (Q1)	Q1	R13	allowed-preset
-server	db	@jini-ai/db/sqlite	value	packages/server/src/kernel-base.ts	16	268	openSqliteConnection	HOST-composition-package (Q1)	Q1	R13	allowed-preset
-server	agent-runtime	@jini-ai/agent-runtime	value	packages/server/src/kernel-base.ts	19	268	createNativeAgentRuntime,NativeAgentRuntime	HOST-composition-package (Q1)	Q1	R13	allowed-preset
-server	daemon	@jini-ai/daemon	value	packages/server/src/kernel-base.ts	23	268	createAgentExecutor,createInMemoryEventLog,createRunByteJournal,createRunLifecycle,createToolExecutor,resumableFromProcessExit,withAiTracing,AiTracingOptions,AgentExecutor,EventLog,RunLifecycle,RunRetrySideEffectState,ToolExecutor	HOST-composition-package (Q1)	Q1	R13	allowed-preset
-server	daemon	@jini-ai/daemon/store/event-log/sqlite	value	packages/server/src/kernel-base.ts	38	268	openSqliteEventLog	HOST-composition-package (Q1)	Q1	R13	allowed-preset
-server	platform	@jini-ai/platform/system	value	packages/server/src/kernel-base.ts	39	268	createSystemClock	NEW-SINCE-11-15	NONE	R13	allowed-preset
+server	db	@jini-ai/db/sqlite	value	packages/server/src/kernel-base.ts	16	257	openSqliteConnection	HOST-composition-package (Q1)	Q1	R13	allowed-preset
+server	agent-runtime	@jini-ai/agent-runtime	value	packages/server/src/kernel-base.ts	19	257	createNativeAgentRuntime,NativeAgentRuntime	HOST-composition-package (Q1)	Q1	R13	allowed-preset
+server	daemon	@jini-ai/daemon	value	packages/server/src/kernel-base.ts	23	257	createAgentExecutor,createInMemoryEventLog,createRunByteJournal,createRunLifecycle,createToolExecutor,resumableFromProcessExit,withAiTracing,AiTracingOptions,AgentExecutor,EventLog,RunLifecycle,RunRetrySideEffectState,ToolExecutor	HOST-composition-package (Q1)	Q1	R13	allowed-preset
+server	daemon	@jini-ai/daemon/store/event-log/sqlite	value	packages/server/src/kernel-base.ts	38	257	openSqliteEventLog	HOST-composition-package (Q1)	Q1	R13	allowed-preset
+server	platform	@jini-ai/platform/system	value	packages/server/src/kernel-base.ts	39	257	createSystemClock	NEW-SINCE-11-15	NONE	R13	allowed-preset
 server	http-kit	@jini-ai/http-kit/node-bridge	value	packages/server/src/mount-routes.ts	10	43	createNodeDispatcher	NEW-SINCE-11-15	NONE	R13	allowed-preset
 server	platform	@jini-ai/platform/secrets	value	packages/server/src/owner-store/backup.ts	1	162	openWithPassphrase	HOST-composition-package (Q1)	Q1	R13	allowed-preset
 server	platform	@jini-ai/platform/secrets/credential-sets	value	packages/server/src/owner-store/backup.ts	2	162	isCopyableKind	HOST-composition-package (Q1)	Q1	R13	allowed-preset

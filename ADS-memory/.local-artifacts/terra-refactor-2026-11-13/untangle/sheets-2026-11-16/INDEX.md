@@ -2,11 +2,13 @@
 
 Planning only. Nothing was built, typechecked or tested by this run; counts come from `scripts/census.mjs` and `rg`. **Status: revision 2 complete for every sheet listed in §2; nothing PARTIAL.** Every finding of `CODEX-JUDGE.md` is answered in "Revision 2"; every item of the Opus review is answered in "Revision 3" (last section). What was not verified is in §7.
 
-**Base from revision 3: `integ/merge-final-2026-11-16`, Jini `65d73b0d`, Tovu `a28cb1bf`** (COMMON §Base). Revision 3 re-read on that base every fact it changed; the census below is still the a+b scratch-merge census (each lane re-runs it first). **Code read for revision 2:** Jini `integ/merge-a-2026-11-16` @ `dde69a6d` and `integ/merge-b-2026-11-16` @ `9c982fd9`; Tovu merge-a @ `e801e9ae` and merge-b @ `450ac748`. `integ/merge-final-2026-11-16` did not exist (2026-11-17 02:10 UTC). The census ran on a local scratch merge of a+b (Jini: 3 conflicted files: `packages/devops/src/checks/hardwiring.ts`, `packages/server/src/kernel-base.ts`, `scripts/size-debt.json`; Tovu: 37 conflicted files, so Tovu facts were read on merge-a and cross-checked on merge-b). `census/terra/` (the superseded `refactor/terra` census) was removed from the tree; it is in git history.
+**Base (re-pinned 2026-11-17): `origin/refactor/terra` = `integ/merge-final-2026-11-16`, Jini `65d73b0d5`, Tovu `232764af5`** (contains revision 3's `a28cb1bf`; COMMON §Base). The census in §1 was re-run on that base on 2026-11-17 (each lane still re-runs it first). Revision 3 re-read on merge-final every fact it changed. **Code read for revision 2:** Jini `integ/merge-a-2026-11-16` @ `dde69a6d` and `integ/merge-b-2026-11-16` @ `9c982fd9`; Tovu merge-a @ `e801e9ae` and merge-b @ `450ac748`. `integ/merge-final-2026-11-16` did not exist (2026-11-17 02:10 UTC). The census ran on a local scratch merge of a+b (Jini: 3 conflicted files: `packages/devops/src/checks/hardwiring.ts`, `packages/server/src/kernel-base.ts`, `scripts/size-debt.json`; Tovu: 37 conflicted files, so Tovu facts were read on merge-a and cross-checked on merge-b). `census/terra/` (the superseded `refactor/terra` census) was removed from the tree; it is in git history.
 
-## 1. Re-measure (re-run 2026-11-17)
+## 1. Re-measure (re-run 2026-11-17 on `origin/refactor/terra`, Jini 65d73b0d5)
 
-| | round 1 (terra + C6 + daemon prereqs) | now (merge-a + merge-b) |
+`node scripts/census.mjs <Jini@65d73b0d5> .. census/merged --tests` (Node 24.22.3), then `sites/<LANE>.sites.tsv` = the `CENSUS-sites.tsv` rows of that `rlane`. Result: **every total below is unchanged** from the scratch a+b merge; the only changed rows are the 5 `server/src/kernel-base.ts` sites (file 268 -> 257 lines, a file that conflicted in the scratch merge; R13, class `allowed-preset`). `GUARDS.tsv` gained column `blob_refactor_terra_65d73b0d5`: 146 of 149 files equal the merge-a blob; `server/src/kernel-base.ts` and `server/src/compose-jini-kernel.ts` equal neither merge-a nor merge-b; `sidecar/src/supervision/supervisor-node.ts` equals merge-b. 0 files missing.
+
+| | round 1 (terra + C6 + daemon prereqs) | now (refactor/terra 65d73b0d5; identical to merge-a + merge-b) |
 |---|---|---|
 | raw sites outside "own package + core + protocol" | 227 in 150 files | **227 in 149 files** |
 | owner → target pairs (raw) | 47 | **46** |
@@ -18,13 +20,13 @@ Planning only. Nothing was built, typechecked or tested by this run; counts come
 | test files importing a non-base package | 279 | 283 |
 | test files with `vi.mock` of another package (**core included**) | 34 | 35 files, 40 sites |
 
-Per lane, cleanup work only (`census.mjs` prints this line): R1 3 · R2 6 · R3 **16** (was 39) · R4 18 · R6 2 · R7 42 · R8 **13** (was 16) · R9 3 · R10 11 · R11 17 · R12 19 (+ payload lines) · R13 **0** (54 rows, all allowed or frozen). `census/merged/CENSUS-sites.tsv` column 12 is the class; `sites/<LANE>.sites.tsv` and `GUARDS.tsv` (blob per file at merge-a and merge-b; 25 files differ between the two) were regenerated.
+Per lane, cleanup work only (`census.mjs` prints this line): R1 3 · R2 6 · R3 **16** (was 39) · R4 18 · R6 2 · R7 42 · R8 **13** (was 16) · R9 3 · R10 11 · R11 17 · R12 19 (+ payload lines) · R13 **0** (54 rows, all allowed or frozen). `census/merged/CENSUS-sites.tsv` column 12 is the class; `sites/<LANE>.sites.tsv` and `GUARDS.tsv` (blob per file at merge-a, merge-b and, since 2026-11-17, refactor/terra) were regenerated.
 
 ## 2. Sheets (every sheet inherits `COMMON.md`; each row is one Sonnet run)
 
 | Sheet | Runs | Sonnet estimate |
 |---|---|---|
-| `N1-node-adapters.md` (**new**, OD-3) | 1 | 70k |
+| `N1-node-adapters.md` (**new**, OD-3) | 1 — **DONE** 2026-11-17, Jini `wave1/xpkg-N1` (01e425fc, 1e917e4b; report 6780c3a7); not yet merged into refactor/terra | 70k (spent) |
 | `G-STALE-DEPS.md` | 1 | 35k |
 | `R6-R9-storage-consumers.md` | 1 | 95k |
 | `R10-agent-runtime.md` | R10a 45k, R10b-1 150k, R10b-2 90k | 285k |
@@ -32,7 +34,7 @@ Per lane, cleanup work only (`census.mjs` prints this line): R1 3 · R2 6 · R3 
 | `R1-R2-admin.md` | R1c 35k, R2a 150k, R2b 70k | 255k |
 | `R3-user-management.md` | C9c 70k, R3b 90k (R3a deleted) | 160k |
 | `R12-providers.md` | R12a 100k, R12c 100k, R12b 90k, R12d 50k | 340k |
-| `R13-hosts.md` | R13a 25k, R13b 120k, R13c 20k, R13d 30k | 195k |
+| `R13-hosts.md` | R13a 25k **DONE** (Jini `wave1/xpkg-R13a`: e9915e61, c09f988f; report 12fb96b3), R13b 120k, R13c 20k **DONE** (Jini `wave1/xpkg-R13c`: 4f4c4f7f, 8a1e6df3; report 5bca735c), R13d 30k. Done runs not yet merged into refactor/terra | 195k (150k left) |
 | `G-TESTS.md` | setup 70k; T0 10k, T1 120k, T2 130k, T3 120k, T4 110k | 560k |
 | **Total written here** | **30 runs** | **~2.47M** (round 1 said 24 runs / 2.2M; it listed 27) |
 
@@ -52,8 +54,8 @@ Whole remaining programme, rough: 2.47M (here) + ~1.05M (daemon, its own estimat
 | Wave | Runs (parallel inside the wave) | Needs |
 |---|---|---|
 | 0a | `G-STALE-DEPS` (alone: 14 manifests) | a branch pair that passes COMMON's base check |
-| 0b | `N1` (alone: gate file, platform manifest) | 0a |
-| 1 | `G-TESTS` setup · `R6-R9` · `R10a` · `R12a` · `R12d` · `R13a` · `R13c` · `C9c` · C12-OBS · R8a-rest (steps 4–5) | 0b |
+| 0b | `N1` **DONE** (`wave1/xpkg-N1`) (alone: gate file, platform manifest) | 0a |
+| 1 | `G-TESTS` setup · `R6-R9` · `R10a` · `R12a` · `R12d` · `R13a` **DONE** · `R13c` **DONE** · `C9c` · C12-OBS · R8a-rest (steps 4–5) | 0b |
 | 2 | `R11a` · `R11c` · `R1c` · `R2a` · `R3b` · `R12c` · `R13b` · C-CHAT-DEPS · R8b (steps 6–8; needs C6 complete) | wave 1 (R11a: fakes from G-TESTS setup + N1; R1c/R2a: moved admin fake; R3b: C9c; R12c: R12a + C12-OBS; R13b: R13c) |
 | 3 | `R11b-1` · `R11b-3` · `R2b` · `R12b` · `G-TESTS` T0, T3, T4 · (R7 P0b, only after OD-9) | wave 2 (R11b-*: R11a put `@jini-ai/node-adapters` in Tovu's manifests; R2b: R1c; R12b: R12c) |
 | 4 | `R11b-2` · `R10b-1` · (R7 G1…G3, serial) | R11b-1 (mcp manifest); R8b + N1 + R10a |
@@ -188,4 +190,4 @@ Source: Opus review of revision 2 (verdict READY WITH FIXES; section B: 3 Major,
 | Coordinator: STOP commands in tables | ACCEPT | COMMON's STOP table now holds rules only; every command is in a fenced block (S1–S14). N1's two table commands moved to blocks N1-a/b. **Also found:** five `rg` patterns outside tables used `\|`, which ripgrep reads as a **literal** pipe, so they could never match (N1 ×4, R6-R9 ×1): all rewritten with single-quoted `|` | `grep -n '\\|'` over the sheets now finds only the explanatory sentences |
 | Coordinator: 50/10 enforcing command | ACCEPT | COMMON S8: eslint `max-lines-per-function` 50, `complexity` 10, `sonarjs/cognitive-complexity` 10, `max-lines` 500 on the changed source files, compared with the same file at `BASE` (JSON formatter: eslint 10 has no line formatter) | ran read-only on `mcp/src/federation/adapter.http.ts` at merge-final with low limits: all four rules fire |
 
-**Opus fixes - remaining:** none from the review. Still open (unchanged, not review items): OD-5, OD-6, OD-9, Q-G1/Q-G2; R7 P0b sheet not written; C12-OBS not landed; census not re-run on merge-final.
+**Opus fixes - remaining:** none from the review. Still open (unchanged, not review items): OD-5, OD-6, OD-9, Q-G1/Q-G2; R7 P0b sheet not written; C12-OBS not landed; census re-run on refactor/terra 2026-11-17 (§1: identical totals).

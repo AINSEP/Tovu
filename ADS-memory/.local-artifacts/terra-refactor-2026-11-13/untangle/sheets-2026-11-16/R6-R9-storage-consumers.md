@@ -29,9 +29,19 @@ tovu_files (existing owners; no new wiring file):
 ```ts
 // packages/commerce/src/payments/ledger/migrations/index.ts  (revision 3: exact types, Opus review B4)
 import type { Kysely } from "kysely";                                    // already imported by every step file 0001-0005
-import type { MigrationStep, StorageKernel } from "@jini-ai/core/contracts/storage";
+import type { MigrationContext, MigrationStep, StorageKernel } from "@jini-ai/core/contracts/storage";
 /** The kernel every payments step really needs: each step body only calls `kernel.run(db => db.schema…)`. */
 export type PaymentsMigrationKernel = StorageKernel<Kysely<unknown>, unknown>;
+/** db's `MigrationOptions` minus `ledgerTable`, copied field by field (core has no options type). Compile-checked 2026-11-17: assignable BOTH ways with `Omit<MigrationOptions, "ledgerTable">` on Jini 65d73b0d5. */
+export interface PaymentsMigrationOptions {
+  allowUnknownApplied?: boolean;
+  backupPath?: string;
+  onBackupError?: MigrationContext["onBackupError"];
+  onBackupComplete?: MigrationContext["onBackupComplete"];
+  schema?: string;
+  appName?: string;
+  atomicity?: "step" | "batch";
+}
 export const COMMERCE_PAYMENTS_MIGRATIONS: readonly MigrationStep<PaymentsMigrationKernel>[] = [ /* the same four steps */ ];
 /** The host's migration runner (db's `runMigrations`). Positional on purpose: it is db's own shape. */
 export type PaymentsMigrationRunner<Kernel extends PaymentsMigrationKernel, Report> =
@@ -70,7 +80,7 @@ T1–T4 are RED until the signature changes. Run T5 green before and after.
 `RateLimiter` is a pure interface (`http-kit/src/rate-limit.ts:37`, imports only `Clock`). Move the interface and the types it references to `packages/core/src/contracts/server/rate-limit.ts`, export from `core/src/contracts/server.ts` (same commit: any core manifest/README/API-baseline line the new file needs). The limiter implementation stays in http-kit and imports the type from core. Delete the interface from http-kit and repoint every importer in one commit: `rg -n "RateLimiter\b" packages apps examples -g '!**/dist/**'` in both repos; Tovu importers of the **type from `@jini-ai/http-kit/rate-limit`** are the paired commit (Tovu's own `contracts/core/rate-limit` type is a different declaration: leave it). Security (class: request rate limiting): no behaviour change; the existing http-kit rate-limit tests pass unchanged. R7-Z edits this http-kit file later (wave 4).
 
 ## 4. cms-forms → cms (`typeof import("@jini-ai/cms/core").executeCommand`) in `cms/forms/src/ports.ts:69`
-Replace with `ExecuteCommandFn` from `@jini-ai/core/contracts/events` (`rg -n "ExecuteCommandFn" packages/core/src/contracts/events`). Add a type-level test in cms (`cms/src/core/__tests__/execute-command.typecheck.ts`: `const _: ExecuteCommandFn = executeCommand;` and the reverse assignment). Not assignable both ways → **STOP** (`pnpm --filter @jini-ai/cms typecheck`). Then delete `@jini-ai/cms` from `packages/cms/forms/package.json` production fields if no production import is left, its debt key, and the `cms-forms→cms` same-layer helper in `scripts/check-package-layers.ts` with its test, all in that commit.
+Replace with `ExecuteCommandFn` from `@jini-ai/core/contracts/events` (`rg -n "ExecuteCommandFn" packages/core/src/contracts/events`). The type-level test ALREADY EXISTS for one direction: `cms/src/core/__tests__/execute-command-fn.typecheck.ts` (`executeCommand satisfies ExecuteCommandFn`, commit 3cf9385b). Do not add a second file: add the reverse assignment to that file (`declare const fn: ExecuteCommandFn; export const executeCommandFnIsExecuteCommand: typeof executeCommand = fn;`). Both directions compile on Jini 65d73b0d5 (scratch check 2026-11-17). Not assignable both ways → **STOP** (`pnpm --filter @jini-ai/cms typecheck`). Then delete `@jini-ai/cms` from `packages/cms/forms/package.json` production fields if no production import is left, its debt key, and the `cms-forms→cms` same-layer helper in `scripts/check-package-layers.ts` with its test, all in that commit.
 
 ## Tovu edits (in the paired commits)
 ```ts
@@ -79,6 +89,9 @@ import { runMigrations } from '@jini-ai/db/migrate';
 paymentSchema ??= migrateCommercePayments({ kernel: required.kernel, runMigrations });
 ```
 No wrapper function and no new file: the forced ledger table stays inside commerce. If `runMigrations` is not assignable to `PaymentsMigrationRunner` without a cast, **STOP** (the local options type is wrong).
+
+## Compile check of this sheet's types (2026-11-17, Jini 65d73b0d5 = `origin/refactor/terra`)
+The §1, §2, §3 and §4 definitions above were pasted into scratch files inside `packages/{commerce,cms,core,http-kit}/src/__plan_scratch__/` and compiled with each package's own `tsconfig.json` (`npx tsc -p <scratch tsconfig extending it> --noEmit`, files deleted afterwards). Result: all four exit 0, including the Tovu binding lines (`migrateCommercePayments({ kernel, runMigrations })` with db's real `runMigrations`; `columns: ({ table }) => listColumns(kernel, table)`), the §2 cast target, and `RateLimiter` moved into core staying assignable both ways with http-kit's. Negative control: an object-shaped runner is rejected (TS2322). Fixes made to this sheet from the check: §1 now declares `PaymentsMigrationOptions` explicitly (the two callback fields need `MigrationContext` from core, which the revision-3 import line lacked); §4 extends the existing typecheck file instead of adding a duplicate.
 
 ## Steps (each commit green alone; debt keys and manifests in the same commit as the edge)
 1. §3 pair. 2. §4. 3. §2 pair (Jini commit, then Tovu `repo.sqlite.ts` + its tests). 4. §1 pair (T1–T4 first; Jini commit updates the five in-package callers and `sql.ts`; then Tovu `commerce.ts`).

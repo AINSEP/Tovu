@@ -2,14 +2,14 @@
 
 Revision 3 (2026-11-16 PT, after the Opus review; revision 2 answered the Codex judgment). Planning only; nothing here was executed. A sheet and this file are ONE contract: if they disagree, **STOP** and report the two lines; do not pick one.
 
-## Base: `integ/merge-final-2026-11-16` in BOTH repos (judge finding 2; Opus review C)
-**Base = `integ/merge-final-2026-11-16`: Jini `65d73b0d`, Tovu `a28cb1bf`** (the combined merge of merge-a + merge-b; the Tovu branch tip has since moved to `f70017dc` with merge fixes on top, which contain `a28cb1bf`). Revision 3 re-read the facts it changed on this base (`git show refs/remotes/github/integ/merge-final-2026-11-16:<path>`). The census files under `census/merged/` were made on a scratch a+b merge and were **not** re-run on merge-final: every lane re-runs the census first (below) and treats a difference as the STOP rule there says.
+## Base: `origin/refactor/terra` (= `integ/merge-final-2026-11-16`) in BOTH repos (judge finding 2; Opus review C; re-pinned 2026-11-17)
+**Base = `origin/refactor/terra`: Jini `65d73b0d5`, Tovu `232764af5`** (= the tips of `integ/merge-final-2026-11-16`; Tovu 232764af5 contains the earlier merge-final commits `a28cb1bf` and `f70017dc`). Revision 3 re-read the facts it changed on this base (`git show refs/remotes/github/integ/merge-final-2026-11-16:<path>`). The census files under `census/merged/` and `sites/` were re-run on Jini `65d73b0d5` on 2026-11-17 (same totals as the scratch a+b merge; only `server/src/kernel-base.ts` line count changed, 268 -> 257). Every lane still re-runs the census first (below) and treats a difference as the STOP rule there says. `GUARDS.tsv` column 6 is the refactor/terra blob of every edge file.
 Tovu merge-b alone still imports `@jini-ai/agent-runtime/ai-trace`, which Jini merge-a removed, so **a lane starts only from a branch pair where each repo contains merge-final**. First commands; both `ok` lines must print and both `rg` lines must print nothing; otherwise **STOP**:
 ```bash
 # in Jini
 git merge-base --is-ancestor 65d73b0d HEAD && echo ok
 # in Tovu
-git merge-base --is-ancestor a28cb1bf HEAD && echo ok
+git merge-base --is-ancestor 232764af5 HEAD && echo ok
 rg -n "agent-runtime/ai-trace" apps packages -g '!**/node_modules/**'                # prints nothing (the C6 repoint is in)
 rg -n 'from "@jini-ai/agent-runtime"' apps/desktop/src/desktop-agent-inventory.ts   # prints nothing (desktop part of C6 is in)
 ```
