@@ -1,5 +1,5 @@
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { parseExpectedVersion } from "@jini-ai/core/optimistic-concurrency";
 import { updateFormDefinition } from "#src/features/forms/index";
 import type { FieldDescriptor, NotifyConfig } from "@jini-ai/cms/forms";

@@ -1,5 +1,5 @@
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { MenuConflictError, MenuNotFoundError } from "#src/features/navigation/index";
 import { trashMenu } from "#src/features/navigation/index";
 import { toAdminTrashMenuResponse, type MenuRouteRegistrar } from "#src/server/inbound/admin-http/http/menus";

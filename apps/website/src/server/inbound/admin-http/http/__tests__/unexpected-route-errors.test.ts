@@ -16,7 +16,7 @@ import { widgetErrorToResponse } from "../widgets.js";
 import { importErrorResponse } from "../../routes/publish-content/import-errors.js";
 import { mappedErrorResponse } from "../../routes/publish-content/route-helpers.js";
 import { installErrorResponse } from "../../routes/agent-plugins/install-response.js";
-import { sendAdminFailure } from "../../routes/system/site-share-errors.js";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 
 function fixture(error: unknown, tracked: unknown[]) {
   const app = express();

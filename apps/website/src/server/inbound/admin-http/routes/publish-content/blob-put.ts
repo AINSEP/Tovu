@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { bytesMatchSha256, isValidSha256Hex } from "#src/features/publish-content/blob-staging";
 import { TOVU_MAX_UPLOAD_BYTES } from "#src/features/media/index";
 import { decodeStrictBase64 } from "#src/contracts/core/index";

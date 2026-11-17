@@ -6,7 +6,7 @@ import type { Tracker, TrackerSpan, RequestTrackingOutcome } from "@jini-ai/diag
 
 import { runWithErrorReportScope, type ErrorReportScope } from "@jini-ai/diagnostics/observability/node";
 import { REQUEST_ID_HEADER, resolveRequestId } from "./request-id.js";
-import { sendAdminFailure } from "../admin-http/routes/system/site-share-errors.js";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 
 /**
  * @file Records inbound HTTP requests through the injected diagnostics observability port

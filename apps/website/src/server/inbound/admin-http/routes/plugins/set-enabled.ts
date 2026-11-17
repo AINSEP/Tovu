@@ -1,6 +1,6 @@
 import { ToolAccessLoweringError } from '#src/contracts/core/tool-access-change';
 import { lowerPluginToolAccess } from '#src/features/plugin-runtime/lower-tool-access';
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Response } from "express";
 
 import { executeCommand, ForbiddenError } from "@jini-ai/cms/core";

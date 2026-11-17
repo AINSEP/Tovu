@@ -1,5 +1,5 @@
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express } from "express";
 
 import { listEntries } from "#src/features/entries/index";

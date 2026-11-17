@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 /** Local creation-home setting, authorized at the same boundary as Sites mutations. */
 import fs from "node:fs";
 import path from "node:path";

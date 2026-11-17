@@ -1,6 +1,6 @@
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { optionalOneOf, optionalString, readToolLimit, ToolInputError } from "@jini-ai/core";
 import type { Express } from "express";
 

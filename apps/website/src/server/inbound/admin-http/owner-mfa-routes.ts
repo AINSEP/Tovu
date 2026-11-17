@@ -1,4 +1,4 @@
-import { sendAdminFailure } from './routes/system/site-share-errors.js';
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from 'express';
 import { IdentityValidationError, OwnerRequiredError } from '@jini-ai/user-management';
 import { beginOwnerEnrollment, confirmOwnerEnrollment, removeOwnerFactor } from '@jini-ai/user-management/server';

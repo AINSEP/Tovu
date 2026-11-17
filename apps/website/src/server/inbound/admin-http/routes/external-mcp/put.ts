@@ -1,5 +1,5 @@
 import { ToolAccessLoweringError } from '#src/assistant/external-mcp-roster-change';
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { describeExternalMcpOwnership } from "#src/features/external-mcp/built-in-connections";
 import { ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError, saveExternalMcpServer } from "../../../../../features/external-mcp/external-mcp-store.js";
 import { notifyExternalMcpRosterChanged } from "../../../../../assistant/index.js";

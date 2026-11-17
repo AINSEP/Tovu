@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { adminFailureResponse, sendAdminFailure } from "../site-share-errors.js";
+import { adminFailureResponse, sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 
 test("the shared admin fallback says what failed and what to do without disclosing backend text", t => {
   t.mock.method(console, "error", () => {});

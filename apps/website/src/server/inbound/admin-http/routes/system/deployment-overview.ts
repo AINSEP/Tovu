@@ -1,5 +1,5 @@
 import { startupSecretEnvironment } from '#src/server/runtime/boot/startup-secrets';
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { homedir } from "node:os";
 import { siteKeySources } from "#src/features/webhooks/index";
 import type { Express } from "express";

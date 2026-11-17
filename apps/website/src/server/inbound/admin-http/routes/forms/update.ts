@@ -1,6 +1,6 @@
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import type { FormAuthoring } from "@jini-ai/cms/forms";
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { mapFormsWriteError, toAdminFormDefinitionResponse } from "#src/server/inbound/admin-http/http/forms";
 import {
   FormDefinitionNotFoundError,

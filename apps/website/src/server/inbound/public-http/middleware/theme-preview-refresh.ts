@@ -2,7 +2,7 @@ import type { Express, RequestHandler } from "express";
 import { requestThemePreviewRefresh } from "#src/features/theme/preview-refresh";
 import { syncThemeRoster } from "#src/features/theme/theme-roster-sync";
 import { requireAdminSession, getAuthedPrincipal } from "../../admin-http/dev-auth.js";
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { RouteDeps } from "#src/server/routes/types";
 import { asyncRoute } from "../../shared/async-route.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";

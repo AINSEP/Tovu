@@ -1,5 +1,5 @@
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { preferBundledAgentPluginDigests, readBundledAgentPluginDigests } from "../../../../../features/agent-plugins/lifecycle.js";
 import { listInstalledPlugins } from "../../../../../features/agent-plugins/lifecycle.js";
 import { PLUGIN_PACKAGE_FILE_LIMITS, readPluginPackageFiles } from "@jini-ai/plugins/host/node";

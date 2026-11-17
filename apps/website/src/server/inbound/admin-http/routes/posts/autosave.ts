@@ -5,7 +5,7 @@ import { getAdminPostByIdOrSlug, normalizePostAuthor, PostNotFoundError, PostVal
 import { CONTENT_ENTRY_MAX_BODY_BYTES, rejectOversizedJsonBody } from "#src/server/inbound/shared/body-size-limit";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { ContentRouteDeps, ContentRouteRegistrar } from "../content/deps.js";
 import { asyncRoute } from "../../../shared/async-route.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";

@@ -1,5 +1,5 @@
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 /** Quick wins A: an admin adapter over the same guarded fetch and upload pipeline as the tool. */
 import type { Express } from "express";
 import { buildImportFilename, MediaImportValidationError } from "@jini-ai/cms/media/import";

@@ -1,4 +1,4 @@
-import { adminFailureResponse } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { adminFailureResponse } from "#src/server/inbound/shared/admin-failure";
 import { respondToApiError } from "#src/server/error-mapping/respond";
 // Jini owns LocalBufferSink via the host adapter.
 import type { Express } from "express";

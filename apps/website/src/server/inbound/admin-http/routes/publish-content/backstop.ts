@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { BackstopRefusal } from "#src/features/publish-content/backstop-policy";
 import type { Request, Response } from "express";
 import { nowIso } from "@jini-ai/core/primitives";

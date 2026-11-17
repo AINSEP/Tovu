@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { PluginNotFoundError } from "@jini-ai/plugins/host";
 import { PluginAlreadyInTrashError, PluginEnabledError, PluginNotUninstallableError, uninstallPlugin } from "@jini-ai/plugins/host";
 import { PluginUninstallPathError } from "#src/server/runtime/composition/plugin-runtime";

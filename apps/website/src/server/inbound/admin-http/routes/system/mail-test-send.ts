@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { randomUUID } from "node:crypto";
 import type { Express, Response } from "express";
 import { ToolInputError } from "@jini-ai/core";

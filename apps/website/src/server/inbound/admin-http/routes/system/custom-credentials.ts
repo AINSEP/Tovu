@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { ToolInputError } from "@jini-ai/core";
 import { invalidatePublishCredentialCompatibility } from "#src/features/deployments/publish-credentials/index";
 import type { Express, Request, Response } from "express";

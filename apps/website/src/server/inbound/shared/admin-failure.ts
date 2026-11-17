@@ -2,7 +2,7 @@
  * @file The shared admin failure lifecycle (redact, log, report, correlated reply). Lives under
  * `inbound/shared/` rather than `admin-http/` because the agent daemon's tool-access route uses it
  * and the daemon's runtime graph may not reach `admin-http/` (ADR-070, agent-daemon-import-graph).
- * `admin-http/routes/system/site-share-errors.ts` re-exports it for the routes that already import there.
+ * Every caller imports from here; `admin-http/routes/system/site-share-errors.ts` keeps only the share-specific failure mapping.
  */
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import { ADMIN_FAILURE_VOCABULARY } from "@tovu/contracts/admin-failure-copy";

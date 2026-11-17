@@ -7,7 +7,7 @@ import path from "node:path";
 import ts from "typescript";
 import { AttachmentUnavailableError, prepareByokMessageAttachments } from "../byok-message-attachments.js";
 import { readPickedFolders } from "#src/assistant/run-page-context";
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 
 test("BYOK attachment refusals stay 400 while preparation faults become redacted incidents", async (t) => {
   const source = ts.createSourceFile("assistant-byok.ts", readFileSync(new URL("../../../runtime/composition/modules/assistant-byok.ts", import.meta.url), "utf8"), ts.ScriptTarget.Latest);

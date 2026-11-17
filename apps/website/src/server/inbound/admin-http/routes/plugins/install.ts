@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { PluginInstallError, type PluginInstallerPort } from "@jini-ai/plugins/host/node";
 import { MAX_PLUGIN_ARCHIVE_BYTES } from "#src/features/plugin-runtime/install-archive";
 import { raw, type Express, type Request, type Response } from "express";

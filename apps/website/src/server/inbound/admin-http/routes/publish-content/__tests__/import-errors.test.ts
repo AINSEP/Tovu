@@ -20,7 +20,7 @@ import { RestorePointUnavailableError } from "#src/features/publish-content/exec
 import { PublishContentBundleNotFoundError } from "#src/features/publish-content/gated-hooks";
 import { importErrorResponse } from "../import-errors.js";
 import { DatabaseDiskSpaceError } from "@jini-ai/db/sqlite";
-import { sendAdminFailure } from "../../system/site-share-errors.js";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 
 test("the shared backup-route failure sender preserves typed disk refusals and their diagnosis", t => {
   t.mock.method(console, "error", () => {});

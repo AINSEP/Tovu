@@ -12,7 +12,7 @@ import { CREDENTIAL_GUIDANCE, CREDENTIAL_PASTE_MODEL_NOTE } from "#src/assistant
 import { SITE_GUIDE_POINTER } from "#src/assistant/site-guide-pointer";
 import { guardUserText } from "@jini-ai/chat/core";
 import { AttachmentUnavailableError, prepareByokMessageAttachments } from "#src/server/inbound/assistant/byok-message-attachments";
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { createContributionRegistry, formatErrorForLog } from "@jini-ai/core";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import type { ToolContributor, DerivedToolContributor } from "@jini-ai/core";

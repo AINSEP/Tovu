@@ -1,6 +1,6 @@
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { ToolAccessLoweringError } from '#src/assistant/external-mcp-roster-change';
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import type { Request, Response } from "express";
 

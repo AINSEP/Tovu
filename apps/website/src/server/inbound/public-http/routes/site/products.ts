@@ -1,5 +1,5 @@
 import { resolveProtocol } from "../oauth/public-origin.js";
-import { reportServerFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { productCheckoutWhenReady, type ProductCheckoutReadiness } from "./product-checkout.js";
 import { resolveRenderThemeId } from "../../middleware/render-theme-override.js";
 import { NO_THEME_ID, resolveActiveTheme } from "#src/features/theme/active-theme";

@@ -1,4 +1,4 @@
-import { adminFailureResponse } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { adminFailureResponse } from "#src/server/inbound/shared/admin-failure";
 import express, { type RequestHandler } from "express";
 import type { JsonObject } from "@jini-ai/core/primitives";
 

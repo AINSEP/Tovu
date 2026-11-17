@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { describeExternalMcpOwnership } from "#src/features/external-mcp/built-in-connections";
 import { listExternalMcpServerViews } from "../../../../../features/external-mcp/external-mcp-store.js";
 import type { ExternalMcpRouteRegistrar } from "./deps.js";

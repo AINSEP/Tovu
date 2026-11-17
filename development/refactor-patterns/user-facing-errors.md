@@ -23,7 +23,7 @@ Not an incident (plain specific text only, no Copy details, no incident log):
 |---|---|---|
 | Admin UI, failure of an API request | nothing extra: `lib/api.ts request()` already publishes 0/5xx with Copy details. Inline text: `describeApiError(error, t("<specific fallback>"))`. NEVER publish again. | apps/admin/src/lib/api.ts |
 | Admin UI, local failure (browser API, local code) | `publishLocalAdminFailure({ message, action, step, cause }, { generation })` — capture `adminFailureChannel.getGeneration()` before the await | apps/admin/src/lib/admin-failure-channel.ts |
-| Admin route (server) | `sendAdminFailure({ res, error }, { operation, message?, failure? })` (474 uses) | apps/website/src/server/inbound/admin-http/routes/system/site-share-errors.ts |
+| Admin route (server) | `sendAdminFailure({ res, error }, { operation, message?, failure? })` (474 uses) | apps/website/src/server/inbound/shared/admin-failure.ts |
 | Public/visitor route (server) | `const { errorId } = reportServerFailure({ error, operation: "<area>:<step>" }, { tracker: res.locals.adminFailureTracker })`, reply keeps visitor text + `errorId` only (JSON field; HTML `<p>Reference: ${errorId}</p>`; JS comment) | same file |
 | Assistant tool | model-fixable input -> `throw new ToolInputError({ message: "<CODE>: what is wrong + how to fix" })`. Server fault -> `throw new Error("<what failed>", { cause: err })`: the tool transport (Jini daemon tool-recovery) mints the ID, logs redacted, user gets Copy details. Never ToolInputError for a server fault. | Jini core/daemon |
 | Log-only (best-effort catch, nobody sees an error) | `console.warn("[area] <what failed>; <what continues>", formatErrorForLog({ error: err }, TOVU_ERROR_REDACTION_OPTIONS))` — redacted message + stack. If the try block touches secret material (credentials, vault, sealer, provider SDK with keys, DB rows with secret params — the existing why-comment says so), use `describeErrorForLog` (class + code only) instead. | `@jini-ai/core` + `@tovu/contracts/secret-redaction` |
@@ -96,7 +96,7 @@ T: peer-site-reads:347 (DONE).
   `@jini-ai/core`, read it with fs; on any failure "unknown"); app = `process.env.TOVU_APP_VERSION`
   (desktop passes `app.getVersion()` when it spawns the server; a plain `npm start` falls back to the
   root package.json version). Then spread them into the metadata of `unexpectedAdminBody`
-  (site-share-errors.ts, the `formatUserFacingError(..., { ...context.metadata, ... })` call) and add them
+  (shared/admin-failure.ts, the `formatUserFacingError(..., { ...context.metadata, ... })` call) and add them
   to the `reportServerFailure` log line. Test: site-share-errors unit test asserts both fields.
   Admin fallback (`publishAdminFailure` without approved server wording) now carries both (9b37e33cc).
 - Jini 501da27d4 must be released before Tovu admin/desktop rely on the Jini `describeErrorForLog` being total.

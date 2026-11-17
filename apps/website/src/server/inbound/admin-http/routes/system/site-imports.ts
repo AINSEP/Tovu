@@ -5,7 +5,7 @@ import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-gua
 import { parseSiteImportInput } from "#src/features/site-backup/import-backend";
 import { SHARE_LIMITS, SiteShareRefusal } from "#src/features/site-backup/share-policy";
 import { formatByteSize } from "#src/features/site-backup/sources";
-import { sendAdminFailure } from "./site-share-errors.js";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 
 type Deps = Pick<RouteDeps, "workspaceId" | "authorize" | "siteImportBackend" | "tracker">;
 

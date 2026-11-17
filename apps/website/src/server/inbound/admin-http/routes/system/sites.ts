@@ -1,4 +1,4 @@
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { bundledAgentPluginsDir } from "#src/server/runtime/composition/site-paths";
 import { composePluginCredentials } from "#src/server/runtime/composition/agent-plugin-service-ports";
 import { registerSitesHomeRoutes } from "../sites/sites-home.js";

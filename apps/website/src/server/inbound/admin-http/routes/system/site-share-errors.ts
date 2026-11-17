@@ -4,9 +4,6 @@ import { SiteShareRefusal } from "#src/features/site-backup/share-policy";
 import { SiteShareExportFailure, SITE_EXPORT_FAILURE_MESSAGES } from "#src/features/site-backup/share-export-failure";
 import { sendAdminFailure, type FailureOptions } from "#src/server/inbound/shared/admin-failure";
 
-// The shared failure lifecycle moved to `inbound/shared/admin-failure.ts` (the daemon needs it without `admin-http/`).
-export { reportServerFailure, adminFailureResponse, sendAdminFailure, type AdminFailurePorts } from "#src/server/inbound/shared/admin-failure";
-
 /** Share and password failures must remain diagnosable even when telemetry is disabled.
  * Expected refusals keep their safe public diagnosis. The authorized export pilot discloses its
  * redacted cause; other unexpected details stay in redacted logs.

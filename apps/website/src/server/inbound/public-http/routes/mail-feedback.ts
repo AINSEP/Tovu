@@ -1,6 +1,6 @@
 import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import type { MailFeedbackRoute } from "#src/features/mail/index";
-import { reportServerFailure } from "../../admin-http/routes/system/site-share-errors.js";
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 
 /**
  * @file Mounts `POST /hooks/mail/:providerId` (provider bounce/complaint webhooks; unauthenticated,

@@ -1,5 +1,5 @@
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
-import { sendAdminFailure } from "#src/server/inbound/admin-http/routes/system/site-share-errors";
+import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 /** Admin page transport for the same visitor-tools service that assistant chat uses. */
 import type { Express, Request, Response } from "express";
 import { ForbiddenError, ValueValidationFailedError } from "@jini-ai/core/settings";
