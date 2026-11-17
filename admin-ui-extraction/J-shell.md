@@ -42,14 +42,29 @@ jini_files:
   - packages/admin/src/react/shell/model.ts (44)         | edit: two panel sets + `access`
   - packages/admin/src/react/shell/types.ts              | edit: `slots.noAccess?`
   - packages/admin/src/react/shell/AdminShell.tsx:108-110| edit: render `noAccess` when denied
-  - tests: beside admin's existing core and shell tests (`rg -l "hasPermission|resolveAdminShellModel" packages/admin/src -g '*test*'`)
+  - packages/admin/src/react/shell/__tests__/model.test.ts:9-15     | edit (declared change, see "Existing tests" below)
+  - packages/admin/src/react/shell/__tests__/AdminShell.test.tsx:71-73 | edit (declared change, see below)
+  - packages/admin/src/core/__tests__/public-surface.unit.test.ts  | new (T9)
+  - packages/admin/docs/spec/api.spec.md:161-166, docs/spec/ui.spec.md:55-60 | edit: `access`, `noAccess`, the two rules
+  - .changeset/<name>.md                                            | new (the two declared behaviour changes, D-11)
+  - tests: beside admin's existing core and shell tests (`rg -l "hasPermission|resolveAdminShellModel" packages/admin/src -g '*test*'`;
+    at `65d73b0d5` it lists 6 files: core `permissions.test.ts`, `args-convention.contract.test.ts`, `default-panel-navigation.test.ts`,
+    shell `model.test.ts`, `react/__tests__/integration-barrels.test.tsx`, `comments/react/__tests__/Comments.unit.test.tsx`)
 ```
 Search for an existing owner first (lesson 9). Found: `packages/ui/src/features/panel-kit/helpers/permissions.ts:9`
 has a second `hasPermission`. Diff the two bodies; report whether they differ. Do not merge them here (admin may not
-import `ui`).
+import `ui`). (Second judge, run at `65d73b0d5`: same logic, `permissions.includes('*') || permissions.includes(permission)`;
+the only difference is `readonly` on the admin parameter type. Report exactly that.)
+
+**Baseline (second judge, run for real at Jini `65d73b0d5`, Node 24.22.3):** `pnpm --filter @jini-ai/admin build` ok;
+`npm --prefix packages/admin run test` = **213 files, 2,846 tests, all pass**. `pnpm guard` ok. `pnpm check:size` ok.
+`node scripts/check-hook-injection.mjs` is **red on the base** (exit 1, 32 "(new)" findings, all in `packages/ui`):
+PRE-EXISTING (owner decision BASE-RED); judge J1-J3 on "no new line beyond the base output".
 
 **The rule** (ported from `apps/admin/src/lib/panel-access.ts:43-52,63-77`; read all 94 lines and its tests):
-`isPanelAccessible({ panel, permissions })` where `permissions: readonly string[] | undefined`.
+`isPanelAccessible({ panel, permissions }, _options = {})` where `permissions: readonly string[] | undefined` is a
+**required key whose value may be `undefined`** (unknown); never `permissions?:` (absent and unknown must not be
+confusable, lessons 7, 20). Same two-object shape for `withoutInaccessiblePanels` (C12; precedent `resolvePanels({ panels }, context = {})`).
 (a) no declaration → true; (b) `permissions === undefined` (not known yet) → true, checked with `=== undefined`,
 never truthiness (lessons 7, 20); (c) `anyOfPermissions`: at least one held, or `'*'`; (d) `permissions` (all-of):
 every one held; (e) both declared: both must pass. `withoutInaccessiblePanels({ groups, panels, permissions })`
@@ -69,6 +84,33 @@ falls back to the default panel (unchanged); a **matched but denied** path keeps
 **Declared behaviour changes in the shell (write both into the changeset; there is no consumer today, `rg -l "AdminShell\b" packages examples` finds only docs, so nobody is broken, but it is not silent):**
 (1) while permissions are unknown, a panel that declares all-of `permissions` is now shown in the nav (before: hidden);
 (2) a denied direct URL no longer redirects to the default panel. `resolvePanels` itself is untouched.
+Owner approved both on 2026-11-17 (AU-D11 = Rec).
+
+**Second judge (2026-11-17, Jini `65d73b0d5`): the routable fix is correct for every panel kind and every user.**
+Checked by running the built `dist/core` `resolvePanels` + `matchRoute` + `buildNav` with the rule (a)-(e) over 8 panel
+kinds (none, any-of, all-of, both, capability wired + all-of, capability missing, no-nav + all-of, default) x 9 permission
+sets (unknown, `[]`, `['*']`, any-of holder, all-of holder, half all-of, both-holder, half-both, capability-panel holder):
+every panel whose capability is wired is routable for every user; access and nav follow the rule exactly; the
+capability-missing panel falls back to the default panel for everyone (unchanged). Revision 2's call (no `permissions`)
+left only `dashboard, open, anyof` routable: the B1 bug is real and `['*']` fixes it. Script: `admin-judge2-REPORT.md`.
+Precisions the sheet did not state (each is now part of the contract; add a test where marked):
+- `model.panels` = the **visible** set (its meaning today: what this operator can use); `model.panel` is looked up in
+  the **routable** set; `buildNav` and `resolveAgentPageId` take the visible / routable set as in the table.
+- `access` for a model whose `panel` is `undefined` (default panel id not registered or its capability missing):
+  `'allowed'` (nothing declared; today's empty `<main>` stays). A **default panel that is itself denied** gives
+  `access: 'denied'` at `/` (noAccess at the root). Tovu's `dashboard` declares nothing, so Tovu never sees this.
+- `agentPageId` of a denied route stays the routed panel's page id (parity: Tovu's `agentPageId(route)`, `App.tsx:181`,
+  ignores access). Test T14 pins it, so it is a decision, not an accident.
+- Name the `['*']` (`const ROUTE_RECOGNITION = { permissions: ['*'] } as const` or similar) with a why-comment
+  pointing at `core/manifest/rules.ts:34,38`: it is the one non-obvious line in J1. Precedent for passing `['*']`:
+  `core/__tests__/args-convention.contract.test.ts:13`.
+
+**Existing tests this sheet changes (C6: name each in the report; they pin the two approved behaviour changes):**
+| Test | Today asserts | After J1 |
+|---|---|---|
+| `react/shell/__tests__/model.test.ts:9-15` | session `{ user }` (permissions **unknown**) drops the all-of panel `users` from `model.panels` | the test's own name says "without grants": set the fixture to `effectivePermissions: []` (assertion `['home']` kept unchanged); add one case with `{ user }` expecting `['home', 'users']` (change 1) |
+| `react/shell/__tests__/AdminShell.test.tsx:71-73` | `go('/private')` (all-of `private.read`, not held) shows `Overview screen` | change 2: with a `noAccess` slot in the fixture, `/private` renders the slot, not `Overview screen` and not `Private screen` (keep the `queryByText('Private screen')` null assertion) |
+No other existing assertion may change; `default-panel-navigation.test.ts` declares no permissions and must pass untouched.
 
 Tests first (RED before the edit):
 | # | Asserts | Fails when |
@@ -81,14 +123,27 @@ Tests first (RED before the edit):
 | T6 | Tovu's own `panel-access` test table, copied as data (not imported), gives the same answers | a ported case differs |
 | T7 | **through `<AdminShell>`** (fake session port, `effectivePermissions: []`, path of a panel declaring any-of): the `noAccess` slot renders, the panel's `render` is never called, the default panel's `render` is never called, and the nav has no row for it | filtering happens before route matching again (the denied URL shows the default panel) |
 | T8 | through `<AdminShell>` with `effectivePermissions: undefined` and the same path: the panel renders | unknown is collapsed to `[]` anywhere in the model |
-| T9 | `import { isPanelAccessible, withoutInaccessiblePanels } from '@jini-ai/admin/core'` resolves in a built package (public-surface test beside the existing one) | the export is missing (T1a could not import it) |
+| T9 | `import { isPanelAccessible, withoutInaccessiblePanels } from '@jini-ai/admin/core'` resolves in a built package: new `core/__tests__/public-surface.unit.test.ts` (imports `../index.js`; there is no existing core surface test, the nearest precedent is `source-control/react/__tests__/source-control-surface.unit.test.tsx`) **plus** the built check in the block below | the export is missing (T1a could not import it) |
+| T14 | through `<AdminShell>`, denied route (T7 setup): `main[data-agent-page]` is the denied panel's page id | the agent page id is dropped or rewritten for a denied route (Tovu parity, `App.tsx:181`) |
 | T10 | `resolvePanels` with all-of `permissions` and no permissions argument returns exactly what it returned before (pin 3 fixtures on the old code) | the shared rule was changed instead of the shell model |
 | T11 | through `<AdminShell>`: a panel declaring all-of `permissions: ['posts.read']`, session `effectivePermissions: ['posts.read']`, its path: the panel renders and its nav row exists | routable is built without `permissions: ['*']` (revision 2's bug: RED under that mutation) |
 | T12 | same panel, `effectivePermissions: []`: the `noAccess` slot renders, neither the panel's nor the default panel's `render` is called | real permissions are passed to `resolvePanels` (the denied all-of URL falls back to the default panel). RED on today's Jini `model.ts:25-28` |
 | T13 | same panel, `effectivePermissions: undefined`: the panel renders | unknown collapsed to `[]` (today's `model.ts:27`) or routable built without `['*']` |
 V3 for T11/T13: delete `permissions: ['*']` from the routable call, show both RED, restore.
 Done: `(cd $J && pnpm --filter @jini-ai/admin build) && npm --prefix $J/packages/admin run test`; changeset file added.
-STOP: another caller of `resolveAdminShellModel` exists and depends on permission filtering (`rg -n "resolveAdminShellModel" packages examples`): report it.
+T9 built check (`examples/minimal-host` does **not** depend on `@jini-ai/admin`, so COMMON C10's minimal-host line
+fails with ERR_MODULE_NOT_FOUND for this package; the package's own self-reference works, verified at `65d73b0d5`):
+```
+(cd $J/packages/admin && node --input-type=module -e "const m = await import('@jini-ai/admin/core'); if (typeof m.isPanelAccessible !== 'function' || typeof m.withoutInaccessiblePanels !== 'function') process.exit(1); console.log('ok')")
+```
+STOP: a **production** caller of `resolveAdminShellModel` outside `packages/admin/src/react/shell/` exists. Command
+and the complete expected output at `65d73b0d5` (second judge ran it): anything beyond these lines is the STOP.
+```
+rg -n "resolveAdminShellModel" $J/packages $J/examples -g '!**/dist/**' -g '!**/node_modules/**' -g '!*.csv' -g '!*.tsv' | rg -v '/__tests__/|/docs/spec/|/react/shell/(model|AdminShell|index)\.tsx?:'
+```
+prints nothing at `65d73b0d5`. (Unfiltered it lists `model.ts`, `AdminShell.tsx`, `index.ts`, `docs/spec/api.spec.md`
+and three tests: `model.test.ts` and `core/__tests__/default-panel-navigation.test.ts`, which depend on route/nav only,
+and `react/__tests__/integration-barrels.test.tsx`, an identity check.)
 
 ## J2: shell contract
 Do not redesign the shell. Close G2-G5, G8, G9 in five green commits.
