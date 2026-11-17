@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { deriveConversationTitle } from '@jini-ai/chat/core';
-import { deriveContentConversationTitle } from '../../../assistant/content-chat-title.js';
+import { deriveContentConversationTitle } from "@tovu/contracts/content-chat-title";
 
 test('a new theme chat is named for Lucky Goat rather than a page in its brief', () => {
   const result = deriveContentConversationTitle({

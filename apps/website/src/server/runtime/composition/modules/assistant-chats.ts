@@ -24,7 +24,7 @@ import type { NextFunction, Request, Response } from "express";
 import { Readable, pipeline } from "node:stream";
 import { readPreviousAssistantDaemon } from "../../lifecycle/assistant-daemon-registry.js";
 
-import { deriveContentConversationTitle } from "#src/assistant/content-chat-title";
+import { deriveContentConversationTitle } from "@tovu/contracts/content-chat-title";
 import { MAX_CONVERSATION_TITLE_LENGTH, deriveConversationTitle, redactUserMessage, redactUserText } from "@jini-ai/chat/core";
 import type { ChatHistoryStore, ChatMessage } from "@jini-ai/chat/core";
 
