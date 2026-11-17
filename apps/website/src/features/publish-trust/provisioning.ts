@@ -32,7 +32,7 @@
  */
 
 import type { PublishTrustGrant } from "./grant.js";
-import { isGrantActive, parsePublishTrustGrant } from "./grant.js";
+import { parsePublishTrustGrant } from "./grant.js";
 
 /** The env var a destination reads at boot. Non-secret by construction — see this file's header. */
 export const PUBLISH_TRUST_ENV_VAR = "TOVU_PUBLISH_TRUST";
@@ -65,7 +65,7 @@ export const GRANT_LIFETIME_DAYS = 365;
 /** How far ahead of `notAfter` the source starts saying "renew this on your next deploy". */
 export const RENEWAL_WARNING_DAYS = 30;
 
-const MS_PER_DAY = 86_400_000;
+export const MS_PER_DAY = 86_400_000;
 
 // ---------------------------------------------------------------------------
 // The document: a LIST of grants, never one
@@ -297,108 +297,6 @@ export function findGrantForSource(
 ): PublishTrustGrant | null {
   if (res.state !== "configured") return null;
   return res.grants.find((g) => g.sourceInstallationId === sourceInstallationId) ?? null;
-}
-
-/**
- * One plain sentence describing what this site currently accepts — the destination-side empty
- * state, and the reason a fresh install shows a sentence instead of an error code.
- *
- * @complexity O(1).
- */
-export function describePublishTrustState(res: PublishTrustResolution): string {
-  switch (res.state) {
-    case "configured": {
-      const n = res.grants.length;
-      return `${n} ${n === 1 ? "computer" : "computers"} can publish to this site.`;
-    }
-    case "revoked":
-      return res.origin === "env"
-        ? `Publishing to this site is switched off in this deployment's own settings (${PUBLISH_TRUST_ENV_VAR}), which overrides whatever the repository carries.`
-        : "Publishing to this site is switched off. No computer is connected.";
-    case "invalid":
-      return `This site's publishing settings could not be read, so nobody can publish to it. ${res.reason ?? ""}`.trim();
-    case "absent":
-      return "No computer is connected to this site for publishing yet. Connect one, then deploy — the connection travels with the deploy, and there is nothing to copy.";
-    default:
-      return undefined as never;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// The source's question: is this computer connected to that site?
-// ---------------------------------------------------------------------------
-
-export type ConnectionVerdict =
-  | "connected"
-  | "expiring-soon"
-  | "expired"
-  | "superseded-key"
-  | "not-connected"
-  | "unavailable";
-
-export interface ConnectionStatus {
-  readonly verdict: ConnectionVerdict;
-  /** Plain language, naming the site and the next action. Never an error code. */
-  readonly message: string;
-}
-
-/** @complexity O(1). */
-function daysUntil({ iso, nowIso }: { iso: string; nowIso: string }, _optional = {}): number {
-  return Math.floor((Date.parse(iso) - Date.parse(nowIso)) / MS_PER_DAY);
-}
-
-/**
- * Whether the destination described by `resolution` currently accepts publishes signed by
- * `publicKeyB64u` from `sourceInstallationId`.
- *
- * MATCHES ON THE PUBLIC KEY, NOT THE GENERATION, and that distinction is the whole point. Rotation
- * bumps the generation, but regenerating the site key changes the derived key while leaving the
- * generation alone (`keys.ts`: the key is HKDF over the site key). A grant naming the right
- * generation and the previous key is therefore DEAD, and a generation comparison would report it
- * as current — publishing would fail with the destination insisting it was connected.
- *
- * @complexity O(n) in the grant's public-key count (at most four, per `grant.ts`).
- */
-export function describeConnection(input: {
-  readonly resolution: PublishTrustResolution;
-  readonly sourceInstallationId: string;
-  readonly publicKeyB64u: string;
-  readonly siteLabel: string;
-  readonly nowIso: string;
-}): ConnectionStatus {
-  const { resolution: res, siteLabel, nowIso } = input;
-  if (res.state !== "configured") {
-    return { verdict: "unavailable", message: `${siteLabel}: ${describePublishTrustState(res)}` };
-  }
-
-  const grant = findGrantForSource({ res, sourceInstallationId: input.sourceInstallationId });
-  if (grant === null) {
-    return {
-      verdict: "not-connected",
-      message: `${siteLabel} does not recognise this computer yet. Connect it and deploy once — nothing to copy, and no key to keep.`,
-    };
-  }
-  if (!isGrantActive({ grant, nowIso })) {
-    return {
-      verdict: "expired",
-      message: `This computer's connection to ${siteLabel} expired on ${grant.notAfter}. Reconnect and deploy to restore it.`,
-    };
-  }
-  if (!grant.publicKeys.some((k) => k.publicKeyB64u === input.publicKeyB64u)) {
-    return {
-      verdict: "superseded-key",
-      message: `${siteLabel} is still carrying an older key for this computer, so it will refuse a publish. This happens after the Site key is regenerated. Reconnect and deploy to finish the change.`,
-    };
-  }
-
-  const remaining = daysUntil({ iso: grant.notAfter, nowIso });
-  if (remaining <= RENEWAL_WARNING_DAYS) {
-    return {
-      verdict: "expiring-soon",
-      message: `This computer can publish to ${siteLabel} for ${remaining} more ${remaining === 1 ? "day" : "days"}. Reconnecting and deploying renews it.`,
-    };
-  }
-  return { verdict: "connected", message: `This computer can publish to ${siteLabel}.` };
 }
 
 // ---------------------------------------------------------------------------
