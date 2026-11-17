@@ -401,48 +401,6 @@
       "value": 87
     },
     {
-      "file": "apps/admin/src/features/posts/PostEditor.tsx",
-      "function": "Toolbar#1",
-      "line": 206,
-      "rule": "max-lines-per-function",
-      "value": 265
-    },
-    {
-      "file": "apps/admin/src/features/posts/PostEditor.tsx",
-      "function": "PostEditorHeader#1",
-      "line": 650,
-      "rule": "max-lines-per-function",
-      "value": 84
-    },
-    {
-      "file": "apps/admin/src/features/posts/PostEditor.tsx",
-      "function": "<file>",
-      "line": 743,
-      "rule": "max-lines",
-      "value": 1451
-    },
-    {
-      "file": "apps/admin/src/features/posts/PostEditor.tsx",
-      "function": "PostEditorActions#1",
-      "line": 942,
-      "rule": "max-lines-per-function",
-      "value": 111
-    },
-    {
-      "file": "apps/admin/src/features/posts/PostEditor.tsx",
-      "function": "PostEditor#1",
-      "line": 1512,
-      "rule": "max-lines-per-function",
-      "value": 257
-    },
-    {
-      "file": "apps/admin/src/features/posts/PostEditor.tsx",
-      "function": "PostPreview#1",
-      "line": 1871,
-      "rule": "max-lines-per-function",
-      "value": 83
-    },
-    {
       "file": "apps/admin/src/features/posts/Posts.tsx",
       "function": "Posts#1",
       "line": 55,
