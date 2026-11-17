@@ -1,0 +1,126 @@
+path	loc	blob	label	jini_target_or_reason	sheet	basis	prod_importers	test_importers
+apps/website/src/features/redirects/agent-tools.ts	231	9f866fec074f9d6c003432373bd014eded412132	MOVE	@jini-ai/cms/redirects (agent-tools.ts)	K-01	signals	1	5
+apps/website/src/features/redirects/index.ts	5	78c228f64593d563193b5874fbc6efdf0a139da9	STAY	Tovu feature barrel/forwarder (not a re-export shell of moved code; shrinks as importers repoint)	-	rule	1	1
+apps/website/src/features/redirects/phase-handler.ts	95	a68a317fa08c68d8f17f28d5dc8338f4b787e57c	STAY	host routing binding (platform/routing); CLASSIFY says MIXED cms/redirects: revisit after R lanes	-	signals	3	6
+apps/website/src/features/redirects/publish-content.ts	157	33bf9eb63b67633b50cf103a51d96cec975f8bc3	MOVE-AFTER	publish framework (audit2 B02/B08, row 140): BLOCKED, listed in INDEX	BLOCKED-PUBLISH	audit2-B08	1	2
+apps/website/src/features/redirects/repo.sqlite.ts	32	943d9f1acc959acc6f3a8c2b8cb11592e159ae0f	STAY	Tovu store binding (CLASSIFY: DELETE/inline where listed)	-	rule	5	1
+apps/website/src/features/redirects/tool-registrations.ts	286	ca0de6abf6c03e75adab9ccd45d3271c56d262ad	SPLIT	@jini-ai/cms/redirects (tool-registrations.ts); contributeRedirectsTools stays	K-01	read	2	5
+apps/website/src/features/widgets/agent-tools.ts	335	165a6258aa2a4571334ed98655cf0ade63a341e2	MOVE	@jini-ai/cms/widgets (agent-tools.ts)	K-02	signals	1	5
+apps/website/src/features/widgets/capability-card.ts	34	4ca898da0e49b96047b623e3bb91fa3503dcc66a	STAY	product wording (site-guide card)	-	rule	1	1
+apps/website/src/features/widgets/deps.ts	140	36a28b9201a4819d15cbd2e46832b1bd8da928bb	STAY	composition of widget deps over 5 Tovu features	-	signals	14	26
+apps/website/src/features/widgets/media-html.ts	179	7e61748431c4b53dc21ae854fd2ed3a3368d77de	SPLIT	@jini-ai/cms/widgets/html (3 console.* -> report port)	K-02b	signals	2	8
+apps/website/src/features/widgets/publish-content.ts	255	1855447d9799f247a888674e2740cdff1fd16631	MOVE-AFTER	publish framework (audit2 B02/B08, row 140): BLOCKED, listed in INDEX	BLOCKED-PUBLISH	audit2-B08	1	3
+apps/website/src/features/widgets/repo.sqlite.ts	19	789d4a0855213618b0f4e237d1a691c64c8e9709	STAY	Tovu store binding (CLASSIFY: DELETE/inline where listed)	-	rule	2	2
+apps/website/src/features/widgets/tool-registrations.ts	518	8ad0cc876e96749617abff817a450cee7cdf7702	SPLIT	@jini-ai/cms/widgets (tool-registrations.ts)	K-02	read	2	12
+apps/website/src/features/comments/agent-tools.ts	207	c357a590b3b4396662ae1fd2d53ce0c95125ff20	MOVE	@jini-ai/cms/comments (agent-tools.ts)	K-03	signals	1	4
+apps/website/src/features/comments/builtin-provider.ts	123	335c18122bb929077bb47f2631a9dd3ac5682e7f	STAY	provider binding/provenance is host-owned (plan-v6 K2); CLASSIFY rows keep their own sheets	-	signals	1	1
+apps/website/src/features/comments/comment-targets.ts	27	678c505c2d7135e79b1b0f0916897d711f5218c4	STAY	provider binding/provenance is host-owned (plan-v6 K2); CLASSIFY rows keep their own sheets	-	signals	2	1
+apps/website/src/features/comments/data-module-install.ts	20	ddf393f93b87e331d5f847ef241f8e7c738bde52	STAY	provider binding/provenance is host-owned (plan-v6 K2); CLASSIFY rows keep their own sheets	-	signals	1	2
+apps/website/src/features/comments/index.ts	63	d9ea11facf2faecca87b619bf30299a15508459a	STAY	Tovu feature barrel/forwarder (not a re-export shell of moved code; shrinks as importers repoint)	-	rule	5	2
+apps/website/src/features/comments/ip-hash-salt.ts	75	82046ea508375a17d85c088fd1ab4ba85f386c6b	STAY	reads process.env (env name stays in Tovu)	-	signals	1	1
+apps/website/src/features/comments/provider-selection.ts	111	46204924ed0959c4a5155de59c68d6f6d2a62069	STAY	provider binding/provenance is host-owned (plan-v6 K2); CLASSIFY rows keep their own sheets	-	signals	2	2
+apps/website/src/features/comments/public-markers.ts	35	30452d1b27ce409da11740d006695346e8a963ca	STAY	provider binding/provenance is host-owned (plan-v6 K2); CLASSIFY rows keep their own sheets	-	signals	2	2
+apps/website/src/features/comments/repo.sqlite.ts	22	37493442c488340ca2a96225757dcbe3d6aaecc5	STAY	Tovu store binding (CLASSIFY: DELETE/inline where listed)	-	rule	2	0
+apps/website/src/features/comments/settings.ts	285	2738b0ab51b39d98aee439c7a727dcb260848120	STAY	settings bindings stay (Codex, plan-v6 K4)	-	plan-v6	4	7
+apps/website/src/features/comments/tool-registrations.ts	387	d61620563af8fbedb98af7b4c7e529d7d206092f	SPLIT	@jini-ai/cms/comments (tool-registrations.ts); settings get/set become ports	K-03	read	2	9
+apps/website/src/features/comments/types.ts	68	c1a6901e556d6489d94d14723d97b29d6ae8e42d	STAY	provider binding/provenance is host-owned (plan-v6 K2); CLASSIFY rows keep their own sheets	-	signals	2	0
+apps/website/src/features/seo/agent-tools.ts	280	28ed80b5830d171ed369f3ac00e5115d813710db	MOVE	@jini-ai/cms/seo (agent-tools.ts)	K-04	signals	2	3
+apps/website/src/features/seo/capability-card.ts	29	0c0e23e3402b62acefc4b4882eb3ad84b1f1a73e	STAY	product wording (site-guide card)	-	rule	1	0
+apps/website/src/features/seo/cover-image.ts	96	88854ed237de1f82c7ebfbd6d8b61b74b41bc7c1	MOVE-AFTER	@jini-ai/cms/seo after T-PO-02 (post cover policy) = audit2 B21	K-04b	audit2-B21	2	3
+apps/website/src/features/seo/index.ts	126	cd6c13089c51cfb7a6381d2f76cf17087af50e0e	STAY	Tovu feature barrel/forwarder (not a re-export shell of moved code; shrinks as importers repoint)	-	rule	11	21
+apps/website/src/features/seo/page-head-contributor.ts	43	399096c8153a15a51f7c87c625f31c99b1da98cb	MOVE-AFTER	@jini-ai/cms/seo after T-PO-02 (post cover policy) = audit2 B21	K-04b	audit2-B21	1	1
+apps/website/src/features/seo/settings.ts	411	1358ae09962a13444e276af619d54d3fa8d4deb6	STAY	settings bindings stay (Codex, plan-v6 K4)	-	plan-v6	3	9
+apps/website/src/features/seo/tool-registrations.ts	259	261697eefde242ecd3b061beadb87e5e5225492d	SPLIT	@jini-ai/cms/seo (tool-registrations.ts); settings + repos as ports	K-04	read	2	2
+apps/website/src/features/taxonomy/agent-tools.ts	39	a27ac43c1ff153643dce1bbbc889851cd2d545a5	STAY	already a 39-line binding over @jini-ai/cms/taxonomy agent-tools	-	signals	1	2
+apps/website/src/features/taxonomy/collection-term-policy.ts	80	79b981bb00cd1edd81af9b716e9b6d326750d1fa	MOVE-AFTER	@jini-ai/cms/taxonomy after K-05 (they are K-05 ports first)	K-05b	signals	3	1
+apps/website/src/features/taxonomy/content-targets.ts	2	6eed83c37bc7bc074f03d7188c8c106f0b6ada94	STAY	thin Tovu forwarders/bindings (2-38 lines); DELETE candidates are CLASSIFY rows, not this lane	-	signals	1	0
+apps/website/src/features/taxonomy/contracts.ts	35	3f861cbb03ae767ef667465c724fa1d3f612e4dc	STAY	thin Tovu forwarders/bindings (2-38 lines); DELETE candidates are CLASSIFY rows, not this lane	-	signals	6	0
+apps/website/src/features/taxonomy/gated-hooks.ts	103	c958773ee9fbc46915e1306d82529d0f8033884f	MOVE-AFTER	@jini-ai/cms/taxonomy after K-05 (they are K-05 ports first)	K-05b	signals	3	1
+apps/website/src/features/taxonomy/html-render.ts	3	c212267b145e408106fa985cdfe82546cfbc978e	STAY	thin Tovu forwarders/bindings (2-38 lines); DELETE candidates are CLASSIFY rows, not this lane	-	signals	0	0
+apps/website/src/features/taxonomy/index.ts	60	8a7effa2b02ced59e2c818becab159478ca12483	STAY	Tovu feature barrel/forwarder (not a re-export shell of moved code; shrinks as importers repoint)	-	rule	20	8
+apps/website/src/features/taxonomy/publish-content.ts	116	527d083dac14d2b8d473fb4951e5b668c222f6b6	MOVE-AFTER	publish framework (audit2 B02/B08, row 140): BLOCKED, listed in INDEX	BLOCKED-PUBLISH	audit2-B08	1	7
+apps/website/src/features/taxonomy/publish-term-ids.ts	116	3ec3e8bbbe6e8a7b777b0f0fb82ff23fe73844ce	MOVE-AFTER	publish framework (audit2 B02 / row 140)	K-BLOCKED	signals	1	1
+apps/website/src/features/taxonomy/render-entry.ts	38	c0128b8dd163f0f20bc84d0f88c2419f91829e63	STAY	thin Tovu forwarders/bindings (2-38 lines); DELETE candidates are CLASSIFY rows, not this lane	-	signals	2	0
+apps/website/src/features/taxonomy/repo.rows.ts	81	baea5a6977982c3af6a5b69fc37753bddd84be8f	MOVE	@jini-ai/cms/taxonomy/sql (NEW subpath; kysely is a cms peer already)	K-06	signals	1	0
+apps/website/src/features/taxonomy/repo.sqlite.ts	44	98be9d81a558bb6e6edd677897330f514bbc3543	STAY	Tovu store binding (CLASSIFY: DELETE/inline where listed)	-	rule	5	9
+apps/website/src/features/taxonomy/repo.ts	555	ea1cb9827ebe04f7011e176bbda176552a1976dc	MOVE	@jini-ai/cms/taxonomy/sql (NEW subpath; kysely is a cms peer already)	K-06	signals	1	1
+apps/website/src/features/taxonomy/taxonomy-trash-follow-ups.ts	182	9048734169a334723870c0325654b2825934c64b	MOVE-AFTER	@jini-ai/cms/taxonomy after K-05 (they are K-05 ports first)	K-05b	signals	2	2
+apps/website/src/features/taxonomy/term-sync.ts	2	1b76c8d5c718f9f0319d416116df6f7e511e7d5e	STAY	thin Tovu forwarders/bindings (2-38 lines); DELETE candidates are CLASSIFY rows, not this lane	-	signals	2	0
+apps/website/src/features/taxonomy/tool-registrations.ts	450	51ca8e974d46abd1d0b6fb8a5dfdb261140fd558	SPLIT	@jini-ai/cms/taxonomy (tool-registrations.ts); gateway/human-confirm/slug as ports	K-05	read	2	4
+apps/website/src/features/taxonomy/trash-term.ts	116	e7e6cc8b5e45f135b8cf62a788b33d28f313db09	MOVE-AFTER	@jini-ai/cms/taxonomy after K-05 (they are K-05 ports first)	K-05b	signals	2	1
+apps/website/src/features/trash/adapters/comment.ts	74	ddc480f72a7ba96b9a3e474c62bf46ff5ac17ab7	STAY	per-entity adapters bind Tovu tables/features; 4 are DEDUPE-AFTER-HARDENING in CLASSIFY (own rows)	-	signals	4	1
+apps/website/src/features/trash/adapters/directory.ts	253	882f7424dab6e4bf99888b908c39d69357a2508f	STAY	per-entity adapters bind Tovu tables/features; 4 are DEDUPE-AFTER-HARDENING in CLASSIFY (own rows)	-	signals	1	1
+apps/website/src/features/trash/adapters/marker-sql.ts	147	a9b4b2dc837f8cb535e1cb40abd512b8e3054232	MOVE	@jini-ai/cms/trash/sql	K-08	signals	5	1
+apps/website/src/features/trash/adapters/media.ts	95	5f52eb6dc4b12fa45995fc158c6805cfc46a7e9d	STAY	per-entity adapters bind Tovu tables/features; 4 are DEDUPE-AFTER-HARDENING in CLASSIFY (own rows)	-	signals	4	3
+apps/website/src/features/trash/adapters/member.ts	64	198f819cc57da91efad9d6c11554ac4f1b34f882	STAY	per-entity adapters bind Tovu tables/features; 4 are DEDUPE-AFTER-HARDENING in CLASSIFY (own rows)	-	signals	1	2
+apps/website/src/features/trash/adapters/plugin.ts	1	7eb6549c5c38c1b4985172b0af63ad78c3984707	STAY	per-entity adapters bind Tovu tables/features; 4 are DEDUPE-AFTER-HARDENING in CLASSIFY (own rows)	-	signals	2	0
+apps/website/src/features/trash/adapters/post.ts	91	ec577cc49c659d7eeac4168343053ee28501b1c9	STAY	per-entity adapters bind Tovu tables/features; 4 are DEDUPE-AFTER-HARDENING in CLASSIFY (own rows)	-	signals	4	9
+apps/website/src/features/trash/adapters/redirect.ts	73	2510365a6bfab9fe04cdd8618fb77cb19368824f	STAY	per-entity adapters bind Tovu tables/features; 4 are DEDUPE-AFTER-HARDENING in CLASSIFY (own rows)	-	signals	4	2
+apps/website/src/features/trash/adapters/theme.ts	3	62a459c27c7d39818b40d38a8a6b279628276489	STAY	per-entity adapters bind Tovu tables/features; 4 are DEDUPE-AFTER-HARDENING in CLASSIFY (own rows)	-	signals	3	0
+apps/website/src/features/trash/adapters/user.ts	228	efed28901c7e183c9a8dd55513f423ef5d772812	STAY	per-entity adapters bind Tovu tables/features; 4 are DEDUPE-AFTER-HARDENING in CLASSIFY (own rows)	-	signals	3	4
+apps/website/src/features/trash/agent-delete-policy.ts	5	e8922df75040dcd027e00fb8c1ab56a554c24e89	STAY	not in lane K scope (CLASSIFY rows own them: MIXED cms/trash, DEDUPE daemon/scheduler)	-	classify	0	1
+apps/website/src/features/trash/agent-tools.ts	154	fba503a086519107570f304f79409460c5b13927	MOVE	@jini-ai/cms/trash (agent-tools.ts, trash-item-tool.ts)	K-07	signals	1	3
+apps/website/src/features/trash/db-port.ts	19	6f3933aa623bf14e6db7a23652e85772102ae03b	STAY	not in lane K scope (CLASSIFY rows own them: MIXED cms/trash, DEDUPE daemon/scheduler)	-	classify	5	0
+apps/website/src/features/trash/entry-sql.ts	83	3b6118b1142a1c9f481ae089739f5bf45d0726fb	MOVE	@jini-ai/cms/trash/sql (NEW subpath)	K-08	signals	6	2
+apps/website/src/features/trash/entry-sql.types.ts	9	40dfd4247ddc905606ecd900b29a73811eda6c4a	MOVE	@jini-ai/cms/trash/sql (NEW subpath)	K-08	signals	2	0
+apps/website/src/features/trash/index.ts	110	08a3e014afbaa0158233162be51a479d6bf3b78f	STAY	Tovu feature barrel/forwarder (not a re-export shell of moved code; shrinks as importers repoint)	-	rule	18	15
+apps/website/src/features/trash/move-to-trash.ts	167	a450664f4c846b3ed99ba9c72c5729b65c234da1	STAY	not in lane K scope (CLASSIFY rows own them: MIXED cms/trash, DEDUPE daemon/scheduler)	-	classify	2	8
+apps/website/src/features/trash/not-trashed.ts	117	52f16e518731c309b242a23ad61f6bcc5fd519de	MOVE	@jini-ai/cms/trash/sql (NEW subpath)	K-08	signals	2	1
+apps/website/src/features/trash/permissions.ts	147	ce905dbc88373de2333631cb9fd8ee6ce0fe2673	STAY	entity-type -> permission map is product policy (Codex, plan-v6 K4)	-	plan-v6	4	4
+apps/website/src/features/trash/ports.ts	61	259001ccbb8641aea194b24c9892eae43845d5fd	STAY	not in lane K scope (CLASSIFY rows own them: MIXED cms/trash, DEDUPE daemon/scheduler)	-	classify	3	1
+apps/website/src/features/trash/registry.ts	365	9f57eab631aa59db2bfd9b20e77cb7549ca558bb	STAY	plan-v6 S4: registry.ts stays; contracts already in @jini-ai/cms/trash	-	plan-v6	10	21
+apps/website/src/features/trash/remove-without-blocker.ts	37	e7e4b43b983d140b9d1c74e4fdebd35bcf2c8e4a	STAY	not in lane K scope (CLASSIFY rows own them: MIXED cms/trash, DEDUPE daemon/scheduler)	-	classify	1	5
+apps/website/src/features/trash/repo.sqlite.ts	34	81037d83f9347cce1c19f31693a50a0aaccc8d39	STAY	Tovu store binding (CLASSIFY: DELETE/inline where listed)	-	rule	2	22
+apps/website/src/features/trash/repo.ts	232	6d021f772491f7b07751ebe1903252d8dc458429	MOVE	@jini-ai/cms/trash/sql (NEW subpath)	K-08	signals	2	1
+apps/website/src/features/trash/scheduler.node.ts	18	b3cfa30db812799689bd54ca4460945387b3ec57	STAY	not in lane K scope (CLASSIFY rows own them: MIXED cms/trash, DEDUPE daemon/scheduler)	-	classify	1	1
+apps/website/src/features/trash/table-adapter.ts	362	130fb351f7c2a7b94f24ace3bb4dbcd93de163d2	MOVE	@jini-ai/cms/trash/sql (NEW subpath)	K-08	signals	1	15
+apps/website/src/features/trash/tool-registrations.ts	252	8c5a27d777ca702e9b99c06891ef4d2dafe42c1e	SPLIT	@jini-ai/cms/trash (tool-registrations.ts); permission map injected	K-07	read	2	2
+apps/website/src/features/trash/trash-item-tool.ts	518	2151539b5dc9f1602541a5ed1b518a291db2f70f	MOVE	@jini-ai/cms/trash (agent-tools.ts, trash-item-tool.ts)	K-07	signals	1	8
+apps/website/src/features/trash/widget-removal.ts	13	f8dad0d2ff01a585a6d63c64d7db1632ca80524c	STAY	not in lane K scope (CLASSIFY rows own them: MIXED cms/trash, DEDUPE daemon/scheduler)	-	classify	1	1
+apps/website/src/features/webhooks/agent-tools.ts	205	7f0025873564b2a12333c8186b8b646acb7bece5	MOVE	@jini-ai/integrations/webhooks/tools (agent-tools.ts)	K-09	signals	1	2
+apps/website/src/features/webhooks/delivery.ts	72	c267f491aec86a6a4e7a8516917005ed4b5ac182	STAY	NOT lane K: keyring/sealer/site-key = row 57 + audit2 B09; delivery/subscriptions already bind @jini-ai/integrations	-	signals	2	3
+apps/website/src/features/webhooks/http.memory.ts	67	40bf36d231d0a2fe9ea1e78a4db695bcc43084e8	STAY	NOT lane K: keyring/sealer/site-key = row 57 + audit2 B09; delivery/subscriptions already bind @jini-ai/integrations	-	signals	0	2
+apps/website/src/features/webhooks/index.ts	95	d97b370e297490c95aa4277ff20cc61bc686c47e	STAY	NOT lane K: keyring/sealer/site-key = row 57 + audit2 B09; delivery/subscriptions already bind @jini-ai/integrations	-	signals	69	50
+apps/website/src/features/webhooks/keyring.env.ts	481	303eea027a0677157f50cb9b562ca7f24298581b	STAY	NOT lane K: keyring/sealer/site-key = row 57 + audit2 B09; delivery/subscriptions already bind @jini-ai/integrations	-	signals	10	27
+apps/website/src/features/webhooks/keyring.memory.ts	37	3365251e4a8e35425fee07b884cb96c9a4218b9a	STAY	NOT lane K: keyring/sealer/site-key = row 57 + audit2 B09; delivery/subscriptions already bind @jini-ai/integrations	-	signals	2	161
+apps/website/src/features/webhooks/ports.ts	28	309cae1ab6d387b3243eba251fe3f6e82b690e9f	STAY	NOT lane K: keyring/sealer/site-key = row 57 + audit2 B09; delivery/subscriptions already bind @jini-ai/integrations	-	signals	11	6
+apps/website/src/features/webhooks/repo.memory.ts	286	c1cec5e1d44c5944ac32170c9049dd3b8cc78a8e	STAY	NOT lane K: keyring/sealer/site-key = row 57 + audit2 B09; delivery/subscriptions already bind @jini-ai/integrations	-	signals	1	13
+apps/website/src/features/webhooks/seal-aad-invariant.ts	246	60c63e3a3e5918e3481aeca880ed9d50fb3201c9	STAY	NOT lane K: keyring/sealer/site-key = row 57 + audit2 B09; delivery/subscriptions already bind @jini-ai/integrations	-	signals	0	1
+apps/website/src/features/webhooks/secret-scan-guard.ts	476	57ab53c86f2df3ede251f68f76547c35fc991489	STAY	NOT lane K: keyring/sealer/site-key = row 57 + audit2 B09; delivery/subscriptions already bind @jini-ai/integrations	-	signals	1	2
+apps/website/src/features/webhooks/secret-sealer.aesgcm.ts	156	1bac1371554ad731d062dcc10c297e7226a9f3ec	STAY	NOT lane K: keyring/sealer/site-key = row 57 + audit2 B09; delivery/subscriptions already bind @jini-ai/integrations	-	signals	8	175
+apps/website/src/features/webhooks/signing.keyring.ts	31	1c71ee55963d45c7da9b03813da8a7db7b97fbce	STAY	NOT lane K: keyring/sealer/site-key = row 57 + audit2 B09; delivery/subscriptions already bind @jini-ai/integrations	-	signals	2	1
+apps/website/src/features/webhooks/signing.ts	43	1b8f988386c65a4ee990a606086ea3158adc52c0	STAY	NOT lane K: keyring/sealer/site-key = row 57 + audit2 B09; delivery/subscriptions already bind @jini-ai/integrations	-	signals	3	5
+apps/website/src/features/webhooks/site-key-ensure.ts	841	b92523a5d52f0c17eb058d3a4a9fa3d569c3ee15	STAY	NOT lane K: keyring/sealer/site-key = row 57 + audit2 B09; delivery/subscriptions already bind @jini-ai/integrations	-	signals	7	8
+apps/website/src/features/webhooks/site-key-sources.ts	299	0272961224fe16d9ef63be6607b2d63e39ce6fc7	STAY	NOT lane K: keyring/sealer/site-key = row 57 + audit2 B09; delivery/subscriptions already bind @jini-ai/integrations	-	signals	8	27
+apps/website/src/features/webhooks/subscriptions.ts	126	cce75bcc43a6899b60c21e5ea1a46c071142b5fa	STAY	NOT lane K: keyring/sealer/site-key = row 57 + audit2 B09; delivery/subscriptions already bind @jini-ai/integrations	-	signals	2	6
+apps/website/src/features/webhooks/tool-registrations.ts	390	d2b4a82ce3401b57cfdad5fdb6026492e42fb21b	SPLIT	@jini-ai/integrations/webhooks/tools (audit2 B17; its sheet file was never pushed)	K-09	read	3	7
+apps/website/src/features/webhooks/types.ts	13	e5322ce2712efa9230e94e6841e90577d884042f	STAY	NOT lane K: keyring/sealer/site-key = row 57 + audit2 B09; delivery/subscriptions already bind @jini-ai/integrations	-	signals	4	7
+apps/website/src/features/forms/agent-tools.ts	357	395e1f6d5dae5541c47072f12faf6b0bfea4b125	MOVE	@jini-ai/cms/forms (agent-tools.ts)	K-10	signals	2	4
+apps/website/src/features/forms/analytics-provenance.ts	2	4fb35c1d7fdbf42642bff60d771c35e094353345	STAY	no generic part identified from signals; not read line by line	-	rule	2	0
+apps/website/src/features/forms/capability-card.ts	29	44dddface832bab0e7132b9bf2a4d679a291857f	STAY	product wording (site-guide card)	-	rule	1	0
+apps/website/src/features/forms/delivery-status.ts	1	ccda915ebe1b5728595e7cab148b56c2b3da1ed6	STAY	no generic part identified from signals; not read line by line	-	rule	2	1
+apps/website/src/features/forms/field-length-caps.ts	39	b61b4133e6ea82897775bc92a7b4202941c8d4a8	MOVE-AFTER	@jini-ai/cms/forms(/sql) leftovers: design-level only (K-11)	K-11	signals	3	1
+apps/website/src/features/forms/form-destination-manifest.ts	100	262a3bef3e41921da02a4d5c0e9ddcc71e8061bf	MOVE-AFTER	@jini-ai/cms/forms(/sql) leftovers: design-level only (K-11)	K-11	signals	1	2
+apps/website/src/features/forms/form-file-maintenance.ts	145	d356a45aa221ed62717eb8fded81e746aa695657	MOVE-AFTER	@jini-ai/cms/forms(/sql) leftovers: design-level only (K-11)	K-11	signals	1	1
+apps/website/src/features/forms/form-file-purge.ts	93	9b0c5eb63aca2097dcb0c2690e61bc280ff7fb86	MOVE-AFTER	@jini-ai/cms/forms(/sql) leftovers: design-level only (K-11)	K-11	signals	3	3
+apps/website/src/features/forms/form-file-storage.ts	45	debd9c2af004b52d7fa2167386d512cc488e1008	STAY	no generic part identified from signals; not read line by line	-	rule	2	3
+apps/website/src/features/forms/import-remote-submissions.ts	238	f8d02e0c163f035c55c6a3d798f3b0c55aad0c3e	MOVE-AFTER	@jini-ai/cms/forms(/sql) leftovers: design-level only (K-11)	K-11	signals	2	2
+apps/website/src/features/forms/index.ts	204	f444c2fcb77c0eb9f17d907ae6cffe400f5fbe60	STAY	Tovu feature barrel/forwarder (not a re-export shell of moved code; shrinks as importers repoint)	-	rule	14	10
+apps/website/src/features/forms/mail-outbox-readiness.ts	2	c551fdee3d1d9107bce156574882ec2b6f36be8c	STAY	no generic part identified from signals; not read line by line	-	rule	1	1
+apps/website/src/features/forms/protect-existing-files.ts	59	a6165eb94553d9bfbe09f8ab326796febd7f7249	MOVE-AFTER	@jini-ai/cms/forms(/sql) leftovers: design-level only (K-11)	K-11	signals	1	1
+apps/website/src/features/forms/publish-content.ts	81	7955dab7ba90fe62467b41dea4de3beb276088cd	MOVE-AFTER	publish framework (audit2 B02/B08, row 140): BLOCKED, listed in INDEX	BLOCKED-PUBLISH	audit2-B08	1	2
+apps/website/src/features/forms/rate-limit-profile.ts	18	75652370ea00f4b2f2f9608fa2be594ecfb9fefa	STAY	no generic part identified from signals; not read line by line	-	rule	3	5
+apps/website/src/features/forms/render-entry.ts	16	168dec86cd8f33061b63c8a115f6387a105749e4	STAY	no generic part identified from signals; not read line by line	-	rule	2	0
+apps/website/src/features/forms/repo.sqlite.ts	35	2fc82a527ddb3342382707e4ed4d34e0924dc5eb	STAY	Tovu store binding (CLASSIFY: DELETE/inline where listed)	-	rule	5	9
+apps/website/src/features/forms/submission-ip-expiry-sweep.ts	54	e8ad8100f8aac68bc90cfb34101e42698cd009aa	MOVE-AFTER	@jini-ai/cms/forms(/sql) leftovers: design-level only (K-11)	K-11	signals	1	1
+apps/website/src/features/forms/tool-registrations.ts	660	8a4de1f0243230d719067e5ff32c67f5948942b6	SPLIT	@jini-ai/cms/forms (tool-registrations.ts); duplicate-handler + slug policy + pull/status ports	K-10	read	2	9
+apps/website/src/features/form-destinations/connection-port.ts	36	fa122d0512a1ca995a434d50b5c5e131c6eddfcc	MOVE-AFTER	@jini-ai/cms/forms destinations (CLASSIFY: 3 MOVE, 1 MOVE-AFTER, 1 MIXED, 1 DELETE): design-level only (K-11)	K-11	classify	1	2
+apps/website/src/features/form-destinations/deliver.ts	70	11ebe3b8784a9f396b526ec9296245969652b606	MOVE-AFTER	@jini-ai/cms/forms destinations (CLASSIFY: 3 MOVE, 1 MOVE-AFTER, 1 MIXED, 1 DELETE): design-level only (K-11)	K-11	classify	1	2
+apps/website/src/features/form-destinations/index.ts	30	d44e3b9d6433393bfd8ef8d3f65cdd815cb2a3fd	MOVE-AFTER	@jini-ai/cms/forms destinations (CLASSIFY: 3 MOVE, 1 MOVE-AFTER, 1 MIXED, 1 DELETE): design-level only (K-11)	K-11	classify	2	8
+apps/website/src/features/form-destinations/key-store.ts	69	1f6528aa7dcf6116197f2350bb67dc6c986fab2b	MOVE-AFTER	@jini-ai/cms/forms destinations (CLASSIFY: 3 MOVE, 1 MOVE-AFTER, 1 MIXED, 1 DELETE): design-level only (K-11)	K-11	classify	2	1
+apps/website/src/features/form-destinations/port.ts	123	e02844e597998d9b07dbfdc0a21f0d4dd0c65362	MOVE-AFTER	@jini-ai/cms/forms destinations (CLASSIFY: 3 MOVE, 1 MOVE-AFTER, 1 MIXED, 1 DELETE): design-level only (K-11)	K-11	classify	1	2
+apps/website/src/features/form-destinations/pull.ts	126	c75006a095ab04a783c699bf550a5cb26f635ab2	MOVE-AFTER	@jini-ai/cms/forms destinations (CLASSIFY: 3 MOVE, 1 MOVE-AFTER, 1 MIXED, 1 DELETE): design-level only (K-11)	K-11	classify	1	1
+apps/website/src/features/form-destinations/registry.ts	108	f6cb9e0b3b91fba63a733d6e5bdf977aee35f210	MOVE-AFTER	@jini-ai/cms/forms destinations (CLASSIFY: 3 MOVE, 1 MOVE-AFTER, 1 MIXED, 1 DELETE): design-level only (K-11)	K-11	classify	3	6
+apps/website/src/features/form-destinations/rewrite-actions.ts	50	92f820c129c59159617b2a71e31d96fb86c79eaf	MOVE-AFTER	@jini-ai/cms/forms destinations (CLASSIFY: 3 MOVE, 1 MOVE-AFTER, 1 MIXED, 1 DELETE): design-level only (K-11)	K-11	classify	3	1
+apps/website/src/features/form-destinations/select.ts	52	5262df54909c95e36ff2540392fb41982db36ef2	MOVE-AFTER	@jini-ai/cms/forms destinations (CLASSIFY: 3 MOVE, 1 MOVE-AFTER, 1 MIXED, 1 DELETE): design-level only (K-11)	K-11	classify	2	1
+apps/website/src/features/form-destinations/types.ts	22	7c16c13170f22fc564ff5ea666b6ec6874a54e6d	MOVE-AFTER	@jini-ai/cms/forms destinations (CLASSIFY: 3 MOVE, 1 MOVE-AFTER, 1 MIXED, 1 DELETE): design-level only (K-11)	K-11	classify	12	8

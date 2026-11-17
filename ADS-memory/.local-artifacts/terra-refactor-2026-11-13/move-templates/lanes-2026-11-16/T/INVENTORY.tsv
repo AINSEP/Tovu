@@ -1,0 +1,116 @@
+path	loc	blob	label	jini_target_or_reason	sheet	basis	prod_importers	test_importers
+apps/website/src/features/theme/active-theme-publish-content.ts	110	20be95efe8076ea047d05d7a1390361f015e1119	STAY	active theme, preview switcher, watcher, roster, security headers, id aliases: one-site policy/wiring	-	signals	1	1
+apps/website/src/features/theme/active-theme.ts	223	c558c20ab59be75e988188ba9fb015da078dae5a	STAY	active theme, preview switcher, watcher, roster, security headers, id aliases: one-site policy/wiring	-	signals	15	7
+apps/website/src/features/theme/agent-tools.ts	453	b7c36d021d7d1d69766af4e42e2fd663f3a380ce	MOVE-AFTER	@jini-ai/cms/theme tools after the engine is in Jini	T-TH-08	signals	6	6
+apps/website/src/features/theme/asset-operations.ts	237	8aa7467cb66d921b256582ec9f4f21bcad63bf4b	STAY	active theme, preview switcher, watcher, roster, security headers, id aliases: one-site policy/wiring	-	signals	8	0
+apps/website/src/features/theme/asset-path-rewrites.ts	23	4708ca750d752c86f43329baaca5fdc5f3ec9ab0	MOVE	@jini-ai/cms/theme (universal leaves; audit2 B15 files)	T-TH-01	signals	2	0
+apps/website/src/features/theme/build-conformance.ts	542	edbd86646175bfbdf46888abf35992d2af69df75	COVERED	audit2 B04 T1/T2/T5 (@jini-ai/cms/theme[/node])	B04	audit2-B04	2	3
+apps/website/src/features/theme/capability-card.ts	29	4fb20591294a4d67611daad22ea9da8f6e381b39	STAY	active theme, preview switcher, watcher, roster, security headers, id aliases: one-site policy/wiring	-	signals	1	1
+apps/website/src/features/theme/catalog.ts	3	0f8203adb48ff02835be341670c52e04704b477b	STAY	active theme, preview switcher, watcher, roster, security headers, id aliases: one-site policy/wiring	-	signals	2	0
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	413	61dca29547968eead7b5e858202f7765704d173c	MOVE-AFTER	@jini-ai/cms/theme/node after T-TH-06	T-TH-06	signals	1	1
+apps/website/src/features/theme/duplicate-theme-tool.ts	174	7d106308740a8e0dfaf27ab5f237677f4dd3383f	MOVE-AFTER	@jini-ai/cms/theme tools after the engine is in Jini	T-TH-08	signals	1	2
+apps/website/src/features/theme/duplicate-theme.ts	416	2dcd3b63de232e98431d5ba35b86e8cdbd02c53b	MOVE-AFTER	@jini-ai/cms/theme/node lifecycle after T-TH-05 (audit2 B10)	T-TH-07	audit2-B10	2	1
+apps/website/src/features/theme/entry-list-render.ts	375	1e09be16bc132f1de7c020a8426d35463c1697c5	SPLIT	@jini-ai/cms/listing (existing subpath); class prefix + safeHref injected	T-TH-03	classify	5	3
+apps/website/src/features/theme/file-identity-lock.ts	283	fd57dde6a92d86a949f9f464629b23efba7f6084	MOVE-AFTER	@jini-ai/cms/theme/node lifecycle after T-TH-05 (audit2 B10)	T-TH-07	audit2-B10	5	2
+apps/website/src/features/theme/file-mutation-tools.ts	64	0e049e0b9eea3df082632a9a8cb68476d0b737ea	MOVE-AFTER	@jini-ai/cms/theme tools after the engine is in Jini	T-TH-08	signals	2	0
+apps/website/src/features/theme/font-links.ts	36	352b44a603b60efb86d1daaafebd88c7b3b5dfe4	MOVE	@jini-ai/cms/theme (universal leaves; audit2 B15 files)	T-TH-01	signals	2	1
+apps/website/src/features/theme/handlebars-allowlist.ts	424	21ad730881fb7d77cac17183144cb1cdbdf03a61	OWNER	new deps handlebars/liquidjs: optional-peer subpaths vs injected TemplateValidatorPort (D-T2)	T-TH-04	signals	3	1
+apps/website/src/features/theme/hardcoded-link-lists.ts	118	3d5bc77251c8de1e63f77e93ab2d38c14291ee3a	MOVE	@jini-ai/cms/theme (universal leaves; audit2 B15 files)	T-TH-01	signals	1	1
+apps/website/src/features/theme/import-theme-file-tool.ts	179	7e1ded8b6996d7a1ee9cfdefab6880429ee4a2bd	MOVE-AFTER	@jini-ai/cms/theme tools after the engine is in Jini	T-TH-08	signals	1	5
+apps/website/src/features/theme/index.ts	221	4cb5c8accd89c9768c304fc1f4d0a9be68a9d5b9	STAY	active theme, preview switcher, watcher, roster, security headers, id aliases: one-site policy/wiring	-	signals	33	110
+apps/website/src/features/theme/liquid-allowlist.ts	297	dc4f14be649b61bd802f099b39e5cc91fe687ff3	OWNER	new deps handlebars/liquidjs: optional-peer subpaths vs injected TemplateValidatorPort (D-T2)	T-TH-04	signals	3	1
+apps/website/src/features/theme/migration/migrate-theme.ts	370	ee3faca1d2177372a470f24d70fbba42a4962785	MOVE-AFTER	@jini-ai/cms/theme/node lifecycle after T-TH-05 (audit2 B10)	T-TH-07	audit2-B10	1	2
+apps/website/src/features/theme/migration/theme-migration-plan.ts	280	2c2518e33c22a7097cebbd5a7f0bd5ae772cc10c	MOVE	@jini-ai/cms/theme (pure plan)	T-TH-02	signals	2	1
+apps/website/src/features/theme/page-publication.ts	60	bb0fe7f5bb64a770fc7a40fe3b45854303ce98a5	MOVE	@jini-ai/cms/theme (universal leaves; audit2 B15 files)	T-TH-01	signals	2	2
+apps/website/src/features/theme/page-publish-tool.ts	57	323d40bfc10941346ab235a02d47bfa22bf08645	MOVE-AFTER	@jini-ai/cms/theme tools after the engine is in Jini	T-TH-08	signals	1	2
+apps/website/src/features/theme/preview-refresh.ts	81	3b48c4a068283b28645b7c2203c935745f4dbf88	STAY	active theme, preview switcher, watcher, roster, security headers, id aliases: one-site policy/wiring	-	signals	11	2
+apps/website/src/features/theme/preview-switcher-html.ts	127	6a0bbaca7645c6b940031826473966132b9fb396	STAY	active theme, preview switcher, watcher, roster, security headers, id aliases: one-site policy/wiring	-	signals	2	3
+apps/website/src/features/theme/preview-switcher-tools.ts	74	53fa3361269022ad2740deeaaa2d69d79b92dcf8	MOVE-AFTER	@jini-ai/cms/theme tools after the engine is in Jini	T-TH-08	signals	1	3
+apps/website/src/features/theme/preview-switcher.ts	127	6530b55d5747409037c2c66c48d349bd446c6a7e	STAY	active theme, preview switcher, watcher, roster, security headers, id aliases: one-site policy/wiring	-	signals	6	4
+apps/website/src/features/theme/public-page-security-headers.ts	51	f8e3f06ac79148099bf2733623b921b4e0cf7e21	STAY	active theme, preview switcher, watcher, roster, security headers, id aliases: one-site policy/wiring	-	signals	5	6
+apps/website/src/features/theme/publish-content.ts	831	1da256292f64fc93b996c97a4b6c5b4fab884cd9	STAY	active theme, preview switcher, watcher, roster, security headers, id aliases: one-site policy/wiring	-	signals	1	4
+apps/website/src/features/theme/render-contract.ts	361	b90d551425cd68bf2d6b12eb4131f34fcd62168a	SPLIT	safeHref -> @jini-ai/core/text; rest -> @jini-ai/cms/theme with consent/slot ports	T-TH-03	classify	6	0
+apps/website/src/features/theme/rendering.ts	18	6182aafa7d819269fe1911e2d46a24142a8526cd	STAY	active theme, preview switcher, watcher, roster, security headers, id aliases: one-site policy/wiring	-	signals	1	0
+apps/website/src/features/theme/save-theme-original.ts	54	2a441c07c1c9bc238d43ca9f8bea8237847607f3	MOVE-AFTER	@jini-ai/cms/theme/node lifecycle after T-TH-05 (audit2 B10)	T-TH-07	audit2-B10	1	1
+apps/website/src/features/theme/set-active-theme-tool.ts	193	2c6b4b490d6363f3a4288b57b9b8bf59837dfe56	MOVE-AFTER	@jini-ai/cms/theme tools after the engine is in Jini	T-TH-08	signals	4	5
+apps/website/src/features/theme/static-asset-contract.ts	115	44df411aeb470196b43186a84a7dcf665a0c8cca	COVERED	audit2 B04 T1/T2/T5 (@jini-ai/cms/theme[/node])	B04	audit2-B04	5	1
+apps/website/src/features/theme/static-portability-index.ts	234	0345f7221492fefc6640519c8cdc7cdccd870a75	MOVE-AFTER	@jini-ai/cms/theme/node after T-TH-06	T-TH-06	signals	1	1
+apps/website/src/features/theme/static-render.ts	1396	50ddf9b5f5d957d7ec6935103550844bebf1943a	SPLIT	@jini-ai/cms/theme/node render engine; menu part needs a core contract (row 162)	T-TH-06	classify	6	32
+apps/website/src/features/theme/structure-only-theme.ts	54	d9cfa6e3837b7f8710746a45f663e5b3250b8b86	STAY	active theme, preview switcher, watcher, roster, security headers, id aliases: one-site policy/wiring	-	signals	1	0
+apps/website/src/features/theme/sync-originals.ts	197	68382fcd34bc94ae417be8b8505c67f2e487dbd9	MOVE-AFTER	@jini-ai/cms/theme/node lifecycle after T-TH-05 (audit2 B10)	T-TH-07	audit2-B10	3	4
+apps/website/src/features/theme/template-applicability.ts	47	478624a1ec676b18b5bd7d6cc2769f9e21efc052	COVERED	audit2 B04 T1/T2/T5 (@jini-ai/cms/theme[/node])	B04	audit2-B04	4	3
+apps/website/src/features/theme/theme-file-import.ts	178	6f5e5147176e1b1648b0df7b68d72f4c786c857b	STAY	CLASSIFY rows own them (agentic node entry; cms/media sniffer)	-	classify	2	1
+apps/website/src/features/theme/theme-files.ts	1344	d81d3c1c43749461be9c9aa955c43740e51afcec	SPLIT	containment/listing -> @jini-ai/platform/fs guarded reader (DEDUPE); theme paths -> cms/theme/node (row 162)	T-TH-05	classify	18	16
+apps/website/src/features/theme/theme-id-aliases.ts	34	6fee9309491d395a35a3ef8e23acd265aca91c58	STAY	active theme, preview switcher, watcher, roster, security headers, id aliases: one-site policy/wiring	-	signals	5	0
+apps/website/src/features/theme/theme-layout.ts	160	14941cb6e1e64063d5d18a67318c65c25befd5e4	COVERED	audit2 B04 T1/T2/T5 (@jini-ai/cms/theme[/node])	B04	audit2-B04	8	1
+apps/website/src/features/theme/theme-preview-image.ts	114	cdc5664b94b1a4e9d2bc6d1b57d40df91776fe7c	MOVE-AFTER	@jini-ai/cms/theme/node lifecycle after T-TH-05 (audit2 B10)	T-TH-07	audit2-B10	2	1
+apps/website/src/features/theme/theme-roster-sync.ts	89	44995a49d251237c6c011f45e80d02ca767fc80f	STAY	active theme, preview switcher, watcher, roster, security headers, id aliases: one-site policy/wiring	-	signals	8	1
+apps/website/src/features/theme/theme-trash.ts	243	e0504b0048a998566c62b5c95997ba10c6b82e18	STAY	binds Tovu trash feature (audit2 B10 lists it; generic part is the fs move helper only)	T-TH-07	signals	2	1
+apps/website/src/features/theme/theme-watcher.ts	97	2c5bfaec5cfdbe93f0144c65dff9cfcdd0c40781	STAY	active theme, preview switcher, watcher, roster, security headers, id aliases: one-site policy/wiring	-	signals	1	1
+apps/website/src/features/theme/theme.ts	1168	a9a10233edb76bcfee89528a7c555cfb573c9eb4	COVERED	audit2 B04 T1/T2/T5 (@jini-ai/cms/theme[/node])	B04	audit2-B04	30	76
+apps/website/src/features/theme/token-aliases.ts	53	c0eacfc69925c4865bc0698bec1298ee331f2553	MOVE	@jini-ai/cms/theme (universal leaves; audit2 B15 files)	T-TH-01	signals	3	1
+apps/website/src/features/theme/tool-registrations.ts	1028	6bf0afb19f1ce6aacdfec1d0110fabee317a684a	MOVE-AFTER	@jini-ai/cms/theme tools after the engine is in Jini	T-TH-08	signals	2	23
+apps/website/src/features/theme/trash-theme-tool.ts	193	a993ae6a55f3ab2a30b0e49807a768856a7d7344	MOVE-AFTER	@jini-ai/cms/theme tools after the engine is in Jini	T-TH-08	signals	2	3
+apps/website/src/features/theme/validation/manifest-v2.ts	548	2cc5da1253230fa250d79d6fae8628b8e0db1a5d	MOVE	@jini-ai/cms/theme/node validation	T-TH-02	signals	1	3
+apps/website/src/features/theme/validation/markup.ts	129	49b7dba4cc622adfb4c7275de801a4976c689fdf	MOVE	@jini-ai/cms/theme/node validation	T-TH-02	signals	1	5
+apps/website/src/features/theme/validation/profiles.ts	95	4a16b6140b8988c05a390456fdf1cf9d20e54b8b	COVERED	audit2 B04 T1/T3/T4	B04	audit2-B04	6	2
+apps/website/src/features/theme/validation/references.ts	105	273dd76d72ab0ec9226a1db686a5be4f35b655f0	COVERED	audit2 B04 T1/T3/T4	B04	audit2-B04	1	1
+apps/website/src/features/theme/validation/structure.ts	314	5b6fd90978163de4ff518397ea98be0a656884f5	COVERED	audit2 B04 T1/T3/T4	B04	audit2-B04	2	2
+apps/website/src/features/theme/validation/validate-theme-package.ts	260	18c29fa142b06a8a19b407d45274fa423dacc059	MOVE	@jini-ai/cms/theme/node validation	T-TH-02	signals	2	1
+apps/website/src/features/theme/validation/webmcp-markup.ts	210	f0f7060fc76f90435eb5cc5c4376a5f6a5c119be	MOVE	@jini-ai/cms/theme/node (parse5 already a cms dep)	T-TH-02	signals	1	1
+apps/website/src/features/theme/verify-active-theme.ts	69	7fd7d5e9e11a5b0e71c358b2b1b059291c2d0c8b	STAY	active theme, preview switcher, watcher, roster, security headers, id aliases: one-site policy/wiring	-	signals	1	1
+apps/website/src/features/theme/visitor-publication.ts	156	863085afdae86a363ef87d0a9b2568807e2087d5	STAY	CLASSIFY rows own them (agentic node entry; cms/media sniffer)	-	classify	5	4
+apps/website/src/features/post/agent-tools.ts	1000	7243bee33b88d86f202987b1e9d4825f10080f5e	MOVE-AFTER	@jini-ai/cms/posts tools after T-PO-03; size split first	T-PO-05	classify	3	18
+apps/website/src/features/post/author.ts	1	983363376b83edbc51ef055693dbe71a5cfa43b7	STAY	Tovu feature barrel/forwarder (not a re-export shell of moved code; shrinks as importers repoint)	-	rule	0	0
+apps/website/src/features/post/capability-card.ts	29	e8b9104b712a9c8d137287b7c3149560ec6d6057	STAY	product wording (site-guide card)	-	rule	1	0
+apps/website/src/features/post/content-stats-tool.ts	173	a0611802771d31cdf75eb451ede8097c296a4f21	MOVE-AFTER	@jini-ai/cms/posts tools after T-PO-03; size split first	T-PO-05	classify	1	2
+apps/website/src/features/post/contracts.ts	9	aad73043b6707f84148891c8bf7c4ab2b74ad805	STAY	Tovu feature barrel/forwarder (not a re-export shell of moved code; shrinks as importers repoint)	-	rule	11	0
+apps/website/src/features/post/cover-image.ts	268	1767b8a3dd88c95942ff67d0717240fc1d051d35	SPLIT	@jini-ai/cms/media/node (cover policy); unblocks K-04b	T-PO-02	classify	1	3
+apps/website/src/features/post/duplicate-embeds.ts	114	53d6e39de13518adf2ed33916e8287b4dd07d483	MOVE	per CLASSIFY: cms/core, cms/seo, core, cms/widgets, cms/media, cms/core	T-PO-01	classify	1	2
+apps/website/src/features/post/expected-version.ts	76	764000f7a0f74f5fef3864d7e1bb8c93e950131a	MOVE	per CLASSIFY: cms/core, cms/seo, core, cms/widgets, cms/media, cms/core	T-PO-01	classify	2	1
+apps/website/src/features/post/featured-image.ts	79	41be3e70f1dd0d2df48fbffcb04e56ad0e8f6a12	MOVE	per CLASSIFY: cms/core, cms/seo, core, cms/widgets, cms/media, cms/core	T-PO-01	classify	2	2
+apps/website/src/features/post/go-live.ts	185	36f0271b15f21fd64476c38fcd3d6b80be43bb99	MOVE	per CLASSIFY: cms/core, cms/seo, core, cms/widgets, cms/media, cms/core	T-PO-01	classify	5	5
+apps/website/src/features/post/html-plain-text.ts	99	4d8dc08495c4e86092284001e0fa279c027550e7	MOVE	per CLASSIFY: cms/core, cms/seo, core, cms/widgets, cms/media, cms/core	T-PO-01	classify	6	2
+apps/website/src/features/post/index.ts	85	51429eabbe477408451f55739695a6c8e0d4e255	STAY	Tovu feature barrel/forwarder (not a re-export shell of moved code; shrinks as importers repoint)	-	rule	47	145
+apps/website/src/features/post/post-vocabulary.ts	11	86e64d6ba927c4567277fff12363d9f998b663ac	MOVE	per CLASSIFY: cms/core, cms/seo, core, cms/widgets, cms/media, cms/core	T-PO-01	classify	3	0
+apps/website/src/features/post/post.ts	2596	e52e7ab92493c589bbd793857c71bdb1ab7cb07a	SPLIT	@jini-ai/cms/posts (NEW domain); size split first	T-PO-03	classify	27	72
+apps/website/src/features/post/preview-tool.ts	86	3761e4b63f79a775ee91ceb2de5863e43ce056de	MOVE-AFTER	@jini-ai/cms/posts tools after T-PO-03; size split first	T-PO-05	classify	2	6
+apps/website/src/features/post/publish-content.ts	580	37c4d4293e28a594e3e5c851d90cebcaa53aae8f	MOVE-AFTER	publish framework (audit2 B02/B08, row 140): BLOCKED, listed in INDEX	BLOCKED-PUBLISH	audit2-B08	1	10
+apps/website/src/features/post/read-model.ts	2	2b3715dab456dce621743cdec5d6d710db0ad269	STAY	Tovu feature barrel/forwarder (not a re-export shell of moved code; shrinks as importers repoint)	-	rule	1	0
+apps/website/src/features/post/rendering.ts	4	38ead41ef983f101b7db8df49f7465587d98b708	STAY	Tovu feature barrel/forwarder (not a re-export shell of moved code; shrinks as importers repoint)	-	rule	3	0
+apps/website/src/features/post/repo.memory.ts	260	aad7a23bb103f43d20f5a8991f415abc8fd24761	MOVE-AFTER	@jini-ai/cms/posts(/sql) after T-PO-03	T-PO-04	classify	1	76
+apps/website/src/features/post/repo.rows.ts	257	875be6287543990e291a4ba474bd2fcf1f01baa1	MOVE-AFTER	@jini-ai/cms/posts(/sql) after T-PO-03	T-PO-04	classify	3	2
+apps/website/src/features/post/repo.sqlite.ts	17	17726fd3eb1cf30f23532ac52f527a3d188ac1d7	STAY	Tovu store binding (CLASSIFY: DELETE/inline where listed)	-	rule	2	13
+apps/website/src/features/post/repo.ts	362	7e6516a5ab9ece363669ff16168782d0eea9559f	MOVE-AFTER	@jini-ai/cms/posts(/sql) after T-PO-03	T-PO-04	classify	1	23
+apps/website/src/features/post/reverters.ts	338	643ca4a3612046e7271c1e93d92d95afe52958ed	MOVE-AFTER	@jini-ai/cms/posts (audit2 B18) after T-PO-04	T-PO-04	audit2-B18	1	6
+apps/website/src/features/post/search-index.contract.ts	49	83c3eb516718a63831ab52406cfc848e5014e69a	MOVE-AFTER	@jini-ai/cms/posts(/sql) after T-PO-03	T-PO-04	classify	4	0
+apps/website/src/features/post/search-index.memory.ts	91	1ae7a1d693b23ed79c2dafb58ba0d765ab8b61c7	STAY	audit2 rejected slug + search-index.memory; template-options binds theme+presentation	-	audit2	1	2
+apps/website/src/features/post/search-index.postgres.ts	110	41453f5ec235a83ee2ea7d3621ab7a65f926c276	MOVE-AFTER	@jini-ai/cms/posts(/sql) after T-PO-03	T-PO-04	classify	1	1
+apps/website/src/features/post/search-index.sqlite.ts	138	3725351e8be603787a0049a4fb5417dc5145202d	MOVE-AFTER	@jini-ai/cms/posts(/sql) after T-PO-03	T-PO-04	classify	2	1
+apps/website/src/features/post/search-index.ts	274	499a59fd10cc597c1adf7cfae2b21c45b2dd91ce	MOVE-AFTER	@jini-ai/cms/posts(/sql) after T-PO-03	T-PO-04	classify	4	7
+apps/website/src/features/post/search.ts	279	5ff62b487ac6d8ec7e7f65fc304e47dc8137938d	MOVE-AFTER	@jini-ai/cms/posts(/sql) after T-PO-03	T-PO-04	classify	11	8
+apps/website/src/features/post/slug.ts	23	5cf15ddb03075f1ba38eb5491a747bdab32e3716	STAY	audit2 rejected slug + search-index.memory; template-options binds theme+presentation	-	audit2	3	1
+apps/website/src/features/post/template-options.ts	31	8af4d67ace8dab039856c05440ccc72629261c4a	STAY	audit2 rejected slug + search-index.memory; template-options binds theme+presentation	-	audit2	2	1
+apps/website/src/features/post/tool-registrations.ts	1543	d1f7efbddd671e4fcd0de6f0154d25dfa592ffd6	MOVE-AFTER	@jini-ai/cms/posts tools after T-PO-03; size split first	T-PO-05	classify	2	28
+apps/website/src/features/newsletter/agent-tools.ts	265	6185635eeab9851cc9f19a3a6e6300ce8647cc90	MOVE-AFTER	@jini-ai/cms/newsletter tools after T-NL-01	T-NL-03	signals	1	3
+apps/website/src/features/newsletter/campaign-write-service.ts	263	9b733bfe3a784f7121ff15b72b1cd3ef4f27fe6e	COVERED	audit2 B05 (@jini-ai/cms/newsletter campaign domain)	B05	audit2-B05	8	1
+apps/website/src/features/newsletter/campaign.ts	140	bf4ec9a73aec0b5f5cd035a9ba9e3af1e2b39448	COVERED	audit2 B05 (@jini-ai/cms/newsletter campaign domain)	B05	audit2-B05	2	2
+apps/website/src/features/newsletter/confirmation.ts	186	7cff3a889db861ace63fc6c99ff5858a7d37bf67	MOVE-AFTER	@jini-ai/cms/newsletter after B05 (CLASSIFY row 52)	T-NL-01	classify	7	2
+apps/website/src/features/newsletter/data-module-manifest.ts	150	e76f83b32e0c289eddda03e65ebcf5e1a2783208	STAY	provenance is host-owned (plan-v6 T3a)	-	plan-v6	2	7
+apps/website/src/features/newsletter/delivery/tool-registrations.ts	207	7fcdcf5ce3eeb57f655f8151add69026000a3693	MOVE-AFTER	@jini-ai/cms/newsletter tools after T-NL-01	T-NL-03	signals	2	2
+apps/website/src/features/newsletter/deps-builders.ts	71	198cc4254b327693fb44573b1d0c38a269db75eb	STAY	no generic part identified from signals; not read line by line	-	rule	3	0
+apps/website/src/features/newsletter/errors.ts	114	aa0dc540b67da4d7e06222f8be2c5473fffd5d6c	COVERED	audit2 B05 (@jini-ai/cms/newsletter campaign domain)	B05	audit2-B05	9	7
+apps/website/src/features/newsletter/hooks.ts	98	c5a1923e4a03e9e929f91fd2ffb192ec085f6806	COVERED	audit2 B05 (@jini-ai/cms/newsletter campaign domain)	B05	audit2-B05	4	4
+apps/website/src/features/newsletter/index.ts	42	4dd2bc3799f9bbdd96d3b0cbb5b6a9f44f7175c3	STAY	Tovu feature barrel/forwarder (not a re-export shell of moved code; shrinks as importers repoint)	-	rule	13	2
+apps/website/src/features/newsletter/launch-gate.ts	87	f28cdda68b997951fc2ccfe99fbab204951138cf	COVERED	audit2 B05 (@jini-ai/cms/newsletter campaign domain)	B05	audit2-B05	3	3
+apps/website/src/features/newsletter/lists.ts	115	2186f660c0709394a8ffddc0518084363e5a550e	COVERED	audit2 B05 (@jini-ai/cms/newsletter campaign domain)	B05	audit2-B05	6	2
+apps/website/src/features/newsletter/ports.ts	232	157a6d598d38df9c6acf98a24d5c2d90307c3304	COVERED	audit2 B05 (@jini-ai/cms/newsletter campaign domain)	B05	audit2-B05	11	10
+apps/website/src/features/newsletter/repo.memory.ts	354	79ba865db2c8083b476784a960987d62fe15d252	COVERED	audit2 B05 (@jini-ai/cms/newsletter campaign domain)	B05	audit2-B05	1	13
+apps/website/src/features/newsletter/repo.rows.ts	365	56687c1231862babc01be5da9b55c7ddb47b1033	MOVE-AFTER	@jini-ai/cms/newsletter/sql after B05	T-NL-02	signals	1	1
+apps/website/src/features/newsletter/repo.sqlite.ts	60	e7dd734384988cb417870124f2dad692bcfc6c69	STAY	Tovu store binding (CLASSIFY: DELETE/inline where listed)	-	rule	2	4
+apps/website/src/features/newsletter/repo.ts	644	9a44962c68f894ac2bb732bfbc06b73c780f265d	MOVE-AFTER	@jini-ai/cms/newsletter/sql after B05	T-NL-02	signals	1	3
+apps/website/src/features/newsletter/send-pipeline.ts	614	fc870f8cc735738332a48192365cfde8c6447c08	MOVE-AFTER	@jini-ai/cms/newsletter after B05 (CLASSIFY row 52)	T-NL-01	classify	9	3
+apps/website/src/features/newsletter/subscriptions.ts	171	9b1f20f0d7691e4fc96afd7f480d4a88b6a75813	MOVE-AFTER	@jini-ai/cms/newsletter after B05 (CLASSIFY row 52)	T-NL-01	classify	6	1
+apps/website/src/features/newsletter/tool-registrations.ts	524	f10346d2f17ebbb560e4f0717fbbb070cbe6f820	MOVE-AFTER	@jini-ai/cms/newsletter tools after T-NL-01	T-NL-03	signals	4	7
+apps/website/src/features/newsletter/types.ts	379	2609a95e7765515213340e67d35a82e95105c55f	COVERED	audit2 B05 (@jini-ai/cms/newsletter campaign domain)	B05	audit2-B05	14	26
+apps/website/src/features/newsletter/unsubscribe.ts	142	4f02373bab47cf608219dff02a625fd57c124eef	MOVE-AFTER	@jini-ai/cms/newsletter after B05 (CLASSIFY row 52)	T-NL-01	classify	5	4

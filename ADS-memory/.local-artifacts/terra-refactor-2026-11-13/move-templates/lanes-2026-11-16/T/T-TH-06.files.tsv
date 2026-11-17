@@ -1,0 +1,4 @@
+path	loc	blob	label	jini_target
+apps/website/src/features/theme/code-tier-asset-normalizer.ts	413	61dca29547968eead7b5e858202f7765704d173c	MOVE-AFTER	@jini-ai/cms/theme/node after T-TH-06
+apps/website/src/features/theme/static-portability-index.ts	234	0345f7221492fefc6640519c8cdc7cdccd870a75	MOVE-AFTER	@jini-ai/cms/theme/node after T-TH-06
+apps/website/src/features/theme/static-render.ts	1396	50ddf9b5f5d957d7ec6935103550844bebf1943a	SPLIT	@jini-ai/cms/theme/node render engine; menu part needs a core contract (row 162)

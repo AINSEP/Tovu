@@ -1,0 +1,8 @@
+path	loc	blob	label	jini_target
+apps/website/src/features/theme/duplicate-theme.ts	416	2dcd3b63de232e98431d5ba35b86e8cdbd02c53b	MOVE-AFTER	@jini-ai/cms/theme/node lifecycle after T-TH-05 (audit2 B10)
+apps/website/src/features/theme/file-identity-lock.ts	283	fd57dde6a92d86a949f9f464629b23efba7f6084	MOVE-AFTER	@jini-ai/cms/theme/node lifecycle after T-TH-05 (audit2 B10)
+apps/website/src/features/theme/migration/migrate-theme.ts	370	ee3faca1d2177372a470f24d70fbba42a4962785	MOVE-AFTER	@jini-ai/cms/theme/node lifecycle after T-TH-05 (audit2 B10)
+apps/website/src/features/theme/save-theme-original.ts	54	2a441c07c1c9bc238d43ca9f8bea8237847607f3	MOVE-AFTER	@jini-ai/cms/theme/node lifecycle after T-TH-05 (audit2 B10)
+apps/website/src/features/theme/sync-originals.ts	197	68382fcd34bc94ae417be8b8505c67f2e487dbd9	MOVE-AFTER	@jini-ai/cms/theme/node lifecycle after T-TH-05 (audit2 B10)
+apps/website/src/features/theme/theme-preview-image.ts	114	cdc5664b94b1a4e9d2bc6d1b57d40df91776fe7c	MOVE-AFTER	@jini-ai/cms/theme/node lifecycle after T-TH-05 (audit2 B10)
+apps/website/src/features/theme/theme-trash.ts	243	e0504b0048a998566c62b5c95997ba10c6b82e18	STAY	binds Tovu trash feature (audit2 B10 lists it; generic part is the fs move helper only)

@@ -1,0 +1,3 @@
+path	loc	blob	label	jini_target
+apps/website/src/features/seo/cover-image.ts	96	88854ed237de1f82c7ebfbd6d8b61b74b41bc7c1	MOVE-AFTER	@jini-ai/cms/seo after T-PO-02 (post cover policy) = audit2 B21
+apps/website/src/features/seo/page-head-contributor.ts	43	399096c8153a15a51f7c87c625f31c99b1da98cb	MOVE-AFTER	@jini-ai/cms/seo after T-PO-02 (post cover policy) = audit2 B21

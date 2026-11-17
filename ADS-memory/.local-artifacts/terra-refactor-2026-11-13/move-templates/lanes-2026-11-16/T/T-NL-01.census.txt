@@ -1,0 +1,4 @@
+# Re-run at execution time; every hit must be a row of T-NL-01.repoint.tsv (importer:line). Any other hit = STOP.
+rg -n --no-heading -e "(from|import|mock|importActual)[^'\"]*['\"][^'\"]*(confirmation|send\-pipeline|subscriptions|unsubscribe)(\.js|\.ts)?['\"]" apps development scripts --glob '!**/node_modules/**' | rg "(newsletter)"
+# index-barrel importers are NOT in the census: names re-exported by the feature index.ts are listed in the sheet (barrel_names).
+# planning-time rows: 38

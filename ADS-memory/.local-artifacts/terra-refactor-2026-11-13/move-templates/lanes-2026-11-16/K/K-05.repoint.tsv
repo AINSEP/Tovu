@@ -1,0 +1,7 @@
+importer	line	kind	old_specifier	resolves_to	action
+apps/website/src/assistant/__tests__/tool-registrations.taxonomy.test.ts	26	test	../../features/taxonomy/tool-registrations.js	apps/website/src/features/taxonomy/tool-registrations.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/assistant/tool-registrations.ts	74	prod	../features/taxonomy/tool-registrations.js	apps/website/src/features/taxonomy/tool-registrations.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/taxonomy/__tests__/get-assigned-terms-tool.test.ts	6	test	../tool-registrations.js	apps/website/src/features/taxonomy/tool-registrations.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/taxonomy/__tests__/tool-registrations.assign-terms-validation-status.test.ts	8	test	../tool-registrations.js	apps/website/src/features/taxonomy/tool-registrations.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/taxonomy/__tests__/tool-registrations.term-card.test.ts	5	test	../tool-registrations.js	apps/website/src/features/taxonomy/tool-registrations.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/server/runtime/composition/tool-catalog-manifest.ts	104	prod	#src/features/taxonomy/tool-registrations	apps/website/src/features/taxonomy/tool-registrations.ts	repoint the MOVED names only; names that stay keep this import

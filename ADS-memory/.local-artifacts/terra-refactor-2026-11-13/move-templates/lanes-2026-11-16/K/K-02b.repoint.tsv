@@ -1,0 +1,11 @@
+importer	line	kind	old_specifier	resolves_to	action
+apps/website/src/features/site-backup/import-keep-off.ts	7	prod	#src/features/widgets/media-html	apps/website/src/features/widgets/media-html.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/widgets/__tests__/integration/mediawidget.integration.test.ts	5	test	#src/features/widgets/media-html	apps/website/src/features/widgets/media-html.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/widgets/__tests__/unit/media-html-characterization.unit.test.ts	4	test	../../media-html.js	apps/website/src/features/widgets/media-html.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/widgets/__tests__/unit/media-html-report-drops.unit.test.ts	5	test	#src/features/widgets/media-html	apps/website/src/features/widgets/media-html.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/widgets/__tests__/unit/media-html-svg.unit.test.ts	5	test	#src/features/widgets/media-html	apps/website/src/features/widgets/media-html.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/widgets/__tests__/unit/media-html-template.unit.test.ts	5	test	#src/features/widgets/media-html	apps/website/src/features/widgets/media-html.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/widgets/__tests__/unit/media-html-tree-characterization.unit.test.ts	3	test	../../media-html.js	apps/website/src/features/widgets/media-html.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/server/inbound/public-http/http/site/__tests__/leading-style-regression.test.ts	4	test	#src/features/widgets/media-html	apps/website/src/features/widgets/media-html.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/server/inbound/public-http/http/site/__tests__/no-silent-drops.test.ts	15	test	#src/features/widgets/media-html	apps/website/src/features/widgets/media-html.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/server/inbound/public-http/http/site/render.ts	11	prod	#src/features/widgets/media-html	apps/website/src/features/widgets/media-html.ts	repoint the MOVED names only; names that stay keep this import

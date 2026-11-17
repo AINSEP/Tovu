@@ -1,0 +1,3 @@
+path	loc	blob	label	jini_target
+apps/website/src/features/redirects/agent-tools.ts	231	9f866fec074f9d6c003432373bd014eded412132	MOVE	@jini-ai/cms/redirects (agent-tools.ts)
+apps/website/src/features/redirects/tool-registrations.ts	286	ca0de6abf6c03e75adab9ccd45d3271c56d262ad	SPLIT	@jini-ai/cms/redirects (tool-registrations.ts); contributeRedirectsTools stays

@@ -1,0 +1,4 @@
+# Re-run at execution time; every hit must be a row of T-TH-07.repoint.tsv (importer:line). Any other hit = STOP.
+rg -n --no-heading -e "(from|import|mock|importActual)[^'\"]*['\"][^'\"]*(duplicate\-theme|file\-identity\-lock|migrate\-theme|save\-theme\-original|sync\-originals|theme\-preview\-image|theme\-trash)(\.js|\.ts)?['\"]" apps development scripts --glob '!**/node_modules/**' | rg "(theme)"
+# index-barrel importers are NOT in the census: names re-exported by the feature index.ts are listed in the sheet (barrel_names).
+# planning-time rows: 30

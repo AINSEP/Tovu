@@ -1,0 +1,4 @@
+path	loc	blob	label	jini_target
+apps/website/src/features/trash/agent-tools.ts	154	fba503a086519107570f304f79409460c5b13927	MOVE	@jini-ai/cms/trash (agent-tools.ts, trash-item-tool.ts)
+apps/website/src/features/trash/tool-registrations.ts	252	8c5a27d777ca702e9b99c06891ef4d2dafe42c1e	SPLIT	@jini-ai/cms/trash (tool-registrations.ts); permission map injected
+apps/website/src/features/trash/trash-item-tool.ts	518	2151539b5dc9f1602541a5ed1b518a291db2f70f	MOVE	@jini-ai/cms/trash (agent-tools.ts, trash-item-tool.ts)

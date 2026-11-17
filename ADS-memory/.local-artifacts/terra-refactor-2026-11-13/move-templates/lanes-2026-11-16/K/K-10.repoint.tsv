@@ -1,0 +1,18 @@
+importer	line	kind	old_specifier	resolves_to	action
+apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts	88	test	../../features/forms/agent-tools.js	apps/website/src/features/forms/agent-tools.ts	repoint to the Jini specifier in the sheet
+apps/website/src/assistant/__tests__/tool-registrations.forms.test.ts	23	test	../../features/forms/agent-tools.js	apps/website/src/features/forms/agent-tools.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/forms/__tests__/agent-tools.unit.test.ts	3	test	../agent-tools.js	apps/website/src/features/forms/agent-tools.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/forms/__tests__/common-fields.test.ts	8	test	../agent-tools.js	apps/website/src/features/forms/agent-tools.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/forms/index.ts	204	prod	./agent-tools.js	apps/website/src/features/forms/agent-tools.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/forms/tool-registrations.ts	30	prod	./agent-tools.js	apps/website/src/features/forms/agent-tools.ts	moves-too: rewrite to the Jini leaf (./x.js)
+apps/website/src/assistant/__tests__/content-read-get-by-id.test.ts	29	test	../../features/forms/tool-registrations.js	apps/website/src/features/forms/tool-registrations.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/assistant/__tests__/tool-registrations.forms.test.ts	30	test	../../features/forms/tool-registrations.js	apps/website/src/features/forms/tool-registrations.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/assistant/tool-registrations.ts	79	prod	../features/forms/tool-registrations.js	apps/website/src/features/forms/tool-registrations.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/forms/__tests__/agent-tools.unit.test.ts	17	test	../tool-registrations.js	apps/website/src/features/forms/tool-registrations.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/forms/__tests__/common-field-tools.test.ts	8	test	../tool-registrations.js	apps/website/src/features/forms/tool-registrations.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/forms/__tests__/content-duplicate.form.test.ts	11	test	../tool-registrations.js	apps/website/src/features/forms/tool-registrations.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/forms/__tests__/lost-update-boundaries.test.ts	12	test	../tool-registrations.js	apps/website/src/features/forms/tool-registrations.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/forms/__tests__/tool-definition-view.unit.test.ts	6	test	../tool-registrations.js	apps/website/src/features/forms/tool-registrations.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/forms/__tests__/tool-registrations.model-facing-errors.test.ts	25	test	../tool-registrations.js	apps/website/src/features/forms/tool-registrations.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/server/runtime/composition/__tests__/form-delivery.security.test.ts	12	test	#src/features/forms/tool-registrations	apps/website/src/features/forms/tool-registrations.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/server/runtime/composition/tool-catalog-manifest.ts	108	prod	#src/features/forms/tool-registrations	apps/website/src/features/forms/tool-registrations.ts	repoint the MOVED names only; names that stay keep this import

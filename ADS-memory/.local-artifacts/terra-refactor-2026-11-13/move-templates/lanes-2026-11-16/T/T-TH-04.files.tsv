@@ -1,0 +1,3 @@
+path	loc	blob	label	jini_target
+apps/website/src/features/theme/handlebars-allowlist.ts	424	21ad730881fb7d77cac17183144cb1cdbdf03a61	OWNER	new deps handlebars/liquidjs: optional-peer subpaths vs injected TemplateValidatorPort (D-T2)
+apps/website/src/features/theme/liquid-allowlist.ts	297	dc4f14be649b61bd802f099b39e5cc91fe687ff3	OWNER	new deps handlebars/liquidjs: optional-peer subpaths vs injected TemplateValidatorPort (D-T2)

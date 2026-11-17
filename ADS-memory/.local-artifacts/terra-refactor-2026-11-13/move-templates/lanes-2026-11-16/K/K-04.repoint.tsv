@@ -1,0 +1,10 @@
+importer	line	kind	old_specifier	resolves_to	action
+apps/website/src/assistant/__tests__/content-target-inputs.test.ts	16	test	../../features/seo/agent-tools.js	apps/website/src/features/seo/agent-tools.ts	repoint to the Jini specifier in the sheet
+apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts	116	test	../../features/seo/agent-tools.js	apps/website/src/features/seo/agent-tools.ts	repoint to the Jini specifier in the sheet
+apps/website/src/assistant/__tests__/tool-registrations.seo.test.ts	32	test	../../features/seo/agent-tools.js	apps/website/src/features/seo/agent-tools.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/seo/tool-registrations.ts	38	prod	./agent-tools.js	apps/website/src/features/seo/agent-tools.ts	moves-too: rewrite to the Jini leaf (./x.js)
+apps/website/src/server/runtime/composition/content-target-inputs.ts	14	prod	#src/features/seo/agent-tools	apps/website/src/features/seo/agent-tools.ts	repoint to the Jini specifier in the sheet
+apps/website/src/assistant/__tests__/tool-registrations.seo.test.ts	36	test	../../features/seo/tool-registrations.js	apps/website/src/features/seo/tool-registrations.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/assistant/tool-registrations.ts	92	prod	../features/seo/tool-registrations.js	apps/website/src/features/seo/tool-registrations.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/seo/__tests__/lost-update-boundaries.test.ts	10	test	../tool-registrations.js	apps/website/src/features/seo/tool-registrations.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/server/runtime/composition/tool-catalog-manifest.ts	122	prod	#src/features/seo/tool-registrations	apps/website/src/features/seo/tool-registrations.ts	repoint the MOVED names only; names that stay keep this import

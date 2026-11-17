@@ -1,0 +1,6 @@
+importer	line	kind	old_specifier	resolves_to	action
+apps/website/src/features/post/__tests__/cover-image.test.ts	6	test	../cover-image.js	apps/website/src/features/post/cover-image.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/post/rendering.ts	1	prod	./cover-image.js	apps/website/src/features/post/cover-image.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/post/rendering.ts	2	prod	./cover-image.js	apps/website/src/features/post/cover-image.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/seo/__tests__/cover-image-defaults.test.ts	4	test	../../post/cover-image.js	apps/website/src/features/post/cover-image.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/server/inbound/public-http/http/site/__tests__/img-by-url.test.ts	5	test	#src/features/post/cover-image	apps/website/src/features/post/cover-image.ts	repoint the MOVED names only; names that stay keep this import

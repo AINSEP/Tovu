@@ -1,0 +1,3 @@
+path	loc	blob	label	jini_target
+apps/website/src/features/theme/entry-list-render.ts	375	1e09be16bc132f1de7c020a8426d35463c1697c5	SPLIT	@jini-ai/cms/listing (existing subpath); class prefix + safeHref injected
+apps/website/src/features/theme/render-contract.ts	361	b90d551425cd68bf2d6b12eb4131f34fcd62168a	SPLIT	safeHref -> @jini-ai/core/text; rest -> @jini-ai/cms/theme with consent/slot ports

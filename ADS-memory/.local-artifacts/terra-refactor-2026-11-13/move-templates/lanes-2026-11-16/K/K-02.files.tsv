@@ -1,0 +1,3 @@
+path	loc	blob	label	jini_target
+apps/website/src/features/widgets/agent-tools.ts	335	165a6258aa2a4571334ed98655cf0ade63a341e2	MOVE	@jini-ai/cms/widgets (agent-tools.ts)
+apps/website/src/features/widgets/tool-registrations.ts	518	8ad0cc876e96749617abff817a450cee7cdf7702	SPLIT	@jini-ai/cms/widgets (tool-registrations.ts)

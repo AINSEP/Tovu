@@ -1,0 +1,5 @@
+path	loc	blob	label	jini_target
+apps/website/src/features/newsletter/confirmation.ts	186	7cff3a889db861ace63fc6c99ff5858a7d37bf67	MOVE-AFTER	@jini-ai/cms/newsletter after B05 (CLASSIFY row 52)
+apps/website/src/features/newsletter/send-pipeline.ts	614	fc870f8cc735738332a48192365cfde8c6447c08	MOVE-AFTER	@jini-ai/cms/newsletter after B05 (CLASSIFY row 52)
+apps/website/src/features/newsletter/subscriptions.ts	171	9b1f20f0d7691e4fc96afd7f480d4a88b6a75813	MOVE-AFTER	@jini-ai/cms/newsletter after B05 (CLASSIFY row 52)
+apps/website/src/features/newsletter/unsubscribe.ts	142	4f02373bab47cf608219dff02a625fd57c124eef	MOVE-AFTER	@jini-ai/cms/newsletter after B05 (CLASSIFY row 52)

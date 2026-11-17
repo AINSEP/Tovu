@@ -1,0 +1,5 @@
+path	loc	blob	label	jini_target
+apps/website/src/features/post/agent-tools.ts	1000	7243bee33b88d86f202987b1e9d4825f10080f5e	MOVE-AFTER	@jini-ai/cms/posts tools after T-PO-03; size split first
+apps/website/src/features/post/content-stats-tool.ts	173	a0611802771d31cdf75eb451ede8097c296a4f21	MOVE-AFTER	@jini-ai/cms/posts tools after T-PO-03; size split first
+apps/website/src/features/post/preview-tool.ts	86	3761e4b63f79a775ee91ceb2de5863e43ce056de	MOVE-AFTER	@jini-ai/cms/posts tools after T-PO-03; size split first
+apps/website/src/features/post/tool-registrations.ts	1543	d1f7efbddd671e4fcd0de6f0154d25dfa592ffd6	MOVE-AFTER	@jini-ai/cms/posts tools after T-PO-03; size split first

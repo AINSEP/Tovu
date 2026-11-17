@@ -1,0 +1,6 @@
+path	loc	blob	label	jini_target
+apps/website/src/features/theme/migration/theme-migration-plan.ts	280	2c2518e33c22a7097cebbd5a7f0bd5ae772cc10c	MOVE	@jini-ai/cms/theme (pure plan)
+apps/website/src/features/theme/validation/manifest-v2.ts	548	2cc5da1253230fa250d79d6fae8628b8e0db1a5d	MOVE	@jini-ai/cms/theme/node validation
+apps/website/src/features/theme/validation/markup.ts	129	49b7dba4cc622adfb4c7275de801a4976c689fdf	MOVE	@jini-ai/cms/theme/node validation
+apps/website/src/features/theme/validation/validate-theme-package.ts	260	18c29fa142b06a8a19b407d45274fa423dacc059	MOVE	@jini-ai/cms/theme/node validation
+apps/website/src/features/theme/validation/webmcp-markup.ts	210	f0f7060fc76f90435eb5cc5c4376a5f6a5c119be	MOVE	@jini-ai/cms/theme/node (parse5 already a cms dep)

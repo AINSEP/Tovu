@@ -1,0 +1,3 @@
+path	loc	blob	label	jini_target
+apps/website/src/features/newsletter/repo.rows.ts	365	56687c1231862babc01be5da9b55c7ddb47b1033	MOVE-AFTER	@jini-ai/cms/newsletter/sql after B05
+apps/website/src/features/newsletter/repo.ts	644	9a44962c68f894ac2bb732bfbc06b73c780f265d	MOVE-AFTER	@jini-ai/cms/newsletter/sql after B05

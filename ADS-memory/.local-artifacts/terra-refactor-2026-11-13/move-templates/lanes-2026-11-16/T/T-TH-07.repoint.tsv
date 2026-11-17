@@ -1,0 +1,31 @@
+importer	line	kind	old_specifier	resolves_to	action
+apps/website/src/features/theme/__tests__/duplicate-theme.test.ts	9	test	../duplicate-theme.js	apps/website/src/features/theme/duplicate-theme.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/duplicate-theme-tool.ts	7	prod	./duplicate-theme.js	apps/website/src/features/theme/duplicate-theme.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/index.ts	39	prod	./duplicate-theme.js	apps/website/src/features/theme/duplicate-theme.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/__tests__/file-identity-lock.canonical-path.test.ts	4	test	../file-identity-lock.js	apps/website/src/features/theme/file-identity-lock.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/__tests__/theme-file-safety.test.ts	15	test	../file-identity-lock.js	apps/website/src/features/theme/file-identity-lock.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/asset-operations.ts	4	prod	./file-identity-lock.js	apps/website/src/features/theme/file-identity-lock.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/duplicate-theme.ts	7	prod	./file-identity-lock.js	apps/website/src/features/theme/file-identity-lock.ts	moves-too: rewrite to the Jini leaf (./x.js)
+apps/website/src/features/theme/index.ts	195	prod	./file-identity-lock.js	apps/website/src/features/theme/file-identity-lock.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/theme-file-import.ts	27	prod	./file-identity-lock.js	apps/website/src/features/theme/file-identity-lock.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/tool-registrations.ts	84	prod	./file-identity-lock.js	apps/website/src/features/theme/file-identity-lock.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/cli/__tests__/unit/theme-migrate-summary.unit.test.ts	6	test	#src/features/theme/migration/migrate-theme	apps/website/src/features/theme/migration/migrate-theme.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/index.ts	65	prod	./migration/migrate-theme.js	apps/website/src/features/theme/migration/migrate-theme.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/migration/__tests__/migrate-theme.test.ts	7	test	../migrate-theme.js	apps/website/src/features/theme/migration/migrate-theme.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/__tests__/save-theme-original.test.ts	6	test	../save-theme-original.js	apps/website/src/features/theme/save-theme-original.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/index.ts	210	prod	./save-theme-original.js	apps/website/src/features/theme/save-theme-original.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/__tests__/existing-site-template-fallback.integration.test.ts	9	test	../sync-originals.js	apps/website/src/features/theme/sync-originals.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/__tests__/shipped-site-theme-drift.canary.test.ts	7	test	../sync-originals.js	apps/website/src/features/theme/sync-originals.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/__tests__/shipped-theme-original-drift.canary.test.ts	7	test	../sync-originals.js	apps/website/src/features/theme/sync-originals.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/__tests__/sync-originals.test.ts	7	test	../sync-originals.js	apps/website/src/features/theme/sync-originals.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/duplicate-theme.ts	9	prod	./sync-originals.js	apps/website/src/features/theme/sync-originals.ts	moves-too: rewrite to the Jini leaf (./x.js)
+apps/website/src/features/theme/index.ts	208	prod	./sync-originals.js	apps/website/src/features/theme/sync-originals.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/save-theme-original.ts	3	prod	./sync-originals.js	apps/website/src/features/theme/sync-originals.ts	moves-too: rewrite to the Jini leaf (./x.js)
+apps/website/src/features/theme/__tests__/theme-preview-image.test.ts	7	test	../theme-preview-image.js	apps/website/src/features/theme/theme-preview-image.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/server/inbound/admin-http/routes/presentation/get.ts	8	prod	#src/features/theme/theme-preview-image	apps/website/src/features/theme/theme-preview-image.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/server/inbound/admin-http/routes/themes/preview.ts	30	prod	#src/features/theme/theme-preview-image	apps/website/src/features/theme/theme-preview-image.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/__tests__/theme-trash.test.ts	14	test	#src/features/theme/theme-trash	apps/website/src/features/theme/theme-trash.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/__tests__/theme-trash.test.ts	395	test	#src/features/theme/theme-trash	apps/website/src/features/theme/theme-trash.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/__tests__/theme-trash.test.ts	416	test	#src/features/theme/theme-trash	apps/website/src/features/theme/theme-trash.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/server/runtime/composition/app.ts	144	prod	#src/features/theme/theme-trash	apps/website/src/features/theme/theme-trash.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/server/runtime/composition/deps.ts	186	prod	#src/features/theme/theme-trash	apps/website/src/features/theme/theme-trash.ts	repoint the MOVED names only; names that stay keep this import

@@ -1,0 +1,4 @@
+path	loc	blob	label	jini_target
+apps/website/src/features/newsletter/agent-tools.ts	265	6185635eeab9851cc9f19a3a6e6300ce8647cc90	MOVE-AFTER	@jini-ai/cms/newsletter tools after T-NL-01
+apps/website/src/features/newsletter/delivery/tool-registrations.ts	207	7fcdcf5ce3eeb57f655f8151add69026000a3693	MOVE-AFTER	@jini-ai/cms/newsletter tools after T-NL-01
+apps/website/src/features/newsletter/tool-registrations.ts	524	f10346d2f17ebbb560e4f0717fbbb070cbe6f820	MOVE-AFTER	@jini-ai/cms/newsletter tools after T-NL-01

@@ -1,0 +1,10 @@
+path	loc	blob	label	jini_target
+apps/website/src/features/theme/agent-tools.ts	453	b7c36d021d7d1d69766af4e42e2fd663f3a380ce	MOVE-AFTER	@jini-ai/cms/theme tools after the engine is in Jini
+apps/website/src/features/theme/duplicate-theme-tool.ts	174	7d106308740a8e0dfaf27ab5f237677f4dd3383f	MOVE-AFTER	@jini-ai/cms/theme tools after the engine is in Jini
+apps/website/src/features/theme/file-mutation-tools.ts	64	0e049e0b9eea3df082632a9a8cb68476d0b737ea	MOVE-AFTER	@jini-ai/cms/theme tools after the engine is in Jini
+apps/website/src/features/theme/import-theme-file-tool.ts	179	7e1ded8b6996d7a1ee9cfdefab6880429ee4a2bd	MOVE-AFTER	@jini-ai/cms/theme tools after the engine is in Jini
+apps/website/src/features/theme/page-publish-tool.ts	57	323d40bfc10941346ab235a02d47bfa22bf08645	MOVE-AFTER	@jini-ai/cms/theme tools after the engine is in Jini
+apps/website/src/features/theme/preview-switcher-tools.ts	74	53fa3361269022ad2740deeaaa2d69d79b92dcf8	MOVE-AFTER	@jini-ai/cms/theme tools after the engine is in Jini
+apps/website/src/features/theme/set-active-theme-tool.ts	193	2c6b4b490d6363f3a4288b57b9b8bf59837dfe56	MOVE-AFTER	@jini-ai/cms/theme tools after the engine is in Jini
+apps/website/src/features/theme/tool-registrations.ts	1028	6bf0afb19f1ce6aacdfec1d0110fabee317a684a	MOVE-AFTER	@jini-ai/cms/theme tools after the engine is in Jini
+apps/website/src/features/theme/trash-theme-tool.ts	193	a993ae6a55f3ab2a30b0e49807a768856a7d7344	MOVE-AFTER	@jini-ai/cms/theme tools after the engine is in Jini

@@ -1,0 +1,8 @@
+importer	line	kind	old_specifier	resolves_to	action
+apps/website/src/features/seo/__tests__/cover-image-defaults.test.ts	6	test	../cover-image.js	apps/website/src/features/seo/cover-image.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/seo/__tests__/cover-image-resolve.test.ts	10	test	../cover-image.js	apps/website/src/features/seo/cover-image.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/seo/__tests__/cover-image-source.test.ts	11	test	../cover-image.js	apps/website/src/features/seo/cover-image.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/seo/index.ts	25	prod	./cover-image.js	apps/website/src/features/seo/cover-image.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/seo/page-head-contributor.ts	2	prod	./cover-image.js	apps/website/src/features/seo/cover-image.ts	moves-too: rewrite to the Jini leaf (./x.js)
+apps/website/src/features/seo/__tests__/cover-image-head.test.ts	9	test	../page-head-contributor.js	apps/website/src/features/seo/page-head-contributor.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/server/inbound/public-http/routes/site/pages.ts	3	prod	#src/features/seo/page-head-contributor	apps/website/src/features/seo/page-head-contributor.ts	repoint the MOVED names only; names that stay keep this import

@@ -1,0 +1,33 @@
+importer	line	kind	old_specifier	resolves_to	action
+apps/website/src/features/post/__tests__/L156-characterization.test.ts	7	test	../duplicate-embeds.js	apps/website/src/features/post/duplicate-embeds.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/__tests__/duplicate-embeds.test.ts	6	test	../duplicate-embeds.js	apps/website/src/features/post/duplicate-embeds.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/tool-registrations.ts	111	prod	./duplicate-embeds.js	apps/website/src/features/post/duplicate-embeds.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/__tests__/expected-version.test.ts	3	test	../expected-version.js	apps/website/src/features/post/expected-version.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/index.ts	58	prod	./expected-version.js	apps/website/src/features/post/expected-version.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/tool-registrations.ts	105	prod	./expected-version.js	apps/website/src/features/post/expected-version.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/__tests__/featured-image.test.ts	6	test	../featured-image.js	apps/website/src/features/post/featured-image.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/__tests__/tool-registrations.featured-image-refusal.test.ts	18	test	../featured-image.js	apps/website/src/features/post/featured-image.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/index.ts	77	prod	./featured-image.js	apps/website/src/features/post/featured-image.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/tool-registrations.ts	112	prod	./featured-image.js	apps/website/src/features/post/featured-image.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/pages/__tests__/html-document-store.go-live.test.ts	8	test	#src/features/post/go-live	apps/website/src/features/post/go-live.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/__tests__/go-live.repo.test.ts	6	test	../go-live.js	apps/website/src/features/post/go-live.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/__tests__/go-live.test.ts	14	test	../go-live.js	apps/website/src/features/post/go-live.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/__tests__/post.schedule-events.test.ts	6	test	../go-live.js	apps/website/src/features/post/go-live.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/__tests__/reverters.schedule-events.test.ts	12	test	../go-live.js	apps/website/src/features/post/go-live.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/index.ts	76	prod	./go-live.js	apps/website/src/features/post/go-live.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/post.ts	11	prod	./go-live.js	apps/website/src/features/post/go-live.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/repo.memory.ts	13	prod	./go-live.js	apps/website/src/features/post/go-live.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/repo.ts	15	prod	./go-live.js	apps/website/src/features/post/go-live.ts	repoint to the Jini specifier in the sheet
+apps/website/src/server/runtime/composition/serving-app.ts	4	prod	#src/features/post/go-live	apps/website/src/features/post/go-live.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/__tests__/html-plain-text.pb1.test.ts	4	test	../html-plain-text.js	apps/website/src/features/post/html-plain-text.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/__tests__/html-plain-text.test.ts	3	test	../html-plain-text.js	apps/website/src/features/post/html-plain-text.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/content-stats-tool.ts	13	prod	./html-plain-text.js	apps/website/src/features/post/html-plain-text.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/index.ts	75	prod	./html-plain-text.js	apps/website/src/features/post/html-plain-text.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/rendering.ts	4	prod	./html-plain-text.js	apps/website/src/features/post/html-plain-text.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/search.ts	3	prod	./html-plain-text.js	apps/website/src/features/post/html-plain-text.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/tool-registrations.ts	106	prod	./html-plain-text.js	apps/website/src/features/post/html-plain-text.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/site-backup/static-download-landing.ts	2	prod	../post/html-plain-text.js	apps/website/src/features/post/html-plain-text.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/contracts.ts	1	prod	./post-vocabulary.js	apps/website/src/features/post/post-vocabulary.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/go-live.ts	6	prod	./post-vocabulary.js	apps/website/src/features/post/post-vocabulary.ts	moves-too: rewrite to the Jini leaf (./x.js)
+apps/website/src/features/post/post.ts	15	prod	./post-vocabulary.js	apps/website/src/features/post/post-vocabulary.ts	repoint to the Jini specifier in the sheet
+apps/website/src/features/post/post.ts	16	prod	./post-vocabulary.js	apps/website/src/features/post/post-vocabulary.ts	repoint to the Jini specifier in the sheet

@@ -1,0 +1,9 @@
+importer	line	kind	old_specifier	resolves_to	action
+apps/website/src/features/theme/__tests__/handlebars-allowlist.test.ts	14	test	../handlebars-allowlist.js	apps/website/src/features/theme/handlebars-allowlist.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/index.ts	143	prod	./handlebars-allowlist.js	apps/website/src/features/theme/handlebars-allowlist.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/theme.ts	12	prod	./handlebars-allowlist.js	apps/website/src/features/theme/handlebars-allowlist.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/server/inbound/public-http/http/site/handlebars-render.ts	4	prod	#src/features/theme/handlebars-allowlist	apps/website/src/features/theme/handlebars-allowlist.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/__tests__/liquid-allowlist.test.ts	6	test	../liquid-allowlist.js	apps/website/src/features/theme/liquid-allowlist.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/index.ts	132	prod	./liquid-allowlist.js	apps/website/src/features/theme/liquid-allowlist.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/features/theme/theme.ts	13	prod	./liquid-allowlist.js	apps/website/src/features/theme/liquid-allowlist.ts	repoint the MOVED names only; names that stay keep this import
+apps/website/src/server/inbound/public-http/http/site/liquid-render.ts	5	prod	#src/features/theme/liquid-allowlist	apps/website/src/features/theme/liquid-allowlist.ts	repoint the MOVED names only; names that stay keep this import
