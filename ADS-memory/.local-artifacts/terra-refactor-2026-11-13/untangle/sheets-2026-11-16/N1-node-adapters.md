@@ -33,10 +33,18 @@ tovu_files: none (no Tovu file imports `@jini-ai/platform/runtime-ports/*`; step
 | imports only `core`, `protocol`, `platform` (any kind) and **type-only** imports of a domain package | gate rule below + T1c |
 | only a host or a host preset imports it | gate rule below + T1d |
 | it never imports a host preset | existing rule "nothing may import a host-preset package" + T1f |
-| exports bindings only, assembles nothing | T3 surface pin + `rg -n "createLocalNodeDaemon\|create[A-Z][A-Za-z]*(Daemon\|Server\|Kernel\|App)\(" packages/node-adapters/src` prints nothing |
+| exports bindings only, assembles nothing | T3 surface pin + block N1-a below prints nothing |
 | no root barrel: there is **no `"."` export**; one subpath per binding family | T3 (`exports` keys equal the checked-in list) |
 | every export-map entry exists and builds in the commit that adds it (lesson 25) | `pnpm --filter @jini-ai/node-adapters build && node -e "for (const k of ['fs','process']) await import('@jini-ai/node-adapters/'+k)"` run from `packages/server` |
-| declared deps are imported statically | `rg -n "await import\(\|loadOptionalPeer\|require\(" packages/node-adapters/src` prints nothing |
+| declared deps are imported statically | block N1-b below prints nothing |
+
+Commands for the table (copy from here, never from a table cell; revision 3: the old cells used `\|`, which is a **literal** pipe in ripgrep's regex, so they matched nothing and could never fire):
+```bash
+# N1-a: assembles nothing
+rg -n 'createLocalNodeDaemon|create[A-Z][A-Za-z]*(Daemon|Server|Kernel|App)\(' packages/node-adapters/src
+# N1-b: declared deps imported statically
+rg -n 'await import\(|loadOptionalPeer|require\(' packages/node-adapters/src
+```
 
 ### Gate rule (edit `scripts/lib/injection-edges.ts`; keep each function ≤ 50 lines, `(required, optional = {})`)
 ```ts
@@ -49,8 +57,8 @@ export function runtimeAdapters(required: { packages: readonly SourcePackage[] }
 `l5Reason` gains `adapters: ReadonlySet<string>` in its required object and three checks, placed **after** the base-package check and the preset checks:
 1. `adapters.has(edge.target)` and the owner is not a preset → `'only a host or a host preset may import a runtime-adapter package'`.
 2. `adapters.has(edge.owner)` and `edge.target === 'platform'` → allowed.
-3. `adapters.has(edge.owner)` and the edge is type-only or a manifest peer → allowed. Read `scripts/lib/import-sites.ts` for the real `SiteKind` member that means type-only and use that member; `manifest-peer` is the kind `manifestEdges` gives a peer (`injection-edges.ts:69`). A **value** import of a domain package, or a domain package in `dependencies`, keeps the normal L5 reason.
-Thread `adapters` through `injectedEdgeFindings` and its caller (`rg -n "injectedEdgeFindings\|hostPresets\(" scripts`). `advisoryTestEdges` is unchanged.
+3. `adapters.has(edge.owner)` and the edge is type-only or a manifest peer → allowed. `SiteKind` (`scripts/lib/import-sites.ts:13`) has **three** type-only members: `type-import`, `import-type` and `jsdoc-import`; treat all three as type-only (T1b covers each); `manifest-peer` is the kind `manifestEdges` gives a peer (`injection-edges.ts:69`). A **value** import of a domain package, or a domain package in `dependencies`, keeps the normal L5 reason.
+Thread `adapters` through `injectedEdgeFindings` and its caller (`rg -n 'injectedEdgeFindings|hostPresets\(' scripts`). `advisoryTestEdges` is unchanged.
 
 ## Package shape (step 2)
 ```jsonc
@@ -64,26 +72,35 @@ Thread `adapters` through `injectedEdgeFindings` and its caller (`rg -n "injecte
   "dependencies": { "@jini-ai/core": "workspace:*", "@jini-ai/platform": "workspace:*" } }
 ```
 - Take the exact version, `workspace:` range style, `tsconfig.json` and `vitest.config.ts` from `packages/platform` (same compiler flags: lesson 22). If `pnpm guard` demands `jini.entries["."]` or an `isolation` block for a package without a root entry, **STOP** and paste the message (command: `pnpm guard`).
-- Inside the moved files the relative imports become package imports: `../fs/backup-once.js` → the platform entry that exports `backupOriginalOnce` (`rg -n "backupOriginalOnce\|writeFileAtomicAsync\|withFileLock\|listProcessSnapshots" packages/platform/package.json packages/platform/src/fs/index.ts packages/platform/src/index.ts`; use the narrowest existing entry: `@jini-ai/platform/fs`, `@jini-ai/platform/process`). If a function has **no** public platform entry, **STOP** (command: the `rg` above prints no export for it): adding a platform export is a separate decision.
+- Inside the moved files the relative imports become package imports: `../fs/backup-once.js` → the platform entry that exports `backupOriginalOnce` (use the narrowest existing entry: `@jini-ai/platform/fs`, `@jini-ai/platform/process`). The moved files need **seven** platform functions (Opus review B16; re-list with `rg -n '^import' <moved files>` and add any name missing here). `@jini-ai/platform/fs` re-exports with `export *` (`src/fs/index.ts:2-17`), so a text search cannot prove an export: check the built entries. If the block prints a line, **STOP**: adding a platform export is a separate decision.
+  ```bash
+  # N1-c, from packages/platform after `pnpm --filter @jini-ai/platform build` (self-reference by package name)
+  node --input-type=module -e "const fs = await import('@jini-ai/platform/fs'); const pr = await import('@jini-ai/platform/process'); for (const [m, n] of [[fs,'backupOriginalOnce'],[fs,'writeFileAtomicAsync'],[fs,'writeJsonFileAtomicAsync'],[fs,'withFileLock'],[pr,'listProcessSnapshots'],[pr,'stopProcesses'],[pr,'waitForProcessExit']]) if (typeof m[n] !== 'function') console.log('NO PUBLIC ENTRY:', n);"
+  ```
 - The header comment of each moved file moves with it; reword only the sentence that names `./runtime-ports/*` (why-comments move with the code).
 - Later lanes add **their own entry in their own commit**, each with its source file and test: R11a `./agent-plugins`, R11b-3 `./http`, R10b-1 `./agent-runtime`. N1 does not pre-create empty entries.
 
 ## Tests to write first
 | # | Where | Asserts | Fails when |
 |---|---|---|---|
-| T1a–f | `scripts/__tests__/check-package-layers.injection.test.ts` (use its `manifest()` helper, `:174`) | (a) adapter → `platform` value import: no finding; (b) adapter → domain type-only import: none; (c) adapter → domain **value** import: L5 finding; (d) domain → adapter: finding with the new reason; (e) host preset → adapter: none; (f) adapter → host preset: finding | rule missing, or allows a value import |
+| T1a–f | `scripts/__tests__/check-package-layers.injection.test.ts` (use its `manifest()` helper, `:19`) | (a) adapter → `platform` value import: no finding; (b) adapter → domain type-only import, once per type-only `SiteKind` (`type-import`, `import-type`, `jsdoc-import`): none; (c) adapter → domain **value** import: L5 finding; (d) domain → adapter: finding with the new reason; (e) host preset → adapter: none; (f) adapter → host preset: finding | rule missing, or allows a value import |
 | T2 | moved `runtime-ports.test.ts` + `.typecheck.ts` | unchanged assertions pass from the new package (they already use recording fakes of the three process functions) | an argument is reshaped by the move |
 | T3 | `packages/node-adapters/src/__tests__/surface.test.ts` (new) | `Object.keys(pkg.exports)` equals `['./fs','./process']` (sorted); each entry's exported names equal a checked-in list; every `dist` target named in `exports` has a matching `src` file | an entry without a source, a root barrel, an unlisted export |
 T1 is RED before step 1's rule. T3 is RED before step 2's package exists (run it from the new package once its manifest is in place, before the `git mv`).
 
 ## Steps (each commit green alone; nothing is left for a coordinator)
-0. Baseline (COMMON §Base) + prove the "no importer" fact: `rg -n "platform/runtime-ports\|nodeFileLock\|nodeAtomicWriter\|nodeProcessControl" packages examples -g '!**/dist/**' -g '!packages/platform/**'` in Jini and the same names over Tovu `apps packages`. Any hit: repoint it in step 2's commit (Jini) or a paired Tovu commit; more than 5 hits: **STOP** (the fact base changed).
+0. Baseline (COMMON §Base) + prove the "no importer" fact (block N1-d, in Jini; the second line in Tovu). Any hit: repoint it in step 2's commit (Jini) or a paired Tovu commit; more than 5 hits: **STOP** (the fact base changed).
+   ```bash
+   # N1-d
+   rg -n 'platform/runtime-ports|nodeFileLock|nodeAtomicWriter|nodeProcessControl' packages examples -g '!**/dist/**' -g '!packages/platform/**'   # Jini
+   rg -n 'platform/runtime-ports|nodeFileLock|nodeAtomicWriter|nodeProcessControl' apps packages -g '!**/dist/**' -g '!**/node_modules/**'   # Tovu
+   ```
 1. Gate rule + T1a–f + `packages/README.md` paragraph for the kind. `pnpm guard && npx vitest run scripts/__tests__/check-package-layers.injection.test.ts` (use the scripts test command from root `package.json`). Commit.
 2. Package + the two moves + tests + platform manifest edit + `pnpm install --config.prefer-workspace-packages=true` (lockfile) + `pnpm api:update` + changeset (node-adapters: new package; platform: the two removed entries are a breaking change, follow `.changeset/README.md`). Checks: `pnpm --filter @jini-ai/platform --filter @jini-ai/node-adapters build`, both packages' tests, `pnpm guard`, `pnpm api:check`, `pnpm typecheck`. Test count: platform loses exactly the moved cases, node-adapters gains the same number + T3. Commit.
 3. Report `cloud-results/xpkg/N1.md` (COMMON §Git).
 
 ## STOP (each with its command)
 - `pnpm guard` rejects the manifest shape (no root entry / kind) → paste output.
-- A moved file needs a platform function that has no public entry → the `rg` in "Package shape".
+- A moved file needs a platform function that has no public entry → block N1-c in "Package shape".
 - Step 0 finds more than 5 importers.
-- The gate change makes any **existing** package pass or fail differently: `pnpm guard` output before and after step 1 must be identical (`diff <(git stash list >/dev/null; pnpm guard 2>&1) …` is not allowed here: run `pnpm guard > /tmp/guard-before.txt` at step 0 and `pnpm guard > /tmp/guard-after.txt` after step 1, then `diff` them; any difference is a STOP).
+- The gate change makes any **existing** package pass or fail differently: `pnpm guard` output before and after step 1 must be identical (`diff <(git stash list >/dev/null; pnpm guard 2>&1) …` is not allowed here: run `pnpm guard > /tmp/guard-before.txt 2>&1` at step 0 and `pnpm guard > /tmp/guard-after.txt 2>&1` after step 1, then `diff` them; any difference is a STOP).

@@ -13,6 +13,7 @@ Read `COMMON.md` first, and GAPS §4.3 (decisions 1–4 are kept as written: who
 NEW packages/integration-tests/{package.json ("private": true, name "@jini-ai/integration-tests"), tsconfig.json, vitest.config.ts, src/.gitkeep}
 NEW packages/core/src/contracts/runtime/testing.ts   -> fakeFileLock(), fakeAtomicWriter(), fakeProcessControl(), fakeHttpFetch(), fakeGuardedHttp({ routes })
 NEW packages/ui/src/react/testing.tsx (moved from src/react/__tests__/fake-ui-kit.tsx) ; packages/admin/src/react/testing.tsx (moved fake-admin-kit: locate it with rg -l "fakeAdminKit" packages/admin/src)
+GENERATED api-baseline/jini-ai__core.json (new ./contracts/runtime/testing entry), api-baseline/jini-ai__ui.json, api-baseline/jini-ai__admin.json (new /testing entries): `pnpm api:update` in the same commits; core's baseline has wave-1 co-writers (R6-R9, R10a): COMMON "generated, never hand-merged"
 NEW scripts/injection-test-debt.json (per-owner counts from the census) + the gate turning the advisory into a per-owner ratchet (read scripts/lib/injection-gate.ts `advisoryTestEdges` first)
 ```
 - Copy the vitest config family from a package that has both node and jsdom projects (a root-level `npx vitest` has no jsdom: Jini standing rule). `packages/integration-tests` may import anything (DESIGN B6); the gate must also refuse any package importing **it**.

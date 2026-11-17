@@ -2,7 +2,7 @@
 
 Read `COMMON.md` first. Source: `census/merged/CENSUS-manifest.tsv`, rows with `status = STALE` (a `dependencies` or `peerDependencies` entry on a non-base `@jini-ai/*` package with **no** production import, type-only and dynamic imports included). 19 rows at the merged state. GAPS §3.2 listed 19 at an older base; two rows differ: `db → platform` is already gone, and `analytics → agent-runtime` is new (C6 removed its last import).
 
-This lane edits only `packages/*/package.json` and the manifest-assertion tests named below. Revision 2 (judge finding 1): each per-package commit also carries `pnpm-lock.yaml` and deletes that manifest's own keys from `scripts/injection-debt.json` (a stale allowance fails the gate, rule `injection-debt-stale`). The list of stale rows is `awk -F'\t' '$5=="STALE"' census/merged/CENSUS-manifest.tsv` (20 rows on merge-a+b: re-run the census first; `user-management → ui-kit` is **USED** under option C and is not touched).
+This lane edits only `packages/*/package.json` and the manifest-assertion tests named below. Revision 2 (judge finding 1): each per-package commit also carries `pnpm-lock.yaml` and deletes that manifest's own keys from `scripts/injection-debt.json` (a stale allowance fails the gate, rule `injection-debt-stale`). The list of stale rows is `awk -F'\t' '$5=="STALE"' census/merged/CENSUS-manifest.tsv` (20 rows on merge-a+b: re-run the census first; `user-management → ui-kit` is **USED** under option C and is not touched). The table below has all 20: rows 1–19 are this lane's, row 20 (`daemon → db`) is listed only to be skipped.
 
 | # | owner → target | field | test files that still import the target | action |
 |---|---|---|---|---|
@@ -25,6 +25,7 @@ This lane edits only `packages/*/package.json` and the manifest-assertion tests 
 | 17 | registry → platform | dependency | 1 (`__tests__/github-client.test.ts`) | **step 2** |
 | 18 | ui → agentic | dependency | 1 (`react/__tests__/components/agent-handles-driver.integration.test.tsx`) | **step 2** |
 | 19 | ui → ui-kit | dependency | 2 (`__tests__/ui-kit-render-support.tsx`, the same integration test) | **step 2** |
+| 20 | daemon → db | dependency | — | **skip** (Opus review B11): R8b step 9 owns daemon's manifest (`R8-RUNTIME.md` §12.5: `@jini-ai/db` and `@jini-ai/platform` leave daemon's `dependencies` only after `rg` shows no `src` importer). Do not touch `packages/daemon/package.json` in this lane (INDEX §4 gives daemon to R8a-rest/R8b). |
 
 ## Step 1 (rows 1–11): delete now
 1. For each row, re-verify: `rg -n "@jini-ai/<target>['\"/]" packages/<owner>` (all files, tests and scripts and `tsup`/`vite` configs included, not only `src`). Any hit outside comments: the row moves to step 2.

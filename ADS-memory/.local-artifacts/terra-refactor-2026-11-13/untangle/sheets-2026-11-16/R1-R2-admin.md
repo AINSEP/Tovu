@@ -80,4 +80,4 @@ Then: delete `@jini-ai/cms` and `@jini-ai/agent-plugins` from admin's manifest w
 ## STOP (all three)
 - A kit or port lacks a name and adding it would change `jini-kits.ts` beyond one line per name.
 - R2a: a registry-derived module constant is consumed outside admin (a host imports `FIELD_TYPES`).
-- R2b: the 84 comment tests cannot be served from one helper.
+- R2b: the comment tests (4 importing files, 24 call sites of `createMemoryCommentsApi`; revision 2 corrected the old "84") cannot be served from one helper.

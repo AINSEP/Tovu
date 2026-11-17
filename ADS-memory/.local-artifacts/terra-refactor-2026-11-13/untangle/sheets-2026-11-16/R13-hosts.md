@@ -2,7 +2,7 @@
 
 Revision 2 (judge finding 1; owner decision OD-3). The census now classes all 54 R13 rows as `allowed-preset` (39) or `frozen` (15): **R13 has no import-cleanup work.** What remains is the exception bookkeeping (R13a), moving logic out of the preset (R13b), one shell (R13c) and the adapter audit (R13d, rewritten: adapters no longer arrive in the preset).
 
-Read `COMMON.md` first. Sites: `sites/R13.sites.tsv` (51): `server` 35 in 12 files, `cli` 1, `sqlite` 11 (one file), `infra` 4 (two files).
+Read `COMMON.md` first. Sites: `sites/R13.sites.tsv` (54, revision 3 re-count): `server` 38 in 13 files, `cli` 1 (39 `allowed-preset`), `sqlite` 11 (one file), `infra` 4 (two files) (15 `frozen`).
 
 ## What is already true (verified at the merged state)
 - `packages/server/package.json` and `packages/cli/package.json` already carry `jini.kind: "host-preset"`, and the gate knows presets (`scripts/lib/injection-edges.ts:14-19,77`: a preset may import anything; "nothing may import a host-preset package"). **The "mark as host-preset" half of the LANES row is done.** The 36 server/cli sites are allowed edges; they are listed only because the census counts every non-base import.
