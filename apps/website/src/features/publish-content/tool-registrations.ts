@@ -228,8 +228,8 @@ async function connectWithTrust(
         repo: routeDeps.publishContentPeerRepo,
         clock: routeDeps.clock,
         idGen: routeDeps.idGen,
-        connectGrant: (connectInput, _options: Record<string, never> = {}) => connectDestination(trustDeps, connectInput),
-        reverseGrant: () => disconnectDestination(trustDeps),
+        connectGrant: (connectInput, _options: Record<string, never> = {}) => connectDestination({ deps: trustDeps, input: connectInput }),
+        reverseGrant: () => disconnectDestination({ deps: trustDeps }),
       },
       { workspaceId: routeDeps.workspaceId, baseUrl: baseUrl, entityTypes }
     );

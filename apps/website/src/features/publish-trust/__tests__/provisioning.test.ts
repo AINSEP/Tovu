@@ -68,7 +68,7 @@ test("a single grant object is accepted, but is re-serialised as a list", () => 
   assert.equal(parsed.ok, true);
   assert.equal(parsed.ok && parsed.grants.length, 1);
 
-  const written = serializeGrantDocument(parsed.ok ? parsed.grants : [], { pretty: true });
+  const written = serializeGrantDocument({ grants: parsed.ok ? parsed.grants : [], options: { pretty: true } });
   assert.equal(JSON.parse(written).length, 1, "a one-grant document still writes as an array");
 });
 
@@ -90,7 +90,7 @@ test("connecting a second computer keeps the first one connected", async () => {
 
 test("reconnecting the same computer replaces its entry in place", () => {
   const rotated = grantFor("laptop", { publicKeys: [{ publicKeyB64u: "pk-new", generation: 1 }] });
-  const merged = mergeGrant([grantFor("laptop"), grantFor("desktop")], rotated);
+  const merged = mergeGrant({ existing: [grantFor("laptop"), grantFor("desktop")], incoming: rotated });
 
   assert.equal(merged.ok, true);
   assert.equal(merged.ok && merged.grants.length, 2);
@@ -113,7 +113,7 @@ test("an unchanged reconnect reports changed:false so there is nothing to commit
 
 test("the grant list is bounded", () => {
   const full = Array.from({ length: MAX_PROVISIONED_GRANTS }, (_, i) => grantFor(`m${i}`));
-  const overflow = mergeGrant(full, grantFor("one-too-many"));
+  const overflow = mergeGrant({ existing: full, incoming: grantFor("one-too-many") });
   assert.equal(overflow.ok, false);
   assert.match(overflow.ok ? "" : overflow.reason, /disconnect one first/);
 });
@@ -139,8 +139,8 @@ test("an install that has never been published to says so in a sentence", () => 
   assert.equal(res.state, "absent");
   assert.equal(res.origin, "none");
   assert.deepEqual(res.grants, []);
-  assert.match(describePublishTrustState(res), /^No computer is connected to this site for publishing yet\./);
-  assert.doesNotMatch(describePublishTrustState(res), /[A-Z_]{6,}/, "the empty state must not surface an error code");
+  assert.match(describePublishTrustState({ res }), /^No computer is connected to this site for publishing yet\./);
+  assert.doesNotMatch(describePublishTrustState({ res }), /[A-Z_]{6,}/, "the empty state must not surface an error code");
 });
 
 test("an empty committed trust file is absent rather than revoked", () => {
@@ -199,7 +199,7 @@ test("an operator with only the provider console can switch publishing off", () 
 
   assert.equal(res.state, "revoked", "the env var must override the committed file, or there is no kill switch");
   assert.equal(res.origin, "env");
-  assert.match(describePublishTrustState(res), new RegExp(PUBLISH_TRUST_ENV_VAR));
+  assert.match(describePublishTrustState({ res }), new RegExp(PUBLISH_TRUST_ENV_VAR));
 });
 
 test("an operator with only the repository can switch publishing off", () => {
@@ -405,7 +405,7 @@ test("whitespace documents are empty and an overfull document is refused whole",
 
 test("compact serialization round-trips without the committed file's whitespace", () => {
   const grants = [grantFor("laptop"), grantFor("desktop")];
-  const text = serializeGrantDocument(grants, { pretty: false });
+  const text = serializeGrantDocument({ grants, options: { pretty: false } });
   assert.equal(text.includes("\n"), false);
   assert.deepEqual(parseGrantDocument({ text }), { ok: true, grants });
 });
@@ -421,14 +421,14 @@ test("an env grant configures the running install in preference to the committed
 });
 
 test("destination status messages distinguish one computer, several, revocation and invalid settings", () => {
-  assert.equal(describePublishTrustState({ state: "configured", origin: "file", grants: [grantFor("one")], reason: null }),
+  assert.equal(describePublishTrustState({ res: { state: "configured", origin: "file", grants: [grantFor("one")], reason: null } }),
     "1 computer can publish to this site.");
-  assert.equal(describePublishTrustState({ state: "configured", origin: "file", grants: [grantFor("one"), grantFor("two")], reason: null }),
+  assert.equal(describePublishTrustState({ res: { state: "configured", origin: "file", grants: [grantFor("one"), grantFor("two")], reason: null } }),
     "2 computers can publish to this site.");
-  assert.equal(describePublishTrustState({ state: "revoked", origin: "file", grants: [], reason: null }),
+  assert.equal(describePublishTrustState({ res: { state: "revoked", origin: "file", grants: [], reason: null } }),
     "Publishing to this site is switched off. No computer is connected.");
   for (const reason of [null, "Bad version."]) {
-    assert.equal(describePublishTrustState({ state: "invalid", origin: "file", grants: [], reason }),
+    assert.equal(describePublishTrustState({ res: { state: "invalid", origin: "file", grants: [], reason } }),
       "This site's publishing settings could not be read, so nobody can publish to it." + (reason ? ` ${reason}` : ""));
   }
 });

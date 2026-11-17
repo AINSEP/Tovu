@@ -195,8 +195,10 @@ async function scenario(sourceWorkspaceId = "workspace-local") {
 async function connectAndDeploy(s: Awaited<ReturnType<typeof scenario>>, siteKeyHex = SOURCE_SITE_KEY) {
   const keyring = testKeyring(siteKeyHex);
   const connected = await connectDestination(
-    { httpClient: s.httpClient, keyring, provisioning: s.provisioning, clock: s.clock, workspaceId: s.sourceDeps.workspaceId },
-    { baseUrl: DESTINATION_ORIGIN, entityTypes: listPublishContentContributors().map((c) => c.entityType) }
+    {
+      deps: { httpClient: s.httpClient, keyring, provisioning: s.provisioning, clock: s.clock, workspaceId: s.sourceDeps.workspaceId },
+      input: { baseUrl: DESTINATION_ORIGIN, entityTypes: listPublishContentContributors().map((c) => c.entityType) }
+    }
   );
   const site = await saveConnectedDestination(
     { repo: s.peerRepo, clock: s.clock, idGen: s.idGen },
@@ -444,21 +446,25 @@ test("disconnecting removes only this computer, and leaves another computer's gr
     // A second computer connects to the same site.
     await connectDestination(
       {
-        httpClient: s.httpClient,
-        keyring: testKeyring(OTHER_COMPUTER_SITE_KEY),
-        provisioning: s.provisioning,
-        clock: s.clock,
-        workspaceId: s.sourceDeps.workspaceId,
-      },
-      { baseUrl: DESTINATION_ORIGIN, entityTypes: ["post"] }
+        deps: {
+          httpClient: s.httpClient,
+          keyring: testKeyring(OTHER_COMPUTER_SITE_KEY),
+          provisioning: s.provisioning,
+          clock: s.clock,
+          workspaceId: s.sourceDeps.workspaceId,
+        },
+        input: { baseUrl: DESTINATION_ORIGIN, entityTypes: ["post"] }
+      }
     );
     assert.equal((JSON.parse(await s.readGrantDocument()) as unknown[]).length, 2);
 
     await disconnectDestination({
-      keyring: testKeyring(SOURCE_SITE_KEY),
-      provisioning: s.provisioning,
-      workspaceId: s.sourceDeps.workspaceId,
-    });
+                                  deps: {
+        keyring: testKeyring(SOURCE_SITE_KEY),
+        provisioning: s.provisioning,
+        workspaceId: s.sourceDeps.workspaceId,
+      }
+                                });
 
     const remaining = JSON.parse(await s.readGrantDocument()) as unknown[];
     assert.equal(remaining.length, 1, "disconnecting one computer must never revoke another");

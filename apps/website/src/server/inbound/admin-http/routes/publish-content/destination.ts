@@ -224,8 +224,8 @@ export function registerPublishContentDestinationRoutes(
           repo: deps.publishContentPeerRepo,
           clock: deps.clock,
           idGen: deps.idGen,
-          connectGrant: (input, _options: Record<string, never> = {}) => connectDestination(trustDeps, input),
-          reverseGrant: () => disconnectDestination(trustDeps),
+          connectGrant: (input, _options: Record<string, never> = {}) => connectDestination({ deps: trustDeps, input }),
+          reverseGrant: () => disconnectDestination({ deps: trustDeps }),
         },
         { workspaceId: deps.workspaceId, baseUrl: normalized.baseUrl, entityTypes }
       );
@@ -253,10 +253,12 @@ export function registerPublishContentDestinationRoutes(
           idGen: deps.idGen,
           reverseGrant: () =>
             disconnectDestination({
-              keyring: deps.siteAssistantSecretKeyring,
-              provisioning: own.provisioning,
-              workspaceId: deps.workspaceId,
-            }),
+                                    deps: {
+                keyring: deps.siteAssistantSecretKeyring,
+                provisioning: own.provisioning,
+                workspaceId: deps.workspaceId,
+              }
+                                  }),
         },
         { workspaceId: deps.workspaceId }
       );

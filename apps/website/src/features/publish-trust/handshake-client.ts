@@ -234,8 +234,11 @@ async function callHandshake(
  * @complexity O(1) plus one round trip.
  */
 export async function fetchDestinationIdentity(
-  deps: HandshakeClientDeps,
-  input: { baseUrl: string }
+  { deps, input }: {
+    deps: HandshakeClientDeps;
+    input: { baseUrl: string };
+  },
+  _optional = {}
 ): Promise<DestinationIdentity> {
   const body = await callHandshake(deps, { method: "GET", baseUrl: input.baseUrl, path: "/identity" });
   const { installationId, workspaceId, origin } = body;
@@ -262,11 +265,14 @@ export async function fetchDestinationIdentity(
  * @complexity O(1) plus three round trips, two HKDFs and one Ed25519 signature.
  */
 export async function openPublishSession(
-  deps: HandshakeClientDeps & { readonly keyring: KeyringPort },
-  input: { baseUrl: string; workspaceId: string; generation?: number; backstop?: boolean }
+  { deps, input }: {
+    deps: HandshakeClientDeps & { readonly keyring: KeyringPort };
+    input: { baseUrl: string; workspaceId: string; generation?: number; backstop?: boolean };
+  },
+  _optional = {}
 ): Promise<PublishSession> {
   const generation = input.generation ?? PUBLISH_TRUST_GENERATION;
-  const identity = await fetchDestinationIdentity(deps, input);
+  const identity = await fetchDestinationIdentity({ deps, input });
 
   const challenge = await callHandshake(deps, { method: "POST", baseUrl: input.baseUrl, path: "/challenge", body: {} });
   const { nonce, targetInstallationId } = challenge;

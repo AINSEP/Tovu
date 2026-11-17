@@ -35,7 +35,7 @@ export function buildRegistrations(deps: Deps): ToolRegistration[] {
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "publish_content.apply" });
       try {
         const removed = await disconnectAndForgetDestination({ repo: deps.publishContentPeerRepo, clock: deps.clock, idGen: deps.idGen,
-          reverseGrant: () => disconnectDestination({ keyring: deps.siteAssistantSecretKeyring, provisioning: deps.publishTrustProvisioning ?? defaultProvisioning(), workspaceId: deps.workspaceId }),
+          reverseGrant: () => disconnectDestination({ deps: { keyring: deps.siteAssistantSecretKeyring, provisioning: deps.publishTrustProvisioning ?? defaultProvisioning(), workspaceId: deps.workspaceId } }),
         }, { workspaceId: deps.workspaceId });
         return { connected: false, site: null, candidateUrl: removed.site?.baseUrl ?? await (deps.findPublishCandidate ?? (async () => null))(),
           message: removed.site ? `This computer no longer publishes to ${removed.site.label}.` : "This computer was not publishing anywhere.",

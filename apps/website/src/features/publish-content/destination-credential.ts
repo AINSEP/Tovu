@@ -74,10 +74,10 @@ export async function resolvePublishDestinationCredential(
     return resolvePeerCredential({ repo: deps.repo, sealer: deps.sealer }, input);
   }
 
-  const session = await openSession(
-    { httpClient: deps.httpClient, keyring: deps.keyring },
-    { baseUrl: record.baseUrl, workspaceId: input.workspaceId, ...(input.backstop ? { backstop: true } : {}) }
-  );
+  const session = await openSession({
+    deps: { httpClient: deps.httpClient, keyring: deps.keyring },
+    input: { baseUrl: record.baseUrl, workspaceId: input.workspaceId, ...(input.backstop ? { backstop: true } : {}) },
+  });
 
   // The workspace learned at connect time, re-checked against what the site says about itself right
   // now. A destination rebuilt under a different workspace is a DIFFERENT site; publishing into it

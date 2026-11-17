@@ -217,7 +217,7 @@ export function admitPublish(input: {
   readonly publicKeyB64u: string;
   readonly siteLabel: string;
   readonly nowIso: string;
-}): PublishAdmission {
+}, _optional = {}): PublishAdmission {
   const refuse = (refusal: AdmissionRefusal): PublishAdmission => ({
     allowed: false,
     refusal,

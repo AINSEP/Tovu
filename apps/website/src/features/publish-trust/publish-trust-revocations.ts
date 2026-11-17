@@ -134,7 +134,7 @@ export class SqlPublishTrustRevocationStore implements PublishTrustRevocationPor
 }
 
 /** The deny store on `kernel`'s database, whichever dialect, after proving it is readable. */
-export async function publishTrustRevocationStoreFor(kernel: ContentKernel): Promise<SqlPublishTrustRevocationStore> {
+export async function publishTrustRevocationStoreFor({ kernel }: { kernel: ContentKernel }, _optional = {}): Promise<SqlPublishTrustRevocationStore> {
   const store = new SqlPublishTrustRevocationStore(kernel);
   await store.assertAvailable();
   return store;

@@ -14,7 +14,7 @@ import type { ContentKernel } from "../../content-kernel.js";
 
 describeEachDialect(
   "publish trust revocations",
-  { tables: ["publish_trust_revocations"], make: publishTrustRevocationStoreFor },
+  { tables: ["publish_trust_revocations"], make: (kernel) => publishTrustRevocationStoreFor({ kernel }) },
   (make) => {
     test("revoke without a note returns null in both the write result and the stored list", async () => {
       const store = await make();
@@ -71,7 +71,7 @@ describeEachDialect("publish trust revocation failures", {
     await kernel.execute(sql`ALTER TABLE publish_trust_revocations RENAME TO revocations_aside`);
     try {
       const store = new SqlPublishTrustRevocationStore(kernel);
-      await assert.rejects(publishTrustRevocationStoreFor(kernel), /publish trust revocation store is unavailable at boot/);
+      await assert.rejects(publishTrustRevocationStoreFor({ kernel }), /publish trust revocation store is unavailable at boot/);
       for (const result of [await store.list(), await store.revoke({ sourceInstallationId: "new", nowIso: "2026-09-01T00:00:00.000Z" }),
         await store.restore({ sourceInstallationId: "existing" })]) {
         assert.equal(result.ok, false);
@@ -88,7 +88,7 @@ describeEachDialect("publish trust revocation failures", {
       source_installation_id: `install-${String(i).padStart(2, "0")}`, revoked_at: "2026-09-01T00:00:00.000Z", note: "keep",
     }));
     await kernel.run(db => db.insertInto("publish_trust_revocations").values(rows).execute());
-    const store = await publishTrustRevocationStoreFor(kernel);
+    const store = await publishTrustRevocationStoreFor({ kernel });
     const before = await store.list();
     assert.deepEqual(before, { ok: true, revocations: rows.map(row => ({
       sourceInstallationId: row.source_installation_id, revokedAt: row.revoked_at, note: row.note,
@@ -102,7 +102,7 @@ describeEachDialect("publish trust revocation failures", {
   });
 
   test("a refused insert reports a write error and keeps the deny list empty", async () => {
-    const store = await publishTrustRevocationStoreFor(make());
+    const store = await publishTrustRevocationStoreFor({ kernel: make() });
     const result = await store.revoke({ sourceInstallationId: "new", nowIso: null as unknown as string });
     assert.equal(result.ok, false);
     assert.ok(!result.ok && result.reason.startsWith("the disconnected-computer list could not be updated:"));
@@ -116,7 +116,7 @@ test("a refused restore reports a write error and preserves the disconnected com
     await kernel.execute(sql`CREATE TABLE publish_trust_revocations (source_installation_id text PRIMARY KEY, revoked_at text NOT NULL, note text)`);
     await kernel.execute(sql`INSERT INTO publish_trust_revocations VALUES ('keep-disconnected', '2026-09-01T00:00:00.000Z', 'keep')`);
     await kernel.execute(sql`CREATE TRIGGER refuse_restore BEFORE DELETE ON publish_trust_revocations BEGIN SELECT RAISE(ABORT, 'deny-list locked'); END`);
-    const store = await publishTrustRevocationStoreFor(kernel);
+    const store = await publishTrustRevocationStoreFor({ kernel });
     assert.deepEqual(await store.restore({ sourceInstallationId: "keep-disconnected" }), {
       ok: false, reason: "the disconnected-computer list could not be updated: deny-list locked",
     });
@@ -150,7 +150,7 @@ test("a driver rejecting with a non-Error value is reported as an unknown error 
     await kernel.execute(sql`CREATE TABLE publish_trust_revocations (source_installation_id text PRIMARY KEY, revoked_at text NOT NULL, note text)`);
     await kernel.execute(sql`INSERT INTO publish_trust_revocations VALUES ('keep-disconnected', '2026-09-01T00:00:00.000Z', null)`);
     const always = kernelThrowingNonErrors({ kernel, failRuns: new Set([1, 2]) });
-    await assert.rejects(publishTrustRevocationStoreFor(always), { message: "publish trust revocation store is unavailable at boot: unknown error" });
+    await assert.rejects(publishTrustRevocationStoreFor({ kernel: always }), { message: "publish trust revocation store is unavailable at boot: unknown error" });
     assert.deepEqual(await new SqlPublishTrustRevocationStore(always).list(), {
       ok: false, reason: "the list of disconnected computers could not be read: unknown error",
     });

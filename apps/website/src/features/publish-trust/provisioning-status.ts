@@ -15,7 +15,7 @@ import {
  *
  * @complexity O(1).
  */
-export function describePublishTrustState(res: PublishTrustResolution): string {
+export function describePublishTrustState({ res }: { res: PublishTrustResolution }, _optional = {}): string {
   switch (res.state) {
     case "configured": {
       const n = res.grants.length;
@@ -75,10 +75,10 @@ export function describeConnection(input: {
   readonly publicKeyB64u: string;
   readonly siteLabel: string;
   readonly nowIso: string;
-}): ConnectionStatus {
+}, _optional = {}): ConnectionStatus {
   const { resolution: res, siteLabel, nowIso } = input;
   if (res.state !== "configured") {
-    return { verdict: "unavailable", message: `${siteLabel}: ${describePublishTrustState(res)}` };
+    return { verdict: "unavailable", message: `${siteLabel}: ${describePublishTrustState({ res })}` };
   }
 
   const grant = findGrantForSource({ res, sourceInstallationId: input.sourceInstallationId });
