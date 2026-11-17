@@ -63,6 +63,13 @@ function providerContexts(required: ComposeCommerceRequired & { config: Commerce
     }) });
 }
 
+/** Keeps the alert de-duplication cache bounded: drops the entry that has been there longest. */
+function evictOldestAlert({ alerted }: { alerted: Set<string> }, _optional = {}): void {
+  const oldest = alerted.values().next();
+  if (oldest.done) throw new Error('payment alert cache has no oldest entry');
+  alerted.delete(oldest.value);
+}
+
 /** Compose lazily: commerce-off boot neither migrates nor queries catalog or payment tables.
  * @complexity O(1) per request plus existing bounded repository/provider work. */
 export function composeCommerce(required: ComposeCommerceRequired, optional: { warn?: (message: string) => void } = {}): {
@@ -125,11 +132,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
   const alerts: PaymentsAlertPort = { raise: async ({ alert }) => {
     const key = JSON.stringify([alert.kind, alert.paymentId ?? alert.detail]);
     if (alerted.has(key)) return;
-    if (alerted.size >= 1000) {
-      const oldest = alerted.values().next();
-      if (oldest.done) throw new Error('payment alert cache has no oldest entry');
-      alerted.delete(oldest.value);
-    }
+    if (alerted.size >= 1000) evictOldestAlert({ alerted });
     alerted.add(key); warn(`Payment settlement needs attention: ${JSON.stringify(alert)}`);
   } };
   const sharedPayments = createPaymentsService(sharedDeps, { alerts });
