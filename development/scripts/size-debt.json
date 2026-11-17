@@ -9,13 +9,6 @@
       "value": 513
     },
     {
-      "file": "apps/admin/src/components/AssistantDock/AssistantDock.tsx",
-      "function": "AssistantDock#1",
-      "line": 317,
-      "rule": "max-lines-per-function",
-      "value": 155
-    },
-    {
       "file": "apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx",
       "function": "useExecutionConfig#1",
       "line": 164,
@@ -35,13 +28,6 @@
       "line": 198,
       "rule": "max-lines-per-function",
       "value": 85
-    },
-    {
-      "file": "apps/admin/src/components/WidgetConfigFields/MediaContentEditor.hooks.ts",
-      "function": "useMediaContentEditor#1",
-      "line": 142,
-      "rule": "max-lines-per-function",
-      "value": 110
     },
     {
       "file": "apps/admin/src/components/WidgetConfigFields/WidgetConfigFields.hooks.tsx",
@@ -118,7 +104,7 @@
       "function": "<file>",
       "line": 609,
       "rule": "max-lines",
-      "value": 563
+      "value": 562
     },
     {
       "file": "apps/admin/src/features/collections/hooks/use-collection-entry-editor.hooks.ts",
@@ -149,13 +135,6 @@
       "value": 104
     },
     {
-      "file": "apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts",
-      "function": "useTimelineSection#1",
-      "line": 120,
-      "rule": "max-lines-per-function",
-      "value": 86
-    },
-    {
       "file": "apps/admin/src/features/deployment/DockerfileTab.tsx",
       "function": "DockerfileEditorCard#1",
       "line": 226,
@@ -168,13 +147,6 @@
       "line": 809,
       "rule": "max-lines",
       "value": 936
-    },
-    {
-      "file": "apps/admin/src/features/deployment/hooks/use-dockerfile-source.hooks.ts",
-      "function": "useDockerfileSource#1",
-      "line": 138,
-      "rule": "max-lines-per-function",
-      "value": 87
     },
     {
       "file": "apps/admin/src/features/deployment/hooks/use-publish-credentials.hooks.ts",
@@ -226,13 +198,6 @@
       "value": 90
     },
     {
-      "file": "apps/admin/src/features/library/hooks/use-library.hooks.ts",
-      "function": "useLibrary#1",
-      "line": 215,
-      "rule": "max-lines-per-function",
-      "value": 100
-    },
-    {
       "file": "apps/admin/src/features/media/Media.tsx",
       "function": "EditMediaPanel#1",
       "line": 360,
@@ -244,7 +209,7 @@
       "function": "<file>",
       "line": 756,
       "rule": "max-lines",
-      "value": 1101
+      "value": 1100
     },
     {
       "file": "apps/admin/src/features/media/Media.tsx",
@@ -329,13 +294,6 @@
       "line": 291,
       "rule": "max-lines-per-function",
       "value": 90
-    },
-    {
-      "file": "apps/admin/src/features/pages/hooks/page-editor-dependencies.hooks.ts",
-      "function": "createFakePageEditorPort#1",
-      "line": 64,
-      "rule": "max-lines-per-function",
-      "value": 99
     },
     {
       "file": "apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts",
@@ -524,7 +482,7 @@
       "function": "<file>",
       "line": 665,
       "rule": "max-lines",
-      "value": 674
+      "value": 673
     },
     {
       "file": "apps/admin/src/features/roles/hooks/roles-dependencies.hooks.ts",
@@ -618,25 +576,11 @@
       "value": 118
     },
     {
-      "file": "apps/admin/src/features/sites/hooks/use-sites.hooks.ts",
-      "function": "useSites#1",
-      "line": 115,
-      "rule": "max-lines-per-function",
-      "value": 118
-    },
-    {
-      "file": "apps/admin/src/features/skills/use-skills.hooks.ts",
-      "function": "useSkills#1",
-      "line": 54,
-      "rule": "max-lines-per-function",
-      "value": 105
-    },
-    {
       "file": "apps/admin/src/features/taxonomy/Taxonomy.tsx",
       "function": "<file>",
-      "line": 643,
+      "line": 644,
       "rule": "max-lines",
-      "value": 672
+      "value": 671
     },
     {
       "file": "apps/admin/src/features/taxonomy/Taxonomy.tsx",
@@ -697,9 +641,9 @@
     {
       "file": "apps/admin/src/features/themes/ThemeExplore.tsx",
       "function": "<file>",
-      "line": 846,
+      "line": 851,
       "rule": "max-lines",
-      "value": 964
+      "value": 960
     },
     {
       "file": "apps/admin/src/features/themes/ThemeExplore.tsx",
@@ -728,13 +672,6 @@
       "line": 1114,
       "rule": "max-lines",
       "value": 907
-    },
-    {
-      "file": "apps/admin/src/features/themes/hooks/use-themes.hooks.ts",
-      "function": "useThemes#1",
-      "line": 112,
-      "rule": "max-lines-per-function",
-      "value": 122
     },
     {
       "file": "apps/admin/src/features/trash/hooks/use-trash.hooks.ts",
@@ -926,13 +863,6 @@
       "value": 81
     },
     {
-      "file": "apps/website/src/cli/commands/serve.ts",
-      "function": "serveBootedSite#1",
-      "line": 272,
-      "rule": "max-lines-per-function",
-      "value": 100
-    },
-    {
       "file": "apps/website/src/cli/program.ts",
       "function": "createProgram#1",
       "line": 47,
@@ -945,13 +875,6 @@
       "line": 48,
       "rule": "max-lines-per-function",
       "value": 138
-    },
-    {
-      "file": "apps/website/src/features/agent-plugins/lifecycle.ts",
-      "function": "createTovuAgentPluginLifecycle#1",
-      "line": 101,
-      "rule": "max-lines-per-function",
-      "value": 111
     },
     {
       "file": "apps/website/src/features/api-connections/shared-api.ts",
@@ -1003,13 +926,6 @@
       "value": 155
     },
     {
-      "file": "apps/website/src/features/entries/publish-content.ts",
-      "function": "contributeCollectionEntryPublish#1",
-      "line": 53,
-      "rule": "max-lines-per-function",
-      "value": 100
-    },
-    {
       "file": "apps/website/src/features/forms/tool-registrations.ts",
       "function": "buildFormsRegistrations#1",
       "line": 323,
@@ -1026,9 +942,9 @@
     {
       "file": "apps/website/src/features/identity/tool-registrations.ts",
       "function": "buildGatedIdentityRegistrations#1",
-      "line": 96,
+      "line": 125,
       "rule": "max-lines-per-function",
-      "value": 154
+      "value": 134
     },
     {
       "file": "apps/website/src/features/media-import/tool-registrations.ts",
@@ -1050,13 +966,6 @@
       "line": 168,
       "rule": "max-lines-per-function",
       "value": 98
-    },
-    {
-      "file": "apps/website/src/features/newsletter/campaign-write-service.ts",
-      "function": "saveCampaign#1",
-      "line": 90,
-      "rule": "max-lines-per-function",
-      "value": 81
     },
     {
       "file": "apps/website/src/features/newsletter/delivery/tool-registrations.ts",
@@ -1145,37 +1054,23 @@
     {
       "file": "apps/website/src/features/publish-content/apply-loop.ts",
       "function": "createPublishContentApplyPort#1",
-      "line": 501,
+      "line": 500,
       "rule": "max-lines-per-function",
-      "value": 346
+      "value": 344
     },
     {
       "file": "apps/website/src/features/publish-content/apply-loop.ts",
       "function": "createPublishContentApplyPort#1.applyReport#1",
-      "line": 532,
+      "line": 531,
       "rule": "max-lines-per-function",
-      "value": 314
+      "value": 312
     },
     {
       "file": "apps/website/src/features/publish-content/apply-loop.ts",
       "function": "<file>",
       "line": 735,
       "rule": "max-lines",
-      "value": 720
-    },
-    {
-      "file": "apps/website/src/features/publish-content/gated-hooks.ts",
-      "function": "buildPublishContentImportHooks#1",
-      "line": 211,
-      "rule": "max-lines-per-function",
-      "value": 104
-    },
-    {
-      "file": "apps/website/src/features/publish-content/peer-transport.ts",
-      "function": "<file>",
-      "line": 901,
-      "rule": "max-lines",
-      "value": 539
+      "value": 717
     },
     {
       "file": "apps/website/src/features/publish-content/publish-backstop-file.ts",
@@ -1183,34 +1078,6 @@
       "line": 45,
       "rule": "max-lines-per-function",
       "value": 102
-    },
-    {
-      "file": "apps/website/src/features/publish-content/publish-tool.ts",
-      "function": "publishContentFromTool#1",
-      "line": 57,
-      "rule": "max-lines-per-function",
-      "value": 97
-    },
-    {
-      "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
-      "function": "contributeRawFilePublish#1",
-      "line": 18,
-      "rule": "max-lines-per-function",
-      "value": 152
-    },
-    {
-      "file": "apps/website/src/features/publish-content/raw-file-contributor.ts",
-      "function": "contributeRawFilePublish#1.build#1",
-      "line": 19,
-      "rule": "max-lines-per-function",
-      "value": 150
-    },
-    {
-      "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
-      "function": "buildRawRowHandler#1",
-      "line": 50,
-      "rule": "max-lines-per-function",
-      "value": 134
     },
     {
       "file": "apps/website/src/features/publish-content/repo-handler.ts",
@@ -1229,9 +1096,9 @@
     {
       "file": "apps/website/src/features/publish-content/tool-registrations.ts",
       "function": "buildPublishContentRegistrations#1",
-      "line": 181,
+      "line": 267,
       "rule": "max-lines-per-function",
-      "value": 166
+      "value": 100
     },
     {
       "file": "apps/website/src/features/recovery/tool-registrations.ts",
@@ -1253,20 +1120,6 @@
       "line": 744,
       "rule": "max-lines",
       "value": 535
-    },
-    {
-      "file": "apps/website/src/features/site-backup/import-backend.ts",
-      "function": "createSiteImportBackend#1",
-      "line": 42,
-      "rule": "max-lines-per-function",
-      "value": 141
-    },
-    {
-      "file": "apps/website/src/features/site-backup/share-backend.ts",
-      "function": "createSiteShareBackend#1",
-      "line": 140,
-      "rule": "max-lines-per-function",
-      "value": 100
     },
     {
       "file": "apps/website/src/features/source-control/credential-setup.ts",
@@ -1306,30 +1159,30 @@
     {
       "file": "apps/website/src/features/theme/publish-content.ts",
       "function": "<file>",
-      "line": 811,
+      "line": 814,
       "rule": "max-lines",
-      "value": 515
+      "value": 512
     },
     {
       "file": "apps/website/src/features/theme/static-render.ts",
       "function": "<file>",
-      "line": 1379,
+      "line": 1382,
       "rule": "max-lines",
-      "value": 514
+      "value": 512
     },
     {
       "file": "apps/website/src/features/theme/theme-files.ts",
       "function": "<file>",
-      "line": 1136,
+      "line": 1149,
       "rule": "max-lines",
-      "value": 597
+      "value": 592
     },
     {
       "file": "apps/website/src/features/theme/theme.ts",
       "function": "<file>",
-      "line": 926,
+      "line": 949,
       "rule": "max-lines",
-      "value": 624
+      "value": 600
     },
     {
       "file": "apps/website/src/features/theme/tool-registrations.ts",
@@ -1397,44 +1250,9 @@
     {
       "file": "apps/website/src/server/inbound/admin-http/dev-auth.ts",
       "function": "registerAuthRoutes#1",
-      "line": 590,
+      "line": 584,
       "rule": "max-lines-per-function",
-      "value": 185
-    },
-    {
-      "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
-      "function": "requirePublishTrust#1",
-      "line": 225,
-      "rule": "max-lines-per-function",
-      "value": 91
-    },
-    {
-      "file": "apps/website/src/server/inbound/admin-http/publish-trust-auth.ts",
-      "function": "requirePublishTrust#1.requirePublishTrustMiddleware#1",
-      "line": 233,
-      "rule": "max-lines-per-function",
-      "value": 83
-    },
-    {
-      "file": "apps/website/src/server/inbound/admin-http/routes/database/migrate-forward.ts",
-      "function": "registerAdminDatabaseMigrateForwardRoutes#1",
-      "line": 37,
-      "rule": "max-lines-per-function",
-      "value": 115
-    },
-    {
-      "file": "apps/website/src/server/inbound/admin-http/routes/pages/delete.ts",
-      "function": "registerAdminPageDeleteRoute#1",
-      "line": 34,
-      "rule": "max-lines-per-function",
-      "value": 85
-    },
-    {
-      "file": "apps/website/src/server/inbound/admin-http/routes/pages/delete.ts",
-      "function": "registerAdminPageDeleteRoute#1.<anonymous>#1",
-      "line": 35,
-      "rule": "max-lines-per-function",
-      "value": 83
+      "value": 183
     },
     {
       "file": "apps/website/src/server/inbound/admin-http/routes/pages/update.ts",
@@ -1451,39 +1269,11 @@
       "value": 85
     },
     {
-      "file": "apps/website/src/server/inbound/admin-http/routes/posts/update.ts",
-      "function": "registerAdminPostUpdateRoute#1",
-      "line": 134,
-      "rule": "max-lines-per-function",
-      "value": 106
-    },
-    {
-      "file": "apps/website/src/server/inbound/admin-http/routes/posts/update.ts",
-      "function": "registerAdminPostUpdateRoute#1.<anonymous>#1",
-      "line": 138,
-      "rule": "max-lines-per-function",
-      "value": 100
-    },
-    {
       "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/destination.ts",
       "function": "registerPublishContentDestinationRoutes#1",
       "line": 128,
       "rule": "max-lines-per-function",
       "value": 133
-    },
-    {
-      "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/import.ts",
-      "function": "registerPublishContentImportRoutes#1",
-      "line": 91,
-      "rule": "max-lines-per-function",
-      "value": 170
-    },
-    {
-      "file": "apps/website/src/server/inbound/admin-http/routes/publish-content/peer-transport.ts",
-      "function": "registerPublishContentPeerTransportRoutes#1",
-      "line": 241,
-      "rule": "max-lines-per-function",
-      "value": 86
     },
     {
       "file": "apps/website/src/server/inbound/admin-http/routes/recovery/restore.ts",
@@ -1498,48 +1288,6 @@
       "line": 218,
       "rule": "max-lines-per-function",
       "value": 81
-    },
-    {
-      "file": "apps/website/src/server/inbound/admin-http/routes/system/custom-credentials.ts",
-      "function": "registerAdminCustomCredentialsRoutes#1",
-      "line": 130,
-      "rule": "max-lines-per-function",
-      "value": 84
-    },
-    {
-      "file": "apps/website/src/server/inbound/admin-http/routes/system/publish-credentials.ts",
-      "function": "registerAdminPublishCredentialsRoutes#1",
-      "line": 165,
-      "rule": "max-lines-per-function",
-      "value": 119
-    },
-    {
-      "file": "apps/website/src/server/inbound/admin-http/routes/system/publish-site.ts",
-      "function": "registerAdminPublishSiteRoutes#1",
-      "line": 232,
-      "rule": "max-lines-per-function",
-      "value": 167
-    },
-    {
-      "file": "apps/website/src/server/inbound/admin-http/routes/system/site-imports.ts",
-      "function": "registerAdminSiteImportRoutes#1",
-      "line": 29,
-      "rule": "max-lines-per-function",
-      "value": 112
-    },
-    {
-      "file": "apps/website/src/server/inbound/admin-http/routes/system/site-shares.ts",
-      "function": "registerAdminSiteShareRoutes#1",
-      "line": 41,
-      "rule": "max-lines-per-function",
-      "value": 109
-    },
-    {
-      "file": "apps/website/src/server/inbound/admin-http/routes/system/sites.ts",
-      "function": "registerAdminSitesRoutes#1",
-      "line": 330,
-      "rule": "max-lines-per-function",
-      "value": 116
     },
     {
       "file": "apps/website/src/server/inbound/admin-http/routes/system/source-control-credentials.ts",
@@ -1558,9 +1306,9 @@
     {
       "file": "apps/website/src/server/inbound/admin-http/routes/themes/explore.ts",
       "function": "<file>",
-      "line": 1032,
+      "line": 1085,
       "rule": "max-lines",
-      "value": 624
+      "value": 597
     },
     {
       "file": "apps/website/src/server/inbound/assistant/agent-daemon-core-client.ts",
@@ -1605,32 +1353,18 @@
       "value": 111
     },
     {
-      "file": "apps/website/src/server/inbound/assistant/assistant-system-overlay.ts",
-      "function": "buildBaseSystemOverlay#1",
-      "line": 194,
-      "rule": "max-lines-per-function",
-      "value": 92
-    },
-    {
       "file": "apps/website/src/server/inbound/public-http/http/site/render.ts",
       "function": "<file>",
-      "line": 1243,
+      "line": 1269,
       "rule": "max-lines",
-      "value": 1664
-    },
-    {
-      "file": "apps/website/src/server/inbound/public-http/routes/publish-trust/handshake.ts",
-      "function": "registerPublishTrustHandshakeRoutes#1",
-      "line": 130,
-      "rule": "max-lines-per-function",
-      "value": 96
+      "value": 1645
     },
     {
       "file": "apps/website/src/server/inbound/public-http/routes/site/pages.ts",
       "function": "<file>",
-      "line": 1093,
+      "line": 1122,
       "rule": "max-lines",
-      "value": 1489
+      "value": 1374
     },
     {
       "file": "apps/website/src/server/inbound/public-http/routes/site/pages.ts",
@@ -1642,9 +1376,9 @@
     {
       "file": "apps/website/src/server/routes/types.ts",
       "function": "<file>",
-      "line": 1620,
+      "line": 1630,
       "rule": "max-lines",
-      "value": 519
+      "value": 518
     },
     {
       "file": "apps/website/src/server/runtime/boot/bootstrap.ts",
@@ -1700,7 +1434,7 @@
       "function": "createAssistantByokModule#1",
       "line": 514,
       "rule": "max-lines-per-function",
-      "value": 227
+      "value": 226
     },
     {
       "file": "apps/website/src/server/runtime/composition/modules/assistant-byok.ts",
@@ -1708,20 +1442,6 @@
       "line": 697,
       "rule": "max-lines-per-function",
       "value": 85
-    },
-    {
-      "file": "apps/website/src/server/runtime/composition/modules/assistant-chats.ts",
-      "function": "createAssistantChatsModule#1",
-      "line": 95,
-      "rule": "max-lines-per-function",
-      "value": 152
-    },
-    {
-      "file": "apps/website/src/server/runtime/composition/modules/assistant-chats.ts",
-      "function": "createAssistantChatsModule#1.registerRoutes#1",
-      "line": 106,
-      "rule": "max-lines-per-function",
-      "value": 139
     },
     {
       "file": "apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts",

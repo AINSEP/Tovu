@@ -16,13 +16,6 @@
       "value": 11
     },
     {
-      "file": "apps/admin/src/features/plugins/hooks/use-agent-plugin-memory.hooks.ts",
-      "function": "useAgentPluginMemory#1.save#1",
-      "line": 71,
-      "rule": "sonarjs/cognitive-complexity",
-      "value": 10
-    },
-    {
       "file": "apps/admin/src/features/sites/hooks/use-live-import-site.hooks.ts",
       "function": "startAndWait#1",
       "line": 55,
@@ -51,39 +44,11 @@
       "value": 10
     },
     {
-      "file": "apps/admin/src/lib/admin-failure-channel.ts",
-      "function": "publishAdminFailure#1",
-      "line": 52,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
       "file": "apps/admin/src/lib/api.ts",
       "function": "request#1",
       "line": 2719,
       "rule": "complexity",
       "value": 10
-    },
-    {
-      "file": "apps/desktop/src/nested-sites-migration.ts",
-      "function": "migrateNestedSitesHome#1",
-      "line": 65,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/website/src/cli/commands/export.ts",
-      "function": "runExportCommand#1",
-      "line": 117,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/website/src/cli/commands/import-local.ts",
-      "function": "parseRequest#1",
-      "line": 128,
-      "rule": "complexity",
-      "value": 12
     },
     {
       "file": "apps/website/src/features/agent-plugins/analytics-provider-registry.ts",
@@ -121,24 +86,10 @@
       "value": 11
     },
     {
-      "file": "apps/website/src/features/deployments/static-publish/publish-run.ts",
-      "function": "recordHistoryIfPublished#1",
-      "line": 156,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
       "file": "apps/website/src/features/deployments/static-publish/verify.ts",
       "function": "computeVerificationResult#1",
       "line": 203,
       "rule": "complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/website/src/features/entries/unreadable-owner-entries-repair.ts",
-      "function": "removeUnreadableOwnerEntries#1.<anonymous>#3",
-      "line": 131,
-      "rule": "sonarjs/cognitive-complexity",
       "value": 11
     },
     {
@@ -196,13 +147,6 @@
       "line": 483,
       "rule": "sonarjs/cognitive-complexity",
       "value": 12
-    },
-    {
-      "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
-      "function": "buildRawRowHandler#1.packSelected#1",
-      "line": 101,
-      "rule": "complexity",
-      "value": 11
     },
     {
       "file": "apps/website/src/features/site-backup/archive-extensions.ts",
@@ -331,13 +275,6 @@
       "value": 12
     },
     {
-      "file": "apps/website/src/server/runtime/boot/site-key-boot-notice.ts",
-      "function": "warnIfNoSiteKeyAtBoot#1",
-      "line": 71,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
       "file": "apps/website/src/server/runtime/composition/app.ts",
       "function": "createRouteDeps#1",
       "line": 466,
@@ -364,13 +301,6 @@
       "line": 351,
       "rule": "sonarjs/cognitive-complexity",
       "value": 14
-    },
-    {
-      "file": "apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts",
-      "function": "createAssistantRunFinalizer#1.startWatch#1.<anonymous>#1",
-      "line": 768,
-      "rule": "complexity",
-      "value": 11
     },
     {
       "file": "apps/website/src/server/runtime/composition/modules/assistant.ts",
