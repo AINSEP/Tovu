@@ -1,5 +1,5 @@
 import { deriveAvailableName } from "@jini-ai/core/naming";
-import { RESERVED_SEGMENTS } from "#src/platform/routing/index";
+import { RESERVED_SEGMENTS, postPublicPath } from "#src/platform/routing/index";
 import { isAutomaticPostSlug, derivePostSlugBase, MAX_SLUG_LENGTH, DERIVED_SLUG_SUFFIX_ROOM, SLUG_FORMAT_PATTERN } from "./slug.js";
 import { isDeepStrictEqual } from "node:util";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
@@ -9,11 +9,10 @@ import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { isTrashed } from "../../contracts/core/soft-delete.js";
 import { currentIso, isLiveAt } from "../../contracts/core/scheduled-publish.js";
 import { announcePendingGoLive } from "./go-live.js";
-import { postPublicPath } from "#src/platform/routing/index";
 import { type SlugChangeCapture } from '@jini-ai/cms/routing';
-
-import type { PostKind, PostStatus, PublicPostKind } from "./post-vocabulary.js";
-export type { PostKind, PostStatus, PublicPostKind } from "./post-vocabulary.js";
+import type { PostStatus, PublicPostKind } from "@jini-ai/cms/core";
+import type { PostKind } from "./post-vocabulary.js";
+export type { PostKind } from "./post-vocabulary.js";
 
 /**
  * The `posts.kind` of an email template (`features/email-templates`). Deliberately NOT a

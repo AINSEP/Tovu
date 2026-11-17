@@ -85,17 +85,16 @@ import {
   PostVersionConflictError,
   restorePostForward,
   type PostKind,
-  type PublicPostKind,
   type PublicPostRecord,
   isPublicPost,
   type PostRecord,
   type PostRepoPort,
-  type PostStatus,
   type BeforeSaveHookPort,
   type ForgetRemovedPostFn,
   type RemovePostFn,
   type SlugChangeCaptureLookup,
 } from "./post.js";
+import type { PostStatus, PublicPostKind } from "@jini-ai/cms/core";
 // The SAME boundary `server/inbound/admin-http/routes/posts/update.ts` uses — imported, not copied.
 // The two arms diverged in the first place because only one of them had this logic at all.
 import { parseExpectedVersion, VERSION_CONFLICT_CODE } from "./expected-version.js";

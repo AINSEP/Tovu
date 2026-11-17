@@ -14,8 +14,8 @@ import {
   type PostRevisionInput,
   type PostRevisionOp,
   type PostRevisionRecord,
-  type PostStatus,
 } from "./post.js";
+import type { PostStatus } from "@jini-ai/cms/core";
 
 /**
  * @file Row mapping for `posts` / `post_revisions`, shared by every dialect: the columns are the

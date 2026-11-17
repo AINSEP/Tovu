@@ -3,7 +3,8 @@ import type { Clock as ClockPort, UUID } from "@jini-ai/core/primitives";
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 
 import { isTrashed } from "../../contracts/core/soft-delete.js";
-import type { PostKind, PostStatus } from "./post-vocabulary.js";
+import type { PostKind } from "./post-vocabulary.js";
+import type { PostStatus } from "@jini-ai/cms/core";
 
 /**
  * @file Scheduled go-live announcements (2026-10-21) — the one place a scheduled post's

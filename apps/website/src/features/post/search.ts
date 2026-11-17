@@ -1,5 +1,6 @@
 import type { UUID } from "@jini-ai/core/primitives";
-import { PostValidationError, type PostKind, type PostStatus } from "./post.js";
+import { PostValidationError, type PostKind } from "./post.js";
+import type { PostStatus } from "@jini-ai/cms/core";
 import { extractPlainTextFromHtml } from "./html-plain-text.js";
 
 /**
