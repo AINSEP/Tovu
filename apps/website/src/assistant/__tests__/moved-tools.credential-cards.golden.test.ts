@@ -96,7 +96,9 @@ async function setup(path: Path) {
     input = { kind: 'publish-host', target: 'acme-host' };
   } else if (path === 'sourceControl') {
     const deps = { ...common, sourceControlCredentialSetRepo: new InMemorySourceControlCredentialSetRepo(), loadSourceControlProviders: githubFromSource, sourceControlExportRootDir: '/unused',
-      staticSiteContext: async () => assert.fail('credential save must not export'), exportSiteBound: async () => assert.fail('credential save must not export') } satisfies Parameters<typeof buildSourceControlCredentialHandler>[0]['deps'];
+      staticSiteContext: async () => assert.fail('credential save must not export'),
+      staticSitePackager: { get entryFile(): string { return assert.fail('credential save must not package a site'); }, packageSite: () => assert.fail('credential save must not package a site') },
+      exportSiteBound: async () => assert.fail('credential save must not export') } satisfies Parameters<typeof buildSourceControlCredentialHandler>[0]['deps'];
     handler = buildSourceControlCredentialHandler({ deps, surfaces: { surfaceExchanges } });
     input = { kind: 'source-control', target: 'github', label: 'Backup connection' };
     values = { token: SECRET, label: 'Backup connection' };

@@ -5,6 +5,7 @@ import type { RouteDeps } from "../../../../routes/types.js";
 // 2026-09-05 (fix-cycle) — used to be a lazy `require()` here; see `runExportSite`'s doc below for
 // why a plain static import is now correct.
 import { exportSite } from "#src/features/site-export/index";
+import { createStaticSitePackager } from "#src/features/site-backup/static-site-packager";
 import { resolvePublishContentPeerHttpClient } from "../../publish-content-http.js";
 import { resolveExportOutputRootDir, resolvePublishOutputRootDir, bundledAgentPluginsDir, resolveSourceControlExportRootDir } from "../../site-paths.js";
 import { describeSiteBinding } from "#src/platform/site-dir/index";
@@ -234,6 +235,7 @@ export function memoryClientsAndSiteContextDeps(required: MemoryRootContext, _op
     // 2026-09-05 (fix-cycle) — plain static reference now; see `runExportSite`'s doc below for why
     // the lazy `require()` this used to carry is gone.
     exportSiteBound: (opts) => exportSite({ ...opts, routeDeps: routeDeps() }),
+    staticSitePackager: createStaticSitePackager(),
     staticSiteContext: async () => {
       const theme = resolveActiveTheme({ deps: routeDeps(), activeThemeId: await routeDeps().resolveActiveThemeId() });
       return { name: routeDeps().siteDisplayName.read() ?? siteBinding.name, slug: siteBinding.name,

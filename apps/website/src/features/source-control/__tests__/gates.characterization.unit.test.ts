@@ -35,6 +35,7 @@ import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import type { SecretSealerPort } from "../../webhooks/index.js";
+import { createStaticSitePackager } from "../../site-backup/static-site-packager.js";
 
 /**
  * @file Gate tests for the source-control credential and outbound-call paths: each test names the ONE
@@ -362,7 +363,7 @@ function fallbackHarness(): FallbackHarness {
         } },
         {
           workspaceId: "ws-1", owner: "octo", repo: "demo", commitMessage: "gate", sourceControlExportRootDir: exportRoot,
-          idGen: { newId: () => "run-1" }, staticSiteContext: async () => ({ name: "Demo", slug: "demo", theme: "Fixture", themeId: "fixture" }),
+          idGen: { newId: () => "run-1" }, packager: createStaticSitePackager(), staticSiteContext: async () => ({ name: "Demo", slug: "demo", theme: "Fixture", themeId: "fixture" }),
           exportSiteBound: async ({ outputDir }) => ({ outputDir, routes: { succeeded: [{ path: "/", kind: "home", outputFile: "index.html", data: "<html></html>" }], failed: [] }, assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [] }),
         },
       );

@@ -24,6 +24,7 @@ import {
 import { toCommitFile } from "@jini-ai/devops/source-control";
 import { validateCommitTarget } from "../commit-target.js";
 import type { ExportReport } from "#src/features/site-export/index";
+import { createStaticSitePackager } from '../../site-backup/static-site-packager.js';
 import { exampleProvidersWithoutProbe } from './fixtures/example-provider.js';
 import type { CommitFile, RepositoryTargetValidator, SourceControlCommitResult } from '../provider-module.js';
 
@@ -43,6 +44,8 @@ const exampleValidator: RepositoryTargetValidator = ({ owner, repo }) => {
  */
 
 const staticSiteContext = async () => ({ name: "Demo", slug: "demo", theme: "Fixture", themeId: "fixture" });
+/** The real packager, so every file-list assertion below still runs through real packaging. */
+const packager = createStaticSitePackager();
 const exportDir = mkdtempSync(path.join(tmpdir(), "tovu-source-control-commit-test-"));
 test.after(() => rmSync(exportDir, { recursive: true, force: true }));
 
@@ -215,7 +218,7 @@ test("commitSiteToSourceControl: an invalid target is rejected before credential
   deps.exportSiteBound = async () => { assert.fail("export started for invalid input"); };
   const result = await commitSiteToSourceControl(
     { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter(), validateTarget: exampleValidator },
-    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "not valid owner!!", repo: "demo", commitMessage: "x" }
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "not valid owner!!", repo: "demo", commitMessage: "x" }
   );
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
@@ -229,7 +232,7 @@ test("commitSiteToSourceControl: no saved credential fails cleanly with NO_CREDE
   deps.exportSiteBound = async () => { assert.fail("export before missing credential refusal"); };
   const result = await commitSiteToSourceControl(
     { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
-    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
@@ -257,7 +260,7 @@ test("commitSiteToSourceControl: a genuine decrypt failure (e.g. a boot with no 
   const brokenSealer = new AesGcmSecretSealer(new InMemoryKeyring());
   const result = await commitSiteToSourceControl(
     { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: brokenSealer }, gitAdapter: neverCalledGitAdapter() },
-    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
@@ -299,7 +302,7 @@ test("commitSiteToSourceControl: a vault result from another provider group is r
 
   const result = await commitSiteToSourceControl(
     { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
-    { workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
+    { workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
@@ -322,7 +325,7 @@ test("commitSiteToSourceControl: a vault repo throwing a non-Error value produce
   deps.exportSiteBound = async () => { assert.fail("export must not start after a credential lookup fails"); };
   const result = await commitSiteToSourceControl(
     { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
-    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
@@ -342,7 +345,7 @@ test("commitSiteToSourceControl: a real export runs and its files reach the git 
   const captured: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
   const result = await commitSiteToSourceControl(
     { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://example-git.com/octo/demo/commit/abc123", filesChanged: 1, filesDeleted: 0 }, captured) },
-    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", branch: "main", commitMessage: "content update" }
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", branch: "main", commitMessage: "content update" }
   );
 
   assert.equal(result.ok, true);
@@ -381,7 +384,7 @@ test("commitSiteToSourceControl: an omitted gitAdapter fails loudly as PROVIDER_
   const deps = await withExampleGitCredential(testRouteDeps());
   const result = await commitSiteToSourceControl(
     { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer } },
-    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
@@ -405,7 +408,7 @@ test("commitSiteToSourceControl: a git adapter result WITH divergedPaths passes 
         captured
       ),
     },
-    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
   assert.equal(result.ok, true);
   if (!result.ok) throw new Error("unreachable");
@@ -417,7 +420,7 @@ test("commitSiteToSourceControl: branch omitted is forwarded to the git adapter 
   const captured: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
   await commitSiteToSourceControl(
     { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://example-git.com/octo/demo/commit/abc123", filesChanged: 1, filesDeleted: 0 }, captured) },
-    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
   const passedInput = captured.input as { branch?: string };
   assert.equal("branch" in passedInput, false, "commitSiteToSourceControl must not invent a branch — that decision belongs to the git adapter");
@@ -437,7 +440,7 @@ for (const { adapterCode, expected } of ADAPTER_FAILURE_CASES) {
     const captured: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
     const result = await commitSiteToSourceControl(
       { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: false, code: adapterCode, message: `fake ${adapterCode}` }, captured) },
-      { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
+      { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
     );
     assert.equal(result.ok, false);
     if (result.ok) throw new Error("unreachable");
@@ -480,7 +483,7 @@ test("commitSiteToSourceControl: an asset that fails to export blocks the commit
 
   const result = await commitSiteToSourceControl(
     { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
-    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
 
   assert.equal(result.ok, false);
@@ -506,7 +509,7 @@ test("commitSiteToSourceControl: exportSiteBound throwing (not merely returning 
     { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
     {
       workspaceId: deps.workspaceId,
-      sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext,
+      sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager,
       idGen: deps.idGen,
       exportSiteBound: async () => {
         throw new Error("export engine exploded before producing a report");
@@ -530,7 +533,7 @@ test("commitSiteToSourceControl: exportSiteBound throwing a non-Error value stil
     { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
     {
       workspaceId: deps.workspaceId,
-      sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext,
+      sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager,
       idGen: deps.idGen,
       exportSiteBound: async () => {
         // eslint-disable-next-line @typescript-eslint/no-throw-literal -- deliberate: proving the `err
@@ -579,11 +582,11 @@ test("commitSiteToSourceControl: two concurrent commits both still succeed with 
   const [resultA, resultB] = await Promise.all([
     commitSiteToSourceControl(
       { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "sha-a", commitUrl: "https://example-git.com/octo/demo/commit/sha-a", filesChanged: 1, filesDeleted: 0 }, capturedA) },
-      { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "run a" }
+      { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "run a" }
     ),
     commitSiteToSourceControl(
       { providerId: "example-git", credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "sha-b", commitUrl: "https://example-git.com/octo/demo/commit/sha-b", filesChanged: 1, filesDeleted: 0 }, capturedB) },
-      { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "run b" }
+      { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "run b" }
     ),
   ]);
 
@@ -604,7 +607,7 @@ function controlledReport(outputDir: string, label = "canary"): ExportReport {
 }
 
 function controlledInput(deps: RouteDeps, exportSiteBound: CommitSiteInput["exportSiteBound"]): CommitSiteInput {
-  return { workspaceId: deps.workspaceId, sourceControlExportRootDir: exportDir, staticSiteContext, idGen: deps.idGen, exportSiteBound, owner: "octo", repo: "demo", branch: "release/2", commitMessage: "controlled commit" };
+  return { workspaceId: deps.workspaceId, sourceControlExportRootDir: exportDir, staticSiteContext, packager, idGen: deps.idGen, exportSiteBound, owner: "octo", repo: "demo", branch: "release/2", commitMessage: "controlled commit" };
 }
 
 test('folder commits use the active-theme download layout, deterministic README and relative links', async () => {
@@ -865,7 +868,7 @@ test('preview passes its provider id to the same isolated exporter used by a com
   let captured: string | undefined;
   const result = await previewCommitExport({
     workspaceId: 'example-workspace', owner: 'acme', repo: 'site', commitMessage: 'preview',
-    sourceControlExportRootDir: exportDir, staticSiteContext, idGen: { newId: () => 'preview-run' },
+    sourceControlExportRootDir: exportDir, staticSiteContext, packager, idGen: { newId: () => 'preview-run' },
     exportSiteBound: async ({ outputDir }) => {
       captured = outputDir;
       return { outputDir, routes: { succeeded: [], failed: [] }, assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [] };
