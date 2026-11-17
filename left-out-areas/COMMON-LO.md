@@ -13,7 +13,7 @@ Derived from `COMMON-KT.md` revision 2 (`plan/lanes-k-t-2026-11-16` cafebcaa); c
 | kind | commits | rule |
 |---|---|---|
 | TESTS | Tovu or Jini, test files only | every test is GREEN on the unmodified parent. A test that would be red today is NOT committed: it is written into the report as "requirement, not current behaviour" and belongs to a HARDEN sheet |
-| HARDEN | behaviour change | the failing test and its implementation are in the SAME commit; RED is shown with V4 before committing |
+| HARDEN | behaviour change | the failing test and its implementation are in the SAME commit; RED is shown with V4 before committing. It may edit exactly the existing assertions the sheet names (they pin the behaviour being changed); every other existing test stays unedited |
 | SEAM+MOVE | M1 tests, M2 Tovu seam in place, M3 Jini add, M4 Tovu repoint + delete | each of M1..M4 is its own commit and is green alone |
 | JINI-ADD | additive Jini code + tests | Tovu stays green without edits |
 
@@ -50,6 +50,7 @@ For every SHA a run reports, in order: fresh clones at that Tovu SHA and the Jin
 15. Both repos are public: security wording by class and location only; no reproduction steps.
 
 ## STOP matrix ("prints nothing" is the pass condition unless the row says otherwise)
+"Jini files" in S-IMPORT, S-BARREL, S-TEXT, S-RUNTIME and S-ARGS means production files: paths under `__tests__/` and `*.test.*` are excluded (tests may import the test runner and `node:` modules; S-MOCK and S-NET cover tests).
 | id | when | command |
 |---|---|---|
 | S-BLOB | before the first edit | for each row of `<sheet>.files.tsv`: `test "$(git hash-object <path>)" = "<blob>"`; for each Jini file the sheet names: the same against `sheets/JINI.blobs.txt`. Any mismatch: SKIPPED "blob drift", name the file |

@@ -55,7 +55,7 @@ Two transports and two loaders exist; round 1 merged them. Each row names the ga
 
 ## Sheets
 ### SC-0 (TESTS, Tovu): gate tests on the real gates and production bindings
-tests: new `features/source-control/__tests__/gates.characterization.unit.test.ts`, `server/inbound/admin-http/routes/system/__tests__/source-control-credentials.gates.test.ts` (extend the existing route test file if one exists: `ls apps/website/src/server/inbound/admin-http/routes/system/__tests__ | rg source-control`). precondition: none.
+tests: new `features/source-control/__tests__/gates.characterization.unit.test.ts`, and added cases in the existing `server/inbound/admin-http/routes/system/__tests__/source-control-credentials.unit.test.ts`. precondition: none.
 Each test fails when its gate is removed (mutation named in a comment, V3):
 1. Installed loader: an inactive plugin contributes no provider and appears in `switchedOff`; a digest mismatch, a module path escaping the plugin root, and a non-`.mjs` module each drop only that provider (fake `loadContributions` built from the real `providerContribution` definition; one clause per test).
 2. Bundled loader: with a fake `sources` that returns a package, the loader imports it with NO activation or digest input (assert the fake `load` receives the package unchanged); a throwing `sources` yields zero providers and the fixed refusal text; duplicate provider ids are refused. This pins that the bundled path's only gate is its root: a comment in the test says so.

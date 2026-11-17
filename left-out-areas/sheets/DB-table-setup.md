@@ -16,7 +16,7 @@ The redirect tables have NO foreign key to the principals table. `platform/db/sc
 1. Each domain `/sql` entry exports a typed history FACTORY (judge finding 12): step bodies cannot receive table names through `(kernel, context)`, so the names are closed over.
 ```ts
 // packages/cms/src/redirects/sql/schema/index.ts
-export interface RedirectSchemaTables { readonly redirects: string; readonly revisions: string; readonly hits: string }
+export interface RedirectSchemaTables { readonly redirects: string; readonly revisions: string }   // the two tables the Jini adapter uses
 export interface DomainSchemaHistory<K> { readonly steps: readonly MigrationStep<K>[]; readonly defaultLedgerTable: string }
 export function createRedirectSchemaHistory(
   required: { tables: RedirectSchemaTables },
@@ -53,9 +53,9 @@ Estimate: 130k.
 
 ## DB-2 (JINI-ADD + Tovu TESTS): first domain history, redirects
 precondition: DB-1b landed (`ls apps/website/src/platform/db/__tests__/domain-schema-parity.test.ts`). THIRD_PARTY_ALLOWED: `kysely`.
-1. Print the three tables from Tovu head with `describeSchema` (paste the output in the report; never transcribe `schema.sqlite.ts` by eye).
+1. Print the two adapter tables (`redirects`, `redirect_revisions`) from Tovu head with `describeSchema`; `redirect_hits` is used only by Tovu code today (no Jini adapter reads it: `rg -n hits packages/cms/src/redirects/sql` prints nothing), so it stays in Tovu's chain and is NOT in the Jini history until a hits adapter exists (paste the output in the report; never transcribe `schema.sqlite.ts` by eye).
 2. Jini commit: `packages/cms/src/redirects/sql/schema/{0001_redirects_baseline.ts,checksums.ts,index.ts}` with the factory above; both dialects from one Kysely body where possible, a dialect switch on `kernel.dialect` otherwise; leaf exports from `@jini-ai/cms/redirects/sql`; vitest: name validation refusals, fixed ids, pinned checksum equals the file's sha256, the same checksum for two different table-name sets; changeset `minor`.
-3. Tovu commit (tests only): register redirects in the parity test with Tovu's names from `features/redirects/repo.sqlite.ts` (`redirects`, `redirect_revisions`, `redirect_hits`): GREEN on every dialect. Add: (a) NO foreign key exists on any redirect table (assert the described foreign-key list is empty), and deleting a principal row leaves a redirect row with that `created_by_principal` in place, in database A and in database B; (b) idempotent rerun applies nothing and the ledger has one row; (c) proof host: in database B, a create and a read through `redirectRepoFor` with the real adapter (no handwritten DDL). This replaces round 1's "minimal-host or the second app" alternative: the proof host is the Tovu parity test (D-DB3 closed); adding the history to `examples/minimal-host` is optional follow-up.
+3. Tovu commit (tests only): register redirects in the parity test with Tovu's names from `features/redirects/repo.sqlite.ts` (`redirects`, `redirect_revisions`): GREEN on every dialect. Add: (a) NO foreign key exists on any redirect table (assert the described foreign-key list is empty), and deleting a principal row leaves a redirect row with that `created_by_principal` in place, in database A and in database B; (b) idempotent rerun applies nothing and the ledger has one row; (c) proof host: in database B, a create and a read through `redirectRepoFor` with the real adapter (no handwritten DDL). This replaces round 1's "minimal-host or the second app" alternative: the proof host is the Tovu parity test (D-DB3 closed); adding the history to `examples/minimal-host` is optional follow-up.
 STOP: parity differs in any property -> report the difference, do not "fix" Tovu's schema; S-SCHEMA prints a line. Estimate: 170k.
 
 ## DB-3..n (template, one run per domain, after that domain's SQL adapter is in Jini)
