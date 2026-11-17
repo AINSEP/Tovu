@@ -130,6 +130,12 @@ Tests first (RED before the edit):
 | T12 | same panel, `effectivePermissions: []`: the `noAccess` slot renders, neither the panel's nor the default panel's `render` is called | real permissions are passed to `resolvePanels` (the denied all-of URL falls back to the default panel). RED on today's Jini `model.ts:25-28` |
 | T13 | same panel, `effectivePermissions: undefined`: the panel renders | unknown collapsed to `[]` (today's `model.ts:27`) or routable built without `['*']` |
 V3 for T11/T13: delete `permissions: ['*']` from the routable call, show both RED, restore.
+**Limits budget (second judge, measured at `65d73b0d5` with the C8 eslint rules at lowered thresholds to read the
+values):** `AdminShell` (`AdminShell.tsx:76`) is at cyclomatic **9** of 10 and 38 of 50 lines;
+`resolveAdminShellModel` (`model.ts:21`) is at 6. J1's denied branch must not go into `AdminShell`'s body: put the
+"`noAccess` slot or `panel.render`" choice in a small `renderRoutedPanel({ model, slots, slotArgs })` beside
+`renderSessionGate`, and keep the visible/routable/access computation in `model.ts` helpers so
+`resolveAdminShellModel` stays <= 10. C8 must print nothing for both files.
 Done: `(cd $J && pnpm --filter @jini-ai/admin build) && npm --prefix $J/packages/admin run test`; changeset file added.
 T9 built check (`examples/minimal-host` does **not** depend on `@jini-ai/admin`, so COMMON C10's minimal-host line
 fails with ERR_MODULE_NOT_FOUND for this package; the package's own self-reference works, verified at `65d73b0d5`):
@@ -147,6 +153,15 @@ and `react/__tests__/integration-barrels.test.tsx`, an identity check.)
 
 ## J2: shell contract
 Do not redesign the shell. Close G2-G5, G8, G9 in five green commits.
+**Limits budget (second judge):** after J1, `AdminShell` is at or near cyclomatic 10 (9 at `65d73b0d5`, see J1). Every
+J2 step adds branches (`??` defaults for four hooks, `ids` defaults, `frame`/`sidebar`/`assistantAside`/`afterMain`
+presence checks), so the body cannot absorb them. Planned shape, one extraction per step that needs it: step 1 a
+pure `resolveShellHooks(props)` (all hook defaults and the 1b session-source choice live there; it returns hook
+functions, it calls none, so the hooks are still called unconditionally in `AdminShell`); step 3 the sidebar choice in
+`renderShellSidebar`; step 4 the authenticated tree in a `ShellLayout` component and the main column in
+`ShellMainColumn`. Each new function <= 50 lines and <= 10 / 10 by the C8 command; record each function's values in
+the report. `Sidebar.tsx` (step 5) already has one finding at the base: `SidebarRoot` is **51** lines (code lines,
+C8 rule); a rename must not grow it (C8 prints the changed message if it does: STOP), and the file is 346 code lines.
 1. **Hooks as props (G2).** `AdminShellProps` gains optional `useSessionHook`, `useThemeHook`, `useRouteHook`,
    `useDrawerHook`, each defaulted to today's hook. Signatures are the present ones; do not change argument shapes
    (lesson 12). Fake-hook output test per hook: with a fake returning `anonymous`, the login slot renders and the

@@ -226,7 +226,7 @@ ready screens.
 | J2 | **READY-WITH-NOTE** | judge 2 added seams T1b needs (1b host-owned session, `ids`, `afterMain`, `assistantAside`, topbar icon parity); step 5 (class rename) stays on `admin-ui/J2-classes` and merges only with T1b step 3; its write set is `packages/ui/src/styles/admin.css`, not the theme file; Jini hook gate is red on the base (PRE-EXISTING, BASE-RED) |
 | J3 | not re-judged in this pass | T1b depends on it unchanged (`useThemeHook={() => undefined}`) |
 | T1a | not re-judged; its census ran (`panel-access` users: `App.tsx:28,215,576`, `panels.tsx:3,119`, `lib/__tests__/panel-access.unit.test.ts`, plus comments) | Tovu panels declare **no** all-of `permissions` (0 hits), so J1's all-of changes cannot move a Tovu panel; P1 stands |
-| T1b | **BLOCKED (owner decision AU-D15, new; then READY-WITH-NOTE)** | revision 3's mapping would have broken legacy `/section/:id`, the `/assistant` alias, moved import-export/add-ons URLs, the Sites gate, `#admin-sidebar`/`#main-content` lookups and link interception (26 baseline `app-*` files, 259 tests pin them). Mapping rewritten with a route-parity step 0; estimate 260k → 380k |
+| T1b | **BLOCKED (owner decision AU-D15, new; then READY-WITH-NOTE)** | revision 3's mapping would have broken legacy `/section/:id`, the `/assistant` alias, moved import-export/add-ons URLs, the Sites gate, `#admin-sidebar`/`#main-content` lookups (26 baseline `app-*` files, 259 tests pin them). Mapping rewritten with a route-parity step 0; estimate 260k → 380k |
 
 New owner decision:
 | # | Decision | Recommendation |
