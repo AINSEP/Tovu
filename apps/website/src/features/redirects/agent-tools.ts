@@ -167,6 +167,64 @@ const UPDATE_SCHEMA = {
   },
 } as const;
 
+const REDIRECTS_LIST_TOOL: AgentToolDefinition = {
+  name: "redirects_list",
+  description: "Lists the workspace's redirect rules, optionally filtered by status/source/matchType. Rules in the Trash (removed with redirects_tombstone) are not listed; 'disabled' rules here are ones switched off, not removed. Read-only.",
+  sideEffects: "none",
+  authorization: { permission: MANAGE_REDIRECTS_PERMISSION },
+  inputSchema: LIST_SCHEMA,
+};
+
+const REDIRECTS_GET_TOOL: AgentToolDefinition = {
+  name: "redirects_get",
+  description: "Fetches a single redirect rule by id. Read-only.",
+  sideEffects: "none",
+  authorization: { permission: MANAGE_REDIRECTS_PERMISSION },
+  inputSchema: REDIRECT_ID_SCHEMA,
+};
+
+const REDIRECTS_GET_HITS_TOOL: AgentToolDefinition = {
+  name: "redirects_get_hits",
+  description: "Fetches aggregate hit stats (total hit count, last-hit time) for a redirect rule by id. Read-only. Returns hitCount:0 if the rule has never been hit.",
+  sideEffects: "none",
+  authorization: { permission: MANAGE_REDIRECTS_PERMISSION },
+  inputSchema: REDIRECT_ID_SCHEMA,
+};
+
+const REDIRECTS_CREATE_TOOL: AgentToolDefinition = {
+  name: "redirects_create",
+  description:
+    "Creates a new manual redirect rule. Rejects an unsafe/disallowed absolute target, collapses a one-hop chain onto an existing active rule's own target, and rejects a resulting cycle. Rejects a duplicate exact-match rule for the same fromPattern.",
+  sideEffects: "mutates-durable-state",
+  authorization: { permission: MANAGE_REDIRECTS_PERMISSION },
+  inputSchema: CREATE_SCHEMA,
+};
+
+const REDIRECTS_UPDATE_TOOL: AgentToolDefinition = {
+  name: "redirects_update",
+  description: "Edits one or more fields on an existing redirect rule. Only provided fields change; omitted fields keep their current value. Same validation as redirects_create.",
+  sideEffects: "mutates-durable-state",
+  authorization: { permission: MANAGE_REDIRECTS_PERMISSION },
+  inputSchema: UPDATE_SCHEMA,
+};
+
+const REDIRECTS_TOMBSTONE_TOOL: AgentToolDefinition = {
+  name: "redirects_tombstone",
+  description: "Removes a redirect rule by moving it to the Trash: it stops matching and leaves the redirect rule list (only the Trash shows it). Works on an active or a switched-off rule. Restore it from the Trash, or with redirects_update status 'active'. Idempotent: removing a rule already in the Trash is a no-op.",
+  sideEffects: "mutates-durable-state",
+  authorization: { permission: MANAGE_REDIRECTS_PERMISSION },
+  inputSchema: REDIRECT_ID_SCHEMA,
+};
+
+const REDIRECTS_IMPORT_TOOL: AgentToolDefinition = {
+  name: "redirects_import",
+  description:
+    `Creates up to ${MAX_IMPORT_BATCH_SIZE} redirect rules in one call. Each rule gets the identical validation a single redirects_create call gets (pattern/target-allowlist/duplicate/cycle checks); a per-rule failure is reported in 'failed' and does not abort the rest of the batch.`,
+  sideEffects: "mutates-durable-state",
+  authorization: { permission: MANAGE_REDIRECTS_PERMISSION },
+  inputSchema: IMPORT_SCHEMA,
+};
+
 /**
  * The Redirects domain's fixed agent-tool catalog (SPEC-009) — see this file's header for the one
  * withheld operation and why.
@@ -176,56 +234,12 @@ const UPDATE_SCHEMA = {
  */
 export function getRedirectsAgentToolCatalog(): AgentToolDefinition[] {
   return [
-    {
-      name: "redirects_list",
-      description: "Lists the workspace's redirect rules, optionally filtered by status/source/matchType. Rules in the Trash (removed with redirects_tombstone) are not listed; 'disabled' rules here are ones switched off, not removed. Read-only.",
-      sideEffects: "none",
-      authorization: { permission: MANAGE_REDIRECTS_PERMISSION },
-      inputSchema: LIST_SCHEMA,
-    },
-    {
-      name: "redirects_get",
-      description: "Fetches a single redirect rule by id. Read-only.",
-      sideEffects: "none",
-      authorization: { permission: MANAGE_REDIRECTS_PERMISSION },
-      inputSchema: REDIRECT_ID_SCHEMA,
-    },
-    {
-      name: "redirects_get_hits",
-      description: "Fetches aggregate hit stats (total hit count, last-hit time) for a redirect rule by id. Read-only. Returns hitCount:0 if the rule has never been hit.",
-      sideEffects: "none",
-      authorization: { permission: MANAGE_REDIRECTS_PERMISSION },
-      inputSchema: REDIRECT_ID_SCHEMA,
-    },
-    {
-      name: "redirects_create",
-      description:
-        "Creates a new manual redirect rule. Rejects an unsafe/disallowed absolute target, collapses a one-hop chain onto an existing active rule's own target, and rejects a resulting cycle. Rejects a duplicate exact-match rule for the same fromPattern.",
-      sideEffects: "mutates-durable-state",
-      authorization: { permission: MANAGE_REDIRECTS_PERMISSION },
-      inputSchema: CREATE_SCHEMA,
-    },
-    {
-      name: "redirects_update",
-      description: "Edits one or more fields on an existing redirect rule. Only provided fields change; omitted fields keep their current value. Same validation as redirects_create.",
-      sideEffects: "mutates-durable-state",
-      authorization: { permission: MANAGE_REDIRECTS_PERMISSION },
-      inputSchema: UPDATE_SCHEMA,
-    },
-    {
-      name: "redirects_tombstone",
-      description: "Removes a redirect rule by moving it to the Trash: it stops matching and leaves the redirect rule list (only the Trash shows it). Works on an active or a switched-off rule. Restore it from the Trash, or with redirects_update status 'active'. Idempotent: removing a rule already in the Trash is a no-op.",
-      sideEffects: "mutates-durable-state",
-      authorization: { permission: MANAGE_REDIRECTS_PERMISSION },
-      inputSchema: REDIRECT_ID_SCHEMA,
-    },
-    {
-      name: "redirects_import",
-      description:
-        `Creates up to ${MAX_IMPORT_BATCH_SIZE} redirect rules in one call. Each rule gets the identical validation a single redirects_create call gets (pattern/target-allowlist/duplicate/cycle checks); a per-rule failure is reported in 'failed' and does not abort the rest of the batch.`,
-      sideEffects: "mutates-durable-state",
-      authorization: { permission: MANAGE_REDIRECTS_PERMISSION },
-      inputSchema: IMPORT_SCHEMA,
-    },
+    REDIRECTS_LIST_TOOL,
+    REDIRECTS_GET_TOOL,
+    REDIRECTS_GET_HITS_TOOL,
+    REDIRECTS_CREATE_TOOL,
+    REDIRECTS_UPDATE_TOOL,
+    REDIRECTS_TOMBSTONE_TOOL,
+    REDIRECTS_IMPORT_TOOL,
   ];
 }
