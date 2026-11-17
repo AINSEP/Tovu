@@ -41,11 +41,12 @@ export const defaultAccessTokensPort: AccessTokensPort = {
  *  @complexity O(1). */
 function fakePublishPort({ overrides }: { overrides: Partial<AccessTokensPort["publish"]> | undefined }, _optional: Record<string, never> = {}): AccessTokensPort["publish"] {
   const emptySnapshot: AdminPublishCredentialsSnapshot = { credentials: [], executionMode: "self-hosted-cli" };
+  const stubs = overrides ?? {};
   return {
-    list: overrides?.list ?? (() => Promise.resolve(emptySnapshot)),
-    create: overrides?.create ?? (() => Promise.reject(new Error("publish.create not stubbed for this test"))),
-    update: overrides?.update ?? (() => Promise.reject(new Error("publish.update not stubbed for this test"))),
-    remove: overrides?.remove ?? (() => Promise.resolve()),
+    list: stubs.list ?? (() => Promise.resolve(emptySnapshot)),
+    create: stubs.create ?? (() => Promise.reject(new Error("publish.create not stubbed for this test"))),
+    update: stubs.update ?? (() => Promise.reject(new Error("publish.update not stubbed for this test"))),
+    remove: stubs.remove ?? (() => Promise.resolve()),
   };
 }
 
@@ -53,11 +54,12 @@ function fakePublishPort({ overrides }: { overrides: Partial<AccessTokensPort["p
  *  @complexity O(1). */
 function fakeSourceControlPort({ overrides }: { overrides: Partial<AccessTokensPort["sourceControl"]> | undefined }, _optional: Record<string, never> = {}): AccessTokensPort["sourceControl"] {
   const emptySnapshot: AdminSourceControlCredentialsSnapshot = { credentials: [] };
+  const stubs = overrides ?? {};
   return {
-    list: overrides?.list ?? (() => Promise.resolve(emptySnapshot)),
-    create: overrides?.create ?? (() => Promise.reject(new Error("sourceControl.create not stubbed for this test"))),
-    update: overrides?.update ?? (() => Promise.reject(new Error("sourceControl.update not stubbed for this test"))),
-    remove: overrides?.remove ?? (() => Promise.resolve()),
+    list: stubs.list ?? (() => Promise.resolve(emptySnapshot)),
+    create: stubs.create ?? (() => Promise.reject(new Error("sourceControl.create not stubbed for this test"))),
+    update: stubs.update ?? (() => Promise.reject(new Error("sourceControl.update not stubbed for this test"))),
+    remove: stubs.remove ?? (() => Promise.resolve()),
   };
 }
 
