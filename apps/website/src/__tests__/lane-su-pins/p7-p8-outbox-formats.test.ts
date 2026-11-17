@@ -18,7 +18,7 @@ import { outboxEventValues, SqlOutboxAdapter } from "#src/platform/db/repos/outb
 const WS = "lane-su-ws";
 const T0 = "2026-11-17T00:00:00.000Z";
 
-const FROZEN_EVENT: DomainEvent<object> = {
+const FROZEN_EVENT: DomainEvent = {
   id: "post-1-post.published-3", name: "post.published", occurredAt: T0, aggregateId: "post-1", workspaceId: WS,
   payload: { slug: "hello", version: 3 },
 };
