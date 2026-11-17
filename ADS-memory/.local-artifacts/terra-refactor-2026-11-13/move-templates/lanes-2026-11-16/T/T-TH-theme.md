@@ -1,0 +1,41 @@
+# Lane T, theme: sheets T-TH-01 .. T-TH-08 (on top of audit2 B04, which owns `@jini-ai/cms/theme` + `/node`)
+Written against Tovu `integ/merge-b-2026-11-16` 491632dc; render/pages importers from `refactor/size-04-pages` (`SIZE04-importers.tsv`: 99 import sites of theme/post/newsletter under `public-http`, 63 of them in the new `http/site/render/` and `routes/site/pages/` folders; the old `render.ts` + `pages.ts` had 19). Every Tovu importer edit in these sheets is TEXT-guarded and must be applied to the size-04 shape once it is merged: re-run `scripts/gen.py` on the merged tree before execution.
+Already covered, not re-planned: B04 T1 (`template-applicability`, `theme-layout`, `validation/profiles`, `static-asset-contract`), T2 (`build-conformance`), T3 (`validation/references`), T4 (`validation/structure`, blocked), T5 (`theme.ts`, design only) = 2,546 lines. B04's blob guards were taken on `integ/wave-b`; `build-conformance.ts` is 542 lines now (B04 says 553) and `theme.ts` 1,168 (B04 says 1,153): B04 needs its blobs refreshed before it runs.
+
+## T-TH-01 MV-theme-render-leaves-1 (T-MOVE) est 90k Sonnet. prerequisite: B04 T1 (creates `packages/cms/src/theme/`).
+files `T-TH-01.files.tsv`: `font-links.ts` 36, `asset-path-rewrites.ts` 23, `token-aliases.ts` 53, `hardcoded-link-lists.ts` 118, `page-publication.ts` 60 (audit2 B15's pure files; B15's `static-asset-contract` went to B04 T1, its `set-active-theme-tool`/`verify-active-theme` are T-TH-08/STAY). No function over 50 lines (`T-TH-01.decls.tsv`).
+target: `packages/cms/src/theme/*.ts`, universal entry. `font-links.ts` imports `contracts/core` (1): must be a name `@jini-ai/core` already exports, else STOP. `hardcoded-link-lists.ts` has 1 Jini import: check it is cms-own or core.
+size-04 note: `font-links.ts` changed on size-04 (1 line) and `public-theme-resources.ts` is new there: guard blobs from the merged tree.
+characterization first: `token-aliases` (missing token resolves to its alias, alias chain depth, unknown stays unset) and `font-links` (dedupe keeps first occurrence order) golden tests in Tovu, then moved.
+
+## T-TH-02 MV-theme-validation-2 (T-MOVE + one split) est 200k Sonnet + Opus review. prerequisites: B04 T1, T3, T4.
+files `T-TH-02.files.tsv` (5 files, 1,427 lines): `validation/manifest-v2.ts` 548, `validation/markup.ts` 129, `validation/webmcp-markup.ts` 210, `validation/validate-theme-package.ts` 260, `migration/theme-migration-plan.ts` 280.
+over the limit: `validateManifestV2` 67 lines -> split by manifest section before the move.
+target: `packages/cms/src/theme/node/validation/*` (parse5 is already a cms dependency; `markup.ts` uses `PAGE_EMBED_TYPES` from `@jini-ai/cms/widgets/page-embed-types`: import the leaf). CLASSIFY wants `THEME_OWNED_MARKER_TYPES` moved out of the heavy resolver into that leaf: do it in the Jini commit only if `rg` shows one definition.
+`validate-theme-package.ts` calls the template linters (T-TH-04): until D-T2 is decided it takes `templateValidators: { handlebars?, liquid? }` as an injected option and Tovu passes the two existing functions.
+characterization first: a fixture theme package per profile, asserting the exact ordered issue list (codes + paths), including one fixture per linter so the injected-validator wiring fails loudly if dropped.
+
+## T-TH-03 SP-theme-listing-render-1 (T-SPLIT) est 170k Sonnet + Opus review.
+files `T-TH-03.files.tsv`: `entry-list-render.ts` 375 (23 `tovu` text hits: CSS class names and data attributes), `render-contract.ts` 361.
+`entry-list-render.ts` -> existing `@jini-ai/cms/listing` (already owns `wrapListingItems`: read it, extend it, no second listing renderer). Class names: Jini emits `jini-` prefixed classes; shipped themes style the current class names, which are a saved surface in every installed theme -> option `classPrefix` (Jini default `jini-`, Tovu passes its current prefix so existing themes render unchanged). Renaming theme CSS is NOT in this sheet.
+`render-contract.ts`: `safeHref` -> `@jini-ai/core/text` beside `escapeHtml` (DEDUPE check first: `rg -n "safeHref|isSafeHref" packages/*/src`; diff behaviour on `javascript:`, protocol-relative, mixed case, leading whitespace/control characters, and compare one real caller); the consent and slot parts need `@jini-ai/cookie-consent` and `contracts/core/theme-slots` -> ports, Tovu binds.
+characterization first: golden HTML for a listing of 3 entries x (card, compact) x (with/without cover) with pinned dates; unsafe-href table test that fails if the scheme check is loosened.
+visual check: YES (Chrome, public listing pages of the starter theme, light + dark) after the Tovu commit.
+
+## T-TH-04 theme template linters: OWNER DECISION D-T2 first. est 120k after the decision.
+files `T-TH-04.files.tsv`: `handlebars-allowlist.ts` 424, `liquid-allowlist.ts` 297 (`ALLOWED_LIQUID_FILTERS` is a 68-line data table).
+They import `handlebars` and `liquidjs`: a new third-party dependency in a Jini package is a STOP for an executor. Options: (a) subpaths `cms/theme/handlebars` and `cms/theme/liquid` with optional peers, coordinator adds the deps and the lockfile in its own commit (plan-v6 T1e); (b) linters stay in Tovu behind the `templateValidators` option of T-TH-02. Recommendation: (b) now, (a) when a second host needs theme linting.
+
+## T-TH-05 SP-theme-files-1: DESIGN LEVEL. est Opus design 150k, then 2 Sonnet runs ~200k each.
+`theme-files.ts` 1,344 lines, 59 declarations, 39 import sites, in `size-debt.json`. No size design exists for it (designs 01-10 cover other files). Order: (1) size split in Tovu by the real dependency graph (containment/listing | generated-dir names and predicates | write/rename/delete operations | identity), tests green; (2) DEDUPE containment + listing onto `@jini-ai/platform/fs` `createGuardedFileReader` (already used by `fs-files/fs-files.ts`): diff refusal behaviour for symlink escape, `..`, absolute paths, case-folding and size limits against one real theme caller before deleting anything; (3) move the theme-specific path rules to `cms/theme/node`. B04 T4 needs only `GENERATED_THEME_DIRS` + `isSourceDirGeneratedConflict`: step (1) can release those first as `theme/generated-paths.ts`.
+cms may not import `@jini-ai/platform` (owner option C): the guarded reader reaches cms code as a port; Tovu wires it.
+
+## T-TH-06 SP-theme-static-render-1: DESIGN LEVEL. est Opus design 200k, then 3 runs.
+`static-render.ts` 1,396 lines (91 declarations with `static-portability-index.ts` 234 and `code-tier-asset-normalizer.ts` 413), in `size-debt.json`, 3 `console.*`, consumed by the size-04 `http/site/render/*` files. plan-v6 T1a named the seam: `themes/ports.ts`, `createThemeEngine`, warn-once state moved into the engine closure. Risks the design must close: module-level caches and warn-once sets (owner of mutable state, LESSON 4); late reads of the active theme (LESSON 3); the menu part needs a core contract shared by cms and agentic (CLASSIFY: CORE-CONTRACT-NEEDED). Characterization: `theme/__tests__/template-render.canary.test.ts` and `theme-pages-render.canary.test.ts` exist; add a byte-for-byte golden of one page per template kind before any seam.
+visual check: YES (every public page type).
+
+## T-TH-07 theme file lifecycle (audit2 B10, never sheeted): after T-TH-05. est 2 runs x 180k.
+files `T-TH-07.files.tsv` (7 files, 1,677 lines, none over 50 lines): `duplicate-theme.ts` 416, `sync-originals.ts` 197, `file-identity-lock.ts` 283, `theme-preview-image.ts` 114, `save-theme-original.ts` 54, `migration/migrate-theme.ts` 370; `theme-trash.ts` 243 binds the Tovu trash feature and STAYS. Staging directory names and `.tovu-lineage.json` are Tovu values passed in (B04 list). No step deletes a theme directory permanently: moves to trash only.
+
+## T-TH-08 theme agent tools: after T-TH-06/07 (handlers call the engine). est seam 2 runs x 200k + move 150k.
+files `T-TH-08.files.tsv` (9 files, 2,415 lines, 73 import sites): `agent-tools.ts` 453 (`getThemesAgentToolCatalog` 111 lines), `tool-registrations.ts` 1,028 (`buildThemesRegistrations` 447 lines, 19 handlers, longest 78), and 7 single-tool files. K-TOOLS-PATTERN applies, S1 first (size split in Tovu). CLASSIFY: the exact-edit and window/paging text helpers inside `tool-registrations.ts` -> `@jini-ai/core/text`.
