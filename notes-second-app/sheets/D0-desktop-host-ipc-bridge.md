@@ -1,5 +1,22 @@
 # D0: `@jini-ai/desktop-host` gets `./bridge`, `./ipc` and a ready-line launcher option
 
+## Revision 2 corrections (authoritative; they replace the steps they name)
+
+**Judge 5 (blocker): a sandboxed preload cannot `require` package or local files.** Add a build step in this sheet:
+the preload is **bundled** to one CJS file (esbuild, `format: 'cjs'`, `platform: 'node'`, `external: ['electron']`;
+check `rg -n '"esbuild"' package.json packages/*/package.json examples/*/package.json` first: if no workspace package
+already depends on it, STOP, a new dependency is an owner decision). Test: launch a real `BrowserWindow` with
+`sandbox: true, contextIsolation: true` using the **emitted** file and assert the bridge object exists and a channel
+round-trips (skip with a printed reason, not silently, when no display is available; say so in the report).
+
+**Judge 18:** no bridge re-export file. The `./bridge` export-map entry points at the existing implementation file.
+
+**Judge 24:** the launcher handle is `shutdown({}, options)` (`packages/desktop-host/src/sidecar.ts:49-58`), not
+`stop()`. The ready-line option must **return the handle even when readiness times out**, so the caller can shut the
+child down; add tests for timeout, early exit and failure after spawn, each asserting `shutdown` was called once and the child is gone.
+
+---
+
 Inherits `COMMON.md`. Repo: Jini. Branch: `feat/gap-d0-desktop-ipc`. Estimate: ~140k Sonnet.
 Owner: `@jini-ai/desktop-host` (imports: itself + `@jini-ai/core`; **no `electron` dependency**: Electron objects
 are injected). Prerequisite: a base that contains `moves/audit2-desktop` (merge-b or merge-final).

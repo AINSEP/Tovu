@@ -1,5 +1,23 @@
 # G2: `@jini-ai/cms/entries/sql` (tables, repo, text + cursor) and no-op outbox ports
 
+## Revision 2 corrections (authoritative; they replace the steps they name)
+
+**Judge 1, 13 (blocker). This sheet no longer creates anything under `cms/entries/sql`.** That destination is owned by
+lane S sheet **S2** (`plan/lanes-s-u-2026-11-16`, `S/S2-entries-content-types-sql.md`), which moves Tovu's existing
+`SqlEntryRepo` and `entryRepoFor` there (Tovu `apps/website/src/features/entries/repo.ts:51,270`: trash handling,
+atomic CAS, five read ports). Two implementations at one path is forbidden.
+- Prerequisite, hard: S2 landed. Landed check: `rg -n "export function entryRepoFor" packages/cms/src/entries/sql`.
+  No hit: STOP. Do not write a repository.
+- Replace steps 1 to 4 with: delete NOTES' own entry storage glue (`examples/notes-app/src/gaps/*entries*`), import
+  `entryRepoFor` from the entry S2 publishes, bind it to the NOTES kernel, re-run N5's e2e unchanged. One commit.
+- Remove the `nextCursor` step and the "rollback against `InMemoryEntryRepo`" suite: `listEntries` returns
+  `EntryRecord[]` (`packages/cms/src/entries/list.ts:33`) and the memory repo's `transaction` only calls its callback
+  (`repo.memory.ts:67-69`). A page API or memory rollback is a change to S2's contract: it is listed as gap **G20**
+  for S2's owner in `../INDEX.md`, not built here.
+- Estimate falls to about 50k.
+
+---
+
 Inherits `COMMON.md`. Repo: Jini. Branch: `feat/gap-g2-entries-sql`. Estimate: ~130k Sonnet.
 Owner: `@jini-ai/cms`. Prerequisites: OD-N3 = yes; N1 merged. Closes G2, G3(a), G17.
 

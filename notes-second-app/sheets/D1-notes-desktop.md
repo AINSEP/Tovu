@@ -1,5 +1,19 @@
 # D1: `examples/notes-desktop`, an Electron shell around notes-app by wiring
 
+## Revision 2 corrections (authoritative; they replace the steps they name)
+
+**Judge 5:** the preload is built with D0's bundling step (one CJS file, `electron` external); `tsc` alone is not
+enough with `sandbox: true`. The gate runs the emitted preload in a sandboxed window.
+
+**Judge 24:** every use of `stop()` in this sheet is `shutdown({}, options)`. On readiness failure: keep the handle,
+call `shutdown`, then show the dialog and quit. Tests: timeout, early exit, post-spawn failure → no child left
+(`process.kill(pid, 0)` throws).
+
+Node `fs` / lock / process bindings used by the shell come from `@jini-ai/node-adapters` (COMMON rule 5).
+Landed check: `test -f packages/node-adapters/package.json`. Absent: STOP.
+
+---
+
 Inherits `COMMON.md`. Repo: Jini. Branch: `feat/notes-d1-desktop`. Estimate: ~120k Sonnet.
 Creates `examples/notes-desktop/**`; may move one file into `packages/desktop-host` (step 1).
 Prerequisites: D0 and N5 merged; OD-N9 = sidecar.

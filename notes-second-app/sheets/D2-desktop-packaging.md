@@ -1,5 +1,15 @@
 # D2: packaging recipe and template for a second Electron app, proven on notes-desktop
 
+## Revision 2 corrections (authoritative; they replace the steps they name)
+
+**Judge 25: blocked on new owner decision OD-N11.** `node-toolchain` does not find a system Node: it builds shims
+around a supplied **Electron** executable (`packages/desktop-host/src/node-toolchain/index.ts:55-77`). Running the
+sidecar through those shims means Electron's Node ABI, which changes how the SQLite native module must be built and
+staged (the plan's D6 assumed system Node). Do not start until `../INDEX.md` shows `OD-N11 … DECIDED:`. Delete the
+step "prefer a Node found by node-toolchain".
+
+---
+
 Inherits `COMMON.md`. Repo: Jini. Branch: `feat/gap-d2-desktop-packaging`. Estimate: ~80k Sonnet.
 Owner of the recipe: `@jini-ai/devops` (`packaging/electron`). Prerequisite: D1 merged. Closes G14.
 

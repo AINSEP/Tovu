@@ -1,5 +1,24 @@
 # G7: `@jini-ai/chat/transports/daemon-runs` (move, do not rewrite)
 
+## Revision 2 corrections (authoritative; they replace the steps they name)
+
+**Judge 3 (blocker): the request contract.** `POST` run start requires a non-empty `contextRef`
+(`packages/daemon/src/http/runs.ts:44,117-133`) and reads neither `prompt` nor `attachments`. "Prompt + attachments
+only" cannot start a run. The transport therefore takes a **required** host port:
+`resolveRunInput(required: { message: ChatSendInput }): { contextRef: string; body?: Record<string, unknown> } | Promise<…>`.
+There is no default. `reference-web` passes its existing encoder (`examples/reference-web/src/daemon-transport.ts:232-243`);
+N4 passes NOTES' own. Add a test that feeds the transport's serialized request into the **real** daemon parser
+(`parseRunStart` or the exported route spec; import it from `@jini-ai/daemon/http` in a test of the example, not of
+`packages/chat`) and gets a started run.
+
+**Judge 4, 18 (blocker): one atomic move.** Replace steps "move", "remove platform import", "re-export files" with a
+single commit that contains: the new file in `packages/chat` already **without** the `@jini-ai/platform` import (its
+needs arrive as ports), the `exports` entry and `jini.entries` line in `packages/chat/package.json`, `reference-web`
+re-pointed to the package entry, the moved tests, and the deletion of the example file. No thin re-export file. The
+manifest edit is part of this sheet (COMMON rule 3); if lane rules still forbid it at dispatch, STOP before step 1.
+
+---
+
 Inherits `COMMON.md`. Repo: Jini. Branch: `feat/gap-g7-chat-daemon-transport`. Estimate: ~100k Sonnet.
 Owner: `@jini-ai/chat`. Prerequisite: integration base; check C-CHAT-DEPS overlap (below).
 

@@ -1,5 +1,24 @@
 # G1: a packaged `Server` adapter for `node:http`
 
+## Revision 2 corrections (authoritative; they replace the steps they name)
+
+**Owner decision applied (OD-N2 closed):** the `node:http` adapter's home is the owner-approved new package
+**`@jini-ai/node-adapters`** (planned in the xpkg plan), not `http-kit`. Prerequisite and landed check:
+`test -f packages/node-adapters/package.json`. Absent: STOP.
+
+**Judge 21:** do not move route matching. Core already owns it (`createRouteTable`, `matchServerPath`,
+`packages/core/src/contracts/server/route-table.ts:32,74`). The adapter calls the core route table and keeps only
+request/response conversion, listening, socket lifecycle and the `onUnmatched` hook (see N0, N2). Delete the
+example's own matcher in the same commit and run `serverConformance` against the adapter.
+
+**Judge 18, 4:** no three-line re-export. One commit: file in the package, `exports` + `jini.entries`, examples re-pointed, example file deleted.
+
+**Judge 20:** the example's `node:test` suite is rewritten for the package's runner (Vitest) in the same commit; test count before/after reported.
+
+**Judge 22:** set-cookie handling and route precedence are already correct in the example (`node-server.ts:94-102`): characterize them, do not schedule them as changes.
+
+---
+
 Inherits `COMMON.md`. Repo: Jini. Branch: `feat/gap-g1-node-server`. Estimate: ~70k Sonnet.
 Owner: `@jini-ai/http-kit` (OD-N2 must be answered "http-kit"; otherwise do not run). Prerequisite: N0 merged.
 

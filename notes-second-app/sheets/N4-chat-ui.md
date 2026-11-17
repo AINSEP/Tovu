@@ -1,5 +1,24 @@
 # N4: the assistant pane in the admin shell
 
+## Revision 2 corrections (authoritative; they replace the steps they name)
+
+**Judge 8:** remove `useInvalidate()`. Entity screens hold per-mount state and reload only when `load` or `scope`
+changes (`packages/admin/src/react/entities/use-entity-read.ts:7-21`). Use the refresh seam from
+`GA-admin-entity-seams.md`: the composition root holds a counter, bumps it when a run settles, and passes it as
+`refreshToken`. N5 asserts the list updates with no focus change and no click.
+
+**Judge 9:** "required props only" cannot send: `ChatPane` starts with no agents and refuses to send without a
+selected one. Bind explicitly: `agents` from a new same-origin NOTES route that proxies the daemon's agent list
+(add it to N3's proxy allow-list and tests), an initial selection, and for N5 a **scripted agent** entry that is
+selectable in the browser. Test: send is disabled with an empty inventory and enabled after the inventory loads.
+
+**Judge 17:** bind the chat i18n provider at the composition root (`packages/chat/src/react/hooks/context.ts:24-49`);
+test that an unbound render is detected (documented failure or visible key), and that a fake `useT` output reaches the pane.
+
+**Judge 3:** pass NOTES' `resolveRunInput` (see G7) and test it against the real daemon parser.
+
+---
+
 Inherits `COMMON.md`. Repo: Jini. Branch: `feat/notes-n4-chat`. Touches `examples/notes-web/**` only.
 Prerequisites: N2, N3 and **G7** merged (`@jini-ai/chat/transports/daemon-runs` exists). Estimate: ~90k Sonnet.
 

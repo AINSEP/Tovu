@@ -1,5 +1,23 @@
 # G6: entity adapters, conformance and a `Server` registrar in `@jini-ai/admin`
 
+## Revision 2 corrections (authoritative; they replace the steps they name)
+
+**Judge 4, 18 (blocker): no stubs, exports with the code.** Replace steps 2 to 4 with one commit per adapter: the
+adapter file in `packages/admin`, its `exports` + `jini.entries` lines, the example re-pointed, the example copy
+deleted. No example stub survives a commit.
+
+**Judge 14: the wire protocol must carry the whole port.**
+- List: `limit`, `cursor`, `search`, **`filter`** and **`sort`**, serialized as `filter[<field>]=<value>` (repeatable)
+  and `sort=<field>` / `sort=-<field>`; unknown fields are refused with 400 and the field named.
+- Patch: the editor sends explicit `undefined` to clear an optional field (`packages/admin/src/react/entities/use-entity-edit.ts:55-58`),
+  and JSON drops `undefined` (lesson 39). The HTTP patch body is `{ set: { … }, clear: ["fieldA", …] }`. The http
+  adapter maps `undefined` → `clear`; the server registrar maps `clear` back to `undefined` for the port. `null` is a
+  value, never a clear.
+- Conformance runs **through the HTTP round trip** (adapter → `createInMemoryServer` → registrar → memory port), with
+  cases: clear a field; filter; sort ascending and descending; a field both in `set` and `clear` → 400.
+
+---
+
 Inherits `COMMON.md`. Repo: Jini. Branch: `feat/gap-g6-entity-adapters`. Estimate: ~130k Sonnet.
 Owner: `@jini-ai/admin`. Prerequisites: N2 merged; xpkg R1c/R2 not mid-flight on the files below (check).
 

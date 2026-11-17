@@ -1,5 +1,19 @@
 # N5: end-to-end proof, install-closure baseline, packed-tarball boot
 
+## Revision 2 corrections (authoritative; they replace the steps they name)
+
+**Judge 26:** the packed proof must prove the **browser** consumer. Outside workspace resolution (a scratch folder
+with only the packed tarballs installed): build `notes-web`, boot `notes-app` serving it at `/admin/`, then drive a
+browser through admin create / edit / publish and one scripted-assistant tool round trip that changes a note's body.
+Print `NOTES_PACKED_BOOT_OK` only after those pass. The existing `scripts/smoke.ts` (HTML server + contact form) stays as a separate check.
+
+**Judge 22:** the health-boot script is the root `scripts/health-boot.ts` (`examples/minimal-host/src/health-boot.test.ts:21-22`);
+`examples/minimal-host/scripts/health-boot.ts` does not exist. The browser sequence creates two notes and asserts **two** (fix the "three").
+
+**Judge 8:** the list must update after the assistant's edit with no focus change and no click (refresh seam).
+
+---
+
 Inherits `COMMON.md`. Repo: Jini. Branch: `feat/notes-n5-proof`. Touches `examples/notes-app/**`,
 `examples/notes-web/**`, `examples/README.md`. Prerequisites: N0–N4 merged. Estimate: ~80k Sonnet.
 

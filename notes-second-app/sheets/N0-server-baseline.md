@@ -1,5 +1,17 @@
 # N0: notes-app baseline, origin guard, cookie fix, function split, gap ledger
 
+## Revision 2 corrections (authoritative; they replace the steps they name)
+
+**Judge 22:** the adapter already preserves cookies with `getSetCookie` (`examples/notes-app/src/node-server.ts:96-97`).
+Replace "expect no `getSetCookie`; failing cookie test" with a characterization test that passes today. Re-run every
+"expected" fact in the inventory against the base you checked out and correct the sheet's numbers in your report.
+
+**Judge 2 (added step):** add `onUnmatched` to the example adapter (signature in N2's corrections), default absent =
+today's 404. Tests: unmatched request without the hook → today's exact 404; with a hook returning `undefined` → the
+same 404; a hook is never called for a matched route; a throwing hook → 500 with plain words, reported, never swallowed.
+
+---
+
 Inherits `COMMON.md`. Repo: Jini. Branch: `feat/notes-n0-baseline`. Touches only `examples/notes-app/**`.
 Prerequisites: none (examples-only; file-disjoint from every xpkg lane). Estimate: ~60k Sonnet.
 

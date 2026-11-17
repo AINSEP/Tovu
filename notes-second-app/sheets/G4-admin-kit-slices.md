@@ -1,5 +1,13 @@
 # G4: `AdminKit` as a required core plus optional feature kits
 
+## Revision 2 corrections (authoritative; they replace the steps they name)
+
+**Judge 18:** no slice `index.ts` re-export files; each kit slice is its implementation file behind an export-map
+entry, created in the commit that adds it. **Judge 19:** React entries may import `@jini-ai/ui-kit/react` (owner
+option C, recorded in COMMON rule 5); this is an approved exception, not a boundary breach.
+
+---
+
 Inherits `COMMON.md`. Repos: Jini (+ one Tovu file). Branch: `feat/gap-g4-admin-kit-slices` in both.
 Estimate: ~90k Sonnet. Owner: `@jini-ai/admin` (`react/kit.tsx`).
 Prerequisites: xpkg **R1c, R2a, R2b landed** (they edit kit call sites and this file); OD-N8 = "split"; G5 merged.

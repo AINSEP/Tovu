@@ -1,5 +1,35 @@
 # N2: `examples/notes-web`, the admin shell and entity screens wired to the notes API
 
+## Revision 2 corrections (authoritative; they replace the steps they name)
+
+**Judge 2 (blocker): static serving.** The `Server` contract has no wildcards and requires equal segment counts
+(`packages/core/src/contracts/server.ts:95-107`), `GET /` is already registered by NOTES (`examples/notes-app/src/app.ts:58`),
+and a duplicate registration throws. So no "static registrar on the route table". Instead:
+- The admin is mounted at the distinct path **`/admin/`**. The existing HTML routes (`/`, note pages, the contact
+  form) and every existing smoke assertion stay untouched; add a characterization test that lists them first.
+- Unmatched requests are a **host-adapter** concern: N0 (corrected) adds `onUnmatched?(required: { request }): Response | undefined | Promise<…>`
+  to the example adapter. NOTES binds it to a small `serveAdminBundle` handler that answers only `GET`/`HEAD` under
+  `/admin/` (file from the built bundle, else `index.html` for a path without a file extension), with path
+  containment tests (`..`, encoded separators, absolute paths → 404) and nothing outside `/admin/`.
+- Replace steps "static registrar" / "register last" with the two bullets above.
+
+**Judge 7, 6, 8, 12: needs new prerequisite sheet `GA-admin-entity-seams.md`** (mutation-failure seam, create-time
+fields, refresh seam, `search` in the list query). Landed check:
+`rg -n "onMutationFailure|refreshToken" packages/admin/src/react/entities`. No hit: STOP. The conflict message and
+Reload action in this sheet are built on that seam; do not catch errors in the example.
+
+**Judge 17: transitive providers.** Before mounting, run the inventory
+`rg -n "use[A-Z]\w*\(\{?\}?\)" packages/admin/src/react/shell packages/admin/src/react/entities packages/ui/src/react/components/CustomSelect.tsx`
+and list every context hook with the provider that satisfies it. Known today: `CustomSelect` needs the UI kit's
+overlay container (`packages/ui/src/react/components/CustomSelect.tsx:14,532`; provider in `react/kit.tsx`). Bind every
+one at the `notes-web` composition root, and add one test per provider that renders the screen **without** it and
+asserts the documented failure, plus one with it. `useT` / `useAdminLocale` are props defaulted to the real hooks,
+each with a fake-hook output test.
+
+**Judge 18: no slice `index.ts` files.** Import each symbol from its implementation file's export-map entry.
+
+---
+
 Inherits `COMMON.md`. Repo: Jini. Branch: `feat/notes-n2-web`. Creates `examples/notes-web/**`; adds one
 static-file route to `examples/notes-app`. Prerequisite: N1 merged. Estimate: ~150k Sonnet.
 

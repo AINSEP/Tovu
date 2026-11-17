@@ -1,5 +1,27 @@
 # N3: the assistant backend, wired from the daemon preset and the entries tool registrations
 
+## Revision 2 corrections (authoritative; they replace the steps they name)
+
+**Judge 11: prerequisite `G19-entry-tool-body.md`.** `collections_entry_update` forwards title, fields and expected
+version only (`packages/cms/src/entries/tool-registrations.ts:177-191`), so the assistant cannot edit a note's body.
+Landed check: `rg -n "body" packages/cms/src/entries/tool-registrations.ts` shows the update handler forwarding it.
+
+**Judge 16: characterize, never invent (lesson 31).** Delete the expected "tool-permission denial code" and
+"conflict result". First pin what happens today, through the real delegated route: the domain registrations use an
+allow policy (`packages/core/src/registration-kit.ts:539`); a service failure thrown by `fromResult` is not a
+`ToolInputError`, so the executor classes it internal and the route answers its internal-error envelope. Record the
+exact status, code and text. A friendlier stale-write answer is gap **G21** (owner: cms entries tools: throw
+`ToolInputError` for a version conflict), not part of this sheet. Authorization mutations use the evaluator's real
+result shape `{ allowed, reason }`.
+
+**Judge 15: PARTIAL in revision 2.** Remove "fall back to default security": strict mode is required, and a failure
+to start in strict mode is a STOP. The MCP callback credential (issued per run through the executor's credential
+resolver, `packages/daemon/src/agent-executor/contracts.ts:441-463`, never the host's inbound API token) is **not
+designed yet**; this sheet may not be dispatched until `../INDEX.md` lists finding 15 as closed. The test it will
+need: a real MCP callback from the spawned server authenticates with the run-scoped credential and is refused with the host token.
+
+---
+
 Inherits `COMMON.md`. Repo: Jini. Branch: `feat/notes-n3-assistant`. Touches only `examples/notes-app/**`.
 Prerequisite: N1 merged (N2 not needed). Estimate: ~120k Sonnet.
 

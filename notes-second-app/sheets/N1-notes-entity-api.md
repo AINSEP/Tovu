@@ -1,5 +1,22 @@
 # N1: note entity port, JSON entity routes, search, stale-write protection
 
+## Revision 2 corrections (authoritative; they replace the steps they name)
+
+**Judge 6 (lesson 38): `version` is not a creation field.** The descriptor marks `version` as persisted-only
+(read-only, not required on create). This needs the create/persisted split from `GA-admin-entity-seams.md`; until it
+lands, STOP rather than declaring `version` required. A person is never asked for a concurrency token.
+
+**Judge 10:** the status field has all three service states: `draft`, `published`, `unpublished`
+(`packages/cms/src/entries/types.ts:16`). Publish then unpublish ends in **`unpublished`**; fix the test. `slug` is
+shown read-only after creation: `updateEntry` accepts no slug (`write-service.ts:347-371`).
+
+**Judge 12:** `listEntries` takes `{ repo, workspaceId }` and forwards only `type`; there is no `limit`. Remove the
+"200-row bound" claim and the `{ type, limit }` call. v1 search filters the rows the service returns, and the sheet
+says so in the README ("reads the whole collection; fine for a demo, not a database bound"). A real bound is gap
+**G20** (S2's owner). `search` in `AdminEntityListQuery` comes from `GA-admin-entity-seams.md`, a prerequisite here.
+
+---
+
 Inherits `COMMON.md`. Repo: Jini. Branch: `feat/notes-n1-entity-api`. Touches only `examples/notes-app/**`.
 Prerequisite: N0 merged. Estimate: ~90k Sonnet.
 

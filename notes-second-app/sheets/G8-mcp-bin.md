@@ -1,5 +1,13 @@
 # G8: `@jini-ai/mcp` resolves its own bin
 
+## Revision 2 corrections (authoritative; they replace the steps they name)
+
+**Judge 23: this sheet is withdrawn.** `@jini-ai/mcp` already exports `./bin` (`packages/mcp/package.json`,
+`exports["./bin"]` → `dist/bin/serve.js`). N3 resolves it with `fileURLToPath(import.meta.resolve('@jini-ai/mcp/bin'))`.
+No package helper is added. Do not dispatch. (Gap G8 is closed as "not a gap".)
+
+---
+
 Inherits `COMMON.md`. Repo: Jini. Branch: `feat/gap-g8-mcp-bin`. Estimate: ~40k Sonnet.
 Owner: `@jini-ai/mcp`. Prerequisite: N3 merged.
 

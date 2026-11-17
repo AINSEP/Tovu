@@ -1,5 +1,13 @@
 # G5: injectable field renderer and list search in the admin entity screens
 
+## Revision 2 corrections (authoritative; they replace the steps they name)
+
+**Judge 12, 6:** `AdminEntityListQuery.search` and the create/persisted field split move to the earlier
+`GA-admin-entity-seams.md` (their consumers N1 and N2 come first). This sheet keeps only the `renderField` port and
+the list search box, and no longer "renders `version` read-only" as a fix for a required field. Prerequisite: GA landed.
+
+---
+
 Inherits `COMMON.md`. Repo: Jini. Branch: `feat/gap-g5-field-renderer-search`. Estimate: ~110k Sonnet.
 Owner: `@jini-ai/admin` (`react/entities`, `core/ports/entities.ts`). Prerequisite: G6 merged (serial: same folder).
 Closes G5 and G3(b).
