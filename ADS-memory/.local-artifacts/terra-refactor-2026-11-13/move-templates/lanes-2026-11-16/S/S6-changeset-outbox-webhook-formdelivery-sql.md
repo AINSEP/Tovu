@@ -22,6 +22,11 @@ prerequisites (all): S0 DONE (P1 `outbox_events:claim`, `webhook_deliveries:clai
 - `outbox-repo.ts` (156): `SqlOutboxAdapter` MOVE; `outboxEventValues` (:58) MOVE and is exported from `@jini-ai/db/events`:
   it is the ONE definition of the stored outbox row (P8). `DEFAULT_OUTBOX_CLAIM_LEASE_MS` (imported at :5 from Tovu's
   events barrel) becomes a REQUIRED constructor field `claimLeaseMs` (db may not import infra); Tovu passes the constant.
+- `change-set-repo.ts:5` imports `outboxEventValues` (used at :123) and moves with it into the same Jini folder (relative import).
+  Test importers that repoint only their import line (allowed edit (a); `rg -l outboxEventValues apps/website/src`, 2026-11-17):
+  identity `delete-user-service`, `user-purge`; trash `account-protections`, `user-adapter.dialects`, `user-adapter`;
+  `platform/db/__tests__/parity/parity-harness.ts`; `admin-http/routes/users/__tests__/delete`; `commerce-strip-parity`;
+  composition `account-purge-protections`, `trash-user-tool-port`.
 - Importers of `outboxEventValues` after T1 (all repoint to `@jini-ai/db/events`): `features/identity/user-purge.ts` and
   `features/trash/adapters/user.ts` (type-only; they already RECEIVE the mapper by injection), `form-delivery-repo.ts`
   (until S6c), `server/runtime/composition/deps.ts`, and **`platform/db/sqlite/__tests__/repo-transactions.sqlite.test.ts:2`
@@ -34,15 +39,16 @@ prerequisites (all): S0 DONE (P1 `outbox_events:claim`, `webhook_deliveries:clai
 | The claim lease silently changes | adapter built with the Tovu constant: stored lease expiry = `now + constant` exactly | pass another number in the binding |
 | Enqueue escapes the caller's transaction | `enqueue` inside a transaction that then throws: no row | run it on a fresh connection |
 | Stored row format | P8 (S0) + `markDelivered` / `markFailed` column effects pinned | change a mapped column |
-| A caller builds the adapter without a lease | compile-time (required field) + `rg -n "new Sql(ite)?OutboxAdapter\(" apps/website/src` lists every site, each passes it | - |
+| A caller builds the adapter without a lease | compile-time (required field). Today `claimLeaseMs` is OPTIONAL (`outbox-repo.ts:75,83`: `optional.claimLeaseMs ?? DEFAULT_OUTBOX_CLAIM_LEASE_MS`); after S6a the Tovu binding `SqliteOutboxAdapter` passes the constant, so its sites (`rg -n "new SqliteOutboxAdapter\(" apps/website/src`) stay unedited, and the three direct `new SqlOutboxAdapter(<kernel>[, options])` test sites (`contracts/core/events/__tests__/outbox-repo.contract.test.ts:248,249`, `jini-outbox-parity.test.ts:171`) import it from `@jini-ai/db/events` and pass `{ kernel, tables, claimLeaseMs }` (allowed edit (b)) | - |
 | Change-set rows and their outbox row in one transaction | failing second write rolls the first back | split the transaction |
 
 ## S6b — webhooks
 `webhook-repo.ts` (394): `SqlWebhookSubscriptionRepo`, `SqlWebhookDeliveryRepo` MOVE, one Jini file each
 (`subscription-repo.ts`, `delivery-repo.ts`; neither over 500). Port types: `webhook-repo.ts:7-9` import them through
 the Tovu barrel `features/webhooks/index`; step 0 resolves each to `packages/integrations/src/webhooks/ports.ts`.
-`DeliveryEnvelopeStore` is declared in Tovu's `features/webhooks/repo.memory.ts`; Jini has `DeliveryEnvelopeStorePort`
-(`ports.ts:99`): compare member by member; identical -> the class implements the Jini port; different -> SKIPPED, report.
+`DeliveryEnvelopeStore` in Tovu's `features/webhooks/repo.memory.ts:268` is already
+`export type { DeliveryEnvelopeStorePort as DeliveryEnvelopeStore } from "@jini-ai/integrations/webhooks"` (su-refresh, refactor/terra):
+the Jini class implements `DeliveryEnvelopeStorePort` (`ports.ts:99`) directly; no comparison is left to do.
 `kysely`: `packages/integrations/package.json` does not declare it; J1 adds the optional peer the way cms does, with the
 lockfile, in the same commit. Sealed signing secrets pass through opaque: the repo never unseals.
 | Risk | Test (T0) | Mutation -> RED |
@@ -79,7 +85,7 @@ becomes a Jini-local type in `forms/sql`; Tovu's `contracts/headless` keeps its 
 | Identity mismatch between request and built plan | plan or child job naming another workspace / submission: throws as today, nothing written | remove `assertSameIdentity` |
 | Pull lease stolen | second `claim` for one receiver inside the lease gets today's refusal; `release` with a wrong token does not release; the JSON-array pull key recorded | remove the lock; drop the token predicate |
 | Purged answers survive in queued jobs | `scrubPurged`: payload blanked and unfinished jobs failed for exactly those submissions | widen / drop the submission predicate |
-| Status list bound | `recentUnfinished` with `limit` above `statusMaxLimit` is clamped to it | ignore the option |
+| Status list bound | su-refresh (LESSONS 31; revision 2 invented a clamp): today `recentUnfinished` (`form-delivery-repo.ts:192-196`) uses `limit ?? DELIVERY_STATUS_MAX_LIMIT` and does NOT validate or clamp (its doc :188-189: the only caller, `forms_delivery_status`, refuses anything but 1..max). Pin exactly that: no `limit` -> at most `statusMaxLimit` rows, newest first; `limit: 2` -> 2 rows. No clamp is added | default to another number in the binding; drop the `?? statusMaxLimit` |
 Binding test (T1): a recording `outboxRow` receives each job event once, in plan order, and its return value is the row
 inserted (read back by `id`).
 

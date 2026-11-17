@@ -23,8 +23,10 @@ successor_of: S4b (cms manifest); S7b: S7a
   `VersionedMediaRepoPort` from Jini. `MediaContentTypeStorePort` stays where it is today (S7b note).
 
 ## S7b
-**partition.** `media-repo.ts`: helpers and mappers :1-164, `SqlMediaRepo` :165-476 (312), `SqlAssetBlobRepo` :477-545,
-`SqlMediaContentTypeStore` :546-596, `SqlAssetRenditionRepo` :597-664, `SqlTransformDefinitionRepo` :665-719.
+**partition** (su-refresh: ranges re-read on refactor/terra; each class's mapper sits just above it). `media-repo.ts`: helpers
+and mappers :1-164, `SqlMediaRepo` :165-457 (293), `toAssetBlobRecord` + `SqlAssetBlobRepo` :459-536, doc +
+`SqlMediaContentTypeStore` :537-584, `toAssetRenditionRecord` + `SqlAssetRenditionRepo` :585-652,
+`toTransformDefinitionRecord` + `SqlTransformDefinitionRepo` :653-719.
 | New file (`packages/cms/src/media/sql/`) | Content | ~Lines |
 |---|---|---|
 | `repo.rows.ts` | table interfaces (`media`, `media_slug_history`, `asset_blobs`, `asset_renditions`, `transform_registry`, + the content-type store's table) and the row mappers from :1-164 | 200 |
@@ -34,9 +36,13 @@ successor_of: S4b (cms manifest); S7b: S7a
 **ports.** `columns: ColumnCatalogPort` (required): `media-repo.ts:180` calls `listColumns(this.kernel, "media")` from
 `@jini-ai/db/kernel`; the Jini class calls the injected port with the bound table name and Tovu binds
 `listColumns` on the same kernel (binding test: recording fake receives the `media` table name; LESSONS 12).
-`SqlMediaContentTypeStore` implements `MediaContentTypeStorePort`, imported today from the Tovu media barrel: step 0
-finds its declaration; if it is Tovu-only it moves as a type into `media/sql/content-type-store.ts`. The labelled parity
-question against `cms/widgets/host-ports.ts` is NOT resolved here.
+`SqlMediaContentTypeStore` implements `MediaContentTypeStorePort`, imported today from the Tovu media barrel (`media-repo.ts:8`).
+Step 0 resolved (su-refresh): the declaration is Tovu-only, `features/media/content-type-store.ts:34` (`getMany` + `set`),
+with 10 production importers outside the facts write set (incl. `server/routes/types.ts`); Jini has a `getMany`-only subset
+at `cms/widgets/host-ports.ts:29`. Smallest change: the Tovu declaration STAYS; the Jini class implements a Jini-local
+`MediaContentTypeStore` interface with the same two members, declared in `media/sql/content-type-store.ts`; T1's
+`npm run typecheck` proves the Tovu binding still satisfies Tovu's port. Merging the three declarations is NOT this sheet
+(follow-up, recorded in the report).
 **Existing deletes (move verbatim, add none):** slug-history row on slug reuse (:147), renditions of a replaced file
 (:379) and of an asset (:648), the media row + its slug history on purge (:445-446, reached only through the Trash's
 purge today: T0 pins the caller), a blob row (:531, blob GC is NOT enabled and stays so).
