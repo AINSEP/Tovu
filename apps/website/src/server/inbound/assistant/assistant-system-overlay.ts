@@ -1,6 +1,6 @@
 import { PERMANENT_DELETE_GUIDANCE } from "#src/contracts/headless/index";
 import { CREDENTIAL_GUIDANCE, SITE_GUIDE_POINTER } from "#src/assistant/prompt-guidance";
-import { TOOLS_FIRST_RULE } from "#src/contracts/core/assistant-native-fallbacks";
+import { TOOLS_FIRST_RULE, ASSISTANT_DISALLOWED_TOOLS } from "@tovu/contracts/assistant-native-fallbacks";
 import { ASSISTANT_CONTENT_EDIT_GUIDANCE } from "#src/contracts/core/assistant-content-guidance";
 import { ASSISTANT_CLI_CAPABILITIES, type AssistantCliPermissions } from "@tovu/contracts/assistant-subagents-policy";
 /**
@@ -33,11 +33,10 @@ export const BASH_PROHIBITION_BLOCK =
   "to live here and has been deliberately removed. ";
 
 // Shared with the Electron host; the rationale travels with the policy declaration.
-export { ASSISTANT_DISALLOWED_TOOLS } from "#src/contracts/core/assistant-native-fallbacks";
-import { ASSISTANT_DISALLOWED_TOOLS } from "#src/contracts/core/assistant-native-fallbacks";
+export { ASSISTANT_DISALLOWED_TOOLS } from "@tovu/contracts/assistant-native-fallbacks";
 
 // One product-policy owner is shared with Electron; this re-export preserves the existing seam.
-export { resolveAssistantDisallowedTools } from "#src/contracts/core/assistant-native-fallbacks";
+export { resolveAssistantDisallowedTools } from "@tovu/contracts/assistant-native-fallbacks";
 
 /** Explain the same per-run grant enforced by the CLI, outside catalog discovery.
  * @param required - The native capabilities enforced for this launch, including host restrictions.

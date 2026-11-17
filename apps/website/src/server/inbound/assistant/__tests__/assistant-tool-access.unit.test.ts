@@ -4,7 +4,7 @@ import { AGENT_DEFS } from '@jini-ai/agent-runtime';
 import { InMemorySettingsRepo, ensureSettingDefinitions, getEffective } from '@jini-ai/core/settings';
 import type { JsonValue } from '@jini-ai/core/primitives';
 import { ensureExecutionSettingDefinitions } from '#src/assistant/execution-mode-settings';
-import { assistantCliPermissions } from '#src/assistant/assistant-subagents-policy';
+import { assistantCliPermissions } from '@tovu/contracts/assistant-native-fallbacks';
 import { readCliPermissionLayer } from '#src/assistant/cli-permission-layer';
 import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_CLI_PERMISSIONS_KEY } from '@tovu/contracts/assistant-subagents-policy';
 import { set } from '#src/features/settings/index';

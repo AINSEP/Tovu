@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ASSISTANT_CLI_CAPABILITIES, ASSISTANT_SUBAGENTS_NAMESPACE as SUBAGENTS_NAMESPACE } from "@tovu/contracts/assistant-subagents-policy";
-import { assistantCliPermissions } from "../../../../../website/src/assistant/assistant-subagents-policy.js";
+import { assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 import {
   useAdminSubagents, useAssistantSubagentsSettings, useDockAgentPermissions, useWiredAdminSubagents, useWiredAssistantSubagentsSettings,
 } from "../hooks/use-admin-subagents.hooks";

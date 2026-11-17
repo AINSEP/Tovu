@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { resolveAssistantNativeFallbacks, isHostedAssistantRuntime } from '../../assistant-native-fallbacks.js';
+import { resolveAssistantNativeFallbacks, isHostedAssistantRuntime } from '@tovu/contracts/assistant-native-fallbacks';
 import { resolveAgentPermissionMode } from '../../agent-permission-mode.js';
 
 /** Owner decision 2026-10-17: local-owner native fallback grant, forced off on hosted runtimes. */

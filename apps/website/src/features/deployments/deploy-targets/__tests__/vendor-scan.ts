@@ -20,7 +20,7 @@ export const SCAN_ROOTS: readonly string[] = [
   "apps/website/src/", "apps/admin/src/",
   "apps/desktop/src/desktop-agent.ts", "apps/desktop/src/desktop-host-signals.ts",
   // Moved out of the website tree (desktop extraction D0a); still core policy, so still scanned.
-  "packages/contracts/src/host-signals.ts",
+  "packages/contracts/src/host-signals.ts", "packages/contracts/src/assistant-native-fallbacks.ts",
 ];
 
 type Io = Pick<typeof fs, "existsSync" | "readFileSync" | "readdirSync">;

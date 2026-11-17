@@ -1,5 +1,5 @@
 import { resolveRuntimeMode } from "./runtime-mode.js";
-import { isHostedAssistantRuntime } from "./assistant-native-fallbacks.js";
+import { isHostedAssistantRuntime } from "@tovu/contracts/assistant-native-fallbacks";
 import type { HostSignalOptions } from "@tovu/contracts/host-signals";
 
 /**

@@ -11,7 +11,7 @@ import { evaluateHostSignals } from "@tovu/contracts/host-signals";
 import { readBundledHostSignalDeclaration, resolveBundledHostSignals } from "../../../../apps/website/src/features/agent-plugins/host-signals.ts";
 import { resolveTrustProxySetting } from "../../../../apps/website/src/server/inbound/shared/trust-proxy.ts";
 import { createSitePluginPolicy, sitePluginLocalInstallEnabled } from "../../../../apps/website/src/features/plugin-runtime/install.ts";
-import { isHostedAssistantRuntime, resolveFullCliAccess, resolveAssistantCliPermissions } from "../../../../apps/website/src/contracts/core/assistant-native-fallbacks.ts";
+import { isHostedAssistantRuntime, resolveFullCliAccess, resolveAssistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 import { resolveAgentPermissionMode } from "../../../../apps/website/src/contracts/core/agent-permission-mode.ts";
 import { detectDeploymentSignals, collectBootReadinessWarnings, warnOnBootReadinessGaps } from "../../../../apps/website/src/server/runtime/boot/boot-readiness-warnings.ts";
 import { headExpectations, headProxyOutcome, headEnvironmentMatrix } from "./fixtures/host-signals-head.mjs";

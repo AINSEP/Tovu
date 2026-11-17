@@ -1,5 +1,5 @@
 import { ASSISTANT_SUBAGENTS_NAMESPACE as SUBAGENTS_NAMESPACE } from "@tovu/contracts/assistant-subagents-policy";
-import { assistantCliPermissions } from "../../../../../website/src/assistant/assistant-subagents-policy.js";
+import { assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 import { act, render, renderHook, screen, waitFor } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";

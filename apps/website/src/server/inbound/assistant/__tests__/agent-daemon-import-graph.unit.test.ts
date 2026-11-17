@@ -135,7 +135,7 @@ test("daemon local tools never load federation clients or the desktop capability
 test("the walk resolves relative and #src imports from the real daemon entry and never throws", () => {
   const reached = new Set([...walkRuntimeGraph({ entry: DAEMON_ENTRY }).keys()].map(relativeToSrc));
   assert.ok(reached.has("server/inbound/assistant/run-log-lines.ts"), "relative `./x.js` import");
-  assert.ok(reached.has("contracts/core/assistant-native-fallbacks.ts"), "extensionless `#src/` import");
+  assert.ok(reached.has("contracts/core/agent-permission-mode.ts"), "extensionless `#src/` import");
   // Package imports are leaves of this walk; redaction moved to the shared contracts package.
   const entrySpecifiers = runtimeSpecifiers({ fileName: DAEMON_ENTRY, text: readFileSync(DAEMON_ENTRY, "utf8") });
   assert.ok(entrySpecifiers.includes("@tovu/contracts/secret-redaction"), "the daemon must statically load the secret-redaction safety gate");

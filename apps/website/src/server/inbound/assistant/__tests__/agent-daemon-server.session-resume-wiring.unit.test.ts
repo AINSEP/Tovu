@@ -2,7 +2,7 @@ import { buildAssistantFilesystemNotices } from "../assistant-filesystem-notices
 import assert from "node:assert/strict";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { getAgentDef } from "@jini-ai/agent-runtime";
-import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
+import { assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 import { buildAssistantSubagentsOverlay, buildBaseSystemOverlay } from "../assistant-system-overlay.js";
 import { buildAssistantRuntimeGuidance } from "../assistant-runtime-guidance.js";
 import type { AgentExecutorRunInput } from "@jini-ai/daemon";

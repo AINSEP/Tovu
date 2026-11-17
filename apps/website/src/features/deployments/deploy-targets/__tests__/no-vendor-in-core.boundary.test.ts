@@ -33,10 +33,10 @@ function fixture(t: test.TestContext): { repoRoot: string; write: (file: string,
 }
 
 test("full website/admin roots include contracts; desktop scope remains the existing two files", () => {
-  assert.deepEqual(SCAN_ROOTS, ["apps/website/src/", "apps/admin/src/", "apps/desktop/src/desktop-agent.ts", "apps/desktop/src/desktop-host-signals.ts", "packages/contracts/src/host-signals.ts"]);
+  assert.deepEqual(SCAN_ROOTS, ["apps/website/src/", "apps/admin/src/", "apps/desktop/src/desktop-agent.ts", "apps/desktop/src/desktop-host-signals.ts", "packages/contracts/src/host-signals.ts", "packages/contracts/src/assistant-native-fallbacks.ts"]);
   const website = listSourceFiles({ entry: SCAN_ROOTS[0]! });
   assert.ok(website.some(file => file.endsWith("/contracts/core/agent-permission-mode.ts")));
-  assert.ok(listSourceFiles({ entry: SCAN_ROOTS[4]! }).some(file => file.endsWith("/packages/contracts/src/host-signals.ts")));
+  for (const entry of SCAN_ROOTS.slice(4)) assert.ok(listSourceFiles({ entry }).some(file => file.endsWith(`/${entry}`)), entry);
   for (const entry of SCAN_ROOTS) assert.ok(listSourceFiles({ entry }).length > 0, entry);
 });
 

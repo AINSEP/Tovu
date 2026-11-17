@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readAssistantCliPermissions } from "../subagent-settings.js";
 import { ASSISTANT_CLI_PERMISSIONS_KEY } from "@tovu/contracts/assistant-subagents-policy";
-import { assistantCliPermissions } from "../assistant-subagents-policy.js";
+import { assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 
 test("launch permissions are read per site/owner and freshly on every turn", async () => {
   let saved = assistantCliPermissions({ enabled: true, capabilities: { shell: false } });
