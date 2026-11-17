@@ -6,6 +6,11 @@ import type { JsonObject } from '@jini-ai/core/primitives';
 
 type Element = DefaultTreeAdapterMap['element'];
 type Child = DefaultTreeAdapterMap['childNode'];
+
+/** One diagnostic of the Raw HTML pipeline. `code` names the class of event, `detail` is its JSON
+ * payload; the host decides whether and how to log it (no report = silent). */
+export interface MediaHtmlEvent { code: string; detail: string }
+export type MediaHtmlReport = (event: MediaHtmlEvent) => void;
 const SAFE_ELEMENTS = new Set('a abbr address article aside audio b blockquote br button caption cite code col colgroup dd details dfn div dl dt em figcaption figure footer form h1 h2 h3 h4 h5 h6 header hr i img input label li main nav ol option p picture pre section select small source span style strong sub summary sup table tbody td template textarea tfoot th thead time tr track u ul video wbr'.split(' '));
 // Content attributes run through the SAME value checks as the shared allowlist's URL attribute.
 // Names are fixed here, never taken from input; script-bearing attributes remain disallowed.
@@ -44,7 +49,7 @@ function safeAttribute(attr: Element['attrs'][number], options: { styleContext?:
  * Safe data/aria/class/style use the shared embed attribute policy; foreign/executable subtrees drop.
  * Drops are never silent: one `reportDrops` per call that removed any element or attribute
  * (5f237c87a stripped tovu.dev's carousel scripts unnoticed). Comments are not reported. */
-export function sanitizePageHtml({ html }: { html: string }, { reportDrops = ({ dropped }) => console.warn('[media] Raw HTML sanitizer dropped markup', dropped) }: { reportDrops?: (required: { dropped: Record<string, number> }, optional?: Record<string, never>) => void } = {}): string {
+export function sanitizePageHtml({ html }: { html: string }, { report, reportDrops = ({ dropped }) => report?.({ code: 'raw-html-dropped', detail: JSON.stringify(dropped) }) }: { report?: MediaHtmlReport | undefined; reportDrops?: (required: { dropped: Record<string, number> }, optional?: Record<string, never>) => void } = {}): string {
   const root = parseFragment(html);
   const dropped = new Map<string, number>();
   const drop = (
@@ -95,13 +100,13 @@ function replaceMediaTokens({ value, resolve }: { value: string; resolve: (requi
   return { value: replaced, found };
 }
 
-function bindMediaSource({ node, resolve }: { node: Element; resolve: (required: { slug: string }, optional?: Record<string, never>) => Element | undefined }, _options: Record<string, never> = {}): boolean {
+function bindMediaSource({ node, resolve, report }: { node: Element; resolve: (required: { slug: string }, optional?: Record<string, never>) => Element | undefined; report?: MediaHtmlReport | undefined }, _options: Record<string, never> = {}): boolean {
   const slug = node.attrs.find(attr => attr.name === 'data-media-slug')?.value;
   if (slug === undefined) return true;
   const canonical = resolve({ slug });
   if (!canonical || !['img', 'video', 'audio', 'source'].includes(node.tagName)) return false;
   if (node.tagName !== 'source' && node.tagName !== canonical.tagName) {
-    console.warn('[media] media kind does not match Raw HTML element', { slug, tag: node.tagName, mediaTag: canonical.tagName });
+    report?.({ code: 'media-kind-mismatch', detail: JSON.stringify({ slug, tag: node.tagName, mediaTag: canonical.tagName }) });
     return false;
   }
   // A data-media-slug denotes library source ownership; authored alt still overrides the fallback.
@@ -152,7 +157,7 @@ function resolveMediaTree({ root, visit }: { root: DefaultTreeAdapterMap['docume
 
 /** Resolve from the existing media IR, never fabricate a URL from an unknown slug. Canonical
  * metadata/rendering belongs to the injected host media renderer. O(n + a) for HTML and assets. */
-export function renderMediaRawHtml({ html, media, renderMedia }: RawMediaRequired, { reportIssue = ({ slug }) => console.warn('[media] unknown slug in raw HTML', { slug }) }: { reportIssue?: (required: { slug: string }, optional?: Record<string, never>) => void } = {}): string {
+export function renderMediaRawHtml({ html, media, renderMedia }: RawMediaRequired, { report, reportIssue = ({ slug }) => report?.({ code: 'unknown-media-slug', detail: JSON.stringify({ slug }) }) }: { report?: MediaHtmlReport | undefined; reportIssue?: (required: { slug: string }, optional?: Record<string, never>) => void } = {}): string {
   const rendered = new Map<string, Element | undefined>();
   const resolve = ({ slug }: { slug: string }, _optional = {}): Element | undefined => {
     if (rendered.has(slug)) return rendered.get(slug);
@@ -163,7 +168,7 @@ export function renderMediaRawHtml({ html, media, renderMedia }: RawMediaRequire
     if (!element) reportIssue({ slug });
     return element;
   };
-  const root = parseFragment(sanitizePageHtml({ html }));
+  const root = parseFragment(sanitizePageHtml({ html }, { report }));
   const visit = (node: Child): boolean => {
     if ('value' in node && node.nodeName === '#text') {
       const result = replaceMediaTokens({ value: node.value, resolve });
@@ -171,7 +176,7 @@ export function renderMediaRawHtml({ html, media, renderMedia }: RawMediaRequire
       return result.found;
     }
     if (!('tagName' in node)) return false;
-    if (!bindMediaSource({ node, resolve })) return false;
+    if (!bindMediaSource({ node, resolve, report })) return false;
     for (const attr of node.attrs) {
       const result = replaceMediaTokens({ value: attr.value, resolve });
       attr.value = result.value;
@@ -180,5 +185,5 @@ export function renderMediaRawHtml({ html, media, renderMedia }: RawMediaRequire
     return true;
   };
   resolveMediaTree({ root, visit });
-  return sanitizePageHtml({ html: serialize(root) });
+  return sanitizePageHtml({ html: serialize(root) }, { report });
 }

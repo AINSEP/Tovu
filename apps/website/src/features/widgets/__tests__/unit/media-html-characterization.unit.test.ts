@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { JsonObject } from '@jini-ai/core/primitives';
 import { renderMediaRawHtml, sanitizePageHtml } from '../../media-html.js';
+import { logMediaHtmlEvent } from '../../media-html-log.js';
 
 test('srcset and SVG attributes keep safe URLs and reject invalid, empty and namespaced values', () => {
   const reports: Record<string, number>[] = [];
@@ -35,7 +36,7 @@ test('a library video keeps its poster in Raw HTML, so the player shows a previe
 test('raw media rejects mismatches, unsupported markers, inherited slugs and renderer output without media', (t) => {
   const warnings = t.mock.method(console, 'warn', () => {});
   const issues: string[] = [];
-  const output = renderMediaRawHtml({ html: '<video data-media-slug="photo"></video><div data-media-slug="photo"></div><img data-media-slug="empty"><img data-media-slug="toString">', media: { photo: { slug: 'photo' }, empty: {} }, renderMedia: ({ props }) => props.slug === 'photo' ? '<img src="/photo">' : '<p>empty</p>' }, { reportIssue: ({ slug }) => issues.push(slug) });
+  const output = renderMediaRawHtml({ html: '<video data-media-slug="photo"></video><div data-media-slug="photo"></div><img data-media-slug="empty"><img data-media-slug="toString">', media: { photo: { slug: 'photo' }, empty: {} }, renderMedia: ({ props }) => props.slug === 'photo' ? '<img src="/photo">' : '<p>empty</p>' }, { report: logMediaHtmlEvent, reportIssue: ({ slug }) => issues.push(slug) });
   assert.equal(output, '');
   assert.deepEqual(issues.sort(), ['empty', 'toString']);
   assert.equal(warnings.mock.callCount(), 1);
@@ -48,7 +49,7 @@ test('raw media drops empty media containers after missing children, preserves s
 
 test('raw media kind mismatch warns and tokens without canonical src drop their owners', (t) => {
   const warnings = t.mock.method(console, 'warn', () => {});
-  const output = renderMediaRawHtml({ html: '<video data-media-slug="photo"></video><img data-media-slug="photo"><p>{{media:photo}}</p><div data-note="{{media:photo}}"></div>', media: { photo: {} }, renderMedia: () => '<img alt="No source">' });
+  const output = renderMediaRawHtml({ html: '<video data-media-slug="photo"></video><img data-media-slug="photo"><p>{{media:photo}}</p><div data-note="{{media:photo}}"></div>', media: { photo: {} }, renderMedia: () => '<img alt="No source">' }, { report: logMediaHtmlEvent });
   assert.equal(output, '<img data-media-slug="photo" alt="No source">');
   assert.equal(warnings.mock.callCount(), 1);
 });

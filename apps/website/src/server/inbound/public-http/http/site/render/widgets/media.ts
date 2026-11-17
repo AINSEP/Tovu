@@ -10,6 +10,7 @@ import { type GalleryImageRenderer, renderGallery } from "@jini-ai/cms/widgets/h
 import type { WidgetDocRendering } from "../doc/doc-render-contract.js";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
 import { renderMediaRawHtml } from "#src/features/widgets/media-html";
+import { logMediaHtmlEvent } from "#src/features/widgets/media-html-log";
 
 /**
  * Renders a resolved `data-embed-type="media"` Page embed (SPEC-047, generalized 2026-08-07;
@@ -126,7 +127,7 @@ export function renderMediaWidget({ ir, docRendering }: { ir: WidgetRenderIR; do
     config: ir.props.config, media: ir.props.media, renderImage,
     renderRawHtml: ({ html, media }: { html: string; media: Record<string, JsonObject> }) => renderMediaRawHtml({
       html, media, renderMedia: ({ props }) => renderWidgetMediaImage(props),
-    }),
+    }, { report: logMediaHtmlEvent }),
   };
   return renderGallery(renderOptions);
 }
