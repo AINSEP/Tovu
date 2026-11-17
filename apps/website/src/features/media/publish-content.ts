@@ -205,7 +205,7 @@ export const contributeMediaPublish = (): PublishContentContributor =>
       const { createdBy: _creator, kind: _kind, originalFilename: _filename, ...legacyState } = row;
       return legacyState;
     },
-    requiredBlobs: (row, _optional = {}) => [row.source.sha256],
+    requiredBlobs: ({ row }, _optional = {}) => [row.source.sha256],
     // Other media this item names by a `/m/{key}/` URL in its own `htmlAttributes` — a video's
     // `poster`, chiefly — travel with it, or the destination renders a poster URL that 404s.
     references: ({ entity }, _optional = {}) =>

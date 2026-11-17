@@ -74,13 +74,13 @@ export interface RepoPublishTypeConfig<Row, Ports> {
   /** Defaults to `row.id`. */
   readonly idOf?: (required: { row: Row }, optional?: Record<string, never>) => string;
   /** Defaults to `row.version`. */
-  readonly versionOf?: (row: Row) => number;
+  readonly versionOf?: (required: { row: Row }, optional?: {}) => number;
   /** Pack filter beyond trash (kind, active status, excluded keys). */
   readonly include?: (required: { row: Row }, optional?: Record<string, never>) => boolean;
   /** Pack skips a trashed row; precheck refuses a trashed destination row. */
   readonly isTrashed?: (required: { row: Row }) => boolean;
   /** e.g. parent-first for a tree-shaped type. */
-  readonly packOrder?: (rows: readonly Row[]) => readonly Row[];
+  readonly packOrder?: (required: { rows: readonly Row[] }, optional?: {}) => readonly Row[];
 
   /** Every field of `Row`, so a new column fails to compile until classified. */
   readonly fields: Record<Extract<keyof Row, string>, FieldDisposition>;
@@ -91,7 +91,7 @@ export interface RepoPublishTypeConfig<Row, Ports> {
    *  the default hash input (the `"transferred"` fields). A new type never sets it. */
   readonly legacyHashState?: (required: { row: Row; packedState: Record<string, unknown> }, optional?: Record<string, never>) => Record<string, unknown>;
   /** Defaults to `[]`. */
-  readonly requiredBlobs?: (row: Row, optional?: Record<string, never>) => readonly string[];
+  readonly requiredBlobs?: (required: { row: Row }, optional?: {}) => readonly string[];
   /** A better on-screen name than any packed field (`PackedEntity.displayLabel`). Display only:
    *  never hashed or applied. `undefined` leaves the row named from its state. */
   readonly displayLabel?: (required: { row: Row }, optional?: Record<string, never>) => string | undefined;
@@ -161,10 +161,10 @@ interface RepoCodec<Row, Ports> {
   readonly schemaVersion: number;
   readonly dependsOn: readonly string[];
   readonly idOf: (required: { row: Row }, optional?: Record<string, never>) => string;
-  readonly versionOf: (row: Row) => number;
+  readonly versionOf: (required: { row: Row }, optional?: {}) => number;
   readonly packedFields: readonly string[];
-  readonly pick: (row: Row, fields: readonly string[]) => Record<string, unknown>;
-  readonly hashOf: (row: Row) => string;
+  readonly pick: (required: { row: Row; fields: readonly string[] }, optional?: {}) => Record<string, unknown>;
+  readonly hashOf: (required: { row: Row }, optional?: {}) => string;
   readonly conflict: (required: { id: string; detail: string }, optional?: Record<string, never>) => PublishContentApplyRowError;
   readonly toRowError: (required: { err: unknown; id: string }, optional?: Record<string, never>) => unknown;
 }
@@ -197,14 +197,14 @@ function createRepoCodec<Row, Ports>({ config }: { config: RepoPublishTypeConfig
   /** Missing values become `null`, so an unset column and SQL `NULL` pack and hash alike, except an
    *  `omitWhenAbsent` field, which is left out. */
   const omittable = new Set(config.omitWhenAbsent ?? []);
-  const pick = (row: Row, fields: readonly string[]) =>
+  const pick = ({ row, fields }: { row: Row; fields: readonly string[] }, _optional = {}) =>
     Object.fromEntries(
       fields
         .filter((field) => !(omittable.has(field) && (row as Record<string, unknown>)[field] === undefined))
         .map((field) => [field, (row as Record<string, unknown>)[field] ?? null])
     );
-  const hashOf = (row: Row) =>
-    contentHash({ entityType, state: config.legacyHashState ? config.legacyHashState({ row, packedState: pick(row, packedFields) }) : pick(row, hashedFields) });
+  const hashOf = ({ row }: { row: Row }, _optional = {}) =>
+    contentHash({ entityType, state: config.legacyHashState ? config.legacyHashState({ row, packedState: pick({ row, fields: packedFields }) }) : pick({ row, fields: hashedFields }) });
 
   const conflict = ({ id, detail }: { id: string; detail: string }, _optional = {}) => {
     const message = changedSincePlan({ entityType, id, detail });
@@ -228,7 +228,7 @@ function createRepoCodec<Row, Ports>({ config }: { config: RepoPublishTypeConfig
     schemaVersion: config.schemaVersion ?? 1,
     dependsOn: config.dependsOn ?? [],
     idOf: config.idOf ?? (({ row }: { row: Row }, _optional = {}) => (row as { id: string }).id),
-    versionOf: config.versionOf ?? ((row: Row) => (row as { version: number }).version),
+    versionOf: config.versionOf ?? (({ row }: { row: Row }, _optional = {}) => (row as { version: number }).version),
     packedFields,
     pick,
     hashOf,
@@ -242,16 +242,16 @@ async function* packRepoEntity<Row, Ports>({ env }: { env: RepoEnv<Row, Ports> }
   const p = env.ports();
   if (!p) return;
   const rows = (await config.list({ ports: p, workspaceId })).filter((row) => !config.isTrashed?.({ row }) && (config.include?.({ row }) ?? true));
-  for (const row of config.packOrder ? config.packOrder(rows) : rows) {
+  for (const row of config.packOrder ? config.packOrder({ rows }) : rows) {
     const displayLabel = config.displayLabel?.({ row });
     yield {
       entityType: env.entityType,
       id: env.idOf({ row }),
       schemaVersion: env.schemaVersion,
-      contentHash: env.hashOf(row),
+      contentHash: env.hashOf({ row }),
       hashVersion: CONTENT_HASH_VERSION,
-      requiredBlobs: config.requiredBlobs?.(row) ?? [],
-      state: env.pick(row, env.packedFields),
+      requiredBlobs: config.requiredBlobs?.({ row }) ?? [],
+      state: env.pick({ row, fields: env.packedFields }),
       ...(displayLabel ? { displayLabel } : {}),
     };
   }
@@ -263,7 +263,7 @@ async function inspectRepoEntity<Row, Ports>(
 ): Promise<{ version: number; hash: string } | null> {
   const p = env.ports();
   const row = p ? await env.config.find({ ports: p, workspaceId: env.workspaceId, id }) : null;
-  return row ? { version: env.versionOf(row), hash: env.hashOf(row) } : null;
+  return row ? { version: env.versionOf({ row }), hash: env.hashOf({ row }) } : null;
 }
 
 async function precheckRepoAddress<Row, Ports>(
@@ -333,7 +333,7 @@ async function writeRepoRow<Row, Ports>(
   _optional = {}
 ): Promise<RepoWriteResult> {
   const { env, input } = run;
-  const mismatch = versionMismatch({ expectedVersion: input.expectedVersion, found: existing ? env.versionOf(existing) : null });
+  const mismatch = versionMismatch({ expectedVersion: input.expectedVersion, found: existing ? env.versionOf({ row: existing }) : null });
   if (mismatch) throw env.conflict({ id: input.entity.id, detail: mismatch });
   try {
     return (await env.config.write(repoWriteContext({ run, existing }))) ?? {};

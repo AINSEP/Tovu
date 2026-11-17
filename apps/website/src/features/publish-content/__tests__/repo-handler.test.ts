@@ -203,8 +203,8 @@ test("pack honours packOrder, requiredBlobs and legacyHashState; extend's method
   const seedHash = async () => "seed";
   const handler = buildHandler(
     baseConfig({
-      packOrder: (rows) => [...rows].reverse(),
-      requiredBlobs: (row) => [`sha-${row.id}`],
+      packOrder: ({ rows }) => [...rows].reverse(),
+      requiredBlobs: ({ row }) => [`sha-${row.id}`],
       // Post's legacy rule: hash every packed field, provenance included.
       legacyHashState: ({ row: _row, packedState }) => packedState,
       extend: () => ({ seedHash }),
