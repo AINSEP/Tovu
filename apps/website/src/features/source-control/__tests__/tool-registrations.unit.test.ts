@@ -703,7 +703,7 @@ test("saved GitHub API key: explicit connection wins with both present, then del
   const explicit = await createSourceControlCredential({ deps: {
     repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer,
     keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen,
-    loadSourceControlProviders: githubFromSource, fetchFn: async () => new Response('{"login":"octo"}'),
+    loadSourceControlProviders: githubFromSource, httpClient: { send: async () => ({ status: 200, headers: {}, bodyText: '{"login":"octo"}' }) },
   }, input: { workspaceId: deps.workspaceId, scope: "site", label: "Explicit GitHub",
     connection: { providerId: "github", token: EXPLICIT_GITHUB_KEY } } });
   const { execute } = savedKeyTools({ deps });

@@ -40,6 +40,7 @@ import { proposeSourceControlCredential } from "./credential-setup.js";
 import { findDefaultSourceControlCredential, listSourceControlCredentials } from "./store.js";
 import type { SourceControlCredentialSetRepoPort } from "./types.js";
 import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import type { HttpClientPort } from "../../platform/http/index.js";
 
 /**
  * @file This domain's agent-tool catalog + wiring — mirrors `features/deployments/
@@ -232,8 +233,9 @@ export interface SourceControlToolDeps {
   readonly siteAssistantSecretSealer: SecretSealerPort;
   readonly siteAssistantSecretKeyring: KeyringPort;
   readonly clock: Clock;
-  /** Overrides only the existing save-time provider identity probe in tests. */
-  readonly fetchFn?: typeof fetch;
+  /** The guarded client for the save-time provider identity probe, which carries the saved token
+   *  (`RouteDeps.customCredentialsHttpClient`). Absent, the probe is not attempted. */
+  readonly customCredentialsHttpClient?: HttpClientPort;
   /** `RouteDeps.observability`: a commit's git-host calls are outbound spans. */
   readonly observability?: ObservabilityPort;
   readonly sourceControlExportRootDir: string;

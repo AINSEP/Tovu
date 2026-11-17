@@ -18,9 +18,10 @@ export function exampleRegistry({ probe = true, ids = ['example-git', 'example-t
     }, create: ({ kit }) => ({
       readAccountLabel: async (token: string) => {
         if (!probe || index !== 0) return null;
-        const response = await kit.fetch('https://git.example.test/identity', { headers: { Authorization: `Bearer ${token}` } });
-        if (!response.ok) return null;
-        const body = await response.json() as { account?: unknown } | null;
+        // Like the real plugins: the token travels only through the guarded client, redirects refused.
+        const response = await kit.httpClient.send({ method: 'GET', url: 'https://git.example.test/identity', headers: { Authorization: `Bearer ${token}` }, timeoutMs: 10_000 }, { redirect: 'error' });
+        if (response.status < 200 || response.status > 299) return null;
+        const body = JSON.parse(response.bodyText) as { account?: unknown } | null;
         return typeof body?.account === 'string' && body.account !== '' ? body.account : null;
       },
     } as SourceControlProviderOperations) },

@@ -162,11 +162,11 @@ test('source-control checks declarations before sealing and probes only a durabl
   const registry = exampleRegistry({ ids: ['example-git'] });
   const deps = { ...cryptoDeps(), repo,
     loadSourceControlProviders: async () => { declarations++; return registry; },
-    fetchFn: async () => {
+    httpClient: { send: async () => {
       probes++;
       assert.equal((await repo.listByWorkspace({ workspaceId })).length, 1, 'save must be durable before probe');
-      return Response.json({ account: 'fixture' });
-    },
+      return { status: 200, headers: {}, bodyText: JSON.stringify({ account: 'fixture' }) };
+    } },
   };
   await assert.rejects(createSourceControlCredential({ deps: deps, input: { workspaceId, label: 'Fixture', connection: { providerId: 'example-git', token: 'x'.repeat(8193) } } }), exactError(CREDENTIAL_MESSAGES.limit));
   assert.equal(probes, 0);

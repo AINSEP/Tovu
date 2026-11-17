@@ -15,7 +15,7 @@ import type {
   SourceControlCredentialSummary,
   SourceControlProviderId,
 } from "./types.js";
-import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import type { HttpClientPort } from "../../platform/http/index.js";
 
 /** Source-control validation and inline identity probes remain feature policy. Jini owns
  * sealing, persistence, hints and defaults. Plain read models require neither keys nor opens.
@@ -49,6 +49,21 @@ function vault(deps: SourceControlCredentialReadDeps & Partial<SourceControlCred
   return credentialVault({ ...deps, storageError: () => new SourceControlCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage) });
 }
 
+/** Error names (and the transport's own wording) that mean the probe ran out of time, not that the host refused it. */
+const TIMEOUT_ERROR_NAMES: ReadonlySet<string> = new Set(['AbortError', 'TimeoutError', 'FetchTimeoutError']);
+
+/** What one probe response says about the saved connection: rejected, reachable, or not usable. */
+function connectionForStatus({ status }: { status: number }, _optional = {}): CredentialConnection {
+  if (status === 401 || status === 403) return 'auth';
+  return status >= 200 && status < 300 ? 'connected' : 'unreachable';
+}
+
+/** What a probe that never got an answer says about the saved connection. */
+function connectionForFailure({ err }: { err: unknown }, _optional = {}): CredentialConnection {
+  const timedOut = err instanceof Error && (TIMEOUT_ERROR_NAMES.has(err.name) || /timed out/i.test(err.message));
+  return timedOut ? 'timeout' : 'unreachable';
+}
+
 /**
  * Best-effort "who does this token belong to" probe, run inline at save time — see this file's own
  * header for why THIS table's `create`/`update` may do this while `publish-credentials/store.ts`'s
@@ -57,33 +72,32 @@ function vault(deps: SourceControlCredentialReadDeps & Partial<SourceControlCred
  *
  * The host-specific read lives in the plugin that provides the host (`provider-module.ts`'s
  * `readAccountLabel`; each provider owns its account identity read). A host no enabled
- * plugin provides yields `null` with no request made.
+ * plugin provides yields `null` with no request made. The request carries the saved token, so it goes
+ * out only through the guarded {@link SourceControlCredentialWriteDeps.httpClient}, never the global
+ * `fetch`; without one the provider is built over the kit's refusing stand-in (its request fails as a
+ * transport error) and the save still succeeds.
  *
  * @complexity One registry load plus at most one bounded HTTP request.
  */
 async function probeAccountLabel({ deps, workspaceId, providerId, token }: { deps: SourceControlCredentialWriteDeps; workspaceId: UUID; providerId: SourceControlProviderId; token: string }, _optional = {}): Promise<{ accountLabel: string | null; connection: CredentialConnection }> {
   let connection: CredentialConnection = 'saved';
-  const fetchFn: typeof fetch = async (input, init) => {
-    try {
-      const response = await (deps.fetchFn ?? fetch)(input, init);
-      if (response.status === 401 || response.status === 403) connection = 'auth';
-      else connection = response.ok ? 'connected' : 'unreachable';
-      return response;
-    } catch (err) {
-      connection = err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError') ? 'timeout' : 'unreachable';
-      throw err;
-    }
+  const { httpClient, loadSourceControlProviders } = deps;
+  // Write-only callers may omit account discovery; production supplies its boot-bound loader and client.
+  if (!loadSourceControlProviders) return { accountLabel: null, connection };
+  const observed: HttpClientPort | undefined = httpClient && {
+    send: async (request, options) => {
+      try {
+        const response = await httpClient.send(request, options);
+        connection = connectionForStatus({ status: response.status });
+        return response;
+      } catch (err) {
+        connection = connectionForFailure({ err });
+        throw err;
+      }
+    },
   };
   try {
-    // Write-only callers may omit account discovery; production supplies its boot-bound loader.
-    if (!deps.loadSourceControlProviders) return { accountLabel: null, connection };
-    const built = await buildSourceControlProvider({
-      load: deps.loadSourceControlProviders,
-      fetchFn,
-      observability: deps.observability,
-      workspaceId,
-      providerId,
-    });
+    const built = await buildSourceControlProvider({ load: loadSourceControlProviders, ...(observed ? { httpClient: observed } : {}), workspaceId, providerId });
     const accountLabel = built.ok ? await built.provider.readAccountLabel(token) : null;
     return { accountLabel, connection };
   } catch {
@@ -165,10 +179,10 @@ export interface SourceControlCredentialWriteDeps extends SourceControlCredentia
   keyring: KeyringPort;
   clock: ClockPort;
   idGen: { newId(): string };
-  /** Injected by tests; defaults to global `fetch`. Used only by {@link probeAccountLabel}. */
-  fetchFn?: typeof fetch;
-  /** `RouteDeps.observability`: the identity probe is one outbound span. */
-  observability?: ObservabilityPort;
+  /** The guarded client (egress policy, redirects per call) for the save-time identity probe, which
+   *  carries the saved token. Absent: the provider's request fails as a transport error (no global `fetch`).
+   *  Its outbound span is recorded where the client is built. */
+  httpClient?: HttpClientPort;
   /** Loaded provider declarations govern admission and optional account-label discovery. */
   loadSourceControlProviders?: LoadSourceControlProviders;
 }
