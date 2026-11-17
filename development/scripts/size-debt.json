@@ -2,13 +2,6 @@
   "version": 1,
   "violations": [
     {
-      "file": "apps/admin/src/App.hooks.ts",
-      "function": "<file>",
-      "line": 1177,
-      "rule": "max-lines",
-      "value": 513
-    },
-    {
       "file": "apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx",
       "function": "useExecutionConfig#1",
       "line": 164,
@@ -343,13 +336,6 @@
       "line": 94,
       "rule": "max-lines-per-function",
       "value": 87
-    },
-    {
-      "file": "apps/admin/src/features/plugins/hooks/use-plugin-install.hooks.ts",
-      "function": "usePluginInstall#1",
-      "line": 39,
-      "rule": "max-lines-per-function",
-      "value": 81
     },
     {
       "file": "apps/admin/src/features/plugins/hooks/use-plugins.hooks.ts",
