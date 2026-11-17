@@ -168,7 +168,7 @@ screens = 2.54M more.
   behaviour diffs are step 1 of those sheets.
 - The S sheets' port method lists: derived at run time from the existing `*-port.hooks.ts` files, not pre-written.
 - The 11-10 survey's "about 2.1k generic" dock figure: only files that exist as separate files were re-measured
-  (1,339 lines listed in S-DOCK); overflow, slow-run and folder-drop code sits inside two large files.
+  (1,459 lines listed in S-DOCK); overflow, slow-run and folder-drop code sits inside two large files.
 - `development/todos.md` and `owner-rules.md` were not looked for; rules are from the task text and xpkg COMMON.
 - Per-test move/keep classification for 182,593 test lines.
 

@@ -15,7 +15,7 @@ Root files at `f354cfbd`: `App.hooks.ts` 1,205, `App.tsx` 703, `App.chrome.tsx` 
 ## T1a: permissions
 1. Census: `rg -n "panel-access|isPanelAccessible|withoutInaccessiblePanels|resolvePanelAccessGate|PanelAccess" apps/admin/src`.
    Write the list (file:line, production or test) into the report. Every site is repointed in this run.
-2. `panels.tsx`: the 32 `anyOfPermissions` declarations stay as written; the panel type now comes from
+2. `panels.tsx`: the 31 `anyOfPermissions` declarations stay as written; the panel type now comes from
    `@jini-ai/admin/core` (J1). `App.tsx` `buildShellNav` (`:555`) and `renderRoute` (`:199`) call Jini's rules.
 3. `resolvePanelAccessGate` (`panel-access.ts:87`) decides the `NoAccess` screen. Read it before deciding where it
    goes: if it only combines the two Jini rules, inline the call; if it holds Tovu routing knowledge, it stays in
@@ -55,7 +55,7 @@ Tests first (GREEN on the old shell, each RED under its mutation; they must keep
 | S4 | the session endpoint is called once at boot (use the `app-boot-request-volume` harness) | the Jini session hook re-reads on a port identity change (11-06 survey trap) |
 | S5 | the drawer closes on route change and on backdrop click; `Escape` is ignored when an inner layer owns it (`lib/escape-owned-by-inner-layer`) | the drawer hook prop is not wired |
 | S6 | DOM order of skip link, sidebar, main, dock aside, overlays is unchanged; `main` keeps `tabIndex=-1` and `data-agent-page` | focus order or the agent page id changes |
-| S7 | rail collapsed state survives reload under the same storage key as today | `railStorageKey` differs from Tovu's present key (find it: `rg -n "rail" apps/admin/src/App.tsx apps/admin/src/hooks`) |
+| S7 | rail collapsed state survives reload under the same storage key as today | `railStorageKey` differs from Tovu's present key (documented at `App.tsx:88-89`: Jini's `Sidebar` defaults to its own package key, Tovu passes its historic one; keep passing it) |
 Chrome check (COMMON-ADMIN 4): **every** panel, both themes, both schemes, both widths, plus: mobile drawer open
 and close animation still runs at 390 px; dock open/resize/sheet mode; logout confirm; server-restart banner.
 STOP

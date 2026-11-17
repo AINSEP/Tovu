@@ -12,7 +12,7 @@ What moves and what stays:
 | `hooks/<x>-port.hooks.ts` | owner `…/admin/ports.ts` (the owner declares it), as an `adminPort` token the module `requires` |
 | `hooks/<x>-dependencies.hooks.ts`, `api/*` | **stay in Tovu**, become `integrations/jini-admin/<x>-ports.ts` (URLs, workspace id, error decoding are host binding: lesson 9) |
 | `<x>-i18n.ts` | stays in Tovu; owner gets `messages.en.ts` with the same keys |
-| `index.ts` | becomes the thin mount (copy `features/comments/index.ts`, 16 lines) |
+| `index.ts` | becomes the thin mount (copy `features/comments/index.ts`, 17 lines) |
 | tests | follow the file they test; a test that renders through the real API fake stays in Tovu as the binding's test |
 
 ## Steps

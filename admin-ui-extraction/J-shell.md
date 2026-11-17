@@ -7,7 +7,7 @@ The Jini shell cannot host Tovu today. Measured gaps:
 
 | # | Gap (Jini file) | Tovu has (file:line) | Sheet |
 |---|---|---|---|
-| G1 | panels gate on `permissions` = all-of (`core/manifest/types.ts:168`); no any-of; no "unknown yet" state | `lib/panel-access.ts` (94): `anyOfPermissions`, unknown permissions show everything, 32 of 51 panels declare it | J1 |
+| G1 | panels gate on `permissions` = all-of (`core/manifest/types.ts:168`); no any-of; no "unknown yet" state | `lib/panel-access.ts` (94): `anyOfPermissions`, unknown permissions show everything, 31 of 51 panels declare it (`rg -c "^\s+anyOfPermissions:" apps/admin/src/panels.tsx`) | J1 |
 | G2 | the shell calls `useAdminShellSession`, `useAdminTheme`, `useShellRoute`, `useShellDrawer` directly (`AdminShell.tsx`) | hooks arrive as props (`App.tsx:433-446` `resolve*Hook`) | J2 |
 | G3 | class names are unprefixed (`admin-layout`, `skip-link`, `admin-topbar`, `sidebar-backdrop`, `admin-content`, …) | same names, styled in `styles.css` (6,799 lines) | J2 |
 | G4 | slots: `login`, `sessionError`, `sidebarHeader`, `sidebarFooter`, `topbar`, `overlays`, `assistant {content,label,open}` | needs also: a layout class from interface preferences, sidebar label tooltips, empty-click toggle, logout button + confirm, sheet bar and resizable dock aside (`App.chrome.tsx:26-134`), chat FAB clearance, per-route `NoAccess` | J2 |
@@ -28,7 +28,8 @@ jini_files:
   - packages/admin/src/core/manifest/types.ts:159-168     | edit: add `readonly anyOfPermissions?: readonly string[]` beside `permissions`
   - packages/admin/src/core/permissions/rules.ts (34)     | edit: add `isPanelAccessible`, `withoutInaccessiblePanels`
   - packages/admin/src/react/shell/model.ts (44)          | edit: use the rule
-  - packages/admin/src/core/permissions/__tests__/…       | new cases
+  - a new test file for the rules (the folder holds only `rules.ts`; put it where admin's core tests live:
+    `rg -l "hasPermission" packages/admin/src -g '*test*'`)
 ```
 Search for an existing owner first (lesson 9). Found: `packages/ui/src/features/panel-kit/helpers/permissions.ts:9`
 has a second `hasPermission`. Diff the two bodies; report whether they differ. Do not merge them here (admin may not
@@ -78,7 +79,7 @@ Do not redesign the shell. Close G2-G5 only, in four green commits.
    `size-exceptions.json`; do not grow it; if a rename pushes a function over a limit, STOP) to `jini-admin-<name>`.
    Update `packages/admin/src/themes/default/admin.css` selectors in the same commit. List old → new in
    `packages/admin/docs/shell-classes.md` (T1b consumes this list to rename Tovu's CSS). Tovu imports `Sidebar`
-   today (`App.tsx:13-14`): this commit is a **pair**; the Tovu half belongs to T1b. Until T1b runs, Tovu stays
+   and `useSidebar` today (`App.tsx:15`): this commit is a **pair**; the Tovu half belongs to T1b. Until T1b runs, Tovu stays
    pinned to the previous `@jini-ai/admin` version; say so in the report. Do not leave both class sets in the markup.
 STOP: a needed change alters `AdminShellSessionPort` or `AdminShellNavigationPort` (both are used by
 `createAdminShellNavigation`, which Tovu calls at `App.hooks.ts:9`): report the proposed change instead.
