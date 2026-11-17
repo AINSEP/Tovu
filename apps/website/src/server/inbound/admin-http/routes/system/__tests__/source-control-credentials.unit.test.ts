@@ -143,3 +143,72 @@ test('store duplicate and encryption errors retain their established HTTP codes'
     assert.deepEqual(await invoke('put', `${BASE}/:id`, { body: {} }), { statusCode, jsonBody: { error, detail: failure.message } });
   }
 });
+
+// ---------------------------------------------------------------------------
+// lo-SC-0: gate tests on the route's two gates. Every verb is enumerated from the router, never listed by hand.
+// ---------------------------------------------------------------------------
+
+type RouterLayer = { route?: { path: string; methods: Record<string, boolean> } };
+type RegisteredRoute = { method: "get" | "post" | "put" | "delete"; path: string };
+
+function registeredRoutes(): RegisteredRoute[] {
+  const app = express();
+  registerAdminSourceControlCredentialsRoutes(app, portFake<AdminSourceControlCredentialsDeps>({ workspaceId: "ws-1" }));
+  const stack = (app as unknown as { _router: { stack: RouterLayer[] } })._router.stack;
+  return stack.flatMap((layer) => layer.route === undefined ? [] : Object.keys(layer.route.methods).map((method) => ({ method: method as RegisteredRoute["method"], path: layer.route!.path })));
+}
+
+/** Every property read or call on it is recorded, and every call fails: a gate that lets a request through is seen twice. */
+function untouchableStore(touched: string[]): Record<string, unknown> {
+  return new Proxy({}, { get: (_target, name) => { touched.push(String(name)); return () => Promise.reject(new Error("the store must not be reached")); } });
+}
+
+function gateHarness(authorize: AdminSourceControlCredentialsDeps["authorize"]) {
+  const touched: string[] = [];
+  const loaded: string[] = [];
+  const invoke = harness({
+    authorize,
+    sourceControlCredentialSetRepo: untouchableStore(touched) as never,
+    siteAssistantSecretSealer: untouchableStore(touched) as never,
+    loadSourceControlProviders: async () => { loaded.push("loadSourceControlProviders"); throw new Error("the provider loader must not be reached"); },
+  });
+  return { invoke, touched, loaded };
+}
+
+test("the router registers the credential verbs this suite gates (guards the enumeration below against matching nothing)", () => {
+  const routes = registeredRoutes();
+  const verbs = new Set(routes.map((route) => route.method));
+  for (const verb of ["get", "post", "put", "delete"]) assert.ok(verbs.has(verb as RegisteredRoute["method"]), `no ${verb} route is registered`);
+  assert.ok(routes.some((route) => route.path === PROVIDERS));
+});
+
+// Mutation: delete the `rejectForeignWorkspace` line of `rejectUnlessAuthorized` -> `authorize` is asked (RED).
+test("every registered route refuses a foreign workspace before authorize is asked or any store is reached", async () => {
+  for (const { method, path: route } of registeredRoutes()) {
+    const authorized: unknown[] = [];
+    const { invoke, touched, loaded } = gateHarness(async (params) => { authorized.push(params); return { allowed: true, reason: "matched" }; });
+
+    const refused = await invoke(method, route, { params: { workspaceId: "other-workspace", id: "cred-9" }, body: { label: "x", connection: {} } });
+
+    assert.equal(refused.statusCode, 404, `${method} ${route}`);
+    assert.deepEqual(authorized, [], `${method} ${route} asked authorize for a foreign workspace`);
+    assert.deepEqual(touched, [], `${method} ${route} reached a store`);
+    assert.deepEqual(loaded, [], `${method} ${route} reached the provider loader`);
+  }
+});
+
+// Mutation: make `rejectUnlessAuthorized` return false after `authorize` (ignore the denial) -> the store is reached (RED);
+// or change `PERMISSION` -> the permission assertion is RED.
+test("every registered route refuses a principal without source-control.credentials.write and reaches no store", async () => {
+  for (const { method, path: route } of registeredRoutes()) {
+    const asked: unknown[] = [];
+    const { invoke, touched, loaded } = gateHarness(async (params) => { asked.push(params); return { allowed: false, reason: "no_grant" }; });
+
+    const refused = await invoke(method, route, { body: { label: "x", connection: {} } });
+
+    assert.equal(refused.statusCode, 403, `${method} ${route}`);
+    assert.deepEqual(asked, [{ principalId: "principal-1", permission: "source-control.credentials.write", workspaceId: "ws-1", entityType: "source-control" }], `${method} ${route}`);
+    assert.deepEqual(touched, [], `${method} ${route} reached a store after a denial`);
+    assert.deepEqual(loaded, [], `${method} ${route} reached the provider loader after a denial`);
+  }
+});
