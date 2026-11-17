@@ -214,6 +214,45 @@ function PackageFileBody({ file, wrap }: { file: PackageFileView; wrap: boolean 
   return <CodeWithLines text={file.content} wrap={wrap} />;
 }
 
+interface PackageSourceBrowserProps extends Pick<PackageFilesModalProps, "files" | "selectedFile" | "onSelectFile" | "status" | "listNotice" | "handlePrefix" | "t"> {
+  selectedHandle: string | undefined;
+  fileHandleByPath: ReadonlyMap<string, string>;
+  headingId: string;
+}
+
+/** The two-pane body of the modal's "Package files" view: the file tree beside the selected file. */
+function PackageSourceBrowser({ files, selectedFile, selectedHandle, fileHandleByPath, onSelectFile, status, listNotice, handlePrefix, headingId, t }: PackageSourceBrowserProps) {
+  return (
+    <div className="agent-plugin-source-browser">
+      <nav className="agent-plugin-source-files" aria-label={t("Package files")}>
+        {listNotice ? (
+          <p className="page-description" role="note">
+            {listNotice}
+          </p>
+        ) : null}
+        <PackageFileTree
+          files={files}
+          selectedPath={selectedFile?.relativePath ?? null}
+          onSelectFile={onSelectFile}
+          fileHandleByPath={fileHandleByPath}
+          handlePrefix={handlePrefix}
+          label={t("Package files")}
+        />
+      </nav>
+      {selectedFile && selectedHandle !== undefined ? (
+        <PackageFileContent
+          file={selectedFile}
+          headingId={headingId}
+          key={selectedFile.relativePath}
+          agentHandleBase={selectedHandle}
+          t={t}
+        />
+      ) : null}
+      {!selectedFile && status ? <p role={status.role}>{status.text}</p> : null}
+    </div>
+  );
+}
+
 export function PackageFilesModal({
   title,
   headerExtras,
@@ -253,33 +292,18 @@ export function PackageFilesModal({
           id: "package-source",
           label: t("Package files"),
           custom: (
-            <div className="agent-plugin-source-browser">
-              <nav className="agent-plugin-source-files" aria-label={t("Package files")}>
-                {listNotice ? (
-                  <p className="page-description" role="note">
-                    {listNotice}
-                  </p>
-                ) : null}
-                <PackageFileTree
-                  files={files}
-                  selectedPath={selectedFile?.relativePath ?? null}
-                  onSelectFile={onSelectFile}
-                  fileHandleByPath={fileHandleByPath}
-                  handlePrefix={handlePrefix}
-                  label={t("Package files")}
-                />
-              </nav>
-              {selectedFile && selectedHandle !== undefined ? (
-                <PackageFileContent
-                  file={selectedFile}
-                  headingId={selectedFileHeadingId}
-                  key={selectedFile.relativePath}
-                  agentHandleBase={selectedHandle}
-                  t={t}
-                />
-              ) : null}
-              {!selectedFile && status ? <p role={status.role}>{status.text}</p> : null}
-            </div>
+            <PackageSourceBrowser
+              files={files}
+              selectedFile={selectedFile}
+              selectedHandle={selectedHandle}
+              fileHandleByPath={fileHandleByPath}
+              onSelectFile={onSelectFile}
+              status={status}
+              listNotice={listNotice}
+              handlePrefix={handlePrefix}
+              headingId={selectedFileHeadingId}
+              t={t}
+            />
           ),
         },
         ...additionalViews,
