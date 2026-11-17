@@ -195,14 +195,17 @@ const WEBHOOKS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
   { error: WebhookSubscriptionValidationError, code: "WEBHOOKS_VALIDATION_FAILED" },
 ];
 
+/** Whether a webhook target URL may be called from this workspace, per the verified-origin registry. */
+function egressTargetCheck(routeDeps: IntegrationsToolDeps) {
+  return ({ url }: { url: string }, _optional = {}) =>
+    routeDeps.originRegistry.isAllowedEgressTarget({ context: { workspaceId: routeDeps.workspaceId }, url: url });
+}
+
 export function buildWebhooksRegistrations(
   routeDeps: IntegrationsToolDeps,
   surfaces: ChatDeleteSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
-  const isAllowedTarget = (
-    { url }: { url: string },
-    _optional = {}
-  ) => routeDeps.originRegistry.isAllowedEgressTarget({ context: { workspaceId: routeDeps.workspaceId }, url: url });
+  const isAllowedTarget = egressTargetCheck(routeDeps);
 
   const handlers: Record<string, ToolHandler> = {
     webhooks_list_subscriptions: async (ctx) => {
