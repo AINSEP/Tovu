@@ -1,33 +1,59 @@
-# S7 — media SQL repos and the versioned-media port -> `@jini-ai/cms/media/sql`
+# S7 (revision 2) — media SQL repos and the versioned-media port -> `@jini-ai/cms/media` and `./media/sql`
 
-Template: T-SQLREPO. Facts: `S7-media-sql.facts.md` (4 files, 997 lines, 27 test files).
+Template: T-SQLREPO rev 2. Facts: `S7-media-sql.facts.md` (4 files, 997 lines, 27 test files).
+Revision 2: aligned with the revised template (injected column catalog instead of a `@jini-ai/db` import, file
+partition, the existing delete paths listed, no edit to the shared transaction test).
 
 ```
-id: S7a-versioned-media-port (~110k): features/media/versioned-media-repo.ts, guard-rendition-repo.ts -> cms ./media (existing)
+id: S7a-versioned-media-port (~110k): features/media/versioned-media-repo.ts, guard-rendition-repo.ts -> cms ./media (existing, node)
     S7b-media-sql (~240k, cut point after J1): platform/db/repos/media-repo.ts (719) -> cms NEW ./media/sql (node)
-prerequisites: S0 green (P1 `asset_blobs:<ws>:<sha>` and `slugLockKey`; P6). S7a before S7b. OD-5 (`listColumns` from
-  `@jini-ai/db/kernel` at media-repo.ts:5). audit2 sheet A08 (cms/media server additions) edits `features/media/index.ts`
-  importers: run serially with S7; whichever runs second re-takes blobs. R9 landed.
+prerequisites: S0 DONE (P1 `asset_blobs:<ws>:<sha>` and the slug key; P6). xpkg R6-R9 landed (`ColumnCatalogPort`:
+  `rg -n "ColumnCatalogPort" packages/cms/src`). audit2 A08 (cms/media server additions) never in the same wave as S7.
+successor_of: S4b (cms manifest); S7b: S7a
 ```
 
-## split
-- `versioned-media-repo.ts`: `VersionedMediaRepoPort` (the optimistic `saveIfVersion` / `insertIfAbsent` / retire-list extension of `MediaRepoPort`) and `InMemoryVersionedMediaRepo` MOVE to `packages/cms/src/media/versioned-repo.ts` (+ memory twin beside `repo.memory.ts`). First diff `InMemoryVersionedMediaRepo` against Jini's `media/repo.memory.ts`: if the Jini memory repo can gain the three methods, EXTEND it (one owner) instead of adding a second memory class; the diff decides, record it.
-- `guard-rendition-repo.ts` (24) MOVE beside `rendition-service.ts` (CLASSIFY: port `saveRenditionIfSource`).
-- `media-repo.ts`: `SqlMediaRepo`, `SqlAssetBlobRepo`, `SqlMediaContentTypeStore`, `SqlAssetRenditionRepo`, `SqlTransformDefinitionRepo` MOVE. Five classes in 719 lines: one Jini file per class under `media/sql/` (owner size limits inside each file), shared mappers in `repo.rows.ts`. `MediaContentTypeStorePort` is imported from the Tovu media barrel: CLASSIFY marks `content-type-store.ts` DELETE-AFTER-PARITY against `cms/widgets/host-ports.ts:29 MediaContentTypeStore…`; S7b does NOT resolve that parity: `SqlMediaContentTypeStore` implements whichever port the Tovu class implements today, moved as a type if it is Tovu-only.
-- plan-v6 warned "dynamic `selectFrom` targets, read first": grep `selectFrom\(` with a non-literal argument in media-repo.ts before writing table types; every dynamic target must map to a `tables` key.
-- `sqlite/media-repo.sqlite.ts` (46) STAY-WIRING (3 prod + 12 tests).
+## S7a
+- `versioned-media-repo.ts`: `VersionedMediaRepoPort` (the optimistic `saveIfVersion` / `insertIfAbsent` / retire-list
+  extension of `MediaRepoPort`) MOVE to `packages/cms/src/media/versioned-repo.ts`. `InMemoryVersionedMediaRepo`: step 0
+  diffs it against Jini's `media/repo.memory.ts` method by method and writes the table into the report; if the Jini
+  memory repo can gain the three methods with every existing test green, EXTEND it (one owner); otherwise MOVE the class
+  beside it. The sheet does not guess: the table decides, and the T0 rows below run against whichever class results.
+- `guard-rendition-repo.ts` (24) MOVE beside `rendition-service.ts` (port `saveRenditionIfSource`).
+- Tovu after T1: both files deleted, importers (facts file) repointed to `@jini-ai/cms/media`; `media-repo.ts:8` imports
+  `VersionedMediaRepoPort` from Jini. `MediaContentTypeStorePort` stays where it is today (S7b note).
 
-## Characterization (T0)
+## S7b
+**partition.** `media-repo.ts`: helpers and mappers :1-164, `SqlMediaRepo` :165-476 (312), `SqlAssetBlobRepo` :477-545,
+`SqlMediaContentTypeStore` :546-596, `SqlAssetRenditionRepo` :597-664, `SqlTransformDefinitionRepo` :665-719.
+| New file (`packages/cms/src/media/sql/`) | Content | ~Lines |
+|---|---|---|
+| `repo.rows.ts` | table interfaces (`media`, `media_slug_history`, `asset_blobs`, `asset_renditions`, `transform_registry`, + the content-type store's table) and the row mappers from :1-164 | 200 |
+| `slug-history.ts` | the slug-history helpers (incl. the delete at :147) and `slugLockKey` (:161), string unchanged | 60 |
+| `media-repo.ts` | `SqlMediaRepo` | 330 |
+| `asset-blob-repo.ts`, `content-type-store.ts`, `asset-rendition-repo.ts`, `transform-definition-repo.ts` | one class each | 60-80 each |
+**ports.** `columns: ColumnCatalogPort` (required): `media-repo.ts:180` calls `listColumns(this.kernel, "media")` from
+`@jini-ai/db/kernel`; the Jini class calls the injected port with the bound table name and Tovu binds
+`listColumns` on the same kernel (binding test: recording fake receives the `media` table name; LESSONS 12).
+`SqlMediaContentTypeStore` implements `MediaContentTypeStorePort`, imported today from the Tovu media barrel: step 0
+finds its declaration; if it is Tovu-only it moves as a type into `media/sql/content-type-store.ts`. The labelled parity
+question against `cms/widgets/host-ports.ts` is NOT resolved here.
+**Existing deletes (move verbatim, add none):** slug-history row on slug reuse (:147), renditions of a replaced file
+(:379) and of an asset (:648), the media row + its slug history on purge (:445-446, reached only through the Trash's
+purge today: T0 pins the caller), a blob row (:531, blob GC is NOT enabled and stays so).
+**characterization (T0).**
 | Risk | Test | Mutation -> RED |
 |---|---|---|
-| Two uploads of the same bytes create two blobs / a blob row is lost | concurrent `insertIfAbsent` of one sha: one row; lock key recorded | remove the blob lock |
-| Slug collision under concurrency | two saves of the same slug in one workspace: second gets today's outcome (suffix or conflict; pin it); `slugLockKey` recorded (5 sites) | remove a slug lock |
-| Stale media save overwrites a newer version | `saveIfVersion` with an old version: refused, row unchanged | drop the version predicate |
-| Blob GC deletes a referenced blob | NOT enabled here (plan-v6: "do not enable blob GC's where-used check"); assert the repo's retire-list read returns exactly today's set for a fixture | widen the query |
-| Column probing differs per dialect (`listColumns`) | dialect matrix test of the one method that uses it | bind the wrong helper |
-| Rendition saved for a source that changed | `saveRenditionIfSource` refuses when the source version moved | drop the guard |
+| Same bytes twice create two blobs | concurrent `insertIfAbsent` of one digest: one row; `asset_blobs:<ws>:<sha>` recorded first | remove the lock |
+| Slug collision under concurrency | two saves of one slug: today's outcome pinned; the slug key recorded at each of the 5 sites (:269, :313, :353, :395, :418) | remove each lock in turn |
+| Stale save overwrites a newer version | `saveIfVersion` with an old version: refused (`MediaConflictError`), row unchanged | drop the version predicate |
+| Purge reachable outside the Trash | `rg` of callers of the purge method in production code equals the Trash adapter list committed in the test | - (source-list pin, reviewed) |
+| Retire list widens | the retire-list read returns exactly today's set for a fixture | widen the query |
+| Column probing per dialect | dialect-matrix test of the method at :180 | bind a catalog that returns no columns |
+| Rendition saved for a changed source | `saveRenditionIfSource` refuses when the source version moved | drop the guard |
+**wiring.** `sqlite/media-repo.sqlite.ts` (46) STAY-WIRING, same class names and constructors, so
+`platform/db/sqlite/__tests__/repo-transactions.sqlite.test.ts` needs no edit (if it does: STOP, T-SQLREPO §3).
 
 ## stops
-- Never permanent deletes: any `deleteFrom` on media or blob rows that is not already present, or a purge path reachable without the trash adapter.
-- A dynamic table target without a `tables` key.
-Not verified while planning: media-repo.ts body (exports, tables, locks and importers only); the memory-repo diff.
+- A `selectFrom` / `deleteFrom` target that is not a literal mapped to a `tables` key (T-SQLREPO §6 command).
+- A new `deleteFrom`, or a purge path reachable without the Trash adapter (T-SQLREPO §6 delete gate).
+Not verified while planning: method bodies of `media-repo.ts` beyond the cited lines; the memory-repo diff (step 0 of S7a).

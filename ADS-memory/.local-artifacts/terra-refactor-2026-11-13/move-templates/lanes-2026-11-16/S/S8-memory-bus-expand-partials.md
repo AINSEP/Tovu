@@ -1,30 +1,45 @@
-# S8 — entry-refs SQL repo, memory bus, expand-partials
+# S8 (revision 2) — entry-refs SQL repo, `expandPartials`; the memory bus stays blocked
 
-Facts: `S8-memory-bus-expand-partials.facts.md` (8 files, 946 lines, 53 test files).
+Facts: `S8-memory-bus-expand-partials.facts.md` (8 files, 946 lines, 54 test files). Template: T-SQLREPO rev 2.
 
 ## Already covered — do not re-plan
-`contracts/core/entry-refs/{extractor,ports,types,repo.memory}.ts` (560 lines) and the import edits to
-`platform/db/repos/entry-refs-repo.ts`: `sheets/move-entry-refs.md` on plan/w1-sheets-d (3 slices, DD-entry-refs-1..3).
-Not executed on any moves/* branch (the four files still exist on integ/merge-b). Run it as written, first.
+`contracts/core/entry-refs/{extractor,ports,types,repo.memory}.ts` (560 lines): `sheets/move-entry-refs.md` on
+plan/w1-sheets-d. Not executed on the base pair (the four files still exist on Tovu merge-a). It runs first.
 
 ```
-id: S8a-entry-refs-sql (~110k, T-SQLREPO): platform/db/repos/entry-refs-repo.ts (126) -> cms existing ./widgets/sql (add entry-refs-repo.ts)
-      port: `EntryRefsRepoPort` in @jini-ai/cms/widgets (after move-entry-refs). sqlite/entry-refs-repo.sqlite.ts STAY-WIRING (4 prod + 5 tests).
-    S8b-expand-partials (~60k, T-MOVE): contracts/core/expand-partials.ts (84; imports only @jini-ai/cms/widgets/markers) -> cms ./widgets/markers (or its html leaf; pick the file that owns the partial marker syntax: `rg -n "partial" packages/cms/src/widgets/markers`). 3 prod + 2 test importers.
-    S8c-memory-bus: BLOCKED on OD-6 (see S6). `contracts/core/events/memory-bus.ts` (161; `InMemoryEventBus`, `InMemoryOutbox`; 1 prod + 8 tests).
-      With OD-6 = (a): `InMemoryOutbox` implements the core `OutboxPort` and moves to `@jini-ai/core/contracts/events/testing` if it is
-      test-only, or stays a Tovu adapter if production uses it (facts: 1 prod importer — read it; a production in-memory outbox is a
-      hermetic-mode adapter, which is generic -> `@jini-ai/db/events` memory twin). The claim lease becomes a required argument
-      (plan-v6: "remove worker constant"). ~90k once unblocked.
-prerequisites: S0 green (P7 entry_refs kinds). S8a after move-entry-refs. R9 landed.
+id: S8a-entry-refs-sql (~110k): platform/db/repos/entry-refs-repo.ts (126) -> cms existing ./widgets/sql (add entry-refs-repo.ts)
+      port: `EntryRefsRepoPort` in @jini-ai/cms/widgets (after move-entry-refs). sqlite/entry-refs-repo.sqlite.ts STAY-WIRING.
+    S8b-expand-partials (~70k): contracts/core/expand-partials.ts (84) -> cms ./widgets/markers
+    S8c-memory-bus: BLOCKED on OD-6 (round-1 item 3, unchanged)
+prerequisites: S0 DONE (P7 entry_refs kinds). move-entry-refs landed: `rg -n "EntryRefsRepoPort" packages/cms/src/widgets`. xpkg R6-R9 landed.
+successor_of: S7b (cms manifest); S8b: S8a
 ```
 
-## Characterization (T0)
-| Risk | Test | Mutation -> RED |
+## S8a
+`SqlEntryRefsRepo` (:48-123) + `entryRefsRepoFor` (:124) MOVE; `tables: { entryRefs: "entry_refs" }`. The two existing
+`deleteFrom("entry_refs")` calls (:98 replace-per-source, :112 workspace rebuild) rewrite a DERIVED index and move verbatim.
+| Risk | Test (T0) | Mutation -> RED |
 |---|---|---|
-| Entry refs written by a second path | the repo's write method is called only from the entries write chokepoint: source-level assertion already implied by move-entry-refs; here: refs replaced atomically per source (old set gone, new set present, in one transaction) | make replace = insert only |
-| `source_kind` / `target_kind` casts accept an unknown stored kind | a row with an unknown kind (as an older/newer install could hold): pin today's behaviour (returned as-is, skipped, or throws) | change the cast handling |
-| Partial expansion recursion / unknown partial | nested partial, self-referencing partial, missing partial: outputs pinned | remove the depth/cycle guard if one exists (read first) |
-| Blob GC where-used | not enabled (plan-v6 S8); no test may start depending on it | - |
+| Refs replaced non-atomically | replace for one source: old set gone, new set present, in one transaction (a failing insert leaves the old set) | make replace insert-only; split the transaction |
+| Unknown stored `source_kind` / `target_kind` | a row with an unknown kind (as an older or newer install could hold): today's behaviour pinned | change the cast handling |
+| Cross-workspace rebuild | rebuild of workspace A leaves B's rows | drop the workspace predicate at :112 |
 
-Not verified while planning: bodies of all three files; whether `expandPartials` has a cycle guard; the one prod importer of memory-bus.
+## S8b
+`expand-partials.ts` imports `PARTIAL_MARKER_TYPE`, `substituteMarkers`, `withElementKeptIfAttributed` from
+`@jini-ai/cms/widgets/markers` (same package after the move: leaf imports) **and** `DEFAULT_THEME_SLOTS`,
+`ThemeSlotDescriptor` from Tovu's `contracts/core/theme-slots.ts`. The slot table is theme vocabulary and STAYS in Tovu:
+`expandPartials({ html, theme, defaultSlots }, _optional = {})` takes it as required data (no default), with
+`ThemeSlotDescriptor` declared structurally in the Jini file. Callers (facts: 3 prod + 2 tests) pass `DEFAULT_THEME_SLOTS`.
+T0 pins outputs for: nested partial, self-referencing partial, missing partial, a slot overridden by the manifest vs taken
+from the default table. Mutations: drop the default-table fallback; whatever recursion guard the body has (read :1-84
+first; if it has none, pin the output for a bounded fixture and say so).
+**stop:** `DEFAULT_THEME_SLOTS` is used for anything other than a lookup fallback (then the slot contract needs its own
+sheet; report, move nothing).
+
+## S8c (blocked, not executable)
+`contracts/core/events/memory-bus.ts` (161; `InMemoryEventBus`, `InMemoryOutbox`) has THREE production importers on the
+base pair: `platform/db/repos/outbox-repo.ts`, `features/webhooks/repo.memory.ts`,
+`server/runtime/composition/modules/forms.ts`. It needs OD-6 and then a behaviour comparison with the core contract's
+memory outbox (claim lease as a required argument); OD-6 alone does not supply that comparison. ~90k once unblocked.
+
+Not verified while planning: bodies of `entry-refs-repo.ts` and `expand-partials.ts`.

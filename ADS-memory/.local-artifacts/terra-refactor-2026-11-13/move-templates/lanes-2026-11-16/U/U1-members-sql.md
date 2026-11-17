@@ -1,49 +1,78 @@
-> **REVISION 2 HOLD (2026-11-17): do NOT dispatch this sheet as written.** The Codex judge's finding(s) below were checked against the code and accepted; the redesign is not written yet (INDEX §7 and "Revision 2 - judge response"). Until this banner is removed the sheet is input for the next planning run, not an executor brief.
-> Finding 5: the U1a/U1b split has no compilable middle state (all seven bindings import one `repo.ts`, which T1 deletes; `withoutId` at `features/members/repo.ts:122` is shared by both halves). Needs U1a's exact remaining file, bindings and successor guards.
+# U1 (revision 2) — members SQL repos -> `@jini-ai/user-management/members/sql`
 
-# U1 — members SQL repos -> `@jini-ai/user-management/members/sql`
-
-Template: T-SQLREPO. Facts: `U1-members-sql.facts.md` (3 files, 974 lines, 16 test files).
-New relative to audit2 sheet A07 (`split-a07-members-server-domain.md`, plan/audit2-sheets-a3), which moves
-`types, ports, repo.memory, agent-tools, tool-registrations, subscriber-directory` to `user-management/src/members/` and
-lists the SQL adapters as staying. U1 moves them behind the ports A07 lands (OD-3).
+Security code (U1b). Template: T-SQLREPO rev 2. Facts: `U1-members-sql.facts.md` (3 files, 974 lines, 16 test files).
+New relative to audit2 A07 (`split-a07-members-server-domain.md`), which moves `types, ports, repo.memory, agent-tools,
+tool-registrations, subscriber-directory` to `packages/user-management/src/members/` (a UNIVERSAL entry) and leaves the SQL
+adapters in Tovu. U1 moves them behind A07's ports (OD-3). A07 has NOT landed on Jini `af33fcdb` (`src/members` is absent).
+Revision 2 fixes judge finding 5: the two runs now have an exact intermediate tree, bindings and helper owner.
 
 ```
-id: U1-members-sql     (two runs: U1a = rows + SqlMemberRepo, SqlMemberTierRepo, SqlMemberSubscriptionRepo, SqlMemberExternalIdentityRepo;
-                                  U1b = SqlMemberSessionRepo, SqlMagicLinkTokenRepo, SqlMemberConsentRepo  — the credential-bearing ones)
-jini_target: user-management NEW subpath ./members/sql (node): {tables.ts, repo.rows.ts, one file per class, index.ts}
+id: U1a-members-sql-directory (~200k)   SqlMemberExternalIdentityRepo, SqlMemberRepo, SqlMemberTierRepo, SqlMemberSubscriptionRepo
+    U1b-members-sql-credentials (~190k) SqlMemberSessionRepo, SqlMagicLinkTokenRepo, SqlMemberConsentRepo
+jini_target: user-management NEW subpath ./members/sql (node): tables.ts, repo.rows.ts, one file per class, index.ts
 prerequisites:
-  - A07 landed: `ls packages/user-management/src/members/ports.ts`. S0 green (P1 `members:magic-tokens:<ws>`, P2, P5 member
-    session + magic-token hashes, P6). P-DEP (kysely in user-management). S3a landed (shares `./server/sql` conventions and
-    the package.json export block: serial with S3/U3 on that file). S4b landed (exports `trashEntityLockKey`).
+  - A07 landed: `ls packages/user-management/src/members/ports.ts`. OD-3 YES.
+  - S3a landed (it added the `kysely` optional peer and `./server/sql`): `ls packages/user-management/src/server/sql/index.ts`.
+  - S4a landed (U1b only; exports the lock-key builder): `rg -n "export function trashEntityLockKey" packages/cms/src/trash`.
+  - S0 DONE (P1 `members:magic-tokens:<ws>`, P2, P5a/P5b, P6). lost-updates: if scheduled on `features/members/repo.ts`, it runs first.
+successor_of: U3b (user-management manifest); U1b: U1a
 ```
 
-## The cross-package lock (LESSONS 1, 4, 16)
-`members/repo.ts` takes `trash:member:<ws>:<memberId>` at two sites and `members/password-auth.ts` at one; the trash table
-adapter takes `trash:${entityType}:…` for entity type `member`. They are the same key on purpose: trashing a member and
-writing that member must not interleave. After the moves the member repo (user-management) and the trash kit (cms) may not
-import each other. The member repos take a REQUIRED port `locks: { member(input: { workspaceId: string; memberId: string }): string }`;
-Tovu binds it to cms's `trashEntityLockKey({ entityType: "member", … })` in `features/members/repo.sqlite.ts`, with the
-why-comment. S0-P2 (stays in Tovu, runs against the bindings) is the test that fails if either side drifts.
-No default for the port: a default string would let the two keys diverge silently.
+## Source map (`features/members/repo.ts`, 604 lines)
+imports :1-54 · `MAX_PAGE` :55 · `SqlMemberExternalIdentityRepo` :63-121 · **`withoutId` :122-126 (shared helper)** ·
+`SqlMemberRepo` :127-221 · `SqlMemberTierRepo` :222-283 · `SqlMemberSubscriptionRepo` :284-353 ·
+`SqlMemberSessionRepo` :354-444 (member lock at :391 and :424) · `SqlMagicLinkTokenRepo` :445-539 (lock at :501) ·
+`SqlMemberConsentRepo` :540-604. `repo.rows.ts` (301): mappers for all seven. `repo.sqlite.ts` (69): seven subclasses,
+its one production importer is the barrel `features/members/index.ts` (R-BARRELS; only specifiers change there).
 
-## split
-`repo.ts`: seven classes MOVE (list above). `repo.rows.ts` (301) MOVE. `repo.sqlite.ts` (69) STAY-WIRING; its one prod
-importer is `features/members/index.ts` (134-line barrel, 35 prod + 25 test importers, on R-BARRELS): do not edit the barrel
-beyond the lines the census names. Tables: the eight in the facts file (`members`, `member_tiers`, `member_subscriptions`,
-`member_sessions`, `member_magic_tokens`, `member_consents`, `member_external_identities`, `member_revisions`).
-
-## Security chain (U1b)
-| Step | Test (T0, unmoved code) | Mutation -> RED |
+## U1a
+**J1.** `members/sql/tables.ts` (interfaces for `members`, `member_revisions`, `member_tiers`, `member_subscriptions`,
+`member_external_identities`), `repo.rows.ts` (the mappers those four classes import, plus `withoutId` and `MAX_PAGE` as
+non-exported module helpers used by the class files through a named internal export), `external-identity-repo.ts`,
+`member-repo.ts`, `tier-repo.ts`, `subscription-repo.ts`, `index.ts`, export entry + `jini.entries` line.
+Constructors `({ kernel, tables }, _optional = {})`.
+**T1 — the exact intermediate tree (compiles alone; finding 5).**
+- `features/members/repo.ts`: keeps its imports, **its own copy of `withoutId` if `rg -n "withoutId" ` shows a use in :354-604** (a five-line generic helper, duplicated only until U1b deletes this file; if no remaining class uses it, delete it now), and the three classes `SqlMemberSessionRepo`, `SqlMagicLinkTokenRepo`, `SqlMemberConsentRepo`, untouched.
+- `features/members/repo.rows.ts`: reduced to the mappers those three classes import (`rg -n "repo\.rows" features/members/repo.ts` after the edit lists them); nothing else.
+- `features/members/repo.sqlite.ts`: `SqliteMemberExternalIdentityRepo`, `SqliteMemberRepo`, `SqliteMemberTierRepo`, `SqliteMemberSubscriptionRepo` keep names and constructors and call `super({ kernel: schemaErasedKernel({ store }), tables: MEMBER_TABLES }, {})` on the Jini classes; the other three subclasses still import from `./repo.js`. `MEMBER_TABLES` is a `const` here with all eight real names (`members`, `member_tiers`, `member_subscriptions`, `member_sessions`, `member_magic_tokens`, `member_consents`, `member_external_identities`, `member_revisions`); U1b reuses it.
+- Successor guard for U1b: the facts diff may show ONLY these three files changed, in exactly the declarations above.
+**characterization (T0).**
+| Risk | Test | Mutation -> RED |
 |---|---|---|
-| Member session found only by `(workspace, token hash)`; revoked/expired sessions are not returned by the lookup the access resolver uses (pin which layer filters) | two workspaces, same hash; revoked; expired with fixed clock | drop a predicate |
-| Magic-link token is single use and expires; consumption is serialized by `members:magic-tokens:<ws>` | consume twice concurrently: exactly one success; expired: refused; lock recorded before the read | remove the lock; make consume not delete/mark |
-| `credentials_revoked_at` (migration 0010) invalidates older sessions | session created before the revocation instant is rejected by today's path | ignore the column |
-| External identity uniqueness per provider subject | second link of one subject to another member refused as today | drop the conflict handling |
-| Member writes advance `version` / write `member_revisions` (lost-updates) | stale save refused; revision row appended; no-op save appends none (pin) | drop the version predicate |
-| Trashed member hidden from auth lookups | trashed member's session/magic token does not authenticate | remove the not-trashed condition |
+| Stale member save overwrites; revision history | old `version`: refused by `assertVersionedWrite`, row unchanged; an accepted save appends one `member_revisions` row; pin what a no-op save does today | drop the version predicate; skip the revision insert |
+| Cross-workspace read; email lookup case | two workspaces, same emails and ids, every `find*` / `list*`; `findByEmail` casing as today | drop a predicate |
+| Password hash column leaks into records | `findById` / list results contain no hash field; `findPasswordHash` / `setPasswordHash` are the only access | add the column to a mapper |
+| List paging | `MAX_PAGE` clamp and cursor round trip (`decodeListCursor` / `pageFromOverfetch`) | change the bound |
+| External identity bound twice | a provider subject already linked to another member: today's refusal (`MemberConflictError`), nothing written | drop the conflict handling |
+| Subscription activity window | `listActiveByMember` at a fixed `nowIso`: active, comped, expired, canceled fixtures -> exact ids | widen the status / time predicate |
 
-## stops / estimate
-- The lost-updates design schedules edits to `members/repo.ts` (file imports `core/optimistic-concurrency`): it runs first.
-- A token or session hash would be computed differently (P5).
-- U1a ~210k, U1b ~180k. Not verified while planning: class bodies; which layer filters revoked sessions; A07's final port names.
+## U1b
+**J1.** adds `tables.ts` interfaces for `member_sessions`, `member_magic_tokens`, `member_consents`; `session-repo.ts`,
+`magic-link-token-repo.ts`, `consent-repo.ts`; the remaining mappers. **T1:** `features/members/repo.ts` and
+`repo.rows.ts` deleted; the last three subclasses bind the Jini classes.
+**The cross-package lock (LESSONS 1, 4, 16).** `SqlMemberSessionRepo` takes `` `trash:member:${workspaceId}:${memberId}` ``
+at :391 and :424; `password-auth.ts:125` takes it too; the cms trash adapter takes `trash:<entityType>:<ws>:<id>` for
+entity type `member`. Same key on purpose: trashing a member, minting a session, revoking all sessions and persisting a
+password must not interleave. user-management and cms may not import each other, so the session repo takes a REQUIRED
+port `locks: { member(required: { workspaceId: string; memberId: string }): string }` and Tovu binds it in `repo.sqlite.ts`:
+`member: ({ workspaceId, memberId }) => trashEntityLockKey({ entityType: "member", workspaceId, entityId: memberId })`
+(from `@jini-ai/cms/trash`), with the why-comment. No default: a default string would let the two keys drift silently.
+S0-P2 stays in Tovu and fails if either side drifts. `` `members:magic-tokens:${workspaceId}` `` (:501) is the members
+domain's own key and moves as a literal builder, pinned by S0-P1.
+**Security chain (T0, unmoved code; each row is repo behaviour — the filtering of revoked / expired sessions is NOT here: `access-resolver.ts` `resolveMemberSession` does it, see U2b).**
+| Step today | Test | Mutation -> RED |
+|---|---|---|
+| Session found only by `(workspace, exact digest)` | S0-P5 fixture; same digest in another workspace not found; pin whether the repo itself filters revoked / expired rows (read `findByTokenHash`) | drop a predicate |
+| Session save and `revokeAllForMember` (with `exceptSessionId`) run under the member lock, in a transaction | recording kernel: lock string and order at :391 and :424; `exceptSessionId` survives, every other live session of that member gets the instant, other members' sessions untouched | remove each lock; drop the member predicate; ignore the exception |
+| Sign-in token is single use and expires | `consume` twice concurrently: exactly one success; expired: refused; the three refusal messages are EXACT strings the challenge adapter matches today (`features/members/write-service.ts:243-246`: `magic link token '<id>' was not found` / `has expired` / `was already consumed`): assert each verbatim | make consume unconditional; change one message |
+| Code attempts are reserved atomically | `reserveCodeAttempt` up to `maxAttempts` concurrently: exactly `maxAttempts` succeed | drop the attempts predicate |
+| Token lookups serialized by `members:magic-tokens:<ws>` | recording kernel at the method of :501 | remove the lock |
+| Trashing a member revokes its credentials (`features/trash/adapters/member.ts`, stays in Tovu) | `hide` on the member adapter: live sessions get `revoked_at`, unconsumed tokens get `consumed_at`, in the hide transaction (a failing second write rolls the marker back); a no-op re-hide writes neither | remove either UPDATE in the adapter |
+| Consent records are append-only per member | pin today's write / read set for `SqlMemberConsentRepo` (privacy record: no delete is added) | - |
+
+## stops
+- A07's landed port names differ from the ones `repo.ts:5-13` imports: step 0 prints both; any member mismatch = SKIPPED.
+- A token or session digest would be computed differently (S0-P5a/b red).
+- The `locks.member` binding and the trash key differ (S0-P2 red).
+Not verified while planning: the bodies of the seven classes beyond the lock sites and line ranges; whether
+`findByTokenHash` filters; which remaining classes use `withoutId`.
