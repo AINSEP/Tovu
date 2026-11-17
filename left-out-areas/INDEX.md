@@ -1,8 +1,44 @@
-# Left-out areas: plan index (2026-11-17, planning only) — STATUS: PARTIAL (see "What remains")
+# Left-out areas: plan index (2026-11-17, planning only) — STATUS: PARTIAL, REVISION 2 NOT DONE (see "Revision 2 - judge response" and "What remains")
 
 Unattended planning run, docs only. No source file edited, no test, build or install run.
 **Code read from:** Tovu `integ/merge-b-2026-11-16` dd70b057 (newest integration branch at start, 00:58 UTC; `integ/merge-final-2026-11-16` did not exist), Jini `integ/merge-b-2026-11-16` 674a19ea. `integ/merge-a-2026-11-16` (f354cfbd) is a parallel branch, not an ancestor: it changes 13 source files in these areas (`source-control/{commit-site,repository-target}.ts`, `site-inspection/{live-url,page-body}.ts`, 9 `site-backup` files) plus 9 theme, 5 deployments and 5 `platform/db` files. **Every blob guard here is from merge-b: rerun `scripts/inv.py`, `scripts/decls.py`, `scripts/sidecars.py` on the merged tree before any run.**
 Personas: software-architect (lead), refactor, programmer, tdd, security, database. Skills: implementation-guardrails, feature-slice-design, refactor-patterns, architecture-migration, hexagonal-architecture, testable-design-patterns, test-design, security-review.
+
+## Revision 2 - judge response (2026-11-17) - PARTIAL: the revision run ran out of context budget after finishing lanes K/T
+What this run did for this plan: read the 18 finding headlines of `CODEX-JUDGE.md`; refreshed the "files two plans touch" list against the REVISED lanes K/T plan (`plan/lanes-k-t-2026-11-16` cafebcaa). It did NOT verify any finding against the code and did NOT change any sheet. No finding is accepted or rebutted yet; none of the sheets here may be dispatched until the blockers are answered.
+| # | sev | finding (judge's headline) | state |
+|---|---|---|---|
+| 1 | blocker | BK-0 requires an N-1 upgrade that the current import contract refuses | NOT ADDRESSED |
+| 2 | blocker | recoverable restore replacement is deferred although permanent deletion is visible in the source | NOT ADDRESSED |
+| 3 | major | inherited execution rules do not establish green intermediate states | NOT ADDRESSED here; same class as K/T finding 1. The fix written for K/T (`lanes-2026-11-16/COMMON-KT.md` + `T-KT-MOVE.md` on `plan/lanes-k-t-2026-11-16`: setup, baseline, per-commit verification commands, STOP matrix with a command per condition) is the model; these sheets still have to be re-read against it before it is assembled with them |
+| 4 | major | SC-3 "types READY" hides runtime and ABI differences | NOT ADDRESSED |
+| 5 | major | source-control security trace describes protections that do not apply to the named paths | NOT ADDRESSED |
+| 6 | major | SI-1 unresolved host-policy dependency; behaviour-changing characterization tests | NOT ADDRESSED |
+| 7 | major | ML-1 "type-only" dependencies omit runtime constants | NOT ADDRESSED |
+| 8 | major | ML-1 security acceptance tests omit owner and disclosure gates | NOT ADDRESSED |
+| 9 | major | ML-2 stops on a dependency prerequisite the plan never schedules | NOT ADDRESSED |
+| 10 | major | DB-2 invents a principal foreign key | NOT ADDRESSED |
+| 11 | major | schema-parity proof cannot detect several promised schema properties | NOT ADDRESSED |
+| 12 | major | domain-history API: how host table names reach migration steps | NOT ADDRESSED |
+| 13 | major | backup cancellation described as stronger than the implementation and ports support | NOT ADDRESSED |
+| 14 | major | BK-4 labels a security-policy wrapper as a dedupe candidate | NOT ADDRESSED |
+| 15 | major | TH-R1 watcher characterization contradicts tested replacement semantics | NOT ADDRESSED |
+| 16 | major | TH-R3 not READY: security state and write behaviour absent from the seam | NOT ADDRESSED |
+| 17 | major | deliverable incomplete; violates its run granularity | NOT ADDRESSED |
+| 18 | minor | some reuse and reconciliation claims are factually wrong | PARTLY: the lane K/T rows below are corrected; the rest NOT ADDRESSED |
+
+### Files two plans touch: changes after the lanes K/T revision 2 (replaces the matching rows of "Reconciliation" below)
+| File | Lane K/T revision 2 | Effect here |
+|---|---|---|
+| `theme/theme-trash.ts` | still listed in T-TH-07 (STAY), but T-TH-07 is now in `T/T-DESIGN-QUEUE.md` (not dispatchable; needs the T-TH-05 design first); its `createThemeTrashAdapter` is 75 code lines (over the 50 limit) | TH-R2's "after T-TH-07" prerequisite cannot be scheduled yet; TH-R2 must also carry the function split |
+| `theme/page-publication.ts` | MOVED from T-TH-01 to T-TH-07 (it writes `theme.json`, replaces the live theme, requests a preview refresh) | new overlap with the theme-recovery sheets here (TH-R*): T-TH-07 owns it; TH-R sheets must not move it |
+| `theme/public-theme-resources.ts` | new file on `integ/merge-a`; lane T labels it STAY (host resource loader) | not claimed here; add to the inventory when it is regenerated on the merged tree |
+| `theme/set-active-theme-tool.ts`, `theme/file-mutation-tools.ts` | unchanged: T-TH-08 (now a design-queue item) | unchanged |
+| `site-backup/import-keep-off.ts:7` | K-02b still edits this import line (`sanitizePageHtml`; `K-02b.importers.tsv`) | unchanged: run K-02b first or regenerate blobs |
+| `site-backup/static-download-landing.ts:2` | T-PO-01 still edits this line (`extractPlainTextFromHtml`, from `post/html-plain-text.ts`) | unchanged |
+| K-11 import-line edits (`deployments/static-publish/adapter.ts`, `deploy-targets/types.ts`) | K-11 is a design-queue item (D-K2 open) | no edit is scheduled; keep the note |
+Not re-checked in this run: the S/U plan (`plan/lanes-s-u-2026-11-16` was still at its judge commit 196d92b3, no revision pushed) and the xpkg plan (`plan/xpkg-lane-sheets-2026-11-16` moved to affddfa9 during this run; not read). The both-claim rows for those two plans are as written in round 1.
+Code base note: round 1 of this plan read `integ/merge-b`; the K/T revision used `integ/merge-a` e801e9ae (size-03/04/05 shapes) cross-checked with merge-b. `integ/merge-final-2026-11-16` still did not exist.
 
 ## Size now per area (verified, `wc -l`, tests excluded; `inventory/*.tsv`, one row per file with blob and importer counts)
 | Area | Folders | Source now | Tests | 11-05 survey | Already owned by Jini |
