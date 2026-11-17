@@ -3,7 +3,7 @@ import test from "node:test";
 import type { Express, Request, Response, NextFunction } from "express";
 import { createAssistantChatsModule } from "../runtime/composition/modules/assistant-chats.js";
 import type { RouteDeps } from "../routes/types.js";
-import type { AssistantRunFinalizer } from "../runtime/composition/modules/assistant-run-finalizer.js";
+import type { AssistantRunFinalizer } from "../runtime/composition/modules/run-finalizer/entry.js";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
 
 type Handler = (req: Request, res: Response, next: NextFunction) => void;

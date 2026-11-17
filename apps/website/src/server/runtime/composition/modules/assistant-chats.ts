@@ -32,7 +32,9 @@ import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/adm
 import type { RouteDeps } from "#src/server/routes/types";
 import { runEventsForSave } from "#src/contracts/core/assistant-run-events";
 import type { ServerModuleHandle } from "./types.js";
-import { assistantRunFinalizerFor, createHttpRunDaemonClient, type AssistantRunFinalizer } from "./assistant-run-finalizer.js";
+import { type AssistantRunFinalizer } from "./run-finalizer/entry.js";
+import { assistantRunFinalizerFor } from "./run-finalizer/shared.js";
+import { createHttpRunDaemonClient } from "./run-daemon-http-client.js";
 import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
 
 /** Preserve a standalone resource name (including skill slugs) verbatim. Prose still follows
@@ -268,7 +270,7 @@ export function createAssistantChatsModule(deps: RouteDeps, options: AssistantCh
             await maybeNameFromFirstUserMessage({ store, id, message });
             // The in-flight stub of a daemon run is the one moment the server learns which row a
             // run belongs to. From here the server saves the finished turn itself, so it no longer
-            // depends on this browser staying connected (`assistant-run-finalizer.ts`). A no-op for
+            // depends on this browser staying connected (`run-finalizer/entry.ts`). A no-op for
             // anything that is not an in-flight daemon run.
             // Acceptance already starts the authoritative watch; a browser save merely returns
             // that row. Re-reading its attempt base prevents a replay from erasing prior segments.

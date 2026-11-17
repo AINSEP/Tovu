@@ -81,7 +81,8 @@ import { daemonFetch, getAgentDaemonUrl, fetchAgentDaemon, forwardToAgentDaemon,
 import type { ServerModuleHandle } from "./types.js";
 import { randomUUID } from "node:crypto";
 import { createRunAcceptance } from "#src/assistant/durable-runs/accept";
-import { assistantRunFinalizerFor, createHttpRunDaemonClient } from "./assistant-run-finalizer.js";
+import { assistantRunFinalizerFor } from "./run-finalizer/shared.js";
+import { createHttpRunDaemonClient } from "./run-daemon-http-client.js";
 import type { DurableRun, DurableRunHead, DurableRunPoll } from "@jini-ai/chat/server/durable-runs";
 import { RunSlotBusyError } from "#src/assistant/persistence/durable-run-store";
 

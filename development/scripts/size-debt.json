@@ -1647,27 +1647,6 @@
       "value": 139
     },
     {
-      "file": "apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts",
-      "function": "createHttpRunDaemonClient#1",
-      "line": 142,
-      "rule": "max-lines-per-function",
-      "value": 101
-    },
-    {
-      "file": "apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts",
-      "function": "createAssistantRunFinalizer#1",
-      "line": 370,
-      "rule": "max-lines-per-function",
-      "value": 325
-    },
-    {
-      "file": "apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts",
-      "function": "<file>",
-      "line": 715,
-      "rule": "max-lines",
-      "value": 580
-    },
-    {
       "file": "apps/website/src/server/runtime/composition/modules/site-assistant.ts",
       "function": "createSiteAssistantModule#1",
       "line": 570,

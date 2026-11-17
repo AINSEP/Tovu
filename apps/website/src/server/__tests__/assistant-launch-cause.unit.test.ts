@@ -3,7 +3,8 @@ import test from 'node:test';
 import { openChatDb } from '#src/platform/db/sqlite/chat-db';
 import { createChatRunLedger } from '#src/assistant/persistence/run-ledger';
 import { createChatStoreFactory } from '#src/assistant/persistence/store-factory';
-import { createAssistantRunFinalizer, type RunDaemonClient } from '../runtime/composition/modules/assistant-run-finalizer.js';
+import { createAssistantRunFinalizer } from "../runtime/composition/modules/run-finalizer/entry.js";
+import { type RunDaemonClient } from "../runtime/composition/modules/run-daemon-http-client.js";
 
 test('a recovery launch rejection survives storage reload and the daemon replay', async () => {
   const db = openChatDb(':memory:');

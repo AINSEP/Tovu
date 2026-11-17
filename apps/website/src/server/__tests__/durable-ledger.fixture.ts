@@ -4,11 +4,12 @@ import type { DurableRun, DurableRunStore } from "@jini-ai/chat/server/durable-r
 
 /** Recovery integration fake: all mutations honor the same generation and terminal predicates. */
 export function recoveryLedgerFixture(
-  { message, now }: { message: ChatMessage; now: () => number }, _optional = {},
+  { message, now }: { message: ChatMessage; now: () => number },
+  { recoveryCount = 0 }: { /** Continuations already spent, for budget-edge schedules. */ recoveryCount?: number } = {},
 ) {
   let attempt: DurableRun = { messageId: message.id, conversationId: "chat", runId: message.runId!, workspaceId: "ws", principalId: "owner", engine: "daemon",
     message, transcript: [], request: { agentId: "opencode", contextRef: JSON.stringify({ prompt: "Answer", conversationId: "chat", assistantMessageId: message.id }) },
-    recoveryCount: 0, recoveryDeadline: null, attemptStartedAt: 0, lastProgressAt: now(), cancelReason: null,
+    recoveryCount, recoveryDeadline: null, attemptStartedAt: 0, lastProgressAt: now(), cancelReason: null,
     sessionId: null, sessionConfirmed: false, child: null, attemptBase: [],
   };
   let elapsed = 0;

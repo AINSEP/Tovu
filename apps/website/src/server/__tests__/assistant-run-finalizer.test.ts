@@ -6,11 +6,8 @@ import express from "express";
 
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { createAssistantChatsModule } from "../runtime/composition/modules/assistant-chats.js";
-import {
-  createAssistantRunFinalizer,
-  type AssistantRunFinalizer,
-  type RunDaemonClient,
-} from "../runtime/composition/modules/assistant-run-finalizer.js";
+import { createAssistantRunFinalizer, type AssistantRunFinalizer } from "../runtime/composition/modules/run-finalizer/entry.js";
+import { type RunDaemonClient } from "../runtime/composition/modules/run-daemon-http-client.js";
 import { registerAuthRoutes } from "../inbound/admin-http/dev-auth.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 import { AGENT_DAEMON_TOKEN_ENV_VAR, RUN_PRINCIPAL_HEADER } from "../../assistant/index.js";

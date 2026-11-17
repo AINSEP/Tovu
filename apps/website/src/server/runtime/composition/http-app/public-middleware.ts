@@ -6,7 +6,7 @@
 import { registerCommerceWebhooks } from "../commerce-http.js";
 import { createSiteIdlePark } from "../../lifecycle/site-idle-park.js";
 import { registerSiteIdleStopHook } from "../../lifecycle/daemon-supervisor.js";
-import { assistantRunFinalizerFor } from "../modules/assistant-run-finalizer.js";
+import { assistantRunFinalizerFor } from "../modules/run-finalizer/shared.js";
 import { createVisitorPageTargets } from '../visitor-page-targets.js';
 import { applyThemePreviewSwitcher } from "../../../inbound/public-http/middleware/theme-preview-switcher.js";
 import { registerPublicShareRoutes } from "#src/server/inbound/public-http/routes/site-share";

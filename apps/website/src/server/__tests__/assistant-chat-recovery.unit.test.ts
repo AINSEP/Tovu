@@ -9,7 +9,9 @@ import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability"
 import { createLiveRunTracker, CONCURRENT_RUN_REFUSAL_MESSAGE, failRunBeforeStart } from "../../assistant/agent-session-preset.js";
 import { wouldForcedColdStartLoseConversationContext } from "../../assistant/agent-session-preset.js";
 import { createAssistantChatsModule } from "../runtime/composition/modules/assistant-chats.js";
-import { createAssistantRunFinalizer, createHttpRunDaemonClient, assistantRunFinalizerFor, type RunDaemonClient } from "../runtime/composition/modules/assistant-run-finalizer.js";
+import { createAssistantRunFinalizer } from "../runtime/composition/modules/run-finalizer/entry.js";
+import { assistantRunFinalizerFor } from "../runtime/composition/modules/run-finalizer/shared.js";
+import { createHttpRunDaemonClient, type RunDaemonClient } from "../runtime/composition/modules/run-daemon-http-client.js";
 import type { RouteDeps } from "../routes/types.js";
 
 /** Spec/decision: only a serving boot reconciles transcripts. A surviving daemon run is adopted

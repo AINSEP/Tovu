@@ -3,7 +3,7 @@ import test from "node:test";
 import type { Express, Request, Response, NextFunction } from "express";
 import type { RouteDeps } from "../routes/types.js";
 import { createAssistantModule } from "../runtime/composition/modules/assistant.js";
-import { assistantRunFinalizerFor } from "../runtime/composition/modules/assistant-run-finalizer.js";
+import { assistantRunFinalizerFor } from "../runtime/composition/modules/run-finalizer/shared.js";
 
 test("checkpoint GET follows the saved message without recovery and denies other owners/workspaces", async () => {
   const routes = new Map<string, (req: Request, res: Response, next: NextFunction) => void>();

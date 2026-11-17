@@ -6,7 +6,7 @@ import { openChatDb } from "#src/platform/db/sqlite/chat-db";
 import { createChatRunLedger } from "#src/assistant/persistence/run-ledger";
 import { createChatHistoryStore } from "#src/assistant/persistence/chat-history-store";
 import { EXHAUSTED_NOTICE, RECOVERY_LIMIT } from "@jini-ai/chat/server/durable-runs";
-import { createAssistantRunFinalizer } from "../assistant-run-finalizer.js";
+import { createAssistantRunFinalizer } from "../run-finalizer/entry.js";
 
 test("an actual executor failure remains failed through Tovu recovery, chat.db and UI history", { timeout: 10_000 }, async () => {
   const db = openChatDb(":memory:");

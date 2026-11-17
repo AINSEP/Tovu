@@ -1745,7 +1745,7 @@ function matchCoupling(c) {
 
 // ---------------------------------------------------------------------------------------------
 // LEGACY-TWIN pre-pass (pilot DE #1, the main miss of slice E): a Tovu feature folder or file whose
-// NAME matches a Jini module (admin/features/media <-> @jini-ai/admin/media; assistant-run-finalizer
+// NAME matches a Jini module (admin/features/media <-> @jini-ai/admin/media; modules/run-finalizer
 // <-> chat/server/run-finalizer) and whose BEHAVIOUR matches (Jaccard over string literals, called
 // names and property names, private closures included), or that a Tovu host file already mounts.
 // Body and name similarity cannot see restructured siblings (media scored 0.07/0.11 by body).
@@ -1783,7 +1783,7 @@ const legacyTwins = []; const legacyByFile = new Map();
   const behCache = new Map(); const beh = (m) => { if (!behCache.has(m.key)) behCache.set(m.key, behOf(m.files)); return behCache.get(m.key); };
   for (const tm of tovuMods.values()) {
     if (GENERIC_NAMES.has(tm.name) || tm.name.length < 4) continue;
-    // Exact name, or a Tovu-prefixed name (assistant-run-finalizer -> run-finalizer) when the Jini name is compound.
+    // Exact name, or a Tovu-prefixed name (assistant-run-finalizer -> run-finalizer, before that file became modules/run-finalizer/) when the Jini name is compound.
     const cands = [...(jiniByName.get(tm.name) ?? [])];
     for (let i = tm.name.indexOf("-"); i > 0; i = tm.name.indexOf("-", i + 1)) { const tail = tm.name.slice(i + 1); if (tail.includes("-")) cands.push(...(jiniByName.get(tail) ?? [])); }
     if (!cands.length) continue;
