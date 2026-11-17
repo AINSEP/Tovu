@@ -27,12 +27,12 @@ const SENDER_REFUSED = "This page isn't part of Tovu, so it can't open the Impor
  */
 export function registerImportHandoffIpc({ ipcMain, isTrustedSender, sitesHomeWindows }: {
   ipcMain: { handle(channel: string, handler: (event: Pick<IpcMainInvokeEvent, "senderFrame">, raw: unknown) => ImportHandoffResult): void };
-  isTrustedSender: (senderUrl: string) => boolean;
+  isTrustedSender: (required: { senderUrl: string }) => boolean;
   sitesHomeWindows: () => readonly ImportHandoffWindow[];
 }, _optional: Record<string, never> = {}): void {
   ipcMain.handle(IMPORT_HANDOFF_CHANNELS.request, (event, raw) => {
     const url = event?.senderFrame?.url;
-    if (typeof url !== "string" || !isTrustedSender(url)) throw new Error(SENDER_REFUSED);
+    if (typeof url !== "string" || !isTrustedSender({ senderUrl: url })) throw new Error(SENDER_REFUSED);
     const window = sitesHomeWindows()[0];
     if (!window) return { opened: false };
     // An admin in its own window (or a minimized app) would otherwise change a screen nobody sees.

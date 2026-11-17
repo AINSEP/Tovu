@@ -18,7 +18,7 @@ import { SITE_ORIGIN, trackSite } from "./tracked-sites.ts";
 import { WORKSPACE_CHAT_IPC, type ChatIpcMain } from "./workspace-chat-ipc.ts";
 
 test("a renderer-reported folder resolves only to a tracked site, normalized, with its display name", () => {
-  const ports = { readTracked: () => [{ siteDir: "/sites/alpha" }], readSiteName: (dir: string) => `name of ${dir}` };
+  const ports = { readTracked: () => [{ siteDir: "/sites/alpha" }], readSiteName: ({ siteDir: dir }: { siteDir: string }) => `name of ${dir}` };
   assert.deepEqual(resolveTrackedAddressee({ siteDir: "/sites/alpha", ports }), { siteDir: "/sites/alpha", name: "name of /sites/alpha" });
   assert.deepEqual(resolveTrackedAddressee({ siteDir: "/sites/beta/../alpha/", ports }), { siteDir: "/sites/alpha", name: "name of /sites/alpha" });
   assert.equal(resolveTrackedAddressee({ siteDir: "/sites/untracked", ports }), null, "an arbitrary folder never becomes the turn's site");
@@ -55,8 +55,8 @@ function setup(t: TestContext, extra: { readFullCliAccess?: () => Promise<boolea
     agentRuntime, userDataDir: dir, projectsPath,
     ipcMain: { handle: (channel, listener) => { handlers.set(channel, listener); } },
     revealPath: async () => {}, pickDirectory: async () => null,
-    broadcast: (channel, payload) => broadcasts.push([channel, payload]),
-    readSiteName: (siteDir) => `Site ${path.basename(siteDir)}`,
+    broadcast: ({ channel, payload }) => broadcasts.push([channel, payload]),
+    readSiteName: ({ siteDir }) => `Site ${path.basename(siteDir)}`,
     ...(extra.readFullCliAccess ? { readFullCliAccess: extra.readFullCliAccess } : {}),
   }, factory === undefined ? {} : { createDesktopAgentRuntime: factory });
   return { dir, projectsPath, handlers, broadcasts, turns, runtime, captured: () => captured! };

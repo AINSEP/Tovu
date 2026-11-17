@@ -83,7 +83,7 @@ function mintSubscriptionId(): string {
 }
 
 /** `@jini-ai/protocol` spells it `cancelled`; `@jini-ai/chat` spells it `canceled`. One L, one place. */
-function toChatRunStatus(state: WorkspaceChatRunState): ChatRunStatus {
+function toChatRunStatus({ state }: { state: WorkspaceChatRunState }, _options: Record<string, never> = {}): ChatRunStatus {
   switch (state) {
     case 'queued':
     case 'starting':
@@ -112,15 +112,15 @@ function mediaBlocks({ media }: { media: unknown }, _options: Record<string, nev
   return Array.isArray(media) ? media.filter(isMediaBlock) : [];
 }
 
-function translateStatus(payload: Extract<RunAgentPayload, { type: 'status' }>): AgentEvent | null {
+function translateStatus({ payload }: { payload: Extract<RunAgentPayload, { type: 'status' }> }, _options: Record<string, never> = {}): AgentEvent | null {
   return { kind: 'status', label: payload.label, ...(payload.detail === undefined ? {} : { detail: payload.detail }) };
 }
 
-function translateTextDelta(payload: Extract<RunAgentPayload, { type: 'text_delta' }>): AgentEvent | null {
+function translateTextDelta({ payload }: { payload: Extract<RunAgentPayload, { type: 'text_delta' }> }, _options: Record<string, never> = {}): AgentEvent | null {
   return { kind: 'text', text: payload.delta };
 }
 
-function translateThinkingDelta(payload: Extract<RunAgentPayload, { type: 'thinking_delta' }>): AgentEvent | null {
+function translateThinkingDelta({ payload }: { payload: Extract<RunAgentPayload, { type: 'thinking_delta' }> }, _options: Record<string, never> = {}): AgentEvent | null {
   return { kind: 'thinking', text: payload.delta };
 }
 
@@ -136,7 +136,9 @@ function translateThinkingStart(): AgentEvent | null {
  * and it carries the real verb name rather than the client's MCP alias — so the agent's mirror is
  * dropped here, along with the `tool_result` that will follow it.
  */
-function translateToolUse(payload: Extract<RunAgentPayload, { type: 'tool_use' }>, record: SubscriptionRecord): AgentEvent | null {
+function translateToolUse(
+  { payload, record }: { payload: Extract<RunAgentPayload, { type: 'tool_use' }>; record: SubscriptionRecord }, _options: Record<string, never> = {},
+): AgentEvent | null {
   if (desktopVerbForAgentToolName({ agentToolName: payload.name }) !== undefined) {
     record.mirroredToolUseIds.add(payload.id);
     return null;
@@ -147,12 +149,16 @@ function translateToolUse(payload: Extract<RunAgentPayload, { type: 'tool_use' }
 }
 
 /** An ephemeral live preview the port routes through its own handler rather than the persisted event list. */
-function translateToolInputDelta(payload: Extract<RunAgentPayload, { type: 'tool_input_delta' }>, record: SubscriptionRecord): AgentEvent | null {
+function translateToolInputDelta(
+  { payload, record }: { payload: Extract<RunAgentPayload, { type: 'tool_input_delta' }>; record: SubscriptionRecord }, _options: Record<string, never> = {},
+): AgentEvent | null {
   record.handlers.onToolInputDelta?.(payload.id, payload.name, payload.delta);
   return null;
 }
 
-function translateToolResult(payload: Extract<RunAgentPayload, { type: 'tool_result' }>, record: SubscriptionRecord): AgentEvent | null {
+function translateToolResult(
+  { payload, record }: { payload: Extract<RunAgentPayload, { type: 'tool_result' }>; record: SubscriptionRecord }, _options: Record<string, never> = {},
+): AgentEvent | null {
   if (record.mirroredToolUseIds.has(payload.toolUseId)) return null;
   const blocks = mediaBlocks({ media: payload.media });
   return {
@@ -168,15 +174,15 @@ function translateToolResult(payload: Extract<RunAgentPayload, { type: 'tool_res
 }
 
 // Share the usage owner with web chat, including cumulative/session cost guards.
-function translateUsage(payload: Extract<RunAgentPayload, { type: 'usage' }>): AgentEvent | null {
+function translateUsage({ payload }: { payload: Extract<RunAgentPayload, { type: 'usage' }> }, _options: Record<string, never> = {}): AgentEvent | null {
   return parseUsageEvent({ payload: { ...payload } });
 }
 
-function translateRaw(payload: Extract<RunAgentPayload, { type: 'raw' }>): AgentEvent | null {
+function translateRaw({ payload }: { payload: Extract<RunAgentPayload, { type: 'raw' }> }, _options: Record<string, never> = {}): AgentEvent | null {
   return { kind: 'raw', line: payload.line };
 }
 
-type PayloadTranslator = (payload: RunAgentPayload, record: SubscriptionRecord) => AgentEvent | null;
+type PayloadTranslator = (input: { payload: RunAgentPayload; record: SubscriptionRecord }) => AgentEvent | null;
 
 /**
  * One entry per named wire variant, keyed by `payload.type`. Anything not listed here — `stage_*`,
@@ -202,7 +208,7 @@ const payloadTranslators: Record<string, PayloadTranslator> = {
  * rather than a switch over ten variants — each variant's own logic lives in its own named
  * `translate*` function above, independently readable and independently low-complexity.
  */
-function translateAgentPayload(payload: RunAgentPayload, record: SubscriptionRecord): AgentEvent | null {
+function translateAgentPayload({ payload, record }: { payload: RunAgentPayload; record: SubscriptionRecord }, _options: Record<string, never> = {}): AgentEvent | null {
   const translator = payloadTranslators[payload.type];
   if (translator === undefined) {
     // Every remaining variant is host-specific scaffolding no producer in this app emits. Carried
@@ -210,7 +216,7 @@ function translateAgentPayload(payload: RunAgentPayload, record: SubscriptionRec
     // transcript instead of vanishing.
     return { kind: 'ext', name: payload.type, data: payload };
   }
-  return translator(payload, record);
+  return translator({ payload, record });
 }
 
 function settle(record: SubscriptionRecord): void {
@@ -225,14 +231,14 @@ function settle(record: SubscriptionRecord): void {
  *  every token twice. */
 const NOOP_RUN_EVENT_KINDS = new Set<RunProtocolEvent['kind']>(['start', 'stdout', 'stderr']);
 
-function applyAgentEvent(record: SubscriptionRecord, payload: RunAgentPayload): void {
-  const translated = translateAgentPayload(payload, record);
+function applyAgentEvent({ record, payload }: { record: SubscriptionRecord; payload: RunAgentPayload }, _options: Record<string, never> = {}): void {
+  const translated = translateAgentPayload({ payload, record });
   if (translated === null) return;
   record.events.push(translated);
   record.handlers.onEvent(translated);
 }
 
-function applyRunEndEvent(record: SubscriptionRecord, event: Extract<RunProtocolEvent, { kind: 'end' }>): void {
+function applyRunEndEvent({ record, event }: { record: SubscriptionRecord; event: Extract<RunProtocolEvent, { kind: 'end' }> }, _options: Record<string, never> = {}): void {
   // A failed run that never emitted an `error` event still has to surface as an error, or the pane
   // shows a turn that simply stopped mid-sentence with no explanation.
   const failedSilently = event.payload.status === 'failed' && !record.errored;
@@ -243,19 +249,19 @@ function applyRunEndEvent(record: SubscriptionRecord, event: Extract<RunProtocol
   settle(record);
 }
 
-function applyRunEvent(record: SubscriptionRecord, event: RunProtocolEvent): void {
+function applyRunEvent({ record, event }: { record: SubscriptionRecord; event: RunProtocolEvent }, _options: Record<string, never> = {}): void {
   if (record.settled) return;
   if (NOOP_RUN_EVENT_KINDS.has(event.kind)) return;
   switch (event.kind) {
     case 'agent':
-      applyAgentEvent(record, event.payload);
+      applyAgentEvent({ record, payload: event.payload });
       return;
     case 'error':
       record.errored = true;
       record.handlers.onError(new Error(event.payload.message));
       return;
     case 'end':
-      applyRunEndEvent(record, event);
+      applyRunEndEvent({ record, event });
       return;
   }
 }
@@ -329,7 +335,7 @@ export function createWorkspaceChatTransport(bridge: RunnerInventoryBridge): Wor
     const record = records.get(message.subscriptionId);
     if (record === undefined) return;
     if (message.kind === 'event') {
-      applyRunEvent(record, message.event);
+      applyRunEvent({ record, event: message.event });
       return;
     }
     if (message.kind === 'closed') {
@@ -433,7 +439,7 @@ export function createWorkspaceChatTransport(bridge: RunnerInventoryBridge): Wor
 
     async fetchRunStatus(runId: string): Promise<ChatRunStatus | null> {
       const snapshot = await bridge.chatStatus({ runId });
-      return snapshot === null ? null : toChatRunStatus(snapshot.state);
+      return snapshot === null ? null : toChatRunStatus({ state: snapshot.state });
     },
 
     async stopRun(runId: string): Promise<void> {

@@ -25,7 +25,7 @@ interface AgentRuntimePorts {
  * says why it is unavailable.
  * @complexity O(models + reasoning options) time and space, plus one model probe when available.
  */
-async function summarizeAgent(def: RuntimeAgentDef, ports: AgentRuntimePorts): Promise<RunnerAgentSummary> {
+async function summarizeAgent({ def, ports }: { def: RuntimeAgentDef; ports: AgentRuntimePorts }, _optional = {}): Promise<RunnerAgentSummary> {
   const launch = ports.resolveLaunch({ def });
   const available = Boolean(launch.launchPath);
   const models = available ? (await ports.probeModels({ def }).catch(() => ({ models: def.fallbackModels }))).models : def.fallbackModels;
@@ -50,7 +50,7 @@ async function summarizeAgent(def: RuntimeAgentDef, ports: AgentRuntimePorts): P
 function createAgentInventory(ports: AgentRuntimePorts): (required: { rescan: boolean }) => Promise<RunnerAgentSummary[]> {
   let cached: Promise<RunnerAgentSummary[]> | null = null;
   const probe = () => {
-    const pending = Promise.all(ports.defs.filter((def) => ports.supportsTools({ def })).map((def) => summarizeAgent(def, ports)))
+    const pending = Promise.all(ports.defs.filter((def) => ports.supportsTools({ def })).map((def) => summarizeAgent({ def, ports })))
       .then((rows) => [...rows].sort((a, b) => Number(b.available) - Number(a.available)));
     // A failed probe must not poison the cache forever.
     pending.catch(() => { if (cached === pending) cached = null; });

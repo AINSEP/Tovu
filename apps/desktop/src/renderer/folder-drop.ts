@@ -44,8 +44,8 @@
  * order as the file-kind items in `.items` (per spec).
  */
 function pairFileItemsWithFiles(
-  items: readonly DataTransferItem[],
-  files: readonly File[],
+  { items, files }: { items: readonly DataTransferItem[]; files: readonly File[] },
+  _options = {},
 ): Array<{ item: DataTransferItem; file: File }> {
   const pairs: Array<{ item: DataTransferItem; file: File }> = [];
   let fileIndex = 0;
@@ -86,7 +86,7 @@ export function folderPathsFromDataTransfer({ dataTransfer, getPathForFile }: { 
   const items = Array.from(dataTransfer.items ?? []);
   const files = Array.from(dataTransfer.files ?? []);
   const paths: string[] = [];
-  for (const { item, file } of pairFileItemsWithFiles(items, files)) {
+  for (const { item, file } of pairFileItemsWithFiles({ items, files })) {
     const path = folderPathForItem({ item, file, getPathForFile });
     if (path !== undefined) paths.push(path);
   }

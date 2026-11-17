@@ -35,7 +35,7 @@ test("theme previews reject webview guests even when their owning window is Site
   const sitesPath = "/install/dist/renderer/index.html";
   const home = { isDestroyed: () => false, getURL: () => pathToFileURL(sitesPath).href };
   const guest = { isDestroyed: () => false, getURL: () => "http://127.0.0.1:4321/admin/" };
-  const binding = source.match(/allowed: (\(sender\) => [^\n]+),\n/);
+  const binding = source.match(/registerSiteThemePreviewIpc\(\{[^\n]*\n\s*allowed: (\(\{ sender \}\) => [^\n]+),\n/);
   assert.ok(binding, "the theme-preview IPC must have a sender guard");
   // Exercise the entry's actual predicate without importing Electron's main-process entry.
   // Electron resolves both these contents to the owning Sites Home window.
@@ -43,9 +43,9 @@ test("theme previews reject webview guests even when their owning window is Site
     BrowserWindow: { fromWebContents: () => ({ webContents: home }) },
     SITES_RENDERER_PATH: sitesPath,
     pathToFileURL,
-  }) as (sender: { isDestroyed(): boolean; getURL(): string }) => boolean;
-  assert.equal(allowed(home), true, "Sites Home keeps its theme preview subscriptions");
-  assert.equal(allowed(guest), false, "the guest must not inherit its host window's trust");
-  assert.equal(allowed({ isDestroyed: () => false, getURL: () => "https://untrusted.example/" }), false);
-  assert.equal(allowed({ isDestroyed: () => true, getURL: () => { throw new Error("contents destroyed"); } }), false);
+  }) as ({ sender }: { sender: { isDestroyed(): boolean; getURL(): string } }) => boolean;
+  assert.equal(allowed({ sender: home }), true, "Sites Home keeps its theme preview subscriptions");
+  assert.equal(allowed({ sender: guest }), false, "the guest must not inherit its host window's trust");
+  assert.equal(allowed({ sender: { isDestroyed: () => false, getURL: () => "https://untrusted.example/" } }), false);
+  assert.equal(allowed({ sender: { isDestroyed: () => true, getURL: () => { throw new Error("contents destroyed"); } } }), false);
 });

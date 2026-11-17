@@ -41,8 +41,8 @@ const APP_ORIGIN = "http://127.0.0.1:4567";
 /** A `webContents` stand-in that keeps whatever the policy registers, plus every URL handed to the
  *  OS browser. */
 function installOnFake(
-  install: (contents: NavigableContents, openExternal: (url: string) => void) => void = (contents, openExternal) =>
-    installAppWindowNavigationPolicy(contents, { appOrigin: APP_ORIGIN, openExternal }),
+  install: (args: { contents: NavigableContents; openExternal: (required: { url: string }) => void }) => void = ({ contents, openExternal }) =>
+    installAppWindowNavigationPolicy({ contents, options: { appOrigin: APP_ORIGIN, openExternal } }),
 ) {
   let openHandler: ((details: { url: string }) => WindowOpenResponse) | undefined;
   let navigateListener: ((event: { preventDefault(): void }, url: string) => void) | undefined;
@@ -58,7 +58,7 @@ function installOnFake(
       return contents;
     },
   };
-  install(contents, (url) => opened.push(url));
+  install({ contents, openExternal: ({ url }) => opened.push(url) });
 
   return {
     opened,
@@ -260,7 +260,7 @@ test("guest popup: a throwing openExternal never escapes the handler — a guest
 
 const RENDERER = "file:///Applications/Tovu.app/Contents/Resources/app/dist/renderer/index.html";
 const pages = (overrides: { attachUrl?: string } = {}) => ({
-  isSupervisedSite: (url: string) => url.startsWith("http://127.0.0.1:4567/"), // the fake's own shortcut; the real one is isSupervisedGuestUrl
+  isSupervisedSite: ({ url }: { url: string }) => url.startsWith("http://127.0.0.1:4567/"), // the fake's own shortcut; the real one is isSupervisedGuestUrl
   rendererFileUrl: RENDERER,
   ...overrides,
 });
@@ -298,11 +298,11 @@ test("isShellPageUrl refuses foreign pages and garbage without throwing", () => 
 // `isShellPageUrl` itself is covered above; this pins only that the entry feeds it the live inputs.
 test("main.ts registers the speech channels with the shell-page sender check", () => {
   const source = fs.readFileSync(path.join(__dirname, "main", "index.ts"), "utf8");
-  assert.match(source, /registerSpeechIpc\(\{ ipcMain, isTrustedSender: \(raw\) => isShellPage\(\{ raw \}\) \}\)/);
+  assert.match(source, /registerSpeechIpc\(\{ ipcMain, isTrustedSender: \(\{ senderUrl \}\) => isShellPage\(\{ raw: senderUrl \}\) \}\)/);
   const shellPage = source.slice(source.indexOf("function isShellPage("), source.indexOf("function registerGuestNavigationPolicy("));
   assert.match(
     shellPage,
-    /isShellPageUrl\(\{ raw, pages: \{\s*isSupervisedSite: \(raw\) => isSupervisedGuestUrl\(\{ raw \}\),\s*attachUrl: process\.env\.TOVU_DESKTOP_URL\?\.trim\(\),\s*rendererFileUrl: pathToFileURL\(SITES_RENDERER_PATH\)\.href,\s*\} \}\)/,
+    /isShellPageUrl\(\{ raw, pages: \{\s*isSupervisedSite: \(\{ url \}\) => isSupervisedGuestUrl\(\{ raw: url \}\),\s*attachUrl: process\.env\.TOVU_DESKTOP_URL\?\.trim\(\),\s*rendererFileUrl: pathToFileURL\(SITES_RENDERER_PATH\)\.href,\s*\} \}\)/,
   );
 });
 
@@ -311,8 +311,8 @@ test("main.ts registers the speech channels with the shell-page sender check", (
 // Its `script-src 'self'` CSP only covers the page it is on: a link dropped onto the window, or any
 // other top-level navigation, replaced the page with a remote one that got the SAME preload and none
 // of the CSP. Only the renderer's own file may load there.
-const installSitesHome = (contents: NavigableContents, openExternal: (url: string) => void) =>
-  installSitesHomeNavigationPolicy(contents, { rendererFileUrl: RENDERER, openExternal });
+const installSitesHome = ({ contents, openExternal }: { contents: NavigableContents; openExternal: (required: { url: string }) => void }) =>
+  installSitesHomeNavigationPolicy({ contents, options: { rendererFileUrl: RENDERER, openExternal } });
 
 test("sites home: navigating the window to a remote page is prevented and handed to the OS browser", () => {
   const fake = installOnFake(installSitesHome);

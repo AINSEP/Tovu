@@ -85,7 +85,7 @@ function runtimeWorkspaces({ repoRoot }: StageLayout, { fs }: StagePorts): strin
 }
 
 /** The server may import declared runtime dependencies and the host's runtime workspaces. */
-function declaredRuntimePackages(layout: StageLayout, ports: StagePorts): Set<string> {
+function declaredRuntimePackages({ layout, ports }: { layout: StageLayout; ports: StagePorts }, _options = {}): Set<string> {
   const workspaces = runtimeWorkspaces(layout, ports)
     .map((directory) => readJson({ fs: ports.fs, file: path.join(directory, "package.json") }).name as string);
   return new Set([...ports.steps.declaredDependencies({ packageDir: layout.repoRoot }), ...workspaces]);
@@ -98,7 +98,7 @@ function declaredRuntimePackages(layout: StageLayout, ports: StagePorts): Set<st
  * @returns Real workspace roots, which seed the declared closure alongside the root manifest.
  * @complexity O(workspace files copied); sibling platform packages are never enumerated.
  */
-function stageWorkspacePackages(layout: StageLayout, ports: StagePorts): string[] {
+function stageWorkspacePackages({ layout, ports }: { layout: StageLayout; ports: StagePorts }, _options = {}): string[] {
   const { fs, steps } = ports;
   return runtimeWorkspaces(layout, ports).map((source) => {
     const name = readJson({ fs, file: path.join(source, "package.json") }).name as string;
@@ -114,9 +114,9 @@ function stageWorkspacePackages(layout: StageLayout, ports: StagePorts): string[
  * @throws {StagePayloadError} when a required root is missing.
  * @complexity O(files in declared packages); never scans the Jini sibling directory.
  */
-function stageRuntimePackages(layout: StageLayout, ports: StagePorts): { roots: string[]; count: number } {
+function stageRuntimePackages({ layout, ports }: { layout: StageLayout; ports: StagePorts }, _options = {}): { roots: string[]; count: number } {
   const { fs, steps } = ports;
-  const roots = stageWorkspacePackages(layout, ports);
+  const roots = stageWorkspacePackages({ layout, ports });
   let count = roots.length;
   for (const name of steps.declaredDependencies({ packageDir: layout.repoRoot })) {
     if (isExcluded({ name })) continue;
@@ -236,7 +236,7 @@ function countMigrations({ fs, dir }: { fs: StageFs; dir: string }, _options = {
   return fs.existsSync(dir) ? fs.readdirSync(dir).filter((entry) => entry.endsWith(".sql")).length : 0;
 }
 
-function failIfDistIsStale(layout: StageLayout, { fs }: StagePorts): void {
+function failIfDistIsStale({ layout, ports: { fs } }: { layout: StageLayout; ports: StagePorts }, _options = {}): void {
   const source = countMigrations({ fs, dir: path.join(layout.repoRoot, "apps", "website", "src", "platform", "db", "drizzle") });
   const built = countMigrations({ fs, dir: path.join(layout.outDir, "dist", "src", "platform", "db", "drizzle") });
   if (built < source) {
@@ -278,7 +278,7 @@ function failIfShellIsStale(
 }
 
 /** Every check that must pass before anything under `staging/` is touched. */
-function assertSourcePreconditions(layout: StageLayout, ports: StagePorts): RuntimeManifest {
+function assertSourcePreconditions({ layout, ports }: { layout: StageLayout; ports: StagePorts }, _options = {}): RuntimeManifest {
   const { fs } = ports;
   const manifest = readRuntimeManifest({ fs, dir: layout.repoRoot, repoRoot: layout.repoRoot });
   assertCliEntryAgreement({ fs, repoRoot: layout.repoRoot, manifest });
@@ -303,14 +303,14 @@ function assertSourcePreconditions(layout: StageLayout, ports: StagePorts): Runt
 }
 
 /** Copy the payload and its dependency closure into a fresh `outDir`; returns the staged package count. */
-function stageTree(layout: StageLayout, ports: StagePorts): number {
+function stageTree({ layout, ports }: { layout: StageLayout; ports: StagePorts }, _options = {}): number {
   const { fs, steps } = ports;
   fs.rmSync(layout.outDir, { recursive: true, force: true });
   fs.mkdirSync(layout.outDir, { recursive: true });
   // `package.json` is staged verbatim because `resolveCliEntry` reads `bin.tovu` from it in BOTH
   // modes — copying it is what keeps that function free of any packaged-mode branch at all.
   steps.stagePayloadFiles({ repoRoot: layout.repoRoot, outDir: layout.outDir });
-  const runtime = stageRuntimePackages(layout, ports);
+  const runtime = stageRuntimePackages({ layout, ports });
   const staged = runtime.count + asRefusal({ step: () => steps.stageTransitiveDependencies({
     roots: runtime.roots, outDir: layout.outDir,
   }) });
@@ -340,14 +340,14 @@ function trimAndVerify({ layout, ports, manifest }: { layout: StageLayout; ports
   // actually ships, not against a fuller one the strip has yet to touch.
   const stripped = steps.stripNonRuntimeFiles({ outDir: layout.outDir });
   // See `resolveTargets` for why this is the host unless TOVU_TARGET_ARCH says otherwise.
-  const targets = resolveTargets(ports.env, ports.host);
+  const targets = resolveTargets({ env: ports.env, host: ports.host });
   const pruned = asRefusal({ step: () => {
     const tally = steps.pruneNativePrebuilds({ outDir: layout.outDir, targets });
     steps.assertClosureComplete({ outDir: layout.outDir });
     steps.assertDistImportsDeclared({
       distDir: path.join(layout.outDir, "dist"),
       entry: path.join(layout.outDir, manifest.cliEntry),
-      declared: declaredRuntimePackages(layout, ports),
+      declared: declaredRuntimePackages({ layout, ports }),
     });
     return tally;
   } });
@@ -367,7 +367,7 @@ function assertStagedTree({ layout, ports, manifest }: { layout: StageLayout; po
       fail({ message: `staged tree has no shell at ${path.join(layout.outDir, shell.relative, shell.marker)} — the copy must have gone wrong.` });
     }
   }
-  failIfDistIsStale(layout, ports);
+  failIfDistIsStale({ layout, ports });
 }
 
 /**
@@ -377,7 +377,7 @@ function assertStagedTree({ layout, ports, manifest }: { layout: StageLayout; po
  * payload above, so it is staged separately from the declared runtime closure. `electron-builder.yml`
  * ships it via its own pair of `extraResources` entries at `Contents/Resources/npm/`.
  */
-function stageNpm(layout: StageLayout, ports: StagePorts): void {
+function stageNpm({ layout, ports }: { layout: StageLayout; ports: StagePorts }, _options = {}): void {
   const npmSrc = path.join(layout.desktopDir, "node_modules", "npm");
   const npmStagingDir = path.join(layout.desktopDir, "staging", "npm");
   const npmStaged = asRefusal({ step: () => ports.steps.stageBundledNpm({ npmSrc, outDir: npmStagingDir }) });
@@ -387,7 +387,7 @@ function stageNpm(layout: StageLayout, ports: StagePorts): void {
 /** Sets the execute bits on the shell's own node-pty `spawn-helper`s, the copy electron-builder
  *  unpacks into `app.asar.unpacked` with whatever mode it finds there. See
  *  `ensurePtyHelpersExecutable` for why the install leaves them unexecutable. */
-function stagePtyHelpers(layout: StageLayout, ports: StagePorts): void {
+function stagePtyHelpers({ layout, ports }: { layout: StageLayout; ports: StagePorts }, _options = {}): void {
   const changed = asRefusal({ step: () => ports.steps.ensurePtyHelpersExecutable({ ptyDir: path.join(layout.desktopDir, "node_modules", "node-pty") }) });
   if (changed.length > 0) ports.stdout.write(`stage-payload: set the execute bits on ${changed.length} node-pty spawn-helper(s): ${changed.join(", ")}\n`);
 }
@@ -405,12 +405,12 @@ export function runStagePayload({ repoRoot, desktopDir }: { repoRoot: string; de
     repoRoot, desktopDir,
     outDir: path.join(desktopDir, "staging", "tovu-payload"),
   };
-  const manifest = assertSourcePreconditions(layout, ports);
-  const staged = stageTree(layout, ports);
+  const manifest = assertSourcePreconditions({ layout, ports });
+  const staged = stageTree({ layout, ports });
   const { materialized, stripped, targets, pruned } = trimAndVerify({ layout, ports, manifest });
   assertStagedTree({ layout, ports, manifest });
-  stageNpm(layout, ports);
-  stagePtyHelpers(layout, ports);
+  stageNpm({ layout, ports });
+  stagePtyHelpers({ layout, ports });
 
   // `diskBytes`, not `du -sh`: `du` does not exist on Windows, and diskBytes already walks the same
   // on-disk block accounting the strip/prune tallies below use, so all three sizes stay comparable.
@@ -446,8 +446,8 @@ export function resolveStageRoot({ argv, desktopDir }: { argv: readonly string[]
  * @returns the process exit code.
  */
 export function stagePayloadCli(
-  { argv, desktopDir }: { argv: readonly string[]; desktopDir: string },
-  ports: StagePorts & { stderr: { write(text: string): unknown } },
+  { argv, desktopDir, ports }: { argv: readonly string[]; desktopDir: string; ports: StagePorts & { stderr: { write(text: string): unknown } } },
+  _options = {},
 ): 0 | 1 {
   try {
     runStagePayload({ repoRoot: resolveStageRoot({ argv, desktopDir }), desktopDir }, ports);

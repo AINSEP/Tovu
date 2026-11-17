@@ -17,14 +17,14 @@ interface NavigableContents {
 }
 interface AppWindowPolicyOptions {
   appOrigin: string;
-  openExternal: (url: string) => void;
+  openExternal: (required: { url: string }) => void;
 }
 interface GuestWindowOpenOptions {
   isSupervisedGuestUrl: (required: { url: string }) => boolean;
   openExternal: (required: { url: string }) => void;
 }
 interface ShellPages {
-  isSupervisedSite: (url: string) => boolean;
+  isSupervisedSite: (required: { url: string }) => boolean;
   attachUrl?: string;
   rendererFileUrl: string;
 }
@@ -40,23 +40,25 @@ function isExternalBrowserUrl({ raw }: { raw: string }, _options = {}): boolean 
 }
 
 /** Bind the initial site origin and Electron browser handoff. @complexity O(1) registration. */
-function installAppWindowNavigationPolicy(contents: NavigableContents, options: AppWindowPolicyOptions): void {
+function installAppWindowNavigationPolicy(
+  { contents, options }: { contents: NavigableContents; options: AppWindowPolicyOptions }, _optional = {},
+): void {
   installAppPolicy({
     contents,
     appOrigin: options.appOrigin,
-    openExternal: ({ url }) => options.openExternal(url),
+    openExternal: options.openExternal,
   });
 }
 
 /** Bind the sites-home file to Jini's renderer boundary. @complexity O(1) registration. */
 function installSitesHomeNavigationPolicy(
-  contents: NavigableContents,
-  options: { rendererFileUrl: string; openExternal: (url: string) => void },
+  { contents, options }: { contents: NavigableContents; options: { rendererFileUrl: string; openExternal: (required: { url: string }) => void } },
+  _optional = {},
 ): void {
   installRendererNavigationPolicy({
     contents,
     rendererFileUrl: options.rendererFileUrl,
-    openExternal: ({ url }) => options.openExternal(url),
+    openExternal: options.openExternal,
   });
 }
 
@@ -74,7 +76,7 @@ function isShellPageUrl({ raw, pages }: { raw: string; pages: ShellPages }, _opt
   return admitShellPage({
     raw,
     pages: {
-      isSupervisedSite: ({ url }) => pages.isSupervisedSite(url),
+      isSupervisedSite: pages.isSupervisedSite,
       rendererFileUrl: pages.rendererFileUrl,
     },
   }, { attachUrl: pages.attachUrl });

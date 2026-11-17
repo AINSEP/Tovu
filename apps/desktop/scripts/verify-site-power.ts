@@ -78,7 +78,7 @@ async function shot({ win, name }: { win: Page; name: string }, _options = {}): 
 /** Everything the first card is currently saying, read straight off the DOM. The small helpers are
  *  declared INSIDE the evaluated function because Playwright serializes it into the page, where
  *  nothing from this module's scope exists. */
-const cardState = (win: Page): Promise<CardState | null> =>
+const cardState = ({ win }: { win: Page }, _options = {}): Promise<CardState | null> =>
   win.evaluate((): CardState | null => {
     const card = document.querySelector('.card');
     if (!card) return null;
@@ -123,7 +123,7 @@ const cardState = (win: Page): Promise<CardState | null> =>
 /** Computed style of the card's power button versus the header's "Create website" button — the
  *  live proof that Start/Stop actually wears that style rather than merely sharing a class name
  *  that some other rule overrides. */
-const powerMatchesCreate = (win: Page) =>
+const powerMatchesCreate = ({ win }: { win: Page }, _options = {}) =>
   win.evaluate(() => {
     const power = document.querySelector('.card__power');
     const create = document.querySelector('.button--create');
@@ -146,7 +146,7 @@ const powerMatchesCreate = (win: Page) =>
 async function waitForStatus({ win, want, timeoutMs }: { win: Page; want: string; timeoutMs: number }, _options = {}): Promise<CardState | null> {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
-    const last = await cardState(win);
+    const last = await cardState({ win });
     if (last?.status === want || Date.now() > deadline) return last;
     await win.waitForTimeout(250);
   }
@@ -170,7 +170,7 @@ async function setTheme({ win, theme }: { win: Page; theme: string }, _options =
  * children on one content.db is not a thing to discover from a screenshot afterwards, so the run
  * stops here rather than clicking Start on a card it cannot name. */
 async function requireSeededCard({ win, expectedSiteName }: { win: Page; expectedSiteName: string }, _options = {}): Promise<CardState> {
-  const idle = await cardState(win);
+  const idle = await cardState({ win });
   const seen = flat({ state: idle });
   check({ name: 'CARD_SEEDED', ok: idle !== null, detail: `card rendered, status ${seen.status}` });
   check(
@@ -211,7 +211,7 @@ async function verifyIdleCard({ win, expectedSiteName }: { win: Page; expectedSi
   checkLayout(layoutClaims({ state: idle }));
   const label = flat({ state: idle }).label;
   check({ name: 'POWER_OFFERS_START', ok: label === 'Start', detail: `power button reads "${label}"` });
-  const startStyle = await powerMatchesCreate(win);
+  const startStyle = await powerMatchesCreate({ win });
   check(
     { name: 'POWER_MATCHES_CREATE_STYLE',
     ok: startStyle.found && startStyle.sameBackground && startStyle.sameBorderColor && startStyle.sameFontWeight,
@@ -224,7 +224,7 @@ async function verifyIdleCard({ win, expectedSiteName }: { win: Page; expectedSi
  *  the button is disabled while it lasts. */
 async function clickPowerExpectingTransition({ win, checkName, label, verb }: { win: Page; checkName: string; label: string; verb: string }, _options = {}): Promise<void> {
   await win.click('.card__power');
-  const mid = flat({ state: await cardState(win) });
+  const mid = flat({ state: await cardState({ win }) });
   check(
     { name: checkName,
     ok: mid.label === label && mid.disabled === true,
@@ -234,7 +234,7 @@ async function clickPowerExpectingTransition({ win, checkName, label, verb }: { 
 
 /** Clicks Start and waits for Running; the card offers Stop and keeps its layout with the wider
  *  label in place. */
-async function verifyStarted(win: Page): Promise<void> {
+async function verifyStarted({ win }: { win: Page }, _options = {}): Promise<void> {
   await clickPowerExpectingTransition({ win, checkName: 'START_SAYS_STARTING', label: 'Starting…', verb: 'start' });
   await shot({ win, name: 'light-starting' });
 
@@ -254,7 +254,7 @@ async function verifyStarted(win: Page): Promise<void> {
 }
 
 /** Clicks Stop and waits for Stopped; the card offers Start again with no stale port or error. */
-async function verifyStopped(win: Page): Promise<void> {
+async function verifyStopped({ win }: { win: Page }, _options = {}): Promise<void> {
   await clickPowerExpectingTransition({ win, checkName: 'STOP_SAYS_STOPPING', label: 'Stopping…', verb: 'stop' });
   await shot({ win, name: 'light-stopping' });
 
@@ -271,7 +271,7 @@ async function verifyStopped(win: Page): Promise<void> {
  *  the list opens upward over the preview tile. Too tall a list, or a trigger that drifts back
  *  down, and the top of the menu is silently cut off — a screenshot shows a shorter menu, not an
  *  obviously broken one, so this is read from boxes. */
-async function checkMenuNotClipped(win: Page): Promise<void> {
+async function checkMenuNotClipped({ win }: { win: Page }, _options = {}): Promise<void> {
   const menuClip = await win.evaluate(() => {
     const list = document.querySelector('.card__menulist');
     const card = document.querySelector('.card');
@@ -293,7 +293,7 @@ async function checkMenuNotClipped(win: Page): Promise<void> {
  *  plain text, not the danger styling erasing-file deletes get — and clicking it must still land
  *  on the confirm overlay rather than deleting straight away. Cancels, so the scratch site stays
  *  intact for any rerun of this script. */
-async function verifyDeleteEntry(win: Page): Promise<void> {
+async function verifyDeleteEntry({ win }: { win: Page }, _options = {}): Promise<void> {
   const deleteEntry = await win.evaluate(() => {
     const item = [...document.querySelectorAll('.card__menulist [role="menuitem"]')].find((el) =>
       /Delete|Remove from Projects/.test(el.textContent ?? ''),
@@ -315,13 +315,13 @@ async function verifyDeleteEntry(win: Page): Promise<void> {
 }
 
 /** Closes an open ⋮ menu the way a user would: Escape, then a click on empty page. */
-async function closeMenu(win: Page): Promise<void> {
+async function closeMenu({ win }: { win: Page }, _options = {}): Promise<void> {
   await win.keyboard.press('Escape');
   await win.click('body', { position: { x: 5, y: 5 } });
 }
 
 /** The ⋮ menu still opens from its new home, and now carries delete. */
-async function verifyMenu(win: Page): Promise<void> {
+async function verifyMenu({ win }: { win: Page }, _options = {}): Promise<void> {
   await win.click('.card__menubutton');
   // The menu's background is theme-derived (`var(--surface)`), and screenshotting in the same
   // tick as the click can catch the freshly-mounted popover before that paints — a genuine paint
@@ -333,7 +333,7 @@ async function verifyMenu(win: Page): Promise<void> {
     [...document.querySelectorAll('.card__menulist [role="menuitem"]')].map((el) => (el.textContent ?? '').trim()),
   );
   check({ name: 'MENU_OPENS', ok: menuItems.length > 0, detail: `menu items: ${menuItems.join(' | ')}` });
-  await checkMenuNotClipped(win);
+  await checkMenuNotClipped({ win });
   check(
     { name: 'MENU_HAS_NO_LIFECYCLE',
     ok: !menuItems.some((item) => item === 'Start' || item === 'Stop'),
@@ -345,14 +345,14 @@ async function verifyMenu(win: Page): Promise<void> {
     detail: `menu items: ${menuItems.join(' | ')}` },
   );
   await shot({ win, name: 'light-menu-open' });
-  await verifyDeleteEntry(win);
-  await closeMenu(win);
+  await verifyDeleteEntry({ win });
+  await closeMenu({ win });
 }
 
 /** Dark mode: the same controls stay visible and laid out, and the site still starts and stops. */
-async function verifyDark(win: Page): Promise<void> {
+async function verifyDark({ win }: { win: Page }, _options = {}): Promise<void> {
   await setTheme({ win, theme: 'dark' });
-  const darkState = await cardState(win);
+  const darkState = await cardState({ win });
   const dark = flat({ state: darkState });
   check(
     { name: 'DARK_ALWAYS_VISIBLE',
@@ -365,7 +365,7 @@ async function verifyDark(win: Page): Promise<void> {
   await win.click('.card__menubutton');
   await win.waitForTimeout(150); // see the identical wait in `verifyMenu` — the same paint race.
   await shot({ win, name: 'dark-menu-open' });
-  await closeMenu(win);
+  await closeMenu({ win });
   await win.click('.card__power');
   const darkRunning = flat({ state: await waitForStatus({ win, want: 'Running', timeoutMs: 90_000 }) });
   check({ name: 'DARK_STARTED', ok: darkRunning.status === 'Running', detail: `dark mode status after start: ${darkRunning.status}` });
@@ -399,10 +399,10 @@ async function main(): Promise<void> {
     await win.waitForLoadState('domcontentloaded');
     await win.waitForSelector('.card', { timeout: 30_000 });
     await verifyIdleCard({ win, expectedSiteName });
-    await verifyStarted(win);
-    await verifyStopped(win);
-    await verifyMenu(win);
-    await verifyDark(win);
+    await verifyStarted({ win });
+    await verifyStopped({ win });
+    await verifyMenu({ win });
+    await verifyDark({ win });
   } finally {
     await app.close();
   }

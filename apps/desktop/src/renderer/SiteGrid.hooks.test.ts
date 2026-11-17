@@ -44,7 +44,7 @@ test("a menu entry closes the menu BEFORE running its action", () => {
   // Acting first would leave an open menu floating over whatever the action changed.
   const calls: string[] = [];
   const choose = closeMenuThen({ setOpen: (open) => calls.push(`setOpen:${open}`) });
-  const onClick = choose(() => calls.push("act"));
+  const onClick = choose({ act: () => calls.push("act") });
   assert.equal(calls.length, 0, "building an entry's handler must run nothing");
   onClick();
   assert.deepEqual(calls, ["setOpen:false", "act"]);
@@ -53,8 +53,8 @@ test("a menu entry closes the menu BEFORE running its action", () => {
 test("every entry built from one closeMenuThen runs only its own action", () => {
   const calls: string[] = [];
   const choose = closeMenuThen({ setOpen: (open) => calls.push(`setOpen:${open}`) });
-  const rename = choose(() => calls.push("rename"));
-  const start = choose(() => calls.push("start"));
+  const rename = choose({ act: () => calls.push("rename") });
+  const start = choose({ act: () => calls.push("start") });
   start();
   rename();
   assert.deepEqual(calls, ["setOpen:false", "start", "setOpen:false", "rename"]);
@@ -108,11 +108,11 @@ test("databaseLabel names the provisioned database, an operator's own label, or 
 });
 
 test("siteCardTone: running is green, both transitions are busy, a failure warns, the rest are neutral", () => {
-  assert.equal(siteCardTone("running"), "running");
-  assert.equal(siteCardTone("starting"), "busy");
-  assert.equal(siteCardTone("stopping"), "busy");
-  assert.equal(siteCardTone("failed"), "warning");
-  assert.equal(siteCardTone("stopped"), "neutral");
+  assert.equal(siteCardTone({ status: "running" }), "running");
+  assert.equal(siteCardTone({ status: "starting" }), "busy");
+  assert.equal(siteCardTone({ status: "stopping" }), "busy");
+  assert.equal(siteCardTone({ status: "failed" }), "warning");
+  assert.equal(siteCardTone({ status: "stopped" }), "neutral");
 });
 
 test("duplicateDisplayNames: only names more than one site has", () => {

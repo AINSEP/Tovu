@@ -228,7 +228,7 @@ function SiteCard({
   // The polled status, or the transition THIS window started and is still waiting on — see
   // `use-site-power.hooks.ts` on why the local half exists and why it is never the whole answer.
   const status = power.statusOf(project);
-  const powerError = power.errorOf(project.id);
+  const powerError = power.errorOf({ id: project.id });
   const connection = sitePortPresentation({ port: project.port, status });
   const statusCopy = siteCardStatus({ project, connection });
   const parentFolder = siteCardParentFolder({ installDir: project.installDir });
@@ -277,7 +277,7 @@ function SiteCard({
           {project.templateVersion && <> · Tovu {project.templateVersion}</>}
         </>
       )}
-      status={<SiteCardStatus label={STATUS_LABEL[status]} tone={siteCardTone(status)} title={statusCopy.title} />}
+      status={<SiteCardStatus label={STATUS_LABEL[status]} tone={siteCardTone({ status })} title={statusCopy.title} />}
       notes={<SiteCardNotes project={project} detail={statusCopy.detail} powerError={powerError} locate={locate} />}
       actions={(
         <CardActions
@@ -370,7 +370,7 @@ function CardOverlays({ project, overlay, rename, copy, deleting, deleteError, p
  * action column; a refused Locate's reason, main's own sentence, shows here.
  */
 function MissingFolderNotice({ project, locate }: { project: SiteRecord; locate: SiteLocate }) {
-  const error = locate.errorOf(project.id);
+  const error = locate.errorOf({ id: project.id });
   return (
     <>
       {project.folderMissing && <p className="card__missing">Folder moved or not a site</p>}
@@ -485,7 +485,7 @@ function CardActions({
 }) {
   // `null` for `provisioning`/`blocked` — a site with nothing to start yet, or ever. See
   // `powerControl`'s own doc on why that is no button rather than a disabled one.
-  const control = powerControl(status, { external: Boolean(project.externalUrl) && !project.externalLauncher });
+  const control = powerControl({ status }, { external: Boolean(project.externalUrl) && !project.externalLauncher });
   const restart = power.restartControlOf?.(project);
 
   return (
@@ -505,7 +505,7 @@ function CardActions({
             className="button button--create card__power"
             disabled={locate.locatingId === project.id}
             aria-label={`Locate the folder for ${project.displayName}`}
-            onClick={() => void locate.locate(project.id)}
+            onClick={() => void locate.locate({ id: project.id })}
           >
             {locate.locatingId === project.id ? 'Locating…' : 'Locate…'}
           </button>
@@ -647,7 +647,7 @@ function SiteCardMenu({
       </button>
       {open && (
         <div className="card__menulist" role="menu">
-          <button type="button" role="menuitem" className="card__menuitem" onClick={choose(onRename)}>
+          <button type="button" role="menuitem" className="card__menuitem" onClick={choose({ act: onRename })}>
             Rename…
           </button>
           {running && (
@@ -655,12 +655,12 @@ function SiteCardMenu({
               type="button"
               role="menuitem"
               className="card__menuitem"
-              onClick={choose(() => void actions.openInBrowser({ id: project.id }))}
+              onClick={choose({ act: () => void actions.openInBrowser({ id: project.id }) })}
             >
               Open in browser
             </button>
           )}
-          <button type="button" role="menuitem" className="card__menuitem" onClick={choose(onToggleHidden)}>
+          <button type="button" role="menuitem" className="card__menuitem" onClick={choose({ act: onToggleHidden })}>
             {hidden ? 'Show in list' : 'Hide from list'}
           </button>
           {/* Always present, and last: the destructive entry belongs at the bottom of the list,
@@ -670,7 +670,7 @@ function SiteCardMenu({
             type="button"
             role="menuitem"
             className={project.deleteErasesFiles ? 'card__menuitem card__menuitem--danger' : 'card__menuitem'}
-            onClick={choose(() => onRequestDelete(project.id))}
+            onClick={choose({ act: () => onRequestDelete(project.id) })}
           >
             {copy.menuItemLabel}
           </button>

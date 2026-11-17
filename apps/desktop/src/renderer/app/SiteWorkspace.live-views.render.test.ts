@@ -56,7 +56,7 @@ async function renderTabs(t: TestContext, { openSites = SITES, bridge = {} }: { 
   await settle();
   const mounted = () => view.all({ selector: 'webview' }).map((guest) => guest.getAttribute('partition')!.replace('persist:', '')).sort();
   const guestOf = (id: string) => view.container.querySelector<HTMLElement>(`webview[partition="persist:${id}"]`);
-  const show = async (next: Partial<typeof props>) => { props = { ...props, ...next }; view.render(element()); await settle(); };
+  const show = async (next: Partial<typeof props>) => { props = { ...props, ...next }; view.render({ next: element() }); await settle(); };
   const visit = (id: string) => show({ visibleWorkspaceId: id, inSites: true });
   return { ...view, ...guests, mounted, guestOf, show, visit };
 }
@@ -152,15 +152,15 @@ test('live views: closing a tab forgets its released route', async (t) => {
   await view.visit('b');
   await view.visit('c');
   const reopened = SITES.slice(0, 3);
-  view.render(createElement(SiteWorkspaces, {
+  view.render({ next: createElement(SiteWorkspaces, {
     openSites: SITES.slice(1, 3), inSites: true, visibleWorkspaceId: 'c', expanded: false, adminPages: {},
     onToggleExpanded: () => {}, registerGuest: () => {}, registerZoomGuest: () => {}, onSiteUpdated: () => {},
-  }));
+  }) });
   await settle();
-  view.render(createElement(SiteWorkspaces, {
+  view.render({ next: createElement(SiteWorkspaces, {
     openSites: reopened, inSites: true, visibleWorkspaceId: 'a', expanded: false, adminPages: {},
     onToggleExpanded: () => {}, registerGuest: () => {}, registerZoomGuest: () => {}, onSiteUpdated: () => {},
-  }));
+  }) });
   await settle();
   assert.equal(view.guestOf('a')?.getAttribute('src'), 'http://127.0.0.1:4101/admin/', 'a reopened tab starts on its admin root');
 });

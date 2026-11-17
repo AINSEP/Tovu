@@ -122,7 +122,7 @@ export async function renderApp(t: TestContext, overrides: Partial<RunnerInvento
     await act(async () => { el.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true })); });
     await settle();
   };
-  const key = (el: Element, init: Record<string, unknown>) => act(() => { el.dispatchEvent(new dom.window.KeyboardEvent('keydown', { bubbles: true, ...init })); });
+  const key = ({ el, init }: { el: Element; init: Record<string, unknown> }, _options = {}) => act(() => { el.dispatchEvent(new dom.window.KeyboardEvent('keydown', { bubbles: true, ...init })); });
   return { ...host, container, all, byText, byLabel, click, key, text: () => container.textContent ?? '', settingsShown: () => settingsShown };
 }
 

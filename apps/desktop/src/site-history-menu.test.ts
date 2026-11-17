@@ -70,5 +70,5 @@ test("the inlined channel literal matches contracts/project.ts", () => {
 });
 
 test("the preload subscribes to that channel", () => {
-  assert.match(read("preload", "preload.mts"), /onSiteHistory:[^\n]*\n?\s*subscribe\(SITE_HISTORY_CHANNEL, listener\)/);
+  assert.match(read("preload", "preload.mts"), /onSiteHistory:[^\n]*\n?\s*subscribe\(\{ channel: SITE_HISTORY_CHANNEL, listener \}\)/);
 });

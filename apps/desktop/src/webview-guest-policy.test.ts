@@ -24,7 +24,7 @@ test("the guest is given the shell's preload, so window.tovuVoice exists in an e
   // `voice-input-port.ts` found no `window.tovuVoice` and the admin told the operator that voice
   // input needs the desktop app — while running inside it.
   const webPreferences: GuestWebPreferences = {};
-  applyGuestWebPreferences(webPreferences, { preloadPath: PRELOAD });
+  applyGuestWebPreferences({ webPreferences, options: { preloadPath: PRELOAD } });
   assert.equal(webPreferences.preload, PRELOAD);
 });
 
@@ -32,13 +32,13 @@ test("a preload the PAGE asked for is overwritten, never honoured or merged", ()
   // The property the original `delete` was defending, and it must survive the fix: `webviewTag`
   // lets the page set this attribute, and the page is a site's own admin, not this shell.
   const webPreferences = { preload: "file:///tmp/attacker-chosen.js" };
-  applyGuestWebPreferences(webPreferences, { preloadPath: PRELOAD });
+  applyGuestWebPreferences({ webPreferences, options: { preloadPath: PRELOAD } });
   assert.equal(webPreferences.preload, PRELOAD);
 });
 
 test("Node stays off and context isolation stays on, whatever the page asked for", () => {
   const webPreferences = { nodeIntegration: true, contextIsolation: false, preload: "/evil.js" };
-  applyGuestWebPreferences(webPreferences, { preloadPath: PRELOAD });
+  applyGuestWebPreferences({ webPreferences, options: { preloadPath: PRELOAD } });
   assert.equal(webPreferences.nodeIntegration, false);
   assert.equal(webPreferences.contextIsolation, true);
   assert.equal(webPreferences.preload, PRELOAD);
@@ -46,15 +46,15 @@ test("Node stays off and context isolation stays on, whatever the page asked for
 
 test("a missing preload path throws rather than silently producing a guest with no voice API", () => {
   // @ts-expect-error -- no preloadPath: the type rejects it, and this asserts the runtime does too.
-  assert.throws(() => applyGuestWebPreferences({}, {}), /preloadPath is required/);
-  assert.throws(() => applyGuestWebPreferences({}, { preloadPath: "" }), /preloadPath is required/);
+  assert.throws(() => applyGuestWebPreferences({ webPreferences: {}, options: {} }), /preloadPath is required/);
+  assert.throws(() => applyGuestWebPreferences({ webPreferences: {}, options: { preloadPath: "" } }), /preloadPath is required/);
 });
 
 test("missing guest policy options report the required preload without changing preferences", () => {
   const webPreferences = { preload: "/page-chosen.js", nodeIntegration: true, contextIsolation: false };
   assert.throws(
     // @ts-expect-error -- Electron's runtime callback must also reject an absent options object.
-    () => applyGuestWebPreferences(webPreferences, undefined),
+    () => applyGuestWebPreferences({ webPreferences, options: undefined }),
     /preloadPath is required/,
   );
   assert.deepEqual(webPreferences, { preload: "/page-chosen.js", nodeIntegration: true, contextIsolation: false });
@@ -77,7 +77,7 @@ function attachEvent() {
 }
 
 const SUPERVISED = "http://127.0.0.1:4567/admin/";
-const isSupervised = (src: string) => src === SUPERVISED;
+const isSupervised = ({ src }: { src: string }) => src === SUPERVISED;
 
 test("a guest whose src is a supervised site is admitted, and the attach is not prevented", () => {
   const event = attachEvent();
@@ -97,7 +97,7 @@ test("a guest whose src is any other origin is refused by preventing the attach"
 
 test("a guest with no src, or a non-string src, is refused without asking the predicate", () => {
   const asked: string[] = [];
-  const isAllowedSource = (src: string) => {
+  const isAllowedSource = ({ src }: { src: string }) => {
     asked.push(src);
     return true;
   };

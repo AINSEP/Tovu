@@ -196,7 +196,7 @@ test("an area at exactly its floor passes", () => {
 test("the rendered area names every unmeasured file, every run", () => {
   const area = { id: "ts", floors: { line: 70 }, knownUnmeasured: ["src/b.ts", "src/c.ts"] };
   const result = evaluateArea({ area, onDisk: ["src/a.ts", "src/b.ts", "src/c.ts"], records: cov([["src/a.ts", perfect]]) });
-  const text = formatArea(result, area);
+  const text = formatArea({ result, area });
 
   assert.match(text, /OK {2}\s+ts/);
   assert.match(text, /UNMEASURED \(2, known gap/);
@@ -207,7 +207,7 @@ test("the rendered area names every unmeasured file, every run", () => {
 
 test("an axis with no floor is rendered as such rather than as a silent pass", () => {
   const area = { id: "ts", floors: { line: 70 } };
-  const text = formatArea(evaluateArea({ area, onDisk: ["src/a.ts"], records: cov([["src/a.ts", perfect]]) }), area);
+  const text = formatArea({ result: evaluateArea({ area, onDisk: ["src/a.ts"], records: cov([["src/a.ts", perfect]]) }), area });
   assert.match(text, /funcs.*no floor/);
 });
 
@@ -227,7 +227,7 @@ test("a chained node --test script parses into one pass per command, quotes stri
 });
 
 test("the same globs under the same runners report no drift, whatever the glob order", () => {
-  assert.deepEqual(runnerSplitDrift(AGREEING_PASSES, parseNodeTestScript({ script: SCRIPT })), []);
+  assert.deepEqual(runnerSplitDrift({ passes: AGREEING_PASSES, scriptPasses: parseNodeTestScript({ script: SCRIPT }) }), []);
 });
 
 test("a glob moved from bare node to tsx is drift on both runners, by name", () => {
@@ -237,7 +237,7 @@ test("a glob moved from bare node to tsx is drift on both runners, by name", () 
     { id: "node", nodeArgs: [], globs: ["src/**/*.test.js"] },
     { id: "tsx", nodeArgs: ["--import", "tsx"], globs: ["src/renderer/**/*.test.ts", "src/*.test.ts"] },
   ];
-  assert.deepEqual(runnerSplitDrift(moved, parseNodeTestScript({ script: SCRIPT })), [
+  assert.deepEqual(runnerSplitDrift({ passes: moved, scriptPasses: parseNodeTestScript({ script: SCRIPT }) }), [
     'package.json runs src/*.test.ts under "node"; TEST_PASSES does not',
     'TEST_PASSES runs src/*.test.ts under "node --import tsx"; package.json does not',
   ]);
@@ -247,10 +247,10 @@ test("a glob only one side runs is drift, whichever side it is on", () => {
   // Two passes on one runner must merge, not replace each other: a replaced set would also report
   // src/renderer/**/*.test.ts here.
   const extra = [...AGREEING_PASSES, { id: "tsx2", nodeArgs: ["--import", "tsx"], globs: ["src/contracts/**/*.test.ts"] }];
-  assert.deepEqual(runnerSplitDrift(extra, parseNodeTestScript({ script: SCRIPT })), [
+  assert.deepEqual(runnerSplitDrift({ passes: extra, scriptPasses: parseNodeTestScript({ script: SCRIPT }) }), [
     'TEST_PASSES runs src/contracts/**/*.test.ts under "node --import tsx"; package.json does not',
   ]);
-  assert.deepEqual(runnerSplitDrift([AGREEING_PASSES[0]!], parseNodeTestScript({ script: SCRIPT })), [
+  assert.deepEqual(runnerSplitDrift({ passes: [AGREEING_PASSES[0]!], scriptPasses: parseNodeTestScript({ script: SCRIPT }) }), [
     'package.json runs src/renderer/**/*.test.ts under "node --import tsx"; TEST_PASSES does not',
   ]);
 });

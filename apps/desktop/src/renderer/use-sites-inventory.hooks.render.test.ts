@@ -100,7 +100,7 @@ test('useSitesPolling: a poll that started before a local write is dropped, and 
 
 function useRescanWithList(getBridge: () => Pick<RunnerInventoryBridge, 'rescanSites'> | undefined) {
   const [projects, setProjects] = useState<readonly SiteRecord[]>([site('kept')]);
-  return { projects, ...useSiteRescan(setProjects, { getBridge }) };
+  return { projects, ...useSiteRescan({ setProjects }, { getBridge }) };
 }
 
 test('useSiteRescan: applies the returned list at once and shows scanning only while the call is open', async (t) => {
@@ -160,7 +160,7 @@ function useProjectsWith<T>(initial: readonly SiteRecord[], useRest: (setProject
 // stop those four seconds are the whole problem — the card would go on saying `Running` after the
 // operator watched their stop succeed. The App-level wiring is `App.sites-home.render.test.ts`.
 test('useApplySiteRecord: replaces the matching row, merges a located site into one card, and drops unknown ids', (t) => {
-  const hook = renderHook(t, () => useProjectsWith([site('a'), site('b'), site('c')], (set) => ({ apply: useApplySiteRecord(set) })));
+  const hook = renderHook(t, () => useProjectsWith([site('a'), site('b'), site('c')], (set) => ({ apply: useApplySiteRecord({ setProjects: set }) })));
   act(() => hook.current().apply(site('b', { status: 'running' })));
   assert.deepEqual(hook.current().projects.map((p) => `${p.id}:${p.status}`), ['a:stopped', 'b:running', 'c:stopped']);
   // A missing-folder card's Locate comes back under its NEW folder id and replaces the card at
@@ -173,7 +173,7 @@ test('useApplySiteRecord: replaces the matching row, merges a located site into 
 });
 
 test('useApplySiteRecord: keeps one stable callback per setter', (t) => {
-  const hook = renderHook(t, () => useProjectsWith([site('a')], (set) => ({ apply: useApplySiteRecord(set) })));
+  const hook = renderHook(t, () => useProjectsWith([site('a')], (set) => ({ apply: useApplySiteRecord({ setProjects: set }) })));
   const first = hook.current().apply;
   hook.rerender();
   assert.equal(hook.current().apply, first);
@@ -181,7 +181,7 @@ test('useApplySiteRecord: keeps one stable callback per setter', (t) => {
 
 test('a late Locate result cannot remove the existing destination card after the source card disappears', (t) => {
   const destination = site('destination', { status: 'running' });
-  const hook = renderHook(t, () => useProjectsWith([destination, site('kept')], (set) => ({ apply: useApplySiteRecord(set) })));
+  const hook = renderHook(t, () => useProjectsWith([destination, site('kept')], (set) => ({ apply: useApplySiteRecord({ setProjects: set }) })));
   act(() => hook.current().apply(site('destination', { displayName: 'stale locate' }), 'removed-source'));
   assert.deepEqual(hook.current().projects, [destination, site('kept')]);
 });

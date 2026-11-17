@@ -73,7 +73,7 @@ function fakeHome(overrides: Partial<SitesHomePorts<FakeHomeWindow>> = {}) {
     getAllDisplays: () => [DISPLAY],
     readWindowBounds: () => null,
     writeWindowBounds: (args) => { writes.push(args); },
-    isSupervisedGuestUrl: (url) => url === SUPERVISED,
+    isSupervisedGuestUrl: ({ url }) => url === SUPERVISED,
     openExternal: ({ url }) => { opened.push(url); },
     relayFindResults: ({ window: relayed }) => { assert.equal(relayed, window); log.push("relay"); },
     registerSpellCheck: ({ webContents }) => { spellChecked.push(webContents); log.push("spellcheck"); },

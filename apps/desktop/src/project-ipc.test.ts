@@ -1027,7 +1027,7 @@ test("a site reads `starting` for its whole boot, not `stopped` until the port o
   const deps = baseDeps({ transitions });
   let release = () => {};
   const booting = new Promise<void>((resolve) => { release = resolve; });
-  deps.openSiteServer = async (siteDir: string) => { await booting; deps.openSites.set(siteDir, { server: { port: 4321 } }); };
+  deps.openSiteServer = async ({ siteDir }) => { await booting; deps.openSites.set(siteDir, { server: { port: 4321 } }); };
   trackSite({ projectsPath: deps.projectsPath, siteDir: "/sites/a" });
 
   const starting = handleStart({ id: "/sites/a", deps: deps as typeof deps & Pick<ProjectIpcDeps, "openSiteServer"> }); // assigned just above
@@ -1137,7 +1137,7 @@ test("handleDelete waits for an in-flight handleStart on the same site instead o
   const order: string[] = [];
   let releaseBoot!: () => void; // assigned synchronously by the Promise executor below
   const booted = new Promise<void>((resolve) => { releaseBoot = resolve; });
-  deps.openSiteServer = async (id) => {
+  deps.openSiteServer = async ({ siteDir: id }) => {
     order.push("boot:started");
     await booted;
     order.push(fs.existsSync(id) ? "boot:dir-present" : "boot:dir-ERASED");

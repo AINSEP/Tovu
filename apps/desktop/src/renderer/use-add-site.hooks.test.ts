@@ -88,7 +88,7 @@ test("re-adding a tracked website REPLACES its row instead of showing a second c
   const other = siteRecord('/sites/b');
 
   const added = siteRecord('/sites/a', '2026-05-05T00:00:00.000Z');
-  const merged = mergeAddedSite([existing, other], added);
+  const merged = mergeAddedSite({ current: [existing, other], added });
 
   // The duplicate case is real, not defensive: `addSitePointer` is idempotent and returns the
   // EXISTING record, so a plain append would show two identical cards for one website until the
@@ -103,7 +103,7 @@ test("re-adding a tracked website REPLACES its row instead of showing a second c
 });
 
 test("a newly added website appears first", () => {
-  const merged = mergeAddedSite([siteRecord('/sites/a')], siteRecord('/sites/new'));
+  const merged = mergeAddedSite({ current: [siteRecord('/sites/a')], added: siteRecord('/sites/new') });
 
   assert.deepEqual(
     merged.map((project) => project.id),

@@ -182,7 +182,7 @@ test("the summary lists disabled gates with their reason and date, not just the 
     { id: "tests", run: "npm test" },
     { id: "coverage", run: "x", enabled: false, disabledReason: "baseline pending", disabledOn: "2026-09-10" },
   ];
-  const summary = formatSummary(gates, new Map([["tests", 0]]));
+  const summary = formatSummary({ gates, outcomes: new Map([["tests", 0]]) });
 
   assert.match(summary, /PASS {4}\s+tests/);
   assert.match(summary, /DISABLED {2}coverage/);
@@ -192,13 +192,13 @@ test("the summary lists disabled gates with their reason and date, not just the 
 });
 
 test("a disabled gate with no reason or date says so instead of printing undefined", () => {
-  const summary = formatSummary([{ id: "coverage", run: "x", enabled: false }], new Map());
+  const summary = formatSummary({ gates: [{ id: "coverage", run: "x", enabled: false }], outcomes: new Map() });
   assert.match(summary, /DISABLED {2}coverage {2}— \(no reason given\) \[since \?\]/);
   assert.doesNotMatch(summary, /undefined/);
 });
 
 test("a failing gate is counted and labelled FAIL", () => {
-  const summary = formatSummary([{ id: "tests", run: "npm test" }], new Map([["tests", 1]]));
+  const summary = formatSummary({ gates: [{ id: "tests", run: "npm test" }], outcomes: new Map([["tests", 1]]) });
   assert.match(summary, /FAIL {4}\s+tests/);
   assert.match(summary, /1 gates: 0 pass, 1 fail, 0 DISABLED/);
 });
@@ -206,7 +206,7 @@ test("a failing gate is counted and labelled FAIL", () => {
 test("an enabled gate with NO recorded outcome counts as a failure, never a pass", () => {
   // A gate whose command could not be spawned leaves no entry in the outcome map. Reading that as
   // a pass is exactly how a step that did nothing reports success.
-  const summary = formatSummary([{ id: "ghost", run: "nope" }], new Map());
+  const summary = formatSummary({ gates: [{ id: "ghost", run: "nope" }], outcomes: new Map() });
   assert.match(summary, /FAIL/);
   assert.match(summary, /0 pass, 1 fail/);
 });

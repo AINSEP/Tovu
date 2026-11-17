@@ -40,7 +40,7 @@ const JS_FAMILY_EXTENSIONS = [".js", ".mjs", ".cjs"] as const;
  *   allowlist entry today), so a `Set` lookup would only trade a trivially cheap linear scan for
  *   more code.
  */
-export function jsBackslideOffenders(paths: readonly string[], allowlist: readonly string[] = []): string[] {
+export function jsBackslideOffenders({ paths }: { paths: readonly string[] }, { allowlist = [] }: { allowlist?: readonly string[] } = {}): string[] {
   return paths.filter(
     (path) => JS_FAMILY_EXTENSIONS.some((extension) => path.endsWith(extension)) && !allowlist.includes(path)
   );

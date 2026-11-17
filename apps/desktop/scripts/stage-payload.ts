@@ -71,7 +71,7 @@ import { stagePayloadCli } from "../src/stage-payload-run.ts";
 
 const desktopDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-process.exitCode = stagePayloadCli({ argv: process.argv.slice(2), desktopDir }, {
+process.exitCode = stagePayloadCli({ argv: process.argv.slice(2), desktopDir, ports: {
   fs: { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, unlinkSync },
   steps: {
     declaredDependencies, stagePayloadFiles, stageDir, stageTransitiveDependencies, stripNonRuntimeFiles, pruneNativePrebuilds,
@@ -82,4 +82,4 @@ process.exitCode = stagePayloadCli({ argv: process.argv.slice(2), desktopDir }, 
   host: process,
   stdout: process.stdout,
   stderr: process.stderr,
-});
+} });

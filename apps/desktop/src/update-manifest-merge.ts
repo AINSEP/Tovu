@@ -71,14 +71,14 @@ function mergeMacManifests({ inputs }: { inputs: ReadonlyArray<{ label: string; 
   if (first === undefined) throw new Error("no manifests to merge");
   const mismatch = manifests.find((manifest) => manifest.version !== first.version);
   if (mismatch) throw new Error(`version mismatch: ${first.version} vs ${mismatch.version}`);
-  const files = unionFiles(manifests).filter(isZip);
-  const intelZip = onlyIntelZip(files);
+  const files = unionFiles({ manifests }).filter(isZip);
+  const intelZip = onlyIntelZip({ files });
   const releaseDate = manifests.map((manifest) => manifest.releaseDate).filter((date): date is string => typeof date === "string").sort().at(-1);
   return { ...first, files, path: intelZip.url, sha512: intelZip.sha512, ...(releaseDate ? { releaseDate } : {}) };
 }
 
 /** Every input's files, each URL once. @throws {Error} on one URL with two checksums. @complexity O(n). */
-function unionFiles(manifests: readonly UpdateManifest[]): UpdateFileEntry[] {
+function unionFiles({ manifests }: { manifests: readonly UpdateManifest[] }, _options = {}): UpdateFileEntry[] {
   const files = new Map<string, UpdateFileEntry>();
   for (const entry of manifests.flatMap((manifest) => manifest.files)) {
     const seen = files.get(entry.url);
@@ -90,7 +90,7 @@ function unionFiles(manifests: readonly UpdateManifest[]): UpdateFileEntry[] {
 
 /** @returns the one non-arm64 zip. @throws {Error} unless there is exactly one arm64 zip and one
  *  other zip — the only shape MacUpdater's arch choice is unambiguous for. @complexity O(n). */
-function onlyIntelZip(files: readonly UpdateFileEntry[]): UpdateFileEntry {
+function onlyIntelZip({ files }: { files: readonly UpdateFileEntry[] }, _options = {}): UpdateFileEntry {
   const zips = files.filter(isZip);
   const arm = zips.filter(isArm64);
   const intel = zips.filter((entry) => !isArm64(entry));

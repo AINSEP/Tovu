@@ -93,7 +93,7 @@ export function useSitesPolling(
  * true only until the first list arrives, so it would report nothing at all here.
  */
 export function useSiteRescan(
-  setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>>,
+  { setProjects }: { setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>> },
   { getBridge = runnerInventoryBridge }: { getBridge?: BridgeLookup<'rescanSites'> } = {},
 ): {
   rescanning: boolean;
@@ -137,7 +137,8 @@ export function useSiteRescan(
  * @complexity O(n) in the project count, once per applied record.
  */
 export function useApplySiteRecord(
-  setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>>,
+  { setProjects }: { setProjects: Dispatch<SetStateAction<readonly SiteRecord[]>> },
+  _options = {},
 ): (record: SiteRecord, previousId?: string) => void {
   return useCallback(
     (record: SiteRecord, previousId: string = record.id) => {
@@ -158,6 +159,6 @@ export function useApplySiteRecord(
  *
  * @complexity O(n) in the number of sites.
  */
-export function countRunningSites(projects: readonly SiteRecord[]): number {
+export function countRunningSites({ projects }: { projects: readonly SiteRecord[] }, _options = {}): number {
   return projects.filter((project) => project.status === 'running').length;
 }

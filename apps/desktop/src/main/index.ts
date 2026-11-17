@@ -465,8 +465,9 @@ const desktopUpdater = createDesktopUpdater({ ports: {
   automaticUpdates: () => readAutomaticUpdates({ preferencePath: desktopPreferencesPath() }),
   saveAutomaticUpdates: ({ enabled }) => writeAutomaticUpdates({ preferencePath: desktopPreferencesPath(), enabled }),
   skipReason: currentUpdaterSkipReason,
-  // Imported here, not at the top, so a dev launch never loads it.
-    loadNativeUpdater: async () => electronUpdater.autoUpdater,
+  // `electron-updater` is a declared dependency, so it is a static import at the top; this thunk only
+  // hands the updater its `autoUpdater` when the skip gate lets a launch use it.
+  loadNativeUpdater: async () => electronUpdater.autoUpdater,
   quitIdle: () => quitPhase === "idle",
   controllerDeps: () => ({ platform: process.platform, pid: process.pid, presenceDir: presenceDirPath({ userDataDir: app.getPath("userData") }),
     now: Date.now, explainOthersOpen: ({ count }: { count: number }) => explainOthersOpen({ dialog, count }), quit: () => app.quit(),
@@ -512,7 +513,7 @@ const lastWindowQuit = createLastWindowQuitPrompt<BrowserWindow>({ ports: {
 } });
 
 /** Every app window, as it is created. Capture windows do not come through here. */
-function trackAppWindow(window: BrowserWindow): void {
+function trackAppWindow({ window }: { window: BrowserWindow }, _optional = {}): void {
   selftestTracker?.add(window);
   if (!SELFTEST) lastWindowQuit.watch({ window });
 }
@@ -526,7 +527,7 @@ function appWindowCount(): number {
 function createWindow({ url }: { url: string }, { title, partition }: { title?: string; partition?: string } = {}): BrowserWindow {
   return createAppWindow(
     { url, createBrowserWindow: (options) => new BrowserWindow(options), preloadPath: SPEECH_PRELOAD_PATH, openExternal: ({ url: target }) => void shell.openExternal(target) },
-    { title, partition, selftest: SELFTEST, trackWindow: trackAppWindow },
+    { title, partition, selftest: SELFTEST, trackWindow: (window) => trackAppWindow({ window }) },
   );
 }
 
@@ -536,13 +537,13 @@ function openSitesHomeWindow(): BrowserWindow | null {
     rendererPath: SITES_RENDERER_PATH, sitesPreloadPath: SITES_PRELOAD_PATH, guestPreloadPath: SPEECH_PRELOAD_PATH,
     userDataDir: app.getPath("userData"), fileExists: ({ filePath }) => fs.existsSync(filePath),
     createBrowserWindow: (options) => new BrowserWindow(options), getAllDisplays: () => screen.getAllDisplays(),
-    readWindowBounds, writeWindowBounds, isSupervisedGuestUrl: (raw) => isSupervisedGuestUrl({ raw }),
+    readWindowBounds, writeWindowBounds, isSupervisedGuestUrl: ({ url }) => isSupervisedGuestUrl({ raw: url }),
     registerPreviewGuest: ({ window, webContents: contents }) => livePreviewGuests.register({ owner: window, guest: contents as WebContents }),
     openExternal: ({ url }) => void shell.openExternal(url),
     relayFindResults, registerSpellCheck: ({ webContents }) => registerSpellCheckContextMenu({ webContents, menuBuilder: Menu }),
     showErrorBox: ({ title, message }) => dialog.showErrorBox(title, message), logError: ({ message }) => console.error(message),
     setExitCode: ({ code }) => { process.exitCode = code; }, quit: () => app.quit(),
-  } }, { selftest: SELFTEST, trackWindow: trackAppWindow });
+  } }, { selftest: SELFTEST, trackWindow: (window) => trackAppWindow({ window }) });
 }
 
 /** One main owns the desktop capability, regardless of its window/site count. It is never
@@ -656,7 +657,7 @@ function isSupervisedGuestUrl({ raw }: { raw: string }, _optional = {}): boolean
  */
 function isShellPage({ raw }: { raw: string }, _optional = {}): boolean {
   return isShellPageUrl({ raw, pages: {
-    isSupervisedSite: (raw) => isSupervisedGuestUrl({ raw }),
+    isSupervisedSite: ({ url }) => isSupervisedGuestUrl({ raw: url }),
     attachUrl: process.env.TOVU_DESKTOP_URL?.trim(),
     rendererFileUrl: pathToFileURL(SITES_RENDERER_PATH).href,
   } });
@@ -736,7 +737,7 @@ let selftestTracker: SelftestTracker | null = null;
 /** The site dir(s) own-server mode opens at launch — see `own-server-boot.ts`'s `resolveStartupSiteDirs`. */
 function resolveStartupSiteDirs(ctx: SiteOpenCtx): Promise<string[]> {
   return resolveStartupSiteDirsIn({ ctx, ports: { env: process.env, repoRoot: PAYLOAD_ROOT, devFallbackDir: DEV_FALLBACK_SITE_DIR,
-    resolveOrInitSiteDir, resolveSiteDir: (input) => resolveSiteDir({ ...input, sharedSites }), pickDir: (rejectedDefault) => promptForSiteDir({ rejectedDefault }) } });
+    resolveOrInitSiteDir, resolveSiteDir: (input) => resolveSiteDir({ ...input, sharedSites }), pickDir: promptForSiteDir } });
 }
 
 /** The Tovu mark on the macOS dock tile — see `dock-icon.ts`. */
@@ -835,7 +836,7 @@ function registerAppWideIpc(): void {
   // call (fired from the preload the instant the page mounts) never races an unregistered
   // channel — see `SPEECH_PRELOAD_PATH`'s own doc for why this and the preload path are both
   // needed for `window.tovuVoice` to exist at all.
-  registerSpeechIpc({ ipcMain, isTrustedSender: (raw) => isShellPage({ raw }) });
+  registerSpeechIpc({ ipcMain, isTrustedSender: ({ senderUrl }) => isShellPage({ raw: senderUrl }) });
   // General, not sites-home-only: registered here for the same reason `registerSpeechIpc` is —
   // resolves its target from `event.sender` at call time, so it needs no per-window setup and is
   // harmless to register even for a boot mode whose window never calls it (no preload exposes
@@ -844,7 +845,7 @@ function registerAppWideIpc(): void {
   // The web admin's "Open Import in Tovu" (owner, 2026-11-10): admin pages only reach it through
   // their preload's `tovuImport`, behind the speech channels' sender check. App-wide for the same
   // reason as speech; with no sites home window open it answers `opened: false`.
-  registerImportHandoffIpc({ ipcMain, isTrustedSender: (raw) => isShellPage({ raw }), sitesHomeWindows: openSitesHomeWindows });
+  registerImportHandoffIpc({ ipcMain, isTrustedSender: ({ senderUrl }) => isShellPage({ raw: senderUrl }), sitesHomeWindows: openSitesHomeWindows });
   registerSiteViewPreferenceIpc({ ipcMain,
     allowed: ({ sender }: { sender: WebContents }) => !sender.isDestroyed() && sender.getURL() === pathToFileURL(SITES_RENDERER_PATH).href,
     read: () => readMaximumLiveSiteViews({ preferencePath: desktopPreferencesPath() }),

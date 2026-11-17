@@ -90,7 +90,7 @@ interface WorkspaceChatIpcDeps {
   /** Resolves a renderer-reported site dir to a TRACKED site, or `null`. Never trusts the path itself. */
   resolveAddressee: (input: { siteDir: string }, options?: Record<string, never>) => TurnAddressee | null;
   listAgents: (required: { rescan: boolean }) => Promise<RunnerAgentSummary[]>;
-  pickDirectory: (currentDirectory?: string) => Promise<string | null>;
+  pickDirectory: (required: Record<string, never>, optional?: { currentDirectory?: string }) => Promise<string | null>;
 }
 
 /**
@@ -98,7 +98,7 @@ interface WorkspaceChatIpcDeps {
  * renderer cannot point the agent's site tools at an arbitrary folder. Pure over its port.
  * @complexity O(1) plus the resolver.
  */
-function addresseeForStart(input: DesktopChatStartInput, resolve: WorkspaceChatIpcDeps["resolveAddressee"]): TurnAddressee | null {
+function addresseeForStart({ input, resolve }: { input: DesktopChatStartInput; resolve: WorkspaceChatIpcDeps["resolveAddressee"] }, _options = {}): TurnAddressee | null {
   const siteDir = input.activeSiteDir;
   return typeof siteDir === "string" && siteDir !== "" ? resolve({ siteDir }) : null;
 }
@@ -163,7 +163,7 @@ function registerWorkspaceChatIpc(deps: WorkspaceChatIpcDeps): { activeSubscript
         ...(input.model === undefined ? {} : { model: input.model }),
         ...(input.reasoning === undefined ? {} : { reasoning: input.reasoning }),
         ...(input.attachmentPaths === undefined ? {} : { attachmentPaths: input.attachmentPaths }),
-        addressee: addresseeForStart(input, deps.resolveAddressee),
+        addressee: addresseeForStart({ input, resolve: deps.resolveAddressee }),
       },
     );
     await subscribe({ sender: event.sender, subscriptionId: input.subscriptionId, runId, afterCursor: null });
@@ -193,7 +193,7 @@ function registerWorkspaceChatIpc(deps: WorkspaceChatIpcDeps): { activeSubscript
   deps.ipcMain.handle(CONVERSATION_IPC.loadMessages, (_event, { conversationId }: { conversationId: string }) => deps.conversations.loadMessages({ conversationId }));
   deps.ipcMain.handle(CONVERSATION_IPC.saveMessage, (_event, input: SaveConversationMessageInput) => deps.conversations.saveMessage(input));
 
-  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.pick, (_event, currentDirectory?: string) => deps.pickDirectory(currentDirectory));
+  deps.ipcMain.handle(WORKING_DIRECTORY_IPC.pick, (_event, currentDirectory?: string) => deps.pickDirectory({}, { currentDirectory }));
   deps.ipcMain.handle(WORKING_DIRECTORY_IPC.recent, () => []);
   deps.ipcMain.handle(WORKING_DIRECTORY_IPC.exists, (_event, directory: string) => isDirectory({ directory }));
   deps.ipcMain.handle(WORKING_DIRECTORY_IPC.normalize, (_event, directory: string) => (isDirectory({ directory }) ? path.resolve(directory) : null));

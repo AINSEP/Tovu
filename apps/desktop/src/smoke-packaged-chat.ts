@@ -110,7 +110,7 @@ function daemonLogMessages({ daemonLog }: { daemonLog: string }, _optional = {})
   });
 }
 
-function rawFrames(events: readonly Record<string, unknown>[]): Record<string, unknown>[] {
+function rawFrames({ events }: { events: readonly Record<string, unknown>[] }, _options = {}): Record<string, unknown>[] {
   return events.flatMap(event => {
     if (event.kind !== "raw") return [];
     const lines = Array.isArray(event.line) ? event.line : [event.line];
@@ -151,7 +151,7 @@ export function assertPackagedChatEvidence(
   // attempt_base_json is the recovery baseline, not this attempt's live projection. A first run
   // starts with []; its new events and final status live on the joined ai_chat_messages row.
   const events = [...eventsFrom({ json: row.attempt_base_json }), ...eventsFrom({ json: row.events_json })];
-  const frames = rawFrames(events);
+  const frames = rawFrames({ events });
   const connected = frames.some(frame => frame.type === "system" && frame.subtype === "init"
     && Array.isArray(frame.mcp_servers) && frame.mcp_servers.some(server =>
       record(server) && server.name === "jini" && server.status === "connected"));

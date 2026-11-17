@@ -1,7 +1,7 @@
 /**
  * @file Static-analysis tests for `main/index.ts`'s auto-updater wiring. Source text, for the reason
  * `main-shutdown-wiring.test.ts` gives: the entry requires `"electron"` at module scope. The
- * updater's behaviour (the skip gate, lazy loading, will-quit, a rejected start being logged) is
+ * updater's behaviour (the skip gate, will-quit, a rejected start being logged) is
  * proven in `main/updates/desktop-updater.test.ts`, and that the boot starts it without awaiting it
  * in `main/boot/boot-sequence.test.ts`; this file checks only what the entry alone can get wrong.
  */
@@ -22,8 +22,9 @@ function block(anchor: string, end: string): string {
   return source.slice(start, stop);
 }
 
-test("electron-updater is never imported at module scope", () => {
-  assert.doesNotMatch(source, /^import .*electron-updater/m);
+test("electron-updater is a static import (a declared dependency), never a lazy `import()`", () => {
+  assert.match(source, /^import electronUpdater from "electron-updater";$/m);
+  assert.doesNotMatch(source, /import\(\s*["']electron-updater["']\s*\)/);
 });
 
 test("only the quit that ends the app consults the updater, and may be held by it", () => {

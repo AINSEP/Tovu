@@ -62,7 +62,7 @@ test('the hook starts from storage, reads it once, and a change updates the scre
   const memory = memoryStorage(JSON.stringify(CHOSEN));
   let reads = 0;
   const counted: SiteListStorage = { ...memory.storage, getItem: ({ key }) => { reads += 1; return memory.storage.getItem({ key }); } };
-  const hook = renderHook({ t, useHook: () => useSiteListPrefs(counted) });
+  const hook = renderHook({ t, useHook: () => useSiteListPrefs({}, { storage: counted }) });
   assert.deepEqual(hook.current().prefs, CHOSEN);
   hook.rerender();
   assert.equal(reads, 1, 'storage is read when the grid mounts, not on every render');
@@ -74,7 +74,7 @@ test('the hook starts from storage, reads it once, and a change updates the scre
 });
 
 test('with storage denied a change still applies for this session', (t) => {
-  const hook = renderHook({ t, useHook: () => useSiteListPrefs(deniedStorage) });
+  const hook = renderHook({ t, useHook: () => useSiteListPrefs({}, { storage: deniedStorage }) });
   assert.equal(hook.current().prefs, DEFAULT_SITE_LIST_PREFS);
   act(() => hook.current().onPrefsChange(CHOSEN));
   assert.equal(hook.current().prefs, CHOSEN);

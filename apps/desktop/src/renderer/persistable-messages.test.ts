@@ -17,7 +17,7 @@ test('keeps user turns and every terminal assistant turn, omitting queued, runni
     { id: 'unstamped', role: 'assistant', content: 'not settled' },
     { id: 'canceled', role: 'assistant', content: 'cancel details', runStatus: 'canceled' },
   ]);
-  assert.deepEqual(persistableMessages(messages), [
+  assert.deepEqual(persistableMessages({ messages }), [
     { id: 'user', role: 'user', content: 'my question', attachments: [{ path: '/staged/a.png', name: 'a.png', kind: 'image' }] },
     { id: 'succeeded', role: 'assistant', content: 'answer', runStatus: 'succeeded' },
     { id: 'failed', role: 'assistant', content: 'failure details', runStatus: 'failed' },
@@ -27,16 +27,16 @@ test('keeps user turns and every terminal assistant turn, omitting queued, runni
 });
 
 test('a user turn survives even when it carries a nonterminal status', () => {
-  assert.deepEqual(persistableMessages([{ id: 'u', role: 'user', content: 'keep me', runStatus: 'running' }]), [
+  assert.deepEqual(persistableMessages({ messages: [{ id: 'u', role: 'user', content: 'keep me', runStatus: 'running' }] }), [
     { id: 'u', role: 'user', content: 'keep me', runStatus: 'running' },
   ]);
 });
 
 test('a reply becomes persistable when a later call receives its terminal status', () => {
   const reply: ChatMessage = { id: 'reply', role: 'assistant', content: 'stream', runStatus: 'running' };
-  assert.deepEqual(persistableMessages([reply]), []);
-  assert.deepEqual(persistableMessages([{ ...reply, content: 'finished', runStatus: 'succeeded' }]), [
+  assert.deepEqual(persistableMessages({ messages: [reply] }), []);
+  assert.deepEqual(persistableMessages({ messages: [{ ...reply, content: 'finished', runStatus: 'succeeded' }] }), [
     { id: 'reply', role: 'assistant', content: 'finished', runStatus: 'succeeded' },
   ]);
-  assert.deepEqual(persistableMessages([]), []);
+  assert.deepEqual(persistableMessages({ messages: [] }), []);
 });

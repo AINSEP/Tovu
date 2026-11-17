@@ -53,7 +53,7 @@ function viteWatchProblem({ viteWatchRunning }: { viteWatchRunning: boolean }, _
 /** Why uncommitted edits under the packaged surface block packaging — the concrete shape "another
  *  agent or human is editing this" takes in a git-tracked repo, and unlike an mtime age, empty on a
  *  fresh CI checkout by construction (there is nothing to diff against). */
-function gitDirtyProblem(gitDirtyPaths: readonly string[]): string | null {
+function gitDirtyProblem({ gitDirtyPaths }: { gitDirtyPaths: readonly string[] }, _options = {}): string | null {
   if (gitDirtyPaths.length === 0) return null;
   return (
     `apps/desktop has uncommitted changes under the packaged surface: ${gitDirtyPaths.join(", ")}. ` +
@@ -64,7 +64,7 @@ function gitDirtyProblem(gitDirtyPaths: readonly string[]): string | null {
 
 /** Why files changing DURING the check blocks packaging — the live signal git cannot provide for
  *  build output that is gitignored (dist/renderer is never tracked, so git-dirty is blind to it). */
-function movingProblem(movingPaths: readonly string[]): string | null {
+function movingProblem({ movingPaths }: { movingPaths: readonly string[] }, _options = {}): string | null {
   if (movingPaths.length === 0) return null;
   return (
     `apps/desktop is still being written to: ${movingPaths.join(", ")} changed during this check. ` +
@@ -88,7 +88,7 @@ function movingProblem(movingPaths: readonly string[]): string | null {
 export function treeQuietProblems(signals: TreeQuietSignals): string[] {
   return [
     viteWatchProblem({ viteWatchRunning: signals.viteWatchRunning }),
-    gitDirtyProblem(signals.gitDirtyPaths ?? []),
-    movingProblem(signals.movingPaths ?? []),
+    gitDirtyProblem({ gitDirtyPaths: signals.gitDirtyPaths ?? [] }),
+    movingProblem({ movingPaths: signals.movingPaths ?? [] }),
   ].filter((problem) => problem !== null);
 }

@@ -69,7 +69,7 @@ export function violationKey(violation: ComplexityViolation): string {
 /** Counts violations by key, so the diff is a MULTISET diff — two identical messages in one file
  *  are two violations, and fixing one of them must register.
  *  @complexity O(n). */
-function countByKey(violations: readonly ComplexityViolation[]): Map<string, number> {
+function countByKey({ violations }: { violations: readonly ComplexityViolation[] }, _options = {}): Map<string, number> {
   const counts = new Map<string, number>();
   for (const v of violations) {
     const key = violationKey(v);
@@ -86,11 +86,11 @@ function countByKey(violations: readonly ComplexityViolation[]): Map<string, num
  * @complexity O(n) in violations.
  */
 export function diffAgainstBaseline(
-  baseline: readonly ComplexityViolation[],
-  current: readonly ComplexityViolation[]
+  { baseline, current }: { baseline: readonly ComplexityViolation[]; current: readonly ComplexityViolation[] },
+  _options = {}
 ): BaselineDiff {
-  const baseCounts = countByKey(baseline);
-  const currentCounts = countByKey(current);
+  const baseCounts = countByKey({ violations: baseline });
+  const currentCounts = countByKey({ violations: current });
   const byKey = new Map([...baseline, ...current].map((v): [string, ComplexityViolation] => [violationKey(v), v]));
 
   const added: ComplexityViolation[] = [];
@@ -125,7 +125,7 @@ export function evaluateRun(
     }
   }
 
-  const { added, removed } = diffAgainstBaseline(baseline, current);
+  const { added, removed } = diffAgainstBaseline({ baseline, current });
   const failures: string[] = [];
 
   // A clean result and an empty scan look identical from the outside. This is the difference.

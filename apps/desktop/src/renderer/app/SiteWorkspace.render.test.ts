@@ -76,7 +76,7 @@ async function renderWorkspaces(t: TestContext, props: Props = {}, bridge: Parti
   const view = mount({ t, element: element() });
   await settle();
   const shown = () => view.container.querySelector<HTMLElement>('.workspace:not(.is-hidden)');
-  return { ...view, calls, guests, shown, rerender: (next: Props) => view.render(element(next)) };
+  return { ...view, calls, guests, shown, rerender: (next: Props) => view.render({ next: element(next) }) };
 }
 
 test('SiteWorkspaces: only the visible workspace is on screen; the rest stay mounted but hidden', async (t) => {

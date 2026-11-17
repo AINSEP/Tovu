@@ -103,7 +103,7 @@ function createAppWindow<W extends AppWindow>(
   // Anything that navigates away from the app's own origin belongs in the OS browser — a
   // "view site ↗" link must not replace the admin shell inside the app window, and nothing but this
   // origin may run with the speech preload. See `window-navigation-policy.ts`.
-  installAppWindowNavigationPolicy(window.webContents, { appOrigin: new URL(url).origin, openExternal: (url) => openExternal({ url }) });
+  installAppWindowNavigationPolicy({ contents: window.webContents, options: { appOrigin: new URL(url).origin, openExternal } });
 
   void window.loadURL(url);
   return window;

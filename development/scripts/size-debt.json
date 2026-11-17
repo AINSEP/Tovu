@@ -744,13 +744,6 @@
       "value": 1092
     },
     {
-      "file": "apps/desktop/src/project-ipc.ts",
-      "function": "registerSiteIpcHandlers#1",
-      "line": 1599,
-      "rule": "max-lines-per-function",
-      "value": 230
-    },
-    {
       "file": "apps/desktop/src/renderer/App.tsx",
       "function": "App#1",
       "line": 92,
@@ -812,13 +805,6 @@
       "line": 323,
       "rule": "max-lines-per-function",
       "value": 101
-    },
-    {
-      "file": "apps/desktop/src/tovu-server.ts",
-      "function": "startTovuServer#1",
-      "line": 979,
-      "rule": "max-lines-per-function",
-      "value": 127
     },
     {
       "file": "apps/desktop/src/tovu-server.ts",

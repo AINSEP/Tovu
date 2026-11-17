@@ -183,7 +183,7 @@ test('App: the Settings menu opens, moves with the arrows, picks a theme, opens 
   const menu = app.container.querySelector('[role="menu"]')!;
   assert.ok(menu);
   assert.equal(document.activeElement?.textContent?.trim(), 'Sites settings…');
-  app.key(menu, { key: 'ArrowDown' });
+  app.key({ el: menu, init: { key: 'ArrowDown' } });
   assert.equal(document.activeElement?.textContent?.trim(), 'Appearance');
   const radios = app.all({ selector: '[role="menuitemradio"]' });
   assert.deepEqual(radios.map((r) => r.getAttribute('aria-label')), ['Light', 'System', 'Dark']);
@@ -329,19 +329,19 @@ test('App: Find opens its bar, Enter and Shift+Enter step through matches, and E
   await settle();
   assert.equal(input.value, 'tovu');
   assert.deepEqual(issued(), [], 'a typed query waits for typing to settle');
-  app.key(input, { key: 'Enter' });
+  app.key({ el: input, init: { key: 'Enter' } });
   assert.deepEqual(issued(), [{ text: 'tovu', forward: true, findNext: true }], 'Enter runs the pending query as a new search');
-  app.key(input, { key: 'Enter', shiftKey: true });
+  app.key({ el: input, init: { key: 'Enter', shiftKey: true } });
   assert.deepEqual(issued(), [{ text: 'tovu', forward: false, findNext: false }], 'Shift+Enter steps back within the search');
-  app.key(input, { key: 'Enter' });
+  app.key({ el: input, init: { key: 'Enter' } });
   assert.deepEqual(issued(), [{ text: 'tovu', forward: true, findNext: false }], 'a later Enter steps forward within the search');
-  app.key(input, { key: 'a' });
+  app.key({ el: input, init: { key: 'a' } });
   assert.deepEqual(issued(), [], 'any other key finds nothing');
   await app.click({ el: app.byLabel({ label: 'Next match' }) });
   assert.deepEqual(issued(), [{ text: 'tovu', forward: true, findNext: false }]);
   await app.click({ el: app.byLabel({ label: 'Previous match' }) });
   assert.deepEqual(issued(), [{ text: 'tovu', forward: false, findNext: false }]);
-  app.key(input, { key: 'Escape' });
+  app.key({ el: input, init: { key: 'Escape' } });
   await settle();
   assert.equal(app.container.querySelector('.findbar'), null);
   await act(async () => { for (const listener of app.listeners.find) listener(); });
@@ -365,7 +365,7 @@ test('App: re-adding a tracked site opens its tab with the notice, and an overfl
   await app.click({ el: app.byLabel({ label: 'Scroll tabs left' }) });
   await app.click({ el: app.byLabel({ label: 'Scroll tabs right' }) });
   assert.deepEqual(scrolled, [-200, 200]);
-  app.key(strip, { key: 'ArrowRight' });
+  app.key({ el: strip, init: { key: 'ArrowRight' } });
 });
 
 test('App: Import never opens or starts a site, whether sites exist or not', async (t) => {

@@ -77,7 +77,8 @@ export interface SectionNavState {
  * `activeId`/`appearanceOpen` half of the old `useProjectTabs` became `deriveSitesHomeView` below.
  */
 export function useSectionNav(
-  setActiveTab: Dispatch<SetStateAction<string | null>>,
+  { setActiveTab }: { setActiveTab: Dispatch<SetStateAction<string | null>> },
+  _options = {},
 ): SectionNavState {
   const [activeId, setActiveId] = useState<RunnerSectionId>('projects');
   // TEMPORARY SCAFFOLD — this is not a real `RunnerSectionId` page, just enough state to judge

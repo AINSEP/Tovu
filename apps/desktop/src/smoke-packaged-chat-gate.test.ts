@@ -511,7 +511,7 @@ test("a non-macOS isolated run skips the Keychain link", async (t) => {
 test("withInterruptSignal aborts on SIGINT/SIGTERM and always detaches its handlers", async () => {
   for (const signal of ["SIGINT", "SIGTERM"] as const) {
     const events = new EventEmitter();
-    const seen = await withInterruptSignal({ events, run: async (abort) => {
+    const seen = await withInterruptSignal({ events, run: async ({ signal: abort }) => {
       assert.equal(abort.aborted, false);
       events.emit(signal);
       return abort.aborted;

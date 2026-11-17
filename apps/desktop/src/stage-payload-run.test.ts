@@ -346,13 +346,13 @@ test("the CLI wrapper prints a refusal and exits 1, exits 0 on success, and lets
   const err: string[] = [];
   const stderr = { write: (text: string) => err.push(text) };
   const base = harness(fx, { steps: { stageTransitiveDependencies: () => 0 } }).ports;
-  assert.equal(stagePayloadCli({ argv: ["--repo-root", fx.repo], desktopDir: fx.desktop }, { ...base, stderr }), 0);
+  assert.equal(stagePayloadCli({ argv: ["--repo-root", fx.repo], desktopDir: fx.desktop, ports: { ...base, stderr } }), 0);
   assert.deepEqual(err, []);
   rmSync(path.join(fx.repo, "dist", "cli.js"));
-  assert.equal(stagePayloadCli({ argv: ["--repo-root", fx.repo], desktopDir: fx.desktop }, { ...base, stderr }), 1);
+  assert.equal(stagePayloadCli({ argv: ["--repo-root", fx.repo], desktopDir: fx.desktop, ports: { ...base, stderr } }), 1);
   assert.deepEqual(err, [`stage-payload: no built Tovu CLI at ${path.join(fx.repo, "dist/cli.js")} (from runtime-manifest.json's cliEntry). Run \`npm run build\` at ${fx.repo} first.\n`]);
   write(path.join(fx.repo, "dist", "runtime-manifest.json"), "{not json");
-  assert.throws(() => stagePayloadCli({ argv: ["--repo-root", fx.repo], desktopDir: fx.desktop }, { ...base, stderr }), SyntaxError);
+  assert.throws(() => stagePayloadCli({ argv: ["--repo-root", fx.repo], desktopDir: fx.desktop, ports: { ...base, stderr } }), SyntaxError);
 });
 
 test("the repo root defaults to this checkout and --repo-root overrides it", () => {

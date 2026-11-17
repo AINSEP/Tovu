@@ -42,7 +42,7 @@ function shellSources({ dir }: { dir: string }, _options = {}): string[] {
 }
 
 /** Website files the shell imports, as absolute paths. */
-function sharedImports(files: readonly string[]): string[] {
+function sharedImports({ files }: { files: readonly string[] }, _options = {}): string[] {
   const shared = new Set<string>();
   for (const file of files) {
     for (const match of fs.readFileSync(file, "utf8").matchAll(SHARED_SPECIFIER)) {
@@ -54,7 +54,7 @@ function sharedImports(files: readonly string[]): string[] {
 }
 
 const sources = [...shellSources({ dir: path.join(DESKTOP_ROOT, "src") }), ...shellSources({ dir: path.join(DESKTOP_ROOT, "bin") })];
-const entryPoints = sharedImports(sources);
+const entryPoints = sharedImports({ files: sources });
 fs.rmSync(OUT_DIR, { recursive: true, force: true });
 fs.mkdirSync(OUT_DIR, { recursive: true });
 // No package.json sits above Resources/website, so Node would otherwise pick a module type from

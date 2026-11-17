@@ -17,7 +17,7 @@ import { externalStopConfirm, performPowerAction, powerControl } from './use-sit
  */
 export function tabCloseAsksToStop({ project }: { project: SiteRecord }, _optional = {}): boolean {
   const external = Boolean(project.externalUrl) && !project.externalLauncher;
-  return powerControl(project.status, { external })?.action === 'stop';
+  return powerControl({ status: project.status }, { external })?.action === 'stop';
 }
 
 /**
