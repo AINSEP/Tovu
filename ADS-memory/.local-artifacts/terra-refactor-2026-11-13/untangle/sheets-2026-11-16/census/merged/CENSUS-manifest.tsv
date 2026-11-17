@@ -1,0 +1,216 @@
+owner	target	field	optional	status
+admin	agent-plugins	devDependencies	optional	dev
+admin	agent-plugins	peerDependencies	optional	USED
+admin	agentic	devDependencies	optional	dev
+admin	agentic	peerDependencies	optional	STALE
+admin	cms	devDependencies	optional	dev
+admin	cms	peerDependencies	optional	USED
+admin	core	devDependencies		base
+admin	core	peerDependencies		base
+admin	ui	devDependencies	optional	dev
+admin	ui	peerDependencies	optional	USED
+admin	ui-kit	devDependencies	optional	dev
+admin	ui-kit	peerDependencies	optional	STALE
+agent-plugins	cms	devDependencies		dev
+agent-plugins	commerce	peerDependencies	optional	STALE
+agent-plugins	core	devDependencies		base
+agent-plugins	core	peerDependencies		base
+agent-plugins	oauth	devDependencies		dev
+agent-plugins	platform	devDependencies	optional	dev
+agent-plugins	platform	peerDependencies	optional	USED
+agent-plugins	plugins	devDependencies		dev
+agent-runtime	core	dependencies		base
+agent-runtime	core	devDependencies		base
+agent-runtime	integrations	dependencies		USED
+agent-runtime	integrations	devDependencies		dev
+agent-runtime	oauth	dependencies		USED
+agent-runtime	platform	dependencies		USED
+agent-runtime	platform	devDependencies		dev
+agent-runtime	protocol	dependencies		base
+agentic	core	devDependencies		base
+agentic	core	peerDependencies		base
+agentic	protocol	devDependencies	optional	base
+agentic	protocol	peerDependencies	optional	base
+analytics	agent-runtime	devDependencies	optional	dev
+analytics	agent-runtime	peerDependencies	optional	STALE
+analytics	core	dependencies		base
+artifacts	core	dependencies		base
+artifacts	core	devDependencies		base
+capability-providers	core	dependencies		base
+capability-providers	core	devDependencies		base
+capability-providers	platform	devDependencies	optional	dev
+capability-providers	platform	peerDependencies	optional	STALE
+chat	agent-runtime	devDependencies	optional	dev
+chat	agent-runtime	peerDependencies	optional	USED
+chat	agentic	dependencies		STALE
+chat	agentic	devDependencies		dev
+chat	core	dependencies		base
+chat	core	devDependencies		base
+chat	db	dependencies		USED
+chat	db	devDependencies		dev
+chat	diagnostics	dependencies		USED
+chat	diagnostics	devDependencies		dev
+chat	protocol	dependencies		base
+chat	protocol	devDependencies		base
+chat	ui	devDependencies	optional	dev
+chat	ui	peerDependencies	optional	USED
+chat	ui-kit	devDependencies		dev
+cli	core	dependencies		base
+cli	core	devDependencies		base
+cli	platform	dependencies		STALE
+cli	platform	devDependencies		dev
+cli	sidecar	dependencies		USED
+cli	sidecar	devDependencies		dev
+cms	core	dependencies		base
+cms	core	devDependencies		base
+cms	db	devDependencies	optional	dev
+cms	db	peerDependencies	optional	USED
+cms	http-kit	devDependencies	optional	dev
+cms	http-kit	peerDependencies	optional	USED
+cms	platform	devDependencies	optional	dev
+cms	platform	peerDependencies	optional	STALE
+cms-forms	cms	dependencies		USED
+cms-forms	core	dependencies		base
+commerce	agentic	devDependencies	optional	dev
+commerce	agentic	peerDependencies	optional	STALE
+commerce	cms	devDependencies		dev
+commerce	core	dependencies		base
+commerce	core	devDependencies		base
+commerce	db	devDependencies	optional	dev
+commerce	db	peerDependencies	optional	USED
+commerce	ui	devDependencies	optional	dev
+commerce	ui	peerDependencies	optional	STALE
+daemon	agent-runtime	dependencies		USED
+daemon	agent-runtime	devDependencies		dev
+daemon	chat	devDependencies		dev
+daemon	core	dependencies		base
+daemon	core	devDependencies		base
+daemon	db	dependencies		USED
+daemon	db	devDependencies		dev
+daemon	http-kit	dependencies		USED
+daemon	http-kit	devDependencies		dev
+daemon	platform	dependencies		USED
+daemon	platform	devDependencies		dev
+daemon	protocol	dependencies		base
+daemon	protocol	devDependencies		base
+db	core	dependencies		base
+db	core	devDependencies		base
+db	platform	devDependencies		dev
+desktop-host	core	dependencies		base
+desktop-host	core	devDependencies		base
+devops	core	dependencies		base
+devops	core	devDependencies		base
+devops	daemon	devDependencies		dev
+devops	platform	devDependencies	optional	dev
+devops	platform	peerDependencies	optional	USED
+diagnostics	analytics	devDependencies		dev
+diagnostics	core	dependencies		base
+diagnostics	core	devDependencies		base
+http-kit	core	dependencies		base
+http-kit	core	devDependencies		base
+http-kit	platform	dependencies		STALE
+http-kit	platform	devDependencies		dev
+http-kit	protocol	dependencies		base
+http-kit	protocol	devDependencies		base
+infra	core	dependencies		base
+infra	core	devDependencies		base
+infra	db	devDependencies	optional	dev
+infra	db	peerDependencies	optional	USED
+integrations	core	dependencies		base
+integrations	core	devDependencies		base
+integrations	db	devDependencies	optional	dev
+integrations	db	peerDependencies	optional	STALE
+integrations	oauth	devDependencies		dev
+integrations	platform	devDependencies	optional	dev
+integrations	platform	peerDependencies	optional	USED
+mcp	core	dependencies		base
+mcp	core	devDependencies		base
+mcp	daemon	devDependencies		dev
+mcp	platform	dependencies		USED
+mcp	platform	devDependencies		dev
+mcp	protocol	dependencies		base
+oauth	core	dependencies		base
+oauth	core	devDependencies		base
+oauth	platform	devDependencies		dev
+platform	core	dependencies		base
+plugin-fixture-provider	cookie-consent	devDependencies		dev
+plugin-fixture-provider	plugins	devDependencies		dev
+plugins	core	dependencies		base
+plugins	core	devDependencies		base
+plugins	db	devDependencies	optional	dev
+plugins	db	peerDependencies	optional	STALE
+plugins	platform	devDependencies	optional	dev
+plugins	platform	peerDependencies	optional	USED
+provider-plugins	agent-runtime	devDependencies		dev
+provider-plugins	analytics	devDependencies		dev
+provider-plugins	capability-providers	devDependencies		dev
+provider-plugins	cms	devDependencies		dev
+provider-plugins	commerce	devDependencies		dev
+provider-plugins	cookie-consent	devDependencies		dev
+provider-plugins	core	devDependencies		base
+provider-plugins	diagnostics	devDependencies		dev
+provider-plugins	plugins	devDependencies		dev
+provider-plugins	protocol	devDependencies		base
+provider-plugins	ui	devDependencies		dev
+registry	core	dependencies		base
+registry	core	devDependencies		base
+registry	db	devDependencies	optional	dev
+registry	db	peerDependencies	optional	STALE
+registry	platform	dependencies		STALE
+registry	platform	devDependencies		dev
+registry	protocol	dependencies		base
+registry	protocol	devDependencies		base
+search	agent-plugins	devDependencies	optional	dev
+search	agent-plugins	peerDependencies	optional	USED
+search	core	dependencies		base
+server	agent-runtime	dependencies		USED
+server	agent-runtime	devDependencies		dev
+server	chat	devDependencies	optional	dev
+server	chat	peerDependencies	optional	USED
+server	core	dependencies		base
+server	core	devDependencies		base
+server	daemon	dependencies		USED
+server	daemon	devDependencies		dev
+server	db	dependencies		USED
+server	db	devDependencies		dev
+server	http-kit	dependencies		USED
+server	http-kit	devDependencies		dev
+server	platform	dependencies		USED
+server	registry	dependencies		USED
+server	registry	devDependencies		dev
+server	sidecar	dependencies		USED
+server	sidecar	devDependencies		dev
+sidecar	core	dependencies		base
+sidecar	core	devDependencies		base
+sidecar	platform	dependencies		USED
+sidecar	platform	devDependencies		dev
+sqlite	chat	dependencies		USED
+sqlite	core	dependencies		base
+sqlite	daemon	dependencies		USED
+sqlite	db	dependencies		USED
+sqlite	registry	dependencies		USED
+ui	agent-runtime	devDependencies		dev
+ui	agentic	dependencies		STALE
+ui	agentic	devDependencies		dev
+ui	core	dependencies		base
+ui	core	devDependencies		base
+ui	integrations	devDependencies		dev
+ui	platform	dependencies		STALE
+ui	platform	devDependencies		dev
+ui	protocol	dependencies		base
+ui	ui-kit	dependencies		STALE
+ui-kit	core	dependencies		base
+user-management	admin	devDependencies	optional	dev
+user-management	admin	peerDependencies	optional	USED
+user-management	agentic	devDependencies	optional	dev
+user-management	agentic	peerDependencies	optional	STALE
+user-management	cms	devDependencies		dev
+user-management	core	dependencies		base
+user-management	core	devDependencies		base
+user-management	ui	devDependencies	optional	dev
+user-management	ui	peerDependencies	optional	USED
+user-management	ui-kit	devDependencies	optional	dev
+user-management	ui-kit	peerDependencies	optional	USED
+vibecoding	core	dependencies		base
+vibecoding	core	devDependencies		base
+vibecoding	platform	devDependencies		dev
