@@ -1,10 +1,11 @@
 import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
+import { captureBudget, type CaptureBudget, type CaptureBudgetLimits } from "@jini-ai/diagnostics/web-evidence/capture-budget";
 import { REAL_CAPTURE_CLOCK, type CaptureClock } from "@jini-ai/diagnostics/web-evidence/capture-clock";
-import { renderPage, PageWorkTimeout, PUBLIC_RENDER_LAUNCH_OPTIONS, createRenderBrowserPool, type RenderBrowserPool, type RenderBrowserLease } from "@jini-ai/diagnostics/web-evidence/playwright";
+import { renderPage, PageWorkTimeout, PUBLIC_RENDER_LAUNCH_OPTIONS, createRenderBrowserPool, type RenderBrowserPool, type RenderBrowserLease, type RenderSession } from "@jini-ai/diagnostics/web-evidence/playwright";
 import { importPlaywrightChromium } from "#src/platform/headless-browser/playwright-loader";
 import type { HttpClientPort } from "#src/platform/http/index";
 import { createRequestRouter, fetchOwnSiteResource, type OwnSiteFetch, type RequestRouterOptions, type RouteLike } from "./request-guard.js";
-import { CAPTURE_DEADLINE_MS, PageCaptureError, type PageCapture, type PageCapturePort, type PageCaptureRequest } from "./web-screenshot.js";
+import { CAPTURE_LIMITS, PageCaptureError, type PageCapture, type PageCapturePort, type PageCaptureRequest } from "./web-screenshot.js";
 
 /**
  * @file `web_screenshot_page`'s {@link PageCapturePort}: headless Chromium through Playwright, on the
@@ -84,7 +85,8 @@ export interface PlaywrightPageCaptureOptions {
   routerOptions?: RequestRouterOptions;
   /** Only for hosts that cannot run Chromium's sandbox; never set from env. */
   allowUnsandboxed?: boolean;
-  deadlineMs?: number;
+  /** The host's capture limits; each request's own total and work deadline are computed from them. */
+  limits?: CaptureBudgetLimits;
   /** One time source for the render's budget, its hard stop and this adapter's outer race; tests pass a fake of it. */
   clock?: CaptureClock;
   idleCloseMs?: number;
@@ -105,7 +107,7 @@ function clampHeight({ raw, fallback }: { raw: unknown; fallback: number }, _opt
  */
 export function createPlaywrightPageCapture(
   { httpClient }: { httpClient: HttpClientPort },
-  { loadLauncher = loadPlaywrightLauncher, ownSiteFetch = fetchOwnSiteResource, routerOptions = {}, allowUnsandboxed = false, deadlineMs = CAPTURE_DEADLINE_MS, clock = REAL_CAPTURE_CLOCK, idleCloseMs = IDLE_CLOSE_MS, browserPool }: PlaywrightPageCaptureOptions = {},
+  { loadLauncher = loadPlaywrightLauncher, ownSiteFetch = fetchOwnSiteResource, routerOptions = {}, allowUnsandboxed = false, limits = CAPTURE_LIMITS, clock = REAL_CAPTURE_CLOCK, idleCloseMs = IDLE_CLOSE_MS, browserPool }: PlaywrightPageCaptureOptions = {},
 ): PageCapturePort {
   const browser = browserPool ?? createRenderBrowserPool(
     { launch: async () => {
@@ -115,7 +117,7 @@ export function createPlaywrightPageCapture(
     { idleCloseMs },
   );
 
-  async function shoot(request: PageCaptureRequest, signal: AbortSignal): Promise<PageCapture> {
+  async function shoot({ request, plan }: { request: PageCaptureRequest; plan: CaptureBudget }, signal: AbortSignal): Promise<PageCapture> {
     let lease: RenderBrowserLease;
     try {
       lease = await browser.acquire({}, { signal });
@@ -133,26 +135,13 @@ export function createPlaywrightPageCapture(
       return await renderPage({
         browser: { newContext: () => lease.browser.newContext({ ...contextOptions }), close: () => lease.browser.close() },
         url: request.url,
-        consume: async ({ page, response, finalUrl, budget }) => {
-          if (request.fullPage) await budget.run({ work: () => page.evaluate(scrollThroughExpression({ cap: request.maxPageHeightPx })) }).catch(error => { if (error instanceof PageWorkTimeout) throw error; });
-          const pageHeight = request.fullPage
-            ? clampHeight({ raw: await budget.run({ work: () => page.evaluate("Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0)") }), fallback: viewport.height })
-            : viewport.height;
-          const capturedHeight = Math.min(pageHeight, request.fullPage ? request.maxPageHeightPx : viewport.height);
-          if (!page.screenshot) throw new Error("Browser cannot take screenshots");
-          const clip = request.fullPage ? { clip: { x: 0, y: 0, width: viewport.width, height: capturedHeight } } : {};
-          // NEEDS-JINI: `RenderPage.screenshot` narrows `animations` to "disabled"; the object is
-          // Playwright's Page, whose documented option also takes "allow" (the fallback below).
-          const { png, note } = await shootFrame({ page: page as unknown as FrameShooter, budget, fullPage: request.fullPage, clip, deadlineMs });
-          const title = (await budget.run({ work: () => page.title() })).slice(0, 300);
-          return { png, finalUrl, status: response?.status() ?? null, title, pageHeight, capturedHeight, blockedRequests: router.report().blocked, ...(note ? { note } : {}) };
-        },
-      }, { originPolicy: "public", router, signal, timeoutMs: deadlineMs, clock,
+        consume: session => consumeCapture({ session, request, router, plan }),
+      }, { originPolicy: "public", router, signal, timeoutMs: plan.totalMs, softDeadlineMs: plan.softDeadlineMs, onSoftDeadline: "consume-current", clock,
         waitFor: request.waitFor ?? request.settleMs / 1000,
         dismissCookieBanners: request.dismissCookieBanners === true, loadWaitMs: 5_000,
       });
     } catch (error) {
-      if (error instanceof PageWorkTimeout) throw new PageCaptureError({ kind: "timeout", message: `exceeded ${deadlineMs}ms` });
+      if (error instanceof PageWorkTimeout) throw new PageCaptureError({ kind: "timeout", message: `exceeded ${plan.totalMs}ms` });
       if (router.report().navigationRefused) throw new PageCaptureError({ kind: "refused", message: "refused by the egress guard" });
       throw new PageCaptureError({ kind: "failed", message: navigationErrorCode({ error }) });
     } finally { lease.release(); }
@@ -160,6 +149,7 @@ export function createPlaywrightPageCapture(
 
   return {
     async capture(request, { signal } = {}) {
+      const plan = captureBudget(budgetRequestOf({ request }), limits);
       const controller = new AbortController();
       const onAbort = () => controller.abort();
       signal?.addEventListener("abort", onAbort, { once: true });
@@ -168,11 +158,11 @@ export function createPlaywrightPageCapture(
       const deadline = new Promise<never>((_, reject) => {
         timer = clock.setTimeout(() => {
           controller.abort();
-          reject(new PageCaptureError({ kind: "timeout", message: `exceeded ${deadlineMs}ms` }));
-        }, deadlineMs);
+          reject(new PageCaptureError({ kind: "timeout", message: `exceeded ${plan.totalMs}ms` }));
+        }, plan.totalMs);
       });
       try {
-        const work = shoot(request, controller.signal);
+        const work = shoot({ request, plan }, controller.signal);
         // A capture that lost the race still settles later; its outcome is already reported.
         work.catch(() => {});
         return await Promise.race([work, deadline]);
@@ -191,33 +181,70 @@ export function createPlaywrightPageCapture(
   };
 }
 
-/** Budget held back from the stable-frame screenshot so a current-frame fallback can still run. */
-export const FALLBACK_FRAME_RESERVE_MS = 4_000;
-
 /** Playwright's `page.screenshot`, with both `animations` modes the fallback uses. */
 type FrameShooter = { screenshot(options: Omit<Parameters<CapturePage["screenshot"]>[0], "animations"> & { animations: "disabled" | "allow" }): Promise<Buffer> };
 type ScreenshotBudget = { run<T>(required: { work: () => Promise<T> }): Promise<T>; remainingMs(): number };
+type FrameClip = { clip?: { x: number; y: number; width: number; height: number } };
+
+/** What the request asks for, in the units `captureBudget` reads. A selector wait adds nothing: it ends when the element shows. */
+function budgetRequestOf({ request }: { request: PageCaptureRequest }, _optional = {}): Parameters<typeof captureBudget>[0] {
+  return { settleMs: request.settleMs, fullPage: request.fullPage, ...(typeof request.waitFor === "number" ? { waitForSeconds: request.waitFor } : {}) };
+}
+
+/**
+ * The work `renderPage` hands over once the page has loaded: scroll (full page), measure, shoot, read the title.
+ * `session.phaseTimedOut` is set when ordinary work hit its deadline on a page that had already loaded: that page
+ * is shot as it is, inside what is left of the total.
+ * @complexity O(1) beyond the page work.
+ */
+async function consumeCapture(
+  { session: { page, response, finalUrl, budget, phaseTimedOut }, request, router, plan }: { session: RenderSession; request: PageCaptureRequest; router: { report(): { blocked: number } }; plan: CaptureBudget },
+  _optional = {},
+): Promise<PageCapture> {
+  const { viewport } = request;
+  if (request.fullPage) await budget.run({ work: () => page.evaluate(scrollThroughExpression({ cap: request.maxPageHeightPx })) }).catch(error => { if (error instanceof PageWorkTimeout) throw error; });
+  const pageHeight = request.fullPage
+    ? clampHeight({ raw: await budget.run({ work: () => page.evaluate("Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0)") }), fallback: viewport.height })
+    : viewport.height;
+  const capturedHeight = Math.min(pageHeight, request.fullPage ? request.maxPageHeightPx : viewport.height);
+  if (!page.screenshot) throw new Error("Browser cannot take screenshots");
+  const clip = request.fullPage ? { clip: { x: 0, y: 0, width: viewport.width, height: capturedHeight } } : {};
+  // NEEDS-JINI: `RenderPage.screenshot` narrows `animations` to "disabled"; the object is
+  // Playwright's Page, whose documented option also takes "allow" (the fallback below).
+  const { png, note } = await shootFrame({ page: page as unknown as FrameShooter, budget, fullPage: request.fullPage, clip, plan, settleCutShort: phaseTimedOut !== undefined });
+  const title = (await budget.run({ work: () => page.title() })).slice(0, 300);
+  return { png, finalUrl, status: response?.status() ?? null, title, pageHeight, capturedHeight, blockedRequests: router.report().blocked, ...(note ? { note } : {}) };
+}
 
 /**
  * A stable frame first (`animations: "disabled"` waits for finite animations to end); if Playwright's
  * own timeout fires on that, the page was still animating (WebGL heroes, endless transitions, e.g.
  * a provider dashboard), so the frame on screen is captured as it is, with a note, instead of failing the call.
  * Only Playwright's `TimeoutError` falls back: a closed page or a budget timeout still fails.
+ * The stable attempt keeps the plan's reserve for that second shot, taken from what is left before the hard stop.
+ * A page whose settling was already cut short (`settleCutShort`) has no time for a stable attempt: it goes straight to the current frame.
  * @complexity O(1) beyond the screenshots.
  */
 async function shootFrame(
-  { page, budget, fullPage, clip, deadlineMs }: { page: FrameShooter; budget: ScreenshotBudget; fullPage: boolean; clip: { clip?: { x: number; y: number; width: number; height: number } }; deadlineMs: number },
+  { page, budget, fullPage, clip, plan, settleCutShort }: { page: FrameShooter; budget: ScreenshotBudget; fullPage: boolean; clip: FrameClip; plan: CaptureBudget; settleCutShort: boolean },
 ): Promise<{ png: Buffer; note?: string }> {
+  if (settleCutShort) return { png: await currentFrame({ page, budget, fullPage, clip, plan }), note: `page loaded but did not settle within ${plan.softDeadlineMs / 1000} s; captured the current frame (content may still be loading).` };
   // Playwright treats timeout 0 as "no timeout", so the stable attempt always gets at least 1 ms.
-  const stableTimeout = Math.max(1, budget.remainingMs() - FALLBACK_FRAME_RESERVE_MS);
+  const stableTimeout = Math.max(1, budget.remainingMs() - plan.reserveMs);
   try {
     return { png: await budget.run({ work: () => page.screenshot({ type: "png", fullPage, timeout: stableTimeout, animations: "disabled", ...clip }) }) };
   } catch (error) {
     if ((error as { name?: unknown }).name !== "TimeoutError") throw error;
   }
-  const png = await budget.run({ work: () => page.screenshot({ type: "png", fullPage, timeout: Math.max(1, budget.remainingMs()), animations: "allow", ...clip }) })
-    .catch((error: unknown) => { throw (error as { name?: unknown }).name === "TimeoutError" ? new PageWorkTimeout({ timeoutMs: deadlineMs }) : error; });
-  return { png, note: `page was still animating near the ${deadlineMs / 1000} s deadline; captured the current frame (it may show a mid-animation state).` };
+  return { png: await currentFrame({ page, budget, fullPage, clip, plan }), note: `page was still animating near the ${plan.totalMs / 1000} s deadline; captured the current frame (it may show a mid-animation state).` };
+}
+
+/** The frame on screen right now, within what is left of the total; Playwright's own timeout there is the capture's timeout. */
+function currentFrame(
+  { page, budget, fullPage, clip, plan }: { page: FrameShooter; budget: ScreenshotBudget; fullPage: boolean; clip: FrameClip; plan: CaptureBudget },
+): Promise<Buffer> {
+  return budget.run({ work: () => page.screenshot({ type: "png", fullPage, timeout: Math.max(1, budget.remainingMs()), animations: "allow", ...clip }) })
+    .catch((error: unknown) => { throw (error as { name?: unknown }).name === "TimeoutError" ? new PageWorkTimeout({ timeoutMs: plan.totalMs }) : error; });
 }
 
 /** Chromium's `net::ERR_*` code only — never a raw message that could echo an internal address. */

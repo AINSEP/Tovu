@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { CaptureBudgetLimits } from "@jini-ai/diagnostics/web-evidence/capture-budget";
 import { PageWorkTimeout, type RenderBrowserPool } from "@jini-ai/diagnostics/web-evidence/playwright";
 
 import { EgressRefusedError, type HttpClientPort, type HttpResponse } from "#src/platform/http/index";
@@ -95,6 +96,11 @@ function fakeBrowser({ failLaunch = false, hangGoto = false, pageHeight = 2400, 
   return { launcher, events, launches, contexts, screenshots };
 }
 
+/** Limits under which every request gets exactly `totalMs`, however long its requested wait. */
+function fixedLimits({ totalMs, reserveMs }: { totalMs: number; reserveMs: number }): CaptureBudgetLimits {
+  return { baseMs: totalMs, fullPageMs: 0, capMs: totalMs, reserveMs };
+}
+
 function client(behavior: "ok" | "refuse"): HttpClientPort & { urls: string[] } {
   const urls: string[] = [];
   return {
@@ -157,7 +163,7 @@ test("full page: height is measured, capped at maxPageHeightPx, and captured as 
   // scrolled through (bounded by the cap) BEFORE its height is measured and shot.
   assert.deepEqual(fake.events.filter((event) => event === "scroll-through" || event === "measure"), ["scroll-through", "measure"]);
   const { timeout, ...shotOptions } = fake.screenshots[0]!;
-  assert.ok(timeout > 0 && timeout <= 20_000, "screenshot gets only the remaining total budget");
+  assert.ok(timeout > 0 && timeout <= 31_200 - 4_000, "screenshot gets only the remaining total budget (a full page with a 1.2 s wait may take 31.2 s) less the fallback reserve");
   assert.deepEqual(shotOptions, { type: "png", fullPage: true, animations: "disabled", clip: { x: 0, y: 0, width: 1280, height: 8000 } });
 });
 
@@ -181,7 +187,7 @@ test("a missing browser is 'unavailable', and the next capture tries to launch a
 
 test("a page that never finishes is a 'timeout', and the whole browser is closed so a hung renderer cannot linger", async () => {
   const fake = fakeBrowser({ hangGoto: true });
-  const capture = createPlaywrightPageCapture({ httpClient: client("ok") }, { loadLauncher: async () => fake.launcher, deadlineMs: 30 });
+  const capture = createPlaywrightPageCapture({ httpClient: client("ok") }, { loadLauncher: async () => fake.launcher, limits: fixedLimits({ totalMs: 30, reserveMs: 10 }) });
   await assert.rejects(capture.capture(request()), (error: unknown) => error instanceof PageCaptureError && error.kind === "timeout");
   assert.ok(fake.events.includes("browser-close"));
 });
@@ -337,7 +343,7 @@ test("a scroll-reveal script failure is best effort and does not prevent the ful
 
 test("a scroll-reveal budget timeout aborts capture and closes the context", async t => {
   const fake = fakeBrowser({ scrollError: new PageWorkTimeout({ timeoutMs: 1000 }) });
-  const capture = createPlaywrightPageCapture({ httpClient: client("ok") }, { loadLauncher: async () => fake.launcher, deadlineMs: 1000 });
+  const capture = createPlaywrightPageCapture({ httpClient: client("ok") }, { loadLauncher: async () => fake.launcher, limits: fixedLimits({ totalMs: 1000, reserveMs: 200 }) });
   t.after(() => capture.close());
   await assert.rejects(capture.capture(request({ fullPage: true })), (error: unknown) => {
     assert.ok(error instanceof PageCaptureError);
@@ -438,7 +444,7 @@ test("a page still animating spends its stable budget, captures a fallback, and 
   let now = 0, titles = 0;
   t.mock.method(Date, "now", () => now);
   const fake = fakeBrowser({ screenshotErrors: [playwrightTimeout()], onScreenshot: options => { now += options.animations === "disabled" ? options.timeout : 1_000; }, onTitle: () => { titles++; now += 100; } });
-  const capture = createPlaywrightPageCapture({ httpClient: client("ok") }, { loadLauncher: async () => fake.launcher, deadlineMs: 20_000 });
+  const capture = createPlaywrightPageCapture({ httpClient: client("ok") }, { loadLauncher: async () => fake.launcher, limits: fixedLimits({ totalMs: 20_000, reserveMs: 4_000 }) });
   const shot = await capture.capture(request());
   await capture.close();
   assert.equal(shot.png.toString(), "png-allow", "the fallback frame is what is returned");
@@ -487,7 +493,7 @@ test("a non-timeout error from the current-frame fallback is still a 'failed' ca
 test("fallback exhausting the remaining deadline cannot start the metadata read", async (t) => {
   let now = 0, titles = 0; t.mock.method(Date, "now", () => now);
   const fake = fakeBrowser({ screenshotErrors: [playwrightTimeout()], onScreenshot: options => { now += options.timeout; }, onTitle: () => { titles++; } });
-  const capture = createPlaywrightPageCapture({ httpClient: client("ok") }, { loadLauncher: async () => fake.launcher, deadlineMs: 20_000 });
+  const capture = createPlaywrightPageCapture({ httpClient: client("ok") }, { loadLauncher: async () => fake.launcher, limits: fixedLimits({ totalMs: 20_000, reserveMs: 4_000 }) });
   t.after(() => capture.close());
   await assert.rejects(capture.capture(request()), (err: unknown) => err instanceof PageCaptureError && err.kind === "timeout");
   assert.deepEqual(fake.screenshots.map(s => s.timeout), [16_000, 4_000]); assert.equal(titles, 0); assert.equal(now, 20_000);
