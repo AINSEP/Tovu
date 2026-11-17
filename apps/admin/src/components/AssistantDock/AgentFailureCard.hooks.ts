@@ -46,11 +46,10 @@ function failureData({ value }: { value: unknown }, _options: Record<string, nev
   if (!value || typeof value !== "object") return null;
   const data = value as Partial<AgentFailure>;
   if (typeof data.reason !== "string" || typeof data.details !== "string") return null;
-  if (data.reason === GENERIC_AGENT_FAILURE) return { reason: data.reason, details: redactAgentFailure({ text: data.details }, {}),
-    ...(typeof data.agentId === "string" ? { agentId: data.agentId } : {}) };
+  const agent = typeof data.agentId === "string" ? { agentId: data.agentId } : {};
+  if (data.reason === GENERIC_AGENT_FAILURE) return { reason: data.reason, details: redactAgentFailure({ text: data.details }, {}), ...agent };
   // The renderer is also a boundary: persisted extension data need not have used our transport.
-  return extractAgentFailure({ events: [{ kind: "raw", line: data.details || data.reason }],
-    ...(typeof data.agentId === "string" ? { agentId: data.agentId } : {}) }, {});
+  return extractAgentFailure({ events: [{ kind: "raw", line: data.details || data.reason }], ...agent }, {});
 }
 
 /** The same payload check as the card: malformed history must retain Jini's terminal fallback.
