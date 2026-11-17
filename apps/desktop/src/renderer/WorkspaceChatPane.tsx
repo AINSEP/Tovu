@@ -86,13 +86,13 @@ export function WorkspaceChatPane({
             Delete “{deleteConfirmation.pendingTitle}”? This can’t be undone.
           </p>
           <div className="runner-chat-pane__confirm-actions">
-            <button type="button" onClick={() => deleteConfirmation.resolvePending(false)}>
+            <button type="button" onClick={() => deleteConfirmation.resolvePending({ confirmed: false })}>
               Cancel
             </button>
             <button
               type="button"
               className="runner-chat-pane__confirm-delete"
-              onClick={() => deleteConfirmation.resolvePending(true)}
+              onClick={() => deleteConfirmation.resolvePending({ confirmed: true })}
             >
               Delete
             </button>

@@ -111,6 +111,15 @@ test('registry drift CLI skips projects with no registry Jini dependencies', t =
   assert.match(result.stdout, /all pinned @jini-ai\/\* packages match/);
 });
 
+test('registry drift CLI reports an unreadable manifest as a project failure, not a crash', t => {
+  const f = fixture(t, ['check-jini-registry-drift.mjs']);
+  f.write('apps/admin/package.json', '{not json');
+  const result = f.run('check-jini-registry-drift.mjs');
+  assert.equal(result.status, 1);
+  assert.match(result.stdout, /--- apps\/admin ---\n  FAIL  operation-error:/);
+  assert.doesNotMatch(result.stderr, /unexpected failure/);
+});
+
 test('brand icon CLI keeps the letter and removes the disconnected frame from the simplified master', async t => {
   const { default: sharp } = await import('sharp');
   const f = fixture(t, ['build-brand-icons.mjs']);

@@ -1,6 +1,6 @@
 import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import type { AgentToolSideEffect } from "@jini-ai/core";
-import { IMAGE_MODELS, findProvider } from "@jini-ai/integrations/media-providers/catalog";
+import { IMAGE_MODEL_IDS } from "@jini-ai/integrations/media-providers/catalog";
 
 /**
  * @file Agent-tool catalog for `features/media-generation` — closes the "I cannot generate images,
@@ -28,54 +28,10 @@ import { IMAGE_MODELS, findProvider } from "@jini-ai/integrations/media-provider
 /** Shared catalog contract with this domain's side-effect vocabulary. */
 export type AgentToolDefinition = SharedAgentToolDefinition & { sideEffects: AgentToolSideEffect };
 
-/**
- * Every catalogued image model whose vendor the catalogue itself marks `integrated` (a real vendor,
- * not a planned/placeholder entry — see `MediaProvider.integrated`'s own doc in
- * `@jini-ai/integrations/media-providers`). Computed at import time from `IMAGE_MODELS`, the SAME
- * catalogue the dispatch engine itself validates `model` against (`engine.ts`'s own
- * `findMediaModel`/`modelsForSurface`) — replaces this file's old `OPENAI_IMAGE_MODELS`, a fixed
- * 3-entry literal that made every non-OpenAI vendor (including this machine's actually-configured
- * one, Nano Banana / `nanobanana`) unreachable through this tool no matter what credential existed.
- * Exported (not module-private) so `tool-registrations.ts` can validate `model` at the handler level
- * against the SAME set the published schema's `enum` names — the schema's `enum` is descriptive only
- * (the kernel "neither parses nor validates" a tool's schema, per `@jini-ai/core`'s own
- * `ToolDescriptor.inputSchema` doc), so a caller-supplied `model` outside this set must be rejected in
- * the handler, not merely described here.
- *
- * As of the 2026-09-02 catalogue fix, this filter IS a perfect proxy for "the dispatch engine has a
- * real adapter wired up": `hyperframes`/`fal`/`leonardo` used to ship `integrated: true` with zero
- * `mediaVendorRegistry.register(...)` calls anywhere for them (a catalogue lie caught by
- * `providers.test.ts`'s adapter-coverage assertion), so selecting one of their models used to reach
- * the dispatch engine's own clean `no renderer configured for provider "..." ... pass
- * allowStubFallback: true` error at generation time instead of a real image. Now that all three are
- * `integrated: false`, every image-surface provider this filter includes
- * (`openai`/`nanobanana`/`grok`/`volcengine`/`imagerouter`/`senseaudio`/`openrouter`/`custom-image`/
- * `aihubmix`) has a registered adapter (`dispatch/vendor-registry.ts`'s `mediaVendorRegistry`, which
- * this dependency-free file deliberately does not import — see this file's own header), same as every
- * excluded provider (`fal`/`leonardo`/`bfl`/`replicate`/`google`/`kling`/`midjourney`/`comfyui`/
- * `suno`/`udio`) is genuinely unwired anywhere in this codebase — so this filter is reading the
- * catalogue's own signal, not a guess.
- */
-export const IMAGE_MODEL_IDS: readonly string[] = imageModelIdsFrom({ catalog: { modelsForSurface: () => IMAGE_MODELS, findProvider } });
-
-/** The two catalogue reads the enum needs — structurally a `MediaModelCatalog` / `MediaProviderRegistry`
- *  (declared locally so this file keeps importing only the dependency-free catalog subpath). */
-export interface ImageModelCatalog {
-  modelsForSurface(required: { surface: "image" }): readonly { readonly id: string; readonly provider: string }[];
-  findProvider(required: { id: string }): { readonly integrated: boolean } | null;
-}
-
-/**
- * {@link IMAGE_MODEL_IDS}'s rule applied to any catalogue — the live media provider registry in
- * production (2026-10-21), so a plugin-contributed vendor's image models are advertised and accepted.
- * Catalogue order is kept: it is the default-model resolution order.
- * @complexity O(m) image models.
- */
-export function imageModelIdsFrom({ catalog }: { catalog: ImageModelCatalog }, _optional: Record<string, never> = {}): string[] {
-  return catalog.modelsForSurface({ surface: "image" })
-    .filter((model) => catalog.findProvider({ id: model.provider })?.integrated === true)
-    .map((model) => model.id);
-}
+// The `model` enum is `IMAGE_MODEL_IDS` from the media-providers catalog (vendors marked integrated, in
+// catalogue order). It replaced this file's old `OPENAI_IMAGE_MODELS`, a fixed 3-entry literal that made
+// every non-OpenAI vendor (including a machine's only configured one, Nano Banana / `nanobanana`)
+// unreachable through this tool no matter what credential existed.
 
 const generateSchema = (imageModelIds: readonly string[]) => ({
   type: "object",

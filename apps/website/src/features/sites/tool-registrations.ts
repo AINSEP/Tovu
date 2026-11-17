@@ -2,7 +2,7 @@ import { createSitesWorkspace } from "#src/platform/site-dir/index";
 import { toolMetadata } from '../../contracts/core/tool-metadata/sites.js';
 import path from "node:path";
 
-import { buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalString, ToolInputError, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalString, ToolInputError, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 
@@ -165,6 +165,47 @@ function requireSiteFolderName({ input, field }: { input: Record<string, unknown
   return value;
 }
 
+async function duplicateSiteTool(required: { routeDeps: SitesToolDeps; switcherEnabled: boolean; ctx: ToolExecutionContext }, _optional = {}): Promise<unknown> {
+  const { routeDeps, switcherEnabled, ctx } = required;
+  const input = requireInputRecord({ input: ctx.input });
+  const sourceName = requireSiteFolderName({ input, field: "sourceName" });
+  const targetName = requireSiteFolderName({ input, field: "targetName" });
+  const displayName = optionalString({ input: input, key: "displayName" });
+
+  if (!switcherEnabled) {
+    throw new SiteSwitchingDisabledError();
+  }
+  // Same "deployment-wide, independent of the caller's own permissions" ordering the flag check
+  // immediately above already follows — checked before spending a requireToolPermission call on
+  // an operation this boot cannot fulfill regardless of who is asking.
+  // Resolved per call, not at build time: `siteBinding` is read only when the tool actually runs,
+  // the same way `list-tool.ts` reads it, so assembling the catalog never depends on it.
+  const resolved = resolveSitesDeps(routeDeps);
+  const switcherBase = resolved.switcherBase;
+  if (switcherBase === null) {
+    throw new SiteBindingNotSwitchableError();
+  }
+
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: SITES_WRITE_PERMISSION }, { entityType: "site-registry" });
+
+  return withSchemaOnRejection({ toolId: "sites_duplicate_site", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => {
+    // The source lookup is rooted at the SERVED tree (`switcherBase`), never `process.cwd()` —
+    // see `deps.ts`'s header for the wrong-tree copy the cwd default caused. home/home2 place
+    // new copies in the shared home, which can differ from this legacy discovery root.
+    const source = resolved.listSites({ cwd: switcherBase }).find((site) => site.name === sourceName);
+    if (!source) {
+      throw new SourceSiteNotFoundError({ sourceName });
+    }
+
+    const workspace = routeDeps.sitesWorkspace ?? createSitesWorkspace({}, { cwd: switcherBase });
+    const targetDir = path.join(workspace.home({}), targetName);
+    ctx.signal.throwIfAborted();
+    const result = await resolved.duplicateSite({ sourceDir: source.dir, targetDir, name: displayName });
+    workspace.registry({}).merge({ entries: [{ id: result.siteId, name: displayName ?? targetName, path: result.dir, createdBy: "Web", lastOpened: null }] });
+    return { name: targetName, dir: result.dir, siteId: result.siteId, sourceName };
+  } });
+}
+
 export function buildSitesRegistrations(routeDeps: SitesToolDeps): ToolRegistration[] {
   // Falls back to `false` (disabled) rather than assuming enabled — matches
   // `isSiteSwitcherEnabled`'s own documented default-OFF safety posture. See `deps.ts`'s own
@@ -172,45 +213,7 @@ export function buildSitesRegistrations(routeDeps: SitesToolDeps): ToolRegistrat
   const switcherEnabled = routeDeps.isSiteSwitcherEnabled?.() ?? false;
 
   const handlers: Record<string, ToolHandler> = {
-    sites_duplicate_site: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const sourceName = requireSiteFolderName({ input, field: "sourceName" });
-      const targetName = requireSiteFolderName({ input, field: "targetName" });
-      const displayName = optionalString({ input: input, key: "displayName" });
-
-      if (!switcherEnabled) {
-        throw new SiteSwitchingDisabledError();
-      }
-      // Same "deployment-wide, independent of the caller's own permissions" ordering the flag check
-      // immediately above already follows — checked before spending a requireToolPermission call on
-      // an operation this boot cannot fulfill regardless of who is asking.
-      // Resolved per call, not at build time: `siteBinding` is read only when the tool actually runs,
-      // the same way `list-tool.ts` reads it, so assembling the catalog never depends on it.
-      const resolved = resolveSitesDeps(routeDeps);
-      const switcherBase = resolved.switcherBase;
-      if (switcherBase === null) {
-        throw new SiteBindingNotSwitchableError();
-      }
-
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: SITES_WRITE_PERMISSION }, { entityType: "site-registry" });
-
-      return withSchemaOnRejection({ toolId: "sites_duplicate_site", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => isShapeRejection({ error }), fn: async () => {
-        // The source lookup is rooted at the SERVED tree (`switcherBase`), never `process.cwd()` —
-        // see `deps.ts`'s header for the wrong-tree copy the cwd default caused. home/home2 place
-        // new copies in the shared home, which can differ from this legacy discovery root.
-        const source = resolved.listSites({ cwd: switcherBase }).find((site) => site.name === sourceName);
-        if (!source) {
-          throw new SourceSiteNotFoundError({ sourceName });
-        }
-
-        const workspace = routeDeps.sitesWorkspace ?? createSitesWorkspace({}, { cwd: switcherBase });
-        const targetDir = path.join(workspace.home({}), targetName);
-        ctx.signal.throwIfAborted();
-        const result = await resolved.duplicateSite({ sourceDir: source.dir, targetDir, name: displayName });
-        workspace.registry({}).merge({ entries: [{ id: result.siteId, name: displayName ?? targetName, path: result.dir, createdBy: "Web", lastOpened: null }] });
-        return { name: targetName, dir: result.dir, siteId: result.siteId, sourceName };
-      } });
-    },
+    sites_duplicate_site: (ctx) => duplicateSiteTool({ routeDeps, switcherEnabled, ctx }),
     sites_create_site: async (ctx) => {
       const name = requireSiteFolderName({ input: requireInputRecord({ input: ctx.input }), field: "name" });
       const switcherBase = await gateSiteSwitchWrite({ routeDeps, switcherEnabled, principalId: ctx.principal.id });

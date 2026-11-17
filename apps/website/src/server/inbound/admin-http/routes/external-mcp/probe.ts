@@ -1,8 +1,7 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from "express";
 
-import { probeExternalMcpServer, type ExternalMcpProbeServiceDeps } from "#src/server/runtime/services/external-mcp-probe";
-export type { ExternalMcpProbeSessionFactory } from "#src/server/runtime/services/external-mcp-probe";
+import { probeExternalMcpServer, type ExternalMcpProbeServiceDeps } from "#src/features/external-mcp/external-mcp-probe";
 import { OUTBOUND_CALL_PER_IP, createRateLimiter, resolveClientIp, type RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { ExternalMcpRouteDeps } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";

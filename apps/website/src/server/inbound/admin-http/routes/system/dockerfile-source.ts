@@ -78,6 +78,11 @@ function toResponseBody(snapshot: DockerfileSourceSnapshot): { exists: boolean; 
 }
 
 export function registerAdminDockerfileSourceRoute(app: Express, deps: AdminDockerfileSourceDeps): void {
+  registerDockerfileGet(app, deps);
+  registerDockerfilePut(app, deps);
+}
+
+function registerDockerfileGet(app: Express, deps: AdminDockerfileSourceDeps): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/system/dockerfile", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
@@ -93,7 +98,9 @@ export function registerAdminDockerfileSourceRoute(app: Express, deps: AdminDock
       sendAdminFailure({ res, error: err }, { operation: "routes/system/dockerfile-source", code: "INTERNAL_ERROR" });
     }
   });
+}
 
+function registerDockerfilePut(app: Express, deps: AdminDockerfileSourceDeps): void {
   app.put("/api/admin/v1/workspaces/:workspaceId/system/dockerfile", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

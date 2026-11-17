@@ -31,6 +31,8 @@ import { provideNodeStartupSecrets, splitNodeStartupSecrets, STARTUP_SECRETS_ENV
 import { STARTUP_SECRET_KEYS, DESKTOP_AGENT_SERVICE_ENV } from '../../website/src/server/runtime/boot/startup-secrets.ts';
 import type { ChildProcess, SpawnOptions } from "node:child_process";
 import type { Readable, Writable } from "node:stream";
+import { waitForBoot } from "./tovu-server.start.ts";
+import type { BootPorts, BootState } from "./tovu-server.start.ts";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
 /** `apps/website/src/cli/commands/serve.ts`'s documented startup line (api.spec.md §5). */
@@ -977,10 +979,43 @@ interface TovuServerHandle {
  * @complexity O(1) plus `bootSiteDir`'s own cost inside the child.
  */
 async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerHandle> {
-  const spawnFn: SpawnFn = input.spawnFn ?? nodeSpawn;
   const readyTimeoutMs = input.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS;
   const stopGraceMs = input.stopGraceMs ?? DEFAULT_STOP_GRACE_MS;
   const port = input.port ?? (await allocatePort());
+  const { child, serveEnv, startup } = spawnServeChild({ input, port });
+  const agentBinding = input.agentService?.bindServer({ child: child as ChildProcess, siteDir: input.siteDir }, {});
+  const exitSignal = createExitSignal(child);
+  const state: BootState = { outputTail: "", bootToken: null };
+  const redactOutput = createBootRedactor({ startup, serveEnv, state });
+  const stop = () => stopChild({ child, graceMs: stopGraceMs }, { platform: input.platform, killTree: input.killTree });
+  const ports: BootPorts = { parseBootLine, parseBootToken, describeBootFailure, redactOutput,
+    setIdentity: agentBinding ? ({ siteId }) => agentBinding.setIdentity({ siteId }, {}) : undefined };
+  const mirror = input.mirror ?? { stdout: process.stdout, stderr: process.stderr };
+  return await waitForBoot({ child, state, ports, mirror, readyTimeoutMs }).then(({ boot, pid, origin }): TovuServerHandle => ({
+    port: boot.port,
+    pid,
+    origin,
+    adminUrl: `${origin}/admin/`,
+    workspaceId: boot.workspaceId,
+    schemaVersion: boot.schemaVersion,
+    // Printed BEFORE the boot line, so by the time this resolves it is already in the output
+    // — no second wait and no timing window. `null` whenever `--emit-boot-token` was not
+    // passed, which is every caller but the desktop shell.
+    bootToken: state.bootToken,
+    ownerSignInCapability: serveEnv.TOVU_DESKTOP_OWNER_SIGNIN,
+    stop,
+    onExit: exitSignal.onExit,
+    stopIfIdle: createStopIfIdle({ agentBinding, exitSignal, stopGraceMs }),
+    outputTail: (_required = {}, _optional = {}) => state.outputTail.slice(-16_384),
+  })).catch(async (error) => {
+    await stop();
+    throw error;
+  });
+}
+
+/** Build the serve command and env, spawn it, hand it its startup secrets, and drop them from the env. */
+function spawnServeChild({ input, port }: { input: StartTovuServerInput; port: number }, _optional = {}) {
+  const spawnFn: SpawnFn = input.spawnFn ?? nodeSpawn;
   const plan = buildCliSpawnPlan({
     repoRoot: input.repoRoot,
     cliMode: input.cliMode,
@@ -1013,122 +1048,41 @@ async function startTovuServer(input: StartTovuServerInput): Promise<TovuServerH
   const delivery = provideNodeStartupSecrets({ peer: child as ChildProcess, secrets: startup.secrets });
   child.once('exit', () => delivery.dispose({}));
   child.once('error', () => delivery.dispose({}));
+  return { child, serveEnv, startup };
+}
 
-  const agentBinding = input.agentService?.bindServer({ child: child as ChildProcess, siteDir: input.siteDir }, {});
-
-  const exitSignal = createExitSignal(child);
-  let outputTail = "";
-  let bootToken: string | null = null;
+/** Redact every secret the child was given, plus its boot token once it is known. */
+function createBootRedactor(
+  { startup, serveEnv, state }: { startup: { secrets: Record<string, string> }; serveEnv: Record<string, string | undefined>; state: BootState },
+  _optional = {},
+): (required: { text: string }) => string {
   const exactSecrets = [...Object.values(startup.secrets), ...Object.entries(serveEnv)
     .filter(([key]) => /secret|token|password|credential|authorization|api.?key|owner.?signin/i.test(key))
     .map(([, value]) => value ?? "")];
-  const redactOutput = ({ text }: { text: string }, _options = {}) => redactBootToken({ text: redactSecrets({ input: text }, {
-    exactSecrets: bootToken ? [...exactSecrets, bootToken] : exactSecrets, redactPii: false,
+  return ({ text }) => redactBootToken({ text: redactSecrets({ input: text }, {
+    exactSecrets: state.bootToken ? [...exactSecrets, state.bootToken] : exactSecrets, redactPii: false,
   }) });
+}
 
-  /** Intake is already fenced on acceptance. Keep serialized wake behind confirmed exit, bounded
-   * without a kill: uncertainty can only defer maintenance, never interrupt an active chat.
-   * @complexity O(1) plus one private IPC request; at most one exit wait per accepted sleep.
-   */
-  async function stopIfIdle(_required = {}, _optional = {}): Promise<boolean> {
+/** Intake is already fenced on acceptance. Keep serialized wake behind confirmed exit, bounded
+ * without a kill: uncertainty can only defer maintenance, never interrupt an active chat.
+ * @complexity O(1) plus one private IPC request; at most one exit wait per accepted sleep.
+ */
+function createStopIfIdle(
+  { agentBinding, exitSignal, stopGraceMs }: {
+    agentBinding: ReturnType<DesktopAgentService["bindServer"]> | undefined; exitSignal: ExitSignal; stopGraceMs: number;
+  },
+  _optional = {},
+): (required?: Record<string, never>, optional?: Record<string, never>) => Promise<boolean> {
+  return async () => {
     try {
       if (!agentBinding || !(await agentBinding.stopIfIdle({}, {}))) return false;
-      return await new Promise(resolve => {
+      return await new Promise<boolean>(resolve => {
         const timer = setTimeout(() => resolve(false), stopGraceMs * 2);
         exitSignal.onExit({ listener: exit => { clearTimeout(timer); resolve(exit.code === SITE_SLEEP_EXIT_CODE); } });
       });
     } catch { return false; }
-  }
-
-  return await new Promise<TovuServerHandle>((resolve, reject) => {
-    let output = "";
-    let settled = false;
-
-    const timer = setTimeout(() => {
-      if (finish()) reject(new Error(describeBootFailure({ output: redactOutput({ text: output }), fallback: `tovu serve did not report a port within ${readyTimeoutMs}ms.` })));
-    }, readyTimeoutMs);
-
-    /** Single-settle guard: whichever of ready / timeout / exit happens first owns the outcome. */
-    function finish(): boolean {
-      if (settled) return false;
-      settled = true;
-      clearTimeout(timer);
-      return true;
-    }
-
-    const stop = () => stopChild({ child, graceMs: stopGraceMs }, { platform: input.platform, killTree: input.killTree });
-
-    function readStream(stream: Readable, mirror: Writable): void {
-      stream.setEncoding("utf8");
-      // The framed sink redacts BEFORE either copy is retained or mirrored, even across chunks.
-      const safeMirror = createRedactedOutputSink({ sink: { write(safe: string) {
-        outputTail += safe;
-        // Amortize tail copies across small log lines; diagnostics expose only the latest 16 KiB.
-        if (outputTail.length > 32_768) outputTail = outputTail.slice(-16_384);
-        return mirror.write(safe);
-      } }, redact: ({ text }, _optional = {}) => redactOutput({ text }) }, { maxLength: MAX_ECHOED_OUTPUT_CHARS });
-      stream.once("end", () => safeMirror.end());
-      stream.on("data", (chunk) => {
-        safeMirror.write(chunk);
-        if (settled) return;
-        if (output.length + chunk.length > 1_000_000) {
-          if (finish()) reject(new Error("tovu serve startup output exceeded the diagnostic limit."));
-          return;
-        }
-        output += chunk;
-
-        const boot = parseBootLine({ text: output });
-        if (boot === null) return;
-        // A boot line normally proves this child spawned and has a process id.
-        const pid = child.pid;
-        if (pid == null) {
-          if (finish()) reject(new Error("tovu serve reported a boot line without a process id"));
-          return;
-        }
-        agentBinding?.setIdentity({ siteId: boot.workspaceId }, {});
-        const origin = `http://127.0.0.1:${boot.port}`;
-        if (!finish()) return;
-        bootToken = parseBootToken({ text: output });
-        resolve({
-          port: boot.port,
-          pid,
-          origin,
-          adminUrl: `${origin}/admin/`,
-          workspaceId: boot.workspaceId,
-          schemaVersion: boot.schemaVersion,
-          // Printed BEFORE the boot line, so by the time this resolves it is already in `output`
-          // — no second wait and no timing window. `null` whenever `--emit-boot-token` was not
-          // passed, which is every caller but the desktop shell.
-          bootToken,
-          ownerSignInCapability: serveEnv.TOVU_DESKTOP_OWNER_SIGNIN,
-          stop,
-          onExit: exitSignal.onExit,
-          stopIfIdle,
-          outputTail: (_required = {}, _optional = {}) => outputTail.slice(-16_384),
-        });
-        output = ""; // Boot parsing is finished; retain only the bounded redacted tail now.
-      });
-    }
-
-    const mirror = input.mirror ?? { stdout: process.stdout, stderr: process.stderr };
-    if (!child.stdout || !child.stderr) {
-      if (finish()) reject(new Error("tovu serve is missing its stdout or stderr stream"));
-      return;
-    }
-    readStream(child.stdout, mirror.stdout);
-    readStream(child.stderr, mirror.stderr);
-
-    child.once("error", (error) => { if (finish()) reject(error); });
-    child.once("exit", (code, signal) => {
-      if (!finish()) return;
-      const signalDetail = signal ? ` Signal: ${signal}.` : "";
-      const detail = `tovu serve exited (code ${code ?? signal ?? "none"}) before reporting a port.${signalDetail}`;
-      reject(new Error(describeBootFailure({ output: redactOutput({ text: output }), fallback: detail })));
-    });
-  }).catch(async (error) => {
-    await stopChild({ child, graceMs: stopGraceMs }, { platform: input.platform, killTree: input.killTree });
-    throw error;
-  });
+  };
 }
 
 export {

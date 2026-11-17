@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Toast } from "@jini-ai/ui";
+import { Icon, Toast } from "@jini-ai/ui";
 import { ConfirmDialog, RowMenu } from "@jini-ai/admin/react";
 import { agentHandle, buildAgentListHandles } from "@jini-ai/core/agent-handles";
 
@@ -15,7 +15,6 @@ import { useThemeCardPreview } from "./hooks/use-theme-card-preview.hooks";
 import { useWiredThemes, type ThemesController } from "./hooks/use-themes.hooks";
 import { useThemeDeleteRequest } from "./hooks/use-theme-delete-request.hooks";
 import { buildThemeCardMenuItems, themeDeleteBlock, type ThemeDeleteBlock, type ThemeDeleteRequest } from "./theme-card-menu";
-import { CompassIcon } from "./themes-visuals";
 import {
   isActiveTheme,
   isStrandedActiveTheme,
@@ -455,7 +454,7 @@ function ThemeGrid({
                     title={t("Explore")}
                     {...agentHandle({ handle: `${handleBase}-explore` }, { role: "button", label: `Explore the "${themeId}" theme's files` })}
                   >
-                    <CompassIcon />
+                    <Icon name="compass" size={18} strokeWidth={1.5} />
                   </button>
                   <ThemeCardMenu
                     themeId={themeId}

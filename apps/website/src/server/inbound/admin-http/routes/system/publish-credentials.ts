@@ -162,48 +162,49 @@ function sendStoreError({ res, err }: { res: Response; err: unknown }, _options 
   sendAdminFailure({ res, error: err }, { operation: "routes/system/publish-credentials", code: "INTERNAL_ERROR" });
 }
 
-export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminPublishCredentialsDeps): void {
-  const readDeps = { sealer: deps.siteAssistantSecretSealer, repo: deps.vendorCredentialSetRepo, loadDeployTargets: deps.loadDeployTargets };
-  const writeDeps = {
-    repo: deps.vendorCredentialSetRepo,
-    sealer: deps.siteAssistantSecretSealer,
-    keyring: deps.siteAssistantSecretKeyring,
-    clock: deps.clock,
-    idGen: deps.idGen,
-    loadDeployTargets: deps.loadDeployTargets,
-  };
-  /** Verifies ONE specific row (the one this route just touched) against its real provider. The
-   *  PROVIDER-PROBE layer never throws — `verify.ts`'s per-provider checkers fold every network
-   *  failure into `"unreachable"` rather than throwing (see that file's own header), so a transient
-   *  network blip can never turn a successful save into a 500. That guarantee does NOT extend to the
-   *  DECRYPT step underneath it: `verifyPublishCredentialById` calls `resolveForPublish`
-   *  (`publish-credentials/store.ts`), which throws `PublishCredentialSecretStoreUnconfiguredError`
-   *  when the stored secret cannot be decrypted (a missing site key, or a tampered/corrupt row)
-   *  — the SAME "surface, don't swallow" contract that module documents for itself. Every caller of
-   *  this function below MUST run through a `try`/`catch` that maps the result via `sendStoreError`.
-   *
-   *  Found live (2026-08-16): this was NOT true for `POST .../:id/verify` below until this fix — it
-   *  had no try/catch at all, so a missing site key took down the WHOLE server process (Express 4
-   *  does not catch an async handler's own rejection, and nothing else in `src/` was catching it at
-   *  the process level either), not just that one request. An earlier version of THIS comment
-   *  claimed `verifyAfterSave` "never throws" without qualifying which layer that applied to — do
-   *  not repeat that mistake; the provider-probe layer's guarantee and the decrypt layer's contract
-   *  are two different things.
-   *
-   *  Returns `null` only if the row vanished between the write this handler just performed and this
-   *  call — treated the same as "nothing to report" by every caller below, never surfaced as an
-   *  error for what was otherwise a successful save.
-   *
-   *  Also heals `account_label` (`store.ts`'s `healAccountLabel`) whenever the result carries one —
-   *  see this file's own header. Deliberately checked via `result.accountLabel !== undefined` rather
-   *  than truthiness: an empty string is not a real account login/username (`verify.ts`'s own
-   *  extractors never produce one — see their doc comments), but the distinction is cheap to keep
-   *  exact rather than relying on that invariant holding forever. The heal is fire-and-forget from
-   *  this function's own caller's point of view (awaited here, but its failure must not turn a
-   *  successful verify into a failed response) — a targeted single-column write against a row this
-   *  same request just confirmed exists has no realistic failure mode short of the DB itself being
-   *  down, at which point the save/verify response the caller already has is still honest. */
-  async function verifyAfterSave({ id }: { id: string }, _optional = {}): Promise<PublishCredentialVerificationResult | undefined> {
+type VerifyAfterSave = (input: { id: string }) => Promise<PublishCredentialVerificationResult | undefined>;
+type CredentialsContext = {
+  deps: AdminPublishCredentialsDeps;
+  readDeps: { sealer: AdminPublishCredentialsDeps["siteAssistantSecretSealer"]; repo: AdminPublishCredentialsDeps["vendorCredentialSetRepo"]; loadDeployTargets: AdminPublishCredentialsDeps["loadDeployTargets"] };
+  writeDeps: Parameters<typeof createPublishCredential>[0];
+  verifyAfterSave: VerifyAfterSave;
+  triggerAccountLabelHeal: (credentials: readonly PublishCredentialSummary[]) => Promise<void>;
+  rejectUnlessAuthorized: (req: Request, res: Response) => Promise<boolean>;
+};
+
+/** Verifies ONE specific row (the one this route just touched) against its real provider. The
+ *  PROVIDER-PROBE layer never throws — `verify.ts`'s per-provider checkers fold every network
+ *  failure into `"unreachable"` rather than throwing (see that file's own header), so a transient
+ *  network blip can never turn a successful save into a 500. That guarantee does NOT extend to the
+ *  DECRYPT step underneath it: `verifyPublishCredentialById` calls `resolveForPublish`
+ *  (`publish-credentials/store.ts`), which throws `PublishCredentialSecretStoreUnconfiguredError`
+ *  when the stored secret cannot be decrypted (a missing site key, or a tampered/corrupt row)
+ *  — the SAME "surface, don't swallow" contract that module documents for itself. Every caller of
+ *  this function below MUST run through a `try`/`catch` that maps the result via `sendStoreError`.
+ *
+ *  Found live (2026-08-16): this was NOT true for `POST .../:id/verify` below until this fix — it
+ *  had no try/catch at all, so a missing site key took down the WHOLE server process (Express 4
+ *  does not catch an async handler's own rejection, and nothing else in `src/` was catching it at
+ *  the process level either), not just that one request. An earlier version of THIS comment
+ *  claimed `verifyAfterSave` "never throws" without qualifying which layer that applied to — do
+ *  not repeat that mistake; the provider-probe layer's guarantee and the decrypt layer's contract
+ *  are two different things.
+ *
+ *  Returns `null` only if the row vanished between the write this handler just performed and this
+ *  call — treated the same as "nothing to report" by every caller below, never surfaced as an
+ *  error for what was otherwise a successful save.
+ *
+ *  Also heals `account_label` (`store.ts`'s `healAccountLabel`) whenever the result carries one —
+ *  see this file's own header. Deliberately checked via `result.accountLabel !== undefined` rather
+ *  than truthiness: an empty string is not a real account login/username (`verify.ts`'s own
+ *  extractors never produce one — see their doc comments), but the distinction is cheap to keep
+ *  exact rather than relying on that invariant holding forever. The heal is fire-and-forget from
+ *  this function's own caller's point of view (awaited here, but its failure must not turn a
+ *  successful verify into a failed response) — a targeted single-column write against a row this
+ *  same request just confirmed exists has no realistic failure mode short of the DB itself being
+ *  down, at which point the save/verify response the caller already has is still honest. */
+function buildVerifyAfterSave({ deps }: { deps: AdminPublishCredentialsDeps }): VerifyAfterSave {
+  return async function verifyAfterSave({ id }: { id: string }, _optional = {}): Promise<PublishCredentialVerificationResult | undefined> {
     const result = await verifyPublishCredentialById(
       {
         repo: deps.vendorCredentialSetRepo,
@@ -219,40 +220,46 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
       await healAccountLabel({ repo: deps.vendorCredentialSetRepo }, { workspaceId: deps.workspaceId, id, accountLabel: result.accountLabel });
     }
     return result ?? undefined;
-  }
+  };
+}
 
+/** Hands the scheduler every listed row still missing an account label whose host can produce one
+ *  (the host's declared `yieldsAccountLabel`). Runs after the response is sent, so a registry load
+ *  failure is logged and swallowed: it must never reach the request that triggered it. */
+function buildTriggerAccountLabelHeal({ deps, verifyAfterSave }: { deps: AdminPublishCredentialsDeps; verifyAfterSave: VerifyAfterSave }): (credentials: readonly PublishCredentialSummary[]) => Promise<void> {
   /** Built ONCE per route registration, like `verifyAfterSave` itself — its in-flight dedupe only
    *  works if it survives between requests. `heal` is `verifyAfterSave` verbatim: a background self-
    *  heal does exactly what a human clicking "Verify" already does, through the same function, never a
    *  parallel code path that could drift from it. See this file's own header ("second pass") and
    *  `account-label-heal-scheduler.ts`'s header for the full reasoning. */
   const accountLabelHealScheduler = createAccountLabelHealScheduler({ heal: verifyAfterSave });
-
-  /** Hands the scheduler every listed row still missing an account label whose host can produce one
-   *  (the host's declared `yieldsAccountLabel`). Runs after the response is sent, so a registry load
-   *  failure is logged and swallowed: it must never reach the request that triggered it. */
-  async function triggerAccountLabelHeal(credentials: readonly PublishCredentialSummary[]): Promise<void> {
+  return async function triggerAccountLabelHeal(credentials) {
     try {
       const registry = await deps.loadDeployTargets({ workspaceId: deps.workspaceId });
       accountLabelHealScheduler.triggerFor(idsNeedingAccountLabelHeal({ credentials, canYieldAccountLabel: (providerId) => canYieldAccountLabel(registry, providerId) }));
     } catch (err) {
       console.error("[publish-credentials] account-label heal skipped: deploy targets could not be loaded", err);
     }
-  }
+  };
+}
 
-  /** Shared workspace-path-param + `system.publish` authorization check every verb below performs
-   *  first — same two-step `publish-site.ts` already repeats per-route; extracted here since this
-   *  file has four verbs instead of that file's two. Returns `true` and has already written the
-   *  response iff the caller should stop. */
-  async function rejectUnlessAuthorized(req: Request, res: Response): Promise<boolean> {
+/** Shared workspace-path-param + `system.publish` authorization check every verb below performs
+ *  first — same two-step `publish-site.ts` already repeats per-route; extracted here since this
+ *  file has four verbs instead of that file's two. Returns `true` and has already written the
+ *  response iff the caller should stop. */
+function buildRejectUnlessAuthorized({ deps }: { deps: AdminPublishCredentialsDeps }): (req: Request, res: Response) => Promise<boolean> {
+  return async function rejectUnlessAuthorized(req, res) {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return true;
     const principal = getAuthedPrincipal(res);
     const params = { principalId: principal.id, permission: "system.publish", workspaceId: deps.workspaceId, entityType: "site-publish" };
     if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return true;
     return false;
-  }
+  };
+}
 
-  app.get(BASE_PATH, asyncRoute({ handler: async (req, res) => {
+function listCredentialsRoute(context: CredentialsContext) {
+  const { readDeps, triggerAccountLabelHeal, rejectUnlessAuthorized, deps } = context;
+  return asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     try {
       const credentials: PublishCredentialSummary[] = await listPublishCredentials(readDeps, { workspaceId: deps.workspaceId });
@@ -267,9 +274,12 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
     } catch (err) {
       sendStoreError({ res, err });
     }
-  } }));
+  } });
+}
 
-  app.post(BASE_PATH, asyncRoute({ handler: async (req, res) => {
+function createCredentialRoute(context: CredentialsContext) {
+  const { writeDeps, verifyAfterSave, rejectUnlessAuthorized, deps } = context;
+  return asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     const body = (req.body ?? {}) as Record<string, unknown>;
     try {
@@ -294,9 +304,12 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
     } catch (err) {
       sendStoreError({ res, err });
     }
-  } }));
+  } });
+}
 
-  app.put(`${BASE_PATH}/:id`, asyncRoute({ handler: async (req, res) => {
+function updateCredentialRoute(context: CredentialsContext) {
+  const { readDeps, writeDeps, verifyAfterSave, rejectUnlessAuthorized, deps } = context;
+  return asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     const body = (req.body ?? {}) as Record<string, unknown>;
     try {
@@ -316,9 +329,12 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
     } catch (err) {
       sendStoreError({ res, err });
     }
-  } }));
+  } });
+}
 
-  app.post(`${BASE_PATH}/:id/verify`, asyncRoute({ handler: async (req, res) => {
+function verifyCredentialRoute(context: CredentialsContext) {
+  const { readDeps, verifyAfterSave, rejectUnlessAuthorized, deps } = context;
+  return asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     try {
       const existing = await describeCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
@@ -336,9 +352,12 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
       // shape just below/above — this route was the one place that pattern was missing.
       sendStoreError({ res, err });
     }
-  } }));
+  } });
+}
 
-  app.delete(`${BASE_PATH}/:id`, asyncRoute({ handler: async (req, res) => {
+function deleteCredentialRoute(context: CredentialsContext) {
+  const { readDeps, rejectUnlessAuthorized, deps } = context;
+  return asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     try {
       // Idempotent — `deletePublishCredential`/`VendorCredentialSetRepoPort.delete` are both no-ops
@@ -353,5 +372,33 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
     } catch (err) {
       sendStoreError({ res, err });
     }
-  } }));
+  } });
+}
+
+function buildCredentialsContext({ deps }: { deps: AdminPublishCredentialsDeps }): CredentialsContext {
+  const verifyAfterSave = buildVerifyAfterSave({ deps });
+  return {
+    deps,
+    readDeps: { sealer: deps.siteAssistantSecretSealer, repo: deps.vendorCredentialSetRepo, loadDeployTargets: deps.loadDeployTargets },
+    writeDeps: {
+      repo: deps.vendorCredentialSetRepo,
+      sealer: deps.siteAssistantSecretSealer,
+      keyring: deps.siteAssistantSecretKeyring,
+      clock: deps.clock,
+      idGen: deps.idGen,
+      loadDeployTargets: deps.loadDeployTargets,
+    },
+    verifyAfterSave,
+    triggerAccountLabelHeal: buildTriggerAccountLabelHeal({ deps, verifyAfterSave }),
+    rejectUnlessAuthorized: buildRejectUnlessAuthorized({ deps }),
+  };
+}
+
+export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminPublishCredentialsDeps): void {
+  const context = buildCredentialsContext({ deps });
+  app.get(BASE_PATH, listCredentialsRoute(context));
+  app.post(BASE_PATH, createCredentialRoute(context));
+  app.put(`${BASE_PATH}/:id`, updateCredentialRoute(context));
+  app.post(`${BASE_PATH}/:id/verify`, verifyCredentialRoute(context));
+  app.delete(`${BASE_PATH}/:id`, deleteCredentialRoute(context));
 }

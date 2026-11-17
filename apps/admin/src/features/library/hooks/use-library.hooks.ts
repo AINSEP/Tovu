@@ -213,7 +213,8 @@ function useLibraryPreview({ port, t }: { port: LibraryPort; t: (key: string) =>
   return { preview, openPreview, closePreview };
 }
 
-export function useLibrary({ port, locale, t }: LibraryDependencies): LibraryController {
+/** The document list, the caller's permissions and the principal-id → username map, kept fresh by content refreshes. */
+function useLibraryData({ port }: { port: LibraryDependencies["port"] }) {
   const list = useFetchQuery({ key: LIBRARY_KEYS.documents, fetch: () => port.listDocuments() });
   const me = useFetchQuery({ key: LIBRARY_KEYS.permissions, fetch: () => port.me() });
   const users = useFetchQuery({
@@ -235,21 +236,47 @@ export function useLibrary({ port, locale, t }: LibraryDependencies): LibraryCon
     () => (users.data ? new Map(users.data.users.map((user) => [user.principalId, user.username])) : NO_USERS),
     [users.data],
   );
+  return { list, permissions, userNames };
+}
 
-  const { uploads, addFiles, clearUploads, uploadedCount } = useLibraryUploads({ port: port, t: t });
-  const { preview, openPreview, closePreview } = useLibraryPreview({ port: port, t: t });
+type LibraryPreview = ReturnType<typeof useLibraryPreview>;
 
+/** Moves one document to Trash, closing its preview and reporting through the row's shared feedback state. */
+function useLibraryTrash({ port, t, preview, closePreview, feedback }: { port: LibraryDependencies["port"]; t: LibraryDependencies["t"]; preview: LibraryPreview["preview"]; closePreview: LibraryPreview["closePreview"]; feedback: { setRowError: (value: string | null) => void; setNotice: (value: string | null) => void } }) {
+  const { setRowError, setNotice } = feedback;
+  const [trashingId, setTrashingId] = useState<string | null>(null);
+  const trashMutation = useFetchMutation({
+    run: ({ input: id }: { input: string }) => port.trashDocument({ id }),
+  }, { invalidates: [LIBRARY_KEYS.documents] });
+
+  async function trash(item: AdminMedia) {
+    if (trashingId) return;
+    setRowError(null);
+    setNotice(null);
+    setTrashingId(item.id);
+    try {
+      await trashMutation.mutate({ input: item.id });
+      if (preview?.item.id === item.id) closePreview();
+      setNotice(t("Moved to Trash."));
+    } catch (failure) {
+      setRowError(describeApiError({ e: failure, fallback: t("Move to Trash failed.") }));
+    } finally {
+      setTrashingId(null);
+    }
+  }
+
+  return { trash, trashingId };
+}
+
+/** Inline rename and move-to-Trash, which share one row error and one notice. */
+function useLibraryRowActions({ port, t, preview, closePreview }: { port: LibraryDependencies["port"]; t: LibraryDependencies["t"]; preview: LibraryPreview["preview"]; closePreview: LibraryPreview["closePreview"] }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
-  const [trashingId, setTrashingId] = useState<string | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const renameMutation = useFetchMutation({
     run: ({ input }: { input: { id: string; title: string } }) => port.renameDocument({ target: { id: input.id }, input: { title: input.title } }),
-  }, { invalidates: [LIBRARY_KEYS.documents] });
-  const trashMutation = useFetchMutation({
-    run: ({ input: id }: { input: string }) => port.trashDocument({ id }),
   }, { invalidates: [LIBRARY_KEYS.documents] });
 
   const start = useCallback((item: AdminMedia) => {
@@ -273,21 +300,25 @@ export function useLibrary({ port, locale, t }: LibraryDependencies): LibraryCon
     }
   }
 
-  async function trash(item: AdminMedia) {
-    if (trashingId) return;
-    setRowError(null);
-    setNotice(null);
-    setTrashingId(item.id);
-    try {
-      await trashMutation.mutate({ input: item.id });
-      if (preview?.item.id === item.id) closePreview();
-      setNotice(t("Moved to Trash."));
-    } catch (failure) {
-      setRowError(describeApiError({ e: failure, fallback: t("Move to Trash failed.") }));
-    } finally {
-      setTrashingId(null);
-    }
-  }
+  const rename = {
+    editingId,
+    draft,
+    setDraft,
+    start,
+    cancel,
+    save,
+    saving: renameMutation.status === "pending",
+    invalid: validDocumentStem({ draft: draft }) === null,
+  };
+  const { trash, trashingId } = useLibraryTrash({ port, t, preview, closePreview, feedback: { setRowError, setNotice } });
+  return { rename, trash, trashingId, rowError, notice, dismissNotice: () => setNotice(null) };
+}
+
+export function useLibrary({ port, locale, t }: LibraryDependencies): LibraryController {
+  const { list, permissions, userNames } = useLibraryData({ port });
+  const { uploads, addFiles, clearUploads, uploadedCount } = useLibraryUploads({ port: port, t: t });
+  const { preview, openPreview, closePreview } = useLibraryPreview({ port: port, t: t });
+  const rowActions = useLibraryRowActions({ port, t, preview, closePreview });
 
   return {
     documents: list.data ? sortDocuments(list.data.media) : undefined,
@@ -298,21 +329,7 @@ export function useLibrary({ port, locale, t }: LibraryDependencies): LibraryCon
     uploadedCount,
     addFiles,
     clearUploads,
-    rename: {
-      editingId,
-      draft,
-      setDraft,
-      start,
-      cancel,
-      save,
-      saving: renameMutation.status === "pending",
-      invalid: validDocumentStem({ draft: draft }) === null,
-    },
-    trash,
-    trashingId,
-    rowError,
-    notice,
-    dismissNotice: () => setNotice(null),
+    ...rowActions,
     preview,
     openPreview,
     closePreview,

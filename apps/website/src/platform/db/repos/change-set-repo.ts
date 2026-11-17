@@ -16,7 +16,7 @@ import type {
 /**
  * @file SPEC-023 / ADR-046 Phase 1 — THE `ChangeSetRepoPort` adapter: one Kysely query body for every
  * dialect (storage plan §4, ADR-066). ADR-006 rule-of-two "second adapter" half;
- * `core/commands/repo.memory.ts`'s `InMemoryChangeSetRepo` is the first.
+ * Jini `@jini-ai/cms/core/commands`'s `InMemoryChangeSetRepo` is the first.
  * `sqlite/change-set-repo.sqlite.ts` is the thin subclass the composition root builds.
  *
  * Purpose:

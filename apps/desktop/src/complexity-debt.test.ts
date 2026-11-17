@@ -37,12 +37,12 @@ test("identity is (rule, file, message) and excludes the line number", () => {
 test("two identical messages in one file are TWO violations, not one", () => {
   const one = [v(CYC, "a.ts", "same")];
   const two = [v(CYC, "a.ts", "same"), v(CYC, "a.ts", "same")];
-  assert.equal(diffAgainstBaseline(one, two).added.length, 1, "the second occurrence is new debt");
-  assert.equal(diffAgainstBaseline(two, one).removed.length, 1, "and fixing one of them registers");
+  assert.equal(diffAgainstBaseline({ baseline: one, current: two }).added.length, 1, "the second occurrence is new debt");
+  assert.equal(diffAgainstBaseline({ baseline: two, current: one }).removed.length, 1, "and fixing one of them registers");
 });
 
 test("a violation in the baseline that no longer reproduces is reported as removed, not as a failure", () => {
-  const { added, removed } = diffAgainstBaseline([v(CYC, "a.ts", "gone")], []);
+  const { added, removed } = diffAgainstBaseline({ baseline: [v(CYC, "a.ts", "gone")], current: [] });
   assert.deepEqual(added, []);
   assert.equal(removed.length, 1);
 });

@@ -1,5 +1,5 @@
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 
 import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
 import { authorizeForHooks, confirm, execute, ForbiddenError, PlanStaleError, plan, type GatedMutationHooks } from "#src/contracts/core/gated-mutations/gateway";
@@ -34,147 +34,153 @@ function statusFor({ err }: { err: unknown }, _optional = {}): { status: number;
   return { status: 500, code: "INTERNAL_ERROR" };
 }
 
-export function registerAdminDatabaseMigrateForwardRoutes(app: Express, deps: RouteDeps): void {
-  app.post("/api/admin/v1/database/migrate-forward/plan", async (_req, res) => {
-    try {
-      const principal = getAuthedPrincipal(res);
-      const hooks = buildMigrateForwardHooks({
-        workspaceId: deps.workspaceId,
-        actorId: principal.id,
-        clock: deps.clock,
-        idGen: deps.idGen,
-        dbOps: deps.dbOps,
-        restorePointsRepo: deps.restorePointsRepo,
-        databaseLedgerRepo: deps.databaseLedgerRepo,
-      });
+function sendMigrateForwardFailure(input: { res: Response; err: unknown }): void {
+  const { res, err } = input;
+  const { status, code } = statusFor({ err });
+  if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
+  res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
+}
 
-      const result = await plan({
-        deps: deps.gatedMutations.gatewayDeps,
-        principalId: principal.id,
-        principalKind: "user",
-        hooks: hooks as unknown as GatedMutationHooks<unknown, unknown>,
-      });
-
-      res.json(result);
-    } catch (err) {
-      const { status, code } = statusFor({ err });
-      if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
-      res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
-    }
+/** The migrate hooks every plan/execute call builds the same way. */
+function migrateHooksFor(input: { deps: RouteDeps; actorId: string }) {
+  const { deps, actorId } = input;
+  return buildMigrateForwardHooks({
+    workspaceId: deps.workspaceId,
+    actorId,
+    clock: deps.clock,
+    idGen: deps.idGen,
+    dbOps: deps.dbOps,
+    restorePointsRepo: deps.restorePointsRepo,
+    databaseLedgerRepo: deps.databaseLedgerRepo,
   });
+}
 
-  app.post("/api/admin/v1/database/migrate-forward/confirm", async (req, res) => {
-    try {
-      const principal = getAuthedPrincipal(res);
-      const { planId, planHash } = req.body ?? {};
-      if (typeof planId !== "string" || typeof planHash !== "string") {
-        res.status(400).json({ error: "'planId' and 'planHash' (strings) are required", code: "VALIDATION_ERROR" });
-        return;
-      }
+async function handleMigratePlan(input: { deps: RouteDeps; res: Response }): Promise<void> {
+  const { deps, res } = input;
+  try {
+    const principal = getAuthedPrincipal(res);
+    const hooks = migrateHooksFor({ deps, actorId: principal.id });
 
-      const hooks = buildConfirmOnlyHooks({
+    const result = await plan({
+      deps: deps.gatedMutations.gatewayDeps,
+      principalId: principal.id,
+      principalKind: "user",
+      hooks: hooks as unknown as GatedMutationHooks<unknown, unknown>,
+    });
+
+    res.json(result);
+  } catch (err) {
+    sendMigrateForwardFailure({ res, err });
+  }
+}
+
+async function handleMigrateConfirm(input: { deps: RouteDeps; req: Request; res: Response }): Promise<void> {
+  const { deps, req, res } = input;
+  try {
+    const principal = getAuthedPrincipal(res);
+    const { planId, planHash } = req.body ?? {};
+    if (typeof planId !== "string" || typeof planHash !== "string") {
+      res.status(400).json({ error: "'planId' and 'planHash' (strings) are required", code: "VALIDATION_ERROR" });
+      return;
+    }
+
+    const hooks = buildConfirmOnlyHooks({
+      domain: MIGRATE_PERMISSION,
+      readPermission: "database.read",
+      mutatePermission: MIGRATE_PERMISSION,
+      scopeId: deps.workspaceId,
+      scopeKind: "instance",
+    });
+
+    const record = await confirm({
+      deps: deps.gatedMutations.gatewayDeps,
+      principalId: principal.id,
+      principalKind: "user",
+      hooks,
+      planId,
+      planHash,
+    });
+
+    res.json({ confirmationToken: record.confirmationToken });
+  } catch (err) {
+    sendMigrateForwardFailure({ res, err });
+  }
+}
+
+async function handleMigrateExecute(input: { deps: RouteDeps; req: Request; res: Response }): Promise<void> {
+  const { deps, req, res } = input;
+  try {
+    const principal = getAuthedPrincipal(res);
+
+    // Audit finding AUD-001 (2026-07-16, external audit TM-20260716-full-session-001):
+    // executeMigrateForward acquires the shared cross-domain operation lock strictly before
+    // gatewayExecute() runs (U-003-ORD1) -- that ordering exists for mutation-failure/lock-leak
+    // safety, not authorization, so an unauthorized-but-authenticated caller could still reach
+    // and briefly hold the lock before the gateway's own authorize() rejected them, contending
+    // with a concurrent authorized migration. Authorize inline, before any lock acquisition; the
+    // gateway's fresh authorize() re-check at execute time (CIC U-001) remains the authoritative
+    // check and is unchanged by this.
+    //
+    // Routed through `authorizeForHooks` (not a hardcoded `deps.authorize` workspace-scoped
+    // call) with `scopeKind: "instance"` -- `database.migrate`'s real scope, per
+    // `features/database/gated-hooks.ts`'s `buildMigrateForwardHooks` doc comment -- so this
+    // pre-check agrees with what `execute()`'s own internal check will decide. A hardcoded
+    // workspace-scoped check here would let a workspace-scoped-but-not-instance-authorized
+    // caller pass this gate, briefly hold the lock, and only then be rejected deeper inside
+    // `execute()` -- reopening the very race AUD-001 closed, one layer up.
+    const authResult = await authorizeForHooks(
+      { deps: deps.gatedMutations.gatewayDeps,
+      hooks: buildConfirmOnlyHooks({
         domain: MIGRATE_PERMISSION,
         readPermission: "database.read",
         mutatePermission: MIGRATE_PERMISSION,
         scopeId: deps.workspaceId,
         scopeKind: "instance",
+      }),
+      required: { principalId: principal.id, permission: MIGRATE_PERMISSION } }
+    );
+    if (!authResult.allowed) {
+      res.status(403).json({
+        error: `principal '${principal.id}' is not authorized for 'database.migrate' (${authResult.reason})`,
+        code: "FORBIDDEN",
+        details: { permission: MIGRATE_PERMISSION, reason: authResult.reason },
       });
-
-      const record = await confirm({
-        deps: deps.gatedMutations.gatewayDeps,
-        principalId: principal.id,
-        principalKind: "user",
-        hooks,
-        planId,
-        planHash,
-      });
-
-      res.json({ confirmationToken: record.confirmationToken });
-    } catch (err) {
-      const { status, code } = statusFor({ err });
-      if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
-      res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
+      return;
     }
-  });
 
-  app.post("/api/admin/v1/database/migrate-forward/execute", async (req, res) => {
-    try {
-      const principal = getAuthedPrincipal(res);
+    const { confirmationToken } = req.body ?? {};
+    if (typeof confirmationToken !== "string") {
+      res.status(400).json({ error: "'confirmationToken' (string) is required", code: "VALIDATION_ERROR" });
+      return;
+    }
 
-      // Audit finding AUD-001 (2026-07-16, external audit TM-20260716-full-session-001):
-      // executeMigrateForward acquires the shared cross-domain operation lock strictly before
-      // gatewayExecute() runs (U-003-ORD1) -- that ordering exists for mutation-failure/lock-leak
-      // safety, not authorization, so an unauthorized-but-authenticated caller could still reach
-      // and briefly hold the lock before the gateway's own authorize() rejected them, contending
-      // with a concurrent authorized migration. Authorize inline, before any lock acquisition; the
-      // gateway's fresh authorize() re-check at execute time (CIC U-001) remains the authoritative
-      // check and is unchanged by this.
-      //
-      // Routed through `authorizeForHooks` (not a hardcoded `deps.authorize` workspace-scoped
-      // call) with `scopeKind: "instance"` -- `database.migrate`'s real scope, per
-      // `features/database/gated-hooks.ts`'s `buildMigrateForwardHooks` doc comment -- so this
-      // pre-check agrees with what `execute()`'s own internal check will decide. A hardcoded
-      // workspace-scoped check here would let a workspace-scoped-but-not-instance-authorized
-      // caller pass this gate, briefly hold the lock, and only then be rejected deeper inside
-      // `execute()` -- reopening the very race AUD-001 closed, one layer up.
-      const authResult = await authorizeForHooks(
-        { deps: deps.gatedMutations.gatewayDeps,
-        hooks: buildConfirmOnlyHooks({
-          domain: MIGRATE_PERMISSION,
-          readPermission: "database.read",
-          mutatePermission: MIGRATE_PERMISSION,
-          scopeId: deps.workspaceId,
-          scopeKind: "instance",
+    const hooks = migrateHooksFor({ deps, actorId: principal.id });
+
+    const capabilities = await deps.dbOps.getCapabilities();
+
+    const result = await executeMigrateForward({
+      siteId: deps.workspaceId,
+      confirmationToken,
+      costClass: capabilities.restorePoint.costClass,
+      operationLock: { acquireOperationLock, releaseOperationLock },
+      gatewayExecute: () =>
+        execute({
+          deps: deps.gatedMutations.gatewayDeps,
+          principalId: principal.id,
+          principalKind: "user",
+          hooks: hooks as unknown as GatedMutationHooks<unknown, { migrated: true }>,
+          confirmationToken,
         }),
-        required: { principalId: principal.id, permission: MIGRATE_PERMISSION } }
-      );
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'database.migrate' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: MIGRATE_PERMISSION, reason: authResult.reason },
-        });
-        return;
-      }
+    });
 
-      const { confirmationToken } = req.body ?? {};
-      if (typeof confirmationToken !== "string") {
-        res.status(400).json({ error: "'confirmationToken' (string) is required", code: "VALIDATION_ERROR" });
-        return;
-      }
+    res.json(result);
+  } catch (err) {
+    sendMigrateForwardFailure({ res, err });
+  }
+}
 
-      const hooks = buildMigrateForwardHooks({
-        workspaceId: deps.workspaceId,
-        actorId: principal.id,
-        clock: deps.clock,
-        idGen: deps.idGen,
-        dbOps: deps.dbOps,
-        restorePointsRepo: deps.restorePointsRepo,
-        databaseLedgerRepo: deps.databaseLedgerRepo,
-      });
-
-      const capabilities = await deps.dbOps.getCapabilities();
-
-      const result = await executeMigrateForward({
-        siteId: deps.workspaceId,
-        confirmationToken,
-        costClass: capabilities.restorePoint.costClass,
-        operationLock: { acquireOperationLock, releaseOperationLock },
-        gatewayExecute: () =>
-          execute({
-            deps: deps.gatedMutations.gatewayDeps,
-            principalId: principal.id,
-            principalKind: "user",
-            hooks: hooks as unknown as GatedMutationHooks<unknown, { migrated: true }>,
-            confirmationToken,
-          }),
-      });
-
-      res.json(result);
-    } catch (err) {
-      const { status, code } = statusFor({ err });
-      if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
-      res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
-    }
-  });
+export function registerAdminDatabaseMigrateForwardRoutes(app: Express, deps: RouteDeps): void {
+  app.post("/api/admin/v1/database/migrate-forward/plan", (_req, res) => handleMigratePlan({ deps, res }));
+  app.post("/api/admin/v1/database/migrate-forward/confirm", (req, res) => handleMigrateConfirm({ deps, req, res }));
+  app.post("/api/admin/v1/database/migrate-forward/execute", (req, res) => handleMigrateExecute({ deps, req, res }));
 }

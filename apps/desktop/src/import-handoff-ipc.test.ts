@@ -33,7 +33,7 @@ function fakeWindow({ minimized = false }: { minimized?: boolean } = {}) {
   return { window, calls };
 }
 
-function register({ windows, trusted = () => true }: { windows: () => ImportHandoffWindow[]; trusted?: (url: string) => boolean }) {
+function register({ windows, trusted = () => true }: { windows: () => ImportHandoffWindow[]; trusted?: (required: { senderUrl: string }) => boolean }) {
   const handlers = new Map<string, Handler>();
   registerImportHandoffIpc({
     ipcMain: { handle: (channel: string, handler: RegisteredHandler) => { handlers.set(channel, handler as Handler); } },
@@ -68,7 +68,7 @@ test("with no sites home window open, nothing is sent and the admin hears it was
 test("an untrusted page is refused in plain words and no window is touched", async () => {
   const { window, calls } = fakeWindow();
   const seen: string[] = [];
-  const call = register({ windows: () => [window], trusted: (url) => { seen.push(url); return false; } });
+  const call = register({ windows: () => [window], trusted: ({ senderUrl }) => { seen.push(senderUrl); return false; } });
   await assert.rejects(async () => call({ address: "https://example.com" }, "https://evil.test/admin"), /isn't part of Tovu/);
   assert.deepEqual(seen, ["https://evil.test/admin"]);
   assert.deepEqual(calls, []);
@@ -98,7 +98,7 @@ test("main/index.ts registers the hand-off with the speech channels' shell-page 
   const call = source.match(/registerImportHandoffIpc\(\{([\s\S]*?)\}\);/);
   assert.ok(call, "registerImportHandoffIpc is called");
   assert.match(call[1]!, /ipcMain/);
-  assert.match(call[1]!, /isTrustedSender: \(raw\) => isShellPage\(\{ raw \}\)/);
+  assert.match(call[1]!, /isTrustedSender: \(\{ senderUrl \}\) => isShellPage\(\{ raw: senderUrl \}\)/);
   assert.match(call[1]!, /sitesHomeWindows/);
   const appWide = source.slice(source.indexOf("function registerAppWideIpc"), source.indexOf("function installAppWideMenu"));
   assert.match(appWide, /registerImportHandoffIpc\(/, "registered with the other app-wide IPC, before any window can call it");

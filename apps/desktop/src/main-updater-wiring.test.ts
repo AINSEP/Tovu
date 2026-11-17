@@ -1,7 +1,7 @@
 /**
  * @file Static-analysis tests for `main/index.ts`'s auto-updater wiring. Source text, for the reason
  * `main-shutdown-wiring.test.ts` gives: the entry requires `"electron"` at module scope. The
- * updater's behaviour (the skip gate, lazy loading, will-quit, a rejected start being logged) is
+ * updater's behaviour (the skip gate, will-quit, a rejected start being logged) is
  * proven in `main/updates/desktop-updater.test.ts`, and that the boot starts it without awaiting it
  * in `main/boot/boot-sequence.test.ts`; this file checks only what the entry alone can get wrong.
  */

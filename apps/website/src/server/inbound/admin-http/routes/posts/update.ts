@@ -108,6 +108,140 @@ function sendPostUpdateError({ res, err }: { res: Response; err: unknown }, _opt
   sendAdminFailure({ res, error: err }, { operation: "routes/posts/update", code: "INTERNAL_ERROR", message: "The post could not be saved." });
 }
 
+type PostUpdateDeps = Parameters<ContentRouteRegistrar>[0]["deps"];
+
+/**
+ * Admin URLs use the slug when one resolves (2026-08-10) — resolve to the real stable id up
+ * front, before the command gateway starts, so `entityId`/`captureInverse`/`updatePost` all
+ * key off the same real id even when the URL's own slug is one of the fields being changed in
+ * this very request. Falls back to the raw param on no match, which reaches the exact same
+ * "not found" 404 path this route already had (captureInverse's own findById returns null).
+ * Any other failure propagates to the caller.
+ */
+async function resolvePostIdForUpdate(input: { deps: PostUpdateDeps; rawParam: string }): Promise<string> {
+  const { deps, rawParam } = input;
+  try {
+    return (await getAdminPostByIdOrSlug({
+      deps: { repo: deps.postRepo },
+      input: { workspaceId: deps.workspaceId, idOrSlug: rawParam },
+    })).post.id;
+  } catch (error) {
+    if (!(error instanceof PostNotFoundError)) throw error;
+    // A missing post keeps the existing raw-id lookup and not-found response.
+    return rawParam;
+  }
+}
+
+/** The pre-edit field set the gateway stores as the inverse of an update. */
+function postUpdateInverse(priorPost: PostRecord) {
+  return {
+    title: priorPost.title,
+    slug: priorPost.slug,
+    bodyJson: priorPost.bodyJson,
+    status: priorPost.status,
+    templateChoice: priorPost.templateChoice ?? null,
+    // Tri-state (2026-08-15) — `?? null`, not `?? false`. This is the rollback inverse: if
+    // the pre-edit row was genuinely "never decided" (`undefined`/`null`) and the edit that
+    // just ran set an explicit `true`/`false`, a gateway rollback must restore "never
+    // decided", not silently manufacture an explicit "theme page wins" the author never
+    // chose. Coalescing to `false` here would be the exact same coercion bug this whole
+    // change removes, just relocated to the one path that only runs on failure.
+    overridesThemePage: priorPost.overridesThemePage ?? null,
+    // Scheduled publishing / featured image (2026-10-05) — `null` restores "none".
+    publishAt: priorPost.publishAt ?? null,
+    featuredMediaId: priorPost.featuredMediaId ?? null,
+    author: priorPost.author ?? null,
+    showAuthor: priorPost.showAuthor ?? false,
+    // SPEC-005 BR-08 (T024) — the pre-edit plugin `ext` bag travels in the pre-image
+    // alongside the core fields, so one revert restores both together. Spread
+    // conditionally: an entry with no `ext` yet must produce an inverse payload with
+    // no `ext` key, which is what restores it to "namespace absent" (AC-17).
+    ...(priorPost.ext !== undefined ? { ext: priorPost.ext } : {}),
+  };
+}
+
+/** Parse the request body and apply the update through `updatePost`. */
+async function applyPostUpdate(input: { deps: PostUpdateDeps; postId: string; rawBody: unknown; principalId: string }) {
+  const { deps, postId, rawBody, principalId } = input;
+  const body = parsePostUpdateBody({ rawBody });
+  return updatePost({
+    deps: {
+      repo: deps.postRepo,
+      clock: deps.clock,
+      outbox: deps.outbox,
+      beforeSaveHook: deps.pluginBeforeSaveHook,
+      slugChangeCapture: deps.slugChangeCapture,
+    },
+    input: {
+      workspaceId: deps.workspaceId,
+      id: postId,
+      ...body,
+      // The same image check the `content_post_update` chat tool runs (2026-10-05): a video,
+      // unknown or trashed asset is a 400 here, and a media slug is stored as its id. Inside
+      // `execute`, after the gateway's `content.write` check, so an unauthorized caller
+      // cannot probe the media library through this field's error messages.
+      featuredMediaId: await resolveFeaturedMediaIdForWrite({
+        deps: { mediaRepo: deps.mediaRepo, mediaContentTypeStore: deps.mediaContentTypeStore },
+        input: { workspaceId: deps.workspaceId, featuredMediaId: body.featuredMediaId },
+      }),
+      actorId: principalId,
+      analyticsSource: "admin",
+    },
+  });
+}
+
+/** Run the update as one change-set command and return the updated post. */
+async function executePostUpdate(input: {
+  deps: PostUpdateDeps;
+  postId: string;
+  rawBody: unknown;
+  idempotencyKey: string | undefined;
+  principalId: string;
+}) {
+  const { deps, postId, rawBody, idempotencyKey, principalId } = input;
+  // Full pre-edit record, captured in captureInverse and reused verbatim by
+  // rollback so the gateway's unit-of-work compensation (SPEC-001
+  // REQ-01/EC-08/AC-17) restores the post exactly — version included — if the
+  // change-set record fails to persist after updatePost applies.
+  let priorPost: PostRecord | null = null;
+  const { result } = await executeCommand({
+    deps: {
+      clock: deps.clock,
+      idGen: deps.idGen,
+      changeSets: deps.changeSets,
+      outbox: deps.outbox,
+      authorize: deps.authorize,
+    },
+    command: {
+      workspaceId: deps.workspaceId,
+      actor: { id: principalId, kind: "user" },
+      summary: `Update post ${postId}`,
+      idempotencyKey,
+      permission: "content.write",
+    },
+    mutation: {
+      entityType: "post",
+      entityId: postId,
+      operation: "update",
+      captureInverse: async () => {
+        priorPost = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: postId });
+        if (!priorPost) return null; // execute() throws PostNotFoundError → 404 below
+        return postUpdateInverse(priorPost);
+      },
+      execute: () => applyPostUpdate({ deps, postId, rawBody, principalId }),
+      captureEntityVersion: ({ result }) => result.post.version,
+      rollback: async () => {
+        if (!priorPost) return;
+        await restorePostForward({
+          deps: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox, forgetRemoved: deps.forgetRemovedPost },
+          input: { prior: priorPost, actorId: principalId },
+        });
+      },
+    },
+  });
+  return result;
+}
+
 /**
  * PUT post — routed through the command gateway (SPEC-001 REQ-04).
  *
@@ -139,127 +273,15 @@ export const registerAdminPostUpdateRoute: ContentRouteRegistrar = ({ app, deps 
       if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 
       const rawParam = String(req.params.postId ?? "");
-      // Admin URLs use the slug when one resolves (2026-08-10) — resolve to the real stable id up
-      // front, before the command gateway starts, so `entityId`/`captureInverse`/`updatePost` all
-      // key off the same real id even when the URL's own slug is one of the fields being changed in
-      // this very request. Falls back to the raw param on no match, which reaches the exact same
-      // "not found" 404 path this route already had (captureInverse's own findById returns null).
-      let postId: string;
-      try {
-        postId = (await getAdminPostByIdOrSlug({
-          deps: { repo: deps.postRepo },
-          input: { workspaceId: deps.workspaceId, idOrSlug: rawParam },
-        })).post.id;
-      } catch (error) {
-        if (!(error instanceof PostNotFoundError)) {
-          sendPostUpdateError({ res, err: error });
-          return;
-        }
-        // A missing post keeps the existing raw-id lookup and not-found response.
-        postId = rawParam;
-      }
       const idempotencyKey = req.get("Idempotency-Key") || undefined;
 
-      // Full pre-edit record, captured in captureInverse and reused verbatim by
-      // rollback so the gateway's unit-of-work compensation (SPEC-001
-      // REQ-01/EC-08/AC-17) restores the post exactly — version included — if the
-      // change-set record fails to persist after updatePost applies.
-      let priorPost: PostRecord | null = null;
-
       try {
+        const postId = await resolvePostIdForUpdate({ deps, rawParam });
         // Inside the try: requireAdminSession always sets res.locals.principal before this
         // route runs, but Express 4 doesn't catch a synchronous throw from an async handler
         // outside try/catch (the request would otherwise hang instead of 500ing).
         const principal = getAuthedPrincipal(res);
-        const { result } = await executeCommand({
-          deps: {
-            clock: deps.clock,
-            idGen: deps.idGen,
-            changeSets: deps.changeSets,
-            outbox: deps.outbox,
-            authorize: deps.authorize,
-          },
-          command: {
-            workspaceId: deps.workspaceId,
-            actor: { id: principal.id, kind: "user" },
-            summary: `Update post ${postId}`,
-            idempotencyKey,
-            permission: "content.write",
-          },
-          mutation: {
-            entityType: "post",
-            entityId: postId,
-            operation: "update",
-            captureInverse: async () => {
-              priorPost = await deps.postRepo.findById({ workspaceId: deps.workspaceId, id: postId });
-              if (!priorPost) return null; // execute() throws PostNotFoundError → 404 below
-              return {
-                title: priorPost.title,
-                slug: priorPost.slug,
-                bodyJson: priorPost.bodyJson,
-                status: priorPost.status,
-                templateChoice: priorPost.templateChoice ?? null,
-                // Tri-state (2026-08-15) — `?? null`, not `?? false`. This is the rollback inverse: if
-                // the pre-edit row was genuinely "never decided" (`undefined`/`null`) and the edit that
-                // just ran set an explicit `true`/`false`, a gateway rollback must restore "never
-                // decided", not silently manufacture an explicit "theme page wins" the author never
-                // chose. Coalescing to `false` here would be the exact same coercion bug this whole
-                // change removes, just relocated to the one path that only runs on failure.
-                overridesThemePage: priorPost.overridesThemePage ?? null,
-                // Scheduled publishing / featured image (2026-10-05) — `null` restores "none".
-                publishAt: priorPost.publishAt ?? null,
-                featuredMediaId: priorPost.featuredMediaId ?? null,
-                author: priorPost.author ?? null,
-                showAuthor: priorPost.showAuthor ?? false,
-                // SPEC-005 BR-08 (T024) — the pre-edit plugin `ext` bag travels in the pre-image
-                // alongside the core fields, so one revert restores both together. Spread
-                // conditionally: an entry with no `ext` yet must produce an inverse payload with
-                // no `ext` key, which is what restores it to "namespace absent" (AC-17).
-                ...(priorPost.ext !== undefined ? { ext: priorPost.ext } : {}),
-              };
-            },
-            execute: async () => {
-              const body = parsePostUpdateBody({ rawBody: req.body });
-              return updatePost({
-                deps: {
-                  repo: deps.postRepo,
-                  clock: deps.clock,
-                  outbox: deps.outbox,
-                  beforeSaveHook: deps.pluginBeforeSaveHook,
-                  slugChangeCapture: deps.slugChangeCapture,
-                },
-                input: {
-                  workspaceId: deps.workspaceId,
-                  id: postId,
-                  ...body,
-                  // The same image check the `content_post_update` chat tool runs (2026-10-05): a video,
-                  // unknown or trashed asset is a 400 here, and a media slug is stored as its id. Inside
-                  // `execute`, after the gateway's `content.write` check, so an unauthorized caller
-                  // cannot probe the media library through this field's error messages.
-                  featuredMediaId: await resolveFeaturedMediaIdForWrite({
-                    deps: { mediaRepo: deps.mediaRepo, mediaContentTypeStore: deps.mediaContentTypeStore },
-                    input: { workspaceId: deps.workspaceId, featuredMediaId: body.featuredMediaId },
-                  }),
-                  actorId: principal.id,
-                  analyticsSource: "admin",
-                },
-              });
-            },
-            captureEntityVersion: ({ result }) => result.post.version,
-            rollback: async () => {
-              if (!priorPost) return;
-              await restorePostForward({
-                deps: {
-                  repo: deps.postRepo,
-                  clock: deps.clock,
-                  outbox: deps.outbox,
-                  forgetRemoved: deps.forgetRemovedPost,
-                },
-                input: { prior: priorPost, actorId: principal.id },
-              });
-            },
-          },
-        });
+        const result = await executePostUpdate({ deps, postId, rawBody: req.body, idempotencyKey, principalId: principal.id });
 
         // SPEC-008 (ADR-PIPE-008 Decision §5) — drains the outbox so `updatePost`'s
         // `entry.published`/`entry.updated`/`entry.unpublished` event (if any) actually reaches

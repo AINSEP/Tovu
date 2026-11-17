@@ -67,310 +67,27 @@
  * appear anywhere in `ci.yml`) — adding drift-checking for a project nothing type-checks in CI
  * would not be enforced by anything and is out of this task's scope.
  */
-import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
+import { check, parseDiagnosticBlocks } from "@jini-ai/devops/checks/published-types";
+import { createNodeFilesystem, createNodeProcessRunner, createNpmInstaller } from "@jini-ai/devops/checks/node";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
+/** CI type-checks exactly these two projects; `shadowAnchor` is the closer ancestor described in the header. */
 const PROJECTS = [
-  {
-    key: "root",
-    dir: REPO_ROOT,
-    label: "root (apps/website, tsconfig.json)",
-    // Closer ancestor of every included file (`apps/website/src/**`) than the real symlinks at
-    // repo-root `node_modules` — see the header comment for why this has to be a shadowed
-    // `node_modules` directory rather than a tsconfig `paths` override.
-    shadowAnchor: path.join(REPO_ROOT, "apps", "website"),
-  },
-  {
-    key: "admin",
-    dir: path.join(REPO_ROOT, "apps", "admin"),
-    label: "apps/admin",
-    // apps/admin/node_modules (the real, symlinked install) is already the closest ancestor of
-    // apps/admin/src/**, so the shadow has to go one level further in, under src/, to still win.
-    shadowAnchor: path.join(REPO_ROOT, "apps", "admin", "src"),
-  },
+  { key: "root", directory: REPO_ROOT, label: "root (apps/website, tsconfig.json)", shadowAnchor: path.join(REPO_ROOT, "apps", "website") },
+  { key: "admin", directory: path.join(REPO_ROOT, "apps", "admin"), label: "apps/admin", shadowAnchor: path.join(REPO_ROOT, "apps", "admin", "src") },
 ];
+const NPM_INSTALL_ARGS = ["install", "--no-audit", "--no-fund", "--no-package-lock", "--workspaces=false"];
 
-/** Compiler options whose values are paths, resolved relative to the tsconfig's own directory. */
-const PATH_LIKE_COMPILER_OPTIONS = ["rootDir", "outDir", "baseUrl", "declarationDir"];
-
-/**
- * Reads a project's registry-resolved `@jini-ai/*` dependency specs (name -> semver spec).
- *
- * A `file:`/`workspace:`/`link:` spec always resolves to real local source, never a registry
- * tarball — `check-no-linked-jini.mjs` applies the same exemption for the same reason. There is
- * no "published version" for those to drift from, so they are skipped.
- *
- * @param {string} projectDir - directory containing the project's package.json
- * @returns {Record<string,string>} `@jini-ai/*` dependency name -> semver spec
- * @complexity O(d) over the project's declared dependency count
- */
-function readJiniDependencies(projectDir) {
-  const manifest = JSON.parse(readFileSync(path.join(projectDir, "package.json"), "utf8"));
-  const specs = { ...manifest.dependencies, ...manifest.devDependencies };
-  const deps = {};
-  for (const [name, spec] of Object.entries(specs)) {
-    if (!name.startsWith("@jini-ai/")) continue;
-    if (/^(file:|workspace:|link:)/.test(spec)) continue;
-    deps[name] = spec;
-  }
-  return deps;
-}
-
-/**
- * Reads a project's `@jini-ai/*` npm `overrides` entries, so the scratch install resolves the same
- * graph the project's own install does. Without them it models a DIFFERENT consumer: root pins
- * `http-kit`'s `daemon`/`agent-runtime` to its own versions via overrides (http-kit@0.3.7 declares
- * exact older ones), and an override-less install nests `daemon@0.3.7` under `http-kit`, making
- * `agent-daemon-server.ts`'s `RunLifecycle` two unrelated types — drift nobody's real install has.
- * Only entries keyed by a `@jini-ai/*` package are kept: their `$` references point at `@jini-ai/*`
- * deps the scratch install declares, whereas a third-party entry's reference could not resolve there.
- *
- * @param {string} projectDir - directory containing the project's package.json
- * @returns {Record<string,unknown>} `@jini-ai/*`-keyed subset of the manifest's `overrides`
- * @complexity O(o) over the manifest's override entry count
- */
-function readJiniOverrides(projectDir) {
-  const manifest = JSON.parse(readFileSync(path.join(projectDir, "package.json"), "utf8"));
-  return Object.fromEntries(Object.entries(manifest.overrides ?? {}).filter(([key]) => key.startsWith("@jini-ai/")));
-}
-
-/**
- * Builds a self-contained tsconfig object equivalent to the project's real one but relocated: all
- * path-bearing options, any existing `paths` targets, and `include`/`exclude` globs are rewritten
- * to absolute paths so the config still means the same thing once written into a scratch directory
- * nested under `node_modules/`. Deliberately does NOT touch `@jini-ai/*` resolution — that is
- * handled by shadowing a `node_modules` directory (see header comment), not by this tsconfig.
- *
- * @param {string} projectDir - the project's real directory (where its real tsconfig.json lives)
- * @returns {object} a tsconfig-shaped object, ready to `JSON.stringify` and run `tsc -p` against
- * @complexity O(k) over the tsconfig's own option/include/exclude count
- */
-function buildAbsolutizedTsconfig(projectDir) {
-  const real = JSON.parse(readFileSync(path.join(projectDir, "tsconfig.json"), "utf8"));
-  const compilerOptions = { ...(real.compilerOptions ?? {}) };
-
-  for (const key of PATH_LIKE_COMPILER_OPTIONS) {
-    if (typeof compilerOptions[key] === "string") {
-      compilerOptions[key] = path.resolve(projectDir, compilerOptions[key]);
-    }
-  }
-
-  if (compilerOptions.paths) {
-    const paths = {};
-    for (const [alias, targets] of Object.entries(compilerOptions.paths)) {
-      paths[alias] = targets.map((target) => path.resolve(projectDir, target));
-    }
-    compilerOptions.paths = paths;
-    compilerOptions.baseUrl = compilerOptions.baseUrl ?? projectDir;
-  }
-  compilerOptions.noEmit = true;
-
-  const absolutize = (globs) => (globs ?? []).map((glob) => path.resolve(projectDir, glob));
-
+function compileProject({ key, directory, shadowAnchor }) {
   return {
-    compilerOptions,
-    include: absolutize(real.include),
-    exclude: absolutize(real.exclude),
+    key, directory, shadowAnchor, mode: "drift", prerequisites: [],
+    manifestPath: path.join(directory, "package.json"),
+    scratchParent: path.join(directory, "node_modules"),
+    compiler: { command: path.join(directory, "node_modules", ".bin", "tsc"), args: ["--noEmit", "-p", path.join(directory, "tsconfig.json")], cwd: directory },
   };
-}
-
-/**
- * Copies each installed `@jini-ai/*` package from the scratch npm install into a shadow
- * `node_modules` directory that ordinary module resolution reaches before the real symlinked one
- * (see header comment). Returns a cleanup function: removes the whole shadow `node_modules` if this
- * call created it fresh, or just the copied packages if a `node_modules` was already there for some
- * other reason (defensive — not expected in this repo, verified empty before this script runs).
- *
- * @param {string} shadowAnchor - directory whose `node_modules` should shadow the real one
- * @param {string} scratchNodeModules - the scratch install's `node_modules` (source of the copy)
- * @param {string[]} names - `@jini-ai/*` package names to shadow
- * @returns {() => void} cleanup callback — always call this once the shadowed `tsc` run is done
- * @complexity O(n) directory copies, n = number of pinned @jini-ai/* packages
- */
-function createShadow(shadowAnchor, scratchNodeModules, names) {
-  const shadowNodeModules = path.join(shadowAnchor, "node_modules");
-  const preexisting = existsSync(shadowNodeModules);
-  mkdirSync(shadowNodeModules, { recursive: true });
-  for (const name of names) {
-    rmSync(path.join(shadowNodeModules, name), { recursive: true, force: true });
-    cpSync(path.join(scratchNodeModules, name), path.join(shadowNodeModules, name), { recursive: true });
-  }
-  return () => {
-    if (preexisting) {
-      for (const name of names) rmSync(path.join(shadowNodeModules, name), { recursive: true, force: true });
-    } else {
-      rmSync(shadowNodeModules, { recursive: true, force: true });
-    }
-  };
-}
-
-/**
- * Reads the exact installed version of each package from a scratch install, for reporting.
- * @param {string} scratchNodeModules - `<scratchRoot>/node_modules`
- * @param {string[]} names - `@jini-ai/*` package names to look up
- * @returns {Record<string,string>} name -> installed version, or "(not installed)" on failure
- */
-function readInstalledVersions(scratchNodeModules, names) {
-  const versions = {};
-  for (const name of names) {
-    try {
-      const pkg = JSON.parse(readFileSync(path.join(scratchNodeModules, name, "package.json"), "utf8"));
-      versions[name] = pkg.version;
-    } catch {
-      versions[name] = "(not installed)";
-    }
-  }
-  return versions;
-}
-
-/**
- * Runs `tsc --noEmit` for a project against a given (already-written) tsconfig file.
- * @param {{dir: string}} project
- * @param {string} tsconfigPath
- * @returns {{ok: boolean, output: string}}
- */
-function runTsc(project, tsconfigPath) {
-  const tscBin = path.join(project.dir, "node_modules", ".bin", "tsc");
-  try {
-    const stdout = execFileSync(tscBin, ["--noEmit", "-p", tsconfigPath], {
-      cwd: project.dir,
-      stdio: ["ignore", "pipe", "pipe"],
-      encoding: "utf8",
-      maxBuffer: 32 * 1024 * 1024,
-    });
-    return { ok: true, output: stdout };
-  } catch (err) {
-    return { ok: false, output: `${err.stdout ?? ""}${err.stderr ?? ""}` };
-  }
-}
-
-/**
- * Splits `tsc`'s non-pretty text output into one string per diagnostic (a diagnostic's first line
- * matches `file(line,col): error TSxxxx: ...`; any following lines with no such prefix are that
- * same diagnostic's wrapped detail and stay attached to it).
- * @param {string} output - raw combined stdout+stderr from a `tsc --noEmit` run
- * @returns {string[]} one entry per diagnostic, each possibly multi-line
- */
-function parseDiagnosticBlocks(output) {
-  const startOfDiagnostic = /^\S.*\(\d+,\d+\): error TS\d+:/;
-  const blocks = [];
-  let current = null;
-  for (const line of output.split("\n")) {
-    if (startOfDiagnostic.test(line)) {
-      if (current) blocks.push(current.join("\n"));
-      current = [line];
-    } else if (current) {
-      current.push(line);
-    }
-  }
-  if (current) blocks.push(current.join("\n"));
-  return blocks;
-}
-
-/**
- * Installs a project's pinned `@jini-ai/*` packages from the registry into an isolated scratch
- * prefix, then type-checks the project's REAL source against that install — and against the REAL,
- * symlinked local install, to isolate registry drift from any pre-existing, unrelated `tsc` error
- * (e.g. a broken test file) that has nothing to do with `@jini-ai/*` and would otherwise make this
- * gate permanently red for the wrong reason. Only a diagnostic present in the registry run but
- * ABSENT from the local run counts as drift.
- *
- * A real `npm install` (not `npm pack` per package) is deliberate: several `@jini-ai/*` packages
- * depend on OTHER `@jini-ai/*` packages Tovu never imports directly (e.g. `agent-runtime` depends
- * on `@jini-ai/platform`), and those nested `.d.ts` references need to resolve too. `npm install`
- * resolves that whole transitive graph automatically; reconstructing it by hand would either miss
- * packages (spurious "cannot find module" noise unrelated to real drift) or require re-implementing
- * npm's resolver.
- *
- * @param {{dir: string, label: string, shadowAnchor: string}} project
- * @param {Record<string,string>} pinOverrides - `--pin name=version` overrides from argv
- * @returns {Promise<object>} result record; see `main()` for the shape consumed per `status`
- * @complexity O(1) process spawns (npm install, 2x tsc) dominated by network/compile time, not input size
- */
-async function checkProject(project, pinOverrides) {
-  const deps = { ...readJiniDependencies(project.dir), ...pinOverrides };
-  const names = Object.keys(deps);
-  if (names.length === 0) {
-    return { project, status: "skipped", reason: "no registry-resolved @jini-ai/* dependencies" };
-  }
-
-  const scratchRoot = path.join(project.dir, "node_modules", ".tovu-jini-registry-check");
-  rmSync(scratchRoot, { recursive: true, force: true });
-  mkdirSync(scratchRoot, { recursive: true });
-
-  try {
-    writeFileSync(
-      path.join(scratchRoot, "package.json"),
-      JSON.stringify(
-        { name: "tovu-jini-registry-drift-scratch", private: true, dependencies: deps, overrides: readJiniOverrides(project.dir) },
-        null,
-        2,
-      ),
-    );
-
-    try {
-      execFileSync(
-        "npm",
-        ["install", "--no-audit", "--no-fund", "--no-package-lock", "--workspaces=false"],
-        { cwd: scratchRoot, stdio: ["ignore", "pipe", "pipe"], encoding: "utf8" },
-      );
-    } catch (err) {
-      return { project, status: "install-error", resolved: deps, output: `${err.stdout ?? ""}${err.stderr ?? ""}` };
-    }
-
-    const scratchNodeModules = path.join(scratchRoot, "node_modules");
-    const versions = readInstalledVersions(scratchNodeModules, names);
-
-    const tsconfigPath = path.join(scratchRoot, "tsconfig.generated.json");
-    writeFileSync(tsconfigPath, JSON.stringify(buildAbsolutizedTsconfig(project.dir), null, 2));
-
-    // Baseline FIRST, before the shadow exists — resolves through the real, symlinked local Jini
-    // via ordinary module resolution, exactly like `npm run typecheck` does today.
-    const baseline = runTsc(project, tsconfigPath);
-
-    // Shadow EVERY `@jini-ai/*` the registry install hoisted, not just the pinned ones. A pinned
-    // package's un-pinned `@jini-ai/*` dependency (e.g. `daemon` -> `protocol`, which root never
-    // imports directly) is hoisted to the scratch top level; left out of the shadow, it resolves
-    // past it to the real symlink into the local Jini checkout, and the "registry" run type-checks
-    // a mix of registry and local copies (2026-09-29: `agent-daemon-server.ts` RunLifecycle
-    // mismatch between registry `daemon` types and local `protocol` types — a false drift report).
-    const shadowNames = readdirSync(path.join(scratchNodeModules, "@jini-ai")).map((dir) => `@jini-ai/${dir}`);
-    const removeShadow = createShadow(project.shadowAnchor, scratchNodeModules, shadowNames);
-    let registry;
-    try {
-      registry = runTsc(project, tsconfigPath);
-    } finally {
-      removeShadow();
-    }
-
-    if (registry.ok) {
-      return { project, status: "pass", versions };
-    }
-
-    // The registry run failed — but only a diagnostic that is NEW relative to the real, local
-    // (symlinked) run is actual @jini-ai/* registry drift; anything else is a pre-existing local
-    // error this gate should not report as (and must not be silently hidden as) drift.
-    const baselineBlocks = new Set(parseDiagnosticBlocks(baseline.output));
-    const registryBlocks = parseDiagnosticBlocks(registry.output);
-    const driftBlocks = registryBlocks.filter((block) => !baselineBlocks.has(block));
-
-    if (driftBlocks.length === 0) {
-      return {
-        project,
-        status: "pass",
-        versions,
-        note: `${registryBlocks.length} pre-existing local tsc error(s) unrelated to @jini-ai/* (identical against the real, local Jini checkout)`,
-      };
-    }
-    return { project, status: "drift", versions, output: driftBlocks.join("\n\n") };
-  } finally {
-    // Always clean up, pass or fail — this must never leave anything behind in the shared tree.
-    if (!process.env.DEBUG_KEEP_SCRATCH) rmSync(scratchRoot, { recursive: true, force: true });
-  }
 }
 
 /** @param {string} text @returns {string} `text` indented for nesting under a status line */
@@ -399,10 +116,15 @@ function parseArgs(argv) {
   return overrides;
 }
 
-function reportRegistryResult({ result }, _options = {}) {
-  console.log(`\n--- ${result.project.label} ---`);
+
+function reportVersions(result) {
+  return Object.entries(result.versions).map(([name, version]) => `    ${name}@${version}`).join("\n");
+}
+
+function reportRegistryResult({ result, label }, _options = {}) {
+  console.log(`\n--- ${label} ---`);
   if (result.status === "skipped") {
-    console.log(`  SKIP  ${result.reason}`);
+    console.log("  SKIP  no registry-resolved @jini-ai/* dependencies");
     return false;
   }
   if (result.status === "install-error") {
@@ -410,35 +132,36 @@ function reportRegistryResult({ result }, _options = {}) {
     console.log(indent(result.output));
     return true;
   }
-  const versionLines = Object.entries(result.versions)
-    .map(([name, version]) => `    ${name}@${version}`)
-    .join("\n");
   if (result.status === "pass") {
     console.log(`  PASS  ${Object.keys(result.versions).length} package(s) type-check clean against the registry:`);
-    console.log(versionLines);
-    if (result.note) console.log(`  (note: ${result.note})`);
-  } else {
-    console.log("  FAIL  source uses a @jini-ai/* symbol not present in the registry-published version:");
-    console.log(versionLines);
-    console.log("");
-    console.log(indent(result.output));
+    console.log(reportVersions(result));
+    const preexisting = parseDiagnosticBlocks({ output: result.output }).length;
+    if (preexisting > 0) console.log(`  (note: ${preexisting} pre-existing local tsc error(s) unrelated to @jini-ai/* (identical against the real, local Jini checkout))`);
+    return false;
   }
-  return result.status !== "pass";
+  if (result.status === "drift") {
+    console.log("  FAIL  source uses a @jini-ai/* symbol not present in the registry-published version:");
+    console.log(reportVersions(result));
+    console.log("");
+    console.log(indent(result.diagnostics.join("\n\n")));
+    return true;
+  }
+  console.log(`  FAIL  ${result.status}:`);
+  console.log(indent(result.output));
+  return true;
 }
 
 async function main() {
-  const overrides = parseArgs(process.argv.slice(2));
-  // Safe to run in parallel: each project's shadow lives under its OWN directory
-  // (apps/website/node_modules vs apps/admin/src/node_modules — see header comment), and
-  // apps/admin and apps/website are siblings, so neither project's source can ever walk up into
-  // the other's shadow. The one tsconfig include that crosses projects (admin also compiles two
-  // files physically under apps/website/src) was checked and does not import @jini-ai/* at all.
-  const results = await Promise.all(PROJECTS.map((project) => checkProject(project, overrides)));
-
+  const pins = parseArgs(process.argv.slice(2));
+  const runner = createNodeProcessRunner({}, { timeoutMs: 0 });
+  const report = await check({
+    projects: PROJECTS.map(compileProject), scope: "@jini-ai", fs: createNodeFilesystem({}), runner,
+    installer: createNpmInstaller({ runner, command: "npm" }, { args: NPM_INSTALL_ARGS }),
+  }, { pins, keepScratch: Boolean(process.env.DEBUG_KEEP_SCRATCH) });
   let failed = false;
-  for (const result of results) {
-    if (reportRegistryResult({ result })) failed = true;
-  }
+  report.projects.forEach((result, index) => {
+    if (reportRegistryResult({ result, label: PROJECTS[index].label })) failed = true;
+  });
 
   console.log("");
   if (failed) {

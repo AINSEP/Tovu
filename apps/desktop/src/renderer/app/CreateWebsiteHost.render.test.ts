@@ -22,7 +22,7 @@ function renderHost(t: TestContext, hidden: boolean) {
   });
   const view = mount({ t, element: element(hidden) });
   const host = () => view.container.querySelector<HTMLElement>('.create-website-host')!;
-  return { ...view, created, backs: () => backs, host, setHidden: (next: boolean) => view.render(element(next)) };
+  return { ...view, created, backs: () => backs, host, setHidden: (next: boolean) => view.render({ next: element(next) }) };
 }
 
 test('CreateWebsiteHost: hidden is a class and aria-hidden on a host that stays mounted', (t) => {

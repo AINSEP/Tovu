@@ -118,7 +118,7 @@ function useIdleSiteSleep() {
     }, () => { if (active && revision.current === initialRevision) setError('Sleep idle sites setting could not be loaded.'); });
     return () => { active = false; };
   }, []);
-  const save = (next: IdleSiteSleepMinutes) => {
+  const save = ({ next }: { next: IdleSiteSleepMinutes }, _options = {}) => {
     if (saving || next === value || !bridge?.setIdleSiteSleepMinutes) return;
     revision.current++;
     setSaving(true);
@@ -147,7 +147,7 @@ function IdleSiteSleepRow({ setting }: { setting: ReturnType<typeof useIdleSiteS
           className={`themer__opt ${setting.value === minutes ? 'is-on' : ''}`}
           aria-checked={setting.value === minutes} aria-label={minutes === 0 ? 'Off' : `${minutes} min`}
           data-tip={minutes === 0 ? 'Off' : `${minutes} min`} disabled={setting.saving}
-          onClick={() => setting.save(minutes)}
+          onClick={() => setting.save({ next: minutes })}
         >{minutes === 0 ? 'Off' : minutes}</button>)}
       </div>
       <span>min</span>

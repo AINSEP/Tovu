@@ -15,7 +15,7 @@ import { deriveSitesHomeView } from './sites-home-view.js';
 
 function useNavigationShell(getBridge: () => Pick<RunnerInventoryBridge, 'onNavigate'> | undefined) {
   const tabs = useProjectTabs();
-  const nav = useSectionNav(tabs.setActiveTab);
+  const nav = useSectionNav({ setActiveTab: tabs.setActiveTab });
   useRunnerNavigation({ setActiveId: nav.setActiveId, setActiveTab: tabs.setActiveTab }, { getBridge });
   return { tabs, nav };
 }

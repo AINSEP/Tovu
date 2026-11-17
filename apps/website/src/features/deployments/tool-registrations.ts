@@ -2,7 +2,7 @@ import type { Tracker } from "@jini-ai/diagnostics/observability";
 import { toolMetadata } from '../../contracts/core/tool-metadata/deployments.js';
 import { type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
-import { buildDomainRegistrations, indexCatalogById, isRecord, optionalBoolean, optionalString, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, isRecord, optionalBoolean, optionalString, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import for
 // why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather than
@@ -96,6 +96,24 @@ export function pickExportSiteOptions({ outputDir, clean, basePath }: { outputDi
   return { outputDir, ...(clean !== undefined ? { clean } : {}), ...(basePath !== undefined ? { basePath } : {}) };
 }
 
+async function triggerExportTool(required: { routeDeps: DeploymentsToolDeps; engine: ExportEngine<DeploymentsToolDeps>; ctx: ToolExecutionContext }, _optional = {}): Promise<unknown> {
+  const { routeDeps, engine, ctx } = required;
+  const candidate = { value: ctx.input };
+  if (ctx.input !== undefined && !isRecord(candidate)) throw new ToolInputError({ message: "input must be an object" });
+  const input = isRecord(candidate) ? candidate.value : {};
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "system.export" }, { entityType: "site-export" });
+
+  // No `await` between this check and `startExportRun` below — matches `export-site.ts`'s own
+  // "no await between check and set" atomicity comment exactly, so a tool call and a concurrent
+  // HTTP trigger in this SAME process can never both observe "not running" (see `export-run.ts`'s
+  // file header for the one case where this process is not the same one: the standalone daemon).
+  assertExportNotRunning({});
+
+  const clean = optionalBoolean({ input: input, key: "clean" }) ?? false;
+  const basePath = optionalString({ input: input, key: "basePath" });
+  return startExportRun({ routeDeps, runExportSite: engine, clean }, { basePath, ...(routeDeps.tracker && routeDeps.idGen ? { productEvent: { tracker: routeDeps.tracker, userId: ctx.principal.id, operationId: routeDeps.idGen.newId(), source: "assistant" as const } } : {}) });
+}
+
 export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): ToolRegistration[] {
   // Explicit destructuring, not `(opts) => routeDeps.exportSiteBound(opts)` — `ExportEngine`'s
   // own options object always carries a `routeDeps` field (`export-run.ts`), and forwarding it
@@ -106,22 +124,7 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
   // `DeploymentsToolDeps`'s own doc above and this file's regression test.
   const engine: ExportEngine<DeploymentsToolDeps> = (options, _optional = {}) => routeDeps.exportSiteBound(pickExportSiteOptions(options));
   const handlers: Record<string, ToolHandler> = {
-    deployment_trigger_export: async (ctx) => {
-      const candidate = { value: ctx.input };
-      if (ctx.input !== undefined && !isRecord(candidate)) throw new ToolInputError({ message: "input must be an object" });
-      const input = isRecord(candidate) ? candidate.value : {};
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "system.export" }, { entityType: "site-export" });
-
-      // No `await` between this check and `startExportRun` below — matches `export-site.ts`'s own
-      // "no await between check and set" atomicity comment exactly, so a tool call and a concurrent
-      // HTTP trigger in this SAME process can never both observe "not running" (see `export-run.ts`'s
-      // file header for the one case where this process is not the same one: the standalone daemon).
-      assertExportNotRunning({});
-
-      const clean = optionalBoolean({ input: input, key: "clean" }) ?? false;
-      const basePath = optionalString({ input: input, key: "basePath" });
-      return startExportRun({ routeDeps, runExportSite: engine, clean }, { basePath, ...(routeDeps.tracker && routeDeps.idGen ? { productEvent: { tracker: routeDeps.tracker, userId: ctx.principal.id, operationId: routeDeps.idGen.newId(), source: "assistant" as const } } : {}) });
-    },
+    deployment_trigger_export: (ctx) => triggerExportTool({ routeDeps, engine, ctx }),
 
     deployment_diagnose_static_export: async (ctx) => {
       requireNoInput({ input: ctx.input });

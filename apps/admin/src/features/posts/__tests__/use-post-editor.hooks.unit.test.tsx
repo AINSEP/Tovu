@@ -1247,6 +1247,38 @@ describe("uploadDroppedFile / handleFileDrop / handleFilePaste — file-handler 
     });
   });
 
+  it("a failed drop or paste upload reaches onError with the file and the cause, and inserts nothing", async () => {
+    const port = createFakePostEditorPort({ post: POST, uploadMediaError: "disk is full" });
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    const editor = result.current.editor!;
+    const before = JSON.stringify(editor.getJSON());
+    const failures: Array<{ name: string; message: string }> = [];
+    const onError = ({ file, error }: { file: File; error: unknown }) => failures.push({ name: file.name, message: (error as Error).message });
+    const file = new File(["bytes"], "photo.png", { type: "image/png" });
+
+    handleFileDrop({ port, editor, files: [file], pos: 1, onError });
+    handleFilePaste({ port, editor, files: [file], onError });
+
+    await waitFor(() => expect(failures).toHaveLength(2));
+    expect(failures).toEqual([{ name: "photo.png", message: "disk is full" }, { name: "photo.png", message: "disk is full" }]);
+    expect(JSON.stringify(editor.getJSON())).toBe(before);
+  });
+
+  it("shows the editor's error message in plain words when a dropped image fails to upload", async () => {
+    const port = createFakePostEditorPort({ post: POST, uploadMediaError: "disk is full" });
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    const editor = result.current.editor!;
+    const handler = editor.extensionManager.extensions.find((extension) => extension.name === "fileHandler")!;
+    const file = new File(["bytes"], "photo.png", { type: "image/png" });
+
+    act(() => { handler.options.onDrop(editor, [file], 1); });
+
+    await waitFor(() => expect(result.current.error).toContain("photo.png"));
+    expect(result.current.error).toContain("disk is full");
+  });
+
   it("handleFileDrop uploads and inserts every file independently — one failing upload in a multi-file drop does not block the others", async () => {
     let call = 0;
     const port = createFakePostEditorPort({ post: POST });
@@ -1356,6 +1388,23 @@ describe("usePostEditor — standing-draft autosave + recovery", () => {
     expect(result.current.recoverableDraft).toBeNull();
     // Discarding must not silently apply the draft it just threw away.
     expect(result.current.title).toBe(POST.title);
+  });
+
+  it("a failed discardRecoveredDraft keeps the banner and says so in plain words", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const seeded = {
+      bodyFormat: "doc" as const, bodyJson: { type: "doc", content: [] }, title: "Recovered title", slug: "hello-world",
+      baseVersion: POST.version, savedAt: "2026-09-06T00:00:00.000Z", savedByPrincipalId: "user-local",
+    };
+    const port = createFakePostEditorPort({ post: POST, autosave: seeded });
+    port.discardAutosave = vi.fn(async () => { throw new Error("offline"); });
+    const { result } = renderHook(() => usePostEditor({ postId: "p1", deps: { port, navigate: fakeNavigate(), t: fakeT } }));
+    await waitFor(() => expect(result.current.recoverableDraft).not.toBeNull());
+
+    await act(async () => result.current.discardRecoveredDraft());
+
+    expect(result.current.recoverableDraft).not.toBeNull();
+    expect(result.current.error).toContain("Could not discard the recovered draft");
   });
 
   it("editing schedules a debounced autosave PUT matching buildPostAutosaveDraft's own shape", async () => {

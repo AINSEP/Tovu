@@ -1,72 +1,19 @@
-import type { AdminMember } from "@/features/members/api/members-api.types";
+import type { MembersPort } from "@jini-ai/user-management/react";
 import { membersApi } from "@/features/members/api/members-api";
-import type { MembersPort } from "./members-port.hooks";
 
 /**
- * @file The only place under `features/members` that reaches `lib/api` — see
- * `members-port.hooks.ts` for why the split exists.
+ * @file The only place under `features/members` that reaches `lib/api`. The port it binds and the
+ * in-memory fake tests use both live in `@jini-ai/user-management` (`/react` and `/react/testing`);
+ * Tovu keeps only this binding to its HTTP client and the content-refresh resource name.
  */
 
 /** The live implementation, as a module-level singleton — matches `integrations/jini-admin/redirects-ports.ts`'s `redirectsHostPorts`. */
 export const defaultMembersPort: MembersPort = {
-  listMembers: () => membersApi.listMembers(),
-  getMember: ({ id }, _optional = {}) => membersApi.getMember({ id }),
-  disableMember: ({ id }, _optional = {}) => membersApi.disableMember({ id }),
-  requestMemberMagicLink: (input, _optional = {}) => membersApi.requestMemberMagicLink(input),
+  listMembers: (_required = {}) => membersApi.listMembers(),
+  getMember: ({ id }) => membersApi.getMember({ id }),
+  disableMember: ({ id }) => membersApi.disableMember({ id }),
+  requestMemberMagicLink: (input) => membersApi.requestMemberMagicLink(input),
 };
-
-/** Seed state for {@link createFakeMembersPort}. */
-export interface FakeMembersPortOptions {
-  members?: AdminMember[];
-}
-
-/**
- * An in-memory {@link MembersPort} for tests — the fake that lets a test describe "the list has
- * these two members" directly, instead of hand-building `Response` objects and stubbing global
- * `fetch`. Shipped alongside the real binding per the pattern's "every port gets a fake" rule.
- */
-export function createFakeMembersPort(options: FakeMembersPortOptions = {}): MembersPort & {
-  /** Every member currently in the fake's store, in list order. */
-  readonly members: AdminMember[];
-  /** Emails a magic link was requested for, in call order — lets a test assert on the request
-   *  without caring what `requestMemberMagicLink`'s fulfilled response looks like. */
-  readonly magicLinkRequests: string[];
-} {
-  const members = [...(options.members ?? [])];
-  const magicLinkRequests: string[] = [];
-
-  function findOrThrow({ id }: { id: string }, _optional = {}): AdminMember {
-    const member = members.find((m) => m.id === id);
-    if (!member) throw new Error(`fake member not found: ${id}`);
-    return member;
-  }
-
-  return {
-    members,
-    magicLinkRequests,
-
-    async listMembers() {
-      return { members: [...members] };
-    },
-
-    async getMember({ id }, _optional = {}) {
-      return { member: findOrThrow({ id }) };
-    },
-
-    async disableMember({ id }, _optional = {}) {
-      const index = members.findIndex((m) => m.id === id);
-      if (index < 0) throw new Error(`fake member not found: ${id}`);
-      const updated: AdminMember = { ...members[index], status: "disabled" };
-      members[index] = updated;
-      return { member: updated };
-    },
-
-    async requestMemberMagicLink({ email }) {
-      magicLinkRequests.push(email);
-      return { delivered: true };
-    },
-  };
-}
 
 /** This screen's name on `lib/content-refresh-bus.ts` — see `taxonomy/rules.ts`'s
  *  `TAXONOMY_RESOURCE` for why this is a plain colocated constant rather than a shared registry.
@@ -74,9 +21,3 @@ export function createFakeMembersPort(options: FakeMembersPortOptions = {}): Mem
  *  flips a member's status this list renders. `members_request_magic_link` mutates durable state too
  *  but changes nothing this screen displays, so it needs no separate justification here. */
 export const MEMBERS_RESOURCE = "members";
-
-
-/** Adapt the product HTTP client to Jini's object-argument contract. */
-export function toJiniMembersPort({ port }: { port: MembersPort }, _optional: Record<string, never> = {}): import("@jini-ai/user-management/react").MembersPort {
-  return { ...port, getMember: ({ id }) => port.getMember({ id }), disableMember: ({ id }) => port.disableMember({ id }) };
-}

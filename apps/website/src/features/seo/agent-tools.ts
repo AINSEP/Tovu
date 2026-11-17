@@ -217,6 +217,11 @@ const SET_SETTINGS_SCHEMA = {
  * @overallScore 100
  */
 export function getSeoAgentToolCatalog(): AgentToolDefinition[] {
+  return [...seoEntryTools(), ...seoSettingsTools()];
+}
+
+/** The per-entry tools: read the effective meta, analyze it, and set overrides. */
+function seoEntryTools(): AgentToolDefinition[] {
   return [
     {
       name: "seo_get_entry_meta",
@@ -242,6 +247,12 @@ export function getSeoAgentToolCatalog(): AgentToolDefinition[] {
       authorization: { permission: MANAGE_SEO_PERMISSION },
       inputSchema: SET_ENTRY_OVERRIDES_SCHEMA,
     },
+  ];
+}
+
+/** The site-wide tools: read and update the SEO settings, and force a sitemap rebuild. */
+function seoSettingsTools(): AgentToolDefinition[] {
+  return [
     {
       name: "seo_get_settings",
       description: "Reads the workspace's site-wide SEO settings (title template, default description/OG image/Twitter site, default robots directive, sitemap toggle, custom robots.txt rules). Read-only.",

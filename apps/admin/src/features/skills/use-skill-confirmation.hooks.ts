@@ -1,5 +1,5 @@
 import { useEffect, useRef, type MouseEvent } from "react";
-import { useFocusTrap } from "../../hooks/use-focus-trap.hooks";
+import { useFocusTrap } from "@jini-ai/ui/panel-kit";
 import type { useSkillInstall } from "./use-skill-install.hooks";
 
 /** Sibling dialog behavior: Escape, contained Tab navigation and focus return. */

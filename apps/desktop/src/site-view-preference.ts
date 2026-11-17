@@ -42,14 +42,14 @@ export function registerIdleSiteSleepIpc<Sender>({ ipcMain, allowed, preferenceP
   allowed: (required: { sender: Sender }) => boolean;
   preferencePath: string | (() => string);
 }, _options = {}): () => void {
-  const trusted = (sender: Sender) => { if (!allowed({ sender })) throw new Error('UNTRUSTED_SITE_VIEW_PREFERENCE_SENDER'); };
+  const trusted = ({ sender }: { sender: Sender }, _optional = {}) => { if (!allowed({ sender })) throw new Error('UNTRUSTED_SITE_VIEW_PREFERENCE_SENDER'); };
   const resolvePath = () => typeof preferencePath === 'function' ? preferencePath() : preferencePath;
   ipcMain.handle(IDLE_SITE_SLEEP_CHANNELS.read, ({ sender }) => {
-    trusted(sender);
+    trusted({ sender });
     return readIdleSiteSleepMinutes({ preferencePath: resolvePath() });
   });
   ipcMain.handle(IDLE_SITE_SLEEP_CHANNELS.write, ({ sender }, value) => {
-    trusted(sender);
+    trusted({ sender });
     const saved = idleSiteSleepChoice({ value });
     if (saved === undefined) throw new Error('INVALID_IDLE_SITE_SLEEP_MINUTES');
     return writeIdleSiteSleepMinutes({ preferencePath: resolvePath(), idleSiteSleepMinutes: saved });
@@ -157,10 +157,10 @@ export function registerSiteViewPreferenceIpc<Sender>({ ipcMain, allowed, read, 
   read: () => number;
   write: (input: { maximumLiveSiteViews: number }) => number;
 }, _options = {}): () => void {
-  const trusted = (sender: Sender) => { if (!allowed({ sender })) throw new Error('UNTRUSTED_SITE_VIEW_PREFERENCE_SENDER'); };
-  ipcMain.handle(SITE_VIEW_PREFERENCE_CHANNELS.read, ({ sender }) => { trusted(sender); return read(); });
+  const trusted = ({ sender }: { sender: Sender }, _optional = {}) => { if (!allowed({ sender })) throw new Error('UNTRUSTED_SITE_VIEW_PREFERENCE_SENDER'); };
+  ipcMain.handle(SITE_VIEW_PREFERENCE_CHANNELS.read, ({ sender }) => { trusted({ sender }); return read(); });
   ipcMain.handle(SITE_VIEW_PREFERENCE_CHANNELS.write, ({ sender }, value) => {
-    trusted(sender);
+    trusted({ sender });
     if (!isWholeViewCount(value)) throw new Error('INVALID_MAXIMUM_LIVE_SITE_VIEWS');
     return write({ maximumLiveSiteViews: value });
   });

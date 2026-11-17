@@ -138,7 +138,29 @@ export function createThemeTrashAdapter(
     { entityType: THEME_ENTITY_TYPE, locate: ({ entityId }) => locateThemeFolder({ themes, themesDir, themeId: entityId }) },
     optional
   );
-  const original = createDirectoryTrashAdapter(
+  const original = createThemeOriginalTrashAdapter({ themes, themesDir }, optional);
+  const pair = { adapter, original, refresh };
+  // Not `withFollowUps`: its `afterUnhide` fires only with a stored `priorMarker`, which a directory
+  // move never has, so a restore would leave the registry stale.
+  return {
+    entityType: adapter.entityType,
+    hide: (hideRequired, hideOptional) => hideThemeWithOriginal(pair, hideRequired, hideOptional),
+    unhide: (unhideRequired, unhideOptional) => unhideThemeWithOriginal(pair, unhideRequired, unhideOptional),
+    async purge(purgeRequired, purgeOptional) {
+      const outcome = await adapter.purge(purgeRequired, purgeOptional);
+      if (outcome !== "version-changed") await original.purge(purgeRequired, purgeOptional);
+      return outcome;
+    },
+  };
+}
+
+/** The directory adapter over {@link locateThemeOriginal}, creating a missing tier folder before a restore. */
+function createThemeOriginalTrashAdapter(
+  required: { themes: DiscoveredTheme[]; themesDir: string },
+  optional: { readonly rename?: typeof rename } = {}
+): TrashAdapter {
+  const { themes, themesDir } = required;
+  return createDirectoryTrashAdapter(
     {
       entityType: THEME_ENTITY_TYPE,
       locate: ({ entityId }) => {
@@ -150,62 +172,72 @@ export function createThemeTrashAdapter(
     },
     optional
   );
-  /** A move of the original that leaves nothing to undo: it happened, or there was none to move. */
-  const settled = (result: TrashMarkerResult): boolean => result.ok || result.reason === "not-found";
-  // Not `withFollowUps`: its `afterUnhide` fires only with a stored `priorMarker`, which a directory
-  // move never has, so a restore would leave the registry stale.
-  return {
-    entityType: adapter.entityType,
-    async hide(hideRequired, hideOptional) {
-      const result = await adapter.hide(hideRequired, hideOptional);
-      if (!result.ok) return result;
-      // Theme first, then its original (located by the live theme's tier, before the rescan below).
-      // The undo rescans first: the registry still lists the theme, which would read as a live
-      // folder claiming the id and refuse the move back.
-      const undoTheme = async () => {
-        await refresh();
-        await adapter.unhide({ ...hideRequired, expectedVersion: null });
-        await refresh();
-      };
-      let originalResult: TrashMarkerResult;
-      try {
-        originalResult = await original.hide(hideRequired, hideOptional);
-      } catch (error) {
-        await undoTheme();
-        throw error;
-      }
-      if (!settled(originalResult)) {
-        await undoTheme();
-        return originalResult;
-      }
-      await refresh();
-      return result;
-    },
-    async unhide(unhideRequired, unhideOptional) {
-      // Original first: if the theme then cannot come back, only an original THIS call moved is
-      // re-parked — never a live original that some other theme with this id now owns.
-      const originalResult = await original.unhide(unhideRequired, unhideOptional);
-      const reparkOriginal = async () => {
-        if (originalResult.ok) await original.hide({ ...unhideRequired, expectedVersion: null });
-      };
-      let result: TrashMarkerResult;
-      try {
-        result = await adapter.unhide(unhideRequired, unhideOptional);
-      } catch (error) {
-        await reparkOriginal();
-        throw error;
-      }
-      if (!result.ok) {
-        await reparkOriginal();
-        return result;
-      }
-      await refresh();
-      return result;
-    },
-    async purge(purgeRequired, purgeOptional) {
-      const outcome = await adapter.purge(purgeRequired, purgeOptional);
-      if (outcome !== "version-changed") await original.purge(purgeRequired, purgeOptional);
-      return outcome;
-    },
+}
+
+/** The theme adapter, its stored original's adapter, and the registry refresh that follows every move. */
+interface ThemeTrashPair {
+  readonly adapter: TrashAdapter;
+  readonly original: TrashAdapter;
+  readonly refresh: () => Promise<void>;
+}
+
+/** A move of the original that leaves nothing to undo: it happened, or there was none to move. */
+const settled = (result: TrashMarkerResult): boolean => result.ok || result.reason === "not-found";
+
+async function hideThemeWithOriginal(
+  required: ThemeTrashPair,
+  hideRequired: Parameters<TrashAdapter["hide"]>[0],
+  hideOptional?: Parameters<TrashAdapter["hide"]>[1]
+): Promise<TrashMarkerResult> {
+  const { adapter, original, refresh } = required;
+  const result = await adapter.hide(hideRequired, hideOptional);
+  if (!result.ok) return result;
+  // Theme first, then its original (located by the live theme's tier, before the rescan below).
+  // The undo rescans first: the registry still lists the theme, which would read as a live
+  // folder claiming the id and refuse the move back.
+  const undoTheme = async () => {
+    await refresh();
+    await adapter.unhide({ ...hideRequired, expectedVersion: null });
+    await refresh();
   };
+  let originalResult: TrashMarkerResult;
+  try {
+    originalResult = await original.hide(hideRequired, hideOptional);
+  } catch (error) {
+    await undoTheme();
+    throw error;
+  }
+  if (!settled(originalResult)) {
+    await undoTheme();
+    return originalResult;
+  }
+  await refresh();
+  return result;
+}
+
+async function unhideThemeWithOriginal(
+  required: ThemeTrashPair,
+  unhideRequired: Parameters<TrashAdapter["unhide"]>[0],
+  unhideOptional?: Parameters<TrashAdapter["unhide"]>[1]
+): Promise<TrashMarkerResult> {
+  const { adapter, original, refresh } = required;
+  // Original first: if the theme then cannot come back, only an original THIS call moved is
+  // re-parked — never a live original that some other theme with this id now owns.
+  const originalResult = await original.unhide(unhideRequired, unhideOptional);
+  const reparkOriginal = async () => {
+    if (originalResult.ok) await original.hide({ ...unhideRequired, expectedVersion: null });
+  };
+  let result: TrashMarkerResult;
+  try {
+    result = await adapter.unhide(unhideRequired, unhideOptional);
+  } catch (error) {
+    await reparkOriginal();
+    throw error;
+  }
+  if (!result.ok) {
+    await reparkOriginal();
+    return result;
+  }
+  await refresh();
+  return result;
 }

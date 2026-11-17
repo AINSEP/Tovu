@@ -127,27 +127,40 @@ async function registryForInvalidation({ deps }: { deps: Pick<AdminCustomCredent
   return deps.loadDeployTargets && deps.publishCredentialVerificationCache ? await deps.loadDeployTargets({ workspaceId: deps.workspaceId }) : undefined;
 }
 
-export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCustomCredentialsDeps): void {
-  const readDeps = { repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer };
-  const writeDeps = {
+type CredentialReadDeps = { repo: AdminCustomCredentialsDeps["customCredentialSetRepo"]; sealer: AdminCustomCredentialsDeps["siteAssistantSecretSealer"] };
+
+/** Everything a verb's registrar needs: the app, the route deps, the two store-dep bags and the shared guard. */
+interface CredentialRouteContext {
+  app: Express;
+  deps: AdminCustomCredentialsDeps;
+  readDeps: CredentialReadDeps;
+  writeDeps: ReturnType<typeof buildWriteDeps>;
+  rejectUnlessAuthorized: (req: Request, res: Response) => Promise<boolean>;
+}
+
+function buildWriteDeps(deps: AdminCustomCredentialsDeps) {
+  return {
     repo: deps.customCredentialSetRepo,
     sealer: deps.siteAssistantSecretSealer,
     keyring: deps.siteAssistantSecretKeyring,
     clock: deps.clock,
     idGen: deps.idGen,
   };
+}
 
-  /** Shared workspace-path-param + `custom-credentials.write` authorization check every verb below
-   *  performs first — mirrors `source-control-credentials.ts`'s own `rejectUnlessAuthorized`.
-   *  Returns `true` and has already written the response iff the caller should stop. */
-  async function rejectUnlessAuthorized(req: Request, res: Response): Promise<boolean> {
-    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return true;
-    const principal = getAuthedPrincipal(res);
-    const params = { principalId: principal.id, permission: PERMISSION, workspaceId: deps.workspaceId, entityType: ENTITY_TYPE };
-    if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return true;
-    return false;
-  }
+/** Shared workspace-path-param + `custom-credentials.write` authorization check every verb below
+ *  performs first — mirrors `source-control-credentials.ts`'s own `rejectUnlessAuthorized`.
+ *  Returns `true` and has already written the response iff the caller should stop. */
+async function rejectUnlessAuthorizedFor(input: { deps: AdminCustomCredentialsDeps; req: Request; res: Response }): Promise<boolean> {
+  const { deps, req, res } = input;
+  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return true;
+  const principal = getAuthedPrincipal(res);
+  const params = { principalId: principal.id, permission: PERMISSION, workspaceId: deps.workspaceId, entityType: ENTITY_TYPE };
+  if (!(await authorizeDirectOrRespond({ res, authorize: deps.authorize, params }))) return true;
+  return false;
+}
 
+function registerListRoute({ app, deps, readDeps, rejectUnlessAuthorized }: CredentialRouteContext): void {
   app.get(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     if (deps.projectKeys) {
@@ -170,7 +183,9 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
       sendStoreError({ res, err });
     }
   } }));
+}
 
+function registerCreateRoute({ app, deps, writeDeps, rejectUnlessAuthorized }: CredentialRouteContext): void {
   app.post(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     const body = (req.body ?? {}) as Record<string, unknown>;
@@ -190,7 +205,9 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
       sendStoreError({ res, err });
     }
   } }));
+}
 
+function registerUpdateRoute({ app, deps, readDeps, writeDeps, rejectUnlessAuthorized }: CredentialRouteContext): void {
   app.put(`${BASE_PATH}/:id`, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     const body = (req.body ?? {}) as Record<string, unknown>;
@@ -205,7 +222,9 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
       sendStoreError({ res, err });
     }
   } }));
+}
 
+function registerDeleteRoute({ app, deps, readDeps, rejectUnlessAuthorized }: CredentialRouteContext): void {
   app.delete(`${BASE_PATH}/:id`, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     try {
@@ -220,4 +239,18 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
       sendStoreError({ res, err });
     }
   } }));
+}
+
+export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCustomCredentialsDeps): void {
+  const context: CredentialRouteContext = {
+    app,
+    deps,
+    readDeps: { repo: deps.customCredentialSetRepo, sealer: deps.siteAssistantSecretSealer },
+    writeDeps: buildWriteDeps(deps),
+    rejectUnlessAuthorized: (req, res) => rejectUnlessAuthorizedFor({ deps, req, res }),
+  };
+  registerListRoute(context);
+  registerCreateRoute(context);
+  registerUpdateRoute(context);
+  registerDeleteRoute(context);
 }

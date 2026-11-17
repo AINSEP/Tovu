@@ -245,7 +245,7 @@ export function findSection({ id }: { id: string }, _options = {}): RunnerSectio
 }
 
 /** Nav-visible sections in `group`. Hidden ones stay registered but unrendered. */
-export function sectionsInGroup(group: RunnerSectionGroupId): readonly RunnerSection[] {
+export function sectionsInGroup({ group }: { group: RunnerSectionGroupId }, _options = {}): readonly RunnerSection[] {
   return SECTIONS.filter((section) => section.group === group && section.hidden !== true);
 }
 

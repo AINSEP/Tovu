@@ -7,7 +7,8 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import ts from "typescript";
 import { TEST_PASSES } from "../../apps/desktop/src/coverage-floors.js";
-import { parseLcovBlocks, classifyBlock, isFirstPartySourcePath } from "./check-coverage-integrity.js";
+import { classifyBlock, parseLcovBlocks } from "@jini-ai/devops/checks/coverage";
+import { isFirstPartySourcePath } from "./check-coverage-integrity.js";
 import {
   changedSourceSet, parseJobReport, mergeLcov, evaluateFiles, classifyGap, hasInstrumentedHits,
   renderFixPrompt, renderMarkdown, summarizeFiles, resultExitCode, REUSE_NOTES, readNodeSummary,
@@ -161,14 +162,16 @@ function readableCommand(command: TestCommand): string {
   return `cd ${quote(command.cwd)} && ${[command.executable, ...command.args].map(quote).join(" ")}`;
 }
 
+const isFirstParty = ({ file }: { file: string }) => isFirstPartySourcePath(file);
+
 function integrityWarnings(text: string, cwd: string, repo: string, sources: ReadonlyMap<string, string>): Map<string, string[]> {
   const warnings = new Map<string, string[]>();
-  for (const block of parseLcovBlocks(text)) {
+  for (const block of parseLcovBlocks({ lcovText: text })) {
     const file = normalizeCoveragePath({ repo, cwd, file: block.file });
     if (!sources.has(file)) continue;
     // The existing detector excludes development/ and app roots/scripts outside src/. Apply its
     // unchanged heuristic there too through a synthetic first-party path, not a weaker detector.
-    const verdict = classifyBlock({ ...block, file: isFirstPartySourcePath(file) ? file : `apps/cov1/src/${file}` }, sources.get(file));
+    const verdict = classifyBlock({ block: { ...block, file: isFirstPartySourcePath(file) ? file : `apps/cov1/src/${file}` }, repoRoot: repo, isFirstParty }, { sourceText: sources.get(file) });
     if (verdict.status === "contaminated") warnings.set(file, [...(warnings.get(file) ?? []), `${verdict.severe ? "SEVERE " : ""}coverage integrity: ${verdict.reason}`]);
   }
   return warnings;

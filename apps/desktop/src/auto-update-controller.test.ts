@@ -60,7 +60,7 @@ function setup(overrides: Partial<AutoUpdateControllerDeps> = {}) {
     pid: SELF,
     presenceDir,
     now: () => clock,
-    isAlive: (pid) => alive.has(pid),
+    isAlive: ({ pid }) => alive.has(pid),
     promptUpdateReady: async ({ version }) => {
       events.push(`prompt ${version}`);
       return restartChoice;

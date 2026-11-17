@@ -527,7 +527,7 @@ function resolveDevFallback({ devFallbackDir }: { devFallbackDir: string | null 
 }
 
 /** `resolveSiteDir`'s own picker seam — see that function's param doc. */
-type PickDirFn = (rejectedDefault: RejectedDevFallback | null) => string | null | undefined | Promise<string | null | undefined>;
+type PickDirFn = (required: { rejectedDefault: RejectedDevFallback | null }) => string | null | undefined | Promise<string | null | undefined>;
 
 /** Input to {@link resolveSiteDir}. */
 interface ResolveSiteDirInput {
@@ -612,7 +612,7 @@ async function resolveSiteDir(input: ResolveSiteDirInput): Promise<string> {
   if (fallback.useDir) return fallback.useDir;
 
   if (!input.pickDir) throw new Error('site directory selection has no folder picker');
-  const picked = await input.pickDir(fallback.rejected);
+  const picked = await input.pickDir({ rejectedDefault: fallback.rejected });
   if (picked === null || picked === undefined) {
     throw new SiteDirSelectionCancelled("No site folder was chosen.");
   }

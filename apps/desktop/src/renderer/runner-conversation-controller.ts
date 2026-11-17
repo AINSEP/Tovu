@@ -115,7 +115,7 @@ export function createRunnerConversationController(
     select: ({ id }) => select({ core, id }),
     create: () => create(core),
     remove: ({ id }) => remove({ core, id }),
-    rename: ({ id, title }) => rename(core, { id, title }),
+    rename: ({ id, title }) => rename({ core, id, title }),
     onMessagesChange: ({ messages }) => onMessagesChange({ core, messages }),
   };
 }
@@ -128,7 +128,7 @@ function subscribe({ core, listener }: { core: ControllerCore; listener: () => v
 }
 
 /** Replaces state immutably and tells everyone listening. */
-function publish(core: ControllerCore, patch: Partial<RunnerConversationState>): void {
+function publish({ core, patch }: { core: ControllerCore; patch: Partial<RunnerConversationState> }, _options: Record<string, never> = {}): void {
   core.state = { ...core.state, ...patch };
   core.onChange?.(core.state);
   for (const listener of core.listeners) listener();
@@ -150,8 +150,8 @@ function beginSwitch(core: ControllerCore, _options: Record<string, never> = {})
 }
 
 function withConversation(
-  core: ControllerCore,
-  conversation: WorkspaceConversationSummary,
+  { core, conversation }: { core: ControllerCore; conversation: WorkspaceConversationSummary },
+  _options: Record<string, never> = {},
 ): readonly WorkspaceConversationSummary[] {
   return [conversation, ...core.state.conversations];
 }
@@ -166,7 +166,7 @@ async function refresh(core: ControllerCore): Promise<readonly WorkspaceConversa
     // A list requested before deletion may finish afterwards. Tombstones govern every
     // publication, not only remove's own follow-up request.
     const list = (await core.bridge.listConversations()).filter(c => !core.deleted.has(c.id));
-    publish(core, { conversations: list });
+    publish({ core, patch: { conversations: list } });
     return list;
   } catch (err) {
     core.log('tovu-runner: could not load fleet chat conversations —', err);
@@ -178,7 +178,7 @@ function select({ core, id }: { core: ControllerCore; id: string }, _options: Re
   const bridge = core.bridge;
   if (bridge === undefined || core.deleted.has(id)) return;
   const seq = beginSwitch(core);
-  const commit = (messages: ChatMessage[]) => commitSelection(core, { id, seq, messages });
+  const commit = (messages: ChatMessage[]) => commitSelection({ core, id, seq, messages });
   void bridge
     .loadConversationMessages({ conversationId: id })
     .then(commit)
@@ -195,8 +195,8 @@ function select({ core, id }: { core: ControllerCore; id: string }, _options: Re
  * remount from ever showing an empty pane under a non-empty switcher entry.
  */
 function commitSelection(
-  core: ControllerCore,
-  { id, seq, messages }: { id: string; seq: number; messages: ChatMessage[] },
+  { core, id, seq, messages }: { core: ControllerCore; id: string; seq: number; messages: ChatMessage[] },
+  _options: Record<string, never> = {},
 ): void {
   // A slower load for a conversation the operator has since navigated away from must not land.
   if (core.switchSeq !== seq) return;
@@ -205,7 +205,7 @@ function commitSelection(
   core.written.set(id, new Set(messages.map((m) => m.id)));
   resetAdoption(core);
   // A deliberate switch is exactly when remounting the pane IS the intent.
-  publish(core, { initialMessages: messages, activeId: id, paneKey: id });
+  publish({ core, patch: { initialMessages: messages, activeId: id, paneKey: id } });
 }
 
 async function create(core: ControllerCore): Promise<void> {
@@ -219,14 +219,14 @@ async function create(core: ControllerCore): Promise<void> {
   try { conversation = await bridge.createConversation(); }
   finally { if (core.switchSeq === seq) core.navigating = false; }
   if (core.deleted.has(conversation.id)) return;
-  const conversations = withConversation(core, conversation);
+  const conversations = withConversation({ core, conversation });
   if (core.switchSeq !== seq) {
-    publish(core, { conversations });
+    publish({ core, patch: { conversations } });
     return;
   }
   core.written.set(conversation.id, new Set());
   resetAdoption(core);
-  publish(core, { conversations, activeId: conversation.id, initialMessages: [], paneKey: conversation.id });
+  publish({ core, patch: { conversations, activeId: conversation.id, initialMessages: [], paneKey: conversation.id } });
 }
 
 async function remove({ core, id }: { core: ControllerCore; id: string }, _options: Record<string, never> = {}): Promise<void> {
@@ -237,7 +237,7 @@ async function remove({ core, id }: { core: ControllerCore; id: string }, _optio
   core.deleted.add(id);
   // The delete succeeded, so the thread leaves the switcher now — and is filtered out of what
   // `refresh` returns, whose failure fallback is the list still on screen (deleted row included).
-  publish(core, { conversations: core.state.conversations.filter((c) => c.id !== id) });
+  publish({ core, patch: { conversations: core.state.conversations.filter((c) => c.id !== id) } });
   const list = (await refresh(core)).filter((c) => c.id !== id);
   if (core.state.activeId !== id) return;
   const next = list[0]?.id ?? null;
@@ -262,14 +262,14 @@ function landOnFreshPane(core: ControllerCore): void {
   // re-enters the lazy-adoption path below — without this reset, the fresh pane would
   // inherit the deleted conversation's adoption and never persist again.
   resetAdoption(core);
-  publish(core, { activeId: null, initialMessages: [], paneKey: `new-${core.paneNonce}` });
+  publish({ core, patch: { activeId: null, initialMessages: [], paneKey: `new-${core.paneNonce}` } });
 }
 
-async function rename(core: ControllerCore, { id, title }: { id: string; title: string }): Promise<void> {
+async function rename({ core, id, title }: { core: ControllerCore; id: string; title: string }, _options: Record<string, never> = {}): Promise<void> {
   const bridge = core.bridge;
   if (bridge === undefined) return;
   // Optimistic: a rename that only appears after a round trip feels broken mid-edit.
-  publish(core, { conversations: core.state.conversations.map((c) => (c.id === id ? { ...c, title } : c)) });
+  publish({ core, patch: { conversations: core.state.conversations.map((c) => (c.id === id ? { ...c, title } : c)) } });
   try {
     await bridge.renameConversation({ id, title });
   } catch (err) {
@@ -280,8 +280,8 @@ async function rename(core: ControllerCore, { id, title }: { id: string; title: 
 
 /** Writes whatever in `messages` has settled and is not already stored, into `conversationId`. */
 function flush(
-  core: ControllerCore,
-  { conversationId, messages }: { conversationId: string; messages: ChatMessage[] },
+  { core, conversationId, messages }: { core: ControllerCore; conversationId: string; messages: ChatMessage[] },
+  _options: Record<string, never> = {},
 ): void {
   const bridge = core.bridge;
   if (bridge === undefined || core.deleted.has(conversationId)) return;
@@ -291,12 +291,12 @@ function flush(
   // deleted, which the guard above returns on first. (This used to fall back to a fresh set,
   // which no path could reach.)
   const written = core.written.get(conversationId) as Set<string>;
-  const pending = persistableMessages(messages).filter((m) => !written.has(m.id));
+  const pending = persistableMessages({ messages }).filter((m) => !written.has(m.id));
   if (pending.length === 0) return;
   // Marked before the request resolves so a second `onMessagesChange` arriving mid-flight —
   // which it will, since deltas keep coming — does not queue the same message twice.
   for (const message of pending) written.add(message.id);
-  for (const message of pending) saveMessage(core, { bridge, conversationId, message, written });
+  for (const message of pending) saveMessage({ core, bridge, conversationId, message, written });
   // The first turn is what gives an untitled conversation its auto-generated title, and every
   // turn changes `messageCount`/`updatedAt` — re-read rather than patch, so the switcher stays
   // honest without this controller re-deriving the store's own title/ordering rules.
@@ -304,13 +304,14 @@ function flush(
 }
 
 function saveMessage(
-  core: ControllerCore,
-  { bridge, conversationId, message, written }: {
+  { core, bridge, conversationId, message, written }: {
+    core: ControllerCore;
     bridge: RunnerConversationBridge;
     conversationId: string;
     message: ChatMessage;
     written: Set<string>;
   },
+  _options: Record<string, never> = {},
 ): void {
   void bridge.saveConversationMessage({ conversationId, message }).catch((err) => {
     core.log('tovu-runner: could not persist a fleet chat message —', err);
@@ -322,13 +323,13 @@ function saveMessage(
 
 /**
  * Fires once on `ChatPane` MOUNT with whatever `initialMessages` seeded it with, so a fresh pane
- * with nothing selected calls this with `[]` — `persistableMessages([]).length === 0` makes that a
+ * with nothing selected calls this with `[]` — `persistableMessages({ messages: [] }).length === 0` makes that a
  * no-op below, rather than mistaking a mount echo for new content to save.
  */
 function onMessagesChange({ core, messages }: { core: ControllerCore; messages: ChatMessage[] }, _options: Record<string, never> = {}): void {
   const conversationId = core.state.activeId;
   if (conversationId !== null) {
-    flush(core, { conversationId, messages });
+    flush({ core, conversationId, messages });
     return;
   }
 
@@ -337,24 +338,24 @@ function onMessagesChange({ core, messages }: { core: ControllerCore; messages: 
   // picking from history) lands here. Adopt one lazily, at the first moment there is actually
   // something worth saving, rather than littering the switcher with an empty row per app open.
   const bridge = core.bridge;
-  if (bridge === undefined || persistableMessages(messages).length === 0) return;
+  if (bridge === undefined || persistableMessages({ messages }).length === 0) return;
 
-  const adoption = claimAdoption(core, bridge);
-  void adoption.then((id) => afterAdoption(core, { adoption, id, messages }));
+  const adoption = claimAdoption({ core, bridge });
+  void adoption.then((id) => afterAdoption({ core, adoption, id, messages }));
 }
 
-function claimAdoption(core: ControllerCore, bridge: RunnerConversationBridge): Promise<string | null> {
+function claimAdoption({ core, bridge }: { core: ControllerCore; bridge: RunnerConversationBridge }, _options: Record<string, never> = {}): Promise<string | null> {
   const generation = core.adoptionGen;
   // Claimed only if nothing is already in flight, so two deltas arriving before the create
   // resolves await the SAME creation, not two. (Not `core.adopting ??= …` — Biome's
   // `noAssignInExpressions` refuses an assignment inside the expression that reads it back.)
-  if (core.adopting === null) core.adopting = adoptConversation(core, { bridge, generation });
+  if (core.adopting === null) core.adopting = adoptConversation({ core, bridge, generation });
   return core.adopting;
 }
 
 function adoptConversation(
-  core: ControllerCore,
-  { bridge, generation }: { bridge: RunnerConversationBridge; generation: number },
+  { core, bridge, generation }: { core: ControllerCore; bridge: RunnerConversationBridge; generation: number },
+  _options: Record<string, never> = {},
 ): Promise<string | null> {
   return bridge
     .createConversation()
@@ -369,7 +370,7 @@ function adoptConversation(
       // this conversation, and dropping them would be exactly the data loss lazy adoption exists
       // to prevent.
       const adopt = core.adoptionGen === generation && !core.navigating ? { activeId: conversation.id } : {};
-      publish(core, { conversations: withConversation(core, conversation), ...adopt });
+      publish({ core, patch: { conversations: withConversation({ core, conversation }), ...adopt } });
       return conversation.id;
     })
     .catch((err) => {
@@ -379,8 +380,8 @@ function adoptConversation(
 }
 
 function afterAdoption(
-  core: ControllerCore,
-  { adoption, id, messages }: { adoption: Promise<string | null>; id: string | null; messages: ChatMessage[] },
+  { core, adoption, id, messages }: { core: ControllerCore; adoption: Promise<string | null>; id: string | null; messages: ChatMessage[] },
+  _options: Record<string, never> = {},
 ): void {
   if (id === null) {
     // Cleared so a later turn can retry — leaving a rejected promise in place would wedge
@@ -388,5 +389,5 @@ function afterAdoption(
     if (core.adopting === adoption) core.adopting = null;
     return;
   }
-  flush(core, { conversationId: id, messages });
+  flush({ core, conversationId: id, messages });
 }

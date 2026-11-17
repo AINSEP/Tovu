@@ -50,10 +50,10 @@ function skillsFailureState({ actionError, actionCause, queryError, t }: { actio
   return { error, failure: error ? skillFailure({ error: actionError ? actionCause : queryError, message: error, t }) : null };
 }
 
-/** Keeps the existing API, refresh event and stale-load guard behind a render-only view.
- * The injected port lets action tests exercise retry/refetch ordering without module mocks. */
-export function useSkills({ port = defaultSkillsPort, t = key => key }: { port?: typeof defaultSkillsPort; t?: Translate } = {}, _optional?: Record<string, never>) {
-  const tabs = useSkillsTabs();
+type SkillsPort = typeof defaultSkillsPort;
+
+/** The cached skills list: the query that renders it and the loader that force-refreshes it. */
+function useSkillsList({ port }: { port: SkillsPort }) {
   const queryFetch = useCallback(async () => {
     try { return await port.listSkills(); }
     catch (error) { if (error instanceof Error) throw error; throw new Error("Could not load skills."); }
@@ -63,30 +63,20 @@ export function useSkills({ port = defaultSkillsPort, t = key => key }: { port?:
   const skills = query.data ?? null;
   const invalidate = useInvalidate();
   const loader = useCachedLoader({ key, fetch: queryFetch }, { staleTime: 0 });
-  // The skills API publishes SKILLS_CHANGED_EVENT after accepted writes; that notification
-  // already invalidates the list. A second mutation invalidation would restart that fresh read.
-  const write = useFetchMutation({ run: ({ input }: { input: () => Promise<unknown> }) => input() });
-  const [actionError, setError] = useState<string | null>(null);
-  const [actionCause, setActionCause] = useState<unknown>(null);
-  const { error, failure } = skillsFailureState({ actionError, actionCause, queryError: query.error, t });
-  const [githubUrl, setGithubUrl] = useState("");
-  const [removing, setRemoving] = useState<InstalledSkill | null>(null);
-  const [inspecting, setInspecting] = useState<InstalledSkill | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const filesInput = useRef<HTMLInputElement>(null);
-  const folderInput = useRef<HTMLInputElement>(null);
+  return { query, skills, invalidate, loader };
+}
+
+type SkillsList = ReturnType<typeof useSkillsList>;
+
+/** Reloads the list on the skills-changed event, and tracks whether the view is still mounted for async callbacks. */
+function useSkillsReload({ list, setError }: { list: SkillsList; setError: (error: string | null) => void }) {
+  const { invalidate, loader } = list;
   const mounted = useRef(true);
   const reload = useCallback(async () => {
     setError(null);
     invalidate({ key: ["skills"] });
     try { await loader.load(); } catch { /* The query exposes the read error. */ }
-  }, [invalidate, loader]);
-  const onInstalled = useCallback(async () => {
-    await loader.load().catch(() => {}); // The query exposes refresh failures separately from accepted writes.
-    if (mounted.current) tabs.onShowSkills();
-  }, [loader, tabs.onShowSkills]);
-  const install = useSkillInstall({}, { onInstalled });
+  }, [invalidate, loader, setError]);
   useEffect(() => {
     mounted.current = true;
     const refresh = () => void reload();
@@ -96,6 +86,18 @@ export function useSkills({ port = defaultSkillsPort, t = key => key }: { port?:
       window.removeEventListener(SKILLS_CHANGED_EVENT, refresh);
     };
   }, [reload]);
+  return { mounted, reload };
+}
+
+/** Enable/disable and remove writes, with the busy flag, the pending-removal row and its confirmation dialog. */
+function useSkillChanges({ port, list, mounted, errors }: { port: SkillsPort; list: SkillsList; mounted: { current: boolean }; errors: { setError: (error: string | null) => void; setActionCause: (cause: unknown) => void } }) {
+  const { loader } = list;
+  const { setError, setActionCause } = errors;
+  // The skills API publishes SKILLS_CHANGED_EVENT after accepted writes; that notification
+  // already invalidates the list. A second mutation invalidation would restart that fresh read.
+  const write = useFetchMutation({ run: ({ input }: { input: () => Promise<unknown> }) => input() });
+  const [removing, setRemoving] = useState<InstalledSkill | null>(null);
+  const [busy, setBusy] = useState(false);
 
   async function change({ work }: { work: () => Promise<unknown> }, _optional = {}) {
     setError(null);
@@ -122,6 +124,49 @@ export function useSkills({ port = defaultSkillsPort, t = key => key }: { port?:
       void change({ work: () => port.removeSkill({ toolId }) });
     }
   }
+  const toggleEnabled = (skill: InstalledSkill) => { void change({ work: () => port.enableSkill({ toolId: skill.toolId, enabled: !skill.enabled }) }); };
+  return { removing, setRemoving, busy, confirmation, onCancelRemove, onConfirmRemove, toggleEnabled };
+}
+
+/** One row view per installed skill, wired to the expand, enable, remove and inspect actions. */
+function buildSkillRows({ skills, busy, expandedIds, actions }: { skills: readonly InstalledSkill[] | null; busy: boolean; expandedIds: ReadonlySet<string>; actions: { toggleExpanded: (required: { id: string }) => void; toggleEnabled: (skill: InstalledSkill) => void; remove: (skill: InstalledSkill) => void; inspect: (skill: InstalledSkill) => void } }): SkillRowView[] {
+  return (skills ?? []).map(skill => ({
+    skill,
+    busy,
+    sourceUrl: skill.source === "uploaded" ? undefined : skill.source.githubUrl,
+    shortCommit: skill.source === "uploaded" ? undefined : skill.source.commit.slice(0, 7),
+    expanded: expandedIds.has(skill.toolId),
+    detailId: `skill-detail-${encodeURIComponent(skill.toolId)}`,
+    onToggleExpanded: () => actions.toggleExpanded({ id: skill.toolId }),
+    onToggleEnabled: () => actions.toggleEnabled(skill),
+    onRemove: () => actions.remove(skill),
+    onInspect: () => actions.inspect(skill),
+  }));
+}
+
+/** Keeps the existing API, refresh event and stale-load guard behind a render-only view.
+ * The injected port lets action tests exercise retry/refetch ordering without module mocks. */
+export function useSkills({ port = defaultSkillsPort, t = key => key }: { port?: typeof defaultSkillsPort; t?: Translate } = {}, _optional?: Record<string, never>) {
+  const tabs = useSkillsTabs();
+  const list = useSkillsList({ port });
+  const { query, skills, loader } = list;
+  const [actionError, setError] = useState<string | null>(null);
+  const [actionCause, setActionCause] = useState<unknown>(null);
+  const { error, failure } = skillsFailureState({ actionError, actionCause, queryError: query.error, t });
+  const [githubUrl, setGithubUrl] = useState("");
+  const [inspecting, setInspecting] = useState<InstalledSkill | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const filesInput = useRef<HTMLInputElement>(null);
+  const folderInput = useRef<HTMLInputElement>(null);
+  const { mounted, reload } = useSkillsReload({ list, setError });
+  const changes = useSkillChanges({ port, list, mounted, errors: { setError, setActionCause } });
+  const { removing, setRemoving, busy, confirmation, onCancelRemove, onConfirmRemove, toggleEnabled } = changes;
+  const onInstalled = useCallback(async () => {
+    await loader.load().catch(() => {}); // The query exposes refresh failures separately from accepted writes.
+    if (mounted.current) tabs.onShowSkills();
+  }, [loader, mounted, tabs.onShowSkills]);
+  const install = useSkillInstall({}, { onInstalled });
+
   function onSubmitGithub(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     install.propose({ githubUrl: githubUrl.trim() });
@@ -138,18 +183,7 @@ export function useSkills({ port = defaultSkillsPort, t = key => key }: { port?:
       return next;
     });
   }
-  const rows: SkillRowView[] = (skills ?? []).map(skill => ({
-    skill,
-    busy,
-    sourceUrl: skill.source === "uploaded" ? undefined : skill.source.githubUrl,
-    shortCommit: skill.source === "uploaded" ? undefined : skill.source.commit.slice(0, 7),
-    expanded: expandedIds.has(skill.toolId),
-    detailId: `skill-detail-${encodeURIComponent(skill.toolId)}`,
-    onToggleExpanded: () => toggleExpanded({ id: skill.toolId }),
-    onToggleEnabled: () => { void change({ work: () => port.enableSkill({ toolId: skill.toolId, enabled: !skill.enabled }) }); },
-    onRemove: () => setRemoving(skill),
-    onInspect: () => setInspecting(skill),
-  }));
+  const rows = buildSkillRows({ skills, busy, expandedIds, actions: { toggleExpanded, toggleEnabled, remove: setRemoving, inspect: setInspecting } });
   return {
     ...tabs,
     skills, rows, error, failure, githubUrl, removing, inspecting, busy, install, confirmation,

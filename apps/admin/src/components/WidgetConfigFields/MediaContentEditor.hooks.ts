@@ -130,6 +130,130 @@ function rowProblem(required: { item: MediaItem; index: number; items: readonly 
   return null;
 }
 
+type MediaEditorEmit = (next: MediaContentState) => void;
+type MediaEditorLibrary = ReturnType<typeof useMediaPickerItems>["items"];
+
+/** The raw-HTML tab: textarea/gutter refs, caret restoration after an insert, and the snippet inserter. */
+function useMediaHtmlEditor({ state, emit }: { state: MediaContentState; emit: MediaEditorEmit }) {
+  const htmlRef = useRef<HTMLTextAreaElement | null>(null);
+  const gutterRef = useRef<HTMLDivElement | null>(null);
+  const pendingCaret = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (pendingCaret.current === null || !htmlRef.current) return;
+    htmlRef.current.focus();
+    htmlRef.current.setSelectionRange(pendingCaret.current, pendingCaret.current);
+    pendingCaret.current = null;
+  });
+
+  function insertHtml({ snippet }: { snippet: string }, _options: Record<string, never> = {}) {
+    const area = htmlRef.current;
+    const start = area?.selectionStart ?? state.html.length;
+    const end = area?.selectionEnd ?? start;
+    const result = insertAtSelection({ text: state.html, start, end, insert: snippet });
+    pendingCaret.current = result.caret;
+    emit({ ...state, html: result.text });
+  }
+
+  return {
+    insertHtml,
+    fields: {
+      html: state.html,
+      setHtml: ({ html }: { html: string }, _options: Record<string, never> = {}) => emit({ ...state, html }),
+      htmlLines: lineCount({ text: state.html }),
+      htmlTooLong: state.html.length > MAX_MEDIA_HTML_LENGTH,
+      maxHtmlLength: MAX_MEDIA_HTML_LENGTH,
+      htmlRef,
+      gutterRef,
+      onHtmlScroll: (event: UIEvent<HTMLTextAreaElement>) => { if (gutterRef.current) gutterRef.current.scrollTop = event.currentTarget.scrollTop; },
+    },
+  };
+}
+
+/** The typed-slug field and its validation. */
+function useMediaSlugDraft({ state, library, setItems }: { state: MediaContentState; library: MediaEditorLibrary; setItems: (required: { items: MediaItem[] }) => void }) {
+  const [slugDraft, setSlugDraftState] = useState("");
+  const [slugProblem, setSlugProblem] = useState<MediaContentEditorController["slugProblem"]>(null);
+
+  function addSlug() {
+    const slug = slugDraft.trim();
+    const problem = mediaSlugProblem({ slug, items: state.media.items, library });
+    if (problem) { setSlugProblem({ problem, slug }); return; }
+    setItems({ items: appendMediaSlugs({ items: state.media.items, slugs: [slug] }) });
+    setSlugDraftState("");
+    setSlugProblem(null);
+  }
+
+  return {
+    slugDraft,
+    setSlugDraft: ({ value }: { value: string }, _options: Record<string, never> = {}) => { setSlugDraftState(value); setSlugProblem(null); },
+    slugProblem,
+    addSlug,
+  };
+}
+
+/** The library picker dialog: which target opened it, what is ticked, and how a confirm lands. */
+function useMediaPicker({ state, assetsBySlug, setItems, insertHtml }: { state: MediaContentState; assetsBySlug: Map<string, AdminMedia>; setItems: (required: { items: MediaItem[] }) => void; insertHtml: (required: { snippet: string }) => void }) {
+  const [picker, setPicker] = useState<"items" | "html" | null>(null);
+  const [picked, setPicked] = useState<string[]>([]);
+
+  function confirmPicker() {
+    if (picker === "items") setItems({ items: appendMediaSlugs({ items: state.media.items, slugs: picked }) });
+    if (picker === "html") {
+      insertHtml({ snippet: picked.flatMap((slug) => {
+        const asset = assetsBySlug.get(slug);
+        return asset ? [mediaSnippetFor({ slug, alt: asset.alt, contentType: asset.contentType })] : [];
+      }).join("\n") });
+    }
+    setPicker(null);
+  }
+
+  return {
+    picker,
+    picked,
+    openPicker: ({ target }: { target: "items" | "html" }, _options: Record<string, never> = {}) => { setPicked([]); setPicker(target); },
+    togglePicked: ({ slug }: { slug: string }, _options: Record<string, never> = {}) => setPicked((current) => (current.includes(slug) ? current.filter((value) => value !== slug) : [...current, slug])),
+    cancelPicker: () => setPicker(null),
+    confirmPicker,
+  };
+}
+
+/** Layout, column, aspect-ratio and class controls for the media tab. */
+function mediaLayoutFields({ widgetType, state, emitMedia }: { widgetType: string; state: MediaContentState; emitMedia: (patch: Partial<MediaDraft>) => void }): Pick<MediaContentEditorController, "layouts" | "media" | "showColumns" | "setLayout" | "setColumns" | "setAspectRatio" | "setCssClass"> {
+  return {
+    layouts: mediaLayoutsFor({ widgetType }),
+    media: state.media,
+    showColumns: layoutUsesColumns(state.media.layout),
+    setLayout: ({ layout }, _options: Record<string, never> = {}) => emitMedia({ layout }),
+    setColumns: ({ value }, _options: Record<string, never> = {}) => {
+      const columns = Number.parseInt(value, 10);
+      emitMedia({ columns: Number.isFinite(columns) ? Math.max(1, Math.min(6, columns)) : undefined });
+    },
+    setAspectRatio: ({ aspectRatio }, _options: Record<string, never> = {}) => emitMedia({ aspectRatio }),
+    setCssClass: ({ cssClass }, _options: Record<string, never> = {}) => emitMedia({ cssClass }),
+  };
+}
+
+/** Per-item edit, reorder and remove handlers. */
+function mediaItemEditors({ state, setItems }: { state: MediaContentState; setItems: (required: { items: MediaItem[] }) => void }): Pick<MediaContentEditorController, "updateItem" | "moveItem" | "removeItem"> {
+  return {
+    updateItem: ({ index, patch }, _options: Record<string, never> = {}) => setItems({ items: state.media.items.map((item, i) => (i === index ? { ...item, ...patch } : item)) }),
+    moveItem: ({ index, delta }, _options: Record<string, never> = {}) => {
+      const next = moveMediaItem({ items: state.media.items, from: index, to: index + delta });
+      if (next !== state.media.items) setItems({ items: next });
+    },
+    removeItem: ({ index }, _options: Record<string, never> = {}) => setItems({ items: state.media.items.filter((_, i) => i !== index) }),
+  };
+}
+
+/** One row per item, with its library asset, kind and any slug problem. */
+function mediaItemRows({ items, assetsBySlug, libraryLoaded }: { items: readonly MediaItem[]; assetsBySlug: Map<string, AdminMedia>; libraryLoaded: boolean }): MediaItemRow[] {
+  return items.map((item, index) => {
+    const asset = assetsBySlug.get(item.slug);
+    return { item, asset, kind: mediaKindOf({ contentType: asset?.contentType }), showsSlugEnd: slugCanShowEnd({ slug: item.slug }), problem: rowProblem({ item, index, items, asset, libraryLoaded }) };
+  });
+}
+
 /**
  * Owns the editor's derived view and handlers — see this file's header for what is local state.
  *
@@ -151,54 +275,13 @@ export function useMediaContentEditor(
   const [viewMode, setViewMode] = useState<MediaContentMode | null>(null);
   // Every handler below edits what is SHOWN, so the first edit in an untouched tab commits it.
   const state = viewedMediaContent({ stored, viewMode, stash });
-  const [slugDraft, setSlugDraftState] = useState("");
-  const [slugProblem, setSlugProblem] = useState<MediaContentEditorController["slugProblem"]>(null);
-  const [picker, setPicker] = useState<"items" | "html" | null>(null);
-  const [picked, setPicked] = useState<string[]>([]);
-  const htmlRef = useRef<HTMLTextAreaElement | null>(null);
-  const gutterRef = useRef<HTMLDivElement | null>(null);
-  const pendingCaret = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (pendingCaret.current === null || !htmlRef.current) return;
-    htmlRef.current.focus();
-    htmlRef.current.setSelectionRange(pendingCaret.current, pendingCaret.current);
-    pendingCaret.current = null;
-  });
-
-  const emit = (next: MediaContentState) => onChange(toMediaConfig({ state: next }));
+  const emit: MediaEditorEmit = (next) => onChange(toMediaConfig({ state: next }));
   const emitMedia = (patch: Partial<MediaDraft>) => emit({ ...state, media: { ...state.media, ...patch } });
   const setItems = ({ items }: { items: MediaItem[] }, _options: Record<string, never> = {}) => emitMedia({ items });
   const assetsBySlug = new Map((library ?? []).map((asset) => [asset.slug, asset]));
-
-  function addSlug() {
-    const slug = slugDraft.trim();
-    const problem = mediaSlugProblem({ slug, items: state.media.items, library });
-    if (problem) { setSlugProblem({ problem, slug }); return; }
-    setItems({ items: appendMediaSlugs({ items: state.media.items, slugs: [slug] }) });
-    setSlugDraftState("");
-    setSlugProblem(null);
-  }
-
-  function insertHtml({ snippet }: { snippet: string }, _options: Record<string, never> = {}) {
-    const area = htmlRef.current;
-    const start = area?.selectionStart ?? state.html.length;
-    const end = area?.selectionEnd ?? start;
-    const result = insertAtSelection({ text: state.html, start, end, insert: snippet });
-    pendingCaret.current = result.caret;
-    emit({ ...state, html: result.text });
-  }
-
-  function confirmPicker() {
-    if (picker === "items") setItems({ items: appendMediaSlugs({ items: state.media.items, slugs: picked }) });
-    if (picker === "html") {
-      insertHtml({ snippet: picked.flatMap((slug) => {
-        const asset = assetsBySlug.get(slug);
-        return asset ? [mediaSnippetFor({ slug, alt: asset.alt, contentType: asset.contentType })] : [];
-      }).join("\n") });
-    }
-    setPicker(null);
-  }
+  const htmlEditor = useMediaHtmlEditor({ state, emit });
+  const slugs = useMediaSlugDraft({ state, library, setItems });
+  const picker = useMediaPicker({ state, assetsBySlug, setItems, insertHtml: htmlEditor.insertHtml });
 
   return {
     mode: state.mode,
@@ -215,50 +298,18 @@ export function useMediaContentEditor(
     pickable: acceptedMediaItems({ items: library }, { accept: PICKABLE_TYPES }),
     mediaUrl: ({ asset }, _options: Record<string, never> = {}) => port.mediaOriginalUrl({ id: asset.id }),
 
-    layouts: mediaLayoutsFor({ widgetType }),
-    media: state.media,
-    showColumns: layoutUsesColumns(state.media.layout),
-    setLayout: ({ layout }, _options: Record<string, never> = {}) => emitMedia({ layout }),
-    setColumns: ({ value }, _options: Record<string, never> = {}) => {
-      const columns = Number.parseInt(value, 10);
-      emitMedia({ columns: Number.isFinite(columns) ? Math.max(1, Math.min(6, columns)) : undefined });
-    },
-    setAspectRatio: ({ aspectRatio }, _options: Record<string, never> = {}) => emitMedia({ aspectRatio }),
-    setCssClass: ({ cssClass }, _options: Record<string, never> = {}) => emitMedia({ cssClass }),
+    ...mediaLayoutFields({ widgetType, state, emitMedia }),
 
-    rows: state.media.items.map((item, index, items) => {
-      const asset = assetsBySlug.get(item.slug);
-      return { item, asset, kind: mediaKindOf({ contentType: asset?.contentType }), showsSlugEnd: slugCanShowEnd({ slug: item.slug }), problem: rowProblem({ item, index, items, asset, libraryLoaded: library !== null }) };
-    }),
+    rows: mediaItemRows({ items: state.media.items, assetsBySlug, libraryLoaded: library !== null }),
     maxItems: MAX_MEDIA_ITEMS,
-    updateItem: ({ index, patch }, _options: Record<string, never> = {}) => setItems({ items: state.media.items.map((item, i) => (i === index ? { ...item, ...patch } : item)) }),
-    moveItem: ({ index, delta }, _options: Record<string, never> = {}) => {
-      const next = moveMediaItem({ items: state.media.items, from: index, to: index + delta });
-      if (next !== state.media.items) setItems({ items: next });
-    },
-    removeItem: ({ index }, _options: Record<string, never> = {}) => setItems({ items: state.media.items.filter((_, i) => i !== index) }),
+    ...mediaItemEditors({ state, setItems }),
 
-    slugDraft,
-    setSlugDraft: ({ value }, _options: Record<string, never> = {}) => { setSlugDraftState(value); setSlugProblem(null); },
-    slugProblem,
-    addSlug,
+    ...slugs,
 
     setHtmlAttributes: ({ htmlAttributes }, _options: Record<string, never> = {}) => emitMedia({ htmlAttributes }),
 
-    picker,
-    picked,
-    openPicker: ({ target }, _options: Record<string, never> = {}) => { setPicked([]); setPicker(target); },
-    togglePicked: ({ slug }, _options: Record<string, never> = {}) => setPicked((current) => (current.includes(slug) ? current.filter((value) => value !== slug) : [...current, slug])),
-    cancelPicker: () => setPicker(null),
-    confirmPicker,
+    ...picker,
 
-    html: state.html,
-    setHtml: ({ html }, _options: Record<string, never> = {}) => emit({ ...state, html }),
-    htmlLines: lineCount({ text: state.html }),
-    htmlTooLong: state.html.length > MAX_MEDIA_HTML_LENGTH,
-    maxHtmlLength: MAX_MEDIA_HTML_LENGTH,
-    htmlRef,
-    gutterRef,
-    onHtmlScroll: (event) => { if (gutterRef.current) gutterRef.current.scrollTop = event.currentTarget.scrollTop; },
+    ...htmlEditor.fields,
   };
 }

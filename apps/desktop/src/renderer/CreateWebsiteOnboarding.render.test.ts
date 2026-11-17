@@ -46,13 +46,13 @@ function setup(t: TestContext, { form = {}, plugins = [], supabaseDatabaseAvaila
     tokensEnabled = optionalArgs?.enabled;
     return {
       plugins,
-      inputRef: (pluginId) => {
+      inputRef: ({ pluginId }) => {
         // One callback per service, stable across renders like the real hook's, recording the element it gets.
         const callback = refCallbacks.get(pluginId) ?? ((element: HTMLInputElement | null) => { tokenFields.set(pluginId, element); });
         refCallbacks.set(pluginId, callback);
         return callback;
       },
-      withTokens: (inner) => { assert.equal(inner, onCreate, 'withTokens must wrap the caller onCreate'); return wrappedCreate; },
+      withTokens: ({ onCreate: inner }) => { assert.equal(inner, onCreate, 'withTokens must wrap the caller onCreate'); return wrappedCreate; },
     };
   };
   const state: CreateWebsiteFormState = {

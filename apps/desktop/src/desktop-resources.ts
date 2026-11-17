@@ -142,7 +142,7 @@ function resourcePollIntervals({ platform, panelOpen }: { platform: NodeJS.Platf
 }
 
 /** Stable across renderer ordering; only site identity and process replacement invalidate attribution. */
-function sitesKeyOf(sites: readonly OpenResourceSite[]): string {
+function sitesKeyOf({ sites }: { sites: readonly OpenResourceSite[] }, _optional = {}): string {
   return sites.map(site => `${site.id}:${site.pid}`).sort().join('|');
 }
 
@@ -213,7 +213,7 @@ export function createDesktopResources(ports: DesktopResourcesPorts, _options = 
     async get({ panelOpen }: ResourcesRequest, _getOptions = {}): Promise<ResourcesSnapshot> {
       const { panelIntervalMs, pollIntervalMs } = resourcePollIntervals({ platform: ports.platform, panelOpen });
       const sites = ports.openSites();
-      const sitesKey = sitesKeyOf(sites);
+      const sitesKey = sitesKeyOf({ sites });
       // A launch-time failure must not strand the badge on a minute-long cached failure.
       const retryIntervalMs = cached?.status === 'unavailable' ? panelIntervalMs : pollIntervalMs;
       // Start/stop/restart changes the attribution, so the old total-only cache cannot serve cards.

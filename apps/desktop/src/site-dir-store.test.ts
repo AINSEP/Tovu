@@ -252,7 +252,7 @@ test("resolveSiteDir tells pickDir which dev fallback it rejected and why — ab
       statePath: tempStatePath(),
       devFallbackDir: fallback,
       repoRoot: fakeRepoRoot(),
-      pickDir: (rejectedDefault) => {
+      pickDir: ({ rejectedDefault }) => {
         received = rejectedDefault;
         return null;
       },
@@ -271,7 +271,7 @@ test("resolveSiteDir tells pickDir which dev fallback it rejected and why — re
       statePath: tempStatePath(),
       devFallbackDir: fallback,
       repoRoot: fakeRepoRoot(),
-      pickDir: (rejectedDefault) => {
+      pickDir: ({ rejectedDefault }) => {
         received = rejectedDefault;
         return null;
       },
@@ -291,7 +291,7 @@ test("resolveSiteDir tells pickDir which single marker file is missing — the h
       statePath: tempStatePath(),
       devFallbackDir: fallback,
       repoRoot: fakeRepoRoot(),
-      pickDir: (rejectedDefault) => {
+      pickDir: ({ rejectedDefault }) => {
         received = rejectedDefault;
         return null;
       },
@@ -307,7 +307,7 @@ test("resolveSiteDir passes null to pickDir when there is nothing to reject (no 
     resolveSiteDir({
       statePath: tempStatePath(),
       repoRoot: fakeRepoRoot(),
-      pickDir: (rejectedDefault) => {
+      pickDir: ({ rejectedDefault }) => {
         received = rejectedDefault;
         return null;
       },

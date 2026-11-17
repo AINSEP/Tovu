@@ -13,6 +13,50 @@ import { createRateLimiter, resolveClientIp } from '#src/contracts/core/rate-lim
 import { allowsVisitorRequestOrigin } from './visitor-request-origin.js';
 import { readVisitorPagePublication } from '#src/features/theme/visitor-publication';
 
+type GuestScope = ReturnType<typeof createFrontendGuestScope>;
+type VisitorControl = ReturnType<typeof createFrontendControl>;
+type VisitorLimiter = ReturnType<typeof createRateLimiter>;
+type ResolveVisitorOwner = (required: { req: Request }) => Promise<NonNullable<Awaited<ReturnType<GuestScope['resolveOwner']>>> | null>;
+
+async function bindVisitorRequest(
+  required: { req: Request; signal: AbortSignal; runId: string; workspaceId: string; control: VisitorControl; resolveOwner: ResolveVisitorOwner },
+  _optional = {},
+) {
+  const { req, signal, runId, workspaceId, control, resolveOwner } = required;
+  const owner = await resolveOwner({ req });
+  const publication = readVisitorPagePublication({ revision: req.get('x-visitor-publication') ?? '', workspaceId });
+  const unbound = { owner, publication: null, release: () => {} };
+  if (!owner || !publication) return unbound;
+  try {
+    const release = control.bindRequest({ runId, bindToken: req.get('x-frontend-bind-token') ?? '', owner, signal });
+    return { owner, publication, release };
+  } catch { return unbound; }
+}
+
+function mountVisitorFrontendRoutes(required: { app: Express; scope: GuestScope; control: VisitorControl; limiter: VisitorLimiter }, _optional = {}): void {
+  const { app, scope, control, limiter } = required;
+  // Both routes share per-IP and authenticated guest budgets. Minting fresh cookies/tabs
+  // cannot reset the IP budget, and reconnecting releases capacity through registry detach.
+  for (const path of ['credentials', 'stream']) app.use(`/api/site-assistant/frontend-sessions/${path}`, async (req, res, next) => {
+    try {
+      const ip = await limiter.check({ key: `ip:${resolveClientIp(req)}` });
+      if (!ip.allowed) { res.sendStatus(429); return; }
+      const guest = await scope.resolveGuest({ req });
+      if (guest && !(await limiter.check({ key: `guest:${guest}` })).allowed) { res.sendStatus(429); return; }
+      next();
+    } catch { res.sendStatus(403); }
+  });
+  app.post('/api/site-assistant/frontend-sessions/credentials', async (req, res) => {
+    try {
+      const issued = await scope.issue({ req, res });
+      if (!issued) { res.sendStatus(403); return; }
+      res.json(issued);
+    } catch { res.sendStatus(403); }
+  });
+  control.httpExtension({ app, context: { adapter: { env: {}, resolvedPortRef: { current: 0 },
+    allowedOriginsEnvVar: 'TOVU_ALLOWED_ORIGINS', webPortEnvVar: 'PORT', bindHostEnvVar: 'HOST' } } });
+}
+
 export function createVisitorFrontendControl({ workspaceId, enabled, canonicalOrigin, clock }: {
   workspaceId: string; enabled: () => Promise<boolean>; canonicalOrigin: () => Promise<VerifiedOrigin>; clock: Clock;
 }, _options = {}) {
@@ -36,6 +80,7 @@ export function createVisitorFrontendControl({ workspaceId, enabled, canonicalOr
       resolveCapacityKeys: ({ req, owner }) => [`ip:${resolveClientIp(req)}`, `guest:${owner!.principalId}`],
     } }, { maxOutputBytes: 24_000 });
   return { control, resolveOwner,
+<<<<<<< HEAD
     async bindRequest({ req, signal, runId }: { req: Request; signal: AbortSignal; runId: string }, _optional = {}) {
       const owner = await resolveOwner({ req });
       const publication = readVisitorPagePublication({ revision: req.get('x-visitor-publication') ?? '', workspaceId });
@@ -70,5 +115,10 @@ export function createVisitorFrontendControl({ workspaceId, enabled, canonicalOr
         config: { allowedOriginsEnvVar: 'TOVU_ALLOWED_ORIGINS', webPortEnvVar: 'PORT', bindHostEnvVar: 'HOST' } });
       control.httpExtension({ app, context: { adapter: { originPolicy } } });
     },
+=======
+    bindRequest: ({ req, signal, runId }: { req: Request; signal: AbortSignal; runId: string }, _optional = {}) =>
+      bindVisitorRequest({ req, signal, runId, workspaceId, control, resolveOwner }),
+    mount: ({ app }: { app: Express }, _optional = {}) => mountVisitorFrontendRoutes({ app, scope, control, limiter }),
+>>>>>>> origin/integ/merge-b-2026-11-16
   };
 }

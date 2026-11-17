@@ -1,3 +1,4 @@
+import type { Response } from "express";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import {
@@ -35,6 +36,23 @@ function validateExecutionCredentialField({ field, value }: { field: string; val
     return;
   }
   throw new ExecutionCredentialValidationError(specific ? specific.message : `${field} must be a string`);
+}
+
+function sendPutExecutionCredentialError(required: { res: Response; err: unknown }, _optional = {}): void {
+  const { res, err } = required;
+  if (err instanceof ExecutionCredentialValidationError) {
+    res.status(400).json({ error: err.message, code: "EXECUTION_CREDENTIAL_VALIDATION_ERROR" });
+    return;
+  }
+  if (err instanceof ExecutionCredentialSecretStoreUnconfiguredError) {
+    res.status(503).json({
+      error:
+        "the execution credential secret store is not configured — set TOVU_SITE_KEY (a hex-encoded site key) in the server environment",
+      code: "SECRET_STORE_UNCONFIGURED",
+    });
+    return;
+  }
+  sendAdminFailure({ res, error: err }, { operation: "routes/assistant/put-execution-credential", code: "INTERNAL_ERROR" });
 }
 
 /**
@@ -87,19 +105,7 @@ export const registerAdminAssistantPutExecutionCredentialRoute: AssistantSetting
       );
       res.json({ data: view });
     } catch (err) {
-      if (err instanceof ExecutionCredentialValidationError) {
-        res.status(400).json({ error: err.message, code: "EXECUTION_CREDENTIAL_VALIDATION_ERROR" });
-        return;
-      }
-      if (err instanceof ExecutionCredentialSecretStoreUnconfiguredError) {
-        res.status(503).json({
-          error:
-            "the execution credential secret store is not configured — set TOVU_SITE_KEY (a hex-encoded site key) in the server environment",
-          code: "SECRET_STORE_UNCONFIGURED",
-        });
-        return;
-      }
-      sendAdminFailure({ res, error: err }, { operation: "routes/assistant/put-execution-credential", code: "INTERNAL_ERROR" });
+      sendPutExecutionCredentialError({ res, err });
     }
   });
 };

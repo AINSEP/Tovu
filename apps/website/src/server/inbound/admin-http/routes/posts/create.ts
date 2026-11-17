@@ -9,7 +9,7 @@ import {
 } from "#src/server/inbound/shared/body-size-limit";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { sendPluginHookFailedError } from "#src/server/inbound/admin-http/http/plugin-hook-error";
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import type { ContentRouteRegistrar } from "../content/deps.js";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
@@ -42,6 +42,69 @@ function sendPostCreateError({ res, err }: { res: Response; err: unknown }, _opt
   }
 
   sendAdminFailure({ res, error: err }, { operation: "routes/posts/create", code: "INTERNAL_ERROR" });
+}
+
+type PostCreateInput = Parameters<typeof createPost>[0]["input"];
+
+/** The `createPost` input read off the request body; every field is forwarded only as the body supplies it. */
+function postCreateInput(required: { body: Request["body"]; workspaceId: string; postId: string; actorId: string }, _optional = {}): PostCreateInput {
+  // A body-less request reads every field as absent, exactly as `req.body?.x` did.
+  const body = required.body ?? {};
+  return {
+    workspaceId: required.workspaceId,
+    id: required.postId,
+    title: String(body.title ?? ""),
+    slug: body.slug !== undefined ? String(body.slug) : undefined,
+    bodyJson: body.bodyJson,
+    status: body.status,
+    author: body.author,
+    showAuthor: body.showAuthor,
+    // First Save sends the full editor snapshot; keep it in this atomic create.
+    templateChoice: body.templateChoice,
+    overridesThemePage: body.overridesThemePage,
+    hideCoverImageInBody: body.hideCoverImageInBody,
+    publishAt: body.publishAt,
+    featuredMediaId: body.featuredMediaId,
+    actorId: required.actorId,
+    analyticsSource: "admin",
+  };
+}
+
+type PostCreateDeps = Parameters<ContentRouteRegistrar>[0]["deps"];
+
+async function createPostCommand(
+  required: { deps: PostCreateDeps; postId: string; principalId: string; idempotencyKey: string | undefined; rawBody: Request["body"] },
+  _optional = {},
+) {
+  const { deps, postId, principalId, idempotencyKey, rawBody } = required;
+  const { result } = await executeCommand({
+    deps: {
+      clock: deps.clock,
+      idGen: deps.idGen,
+      changeSets: deps.changeSets,
+      outbox: deps.outbox,
+      authorize: deps.authorize,
+    },
+    command: {
+      workspaceId: deps.workspaceId,
+      actor: { id: principalId, kind: "user" },
+      summary: "Create post",
+      idempotencyKey,
+      permission: "content.write",
+    },
+    mutation: {
+      entityType: "post",
+      entityId: postId,
+      operation: "create",
+      captureInverse: async () => null,
+      execute: () => createPost({
+        deps: { repo: deps.postRepo, clock: deps.clock, beforeSaveHook: deps.pluginBeforeSaveHook, outbox: deps.outbox, authorAccounts: deps.userRepo },
+        input: postCreateInput({ body: rawBody, workspaceId: deps.workspaceId, postId, actorId: principalId }),
+      }),
+      captureEntityVersion: ({ result }) => result.post.version,
+    },
+  });
+  return result;
 }
 
 /**
@@ -77,54 +140,7 @@ export const registerAdminPostCreateRoute: ContentRouteRegistrar = ({ app, deps 
         // route runs, but Express 4 doesn't catch a synchronous throw from an async handler
         // outside try/catch (the request would otherwise hang instead of 500ing).
         const principal = getAuthedPrincipal(res);
-        const { result } = await executeCommand({
-          deps: {
-            clock: deps.clock,
-            idGen: deps.idGen,
-            changeSets: deps.changeSets,
-            outbox: deps.outbox,
-            authorize: deps.authorize,
-          },
-          command: {
-            workspaceId: deps.workspaceId,
-            actor: { id: principal.id, kind: "user" },
-            summary: "Create post",
-            idempotencyKey,
-            permission: "content.write",
-          },
-          mutation: {
-            entityType: "post",
-            entityId: postId,
-            operation: "create",
-            captureInverse: async () => null,
-            execute: () => {
-              // A body-less request reads every field as absent, exactly as `req.body?.x` did.
-              const body = req.body ?? {};
-              return createPost({
-                deps: { repo: deps.postRepo, clock: deps.clock, beforeSaveHook: deps.pluginBeforeSaveHook, outbox: deps.outbox, authorAccounts: deps.userRepo },
-                input: {
-                  workspaceId: deps.workspaceId,
-                  id: postId,
-                  title: String(body.title ?? ""),
-                  slug: body.slug !== undefined ? String(body.slug) : undefined,
-                  bodyJson: body.bodyJson,
-                  status: body.status,
-                  author: body.author,
-                  showAuthor: body.showAuthor,
-                  // First Save sends the full editor snapshot; keep it in this atomic create.
-                  templateChoice: body.templateChoice,
-                  overridesThemePage: body.overridesThemePage,
-                  hideCoverImageInBody: body.hideCoverImageInBody,
-                  publishAt: body.publishAt,
-                  featuredMediaId: body.featuredMediaId,
-                  actorId: principal.id,
-                  analyticsSource: "admin",
-                },
-              });
-            },
-            captureEntityVersion: ({ result }) => result.post.version,
-          },
-        });
+        const result = await createPostCommand({ deps, postId, principalId: principal.id, idempotencyKey, rawBody: req.body });
 
         // A post created directly as `status: "published"` now enqueues `entry.published`
         // (`createPost`'s own `deps.outbox` doc) — drained here so SEO's sitemap-cache

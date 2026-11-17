@@ -71,7 +71,14 @@ function sendPluginPreviewError({ res, err }: { res: Response; err: unknown }, _
  * without the admin plugin list (`admin.plugins.read`, which a built-in editor lacks). `enabled` is
  * the activation row's, exactly as `PLUGINS_LIST` projects it.
  */
-export const registerPluginPreviewRoute: PluginsRouteRegistrar = ({ app, deps }, _options = {}) => {
+type PluginPreviewRoute = Parameters<PluginsRouteRegistrar>[0];
+
+export const registerPluginPreviewRoute: PluginsRouteRegistrar = (route, _options = {}) => {
+  registerPluginPreviewStatusRoute(route);
+  registerPluginPreviewRunRoute(route);
+};
+
+function registerPluginPreviewStatusRoute({ app, deps }: PluginPreviewRoute, _options = {}): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/plugins/:pluginId/preview", async (req, res) => {
     if (req.params.workspaceId !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
@@ -102,7 +109,9 @@ export const registerPluginPreviewRoute: PluginsRouteRegistrar = ({ app, deps },
       sendPluginPreviewError({ res, err });
     }
   });
+}
 
+function registerPluginPreviewRunRoute({ app, deps }: PluginPreviewRoute, _options = {}): void {
   app.post("/api/admin/v1/workspaces/:workspaceId/plugins/:pluginId/preview", async (req, res) => {
     if (req.params.workspaceId !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
@@ -155,4 +164,4 @@ export const registerPluginPreviewRoute: PluginsRouteRegistrar = ({ app, deps },
       sendPluginPreviewError({ res, err });
     }
   });
-};
+}

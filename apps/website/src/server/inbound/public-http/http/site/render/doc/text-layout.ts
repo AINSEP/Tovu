@@ -1,7 +1,7 @@
 import type { JsonValue, JsonObject } from "@jini-ai/core/primitives";
 import { isObject } from "../value-readers.js";
 import { toSlug } from "#src/platform/html/slug";
-import { safeTextAlign } from "#src/platform/html/style-values";
+import { safeTextAlign } from "@jini-ai/cms/html/style-values";
 
 /**
  * Flattens a doc node's nested inline content down to its plain text — the heading label as a reader

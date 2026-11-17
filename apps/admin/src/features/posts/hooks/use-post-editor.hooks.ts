@@ -450,15 +450,34 @@ export const FILE_HANDLER_ALLOWED_MIME_TYPES = [
  * @complexity Time: O(f) in file bytes (one `FileReader` read + one upload request); space: O(f) for
  * the base64 payload — same cost {@link readFileAsDataUrl}'s own doc already states.
  */
-export async function uploadDroppedFile(port: PostEditorPort, file: File): Promise<{ assetId: string; alt: string } | null> {
+export async function uploadDroppedFile(
+  port: PostEditorPort,
+  file: File,
+  { onError }: { onError?: UploadFailureHandler } = {},
+): Promise<{ assetId: string; alt: string } | null> {
   try {
     const dataUrl = await readFileAsDataUrl(file);
     const dataBase64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
     const { media } = await port.uploadMedia({ filename: file.name, contentType: file.type, dataBase64 });
     return { assetId: media.id, alt: file.name };
-  } catch {
+  } catch (error) {
+    // Reported, not swallowed: a dropped image that quietly never appears reads as a broken editor.
+    onError?.({ file, error });
     return null;
   }
+}
+
+/** Called once per dropped or pasted file whose upload failed, with the file and the cause. */
+export type UploadFailureHandler = (failure: { file: File; error: unknown }) => void;
+
+/**
+ * The plain-words editor message for a failed drop/paste upload: names the file and keeps the
+ * cause (already redacted by the admin API) so the operator can paste it into a report.
+ * @complexity O(1).
+ */
+export function formatUploadFailureMessage({ file, error, t }: { file: File; error: unknown; t: Translate }, _options: Record<string, never> = {}): string {
+  const cause = error instanceof Error && error.message ? error.message : t("no reason was given");
+  return interpolate({ template: t("Could not add {name}. Nothing was inserted. Cause: {cause}"), vars: { name: file.name, cause } });
 }
 
 /**
@@ -531,9 +550,9 @@ function formatSaveErrorMessage({ error, statusOverride, t }: { error: unknown; 
  * synchronous callback) — a multi-file drop with one slow or failing upload still lands every other
  * file rather than blocking on the slowest or losing the whole batch to one failure.
  */
-export function handleFileDrop({ port, editor, files, pos }: { port: PostEditorPort; editor: Editor; files: File[]; pos: number }, _options: Record<string, never> = {}): void {
+export function handleFileDrop({ port, editor, files, pos, onError }: { port: PostEditorPort; editor: Editor; files: File[]; pos: number; onError?: UploadFailureHandler }, _options: Record<string, never> = {}): void {
   for (const file of files) {
-    uploadDroppedFile(port, file).then((result) => {
+    uploadDroppedFile(port, file, { ...(onError ? { onError } : {}) }).then((result) => {
       if (!result) return;
       editor
         .chain()
@@ -554,9 +573,9 @@ export function handleFileDrop({ port, editor, files, pos }: { port: PostEditorP
  * does with no position argument (after the selected node when a node is selected, see
  * `lib/block-atom-insert.ts`).
  */
-export function handleFilePaste({ port, editor, files }: { port: PostEditorPort; editor: Editor; files: File[] }, _options: Record<string, never> = {}): void {
+export function handleFilePaste({ port, editor, files, onError }: { port: PostEditorPort; editor: Editor; files: File[]; onError?: UploadFailureHandler }, _options: Record<string, never> = {}): void {
   for (const file of files) {
-    uploadDroppedFile(port, file).then((result) => {
+    uploadDroppedFile(port, file, { ...(onError ? { onError } : {}) }).then((result) => {
       if (!result) return;
       editor.commands.insertMediaEmbed({ assetId: result.assetId, transformName: "public", alt: result.alt });
     });
@@ -682,6 +701,11 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
   // same-tick Save/Publish clicks use one record, then apply the latest intent to its real id.
   const firstSaveRequest = useRef<{ patch: Parameters<PostEditorPort["updatePost"]>[0]["patch"]; response: Promise<{ post: AdminPost }> } | null>(null);
 
+  // A failed drop/paste upload shows in the editor's own error line; nothing is inserted.
+  const reportUploadFailure: UploadFailureHandler = ({ file, error }) => {
+    setMessage(null);
+    setError(formatUploadFailureMessage({ file, error, t }));
+  };
   const editor = useEditor({
     // Link and Underline ship as part of StarterKit already (verified against its own bundle) —
     // only TextAlign needed adding. `document: false` turns off StarterKit's own `doc` node so
@@ -804,8 +828,8 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
       // logic living inside `usePostEditor` itself.
       FileHandler.configure({
         allowedMimeTypes: FILE_HANDLER_ALLOWED_MIME_TYPES,
-        onDrop: (currentEditor, files, pos) => handleFileDrop({ port: port, editor: currentEditor, files: files, pos: pos }),
-        onPaste: (currentEditor, files) => handleFilePaste({ port: port, editor: currentEditor, files: files }),
+        onDrop: (currentEditor, files, pos) => handleFileDrop({ port: port, editor: currentEditor, files: files, pos: pos, onError: reportUploadFailure }),
+        onPaste: (currentEditor, files) => handleFilePaste({ port: port, editor: currentEditor, files: files, onError: reportUploadFailure }),
       }),
       MediaImage,
       // Media (2026-09-11, generic media node) — see `lib/media-embed-extension.tsx`'s own file
@@ -1287,7 +1311,9 @@ export function usePostEditor({ postId, deps }: { postId: string; deps: PostEdit
 
   /** Discards the recovered draft server-side and dismisses the banner, without applying it. */
   async function discardRecoveredDraft(): Promise<void> {
-    await autosave.clearStandingDraft();
+    // keepOnFailure: the banner stays until the server confirms, so a failed discard is retryable.
+    const { discarded } = await autosave.clearStandingDraft({}, { keepOnFailure: true });
+    if (!discarded) setError(t("Could not discard the recovered draft. It is still saved and the banner is still here, so you can try Discard again or Restore it."));
   }
 
   /**

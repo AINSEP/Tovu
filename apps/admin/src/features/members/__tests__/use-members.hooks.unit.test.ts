@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminMember } from "@/features/members/api/members-api.types";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
-import { createFakeMembersPort } from "../hooks/members-dependencies.hooks";
+import { createFakeMembersPort } from "@jini-ai/user-management/react/testing";
 import { useMembers, useWiredMembers } from "../hooks/members-controller.hooks";
 import { MEMBERS_RESOURCE } from "../hooks/members-dependencies.hooks";
 
@@ -75,7 +75,7 @@ describe("useMembers — content refresh bus", () => {
 
   it("re-reads the list when a content refresh fires, so an assistant-disabled member appears without a reload", async () => {
     vi.stubGlobal("fetch", stubFetchWithLocale("en"));
-    const port = createFakeMembersPort({ members: [MEMBER] });
+    const port = createFakeMembersPort({}, { members: [MEMBER] });
     const { result } = renderHook(() => useMembers({ port }));
     await waitFor(() => expect(result.current.members).toEqual([MEMBER]));
 
@@ -91,7 +91,7 @@ describe("useMembers — content refresh bus", () => {
 
   it("refreshes on a notification that names members, and ignores one that names only other resources", async () => {
     vi.stubGlobal("fetch", stubFetchWithLocale("en"));
-    const port = createFakeMembersPort({ members: [MEMBER] });
+    const port = createFakeMembersPort({}, { members: [MEMBER] });
     const { result } = renderHook(() => useMembers({ port }));
     await waitFor(() => expect(result.current.members).toEqual([MEMBER]));
 
@@ -107,7 +107,7 @@ describe("useMembers — content refresh bus", () => {
 
   it("stops re-reading once unmounted", async () => {
     vi.stubGlobal("fetch", stubFetchWithLocale("en"));
-    const port = createFakeMembersPort({ members: [MEMBER] });
+    const port = createFakeMembersPort({}, { members: [MEMBER] });
     const listSpy = vi.spyOn(port, "listMembers");
     const { result, unmount } = renderHook(() => useMembers({ port }));
     await waitFor(() => expect(result.current.members).toEqual([MEMBER]));
@@ -122,7 +122,7 @@ describe("useMembers — content refresh bus", () => {
 
   it("does not let a slower, earlier-triggered refresh overwrite a newer one that already settled (out-of-order response race)", async () => {
     vi.stubGlobal("fetch", stubFetchWithLocale("en"));
-    const port = createFakeMembersPort({ members: [MEMBER] });
+    const port = createFakeMembersPort({}, { members: [MEMBER] });
 
     // Two assistant writes land back to back, each publishing its own content-refresh
     // notification — two overlapping `listMembers()` calls with no ordering guarantee on responses.
@@ -170,7 +170,7 @@ describe("useMembers — a slow row's detail settle does not blank or error anot
     vi.stubGlobal("fetch", stubFetchWithLocale("en"));
     const MEMBER_A: AdminMember = { ...MEMBER, id: "mA" };
     const MEMBER_B: AdminMember = { ...MEMBER, id: "mB", email: "bob@example.com" };
-    const port = createFakeMembersPort({ members: [MEMBER_A, MEMBER_B] });
+    const port = createFakeMembersPort({}, { members: [MEMBER_A, MEMBER_B] });
 
     let rejectA!: (e: unknown) => void;
     vi.spyOn(port, "getMember")
@@ -207,7 +207,7 @@ describe("useMembers — a slow row's detail settle does not blank or error anot
   // stale ref as "already open" and collapsed again.
   it("a row collapsed and clicked again reopens", async () => {
     vi.stubGlobal("fetch", stubFetchWithLocale("en"));
-    const port = createFakeMembersPort({ members: [MEMBER] });
+    const port = createFakeMembersPort({}, { members: [MEMBER] });
 
     const { result } = renderHook(() => useMembers({ port }));
     await waitFor(() => expect(result.current.members).toEqual([MEMBER]));
@@ -233,7 +233,7 @@ describe("useMembers — a slow row's detail settle does not blank or error anot
   // hiding the detail even after the second load succeeds.
   it("the first load of a closed-and-reopened row failing late does not error or un-spin the reopened panel", async () => {
     vi.stubGlobal("fetch", stubFetchWithLocale("en"));
-    const port = createFakeMembersPort({ members: [MEMBER] });
+    const port = createFakeMembersPort({}, { members: [MEMBER] });
 
     let rejectFirst!: (e: unknown) => void;
     let resolveSecond!: (v: { member: AdminMember }) => void;
@@ -281,7 +281,7 @@ describe("useMembers — a slow row's detail settle does not blank or error anot
     vi.stubGlobal("fetch", stubFetchWithLocale("en"));
     const MEMBER_A: AdminMember = { ...MEMBER, id: "mA" };
     const MEMBER_B: AdminMember = { ...MEMBER, id: "mB", email: "bob@example.com" };
-    const port = createFakeMembersPort({ members: [MEMBER_A, MEMBER_B] });
+    const port = createFakeMembersPort({}, { members: [MEMBER_A, MEMBER_B] });
 
     let rejectA!: (e: unknown) => void;
     vi.spyOn(port, "getMember")

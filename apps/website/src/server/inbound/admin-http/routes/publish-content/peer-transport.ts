@@ -238,27 +238,39 @@ function mayOverwrite({ res, overwriteEntityKeys }: { res: Response; overwriteEn
   });
 }
 
-export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
-  const base = "/api/admin/v1/workspaces/:workspaceId/publish-content/peers/:peerId";
+type PeerRouteDeps = Parameters<PublishContentRouteRegistrar>[0]["deps"];
+type PeerGuard = (input: { req: Pick<Request, "params">; res: Response }) => Promise<string | null>;
 
-  /** Every route here shares the same preamble: mount-path 404, authenticated principal, and the
-   *  `publish_content.apply` gate. Factored so a new peer action cannot accidentally ship without
-   *  one of the three. Returns the principal id, or `null` when a response has already been sent. */
-  const guard = async ({ req, res }: { req: Pick<Request, "params">; res: Response }, _options: Record<string, never> = {}): Promise<string | null> => {
-    if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return null;
-    return authorizedPrincipalId({ res, deps, permission: "publish_content.apply" });
-  };
+/** What each peer route registrar needs: the app, deps, the shared path prefix and the two guards. */
+interface PeerRouteContext {
+  app: Parameters<PublishContentRouteRegistrar>[0]["app"];
+  deps: PeerRouteDeps;
+  base: string;
+  guard: PeerGuard;
+  pushGuard: PeerGuard;
+}
 
-  /** The push routes' extra preamble: the live site is the publish destination, so it never pushes
-   *  (`live-site-policy.ts`). Runs before {@link guard} — nothing about the caller changes the answer. */
-  const pushGuard: typeof guard = async ({ req, res }, _options = {}) => {
-    if (!canPublishToLive()) {
-      res.status(403).json({ error: PUBLISH_FROM_LIVE_SITE_ERROR, code: PUBLISH_FROM_LIVE_SITE_CODE });
-      return null;
-    }
-    return guard({ req, res });
-  };
+/** Every route here shares the same preamble: mount-path 404, authenticated principal, and the
+ *  `publish_content.apply` gate. Factored so a new peer action cannot accidentally ship without
+ *  one of the three. Returns the principal id, or `null` when a response has already been sent. */
+async function peerGuard(input: { deps: PeerRouteDeps; req: Pick<Request, "params">; res: Response }): Promise<string | null> {
+  const { deps, req, res } = input;
+  if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return null;
+  return authorizedPrincipalId({ res, deps, permission: "publish_content.apply" });
+}
 
+/** The push routes' extra preamble: the live site is the publish destination, so it never pushes
+ *  (`live-site-policy.ts`). Runs before {@link peerGuard} — nothing about the caller changes the answer. */
+async function peerPushGuard(input: { deps: PeerRouteDeps; req: Pick<Request, "params">; res: Response }): Promise<string | null> {
+  const { deps, req, res } = input;
+  if (!canPublishToLive()) {
+    res.status(403).json({ error: PUBLISH_FROM_LIVE_SITE_ERROR, code: PUBLISH_FROM_LIVE_SITE_CODE });
+    return null;
+  }
+  return peerGuard({ deps, req, res });
+}
+
+function registerPushPlanRoute({ app, deps, base, pushGuard }: PeerRouteContext): void {
   app.post(`${base}/push/plan`, async (req, res) => {
     try {
       const principalId = await pushGuard({ req, res });
@@ -282,7 +294,9 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
       respondWithError({ res, err });
     }
   });
+}
 
+function registerPushConfirmRoute({ app, deps, base, pushGuard }: PeerRouteContext): void {
   app.post(`${base}/push/confirm`, async (req, res) => {
     try {
       const principalId = await pushGuard({ req, res });
@@ -300,7 +314,9 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
       respondWithError({ res, err });
     }
   });
+}
 
+function registerPushExecuteRoute({ app, deps, base, pushGuard }: PeerRouteContext): void {
   app.post(`${base}/push/execute`, async (req, res) => {
     try {
       const principalId = await pushGuard({ req, res });
@@ -327,7 +343,9 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
       respondWithError({ res, err });
     }
   });
+}
 
+function registerPullRoute({ app, deps, base, guard }: PeerRouteContext): void {
   app.post(`${base}/pull`, async (req, res) => {
     try {
       const principalId = await guard({ req, res });
@@ -341,4 +359,18 @@ export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegis
       respondWithError({ res, err });
     }
   });
+}
+
+export const registerPublishContentPeerTransportRoutes: PublishContentRouteRegistrar = ({ app, deps }, _options = {}) => {
+  const context: PeerRouteContext = {
+    app,
+    deps,
+    base: "/api/admin/v1/workspaces/:workspaceId/publish-content/peers/:peerId",
+    guard: ({ req, res }) => peerGuard({ deps, req, res }),
+    pushGuard: ({ req, res }) => peerPushGuard({ deps, req, res }),
+  };
+  registerPushPlanRoute(context);
+  registerPushConfirmRoute(context);
+  registerPushExecuteRoute(context);
+  registerPullRoute(context);
 };

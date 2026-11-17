@@ -1,7 +1,7 @@
 
 import type { SiteImport, SiteImportState, SiteShare } from "./hooks/site-transfer-dependencies.hooks";
 
-import { type Translate } from '@jini-ai/core/text';
+import { formatByteSize, type Translate } from '@jini-ai/core/text';
 /**
  * @file Pure display rules for the Export Site and Import Site tabs: labels, pill tones and short
  * forms of links. No React, so each rule is tested directly.
@@ -11,10 +11,7 @@ import { type Translate } from '@jini-ai/core/text';
  *  @complexity O(1). */
 export function formatTransferBytes({ bytes }: { bytes: number | null | undefined }, _optional = {}): string {
   if (bytes == null || !Number.isFinite(bytes) || bytes < 0) return "—";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 ** 2) return `${Math.round(bytes / 1024)} KB`;
-  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
-  return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+  return formatByteSize({ bytes });
 }
 
 /** The pill for one export: its label and the shared `.status-*` tone class. */

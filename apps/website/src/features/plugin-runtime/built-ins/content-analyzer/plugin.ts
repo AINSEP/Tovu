@@ -16,7 +16,7 @@
 import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE, type ContentEntryDraft, type ExtPatch } from "@tovu/sdk";
 
 import { analyzeContent } from "./analyze-content.js";
-import { summarizeReport } from "./summary.js";
+import { summarizeReport } from "@jini-ai/cms/seo/content-analysis";
 import { tiptapToBlocks } from "./tiptap-blocks.js";
 
 /**

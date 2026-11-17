@@ -77,9 +77,9 @@ export const pct = ({ hit, found }: { hit: number; found: number }, _options = {
 export const isMeasurableSource = ({ relPath }: { relPath: string }, _options = {}) => coverage.isMeasurableSource({ file: relPath });
 export const isInExcludedDir = ({ relPath }: { relPath: string }, { excludeDirs = [] }: { excludeDirs?: readonly string[] } = {}) => coverage.isInExcludedDir({ file: relPath, excludeDirs });
 export const parseNodeTestScript = ({ script }: { script: string }, _options = {}) => coverage.parseNodeTestScript({ script });
-export const runnerSplitDrift = (passes: readonly coverage.RunnerGlobs[], scriptPasses: readonly coverage.RunnerGlobs[]) => coverage.runnerSplitDrift({ passes, scriptPasses });
+export const runnerSplitDrift = ({ passes, scriptPasses }: { passes: readonly coverage.RunnerGlobs[]; scriptPasses: readonly coverage.RunnerGlobs[] }, _options = {}) => coverage.runnerSplitDrift({ passes, scriptPasses });
 export const evaluateArea = ({ area, onDisk, records }: { area: coverage.CoverageArea; onDisk: readonly string[]; records: ReadonlyMap<string, coverage.LcovCounters> }, _options = {}) => coverage.evaluateDiskArea({ area, onDisk, coverage: records });
-export const formatArea = (result: AreaResult, area: coverage.CoverageArea) => coverage.formatDiskArea({ result, area }, { noFloorMessage: "(no floor — see coverage-floors.json)" });
+export const formatArea = ({ result, area }: { result: AreaResult; area: coverage.CoverageArea }, _options = {}) => coverage.formatDiskArea({ result, area }, { noFloorMessage: "(no floor — see coverage-floors.json)" });
 
 /** Where the source inventory is walked (recursively), relative to the desktop root. The desktop
  *  root itself is scanned too, but only one level deep: that is where the Electron entry `main.ts`
@@ -325,9 +325,9 @@ export interface LcovImage { line: LcovAxisImage; branch: LcovAxisImage; funcs: 
 
 /** Every regex match's [key, count] in record order, with `-` (lcov's "never taken") read as 0.
  *  @complexity O(n) in record lines. */
-function countedEntries({ record, pattern, keyOf, countAt }: { record: string; pattern: RegExp; keyOf: (match: RegExpMatchArray) => string; countAt: number }, _options = {}): Map<string, number> {
+function countedEntries({ record, pattern, keyOf, countAt }: { record: string; pattern: RegExp; keyOf: ({ match }: { match: RegExpMatchArray }) => string; countAt: number }, _options = {}): Map<string, number> {
   const entries = new Map<string, number>();
-  for (const match of record.matchAll(pattern)) entries.set(keyOf(match), Number(match[countAt]) || 0);
+  for (const match of record.matchAll(pattern)) entries.set(keyOf({ match }), Number(match[countAt]) || 0);
   return entries;
 }
 
@@ -362,8 +362,8 @@ export function readLcovImage({ record }: { record: string }): LcovImage {
   const num = ({ key }: { key: string }, _options = {}): number => Number(new RegExp(`^${key}:(\\d+)$`, "m").exec(record)?.[1] ?? 0);
   const branchSeen = new Map<string, number>();
   return {
-    line: { found: num({ key: "LF" }), hit: num({ key: "LH" }), entries: countedEntries({ record, pattern: /^DA:(\d+),(\d+)/gm, keyOf: (m) => m[1] ?? "", countAt: 2 }) },
-    branch: { found: num({ key: "BRF" }), hit: num({ key: "BRH" }), entries: countedEntries({ record, pattern: /^BRDA:(\d+),[^,\n]*,[^,\n]*,(\d+|-)$/gm, keyOf: (m) => ordinalKey({ seen: branchSeen, base: m[1] ?? "" }), countAt: 2 }) },
+    line: { found: num({ key: "LF" }), hit: num({ key: "LH" }), entries: countedEntries({ record, pattern: /^DA:(\d+),(\d+)/gm, keyOf: ({ match: m }) => m[1] ?? "", countAt: 2 }) },
+    branch: { found: num({ key: "BRF" }), hit: num({ key: "BRH" }), entries: countedEntries({ record, pattern: /^BRDA:(\d+),[^,\n]*,[^,\n]*,(\d+|-)$/gm, keyOf: ({ match: m }) => ordinalKey({ seen: branchSeen, base: m[1] ?? "" }), countAt: 2 }) },
     funcs: { found: num({ key: "FNF" }), hit: num({ key: "FNH" }), entries: functionEntries({ record }) },
   };
 }
@@ -371,7 +371,7 @@ export function readLcovImage({ record }: { record: string }): LcovImage {
 /** One axis of {@link unionLcovImages}. Without entries on both sides there is nothing to match, so
  *  the axis keeps the image that hit more (the earlier one on a tie).
  *  @complexity O(e) in entries. */
-function unionAxis(a: LcovAxisImage, b: LcovAxisImage): LcovAxisImage {
+function unionAxis({ a, b }: { a: LcovAxisImage; b: LcovAxisImage }, _options = {}): LcovAxisImage {
   if (a.entries.size === 0 || b.entries.size === 0) return b.hit > a.hit ? b : a;
   const entries = new Map(a.entries);
   for (const [key, count] of b.entries) entries.set(key, Math.max(entries.get(key) ?? 0, count));
@@ -389,7 +389,7 @@ function unionAxis(a: LcovAxisImage, b: LcovAxisImage): LcovAxisImage {
  * @complexity O(e) in entries.
  */
 export function unionLcovImages({ a, b }: { a: LcovImage; b: LcovImage }): LcovImage {
-  return { line: unionAxis(a.line, b.line), branch: unionAxis(a.branch, b.branch), funcs: unionAxis(a.funcs, b.funcs) };
+  return { line: unionAxis({ a: a.line, b: b.line }), branch: unionAxis({ a: a.branch, b: b.branch }), funcs: unionAxis({ a: a.funcs, b: b.funcs }) };
 }
 
 /** An image's totals in the shape the area and per-file floors read.

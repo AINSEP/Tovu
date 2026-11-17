@@ -194,7 +194,7 @@ export function ResourcesPanel({ projects, snapshot, onSiteUpdated, onClose,
   useEffect(() => { containerRef.current?.querySelector<HTMLButtonElement>('button')?.focus(); }, []);
   const power = usePower({}, { onSiteUpdated });
   const groups = resourceGroups({ projects, snapshot, statusOf: power.statusOf });
-  const errors = projects.map((site) => power.errorOf(site.id)).filter(Boolean).join(' · ');
+  const errors = projects.map((site) => power.errorOf({ id: site.id })).filter(Boolean).join(' · ');
   const onStop = createResourceStop({ projects, power });
   return <div ref={containerRef}><Shell onClose={onClose} fullscreenEnabled={false} className="resources-dialog"
     dialogAriaLabelledBy="desktop-resources-title" tabs={[{ id: 'resources', label: 'Resources', title: 'Resources', panel: <>

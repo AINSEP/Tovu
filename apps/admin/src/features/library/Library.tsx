@@ -2,12 +2,12 @@ import { createRenameKeyDown, createPreviewKeyDown } from "./Library.hooks";
 import { useLayoutEffect, useRef, useState } from "react";
 import { DataTable, RowMenu, type RowMenuItem } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/core/agent-handles";
-import { FileDropzone, Toast } from "@jini-ai/ui";
+import { FileDropzone, Icon, Toast } from "@jini-ai/ui";
 
 import { TabBar } from "@jini-ai/ui/tab-strip";
 import type { AdminMedia } from "@/features/media/api/media-api.types";
 import { navigate } from "@/lib/router";
-import { UploadIcon, goToLibraryTab, resolveLibraryTabId, resolveLibraryTabs } from "./Library.hooks";
+import { goToLibraryTab, resolveLibraryTabId, resolveLibraryTabs } from "./Library.hooks";
 import { useWiredLibrary, type LibraryController, type LibraryPreviewState, type LibraryUploadRow } from "./hooks/use-library.hooks";
 import {
   LIBRARY_ACCEPT,
@@ -112,7 +112,7 @@ export function UploadTab({ controller }: { controller: LibraryController }) {
         onClick={() => zoneRef.current?.querySelector<HTMLInputElement>('input[type="file"]')?.click()}
         {...agentHandle({ handle: "library-upload-documents" }, { role: "button", label: "Open the file picker to upload documents to the Library" })}
       >
-        <UploadIcon />
+        <Icon name="tray-upload" size={16} strokeWidth={1.5} />
         {t("Upload documents")}
       </button>
       <div ref={zoneRef} onDropCapture={(event) => {

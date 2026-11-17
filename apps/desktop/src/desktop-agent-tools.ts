@@ -98,7 +98,7 @@ function sharedDesktopTools(context: ToolContext): ToolRegistration[] {
 }
 
 /** `desktop.navigate` — moves the shell's top nav (REQ-17). @complexity O(1). */
-function navigateTool(navigate: DesktopAgentToolDeps["navigate"]): ToolRegistration {
+function navigateTool({ navigate }: { navigate: DesktopAgentToolDeps["navigate"] }, _optional = {}): ToolRegistration {
   return {
     descriptor: {
       id: `${DESKTOP_TOOL_PREFIX}navigate`,
@@ -170,7 +170,7 @@ function activeSiteTools(deps: Pick<DesktopAgentToolDeps, "addresseeOf" | "siteT
  * @complexity O(n) in the shared desktop table.
  */
 function buildDesktopAgentTools(deps: DesktopAgentToolDeps): ToolRegistration[] {
-  return [...sharedDesktopTools(deps.sitesToolContext), navigateTool(deps.navigate), ...activeSiteTools(deps)];
+  return [...sharedDesktopTools(deps.sitesToolContext), navigateTool({ navigate: deps.navigate }), ...activeSiteTools(deps)];
 }
 
 /**

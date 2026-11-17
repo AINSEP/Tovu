@@ -128,7 +128,7 @@ const STARTABLE_STATUSES: readonly SiteLifecycleStatus[] = ['stopped', 'failed',
  *
  * @complexity O(1).
  */
-export function powerControl(status: SiteLifecycleStatus, { external = false }: { external?: boolean } = {}): SitePowerControl | null {
+export function powerControl({ status }: { status: SiteLifecycleStatus }, { external = false }: { external?: boolean } = {}): SitePowerControl | null {
   if (external) return null;
   if (status === 'running') return { action: 'stop', label: 'Stop', tooltip: 'Stop site', busy: false, on: true };
   if (STARTABLE_STATUSES.includes(status)) return { action: 'start', label: 'Start', tooltip: 'Start site', busy: false, on: false };
@@ -143,7 +143,7 @@ export interface SitePower {
    *  window started and is still waiting on. */
   statusOf: (project: SiteRecord) => SiteLifecycleStatus;
   /** Why this site's last start or stop failed, or `null`. Main's own sentence, verbatim. */
-  errorOf: (id: string) => string | null;
+  errorOf: (required: { id: string }, options?: {}) => string | null;
   /** Start a stopped site or stop a running one. A no-op while one is already in flight. A Stop of a
    *  site another process serves only opens the confirm unless `confirmed`. */
   toggle: (project: SiteRecord, options?: { confirmed?: boolean }) => Promise<void>;
@@ -279,11 +279,11 @@ export function useSitePower(
     [pending],
   );
 
-  const errorOf = useCallback((id: string) => errors[id] ?? null, [errors]);
+  const errorOf = useCallback(({ id }: { id: string }, _options = {}) => errors[id] ?? null, [errors]);
 
   const toggle = useCallback(
     async (project: SiteRecord, { confirmed = false }: { confirmed?: boolean } = {}) => {
-      const action = powerControl(statusOf(project), { external: Boolean(project.externalUrl) && !project.externalLauncher })?.action;
+      const action = powerControl({ status: statusOf(project) }, { external: Boolean(project.externalUrl) && !project.externalLauncher })?.action;
       const intent = powerToggleIntent({ action, project, inFlight, confirmed });
       if (intent === null) return;
       if (intent === 'confirm-stop') {

@@ -1225,8 +1225,10 @@ export function usePageEditor({ routeSlug, deps }: { routeSlug: string; deps: Pa
   }, [autosave.recoverableDraft, autosave.dismissRecoverable]);
 
   const discardRecoveredDraft = useCallback(async () => {
-    await autosave.clearStandingDraft();
-  }, [autosave.clearStandingDraft]);
+    // keepOnFailure: the banner stays until the server confirms, so a failed discard is retryable.
+    const { discarded } = await autosave.clearStandingDraft({}, { keepOnFailure: true });
+    if (!discarded) setError(t({ locale, key: "Could not discard the recovered draft. It is still saved and the banner is still here, so you can try Discard again or Restore it." }));
+  }, [autosave.clearStandingDraft, t, locale]);
 
   // Interactive flush (2026-09-23 plan) — "flush, then set" wrappers around the raw `setView`/
   // `setTemplateChoice` state setters (declared above, at `useState`). Leaving Interactive without

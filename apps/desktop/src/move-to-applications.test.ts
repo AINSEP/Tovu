@@ -158,7 +158,7 @@ function fakeDeps(overrides: Partial<MovePromptDeps> = {}): { deps: MovePromptDe
       return true;
     },
     readExistingVersion: () => null,
-    openExisting: (appPath) => {
+    openExisting: ({ appPath }) => {
       seen.calls.push(`open ${appPath}`);
     },
     quit: () => {
@@ -167,10 +167,10 @@ function fakeDeps(overrides: Partial<MovePromptDeps> = {}): { deps: MovePromptDe
     recordDeclined: () => {
       seen.calls.push("declined");
     },
-    showError: (message) => {
+    showError: ({ message }) => {
       seen.errors.push(message);
     },
-    showInfo: (message) => {
+    showInfo: ({ message }) => {
       seen.infos.push(message);
     },
     ...overrides,
@@ -195,8 +195,8 @@ test("Move hands Electron a conflict handler that answers from decideMoveConflic
   const answers: boolean[] = [];
   const { deps } = fakeDeps({
     readExistingVersion: () => "0.1.7",
-    move: (onConflict) => {
-      answers.push(onConflict("exists"));
+    move: ({ conflictHandler }) => {
+      answers.push(conflictHandler("exists"));
       return true;
     },
   });
@@ -207,7 +207,7 @@ test("Move hands Electron a conflict handler that answers from decideMoveConflic
 test("Move onto a newer, not-running copy opens that copy and quits this one", async () => {
   const { deps, seen } = fakeDeps({
     readExistingVersion: () => "0.1.9",
-    move: (onConflict) => onConflict("exists"),
+    move: ({ conflictHandler }) => conflictHandler("exists"),
   });
   assert.equal(await runMoveToApplicationsPrompt(deps), "opened-existing");
   assert.deepEqual(seen.calls, ["open /Applications/Tovu.app", "quit"]);
@@ -218,8 +218,8 @@ test("Move onto a newer, running copy lets Electron focus it and quit this one (
   const answers: boolean[] = [];
   const { deps, seen } = fakeDeps({
     readExistingVersion: () => "0.1.9",
-    move: (onConflict) => {
-      answers.push(onConflict("existsAndRunning"));
+    move: ({ conflictHandler }) => {
+      answers.push(conflictHandler("existsAndRunning"));
       return true;
     },
   });
@@ -231,7 +231,7 @@ test("Move onto a newer, running copy lets Electron focus it and quit this one (
 test("Move onto an older copy that is running explains why and keeps this copy running", async () => {
   const { deps, seen } = fakeDeps({
     readExistingVersion: () => "0.1.7",
-    move: (onConflict) => onConflict("existsAndRunning"),
+    move: ({ conflictHandler }) => conflictHandler("existsAndRunning"),
   });
   assert.equal(await runMoveToApplicationsPrompt(deps), "blocked-by-running-copy");
   assert.deepEqual(seen.calls, []);

@@ -104,10 +104,10 @@ export function App({
 } = {}) {
   const [theme, setTheme] = useTheme();
   const { projects, setProjects, projectsLoading, loadError } = useProjects();
-  const { rescanning, rescanError, rescan } = useSiteRescan(setProjects);
+  const { rescanning, rescanError, rescan } = useSiteRescan({ setProjects });
   // A card's Start/Stop resolves with main's refreshed record; this is what puts it on screen
   // rather than leaving the card four seconds behind the poll. See `useApplySiteRecord`.
-  const applySiteRecord = useApplySiteRecord(setProjects);
+  const applySiteRecord = useApplySiteRecord({ setProjects });
   // Tabs before nav, and not the other way round: `useSectionNav` needs `setActiveTab` because
   // every section-level move also drops back to the sites home tab. What used to make that ordering
   // impossible — the tabs hook consuming `activeId`/`appearanceOpen` — is now `deriveSitesHomeView`.
@@ -127,7 +127,7 @@ export function App({
     startImporting,
     hideImporting,
     stopImporting,
-  } = useNav(setActiveTab);
+  } = useNav({ setActiveTab });
   const { openSites, inSites, showSiteTab, showSitesHome, visibleWorkspaceId, showCreateForm, showImportPage } =
     deriveSitesHomeView({ activeId, appearanceOpen, activeTab, openTabs, projects, isCreating, isImporting });
   const { lastCreated, openCreateWebsite, handleCreate, handleDelete, cancelCreate, createFormKey } =
@@ -148,7 +148,7 @@ export function App({
   const liveImport = useImportWebsite({
     createSite: ({ displayName }) => handleCreate({ displayName, database: { kind: 'sqlite' } }),
     openSite: ({ site, adminPage }) => { openImported({ id: site.id }, { adminPage }); startImported(site); },
-    onArchiveImported: ({ site }, _options = {}) => { setProjects((current) => mergeAddedSite(current, site)); siteToast.announceImported(site); openImported({ id: site.id }); startImported(site); },
+    onArchiveImported: ({ site }, _options = {}) => { setProjects((current) => mergeAddedSite({ current, added: site })); siteToast.announceImported(site); openImported({ id: site.id }); startImported(site); },
     onFailureWhileClosed: siteToast.showToast,
   });
   const openImportPage = createOpenImportPage({ clearAddError, liveImport, startImporting });
@@ -168,7 +168,7 @@ export function App({
   const { showTopNav, showTabStrip } = chromeVisibility({ expanded, inSites, appearanceOpen });
   useRunnerNavigation({ setActiveId, setActiveTab });
   const tabClose = useTabCloseAsk({ projects, closeTab: closeProjectTab, onSiteUpdated: applySiteRecord });
-  const runningCount = countRunningSites(projects);
+  const runningCount = countRunningSites({ projects });
   const active = findSection({ id: activeId });
   useProductScreen({ screen: appScreen({ appearanceOpen, showSitesHome, isCreating, isImporting, activeId }) });
 
@@ -241,7 +241,7 @@ export function App({
           onBack={stopImporting}
           adding={adding}
           onChooseFolder={() => { liveImport.clearFailure(); return addSite(); }}
-          onDropFolder={(folder) => { liveImport.clearFailure(); return addDroppedFolder(folder); }}
+          onDropFolder={(folder) => { liveImport.clearFailure(); return addDroppedFolder({ folder }); }}
           onImportArchive={liveImport.importArchive}
           onRefuse={liveImport.refuse}
           address={liveImport.address}

@@ -25,8 +25,6 @@
   "knownContaminated": [
     "src/contracts/core/commands/appliers.ts",
     "src/contracts/core/commands/index.ts",
-    "src/contracts/core/commands/repo.memory.ts",
-    "src/contracts/core/commands/revert.ts",
     "src/contracts/core/embeds/marker.ts",
     "src/contracts/core/tool-surface-exchanges.ts",
     "src/platform/db/schema.sqlite.ts",

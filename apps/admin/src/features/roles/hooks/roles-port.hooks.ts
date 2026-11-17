@@ -6,7 +6,7 @@ import type { AdminPolicy, AdminPolicyPermission, AdminRole } from "@/features/r
  * INFO.md`'s "Hooks" section documents (canonical example: `features/pages/hooks/theme-pages-
  * port.hooks.ts`).
  *
- * One shared port for the whole screen, matching `users-port.hooks.ts`'s identical reasoning
+ * One shared port for the whole screen, matching the users screen's identical reasoning (its port is now `UsersPort` in `@jini-ai/user-management/react`)
  * (`Roles` is one hook backing one screen; `@jini-ai/admin/seo`'s historical eight-method
  * SEO port, now core `AdminSeoPort`, is the closest existing precedent for keeping a port this size as one flat interface
  * rather than splitting by concern, e.g. "roles" vs. "policies" — a split this codebase has no

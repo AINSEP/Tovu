@@ -36,7 +36,8 @@ import {
 } from "../media/index.js";
 import type { MediaContentTypeStorePort } from "../media/content-type-store.js";
 import { resolveMediaPublicUrls } from "../media/tool-registrations.js";
-import { buildMediaGenerationAgentToolCatalog, IMAGE_MODEL_IDS, imageModelIdsFrom } from "./agent-tools.js";
+import { IMAGE_MODEL_IDS, imageModelIdsFrom } from "@jini-ai/integrations/media-providers/catalog";
+import { buildMediaGenerationAgentToolCatalog } from "./agent-tools.js";
 
 /**
  * @file Wires `agent-tools.ts`'s one-tool catalog onto the real pipeline: resolve a credential for

@@ -5,7 +5,7 @@ import type { PluginInstallPort, PluginInstallPreview, PluginInstallSource } fro
 import { pluginInstallPreviewDisplay } from "../rules";
 import { useZipDrop } from "../../../components/InstallTabCard/use-zip-drop.hooks";
 import { useFolderUpload } from "../../../components/InstallTabCard/use-folder-upload.hooks";
-import { installArchiveSize } from "../../../components/InstallTabCard/install-archive-size";
+import { formatByteSize } from "@jini-ai/core/text";
 
 import { type Translate } from '@jini-ai/core/text';
 const ZIP_MAX_BYTES = 32 * 1024 * 1024;
@@ -104,7 +104,7 @@ export function usePluginInstall(required: { port: PluginInstallPort; t: Transla
   return {
     folder, zipFile, zipInputRef, replace, preview, error, drop, folderUpload, t: required.t,
     busy: busy || folderUpload.zipping,
-    zipSizeLabel: zipFile ? installArchiveSize({ bytes: zipFile.size }) : "",
+    zipSizeLabel: zipFile ? formatByteSize({ bytes: zipFile.size }, { megabyteLabel: "MiB" }) : "",
     reviewDisabled: busy || folderUpload.zipping || !hasSource(),
     previewDisplay: preview ? pluginInstallPreviewDisplay(preview, required.t) : null,
     installedMessage: installedName ? required.t("{name} is installed and switched off. Turn it on in Downloaded.").replace("{name}", () => installedName) : null,

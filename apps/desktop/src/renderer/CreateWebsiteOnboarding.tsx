@@ -181,7 +181,7 @@ function ConnectServicesSection({ pluginTokens }: { pluginTokens: CreateSitePlug
             {plugin.displayName} access token <em>(optional)</em>
           </span>
           <input
-            ref={pluginTokens.inputRef(plugin.pluginId)}
+            ref={pluginTokens.inputRef({ pluginId: plugin.pluginId })}
             defaultValue=""
             placeholder="Paste an access token"
             type="password"
@@ -255,7 +255,7 @@ export function CreateWebsiteOnboarding({
     isSubmitting,
     formError,
     handleSubmit,
-  } = useForm({ onCreate: pluginTokens.withTokens(onCreate) });
+  } = useForm({ onCreate: pluginTokens.withTokens({ onCreate }) });
   const destinationHint = useDestination({ name });
   const { showErrorFooter } = createWebsiteOnboardingPolicy({ formError });
 

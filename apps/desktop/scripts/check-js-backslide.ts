@@ -79,7 +79,7 @@ interface CheckOutput {
  */
 function runJsBackslideCheck({ listPaths, out, err }: CheckOutput & { listPaths: () => string[] }): number {
   try {
-    const offenders = jsBackslideOffenders(listPaths(), ALLOWLIST);
+    const offenders = jsBackslideOffenders({ paths: listPaths() }, { allowlist: ALLOWLIST });
     if (offenders.length > 0) {
       err("check-js-backslide: apps/desktop must stay TypeScript-only — found JavaScript-family file(s):\n");
       for (const offender of offenders) err(`${fixHint({ offender })}\n`);

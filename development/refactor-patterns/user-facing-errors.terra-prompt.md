@@ -152,7 +152,7 @@ Format: `path:line` - variant - current text - note.
 30. `apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts:768` - "[assistant-run-finalizer] attempt resource cleanup unavailable"
 31. `apps/website/src/server/runtime/composition/modules/assistant-tool-exec.ts:171` - "[agent-plugins] automatic preflight unavailable" (`return pinnedPrefix` stays)
 32. `apps/website/src/server/runtime/composition/plugin-credential-cards.ts:52` - "Optional manifest cards could not be loaded; ..."
-33. `apps/website/src/server/runtime/services/external-mcp-admissions.ts:37` - "external-mcp server admissions read failed"
+33. `apps/website/src/features/external-mcp/external-mcp-admissions.ts` (reportAdmissionsFailure) - "external-mcp server admissions read failed"
 
 ### LS describeErrorForLog, secret path (10) - the why-comment or the text already says secrets are involved
 34. `apps/website/src/features/analytics/forwarding.ts:94` - "[analytics] vendor forwarding skipped: resolution failed"

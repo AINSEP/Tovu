@@ -2,8 +2,7 @@ import { is, SQL } from "drizzle-orm";
 import { getTableConfig, PgDialect, type IndexedColumn, type PgColumn, type PgTable } from "drizzle-orm/pg-core";
 
 import { EXCLUDED_CORE_TABLES, PARTIALLY_EXCLUDED_TABLES, SECRET_COLUMN_PATTERN, TRANSFER_EXCLUSION_REASON_TEXT } from "./exclusions.js";
-import type { SourceColumn, SourceTableLayout, TransferSource } from "./sqlite-source.js";
-import { quoteIdent } from "@jini-ai/db/transfer";
+import { quoteIdent, type SourceColumn, type SourceTableLayout, type TransferSource } from "@jini-ai/db/transfer";
 
 /**
  * @file What a copy carries: every table in the site's snapshot is either a {@link TransferTable}

@@ -111,65 +111,84 @@ export async function saveCampaign(required: {
 
   return deps.campaignRepo.transaction({ fn: async () => {
     const now = deps.clock.nowIso();
-    let campaign: CampaignRecord;
-
-    if (input.id) {
-      const existing = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id: input.id });
-      if (!existing) throw new NewsletterCampaignNotFoundError(`campaign ${input.id} was not found`);
-      if (existing.status !== "draft") {
-        throw new NewsletterCampaignNotEditableError({
-          message: `campaign is '${existing.status}' and cannot be edited`,
-          currentStatus: existing.status,
-          attemptedAction: "update",
-        });
-      }
-      if (input.expectedVersion !== undefined && input.expectedVersion !== existing.version) {
-        throw new NewsletterConflictError({
-          message: "campaign was modified concurrently (EC-06)",
-          entity: "campaign",
-          id: existing.id,
-          expectedVersion: input.expectedVersion,
-          actualVersion: existing.version,
-        });
-      }
-      campaign = {
-        ...existing,
-        subject: input.fields.subject,
-        preheader: input.fields.preheader ?? null,
-        fromName: input.fields.fromName,
-        fromEmail: input.fields.fromEmail,
-        replyTo: input.fields.replyTo,
-        listId: input.fields.listId,
-        version: existing.version + 1,
-        updatedAt: now,
-      };
-    } else {
-      campaign = {
-        id: deps.ids.newId(),
-        workspaceId: input.workspaceId,
-        status: "draft",
-        subject: input.fields.subject,
-        preheader: input.fields.preheader ?? null,
-        fromName: input.fields.fromName,
-        fromEmail: input.fields.fromEmail,
-        replyTo: input.fields.replyTo,
-        listId: input.fields.listId,
-        scheduledAt: null,
-        sendStartedAt: null,
-        audienceSnapshotId: null,
-        counters: ZERO_COUNTERS,
-        version: 1,
-        createdByPrincipal: input.actorId,
-        createdAt: now,
-        updatedAt: now,
-      };
-    }
+    let campaign = input.id
+      ? await editDraftCampaign({ deps, input, id: input.id, now })
+      : newDraftCampaign({ deps, input, now });
 
     if (input.fields.bodyJson !== undefined) campaign = { ...campaign, bodyJson: input.fields.bodyJson };
     await writeRevision({ deps, campaign, actorId: input.actorId });
     const revisions = await deps.campaignRepo.listRevisions({ workspaceId: campaign.workspaceId, campaignId: campaign.id });
     return { campaign, revisionSeq: Math.max(...revisions.map((r) => r.seq)) };
   } });
+}
+
+type SaveCampaignInput = Parameters<typeof saveCampaign>[0]["input"];
+
+/** Load a draft campaign for editing, enforcing editable status and the optimistic-version check. */
+async function editDraftCampaign(required: {
+  deps: CampaignWriteServiceDeps;
+  input: SaveCampaignInput;
+  id: UUID;
+  now: string;
+}): Promise<CampaignRecord> {
+  const { deps, input, id, now } = required;
+  const existing = await deps.campaignRepo.findById({ workspaceId: input.workspaceId, id });
+  if (!existing) throw new NewsletterCampaignNotFoundError(`campaign ${id} was not found`);
+  if (existing.status !== "draft") {
+    throw new NewsletterCampaignNotEditableError({
+      message: `campaign is '${existing.status}' and cannot be edited`,
+      currentStatus: existing.status,
+      attemptedAction: "update",
+    });
+  }
+  if (input.expectedVersion !== undefined && input.expectedVersion !== existing.version) {
+    throw new NewsletterConflictError({
+      message: "campaign was modified concurrently (EC-06)",
+      entity: "campaign",
+      id: existing.id,
+      expectedVersion: input.expectedVersion,
+      actualVersion: existing.version,
+    });
+  }
+  return {
+    ...existing,
+    subject: input.fields.subject,
+    preheader: input.fields.preheader ?? null,
+    fromName: input.fields.fromName,
+    fromEmail: input.fields.fromEmail,
+    replyTo: input.fields.replyTo,
+    listId: input.fields.listId,
+    version: existing.version + 1,
+    updatedAt: now,
+  };
+}
+
+/** Build a fresh draft campaign record from the editorial fields. */
+function newDraftCampaign(required: {
+  deps: CampaignWriteServiceDeps;
+  input: SaveCampaignInput;
+  now: string;
+}): CampaignRecord {
+  const { deps, input, now } = required;
+  return {
+    id: deps.ids.newId(),
+    workspaceId: input.workspaceId,
+    status: "draft",
+    subject: input.fields.subject,
+    preheader: input.fields.preheader ?? null,
+    fromName: input.fields.fromName,
+    fromEmail: input.fields.fromEmail,
+    replyTo: input.fields.replyTo,
+    listId: input.fields.listId,
+    scheduledAt: null,
+    sendStartedAt: null,
+    audienceSnapshotId: null,
+    counters: ZERO_COUNTERS,
+    version: 1,
+    createdByPrincipal: input.actorId,
+    createdAt: now,
+    updatedAt: now,
+  };
 }
 
 async function transitionAndWrite(

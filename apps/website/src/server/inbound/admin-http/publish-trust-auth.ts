@@ -193,6 +193,102 @@ function acceptedKeyFor({ resolution, sourceInstallationId, generation }: { reso
   return grant?.publicKeys.find((key) => key.generation === generation)?.publicKeyB64u ?? "";
 }
 
+type VerifiedPublishSession = Extract<Awaited<ReturnType<typeof verifyPublishSession>>, { ok: true }>;
+type PublishAdmission = Extract<ReturnType<typeof admitPublish>, { allowed: true }>;
+
+/**
+ * Verify the bearer token against this site's installation id. Returns null for every
+ * "cannot verify" outcome (a lost site key, a failed or rejected verification) so the caller
+ * passes the request on like any other unverifiable token.
+ */
+async function verifyBearerSession(input: {
+  deps: PublishTrustAuthDeps;
+  token: string;
+  installationId: string;
+}): Promise<VerifiedPublishSession | null> {
+  const { deps, token, installationId } = input;
+  // The session key is derived per request, so a site key lost after boot rejects here: the same
+  // "cannot verify" answer as above, never a rejected middleware.
+  const verified = await verifyPublishSession(
+    { keyring: deps.keyring, workspaceId: deps.workspaceId, clock: deps.clock },
+    { token, expectedAudience: installationId }
+  ).catch((error: unknown) => {
+    // Losing the site key is also a normal unconfigured state after boot.
+    if (isNoSiteKeyError(error)) return null;
+    console.error("[publish-trust] Could not verify the publishing session:",
+      describeErrorForLog({ err: error }));
+    return null;
+  });
+  return verified !== null && verified.ok ? verified : null;
+}
+
+/**
+ * Both stores, then ONE question. Everything is looked up by the source the TOKEN names, so an
+ * install that holds grants for several publishers answers each one from its own grant and
+ * never from a neighbour's.
+ *
+ * The grant resolver reports a failure as an `invalid` resolution, and the revocation source
+ * reports an unreadable file as `ok: false`. Both arrive at `admitPublish` as
+ * "no", so a broken store is a 401 here and never a 500 — a 500 would be an oracle for whether
+ * a token parsed, and for the deny store it would also be a bypass if it were caught wrongly.
+ *
+ * The two reads happen before the decision, but they do not MAKE it: `admitPublish` refuses a
+ * disconnected computer before it consults the grant at all, which is what keeps "disconnect
+ * works even while the grant config is broken" true. Resolving the grant early is inert.
+ *
+ * Returns null when the publish is refused (including a source that rejects instead of
+ * returning its contract — the same fail-closed refusal).
+ */
+async function admitFromStores(input: {
+  deps: PublishTrustAuthDeps;
+  verified: VerifiedPublishSession;
+}): Promise<PublishAdmission | null> {
+  const { deps, verified } = input;
+  let revocations: RevocationRead;
+  let resolution: PublishTrustResolution;
+  try {
+    revocations = await deps.revocations();
+    resolution = await deps.grants();
+  } catch {
+    return null;
+  }
+  const admission = admitPublish({
+    resolution,
+    revocations: revocations.ok ? revocations.revocations : null,
+    sourceInstallationId: verified.payload.sourceInstallationId,
+    publicKeyB64u: acceptedKeyFor({ resolution, sourceInstallationId: verified.payload.sourceInstallationId, generation: verified.payload.generation }),
+    siteLabel: REFUSAL_SITE_LABEL,
+    nowIso: deps.clock.nowIso(),
+  });
+  return admission.allowed ? admission : null;
+}
+
+/**
+ * A synthetic principal, NOT a row in `principals`. Route handlers read `getAuthedPrincipal(res)`
+ * for an id to record, and this supplies a stable derived one (`pub:<sourceInstallationId>`)
+ * that survives key rotation. It deliberately resolves to nothing in RBAC: `authorize()` cannot
+ * find it, so a call site that forgets the capability attenuation fails CLOSED rather than
+ * inheriting somebody's permissions. `kind: "system"` is the identity library's nearest honest
+ * member — the actor is neither a human, an assistant, nor an issued API key.
+ */
+function installPublishPrincipal(input: {
+  res: Response;
+  deps: PublishTrustAuthDeps;
+  context: PublishTrustContext;
+}): void {
+  const { res, deps, context } = input;
+  res.locals.principal = {
+    id: publishPrincipalIdFor({ sourceInstallationId: context.sourceInstallationId }),
+    workspaceId: deps.workspaceId,
+    kind: "system",
+    displayName: `publishing installation ${context.sourceInstallationId}`,
+    status: "active",
+    createdAt: deps.clock.nowIso(),
+  };
+  res.locals.authCredentialKind = "publish_key";
+  res.locals.publishTrust = context;
+}
+
 /**
  * Express middleware factory: resolve a publishing session token, or leave the request untouched.
  *
@@ -232,31 +328,13 @@ export function requirePublishTrust(deps: PublishTrustAuthDeps) {
     next: NextFunction
   ): Promise<void> {
     const token = readBearer(req);
-    if (!token) {
-      next();
-      return;
-    }
-
     // No site key means no installation id, so no token can be verified here: pass it on like any
     // other unverifiable token. Express 4 would otherwise leave the request hanging on the rejection.
-    const installationId = await targetInstallationId;
-    if (installationId === null) {
-      next();
-      return;
-    }
-    // The session key is derived per request, so a site key lost after boot rejects here: the same
-    // "cannot verify" answer as above, never a rejected middleware.
-    const verified = await verifyPublishSession(
-      { keyring: deps.keyring, workspaceId: deps.workspaceId, clock: deps.clock },
-      { token, expectedAudience: installationId }
-    ).catch((error: unknown) => {
-      // Losing the site key is also a normal unconfigured state after boot.
-      if (isNoSiteKeyError(error)) return null;
-      console.error("[publish-trust] Could not verify the publishing session:",
-        describeErrorForLog({ err: error }));
-      return null;
-    });
-    if (verified === null || !verified.ok) {
+    const installationId = token ? await targetInstallationId : null;
+    const verified = token && installationId !== null
+      ? await verifyBearerSession({ deps, token, installationId })
+      : null;
+    if (verified === null) {
       next();
       return;
     }
@@ -268,75 +346,22 @@ export function requirePublishTrust(deps: PublishTrustAuthDeps) {
       return;
     }
 
-    // Both stores, then ONE question. Everything is looked up by the source the TOKEN names, so an
-    // install that holds grants for several publishers answers each one from its own grant and
-    // never from a neighbour's.
-    //
-    // The grant resolver reports a failure as an `invalid` resolution, and the revocation source
-    // reports an unreadable file as `ok: false`. Both arrive at `admitPublish` as
-    // "no", so a broken store is a 401 here and never a 500 — a 500 would be an oracle for whether
-    // a token parsed, and for the deny store it would also be a bypass if it were caught wrongly.
-    //
-    // The two reads happen before the decision, but they do not MAKE it: `admitPublish` refuses a
-    // disconnected computer before it consults the grant at all, which is what keeps "disconnect
-    // works even while the grant config is broken" true. Resolving the grant early is inert.
-    let revocations: RevocationRead;
-    let resolution: PublishTrustResolution;
-    try {
-      revocations = await deps.revocations();
-      resolution = await deps.grants();
-    } catch {
-      // Preserve the same fail-closed refusal if a source rejects instead of returning its contract.
-      res.status(401).json(UNAUTHENTICATED_BODY);
-      return;
-    }
-
-    const admission = admitPublish({
-      resolution,
-      revocations: revocations.ok ? revocations.revocations : null,
-      sourceInstallationId: verified.payload.sourceInstallationId,
-      publicKeyB64u: acceptedKeyFor({ resolution, sourceInstallationId: verified.payload.sourceInstallationId, generation: verified.payload.generation }),
-      siteLabel: REFUSAL_SITE_LABEL,
-      nowIso: deps.clock.nowIso(),
-    });
-    if (!admission.allowed) {
-      res.status(401).json(UNAUTHENTICATED_BODY);
-      return;
-    }
-    const grant = admission.grant;
-
+    const admission = await admitFromStores({ deps, verified });
     // Intersection, not the token's own list — see this file's "Why the grant is re-read" note.
-    const capabilities = verified.payload.capabilities.filter((capability) =>
-      grantAllowsCapability({ grant, capability })
+    const capabilities = admission === null ? [] : verified.payload.capabilities.filter((capability) =>
+      grantAllowsCapability({ grant: admission.grant, capability })
     );
-    if (capabilities.length === 0) {
+    if (admission === null || capabilities.length === 0) {
       res.status(401).json(UNAUTHENTICATED_BODY);
       return;
     }
 
-    const context: PublishTrustContext = {
+    installPublishPrincipal({ res, deps, context: {
       sourceInstallationId: verified.payload.sourceInstallationId,
       capabilities,
-      entityTypes: grant.entityTypes,
+      entityTypes: admission.grant.entityTypes,
       generation: verified.payload.generation,
-    };
-
-    // A synthetic principal, NOT a row in `principals`. Route handlers read `getAuthedPrincipal(res)`
-    // for an id to record, and this supplies a stable derived one (`pub:<sourceInstallationId>`)
-    // that survives key rotation. It deliberately resolves to nothing in RBAC: `authorize()` cannot
-    // find it, so a call site that forgets the capability attenuation fails CLOSED rather than
-    // inheriting somebody's permissions. `kind: "system"` is the identity library's nearest honest
-    // member — the actor is neither a human, an assistant, nor an issued API key.
-    res.locals.principal = {
-      id: publishPrincipalIdFor({ sourceInstallationId: context.sourceInstallationId }),
-      workspaceId: deps.workspaceId,
-      kind: "system",
-      displayName: `publishing installation ${context.sourceInstallationId}`,
-      status: "active",
-      createdAt: deps.clock.nowIso(),
-    };
-    res.locals.authCredentialKind = "publish_key";
-    res.locals.publishTrust = context;
+    } });
     next();
   };
 }

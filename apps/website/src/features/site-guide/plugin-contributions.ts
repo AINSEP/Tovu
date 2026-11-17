@@ -1,5 +1,6 @@
 import type { LoadPluginContributions, PluginContributionDefinition } from "#src/features/agent-plugins/lifecycle";
-import type { CapabilityCard, SiteGuideEngine } from "./contracts.js";
+import type { GuideTopic as CapabilityCard } from "@jini-ai/agentic/core";
+import type { SiteGuideEngine } from "./contracts.js";
 
 export const SITE_GUIDE_FILENAME = "tovu-site-guide.json";
 

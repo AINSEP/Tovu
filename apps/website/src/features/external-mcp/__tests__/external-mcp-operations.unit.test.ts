@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { McpAuthFailedError, McpProtocolError } from "@jini-ai/mcp/federation";
-import { InMemoryExternalMcpServerRepo } from "../../../../features/external-mcp/external-mcp-store.memory.js";
-import { saveExternalMcpServer } from "../../../../features/external-mcp/external-mcp-store.js";
-import { ExternalMcpReauthRequiredError } from "../../../../features/external-mcp/external-mcp-oauth.js";
+import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
+import { saveExternalMcpServer } from "../external-mcp-store.js";
+import { ExternalMcpReauthRequiredError } from "../external-mcp-oauth.js";
 import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { probeExternalMcpServer } from "../external-mcp-probe.js";

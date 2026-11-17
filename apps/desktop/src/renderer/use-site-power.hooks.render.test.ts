@@ -45,7 +45,7 @@ test('a Start reads as starting until main answers, then applies main\'s record 
   await settle();
   assert.deepEqual(events, ['updated:running', 'open:/sites/a']);
   assert.equal(hook.current().statusOf(SITE), 'stopped', 'the pending mark is gone; the poll owns the status again');
-  assert.equal(hook.current().errorOf(SITE.id), null);
+  assert.equal(hook.current().errorOf({ id: SITE.id }), null);
 });
 
 test('two presses from one render — a double click before React re-renders — start the site once', async (t) => {
@@ -73,11 +73,11 @@ test('a failed Stop shows main\'s sentence, clears the pending mark, and the nex
   fake.next().reject(new Error('the child would not exit'));
   await press;
   await settle();
-  assert.equal(hook.current().errorOf(running.id), 'the child would not exit');
+  assert.equal(hook.current().errorOf({ id: running.id }), 'the child would not exit');
   assert.equal(hook.current().statusOf(running), 'running');
   const retry = hook.current().toggle(running);
   await settle();
-  assert.equal(hook.current().errorOf(running.id), null, 'a new press clears the old failure at once');
+  assert.equal(hook.current().errorOf({ id: running.id }), null, 'a new press clears the old failure at once');
   fake.next().resolve(at('stopped'));
   await retry;
 });
@@ -143,7 +143,7 @@ test('a Restart whose start fails shows the failure; a disabled Restart never re
   fake.next().reject(new Error('port 4321 is taken'));
   await restarting;
   await settle();
-  assert.match(hook.current().errorOf(running.id) ?? '', /port 4321/);
+  assert.match(hook.current().errorOf({ id: running.id }) ?? '', /port 4321/);
   assert.equal(hook.current().statusOf(running), 'running');
   const callsBefore = fake.calls.length;
   await hook.current().restart(at('stopped'));
@@ -155,5 +155,5 @@ test('with no bridge wired, a press reports the unavailable bridge on the card',
   const hook = renderHook({ t, useHook: () => useSitePower({}, { getBridge: () => undefined }) });
   await hook.current().toggle(SITE);
   await settle();
-  assert.equal(hook.current().errorOf(SITE.id), 'The desktop bridge is unavailable.');
+  assert.equal(hook.current().errorOf({ id: SITE.id }), 'The desktop bridge is unavailable.');
 });

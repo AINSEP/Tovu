@@ -114,30 +114,44 @@ export interface SitesController {
   t: Translate;
 }
 
-export function useSites(port: SitesPort, t: Translate): SitesController {
-  const list = useSitesSnapshot({ port });
-  const siteConfirm = useSiteConfirm({ t });
-  const localSites = useLocalSites({ port, snapshot: list.data, t }, { confirm: siteConfirm.confirm });
+type SitesWrites = { createMutation: ReturnType<typeof useCreateSiteMutation>; activateMutation: ReturnType<typeof useActivateSiteMutation> };
 
-  const [createName, setCreateNameRaw] = useState("");
-  const [adminPassword, setAdminPasswordRaw] = useState("");
-  const [createdAdminLogin, setCreatedAdminLogin] = useState<string | null>(null);
-  const [createdName, setCreatedName] = useState<string | null>(null);
-  const [activation, setActivation] = useState<AdminSiteActivation | null>(null);
-  const [activatingName, setActivatingName] = useState<string | null>(null);
-  const pluginTokens = useCreateSitePluginTokens(port);
-  const [createdTokens, setCreatedTokens] = useState<{ names: string[]; note: string } | null>(null);
-
-  const createMutation = useFetchMutation({
+/** The two site writes; each refreshes the list on success. */
+function useCreateSiteMutation({ port }: { port: SitesPort }) {
+  return useFetchMutation({
     run: ({ input }: { input: { name: string; adminPassword?: string; agentPluginTokens?: Record<string, string> } }) => port.createSite(input),
   }, {
     invalidates: [KEYS.list],
   });
-  const activateMutation = useFetchMutation({
+}
+function useActivateSiteMutation({ port }: { port: SitesPort }) {
+  return useFetchMutation({
     run: ({ input: name }: { input: string }) => port.activateSite({ name }),
   }, {
     invalidates: [KEYS.list],
   });
+}
+
+/** What the create form last produced, shown as banners until the next edit clears them. */
+function useCreatedBanners() {
+  const [createdAdminLogin, setCreatedAdminLogin] = useState<string | null>(null);
+  const [createdName, setCreatedName] = useState<string | null>(null);
+  const [createdTokens, setCreatedTokens] = useState<{ names: string[]; note: string } | null>(null);
+  const clearCreated = useCallback(() => {
+    setCreatedName(null);
+    setCreatedTokens(null);
+    setCreatedAdminLogin(null);
+  }, []);
+  return { createdAdminLogin, setCreatedAdminLogin, createdName, setCreatedName, createdTokens, setCreatedTokens, clearCreated };
+}
+
+/** The create form: field state, validation, the one-at-a-time submit guard and the post-create banners. */
+function useSiteCreate({ port, t, snapshot, writes }: { port: SitesPort; t: Translate; snapshot: AdminSitesSnapshot | undefined; writes: SitesWrites }) {
+  const { createMutation, activateMutation } = writes;
+  const { createdAdminLogin, setCreatedAdminLogin, createdName, setCreatedName, createdTokens, setCreatedTokens, clearCreated } = useCreatedBanners();
+  const [createName, setCreateNameRaw] = useState("");
+  const [adminPassword, setAdminPasswordRaw] = useState("");
+  const pluginTokens = useCreateSitePluginTokens(port);
 
   // Check-then-set in-flight guard for Create — same shape and same reason
   // `use-static-publish.hooks.ts`'s `publishingRef` documents: this is a plain `useRef`, not
@@ -146,6 +160,70 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
   // the first click yet. Cleared in `finally` so a later attempt (after this one settles, success or
   // failure) is never refused.
   const creatingRef = useRef(false);
+
+  const nameErrorKey = siteNameErrorKey({ raw: createName });
+
+  // The view's own `setCreateName` — every edit to the field also clears a still-showing "Created."
+  // banner, so it can never sit next to a name the operator has since changed their mind about
+  // (finding 25, 2026-09-05 admin-tooling audit). Kept separate from `setCreateNameRaw`, which
+  // `createSite`'s own success handler below uses directly: that reset must NOT clear `createdName`
+  // — it runs right after `setCreatedName(result.site.name)` sets the very name the banner reports.
+  const setCreateName = useCallback((value: string) => {
+    setCreateNameRaw(value);
+    clearCreated();
+  }, [clearCreated]);
+
+  const setAdminPassword = useCallback((value: string) => {
+    setAdminPasswordRaw(value);
+    clearCreated();
+  }, [clearCreated]);
+
+  const createSite = useCallback(() => {
+    const name = createName.trim();
+    if (siteNameErrorKey({ raw: name }) !== null) return;
+    if (creatingRef.current) return;
+    creatingRef.current = true;
+    // Clears a stale Activate failure so it cannot mask THIS write's own outcome below — mirrors
+    // `Jini redirects/SOURCE-RATIONALE.md`'s `clearOtherWriteErrors`; `mutate` already clears `createMutation`'s
+    // own prior error, so only the sibling mutation needs the explicit reset.
+    activateMutation.reset();
+    clearCreated();
+    const agentPluginTokens = pluginTokens.tokensForCreate();
+    // An omitted password uses the server-owned default; never ship that credential in the bundle.
+    const passwordInput = adminPassword === "" ? {} : { adminPassword };
+    const customPassword = adminPassword !== "";
+    // `mutate` reports its own rejection through `createMutation.error`, but `.then` creates a new
+    // promise that also needs a handler; errors in its success callback need their own diagnostic.
+    createMutation
+      .mutate({ input: agentPluginTokens ? { name, ...passwordInput, agentPluginTokens } : { name, ...passwordInput } })
+      .then((result) => {
+        setCreatedName(result.site.name);
+        setCreatedAdminLogin(resolveCreatedAdminLogin({ customPassword, starterAdminPassword: snapshot?.starterAdminPassword, t }));
+        setAdminPasswordRaw("");
+        setCreatedTokens(resolveCreatedTokens({ result: result.agentPluginTokens, displayNames: pluginTokens.displayNames, t: t }));
+        pluginTokens.clear();
+        // Raw, not the wrapped `setCreateName` — that also clears `createdName`, which would erase
+        // the very name just set on the line above before the banner ever renders it.
+        setCreateNameRaw("");
+      }, () => { /* createMutation.error reports a failed write. */ })
+      .catch((error: unknown) => console.error("[sites] Could not finish handling the created site", describeErrorForLog({ err: error })))
+      .finally(() => {
+        creatingRef.current = false;
+      });
+  }, [activateMutation, createMutation, createName, adminPassword, pluginTokens, snapshot, t, clearCreated, setCreatedName, setCreatedAdminLogin, setCreatedTokens]);
+
+  return {
+    createName, adminPassword, setAdminPassword, createdAdminLogin, setCreateName, createSite, createdName, pluginTokens, createdTokens,
+    createNameError: resolveCreateNameError({ raw: createName, key: nameErrorKey, t: t }),
+    shownStarterPassword: resolveShownStarterPassword({ adminPassword, starterAdminPassword: snapshot?.starterAdminPassword }),
+  };
+}
+
+/** Activating a site: serialized writes with stale settlements dropped, and the activation result to render. */
+function useSiteActivation({ port, writes: sitesWrites }: { port: SitesPort; writes: SitesWrites }) {
+  const { createMutation, activateMutation } = sitesWrites;
+  const [activation, setActivation] = useState<AdminSiteActivation | null>(null);
+  const [activatingName, setActivatingName] = useState<string | null>(null);
 
   // Monotonic per-call id (extracted into `useSettlementGeneration` 2026-09-06, same shape as
   // `use-access-tokens.hooks.ts`'s own `settlement`): two rapid Activate clicks on different rows
@@ -158,63 +236,6 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
   // one. The row buttons already disable while one is pending; this closes the same-tick second call
   // the hook itself would otherwise accept. Tab-local — two tabs still race; that needs a server check.
   const writes = useSerialWrites();
-
-  const nameErrorKey = siteNameErrorKey({ raw: createName });
-
-  // The view's own `setCreateName` — every edit to the field also clears a still-showing "Created."
-  // banner, so it can never sit next to a name the operator has since changed their mind about
-  // (finding 25, 2026-09-05 admin-tooling audit). Kept separate from `setCreateNameRaw`, which
-  // `createSite`'s own success handler below uses directly: that reset must NOT clear `createdName`
-  // — it runs right after `setCreatedName(result.site.name)` sets the very name the banner reports.
-  const setCreateName = useCallback((value: string) => {
-    setCreateNameRaw(value);
-    setCreatedName(null);
-    setCreatedTokens(null);
-    setCreatedAdminLogin(null);
-  }, []);
-
-  const setAdminPassword = useCallback((value: string) => {
-    setAdminPasswordRaw(value);
-    setCreatedName(null);
-    setCreatedTokens(null);
-    setCreatedAdminLogin(null);
-  }, []);
-
-  const createSite = useCallback(() => {
-    const name = createName.trim();
-    if (siteNameErrorKey({ raw: name }) !== null) return;
-    if (creatingRef.current) return;
-    creatingRef.current = true;
-    // Clears a stale Activate failure so it cannot mask THIS write's own outcome below — mirrors
-    // `Jini redirects/SOURCE-RATIONALE.md`'s `clearOtherWriteErrors`; `mutate` already clears `createMutation`'s
-    // own prior error, so only the sibling mutation needs the explicit reset.
-    activateMutation.reset();
-    setCreatedName(null);
-    setCreatedTokens(null);
-    setCreatedAdminLogin(null);
-    const agentPluginTokens = pluginTokens.tokensForCreate();
-    // An omitted password uses the server-owned default; never ship that credential in the bundle.
-    const passwordInput = adminPassword === "" ? {} : { adminPassword };
-    const customPassword = adminPassword !== "";
-    // `mutate` reports its own rejection through `createMutation.error`, but `.then` creates a new
-    // promise that also needs a handler; errors in its success callback need their own diagnostic.
-    createMutation
-      .mutate({ input: agentPluginTokens ? { name, ...passwordInput, agentPluginTokens } : { name, ...passwordInput } })
-      .then((result) => {
-        setCreatedName(result.site.name);
-        setCreatedAdminLogin(resolveCreatedAdminLogin({ customPassword, starterAdminPassword: list.data?.starterAdminPassword, t }));
-        setAdminPasswordRaw("");
-        setCreatedTokens(resolveCreatedTokens({ result: result.agentPluginTokens, displayNames: pluginTokens.displayNames, t: t }));
-        pluginTokens.clear();
-        // Raw, not the wrapped `setCreateName` — that also clears `createdName`, which would erase
-        // the very name just set on the line above before the banner ever renders it.
-        setCreateNameRaw("");
-      }, () => { /* createMutation.error reports a failed write. */ })
-      .catch((error: unknown) => console.error("[sites] Could not finish handling the created site", describeErrorForLog({ err: error })))
-      .finally(() => {
-        creatingRef.current = false;
-      });
-  }, [activateMutation, createMutation, createName, adminPassword, pluginTokens, list.data, t]);
 
   const activate = useCallback(
     (name: string) => {
@@ -246,6 +267,16 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
     [activateMutation, createMutation, activateSettlement, writes, port],
   );
 
+  return { activate, activatingName, activation };
+}
+
+export function useSites(port: SitesPort, t: Translate): SitesController {
+  const list = useSitesSnapshot({ port });
+  const siteConfirm = useSiteConfirm({ t });
+  const localSites = useLocalSites({ port, snapshot: list.data, t }, { confirm: siteConfirm.confirm });
+  const writes: SitesWrites = { createMutation: useCreateSiteMutation({ port }), activateMutation: useActivateSiteMutation({ port }) };
+  const create = useSiteCreate({ port, t, snapshot: list.data, writes });
+  const { activate, activatingName, activation } = useSiteActivation({ port, writes });
   const view = readSnapshot({ snapshot: list.data });
 
   return {
@@ -255,21 +286,11 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
     sites: view.sites,
     listStatus: list.status,
     listError: list.error,
-    writeError: resolveWriteError({ error: createMutation.error ?? activateMutation.error, t: t }),
+    writeError: resolveWriteError({ error: writes.createMutation.error ?? writes.activateMutation.error, t: t }),
     switchingEnabled: view.switchingEnabled,
     outlook: view.outlook,
-    createName,
-    adminPassword,
-    setAdminPassword,
-    shownStarterPassword: resolveShownStarterPassword({ adminPassword, starterAdminPassword: list.data?.starterAdminPassword }),
-    createdAdminLogin,
-    setCreateName,
-    createNameError: resolveCreateNameError({ raw: createName, key: nameErrorKey, t: t }),
-    createSite,
-    creating: createMutation.status === "pending",
-    createdName,
-    pluginTokens,
-    createdTokens,
+    ...create,
+    creating: writes.createMutation.status === "pending",
     activate,
     activatingName,
     activation,

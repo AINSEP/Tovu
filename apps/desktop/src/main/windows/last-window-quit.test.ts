@@ -269,7 +269,7 @@ test("the box follows the app's locale", () => {
 
 test("main wires the ask to both app window kinds, never a capture window, and to every quit", () => {
   const source = readFileSync(new URL("../index.ts", import.meta.url), "utf8");
-  assert.equal(source.match(/trackWindow: trackAppWindow/g)?.length, 2, "admin windows and the sites home window");
+  assert.equal(source.match(/trackWindow: \(window\) => trackAppWindow\(\{ window \}\)/g)?.length, 2, "admin windows and the sites home window");
   assert.match(source, /if \(!SELFTEST\) lastWindowQuit\.watch\(\{ window \}\)/, "nobody is there to answer a self-test");
   assert.match(source, /platform: process\.platform,\n  locale: \(\) => app\.getLocale\(\)/, "Keep running follows the real platform");
   assert.match(source, /keepSitesRunning: \(\) => siteLifecycle\?\.keepAwake\(\)/, "Keep running turns idle sleep off");

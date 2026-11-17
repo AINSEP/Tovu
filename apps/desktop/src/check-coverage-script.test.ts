@@ -246,9 +246,9 @@ test("a non-Error thrown from the spawn port still fails the gate with a readabl
 });
 
 test("rootFromArgv defaults to the desktop root and resolves an explicit --root", () => {
-  assert.equal(rootFromArgv([]), DESKTOP_ROOT);
-  assert.equal(rootFromArgv(["--root"]), DESKTOP_ROOT);
-  assert.equal(rootFromArgv(["--root", "/tmp/x/../y"]), path.resolve("/tmp/y"));
+  assert.equal(rootFromArgv({ argv: [] }), DESKTOP_ROOT);
+  assert.equal(rootFromArgv({ argv: ["--root"] }), DESKTOP_ROOT);
+  assert.equal(rootFromArgv({ argv: ["--root", "/tmp/x/../y"] }), path.resolve("/tmp/y"));
 });
 
 test("the real entry pointed at a root with no config fails with exit 1", () => {

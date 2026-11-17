@@ -186,19 +186,19 @@ test('useCreateSitePluginTokens: offers the services Tovu lists, and sends trimm
 
   const field = tokenField('  sbp_value  ');
   const blank = tokenField('   ');
-  hook.current().inputRef('supabase')(field);
-  hook.current().inputRef('other')(blank);
+  hook.current().inputRef({ pluginId: 'supabase' })(field);
+  hook.current().inputRef({ pluginId: 'other' })(blank);
   const received: CreateSiteInput[] = [];
-  await hook.current().withTokens(async (value) => {
+  await hook.current().withTokens({ onCreate: async (value) => {
     assert.equal(field.value, '', 'the token leaves the DOM before the create is sent');
     received.push(value);
-  })(input);
+  } })(input);
   // A copy, so the assertion does not narrow `received` to the literal it is compared with.
   assert.deepEqual([...received], [{ ...input, agentPluginTokens: { supabase: 'sbp_value' } }]);
 
-  hook.current().inputRef('supabase')(null);
-  hook.current().inputRef('other')(null);
-  await hook.current().withTokens(async (value) => { received.push(value); })(input);
+  hook.current().inputRef({ pluginId: 'supabase' })(null);
+  hook.current().inputRef({ pluginId: 'other' })(null);
+  await hook.current().withTokens({ onCreate: async (value) => { received.push(value); } })(input);
   assert.equal(received[1], input, 'with no fields mounted the create input is passed through unchanged');
 });
 
@@ -210,9 +210,9 @@ test('useCreateSitePluginTokens: hidden services are never requested and never s
   assert.deepEqual(requests, []);
   assert.deepEqual(hook.current().plugins, []);
   const field = tokenField('sbp_hidden');
-  hook.current().inputRef('supabase')(field);
+  hook.current().inputRef({ pluginId: 'supabase' })(field);
   let received: CreateSiteInput | undefined;
-  await hook.current().withTokens(async (value) => { received = value; })(input);
+  await hook.current().withTokens({ onCreate: async (value) => { received = value; } })(input);
   assert.equal(received, input);
   assert.equal(field.value, '', 'a hidden field is still cleared');
 });
@@ -258,11 +258,11 @@ test('useCreateSitePluginTokens: a token typed while shown is not sent once the 
   let enabled = true;
   const hook = renderHook(t, () => useCreateSitePluginTokens({}, { enabled, getBridge: reader(empty) }));
   const field = tokenField('  sbp_typed  ');
-  hook.current().inputRef('supabase')(field);
+  hook.current().inputRef({ pluginId: 'supabase' })(field);
   enabled = false;
   hook.rerender();
   let received: CreateSiteInput | undefined;
-  await hook.current().withTokens(async (value) => { received = value; })(input);
+  await hook.current().withTokens({ onCreate: async (value) => { received = value; } })(input);
   // Hidden means no token is sent, including a ref left over from an earlier render.
   assert.equal(received, input);
   assert.equal(field.value, '');

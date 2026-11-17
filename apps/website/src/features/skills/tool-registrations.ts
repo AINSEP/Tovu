@@ -1,11 +1,9 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/skills.js';
 import type { ApplyExtensionApprovalPolicy } from "#src/contracts/headless/assistant-tool-approval-policy";
 import * as filesystem from "node:fs/promises";
-import { readFile, readdir } from "node:fs/promises";
-import { createSkillFileReader, type SkillFileReader } from "@jini-ai/agent-plugins/lifecycle";
-import path from "node:path";
-
-import { ToolInputError, buildDomainRegistrations, indexCatalogById, requireInputRecord, optionalString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, type AgentToolDefinition } from "@jini-ai/core";
+import { createSkillFileReader } from "@jini-ai/agent-plugins/lifecycle";
+import { buildSkillToolRegistrations as buildRegistrations, loadInstalledSkillToolSources as loadSources, type InstalledSkillToolPorts, type InstalledSkillToolSource } from "@jini-ai/agentic/skills/tools";
+import type { ToolRegistration } from "@jini-ai/core";
 
 import { readFrontmatterField } from "#src/platform/markdown/frontmatter";
 
@@ -91,302 +89,35 @@ import type { SkillLayout } from "./layout.js";
  * filesystem, matching the same split `agent-plugins/tool-registrations.ts` keeps.
  */
 
-/** One parsed skill's required frontmatter fields — `name` and `description` per the Agent Skills
- *  spec's stated minimum. Anything else a skill's frontmatter carries (`version`, `last_updated`,
- *  `allowed-tools`, ...) is not this loader's concern. */
-interface SkillFrontmatter {
-  readonly name: string;
-  readonly description: string;
-}
+/** This product's loader effects for `@jini-ai/agentic/skills/tools`: its frontmatter reader, the contained
+ *  agent-plugins file reader, its install-state file, and console warnings for skipped folders. */
+const SKILL_TOOL_PORTS: InstalledSkillToolPorts = {
+  readFrontmatterField,
+  createFileReader: ({ skillRoot }) => createSkillFileReader({ skillRoot, filesystem }),
+  isEnabled: async ({ directory }) => (await readSkillState({ directory })).enabled,
+  report: ({ message }) => console.warn(message),
+};
 
-/**
- * Extracts `name:` and `description:` from a `SKILL.md`'s YAML frontmatter block, via the shared
- * {@link readFrontmatterField} (a real YAML parse of the isolated block, falling back to a single-line
- * regex only when that block isn't valid YAML — see that module's header for why: a folded/literal
- * block scalar `description:` value needs a real parse to resolve, not a regex over its marker line).
- *
- * @returns `undefined` when the file has no frontmatter block, or the block is missing either
- * required field — the caller treats that as "skip this folder" (see this file's header), never a
- * thrown error.
- * @complexity O(n) in the frontmatter block's own length.
- */
-function parseSkillFrontmatter({ markdown }: { markdown: string }, _optional = {}): SkillFrontmatter | undefined {
-  const name = readFrontmatterField({ markdown, key: "name" });
-  const description = readFrontmatterField({ markdown, key: "description" });
-  if (!name || !description) return undefined;
-
-  return { name, description };
-}
-
-/** `skill_<sanitized name>` — see this file's header, "Tool id scheme", for why `skill_` is the
- *  correct, reserved prefix. Sanitizes more aggressively than `agent-plugins/tool-registrations.ts`'s
- *  own `toAgentPluginToolId` (which only folds hyphens): a skill's `name` frontmatter field is
- *  free-form author-supplied text, not a value already constrained by the Agent Plugins manifest name
- *  grammar, so every run of characters outside `[a-z0-9]` collapses to one underscore and any
- *  leading/trailing underscore is trimmed — the id stays a legal, predictable identifier regardless
- *  of what an author wrote.
- *  @returns `undefined` when sanitizing leaves nothing usable (e.g. a name made entirely of symbols)
- *  — the caller treats that the same as unparseable frontmatter: skip and warn. */
-function toSkillToolId({ name }: { name: string }, _optional = {}): string | undefined {
-  const sanitized = name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_|_$/g, "");
-  return sanitized.length > 0 ? `skill_${sanitized}` : undefined;
-}
-
-/** The three optional bundled-content subdirectories the Agent Skills spec names. Order here is also
- *  the order {@link listBundledFiles} walks them in. */
-const BUNDLED_SUBDIRS = ["references", "scripts", "assets"] as const;
-type SkillBundledFileKind = (typeof BUNDLED_SUBDIRS)[number];
-
-/** One bundled file, with a path relative to the active site for fs_read_file. */
-export interface SkillBundledFile {
-  readonly kind: SkillBundledFileKind;
-  readonly path: string;
-}
-
-/**
- * Recursively lists every file under one skill's `references/`, `scripts/`, and `assets/`
- * subdirectories — whichever exist. A missing subdirectory contributes nothing and is never an
- * error: the Agent Skills spec marks all three optional, and the reference `incident-response`
- * fixture this feature installs has only `references/`.
- *
- * @complexity O(f) in the total file count under the three subdirectories.
- */
-async function listBundledFiles(input: { skillDir: string; siteDir: string }, _options = {}): Promise<readonly SkillBundledFile[]> {
-  const files: SkillBundledFile[] = [];
-  for (const kind of BUNDLED_SUBDIRS) {
-    await walkFiles({ dir: path.join(input.skillDir, kind), onFile: (absolutePath) => {
-      const relative = path.relative(input.siteDir, absolutePath).split(path.sep).join("/");
-      if (relative && !relative.startsWith("../") && !path.isAbsolute(relative)) files.push({ kind, path: relative });
-    } });
-  }
-  return files;
-}
-
-/** One directory's worth of recursion for {@link listBundledFiles}. A missing `dir` (the common case
- *  — most skills do not bundle all three subdirectories) is silently a no-op, not an error. Entries
- *  are visited in sorted order so the resulting file list is deterministic across filesystems. */
-async function walkFiles({ dir, onFile }: { dir: string; onFile: (absolutePath: string) => void }, _optional = {}): Promise<void> {
-  let entries;
-  try {
-    entries = await readdir(dir, { withFileTypes: true });
-  } catch (error) {
-    if (isEnoent({ error })) return;
-    throw error;
-  }
-  for (const entry of [...entries].sort((a, b) => a.name.localeCompare(b.name))) {
-    const entryPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) await walkFiles({ dir: entryPath, onFile });
-    else if (entry.isFile()) onFile(entryPath);
-    else {
-      // Links and special entries are outside the skill file walk.
-    }
-  }
-}
-
-function isEnoent({ error }: { error: unknown }, _optional = {}): boolean {
-  return typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code === "ENOENT";
-}
-
-/** One installed standalone Agent Skill, fully resolved into a single tool-ready source. */
-export interface SkillToolSource {
-  readonly id: string;
-  /** The skill's own frontmatter `name`, unsanitized — carried through for handler output and error
-   *  messages; {@link id} is the sanitized, tool-safe derivative of this value. */
-  readonly skillName: string;
-  /** The skill's own frontmatter `description`, verbatim — see this file's header. */
-  readonly description: string;
-  /** The full `SKILL.md` file content, frontmatter included — the same "handler returns the exact
-   *  file" precedent `agent-plugins/tool-registrations.ts`'s handler already establishes. */
-  readonly markdown: string;
-  readonly bundledFiles: readonly SkillBundledFile[];
-  /** Deferred reader keeps the host path private while all assistant surfaces can load references. */
-  readonly readFile?: SkillFileReader["read"];
-  readonly directory?: string;
-}
-
-/** Human-readable reason a skill folder's `SKILL.md` could not be read — split out of
- *  {@link resolveSkillEntry} so its nested "missing vs. unreadable" ternary lives in its own function
- *  rather than adding two nested-ternary steps to that function's own complexity count. */
-function describeSkillMdReadFailure({ error }: { error: unknown }, _optional = {}): string {
-  if (isEnoent({ error })) return "no SKILL.md";
-  return `SKILL.md could not be read (${error instanceof Error ? error.message : String(error)})`;
-}
-
-/** One entry-resolution outcome: `"skip"` covers every tolerated case this loader's header documents
- *  under "Bad-folder isolation" (not a directory, missing/unreadable SKILL.md, unparseable
- *  frontmatter, unusable id) — only `"resolved"` contributes to the loaded source list. */
-type SkillEntryResolution = { readonly kind: "skip" } | { readonly kind: "resolved"; readonly source: SkillToolSource };
-
-/**
- * Resolves one workspace-root directory entry into a ready {@link SkillToolSource}, or a `"skip"`
- * outcome for every tolerated failure — pulled out of {@link loadInstalledSkillToolSources} so that
- * function's own loop body is a flat dispatch on the result instead of nested try/catch and
- * early-continue branches for each entry.
- *
- * @param input.seenDirById - Mutated in place: records `id -> folder name` for every entry this call
- * resolves, so the caller's next call (for the next entry) can detect a same-id collision.
- * @throws {Error} Only for the one non-tolerated case: `frontmatter.name` sanitizes to an `id` already
- * present in `seenDirById` — see this file's header, "Bad-folder isolation".
- * @complexity O(f) in the entry's own bundled-file count (from {@link listBundledFiles}).
- */
-async function resolveSkillEntry(input: {
-  readonly workspaceRoot: string;
-  readonly siteDir: string;
-  readonly entry: { readonly name: string; isDirectory: () => boolean };
-  readonly seenDirById: Map<string, string>;
-  readonly includeDisabled?: boolean;
-}): Promise<SkillEntryResolution> {
-  const { workspaceRoot, entry, seenDirById } = input;
-  if (!entry.isDirectory()) return { kind: "skip" };
-  const skillDir = path.join(workspaceRoot, entry.name);
-  if (!(await readSkillState({ directory: skillDir })).enabled && !input.includeDisabled) return { kind: "skip" };
-
-  let markdown: string;
-  try {
-    markdown = await readFile(path.join(skillDir, "SKILL.md"), "utf8");
-  } catch (error) {
-    console.warn(`[skills] '${entry.name}': ${describeSkillMdReadFailure({ error })} — skipped`);
-    return { kind: "skip" };
-  }
-
-  const frontmatter = parseSkillFrontmatter({ markdown });
-  if (!frontmatter) {
-    console.warn(`[skills] '${entry.name}': SKILL.md has no parseable frontmatter with both 'name' and 'description' — skipped`);
-    return { kind: "skip" };
-  }
-
-  const id = toSkillToolId({ name: frontmatter.name });
-  if (!id) {
-    console.warn(`[skills] '${entry.name}': frontmatter name '${frontmatter.name}' could not be turned into a valid tool id — skipped`);
-    return { kind: "skip" };
-  }
-
-  const priorDir = seenDirById.get(id);
-  if (priorDir !== undefined) {
-    throw new ToolInputError({ message:
-      `skills: '${frontmatter.name}' is declared by more than one installed skill folder ('${priorDir}' and '${entry.name}') — ` +
-        `both would register the same tool id '${id}'; rename one skill's frontmatter 'name' to disambiguate`,
-    });
-  }
-  seenDirById.set(id, entry.name);
-
-  return {
-    kind: "resolved",
-    source: { directory: entry.name, id, skillName: frontmatter.name, description: frontmatter.description, markdown, readFile: createSkillFileReader({ skillRoot: skillDir, filesystem }).read, bundledFiles: await listBundledFiles({ skillDir, siteDir: input.siteDir }) },
-  };
-}
-
-/**
- * Loads every installed standalone Agent Skill for one workspace, resolved into one tool-ready
- * source per skill folder.
- *
- * @throws {ToolInputError} If two installed skill folders declare the same frontmatter `name` — see
- * {@link resolveSkillEntry}.
- * @complexity O(d * f) in installed skill-folder count times average bundled-file count per skill.
- */
+/** Installed skills of one workspace under this site's skill layout; see `loadInstalledSkillToolSources` in `@jini-ai/agentic/skills/tools`. */
 export async function loadInstalledSkillToolSources(ctx: {
   readonly includeDisabled?: boolean;
   readonly workspaceId: string;
   readonly skillLayout: SkillLayout;
   readonly siteBinding: { readonly dir: string };
-}, _optional = {}): Promise<readonly SkillToolSource[]> {
+}, _optional = {}): Promise<readonly InstalledSkillToolSource[]> {
   const workspaceRoot = ctx.skillLayout.forWorkspace({ workspaceId: ctx.workspaceId }).root;
-
-  let entries;
-  try {
-    entries = await readdir(workspaceRoot, { withFileTypes: true });
-  } catch (error) {
-    if (isEnoent({ error })) return [];
-    throw error;
-  }
-
-  const sources: SkillToolSource[] = [];
-  const seenDirById = new Map<string, string>();
-  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
-    const resolution = await resolveSkillEntry({ siteDir: ctx.siteBinding.dir, workspaceRoot, entry, seenDirById, includeDisabled: ctx.includeDisabled });
-    if (resolution.kind === "resolved") sources.push(resolution.source);
-  }
-
-  return sources;
+  return loadSources({ workspaceRoot, siteDir: ctx.siteBinding.dir, ports: SKILL_TOOL_PORTS },
+    ctx.includeDisabled === undefined ? {} : { includeDisabled: ctx.includeDisabled });
 }
 
-/** This module's own risk classification: every skill tool is a pure read of already-installed,
- *  operator-trusted local content — no domain call, no write path, mirroring
- *  `agent-plugins/tool-registrations.ts`'s identical `"none"` classification for the same reason. */
-export function skillToolDerivedRisk(sources: readonly SkillToolSource[]): DerivedRiskByToolId {
-  return new Map<string, AgentToolSideEffect>(sources.map((source) => [source.id, "none"]));
-}
-
-/** Optional file only — one skill is one tool, so no `skill` argument selects siblings.
- *  The file schema documents progressive disclosure through this tool's shared reader. */
-const SKILL_INPUT_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  required: [],
-  properties: { file: { type: "string", description: "Optional supporting text file relative to this skill folder, e.g. references/guide.md. Omit to read SKILL.md. Responses list readable files; unknown, unsafe, binary or over-256-KiB requests return a note and valid files." } },
-} as const;
-
-/** Formats standalone-skill guidance while retaining cached instructions when a file is refused. */
-function buildSkillToolResult({ source, content, file }: {
-  readonly source: SkillToolSource;
-  readonly content: Awaited<ReturnType<SkillFileReader["read"]>> | undefined;
-  readonly file: string | undefined;
-}, _options = {}) {
-  const result: Awaited<ReturnType<SkillFileReader["read"]>> = content ?? { text: source.markdown, files: [] };
-  return {
-    skillName: source.skillName,
-    guidance: result.note && !result.text ? source.markdown : result.text,
-    files: result.files ?? [],
-    ...(result.note ? { note: result.note } : {}),
-    ...(file !== undefined && !source.readFile ? { note: "File request refused: no supporting-file reader is available. Valid supporting files: (none)." } : {}),
-    bundledFiles: source.bundledFiles.map((file) => ({ kind: file.kind, root: "site", path: file.path })),
-  };
-}
-
-/**
- * Turns already-resolved skill sources into real `ToolRegistration`s — pure and synchronous, unlike
- * {@link loadInstalledSkillToolSources}, so this is the half a unit test exercises without touching
- * disk. Uses the SAME `buildDomainRegistrations` gate every other domain's `tool-registrations.ts`
- * uses (catalog/risk cross-check, `inputSchema` presence, drift tripwire) — not a parallel mechanism.
- * Handlers reject non-object inputs and keys other than `file` before invoking the injected reader.
- * @throws Error when a handler receives invalid input; reader errors propagate unchanged.
- * @complexity O(s) registration time/space for s sources; a handler validates O(k) keys before one read.
- */
+/** Skill tools with this product's metadata, `admin.assistant.use` permission and `site` file root;
+ *  see `buildSkillToolRegistrations` in `@jini-ai/agentic/skills/tools`. */
 export function buildSkillToolRegistrations(
-  { sources, withExtensionApprovalPolicy }: { sources: readonly SkillToolSource[]; withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy },
-  _optional: Record<string, never> = {},
+  { sources, withExtensionApprovalPolicy }: { sources: readonly InstalledSkillToolSource[]; withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy },
+  _optional = {},
 ): ToolRegistration[] {
-  const catalog: AgentToolDefinition[] = sources.map((source) => ({
-    name: source.id,
-    description: source.description,
-    sideEffects: "none",
-    authorization: { permission: "admin.assistant.use" },
-    inputSchema: SKILL_INPUT_SCHEMA,
-  }));
-
-  const handlers: Record<string, ToolHandler> = {};
-  for (const source of sources) {
-    handlers[source.id] = async (ctx) => {
-      const input = ctx.input === undefined ? {} : requireInputRecord({ input: ctx.input });
-      if (Array.isArray(input) || Object.keys(input).some(key => key !== "file")) throw new Error("this tool accepts only an optional 'file' argument");
-      const file = optionalString({ input, key: "file" });
-      const readOptions = file !== undefined ? { file } : {};
-      const content = source.readFile ? await source.readFile({}, readOptions) : undefined;
-      return buildSkillToolResult({ source, content, file });
-    };
-  }
-
-  return buildDomainRegistrations({ metadata: toolMetadata,
-    domain: "skill",
-    catalogModule: "features/skills/tool-registrations.ts",
-    catalog: indexCatalogById({ catalog: catalog }),
-    handlers,
-    derivedRisk: skillToolDerivedRisk(sources),
-  }).map(registration => withExtensionApprovalPolicy({ registration, family: 'installed-guidance' }));
+  return buildRegistrations({ sources, host: { metadata: toolMetadata, permission: "admin.assistant.use",
+    catalogModule: "features/skills/tool-registrations.ts", fileRoot: "site", withExtensionApprovalPolicy } });
 }
 
 /**

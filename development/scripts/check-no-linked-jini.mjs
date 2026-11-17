@@ -16,56 +16,56 @@
  * from `apps/admin`), and npm always runs package scripts with `cwd` at that package's own
  * directory, so no explicit target argument is needed.
  */
-import { lstatSync, readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import * as path from "node:path";
+import { check } from "@jini-ai/devops/checks/published-types";
+import { createNodeFilesystem, createNodeProcessRunner, createNpmInstaller } from "@jini-ai/devops/checks/node";
+
+function readManifest(packageDir) {
+  try {
+    return JSON.parse(readFileSync(path.join(packageDir, "package.json"), "utf8"));
+  } catch {
+    return undefined;
+  }
+}
 
 /** Registry-only release builds reject manifest file: specs as well as npm-link symlinks.
  * A file: dependency is also a symlink, indistinguishable from npm link by lstat alone; that
  * symlink is expected during local development. Release builds now reject its manifest spec
  * before checking installed links. Local iteration remains available through build:local.
  */
-function registryDependencyNames(packageDir) {
-  let manifest;
-  try {
-    manifest = JSON.parse(readFileSync(path.join(packageDir, "package.json"), "utf8"));
-  } catch {
-    return new Set();
-  }
+function rejectFileSpecs(manifest) {
   const specs = { ...manifest.dependencies, ...manifest.optionalDependencies, ...manifest.peerDependencies, ...manifest.devDependencies };
   const local = Object.entries(specs).filter(([name, spec]) => name.startsWith('@jini-ai/') && spec.startsWith('file:'));
   if (local.length) {
     console.error(`Build blocked: @jini-ai/* file: dependencies cannot ship without the sibling checkout:\n${local.map(([name]) => `  - ${name}`).join('\n')}\nUse published ranges for releases; build:local is available for local development.`);
     process.exit(1);
   }
-  const names = Object.entries(specs)
-    .filter(([name, spec]) => name.startsWith("@jini-ai/"))
-    .map(([name]) => name.slice("@jini-ai/".length));
-  return new Set(names);
 }
 
-function findLinkedPackages(scopeDir, fromRegistry) {
-  let entries;
-  try {
-    entries = readdirSync(scopeDir);
-  } catch {
-    return [];
+const cwd = process.cwd();
+const manifest = readManifest(cwd);
+if (manifest) {
+  rejectFileSpecs(manifest);
+  const runner = createNodeProcessRunner({});
+  const report = await check({
+    projects: [{ key: "build", mode: "links", directory: cwd, manifestPath: path.join(cwd, "package.json") }],
+    scope: "@jini-ai", fs: createNodeFilesystem({}), runner, installer: createNpmInstaller({ runner, command: "npm" }),
+  });
+  const [result] = report.projects;
+  if (result.status === "linked") {
+    console.error(
+      `\nBuild blocked: ${result.linkedPackages.length} @jini-ai/* package(s) are npm-linked in ${process.cwd()}, ` +
+        `not installed from the registry:\n` +
+        result.linkedPackages.map((name) => `  - ${name}`).join("\n") +
+        `\n\nA build against a local Jini checkout only works on this machine. Run ` +
+        `\`npm run unlink:jini\` (from the repo root) to restore the published versions, then build ` +
+        `again.\n`,
+    );
+    process.exit(1);
   }
-  return entries.filter(
-    (name) => fromRegistry.has(name) && lstatSync(path.join(scopeDir, name)).isSymbolicLink(),
-  );
-}
-
-const scopeDir = path.join(process.cwd(), "node_modules", "@jini-ai");
-const linked = findLinkedPackages(scopeDir, registryDependencyNames(process.cwd()));
-
-if (linked.length > 0) {
-  console.error(
-    `\nBuild blocked: ${linked.length} @jini-ai/* package(s) are npm-linked in ${process.cwd()}, ` +
-      `not installed from the registry:\n` +
-      linked.map((name) => `  - @jini-ai/${name}`).join("\n") +
-      `\n\nA build against a local Jini checkout only works on this machine. Run ` +
-      `\`npm run unlink:jini\` (from the repo root) to restore the published versions, then build ` +
-      `again.\n`,
-  );
-  process.exit(1);
+  if (result.status !== "pass") {
+    console.error(`\nBuild blocked: could not check ${cwd} for npm-linked @jini-ai/* packages: ${result.output}\n`);
+    process.exit(1);
+  }
 }

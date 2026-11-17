@@ -13,6 +13,6 @@
  */
 import { isTerminalRunStatus, type ChatMessage } from '@jini-ai/chat/core';
 
-export function persistableMessages(messages: readonly ChatMessage[]): ChatMessage[] {
+export function persistableMessages({ messages }: { messages: readonly ChatMessage[] }, _options = {}): ChatMessage[] {
   return messages.filter((message) => message.role === 'user' || isTerminalRunStatus({ status: message.runStatus }));
 }

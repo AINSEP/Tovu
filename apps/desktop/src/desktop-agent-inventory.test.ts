@@ -40,10 +40,10 @@ function ports(overrides: Partial<AgentRuntimePorts> = {}): AgentRuntimePorts & 
 
 test("an installed CLI is summarized with its probed models, reasoning options and custom-model flag", async () => {
   const p = ports();
-  const summary = await summarizeAgent(def("claude", {
+  const summary = await summarizeAgent({ def: def("claude", {
     reasoningOptions: [{ id: "high", label: "High" }],
     supportsCustomModel: true,
-  }), p);
+  }), ports: p });
   assert.deepEqual(summary, {
     id: "claude",
     name: "claude CLI",
@@ -57,7 +57,7 @@ test("an installed CLI is summarized with its probed models, reasoning options a
 
 test("a failed model probe falls back to the def's own models rather than failing the list", async () => {
   const p = ports({ probeModels: async () => { throw new Error("probe timed out"); } });
-  const summary = await summarizeAgent(def("codex"), p);
+  const summary = await summarizeAgent({ def: def("codex"), ports: p });
   assert.equal(summary.available, true);
   assert.deepEqual(summary.models, [{ id: "codex-default", label: "codex default" }]);
   assert.deepEqual(summary.reasoningOptions, []);
@@ -66,11 +66,11 @@ test("a failed model probe falls back to the def's own models rather than failin
 
 test("an absent CLI is never probed, shows its fallbacks, and says why it is unavailable", async () => {
   const p = ports({ resolveLaunch: ({ def: d }) => (d.id === "named" ? { launchPath: null, diagnostic: "named: blocked by policy" } : {}) });
-  const named = await summarizeAgent(def("named"), p);
+  const named = await summarizeAgent({ def: def("named"), ports: p });
   assert.equal(named.available, false);
   assert.equal(named.diagnostic, "named: blocked by policy");
   assert.deepEqual(named.models, [{ id: "named-default", label: "named default" }]);
-  const bare = await summarizeAgent(def("bare"), p);
+  const bare = await summarizeAgent({ def: def("bare"), ports: p });
   assert.equal(bare.diagnostic, "bare CLI CLI not found on PATH");
   assert.deepEqual(p.probes, []);
 });
@@ -138,8 +138,8 @@ test("inventory metadata preserves model effort choices and suffix ownership for
     { id: "empty", label: "Empty", reasoning: [] },
     { id: "inherited", label: "Inherited" },
   ];
-  const summary = await summarizeAgent(def("effort", { reasoningOptions: advertised }),
-    ports({ probeModels: async () => ({ models }) }));
+  const summary = await summarizeAgent({ def: def("effort", { reasoningOptions: advertised }),
+    ports: ports({ probeModels: async () => ({ models }) }) });
   assert.deepEqual(summary.models, [
     { id: "narrowed", label: "Narrowed", reasoning: high },
     { id: "empty", label: "Empty", reasoning: [] },
@@ -151,8 +151,8 @@ test("inventory metadata preserves model effort choices and suffix ownership for
   assert.deepEqual(modelReasoningOptions({ agent: summary, model: summary.models[1] }), [advertised[0]]);
   assert.deepEqual(modelReasoningOptions({ agent: summary, model: summary.models[2] }), advertised);
 
-  const suffix = await summarizeAgent(def("suffix", { reasoningInModelId: { levels: high } }),
-    ports({ probeModels: async () => ({ models: [models[0]!] }) }));
+  const suffix = await summarizeAgent({ def: def("suffix", { reasoningInModelId: { levels: high } }),
+    ports: ports({ probeModels: async () => ({ models: [models[0]!] }) }) });
   assert.deepEqual(suffix.reasoningInModelId, { levels: high });
   assert.deepEqual(modelReasoningOptions({ agent: suffix, model: suffix.models[0] }), []);
 });

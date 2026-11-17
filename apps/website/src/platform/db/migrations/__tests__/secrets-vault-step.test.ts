@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { sql } from "kysely";
 import { sqliteConnectionOf } from "../../kernel/drivers/sqlite.js";
-import { openSqliteSnapshotSource } from "#src/features/database-transfer/sqlite-source";
+import { openSqliteSnapshotSource } from "@jini-ai/db/transfer";
 import { planSnapshotTables } from "#src/features/database-transfer/table-catalog";
 import { readSchemaShape, listColumns, listIndexes, listTables } from "@jini-ai/db/kernel";
 import { runMigrations } from "../runner.js";
@@ -252,7 +252,7 @@ test("SQLite ordinary transfer excludes the vault and all restore artifacts whil
     await kernel.execute(sql`INSERT INTO _vault_backup_tovu_migrations VALUES ('restore-only')`);
     await kernel.execute(sql`CREATE TABLE p_demo__articles (id text PRIMARY KEY, title text)`);
     await kernel.execute(sql`INSERT INTO p_demo__articles VALUES ('live','Visible content')`);
-    const source = openSqliteSnapshotSource({ bytes: sqliteConnectionOf(kernel)!.serialize(), open: data => openSqliteSnapshot({ data }) });
+    const source = openSqliteSnapshotSource({ bytes: sqliteConnectionOf(kernel)!.serialize() }, { open: data => openSqliteSnapshot({ data }) });
     try {
       const plan = planSnapshotTables({ source, catalog: createCoreTableCatalog({}) });
       assert.equal(plan.tables.some(table => table.name === "secrets_vault"), false);

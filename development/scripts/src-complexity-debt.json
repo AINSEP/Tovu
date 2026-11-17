@@ -16,13 +16,6 @@
       "value": 11
     },
     {
-      "file": "apps/admin/src/features/plugins/hooks/use-agent-plugin-memory.hooks.ts",
-      "function": "useAgentPluginMemory#1.save#1",
-      "line": 71,
-      "rule": "sonarjs/cognitive-complexity",
-      "value": 10
-    },
-    {
       "file": "apps/admin/src/features/sites/hooks/use-live-import-site.hooks.ts",
       "function": "startAndWait#1",
       "line": 55,
@@ -49,34 +42,6 @@
       "line": 111,
       "rule": "complexity",
       "value": 10
-    },
-    {
-      "file": "apps/admin/src/lib/admin-failure-channel.ts",
-      "function": "publishAdminFailure#1",
-      "line": 52,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/desktop/src/nested-sites-migration.ts",
-      "function": "migrateNestedSitesHome#1",
-      "line": 65,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/website/src/cli/commands/export.ts",
-      "function": "runExportCommand#1",
-      "line": 117,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/website/src/cli/commands/import-local.ts",
-      "function": "parseRequest#1",
-      "line": 128,
-      "rule": "complexity",
-      "value": 12
     },
     {
       "file": "apps/website/src/features/agent-plugins/analytics-provider-registry.ts",
@@ -114,24 +79,10 @@
       "value": 11
     },
     {
-      "file": "apps/website/src/features/deployments/static-publish/publish-run.ts",
-      "function": "recordHistoryIfPublished#1",
-      "line": 156,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
       "file": "apps/website/src/features/deployments/static-publish/verify.ts",
       "function": "computeVerificationResult#1",
       "line": 203,
       "rule": "complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/website/src/features/entries/unreadable-owner-entries-repair.ts",
-      "function": "removeUnreadableOwnerEntries#1.<anonymous>#3",
-      "line": 131,
-      "rule": "sonarjs/cognitive-complexity",
       "value": 11
     },
     {
@@ -189,13 +140,6 @@
       "line": 483,
       "rule": "sonarjs/cognitive-complexity",
       "value": 12
-    },
-    {
-      "file": "apps/website/src/features/publish-content/raw-row-contributor.ts",
-      "function": "buildRawRowHandler#1.packSelected#1",
-      "line": 101,
-      "rule": "complexity",
-      "value": 11
     },
     {
       "file": "apps/website/src/features/site-backup/archive-extensions.ts",
@@ -324,13 +268,6 @@
       "value": 12
     },
     {
-      "file": "apps/website/src/server/runtime/boot/site-key-boot-notice.ts",
-      "function": "warnIfNoSiteKeyAtBoot#1",
-      "line": 71,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
       "file": "apps/website/src/server/runtime/composition/import-database/repo.sqlite.ts",
       "function": "run#1",
       "line": 99,
@@ -369,13 +306,6 @@
       "file": "apps/website/src/server/runtime/composition/provider-plugins.ts",
       "function": "gatedPort#1.<anonymous>#2.<anonymous>#1",
       "line": 207,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
-      "file": "apps/website/src/server/runtime/services/external-mcp-admissions.ts",
-      "function": "readServerAdmissions#1",
-      "line": 23,
       "rule": "complexity",
       "value": 11
     }

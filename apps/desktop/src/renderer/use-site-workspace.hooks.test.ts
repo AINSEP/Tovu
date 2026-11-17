@@ -146,7 +146,7 @@ test('a guest that is not attached yet reads as no history rather than throwing'
 test('did-navigate re-reads canGoBack/canGoForward from the guest and reports the new url', () => {
   const fake = fakeGuest();
   const { dispatched, dispatch } = recorder();
-  trackGuestNavigation(fake.guest, dispatch);
+  trackGuestNavigation({ guest: fake.guest, dispatch });
 
   fake.options.canGoBack = true;
   fake.fire('did-navigate', { url: 'http://127.0.0.1:4100/admin/posts' });
@@ -159,7 +159,7 @@ test('did-navigate re-reads canGoBack/canGoForward from the guest and reports th
 test('did-navigate-in-page (the admin router pushState) updates the arrows too', () => {
   const fake = fakeGuest({ canGoBack: true, canGoForward: true });
   const { dispatched, dispatch } = recorder();
-  trackGuestNavigation(fake.guest, dispatch);
+  trackGuestNavigation({ guest: fake.guest, dispatch });
 
   fake.fire('did-navigate-in-page', { url: 'http://127.0.0.1:4100/admin/media', isMainFrame: true });
 
@@ -171,7 +171,7 @@ test('did-navigate-in-page (the admin router pushState) updates the arrows too',
 test('an in-page navigation inside a SUBFRAME refreshes the arrows but never replaces the main url', () => {
   const fake = fakeGuest({ canGoBack: true });
   const { dispatched, dispatch } = recorder();
-  trackGuestNavigation(fake.guest, dispatch);
+  trackGuestNavigation({ guest: fake.guest, dispatch });
 
   fake.fire('did-navigate-in-page', { url: 'http://127.0.0.1:4100/preview#frame', isMainFrame: false });
 
@@ -182,7 +182,7 @@ test('an in-page navigation inside a SUBFRAME refreshes the arrows but never rep
 
 test('the teardown detaches both navigation listeners', () => {
   const fake = fakeGuest();
-  const teardown = trackGuestNavigation(fake.guest, recorder().dispatch);
+  const teardown = trackGuestNavigation({ guest: fake.guest, dispatch: recorder().dispatch });
   assert.deepEqual([...fake.listeners.keys()].sort(), ['did-navigate', 'did-navigate-in-page']);
   teardown();
   assert.equal(fake.listeners.size, 0);
@@ -475,7 +475,7 @@ test('history steps and navigation listener setup/teardown contain every detache
   assert.doesNotThrow(() => stepHistory({ guest, command: 'back' }));
   assert.doesNotThrow(() => stepHistory({ guest, command: 'forward' }));
   let dispose = () => {};
-  assert.doesNotThrow(() => { dispose = trackGuestNavigation(guest, () => {}); });
+  assert.doesNotThrow(() => { dispose = trackGuestNavigation({ guest, dispatch: () => {} }); });
   assert.doesNotThrow(dispose);
 });
 
@@ -499,6 +499,6 @@ test('a foreign workspace waits for main to attach before using its URL', async 
 
 test('foreign running sites have no stop action and cannot restart the owning app', () => {
   const project = { id: '/outside/site', displayName: 'Site', externalUrl: 'https://localhost:3456/admin/' } as SiteRecord;
-  assert.equal(powerControl('running', { external: true }), null);
+  assert.equal(powerControl({ status: 'running' }, { external: true }), null);
   assert.equal(restartControl({ project, status: 'running', restarting: false }).disabled, true);
 });

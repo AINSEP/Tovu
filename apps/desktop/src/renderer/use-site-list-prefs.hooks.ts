@@ -56,7 +56,10 @@ export interface SiteListPrefsState {
 }
 
 /** @returns The stored choices and the way to change them. @complexity O(1) per change. */
-export function useSiteListPrefs(storage: SiteListStorage = windowStorage): SiteListPrefsState {
+export function useSiteListPrefs(
+  _required: Record<string, never> = {},
+  { storage = windowStorage }: { storage?: SiteListStorage } = {},
+): SiteListPrefsState {
   const [prefs, setPrefs] = useState(() => readSiteListPrefs({ storage }));
   const onPrefsChange = useCallback((next: SiteListPrefs) => {
     setPrefs(next);

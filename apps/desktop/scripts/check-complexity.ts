@@ -100,7 +100,7 @@ function lintAtCeiling({ spawn = spawnSync }: { spawn?: typeof spawnSync } = {})
 /** Rewrites each result's absolute `filePath` to a repo-relative, forward-slash path, so the debt
  *  file is portable across machines and checkouts.
  *  @complexity O(n). */
-function toRepoRelative(results: readonly EslintFileResult[]): EslintFileResult[] {
+function toRepoRelative({ results }: { results: readonly EslintFileResult[] }, _options = {}): EslintFileResult[] {
   return results.map((result) => ({
     filePath: path.relative(REPO_ROOT, result.filePath).split(path.sep).join("/"),
     messages: result.messages,
@@ -170,7 +170,7 @@ function runComplexityGate({ argv, ports }: { argv: readonly string[]; ports: Co
       return 1;
     }
 
-    const results = toRepoRelative(JSON.parse(run.stdout));
+    const results = toRepoRelative({ results: JSON.parse(run.stdout) });
     if (argv.includes("--update")) {
       writeBaseline({ violations: evaluateRun({ results, baseline: [], minFilesLinted: MIN_FILES_LINTED }).current, ports, debtPath });
       return 0;

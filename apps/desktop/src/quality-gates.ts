@@ -201,7 +201,7 @@ function summaryLine({ gate, outcome }: { gate: GateEntry; outcome: GateExitCode
  * @returns the printable summary block.
  * @complexity O(n) in gates.
  */
-export function formatSummary(gates: readonly GateEntry[], outcomes: ReadonlyMap<string | undefined, GateExitCode>): string {
+export function formatSummary({ gates, outcomes }: { gates: readonly GateEntry[]; outcomes: ReadonlyMap<string | undefined, GateExitCode> }, _options = {}): string {
   const lines = ["", "=".repeat(66), "DESKTOP GATE SUMMARY", "=".repeat(66)];
   let passed = 0;
   let failed = 0;

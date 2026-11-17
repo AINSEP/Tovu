@@ -1,5 +1,5 @@
-import { LINE_ICON } from "../../components/line-icon";
 import type { KeyboardEvent } from "react";
+import { Icon } from "@jini-ai/ui";
 import type { LibraryController } from "./hooks/use-library.hooks";
 import type { TabBarTab } from "@jini-ai/ui/tab-strip";
 
@@ -13,24 +13,6 @@ import { resolveActiveTabId } from '@jini-ai/core/text';
  * "View in Documents".
  */
 
-export function UploadIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg {...LINE_ICON} width={size} height={size}>
-      <path d="M12 15V4M7.5 8.5L12 4l4.5 4.5" />
-      <path d="M4 15v3.5A1.5 1.5 0 005.5 20h13a1.5 1.5 0 001.5-1.5V15" />
-    </svg>
-  );
-}
-
-export function DocumentsIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg {...LINE_ICON} width={size} height={size}>
-      <path d="M7 3.5h7l4 4V19a1.5 1.5 0 01-1.5 1.5h-9.5A1.5 1.5 0 015.5 19V5A1.5 1.5 0 017 3.5z" />
-      <path d="M14 3.5V8h4M9 12.5h6M9 16h4" />
-    </svg>
-  );
-}
-
 export const LIBRARY_TAB_IDS = ["upload", "documents"] as const;
 export type LibraryTabId = (typeof LIBRARY_TAB_IDS)[number];
 
@@ -43,14 +25,14 @@ export function resolveLibraryTabs({ t }: { t: (key: string) => string }, { docu
     {
       id: "upload",
       label: t("Upload"),
-      icon: <UploadIcon />,
+      icon: <Icon name="tray-upload" size={16} strokeWidth={1.5} />,
       handle: "library-tab-upload",
       handleLabel: "Switch to the Upload tab — add Markdown, text, PDF, Word, CSV or JSON documents to the Library",
     },
     {
       id: "documents",
       label: t("Documents"),
-      icon: <DocumentsIcon />,
+      icon: <Icon name="document-lines" size={16} strokeWidth={1.5} />,
       count: documentCount,
       handle: "library-tab-documents",
       handleLabel: "Switch to the Documents tab — preview, rename, download or move Library documents to Trash",

@@ -6,7 +6,7 @@ import { nowIso, type Clock } from "@jini-ai/core/primitives";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 import path from "node:path";
 
-import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, requireInputRecord, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 // `ToolInputError` specifically — the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a
 // rejection 400 rather than redacting it into a message-stripped 500. Same import, same reason, as
@@ -168,6 +168,95 @@ async function readReadiness({ deps, findCandidate }: { deps: PublishContentTool
   return { readiness, rows };
 }
 
+type PublishContentToolRoute = { routeDeps: PublishContentToolDeps; provisioning: PublishTrustProvisioningPort };
+
+async function connectPublishContentTool(
+  required: PublishContentToolRoute & { ctx: ToolExecutionContext; findCandidate: () => Promise<string | null> },
+  _optional = {},
+): Promise<unknown> {
+  const { routeDeps, provisioning, ctx, findCandidate } = required;
+  const input = requireInputRecord({ input: ctx.input });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PUBLISH_CONTENT_APPLY_PERMISSION });
+
+  const raw = await connectSiteUrl({ input, findCandidate });
+  if (raw === null) {
+    // The never-deployed install. An ordinary empty state, reported as a result rather than
+    // thrown, so the model can relay the sentence instead of a failure.
+    return {
+      connected: false,
+      message: "There is no live site to publish to yet.",
+      nextStep: "Put this site online once, then come back and connect this computer to it.",
+    };
+  }
+
+  const normalized = normalizePeerBaseUrl({ raw });
+  if ("error" in normalized) {
+    return { connected: false, message: "That does not look like a website address.", nextStep: null };
+  }
+
+  // What this computer may publish is its OWN registered types, never a list anyone chooses.
+  // An empty grant can do nothing, so an install with nothing publishable is refused here
+  // rather than connected into something that would silently publish nothing.
+  const entityTypes = listPublishContentContributors().map((contributor) => contributor.entityType);
+  if (entityTypes.length === 0) {
+    return {
+      connected: false,
+      message: "There is nothing on this site that can be copied to a live site yet.",
+      nextStep: "Add something to this site first, then come back.",
+    };
+  }
+  return connectWithTrust({ routeDeps, provisioning, baseUrl: normalized.baseUrl, entityTypes });
+}
+
+/** Records the destination and its grant; a handshake or write failure becomes a plain result the model can relay. */
+async function connectWithTrust(
+  required: PublishContentToolRoute & { baseUrl: string; entityTypes: string[] },
+  _optional = {},
+): Promise<unknown> {
+  const { routeDeps, provisioning, baseUrl, entityTypes } = required;
+  try {
+    const trustDeps = {
+      httpClient: routeDeps.publishContentPeerHttpClient,
+      keyring: routeDeps.siteAssistantSecretKeyring,
+      provisioning,
+      clock: routeDeps.clock,
+      workspaceId: routeDeps.workspaceId,
+    };
+    const { site, grant } = await connectAndRecordDestination(
+      {
+        repo: routeDeps.publishContentPeerRepo,
+        clock: routeDeps.clock,
+        idGen: routeDeps.idGen,
+        connectGrant: (connectInput, _options: Record<string, never> = {}) => connectDestination(trustDeps, connectInput),
+        reverseGrant: () => disconnectDestination(trustDeps),
+      },
+      { workspaceId: routeDeps.workspaceId, baseUrl: baseUrl, entityTypes }
+    );
+
+    return {
+      connected: true,
+      message: `This computer publishes to ${site.label}.`,
+      nextStep: plainSentence({ text: grant.nextStep, fallback: "Put this site online once more for the change to take effect." }),
+    };
+  } catch (err) {
+    if (err instanceof PublishTrustHandshakeError) {
+      return {
+        connected: false,
+        message: plainSentence({ text: err.message, fallback: `${siteLabelFor({ baseUrl: baseUrl })} could not be reached, or it is not a site this can publish to.` }),
+        nextStep: "Check the address and that the site is online, then try connecting again.",
+      };
+    }
+    if (err instanceof PublishTrustConnectError) {
+      return {
+        connected: false,
+        message: "This site's publishing settings could not be saved on this computer.",
+        nextStep: "Check that this project's files can be written to, then try connecting again.",
+      };
+    }
+    throw err;
+  }
+}
+
 /**
  * Wires publish/readiness/connection tools using explicit ports; pulls retain human-bound surfaces.
  * Pull planning stores an expiring bundle; execution reaches the import gateway only after a click.
@@ -272,80 +361,7 @@ export function buildPublishContentRegistrations(
       return readiness;
     },
 
-    [PUBLISH_CONTENT_CONNECT_TOOL_ID]: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PUBLISH_CONTENT_APPLY_PERMISSION });
-
-      const raw = await connectSiteUrl({ input, findCandidate });
-      if (raw === null) {
-        // The never-deployed install. An ordinary empty state, reported as a result rather than
-        // thrown, so the model can relay the sentence instead of a failure.
-        return {
-          connected: false,
-          message: "There is no live site to publish to yet.",
-          nextStep: "Put this site online once, then come back and connect this computer to it.",
-        };
-      }
-
-      const normalized = normalizePeerBaseUrl({ raw });
-      if ("error" in normalized) {
-        return { connected: false, message: "That does not look like a website address.", nextStep: null };
-      }
-
-      // What this computer may publish is its OWN registered types, never a list anyone chooses.
-      // An empty grant can do nothing, so an install with nothing publishable is refused here
-      // rather than connected into something that would silently publish nothing.
-      const entityTypes = listPublishContentContributors().map((contributor) => contributor.entityType);
-      if (entityTypes.length === 0) {
-        return {
-          connected: false,
-          message: "There is nothing on this site that can be copied to a live site yet.",
-          nextStep: "Add something to this site first, then come back.",
-        };
-      }
-
-      try {
-        const trustDeps = {
-          httpClient: routeDeps.publishContentPeerHttpClient,
-          keyring: routeDeps.siteAssistantSecretKeyring,
-          provisioning,
-          clock: routeDeps.clock,
-          workspaceId: routeDeps.workspaceId,
-        };
-        const { site, grant } = await connectAndRecordDestination(
-          {
-            repo: routeDeps.publishContentPeerRepo,
-            clock: routeDeps.clock,
-            idGen: routeDeps.idGen,
-            connectGrant: (connectInput, _options: Record<string, never> = {}) => connectDestination(trustDeps, connectInput),
-            reverseGrant: () => disconnectDestination(trustDeps),
-          },
-          { workspaceId: routeDeps.workspaceId, baseUrl: normalized.baseUrl, entityTypes }
-        );
-
-        return {
-          connected: true,
-          message: `This computer publishes to ${site.label}.`,
-          nextStep: plainSentence({ text: grant.nextStep, fallback: "Put this site online once more for the change to take effect." }),
-        };
-      } catch (err) {
-        if (err instanceof PublishTrustHandshakeError) {
-          return {
-            connected: false,
-            message: plainSentence({ text: err.message, fallback: `${siteLabelFor({ baseUrl: normalized.baseUrl })} could not be reached, or it is not a site this can publish to.` }),
-            nextStep: "Check the address and that the site is online, then try connecting again.",
-          };
-        }
-        if (err instanceof PublishTrustConnectError) {
-          return {
-            connected: false,
-            message: "This site's publishing settings could not be saved on this computer.",
-            nextStep: "Check that this project's files can be written to, then try connecting again.",
-          };
-        }
-        throw err;
-      }
-    },
+    [PUBLISH_CONTENT_CONNECT_TOOL_ID]: (ctx) => connectPublishContentTool({ routeDeps, provisioning, ctx, findCandidate }),
   };
 
   return buildDomainRegistrations({ metadata: toolMetadata,

@@ -642,20 +642,20 @@ test("prebuildTarget: an unrecognized shape is undefined, never a guessed platfo
 });
 
 test("resolveTargets: defaults to the host, which is what electron-builder packs with no arch flag", () => {
-  assert.deepEqual(resolveTargets({}, { platform: "darwin", arch: "x64" }), [{ platform: "darwin", arch: "x64" }]);
-  assert.deepEqual(resolveTargets({}, { platform: "darwin", arch: "arm64" }), [{ platform: "darwin", arch: "arm64" }]);
+  assert.deepEqual(resolveTargets({ env: {}, host: { platform: "darwin", arch: "x64" } }), [{ platform: "darwin", arch: "x64" }]);
+  assert.deepEqual(resolveTargets({ env: {}, host: { platform: "darwin", arch: "arm64" } }), [{ platform: "darwin", arch: "arm64" }]);
 });
 
 test("resolveTargets: an explicit env target overrides the host, so a cross-arch build is not packed for the wrong machine", () => {
   // The case the brief named: an x64 host building for arm64 must NOT keep the host's x64 binary.
-  assert.deepEqual(resolveTargets({ TOVU_TARGET_ARCH: "arm64" }, { platform: "darwin", arch: "x64" }), [{ platform: "darwin", arch: "arm64" }]);
-  assert.deepEqual(resolveTargets({ TOVU_TARGET_PLATFORM: "linux", TOVU_TARGET_ARCH: "x64" }, { platform: "darwin", arch: "arm64" }), [
+  assert.deepEqual(resolveTargets({ env: { TOVU_TARGET_ARCH: "arm64" }, host: { platform: "darwin", arch: "x64" } }), [{ platform: "darwin", arch: "arm64" }]);
+  assert.deepEqual(resolveTargets({ env: { TOVU_TARGET_PLATFORM: "linux", TOVU_TARGET_ARCH: "x64" }, host: { platform: "darwin", arch: "arm64" } }), [
     { platform: "linux", arch: "x64" },
   ]);
 });
 
 test("resolveTargets: universal keeps BOTH macOS architectures", () => {
-  assert.deepEqual(resolveTargets({ TOVU_TARGET_ARCH: "universal" }, { platform: "darwin", arch: "x64" }), [
+  assert.deepEqual(resolveTargets({ env: { TOVU_TARGET_ARCH: "universal" }, host: { platform: "darwin", arch: "x64" } }), [
     { platform: "darwin", arch: "x64" },
     { platform: "darwin", arch: "arm64" },
   ]);
@@ -688,7 +688,7 @@ test("pruneNativePrebuilds: a universal target keeps both macOS binaries and not
   const outDir = path.join(tempDir(), "out");
   const modulesDir = stageNativePackages(outDir);
 
-  pruneNativePrebuilds({ outDir, targets: resolveTargets({ TOVU_TARGET_ARCH: "universal" }, { platform: "darwin", arch: "x64" }) });
+  pruneNativePrebuilds({ outDir, targets: resolveTargets({ env: { TOVU_TARGET_ARCH: "universal" }, host: { platform: "darwin", arch: "x64" } }) });
 
   assert.deepEqual(listPrebuilds(modulesDir, "better-sqlite3"), ["darwin-arm64.node", "darwin-x64.node"]);
 });

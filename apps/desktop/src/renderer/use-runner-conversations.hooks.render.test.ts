@@ -331,7 +331,7 @@ test('useRunnerConversations: looks the bridge up once, not on every render', as
 
 test('useConversationDeleteConfirmation: a prompt resolves from the answer, and a newer prompt cancels an older one', async (t) => {
   const hook = renderHook(t, () => useConversationDeleteConfirmation());
-  act(() => hook.current().resolvePending(true));
+  act(() => hook.current().resolvePending({ confirmed: true }));
   assert.equal(hook.current().pendingTitle, null, 'answering with nothing pending is a no-op');
   let first!: Promise<boolean>;
   act(() => { first = hook.current().confirmDelete({ id: 'a', title: null } as never); });
@@ -340,7 +340,7 @@ test('useConversationDeleteConfirmation: a prompt resolves from the answer, and 
   act(() => { second = hook.current().confirmDelete({ id: 'b', title: 'Deploy notes' } as never); });
   assert.equal(await first, false);
   assert.equal(hook.current().pendingTitle, 'Deploy notes');
-  act(() => hook.current().resolvePending(true));
+  act(() => hook.current().resolvePending({ confirmed: true }));
   assert.equal(await second, true);
   assert.equal(hook.current().pendingTitle, null);
 });
@@ -349,8 +349,8 @@ test('useConversationDeleteConfirmation: declining resolves false, and a second 
   const hook = renderHook(t, () => useConversationDeleteConfirmation());
   let asked!: Promise<boolean>;
   act(() => { asked = hook.current().confirmDelete({ id: 'a', title: 'Keep me' } as never); });
-  act(() => hook.current().resolvePending(false));
-  act(() => hook.current().resolvePending(true));
+  act(() => hook.current().resolvePending({ confirmed: false }));
+  act(() => hook.current().resolvePending({ confirmed: true }));
   assert.equal(await asked, false);
   assert.equal(hook.current().pendingTitle, null);
 });
