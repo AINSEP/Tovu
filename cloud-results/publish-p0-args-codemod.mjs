@@ -47,7 +47,8 @@ function wrapText(params, multiline) {
     keys.push(init ? `${name} = ${init.getText()}` : name);
     types.push(`${name}${optional ? "?" : ""}: ${indentLines(type, "  ")}`);
   }
-  if (!multiline) return `{ ${keys.join(", ")} }: { ${types.join("; ")} }`;
+  const compact = `{ ${keys.join(", ")} }: { ${types.join("; ")} }`;
+  if (!multiline || (!compact.includes("\n") && compact.length <= 140)) return compact;
   const pad = " ".repeat(columnOf(params[0]));
   return `{ ${keys.join(", ")} }: {\n${types.map((t) => `${pad}  ${t};`).join("\n")}\n${pad}}`;
 }
@@ -57,8 +58,11 @@ function callArgsText(args, names) {
   const pairs = used.map((a, i) => (a.getText() === names[i] ? names[i] : `${names[i]}: ${a.getText()}`));
   const rest = args.slice(names.length).map((a) => a.getText());
   const first = args[0]; const last = args[args.length - 1];
-  const multiline = first.getSourceFile().getFullText().slice(first.getStart(), last.getEnd()).includes("\n");
-  if (!multiline) return `{ ${pairs.join(", ")} }${rest.length ? `, ${rest.join(", ")}` : ""}`;
+  const text = first.getSourceFile().getFullText();
+  const multiline = text.slice(first.getStart(), last.getEnd()).includes("\n");
+  const startsLine = /^\s*$/.test(text.slice(text.lastIndexOf("\n", first.getStart() - 1) + 1, first.getStart()));
+  // A call that starts mid-line keeps its argument text exactly as written (no re-indent): `f({ deps, request: {` ... `} })`.
+  if (!multiline || !startsLine) return `{ ${pairs.join(", ")} }${rest.length ? `, ${rest.join(", ")}` : ""}`;
   const pad = " ".repeat(columnOf(first));
   const body = pairs.map((p) => `${pad}  ${indentLines(p, "  ")}`).join(",\n");
   return `{\n${body}\n${pad}}${rest.length ? `, ${rest.join(", ")}` : ""}`;

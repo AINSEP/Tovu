@@ -516,40 +516,34 @@ export async function pushBundleToPeer(
 
   const { blobsUploaded, blobsUnavailable } = await uploadMissingPeerBlobs(deps, { bundle });
 
-  const staged = requireObject({ value: await callPeer({
-                                                         deps,
-                                                         request: {
-        method: "POST",
-        path: peerRoute({ credential, suffix: "/bundles" }),
-        body: {
-          artifactFormatVersion: bundle.artifactFormatVersion,
-          hashVersion: bundle.hashVersion,
-          sourceLabel: bundle.sourceLabel,
-          entities: bundle.entities,
-          blobManifest: bundle.blobManifest,
-        },
-      }
-                                                       }), what: "bundle staging", baseUrl: credential.baseUrl });
+  const staged = requireObject({ value: await callPeer({ deps, request: {
+      method: "POST",
+      path: peerRoute({ credential, suffix: "/bundles" }),
+      body: {
+        artifactFormatVersion: bundle.artifactFormatVersion,
+        hashVersion: bundle.hashVersion,
+        sourceLabel: bundle.sourceLabel,
+        entities: bundle.entities,
+        blobManifest: bundle.blobManifest,
+      },
+    } }), what: "bundle staging", baseUrl: credential.baseUrl });
   const bundleId = staged.bundleId;
   if (typeof bundleId !== "string") {
     throw new PublishContentPeerTransportError({ message: `the peer staged the bundle but returned no 'bundleId'`, code: "PEER_RESPONSE_INVALID" });
   }
 
   const plan = requireObject({
-    value: await callPeer({
-                            deps,
-                            request: {
-        method: "POST",
-        path: peerRoute({ credential, suffix: "/import/plan" }),
-        // publish-overwrite-live-plan §4/S7 — `undefined` here reaches the peer's `/import/plan` as an
-        // absent field, which its `readOverwriteEntityKeys` reads as "force nothing", the same
-        // absent-means-unforced reading `selectedEntityKeys` already relies on for this same call.
-        body:
-          required.overwriteEntityKeys === undefined
-            ? { bundleId }
-            : { bundleId, overwriteEntityKeys: required.overwriteEntityKeys },
-      }
-                          }),
+    value: await callPeer({ deps, request: {
+      method: "POST",
+      path: peerRoute({ credential, suffix: "/import/plan" }),
+      // publish-overwrite-live-plan §4/S7 — `undefined` here reaches the peer's `/import/plan` as an
+      // absent field, which its `readOverwriteEntityKeys` reads as "force nothing", the same
+      // absent-means-unforced reading `selectedEntityKeys` already relies on for this same call.
+      body:
+        required.overwriteEntityKeys === undefined
+          ? { bundleId }
+          : { bundleId, overwriteEntityKeys: required.overwriteEntityKeys },
+    } }),
     what: "import plan",
     baseUrl: credential.baseUrl,
   });
@@ -574,14 +568,11 @@ export async function confirmPeerImport(
   },
   _optional = {}
 ): Promise<{ confirmationToken: string }> {
-  const confirmed = requireObject({ value: await callPeer({
-                                                            deps,
-                                                            request: {
-        method: "POST",
-        path: peerRoute({ credential: deps.credential, suffix: "/import/confirm" }),
-        body: { planId: required.planId, planHash: required.planHash },
-      }
-                                                          }), what: "import confirm", baseUrl: deps.credential.baseUrl });
+  const confirmed = requireObject({ value: await callPeer({ deps, request: {
+      method: "POST",
+      path: peerRoute({ credential: deps.credential, suffix: "/import/confirm" }),
+      body: { planId: required.planId, planHash: required.planHash },
+    } }), what: "import confirm", baseUrl: deps.credential.baseUrl });
   const confirmationToken = confirmed.confirmationToken;
   if (typeof confirmationToken !== "string") {
     throw new PublishContentPeerTransportError({ message: `the peer confirmed the plan but returned no 'confirmationToken'`, code: "PEER_RESPONSE_INVALID" });
@@ -609,24 +600,21 @@ export async function executePeerImport(
   if ((required.overwriteEntityKeys?.length ?? 0) > 0) {
     refuseOverwriteOnOlderPeer(deps.credential, await probePeerCapabilities(deps));
   }
-  const result = requireObject({ value: await callPeer({
-                                                         deps,
-                                                         request: {
-        method: "POST",
-        path: peerRoute({ credential: deps.credential, suffix: "/import/execute" }),
-        // publish-overwrite-live-plan §4/S7 — the same forced set confirmed at plan time. A DIFFERENT
-        // set here re-derives a different report hash on the peer, and its own PLAN_STALE check
-        // refuses it (§4) — no staleness code is needed on this side of the wire either.
-        body:
-          required.overwriteEntityKeys === undefined
-            ? { bundleId: required.bundleId, confirmationToken: required.confirmationToken }
-            : {
-                bundleId: required.bundleId,
-                confirmationToken: required.confirmationToken,
-                overwriteEntityKeys: required.overwriteEntityKeys,
-              },
-      }
-                                                       }), what: "import execute", baseUrl: deps.credential.baseUrl });
+  const result = requireObject({ value: await callPeer({ deps, request: {
+      method: "POST",
+      path: peerRoute({ credential: deps.credential, suffix: "/import/execute" }),
+      // publish-overwrite-live-plan §4/S7 — the same forced set confirmed at plan time. A DIFFERENT
+      // set here re-derives a different report hash on the peer, and its own PLAN_STALE check
+      // refuses it (§4) — no staleness code is needed on this side of the wire either.
+      body:
+        required.overwriteEntityKeys === undefined
+          ? { bundleId: required.bundleId, confirmationToken: required.confirmationToken }
+          : {
+              bundleId: required.bundleId,
+              confirmationToken: required.confirmationToken,
+              overwriteEntityKeys: required.overwriteEntityKeys,
+            },
+    } }), what: "import execute", baseUrl: deps.credential.baseUrl });
   // HTTP failures already throw. A completed apply may contain conflicts/partial writes; both
   // outcomes remember the destination, but a body explicitly reporting failure never does.
   if (deps.publishHistory && peerApplyCompleted({ result })) {
@@ -841,14 +829,11 @@ async function uploadMissingPeerBlobs(
   const blobsUploaded: string[] = [];
   const blobsUnavailable: string[] = [];
   if (bundle.blobManifest.length > 0) {
-    const probed = requireObject({ value: await callPeer({
-                                                           deps,
-                                                           request: {
-          method: "POST",
-          path: peerRoute({ credential, suffix: "/blobs/probe" }),
-          body: { shas: bundle.blobManifest },
-        }
-                                                         }), what: "blob probe", baseUrl: credential.baseUrl });
+    const probed = requireObject({ value: await callPeer({ deps, request: {
+        method: "POST",
+        path: peerRoute({ credential, suffix: "/blobs/probe" }),
+        body: { shas: bundle.blobManifest },
+      } }), what: "blob probe", baseUrl: credential.baseUrl });
     const missing = Array.isArray(probed.missing) ? (probed.missing as unknown[]).filter((s): s is string => typeof s === "string") : [];
     // Validate the whole request before any local read or upload: a valid prefix must not let a
     // peer obtain bytes from an invalid mixed batch. This is the manifest AFTER capability trimming.
@@ -866,14 +851,11 @@ async function uploadMissingPeerBlobs(
         continue;
       }
       const bytes = await deps.blobSource.get({ sha256, storageKey });
-      await callPeer({
-                       deps,
-                       request: {
-          method: "PUT",
-          path: peerRoute({ credential, suffix: `/blobs/${encodeURIComponent(sha256)}` }),
-          body: { dataBase64: Buffer.from(bytes).toString("base64") },
-        }
-                     });
+      await callPeer({ deps, request: {
+        method: "PUT",
+        path: peerRoute({ credential, suffix: `/blobs/${encodeURIComponent(sha256)}` }),
+        body: { dataBase64: Buffer.from(bytes).toString("base64") },
+      } });
       blobsUploaded.push(sha256);
     }
   }

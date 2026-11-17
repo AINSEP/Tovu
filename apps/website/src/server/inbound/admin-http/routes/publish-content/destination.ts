@@ -219,18 +219,16 @@ export function registerPublishContentDestinationRoutes(
         clock: deps.clock,
         workspaceId: deps.workspaceId,
       };
-      const { site, grant } = await connectAndRecordDestination(
-        {
-          deps: {
-            repo: deps.publishContentPeerRepo,
-            clock: deps.clock,
-            idGen: deps.idGen,
-            connectGrant: (input, _options: Record<string, never> = {}) => connectDestination({ deps: trustDeps, input }),
-            reverseGrant: () => disconnectDestination({ deps: trustDeps }),
-          },
-          input: { workspaceId: deps.workspaceId, baseUrl: normalized.baseUrl, entityTypes }
-        }
-      );
+      const { site, grant } = await connectAndRecordDestination({
+        deps: {
+          repo: deps.publishContentPeerRepo,
+          clock: deps.clock,
+          idGen: deps.idGen,
+          connectGrant: (input, _options: Record<string, never> = {}) => connectDestination({ deps: trustDeps, input }),
+          reverseGrant: () => disconnectDestination({ deps: trustDeps }),
+        },
+        input: { workspaceId: deps.workspaceId, baseUrl: normalized.baseUrl, entityTypes },
+      });
 
       const view: PublishDestinationView = {
         connected: true,
@@ -248,24 +246,16 @@ export function registerPublishContentDestinationRoutes(
   app.post(`${base}/disconnect`, async (req, res) => {
     try {
       if (!(await guard(req, res))) return;
-      const removed = await disconnectAndForgetDestination(
-        {
-          deps: {
-            repo: deps.publishContentPeerRepo,
-            clock: deps.clock,
-            idGen: deps.idGen,
-            reverseGrant: () =>
-              disconnectDestination({
-                                      deps: {
-                  keyring: deps.siteAssistantSecretKeyring,
-                  provisioning: own.provisioning,
-                  workspaceId: deps.workspaceId,
-                }
-                                    }),
-          },
-          input: { workspaceId: deps.workspaceId }
-        }
-      );
+      const removed = await disconnectAndForgetDestination({
+        deps: {
+          repo: deps.publishContentPeerRepo,
+          clock: deps.clock,
+          idGen: deps.idGen,
+          reverseGrant: () =>
+            disconnectDestination({ deps: { keyring: deps.siteAssistantSecretKeyring, provisioning: own.provisioning, workspaceId: deps.workspaceId } }),
+        },
+        input: { workspaceId: deps.workspaceId },
+      });
       const site = removed.site;
 
       const view: PublishDestinationView = {

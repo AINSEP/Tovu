@@ -268,10 +268,7 @@ async function connectWithTrust(
  * @complexity O(t) for t catalog entries; handler I/O runs only when invoked.
  */
 export function buildPublishContentRegistrations(
-  { routeDeps, surfaces }: {
-    routeDeps: PublishContentToolDeps;
-    surfaces: AssistantSurfaceDeps;
-  },
+  { routeDeps, surfaces }: { routeDeps: PublishContentToolDeps; surfaces: AssistantSurfaceDeps },
   _optional = {}
 ): ToolRegistration[] {
   const findCandidate = routeDeps.findPublishCandidate ?? (async () => null);
