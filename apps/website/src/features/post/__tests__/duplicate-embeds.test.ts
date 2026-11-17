@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { JsonObject } from "@jini-ai/core/primitives";
 
-import { copyBodyJsonWithFreshEmbedPlacements } from "../duplicate-embeds.js";
+import { copyBodyJsonWithFreshEmbedPlacements } from "@jini-ai/cms/widgets";
 
 /**
  * @file Certifies `content_post_duplicate`'s widgetEmbed handling in isolation — see
