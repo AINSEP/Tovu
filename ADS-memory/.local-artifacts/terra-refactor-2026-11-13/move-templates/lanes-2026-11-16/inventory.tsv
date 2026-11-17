@@ -1,0 +1,101 @@
+group	path	lines	blob	prod_importers	test_importers	jini_imports	other_ext	cross_feature_imports
+S1	features/taxonomy/repo.ts	555	ea1cb9827e	1	1		kysely	platform/db/content-database.generated.ts,platform/db/content-kernel.ts
+S1	features/taxonomy/repo.rows.ts	81	baea5a6977	1	0	@jini-ai/core/contracts/storage	kysely	platform/db/content-database.generated.ts
+S1	features/taxonomy/repo.sqlite.ts	44	98be9d81a5	5	9			platform/db/content-kernel.ts,platform/db/sqlite/content-db.ts
+S1	features/navigation/repo.ts	332	a5a4a46e48	1	4	@jini-ai/cms/navigation,@jini-ai/core/contracts/storage	kysely	platform/db/content-database.generated.ts,platform/db/content-kernel.ts
+S1	features/navigation/repo.sqlite.ts	23	f50c1d607c	3	2			platform/db/content-kernel.ts,platform/db/sqlite/content-db.ts
+S1	features/presentation/repo.ts	51	e25eefb862	1	1	@jini-ai/cms/presentation		platform/db/content-kernel.ts
+S1	features/presentation/repo.rows.ts	29	a378b505d2	1	0	@jini-ai/cms/presentation	kysely	platform/db/content-database.generated.ts
+S1	features/presentation/repo.sqlite.ts	15	4c62d322da	2	2			platform/db/content-kernel.ts,platform/db/sqlite/content-db.ts
+S1	features/workspace/repo.ts	101	637d6c2621	1	2	@jini-ai/cms/workspace,@jini-ai/core/optimistic-concurrency	kysely	platform/db/content-database.generated.ts,platform/db/content-kernel.ts
+S1	features/workspace/repo.sqlite.ts	15	5847bf86df	1	1			platform/db/content-kernel.ts,platform/db/sqlite/content-db.ts
+S2	features/entries/repo.ts	272	2367c246f3	1	3	@jini-ai/core/contracts/storage,@jini-ai/db/kernel	kysely	features/media/access-evidence.ts,platform/db/content-database.generated.ts,platform/db/content-kernel.ts
+S2	features/entries/repo.rows.ts	62	b64c51a76e	1	1		kysely	platform/db/content-database.generated.ts
+S2	features/entries/repo.sqlite.ts	17	66c6534034	4	7			platform/db/content-kernel.ts,platform/db/sqlite/content-db.ts
+S2	features/entries/trash-aware-memory-repo.ts	209	09e5e7af77	2	15			features/media/access-evidence.ts
+S2	features/content-types/repo.ts	69	5ed4919f89	1	1			platform/db/content-kernel.ts
+S2	features/content-types/repo.rows.ts	93	ff55f936ac	1	0		kysely	platform/db/content-database.generated.ts
+S2	features/content-types/repo.sqlite.ts	15	1ee3df32ce	3	4			platform/db/content-kernel.ts,platform/db/sqlite/content-db.ts
+S2	features/content-types/repo.memory.ts	17	eb6b635163	0	1	@jini-ai/cms/content-types		
+S3	features/identity/repo.ts	710	97dc521ab2	4	6	@jini-ai/user-management	kysely	platform/db/content-database.generated.ts,platform/db/content-kernel.ts
+S3	features/identity/repo.sqlite.ts	84	aed9e2a99a	1	2			platform/db/content-kernel.ts,platform/db/sqlite/content-db.ts
+S3	features/identity/repo.memory.ts	42	6a44dff5c1	1	4			
+S3	features/identity/mfa.repo.ts	56	a48105ba20	1	2	@jini-ai/user-management/server		platform/db/content-kernel.ts
+S3	features/identity/passkeys.repo.ts	34	1c2fda183f	1	1	@jini-ai/user-management/server		platform/db/content-kernel.ts
+S3	features/identity/recovery-codes.repo.ts	34	a2e4e599e0	1	1	@jini-ai/user-management/server		platform/db/content-kernel.ts
+S3	features/identity/user-purge.ts	92	9cb2ee3461	1	3	@jini-ai/core/contracts/events,@jini-ai/core/primitives		platform/db/content-kernel.ts,platform/db/repos/outbox-repo.ts
+S3	features/identity/user-purge.sqlite.ts	8	0b48f17232	1	6			
+S3	features/identity/user-purge-types.ts	84	a1b9d02368	5	2	@jini-ai/core/contracts/events,@jini-ai/core/primitives		
+S4	features/trash/repo.ts	232	6d021f7724	2	1	@jini-ai/cms/trash	kysely	platform/db/content-database.generated.ts,platform/db/content-kernel.ts
+S4	features/trash/repo.sqlite.ts	34	81037d83f9	2	22			platform/db/content-kernel.ts,platform/db/kernel/index.ts
+S4	features/trash/table-adapter.ts	362	130fb351f7	1	15	@jini-ai/cms/trash	kysely,moved	platform/db/content-database.generated.ts
+S4	features/trash/registry.ts	365	9f57eab631	10	21	@jini-ai/cms/trash	Red	
+S4	features/trash/entry-sql.ts	83	3b6118b114	6	2	@jini-ai/cms/trash	kysely	platform/db/content-database.generated.ts,platform/db/content-kernel.ts
+S4	features/trash/entry-sql.types.ts	9	40dfd4247d	2	0		kysely	
+S4	features/trash/not-trashed.ts	117	52f16e5187	2	1	@jini-ai/cms/trash	kysely	
+S4	features/trash/db-port.ts	19	6f3933aa62	5	0			platform/db/content-kernel.ts
+S4	features/trash/ports.ts	61	259001ccbb	3	1	@jini-ai/cms/trash		
+S4	features/trash/adapters/marker-sql.ts	147	a9b4b2dc83	5	1	@jini-ai/cms/trash	kysely	features/trash/entry-sql.ts,platform/db/content-database.generated.ts,platform/db/content-kernel.ts
+S4	features/trash/adapters/comment.ts	74	ddc480f72a	4	1	@jini-ai/cms/comments,@jini-ai/cms/trash		
+S4	features/trash/adapters/post.ts	91	ec577cc49c	4	9	@jini-ai/cms/trash,@jini-ai/db/kernel		features/trash/entry-sql.ts
+S4	features/trash/adapters/redirect.ts	73	2510365a6b	4	2	@jini-ai/cms/trash		features/redirects/index.ts,features/trash/entry-sql.ts
+S4	features/trash/adapters/media.ts	95	5f52eb6dc4	4	3	@jini-ai/cms/media,@jini-ai/cms/trash		
+S4	features/trash/adapters/member.ts	64	198f819cc5	1	2	@jini-ai/cms/trash		features/trash/db-port.ts
+S4	features/trash/adapters/user.ts	228	efed28901c	3	4	@jini-ai/cms/trash,@jini-ai/core/contracts/events		features/identity/user-purge-types.ts,platform/db/content-kernel.ts,platform/db/repos/outbox-repo.ts
+S4	features/trash/adapters/directory.ts	253	882f7424da	1	1	@jini-ai/cms/trash,@jini-ai/core/model-facing-tool-errors	node:crypto,node:fs/promises,node:path	
+S4	features/trash/adapters/plugin.ts	1	7eb6549c5c	2	0			
+S4	features/trash/adapters/theme.ts	3	62a459c27c	3	0			
+S5	features/settings/repo.ts	426	4a9c681387	2	3	@jini-ai/core/primitives,@jini-ai/core/settings	kysely	platform/db/content-database.generated.ts,platform/db/content-kernel.ts
+S5	features/settings/repo.sqlite.ts	15	83c9f9646f	3	4			platform/db/content-kernel.ts,platform/db/sqlite/content-db.ts
+S5	platform/db/repos/gated-mutation-token-repo.ts	128	0111a04cf4	1	1		kysely	contracts/core/gated-mutations/token.ts,platform/db/content-database.generated.ts,platform/db/content-kernel.ts
+S5	platform/db/sqlite/gated-mutation-token-repo.sqlite.ts	15	f763ef22b6	1	1			platform/db/content-kernel.ts,platform/db/repos/gated-mutation-token-repo.ts
+S5	platform/db/repos/origin-repo.ts	230	e71bd9228d	1	1	@jini-ai/core/contracts/server/verified-origin,@jini-ai/core/primitives	kysely	platform/db/content-database.generated.ts,platform/db/content-kernel.ts
+S5	platform/db/sqlite/origin-repo.sqlite.ts	47	71fa83158c	2	2	@jini-ai/core/contracts/server/verified-origin,@jini-ai/core/primitives		platform/db/content-kernel.ts,platform/db/repos/origin-repo.ts
+S5	features/origin/configured-origin.ts	82	c85964afa6	1	1	@jini-ai/core/contracts/server/verified-origin,@jini-ai/core/primitives		contracts/core/runtime-mode.ts
+S6	platform/db/repos/change-set-repo.ts	178	d1f9922808	1	2	@jini-ai/core/contracts/events	kysely	platform/db/content-database.generated.ts,platform/db/content-kernel.ts
+S6	platform/db/sqlite/change-set-repo.sqlite.ts	15	f9bc1957d6	2	6			platform/db/content-kernel.ts,platform/db/repos/change-set-repo.ts
+S6	platform/db/repos/outbox-repo.ts	156	57373f897e	7	20	@jini-ai/core/contracts/events,@jini-ai/core/primitives	kysely	contracts/core/events/index.ts,platform/db/content-database.generated.ts,platform/db/content-kernel.ts
+S6	platform/db/sqlite/outbox-repo.sqlite.ts	19	c0aa30b8ec	1	5			platform/db/content-kernel.ts,platform/db/repos/outbox-repo.ts
+S6	platform/db/repos/webhook-repo.ts	394	0eef21339b	1	3	@jini-ai/core/optimistic-concurrency	kysely	features/webhooks/index.ts,platform/db/content-database.generated.ts,platform/db/content-kernel.ts
+S6	platform/db/sqlite/webhook-repo.sqlite.ts	26	72824dd179	1	3			platform/db/content-kernel.ts,platform/db/repos/webhook-repo.ts
+S6	platform/db/repos/form-delivery-repo.ts	266	285b2b03f9	2	5	@jini-ai/cms/forms,@jini-ai/core/contracts/events	kysely	contracts/headless/index.ts,platform/db/content-database.generated.ts,platform/db/content-kernel.ts
+S6	platform/db/repos/form-submission-receipt-repo.ts	24	267550bbb4	1	1			features/forms/index.ts,platform/db/content-kernel.ts
+S6	contracts/core/events/enqueue-only-outbox.ts	33	9b9e762878	1	1	@jini-ai/core/contracts/events,@jini-ai/infra/events/outbox		
+S6	contracts/core/events/jini-outbox-adapter.ts	59	359687296c	3	0	@jini-ai/core/contracts/events,@jini-ai/core/primitives,@jini-ai/infra/events/outbox		
+S6	contracts/core/events/outbox-drainer.ts	73	af13c2ac9d	1	2	@jini-ai/core/contracts/events,@jini-ai/core/primitives,@jini-ai/diagnostics/observability,@jini-ai/infra/events/outbox		
+S6	contracts/core/events/outbox-retry-policies.ts	23	a87d1093cc	2	2	@jini-ai/cms/forms,@jini-ai/infra/events/outbox,@jini-ai/integrations/webhooks		
+S6	contracts/core/events/outbox-worker.ts	98	76b50a2881	2	5	@jini-ai/core/contracts/events,@jini-ai/core/primitives,@jini-ai/infra/events/outbox		
+S7	platform/db/repos/media-repo.ts	719	8734540bb2	2	10	@jini-ai/cms/media,@jini-ai/core/contracts/storage,@jini-ai/core/primitives,@jini-ai/db/kernel	kysely	features/media/index.ts,platform/db/content-database.generated.ts,platform/db/content-kernel.ts
+S7	platform/db/sqlite/media-repo.sqlite.ts	46	b7073b681d	3	12			platform/db/content-kernel.ts,platform/db/repos/media-repo.ts
+S7	features/media/versioned-media-repo.ts	208	0d6b08b48c	3	7	@jini-ai/cms/media,@jini-ai/core/primitives		
+S7	features/media/guard-rendition-repo.ts	24	f7ca58518a	2	2	@jini-ai/cms/media		
+S8	contracts/core/entry-refs/extractor.ts	412	36fa39f044	5	9	@jini-ai/cms/widgets/markers,@jini-ai/core/primitives,@jini-ai/core/records		
+S8	contracts/core/entry-refs/ports.ts	40	6f2bc9231f	8	1	@jini-ai/core/primitives		
+S8	contracts/core/entry-refs/repo.memory.ts	50	d430739f82	1	31	@jini-ai/core/primitives		
+S8	contracts/core/entry-refs/types.ts	58	41043733f2	5	3	@jini-ai/core/primitives		
+S8	platform/db/repos/entry-refs-repo.ts	126	42001fded6	2	2	@jini-ai/core/primitives	kysely	contracts/core/entry-refs/ports.ts,contracts/core/entry-refs/types.ts,platform/db/content-database.generated.ts,platform/db/content-kernel.ts
+S8	platform/db/sqlite/entry-refs-repo.sqlite.ts	15	7184294695	4	5			platform/db/content-kernel.ts,platform/db/repos/entry-refs-repo.ts
+S8	contracts/core/events/memory-bus.ts	161	9e173257d7	1	8	@jini-ai/core/contracts/events		
+S8	contracts/core/expand-partials.ts	84	762d3e5ebc	3	2	@jini-ai/cms/widgets/markers		
+U12	features/members/access-resolver.ts	237	00941106f7	8	4		node:crypto	
+U12	features/members/agent-tools.ts	157	f0f22c026b	1	3	@jini-ai/core		
+U12	features/members/auth-mail.ts	25	1f3578a965	1	0	@jini-ai/platform/mail/email-template		
+U12	features/members/capability-card.ts	29	370d296ce9	1	0	@jini-ai/agentic/core		
+U12	features/members/consent-service.ts	261	8fc2d60b80	1	1	@jini-ai/core/primitives		
+U12	features/members/index.ts	134	baba94f173	35	25			platform/mail/index.ts
+U12	features/members/mailer.console.ts	93	04c24d36b9	1	2	@jini-ai/core/primitives	node:crypto	platform/mail/index.ts
+U12	features/members/password-auth.ts	204	784c43d369	1	2	@jini-ai/core/primitives,@jini-ai/user-management/server		
+U12	features/members/ports.ts	329	de4363a1a6	10	10	@jini-ai/core/contracts/server/verified-origin,@jini-ai/core/list-page,@jini-ai/core/primitives,@jini-ai/db/kernel,@jini-ai/platform/mail,@jini-ai/user-management		platform/mail/index.ts
+U12	features/members/repo.memory.ts	508	e9c47e01cc	1	23	@jini-ai/core/list-page,@jini-ai/core/optimistic-concurrency,@jini-ai/core/records		
+U12	features/members/repo.rows.ts	301	5f76dde8db	1	1	@jini-ai/core/contracts/storage,@jini-ai/core/primitives	kysely	platform/db/content-database.generated.ts
+U12	features/members/repo.sqlite.ts	69	fc4b2cc5d9	1	3			platform/db/content-kernel.ts,platform/db/sqlite/content-db.ts
+U12	features/members/repo.ts	604	bb8a70ad60	2	12	@jini-ai/core/list-page,@jini-ai/core/optimistic-concurrency		platform/db/content-kernel.ts
+U12	features/members/subscriber-directory.ts	133	f427192a65	1	1			features/newsletter/index.ts
+U12	features/members/tool-registrations.ts	332	c0f2f37351	3	4	@jini-ai/cms/core,@jini-ai/cms/trash,@jini-ai/core,@jini-ai/core/contracts/events,@jini-ai/core/list-page,@jini-ai/core/model-facing-tool-errors,@jini-ai/core/primitives,@jini-ai/diagnostics/observability		contracts/core/tool-metadata/members.ts
+U12	features/members/trash-member.ts	24	d5e0b93dd0	2	1	@jini-ai/cms/trash		
+U12	features/members/types.ts	326	d2736f9061	13	17	@jini-ai/core/primitives,@jini-ai/user-management		
+U12	features/members/write-service.ts	677	a149c07c12	3	10	@jini-ai/core/contracts/server/verified-origin,@jini-ai/core/primitives,@jini-ai/user-management,@jini-ai/user-management/server	node:crypto	platform/mail/index.ts
+U3	features/identity/api-key-secret.ts	237	248632aac4	2	2		node:crypto	
+U3	features/identity/api-key-service.ts	471	dc20a40a69	5	3	@jini-ai/core/primitives,@jini-ai/user-management,@jini-ai/user-management/server	disabled principal,expired key,revoked key	
+U3	features/identity/api-key-types.ts	67	2abe30b297	7	2	@jini-ai/core/primitives		
+U3	features/identity/site-key-permission.ts	102	3ef2a49e93	3	2			
