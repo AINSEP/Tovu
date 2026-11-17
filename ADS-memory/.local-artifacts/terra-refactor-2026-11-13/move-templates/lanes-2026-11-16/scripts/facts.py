@@ -1,6 +1,9 @@
 import json,os,re,subprocess,csv,collections,sys
 ROOT=os.environ.get('LANE_ROOT','/home/user/code'); SP=os.path.dirname(os.path.abspath(__file__)); PLAN=os.path.dirname(SP); GRAPH=os.environ.get('LANE_GRAPH','/tmp/lane-su-graph.json'); W='apps/website/src/'
 OUT=sys.argv[1] if len(sys.argv)>1 else PLAN
+# LANE_REF / LANE_SHA name the Tovu commit the tree came from (needed when LANE_ROOT is an exported tree, not a clone).
+REF=os.environ.get('LANE_REF','integ/merge-final-2026-11-16')
+SHA=os.environ.get('LANE_SHA') or subprocess.check_output(['git','-C',ROOT,'rev-parse','--short=9','HEAD'],text=True).strip()
 g=json.load(open(GRAPH))
 def istest(f): return bool(re.search(r'__tests__|__specs__|\.test\.|\.spec\.|/e2e/|/tests?/',f))
 def blob(p): return subprocess.check_output(['git','-C',ROOT,'hash-object',p],text=True).strip()
@@ -8,6 +11,7 @@ def read(p): return open(os.path.join(ROOT,p),encoding='utf8').read()
 rows=list(csv.DictReader(open(os.path.join(PLAN,'inventory.tsv')),delimiter='\t'))
 cov={r['path']:r for r in csv.DictReader(open(os.path.join(PLAN,'coverage.tsv')),delimiter='\t')}
 SHEETS={
+ 'S/S1w-workspace-sql':lambda r:r['group']=='S1' and 'workspace' in r['path'],
  'S/S1-taxonomy-navigation-presentation-sql':lambda r:r['group']=='S1' and 'workspace' not in r['path'],
  'S/S2-entries-content-types-sql':lambda r:r['group']=='S2',
  'S/S3-identity-sql':lambda r:r['group']=='S3',
@@ -25,7 +29,7 @@ BASE=[b for b in BASE if os.path.exists(os.path.join(ROOT,b))]
 TBL=re.compile(r'''\.(selectFrom|insertInto|updateTable|deleteFrom|innerJoin|leftJoin|replaceInto|mergeInto|withTables)\(\s*["'`]([A-Za-z0-9_]+)''')
 for sid,pred in SHEETS.items():
     fl=[r for r in rows if pred(r)]
-    L=[f'# {sid.split("/")[1]} — machine-verified facts (generated; do not hand-edit)','',f'Source: Tovu tree at `LANE_ROOT` (committed copy: `origin/integ/merge-a-2026-11-16`) @ `{subprocess.check_output(["git","-C",ROOT,"rev-parse","--short=9","HEAD"],text=True).strip()}`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).','']
+    L=[f'# {sid.split("/")[1]} — machine-verified facts (generated; do not hand-edit)','',f'Source: Tovu tree at `LANE_ROOT` (ref `{REF}`) @ `{SHA}`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).','']
     tot=sum(int(r['lines']) for r in fl)
     L+=[f'Files: {len(fl)}, {tot} lines (tests not counted).','', '## Files','| path (under apps/website/src) | lines | blob | CLASSIFY label | audit row | existing sheet/design mention | prod importers | test importers |','|---|---|---|---|---|---|---|---|']
     alltests=collections.OrderedDict(); allprod=collections.OrderedDict()

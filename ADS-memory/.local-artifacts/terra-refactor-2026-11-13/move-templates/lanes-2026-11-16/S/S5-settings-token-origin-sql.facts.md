@@ -1,6 +1,6 @@
 # S5-settings-token-origin-sql — machine-verified facts (generated; do not hand-edit)
 
-Source: Tovu tree at `LANE_ROOT` (committed copy: `origin/integ/merge-a-2026-11-16`) @ `e801e9aee`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
+Source: Tovu tree at `LANE_ROOT` (ref `integ/merge-final-2026-11-16`) @ `232764af5`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
 
 Files: 7, 943 lines (tests not counted).
 
@@ -102,7 +102,7 @@ Files: 7, 943 lines (tests not counted).
 | features/settings/__tests__/repo.contract.test.ts | 394 | 8341c5de55fa85c601deea436492b9aa99ce6a3e |
 | features/site-backup/__tests__/integration/saved-keys-store.fixture.ts | 15 | ab842007cfa3667cb363b3c64dfeede5ef458c22 |
 | server/runtime/composition/__tests__/boot-settings-rejection.integration.test.ts | 56 | 226a8bbb002a86f22a12826bcbc26532f8a04948 |
-| features/publish-content/__tests__/round-trip-harness.ts | 172 | 3a241a4fdf895caeccf950d5b2acb9e2ef3167ba |
+| features/publish-content/__tests__/round-trip-harness.ts | 173 | 3bb925aeccd187a3b1b4a3b0cead5f9e286c1f20 |
 | features/settings/__tests__/form-delivery-concurrency.integration.test.ts | 134 | 085e7b08535cfd21c520cde195c6314fd0901b27 |
 | features/settings/__tests__/purge-service.fk.test.ts | 140 | 8aec22464f38f2df8e1530d369789e1f827552f9 |
 | features/settings/__tests__/repo.sqlite.test.ts | 341 | c91aca9611dc54af88e8687922c619e6982f7a97 |
@@ -116,7 +116,7 @@ Files: 7, 943 lines (tests not counted).
 - none found by pattern (re-check with the census at execution)
 
 ## Path-keyed baselines / configs that name a file of this sheet (lesson 10: debt does not follow moved code silently)
-- development/scripts/write-path-inventory.baseline.json: `src/features/settings/repo.sqlite.ts` at lines 449, 457, 465, 473, 481, 489, 497 (7 hits)
+- development/scripts/write-path-inventory.baseline.json: `src/features/settings/repo.sqlite.ts` at lines 431, 439, 447, 455, 463, 471, 479 (7 hits)
 
 ## Census command (run from the Tovu clone root; every hit must be listed above)
 ```

@@ -3,16 +3,33 @@
 Facts: `S8-memory-bus-expand-partials.facts.md` (8 files, 946 lines, 54 test files). Template: T-SQLREPO rev 2.
 
 ## Already covered — do not re-plan
-`contracts/core/entry-refs/{extractor,ports,types,repo.memory}.ts` (560 lines): `sheets/move-entry-refs.md` on
-plan/w1-sheets-d. Not executed on the base pair (the four files still exist on Tovu merge-a). It runs first.
+`contracts/core/entry-refs/{extractor,ports,types,repo.memory}.ts` (560 lines): `move-entry-refs.md`, three slices
+DD-entry-refs-1 -> MV-entry-refs-1 -> SP-entry-refs-1. **Location (revision 3, Opus review P4):** branch
+`plan/w1-sheets-d` on the Tovu GitHub origin (`AINSEP/Tovu`; the terra clone has no such remote ref, which is why the
+review could not find it), path `ADS-memory/.local-artifacts/terra-refactor-2026-11-13/move-templates/sheets/move-entry-refs.md`
+(last commit `0337a8982`). Read it with:
+```bash
+git fetch origin plan/w1-sheets-d && git show FETCH_HEAD:ADS-memory/.local-artifacts/terra-refactor-2026-11-13/move-templates/sheets/move-entry-refs.md
+```
+It is written for the old T-DEDUPE / T-MOVE / T-SPLIT templates (not T-SQLREPO) and runs under them; its blobs for
+`types.ts` and `ports.ts` were re-checked against Tovu merge-final `232764af5` and still match. Not executed yet.
+S8a needs only its FIRST slice, DD-entry-refs-1 (the Tovu twins of `EntryRefRow` / `EntryRefsRepoPort` deleted and
+repointed to `@jini-ai/cms/widgets`), because the moved repo must implement the Jini port, not the Tovu twin.
 
 ```
 id: S8a-entry-refs-sql (~110k): platform/db/repos/entry-refs-repo.ts (126) -> cms existing ./widgets/sql (add entry-refs-repo.ts)
       port: `EntryRefsRepoPort` in @jini-ai/cms/widgets (after move-entry-refs). sqlite/entry-refs-repo.sqlite.ts STAY-WIRING.
     S8b-expand-partials (~70k): contracts/core/expand-partials.ts (84) -> cms ./widgets/markers
     S8c-memory-bus: BLOCKED on OD-6 (round-1 item 3, unchanged)
-prerequisites: S0 DONE (P7 entry_refs kinds). move-entry-refs landed: `rg -n "EntryRefsRepoPort" packages/cms/src/widgets`. xpkg R6-R9 landed.
-successor_of: S7b (cms manifest); S8b: S8a
+prerequisites: S0 DONE (P7 entry_refs kinds). DD-entry-refs-1 landed (command below; the round-2 command
+  `rg -n "EntryRefsRepoPort" packages/cms/src/widgets` passed vacuously: the Jini port already exists). xpkg R6-R9 landed.
+successor_of: S7b (cms manifest); DD-entry-refs-1 (deletes `contracts/core/entry-refs/{ports,types}.ts` and edits the
+  imports + one comment line of `platform/db/repos/entry-refs-repo.ts`: those facts rows may differ or vanish, nothing
+  else); S8b: S8a
+```
+```bash
+# Tovu; prints ok once DD-entry-refs-1 has landed
+test ! -e apps/website/src/contracts/core/entry-refs/ports.ts && test ! -e apps/website/src/contracts/core/entry-refs/types.ts && echo ok
 ```
 
 ## S8a

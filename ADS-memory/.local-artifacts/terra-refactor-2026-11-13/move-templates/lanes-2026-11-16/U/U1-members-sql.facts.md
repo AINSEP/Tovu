@@ -1,6 +1,6 @@
 # U1-members-sql — machine-verified facts (generated; do not hand-edit)
 
-Source: Tovu tree at `LANE_ROOT` (committed copy: `origin/integ/merge-a-2026-11-16`) @ `e801e9aee`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
+Source: Tovu tree at `LANE_ROOT` (ref `integ/merge-final-2026-11-16`) @ `232764af5`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
 
 Files: 3, 974 lines (tests not counted).
 
@@ -70,7 +70,7 @@ Files: 3, 974 lines (tests not counted).
 - none found by pattern (re-check with the census at execution)
 
 ## Path-keyed baselines / configs that name a file of this sheet (lesson 10: debt does not follow moved code silently)
-- development/scripts/write-path-inventory.baseline.json: `src/features/members/repo.sqlite.ts` at lines 2335, 2344, 2352, 2360, 2368, 2377, 2385, 2393, 2401, 2409, 2417, 2425 (12 hits)
+- development/scripts/write-path-inventory.baseline.json: `src/features/members/repo.sqlite.ts` at lines 2317, 2326, 2334, 2342, 2350, 2359, 2367, 2375, 2383, 2391, 2399, 2407 (12 hits)
 
 ## Census command (run from the Tovu clone root; every hit must be listed above)
 ```

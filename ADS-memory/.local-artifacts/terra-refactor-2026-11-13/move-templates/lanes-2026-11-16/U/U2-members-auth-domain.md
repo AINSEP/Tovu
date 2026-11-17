@@ -8,7 +8,7 @@ Node boundary), 9 (invented checks) and writes round-1 item 4: **the write-servi
 U2c-1..3. Repos are public: checks are named by class and location only.
 
 ```
-runs, in order (user-management chain; INDEX §3):
+runs, in order (user-management chain; INDEX-SU §3):
   U2c-1 write-service split, TOVU ONLY (~170k)        no Jini prerequisite: may run right after S0
   U2a   console mailer -> @jini-ai/platform/mail (~90k)   independent
   U2c-2 credential + challenge core -> Jini (~170k)   needs A07, S3a (manifest order), U2c-1
@@ -107,12 +107,34 @@ The old rows about a constant-time comparison in the resolver and a lock in sign
 No comparer seam is added.
 
 ## U2c-3 — D and E -> `members/server/{sign-in.ts,admin-writes.ts}`
-Ports only (`ids`, `members`, `principals`, `sessions`, `subscriptions`, `tiers`, `clock`, `onMemberCreated`). T0:
-existing tests + (a) a consumed new-address challenge creates the member exactly once when two links for one address
-are completed concurrently; (b) `notifyMemberCreated`: an observer that throws does not change the result (this `catch`
-is listed in the report as the one intentional swallow, with its comment); (c) `disableMember` revokes the member's
-sessions (this is what R1 relies on). Mutations: drop the email re-check; let the observer error propagate; skip the
-revocation. Tovu afterwards: `write-service.ts` (F) imports D and E from Jini and C locally.
+Ports only (`ids`, `members`, `principals`, `sessions`, `subscriptions`, `tiers`, `clock`, `onMemberCreated`,
+`report`). T0: existing tests + (a) a consumed new-address challenge creates the member exactly once when two links for
+one address are completed concurrently; (b) `notifyMemberCreated` (`write-service.ts:670`): an observer that throws does
+not change the result (pins today's outcome); (c) `disableMember` revokes the member's sessions (this is what R1 relies
+on). Mutations: drop the email re-check; let the observer error propagate; skip the revocation.
+**The observer error is reported, not swallowed (owner rule: errors are never swallowed; coordinator decision 5).** Today
+`notifyMemberCreated` ends in `catch { /* Optional product analytics cannot alter a committed member. */ }`. It does NOT
+move into Jini as-is. The Jini `sign-in.ts` version takes a REQUIRED port on its deps:
+```ts
+/** Receives an error that must not change the operation's result (an observer failed after the member was committed). */
+export type MembersReportPort = (required: { error: unknown; context: { operation: "member-created-observer"; workspaceId: string; memberId: string } }) => void;
+// in notifyMemberCreated, the catch becomes:
+//   catch (error) { deps.report({ error, context: { operation: "member-created-observer", workspaceId: member.workspaceId, memberId: member.id } }); }
+```
+The comment moves with it, reworded neutral ("An observer cannot alter a committed member: its error is reported and the
+result is unchanged"). Result and return type stay as today.
+The port's shape is the host's existing `ObservabilityPort.reportError({ error, context })` (documented at
+`server/inbound/shared/observability-middleware.ts:48`, implemented at `server/runtime/composition/product-telemetry.ts:199`).
+Tovu binds it at BOTH places that build `MembersWriteServiceDeps` today: `toPublicMembersWriteServiceDeps`
+(`server/inbound/public-http/routes/members/deps.ts:75`) and `buildMembersWriteServiceDeps`
+(`features/members/tool-registrations.ts:95`); a source deps type that does not carry the observability port gets it as
+a REQUIRED field (the typecheck lists every caller). No `console` fallback and no default: a missing binding is a
+compile error. This is the one intended behaviour change of U2c-3 (an error that was dropped is now reported; the
+result is unchanged), so T0's case (b) stays green across the move. Extra tests, J1 (Jini, fakes; `report` does not exist
+before J1): (d) observer throws -> `report` called once with the thrown error and that context, result unchanged;
+(e) observer succeeds -> `report` never called. Mutations: drop the `report` call (d fails); call `report` on success
+(e fails). T1 (Tovu): one binding test per build site: the deps it returns carry a `report` that forwards to the
+observability port's `reportError` (recording fake). If `report` itself throws, the error propagates (no nested swallow).
 
 ## stops
 - A step of R1-P6 would become a host callback, or its mutation stays green: do not move that file.

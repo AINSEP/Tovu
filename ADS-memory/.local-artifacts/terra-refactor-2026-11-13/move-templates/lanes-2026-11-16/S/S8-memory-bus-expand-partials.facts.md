@@ -1,6 +1,6 @@
 # S8-memory-bus-expand-partials — machine-verified facts (generated; do not hand-edit)
 
-Source: Tovu tree at `LANE_ROOT` (committed copy: `origin/integ/merge-a-2026-11-16`) @ `e801e9aee`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
+Source: Tovu tree at `LANE_ROOT` (ref `integ/merge-final-2026-11-16`) @ `232764af5`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
 
 Files: 8, 946 lines (tests not counted).
 
@@ -37,7 +37,7 @@ Files: 8, 946 lines (tests not counted).
 - npm/@jini-ai imports: @jini-ai/core/primitives
 - same-folder imports: contracts/core/entry-refs/types.ts
 - imports leaving the folder: -
-- prod importers (8): contracts/core/entry-refs/repo.memory.ts, features/media/where-used.ts, features/pages/html-document-store.memory.ts, features/pages/html-document-store.ts, features/publish-content/type-registry.ts, features/widgets/deps.ts, platform/db/repos/entry-refs-repo.ts, server/routes/types.ts
+- prod importers (8): contracts/core/entry-refs/repo.memory.ts, features/media/where-used.ts, features/pages/html-document-store.memory.ts, features/pages/html-document-store.ts, features/publish-content/tovu-publish-ports.ts, features/widgets/deps.ts, platform/db/repos/entry-refs-repo.ts, server/routes/types.ts
 - test importers (1): contracts/core/entry-refs/__tests__/repo.contract.test.ts
 
 ### contracts/core/entry-refs/repo.memory.ts (50 lines)
@@ -149,7 +149,7 @@ Files: 8, 946 lines (tests not counted).
 | server/inbound/admin-http/routes/widgets/__tests__/unit/update.unit.test.ts | 182 | 7133f49a66fc7cc375e2799c6481e85b81343d40 |
 | platform/db/repos/__tests__/entry-refs-repo.dialects.test.ts | 113 | 4f2f4a73f395a5d6b42968ae83cf5e5092205c5c |
 | features/forms/__tests__/form-file-maintenance.test.ts | 213 | 401a60240bf56c4eefd161d36086f3a20752361b |
-| features/publish-content/__tests__/new-types-sqlite-round-trip.test.ts | 203 | 55e3c1dac8c943810eda4d9244d3048777e061c7 |
+| features/publish-content/__tests__/new-types-sqlite-round-trip.test.ts | 203 | 0a3955eb5b3933349044e9c0773234a56dbeda77 |
 | features/trash/__tests__/widget-trash-flow.test.ts | 364 | 4df3687c01af0b972af3239ff81714f3e716be3b |
 | server/runtime/composition/__tests__/publish-content-manifest.test.ts | 479 | 4d37a06fa7f566702d73b529b17705f440d82cfb |
 | contracts/core/events/__tests__/enqueue-only-outbox.payload.test.ts | 56 | 82d6bda6e8ce00f642bf69b0d5d7e93e21583417 |
@@ -168,7 +168,7 @@ Files: 8, 946 lines (tests not counted).
 - none found by pattern (re-check with the census at execution)
 
 ## Path-keyed baselines / configs that name a file of this sheet (lesson 10: debt does not follow moved code silently)
-- development/scripts/write-path-inventory.baseline.json: `src/contracts/core/events/memory-bus.ts` at lines 166, 175, 184 (3 hits)
+- development/scripts/write-path-inventory.baseline.json: `src/contracts/core/events/memory-bus.ts` at lines 148, 157, 166 (3 hits)
 
 ## Census command (run from the Tovu clone root; every hit must be listed above)
 ```

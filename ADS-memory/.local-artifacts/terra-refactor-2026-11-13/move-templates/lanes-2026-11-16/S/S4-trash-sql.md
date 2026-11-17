@@ -40,7 +40,10 @@ its first file, and nothing in S4a depends on S4b.
 | `notTrashed` per marker kind | truth table: timestamp marker, status marker, hidden-with-parent x (live, trashed, NULL), run as real `WHERE` clauses | invert one branch |
 | `readLiveSnapshot` returns a trashed row | trashed and live row of one registered entry: only the live one | remove `notTrashed` from it |
 | `entryWhere` loses the entry's fixed `scope` predicate (e.g. `type = 'widget'` on the shared `entries` table) | an entry with `scope` cannot address a row of another type by id | drop the scope clause |
-| Lock-key builder drifts from the adapter's template | Tovu test: `trashEntityLockKey({ entityType: "member", workspaceId: "w", entityId: "m" }) === "trash:member:w:m"` and S0-P2 still green | change a separator in either |
+**Lock-key builder test (NOT in T0: `trashEntityLockKey` exists only after J1).** J1 adds the Jini unit test
+`packages/cms/src/trash/__tests__/lock-keys.test.ts`: `trashEntityLockKey({ entityType: "member", workspaceId: "w", entityId: "m" }) === "trash:member:w:m"`
+(mutation: change a separator -> RED). T1 adds the Tovu test that the same call equals the string the unmoved
+`table-adapter.ts:85` template produces for the same ids, and S0-P2 stays green (mutation: change a separator in either).
 **tree after S4a's T1 (compiles alone).** `features/trash/`: `registry.ts` (fixed Map), `table-adapter.ts` (unmoved; its
 imports of `./entry-sql.js`, `./registry.js` types and `./db-port.js` repointed to `@jini-ai/cms/trash/sql`,
 `@jini-ai/cms/trash`, `ContentKernel`; its lock template untouched), `adapters/*` (imports of `loose` repointed),
@@ -88,7 +91,7 @@ pass `{ entry, kernel: <the same lazy value passed as db today>, tables: { trash
 | `adapters/marker-sql.ts` (147), `comment.ts` (74), `post.ts` (91), `redirect.ts` (73), `media.ts` (95) | **STAY in Tovu.** They are bespoke per-table adapters over Tovu's product tables; the labelled end state ("canonical = table-adapter") is a registry ENTRY per domain, which is Tovu product content, not a Jini move | follow-up **S4d** (Tovu only, one adapter per commit, each gated on its row of S4b's parity table being identical; otherwise it stays, with the difference recorded). ~60k per adapter, not scheduled here |
 | `adapters/member.ts` (64) | **STAY-WIRING.** It binds cms's `TrashAdapter` to members tables (revokes sessions, consumes sign-in links in the hide transaction); cms and user-management may not import each other | U1b pins its effect (its security table) and repoints nothing in it |
 | `adapters/user.ts` (228) | **STAY-WIRING.** Binds the trash contract to identity purge, sessions and the outbox row format, under `trash:user:<ws>:<principal>` | S3b pins the key (P1) and leaves the file; S6a repoints its type import of `outboxEventValues` |
-| `adapters/directory.ts` (253; `node:fs/promises`, `node:path`, `node:crypto`; no Tovu import) | **MOVE -> `@jini-ai/node-adapters`** (a Node runtime adapter of cms's `TrashAdapter` port type; xpkg OD-3) | needs xpkg N1 landed and a function partition (`createDirectoryTrashAdapter` spans :179-253). **Not written** (INDEX §7, R3-2) |
+| `adapters/directory.ts` (253; `node:fs/promises`, `node:path`, `node:crypto`; no Tovu import) | **MOVE -> `@jini-ai/node-adapters`** (a Node runtime adapter of cms's `TrashAdapter` port type; xpkg OD-3) | needs xpkg N1 landed and a function partition (`createDirectoryTrashAdapter` spans :179-253). **Not written** (INDEX-SU §7, R3-2) |
 | `adapters/plugin.ts` (1), `theme.ts` (3) | **STAY-PRODUCT** (entity-type names of Tovu folders) | - |
 
 ## stops

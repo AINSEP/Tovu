@@ -1,6 +1,6 @@
 # S1-taxonomy-navigation-presentation-sql — machine-verified facts (generated; do not hand-edit)
 
-Source: Tovu tree at `LANE_ROOT` (committed copy: `origin/integ/merge-a-2026-11-16`) @ `e801e9aee`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
+Source: Tovu tree at `LANE_ROOT` (ref `integ/merge-final-2026-11-16`) @ `232764af5`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
 
 Files: 8, 1130 lines (tests not counted).
 
@@ -112,10 +112,10 @@ Files: 8, 1130 lines (tests not counted).
 | test | lines | blob |
 |---|---|---|
 | features/taxonomy/__tests__/repo.dialects.test.ts | 462 | 1466c6fbaa350df9ad44335949deb27a2d1b848e |
-| features/entries/__tests__/unit/publish-content.test.ts | 277 | bc2886202db3df07ad3f7430793e557e4d3f9060 |
-| features/publish-content/__tests__/round-trip-harness.ts | 172 | 3a241a4fdf895caeccf950d5b2acb9e2ef3167ba |
+| features/entries/__tests__/unit/publish-content.test.ts | 277 | 3bdf4bfb5547a6fa70641614a6adea255ca83e4c |
+| features/publish-content/__tests__/round-trip-harness.ts | 173 | 3bb925aeccd187a3b1b4a3b0cead5f9e286c1f20 |
 | features/taxonomy/__tests__/integration/repo.sqlite.integration.test.ts | 436 | dacc2ee1aec26780574ea45a9d6e77570efd1396 |
-| features/taxonomy/__tests__/publish-content.test.ts | 85 | 65aba1b58b4eb03e24c411b64859d130ffb45703 |
+| features/taxonomy/__tests__/publish-content.test.ts | 85 | 024b68082545a04ab4b350d8f86e3313f6059cd8 |
 | features/trash/__tests__/term-trash-flow.test.ts | 372 | 2540cbc7d7a608c0dd9b9cc2f7080dbe031a22ad |
 | server/inbound/admin-http/routes/taxonomy/__tests__/assign-terms.not-live.test.ts | 83 | d56f5c70db3c08f806b143462664ae26877f9c9d |
 | server/inbound/admin-http/routes/taxonomy/__tests__/list.test.ts | 121 | 1a09b6f40a12e8357034d4cca488d0f85ff4e575 |
@@ -134,8 +134,8 @@ Files: 8, 1130 lines (tests not counted).
 - none found by pattern (re-check with the census at execution)
 
 ## Path-keyed baselines / configs that name a file of this sheet (lesson 10: debt does not follow moved code silently)
-- development/scripts/write-path-inventory.baseline.json: `src/features/presentation/repo.sqlite.ts` at lines 315 (1 hits)
-- development/scripts/check-architecture.baseline.json: `src/features/taxonomy/repo.sqlite.ts` at lines 295 (1 hits)
+- development/scripts/write-path-inventory.baseline.json: `src/features/presentation/repo.sqlite.ts` at lines 297 (1 hits)
+- development/scripts/check-architecture.baseline.json: `src/features/taxonomy/repo.sqlite.ts` at lines 290 (1 hits)
 
 ## Census command (run from the Tovu clone root; every hit must be listed above)
 ```

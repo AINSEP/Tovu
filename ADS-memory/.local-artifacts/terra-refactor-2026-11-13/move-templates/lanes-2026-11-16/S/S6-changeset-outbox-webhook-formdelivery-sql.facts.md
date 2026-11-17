@@ -1,13 +1,13 @@
 # S6-changeset-outbox-webhook-formdelivery-sql — machine-verified facts (generated; do not hand-edit)
 
-Source: Tovu tree at `LANE_ROOT` (committed copy: `origin/integ/merge-a-2026-11-16`) @ `e801e9aee`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
+Source: Tovu tree at `LANE_ROOT` (ref `integ/merge-final-2026-11-16`) @ `232764af5`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
 
 Files: 13, 1364 lines (tests not counted).
 
 ## Files
 | path (under apps/website/src) | lines | blob | CLASSIFY label | audit row | existing sheet/design mention | prod importers | test importers |
 |---|---|---|---|---|---|---|---|
-| platform/db/repos/change-set-repo.ts | 178 | 2be3ea0a1f43031731556837fe9e403c8396b3bd | MOVE-AFTER | - | w1-sheets-d:repoint-commands.gen.md;w1-sheets-d:repoint-commands.md | 1 | 2 |
+| platform/db/repos/change-set-repo.ts | 178 | d1f992280830d26e764281c2f55120e4ad9c6414 | MOVE-AFTER | - | w1-sheets-d:repoint-commands.gen.md;w1-sheets-d:repoint-commands.md | 1 | 2 |
 | platform/db/sqlite/change-set-repo.sqlite.ts | 15 | f9bc1957d64d0ab38fcf1c4d9f01432cd406e9e3 | - | - | - | 2 | 6 |
 | platform/db/repos/outbox-repo.ts | 156 | 57373f897e939a0bcd792196ce0d57f431572f0a | MOVE-AFTER | - | w1-sheets-d:move-events.md;w1-sheets-f:move-events.md | 7 | 20 |
 | platform/db/sqlite/outbox-repo.sqlite.ts | 19 | c0aa30b8ec4813809bd5b68e9e37a2e2c21433bc | - | - | - | 1 | 5 |
@@ -171,7 +171,7 @@ Files: 13, 1364 lines (tests not counted).
 ## Test files that import a file of this sheet (blob-guard each before editing)
 | test | lines | blob |
 |---|---|---|
-| contracts/core/commands/__tests__/repo.contract.test.ts | 172 | 068afec0fe7d2d21a7df77f2d62d7b67f082b387 |
+| contracts/core/commands/__tests__/repo.contract.test.ts | 172 | 6025e9260f201cd867af0f9db5e1fa672f4136c3 |
 | platform/db/repos/__tests__/change-set-repo.test.ts | 218 | add5cb4352044a319c89f3acf5bcd934df96aec4 |
 | contracts/core/commands/__tests__/change-sets-restart.integration.test.ts | 74 | bf4e8e7fe5204105bbdd5753cf21541e30898902 |
 | contracts/core/commands/__tests__/idempotency-race.integration.test.ts | 102 | 2572adb1bfbedeb3ddad839cc66918ce23b7ce49 |
@@ -189,7 +189,7 @@ Files: 13, 1364 lines (tests not counted).
 | features/trash/__tests__/account-protections.test.ts | 48 | e20289fe76ff479b39936eb2f7fe6f2f31888ba7 |
 | features/trash/__tests__/user-adapter.dialects.test.ts | 159 | 1e0a44cf78630b894463e2ee8ed54d352bbaa4b7 |
 | features/trash/__tests__/user-adapter.test.ts | 439 | ff290189d5ea5e12890242da7a4a48bb100f3c7c |
-| platform/db/__tests__/parity/parity-harness.ts | 621 | 49df528b23a5170bee783aec773c2255a1c6e4f8 |
+| platform/db/__tests__/parity/parity-harness.ts | 621 | ab7d9fe4a362fa971ea62dd66fe563260aeb5736 |
 | platform/db/repos/__tests__/form-delivery-repo.dialects.test.ts | 263 | b617163a5316776087bf72c851ebec260355fbd4 |
 | platform/db/repos/__tests__/form-delivery-repo.postgres.test.ts | 104 | f0c3f85795c91ff9f0e1460ba54da57d845827f9 |
 | server/inbound/admin-http/routes/users/__tests__/delete.test.ts | 361 | 3ab5068096405a66d4198f16fedbc00ddcb25764 |
@@ -216,7 +216,7 @@ Files: 13, 1364 lines (tests not counted).
 - none found by pattern (re-check with the census at execution)
 
 ## Path-keyed baselines / configs that name a file of this sheet (lesson 10: debt does not follow moved code silently)
-- development/scripts/write-path-inventory.baseline.json: `src/contracts/core/events/outbox-worker.ts` at lines 193, 202, 211, 220 (4 hits)
+- development/scripts/write-path-inventory.baseline.json: `src/contracts/core/events/outbox-worker.ts` at lines 175, 184, 193, 202 (4 hits)
 
 ## Census command (run from the Tovu clone root; every hit must be listed above)
 ```

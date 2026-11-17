@@ -1,6 +1,6 @@
 # S2-entries-content-types-sql — machine-verified facts (generated; do not hand-edit)
 
-Source: Tovu tree at `LANE_ROOT` (committed copy: `origin/integ/merge-a-2026-11-16`) @ `e801e9aee`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
+Source: Tovu tree at `LANE_ROOT` (ref `integ/merge-final-2026-11-16`) @ `232764af5`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
 
 Files: 8, 754 lines (tests not counted).
 
@@ -120,9 +120,9 @@ Files: 8, 754 lines (tests not counted).
 | features/entries/__tests__/integration/repo.dialects.test.ts | 340 | dee94117920900a277a8d902b3238112f3325343 |
 | features/entries/__tests__/unit/repo.rows.unit.test.ts | 33 | af9be247c00f559a79cf9326be9e3c85240a4a96 |
 | features/entries/__tests__/integration/repo.sqlite.integration.test.ts | 73 | 558e37a349c18511383b4d069a61fab8382fdd35 |
-| features/entries/__tests__/unit/publish-content.test.ts | 277 | bc2886202db3df07ad3f7430793e557e4d3f9060 |
-| features/publish-content/__tests__/new-types-sqlite-round-trip.test.ts | 203 | 55e3c1dac8c943810eda4d9244d3048777e061c7 |
-| features/publish-content/__tests__/round-trip-harness.ts | 172 | 3a241a4fdf895caeccf950d5b2acb9e2ef3167ba |
+| features/entries/__tests__/unit/publish-content.test.ts | 277 | 3bdf4bfb5547a6fa70641614a6adea255ca83e4c |
+| features/publish-content/__tests__/new-types-sqlite-round-trip.test.ts | 203 | 0a3955eb5b3933349044e9c0773234a56dbeda77 |
+| features/publish-content/__tests__/round-trip-harness.ts | 173 | 3bb925aeccd187a3b1b4a3b0cead5f9e286c1f20 |
 | features/trash/__tests__/widget-trash-flow.test.ts | 364 | 4df3687c01af0b972af3239ff81714f3e716be3b |
 | features/widgets/__tests__/integration/embed-service.integration.test.ts | 616 | c5f7cd16c8044cc8ba62004c3eae4e10744bf027 |
 | server/inbound/public-http/routes/site/__tests__/integration/media-validation.integration.test.ts | 151 | 2b9acf2cdbc03b755b2a7902a28c55256aa3e4e4 |
@@ -147,9 +147,9 @@ Files: 8, 754 lines (tests not counted).
 - none found by pattern (re-check with the census at execution)
 
 ## Path-keyed baselines / configs that name a file of this sheet (lesson 10: debt does not follow moved code silently)
-- development/scripts/hardwiring-debt.json: `src/features/entries/repo.rows.ts` at lines 160, 167, 174 (3 hits)
-- development/scripts/hardwiring-debt.json: `src/features/content-types/repo.rows.ts` at lines 125, 132, 139, 146 (4 hits)
-- development/scripts/check-architecture.baseline.json: `src/features/entries/repo.sqlite.ts` at lines 290 (1 hits)
+- development/scripts/hardwiring-debt.json: `src/features/entries/repo.rows.ts` at lines 146, 153, 160 (3 hits)
+- development/scripts/hardwiring-debt.json: `src/features/content-types/repo.rows.ts` at lines 111, 118, 125, 132 (4 hits)
+- development/scripts/check-architecture.baseline.json: `src/features/entries/repo.sqlite.ts` at lines 285 (1 hits)
 
 ## Census command (run from the Tovu clone root; every hit must be listed above)
 ```

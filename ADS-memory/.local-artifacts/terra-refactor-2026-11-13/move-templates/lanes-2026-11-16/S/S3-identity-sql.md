@@ -11,10 +11,17 @@ id: S3a-identity-repos (~220k, cut point after J1)   the nine Sql*Repo classes +
 jini_target: user-management NEW subpath ./server/sql (node)
 prerequisites:
   - S0 DONE (P1 `identity:<ws>`, P5c frozen stored digests, P6).
-  - xpkg C9c and R3b landed (they own `packages/user-management/**` in waves 1-2): `git log --oneline -1 -- packages/user-management` names them.
-  - C3 storage contract: `rg -n "export interface StorageKernel" packages/core/src/contracts/storage/kernel.ts`.
+  - xpkg C9c and R3b landed (they own `packages/user-management/**` in waves 1-2): proving commands below.
+  - C3 storage contract: proving command below.
   - lost-updates: if its sheet is scheduled on `features/identity/repo.ts`, it runs first; re-take facts.
-successor_of: S0.  Then U3a, U3b, U1a (same manifest, same Tovu hot files): serial, INDEX §3.
+successor_of: S0.  Then U3a, U3b, U1a (same manifest, same Tovu hot files): serial, INDEX-SU §3.
+```
+Prerequisite commands (run in the Jini clone; each must print `ok`):
+```bash
+test -f packages/user-management/src/react/kit.tsx && echo ok          # C9c created the kit
+# R3b's last commit removes @jini-ai/ui and @jini-ai/admin from the production fields of the manifest
+node -e 'const j=require(process.argv[1]); const prod={...j.dependencies,...j.peerDependencies}; process.exit(prod["@jini-ai/ui"]||prod["@jini-ai/admin"]?1:0)' "$PWD/packages/user-management/package.json" && echo ok
+rg -q "export interface StorageKernel" packages/core/src/contracts/storage/kernel.ts && echo ok   # C3
 ```
 **`kysely` (replaces round-1 P-DEP).** `packages/user-management/package.json` does not declare it (checked on Jini
 `af33fcdb`). S3a's J1 adds it as an optional peer exactly the way `packages/cms/package.json` does (peer + `peerDependenciesMeta`
@@ -25,12 +32,24 @@ optional + the `jini` opt-in message naming `@jini-ai/user-management/server/sql
 | New file (`packages/user-management/src/server/sql/`) | From `features/identity/repo.ts` | ~Lines |
 |---|---|---|
 | `tables.ts` | Jini-local interfaces for `principals`, `identity_users`, `sessions`, `roles`, `policies`, `policy_permissions`, `role_policies`, `principal_roles`, `principal_policies`; `IdentitySqlTables`; `IdentitySqlRequired = { kernel; tables }` | 120 |
-| `transactions.ts` | `createIdentityTransactions` (:46-56) with its comment; signature `({ kernel }: { kernel: Pick<StorageKernel<unknown, unknown>, "transaction" \| "lockKey"> }, _optional = {})` | 30 |
+| `transactions.ts` | `createIdentityTransactions` (:46-56) with its comment; signature in the block below the table | 30 |
 | `principals.ts` | `toPrincipalRecord` + `SqlPrincipalRepo` (:58-110), `toUserRecord` + `SqlUserRepo` (:111-181) | 140 |
 | `sessions.ts` | `toSessionRecord` + `SqlSessionRepo` (:182-272) | 100 |
 | `roles-policies.ts` | `SqlRoleRepo` (:273-336), `SqlPolicyRepo` (:337-409), `SqlPolicyPermissionRepo` (:410-473) with their mappers | 215 |
 | `assignments.ts` | `SqlRolePolicyRepo` (:474-519), `SqlPrincipalRoleRepo` (:520-568), `SqlPrincipalPolicyRepo` (:569-630) with their mappers | 170 |
 | `index.ts` | named exports | 15 |
+`transactions.ts` signature (valid TypeScript; copy from here, not from the table):
+```ts
+import type { StorageKernel } from "@jini-ai/core/contracts/storage";
+import type { IdentityTransactionPort } from "../../core/ports.js";   // declared at core/ports.ts:146
+
+export type IdentityTransactionKernel = Pick<StorageKernel<unknown, unknown>, "transaction" | "lockKey">;
+
+export function createIdentityTransactions(
+  { kernel }: { kernel: IdentityTransactionKernel },
+  _optional: Record<string, never> = {},
+): IdentityTransactionPort { /* body of repo.ts:49-56, verbatim (the lock line moves byte-identical) */ }
+```
 Mappers stay beside their class as today (no separate rows file: fewer moved edges). Constructors become
 `({ kernel, tables }, _optional = {})` (today positional `(kernel)`; the only callers are the subclasses in `repo.sqlite.ts`).
 The file-header comment (`repo.ts:22-37`, why identity is durable, integer flags) moves to `tables.ts`, reworded neutral.
@@ -58,7 +77,7 @@ exists today; they move verbatim and nothing new is added (T-SQLREPO §6 delete 
 **`SqlUserPurge` (`user-purge.ts`, 92) and `user-purge.sqlite.ts` (8): STAY in Tovu, unsplit.** The purge is ONE
 transaction over nine tables of five owners (role and policy assignments, sessions, API keys, per-user settings, the
 secrets vault, users, principals, then the outbox event). It is host orchestration; moving a slice would only risk the
-statement order. `user-purge-types.ts` and `repo.memory.ts` belong to audit row A26 (INDEX §7, R3-4).
+statement order. `user-purge-types.ts` and `repo.memory.ts` belong to audit row A26 (INDEX-SU §7, R3-4).
 
 ## Security chain (finding 8): today's real behaviour, its owner after the move, the test that fails without it
 All tests are T0, on unmoved code, real kernel; "recording kernel" = a wrapper recording `transaction` depth, `lockKey`
@@ -67,7 +86,7 @@ arguments and statements in order.
 |---|---|---|---|---|
 | 1 | Every identity read is `(workspace_id, …)`-scoped (all nine classes) | `sql/*.ts` | two workspaces seeded with the same ids, usernames and token digests: every `find*` / `list*` returns only its own rows | delete one workspace predicate (one mutation per method) |
 | 2 | Session lookup matches the exact stored digest (`repo.ts` `findByTokenHash`); `revoke` sets `revoked_at` under the identity transaction | `sql/sessions.ts` | S0-P5c fixture found; one-character-different digest not found; after `revoke`, the row carries the instant; recording kernel shows lock before the UPDATE | drop the digest predicate; make `revoke` skip the write |
-| 3 | `SqlSessionRepo.save` is a whole-row upsert on `id` (`repo.ts` `save`) | `sql/sessions.ts` | pin EXACTLY what a second `save` does to every column, `revoked_at` included, whatever that is; do not change it in a move. Concern class "stale write on a revocation field", location this method: report to the security review, not here | change the conflict update set |
+| 3 | `SqlSessionRepo.save` is a whole-row upsert on `id` (`repo.ts` `save`) | `sql/sessions.ts` | pin EXACTLY what a second `save` does to every column, `revoked_at` included, whatever that is; do not change it in a move. The concern (class "stale write on a revocation field", this method) is already logged in `development/open-bugs.md` (entry of 2026-11-16 ~8:05 PM PT, lost-updates class); its fix belongs to the lost-updates design, not to this sheet. This characterization test stays and is the regression baseline that fix will change on purpose | change the conflict update set |
 | 4 | The guard: `transaction` -> `lockKey("identity:<ws>")` -> `execute`; nested calls join the open transaction; a throw rolls everything back (`repo.ts:46-56`) | `sql/transactions.ts` | recording kernel order; nested `run` inside `run` shows one outermost transaction and the lock before the first statement; a body that writes then throws leaves no row | remove `lockKey`; call `execute()` without `kernel.transaction` |
 | 5 | Each MFA store method opens its OWN guard (`mfa.repo.ts:22-32`): `factor` and `saveFactor` are NOT atomic together. Anti-replay comes from the CALLER wrapping the whole proof in one outer guard | caller: `@jini-ai/user-management/server` MFA service (unchanged); store: `sql/mfa.ts` | the existing `__tests__/mfa.repo.dialects.test.ts:59-67` case (two concurrent complete-proof bodies, each in ONE outer `transactions.run`: results `[false, true]`, `lastStep` advanced once, pending gone) stays and runs on every dialect of the matrix; plus the recording-kernel form: inside an outer guard, `factor` + `saveFactor` + `clearPending` add no second outermost transaction | mutation 4's; and make the store call `kernel.run` through a second kernel (not joining) -> the test's rollback half fails |
 | 6 | `clear` deletes that principal's pending proofs, **passkeys** and factor, in that order, in one guard (`mfa.repo.ts:48-53`). The MFA store never reads passkeys | `sql/mfa.ts` | two principals each with factor, pending and a passkey: after `clear(A)`, A has none of the three, B has all three; `clear` then throw inside an outer guard restores all (existing test, kept) | remove the passkey delete; drop a principal predicate |

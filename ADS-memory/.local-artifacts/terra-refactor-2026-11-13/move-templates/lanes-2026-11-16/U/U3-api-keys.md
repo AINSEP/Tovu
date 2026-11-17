@@ -97,7 +97,14 @@ T0 adds, per shipped security profile (`rg -n "securityProfile|SECURITY_PROFILE"
 | Revoked key; unknown key | same status and body as each other, and NOT the positive control's | a check is dropped |
 | Session precedence | valid operator session + valid key on one request: `kind: "session"`, and the key repo fake recorded zero reads | the order is swapped |
 | Non-operator session + valid key | resolves as the key (`kind: "api_key"`): today's fall-through, pinned | the fall-through is removed |
-| Machine-credential restrictions | every existing branch on the credential kind (`rg -n "kind === \"api_key\"\|kind !== \"session\"\|kind: \"api_key\"" apps/website/src/server -g '!**/__tests__/**'`): one test per branch, refused with a key, allowed with a session | a restriction is dropped |
+| Machine-credential restrictions | every existing branch on the credential kind (command K below the table): one test per printed branch, refused with a key, allowed with a session | a restriction is dropped |
+Command K (lists every branch on the credential kind; the T0 test count for this row must equal its line count). Both
+quote styles: the server files use single quotes, so the round-2 double-quote pattern matched nothing.
+```bash
+rg -n "kind\s*[!=]==\s*['\"](api_key|session)['\"]" apps/website/src/server -g '*.ts' -g '!**/__tests__/**'
+```
+On merge-final it prints 5 branches: `owner-passkey-routes.ts:56,106`, `owner-mfa-routes.ts:43,100`,
+`runtime/composition/browser-analytics-http.ts:47` (each: a key is refused, a session is allowed). Fewer or more = re-read.
 This sheet changes only import specifiers and the `keyScheme` field in `dev-auth.ts` and `routes/api-keys/*`.
 
 ## commits (each tree compiles alone)
@@ -113,7 +120,14 @@ U3b: J1 (`shared.ts`, `authenticate.ts`, `issue.ts` with the partition, `princip
 All T0 tests stay in Tovu, unchanged, and are the gate for both T1 commits (same count, all green).
 
 ## stops
-- OD-4 not answered. A second hasher instance or a second scheme constant: `rg -n "new ScryptApiKeySecretHasher|tovu_ak_" apps/website/src -g '!**/__tests__/**'` lists one of each.
+- OD-4 not answered.
+- A second hasher instance or a second scheme constant. Run before T0 and after each T1: the command must print exactly
+  one `new ScryptApiKeySecretHasher` line and one `"tovu_ak_"` string-literal line (on merge-final: `wiring.ts:184` and
+  `api-key-secret.ts:45`; after U3a the literal sits where `keyScheme` is defined). `-g '*.ts'` keeps
+  `features/identity/INFO.md` out, and matching the quoted literal keeps doc comments and the regex out:
+```bash
+rg -n -e 'new ScryptApiKeySecretHasher' -e '"tovu_ak_"' apps/website/src -g '*.ts' -g '!**/__tests__/**'
+```
 - A step of chain A or B would become a callback supplied by Tovu (STOP: a host could weaken it).
 - `authenticateApiKey` or a function of the partition exceeds 50 lines / complexity 10 (eslint line): split only by extracting a lookup, never by reordering steps.
 - A refusal's error class or message changes (routes map them to status codes; LESSONS 7, 24): chain B's assertions.

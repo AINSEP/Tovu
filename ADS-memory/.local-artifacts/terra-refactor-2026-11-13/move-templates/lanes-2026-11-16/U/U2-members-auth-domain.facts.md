@@ -1,6 +1,6 @@
 # U2-members-auth-domain — machine-verified facts (generated; do not hand-edit)
 
-Source: Tovu tree at `LANE_ROOT` (committed copy: `origin/integ/merge-a-2026-11-16`) @ `e801e9aee`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
+Source: Tovu tree at `LANE_ROOT` (ref `integ/merge-final-2026-11-16`) @ `232764af5`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
 
 Files: 15, 3469 lines (tests not counted).
 
@@ -10,7 +10,7 @@ Files: 15, 3469 lines (tests not counted).
 | features/members/access-resolver.ts | 237 | 00941106f75fb68a0102d3a8547114e45f8148cd | MOVE-AFTER | - | - | 10 | 5 |
 | features/members/agent-tools.ts | 157 | f0f22c026b2fc85b402c91081e03cc3a251b4489 | - | audit2:A07 | audit2-sheets-a3:split-a07-members-server-domain.md;w1-sheets-c:dedupe-admin-members.md | 1 | 3 |
 | features/members/auth-mail.ts | 25 | 1f3578a9650cb69ff147d1a3dee38e5175d9857c | MOVE-AFTER | - | - | 1 | 0 |
-| features/members/capability-card.ts | 29 | 7434d127c5416ab52ef173e4d845f93922e6a053 | - | - | w1-sheets-d:delete-site-guide.gen.md | 1 | 0 |
+| features/members/capability-card.ts | 29 | 370d296ce9612c4a155f7c39fcc996a312f15321 | - | - | w1-sheets-d:delete-site-guide.gen.md | 1 | 0 |
 | features/members/consent-service.ts | 261 | 8fc2d60b80d018c4cdae854c876fe1123c573b6a | DELETE | - | - | 1 | 1 |
 | features/members/index.ts | 134 | baba94f173833f504710ba5c0dd5bd965b22d4e7 | - | - | - | 44 | 26 |
 | features/members/mailer.console.ts | 93 | 04c24d36b96f92f0d69ed4d5f1e900c1ca73d549 | MOVE | - | - | 1 | 2 |
@@ -64,9 +64,9 @@ Files: 15, 3469 lines (tests not counted).
 - tables touched: -
 - lock keys: -
 - flags: -
-- npm/@jini-ai imports: -
+- npm/@jini-ai imports: @jini-ai/agentic/core
 - same-folder imports: -
-- imports leaving the folder: features/site-guide/contracts.ts
+- imports leaving the folder: -
 - prod importers (1): server/runtime/composition/site-guide.ts
 - test importers (0): -
 
@@ -323,19 +323,18 @@ Files: 15, 3469 lines (tests not counted).
 - none found by pattern (re-check with the census at execution)
 
 ## Path-keyed baselines / configs that name a file of this sheet (lesson 10: debt does not follow moved code silently)
-- development/scripts/write-path-inventory.baseline.json: `src/features/members/consent-service.ts` at lines 2138, 2147, 2156, 2165, 2174, 2183, 2192, 2201, 2210, 2219, 2228, 2237, 2246, 2255, 2264, 2273, 2282, 2291 (18 hits)
-- development/scripts/write-path-inventory.baseline.json: `src/features/members/mailer.console.ts` at lines 2300, 2309 (2 hits)
-- development/scripts/write-path-inventory.baseline.json: `src/features/members/repo.memory.ts` at lines 2318, 2327 (2 hits)
-- development/scripts/write-path-inventory.baseline.json: `src/features/members/write-service.ts` at lines 2434, 2443, 2452, 2461, 2470, 2479, 2488, 2497, 2506, 2515, 2524, 2533, 2542, 2551, 2560, 2569, 2578, 2587, 2596, 2605, 2614, 2623 (22 hits)
-- development/scripts/check-architecture.baseline.json: `src/features/members/access-resolver.ts` at lines 377 (1 hits)
-- development/scripts/check-architecture.baseline.json: `src/features/members/auth-mail.ts` at lines 219 (1 hits)
-- development/scripts/check-architecture.baseline.json: `src/features/members/capability-card.ts` at lines 220 (1 hits)
-- development/scripts/check-architecture.baseline.json: `src/features/members/index.ts` at lines 312 (1 hits)
-- development/scripts/check-architecture.baseline.json: `src/features/members/ports.ts` at lines 211 (1 hits)
-- development/scripts/check-architecture.baseline.json: `src/features/members/subscriber-directory.ts` at lines 221 (1 hits)
-- development/scripts/check-architecture.baseline.json: `src/features/members/types.ts` at lines 210, 212, 375 (3 hits)
-- development/scripts/check-architecture.baseline.json: `src/features/members/write-service.ts` at lines 213 (1 hits)
-- development/scripts/size-debt.json: `src/features/members/tool-registrations.ts` at lines 992 (1 hits)
+- development/scripts/write-path-inventory.baseline.json: `src/features/members/consent-service.ts` at lines 2120, 2129, 2138, 2147, 2156, 2165, 2174, 2183, 2192, 2201, 2210, 2219, 2228, 2237, 2246, 2255, 2264, 2273 (18 hits)
+- development/scripts/write-path-inventory.baseline.json: `src/features/members/mailer.console.ts` at lines 2282, 2291 (2 hits)
+- development/scripts/write-path-inventory.baseline.json: `src/features/members/repo.memory.ts` at lines 2300, 2309 (2 hits)
+- development/scripts/write-path-inventory.baseline.json: `src/features/members/write-service.ts` at lines 2416, 2425, 2434, 2443, 2452, 2461, 2470, 2479, 2488, 2497, 2506, 2515, 2524, 2533, 2542, 2551, 2560, 2569, 2578, 2587, 2596, 2605 (22 hits)
+- development/scripts/check-architecture.baseline.json: `src/features/members/access-resolver.ts` at lines 370 (1 hits)
+- development/scripts/check-architecture.baseline.json: `src/features/members/auth-mail.ts` at lines 217 (1 hits)
+- development/scripts/check-architecture.baseline.json: `src/features/members/index.ts` at lines 305 (1 hits)
+- development/scripts/check-architecture.baseline.json: `src/features/members/ports.ts` at lines 209 (1 hits)
+- development/scripts/check-architecture.baseline.json: `src/features/members/subscriber-directory.ts` at lines 218 (1 hits)
+- development/scripts/check-architecture.baseline.json: `src/features/members/types.ts` at lines 208, 210, 368 (3 hits)
+- development/scripts/check-architecture.baseline.json: `src/features/members/write-service.ts` at lines 211 (1 hits)
+- development/scripts/size-debt.json: `src/features/members/tool-registrations.ts` at lines 887 (1 hits)
 
 ## Census command (run from the Tovu clone root; every hit must be listed above)
 ```

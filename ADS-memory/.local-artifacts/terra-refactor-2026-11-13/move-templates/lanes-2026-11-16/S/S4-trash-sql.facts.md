@@ -1,6 +1,6 @@
 # S4-trash-sql — machine-verified facts (generated; do not hand-edit)
 
-Source: Tovu tree at `LANE_ROOT` (committed copy: `origin/integ/merge-a-2026-11-16`) @ `e801e9aee`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
+Source: Tovu tree at `LANE_ROOT` (ref `integ/merge-final-2026-11-16`) @ `232764af5`. Regenerate: `LANE_ROOT=<tovu clone> python3 scripts/inv.py && LANE_ROOT=<tovu clone> python3 scripts/rep.py && LANE_ROOT=<tovu clone> python3 scripts/facts.py [<out dir>]`. Blobs are `git hash-object` of that tree; a sheet executor re-checks every blob (COMMON STOP-on-mismatch).
 
 Files: 19, 2311 lines (tests not counted).
 
@@ -287,10 +287,10 @@ Files: 19, 2311 lines (tests not counted).
 - none found by pattern (re-check with the census at execution)
 
 ## Path-keyed baselines / configs that name a file of this sheet (lesson 10: debt does not follow moved code silently)
-- development/scripts/check-architecture.baseline.json: `src/features/trash/adapters/redirect.ts` at lines 432 (1 hits)
-- development/scripts/check-architecture.baseline.json: `src/features/trash/adapters/user.ts` at lines 433 (1 hits)
-- development/scripts/size-debt.json: `src/features/trash/table-adapter.ts` at lines 1307 (1 hits)
-- development/scripts/size-debt.json: `src/features/trash/adapters/user.ts` at lines 1300 (1 hits)
+- development/scripts/check-architecture.baseline.json: `src/features/trash/adapters/redirect.ts` at lines 424 (1 hits)
+- development/scripts/check-architecture.baseline.json: `src/features/trash/adapters/user.ts` at lines 425 (1 hits)
+- development/scripts/size-debt.json: `src/features/trash/table-adapter.ts` at lines 1097 (1 hits)
+- development/scripts/size-debt.json: `src/features/trash/adapters/user.ts` at lines 1090 (1 hits)
 
 ## Census command (run from the Tovu clone root; every hit must be listed above)
 ```
