@@ -5,7 +5,7 @@ import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 import { toolMetadata } from "../../contracts/core/tool-metadata/redirects.js";
-import { contentReadVocabulary } from "../../contracts/core/tool-metadata/content-read-vocabulary.js";
+import { contentReadVocabulary } from "../../contracts/core/tool-metadata/content-read.js";
 
 /**
  * @file Redirects' half of ADR-049 Decision 4 (SPEC-009): this site's binding of the seven redirects

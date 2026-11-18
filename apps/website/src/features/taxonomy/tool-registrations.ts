@@ -1,5 +1,5 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/taxonomy.js';
-import { contentReadVocabulary } from "../../contracts/core/tool-metadata/content-read-vocabulary.js";
+import { contentReadVocabulary } from "../../contracts/core/tool-metadata/content-read.js";
 import { type Clock } from "@jini-ai/core/primitives";
 /**
  * @file Taxonomy's half of ADR-049 Decision 4 (SPEC-018/ADR-044), the host binding: the ten
