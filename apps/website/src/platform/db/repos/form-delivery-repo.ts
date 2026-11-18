@@ -9,7 +9,7 @@ import type { Kysely } from "kysely";
 
 import type { ContentDatabase } from "../content-database.generated.js";
 import type { ContentKernel } from "../content-kernel.js";
-import { outboxEventValues } from "./outbox-repo.js";
+import { outboxEventValues } from "@jini-ai/db/events";
 
 const JOB_WORKSPACE_ID = "j.workspace_id";
 const JOB_SUBMISSION_ID = "j.submission_id";

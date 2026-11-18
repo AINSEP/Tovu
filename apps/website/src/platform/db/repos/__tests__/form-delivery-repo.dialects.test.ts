@@ -6,7 +6,7 @@ import { type FormDeliveryBinding, type FormDeliveryPlan, planFormDeliveries } f
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "../../content-kernel.js";
 import { SqlFormDeliveryRepo, SqlFormPullLeaseRepo } from "../form-delivery-repo.js";
-import { SqlOutboxAdapter } from "../outbox-repo.js";
+import { outboxOn } from "#src/platform/db/__tests__/events-adapters";
 
 /**
  * @file Security pins for form delivery persistence (migration 0019) on SQLite and PGlite:
@@ -63,7 +63,7 @@ describeEachDialect(
   "form delivery repo security",
   {
     tables: ["form_delivery_plans", "form_delivery_jobs", "form_receiver_pulls", "outbox_events"],
-    make: (kernel: ContentKernel) => ({ kernel, repo: new SqlFormDeliveryRepo({ kernel }), leases: new SqlFormPullLeaseRepo({ kernel }), outbox: new SqlOutboxAdapter(kernel) }),
+    make: (kernel: ContentKernel) => ({ kernel, repo: new SqlFormDeliveryRepo({ kernel }), leases: new SqlFormPullLeaseRepo({ kernel }), outbox: outboxOn({ kernel }) }),
   },
   (make) => {
     test("reference jobs store no answers, replay unchanged and stop after purge", async () => {

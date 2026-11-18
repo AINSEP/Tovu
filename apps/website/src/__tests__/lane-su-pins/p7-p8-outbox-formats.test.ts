@@ -6,7 +6,8 @@ import { sql } from "kysely";
 
 import { freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { SqlFormDeliveryRepo } from "#src/platform/db/repos/form-delivery-repo";
-import { outboxEventValues, SqlOutboxAdapter } from "#src/platform/db/repos/outbox-repo";
+import { outboxEventValues } from "@jini-ai/db/events";
+import { outboxOn } from "#src/platform/db/__tests__/events-adapters";
 
 /**
  * @file P7 (form-job id prefix) + P8 (outbox event row, N-1). An install already holds `outbox_events`
@@ -41,7 +42,7 @@ test("P8 a frozen stored row is claimed and parsed back to the same event", asyn
   const kernel = await seededKernel();
   await kernel.execute(sql`INSERT INTO outbox_events (id, workspace_id, event_json, status, attempts, next_attempt_at, created_at)
     VALUES ('post-1-post.published-3', ${WS}, ${FROZEN_EVENT_JSON}, 'pending', 0, ${T0}, ${T0})`);
-  const outbox = new SqlOutboxAdapter(kernel, { claimLeaseMs: 60_000 });
+  const outbox = outboxOn({ kernel }, { claimLeaseMs: 60_000 });
   const claimed = await outbox.claimPending({ batchSize: 10, nowIso: T0 });
   assert.deepEqual(claimed, [{ id: "post-1-post.published-3", event: FROZEN_EVENT, status: "processing", attempts: 1, nextAttemptAt: T0, lastError: undefined, createdAt: T0 }]);
   const row = (await kernel.query<{ status: string; attempts: number; next_attempt_at: string }>(sql`SELECT status, attempts, next_attempt_at FROM outbox_events`))[0];
@@ -50,7 +51,7 @@ test("P8 a frozen stored row is claimed and parsed back to the same event", asyn
 
 test("P8 enqueue writes the frozen row and the outcome writers use the frozen status strings", async () => {
   const kernel = await seededKernel();
-  const outbox = new SqlOutboxAdapter(kernel);
+  const outbox = outboxOn({ kernel });
   await outbox.enqueue(FROZEN_EVENT);
   const stored = async () => (await kernel.query<{ event_json: string; status: string; last_error: string | null }>(sql`SELECT event_json, status, last_error FROM outbox_events`))[0];
   assert.deepEqual(await stored(), { event_json: FROZEN_EVENT_JSON, status: "pending", last_error: null });

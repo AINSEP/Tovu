@@ -16,7 +16,7 @@ import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import type { Kysely } from "kysely";
 import { SqlFormDeliveryRepo } from "#src/platform/db/repos/form-delivery-repo";
-import { SqlOutboxAdapter } from "#src/platform/db/repos/outbox-repo";
+import { outboxOn } from "#src/platform/db/__tests__/events-adapters";
 import { composeFormDelivery } from "../form-delivery.js";
 
 /**
@@ -81,7 +81,7 @@ async function seedForms(workspaceId: string) {
 /** Plans one submission of `workspaceId` and runs one outbox drain over its child jobs. */
 async function deliverOnce(kernel: ContentKernel, workspaceId: string) {
   const plans = new SqlFormDeliveryRepo({ kernel });
-  const outbox = new SqlOutboxAdapter(kernel);
+  const outbox = outboxOn({ kernel });
   const bus = new InMemoryEventBus();
   const forms = await seedForms(workspaceId);
   let next = 0;
@@ -106,7 +106,7 @@ function deliveryJobRows(db: Kysely<ContentDatabase>) {
   return db.selectFrom("outbox_events as o").innerJoin("form_delivery_jobs as j", "j.job_id", "o.id").where("o.workspace_id", "=", W);
 }
 
-function statusTool(required: { workspaceId: string; plans: SqlFormDeliveryRepo; outbox: SqlOutboxAdapter }) {
+function statusTool(required: { workspaceId: string; plans: SqlFormDeliveryRepo; outbox: ReturnType<typeof outboxOn> }) {
   const authorize = async () => ({ allowed: true, reason: "matched" });
   const registration = buildFormsRegistrations({ executeCommand, authorize, workspaceId: required.workspaceId, clock, idGen: { newId: () => "tool-id" },
     changeSets: new InMemoryChangeSetRepo(), outbox: required.outbox, formDefinitionRepo: new InMemoryFormDefinitionRepo(),

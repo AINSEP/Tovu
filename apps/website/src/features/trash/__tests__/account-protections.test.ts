@@ -1,4 +1,4 @@
-import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
+import { outboxEventValues } from "@jini-ai/db/events";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import assert from "node:assert/strict";
 import test from "node:test";

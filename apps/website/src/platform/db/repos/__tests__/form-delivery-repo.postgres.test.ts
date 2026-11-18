@@ -7,7 +7,7 @@ import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { openPostgresKernel } from "#src/platform/db/kernel/index";
 import { planFormDeliveries } from "@jini-ai/cms/forms";
 import { SqlFormDeliveryRepo, SqlFormPullLeaseRepo } from "../form-delivery-repo.js";
-import { SqlOutboxAdapter } from "../outbox-repo.js";
+import { outboxOn } from "#src/platform/db/__tests__/events-adapters";
 
 /**
  * @file The receiver pull lease on a REAL Postgres server with two connection pools: two pulls
@@ -81,7 +81,7 @@ async function jobRow(kernel: ContentKernel, jobId: string) {
 test("postgres: a purge during an in-flight attempt is final; the attempt's outcome neither revives nor resends the job", async () => {
   const workspaceId = "w-purge";
   const repo = new SqlFormDeliveryRepo({ kernel: first });
-  const outbox = new SqlOutboxAdapter(first);
+  const outbox = outboxOn({ kernel: first });
   await planFormDeliveries({
     workspaceId, submissionId: "s1", formId: "f1",
     deps: {

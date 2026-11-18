@@ -4,7 +4,7 @@ import { describe, test } from "node:test";
 import { createVerifiedOrigin } from "@jini-ai/core/contracts/server/verified-origin";
 
 import { SqlFormDeliveryRepo, SqlFormPullLeaseRepo } from "#src/platform/db/repos/form-delivery-repo";
-import { SqlOutboxAdapter } from "#src/platform/db/repos/outbox-repo";
+import { outboxOn } from "#src/platform/db/__tests__/events-adapters";
 import { registerConfiguredOrigin } from "#src/platform/db/sqlite/origin-repo.sqlite";
 import { SqliteTokenStore } from "#src/platform/db/sqlite/gated-mutation-token-repo.sqlite";
 import { SqlWebhookDeliveryRepo } from "#src/platform/db/repos/webhook-repo";
@@ -78,7 +78,7 @@ describe("P1 lock keys: taxonomy, trash, claims", () => {
 
   test("outbox claim", async () => {
     const { kernel, keys } = recordingKernel();
-    assert.deepEqual(await new SqlOutboxAdapter(kernel).claimPending({ batchSize: 5, nowIso: "2026-11-17T00:00:00.000Z" }), []);
+    assert.deepEqual(await outboxOn({ kernel }).claimPending({ batchSize: 5, nowIso: "2026-11-17T00:00:00.000Z" }), []);
     assert.deepEqual(keys, ["outbox_events:claim"]);
   });
 

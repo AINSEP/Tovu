@@ -12,7 +12,7 @@ import { bootSite, expectJson, send, SITE_DIALECTS, type BootedSite } from "../h
  * `change-sets-revert.test.ts` covers every refusal branch of the revert route, but over the
  * hermetic `createRouteDeps()` with hand-built change-sets and fake reverters; `change-sets-get-list
  * .test.ts` likewise. Nothing drives a real admin write into the persisted `change_sets` /
- * `change_set_items` tables (`platform/db/repos/change-set-repo.ts`) and then undoes it through the
+ * `change_set_items` tables (Jini `@jini-ai/db/events`'s `SqlChangeSetRepo`, bound in `platform/db/sqlite/change-set-repo.sqlite.ts`) and then undoes it through the
  * real post reverter the site composition registers — the whole point of ADR-046's move off the
  * in-memory repo. Also unproven on the real store: the `Idempotency-Key` replay guard, which relies
  * on the persisted `idempotency_key` column rather than a Map.

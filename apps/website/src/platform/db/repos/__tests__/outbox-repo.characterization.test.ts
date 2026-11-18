@@ -8,7 +8,7 @@ import { DEFAULT_OUTBOX_CLAIM_LEASE_MS } from "#src/contracts/core/events/index"
 import { describeEachDialect, freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "../../content-kernel.js";
 import { SqliteOutboxAdapter } from "../../sqlite/outbox-repo.sqlite.js";
-import { SqlOutboxAdapter } from "../outbox-repo.js";
+import { outboxOn } from "#src/platform/db/__tests__/events-adapters";
 
 /**
  * @file S6a T0: the outbox adapter on the unmoved code, before it moves to Jini `@jini-ai/db/events`. The lock key is
@@ -28,8 +28,8 @@ async function outboxRows(kernel: ContentKernel) {
 describeEachDialect("SqlOutboxAdapter characterization", { tables: ["outbox_events"], make: (kernel: ContentKernel) => kernel }, (makeKernel) => {
   test("two concurrent claimers never take one event (mutation: remove `lockKey(\"outbox_events:claim\")`)", async () => {
     const kernel = makeKernel();
-    const first = new SqlOutboxAdapter(kernel);
-    const second = new SqlOutboxAdapter(kernel);
+    const first = outboxOn({ kernel });
+    const second = outboxOn({ kernel });
     for (const id of ["e1", "e2", "e3", "e4", "e5", "e6"]) await first.enqueue(event(id));
     const [a, b] = await Promise.all([first.claimPending({ batchSize: 4, nowIso: T0 }), second.claimPending({ batchSize: 4, nowIso: T0 })]);
     const ids = [...a, ...b].map((record) => record.id).sort();
@@ -40,7 +40,7 @@ describeEachDialect("SqlOutboxAdapter characterization", { tables: ["outbox_even
 
   test("markFailed with nextStatus pending keeps attempts and sets the error and retry time; markDelivered only the status (mutation: change a mapped column)", async () => {
     const kernel = makeKernel();
-    const outbox = new SqlOutboxAdapter(kernel);
+    const outbox = outboxOn({ kernel });
     await outbox.enqueue(event("e1"));
     await outbox.enqueue(event("e2"));
     await outbox.claimPending({ batchSize: 10, nowIso: T0 });
@@ -58,7 +58,7 @@ describeEachDialect("SqlOutboxAdapter characterization", { tables: ["outbox_even
 
   test("enqueue takes part in the caller's transaction: a throw leaves no row, a commit leaves one (mutation: run it on another connection)", async () => {
     const kernel = makeKernel();
-    const outbox = new SqlOutboxAdapter(kernel);
+    const outbox = outboxOn({ kernel });
     await assert.rejects(
       kernel.transaction(async () => {
         await outbox.enqueue(event("rolled-back"));

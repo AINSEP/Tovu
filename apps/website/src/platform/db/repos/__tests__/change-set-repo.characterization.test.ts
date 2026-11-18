@@ -5,7 +5,7 @@ import type { ChangeSetItemRecord, ChangeSetRecord, DomainEvent } from "@jini-ai
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "../../content-kernel.js";
-import { SqlChangeSetRepo } from "../change-set-repo.js";
+import { changeSetsOn } from "#src/platform/db/__tests__/events-adapters";
 
 /**
  * @file S6a T0: the change-set repo on the unmoved code, before it moves to Jini `@jini-ai/db/events`. The column mapping
@@ -24,7 +24,7 @@ const item = (over: Partial<ChangeSetItemRecord>): ChangeSetItemRecord => ({
 
 describeEachDialect(
   "SqlChangeSetRepo workspace scoping",
-  { tables: ["change_set_items", "change_sets", "outbox_events"], make: (kernel: ContentKernel) => ({ kernel, repo: new SqlChangeSetRepo(kernel) }) },
+  { tables: ["change_set_items", "change_sets", "outbox_events"], make: (kernel: ContentKernel) => ({ kernel, repo: changeSetsOn({ kernel }) }) },
   (make) => {
     async function twoWorkspaces() {
       const { kernel, repo } = make();

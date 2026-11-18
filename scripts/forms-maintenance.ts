@@ -7,7 +7,7 @@ import { openNativeSqlite } from '../apps/website/src/platform/db/kernel/drivers
 import { contentKernel } from '../apps/website/src/platform/db/content-kernel.js';
 import { SqlMediaRepo, SqlAssetBlobRepo, SqlAssetRenditionRepo } from '../apps/website/src/platform/db/repos/media-repo.js';
 import { SqlEntryRefsRepo } from '../apps/website/src/platform/db/repos/entry-refs-repo.js';
-import { SqlOutboxAdapter } from '../apps/website/src/platform/db/repos/outbox-repo.js';
+import { SqliteOutboxAdapter } from '../apps/website/src/platform/db/sqlite/outbox-repo.sqlite.js';
 import { SqlitePostRepo } from '../apps/website/src/features/post/repo.sqlite.js';
 import { runFormFileMaintenance } from '../apps/website/src/features/forms/form-file-maintenance.js';
 
@@ -44,7 +44,7 @@ export async function runFormsMaintenanceCommand(
     const clock = { nowMs: () => Date.now() };
     const media = { mediaRepo: new SqlMediaRepo(kernel), blobRepo: new SqlAssetBlobRepo(kernel), renditionRepo: new SqlAssetRenditionRepo(kernel),
       entryRefsRepo: new SqlEntryRefsRepo(kernel), postRepo: new SqlitePostRepo({ store: kernel }), clock };
-    return await runFormFileMaintenance({ kernel, workspaceId: workspace, media, outbox: new SqlOutboxAdapter(kernel), clock }, { apply, ...(after === undefined ? {} : { after }) });
+    return await runFormFileMaintenance({ kernel, workspaceId: workspace, media, outbox: new SqliteOutboxAdapter({ store: kernel }), clock }, { apply, ...(after === undefined ? {} : { after }) });
   } finally { native.close(); }
 }
 

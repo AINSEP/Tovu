@@ -8,7 +8,7 @@ import type {
 } from "@jini-ai/core/contracts/events";
 import type { ContentKernel } from "../../content-kernel.js";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlChangeSetRepo } from "../change-set-repo.js";
+import { changeSetsOn } from "#src/platform/db/__tests__/events-adapters";
 
 /**
  * @file `SqlChangeSetRepo.insert()`'s write side against a real, migrated content database on every
@@ -64,7 +64,7 @@ const EVENT: DomainEvent = {
 };
 
 function make(kernel: ContentKernel) {
-  return { kernel, repo: new SqlChangeSetRepo(kernel) };
+  return { kernel, repo: changeSetsOn({ kernel }) };
 }
 
 async function headerRows(kernel: ContentKernel) {

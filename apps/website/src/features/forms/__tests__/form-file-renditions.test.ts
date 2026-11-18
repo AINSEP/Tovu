@@ -9,7 +9,7 @@ import { registerFormAttachmentCleanup } from '@jini-ai/cms/forms';
 import { contentKernel } from '#src/platform/db/content-kernel';
 import { openContentDb } from '#src/platform/db/sqlite/content-db';
 import { SqlMediaRepo, SqlAssetBlobRepo, SqlAssetRenditionRepo } from '#src/platform/db/repos/media-repo';
-import { SqlOutboxAdapter } from '#src/platform/db/repos/outbox-repo';
+import { outboxOn } from '#src/platform/db/__tests__/events-adapters';
 import { InMemoryEventBus } from '#src/contracts/core/events/index';
 import { createFormMediaCleanup, hasFormFileOwners, hasFormFileStorageKeyOwners, withFormFileStorageKeyLock } from '../form-file-purge.js';
 
@@ -20,7 +20,7 @@ test('rendition journal and row removal roll back together and survive a databas
   try {
     db.$client.prepare('INSERT OR IGNORE INTO workspaces (id,name,slug,created_at) VALUES (?,?,?,?)').run('w','w','w','now');
     const mediaRepo = new SqlMediaRepo(kernel), blobRepo = new SqlAssetBlobRepo(kernel), renditionRepo = new SqlAssetRenditionRepo(kernel);
-    const outbox = new SqlOutboxAdapter(kernel), clock = { nowMs: () => 0 };
+    const outbox = outboxOn({ kernel }), clock = { nowMs: () => 0 };
     const base = { mediaRepo, blobRepo, renditionRepo, blobStore, clock, idGen: { newId: () => `m-${++id}` } };
     const { media } = await uploadMedia({ deps: base, input: { workspaceId: 'w', filename: 'photo.png', contentType: 'image/png', bytes: Uint8Array.of(137,80,78,71,13,10,26,10), createdByPrincipal: 'system', access: 'private' } });
     const originalKey = (await blobRepo.findByHash({ workspaceId: 'w', sha256: media.source.sha256 }))!.storageKey;
@@ -109,7 +109,7 @@ test('SQLite compensation commits before a same-hash upload waiting for its data
     } });
     const writer = uploadMedia({ deps: { ...base, blobRepo: writerBlobs }, input: { ...input, filename: 'second.png' } });
     await held;
-    const outbox = new SqlOutboxAdapter(kernel);
+    const outbox = outboxOn({ kernel });
     const files = createFormFileStorage({ media: { ...base, entryRefsRepo: { findByTarget: async () => [] }, postRepo: { list: async () => [] },
       ...createFormMediaCleanup({ kernel, clock: base.clock, graceMs: 1, outbox: { enqueue: async event => { await outbox.enqueue(event); releaseWriter(); } } }),
     }, contentTypes: { set: async () => {}, getMany: async () => new Map() }, resolveCreatedByPrincipal: async () => 'system' });
