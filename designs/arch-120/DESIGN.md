@@ -1,5 +1,8 @@
 # arch-120 — the 120 "NEW cross-feature edges" that keep `check:architecture` red
 
+> **Superseded in part (2026-11-18, revision 2).** §0–§6, Appendix A's verdicts, `ACCEPTED-EDGES.tsv`, sheets S1–S3 and `tools/` were rejected by [CODEX-JUDGE-1](CODEX-JUDGE-1.md) and are withdrawn. Read [REVISION-2.md](REVISION-2.md) and [INDEX.md](INDEX.md). The baseline-creation commit is `987cf88f6` (2026-10-29), not `9240cbe1`: revision 1 ran on a shallow clone. This file is kept for the record.
+
+
 Design run `design-arch-120`, 2026-11-18. Plan documents only; no product code is changed on this branch.
 Branch: `plan/design-arch-120-2026-11-17` (Tovu), cut from `origin/refactor/terra` (`ada11733`).
 Facts base: `origin/refactor/import-cycle-b` = terra + import-cycle-b, `f0613d9e5` (a fast-forward of terra: `git rev-list --count origin/refactor/import-cycle-b..origin/refactor/terra` prints `0`).
