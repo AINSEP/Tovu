@@ -1,0 +1,16 @@
+red ok: swap not-found and version-changed (hide) -> ✖ hide: stale versions win over an already-in-target marker; null skips the version check (98.896267ms)
+red ok: hide: drop noop on idempotent re-hide -> ✖ re-hiding an already-trashed row is a no-op that never evaluates the blocker; a real hide does evaluate it (
+red ok: hide: blocker checked before the idempotent no-op -> ✖ re-hiding an already-trashed row is a no-op that never evaluates the blocker; a real hide does evaluate it (
+red ok: hide: drop the blocker -> ✖ re-hiding an already-trashed row is a no-op that never evaluates the blocker; a real hide does evaluate it (
+red ok: unhide restores a constant instead of priorMarker -> ✖ status marker: unhide restores the recorded priorMarker rather than the entry's restoreFallback (132.0353ms)
+red ok: timestamp hide records priorMarker -> ✖ hide sets deleted_at and bumps version; a row with unparseable fields_json is hidden and unhidden byte-ident
+red ok: purge: remove the live check -> ✖ term: purge of a LIVE term at a matching version reports version-changed and deletes nothing, even its entry
+red ok: purge: claim without the marker guard -> ✖ a purge whose claim finds the marker changed (version untouched) reports version-changed and deletes nothing
+red ok: purge: claim without the version guard -> ✖ a purge raced after its initial read preserves the parent and every child row (89.572602ms)
+red ok: purge: skip phantom trashed_items cleanup -> ✖ taxonomy: purge removes its terms' entry_terms then the terms then the taxonomy, leaves another taxonomy's r
+red ok: purge: cascade after the parent delete is not possible; skip cascades -> ✖ purge at the recorded version deletes that form's submissions and the definition, and leaves another form's 
+red ok: hide: remove the lock -> ✖ hide takes the row's lock key inside a transaction, before its first read (149.277734ms)
+red ok: unhide: remove the lock -> ✖ unhide takes the row's lock key inside a transaction, before its first read (104.571718ms)
+red ok: purge: remove the lock -> ✖ purge takes the row's lock key inside a transaction, before its first read (115.731424ms)
+red ok: destructure db eagerly -> ✖ the database is read on the first call, never when the adapter is constructed (102.339525ms)
+bad = 0
