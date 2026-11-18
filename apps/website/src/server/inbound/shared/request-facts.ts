@@ -3,7 +3,7 @@ import type { FrontendHookInput } from "@jini-ai/daemon/http";
 import { nodeRequestHeaders } from "@jini-ai/http-kit/node-bridge";
 import { TOVU_REQUEST_FACTS, type TovuRequestFacts } from "#src/contracts/core/request-facts";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
-import { resolveProtocol } from "#src/server/inbound/public-http/routes/oauth/public-origin";
+import { resolveProtocol } from "#src/platform/express/public-origin";
 
 /**
  * @file Express half of the request facts (see `contracts/core/request-facts.ts`). It sits beside
