@@ -1599,10 +1599,7 @@ mountJiniRoutes({ app, routes: frontendRequestRoutes({ path: "/api/frontend-sess
   // non-JSON `content-type` is what actually protects the upload route — see
   // `apps/website/src/server/runtime/composition/modules/assistant.ts#forwardAttachmentUpload`'s doc for the full trace of why an
   // `application/octet-stream` POST survives `express.json()` regardless of registration order).
-  // The upload list is mounted `rawBody`: it never receives the body a parser above produced, so a JSON-typed upload
-  // (consumed above) is refused as `attachment-body-consumed` and an octet-stream one is read as the raw stream. The cleanup reads JSON.
-  const attachmentDeps: AttachmentsHttpDeps = {
-      store: attachmentStore,
+  const attachmentDeps: AttachmentsHttpDeps = { store: attachmentStore,
       acquireActivity: () => idlePark.hold({}, {}),
       // The trusted-downstream-of-the-bearer-gate header `forwardAttachmentUpload`
       // (`server/runtime/composition/modules/assistant.ts`) now stamps from the uploading admin's
@@ -1615,11 +1612,9 @@ mountJiniRoutes({ app, routes: frontendRequestRoutes({ path: "/api/frontend-sess
       // cap, not just the client's own pre-check (`AssistantDock.hooks.tsx`'s
       // `useAttachmentUploader`, which must independently match this so a rejection surfaces before
       // the bytes are ever sent, not just after).
-      maxAttachmentBytes: TOVU_MAX_UPLOAD_BYTES,
-    };
+      maxAttachmentBytes: TOVU_MAX_UPLOAD_BYTES };
   mountJiniRoutes({ app, routes: attachmentUploadRoutes({ deps: attachmentDeps, host: routeHost }) }, { rawBody: true });
   mountJiniRoutes({ app, routes: attachmentCleanupRoutes({ deps: attachmentDeps, host: routeHost }) });
-
 
   if (optional.probeBridge) await optional.probeBridge();
   else {

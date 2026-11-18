@@ -220,6 +220,13 @@ export async function findLiveSiteToolRun({ runId, runStore, workspaceId, princi
   return principalId === undefined || run.principalId === principalId ? run : undefined;
 }
 
+/** What a tool-RPC request names: the run and the principal, from the body (an execution) or the query (a catalog read). */
+function namedRun(request: Parameters<AuthorizeToolRun>[0]): { runId: unknown; principalId: unknown; toolAccess?: unknown } {
+  if (request.kind === "catalog") return { runId: request.query.runId, principalId: request.query.principalId };
+  const body = request.body as { run?: { id?: unknown }; principal?: { id?: unknown; toolAccess?: unknown } } | undefined;
+  return { runId: body?.run?.id, principalId: body?.principal?.id, toolAccess: body?.principal?.toolAccess };
+}
+
 /** Binds both RPC routes to this site's current answer attempt. Wire identity and roles confer no
  * authority; only the stored principal is forwarded. A read-only request may still attenuate it.
  * Missing storage fails closed. One indexed lookup per request; O(1) extra space. A storage failure is thrown, so it reaches the host's error path and nothing executes. */
@@ -230,16 +237,14 @@ function requireSiteToolRun({ runStore, workspaceId, plugins }: {
   const refuse = () => ({ allowed: false as const,
     response: jsonResponse({ status: 403, body: { error: { code: "FORBIDDEN", message: "a live site run with its recorded principal is required" } } }) });
   return async (request) => {
-    const execution = request.kind === "execute";
-    const body = execution ? request.body as { run?: { id?: unknown }; principal?: { id?: unknown; toolAccess?: unknown } } | undefined : undefined;
-    const runId = execution ? body?.run?.id : request.query.runId;
-    const principalId = execution ? body?.principal?.id : request.query.principalId;
+    const { runId, principalId, toolAccess } = namedRun(request);
     if (!runStore || typeof runId !== "string" || typeof principalId !== "string") return refuse();
     const run = await findLiveSiteToolRun({ runStore, runId, workspaceId, principalId, plugins });
     if (!run) return refuse();
+    if (request.kind === "catalog") return { allowed: true as const };
     // The principal replaces whatever the caller wrote; every other field it sent is dropped. Its id is the stored run's own:
     // `findLiveSiteToolRun` returned the run only because the stored principal equals the one named, so the two cannot differ.
-    return { allowed: true as const, ...(execution ? { principal: { id: principalId, ...(body?.principal?.toolAccess === "read-only" ? { toolAccess: "read-only" as const } : {}) } } : {}) };
+    return { allowed: true as const, principal: { id: principalId, ...(toolAccess === "read-only" ? { toolAccess: "read-only" as const } : {}) } };
   };
 }
 
