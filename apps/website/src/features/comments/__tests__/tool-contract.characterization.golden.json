@@ -1,0 +1,435 @@
+{
+  "comments_get_provider": {
+    "id": "comments_get_provider",
+    "description": "Read the active site comments provider, readiness, revision and pending stored count. Existing stored comments remain recoverable when disabled.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {}
+    },
+    "metadata": {
+      "search": {
+        "keywords": "comments provider built-in active readiness pending",
+        "queries": [
+          "Where do my comments live?"
+        ]
+      },
+      "approval": {
+        "class": "read",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": true,
+    "sideEffects": "none"
+  },
+  "comments_set_provider": {
+    "id": "comments_set_provider",
+    "description": "Select built-in comments or disable public comments with null after a human confirmation card. Read comments_get_provider first for expectedRevision. Stored comments, settings and history are preserved.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "providerId",
+        "expectedRevision"
+      ],
+      "properties": {
+        "providerId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "built-in",
+            null
+          ]
+        },
+        "expectedRevision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "metadata": {
+      "title": "Change the comments provider",
+      "summary": "This changes the service that handles comments on this site.",
+      "search": {
+        "keywords": "comments provider select switch disable built-in",
+        "queries": [
+          "Switch my comments provider."
+        ]
+      },
+      "approval": {
+        "class": "escalation",
+        "confirmation": "plan"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  },
+  "comments_get_comment": {
+    "id": "comments_get_comment",
+    "description": "Reads one comment by id in any moderation status, including approved, spam and trash. Call when a queue page does not contain the comment you need. Returns {comment} with the same moderation view and version as the queue. Unknown ids and denied comments.read permission are refused.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commentId"
+      ],
+      "properties": {
+        "commentId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The comment's id. Get it from content_read.comment_moderation_queue's items[].id."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "comment single details read approved spam trash id version"
+      },
+      "approval": {
+        "class": "read",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": true,
+    "sideEffects": "none"
+  },
+  "comments_list_moderation_queue": {
+    "id": "comments_list_moderation_queue",
+    "description": "Lists comments filtered by moderation status (defaults to 'pending'), keyset-paginated. Read-only. Call this to find a comment's id and current version before approving, marking spam, trashing, or restoring it.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "approved",
+            "spam",
+            "trash"
+          ],
+          "description": "Filter by moderation status. Defaults to 'pending' if omitted."
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Max rows to return (1-100). Defaults to 20."
+        },
+        "cursor": {
+          "type": "string",
+          "description": "Opaque keyset cursor from a previous call's nextCursor. Omit for the first page."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "comments waiting approval pending moderate moderation review queue unapproved held",
+        "queries": [
+          "What comments are waiting for me to approve?",
+          "Show me the pending comments queue.",
+          "Are there any comments stuck in moderation right now?",
+          "I need the id of a comment before I can approve it.",
+          "Can you list comments that were marked as spam so I can review them?"
+        ]
+      },
+      "approval": {
+        "class": "read",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": true,
+    "sideEffects": "none"
+  },
+  "comments_get_settings": {
+    "id": "comments_get_settings",
+    "description": "Reads the workspace's 6 comments.* settings (enabled, requireModeration, maxDepth, closeAfterDays, spamAutoRejectScore, maxPerIpPerHour). Read-only.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {}
+    },
+    "metadata": {
+      "search": {
+        "keywords": "comment settings configuration config current rules how comments work",
+        "queries": [
+          "What are our current comment moderation settings?",
+          "Is comment approval required before comments show up?",
+          "What is the current per-visitor hourly comment limit?",
+          "What's our spam auto-reject threshold set to?",
+          "Are comments automatically closed after a configured number of days?"
+        ]
+      },
+      "approval": {
+        "class": "read",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": true,
+    "sideEffects": "none"
+  },
+  "comments_update_settings": {
+    "id": "comments_update_settings",
+    "description": "Updates one or more of the workspace's comments.* settings. A partial patch — omitted fields are left unchanged. At least one field must be supplied.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Master on/off switch for accepting new comments."
+        },
+        "requireModeration": {
+          "type": "boolean",
+          "description": "Whether new comments start 'pending' (true) or 'approved' (false)."
+        },
+        "maxDepth": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20,
+          "description": "Max threading depth (0-20)."
+        },
+        "closeAfterDays": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "Close submissions on entries older than N days. null means never closes."
+        },
+        "spamAutoRejectScore": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Score threshold in [0,1] above which ingress auto-classifies a submission as spam."
+        },
+        "maxPerIpPerHour": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "Max submissions per IP-hash per rolling hour (1-1000)."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "comment settings configure change require approval turn on off limit rate moderation rules",
+        "queries": [
+          "Can you turn on comment moderation for the site?",
+          "I want to change how deep a nested reply thread can go.",
+          "Can you raise the spam score threshold for auto-rejecting comments?",
+          "How do I set comments to close automatically after 30 days?",
+          "Can you limit how many comments one IP can post per hour?"
+        ]
+      },
+      "approval": {
+        "class": "edit",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  },
+  "comments_approve_comment": {
+    "id": "comments_approve_comment",
+    "description": "Approves a pending (or previously spam/trashed) comment, making it publicly visible. Reversible via comments_mark_comment_spam, comments_trash_comment, or comments_restore_comment.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commentId",
+        "expectedVersion"
+      ],
+      "properties": {
+        "commentId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The comment's id. Get it from content_read.comment_moderation_queue's items[].id."
+        },
+        "expectedVersion": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The comment's current version (CommentRecord.version), for optimistic concurrency. Read it first; a stale value is rejected rather than overwriting."
+        },
+        "note": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Optional moderator note recorded in the append-only moderation log. Omit or pass null for none."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "comment approve publish allow accept moderation",
+        "queries": [
+          "Can you approve this comment so it shows up publicly?",
+          "This comment got flagged as spam but it's legit, can you approve it?",
+          "How do I let this pending comment through?",
+          "Can you make this comment visible to visitors?",
+          "I want to unhide a trashed comment by approving it."
+        ]
+      },
+      "approval": {
+        "class": "edit",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  },
+  "comments_mark_comment_spam": {
+    "id": "comments_mark_comment_spam",
+    "description": "Marks a comment as spam, hiding it from public view. Reversible via comments_approve_comment or comments_restore_comment.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commentId",
+        "expectedVersion"
+      ],
+      "properties": {
+        "commentId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The comment's id. Get it from content_read.comment_moderation_queue's items[].id."
+        },
+        "expectedVersion": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The comment's current version (CommentRecord.version), for optimistic concurrency. Read it first; a stale value is rejected rather than overwriting."
+        },
+        "note": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Optional moderator note recorded in the append-only moderation log. Omit or pass null for none."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "comment spam junk abusive reported flag",
+        "queries": [
+          "This comment looks like spam, can you hide it?",
+          "How do I flag a comment as junk?",
+          "Can you mark this as spam so it's not shown publicly?",
+          "I need to hide an obviously fake comment.",
+          "How do I mark a bad comment without deleting it permanently?"
+        ]
+      },
+      "approval": {
+        "class": "edit",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  },
+  "comments_trash_comment": {
+    "id": "comments_trash_comment",
+    "description": "Soft-deletes a comment (trash), hiding it from public view. This is NOT permanent — a trashed comment can be brought back with comments_restore_comment. For permanent removal, use comments_purge_comment if it is available to you; it waits for a human confirmation card. Otherwise link the human to /admin/trash.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commentId",
+        "expectedVersion"
+      ],
+      "properties": {
+        "commentId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The comment's id. Get it from content_read.comment_moderation_queue's items[].id."
+        },
+        "expectedVersion": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The comment's current version (CommentRecord.version), for optimistic concurrency. Read it first; a stale value is rejected rather than overwriting."
+        },
+        "note": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Optional moderator note recorded in the append-only moderation log. Omit or pass null for none."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "comment hide remove delete trash reported abusive",
+        "queries": [
+          "Can you delete this comment?",
+          "How do I remove a rude comment from the site?",
+          "I want to trash a comment but be able to bring it back later.",
+          "Can you soft-delete this comment?",
+          "How do I hide a comment without permanently losing it?"
+        ]
+      },
+      "approval": {
+        "class": "trash",
+        "confirmation": "policy"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  },
+  "comments_restore_comment": {
+    "id": "comments_restore_comment",
+    "description": "Restores a trashed or spam comment back to approved and publicly visible. The v1 restore ladder always targets 'approved', regardless of which status the comment was previously in.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commentId",
+        "expectedVersion"
+      ],
+      "properties": {
+        "commentId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The comment's id. Get it from content_read.comment_moderation_queue's items[].id."
+        },
+        "expectedVersion": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The comment's current version (CommentRecord.version), for optimistic concurrency. Read it first; a stale value is rejected rather than overwriting."
+        },
+        "note": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Optional moderator note recorded in the append-only moderation log. Omit or pass null for none."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "comment undelete bring back recover unspam un-spam",
+        "queries": [
+          "I trashed a comment by accident, can you bring it back?",
+          "Can you undo marking this comment as spam?",
+          "How do I restore a comment I deleted?",
+          "Can you make a spam comment approved again?",
+          "I want to recover a comment from the trash."
+        ]
+      },
+      "approval": {
+        "class": "edit",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  }
+}
