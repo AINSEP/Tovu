@@ -1,0 +1,31 @@
+== boundaries
+  error no-deep-imports:platform/site-dir:^apps/website/src/server/runtime/lifecycle/local-site-process\.ts$: apps/website/src/server/runtime/lifecycle/local-site-process.ts → apps/website/src/platform/site-dir/local-admin-bundle.ts
+  error no-deep-imports:platform/site-dir: apps/website/src/platform/dev-host/warm-site-agent.ts → apps/website/src/platform/site-dir/local-site-supervisor.ts
+  error no-deep-imports:platform/site-dir: apps/website/src/features/site-backup/archive-manifest.ts → apps/website/src/platform/site-dir/schema-guard.ts
+  error no-deep-imports:features/theme: apps/website/src/server/inbound/public-http/middleware/published-webmcp.ts → apps/website/src/features/theme/visitor-publication.ts
+  error no-deep-imports:features/theme: apps/website/src/assistant/site/visitor-page-tools.ts → apps/website/src/features/theme/visitor-publication.ts
+  error no-deep-imports:features/theme: apps/website/src/assistant/site/visitor-frontend-control.ts → apps/website/src/features/theme/visitor-publication.ts
+  error no-deep-imports:features/theme: apps/website/src/assistant/site/visitor-confirmation-gate.ts → apps/website/src/features/theme/visitor-publication.ts
+  error no-deep-imports:features/seo: apps/website/src/server/inbound/public-http/routes/site/pages/extra-head.ts → apps/website/src/features/seo/page-head-contributor.ts
+  error no-deep-imports:features/post: apps/website/src/features/site-backup/static-download-landing.ts → apps/website/src/features/post/html-plain-text.ts
+  error no-deep-imports:features/members: apps/website/src/server/inbound/admin-http/routes/members/deps.ts → apps/website/src/features/members/tool-registrations.ts
+  error no-deep-imports:features/media: apps/website/src/server/inbound/public-http/routes/site/media-rendition.ts → apps/website/src/features/media/access-evidence.ts
+  error no-deep-imports:features/media: apps/website/src/features/post/repo.ts → apps/website/src/features/media/access-evidence.ts
+  error no-deep-imports:features/media: apps/website/src/features/post/repo.memory.ts → apps/website/src/features/media/access-evidence.ts
+  error no-deep-imports:features/media: apps/website/src/features/entries/trash-aware-memory-repo.ts → apps/website/src/features/media/access-evidence.ts
+  error no-deep-imports:features/media: apps/website/src/features/entries/repo.ts → apps/website/src/features/media/access-evidence.ts
+x 102 dependency violations (15 errors, 87 warnings). 6387 modules, 44369 dependencies cruised.
+== size
+check:size — ok: 202 violations (162 functions, 40 files); 192 debt entries, 10 accepted exceptions.
+== why
+
+> tovu@0.1.0 check:why-comments
+> node development/scripts/check-why-comments.mjs
+
+why-comments: 69 files with removed lines checked against origin/refactor/terra..HEAD, 1 comment blocks lost (0 allow-listed)
+apps/website/src/server/routes/types.ts:1720-1720  [ac521b7d86c5]  existing site/theme resolvers, bound for portable static packaging.
+why-comments: 1 deleted comment blocks appear nowhere else (owner rule: refactors move "why" comments with the code, never delete them)
+  fix: put the comment back next to the code it explains, or move it with that code.
+  last resort: add { "id": "<id above>", "reason": "<why this comment is truly obsolete>" } to the debt file (`npm run check:why-comments`).
+== complexity
+check:complexity — ok: 43 entries (23 cyclomatic, 20 cognitive).
