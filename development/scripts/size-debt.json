@@ -1243,16 +1243,9 @@
     {
       "file": "apps/website/src/server/runtime/composition/app.ts",
       "function": "createRouteDeps#1",
-      "line": 213,
+      "line": 128,
       "rule": "max-lines-per-function",
-      "value": 460
-    },
-    {
-      "file": "apps/website/src/server/runtime/composition/app.ts",
-      "function": "<file>",
-      "line": 666,
-      "rule": "max-lines",
-      "value": 653
+      "value": 159
     },
     {
       "file": "apps/website/src/server/runtime/composition/commerce.ts",
