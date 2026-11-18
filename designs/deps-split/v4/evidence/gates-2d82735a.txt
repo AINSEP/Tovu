@@ -1,0 +1,13 @@
+arch-plain exit=1 secs=32
+arch-update exit=0 secs=31
+arch-after-update exit=0 secs=33
+ .../scripts/check-architecture.baseline.json       | 266 ++++++++++-----------
+ 1 file changed, 127 insertions(+), 139 deletions(-)
+boundaries exit=14 secs=33
+size exit=0 secs=24
+complexity exit=0 secs=27
+errors-strict exit=0 secs=22
+hooks exit=0 secs=1
+typecheck exit=0 secs=51
+typecheck-tests exit=0 secs=92
+MEASURE-DONE

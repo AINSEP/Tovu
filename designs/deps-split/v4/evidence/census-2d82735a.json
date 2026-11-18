@@ -1,0 +1,4315 @@
+[
+ {
+  "id": "B01",
+  "name": "agent-plugin-bootstrap",
+  "fn": "composeAgentPluginBootstrap",
+  "range": [
+   965,
+   990
+  ],
+  "a": 965,
+  "startLine": 965,
+  "b": 990,
+  "code": 14,
+  "stmts": 9,
+  "sha": "da370157c414833c7a583c73aab45b64b8ca253f6d9d05ac13eefd36476c36fb",
+  "first": "  const assistantAgentInventory = createAssistantAgentInventory({ runtime: createNativeAgentRuntime({ env: process.env }) });",
+  "last": "  seedSiteThemes({ stockDir: builtInThemesDir(), siteThemesDir: resolvedThemesDir, siteRoot: resolvedSiteBinding.dir });",
+  "inputs": [
+   {
+    "n": "onStoreClose",
+    "mode": "value",
+    "decl": "param",
+    "declText": "",
+    "let": false
+   },
+   {
+    "n": "overrides",
+    "mode": "value",
+    "decl": "param",
+    "declText": "",
+    "let": false
+   },
+   {
+    "n": "lifecycleTracker",
+    "mode": "getter",
+    "decl": 964,
+    "declText": "let lifecycleTracker: Pick<RouteDeps['tracker'], 'capture'> = { capture: (input, options = {}) => { pendingLifecycleEvents.push([input, options]); } }",
+    "let": true
+   },
+   {
+    "n": "routeDeps",
+    "mode": "getter",
+    "decl": 2135,
+    "declText": "const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {",
+    "let": false
+   }
+  ],
+  "outputs": [
+   "assistantAgentInventory",
+   "resolvedSiteBinding",
+   "agentPluginLayout",
+   "agentPluginLifecycle",
+   "federatedMcpPresetRegistry",
+   "skillLayout",
+   "resolvedThemesDir"
+  ],
+  "imports": [
+   {
+    "n": "builtInThemesDir",
+    "spec": "./site-paths.js",
+    "alsoOutside": true
+   },
+   {
+    "n": "bundledAgentPluginsDir",
+    "spec": "./site-paths.js",
+    "alsoOutside": true
+   },
+   {
+    "n": "createAssistantAgentInventory",
+    "spec": "#src/assistant/agents",
+    "alsoOutside": false
+   },
+   {
+    "n": "createDeferredAgentPluginUpdateEffects",
+    "spec": "#src/features/agent-plugins/update-effects",
+    "alsoOutside": false
+   },
+   {
+    "n": "createFederatedMcpPresetRegistry",
+    "spec": "@jini-ai/mcp/federation",
+    "alsoOutside": false
+   },
+   {
+    "n": "createNativeAgentRuntime",
+    "spec": "@jini-ai/agent-runtime",
+    "alsoOutside": false
+   },
+   {
+    "n": "createTovuAgentPluginLifecycle",
+    "spec": "#src/features/agent-plugins/lifecycle",
+    "alsoOutside": true
+   },
+   {
+    "n": "resolveAgentPluginLayout",
+    "spec": "#src/features/agent-plugins/layout",
+    "alsoOutside": false
+   },
+   {
+    "n": "resolveSkillLayout",
+    "spec": "#src/features/skills/layout",
+    "alsoOutside": false
+   },
+   {
+    "n": "seedSiteThemes",
+    "spec": "#src/platform/site-dir/seed-site-themes",
+    "alsoOutside": true
+   }
+  ],
+  "top": [
+   {
+    "n": "agentPluginIdentityAdmission",
+    "line": 942,
+    "alsoOutside": false
+   },
+   {
+    "n": "resolveSiteBindingOverride",
+    "line": 569,
+    "alsoOutside": true
+   },
+   {
+    "n": "resolveThemesDirOverride",
+    "line": 559,
+    "alsoOutside": true
+   }
+  ],
+  "readers": [
+   [
+    "apps/website/src/server/__tests__/unit/serving-app-boot-wiring.unit.test.ts",
+    [
+     "createRouteDeps"
+    ]
+   ],
+   [
+    "apps/website/src/server/inbound/assistant/__tests__/agent-daemon-import-graph.unit.test.ts",
+    [
+     "apps/website/src",
+     "server/runtime/composition/app.ts"
+    ]
+   ],
+   [
+    "apps/website/src/server/__tests__/unit/stock-content-dirs.unit.test.ts",
+    [
+     "builtInThemesDir",
+     "apps/website/",
+     "apps/website/src/server/",
+     "builtInThemesDir()",
+     "apps/website/src/server",
+     "apps/website/src/server/runtime/composition",
+     "apps/website/src"
+    ]
+   ]
+  ],
+  "errs": []
+ },
+ {
+  "id": "B02",
+  "name": "media-storage",
+  "fn": "composeMediaStorage",
+  "range": [
+   1002,
+   1023
+  ],
+  "a": 994,
+  "startLine": 1002,
+  "b": 1023,
+  "code": 17,
+  "stmts": 6,
+  "sha": "409300ff7cde0828010fc26e6831f868be1f797bca393a4cd2ad1b8a61f94120",
+  "first": "  const resolvedUploadsDir = overrides.uploadsDir ?? mediaUploadsDir({ siteDir: resolvedSiteBinding.dir });",
+  "last": "  const storeBound = storeBoundServicesFor({ store, dbPath });",
+  "inputs": [
+   {
+    "n": "overrides",
+    "mode": "value",
+    "decl": "param",
+    "declText": "",
+    "let": false
+   },
+   {
+    "n": "resolvedSiteBinding",
+    "mode": "value",
+    "decl": 977,
+    "declText": "const resolvedSiteBinding = resolveSiteBindingOverride(overrides);",
+    "let": false
+   },
+   {
+    "n": "observability",
+    "mode": "getter",
+    "decl": 1884,
+    "declText": "const { observability, tracker, aiTraceSink } = providerPlugins;",
+    "let": false
+   },
+   {
+    "n": "workspaceId",
+    "mode": "getter",
+    "decl": 1033,
+    "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+    "let": false
+   },
+   {
+    "n": "agentPluginLifecycle",
+    "mode": "value",
+    "decl": 979,
+    "declText": "const agentPluginLifecycle = createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, {",
+    "let": false
+   },
+   {
+    "n": "settingsRepo",
+    "mode": "getter",
+    "decl": 1133,
+    "declText": "const settingsRepo = new SqliteSettingsRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "store",
+    "mode": "value",
+    "decl": "param",
+    "declText": "",
+    "let": false
+   },
+   {
+    "n": "dbPath",
+    "mode": "value",
+    "decl": "param",
+    "declText": "",
+    "let": false
+   }
+  ],
+  "outputs": [
+   "resolvedUploadsDir",
+   "provideMediaCredentials",
+   "mediaStorePorts",
+   "blobStore",
+   "mediaIsRemoteByEnv",
+   "isMediaRemote",
+   "storeBound"
+  ],
+  "imports": [
+   {
+    "n": "MediaObjectStorePorts",
+    "spec": "#src/features/object-storage/index (type)",
+    "alsoOutside": false
+   },
+   {
+    "n": "bundledAgentPluginsDir",
+    "spec": "./site-paths.js",
+    "alsoOutside": true
+   },
+   {
+    "n": "composePublishCredentialSource",
+    "spec": "#src/features/deployments/static-publish/credentials",
+    "alsoOutside": true
+   },
+   {
+    "n": "createDeployHostKit",
+    "spec": "#src/features/deployments/deploy-targets/host-kit",
+    "alsoOutside": true
+   },
+   {
+    "n": "createMediaBlobStore",
+    "spec": "#src/features/object-storage/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "loadBundledObjectStoreRegistry",
+    "spec": "#src/features/object-storage/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "loadObjectStoreRegistry",
+    "spec": "#src/features/object-storage/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "mediaUploadsDir",
+    "spec": "./site-paths.js",
+    "alsoOutside": true
+   },
+   {
+    "n": "readBundledObjectStoreEnvDeclarations",
+    "spec": "#src/features/object-storage/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "readMediaObjectStoreSetting",
+    "spec": "#src/features/object-storage/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "storeBoundServicesFor",
+    "spec": "./store-bound-services.js",
+    "alsoOutside": false
+   },
+   {
+    "n": "toDeployTargetCredential",
+    "spec": "#src/features/deployments/static-publish/credentials",
+    "alsoOutside": true
+   },
+   {
+    "n": "trackFetch",
+    "spec": "@jini-ai/diagnostics/observability",
+    "alsoOutside": false
+   }
+  ],
+  "top": [],
+  "readers": [
+   [
+    "apps/website/src/server/__tests__/integration/create-sqlite-route-deps-for-workspace.integration.test.ts",
+    [
+     "createSiteRouteDeps"
+    ]
+   ],
+   [
+    "apps/website/src/server/__tests__/unit/composition-boot-order.unit.test.ts",
+    [
+     "createSiteRouteDeps"
+    ]
+   ],
+   [
+    "apps/website/src/platform/db/sqlite/__tests__/chat-orphan-check.integration.test.ts",
+    [
+     "createSiteRouteDeps"
+    ]
+   ],
+   [
+    "apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts",
+    [
+     "createSiteRouteDeps"
+    ]
+   ]
+  ],
+  "errs": []
+ },
+ {
+  "id": "B03",
+  "name": "store-basics",
+  "fn": "composeStoreBasics",
+  "range": [
+   1077,
+   1088
+  ],
+  "a": 1067,
+  "startLine": 1077,
+  "b": 1088,
+  "code": 9,
+  "stmts": 5,
+  "sha": "1a18d29f5956299872520a884a149f5470ce46d0aeb8bb68ba187c3f8a1f30f9",
+  "first": "  const postSearchBackfillReady = preparePostSearchIndex({ kernel }).catch((err) => {",
+  "last": "    ports: bindProviderFacePorts({ workspaceRoot: () => agentPluginLayout.forWorkspace({ workspaceId }).root }) });",
+  "inputs": [
+   {
+    "n": "kernel",
+    "mode": "value",
+    "decl": 993,
+    "declText": "const kernel = store.content;",
+    "let": false
+   },
+   {
+    "n": "workspaceId",
+    "mode": "value",
+    "decl": 1033,
+    "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+    "let": false
+   },
+   {
+    "n": "agentPluginLayout",
+    "mode": "value",
+    "decl": 978,
+    "declText": "const agentPluginLayout = resolveAgentPluginLayout({ siteDir: resolvedSiteBinding.dir });",
+    "let": false
+   }
+  ],
+  "outputs": [
+   "postSearchBackfillReady",
+   "clock",
+   "idGen",
+   "reportToolAuditError",
+   "pluginActivationRepo"
+  ],
+  "imports": [
+   {
+    "n": "bindProviderFacePorts",
+    "spec": "#src/features/agent-plugins/provider-plugin-link",
+    "alsoOutside": false
+   },
+   {
+    "n": "createSiteAssistantErrorReporter",
+    "spec": "#src/assistant/site/public-errors",
+    "alsoOutside": false
+   },
+   {
+    "n": "followProviderActivations",
+    "spec": "#src/features/agent-plugins/provider-plugin-link",
+    "alsoOutside": false
+   },
+   {
+    "n": "preparePostSearchIndex",
+    "spec": "#src/features/post/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "randomUUID",
+    "spec": "node:crypto",
+    "alsoOutside": true
+   },
+   {
+    "n": "redactSecrets",
+    "spec": "@jini-ai/core",
+    "alsoOutside": false
+   },
+   {
+    "n": "sqlitePluginActivationRepoFor",
+    "spec": "#src/features/plugin-runtime/repo.sqlite",
+    "alsoOutside": false
+   }
+  ],
+  "top": [],
+  "readers": [
+   [
+    "apps/website/src/server/__tests__/unit/composition-boot-order.unit.test.ts",
+    [
+     "preparePostSearchIndex",
+     "preparePostSearchIndex("
+    ]
+   ]
+  ],
+  "errs": []
+ },
+ {
+  "id": "B04",
+  "name": "plugin-runtime",
+  "fn": "composeSitePluginRuntime",
+  "range": [
+   1093,
+   1116
+  ],
+  "a": 1093,
+  "startLine": 1093,
+  "b": 1116,
+  "code": 16,
+  "stmts": 1,
+  "sha": "05e51cbf7eb57ca40516b0e6350532890d7cf2c72f17292d4645271a168d5209",
+  "first": "  const pluginRuntime = composePluginRuntime({",
+  "last": "  });",
+  "inputs": [
+   {
+    "n": "lifecycleTracker",
+    "mode": "getter",
+    "decl": 964,
+    "declText": "let lifecycleTracker: Pick<RouteDeps['tracker'], 'capture'> = { capture: (input, options = {}) => { pendingLifecycleEvents.push([input, options]); } }",
+    "let": true
+   },
+   {
+    "n": "routeDepsBuiltForPluginHost",
+    "mode": "getter",
+    "decl": 1092,
+    "declText": "let routeDepsBuiltForPluginHost: { readonly pluginHost?: RouteDeps[\"pluginHost\"] } | undefined;",
+    "let": true
+   },
+   {
+    "n": "workspaceId",
+    "mode": "value",
+    "decl": 1033,
+    "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+    "let": false
+   },
+   {
+    "n": "clock",
+    "mode": "value",
+    "decl": 1081,
+    "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+    "let": false
+   },
+   {
+    "n": "pluginActivationRepo",
+    "mode": "value",
+    "decl": 1087,
+    "declText": "const pluginActivationRepo = followProviderActivations({ repo: sqlitePluginActivationRepoFor({ store: kernel }), workspaceId,",
+    "let": false
+   },
+   {
+    "n": "resolvedSiteBinding",
+    "mode": "value",
+    "decl": 977,
+    "declText": "const resolvedSiteBinding = resolveSiteBindingOverride(overrides);",
+    "let": false
+   },
+   {
+    "n": "contentTypeRepo",
+    "mode": "getter",
+    "decl": 1644,
+    "declText": "const contentTypeRepo = new SqliteContentTypeRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "idGen",
+    "mode": "value",
+    "decl": 1082,
+    "declText": "const idGen = { newId: () => randomUUID() };",
+    "let": false
+   },
+   {
+    "n": "outbox",
+    "mode": "getter",
+    "decl": 1294,
+    "declText": "const outbox = new SqliteOutboxAdapter({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "overrides",
+    "mode": "value",
+    "decl": "param",
+    "declText": "",
+    "let": false
+   }
+  ],
+  "outputs": [
+   "pluginRuntime"
+  ],
+  "imports": [
+   {
+    "n": "CONTENT_ANALYZER_RUNTIME_SOURCE",
+    "spec": "#src/features/plugin-runtime/built-ins/content-analyzer/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "RECHARTS_BROWSER_APPROVAL",
+    "spec": "./charts-recharts-source.js",
+    "alsoOutside": false
+   },
+   {
+    "n": "RECHARTS_RUNTIME_SOURCE",
+    "spec": "./charts-recharts-source.js",
+    "alsoOutside": false
+   },
+   {
+    "n": "TOVU_CORE_EXTENSION_CLAIMS",
+    "spec": "./core-extension-claims.js",
+    "alsoOutside": false
+   },
+   {
+    "n": "WORD_COUNT_RUNTIME_SOURCE",
+    "spec": "#src/features/plugin-runtime/built-ins/word-count/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "composePluginRuntime",
+    "spec": "./plugin-runtime.js",
+    "alsoOutside": true
+   },
+   {
+    "n": "createDeclaredContentTypePorts",
+    "spec": "./declared-content-types.js",
+    "alsoOutside": false
+   },
+   {
+    "n": "deferDeclaredContentTypePorts",
+    "spec": "@jini-ai/plugins/host",
+    "alsoOutside": false
+   },
+   {
+    "n": "pluginsInstallDir",
+    "spec": "./site-paths.js",
+    "alsoOutside": true
+   }
+  ],
+  "top": [
+   {
+    "n": "pluginFailureThresholdOverride",
+    "line": 530,
+    "alsoOutside": false
+   }
+  ],
+  "readers": [],
+  "errs": []
+ },
+ {
+  "id": "B05",
+  "name": "identity-settings",
+  "fn": "composeIdentitySettings",
+  "range": [
+   1120,
+   1185
+  ],
+  "a": 1117,
+  "startLine": 1120,
+  "b": 1185,
+  "code": 42,
+  "stmts": 13,
+  "sha": "6e853d111dd653cbe64e48a68a61c9fb11f12651545cea18b4621a3201a47158",
+  "first": "  const identity = createSqliteIdentityRouteDeps({ db: kernel, workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredentials: resolveOwnerCredentials({ env: startupSecretEnvironment({ env: process.env }) }) });",
+  "last": "  siteTitleReady.catch(() => undefined);",
+  "inputs": [
+   {
+    "n": "kernel",
+    "mode": "value",
+    "decl": 993,
+    "declText": "const kernel = store.content;",
+    "let": false
+   },
+   {
+    "n": "workspaceId",
+    "mode": "value",
+    "decl": 1033,
+    "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+    "let": false
+   },
+   {
+    "n": "clock",
+    "mode": "value",
+    "decl": 1081,
+    "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+    "let": false
+   },
+   {
+    "n": "idGen",
+    "mode": "value",
+    "decl": 1082,
+    "declText": "const idGen = { newId: () => randomUUID() };",
+    "let": false
+   },
+   {
+    "n": "storeBound",
+    "mode": "value",
+    "decl": 1023,
+    "declText": "const storeBound = storeBoundServicesFor({ store, dbPath });",
+    "let": false
+   },
+   {
+    "n": "overrides",
+    "mode": "value",
+    "decl": "param",
+    "declText": "",
+    "let": false
+   },
+   {
+    "n": "dbPath",
+    "mode": "value",
+    "decl": "param",
+    "declText": "",
+    "let": false
+   }
+  ],
+  "outputs": [
+   "identity",
+   "settingsPrincipals",
+   "adminPasswordResetReady",
+   "presentationRepo",
+   "settingsRepo",
+   "settingsReady",
+   "seoReady",
+   "commentsSettingsReady",
+   "assistantSettingsReady",
+   "executionSettingsReady",
+   "settingsUiTabsReady",
+   "analyticsSettingsReady",
+   "siteTitlePreservationStore",
+   "siteDisplayName",
+   "siteTimeZone",
+   "siteTitleSettingsDeps",
+   "siteSettingsReady",
+   "siteTitleReady"
+  ],
+  "imports": [
+   {
+    "n": "SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID",
+    "spec": "../configuration/seed.js",
+    "alsoOutside": true
+   },
+   {
+    "n": "SqlitePresentationSettingsRepo",
+    "spec": "#src/features/presentation/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "SqliteSettingsRepo",
+    "spec": "#src/features/settings/repo.sqlite",
+    "alsoOutside": false
+   },
+   {
+    "n": "SqliteSiteTitlePreservationStore",
+    "spec": "#src/features/settings/site-title-preservation.sqlite",
+    "alsoOutside": false
+   },
+   {
+    "n": "createAppPermissionGrants",
+    "spec": "#src/server/runtime/composition/app-permission-grants",
+    "alsoOutside": false
+   },
+   {
+    "n": "createSettingsPrincipalLookup",
+    "spec": "#src/features/settings/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "createSqliteIdentityRouteDeps",
+    "spec": "#src/features/identity/wiring",
+    "alsoOutside": false
+   },
+   {
+    "n": "ensureAdminInterfaceSettingDefinitions",
+    "spec": "#src/features/settings/admin-interface",
+    "alsoOutside": false
+   },
+   {
+    "n": "ensureChartProviderSetting",
+    "spec": "#src/features/settings/chart-provider",
+    "alsoOutside": false
+   },
+   {
+    "n": "ensureCommerceSetting",
+    "spec": "./commerce-settings.js",
+    "alsoOutside": false
+   },
+   {
+    "n": "ensureFormDeliverySettings",
+    "spec": "#src/features/settings/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "ensureFormDestinationSetting",
+    "spec": "#src/features/settings/form-destination",
+    "alsoOutside": false
+   },
+   {
+    "n": "ensureMailProviderSettings",
+    "spec": "#src/features/settings/mail-provider",
+    "alsoOutside": false
+   },
+   {
+    "n": "ensureMailSenderSettings",
+    "spec": "#src/features/settings/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "ensureMediaObjectStoreSetting",
+    "spec": "#src/features/object-storage/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "ensurePreviewSwitcherSetting",
+    "spec": "#src/features/theme/preview-switcher",
+    "alsoOutside": false
+   },
+   {
+    "n": "ensureSearchProviderSetting",
+    "spec": "#src/features/site-search/settings",
+    "alsoOutside": false
+   },
+   {
+    "n": "ensureSiteTimeZoneSettingDefinition",
+    "spec": "#src/features/settings/site-timezone",
+    "alsoOutside": false
+   },
+   {
+    "n": "ensureSiteTitleSettingDefinition",
+    "spec": "#src/features/settings/site-title",
+    "alsoOutside": true
+   },
+   {
+    "n": "preserveLegacySiteTitles",
+    "spec": "#src/features/settings/site-title",
+    "alsoOutside": true
+   },
+   {
+    "n": "resolveOwnerCredentials",
+    "spec": "#src/features/identity/wiring",
+    "alsoOutside": false
+   },
+   {
+    "n": "startSettingsRegistration",
+    "spec": "./settings-registration.js",
+    "alsoOutside": false
+   },
+   {
+    "n": "startupSecretEnvironment",
+    "spec": "../../../platform/secrets/startup-secrets.js",
+    "alsoOutside": false
+   }
+  ],
+  "top": [
+   {
+    "n": "applyAdminPasswordResetFromEnvIfConfigured",
+    "line": 795,
+    "alsoOutside": false
+   },
+   {
+    "n": "compositionSiteDisplaySources",
+    "line": 2937,
+    "alsoOutside": false
+   }
+  ],
+  "readers": [
+   [
+    "apps/website/src/server/__tests__/integration/create-sqlite-route-deps-for-workspace.integration.test.ts",
+    [
+     "identityReady",
+     "`settingsReady`"
+    ]
+   ]
+  ],
+  "errs": []
+ },
+ {
+  "id": "B06",
+  "name": "boot-data",
+  "fn": "startBootData",
+  "range": [
+   1193,
+   1285
+  ],
+  "a": 1186,
+  "startLine": 1193,
+  "b": 1285,
+  "code": 42,
+  "stmts": 9,
+  "sha": "708353cd851b15b293a5820a83db589db03924ab14c154bf7a94d9a50f2a8fa2",
+  "first": "  const menuRepo = new SqliteMenuRepo({ store: kernel });",
+  "last": "  });",
+  "inputs": [
+   {
+    "n": "kernel",
+    "mode": "value",
+    "decl": 993,
+    "declText": "const kernel = store.content;",
+    "let": false
+   },
+   {
+    "n": "clock",
+    "mode": "value",
+    "decl": 1081,
+    "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+    "let": false
+   },
+   {
+    "n": "workspaceId",
+    "mode": "value",
+    "decl": 1033,
+    "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+    "let": false
+   },
+   {
+    "n": "dbPath",
+    "mode": "value",
+    "decl": "param",
+    "declText": "",
+    "let": false
+   },
+   {
+    "n": "idGen",
+    "mode": "value",
+    "decl": 1082,
+    "declText": "const idGen = { newId: () => randomUUID() };",
+    "let": false
+   },
+   {
+    "n": "resolvedSiteBinding",
+    "mode": "value",
+    "decl": 977,
+    "declText": "const resolvedSiteBinding = resolveSiteBindingOverride(overrides);",
+    "let": false
+   },
+   {
+    "n": "blobStore",
+    "mode": "value",
+    "decl": 1020,
+    "declText": "const { blobStore, mediaIsRemoteByEnv, isMediaRemote } = createMediaBlobStore({ uploadsDir: resolvedUploadsDir, env: process.env, ports: mediaStorePor",
+    "let": false
+   }
+  ],
+  "outputs": [
+   "menuRepo",
+   "navLocationBindingRepo",
+   "menuBindingsReady",
+   "newsletterListRepo",
+   "newsletterReady",
+   "commentsReady",
+   "transformDefinitionRepo",
+   "mediaTransformReady",
+   "blobHydrationReady"
+  ],
+  "imports": [
+   {
+    "n": "SqliteMenuRepo",
+    "spec": "#src/features/navigation/repo.sqlite",
+    "alsoOutside": false
+   },
+   {
+    "n": "SqliteNavLocationBindingRepo",
+    "spec": "#src/features/navigation/repo.sqlite",
+    "alsoOutside": false
+   },
+   {
+    "n": "SqliteNewsletterListRepo",
+    "spec": "#src/features/newsletter/repo.sqlite",
+    "alsoOutside": true
+   },
+   {
+    "n": "SqliteTransformDefinitionRepo",
+    "spec": "#src/platform/db/sqlite/media-repo.sqlite",
+    "alsoOutside": true
+   },
+   {
+    "n": "builtInSeedUploadsDir",
+    "spec": "./site-paths.js",
+    "alsoOutside": false
+   },
+   {
+    "n": "ensureCoreMediaTransform",
+    "spec": "#src/features/media/bootstrap",
+    "alsoOutside": false
+   },
+   {
+    "n": "ensureDefaultList",
+    "spec": "#src/features/newsletter/lists",
+    "alsoOutside": false
+   },
+   {
+    "n": "hydrateBlobStoreFromSeed",
+    "spec": "#src/features/media/hydrate-blob-store-from-seed",
+    "alsoOutside": true
+   },
+   {
+    "n": "installCommentsDataModule",
+    "spec": "#src/features/comments/data-module-install",
+    "alsoOutside": false
+   },
+   {
+    "n": "installNewsletterDataModule",
+    "spec": "#src/features/newsletter/data-module-manifest",
+    "alsoOutside": false
+   },
+   {
+    "n": "rebuildNavLocationBindings",
+    "spec": "#src/features/navigation/index",
+    "alsoOutside": false
+   }
+  ],
+  "top": [
+   {
+    "n": "consoleLogger",
+    "line": 417,
+    "alsoOutside": true
+   }
+  ],
+  "readers": [
+   [
+    "apps/website/src/server/__tests__/integration/create-sqlite-route-deps-for-workspace.integration.test.ts",
+    [
+     "`settingsReady`"
+    ]
+   ]
+  ],
+  "errs": []
+ },
+ {
+  "id": "B07",
+  "name": "events-origin",
+  "fn": "composeEventsOrigin",
+  "range": [
+   1294,
+   1366
+  ],
+  "a": 1286,
+  "startLine": 1294,
+  "b": 1366,
+  "code": 33,
+  "stmts": 11,
+  "sha": "4fcd0413e10916b6b51149567cd914a7591beb8b7ef403d8e3076b243575df3e",
+  "first": "  const outbox = new SqliteOutboxAdapter({ store: kernel });",
+  "last": "  const assetRenditionRepo = new SqliteAssetRenditionRepo({ store: kernel });",
+  "inputs": [
+   {
+    "n": "kernel",
+    "mode": "value",
+    "decl": 993,
+    "declText": "const kernel = store.content;",
+    "let": false
+   },
+   {
+    "n": "clock",
+    "mode": "value",
+    "decl": 1081,
+    "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+    "let": false
+   },
+   {
+    "n": "workspaceId",
+    "mode": "value",
+    "decl": 1033,
+    "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+    "let": false
+   }
+  ],
+  "outputs": [
+   "outbox",
+   "bus",
+   "devCapabilityScheme",
+   "originReady",
+   "originRegistry",
+   "redirectRepo",
+   "redirectHitSink",
+   "assetRenditionRepo"
+  ],
+  "imports": [
+   {
+    "n": "InMemoryEventBus",
+    "spec": "#src/contracts/core/events/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "OriginRegistry",
+    "spec": "@jini-ai/core/contracts/server/verified-origin",
+    "alsoOutside": true
+   },
+   {
+    "n": "RedirectHitSinkImpl",
+    "spec": "@jini-ai/cms/redirects",
+    "alsoOutside": false
+   },
+   {
+    "n": "SqliteAssetRenditionRepo",
+    "spec": "#src/platform/db/sqlite/media-repo.sqlite",
+    "alsoOutside": true
+   },
+   {
+    "n": "SqliteOriginSettingRepo",
+    "spec": "#src/platform/db/sqlite/origin-repo.sqlite",
+    "alsoOutside": false
+   },
+   {
+    "n": "SqliteOutboxAdapter",
+    "spec": "#src/platform/db/sqlite/outbox-repo.sqlite",
+    "alsoOutside": false
+   },
+   {
+    "n": "SqliteRedirectRepo",
+    "spec": "#src/features/redirects/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "createVerifiedOrigin",
+    "spec": "@jini-ai/core/contracts/server/verified-origin",
+    "alsoOutside": true
+   },
+   {
+    "n": "deriveDevScheme",
+    "spec": "../../../platform/dev-host/dev-tls.js",
+    "alsoOutside": false
+   },
+   {
+    "n": "planOriginBoot",
+    "spec": "#src/features/origin/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "readSiteListenerOrigin",
+    "spec": "../boot/site-listener-origin.js",
+    "alsoOutside": false
+   },
+   {
+    "n": "registerConfiguredOrigin",
+    "spec": "#src/platform/db/sqlite/origin-repo.sqlite",
+    "alsoOutside": false
+   },
+   {
+    "n": "resolveCheckoutRoot",
+    "spec": "#src/platform/site-dir/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "resolveDevTls",
+    "spec": "../../../platform/dev-host/dev-tls.js",
+    "alsoOutside": true
+   },
+   {
+    "n": "resolveDevTlsCertPaths",
+    "spec": "../../../platform/dev-host/dev-tls.js",
+    "alsoOutside": false
+   },
+   {
+    "n": "seedDevCapabilityOrigin",
+    "spec": "#src/platform/db/sqlite/origin-repo.sqlite",
+    "alsoOutside": false
+   }
+  ],
+  "top": [],
+  "readers": [
+   [
+    "apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts",
+    [
+     ", workspaceId: "
+    ]
+   ],
+   [
+    "apps/website/src/server/inbound/assistant/__tests__/agent-daemon-import-graph.unit.test.ts",
+    [
+     "apps/website/src",
+     "server/runtime/composition/app.ts"
+    ]
+   ],
+   [
+    "apps/website/src/server/__tests__/unit/stock-content-dirs.unit.test.ts",
+    [
+     "apps/website/",
+     "apps/website/src/server/",
+     "apps/website/src/server",
+     "apps/website/src/server/runtime/composition",
+     "apps/website/src"
+    ]
+   ]
+  ],
+  "errs": []
+ },
+ {
+  "id": "B08",
+  "name": "trash-stores",
+  "fn": "composeTrashStores",
+  "range": [
+   1370,
+   1391
+  ],
+  "a": 1367,
+  "startLine": 1370,
+  "b": 1391,
+  "code": 7,
+  "stmts": 7,
+  "sha": "708abe64f7d7622251f666c68b6366178a34719f59e356e90a1c0d9da152f1f7",
+  "first": "  const trashRegistry = buildTrashRegistry();",
+  "last": "  const formDeliveryRepo = new SqlFormDeliveryRepo({ kernel });",
+  "inputs": [
+   {
+    "n": "kernel",
+    "mode": "value",
+    "decl": 993,
+    "declText": "const kernel = store.content;",
+    "let": false
+   },
+   {
+    "n": "workspaceId",
+    "mode": "value",
+    "decl": 1033,
+    "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+    "let": false
+   },
+   {
+    "n": "outbox",
+    "mode": "value",
+    "decl": 1294,
+    "declText": "const outbox = new SqliteOutboxAdapter({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "clock",
+    "mode": "value",
+    "decl": 1081,
+    "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+    "let": false
+   },
+   {
+    "n": "idGen",
+    "mode": "value",
+    "decl": 1082,
+    "declText": "const idGen = { newId: () => randomUUID() };",
+    "let": false
+   }
+  ],
+  "outputs": [
+   "trashRegistry",
+   "sqliteTrashDb",
+   "trashRepo",
+   "taxonomyFollowUpTermRepo",
+   "taxonomyFollowUpRevisions",
+   "taxonomyFollowUpOutbox",
+   "formDeliveryRepo"
+  ],
+  "imports": [
+   {
+    "n": "SqlFormDeliveryRepo",
+    "spec": "#src/platform/db/repos/form-delivery-repo",
+    "alsoOutside": false
+   },
+   {
+    "n": "SqliteTaxonomyRevisionRepo",
+    "spec": "#src/features/taxonomy/repo.sqlite",
+    "alsoOutside": true
+   },
+   {
+    "n": "SqliteTermRepo",
+    "spec": "#src/features/taxonomy/repo.sqlite",
+    "alsoOutside": true
+   },
+   {
+    "n": "SqliteTrashRepo",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "buildTrashRegistry",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "toTaxonomyOutbox",
+    "spec": "#src/features/taxonomy/index",
+    "alsoOutside": false
+   }
+  ],
+  "top": [],
+  "readers": [],
+  "errs": []
+ },
+ {
+  "id": "B09",
+  "name": "trash-follow-up-hooks",
+  "fn": "composeTrashFollowUpHooks",
+  "range": [
+   1392,
+   1459
+  ],
+  "a": 1392,
+  "startLine": 1392,
+  "b": 1459,
+  "code": 62,
+  "stmts": 1,
+  "sha": "e74ba7635681a6458a952c109d22b733a996737f67851bf081903b467a855aa4",
+  "first": "  const trashFollowUpHooks = new Map<string, TrashFollowUpHooks>([",
+  "last": "  ]);",
+  "inputs": [
+   {
+    "n": "kernel",
+    "mode": "value",
+    "decl": 993,
+    "declText": "const kernel = store.content;",
+    "let": false
+   },
+   {
+    "n": "mediaRepo",
+    "mode": "getter",
+    "decl": 1978,
+    "declText": "const mediaRepo = new SqliteMediaRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "workspaceId",
+    "mode": "value",
+    "decl": 1033,
+    "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+    "let": false
+   },
+   {
+    "n": "postRepo",
+    "mode": "getter",
+    "decl": 1965,
+    "declText": "const postRepo = new SqlitePostRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "clock",
+    "mode": "value",
+    "decl": 1081,
+    "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+    "let": false
+   },
+   {
+    "n": "assetBlobRepo",
+    "mode": "getter",
+    "decl": 1979,
+    "declText": "const assetBlobRepo = new SqliteAssetBlobRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "assetRenditionRepo",
+    "mode": "value",
+    "decl": 1366,
+    "declText": "const assetRenditionRepo = new SqliteAssetRenditionRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "blobStore",
+    "mode": "value",
+    "decl": 1020,
+    "declText": "const { blobStore, mediaIsRemoteByEnv, isMediaRemote } = createMediaBlobStore({ uploadsDir: resolvedUploadsDir, env: process.env, ports: mediaStorePor",
+    "let": false
+   },
+   {
+    "n": "entryRefsRepo",
+    "mode": "getter",
+    "decl": 1636,
+    "declText": "const entryRefsRepo = new SqliteEntryRefsRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "outbox",
+    "mode": "value",
+    "decl": 1294,
+    "declText": "const outbox = new SqliteOutboxAdapter({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "formDeliveryRepo",
+    "mode": "value",
+    "decl": 1391,
+    "declText": "const formDeliveryRepo = new SqlFormDeliveryRepo({ kernel });",
+    "let": false
+   },
+   {
+    "n": "routeDeps",
+    "mode": "getter",
+    "decl": 2135,
+    "declText": "const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {",
+    "let": false
+   },
+   {
+    "n": "menuRepo",
+    "mode": "value",
+    "decl": 1193,
+    "declText": "const menuRepo = new SqliteMenuRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "idGen",
+    "mode": "value",
+    "decl": 1082,
+    "declText": "const idGen = { newId: () => randomUUID() };",
+    "let": false
+   },
+   {
+    "n": "taxonomyFollowUpTermRepo",
+    "mode": "value",
+    "decl": 1386,
+    "declText": "const taxonomyFollowUpTermRepo = new SqliteTermRepo({ db: kernel, workspaceId });",
+    "let": false
+   },
+   {
+    "n": "trashRepo",
+    "mode": "value",
+    "decl": 1380,
+    "declText": "const trashRepo = new SqliteTrashRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "taxonomyFollowUpRevisions",
+    "mode": "value",
+    "decl": 1387,
+    "declText": "const taxonomyFollowUpRevisions = new SqliteTaxonomyRevisionRepo({ db: kernel, workspaceId });",
+    "let": false
+   },
+   {
+    "n": "taxonomyFollowUpOutbox",
+    "mode": "value",
+    "decl": 1388,
+    "declText": "const taxonomyFollowUpOutbox = toTaxonomyOutbox({ outbox, clock, idGen, workspaceId });",
+    "let": false
+   }
+  ],
+  "outputs": [
+   "trashFollowUpHooks"
+  ],
+  "imports": [
+   {
+    "n": "DEFAULT_GC_GRACE_MS",
+    "spec": "#src/features/media/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "TrashFollowUpHooks",
+    "spec": "@jini-ai/cms/trash (type)",
+    "alsoOutside": true
+   },
+   {
+    "n": "buildMenuTrashFollowUpHooks",
+    "spec": "#src/features/navigation/menu-trash-follow-ups",
+    "alsoOutside": false
+   },
+   {
+    "n": "buildWidgetsDeps",
+    "spec": "#src/features/widgets/deps",
+    "alsoOutside": true
+   },
+   {
+    "n": "createFormFilePurgeHooks",
+    "spec": "#src/features/forms/form-file-purge",
+    "alsoOutside": false
+   },
+   {
+    "n": "createFormMediaCleanup",
+    "spec": "#src/features/forms/form-file-purge",
+    "alsoOutside": false
+   },
+   {
+    "n": "createTaxonomyPurgeFollowUp",
+    "spec": "#src/features/taxonomy/taxonomy-trash-follow-ups",
+    "alsoOutside": false
+   },
+   {
+    "n": "createTermPurgeFollowUp",
+    "spec": "#src/features/taxonomy/taxonomy-trash-follow-ups",
+    "alsoOutside": false
+   },
+   {
+    "n": "purgeFormMedia",
+    "spec": "#src/features/media/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "restoreWidgetPriorStatus",
+    "spec": "@jini-ai/cms/widgets",
+    "alsoOutside": false
+   },
+   {
+    "n": "trashFormMedia",
+    "spec": "#src/features/media/index",
+    "alsoOutside": false
+   }
+  ],
+  "top": [],
+  "readers": [],
+  "errs": []
+ },
+ {
+  "id": "B10",
+  "name": "trash-adapters",
+  "fn": "composeTrashAdapters",
+  "range": [
+   1460,
+   1516
+  ],
+  "a": 1460,
+  "startLine": 1460,
+  "b": 1516,
+  "code": 48,
+  "stmts": 2,
+  "sha": "da020e34aedb2066df746643396eb5ec4eff070cc75a049253f7421af2fb7d10",
+  "first": "  const pluginTrashAdapter = createDirectoryTrashAdapter({",
+  "last": "  ]);",
+  "inputs": [
+   {
+    "n": "pluginRuntime",
+    "mode": "value",
+    "decl": 1093,
+    "declText": "const pluginRuntime = composePluginRuntime({",
+    "let": false
+   },
+   {
+    "n": "pluginActivationRepo",
+    "mode": "value",
+    "decl": 1087,
+    "declText": "const pluginActivationRepo = followProviderActivations({ repo: sqlitePluginActivationRepoFor({ store: kernel }), workspaceId,",
+    "let": false
+   },
+   {
+    "n": "kernel",
+    "mode": "value",
+    "decl": 993,
+    "declText": "const kernel = store.content;",
+    "let": false
+   },
+   {
+    "n": "mediaRepo",
+    "mode": "getter",
+    "decl": 1978,
+    "declText": "const mediaRepo = new SqliteMediaRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "entryRefsRepo",
+    "mode": "getter",
+    "decl": 1636,
+    "declText": "const entryRefsRepo = new SqliteEntryRefsRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "postRepo",
+    "mode": "getter",
+    "decl": 1965,
+    "declText": "const postRepo = new SqlitePostRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "assetBlobRepo",
+    "mode": "getter",
+    "decl": 1979,
+    "declText": "const assetBlobRepo = new SqliteAssetBlobRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "assetRenditionRepo",
+    "mode": "value",
+    "decl": 1366,
+    "declText": "const assetRenditionRepo = new SqliteAssetRenditionRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "blobStore",
+    "mode": "value",
+    "decl": 1020,
+    "declText": "const { blobStore, mediaIsRemoteByEnv, isMediaRemote } = createMediaBlobStore({ uploadsDir: resolvedUploadsDir, env: process.env, ports: mediaStorePor",
+    "let": false
+   },
+   {
+    "n": "clock",
+    "mode": "value",
+    "decl": 1081,
+    "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+    "let": false
+   },
+   {
+    "n": "identity",
+    "mode": "value",
+    "decl": 1120,
+    "declText": "const identity = createSqliteIdentityRouteDeps({ db: kernel, workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredenti",
+    "let": false
+   },
+   {
+    "n": "idGen",
+    "mode": "value",
+    "decl": 1082,
+    "declText": "const idGen = { newId: () => randomUUID() };",
+    "let": false
+   },
+   {
+    "n": "trashRegistry",
+    "mode": "value",
+    "decl": 1370,
+    "declText": "const trashRegistry = buildTrashRegistry();",
+    "let": false
+   },
+   {
+    "n": "sqliteTrashDb",
+    "mode": "value",
+    "decl": 1371,
+    "declText": "const sqliteTrashDb = kernel;",
+    "let": false
+   },
+   {
+    "n": "trashFollowUpHooks",
+    "mode": "value",
+    "decl": 1392,
+    "declText": "const trashFollowUpHooks = new Map<string, TrashFollowUpHooks>([",
+    "let": false
+   }
+  ],
+  "outputs": [
+   "pluginTrashAdapter",
+   "trashAdapters"
+  ],
+  "imports": [
+   {
+    "n": "COMMENT_ENTITY_TYPE",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "MEDIA_ENTITY_TYPE",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "PLUGIN_ENTITY_TYPE",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "POST_ENTITY_TYPE",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "REDIRECT_ENTITY_TYPE",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "SqliteUserPurge",
+    "spec": "#src/features/identity/user-purge.sqlite",
+    "alsoOutside": false
+   },
+   {
+    "n": "TRASH_TABLES",
+    "spec": "#src/features/trash/repo.sqlite",
+    "alsoOutside": false
+   },
+   {
+    "n": "TrashAdapter",
+    "spec": "@jini-ai/cms/trash (type)",
+    "alsoOutside": true
+   },
+   {
+    "n": "USER_ENTITY_TYPE",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "assertUserAccountAction",
+    "spec": "#src/features/identity/delete-user-service",
+    "alsoOutside": false
+   },
+   {
+    "n": "createCommentTrashAdapter",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "createDirectoryTrashAdapter",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "createMediaTrashAdapter",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "createMemberTrashAdapter",
+    "spec": "#src/features/trash/adapters/member",
+    "alsoOutside": false
+   },
+   {
+    "n": "createPostTrashAdapter",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "createRedirectTrashAdapter",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "createTableTrashAdapter",
+    "spec": "@jini-ai/cms/trash/sql",
+    "alsoOutside": false
+   },
+   {
+    "n": "createUserTrashAdapter",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "forgetPluginActivations",
+    "spec": "@jini-ai/plugins/host",
+    "alsoOutside": false
+   },
+   {
+    "n": "identityServiceDepsFrom",
+    "spec": "#src/server/inbound/admin-http/routes/users/deps",
+    "alsoOutside": true
+   },
+   {
+    "n": "outboxEventValues",
+    "spec": "@jini-ai/db/events",
+    "alsoOutside": false
+   },
+   {
+    "n": "purgeMedia",
+    "spec": "#src/features/media/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "randomUUID",
+    "spec": "node:crypto",
+    "alsoOutside": true
+   },
+   {
+    "n": "withFollowUps",
+    "spec": "@jini-ai/cms/trash",
+    "alsoOutside": true
+   }
+  ],
+  "top": [],
+  "readers": [
+   [
+    "apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts",
+    [
+     "(required, optional)"
+    ]
+   ]
+  ],
+  "errs": []
+ },
+ {
+  "id": "B11",
+  "name": "trash-service",
+  "fn": "composeTrashService",
+  "range": [
+   1520,
+   1547
+  ],
+  "a": 1517,
+  "startLine": 1520,
+  "b": 1547,
+  "code": 21,
+  "stmts": 5,
+  "sha": "8d88a17030e297cc4e9c945283a359e9c04d23de908b1e568d94b4b369ff41b9",
+  "first": "  const trashTransaction = createContentDbTransactionRunner({ store: kernel });",
+  "last": "    (await trashRepo.findByEntity({ workspaceId, entityType: USER_ENTITY_TYPE, entityId: principalId })) !== null;",
+  "inputs": [
+   {
+    "n": "kernel",
+    "mode": "value",
+    "decl": 993,
+    "declText": "const kernel = store.content;",
+    "let": false
+   },
+   {
+    "n": "trashRepo",
+    "mode": "value",
+    "decl": 1380,
+    "declText": "const trashRepo = new SqliteTrashRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "trashAdapters",
+    "mode": "value",
+    "decl": 1465,
+    "declText": "const trashAdapters = new Map<string, TrashAdapter>([",
+    "let": false
+   },
+   {
+    "n": "postRepo",
+    "mode": "getter",
+    "decl": 1965,
+    "declText": "const postRepo = new SqlitePostRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "pluginTrashAdapter",
+    "mode": "value",
+    "decl": 1460,
+    "declText": "const pluginTrashAdapter = createDirectoryTrashAdapter({",
+    "let": false
+   },
+   {
+    "n": "workspaceId",
+    "mode": "value",
+    "decl": 1033,
+    "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+    "let": false
+   }
+  ],
+  "outputs": [
+   "trashTransaction",
+   "trash",
+   "removePlugin",
+   "removeUser",
+   "isInTrash"
+  ],
+  "imports": [
+   {
+    "n": "PLUGIN_ENTITY_TYPE",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "RemovePluginFn",
+    "spec": "@jini-ai/plugins/host (type)",
+    "alsoOutside": false
+   },
+   {
+    "n": "TRASH_RETENTION_DAYS",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "USER_ENTITY_TYPE",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "bindRemoveEntity",
+    "spec": "@jini-ai/cms/trash",
+    "alsoOutside": true
+   },
+   {
+    "n": "createContentDbTransactionRunner",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "createTrashService",
+    "spec": "@jini-ai/cms/trash",
+    "alsoOutside": true
+   },
+   {
+    "n": "invalidateMediaAccessEvidence",
+    "spec": "#src/features/media/access-evidence",
+    "alsoOutside": false
+   },
+   {
+    "n": "randomUUID",
+    "spec": "node:crypto",
+    "alsoOutside": true
+   },
+   {
+    "n": "unhideIfRemoveThrows",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   }
+  ],
+  "top": [],
+  "readers": [],
+  "errs": []
+ },
+ {
+  "id": "B12",
+  "name": "redirects",
+  "fn": "composeRedirects",
+  "range": [
+   1549,
+   1585
+  ],
+  "a": 1548,
+  "startLine": 1549,
+  "b": 1585,
+  "code": 32,
+  "stmts": 4,
+  "sha": "57abac33fd640fd1823b7b6fb26e0f3a22a669d2ce1f7414a26bb9e8fdf15a30",
+  "first": "  const redirectsWriteDeps: RedirectsWriteDeps = {",
+  "last": "  onStoreClose({ registration: registerRedirectHitOutboxHandler({ bus, hitSink: redirectHitSink }) });",
+  "inputs": [
+   {
+    "n": "redirectRepo",
+    "mode": "value",
+    "decl": 1357,
+    "declText": "const redirectRepo = SqliteRedirectRepo({ store: kernel }, {});",
+    "let": false
+   },
+   {
+    "n": "trash",
+    "mode": "value",
+    "decl": 1521,
+    "declText": "const trash = createTrashService({",
+    "let": false
+   },
+   {
+    "n": "trashRepo",
+    "mode": "value",
+    "decl": 1380,
+    "declText": "const trashRepo = new SqliteTrashRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "originRegistry",
+    "mode": "value",
+    "decl": 1356,
+    "declText": "const originRegistry = new OriginRegistry({ repo: new SqliteOriginSettingRepo({ store: kernel }, { after: originReady }) });",
+    "let": false
+   },
+   {
+    "n": "clock",
+    "mode": "value",
+    "decl": 1081,
+    "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+    "let": false
+   },
+   {
+    "n": "idGen",
+    "mode": "value",
+    "decl": 1082,
+    "declText": "const idGen = { newId: () => randomUUID() };",
+    "let": false
+   },
+   {
+    "n": "outbox",
+    "mode": "value",
+    "decl": 1294,
+    "declText": "const outbox = new SqliteOutboxAdapter({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "onStoreClose",
+    "mode": "value",
+    "decl": "param",
+    "declText": "",
+    "let": false
+   },
+   {
+    "n": "bus",
+    "mode": "value",
+    "decl": 1295,
+    "declText": "const bus = new InMemoryEventBus();",
+    "let": false
+   },
+   {
+    "n": "redirectHitSink",
+    "mode": "value",
+    "decl": 1358,
+    "declText": "const redirectHitSink = new RedirectHitSinkImpl();",
+    "let": false
+   }
+  ],
+  "outputs": [
+   "redirectsWriteDeps"
+  ],
+  "imports": [
+   {
+    "n": "REDIRECT_ENTITY_TYPE",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "RESERVED_SEGMENTS",
+    "spec": "#src/platform/routing/reserved-paths",
+    "alsoOutside": false
+   },
+   {
+    "n": "RedirectSlugChangeCapture",
+    "spec": "@jini-ai/cms/redirects",
+    "alsoOutside": false
+   },
+   {
+    "n": "RedirectsWriteDeps",
+    "spec": "@jini-ai/cms/redirects (type)",
+    "alsoOutside": false
+   },
+   {
+    "n": "bindRemoveEntity",
+    "spec": "@jini-ai/cms/trash",
+    "alsoOutside": true
+   },
+   {
+    "n": "redirectMatcher",
+    "spec": "@jini-ai/cms/redirects",
+    "alsoOutside": false
+   },
+   {
+    "n": "registerRedirectHitOutboxHandler",
+    "spec": "@jini-ai/cms/redirects",
+    "alsoOutside": false
+   },
+   {
+    "n": "registerRedirectsPhaseHandlers",
+    "spec": "#src/features/redirects/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "registerSlugChangeCapture",
+    "spec": "#src/platform/routing/adapter",
+    "alsoOutside": true
+   },
+   {
+    "n": "removeEntityWithoutBlocker",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   }
+  ],
+  "top": [],
+  "readers": [],
+  "errs": []
+ },
+ {
+  "id": "B13",
+  "name": "database-journal",
+  "fn": "composeDatabaseJournal",
+  "range": [
+   1590,
+   1615
+  ],
+  "a": 1586,
+  "startLine": 1590,
+  "b": 1615,
+  "code": 12,
+  "stmts": 10,
+  "sha": "32f3bcbfe47d80d29e881ac76f64d8345b513b996f51545e00a7e3b154d4ee48",
+  "first": "  const databaseJournalDbPath = defaultDatabaseJournalDbPath({}, { contentDbPath: dbPath });",
+  "last": "  const databaseIntrospection = new SqliteDatabaseIntrospectionAdapter({ db: kernel, dbPath });",
+  "inputs": [
+   {
+    "n": "dbPath",
+    "mode": "value",
+    "decl": "param",
+    "declText": "",
+    "let": false
+   },
+   {
+    "n": "onStoreClose",
+    "mode": "value",
+    "decl": "param",
+    "declText": "",
+    "let": false
+   },
+   {
+    "n": "workspaceId",
+    "mode": "value",
+    "decl": 1033,
+    "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+    "let": false
+   },
+   {
+    "n": "kernel",
+    "mode": "value",
+    "decl": 993,
+    "declText": "const kernel = store.content;",
+    "let": false
+   },
+   {
+    "n": "storeBound",
+    "mode": "value",
+    "decl": 1023,
+    "declText": "const storeBound = storeBoundServicesFor({ store, dbPath });",
+    "let": false
+   }
+  ],
+  "outputs": [
+   "databaseLedgerRepo",
+   "migrationRunsRepo",
+   "publishContentRunRepo",
+   "restorePointsRepo",
+   "dbOps",
+   "databaseIntrospection"
+  ],
+  "imports": [
+   {
+    "n": "SqliteDatabaseIntrospectionAdapter",
+    "spec": "#src/platform/db/sqlite/database-introspection-adapter.sqlite",
+    "alsoOutside": false
+   },
+   {
+    "n": "SqliteDatabaseLedgerRepo",
+    "spec": "#src/platform/db/sqlite/database-journal-repo",
+    "alsoOutside": false
+   },
+   {
+    "n": "SqliteMigrationRunsRepo",
+    "spec": "#src/platform/db/sqlite/database-journal-repo",
+    "alsoOutside": false
+   },
+   {
+    "n": "SqlitePublishContentRunRepo",
+    "spec": "#src/platform/db/sqlite/publish-content-run-repo.sqlite",
+    "alsoOutside": false
+   },
+   {
+    "n": "SqliteRestorePointsRepo",
+    "spec": "#src/platform/db/sqlite/database-journal-repo",
+    "alsoOutside": false
+   },
+   {
+    "n": "defaultDatabaseJournalDbPath",
+    "spec": "./site-paths.js",
+    "alsoOutside": false
+   },
+   {
+    "n": "dirname",
+    "spec": "node:path",
+    "alsoOutside": true
+   },
+   {
+    "n": "mkdirSync",
+    "spec": "node:fs",
+    "alsoOutside": true
+   },
+   {
+    "n": "openDatabaseJournalDb",
+    "spec": "#src/platform/db/sqlite/database-journal-db",
+    "alsoOutside": false
+   }
+  ],
+  "top": [],
+  "readers": [
+   [
+    "apps/website/src/platform/db/sqlite/__tests__/chat-orphan-check.integration.test.ts",
+    [
+     "better-sqlite3"
+    ]
+   ]
+  ],
+  "errs": []
+ },
+ {
+  "id": "B14",
+  "name": "content-repos",
+  "fn": "composeContentRepos",
+  "range": [
+   1622,
+   1637
+  ],
+  "a": 1616,
+  "startLine": 1622,
+  "b": 1637,
+  "code": 9,
+  "stmts": 9,
+  "sha": "7423375e1be8ad4f980c2b8ce6278942ebb6b5607afd858d4b7da47439dd69fa",
+  "first": "  const entryRepo = new SqliteEntryRepo({ store: kernel });",
+  "last": "  const formDefinitionRepo = new SqliteFormDefinitionRepo({ store: kernel });",
+  "inputs": [
+   {
+    "n": "kernel",
+    "mode": "value",
+    "decl": 993,
+    "declText": "const kernel = store.content;",
+    "let": false
+   },
+   {
+    "n": "workspaceId",
+    "mode": "value",
+    "decl": 1033,
+    "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+    "let": false
+   },
+   {
+    "n": "storeBound",
+    "mode": "value",
+    "decl": 1023,
+    "declText": "const storeBound = storeBoundServicesFor({ store, dbPath });",
+    "let": false
+   }
+  ],
+  "outputs": [
+   "entryRepo",
+   "sqliteEntryTermRepo",
+   "taxonomyRepo",
+   "termRepo",
+   "taxonomyRevisionRepo",
+   "stampWatermark",
+   "widgetBindingRepo",
+   "entryRefsRepo",
+   "formDefinitionRepo"
+  ],
+  "imports": [
+   {
+    "n": "SqliteEntryRefsRepo",
+    "spec": "#src/platform/db/sqlite/entry-refs-repo.sqlite",
+    "alsoOutside": false
+   },
+   {
+    "n": "SqliteEntryRepo",
+    "spec": "#src/features/entries/repo.sqlite",
+    "alsoOutside": false
+   },
+   {
+    "n": "SqliteEntryTermRepo",
+    "spec": "#src/features/taxonomy/repo.sqlite",
+    "alsoOutside": true
+   },
+   {
+    "n": "SqliteFormDefinitionRepo",
+    "spec": "#src/features/forms/repo.sqlite",
+    "alsoOutside": false
+   },
+   {
+    "n": "SqliteTaxonomyRepo",
+    "spec": "#src/features/taxonomy/repo.sqlite",
+    "alsoOutside": true
+   },
+   {
+    "n": "SqliteTaxonomyRevisionRepo",
+    "spec": "#src/features/taxonomy/repo.sqlite",
+    "alsoOutside": true
+   },
+   {
+    "n": "SqliteTermRepo",
+    "spec": "#src/features/taxonomy/repo.sqlite",
+    "alsoOutside": true
+   },
+   {
+    "n": "SqliteWidgetRegionBindingRepo",
+    "spec": "#src/features/widgets/repo.sqlite",
+    "alsoOutside": false
+   }
+  ],
+  "top": [],
+  "readers": [
+   [
+    "apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts",
+    [
+     ", workspaceId: "
+    ]
+   ]
+  ],
+  "errs": []
+ },
+ {
+  "id": "B15",
+  "name": "content-resolvers-comments",
+  "fn": "composeContentResolversComments",
+  "range": [
+   1639,
+   1694
+  ],
+  "a": 1639,
+  "startLine": 1639,
+  "b": 1694,
+  "code": 39,
+  "stmts": 6,
+  "sha": "44a511805eb81925448f35a1209196af6d9060da7361797e708ef760eec765e3",
+  "first": "  const formSubmissionRepo = new SqliteFormSubmissionRepo({ store: kernel });",
+  "last": "  });",
+  "inputs": [
+   {
+    "n": "kernel",
+    "mode": "value",
+    "decl": 993,
+    "declText": "const kernel = store.content;",
+    "let": false
+   },
+   {
+    "n": "siteTimeZone",
+    "mode": "value",
+    "decl": 1152,
+    "declText": "const { siteDisplayName, siteTimeZone } = compositionSiteDisplaySources({ dbPath, overrides, settingsRepo });",
+    "let": false
+   },
+   {
+    "n": "entryRepo",
+    "mode": "value",
+    "decl": 1622,
+    "declText": "const entryRepo = new SqliteEntryRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "mediaRepo",
+    "mode": "getter",
+    "decl": 1978,
+    "declText": "const mediaRepo = new SqliteMediaRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "transformDefinitionRepo",
+    "mode": "value",
+    "decl": 1251,
+    "declText": "const transformDefinitionRepo = new SqliteTransformDefinitionRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "mediaContentTypeStore",
+    "mode": "getter",
+    "decl": 1982,
+    "declText": "const mediaContentTypeStore = new SqliteMediaContentTypeStore({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "postRepo",
+    "mode": "getter",
+    "decl": 1965,
+    "declText": "const postRepo = new SqlitePostRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "menuRepo",
+    "mode": "value",
+    "decl": 1193,
+    "declText": "const menuRepo = new SqliteMenuRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "navLocationBindingRepo",
+    "mode": "value",
+    "decl": 1194,
+    "declText": "const navLocationBindingRepo = new SqliteNavLocationBindingRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "formDefinitionRepo",
+    "mode": "value",
+    "decl": 1637,
+    "declText": "const formDefinitionRepo = new SqliteFormDefinitionRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "formCollectionProviders",
+    "mode": "getter",
+    "decl": 1638,
+    "declText": "let formCollectionProviders = () => createFormCollectionRegistry({});",
+    "let": true
+   },
+   {
+    "n": "routeDeps",
+    "mode": "getter",
+    "decl": 2135,
+    "declText": "const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {",
+    "let": false
+   },
+   {
+    "n": "outbox",
+    "mode": "value",
+    "decl": 1294,
+    "declText": "const outbox = new SqliteOutboxAdapter({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "clock",
+    "mode": "value",
+    "decl": 1081,
+    "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+    "let": false
+   },
+   {
+    "n": "idGen",
+    "mode": "value",
+    "decl": 1082,
+    "declText": "const idGen = { newId: () => randomUUID() };",
+    "let": false
+   },
+   {
+    "n": "settingsRepo",
+    "mode": "value",
+    "decl": 1133,
+    "declText": "const settingsRepo = new SqliteSettingsRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "workspaceId",
+    "mode": "value",
+    "decl": 1033,
+    "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+    "let": false
+   },
+   {
+    "n": "trash",
+    "mode": "value",
+    "decl": 1521,
+    "declText": "const trash = createTrashService({",
+    "let": false
+   },
+   {
+    "n": "trashRepo",
+    "mode": "value",
+    "decl": 1380,
+    "declText": "const trashRepo = new SqliteTrashRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "trashTransaction",
+    "mode": "value",
+    "decl": 1520,
+    "declText": "const trashTransaction = createContentDbTransactionRunner({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "commentsReady",
+    "mode": "value",
+    "decl": 1234,
+    "declText": "const commentsReady = newsletterReady",
+    "let": false
+   },
+   {
+    "n": "commentsSettingsReady",
+    "mode": "value",
+    "decl": 1140,
+    "declText": "const { seoReady, commentsSettingsReady, assistantSettingsReady, executionSettingsReady, settingsUiTabsReady, analyticsSettingsReady } = startSettings",
+    "let": false
+   },
+   {
+    "n": "identity",
+    "mode": "value",
+    "decl": 1120,
+    "declText": "const identity = createSqliteIdentityRouteDeps({ db: kernel, workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredenti",
+    "let": false
+   },
+   {
+    "n": "settingsPrincipals",
+    "mode": "value",
+    "decl": 1122,
+    "declText": "const settingsPrincipals = {",
+    "let": false
+   }
+  ],
+  "outputs": [
+   "formSubmissionRepo",
+   "contentTypeRepo",
+   "contentTypeIndexProvisioner",
+   "commentsModule",
+   "commentsCapability"
+  ],
+  "imports": [
+   {
+    "n": "COMMENT_ENTITY_TYPE",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "HeuristicSpamCheck",
+    "spec": "@jini-ai/cms/comments",
+    "alsoOutside": false
+   },
+   {
+    "n": "NoopContentTypeIndexProvisioner",
+    "spec": "#src/features/content-types/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "SqliteCommentRepo",
+    "spec": "#src/features/comments/repo.sqlite",
+    "alsoOutside": false
+   },
+   {
+    "n": "SqliteContentTypeRepo",
+    "spec": "#src/features/content-types/repo.sqlite",
+    "alsoOutside": false
+   },
+   {
+    "n": "SqliteFormSubmissionRepo",
+    "spec": "#src/features/forms/repo.sqlite",
+    "alsoOutside": false
+   },
+   {
+    "n": "bindRemoveEntity",
+    "spec": "@jini-ai/cms/trash",
+    "alsoOutside": true
+   },
+   {
+    "n": "buildWidgetHostPorts",
+    "spec": "#src/features/widgets/deps",
+    "alsoOutside": false
+   },
+   {
+    "n": "createCommentTargetLookup",
+    "spec": "#src/features/comments/comment-targets",
+    "alsoOutside": false
+   },
+   {
+    "n": "createCommentsCapability",
+    "spec": "#src/features/comments/provider-selection",
+    "alsoOutside": false
+   },
+   {
+    "n": "createCommentsHostPorts",
+    "spec": "#src/features/comments/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "createCommentsModule",
+    "spec": "@jini-ai/cms/comments",
+    "alsoOutside": false
+   },
+   {
+    "n": "createMenuPageTargetResolver",
+    "spec": "#src/features/navigation/page-target-resolver",
+    "alsoOutside": false
+   },
+   {
+    "n": "createNavMenuReadModel",
+    "spec": "#src/features/navigation/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "removeEntityWithoutBlocker",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "resolveGalleryWidgetMedia",
+    "spec": "@jini-ai/cms/widgets/html",
+    "alsoOutside": false
+   },
+   {
+    "n": "resolveMenuDoc",
+    "spec": "@jini-ai/cms/navigation",
+    "alsoOutside": false
+   },
+   {
+    "n": "widgetCollectionListPort",
+    "spec": "../../../features/entries/public-list.js",
+    "alsoOutside": false
+   },
+   {
+    "n": "wireCoreResolvers",
+    "spec": "@jini-ai/cms/widgets/resolvers",
+    "alsoOutside": false
+   }
+  ],
+  "top": [],
+  "readers": [
+   [
+    "apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts",
+    [
+     "(required, optional)"
+    ]
+   ],
+   [
+    "apps/website/src/server/inbound/assistant/__tests__/agent-daemon-import-graph.unit.test.ts",
+    [
+     "apps/website/src",
+     "server/runtime/composition/app.ts"
+    ]
+   ],
+   [
+    "apps/website/src/server/__tests__/unit/stock-content-dirs.unit.test.ts",
+    [
+     "apps/website/",
+     "apps/website/src/server/",
+     "apps/website/src/server",
+     "apps/website/src/server/runtime/composition",
+     "apps/website/src"
+    ]
+   ]
+  ],
+  "errs": []
+ },
+ {
+  "id": "B16",
+  "name": "site-keys-members",
+  "fn": "composeSiteKeysMembers",
+  "range": [
+   1702,
+   1790
+  ],
+  "a": 1695,
+  "startLine": 1702,
+  "b": 1790,
+  "code": 13,
+  "stmts": 9,
+  "sha": "d9fcb95ff17407b14b2d642dd06bd765fa8fbd1753b8eda56877ffb8132311e4",
+  "first": "  const runtimeMode = resolveRuntimeMode();",
+  "last": "  const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);",
+  "inputs": [
+   {
+    "n": "dbPath",
+    "mode": "value",
+    "decl": "param",
+    "declText": "",
+    "let": false
+   },
+   {
+    "n": "overrides",
+    "mode": "value",
+    "decl": "param",
+    "declText": "",
+    "let": false
+   },
+   {
+    "n": "kernel",
+    "mode": "value",
+    "decl": 993,
+    "declText": "const kernel = store.content;",
+    "let": false
+   }
+  ],
+  "outputs": [
+   "runtimeMode",
+   "siteDirForKeyring",
+   "memberRepo",
+   "newsletterKeyring",
+   "newsletterSubscriberDirectory",
+   "newsletterHooks",
+   "siteAssistantSecretKeyring",
+   "siteAssistantSecretSealer"
+  ],
+  "imports": [
+   {
+    "n": "AesGcmSecretSealer",
+    "spec": "#src/features/webhooks/secret-sealer.aesgcm",
+    "alsoOutside": false
+   },
+   {
+    "n": "EnvOrFileKeyring",
+    "spec": "#src/features/webhooks/keyring.env",
+    "alsoOutside": true
+   },
+   {
+    "n": "MembersSubscriberDirectory",
+    "spec": "#src/features/members/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "SqliteMemberRepo",
+    "spec": "#src/features/members/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "createHookRegistry",
+    "spec": "#src/features/newsletter/hooks",
+    "alsoOutside": false
+   },
+   {
+    "n": "resolveRuntimeMode",
+    "spec": "#src/contracts/core/runtime-mode",
+    "alsoOutside": true
+   },
+   {
+    "n": "siteKeyEnvOnlySources",
+    "spec": "#src/features/webhooks/site-key-sources",
+    "alsoOutside": false
+   }
+  ],
+  "top": [
+   {
+    "n": "compositionSiteKeySources",
+    "line": 623,
+    "alsoOutside": false
+   }
+  ],
+  "readers": [
+   [
+    "apps/website/src/server/__tests__/integration/production-readiness-boot.integration.test.ts",
+    [
+     "TOVU_RUNTIME_MODE",
+     "TOVU_SITE_KEY",
+     "site-key.hex",
+     "newsletterKeyring",
+     "~/.tovu/site-key.hex"
+    ]
+   ],
+   [
+    "apps/website/src/server/__tests__/unit/composition-boot-order.unit.test.ts",
+    [
+     "const siteAssistantSecretKeyring = new EnvOrFileKeyring("
+    ]
+   ],
+   [
+    "apps/website/src/server/inbound/assistant/__tests__/agent-daemon-import-graph.unit.test.ts",
+    [
+     "apps/website/src",
+     "server/runtime/composition/app.ts"
+    ]
+   ],
+   [
+    "apps/website/src/server/__tests__/unit/stock-content-dirs.unit.test.ts",
+    [
+     "apps/website/",
+     "apps/website/src/server/",
+     "apps/website/src/server",
+     "apps/website/src/server/runtime/composition",
+     "apps/website/src"
+    ]
+   ]
+  ],
+  "errs": []
+ },
+ {
+  "id": "B17",
+  "name": "assistant-credentials",
+  "fn": "composeAssistantCredentials",
+  "range": [
+   1800,
+   1822
+  ],
+  "a": 1800,
+  "startLine": 1800,
+  "b": 1822,
+  "code": 6,
+  "stmts": 5,
+  "sha": "2a08a18de4563975ec2a4d541271a12542b6180dec6332db3e52f987851e313d",
+  "first": "  const siteAssistantCredentialRepo = new SqliteSiteAssistantCredentialRepo({ store: kernel });",
+  "last": "    vault: createApiConnectionVault({ repo: siteReferenceRepo, keyring: siteAssistantSecretKeyring, sealer: siteAssistantSecretSealer, clock, workspaceId }) });",
+  "inputs": [
+   {
+    "n": "kernel",
+    "mode": "value",
+    "decl": 993,
+    "declText": "const kernel = store.content;",
+    "let": false
+   },
+   {
+    "n": "workspaceId",
+    "mode": "value",
+    "decl": 1033,
+    "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+    "let": false
+   },
+   {
+    "n": "clock",
+    "mode": "value",
+    "decl": 1081,
+    "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+    "let": false
+   },
+   {
+    "n": "siteAssistantSecretSealer",
+    "mode": "value",
+    "decl": 1790,
+    "declText": "const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);",
+    "let": false
+   },
+   {
+    "n": "siteAssistantSecretKeyring",
+    "mode": "value",
+    "decl": 1787,
+    "declText": "const siteAssistantSecretKeyring = new EnvOrFileKeyring({",
+    "let": false
+   }
+  ],
+  "outputs": [
+   "siteAssistantCredentialRepo",
+   "externalMcpServerRepo",
+   "externalMcpOAuthDevices",
+   "siteReferenceRepo",
+   "projectKeyReferences"
+  ],
+  "imports": [
+   {
+    "n": "KyselyKernel",
+    "spec": "@jini-ai/db/kernel (type)",
+    "alsoOutside": true
+   },
+   {
+    "n": "SecretsVaultDatabase",
+    "spec": "@jini-ai/db/secrets-vault (type)",
+    "alsoOutside": true
+   },
+   {
+    "n": "SqlSecretsVaultRepo",
+    "spec": "@jini-ai/db/secrets-vault",
+    "alsoOutside": true
+   },
+   {
+    "n": "SqliteExternalMcpServerRepo",
+    "spec": "../../../features/external-mcp/external-mcp-repo.sqlite.js",
+    "alsoOutside": false
+   },
+   {
+    "n": "SqliteSiteAssistantCredentialRepo",
+    "spec": "#src/assistant/site-credential-repo.sqlite",
+    "alsoOutside": false
+   },
+   {
+    "n": "createApiConnectionVault",
+    "spec": "#src/features/api-connections/vault-stores",
+    "alsoOutside": true
+   },
+   {
+    "n": "createSiteKeyReferences",
+    "spec": "#src/features/project-keys/site-references",
+    "alsoOutside": false
+   },
+   {
+    "n": "createSqliteDeviceAuthorizationStore",
+    "spec": "#src/platform/db/sqlite/oauth-pending-store.sqlite",
+    "alsoOutside": false
+   }
+  ],
+  "top": [],
+  "readers": [
+   [
+    "apps/website/src/server/__tests__/unit/serving-app-boot-wiring.unit.test.ts",
+    [
+     "cli/commands/serve.ts"
+    ]
+   ],
+   [
+    "apps/website/src/server/__tests__/unit/composition-boot-order.unit.test.ts",
+    [
+     "const siteAssistantCredentialRepo = new SqliteSiteAssistantCredentialRepo("
+    ]
+   ]
+  ],
+  "errs": []
+ },
+ {
+  "id": "B18",
+  "name": "provider-config",
+  "fn": "composeProviderConfigSource",
+  "range": [
+   1826,
+   1844
+  ],
+  "a": 1826,
+  "startLine": 1826,
+  "b": 1844,
+  "code": 9,
+  "stmts": 3,
+  "sha": "f1da09fed6f38b05604719816ebc740f26b864e8928b35d3c20d604f87965436",
+  "first": "  const providerConfigSource = withProviderSettingsMigrations({ source: savedProviderConfig, providers: async ({ pluginId }) =>",
+  "last": "  }",
+  "inputs": [
+   {
+    "n": "savedProviderConfig",
+    "mode": "value",
+    "decl": 1823,
+    "declText": "const { providerConfigSource: savedProviderConfig, projectId, projectVault, projectStore, siteId: projectSiteId } = await composeProviderConfig({ over",
+    "let": false
+   },
+   {
+    "n": "pluginRuntime",
+    "mode": "value",
+    "decl": 1093,
+    "declText": "const pluginRuntime = composePluginRuntime({",
+    "let": false
+   },
+   {
+    "n": "projectVault",
+    "mode": "value",
+    "decl": 1823,
+    "declText": "const { providerConfigSource: savedProviderConfig, projectId, projectVault, projectStore, siteId: projectSiteId } = await composeProviderConfig({ over",
+    "let": false
+   },
+   {
+    "n": "kernel",
+    "mode": "value",
+    "decl": 993,
+    "declText": "const kernel = store.content;",
+    "let": false
+   },
+   {
+    "n": "projectStore",
+    "mode": "value",
+    "decl": 1823,
+    "declText": "const { providerConfigSource: savedProviderConfig, projectId, projectVault, projectStore, siteId: projectSiteId } = await composeProviderConfig({ over",
+    "let": false
+   }
+  ],
+  "outputs": [
+   "providerConfigSource",
+   "customCredentialSetRepo"
+  ],
+  "imports": [
+   {
+    "n": "CustomCredentialVaultRepo",
+    "spec": "#src/features/custom-credentials/vault-repo",
+    "alsoOutside": false
+   },
+   {
+    "n": "SqliteCustomCredentialSetRepo",
+    "spec": "#src/features/custom-credentials/custom-credential-repo.sqlite",
+    "alsoOutside": false
+   },
+   {
+    "n": "withProviderSettingsMigrations",
+    "spec": "./provider-config-source.js",
+    "alsoOutside": false
+   }
+  ],
+  "top": [
+   {
+    "n": "credentialProject",
+    "line": 881,
+    "alsoOutside": true
+   }
+  ],
+  "readers": [],
+  "errs": []
+ },
+ {
+  "id": "B19",
+  "name": "mail-http",
+  "fn": "composeMailHttp",
+  "range": [
+   1902,
+   1958
+  ],
+  "a": 1892,
+  "startLine": 1902,
+  "b": 1958,
+  "code": 31,
+  "stmts": 7,
+  "sha": "f6c0cda690009ec300083dd09a8d0fb527f1c54361717a1c952b6640ab75e04b",
+  "first": "  const mailResolveDeps = {",
+  "last": "  }",
+  "inputs": [
+   {
+    "n": "workspaceId",
+    "mode": "value",
+    "decl": 1033,
+    "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+    "let": false
+   },
+   {
+    "n": "customCredentialSetRepo",
+    "mode": "value",
+    "decl": 1835,
+    "declText": "const customCredentialSetRepo = compositionCustomCredentials();",
+    "let": false
+   },
+   {
+    "n": "siteAssistantSecretSealer",
+    "mode": "value",
+    "decl": 1790,
+    "declText": "const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);",
+    "let": false
+   },
+   {
+    "n": "observability",
+    "mode": "value",
+    "decl": 1884,
+    "declText": "const { observability, tracker, aiTraceSink } = providerPlugins;",
+    "let": false
+   },
+   {
+    "n": "agentPluginLifecycle",
+    "mode": "value",
+    "decl": 979,
+    "declText": "const agentPluginLifecycle = createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, {",
+    "let": false
+   },
+   {
+    "n": "externalMcpServerRepo",
+    "mode": "value",
+    "decl": 1804,
+    "declText": "const externalMcpServerRepo = new SqliteExternalMcpServerRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "runtimeMode",
+    "mode": "value",
+    "decl": 1702,
+    "declText": "const runtimeMode = resolveRuntimeMode();",
+    "let": false
+   },
+   {
+    "n": "settingsRepo",
+    "mode": "value",
+    "decl": 1133,
+    "declText": "const settingsRepo = new SqliteSettingsRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "clock",
+    "mode": "value",
+    "decl": 1081,
+    "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+    "let": false
+   },
+   {
+    "n": "idGen",
+    "mode": "value",
+    "decl": 1082,
+    "declText": "const idGen = { newId: () => randomUUID() };",
+    "let": false
+   },
+   {
+    "n": "settingsPrincipals",
+    "mode": "value",
+    "decl": 1122,
+    "declText": "const settingsPrincipals = {",
+    "let": false
+   },
+   {
+    "n": "identity",
+    "mode": "value",
+    "decl": 1120,
+    "declText": "const identity = createSqliteIdentityRouteDeps({ db: kernel, workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredenti",
+    "let": false
+   },
+   {
+    "n": "siteTitleReady",
+    "mode": "value",
+    "decl": 1174,
+    "declText": "const siteTitleReady = siteSettingsReady",
+    "let": false
+   },
+   {
+    "n": "kernel",
+    "mode": "value",
+    "decl": 993,
+    "declText": "const kernel = store.content;",
+    "let": false
+   },
+   {
+    "n": "originRegistry",
+    "mode": "value",
+    "decl": 1356,
+    "declText": "const originRegistry = new OriginRegistry({ repo: new SqliteOriginSettingRepo({ store: kernel }, { after: originReady }) });",
+    "let": false
+   },
+   {
+    "n": "overrides",
+    "mode": "value",
+    "decl": "param",
+    "declText": "",
+    "let": false
+   }
+  ],
+  "outputs": [
+   "resolvedMailer",
+   "mailDurableOutboxReady",
+   "customCredentialsHttpClient",
+   "siteBackupHttpClient",
+   "outboundTestOrigins",
+   "mediaImportHttpClient",
+   "publishContentPeerHttpClient"
+  ],
+  "imports": [
+   {
+    "n": "CUSTOM_CREDENTIALS_EGRESS_POLICY",
+    "spec": "#src/platform/http/egress-policies",
+    "alsoOutside": true
+   },
+   {
+    "n": "MEDIA_IMPORT_EGRESS_POLICY",
+    "spec": "#src/platform/http/egress-policies",
+    "alsoOutside": true
+   },
+   {
+    "n": "SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID",
+    "spec": "../configuration/seed.js",
+    "alsoOutside": true
+   },
+   {
+    "n": "SINGLE_HOP_HTTPS_EGRESS_POLICY",
+    "spec": "#src/platform/http/egress-policies",
+    "alsoOutside": true
+   },
+   {
+    "n": "SITE_BACKUP_EGRESS_POLICY",
+    "spec": "#src/platform/http/egress-policies",
+    "alsoOutside": true
+   },
+   {
+    "n": "createDefaultHttpClient",
+    "spec": "#src/platform/http/client",
+    "alsoOutside": true
+   },
+   {
+    "n": "createMailAttemptObserver",
+    "spec": "#src/features/mail/attempts.repo",
+    "alsoOutside": false
+   },
+   {
+    "n": "createMailCaptureRepo",
+    "spec": "#src/features/mail/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "createMailSendLedgerRepo",
+    "spec": "#src/features/mail/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "createMailSuppressionRepo",
+    "spec": "#src/features/mail/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "createPluginAccountTokenResolver",
+    "spec": "../boot/mail-plugin-account-token.js",
+    "alsoOutside": false
+   },
+   {
+    "n": "createSiteMailer",
+    "spec": "./site-mailer.js",
+    "alsoOutside": false
+   },
+   {
+    "n": "createTestOriginHttpClientFactory",
+    "spec": "#src/platform/http/test-origin-allowlist",
+    "alsoOutside": false
+   },
+   {
+    "n": "formsMailOutboxReady",
+    "spec": "#src/features/forms/mail-outbox-readiness",
+    "alsoOutside": false
+   },
+   {
+    "n": "loadMailAdapterRegistry",
+    "spec": "#src/features/agent-plugins/mail-adapter-registry",
+    "alsoOutside": true
+   },
+   {
+    "n": "notifyExternalMcpRosterChanged",
+    "spec": "../../../assistant/external-mcp-roster-change.js",
+    "alsoOutside": true
+   },
+   {
+    "n": "readMailSenderSetting",
+    "spec": "#src/features/settings/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "resolvePublishContentPeerHttpClient",
+    "spec": "./publish-content-http.js",
+    "alsoOutside": false
+   },
+   {
+    "n": "setAgentPluginEnabled",
+    "spec": "#src/features/agent-plugins/set-enabled",
+    "alsoOutside": true
+   }
+  ],
+  "top": [],
+  "readers": [
+   [
+    "apps/website/src/server/__tests__/integration/production-readiness-boot.integration.test.ts",
+    [
+     "newsletterKeyring"
+    ]
+   ],
+   [
+    "apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts",
+    [
+     ", workspaceId: "
+    ]
+   ]
+  ],
+  "errs": []
+ },
+ {
+  "id": "B20",
+  "name": "content-stores",
+  "fn": "composeContentStores",
+  "range": [
+   1965,
+   1979
+  ],
+  "a": 1959,
+  "startLine": 1965,
+  "b": 1979,
+  "code": 4,
+  "stmts": 4,
+  "sha": "8f296d9f4d3eecea1457a67107bd8eb3bff5557e0acb8619be19606d79915e35",
+  "first": "  const postRepo = new SqlitePostRepo({ store: kernel });",
+  "last": "  const assetBlobRepo = new SqliteAssetBlobRepo({ store: kernel });",
+  "inputs": [
+   {
+    "n": "kernel",
+    "mode": "value",
+    "decl": 993,
+    "declText": "const kernel = store.content;",
+    "let": false
+   }
+  ],
+  "outputs": [
+   "postRepo",
+   "changeSets",
+   "mediaRepo",
+   "assetBlobRepo"
+  ],
+  "imports": [
+   {
+    "n": "SqliteAssetBlobRepo",
+    "spec": "#src/platform/db/sqlite/media-repo.sqlite",
+    "alsoOutside": true
+   },
+   {
+    "n": "SqliteChangeSetRepo",
+    "spec": "#src/platform/db/sqlite/change-set-repo.sqlite",
+    "alsoOutside": true
+   },
+   {
+    "n": "SqliteMediaRepo",
+    "spec": "#src/platform/db/sqlite/media-repo.sqlite",
+    "alsoOutside": true
+   },
+   {
+    "n": "SqlitePostRepo",
+    "spec": "#src/features/post/index",
+    "alsoOutside": true
+   }
+  ],
+  "top": [],
+  "readers": [],
+  "errs": []
+ },
+ {
+  "id": "B21",
+  "name": "publishing-stores-themes",
+  "fn": "composePublishingStoresThemes",
+  "range": [
+   1982,
+   2013
+  ],
+  "a": 1981,
+  "startLine": 1982,
+  "b": 2013,
+  "code": 17,
+  "stmts": 11,
+  "sha": "898cca7de5b671093af17ec115139e9f7e8729b3ba6ff93664ff8777b8216958",
+  "first": "  const mediaContentTypeStore = new SqliteMediaContentTypeStore({ store: kernel });",
+  "last": "  const removeTheme = unhideIfRemoveThrows({ adapter: themeTrashAdapter, remove: bindRemoveEntity({ trash, entityType: THEME_ENTITY_TYPE }) });",
+  "inputs": [
+   {
+    "n": "kernel",
+    "mode": "value",
+    "decl": 993,
+    "declText": "const kernel = store.content;",
+    "let": false
+   },
+   {
+    "n": "resolvedSiteBinding",
+    "mode": "value",
+    "decl": 977,
+    "declText": "const resolvedSiteBinding = resolveSiteBindingOverride(overrides);",
+    "let": false
+   },
+   {
+    "n": "workspaceId",
+    "mode": "value",
+    "decl": 1033,
+    "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+    "let": false
+   },
+   {
+    "n": "clock",
+    "mode": "value",
+    "decl": 1081,
+    "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+    "let": false
+   },
+   {
+    "n": "idGen",
+    "mode": "value",
+    "decl": 1082,
+    "declText": "const idGen = { newId: () => randomUUID() };",
+    "let": false
+   },
+   {
+    "n": "redirectsWriteDeps",
+    "mode": "value",
+    "decl": 1549,
+    "declText": "const redirectsWriteDeps: RedirectsWriteDeps = {",
+    "let": false
+   },
+   {
+    "n": "resolvedThemesDir",
+    "mode": "value",
+    "decl": 989,
+    "declText": "const resolvedThemesDir = resolveThemesDirOverride(resolvedSiteBinding, overrides);",
+    "let": false
+   },
+   {
+    "n": "trashAdapters",
+    "mode": "value",
+    "decl": 1465,
+    "declText": "const trashAdapters = new Map<string, TrashAdapter>([",
+    "let": false
+   },
+   {
+    "n": "trash",
+    "mode": "value",
+    "decl": 1521,
+    "declText": "const trash = createTrashService({",
+    "let": false
+   }
+  ],
+  "outputs": [
+   "mediaContentTypeStore",
+   "publishContentBundleRepo",
+   "publishContentBaselineRepo",
+   "publishContentFileBlobIndex",
+   "publishContentPeerRepo",
+   "publishContentSeedHash",
+   "siteThemes",
+   "removeTheme"
+  ],
+  "imports": [
+   {
+    "n": "SqliteMediaContentTypeStore",
+    "spec": "#src/platform/db/sqlite/media-repo.sqlite",
+    "alsoOutside": true
+   },
+   {
+    "n": "SqlitePublishContentBaselineRepo",
+    "spec": "#src/platform/db/sqlite/publish-content-baseline-repo.sqlite",
+    "alsoOutside": false
+   },
+   {
+    "n": "SqlitePublishContentBundleRepo",
+    "spec": "#src/platform/db/sqlite/publish-content-bundle-repo.sqlite",
+    "alsoOutside": false
+   },
+   {
+    "n": "SqlitePublishContentPeerRepo",
+    "spec": "#src/features/publish-content/publish-content-peer-repo.sqlite",
+    "alsoOutside": false
+   },
+   {
+    "n": "THEME_ENTITY_TYPE",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "bindRemoveEntity",
+    "spec": "@jini-ai/cms/trash",
+    "alsoOutside": true
+   },
+   {
+    "n": "builtInContentSeedDbPath",
+    "spec": "./site-paths.js",
+    "alsoOutside": true
+   },
+   {
+    "n": "createFileBlobIndex",
+    "spec": "#src/features/publish-content/file-blob-index",
+    "alsoOutside": false
+   },
+   {
+    "n": "createSqlitePublishContentSeedHash",
+    "spec": "./publish-content-seed-hash.js",
+    "alsoOutside": false
+   },
+   {
+    "n": "createThemeTrashAdapter",
+    "spec": "#src/features/theme/theme-trash",
+    "alsoOutside": false
+   },
+   {
+    "n": "discoverAllBuiltInThemes",
+    "spec": "#src/features/theme/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "syncThemeRoster",
+    "spec": "#src/features/theme/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "unhideIfRemoveThrows",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   }
+  ],
+  "top": [],
+  "readers": [],
+  "errs": []
+ },
+ {
+  "id": "B22",
+  "name": "publish-apply",
+  "fn": "composePublishContentApplyPort",
+  "range": [
+   2014,
+   2077
+  ],
+  "a": 2014,
+  "startLine": 2014,
+  "b": 2077,
+  "code": 58,
+  "stmts": 1,
+  "sha": "3ec26da10ecf19ae5c52075150a50f1c3408c6361345049868019588aac9e3f1",
+  "first": "  const publishContentApplyPort = createPublishContentApplyPort({",
+  "last": "  });",
+  "inputs": [
+   {
+    "n": "workspaceId",
+    "mode": "value",
+    "decl": 1033,
+    "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+    "let": false
+   },
+   {
+    "n": "publishContentBundleRepo",
+    "mode": "value",
+    "decl": 1983,
+    "declText": "const publishContentBundleRepo = new SqlitePublishContentBundleRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "publishContentBaselineRepo",
+    "mode": "value",
+    "decl": 1984,
+    "declText": "const publishContentBaselineRepo = new SqlitePublishContentBaselineRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "publishContentRunRepo",
+    "mode": "value",
+    "decl": 1608,
+    "declText": "const publishContentRunRepo = new SqlitePublishContentRunRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "clock",
+    "mode": "value",
+    "decl": 1081,
+    "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+    "let": false
+   },
+   {
+    "n": "idGen",
+    "mode": "value",
+    "decl": 1082,
+    "declText": "const idGen = { newId: () => randomUUID() };",
+    "let": false
+   },
+   {
+    "n": "outbox",
+    "mode": "value",
+    "decl": 1294,
+    "declText": "const outbox = new SqliteOutboxAdapter({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "changeSets",
+    "mode": "value",
+    "decl": 1973,
+    "declText": "const changeSets = new SqliteChangeSetRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "identity",
+    "mode": "value",
+    "decl": 1120,
+    "declText": "const identity = createSqliteIdentityRouteDeps({ db: kernel, workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredenti",
+    "let": false
+   },
+   {
+    "n": "postRepo",
+    "mode": "value",
+    "decl": 1965,
+    "declText": "const postRepo = new SqlitePostRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "trashRepo",
+    "mode": "value",
+    "decl": 1380,
+    "declText": "const trashRepo = new SqliteTrashRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "trash",
+    "mode": "value",
+    "decl": 1521,
+    "declText": "const trash = createTrashService({",
+    "let": false
+   },
+   {
+    "n": "mediaRepo",
+    "mode": "value",
+    "decl": 1978,
+    "declText": "const mediaRepo = new SqliteMediaRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "assetBlobRepo",
+    "mode": "value",
+    "decl": 1979,
+    "declText": "const assetBlobRepo = new SqliteAssetBlobRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "blobStore",
+    "mode": "value",
+    "decl": 1020,
+    "declText": "const { blobStore, mediaIsRemoteByEnv, isMediaRemote } = createMediaBlobStore({ uploadsDir: resolvedUploadsDir, env: process.env, ports: mediaStorePor",
+    "let": false
+   },
+   {
+    "n": "mediaContentTypeStore",
+    "mode": "value",
+    "decl": 1982,
+    "declText": "const mediaContentTypeStore = new SqliteMediaContentTypeStore({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "redirectsWriteDeps",
+    "mode": "value",
+    "decl": 1549,
+    "declText": "const redirectsWriteDeps: RedirectsWriteDeps = {",
+    "let": false
+   },
+   {
+    "n": "menuRepo",
+    "mode": "value",
+    "decl": 1193,
+    "declText": "const menuRepo = new SqliteMenuRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "navLocationBindingRepo",
+    "mode": "value",
+    "decl": 1194,
+    "declText": "const navLocationBindingRepo = new SqliteNavLocationBindingRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "formDefinitionRepo",
+    "mode": "value",
+    "decl": 1637,
+    "declText": "const formDefinitionRepo = new SqliteFormDefinitionRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "contentTypeRepo",
+    "mode": "value",
+    "decl": 1644,
+    "declText": "const contentTypeRepo = new SqliteContentTypeRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "contentTypeIndexProvisioner",
+    "mode": "value",
+    "decl": 1645,
+    "declText": "const contentTypeIndexProvisioner = new NoopContentTypeIndexProvisioner();",
+    "let": false
+   },
+   {
+    "n": "taxonomyRepo",
+    "mode": "value",
+    "decl": 1628,
+    "declText": "const taxonomyRepo = new SqliteTaxonomyRepo({ db: kernel, workspaceId: workspaceId });",
+    "let": false
+   },
+   {
+    "n": "termRepo",
+    "mode": "value",
+    "decl": 1629,
+    "declText": "const termRepo = new SqliteTermRepo({ db: kernel, workspaceId: workspaceId });",
+    "let": false
+   },
+   {
+    "n": "sqliteEntryTermRepo",
+    "mode": "value",
+    "decl": 1626,
+    "declText": "const sqliteEntryTermRepo = new SqliteEntryTermRepo({ db: kernel, workspaceId: workspaceId });",
+    "let": false
+   },
+   {
+    "n": "taxonomyRevisionRepo",
+    "mode": "value",
+    "decl": 1630,
+    "declText": "const taxonomyRevisionRepo = new SqliteTaxonomyRevisionRepo({ db: kernel, workspaceId: workspaceId });",
+    "let": false
+   },
+   {
+    "n": "stampWatermark",
+    "mode": "value",
+    "decl": 1631,
+    "declText": "const stampWatermark = storeBound.stampWatermark;",
+    "let": false
+   },
+   {
+    "n": "entryRepo",
+    "mode": "value",
+    "decl": 1622,
+    "declText": "const entryRepo = new SqliteEntryRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "entryRefsRepo",
+    "mode": "value",
+    "decl": 1636,
+    "declText": "const entryRefsRepo = new SqliteEntryRefsRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "widgetBindingRepo",
+    "mode": "value",
+    "decl": 1635,
+    "declText": "const widgetBindingRepo = new SqliteWidgetRegionBindingRepo(kernel);",
+    "let": false
+   },
+   {
+    "n": "settingsRepo",
+    "mode": "value",
+    "decl": 1133,
+    "declText": "const settingsRepo = new SqliteSettingsRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "settingsPrincipals",
+    "mode": "value",
+    "decl": 1122,
+    "declText": "const settingsPrincipals = {",
+    "let": false
+   },
+   {
+    "n": "presentationRepo",
+    "mode": "value",
+    "decl": 1132,
+    "declText": "const presentationRepo = new SqlitePresentationSettingsRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "siteThemes",
+    "mode": "value",
+    "decl": 2002,
+    "declText": "const siteThemes = discoverAllBuiltInThemes({ dir: resolvedThemesDir, source: \"built-in\" });",
+    "let": false
+   },
+   {
+    "n": "resolvedThemesDir",
+    "mode": "value",
+    "decl": 989,
+    "declText": "const resolvedThemesDir = resolveThemesDirOverride(resolvedSiteBinding, overrides);",
+    "let": false
+   },
+   {
+    "n": "publishContentSeedHash",
+    "mode": "value",
+    "decl": 1993,
+    "declText": "const publishContentSeedHash = createSqlitePublishContentSeedHash({",
+    "let": false
+   }
+  ],
+  "outputs": [
+   "publishContentApplyPort"
+  ],
+  "imports": [
+   {
+    "n": "POST_ENTITY_TYPE",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "bindForgetRemovedEntity",
+    "spec": "@jini-ai/cms/trash",
+    "alsoOutside": true
+   },
+   {
+    "n": "bindRemoveEntity",
+    "spec": "@jini-ai/cms/trash",
+    "alsoOutside": true
+   },
+   {
+    "n": "buildContentPublishPorts",
+    "spec": "#src/server/runtime/composition/content-publish-ports",
+    "alsoOutside": false
+   },
+   {
+    "n": "createPublishContentApplyPort",
+    "spec": "#src/features/publish-content/apply-port",
+    "alsoOutside": false
+   },
+   {
+    "n": "removeEntityWithoutBlocker",
+    "spec": "#src/features/trash/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "rescanThemes",
+    "spec": "#src/features/theme/index",
+    "alsoOutside": true
+   },
+   {
+    "n": "toPublishContentApplyDeps",
+    "spec": "#src/features/publish-content/apply-port",
+    "alsoOutside": false
+   }
+  ],
+  "top": [],
+  "readers": [],
+  "errs": []
+ },
+ {
+  "id": "B23",
+  "name": "outbound-connections",
+  "fn": "composeOutboundConnections",
+  "range": [
+   2080,
+   2113
+  ],
+  "a": 2078,
+  "startLine": 2080,
+  "b": 2113,
+  "code": 23,
+  "stmts": 5,
+  "sha": "308eaa11436d4561a97b3236c2b2ac68b9460a8c8c6a971bb8fc7ecf7a823f4a",
+  "first": "  const guardedOutboundHttpClient = createGuardedMediaHttpClient({",
+  "last": "  });",
+  "inputs": [
+   {
+    "n": "devCapabilityScheme",
+    "mode": "value",
+    "decl": 1325,
+    "declText": "const devCapabilityScheme = deriveDevScheme({ tlsActive: resolveDevTls(resolveDevTlsCertPaths({ repoRoot: REPO_ROOT })).active });",
+    "let": false
+   },
+   {
+    "n": "workspaceId",
+    "mode": "value",
+    "decl": 1033,
+    "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+    "let": false
+   },
+   {
+    "n": "agentPluginLifecycle",
+    "mode": "value",
+    "decl": 979,
+    "declText": "const agentPluginLifecycle = createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, {",
+    "let": false
+   },
+   {
+    "n": "kernel",
+    "mode": "value",
+    "decl": 993,
+    "declText": "const kernel = store.content;",
+    "let": false
+   },
+   {
+    "n": "siteAssistantSecretKeyring",
+    "mode": "value",
+    "decl": 1787,
+    "declText": "const siteAssistantSecretKeyring = new EnvOrFileKeyring({",
+    "let": false
+   },
+   {
+    "n": "siteAssistantSecretSealer",
+    "mode": "value",
+    "decl": 1790,
+    "declText": "const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);",
+    "let": false
+   },
+   {
+    "n": "customCredentialSetRepo",
+    "mode": "value",
+    "decl": 1835,
+    "declText": "const customCredentialSetRepo = compositionCustomCredentials();",
+    "let": false
+   },
+   {
+    "n": "clock",
+    "mode": "value",
+    "decl": 1081,
+    "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+    "let": false
+   },
+   {
+    "n": "projectStore",
+    "mode": "value",
+    "decl": 1823,
+    "declText": "const { providerConfigSource: savedProviderConfig, projectId, projectVault, projectStore, siteId: projectSiteId } = await composeProviderConfig({ over",
+    "let": false
+   },
+   {
+    "n": "projectSiteId",
+    "mode": "value",
+    "decl": 1823,
+    "declText": "const { providerConfigSource: savedProviderConfig, projectId, projectVault, projectStore, siteId: projectSiteId } = await composeProviderConfig({ over",
+    "let": false
+   },
+   {
+    "n": "resolvedSiteBinding",
+    "mode": "value",
+    "decl": 977,
+    "declText": "const resolvedSiteBinding = resolveSiteBindingOverride(overrides);",
+    "let": false
+   },
+   {
+    "n": "identity",
+    "mode": "value",
+    "decl": 1120,
+    "declText": "const identity = createSqliteIdentityRouteDeps({ db: kernel, workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredenti",
+    "let": false
+   },
+   {
+    "n": "siteReferenceRepo",
+    "mode": "value",
+    "decl": 1820,
+    "declText": "const siteReferenceRepo = new SqlSecretsVaultRepo({ kernel: kernel as unknown as KyselyKernel<SecretsVaultDatabase> });",
+    "let": false
+   },
+   {
+    "n": "settingsRepo",
+    "mode": "value",
+    "decl": 1133,
+    "declText": "const settingsRepo = new SqliteSettingsRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "idGen",
+    "mode": "value",
+    "decl": 1082,
+    "declText": "const idGen = { newId: () => randomUUID() };",
+    "let": false
+   },
+   {
+    "n": "settingsPrincipals",
+    "mode": "value",
+    "decl": 1122,
+    "declText": "const settingsPrincipals = {",
+    "let": false
+   },
+   {
+    "n": "formDefinitionRepo",
+    "mode": "value",
+    "decl": 1637,
+    "declText": "const formDefinitionRepo = new SqliteFormDefinitionRepo({ store: kernel });",
+    "let": false
+   }
+  ],
+  "outputs": [
+   "guardedOutboundHttpClient",
+   "externalMcpOAuthHttpPorts",
+   "derivedPublicOrigin",
+   "agentPluginConnections"
+  ],
+  "imports": [
+   {
+    "n": "KyselyKernel",
+    "spec": "@jini-ai/db/kernel (type)",
+    "alsoOutside": true
+   },
+   {
+    "n": "SecretsVaultDatabase",
+    "spec": "@jini-ai/db/secrets-vault (type)",
+    "alsoOutside": true
+   },
+   {
+    "n": "SqlSecretsVaultRepo",
+    "spec": "@jini-ai/db/secrets-vault",
+    "alsoOutside": true
+   },
+   {
+    "n": "composeAgentPluginConnections",
+    "spec": "./agent-plugin-connections.js",
+    "alsoOutside": false
+   },
+   {
+    "n": "createApiConnectionVault",
+    "spec": "#src/features/api-connections/vault-stores",
+    "alsoOutside": true
+   },
+   {
+    "n": "createGuardedMediaHttpClient",
+    "spec": "@jini-ai/platform/http/guarded",
+    "alsoOutside": false
+   },
+   {
+    "n": "createNodeGuardedHttpPorts",
+    "spec": "@jini-ai/platform/http/guarded",
+    "alsoOutside": false
+   },
+   {
+    "n": "createSiteOAuthBindings",
+    "spec": "#src/features/project-keys/site-references",
+    "alsoOutside": true
+   },
+   {
+    "n": "createTovuOAuthHttpPorts",
+    "spec": "#src/platform/oauth/endpoint-safety",
+    "alsoOutside": false
+   },
+   {
+    "n": "resolveApiConnectionRuntime",
+    "spec": "./agent-plugin-connections.js",
+    "alsoOutside": false
+   },
+   {
+    "n": "sharedApiConnectionOptions",
+    "spec": "./agent-plugin-connections.js",
+    "alsoOutside": false
+   }
+  ],
+  "top": [],
+  "readers": [
+   [
+    "apps/website/src/server/runtime/composition/__tests__/external-mcp-oauth-loopback-wiring.unit.test.ts",
+    [
+     "createTovuOAuthHttpPorts",
+     "externalMcpOAuthHttpPorts"
+    ]
+   ],
+   [
+    "apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts",
+    [
+     "composeAgentPluginConnections"
+    ]
+   ]
+  ],
+  "errs": []
+ },
+ {
+  "id": "B24",
+  "name": "pre-assembly",
+  "fn": "composePreAssembly",
+  "range": [
+   2116,
+   2134
+  ],
+  "a": 2115,
+  "startLine": 2116,
+  "b": 2134,
+  "code": 16,
+  "stmts": 9,
+  "sha": "3d793279221993f3fe463e6f4d0724955b4ab6600628587c0cd8fb5b3def1117",
+  "first": "  const adminSurfaceHandlersReady = agentPluginConnections.adminSurfaceHost.refresh().then(() => {}, (error: unknown) => {",
+  "last": "  const agentPluginMcp = composeAgentPluginMcp({ repo: externalMcpServerRepo, sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring, clock });",
+  "inputs": [
+   {
+    "n": "agentPluginConnections",
+    "mode": "value",
+    "decl": 2102,
+    "declText": "const agentPluginConnections = composeAgentPluginConnections({",
+    "let": false
+   },
+   {
+    "n": "postRepo",
+    "mode": "value",
+    "decl": 1965,
+    "declText": "const postRepo = new SqlitePostRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "settingsRepo",
+    "mode": "value",
+    "decl": 1133,
+    "declText": "const settingsRepo = new SqliteSettingsRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "mediaRepo",
+    "mode": "value",
+    "decl": 1978,
+    "declText": "const mediaRepo = new SqliteMediaRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "mediaContentTypeStore",
+    "mode": "value",
+    "decl": 1982,
+    "declText": "const mediaContentTypeStore = new SqliteMediaContentTypeStore({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "transformDefinitionRepo",
+    "mode": "value",
+    "decl": 1251,
+    "declText": "const transformDefinitionRepo = new SqliteTransformDefinitionRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "originRegistry",
+    "mode": "value",
+    "decl": 1356,
+    "declText": "const originRegistry = new OriginRegistry({ repo: new SqliteOriginSettingRepo({ store: kernel }, { after: originReady }) });",
+    "let": false
+   },
+   {
+    "n": "clock",
+    "mode": "value",
+    "decl": 1081,
+    "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+    "let": false
+   },
+   {
+    "n": "siteTitleSettingsDeps",
+    "mode": "value",
+    "decl": 1153,
+    "declText": "const siteTitleSettingsDeps = { settingsRepo, clock, ids: idGen, principals: settingsPrincipals };",
+    "let": false
+   },
+   {
+    "n": "siteSettingsReady",
+    "mode": "value",
+    "decl": 1154,
+    "declText": "const siteSettingsReady = analyticsSettingsReady",
+    "let": false
+   },
+   {
+    "n": "identity",
+    "mode": "value",
+    "decl": 1120,
+    "declText": "const identity = createSqliteIdentityRouteDeps({ db: kernel, workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredenti",
+    "let": false
+   },
+   {
+    "n": "workspaceId",
+    "mode": "value",
+    "decl": 1033,
+    "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+    "let": false
+   },
+   {
+    "n": "routeDeps",
+    "mode": "getter",
+    "decl": 2135,
+    "declText": "const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {",
+    "let": false
+   },
+   {
+    "n": "agentPluginLifecycle",
+    "mode": "value",
+    "decl": 979,
+    "declText": "const agentPluginLifecycle = createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, {",
+    "let": false
+   },
+   {
+    "n": "customCredentialSetRepo",
+    "mode": "value",
+    "decl": 1835,
+    "declText": "const customCredentialSetRepo = compositionCustomCredentials();",
+    "let": false
+   },
+   {
+    "n": "siteAssistantSecretSealer",
+    "mode": "value",
+    "decl": 1790,
+    "declText": "const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);",
+    "let": false
+   },
+   {
+    "n": "externalMcpServerRepo",
+    "mode": "value",
+    "decl": 1804,
+    "declText": "const externalMcpServerRepo = new SqliteExternalMcpServerRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "siteAssistantSecretKeyring",
+    "mode": "value",
+    "decl": 1787,
+    "declText": "const siteAssistantSecretKeyring = new EnvOrFileKeyring({",
+    "let": false
+   }
+  ],
+  "outputs": [
+   "adminSurfaceHandlersReady",
+   "siteAppBootWork",
+   "seoDeps",
+   "sitemapService",
+   "resolveRouteDeps",
+   "siteConsentReady",
+   "pluginExports",
+   "agentPluginMcp"
+  ],
+  "imports": [
+   {
+    "n": "RouteDeps",
+    "spec": "../../routes/types.js (type)",
+    "alsoOutside": true
+   },
+   {
+    "n": "SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID",
+    "spec": "../configuration/seed.js",
+    "alsoOutside": true
+   },
+   {
+    "n": "bundledAgentPluginsDir",
+    "spec": "./site-paths.js",
+    "alsoOutside": true
+   },
+   {
+    "n": "composeAgentPluginMcp",
+    "spec": "./agent-plugin-service-ports.js",
+    "alsoOutside": false
+   },
+   {
+    "n": "createPluginExportRuntime",
+    "spec": "#src/features/agent-plugins/exports/runtime",
+    "alsoOutside": false
+   },
+   {
+    "n": "createPluginExportSource",
+    "spec": "#src/features/agent-plugins/exports/source",
+    "alsoOutside": false
+   },
+   {
+    "n": "createReadyLoginProviderList",
+    "spec": "#src/features/member-login/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "createSeoDeps",
+    "spec": "#src/features/seo/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "createSiteConsentReadiness",
+    "spec": "#src/features/consent/settings",
+    "alsoOutside": false
+   },
+   {
+    "n": "createSitemapService",
+    "spec": "@jini-ai/cms/seo",
+    "alsoOutside": false
+   },
+   {
+    "n": "ensureSiteConsentPrivacy",
+    "spec": "./site-consent.js",
+    "alsoOutside": false
+   },
+   {
+    "n": "resolve",
+    "spec": "node:path",
+    "alsoOutside": true
+   }
+  ],
+  "top": [],
+  "readers": [
+   [
+    "apps/website/src/server/__tests__/integration/create-sqlite-route-deps-for-workspace.integration.test.ts",
+    [
+     "identityReady"
+    ]
+   ]
+  ],
+  "errs": []
+ },
+ {
+  "id": "B25",
+  "name": "after-assembly-forms-search",
+  "fn": "wireFormsAndSearch",
+  "range": [
+   2723,
+   2785
+  ],
+  "a": 2717,
+  "startLine": 2723,
+  "b": 2785,
+  "code": 44,
+  "stmts": 9,
+  "sha": "cfff29fa8734e342c666dd2fedc0be4f961bd6ba4d940a3fe1f0107bca250fdd",
+  "first": "  const widgetAdoptionReady = Promise.allSettled([siteTitleReady, menuBindingsReady, mediaTransformReady])",
+  "last": "  }), { storage: kernel, settingsReady: siteTitleReady });",
+  "inputs": [
+   {
+    "n": "siteTitleReady",
+    "mode": "value",
+    "decl": 1174,
+    "declText": "const siteTitleReady = siteSettingsReady",
+    "let": false
+   },
+   {
+    "n": "menuBindingsReady",
+    "mode": "value",
+    "decl": 1195,
+    "declText": "const menuBindingsReady = rebuildNavLocationBindings({",
+    "let": false
+   },
+   {
+    "n": "mediaTransformReady",
+    "mode": "value",
+    "decl": 1252,
+    "declText": "const mediaTransformReady = commentsReady",
+    "let": false
+   },
+   {
+    "n": "routeDeps",
+    "mode": "value",
+    "decl": 2135,
+    "declText": "const routeDeps: NewsletterRouteDeps & ByokToolSurfaceDeps = {",
+    "let": false
+   },
+   {
+    "n": "workspaceId",
+    "mode": "value",
+    "decl": 1033,
+    "declText": "const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);",
+    "let": false
+   },
+   {
+    "n": "kernel",
+    "mode": "value",
+    "decl": 993,
+    "declText": "const kernel = store.content;",
+    "let": false
+   },
+   {
+    "n": "outbox",
+    "mode": "value",
+    "decl": 1294,
+    "declText": "const outbox = new SqliteOutboxAdapter({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "bus",
+    "mode": "value",
+    "decl": 1295,
+    "declText": "const bus = new InMemoryEventBus();",
+    "let": false
+   },
+   {
+    "n": "clock",
+    "mode": "value",
+    "decl": 1081,
+    "declText": "const clock = { nowMs: () => Date.now(), nowIso: () => new Date().toISOString() };",
+    "let": false
+   },
+   {
+    "n": "idGen",
+    "mode": "value",
+    "decl": 1082,
+    "declText": "const idGen = { newId: () => randomUUID() };",
+    "let": false
+   },
+   {
+    "n": "customCredentialSetRepo",
+    "mode": "value",
+    "decl": 1835,
+    "declText": "const customCredentialSetRepo = compositionCustomCredentials();",
+    "let": false
+   },
+   {
+    "n": "siteAssistantSecretSealer",
+    "mode": "value",
+    "decl": 1790,
+    "declText": "const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);",
+    "let": false
+   },
+   {
+    "n": "siteAssistantSecretKeyring",
+    "mode": "value",
+    "decl": 1787,
+    "declText": "const siteAssistantSecretKeyring = new EnvOrFileKeyring({",
+    "let": false
+   },
+   {
+    "n": "agentPluginLifecycle",
+    "mode": "value",
+    "decl": 979,
+    "declText": "const agentPluginLifecycle = createTovuAgentPluginLifecycle({ layout: agentPluginLayout }, {",
+    "let": false
+   },
+   {
+    "n": "settingsRepo",
+    "mode": "value",
+    "decl": 1133,
+    "declText": "const settingsRepo = new SqliteSettingsRepo({ store: kernel });",
+    "let": false
+   },
+   {
+    "n": "observability",
+    "mode": "value",
+    "decl": 1884,
+    "declText": "const { observability, tracker, aiTraceSink } = providerPlugins;",
+    "let": false
+   },
+   {
+    "n": "formDeliveryRepo",
+    "mode": "value",
+    "decl": 1391,
+    "declText": "const formDeliveryRepo = new SqlFormDeliveryRepo({ kernel });",
+    "let": false
+   },
+   {
+    "n": "agentPluginConnections",
+    "mode": "value",
+    "decl": 2102,
+    "declText": "const agentPluginConnections = composeAgentPluginConnections({",
+    "let": false
+   },
+   {
+    "n": "identity",
+    "mode": "value",
+    "decl": 1120,
+    "declText": "const identity = createSqliteIdentityRouteDeps({ db: kernel, workspaceId, clock, idGen, permissionGrants: createAppPermissionGrants({}), ownerCredenti",
+    "let": false
+   },
+   {
+    "n": "settingsPrincipals",
+    "mode": "value",
+    "decl": 1122,
+    "declText": "const settingsPrincipals = {",
+    "let": false
+   },
+   {
+    "n": "agentPluginLayout",
+    "mode": "value",
+    "decl": 978,
+    "declText": "const agentPluginLayout = resolveAgentPluginLayout({ siteDir: resolvedSiteBinding.dir });",
+    "let": false
+   }
+  ],
+  "outputs": [
+   "widgetAdoptionReady"
+  ],
+  "imports": [
+   {
+    "n": "DefaultMemberAccessResolver",
+    "spec": "#src/features/members/index",
+    "alsoOutside": false
+   },
+   {
+    "n": "SINGLE_HOP_HTTPS_EGRESS_POLICY",
+    "spec": "#src/platform/http/egress-policies",
+    "alsoOutside": true
+   },
+   {
+    "n": "SqlFormPullLeaseRepo",
+    "spec": "#src/platform/db/repos/form-delivery-repo",
+    "alsoOutside": false
+   },
+   {
+    "n": "SqlFormSubmissionReceiptRepo",
+    "spec": "#src/platform/db/repos/form-submission-receipt-repo",
+    "alsoOutside": false
+   },
+   {
+    "n": "adoptLegacyTrashedWidgets",
+    "spec": "@jini-ai/cms/widgets",
+    "alsoOutside": false
+   },
+   {
+    "n": "bindSiteSearchPorts",
+    "spec": "./modules/site-search.js",
+    "alsoOutside": false
+   },
+   {
+    "n": "buildWidgetsDeps",
+    "spec": "#src/features/widgets/deps",
+    "alsoOutside": true
+   },
+   {
+    "n": "composeFormDelivery",
+    "spec": "#src/server/runtime/composition/form-delivery",
+    "alsoOutside": false
+   },
+   {
+    "n": "composeFormDeliveryDeliverer",
+    "spec": "#src/server/runtime/composition/form-delivery-deliverer",
+    "alsoOutside": false
+   },
+   {
+    "n": "composeFormSubmissions",
+    "spec": "#src/server/runtime/composition/form-submissions",
+    "alsoOutside": false
+   },
+   {
+    "n": "createDefaultHttpClient",
+    "spec": "#src/platform/http/client",
+    "alsoOutside": true
+   },
+   {
+    "n": "createDeployHostKit",
+    "spec": "#src/features/deployments/deploy-targets/host-kit",
+    "alsoOutside": true
+   },
+   {
+    "n": "createSiteSearchRuntime",
+    "spec": "./modules/site-search.js",
+    "alsoOutside": false
+   },
+   {
+    "n": "loadFormDestinationRegistry",
+    "spec": "#src/features/form-destinations/registry",
+    "alsoOutside": false
+   },
+   {
+    "n": "resolveCustomCredentialByLabel",
+    "spec": "#src/features/custom-credentials/index",
+    "alsoOutside": true
+   }
+  ],
+  "top": [
+   {
+    "n": "consoleLogger",
+    "line": 417,
+    "alsoOutside": true
+   }
+  ],
+  "readers": [],
+  "errs": []
+ }
+]
