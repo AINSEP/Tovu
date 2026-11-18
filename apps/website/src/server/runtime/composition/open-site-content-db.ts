@@ -1,4 +1,4 @@
-import { recoverIncompleteDataModuleMigrations, restoreSqliteSnapshots } from "#src/features/plugins/migration-recovery";
+import { recoverIncompleteDataModuleMigrations, restoreSqliteSnapshots } from "@jini-ai/db/data-modules";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
 import { prepareContentStore } from "#src/platform/db/prepare-content-store";

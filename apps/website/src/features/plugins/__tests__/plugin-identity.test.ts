@@ -7,7 +7,7 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { checkNamespaceAdoption, getPluginIdentity } from "../plugin-identity.js";
+import { checkNamespaceAdoption, getPluginIdentity } from "@jini-ai/db/data-modules";
 
 /** @file ADR-023 §5/§6 (T5 fix, round-2 revision) — the two-track namespace-adoption guard. */
 

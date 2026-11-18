@@ -8,7 +8,7 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { discardCommittedSnapshot, isInMemoryDbPath, snapshotDb } from "../snapshot.js";
+import { discardCommittedSnapshot, isInMemoryDbPath, snapshotDb } from "@jini-ai/db/data-modules";
 
 /**
  * @file ADR-023 §4 — whole-file snapshot, isolated from the rest of the engine.

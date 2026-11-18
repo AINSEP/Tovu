@@ -9,7 +9,7 @@ import { syncBuiltinESMExports } from "node:module";
 import Database from "better-sqlite3";
 import { declareDataModule } from "@jini-ai/db/data-modules";
 
-import { checkDiskHeadroom } from "../disk-headroom.js";
+import { checkDiskHeadroom } from "@jini-ai/db/data-modules";
 
 function measuredFreeSpace(t: TestContext, freeBytes: number): void {
   const measurement = t.mock.method(fs, "statfsSync", () => ({ bsize: 1, bavail: freeBytes }));

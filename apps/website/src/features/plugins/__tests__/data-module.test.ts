@@ -20,7 +20,7 @@ import test from "node:test";
 import Database from "better-sqlite3";
 
 import { declareDataModule, type DataModuleDecl } from "@jini-ai/db/data-modules";
-import { pluginKernel, type PluginKernel } from "../plugin-store.js";
+import { pluginKernel, type PluginKernel } from "@jini-ai/db/data-modules";
 import { staleColumnsOnSecondRead } from "./stale-columns-proxy.js";
 
 function openWithCore(): { db: Database.Database; dbPath: string; dir: string } {
@@ -333,7 +333,7 @@ test("dataModule: DATA-LOSS REPRODUCTION — writes accepted after a post-commit
   // Some time later, a NON-crash restart happens (a deploy, a routine restart — not a crash). Real
   // boot runs `recoverIncompleteDataModuleMigrations` on a fresh connection before migrating,
   // exactly like this (`openSiteContentDb`).
-  const { recoverIncompleteDataModuleMigrations, restoreSqliteSnapshots } = await import("../migration-recovery.js");
+  const { recoverIncompleteDataModuleMigrations, restoreSqliteSnapshots } = await import("@jini-ai/db/data-modules");
   const scan = new Database(dbPath);
   await recoverIncompleteDataModuleMigrations({
     store: contentKernel({ store: scan }),
@@ -578,7 +578,7 @@ test("dataModule reports a committed migration as successful despite a post-comm
     assert.equal(tableExists(db, "p_hello__products"), true);
     assert.equal((db.prepare("SELECT phase FROM _plugin_migration_journal ORDER BY id DESC LIMIT 1").get() as { phase: string }).phase, "COMMITTED");
     db.prepare("INSERT INTO posts VALUES ('p2', 'after commit')").run();
-    const { recoverIncompleteDataModuleMigrations } = await import("../migration-recovery.js");
+    const { recoverIncompleteDataModuleMigrations } = await import("@jini-ai/db/data-modules");
     const recovery = await recoverIncompleteDataModuleMigrations({ store: contentKernel({ store: db }), restoreSnapshots: () => { assert.fail("a committed migration must never restore"); } });
     assert.deepEqual(recovery, { recovered: 0, entries: [] });
     assert.deepEqual(db.prepare("SELECT * FROM posts WHERE id = 'p2'").get(), { id: "p2", title: "after commit" });
@@ -662,7 +662,7 @@ test("dataModule rolls back migration bookkeeping when a created table cannot be
   t.after(() => db.close());
   db.prepare("CREATE TABLE posts (id TEXT PRIMARY KEY, title TEXT)").run();
   db.prepare("INSERT INTO posts VALUES ('p1', 'keep')").run();
-  const kernel = pluginKernel(contentKernel({ store: db }));
+  const kernel = pluginKernel({ store: contentKernel({ store: db }) });
   let droppedCreate = false;
   // A driver that acknowledges CREATE without applying it must not leave committed migration
   // bookkeeping. All other statements, including the transaction/rollback, use the real kernel.
@@ -689,7 +689,7 @@ for (const checkpointFails of [false, true]) {
   test(`dataModule housekeeping ${checkpointFails ? "retains the snapshot on checkpoint failure" : "checkpoints before discarding the snapshot"}`, async (t) => {
     const { db, dbPath, dir } = openWithCore();
     t.after(() => { db.close(); fs.rmSync(dir, { recursive: true, force: true }); });
-    const kernel = pluginKernel(contentKernel({ store: db }));
+    const kernel = pluginKernel({ store: contentKernel({ store: db }) });
     let committedCheckpoint = false;
     let snapshotAtCheckpoint: string | undefined;
     const fault: PluginKernel = { ...kernel, query: async (statement) => {
@@ -718,7 +718,7 @@ for (const checkpointFails of [false, true]) {
 test("dataModule housekeeping skips checkpoints and backups without a file-backed snapshot", async (t) => {
   const db = new Database(":memory:");
   t.after(() => db.close());
-  const kernel = pluginKernel(contentKernel({ store: db }));
+  const kernel = pluginKernel({ store: contentKernel({ store: db }) });
   const fault: PluginKernel = { ...kernel,
     backupTo: async () => { assert.fail("an in-memory declaration must not create a backup"); },
     query: async (statement) => {
