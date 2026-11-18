@@ -2,6 +2,8 @@
 
 Status: **PARTIAL, revision 3 (2026-11-16, Opus review applied; table at the end; coordinator decisions in section 0)**. Revision 2 (2026-11-17): all 20 findings of `CODEX-JUDGE.md` were checked against the code (19 accepted, 1 accepted in part with a rebuttal; table at the end). Not finished, numbered in section 10: the D0c design, D0e's sheet, Inventory blocks for D3-D6. Round 1 said: COMPLETE as a plan (all seven survey steps have sheets). Planning only: no source file was edited, nothing was built, typechecked or run. What was not verified is in section 9.
 
+**D0c revision 3 (2026-11-18, rethink, unjudged):** `designs/D0c-REVISION-3.md` replaces the host-shared design (`designs/D0c.md`, `D0c3.md`, `D0c3-REVISION-2.md`, `D0c3-sheets.md` and the D0c rows of section 5) for everything not yet landed. Owner question Q1 (host-shared vs request-facts) is answered there with recommendation C: no `@tovu/host-shared`; sheets in `designs/d0c-v3/` (own COMMON). Q2 (product-telemetry provider loading) blocks only D0c3c/D0c3d.
+
 Read `COMMON.md` first (base, first commands, 12 STOP conditions with a command each, proof levels, report format). Sheets: `D0-website-imports.md`, `D1-ipc-lifecycle.md`, `D2-notes-desktop.md`, `D3-supervision.md`, `D4-registry.md`, `D5-chat.md`, `D6-renderer.md`.
 
 ## 0. Coordinator decisions (revision 3, 2026-11-16; recorded identically in the notes plan's INDEX)
