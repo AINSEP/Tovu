@@ -65,7 +65,7 @@ pnpm check:size
 pnpm check:complexity
 pnpm check:hooks
 pnpm check:errors
-pnpm check:why-comments
+pnpm check:why-comments -- --base "$B"
 for p in $PKGS; do npm --prefix "packages/$p" run test; done
 ```
 Not in G, run once at the end of the sheet and reported (BASE-RED known): Tovu `npm run check:boundaries` (count must not grow vs step 0).
@@ -81,7 +81,7 @@ npm ls "$NAME" --prefix apps/desktop >/dev/null
 **Staging check** (T1-T7): `node apps/desktop/scripts/stage-website-shared.ts` prints `bundled N module(s)` and the list; the sheet states the expected N and list. A different list is a STOP.
 
 ## 5. Allowed test edits (anything else is a STOP)
-(a) import specifiers of moved names, pointed at the new owner's **public** subpath; (b) a `t.mock.module(...)`/`module(...)` call whose target moved to a Jini public subpath: the specifier becomes that subpath and the stub object becomes `{ ...await import("<subpath>"), <stubbed name>: <same stub> }` so every other export of the subpath stays real; plus the paired `await import(...)`; mocked names and every assertion unchanged; proof: make the stub throw -> the test goes RED, restore; (c) comment-only lines naming the old path; (d) the edits a sheet lists by line. A moved test file keeps its test names and assertions byte for byte except import lines.
+(a) import specifiers of moved names, pointed at the new owner's **public** subpath; (b) a `t.mock.module(...)`/`module(...)` call whose target moved to a Jini public subpath: the specifier becomes that subpath and the stub object becomes `{ ...await import("<subpath>"), <stubbed name>: <same stub> }` so every other export of the subpath stays real; plus the paired `await import(...)`; mocked names and every assertion unchanged; proof: make the stub throw -> the test goes RED, restore; (c) comment-only lines naming the old path; (d) the edits a sheet lists by line; (e) a why-comment block that moved to Jini (J2, J4) and so survives nowhere in Tovu: one entry per block in `development/why-comments-debt.json`, naming the deleting commit and the Jini file:line that now carries the text (the combine-3-fix pattern), never a blanket entry. A moved test file keeps its test names and assertions byte for byte except import lines.
 
 ## 6. Proof levels
 T = gate G green on every commit of the sheet (each commit alone, checked out read-only), plus the sheet's mutation proofs. P = packaged: `npm --prefix apps/desktop run stage`, `electron-builder`, `node --experimental-import-meta-resolve apps/desktop/scripts/verify-staged-closure.ts --asar <archive>`, release workflow on macOS and Windows. P for T1-T7 is owed until one Jini release contains J1-J4 (a cold release install resolves `@jini-ai/*` from the registry: `.github/workflows/desktop-release.yml:156-159`). The release workflow calls `npm run stage` (`:87`, `:162`, `:406`); **no sheet in T1-T7 edits the `stage` script, `stage-website-shared.ts`, `electron-builder.yml` or the verifier.**
