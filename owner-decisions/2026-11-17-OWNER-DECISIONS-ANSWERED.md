@@ -57,3 +57,10 @@ These IDs are LOCAL to lanes S/U (not the xpkg OD ids).
 | ER-6, ER-D12, XP-OD6, OLD-CLONES, OLD-KL | Coordinator summarises; owner OK to proceed on recommendations. |
 | J4 React-half home | OPEN: owner asked about `@jini-ai/core/react`; coordinator explained core is the zero-dependency kernel; awaiting owner pick (core/react subpath with optional React peer vs ui-kit exception). |
 | General | No redirects / dead code / back-compat shims anywhere: fix everything now. |
+
+## Owner answers 2026-11-17 ~11:20 PM PT (supersede the OPEN J4 row above)
+
+| ID | Answer |
+|---|---|
+| J4 React half (useController, bindReact, ModulePageProps, TabViewProps) | INJECT, do not import: module packages (admin domains, cms, devops, user-management, agent-plugins, cookie-consent) state the contract (types) and receive the React helpers from the host through an injected hooks/runtime prop (grouped hooks prop, defaulted only where the package owns the default); the app (Tovu) wires the implementation. No ui-kit import exception, no @jini-ai/core/react. |
+| arch-120 (cross-feature import edges) | Untangle with interfaces (ports) and keep it untangled; the app wires the implementations. No baseline waivers. |
