@@ -4,7 +4,7 @@
  * ## The capability this closes
  *
  * `@jini-ai/http-kit`'s attachment route pack mounts exactly two routes — `POST /api/attachments`
- * and `DELETE /api/attachments` (`registerAttachmentRoutes`) — so bytes could be staged and
+ * and `DELETE /api/attachments` (`attachmentUploadRoutes`, `attachmentCleanupRoutes`) — so bytes could be staged and
  * abandoned but never read again. The admin's attachment preview modal therefore worked only for
  * the current session, off a client-side `File` cache keyed by upload path
  * (`apps/admin/.../attachment-preview-cache.ts`): anything from an earlier turn, or anything at all

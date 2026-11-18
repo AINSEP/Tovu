@@ -85,10 +85,10 @@ import { bridgePreflightEntry } from "./bridge-preflight-entry.js";
 import type { PromptAugmenter } from "@jini-ai/core/contracts/agents";
 import { createAgentSelectionResolver, createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";
 import { executorDefinitionPolicies } from "./executor-definition-policies.js";
-import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, frontendRequestRoutes, agentRoutes, registerAttachmentRoutes, componentCatalogRoutes, delegatedToolRoutes, messageRelayRoutes, runRoutes, toolCatalogRoutes } from "@jini-ai/daemon/http";
+import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, frontendRequestRoutes, agentRoutes, attachmentCleanupRoutes, attachmentUploadRoutes, componentCatalogRoutes, delegatedToolRoutes, messageRelayRoutes, runRoutes, toolCatalogRoutes } from "@jini-ai/daemon/http";
 import { adminFrontendOwner, adminFrontendRunOwner } from "#src/assistant/admin-frontend-owner";
 import { bearerTokenFromHeader, createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
-import type { AttachmentStore, DelegatedToolExecuteRequest, RunMessageRequest, RunStartHandler, StoredAttachment } from "@jini-ai/daemon/http";
+import type { AttachmentStore, AttachmentsHttpDeps, DelegatedToolExecuteRequest, RunMessageRequest, RunStartHandler, StoredAttachment } from "@jini-ai/daemon/http";
 
 /** The `run`/`lifecycle` shape `RunStartHandler` receives — derived rather than imported directly
  *  from `@jini-ai/daemon`/`@jini-ai/protocol` so this file adds no new package-import edge just to
@@ -1599,14 +1599,16 @@ mountJiniRoutes({ app, routes: frontendRequestRoutes({ path: "/api/frontend-sess
   // non-JSON `content-type` is what actually protects the upload route — see
   // `apps/website/src/server/runtime/composition/modules/assistant.ts#forwardAttachmentUpload`'s doc for the full trace of why an
   // `application/octet-stream` POST survives `express.json()` regardless of registration order).
-  registerAttachmentRoutes({ app, deps: {
+  // The upload list is mounted `rawBody`: it never receives the body a parser above produced, so a JSON-typed upload
+  // (consumed above) is refused as `attachment-body-consumed` and an octet-stream one is read as the raw stream. The cleanup reads JSON.
+  const attachmentDeps: AttachmentsHttpDeps = {
       store: attachmentStore,
       acquireActivity: () => idlePark.hold({}, {}),
       // The trusted-downstream-of-the-bearer-gate header `forwardAttachmentUpload`
       // (`server/runtime/composition/modules/assistant.ts`) now stamps from the uploading admin's
       // OWN session — see that function's doc. This is what `chat_list_pending_attachments`
       // (`list-pending-chat-attachments.ts`) scopes its listing by.
-      resolveOwnerId: ({ req }) => req.get(RUN_PRINCIPAL_HEADER) ?? undefined,
+      resolveOwnerId: ({ request }) => request.headers.get(RUN_PRINCIPAL_HEADER) ?? undefined,
       // Without this, `@jini-ai/http-kit`'s own default (20 MB) silently undercuts
       // `TOVU_MAX_UPLOAD_BYTES` for the one media path that reaches it (a chat attachment promoted
       // to the library, `promote-chat-attachment.ts`) — this route's hard, streaming-enforced byte
@@ -1614,7 +1616,9 @@ mountJiniRoutes({ app, routes: frontendRequestRoutes({ path: "/api/frontend-sess
       // `useAttachmentUploader`, which must independently match this so a rejection surfaces before
       // the bytes are ever sent, not just after).
       maxAttachmentBytes: TOVU_MAX_UPLOAD_BYTES,
-    }, adapter });
+    };
+  mountJiniRoutes({ app, routes: attachmentUploadRoutes({ deps: attachmentDeps, host: routeHost }) }, { rawBody: true });
+  mountJiniRoutes({ app, routes: attachmentCleanupRoutes({ deps: attachmentDeps, host: routeHost }) });
 
 
   if (optional.probeBridge) await optional.probeBridge();
