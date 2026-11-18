@@ -1,5 +1,6 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import { createNodeReachabilityPorts } from "@jini-ai/devops/deploy/node";
+import { assertSafePublicUrl, createValidatingLookup } from "@jini-ai/platform";
 import type { lookup } from "node:dns";
 import { AwsClient } from "aws4fetch";
 
@@ -121,7 +122,7 @@ export function createDeployHostKit(options: { readonly fetchFn?: typeof fetch; 
   // Each probe operation owns its dispatcher; polling shares it until the operation settles.
   // Per-publish kits have no shutdown hook, so release connections on success and refusal alike.
   async function withReachability<T>({ run }: { run: (ports: ReturnType<typeof createNodeReachabilityPorts>) => Promise<T> }, _options = {}): Promise<T> {
-    const reachability = createNodeReachabilityPorts({}, { fetch: fetchFn, lookupImpl: options.lookupImpl });
+    const reachability = createNodeReachabilityPorts({ assertSafeUrl: assertSafePublicUrl, createValidatingLookup }, { fetch: fetchFn, lookupImpl: options.lookupImpl });
     try { return await run(reachability); }
     finally { await reachability.close(); }
   }

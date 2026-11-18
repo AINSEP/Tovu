@@ -11,8 +11,7 @@ import path from "node:path";
 import test, { after } from "node:test";
 
 import { createSearchProviderRegistry } from "@jini-ai/search";
-import { contributeProviders } from "@jini-ai/search/contribution";
-import { parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
+import { contributeProviders, parseAgentPluginManifest } from "@jini-ai/agent-plugins/lifecycle";
 
 import { forceRemove } from "../fixtures/force-remove.js";
 import { selectedPluginSourceRoot } from "../fixtures/bundled-source-root.js";
