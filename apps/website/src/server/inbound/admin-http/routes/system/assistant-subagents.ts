@@ -1,12 +1,11 @@
 import { lowerAssistantToolAccess } from "#src/server/runtime/composition/modules/assistant-tool-access-lowering";
 import { AGENT_DEFS } from "@jini-ai/agent-runtime";
 import { readCliPermissionLayer, patchCliPermissionLayer } from "#src/assistant/cli-permission-layer";
-import { fullCliEnvLock, isHostedAssistantRuntime, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
+import { assistantCliPermissions, fullCliEnvLock, isHostedAssistantRuntime, resolveAssistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission-mode";
 import { readAssistantCliPermissions } from "#src/assistant/runtime-settings";
-import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_SUBAGENTS_WRITE_REASON, ASSISTANT_CLI_CAPABILITIES, type AssistantCliCapability } from "#src/contracts/headless/index";
-import { assistantCliPermissions } from "#src/assistant/runtime-settings";
+import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_SUBAGENTS_WRITE_REASON, ASSISTANT_CLI_CAPABILITIES, type AssistantCliCapability } from "@tovu/contracts/assistant-subagents-policy";
 import { rejectSettingsRequest } from "../settings/shared.js";
 import { registerAssistantOwnerGrantRoutes, type AssistantOwnerGrantDeps } from "./assistant-owner-grant.js";
 import type { Express } from "express";

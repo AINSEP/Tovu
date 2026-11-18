@@ -20,7 +20,7 @@ import {
 const policy = loadVendorPolicy({});
 const rules = loadVendorRules(policy);
 const count = (text: string) => countVendors({ text, rules });
-const exception: VendorException = { vendor: "fly", path: "apps/website/src/contracts/core/host-signals.ts", count: 6, reason: "Core owns baseline protections." };
+const exception: VendorException = { vendor: "fly", path: "packages/contracts/src/host-signals.ts", count: 6, reason: "Core owns baseline protections." };
 
 function fixture(t: test.TestContext): { repoRoot: string; write: (file: string, text: string) => void } {
   const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "vendor-boundary-"));
@@ -33,9 +33,10 @@ function fixture(t: test.TestContext): { repoRoot: string; write: (file: string,
 }
 
 test("full website/admin roots include contracts; desktop scope remains the existing two files", () => {
-  assert.deepEqual(SCAN_ROOTS, ["apps/website/src/", "apps/admin/src/", "apps/desktop/src/desktop-agent.ts", "apps/desktop/src/desktop-host-signals.ts"]);
+  assert.deepEqual(SCAN_ROOTS, ["apps/website/src/", "apps/admin/src/", "apps/desktop/src/desktop-agent.ts", "apps/desktop/src/desktop-host-signals.ts", "packages/contracts/src/host-signals.ts", "packages/contracts/src/assistant-native-fallbacks.ts"]);
   const website = listSourceFiles({ entry: SCAN_ROOTS[0]! });
-  assert.ok(website.some(file => file.endsWith("/contracts/core/host-signals.ts")));
+  assert.ok(website.some(file => file.endsWith("/contracts/core/agent-permission-mode.ts")));
+  for (const entry of SCAN_ROOTS.slice(4)) assert.ok(listSourceFiles({ entry }).some(file => file.endsWith(`/${entry}`)), entry);
   for (const entry of SCAN_ROOTS) assert.ok(listSourceFiles({ entry }).length > 0, entry);
 });
 
@@ -148,7 +149,7 @@ test("unified mail rules preserve branded names, domains, old adapter, selection
 });
 
 test("exception validation rejects invalid reasons, vendors, paths, counts and duplicate keys", () => {
-  for (const invalid of [{ reason: " " }, { vendor: "unknown" }, { path: "/tmp/x.ts" }, { path: "apps/../x.ts" }, { path: "apps\\x.ts" }, { count: 0 }, { count: -1 }, { count: 1.5 }]) {
+  for (const invalid of [{ reason: " " }, { vendor: "unknown" }, { path: "/tmp/x.ts" }, { path: "packages/sdk/src/x.ts" }, { path: "packages/contracts/../sdk/x.ts" }, { path: "apps/../x.ts" }, { path: "apps\\x.ts" }, { count: 0 }, { count: -1 }, { count: 1.5 }]) {
     assert.throws(() => judgeVendorCounts({ counts: {}, rules, exceptions: [{ ...exception, ...invalid }] }), TypeError);
   }
   assert.throws(() => judgeVendorCounts({ counts: {}, rules, exceptions: [exception, exception] }), /Duplicate/);
@@ -169,7 +170,7 @@ test("pattern totals ratchet across files; increased, reduced, new and overlappi
   assert.deepEqual(judgeVendorCounts({ counts: { [first]: { fly: 5 } }, rules, exceptions: [lowered] }), { uncovered: [], stale: [] });
   assert.equal(judgeVendorCounts({ counts: { "apps/admin/src/new.ts": { fly: 1 } }, rules, exceptions: [] }).uncovered.length, 1);
   assert.equal(judgeVendorCounts({ counts: { [first]: { vercel: 1 } }, rules, exceptions: [pattern] }).uncovered.length, 1);
-  assert.throws(() => judgeVendorCounts({ counts: { [exception.path]: { fly: 6 } }, rules, exceptions: [pattern, exception] }), /Overlapping/);
+  assert.throws(() => judgeVendorCounts({ counts: { [first]: { fly: 6 } }, rules, exceptions: [pattern, { ...exception, path: first }] }), /Overlapping/);
 });
 
 test("malformed policy data and supplemental vendor declarations fail closed", t => {

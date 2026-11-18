@@ -2,7 +2,7 @@ import { readAssistantRunToolPolicy, type AssistantRunToolPolicyInput } from './
 export { readAssistantRunToolPolicy, assistantRunPlan, assistantToolSetupMessage } from './assistant-run-tool-policy.js';
 import { readCliPermissionLayer, patchCliPermissionLayer } from '#src/assistant/cli-permission-layer';
 import { set } from '#src/features/settings/index';
-import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_CLI_CAPABILITIES, type AssistantCliCapability } from '#src/contracts/headless/index';
+import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_CLI_CAPABILITIES, type AssistantCliCapability } from '@tovu/contracts/assistant-subagents-policy';
 import { toWriteServiceDeps } from '#src/server/inbound/admin-http/routes/settings/shared';
 import type { AssistantOwnerGrantDeps } from '#src/server/inbound/admin-http/routes/system/assistant-owner-grant';
 

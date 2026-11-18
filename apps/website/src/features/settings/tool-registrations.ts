@@ -4,7 +4,7 @@ export { contributeUiLocalesTools } from "./ui-locales-tool.js";
 import { withToolMetadata } from '@jini-ai/core';
 import { ASSISTANT_EXECUTION_APPROVAL_SETTINGS } from "../../contracts/headless/index.js";
 import { ASSISTANT_PERMANENT_DELETES_NAMESPACE, ASSISTANT_PERMANENT_DELETES_WRITE_REASON } from "../../contracts/headless/index.js";
-import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_WRITE_REASON } from "../../contracts/headless/index.js";
+import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_WRITE_REASON } from "@tovu/contracts/assistant-subagents-policy";
 /**
  * @file Settings' agent-tool registrations — adapted from `@jini-ai/core/settings`.
  *

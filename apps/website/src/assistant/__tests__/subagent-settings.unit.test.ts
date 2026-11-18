@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readAssistantCliPermissions, readAssistantSubagentsEnabled } from "../subagent-settings.js";
-import { ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_SUBAGENTS_KEY } from "../../contracts/headless/index.js";
-import { assistantCliPermissions } from "../assistant-subagents-policy.js";
+import { ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_SUBAGENTS_KEY } from "@tovu/contracts/assistant-subagents-policy";
+import { assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 
 type CliRequired = Parameters<typeof readAssistantCliPermissions>[0];
 type Effective = Awaited<ReturnType<CliRequired["getEffective"]>>;
@@ -128,7 +128,7 @@ test("without a warn port the legacy denial is logged through console.warn", asy
 });
 
 test("per-agent choices survive reads and apply only to the selected agent after the host gate", async () => {
-  const { resolveAssistantCliPermissions } = await import("../../contracts/core/assistant-native-fallbacks.js");
+  const { resolveAssistantCliPermissions } = await import("@tovu/contracts/assistant-native-fallbacks");
   const saved = { ...assistantCliPermissions({ enabled: true }), byAgent: { antigravity: { capabilities: { userMcp: true } }, claude: { capabilities: { shell: false } } } };
   const parsed = await readAssistantCliPermissions(cliRequired({ snapshot: userLayer(saved) }));
   assert.deepEqual(parsed.byAgent, saved.byAgent);

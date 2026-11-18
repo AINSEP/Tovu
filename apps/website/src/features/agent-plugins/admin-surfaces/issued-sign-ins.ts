@@ -1,6 +1,6 @@
 import { createIssuedSignInCollector as createJiniIssuedSignInCollector, type IssuedSignInCollector } from "@jini-ai/agent-plugins/admin-surfaces/node";
 
-import { isHostedSignInLinkPath } from "../../../contracts/core/hosted-sign-in-links.js";
+import { isHostedSignInLinkPath } from "@tovu/contracts/hosted-sign-in-links";
 
 /**
  * @file Tovu's binding of the issued sign-in collector (`@jini-ai/agent-plugins/admin-surfaces/node`).

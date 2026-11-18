@@ -12,7 +12,7 @@ import { createSystemClock, createRandomUuidGenerator } from '@jini-ai/platform/
 import { createTimeoutScheduler } from '@jini-ai/daemon/scheduler';
 import { createToolRegistry } from '@jini-ai/core';
 import { getAgentDef } from '@jini-ai/agent-runtime';
-import { assistantCliPermissions } from '../assistant-subagents-policy.js';
+import { assistantCliPermissions } from '@tovu/contracts/assistant-native-fallbacks';
 import { createAccessApprover } from '../tool-registrations.js';
 import { createToolExecutor } from '@jini-ai/daemon';
 import { AWAITING_ANSWER_NOTICE, createDurableRecovery, type DurableRun, type DurableRunStore, type RecoveryPorts } from '@jini-ai/chat/server/durable-runs';

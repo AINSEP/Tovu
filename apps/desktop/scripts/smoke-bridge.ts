@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Release gate: authenticated desktop HTTP plus the two shipped CLI bridges, without a daemon/model. */
 import { existsSync, readdirSync } from "node:fs";
-import { redactLocalText } from "../../website/src/platform/server-logs/redact-local-text.ts";
+import { redactLocalText } from "@jini-ai/diagnostics/local-text";
 import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

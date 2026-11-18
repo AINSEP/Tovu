@@ -10,14 +10,14 @@ import { createHash, randomUUID } from "node:crypto";
 import { createPrivateKeyLineRedactor, redactSecrets } from "@jini-ai/core";
 import type { SiteScopeKey } from "@tovu/contracts/site-scope-key";
 import { maskLocalPaths } from "@jini-ai/diagnostics";
-import { createRedactedOutputSink } from "../../website/src/platform/server-logs/console-tee.ts";
-import { redactLocalText } from "../../website/src/platform/server-logs/redact-local-text.ts";
+import { createRedactedOutputSink } from "@jini-ai/diagnostics/console-tee";
+import { redactLocalText } from "@jini-ai/diagnostics/local-text";
 import { createDaemonSupervisor, type DaemonSupervisorRequired } from "@jini-ai/sidecar/supervisor";
 import { createRespawnPolicy } from "@jini-ai/sidecar/respawn-policy";
 import { createNodeDaemonProcessAdapter, createNodeIpcChannel, createNodeSupervisorScheduler, createSupervisorRegistry,
   type NodeDaemonProcessOptions, type SupervisorRegistry } from "@jini-ai/sidecar/supervisor/node";
 import { daemonControlRequest, daemonEndpoint, siteIdleStopReply, type DaemonSiteRegistration } from "../../website/src/server/runtime/lifecycle/assistant-daemon-connection.ts";
-import { AGENT_DAEMON_EXIT_CODE } from "../../website/src/assistant/daemon-exit-codes.ts";
+import { AGENT_DAEMON_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 import type { CliMode } from "./startup-env.ts";
 
 export interface DesktopAgentServiceOptions {

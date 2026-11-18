@@ -219,11 +219,16 @@ test("desktop main's source module graph resolves without the test-only TypeScri
   assert.deepEqual(parseEntryLoadOutput({ stdout: loaded.stdout }), { ok: true, unresolved: [] });
 });
 
-for (const entry of ['platform/site-dir/sites-home', 'contracts/core/assistant-native-fallbacks']) {
+// The shared contracts moved to `@tovu/contracts` (built JavaScript, resolved from the desktop's own
+// `node_modules`); a bare specifier is the form the packaged main process loads them by.
+const SHARED_ENTRIES: ReadonlyArray<{ entry: string; specifier: string }> = [
+  { entry: 'platform/site-dir/sites-home', specifier: new URL('../../website/src/platform/site-dir/sites-home.ts', import.meta.url).href },
+  { entry: 'contracts assistant-native-fallbacks', specifier: '@tovu/contracts/assistant-native-fallbacks' },
+];
+for (const { entry, specifier } of SHARED_ENTRIES) {
   test(`shared desktop source ${entry} imports without a test remapper`, () => {
-    const source = new URL(`../../website/src/${entry}.ts`, import.meta.url).href;
-    const child = spawnSync(process.execPath, ['--input-type=module', '-e', `await import(${JSON.stringify(source)})`], {
-      cwd: tmpdir(), encoding: 'utf8', timeout: 30_000, env: { ...process.env, NODE_OPTIONS: '' },
+    const child = spawnSync(process.execPath, ['--input-type=module', '-e', `await import(${JSON.stringify(specifier)})`], {
+      cwd: import.meta.dirname, encoding: 'utf8', timeout: 30_000, env: { ...process.env, NODE_OPTIONS: '' },
     });
     assert.ifError(child.error);
     assert.equal(child.status, 0, child.stdout + child.stderr);

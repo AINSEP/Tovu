@@ -1,13 +1,12 @@
 import path from "node:path";
 import { format } from "node:util";
 
+import { installConsoleTee } from "@jini-ai/diagnostics/console-tee";
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
-import { installConsoleTee } from "./console-tee.js";
 import { createLogBuffer, DEFAULT_MAX_ENTRIES, type ServerLogBuffer, type ServerLogEntry, type ServerLogSource } from "./log-buffer.js";
 import { createRotatingLogFileSink, readLogFileTail, type LogFileFsPort } from "./log-file.js";
 
-export { installConsoleTee, type TeeableConsole } from "./console-tee.js";
 export { createLogBuffer, DEFAULT_MAX_BYTES, DEFAULT_MAX_ENTRIES, type ServerLogAppendInput, type ServerLogBuffer, type ServerLogEntry, type ServerLogLevel, type ServerLogSource } from "./log-buffer.js";
 export { createRotatingLogFileSink, readLogFileTail, type LogFileFsPort } from "./log-file.js";
 

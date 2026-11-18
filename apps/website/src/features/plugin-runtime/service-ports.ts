@@ -1,5 +1,5 @@
 /** Consumer-owned service boundaries for plugin execution and install policy. */
-import type { HostSignals } from "../../contracts/core/host-signals.js";
+import type { HostSignals } from "@tovu/contracts/host-signals";
 import type { PostRecord } from "../post/index.js";
 
 /** Reads a required post, preserving the post owner's existing not-found error. */

@@ -15,7 +15,7 @@ import { InMemoryChangeSetRepo } from '#src/contracts/core/commands/index';
 import { buildPluginsRegistrations, type PluginsToolDeps } from '../../tool-registrations.js';
 import { buildPluginSourceRegistrations } from '../../source-tools.js';
 import { createSitePluginPolicy, sitePluginLocalInstallEnabled } from '../../install.js';
-import { CORE_HOST_SIGNAL_FALLBACK, evaluateHostSignals } from '../../../../contracts/core/host-signals.js';
+import { CORE_HOST_SIGNAL_FALLBACK, evaluateHostSignals } from '@tovu/contracts/host-signals';
 import { providerFacesFor } from '../fixtures/plugins-tool-harness.js';
 
 const id = 'site-rules';

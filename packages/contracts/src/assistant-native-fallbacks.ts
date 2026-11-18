@@ -1,5 +1,5 @@
-import { ASSISTANT_CLI_CAPABILITIES, type AssistantCliCapability, type AssistantCliPermissions } from "#src/contracts/headless/assistant-subagents-policy";
-import { CORE_HOST_SIGNAL_FALLBACK, evaluateHostSignals, type HostSignalOptions } from "#src/contracts/core/host-signals";
+import { ASSISTANT_CLI_CAPABILITIES, type AssistantCliCapability, type AssistantCliPermissions } from "./assistant-subagents-policy.js";
+import { CORE_HOST_SIGNAL_FALLBACK, evaluateHostSignals, type HostSignalOptions } from "./host-signals.js";
 
 /** The master supplies every default, personal MCP included: owner decision 2026-11-10
  * ("defaulted to yes"; it can be turned off in chat settings) supersedes the 2026-10-23

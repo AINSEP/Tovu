@@ -17,7 +17,7 @@ import { EventEmitter } from "node:events";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
 import { installWebviewGuestPolicy } from "./main/windows/guest-navigation.ts";
-import * as signInLinks from "../../website/src/contracts/core/hosted-sign-in-links.ts";
+import * as signInLinks from "@tovu/contracts/hosted-sign-in-links";
 import { renderOAuthCallbackPage } from "../../website/src/server/inbound/public-http/routes/oauth/callback-page.ts";
 import assert from "node:assert/strict";
 import fs from "node:fs";

@@ -1,6 +1,6 @@
 /** Site-serving intake fence. The parent suggests idle; only this process can prove it. */
 import type { RequestHandler } from "express";
-import { SITE_SLEEP_EXIT_CODE } from "../../../assistant/daemon-exit-codes.js";
+import { SITE_SLEEP_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 
 /** Inject the ledger, the shared finalizer and the existing graceful stop. Uncertainty is busy.
  * Any HTTP request holds intake until finish or close. Disconnected handlers that keep working

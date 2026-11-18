@@ -3,8 +3,7 @@ import test from "node:test";
 import { postAgentToolCatalog } from '#src/features/post/agent-tools';
 import { pagesAgentToolCatalog } from '#src/features/pages/agent-tools';
 import { SYSTEM_PREAMBLE } from '#src/server/runtime/composition/modules/assistant-byok';
-import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
-import { TOOLS_FIRST_RULE } from "#src/contracts/core/assistant-native-fallbacks";
+import { assistantCliPermissions, TOOLS_FIRST_RULE } from "@tovu/contracts/assistant-native-fallbacks";
 
 import {
   ASSISTANT_DISALLOWED_TOOLS,

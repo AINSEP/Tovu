@@ -1,6 +1,5 @@
-import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
+import { assistantCliPermissions, resolveFullCliAccess, resolveAssistantCliPermissions, fullCliEnvLock, isHostedAssistantRuntime } from "@tovu/contracts/assistant-native-fallbacks";
 import { resolveNativeToolPolicy } from "@jini-ai/agent-runtime/native-tool-policy";
-import { resolveFullCliAccess, resolveAssistantCliPermissions, fullCliEnvLock, isHostedAssistantRuntime } from "#src/contracts/core/assistant-native-fallbacks";
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import { createToolGapCollector } from "@jini-ai/daemon/tool-audit";
 import { redactSecretShapes } from "#src/contracts/core/secret-redaction";

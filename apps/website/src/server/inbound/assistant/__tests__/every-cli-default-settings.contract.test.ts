@@ -9,7 +9,7 @@ import { LOCAL_HOST_DEFAULT_PERMISSIONS, planRun } from "@jini-ai/agent-runtime/
 import { InMemorySettingsRepo, ensureSettingDefinitions, getEffective } from "@jini-ai/core/settings";
 import { ensureExecutionSettingDefinitions } from "#src/assistant/execution-mode-settings";
 import { readAssistantCliPermissions } from "#src/assistant/subagent-settings";
-import { assistantCliPermissions, resolveAssistantCliPermissions } from "#src/contracts/core/assistant-native-fallbacks";
+import { assistantCliPermissions, resolveAssistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 import { patchCliPermissionLayer } from "#src/assistant/cli-permission-layer";
 
 async function readFreshInstall() {

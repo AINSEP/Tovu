@@ -33,13 +33,14 @@ import { daemonConnection, siteIdleStopReply, daemonControlRequest, delegatedAss
 import { createDaemonSupervisor as createSidecarSupervisor } from "@jini-ai/sidecar/supervisor";
 import type { DaemonSupervisorRequired, DaemonSupervisorState, SpawnedDaemonProcess as SidecarDaemonProcess, SupervisorScheduler } from "@jini-ai/sidecar/supervisor";
 import path from "node:path";
-import { redactLocalText } from "../../../platform/server-logs/redact-local-text.js";
-import { createRedactedOutputSink } from "../../../platform/server-logs/console-tee.js";
+import { redactLocalText } from "@jini-ai/diagnostics/local-text";
+import { createRedactedOutputSink } from "@jini-ai/diagnostics/console-tee";
 
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "./readiness-state.js";
 import { getAgentDaemonPortForSpawnEnv, refreshAgentDaemonPort } from "./agent-daemon-port.js";
 import { createAssistantDaemonRegistry, readPreviousAssistantDaemon } from "./assistant-daemon-registry.js";
-import { AGENT_DAEMON_EXIT_CODE, createRespawnPolicy } from "#src/assistant/index";
+import { AGENT_DAEMON_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
+import { createRespawnPolicy } from "#src/assistant/index";
 import type { RespawnDecision, RespawnPolicy } from "#src/assistant/index";
 
 /**

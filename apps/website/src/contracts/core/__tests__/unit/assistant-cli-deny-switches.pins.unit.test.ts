@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { assistantCliPermissions, fullCliEnvLock, resolveAssistantCliPermissions, resolveFullCliAccess } from '../../assistant-native-fallbacks.js';
+import { assistantCliPermissions, fullCliEnvLock, resolveAssistantCliPermissions, resolveFullCliAccess } from '@tovu/contracts/assistant-native-fallbacks';
 import { resolveAgentPermissionMode } from '../../agent-permission-mode.js';
 
 /** Env-schema design §2.4a: the four switches that deny local CLI access on their own.

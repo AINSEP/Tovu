@@ -1,6 +1,6 @@
 import { resolveRuntimeMode } from "./runtime-mode.js";
-import { isHostedAssistantRuntime } from "./assistant-native-fallbacks.js";
-import type { HostSignalOptions } from "./host-signals.js";
+import { isHostedAssistantRuntime } from "@tovu/contracts/assistant-native-fallbacks";
+import type { HostSignalOptions } from "@tovu/contracts/host-signals";
 
 /**
  * @file The assistant agent CLI's permission mode, resolved from env. Extracted from

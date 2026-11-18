@@ -4,6 +4,7 @@ import { mock, test } from "node:test";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/memory-bus";
 import type { DomainEvent } from "@jini-ai/core/contracts/events";
+import { SITE_SLEEP_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 
 /**
  * @file Characterization pin (design 02, step 0): `createApp`'s lifecycle effects — what it
@@ -29,7 +30,6 @@ mock.module("../../lifecycle/daemon-supervisor.js", {
 const { createApp, createRouteDeps } = await import("../app.js");
 const { siteAppBootWorkByDeps } = await import("../site-app-boot-work.js");
 const { createAssistantByokModule } = await import("../modules/assistant-byok.js");
-const { SITE_SLEEP_EXIT_CODE } = await import("../../../../assistant/daemon-exit-codes.js");
 
 /** Records the subscription order and stays a real in-memory bus. */
 class RecordingBus extends InMemoryEventBus {

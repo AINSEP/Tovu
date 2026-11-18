@@ -9,7 +9,7 @@ import { maskLocalPaths } from '@jini-ai/diagnostics';
 import { createNoopObservabilityPort, type ErrorReport, type ObservabilityPort } from '@jini-ai/diagnostics/observability';
 import { createNoopProductAnalytics, withProductAnalyticsGuards, type ProductAnalyticsPort } from '@jini-ai/analytics/product';
 import type { PluginDiscoveryRecord } from '@jini-ai/plugins/host/node';
-import { redactLocalText } from '#src/platform/server-logs/redact-local-text';
+import { redactLocalText } from '@jini-ai/diagnostics/local-text';
 import { productAdminScreen, projectProductEvent } from '#src/server/runtime/composition/product-events';
 // Desktop main loads this source directly; #src resolves to .ts here and .js in compiled builds.
 import { resolveTovuObservabilityExport } from '#src/server/runtime/composition/observability-export';

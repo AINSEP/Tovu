@@ -9,7 +9,7 @@ import { captureDaemonRun, daemonInitializer, evaluateDaemonExpression } from ".
 import { buildBaseSystemOverlay, buildAssistantSubagentsOverlay } from "../assistant-system-overlay.js";
 import { buildAssistantRuntimeGuidance } from "../assistant-runtime-guidance.js";
 import { buildAssistantFilesystemNotices } from "../assistant-filesystem-notices.js";
-import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
+import { assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";

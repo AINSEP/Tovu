@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import type { HostSignalOptions } from "#src/contracts/core/host-signals";
+import type { HostSignalOptions } from "@tovu/contracts/host-signals";
 import { resolveHostSignals } from "#src/server/runtime/composition/host-signals";
 import { resolveTrustProxySetting as resolveOverrideOrPlatformHops, type TrustProxySetting } from "@jini-ai/http-kit";
 

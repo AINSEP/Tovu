@@ -25,7 +25,7 @@ import { ensureIndependentSiteIdentity, type SiteIdentityOptions } from "./site-
 import { createRespawnPolicy } from "@jini-ai/sidecar/respawn-policy";
 import { formatErrorForLog, redactSecrets } from "@jini-ai/core";
 import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
-import { SITE_SLEEP_EXIT_CODE } from "../../website/src/assistant/daemon-exit-codes.ts";
+import { SITE_SLEEP_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 import { readIdleSiteSleepMinutes } from "./site-view-preference.ts";
 import type { ResourcesSnapshot } from "./contracts/resources.ts";
 import fs from "node:fs";

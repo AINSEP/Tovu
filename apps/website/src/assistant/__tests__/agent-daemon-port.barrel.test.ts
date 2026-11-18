@@ -22,7 +22,6 @@ import * as agents from "../agents.js";
 import * as componentCatalogQuery from "../component-catalog-query.js";
 import * as customInstructions from "../custom-instructions.js";
 import * as daemonAccess from "../daemon-access.js";
-import * as daemonExitCodes from "../daemon-exit-codes.js";
 import * as externalMcpOAuth from "../../features/external-mcp/external-mcp-oauth.js";
 import * as externalMcpStore from "../../features/external-mcp/external-mcp-store.js";
 import * as frontendControl from "../frontend-control-capabilities.js";
@@ -54,7 +53,6 @@ const EXPECTED_SOURCES: Readonly<Record<string, Readonly<Record<string, unknown>
   createCustomInstructionsCache: customInstructions,
   DELEGATED_TOOL_CALLS_PATH: daemonAccess,
   requireAgentDaemonToken: daemonAccess,
-  AGENT_DAEMON_EXIT_CODE: daemonExitCodes,
   FRONTEND_CONTROL_CAPABILITIES: frontendControl,
   withReadOnlyFrontendCapabilities: frontendControl,
   attachFederatedMcpTools: federationBootstrap,

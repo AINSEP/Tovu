@@ -3,7 +3,7 @@ import { EventEmitter } from "node:events";
 import test from "node:test";
 import type { Request, Response } from "express";
 import { createSiteIdlePark } from "../site-idle-park.js";
-import { SITE_SLEEP_EXIT_CODE } from "#src/assistant/daemon-exit-codes";
+import { SITE_SLEEP_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 
 function fixture({ hasActiveRuns = async () => false, activeCount = () => 0, hasBackgroundWork = async () => false }: Partial<Pick<Parameters<typeof createSiteIdlePark>[0], 'hasActiveRuns' | 'activeCount' | 'hasBackgroundWork'>> = {}) {
   const stops: number[] = [];
