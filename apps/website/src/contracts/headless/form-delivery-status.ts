@@ -22,6 +22,3 @@ export interface FormDeliveryStatusPort {
   forSubmission(required: { workspaceId: string; submissionId: string }, optional?: Record<string, never>): Promise<readonly FormDeliveryStatusRow[]>;
   recentUnfinished(required: { workspaceId: string }, optional?: { limit?: number }): Promise<readonly FormDeliveryStatusRow[]>;
 }
-
-/** `forms_delivery_status` lists at most this many unfinished deliveries (the status repo's own cap). */
-export const DELIVERY_STATUS_MAX_LIMIT = 50;

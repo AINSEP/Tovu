@@ -828,13 +828,6 @@
       "value": 155
     },
     {
-      "file": "apps/website/src/features/forms/tool-registrations.ts",
-      "function": "buildFormsRegistrations#1",
-      "line": 323,
-      "rule": "max-lines-per-function",
-      "value": 164
-    },
-    {
       "file": "apps/website/src/features/identity/repo.ts",
       "function": "<file>",
       "line": 579,
@@ -1057,13 +1050,6 @@
       "line": 76,
       "rule": "max-lines-per-function",
       "value": 191
-    },
-    {
-      "file": "apps/website/src/features/webhooks/tool-registrations.ts",
-      "function": "buildWebhooksRegistrations#1",
-      "line": 194,
-      "rule": "max-lines-per-function",
-      "value": 127
     },
     {
       "file": "apps/website/src/platform/db/sqlite/fresh-content-db.ts",

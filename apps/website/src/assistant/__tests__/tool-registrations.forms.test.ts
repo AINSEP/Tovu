@@ -20,8 +20,7 @@ import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from
 
 import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
-import { formsAgentToolCatalog } from "../../features/forms/agent-tools.js";
-import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
+import { formsAgentToolCatalog, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import type { FormDefinitionRecord, FormSubmissionRecord } from "@jini-ai/cms/forms";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resolveBatchableTools, batchDescriptorFor } from "../batch-tool-inputs.js";
