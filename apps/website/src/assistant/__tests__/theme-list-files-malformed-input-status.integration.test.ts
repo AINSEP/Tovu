@@ -197,7 +197,9 @@ test("theme_list_files without themeId, through the gateway that holds the regis
     deps: { lifecycle, toolExecutor, resolvePrincipal, toolRegistry: registry },
   });
 
-  assert.deepEqual(result, { ok: false, error: { code: "BAD_REQUEST", message: `${MISSING_THEME_ID}${LIST_VALID_THEMES}` } });
+  assert.deepEqual(result, { ok: false, error: { code: "BAD_REQUEST", message: `${MISSING_THEME_ID}${LIST_VALID_THEMES}`,
+    // The route names the tool and its declared inputs for the MCP host (S7); the executor's id is minted per call.
+    details: { toolId: "theme_list_files", inputNames: ["includeTrash", "themeId"], executionId: result.ok ? "" : (result.error?.details as { executionId: string }).executionId } } });
 });
 
 /** The registry's own descriptors, published as the typed MCP tools a run would see. */
