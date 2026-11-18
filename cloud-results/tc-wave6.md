@@ -1,0 +1,42 @@
+# tc-wave6 report (2026-11-18), Tovu side. Status: S7 and S2b Tovu halves done; S13 rest done except two items that wait on the owner or S4b
+
+Branch `wave3/tc-wave5` (fast-forward only, base `origin/wave3/tc-wave5` = `242db9b0`). Jini side: `Jini/cloud-results/tc-wave6.md`.
+Setup: Node 24.12.0, `npm ci`, `JINI_PACKAGES_DIR=/home/user/Jini/packages node development/scripts/link-jini.mjs`, `tsc -p` in `packages/contracts` and `packages/sdk`; Jini `core`, `daemon`, `mcp` rebuilt after each Jini change so the link sees it. Tests: `TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=2 <files>`.
+
+## Pushed SHAs (`origin/wave3/tc-wave5`)
+`1922ddca` S7 preset characterization · `001042dc` S7 end to end · `cf1c807d` S2b integration · `2a9ecc7f` S7 consequence (one older test) · `9dd45b16` S13 `theme_set_active` · `a0483813` S13 step-0 pins · report commit (last). The pre-push hook said no desktop changes each time; no `--no-verify`.
+
+## S7 (Tovu half): done
+- `assistant/__tests__/tool-recovery-preset.names.characterization.test.ts` (5): S6's rows 1, 2, 4, 5 pass through the preset's `describeDelegatedInternalError` (its `redactSecretShapes` binding) unchanged with 0 redactions; a vendor key in row 2's message is blanked and the name stays. Passed on the parent.
+- `server/inbound/assistant/__tests__/agent-daemon-server.masked-names.integration.test.ts` (2) + `helpers/mcp-stdio-bridge.ts` (new, shared with S2b): the host's real `delegatedToolRouteDeps` expression, the real route, the real `jini-mcp` host (`serve`) over a loopback `fetchImpl`. Handler throws row 2's text plus a vendor key. Typed call and gateway call both keep `dismissCookieBanners` and print `[redacted]` for the key. The gateway case uses a tool the run never described (not in `startupToolIds`), so only the route's `details.inputNames` can supply the names. **Red proof:** with the Jini `daemon` dist's `withDiagnosticDetails` made a no-op the gateway test fails (`the input name is kept: HTTP 400: BAD_REQUEST: Declared inputs: viewport (optional), fullPage (optional), [redacted] (optional); key [redacted]`), the typed test still passes (as expected: its descriptor is already known); restored.
+- Consequence fixed in `2a9ecc7f`: `theme-list-files-malformed-input-status.integration.test.ts` pinned the gateway envelope exactly; it now also asserts `details: { toolId: "theme_list_files", inputNames: ["includeTrash", "themeId"], executionId }`. Same count.
+- Changed model-facing sentences: none.
+
+## S2b (Tovu half): done
+`agent-daemon-server.family-retry.integration.test.ts` (4): real Express app with Tovu's real `registerDurableToolGuard` in front of the real daemon route, the real MCP host over loopback HTTP; only the durable store is a fake that records `guardTool`. (1) stale attempt: the family call and the concrete `fam.a` call end in the same text containing `This execution attempt no longer owns the answer.`; (2) writable member through the full gateway: result is `wrote` plus the note, `guardTool` called once with `fam.a`, requests `["fam", "fam.a"]`; (3) read-only gateway: family call and concrete call give the same refusal text, `guardTool` never called; (4) the 404 round trip alone leaves no ledger row (`guardTool` zero calls for `fam`). **Red proof:** with the Jini `mcp` dist's `selectFamilyMember` forced to `undefined`, tests 1-3 fail, test 4 passes; restored.
+
+## S13 rest
+Prerequisites in base: S12a (`clampDeclaredBounds`), S12b (`missingArgumentGuidance`, `obtainFrom`), S4a (`check-tool-guides.ts`): all landed (the sheet's two landed checks exit 0). OD-8 and OD-9 are DECIDED = Rec (OD-9 branch: a missing `themeId` is not defaulted; not touched).
+Step-0 table (evidence for the whole sheet, including waves 2a and 4):
+| Case | Result |
+|---|---|
+| `theme_duplicate` + `sourceId` | done in `ad6423bb`: `sourceThemeId` declares `aliases: ["sourceId"]` |
+| `theme_list_files` without `themeId` | done in `901b0a73`: typed `…supply required argument \`themeId\`; list valid values with content_read.theme; Input schema: …`; gateway `'themeId' (non-empty string) is required List valid values for \`themeId\` with content_read.theme.` |
+| `web_fetch_page` + `sitePath` | **still refused**, pinned in `declared-repairs.refused-inputs.characterization.test.ts`: `Unknown input 'sitePath'. Declared inputs: url (required), format (optional), … Resend with the declared name.` The schema has no `sitePath` (it belongs to `web_screenshot_page`); no repair is in the sheet; left for the owner |
+| `web_screenshot_page` + `width` | **still refused**, pinned: `Unknown input 'width'. Declared inputs: url (optional), sitePath (optional), themeId (optional), viewport (optional), fullPage (optional), dismissCookieBanners (optional), waitMs (optional). Resend with the declared name.` `viewport` (named sizes) is the declared control; a pixel width needs an owner decision; no repair in the sheet |
+| `pages_read_html` for `/` | done in `6bfbc8a4` |
+Done this run: `theme_set_active`'s own `themeId` now declares `obtainFrom: "content_read.theme"` (the last theme id property without it). Red first (both failed on the parent): gateway `'themeId' (non-empty string) is required` → `… is required List valid values for \`themeId\` with content_read.theme.`; typed `supply required argument \`themeId\`; Input schema: …` → `supply required argument \`themeId\`; list valid values with content_read.theme; Input schema: …`. Tests in `theme-set-active-obtain-from.integration.test.ts` (2). The existing gate "every obtainFrom names a registered read-only tool" covers it and passes. `development/parity/tool-guides.json` regenerated by `npm run check:tool-guides` (it also shifted two Jini line numbers from S2b), rc 0.
+**Not done:** (1) the sheet's gate item "every `obtainFrom` is a tool `tool-guides.json` lists as pinned": the file has no per-tool pinned list and `pinnedFit` does not fit (OD-7, open). (2) `check:tool-guides -- --strict`: not wired (`package.json` has no `--strict`; S4b has not landed).
+
+## Gates (exact command, result)
+- BASE (`242db9b0`, per the wave-5 report): typecheck rc 0; `check:size` rc 1 with the one AssistantDock line (1021 vs baseline 1019, from chat-deps); `check:complexity` ok (43); `check:why-comments`: 4 blocks lost against `origin/refactor/terra` (that ref is not fetched here; I ran it as `WHY_COMMENTS_BASE_REF=1922ddca~1`, i.e. my own changes only).
+- After all changes: `npm run typecheck` rc 0 · `npm run check:size` prints only the same AssistantDock line · `npm run check:complexity` ok (43 entries) · `WHY_COMMENTS_BASE_REF=1922ddca~1 npm run check:why-comments` ok, 0 lost · `npm run check:tool-guides` rc 0.
+- Tests: all 48 files that mount the delegated route (`rg -l "delegatedToolExecuteRoute|registerDelegatedToolRoutes|delegated-tool-calls"`): 569 tests, 14 failed before my fix; 13 are the base-red typed-tools / bridge-approval wiring tests (`executorDefinitionPolicies is not defined`), 1 was mine (fixed in `2a9ecc7f`). Theme + tool test set (171 files, 2272 tests): 7 failures, all `preview-switcher-layout.test.ts`; base-red (`browserType.launch: Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-1228/…`, same 7 with my changes stashed). New tests: 5 + 2 + 4 + 2 + 2 = 15 in 5 new files; one existing file changed an assertion without losing a test.
+- §4 on the Tovu diff: 4.3, 4.4, 4.5, 4.6, 4.15, 4.17 print nothing. 4.8 via the why-comments checker: ok. 4.7: no `.tsx` touched.
+- Not run: the full `npm test` (too long); `pnpm api:check` (Jini).
+
+## Overlap with other runs (files)
+`apps/website/src/features/theme/set-active-theme-tool.ts` (one property), `development/parity/tool-guides.json` (generated, line numbers of Jini files), `apps/website/src/assistant/__tests__/theme-list-files-malformed-input-status.integration.test.ts`; lane T's T-TH-08 move list contains `features/theme/*` tool files: `set-active-theme-tool.ts` is touched here (run `git ls-files --error-unmatch` before porting).
+
+## Left / next step
+Owner: web_fetch_page `sitePath` and web_screenshot_page `width` (refused with the declared inputs; no repair designed), OD-7 for the pinned-list gate item. Then S4b (adds `--strict`). REL: Tovu `@jini-ai/*` ranges still untouched; this run needs core, daemon and mcp from a snapshot containing Jini `feb07f7a` or later.
