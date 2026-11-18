@@ -1,4 +1,4 @@
-import { directPageAction } from "../../../../website/src/assistant/assistant-tool-approval-policy.js";
+import { directPageAction } from "@tovu/headless";
 import {
   PAGE_CAPABILITIES, executePageCapability, toWebMcpTool,
   type PageDriver, type WebMcpToolRegistration,

@@ -13,7 +13,7 @@ import type * as Signin from "@jini-ai/integrations/api-connections/hosted-mcp";
 import type * as T from "../../contracts.js";
 import type * as TAccess from "../../../../contracts/core/external-mcp-access.js";
 import type * as TAuth from "../../../../contracts/core/external-mcp-auth.js";
-import type { CredentialTokenHint } from "../../../../contracts/core/credential-token.js";
+import type { CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
 import type { SharedExternalMcpOwner } from "../../external-mcp-shared-oauth.js";
 import type { SUPPORTED_EXTERNAL_MCP_TRANSPORTS, EXTERNAL_MCP_OAUTH_GRANTS, EXTERNAL_MCP_AUTH_MODES, EXTERNAL_MCP_OAUTH_STATUSES } from "@jini-ai/mcp/federation/hosted";
 

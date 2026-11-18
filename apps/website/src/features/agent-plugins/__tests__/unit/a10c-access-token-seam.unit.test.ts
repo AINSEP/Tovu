@@ -12,7 +12,7 @@ import {
   saveAgentPluginToken, type AgentPluginAccessTokenToolDeps, type SetAccessTokenResult, type TokenAuthTarget,
 } from '@jini-ai/agent-plugins/connect';
 import { probeToken, tovuAgentPluginAccessTokenHost, tovuTokenValidator } from '../../access-token-tool.js';
-import { CredentialInputError } from '../../../../contracts/core/credential-token.js';
+import { CredentialInputError } from '@jini-ai/platform/secrets/credential-token';
 import { listTokenSignInPlugins, checkAgentPluginAccessToken } from '@jini-ai/agent-plugins/connect';
 
 class AcmeTokenError extends Error { constructor(readonly acmeRule: string) { super('acme bad token'); } }

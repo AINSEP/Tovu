@@ -15,7 +15,7 @@ import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { DestinationUnreadableError, SealedDatabaseDestinationStore, type SavedDatabaseDestination } from "../destination-store.js";
 import { DatabaseDestinationRepo } from "../destination-repo.js";
-import { CredentialInputError } from "../../../contracts/core/credential-token.js";
+import { CredentialInputError } from "@jini-ai/platform/secrets/credential-token";
 
 /**
  * @file The saved destination is persistent and sealed: a server restart (a new store over the same

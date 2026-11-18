@@ -1,6 +1,7 @@
 export type { MediaProviderCredentialRecord, MediaProviderCredentialReplacePlan, MediaProviderCredentialReplacePlanner, MediaProviderCredentialRepoPort } from "./provider-credential-contracts.js";
 import type { MediaProviderCredentialRecord, MediaProviderCredentialReplacePlanner, MediaProviderCredentialRepoPort } from "./provider-credential-contracts.js";
-import { CredentialInputError, CREDENTIAL_MESSAGES, assertCredentialFreeField, normalizeCredentialToken, type CredentialTokenHint } from '../../contracts/core/credential-token.js';
+import { CredentialInputError, CREDENTIAL_MESSAGES, normalizeCredentialToken, type CredentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
+import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
 import { nowIso as clockNowIso } from "@jini-ai/core/primitives";
 import { MEDIA_PROVIDERS } from "@jini-ai/integrations/media-providers/catalog";
 import type { Clock as ClockPort, ISODateTime, UUID } from "@jini-ai/core/primitives";
@@ -114,7 +115,18 @@ export interface MediaProviderCredentialWriteDeps extends MediaProviderCredentia
   /** The live media provider registry (built-in + plugin vendors, 2026-10-21). A plugin vendor's id is
    *  accepted only when the registry holds that exact public id; omitted, only built-in ids are. */
   providerCatalog?: MediaProviderIdCatalog;
+  /** The credential rules applied to ids, endpoints and keys; omitted, the real pair is used. A port rather
+   *  than a module mock so a test can make the policy fail in a way the real one never does. */
+  credentialPolicy?: MediaProviderCredentialPolicy;
 }
+
+/** Structurally the two real credential rules (`assertCredentialFreeField` binds Tovu's secret-shape detector). */
+export interface MediaProviderCredentialPolicy {
+  assertCredentialFreeField: typeof assertCredentialFreeField;
+  normalizeCredentialToken: typeof normalizeCredentialToken;
+}
+
+const DEFAULT_CREDENTIAL_POLICY: MediaProviderCredentialPolicy = { assertCredentialFreeField, normalizeCredentialToken };
 
 /** Structurally `MediaProviderRegistry['findProvider']` — only the id is read. */
 export interface MediaProviderIdCatalog {
@@ -150,8 +162,8 @@ function isKnownProviderId({ providerId, catalog }: { providerId: string; catalo
   return KNOWN_PROVIDER_IDS.has(providerId) || isPluginProviderId({ providerId, catalog });
 }
 
-function assertKnownProviderId({ providerId }: { providerId: string }, { catalog }: { catalog?: MediaProviderIdCatalog } = {}): void {
-  rethrowAsValidation({ run: () => assertCredentialFreeField({ value: providerId, field: 'providerId' }) });
+function assertKnownProviderId({ providerId, policy }: { providerId: string; policy: MediaProviderCredentialPolicy }, { catalog }: { catalog?: MediaProviderIdCatalog } = {}): void {
+  rethrowAsValidation({ run: () => policy.assertCredentialFreeField({ value: providerId, field: 'providerId' }) });
   if (!isKnownProviderId({ providerId, catalog })) {
     throw new MediaProviderCredentialValidationError(
       `unknown media provider "${providerId}" — expected an engine-canonical id from @jini-ai/integrations/media-providers`
@@ -160,13 +172,13 @@ function assertKnownProviderId({ providerId }: { providerId: string }, { catalog
 }
 
 /** `apiKey` is only type-checked here: token normalization owns its own policy and limit. */
-function assertEntryField({ providerId, field, value }: { providerId: string; field: "apiKey" | "baseUrl" | "model"; value: unknown }, _options = {}): void {
+function assertEntryField({ providerId, field, value, policy }: { providerId: string; field: "apiKey" | "baseUrl" | "model"; value: unknown; policy: MediaProviderCredentialPolicy }, _options = {}): void {
   if (value === undefined) return;
   if (typeof value !== "string") {
     throw new MediaProviderCredentialValidationError(`${field} for "${providerId}" must be a string`);
   }
   if (field === "apiKey") return;
-  rethrowAsValidation({ run: () => assertCredentialFreeField({ value, field }) });
+  rethrowAsValidation({ run: () => policy.assertCredentialFreeField({ value, field }) });
   if (value.length > MAX_FIELD_LENGTH) {
     throw new MediaProviderCredentialValidationError(
       `${field} for "${providerId}" exceeds ${MAX_FIELD_LENGTH} characters`
@@ -175,12 +187,12 @@ function assertEntryField({ providerId, field, value }: { providerId: string; fi
 }
 
 /** Rejects anything the row cannot faithfully hold, before a single write happens. */
-function assertValidEntry({ providerId, entry, catalog }: { providerId: string; entry: MediaProviderCredentialInput; catalog: MediaProviderIdCatalog | undefined }, _optional: Record<string, never> = {}): void {
-  assertKnownProviderId({ providerId }, { catalog });
+function assertValidEntry({ providerId, entry, catalog, policy }: { providerId: string; entry: MediaProviderCredentialInput; catalog: MediaProviderIdCatalog | undefined; policy: MediaProviderCredentialPolicy }, _optional: Record<string, never> = {}): void {
+  assertKnownProviderId({ providerId, policy }, { catalog });
   if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
     throw new MediaProviderCredentialValidationError(`provider "${providerId}" must be an object`);
   }
-  for (const field of ["apiKey", "baseUrl", "model"] as const) assertEntryField({ providerId, field, value: entry[field] });
+  for (const field of ["apiKey", "baseUrl", "model"] as const) assertEntryField({ providerId, field, value: entry[field], policy });
 }
 
 /** Prepare only supplied keys before the replacement transaction. The later planner re-reads
@@ -190,6 +202,7 @@ function assertValidEntry({ providerId, entry, catalog }: { providerId: string; 
 async function sealNewProviderKeys(
   deps: MediaProviderCredentialSaveDeps,
   input: SaveMediaProviderCredentialsInput,
+  policy: MediaProviderCredentialPolicy,
 ): Promise<Map<string, VaultPutRecord>> {
   const fresh = new Map<string, VaultPutRecord>();
   const vault = createTovuStoreVault({ ...deps, kind: "media-provider",
@@ -197,7 +210,7 @@ async function sealNewProviderKeys(
   for (const [providerId, entry] of Object.entries(input.providers)) {
     const submitted = entry.apiKey;
     if (submitted === undefined || submitted === "") continue;
-    const apiKey = rethrowAsValidation({ run: () => normalizeCredentialToken({ value: submitted, field: "apiKey" }) });
+    const apiKey = rethrowAsValidation({ run: () => policy.normalizeCredentialToken({ value: submitted, field: "apiKey" }) });
     const scope = mediaVaultScope({ workspaceId: input.workspaceId, providerId });
     if (!deps.repo.vault) throw new MediaProviderCredentialSecretStoreUnconfiguredError(CREDENTIAL_MESSAGES.storage);
     const existing = (await deps.repo.vault.list(scope))[0];
@@ -265,14 +278,15 @@ export async function saveMediaProviderCredentials(
     throw new MediaProviderCredentialValidationError("providers must be an object keyed by provider id");
   }
 
+  const policy = deps.credentialPolicy ?? DEFAULT_CREDENTIAL_POLICY;
   const entries = Object.entries(providers);
-  for (const [providerId, entry] of entries) assertValidEntry({ providerId, entry, catalog: deps.providerCatalog });
+  for (const [providerId, entry] of entries) assertValidEntry({ providerId, entry, catalog: deps.providerCatalog, policy });
 
   const now = clockNowIso({ clock: deps.clock });
 
   // Seal every new key BEFORE any write — see this function's doc for why the order matters, and
   // why this is the ONLY async step left before the transaction opens.
-  const sealedByProviderId = await sealNewProviderKeys(deps, input);
+  const sealedByProviderId = await sealNewProviderKeys(deps, input, policy);
 
   const submittedIds = new Set(entries.map(([providerId]) => providerId));
 
