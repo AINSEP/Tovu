@@ -54,6 +54,7 @@ import { buildWebhooksRegistrations, type IntegrationsToolDeps } from "#src/feat
 import { commentTrashDoubles } from "#src/features/comments/__tests__/comment-trash-doubles";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
 
 
 /**
@@ -380,7 +381,7 @@ for (const scenario of CONFIRMED_SCENARIOS) {
 
     const app = express();
     app.use(express.json());
-    registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
+    registerMcpUiToolCallsRoute(app, { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges });
     const baseUrl = await startTestServer(app, t);
 
     const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
@@ -415,7 +416,7 @@ for (const scenario of CONFIRMED_SCENARIOS) {
 
     const app = express();
     app.use(express.json());
-    registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
+    registerMcpUiToolCallsRoute(app, { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges });
     const baseUrl = await startTestServer(app, t);
 
     const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
@@ -461,7 +462,7 @@ for (const scenario of TRASH_SCENARIOS) {
     };
     const app = express();
     app.use(express.json());
-    registerMcpUiToolCallsRoute(app, { toolExecutor: countingExecutor, surfaceExchanges });
+    registerMcpUiToolCallsRoute(app, { scheduler: nodeIntervalScheduler, toolExecutor: countingExecutor, surfaceExchanges });
     const baseUrl = await startTestServer(app, t);
 
     const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {

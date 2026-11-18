@@ -26,6 +26,7 @@ import type { PublishCredentialSource } from '../types.js';
 import type { StaticPublishInput } from '../adapter.js';
 import type { StaticPublishToolDeps } from '../../publish-agent-tools.js';
 import type { DeployTargetInspection, DeployTargetRegistry, LoadedDeployTarget } from '../../deploy-targets/types.js';
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
 
 /** Real approval exchange + gateway, with typed registry/export/provider ports; no live account. */
 async function setup(options: { tokenState?: 'expired' | 'redeemed' | 'foreign' | 'fault'; publish?: 'ready' | 'link-delayed' | 'throws'; inventory?: 'unknown' | 'silent';
@@ -281,7 +282,7 @@ for (const noPreview of [false, true]) test(`assembled custom-domain publish (pr
   let routeExecutions = 0;
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { surfaceExchanges: f.surfaceExchanges, toolExecutor: {
+  registerMcpUiToolCallsRoute(app, { scheduler: nodeIntervalScheduler, surfaceExchanges: f.surfaceExchanges, toolExecutor: {
     ...executor, execute: (...args) => { routeExecutions++; return executor.execute(...args); },
   } });
   const baseUrl = await startTestServer(app, t);

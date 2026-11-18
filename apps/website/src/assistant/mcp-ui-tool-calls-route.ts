@@ -8,6 +8,8 @@ import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 import { RUN_PRINCIPAL_HEADER } from "./daemon-access.js";
 import { isMcpUiToolCallPermitted, MCP_UI_TYPED_ANSWER_REFUSAL } from "./mcp-ui-tool-calls.js";
 import { deliverSurfaceCallback } from '@jini-ai/daemon/http';
+import type { SseSchedulerPort } from '@jini-ai/core/contracts/server';
+import { answerSurface } from './surface-answer.js';
 import {
   SURFACE_EXCHANGE_ID_PARAM,
   SURFACE_TYPED_ANSWER_PARAM,
@@ -99,6 +101,8 @@ export interface McpUiToolCallsRouteDeps {
    * every exchange unreachable — deliveries would 409 while the agent waits out its deadline.
    */
   surfaceExchanges: SurfaceExchangeStore;
+  /** Keepalive timers for a restored card's stream. */
+  scheduler: SseSchedulerPort;
 }
 
 function readPrincipalId(req: Request): string | undefined {
@@ -222,15 +226,15 @@ function callbackExchangeId({ bodyExchangeId, params }: { bodyExchangeId: unknow
  * the shop ceiling.
  */
 async function deliverMcpUiExchange(
-  { res, deps, input }: { res: Response; deps: Pick<McpUiToolCallsRouteDeps, "surfaceExchanges">; input: { exchangeId: string; params: Record<string, unknown>; toolId: string; principalId: string } }, { req }: { req?: Request } = {},
+  { res, deps, input }: { res: Response; deps: Pick<McpUiToolCallsRouteDeps, "surfaceExchanges" | "scheduler">; input: { exchangeId: string; params: Record<string, unknown>; toolId: string; principalId: string } }, { req }: { req?: Request } = {},
 ): Promise<void> {
-  await deliverSurfaceCallback({
-    res, store: deps.surfaceExchanges, ...input,
+  await answerSurface({ res, produce: ({ signal }) => deliverSurfaceCallback({
+    store: deps.surfaceExchanges, ...input, scheduler: deps.scheduler, signal,
     admit: ({ toolId, answersAnExchange, typedAnswer }) => isMcpUiToolCallPermitted({ toolName: toolId, answersAnExchange: answersAnExchange }, { typedAnswer }),
   }, {
     restoreOnly: (req?.body as { restore?: unknown } | undefined)?.restore === true,
     restoreOnMiss: req !== undefined,
-  });
+  }) });
 }
 
 /**
@@ -265,7 +269,7 @@ export function isTypedSurfaceAnswer(params: Record<string, unknown>): boolean {
  * answer the first one. A refusal is the honest outcome: there is nothing outstanding to answer.
  */
 function deliverTypedSurfaceAnswer(
-  { res, deps, input }: { res: Response; deps: Pick<McpUiToolCallsRouteDeps, "surfaceExchanges">; input: { params: Record<string, unknown>; toolId: string; principalId: string } }, _optional = {},
+  { res, deps, input }: { res: Response; deps: Pick<McpUiToolCallsRouteDeps, "surfaceExchanges" | "scheduler">; input: { params: Record<string, unknown>; toolId: string; principalId: string } }, _optional = {},
 ): void {
   const exchangeId = deps.surfaceExchanges.findTypedAnswerTarget({
     principalId: input.principalId,

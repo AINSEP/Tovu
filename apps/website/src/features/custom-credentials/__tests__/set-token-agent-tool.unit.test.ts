@@ -25,6 +25,7 @@ import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platfor
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
 
 
 /**
@@ -274,7 +275,7 @@ test("a token submitted through the delivery route never enters the durable tool
     assert.equal(routePath, MCP_UI_TOOL_CALLS_PATH);
     route = handler;
   } } as unknown as Express;
-  registerMcpUiToolCallsRoute(app, { toolExecutor: executor, surfaceExchanges });
+  registerMcpUiToolCallsRoute(app, { scheduler: nodeIntervalScheduler, toolExecutor: executor, surfaceExchanges });
   const sentinel = "sentinel-rotation-secret-do-not-audit-20260930";
   const req = {
     get: (name: string) => name === RUN_PRINCIPAL_HEADER ? PRINCIPAL_ID : undefined,
@@ -283,10 +284,13 @@ test("a token submitted through the delivery route never enters the durable tool
   let statusCode = 0;
   let responseBody: unknown;
   const res = {
+    on: () => res, off: () => res,
     status: (code: number) => { statusCode = code; return res; },
     json: (body: unknown) => { responseBody = body; return res; },
   } as unknown as Response;
   await route(req, res);
+  // The route's wrapper does not return the handler's promise, and the answer is now produced across a few awaits: let them run.
+  await new Promise((resolve) => setImmediate(resolve));
   assert.equal(statusCode, 202);
   assert.deepEqual(responseBody, { delivered: true });
   const result = await pending;

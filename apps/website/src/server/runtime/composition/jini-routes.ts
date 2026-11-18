@@ -39,7 +39,7 @@ export function mountJiniRoutes(
 }
 
 /** Keepalive timers on Node's clock. Unref'd, as the stream helpers they replace were: an idle stream must not keep the process alive. */
-const nodeIntervalScheduler: SseSchedulerPort = {
+export const nodeIntervalScheduler: SseSchedulerPort = {
   every: ({ callback, intervalMs }) => { const timer = setInterval(callback, intervalMs); timer.unref(); return timer; },
   cancel: ({ handle }) => { clearInterval(handle as NodeJS.Timeout); },
 };

@@ -17,5 +17,5 @@ test("server executable plugin tools share the server's confirmation store", () 
   assert.match(serverModule, /registry\.register\(automaticPluginRuns\.loadRegistration\)/);
   const daemon = daemonSource.statements.map(statement => statement.getText(daemonSource)).join("\n");
   assert.equal(daemon.includes("attachAssistantToolExtensions"), false);
-  assert.match(daemon, /registerMcpUiToolCallsRoute\(app, \{ toolExecutor, surfaceExchanges \}\)/);
+  assert.match(daemon, /registerMcpUiToolCallsRoute\(app, \{ toolExecutor, surfaceExchanges, scheduler: nodeIntervalScheduler \}\)/);
 });

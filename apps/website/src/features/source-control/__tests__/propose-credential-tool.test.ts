@@ -28,6 +28,7 @@ import type { LoadedSourceControlProvider, LoadSourceControlProviders, SourceCon
 import type { SourceControlProviderModule } from '../provider-module.js';
 import { createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
 
 
 const ID = 'credential_save';
@@ -48,7 +49,7 @@ test('t10 source callback delivers a human token only to its parked call, reject
   registerMcpUiToolCallsRoute({ post: (path: string, route: { handler: typeof handler }) => {
     assert.equal(path, MCP_UI_TOOL_CALLS_PATH); handler = route.handler;
   } } as unknown as Express, {
-    surfaceExchanges: f.surfaces,
+    scheduler: nodeIntervalScheduler, surfaceExchanges: f.surfaces,
     toolExecutor: { execute: async () => assert.fail('human secrets must never enter a fresh tool execution') } as unknown as ToolExecutor,
   });
   async function callback(principal: string, params: Record<string, unknown>) {
