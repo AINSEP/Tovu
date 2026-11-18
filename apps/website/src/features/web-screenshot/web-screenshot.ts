@@ -1,4 +1,5 @@
 import { ToolInputError } from "@jini-ai/core";
+import type { CaptureBudgetLimits } from "@jini-ai/diagnostics/web-evidence/capture-budget";
 
 /**
  * @file `web_screenshot_page`'s domain logic: input rules, viewport presets, the one-at-a-time
@@ -31,8 +32,9 @@ export const MAX_FULL_PAGE_HEIGHT_PX = 8000;
  *  (one 1280×8000 picture would be downscaled to an unreadable strip). */
 export const TILE_HEIGHT_PX = 1600;
 export const MAX_URL_LENGTH = 2048;
-/** Whole capture, launch to screenshot. */
-export const CAPTURE_DEADLINE_MS = 20_000;
+/** The host's limits for one capture, launch to screenshot (owner decision OD-5: the time grows with the request
+ *  up to 45 s). `reserveMs` is held back at the end so a page that loaded but never settled is still shot as it is. */
+export const CAPTURE_LIMITS: CaptureBudgetLimits = { baseMs: 20_000, fullPageMs: 10_000, capMs: 45_000, reserveMs: 4_000 };
 /** Total time a caller may wait for the single browser, including all earlier captures. */
 export const MAX_QUEUE_WAIT_MS = 60_000;
 export const JPEG_QUALITY = 70;
@@ -82,10 +84,16 @@ export type PageCaptureFailure = "refused" | "unavailable" | "timeout" | "failed
 /** A capture that produced no picture, with a caller-safe reason. */
 export class PageCaptureError extends Error {
   readonly kind: PageCaptureFailure;
-  constructor({ kind, message }: { kind: PageCaptureFailure; message: string }) {
+  /** A `timeout` only: the limit that ended the capture, in ms. A port that does not know it leaves it out. */
+  readonly limitMs: number | undefined;
+  /** A `timeout` only: whether the page had loaded when the limit ended the capture. */
+  readonly loaded: boolean | undefined;
+  constructor({ kind, message, limitMs, loaded }: { kind: PageCaptureFailure; message: string; limitMs?: number; loaded?: boolean }) {
     super(message);
     this.name = "PageCaptureError";
     this.kind = kind;
+    this.limitMs = limitMs;
+    this.loaded = loaded;
   }
 }
 
@@ -227,9 +235,17 @@ function failureMessage({ error, where }: { error: PageCaptureError; where: stri
   switch (error.kind) {
     case "refused": return `${where} is not a public internet address (localhost, private-network and cloud-metadata addresses are refused, including via redirects). Use sitePath to capture THIS site.`;
     case "unavailable": return "this server cannot take screenshots: its headless browser (Playwright Chromium) is not installed or failed to start.";
-    case "timeout": return `${where} did not finish rendering within ${CAPTURE_DEADLINE_MS / 1000} seconds.`;
+    case "timeout": return timeoutMessage({ error, where });
     default: return `could not load ${where} (${error.message}). Check the address and that the site is up.`;
   }
+}
+
+/** A timeout says the real number and which part ran out: a site that never answered, or a page that loaded but did not finish.
+ *  A port that does not know its limit (the desktop's native capture) gets no number rather than a wrong one. */
+function timeoutMessage({ error, where }: { error: PageCaptureError; where: string }, _optional = {}): string {
+  if (error.limitMs === undefined) return `${where} did not finish rendering in time.`;
+  const seconds = `${error.limitMs / 1000} seconds`;
+  return error.loaded === false ? `${where} did not answer within ${seconds}.` : `${where} did not finish rendering within ${seconds}.`;
 }
 
 /** The capture request for one validated input: the viewport preset, the full-page height cap and, for an
