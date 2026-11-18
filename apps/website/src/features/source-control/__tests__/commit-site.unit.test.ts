@@ -18,16 +18,14 @@ import {
   commitSiteToSourceControl,
   previewCommitExport,
   type CommitSiteInput,
-  toCommitFile,
   commitExportDir,
-  type CommitFile,
   type SourceControlCommitAdapter,
-  type SourceControlCommitResult,
 } from "../commit-site.js";
+import { toCommitFile } from "@jini-ai/devops/source-control";
 import { validateCommitTarget } from "../commit-target.js";
 import type { ExportReport } from "#src/features/site-export/index";
 import { exampleProvidersWithoutProbe } from './fixtures/example-provider.js';
-import type { RepositoryTargetValidator } from '../provider-module.js';
+import type { CommitFile, RepositoryTargetValidator, SourceControlCommitResult } from '../provider-module.js';
 
 const exampleValidator: RepositoryTargetValidator = ({ owner, repo }) => {
   if (!/^[A-Za-z0-9-]+$/.test(owner)) return `invalid Example Git owner '${owner}'`;
