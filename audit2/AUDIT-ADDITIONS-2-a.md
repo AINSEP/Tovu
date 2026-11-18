@@ -1,5 +1,7 @@
 # Codex full audit s01–s09: Claude judgment (2026-11-15, judge a)
 
+> **Status 2026-11-18 (sheet-fixes-2, after run `wave3/audit2-a`):** A60 S1+S3 DONE, S2 rewritten (declared dependency + `apps/desktop` npm lockfile) = EXECUTABLE (`plan/audit2-sheets-a3`). A58 rewritten to the landed `desktop-host/electron` registrar = EXECUTABLE (`-a3`). A10 V1-V3 VOID (done), V4-V8 BLOCKED on owner question A10-Q1 (`-a2`). A01 VOID (done items) + BLOCKED per item; A11 BLOCKED (collides with desktop-extraction D1/D3, Opus design, packaged proof); A14 BLOCKED (packaged release-gate proof): `-a3` `sheets/audit2/status-a01-a11-a14.md`. Full table: `plan/lanes-k-t-2026-11-16` `.../lanes-2026-11-16/sheet-fixes-2-REPORT.md`.
+
 Source: `../codex-full-audit-2026-11-15/out/s01.md … s09.md` (Codex, read-only, Tovu `b28d38c6`, Jini `b7666092`). Judged against `CLASSIFY.tsv`, `CLASSIFY-files.tsv`, `AUDIT-ADDITIONS.tsv` and the untangle lanes (`../untangle/LANES.md`, `sheets/*`). Planning only: no code touched, CLASSIFY not edited. Rows are in `AUDIT-ADDITIONS-2-a.tsv` (same 21 columns, ids `audit2:A01…A67`, ranked by value). Estimates use the prior file's rates (exec = 30k/slice + 25/line).
 
 ## Summary
