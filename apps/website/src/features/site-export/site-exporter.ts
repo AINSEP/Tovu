@@ -210,11 +210,12 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
  *  a crawler or browser requests them at that exact literal path, never through a link — so unlike
  *  every other content route, they must land at that literal filename, not wrapped in a
  *  `<name>/index.html` directory. */
-// Fixed placeholder origin `safeHref` (below) resolved a claimed same-origin-relative href
+// Fixed placeholder origin `safeHref` (below) resolves a claimed same-origin-relative href
 // against, so "//evil.example" (protocol-relative) and "/\evil.example" (backslash-folded by a
-// real browser) both resolved OFF this origin and got refused, the same reasoning
-// `features/theme/static-render.ts`'s own copy of this constant documented at length. The one href
-// standard, `toAllowedHref` (`@jini-ai/cms/navigation/href`), now does that; its `href.ts` documents it.
+// real browser) both resolve OFF this origin and get refused, the same reasoning
+// `features/theme/static-render.ts`'s own copy of this constant documents at length.
+// (Retired 2026-11-17: the one href standard, `toAllowedHref` from `@jini-ai/cms/navigation/href`,
+// now does this, and Jini's `href.ts` documents the reasoning.)
 /**
  * Scheme allowlist for a redirect-stub target, applied before {@link escapeHtmlAttr} embeds it
  * into `renderRedirectStub`'s three sinks. `escapeHtmlAttr` alone only neutralizes
