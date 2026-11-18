@@ -210,19 +210,25 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
  *  a crawler or browser requests them at that exact literal path, never through a link — so unlike
  *  every other content route, they must land at that literal filename, not wrapped in a
  *  `<name>/index.html` directory. */
-// `"//evil.example"` (protocol-relative) and `"/\evil.example"` (backslash-folded by a real browser)
-// resolve OFF the page's own origin and are refused by `toAllowedHref` (`@jini-ai/cms/navigation`),
-// whose `href.ts` documents the placeholder-origin resolution at length.
+// Fixed placeholder origin `safeHref` (below) resolved a claimed same-origin-relative href
+// against, so "//evil.example" (protocol-relative) and "/\evil.example" (backslash-folded by a
+// real browser) both resolved OFF this origin and got refused, the same reasoning
+// `features/theme/static-render.ts`'s own copy of this constant documented at length. The one href
+// standard, `toAllowedHref` (`@jini-ai/cms/navigation/href`), now does that; its `href.ts` documents it.
 /**
  * Scheme allowlist for a redirect-stub target, applied before {@link escapeHtmlAttr} embeds it
  * into `renderRedirectStub`'s three sinks. `escapeHtmlAttr` alone only neutralizes
  * quote/attribute-breakout characters — it does nothing to stop a `javascript:`/`data:` scheme
  * from executing once emitted into an `href`, the exact gap `a69f5892`/`0a41515c`
  * closed for every other comparable sink in `features/theme/static-render.ts` and
- * `server/inbound/public-http/http/site/render.ts`. All three sinks
- * call the one href standard, `toAllowedHref` from `@jini-ai/cms/navigation` — there is no
- * Tovu-side copy of it to keep in step (the byte-identical `safeHref` duplicates this comment used
- * to describe were retired 2026-11-17).
+ * `server/inbound/public-http/http/site/render.ts`. THIS was a third, deliberate duplicate of
+ * those two files' own byte-identical `safeHref` — not a shared import, because `features/site-export`
+ * pulling a private helper out of either of those modules would need it exported first, widening
+ * a surface neither module wants widened for one more caller; those two files already documented
+ * this exact "duplicate, don't share" precedent for the identical reason. If this logic changed,
+ * BOTH of those copies had to change too — none of the three updated each other automatically.
+ * All three sinks now call the one href standard, `toAllowedHref` from `@jini-ai/cms/navigation/href`,
+ * so there is no Tovu-side copy to keep in step (the duplicates were retired 2026-11-17).
  *
  * @returns the original value when it passes the allowlist, otherwise `"#"` — never a malformed or
  *   unsafe href, matching this codebase's "degrade, don't disappear" convention for a link target.
