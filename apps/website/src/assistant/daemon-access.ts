@@ -1,6 +1,6 @@
 /** Tovu route/env/header bindings for Jini's credential and ownership policies. */
 import type { RunLifecycle } from "@jini-ai/daemon";
-import { startupSecretEnvironment } from '#src/platform/secrets/startup-secrets';
+import { startupSecretEnvironment } from '@tovu/host-shared/startup-secrets';
 import type { Express } from "express";
 import type { ServerRoute } from "@jini-ai/core/contracts/server";
 import { createNodeCredentialCrypto, authorizeDaemonRequest, createRouteAccessPolicy,

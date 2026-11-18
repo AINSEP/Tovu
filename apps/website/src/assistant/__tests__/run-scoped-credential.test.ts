@@ -14,7 +14,7 @@ import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor, type RunLifecycle } from "@jini-ai/daemon";
 import { delegatedToolExecuteRoute, runRoutes, runCancelRoute, runStatusRoute, type RunStartHandler } from "@jini-ai/daemon/http";
 import { createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
-import { daemonRouteHost, mountJiniRoutes } from "../../server/runtime/composition/jini-routes.js";
+import { daemonRouteHost, mountJiniRoutes } from "@tovu/host-shared/jini-routes";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR, DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "../daemon-access.js";
 import {

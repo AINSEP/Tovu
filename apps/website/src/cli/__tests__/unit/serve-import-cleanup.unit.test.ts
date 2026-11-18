@@ -10,14 +10,14 @@ test("server boot schedules cleanup once without waiting and warns on cleanup fa
   t.mock.module(new URL("../../../features/site-backup/import-database.ts", import.meta.url).href, { namedExports: {
     ...database, tidyImportDatabases: () => { calls.push("cleanup"); return outcome === "pending" ? new Promise<void>(() => {}) : Promise.reject(new Error("Temporary root unavailable.")); },
   } });
-  const startup = await import("../../../platform/secrets/startup-secrets.js");
-  t.mock.module(new URL("../../../platform/secrets/startup-secrets.ts", import.meta.url).href, { namedExports: {
+  const startup = await import("@tovu/host-shared/startup-secrets");
+  t.mock.module("@tovu/host-shared/startup-secrets", { namedExports: {
     ...startup, initializeStartupSecrets: async () => { calls.push("continue"); throw stopped; },
   } });
   const logs = await import("../../../platform/server-logs/index.js");
   t.mock.module(new URL("../../../platform/server-logs/index.ts", import.meta.url).href, { namedExports: { ...logs, installServerLogCapture: () => {} } });
-  const guards = await import("../../../server/runtime/boot/process-error-guards.js");
-  t.mock.module(new URL("../../../server/runtime/boot/process-error-guards.ts", import.meta.url).href, { namedExports: { ...guards, installUnhandledRejectionGuard: () => {} } });
+  const guards = await import("@tovu/host-shared/process-error-guards");
+  t.mock.module("@tovu/host-shared/process-error-guards", { namedExports: { ...guards, installUnhandledRejectionGuard: () => {} } });
   t.mock.method(console, "warn", (message: string) => { warnings.push(message); });
   const { runServeCommand } = await import("../../commands/serve.js");
   for (outcome of ["pending", "failed"]) {

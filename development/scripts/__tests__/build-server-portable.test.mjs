@@ -53,6 +53,7 @@ test('portable build clears stale sources, runs compilers in order, and copies h
     } });
     assert.deepEqual(calls, [
       ['/fake/npm-cli.js', 'run', 'build', '--workspace=@tovu/contracts'],
+      ['/fake/npm-cli.js', 'run', 'build', '--workspace=@tovu/host-shared'],
       ['/fake/npm-cli.js', 'run', 'build', '--workspace=@tovu/sdk'],
       ['/fake/tsc', '-p', 'tsconfig.json'],
       [path.join(repoRoot, 'development/scripts/emit-dist-package-json.mjs')],
@@ -72,7 +73,7 @@ test('compiler failure stops the build before metadata emission and asset stagin
     assert.throws(() => buildServer({ repoRoot }, { npmCli: '/fake/npm-cli.js', tscCli: '/fake/tsc', runNode: ({ args }) => {
       calls.push(args); if (args[0] === '/fake/tsc') throw new Error('compiler failed');
     } }), /compiler failed/);
-    assert.equal(calls.length, 3);
+    assert.equal(calls.length, 4);
     assert.equal(existsSync(path.join(repoRoot, 'dist/content')), false);
   } finally { rmSync(repoRoot, { recursive: true, force: true }); }
 });

@@ -59,7 +59,7 @@ export const nodeTimingSafeEqual: TimingSafeByteComparison = ({ left, right }) =
  * @param required.context - The same-origin policy and incident sink the scope already builds for its routes.
  * @param required.parserLimitBytes - The byte limit of the JSON parser the scope mounts above the routes. A route re-reads the body that parser produced, and re-serialized JSON can be up to 5.25 times longer (a number such as `1e20` prints as 21 digits), so the routes' own limit is derived from it; the parser's limit stays the effective one.
  */
-export function daemonRouteHost(required: { context: RouteHostContext; parserLimitBytes: number }, _optional: Record<string, never> = {}): DaemonRouteHost {
+export function daemonRouteHost(required: { context: RouteHostContext; parserLimitBytes: number }, _optional = {}): DaemonRouteHost {
   return {
     context: required.context,
     reportInternalError: reportRouteInternalError,

@@ -10,7 +10,7 @@ import { withFileLock } from '@jini-ai/platform/fs';
 async function adminSourceRoots({ repoRoot, read }) {
   const manifest = await read(path.join(repoRoot, 'apps/admin/package.json'));
   const dependencies = manifest ? Object.keys(JSON.parse(manifest).dependencies ?? {}) : [];
-  const roots = [path.join(repoRoot, 'apps/admin'), path.join(repoRoot, 'packages/contracts/src'),
+  const roots = [path.join(repoRoot, 'apps/admin'), path.join(repoRoot, 'packages/contracts/src'), path.join(repoRoot, 'packages/host-shared/src'),
     // Admin imports website contracts, helpers and their transitive dependencies. Hash the source
     // owner as a whole so a newly added cross-app import cannot silently escape freshness checks.
     path.join(repoRoot, 'apps/website/src'), path.join(repoRoot, 'package-lock.json')];

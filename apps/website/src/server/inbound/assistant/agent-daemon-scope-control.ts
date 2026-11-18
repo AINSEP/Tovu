@@ -1,5 +1,5 @@
 /** The shared daemon's inherited-channel control: initialize, reuse and withdraw site scopes (ADR-070). */
-import { daemonControlRequest } from "../../runtime/lifecycle/assistant-daemon-connection.js";
+import { daemonControlRequest } from "@tovu/host-shared/daemon-connection";
 import type { SiteScopeKey } from "@tovu/contracts/site-scope-key";
 
 /** The slice of a site scope the control path manages; the entry also mounts its `app`. */

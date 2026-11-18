@@ -114,7 +114,7 @@ import {
 } from "./assistant-system-overlay.js";
 import { buildAssistantRuntimeGuidance, createAssistantChromeProbe, resolveAssistantRuntimeLaunch, type AssistantRuntimeGuidanceInput } from "./assistant-runtime-guidance.js";
 import { getCustomFsRoot } from "../../../features/fs-files/custom-root-store.js";
-import { createAgentDaemonCoreDeps, type AgentDaemonCoreOptions, type AgentDaemonResource } from "../../runtime/composition/agent-daemon-core-deps.js"; import { daemonRouteHost, mountJiniRoutes, nodeIntervalScheduler, nodeSessionTimer } from "../../runtime/composition/jini-routes.js";
+import { createAgentDaemonCoreDeps, type AgentDaemonCoreOptions, type AgentDaemonResource } from "../../runtime/composition/agent-daemon-core-deps.js"; import { daemonRouteHost, mountJiniRoutes, nodeIntervalScheduler, nodeSessionTimer } from "@tovu/host-shared/jini-routes";
 import { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission-mode";
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
 import { pageApprovalOptions } from "#src/assistant/page-approval-context";

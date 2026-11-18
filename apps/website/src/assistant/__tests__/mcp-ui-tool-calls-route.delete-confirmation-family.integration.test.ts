@@ -54,7 +54,7 @@ import { buildWebhooksRegistrations, type IntegrationsToolDeps } from "#src/feat
 import { commentTrashDoubles } from "#src/features/comments/__tests__/comment-trash-doubles";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
+import { nodeIntervalScheduler } from "@tovu/host-shared/jini-routes";
 
 
 /**

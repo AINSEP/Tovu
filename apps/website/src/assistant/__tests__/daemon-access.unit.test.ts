@@ -6,7 +6,7 @@ import {
   DELEGATED_TOOL_CALLS_PATH, ensureAgentDaemonToken, isRunScopedRoute, requireAgentDaemonToken, requireRunOwnership,
   RUN_PRINCIPAL_HEADER,
 } from "../daemon-access.js";
-import { daemonRouteHost, mountJiniRoutes } from "#src/server/runtime/composition/jini-routes";
+import { daemonRouteHost, mountJiniRoutes } from "@tovu/host-shared/jini-routes";
 
 /**
  * @file `isRunScopedRoute` — which daemon routes a run-scoped credential (as opposed to the host's

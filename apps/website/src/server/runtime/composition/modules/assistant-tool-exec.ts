@@ -1,4 +1,5 @@
-import { assistantDaemonToken, delegatedAssistantDaemonConnection, type AssistantDaemonConnection } from "../../lifecycle/assistant-daemon-connection.js";
+import { assistantDaemonToken, delegatedAssistantDaemonConnection } from "../../lifecycle/assistant-daemon-connection.js";
+import type { AssistantDaemonConnection } from "@tovu/host-shared/daemon-connection";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 /**
  * @file The server end of the agent daemon's tool RPC (ADR-070, memory-savings plan §2.3-§2.4): the

@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import test, { type TestContext } from "node:test";
 import express from "express";
 import { createDaemonAuthMiddleware, messageRelayRoutes } from "@jini-ai/daemon/http";
-import { mountJiniRoutes } from "../../../runtime/composition/jini-routes.js";
+import { mountJiniRoutes } from "@tovu/host-shared/jini-routes";
 import { bearerTokenFromHeader } from "@jini-ai/core/contracts/server";
 import { AGENT_DAEMON_TOKEN_ENV_VAR, createRunOwnerRegistry, requireAgentDaemonToken, requireRunOwnership } from "#src/assistant/daemon-access";
 import { daemonSource, evaluateDaemonStatements } from "./helpers/daemon-source.js";

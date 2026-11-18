@@ -1,7 +1,7 @@
 import { createConsoleLogger } from "@jini-ai/core/primitives";
 import { renderDocBodyAsPageHtml } from "#src/server/inbound/public-http/http/site/render/content-html";
 import { publicPageSecurityHeaders } from "#src/features/theme/public-page-security-headers";
-import { startupSecretEnvironment } from "../../../platform/secrets/startup-secrets.js";
+import { startupSecretEnvironment } from "@tovu/host-shared/startup-secrets";
 import { createSharedOAuthOwnerStorage, createSharedOAuthLabels } from "#src/features/api-connections/shared-owner";
 import { createSiteOAuthBindings } from "#src/features/project-keys/site-references";
 import { createFormCollectionRegistry } from "@jini-ai/cms/forms";

@@ -28,7 +28,7 @@ import { randomBytes } from "node:crypto";
 import type { DesktopAgentService } from "./desktop-agent-service.ts";
 import { omitEnvironmentKeys } from "@jini-ai/core/contracts/runtime";
 import { provideNodeStartupSecrets, splitNodeStartupSecrets, STARTUP_SECRETS_ENV } from '@jini-ai/sidecar/supervisor/node';
-import { STARTUP_SECRET_KEYS, DESKTOP_AGENT_SERVICE_ENV } from '../../website/src/platform/secrets/startup-secrets.ts';
+import { STARTUP_SECRET_KEYS, DESKTOP_AGENT_SERVICE_ENV } from '@tovu/host-shared/startup-secrets';
 import type { ChildProcess, SpawnOptions } from "node:child_process";
 import type { Readable, Writable } from "node:stream";
 import { waitForBoot } from "./tovu-server.start.ts";

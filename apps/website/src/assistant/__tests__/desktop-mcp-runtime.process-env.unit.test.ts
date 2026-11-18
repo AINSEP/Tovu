@@ -10,7 +10,7 @@ const handoff = "b".repeat(64);
 
 test("after startup-secret capture and first use of the process runtime, process.env holds none of the three names", async () => {
   Object.assign(process.env, { TOVU_DESKTOP_MCP_URL: cap.url, TOVU_DESKTOP_MCP_TOKEN: cap.token, TOVU_DESKTOP_MCP_HANDOFF_TOKEN: handoff });
-  const { initializeStartupSecrets } = await import("#src/platform/secrets/startup-secrets");
+  const { initializeStartupSecrets } = await import("@tovu/host-shared/startup-secrets");
   await initializeStartupSecrets();
   assert.deepEqual(NAMES.filter(name => name in process.env), ["TOVU_DESKTOP_MCP_URL"], "capture removes the two secrets; the URL goes on first use");
   const { desktopMcpRuntime } = await import("../desktop-mcp-runtime.js");

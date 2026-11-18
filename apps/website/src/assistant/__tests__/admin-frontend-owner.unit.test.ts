@@ -4,7 +4,7 @@ import express from 'express';
 import { TOVU_REQUEST_FACTS } from '#src/contracts/core/request-facts';
 import { createFrontendControl } from '@jini-ai/daemon/http';
 import { createNodeDispatcher } from '@jini-ai/http-kit/node-bridge';
-import { daemonRouteHost, mountJiniRoutes, nodeSessionTimer } from '#src/server/runtime/composition/jini-routes';
+import { daemonRouteHost, mountJiniRoutes, nodeSessionTimer } from '@tovu/host-shared/jini-routes';
 import { dispatchHttpRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { adminFrontendOwner, adminFrontendRunOwner } from '../admin-frontend-owner.js';
 import { RUN_PRINCIPAL_HEADER } from '../daemon-access.js';

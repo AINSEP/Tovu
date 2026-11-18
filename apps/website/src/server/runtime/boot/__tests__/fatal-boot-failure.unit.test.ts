@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 import ts from "typescript";
-import { reportFatalBootFailure } from "../process-error-guards.js";
+import { reportFatalBootFailure } from "@tovu/host-shared/process-error-guards";
 
 function fixture() {
   const events: Array<string | number> = [];
@@ -100,7 +100,7 @@ test("default ports report on console.error and exit the real process with code 
  * diffing the process's listeners, then invoked directly so node:test's own rejection tracking is
  * not involved) logs and keeps the process alive; uninstalling removes exactly that listener. */
 test("installUnhandledRejectionGuard's default logger writes the rejection to console.error", async (t) => {
-  const { installUnhandledRejectionGuard } = await import("../process-error-guards.js");
+  const { installUnhandledRejectionGuard } = await import("@tovu/host-shared/process-error-guards");
   const before = new Set(process.listeners("unhandledRejection"));
   const uninstall = installUnhandledRejectionGuard();
   const added = process.listeners("unhandledRejection").filter((listener) => !before.has(listener));

@@ -1,7 +1,7 @@
 import { createToolRegistry, ToolInputError, type ToolExecutionContext, type SurfaceEmitter, type ToolRegistration } from '@jini-ai/core';
 import { createToolExecutor } from '@jini-ai/daemon';
 import { createLocalSameOriginPolicy } from '@jini-ai/core/contracts/server';
-import { daemonRouteHost, mountJiniRoutes } from '../../../server/runtime/composition/jini-routes.js';
+import { daemonRouteHost, mountJiniRoutes } from '@tovu/host-shared/jini-routes';
 
 /** Exercise the real normalization/authorization gate over a domain's actual registration. */
 export function executeRegisteredTool(
