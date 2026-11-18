@@ -10,7 +10,7 @@ import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { PostRecord, PostRepoPort } from "./post.js";
 import { extractPostPlainText } from "./search.js";
-import { extractPlainTextFromHtml } from "./html-plain-text.js";
+import { extractPlainTextFromHtml } from "@jini-ai/cms/seo";
 import { sniffContentType } from "@jini-ai/cms/media";
 import type { MediaContentTypeStorePort } from "../media/index.js";
 

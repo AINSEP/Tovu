@@ -1,4 +1,4 @@
-export type { PostKind, PostStatus, PublicPostKind } from "./post-vocabulary.js";
+export type { PostKind } from "./post-vocabulary.js";
 export type {
   PostRecord,
   PublicPostRecord,

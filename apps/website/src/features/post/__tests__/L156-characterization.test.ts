@@ -4,7 +4,7 @@ import type { JsonObject } from "@jini-ai/core/primitives";
 import type { ChangeSetItemRecord } from "@jini-ai/core/contracts/events";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { copyBodyJsonWithFreshEmbedPlacements } from "../duplicate-embeds.js";
+import { copyBodyJsonWithFreshEmbedPlacements } from "@jini-ai/cms/widgets";
 import { toRecord, toRow, updatableColumns } from "../repo.rows.js";
 import { createPostReverters } from "../reverters.js";
 import { InMemoryPostRepo } from "../repo.memory.js";

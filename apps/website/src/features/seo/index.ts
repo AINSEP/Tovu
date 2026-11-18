@@ -7,9 +7,10 @@ import type {
   SeoFeaturedImagePort, SeoPostListPort, SeoPostWritePort, SeoSitemapDeps,
   SitemapInvalidationDeps,
 } from "@jini-ai/cms/seo";
+import { extractPlainTextFromHtml } from "@jini-ai/cms/seo";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
 import {
-  createPublicPostReader, extractPlainTextFromHtml, isTrashed, resolveFeaturedImageRef, ROOT_SLUG,
+  createPublicPostReader, isTrashed, resolveFeaturedImageRef, ROOT_SLUG,
   type FeaturedImageDeps, type PostRecord, type PostRepoPort,
 } from "../post/index.js";
 import { findMediaByIdOrSlug, mediaPublicPath, mediaUrlKey, type TransformDefinitionRepoPort } from "../media/index.js";

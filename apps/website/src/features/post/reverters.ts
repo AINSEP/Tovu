@@ -11,8 +11,8 @@ import {
   type ForgetRemovedPostFn,
   type PostRecord,
   type PostRepoPort,
-  type PostStatus,
 } from "./post.js";
+import type { PostStatus } from "@jini-ai/cms/core";
 
 /**
  * @file Post-domain entity reverters (ADR-018 C-005/C-006).
