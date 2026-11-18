@@ -9,6 +9,7 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/seo.js';
 import { withToolMetadata, type ToolContributor, type ToolRegistration } from "@jini-ai/core";
 import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
+import { contentReadVocabulary } from "../../contracts/core/tool-metadata/content-read.js";
 import { buildSeoToolRegistrations, seoDerivedRisk, type createSitemapService, type SeoPackageToolDeps } from "@jini-ai/cms/seo";
 import type { PrincipalRepoPort } from "@jini-ai/user-management";
 import type { AssetRenditionRepoPort, MediaContentTypeStorePort, MediaRepoPort, TransformDefinitionRepoPort } from "../media/index.js";
@@ -88,7 +89,7 @@ function toPackageDeps({ routeDeps }: { routeDeps: SeoToolDeps }, _optional = {}
 }
 
 export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[] {
-  return withToolMetadata({ registrations: buildSeoToolRegistrations({ deps: toPackageDeps({ routeDeps }) }), metadata: toolMetadata });
+  return withToolMetadata({ registrations: buildSeoToolRegistrations({ deps: toPackageDeps({ routeDeps }) }, { hostReads: contentReadVocabulary }), metadata: toolMetadata });
 }
 
 /**
