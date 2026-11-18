@@ -8,10 +8,10 @@ import {
   goLiveEvent,
   POST_GO_LIVE_LOOKBACK_MS,
   POST_GO_LIVE_SWEEP_INTERVAL_MS,
-  startPostGoLiveSweep,
   wentLiveSinceSave,
   type GoLiveCandidatesPort,
 } from "../go-live.js";
+import { startPostGoLiveSweep } from "../go-live-sweep.js";
 import type { PostRecord } from "../post.js";
 import { buildPostRecord } from "./post-record.fixture.js";
 
