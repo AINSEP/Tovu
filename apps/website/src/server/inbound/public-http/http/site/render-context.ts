@@ -1,7 +1,7 @@
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
-import type { AssignedTermView } from "#src/features/taxonomy/contracts";
+import type { AssignedTermView } from "@jini-ai/cms/taxonomy";
 
 /**
  * A product line from the sample Tier-3 `store` plugin (`p_store__products`), shaped structurally

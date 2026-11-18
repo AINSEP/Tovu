@@ -16,7 +16,7 @@ import { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-m
 import { InMemoryMenuRepo, NAV_DOC_TYPE, type NavMenuEntry } from "#src/features/navigation/index";
 import { InMemoryPostRepo, ROOT_SLUG, type PostRecord } from "#src/features/post/index";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
-import type { AssignedTermView, EntryTermReadPort } from "#src/features/taxonomy/repo.sqlite";
+import type { AssignedTermView, EntryTermReadPort } from "@jini-ai/cms/taxonomy";
 import { NO_THEME_ID, renderStaticPage, type DiscoveredTheme } from "#src/features/theme/index";
 import { registerResolvePhase } from "#src/platform/routing/adapter";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";

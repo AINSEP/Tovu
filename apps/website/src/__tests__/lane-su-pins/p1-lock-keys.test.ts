@@ -9,7 +9,7 @@ import { registerConfiguredOriginOn } from "#src/platform/db/repos/origin-repo";
 import { SqlTokenStore } from "#src/platform/db/repos/gated-mutation-token-repo";
 import { SqlWebhookDeliveryRepo } from "#src/platform/db/repos/webhook-repo";
 import { SqlSettingsRepo } from "#src/features/settings/repo";
-import { SqlTaxonomyRepo, SqlEntryTermRepo } from "#src/features/taxonomy/repo";
+import { SqliteEntryTermRepo, SqliteTaxonomyRepo } from "#src/features/taxonomy/repo.sqlite";
 import { SqlTrashRepo } from "#src/features/trash/repo";
 import { createIdentityTransactions } from "#src/features/identity/repo";
 import { SqliteWorkspaceRepo } from "#src/features/workspace/repo.sqlite";
@@ -65,8 +65,8 @@ describe("P1 lock keys: workspace, identity, settings, origin, tokens", () => {
 describe("P1 lock keys: taxonomy, trash, claims", () => {
   test("taxonomy transaction and term repoint take the same per-workspace key", async () => {
     const { kernel, keys } = recordingKernel();
-    await new SqlTaxonomyRepo({ kernel, workspaceId: WS }).transaction({ fn: async () => "done" });
-    assert.deepEqual(await new SqlEntryTermRepo({ kernel, workspaceId: WS }).repointTerm({ fromTermId: "a", intoTermId: "b" }), { repointedCount: 0 });
+    await new SqliteTaxonomyRepo({ db: kernel, workspaceId: WS }).transaction({ fn: async () => "done" });
+    assert.deepEqual(await new SqliteEntryTermRepo({ db: kernel, workspaceId: WS }).repointTerm({ fromTermId: "a", intoTermId: "b" }), { repointedCount: 0 });
     assert.deepEqual(keys, [`taxonomy:${WS}`, `taxonomy:${WS}`]);
   });
 
