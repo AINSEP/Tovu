@@ -9,7 +9,7 @@ import { resolveTemplateId, resolveLiquidTemplateId, resolveHandlebarsTemplateId
 import { renderStaticPage } from "#src/features/theme/static-render";
 import type { ResolveHtmlPageEmbedsResult } from "@jini-ai/cms/widgets/html";
 import type { ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";
-import type { AssignedTermView } from "#src/features/taxonomy/contracts";
+import type { AssignedTermView } from "@jini-ai/cms/taxonomy";
 import { escapeHtml } from "#src/platform/html/escape";
 import { injectExtraHeadIntoStaticPage, injectSiteAssistantIntoStaticPage } from "./render/static-page-injection.js";
 import { pageShell } from "./render/document-shell.js";
