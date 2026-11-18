@@ -1,7 +1,7 @@
 /** Host bindings for the Jini redirects owner; authentication stays with mediaTransport. */
 import { createHttpRedirectsApi, type RedirectsTransportPort } from '@jini-ai/admin/redirects/adapters/http';
 import { REDIRECTS_RESOURCE, type AdminRedirectsPort, type RedirectsEventsPort, type RedirectsTranslate } from '@jini-ai/admin/redirects';
-import { AdminApiError } from '@jini-ai/admin/core';
+import { AdminApiError } from '@jini-ai/core/admin-runtime';
 import { hasPermission } from '@jini-ai/ui/panel-kit';
 import { ApiError } from '../../lib/admin-http/request';
 import { WORKSPACE_ID } from '../../lib/admin-http/config';

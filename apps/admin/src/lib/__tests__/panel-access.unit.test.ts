@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { isPanelAccessible, withoutInaccessiblePanels, type AdminNavGroup } from "@jini-ai/admin/core";
+import type { AdminNavGroup } from "@jini-ai/admin/core";
+import { isPanelAccessible, withoutInaccessiblePanels } from "@jini-ai/core/admin-runtime";
 
 import { ADMIN_PANELS } from "../../panels";
 import { getNav } from "../../nav";
