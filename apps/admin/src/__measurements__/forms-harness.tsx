@@ -13,5 +13,5 @@ export function useWiredFormsList() {
 export function useWiredFormEditor(props: { formId: string; tab: 'fields' | 'submissions' }) {
   const locale = useWiredAdminLocale();
   const navigateToPath = useCallback((routePath: string) => navigate({ routePath }), []);
-  return useFormEditor({ ...props, port: formsHostPorts.formsApi, navigate: navigateToPath, t: createFormsTranslator({ locale }) });
+  return useFormEditor({ ...props, port: formsHostPorts.formsApi, catalog: formsHostPorts.formsCatalog, navigate: navigateToPath, t: createFormsTranslator({ locale }) });
 }
