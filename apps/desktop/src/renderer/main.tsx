@@ -6,8 +6,8 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { TooltipLayer } from '@jini-ai/ui';
 import { UiKitProvider } from '@jini-ai/ui/react-kit';
-import { uiKit } from './jini-kits.js';
-import { ChatSurfacesProvider } from '@jini-ai/chat/react';
+import { chatKit, uiKit } from './jini-kits.js';
+import { ChatKitProvider, ChatSurfacesProvider } from '@jini-ai/chat/react';
 import { chatSurfaces } from './jini-surfaces.js';
 import { App } from './App.js';
 import { mountRenderer } from './mount-renderer.js';
@@ -26,9 +26,11 @@ mountRenderer({
   app: (
     <StrictMode>
       <UiKitProvider kit={uiKit}>
-        <ChatSurfacesProvider surfaces={chatSurfaces}>
-          <App />
-        </ChatSurfacesProvider>
+        <ChatKitProvider kit={chatKit}>
+          <ChatSurfacesProvider surfaces={chatSurfaces}>
+            <App />
+          </ChatSurfacesProvider>
+        </ChatKitProvider>
         <TooltipLayer />
       </UiKitProvider>
     </StrictMode>

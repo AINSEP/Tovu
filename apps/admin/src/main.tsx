@@ -2,9 +2,9 @@ import React from "react";
 import { KitProvider } from "@jini-ai/ui-kit/react";
 import { AdminKitProvider } from "@jini-ai/admin/react/kit";
 import { UiKitProvider } from "@jini-ai/ui/react-kit";
-import { ChatSurfacesProvider } from "@jini-ai/chat/react";
+import { ChatKitProvider, ChatSurfacesProvider } from "@jini-ai/chat/react";
 import { chatSurfaces } from "./integrations/jini-surfaces";
-import { adminKit, uiKit } from "./integrations/jini-kits";
+import { adminKit, chatKit, uiKit } from "./integrations/jini-kits";
 import { tovuAgentAttrs, tovuKit } from "./integrations/jini-admin/kit";
 import ReactDOM from "react-dom/client";
 import { App } from "./App";
@@ -82,6 +82,7 @@ ReactDOM.createRoot(rootElement, reactRootErrorOptions({ telemetry: adminTelemet
     <KitProvider kit={tovuKit} agent={tovuAgentAttrs}>
     <FetchQueryProvider>
       <UiKitProvider kit={uiKit}>
+      <ChatKitProvider kit={chatKit}>
       <ChatSurfacesProvider surfaces={chatSurfaces}>
       <AdminKitProvider kit={adminKit}>
       {/* Outside `App` so it also shows on the login and boot screens while the API restarts. */}
@@ -90,6 +91,7 @@ ReactDOM.createRoot(rootElement, reactRootErrorOptions({ telemetry: adminTelemet
       <SessionApp />
       </AdminKitProvider>
       </ChatSurfacesProvider>
+      </ChatKitProvider>
       </UiKitProvider>
     </FetchQueryProvider>
     </KitProvider>

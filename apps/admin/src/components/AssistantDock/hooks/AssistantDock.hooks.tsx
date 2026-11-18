@@ -18,6 +18,7 @@ import {
   type ComposerDiscoverySelection,
   type FrontendSessionBridge,
   type I18nAdapter,
+  useChatAgentPolicy,
 } from "@jini-ai/chat/react";
 import { conversationTitleForDisplay, isTerminalRunStatus, type ChatMessage, type StartRunInput } from "@jini-ai/chat/core";
 import { DEFAULT_PROVIDER_PRESETS } from "@jini-ai/integrations/media-providers/catalog";
@@ -600,6 +601,7 @@ export function useLocalCliSelection(
   },
   { persistWrite = persistExecutionConfigWrite }: { persistWrite?: typeof persistExecutionConfigWrite } = {},
 ): UseLocalCliSelection {
+  const policy = useChatAgentPolicy();
   /**
    * Same hardcoded starting point the dock always used (`{ agentId: "claude" }`) before this hook
    * existed — now just the value shown for the brief window before the ledger's GET settles, or
@@ -654,7 +656,7 @@ export function useLocalCliSelection(
   const handleLocalCliSelectionChange = useCallback((selection: ChatPaneAgentSelection) => {
     // `ChatPane` echoing its own default-model fill-in on mount: show it, but it is not a pick —
     // saving it re-wrote the ledger on every page load, and marking `touchedRef` blocked hydration.
-    if (isSelectionNormalizationEcho({ current: localCliSelectionRef.current, incoming: selection, agents: readAgentsSnapshot() })) {
+    if (isSelectionNormalizationEcho({ current: localCliSelectionRef.current, incoming: selection, agents: readAgentsSnapshot(), policy })) {
       normalizationRef.current = { key: syncedSelection.current, selection };
       localCliSelectionRef.current = selection;
       setLocalCliSelection(selection);
@@ -672,7 +674,7 @@ export function useLocalCliSelection(
         if (saved && generation === pickGeneration.current) touchedRef.current = false;
       });
     }
-  }, [setExecutionConfig]);
+  }, [setExecutionConfig, policy]);
 
   return { localCliSelection, handleLocalCliSelectionChange, readLocalCliSelectionForSend };
 }

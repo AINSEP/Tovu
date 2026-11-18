@@ -6,6 +6,7 @@ import { createRunAcceptance } from "../accept.js";
 import { hasUnknownToolCall, UNKNOWN_MUTATION_ERROR, createDurableRecovery, EXHAUSTED_NOTICE, SAVED_WORK_NOTICE } from "@jini-ai/chat/server/durable-runs";
 import type { DurableRun, DurableRunStore, RecoveryPorts, RunProbe } from "@jini-ai/chat/server/durable-runs";
 
+import { agentFailures } from "../../../server/runtime/composition/modules/run-finalizer/agent-failures.js";
 import { INCIDENT_PARTIAL } from "./incident.fixture.js";
 const TIME = 1_790_000_000_000;
 
@@ -54,7 +55,7 @@ function harness(overrides: Partial<DurableRun> = {}) {
     async recoveryClock() {},
   };
   const ports: RecoveryPorts = {
-    store, now: () => clock, mintRunId: () => `next-${++ordinal}`,
+    store, agentFailures, now: () => clock, mintRunId: () => `next-${++ordinal}`,
     probe: async (run) => { probes.push(run.runId); return probe; }, attach: (run) => attached.push(run.runId),
     launch: async (required) => { launches.push(required); }, cancelAttempt: async (run) => { canceled.push(run.runId); },
     verifyChildDead: async () => identityDead, supportsNativeResume: () => true,

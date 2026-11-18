@@ -4,8 +4,9 @@ import { React, act, createRoot, installDom } from './react-dom-harness';
 import { loadSiteAssistantState } from '../session-store';
 
 const { SiteAssistantWidget } = await import('../SiteAssistantWidget');
-const { ChatSurfacesProvider } = await import('@jini-ai/chat/react');
+const { ChatKitProvider, ChatSurfacesProvider } = await import('@jini-ai/chat/react');
 const { chatSurfaces } = await import('../jini-surfaces');
+const { chatKit } = await import('../jini-kits');
 const directive = { kind: 'tool_confirmation', challengeId: 'a'.repeat(22), title: 'Allow search?', summary: 'Search published posts.' };
 const frame = (event: string, data: unknown) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 
@@ -34,7 +35,7 @@ for (const allow of [true, false]) test(`React held turn waits for visitor click
     const found = [...container.querySelectorAll('button')].find(node => (node.getAttribute('aria-label') ?? node.textContent) === name);
     assert.ok(found, `missing ${name}`); return found;
   };
-  await act(async () => root.render(React.createElement(ChatSurfacesProvider, { surfaces: chatSurfaces, children: React.createElement(SiteAssistantWidget) })));
+  await act(async () => root.render(React.createElement(ChatKitProvider, { kit: chatKit, children: React.createElement(ChatSurfacesProvider, { surfaces: chatSurfaces, children: React.createElement(SiteAssistantWidget) }) })));
   act(() => button('Chat with this site').click());
   act(() => button('What can I find on this site?').click());
   await act(async () => { button('Send').click(); });

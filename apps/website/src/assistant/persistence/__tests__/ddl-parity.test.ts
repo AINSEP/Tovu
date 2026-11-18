@@ -4,7 +4,8 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import Database from "better-sqlite3";
-import { CHAT_HISTORY_DDL, createChatHistoryStore } from "@jini-ai/chat/store/sqlite";
+import { CHAT_HISTORY_DDL, createSqliteChatStore, type ChatDatabase } from "@jini-ai/chat/store/sqlite";
+import { sqliteKernel } from "@jini-ai/db/kernel/sqlite";
 import { activeRunIndexStatement } from "../../../platform/db/migrations/chat/0003_active_run_index.js";
 import { CHAT_MIGRATIONS } from "../../../platform/db/migrations/index.js";
 
@@ -80,7 +81,7 @@ describe("ai_chats DDL parity with @jini-ai/chat/store/sqlite", () => {
     const db = new Database(":memory:");
     db.pragma("foreign_keys = ON");
     db.exec(migratedChatHistoryDdl());
-    const store = createChatHistoryStore({ db: db, scope: {
+    const store = createSqliteChatStore({ kernel: sqliteKernel<ChatDatabase>(db), scope: {
       scopeId: "workspace-local",
       ownerKind: "user",
       ownerId: "u1",
@@ -99,7 +100,7 @@ describe("ai_chats DDL parity with @jini-ai/chat/store/sqlite", () => {
     const db = new Database(":memory:");
     db.pragma("foreign_keys = ON");
     db.exec(migratedChatHistoryDdl());
-    const store = createChatHistoryStore({ db: db, scope: {
+    const store = createSqliteChatStore({ kernel: sqliteKernel<ChatDatabase>(db), scope: {
       scopeId: "workspace-local",
       ownerKind: "user",
       ownerId: "u1",

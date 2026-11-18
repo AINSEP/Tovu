@@ -16,6 +16,7 @@ import { createHttpRunDaemonClient, type RunDaemonClient } from "../run-daemon-h
 import { createFollower, delay, probeRun, type Follower } from "./bounded-follow.js";
 import { createCheckpointer } from "./checkpointer.js";
 import type { RunLogPort, RunTimerPort } from "./ports.js";
+import { agentFailures } from "./agent-failures.js";
 import { createRecoveryBinding, type RecoveryBinding } from "./recovery-binding.js";
 import { reportSafely } from "./report.js";
 import { createStreamReader } from "./stream.js";
@@ -254,7 +255,7 @@ export function createAssistantRunFinalizer(options: AssistantRunFinalizerOption
     ledger: options.ledger, now, checkpointTimers: unrefTimers, log: consoleRunLog, checkpointIntervalMs: options.checkpointIntervalMs,
   });
   const { recovery, attemptEnded } = createRecoveryBinding({
-    ledger: options.ledger, durable, now, mintRunId: randomUUID, daemon,
+    ledger: options.ledger, durable, now, mintRunId: randomUUID, daemon, agentFailures,
     recoveryDaemon: () => options.recoveryDaemon,
     probe: ({ run, client }) => probeRun({ timers, statusTimeoutMs: settings.statusTimeoutMs, client, run }),
     attach: ({ principalId, conversationId, message }, { attemptBase, daemon: holder }) => {

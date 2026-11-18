@@ -4,8 +4,9 @@ import { React, act, createRoot, installDom } from './react-dom-harness';
 import { loadSiteAssistantState, saveSiteAssistantState } from '../session-store';
 
 const { SiteAssistantWidget } = await import('../SiteAssistantWidget');
-const { ChatSurfacesProvider } = await import('@jini-ai/chat/react');
+const { ChatKitProvider, ChatSurfacesProvider } = await import('@jini-ai/chat/react');
 const { chatSurfaces } = await import('../jini-surfaces');
+const { chatKit } = await import('../jini-kits');
 
 for (const restored of [false, true]) test(`public widget dialog: ${restored ? 'restored thread' : 'empty greeting'}`, async () => {
   const { dom, restore } = installDom({ html: '<input id="page"><div id="tovu-site-assistant-root"></div>' },
@@ -24,7 +25,7 @@ for (const restored of [false, true]) test(`public widget dialog: ${restored ? '
     element.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key, shiftKey, bubbles: true, cancelable: true }));
   });
   try {
-    await act(async () => root.render(React.createElement(ChatSurfacesProvider, { surfaces: chatSurfaces, children: React.createElement(SiteAssistantWidget) })));
+    await act(async () => root.render(React.createElement(ChatKitProvider, { kit: chatKit, children: React.createElement(ChatSurfacesProvider, { surfaces: chatSurfaces, children: React.createElement(SiteAssistantWidget) }) })));
     const bubble = button('Chat with this site');
     assert.equal(bubble.getAttribute('aria-expanded'), 'false');
     bubble.focus();

@@ -1,4 +1,4 @@
-import { resolveChatPaneSelection, type ChatPaneAgent, type ChatPaneAgentSelection } from "@jini-ai/chat/react";
+import { resolveChatPaneSelection, type ChatAgentPolicyPort, type ChatPaneAgent, type ChatPaneAgentSelection } from "@jini-ai/chat/react";
 
 /**
  * Whether a `ChatPane` `onSelectionChange` call is only `ChatPane` echoing back its own
@@ -22,21 +22,23 @@ import { resolveChatPaneSelection, type ChatPaneAgent, type ChatPaneAgentSelecti
  * @param input.current - The selection the dock currently passes to `ChatPane`.
  * @param input.incoming - The value `ChatPane` reported.
  * @param input.agents - The inventory `ChatPane` resolves against, when known.
+ * @param input.policy - The agent-runtime model rules `ChatPane` resolves with (the chat kit's `agents`).
  * @returns `true` when `incoming` should be shown but not saved.
  * @complexity O(a + m + r) time and O(m) space for the resolver's inventory/model/effort scans.
  * @example isSelectionNormalizationEcho({ current, incoming, agents });
  */
 export function isSelectionNormalizationEcho(
-  { current, incoming, agents }: {
+  { current, incoming, agents, policy }: {
     current: ChatPaneAgentSelection;
     incoming: ChatPaneAgentSelection;
     agents: readonly ChatPaneAgent[] | undefined;
+    policy: ChatAgentPolicyPort;
   },
   _options = {},
 ): boolean {
   if (!agents?.length) return false;
-  const resolved = resolveChatPaneSelection({ agents, requested: current });
-  const resolvedIncoming = resolveChatPaneSelection({ agents, requested: incoming });
+  const resolved = resolveChatPaneSelection({ agents, requested: current, policy });
+  const resolvedIncoming = resolveChatPaneSelection({ agents, requested: incoming, policy });
   return resolved.agentId === resolvedIncoming.agentId
     && resolved.model === resolvedIncoming.model
     && resolved.reasoning === resolvedIncoming.reasoning;
