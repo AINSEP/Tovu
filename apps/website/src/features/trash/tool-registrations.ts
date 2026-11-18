@@ -18,6 +18,7 @@ import {
   readToolLimit,
   requireInputRecord,
   requireString,
+  withToolMetadata,
   type AgentToolSideEffect,
   type DerivedRiskByToolId,
   type ToolHandler,
@@ -31,7 +32,7 @@ import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { ToolInputError } from "@jini-ai/core";
 import type { UserRepoPort } from "@jini-ai/user-management";
 import type { ToolContributor } from "@jini-ai/core";
-import { buildTrashAgentToolCatalog, trashToolEntityTypes } from "./agent-tools.js";
+import { buildTrashAgentToolCatalog } from "./agent-tools.js";
 import {
   filterVisibleTrashItems,
   trashDaysRemaining,
@@ -41,6 +42,7 @@ import {
 } from "./permissions.js";
 import type { TrashEntityType, TrashItem, TrashPort } from "@jini-ai/cms/trash";
 import type { TrashRegistry } from "./registry.js";
+import { trashToolEntityTypes } from "./tool-kinds.js";
 
 const DEFAULT_LIST_LIMIT = 25;
 const MAX_LIST_LIMIT = 100;
@@ -72,6 +74,37 @@ export interface TrashToolDeps {
   userRepo: UserRepoPort;
 }
 
+/** The user listing `trash_list_items` reads, structurally: only the members the handler calls. */
+interface TrashUserLister {
+  list(required: { workspaceId: string }): Promise<readonly { principalId: string; username: string }[]>;
+}
+
+/**
+ * The product policy the Trash tools need and do not own: which permission each kind requires, the
+ * entry permission, the per-row visibility filter, the days-left rule and the two kind lists (one
+ * for the unknown-kind message, one for the published enum). The host binds every member.
+ */
+export interface TrashToolPolicy {
+  permissionFor(entityType: TrashEntityType): string | null;
+  readPermission: string;
+  filterVisible(input: { principalId: string; items: readonly TrashItem[] }): Promise<readonly TrashItem[]>;
+  daysRemaining(input: { now: string; until: string }): number;
+  /** The kinds the unknown-kind refusal names: not de-duplicated, in the host's order. */
+  messageKinds(): readonly TrashEntityType[];
+  /** The kinds the catalog's entityType enum publishes: de-duplicated, in the host's order. */
+  catalogKinds(): readonly TrashEntityType[];
+}
+
+/** The exact slice of dependencies Trash's tool handlers read; the host supplies the policy. */
+export interface TrashPackageToolDeps {
+  authorize: AuthorizeFn;
+  workspaceId: string;
+  trash: TrashPort;
+  clock: { nowIso(): string };
+  userRepo: TrashUserLister;
+  trashPolicy: TrashToolPolicy;
+}
+
 /**
  * The human-facing text for who deleted an item, in priority order: the account's username, else
  * `"system"` for the boot-time adoption actor, else a plain fallback for a removed/unknown account
@@ -94,7 +127,7 @@ function resolveActorDisplay(item: TrashItem, usernameByPrincipalId: ReadonlyMap
  *
  * @complexity O(u) in the workspace's user count, once per call.
  */
-async function loadUsernamesByPrincipalId(deps: TrashToolDeps): Promise<ReadonlyMap<string, string>> {
+async function loadUsernamesByPrincipalId(deps: TrashPackageToolDeps): Promise<ReadonlyMap<string, string>> {
   const users = await deps.userRepo.list({ workspaceId: deps.workspaceId });
   return new Map(users.map((user) => [user.principalId, user.username]));
 }
@@ -102,7 +135,7 @@ async function loadUsernamesByPrincipalId(deps: TrashToolDeps): Promise<Readonly
 /** Model-facing row. Drops `workspaceId` because every call is already scoped to one.
  *  Exposes the row's id as `trashItemId` for `trash_purge_item`; `trash_restore_item` still takes
  *  the entity's id as `entityId`. */
-function toTrashToolView({ item, now, usernameByPrincipalId }: { item: TrashItem; now: string; usernameByPrincipalId: ReadonlyMap<string, string> }, _optional = {}) {
+function toTrashToolView({ item, now, usernameByPrincipalId, daysRemaining }: { item: TrashItem; now: string; usernameByPrincipalId: ReadonlyMap<string, string>; daysRemaining: TrashToolPolicy["daysRemaining"] }, _optional = {}) {
   return {
     trashItemId: item.id,
     entityType: item.entityType,
@@ -112,7 +145,7 @@ function toTrashToolView({ item, now, usernameByPrincipalId }: { item: TrashItem
     deletedAt: item.trashedAt,
     deletedBy: resolveActorDisplay(item, usernameByPrincipalId),
     permanentlyRemovedAfter: item.purgeAfter,
-    daysRemaining: trashDaysRemaining({ now, until: item.purgeAfter }),
+    daysRemaining: daysRemaining({ now, until: item.purgeAfter }),
   };
 }
 
@@ -133,7 +166,7 @@ export const trashDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSi
 
 /** What each handler factory receives (neither handler opens a dialog, so no surface store). */
 interface TrashHandlerArgs {
-  deps: TrashToolDeps;
+  deps: TrashPackageToolDeps;
 }
 
 /**
@@ -146,7 +179,7 @@ interface TrashHandlerArgs {
  */
 const trashListItemsHandler = ({ deps }: TrashHandlerArgs): ToolHandler => async (ctx) => {
   const input = ctx.input === undefined ? {} : requireInputRecord({ input: ctx.input });
-  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: TRASH_READ_PERMISSION });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: deps.trashPolicy.readPermission });
 
   const requested = readEntityTypes(input);
   const limit = readToolLimit({ input, max: MAX_LIST_LIMIT, fallback: DEFAULT_LIST_LIMIT });
@@ -159,13 +192,13 @@ const trashListItemsHandler = ({ deps }: TrashHandlerArgs): ToolHandler => async
     entityTypes: requested,
     cursor: optionalString({ input: input, key: "cursor" }) ?? null      });
 
-  const visible = await filterVisibleTrashItems(deps, { principalId: ctx.principal.id, items: page.items });
+  const visible = await deps.trashPolicy.filterVisible({ principalId: ctx.principal.id, items: page.items });
   // Skip the lookup on an empty page — nothing visible to this principal, or the Trash truly is
   // empty — same as `routes/trash/list.ts`.
   const usernameByPrincipalId =
     visible.length > 0 ? await loadUsernamesByPrincipalId(deps) : new Map<string, string>();
   return {
-    items: visible.map((item) => toTrashToolView({ item, now, usernameByPrincipalId })),
+    items: visible.map((item) => toTrashToolView({ item, now, usernameByPrincipalId, daysRemaining: deps.trashPolicy.daysRemaining })),
     nextCursor: page.nextCursor,
   };
 };
@@ -182,10 +215,10 @@ const trashRestoreItemHandler = ({ deps }: TrashHandlerArgs): ToolHandler => asy
   const entityType = requireString({ input: input, key: "entityType" });
   const entityId = requireString({ input: input, key: "entityId" });
 
-  const permission = trashPermissionFor(entityType, deps);
+  const permission = deps.trashPolicy.permissionFor(entityType);
   if (!permission) {
     throw new ToolInputError({ message: `trash_restore_item: '${entityType}' is not a kind the Trash can restore. Expected one of: ` +
-      `${[...TRASH_PERMISSION_BY_ENTITY_TYPE.keys(), ...deps.registry.keys()].join(", ") }.` });
+      `${deps.trashPolicy.messageKinds().join(", ") }.` });
   }
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission }, { entityType, entityId });
 
@@ -206,25 +239,25 @@ const trashRestoreItemHandler = ({ deps }: TrashHandlerArgs): ToolHandler => asy
 };
 
 /**
- * Builds Trash's registrations.
+ * Builds Trash's registrations without the host's tool metadata.
  *
- * @param routeDeps the structural slice above; `server/routes/*` passes its `RouteDeps` unchanged.
+ * @param deps the package-side slice above, policy included.
  * @returns the two registrations. Never a third.
- * @complexity O(1) to build.
+ * @complexity O(k) in the kind count, to build the catalog's enum.
  */
-export function buildTrashRegistrations(routeDeps: TrashToolDeps): ToolRegistration[] {
+export function buildTrashToolRegistrations({ deps }: { deps: TrashPackageToolDeps }, _optional = {}): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
-    trash_list_items: trashListItemsHandler({ deps: routeDeps }),
-    trash_restore_item: trashRestoreItemHandler({ deps: routeDeps }),
+    trash_list_items: trashListItemsHandler({ deps }),
+    trash_restore_item: trashRestoreItemHandler({ deps }),
   };
 
   // Built per call, from the kinds this call's registry actually holds (F6) — a module-level
   // catalog would freeze the published entityType enum at whatever `TRASHABLE` held when this file
   // first loaded, before a later-registered phase-2 kind (`registry.ts`'s own "resolved at call
   // time" rule) could ever reach it.
-  const catalog = indexCatalogById({ catalog: buildTrashAgentToolCatalog(trashToolEntityTypes(routeDeps.registry)) });
+  const catalog = indexCatalogById({ catalog: buildTrashAgentToolCatalog(deps.trashPolicy.catalogKinds()) });
 
-  return buildDomainRegistrations({ metadata: toolMetadata,
+  return buildDomainRegistrations({
     domain: "trash",
     catalogModule: "trash/agent-tools.ts",
     catalog,
@@ -249,6 +282,31 @@ function readEntityTypes(input: Record<string, unknown>): TrashEntityType[] | un
     throw new ToolInputError({ message: "trash_list_items: 'entityTypes' must be an array of strings when it is given." });
   }
   return raw as TrashEntityType[];
+}
+
+/** Binds the host's product policy: permissions, visibility, days-left and the two kind lists. */
+function bindTrashPolicy(routeDeps: TrashToolDeps): TrashToolPolicy {
+  return {
+    permissionFor: (entityType) => trashPermissionFor(entityType, routeDeps),
+    readPermission: TRASH_READ_PERMISSION,
+    filterVisible: (input) => filterVisibleTrashItems(routeDeps, input),
+    daysRemaining: trashDaysRemaining,
+    messageKinds: () => [...TRASH_PERMISSION_BY_ENTITY_TYPE.keys(), ...routeDeps.registry.keys()],
+    catalogKinds: () => trashToolEntityTypes(routeDeps.registry),
+  };
+}
+
+/**
+ * The host builder: the package registrations plus this site's tool metadata. Its name and
+ * positional parameter are pinned by existing callers and tests; no handler reads a surface store.
+ *
+ * @param routeDeps the structural slice above; `server/routes/*` passes its `RouteDeps` unchanged.
+ */
+export function buildTrashRegistrations(routeDeps: TrashToolDeps): ToolRegistration[] {
+  return withToolMetadata({
+    registrations: buildTrashToolRegistrations({ deps: { ...routeDeps, trashPolicy: bindTrashPolicy(routeDeps) } }),
+    metadata: toolMetadata,
+  });
 }
 
 /**

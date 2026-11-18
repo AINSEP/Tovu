@@ -35,7 +35,8 @@ import { databaseTransferAgentToolCatalog } from "../../features/database-transf
 import { agentPluginSearchAgentToolCatalog } from "../../features/agent-plugins/tool-registrations.js";
 import { contentDuplicationAgentToolCatalog } from "../../features/content-duplication/agent-tools.js";
 import { publishContentAgentToolCatalog } from "../../features/publish-content/agent-tools.js";
-import { buildTrashAgentToolCatalog, trashToolEntityTypes } from "../../features/trash/agent-tools.js";
+import { buildTrashAgentToolCatalog } from "../../features/trash/agent-tools.js";
+import { trashToolEntityTypes } from "../../features/trash/tool-kinds.js";
 import { trashThemeAgentToolCatalog } from "../../features/theme/trash-theme-tool.js";
 import { getTrashItemAgentToolCatalog } from "../../features/trash/trash-item-tool.js";
 import { getFsFilesAgentToolCatalog } from "../../features/fs-files/agent-tools.js";
