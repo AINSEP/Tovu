@@ -124,6 +124,14 @@
     {
       "id": "a6407d29416f",
       "reason": "Moved to the neutral wording on SiteListPrefsController.saveError in Jini packages/ui/src/features/site-card/use-site-list-prefs.hooks.ts (Jini 6598a5cc)."
+    },
+    {
+      "id": "7d7b2c68858c",
+      "reason": "Header moved to Jini packages/db/src/kernel/sqlite/sqlite-only.ts (Jini 70116fc0), reworded neutrally per the sheet: the Tovu-specific pointers (no-raw-SQLite ratchet place, publish-backstop-row path, 'candidate for Jini' note) are dropped; publish-backstop-row.sqlite.ts keeps its own why and now points at the Jini file."
+    },
+    {
+      "id": "20dfd44675f0",
+      "reason": "Moved with sqlite-only.ts to Jini (Jini 70116fc0); only the tracking sentence 'Kept here until Jini publishes this primitive' is dropped as obsolete (it is published now)."
     }
   ]
 }
