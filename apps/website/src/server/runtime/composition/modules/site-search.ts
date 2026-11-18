@@ -5,7 +5,7 @@ import {
   type SearchAccessPort, type SearchDocumentSource, type SearchIndexer, type SearchIndexStatePort, type SearchProvider,
   type SearchProviderContext, type SearchProviderRegistry, type SearchService, type SearchSourceEvent, type SearchTarget, type SearchTargetPort,
 } from "@jini-ai/search";
-import { contributeProviders } from "@jini-ai/search/contribution";
+import { contributeProviders } from "@jini-ai/agent-plugins/lifecycle";
 
 import type { LoadPluginContributions } from "#src/features/agent-plugins/lifecycle";
 import { loadSearchProviderContributions, type LoadedSearchProviders } from "#src/features/agent-plugins/search-provider-registry";
