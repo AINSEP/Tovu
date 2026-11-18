@@ -99,3 +99,14 @@ Both greps are the exact §5 patterns; if either does not print its planted line
 - Debt rows: never edit `size-debt.json`/`error-gate-debt.json` by hand; when `check:size` reports a smaller value or a stale row, run the script's own update mode if it has one, else STOP and report. Values only go down.
 
 ## §8 Report (last commit of each sheet): `cloud-results/deps-split-<sheet>.md` — commits (SHA, one line each), gates table (command → result vs base), test counts before/after, deviations, the exact next step. Push and print the SHAs.
+
+## §9 Stage extraction rules (S5-S12; S13 replaces rule 2 at the end)
+
+1. Top-down, one stage per sheet, in DESIGN §1.3 order. Inside a sheet: one slice per commit (statements verbatim into `site-deps/slices/<slice>.ts`, called from the closure at the same position), then one commit that groups the sheet's slice calls into `site-deps/stages/<stage>.ts`.
+2. The closure keeps today's local names: the extracted block is replaced by `const { a, b, … } = composeX(required, optional)` (with `await` **only** if the block contains a top-level await today; a synchronous block stays synchronous — no extra microtask turn). The destructured names are exactly the block's names that a later row of `work/closure-census.tsv` reads (eager or deferred column). Later code does not change.
+3. A read of a binding declared **later** (census "forward" column) is passed as a getter named after it, written at the call site: `{ settingsRepo: () => settingsRepo }`. The arrow reads the closure `const` when called — same TDZ as today. Never call a getter at slice entry.
+4. Root cells (`let lifecycleTracker`, `routeDepsBuiltForPluginHost`, `formCollectionProviders`, `bindSharedApiOAuth`, `resolveRouteDeps`) stay in the closure; slices receive getters; every write stays at its statement position in the closure (DESIGN §2.3 for the three writes that sit between statements of one stage).
+5. A slice that logs through `consoleLogger` receives `required.logger` and the closure passes `logger: consoleLogger`. No slice imports `createConsoleLogger`.
+6. A single-user module helper (DESIGN §1.3 table) moves into its user's slice file in the same commit.
+7. Source-reading anchors move with their code (COMMON §7). For `composition-boot-order.unit.test.ts:183-…` ("awaits after the first boot promise"): when an await moves into a slice, the expected list keeps the stage-call line in its place, and a new assertion in the same test pins the await's verbatim text inside the slice file. The "no `db` identifier" and "no `sqliteDb`" assertions (`:187-193`) read `deps.ts` **and** every file under `site-deps/` from S5 on.
+8. Last commit of the sheet: refresh `work/closure-census.tsv`, `work/module-census.tsv`, `work/literal-keys.tsv`, `work/deps-importers.tsv`.
