@@ -20,7 +20,9 @@ import { isNonArrayRecord } from "@jini-ai/core/records";
  */
 import type { UUID } from "@jini-ai/core/primitives";
 import { describeRejection, galleryMediaReferences, scanEmbedMarkers, type EmbedMarkerRejection } from "@jini-ai/cms/widgets/markers";
-import type { EntryRefRow, EntryRefTargetKind } from "./types.js";
+import type { EntryRefRow } from "@jini-ai/cms/widgets";
+
+type EntryRefTargetKind = EntryRefRow["targetKind"];
 
 export interface ExtractEntryRefsInput {
   readonly workspaceId: UUID;

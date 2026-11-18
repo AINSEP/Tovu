@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { extractEntryRefs, extractHtmlEntryRefs } from "../../extractor.js";
-import type { EntryRefRow } from "../../types.js";
+import type { EntryRefRow } from "@jini-ai/cms/widgets";
 
 /**
  * @file C-009 `extractEntryRefs` — SPEC-043 REQ-29..32, AC-21/22, INV-06.

@@ -3,8 +3,11 @@ import type { Insertable, Selectable } from "kysely";
 import type { ContentDatabase } from "../content-database.generated.js";
 import type { ContentKernel } from "../content-kernel.js";
 import type { UUID } from "@jini-ai/core/primitives";
-import type { EntryRefsRepoPort } from "#src/contracts/core/entry-refs/ports";
-import type { EntryRefRow, EntryRefSourceKind, EntryRefTargetKind } from "#src/contracts/core/entry-refs/types";
+// EntryRefsRepoPort is written only by the entries write chokepoint's extraction, in the same transaction (ADR-022 §5, SPEC-043 REQ-29..32).
+import type { EntryRefRow, EntryRefsRepoPort } from "@jini-ai/cms/widgets";
+
+type EntryRefSourceKind = EntryRefRow["sourceKind"];
+type EntryRefTargetKind = EntryRefRow["targetKind"];
 
 /**
  * @file THE durable `EntryRefsRepoPort` adapter (ADR-006 rule-of-two "second adapter" half —

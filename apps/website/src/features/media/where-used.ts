@@ -1,8 +1,7 @@
 /** Slug-aware media usage over the existing reference index and post body scanner. Ordinary post
  * saves do not maintain entry_refs; read those current bodies instead of claiming a stale index
  * is complete. This is a host adapter over Tovu's separate post store, with no new persisted data. */
-import type { EntryRefsRepoPort } from '#src/contracts/core/entry-refs/ports';
-import type { EntryRefRow } from '#src/contracts/core/entry-refs/types';
+import type { EntryRefRow, EntryRefsRepoPort } from '@jini-ai/cms/widgets';
 import type { VersionedMediaRepoPort } from './versioned-media-repo.js';
 import type { PostRepoPort } from '#src/features/post/contracts';
 import { collectReferencedMediaKeys } from '#src/features/publish-content/media-references';

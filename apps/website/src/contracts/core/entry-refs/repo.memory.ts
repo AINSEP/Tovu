@@ -1,6 +1,5 @@
 import type { UUID } from "@jini-ai/core/primitives";
-import type { EntryRefsRepoPort } from "./ports.js";
-import type { EntryRefRow, EntryRefTargetKind } from "./types.js";
+import type { EntryRefRow, EntryRefsRepoPort } from "@jini-ai/cms/widgets";
 
 /**
  * @file In-memory `EntryRefsRepoPort` adapter (ADR-006 rule-of-two "one being built now" half —
@@ -15,7 +14,7 @@ import type { EntryRefRow, EntryRefTargetKind } from "./types.js";
 export class InMemoryEntryRefsRepo implements EntryRefsRepoPort {
   private rows: EntryRefRow[] = [];
 
-  async findByTarget(required: { workspaceId: UUID; targetKind: EntryRefTargetKind; targetId: UUID }): Promise<EntryRefRow[]> {
+  async findByTarget(required: { workspaceId: UUID; targetKind: EntryRefRow["targetKind"]; targetId: UUID }): Promise<EntryRefRow[]> {
     return this.rows.filter(
       (row) =>
         row.workspaceId === required.workspaceId &&

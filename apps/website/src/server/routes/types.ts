@@ -144,7 +144,7 @@ import type {
   TaxonomyTrashReadPort,
 } from "../../features/taxonomy/trash-term.js";
 import type { WidgetRegionBindingRepoPort, RemoveWidgetFn, SiteTimeZonePort } from "@jini-ai/cms/widgets";
-import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
+import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
 import type { PluginActivationRepoPort } from "@jini-ai/plugins/host";
 import type { PluginDiscoveryRecord } from "@jini-ai/plugins/host/node";
 import type { PluginBeforeSavePreview } from "#src/features/plugin-runtime/host-binding";
@@ -613,7 +613,7 @@ export interface ContentTaxonomyDeps {
   taxonomyRevisionRepo: TaxonomyRevisionRepoPort;
   /**
    * SPEC-043/ADR-022 §5 (`entry_refs`) — the reference-integrity index's persistence seam
-   * (`core/entry-refs/ports.ts`'s `EntryRefsRepoPort`). Schema-owned by `core`, first populated by
+   * (`@jini-ai/cms/widgets`'s `EntryRefsRepoPort`). Schema-owned by `core`, first populated by
    * `widgets` (the region-area/write-service chokepoint hooks) — consumed here by the admin
    * `widgets` routes for the REQ-34 where-used disclosure and the REQ-42 safe-delete check.
    */
