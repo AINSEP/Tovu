@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import ts from 'typescript';
 import { RUNNER_APP_VERSION_CHANNEL } from './contracts/app-version.ts';
-import { devAppVersion, registerAppVersionIpc } from './app-version-ipc.ts';
+import { registerAppVersionIpc } from './app-version-ipc.ts';
 
 /** Read actual wiring expressions without importing Electron or mocking a module. */
 function sourceFile(relative: string): ts.SourceFile {
@@ -58,11 +58,21 @@ test('dev launch: the nearest desktop-v tag plus -dev, read once in the repo roo
   assert.deepEqual(cwds, ['/repo'], 'git runs once at registration, not per request');
 });
 
-test('dev launch without git or a tag falls back to package.json version plus -dev', async () => {
-  assert.equal(await devAppVersion({ repoRoot: '/repo', packageVersion: '0.1.22' },
-    { describeTag: async () => { throw new Error('spawn git ENOENT'); } }), '0.1.22-dev');
-  assert.equal(await devAppVersion({ repoRoot: '/repo', packageVersion: '0.1.22' },
-    { describeTag: async () => '' }), '0.1.22-dev');
+/** The fallback itself is the engine's (`@jini-ai/desktop-host` app-version.test.ts); this pins Tovu's `desktop-v` rule and `-dev` suffix through the real registrar. */
+async function devVersionFor(describeTag: () => Promise<string>): Promise<string> {
+  const handlers = new Map<string, () => string | Promise<string>>();
+  registerAppVersionIpc({
+    ipcMain: { handle: (channel, handler) => { handlers.set(channel, handler); } },
+    app: { getVersion: () => '0.1.22', isPackaged: false },
+  }, { repoRoot: '/repo', describeTag });
+  return handlers.get(RUNNER_APP_VERSION_CHANNEL)!();
+}
+
+test('dev launch without git, a tag, or a desktop-v tag falls back to package.json version plus -dev', async () => {
+  assert.equal(await devVersionFor(async () => { throw new Error('spawn git ENOENT'); }), '0.1.22-dev');
+  assert.equal(await devVersionFor(async () => ''), '0.1.22-dev');
+  assert.equal(await devVersionFor(async () => 'desktop-v'), '0.1.22-dev');
+  assert.equal(await devVersionFor(async () => 'release-v0.1.24'), '0.1.22-dev');
 });
 
 test('the preload forwards getAppVersion with no renderer-supplied payload', async () => {
