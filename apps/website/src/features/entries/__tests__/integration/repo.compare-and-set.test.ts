@@ -6,7 +6,7 @@ import { sql } from "kysely";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { EntrySlugConflictError, importEntry, updateEntry, VersionConflictError } from "../../index.js";
 import type { EntryRecord, EntryRepoPort, EntryRevisionInput } from "../../index.js";
-import { SqlEntryRepo } from "../../repo.js";
+import { SqliteEntryRepo } from "../../repo.sqlite.js";
 import { TrashAwareInMemoryEntryRepo } from "../../trash-aware-memory-repo.js";
 
 /**
@@ -157,7 +157,7 @@ runCompareAndSetSuite("TrashAwareInMemoryEntryRepo", () => {
   };
   return { repo, trash: (row) => repo.saveAny({ ...row, deletedAt: NOW }), revisionCount: async () => revisions.length };
 });
-for (const each of eachDialect({ tables: ["entries", "entry_revisions"], make: (kernel) => ({ kernel, repo: new SqlEntryRepo(kernel) }) })) {
+for (const each of eachDialect({ tables: ["entries", "entry_revisions"], make: (kernel) => ({ kernel, repo: new SqliteEntryRepo({ store: kernel }) }) })) {
   runCompareAndSetSuite(`SqlEntryRepo ${each.name}`, () => {
     const { kernel, repo } = each.make();
     return {

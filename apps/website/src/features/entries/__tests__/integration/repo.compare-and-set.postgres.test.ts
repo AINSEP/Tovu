@@ -11,7 +11,7 @@ import { migrateContentDatabase } from "#src/platform/db/migrations/index";
 import { freshPostgresDatabase } from "#src/platform/db/__tests__/postgres-database";
 import { importEntry, VersionConflictError } from "../../index.js";
 import type { EntryRecord } from "../../index.js";
-import { SqlEntryRepo } from "../../repo.js";
+import { SqliteEntryRepo } from "../../repo.sqlite.js";
 
 /**
  * @file Entry compare-and-set (wm S3) on a REAL Postgres server, two pooled kernels = two
@@ -56,8 +56,8 @@ async function untilALockWaits(kernel: ContentKernel): Promise<void> {
 }
 
 test("postgres: two writers on the same base version, B blocked on A's row lock — A lands, B gets the version conflict", async () => {
-  const repoA = new SqlEntryRepo(first);
-  const repoB = new SqlEntryRepo(second);
+  const repoA = new SqliteEntryRepo({ store: first });
+  const repoB = new SqliteEntryRepo({ store: second });
   await repoA.save(entry());
 
   let releaseA!: () => void;
@@ -96,10 +96,10 @@ test("postgres: two import-as-creates of one id, B blocked on A's uncommitted in
   const aMayCommit = new Promise<void>((resolve) => (releaseA = resolve));
   let aInserted!: () => void;
   const aHoldsInsert = new Promise<void>((resolve) => (aInserted = resolve));
-  const writerA = importEntry({ deps: { ...base, entryRepo: new SqlEntryRepo(first), onWritten: async () => { aInserted(); await aMayCommit; } }, input: input("Writer A") });
+  const writerA = importEntry({ deps: { ...base, entryRepo: new SqliteEntryRepo({ store: first }), onWritten: async () => { aInserted(); await aMayCommit; } }, input: input("Writer A") });
 
   await Promise.race([aHoldsInsert, writerA.then((result) => Promise.reject(new Error(`writer A ended before holding its insert: ${JSON.stringify(result)}`)))]);
-  const writerB = importEntry({ deps: { ...base, entryRepo: new SqlEntryRepo(second) }, input: input("Writer B") });
+  const writerB = importEntry({ deps: { ...base, entryRepo: new SqliteEntryRepo({ store: second }) }, input: input("Writer B") });
   try {
     await untilALockWaits(first);
   } finally {

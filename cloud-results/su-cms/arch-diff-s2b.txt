@@ -1,0 +1,8 @@
+1,3c1,3
+<   regressed: propagation cost (runtime-only)     3.06 → 3.20  (+0.14 pts, +4.58%)
+<   regressed: module API surface (files exposed)  821 → 852  (+31, +3.78%)
+<   regressed: bidirectional hub count             335 → 362  (+27, +8.06%)
+---
+>   regressed: propagation cost (runtime-only)     3.06 → 3.21  (+0.15 pts, +4.9%)
+>   regressed: module API surface (files exposed)  821 → 851  (+30, +3.65%)
+>   regressed: bidirectional hub count             335 → 360  (+25, +7.46%)

@@ -1,6 +1,5 @@
 import { invalidateMediaAccessEvidence } from '../media/access-evidence.js';
-import type { TrashableEntryRecord } from "./contracts.js";
-export type { TrashableEntryRecord } from "./contracts.js";
+import type { TrashableEntryRecord } from "@jini-ai/cms/entries";
 import { EntrySlugConflictError, InMemoryEntryRepo, VersionConflictError } from "./index.js";
 import type { EntryListPort, EntryRecord, EntryRepoPort, EntryRevisionInput, EntryStatus } from "./index.js";
 import type { CollectionListQuery, CollectionSortBy, EntryDisplayListPort, EntryListExcludingTypesPort } from "./public-list.js";

@@ -114,27 +114,6 @@
       "fingerprint": "d964a5f3963d20cc36f7218b4971cfbec8c0ea622e91e25607d9f2292285e115"
     },
     {
-      "rule": "HW5-jini-export",
-      "file": "apps/website/src/features/entries/repo.rows.ts",
-      "line": 15,
-      "reason": "Export toRecord duplicates a Jini function without using its owner.",
-      "fingerprint": "1f5045681bf8345f2cb1d390b498de7d15c30df0284b8803559ca3e6cfb270e3"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/website/src/features/entries/repo.rows.ts",
-      "line": 33,
-      "reason": "Export toRow duplicates a Jini function without using its owner.",
-      "fingerprint": "8b53ffe01d8c575dcebd940d41ddd34b2ac0894ce341cff89f4f630967afe1c6"
-    },
-    {
-      "rule": "HW5-jini-export",
-      "file": "apps/website/src/features/entries/repo.rows.ts",
-      "line": 51,
-      "reason": "Export toRevisionRow duplicates a Jini function without using its owner.",
-      "fingerprint": "0c473c90452c5dd2165e6e5c4e92de83be1cf058374c50682c1be1f85cfe734a"
-    },
-    {
       "rule": "HW2-vendor-adapter",
       "file": "apps/website/src/features/plugin-runtime/built-ins/content-analyzer/plugin.ts",
       "line": 16,

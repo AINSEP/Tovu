@@ -21,7 +21,8 @@ import type { EntryTermReadPort, TaxonomyPublishReadPort, TermPublishReadPort } 
 import type { EntryListPort, EntryRepoPort } from "#src/features/entries/index";
 import type { EntryRefsRepoPort } from "#src/contracts/core/entry-refs/ports";
 import type { WidgetRegionBindingRepoPort } from "@jini-ai/cms/widgets";
-import type { EntryListExcludingTypesPort, EntryPublishReadPort } from "#src/features/entries/contracts";
+import type { EntryPublishReadPort } from "@jini-ai/cms/entries";
+import type { EntryListExcludingTypesPort } from "@jini-ai/cms/widgets/resolvers";
 import type { FileBlobIndexPort } from "./file-blob-index.js";
 import type { PrincipalRepoPort } from "@jini-ai/user-management";
 import type { PresentationSettingsRepoPort } from "@jini-ai/cms/presentation";
