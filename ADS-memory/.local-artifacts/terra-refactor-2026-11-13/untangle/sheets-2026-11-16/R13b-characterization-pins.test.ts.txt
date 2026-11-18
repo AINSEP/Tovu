@@ -1,0 +1,57 @@
+// R13b characterization pins (planner run r13b-c12obs-fix, 2026-11-18). Proven GREEN on Jini 4c1892368 and RED under B1, L3, L5, L6, L7 of R13b-mutations.py.txt.
+// Fold into packages/server/src/owner-store/__tests__/{backup,legacy}.test.ts (putRaw may move into fixture.ts). Stored as .txt so no tool compiles it here.
+import Database from "better-sqlite3";
+import { randomUUID } from "node:crypto";
+import { sealWithPassphrase, AesGcmSecretSealer, EnvOrFileKeyring } from "@jini-ai/platform/secrets";
+import { createVaultMetaParsers, SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
+import { openSqliteFileKernel } from "@jini-ai/db/kernel/sqlite";
+import { SqlSecretsVaultRepo } from "@jini-ai/db/secrets-vault";
+import type { SqliteOpener } from "@jini-ai/core/contracts/storage";
+import { afterEach, expect, test } from "vitest";
+import { readLegacyOwnerBackup } from "../backup.js";
+import { countLegacyOwnerStore, OwnerStoreRecoveryError, readLegacyOwnerStore, ownerContext } from "../legacy.js";
+import { input, legacyStore, open } from "./fixture.js";
+
+const stores: Awaited<ReturnType<typeof legacyStore>>[] = [];
+afterEach(() => { for (const s of stores.splice(0)) s.cleanup(); });
+const entry = { id: "entry-1", kind: input.kind, ownerKey: input.ownerKey, binding: null, provider: input.provider, label: input.label,
+  isDefault: true, meta: input.meta, payload: input.payload };
+
+test("a known but non-copyable kind is refused", async () => {
+  const doc = { format: "jini-owner-store", version: 1, entries: [entry, { ...entry, id: "entry-2", kind: "mcp-env", meta: {} }] };
+  const envelope = await sealWithPassphrase({ payload: JSON.stringify(doc), passphrase: "recovery" });
+  await expect(readLegacyOwnerBackup({ envelope, passphrase: "recovery" })).rejects.toMatchObject({ code: "invalid-backup" });
+});
+
+async function putRaw(store: { filePath: string; keyFilePath: string }, row: Record<string, unknown>) {
+  const kernel = openSqliteFileKernel<unknown>({ filePath: store.filePath, open });
+  try {
+    const keyring = new EnvOrFileKeyring({ env: { read: () => undefined }, envVarName: "OWNER_STORE_KEY", keyFilePath: store.keyFilePath,
+      hkdfSalt: "jini-owner-store-v1", allowFileFallback: true, allowFileAutoGenerate: false });
+    const vault = new SecretsVaultService({ repo: new SqlSecretsVaultRepo({ kernel: kernel as never }), keyring, sealer: new AesGcmSecretSealer({ keyring }),
+      metaParsers: createVaultMetaParsers({}), authorize: async () => {}, now: () => new Date().toISOString(), newId: () => randomUUID() });
+    await vault.put(row as never);
+  } finally { await kernel.close(); }
+}
+
+test("a non-copyable row in the store is a recovery error", async () => {
+  const store = await legacyStore({ entries: [input] }); stores.push(store);
+  await putRaw(store, { ...input, kind: "mcp-env", meta: {}, ...ownerContext({ kind: "mcp-env", ownerKey: "plugin", binding: null }) });
+  await expect(readLegacyOwnerStore({ filePath: store.filePath, keyFilePath: store.keyFilePath, open })).rejects.toBeInstanceOf(OwnerStoreRecoveryError);
+});
+
+test("rows of another workspace are not read", async () => {
+  const store = await legacyStore({ entries: [input] }); stores.push(store);
+  await putRaw(store, { ...input, label: "Other", workspaceId: "ws-other", principalId: null });
+  const snapshot = await readLegacyOwnerStore({ filePath: store.filePath, keyFilePath: store.keyFilePath, open });
+  expect(snapshot.entries.map(e => e.label)).toEqual(["Shared API key"]);
+});
+
+test("both readers open the file read-only", async () => {
+  const store = await legacyStore({ entries: [input] }); stores.push(store);
+  const seen: unknown[] = [];
+  const recording: SqliteOpener = (filePath, options) => { seen.push(options); return new Database(filePath, options); };
+  await countLegacyOwnerStore({ filePath: store.filePath, open: recording });
+  await readLegacyOwnerStore({ filePath: store.filePath, keyFilePath: store.keyFilePath, open: recording });
+  expect(seen).toEqual([{ readonly: true, fileMustExist: true }, { readonly: true, fileMustExist: true }]);
+});

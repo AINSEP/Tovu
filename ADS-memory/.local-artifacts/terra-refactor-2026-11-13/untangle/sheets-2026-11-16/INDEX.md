@@ -34,7 +34,7 @@ Per lane, cleanup work only (`census.mjs` prints this line): R1 3 · R2 6 · R3 
 | `R1-R2-admin.md` | R1c 35k, R2a 150k, R2b 70k | 255k |
 | `R3-user-management.md` | C9c 70k, R3b 90k (R3a deleted) | 160k |
 | `R12-providers.md` | R12a 100k, R12c 100k, R12b 90k, R12d 50k | 340k |
-| `R13-hosts.md` | R13a 25k **DONE** (Jini `wave1/xpkg-R13a`: e9915e61, c09f988f; report 12fb96b3), R13b 120k, R13c 20k **DONE** (Jini `wave1/xpkg-R13c`: 4f4c4f7f, 8a1e6df3; report 5bca735c), R13d 30k. Done runs not yet merged into refactor/terra | 195k (150k left) |
+| `R13-hosts.md` | R13a 25k **DONE** (Jini `wave1/xpkg-R13a`: e9915e61, c09f988f; report 12fb96b3), R13b 110k (**revision 4, 2026-11-18**: rewritten for the real code, see `r13b-c12obs-fix-REPORT.md`), R13c 20k **DONE** (Jini `wave1/xpkg-R13c`: 4f4c4f7f, 8a1e6df3; report 5bca735c), R13d 30k. Done runs not yet merged into refactor/terra | 195k (150k left) |
 | `G-TESTS.md` | setup 70k; T0 10k, T1 120k, T2 130k, T3 120k, T4 110k | 560k |
 | **Total written here** | **30 runs** | **~2.47M** (round 1 said 24 runs / 2.2M; it listed 27) |
 
@@ -73,7 +73,7 @@ Census ownership covers only the files that carry an edge. The table below adds 
 | `scripts/injection-debt.json`, `pnpm-lock.yaml` | every run | each run deletes only its own keys / re-runs `pnpm install`; conflicts resolve by keeping both deletions (COMMON); the lockfile is regenerated after a rebase |
 | `scripts/lib/injection-edges.ts` + its test | N1 (0b) only | — |
 | `scripts/injection-exceptions.json` | R13a (1) only | — |
-| `packages/platform/package.json` | N1 (0b) only | — |
+| `packages/platform/package.json`, `knip.json` platform entries | N1 (0b), R13b (2: new subpath `./secrets/legacy-owner`, revision 4) | by wave |
 | `packages/node-adapters/package.json` | N1 (0b), R11a (2), R11b-3 (3), R10b-1 (4) | one per wave |
 | `packages/core/src/contracts/runtime/testing.ts`, core manifest/README | G-TESTS setup (1); R6-R9 (1) adds `contracts/server/rate-limit.ts` | different core files; both edit `packages/core/package.json` **only if** a new export entry is needed: R6-R9 adds a file under an existing entry (no manifest edit); if it finds it needs one, it runs after G-TESTS setup |
 | `packages/core/src/text/*`, `packages/oauth/src/redact.ts` | R10a (1) only | — |
@@ -94,6 +94,8 @@ Census ownership covers only the files that carry an edge. The table below adds 
 | `packages/integration-tests/**` | G-TESTS setup (1, creates it); R12c (2), R12b (3), G-TESTS T0/T3/T4 (3), R10b-2 (5: `src/agent-runtime/pkce-oauth.test.ts`) | different files; by wave |
 | `packages/server/src/kernel-base.ts`, `create-local-node-daemon.ts` | R8b (2), R10b-1 (4), R7 (4, serial after R10b-1 in that wave) | by wave; R7 and R10b-1 are **not** parallel: R10b-1 first |
 | `packages/server/src/{index.ts, owner-store/*}` | R13c (1), R13b (2) | by wave |
+| `packages/db/src/owner-store/index.ts`, `packages/platform/src/secrets/legacy-owner.ts` (new), `scripts/error-gate-debt.json` (one row renamed), server `kysely` peer lines + `scripts/__tests__/optional-peer-contract.test.ts` | R13b (2) only (revision 4, 2026-11-18) | — |
+| Tovu `apps/website/src/cli/commands/owner-store{,-import}.ts` and their 2 tests | R13b (2) only | — |
 | `examples/neutral-host/**` | R11a (2: `support/host.ts`), R11c (2: `contribution-contracts.test.ts`), R12a (1: `src/provider-contracts.typecheck.ts`, moved out by R12c in wave 2) | different files |
 | Tovu `apps/admin/src/integrations/jini-kits.ts`, `main.tsx` | C9c (1), R1c (2), R2a (2: its own `forms-catalog-ports.ts` + one line in `jini-kits.ts`), R2b (3) | R1c and R2a both add a line in wave 2: **R2a's Tovu commit rebases on R1c's** (`git pull --rebase`; additive lines) |
 | Tovu `composition/commerce.ts`, `features/forms/repo.sqlite.ts` | R6-R9 (1) only | — |

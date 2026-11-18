@@ -1,0 +1,37 @@
+# R13b mutation proof (planner run r13b-c12obs-fix, 2026-11-18, Jini 4c1892368). Run from the Jini root: python3 -I <this file> [B1 L3 ...]
+# Each mutation is applied in place, `npx vitest run src/owner-store` runs, then the file is restored. Valid before the move only.
+import subprocess,sys,json,os
+os.chdir(os.environ.get('SERVER_DIR', 'packages/server'))  # run from the Jini root, or set SERVER_DIR
+B='src/owner-store/backup.ts'; L='src/owner-store/legacy.ts'
+muts=[
+ ("B1 copyable-kind check removed",B,' || !isCopyableKind[value.kind as VaultKind]',''),
+ ("B2 hints not stripped",B,'entries: snapshot.entries.map(({ last4: _last4, tokenLength: _length, ...entry }) => entry)','entries: snapshot.entries'),
+ ("B3 unknown version accepted",B,'if (document.version !== BACKUP_VERSION) throw new OwnerStoreBackupError({ code: INVALID_BACKUP });',''),
+ ("B4 auth failure swallowed",B,'await openWithPassphrase({ envelope, passphrase })','await openWithPassphrase({ envelope, passphrase }).catch(() => \'{"format":"jini-owner-store","version":1,"entries":[]}\')'),
+ ("B5 hint policy off",B,'  const hintless = value.kind','  return;\n  const hintless = value.kind'),
+ ("B6 duplicate ids accepted",B,'if (ids.size !== entries.length) throw new OwnerStoreBackupError({ code: INVALID_BACKUP });',''),
+ ("B7 parse error leaks message",B,'try { document = JSON.parse(payload); } catch { throw new OwnerStoreBackupError({ code: INVALID_BACKUP }); }','document = JSON.parse(payload);'),
+ ("B8 grants dropped",B,'grants: snapshot.grants.map(destination)','grants: []'),
+ ("L1 key auto-generate on",L,'allowFileAutoGenerate: false','allowFileAutoGenerate: true'),
+ ("L2 decrypt failure skipped",L,'catch { throw new OwnerStoreRecoveryError(); }','catch { return null as never; }'),
+ ("L3 authorize allows all",L,'if (context.workspaceId !== OWNER_WORKSPACE_ID || context.principalId !== null || !isCopyableKind[context.kind]) throw new VaultError({ code: "context" });',''),
+ ("L4 revocations-table probe removed",L,'  if (present.length === 0) return [];\n',''),
+ ("L5 read-only off (read)",L,'const kernel = openSqliteFileKernel<LegacyOwnerDatabase>(required, { readOnly: true });\n  try {\n    const vault','const kernel = openSqliteFileKernel<LegacyOwnerDatabase>(required, {});\n  try {\n    const vault'),
+ ("L6 read-only off (count)",L,'const kernel = openSqliteFileKernel<LegacyOwnerDatabase>(required, { readOnly: true });\n  try {\n    const [entries]','const kernel = openSqliteFileKernel<LegacyOwnerDatabase>(required, {});\n  try {\n    const [entries]'),
+ ("L7 workspace filter removed",L,'.where("workspace_id", "=", OWNER_WORKSPACE_ID)',''),
+ ("L8 owner context drops binding",L,'binding: input.binding, workspaceId','binding: null, workspaceId'),
+]
+sel=sys.argv[1:]
+for name,f,old,new in muts:
+  if sel and name.split()[0] not in sel: continue
+  src=open(f).read()
+  if src.count(old)!=1: print(name,"PATTERN COUNT",src.count(old)); continue
+  open(f,'w').write(src.replace(old,new))
+  try:
+    r=subprocess.run(['npx','vitest','run','src/owner-store'],capture_output=True,text=True,timeout=600)
+    out=r.stdout+r.stderr
+    line=[l for l in out.splitlines() if l.strip().startswith('Tests ')]
+    fails=[l.strip() for l in out.splitlines() if l.strip().startswith('×') or ' FAIL ' in l][:6]
+    print(name,'=>',line[-1].strip() if line else 'NO SUMMARY', '|', ' ; '.join(fails)[:600])
+  finally:
+    open(f,'w').write(src)
