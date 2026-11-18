@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { SqlSettingsRepo } from "#src/features/settings/repo";
+import { SqlSettingsRepo } from "@jini-ai/db/settings";
 import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
 
 /**

@@ -3,7 +3,7 @@ import { SqlSecretsVaultRepo, type SecretsVaultDatabase } from '@jini-ai/db/secr
 import type { KyselyKernel } from '@jini-ai/db/kernel';
 import type { KeyringPort, SecretSealerPort } from '@jini-ai/core/contracts/vault';
 import type { ContentDatabase } from '../../../../platform/db/content-database.generated.js';
-import { SqlSettingsRepo } from '../../../settings/repo.js';
+import { SqliteSettingsRepo } from '../../../settings/repo.sqlite.js';
 import { loadSiteVaultKinds } from '../../../../server/runtime/composition/vault-boot.js';
 
 /** Fixture for proving portable exports exclude real saved rows. No production archive reader exists. */
@@ -11,5 +11,5 @@ export async function createSavedKeysStore(required: { kernel: KyselyKernel<Cont
   const repo = new SqlSecretsVaultRepo({ kernel: required.kernel as unknown as KyselyKernel<SecretsVaultDatabase> });
   const { metaParsers } = await loadSiteVaultKinds({ workspaceId: required.workspaceId });
   const vault = new SecretsVaultService({ ...required, repo, metaParsers, authorize: async () => {}, now: () => '2026-11-04T00:00:00.000Z', newId: () => 'fixture' });
-  return { workspaceId: required.workspaceId, vault, repo, settings: new SqlSettingsRepo(required.kernel) };
+  return { workspaceId: required.workspaceId, vault, repo, settings: new SqliteSettingsRepo({ store: required.kernel }) };
 }

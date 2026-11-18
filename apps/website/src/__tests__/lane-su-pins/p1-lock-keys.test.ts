@@ -8,7 +8,7 @@ import { SqlOutboxAdapter } from "#src/platform/db/repos/outbox-repo";
 import { registerConfiguredOriginOn } from "#src/platform/db/repos/origin-repo";
 import { SqlTokenStore } from "#src/platform/db/repos/gated-mutation-token-repo";
 import { SqlWebhookDeliveryRepo } from "#src/platform/db/repos/webhook-repo";
-import { SqlSettingsRepo } from "#src/features/settings/repo";
+import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqliteEntryTermRepo, SqliteTaxonomyRepo } from "#src/features/taxonomy/repo.sqlite";
 import { SqlTrashRepo } from "#src/features/trash/repo";
 import { createIdentityTransactions } from "#src/features/identity/repo";
@@ -39,7 +39,7 @@ describe("P1 lock keys: workspace, identity, settings, origin, tokens", () => {
 
   test("setting revisions are one install-wide stream", async () => {
     const { kernel, keys } = recordingKernel();
-    const seq = await new SqlSettingsRepo(kernel).appendRevision({
+    const seq = await new SqliteSettingsRepo({ store: kernel }).appendRevision({
       entityKind: "value", settingId: "s", scope: "global", workspaceId: null, principalId: null, op: "set",
       beforeJson: null, afterJson: "x", defVersion: 1, actor: "actor-1", originPluginId: null, changeSetId: null,
       createdAt: "2026-11-17T00:00:00.000Z",
