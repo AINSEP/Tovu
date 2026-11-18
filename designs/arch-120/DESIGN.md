@@ -11,7 +11,7 @@ Executable sheets: [`INDEX.md`](INDEX.md) and [`sheets/`](sheets/).
 2. **93 of the 120 are not new.** They exist in the tree of `9240cbe1`, the very commit that created the baseline list, and the gate already reports **107 NEW edges at `9240cbe1` itself and at `origin/main`**. The list was wrong the day it was committed.
 3. **26 more are moves, a rename, or edges an approved design created on purpose** (publish-engine P0.3, import-cycle S5 and S3b, the 11-17 index repoint).
 4. **1 is unreviewed new coupling**: `site-backup/import-plugin-state.ts → agent-plugins/soon-lock.ts`. Sheet S1 removes it through the lifecycle owner that already binds the Soon catalog.
-5. Order: S1 (remove the one tangle) → S2 (a narrow tool that adds reviewed edges to the baseline, never touching any other metric) → S3 (apply the reviewed 119-row list). A local dry run of S1 + S3 makes the gate **exit 0** (§6).
+5. Order: S1 (remove the one tangle) → S2 (a narrow tool that adds reviewed edges to the baseline, never touching any other metric) → S3 (apply the reviewed 119-row list). A local dry run of S1 + S2 + S3 on the facts base makes the gate **exit 0** (§6).
 
 ## 1. How every number here is produced
 
@@ -172,7 +172,7 @@ Rejected:
 
 ### RC1, RC2, RC3 (MOVED), RC5 — owner: the gate's baseline data. Change: sheets S2 + S3.
 
-S2 adds `development/scripts/accept-architecture-edges.ts`: it runs the unchanged gate, reads a reviewed TSV (`edge`, `class` ∈ {OLD, MOVED, RENAMED, DESIGNED}, non-empty `evidence`), and writes **only** `crossFeatureEdges` (baseline ∪ listed ∩ currently-NEW) back into `check-architecture.baseline.json` with the same writer `--update` uses (`JSON.stringify(x, null, 2) + "\n"`, `check-architecture.ts:866`). It refuses a listed edge that is not currently NEW (stale or mistyped) and never touches another key. S3 copies the reviewed list (`ACCEPTED-EDGES.tsv`, 119 rows) to `development/boundaries/accepted-cross-feature-edges.tsv` as the permanent audit trail and runs the tool.
+S2 adds `development/scripts/accept-architecture-edges.ts`: it runs the unchanged gate, reads a reviewed TSV (`edge`, `class` ∈ {OLD, MOVED, RENAMED, DESIGNED}, non-empty `evidence`), and writes **only** `crossFeatureEdges` (baseline ∪ listed ∩ currently-NEW) back into `check-architecture.baseline.json` with the same writer `--update` uses (`JSON.stringify(x, null, 2) + "\n"`, `check-architecture.ts:866`). It never removes an edge and never touches another key. A row whose edge is neither NEW nor in the baseline is reported as "not in the code" and ignored (the list is history; a lane may later delete an edge); a mistyped row therefore leaves the intended edge NEW, so `--check` exits 1 and the gate stays red: a typo cannot accept anything. S3 copies the reviewed list (`ACCEPTED-EDGES.tsv`, 119 rows) to `development/boundaries/accepted-cross-feature-edges.tsv` as the permanent audit trail and runs the tool.
 
 Rejected:
 
@@ -181,7 +181,7 @@ Rejected:
 | `check:architecture --update` | Rewrites every metric: it would freeze the warn-tier regressions (propagation runtime 3.06 → 3.18, hubs 335 → 367) and re-freeze the hub medians, which the gate's own comment (`:221-248`) says needs a deliberate decision. |
 | Hand-edit 119 lines into the JSON | Unreviewable and error-prone; no record of *why* an edge was accepted (ratchets-arch did 11 by hand and stopped there for this reason). |
 | Change the rule to key edges by (feature pair, imported symbol) | Needs the TypeScript checker inside the gate (dependency-cruiser gives no names), and a renamed symbol (RC2) would still trip it. A large change to make 26 edges pass; the accept list does it with an explicit record. |
-| Edit `check-architecture.ts` to add the flag | `main` there is already 248 lines and the file 615 code lines (eslint limits command, `facts/` not needed: run it on the file); any added branch grows debt. A separate script that calls the gate leaves it untouched. |
+| Edit `check-architecture.ts` to add the flag | `main` there is already 248 lines and the file 615 code lines (the eslint limits command reports `max-lines-per-function` 248 at `:712` and `max-lines` 615 at `:876`); any added branch grows that debt. A separate script that runs the gate leaves it untouched. |
 | Prune the 124 stale baseline entries in the same sheets | Worth doing (a stale entry silently allows a removed edge to come back), but the gate does not print the full current list and its baseline path is fixed (`check-architecture.ts:69`), so pruning needs a change inside the 615-line file. Listed as follow-up F-1, not needed to unblock. |
 
 ### RC2 RENAMED + MOVED, RC3, RC4 — owner of the code: publish-engine lane (RC2), import-cycle design (RC3, RC4). Change: none beyond the accept list.
@@ -200,7 +200,7 @@ S1 first, so the accept list never contains the tangle (`make-accepted.py` exits
 
 ## 6. Dry run (proof that the order ends green)
 
-On the facts base, locally, nothing pushed: the S1 code change + S1's two red-first tests + the 119 accepted edges merged into the baseline. Patch: [`facts/dry-run-S1-S3.patch`](facts/dry-run-S1-S3.patch).
+On the facts base, locally, nothing pushed: S1 (code + its two red-first tests), S2 (the tool and its test, exactly as written in the S2 sheet), then S3 (the tool applied to `ACCEPTED-EDGES.tsv`). Patch of the whole result: [`facts/dry-run-S1-S3.patch`](facts/dry-run-S1-S3.patch); gate output after: [`facts/check-architecture.after-dry-run.txt`](facts/check-architecture.after-dry-run.txt).
 
 | check | result |
 |---|---|
@@ -210,7 +210,11 @@ On the facts base, locally, nothing pushed: the S1 code change + S1's two red-fi
 | same, S1 + the Soon check replaced by `true` in `import-plugin-state.ts` | 9 pass / **1 fail** ("a backup import writes a Soon plugin off…"): the characterization catches a dropped gate |
 | `npx tsc -p tsconfig.json --noEmit`; `NODE_OPTIONS=--max-old-space-size=6144 npx tsc -p tsconfig.tests.json --noEmit` | 0 / 0 (after building `@tovu/sdk`) |
 | `check:boundaries`, `check:size`, `check:complexity`, `check:hooks`, `check:why-comments` | identical to the base output [`facts/base-gates.f0613d9e.txt`](facts/base-gates.f0613d9e.txt) (15 boundaries errors; size ok 202/192; 1 inherited why-comment block `ac521b7d86c5` in `server/routes/types.ts`) |
-| eslint limits command on `lifecycle.ts`, `import-plugin-state.ts` | no findings |
+| eslint limits command on `lifecycle.ts`, `import-plugin-state.ts`, both S2 files | no findings |
+| S2 test file | 5 pass / 0 fail; module missing → red (S2 §3); mutation "accept unlisted edges" → `planAcceptedBaseline` test red; mutation "drop other baseline keys" → `writeBaselineEdges` test red |
+| S2 files under `tsc --strict --noUncheckedIndexedAccess --module nodenext` | 0 errors |
+| `accept-architecture-edges.ts ACCEPTED-EDGES.tsv --check` (after S1) | `NEW now: 119; accepted by a row: 119; NEW without a row: 0; rows not in the code: 0`, exit 0, baseline untouched |
+| same without `--check` | baseline `+119` lines, `-0`; every other key unchanged; re-run: `NEW now: 0` |
 
 ## 7. Owner rules, checked
 
@@ -222,7 +226,7 @@ On the facts base, locally, nothing pushed: the S1 code change + S1's two red-fi
 | API args (required, optional = {}) | `findSoonPlugin(input, _optional = {})`; all new script functions in S2 take `(required, _optional = {})`. |
 | Hooks injected as props | No React code touched. |
 | No `vi.mock` of another package's internals | No mocks; S1 tests drive a real temp agent-plugins root through the existing `installed()` helper. |
-| Functions ≤ 50, complexity ≤ 10, files ≤ 500 | S1 adds one line inside a 23-line function; S2's new file is planned at < 150 lines with every function < 30 lines; each sheet runs the eslint limits command against the base. |
+| Functions ≤ 50, complexity ≤ 10, files ≤ 500 | S1 adds one property line and one comment line inside `buildPolicyGuardedMethods` (under 30 lines after the change); S2's files are 76 and 37 lines, longest function 14 lines; the eslint limits command reports nothing on any of them (§6); each sheet runs it against the base. |
 | Why-comments move | S1 keeps the `import-plugin-state.ts:40-41` comment in place (the call it explains stays on that line); S1 adds one comment line; each sheet runs `check:why-comments` and compares with the base. |
 | Every commit green | Each sheet's gate block compares against the base output and STOPs on any new line. |
 | Failing test first for bugs | S1 starts with two tests that are red on the base (proved, §6). |

@@ -1,0 +1,43 @@
+
+> tovu@0.1.0 check:architecture
+> tsx development/scripts/check-architecture.ts
+
+check:architecture — 2252 files, 73 modules, production files only
+
+  cross-feature import edges (all-import)              426
+  propagation cost (all-import)                        12.46%
+  propagation cost (runtime-only)                      3.18%
+  back-edges into composition root                     0
+    └ back-edges, runtime-only (informational)         0
+  module cycles (mutual pairs, runtime-only)           1
+  largest strongly-connected component (runtime-only)  2
+  module API surface (files exposed)                   821
+    └ deep-import edges (informational)                2819
+  bidirectional hub count                              16.30% (367/2252)
+
+  Martin instability: informational, not ratcheted — pass --list for the per-module gradient.
+
+  module cycles — 4 pair(s) removed since baseline:
+    - assistant <-> features/agent-plugins
+    - features/agent-plugins <-> features/api-connections
+    - features/custom-credentials <-> features/deployments
+    - features/custom-credentials <-> features/source-control
+
+  largest strongly-connected component shrank: 22 → 2
+
+  WARNING (ratchet, non-blocking): propagation cost (runtime-only) regressed: 3.06 → 3.18
+
+  WARNING (ratchet, non-blocking): bidirectional hub count regressed: 335 → 367
+
+  propagation cost (all-import) improved: 15.52 → 12.46
+
+========================================================================
+  TRADE DETECTED — this run bought improvement on one metric with regression on another
+========================================================================
+  regressed: propagation cost (runtime-only)     3.06 → 3.18  (+0.12 pts, +3.92%)
+  regressed: bidirectional hub count             335 → 367  (+32, +9.55%)
+  improved:  propagation cost (all-import)       15.52 → 12.46  (-3.06 pts, -19.72%)
+  improved:  module cycles / SCC (runtime-only)  -4 cycle pair(s), largest SCC 22 → 2
+========================================================================
+
+check:architecture — OK: hard constraints hold, but 2 ratchet metric(s) regressed. Not blocking, but worth fixing before it compounds.
