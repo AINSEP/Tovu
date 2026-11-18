@@ -1,6 +1,6 @@
 import { ToolInputError } from '@jini-ai/core';
 import type { VaultMeta, VaultRecord } from '@jini-ai/core/contracts/vault';
-import { sourceControlSavedApiKeyLabels } from '#src/features/source-control/provider-module';
+import { sourceControlSavedApiKeyLabels } from '#src/features/source-control/saved-key-bindings';
 import { loadBundledSourceControlProviderRegistry } from '#src/features/source-control/provider-registry';
 import { bundledAgentPluginsDir } from '#src/server/runtime/composition/site-paths';
 

@@ -34,7 +34,8 @@ import {
   type SourceControlProviderDescriptor,
   type SourceControlProviderRegistry,
 } from "./provider-registry.js";
-import { sourceControlSavedApiKeyLabels, type RepositoryTargetValidator } from "./provider-module.js";
+import type { RepositoryTargetValidator } from "./provider-module.js";
+import { sourceControlSavedApiKeyLabels } from "./saved-key-bindings.js";
 import { proposeSourceControlCredential } from "./credential-setup.js";
 import { findDefaultSourceControlCredential, listSourceControlCredentials } from "./store.js";
 import type { SourceControlCredentialSetRepoPort } from "./types.js";
