@@ -1,5 +1,7 @@
 import { createVisitorPageTargets } from '../visitor-page-targets.js';
 import { createVisitorFrontendControl } from '#src/assistant/site/visitor-frontend-control';
+import { daemonRouteHost, mountJiniRoutes, nodeSessionTimer } from '../jini-routes.js';
+import { PUBLIC_JSON_BODY_LIMIT_BYTES } from '#src/server/inbound/shared/json-body-parsers';
 import type { CommittedToolAttemptAuditSink } from "../tool-use-events.js";
 import { visitorAnalyticsProvenance } from "#src/server/inbound/public-http/visitor-analytics";
 import { VISITOR_TOOL_REFUSAL } from "#src/assistant/site/visitor-executor";
@@ -603,7 +605,7 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
     },
   });
 
-  const frontend = createVisitorFrontendControl({ workspaceId: deps.workspaceId, clock: deps.clock,
+  const frontend = createVisitorFrontendControl({ workspaceId: deps.workspaceId, clock: deps.clock, ports: { mountRoutes: mountJiniRoutes, routeHost: daemonRouteHost, parserLimitBytes: PUBLIC_JSON_BODY_LIMIT_BYTES, setTimer: nodeSessionTimer },
     enabled: async () => env.TOVU_VISITOR_TOOLS_POLICY !== 'off' && await isPublicAssistantEnabled(
       { settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
     canonicalOrigin: () => deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId }), reportError: ({ error }) => { reporter({ code: "visitor_frontend_control", diagnostic: error }); },

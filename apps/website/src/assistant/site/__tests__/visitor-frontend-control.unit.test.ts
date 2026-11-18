@@ -6,15 +6,20 @@ import { createVisitorFrontendControl } from '../visitor-frontend-control.js';
 import { allowsVisitorRequestOrigin } from '../visitor-request-origin.js';
 import { publishVisitorPage } from '#src/features/theme/visitor-publication';
 import { requestHookInput } from '#src/server/inbound/shared/request-facts';
+import { daemonRouteHost, mountJiniRoutes, nodeSessionTimer } from '#src/server/runtime/composition/jini-routes';
+import { PUBLIC_JSON_BODY_LIMIT_BYTES } from '#src/server/inbound/shared/json-body-parsers';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
 import { dispatchHttpRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { registerSiteAssistantConfirm, SITE_ASSISTANT_CONFIRM_PATH } from '#src/server/inbound/public-http/routes/site-assistant-confirm';
+
+/** What the composition root lends the visitor control: the real mount, host and timer, so these tests go through the same path the site uses. */
+const TEST_PORTS = { mountRoutes: mountJiniRoutes, routeHost: daemonRouteHost, parserLimitBytes: PUBLIC_JSON_BODY_LIMIT_BYTES, setTimer: nodeSessionTimer };
 
 /** Exercise the mounted routes and native HTTP objects without a listening socket. */
 function policyFixture() {
   const app = express();
   const frontend = createVisitorFrontendControl({ workspaceId: 'origin-policy-test', enabled: async () => true,
-    clock: { nowMs: () => 0 }, reportError: ({ error }) => { throw error; },
+    ports: TEST_PORTS, clock: { nowMs: () => 0 }, reportError: ({ error }) => { throw error; },
     canonicalOrigin: async () => ({ scheme: 'https', host: 'public.test', source: 'workspace-setting', verifiedAt: '2026-10-31' }),
   });
   frontend.mount({ app });
@@ -163,7 +168,7 @@ async function fixture(t: test.TestContext, { trust = 'loopback' }: { trust?: 'l
   // Simulate distinct clients behind an explicitly trusted loopback proxy in this test only (`null`: no trust setting at all).
   if (trust !== null) app.set('trust proxy', trust);
   const frontend = createVisitorFrontendControl({ workspaceId: 'quota-test', enabled: async () => true,
-    clock: { nowMs: () => 0 }, reportError: ({ error }) => { throw error; },
+    ports: TEST_PORTS, clock: { nowMs: () => 0 }, reportError: ({ error }) => { throw error; },
     canonicalOrigin: async () => ({ scheme: 'https', host: 'public.test', source: 'workspace-setting', verifiedAt: '2026-10-31' }),
   });
   frontend.mount({ app });
@@ -301,7 +306,7 @@ for (const [name, method, path] of [['credentials minting', 'POST', 'credentials
     const app = express();
     const reported: unknown[] = [];
     const frontend = createVisitorFrontendControl({ workspaceId: 'report-test', enabled: async () => { throw new Error('policy store down'); },
-      clock: { nowMs: () => 0 }, reportError: ({ error }) => { reported.push(error); },
+      ports: TEST_PORTS, clock: { nowMs: () => 0 }, reportError: ({ error }) => { reported.push(error); },
       canonicalOrigin: async () => ({ scheme: 'https', host: 'public.test', source: 'workspace-setting', verifiedAt: '2026-10-31' }) });
     frontend.mount({ app });
     const response = await dispatchHttpRequest({ app, method, url: `/api/site-assistant/frontend-sessions/${path}`, headers: { host: 'public.test', origin: 'https://public.test', 'x-forwarded-proto': 'https' } });

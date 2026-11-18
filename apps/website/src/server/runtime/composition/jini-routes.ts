@@ -7,7 +7,7 @@
 import { timingSafeEqual } from "node:crypto";
 import type { SecretRedactionPattern } from "@jini-ai/core";
 import type { RouteHostContext, ServerRoute, SseSchedulerPort } from "@jini-ai/core/contracts/server";
-import type { DaemonRouteHost } from "@jini-ai/daemon/http";
+import type { DaemonRouteHost, FrontendSessionTimer } from "@jini-ai/daemon/http";
 import { reportRouteInternalError } from "@jini-ai/http-kit";
 import { createNodeDispatcher, maxReserializedJsonBytes } from "@jini-ai/http-kit/node-bridge";
 import type { Express } from "express";
@@ -42,6 +42,13 @@ export function mountJiniRoutes(
 const nodeIntervalScheduler: SseSchedulerPort = {
   every: ({ callback, intervalMs }) => { const timer = setInterval(callback, intervalMs); timer.unref(); return timer; },
   cancel: ({ handle }) => { clearInterval(handle as NodeJS.Timeout); },
+};
+
+/** A one-shot timer on Node's clock for a frontend session's expiry. Unref'd: a pending expiry must not keep the process alive. */
+export const nodeSessionTimer: FrontendSessionTimer = ({ callback, delayMs }) => {
+  const timer = setTimeout(callback, delayMs);
+  timer.unref();
+  return { cancel: () => { clearTimeout(timer); } };
 };
 
 /**

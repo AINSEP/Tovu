@@ -1,7 +1,7 @@
 /** Separate visitor façade; no admin daemon, registry or proxy enters this composition. */
-import { createFrontendControl, createFrontendGuestScope, type FrontendHookInput } from '@jini-ai/daemon/http';
+import { createFrontendControl, createFrontendGuestScope, type DaemonRouteHost, type FrontendHookInput, type FrontendSessionTimer } from '@jini-ai/daemon/http';
 import { PAGE_CAPABILITIES } from '@jini-ai/agentic';
-import { createLocalSameOriginPolicy } from '@jini-ai/core/contracts/server';
+import { createLocalSameOriginPolicy, type RouteHostContext, type ServerRoute } from '@jini-ai/core/contracts/server';
 import {
   isSameOrigin,
   normalizeOriginCandidate,
@@ -19,6 +19,18 @@ type GuestScope = ReturnType<typeof createFrontendGuestScope>;
 type VisitorControl = ReturnType<typeof createFrontendControl>;
 type VisitorLimiter = ReturnType<typeof createRateLimiter>;
 type ReportVisitorError = (required: { error: unknown }, optional?: Record<string, never>) => void;
+/** What the composition root lends this module so it can put Jini's frontend-session routes on the visitor app without importing the root. */
+export interface VisitorRoutePorts {
+  /** Mounts a Jini route list on the app, on the line of the call (the composition's `mountJiniRoutes`). */
+  readonly mountRoutes: (required: { app: Express; routes: readonly ServerRoute[] }) => void;
+  /** Builds the host the route list is given (the composition's `daemonRouteHost`). */
+  readonly routeHost: (required: { context: RouteHostContext; parserLimitBytes: number }) => DaemonRouteHost;
+  /** Byte limit of the JSON parser the app runs above `.../responses` (the public parser's). */
+  readonly parserLimitBytes: number;
+  /** Ends a guest session whose tab never disconnects. */
+  readonly setTimer: FrontendSessionTimer;
+}
+
 type ResolveVisitorOwner = (required: FrontendHookInput) => Promise<NonNullable<Awaited<ReturnType<GuestScope['resolveOwner']>>> | null>;
 
 async function bindVisitorRequest(
@@ -42,8 +54,8 @@ function refuseWithReport({ res, error, reportError }: { res: Response; error: u
   res.sendStatus(403);
 }
 
-function mountVisitorFrontendRoutes(required: { app: Express; scope: GuestScope; control: VisitorControl; limiter: VisitorLimiter; reportError: ReportVisitorError }, _optional = {}): void {
-  const { app, scope, control, limiter, reportError } = required;
+function mountVisitorFrontendRoutes(required: { app: Express; scope: GuestScope; control: VisitorControl; limiter: VisitorLimiter; reportError: ReportVisitorError; ports: VisitorRoutePorts }, _optional = {}): void {
+  const { app, scope, control, limiter, reportError, ports } = required;
   // Both routes share per-IP and authenticated guest budgets. Minting fresh cookies/tabs
   // cannot reset the IP budget, and reconnecting releases capacity through registry detach.
   for (const path of ['credentials', 'stream']) app.use(`/api/site-assistant/frontend-sessions/${path}`, async (req, res, next) => {
@@ -68,11 +80,11 @@ function mountVisitorFrontendRoutes(required: { app: Express; scope: GuestScope;
   // Port 0 and an empty env: no browser origin is ever same-origin here, only a header-less loopback request.
   const originPolicy = createLocalSameOriginPolicy({ port: () => 0, env: {},
     config: { allowedOriginsEnvVar: 'TOVU_ALLOWED_ORIGINS', webPortEnvVar: 'PORT', bindHostEnvVar: 'HOST' } });
-  control.httpExtension({ app, context: { adapter: { originPolicy } } });
+  ports.mountRoutes({ app, routes: control.routes({ host: ports.routeHost({ context: { originPolicy }, parserLimitBytes: ports.parserLimitBytes }) }) });
 }
 
-export function createVisitorFrontendControl({ workspaceId, enabled, canonicalOrigin, clock, reportError }: {
-  workspaceId: string; enabled: () => Promise<boolean>; canonicalOrigin: () => Promise<VerifiedOrigin>; clock: Clock;
+export function createVisitorFrontendControl({ workspaceId, enabled, canonicalOrigin, clock, reportError, ports }: {
+  workspaceId: string; enabled: () => Promise<boolean>; canonicalOrigin: () => Promise<VerifiedOrigin>; clock: Clock; ports: VisitorRoutePorts;
   /** Where the error behind a refusal goes; the visitor sees only the status. */
   reportError: ReportVisitorError;
 }, _options = {}) {
@@ -93,14 +105,14 @@ export function createVisitorFrontendControl({ workspaceId, enabled, canonicalOr
     if (!owner || !readVisitorPagePublication({ revision, workspaceId })) return null;
     return { ...owner, tabId: `${owner.tabId}:${revision}` };
   };
-  const control = createFrontendControl({ capabilities: PAGE_CAPABILITIES, resolveBindToken: () => undefined,
-    // The session hooks still have the Express shape until they move to Jini's route list; this is the adapter for that.
-    session: { routePrefix: '/api/site-assistant/frontend-sessions', resolveOwner: ({ req }) => resolveOwner(requestHookInput({ req })), maxSessions: 256, maxSessionsPerKey: 3,
-      resolveCapacityKeys: ({ req, owner }) => [`ip:${resolveClientIp(req)}`, `guest:${owner!.principalId}`],
+  const control = createFrontendControl({ capabilities: PAGE_CAPABILITIES, resolveBindToken: () => undefined, setTimer: ports.setTimer,
+    // The capacity key is the address the host's facts hold (the same answer the IP gate above keys on), never the bridge's socket peer.
+    session: { routePrefix: '/api/site-assistant/frontend-sessions', resolveOwner, maxSessions: 256, maxSessionsPerKey: 3,
+      resolveCapacityKeys: ({ locals, owner }) => [`ip:${readRequestFacts({ locals }).clientAddress}`, `guest:${owner!.principalId}`],
     } }, { maxOutputBytes: 24_000 });
   return { control, resolveOwner,
     bindRequest: ({ req, signal, runId }: { req: Request; signal: AbortSignal; runId: string }, _optional = {}) =>
       bindVisitorRequest({ req, signal, runId, workspaceId, control, resolveOwner }),
-    mount: ({ app }: { app: Express }, _optional = {}) => mountVisitorFrontendRoutes({ app, scope, control, limiter, reportError }),
+    mount: ({ app }: { app: Express }, _optional = {}) => mountVisitorFrontendRoutes({ app, scope, control, limiter, reportError, ports }),
   };
 }

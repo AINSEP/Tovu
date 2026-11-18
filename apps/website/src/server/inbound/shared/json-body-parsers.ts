@@ -22,6 +22,9 @@ import express, { type ErrorRequestHandler, type NextFunction, type Request, typ
  *  (13 turns x 2000 chars, up to 4 UTF-8 bytes each, ~104 KB). Form posts are far smaller. */
 export const PUBLIC_JSON_BODY_LIMIT = "128kb";
 
+/** {@link PUBLIC_JSON_BODY_LIMIT} in bytes, for a route list that derives its own body limit from the parser above it (a test pins that the two agree). */
+export const PUBLIC_JSON_BODY_LIMIT_BYTES = 128 * 1024;
+
 /** The admin API's ceiling for an authenticated caller — the app-wide limit before uploads needed more. */
 export const AUTHENTICATED_JSON_BODY_LIMIT = "15mb";
 
