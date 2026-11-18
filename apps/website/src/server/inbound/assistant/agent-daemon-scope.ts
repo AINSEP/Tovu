@@ -85,7 +85,7 @@ import { bridgePreflightEntry } from "./bridge-preflight-entry.js";
 import type { PromptAugmenter } from "@jini-ai/core/contracts/agents";
 import { createAgentSelectionResolver, createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";
 import { executorDefinitionPolicies } from "./executor-definition-policies.js";
-import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, registerFrontendRequestRoute, agentRoutes, registerAttachmentRoutes, componentCatalogRoutes, delegatedToolRoutes, registerMessageRelayRoutes, runRoutes, toolCatalogRoutes } from "@jini-ai/daemon/http";
+import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, frontendRequestRoutes, agentRoutes, registerAttachmentRoutes, componentCatalogRoutes, delegatedToolRoutes, registerMessageRelayRoutes, runRoutes, toolCatalogRoutes } from "@jini-ai/daemon/http";
 import { adminFrontendOwner, adminFrontendRunOwner } from "#src/assistant/admin-frontend-owner";
 import { bearerTokenFromHeader, createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
 import type { AttachmentStore, DelegatedToolExecuteRequest, RunMessageRequest, RunStartHandler, StoredAttachment } from "@jini-ai/daemon/http";
@@ -117,7 +117,7 @@ import {
 } from "./assistant-system-overlay.js";
 import { buildAssistantRuntimeGuidance, createAssistantChromeProbe, resolveAssistantRuntimeLaunch, type AssistantRuntimeGuidanceInput } from "./assistant-runtime-guidance.js";
 import { getCustomFsRoot } from "../../../features/fs-files/custom-root-store.js";
-import { createAgentDaemonCoreDeps, type AgentDaemonCoreOptions, type AgentDaemonResource } from "../../runtime/composition/agent-daemon-core-deps.js"; import { daemonRouteHost, mountJiniRoutes, nodeSessionTimer } from "../../runtime/composition/jini-routes.js"; import { requestHookInput } from "../shared/request-facts.js";
+import { createAgentDaemonCoreDeps, type AgentDaemonCoreOptions, type AgentDaemonResource } from "../../runtime/composition/agent-daemon-core-deps.js"; import { daemonRouteHost, mountJiniRoutes, nodeSessionTimer } from "../../runtime/composition/jini-routes.js";
 import { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission-mode";
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
 import { pageApprovalOptions } from "#src/assistant/page-approval-context";
@@ -1545,11 +1545,10 @@ registerA2uiActionsRoute(app, { surfaceExchanges });
 mountJiniRoutes({ app, routes: frontendControl.routes({ host: routeHost }) });
 // Runless WebMCP uses the same policy/exchange/audit stack as a daemon run. The proxy supplies
 // the authenticated principal; the bind token and tab id constrain the effect to its own screen.
-registerFrontendRequestRoute({ app, path: "/api/frontend-sessions/request", control: frontendControl,
+mountJiniRoutes({ app, routes: frontendRequestRoutes({ path: "/api/frontend-sessions/request", control: frontendControl, host: routeHost,
   executor: toolExecutor, capabilityIds: FRONTEND_CONTROL_CAPABILITIES.filter(entry => entry.id.startsWith("page.")).map(entry => entry.id),
-  // Still an Express route until F3 moves it; the hook input is built by the one adapter for Tovu's own Express routes.
-  resolveOwner: async ({ req }) => adminFrontendOwner({ ...requestHookInput({ req }), workspaceId: routeDeps.workspaceId }),
-});
+  resolveOwner: async (input) => adminFrontendOwner({ ...input, workspaceId: routeDeps.workspaceId }),
+}) });
 
   // Discovery is scoped by each run's credential; the server refreshes its own plugin/settings
   // state before returning descriptors. The native FTS owner is released with the final run.
