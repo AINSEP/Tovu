@@ -81,28 +81,11 @@ async function appendEvent({ kernel, event, eventValues }: { kernel: ContentKern
   await kernel.run((db) => db.insertInto("outbox_events").values(eventValues(event)).execute());
 }
 
-/**
- * Builds the user `TrashAdapter`.
- *
- * @complexity O(1) to build; each method is O(1) plus `purge`'s delegated
- *             `UserPurgePort.purgeUser` cost (itself O(1), see that file).
- */
-export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter {
-  const { purge, idGen, clock } = deps;
-  const kernel = lazyKernel(deps.db);
+type PrincipalLock = <T>(required: { workspaceId: string; principalId: string; body: (k: ContentKernel) => Promise<T> }, optional?: Record<string, never>) => Promise<T>;
+type UserTrashContext = Pick<UserTrashAdapterDeps, "purge" | "idGen" | "clock"> & { deps: UserTrashAdapterDeps; underPrincipalLock: PrincipalLock };
 
-  /** Runs `body` in one transaction holding the principal's row lock. */
-  const underPrincipalLock = <T>({ workspaceId, principalId, body }: { workspaceId: string; principalId: string; body: (k: ContentKernel) => Promise<T> }, _optional = {}): Promise<T> => {
-    const k = kernel();
-    return k.transaction(async () => {
-      await k.lockKey(`trash:${USER_ENTITY_TYPE}:${workspaceId}:${principalId}`);
-      return body(k);
-    });
-  };
-
+function userTrashHide({ deps, idGen, clock, underPrincipalLock }: UserTrashContext): Pick<TrashAdapter, "hide"> {
   return {
-    entityType: USER_ENTITY_TYPE,
-
     /**
      * Disables the principal, revokes every session and records `identity.user.trashed`.
      *
@@ -148,6 +131,11 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
       } });
     },
 
+  };
+}
+
+function userTrashUnhide({ deps, idGen, clock, underPrincipalLock }: UserTrashContext): Pick<TrashAdapter, "unhide"> {
+  return {
     /**
      * Restores the principal to `priorMarker` (decision 4: `priorMarker ?? "disabled"`) and records
      * `identity.user.restored`. Sessions are never re-created — a restore never revives an old
@@ -186,6 +174,11 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
       } });
     },
 
+  };
+}
+
+function userTrashPurge({ deps, purge, idGen, clock, underPrincipalLock }: UserTrashContext): Pick<TrashAdapter, "purge"> {
+  return {
     /**
      * Hard-deletes the principal's identity rows via {@link UserPurgePort.purgeUser} (decision 4) —
      * never a live principal (an `active` status means it was never trashed, or was re-enabled out
@@ -224,5 +217,33 @@ export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter
         return "purged";
       } });
     },
+  };
+}
+
+/**
+ * Builds the user `TrashAdapter`.
+ *
+ * @complexity O(1) to build; each method is O(1) plus `purge`'s delegated
+ *             `UserPurgePort.purgeUser` cost (itself O(1), see that file).
+ */
+export function createUserTrashAdapter(deps: UserTrashAdapterDeps): TrashAdapter {
+  const { purge, idGen, clock } = deps;
+  const kernel = lazyKernel(deps.db);
+
+  /** Runs `body` in one transaction holding the principal's row lock. */
+  const underPrincipalLock = <T>({ workspaceId, principalId, body }: { workspaceId: string; principalId: string; body: (k: ContentKernel) => Promise<T> }, _optional = {}): Promise<T> => {
+    const k = kernel();
+    return k.transaction(async () => {
+      await k.lockKey(`trash:${USER_ENTITY_TYPE}:${workspaceId}:${principalId}`);
+      return body(k);
+    });
+  };
+
+  return {
+    entityType: USER_ENTITY_TYPE,
+
+    ...userTrashHide({ deps, purge, idGen, clock, underPrincipalLock }),
+    ...userTrashUnhide({ deps, purge, idGen, clock, underPrincipalLock }),
+    ...userTrashPurge({ deps, purge, idGen, clock, underPrincipalLock }),
   };
 }
