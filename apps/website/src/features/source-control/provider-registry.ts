@@ -204,7 +204,7 @@ export function isUnderWorkflowPath({ filePath, workflowPaths }: { filePath: str
 
 /** A loaded provider built over `kit`, carrying its plugin's declared host facts and its module's
  *  `validateTarget`. @complexity O(1). */
-export function buildLoadedSourceControlProvider(loaded: LoadedSourceControlProvider, kit: SourceControlProviderKit): SourceControlProvider {
+export function buildLoadedSourceControlProvider({ loaded, kit }: { loaded: LoadedSourceControlProvider; kit: SourceControlProviderKit }, _optional: Record<string, never> = {}): SourceControlProvider {
   return sourceControl.buildLoadedSourceControlProvider<SourceControlProviderKit, import("./provider-module.js").SourceControlProviderOperations>({ loaded, kit });
 }
 

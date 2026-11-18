@@ -198,7 +198,7 @@ async function httpPublishPreview(required: {
   config: StaticPublishConfig; query: Record<string, unknown>;
 }, _options = {}) {
   const { deps, credentialSource, registry, config, query } = required;
-  const plan = planStaticPublish(registry, config);
+  const plan = planStaticPublish({ registry, config });
   const credential = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target: config.target });
   const inspected = plan.ok && credential.configured ? await inspectStaticPublish({
     deps: { credentialSource, loadDeployTargets: deps.loadDeployTargets, tracker: deps.tracker, observability: deps.observability, formDestination: deps.formDestination },
@@ -220,7 +220,7 @@ async function readPublishTriggerConfig(required: {
   // a malformed config never sees a "running" snapshot at all.
   const read = await readTargetConfig({ deps, targetId, raw, blankAsAbsent: false });
   if (!read.ok) return { ok: false, status: 400, body: { error: read.error } };
-  const plan = planStaticPublish(read.registry, read.config);
+  const plan = planStaticPublish({ registry: read.registry, config: read.config });
   if (!plan.ok) return { ok: false, status: 400, body: { error: plan.message } };
   if (read.config.customDomain) {
     return { ok: false, status: 409, body: { code: "DOMAIN_CONFIRMATION_REQUIRED", error: "Review and confirm the exact domain changes through deployment_execute_static_publish in chat. This HTTP request cannot stand in for that human confirmation." } };
@@ -344,7 +344,7 @@ async function readPreviewTarget({ deps, query }: { deps: AdminPublishSiteDeps; 
   if (!read.ok) return { ok: false, error: read.error };
   // A required field that is absent is a malformed request (400); a present-but-invalid value is
   // an answer (200, `valid:false`) — the distinction the admin card renders.
-  const missing = missingRequiredFieldMessage(read.target, read.config);
+  const missing = missingRequiredFieldMessage({ target: read.target, config: read.config });
   return missing !== null ? { ok: false, error: missing } : { ok: true, read };
 }
 

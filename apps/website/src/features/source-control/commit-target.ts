@@ -39,7 +39,7 @@ const MAX_COMMIT_MESSAGE_LENGTH = 500;
  */
 export function validateCommitTarget(
   input: { owner: string; repo: string; branch?: string; folder?: string; commitMessage: string },
-  validateTarget?: RepositoryTargetValidator,
+  { validateTarget }: { validateTarget?: RepositoryTargetValidator } = {},
 ): string | null {
   // The owner/repo check every source-control write runs before anything is built or sent: this
   // file (`source_control_execute_commit`), `custom_credential_write_files` and `site_backup_plan`.

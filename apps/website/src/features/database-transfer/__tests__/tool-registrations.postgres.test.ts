@@ -84,7 +84,7 @@ function harness(t: test.TestContext) {
     databaseTransferDestinationStore: new InMemoryDatabaseDestinationStore(),
     databaseTransferFailureLog: (line) => logs.push(line),
   };
-  const registrations = buildDatabaseTransferRegistrations({ ...deps, databaseTransferAdapters: createDatabaseTransferAdapters({}) }, { surfaceExchanges });
+  const registrations = buildDatabaseTransferRegistrations({ deps: { ...deps, databaseTransferAdapters: createDatabaseTransferAdapters({}) }, surfaceExchanges });
   const tools = new Map(registrations.map((r) => [r.descriptor.id, r]));
   return {
     dbOps,

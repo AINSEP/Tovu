@@ -27,7 +27,7 @@ export interface StaticPublishInspection {
  * @complexity One registry/credential read plus the plugin's bounded inventory reads. */
 export async function inspectStaticPublish({ deps, input }: { deps: StaticPublishDeps; input: StaticPublishInspectionInput }, _options = {}): Promise<StaticPublishInspection> {
   const registry = await deps.loadDeployTargets({ workspaceId: input.workspaceId });
-  const plan = planStaticPublish(registry, input.config);
+  const plan = planStaticPublish({ registry, config: input.config });
   if (!plan.ok) throw new ToolInputError({ message: plan.message });
   if (!plan.target.module.preview) return {};
   // Callers without a project label (the admin Static Site card) keep the local-only preview they

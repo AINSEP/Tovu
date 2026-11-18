@@ -113,7 +113,7 @@ export function loadPersistedState(storage: SessionStore): PersistedSiteAssistan
  *   `MAX_MESSAGES` on entry in the caller's normal usage, so this is not unbounded in practice.
  * @overallScore 100
  */
-export function savePersistedState(storage: SessionStore, state: PersistedSiteAssistantState): void {
+export function savePersistedState({ storage, state }: { storage: SessionStore; state: PersistedSiteAssistantState }, _optional: Record<string, never> = {}): void {
   let messages = state.messages;
   if (messages.length > MAX_MESSAGES) messages = messages.slice(messages.length - MAX_MESSAGES);
 
@@ -153,7 +153,7 @@ export function loadSiteAssistantState(): PersistedSiteAssistantState {
 }
 
 export function saveSiteAssistantState(state: PersistedSiteAssistantState): void {
-  savePersistedState(browserStorage, state);
+  savePersistedState({ storage: browserStorage, state });
 }
 
 export function clearSiteAssistantState(): void {

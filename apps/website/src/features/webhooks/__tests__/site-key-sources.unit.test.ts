@@ -262,11 +262,11 @@ test("readSiteKeySourceMaterial: env yields the trimmed value with its var name;
   try {
     const keyFile = join(dir, "site-key.hex");
     writeFileSync(keyFile, "  ab12\n");
-    assert.deepEqual(readSiteKeySourceMaterial({ kind: "env" }, { [SITE_KEY_ENV_VAR_NAME]: " cafe " }), { raw: "cafe", envVarName: SITE_KEY_ENV_VAR_NAME });
-    assert.equal(readSiteKeySourceMaterial({ kind: "env" }, {}), undefined);
-    assert.deepEqual(readSiteKeySourceMaterial({ kind: "volume-file", path: keyFile }, {}), { raw: "  ab12\n" }, "file content is never trimmed");
-    assert.equal(readSiteKeySourceMaterial({ kind: "volume-file", path: join(dir, "absent.hex") }, {}), undefined);
-    assert.equal(readSiteKeySourceMaterial({ kind: "legacy-volume-file" }, {}), undefined, "a file-kind source without a path has no material");
+    assert.deepEqual(readSiteKeySourceMaterial({ source: { kind: "env" }, env: { [SITE_KEY_ENV_VAR_NAME]: " cafe " } }), { raw: "cafe", envVarName: SITE_KEY_ENV_VAR_NAME });
+    assert.equal(readSiteKeySourceMaterial({ source: { kind: "env" }, env: {} }), undefined);
+    assert.deepEqual(readSiteKeySourceMaterial({ source: { kind: "volume-file", path: keyFile }, env: {} }), { raw: "  ab12\n" }, "file content is never trimmed");
+    assert.equal(readSiteKeySourceMaterial({ source: { kind: "volume-file", path: join(dir, "absent.hex") }, env: {} }), undefined);
+    assert.equal(readSiteKeySourceMaterial({ source: { kind: "legacy-volume-file" }, env: {} }), undefined, "a file-kind source without a path has no material");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

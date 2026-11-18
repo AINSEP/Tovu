@@ -236,7 +236,7 @@ function buildTriggerAccountLabelHeal({ deps, verifyAfterSave }: { deps: AdminPu
   return async function triggerAccountLabelHeal(credentials) {
     try {
       const registry = await deps.loadDeployTargets({ workspaceId: deps.workspaceId });
-      accountLabelHealScheduler.triggerFor(idsNeedingAccountLabelHeal({ credentials, canYieldAccountLabel: (providerId) => canYieldAccountLabel(registry, providerId) }));
+      accountLabelHealScheduler.triggerFor(idsNeedingAccountLabelHeal({ credentials, canYieldAccountLabel: (providerId) => canYieldAccountLabel({ registry, target: providerId }) }));
     } catch (err) {
       console.error("[publish-credentials] account-label heal skipped: deploy targets could not be loaded", err);
     }

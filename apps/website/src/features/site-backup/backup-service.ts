@@ -644,7 +644,7 @@ async function prepareContent({ deps, sources, include, host }: { deps: SiteBack
     credentialWarnings.push(...captured.credentialWarnings);
   }
   const collected = await collectSiteBackupFiles({ sources, include });
-  const fitting = skipOversizedFiles(collected.files, host);
+  const fitting = skipOversizedFiles({ files: collected.files, host });
   const limits = checkSiteBackupLimits({ files: [...(database ? [{ path: SITE_BACKUP_DATABASE_PATH, bytes: database.bytes.length }] : []), ...fitting.files], host });
   if (!limits.ok) return { ok: false, code: "LIMIT_EXCEEDED", message: limits.message };
   for (const file of fitting.files) {

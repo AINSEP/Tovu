@@ -104,6 +104,6 @@ export function withEverPublished(required: { previous: AdminPost | null; saved:
  *
  * @complexity O(1).
  */
-export function keepNewerEdit<T>(sent: T, fromSaved: T): (current: T) => T {
+export function keepNewerEdit<T>({ sent, fromSaved }: { sent: T; fromSaved: T }, _optional: Record<string, never> = {}): (current: T) => T {
   return (current) => (current === sent ? fromSaved : current);
 }

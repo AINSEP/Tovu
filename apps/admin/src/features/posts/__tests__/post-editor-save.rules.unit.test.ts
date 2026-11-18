@@ -156,10 +156,10 @@ describe("withEverPublished", () => {
 
 describe("keepNewerEdit", () => {
   it("adopts the saved value while the field still holds what was sent", () => {
-    expect(keepNewerEdit("sent", "from-server")("sent")).toBe("from-server");
+    expect(keepNewerEdit({ sent: "sent", fromSaved: "from-server" })("sent")).toBe("from-server");
   });
 
   it("keeps a value the operator typed after the save was sent", () => {
-    expect(keepNewerEdit("sent", "from-server")("newer")).toBe("newer");
+    expect(keepNewerEdit({ sent: "sent", fromSaved: "from-server" })("newer")).toBe("newer");
   });
 });

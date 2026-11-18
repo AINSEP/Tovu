@@ -1180,7 +1180,7 @@ describe("uploadDroppedFile / handleFileDrop / handleFilePaste — file-handler 
     const bytes = new Uint8Array([0, 1, 127, 128, 255]);
     const file = new File([bytes], "photo.png", { type: "image/png" });
 
-    const result = await uploadDroppedFile(port, file);
+    const result = await uploadDroppedFile({ port, file });
 
     expect(result).toEqual({ assetId: "asset-99", alt: "photo.png" });
     expect(uploadMedia).toHaveBeenCalledExactlyOnceWith({
@@ -1193,7 +1193,7 @@ describe("uploadDroppedFile / handleFileDrop / handleFilePaste — file-handler 
     const port = createFakePostEditorPort({ post: POST, uploadMediaError: "upload failed" });
     const file = new File(["bytes"], "photo.png", { type: "image/png" });
 
-    const result = await uploadDroppedFile(port, file);
+    const result = await uploadDroppedFile({ port, file });
 
     expect(result).toBeNull();
   });

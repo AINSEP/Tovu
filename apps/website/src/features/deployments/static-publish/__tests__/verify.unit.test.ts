@@ -158,9 +158,9 @@ test("verifyPublishCredential: a target no installed plugin provides (or one wit
 });
 
 test("canYieldAccountLabel: follows the host's declared yieldsAccountLabel", async () => {
-  assert.equal(canYieldAccountLabel(await stubRegistry({ create: () => assert.fail() }, { yieldsAccountLabel: true })(), "acme-host"), true);
-  assert.equal(canYieldAccountLabel(await stubRegistry({ create: () => assert.fail() })(), "acme-host"), false);
-  assert.equal(canYieldAccountLabel(await stubRegistry({ create: () => assert.fail() }, { yieldsAccountLabel: true })(), "gone-host"), false);
+  assert.equal(canYieldAccountLabel({ registry: await stubRegistry({ create: () => assert.fail() }, { yieldsAccountLabel: true })(), target: "acme-host" }), true);
+  assert.equal(canYieldAccountLabel({ registry: await stubRegistry({ create: () => assert.fail() })(), target: "acme-host" }), false);
+  assert.equal(canYieldAccountLabel({ registry: await stubRegistry({ create: () => assert.fail() }, { yieldsAccountLabel: true })(), target: "gone-host" }), false);
 });
 
 test("verifyPublishCredential: GitHub accepts (200) — status:'valid', cached, and captures ONLY `login` as accountLabel", async () => {
@@ -459,11 +459,11 @@ test("verifyPublishCredential: s3-compatible signing failure (a malformed derive
 
 test("canYieldAccountLabel: true only for the bundled hosts with a reviewed account-identity field (github-pages, vercel)", async () => {
   const registry = await loadBundledDeployTargets();
-  assert.equal(canYieldAccountLabel(registry, "github-pages"), true);
-  assert.equal(canYieldAccountLabel(registry, "vercel"), true);
-  assert.equal(canYieldAccountLabel(registry, "netlify"), false);
-  assert.equal(canYieldAccountLabel(registry, "cloudflare-pages"), false);
-  assert.equal(canYieldAccountLabel(registry, "s3-compatible"), false);
+  assert.equal(canYieldAccountLabel({ registry, target: "github-pages" }), true);
+  assert.equal(canYieldAccountLabel({ registry, target: "vercel" }), true);
+  assert.equal(canYieldAccountLabel({ registry, target: "netlify" }), false);
+  assert.equal(canYieldAccountLabel({ registry, target: "cloudflare-pages" }), false);
+  assert.equal(canYieldAccountLabel({ registry, target: "s3-compatible" }), false);
 });
 
 // ---------------------------------------------------------------------------

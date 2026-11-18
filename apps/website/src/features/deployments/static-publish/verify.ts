@@ -61,7 +61,7 @@ const VERIFY_TIMEOUT_MS = 10_000;
  *
  * @complexity O(1) — one registry lookup.
  */
-export function canYieldAccountLabel(registry: DeployTargetRegistry, target: StaticPublishTargetId): boolean {
+export function canYieldAccountLabel({ registry, target }: { registry: DeployTargetRegistry; target: StaticPublishTargetId }, _optional: Record<string, never> = {}): boolean {
   return registry.get(target)?.descriptor.credential?.yieldsAccountLabel === true;
 }
 

@@ -90,10 +90,10 @@ export type StaticPublishPlan =
  * @returns The plan, or the first refusal. Messages never echo more than the offending field.
  * @complexity O(f) declared config fields plus the module's own (constant-size) checks.
  */
-export function planStaticPublish(registry: DeployTargetRegistry, config: StaticPublishConfig): StaticPublishPlan {
+export function planStaticPublish({ registry, config }: { registry: DeployTargetRegistry; config: StaticPublishConfig }, _optional: Record<string, never> = {}): StaticPublishPlan {
   const target = registry.get(config.target);
   if (target === undefined) return { ok: false, message: unknownTargetMessage({ registry, targetId: config.target }) };
-  const missing = missingRequiredFieldMessage(target, config);
+  const missing = missingRequiredFieldMessage({ target, config });
   if (missing !== null) return { ok: false, message: missing };
   const moduleConfig = config as unknown as UnknownRecord;
   const configError = target.module.validateConfig?.(moduleConfig);
@@ -105,7 +105,7 @@ export function planStaticPublish(registry: DeployTargetRegistry, config: Static
 /** The refusal for the first descriptor-required field `config` leaves absent or blank, else `null`.
  *  Exported so the admin preview can answer a missing field as a malformed request (400) while a
  *  present-but-invalid value stays a 200 `valid:false`. @complexity O(f) declared config fields. */
-export function missingRequiredFieldMessage(target: LoadedDeployTarget, config: StaticPublishConfig): string | null {
+export function missingRequiredFieldMessage({ target, config }: { target: LoadedDeployTarget; config: StaticPublishConfig }, _optional: Record<string, never> = {}): string | null {
   for (const field of target.descriptor.configFields) {
     const value = config[field.name];
     if (field.required && (typeof value !== "string" || value.trim() === "")) {
@@ -646,7 +646,7 @@ async function resolvePublishPlan(deps: StaticPublishDeps, input: StaticPublishI
     return { ok: false, message: `publish targets could not be loaded: ${err instanceof Error ? err.message : String(err)}` };
   }
   for (const refusal of registry.refusals) console.warn(`[static-publish] ${refusal}`);
-  return planStaticPublish(registry, input.config);
+  return planStaticPublish({ registry, config: input.config });
 }
 
 /**

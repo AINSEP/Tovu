@@ -288,8 +288,8 @@ export interface SiteKeySourceMaterial {
 }
 
 export function readSiteKeySourceMaterial(
-  source: SiteKeySource,
-  env: Record<string, string | undefined>
+  { source, env }: { source: SiteKeySource; env: Record<string, string | undefined> },
+  _optional: Record<string, never> = {}
 ): SiteKeySourceMaterial | undefined {
   if (source.kind === "env") {
     const resolved = resolveSiteKeyEnv({ env });

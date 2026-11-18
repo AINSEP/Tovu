@@ -75,7 +75,7 @@ const DATABASE_TRANSFER_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
 
 
 /** @complexity O(1) at registration; consumer adapters supply all schema/security/UI policy. */
-export function buildDatabaseTransferRegistrations(deps: DatabaseTransferToolDeps & { databaseTransferAdapters: DatabaseTransferAdapters }, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
+export function buildDatabaseTransferRegistrations({ deps, ...surfaces }: { deps: DatabaseTransferToolDeps & { databaseTransferAdapters: DatabaseTransferAdapters } } & AssistantSurfaceDeps, _optional: Record<string, never> = {}): ToolRegistration[] {
   const destinations = deps.databaseTransferDestinationStore ?? DEFAULT_DESTINATION_STORE;
   const localeByExchange = new Map<string, Promise<string>>();
   const reportDestination = createDestinationExchangeReporter({ store: destinations, workspaceId: deps.workspaceId }, {
@@ -121,5 +121,5 @@ export function buildDatabaseTransferRegistrations(deps: DatabaseTransferToolDep
 }
 /** Called once by server/runtime/composition/tool-catalog-manifest.ts. */
 export function contributeDatabaseTransferTools(required: { adapters: DatabaseTransferAdapters }, _optional = {}): ToolContributor<DatabaseTransferToolDeps, AssistantSurfaceDeps> {
-  return { domain: DOMAIN, build: (deps, surfaces) => buildDatabaseTransferRegistrations({ ...deps, databaseTransferAdapters: required.adapters }, surfaces), risk: databaseTransferDerivedRisk };
+  return { domain: DOMAIN, build: (deps, surfaces) => buildDatabaseTransferRegistrations({ deps: { ...deps, databaseTransferAdapters: required.adapters }, ...surfaces }), risk: databaseTransferDerivedRisk };
 }
