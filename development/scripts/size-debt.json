@@ -373,13 +373,6 @@
       "value": 636
     },
     {
-      "file": "apps/admin/src/features/providers/Providers.tsx",
-      "function": "Providers#1",
-      "line": 135,
-      "rule": "max-lines-per-function",
-      "value": 123
-    },
-    {
       "file": "apps/admin/src/features/publish-content/PublishContentDialog.tsx",
       "function": "PublishContentDialog#1",
       "line": 97,
