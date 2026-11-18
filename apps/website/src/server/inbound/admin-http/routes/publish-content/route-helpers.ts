@@ -58,7 +58,7 @@ export function mappedErrorResponse({ err, table }: { err: unknown; table: reado
 }
 
 /** Sends a {@link RouteRefusal}. @complexity O(1). */
-export function sendRefusal(res: Response, refusal: RouteRefusal): void {
+export function sendRefusal({ res, refusal }: { res: Response; refusal: RouteRefusal }, _optional: Record<string, never> = {}): void {
   res.status(refusal.status).json(refusal.body);
 }
 

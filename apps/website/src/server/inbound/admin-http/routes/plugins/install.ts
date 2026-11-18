@@ -107,7 +107,7 @@ function respondInstallFailure({ res, error }: { res: Response; error: unknown }
 }
 
 /** Local sources are explicitly opt-in, even for admins. ZIP parsing follows authorization. */
-export const registerPluginInstallRoutes = (app: Express, deps: PluginInstallRouteDeps): void => {
+export const registerPluginInstallRoutes = ({ app, deps }: { app: Express; deps: PluginInstallRouteDeps }, _optional: Record<string, never> = {}): void => {
   const parseZip = raw({ type: "application/zip", limit: MAX_PLUGIN_ARCHIVE_BYTES, inflate: false });
   for (const [zip, preview] of [[false, true], [false, false], [true, true], [true, false]] as const) {
     const context: InstallContext = { deps, route: { zip, preview }, parseZip };

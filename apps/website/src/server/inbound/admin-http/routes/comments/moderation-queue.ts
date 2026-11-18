@@ -32,7 +32,7 @@ function parseQueueQuery(query: Record<string, unknown>): { status: CommentStatu
   };
 }
 
-export function registerAdminCommentsModerationQueueRoute(app: Express, deps: AdminCommentsModerationQueueDeps): void {
+export function registerAdminCommentsModerationQueueRoute({ app, deps }: { app: Express; deps: AdminCommentsModerationQueueDeps }, _optional: Record<string, never> = {}): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/comments/queue", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

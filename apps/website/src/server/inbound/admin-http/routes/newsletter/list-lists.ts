@@ -16,7 +16,7 @@ export const registerAdminNewsletterListListsRoute: RouteRegistrar = ({ app, dep
 
       await deps.newsletterReady;
       const lists = await deps.newsletterListRepo.list({ workspaceId: deps.workspaceId });
-      res.status(200).json(toDataResponse(lists));
+      res.status(200).json(toDataResponse({ data: lists }));
     } catch (err) {
       mapNewsletterErrorToResponse({ err, res });
     }

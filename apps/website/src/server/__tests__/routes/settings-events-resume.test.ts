@@ -31,7 +31,7 @@ async function feed({ query = {}, header, allowed = true, previewAllowed = false
     },
     findDefinitionBySettingId: async (_input: { settingId: string }): Promise<{ namespace: string } | null> => ({ namespace: "site.hidden-write" }),
   };
-  registerAdminSettingsEventsRoute(app, {
+  registerAdminSettingsEventsRoute({ app, deps: {
     workspaceId: "ws", settingsReady: Promise.resolve(), settingsRepo,
     authorize: authorize ?? (async ({ permission }: { permission: string }) => {
       const granted = permission === "theme.set" ? previewAllowed : allowed;
@@ -41,7 +41,7 @@ async function feed({ query = {}, header, allowed = true, previewAllowed = false
       scheduleInterval: ((work: () => void, ms: number) => { ticks.set(ms, work); return ms; }) as unknown as typeof setInterval,
       clearScheduledInterval: ((ms: number) => { ticks.delete(ms); }) as unknown as typeof clearInterval,
     },
-  } as unknown as SettingsRouteDeps);
+  } as unknown as SettingsRouteDeps });
   const req = Object.assign(new EventEmitter(), {
     params: { workspaceId }, query, httpVersionMajor: 1,
     headers: header === undefined ? {} : { "last-event-id": header },

@@ -443,7 +443,7 @@ async function handlePublishTargets({ context, req, res }: { context: PublishSit
   }
 }
 
-export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishSiteDeps): void {
+export function registerAdminPublishSiteRoutes({ app, deps }: { app: Express; deps: AdminPublishSiteDeps }, _optional: Record<string, never> = {}): void {
   // Built once per `registerAdminPublishSiteRoutes` call (this route file's own registration is
   // itself a once-per-process composition step), bound to `deps.workspaceId` — see
   // `static-publish/credentials.ts`'s `composePublishCredentialSource` header for the DB-first,

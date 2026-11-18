@@ -148,6 +148,6 @@ export function mapNewsletterErrorToResponse({ err, res }: { err: unknown; res: 
 }
 
 /** `{ data: T }` envelope — api.spec.md §5's `CampaignResponse`/`NewsletterListResponse`/etc. shape. */
-export function toDataResponse<T>(data: T): { data: T } {
+export function toDataResponse<T>({ data }: { data: T }, _optional: Record<string, never> = {}): { data: T } {
   return { data };
 }

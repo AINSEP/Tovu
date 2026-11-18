@@ -27,7 +27,7 @@ export const registerAdminNewsletterListCampaignsRoute: RouteRegistrar = ({ app,
       const paging = parseListPageRequest({ value: req.query }, { defaultLimit: 100, maxLimit: 100 });
       const page = await deps.newsletterCampaignRepo.list({ workspaceId: deps.workspaceId }, paging);
       const filtered = status ? page.items.filter((c) => c.status === status) : page.items;
-      res.status(200).json({ ...toDataResponse(filtered), nextCursor: page.nextCursor });
+      res.status(200).json({ ...toDataResponse({ data: filtered }), nextCursor: page.nextCursor });
     } catch (err) {
       if (err instanceof ToolInputError) {
         res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });

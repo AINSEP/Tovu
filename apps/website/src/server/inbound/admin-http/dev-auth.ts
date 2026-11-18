@@ -363,15 +363,15 @@ export interface CredentialKindForbiddenBody {
  * @complexity O(1).
  */
 export function rejectUnlessSessionCredential(
-  res: Response,
-  context: { message: string; permission: string }
+  { res, message, permission }: { res: Response; message: string; permission: string },
+  _optional: Record<string, never> = {}
 ): boolean {
   if (getAuthedCredentialKind(res) === "session") return true;
 
   const body: CredentialKindForbiddenBody = {
-    error: context.message,
+    error: message,
     code: "FORBIDDEN",
-    details: { permission: context.permission, reason: "credential_kind_not_permitted" },
+    details: { permission, reason: "credential_kind_not_permitted" },
   };
   res.status(403).json(body);
   return false;

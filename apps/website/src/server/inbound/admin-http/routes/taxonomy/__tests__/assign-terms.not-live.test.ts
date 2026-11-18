@@ -39,7 +39,7 @@ function buildApp(postRepo: TaxonomyRouteDeps["postRepo"]): express.Express {
     res.locals.principal = { id: "test-principal", displayName: "Test Principal" };
     next();
   });
-  registerAdminTaxonomyAssignTermsRoute(app, deps);
+  registerAdminTaxonomyAssignTermsRoute({ app, deps });
   return app;
 }
 

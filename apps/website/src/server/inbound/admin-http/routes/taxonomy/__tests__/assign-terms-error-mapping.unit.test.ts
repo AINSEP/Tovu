@@ -15,7 +15,7 @@ import { registerAdminTaxonomyAssignedTermsRoute } from "../assign-terms.js";
  */
 async function readAssigned(authorize: () => Promise<never>) {
   const app = express();
-  registerAdminTaxonomyAssignedTermsRoute(app, portFake<TaxonomyRouteDeps>({ workspaceId: "ws-1", authorize }));
+  registerAdminTaxonomyAssignedTermsRoute({ app, deps: portFake<TaxonomyRouteDeps>({ workspaceId: "ws-1", authorize }) });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "principal-1" };
   await extractRouteHandler(app, "get", "/api/admin/v1/taxonomy/assigned-terms")({ params: {}, query: { contentType: "post", contentId: "p1" } }, res);

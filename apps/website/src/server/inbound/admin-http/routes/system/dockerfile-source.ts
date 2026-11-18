@@ -77,7 +77,7 @@ function toResponseBody(snapshot: DockerfileSourceSnapshot): { exists: boolean; 
   return { exists: snapshot.exists, contents: snapshot.contents };
 }
 
-export function registerAdminDockerfileSourceRoute(app: Express, deps: AdminDockerfileSourceDeps): void {
+export function registerAdminDockerfileSourceRoute({ app, deps }: { app: Express; deps: AdminDockerfileSourceDeps }, _optional: Record<string, never> = {}): void {
   registerDockerfileGet(app, deps);
   registerDockerfilePut(app, deps);
 }

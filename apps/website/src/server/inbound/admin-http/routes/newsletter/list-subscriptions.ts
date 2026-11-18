@@ -22,7 +22,7 @@ export const registerAdminNewsletterListSubscriptionsRoute: RouteRegistrar = ({ 
         workspaceId: deps.workspaceId,
         listId: String(req.params.listId),
       }, paging);
-      res.status(200).json({ ...toDataResponse(page.items), nextCursor: page.nextCursor });
+      res.status(200).json({ ...toDataResponse({ data: page.items }), nextCursor: page.nextCursor });
     } catch (err) {
       if (err instanceof ToolInputError) {
         res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });

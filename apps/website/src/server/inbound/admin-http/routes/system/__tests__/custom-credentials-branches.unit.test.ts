@@ -39,7 +39,7 @@ function setup({ withTargets }: { withTargets: boolean }) {
   const app = express();
   app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerAdminCustomCredentialsRoutes(app, deps);
+  registerAdminCustomCredentialsRoutes({ app, deps });
   return { app, deps, deleted };
 }
 
@@ -124,7 +124,7 @@ test("custom-credentials: with a project store, keys save to the project unless 
   const projectApp = express();
   projectApp.use(express.json());
   projectApp.use((_req, res, next) => { res.locals.principal = { id: "owner" }; next(); });
-  registerAdminCustomCredentialsRoutes(projectApp, shared);
+  registerAdminCustomCredentialsRoutes({ app: projectApp, deps: shared });
   const send = await client(t, projectApp, deps.workspaceId);
   const everywhere = await send("POST", "", CREATE);
   assert.equal(everywhere.json.credential.scope, "project", JSON.stringify(everywhere.json));

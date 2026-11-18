@@ -52,7 +52,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminAnalyticsRecentHitsRoute(app, deps);
+  registerAdminAnalyticsRecentHitsRoute({ app, deps });
   return { app, deps };
 }
 

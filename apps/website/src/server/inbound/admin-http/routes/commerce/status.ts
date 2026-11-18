@@ -26,8 +26,8 @@ export type AdminCommerceStatusDeps = Pick<RouteDeps, "workspaceId" | "authorize
  * providers and c is their declared capability array entries; no external I/O is performed here.
  */
 export function registerAdminCommerceStatusRoute(
-  app: Express,
-  deps: AdminCommerceStatusDeps
+  { app, deps }: { app: Express; deps: AdminCommerceStatusDeps },
+  _optional: Record<string, never> = {}
 ): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/commerce/status", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;

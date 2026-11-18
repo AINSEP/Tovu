@@ -179,7 +179,7 @@ async function handleMigrateExecute(input: { deps: RouteDeps; req: Request; res:
   }
 }
 
-export function registerAdminDatabaseMigrateForwardRoutes(app: Express, deps: RouteDeps): void {
+export function registerAdminDatabaseMigrateForwardRoutes({ app, deps }: { app: Express; deps: RouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/admin/v1/database/migrate-forward/plan", (_req, res) => handleMigratePlan({ deps, res }));
   app.post("/api/admin/v1/database/migrate-forward/confirm", (req, res) => handleMigrateConfirm({ deps, req, res }));
   app.post("/api/admin/v1/database/migrate-forward/execute", (req, res) => handleMigrateExecute({ deps, req, res }));

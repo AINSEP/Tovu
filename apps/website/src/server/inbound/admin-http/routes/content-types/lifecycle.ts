@@ -21,7 +21,7 @@ import { contentTypeWriteErrorStatus } from "./write-error-status.js";
  * unparsed request value (mirrors `inbound/admin-http/routes/settings/register-definitions.ts`'s identical
  * `NON_REGISTER_DEFINITION_OPS` shape).
  */
-export function registerAdminContentTypeLifecycleRoute(app: Express, deps: ContentTypesRouteDeps): void {
+export function registerAdminContentTypeLifecycleRoute({ app, deps }: { app: Express; deps: ContentTypesRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/admin/v1/content-types/:key/lifecycle", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

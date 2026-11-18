@@ -25,8 +25,8 @@ function buildTestApp(deps: RouteDeps = createRouteDeps()): { app: express.Expre
   app.use(express.json());
   registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
-  registerAdminContentTypeRegisterRoute(app, deps);
-  registerAdminContentTypeLifecycleRoute(app, deps);
+  registerAdminContentTypeRegisterRoute({ app, deps });
+  registerAdminContentTypeLifecycleRoute({ app, deps });
   return { app, deps };
 }
 

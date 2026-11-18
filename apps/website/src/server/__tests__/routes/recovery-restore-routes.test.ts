@@ -110,7 +110,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   registerAuthRoutes({ app, deps });
   app.use("/api/admin", requireAdminSession(deps));
 
-  registerAdminRecoveryRestoreRoutes(app, deps);
+  registerAdminRecoveryRestoreRoutes({ app, deps });
   return { app, deps };
 }
 
@@ -533,7 +533,7 @@ test("recovery restore: execute surfaces a throwing instance-authorization port 
 
 test("sendRecoveryError: a contract-valid payload with no message falls back to its code as the error text", () => {
   const { res, capture } = createCapturingResponse();
-  sendRecoveryError(res, { code: "PLAN_STALE" });
+  sendRecoveryError({ res, error: { code: "PLAN_STALE" } });
   assert.equal(capture.statusCode, 409);
   assert.deepEqual(capture.jsonBody, { error: "PLAN_STALE", code: "PLAN_STALE" });
 });

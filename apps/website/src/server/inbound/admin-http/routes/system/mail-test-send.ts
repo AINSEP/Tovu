@@ -51,7 +51,7 @@ async function authorized({ deps, principalId, res }: { deps: AdminMailTestSendD
  * @complexity One authorization, one user lookup, one settings read and at most one delivery.
  * @example registerAdminMailTestSendRoute(app, routeDeps)
  */
-export function registerAdminMailTestSendRoute(app: Express, deps: AdminMailTestSendDeps): void {
+export function registerAdminMailTestSendRoute({ app, deps }: { app: Express; deps: AdminMailTestSendDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/admin/v1/workspaces/:workspaceId/system/mail-test-send", async (req, res) => {
     if (req.params.workspaceId !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

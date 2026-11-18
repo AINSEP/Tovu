@@ -42,7 +42,7 @@ export const registerAdminNewsletterCreateSubscriptionRoute: RouteRegistrar = ({
           source: source as "admin" | "import" | "api",
         },
       });
-      res.status(201).json(toDataResponse(subscription));
+      res.status(201).json(toDataResponse({ data: subscription }));
     } catch (err) {
       mapNewsletterErrorToResponse({ err, res });
     }

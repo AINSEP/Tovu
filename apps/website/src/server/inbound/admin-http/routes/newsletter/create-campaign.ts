@@ -77,7 +77,7 @@ export const registerAdminNewsletterCreateCampaignRoute: RouteRegistrar = ({ app
           fields: parsedBody,
         },
       });
-      res.status(201).json(toDataResponse(campaign));
+      res.status(201).json(toDataResponse({ data: campaign }));
     } catch (err) {
       mapNewsletterErrorToResponse({ err, res });
     }

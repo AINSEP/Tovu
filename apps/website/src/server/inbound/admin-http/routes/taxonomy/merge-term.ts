@@ -35,7 +35,7 @@ function statusFor({ err }: { err: unknown }, _optional = {}): { status: number;
   return { status: 500, code: "INTERNAL_ERROR" };
 }
 
-export function registerAdminTaxonomyMergeTermRoutes(app: Express, deps: RouteDeps): void {
+export function registerAdminTaxonomyMergeTermRoutes({ app, deps }: { app: Express; deps: RouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/admin/v1/taxonomy/terms/:id/merge/plan", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

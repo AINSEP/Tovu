@@ -109,7 +109,7 @@ function sendRestorePointCreateError({ res, err }: { res: Response; err: unknown
  * views both read — `database.read`'s own description already names "restore points" as part of
  * what it covers, ADR-041 §6). Gated by `database.read`.
  */
-export function registerAdminDatabaseRestorePointsListRoute(app: Express, deps: DatabaseRecoveryRouteDeps): void {
+export function registerAdminDatabaseRestorePointsListRoute({ app, deps }: { app: Express; deps: DatabaseRecoveryRouteDeps }, _optional: Record<string, never> = {}): void {
   app.get("/api/admin/v1/database/restore-points", async (_req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
@@ -135,7 +135,7 @@ export function registerAdminDatabaseRestorePointsListRoute(app: Express, deps: 
  * closure's result is captured via an outer variable so the route can persist the real
  * `artifactRef`/`watermarkAtCapture` `createRestorePoint`'s return value does not carry.
  */
-export function registerAdminDatabaseRestorePointsCreateRoute(app: Express, deps: DatabaseRecoveryRouteDeps): void {
+export function registerAdminDatabaseRestorePointsCreateRoute({ app, deps }: { app: Express; deps: DatabaseRecoveryRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/admin/v1/database/restore-points", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

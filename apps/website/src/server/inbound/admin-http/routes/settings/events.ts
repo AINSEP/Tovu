@@ -358,7 +358,7 @@ function runChangeFeed(required: Admission & {
   res.write(": connected\n\n");
 }
 
-export const registerAdminSettingsEventsRoute = (app: Express, deps: SettingsEventsDeps): void => {
+export const registerAdminSettingsEventsRoute = ({ app, deps }: { app: Express; deps: SettingsEventsDeps }, _optional: Record<string, never> = {}): void => {
   app.get("/api/admin/v1/workspaces/:workspaceId/settings/events", asyncRoute({ handler: async (req, res) => {
     // Resolved per request, not at registration: a test that swaps the global timers after the
     // route is registered must still be the one this stream schedules on.

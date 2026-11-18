@@ -452,7 +452,7 @@ test("commerce/status explicitly mounted: GET responds 500 (not a hang) when dep
   // Preserve async-error coverage through the retained Jini-backed adapter while production stays off.
   const app = express();
   app.use("/api/admin/v1/workspaces", requireAdminSession(deps));
-  registerAdminCommerceStatusRoute(app, deps);
+  registerAdminCommerceStatusRoute({ app, deps });
   app.use(createApp(deps));
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 

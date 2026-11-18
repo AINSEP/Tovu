@@ -20,9 +20,9 @@ function harness(overrides: PortFake<TaxonomyRouteDeps>) {
     workspaceId: "ws-7", authorize: allow, clock: { nowIso: () => "2026-10-21T00:00:00.000Z" }, idGen: { newId: () => "term-new" },
     outbox: { enqueue: async () => {} }, postRepo: {}, ...overrides,
   });
-  registerAdminTaxonomyCreateTermRoute(app, deps);
-  registerAdminTaxonomyDeleteRoute(app, deps);
-  registerAdminTaxonomyDeleteTermRoute(app, deps);
+  registerAdminTaxonomyCreateTermRoute({ app, deps });
+  registerAdminTaxonomyDeleteRoute({ app, deps });
+  registerAdminTaxonomyDeleteTermRoute({ app, deps });
   return async (method: "post" | "delete", path: string, req: { params: Record<string, string>; body?: unknown }) => {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "principal-7" };

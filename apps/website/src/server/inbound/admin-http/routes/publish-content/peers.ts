@@ -61,11 +61,11 @@ const PEER_ERRORS: readonly MappedErrorClass[] = [
  * @complexity O(bounded route tokens) for formatting; existing diagnostic sinks are unchanged.
  */
 function respondToPeerFailure({ res, error }: { res: Response; error: unknown }): void {
-  sendRefusal(res, mappedErrorResponse({ err: error, table: PEER_ERRORS }, {
+  sendRefusal({ res, refusal: mappedErrorResponse({ err: error, table: PEER_ERRORS }, {
     tracker: res.locals?.adminFailureTracker, method: res.req?.method,
     route: typeof res.req?.route?.path === "string" ? res.req.route.path : undefined,
     discloseDetails: !res.req || !!res.locals?.principal,
-  }));
+  }) });
 }
 
 /** The write-side dependency bag, assembled once per handler from this module's route deps.

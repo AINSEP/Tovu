@@ -21,7 +21,7 @@ async function authorizedCopy({ res, deps, actorId, permission = "system.write" 
 /** Every verb requires the seeded owner's session, existing RBAC and optional instance admission. */
 async function admitted({ req, res, deps }: { req: Request; res: Response; deps: Deps }, _options = {}): Promise<boolean> {
   res.setHeader("Cache-Control", "no-store");
-  if (!rejectUnlessSessionCredential(res, { message: "Use the owner's session to use saved keys.", permission: "system.write" })) return false;
+  if (!rejectUnlessSessionCredential({ res, message: "Use the owner's session to use saved keys.", permission: "system.write" })) return false;
   if (req.params.workspaceId !== deps.workspaceId) { res.status(404).json({ error: "workspace was not found" }); return false; }
   const actorId = getAuthedPrincipal(res).id;
   if (actorId !== await deps.ownerPrincipalId) { res.status(403).json({ reasonCode: "owner-only" }); return false; }

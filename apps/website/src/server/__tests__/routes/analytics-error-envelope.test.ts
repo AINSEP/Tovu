@@ -66,7 +66,7 @@ for (const failure of ["authorize", "sink"] as const) {
           list: failure === "sink" ? fail : async () => [],
         },
       };
-      registerAdminAnalyticsRecentHitsRoute(app, deps);
+      registerAdminAnalyticsRecentHitsRoute({ app, deps });
       const response = await request(app, requestId);
 
       assert.equal(response.status, 500);

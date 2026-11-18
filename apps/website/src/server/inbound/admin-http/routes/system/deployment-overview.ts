@@ -162,7 +162,7 @@ async function isOwnerOnDefaultPassword(deps: AdminDeploymentOverviewDeps): Prom
   return deps.passwordHasher.verify({ hash: owner.passwordHash, password: DEFAULT_OWNER_PASSWORD });
 }
 
-export function registerAdminDeploymentOverviewRoute(app: Express, deps: AdminDeploymentOverviewDeps): void {
+export function registerAdminDeploymentOverviewRoute({ app, deps }: { app: Express; deps: AdminDeploymentOverviewDeps }, _optional: Record<string, never> = {}): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/system/deployment-overview", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

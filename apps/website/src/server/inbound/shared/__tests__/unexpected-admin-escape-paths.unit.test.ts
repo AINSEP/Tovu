@@ -14,8 +14,8 @@ function appWithPrincipal() {
 test("analytics retains its canonical error and the shared incident reference", async t => {
   const logged = t.mock.method(console, "error", () => {});
   const app = appWithPrincipal();
-  registerAdminAnalyticsRecentHitsRoute(app, { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }),
-    analyticsSink: { list: async () => { throw new Error("PRIVATE_SINK password=SECRET_CANARY"); } } as never });
+  registerAdminAnalyticsRecentHitsRoute({ app, deps: { workspaceId: "ws", authorize: async () => ({ allowed: true, reason: "test" }),
+    analyticsSink: { list: async () => { throw new Error("PRIVATE_SINK password=SECRET_CANARY"); } } as never } });
   const response = await dispatchJsonRequest(app, "GET", "/api/admin/v1/workspaces/ws/analytics/recent-hits");
   assert.equal(response.status, 500);
   const body = response.body as any;

@@ -31,7 +31,7 @@ function observabilityStatusBody(
     ...(testAccess ? { canSendTestError: testAccess.allowed } : {}) };
 }
 
-export function registerAdminObservabilityStatusRoute(app: Express, deps: AdminObservabilityStatusDeps): void {
+export function registerAdminObservabilityStatusRoute({ app, deps }: { app: Express; deps: AdminObservabilityStatusDeps }, _optional: Record<string, never> = {}): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/system/observability-status", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

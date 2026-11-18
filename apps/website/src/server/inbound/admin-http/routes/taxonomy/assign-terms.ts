@@ -81,7 +81,7 @@ function sendError({ res, err }: { res: Response; err: unknown }, _optional = {}
  * live-collection policy publishing uses. Tagging also needs the content's own edit permission:
  * `content.write` for a post/page, `admin.collections.manage` for an entry.
  */
-export function registerAdminTaxonomyAssignTermsRoute(app: Express, deps: TaxonomyRouteDeps): void {
+export function registerAdminTaxonomyAssignTermsRoute({ app, deps }: { app: Express; deps: TaxonomyRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/admin/v1/taxonomy/assign-terms", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
@@ -101,7 +101,7 @@ export function registerAdminTaxonomyAssignTermsRoute(app: Express, deps: Taxono
  * Categories & Tags box saves with (Jini `unassignTerms`: same permission, target and term checks as assign;
  * removing a term that is not assigned is a no-op).
  */
-export function registerAdminTaxonomyUnassignTermsRoute(app: Express, deps: TaxonomyRouteDeps): void {
+export function registerAdminTaxonomyUnassignTermsRoute({ app, deps }: { app: Express; deps: TaxonomyRouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/admin/v1/taxonomy/unassign-terms", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
@@ -120,7 +120,7 @@ export function registerAdminTaxonomyUnassignTermsRoute(app: Express, deps: Taxo
  * `GET /api/admin/v1/taxonomy/assigned-terms?contentType=&contentId=` — `{ termIds }`, the terms one
  * post, page or entry holds now, so the editor shows them ticked. Same permissions as a write.
  */
-export function registerAdminTaxonomyAssignedTermsRoute(app: Express, deps: TaxonomyRouteDeps): void {
+export function registerAdminTaxonomyAssignedTermsRoute({ app, deps }: { app: Express; deps: TaxonomyRouteDeps }, _optional: Record<string, never> = {}): void {
   app.get("/api/admin/v1/taxonomy/assigned-terms", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

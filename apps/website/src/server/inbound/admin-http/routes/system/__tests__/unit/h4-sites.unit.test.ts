@@ -18,10 +18,10 @@ const ROOT = '/api/admin/v1/workspaces/:workspaceId/system/sites';
 test('sites uses the bundled token catalog when no catalog port override is supplied', async () => {
   catalogReads.length = 0;
   const app = express();
-  registerAdminSitesRoutes(app, portFake<AdminSitesDeps>({ workspaceId: 'ws',
+  registerAdminSitesRoutes({ app, deps: portFake<AdminSitesDeps>({ workspaceId: 'ws',
     siteBinding: { name: 'owner', dir: '/repo/sites/owner', dirOverridden: false, switcherCompatible: true },
     authorize: async () => ({ allowed: true, reason: 'owner' }), sitePreviews: null, devRestart: null,
-  }));
+  }) });
   const { res, capture } = createCapturingResponse(); res.locals.principal = { id: 'owner' };
   await extractRouteHandler(app, 'get', `${ROOT}/token-sign-in-plugins`)({ params: { workspaceId: 'ws' } }, res);
   assert.deepEqual(capture, { statusCode: 200, jsonBody: { plugins: [] } });
@@ -33,7 +33,7 @@ for (const active of ['alpha', 'beta']) {
     let persisted = active;
     const writes: unknown[] = [];
     const app = express();
-    registerAdminSitesRoutes(app, portFake<AdminSitesDeps>({ workspaceId: 'ws',
+    registerAdminSitesRoutes({ app, deps: portFake<AdminSitesDeps>({ workspaceId: 'ws',
       siteBinding: { name: 'owner', dir: '/repo/sites/owner', dirOverridden: false, switcherCompatible: true },
       authorize: async () => ({ allowed: true, reason: 'owner' }), isSiteSwitcherEnabled: () => true,
       sitePreviews: null, devRestart: null,
@@ -41,7 +41,7 @@ for (const active of ['alpha', 'beta']) {
       persistActiveSite: (input, options) => { persisted = input.name; writes.push([input, options]); },
       localSiteSupervisor: { withStoppedSite: async ({ task }: { task: () => Promise<unknown> }) => task() },
       siteTrash: { trash: ({ name }: Parameters<NonNullable<AdminSitesDeps['siteTrash']>['trash']>[0]) => ({ id: 'trash-id', name, displayName: 'Alpha' }), restore: () => {}, remove: () => {} },
-    }));
+    }) });
     const { res, capture } = createCapturingResponse(); res.locals.principal = { id: 'owner' };
     await extractRouteHandler(app, 'post', `${ROOT}/:name/trash`)({ params: { workspaceId: 'ws', name: 'alpha' }, body: { confirmed: true } }, res);
     assert.deepEqual(capture, { statusCode: 200, jsonBody: { site: { id: 'trash-id', name: 'alpha', displayName: 'Alpha' } } });

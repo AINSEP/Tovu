@@ -57,8 +57,7 @@ function sendSeaAsset({ sea, key, res }: { sea: SeaApi; key: string; res: Respon
  * browser is already on its origin), but it meant `:3000/admin/` never
  * actually worked, only redirected away from itself.
  */
-export function registerAdminStatic(app: Express, required: { distDir: string }): void {
-  const { distDir } = required;
+export function registerAdminStatic({ app, distDir }: { app: Express; distDir: string }, _optional: Record<string, never> = {}): void {
   const indexHtml = path.join(distDir, "index.html");
 
   // Single-binary mode: the admin build is embedded as SEA assets. Always

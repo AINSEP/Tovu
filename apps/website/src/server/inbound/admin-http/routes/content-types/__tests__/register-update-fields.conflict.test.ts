@@ -47,8 +47,8 @@ async function buildApp(t: import("node:test").TestContext, status?: ContentType
     res.locals.principal = { id: "test-principal", displayName: "Test Principal" };
     next();
   });
-  registerAdminContentTypeRegisterRoute(app, deps);
-  registerAdminContentTypeUpdateFieldsRoute(app, deps);
+  registerAdminContentTypeRegisterRoute({ app, deps });
+  registerAdminContentTypeUpdateFieldsRoute({ app, deps });
   return { baseUrl: await startTestServer(app, t), repo, deps, indexCalls };
 }
 

@@ -465,7 +465,7 @@ function localMcpUiTarget({ exchangeId, params, toolName, res, byokSurfaceExchan
  * @returns False after sending the refusal; no delivery or daemon call occurs.
  * @complexity O(1), using the identity freshly resolved by requireAdminSession. */
 function admitHumanSurfaceAnswer({ res }: { res: Response }, _optional = {}): boolean {
-  if (!rejectUnlessSessionCredential(res, {
+  if (!rejectUnlessSessionCredential({ res,
     message: "Answer this dialog from your signed-in browser session. Nothing was changed.",
     permission: "assistant.confirm",
   })) return false;
@@ -729,7 +729,7 @@ function mountAttachmentAndActionRoutes(required: AssistantMountContext, _option
   // Express matches that session gate on the `/api/attachments` prefix AND every subpath, so
   // this route is covered by the same mount that covers the upload it reads back. A separate
   // module would have to re-mount the same guard, which is a second thing to keep in sync.
-  registerAdminChatAttachmentReadRoute(app, { uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir });
+  registerAdminChatAttachmentReadRoute({ app, deps: { uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir } });
 
   // The MCP-UI confirmation redemption endpoint (ADR-053 Decision 3) — see
   // `proxyMcpUiToolCall`'s own doc. Session-gated like every route above; distinct from

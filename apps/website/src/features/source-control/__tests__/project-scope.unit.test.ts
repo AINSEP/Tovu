@@ -180,7 +180,7 @@ test('a Source control-page save is visible after reload on this site only; site
     providerUsage: async () => ({ store: 'project', usedByThisSite: false, usedBy: [] }), reapply: async () => 'now' });
   let rejectAttachment = false;
   const app = express();
-  registerAdminSourceControlCredentialsRoutes(app, {
+  registerAdminSourceControlCredentialsRoutes({ app, deps: {
     customCredentialsHttpClient: noNetwork,
     workspaceId: SITE_A, authorize: async () => ({ allowed: true, reason: 'test' }), clock: a.clock, idGen: a.idGen,
     sourceControlCredentialSetRepo: a.repo, siteAssistantSecretSealer: a.sealer, siteAssistantSecretKeyring: a.keyring,
@@ -189,7 +189,7 @@ test('a Source control-page save is visible after reload on this site only; site
       if (rejectAttachment) throw new Error('attachment unavailable');
       return keys.use(input, options);
     } },
-  });
+  } });
   const path = '/api/admin/v1/workspaces/:workspaceId/system/source-control/credentials';
   const { res, capture } = createCapturingResponse(); res.locals.principal = { id: 'owner' };
   await extractRouteHandler(app, 'post', path)({ params: { workspaceId: SITE_A }, body: { label: 'Git', connection: { providerId: 'example-git', token: secret('git') } } }, res);

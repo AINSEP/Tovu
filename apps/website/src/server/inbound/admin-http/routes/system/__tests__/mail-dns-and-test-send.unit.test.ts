@@ -43,7 +43,7 @@ async function callRoute(app: express.Express, method: "get" | "post", path: str
 test("mail-dns GET answers the unsaved status under deployments.read; POST verify saves under deployments.publish", async () => {
   const asked: string[] = [];
   const app = express();
-  registerAdminMailDnsRoutes(app, { workspaceId: WS, dns: dnsDeps(["deployments.read", "deployments.publish"], asked) });
+  registerAdminMailDnsRoutes({ app, deps: { workspaceId: WS, dns: dnsDeps(["deployments.read", "deployments.publish"], asked) } });
   const read = await callRoute(app, "get", DNS_PATH, {});
   assert.equal(read.statusCode, 200);
   assert.deepEqual([(read.jsonBody as { state: string }).state, (read.jsonBody as { dns: { persisted: boolean } }).dns.persisted], ["checked", false]);
@@ -60,7 +60,7 @@ test('mail-dns verification failure is private and does not persist a DNS verdic
   assert.ok(bindings);
   t.mock.method(bindings, 'put', async () => { writes++; throw new Error('private binding failure'); });
   const app = express();
-  registerAdminMailDnsRoutes(app, { workspaceId: WS, dns });
+  registerAdminMailDnsRoutes({ app, deps: { workspaceId: WS, dns } });
   assertAdminResponse({ actual: await callRoute(app, 'post', VERIFY_PATH, {}), expected: {
     statusCode: 500, jsonBody: { error: 'internal error', code: 'INTERNAL_ERROR' },
   } }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
@@ -69,14 +69,14 @@ test('mail-dns verification failure is private and does not persist a DNS verdic
 
 test("mail-dns: a missing grant is a 403 naming it; another workspace is a 404; a fault is a fixed 500", async (t) => {
   const app = express();
-  registerAdminMailDnsRoutes(app, { workspaceId: WS, dns: dnsDeps(["deployments.read"]) });
+  registerAdminMailDnsRoutes({ app, deps: { workspaceId: WS, dns: dnsDeps(["deployments.read"]) } });
   assert.deepEqual(await callRoute(app, "post", VERIFY_PATH, {}), { statusCode: 403, jsonBody: { error: "principal 'owner' is not authorized for 'deployments.publish' (fixture)", code: "FORBIDDEN", details: { permission: "deployments.publish", reason: "fixture" } } });
   const { res, capture } = createCapturingResponse();
   await extractRouteHandler(app, "get", DNS_PATH)({ params: { workspaceId: "other" } }, res);
   assert.deepEqual(capture, { statusCode: 404, jsonBody: { error: "workspace was not found" } });
   const logged = t.mock.method(console, "error", () => {});
   const broken = express();
-  registerAdminMailDnsRoutes(broken, { workspaceId: WS, dns: { ...dnsDeps([]), authorize: async () => { throw new Error("authorizer down"); } } });
+  registerAdminMailDnsRoutes({ app: broken, deps: { workspaceId: WS, dns: { ...dnsDeps([]), authorize: async () => { throw new Error("authorizer down"); } } } });
   assertAdminResponse({ actual: await callRoute(broken, "get", DNS_PATH, {}), expected: { statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The system setting operation could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"system setting operation"} });
   assertAdminDiagnostics({ calls: logged.mock.calls.map(call => call.arguments), operation: "[routes/system/mail-dns]", diagnostics: [/authorizer down/] });
 });
@@ -100,7 +100,7 @@ function sendDeps(overrides: Partial<AdminMailTestSendDeps> = {}, result: Mailer
     ...overrides,
   };
   const app = express();
-  registerAdminMailTestSendRoute(app, deps);
+  registerAdminMailTestSendRoute({ app, deps });
   return { app, sent };
 }
 

@@ -55,7 +55,7 @@ function deps(granted: string[], overrides: Partial<AdminMailActivityDeps> = {})
 
 async function call(d: AdminMailActivityDeps, path: string, req: Record<string, unknown> = {}, workspaceId = WS, method: "get" | "post" = "get") {
   const app = express();
-  registerAdminMailActivityRoutes(app, d);
+  registerAdminMailActivityRoutes({ app, deps: d });
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: "owner" };
   await extractRouteHandler(app, method, path)({ query: {}, ...req, params: { workspaceId, ...(req.params as object | undefined) } }, res);

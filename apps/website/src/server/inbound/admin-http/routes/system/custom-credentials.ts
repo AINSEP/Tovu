@@ -164,7 +164,7 @@ function registerListRoute({ app, deps, readDeps, rejectUnlessAuthorized }: Cred
   app.get(BASE_PATH, asyncRoute({ handler: async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
     if (deps.projectKeys) {
-      if (!rejectUnlessSessionCredential(res, { message: "Use the owner's session to view Shared Keys.", permission: PERMISSION })) return;
+      if (!rejectUnlessSessionCredential({ res, message: "Use the owner's session to view Shared Keys.", permission: PERMISSION })) return;
       if (getAuthedPrincipal(res).id !== await deps.ownerPrincipalId) { res.status(403).json({ error: "Sign in as the installation owner to view Shared Keys." }); return; }
     }
     try {
@@ -241,7 +241,7 @@ function registerDeleteRoute({ app, deps, readDeps, rejectUnlessAuthorized }: Cr
   } }));
 }
 
-export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCustomCredentialsDeps): void {
+export function registerAdminCustomCredentialsRoutes({ app, deps }: { app: Express; deps: AdminCustomCredentialsDeps }, _optional: Record<string, never> = {}): void {
   const context: CredentialRouteContext = {
     app,
     deps,

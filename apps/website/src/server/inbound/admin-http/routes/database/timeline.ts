@@ -52,7 +52,7 @@ function sendTimelineError({ res, err }: { res: Response; err: unknown }, _optio
  * the Tier-3 browser) stays unwired — that is the admin-UI-adjacent backend work item B in
  * `todos.md` anticipates, not this slice's scope (see the progress ledger's Session 4 entry).
  */
-export function registerAdminDatabaseTimelineRoute(app: Express, deps: DatabaseRecoveryRouteDeps): void {
+export function registerAdminDatabaseTimelineRoute({ app, deps }: { app: Express; deps: DatabaseRecoveryRouteDeps }, _optional: Record<string, never> = {}): void {
   app.get("/api/admin/v1/database/timeline", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

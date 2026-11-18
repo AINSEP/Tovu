@@ -51,7 +51,7 @@ export type AdminAssistantDaemonDeps = Pick<RouteDeps, "workspaceId" | "authoriz
   restartAssistantDaemon?: () => RestartAssistantDaemonResult;
 };
 
-export function registerAdminAssistantDaemonRoutes(app: Express, deps: AdminAssistantDaemonDeps): void {
+export function registerAdminAssistantDaemonRoutes({ app, deps }: { app: Express; deps: AdminAssistantDaemonDeps }, _optional: Record<string, never> = {}): void {
   const restartAssistantDaemon = deps.restartAssistantDaemon ?? restartAssistantDaemonReal;
 
   app.post("/api/admin/v1/workspaces/:workspaceId/system/assistant-daemon/restart", async (req, res) => {

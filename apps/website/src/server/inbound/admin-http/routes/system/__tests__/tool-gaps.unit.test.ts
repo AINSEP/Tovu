@@ -9,12 +9,12 @@ import type { ToolGapsToolDeps } from '#src/assistant/tool-gaps-tool';
 async function invoke(principalId: string, workspaceId = 'w', toolGaps?: ToolGapsToolDeps['toolGaps'] | null) {
   let handler!: (req: Request, res: Response) => Promise<void>;
   let reads = 0;
-  registerAdminToolGapsRoute({ get: (_path: string, callback: typeof handler) => { handler = callback; } } as unknown as Express, {
+  registerAdminToolGapsRoute({ app: { get: (_path: string, callback: typeof handler) => { handler = callback; } } as unknown as Express, deps: {
     workspaceId: 'w', ownerPrincipalId: Promise.resolve('owner'),
     toolGaps: toolGaps === undefined
       ? { list: async input => { reads++; assert.deepEqual(input, { workspaceId: 'w', principalId: 'owner' }); return []; } }
       : toolGaps ?? undefined,
-  });
+  } });
   let status = 200, body: unknown;
   const res = { locals: { principal: { id: principalId } },
     status(code: number) { status = code; return this; }, json(value: unknown) { body = value; return this; } };

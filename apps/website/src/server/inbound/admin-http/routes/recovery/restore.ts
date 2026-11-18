@@ -46,7 +46,7 @@ function statusForCode({ code }: { code: string }, _options: Record<string, neve
  *  producer reachable from these three routes today (`toRecoveryResult`'s classifier and the
  *  orchestrator's own short-circuits) always sets one -- so the `?? error.code` fallback is only
  *  observable by handing this a contract-valid, message-less payload directly. */
-export function sendRecoveryError(res: import("express").Response, error: RecoveryErrorPayload): void {
+export function sendRecoveryError({ res, error }: { res: import("express").Response; error: RecoveryErrorPayload }, _optional: Record<string, never> = {}): void {
   const status = statusForCode({ code: error.code });
   if (status === 500) { sendAdminFailure({ res, error: new Error(error.message ?? error.code) }, { operation: "routes/recovery/restore", code: error.code }); return; }
   res.status(status).json({ error: error.message ?? error.code, code: error.code });
@@ -58,7 +58,7 @@ function sendInternalError({ res, err }: { res: import("express").Response; err:
   sendAdminFailure({ res, error: err }, { operation: "routes/recovery/restore", code: "INTERNAL_ERROR" });
 }
 
-export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps): void {
+export function registerAdminRecoveryRestoreRoutes({ app, deps }: { app: Express; deps: RouteDeps }, _optional: Record<string, never> = {}): void {
   app.post("/api/admin/v1/recovery/restore/plan", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
@@ -103,7 +103,7 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
       });
 
       if (!result.ok) {
-        sendRecoveryError(res, result.error);
+        sendRecoveryError({ res, error: result.error });
         return;
       }
       res.json(result.value);
@@ -149,7 +149,7 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
       });
 
       if (!result.ok) {
-        sendRecoveryError(res, result.error);
+        sendRecoveryError({ res, error: result.error });
         return;
       }
       res.json(result.value);
@@ -238,7 +238,7 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
       });
 
       if (!result.ok) {
-        sendRecoveryError(res, result.error);
+        sendRecoveryError({ res, error: result.error });
         return;
       }
       res.json(result.value);

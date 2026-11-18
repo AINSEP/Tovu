@@ -45,7 +45,7 @@ export function createSettingsModule(deps: SettingsRouteDeps): ServerModuleHandl
       registerAdminSettingsSetRoute({ app, deps });
       registerAdminSettingsClearRoute({ app, deps });
       registerAdminSettingsResetRoute({ app, deps });
-      registerAdminSettingsEventsRoute(app, deps);
+      registerAdminSettingsEventsRoute({ app, deps });
     },
   };
 }

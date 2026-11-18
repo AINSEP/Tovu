@@ -171,9 +171,9 @@ test("plugin_installed on an install (never a preview), with the plugin id", asy
   const app = express();
   app.use((_req, res, next) => { res.locals.principal = { id: "owner-1" }; next(); });
   app.use(express.json());
-  registerPluginInstallRoutes(app, { workspaceId: "ws", tracker: createTracker({ productAnalytics: port }), authorize: async () => ({ allowed: true, reason: "ok" }),
+  registerPluginInstallRoutes({ app, deps: { workspaceId: "ws", tracker: createTracker({ productAnalytics: port }), authorize: async () => ({ allowed: true, reason: "ok" }),
     pluginSourcePolicy: createSitePluginPolicy({ env: { NODE_ENV: "production", TOVU_PLUGIN_LOCAL_INSTALL: "1" }, hostSignals: resolveHostSignals({ env: { NODE_ENV: "production", TOVU_PLUGIN_LOCAL_INSTALL: "1" } }) }),
-    pluginInstaller: { preview: async () => plugin, install: async () => plugin } });
+    pluginInstaller: { preview: async () => plugin, install: async () => plugin } } });
   const baseUrl = await startTestServer(app, t);
   const post = (suffix: string, body: unknown) => fetch(`${baseUrl}/api/admin/v1/workspaces/ws/plugins/install${suffix}`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${secret}` }, body: JSON.stringify(body) });
   assert.equal((await post("/preview", { source: { kind: "folder", path: `/srv/${secret}` } })).status, 200);

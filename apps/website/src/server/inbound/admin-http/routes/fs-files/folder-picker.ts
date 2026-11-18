@@ -44,7 +44,7 @@ async function admitted({ req, res, deps }: { req: Request; res: Response; deps:
   }
   if (!isLocalAdminRequest({ req })) { res.status(403).json({ reasonCode: "local-host-only" }); return false; }
   const permission = FS_FILES_CUSTOM_ROOT_MANAGE_PERMISSION;
-  if (!rejectUnlessSessionCredential(res, { message: "Sign in to the admin to choose a folder.", permission })) return false;
+  if (!rejectUnlessSessionCredential({ res, message: "Sign in to the admin to choose a folder.", permission })) return false;
   return authorizeOrRespond({ res, authorize: deps.authorize, params: { principalId: getAuthedPrincipal(res).id, permission, workspaceId: deps.workspaceId } });
 }
 

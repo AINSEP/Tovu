@@ -5,7 +5,7 @@ import type { ToolGapsToolDeps } from '#src/assistant/host-ports';
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 
 /** Owner-only Observability filter over the existing tool audit store. No mutation endpoint. */
-export function registerAdminToolGapsRoute(app: Express, deps: ToolGapsToolDeps): void {
+export function registerAdminToolGapsRoute({ app, deps }: { app: Express; deps: ToolGapsToolDeps }, _optional: Record<string, never> = {}): void {
   app.get('/api/admin/v1/workspaces/:workspaceId/system/tool-gaps', async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
     try {

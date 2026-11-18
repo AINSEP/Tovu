@@ -394,7 +394,7 @@ function buildCredentialsContext({ deps }: { deps: AdminPublishCredentialsDeps }
   };
 }
 
-export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminPublishCredentialsDeps): void {
+export function registerAdminPublishCredentialsRoutes({ app, deps }: { app: Express; deps: AdminPublishCredentialsDeps }, _optional: Record<string, never> = {}): void {
   const context = buildCredentialsContext({ deps });
   app.get(BASE_PATH, listCredentialsRoute(context));
   app.post(BASE_PATH, createCredentialRoute(context));

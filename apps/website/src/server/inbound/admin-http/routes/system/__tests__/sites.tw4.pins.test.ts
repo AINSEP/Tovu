@@ -27,7 +27,7 @@ function fixture(overrides: Partial<AdminSitesDeps> = {}, _options = {}) {
     createSite: async (input, options) => { calls.push({ input, options }); return { name: input.name, dir: "/new", siteId: "new" }; },
     ...overrides,
   };
-  const app = express(); registerAdminSitesRoutes(app, deps);
+  const app = express(); registerAdminSitesRoutes({ app, deps });
   return { app, calls, async request({ method = "get", body, workspaceId = "ws" }: { method?: "get" | "post"; body?: unknown; workspaceId?: string | null } = {}, _options = {}) {
     const { res, capture } = createCapturingResponse(); res.locals.principal = { id: "owner" };
     await extractRouteHandler(app, method, route)({ params: { workspaceId }, body, socket: { localPort: 3000 } }, res);

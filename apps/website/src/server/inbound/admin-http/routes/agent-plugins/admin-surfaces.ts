@@ -73,7 +73,7 @@ function admitWrite(req: Request, res: Response): boolean {
     res.status(403).json({ error: "admin surface requests must come from the admin page itself", code: "CROSS_ORIGIN_REFUSED" });
     return false;
   }
-  return rejectUnlessSessionCredential(res, { message: "admin surfaces accept only a signed-in admin session", permission: WRITE_PERMISSION });
+  return rejectUnlessSessionCredential({ res, message: "admin surfaces accept only a signed-in admin session", permission: WRITE_PERMISSION });
 }
 
 /** Resolves the URL's surface, or sends 404. @complexity O(s) admitted surfaces. */

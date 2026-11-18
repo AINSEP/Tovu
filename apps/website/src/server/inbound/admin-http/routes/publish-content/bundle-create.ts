@@ -209,7 +209,7 @@ export const registerPublishContentBundleCreateRoute: PublishContentRouteRegistr
           grantRefusal({ publishTrust: getPublishTrustContext(res), entities: validated.entities }) ??
           (await backstopRefusal({ host: req.get("host"), deps, entities: validated.entities }));
         if (refusal) {
-          sendRefusal(res, refusal);
+          sendRefusal({ res, refusal });
           return;
         }
 

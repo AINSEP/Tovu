@@ -10,7 +10,7 @@ import type { TaxonomyRouteDeps } from "./deps.js";
  * @file design-spec.md §2.3/§2.8 — `PUT /api/admin/v1/taxonomy/terms/:id` (renames a term,
  * AC-15/AC-19/AC-25). Gated by `admin.taxonomy.manage`.
  */
-export function registerAdminTaxonomyRenameTermRoute(app: Express, deps: TaxonomyRouteDeps): void {
+export function registerAdminTaxonomyRenameTermRoute({ app, deps }: { app: Express; deps: TaxonomyRouteDeps }, _optional: Record<string, never> = {}): void {
   app.put("/api/admin/v1/taxonomy/terms/:id", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

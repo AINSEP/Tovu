@@ -271,7 +271,7 @@ test('a Deployments-page save attaches its project key to this site and survives
     providerUsage: async () => ({ store: 'project', usedByThisSite: false, usedBy: [] }), reapply: async () => 'now' });
   let rejectAttachment = false;
   const app = express();
-  registerAdminPublishCredentialsRoutes(app, {
+  registerAdminPublishCredentialsRoutes({ app, deps: {
     observability: createNoopObservabilityPort({}), publishExecutionMode: "hosted-api-only",
     workspaceId: SITE_A, authorize: async () => ({ allowed: true, reason: 'test' }), clock: a.deps.clock, idGen: a.deps.idGen,
     vendorCredentialSetRepo: a.deps.repo, siteAssistantSecretSealer: a.deps.sealer, siteAssistantSecretKeyring: a.deps.keyring,
@@ -281,7 +281,7 @@ test('a Deployments-page save attaches its project key to this site and survives
       if (rejectAttachment) throw new Error('attachment unavailable');
       return keys.use(input, options);
     } },
-  });
+  } });
   const path = '/api/admin/v1/workspaces/:workspaceId/system/publish/credentials';
   const { res, capture } = createCapturingResponse();
   res.locals.principal = { id: 'owner' };

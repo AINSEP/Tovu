@@ -92,7 +92,7 @@ export function registerAdminSpa({ app, routeDeps }: { app: Express; routeDeps: 
   // Built admin SPA (apps/admin/dist) at /admin; helpful 503 when unbuilt. Walked up to, not a fixed
   // `../` count: the source and compiled (`dist/src/...`) trees sit at different depths.
   applyAdminBrowserAnalytics({ app, deps: routeDeps });
-  registerAdminStatic(app, {
+  registerAdminStatic({ app,
     distDir: process.env.TOVU_ADMIN_DIST ?? resolveAppDistDir({ app: "admin" }),
   });
 }

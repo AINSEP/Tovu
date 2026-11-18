@@ -150,7 +150,7 @@ const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/site-key";
  */
 export function resolveSiteKeySources(
   deps: Pick<AdminSiteKeyDeps, "siteBinding">,
-  env: NodeJS.ProcessEnv = process.env
+  { env = process.env }: { env?: NodeJS.ProcessEnv } = {}
 ): { sources: SiteKeySource[]; keyFilePath: string | undefined } {
   const mode = resolveRuntimeMode({ env });
   const sources = siteKeySourcesForSiteDir({ siteDir: deps.siteBinding.dir, mode, env, home: homedir(), cwd: process.cwd() });
@@ -242,7 +242,7 @@ async function rejectUnlessAuthorized(req: Request, res: Response, deps: AdminSi
   // guards (the key that decrypts every other stored credential) must stay reachable only by a real
   // admin session, never by a machine credential a leaked key could replay.
   if (
-    !rejectUnlessSessionCredential(res, {
+    !rejectUnlessSessionCredential({ res,
       message: "api-key credentials may not read or manage the site key; use an admin session",
       permission: SITE_KEY_MANAGE_PERMISSION,
     })

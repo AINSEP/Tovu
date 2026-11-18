@@ -15,7 +15,7 @@ import type { TaxonomyRouteDeps } from "./deps.js";
  * `admin.taxonomy.manage`, same as every other taxonomy route, via the shared `authorizeOrRespond`
  * guard — same precedent as `delete-term.ts`/`routes/menus/delete.ts`.
  */
-export function registerAdminTaxonomyDeleteRoute(app: Express, deps: TaxonomyRouteDeps): void {
+export function registerAdminTaxonomyDeleteRoute({ app, deps }: { app: Express; deps: TaxonomyRouteDeps }, _optional: Record<string, never> = {}): void {
   app.delete("/api/admin/v1/taxonomy/:id", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

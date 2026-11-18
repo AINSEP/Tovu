@@ -163,7 +163,7 @@ export function parsePageLimit({ raw }: { raw: unknown }, _optional = {}): numbe
   return parsed;
 }
 
-export function registerAdminSiteProfileRoute(app: Express, deps: AdminSiteProfileDeps): void {
+export function registerAdminSiteProfileRoute({ app, deps }: { app: Express; deps: AdminSiteProfileDeps }, _optional: Record<string, never> = {}): void {
   app.get("/api/admin/v1/workspaces/:workspaceId/site/profile", async (req, res) => {
     if (rejectForeignWorkspace({ req, res, workspaceId: deps.workspaceId })) return;
 

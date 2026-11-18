@@ -31,7 +31,7 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
  *    mechanism itself.
  *  - `watermarkBaselineAvailable`: `false`, matching `disclosure.ts` route's own honest stub.
  */
-export function registerAdminRecoveryStatusRoute(app: Express, deps: DatabaseRecoveryRouteDeps): void {
+export function registerAdminRecoveryStatusRoute({ app, deps }: { app: Express; deps: DatabaseRecoveryRouteDeps }, _optional: Record<string, never> = {}): void {
   app.get("/api/admin/v1/recovery/status", async (_req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

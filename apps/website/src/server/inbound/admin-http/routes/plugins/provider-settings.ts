@@ -100,7 +100,7 @@ function isProjectKeyUseInput(input: Record<string, unknown> | null, _optional =
 
 const internalError = ({ res, error }: { res: Response; error: unknown }, _optional = {}) => sendAdminFailure({ res, error });
 
-export function registerPluginProviderSettingsRoutes(app: Express, deps: ProviderSettingsRouteDeps): void {
+export function registerPluginProviderSettingsRoutes({ app, deps }: { app: Express; deps: ProviderSettingsRouteDeps }, _optional: Record<string, never> = {}): void {
   app.get(PATH, async (req, res) => {
     try {
       const card = await resolveCard({ req, res, deps, permission: "admin.plugins.read" });
@@ -122,7 +122,7 @@ export function registerPluginProviderSettingsRoutes(app: Express, deps: Provide
 
 /** Only the installation owner's own session may change saved-key grants; refusals are answered here. */
 async function isOwnerSession({ res, deps, principalId }: { res: Response; deps: ProviderSettingsRouteDeps; principalId: string }, _options = {}): Promise<boolean> {
-  if (!rejectUnlessSessionCredential(res, { message: "Use the owner's session to approve or revoke a saved key for this site.", permission: "custom-credentials.write" })) return false;
+  if (!rejectUnlessSessionCredential({ res, message: "Use the owner's session to approve or revoke a saved key for this site.", permission: "custom-credentials.write" })) return false;
   if (principalId !== await deps.ownerPrincipalId) { res.status(403).json({ error: "Sign in as the installation owner to change this site's saved key grants." }); return false; }
   return true;
 }

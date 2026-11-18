@@ -14,7 +14,7 @@ import { contentTypeWriteErrorStatus } from "./write-error-status.js";
  * @file design-spec.md §1.9 — `PUT /api/admin/v1/content-types/:key/fields` (full-replace of a
  * content type's field schema, REQ-26/ADR-043 §4). Gated by `admin.collections.manage`.
  */
-export function registerAdminContentTypeUpdateFieldsRoute(app: Express, deps: ContentTypesRouteDeps): void {
+export function registerAdminContentTypeUpdateFieldsRoute({ app, deps }: { app: Express; deps: ContentTypesRouteDeps }, _optional: Record<string, never> = {}): void {
   app.put("/api/admin/v1/content-types/:key/fields", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);

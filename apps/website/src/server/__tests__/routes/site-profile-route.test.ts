@@ -291,7 +291,7 @@ const PROFILE_ROUTE = "/api/admin/v1/workspaces/:workspaceId/site/profile";
 /** The bare route on its own app, for the two cases only a hand-built `req`/`deps` can reach. */
 function profileHandler(deps: RouteDeps) {
   const app = express();
-  registerAdminSiteProfileRoute(app, deps);
+  registerAdminSiteProfileRoute({ app, deps });
   return extractRouteHandler(app, "get", PROFILE_ROUTE);
 }
 

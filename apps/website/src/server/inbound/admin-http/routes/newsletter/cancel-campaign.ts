@@ -25,7 +25,7 @@ export const registerAdminNewsletterCancelCampaignRoute: RouteRegistrar = ({ app
         deps: toCampaignWriteServiceDeps(deps),
         input: { workspaceId: deps.workspaceId, id: String(req.params.id), actorId: getAuthedPrincipal(res).id },
       });
-      res.status(200).json(toDataResponse(campaign));
+      res.status(200).json(toDataResponse({ data: campaign }));
     } catch (err) {
       mapNewsletterErrorToResponse({ err, res });
     }

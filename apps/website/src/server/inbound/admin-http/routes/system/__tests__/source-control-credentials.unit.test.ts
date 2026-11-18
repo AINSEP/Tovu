@@ -21,12 +21,12 @@ const internal = { statusCode: 500, jsonBody: { error: "internal error", code: "
 
 function harness(overrides: PortFake<AdminSourceControlCredentialsDeps> = {}) {
   const app = express();
-  registerAdminSourceControlCredentialsRoutes(app, portFake<AdminSourceControlCredentialsDeps>({
+  registerAdminSourceControlCredentialsRoutes({ app, deps: portFake<AdminSourceControlCredentialsDeps>({
     workspaceId: "ws-1", authorize: async () => ({ allowed: true, reason: "matched" }),
     clock: { nowIso: () => "2026-10-21T00:00:00.000Z", nowMs: () => 0 }, idGen: { newId: () => "cred-1" },
     sourceControlCredentialSetRepo: { listByWorkspace: offline, findById: offline, delete: offline },
     loadSourceControlProviders: offline, ...overrides,
-  }));
+  }) });
   return async (method: "get" | "post" | "put" | "delete", path: string, req: { params?: Record<string, string>; body?: unknown } = {}) => {
     const { res, capture } = createCapturingResponse();
     res.locals.principal = { id: "principal-1" };
@@ -153,7 +153,7 @@ type RegisteredRoute = { method: "get" | "post" | "put" | "delete"; path: string
 
 function registeredRoutes(): RegisteredRoute[] {
   const app = express();
-  registerAdminSourceControlCredentialsRoutes(app, portFake<AdminSourceControlCredentialsDeps>({ workspaceId: "ws-1" }));
+  registerAdminSourceControlCredentialsRoutes({ app, deps: portFake<AdminSourceControlCredentialsDeps>({ workspaceId: "ws-1" }) });
   const stack = (app as unknown as { _router: { stack: RouterLayer[] } })._router.stack;
   return stack.flatMap((layer) => layer.route === undefined ? [] : Object.keys(layer.route.methods).map((method) => ({ method: method as RegisteredRoute["method"], path: layer.route!.path })));
 }
