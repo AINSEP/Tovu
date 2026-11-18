@@ -73,3 +73,19 @@ $ diff "$W/arch.base" "$W/arch.base" > "$W/arch.diff" || [ $? -eq 1 ]; awk "/^>/
 clean-pass
 -> exit 0
 
+
+# COMMON §2 freeze block (verbatim, BASE passed as $1), run in the Tovu clone on 2026-11-18
+$ freeze BASE=b5fbf2a5
+freeze ok since b5fbf2a5
+-> exit 0
+$ freeze BASE=ada11733
+STOP-FREEZE terra changed a frozen path since ada11733: bbad65efe merge: wave2/publish-p0-rest into integ/merge-2-2026-11-17
+9177678de refactor(publish-content): P0.5a peers, destination connect, pull, bundle staging, composite blob source take (required, optional = {})
+fb87248b9 refactor(publish-trust): P0.5a connect, handshake, provisioning, revocations take (required, optional = {})
+-> exit 1
+$ freeze BASE=deadbeef
+fatal: Not a valid object name deadbeef
+STOP-FREEZE terra no longer contains TOVU_BASE deadbeef
+-> exit 1
+
+# S0 step 5 anchor check on b5fbf2a5 (each must match exactly once in deps.ts): all 17 matched once

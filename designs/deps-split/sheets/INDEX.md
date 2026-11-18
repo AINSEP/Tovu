@@ -30,7 +30,7 @@ From S0's first push until H1 step 5 has merged, no lane other than this plan me
 
 | lane (tip) | its `deps.ts` change | note |
 |---|---|---|
-| `wave3/import-cycle-b-2` (not yet pushed) | re-applies `refactor/import-cycle-b`'s Tovu half (`f0613d9e`: import repoints at 25-48, literal tail 2708-2713) | **S0 prerequisite: merged first** |
+| `wave3/import-cycle-b-2` (not yet pushed) | re-applies `refactor/import-cycle-b`'s Tovu half (`f0613d9e`: import repoints at 25-48, literal tail 2711-2713) | **S0 prerequisite: merged first** |
 | `wave3/desktop-d0c` (`a7ebde506`) | `startupSecretEnvironment` import → `@tovu/host-shared/startup-secrets`; `node:fs`/`node:path` import trims | before S0, or rebase after the unfreeze (the import then lives in `site-deps/slices/identity-settings.ts`) |
 | `wave3/moves-b1` (`b8a306376`) | `isInMemoryDbPath` import → `@jini-ai/db/data-modules` | before S0, or rebase onto `site-deps/open-store.ts` |
 | `wave3/su-s5` (`53d469bd5`) | `outboxEventValues` import → `@jini-ai/db/events` | before S0, or rebase onto `site-deps/slices/events-origin.ts` |

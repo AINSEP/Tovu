@@ -102,7 +102,7 @@ Statement indices are rows of `work/closure-census.tsv` (column 1). "Comment lin
 | H3 | readiness + SEO + route-deps promise + consent readiness + plugin exports + agent MCP | 175-182 | 2116-2130 | | `siteAppBootWork`, `seoDeps`, `sitemapService`, `let resolveRouteDeps`, `routeDepsBuilt`, `siteConsentReady`, `pluginExports`, `agentPluginMcp` |
 | L | the `routeDeps` literal | 183 | 2131-2714 | | 258 entries (`work/literal-keys.tsv`): 252 named keys + **6 spreads** (`...compositionApprovalOverrides(…)`, `...agentPluginConnections`, `...compositionConsentOptions(…)`, `...identity`, `...resolvedMailer.operations`, `...(outboundTestOrigins.length > 0 ? … : {})`) whose keys are only known at run time. `refactor/import-cycle-b` had a 7th (`...bindCredentialsHostPorts(…)`) and `staticSitePackager`; `b5fbf2a5` builds `staticSiteContext` inline instead (2708-2713). `wave3/import-cycle-b-2` may bring them back — S0's pin 1 observes whatever the base holds |
 | I1 | resolve + legacy widget adoption | 184-186 | 2715-2735 | | `widgetAdoptionReady` |
-| I2 | forms: submissions, destination, pull, delivery | 187-192 | 2740-2765 | | 6 `routeDeps.*` writes |
+| I2 | forms: submissions, destination, pull, delivery | 187-192 | 2740-2765 | | `formSubmissions` + **5** `routeDeps.*` writes (2747, 2748, 2749, 2755, 2756) |
 | I3 | site search | 193 | 2772-2784 | | `routeDeps.siteSearch` |
 | I4 | commerce (+ hoisted `compositionSharedOAuth`, used **by the literal** at 2264) | 194-199 | 2788-2815 | | `commerceBinding` |
 | I5 | plugin host: boot-work map, host, **root writes `routeDepsBuiltForPluginHost`** (202), runtime attach, boot drain, media credentials | 200-205 | 2817-2832 | | — |
