@@ -18,12 +18,10 @@ import test from "node:test";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { InMemorySettingsRepo } from "../../settings/index.js";
-import { CommentsSettingsValidationError } from "@jini-ai/cms/comments";
+import { CommentsSettingsValidationError, MAX_DEPTH_CEILING, MAX_PER_IP_PER_HOUR_CEILING } from "@jini-ai/cms/comments";
 import {
   ensureCommentsSettingDefinitions,
   getCommentsSettings,
-  MAX_DEPTH_CEILING,
-  MAX_PER_IP_PER_HOUR_CEILING,
   setCommentsSettings,
 } from "../settings.js";
 import type { CommentsSettings } from "@jini-ai/cms/comments";
