@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { MID_RUN_USER_MESSAGE_EVENT_NAME, type ChatMessage } from "@jini-ai/chat/core";
 import type { SupervisorScheduler } from "@jini-ai/sidecar/supervisor";
-import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
+import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { AWAITING_ANSWER_NOTICE } from "@jini-ai/chat/server/durable-runs";
 import { createSurfaceExchangeStore, DEFAULT_SURFACE_IDLE_TTL_MS } from "@jini-ai/daemon/surface-exchanges";
 import { ASK_CHOICE_TOOL_ID, askAgentPluginChoice } from "#src/assistant/ask-choice-tool";

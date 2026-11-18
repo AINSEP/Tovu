@@ -1,4 +1,5 @@
-import type { TrackerSpan, AgentRunTrackingOutcome } from "@jini-ai/diagnostics/observability";
+import type { TrackerSpan } from "@jini-ai/diagnostics/observability";
+import type { AgentRunTrackingOutcome, AgentRunStatus } from "@jini-ai/core/contracts/observability";
 /**
  * @file ADR-059 — the admin assistant's AG-UI canary transport (Agent-User Interaction Protocol,
  * https://ag-ui.com). Additive only: the existing Local CLI (`assistant.ts`) and BYOK
@@ -66,7 +67,6 @@ import { RUN_NOTICES } from "#src/contracts/core/assistant-run-events";
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 import { cancelDaemonRunBestEffort, fetchAgentDaemon, fetchAgentDaemonEventStream, type DaemonCallOptions } from "./assistant-daemon-client.js";
-import type { AgentRunStatus } from "@jini-ai/diagnostics/observability";
 import { redactedError } from "@jini-ai/diagnostics/observability/node";
 import type { ServerModuleHandle } from "./types.js";
 

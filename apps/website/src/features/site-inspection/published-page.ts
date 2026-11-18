@@ -3,7 +3,8 @@ import { createServer, type RequestListener, type Server } from "node:http";
 import { once } from "node:events";
 import type { AddressInfo } from "node:net";
 
-import { createNoopObservabilityPort, trackFetch, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import { trackFetch } from "@jini-ai/diagnostics/observability";
+import { createNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { readBoundedBody, toCookieShapes, type CookieShape } from "@jini-ai/diagnostics/web-evidence";
 import { resolveSitePath } from "./site-path-policy.js";
 

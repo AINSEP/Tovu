@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import * as yauzl from "yauzl";
-import type { ObservabilityPort, Tracker } from "@jini-ai/diagnostics/observability";
+import type { Tracker } from "@jini-ai/diagnostics/observability";
+import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { createSiteImportBackend, type SiteImportBackend } from "#src/features/site-backup/import-backend";
 import { createShareArchiveReader } from "#src/features/site-backup/import-archive-reader";
 import { SiteImportRegistry } from "#src/features/site-backup/import-registry";

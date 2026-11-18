@@ -8,7 +8,12 @@ import { defineJsonRoute, mountJsonRoute } from "@jini-ai/http-kit";
 
 import { applyRequestTracking } from "../observability-middleware.js";
 import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
-import { createNoopObservabilityPort, type ObservabilityPort, type RequestTrackingInput, type RequestTrackingOutcome } from "@jini-ai/diagnostics/observability";
+import {
+  createNoopObservabilityPort,
+  type ObservabilityPort,
+  type RequestTrackingInput,
+  type RequestTrackingOutcome,
+} from "@jini-ai/core/contracts/observability";
 
 const loggingDisabled: NonNullable<Parameters<typeof applyRequestTracking>[1]["env"]> = {
   TOVU_LOG_REQUESTS: undefined,

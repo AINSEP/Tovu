@@ -1,3 +1,4 @@
+import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import express from "express";
 import { createProjectKeys } from "#src/features/project-keys/service";
 import { registerAdminSourceControlCredentialsRoutes, type AdminSourceControlCredentialsDeps } from "#src/server/inbound/admin-http/routes/system/source-control-credentials";

@@ -9,7 +9,9 @@ import type {
   CredentialedRequestErrorClass,
   CredentialedRequestPort,
 } from "@jini-ai/core/contracts/credentials";
-import { EgressRefusedError } from "../../platform/http/index.js";
+import { EgressRefusedError, type HttpClientPort } from "../../platform/http/index.js";
+import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
+import { buildSourceControlProviderForApi, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
 import {
   CredentialedRequestTransportError,
   CredentialedRequestValidationError,

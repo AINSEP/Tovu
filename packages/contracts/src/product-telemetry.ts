@@ -1,5 +1,4 @@
-import type { CrashUpload, ObservabilityPort } from '@jini-ai/diagnostics/observability';
-import type { ProductAnalyticsPort } from '@jini-ai/analytics/product';
+import type { ProductAnalyticsPort, CrashUpload, ObservabilityPort } from '@jini-ai/core/contracts/observability';
 
 export interface ProductConsent { crashes: boolean; usage: boolean; installationId: string | null; }
 export interface ProductTelemetry {

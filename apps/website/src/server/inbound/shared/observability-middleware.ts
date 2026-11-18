@@ -2,7 +2,8 @@ import type { ErrorRequestHandler, Express, NextFunction, Request, Response } fr
 
 import type { Logger } from "@jini-ai/core/primitives";
 import { logCompletedRequest } from "@jini-ai/http-kit/observability";
-import type { Tracker, TrackerSpan, RequestTrackingOutcome } from "@jini-ai/diagnostics/observability";
+import type { Tracker, TrackerSpan } from "@jini-ai/diagnostics/observability";
+import type { RequestTrackingOutcome } from "@jini-ai/core/contracts/observability";
 
 import { runWithErrorReportScope, type ErrorReportScope } from "@jini-ai/diagnostics/observability/node";
 import { REQUEST_ID_HEADER, resolveRequestId } from "./request-id.js";

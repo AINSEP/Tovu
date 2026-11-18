@@ -2,7 +2,11 @@ import { randomUUID } from "node:crypto";
 
 import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
 import type { DurableRecovery, RecoveryTrigger } from "@jini-ai/chat/server/durable-runs";
-import { createNoopObservabilityPort, createNoopTracker, type ObservabilityPort, type Tracker } from "@jini-ai/diagnostics/observability";
+import { createNoopTracker, type Tracker } from "@jini-ai/diagnostics/observability";
+import {
+  createNoopObservabilityPort,
+  type ObservabilityPort,
+} from "@jini-ai/core/contracts/observability";
 import type { SupervisorScheduler } from "@jini-ai/sidecar/supervisor";
 import { createNodeSupervisorScheduler } from "@jini-ai/sidecar/supervisor/node";
 

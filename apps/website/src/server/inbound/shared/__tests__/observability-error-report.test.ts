@@ -3,7 +3,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import express from "express";
-import { createNoopObservabilityPort, type ErrorReport, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import {
+  createNoopObservabilityPort,
+  type ErrorReport,
+  type ObservabilityPort,
+} from "@jini-ai/core/contracts/observability";
 
 import { applyRequestTracking, captureRouteError } from "../observability-middleware.js";
 import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";

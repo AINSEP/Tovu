@@ -30,6 +30,7 @@ import { requireHumanConfirm } from "../../contracts/core/human-confirm.js";
 // (Tovu's binding, `credential-ports.ts`, holds the `EgressRefusedError` runtime import).
 import type { HttpClientPort } from "../../platform/http/index.js";
 import type { SourceControlWritePort } from "@jini-ai/core/contracts/credentials";
+import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import type { ToolContributor } from "@jini-ai/core";
 import { customCredentialsAgentToolCatalog, WRITE_FILES_TOOL_ID } from "./agent-tools.js";

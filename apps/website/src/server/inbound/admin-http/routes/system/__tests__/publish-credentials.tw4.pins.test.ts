@@ -1,5 +1,5 @@
 import { assertAdminDiagnostics, assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
-import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
+import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";

@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
-import { createNoopObservabilityPort, isNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
+import {
+  createNoopObservabilityPort,
+  isNoopObservabilityPort,
+} from "@jini-ai/core/contracts/observability";
 import { definePlugin } from "@tovu/sdk";
 import { WORD_COUNT_MANIFEST } from "#src/features/plugin-runtime/built-ins/word-count/index";
 

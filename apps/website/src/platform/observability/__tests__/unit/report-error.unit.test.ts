@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createNoopObservabilityPort, type ErrorReport, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import {
+  createNoopObservabilityPort,
+  type ErrorReport,
+  type ObservabilityPort,
+} from "@jini-ai/core/contracts/observability";
 
 import { redactedError, reportErrorOnce, runWithErrorReportScope, type ErrorReportScope } from "@jini-ai/diagnostics/observability/node";
 

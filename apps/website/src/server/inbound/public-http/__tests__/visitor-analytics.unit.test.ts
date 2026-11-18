@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Request } from 'express';
-import type { ProductEvent } from '@jini-ai/analytics/product';
+import type { ProductEvent } from '@jini-ai/core/contracts/observability';
 import { createTracker } from '@jini-ai/diagnostics/observability/node';
 import { captureVisitorEvent, visitorAnalyticsProvenance, type VisitorAnalyticsDeps } from '../visitor-analytics.js';
 

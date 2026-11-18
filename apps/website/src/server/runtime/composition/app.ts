@@ -30,6 +30,7 @@ import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import express from "express";
 import { NO_PUBLISH_CONTENT_SEED_HASH } from "#src/features/publish-content/seed-hash";
 import { randomUUID } from "node:crypto";
+import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { unhideIfRemoveThrows, THEME_ENTITY_TYPE, REDIRECT_ENTITY_TYPE, removeEntityWithoutBlocker } from "#src/features/trash/index";
 import { bindRemoveEntity } from "@jini-ai/cms/trash";

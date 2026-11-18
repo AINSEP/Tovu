@@ -9,7 +9,7 @@ import type { PublishContentSeedHashFn } from "#src/features/publish-content/see
 import type { SiteProduct } from "../inbound/public-http/http/site/render-context.js";
 
 import type { ExportReport } from "#src/features/site-export/index";
-import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { PeerSiteReads } from "#src/assistant/host-ports";
 import type { SiteSearchRuntime } from "#src/server/runtime/composition/modules/site-search";

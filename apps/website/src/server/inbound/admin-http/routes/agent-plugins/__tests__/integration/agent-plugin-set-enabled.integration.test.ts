@@ -1,7 +1,8 @@
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import "../../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
-import { createNoopObservabilityPort, createNoopTracker } from "@jini-ai/diagnostics/observability";
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
+import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
 import { testSiteLayoutContext } from "#src/__tests__/fixtures/site-layout-context";
 

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { ProductEvent } from '@jini-ai/analytics/product';
+import type { ProductEvent } from '@jini-ai/core/contracts/observability';
 import { createTracker } from '@jini-ai/diagnostics/observability/node';
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from '@jini-ai/cms/forms';
 import { InMemoryEventBus } from '#src/contracts/core/events/index';

@@ -14,7 +14,8 @@ import {
 } from "@jini-ai/core/contracts/runtime";
 import { type AddressClass } from "@jini-ai/core/net";
 import type { HttpClientPort as JiniHttpClientPort } from "@jini-ai/core/primitives";
-import { trackHttpClient, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import { trackHttpClient } from "@jini-ai/diagnostics/observability";
+import { type ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import type { HttpClientPort, HttpTransportAdapter } from "./ports.js";
 
 export type { AddressClass } from "@jini-ai/core/net";

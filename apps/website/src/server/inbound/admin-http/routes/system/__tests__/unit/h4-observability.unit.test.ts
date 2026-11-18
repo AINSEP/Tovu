@@ -5,7 +5,7 @@ import express from 'express';
 import type { Tracker } from '@jini-ai/diagnostics/observability';
 import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
 import { portFake } from '#src/server/__tests__/helpers/port-fake';
-import { createNoopObservabilityPort } from '@jini-ai/diagnostics/observability';
+import { createNoopObservabilityPort } from '@jini-ai/core/contracts/observability';
 import { registerAdminObservabilityStatusRoute, type AdminObservabilityStatusDeps } from '../../observability-status.js';
 import { registerAdminBrowserTelemetryRoute } from '../../browser-telemetry.js';
 

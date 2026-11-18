@@ -14,7 +14,7 @@ import { consentFixture } from '#src/features/consent/__tests__/fixture';
 import { SITE_CONSENT_DEFAULT_CSS } from '#src/features/consent/config';
 import { ensureSiteConsentDefinitions, SITE_CONSENT_NAMESPACE } from '#src/features/consent/settings';
 import { bindSiteConsentService } from '#src/server/runtime/composition/site-consent';
-import { createNoopObservabilityPort } from '@jini-ai/diagnostics/observability';
+import { createNoopObservabilityPort } from '@jini-ai/core/contracts/observability';
 import type { RouteDeps } from '#src/server/routes/types';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
 import { dispatchHttpRequest } from '#src/server/__tests__/helpers/in-process-http';

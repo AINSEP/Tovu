@@ -9,7 +9,7 @@ import path from "node:path";
 import test, { type TestContext } from "node:test";
 
 import express from "express";
-import type { ProductAnalyticsPort, ProductEvent } from "@jini-ai/analytics/product";
+import type { ProductAnalyticsPort, ProductEvent } from "@jini-ai/core/contracts/observability";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import type { PluginInstallPreview } from "@jini-ai/plugins/host/node";
 

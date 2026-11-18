@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { createNoopObservabilityPort } from '@jini-ai/diagnostics/observability';
+import { createNoopObservabilityPort } from '@jini-ai/core/contracts/observability';
 import type { DiscoveredTheme } from '../../theme/theme.js';
 import { exportSite, type ExportSiteRouteDeps } from '../site-exporter.js';
 

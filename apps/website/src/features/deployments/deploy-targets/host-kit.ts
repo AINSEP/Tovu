@@ -15,7 +15,8 @@ import {
   waitForReachableDeploymentUrl,
 } from "@jini-ai/devops/deploy";
 
-import { trackFetch, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import { trackFetch } from "@jini-ai/diagnostics/observability";
+import { type ObservabilityPort } from "@jini-ai/core/contracts/observability";
 
 import type { DeployFetchTimeouts, DeployHostKit, SigV4Client } from "./types.js";
 
