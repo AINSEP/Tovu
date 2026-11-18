@@ -23,7 +23,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import type { UIResource } from "@jini-ai/protocol/mcp-ui";
 import { type AgentToolDefinition } from "@jini-ai/core";
-import { getWebhooksAgentToolCatalog } from "../../features/webhooks/agent-tools.js";
+import { getWebhooksAgentToolCatalog } from "@jini-ai/integrations/webhooks/tools";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../../features/webhooks/repo.memory.js";
 import type { WebhookDeliveryRecord } from "../../features/webhooks/types.js";
 import { contributeWebhooksTools } from "../../features/webhooks/tool-registrations.js";

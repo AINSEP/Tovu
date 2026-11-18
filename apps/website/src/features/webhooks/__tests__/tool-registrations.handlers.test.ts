@@ -5,7 +5,8 @@ import type { ToolRegistration } from "@jini-ai/core";
 import type { WebhookDeliveryRecord } from "@jini-ai/integrations/webhooks";
 
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../repo.memory.js";
-import { buildWebhooksRegistrations, contributeWebhooksTools, webhooksDerivedRisk, type IntegrationsToolDeps } from "../tool-registrations.js";
+import { webhooksDerivedRisk } from "@jini-ai/integrations/webhooks/tools";
+import { buildWebhooksRegistrations, contributeWebhooksTools, type IntegrationsToolDeps } from "../tool-registrations.js";
 
 /**
  * @file The non-delete webhooks tool handlers, called through their registrations against the

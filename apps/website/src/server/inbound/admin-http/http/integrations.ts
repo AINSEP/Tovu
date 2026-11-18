@@ -1,5 +1,5 @@
 import type { WebhookDeliveryRecord, WebhookSubscriptionRecord } from "#src/features/webhooks/index";
-import { toWebhookDeliveryView } from "#src/features/webhooks/tool-views";
+import { toWebhookDeliveryView } from "@jini-ai/integrations/webhooks/tools";
 
 /**
  * @file Admin HTTP response DTOs for the `integrations` webhook subsystem (ADR-036).

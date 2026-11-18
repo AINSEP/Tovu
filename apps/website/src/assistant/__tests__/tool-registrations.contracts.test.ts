@@ -88,7 +88,7 @@ import { getWorkspaceAgentToolCatalog } from "../../features/workspace/index.js"
 import { formsAgentToolCatalog } from "../../features/forms/agent-tools.js";
 import { identityAgentToolCatalog } from "@jini-ai/user-management/server";
 import { USER_CREATE_DESCRIPTION_SUFFIX, withoutPassword } from "../../features/identity/tool-registrations.js";
-import { getWebhooksAgentToolCatalog } from "../../features/webhooks/agent-tools.js";
+import { getWebhooksAgentToolCatalog } from "@jini-ai/integrations/webhooks/tools";
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
 import { setActiveThemeAgentToolCatalog } from "../../features/theme/set-active-theme-tool.js";
 import { previewSwitcherAgentToolCatalog } from "../../features/theme/preview-switcher-tools.js";
