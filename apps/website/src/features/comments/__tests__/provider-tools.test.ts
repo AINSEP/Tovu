@@ -8,7 +8,8 @@ import { createSystemClock } from '@jini-ai/platform/system';
 import type { ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
 import { InMemorySettingsRepo } from '../../settings/index.js';
 import { ensureCommentsSettingDefinitions, setCommentsSettings, type SetCommentsSettingsDeps } from '../settings.js';
-import { buildCommentsRegistrations, commentsDerivedRisk, type CommentsToolDeps } from '../tool-registrations.js';
+import { commentsDerivedRisk } from '@jini-ai/cms/comments';
+import { buildCommentsRegistrations, type CommentsToolDeps } from '../tool-registrations.js';
 import { nativeToolMetadata } from '#src/contracts/core/tool-metadata/index';
 
 function fixture() {

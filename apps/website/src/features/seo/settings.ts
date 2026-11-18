@@ -9,7 +9,7 @@ import {
   set,
   type AuthorizeFn,
 } from "../settings/index.js";
-import { SeoSettingsValidationError, seoImageRefRefusal, type SeoFeaturedImagePort, type RobotsDirective, type RobotsRule, type SeoSettingKey, type SeoSettings } from "@jini-ai/cms/seo";
+import { DEFAULT_DESCRIPTION_MAX_LENGTH, DEFAULT_OG_IMAGE_MAX_LENGTH, MAX_ROBOTS_RULES, MAX_RULE_PATH_ENTRIES, TITLE_TEMPLATE_MAX_LENGTH, TWITTER_SITE_MAX_LENGTH, SeoSettingsValidationError, seoImageRefRefusal, type SeoFeaturedImagePort, type RobotsDirective, type RobotsRule, type SeoSettingKey, type SeoSettings } from "@jini-ai/cms/seo";
 
 /**
  * @file `getSeoSettings`/`setSeoSettings`/`ensureSeoSettingDefinitions`
@@ -183,16 +183,6 @@ export interface SetSeoSettingsInput {
   patch: SeoSettingsPatch;
   callerPrincipalId: UUID;
 }
-
-// Exported (unchanged values) so `agent-tools.ts`'s published JSON Schema for `seo_set_settings`
-// cannot drift from the bounds this chokepoint actually validates — same rationale as
-// `write-service.ts`'s identical export note just above its own field-bound constants.
-export const MAX_ROBOTS_RULES = 50;
-export const MAX_RULE_PATH_ENTRIES = 100;
-export const TITLE_TEMPLATE_MAX_LENGTH = 500;
-export const DEFAULT_DESCRIPTION_MAX_LENGTH = 500;
-export const DEFAULT_OG_IMAGE_MAX_LENGTH = 2048;
-export const TWITTER_SITE_MAX_LENGTH = 100;
 
 /** The only keys `setSeoSettings`'s patch may contain — mirrors `SeoSettings`' own field list. */
 const KNOWN_PATCH_KEYS: ReadonlySet<string> = new Set([

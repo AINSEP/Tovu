@@ -21,7 +21,7 @@ import {
   InMemorySettingsRepo,
 } from "../../features/settings/index.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
-import { commentsAgentToolCatalog } from "../../features/comments/agent-tools.js";
+import { commentsAgentToolCatalog } from "@jini-ai/cms/comments";
 import { InMemoryCommentRepo } from "@jini-ai/cms/comments";
 import { createCommentHookRegistry } from "@jini-ai/cms/comments";
 import { createCommentWriteService } from "@jini-ai/cms/comments";

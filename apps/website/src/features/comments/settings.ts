@@ -9,7 +9,7 @@ import {
   set,
   type AuthorizeFn,
 } from "../settings/index.js";
-import { CommentsSettingsValidationError } from "@jini-ai/cms/comments";
+import { CommentsSettingsValidationError, MAX_DEPTH_CEILING, MAX_PER_IP_PER_HOUR_CEILING } from "@jini-ai/cms/comments";
 import type { CommentsSettings } from "@jini-ai/cms/comments";
 
 export { CommentsSettingsValidationError };
@@ -147,12 +147,6 @@ export interface SetCommentsSettingsInput {
   patch: Partial<CommentsSettings>;
   callerPrincipalId: UUID;
 }
-
-// Exported (not just module-local) so `agent-tools.ts`'s published `inputSchema` bounds import
-// these single sources rather than restating the numbers — the same discipline
-// `forms/agent-tools.ts` applies to `forms.ts`'s field constants.
-export const MAX_DEPTH_CEILING = 20;
-export const MAX_PER_IP_PER_HOUR_CEILING = 1000;
 
 /**
  * The three assertion shapes the six `comments.*` fields reduce to. Each takes `unknown` rather

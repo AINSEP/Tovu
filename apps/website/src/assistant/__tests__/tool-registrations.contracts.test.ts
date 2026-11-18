@@ -49,7 +49,7 @@ import { demoChoicesAgentToolCatalog } from "../demo-choices-tool.js";
 import { demoImageAgentToolCatalog } from "../demo-image-tool.js";
 import { externalMcpReauthAgentToolCatalog } from "../external-mcp-reauth-tool.js";
 import { renderUiAgentToolCatalog } from "../render-ui-tool.js";
-import { commentsAgentToolCatalog } from "../../features/comments/agent-tools.js";
+import { commentsAgentToolCatalog } from "@jini-ai/cms/comments";
 import {
   contentTypesAgentToolCatalog,
   type ContentTypesAgentToolDefinition as AgentToolDefinition,
@@ -114,7 +114,7 @@ import { menusAgentToolCatalog } from "../../features/navigation/index.js";
 import { newsletterAgentToolCatalog } from "../../features/newsletter/agent-tools.js";
 import { newsletterDeliveryAgentToolCatalog } from "../../features/newsletter/delivery/tool-registrations.js";
 import { getRedirectsAgentToolCatalog } from "@jini-ai/cms/redirects";
-import { getSeoAgentToolCatalog } from "../../features/seo/agent-tools.js";
+import { getSeoAgentToolCatalog } from "@jini-ai/cms/seo";
 import { catalog as searchAgentToolCatalog } from "@jini-ai/search/tools";
 import { catalog as commerceStatusCatalog, commerceCatalogToolCatalog } from "@jini-ai/commerce/tools";
 import { commerceResolutionToolCatalog } from "@jini-ai/commerce/payments/tools";

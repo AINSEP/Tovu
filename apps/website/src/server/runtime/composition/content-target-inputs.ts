@@ -11,7 +11,7 @@ import { mediaViewImageAgentToolCatalog } from "#src/features/media/view-image-t
 import { catalog as videoCatalog } from "#src/features/media/view-video-tool";
 import { mediaImportAgentToolCatalog } from "#src/features/media-import/agent-tools";
 import { permanentDeleteAgentToolCatalog } from "#src/features/permanent-delete/agent-tools";
-import { getSeoAgentToolCatalog } from "#src/features/seo/agent-tools";
+import { getSeoAgentToolCatalog } from "@jini-ai/cms/seo";
 
 /** Bind the one assistant adapter to existing CMS owners and their declared permissions.
  * Peers pass their own dependencies through this same binding, never the active site's repos.
