@@ -83,9 +83,9 @@ export function isVaultRestoreArtifact({ table }: { table: string }): boolean {
 /** Catalog truth, in code-unit order. O(t) catalog reads for t live tables. */
 export async function discoverSealedColumns(kernel: ContentKernel): Promise<DiscoveredSealedColumn[]> {
   const refs: DiscoveredSealedColumn[] = [];
-  for (const table of (await listTables(kernel)).sort()) {
+  for (const table of (await listTables({ kernel })).sort()) {
     if (isVaultRestoreArtifact({ table })) continue;
-    const columns = await listColumns(kernel, table);
+    const columns = await listColumns({ kernel, table });
     const tableColumns = new Set(columns.map(column => column.name));
     for (const column of columns) {
       if (column.name.endsWith(SEALED_COLUMN_SUFFIX)) refs.push({ table, column: column.name, tableColumns, notNull: column.notNull });

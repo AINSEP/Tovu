@@ -32,7 +32,7 @@ test("Tovu and Jini wrapping the same native SQLite handle share one kernel", as
   const client = new Database(":memory:");
   try {
     const fromTovu: KyselyKernel<ContentDatabase> = sqliteKernel<ContentDatabase>({ $client: client });
-    const fromJini: KyselyKernel<ContentDatabase> = jiniSqliteKernel<ContentDatabase>(client);
+    const fromJini: KyselyKernel<ContentDatabase> = jiniSqliteKernel<ContentDatabase>({ source: client });
     assert.equal(fromTovu, fromJini);
     await fromTovu.transaction(async () => {
       assert.equal(fromJini.inTransaction(), true);

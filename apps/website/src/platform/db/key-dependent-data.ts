@@ -34,7 +34,7 @@ const WEBHOOK_SUBSCRIPTIONS_TABLE = "webhook_subscriptions";
  * @complexity O(t) catalog reads for t tables, plus one `LIMIT 1` probe per sealed column.
  */
 export async function hasKeyDependentData<DB>(kernel: KyselyKernel<DB>): Promise<boolean> {
-  for (const table of await listTables(kernel)) {
+  for (const table of await listTables({ kernel })) {
     if (isVaultRestoreArtifact({ table })) continue;
     if (await tableHasSealedValue({ kernel, table })) return true;
   }
@@ -48,7 +48,7 @@ export async function hasKeyDependentData<DB>(kernel: KyselyKernel<DB>): Promise
  * @complexity O(c) for c catalog columns, plus one `LIMIT 1` probe per sealed column.
  */
 async function tableHasSealedValue<DB>({ kernel, table }: { kernel: KyselyKernel<DB>; table: string }): Promise<boolean> {
-  for (const column of await listColumns(kernel, table)) {
+  for (const column of await listColumns({ kernel, table })) {
     if (!column.name.endsWith(SEALED_COLUMN_SUFFIX)) continue;
     const hit = await kernel.query(
       sql`SELECT 1 AS hit FROM ${sql.table(table)} WHERE ${sql.ref(column.name)} IS NOT NULL LIMIT 1`
@@ -60,7 +60,7 @@ async function tableHasSealedValue<DB>({ kernel, table }: { kernel: KyselyKernel
 
 /** Whether a `webhook_subscriptions` table exists and holds any row (its secrets derive from the key). */
 async function hasWebhookSubscription<DB>({ kernel }: { kernel: KyselyKernel<DB> }): Promise<boolean> {
-  if (!(await tableExists(kernel, WEBHOOK_SUBSCRIPTIONS_TABLE))) return false;
+  if (!(await tableExists({ kernel, table: WEBHOOK_SUBSCRIPTIONS_TABLE }))) return false;
   const subscription = await kernel.query(sql`SELECT 1 AS hit FROM ${sql.table(WEBHOOK_SUBSCRIPTIONS_TABLE)} LIMIT 1`);
   return subscription.length > 0;
 }

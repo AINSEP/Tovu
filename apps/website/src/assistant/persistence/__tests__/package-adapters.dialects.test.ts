@@ -81,7 +81,7 @@ test("negative control: independent kernels do not participate in the ledger rol
     } }), /independent write/);
     assert.equal((await history.messages({ conversationId: "c" }))[0]?.content, "escaped rollback", "the positive rollback test must distinguish this broken composition");
   } finally {
-    closeSqliteConnection(sqliteConnectionOf(ledgerKernel)!);
-    closeSqliteConnection(sqliteConnectionOf(independentKernel)!);
+    closeSqliteConnection({ source: sqliteConnectionOf({ kernel: ledgerKernel })! });
+    closeSqliteConnection({ source: sqliteConnectionOf({ kernel: independentKernel })! });
   }
 });

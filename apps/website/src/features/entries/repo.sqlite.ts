@@ -21,8 +21,8 @@ export class SqliteEntryRepo extends SqlEntryRepo {
       kernel: schemaErasedKernel({ store: kernel }),
       tables: ENTRY_TABLES,
       json: {
-        scalarEquals: ({ column, path, value }) => jsonScalarEquals(kernel.dialect, column, path, value),
-        sortKey: ({ column, path }) => jsonSortKey(kernel.dialect, column, path),
+        scalarEquals: ({ column, path, value }) => jsonScalarEquals({ dialect: kernel.dialect, column, path, value }),
+        sortKey: ({ column, path }) => jsonSortKey({ dialect: kernel.dialect, column, path }),
       },
       onWriteSettled: ({ repo }) => invalidateMediaAccessEvidence({ owner: repo }),
     }, {});

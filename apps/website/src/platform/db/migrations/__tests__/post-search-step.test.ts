@@ -36,11 +36,11 @@ describe("0001_post_search", () => {
     // Steps 0002 and 0004 drop the empty legacy chat and unused deployment tables;
     // later steps also alter columns/add tables. Isolate the SQLite search step so its
     // schema-neutral contract stays meaningful as the full content history grows.
-    const before = await readSchemaShape(kernel, { exclude: ["__drizzle_migrations", "tovu_migrations"] });
+    const before = await readSchemaShape({ kernel }, { exclude: ["__drizzle_migrations", "tovu_migrations"] });
     const throughSearch = CONTENT_MIGRATIONS.slice(0, 2);
     const report = await runMigrations(kernel, throughSearch);
     assert.deepEqual(report.applied, throughSearch.map(step => step.id));
-    assert.deepEqual(await readSchemaShape(kernel, { exclude: ["__drizzle_migrations", "tovu_migrations"] }), before);
+    assert.deepEqual(await readSchemaShape({ kernel }, { exclude: ["__drizzle_migrations", "tovu_migrations"] }), before);
     assert.deepEqual((await migrateContentDatabase(kernel)).applied, CONTENT_MIGRATIONS.slice(2).map(step => step.id));
     assert.deepEqual((await migrateContentDatabase(kernel)).applied, [], "a rerun applies nothing");
   });
@@ -65,14 +65,14 @@ describe("chat history", () => {
     assert.deepEqual((await migrateChatDatabase(kernel)).applied, CHAT_MIGRATIONS.map((step) => step.id));
     const [{ n }] = await kernel.query<{ n: number }>(sql`SELECT count(*)::int AS n FROM ai_chat.tovu_chat_migrations`);
     assert.equal(n, CHAT_MIGRATIONS.length);
-    assert.deepEqual(await listTables(kernel), [], "nothing in public");
+    assert.deepEqual(await listTables({ kernel }), [], "nothing in public");
     assert.deepEqual((await migrateChatDatabase(kernel)).applied, []);
   });
 
   test("SQLite (chat.db): the chat tables and their own ledger in the file, second run is a no-op", async () => {
     const kernel = open(openMemorySqliteKernel<unknown>());
     assert.deepEqual((await migrateChatDatabase(kernel)).applied, CHAT_MIGRATIONS.map((step) => step.id));
-    assert.deepEqual(await listTables(kernel), [
+    assert.deepEqual(await listTables({ kernel }), [
       "ai_chat_messages",
       "ai_chats",
       "assistant_agent_sessions",
@@ -87,9 +87,9 @@ describe("chat history", () => {
     const db = openChatDb(":memory:");
     db.prepare("INSERT INTO ai_chats (id, scope_id, owner_kind, owner_id, created_at, updated_at) VALUES ('c1', 'ws', 'user', 'u', 1, 1)").run();
     const kernel = sqliteKernel<unknown>(db);
-    const before = await readSchemaShape(kernel, { exclude: ["tovu_chat_migrations"] });
+    const before = await readSchemaShape({ kernel }, { exclude: ["tovu_chat_migrations"] });
     await migrateChatDatabase(kernel);
-    assert.deepEqual(await readSchemaShape(kernel, { exclude: ["tovu_chat_migrations"] }), before);
+    assert.deepEqual(await readSchemaShape({ kernel }, { exclude: ["tovu_chat_migrations"] }), before);
     const [{ n }] = await kernel.query<{ n: number }>(sql`SELECT count(*) AS n FROM ai_chats`);
     assert.equal(n, 1);
     db.close();

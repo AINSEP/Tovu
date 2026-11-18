@@ -128,12 +128,12 @@ for (const dialect of ['sqlite', 'pglite'] as const) {
     assert.equal((await runtime.commerce.status()).ready, false);
     assert.deepEqual(await runtime.commerceCatalog.listProducts(), []);
     await f.stop();
-    assert.deepEqual((await listTables(f.kernel())).filter(table => table.startsWith('commerce_')), []);
+    assert.deepEqual((await listTables({ kernel: f.kernel() })).filter(table => table.startsWith('commerce_')), []);
     await f.activation(true);
     runtime = f.boot();
     assert.equal((await runtime.commerce.status()).ready, false);
     await f.stop();
-    assert.deepEqual((await listTables(f.kernel())).filter(table => table.startsWith('commerce_')), []);
+    assert.deepEqual((await listTables({ kernel: f.kernel() })).filter(table => table.startsWith('commerce_')), []);
     assert.ok(f.warnings.some(message => /configuration|configured|account|HTTPS/i.test(message)),
       'enabled checkout without merchant settings must warn specifically while keeping the CMS available');
     await f.write(configuration); await f.activation(true);
@@ -146,8 +146,8 @@ for (const dialect of ['sqlite', 'pglite'] as const) {
     assert.deepEqual(f.requests, []);
     await f.saveProvider();
     assert.equal((await runtime.commerce.activate()).ready, true);
-    assert.ok((await listTables(f.kernel())).includes('commerce_products'));
-    assert.ok((await listTables(f.kernel())).includes('commerce_payments'));
+    assert.ok((await listTables({ kernel: f.kernel() })).includes('commerce_products'));
+    assert.ok((await listTables({ kernel: f.kernel() })).includes('commerce_payments'));
     const publicSettings = await f.providerConfig.readSettings({ pluginId: 'payments-stripe' });
     assert.deepEqual([...(publicSettings?.secretNames ?? [])].sort(), ['test_secretKey', 'test_webhookSecret']);
     assert.ok(!JSON.stringify(publicSettings).includes('sk_test_composition_fixture'));

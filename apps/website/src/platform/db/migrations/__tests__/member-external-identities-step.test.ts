@@ -23,7 +23,7 @@ for (const adapter of eachDialect({ tables: ["members", "member_external_identit
     const options = { ledgerTable: "member_external_identity_test_migrations" };
     assert.deepEqual((await runMigrations(kernel as KyselyKernel<unknown>, [step], options)).applied, [step.id]);
     assert.deepEqual(await kernel.query(sql`SELECT * FROM members`), before);
-    assert.deepEqual((await listColumns(kernel, "member_external_identities")).map(column => column.name).sort(),
+    assert.deepEqual((await listColumns({ kernel, table: "member_external_identities" })).map(column => column.name).sort(),
       ["id", "workspace_id", "member_id", "provider_id", "issuer", "subject", "linked_at", "unlinked_at"].sort());
     await kernel.execute(sql`INSERT INTO member_external_identities
       (id,workspace_id,member_id,provider_id,issuer,subject,linked_at,unlinked_at)

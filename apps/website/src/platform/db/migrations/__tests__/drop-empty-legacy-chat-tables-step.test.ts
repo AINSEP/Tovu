@@ -31,7 +31,7 @@ function legacyContentKernel(): KyselyKernel<unknown> {
   return kernel;
 }
 
-const legacyChatTablesIn = async (kernel: KyselyKernel<unknown>) => (await listTables(kernel)).filter((name) => LEGACY_CHAT_TABLES.includes(name));
+const legacyChatTablesIn = async (kernel: KyselyKernel<unknown>) => (await listTables({ kernel })).filter((name) => LEGACY_CHAT_TABLES.includes(name));
 
 describe(DROP_EMPTY_LEGACY_CHAT_TABLES_ID, () => {
   test("SQLite: the three empty legacy chat tables are dropped", async () => {

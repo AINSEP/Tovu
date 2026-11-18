@@ -36,12 +36,12 @@ export function openMemorySqliteKernel<DB>(): SqliteKernel<DB> {
 
 /** Jini returns the original handle; this boundary retains its native Tovu type. */
 export function sqliteClientOf(source: SqliteConnectionSource): Database.Database {
-  return jiniSqliteClientOf(source) as Database.Database;
+  return jiniSqliteClientOf({ source }) as Database.Database;
 }
 
 /** Kernels opened here carry Tovu's native handle in Jini's shared reverse cache. */
 export function sqliteConnectionOf<DB>(kernel: KyselyKernel<DB>): Database.Database | undefined {
-  return jiniSqliteConnectionOf(kernel) as Database.Database | undefined;
+  return jiniSqliteConnectionOf({ kernel }) as Database.Database | undefined;
 }
 
 /** Host-owned native opener reused by content/chat bootstraps; Jini owns the opener contract. */

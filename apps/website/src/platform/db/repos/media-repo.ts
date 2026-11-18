@@ -177,7 +177,7 @@ export class SqlMediaRepo implements VersionedMediaRepoPort {
   private async creationValues(required: { record: MediaRecord }, _optional: Record<string, never> = {}):
     Promise<Omit<MediaTable, "created_by" | "kind" | "original_filename"> & { created_by?: string | null; kind: string; original_filename: string | null }> {
     const { record } = required;
-    const columns = await listColumns(this.kernel, "media");
+    const columns = await listColumns({ kernel: this.kernel, table: "media" });
     return { ...toMediaRow(record), source_metadata_json: JSON.stringify({ provenance: record.source.provenance, contentType: record.source.contentType, ...(record.source.private ? { private: true } : {}) }),
       kind: record.kind ?? "media", original_filename: record.originalFilename ?? null, ...(columns.some(column => column.name === "created_by")
       ? { created_by: record.createdBy ?? null } : {}) };

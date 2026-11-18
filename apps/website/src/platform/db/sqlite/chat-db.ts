@@ -50,7 +50,7 @@ export async function openSiteChatDb(required: string | { filePath: string }, op
   const filePath = typeof required === "string" ? required : required.filePath;
   const sqlite = openChatConnection({ filePath }, options);
   try {
-    await migrateChatDatabase(sqliteKernel<unknown>(sqlite));
+    await migrateChatDatabase(sqliteKernel<unknown>({ source: sqlite }));
   } catch (err) {
     sqlite.close();
     throw err;

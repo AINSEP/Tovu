@@ -98,7 +98,7 @@ export async function checkForOrphanedChatRows(
   { contentDb }: { contentDb: ContentKernel | SqliteConnectionSource }, _optional: Record<string, never> = {}
 ): Promise<OrphanedChatRowsCheck> {
   const kernel = contentKernel({ store: contentDb });
-  const present = new Set(await listTables(kernel));
+  const present = new Set(await listTables({ kernel }));
   const counts = { aiChats: 0, aiChatMessages: 0, assistantAgentSessions: 0 };
   let total = 0;
   for (const { table, key } of CHAT_TABLES) {

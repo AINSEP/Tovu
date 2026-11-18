@@ -49,7 +49,7 @@ export type ChatKernel = KyselyKernel<ChatDatabase>;
 export function chatKernel(store: ChatKernel | SqliteConnectionSource): ChatKernel {
   return typeof (store as Partial<ChatKernel>).lockKey === "function"
     ? (store as ChatKernel)
-    : sqliteKernel<ChatDatabase>(store as SqliteConnectionSource);
+    : sqliteKernel<ChatDatabase>({ source: store as SqliteConnectionSource });
 }
 
 /** The Postgres schema of the AI chat tables and their ledger (ADR-067): never `public`, never `chat`. */
@@ -61,5 +61,5 @@ export const AI_CHAT_SCHEMA = "ai_chat";
  * `migrateChatDatabase`.
  */
 export function pgChatKernel(kernel: KyselyKernel<unknown>): ChatKernel {
-  return scopeToSchema(kernel as ChatKernel, AI_CHAT_SCHEMA);
+  return scopeToSchema({ kernel: kernel as ChatKernel, schema: AI_CHAT_SCHEMA });
 }

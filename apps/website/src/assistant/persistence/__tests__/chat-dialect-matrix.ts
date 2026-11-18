@@ -48,7 +48,7 @@ function emptiedPostgresChatKernel(): ChatKernel {
 
 /** A fresh in-memory SQLite `chat.db` behind its kernel. */
 export function freshSqliteChatKernel(): ChatKernel {
-  return sqliteKernel<ChatDatabase>(openChatDb(":memory:"));
+  return sqliteKernel<ChatDatabase>({ source: openChatDb(":memory:") });
 }
 
 /** The file's shared PGlite chat kernel, with every chat table emptied before its first call. */

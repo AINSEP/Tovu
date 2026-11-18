@@ -124,7 +124,7 @@ import { InternalError } from "./errors.js";
 async function purgeStrandedChatTables(kernel: ContentKernel): Promise<void> {
   await kernel.transaction(async () => {
     for (const name of CHAT_TABLE_NAMES) {
-      if (!(await tableExists(kernel, name))) continue;
+      if (!(await tableExists({ kernel, table: name }))) continue;
       await kernel.execute(sql`DELETE FROM ${sql.table(name)}`);
     }
   });

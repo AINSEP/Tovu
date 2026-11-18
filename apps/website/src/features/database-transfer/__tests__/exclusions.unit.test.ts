@@ -70,7 +70,7 @@ test("partial exclusion counts skip settings tables absent from an older snapsho
     INSERT INTO setting_definitions VALUES ('public', 0), ('secret-a', 1), ('secret-b', 1);
     INSERT INTO setting_values_global VALUES ('public', 'visible'), ('secret-a', 'private-a'), ('secret-b', 'private-b');
   `);
-  const source = openSqliteSnapshotSource({ bytes: db.serialize() }, { open: data => openSqliteSnapshot({ data }) });
+  const source = openSqliteSnapshotSource({ bytes: db.serialize(), open: data => openSqliteSnapshot({ data }) });
   t.after(() => source.close());
 
   assert.deepEqual(countPartialExclusions(source), [{
@@ -97,7 +97,7 @@ test("a snapshot with member password hashes leaves the whole credential table b
   t.after(() => db.close());
   db.exec("CREATE TABLE members (id TEXT PRIMARY KEY, password_hash TEXT)");
   db.prepare("INSERT INTO members VALUES (?, ?)").run("member-1", "MEMBER_PASSWORD_HASH_CANARY");
-  const source = openSqliteSnapshotSource({ bytes: db.serialize() }, { open: data => openSqliteSnapshot({ data }) });
+  const source = openSqliteSnapshotSource({ bytes: db.serialize(), open: data => openSqliteSnapshot({ data }) });
   t.after(() => source.close());
 
   assert.equal(source.countRows("members"), 1, "the snapshot really contains a member credential");
@@ -119,7 +119,7 @@ test("a snapshot leaves owner MFA, recovery codes and passkey login records behi
     INSERT INTO owner_recovery_codes VALUES ('RECOVERY_HASH_CANARY');
     INSERT INTO owner_passkeys VALUES ('PASSKEY_ID_CANARY', 'PASSKEY_PUBLIC_KEY_CANARY');
   `);
-  const source = openSqliteSnapshotSource({ bytes: db.serialize() }, { open: data => openSqliteSnapshot({ data }) });
+  const source = openSqliteSnapshotSource({ bytes: db.serialize(), open: data => openSqliteSnapshot({ data }) });
   t.after(() => source.close());
   const names = ["owner_mfa_factors", "owner_mfa_pending", "owner_passkeys", "owner_recovery_codes"];
   for (const name of names) assert.equal(source.countRows(name), 1, `${name} contains a login record`);
@@ -145,7 +145,7 @@ test("a copy plan names the receiver pull lease as left out because it is a lock
   const db = openContentDb(":memory:");
   try {
     db.$client.prepare("INSERT INTO form_receiver_pulls (workspace_id, receiver_key, lease_token, lease_expires_at, last_started_at) VALUES ('ws', 'host:https://r.example', 't', '2026-10-20T12:06:15.000Z', '2026-10-20T12:00:00.000Z')").run();
-    const { leftOut } = planSnapshotTables({ source: openSqliteSnapshotSource({ bytes: db.$client.serialize() }, { open: data => openSqliteSnapshot({ data }) }), catalog: createCoreTableCatalog({}) });
+    const { leftOut } = planSnapshotTables({ source: openSqliteSnapshotSource({ bytes: db.$client.serialize(), open: data => openSqliteSnapshot({ data }) }), catalog: createCoreTableCatalog({}) });
     assert.deepEqual(leftOut.filter(entry => entry.table === "form_receiver_pulls"),
       [{ table: "form_receiver_pulls", reason: "locks held by the running site are not copied" }]);
   } finally {

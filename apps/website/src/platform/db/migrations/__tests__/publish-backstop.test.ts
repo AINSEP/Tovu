@@ -31,9 +31,9 @@ for (const adapter of adapters) {
     const step = publishBackstop({ checksum: MIGRATION_CHECKSUMS["0007_publish_backstop"]! });
     const options = { ledgerTable: "publish_backstop_test_migrations" };
     try {
-      assert.equal(await tableExists(kernel, "publish_backstop_log"), false);
+      assert.equal(await tableExists({ kernel, table: "publish_backstop_log" }), false);
       assert.deepEqual((await runMigrations(kernel, [step], options)).applied, ["0007_publish_backstop"]);
-      const columns = await listColumns(kernel, "publish_backstop_log");
+      const columns = await listColumns({ kernel, table: "publish_backstop_log" });
       assert.deepEqual(columns.map(column => column.name), [
         "id", "workspace_id", "direction", "actor_id", "destination", "reason", "at",
         "items_json", "gap_labels_json", "result", "run_id", "details_json", "inverses_json",
@@ -42,7 +42,7 @@ for (const adapter of adapters) {
         assert.equal(column.notNull, column.name !== "run_id", column.name);
         assert.equal(column.type.toLowerCase(), kernel.dialect === "postgres" && column.name.endsWith("_json") ? "jsonb" : "text", column.name);
       }
-      assert.deepEqual([...await listIndexes(kernel, "publish_backstop_log")].sort(), [
+      assert.deepEqual([...await listIndexes({ kernel, table: "publish_backstop_log" })].sort(), [
         ["publish_backstop_log_run", { name: "publish_backstop_log_run", columns: ["workspace_id", "run_id"], unique: false }],
         ["publish_backstop_log_workspace_at", { name: "publish_backstop_log_workspace_at", columns: ["workspace_id", "at"], unique: false }],
       ]);

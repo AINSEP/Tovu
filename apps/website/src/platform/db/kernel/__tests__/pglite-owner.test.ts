@@ -228,7 +228,7 @@ describe("a running owner", () => {
     const second = await startPgliteOwner({ dataDir: other.dataDir }, { socketDir: other.socketDir });
     try {
       const otherKernel = openPgliteSocketKernel<ProbeDb>({ socketPath: second.socketPath });
-      assert.equal((await listTables(otherKernel as KyselyKernel<unknown>)).includes("kernel_probe"), false);
+      assert.equal((await listTables({ kernel: otherKernel as KyselyKernel<unknown> })).includes("kernel_probe"), false);
       await otherKernel.close();
     } finally {
       await second.close();
@@ -300,14 +300,14 @@ describe("a running owner", () => {
     await upsert(1, true);
     await upsert(2, false);
     const [row] = await kernel.query<{ n: number; flag: boolean; lang: string }>(
-      sql`SELECT n, flag, ${jsonText(kernel.dialect, sql.ref("doc"), ["meta", "lang"])} AS lang FROM kernel_probe`
+      sql`SELECT n, flag, ${jsonText({ dialect: kernel.dialect, column: sql.ref("doc"), path: ["meta", "lang"] })} AS lang FROM kernel_probe`
     );
     assert.deepEqual({ n: row!.n, flag: toBool(row!.flag), lang: row!.lang }, { n: 2, flag: false, lang: "en" });
   });
 
   test("the content schema installs through runExclusive and is visible to socket clients", async () => {
     await owner.runExclusive((db) => ensurePgContentSchema(db));
-    const tables = await listTables(kernel as KyselyKernel<unknown>);
+    const tables = await listTables({ kernel: kernel as KyselyKernel<unknown> });
     assert.ok(tables.includes("posts"), `content tables present: ${tables.length}`);
   });
 });

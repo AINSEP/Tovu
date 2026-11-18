@@ -24,5 +24,5 @@ export async function runMigrations(
 
 /** The old hasLedger API always checks the content ledger. */
 export function hasLedger(kernel: KyselyKernel<unknown>): Promise<boolean> {
-  return jiniHasLedger(kernel, LEDGER_TABLE);
+  return jiniHasLedger({ kernel, ledgerTable: LEDGER_TABLE });
 }

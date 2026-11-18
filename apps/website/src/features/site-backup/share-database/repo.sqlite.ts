@@ -89,7 +89,7 @@ async function declarePortableTables(required: { target: Kernel; decl: DataModul
  * @example await refuseUnknownShareTables({ source, trusted: new Set(await listTables(target)) });
  */
 export async function refuseUnknownShareTables({ source, trusted }: { source: Kernel; trusted: ReadonlySet<string> }, _options = {}): Promise<void> {
-  for (const table of await listTables(source)) {
+  for (const table of await listTables({ kernel: source })) {
     if (trusted.has(table) || SHARE_LEGACY_PRIVATE_TABLES.has(table) || CHAT_TABLE_NAMES.includes(table) || table.startsWith("_vault_backup_")) continue;
     const rows = await source.query<{ found: number }>(sql`SELECT 1 AS found FROM ${sql.id(table)} LIMIT 1`);
     if (rows.length) throw new SiteShareRefusal({ code: "UNSUPPORTED_DATA", message: `Cannot share unsupported nonempty table '${archiveRefusalName({ name: table })}'. Add an approved portable-data policy for this table first.` });
@@ -119,8 +119,8 @@ function requireTrustedColumns(required: { table: string; columns: string[]; sou
  * @throws SiteShareRefusal for missing required columns or unapproved core columns.
  */
 async function copyTable({ source, target, table, credentialWarnings }: { source: Kernel; target: Kernel; table: string; credentialWarnings: CredentialWarning[] }, { signal, portablePlugin, omittedMediaIds = [] }: { signal?: AbortSignal; portablePlugin?: boolean; omittedMediaIds?: readonly string[] } = {}): Promise<void> {
-  const columns = (await listColumns(target, table)).map(row => row.name);
-  const sourceColumns = (await listColumns(source, table)).map(row => row.name);
+  const columns = (await listColumns({ kernel: target, table })).map(row => row.name);
+  const sourceColumns = (await listColumns({ kernel: source, table })).map(row => row.name);
   const defaults = ADDITIVE_COLUMN_DEFAULTS.get(table) ?? {};
   requireTrustedColumns({ table, columns, sourceColumns, defaults }, { portablePlugin });
   const rows = await source.run(db => db.selectFrom(table).select(columns.filter(column => sourceColumns.includes(column))).execute());
@@ -330,9 +330,9 @@ export async function sanitizeShareDatabase(required: { snapshot: Buffer; omitte
     fresh = openContentDb({ filePath: ":memory:" });
     const target = sqliteKernel<Tables>(fresh);
     const from = source;
-    const present = new Set(await listTables(from));
+    const present = new Set(await listTables({ kernel: from }));
     const plugins = await prepareSharePluginTables({ target, present, modules: required.modules });
-    await refuseUnknownShareTables({ source, trusted: new Set([...await listTables(target), ...plugins.private]) });
+    await refuseUnknownShareTables({ source, trusted: new Set([...await listTables({ kernel: target }), ...plugins.private]) });
     await copyPortableTables({ source: from, target, present, plugins, credentialWarnings, omittedMediaIds: required.omittedMediaIds }, optional);
     await backfillPostSearchIndex({ kernel: contentKernel({ store: fresh }) });
     const documents = await documentReferences({ target });

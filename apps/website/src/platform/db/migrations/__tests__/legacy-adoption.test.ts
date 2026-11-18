@@ -75,8 +75,8 @@ describe("0000_legacy_baseline on SQLite", () => {
     // drizzle's chain creates; steps 0005/0006 also evolve columns. Bring both paths to head
     // before comparing every remaining schema object, including future steps.
     assert.deepEqual((await migrateContentDatabase(viaDrizzle)).applied, CONTENT_MIGRATIONS.map(step => step.id));
-    const mine = await readSchemaShape(kernel, { exclude: BOOKKEEPING });
-    assert.deepEqual(mine, await readSchemaShape(viaDrizzle, { exclude: BOOKKEEPING }));
+    const mine = await readSchemaShape({ kernel }, { exclude: BOOKKEEPING });
+    assert.deepEqual(mine, await readSchemaShape({ kernel: viaDrizzle }, { exclude: BOOKKEEPING }));
   });
 
   test("a drizzle-migrated database is adopted with no schema change and no new drizzle rows", async () => {
@@ -84,12 +84,12 @@ describe("0000_legacy_baseline on SQLite", () => {
     const kernel = sqliteKernel<unknown>(db);
     opened.push(kernel);
     assert.equal(await hasLedger(kernel), false, "a frozen-chain fixture has no Tovu ledger");
-    const before = await readSchemaShape(kernel, { exclude: BOOKKEEPING });
+    const before = await readSchemaShape({ kernel }, { exclude: BOOKKEEPING });
     // Baseline adoption is schema-neutral. Later content steps deliberately alter the schema.
     const baseline = CONTENT_MIGRATIONS.slice(0, 1);
     const report = await runMigrations(kernel, baseline);
     assert.deepEqual(report.applied, baseline.map(step => step.id));
-    assert.deepEqual(await readSchemaShape(kernel, { exclude: BOOKKEEPING }), before, "adoption itself preserves every legacy schema object");
+    assert.deepEqual(await readSchemaShape({ kernel }, { exclude: BOOKKEEPING }), before, "adoption itself preserves every legacy schema object");
     assert.equal(await drizzleRows(kernel), 78);
     assert.deepEqual((await migrateContentDatabase(kernel)).applied, CONTENT_MIGRATIONS.slice(1).map(step => step.id));
     assert.equal(await drizzleRows(kernel), 78, "later steps add no Drizzle rows either");

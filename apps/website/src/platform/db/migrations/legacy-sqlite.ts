@@ -90,7 +90,7 @@ export class LegacyHistoryError extends Error {
  *   the chain (an edited or foreign migration), or an entry missing BEFORE the last applied one.
  */
 export async function reconcileLegacyHistory(kernel: KyselyKernel<unknown>, chain: readonly LegacyEntry[]): Promise<LegacyReconciliation> {
-  const tables = (await listTables(kernel)).filter((name) => name !== LEDGER_TABLE);
+  const tables = (await listTables({ kernel })).filter((name) => name !== LEDGER_TABLE);
   if (!tables.includes(DRIZZLE_TABLE)) {
     if (tables.length > 0) {
       throw new LegacyHistoryError(`the database has tables (${tables.slice(0, 5).join(", ")}…) but no drizzle migration history; it is not a Tovu content database this runtime can adopt`);
@@ -132,7 +132,7 @@ export async function frozenHeadShape(chain: readonly LegacyEntry[]): Promise<Sc
   const scratch = openMemorySqliteKernel<unknown>();
   try {
     await scratch.transaction(async () => applyLegacyEntries(scratch, chain));
-    return await readSchemaShape(scratch, { exclude: BOOKKEEPING });
+    return await readSchemaShape({ kernel: scratch }, { exclude: BOOKKEEPING });
   } finally {
     await scratch.close();
   }
@@ -193,7 +193,7 @@ export async function adoptLegacySqlite(kernel: KyselyKernel<unknown>, note: (me
   if (!state.fresh && firstPending !== undefined) {
     note(`applied legacy migrations ${firstPending.tag} … ${state.pending.at(-1)?.tag} (${state.pending.length})`);
   }
-  const difference = compareShapes(await frozenHeadShape(chain), await readSchemaShape(kernel, { exclude: BOOKKEEPING }), {
+  const difference = compareShapes(await frozenHeadShape(chain), await readSchemaShape({ kernel }, { exclude: BOOKKEEPING }), {
     optionalTables: DROPPABLE,
   });
   if (difference.problems.length > 0) {

@@ -34,7 +34,7 @@ async function up(kernel: KyselyKernel<unknown>, context: MigrationContext): Pro
     await adoptLegacySqlite(kernel, context.note);
     return;
   }
-  const existing = (await listTables(kernel)).filter((name) => name !== LEDGER_TABLE);
+  const existing = (await listTables({ kernel })).filter((name) => name !== LEDGER_TABLE);
   if (existing.length > 0) {
     throw new LegacyHistoryError(
       `this Postgres schema already has tables (${existing.slice(0, 5).join(", ")}…) but no migration ledger; ` +

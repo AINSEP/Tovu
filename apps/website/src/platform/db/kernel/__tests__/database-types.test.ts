@@ -70,7 +70,7 @@ const pg = openPgliteKernel({ prepare: ensurePgContentSchema });
 after(() => pg.close());
 
 test("content-database.generated.ts matches the reference database", async () => {
-  const rendered = await renderDatabaseTypes(pg, {
+  const rendered = await renderDatabaseTypes({ kernel: pg,
     interfaceName: "ContentDatabase",
     source: "a fresh PGlite database with the content schema (`__tests__/pg-content-schema.ts`)",
     regenerate: REGENERATE,
@@ -94,7 +94,7 @@ test("a migrated SQLite content.db has every generated table and column, with co
   const db = openSqliteContentConnection(":memory:");
   await migrateSqliteContentFile({ db, filePath: ":memory:" });
   const sqlite = sqliteKernel(db);
-  const tables = await listTables(sqlite);
+  const tables = await listTables({ kernel: sqlite });
   const problems: string[] = [];
   const pascal = (name: string) => name.split("_").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join("");
   const seen = new Set<string>();
@@ -105,7 +105,7 @@ test("a migrated SQLite content.db has every generated table and column, with co
       continue;
     }
     seen.add(pascal(table));
-    const actual = new Map((await listColumns(sqlite, table)).map((column) => [column.name, column.type]));
+    const actual = new Map((await listColumns({ kernel: sqlite, table })).map((column) => [column.name, column.type]));
     for (const [column, tsType] of expected) {
       const declared = actual.get(column);
       if (declared === undefined) problems.push(`${table}.${column}: missing on SQLite`);

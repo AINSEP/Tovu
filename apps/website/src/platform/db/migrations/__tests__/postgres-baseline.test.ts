@@ -48,11 +48,11 @@ describe("0000_legacy_baseline on Postgres (PGlite)", () => {
       "custom_credential_sets", "publish_content_peers", "database_transfer_destinations", "vendor_credential_sets",
       "source_control_credential_sets", "publish_credential_sets", "external_mcp_servers",
       "oauth_pending_authorizations", "tovu_migrations", "external_mcp_tool_approvals"].map(name => `_vault_backup_${name}`);
-    assert.deepEqual((await listTables(kernel)).filter(name => name.startsWith("_vault_backup_")).sort(), [...backups].sort());
+    assert.deepEqual((await listTables({ kernel })).filter(name => name.startsWith("_vault_backup_")).sort(), [...backups].sort());
     assert.deepEqual(await kernel.query(sql`SELECT id FROM _vault_backup_tovu_migrations ORDER BY id`),
       CONTENT_MIGRATIONS.filter(step => step.id < "0012_secrets_vault").map(step => ({ id: step.id })));
-    const actual = await readSchemaShape(kernel, { exclude: ["tovu_migrations", "post_search_document", ...backups] });
-    const expected = withoutNotValid(await readSchemaShape(reference));
+    const actual = await readSchemaShape({ kernel }, { exclude: ["tovu_migrations", "post_search_document", ...backups] });
+    const expected = withoutNotValid(await readSchemaShape({ kernel: reference }));
     // The transfer projection carries PK columns, not the constraint name: Postgres supplies
     // `_pkey` there, whereas immutable steps 0039–0041 explicitly name these composite keys.
     // Normalize only those reference names; compare every actual key/index definition unchanged.

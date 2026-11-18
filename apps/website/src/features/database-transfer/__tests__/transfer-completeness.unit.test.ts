@@ -20,8 +20,8 @@ test("content.db and chat.db plans account for all three raw-SQL tables and name
       CREATE TABLE ai_chat_messages (id TEXT PRIMARY KEY, conversation_id TEXT REFERENCES ai_chats(id));
       CREATE TABLE assistant_agent_sessions (id TEXT PRIMARY KEY);
       CREATE TABLE tovu_chat_migrations (id TEXT PRIMARY KEY);`);
-    const contentSource = openSqliteSnapshotSource({ bytes: content.serialize() }, { open: data => openSqliteSnapshot({ data }) });
-    const chatSource = openSqliteSnapshotSource({ bytes: chat.serialize() }, { open: data => openSqliteSnapshot({ data }) });
+    const contentSource = openSqliteSnapshotSource({ bytes: content.serialize(), open: data => openSqliteSnapshot({ data }) });
+    const chatSource = openSqliteSnapshotSource({ bytes: chat.serialize(), open: data => openSqliteSnapshot({ data }) });
     try {
       const sources = [{ name: "content.db", source: contentSource, ...planSnapshotTables({ source: contentSource, catalog: createCoreTableCatalog({}) }) }, { name: "chat.db", source: chatSource, ...planChatSnapshotTables(chatSource) }];
       const plan = planTransfer({ sources });

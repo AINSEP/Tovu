@@ -31,5 +31,5 @@ export class SqliteFormSubmissionRepo extends SqlFormSubmissionRepo {
 
 /** Bind the site's connection and table names; retention policy and query stay in Jini. */
 export function createSubmissionIpRetentionRepo({ kernel }: { kernel: ContentKernel }, _optional = {}) {
-  return createPackageRetentionRepo({ kernel, tables: FORMS_TABLES, columns: ({ table }) => listColumns(kernel, table) }, {});
+  return createPackageRetentionRepo({ kernel, tables: FORMS_TABLES, columns: ({ table }) => listColumns({ kernel, table }) }, {});
 }

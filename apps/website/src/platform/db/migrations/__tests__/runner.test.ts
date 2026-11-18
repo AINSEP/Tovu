@@ -82,7 +82,7 @@ for (const { name, open } of dialects) {
         },
       };
       await assert.rejects(runMigrations(kernel, [tableStep("0001_first", "first_t"), failing, tableStep("0003_third", "third_t")]), /boom/);
-      const tables = await listTables(kernel);
+      const tables = await listTables({ kernel });
       assert.ok(tables.includes("first_t"));
       assert.ok(!tables.includes("half_done"), "the failed step's DDL rolled back");
       assert.ok(!tables.includes("third_t"), "later steps were not attempted");
@@ -100,7 +100,7 @@ for (const { name, open } of dialects) {
         runMigrations(kernel, [tableStep("0001_first", "first_t", sum("d")), tableStep("0002_second", "second_t")]),
         (error: unknown) => error instanceof MigrationChecksumError && error.id === "0001_first"
       );
-      assert.ok(!(await listTables(kernel)).includes("second_t"));
+      assert.ok(!(await listTables({ kernel })).includes("second_t"));
     });
 
     test("a recorded step this runtime does not know stops the run (database from a newer Tovu)", async () => {

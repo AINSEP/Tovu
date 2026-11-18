@@ -31,7 +31,7 @@ for (const adapter of eachDialect({ tables: ["posts"], make: kernel => kernel })
       assert.deepEqual({ ...rows[0], show_author: toBool(rows[0]!.show_author) }, {
         title: "Legacy title", body_json: '{"type":"doc"}', status: "published", version: 7, author: null, show_author: false,
       });
-      const columns = await listColumns(kernel, "posts");
+      const columns = await listColumns({ kernel, table: "posts" });
       assert.equal(columns.find(column => column.name === "author")?.notNull, false);
       assert.equal(columns.find(column => column.name === "author")?.type.toLowerCase(), "text");
       assert.equal(columns.find(column => column.name === "show_author")?.notNull, true);

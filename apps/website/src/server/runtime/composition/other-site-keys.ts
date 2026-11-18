@@ -99,7 +99,7 @@ export function createOtherSiteKeys({ target, project }: { target: Target; proje
     const resolved = resolveSiteDatabasePaths({ dir: source.dir }, { workspace, reserveIdentity: false });
     const kernel = openSource<SecretsVaultDatabase>(resolved.contentDbPath, { readOnly: true });
     try {
-      const empty = !(await tableExists(kernel, "secrets_vault"));
+      const empty = !(await tableExists({ kernel, table: "secrets_vault" }));
       const workspaceId = empty ? "" : (await resolveWorkspace({ kernel: kernel as unknown as ContentKernel })).id;
       const rows = empty ? [] : await kernel.query<MetaRow>(sql`SELECT id, kind, provider, label, meta FROM secrets_vault
         WHERE workspace_id=${workspaceId} AND owner_key='tovu' AND principal_id IS NULL AND binding IS NULL

@@ -89,12 +89,12 @@ export async function readAppliedSchemaIdentity<DB>(
   kernel: KyselyKernel<DB>, { identity = "current" }: { identity?: "current" | "legacy-stamp" } = {},
 ): Promise<AppliedSchemaIdentity> {
   const ledgers = kernel as unknown as KyselyKernel<SchemaLedgers>;
-  const hasContentLedger = await tableExists(kernel, LEDGER_TABLE);
+  const hasContentLedger = await tableExists({ kernel, table: LEDGER_TABLE });
   if (kernel.dialect === "postgres" || (identity === "current" && hasContentLedger)) {
     return readContentLedgerIdentity({ ledgers, hasContentLedger });
   }
 
-  if (!(await tableExists(kernel, "__drizzle_migrations"))) return "none";
+  if (!(await tableExists({ kernel, table: "__drizzle_migrations" }))) return "none";
   const latest = await ledgers.run((db) =>
     db.selectFrom("__drizzle_migrations").select("created_at").orderBy("created_at", "desc").limit(1).executeTakeFirst()
   );

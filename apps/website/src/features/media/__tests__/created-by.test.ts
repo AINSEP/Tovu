@@ -103,7 +103,7 @@ for (const adapter of eachDialect({ tables: ["media", "media_slug_history", "ass
   test(`[${adapter.name}] media works before migration and detects installation without recreating repo`, async () => {
     const { kernel, repo } = adapter.make();
     // The same regression suite remains runnable after the owner installs the staged patch.
-    if ((await listColumns(kernel, "media")).some(column => column.name === "created_by")) {
+    if ((await listColumns({ kernel, table: "media" })).some(column => column.name === "created_by")) {
       await kernel.execute(sql`ALTER TABLE media DROP COLUMN created_by`);
     }
     await repo.save(row({ createdBy: "before-install" }));
