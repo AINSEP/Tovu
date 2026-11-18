@@ -140,7 +140,7 @@ NEW=$(git diff --name-only --diff-filter=AR "$B"..HEAD | rg "$SRC" | rg -v "$TES
 for f in $(git diff --name-only --diff-filter=M "$B"..HEAD | rg "$SRC" | rg -v "$TESTS"); do   # (b) edited files may not gain an error
   b=$(git show "$B:$f" | esl --stdin --stdin-filename "$f" | rg -c '^\s+[0-9]+:[0-9]+\s+error\s' || true)
   h=$(esl "$f" | rg -c '^\s+[0-9]+:[0-9]+\s+error\s' || true)
-  [ "${h:-0}" -le "${b:-0}" ] || echo "GREW $f: ${b:-0} -> $h"
+  [ "${h:-0}" -le "${b:-0}" ] || { echo "GREW $f: ${b:-0} -> $h"; exit 1; }   # D0c3 judge B3: printing alone passed
 done
 git diff "$B"..HEAD -- '*debt*.json' | rg '^\+' | rg -v '^\+\+\+'           # no new debt entry
 

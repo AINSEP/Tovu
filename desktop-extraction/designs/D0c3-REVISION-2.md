@@ -42,6 +42,8 @@ Status: **REVISED DESIGN, unjudged. Edits no source.** Written by the unattended
 6. **Dependencies.** Desktop runtime additions, each in its first consuming commit: `@jini-ai/agent-plugins` (a.2), `@tovu/sdk` `file:` + `@jini-ai/plugins` + `@jini-ai/cms` (c.1/c.2, see sheet), `@jini-ai/analytics` (d.1). Not added: `@jini-ai/commerce` (O1). `@jini-ai/plugin-catalog` is resolved by `resolvePackage` from the search roots (payload `node_modules` packaged, repo in dev), not imported: unchanged, not a desktop dependency. Q3 (accept the list) remains the owner's.
 7. **Staging deletion (D0c3e).** Unchanged intent; verifier unchanged except `:39-40`; proof by the existing closure audit.
 
+Budgets: a 170k, b 150k, c 210k, d 230k, e 110k + CI = **870k** (revision 1: 830k; +40k for the extra pins, the walk move and the per-commit gate). Every sheet stays under 250k.
+
 ## 3. Owner questions after this revision
 - Q1: answered by this revision (keep lazy, M1c). Owner may overrule; nothing else depends on it.
 - Q2: answered (factory, M2c).
