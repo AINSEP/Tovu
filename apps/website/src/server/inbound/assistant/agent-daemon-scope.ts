@@ -74,7 +74,7 @@ import { homedir } from "node:os";
 import express from "express";
 
 import { createToolRegistry, type Principal, type ToolExecutionContext, type SurfaceEmitter } from "@jini-ai/core";
-import { isTerminalRunState, type RunAgentPayload } from '@jini-ai/protocol';
+import { createApiError, createApiErrorResponse, isTerminalRunState, type RunAgentPayload } from '@jini-ai/protocol';
 import { traceRunLifecycle } from "./run-lifecycle-tracing.js";
 import { createRoutingToolExecutor, createAgentExecutor, createInMemoryEventLog, createRunLifecycle, prepareMessageAttachments, probeMcpBridge, type MessageAttachmentImage, type RunLifecycle, type UserMessageDelivery } from "@jini-ai/daemon";
 import { formatBridgePreflightLogLine, formatRunEndLogLine, formatRunErrorLogLine } from "./run-log-lines.js";
@@ -131,7 +131,9 @@ import { resolveMcpJsonInjection } from "#src/assistant/mcp-injection";
 import { parseRunStartContextRef } from "#src/assistant/run-start-context";
 import { buildPageContextPromptBlock, type RunPageContext } from "#src/assistant/run-page-context";
 import { constrainPrincipalToReadOnlyTools, withReadOnlyToolConstraint } from "#src/assistant/read-only-tool-constraint";
-import { createAssistantToolExecutor, delegatedToolErrorDisclosure } from "#src/assistant/tool-recovery-preset";
+import { createAssistantToolExecutor, delegatedToolErrorDisclosure, mintToolErrorId } from "#src/assistant/tool-recovery-preset";
+import { createDaemonErrorBoundary } from "./daemon-error-boundary.js";
+import { reportServerFailure } from "../shared/admin-failure.js";
 import { createLostFrontendBindings } from "#src/assistant/lost-frontend-binding";
 import { withPageNavigateErrorRewrap } from "#src/assistant/rewrap-page-navigate-error";
 import { createRunActiveContextStore, registerRunActiveContextRoute } from "#src/assistant/run-active-context";
@@ -1205,10 +1207,6 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
     return readAssistantRunToolPolicy({ deps: routeDeps, principalId: principal.id, agentId, env, getDef: getAgentDef });
   }
 
-  function runToolPolicyInput({ agentId }: { agentId: string }) {
-    return { deps: routeDeps, principalId: principal.id, agentId, env, getDef: getAgentDef };
-  }
-
   async function runToolAccessIsLive(): Promise<boolean> {
     const current = await runLifecycle.get({ runId: run.id });
     if (current && pluginAbort.signal.aborted && !isTerminalRunState({ state: current.state })) {
@@ -1368,7 +1366,7 @@ function resolveDiscoveryCaller(req: express.Request) {
 
 const app = express();
 app.use((_req, res, next) => {
-  if (disposed) { res.status(503).json({ error: "site scope is closed" }); return; }
+  if (disposed) { res.status(503).json(createApiErrorResponse({ error: createApiError({ code: "SERVICE_UNAVAILABLE", message: "site scope is closed" }) })); return; }
   responses.add(res); res.once("close", () => responses.delete(res));
   next();
 });
@@ -1424,7 +1422,7 @@ registerToolAccessLoweringRoute({ app, lower: change => stopRunsForToolAccessCha
 // caller's snapshot can supply an unscoped catalog. Native async context survives all awaits.
 app.use(["/api/tools", "/api/components", DELEGATED_TOOL_CALLS_PATH], (req, res, next) => {
   const caller = resolveDiscoveryCaller(req);
-  if (!caller) { res.status(404).json({ error: "a live run is required" }); return; }
+  if (!caller) { res.status(404).json(createApiErrorResponse({ error: createApiError({ code: "NOT_FOUND", message: "a live run is required" }) })); return; }
   try { siteTools.withRun({ runId: caller.runId, fn: () => next() }); }
   catch (error) { next(error); }
 });
@@ -1556,7 +1554,7 @@ registerFrontendRequestRoute({ app, path: "/api/frontend-sessions/request", cont
   mountJiniRoutes({ app, routes: toolCatalogRoutes({ deps: { catalog: siteTools.catalog }, host: routeHost }) });
   app.use("/api/components", (req, res, next) => {
     const caller = resolveDiscoveryCaller(req);
-    if (!caller) { res.status(404).json({ error: "a live run is required" }); return; }
+    if (!caller) { res.status(404).json(createApiErrorResponse({ error: createApiError({ code: "NOT_FOUND", message: "a live run is required" }) })); return; }
     void siteTools.refreshComponents({ runId: caller.runId }).then(() => {
       siteTools.withRun({ runId: caller.runId, fn: () => next() });
     }).catch(() => {
@@ -1616,7 +1614,8 @@ registerFrontendRequestRoute({ app, path: "/api/frontend-sessions/request", cont
       // the bytes are ever sent, not just after).
       maxAttachmentBytes: TOVU_MAX_UPLOAD_BYTES,
     }, adapter });
-
+  // Last on the app: every failure of a route or gate above ends as one JSON envelope, never Express's HTML page.
+  app.use(createDaemonErrorBoundary({ mintErrorId: () => mintToolErrorId({}, {}), onInternalError: ({ error, errorId }) => { reportServerFailure({ error, operation: "daemon:app-boundary" }, { errorId }); } }, {}));
 
   if (optional.probeBridge) await optional.probeBridge();
   else {

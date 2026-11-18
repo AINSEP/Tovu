@@ -4,6 +4,7 @@ import { createServer } from "node:http";
 import test, { type TestContext } from "node:test";
 import express from "express";
 import { bearerTokenFromHeader } from "@jini-ai/core/contracts/server";
+import { createApiError, createApiErrorResponse } from "@jini-ai/protocol";
 import { AGENT_DAEMON_TOKEN_ENV_VAR, DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "#src/assistant/daemon-access";
 import { daemonSource, evaluateDaemonStatements } from "./helpers/daemon-source.js";
 
@@ -41,7 +42,7 @@ async function harness(t: TestContext) {
     "app.use(requireAgentDaemonToken", "app.use(express.json", "registerToolAccessLoweringRoute(", 'app.use(["/api/tools"', "app.post(DELEGATED_TOOL_CALLS_PATH",
   ], "token gate, parser, a site-owned route, the per-run re-resolve and the delegated re-check, in this order");
   await evaluateDaemonStatements([resolver, ...chain], {
-    app, express, bearerTokenFromHeader, runCredentials, DELEGATED_TOOL_CALLS_PATH,
+    app, express, bearerTokenFromHeader, runCredentials, DELEGATED_TOOL_CALLS_PATH, createApiError, createApiErrorResponse,
     requireAgentDaemonToken: (input: Parameters<typeof requireAgentDaemonToken>[0], options: {}) => requireAgentDaemonToken({ ...input, env: { [AGENT_DAEMON_TOKEN_ENV_VAR]: PROXY_TOKEN } }, options),
     siteTools: { withRun: ({ runId, fn }: { runId: string; fn: () => void }) => { runsEntered.push(runId); fn(); } },
     // Stands for every site-owned route mounted below the parser: it answers with the body it was given.
@@ -93,7 +94,7 @@ test("a credential revoked while the request is in the chain is refused by which
   afterFirstGate.credential.validForLookups = 1;
   const reResolve = await afterFirstGate.post(DELEGATED_TOOL_CALLS_PATH, { body });
   assert.equal(reResolve.status, 404);
-  assert.deepEqual(reResolve.json, { error: "a live run is required" });
+  assert.deepEqual(reResolve.json, { error: { code: "NOT_FOUND", message: "a live run is required" } });
   assert.deepEqual(afterFirstGate.runsEntered, []);
 
   const afterReResolve = await harness(t);
@@ -110,7 +111,7 @@ test("the tool paths need a live run credential: the proxy token passes the firs
   for (const path of [DELEGATED_TOOL_CALLS_PATH, "/api/tools", "/api/components/search"]) {
     const answer = await h.post(path, { token: PROXY_TOKEN, body: JSON.stringify({ runId: "run-x" }) });
     assert.equal(answer.status, 404, path);
-    assert.deepEqual(answer.json, { error: "a live run is required" }, path);
+    assert.deepEqual(answer.json, { error: { code: "NOT_FOUND", message: "a live run is required" } }, path);
   }
   assert.deepEqual(h.delegated, []);
 });
