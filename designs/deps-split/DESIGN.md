@@ -111,11 +111,11 @@ Module-level code outside the closure (`work/module-census.tsv`, column "uses-mo
 
 | group | declarations (lines incl. comments) | users |
 |---|---|---|
-| overrides | `CreateSiteRouteDepsOverrides` 414-503, `assertOverridesPairedOrAbsent` 501-520, `pluginFailureThresholdOverride` 518-533, `resolveThemesDirOverride` 548-560, `resolveSiteBindingOverride` 558-570, `compositionApprovalOverrides` 641-650, `resolveWorkspaceIdOverride` 757-768 | root, A2, A4, B1, literal |
-| store opening | `hydrateContentDbIfNeeded` 531-550, `prepareCompositionStorage` 648-659, `StoreCloseRegistration` 657-666, `openCompositionStore` 664-721, `resolveChatDbPath` 719-732, `startOwnerSweeps` 730-751, `startOwnerChatExpirySweep` 749-756 | `createSiteRouteDeps`, A4 (`resolveChatDbPath`) |
-| provider identity | `providerPluginBoot` 841-848, `composeProviderConfig` 846-871, `credentialProject` 869-884, `acceptedSiteId` 882-891, `siteIdentityFor` 889-908, `projectStoreFor` 906-925 | E3, E4, test |
+| overrides | `CreateSiteRouteDepsOverrides` 414-500, `assertOverridesPairedOrAbsent` 501-517, `pluginFailureThresholdOverride` 518-530, `resolveThemesDirOverride` 548-557, `resolveSiteBindingOverride` 558-567, `compositionApprovalOverrides` 641-647, `resolveWorkspaceIdOverride` 757-768 | root, A2, A4, B1, literal |
+| store opening | `hydrateContentDbIfNeeded` 531-547, `prepareCompositionStorage` 648-656, `StoreCloseRegistration` 657-663, `openCompositionStore` 664-718, `resolveChatDbPath` 719-729, `startOwnerSweeps` 730-748, `startOwnerChatExpirySweep` 749-756 | `createSiteRouteDeps`, A4 (`resolveChatDbPath`) |
+| provider identity | `providerPluginBoot` 841-845, `composeProviderConfig` 846-868, `credentialProject` 869-881, `acceptedSiteId` 882-888, `siteIdentityFor` 889-905, `projectStoreFor` 906-925 | E3, E4, test |
 | single-user helpers | `resolveSiteBackupSources`+`readTovuVersion` 568-601 (literal), `createSiteDisplayNameSource` 602-615 + `compositionSiteDisplaySources` 2935-2947 (B2), `compositionSiteKeySources` 616-640 (E1), `applyAdminPasswordResetFromEnvIfConfigured` 769-818 (B2), `logMediaProviderRefusals` 926-933 (A4), `AgentPluginIdentityAdmission`+`agentPluginIdentityAdmission` 934-944 (A2), `flushLifecycleEvents` 2948-2954 (E5), `compositionConsentOptions` 2955-2964 (literal), `configureVisitorConsentAnalytics` 2965-2975 (I7) | one each (verify: `grep -c '<name>(' deps.ts` = definition + 1 call) |
-| module singleton | `consoleLogger = createConsoleLogger({ prefix: "" })` 413 | 8 uses: 1056, 1202, 1220, 1236, 1259, 1282, 2726, 2730 (`grep -n consoleLogger deps.ts`) |
+| module singleton | `consoleLogger = createConsoleLogger({ prefix: "" })` 413 | 8 uses: 1053, 1199, 1217, 1233, 1256, 1279, 2726, 2730 (`grep -n consoleLogger deps.ts`) |
 
 ### 1.4 Construction order and late-bound reads
 
@@ -124,28 +124,28 @@ The closure is not a pipeline. `closure-census.cjs` column "forward(late)" lists
 | reader (stmt, lines) | reads later | declared at | contract today (kept) |
 |---|---|---|---|
 | 7 lifecycle owner 975-982 | `lifecycleTracker` (let), `routeDeps` | 960 / swap 1884; 2131 | buffer-then-swap; `routeDeps` closure read (TDZ throw if early) |
-| 16 `mediaStorePorts` 1003-1015 | `observability`, `workspaceId`, `settingsRepo`; awaits `mediaCredentials` | 1883, 1032, 1129; promise 1002 resolved 2831 | closure reads inside a lazily called port; **awaited promise** never "too early" |
+| 16 `mediaStorePorts` 1003-1015 | `observability`, `workspaceId`, `settingsRepo`; awaits `mediaCredentials` | 1880, 1029, 1129; promise 1002 resolved 2831 | closure reads inside a lazily called port; **awaited promise** never "too early" |
 | 33 `pluginRuntime` 1089-1112 | `routeDepsBuiltForPluginHost` (let), `contentTypeRepo`, `outbox` | 1088 set 2819; 1640; 1290 | **optional**: `getPluginHost()` returns `undefined` until 2819; it becomes the SDK `lookup` (`plugin-runtime.ts:87`); the provider runtime type (`provider-plugins.ts:114-119`) exposes no getter, so the pin sits at `composePluginRuntime({ getPluginHost })` (S0 pin 3b); `deferDeclaredContentTypePorts({ build })` |
-| 74 follow-up hooks 1388-1455 | `mediaRepo`, `postRepo`, `assetBlobRepo`, `entryRefsRepo`, `routeDeps` | 1977, 1964, 1978, 1635, 2131 | closure reads inside hooks |
-| 76 adapters 1461-1515, 78 `trash` 1517-1532, 110 comments 1667-1686 | `mediaRepo`, `entryRefsRepo`, `postRepo`, `assetBlobRepo` | as above | closure reads |
-| 109 `wireCoreResolvers` 1649-1666 | `mediaRepo`, `mediaContentTypeStore`, `postRepo`, `routeDeps`, `formCollectionProviders` (let) | 1977, 1981, 1964, 2131; 1634 swap 1881 | closure reads; **fallback-then-swap** (empty registry until providers boot) |
-| 135 `compositionProjectKeys` 1860-1874 | `bindSharedApiOAuth` (let) | 1858, set 2110 | **domain error**: "Shared connections are not available yet. Reopen this saved connection and try again." — `bindOAuth` is a construction callback of `createProjectKeys` (`features/project-keys/service.ts:55-68`), not on `ProjectKeysPort` (31-38); it is reached through `projectKeys.use({ keyId, use: true })` on a shared-OAuth row (service.ts:84-97). `projectKeys` exists only after provider boot (1856), so the error window 1856-2110 is unreachable from a caller; the contract is pinned at the binding seam (S0 pin 3a: deleting the 2110 write turns a bound `use` into this error) and as a unit contract once S4 makes `compositionProjectKeys` a module function |
+| 74 follow-up hooks 1388-1455 | `mediaRepo`, `postRepo`, `assetBlobRepo`, `entryRefsRepo`, `routeDeps` | 1974, 1961, 1975, 1632, 2131 | closure reads inside hooks |
+| 76 adapters 1461-1512, 78 `trash` 1517-1529, 110 comments 1667-1686 | `mediaRepo`, `entryRefsRepo`, `postRepo`, `assetBlobRepo` | as above | closure reads |
+| 109 `wireCoreResolvers` 1649-1666 | `mediaRepo`, `mediaContentTypeStore`, `postRepo`, `routeDeps`, `formCollectionProviders` (let) | 1974, 1978, 1961, 2131; 1634 swap 1881 | closure reads; **fallback-then-swap** (empty registry until providers boot) |
+| 135 `compositionProjectKeys` 1860-1874 | `bindSharedApiOAuth` (let) | 1855, set 2110 | **domain error**: "Shared connections are not available yet. Reopen this saved connection and try again." — `bindOAuth` is a construction callback of `createProjectKeys` (`features/project-keys/service.ts:55-68`), not on `ProjectKeysPort` (31-38); it is reached through `projectKeys.use({ keyId, use: true })` on a shared-OAuth row (service.ts:84-97). `projectKeys` exists only after provider boot (1856), so the error window 1856-2110 is unreachable from a caller; the contract is pinned at the binding seam (S0 pin 3a: deleting the 2110 write turns a bound `use` into this error) and as a unit contract once S4 makes `compositionProjectKeys` a module function |
 | 145 mailer 1907-1915 | `mailDurableOutboxReady` | 1919 | closure read |
 | 162-166 themes 1998-2009 | — | — | **mutates** `trashAdapters` (Map from 1461) after `siteThemes` exists; `removeTheme` needs `trash` (1517) |
-| 180 consent readiness 2122-2127 | awaits `routeDepsBuilt` | promise 2123, resolved 2715 | **awaited promise** |
+| 180 consent readiness 2122-2127 | awaits `routeDepsBuilt` | promise 2120, resolved 2715 | **awaited promise** |
 | 181 plugin exports 2128 | `routeDeps` | 2131 | closure read |
-| literal 2131-2714 | `routeDeps` (9 keys: 2255, 2267, 2632, 2640, 2644, 2645, 2710, 2712, 2708) | itself | closure reads inside arrows |
+| literal 2131-2714 | `routeDeps` (9 keys: 2252, 2264, 2629, 2637, 2641, 2642, 2707, 2708, 2708) | itself | closure reads inside arrows |
 
 ### 1.5 Shared mutable state
 
 | cell | kind | writer(s) | readers | owner after split |
 |---|---|---|---|---|
-| `pendingLifecycleEvents`, `lifecycleTracker` | closure `const` + `let` | 963, 1884 (swap), 1885 (flush) | A2 (`productTracker`), B1 | root |
+| `pendingLifecycleEvents`, `lifecycleTracker` | closure `const` + `let` | 960, 1884 (swap), 1885 (flush) | A2 (`productTracker`), B1 | root |
 | `routeDepsBuiltForPluginHost` | `let` | 2819 | B1 `getPluginHost` | root |
-| `formCollectionProviders` | `let` | 1637, 1881 | D3, literal 2483 | root |
-| `bindSharedApiOAuth` | `let` | 1858, 2110 | E4 `bindOAuth` | root |
-| `resolveRouteDeps` / `routeDepsBuilt` | `let` + promise | 2119-2123, resolved 2715 | H3 consent readiness | root |
-| `provideMediaCredentials` / `mediaCredentials` | `let` + promise | 1001-1005, resolved 2831 | A3 `mediaStorePorts` | A3 slice result (the resolver is returned; I5 calls it) |
+| `formCollectionProviders` | `let` | 1634, 1881 | D3, literal 2483 | root |
+| `bindSharedApiOAuth` | `let` | 1855, 2110 | E4 `bindOAuth` | root |
+| `resolveRouteDeps` / `routeDepsBuilt` | `let` + promise | 2119-2120, resolved 2715 | H3 consent readiness | root |
+| `provideMediaCredentials` / `mediaCredentials` | `let` + promise | 1001-1002, resolved 2831 | A3 `mediaStorePorts` | A3 slice result (the resolver is returned; I5 calls it) |
 | `trashAdapters` | `Map` | 1461; `.set(THEME_ENTITY_TYPE)` 2007 | `trash` service | C3 slice result; G2 receives it and calls `.set` verbatim |
 | `siteAppBootWork` | `Set` | 2116; app boot work adds | I5 drain 2829 | H3 result |
 | `routeDeps` | object, **15 writes after assembly to 14 distinct keys** (`awk -F'\t' '$2=="write"' work/literal-keys.tsv`: 2735, 2747-2749, 2755-2756 (the **5** forms writes), 2772, 2813-2814, 2818, 2822, 2862 + 2909 (`siteShareBackend` twice: failure path, success path), 2922, 2930); `pluginRuntimeReady` is also a literal key (written again at 2822) | root + I slices | everyone | root; I slices receive it as a value (it exists by then) |
@@ -162,7 +162,7 @@ The split adds **no** module-level cell: every new file declares only functions 
 
 ```
 server/runtime/composition/
-  deps.ts                       imports (≈40) + consoleLogger (416, kept) + createSiteRouteDeps + composeSiteRouteDeps (root, ≤50)
+  deps.ts                       imports (≈40) + consoleLogger (413, kept) + createSiteRouteDeps + composeSiteRouteDeps (root, ≤50)
                                 + createSiteRouteDepsForWorkspace (+ its comment 2976-3003). Imports of createApp/exportSite stay
                                 LAST here (module evaluation order, §4 R5) and are passed down as values.             ≈190
   site-paths.ts                 (existing) — gains nothing; the re-export at deps.ts:398 is deleted
@@ -200,14 +200,14 @@ No file under `site-deps/` imports `app.ts`, `deps.ts` or another slice's **func
 
 ### 2.2 The root after the split (revision 2: awaits stay in the root)
 
-Today's closure has **nine** top-level awaits (census `await` column, located by binding): `workspaceId` (1029), `publishTrustRevocations` (1032), the `warnCompositionChatOrphans` call (1042, whose function awaits `warnOnOrphanedChatRows` inside), `mediaProviders` (1061), `normalizeSiteVaultAtBoot` (1792), `composeProviderConfig` (1819), `providerPluginBoot` (1841), the conditional owner `protectExistingFormFiles` (1976), `registerContentAnalytics` (2932) (and `createSiteRouteDeps` awaits `composeSiteRouteDeps` itself). Every one of them stays a top-level statement of `composeSiteRouteDeps`, verbatim except identifiers. Everything between two awaits is a **synchronous** stage call. No stage is `async`, so no `await` gains or loses a microtask turn and no synchronous stretch gains a yield point (judge major S9-S12).
+Today's closure has **nine** top-level awaits (census `await` column, located by binding): `workspaceId` (1029), `publishTrustRevocations` (1032), the `warnCompositionChatOrphans` call (1039, whose function awaits `warnOnOrphanedChatRows` inside), `mediaProviders` (1061), `normalizeSiteVaultAtBoot` (1792), `composeProviderConfig` (1819), `providerPluginBoot` (1841), the conditional owner `protectExistingFormFiles` (1976), `registerContentAnalytics` (2932) (and `createSiteRouteDeps` awaits `composeSiteRouteDeps` itself). Every one of them stays a top-level statement of `composeSiteRouteDeps`, verbatim except identifiers. Everything between two awaits is a **synchronous** stage call. No stage is `async`, so no `await` gains or loses a microtask turn and no synchronous stretch gains a yield point (judge major S9-S12).
 
 Segments (sync code between awaits; the stage names are files under `site-deps/stages/`):
 
 | segment | statements (by binding, `f0613d9e` lines) | stage call | then the root awaits |
 |---|---|---|---|
-| s0 | `assistantAgentInventory` … `storeBound` (961-1019) | `composeFoundationStage` (A2, A3, `storeBound`) | `workspaceId` 1032, `publishTrustRevocations` 1032 |
-| s1 | `chatDbPath`, `chat` (1037-1038) | inline (2 lines, root) | `warnCompositionChatOrphans` 1042, `mediaProviders` 1061 |
+| s0 | `assistantAgentInventory` … `storeBound` (961-1019) | `composeFoundationStage` (A2, A3, `storeBound`) | `workspaceId` 1029, `publishTrustRevocations` 1032 |
+| s1 | `chatDbPath`, `chat` (1037-1038) | inline (2 lines, root) | `warnCompositionChatOrphans` 1039, `mediaProviders` 1061 |
 | s2 | the `logMediaProviderRefusals` call (1062) … `siteAssistantSecretSealer` (1786) | `composePreludeTailStage` (A4 tail), `composeBootDataStage` (B1-B3), `composeEventsTrashStage` (C1-C4), `composeContentDataStage` (D1-D4), `composeSiteKeysStage` (E1) | `normalizeSiteVaultAtBoot` 1792 |
 | s3 | `siteAssistantCredentialRepo` … `projectKeyReferences` (1796-1818) | `composeAssistantSecretsStage` (E2) | `composeProviderConfig` 1819 |
 | s4 | `providerConfigSource`, `customCredentialSetRepo` (1822-1840) | `composeProviderConfigStage` (E3 tail) | `providerPluginBoot` 1841 (its argument object is built by the sync `providerBootInput(required)`, written inside the call so the callee is still evaluated first) |
@@ -233,7 +233,7 @@ async function composeSiteRouteDeps({ dbPath, opened }: ComposeInput, { override
   const mediaProviders = await loadMediaProviderRegistry({ workspaceId }, { loadContributions: foundation.agentPluginLifecycle.loadPluginContributions }); // 1061
   const early = composeEarlyStages({ … }, { overrides });     // s2: prelude tail, boot-data, events-trash, content-data, site-keys (sync)
   await normalizeSiteVaultAtBoot({ … }, { … });                                                                        // 1792
-  … s3, await 1822, s4, await 1844, s5 (root writes 1884, 1886, 1884 in order), await 1976 (if owner), s6 …
+  … s3, await 1819, s4, await 1841, s5 (root writes 1881, 1883, 1884 in order), await 1976 (if owner), s6 …
   await registerContentAnalytics({ deps: { bus, tracker, workspaceId } });                                             // 2932
   return routeDeps;
 }
@@ -249,7 +249,7 @@ Order is today's statement order, stage by stage (§1.3). Three root cells are w
 
 | write (today) | before | after | how |
 |---|---|---|---|
-| `lifecycleTracker = tracker` 1887, `formCollectionProviders = …` 1884, `setServerLogTraceReader` 1883 | E4 (providers boot) | 1885-1887 | root does 1884, 1886, 1884 in that order (3 lines, above); `bindObservedStores` does 1885-1887 |
+| `lifecycleTracker = tracker` 1884, `formCollectionProviders = …` 1881, `setServerLogTraceReader` 1883 | E4 (providers boot) | 1885-1887 | root does 1881, 1883, 1884 in that order (3 lines, above); `bindObservedStores` does 1885-1887 |
 | `bindSharedApiOAuth = agentPluginConnections.apiConnections.host.sharedOAuth?.bind` 2110 | 2098-2109 | 2112-2114 (admin-surface refresh **starts async work** that may resolve shared OAuth) | `connections` stage = `composeAgentConnections` (172) → stage returns; root writes 173; root calls `refreshAdminSurfaces` (174) and H3 `composeReadiness`. Root lines +3 |
 | `routeDepsBuiltForPluginHost = routeDeps` 2819 | 2817-2818 (boot-work map, `pluginHost`) | 2822 `pluginRuntime.attachEnabledPluginsAtBoot()` (may call `getPluginHost()` synchronously) | `plugin-host.ts` exports `attachPluginHost` (2817-2818) and `startPluginRuntime` (2822-2832); `composeAfterAssemblyStage` takes `required.markPluginHostReady: () => void` — the root passes `() => { routeDepsBuiltForPluginHost = routeDeps; }` — and calls it between the two. This is the only write callback; it closes over the root's own cell, so write authority stays in the root (lesson 20) |
 
@@ -263,7 +263,7 @@ If the root exceeds 50 code lines after S13 (`npx eslint … deps.ts` reports `c
 | `trashAdapters` Map 1461-1512 | 43 | `mediaTrashAdapter(required)` (1466-1480) · `userTrashAdapter(required)` (1481-1500) · `composeTrashAdapters(required)` (Map + registry entries 1504-1511) — under 50 today, split because two entries are 15-20-line closures and the stage must stay ≤60 |
 | `publishContentApplyPort` 2010-2073 | 58 | `publishContentPorts(required)` (`ports` object 2023-2068) · `composePublishContentApplyPort(required)` |
 | `configureSiteSharing` 2837-2912 | 68 | `shareHostKit(required)` (2849-2859) · `shareStaticSite(required)` (2864-2874) · `shareDelivery(required)` (2875-2905) · `configureSiteSharing(required)` (try/catch, registry, backend) |
-| hoisted `Record<string, never>` / no-arg functions: `warnCompositionChatOrphans` 1044, `registerBootOrigin` 1328, `compositionCustomCredentials` 1838, `compositionProjectKeys` 1863, `composeContentHttpClients` 1936, `resolveCompositionPublicOrigin` 2092, `compositionSharedOAuth` 2788, `compositionCommerce` 2803, `configureSiteSharing` 2837, `configureSiteImports` 2915 | — | each becomes a module function `(required, optional = {})` with its real inputs, **called at the same position**. Late reads stay getters: `compositionProjectKeys` gets `getBindSharedApiOAuth`; everything else it reads exists before its call (closure-census "eager" column of the calling statement) |
+| hoisted `Record<string, never>` / no-arg functions: `warnCompositionChatOrphans` 1041, `registerBootOrigin` 1325, `compositionCustomCredentials` 1835, `compositionProjectKeys` 1860, `composeContentHttpClients` 1933, `resolveCompositionPublicOrigin` 2089, `compositionSharedOAuth` 2788, `compositionCommerce` 2803, `configureSiteSharing` 2837, `configureSiteImports` 2915 | — | each becomes a module function `(required, optional = {})` with its real inputs, **called at the same position**. Late reads stay getters: `compositionProjectKeys` gets `getBindSharedApiOAuth`; everything else it reads exists before its call (closure-census "eager" column of the calling statement) |
 
 Every moved function takes `(required, optional = {})` (owner rule); positional `createSiteRouteDeps(_required = {}, { dbPath, overrides })` is existing API with 61 callers and is not changed.
 

@@ -28,11 +28,16 @@ Responsibility: everything after `resolveRouteDeps(routeDeps)` up to `await regi
 ## STOP
 ```bash
 set -euo pipefail
-G="bash designs/deps-split/work/gates.sh"; D=apps/website/src/server/runtime/composition
-$G expect-count S12-BOOT-WORK-ONCE 1 'siteAppBootWorkByDeps\.set\(' $D/deps.ts $D/site-deps
-$G expect-count S12-HOST-CELL-WRITE 1 'routeDepsBuiltForPluginHost = routeDeps' $D/deps.ts
-$G expect-count S12-RUNTIME-ATTACH 1 'attachEnabledPluginsAtBoot\(' $D/site-deps
-$G expect-count S12-LAST-AWAIT-IN-ROOT 1 '^  await registerContentAnalytics\(' $D/deps.ts
-$G forbid S12-ASYNC-SLICE '^(export )?async function|^  (const [^=]+= )?await ' $D/site-deps/slices/widget-adoption.ts $D/site-deps/slices/forms.ts $D/site-deps/slices/site-search.ts $D/site-deps/slices/commerce.ts $D/site-deps/slices/plugin-host.ts $D/site-deps/slices/site-sharing.ts $D/site-deps/slices/site-imports.ts $D/site-deps/slices/consent-analytics.ts $D/site-deps/stages/after-assembly.ts
+D=apps/website/src/server/runtime/composition
+grep -rnE 'siteAppBootWorkByDeps\.set\(' "$D/deps.ts" "$D/site-deps" > "$W/hits" || [ $? -eq 1 ]
+test "$(wc -l < "$W/hits")" -eq 1 || { cat "$W/hits"; echo "STOP-S12-BOOT-WORK-ONCE"; exit 1; }
+grep -rnE 'routeDepsBuiltForPluginHost = routeDeps' "$D/deps.ts" > "$W/hits" || [ $? -eq 1 ]
+test "$(wc -l < "$W/hits")" -eq 1 || { cat "$W/hits"; echo "STOP-S12-HOST-CELL-WRITE"; exit 1; }
+grep -rnE 'attachEnabledPluginsAtBoot\(' "$D/site-deps" > "$W/hits" || [ $? -eq 1 ]
+test "$(wc -l < "$W/hits")" -eq 1 || { cat "$W/hits"; echo "STOP-S12-RUNTIME-ATTACH"; exit 1; }
+grep -rnE '^  await registerContentAnalytics\(' "$D/deps.ts" > "$W/hits" || [ $? -eq 1 ]
+test "$(wc -l < "$W/hits")" -eq 1 || { cat "$W/hits"; echo "STOP-S12-LAST-AWAIT-IN-ROOT"; exit 1; }
+grep -rnE '^(export )?async function|^  (const [^=]+= )?await ' "$D/site-deps/slices/widget-adoption.ts" "$D/site-deps/slices/forms.ts" "$D/site-deps/slices/site-search.ts" "$D/site-deps/slices/commerce.ts" "$D/site-deps/slices/plugin-host.ts" "$D/site-deps/slices/site-sharing.ts" "$D/site-deps/slices/site-imports.ts" "$D/site-deps/slices/consent-analytics.ts" "$D/site-deps/stages/after-assembly.ts" > "$W/hits" || [ $? -eq 1 ]
+test "$(wc -l < "$W/hits")" -eq 0 || { cat "$W/hits"; echo "STOP-S12-ASYNC-SLICE"; exit 1; }
 ```
 Gates: COMMON §5.

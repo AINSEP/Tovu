@@ -1,6 +1,6 @@
-# S8 — stage `content-data` (D1-D4)
+# S8 — slices `database-journal`, `content-repos`, `core-resolvers`, `comments` (D1-D4)
 
-Responsibility: bindings `databaseJournalDbPath` … `commentsCapability` (`f0613d9e` 1586-1690). The cell `formCollectionProviders` moves to the top of the closure in commit 2 (a pure arrow; nothing reads it before `wireCoreResolvers` — check: `awk -F'\t' 'NR>2 && ($10 ~ /formCollectionProviders/ || $11 ~ /formCollectionProviders/) {print $1, $2}' designs/deps-split/work/closure-census.tsv` prints only the resolver, comments-capability and literal rows). Budget ≤120k. Commits: 5. Prerequisites: S7; COMMON §1-§3, §9 (`DS_SHEET=S8`).
+Responsibility: bindings `databaseJournalDbPath` … `commentsCapability` (`b5fbf2a5` 1586-1690). The cell `formCollectionProviders` moves to the top of the closure in commit 2 (a pure arrow; nothing reads it before `wireCoreResolvers` — check: `awk -F'\t' 'NR>2 && ($10 ~ /formCollectionProviders/ || $11 ~ /formCollectionProviders/) {print $1, $2}' "$W/closure.tsv"` (COMMON §3) prints only the resolver, comments-capability and literal rows). Budget ≤110k. Commits: 4. Prerequisites: S7; COMMON §1-§4, §9 (`DS_SHEET=S8`).
 
 | commit | slice | bindings | getters | returns |
 |---|---|---|---|---|
@@ -8,21 +8,30 @@ Responsibility: bindings `databaseJournalDbPath` … `commentsCapability` (`f061
 | 2 | `slices/content-repos.ts` | `entryRepo` … `contentTypeIndexProvisioner` minus the `formCollectionProviders` cell | — | the 12 repos |
 | 3 | `slices/core-resolvers.ts` | the `wireCoreResolvers(…)` statement | `mediaRepo`, `mediaContentTypeStore`, `postRepo`, `routeDeps`, `formCollectionProviders: () => formCollectionProviders()` (the call-time indirection verbatim) | — |
 | 4 | `slices/comments.ts` | `commentsModule`, `commentsCapability` | `postRepo` | same |
-| 5 | `stages/content-data.ts` (sync) | 1-4 | | |
 
 ## Carries
 | behaviour (base lines) | pin |
 |---|---|
-| resolver fallback: empty registry until provider boot, provider registry after, read per call (1637, 1649-1669, 1881) | S0 pin 3d; new `core-resolvers.unit.test.ts`: the slice wires with a getter, flipping the getter after wiring changes the answer (mutation: call the getter at wiring → red) |
-| process-global widget registry written exactly once (1649) | `expect-count` below; `create-core-resolvers.unit.test.ts` (wide) |
+| resolver fallback: empty registry until provider boot, provider registry after, read per call (1634, 1649-1666, 1881) | S0 pin 3d; new `$D/__tests__/core-resolvers.unit.test.ts`: the slice wires with a getter, flipping the getter after wiring changes the answer (mutation: call the getter at wiring → red) |
+| process-global widget registry written exactly once (1649) | STOP block (one `wireCoreResolvers(`); `apps/website/src/features/widgets/__tests__/unit/create-core-resolvers.unit.test.ts` |
 | journal close hook registered at the same position (1590) | S0 pin 5 |
-| comment write chain uses the same repos/capability (1667-1690) | comment route tests (wide); S0 pin 1 (keys + types) |
+| comment write chain uses the same repos/capability (1667-1690) | `server/__tests__/routes/comments-e2e.test.ts`, `comments-settings-routes.test.ts`; S0 pin 1 (keys + types) |
 
-## STOP
+```bash
+SHEET_TESTS=(
+  apps/website/src/features/widgets/__tests__/unit/create-core-resolvers.unit.test.ts
+  apps/website/src/server/__tests__/routes/comments-e2e.test.ts
+  apps/website/src/server/__tests__/routes/comments-settings-routes.test.ts
+)   # plus SR_TESTS and CHANGED_TESTS (COMMON §5)
+```
+
+## STOP (before the report commit; COMMON §9 rule 8 form)
 ```bash
 set -euo pipefail
-G="bash designs/deps-split/work/gates.sh"; D=apps/website/src/server/runtime/composition
-$G expect-count S8-WIRE-ONCE 1 'wireCoreResolvers\(' $D/deps.ts $D/site-deps
-$G forbid S8-ASYNC-SLICE '^(export )?async function|^  (const [^=]+= )?await ' $D/site-deps/slices/database-journal.ts $D/site-deps/slices/content-repos.ts $D/site-deps/slices/core-resolvers.ts $D/site-deps/slices/comments.ts $D/site-deps/stages/content-data.ts
+D=apps/website/src/server/runtime/composition
+grep -rnE 'wireCoreResolvers\(' "$D/deps.ts" "$D/site-deps" > "$W/hits" || [ $? -eq 1 ]
+test "$(wc -l < "$W/hits")" -eq 1 || { cat "$W/hits"; echo "STOP-S8-WIRE-ONCE"; exit 1; }
+grep -rnE '^(export )?async function|^  (const [^=]+= )?await ' "$D/site-deps/slices/database-journal.ts" "$D/site-deps/slices/content-repos.ts" "$D/site-deps/slices/core-resolvers.ts" "$D/site-deps/slices/comments.ts" > "$W/hits" || [ $? -eq 1 ]
+test "$(wc -l < "$W/hits")" -eq 0 || { cat "$W/hits"; echo "STOP-S8-ASYNC-SLICE"; exit 1; }
 ```
 Gates: COMMON §5.

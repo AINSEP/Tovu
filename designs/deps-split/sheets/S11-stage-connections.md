@@ -23,12 +23,17 @@ Responsibility: bindings `guardedOutboundHttpClient` … `agentPluginMcp` (`f061
 ## STOP
 ```bash
 set -euo pipefail
-G="bash designs/deps-split/work/gates.sh"; D=apps/website/src/server/runtime/composition
-$G expect-count S11-ONE-EGRESS-POLICY 1 'maxRedirects: 0, connectTimeoutMs: 10 \* 60 \* 997' $D/outbound-http.ts $D/deps.ts $D/app.ts $D/site-deps $D/memory-deps/slices
-$G absent S11-OLD-OWNER $D/memory-deps/slices/outbound-http.ts
-$G expect-count S11-ROOT-WRITE 1 '^  bindSharedApiOAuth = ' $D/deps.ts
-$G expect-count S11-APP-CALL 1 'composeOutboundHttp\(' $D/app.ts
-$G forbid S11-MODULE-MOCK 'mock\.module\(' $D/__tests__/outbound-http.test.ts
-$G forbid S11-ASYNC-SLICE '^(export )?async function|^  (const [^=]+= )?await ' $D/site-deps/slices/public-origin.ts $D/site-deps/slices/agent-connections.ts $D/site-deps/slices/readiness.ts
+D=apps/website/src/server/runtime/composition
+grep -rnE 'maxRedirects: 0, connectTimeoutMs: 10 \* 60 \* 997' "$D/outbound-http.ts" "$D/deps.ts" "$D/app.ts" "$D/site-deps" "$D/memory-deps/slices" > "$W/hits" || [ $? -eq 1 ]
+test "$(wc -l < "$W/hits")" -eq 1 || { cat "$W/hits"; echo "STOP-S11-ONE-EGRESS-POLICY"; exit 1; }
+test ! -e "$D/memory-deps/slices/outbound-http.ts" || { echo "STOP-S11-OLD-OWNER"; exit 1; }
+grep -rnE '^  bindSharedApiOAuth = ' "$D/deps.ts" > "$W/hits" || [ $? -eq 1 ]
+test "$(wc -l < "$W/hits")" -eq 1 || { cat "$W/hits"; echo "STOP-S11-ROOT-WRITE"; exit 1; }
+grep -rnE 'composeOutboundHttp\(' "$D/app.ts" > "$W/hits" || [ $? -eq 1 ]
+test "$(wc -l < "$W/hits")" -eq 1 || { cat "$W/hits"; echo "STOP-S11-APP-CALL"; exit 1; }
+grep -rnE 'mock\.module\(' "$D/__tests__/outbound-http.test.ts" > "$W/hits" || [ $? -eq 1 ]
+test "$(wc -l < "$W/hits")" -eq 0 || { cat "$W/hits"; echo "STOP-S11-MODULE-MOCK"; exit 1; }
+grep -rnE '^(export )?async function|^  (const [^=]+= )?await ' "$D/site-deps/slices/public-origin.ts" "$D/site-deps/slices/agent-connections.ts" "$D/site-deps/slices/readiness.ts" > "$W/hits" || [ $? -eq 1 ]
+test "$(wc -l < "$W/hits")" -eq 0 || { cat "$W/hits"; echo "STOP-S11-ASYNC-SLICE"; exit 1; }
 ```
 Gates: COMMON §5.

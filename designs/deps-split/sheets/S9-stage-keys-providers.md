@@ -28,11 +28,16 @@ The destructuring of `observability, tracker, aiTraceSink`, the writes `formColl
 ## STOP
 ```bash
 set -euo pipefail
-G="bash designs/deps-split/work/gates.sh"; D=apps/website/src/server/runtime/composition
-$G expect-count S9-DOMAIN-ERROR-ONCE 1 'Shared connections are not available yet\. Reopen this saved connection and try again\.' $D/deps.ts $D/site-deps
-$G expect-count S9-TRACE-READER-ONCE 1 'setServerLogTraceReader\(' $D/deps.ts $D/site-deps
-$G expect-count S9-ROOT-AWAITS 3 '^  (const [^=]+= )?await (normalizeSiteVaultAtBoot|composeProviderConfig|providerPluginBoot)\(' $D/deps.ts
-$G forbid S9-ASYNC-SLICE '^(export )?async function|^  (const [^=]+= )?await ' $D/site-deps/slices/site-keys.ts $D/site-deps/slices/assistant-secrets.ts $D/site-deps/slices/provider-config.ts $D/site-deps/slices/provider-boot-input.ts $D/site-deps/slices/provider-plugins.ts $D/site-deps/slices/observed-stores.ts
-$G forbid S9-CONSOLE-IN-SLICE 'consoleLogger' $D/site-deps
+D=apps/website/src/server/runtime/composition
+grep -rnE 'Shared connections are not available yet\. Reopen this saved connection and try again\.' "$D/deps.ts" "$D/site-deps" > "$W/hits" || [ $? -eq 1 ]
+test "$(wc -l < "$W/hits")" -eq 1 || { cat "$W/hits"; echo "STOP-S9-DOMAIN-ERROR-ONCE"; exit 1; }
+grep -rnE 'setServerLogTraceReader\(' "$D/deps.ts" "$D/site-deps" > "$W/hits" || [ $? -eq 1 ]
+test "$(wc -l < "$W/hits")" -eq 1 || { cat "$W/hits"; echo "STOP-S9-TRACE-READER-ONCE"; exit 1; }
+grep -rnE '^  (const [^=]+= )?await (normalizeSiteVaultAtBoot|composeProviderConfig|providerPluginBoot)\(' "$D/deps.ts" > "$W/hits" || [ $? -eq 1 ]
+test "$(wc -l < "$W/hits")" -eq 3 || { cat "$W/hits"; echo "STOP-S9-ROOT-AWAITS"; exit 1; }
+grep -rnE '^(export )?async function|^  (const [^=]+= )?await ' "$D/site-deps/slices/site-keys.ts" "$D/site-deps/slices/assistant-secrets.ts" "$D/site-deps/slices/provider-config.ts" "$D/site-deps/slices/provider-boot-input.ts" "$D/site-deps/slices/provider-plugins.ts" "$D/site-deps/slices/observed-stores.ts" > "$W/hits" || [ $? -eq 1 ]
+test "$(wc -l < "$W/hits")" -eq 0 || { cat "$W/hits"; echo "STOP-S9-ASYNC-SLICE"; exit 1; }
+grep -rnE 'consoleLogger' "$D/site-deps" > "$W/hits" || [ $? -eq 1 ]
+test "$(wc -l < "$W/hits")" -eq 0 || { cat "$W/hits"; echo "STOP-S9-CONSOLE-IN-SLICE"; exit 1; }
 ```
 (The root-await pattern counts the `const { … } = await composeProviderConfig(` form too: `const [^=]+= ` spans the destructuring.) Gates: COMMON §5; `deps-observability-wiring`, `deps-provider-plugin-boot`, `deps-project-credentials` are in `tests sr`.

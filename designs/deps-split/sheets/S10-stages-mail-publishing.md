@@ -23,9 +23,12 @@ Responsibility: bindings `mailResolveDeps` … `publishContentApplyPort` (`f0613
 ## STOP
 ```bash
 set -euo pipefail
-G="bash designs/deps-split/work/gates.sh"; D=apps/website/src/server/runtime/composition
-$G expect-count S10-THEME-ADAPTER-ONCE 1 'trashAdapters\.set\(THEME_ENTITY_TYPE' $D/deps.ts $D/site-deps
-$G expect-count S10-OWNER-AWAIT-IN-ROOT 1 '^  if \(\(overrides\.storeRole \?\? "owner"\) === "owner"\) await protectExistingFormFiles\(' $D/deps.ts
-$G forbid S10-ASYNC-SLICE '^(export )?async function|^  (const [^=]+= )?await ' $D/site-deps/slices/mail.ts $D/site-deps/slices/content-http-clients.ts $D/site-deps/slices/content-stores.ts $D/site-deps/slices/publish-stores.ts $D/site-deps/slices/themes.ts $D/site-deps/slices/publish-apply.ts $D/site-deps/stages/mail-http.ts $D/site-deps/stages/publishing.ts
+D=apps/website/src/server/runtime/composition
+grep -rnE 'trashAdapters\.set\(THEME_ENTITY_TYPE' "$D/deps.ts" "$D/site-deps" > "$W/hits" || [ $? -eq 1 ]
+test "$(wc -l < "$W/hits")" -eq 1 || { cat "$W/hits"; echo "STOP-S10-THEME-ADAPTER-ONCE"; exit 1; }
+grep -rnE '^  if \(\(overrides\.storeRole \?\? "owner"\) === "owner"\) await protectExistingFormFiles\(' "$D/deps.ts" > "$W/hits" || [ $? -eq 1 ]
+test "$(wc -l < "$W/hits")" -eq 1 || { cat "$W/hits"; echo "STOP-S10-OWNER-AWAIT-IN-ROOT"; exit 1; }
+grep -rnE '^(export )?async function|^  (const [^=]+= )?await ' "$D/site-deps/slices/mail.ts" "$D/site-deps/slices/content-http-clients.ts" "$D/site-deps/slices/content-stores.ts" "$D/site-deps/slices/publish-stores.ts" "$D/site-deps/slices/themes.ts" "$D/site-deps/slices/publish-apply.ts" "$D/site-deps/stages/mail-http.ts" "$D/site-deps/stages/publishing.ts" > "$W/hits" || [ $? -eq 1 ]
+test "$(wc -l < "$W/hits")" -eq 0 || { cat "$W/hits"; echo "STOP-S10-ASYNC-SLICE"; exit 1; }
 ```
 Gates: COMMON §5.
