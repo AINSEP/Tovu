@@ -28,6 +28,7 @@
   "dependencies": {
     "@tovu/contracts": "file:../../packages/contracts",
     "@cfworker/json-schema": "^4.1.1",
+    "@jini-ai/agent-plugins": "^0.7.0",
     "@jini-ai/agent-runtime": "^0.7.0",
     "@jini-ai/chat": "^0.7.0",
     "@jini-ai/core": "^0.7.0",
