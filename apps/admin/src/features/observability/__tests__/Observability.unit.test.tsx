@@ -209,3 +209,14 @@ it("shows a configured provider's disabled export policy instead of an unexplain
   expect(screen.getByText("observability-sentry/sentry: Export disabled in this runtime")).toBeInTheDocument();
   expect(screen.queryByText("No export result yet")).not.toBeInTheDocument();
 });
+
+it("renders the tab state returned by the injected useObservabilityTabHook", () => {
+  render(
+    <Observability
+      useObservabilityStatusHook={() => fakeController({})}
+      useQueriesTabHook={() => ({ visible: false, readOnly: true })}
+      useObservabilityTabHook={({ tabs }) => ({ activeTabId: tabs[0]!.id, onTabChange: vi.fn(), subtitle: "Injected subtitle" })}
+    />,
+  );
+  expect(screen.getByText("Injected subtitle")).toBeInTheDocument();
+});

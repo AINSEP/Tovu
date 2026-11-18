@@ -15,7 +15,7 @@ import { parseRangeHeader } from "#src/server/inbound/admin-http/range";
 import type { MediaRenditionRouteDeps, MediaRenditionRouteRegistrar } from "#src/server/inbound/admin-http/routes/media/deps";
 import { SVG_CONTENT_SECURITY_POLICY, DISALLOWED_INLINE_CONTENT_TYPES, resolveMediaOriginalBlob, sendMediaOriginalResponse } from "#src/server/inbound/admin-http/routes/media/original";
 import { MEMBER_SESSION_COOKIE } from "../../http/members.js";
-import { asyncRoute } from "../../../shared/async-route.js";
+import { asyncRoute } from "../../../../../platform/express/async-route.js";
 
 const CACHE_CONTROL_HEADER = "Cache-Control";
 

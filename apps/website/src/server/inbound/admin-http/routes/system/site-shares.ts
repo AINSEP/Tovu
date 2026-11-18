@@ -1,5 +1,4 @@
-import { createSiteSharePasswordHandler } from "./site-share-password.js";
-import { sendSiteShareFailure } from "./site-share-errors.js";
+import { createSiteSharePasswordHandler, sendSiteShareFailure } from "./site-share-password.js";
 import express, { type Express, type Request, type Response } from "express";
 import type { RouteDeps } from "#src/server/routes/types";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";

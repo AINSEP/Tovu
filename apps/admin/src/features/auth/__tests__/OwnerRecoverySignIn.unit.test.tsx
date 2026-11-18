@@ -46,3 +46,14 @@ it('routes sign-in recovery copy through the supplied translator', () => {
   expect(screen.getByText('translated:Lost your owner password?')).toBeTruthy();
   expect(screen.getByLabelText('translated:Recovery code')).toBeTruthy();
 });
+
+it('renders the controller state returned by the injected useOwnerRecoverySignInHook', () => {
+  const submit = vi.fn();
+  render(
+    <OwnerRecoverySignIn
+      useOwnerRecoverySignInHook={() => ({ code: '', setCode: vi.fn(), password: '', setPassword: vi.fn(), confirmation: '', setConfirmation: vi.fn(), failure: null, busy: false, message: 'Injected status message', submit })}
+    />,
+  );
+  fireEvent.click(screen.getByText('Lost your owner password?'));
+  expect(screen.getByRole('status')).toHaveTextContent('Injected status message');
+});

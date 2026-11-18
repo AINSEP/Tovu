@@ -69,9 +69,14 @@ export interface MergedSourceUpdate {
 export function mergeSourceUpdate({ previous, patch }: { previous: PreviousSourceFields | undefined; patch: SourceUpdatePatch }, _options = {}): MergedSourceUpdate {
   return {
     fields: { ...(previous?.fields ?? {}), ...(patch.fields ?? {}) },
-    enabled: patch.enabled ?? previous?.enabled ?? true,
+    enabled: mergeEnabled({ previous, patch }),
     label: patch.label ?? previous?.label,
   };
+}
+
+/** A patch's `enabled` wins, then the stored one; a source nobody has toggled yet is on. */
+function mergeEnabled({ previous, patch }: { previous: PreviousSourceFields | undefined; patch: SourceUpdatePatch }, _options: Record<string, never> = {}): boolean {
+  return patch.enabled ?? previous?.enabled ?? true;
 }
 
 // ---------------------------------------------------------------------------

@@ -1,7 +1,14 @@
 import type { ReactNode } from 'react';
 import { useAdminModules, useModuleProviderContent } from './modules.hooks';
-export function AdminModulesProvider(props: { permissions: readonly string[]; children: ReactNode }, _optional: Record<string, never> = {}) {
-  const runtime = useAdminModules(props);
-  const content = useModuleProviderContent({ runtime, children: props.children });
+export function AdminModulesProvider(
+  {
+    useAdminModulesHook = useAdminModules,
+    useModuleProviderContentHook = useModuleProviderContent,
+    ...props
+  }: { permissions: readonly string[]; children: ReactNode; useAdminModulesHook?: typeof useAdminModules; useModuleProviderContentHook?: typeof useModuleProviderContent },
+  _optional: Record<string, never> = {},
+) {
+  const runtime = useAdminModulesHook(props);
+  const content = useModuleProviderContentHook({ runtime, children: props.children });
   return <>{content}</>;
 }

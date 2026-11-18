@@ -202,32 +202,50 @@ async function undoInverse(
   return reason;
 }
 
+type ProjectedBackstop = NonNullable<PublishContentDeps["backstop"]>;
+type ReadyBackstop = { [Port in "audit" | "rows" | "files"]-?: NonNullable<ProjectedBackstop[Port]> };
+type UndoableLog = NonNullable<Awaited<ReturnType<ReadyBackstop["audit"]["get"]>>>;
+
+/** The audit, row and file ports an undo needs, or null while the audit storage is not installed. */
+async function readyUndoBackstop({ backstop }: { backstop: ProjectedBackstop | undefined }, _options: Record<string, never> = {}): Promise<ReadyBackstop | null> {
+  const { audit, rows, files } = backstop ?? {};
+  if (!audit || !rows || !files || !(await audit.ready())) return null;
+  return { audit, rows, files };
+}
+
+/** Undoes every inverse newest-first in one row transaction, then restores the files it already
+ * touched if anything throws. Returns the reasons for the inverses that were skipped. */
+async function undoAllInverses(
+  { log, projection, backstop }: { log: UndoableLog; projection: PublishContentDeps; backstop: ReadyBackstop }, _options: Record<string, never> = {},
+): Promise<string[]> {
+  const skipped: string[] = [];
+  const fileRollbacks: Array<() => Promise<void>> = [];
+  try {
+    await backstop.rows.transaction({ work: async () => {
+      for (const inverse of [...log.inverses].reverse()) {
+        const reason = await undoInverse({ inverse, projection, files: backstop.files, fileRollbacks });
+        if (reason) skipped.push(reason);
+      }
+      await backstop.audit.save({ record: { ...log, result: "undone", details: { ...log.details, undoSkipped: skipped } } });
+    } });
+  } catch (error) {
+    for (const rollback of fileRollbacks.reverse()) { await rollback(); }
+    throw error;
+  }
+  return skipped;
+}
+
 /** `POST .../runs/:runId/undo-backstop`: the destination side's one-click undo. */
 async function handleUndoRequest({ req, res, deps }: { req: Request; res: Response; deps: PublishContentRouteDeps }, _options: Record<string, never> = {}): Promise<void> {
   if (!(await backstopActorId(res, deps))) return;
   const projection = toPublishContentDeps(deps);
   // `files` is always present here: `PublishContentRouteDeps` requires `siteBinding`, which is
   // what `buildPublishBackstopPorts` builds the file port from.
-  const backstop = projection.backstop;
+  const backstop = await readyUndoBackstop({ backstop: projection.backstop });
   if (!backstop) { res.status(503).json({ error: "Send by hand needs its audit storage installed." }); return; }
-  const { audit, rows, files } = backstop;
-  if (!audit || !rows || !files || !(await audit.ready())) { res.status(503).json({ error: "Send by hand needs its audit storage installed." }); return; }
-  const log = await audit.get({ workspaceId: deps.workspaceId, id: String(req.params.runId) });
+  const log = await backstop.audit.get({ workspaceId: deps.workspaceId, id: String(req.params.runId) });
   if (!log || log.direction !== "destination" || !hasUndo(log)) { res.status(404).json({ error: "This send has no undo available." }); return; }
-  const skipped: string[] = [];
-  const fileRollbacks: Array<() => Promise<void>> = [];
-  try {
-    await rows.transaction({ work: async () => {
-      for (const inverse of [...log.inverses].reverse()) {
-        const reason = await undoInverse({ inverse, projection, files, fileRollbacks });
-        if (reason) skipped.push(reason);
-      }
-      await audit.save({ record: { ...log, result: "undone", details: { ...log.details, undoSkipped: skipped } } });
-    } });
-  } catch (error) {
-    for (const rollback of fileRollbacks.reverse()) { await rollback(); }
-    throw error;
-  }
+  const skipped = await undoAllInverses({ log, projection, backstop });
   res.json({ runId: log.runId, undone: log.inverses.length - skipped.length, skipped });
 }
 

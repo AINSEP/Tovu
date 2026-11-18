@@ -56,7 +56,7 @@ import { ToolInputError } from "@jini-ai/core";
  * features/origin's OriginRegistryPort is keyed by workspaceId, but this tool's build signature
  * receives neither a workspace-scoped dependency bag nor a workspaceId — there is no `deps.originRegistry` to call here at all, unlike `buildRobots`. A
  * `ToolHandler` (`@jini-ai/core`'s `ToolExecutionContext`) carries no HTTP request either — no `req`,
- * no `Host` header, nothing `server/inbound/public-http/routes/oauth/public-origin.ts`'s
+ * no `Host` header, nothing `platform/express/public-origin.ts`'s
  * `resolvePublicOrigin(req)` could read. So this tool still falls back to a bare relative path by
  * default, following the same INV-07 rule `buildRobots` documents ("SEO never fabricates a local
  * origin") for a different structural reason. The one place it goes further than a bare relative path:
@@ -152,7 +152,7 @@ export function buildAdminScreenPath(input: { path: string; tab?: string }, _opt
  * Resolves `TOVU_PUBLIC_URL` into an absolute origin, or `undefined` when it is unset, blank, or not
  * a valid `http(s)` URL.
  *
- * Deliberately narrower than `server/inbound/public-http/routes/oauth/public-origin.ts`'s
+ * Deliberately narrower than `platform/express/public-origin.ts`'s
  * `resolvePublicOrigin(req)`: that function's SECOND branch (`req.get("host")`) needs an HTTP
  * request this tool handler never has (see this file's header). This is only its first branch,
  * duplicated locally rather than imported — see the header for why importing/reshaping that file was

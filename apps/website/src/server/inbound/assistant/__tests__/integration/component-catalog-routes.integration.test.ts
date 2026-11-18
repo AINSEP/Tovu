@@ -19,7 +19,7 @@ const require = createRequire(import.meta.url);
  * stand-in.
  *
  * Why this exists: `registerComponentCatalogRoutes(app, { catalog: buildComponentCatalogQuery() },
- * adapter)` reads as correctly wired, but so did the sibling `registerToolCatalogRoutes` call right
+ * adapter)` reads as correctly wired, but so did the sibling `toolCatalogRoutes` call right
  * above it — which turned out to be silently unmounted for weeks (see the doc comment above both
  * calls in `agent-daemon-server.ts`). `daemon-boots.integration.test.ts` proves the real process
  * starts and listens, but asserts nothing about any individual route actually answering a request.

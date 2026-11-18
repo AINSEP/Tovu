@@ -7,7 +7,7 @@
   {
     "file": "apps/admin/src/App.hooks.ts",
     "rule": "catch-reads-error",
-    "value": 4
+    "value": 2
   },
   {
     "file": "apps/admin/src/components/AssistantDock/hooks/AssistantDock.hooks.tsx",
@@ -41,6 +41,16 @@
   },
   {
     "file": "apps/admin/src/components/TemplateSource/use-template-source.hooks.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/ai-assistant/api/ai-assistant-api.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/admin/src/features/ai-assistant/api/ai-assistant-api.ts",
     "rule": "failure-text-from-catalog",
     "value": 1
   },
@@ -195,6 +205,11 @@
     "value": 1
   },
   {
+    "file": "apps/admin/src/features/pages/hooks/page-editor-save.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
     "file": "apps/admin/src/features/pages/hooks/theme-canvas-dependencies.hooks.ts",
     "rule": "catch-reads-error",
     "value": 1
@@ -207,7 +222,7 @@
   {
     "file": "apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts",
     "rule": "catch-reads-error",
-    "value": 3
+    "value": 2
   },
   {
     "file": "apps/admin/src/features/pages/hooks/use-theme-canvas-styling.hooks.ts",
@@ -400,13 +415,8 @@
     "value": 1
   },
   {
-    "file": "apps/admin/src/lib/api.ts",
+    "file": "apps/admin/src/lib/admin-http/request.ts",
     "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
-    "file": "apps/admin/src/lib/api.ts",
-    "rule": "failure-text-from-catalog",
     "value": 1
   },
   {
@@ -483,6 +493,11 @@
     "file": "apps/admin/src/lib/widget-embed-extension.hooks.ts",
     "rule": "catch-reads-error",
     "value": 1
+  },
+  {
+    "file": "apps/admin/src/site-section-availability.hooks.ts",
+    "rule": "catch-reads-error",
+    "value": 2
   },
   {
     "file": "apps/desktop/src/app-version-ipc.ts",
@@ -575,7 +590,7 @@
     "value": 2
   },
   {
-    "file": "apps/desktop/src/project-ipc.ts",
+    "file": "apps/desktop/src/project-ipc.site-lifecycle.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
@@ -1290,7 +1305,7 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/publish-content/apply-loop.ts",
+    "file": "apps/website/src/features/publish-content/apply-retire.ts",
     "rule": "failure-text-from-catalog",
     "value": 1
   },
@@ -1665,6 +1680,11 @@
     "value": 4
   },
   {
+    "file": "apps/website/src/platform/express/async-route.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
+  },
+  {
     "file": "apps/website/src/platform/markdown/frontmatter.ts",
     "rule": "catch-reads-error",
     "value": 1
@@ -1900,11 +1920,6 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/server/inbound/admin-http/routes/system/site-share-errors.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/website/src/server/inbound/admin-http/routes/taxonomy/assign-terms.ts",
     "rule": "no-generic-failure-text",
     "value": 1
@@ -2115,7 +2130,7 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/server/inbound/public-http/routes/site/pages.ts",
+    "file": "apps/website/src/server/inbound/public-http/routes/site/pages/render-context/site-title.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
@@ -2160,9 +2175,9 @@
     "value": 2
   },
   {
-    "file": "apps/website/src/server/inbound/shared/async-route.ts",
-    "rule": "failure-text-from-catalog",
-    "value": 1
+    "file": "apps/website/src/server/inbound/shared/admin-failure.ts",
+    "rule": "catch-reads-error",
+    "value": 2
   },
   {
     "file": "apps/website/src/server/runtime/boot/boot-readiness-warnings.ts",
@@ -2196,11 +2211,6 @@
   },
   {
     "file": "apps/website/src/server/runtime/composition/analytics-providers.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
-    "file": "apps/website/src/server/runtime/composition/app.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
@@ -2240,6 +2250,11 @@
     "value": 1
   },
   {
+    "file": "apps/website/src/server/runtime/composition/memory-deps/slices/site-title-settings.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
     "file": "apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts",
     "rule": "catch-reads-error",
     "value": 2
@@ -2253,11 +2268,6 @@
     "file": "apps/website/src/server/runtime/composition/modules/assistant-chats.ts",
     "rule": "catch-reads-error",
     "value": 2
-  },
-  {
-    "file": "apps/website/src/server/runtime/composition/modules/assistant-run-finalizer.ts",
-    "rule": "catch-reads-error",
-    "value": 6
   },
   {
     "file": "apps/website/src/server/runtime/composition/modules/assistant-tool-access-lowering.ts",
@@ -2276,6 +2286,26 @@
   },
   {
     "file": "apps/website/src/server/runtime/composition/modules/core.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/modules/run-daemon-http-client.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/modules/run-finalizer/bounded-follow.ts",
+    "rule": "catch-reads-error",
+    "value": 2
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/modules/run-finalizer/release-body.ts",
+    "rule": "catch-reads-error",
+    "value": 1
+  },
+  {
+    "file": "apps/website/src/server/runtime/composition/modules/run-finalizer/report.ts",
     "rule": "catch-reads-error",
     "value": 1
   },

@@ -30,6 +30,7 @@ export interface DashboardProps {
    * house convention this follows.
    */
   useDashboardHook?: typeof useWiredDashboard;
+  usePublishToLiveAvailableHook?: typeof usePublishToLiveAvailable;
 }
 
 /** One row in the "Recently updated" activity list. */
@@ -102,14 +103,15 @@ function RecentActivityBody(props: {
  *  down when open. Open state and its localStorage persistence live in
  *  `use-recent-activity-disclosure.hooks.ts`. The body stays mounted and is only `hidden`, so the
  *  button's `aria-controls` always names an element that exists. */
-function RecentActivityPanel(props: {
+function RecentActivityPanel({ useRecentActivityDisclosureHook = useRecentActivityDisclosure, ...props }: {
   recent: AdminPost[] | null;
   postsError: string | null;
   pagesError: string | null;
   t: Translate;
+  useRecentActivityDisclosureHook?: typeof useRecentActivityDisclosure;
 }) {
   const { t } = props;
-  const { open, toggle, panelId } = useRecentActivityDisclosure();
+  const { open, toggle, panelId } = useRecentActivityDisclosureHook();
   return (
     <div className={`dash-panel${open ? "" : " is-collapsed"}`}>
       <div className="dash-panel-head">
@@ -214,7 +216,7 @@ function SiteKeyWarningBanner({ message }: { message: string }) {
   );
 }
 
-export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardProps = {}) {
+export function Dashboard({ useDashboardHook = useWiredDashboard, usePublishToLiveAvailableHook = usePublishToLiveAvailable }: DashboardProps = {}) {
   const {
     posts,
     published,
@@ -232,7 +234,7 @@ export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardPro
     siteKeyBannerMessage,
   } = useDashboardHook();
   // `false` on the live site, which has nowhere to publish to (`publish-availability.store.ts`).
-  const canPublish = usePublishToLiveAvailable();
+  const canPublish = usePublishToLiveAvailableHook();
 
   return (
     <div className="page dashboard-page">

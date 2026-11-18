@@ -8,7 +8,7 @@ import { createServer as createHttpsServer } from "node:https";
 import { resolve as resolvePath } from "node:path";
 import { createRouteDeps } from "./server/runtime/composition/app.js";
 import { createServingApp } from "./server/runtime/composition/serving-app.js";
-import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "./server/runtime/boot/dev-tls.js";
+import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "./platform/dev-host/dev-tls.js";
 import { createSiteRouteDeps, defaultContentDbPath, siteDir } from "./server/runtime/composition/deps.js";
 import type { SiteStore } from "./server/runtime/composition/open-site-store.js";
 import { runProductionReadinessGateOrExit } from "./server/runtime/boot/boot-readiness-gate.js";
@@ -30,7 +30,7 @@ import { shutdownAssistantDaemon, startAssistantDaemon } from "./server/inbound/
 import { closeStoreOnShutdown, stopServingWithinGrace } from "./server/runtime/lifecycle/close-store-on-shutdown.js";
 import { ensureAgentDaemonPortResolved } from "./server/runtime/lifecycle/agent-daemon-port.js";
 import { ensureAgentDaemonToken, ensureToolExecToken } from "./assistant/index.js";
-import { initializeStartupSecrets } from './server/runtime/boot/startup-secrets.js';
+import { initializeStartupSecrets } from './platform/secrets/startup-secrets.js';
 import { registerAdminDevProxyUpgrade } from "./server/inbound/admin-http/admin-dev-proxy.js";
 import { resolveBindHost } from "./server/runtime/boot/bind-host.js";
 import { reserveBootListener } from "./server/runtime/boot/boot-listener.js";

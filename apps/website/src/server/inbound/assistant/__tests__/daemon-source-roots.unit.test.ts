@@ -10,7 +10,7 @@ test('daemon attachment and catalog fixtures inspect the site factory while shut
     .filter(ts.isCallExpression)
     .map(call => call.expression.getText(daemonSource));
   assert.ok(calls.includes('registerDaemonAttachmentLookup'));
-  assert.ok(calls.includes('registerToolCatalogRoutes'));
+  assert.ok(calls.includes('mountJiniRoutes'));
   assert.ok(daemonEntrySource.statements.some(statement => ts.isFunctionDeclaration(statement) && statement.name?.text === 'exitDaemon'));
   assert.ok(!daemonStatements.some(statement => ts.isFunctionDeclaration(statement) && statement.name?.text === 'exitDaemon'));
 });

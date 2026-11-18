@@ -97,7 +97,7 @@ T: peer-site-reads:347 (DONE).
   (desktop passes `app.getVersion()` when it spawns the server; a plain `npm start` falls back to the
   root package.json version). Then spread them into the metadata of `unexpectedAdminBody`
   (shared/admin-failure.ts, the `formatUserFacingError(..., { ...context.metadata, ... })` call) and add them
-  to the `reportServerFailure` log line. Test: site-share-errors unit test asserts both fields.
+  to the `reportServerFailure` log line. Test: `routes/system/__tests__/site-share-failures.test.ts` asserts both fields.
   Admin fallback (`publishAdminFailure` without approved server wording) now carries both (9b37e33cc).
 - Jini 501da27d4 must be released before Tovu admin/desktop rely on the Jini `describeErrorForLog` being total.
 - Admin tsc not run (heavy); every single test file touched passes.

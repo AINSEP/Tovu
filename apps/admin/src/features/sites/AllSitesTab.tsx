@@ -148,6 +148,7 @@ function SiteCard({
   localSites,
   list,
   t,
+  useSiteCardPreviewHook = useSiteCardPreview,
 }: {
   site: AdminSiteListEntry;
   snapshot: AdminSitesSnapshot;
@@ -158,9 +159,10 @@ function SiteCard({
   localSites?: LocalSitesController;
   list: Pick<SiteListController<unknown>, "isPinned" | "togglePin" | "isHidden" | "toggleHidden">;
   t: Translate;
+  useSiteCardPreviewHook?: typeof useSiteCardPreview;
 }) {
   const pill = resolveSiteStatusPill({ site, snapshot, t });
-  const preview = useSiteCardPreview({ site, snapshot });
+  const preview = useSiteCardPreviewHook({ site, snapshot });
   const view = resolveSiteCardView({
     site, snapshot, switchingEnabled, activatingName, busyName: localSites?.busyName ?? null, managed: localSites !== undefined,
   });
@@ -272,6 +274,7 @@ export interface AllSitesTabProps {
   /** This person's sort, pins and hidden sites. */
   listPrefs: SiteListPrefsController;
   t: Translate;
+  useSiteListViewHook?: typeof useSiteListView;
 }
 
 /** The grid itself. A plain function returning JSX rather than a ternary written in
@@ -295,8 +298,8 @@ function SiteListPrefsNotice({ listPrefs, t }: { listPrefs: SiteListPrefsControl
   return null;
 }
 
-function SitesGrid({ sites, snapshot, switchingEnabled, activatingName, onActivate, localSites, listPrefs, t }: AllSitesTabProps) {
-  const list = useSiteListView({ items: resolveSiteListItems(sites), prefs: listPrefs.prefs, onPrefsChange: listPrefs.onPrefsChange });
+function SitesGrid({ sites, snapshot, switchingEnabled, activatingName, onActivate, localSites, listPrefs, t, useSiteListViewHook = useSiteListView }: AllSitesTabProps) {
+  const list = useSiteListViewHook({ items: resolveSiteListItems(sites), prefs: listPrefs.prefs, onPrefsChange: listPrefs.onPrefsChange });
   // Folder names are unique under `sites/` (they ARE the directory entries), so they disambiguate
   // one card's controls from another's — same reasoning as every other list on this workstream.
   const rowHandles = resolveSitesRowHandles(sites);

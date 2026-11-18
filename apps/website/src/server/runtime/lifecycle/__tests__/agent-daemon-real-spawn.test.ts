@@ -101,7 +101,7 @@ for (const mode of ['https-dev', 'desktop'] as const) {
     const { createRequire } = await import('node:module');
     const { pathToFileURL } = await import('node:url');
     const { pinSiteListenerOrigin } = await import('../../boot/site-listener-origin.js');
-    const { deriveDevScheme, resolveDevTls } = await import('../../boot/dev-tls.js');
+    const { deriveDevScheme, resolveDevTls } = await import('../../../../platform/dev-host/dev-tls.js');
     const fixture = mkdtempSync(path.join(tmpdir(), 'tovu-origin-spawn-'));
     const keys = ['JINI_AGENT_DAEMON_URL', 'JINI_AGENT_DAEMON_PORT', 'TOVU_SITE_DIR', 'TOVU_SITE_LISTENER_ORIGIN', 'PORT', 'TOVU_DISABLE_DEV_TLS', 'TOVU_DB', 'HOME'];
     const previous = Object.fromEntries(keys.map(key => [key, process.env[key]]));

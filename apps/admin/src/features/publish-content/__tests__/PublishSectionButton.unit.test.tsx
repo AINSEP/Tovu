@@ -61,4 +61,11 @@ describe("PublishSectionButton", () => {
     expect(requestPublishSpy).toHaveBeenCalledWith({}, { entityTypes: [...entityTypes] });
     expect(subscriber.result.current).toMatchObject({ criteria: {}, scope: { entityTypes: [...entityTypes] } });
   });
+
+  it("renders the label and click handler returned by the injected usePublishSectionButtonHook", async () => {
+    const onClick = vi.fn();
+    render(<PublishSectionButton section="pages" usePublishSectionButtonHook={() => ({ visible: true, label: "Injected label", onClick })} />);
+    await userEvent.click(screen.getByRole("button", { name: "Injected label" }));
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
 });

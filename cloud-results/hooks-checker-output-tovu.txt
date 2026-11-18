@@ -1,0 +1,4 @@
+hook-injection: 185 components, 284 direct custom-hook calls
+top hooks: useAdminLocale 24, useT 17, useAdminThemeBoundary 11, useTabBarKeyboard 9, useWiredAdminLocale 9, useExternalMcpDriftCopy 4, useCodeWrap 3, useAdminExecutionCredentialHook 2
+top folders: apps/admin 247, apps/desktop 35, apps/site-chat 2
+hook-injection: ok

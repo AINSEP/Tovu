@@ -119,7 +119,7 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
         res.end(`id: cursor-7\ndata: {"kind":"end"}\n\n`);
         return;
       }
-      // Stand-in for `@jini-ai/http-kit`'s real tool-catalog routes (`registerToolCatalogRoutes`,
+      // Stand-in for `@jini-ai/http-kit`'s real tool-catalog routes (`toolCatalogRoutes`,
       // mounted daemon-side by `agent-daemon-server.ts`) — answers the same two shapes the real
       // route does, so the proxy tests below assert against realistic response bodies rather than
       // the generic `{runs: [...]}` fallback every other route in this stand-in happens to share.
@@ -695,7 +695,7 @@ test("clearing the failure (the future-retry hook) restores normal proxying", as
  * ---- Tool catalog enumeration (`GET /api/tools/search`, `GET /api/tools/:id`) ----
  *
  * The browser-reachable proxy in front of the daemon's `requireSameOrigin`-gated
- * `registerToolCatalogRoutes` (see `modules/assistant.ts`'s own doc at the mount site for the full
+ * `toolCatalogRoutes` (see `modules/assistant.ts`'s own doc at the mount site for the full
  * same-origin trace). Written and first run against the pre-change router — where both routes
  * 404 at Tovu's own Express app before ever reaching the stand-in daemon — as this dispatch's
  * required RED evidence; see the Programmer handoff for the verbatim red output.

@@ -138,9 +138,9 @@ function AuthenticationHomePanel({ t }: { t: Translate }): ReactElement {
  * @example
  * <Authentication />
  */
-export function Authentication(): ReactElement {
-  const themeBoundary = useAdminThemeBoundary({}, {});
-  const locale = useAdminLocale();
+export function Authentication({ useAdminThemeBoundaryHook = useAdminThemeBoundary, useAdminLocaleHook = useAdminLocale }: { useAdminThemeBoundaryHook?: typeof useAdminThemeBoundary; useAdminLocaleHook?: typeof useAdminLocale } = {}): ReactElement {
+  const themeBoundary = useAdminThemeBoundaryHook({}, {});
+  const locale = useAdminLocaleHook();
   const t: Translate = createAuthenticationTranslator({ locale });
   const tabs: SettingsDialogTab[] = [
     {

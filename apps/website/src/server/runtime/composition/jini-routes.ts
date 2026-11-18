@@ -27,7 +27,8 @@ export function mountJiniRoutes(
   { app, routes }: { app: Pick<Express, "use">; routes: readonly ServerRoute[] },
   { rawBody = false, redactionPatterns = [] }: { rawBody?: boolean; redactionPatterns?: readonly SecretRedactionPattern[] } = {},
 ): void {
-  const dispatcher = createNodeDispatcher({}, { redactionPatterns });
+  // Express answered these routes before they were lists. Callers (and the admin proxy, which forwards a path as the client spelled it) kept their spellings: the answers stay.
+  const dispatcher = createNodeDispatcher({}, { redactionPatterns, expressCompatible: true });
   for (const route of routes) dispatcher.server.route(route);
   app.use((req, res, next) => {
     // A route that throws is answered by the dispatcher itself, so this promise always settles.

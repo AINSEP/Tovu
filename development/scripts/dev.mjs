@@ -87,14 +87,14 @@ const VITE_PORT = Number(process.env.TOVU_ADMIN_DEV_PORT ?? 5173);
 const DAEMON_PORT = Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
 
 // Same repo-root cert pair both dev servers gate their own TLS on
-// (`apps/website/src/server/runtime/boot/dev-tls.ts`, `apps/admin/vite.config.ts`). Computed once
+// (`apps/website/src/platform/dev-host/dev-tls.ts`, `apps/admin/vite.config.ts`). Computed once
 // here so every printed URL and every child env var below agrees with what those two gates will
 // independently decide for themselves.
 const CERT_PATH = path.join(REPO_ROOT, ".certs", "localhost.pem");
 const KEY_PATH = path.join(REPO_ROOT, ".certs", "localhost-key.pem");
 
 /**
- * Parses `TOVU_DISABLE_DEV_TLS` the same way `apps/website/src/server/runtime/boot/dev-tls.ts`'s
+ * Parses `TOVU_DISABLE_DEV_TLS` the same way `apps/website/src/platform/dev-host/dev-tls.ts`'s
  * (unexported) `isDevTlsExplicitlyDisabled` and `apps/admin/vite.config.ts`'s
  * `isDevTlsExplicitlyDisabled` do: trim + lowercase, `"1"`/`"true"` only — NOT a bare truthy check on
  * the raw string, which treated ANY non-empty value, including the literal `"false"` or `"0"`, as

@@ -145,10 +145,10 @@ function Header(props: { controller: EmailTemplateEditorController; locale: stri
 }
 
 /** HTML | Preview tabs (Pages' segmented tablist and keyboard contract), device widths, As sent. */
-function Toolbar(props: { controller: EmailTemplateEditorController; view: EmailTemplateViewState; locale: string }) {
+function Toolbar({ useTabBarKeyboardHook = useTabBarKeyboard, ...props }: { controller: EmailTemplateEditorController; view: EmailTemplateViewState; locale: string; useTabBarKeyboardHook?: typeof useTabBarKeyboard; }) {
   const { controller, view, locale } = props;
   const pageT = createEmailPageTranslator({ locale });
-  const { onKeyDown } = useTabBarKeyboard({ tabs: TABS, activeId: view.tab, onChange: (id) => view.setTab(id as EmailTemplateTab) });
+  const { onKeyDown } = useTabBarKeyboardHook({ tabs: TABS, activeId: view.tab, onChange: (id) => view.setTab(id as EmailTemplateTab) });
   return (
     <div className="page-editor-toolbar">
       <div className="content-editor-toolbar-start">
@@ -269,12 +269,11 @@ export function editorStatus(controller: Pick<EmailTemplateEditorController, "sa
 /**
  * The editor page. `useEditorHook` is the DI seam — a test mounts it over a fake controller.
  */
-export function EmailTemplateEditor(props: { id: string; useEditorHook?: (required: { id: string }) => EmailTemplateEditorController; locale?: string }) {
-  const useEditor = props.useEditorHook ?? useWiredEmailTemplateEditor;
-  const controller = useEditor({ id: props.id });
-  const locale = useEditorLocale({ override: props.locale });
-  const view = useEmailTemplateView();
-  useEditorKeys({ controller, locale });
+export function EmailTemplateEditor({ useEditorHook = useWiredEmailTemplateEditor, useEditorLocaleHook = useEditorLocale, useEmailTemplateViewHook = useEmailTemplateView, useEditorKeysHook = useEditorKeys, ...props }: { id: string; useEditorHook?: (required: { id: string }) => EmailTemplateEditorController; locale?: string; useEditorLocaleHook?: typeof useEditorLocale; useEmailTemplateViewHook?: typeof useEmailTemplateView; useEditorKeysHook?: typeof useEditorKeys; }) {
+  const controller = useEditorHook({ id: props.id });
+  const locale = useEditorLocaleHook({ override: props.locale });
+  const view = useEmailTemplateViewHook();
+  useEditorKeysHook({ controller, locale });
   return (
     <div className="page content-editor-page email-template-page">
       <Header controller={controller} locale={locale} />

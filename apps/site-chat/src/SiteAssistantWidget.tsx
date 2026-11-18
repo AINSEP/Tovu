@@ -48,9 +48,9 @@ import { SiteAssistantHeader } from "./SiteAssistantHeader";
  */
 const SITE_ASSISTANT_AGENT: ChatPaneAgent = { id: "site-assistant", name: "Site Assistant", available: true };
 
-export function SiteAssistantWidget() {
+export function SiteAssistantWidget({ useSiteAssistantWidgetHook = useSiteAssistantWidget }: { useSiteAssistantWidgetHook?: typeof useSiteAssistantWidget } = {}) {
   const { open, paneKey, panelRef, launcherRef, closePanel, i18n, t, suggestions, toggleOpen,
-    comparisonControl, transport, hasMessages, persistedMessages, resetConversation, handleMessagesChange, toolConfirmation } = useSiteAssistantWidget({});
+    comparisonControl, transport, hasMessages, persistedMessages, resetConversation, handleMessagesChange, toolConfirmation } = useSiteAssistantWidgetHook({});
 
   return (
     <div className="tovu-site-assistant jini-chat-embed" data-agent-private>

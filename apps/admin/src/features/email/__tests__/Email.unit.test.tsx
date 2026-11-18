@@ -152,3 +152,9 @@ describe("provider segment URLs", () => {
     expect(window.location.search).toBe(`?tab=provider&p=${nextPart}`);
   });
 });
+
+it("spreads the boundary attributes returned by the injected useAdminThemeBoundaryHook onto the page", () => {
+  const useEmailHook = () => ({ view: { kind: "loaded" as const, status: LOCAL }, locale: "en", retry: vi.fn() });
+  const { container } = render(<Email useEmailHook={useEmailHook} tabHooks={createTabHooks()} useAdminThemeBoundaryHook={() => ({ "data-theme": "dark" })} />);
+  expect(container.querySelector(".email-sections")).toHaveAttribute("data-theme", "dark");
+});

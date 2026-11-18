@@ -18,10 +18,11 @@ export interface PublishSectionButtonProps {
   /** Button variant class; `.btn-secondary` unless the host screen says otherwise (Themes uses
    *  `.btn-primary`, owner 2026-10-11). */
   className?: string;
+  usePublishSectionButtonHook?: typeof usePublishSectionButton;
 }
 
-export function PublishSectionButton({ section, className = "btn-secondary" }: PublishSectionButtonProps) {
-  const { visible, label, onClick } = usePublishSectionButton(section);
+export function PublishSectionButton({ section, className = "btn-secondary", usePublishSectionButtonHook = usePublishSectionButton }: PublishSectionButtonProps) {
+  const { visible, label, onClick } = usePublishSectionButtonHook(section);
   if (!visible) return null;
   return (
     <button

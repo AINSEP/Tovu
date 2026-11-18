@@ -5,7 +5,7 @@ import { probeExternalMcpServer, type ExternalMcpProbeServiceDeps } from "#src/f
 import { OUTBOUND_CALL_PER_IP, createRateLimiter, resolveClientIp, type RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { ExternalMcpRouteDeps } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";
-import { asyncRoute } from "../../../shared/async-route.js";
+import { asyncRoute } from "../../../../../platform/express/async-route.js";
 
 /**
  * @file `POST .../mcp-servers/:serverId/probe` (C-007) — connects to ONE configured server, once,

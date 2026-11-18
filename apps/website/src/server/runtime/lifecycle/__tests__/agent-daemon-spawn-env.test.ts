@@ -3,7 +3,7 @@ import test, { afterEach, beforeEach } from "node:test";
 
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { buildDaemonSpawnEnvOverrides } from "../daemon-supervisor.js";
-import { siteThemesDir } from "../../composition/deps.js";
+import { siteThemesDir } from "../../composition/site-paths.js";
 
 let inheritedSiteDir: string | undefined;
 beforeEach(() => {

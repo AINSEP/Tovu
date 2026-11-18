@@ -31,6 +31,11 @@ function errorKey({ error, fallback }: { error: unknown; fallback: string }, _op
   return (error.code ? ERROR_CODE_KEYS[error.code] : undefined) ?? ERROR_STATUS_KEYS[error.status] ?? fallback;
 }
 
+/** The sentence key for a failed preview or install: the error's own when it has one, else a generic one. */
+function installFailureKey({ error, install }: { error: unknown; install: boolean }, _optional = {}): string {
+  return errorKey({ error, fallback: install ? "Failed to install plugin." : "Failed to preview plugin." });
+}
+
 /**
  * The Plugins "Add a plugin" tab's state: a server folder or one uploaded `.zip` (picker, drop, or a
  * picked folder zipped in the browser), the replace option, the preview (trust review) and the
@@ -71,18 +76,17 @@ export function usePluginInstall(required: { port: PluginInstallPort; t: Transla
     const generation = sequence.current;
     const source = currentSource();
     try {
-      if (install) {
-        if (!preview) throw new Error("plugin install has no reviewed preview");
-        await installReviewed({ source, reviewed: preview, generation });
-      } else {
-        await reviewSource({ source, generation });
-      }
+      await runSource({ install, source, generation });
     } catch (e) {
-      if (generation === sequence.current) {
-        setPreview(null);
-        setError(required.t(errorKey({ error: e, fallback: install ? "Failed to install plugin." : "Failed to preview plugin." })));
-      }
+      // A failure of a superseded run is dropped; the current run clears its preview and says why.
+      if (generation !== sequence.current) return;
+      setPreview(null); setError(required.t(installFailureKey({ error: e, install })));
     } finally { locked.current = false; setBusy(false); }
+  }
+  async function runSource({ install, source, generation }: { install: boolean; source: PluginInstallSource; generation: number }, _optional = {}) {
+    if (!install) { await reviewSource({ source, generation }); return; }
+    if (!preview) throw new Error("plugin install has no reviewed preview");
+    await installReviewed({ source, reviewed: preview, generation });
   }
   async function reviewSource({ source, generation }: { source: PluginInstallSource; generation: number }, _optional = {}) {
     const result = await required.port.preview(source);

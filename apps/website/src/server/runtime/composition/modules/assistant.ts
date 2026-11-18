@@ -631,7 +631,7 @@ function mountAgentAndToolRoutes(required: AssistantMountContext, _optional = {}
 
   // Browser-reachable tool CATALOG enumeration — `search`/`describe` over the same 131-tool
   // registry `buildAssistantToolRegistrations` populates (`tool-catalog-query.ts`), proxied
-  // from `@jini-ai/http-kit`'s `registerToolCatalogRoutes` (mounted daemon-side by
+  // from `@jini-ai/daemon`'s `toolCatalogRoutes` (mounted daemon-side by
   // `agent-daemon-server.ts`). That daemon route is `requireSameOrigin`-gated and, before this,
   // reachable only by the spawned `jini-mcp` subprocess's own loopback `fetch` (no `Origin`
   // header, so it passes the daemon's same-origin check the way a browser's cross-origin

@@ -3,7 +3,7 @@ import { describeErrorForLog } from "@jini-ai/core/model-facing-tool-errors";
 import { createLocalSiteIntentStore, createLocalSiteSupervisor, type LocalSiteSupervisorPort } from "#src/platform/site-dir/index";
 import { switcherBaseForBinding, type SiteBinding, isSiteSwitcherEnabled } from "#src/platform/site-dir/index";
 import { resolveCheckoutRoot } from "#src/platform/site-dir/product-root";
-import { resolveDevTls, resolveDevTlsCertPaths } from "../boot/dev-tls.js";
+import { resolveDevTls, resolveDevTlsCertPaths } from "../../../platform/dev-host/dev-tls.js";
 import { createLocalSiteProcessPort } from "./local-site-process.js";
 import { LocalSiteError, startLocalSiteWhenRunning } from "#src/platform/site-dir/index";
 /** Each binding's supervisor, with the removal of the process listeners it registered. */

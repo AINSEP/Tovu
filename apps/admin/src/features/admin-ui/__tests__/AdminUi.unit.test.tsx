@@ -85,4 +85,9 @@ describe("Admin UI tabs", () => {
     expect(window.location.search).toBe("?tab=theme");
     expect(window.history.length).toBe(length);
   });
+
+  it("renders the page chrome in the locale returned by the injected useAdminLocaleHook", () => {
+    render(<AdminUi useAdminLocaleHook={() => "es"} />);
+    expect(screen.getByRole("heading", { name: "Interfaz de administración" })).toBeInTheDocument();
+  });
 });

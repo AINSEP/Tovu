@@ -14,10 +14,9 @@
  * @complexity O(1) beyond the reporter.
  */
 export function reportSafely({ report }: { report: () => unknown }, _optional = {}): void {
-  try {
-    const result = report();
-    if (result instanceof Promise) result.catch(() => undefined);
-  } catch {
+  // The executor runs `report` synchronously and turns a synchronous throw into the same rejection
+  // an asynchronous reporter produces, so one handler contains both.
+  new Promise<unknown>((resolve) => { resolve(report()); }).catch(() => {
     // Nothing to do, and nowhere left to say so: see the comment above.
-  }
+  });
 }

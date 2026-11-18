@@ -453,24 +453,29 @@ async function resolveTurnInputsOrRespond(
 async function attachTurnMessagesOrRespond({ attachmentIds, messages, principalId, routeDeps, res }: {
   attachmentIds: unknown; messages: ByokChatMessage[]; principalId: string; routeDeps: RouteDeps; res: Response;
 }, _options: Record<string, never> = {}): Promise<boolean> {
-  if (attachmentIds !== undefined) {
-    if (!Array.isArray(attachmentIds) || attachmentIds.length > 10 ||
-      attachmentIds.some(ref => typeof ref !== "string" || !ref)) {
-      res.status(400).json({ error: "Invalid message attachments", code: "VALIDATION_ERROR" });
-      return false;
-    }
-    try {
-      const prepared = await prepareByokMessageAttachments({ refs: attachmentIds, principalId, uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir }, {});
-      const last = messages[messages.length - 1];
-      if (!last) throw new Error("assistant attachment preparation has no message");
-      messages[messages.length - 1] = { ...last, content: last.content + prepared.notice, images: prepared.images };
-    } catch (error) {
-      if (error instanceof AttachmentUnavailableError) res.status(400).json({ error: "Attachment is unavailable. Reattach it before sending.", code: "VALIDATION_ERROR" });
-      else sendAdminFailure({ res, error }, { operation: "assistant-byok:attachments", message: "The attachment could not be prepared." });
-      return false;
-    }
+  if (attachmentIds === undefined) return true;
+  const refs = readAttachmentRefs({ value: attachmentIds });
+  if (!refs) {
+    res.status(400).json({ error: "Invalid message attachments", code: "VALIDATION_ERROR" });
+    return false;
+  }
+  try {
+    const prepared = await prepareByokMessageAttachments({ refs, principalId, uploadDirectory: routeDeps.siteStoragePaths.chatAttachmentsDir }, {});
+    const last = messages[messages.length - 1];
+    if (!last) throw new Error("assistant attachment preparation has no message");
+    messages[messages.length - 1] = { ...last, content: last.content + prepared.notice, images: prepared.images };
+  } catch (error) {
+    if (error instanceof AttachmentUnavailableError) res.status(400).json({ error: "Attachment is unavailable. Reattach it before sending.", code: "VALIDATION_ERROR" });
+    else sendAdminFailure({ res, error }, { operation: "assistant-byok:attachments", message: "The attachment could not be prepared." });
+    return false;
   }
   return true;
+}
+
+/** At most ten non-empty string references; anything else is a malformed request, not an attachment. */
+function readAttachmentRefs({ value }: { value: unknown }, _options: Record<string, never> = {}): readonly string[] | undefined {
+  const valid = Array.isArray(value) && value.length <= 10 && value.every(ref => typeof ref === "string" && ref !== "");
+  return valid ? value : undefined;
 }
 
 interface LiveByokToolRun extends ToolAccessRun {

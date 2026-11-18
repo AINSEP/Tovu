@@ -10,8 +10,8 @@ const identityTranslate: Translate = text => text;
 /** Sign-in adapter for a lost owner password; code scope is selected only by the server.
  * @complexity O(1), one request on explicit submit (64-character code and bounded password), no polling.
  */
-export function OwnerRecoverySignIn({ recover = ownerRecoveryPort.recover, t = identityTranslate }: { recover?: OwnerRecoveryPort['recover']; t?: Translate }) {
-  const { code, setCode, password, setPassword, confirmation, setConfirmation, failure, busy, message, submit } = useOwnerRecoverySignIn({ recover, t });
+export function OwnerRecoverySignIn({ recover = ownerRecoveryPort.recover, t = identityTranslate, useOwnerRecoverySignInHook = useOwnerRecoverySignIn }: { recover?: OwnerRecoveryPort['recover']; t?: Translate; useOwnerRecoverySignInHook?: typeof useOwnerRecoverySignIn; }) {
+  const { code, setCode, password, setPassword, confirmation, setConfirmation, failure, busy, message, submit } = useOwnerRecoverySignInHook({ recover, t });
   return <details className="login-card"><summary>{t('Lost your owner password?')}</summary>
     <p>{t('Use a saved recovery code to reset your password and remove authenticators and passkeys. Without a code, ask the host operator to recover this site.')}</p>
     <form onSubmit={submit}>

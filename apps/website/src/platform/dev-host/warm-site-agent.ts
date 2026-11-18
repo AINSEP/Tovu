@@ -1,7 +1,7 @@
 /** Agent tools reach the single dev-host pool without importing process-launch assembly. */
 import { LocalSiteError } from '#src/platform/site-dir/local-site-supervisor';
 import { resolveCheckoutRoot } from '#src/platform/site-dir/product-root';
-import { resolveDevTls, resolveDevTlsCertPaths } from '../boot/dev-tls.js';
+import { resolveDevTls, resolveDevTlsCertPaths } from './dev-tls.js';
 import { requestLoopbackHttp } from '@jini-ai/platform/net';
 
 /** Tool handlers can run in a daemon: use the dev host's capability rather than assembling a

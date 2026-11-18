@@ -6,7 +6,7 @@ import type { Express, Request, Response } from "express";
 import type { SettingRevisionRecord } from "#src/features/settings/index";
 import { registerAdminSettingsEventsRoute } from "../../inbound/admin-http/routes/settings/events.js";
 import type { SettingsRouteDeps } from "../../inbound/admin-http/routes/settings/deps.js";
-import type { AsyncRouteRequestHandler } from "../../inbound/shared/async-route.js";
+import type { AsyncRouteRequestHandler } from "../../../platform/express/async-route.js";
 
 /** sseshare: query resume uses the existing authorized ledger feed, no sockets, DB or timers. */
 async function feed({ query = {}, header, allowed = true, previewAllowed = false, workspaceId = "ws", authorize }: {

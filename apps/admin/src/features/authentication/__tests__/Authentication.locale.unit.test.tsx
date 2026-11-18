@@ -2,10 +2,12 @@ import { render, screen } from "@/__tests__/fetch-query-render";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const language = vi.hoisted(() => ({ locale: "es" }));
-// Locale delivery is outside this claim; the real component, shell and translators all run.
-vi.mock("@/hooks/use-admin-locale.hooks", () => ({ useAdminLocale: () => language.locale }));
 import { Authentication } from "../Authentication";
+
+// Locale delivery is outside this claim: it is injected through the component's hook prop, and the
+// real component, shell and translators all run.
+const language = { locale: "es" };
+const useAdminLocaleHook = () => language.locale;
 
 beforeEach(() => { language.locale = "es"; });
 
@@ -13,7 +15,7 @@ describe("Authentication localized credential preview", () => {
   // F1.3/F2.4/F6.2: hardcoding English, losing hint associations, or enabling fields must fail.
   it("translates field labels, associated hints and provider notes while rejecting secret input", async () => {
     const user = userEvent.setup();
-    render(<Authentication />);
+    render(<Authentication useAdminLocaleHook={useAdminLocaleHook} />);
     expect(screen.getByRole("heading", { level: 1, name: "Autenticación" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Google" }));
     const identity = screen.getByLabelText(/^ID de cliente/);
@@ -41,11 +43,16 @@ describe("Authentication localized credential preview", () => {
   it("falls back to English for an unsupported locale", async () => {
     language.locale = "unsupported-locale";
     const user = userEvent.setup();
-    render(<Authentication />);
+    render(<Authentication useAdminLocaleHook={useAdminLocaleHook} />);
     expect(screen.getByRole("heading", { level: 1, name: "Authentication" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Facebook" }));
     expect(screen.getByLabelText(/^App ID/)).toBeDisabled();
     expect(screen.getByLabelText(/^App secret/)).toHaveAttribute("placeholder", "Enter Meta app secret");
     expect(screen.getByRole("note").textContent).toBe("Not connected to a provider authentication backend yet. These required fields are shown for setup planning; Tovu cannot save credentials or enable Facebook sign-in from this screen today.");
+  });
+
+  it("spreads the boundary attributes returned by the injected useAdminThemeBoundaryHook onto the page", () => {
+    render(<Authentication useAdminLocaleHook={useAdminLocaleHook} useAdminThemeBoundaryHook={() => ({ "data-theme": "dark" })} />);
+    expect(document.querySelector(".settings-ui-section--page-flow")).toHaveAttribute("data-theme", "dark");
   });
 });

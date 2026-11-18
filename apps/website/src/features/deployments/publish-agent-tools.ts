@@ -1,7 +1,7 @@
 import { publishJobRecoveryMessage } from "@jini-ai/devops/deploy";
 export type { StaticPublishToolDeps } from "./publish-tool-deps.js";
 import type { StaticPublishToolDeps } from "./publish-tool-deps.js";
-import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
+import { ToolInputError, type AgentToolDefinition as SharedAgentToolDefinition, type SurfaceEmission, type ToolContributor } from "@jini-ai/core";
 import type { LoadInstalledDeployTargets, InstalledDeployTarget } from "./deploy-targets/types.js";
 import { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
 export { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
@@ -23,7 +23,7 @@ import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
 import { PublishCredentialDuplicateLabelError, PublishCredentialValidationError } from './publish-credentials/store.js';
 import { verifyPublishCredentialById, verifySubmittedPublishCredential } from './static-publish/verify.js';
 import { nowIso as clockNowIso, type Clock } from "@jini-ai/core/primitives";
-import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
+import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 /**
  * @file Static-publish tool catalog/wiring (ADR-049 Decision 4), separate from continuous deploy,
  * export and Dockerfile tools. The composition root installs this domain independently.
@@ -40,7 +40,6 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
  * directly from the human. ExportSiteBoundFn supplies the real export without a RouteDeps back-edge.
  */
 import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { requireToolPermission } from "@jini-ai/cms/core";
 import { buildOutcomeSurface } from "@jini-ai/ui/mcp-ui/surfaces";
 import { type UIResource, type UIResourceUri } from "@jini-ai/protocol/mcp-ui";
 
@@ -52,7 +51,6 @@ import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import type { PublishExecutionMode } from "./publish-credentials/index.js";
 import type { VendorCredentialSetRepoPort } from "../vendor-credentials/index.js";
 
-import type { ToolContributor } from "@jini-ai/core";
 
 import { askThenReport, type AssistantSurfaceDeps, type SurfaceExchange } from "@jini-ai/daemon/surface-exchanges";
 // `SurfaceEmission` itself is `@jini-ai/core`'s own type (`@jini-ai/daemon/surface-exchanges` re-exports the
@@ -62,7 +60,6 @@ import { askThenReport, type AssistantSurfaceDeps, type SurfaceExchange } from "
 // `ToolInputError` alongside it — see `features/post/tool-registrations.ts`'s identical import for
 // why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather than
 // redacting it into a message-stripped 500.
-import { ToolInputError, type SurfaceEmission } from "@jini-ai/core";
 import { listPublishCredentials, type PublishCredentialReadDeps } from "./publish-credentials/index.js";
 import type { DeployTargetCredentialSpec, DeployTargetDescriptor, DeployTargetRegistry, LoadedDeployTarget } from "./deploy-targets/types.js";
 import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";

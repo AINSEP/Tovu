@@ -182,28 +182,28 @@ export function mapErrorToCliOutcome({ err }: { err: unknown }, _options = {}): 
   const siteDirOutcome = mapSiteDirError({ err: err });
   if (siteDirOutcome) return siteDirOutcome;
 
-  if (err instanceof PortInUseError) {
-    return { exitCode: EXIT_CODE_BY_ERROR_CODE.PORT_IN_USE, stderrLine: stderrLine({ code: "PORT_IN_USE", message: err.message }) };
-  }
-  if (err instanceof ExportOutputNotEmptyError) {
-    return { exitCode: EXIT_CODE_BY_ERROR_CODE.EXPORT_OUTPUT_NOT_EMPTY, stderrLine: stderrLine({ code: "EXPORT_OUTPUT_NOT_EMPTY", message: err.message }) };
-  }
-  if (err instanceof ExportIncompleteError) {
-    return { exitCode: EXIT_CODE_BY_ERROR_CODE.EXPORT_INCOMPLETE, stderrLine: stderrLine({ code: "EXPORT_INCOMPLETE", message: err.message }) };
-  }
-  if (err instanceof ExportBlockedPendingRecoveryError) {
-    return {
-      exitCode: EXIT_CODE_BY_ERROR_CODE.EXPORT_BLOCKED_PENDING_RECOVERY,
-      stderrLine: stderrLine({ code: "EXPORT_BLOCKED_PENDING_RECOVERY", message: err.message }),
-    };
-  }
-  if (err instanceof InternalError) {
-    return { exitCode: EXIT_CODE_BY_ERROR_CODE.INTERNAL, stderrLine: stderrLine({ code: "INTERNAL", message: err.message }) };
-  }
+  const coded = mapCodedError({ err });
+  if (coded) return coded;
 
   // errors.spec.md §4: "INTERNAL | any uncaught error".
   const message = err instanceof Error ? err.message : String(err);
   return { exitCode: EXIT_CODE_BY_ERROR_CODE.INTERNAL, stderrLine: stderrLine({ code: "INTERNAL", message: message }) };
+}
+
+/** The error classes that carry their own stable code, in the order `mapErrorToCliOutcome` checks them. */
+const CODED_ERRORS: ReadonlyArray<{ type: abstract new (...args: never[]) => Error; code: string }> = [
+  { type: PortInUseError, code: "PORT_IN_USE" },
+  { type: ExportOutputNotEmptyError, code: "EXPORT_OUTPUT_NOT_EMPTY" },
+  { type: ExportIncompleteError, code: "EXPORT_INCOMPLETE" },
+  { type: ExportBlockedPendingRecoveryError, code: "EXPORT_BLOCKED_PENDING_RECOVERY" },
+  { type: InternalError, code: "INTERNAL" },
+];
+
+function mapCodedError({ err }: { err: unknown }, _options: Record<string, never> = {}): CliOutcome | undefined {
+  for (const { type, code } of CODED_ERRORS) {
+    if (err instanceof type) return { exitCode: EXIT_CODE_BY_ERROR_CODE[code], stderrLine: stderrLine({ code, message: err.message }) };
+  }
+  return undefined;
 }
 
 function mapCommanderError({ err }: { err: CommanderError }, _options: Record<string, never> = {}): CliOutcome {

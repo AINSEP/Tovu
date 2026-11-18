@@ -3,7 +3,7 @@
  */
 import type { UrlCapturePort } from '@jini-ai/desktop-host';
 import { renderBridgeFromEnv } from '@jini-ai/desktop-host/render-bridge';
-import { startupSecretEnvironment } from '../../server/runtime/boot/startup-secrets.js';
+import { startupSecretEnvironment } from '../secrets/startup-secrets.js';
 
 /** Resolve the inherited private channel; Jini validates/authenticates it when first used.
  * @throws The transport's RenderServiceError on an invalid or unavailable native channel.

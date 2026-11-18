@@ -6,7 +6,7 @@ import type { CommentsProviderRegistry } from '@jini-ai/capability-providers/com
 import type { CommentIngressPolicy } from "@jini-ai/cms/comments";
 import { createCommentSubmitHandler } from "@jini-ai/cms/comments/express";
 import { resolveClientIp, type RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
-import { resolveProtocol, resolvePublicOrigin } from "../oauth/public-origin.js";
+import { resolveProtocol, resolvePublicOrigin } from "../../../../../platform/express/public-origin.js";
 
 /**
  * @file ADR-031 §4 (SPEC-033) — the public, unauthenticated comment submission route. The ONLY

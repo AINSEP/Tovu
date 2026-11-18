@@ -616,3 +616,9 @@ describe("Sites — local management states", () => {
     }
   });
 });
+
+it("hands the created-site return to the injected useReturnToSiteListOnCreateHook", () => {
+  const useReturnToSiteListOnCreateHook = vi.fn();
+  render(<Sites useListPrefsHook={staticListPrefs} useSitesHook={() => controllerFixture()} useReturnToSiteListOnCreateHook={useReturnToSiteListOnCreateHook} />);
+  expect(useReturnToSiteListOnCreateHook).toHaveBeenCalledWith(expect.objectContaining({ returnToList: expect.any(Function) }));
+});

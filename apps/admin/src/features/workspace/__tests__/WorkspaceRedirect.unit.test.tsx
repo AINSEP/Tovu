@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { render } from "@testing-library/react";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { WorkspaceRedirect } from "../WorkspaceRedirect";
 import { currentRoutePath } from "@/lib/router";
 
@@ -24,4 +24,12 @@ it("replaces the retired workspace URL with the Settings workspace tab without a
   rerender(<StrictMode><WorkspaceRedirect /></StrictMode>);
   expect(window.location.pathname).toBe("/admin/pages");
   expect(window.history.length).toBe(length);
+});
+
+it("delegates the redirect to the injected useWorkspaceRedirectHook instead of navigating itself", () => {
+  window.history.replaceState(null, "", "/admin/workspace");
+  const useWorkspaceRedirectHook = vi.fn();
+  render(<WorkspaceRedirect useWorkspaceRedirectHook={useWorkspaceRedirectHook} />);
+  expect(useWorkspaceRedirectHook).toHaveBeenCalledTimes(1);
+  expect(window.location.pathname).toBe("/admin/workspace");
 });
