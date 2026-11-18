@@ -133,9 +133,9 @@
   "findings": [],
   "imports": [
    "import { ToolInputError } from \"@jini-ai/core\";",
-   "import { resolveSameOriginPath } from \"#src/features/site-inspection/published-page\";"
+   "import { resolveSitePath } from \"#src/features/site-inspection/site-path-policy\";"
   ],
-  "code": "try { return resolveSameOriginPath({ raw: path, base: 'http://127.0.0.1' }); }\n  catch { throw new ToolInputError({ message: 'Choose a local public page path without traversal, API paths, or an external URL.' }); }"
+  "code": "try { return resolveSitePath({ raw: path, base: 'http://127.0.0.1' }); }\n  catch { throw new ToolInputError({ message: 'Choose a local public page path without traversal, API paths, or an external URL.' }); }"
  },
  {
   "site": "apps/website/src/features/media-generation/media-provider-registry.ts:125",

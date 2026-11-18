@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { MailSuppressionAdminRepo, MailSuppressionEntry } from "../../mail/suppression-admin.repo.js";
-import { MailActivityForbiddenError } from "../activity.js";
-import { MAIL_ACTIVITY_READ_PERMISSION, MAIL_STATUS_PERMISSION, MAIL_SUPPRESSIONS_MANAGE_PERMISSION } from "../permissions.js";
 import {
-  listMailSuppressions, planMailSuppressionRemoval, readMailSuppressionQuery, runMailSuppressionRemoval, type MailSuppressionDeps, type MailSuppressionRemovalInput,
-} from "../suppressions.js";
+  listMailSuppressions, MailActivityForbiddenError, planMailSuppressionRemoval, readMailSuppressionQuery, runMailSuppressionRemoval,
+  type MailSuppressionAdminRepo, type MailSuppressionDeps, type MailSuppressionEntry, type MailSuppressionRemovalInput,
+} from "@jini-ai/platform/mail";
+import { MAIL_ACTIVITY_READ_PERMISSION, MAIL_PERMISSION_IDS, MAIL_STATUS_PERMISSION, MAIL_SUPPRESSIONS_MANAGE_PERMISSION } from "../permissions.js";
 
 /**
  * @file Security acceptance for the suppression list and its removal, written against the code
@@ -57,6 +56,7 @@ function fixture(granted: readonly string[], options: { owner?: Promise<string> 
   const deps: MailSuppressionDeps = {
     workspaceId: "ws-1",
     authorize: async ({ permission }) => ({ allowed: grant.has(permission), reason: "fixture" }),
+    permissions: MAIL_PERMISSION_IDS,
     ...(owner ? { ownerPrincipalId: owner } : {}),
     ...(options.withRepo === false ? {} : { mailSuppressionAdmin: repo }),
   };

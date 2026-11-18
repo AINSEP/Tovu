@@ -6,14 +6,13 @@ import type { MailerPort } from "../../../platform/mail/index.js";
 import { SenderIdentityNotConfiguredError } from "../../../platform/mail/sender-identity.js";
 import { createMailPurposeGateProbe, type MailPurposeGateProbe } from "../../../platform/mail/purpose-gate-probe.js";
 import { createPermissionGrantRegistry } from "../../identity/permission-grants.js";
-import type { MailActivityRecord, MailActivityRepo } from "../../mail/activity.repo.js";
 import type { LaunchGateDeps } from "../../newsletter/launch-gate.js";
 import {
   DEFAULT_MAIL_ACTIVITY_LIMIT, getMailActivity, listMailActivity, MailActivityForbiddenError, MailActivityUnavailableError, maskRecipient,
-  readMailActivityId, readMailActivityQuery, resolveMailActivityAccess, type MailActivityDeps,
-} from "../activity.js";
+  readMailActivityId, readMailActivityQuery, resolveMailActivityAccess, type MailActivityDeps, type MailActivityRecord, type MailActivityRepo,
+} from "@jini-ai/platform/mail";
 import { buildMailDeliveryRegistrations, contributeMailDeliveryTools, mailDeliveryDerivedRisk, type MailDeliveryToolDeps } from "../delivery-tool-registrations.js";
-import { MAIL_ACTIVITY_READ_PERMISSION, MAIL_SUPPRESSIONS_MANAGE_PERMISSION, registerMailPermissionGrants } from "../permissions.js";
+import { MAIL_ACTIVITY_READ_PERMISSION, MAIL_PERMISSION_IDS, MAIL_SUPPRESSIONS_MANAGE_PERMISSION, registerMailPermissionGrants } from "../permissions.js";
 import { mailUseReadinessDepsFrom, readMailUseReadiness, type MailUseReadinessDeps } from "../use-readiness.js";
 
 /**
@@ -51,7 +50,7 @@ function grants(list: string[]): MailActivityDeps["authorize"] {
 }
 
 function activityDeps(rows: MailActivityRecord[], granted = ["*"], calls: unknown[] = []): MailActivityDeps {
-  return { workspaceId: "ws", authorize: grants(granted), mailActivity: memoryActivity(rows, calls) };
+  return { workspaceId: "ws", authorize: grants(granted), permissions: MAIL_PERMISSION_IDS, mailActivity: memoryActivity(rows, calls) };
 }
 
 const all = (input: Record<string, unknown> = {}) => readMailActivityQuery({ input });
@@ -79,7 +78,7 @@ test("maskRecipient keeps the first letter and the domain only", () => {
 });
 
 test("access: mail.activity.read is full, admin.forms.manage alone is masked, neither is refused", async () => {
-  const deps = (list: string[]) => ({ workspaceId: "ws", authorize: grants(list) });
+  const deps = (list: string[]) => ({ workspaceId: "ws", authorize: grants(list), permissions: MAIL_PERMISSION_IDS });
   assert.equal(await resolveMailActivityAccess({ deps: deps([MAIL_ACTIVITY_READ_PERMISSION]), principalId: "p" }), "full");
   assert.equal(await resolveMailActivityAccess({ deps: deps(["admin.forms.manage"]), principalId: "p" }), "masked");
   await assert.rejects(resolveMailActivityAccess({ deps: deps(["admin.forms.manage"]), principalId: "p" }, { requireFull: true }),
@@ -118,7 +117,7 @@ test("masked access hides addresses, ids and message ids; a recipient filter nee
 test("empty first pages say whether nothing was recorded or nothing matched; no repo is unavailable", async () => {
   assert.equal((await listMailActivity({ ...{ principalId: "p", query: all() }, deps: activityDeps([]) })).empty, "none_recorded");
   assert.equal((await listMailActivity({ ...{ principalId: "p", query: all({ outcome: "failed" }) }, deps: activityDeps([record("a", 1)]) })).empty, "no_matches");
-  await assert.rejects(listMailActivity({ ...{ principalId: "p", query: all() }, deps: { workspaceId: "ws", authorize: grants(["*"]) } }), MailActivityUnavailableError);
+  await assert.rejects(listMailActivity({ ...{ principalId: "p", query: all() }, deps: { workspaceId: "ws", authorize: grants(["*"]), permissions: MAIL_PERMISSION_IDS } }), MailActivityUnavailableError);
 });
 
 test("get returns the full item with its feedback, null when absent, and needs mail.activity.read", async () => {

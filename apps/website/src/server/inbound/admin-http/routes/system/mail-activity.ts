@@ -2,13 +2,14 @@ import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from "express";
 import { ToolInputError } from "@jini-ai/core";
 
-import { getMailActivity, listMailActivity, MailActivityForbiddenError, MailActivityUnavailableError, readMailActivityId, readMailActivityQuery } from "#src/features/mail-status/activity";
+import {
+  getMailActivity, listMailActivity, listMailSuppressions, MailActivityForbiddenError, MailActivityUnavailableError, MailSuppressionsUnavailableError, planMailSuppressionRemoval,
+  readMailActivityId, readMailActivityQuery, readMailSuppressionQuery, readMailSuppressionRemoval, runMailSuppressionRemoval,
+} from "@jini-ai/platform/mail";
 import type { MailDeliveryToolDeps } from "#src/features/mail-status/delivery-tool-registrations";
+import { mailDomainDepsFrom } from "#src/features/mail-status/domain-deps";
 import { readMailFeedbackSetup } from "#src/features/mail-status/feedback-setup";
 import { MAIL_STATUS_PERMISSION } from "#src/features/mail-status/permissions";
-import {
-  listMailSuppressions, MailSuppressionsUnavailableError, planMailSuppressionRemoval, readMailSuppressionQuery, readMailSuppressionRemoval, runMailSuppressionRemoval,
-} from "#src/features/mail-status/suppressions";
 import { mailUseReadinessDepsFrom, readMailUseReadiness } from "#src/features/mail-status/use-readiness";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 
@@ -92,25 +93,25 @@ export function registerAdminMailActivityRoutes(app: Express, deps: AdminMailAct
   } }));
   app.get(`${BASE}/mail-activity`, handle({ deps, run: async ({ req, res, principalId }, _optional = {}) => {
     const query = readMailActivityQuery({ input: req.query as Record<string, unknown> });
-    res.json(await listMailActivity({ ...{ principalId, query }, deps: deps }));
+    res.json(await listMailActivity({ ...{ principalId, query }, deps: mailDomainDepsFrom({ deps }) }));
   } }));
   app.get(`${BASE}/mail-activity/:activityId`, handle({ deps, run: async ({ req, res, principalId }, _optional = {}) => {
-    const found = await getMailActivity({ ...{ principalId, activityId: readMailActivityId({ value: req.params.activityId }) }, deps: deps });
+    const found = await getMailActivity({ ...{ principalId, activityId: readMailActivityId({ value: req.params.activityId }) }, deps: mailDomainDepsFrom({ deps }) });
     if (found) res.json(found);
     else res.status(404).json({ error: "no such email send", code: "NOT_FOUND" });
   } }));
   app.get(`${BASE}/mail-suppressions`, handle({ deps, run: async ({ req, res, principalId }, _optional = {}) => {
-    res.json(await listMailSuppressions({ ...{ principalId, query: readMailSuppressionQuery({ input: req.query as Record<string, unknown> }) }, deps: deps }));
+    res.json(await listMailSuppressions({ ...{ principalId, query: readMailSuppressionQuery({ input: req.query as Record<string, unknown> }) }, deps: mailDomainDepsFrom({ deps }) }));
   } }));
   app.post(`${BASE}/mail-suppressions/remove`, handle({ deps, run: async ({ req, res, principalId }, _optional = {}) => {
     const body = (req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body : {}) as Record<string, unknown>;
-    const plan = await planMailSuppressionRemoval({ ...{ principalId, input: readMailSuppressionRemoval({ input: body }) }, deps: deps });
+    const plan = await planMailSuppressionRemoval({ ...{ principalId, input: readMailSuppressionRemoval({ input: body }) }, deps: mailDomainDepsFrom({ deps }) });
     if (body.confirmed !== true) {
       res.json({ removed: false, confirmationRequired: true, plan });
       return;
     }
     if (body.revision !== plan.revision) throw new ToolInputError({ message: "Suppression changed or no reviewed revision was supplied. Review and confirm the current suppression." });
-    res.json(await runMailSuppressionRemoval({ ...{ principalId, plan }, deps: deps }));
+    res.json(await runMailSuppressionRemoval({ ...{ principalId, plan }, deps: mailDomainDepsFrom({ deps }) }));
   } }));
   app.get(`${BASE}/mail-feedback`, handle({ deps, run: async ({ res, principalId }, _optional = {}) => {
     if (await statusAllowed({ deps, principalId, res })) res.json(await readMailFeedbackSetup(deps));

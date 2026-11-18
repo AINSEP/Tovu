@@ -23,6 +23,13 @@ export const MAIL_SUPPRESSIONS_MANAGE_PERMISSION = "mail.suppressions.manage";
 /** The Email page's existing status permission (status, uses, test send). Spelled once here. */
 export const MAIL_STATUS_PERMISSION = "admin.forms.manage";
 
+/** The three ids the activity and suppression operations are given by their host, by role. */
+export const MAIL_PERMISSION_IDS = {
+  activityRead: MAIL_ACTIVITY_READ_PERMISSION,
+  status: MAIL_STATUS_PERMISSION,
+  suppressionsManage: MAIL_SUPPRESSIONS_MANAGE_PERMISSION,
+} as const;
+
 /**
  * Register both catalog entries and the admin grant for `mail.activity.read`.
  * @complexity O(1).

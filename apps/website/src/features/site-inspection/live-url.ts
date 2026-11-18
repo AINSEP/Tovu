@@ -7,7 +7,9 @@ import {
 import { selectConnectedDestination, type PublishContentPeerRepoPort } from "#src/features/publish-content/peers";
 import type { PublishHistoryStore } from "#src/features/deployments/static-publish/index";
 import { readPageBodyOptions, shapePageBody, DEFAULT_MAX_BODY_BYTES, MAX_MAX_BODY_BYTES, type PageBodyOptions } from "./page-body.js";
-import { PublishedPagePathError, resolveSameOriginPath, toCookieShapes, type PublishedPageResult } from "./published-page.js";
+import { SameOriginPathError as PublishedPagePathError, toCookieShapes } from "@jini-ai/diagnostics/web-evidence";
+import type { PublishedPageResult } from "./published-page.js";
+import { resolveSitePath } from "./site-path-policy.js";
 
 /** Read ports only; missing ports on a test/older composition do not invent an address. */
 export interface LiveOriginSourceDeps {
@@ -84,7 +86,7 @@ function selectOrigin({ known, requested }: { known: readonly string[]; requeste
 
 /** Reuses the local path boundary while retaining actionable errors at the assistant boundary. */
 function resolveLivePath({ path, origin }: { path: string; origin: string }, _optional = {}): string {
-  try { return resolveSameOriginPath({ raw: path, base: origin }); }
+  try { return resolveSitePath({ raw: path, base: origin }); }
   catch (error) {
     if (error instanceof PublishedPagePathError) throw new ToolInputError({ message: `fetch_live_url: ${error.message}` });
     throw error;
@@ -157,7 +159,7 @@ function livePageResult({ response, headers, options, url, origin, redirects }: 
   const raw = Buffer.from(response.bodyText).subarray(0, MAX_MAX_BODY_BYTES).toString("utf8");
   const shaped = shapePageBody({ body: raw, options });
   const location = headers.location;
-  return { path: new URL(url).pathname + new URL(url).search, status: response.status, ok: response.status >= 200 && response.status < 300, headers, cookies: toCookieShapes(cookies), ...shaped, truncated: shaped.truncated || response.bodyTruncated === true || Buffer.byteLength(response.bodyText) > MAX_MAX_BODY_BYTES, url, origin, redirects, untrusted: true, ...(REDIRECTS.has(response.status) && location ? { location } : {}) };
+  return { path: new URL(url).pathname + new URL(url).search, status: response.status, ok: response.status >= 200 && response.status < 300, headers, cookies: toCookieShapes({ headers: cookies }), ...shaped, truncated: shaped.truncated || response.bodyTruncated === true || Buffer.byteLength(response.bodyText) > MAX_MAX_BODY_BYTES, url, origin, redirects, untrusted: true, ...(REDIRECTS.has(response.status) && location ? { location } : {}) };
 }
 
 /** Caller-safe egress refusals, following media-import's policy-error projection without leaking IPs. */

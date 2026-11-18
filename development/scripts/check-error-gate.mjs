@@ -48,7 +48,7 @@ export const sanctionedModules = [];
  * can hide a real filesystem failure.
  */
 export const pureHelpers = [
-  { name: 'resolveSameOriginPath', module: 'features/site-inspection/published-page' },
+  { name: 'resolveSitePath', module: 'features/site-inspection/site-path-policy' },
   { name: 'isLoopbackHost', module: 'apps/website/src/server/runtime/boot/bind-host' },
   { name: 'resolveBindHost', module: 'apps/website/src/server/runtime/boot/bind-host' },
   { name: 'isLocalAdminUrl', module: 'apps/website/src/server/runtime/boot/local-owner-signin' },

@@ -71,7 +71,7 @@ test('precedence step 2: the publish backstop parse refusal throws fixed words w
 test('a reviewed helper counts only in the module the list names for it', () => {
   const site = siteAt('apps/website/src/features/consent/request.ts:25');
   assert.deepEqual(copiedSiteFindings(site), []);
-  assert.deepEqual(copiedSiteFindings({ ...site, imports: ['import { resolveSameOriginPath } from "#src/features/other/fetch-page";'] }).map(finding => finding.split(':')[1]),
+  assert.deepEqual(copiedSiteFindings({ ...site, imports: ['import { resolveSitePath } from "#src/features/other/fetch-page";'] }).map(finding => finding.split(':')[1]),
     ['catch-reads-error', 'failure-text-from-catalog']);
   assert.ok(!pureHelpers.some(helper => helper.name === 'readPickedFolders' || helper.name === 'redactAdminRunContextRef'), 'a validator that reads the filesystem is not a pure helper');
 });

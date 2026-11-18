@@ -1,7 +1,8 @@
 import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import { SITE_CAPABILITIES_SECTION_NAMES } from "./site-capabilities.js";
 import { SITE_PROFILE_SECTION_NAMES } from "./site-profile.js";
-import { DEFAULT_MAX_BODY_BYTES, MAX_MAX_BODY_BYTES, MAX_PATH_LENGTH } from "./published-page.js";
+import { MAX_PATH_LENGTH } from "@jini-ai/diagnostics/web-evidence";
+import { DEFAULT_MAX_BODY_BYTES, MAX_MAX_BODY_BYTES } from "./published-page.js";
 import { DEFAULT_PAGE_ITEMS, MAX_PAGE_ITEMS } from "./site-profile.js";
 
 /**

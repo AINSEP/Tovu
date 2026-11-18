@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { MailActivityRecord, MailActivityRepo, MailFeedbackRecord } from "../../mail/activity.repo.js";
 import {
-  getMailActivity, listMailActivity, MailActivityForbiddenError, maskRecipient, nextMailCursor, readMailActivityQuery, readMailCursor, readMailPageLimit, type MailActivityDeps,
-} from "../activity.js";
-import { MAIL_ACTIVITY_READ_PERMISSION, MAIL_STATUS_PERMISSION } from "../permissions.js";
+  getMailActivity, listMailActivity, MailActivityForbiddenError, maskRecipient, nextMailCursor, readMailActivityQuery, readMailCursor, readMailPageLimit,
+  type MailActivityDeps, type MailActivityRecord, type MailActivityRepo, type MailFeedbackRecord,
+} from "@jini-ai/platform/mail";
+import { MAIL_ACTIVITY_READ_PERMISSION, MAIL_PERMISSION_IDS, MAIL_STATUS_PERMISSION } from "../permissions.js";
 
 /**
  * @file Security acceptance for the email activity read path, written against the code where it
@@ -50,7 +50,7 @@ function fixture(granted: readonly string[], rows: MailActivityRecord[] = [recor
     calls.asked.push({ principalId: check.principalId, permission: check.permission, workspaceId: check.workspaceId, entityType: check.entityType });
     return { allowed: granted.includes(check.permission), reason: "fixture" };
   };
-  const deps: MailActivityDeps = { workspaceId: "ws-1", authorize, mailActivity: repo };
+  const deps: MailActivityDeps = { workspaceId: "ws-1", authorize, permissions: MAIL_PERMISSION_IDS, mailActivity: repo };
   return { deps, calls };
 }
 
@@ -78,7 +78,7 @@ test("a principal with a different permission only (not activity read, not the s
 
 test("a refused caller learns nothing about availability: no repo plus no permission is forbidden, not unavailable", async () => {
   const { deps } = fixture([]);
-  const noRepo: MailActivityDeps = { workspaceId: deps.workspaceId, authorize: deps.authorize };
+  const noRepo: MailActivityDeps = { workspaceId: deps.workspaceId, authorize: deps.authorize, permissions: MAIL_PERMISSION_IDS };
   await assert.rejects(listMailActivity({ principalId: "p", query: query(), deps: noRepo }), MailActivityForbiddenError);
   await assert.rejects(getMailActivity({ principalId: "p", activityId: ID, deps: noRepo }), MailActivityForbiddenError);
 });

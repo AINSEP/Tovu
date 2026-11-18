@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { checkSitePathname, checkSiteRelativeTarget } from "../reserved-paths.js";
-import { resolveSameOriginPath } from "#src/features/site-inspection/published-page";
+import { resolveSitePath as resolveSameOriginPath } from "#src/features/site-inspection/site-path-policy";
 
 /**
  * @file The shared reserved-path rule (`reserved-paths.ts`) and the pin that keeps its two

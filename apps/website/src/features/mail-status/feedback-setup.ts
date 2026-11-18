@@ -17,7 +17,7 @@ import type {
 import type { CustomCredentialSetRepoPort } from "../custom-credentials/index.js";
 import { listCustomCredentials } from "../custom-credentials/store.js";
 import { mailWebhookSecretLabels } from "../mail/feedback-sources.js";
-import type { MailSuppressionAdminRepo } from "../mail/suppression-admin.repo.js";
+import type { MailSuppressionAdminRepo } from "@jini-ai/platform/mail";
 import type { MailProviderConfiguration, MailProviderControl } from "../../platform/mail/index.js";
 
 export interface MailFeedbackSetupDeps {
