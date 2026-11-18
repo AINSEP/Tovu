@@ -131,6 +131,80 @@ export const trashDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSi
   ["trash_restore_item", "mutates-durable-state"],
 ]);
 
+/** What each handler factory receives (neither handler opens a dialog, so no surface store). */
+interface TrashHandlerArgs {
+  deps: TrashToolDeps;
+}
+
+/**
+ * One page of the Trash, filtered to the kinds this principal could restore.
+ *
+ * The filter runs AFTER the page is fetched rather than as a narrowed `entityTypes` argument,
+ * so a page can come back short. That is the honest shape: `nextCursor` still points at the
+ * next row in the real keyset, and hiding rows by shrinking the query would make the cursor
+ * skip rows the caller IS allowed to see when their permissions change mid-scan.
+ */
+const trashListItemsHandler = ({ deps }: TrashHandlerArgs): ToolHandler => async (ctx) => {
+  const input = ctx.input === undefined ? {} : requireInputRecord({ input: ctx.input });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: TRASH_READ_PERMISSION });
+
+  const requested = readEntityTypes(input);
+  const limit = readToolLimit({ input, max: MAX_LIST_LIMIT, fallback: DEFAULT_LIST_LIMIT });
+  const now = deps.clock.nowIso();
+
+  const page = await deps.trash.list({
+    workspaceId: deps.workspaceId,
+    now,
+    limit      }, {
+    entityTypes: requested,
+    cursor: optionalString({ input: input, key: "cursor" }) ?? null      });
+
+  const visible = await filterVisibleTrashItems(deps, { principalId: ctx.principal.id, items: page.items });
+  // Skip the lookup on an empty page — nothing visible to this principal, or the Trash truly is
+  // empty — same as `routes/trash/list.ts`.
+  const usernameByPrincipalId =
+    visible.length > 0 ? await loadUsernamesByPrincipalId(deps) : new Map<string, string>();
+  return {
+    items: visible.map((item) => toTrashToolView({ item, now, usernameByPrincipalId })),
+    nextCursor: page.nextCursor,
+  };
+};
+
+/**
+ * Undoes one delete.
+ *
+ * No confirmation dialog, deliberately: unlike every delete tool, restoring destroys nothing
+ * and is itself undone by deleting the item again. Gating it behind a human dialog would make
+ * recovering from a mistaken delete harder than making one.
+ */
+const trashRestoreItemHandler = ({ deps }: TrashHandlerArgs): ToolHandler => async (ctx) => {
+  const input = requireInputRecord({ input: ctx.input });
+  const entityType = requireString({ input: input, key: "entityType" });
+  const entityId = requireString({ input: input, key: "entityId" });
+
+  const permission = trashPermissionFor(entityType, deps);
+  if (!permission) {
+    throw new ToolInputError({ message: `trash_restore_item: '${entityType}' is not a kind the Trash can restore. Expected one of: ` +
+      `${[...TRASH_PERMISSION_BY_ENTITY_TYPE.keys(), ...deps.registry.keys()].join(", ") }.` });
+  }
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission }, { entityType, entityId });
+
+  ctx.signal.throwIfAborted();
+  const outcome = await deps.trash.restore({
+    workspaceId: deps.workspaceId,
+    entityType,
+    entityId,
+    at: deps.clock.nowIso()      }, {
+    // Same `principalId` shape the admin restore route passes (`routes/trash/restore.ts`), plus
+    // `pluginId`: this call always came in through an agent tool, not a human clicking Restore,
+    // so whatever an adapter's `restore` records as the actor should say so — same "+ AI"
+    // convention `resolveActorDisplay` (above) applies to a trash-side `actorPluginId`.
+    actor: { principalId: ctx.principal.id, pluginId: "assistant" }      });
+  return outcome === "restored"
+    ? { restored: true, entityType, entityId }
+    : { restored: false, reason: outcome, entityType, entityId, note: RESTORE_FAILURE_NOTES[outcome] };
+};
+
 /**
  * Builds Trash's registrations.
  *
@@ -140,74 +214,8 @@ export const trashDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSi
  */
 export function buildTrashRegistrations(routeDeps: TrashToolDeps): ToolRegistration[] {
   const handlers: Record<string, ToolHandler> = {
-    /**
-     * One page of the Trash, filtered to the kinds this principal could restore.
-     *
-     * The filter runs AFTER the page is fetched rather than as a narrowed `entityTypes` argument,
-     * so a page can come back short. That is the honest shape: `nextCursor` still points at the
-     * next row in the real keyset, and hiding rows by shrinking the query would make the cursor
-     * skip rows the caller IS allowed to see when their permissions change mid-scan.
-     */
-    trash_list_items: async (ctx) => {
-      const input = ctx.input === undefined ? {} : requireInputRecord({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: TRASH_READ_PERMISSION });
-
-      const requested = readEntityTypes(input);
-      const limit = readToolLimit({ input, max: MAX_LIST_LIMIT, fallback: DEFAULT_LIST_LIMIT });
-      const now = routeDeps.clock.nowIso();
-
-      const page = await routeDeps.trash.list({
-        workspaceId: routeDeps.workspaceId,
-        now,
-        limit      }, {
-        entityTypes: requested,
-        cursor: optionalString({ input: input, key: "cursor" }) ?? null      });
-
-      const visible = await filterVisibleTrashItems(routeDeps, { principalId: ctx.principal.id, items: page.items });
-      // Skip the lookup on an empty page — nothing visible to this principal, or the Trash truly is
-      // empty — same as `routes/trash/list.ts`.
-      const usernameByPrincipalId =
-        visible.length > 0 ? await loadUsernamesByPrincipalId(routeDeps) : new Map<string, string>();
-      return {
-        items: visible.map((item) => toTrashToolView({ item, now, usernameByPrincipalId })),
-        nextCursor: page.nextCursor,
-      };
-    },
-
-    /**
-     * Undoes one delete.
-     *
-     * No confirmation dialog, deliberately: unlike every delete tool, restoring destroys nothing
-     * and is itself undone by deleting the item again. Gating it behind a human dialog would make
-     * recovering from a mistaken delete harder than making one.
-     */
-    trash_restore_item: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const entityType = requireString({ input: input, key: "entityType" });
-      const entityId = requireString({ input: input, key: "entityId" });
-
-      const permission = trashPermissionFor(entityType, routeDeps);
-      if (!permission) {
-        throw new ToolInputError({ message: `trash_restore_item: '${entityType}' is not a kind the Trash can restore. Expected one of: ` +
-          `${[...TRASH_PERMISSION_BY_ENTITY_TYPE.keys(), ...routeDeps.registry.keys()].join(", ") }.` });
-      }
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission }, { entityType, entityId });
-
-      ctx.signal.throwIfAborted();
-      const outcome = await routeDeps.trash.restore({
-        workspaceId: routeDeps.workspaceId,
-        entityType,
-        entityId,
-        at: routeDeps.clock.nowIso()      }, {
-        // Same `principalId` shape the admin restore route passes (`routes/trash/restore.ts`), plus
-        // `pluginId`: this call always came in through an agent tool, not a human clicking Restore,
-        // so whatever an adapter's `restore` records as the actor should say so — same "+ AI"
-        // convention `resolveActorDisplay` (above) applies to a trash-side `actorPluginId`.
-        actor: { principalId: ctx.principal.id, pluginId: "assistant" }      });
-      return outcome === "restored"
-        ? { restored: true, entityType, entityId }
-        : { restored: false, reason: outcome, entityType, entityId, note: RESTORE_FAILURE_NOTES[outcome] };
-    },
+    trash_list_items: trashListItemsHandler({ deps: routeDeps }),
+    trash_restore_item: trashRestoreItemHandler({ deps: routeDeps }),
   };
 
   // Built per call, from the kinds this call's registry actually holds (F6) — a module-level
