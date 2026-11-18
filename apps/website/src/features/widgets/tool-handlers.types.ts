@@ -4,6 +4,7 @@
  * table (`tool-registrations.ts`) all need them, and a handler module importing from the table
  * would be an import cycle.
  */
+import type { ToolHandler } from "@jini-ai/core";
 import type { EntryListPort, EntryRepoPort } from "@jini-ai/cms/entries";
 import type { EmbedServiceDeps, EntryRefsRepoPort, RegionAreaServiceDeps, WidgetRegionBindingRepoPort, WidgetsAuthorizeFn, WidgetTrashDeps } from "@jini-ai/cms/widgets";
 
@@ -24,6 +25,12 @@ export interface WidgetsPackageToolDeps {
   widgetBindingRepo: WidgetRegionBindingRepoPort;
   composeWriteDeps: () => WidgetTrashDeps & EmbedServiceDeps;
   composeRegionDeps: () => RegionAreaServiceDeps;
+  /**
+   * Re-classifies a plugin save-hook refusal thrown inside any handler into the host's model-facing
+   * refusal (the refusal class and its fixed wording are the host's). Applied to the whole handler
+   * map once, so no save handler can be the one that forgot.
+   */
+  wrapHookRefusals: (handlers: Record<string, ToolHandler>) => Record<string, ToolHandler>;
 }
 
 /** Wraps a handler's domain call so a config/type/embed SHAPE rejection carries the tool's published schema. */

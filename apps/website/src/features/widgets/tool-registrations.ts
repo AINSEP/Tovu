@@ -17,7 +17,7 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/widgets.js';
  * helper rather than the kit's generic `requireToolPermission` precisely so both paths reach the
  * identical gate function.
  */
-import { buildDomainRegistrations, indexCatalogById, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, withSchemaOnRejection, withToolMetadata, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import for
 // why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather than
 // redacting it into a message-stripped 500.
@@ -181,6 +181,7 @@ function toPackageDeps({ routeDeps }: { routeDeps: WidgetsToolDeps }, _optional 
     widgetBindingRepo: routeDeps.widgetBindingRepo,
     composeWriteDeps: () => buildWidgetsDeps(routeDeps),
     composeRegionDeps: () => buildWidgetsRegionDeps(routeDeps),
+    wrapHookRefusals: withPluginHookRefusals,
   };
 }
 
@@ -188,7 +189,15 @@ export function buildWidgetsRegistrations(
   routeDeps: WidgetsToolDeps,
   surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
-  const args: WidgetsHandlerArgs = { deps: toPackageDeps({ routeDeps }), withSchema: withWidgetsSchema };
+  return withToolMetadata({ registrations: buildWidgetsToolRegistrations({ deps: toPackageDeps({ routeDeps }) }), metadata: toolMetadata });
+}
+
+/**
+ * The package-side builder: the id -> handler table over the host's deps slice, with no host tool
+ * metadata (the host binds that around the result in {@link buildWidgetsRegistrations}).
+ */
+export function buildWidgetsToolRegistrations({ deps }: { deps: WidgetsPackageToolDeps }, _optional = {}): ToolRegistration[] {
+  const args: WidgetsHandlerArgs = { deps, withSchema: withWidgetsSchema };
   const handlers: Record<string, ToolHandler> = {
     widgets_list_instances: widgetsListInstancesHandler(args),
     widgets_get_instance: widgetsGetInstanceHandler(args),
@@ -205,12 +214,12 @@ export function buildWidgetsRegistrations(
   };
 
   // Every handler above gets `toModelFacingWidgetsError` — see that function's doc comment for why
-  // this wraps the whole map once here rather than per call site. The inner `withPluginHookRefusals`
-  // covers the 3 embed tools on a post/page host (`updatePost` runs the plugin save hook): a plugin
+  // this wraps the whole map once here rather than per call site. The inner `deps.wrapHookRefusals`
+  // (the host's `withPluginHookRefusals`) covers the 3 embed tools on a post/page host (`updatePost` runs the plugin save hook): a plugin
   // refusal becomes the fixed `PLUGIN_HOOK_FAILED` message naming the plugin, which
   // `toModelFacingWidgetsError` then passes through as the `ToolInputError` it already is.
   const modelFacingHandlers: Record<string, ToolHandler> = Object.fromEntries(
-    Object.entries(withPluginHookRefusals(handlers)).map(([toolId, handler]) => [
+    Object.entries(deps.wrapHookRefusals(handlers)).map(([toolId, handler]) => [
       toolId,
       async (ctx) => {
         try {
@@ -223,7 +232,7 @@ export function buildWidgetsRegistrations(
   );
 
   // No `unwiredToolIds`: Widgets wires its ENTIRE catalog, same tripwire discipline as Forms.
-  return buildDomainRegistrations({ metadata: toolMetadata,
+  return buildDomainRegistrations({
     domain: "widgets",
     catalogModule: "widgets/agent-tools.ts",
     catalog: CATALOG_BY_ID,
