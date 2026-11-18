@@ -10,32 +10,84 @@
       "reason": "wording largely survives at apps/desktop/src/main/updates/desktop-updater.ts (27% shared word triples); code changed in 'fix(desktop): import electron-updater statically again; the wiring test pins the static form'"
     },
     {
+      "id": "00b31e104996",
+      "reason": "wording largely survives at packages/cms/src/seo/sitemap-documents.ts (26% shared word triples); code changed in 'refactor(website): sitemap.xml and llms.txt routes use the @jini-ai/cms/seo serializers'"
+    },
+    {
+      "id": "028c6dc2fffc",
+      "reason": "wording largely survives at apps/website/src/features/agent-plugins/admin-surfaces/issued-sign-ins.ts (69% shared word triples); code changed in 'refactor(agent-plugins): issued sign-in collector from @jini-ai/agent-plugins/admin-surfaces/node'"
+    },
+    {
+      "id": "05334bdbcdab",
+      "reason": "wording largely survives at apps/website/src/server/__tests__/assistant-ag-ui-routes.test.ts (71% shared word triples); code changed in 'test(assistant): AG-UI S0 goldens — admin wire bytes, exact cancel counts, reducer drift'"
+    },
+    {
       "id": "07fbe6272722",
       "reason": "wording largely survives at packages/cms/src/widgets/markers/html-attributes.ts (100% shared word triples); code changed in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'"
+    },
+    {
+      "id": "0a74afe216b6",
+      "reason": "wording largely survives at packages/cli/src/stdin-line.ts (74% shared word triples); code changed in 'refactor(cli): import-local reads its request with @jini-ai/cli readStdinRequestLine'"
     },
     {
       "id": "0ce2079d6bfa",
       "reason": "wording largely survives at apps/admin/src/features/media/__tests__/media-grid-fit.unit.test.tsx (25% shared word triples); code changed in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'"
     },
     {
+      "id": "0d1877b51a93",
+      "reason": "wording largely survives at packages/cms/src/html/__tests__/style-values.test.ts (57% shared word triples); code changed in 'refactor(render): use @jini-ai/cms/html/style-values'"
+    },
+    {
+      "id": "10b9b3acae78",
+      "reason": "wording largely survives at packages/cms/src/media/blob-store.selection.ts (75% shared word triples); code changed in 'refactor(object-storage): media store selection from @jini-ai/cms/media'"
+    },
+    {
+      "id": "110b89ac9ef6",
+      "reason": "wording largely survives at apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts (28% shared word triples); code changed in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'"
+    },
+    {
       "id": "15aeb672bb08",
       "reason": "wording largely survives at apps/desktop/bin/tovu-desktop.ts (33% shared word triples); code changed in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'"
+    },
+    {
+      "id": "179822cdf7d6",
+      "reason": "wording largely survives at apps/website/src/index.ts (93% shared word triples); code changed in 'refactor(size): split main under 50 lines'"
+    },
+    {
+      "id": "190d29e2184f",
+      "reason": "wording largely survives at apps/website/src/server/runtime/composition/modules/__tests__/assistant-ag-ui.wire.unit.test.ts (62% shared word triples); code changed in 'refactor(assistant): the AG-UI route parses its request with Jini's run-input (C1)'"
     },
     {
       "id": "1936a01b7298",
       "reason": "wording largely survives at packages/ui/src/features/panel-kit/fetch-query/use-cursor-pages.hooks.ts (100% shared word triples); code changed in 'refactor(admin-database): timeline paging comes from useCursorPages in @jini-ai/ui/fetch-query'"
     },
     {
+      "id": "1a77fdfe06c7",
+      "reason": "the code it explained left this spot in 'refactor(assistant): delete the AG-UI forwarders and type re-export (C2)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
       "id": "1c1d97c37d87",
       "reason": "the code it explained left this spot in 'refactor(admin,website): repoint A01 Tovu forwarders to existing Jini exports'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "1ce2aeb37ecf",
+      "reason": "wording largely survives at packages/cms/src/seo/content-analysis/analyze-content.ts (67% shared word triples); code changed in 'refactor(plugin-runtime): content scoring from @jini-ai/cms/seo/content-analysis'"
     },
     {
       "id": "1dcbcb71d770",
       "reason": "wording largely survives at packages/chat/src/embed-widget/browser/agent-inventory.ts (78% shared word triples); code changed in 'refactor(admin): agent inventory placeholder uses @jini-ai/chat/browser/agent-inventory'"
     },
     {
+      "id": "21aff341da07",
+      "reason": "wording largely survives at packages/cms/src/seo/content-analysis/analyze-content.ts (75% shared word triples); code changed in 'refactor(plugin-runtime): content scoring from @jini-ai/cms/seo/content-analysis'"
+    },
+    {
       "id": "26818aaea43d",
       "reason": "wording largely survives at apps/admin/src/lib/retry-unreachable.ts (40% shared word triples); code changed in 'refactor(admin,website): repoint A01 Tovu forwarders to existing Jini exports'"
+    },
+    {
+      "id": "269a936804c7",
+      "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
       "id": "26b27d7faf88",
@@ -46,28 +98,80 @@
       "reason": "wording largely survives at apps/admin/src/features/source-control/__tests__/source-control-visuals.unit.test.tsx (40% shared word triples); code changed in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'"
     },
     {
+      "id": "277e52d205c5",
+      "reason": "wording largely survives at apps/website/src/features/database-transfer/copy-engine.ts (60% shared word triples); code changed in 'refactor(admin,website): repoint A01 Tovu forwarders to existing Jini exports'"
+    },
+    {
       "id": "297648f94ba4",
       "reason": "the code it explained left this spot in 'refactor(admin-sites): delete the unused useSitesHome hook'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "2afbcb943f4c",
+      "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
       "id": "2cfad97a1e1d",
       "reason": "wording largely survives at apps/admin/src/features/roles/hooks/roles-port.hooks.ts (32% shared word triples); code changed in 'refactor(admin-users): use the shared UsersPort and fake from @jini-ai/user-management'"
     },
     {
+      "id": "2fb52c7ba014",
+      "reason": "the code it explained left this spot in 'refactor(site-assistant): visitor confirmations on @jini-ai/daemon bound confirmations'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
       "id": "300e326507b1",
       "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "309885dfc535",
+      "reason": "wording largely survives at packages/chat/src/core/ag-ui/run-input.ts (95% shared word triples); code changed in 'refactor(assistant): the AG-UI route parses its request with Jini's run-input (C1)'"
+    },
+    {
+      "id": "315826f08317",
+      "reason": "wording largely survives at apps/website/src/assistant/site/visitor-confirmations.ts (33% shared word triples); code changed in 'refactor(site-assistant): visitor confirmations on @jini-ai/daemon bound confirmations'"
+    },
+    {
+      "id": "3249ae8e6c6b",
+      "reason": "wording largely survives at packages/cms/src/media/blob-store.selection.ts (62% shared word triples); code changed in 'refactor(object-storage): media store selection from @jini-ai/cms/media'"
     },
     {
       "id": "3341d7241604",
       "reason": "the code it explained left this spot in 'refactor(admin-media): provider settings store comes from @jini-ai/admin'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
+      "id": "38b1713a70e5",
+      "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "3b8fe8248451",
+      "reason": "wording largely survives at packages/cms/src/media/blob-store.selection.ts (91% shared word triples); code changed in 'refactor(object-storage): media store selection from @jini-ai/cms/media'"
+    },
+    {
+      "id": "3c665583afa9",
+      "reason": "wording largely survives at apps/website/src/features/publish-content/type-registry.ts (54% shared word triples); code changed in 'refactor(publish-content): split the host port bag out of the type registry (publish-engine P0.3)'"
+    },
+    {
+      "id": "3d6c4616c17b",
+      "reason": "wording largely survives at packages/cms/src/media/blob-store.selection.ts (96% shared word triples); code changed in 'refactor(object-storage): media store selection from @jini-ai/cms/media'"
+    },
+    {
       "id": "3e7592522842",
       "reason": "the code it explained left this spot in 'refactor(admin-users): use the shared UsersPort and fake from @jini-ai/user-management'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
+      "id": "3f1c44a4aef7",
+      "reason": "wording largely survives at packages/agentic/src/skills/tools/installed-skill-tools.ts (66% shared word triples); code changed in 'refactor(skills): skill tool loader and registrations from @jini-ai/agentic/skills/tools'"
+    },
+    {
+      "id": "41f57790edf4",
+      "reason": "wording largely survives at packages/mcp/src/federation/hosted/probe.ts (73% shared word triples); code changed in 'refactor(external-mcp): probe and admissions from @jini-ai/mcp'"
+    },
+    {
       "id": "43e370c80454",
       "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "44d8885ce14f",
+      "reason": "wording largely survives at apps/website/src/contracts/core/gated-mutations/__tests__/unit/actor-identity.unit.test.ts (25% shared word triples); code changed in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'"
     },
     {
       "id": "45a36fce171f",
@@ -78,12 +182,44 @@
       "reason": "the code it explained left this spot in 'fix(desktop): import electron-updater statically again; the wiring test pins the static form'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
+      "id": "4871c6b666fa",
+      "reason": "wording largely survives at packages/db/src/sqlite/stopped.ts (44% shared word triples); code changed in 'refactor(db): stopped-database admission from @jini-ai/db/sqlite'"
+    },
+    {
+      "id": "48da0acd4a71",
+      "reason": "wording largely survives at apps/website/src/features/agent-plugins/service-ports.ts (36% shared word triples); code changed in 'refactor(admin,website): repoint A01 Tovu forwarders to existing Jini exports'"
+    },
+    {
       "id": "49816eddc943",
       "reason": "wording largely survives at apps/desktop/src/project-ipc.ts (64% shared word triples); code changed in 'fix(desktop): merge-b desktop part (held cloud patch, pushed --no-verify, owner OK 11-16)'"
     },
     {
       "id": "4a0df02b889f",
       "reason": "wording largely survives at packages/cms/src/media/__tests__/html-attributes.test.ts (33% shared word triples); code changed in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'"
+    },
+    {
+      "id": "4b0f91f52574",
+      "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "4dce5c078daa",
+      "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route uses Jini's canonical payload reducer (B1, OD-2)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "4dfa70646b3a",
+      "reason": "wording largely survives at packages/cms/src/html/style-values.ts (96% shared word triples); code changed in 'refactor(render): use @jini-ai/cms/html/style-values'"
+    },
+    {
+      "id": "4e19ae5c3767",
+      "reason": "wording largely survives at packages/agentic/src/skills/tools/installed-skill-tools.ts (48% shared word triples); code changed in 'refactor(skills): skill tool loader and registrations from @jini-ai/agentic/skills/tools'"
+    },
+    {
+      "id": "4e3db92c77ca",
+      "reason": "the code it explained left this spot in 'refactor(external-mcp): probe and admissions from @jini-ai/mcp'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "4ef07f24e6e4",
+      "reason": "the code it explained left this spot in 'refactor(media-generation): image-model id rule comes from @jini-ai/integrations'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
       "id": "501cdc9d74a2",
@@ -94,28 +230,68 @@
       "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
+      "id": "52197a091995",
+      "reason": "wording largely survives at packages/agent-plugins/src/admin-surfaces/node.ts (66% shared word triples); code changed in 'refactor(agent-plugins): issued sign-in collector from @jini-ai/agent-plugins/admin-surfaces/node'"
+    },
+    {
       "id": "53083a49b28b",
       "reason": "wording largely survives at apps/admin/src/features/sites/__tests__/site-transfer-tabs.unit.test.tsx (25% shared word triples); code changed in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'"
+    },
+    {
+      "id": "532fa0e5e676",
+      "reason": "wording largely survives at packages/agentic/src/skills/tools/installed-skill-tools.ts (75% shared word triples); code changed in 'refactor(skills): skill tool loader and registrations from @jini-ai/agentic/skills/tools'"
+    },
+    {
+      "id": "55c171dc43da",
+      "reason": "wording largely survives at ADS-memory/reports/architecture/2026-08-18-ag-ui-sample/backend-agui-adapter.sample.ts (29% shared word triples); code changed in 'refactor(assistant): delete the AG-UI forwarders and type re-export (C2)'"
     },
     {
       "id": "5615605b5f43",
       "reason": "wording largely survives at apps/admin/src/features/plugins/hooks/plugins-port.hooks.ts (97% shared word triples); code changed in 'refactor(admin-members): use the shared MembersPort and fake from @jini-ai/user-management'"
     },
     {
+      "id": "56a78c95cb54",
+      "reason": "the code it explained left this spot in 'refactor(pages): delete the active-theme re-export; its importer names the defining modules (size-04 step 7)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "570f8df1f797",
+      "reason": "wording largely survives at packages/cms/src/media/blob-store.selection.ts (94% shared word triples); code changed in 'refactor(object-storage): media store selection from @jini-ai/cms/media'"
+    },
+    {
       "id": "57b7186f7cad",
       "reason": "wording largely survives at apps/admin/src/features/sites/AllSitesTab.tsx (27% shared word triples); code changed in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'"
+    },
+    {
+      "id": "584c5ba6fd4f",
+      "reason": "wording largely survives at packages/cms/src/media/blob-store.selection.ts (90% shared word triples); code changed in 'refactor(object-storage): media store selection from @jini-ai/cms/media'"
     },
     {
       "id": "598d2beaa624",
       "reason": "the code it explained left this spot in 'fix(merge): media card metadata takes formatByteSize from @jini-ai/core/text'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
+      "id": "59d414083729",
+      "reason": "wording largely survives at packages/platform/src/object-store/descriptors.ts (47% shared word triples); code changed in 'refactor(object-storage): drop the parseObjectStoresFile forwarder'"
+    },
+    {
+      "id": "5a760055483c",
+      "reason": "wording largely survives at packages/integrations/src/media-providers/image-model-ids.ts (45% shared word triples); code changed in 'refactor(media-generation): image-model id rule comes from @jini-ai/integrations'"
+    },
+    {
       "id": "5ba4d4be186b",
       "reason": "wording largely survives at apps/admin/src/features/users/hooks/users-dependencies.hooks.ts (29% shared word triples); code changed in 'refactor(admin-users): use the shared UsersPort and fake from @jini-ai/user-management'"
     },
     {
+      "id": "5e7ffa8c6b40",
+      "reason": "wording largely survives at packages/chat/src/core/ag-ui/run-input.ts (56% shared word triples); code changed in 'refactor(assistant): the AG-UI route parses its request with Jini's run-input (C1)'"
+    },
+    {
       "id": "5f2e92752a15",
       "reason": "wording largely survives at apps/admin/src/features/source-control/source-control-visuals.tsx (36% shared word triples); code changed in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'"
+    },
+    {
+      "id": "5feab172cea7",
+      "reason": "wording largely survives at packages/mcp/src/federation/hosted/probe.ts (53% shared word triples); code changed in 'refactor(external-mcp): probe and admissions from @jini-ai/mcp'"
     },
     {
       "id": "611fac83e046",
@@ -126,16 +302,72 @@
       "reason": "the code it explained left this spot in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
+      "id": "6674f104a661",
+      "reason": "wording largely survives at packages/oauth/src/callback-page.ts (61% shared word triples); code changed in 'refactor(website): OAuth popup landing page renders through @jini-ai/oauth/callback-page'"
+    },
+    {
       "id": "66f05d8c1243",
       "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "696836198311",
+      "reason": "wording largely survives at apps/website/src/assistant/tool-catalog-live-query.ts (50% shared word triples); code changed in 'refactor(daemon): mount the tool-catalog routes as a list (pair of Jini 3a712f55)'"
+    },
+    {
+      "id": "6afc6975b11e",
+      "reason": "the code it explained left this spot in 'refactor(web): delete the html-document re-export shim'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "6cb3663659ee",
+      "reason": "wording largely survives at packages/daemon/src/bound-confirmations.ts (64% shared word triples); code changed in 'refactor(site-assistant): visitor confirmations on @jini-ai/daemon bound confirmations'"
+    },
+    {
+      "id": "6d2530f5f3e2",
+      "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route uses Jini's canonical payload reducer (B1, OD-2)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "6eb3a1b9c24f",
+      "reason": "wording largely survives at packages/agentic/src/skills/tools/installed-skill-tools.ts (61% shared word triples); code changed in 'refactor(skills): skill tool loader and registrations from @jini-ai/agentic/skills/tools'"
+    },
+    {
+      "id": "70247a29a113",
+      "reason": "the code it explained left this spot in 'refactor(web): delete the html-document re-export shim'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
       "id": "71ccd056e60e",
       "reason": "wording largely survives at packages/chat/src/embed-widget/browser/agent-inventory.ts (63% shared word triples); code changed in 'refactor(admin): agent inventory placeholder uses @jini-ai/chat/browser/agent-inventory'"
     },
     {
+      "id": "7307a6bae836",
+      "reason": "wording largely survives at packages/oauth/src/callback-page.ts (97% shared word triples); code changed in 'refactor(website): OAuth popup landing page renders through @jini-ai/oauth/callback-page'"
+    },
+    {
+      "id": "73d113311bac",
+      "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route uses Jini's canonical payload reducer (B1, OD-2)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "74e8f7b5ae15",
+      "reason": "wording largely survives at apps/website/src/assistant/site/visitor-confirmation-gate.ts (54% shared word triples); code changed in 'refactor(site-assistant): visitor confirmations on @jini-ai/daemon bound confirmations'"
+    },
+    {
+      "id": "75bb0faa019d",
+      "reason": "the code it explained left this spot in 'refactor(external-mcp): probe and admissions from @jini-ai/mcp'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
       "id": "76f34570b3b9",
       "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "7779c518d69f",
+      "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route uses Jini's canonical payload reducer (B1, OD-2)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "7786f27da4eb",
+      "reason": "wording largely survives at apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts (25% shared word triples); code changed in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'"
+    },
+    {
+      "id": "7c7c5f4a1fc7",
+      "reason": "wording largely survives at apps/website/src/server/inbound/public-http/routes/oauth/callback-page.ts (28% shared word triples); code changed in 'refactor(website): OAuth popup landing page renders through @jini-ai/oauth/callback-page'"
     },
     {
       "id": "7e7a2461ee5e",
@@ -146,16 +378,44 @@
       "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
+      "id": "7ec81a385c34",
+      "reason": "wording largely survives at packages/oauth/src/callback-page.ts (50% shared word triples); code changed in 'refactor(website): OAuth popup landing page renders through @jini-ai/oauth/callback-page'"
+    },
+    {
       "id": "81ae25cba5b6",
       "reason": "the code it explained left this spot in 'refactor(admin-media): provider settings store comes from @jini-ai/admin'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "8331c1cd25a9",
+      "reason": "wording largely survives at packages/integrations/src/media-providers/image-model-ids.ts (30% shared word triples); code changed in 'refactor(media-generation): image-model id rule comes from @jini-ai/integrations'"
+    },
+    {
+      "id": "8a3d4a10ce20",
+      "reason": "wording largely survives at packages/agentic/src/skills/tools/installed-skill-tools.ts (92% shared word triples); code changed in 'refactor(skills): skill tool loader and registrations from @jini-ai/agentic/skills/tools'"
     },
     {
       "id": "8d7a606468c4",
       "reason": "the code it explained left this spot in 'refactor(admin-sites): delete the unused useSitesHome hook'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
+      "id": "8e0881485424",
+      "reason": "wording largely survives at apps/website/src/features/deployments/deploy-config-registry.ts (72% shared word triples); code changed in 'refactor(publish-trust): import the deploy-config path guard from @jini-ai/devops (import-cycle S1)'"
+    },
+    {
+      "id": "8efeece17277",
+      "reason": "wording largely survives at packages/agentic/src/skills/tools/installed-skill-tools.ts (54% shared word triples); code changed in 'refactor(skills): skill tool loader and registrations from @jini-ai/agentic/skills/tools'"
+    },
+    {
+      "id": "91e11858cc6c",
+      "reason": "the code it explained left this spot in 'refactor(publish-content): split the import ceremony into plan, restore-point and execute steps (publish-engin'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
       "id": "9357f2b7f3c1",
       "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "9390f43bc0c6",
+      "reason": "wording largely survives at apps/website/src/platform/db/postgres/db-ops-adapter.ts (74% shared word triples); code changed in 'refactor(db): fold the Postgres restore-capability evaluation into its adapter'"
     },
     {
       "id": "94224029e803",
@@ -166,12 +426,56 @@
       "reason": "wording largely survives at apps/admin/src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts (67% shared word triples); code changed in 'fix(charts): re-pin charts-recharts to the published 0.7.1 and keep the pin tied to the dependency'"
     },
     {
+      "id": "9583e85dad30",
+      "reason": "wording largely survives at packages/db/src/sqlite/stopped.ts (93% shared word triples); code changed in 'refactor(db): stopped-database admission from @jini-ai/db/sqlite'"
+    },
+    {
+      "id": "985367b154d1",
+      "reason": "wording largely survives at packages/chat/src/core/run-events/entry.ts (46% shared word triples); code changed in 'refactor(assistant): the AG-UI route uses Jini's canonical payload reducer (B1, OD-2)'"
+    },
+    {
+      "id": "9ab817113011",
+      "reason": "wording largely survives at packages/chat/src/core/ag-ui/run-input.ts (94% shared word triples); code changed in 'refactor(assistant): the AG-UI route parses its request with Jini's run-input (C1)'"
+    },
+    {
+      "id": "9b9fe02f2ae6",
+      "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route uses Jini's canonical payload reducer (B1, OD-2)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "9d98bf5c5d7c",
+      "reason": "the code it explained left this spot in 'refactor(site-assistant): visitor confirmations on @jini-ai/daemon bound confirmations'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "9dc1a1cc2d05",
+      "reason": "wording largely survives at apps/website/src/features/source-control/commit-site.ts (45% shared word triples); code changed in 'refactor(source-control): call Jini's repositoryTargetError directly; delete the forwarder (import-cycle S3a)'"
+    },
+    {
+      "id": "9ee3b25f309c",
+      "reason": "wording largely survives at packages/daemon/src/bound-confirmations.ts (88% shared word triples); code changed in 'refactor(site-assistant): visitor confirmations on @jini-ai/daemon bound confirmations'"
+    },
+    {
+      "id": "a07db47f1811",
+      "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route uses Jini's canonical payload reducer (B1, OD-2)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "a87c3be42fc4",
+      "reason": "wording largely survives at packages/mcp/src/federation/hosted/store.ts (32% shared word triples); code changed in 'refactor(external-mcp): probe and admissions from @jini-ai/mcp'"
+    },
+    {
+      "id": "ac721ef67e62",
+      "reason": "wording largely survives at apps/website/src/server/__tests__/identity-routes.test.ts (38% shared word triples); code changed in 'refactor(commands): import InMemoryChangeSetRepo and revert from @jini-ai/cms directly'"
+    },
+    {
       "id": "aca17a7dd251",
       "reason": "wording largely survives at apps/admin/src/features/database/Database.tsx (31% shared word triples); code changed in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'"
     },
     {
       "id": "ae73600584bf",
       "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "af7e31440c6b",
+      "reason": "wording largely survives at packages/daemon/src/bound-confirmations.ts (51% shared word triples); code changed in 'refactor(site-assistant): visitor confirmations on @jini-ai/daemon bound confirmations'"
     },
     {
       "id": "afb993d1aeb6",
@@ -182,12 +486,48 @@
       "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
+      "id": "b22305a903a1",
+      "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
       "id": "b2d0a7901be9",
       "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
+      "id": "b5f9428d869e",
+      "reason": "wording largely survives at apps/website/src/features/publish-content/publish-backstop-row.sqlite.ts (73% shared word triples); code changed in 'refactor(size): split createRawRowSqlitePort under 50 lines'"
+    },
+    {
       "id": "b63c426b5fe3",
       "reason": "wording largely survives at packages/admin/src/media/adapters/http.ts (76% shared word triples); code changed in 'refactor(admin-media): provider settings store comes from @jini-ai/admin'"
+    },
+    {
+      "id": "b662b2e1a1c4",
+      "reason": "wording largely survives at apps/website/src/server/runtime/composition/modules/run-finalizer/bounded-follow.ts (57% shared word triples); code changed in 'refactor(run-finalizer): A5 extract run-finalizer/stream.ts and bounded-follow.ts'"
+    },
+    {
+      "id": "bb831b3fbe6b",
+      "reason": "wording largely survives at packages/cms/src/seo/content-analysis/analyze-content.ts (88% shared word triples); code changed in 'refactor(plugin-runtime): content scoring from @jini-ai/cms/seo/content-analysis'"
+    },
+    {
+      "id": "bc6a4e024127",
+      "reason": "the code it explained left this spot in 'refactor(admin,website): repoint A01 Tovu forwarders to existing Jini exports'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "bdf41c2fa537",
+      "reason": "wording largely survives at packages/cli/src/stdin-line.ts (62% shared word triples); code changed in 'refactor(cli): import-local reads its request with @jini-ai/cli readStdinRequestLine'"
+    },
+    {
+      "id": "bdf6ead3515c",
+      "reason": "wording largely survives at packages/mcp/src/federation/hosted/probe.ts (35% shared word triples); code changed in 'refactor(external-mcp): probe and admissions from @jini-ai/mcp'"
+    },
+    {
+      "id": "beb679c01774",
+      "reason": "wording largely survives at packages/cms/src/media/blob-store.selection.ts (63% shared word triples); code changed in 'refactor(object-storage): media store selection from @jini-ai/cms/media'"
+    },
+    {
+      "id": "c10645989481",
+      "reason": "wording largely survives at packages/chat/src/core/ag-ui/event-reduction.ts (25% shared word triples); code changed in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'"
     },
     {
       "id": "c52e12c90569",
@@ -198,6 +538,10 @@
       "reason": "wording largely survives at apps/admin/src/features/source-control/source-control-visuals.tsx (50% shared word triples); code changed in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'"
     },
     {
+      "id": "c97c8154f87d",
+      "reason": "the code it explained left this spot in 'refactor(render): delete render.ts's re-export block; importers name the defining module (size-03 step 7)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
       "id": "cb4b764ac856",
       "reason": "wording largely survives at packages/cms/src/widgets/markers/html-attributes.ts (84% shared word triples); code changed in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'"
     },
@@ -206,8 +550,24 @@
       "reason": "wording largely survives at apps/website/src/features/deployments/publish-agent-tools.ts (25% shared word triples); code changed in 'refactor(admin-media): provider settings store comes from @jini-ai/admin'"
     },
     {
+      "id": "cdeb7b60dc2b",
+      "reason": "wording largely survives at packages/cms/src/seo/content-analysis/summary.ts (71% shared word triples); code changed in 'refactor(plugin-runtime): content scoring from @jini-ai/cms/seo/content-analysis'"
+    },
+    {
+      "id": "cf275d5d85ef",
+      "reason": "wording largely survives at packages/agentic/src/skills/tools/installed-skill-tools.ts (63% shared word triples); code changed in 'refactor(skills): skill tool loader and registrations from @jini-ai/agentic/skills/tools'"
+    },
+    {
       "id": "cfed94982195",
       "reason": "wording largely survives at packages/cms/src/widgets/markers/html-attributes.ts (86% shared word triples); code changed in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'"
+    },
+    {
+      "id": "d0d097da8a71",
+      "reason": "wording largely survives at packages/agentic/src/skills/tools/installed-skill-tools.ts (80% shared word triples); code changed in 'refactor(skills): skill tool loader and registrations from @jini-ai/agentic/skills/tools'"
+    },
+    {
+      "id": "d17cc37d1b5c",
+      "reason": "wording largely survives at packages/mcp/src/federation/hosted/probe.ts (48% shared word triples); code changed in 'refactor(external-mcp): probe and admissions from @jini-ai/mcp'"
     },
     {
       "id": "d31c788b6486",
@@ -222,8 +582,28 @@
       "reason": "wording largely survives at apps/admin/src/features/roles/hooks/roles-dependencies.hooks.ts (75% shared word triples); code changed in 'refactor(admin-users): use the shared UsersPort and fake from @jini-ai/user-management'"
     },
     {
+      "id": "da6daa76659e",
+      "reason": "wording largely survives at packages/agentic/src/skills/tools/installed-skill-tools.ts (79% shared word triples); code changed in 'refactor(skills): skill tool loader and registrations from @jini-ai/agentic/skills/tools'"
+    },
+    {
       "id": "daef5199858a",
       "reason": "the code it explained left this spot in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "dbca9bb9c34c",
+      "reason": "wording largely survives at packages/chat/src/core/run-events/entry.ts (55% shared word triples); code changed in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'"
+    },
+    {
+      "id": "dd0fe8536795",
+      "reason": "wording largely survives at packages/daemon/src/bound-confirmations.ts (77% shared word triples); code changed in 'refactor(site-assistant): visitor confirmations on @jini-ai/daemon bound confirmations'"
+    },
+    {
+      "id": "e4a3ed4a0034",
+      "reason": "wording largely survives at packages/mcp/src/federation/hosted/probe.ts (32% shared word triples); code changed in 'refactor(external-mcp): probe and admissions from @jini-ai/mcp'"
+    },
+    {
+      "id": "e5a8e6b9f251",
+      "reason": "wording largely survives at packages/agentic/src/skills/install/tool-registry-live-registration.ts (78% shared word triples); code changed in 'refactor(skills): live skill registration from @jini-ai/agentic createLiveToolRegistration'"
     },
     {
       "id": "e5f37bad0f6c",
@@ -234,6 +614,14 @@
       "reason": "wording largely survives at apps/website/src/features/custom-credentials/credentialed-request.ts (33% shared word triples); code changed in 'refactor(admin-members): use the shared MembersPort and fake from @jini-ai/user-management'"
     },
     {
+      "id": "e67b50919b24",
+      "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route uses Jini's canonical payload reducer (B1, OD-2)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "ea80b2deafeb",
+      "reason": "wording largely survives at packages/chat/src/core/ag-ui/run-input.ts (65% shared word triples); code changed in 'refactor(assistant): the AG-UI route parses its request with Jini's run-input (C1)'"
+    },
+    {
       "id": "eafd3a8ebd7b",
       "reason": "wording largely survives at packages/cms/src/widgets/markers/html-attributes.ts (79% shared word triples); code changed in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'"
     },
@@ -242,12 +630,44 @@
       "reason": "wording largely survives at apps/admin/src/features/sites/hooks/use-site-confirm.hooks.ts (51% shared word triples); code changed in 'refactor(admin,website): repoint A01 Tovu forwarders to existing Jini exports'"
     },
     {
+      "id": "edc57049de8f",
+      "reason": "wording largely survives at packages/cms/src/html/style-values.ts (79% shared word triples); code changed in 'refactor(render): use @jini-ai/cms/html/style-values'"
+    },
+    {
+      "id": "ee0051ca2db3",
+      "reason": "wording largely survives at packages/oauth/src/callback-page.ts (50% shared word triples); code changed in 'refactor(website): OAuth popup landing page renders through @jini-ai/oauth/callback-page'"
+    },
+    {
+      "id": "f15e1d1535a2",
+      "reason": "wording largely survives at packages/daemon/src/bound-confirmations.ts (58% shared word triples); code changed in 'refactor(site-assistant): visitor confirmations on @jini-ai/daemon bound confirmations'"
+    },
+    {
+      "id": "f211325327dd",
+      "reason": "wording largely survives at apps/website/src/features/publish-content/type-registry.ts (74% shared word triples); code changed in 'refactor(publish-content): split the host port bag out of the type registry (publish-engine P0.3)'"
+    },
+    {
+      "id": "f4938768f72f",
+      "reason": "wording largely survives at apps/website/src/server/inbound/admin-http/publish-trust-auth.ts (54% shared word triples); code changed in 'refactor(size): split requirePublishTrust under 50 lines'"
+    },
+    {
       "id": "f786bd1dabc6",
       "reason": "wording largely survives at apps/admin/src/lib/assistant-agents-snapshot.ts (59% shared word triples); code changed in 'refactor(admin): agent inventory placeholder uses @jini-ai/chat/browser/agent-inventory'"
     },
     {
       "id": "f7db4a3e8c0d",
       "reason": "the code it explained left this spot in 'refactor(admin-users): use the shared UsersPort and fake from @jini-ai/user-management'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "f805139a5d34",
+      "reason": "the code it explained left this spot in 'refactor(publish-content): split planner.ts into planner and plan-rows (publish-engine P0.8)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "f8d6cd691675",
+      "reason": "wording largely survives at packages/cms/src/html/style-values.ts (83% shared word triples); code changed in 'refactor(render): use @jini-ai/cms/html/style-values'"
+    },
+    {
+      "id": "fb217a1129f7",
+      "reason": "wording largely survives at packages/daemon/src/bound-confirmations.ts (65% shared word triples); code changed in 'refactor(site-assistant): visitor confirmations on @jini-ai/daemon bound confirmations'"
     },
     {
       "id": "fd5b21a23371",
