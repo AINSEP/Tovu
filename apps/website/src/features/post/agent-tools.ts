@@ -798,7 +798,7 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
         limit: {
           type: "integer",
           minimum: 1,
-          maximum: MAX_POST_SEARCH_LIMIT,
+          maximum: MAX_POST_SEARCH_LIMIT, clamp: true,
           description: `Maximum results to return. Defaults to ${DEFAULT_POST_SEARCH_LIMIT}; values above ${MAX_POST_SEARCH_LIMIT} are clamped to ${MAX_POST_SEARCH_LIMIT} rather than rejected.`,
         },
       },
@@ -846,7 +846,7 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
         limit: {
           type: "integer",
           minimum: 1,
-          maximum: MAX_POST_LIST_LIMIT,
+          maximum: MAX_POST_LIST_LIMIT, clamp: true,
           description: `Maximum rows to return. Defaults to ${DEFAULT_POST_LIST_LIMIT}; values above ${MAX_POST_LIST_LIMIT} are clamped to ${MAX_POST_LIST_LIMIT} rather than rejected.`,
         },
         includeBody: {

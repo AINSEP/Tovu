@@ -112,7 +112,7 @@ export const membersAgentToolCatalog: AgentToolDefinition[] = [
       properties: {
         cursor: { type: "string", description: "nextCursor from the previous call. Omit for the first page." },
         afterId: { type: "string", description: "Older form of cursor: a previously-seen member id; the page starts after it. Prefer cursor." },
-        limit: { type: "integer", minimum: 1, maximum: 100, description: "Max rows to return (1-100). Defaults to the repo's own default page size." },
+        limit: { type: "integer", minimum: 1, maximum: 100, clamp: true, description: "Max rows to return (1-100). Defaults to the repo's own default page size." },
       },
     },
   },

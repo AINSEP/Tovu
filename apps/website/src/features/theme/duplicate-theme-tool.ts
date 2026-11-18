@@ -50,6 +50,8 @@ const DUPLICATE_THEME_CATALOG: AgentToolDefinition = {
       sourceThemeId: {
         type: "string",
         minLength: 1,
+        // The audit's `sourceId`: the near-miss rule cannot bridge it, so it is declared (the run says `sourceId→sourceThemeId`).
+        aliases: ["sourceId"],
         description: "Id of the theme to copy, exactly as returned by theme_list (e.g. the active theme's id).",
       },
       newName: {
