@@ -7,6 +7,7 @@
  * or the media route knows a Trash exists.
  */
 export { TRASH_RETENTION_DAYS } from "./ports.js";
+export { TRASH_TABLES } from "./repo.sqlite.js";
 export type { RemoveEntity, TransactionRunner } from "./ports.js";
 export { bindWidgetRemoval } from "./widget-removal.js";
 export { removeEntityWithoutBlocker } from "./remove-without-blocker.js";

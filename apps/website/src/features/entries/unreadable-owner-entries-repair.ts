@@ -1,8 +1,7 @@
 import { WIDGET_REGION_BINDINGS_TABLE } from "../../contracts/core/widget-tables.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import { DECLARED_CONTENT_TYPE_OWNERS } from "../content-types/index.js";
-import { buildTrashRegistry, type TrashAdapter } from "../trash/index.js";
-import { TRASH_TABLES } from "../trash/repo.sqlite.js";
+import { buildTrashRegistry, TRASH_TABLES, type TrashAdapter } from "../trash/index.js";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import type { TrashEntry } from "@jini-ai/cms/trash";
 
