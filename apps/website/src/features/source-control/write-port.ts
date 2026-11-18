@@ -1,3 +1,10 @@
+/**
+ * @file Tovu's bindings of the core credential ports over the EXISTING host functions: the guarded
+ * request adapter in `credentialed-request.ts` and the source-control provider registry. Nothing
+ * here reimplements a request, a provider build or a commit; each method forwards to the same
+ * function the tool handlers call today, with the same dependencies, so audit, egress, diagnostic,
+ * not-found and remedy-wording policy stay exactly where they are.
+ */
 import type { SourceControlWritePort } from "@jini-ai/core/contracts/credentials";
 import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
 import type { HttpClientPort } from "../../platform/http/index.js";
@@ -16,6 +23,7 @@ import { buildSourceControlProviderForApi, type LoadSourceControlProviders } fro
 export function bindSourceControlWritePort(required: {
   load: LoadSourceControlProviders;
   httpClient: HttpClientPort;
+  /** `RouteDeps.observability`: a write's raw git-host calls are outbound spans. */
   observability?: ObservabilityPort;
 }, _optional = {}): SourceControlWritePort {
   return {

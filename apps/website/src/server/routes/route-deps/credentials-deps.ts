@@ -1,5 +1,6 @@
 import type { RememberedApprovalPort } from "@jini-ai/core";
 import type { SourceControlWritePort } from "@jini-ai/core/contracts/credentials";
+import type { PublishCompatibilityPort } from "../../../features/custom-credentials/index.js";
 import type { SettingsToolDeps } from "#src/features/settings/tool-registrations";
 import type { SiteAssistantCredentialRepoPort, AdminExecutionCredentialRepoPort } from "#src/assistant/host-ports";
 import type { KeyringPort, SecretSealerPort } from "../../../features/webhooks/index.js";
@@ -213,6 +214,13 @@ export interface CredentialsDeps {
    * leaves this port reading the original; override `sourceControlWrite` too.
    */
   sourceControlWrite: SourceControlWritePort;
+  /**
+   * Tells publish targets that a saved credential's compatibility changed: `deployments`' `bindPublishCompatibility`, bound
+   * by each root over THIS bag (`publishCredentialVerificationCache`, `loadDeployTargets`), read when a credential is saved,
+   * never when the port is bound. The cache stays the one instance the admin HTTP routes use. Same spread-copy TEST
+   * GOTCHA as `sourceControlWrite`.
+   */
+  publishCompatibility: PublishCompatibilityPort;
   /** `site_backup_push`'s client: `SITE_BACKUP_EGRESS_POLICY` (2-minute idle ceiling for large blob
    *  uploads). Absent (the in-memory runtime), the backup uses {@link customCredentialsHttpClient}. */
   siteBackupHttpClient?: HttpClientPort;

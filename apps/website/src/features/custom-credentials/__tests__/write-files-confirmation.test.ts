@@ -17,6 +17,7 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { bindSourceControlWritePort } from "#src/features/source-control/index";
+import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
 
 
 /**
@@ -102,6 +103,7 @@ function fakeRouteDeps(options: { allow?: boolean; httpSteps?: { match: RegExp; 
     customCredentialsHttpClient: httpClient,
     loadSourceControlProviders: githubFromSource,
     sourceControlWrite: bindSourceControlWritePort({ load: githubFromSource, httpClient }),
+    publishCompatibility: bindPublishCompatibility({ source: {} }),
     authorize: async (params: Record<string, unknown>) => (allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" }),
   };
 

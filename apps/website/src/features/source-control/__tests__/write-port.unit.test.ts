@@ -13,6 +13,12 @@ import { bindSourceControlWritePort } from "../write-port.js";
  * registry builder; only the provider's git-host calls and the network are fakes.
  */
 
+/**
+ * @file EXTRACT-S8 C2 part 1: the core `CredentialedRequestPort` and `SourceControlWritePort` as
+ * Tovu binds them (`credential-ports.ts`). Real bindings over the real request adapter, store,
+ * sealer and provider registry builder; only the network and the provider's git-host calls are fakes.
+ */
+
 const WORKSPACE = "ws-c2p1";
 
 class ScriptedHttpClient implements HttpClientPort {

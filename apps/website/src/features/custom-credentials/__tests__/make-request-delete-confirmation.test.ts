@@ -18,6 +18,7 @@ import { loadFixtureAuthSchemes } from "./fixture-auth-schemes.fixture.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
+import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
 
 
 /**
@@ -89,6 +90,7 @@ function fakeRouteDeps(options: { allow?: boolean; httpResponses?: (HttpResponse
   const deps: CustomCredentialsToolDeps = {
     loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
     sourceControlWrite: unusedSourceControlWrite(),
+    publishCompatibility: bindPublishCompatibility({ source: {} }),
     workspaceId: WORKSPACE_ID,
     clock: { nowMs: () => Date.parse(NOW) },
     customCredentialSetRepo: repo,

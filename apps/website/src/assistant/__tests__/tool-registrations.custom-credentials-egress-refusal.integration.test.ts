@@ -18,6 +18,7 @@ import { InMemoryCredentialedRequestAuditLog } from "../../features/custom-crede
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
+import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
 
 
 /**
@@ -95,6 +96,7 @@ async function buildDelegatedToolDeps(clientError: Error) {
     loadAuthSchemes: async () => [],
     loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
     sourceControlWrite: unusedSourceControlWrite(),
+    publishCompatibility: bindPublishCompatibility({ source: {} }),
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: WORKSPACE_ID,
     clock,
@@ -211,6 +213,7 @@ async function executeThroughGuardedClient() {
     loadAuthSchemes: async () => [],
     loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
     sourceControlWrite: unusedSourceControlWrite(),
+    publishCompatibility: bindPublishCompatibility({ source: {} }),
     authorize: async () => ({ allowed: true, reason: "matched" }),
     workspaceId: WORKSPACE_ID,
     clock,

@@ -16,6 +16,7 @@ import type { CustomCredentialsToolDeps } from '../tool-registrations.js';
 import { buildApiCredentialSaveHandlers, buildCustomCredentialsRegistrations } from '../tool-registrations.js';
 import { buildCredentialCopyRegistrations, CREDENTIAL_COPY_TOOL_ID } from '../credential-copy-tool.js';
 import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
+import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
 
 export const sha256 = (value: unknown): string => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
@@ -54,6 +55,7 @@ export function credentialToolDeps({ authorizeCalls }: { authorizeCalls: Record<
     loadAuthSchemes: async () => [],
     loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
     sourceControlWrite: unusedSourceControlWrite(),
+    publishCompatibility: bindPublishCompatibility({ source: {} }),
     workspaceId: 'ws-c2p2', clock: createFakeClock({ startIso: '2026-11-09T00:00:00Z' }),
     customCredentialSetRepo: new InMemoryCustomCredentialSetRepo(),
     siteAssistantSecretSealer: new AesGcmSecretSealer(keyring), siteAssistantSecretKeyring: keyring,
