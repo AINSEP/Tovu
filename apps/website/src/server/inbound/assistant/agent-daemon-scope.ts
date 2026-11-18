@@ -85,7 +85,7 @@ import { bridgePreflightEntry } from "./bridge-preflight-entry.js";
 import type { PromptAugmenter } from "@jini-ai/core/contracts/agents";
 import { createAgentSelectionResolver, createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";
 import { executorDefinitionPolicies } from "./executor-definition-policies.js";
-import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, registerFrontendRequestRoute, agentRoutes, registerAttachmentRoutes, componentCatalogRoutes, delegatedToolRoutes, registerMessageRelayRoutes, registerRunRoutes, toolCatalogRoutes } from "@jini-ai/daemon/http";
+import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, registerFrontendRequestRoute, agentRoutes, registerAttachmentRoutes, componentCatalogRoutes, delegatedToolRoutes, registerMessageRelayRoutes, runRoutes, toolCatalogRoutes } from "@jini-ai/daemon/http";
 import { adminFrontendOwner, adminFrontendRunOwner } from "#src/assistant/admin-frontend-owner";
 import { bearerTokenFromHeader, createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
 import type { AttachmentStore, DelegatedToolExecuteRequest, RunMessageRequest, RunStartHandler, StoredAttachment } from "@jini-ai/daemon/http";
@@ -1438,7 +1438,7 @@ const adapter: RouteHostContext = { originPolicy: createLocalSameOriginPolicy({ 
 // Per-run authorization, mounted between the bearer gate and the run routes it protects. The gate
 // above proves the caller is Tovu's proxy; these two prove *which admin* the proxy is speaking for,
 // which is the question neither the gate nor the proxy's own session check can answer. Both must
-// precede `registerRunRoutes`: the middleware so it runs first, and the list handler so it shadows
+// precede `runRoutes`: the middleware so it runs first, and the list handler so it shadows
 // http-kit's unscoped `runListRoute` under Express's first-match-wins routing. See
 // `Jini packages/daemon/src/run-credentials.ts` for the ownership model and the 404-not-403 rationale.
 app.use("/api/runs/:runId", requireRunOwnership({ registry: runOwners, lifecycle: lifecycle }, {}));
@@ -1464,10 +1464,10 @@ async function deliverRunUserMessage(
   return agentExecutor.sendUserMessage({ runId, text, id, attachmentIds }, { imageContents: prepared.images });
 }
 
-registerRunRoutes({ app, deps: { lifecycle, onStarted,
+mountJiniRoutes({ app, routes: runRoutes({ deps: { lifecycle, onStarted,
   deliverUserMessage: (input) => agentExecutor.sendUserMessage(input),
   deliverUserMessageWithAttachments: (input) => deliverRunUserMessage(input, {}),
-}, adapter });
+}, host: routeHost }) });
 // `rescanAgents` wired explicitly (not left to fall back to `listAgents`, `@jini-ai/http-kit`'s own
 // default): `listAssistantAgents` is now cached (see `agents.ts`'s module doc — this file's own
 // gap was the fallback silently serving the same stale cache `POST /api/agents/rescan` exists to

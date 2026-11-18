@@ -4,7 +4,8 @@ import test from 'node:test';
 import express from 'express';
 import type { ElectronApplication } from '@playwright/test';
 import { createInMemoryEventLog, createRunLifecycle } from '@jini-ai/daemon';
-import { registerRunRoutes } from '@jini-ai/daemon/http';
+import { runRoutes } from '@jini-ai/daemon/http';
+import { daemonRouteHost, mountJiniRoutes } from '../../../apps/website/src/server/runtime/composition/jini-routes.js';
 import { createApp, createRouteDeps } from '../../../apps/website/src/server/runtime/composition/app.js';
 import { bootAuthenticated, startTestServer } from '../../../apps/website/src/server/__tests__/helpers/http-test-server.js';
 import { ensureAgentDaemonToken, ensureToolExecToken, requireAgentDaemonToken } from '../../../apps/website/src/assistant/daemon-access.js';
@@ -25,8 +26,10 @@ test('the release journey creates an admitted site attempt before catalog discov
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   registerDurableRunStartRoute({ app: daemon, lifecycle, onStarted: () => {}, store: deps.chatRunLedger.durable! });
   const resolvedPortRef = { current: 0 };
-  registerRunRoutes({ app: daemon, deps: { lifecycle }, adapter: { originPolicy: createLocalSameOriginPolicy({ port: () => resolvedPortRef.current, env: {},
-    config: { allowedOriginsEnvVar: 'JINI_ALLOWED_ORIGINS', webPortEnvVar: 'JINI_WEB_PORT', bindHostEnvVar: 'JINI_BIND_HOST' } }) } });
+  const context = { originPolicy: createLocalSameOriginPolicy({ port: () => resolvedPortRef.current, env: {},
+    config: { allowedOriginsEnvVar: 'JINI_ALLOWED_ORIGINS', webPortEnvVar: 'JINI_WEB_PORT', bindHostEnvVar: 'JINI_BIND_HOST' } }) };
+  // 100 KiB: the default limit of the `express.json()` parser above.
+  mountJiniRoutes({ app: daemon, routes: runRoutes({ deps: { lifecycle }, host: daemonRouteHost({ context, parserLimitBytes: 100 * 1024 }) }) });
   registerRunActiveContextRoute(daemon, createRunActiveContextStore());
   const daemonUrl = await startTestServer(daemon, t);
   resolvedPortRef.current = Number(new URL(daemonUrl).port);

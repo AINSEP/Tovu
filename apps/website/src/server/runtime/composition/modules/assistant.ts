@@ -603,7 +603,7 @@ function mountRunRoutes(required: AssistantMountContext, _optional = {}): void {
       next(error);
     });
   });
-  // `@jini-ai/http-kit`'s `registerRunRoutes` mounts `GET /api/runs` (list runs, optionally
+  // `@jini-ai/daemon`'s `runRoutes` lists `GET /api/runs` (list runs, optionally
   // filtered by `?contextRef=`) on the daemon alongside the `:runId` routes. It was missing
   // here, so the daemon's list endpoint was unreachable and 404'd at Tovu's own router.
   // Registered ahead of `GET /api/runs/:runId` to keep the exact-path match unambiguous.

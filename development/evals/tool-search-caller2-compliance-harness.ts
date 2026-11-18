@@ -77,7 +77,7 @@ import { join } from "node:path";
 import express from "express";
 import type { RouteHostContext } from "@jini-ai/core/contracts/server";
 import type { RunStartHandler } from "@jini-ai/daemon/http";
-import { registerRunRoutes, toolCatalogRoutes } from "@jini-ai/daemon/http";
+import { runRoutes, toolCatalogRoutes } from "@jini-ai/daemon/http";
 import { createLocalSameOriginPolicy } from "@jini-ai/core/contracts/server";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
 import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
@@ -264,9 +264,10 @@ async function main(): Promise<void> {
   };
 
   const harnessAdapter: RouteHostContext = { originPolicy: createLocalSameOriginPolicy({ port: () => PORT, env: {}, config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
-  registerRunRoutes({ app, deps: { lifecycle, onStarted }, adapter: harnessAdapter });
   // 100 KiB: the default limit of the `express.json()` parser above.
-  mountJiniRoutes({ app, routes: toolCatalogRoutes({ deps: { catalog }, host: daemonRouteHost({ context: harnessAdapter, parserLimitBytes: 100 * 1024 }) }) });
+  const routeHost = daemonRouteHost({ context: harnessAdapter, parserLimitBytes: 100 * 1024 });
+  mountJiniRoutes({ app, routes: runRoutes({ deps: { lifecycle, onStarted }, host: routeHost }) });
+  mountJiniRoutes({ app, routes: toolCatalogRoutes({ deps: { catalog }, host: routeHost }) });
 
   const server = app.listen(PORT, "127.0.0.1");
   await new Promise<void>((resolve, reject) => {
