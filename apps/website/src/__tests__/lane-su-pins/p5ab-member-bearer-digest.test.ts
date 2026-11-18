@@ -9,7 +9,8 @@ import { resolveMemberSession } from "#src/features/members/access-resolver";
 import type { MagicLinkTokenRepoPort, MemberSessionRepoPort, MembersWriteServiceDeps } from "#src/features/members/ports";
 import { InMemoryMemberRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "#src/features/members/repo.memory";
 import { MemberAuthError, type MemberSessionRecord } from "#src/features/members/types";
-import { consumeMemberChallenge, issueMemberSession } from "#src/features/members/write-service";
+import { consumeMemberChallenge } from "#src/features/members/member-challenge";
+import { issueMemberSession } from "#src/features/members/member-credentials";
 
 /**
  * @file P5a + P5b (S0): the member bearer digest has two producers that must agree byte for byte: the

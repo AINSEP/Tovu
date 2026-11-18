@@ -10,7 +10,7 @@ import type { MembersWriteServiceDeps } from "../ports.js";
 import { SqlMagicLinkTokenRepo, SqlMemberRepo, SqlMemberSessionRepo } from "../repo.js";
 import { InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "../repo.memory.js";
 import { resetPassword, setMemberPassword, signInWithPassword } from "../password-auth.js";
-import { issueMemberSession } from "../write-service.js";
+import { issueMemberSession } from "../member-credentials.js";
 import { MemberAuthError, MemberConflictError, MemberReauthenticationRequiredError, MemberValidationError } from "../types.js";
 
 const WS = "password-lifecycle";

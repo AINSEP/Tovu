@@ -9,7 +9,7 @@ import { setMemberPassword } from "#src/features/members/password-auth";
 import type { MembersWriteServiceDeps } from "#src/features/members/ports";
 import { SqlMagicLinkTokenRepo, SqlMemberRepo, SqlMemberSessionRepo } from "#src/features/members/repo";
 import { InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "#src/features/members/repo.memory";
-import { issueMemberSession } from "#src/features/members/write-service";
+import { issueMemberSession } from "#src/features/members/member-credentials";
 import { buildTrashRegistry } from "#src/features/trash/registry";
 import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";

@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryMagicLinkTokenRepo } from "../repo.memory.js";
-import { memberChallengeStore } from "../write-service.js";
-import { requestSignInLink } from "../write-service.js";
+import { memberChallengeStore } from "../member-challenge.js";
+import { requestSignInLink } from "../member-challenge-request.js";
 import { MemberValidationError } from "../types.js";
 
 /**
@@ -40,3 +40,21 @@ for (const email of ["x ada@example.test", "ada@example.test x", "ada@@example.t
       (error: unknown) => error instanceof MemberValidationError && error.message === `'${email}' is not a valid email address`);
   });
 }
+
+for (const reason of ["was not found", "has expired", "was already consumed"]) {
+  test(`U2c-1: challenge consume maps only the known refusal ${reason} to false`, async () => {
+    const repo = new InMemoryMagicLinkTokenRepo();
+    repo.consume = async () => { throw new Error(`magic link token 'c-1' ${reason}`); };
+    const store = memberChallengeStore({ repo });
+    assert.equal(await store.consume({ workspaceId: "ws", realm: "member", purpose: "signin", id: "c-1", nowIso: identity.createdAt }), false);
+  });
+}
+
+test("U2c-1: challenge consume propagates an outage unchanged", async () => {
+  const repo = new InMemoryMagicLinkTokenRepo();
+  const outage = new Error("challenge storage unavailable");
+  repo.consume = async () => { throw outage; };
+  await assert.rejects(memberChallengeStore({ repo }).consume({
+    workspaceId: "ws", realm: "member", purpose: "signin", id: "c-1", nowIso: identity.createdAt,
+  }), error => error === outage);
+});

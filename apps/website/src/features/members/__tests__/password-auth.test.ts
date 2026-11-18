@@ -11,8 +11,10 @@ import {
   InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo,
   InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo,
 } from "../repo.memory.js";
-import { completeSignIn, issueMemberSession, requestSignInLink } from "../write-service.js";
-import { requestPasswordReset, resetPassword, setMemberPassword, signInWithPassword } from "../password-auth.js";
+import { completeSignIn } from "../member-sign-in.js";
+import { dummyPasswordHash, issueMemberSession, memberPasswordHasher } from "../member-credentials.js";
+import { requestSignInLink, requestPasswordReset } from "../member-challenge-request.js";
+import { resetPassword, setMemberPassword, signInWithPassword } from "../password-auth.js";
 import { MemberAuthError, MemberReauthenticationRequiredError, MemberValidationError, type MemberRecord } from "../types.js";
 
 const WS = "member-passwords";
@@ -328,7 +330,8 @@ test("reset rejects sign-in purpose; no hash write and no consumption", async ()
   const h = harness(); await h.seed();
   const request = await requestSignInLink({ deps: h.deps, input: { workspaceId: WS, email: EMAIL } });
   const token = /#magic=([a-f0-9]+)/.exec(h.sent.at(-1)!.text!)![1];
-  await assert.rejects(resetPassword({ deps: h.deps, input: { workspaceId: WS, token, password: "x" } }), { message: "sign-in credential is invalid" });
+  await assert.rejects(resetPassword({ deps: h.deps, input: { workspaceId: WS, token, password: "x" } }),
+    error => error instanceof MemberAuthError && error.message === "sign-in credential is invalid");
   const record = await h.deps.magicLinks.findById({ workspaceId: WS, id: request.challengeId });
   assert.equal(record?.consumedAt, undefined);
   assert.equal(await h.deps.members.findPasswordHash({ workspaceId: WS, memberId: "ada" }), credentialHash("old"));
@@ -398,4 +401,40 @@ test("a credential cutoff that moves while the new password hashes refuses the r
   await assert.rejects(resetPassword({ deps: h.deps, input: { workspaceId: WS, token, password: "new" } }), (error: unknown) => error instanceof MemberAuthError && error.message === "sign-in credential is invalid");
   await assert.rejects(h.login("new"), { message: "INVALID_CREDENTIALS" });
   await h.login("old");
+});
+
+test("U2c-1: dummy credentials cache the same promise per hasher", async () => {
+  const first = harness();
+  const second = harness();
+  const cached = dummyPasswordHash({ hasher: first.deps.passwordHasher! });
+  assert.equal(dummyPasswordHash({ hasher: first.deps.passwordHasher! }), cached);
+  const other = dummyPasswordHash({ hasher: second.deps.passwordHasher! });
+  assert.notEqual(other, cached);
+  await Promise.all([cached, other]);
+  assert.equal(first.hashInputs.length, 1);
+  assert.equal(second.hashInputs.length, 1);
+});
+
+test("U2c-1: injected hasher wins and the fallback is one stable instance", () => {
+  const first = harness();
+  const second = harness();
+  assert.equal(memberPasswordHasher({ deps: first.deps }), first.deps.passwordHasher);
+  assert.equal(memberPasswordHasher({ deps: second.deps }), second.deps.passwordHasher);
+  const fallback = memberPasswordHasher({ deps: { ...first.deps, passwordHasher: undefined } });
+  assert.equal(memberPasswordHasher({ deps: { ...second.deps, passwordHasher: undefined } }), fallback);
+  assert.notEqual(fallback, first.deps.passwordHasher);
+});
+
+test("U2c-1: two failed password sign-ins and one unstored code share one dummy hash", async () => {
+  const h = harness();
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await assert.rejects(h.login("wrong", "unknown@example.test"),
+      error => error instanceof MemberAuthError && error.message === "INVALID_CREDENTIALS");
+  }
+  await assert.rejects(completeSignIn({ deps: h.deps,
+    input: { workspaceId: WS, challengeId: "unstored", code: "123456" } }),
+    error => error instanceof MemberAuthError && error.message === "sign-in credential is invalid");
+  assert.equal(h.hashInputs.length, 1);
+  assert.equal(h.verifications.length, 3);
+  assert.deepEqual(h.verifications.map(input => input.hash), Array(3).fill(credentialHash(h.hashInputs[0]!)));
 });
