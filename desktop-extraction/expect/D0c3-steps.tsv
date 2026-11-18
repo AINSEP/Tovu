@@ -1,0 +1,18 @@
+# step	desktop->website edges (tsc --explainFiles)	host-shared runtime externals (esbuild metafile of dist)
+a.0	edges-16	ext-start
+a.1	edges-16	ext-start
+a.2	edges-15	ext-a2
+a.3	edges-13	ext-a2
+b.0	edges-13	ext-a2
+b.1	edges-13	ext-a2
+b.2	edges-12	ext-a2
+c.0	edges-12	ext-a2
+c.1	edges-12	ext-c1
+c.2	edges-12	ext-c2
+c.3	edges-12	ext-c3
+c.4	edges-12	ext-c3
+d.0	edges-12	ext-c3
+d.1	edges-11	ext-d1
+d.2	edges-11	ext-d1
+d.3	edges-8	ext-d1
+e.1	edges-8	ext-d1

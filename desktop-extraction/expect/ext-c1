@@ -1,0 +1,9 @@
+@jini-ai/agent-plugins
+@jini-ai/cms
+@jini-ai/core
+@jini-ai/daemon
+@jini-ai/diagnostics
+@jini-ai/http-kit
+@jini-ai/sidecar
+@tovu/contracts
+zod
