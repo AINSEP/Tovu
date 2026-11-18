@@ -1,4 +1,9 @@
 {
   "version": 1,
-  "allow": []
+  "allow": [
+    {
+      "id": "03c21fe40e10",
+      "reason": "S2a deletes the 17-line re-export shim features/content-types/repo.memory.ts, the subject of this comment (why the shim still existed and what retiring it depended on); its one importer now imports @jini-ai/cms/content-types directly, so the explanation has nothing left to attach to."
+    }
+  ]
 }

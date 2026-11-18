@@ -11,6 +11,7 @@ export const CONTENT_TYPE_TABLES = { contentTypes: "content_types", revisions: "
  * Kysely query body, in Jini `@jini-ai/cms/content-types/sql`). Kept as a named class so existing call sites that construct it
  * from the content db handle stay available; new code calls `SqliteContentTypeRepo`.
  */
+/** The content-type repo for `kernel`. */
 export class SqliteContentTypeRepo extends SqlContentTypeRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor({ store }: { store: ContentKernel | ContentDb }) {
