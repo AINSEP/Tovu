@@ -132,6 +132,46 @@
     {
       "id": "20dfd44675f0",
       "reason": "Moved with sqlite-only.ts to Jini (Jini 70116fc0); only the tracking sentence 'Kept here until Jini publishes this primitive' is dropped as obsolete (it is published now)."
+    },
+    {
+      "id": "d22eea362a13",
+      "reason": "@file header: neutral part moved to the module header of Jini packages/platform/src/mail/email-template-operations.ts; the Pages/posts storage why stays in the Tovu operations.ts header (Jini fdcf829c)."
+    },
+    {
+      "id": "f01766bf6f51",
+      "reason": "EMAIL_TEMPLATE_NAME_MAX doc moved to Jini email-template-operations.ts (Jini fdcf829c)."
+    },
+    {
+      "id": "1945bf9d88dc",
+      "reason": "EmailTemplatePreview.mode doc moved to Jini email-template-operations.ts (Jini fdcf829c)."
+    },
+    {
+      "id": "36b38a7ea0a7",
+      "reason": "createEmailTemplate doc moved to Jini email-template-operations.ts; the storage half (row then ensureHtmlFormat) now documents createTemplateRow in Tovu (Jini fdcf829c)."
+    },
+    {
+      "id": "45a4b9e70fa2",
+      "reason": "editEmailTemplate doc moved to Jini email-template-operations.ts, reworded to the store port (Jini fdcf829c)."
+    },
+    {
+      "id": "d39d338cfe87",
+      "reason": "renameEmailTemplate doc moved to Jini email-template-operations.ts; the row-title/ledger half stays on renameTemplateRow in Tovu (Jini fdcf829c)."
+    },
+    {
+      "id": "aede86c64d84",
+      "reason": "listEmailTemplates doc moved to Jini email-template-operations.ts, reworded neutrally (Jini fdcf829c)."
+    },
+    {
+      "id": "30a2940da80d",
+      "reason": "previewEmailTemplate doc moved to Jini email-template-operations.ts, reworded neutrally (Jini fdcf829c)."
+    },
+    {
+      "id": "490f6d0f03af",
+      "reason": "preview iframe sandbox note moved to Jini email-template-operations.ts, reworded to the host's preview iframe (Jini fdcf829c)."
+    },
+    {
+      "id": "bf34585cdde5",
+      "reason": "renderEmailTemplateForSend doc moved to Jini email-template-operations.ts (Jini fdcf829c)."
     }
   ]
 }
