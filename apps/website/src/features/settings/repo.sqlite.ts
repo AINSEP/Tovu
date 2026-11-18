@@ -12,8 +12,9 @@ export const SETTINGS_TABLES = {
 } as const;
 
 /**
- * @file The settings repo on a site's SQLite `content.db`. The one Kysely query body lives in Jini
- * `@jini-ai/db/settings`; this named class keeps the call sites that construct it from the content db handle.
+ * @file The settings repo on a site's SQLite `content.db`: {@link SqlSettingsRepo} (the one Kysely
+ * query body, in Jini `@jini-ai/db/settings`), kept as a named class so the call sites that construct it from the content
+ * db handle stay as they are; new code constructs `SqlSettingsRepo` with its kernel and table names.
  */
 export class SqliteSettingsRepo extends SqlSettingsRepo {
   /** The connection's kernel, or the content db handle it is derived from. */

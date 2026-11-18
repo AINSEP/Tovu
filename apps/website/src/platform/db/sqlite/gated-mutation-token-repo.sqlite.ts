@@ -10,9 +10,10 @@ export const GATED_MUTATION_TOKEN_TABLES = { tokens: "gated_mutation_tokens" } a
 export type InnerTokenStore = Pick<SqlTokenStore, "save" | "findByToken" | "tryRedeem" | "expire" | "count">;
 
 /**
- * @file The gated-mutation token store on a site's SQLite `content.db`. The one Kysely query body lives in Jini
- * `@jini-ai/db/gated-mutations`; this class keeps Tovu's positional `save(record)` and adapts it to core's
- * `save({ record })`, so the composition root that builds it from the content db handle stays as it is.
+ * @file The gated-mutation token store on a site's SQLite `content.db`: {@link SqlTokenStore} (the
+ * one Kysely query body, in Jini `@jini-ai/db/gated-mutations`), kept as a named class so the
+ * composition root that builds it from the content db handle stays as it is. It keeps Tovu's positional
+ * `save(record)` and adapts it to core's `save({ record })`.
  */
 export class SqliteTokenStore implements TokenStorePort {
   private readonly inner: InnerTokenStore;
