@@ -400,7 +400,7 @@ function PageVersionConflictBanner({
         label: "Another operator saved this while you were editing — your changes are unsaved and still in the editor",
       })}
     >
-      <p>{pageVersionConflictMessage(t, saveConflict)}</p>
+      <p>{pageVersionConflictMessage({ t, ...saveConflict })}</p>
       <button
         type="button"
         className="btn-secondary"
@@ -457,7 +457,7 @@ function PageAutosaveStaleBanner({ staleBasis, t }: { staleBasis: StandingDraftS
           "unsaved changes are still here in the editor",
       })}
     >
-      <p>{pageAutosaveStaleBasisMessage(t, staleBasis)}</p>
+      <p>{pageAutosaveStaleBasisMessage({ t, ...staleBasis })}</p>
     </div>
   );
 }
@@ -1062,7 +1062,7 @@ function PageEditorPane({
   /** See `PageEditorController.setHtmlFromCanvas`. The `interactive` surface's `onChange`. */
   setHtmlFromCanvas: (value: string) => void;
 }) {
-  const surface = pageEditorSurface(view, canvasStyling);
+  const surface = pageEditorSurface({ view, canvasStyling });
   // Bug B, Slice B3 (dev-only instrumentation, pages-redo plan): logs which surface this pane renders,
   // keyed on `surface.kind` alone — not the whole `surface` object, which carries a fresh `styling`
   // reference every render — so this fires once per actual surface change, not once per render (this

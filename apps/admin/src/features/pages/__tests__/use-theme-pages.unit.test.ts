@@ -343,21 +343,21 @@ describe("themePagePublishSummary", () => {
   const t = (key: string) => key;
 
   it("reports 'Live' for a published candidate page", () => {
-    expect(themePagePublishSummary(row({ published: true }), t)).toBe("Live");
+    expect(themePagePublishSummary({ row: row({ published: true }), t })).toBe("Live");
   });
 
   it("reports 'Not live' for an unpublished candidate page", () => {
-    expect(themePagePublishSummary(row({ published: false }), t)).toBe("Not live");
+    expect(themePagePublishSummary({ row: row({ published: false }), t })).toBe("Not live");
   });
 
   it("reports the locked reason for index, verbatim", () => {
-    expect(themePagePublishSummary(row({ pageId: "index", published: null }), t)).toBe(
+    expect(themePagePublishSummary({ row: row({ pageId: "index", published: null }), t })).toBe(
       "Home page fallback — shown at / until one of your pages is set as the home page",
     );
   });
 
   it("reports the locked reason for a declared template shell", () => {
-    expect(themePagePublishSummary(row({ pageId: "blog-post", published: null }), t)).toBe(
+    expect(themePagePublishSummary({ row: row({ pageId: "blog-post", published: null }), t })).toBe(
       "Not a standalone page — used as a content template",
     );
   });

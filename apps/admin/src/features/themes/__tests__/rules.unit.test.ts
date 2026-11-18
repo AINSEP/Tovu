@@ -41,19 +41,19 @@ describe("isActiveTheme", () => {
 
 describe("isStrandedActiveTheme", () => {
   it("is false when the active theme id is present in the discovered set", () => {
-    expect(isStrandedActiveTheme(SETTINGS, ["tovu-official", "column", "signal"])).toBe(false);
+    expect(isStrandedActiveTheme({ settings: SETTINGS, themes: ["tovu-official", "column", "signal"] })).toBe(false);
   });
 
   it("is true when the active theme id resolves to nothing the server discovered — the stranded case", () => {
-    expect(isStrandedActiveTheme(SETTINGS, ["tovu-official", "column"])).toBe(true);
+    expect(isStrandedActiveTheme({ settings: SETTINGS, themes: ["tovu-official", "column"] })).toBe(true);
   });
 
   it("is true against an empty theme catalogue (every theme id would be stranded)", () => {
-    expect(isStrandedActiveTheme(SETTINGS, [])).toBe(true);
+    expect(isStrandedActiveTheme({ settings: SETTINGS, themes: [] })).toBe(true);
   });
 
   it("is false for an empty activeThemeId — nothing chosen yet is not the same as chosen-but-missing", () => {
-    expect(isStrandedActiveTheme({ ...SETTINGS, activeThemeId: "" }, ["tovu-official"])).toBe(false);
+    expect(isStrandedActiveTheme({ settings: { ...SETTINGS, activeThemeId: "" }, themes: ["tovu-official"] })).toBe(false);
   });
 });
 
@@ -83,31 +83,31 @@ describe("themeTabGroup", () => {
 
 describe("groupThemesByTabGroup", () => {
   it("buckets every theme id under its tab group, in the four-group tab order", () => {
-    const grouped = groupThemesByTabGroup(
-      ["basic", "tovu-official", "gracious-timing"],
-      { basic: "static", "gracious-timing": "static" },
-    );
+    const grouped = groupThemesByTabGroup({
+      themes: ["basic", "tovu-official", "gracious-timing"],
+      themeTiers: { basic: "static", "gracious-timing": "static" },
+    });
     expect(Object.keys(grouped)).toEqual([...THEME_TAB_GROUPS]);
     expect(grouped.static).toEqual(["basic", "gracious-timing"]);
     expect(grouped.declarative).toEqual(["tovu-official"]);
   });
 
   it("merges handlebars-tier and templated-tier themes into the same 'templated' bucket", () => {
-    const grouped = groupThemesByTabGroup(
-      ["hbs-theme", "liquid-theme"],
-      { "hbs-theme": "handlebars", "liquid-theme": "templated" },
-    );
+    const grouped = groupThemesByTabGroup({
+      themes: ["hbs-theme", "liquid-theme"],
+      themeTiers: { "hbs-theme": "handlebars", "liquid-theme": "templated" },
+    });
     expect(grouped.templated).toEqual(["hbs-theme", "liquid-theme"]);
   });
 
   it("gives every group an array, including ones with zero themes — the empty-tab requirement", () => {
-    const grouped = groupThemesByTabGroup(["signal"], {});
+    const grouped = groupThemesByTabGroup({ themes: ["signal"], themeTiers: {} });
     expect(grouped.code).toEqual([]);
     expect(grouped.templated).toEqual([]);
   });
 
   it("only produces four groups, not five — handlebars/templated never get separate keys", () => {
-    const grouped = groupThemesByTabGroup([], {});
+    const grouped = groupThemesByTabGroup({ themes: [], themeTiers: {} });
     expect(Object.keys(grouped)).toHaveLength(4);
     expect(Object.keys(grouped)).not.toContain("handlebars");
   });
@@ -150,11 +150,11 @@ describe("the no-theme sentinel", () => {
   it("is not reported as a stranded theme — the operator chose it", () => {
     // The sentinel is never in `themes` either (it is not a theme), so without an explicit guard
     // every deliberately-themeless site would raise the "your site cannot render" warning.
-    expect(isStrandedActiveTheme(themeOff, installed)).toBe(false);
+    expect(isStrandedActiveTheme({ settings: themeOff, themes: installed })).toBe(false);
   });
 
   it("a genuinely stranded theme is STILL reported — the guard must not blanket-suppress", () => {
-    expect(isStrandedActiveTheme({ ...SETTINGS, activeThemeId: "deleted-theme" }, installed)).toBe(true);
+    expect(isStrandedActiveTheme({ settings: { ...SETTINGS, activeThemeId: "deleted-theme" }, themes: installed })).toBe(true);
   });
 
   it("opens on the first tab, and does so independently of what `themeTiers` says about the sentinel", () => {

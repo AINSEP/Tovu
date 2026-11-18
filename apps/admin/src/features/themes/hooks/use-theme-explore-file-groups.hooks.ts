@@ -37,7 +37,7 @@ export interface ThemeExploreFileGroupTab {
  *
  * @complexity O(g + n) time: one pass over `n` files, then one over the fixed `g` groups; O(g) space.
  */
-export function themeExploreFileGroupTabs(files: readonly ThemeExploreFile[]): ThemeExploreFileGroupTab[] {
+export function themeExploreFileGroupTabs({ files }: { files: readonly ThemeExploreFile[] }, _optional: Record<string, never> = {}): ThemeExploreFileGroupTab[] {
   const counts = new Map<ThemeFileGroup, { count: number; modified: boolean }>();
   for (const file of files) {
     const entry = counts.get(file.kind) ?? { count: 0, modified: false };
@@ -138,7 +138,7 @@ export function useThemeExploreFileGroups({
   const [choice, setChoice] = useState<ThemeExploreGroupChoice | null>(null);
   const [expandedGroup, setExpandedGroup] = useState<ThemeFileGroup | null>(null);
 
-  const tabs = themeExploreFileGroupTabs(files);
+  const tabs = themeExploreFileGroupTabs({ files });
   const activeGroup = themeExploreActiveGroup({ tabs, files, highlightedPath, choice });
   const groupFiles = files.filter((file) => file.kind === activeGroup);
   const expanded = activeGroup !== null && expandedGroup === activeGroup;

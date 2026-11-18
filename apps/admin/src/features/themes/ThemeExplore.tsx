@@ -848,7 +848,7 @@ function ThemeExploreToolbarButtons({
           for a read-only file, though: it can only ever write back the file's ORIGINAL bytes, never
           operator-authored content, so "read-only" here means "cannot be AUTHORED from this screen,"
           not "cannot be restored" — the restriction Save enforces has no bearing on what Reset does. */}
-      {canResetThemeFile(selectedFile) ? (
+      {canResetThemeFile({ file: selectedFile }) ? (
         <button
           type="button"
           className="btn-danger"
@@ -856,7 +856,7 @@ function ThemeExploreToolbarButtons({
           onClick={openResetConfirm}
           title={t("Restore this file to the original theme's version")}
         >
-          {themeExploreResetLabel({ resetting, file: selectedFile }, t)}
+          {themeExploreResetLabel({ resetting, file: selectedFile! }, t)}
         </button>
       ) : null}
     </>
@@ -1019,7 +1019,7 @@ function ThemeExplorePublishToggle({
       </button>
       {/* `descriptionId` keeps the locked reason as the switch's `aria-describedby` text: InfoTip
           renders the label in a hidden span with that id, so screen readers still hear why. */}
-      <InfoTip label={publishToggleTipLabel(state, t)} descriptionId={reasonId} />
+      <InfoTip label={publishToggleTipLabel({ state, t })} descriptionId={reasonId} />
     </div>
   );
 }

@@ -301,7 +301,7 @@ export function usePublishCredentials(
     _options = {}
   ): boolean {
     if (spec) {
-      const error = credentialDraftError({ value: values[spec.tokenField] ?? '' }, { locale, required: !defaultCredentialForProvider(credentials ?? [], providerId) });
+      const error = credentialDraftError({ value: values[spec.tokenField] ?? '' }, { locale, required: !defaultCredentialForProvider({ credentials: credentials ?? [], providerId }) });
       if (error) { patchRow({ providerId, patch: current => ({ ...current, error }) }); return false; }
     }
     return spec !== undefined && credentialFormReadyToSave(spec, values) && !savingRef.current.has(providerId);
@@ -313,7 +313,7 @@ export function usePublishCredentials(
     if (!canSaveCredential({ providerId, spec, values }) || spec === undefined) return;
     savingRef.current.add(providerId);
 
-    const existing = defaultCredentialForProvider(credentials ?? [], providerId);
+    const existing = defaultCredentialForProvider({ credentials: credentials ?? [], providerId });
     patchRow({ providerId, patch: (current) => ({ ...current, saving: true, error: null }) });
     try {
       const connection = buildCredentialConnectionInput({ providerId, spec, values });
@@ -335,7 +335,7 @@ export function usePublishCredentials(
   }
 
   async function verify(providerId: AdminPublishCredentialProviderId): Promise<void> {
-    const connected = defaultCredentialForProvider(credentials ?? [], providerId);
+    const connected = defaultCredentialForProvider({ credentials: credentials ?? [], providerId });
     if (!connected) return; // Nothing saved for this provider yet — no row for `verify`'s button to have come from.
 
     patchRow({ providerId, patch: (current) => ({ ...current, verifying: true, verifyError: null, verifiedCredentialId: connected.id }) });
@@ -371,7 +371,7 @@ export function usePublishCredentials(
       : targets.flatMap((target) => {
           if (target.credential === undefined) return [];
           const formState = rowFormStateFor(formStates, target.id);
-          const saved = defaultCredentialForProvider(credentials, target.id);
+          const saved = defaultCredentialForProvider({ credentials, providerId: target.id });
           const verdictIsForSaved = saved !== undefined && formState.verifiedCredentialId === saved.id;
           return {
             providerId: target.id,
@@ -394,18 +394,18 @@ export function usePublishCredentials(
     Object.values(selections).some((selection) => (selection?.pendingId ?? null) !== null);
 
   function credentialsForProviderId(providerId: AdminPublishCredentialProviderId): readonly AdminPublishCredentialSummary[] {
-    return credentialsForProvider(credentials ?? [], providerId);
+    return credentialsForProvider({ credentials: credentials ?? [], providerId });
   }
 
   async function selectCredential({ providerId, credentialId }: { providerId: AdminPublishCredentialProviderId; credentialId: string }, _options = {}): Promise<void> {
-    const current = defaultCredentialForProvider(credentials ?? [], providerId);
+    const current = defaultCredentialForProvider({ credentials: credentials ?? [], providerId });
     if (current?.id === credentialId || selectingRef.current.has(providerId)) return;
     selectingRef.current.add(providerId);
     setSelections((prev) => ({ ...prev, [providerId]: { pendingId: credentialId, error: null } }));
     let error: string | null = null;
     try {
       const promoted = await port.updateCredential({ id: credentialId, input: { isDefault: true } });
-      setCredentials((prev) => withPromotedDefault(prev ?? [], promoted));
+      setCredentials((prev) => withPromotedDefault({ credentials: prev ?? [], promoted }));
       await reconcileCredentials();
     } catch (err) {
       error = publishCredentialSelectErrorMessage({ locale, error: describeApiError({ e: err, fallback: "unknown error" }) });

@@ -63,7 +63,7 @@ export interface PluginRowProps {
 function PluginRowFacts({ plugin, t }: { plugin: AdminPlugin; t: Translate }) {
   return (
     <dl className="plugin-row-facts" role="group" aria-label={t("Plugin details")}>
-      {pluginRowFacts(plugin, t).map((fact) => (
+      {pluginRowFacts({ plugin, translate: t }).map((fact) => (
         <div key={fact.label} className="plugin-row-fact">
           <dt>{fact.label}</dt>
           <dd>{fact.value}</dd>
@@ -80,7 +80,7 @@ function PluginRowFacts({ plugin, t }: { plugin: AdminPlugin; t: Translate }) {
  *  `DetailChips` documents — that decision, and every string, comes from `rules.ts`'s
  *  `pluginRowDetailView`. */
 function PluginRowProblems({ plugin, t }: { plugin: AdminPlugin; t: Translate }) {
-  const view = pluginRowDetailView(plugin, t);
+  const view = pluginRowDetailView({ plugin, translate: t });
   if (!view) return null;
   return (
     <>

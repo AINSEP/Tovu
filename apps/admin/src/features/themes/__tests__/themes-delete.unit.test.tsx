@@ -34,8 +34,8 @@ describe("themeDeleteBlock", () => {
   });
 
   it("gives each refusal its own reason", () => {
-    expect(themeDeleteBlockReasonKey("active")).toBe("Turn this theme off or activate another one first");
-    expect(themeDeleteBlockReasonKey("built-in")).toBe("Built-in themes can't be deleted");
+    expect(themeDeleteBlockReasonKey({ block: "active" })).toBe("Turn this theme off or activate another one first");
+    expect(themeDeleteBlockReasonKey({ block: "built-in" })).toBe("Built-in themes can't be deleted");
   });
 });
 

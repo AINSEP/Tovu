@@ -43,8 +43,7 @@ export const PUBLISH_CREDENTIAL_ROW_LABEL = "default";
  *   `VendorCredentialSetRepoPort.listByWorkspace`'s own doc for why no cap is needed).
  */
 export function credentialsForProvider(
-  credentials: readonly AdminPublishCredentialSummary[],
-  providerId: AdminPublishCredentialProviderId
+  { credentials, providerId }: { credentials: readonly AdminPublishCredentialSummary[]; providerId: AdminPublishCredentialProviderId }, _optional: Record<string, never> = {},
 ): AdminPublishCredentialSummary[] {
   return credentials.filter((credential) => credential.providerId === providerId);
 }
@@ -61,10 +60,9 @@ export function credentialsForProvider(
  * @complexity O(n) in this provider's own (small) saved-connection count.
  */
 export function defaultCredentialForProvider(
-  credentials: readonly AdminPublishCredentialSummary[],
-  providerId: AdminPublishCredentialProviderId
+  { credentials, providerId }: { credentials: readonly AdminPublishCredentialSummary[]; providerId: AdminPublishCredentialProviderId }, _optional: Record<string, never> = {},
 ): AdminPublishCredentialSummary | undefined {
-  const forProvider = credentialsForProvider(credentials, providerId);
+  const forProvider = credentialsForProvider({ credentials, providerId });
   return forProvider.find((credential) => credential.isDefault) ?? forProvider[0];
 }
 
@@ -84,8 +82,7 @@ export function defaultCredentialForProvider(
  * @complexity O(n) in the credential list's own length.
  */
 export function withPromotedDefault<T extends { id: string; providerId: string; isDefault: boolean }>(
-  credentials: readonly T[],
-  promoted: T
+  { credentials, promoted }: { credentials: readonly T[]; promoted: T }, _optional: Record<string, never> = {},
 ): T[] {
   return credentials.map((credential) => {
     if (credential.id === promoted.id) return promoted;
@@ -116,8 +113,7 @@ export function publishTargetById(
  *  use, mirroring the server's own descriptor validation so a button never enables for a request
  *  the server would refuse on shape alone. @complexity O(f). */
 export function requiredFieldsFilled(
-  fields: readonly AdminPublishTargetField[],
-  values: Readonly<Record<string, string>>
+  { fields, values }: { fields: readonly AdminPublishTargetField[]; values: Readonly<Record<string, string>> }, _optional: Record<string, never> = {},
 ): boolean {
   return fields.every((field) => !field.required || (values[field.name] ?? "").trim() !== "");
 }
@@ -126,8 +122,7 @@ export function requiredFieldsFilled(
  *  branch, a team) gets the server's own default instead of an explicit empty string, and
  *  undeclared keys never reach the wire. @complexity O(f). */
 export function declaredFieldValues(
-  fields: readonly AdminPublishTargetField[],
-  values: Readonly<Record<string, string>>
+  { fields, values }: { fields: readonly AdminPublishTargetField[]; values: Readonly<Record<string, string>> }, _optional: Record<string, never> = {},
 ): Record<string, string> {
   const out: Record<string, string> = {};
   for (const field of fields) {
@@ -142,10 +137,9 @@ export function declaredFieldValues(
 /** The wire config for one publish/preview: the target plus its declared config values.
  *  @complexity O(f). */
 export function buildStaticPublishConfig(
-  target: AdminPublishTargetDescriptor,
-  values: Readonly<Record<string, string>>
+  { target, values }: { target: AdminPublishTargetDescriptor; values: Readonly<Record<string, string>> }, _optional: Record<string, never> = {},
 ): AdminStaticPublishConfig {
-  return { target: target.id, fields: declaredFieldValues(target.configFields, values) };
+  return { target: target.id, fields: declaredFieldValues({ fields: target.configFields, values }) };
 }
 
 /** Whether the publish form can ask for a PREVIEW: a known target with its required config
@@ -154,7 +148,7 @@ export function staticPublishFormReadyForPreview(
   { target, values }: { target: AdminPublishTargetDescriptor | undefined; values: Readonly<Record<string, string>> },
   _options = {},
 ): boolean {
-  return target !== undefined && requiredFieldsFilled(target.configFields, values);
+  return target !== undefined && requiredFieldsFilled({ fields: target.configFields, values });
 }
 
 /** Whether the form can ask for a real PUBLISH — everything a preview needs plus a non-blank
@@ -184,7 +178,7 @@ export function credentialFormReadyToSave(
   spec: AdminPublishTargetCredentialSpec,
   values: Readonly<Record<string, string>>
 ): boolean {
-  return (values[spec.tokenField] ?? "").trim() !== "" && requiredFieldsFilled(spec.fields, values);
+  return (values[spec.tokenField] ?? "").trim() !== "" && requiredFieldsFilled({ fields: spec.fields, values });
 }
 
 /** The wire connection for one host's credential form: its id plus the declared fields' trimmed,
@@ -193,7 +187,7 @@ export function buildCredentialConnectionInput(
   { providerId, spec, values }: { providerId: AdminPublishCredentialProviderId; spec: AdminPublishTargetCredentialSpec; values: Readonly<Record<string, string>> },
   _options = {},
 ): AdminPublishConnectionInput {
-  const fields = declaredFieldValues(spec.fields, values);
+  const fields = declaredFieldValues({ fields: spec.fields, values });
   // tokenField is authoritative even for a descriptor that omitted its secret flag.
   const token = values[spec.tokenField] ?? "";
   if (token === "") delete fields[spec.tokenField];
@@ -274,7 +268,7 @@ export function fieldHelpText({ field }: { field: AdminPublishTargetField | Admi
 /** The label a config or credential field shows: the descriptor's label, with the generic
  *  "(optional)" suffix key when the field is optional. The caller translates `suffixKey`.
  *  @complexity O(1). */
-export function fieldLabelParts(field: AdminPublishTargetField): { label: string; suffixKey: string | null } {
+export function fieldLabelParts(field: AdminPublishTargetField, _optional: Record<string, never> = {}): { label: string; suffixKey: string | null } {
   return { label: field.label, suffixKey: field.required ? null : "(optional)" };
 }
 
@@ -353,7 +347,7 @@ export function deploymentEnvVarNoteKey({ name }: { name: string }, _options = {
  *
  * @complexity O(1).
  */
-export function isEnvVarRowUnsafe(varStatus: AdminDeploymentEnvVarStatus): boolean {
+export function isEnvVarRowUnsafe(varStatus: AdminDeploymentEnvVarStatus, _optional: Record<string, never> = {}): boolean {
   return varStatus.invalid === true || (varStatus.name === "TOVU_ADMIN_PASSWORD" && !varStatus.set);
 }
 
@@ -363,7 +357,7 @@ export function isEnvVarRowUnsafe(varStatus: AdminDeploymentEnvVarStatus): boole
  * than "Not set", since something IS configured there and it is broken.
  * @complexity O(1).
  */
-export function envVarStatusLabelKey(varStatus: AdminDeploymentEnvVarStatus): string {
+export function envVarStatusLabelKey(varStatus: AdminDeploymentEnvVarStatus, _optional: Record<string, never> = {}): string {
   if (varStatus.invalid) return "Invalid — the keyring rejects it";
   if (!varStatus.set) return "Not set";
   return varStatus.source === "file" ? "Set (generated key file)" : "Set";
@@ -383,7 +377,7 @@ export function credentialVerifyStatusClass(row: {
 }
 
 /** The Overview tab's runtime-mode label key. @complexity O(1). */
-export function runtimeModeLabelKey(mode: AdminDeploymentOverview["mode"]): string {
+export function runtimeModeLabelKey({ mode }: { mode: AdminDeploymentOverview["mode"] }, _optional: Record<string, never> = {}): string {
   return mode === "production" ? "Production" : "Local";
 }
 
@@ -391,7 +385,7 @@ export function runtimeModeLabelKey(mode: AdminDeploymentOverview["mode"]): stri
  *  ran (local mode) — see `DeploymentOverviewSnapshot.productionReadinessGate`'s own doc comment for
  *  why a request reaching this route in production mode already proves the gate passed.
  *  @complexity O(1). */
-export function productionGateLabelKey(gate: AdminDeploymentOverview["productionReadinessGate"]): string {
+export function productionGateLabelKey(gate: AdminDeploymentOverview["productionReadinessGate"], _optional: Record<string, never> = {}): string {
   return gate.applicable ? "Passed" : "Not applicable (local mode)";
 }
 

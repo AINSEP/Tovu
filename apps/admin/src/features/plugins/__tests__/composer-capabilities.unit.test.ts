@@ -24,7 +24,7 @@ function fakeSource(id: string, capabilities: readonly TovuComposerCapability[])
 
 describe("projectComposerCapabilities", () => {
   it("preserves today's exact bundled catalog shape — the pre-2026-08-12 static array plus this dispatch's /search addition", async () => {
-    const projection = await projectComposerCapabilities([createBundledComposerCapabilitySource()]);
+    const projection = await projectComposerCapabilities({ sources: [createBundledComposerCapabilitySource()] });
 
     expect(projection.groups.map((group) => group.id)).toEqual([
       "regular-plugins",
@@ -42,7 +42,7 @@ describe("projectComposerCapabilities", () => {
   });
 
   it("wires /search to a real allowlisted-tool-call binding against content_post_search, not a synthetic fixture", async () => {
-    const projection = await projectComposerCapabilities([createBundledComposerCapabilitySource()]);
+    const projection = await projectComposerCapabilities({ sources: [createBundledComposerCapabilitySource()] });
     const search = projection.byItemId.get("tool:content-search");
 
     expect(search?.item.command).toBe("search");
@@ -76,7 +76,7 @@ describe("projectComposerCapabilities", () => {
       { groupId: "g1", groupLabel: "Group One", item: { id: "a2", label: "A2" } },
     ]);
 
-    const projection = await projectComposerCapabilities([sourceA, sourceB]);
+    const projection = await projectComposerCapabilities({ sources: [sourceA, sourceB] });
 
     expect(projection.groups.map((group) => group.id)).toEqual(["g1", "g2"]);
     expect(projection.groups.find((group) => group.id === "g1")?.items.map((item) => item.id)).toEqual([
@@ -93,20 +93,20 @@ describe("projectComposerCapabilities", () => {
       { groupId: "g1", groupLabel: "Group One", item: { id: "dup", label: "Second" } },
     ]);
 
-    await expect(projectComposerCapabilities([sourceA, sourceB])).rejects.toThrow(/duplicate discovery item id/i);
+    await expect(projectComposerCapabilities({ sources: [sourceA, sourceB] })).rejects.toThrow(/duplicate discovery item id/i);
   });
 
   it("indexes every capability by item id for selection lookup, including its resolve function", async () => {
     const resolve = (): ComposerHostBinding => ({ kind: "compose-text", text: "resolved" });
     const source = fakeSource("a", [{ groupId: "g1", groupLabel: "Group One", item: { id: "a1", label: "A1" }, resolve }]);
 
-    const projection = await projectComposerCapabilities([source]);
+    const projection = await projectComposerCapabilities({ sources: [source] });
 
     expect(projection.byItemId.get("a1")?.resolve).toBe(resolve);
   });
 
   it("returns an empty projection for zero sources", async () => {
-    const projection = await projectComposerCapabilities([]);
+    const projection = await projectComposerCapabilities({ sources: [] });
     expect(projection.groups).toEqual([]);
     expect(projection.byItemId.size).toBe(0);
   });
@@ -114,7 +114,7 @@ describe("projectComposerCapabilities", () => {
 
 describe("bundled catalog label uniqueness", () => {
   it("gives every bundled discovery item a distinct visible label — two rows with the same label are indistinguishable when scanning the composer menu", async () => {
-    const projection = await projectComposerCapabilities([createBundledComposerCapabilitySource()]);
+    const projection = await projectComposerCapabilities({ sources: [createBundledComposerCapabilitySource()] });
     const labels = projection.groups.flatMap((group) => group.items.map((item) => item.label));
     const duplicates = labels.filter((label, index) => labels.indexOf(label) !== index);
 
@@ -137,7 +137,7 @@ describe("resolveTovuComposerDiscoveryRoute", () => {
  */
 describe("the bundled agent-plugin:ui-ux-design row pins a chip, no longer types text", () => {
   it("carries pluginRefId and no insertText", async () => {
-    const projection = await projectComposerCapabilities([createBundledComposerCapabilitySource()]);
+    const projection = await projectComposerCapabilities({ sources: [createBundledComposerCapabilitySource()] });
     const capability = projection.byItemId.get("agent-plugin:ui-ux-design");
 
     expect(capability?.pluginRefId).toBe("ui-ux-design");
@@ -150,13 +150,13 @@ describe("the bundled agent-plugin:ui-ux-design row pins a chip, no longer types
   });
 
   it("is indexed by pluginRefId for the chip tray's label lookup", async () => {
-    const projection = await projectComposerCapabilities([createBundledComposerCapabilitySource()]);
+    const projection = await projectComposerCapabilities({ sources: [createBundledComposerCapabilitySource()] });
 
     expect(projection.byPluginRefId.get("ui-ux-design")?.item.id).toBe("agent-plugin:ui-ux-design");
   });
 
   it("declares command: \"ui-ux-design\" so /ui-ux-design locks onto this item, not just fuzzy matches it", async () => {
-    const projection = await projectComposerCapabilities([createBundledComposerCapabilitySource()]);
+    const projection = await projectComposerCapabilities({ sources: [createBundledComposerCapabilitySource()] });
     const capability = projection.byItemId.get("agent-plugin:ui-ux-design");
 
     expect(capability?.item.command).toBe("ui-ux-design");
@@ -168,9 +168,9 @@ describe("the bundled agent-plugin:ui-ux-design row pins a chip, no longer types
 
 describe("byPluginRefId indexing", () => {
   it("is empty when no capability sets pluginRefId", async () => {
-    const projection = await projectComposerCapabilities([
+    const projection = await projectComposerCapabilities({ sources: [
       fakeSource("a", [{ groupId: "g1", groupLabel: "Group One", item: { id: "a1", label: "A1" } }]),
-    ]);
+    ] });
 
     expect(projection.byPluginRefId.size).toBe(0);
   });
@@ -183,6 +183,6 @@ describe("byPluginRefId indexing", () => {
       { groupId: "g1", groupLabel: "Group One", item: { id: "second", label: "Second" }, pluginRefId: "shared" },
     ]);
 
-    await expect(projectComposerCapabilities([sourceA, sourceB])).rejects.toThrow(/duplicate pluginRefId/i);
+    await expect(projectComposerCapabilities({ sources: [sourceA, sourceB] })).rejects.toThrow(/duplicate pluginRefId/i);
   });
 });

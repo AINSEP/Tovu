@@ -34,7 +34,7 @@ function outline(nodes: readonly PackageFileTreeNode[], indent = ""): string[] {
 
 describe("buildPackageFileTree", () => {
   it("groups paths into folders, files first then folders, each alphabetical", () => {
-    expect(outline(buildPackageFileTree(DEPLOY_PATHS))).toEqual([
+    expect(outline(buildPackageFileTree({ paths: DEPLOY_PATHS }))).toEqual([
       "mcp.json",
       "plugin.json",
       "tovu-deploy-targets.json",
@@ -54,7 +54,7 @@ describe("buildPackageFileTree", () => {
   });
 
   it("gives folders their full path and files their path exactly as listed", () => {
-    const [configs] = buildPackageFileTree(["deploy-configs/example-host.mjs"]);
+    const [configs] = buildPackageFileTree({ paths: ["deploy-configs/example-host.mjs"] });
     expect(configs).toEqual({
       kind: "folder",
       name: "deploy-configs",
@@ -64,18 +64,18 @@ describe("buildPackageFileTree", () => {
   });
 
   it("sorts case-insensitively and numerically, like VS Code", () => {
-    expect(outline(buildPackageFileTree(["b.md", "A.md", "file10.md", "file2.md"]))).toEqual(["A.md", "b.md", "file2.md", "file10.md"]);
+    expect(outline(buildPackageFileTree({ paths: ["b.md", "A.md", "file10.md", "file2.md"] }))).toEqual(["A.md", "b.md", "file2.md", "file10.md"]);
   });
 
   it("ignores stray slashes when grouping, and drops empty and duplicate paths", () => {
-    const tree = buildPackageFileTree(["/a//b.md", "a/b.md", "", "/", "c/"]);
+    const tree = buildPackageFileTree({ paths: ["/a//b.md", "a/b.md", "", "/", "c/"] });
     expect(outline(tree)).toEqual(["c", "a/", "  b.md"]);
     const a = tree[1];
     expect(a?.kind === "folder" && a.children[0]?.path).toBe("/a//b.md");
   });
 
   it("returns an empty tree for no paths", () => {
-    expect(buildPackageFileTree([])).toEqual([]);
+    expect(buildPackageFileTree({ paths: [] })).toEqual([]);
   });
 });
 
@@ -91,20 +91,20 @@ describe("ancestorFolderPaths", () => {
 
 describe("firstPackageFilePath", () => {
   it("picks the top file row: a root file over anything nested", () => {
-    expect(firstPackageFilePath(buildPackageFileTree(["skills/a.md", "tovu.plugin.json", "index.mjs"]))).toBe("index.mjs");
+    expect(firstPackageFilePath({ nodes: buildPackageFileTree({ paths: ["skills/a.md", "tovu.plugin.json", "index.mjs"] }) })).toBe("index.mjs");
   });
 
   it("descends into the first folder when the root holds only folders", () => {
-    expect(firstPackageFilePath(buildPackageFileTree(["z/b.md", "a/x/c.md", "a/d.md"]))).toBe("a/d.md");
+    expect(firstPackageFilePath({ nodes: buildPackageFileTree({ paths: ["z/b.md", "a/x/c.md", "a/d.md"] }) })).toBe("a/d.md");
   });
 
   it("is null for an empty tree", () => {
-    expect(firstPackageFilePath([])).toBeNull();
+    expect(firstPackageFilePath({ nodes: [] })).toBeNull();
   });
 });
 
 describe("visiblePackageFileRows", () => {
-  const tree = buildPackageFileTree(DEPLOY_PATHS);
+  const tree = buildPackageFileTree({ paths: DEPLOY_PATHS });
 
   it("shows only root entries while every folder is collapsed", () => {
     const rows = visiblePackageFileRows({ nodes: tree, isExpanded: () => false });
@@ -140,7 +140,7 @@ describe("visiblePackageFileRows", () => {
 });
 
 describe("packageFileTreeKeyAction", () => {
-  const tree = buildPackageFileTree(DEPLOY_PATHS);
+  const tree = buildPackageFileTree({ paths: DEPLOY_PATHS });
   const open = new Set(["skills", "skills/deploy"]);
   const isExpanded = ({ path }: { path: string }) => open.has(path);
   const rows = visiblePackageFileRows({ nodes: tree, isExpanded });

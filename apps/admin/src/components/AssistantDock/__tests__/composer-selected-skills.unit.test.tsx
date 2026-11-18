@@ -13,7 +13,7 @@ import { createTovuAssistantTransport } from "@/lib/assistant-transport";
 import { promptWithSelectedSkills } from "@/features/plugins/selected-skills";
 
 const guidance = 'Use and follow the "ui-ux-design" skill for this task.\n\nKeep focus visible.\n\nRead bundled files with fs_read_file as needed:\n[{"kind":"references","root":"site","path":"skills/ws/workspace-local/ui-ux-design/references/check.md"}]\n\nTask: ';
-const makeProjection = () => projectComposerCapabilities([{ id: "fixture", list: async () => [{ groupId: "skills", groupLabel: "Skills", item: { id: "installed-skill:skill_ui_ux_design", label: "ui-ux-design", kind: "skill", insertText: "" }, resolve: () => ({ kind: "installed-skill" as const, toolId: "skill_ui_ux_design" }) }] }]);
+const makeProjection = () => projectComposerCapabilities({ sources: [{ id: "fixture", list: async () => [{ groupId: "skills", groupLabel: "Skills", item: { id: "installed-skill:skill_ui_ux_design", label: "ui-ux-design", kind: "skill", insertText: "" }, resolve: () => ({ kind: "installed-skill" as const, toolId: "skill_ui_ux_design" }) }] }] });
 afterEach(() => vi.unstubAllGlobals());
 const mockGuidance = () => vi.stubGlobal("fetch", vi.fn(async () => Response.json({ skillName: "ui-ux-design", guidance: "Keep focus visible.", bundledFiles: [{ kind: "references", root: "site", path: "skills/ws/workspace-local/ui-ux-design/references/check.md" }] })));
 

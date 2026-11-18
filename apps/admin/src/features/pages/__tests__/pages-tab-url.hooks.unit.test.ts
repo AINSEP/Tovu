@@ -45,26 +45,26 @@ describe("writePagesTabToUrl", () => {
 
   it("sets ?tab=themes for the theme tab", () => {
     window.history.replaceState(null, "", "/admin/pages");
-    writePagesTabToUrl("theme");
+    writePagesTabToUrl({ tab: "theme" });
     expect(window.location.search).toBe("?tab=themes");
   });
 
   it("deletes the param for the mine tab, rather than writing ?tab=mine", () => {
     window.history.replaceState(null, "", "/admin/pages?tab=themes");
-    writePagesTabToUrl("mine");
+    writePagesTabToUrl({ tab: "mine" });
     expect(window.location.search).toBe("");
   });
 
   it("uses replaceState, not pushState — no new history entry", () => {
     window.history.replaceState(null, "", "/admin/pages");
     const lengthBefore = window.history.length;
-    writePagesTabToUrl("theme");
+    writePagesTabToUrl({ tab: "theme" });
     expect(window.history.length).toBe(lengthBefore);
   });
 
   it("preserves other query params already on the URL", () => {
     window.history.replaceState(null, "", "/admin/pages?foo=bar");
-    writePagesTabToUrl("theme");
+    writePagesTabToUrl({ tab: "theme" });
     expect(window.location.search).toBe("?foo=bar&tab=themes");
   });
 });

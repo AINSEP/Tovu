@@ -43,10 +43,10 @@ import { CLOUDFLARE_PAGES_TARGET, GITHUB_PAGES_TARGET, PLAIN_TARGET, PUBLISH_TAR
 
 describe("runtimeModeLabelKey", () => {
   it("maps production to the Production key", () => {
-    expect(runtimeModeLabelKey("production")).toBe("Production");
+    expect(runtimeModeLabelKey({ mode: "production" })).toBe("Production");
   });
   it("maps local to the Local key", () => {
-    expect(runtimeModeLabelKey("local")).toBe("Local");
+    expect(runtimeModeLabelKey({ mode: "local" })).toBe("Local");
   });
 });
 
@@ -237,11 +237,11 @@ describe("staticPublishProjectNameToSend", () => {
 
 describe("buildStaticPublishConfig", () => {
   it("sends only the host's declared fields, trimmed, dropping blank ones so the server applies its own default", () => {
-    expect(buildStaticPublishConfig(GITHUB_PAGES_TARGET, { owner: " octo ", repo: "demo", branch: "  ", teamId: "stray" })).toEqual({
+    expect(buildStaticPublishConfig({ target: GITHUB_PAGES_TARGET, values: { owner: " octo ", repo: "demo", branch: "  ", teamId: "stray" } })).toEqual({
       target: "github-pages",
       fields: { owner: "octo", repo: "demo" },
     });
-    expect(buildStaticPublishConfig(PLAIN_TARGET, { owner: "stray" })).toEqual({ target: "plain-host", fields: {} });
+    expect(buildStaticPublishConfig({ target: PLAIN_TARGET, values: { owner: "stray" } })).toEqual({ target: "plain-host", fields: {} });
   });
 });
 
@@ -386,12 +386,12 @@ describe("credentialsForProvider", () => {
     const gh = credential({ id: "cred-1", providerId: "github-pages" });
     const vercel1 = credential({ id: "cred-2", providerId: "vercel", isDefault: true });
     const vercel2 = credential({ id: "cred-3", providerId: "vercel", isDefault: false });
-    expect(credentialsForProvider([gh, vercel1, vercel2], "vercel")).toEqual([vercel1, vercel2]);
+    expect(credentialsForProvider({ credentials: [gh, vercel1, vercel2], providerId: "vercel" })).toEqual([vercel1, vercel2]);
   });
 
   it("returns an empty array when this workspace has no credential for the provider — never throws", () => {
-    expect(credentialsForProvider([], "netlify")).toEqual([]);
-    expect(credentialsForProvider([credential({ providerId: "github-pages" })], "netlify")).toEqual([]);
+    expect(credentialsForProvider({ credentials: [], providerId: "netlify" })).toEqual([]);
+    expect(credentialsForProvider({ credentials: [credential({ providerId: "github-pages" })], providerId: "netlify" })).toEqual([]);
   });
 });
 
@@ -417,7 +417,7 @@ describe("withPromotedDefault", () => {
     const vercel = credential({ id: "v-1", providerId: "vercel", isDefault: true });
     const promoted = { ...chosen, isDefault: true, updatedAt: "2026-09-20T00:00:00.000Z" };
 
-    expect(withPromotedDefault([oldDefault, chosen, vercel], promoted)).toEqual([{ ...oldDefault, isDefault: false }, promoted, vercel]);
+    expect(withPromotedDefault({ credentials: [oldDefault, chosen, vercel], promoted })).toEqual([{ ...oldDefault, isDefault: false }, promoted, vercel]);
   });
 });
 
@@ -438,22 +438,22 @@ describe("defaultCredentialForProvider", () => {
   }
 
   it("returns undefined when this provider has no saved connection — never throws", () => {
-    expect(defaultCredentialForProvider([], "vercel")).toBeUndefined();
+    expect(defaultCredentialForProvider({ credentials: [], providerId: "vercel" })).toBeUndefined();
   });
 
   it("returns the sole saved connection for a provider with exactly one", () => {
     const gh = credential({ id: "cred-1", providerId: "github-pages" });
-    expect(defaultCredentialForProvider([gh], "github-pages")).toBe(gh);
+    expect(defaultCredentialForProvider({ credentials: [gh], providerId: "github-pages" })).toBe(gh);
   });
 
   it("picks the DEFAULT row when a provider has more than one saved connection — never the first-created or an arbitrary one", () => {
     const old = credential({ id: "cred-1", providerId: "vercel", label: "Old", isDefault: false });
     const current = credential({ id: "cred-2", providerId: "vercel", label: "New", isDefault: true });
-    expect(defaultCredentialForProvider([old, current], "vercel")).toBe(current);
+    expect(defaultCredentialForProvider({ credentials: [old, current], providerId: "vercel" })).toBe(current);
   });
 
   it("falls back to the first saved row as a defensive read when none is marked default (data predating this UI)", () => {
     const first = credential({ id: "cred-1", providerId: "netlify", isDefault: false });
-    expect(defaultCredentialForProvider([first], "netlify")).toBe(first);
+    expect(defaultCredentialForProvider({ credentials: [first], providerId: "netlify" })).toBe(first);
   });
 });

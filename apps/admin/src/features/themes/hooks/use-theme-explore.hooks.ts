@@ -441,7 +441,7 @@ export function selectedFilePublishState(
  *
  * @complexity O(1).
  */
-export function publishToggleTipLabel(state: ThemeExplorePublishState, t: Translate): string {
+export function publishToggleTipLabel({ state, t }: { state: ThemeExplorePublishState; t: Translate }, _optional: Record<string, never> = {}): string {
   if (state.kind === "locked") return state.reason;
   return t(
     "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own."
@@ -470,8 +470,8 @@ export function selectedFileLabel({ file }: { file: ThemeExploreFile | undefined
  *
  * @complexity O(1).
  */
-export function canResetThemeFile(file: ThemeExploreFile | undefined): file is ThemeExploreFile {
-  return file?.resettable === true && file.modified === true;
+export function canResetThemeFile(required: { file: ThemeExploreFile | undefined }, _optional: Record<string, never> = {}): required is { file: ThemeExploreFile } {
+  return required.file?.resettable === true && required.file.modified === true;
 }
 
 /**
@@ -480,7 +480,7 @@ export function canResetThemeFile(file: ThemeExploreFile | undefined): file is T
  *
  * @complexity O(1).
  */
-export function isThemeFileModified(file: ThemeExploreFile): boolean {
+export function isThemeFileModified(file: ThemeExploreFile, _optional: Record<string, never> = {}): boolean {
   return file.modified === true;
 }
 
@@ -857,7 +857,7 @@ function initialSelectedPath(
   { files, selection: { fileId, pageId, apiVersion } }: { files: ThemeExploreFile[]; selection: { fileId: string | undefined; pageId: string | undefined; apiVersion: 2 | undefined } },
   _options = {},
 ): { path: string | null; missed: string | null } {
-  const requested = resolveRequestedThemeExploreSelection(files, { fileId, pageId });
+  const requested = resolveRequestedThemeExploreSelection({ files }, { fileId, pageId });
   if (requested.path !== null) return requested;
   return { path: defaultSelectedPath({ files, apiVersion }), missed: requested.missed };
 }

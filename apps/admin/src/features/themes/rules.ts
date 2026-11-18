@@ -52,7 +52,7 @@ export function isThemeDisabled(settings: PresentationSettings): boolean {
  * @complexity Time/space: O(n) in `themes.length` (a `.includes` scan) — negligible next to the
  * catalogue sizes this screen already renders in full.
  */
-export function isStrandedActiveTheme(settings: PresentationSettings, themes: readonly string[]): boolean {
+export function isStrandedActiveTheme({ settings, themes }: { settings: PresentationSettings; themes: readonly string[] }, _optional: Record<string, never> = {}): boolean {
   if (isThemeDisabled(settings)) return false;
   return settings.activeThemeId !== "" && !themes.includes(settings.activeThemeId);
 }
@@ -138,8 +138,7 @@ export function themeTabGroup({ themeId, themeTiers }: { themeId: string; themeT
  * @complexity Time/space: O(n) in `themes.length`.
  */
 export function groupThemesByTabGroup(
-  themes: readonly string[],
-  themeTiers: Record<string, ThemeTier>,
+  { themes, themeTiers }: { themes: readonly string[]; themeTiers: Record<string, ThemeTier> }, _optional: Record<string, never> = {},
 ): Record<ThemeTabGroup, string[]> {
   const groups = Object.fromEntries(THEME_TAB_GROUPS.map((group) => [group, [] as string[]])) as Record<
     ThemeTabGroup,

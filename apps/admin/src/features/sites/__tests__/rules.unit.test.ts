@@ -44,30 +44,30 @@ function snapshotFixture(overrides: Partial<AdminSitesSnapshot> = {}): AdminSite
 
 describe("siteRowState", () => {
   it("reports the row whose dir the server actually resolved as serving", () => {
-    expect(siteRowState(siteFixture(), snapshotFixture())).toBe("serving");
+    expect(siteRowState({ site: siteFixture(), snapshot: snapshotFixture() })).toBe("serving");
   });
 
   it("reports a persisted-but-not-yet-live row as pending-restart, NEVER as serving", () => {
     const snapshot = snapshotFixture({ persistedSiteName: "beta" });
-    expect(siteRowState(siteFixture({ name: "beta", dir: "/repo/sites/beta" }), snapshot)).toBe("pending-restart");
+    expect(siteRowState({ site: siteFixture({ name: "beta", dir: "/repo/sites/beta" }), snapshot })).toBe("pending-restart");
   });
 
   it("reports an untouched row as idle", () => {
-    expect(siteRowState(siteFixture({ name: "beta", dir: "/repo/sites/beta" }), snapshotFixture())).toBe("idle");
+    expect(siteRowState({ site: siteFixture({ name: "beta", dir: "/repo/sites/beta" }), snapshot: snapshotFixture() })).toBe("idle");
   });
 
   it("matches on dir, not name — a same-named folder elsewhere is not what is being served", () => {
     const snapshot = snapshotFixture({
       currentSite: { dir: "/elsewhere/alpha", name: "alpha", dirOverridden: true, listed: false },
     });
-    expect(siteRowState(siteFixture(), snapshot)).toBe("idle");
+    expect(siteRowState({ site: siteFixture(), snapshot })).toBe("idle");
   });
 
   it("still reports serving when TOVU_SITE_DIR happens to point at a listed row's own directory", () => {
     const snapshot = snapshotFixture({
       currentSite: { dir: "/repo/sites/alpha", name: "alpha", dirOverridden: true, listed: true },
     });
-    expect(siteRowState(siteFixture(), snapshot)).toBe("serving");
+    expect(siteRowState({ site: siteFixture(), snapshot })).toBe("serving");
   });
 
   it("reports idle, NEVER pending-restart, for the persisted choice when TOVU_SITE_DIR overrides it — the badge must agree with the banner's own 'will not pick it up' warning, not run a second guess", () => {
@@ -75,21 +75,21 @@ describe("siteRowState", () => {
       persistedSiteName: "beta",
       currentSite: { dir: "/elsewhere/alpha", name: "alpha", dirOverridden: true, listed: false },
     });
-    expect(siteRowState(siteFixture({ name: "beta", dir: "/repo/sites/beta" }), snapshot)).toBe("idle");
+    expect(siteRowState({ site: siteFixture({ name: "beta", dir: "/repo/sites/beta" }), snapshot })).toBe("idle");
   });
 });
 
 describe("siteRowState presentation", () => {
   it("never labels a pending row with the serving copy", () => {
-    expect(siteRowStateLabelKey("pending-restart")).toBe("Default for next launch");
-    expect(siteRowStateLabelKey("serving")).toBe("Serving now");
-    expect(siteRowStateLabelKey("idle")).toBe("Not in use");
+    expect(siteRowStateLabelKey({ state: "pending-restart" })).toBe("Default for next launch");
+    expect(siteRowStateLabelKey({ state: "serving" })).toBe("Serving now");
+    expect(siteRowStateLabelKey({ state: "idle" })).toBe("Not in use");
   });
 
   it("gives pending a warning tone, not the ok tone that would read as 'switched'", () => {
-    expect(siteRowStateToneClass("pending-restart")).toBe("status-warning");
-    expect(siteRowStateToneClass("serving")).toBe("status-ok");
-    expect(siteRowStateToneClass("idle")).toBe("status-neutral");
+    expect(siteRowStateToneClass({ state: "pending-restart" })).toBe("status-warning");
+    expect(siteRowStateToneClass({ state: "serving" })).toBe("status-ok");
+    expect(siteRowStateToneClass({ state: "idle" })).toBe("status-neutral");
   });
 });
 
@@ -218,11 +218,11 @@ describe("siteRegistration", () => {
     const snapshot = snapshotFixture({
       currentSite: { dir: "/repo/sites/alpha", name: "alpha", dirOverridden: false, listed: false },
     });
-    expect(siteRegistration(siteFixture(), snapshot)).toBe("unregistered");
+    expect(siteRegistration({ site: siteFixture(), snapshot })).toBe("unregistered");
   });
 
   it("reports the served row as registered when currentSite.listed is true", () => {
-    expect(siteRegistration(siteFixture(), snapshotFixture())).toBe("registered");
+    expect(siteRegistration({ site: siteFixture(), snapshot: snapshotFixture() })).toBe("registered");
   });
 
   it("reports a NON-served row as registered even while the served one is not — the flag must not smear across the grid", () => {
@@ -232,14 +232,14 @@ describe("siteRegistration", () => {
     const snapshot = snapshotFixture({
       currentSite: { dir: "/repo/sites/tovu-com", name: "tovu-com", dirOverridden: false, listed: false },
     });
-    expect(siteRegistration(siteFixture({ name: "beta", dir: "/repo/sites/beta" }), snapshot)).toBe("registered");
+    expect(siteRegistration({ site: siteFixture({ name: "beta", dir: "/repo/sites/beta" }), snapshot })).toBe("registered");
   });
 
   it("matches on dir, not name, so a TOVU_SITE_DIR override pointing elsewhere does not flag the same-named row", () => {
     const snapshot = snapshotFixture({
       currentSite: { dir: "/elsewhere/alpha", name: "alpha", dirOverridden: true, listed: false },
     });
-    expect(siteRegistration(siteFixture(), snapshot)).toBe("registered");
+    expect(siteRegistration({ site: siteFixture(), snapshot })).toBe("registered");
   });
 });
 

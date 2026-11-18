@@ -74,18 +74,18 @@ describe("resolveSitesTabs", () => {
 
 describe("resolveSitesEmpty", () => {
   it("is true only for an empty list", () => {
-    expect(resolveSitesEmpty([])).toBe(true);
-    expect(resolveSitesEmpty([entry("alpha")])).toBe(false);
+    expect(resolveSitesEmpty({ sites: [] })).toBe(true);
+    expect(resolveSitesEmpty({ sites: [entry("alpha")] })).toBe(false);
   });
 });
 
 describe("resolveSiteDatabaseOptions", () => {
   it("offers all three of Runner's backends, in Runner's order", () => {
-    expect(resolveSiteDatabaseOptions(fakeT).map((option) => option.id)).toEqual(["sqlite", "supabase", "custom"]);
+    expect(resolveSiteDatabaseOptions({ t: fakeT }).map((option) => option.id)).toEqual(["sqlite", "supabase", "custom"]);
   });
 
   it("marks exactly one available, and it is the one initSite can actually produce", () => {
-    const options = resolveSiteDatabaseOptions(fakeT);
+    const options = resolveSiteDatabaseOptions({ t: fakeT });
     // Asserting on WHICH is available, not merely that one is: a regression flipping the flags
     // would still leave "exactly one available" true while offering a backend that does not exist.
     expect(options.filter((option) => option.available).map((option) => option.id)).toEqual(["sqlite"]);
@@ -223,11 +223,11 @@ describe("resolveSiteSubtitle", () => {
 
 describe("resolveSiteRegistrationBadge", () => {
   it("is null for a normal row, so no badge is rendered", () => {
-    expect(resolveSiteRegistrationBadge(entry("alpha"), snapshotFor("alpha", true))).toBeNull();
+    expect(resolveSiteRegistrationBadge({ site: entry("alpha"), snapshot: snapshotFor("alpha", true) })).toBeNull();
   });
 
   it("names the two missing files and what refuses without them, not just 'invalid'", () => {
-    const badge = resolveSiteRegistrationBadge(entry("alpha"), snapshotFor("alpha", false));
+    const badge = resolveSiteRegistrationBadge({ site: entry("alpha"), snapshot: snapshotFor("alpha", false) });
     expect(badge?.labelKey).toBe("Not initialized");
     // Asserting the tooltip's actual content, not merely that one exists: a badge saying only
     // "Not initialized" reads as a defect rather than a specific, fixable state.

@@ -46,5 +46,5 @@ export function usePluginRemoveConfirm(props: { name: string; onCancel: () => vo
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [onCancel]);
 
-  return { copy: buildPluginRemoveConfirmCopy({ name: props.name }, props.t), dialogRef };
+  return { copy: buildPluginRemoveConfirmCopy({ name: props.name }, { translate: props.t }), dialogRef };
 }

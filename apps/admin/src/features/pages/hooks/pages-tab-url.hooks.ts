@@ -51,7 +51,7 @@ export function resolvePagesTabFromUrl({}: {}, { search = window.location.search
  *
  * @complexity O(1).
  */
-export function writePagesTabToUrl(tab: PagesTabId): void {
+export function writePagesTabToUrl({ tab }: { tab: PagesTabId }, _optional: Record<string, never> = {}): void {
   const url = new URL(window.location.href);
   if (tab === "theme") {
     url.searchParams.set(TAB_PARAM, THEME_TAB_PARAM_VALUE);

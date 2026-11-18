@@ -582,7 +582,7 @@ export interface AccessTokenFormFields {
 
 /** Whether the provider's required extra fields are filled. @complexity O(f). */
 function accessTokenRequiredFieldsFilled(fields: AccessTokenFormFields, info: AccessTokenProviderInfo): boolean {
-  return requiredFieldsFilled(info.extraFields, fields.values);
+  return requiredFieldsFilled({ fields: info.extraFields, values: fields.values });
 }
 
 /** Whether a token form has enough typed to save — a non-empty Name (new here; neither origin store's

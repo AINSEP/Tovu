@@ -19,7 +19,7 @@ const base: PluginInstallPreview = {
 
 describe("pluginInstallPreviewDisplay", () => {
   it("a package with code: full-access warning, its capabilities and hooks, no conflict block", () => {
-    expect(pluginInstallPreviewDisplay(base, identity)).toEqual({
+    expect(pluginInstallPreviewDisplay({ preview: base, translate: identity })).toEqual({
       title: "FAQ pack (faq-pack)",
       version: "2.0.0",
       tier: "tier-3",
@@ -32,7 +32,7 @@ describe("pluginInstallPreviewDisplay", () => {
   });
 
   it("a code-free (tier-1) package says it has no code and lists its content types instead", () => {
-    const view = pluginInstallPreviewDisplay({ ...base, tier: "tier-1", hasCode: false, capabilities: [], hooks: [], contentTypes: ["faq", "testimonial"], upgradeFrom: "1.0.0" }, identity);
+    const view = pluginInstallPreviewDisplay({ preview: { ...base, tier: "tier-1", hasCode: false, capabilities: [], hooks: [], contentTypes: ["faq", "testimonial"], upgradeFrom: "1.0.0" }, translate: identity });
     expect(view.codeNotice).toBe("This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares.");
     expect(view.contentTypes).toBe("faq, testimonial");
     expect(view.capabilities).toBe("—");
@@ -42,13 +42,13 @@ describe("pluginInstallPreviewDisplay", () => {
   });
 
   it("conflicts: says they are this workspace's, and reuses the Plugins row's sentences", () => {
-    const view = pluginInstallPreviewDisplay({
+    const view = pluginInstallPreviewDisplay({ preview: {
       ...base,
       conflicts: [
         { kind: "content-type", key: "faq", heldBy: "faq-holder", heldByName: "FAQ Holder", heldKey: "faq" },
         { kind: "route", key: "GET /api/faq", heldBy: "core", heldByName: "Tovu core", heldKey: "/api/*" },
       ],
-    }, identity);
+    }, translate: identity });
     expect(view.conflicts).toEqual({
       heading: "Already in use in this workspace (other workspaces are checked when you turn it on there):",
       lines: ['Content type "faq" is already used by FAQ Holder.', 'Route "GET /api/faq" is reserved by Tovu ("/api/*").'],
@@ -57,7 +57,7 @@ describe("pluginInstallPreviewDisplay", () => {
 
   it("translates the notice, the heading and the conflict sentence", () => {
     const es = (key: string) => translatePlugins({ locale: "es", key: key });
-    const view = pluginInstallPreviewDisplay({ ...base, hasCode: false, conflicts: [{ kind: "content-type", key: "faq", heldBy: "o", heldByName: "O", heldKey: "faq" }] }, es);
+    const view = pluginInstallPreviewDisplay({ preview: { ...base, hasCode: false, conflicts: [{ kind: "content-type", key: "faq", heldBy: "o", heldByName: "O", heldKey: "faq" }] }, translate: es });
     expect(view.codeNotice).toBe(es("This plugin has no code; nothing in it runs on this computer. Turning it on only adds what it declares."));
     expect(view.codeNotice).not.toMatch(/^This plugin/);
     expect(view.conflicts?.heading).not.toMatch(/^Already/);

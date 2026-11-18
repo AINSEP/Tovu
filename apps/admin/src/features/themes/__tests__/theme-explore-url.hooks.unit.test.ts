@@ -63,36 +63,36 @@ describe("resolveThemeExploreSelectionValue", () => {
 
 describe("resolveRequestedThemeExploreSelection", () => {
   it("resolves fileId when present, regardless of pageId", () => {
-    const result = resolveRequestedThemeExploreSelection(FILES, { fileId: "theme.json", pageId: "about" });
+    const result = resolveRequestedThemeExploreSelection({ files: FILES }, { fileId: "theme.json", pageId: "about" });
     expect(result).toEqual({ path: "theme.json", missed: null });
   });
 
   it("falls over to pageId when fileId is absent", () => {
-    const result = resolveRequestedThemeExploreSelection(FILES, { pageId: "404" });
+    const result = resolveRequestedThemeExploreSelection({ files: FILES }, { pageId: "404" });
     expect(result).toEqual({ path: "render/pages/404.html", missed: null });
   });
 
   it("falls over to pageId when fileId names nothing this theme has — an intentional layered fallback, not a miss", () => {
-    const result = resolveRequestedThemeExploreSelection(FILES, { fileId: "does/not-exist.html", pageId: "404" });
+    const result = resolveRequestedThemeExploreSelection({ files: FILES }, { fileId: "does/not-exist.html", pageId: "404" });
     expect(result).toEqual({ path: "render/pages/404.html", missed: null });
   });
 
   it("reports a miss (preferring fileId's own raw value) when neither param resolves to anything", () => {
-    const result = resolveRequestedThemeExploreSelection(FILES, { fileId: "nope.html", pageId: "also-nope" });
+    const result = resolveRequestedThemeExploreSelection({ files: FILES }, { fileId: "nope.html", pageId: "also-nope" });
     expect(result).toEqual({ path: null, missed: "nope.html" });
   });
 
   it("reports a miss off pageId alone when only pageId was supplied and it did not resolve", () => {
-    const result = resolveRequestedThemeExploreSelection(FILES, { pageId: "nope" });
+    const result = resolveRequestedThemeExploreSelection({ files: FILES }, { pageId: "nope" });
     expect(result).toEqual({ path: null, missed: "nope" });
   });
 
   it("returns no path and no miss when neither param was supplied at all", () => {
-    expect(resolveRequestedThemeExploreSelection(FILES, {})).toEqual({ path: null, missed: null });
+    expect(resolveRequestedThemeExploreSelection({ files: FILES }, {})).toEqual({ path: null, missed: null });
   });
 
   it("treats an empty-string param the same as absent, not as a value to look up", () => {
-    expect(resolveRequestedThemeExploreSelection(FILES, { fileId: "", pageId: "" })).toEqual({ path: null, missed: null });
+    expect(resolveRequestedThemeExploreSelection({ files: FILES }, { fileId: "", pageId: "" })).toEqual({ path: null, missed: null });
   });
 });
 

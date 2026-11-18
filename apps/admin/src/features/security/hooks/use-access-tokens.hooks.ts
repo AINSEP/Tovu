@@ -725,8 +725,8 @@ export function useAccessTokens({ port, t, locale }: { port: AccessTokensPort; t
    *  so only the two branches `refetchStore` itself already handles are needed here.
    *  @complexity O(1) dispatch; O(n) inside `withPromotedDefault`. */
   function applyPromotedDefault({ kind, result }: { kind: AccessTokenKind; result: AdminPublishCredentialSummary | AdminSourceControlCredentialSummary }, _optional: Record<string, never> = {}): void {
-    if (kind === "publish") setPublishCredentials((prev) => withPromotedDefault(prev ?? [], result as AdminPublishCredentialSummary));
-    else setSourceControlCredentials((prev) => withPromotedDefault(prev ?? [], result as AdminSourceControlCredentialSummary));
+    if (kind === "publish") setPublishCredentials((prev) => withPromotedDefault({ credentials: prev ?? [], promoted: result as AdminPublishCredentialSummary }));
+    else setSourceControlCredentials((prev) => withPromotedDefault({ credentials: prev ?? [], promoted: result as AdminSourceControlCredentialSummary }));
   }
 
   /** Best-effort re-read after a promotion the server already confirmed — same shape and reasoning as

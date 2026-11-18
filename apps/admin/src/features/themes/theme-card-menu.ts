@@ -27,7 +27,7 @@ export function themeDeleteBlock(required: { settings: PresentationSettings; the
 }
 
 /** The sentence shown when a refused Delete is picked — an i18n key. @complexity O(1). */
-export function themeDeleteBlockReasonKey(block: Exclude<ThemeDeleteBlock, null>): string {
+export function themeDeleteBlockReasonKey({ block }: { block: Exclude<ThemeDeleteBlock, null> }, _optional: Record<string, never> = {}): string {
   return block === "active" ? "Turn this theme off or activate another one first" : "Built-in themes can't be deleted";
 }
 

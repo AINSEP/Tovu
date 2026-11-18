@@ -246,7 +246,7 @@ describe("useGitBackup guards", () => {
 
 describe("git-backup rules", () => {
   it("offers each default connection once", () => {
-    expect(backupConnectionLabels([connection(), connection({ id: "c2" }), connection({ id: "c3", label: "Other", isDefault: false })])).toEqual(["GitHub"]);
+    expect(backupConnectionLabels({ credentials: [connection(), connection({ id: "c2" }), connection({ id: "c3", label: "Other", isDefault: false })] })).toEqual(["GitHub"]);
   });
 
   it("sends a trimmed branch only when one is typed", () => {
@@ -262,7 +262,7 @@ describe("git-backup rules", () => {
     [{ code: "NO_PUSH_PERMISSION", message: "This token cannot push." }, "This token cannot push."],
     [{}, "Git backup failed."],
   ])("says %j as %s", (refusal, line) => {
-    expect(gitBackupRefusalMessage(refusal, t)).toBe(line);
+    expect(gitBackupRefusalMessage({ result: refusal, t })).toBe(line);
   });
 });
 

@@ -115,7 +115,7 @@ function ThemePageDetailsFacts({ row, t }: { row: ThemePageRow; t: Translate }):
       </div>
       <div className="theme-page-details-fact">
         <dt>{t("Publish")}</dt>
-        <dd>{themePagePublishSummary(row, t)}</dd>
+        <dd>{themePagePublishSummary({ row, t })}</dd>
       </div>
     </dl>
   );
@@ -130,7 +130,7 @@ function ThemePageDetailsFacts({ row, t }: { row: ThemePageRow; t: Translate }):
  * @complexity O(1).
  */
 function ThemePageDetailsNotes({ row, t }: { row: ThemePageRow; t: Translate }): ReactNode {
-  const showsToggleHint = themePagePublishState(row, t).kind === "toggle";
+  const showsToggleHint = themePagePublishState({ row, t }).kind === "toggle";
   const showsNoOriginalHint = !row.resettable;
   if (!showsToggleHint && !showsNoOriginalHint) return null;
   return (
@@ -206,7 +206,7 @@ function ThemePageDetailsCollisionWarning({
     <div className="notice warning theme-page-details-collision">
       <div className="theme-page-details-collision-body">
         <ThemePageCollisionIcon />
-        <p>{themePageCollisionMessage(collision, t)}</p>
+        <p>{themePageCollisionMessage({ collision, t })}</p>
       </div>
       <a
         className="btn-warning"

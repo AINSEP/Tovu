@@ -19,30 +19,30 @@ export const EMPTY_GIT_BACKUP_FORM: GitBackupForm = { connection: "", owner: "",
 
 /** Only a host's DEFAULT connection is one a backup can push with (`backup-service.ts`'s
  *  `resolveHostConnection`), so only those are offered. @complexity O(connections). */
-export function backupConnectionLabels(credentials: readonly AdminSourceControlCredentialSummary[]): string[] {
+export function backupConnectionLabels({ credentials }: { credentials: readonly AdminSourceControlCredentialSummary[] }, _optional: Record<string, never> = {}): string[] {
   return [...new Set(credentials.filter((credential) => credential.isDefault).map((credential) => credential.label))];
 }
 
 /** Owner, repository and a connection are required; the branch is optional. */
-export function gitBackupFormReady(form: GitBackupForm): boolean {
+export function gitBackupFormReady(form: GitBackupForm, _optional: Record<string, never> = {}): boolean {
   return form.connection !== "" && form.owner.trim() !== "" && form.repo.trim() !== "";
 }
 
 /** The plan request: trimmed, a blank branch left out so the server uses the default branch. */
-export function gitBackupPlanInput(form: GitBackupForm): GitBackupPlanInput {
+export function gitBackupPlanInput(form: GitBackupForm, _optional: Record<string, never> = {}): GitBackupPlanInput {
   const branch = form.branch.trim();
   return { credential: form.connection, owner: form.owner.trim(), repo: form.repo.trim(), ...(branch ? { branch } : {}) };
 }
 
-export function isGitBackupPlan(result: GitBackupPlan | GitBackupRefusal): result is GitBackupPlan {
+export function isGitBackupPlan(result: GitBackupPlan | GitBackupRefusal, _optional: Record<string, never> = {}): result is GitBackupPlan {
   return result.planned === true;
 }
 
-export function isGitBackupInProgress(result: GitBackupPushResult): result is Extract<GitBackupPushResult, { inProgress: true }> {
+export function isGitBackupInProgress(result: GitBackupPushResult, _optional: Record<string, never> = {}): result is Extract<GitBackupPushResult, { inProgress: true }> {
   return "inProgress" in result && result.inProgress === true;
 }
 
-export function isGitBackupPushed(result: GitBackupPushResult): result is Extract<GitBackupPushResult, { pushed: true }> {
+export function isGitBackupPushed(result: GitBackupPushResult, _optional: Record<string, never> = {}): result is Extract<GitBackupPushResult, { pushed: true }> {
   return result.pushed === true;
 }
 
@@ -56,7 +56,7 @@ const REFUSAL_KEYS: Record<string, string> = {
 };
 
 /** The one line a refusal shows. @complexity O(1). */
-export function gitBackupRefusalMessage(result: GitBackupRefusal, t: Translate): string {
+export function gitBackupRefusalMessage({ result, t }: { result: GitBackupRefusal; t: Translate }, _optional: Record<string, never> = {}): string {
   if (result.reason !== undefined || result.cancelled) return t("The backup stopped. Nothing was committed. Plan again.");
   const key = result.code === undefined ? undefined : REFUSAL_KEYS[result.code];
   if (key) return t(key);

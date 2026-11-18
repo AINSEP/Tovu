@@ -724,7 +724,7 @@ export function useComposerCapabilities(_input: Record<string, never> = {}, _opt
     const reload = (_required = {}, { force = false } = {}) => {
       generation += 1;
       const current = generation;
-      return projectComposerCapabilities([createBundledComposerCapabilitySource(), { id: installed.id, list: () => installed.reload({}, { force }) }])
+      return projectComposerCapabilities({ sources: [createBundledComposerCapabilitySource(), { id: installed.id, list: () => installed.reload({}, { force }) }] })
       .then((projection) => {
         // An unchanged catalog keeps its state, so refreshes do not re-render the dock. JSON drops
         // `resolve`; every source's binding is derived from the serialized fields (item id).

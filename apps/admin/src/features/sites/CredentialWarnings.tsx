@@ -13,7 +13,7 @@ import { interpolate, type Translate } from '@jini-ai/core/text';
 
 /** "This export/import may contain credentials in N files." Literal keys so every locale carries them. */
 export function credentialSummary({ subject, warnings, t }: { subject: "export" | "import"; warnings: readonly CredentialWarning[]; t: Translate }, _options = {}): string {
-  const count = credentialFileCount(warnings);
+  const count = credentialFileCount({ warnings });
   if (subject === "import") {
     return count === 1 ? t("This import may contain credentials in 1 file.") : interpolate({ template: t("This import may contain credentials in {count} files."), vars: { count } });
   }
