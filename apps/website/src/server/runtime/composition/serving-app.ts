@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { createTrashScheduler } from "#src/features/trash/scheduler.node";
 import { startThemeWatcher } from "#src/features/theme/theme-watcher";
-import { startPostGoLiveSweep } from "#src/features/post/go-live";
+import { startPostGoLiveSweep } from "#src/features/post/go-live-sweep";
 import type { Express } from "express";
 
 import { startOutboxDrainer, type OutboxDrainer } from "#src/contracts/core/events/index";

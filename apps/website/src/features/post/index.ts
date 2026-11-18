@@ -35,11 +35,9 @@ export {
   type PostRecord,
   type PublicPostRecord,
   type PublicPostReaderPort,
-  type PublicPostKind,
   type PostRepoPort,
   type PostBodyFormat,
   type PostKind,
-  type PostStatus,
   type BeforeSaveHookPort,
   type UpdatePostInput,
   type PostAutosaveSnapshot,
@@ -72,8 +70,8 @@ export {
   type PostSearchPort,
   type PostSearchQuery,
 } from "./search.js";
-export { extractPlainTextFromHtml } from "./html-plain-text.js";
-export { announcePendingGoLive, startPostGoLiveSweep, type GoLiveCandidatesPort } from "./go-live.js";
+export { announcePendingGoLive, type GoLiveCandidatesPort } from "./go-live.js";
+export { startPostGoLiveSweep } from "./go-live-sweep.js";
 export { resolveFeaturedImageRef, resolveFeaturedMediaIdForWrite, type FeaturedImageDeps } from "./featured-image.js";
 export { InMemoryPostRepo } from "./repo.memory.js";
 export { SqlitePostRepo } from "./repo.sqlite.js";

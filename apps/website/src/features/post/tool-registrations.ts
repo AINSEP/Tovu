@@ -85,26 +85,25 @@ import {
   PostVersionConflictError,
   restorePostForward,
   type PostKind,
-  type PublicPostKind,
   type PublicPostRecord,
   isPublicPost,
   type PostRecord,
   type PostRepoPort,
-  type PostStatus,
   type BeforeSaveHookPort,
   type ForgetRemovedPostFn,
   type RemovePostFn,
   type SlugChangeCaptureLookup,
 } from "./post.js";
+import type { PostStatus, PublicPostKind } from "@jini-ai/cms/core";
 // The SAME boundary `server/inbound/admin-http/routes/posts/update.ts` uses — imported, not copied.
 // The two arms diverged in the first place because only one of them had this logic at all.
 import { parseExpectedVersion, VERSION_CONFLICT_CODE } from "./expected-version.js";
-import { extractPlainTextFromHtml } from "./html-plain-text.js";
+import { extractPlainTextFromHtml } from "@jini-ai/cms/seo";
 import { readPostTemplateOptions, type PostTemplateDeps } from "./template-options.js";
 import { extractPostPlainText, searchAdminPosts, type PostSearchPort } from "./search.js";
 // Keep the standalone read tool on the existing registration seam, outside the content barrel.
 export { contributeContentStatsTools, type ContentStatsToolDeps } from "./content-stats-tool.js";
-import { copyBodyJsonWithFreshEmbedPlacements } from "./duplicate-embeds.js";
+import { copyBodyJsonWithFreshEmbedPlacements } from "@jini-ai/cms/widgets";
 import { resolveFeaturedImageRef, type FeaturedImageDeps } from "./featured-image.js";
 import { currentIso, isScheduledAt } from "../../contracts/core/scheduled-publish.js";
 import { resolveRuntimeMode, type RuntimeMode } from "../../contracts/core/runtime-mode.js";
@@ -1420,8 +1419,14 @@ async function duplicatePostOrPage(
     }
     sourceHtml = await routeDeps.pagesHtmlStore({ workspaceId: routeDeps.workspaceId, postId: sourceId }).read();
   } else {
-    // The one piece of real design work this tool exists for — see duplicate-embeds.ts's own header
-    // for why widgetEntryId is kept and placementId is regenerated, never the reverse.
+    // The one piece of real design work this tool exists for — see the header of
+    // `@jini-ai/cms/widgets`' duplicate-embeds module for why widgetEntryId is kept and placementId
+    // is regenerated, never the reverse. Known, separate discrepancy (noted, not fixed here):
+    // `agent-tools.ts`'s published `TIPTAP_DOC_SCHEMA` documents a widgetEmbed's `attrs` as carrying
+    // only `placementId`, while the real node the embed write path reads and writes carries BOTH
+    // `placementId` and `widgetEntryId`. That schema is model-facing documentation, not a runtime
+    // validator, and this tool never authors a `bodyJson` from scratch: it only copies one this
+    // codebase already wrote.
     bodyJsonForCreate = copyBodyJsonWithFreshEmbedPlacements({ bodyJson: source.bodyJson, newPlacementId: () => routeDeps.idGen.newId() });
   }
 

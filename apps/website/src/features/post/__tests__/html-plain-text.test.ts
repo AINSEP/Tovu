@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { extractPlainTextFromHtml } from "../html-plain-text.js";
+import { extractPlainTextFromHtml } from "@jini-ai/cms/seo";
 
 test("HTML text preserves prose around multiple nested headers and removes scripts and styles", () => {
   assert.equal(extractPlainTextFromHtml({ html: 'Before<div class="x post-detail-header"><div>Title</div>Date</div>Middle<header class="post-detail-header">Other</header><script>secret()</script><style>.secret{}</style><p>A&amp;B &#x1F600; &unknown;</p>After' }).replace(/\s+/g, " ").trim(),

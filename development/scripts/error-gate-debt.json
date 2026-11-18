@@ -1285,7 +1285,7 @@
     "value": 1
   },
   {
-    "file": "apps/website/src/features/post/go-live.ts",
+    "file": "apps/website/src/features/post/go-live-sweep.ts",
     "rule": "catch-reads-error",
     "value": 1
   },
