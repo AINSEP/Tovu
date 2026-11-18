@@ -1,0 +1,14 @@
+RED ok: remove the revision lock -> appendRevision takes the revision-stream lock inside the transaction, before the insert statement
+RED ok: lock after the insert -> appendRevision takes the revision-stream lock inside the transaction, before the insert statement
+RED ok: workspace upsert becomes do-nothing (first write wins) -> two writes of one setting at one scope: the second wins and one row remains (global, workspace, user)
+RED ok: global upsert becomes do-nothing -> two writes of one setting at one scope: the second wins and one row remains (global, workspace, user)
+RED ok: user upsert becomes do-nothing -> two writes of one setting at one scope: the second wins and one row remains (global, workspace, user)
+RED ok: getWorkspaceValue drops the workspace predicate -> a workspace value and a user value are not returned for another workspace or principal
+RED ok: getUserValue drops the principal predicate -> a workspace value and a user value are not returned for another workspace or principal
+RED ok: listWorkspaceValues drops the workspace predicate -> a workspace value and a user value are not returned for another workspace or principal
+RED ok: listUserValuesByWorkspace drops the workspace predicate -> a workspace value and a user value are not returned for another workspace or principal
+RED ok: deleteUserValue drops the principal predicate -> deleteUserValue removes exactly (workspace, principal, setting); workspace and global rows and the ledger stay
+RED ok: listRevisionsSince compares with >= -> listRevisionsSince returns the exact seq list for a cursor in the middle, bounded by the limit
+RED ok: findActiveDefinition drops the null branch -> definition lookup resolves a platform (workspaceId null) definition and a workspace one separately
+RED ok: the returned seq is not the inserted one -> concurrent appendRevision calls get consecutive distinct seq values
+rows 13 bad 0

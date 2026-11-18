@@ -1,15 +1,24 @@
-import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
+import { type ContentKernel, schemaErasedKernel } from "../../platform/db/content-kernel.js";
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
-import { SqlSettingsRepo } from "./repo.js";
+import { SqlSettingsRepo } from "@jini-ai/db/settings";
+
+/** Tovu owns these persisted names; the settings repository, its ledger and Trash/backup coverage use the same wiring. */
+export const SETTINGS_TABLES = {
+  definitions: "setting_definitions",
+  valuesGlobal: "setting_values_global",
+  valuesWorkspace: "setting_values_workspace",
+  valuesUser: "setting_values_user",
+  revisions: "setting_revisions",
+} as const;
 
 /**
  * @file The settings repo on a site's SQLite `content.db`: {@link SqlSettingsRepo} (the one Kysely
- * query body, `repo.ts`), kept as a named class so the call sites that construct it from the content
- * db handle stay as they are; new code constructs `SqlSettingsRepo` with its kernel.
+ * query body, in Jini `@jini-ai/db/settings`), kept as a named class so the call sites that construct it from the content
+ * db handle stay as they are; new code constructs `SqlSettingsRepo` with its kernel and table names.
  */
 export class SqliteSettingsRepo extends SqlSettingsRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor({ store }: { store: ContentKernel | ContentDb }) {
-    super(contentKernel({ store }));
+    super({ kernel: schemaErasedKernel({ store }), tables: SETTINGS_TABLES }, {});
   }
 }

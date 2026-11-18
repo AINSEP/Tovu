@@ -4,7 +4,7 @@ import test from "node:test";
 import { sql } from "kysely";
 
 import { describeEachDialect, freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlTokenStore } from "../gated-mutation-token-repo.js";
+import { SqliteTokenStore } from "../../sqlite/gated-mutation-token-repo.sqlite.js";
 import { mintToken } from "#src/contracts/core/gated-mutations/token";
 import { sqliteConnectionOf } from "../../kernel/drivers/sqlite.js";
 
@@ -18,7 +18,7 @@ import { sqliteConnectionOf } from "../../kernel/drivers/sqlite.js";
 test("tryRedeem() refuses redemption when the database skips the status update", async () => {
   const kernel = freshSqliteContentKernel();
   try {
-    const store = new SqlTokenStore(kernel);
+    const store = new SqliteTokenStore({ store: kernel });
     const record = mintToken({ planId: "plan-1", planHash: "hash-1", scopeId: "scope-1", confirmerPrincipalId: "user-1", now: "2026-08-31T00:00:00.000Z" });
     await store.save(record);
     // A real skipped UPDATE exercises the defensive result check even while the token lock holds.
@@ -35,7 +35,7 @@ test("tryRedeem() refuses redemption when the database skips the status update",
   } finally { sqliteConnectionOf(kernel)?.close(); }
 });
 
-describeEachDialect("TokenStorePort", { tables: ["gated_mutation_tokens"], make: (kernel) => new SqlTokenStore(kernel) }, (makeStore) => {
+describeEachDialect("TokenStorePort", { tables: ["gated_mutation_tokens"], make: (kernel) => new SqliteTokenStore({ store: kernel }) }, (makeStore) => {
   test("save() then findByToken() round-trips a minted record", async () => {
     const store = makeStore();
     const record = mintToken({

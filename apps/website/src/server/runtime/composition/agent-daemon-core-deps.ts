@@ -13,7 +13,7 @@ import { DaemonCoreError, type DaemonCoreSnapshot, type DaemonDurableRunStore } 
 import { openSiteDbClient, type SiteDbClient, type ImportSiteDbDriver, type ResolvePostgresConnectionString } from "#src/platform/db/client/open-site-db-client";
 import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
 import type { SiteStorage } from "#src/platform/site-dir/types";
-import { SqlSettingsRepo } from "#src/features/settings/repo";
+import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqlToolAttemptAuditSink } from "#src/features/tool-audit/repo";
 import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
 import { createInMemoryAgentSessionStore, createSqliteAgentSessionStore } from "#src/assistant/persistence/agent-session-store";
@@ -109,7 +109,7 @@ function assertSnapshotMatchesEnv({ env, snapshot }: { env: NodeJS.ProcessEnv; s
 function retainedRepositories({ client }: { client?: SiteDbClient }, _options = {}): RetainedRepositories {
   if (!client) return { settingsRepo: new InMemorySettingsRepo(), agentSessions: createInMemoryAgentSessionStore(),
     conversationToolApprovals: createInMemoryConversationToolApprovalStore(), toolAttemptAuditSink: createInMemoryToolAttemptAuditSink({}) };
-  return { settingsRepo: new SqlSettingsRepo(client.content), agentSessions: createSqliteAgentSessionStore({ store: client.chat, clock: createSystemClock() }),
+  return { settingsRepo: new SqliteSettingsRepo({ store: client.content }), agentSessions: createSqliteAgentSessionStore({ store: client.chat, clock: createSystemClock() }),
     conversationToolApprovals: createSqliteConversationToolApprovalStore({ store: client.chat }), toolAttemptAuditSink: new SqlToolAttemptAuditSink(client.content) };
 }
 

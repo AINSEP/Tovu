@@ -425,62 +425,6 @@
     "coverageClass": "ledger_only"
   },
   {
-    "source": "table",
-    "contractMethod": "settingDefinitions via this.db\n      .insert",
-    "caller": "SqliteSettingsRepo.saveDefinition",
-    "file": "src/features/settings/repo.sqlite.ts",
-    "line": 166,
-    "coverageClass": "ledger_only"
-  },
-  {
-    "source": "table",
-    "contractMethod": "settingValuesGlobal via this.db\n      .insert",
-    "caller": "SqliteSettingsRepo.saveGlobalValue",
-    "file": "src/features/settings/repo.sqlite.ts",
-    "line": 251,
-    "coverageClass": "ledger_only"
-  },
-  {
-    "source": "table",
-    "contractMethod": "settingValuesWorkspace via this.db\n      .insert",
-    "caller": "SqliteSettingsRepo.saveWorkspaceValue",
-    "file": "src/features/settings/repo.sqlite.ts",
-    "line": 280,
-    "coverageClass": "ledger_only"
-  },
-  {
-    "source": "table",
-    "contractMethod": "settingValuesUser via this.db\n      .insert",
-    "caller": "SqliteSettingsRepo.saveUserValue",
-    "file": "src/features/settings/repo.sqlite.ts",
-    "line": 312,
-    "coverageClass": "ledger_only"
-  },
-  {
-    "source": "table",
-    "contractMethod": "settingValuesWorkspace via this.db\n      .delete",
-    "caller": "SqliteSettingsRepo.deleteWorkspaceValue",
-    "file": "src/features/settings/repo.sqlite.ts",
-    "line": 374,
-    "coverageClass": "ledger_only"
-  },
-  {
-    "source": "table",
-    "contractMethod": "settingValuesUser via this.db\n      .delete",
-    "caller": "SqliteSettingsRepo.deleteUserValue",
-    "file": "src/features/settings/repo.sqlite.ts",
-    "line": 386,
-    "coverageClass": "ledger_only"
-  },
-  {
-    "source": "table",
-    "contractMethod": "settingRevisions via this.db\n      .insert",
-    "caller": "SqliteSettingsRepo.appendRevision",
-    "file": "src/features/settings/repo.sqlite.ts",
-    "line": 399,
-    "coverageClass": "ledger_only"
-  },
-  {
     "source": "port",
     "contractMethod": "SettingsRepoPort.transaction",
     "implementingClass": "InMemorySettingsRepo",

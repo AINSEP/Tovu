@@ -1,16 +1,8 @@
 import { sql } from "kysely";
-import type { Selectable } from "kysely";
 
 import type { UUID } from "@jini-ai/core/primitives";
-import type { OriginSettingRepoPort } from "@jini-ai/core/contracts/server/verified-origin";
-import {
-  createVerifiedOrigin,
-  type OriginScheme,
-  type OriginSource,
-  type VerifiedOrigin,
-} from "@jini-ai/core/contracts/server/verified-origin";
+import { createVerifiedOrigin, type VerifiedOrigin } from "@jini-ai/core/contracts/server/verified-origin";
 import type { ContentKernel } from "../content-kernel.js";
-import type { OriginSettingsTable } from "../content-database.generated.js";
 
 /**
  * @file ADR-046 Phase 1 — THE durable `OriginSettingRepoPort` adapter: one Kysely query body for
@@ -37,6 +29,9 @@ import type { OriginSettingsTable } from "../content-database.generated.js";
  *    closes the "no way to register a real production origin" gap this header used to disclose as
  *    permanent, and it is why production's sitemap can emit absolute URLs again.
  *
+ * The read adapter and {@link registerConfiguredOriginOn} (now `registerConfiguredOrigin`) live in Jini
+ * `@jini-ai/db/verified-origin`; only the dev seed below is Tovu boot policy and stays here.
+ *
  * Both writers are async (the kernel is), so the composition root hands the read adapter the boot
  * write's promise as `after`: every read waits for it, and a boot write that failed fails the reads
  * instead of letting them see a half-booted row.
@@ -46,59 +41,8 @@ import type { OriginSettingsTable } from "../content-database.generated.js";
  * "whoever can set this deployment's process environment", nothing weaker and nothing stronger.
  */
 
-type Row = Selectable<OriginSettingsTable>;
-
-function toVerifiedOrigin(row: Row): VerifiedOrigin {
-  // Built up conditionally, not `port: row.port ?? undefined` — an object literal with an
-  // explicit `undefined`-valued key is NOT deep-equal to one that never had the key at all
-  // (`assert.deepStrictEqual` is strict about this), and `VerifiedOrigin.port`/`.basePath` are
-  // genuinely optional fields the in-memory adapter simply omits when unset.
-  const candidate: VerifiedOrigin = {
-    scheme: row.scheme as OriginScheme,
-    host: row.host,
-    verifiedAt: row.verified_at,
-    source: row.source as OriginSource,
-  };
-  if (row.port != null) candidate.port = row.port;
-  if (row.base_path != null) candidate.basePath = row.base_path;
-  return createVerifiedOrigin(candidate);
-}
-
 function normalizeHostList({ hosts }: { hosts: string[] | undefined }, _optional: Record<string, never> = {}): string[] {
   return (hosts ?? []).map((host) => host.trim().toLowerCase());
-}
-
-export class SqlOriginSettingRepo implements OriginSettingRepoPort {
-  /** @param options.after - Reads wait for it (the composition root's boot write); see the file header. */
-  protected readonly kernel: ContentKernel;
-  private readonly options: { after?: Promise<unknown> };
-  constructor(
-    kernel: ContentKernel,
-    options: { after?: Promise<unknown> } = {}
-  ) {
-    this.kernel = kernel;
-    this.options = options;
-  }
-
-  private async row(workspaceId: UUID): Promise<Row | undefined> {
-    await this.options.after;
-    return this.kernel.run((db) => db.selectFrom("origin_settings").selectAll().where("workspace_id", "=", workspaceId).executeTakeFirst());
-  }
-
-  async findByWorkspaceId({ workspaceId }: { workspaceId: UUID }): Promise<VerifiedOrigin | null> {
-    const row = await this.row(workspaceId);
-    return row ? toVerifiedOrigin(row) : null;
-  }
-
-  async findRedirectAllowlist({ workspaceId }: { workspaceId: UUID }): Promise<string[]> {
-    const row = await this.row(workspaceId);
-    return row ? (JSON.parse(row.redirect_allowlist_json) as string[]) : [];
-  }
-
-  async findEgressAllowlist({ workspaceId }: { workspaceId: UUID }): Promise<string[]> {
-    const row = await this.row(workspaceId);
-    return row ? (JSON.parse(row.egress_allowlist_json) as string[]) : [];
-  }
 }
 
 const LOOPBACK_HOSTS = ["localhost", "127.0.0.1", "::1"];
@@ -137,94 +81,4 @@ export async function seedDevCapabilityOriginOn(
         .where(sql<boolean>`(origin_settings.scheme <> ${verified.scheme} OR origin_settings.port IS DISTINCT FROM ${verified.port ?? null})`))
       .execute()
   );
-}
-
-/** What {@link registerConfiguredOriginOn} did, so the composition root can log it. */
-export type ConfiguredOriginWriteResult = "inserted" | "updated" | "unchanged";
-
-/** The origin columns only — deliberately NOT the allowlist columns. See
- *  {@link registerConfiguredOriginOn}. */
-function originColumns(origin: VerifiedOrigin) {
-  return {
-    scheme: origin.scheme,
-    host: origin.host,
-    port: origin.port ?? null,
-    base_path: origin.basePath ?? null,
-    verified_at: origin.verifiedAt,
-    source: origin.source,
-  };
-}
-
-/**
- * Whether the stored row already names the same origin. `verifiedAt` is excluded on purpose: it is
- * a stamp, not part of the origin's identity, so including it would make every boot an UPDATE and
- * churn the row forever.
- *
- * @complexity O(1).
- */
-function sameOrigin(row: Row, origin: VerifiedOrigin): boolean {
-  const sameAddress = row.scheme === origin.scheme &&
-    row.host === origin.host;
-  const port = origin.port ?? null;
-  const basePath = origin.basePath ?? null;
-  return (
-    sameAddress && row.port === port &&
-    row.base_path === basePath &&
-    row.source === origin.source
-  );
-}
-
-/**
- * Registers the operator-declared public origin — insert-or-correct, NOT find-or-create.
- *
- * This is deliberately a different function with a different contract from
- * {@link seedDevCapabilityOriginOn}, not a change to it. The certified idempotency test
- * (`features/origin/__tests__/repo.contract.test.ts`) protects "a re-run of the boot seed can never
- * clobber a real registered origin", and that assertion stands unchanged: the dev seed only refreshes its own loopback listener
- * scheme and port. What this function adds is the one authority that IS allowed to correct the
- * row — whoever can set this deployment's process environment (the host's secret store /
- * the deploy workflow's non-secret env inputs to the hosting plugin), which is strictly more privileged than an admin-UI login and can already deploy
- * arbitrary code. Without a correcting writer, production's `http://localhost:3000` row — durably
- * persisted by the first production boot and immortal under find-or-create — could never be fixed without a
- * hand-written migration against the live DB.
- *
- * WRITES THE ORIGIN COLUMNS ONLY. `redirect_allowlist_json` and `egress_allowlist_json` are left
- * exactly as found. A blind full-row overwrite would silently empty both, which in production
- * fail-closes every `isAllowedEgressTarget` check — a behavior change with no relationship to the
- * origin it is here to fix. Pinned by that suite's "preserves both allowlists" test.
- *
- * The read and the write run in one kernel transaction under `lockKey` on the workspace's row, so
- * two booting processes cannot both see "no row" and both insert.
- *
- * @param origin - Re-validated through `createVerifiedOrigin`, so the ADR-040 scheme/source
- * invariant cannot be bypassed by a caller that hand-built the object.
- * @returns which write happened, for the boot log.
- * @throws {InsecureOriginSourceError} if `origin` violates the scheme/source invariant. Callers
- * pass `resolveConfiguredOrigin`'s output, which can never produce that combination.
- * @complexity O(1) — one indexed lookup plus at most one write.
- */
-export async function registerConfiguredOriginOn(
-  { kernel, workspaceId, origin }: { kernel: ContentKernel; workspaceId: UUID; origin: VerifiedOrigin }, _optional: Record<string, never> = {}
-): Promise<ConfiguredOriginWriteResult> {
-  const verified = createVerifiedOrigin(origin);
-  return kernel.transaction(async () => {
-    await kernel.lockKey(`origin_settings:${workspaceId}`);
-    const existing = await kernel.run((db) =>
-      db.selectFrom("origin_settings").selectAll().where("workspace_id", "=", workspaceId).executeTakeFirst()
-    );
-    if (!existing) {
-      await kernel.run((db) =>
-        db
-          .insertInto("origin_settings")
-          .values({ workspace_id: workspaceId, ...originColumns(verified), redirect_allowlist_json: "[]", egress_allowlist_json: "[]" })
-          .execute()
-      );
-      return "inserted";
-    }
-
-    if (sameOrigin(existing, verified)) return "unchanged";
-
-    await kernel.run((db) => db.updateTable("origin_settings").set(originColumns(verified)).where("workspace_id", "=", workspaceId).execute());
-    return "updated";
-  });
 }

@@ -5,10 +5,10 @@ import { createVerifiedOrigin } from "@jini-ai/core/contracts/server/verified-or
 
 import { SqlFormDeliveryRepo, SqlFormPullLeaseRepo } from "#src/platform/db/repos/form-delivery-repo";
 import { SqlOutboxAdapter } from "#src/platform/db/repos/outbox-repo";
-import { registerConfiguredOriginOn } from "#src/platform/db/repos/origin-repo";
-import { SqlTokenStore } from "#src/platform/db/repos/gated-mutation-token-repo";
+import { registerConfiguredOrigin } from "#src/platform/db/sqlite/origin-repo.sqlite";
+import { SqliteTokenStore } from "#src/platform/db/sqlite/gated-mutation-token-repo.sqlite";
 import { SqlWebhookDeliveryRepo } from "#src/platform/db/repos/webhook-repo";
-import { SqlSettingsRepo } from "#src/features/settings/repo";
+import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqliteEntryTermRepo, SqliteTaxonomyRepo } from "#src/features/taxonomy/repo.sqlite";
 import { SqlTrashRepo } from "#src/features/trash/repo";
 import { createIdentityTransactions } from "#src/features/identity/repo";
@@ -39,7 +39,7 @@ describe("P1 lock keys: workspace, identity, settings, origin, tokens", () => {
 
   test("setting revisions are one install-wide stream", async () => {
     const { kernel, keys } = recordingKernel();
-    const seq = await new SqlSettingsRepo(kernel).appendRevision({
+    const seq = await new SqliteSettingsRepo({ store: kernel }).appendRevision({
       entityKind: "value", settingId: "s", scope: "global", workspaceId: null, principalId: null, op: "set",
       beforeJson: null, afterJson: "x", defVersion: 1, actor: "actor-1", originPluginId: null, changeSetId: null,
       createdAt: "2026-11-17T00:00:00.000Z",
@@ -51,13 +51,13 @@ describe("P1 lock keys: workspace, identity, settings, origin, tokens", () => {
   test("origin settings are per workspace", async () => {
     const { kernel, keys } = recordingKernel();
     const origin = createVerifiedOrigin({ scheme: "https", host: "example.com", verifiedAt: "2026-11-17T00:00:00.000Z", source: "workspace-setting" });
-    await registerConfiguredOriginOn({ kernel, workspaceId: WS, origin });
+    await registerConfiguredOrigin({ db: kernel, workspaceId: WS, origin });
     assert.deepEqual(keys, [`origin_settings:${WS}`]);
   });
 
   test("gated mutation tokens are per token", async () => {
     const { kernel, keys } = recordingKernel();
-    assert.deepEqual(await new SqlTokenStore(kernel).tryRedeem({ token: "tok-1", now: "2026-11-17T00:00:00.000Z" }), { redeemed: false, record: null });
+    assert.deepEqual(await new SqliteTokenStore({ store: kernel }).tryRedeem({ token: "tok-1", now: "2026-11-17T00:00:00.000Z" }), { redeemed: false, record: null });
     assert.deepEqual(keys, ["gated_mutation_tokens:tok-1"]);
   });
 });
