@@ -33,4 +33,4 @@ Owner/judge reads `desktop-extraction/designs/D0c.md` section 5. Question 1 (sho
 None edited. Files the D0c design says D0c1/D0c2 will touch: `apps/desktop/src/main/index.ts`, `tovu-server.ts`, `desktop-agent.ts` (R7/R8 own it), `desktop-agent-service.ts`, `main/updates/product-telemetry-boot.ts`, `scripts/verify-staged-closure.ts`, `scripts/stage-website-shared.ts`, `electron-builder.yml`.
 
 ## SHAs
-Filled in the final message after the push.
+Tovu `wave3/desktop-d0c`: merge `9a3fe3391`, design `63cd1f537`, this report (tip `263040bf7` before this line was edited). Jini `wave3/desktop-d0c`: merge `ccb901145`.
