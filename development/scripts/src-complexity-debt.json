@@ -198,13 +198,6 @@
       "value": 12
     },
     {
-      "file": "apps/website/src/features/widgets/media-html.ts",
-      "function": "resolveMediaTree#1",
-      "line": 122,
-      "rule": "sonarjs/cognitive-complexity",
-      "value": 11
-    },
-    {
       "file": "apps/website/src/platform/site-dir/local-site-child.ts",
       "function": "runLocalSiteChild#1",
       "line": 107,
