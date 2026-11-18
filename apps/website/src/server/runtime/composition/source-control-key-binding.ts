@@ -1,8 +1,8 @@
 import { abortGuardedCredentialRepo } from '#src/features/vendor-credentials/abort-guarded-repo';
 import { sourceControlSavedApiKeyLabels } from '#src/features/source-control/provider-module';
 import { createCustomCredential, describeCredentialByLabel, resolveCustomCredentialByLabel, CustomCredentialDuplicateLabelError,
-  type CustomCredentialWriteDeps } from '#src/features/custom-credentials/store';
-import { SourceControlCredentialDuplicateLabelError } from '#src/features/source-control/store';
+  type CustomCredentialWriteDeps } from '#src/features/custom-credentials/index';
+import { SourceControlCredentialDuplicateLabelError } from '#src/features/source-control/index';
 import type { CanonicalSourceControlKeys } from '#src/features/source-control/types';
 import type { LoadSourceControlProviders } from '#src/features/source-control/provider-registry';
 

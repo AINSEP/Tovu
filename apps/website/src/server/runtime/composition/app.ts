@@ -13,7 +13,7 @@ import { composeIdentitySettings } from "./memory-deps/slices/identity-settings.
 import { createLazyProxy } from "./memory-deps/lazy-proxy.js";
 import { composeMemoryRepos } from "./memory-deps/slices/repos.js";
 import { composeMemberSecrets } from "./memory-deps/slices/member-secrets.js";
-import { getExportRunSnapshot } from '../../../features/deployments/export-run.js';
+import { getExportRunSnapshot } from '../../../features/deployments/index.js';
 import { getPublishRunSnapshot } from '../../../features/deployments/static-publish/publish-run.js';
 import { registerWarmSiteRetirement } from '../lifecycle/warm-site-retirement.js';
 import { notifyExternalMcpRosterChanged } from "../../../assistant/external-mcp-roster-change.js";
@@ -42,6 +42,8 @@ import { resolveMenuDoc } from "@jini-ai/cms/navigation";
 import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import { readBuiltInExternalMcpServerIds } from "#src/features/external-mcp/built-in-connections";
 import { bindWidgetRemoval } from "#src/features/trash/index";
+import { createStaticSitePackager } from "#src/features/site-backup/static-site-packager";
+import { bindStaticSiteContext } from "./static-site-context.js";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import { executeCommand } from "@jini-ai/cms/core";
 import express from "express";
@@ -83,7 +85,7 @@ import { createInMemoryChatHistory, createInMemoryAgentSessionStore, InMemoryAdm
 // exactly this reason — the same exemption `express.static`'s `/agent-icons` mount below relies on.
 import { InMemoryPresentationSettingsRepo, resolveActiveThemeId } from "#src/features/presentation/index";
 import { InMemorySettingsRepo, getEffective, set, INSTRUCTIONS_NAMESPACE } from "#src/features/settings/index";
-import { discoverAllBuiltInThemes, resolveActiveTheme, NO_THEME_ID } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
 import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
 import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
@@ -106,10 +108,10 @@ import { InMemoryImageTransformer } from "#src/features/media/index";
 import { InMemoryNewsletterAudienceSnapshotRepo, InMemoryNewsletterCampaignRepo, InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterSendRepo, InMemoryNewsletterSubscriptionRepo } from "#src/features/newsletter/repo.memory";
 import { ensureDefaultList } from "#src/features/newsletter/lists";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
-import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
+import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/index";
 import { formSubmissionAttemptsFor } from "#src/features/forms/index";
 import { redirectMatcher, RedirectSlugChangeCapture, registerRedirectHitOutboxHandler, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
-import { registerRedirectsPhaseHandlers } from "#src/features/redirects/phase-handler";
+import { registerRedirectsPhaseHandlers } from "#src/features/redirects/index";
 import { getSlugChangeCapture, registerSlugChangeCapture } from "#src/platform/routing/adapter";
 import { InMemoryDbOpsAdapter, InMemoryDatabaseIntrospectionAdapter, InMemoryMigrationRunsRepo, InMemorySiteStatusRepo, InMemoryDatabaseLedgerRepo } from "#src/features/database/repo.memory";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
@@ -148,7 +150,7 @@ import { isAdminAssistantEnabled } from "./admin-assistant-enabled.js";
 import type { RouteDeps } from "../../routes/types.js";
 // `type`-only, so it is erased and adds no runtime edge — used only to annotate
 // {@link runExportSite} below.
-import type { ExportEngine } from "#src/features/deployments/export-run";
+import type { ExportEngine } from "#src/features/deployments/index";
 import { createMediaProviderRegistry } from "@jini-ai/integrations/media-providers";
 import type { CreateAppOptions } from "./create-app-options.js";
 import { siteAppBootWorkByDeps } from "./site-app-boot-work.js";
@@ -899,12 +901,8 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // 2026-09-05 (fix-cycle) — plain static reference now; see `runExportSite`'s doc below for why
     // the lazy `require()` this used to carry is gone.
     exportSiteBound: (opts) => exportSite({ ...opts, routeDeps }),
-    staticSiteContext: async () => {
-      const theme = resolveActiveTheme({ deps: routeDeps, activeThemeId: await routeDeps.resolveActiveThemeId() });
-      return { name: routeDeps.siteDisplayName.read() ?? siteBinding.name, slug: siteBinding.name,
-        theme: theme && typeof theme === "object" ? theme.manifest.name : "None",
-        themeId: theme && typeof theme === "object" ? theme.manifest.id : NO_THEME_ID };
-    },
+    staticSitePackager: createStaticSitePackager(),
+    staticSiteContext: bindStaticSiteContext({ readDeps: () => routeDeps, siteName: siteBinding.name }),
   };
   routeDeps.pluginHost = createTovuPluginHost({ deps: routeDeps });
   routeDeps.pluginRuntimeReady = pluginRuntime.attachEnabledPluginsAtBoot();

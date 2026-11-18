@@ -4,12 +4,12 @@ import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-a
 import { inMemoryReadableBytes } from "@jini-ai/db/transfer";
 
 import { SqliteMenuRepo } from "#src/features/navigation/repo.sqlite";
-import { SqlitePresentationSettingsRepo } from "#src/features/presentation/repo.sqlite";
+import { SqlitePresentationSettingsRepo } from "#src/features/presentation/index";
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqlitePostRepo } from "#src/features/post/index";
 import { createPublishContentSeedHash, type PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
 import type { PublishContentDeps } from "#src/features/publish-content/type-registry";
-import { SqliteRedirectRepo } from "#src/features/redirects/repo.sqlite";
+import { SqliteRedirectRepo } from "#src/features/redirects/index";
 import { type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { buildContentPublishPorts } from "#src/server/runtime/composition/content-publish-ports";
 import { SqliteFormDefinitionRepo } from "#src/features/forms/repo.sqlite";

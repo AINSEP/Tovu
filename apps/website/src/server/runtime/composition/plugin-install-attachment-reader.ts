@@ -1,4 +1,4 @@
-import { readChatAttachmentForOwner } from "#src/features/media/read-chat-attachment";
+import { readChatAttachmentForOwner } from "#src/features/media/index";
 import type { InstallAttachmentReader } from '#src/contracts/headless/index';
 
 /** BYOK uses the same principal-owned sidecar reader as video. The daemon additionally binds

@@ -5,11 +5,6 @@ import type { UUID } from "@jini-ai/core/primitives";
 import { redactSecrets } from "@jini-ai/core";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
 import { normalizeRepositoryFolder, prefixRepositoryPath, repositoryTargetError } from "@jini-ai/devops/source-control";
-import { prepareStaticReport } from "../site-backup/static-copy.js";
-import { staticDownloadLayout } from "../site-backup/static-download-layout.js";
-import { LANDING_FILE } from "../site-backup/static-download-landing.js";
-import { claimArchivePaths } from "../site-backup/share-zip.js";
-import { SiteShareRefusal } from "../site-backup/share-policy.js";
 import { CREDENTIAL_MESSAGES } from "../../contracts/core/credential-token.js";
 
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
@@ -17,6 +12,7 @@ import { firstExportFailure, type ExportReport } from "#src/features/site-export
 
 import type { CommitFile, RepositoryTargetValidator, SourceControlCommitResult, SourceControlProvider } from "./provider-module.js";
 import { resolveDefaultForSourceControl } from "./store.js";
+import type { StaticSitePackagerPort } from "./static-site-packager-port.js";
 import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "./types.js";
 
 /**
@@ -210,6 +206,13 @@ export type ExportSiteBoundFn = (options: { outputDir: string; clean?: boolean; 
 /** Bound to the existing site/theme resolvers by composition, never inferred from output files. */
 export type StaticSiteContextFn = () => Promise<{ name: string; slug: string; theme: string; themeId: string }>;
 
+/** The two host-bound ports that package a site for a commit; `RouteDeps` and `SourceControlToolDeps` both carry exactly these. */
+export interface StaticSiteHostPorts {
+  readonly staticSiteContext: StaticSiteContextFn;
+  /** Bound by composition to `site-backup`'s packager, so this feature never imports `site-backup`. */
+  readonly staticSitePackager: StaticSitePackagerPort;
+}
+
 export interface CommitSiteInput {
   readonly folder?: string;
   readonly staticSiteContext: StaticSiteContextFn;
@@ -221,6 +224,8 @@ export interface CommitSiteInput {
   /** The pre-bound export call — see {@link ExportSiteBoundFn}'s own doc for what it is and why it
    *  replaces the `routeDeps: RouteDeps` field this input used to carry. */
   readonly exportSiteBound: ExportSiteBoundFn;
+  /** Packages the finished export into commit files; preview and commit share this one instance. */
+  readonly packager: StaticSitePackagerPort;
   readonly owner: string;
   readonly repo: string;
   readonly branch?: string;
@@ -401,16 +406,13 @@ async function exportForCommit({ input, providerId }: { input: CommitSiteInput; 
   }
 
   try {
-    const rendered = prepareStaticReport({ report });
-    const files = staticDownloadLayout({ copy: { files: rendered.files, publicOrigin: rendered.publicOrigin, siteSlug: context.slug, themeId: context.themeId,
-      metadata: { theme: context.theme, routes: rendered.routes, redirectFiles: rendered.redirectFiles, failed: rendered.failed, skipped: rendered.skipped },
-      readme: { name: context.name } } }).map(file => ({ path: file.path, data: file.content }));
-    claimArchivePaths({ entries: files }, { manifest: false });
-    return { ok: true, files };
-  } catch (error) {
-    if (error instanceof SiteShareRefusal && /collision|aliases/i.test(error.message)) {
-      return { ok: false, code: "EXPORT_FAILED", message: `Static site destination validation failed: ${error.message}` };
+    const packaged = input.packager.packageSite({ report, site: context });
+    if (!packaged.ok) {
+      return { ok: false, code: "EXPORT_FAILED", message: `Static site destination validation failed: ${packaged.message}` };
     }
+    return { ok: true, files: packaged.files };
+  } catch (error) {
+    console.warn("[source-control] static site packaging failed before committing could start", describeErrorForLog({ err: error }));
     return { ok: false, code: "EXPORT_FAILED", message: "Static site packaging failed before committing could start." };
   }
 }
@@ -535,7 +537,7 @@ function commitOutcome({ result, input, folder, token }: { result: SourceControl
     owner: input.owner,
     repo: input.repo,
     folder,
-    entryPath: prefixRepositoryPath({ folder, path: LANDING_FILE }),
+    entryPath: prefixRepositoryPath({ folder, path: input.packager.entryFile }),
     branch: result.branch,
     branchCreated: result.branchCreated,
     commitSha: result.commitSha,

@@ -59,7 +59,7 @@ import type {
 } from "../../features/members/index.js";
 import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/index.js";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "../../features/navigation/index.js";
-import type { RemoveMenuFn } from "../../features/navigation/trash-menu.js";
+import type { RemoveMenuFn } from "../../features/navigation/index.js";
 import type { KeyringPort, SecretSealerPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../features/webhooks/index.js";
 import type { WebhookSigner } from "../../features/webhooks/signing.js";
 import type { DatabaseDestinationStorePort } from "../../features/database-transfer/destination-store.js";
@@ -1349,7 +1349,7 @@ export interface TrashDeps {
  * capabilities stay flat. Fields whose types reference `RouteDeps` also stay flat:
  * putting them in a sub-interface creates a circular type TypeScript rejects.
  */
-export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & PublishTrustRevocationDeps & TrashDeps & {
+export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & PublishTrustRevocationDeps & TrashDeps & import("../../features/source-control/commit-site.js").StaticSiteHostPorts & {
   documentAssets?: (required: { scripts: readonly import('@jini-ai/cookie-consent').DeclaredScript[]; static?: true }) => Promise<import('@jini-ai/cms/presentation').DocumentAssets>;
   declaredScripts?: import('@jini-ai/cookie-consent').DeclaredScript[];
   /** Optional plugin-controlled purchase runtime. Member routes never select a merchant scope. */
@@ -1717,8 +1717,6 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * `process.env` itself.
    */
   sourceControlExportRootDir: string;
-  /** Existing site/theme resolvers, bound for portable static packaging. */
-  staticSiteContext: import("../../features/source-control/commit-site.js").StaticSiteContextFn;
   /**
    * The real export engine pre-bound to this exact `RouteDeps` object, so source-control
    * and static-publish callers provide only `{outputDir; clean?; basePath?}`. Their local

@@ -5,11 +5,11 @@ import { createNodeAtomicFilesystem, writeJsonFileAtomic } from "@jini-ai/platfo
 
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { EnvOrFileKeyring } from "#src/features/webhooks/keyring.env";
-import type { KeyringPort, SecretSealerPort } from "#src/features/webhooks/ports";
+import type { KeyringPort, SecretSealerPort } from "#src/features/webhooks/index";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import type { ensureSiteKey } from "#src/features/webhooks/site-key-ensure";
 import { resolveSiteKeyId, siteKeySources } from "#src/features/webhooks/site-key-sources";
-import type { SealedSecret } from "#src/features/webhooks/types";
+import type { SealedSecret } from "#src/features/webhooks/index";
 import { STORAGE_SECRET_FILENAME } from "#src/platform/site-dir/layout";
 import type { SiteStorage } from "#src/platform/site-dir/types";
 

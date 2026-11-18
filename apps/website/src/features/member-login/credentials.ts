@@ -1,5 +1,5 @@
 import { describeCredentialByLabel, resolveCustomCredentialByLabel,
-  type CustomCredentialResolveDeps } from "../custom-credentials/store.js";
+  type CustomCredentialResolveDeps } from "../custom-credentials/index.js";
 import type { OAuthClient } from "@jini-ai/oauth";
 import { MemberLoginError, type LoginProvider } from "./types.js";
 

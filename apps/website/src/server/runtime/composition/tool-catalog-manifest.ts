@@ -44,7 +44,7 @@ import { contributeServerLogsTools } from "#src/features/server-logs/tool-regist
 import { contributeObservabilityTools } from "#src/features/observability/tool-registrations";
 import { renderPostPreview, TemplatePreviewRenderError } from "#src/server/inbound/admin-http/routes/posts/template-preview-render";
 import { contributeIdentityPolicyListPermissionsTools } from "#src/features/identity/permission-list-tool";
-import { contributeSitesListTools } from "#src/features/sites/list-tool";
+import { contributeSitesListTools } from "#src/features/sites/index";
 import { contributePublishContentDisconnectTools } from "#src/features/publish-content/disconnect-tool";
 import { contributeThemeSetPagePublishedTools } from "#src/features/theme/index";
 import {
@@ -91,7 +91,7 @@ import type { ExternalMcpOperations } from "#src/features/external-mcp/operation
 import { contributeFilesCopyTools } from "#src/features/asset-transfer/copy-tool";
 import { contributeFsFilesTools } from "#src/features/fs-files/tool-registrations";
 import { contributePagesTools } from "#src/features/pages/tool-registrations";
-import { contributeEmailTemplatesTools } from "#src/features/email-templates/tool-registrations";
+import { contributeEmailTemplatesTools } from "#src/features/email-templates/index";
 import { contributePluginsTools } from "#src/features/plugin-runtime/tool-registrations";
 import { buildRegistrations as buildPluginsInstallRegistrations, contributePluginsInstallTools } from "#src/features/plugin-runtime/install-tool";
 import { contributePluginSourceTools } from '#src/features/plugin-runtime/source-tools';
@@ -104,7 +104,7 @@ import { contributeRecoveryTools } from "#src/features/recovery/tool-registratio
 import { contributeTaxonomyTools } from "#src/features/taxonomy/tool-registrations";
 import { contributeThemesTools, contributeSetActiveThemeTools, contributePreviewSwitcherTools, contributeDuplicateThemeTools, contributeImportThemeFileTools, contributeTrashThemeTools } from "#src/features/theme/tool-registrations";
 import { contributeChangeSetsTools } from "#src/features/change-sets/tool-registrations";
-import { contributeWorkspaceTools } from "#src/features/workspace/tool-registrations";
+import { contributeWorkspaceTools } from "#src/features/workspace/index";
 import { contributeFormsTools, contributeFormsDuplicateHandlers } from "#src/features/forms/tool-registrations";
 import { contributeIdentityTools } from "#src/features/identity/tool-registrations";
 import { contributeWebhooksTools } from "#src/features/webhooks/tool-registrations";

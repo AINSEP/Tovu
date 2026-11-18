@@ -30,3 +30,5 @@ export {
 } from "./store.js";
 
 export { InMemorySourceControlCredentialSetRepo } from "./repo.memory.js";
+
+export type { StaticSiteIdentity, StaticSitePackage, StaticSitePackagerPort } from "./static-site-packager-port.js";
