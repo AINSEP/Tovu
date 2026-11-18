@@ -24,5 +24,6 @@ apps/website/src/features/webhooks/tool-registrations.ts	decl	WEBHOOKS_DELETE_TO
 apps/website/src/features/webhooks/tool-registrations.ts	decl	toWebhookDeliveryView	export	130	146	17
 apps/website/src/features/webhooks/tool-registrations.ts	decl	webhooksDerivedRisk	export	153	170	18
 apps/website/src/features/webhooks/tool-registrations.ts	decl	WEBHOOKS_MODEL_FACING_ERRORS		191	196	6
-apps/website/src/features/webhooks/tool-registrations.ts	decl	buildWebhooksRegistrations	export	198	363	166
-apps/website/src/features/webhooks/tool-registrations.ts	decl	contributeWebhooksTools	export	388	390	3
+apps/website/src/features/webhooks/tool-registrations.ts	decl	egressTargetCheck		199	202	4
+apps/website/src/features/webhooks/tool-registrations.ts	decl	buildWebhooksRegistrations	export	204	366	163
+apps/website/src/features/webhooks/tool-registrations.ts	decl	contributeWebhooksTools	export	391	393	3

@@ -8,6 +8,7 @@ Revision 3 (cross-plan): lane S run S4a moves the registry TYPES into `@jini-ai/
 `repo.ts`, three of which have importers in `K-07.importers.tsv`. So K-07 never runs at the same time as S4a or S4b; if it
 runs after S4a, regenerate the `K-07.*` sidecars first and expect the `TrashRegistry` rg above to hit (K-07 still adds no
 `registry` field).
+revision 4 check (sheet-fixes-2, 2026-11-18): no unbound STAY import. The catalog's STAY imports (adapter constants, `TRASH_PERMISSION_BY_ENTITY_TYPE`) leave with `TRASH_TOOL_ENTITY_TYPES`/`trashToolEntityTypes` into Tovu `tool-kinds.ts` (Kind policy above); the Jini `buildTrashAgentToolCatalog(kinds)` reads only its argument. Blobs unchanged on Tovu ada11733f (fba503a0, 8c5a27d7). EXECUTABLE as written (cross-plan rule with lane S S4a/S4b still applies).
 BINDINGS:
 | import | class | action |
 |---|---|---|
