@@ -109,7 +109,8 @@ for (const dialect of ["sqlite", "postgres"] as const) {
     assert.equal(delivered.get(jobId(recipients[1]!))?.status, "pending");
     assert.equal(delivered.get(jobId(recipients[1]!))?.next_attempt_at, "2026-11-05T00:15:00.000Z");
     assert.equal(delivered.get(jobId(recipients[2]!))?.status, "failed");
-    assert.match(delivered.get(jobId(recipients[2]!))?.last_error ?? "", /outcome is unknown/);
+    // The row stores the listed failure code, not the error text (Jini outbox worker, error-system E1a/b).
+    assert.equal(delivered.get(jobId(recipients[2]!))?.last_error, "outcome-unknown");
     assert.ok([...delivered.values()].every(row => !row.last_error?.includes("provider secret")));
     assert.ok(calls.every(call => JSON.stringify(call.message.from) === JSON.stringify(sender) && call.options.lane === "notification"));
     await runtime.stop();
@@ -148,7 +149,7 @@ for (const dialect of ["sqlite", "postgres"] as const) {
     assert.equal(calls, 1, "a reserved ledger identity is uncertain after restart");
     const job = (await rows(db)).find(row => row.id === jobId("accepted@example.test"));
     assert.equal(job?.status, "failed");
-    assert.match(job?.last_error ?? "", /outcome is unknown/);
+    assert.equal(job?.last_error, "outcome-unknown");
     assert.deepEqual(await db.query(sql`SELECT outcome FROM mail_send_ledger`), [{ outcome: "reserved" }]);
     await next.stop();
   });
