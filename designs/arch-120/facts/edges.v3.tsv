@@ -59,14 +59,14 @@ V054	L07	I	site-backup/static-copy.ts	site-export/export-html-policy.ts	6	value	
 V055	L07	I	site-backup/static-download-layout.ts	site-export/export-html-policy.ts	3	value	downloadDocumentBase=site-export/export-html-policy.ts	downloadDocumentBase -> same exportHtml port
 V056	L07	S	site-backup/static-site-packager.ts	source-control/index.ts	1	type	StaticSitePackagerPort=source-control/static-site-packager-port.ts StaticSitePackage=source-control/static-site-packager-port.ts StaticSiteIdentity=source-control/static-site-packager-port.ts	drop the port-type import; conformance checked where composition assigns it
 V057	L07	I	site-export/export-html-policy.ts	webmcp/published-html.ts	3	value	injectPublishedWebMcp=webmcp/published-html.ts	injectPublishedWebMcp -> export deps port (composition)
-V058	L08	I	entries/repo.sqlite.ts	media/access-evidence.ts	3	value	invalidateMediaAccessEvidence=media/access-evidence.ts	onWriteSettled default moves to composition
+V058	L08	D	entries/repo.sqlite.ts	media/access-evidence.ts	3	value	invalidateMediaAccessEvidence=media/access-evidence.ts	same
 V059	L08	I	forms/form-file-maintenance.ts	media/index.ts	5	value	purgeMedia=media/purge-media.ts	purgeMedia -> FormFileMaintenanceDeps.purgeMedia (composition)
 V060	L08	I	media-generation/tool-registrations.ts	media/chat-preview.ts	2	value	withChatPreview=media/chat-preview.ts	withChatPreview -> tool deps chatPreview (composition)
 V061	L08	I	media-import/tool-registrations.ts	media/chat-preview.ts	2	value	withChatPreview=media/chat-preview.ts	withChatPreview -> tool deps chatPreview (already optional there: line 90)
-V062	L08	S	media/access-evidence.ts	post/post.ts	1	type	PostRecord=post/post.ts	PostRecord -> local AccessEvidencePost (fields read)
+V062	L08	D	media/access-evidence.ts	post/post.ts	1	type	PostRecord=post/post.ts	file moves to contracts/core; PostRecord pick -> local AccessEvidencePost
 V063	L08	S	media/where-used.ts	post/contracts.ts	6	type	PostRepoPort=post/post.ts	PostRepoPort -> local WhereUsedPostReader (methods called)
-V064	L08	I	post/repo.memory.ts	media/access-evidence.ts	1	value	invalidateMediaAccessEvidence=media/access-evidence.ts	same
-V065	L08	I	post/repo.ts	media/access-evidence.ts	1	value	invalidateMediaAccessEvidence=media/access-evidence.ts	invalidateMediaAccessEvidence -> repo onWriteSettled hook (same shape entries/repo.sqlite already takes)
+V064	L08	D	post/repo.memory.ts	media/access-evidence.ts	1	value	invalidateMediaAccessEvidence=media/access-evidence.ts	same
+V065	L08	D	post/repo.ts	media/access-evidence.ts	1	value	invalidateMediaAccessEvidence=media/access-evidence.ts	invalidateMediaAccessEvidence -> contracts/core/media-access-evidence.ts (whole cache module moves down)
 V066	L08	I	site-export/media-original-urls.ts	media/index.ts	6	value	resolveContentTypes=media/content-type-resolution.ts ContentTypeDeps=media/content-type-resolution.ts	resolveContentTypes -> deps port (composition)
 V067	L09	I	asset-transfer/asset-destinations.ts	media/index.ts	12	value	saveLibraryDocument=media/library-save-attachment.ts	saveLibraryDocument -> AssetTransferDeps.media port
 V068	L09	I	asset-transfer/asset-destinations.ts	theme/asset-operations.ts	13	value	THEME_WRITE_PERMISSION=theme/agent-tools.ts	theme file ops -> AssetTransferDeps.themeFiles port

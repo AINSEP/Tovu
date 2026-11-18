@@ -1,0 +1,115 @@
+agent-plugins/service-ports.ts	api-connections/connect.ts	L01	J	ApiConnectionConnectStatus <- @jini-ai/integrations/api-connections
+agent-plugins/service-ports.ts	external-mcp/contracts.ts	L01	J	ExternalMcpConnectStart <- @jini-ai/core/contracts/hosted-mcp
+external-mcp/external-mcp-store.ts	webhooks/index.ts	L01	J	SecretSealerPort <- @jini-ai/integrations/webhooks
+project-keys/site-sealer.ts	webhooks/index.ts	L01	J	KeyringPort,SecretSealerPort <- @jini-ai/integrations/webhooks
+object-storage/artifact-provider.ts	deployments/contracts.ts	L01	J	DeployTargetCredential <- @jini-ai/devops/deploy
+object-storage/registry.ts	deployments/contracts.ts	L01	J	DeployHostKit <- @jini-ai/devops/deploy
+publish-content/tovu-publish-ports.ts	content-types/index.ts	L01	J	ContentTypeListPort,ContentTypeRepoPort,IndexProvisionerPort <- @jini-ai/cms/content-types
+publish-content/tovu-publish-ports.ts	entries/index.ts	L01	J	EntryListPort,EntryRepoPort <- @jini-ai/cms/entries
+publish-content/tovu-publish-ports.ts	navigation/index.ts	L01	J	MenuRepoPort,NavLocationBindingRepoPort <- @jini-ai/cms/navigation
+publish-content/tovu-publish-ports.ts	taxonomy/index.ts	L01	J	taxonomy ports <- @jini-ai/cms/taxonomy
+custom-credentials/tool-registrations.ts	settings/index.ts	L02	D	resolveOperatorLocale -> contracts/core/operator-locale.ts
+database-transfer/tool-registrations.ts	settings/index.ts	L02	D	resolveOperatorLocale -> contracts/core/operator-locale.ts
+deployments/deploy-ops/typed-secret-card.ts	settings/index.ts	L02	D	resolveOperatorLocale -> contracts/core/operator-locale.ts
+deployments/publish-agent-tools.ts	settings/index.ts	L02	D	resolveOperatorLocale -> contracts/core/operator-locale.ts
+external-mcp/tool-registrations.ts	settings/index.ts	L02	D	resolveOperatorLocale -> contracts/core/operator-locale.ts
+media-generation/providers-tools.ts	settings/index.ts	L02	D	resolveOperatorLocale -> contracts/core/operator-locale.ts
+source-control/credential-setup.ts	settings/index.ts	L02	D	resolveOperatorLocale -> contracts/core/operator-locale.ts
+custom-credentials/tovu-credential-sets.ts	project-keys/create-vault.ts	L02	D	ProjectKeyCreateConflictError -> contracts/core/credential-create-conflict.ts
+deployments/publish-credentials/store.ts	project-keys/create-vault.ts	L02	D	ProjectKeyCreateConflictError -> contracts/core/credential-create-conflict.ts
+source-control/store.ts	project-keys/create-vault.ts	L02	D	ProjectKeyCreateConflictError -> contracts/core/credential-create-conflict.ts
+publish-content/backstop-policy.ts	webhooks/index.ts	L02	D	scanTextForSecrets,SecretScanHit -> contracts/core/secret-scan.ts
+publish-content/file-tree-policy.ts	webhooks/index.ts	L02	D	scanTextForSecrets,SecretScanHit -> contracts/core/secret-scan.ts
+mail-status/test-send.ts	settings/index.ts	L02	D	MailTestModeSetting -> contracts/core/mail-test-mode.ts
+mail/attempts.repo.ts	settings/index.ts	L02	D	MailTestModeSetting -> contracts/core/mail-test-mode.ts
+site-backup/share-database/repo.sqlite.ts	settings/contracts.ts	L02	D	PUBLISHABLE_SETTINGS -> contracts/core/publishable-settings.ts (settings/contracts.ts deleted)
+site-backup/import-keep-off.ts	theme/active-theme.ts	L03	D	NO_THEME_ID -> contracts/core/theme-ids.ts
+site-backup/share-backend.ts	theme/index.ts	L03	D	NO_THEME_ID -> contracts/core/theme-ids.ts
+site-inspection/site-profile.ts	theme/active-theme.ts	L03	D	NO_THEME_ID -> contracts/core/theme-ids.ts
+site-inspection/site-profile.ts	theme/theme-id-aliases.ts	L03	D	themeIdCandidates,RENAMED_THEME_IDS -> contracts/core/theme-ids.ts (theme-id-aliases.ts deleted)
+entries/unreadable-owner-entries-repair.ts	content-types/index.ts	L03	D	DECLARED_CONTENT_TYPE_OWNERS -> contracts/core/declared-content-type-owners.ts
+trash/adapters/redirect.ts	redirects/index.ts	L03	D	REDIRECT_TABLES -> contracts/core/redirect-tables.ts
+media-import/agent-tools.ts	fs-files/site-file-request.ts	L03	D	FS_FOLDER_READ_RECOVERY -> contracts/core/fs-folder-read-recovery.ts
+pages/html-document-store.memory.ts	post/contracts.ts	L03	D	PostKind -> contracts/core/post-kind.ts
+site-search/access.ts	post/contracts.ts	L03	D	PostKind -> contracts/core/post-kind.ts
+site-search/cms-document-source.ts	post/contracts.ts	L03	D	PostKind -> contracts/core/post-kind.ts
+site-backup/static-copy.ts	site-export/site-exporter.ts	L03	D	ExportReport -> contracts/core/export-report.ts
+site-backup/static-site-packager.ts	site-export/index.ts	L03	D	ExportReport -> contracts/core/export-report.ts
+source-control/static-site-packager-port.ts	site-export/index.ts	L03	D	ExportReport -> contracts/core/export-report.ts
+site-search/settings.ts	settings/index.ts	L04	I	set -> SiteSearchSettingsDeps.writeSetting, wired by composition
+theme/preview-switcher-tools.ts	settings/index.ts	L04	S	typeof set -> local WriteSetting function type (already injected)
+custom-credentials/tovu-credential-sets.ts	vendor-credentials/index.ts	L05	D	credentialCreateTarget,credentialScopes -> contracts/core/credential-scope.ts
+deployments/publish-credentials/store.ts	vendor-credentials/index.ts	L05	D+I	credentialScope/Hint/CreateTarget/Scopes -> contracts/core/credential-scope.ts; credentialVault -> deps.credentialVault (composition); record types -> S
+source-control/store.ts	vendor-credentials/index.ts	L05	D+I	same as deployments store
+custom-credentials/vault-repo.ts	project-keys/attached-vault.ts	L05	S	SiteGrantedVault -> local structural type
+custom-credentials/credential-copy-tool.ts	project-keys/service.ts	L05	S	ProjectKeysPort -> local Pick of called methods
+api-connections/shared-api.ts	project-keys/attachments.ts	L05	S	KeyAttachments,ProjectKeyTransaction -> local structural types
+api-connections/shared-api.ts	project-keys/site-references.ts	L05	S	SiteOAuthBindings -> local structural type
+project-keys/shared-oauth-disconnect.ts	api-connections/shared-owner.ts	L05	S	SharedOAuthOwnerStorage -> local disconnect-only input (full type kept for its other users)
+custom-credentials/tool-registrations.ts	deployments/contracts.ts	L05	S	DeployTargetRegistry -> local DeployTargetCatalog {list()} (invalidation stays on publishCompatibility port)
+deployments/deploy-ops/run-ops.ts	webhooks/index.ts	L05	I	site-key fns -> RunOpsDeps.siteKey port, wired by composition
+custom-credentials/credential-ports.ts	source-control/provider-registry.ts	L06	I	buildSourceControlProviderForApi -> CredentialPortsDeps.buildSourceControlProvider (composition)
+source-control/tool-registrations.ts	custom-credentials/index.ts	L06	I	describe/resolveCustomCredentialByLabel -> SourceControlToolDeps.customCredentials port (composition)
+source-control/write-port.ts	custom-credentials/write-files-validation.ts	L06	H	validateRepositoryTarget moves into source-control (it already imports source-control/provider-module)
+site-backup/static-copy.ts	site-export/export-html-policy.ts	L07	I	downloadForms -> StaticCopyDeps.exportHtml port (composition)
+site-backup/static-download-layout.ts	site-export/export-html-policy.ts	L07	I	downloadDocumentBase -> same exportHtml port
+site-backup/static-site-packager.ts	source-control/index.ts	L07	S	drop the port-type import; conformance checked where composition assigns it
+site-export/export-html-policy.ts	webmcp/published-html.ts	L07	I	injectPublishedWebMcp -> export deps port (composition)
+post/repo.ts	media/access-evidence.ts	L08	D	invalidateMediaAccessEvidence -> contracts/core/media-access-evidence.ts (whole cache module moves down)
+post/repo.memory.ts	media/access-evidence.ts	L08	D	same
+entries/repo.sqlite.ts	media/access-evidence.ts	L08	D	same
+media/access-evidence.ts	post/post.ts	L08	D	file moves to contracts/core; PostRecord pick -> local AccessEvidencePost
+media/where-used.ts	post/contracts.ts	L08	S	PostRepoPort -> local WhereUsedPostReader (methods called)
+forms/form-file-maintenance.ts	media/index.ts	L08	I	purgeMedia -> FormFileMaintenanceDeps.purgeMedia (composition)
+site-export/media-original-urls.ts	media/index.ts	L08	I	resolveContentTypes -> deps port (composition)
+media-generation/tool-registrations.ts	media/chat-preview.ts	L08	I	withChatPreview -> tool deps chatPreview (composition)
+media-import/tool-registrations.ts	media/chat-preview.ts	L08	I	withChatPreview -> tool deps chatPreview (already optional there: line 90)
+asset-transfer/asset-destinations.ts	media/index.ts	L09	I	saveLibraryDocument -> AssetTransferDeps.media port
+asset-transfer/copy-tool.ts	media/document-archive.ts	L09	I	createDocumentArchiveReader -> deps.documentArchiveReader (built by composition)
+asset-transfer/asset-destinations.ts	theme/asset-operations.ts	L09	I	theme file ops -> AssetTransferDeps.themeFiles port
+asset-transfer/asset-sources.ts	theme/asset-operations.ts	L09	I	findThemeOrThrow,sniffThemeImportType -> themeFiles port
+asset-transfer/copy-tool.ts	theme/asset-operations.ts	L09	D+I	THEME_IMPORT_* -> contracts/core/theme-import-policy.ts; isShapeRejection -> themeFiles port
+image-transform/tool.ts	theme/asset-operations.ts	L09	I	isShapeRejection -> ImageTransformDeps.isThemeShapeRejection
+site-backup/import-restore-placement.ts	theme/catalog.ts	L09	I	loadTheme,checkSourceDirContainment -> restore deps port
+theme/static-render.ts	navigation/render-entry.ts	L09	I	renderHtmlMenu,menuLinkRelAttr -> StaticRenderDeps.renderMenu
+pages/html-document-store.ts	post/contracts.ts	L10	D+S	PostKind -> contracts/core/post-kind.ts; PostRepoPort -> local HtmlDocumentPostRepo
+pages/html-document-store.ts	post/index.ts	L10	D+I	SYSTEM_ACTOR_ID -> contracts/core/post-author.ts; announcePendingGoLive -> store deps
+plugin-runtime/service-ports.ts	post/index.ts	L10	S	PostRecord -> local preview shape (fields mapped)
+seo/cover-image.ts	post/rendering.ts	L10	I	collectCoverMediaRefs,resolveCoverImage -> SeoDeps.coverImage port
+site-search/access.ts	members/index.ts	L10	S	MemberContext -> local SearchMemberContext
+site-search/cms-document-source.ts	members/index.ts	L10	I	resolvePostMemberAccess -> source deps
+site-search/cms-document-source.ts	post/read-model.ts	L10	I	toRecord,toPostSearchDocument -> source deps
+widgets/deps.ts	post/post.ts	L10	H	deps assembly moves to server/runtime/composition (all importers are server/)
+publish-content/push-plan.ts	post/contracts.ts	L10	S	PostRecord -> local PushPlanPost
+agent-plugins/service-ports.ts	api-connections/contribution.ts	L11	D	DeclaredApiConnection -> contracts/core/declared-api-connection.ts (all 4 consumers repointed)
+api-connections/host-bindings.ts	agent-plugins/lifecycle.ts	L11	S	LoadPluginContributions -> local function type
+api-connections/host-bindings.ts	custom-credentials/index.ts	L11	S	CustomCredentialSetRepoPort -> local Pick
+external-mcp/external-mcp-oauth.ts	api-connections/browser-binding.ts	L11	I	hostedMcpSignInLink -> oauth deps (composition)
+sites/site-admin.ts	agent-plugins/service-ports.ts	L11	S	PluginCredentialsPort -> local structural type
+site-backup/bundled-export-file-policy.ts	agent-plugins/bundled-catalog.ts	L11	I	SELECTED_AGENT_PLUGIN_PACKAGES -> required selection arg from composition
+site-backup/import-plugin-state.ts	agent-plugins/soon-lock.ts	L11	I	findSoonAgentPlugin -> lifecycle.findSoonPlugin bound by composition
+site-backup/package-file-inventory.ts	agent-plugins/new-site-agent-plugin-tokens.ts	L11	I	listBundledAgentPluginServers -> inventory deps
+deployments/static-publish/publish-consent.ts	consent/service.ts	L12	I	deploymentRefusal -> consent readiness port
+mail-status/use-readiness.ts	newsletter/index.ts	L12	I	evaluateLaunchGate -> readiness deps
+member-login/link-service.ts	members/index.ts	L12	I+S	members write ops -> LinkServiceDeps.members port; record types local
+publish-content/peer-transport.ts	deployments/static-publish/index.ts	L13	S	PublishHistoryStore,PublishTrigger -> local PublishHistoryRecorder
+publish-content/tool-deps.ts	deployments/static-publish/index.ts	L13	S	PublishHistoryStore -> PublishHistoryRecorder
+publish-content/tool-registrations.ts	deployments/static-publish/index.ts	L13	S	PublishHistoryStore -> PublishHistoryRecorder
+media/import-media-entity.ts	publish-content/type-registry.ts	L13	S	MediaSourceReplacement -> local type
+content-types/publish-content.ts	publish-content/tovu-publish-ports.ts	L14	S	contributor types its own slice
+entries/publish-content.ts	publish-content/tovu-publish-ports.ts	L14	S	EntryPublishPorts declared in entries/publish-content.ts
+forms/publish-content.ts	publish-content/tovu-publish-ports.ts	L14	S	own slice
+media/publish-content.ts	publish-content/tovu-publish-ports.ts	L14	S	own slice
+media/verify-published-media.ts	publish-content/tovu-publish-ports.ts	L14	S	own slice
+navigation/publish-content.ts	publish-content/tovu-publish-ports.ts	L14	S	own slice
+post/publish-content.ts	publish-content/tovu-publish-ports.ts	L14	S	own slice
+settings/publish-content.ts	publish-content/tovu-publish-ports.ts	L14	S	own slice
+taxonomy/publish-content.ts	publish-content/tovu-publish-ports.ts	L14	S	TaxonomyPublishPorts declared in taxonomy
+taxonomy/publish-term-ids.ts	publish-content/tovu-publish-ports.ts	L14	S	TaxonomyPublishPorts declared in taxonomy
+theme/active-theme-publish-content.ts	publish-content/tovu-publish-ports.ts	L14	S	own slice
+widgets/publish-content.ts	publish-content/tovu-publish-ports.ts	L14	S	WidgetPublishPorts declared in widgets
+publish-content/tovu-publish-ports.ts	media/index.ts	L14	H	bag moves to server/runtime/composition/tovu-publish-ports.ts
+publish-content/tovu-publish-ports.ts	post/contracts.ts	L14	H	same
+publish-content/tovu-publish-ports.ts	theme/catalog.ts	L14	H	same
+entries/publish-content.ts	taxonomy/term-sync.ts	L14	I	term sync -> TaxonomyPublishPorts.termSync (bag-supplied)
+post/publish-content.ts	taxonomy/term-sync.ts	L14	I	same
