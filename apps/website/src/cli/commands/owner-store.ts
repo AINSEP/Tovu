@@ -8,8 +8,8 @@ import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { readPromptFromFlags } from "@jini-ai/cli";
 import { ApiConnectionError } from '@jini-ai/integrations/api-connections';
-import { countLegacyOwnerStore, OwnerStoreBackupError, OwnerStoreRecoveryError, readLegacyOwnerBackup,
-  readLegacyOwnerStore, type LegacyOwnerSnapshot } from "@jini-ai/server/owner-store";
+import { countLegacyOwnerStore, readLegacyOwnerStore } from "@jini-ai/server/owner-store";
+import { OwnerStoreBackupError, OwnerStoreRecoveryError, readLegacyOwnerBackup, type LegacyOwnerSnapshot } from "@jini-ai/platform/secrets/legacy-owner";
 import { isCopyableKind, SecretsVaultService, type VaultPutInput } from "@jini-ai/platform/secrets/credential-sets";
 import {
   VAULT_KINDS,

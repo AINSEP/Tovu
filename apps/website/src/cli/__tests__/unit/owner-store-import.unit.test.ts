@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { LegacyOwnerEntry, LegacyOwnerSnapshot } from "@jini-ai/server/owner-store";
-import type { SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
+import type { LegacyOwnerSnapshot } from "@jini-ai/platform/secrets/legacy-owner";
+import type { SecretsVaultService, VaultArchiveEntry } from "@jini-ai/platform/secrets/credential-sets";
 import type { VaultSummary } from "@jini-ai/core/contracts/vault";
 import { EMPTY_IMPORT, importLegacyKeys } from "../../commands/owner-store-import.js";
 
@@ -9,14 +9,14 @@ import { EMPTY_IMPORT, importLegacyKeys } from "../../commands/owner-store-impor
  * only `apply` writes, inside the one project transaction. The real vault/CHECK path is covered by
  * the CLI integration test; this file pins each refusal and conflict by name.
  */
-const legacy = (overrides: Partial<LegacyOwnerEntry> = {}): LegacyOwnerEntry => ({
+const legacy = (overrides: Partial<VaultArchiveEntry> = {}): VaultArchiveEntry => ({
   id: "deploy", kind: "vendor", ownerKey: "tovu", binding: null, provider: "vercel", label: "Deployment key", isDefault: true,
   meta: { credentialType: "vendor", worksFor: ["vercel"] }, payload: { vendorId: "vercel", token: "legacy-secret" }, ...overrides,
 });
-const row = (entry: LegacyOwnerEntry, overrides: Partial<VaultSummary> = {}) => ({ id: entry.id, kind: entry.kind, ownerKey: "tovu",
+const row = (entry: VaultArchiveEntry, overrides: Partial<VaultSummary> = {}) => ({ id: entry.id, kind: entry.kind, ownerKey: "tovu",
   binding: entry.binding, provider: entry.provider, label: entry.label, meta: entry.meta, revision: 1, configured: true, isDefault: false,
   ...overrides }) as unknown as VaultSummary;
-const snapshot = (entries: LegacyOwnerEntry[], destinations: Partial<Omit<LegacyOwnerSnapshot, "entries">> = {}): LegacyOwnerSnapshot =>
+const snapshot = (entries: VaultArchiveEntry[], destinations: Partial<Omit<LegacyOwnerSnapshot, "entries">> = {}): LegacyOwnerSnapshot =>
   ({ entries, grants: [], revocations: [], ...destinations });
 
 function target({ rows = [], stored = {}, failPut }: { rows?: VaultSummary[]; stored?: Record<string, unknown>; failPut?: string } = {}) {
@@ -40,7 +40,7 @@ function target({ rows = [], stored = {}, failPut }: { rows?: VaultSummary[]; st
   return { target: { vault, workspaceId: "project", transaction, rows }, events, puts, gets };
 }
 
-const item = (entry: LegacyOwnerEntry, status: string, reason?: string) =>
+const item = (entry: VaultArchiveEntry, status: string, reason?: string) =>
   ({ id: entry.id, label: entry.label, kind: entry.kind, provider: entry.provider, status, ...(reason ? { reason } : {}) });
 
 test("a dry run plans every entry and writes nothing, not even a transaction", async () => {
