@@ -174,7 +174,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // `routes/types.ts`'s `exportSiteBound` doc, now generalized, for the TEST GOTCHA this closure
     // shape carries (spread-override is silently inert; mutate the object in place instead).
   const createSiteApp: MemoryRouteDeps["createSiteApp"] = ({ themeId, consentAudit }: { themeId?: string; consentAudit?: true } = {}) => createApp(routeDeps, { ...(themeId === undefined ? {} : { themeIdOverride: themeId }), ...(consentAudit ? { consentAudit } : {}) });
-  const context = createMemoryRootContext({
+  const context: MemoryRootContext = {
     ...runtime, ...foundation, ...widgets, ...publishing,
     options, routeDeps: () => routeDeps, createSiteApp, derivedPublicOrigin,
     agentPluginLayout, agentPluginLifecycle, agentPluginMcp, customCredentialSetRepo, siteBinding, federatedMcpPresetRegistry, skillLayout,
@@ -182,53 +182,12 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     siteAssistantCredentialRepo, externalMcpOAuthDevices, memberRepo, newsletterKeyring, newsletterSubscriberDirectory, newsletterHooks,
     inMemoryChatHistory, externalMcpOAuthHttpPorts, guardedOutboundHttpClient, seoDeps, sitemapService, transformDefinitionRepo,
     siteConsentReady, pluginExports,
-  });
+  };
   const routeDeps: MemoryRouteDeps = assembleMemoryRouteDeps(context);
   routeDeps.pluginHost = createTovuPluginHost({ deps: routeDeps });
   routeDeps.pluginRuntimeReady = runtime.pluginRuntime.attachEnabledPluginsAtBoot();
   routeDeps.siteConsent = bindSiteConsentService({ deps: routeDeps });
   return routeDeps;
-}
-
-function createMemoryRootContext(context: MemoryRootContext): MemoryRootContext {
-  const {
-    options, routeDeps, createSiteApp,
-    agentPluginLayout, agentPluginLifecycle, agentPluginMcp, analyticsSettingsReady, assetBlobRepo, assetRenditionRepo,
-    assistantSettingsReady, blobStore, bus, changeSets, clock, commentsCapability,
-    commentsModule, commentsSettingsReady, contentTypeIndexProvisioner, contentTypeRepo, customCredentialSetRepo, derivedPublicOrigin,
-    entryRefsRepo, entryRepo, entryTermRepo, executionSettingsReady, externalMcpOAuthDevices, externalMcpOAuthHttpPorts,
-    externalMcpServerRepo, federatedMcpPresetRegistry, fileBlobIndex, formDefinitionRepo, formSubmissionRepo, formTrashEntry,
-    guardedOutboundHttpClient, idGen, identity, inMemoryChatHistory, mediaContentTypeStore, mediaRepo,
-    memberRepo, menuRepo, navLocationBindingRepo, newsletterHooks, newsletterKeyring, newsletterListRepoInMemory,
-    newsletterSubscriberDirectory, originRegistry, outbox, pluginActivationRepo, pluginExports, pluginRuntime,
-    postRepo, presentationRepo, publishContentApplyPort, publishContentBaselineRepo, publishContentBundleRepo, publishContentPeerRepo,
-    publishContentRunRepo, publishContentSeedHash, redirectHitSink, redirectRepo, redirectsWriteDeps, removePlugin,
-    removeTheme, restorePointsRepo, seoDeps, seoReady, settingsPrincipals, settingsReady,
-    settingsRepo, settingsUiTabsReady, siteAssistantCredentialRepo, siteAssistantSecretKeyring, siteAssistantSecretSealer, siteBinding,
-    siteConsentReady, siteThemes, siteTimeZone, siteTitlePreservationStore, siteTitleReady, sitemapService,
-    skillLayout, sqliteTrashDb, taxonomyDb, taxonomyRepo, taxonomyRevisionRepo, termRepo,
-    toolAttemptAuditSink, transformDefinitionRepo, trash, trashAdapters, trashRegistry, trashRepo,
-    widgetBindingRepo, workspaceId, workspaceRepo,
-  } = context;
-  return {
-    options, routeDeps, createSiteApp,
-    agentPluginLayout, agentPluginLifecycle, agentPluginMcp, analyticsSettingsReady, assetBlobRepo, assetRenditionRepo,
-    assistantSettingsReady, blobStore, bus, changeSets, clock, commentsCapability,
-    commentsModule, commentsSettingsReady, contentTypeIndexProvisioner, contentTypeRepo, customCredentialSetRepo, derivedPublicOrigin,
-    entryRefsRepo, entryRepo, entryTermRepo, executionSettingsReady, externalMcpOAuthDevices, externalMcpOAuthHttpPorts,
-    externalMcpServerRepo, federatedMcpPresetRegistry, fileBlobIndex, formDefinitionRepo, formSubmissionRepo, formTrashEntry,
-    guardedOutboundHttpClient, idGen, identity, inMemoryChatHistory, mediaContentTypeStore, mediaRepo,
-    memberRepo, menuRepo, navLocationBindingRepo, newsletterHooks, newsletterKeyring, newsletterListRepoInMemory,
-    newsletterSubscriberDirectory, originRegistry, outbox, pluginActivationRepo, pluginExports, pluginRuntime,
-    postRepo, presentationRepo, publishContentApplyPort, publishContentBaselineRepo, publishContentBundleRepo, publishContentPeerRepo,
-    publishContentRunRepo, publishContentSeedHash, redirectHitSink, redirectRepo, redirectsWriteDeps, removePlugin,
-    removeTheme, restorePointsRepo, seoDeps, seoReady, settingsPrincipals, settingsReady,
-    settingsRepo, settingsUiTabsReady, siteAssistantCredentialRepo, siteAssistantSecretKeyring, siteAssistantSecretSealer, siteBinding,
-    siteConsentReady, siteThemes, siteTimeZone, siteTitlePreservationStore, siteTitleReady, sitemapService,
-    skillLayout, sqliteTrashDb, taxonomyDb, taxonomyRepo, taxonomyRevisionRepo, termRepo,
-    toolAttemptAuditSink, transformDefinitionRepo, trash, trashAdapters, trashRegistry, trashRepo,
-    widgetBindingRepo, workspaceId, workspaceRepo,
-  };
 }
 
 function createMemoryRuntime(options: CreateRouteDepsOptions, references: {
