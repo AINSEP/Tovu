@@ -5,7 +5,7 @@ export const analyticsAgentToolCatalog = [{
   sideEffects: "none" as const,
   authorization: { permission: "analytics.read" },
   inputSchema: { type: "object", additionalProperties: false, properties: {
-    limit: { type: "integer", minimum: 1, maximum: 500, default: 100 },
+    limit: { type: "integer", minimum: 1, maximum: 500, clamp: true, default: 100 },
     path: { type: "string", description: "Exact path filter, applied after reading the recent window." },
     summarize: { type: "boolean", default: false },
   } },

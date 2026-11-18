@@ -185,7 +185,7 @@ export const externalMcpAgentToolCatalog: readonly AgentToolDefinition[] = [
   {
     name: "external_mcp_test_connection",
     description: [
-      "Checks whether an ALREADY-SAVED external MCP server's configuration resolves cleanly: its stored credentials decrypt, its transport has what it needs (a command for 'stdio', a URL for 'streamable_http'), and — for an OAuth connection — it is actually authorized rather than 'needs_reauth' or never connected.",
+      "Checks whether an ALREADY-SAVED external MCP server's configuration resolves cleanly (needs the full gateway: it can store data): its stored credentials decrypt, its transport has what it needs (a command for 'stdio', a URL for 'streamable_http'), and — for an OAuth connection — it is actually authorized rather than 'needs_reauth' or never connected.",
       "This does NOT launch the command or make a network call to the remote server — it reports the same readiness check the daemon itself performs at boot before federating a server, not a live reachability probe. A server that passes this can still fail to actually connect for reasons this call cannot see (a wrong command, a server that is down); a server that fails this is reported with the exact operator-actionable reason.",
       "Only works on a server that has already been saved (via external_mcp_save) — it takes an id, not a draft configuration, and cannot be used to test-run an arbitrary unsaved command.",
       "Returns { ok: true } or { ok: false, reason }. OAuth token resolution may contact the authorization provider and persist a refreshed grant. Use external_mcp_probe_connection to test a hosted endpoint live, or external_mcp_get_admissions to read the assistant's current tool roster.",

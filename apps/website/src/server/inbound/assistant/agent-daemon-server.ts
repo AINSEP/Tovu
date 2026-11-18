@@ -4,6 +4,7 @@ import type { SiteScopeKey } from "@tovu/contracts/site-scope-key";
 import { createSupervisorRegistry, createNodeIpcChannel } from "@jini-ai/sidecar/supervisor/node";
 import { createSiteScope } from "./agent-daemon-scope.js";
 import { createAgentDaemonIdlePark } from "./agent-daemon-idle-park.js";
+import { createExclusiveRunLease } from "@jini-ai/daemon/exclusive-run-lease";
 import { createScopeControl, requireScopeKey } from "./agent-daemon-scope-control.js";
 import { isDaemonLifecycleLogQuiet } from "../../runtime/lifecycle/daemon-lifecycle-log.js";
 import { closeWithinBound, stopServingWithinGrace } from "../../runtime/lifecycle/close-store-on-shutdown.js";
@@ -188,6 +189,8 @@ installServerLogCapture({ source: "daemon", release: processBuildRelease({}), en
 const app = express();
 const idlePark = createAgentDaemonIdlePark({ isBusy: () => [...scopedExchanges.values()].some(isBusy => isBusy()), exit: ({ code }, _optional = {}) => { void exitDaemon({ exitCode: code }); } }, { env: process.env });
 stopIdleMonitor = () => idlePark.stop({}, {});
+// One browser integration per daemon process: every site scope it hosts shares this lease.
+const browserLease = createExclusiveRunLease({});
 // Express removes the mount prefix before the existing scope middleware runs. A forged prefix
 // therefore meets that scope's OWN bearer/run-credential gate before parsing or route effects.
 // The path segment is the desktop's per-site scope key, never the (shared) workspace id.
@@ -198,7 +201,7 @@ app.use("/s/:scopeKey", (req, res, next) => {
 });
 
 const control = createScopeControl({ tables: { scopes, scopeEnvironments, scopedExchanges },
-  createScope: input => createSiteScope(input, { idlePark }), hold: () => idlePark.hold({}, {}),
+  createScope: input => createSiteScope(input, { idlePark, browserLease }), hold: () => idlePark.hold({}, {}),
   listenerUrl: () => listenerUrl, pid: process.pid, isExiting: () => daemonExiting }, {});
 
 async function start(): Promise<void> {
@@ -231,7 +234,7 @@ async function mountStandaloneScope({ url }: { url: string }, _optional = {}): P
   // A standalone process has one configured site; validate its directory before starting it.
   const scopeKey = requireScopeKey({ scopeKey: env.TOVU_SITE_DIR });
   const scope = createSiteScope({ siteId, env: { ...env, JINI_AGENT_DAEMON_URL: url,
-    TOVU_SITE_PROCESS_CWD: process.env.TOVU_SITE_PROCESS_CWD ?? process.cwd() }, token }, { idlePark });
+    TOVU_SITE_PROCESS_CWD: process.env.TOVU_SITE_PROCESS_CWD ?? process.cwd() }, token }, { idlePark, browserLease });
   scopes.set(scopeKey, scope);
   const ready = await scope;
   scopedExchanges.set(scopeKey, ready.hasExchanges); app.use(ready.app);

@@ -20,11 +20,11 @@ import {
   type Stats,
 } from "node:fs";
 import { randomUUID } from "node:crypto";
-import { AsyncLocalStorage } from 'node:async_hooks';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileDigest } from '@jini-ai/platform/fs';
 
 import type { ThemeManifest } from "./render-contract.js";
+import { ThemeFileChangedError, reviewedWriteScope } from "./reviewed-write-commit.js";
 import { resolveThemeLayout, ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "./theme-layout.js";
 
 /**
@@ -625,8 +625,11 @@ function writeFileAtomically({ target, relativePathForError, fillTemp }: { targe
     // Source I/O and authorization may have yielded since approval. Check in the persistence
     // owner, with no await before revision capture and replacement.
     assertReviewedThemeFileCurrent({ target });
+    // The temp file holds exactly what the rename publishes: its digest, taken before the rename, is the version this write commits.
+    const committed = reviewedCommitDigest({ tempPath });
     if (existing && revisionFile) revision = saveThemeFileRevision({ ...revisionFile, target }, options);
     renameSync(tempPath, target);
+    recordReviewedCommit({ committed });
   } catch (err) {
     rmSync(tempPath, { force: true });
     if (revision) rmSync(revision, { recursive: true, force: true });
@@ -652,28 +655,22 @@ function pruneCommittedThemeRevision({ revision, revisionFile, target }: {
   }
 }
 
-type ReviewedThemeFile = {
-  file: { themeDir: string; themesRoot: string; relativePath: string };
-  target: string;
-  version: string | null;
-};
-const reviewedThemeWrite = new AsyncLocalStorage<ReviewedThemeFile>();
+/** The digest to report for a write inside a tool's reviewed scope; no work for a write outside one. */
+function reviewedCommitDigest({ tempPath }: { tempPath: string }, _options = {}): string | undefined {
+  return reviewedWriteScope() ? fileDigest({ path: tempPath }).toString('hex') : undefined;
+}
 
-/** Carry a tool's reviewed destination through asynchronous source reads to every theme writer.
- * Async-local scope keeps concurrent imports isolated without putting trusted state in tool input.
- * @returns The original handler's result; a stale destination fails before persistence.
- * @complexity O(1) scope setup; the commit compares O(destination bytes).
- */
-export function withReviewedThemeFileWrite<T>({ prepared, run }: { prepared: ReviewedThemeFile; run: () => T }, _options = {}): T {
-  return reviewedThemeWrite.run(prepared, run);
+function recordReviewedCommit({ committed }: { committed: string | undefined }, _options = {}): void {
+  const scope = reviewedWriteScope();
+  if (scope) scope.committed = committed;
 }
 
 function assertReviewedThemeFileCurrent({ target }: { target: string }, _options = {}): void {
-  const prepared = reviewedThemeWrite.getStore();
+  const prepared = reviewedWriteScope()?.prepared;
   if (!prepared) return;
   const current = readThemeFileVersion(prepared.file);
   if (target !== prepared.target || current.target !== prepared.target || current.version !== prepared.version) {
-    throw new ThemePathError({ message: 'The theme file changed during review. Read it again and retry; this file was not replaced.' });
+    throw new ThemeFileChangedError();
   }
 }
 

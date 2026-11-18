@@ -30,7 +30,7 @@ export interface ImageOutput {
 }
 export interface RenderedImage { path: string; format: ImageFormat; width: number; height: number; bytes: Buffer }
 
-const DIM = { type: "integer", minimum: 1, maximum: IMAGE_LIMITS.maxDimension } as const;
+const DIM = { type: "integer", minimum: 1, maximum: IMAGE_LIMITS.maxDimension, clamp: false } as const;
 /** Bounds every number that sizes work. Previously sharp rejected bad fit/position/colour by name;
  * the schema now checks fit and types first, and sharp still validates position and colour. */
 export const OUTPUT_SCHEMA = { type: "object", additionalProperties: false, required: ["path", "format"], properties: {

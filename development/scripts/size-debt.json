@@ -1087,13 +1087,6 @@
       "value": 191
     },
     {
-      "file": "apps/website/src/features/web-screenshot/playwright-page-capture.ts",
-      "function": "createPlaywrightPageCapture#1",
-      "line": 103,
-      "rule": "max-lines-per-function",
-      "value": 81
-    },
-    {
       "file": "apps/website/src/features/webhooks/tool-registrations.ts",
       "function": "buildWebhooksRegistrations#1",
       "line": 194,

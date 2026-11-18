@@ -57,7 +57,7 @@ const LIST_SCHEMA = {
     limit: {
       type: "integer",
       minimum: 1,
-      maximum: CHANGE_SETS_MAX_LIST_LIMIT,
+      maximum: CHANGE_SETS_MAX_LIST_LIMIT, clamp: true,
       description: `Maximum rows to return, newest first. Default ${CHANGE_SETS_DEFAULT_LIST_LIMIT}, maximum ${CHANGE_SETS_MAX_LIST_LIMIT}.`,
     },
   },

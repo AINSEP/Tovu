@@ -301,7 +301,7 @@ export const formsAgentToolCatalog: AgentToolDefinition[] = [
         limit: {
           type: "integer",
           minimum: SUBMISSIONS_MIN_LIMIT,
-          maximum: SUBMISSIONS_MAX_LIMIT,
+          maximum: SUBMISSIONS_MAX_LIMIT, clamp: true,
           description: `Page size, ${SUBMISSIONS_MIN_LIMIT}-${SUBMISSIONS_MAX_LIMIT}. Defaults to 50 if omitted.`,
         },
         cursor: { type: "string", description: "Opaque pagination cursor from a previous call's nextCursor. Omit for the first page." },
@@ -348,7 +348,7 @@ export const formsAgentToolCatalog: AgentToolDefinition[] = [
         limit: {
           type: "integer",
           minimum: 1,
-          maximum: DELIVERY_STATUS_MAX_LIMIT,
+          maximum: DELIVERY_STATUS_MAX_LIMIT, clamp: true,
           description: `Without submissionId: how many unfinished deliveries to list, 1-${DELIVERY_STATUS_MAX_LIMIT}. Defaults to ${DELIVERY_STATUS_MAX_LIMIT}.`,
         },
       },

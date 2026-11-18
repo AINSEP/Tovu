@@ -22,7 +22,7 @@ export interface AssistantRuntimePreferences {
 /** The registered definition defaults; also what a failed or absent read falls back to. */
 export const DEFAULT_ASSISTANT_RUNTIME_PREFERENCES: Readonly<AssistantRuntimePreferences> = Object.freeze({
   preferSubagents: true,
-  useClaudeInChrome: true,
+  useClaudeInChrome: false,
   replyLength: "normal",
 });
 
@@ -50,8 +50,8 @@ export async function readAssistantRuntimePreferences(
   { deps, principalId }: { deps: AssistantRuntimePreferenceDeps; principalId: string },
   _options = {},
 ): Promise<AssistantRuntimePreferences> {
-  // A wrong-typed or unreadable value falls back to the registered default; Claude in Chrome stays
-  // owner-only and probe-gated either way (resolveAssistantRuntimeLaunch), so a default `true` here grants nothing alone.
+  // A wrong-typed or unreadable value falls back to the registered default (Claude in Chrome is off
+  // by default, OD-4); it stays owner-only and probe-gated either way (resolveAssistantRuntimeLaunch).
   const defaults = DEFAULT_ASSISTANT_RUNTIME_PREFERENCES;
   const preferSubagents = await readPreference({ deps, principalId, key: PREFER_SUBAGENTS_KEY });
   const useClaudeInChrome = await readPreference({ deps, principalId, key: USE_CLAUDE_IN_CHROME_KEY });

@@ -5,6 +5,7 @@ import type { ToolDescriptor, ToolRegistry } from "@jini-ai/core";
 import { createRemoteToolExecutor } from "@jini-ai/daemon";
 import { fetchTextWithTimeout } from "@jini-ai/platform/fetch-with-timeout";
 import { buildToolCatalogQuery } from "#src/assistant/tool-catalog-query";
+import { createContentReadFamilyPort } from "#src/assistant/tool-family-port";
 import { buildComponentCatalogQuery, chartCatalogManifests } from "#src/assistant/component-catalog-query";
 import type { DaemonCallContext } from "#src/assistant/daemon-call-context";
 import { withToolCatalogAudit } from "#src/assistant/tool-audit-preset";
@@ -156,7 +157,7 @@ export function createDaemonSiteTools({ baseUrl, token, localRegistry, contextFo
     if (!query) throw new Error("component catalog is unavailable");
     return query;
   }
-  return { start, finish, withRun, registry, catalog, refreshComponents, preflight,
+  return { start, finish, withRun, registry, catalog, refreshComponents, preflight, families: createContentReadFamilyPort({ registry }),
     components: {
       search: (required: Parameters<ReturnType<typeof buildComponentCatalogQuery>["search"]>[0], optional?: Parameters<ReturnType<typeof buildComponentCatalogQuery>["search"]>[1]) => components().search(required, optional),
       describe: (required: Parameters<ReturnType<typeof buildComponentCatalogQuery>["describe"]>[0]) => components().describe(required),

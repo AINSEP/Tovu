@@ -214,6 +214,27 @@ test("forms_list_submissions accepts the default and both explicit limit boundar
   }
 });
 
+test("forms_list_submissions repairs a limit outside 1-100 to the nearest bound and says so", async () => {
+  const { routeDeps, toolExecutor, ownerPrincipal } = await buildRealExecutor();
+  const run = { id: "run-submissions-clamp" };
+  const created = await toolExecutor.execute({ principal: ownerPrincipal, run: run, toolId: "forms_create_definition", input: {
+    name: "Clamped", slug: "clamped", fields: [{ id: "email", label: "Email", type: "email", required: true }],
+  } });
+  const formId = (created.output as { definition: { id: string } }).definition.id;
+  for (const [index, id] of ["older", "newer"].entries()) {
+    await routeDeps.formSubmissionRepo.create({ id, workspaceId: routeDeps.workspaceId, formDefinitionId: formId,
+      data: { email: `${id}@example.com` }, sourceIp: "127.0.0.1", submittedAt: `2026-09-0${index + 1}T00:00:00.000Z` });
+  }
+  const high = await toolExecutor.execute({ principal: ownerPrincipal, run: run, toolId: "forms_list_submissions", input: { formId, limit: 500 } });
+  assert.equal(high.status, "completed", JSON.stringify(high));
+  assert.equal((high.output as { submissions: unknown[] }).submissions.length, 2);
+  assert.deepEqual(high.normalizationNotes, ["limit was lowered to its maximum, 100"]);
+  const low = await toolExecutor.execute({ principal: ownerPrincipal, run: run, toolId: "forms_list_submissions", input: { formId, limit: 0 } });
+  assert.equal(low.status, "completed", JSON.stringify(low));
+  assert.equal((low.output as { submissions: unknown[] }).submissions.length, 1);
+  assert.deepEqual(low.normalizationNotes, ["limit was raised to its minimum, 1"]);
+});
+
 test("forms_update_definition persists name, fields and notify while preserving the slug", async () => {
   const { routeDeps, toolExecutor, ownerPrincipal } = await buildRealExecutor();
   const run = { id: "run-forms-update" };
@@ -242,8 +263,9 @@ test("forms_update_definition persists name, fields and notify while preserving 
  * a regression names the tool that broke.
  */
 const INPUT_REJECTIONS: ReadonlyArray<{ toolId: string; input: (formId: string) => Record<string, unknown>; message: RegExp; schemaAttached: boolean }> = [
-  { toolId: "forms_list_submissions", input: (formId) => ({ formId, limit: 500 }), message: /'limit' must be an integer between 1 and 100/, schemaAttached: false },
-  { toolId: "forms_list_submissions", input: (formId) => ({ formId, limit: 0 }), message: /'limit' must be an integer between 1 and 100/, schemaAttached: false },
+  // A limit outside 1-100 is repaired by the declared clamp (see the repair test above); a non-integer is still refused.
+  { toolId: "forms_list_submissions", input: (formId) => ({ formId, limit: 2.5 }), message: /'limit' must be an integer between 1 and 100/, schemaAttached: false },
+  { toolId: "forms_list_submissions", input: (formId) => ({ formId, limit: -0.5 }), message: /'limit' must be an integer between 1 and 100/, schemaAttached: false },
   { toolId: "forms_list_submissions", input: (formId) => ({ formId, limit: 1.5 }), message: /'limit' must be an integer between 1 and 100/, schemaAttached: false },
   { toolId: "forms_set_definition_status", input: (formId) => ({ formId, status: "archived" }), message: /'status' must be exactly 'active' or 'disabled'/, schemaAttached: true },
   { toolId: "forms_update_definition", input: (formId) => ({ formId, expectedVersion: 1 }), message: /at least one of 'name', 'fields', or 'notify' is required/, schemaAttached: true },

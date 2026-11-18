@@ -739,7 +739,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
     // stays a separate, inline reclassification at its own two call sites (unchanged) — it targets
     // `PageConcurrentEditError` specifically, with a narrower message than a generic allowlist rule
     // would produce.
-    handlers: withModelFacingErrors({ handlers: handlers, rules: [forbiddenRule({ domainPrefix: "PAGES", error: ForbiddenError }), { error: PageNotFoundError, code: "PAGES_NOT_FOUND" }, { error: PostNotFoundError, code: "PAGES_NOT_FOUND" }] }),
+    handlers: withModelFacingErrors({ handlers: handlers, rules: [forbiddenRule({ domainPrefix: "PAGES", error: ForbiddenError }), { error: PageNotFoundError, code: "PAGES_NOT_FOUND", guidance: "List pages with content_post_list, then pass its id." }, { error: PostNotFoundError, code: "PAGES_NOT_FOUND" }] }),
     derivedRisk: pagesDerivedRisk,
     inputNormalizers: Object.fromEntries([...CATALOG_BY_ID.keys()].map(toolId => [toolId,
       ({ input }: { input: Record<string, unknown> }, _options = {}) => normalizePageInput({ input, toolId }),
