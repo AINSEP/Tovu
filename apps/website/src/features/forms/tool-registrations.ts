@@ -15,6 +15,7 @@
  */
 import {
   buildDomainRegistrations,
+  withToolMetadata,
   type AgentToolSideEffect,
   type DerivedRiskByToolId,
   type ToolContributor,
@@ -42,6 +43,7 @@ import { toolMetadata } from "../../contracts/core/tool-metadata/forms.js";
 import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
 import type { FormDeliveryStatusPort } from "./delivery-status.js";
 import { duplicateFormDefinition } from "./duplicate-form.js";
+import { createFormDefinition, formSlugPolicy, setFormDefinitionStatus, updateFormDefinition } from "#src/features/forms/index";
 import type { FormSubmissionsPullPort } from "./import-remote-submissions.js";
 import {
   CATALOG_BY_ID,
@@ -57,6 +59,7 @@ import {
   formsListSubmissionsHandler,
   formsPullSubmissionsHandler,
 } from "./tool-handlers.submissions.js";
+import type { FormsPackageToolDeps } from "./tool-handlers.types.js";
 
 /**
  * The exact slice of the route-deps bag Forms' tool handlers read. Declared structurally (rather
@@ -141,8 +144,13 @@ const FORMS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
   { error: FormRateLimitExceededError, code: "FORMS_RATE_LIMIT_EXCEEDED" },
 ];
 
-export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistration[] {
-  const args = { deps: routeDeps };
+/**
+ * The Forms tool registrations for one set of package deps: the catalog, the nine handlers, the
+ * authored risk map and the typed-error mapping. Carries no host search vocabulary or approval
+ * policy: `buildFormsRegistrations` binds those.
+ */
+export function buildFormsToolRegistrations({ deps }: { deps: FormsPackageToolDeps }, _optional = {}): ToolRegistration[] {
+  const args = { deps };
   const handlers: Record<string, ToolHandler> = {
     forms_list_providers: formsListProvidersHandler(args),
     forms_list_definitions: formsListDefinitionsHandler(args),
@@ -157,7 +165,7 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
 
   // No `unwiredToolIds`: Forms wires its ENTIRE catalog, which makes a new catalog entry added
   // without a handler a build failure rather than a silently missing tool.
-  return buildDomainRegistrations({ metadata: toolMetadata,
+  return buildDomainRegistrations({
     domain: "forms",
     catalogModule: "forms/agent-tools.ts",
     catalog: CATALOG_BY_ID,
@@ -169,6 +177,36 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
     handlers: withModelFacingErrors({ handlers, rules: FORMS_MODEL_FACING_ERRORS }),
     derivedRisk: formsDerivedRisk,
   });
+}
+
+/**
+ * The package deps for one set of route deps. The route deps bag is a live object (a host can swap
+ * its authorizer or repos after the registrations are built), so every field is read from it at
+ * call time, never copied here. The audited write wrappers (permission, reserved slugs, the
+ * admin-editor wording), the slug rule and the duplicate-name search are the host's.
+ */
+function toPackageDeps({ routeDeps }: { routeDeps: FormsToolDeps }, _optional = {}): FormsPackageToolDeps {
+  return {
+    get formCollectionProviders() { return routeDeps.formCollectionProviders; },
+    get executeCommand() { return routeDeps.executeCommand; },
+    get authorize() { return routeDeps.authorize; },
+    get workspaceId() { return routeDeps.workspaceId; },
+    get clock() { return routeDeps.clock; },
+    get idGen() { return routeDeps.idGen; },
+    get changeSets() { return routeDeps.changeSets; },
+    get outbox() { return routeDeps.outbox; },
+    get formDefinitionRepo() { return routeDeps.formDefinitionRepo; },
+    get formSubmissionRepo() { return routeDeps.formSubmissionRepo; },
+    get formSubmissionsPull() { return routeDeps.formSubmissionsPull; },
+    get formDeliveryStatus() { return routeDeps.formDeliveryStatus; },
+    formWrites: { create: createFormDefinition, update: updateFormDefinition, setStatus: setFormDefinitionStatus },
+    slugPolicy: formSlugPolicy,
+    deriveDuplicateName,
+  };
+}
+
+export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistration[] {
+  return withToolMetadata({ registrations: buildFormsToolRegistrations({ deps: toPackageDeps({ routeDeps }) }), metadata: toolMetadata });
 }
 
 /**
@@ -187,7 +225,7 @@ export function contributeFormsDuplicateHandlers(): DuplicateResourceHandlerCont
       resource: "form",
       build: (routeDeps, _optional = {}) => ({
         permission: "admin.forms.manage",
-        duplicate: (input, _optional = {}) => duplicateFormDefinition({ deps: routeDeps, deriveDuplicateName, input }),
+        duplicate: (input, _optional = {}) => duplicateFormDefinition({ deps: toPackageDeps({ routeDeps }), input }),
       }),
     },
   ];

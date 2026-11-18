@@ -6,8 +6,7 @@ import {
   type FormSubmissionRecord,
 } from "@jini-ai/cms/forms";
 import { DELIVERY_STATUS_MAX_LIMIT } from "./agent-tools.js";
-import type { FormDeliveryStatusRow } from "./delivery-status.js";
-import type { FormsHandlerArgs } from "./tool-handlers.definitions.js";
+import type { FormsHandlerArgs, FormsToolDeliveryStatusRow } from "./tool-handlers.types.js";
 
 const SUBMISSIONS_DEFAULT_LIMIT = 50;
 const SUBMISSIONS_MIN_LIMIT = 1;
@@ -73,7 +72,7 @@ function requireDeliveryStatusLimit(input: Record<string, unknown>): number {
 
 /** Copies only the reported fields, so whatever else a status row carries (now or later) never
  *  reaches the model. Error codes are already the allowlisted delivery codes. */
-function toDeliveryStatusView(row: FormDeliveryStatusRow): FormDeliveryStatusRow {
+function toDeliveryStatusView(row: FormsToolDeliveryStatusRow): FormsToolDeliveryStatusRow {
   return { bindingId: row.bindingId, adapterId: row.adapterId, formId: row.formId, submissionId: row.submissionId,
     status: row.status, attempts: row.attempts, nextRetryAt: row.nextRetryAt, errorCode: row.errorCode };
 }

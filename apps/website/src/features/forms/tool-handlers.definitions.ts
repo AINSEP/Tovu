@@ -20,13 +20,7 @@ import {
   type NotifyConfig,
 } from "@jini-ai/cms/forms";
 import { formsAgentToolCatalog } from "./agent-tools.js";
-import { createFormDefinition, setFormDefinitionStatus, updateFormDefinition } from "#src/features/forms/index";
-import type { FormsToolDeps } from "./tool-registrations.js";
-
-/** What every forms tool handler factory is given: the route deps. */
-export interface FormsHandlerArgs {
-  deps: FormsToolDeps;
-}
+import type { FormsHandlerArgs, FormsPackageToolDeps } from "./tool-handlers.types.js";
 
 export const CATALOG_BY_ID = indexCatalogById({ catalog: formsAgentToolCatalog });
 
@@ -84,7 +78,7 @@ export function toFormDefinitionView(record: FormDefinitionRecord): FormDefiniti
 }
 
 /** Binds host persistence and the audited command gateway for the Forms policy adapter. */
-export function formsDeps(routeDeps: FormsToolDeps) {
+export function formsDeps(routeDeps: FormsPackageToolDeps) {
   return {
     formCollectionProviders: routeDeps.formCollectionProviders,
     executeCommand: routeDeps.executeCommand,
@@ -175,7 +169,7 @@ export const formsCreateDefinitionHandler = ({ deps }: FormsHandlerArgs, _option
       catalog: CATALOG_BY_ID,
       isShapeRejection: isFormsShapeRejection,
       fn: async () => {
-        const { definition } = await createFormDefinition({
+        const { definition } = await deps.formWrites.create({
           deps: formsDeps(deps),
           input: {
             workspaceId: deps.workspaceId,
@@ -200,7 +194,7 @@ export const formsUpdateDefinitionHandler = ({ deps }: FormsHandlerArgs, _option
       isShapeRejection: isFormsShapeRejection,
       fn: async () => {
         const expectedVersion = requireExpectedVersion({ value: input.expectedVersion, readToolId: "content_read.form_definition" });
-        const { definition } = await updateFormDefinition({
+        const { definition } = await deps.formWrites.update({
           deps: formsDeps(deps),
           input: {
             workspaceId: deps.workspaceId,
@@ -221,7 +215,7 @@ export const formsSetDefinitionStatusHandler = ({ deps }: FormsHandlerArgs, _opt
       catalog: CATALOG_BY_ID,
       isShapeRejection: isFormsShapeRejection,
       fn: async () => {
-        const { definition } = await setFormDefinitionStatus({
+        const { definition } = await deps.formWrites.setStatus({
           deps: formsDeps(deps),
           input: {
             workspaceId: deps.workspaceId,

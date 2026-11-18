@@ -5,20 +5,12 @@ import {
   type FormAuthoring,
   type FormDefinitionRecord,
 } from "@jini-ai/cms/forms";
-import { createFormDefinition, formSlugPolicy, setFormDefinitionStatus } from "#src/features/forms/index";
 import { formsDeps, toFormDefinitionView } from "./tool-handlers.definitions.js";
-import type { FormsToolDeps } from "./tool-registrations.js";
+import type { FormsPackageToolDeps } from "./tool-handlers.types.js";
 
-/** The numeric-suffix name search the host owns (`content-duplication`), passed in so this feature does not import it. */
-export type DeriveDuplicateName = (
-  required: { sourceName: string },
-  options: { isTaken: (required: { candidate: string }, optional?: Record<string, never>) => Promise<boolean> },
-) => Promise<string>;
-
-/** What `duplicateFormDefinition` takes: the route deps, the name search and the duplicate request. */
+/** What `duplicateFormDefinition` takes: the deps (including the host's name search) and the duplicate request. */
 export interface DuplicateFormRequired {
-  deps: FormsToolDeps;
-  deriveDuplicateName: DeriveDuplicateName;
+  deps: FormsPackageToolDeps;
   input: { principalId: string; id: string; overrides: { title?: string; slug?: string; status?: string } };
 }
 
@@ -37,7 +29,7 @@ export interface DuplicateFormRequired {
  * A second identical check would be the duplicate evaluator ADR-021 §2 forbids.
  *
  * What is copied: `name` (defaulting to the source's own name with a numeric suffix — see
- * `../content-duplication/derive-available-name.ts`'s header for the owner's ruling — never
+ * the host's numeric-suffix name search (`deps.deriveDuplicateName`) for the owner's ruling — never
  * `"Copy of <source name>"`), every field descriptor, and the notify config — all deep-copied, so
  * editing the copy can never reach back into the source row. `slug` is derived FROM that (possibly
  * numbered) name (see `duplicate-slug.ts` for why Forms needs derivation where Posts does not), so
@@ -49,7 +41,7 @@ export interface DuplicateFormRequired {
  */
 /**
  * Derives `content_duplicate`'s default name for a form copy — see
- * `../content-duplication/derive-available-name.ts`'s header for the owner's numeric-suffix ruling.
+ * the host's numeric-suffix name search (`deps.deriveDuplicateName`) for the owner's ruling.
  * Only ever called when the caller supplied no explicit `overrides.title`.
  *
  * @complexity One `formDefinitionRepo.list()` scan (3 forms at current scale, read live 2026-09-08 —
@@ -57,20 +49,20 @@ export interface DuplicateFormRequired {
  * method), then `deriveDuplicateName`'s own bounded search.
  */
 async function deriveDefaultDuplicateFormName(
-  { routeDeps, deriveDuplicateName }: { routeDeps: FormsToolDeps; deriveDuplicateName: DeriveDuplicateName },
+  { routeDeps }: { routeDeps: FormsPackageToolDeps },
   source: FormDefinitionRecord,
 ): Promise<string> {
   const existingNames = new Set(
     (await routeDeps.formDefinitionRepo.list({ workspaceId: routeDeps.workspaceId })).map((form) => form.name)
   );
-  return deriveDuplicateName(
+  return routeDeps.deriveDuplicateName(
     { sourceName: source.name },
     { isTaken: async ({ candidate }) => existingNames.has(candidate) }
   );
 }
 
 export async function duplicateFormDefinition(
-  { deps: routeDeps, deriveDuplicateName, input }: DuplicateFormRequired,
+  { deps: routeDeps, input }: DuplicateFormRequired,
   _optional = {},
 ): Promise<Record<string, unknown>> {
   // Rejected rather than ignored. `content_duplicate`'s `status` override is spelled in post/page's
@@ -89,11 +81,11 @@ export async function duplicateFormDefinition(
   const source = await routeDeps.formDefinitionRepo.findById({ workspaceId: routeDeps.workspaceId, id: input.id });
   if (!source) throw new FormDefinitionNotFoundError({ message: `form definition '${input.id}' was not found` });
 
-  const name = input.overrides.title ?? (await deriveDefaultDuplicateFormName({ routeDeps, deriveDuplicateName }, source));
+  const name = input.overrides.title ?? (await deriveDefaultDuplicateFormName({ routeDeps }, source));
   const slug =
     input.overrides.slug ??
     (await deriveAvailableFormSlug(
-      { name, ...formSlugPolicy,
+      { name, ...routeDeps.slugPolicy,
         // `isSlugTaken`, not `findBySlug` — trash-blind, so a trashed form's slug is correctly
         // reported as taken instead of offered to the copy and then colliding on the DB unique
         // index (decision 3, ADS-memory/reports/2026-09-21-t8f-trash-forms-plan.md §B).
@@ -104,7 +96,7 @@ export async function duplicateFormDefinition(
 
   const actor = { id: input.principalId, kind: AGENT_TOOL_PRINCIPAL_KIND };
   const provider = (source as FormDefinitionRecord & FormAuthoring).provider;
-  const { definition } = await createFormDefinition({
+  const { definition } = await routeDeps.formWrites.create({
     deps: formsDeps(routeDeps),
     input: {
       workspaceId: routeDeps.workspaceId,
@@ -128,7 +120,7 @@ export async function duplicateFormDefinition(
   // takes no status; a failure here surfaces to the caller rather than silently leaving an active
   // copy, and the copy is a fresh row nothing references yet, so the window is inert.
   if (source.status === "disabled") {
-    const { definition: disabled } = await setFormDefinitionStatus({
+    const { definition: disabled } = await routeDeps.formWrites.setStatus({
       deps: formsDeps(routeDeps),
       input: { workspaceId: routeDeps.workspaceId, actor, formId: definition.id, status: "disabled" },
     });
