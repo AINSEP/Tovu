@@ -14,7 +14,7 @@ import { SqlSecretsVaultRepo } from "@jini-ai/db/secrets-vault";
 import { AesGcmSecretSealer, EnvOrFileKeyring, generateFileSiteKey } from "@jini-ai/platform/secrets";
 import { SecretsVaultService } from "@jini-ai/platform/secrets/credential-sets";
 import { type VaultSummary } from "@jini-ai/core/contracts/vault";
-import { ownerContext } from "@jini-ai/server/owner-store";
+import { ownerContext } from "@jini-ai/platform/secrets/legacy-owner";
 import { openNativeSqlite } from "#src/platform/db/kernel/drivers/sqlite";
 import { createTovuVaultKinds } from "#src/platform/secrets/vault-kinds";
 import { createSitesWorkspace } from "#src/platform/site-dir/sites-home";

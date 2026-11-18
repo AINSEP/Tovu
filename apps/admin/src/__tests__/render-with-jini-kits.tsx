@@ -5,7 +5,8 @@ import { ChatSurfacesProvider } from "@jini-ai/chat/react";
 import { KitProvider } from "@jini-ai/ui-kit/react";
 import { AdminKitProvider } from "@jini-ai/admin/react/kit";
 import { UiKitProvider } from "@jini-ai/ui/react-kit";
-import { adminKit, uiKit } from "../integrations/jini-kits";
+import { UserManagementKitProvider } from "@jini-ai/user-management/react/kit";
+import { adminKit, uiKit, userManagementKit } from "../integrations/jini-kits";
 import { chatSurfaces } from "../integrations/jini-surfaces";
 import { tovuAgentAttrs, tovuKit } from "../integrations/jini-admin/kit";
 import { FetchQueryProvider } from "./fetch-query-provider.test-helper";
@@ -19,7 +20,8 @@ function scope(wrapper?: ComponentType<{ children: ReactNode }>) {
   return function JiniKitsScope({ children }: { children: ReactNode }) {
     const inner = wrapper ? createElement(wrapper, { children }) : children;
     return createElement(KitProvider, { kit: tovuKit, agent: tovuAgentAttrs, children: createElement(FetchQueryProvider, {
-      children: createElement(UiKitProvider, { kit: uiKit, children: createElement(AdminKitProvider, { kit: adminKit, children: createElement(ChatSurfacesProvider, { surfaces: chatSurfaces, children: inner }) }) }),
+      children: createElement(UiKitProvider, { kit: uiKit, children: createElement(AdminKitProvider, { kit: adminKit, children: createElement(UserManagementKitProvider, { kit: userManagementKit,
+        children: createElement(ChatSurfacesProvider, { surfaces: chatSurfaces, children: inner }) }) }) }),
     }) });
   };
 }
