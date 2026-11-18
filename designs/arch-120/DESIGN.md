@@ -103,7 +103,7 @@ LC_ALL=C comm -12 designs/arch-120/facts/new-edges.head.txt <(awk -F'\t' '{print
 # 93       <- of today's 120, these already existed in that tree
 ```
 
-Of the 107 red at `9240cbe1`, 93 are still in the tree today and 14 were removed since. The ratchets-arch report's reading ("they come from terra's moves and splits") is right for 27 of the 120 and wrong for these 93. Accepting them borrows no credit: the edge was already there when the ratchet was set. They split as 59 downward value imports, 19 downward type imports, 1 same-rank type import (`project-keys → webhooks`, both rank 0) and 14 upward type imports.
+Of the 107 red at `9240cbe1`, 93 are still in the tree today and the other 14 are gone from the tree (none of them is in today's tree or baseline). `origin/main` prints the identical 107 lines (`cmp` of the two sorted lists is equal). The ratchets-arch report's reading ("they come from terra's moves and splits") is right for 27 of the 120 and wrong for these 93. Accepting them borrows no credit: the edge was already there when the ratchet was set. They split as 59 downward value imports, 19 downward type imports, 1 same-rank type import (`project-keys → webhooks`, both rank 0) and 14 upward type imports.
 
 ### 3.2 RC2, RC3 (MOVED part), RC5 — the rule is path-keyed; these are moves (22 edges incl. the 8 renames below)
 
@@ -168,7 +168,7 @@ Rejected:
 | Accept the edge | No decision ever made it; it imports a private policy file of another feature when the policy owner already exposes bound methods. |
 | Inject a `findSoon` port into `restoreImportedPluginState` from the composition root | `restoreImportedPluginState` builds its own lifecycle today (`import-plugin-state.ts:31`); threading a port through the backup import chain touches `backup-service`, routes and both roots for one call. |
 | Let `setAgentPluginActivation` refuse Soon plugins | Changes behaviour for boot and every other caller; the import must write Soon plugins *off* without aborting (soon-lock test "a backup import writes a Soon plugin off and carries the rest"). |
-| Move `findSoonAgentPlugin` into site-backup | Duplicates owner policy; `lifecycle.ts`, `bootstrap.ts` and `agent-plugin-service-ports.ts` use the same function. |
+| Move `findSoonAgentPlugin` into site-backup | Duplicates owner policy: `lifecycle.ts` and `server/runtime/composition/agent-plugin-service-ports.ts` call the same function, and `server/runtime/boot/bootstrap.ts` uses `lockSoonAgentPlugins` from the same file. |
 
 ### RC1, RC2, RC3 (MOVED), RC5 — owner: the gate's baseline data. Change: sheets S2 + S3.
 
@@ -206,6 +206,7 @@ On the facts base, locally, nothing pushed: S1 (code + its two red-first tests),
 |---|---|
 | `npm run check:architecture` | **exit 0**: "OK: hard constraints hold, but 2 ratchet metric(s) regressed" (the two warn-tier metrics of the base); `cross-feature import edges 426`; API surface 821 |
 | `soon-lock.unit.test.ts` with S1 | 10 pass / 0 fail |
+| S1 test scope (all `agent-plugins` and `site-backup` tests + `wiring-identity.test.ts`, the sheet's `run_tests`) | base: tests 2723 / pass 2717 / fail 0; with S1: tests 2725 / pass 2719 / fail 0 |
 | same, S1 code reverted (tests kept) | 8 pass / **2 fail** (the two new tests): red-first holds |
 | same, S1 + the Soon check replaced by `true` in `import-plugin-state.ts` | 9 pass / **1 fail** ("a backup import writes a Soon plugin off…"): the characterization catches a dropped gate |
 | `npx tsc -p tsconfig.json --noEmit`; `NODE_OPTIONS=--max-old-space-size=6144 npx tsc -p tsconfig.tests.json --noEmit` | 0 / 0 (after building `@tovu/sdk`) |

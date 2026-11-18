@@ -136,7 +136,7 @@ for f in apps/website/src/features/agent-plugins/lifecycle.ts apps/website/src/f
 done
 ```
 
-Expected on the design's base: `architecture` 120 → 119 lines, every other gate identical; tests: the two new ones pass, no new failure.
+Expected on the design's base: `architecture` 120 → 119 NEW lines, every other gate identical; tests `2725 / pass 2719 / fail 0` (base `2723 / 2717 / 0`).
 
 ## 6. Push and report
 
