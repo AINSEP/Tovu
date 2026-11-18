@@ -8,18 +8,19 @@
 
 // Implementation: /Users/la/Programming/Jini/packages/http-kit/src/rate-limit.ts
 import type { Clock as ClockPort } from "@jini-ai/core/primitives";
+import type { RateLimiter as CoreRateLimiter, RateLimitResult } from "@jini-ai/core/contracts/server";
 import {
   createMemoryCounterStore,
   createRateLimiter as createHttpRateLimiter,
   resolveClientIp as resolveHttpClientIp,
   type ClientIpSource,
   type CounterStore,
-  type RateLimiter as HttpRateLimiter,
   type RateLimitProfile,
 } from "@jini-ai/http-kit/rate-limit";
 
 /** Tovu profiles and proxy policy; fixed-window counting is owned by HTTP-kit. */
-export type { ClientIpSource, RateLimitProfile, RateLimitResult } from "@jini-ai/http-kit/rate-limit";
+export type { ClientIpSource, RateLimitProfile } from "@jini-ai/http-kit/rate-limit";
+export type { RateLimitResult };
 
 /**
  * A `RateLimitProfile` bound to one in-memory counter store. Call `check` once
@@ -35,7 +36,7 @@ export type { ClientIpSource, RateLimitProfile, RateLimitResult } from "@jini-ai
  * key active within the trailing window (SPEC-046 REQ-8 — no longer "one
  * entry per key ever seen").
  */
-export type RateLimiter = Pick<HttpRateLimiter, "check"> & Partial<Pick<HttpRateLimiter, "size">>;
+export type RateLimiter = Pick<CoreRateLimiter, "check"> & Partial<Pick<CoreRateLimiter, "size">>;
 
 /** api.spec §3: `LOGIN_STRICT` — brute-force guard on `AUTH_LOGIN`, keyed by client IP. */
 export const LOGIN_STRICT: RateLimitProfile = {
@@ -191,7 +192,7 @@ export function createRateLimiter(
     store?: CounterStore;
     getMax?: (required: { key: string }, optional: Record<string, never>) => number | Promise<number>;
   } = {},
-): HttpRateLimiter {
+): CoreRateLimiter {
   return createHttpRateLimiter({ profile, clock, store }, getMax ? { getMax } : {});
 }
 

@@ -10,6 +10,7 @@ import { openMemorySqliteKernel } from '#src/platform/db/kernel/drivers/sqlite';
 import { composeCommerce } from '../commerce.js';
 import type { ProviderConfigSource } from '../provider-config-source.js';
 import { ensureCommerceSetting } from '../commerce-settings.js';
+import { runMigrations } from '@jini-ai/db/migrate';
 
 /** Dormant host integration uses the real SQL kernel and settings ledger, with no vendor or network. */
 test('commerce-off composes without catalog/payment SQL, merchant configuration, credentials or workers', async t => {
@@ -41,7 +42,7 @@ test('disabled restart drains an outbox-only backlog even after merchant configu
   const kernel = openMemorySqliteKernel<unknown>();
   t.after(async () => { await kernel.close(); await rm(directory, { recursive: true, force: true }); });
   await writeFile(path.join(directory, 'activations.json'), JSON.stringify({ schemaVersion: 1, plugins: { commerce: { enabled: false, origin: 'bundled', updatedAt: '2026-11-05T19:00:00.000Z', updatedBy: 'test' } } }));
-  await migrateCommercePayments({ kernel });
+  await migrateCommercePayments({ kernel, runMigrations });
   const { migrateCommerceDatabase } = await import('#src/platform/db/migrations/index');
   await migrateCommerceDatabase({ kernel });
   const ledger = sqlPaymentsLedger({ kernel });
@@ -67,7 +68,7 @@ test('disabled payment-only restart preserves absent catalog and queued projecti
   const kernel = openMemorySqliteKernel<unknown>();
   t.after(async () => { await kernel.close(); await rm(directory, { recursive: true, force: true }); });
   await writeFile(path.join(directory, 'activations.json'), JSON.stringify({ schemaVersion: 1, plugins: { commerce: { enabled: false, origin: 'bundled', updatedAt: '2026-11-05T19:00:00.000Z', updatedBy: 'test' } } }));
-  await migrateCommercePayments({ kernel });
+  await migrateCommercePayments({ kernel, runMigrations });
   const ledger = sqlPaymentsLedger({ kernel });
   await ledger.transaction({ fn: tx => tx.enqueueOutbox({ message: { id: 'backlog', workspaceId: 'workspace', mode: 'test',
     topic: 'refund.succeeded', aggregateId: 'historical-payment', payloadJson: '{}', createdAt: 1000 } }) });
