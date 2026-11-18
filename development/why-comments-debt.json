@@ -1568,6 +1568,158 @@
     {
       "id": "fff3493ebebb",
       "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/local-text.ts (text re-worded, present (bigram containment 0.99)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "3f7c9e7fa1c6",
+      "reason": "Moved or reworded, not lost: bigram containment 0.99 of this block's text in packages/cms/src/comments/agent-tools.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/comments/agent-tools.ts:1."
+    },
+    {
+      "id": "e860f0bdbc80",
+      "reason": "Moved or reworded, not lost: bigram containment 0.99 of this block's text in packages/cms/src/forms/agent-tools.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/forms/agent-tools.ts:1."
+    },
+    {
+      "id": "3f444ced7125",
+      "reason": "Moved or reworded, not lost: bigram containment 0.93 of this block's text in packages/cms/src/forms/agent-tools.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/forms/agent-tools.ts:73."
+    },
+    {
+      "id": "5ec766eb4e8f",
+      "reason": "Moved or reworded, not lost: bigram containment 0.95 of this block's text in packages/cms/src/forms/agent-tools.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/forms/agent-tools.ts:164."
+    },
+    {
+      "id": "a80312ee46f8",
+      "reason": "Moved or reworded, not lost: bigram containment 0.90 of this block's text in packages/cms/src/forms/agent-tools.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/forms/agent-tools.ts:178."
+    },
+    {
+      "id": "edc9f2808e2f",
+      "reason": "Moved or reworded, not lost: bigram containment 0.98 of this block's text in packages/cms/src/forms/agent-tools.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/forms/agent-tools.ts:188."
+    },
+    {
+      "id": "b1fbea9fc137",
+      "reason": "Moved or reworded, not lost: bigram containment 0.98 of this block's text in packages/cms/src/forms/tool-registrations.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/forms/tool-registrations.ts:5."
+    },
+    {
+      "id": "2fbf35f5f574",
+      "reason": "Moved or reworded, not lost: bigram containment 0.92 of this block's text in packages/cms/src/forms/tool-handlers.submissions.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/forms/tool-registrations.ts:204."
+    },
+    {
+      "id": "6a3f41445322",
+      "reason": "Moved or reworded, not lost: bigram containment 0.93 of this block's text in packages/cms/src/forms/tool-registrations.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/forms/tool-registrations.ts:294."
+    },
+    {
+      "id": "cd653e7ac3e0",
+      "reason": "Moved or reworded, not lost: bigram containment 0.92 of this block's text in packages/cms/src/forms/tool-handlers.submissions.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/forms/tool-registrations.ts:427."
+    },
+    {
+      "id": "03593a87f23f",
+      "reason": "Moved or reworded, not lost: bigram containment 0.97 of this block's text in packages/cms/src/forms/duplicate-form.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/forms/tool-registrations.ts:513."
+    },
+    {
+      "id": "c8ed91e4ba7d",
+      "reason": "Moved or reworded, not lost: bigram containment 0.94 of this block's text in packages/cms/src/forms/duplicate-form.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/forms/tool-registrations.ts:538."
+    },
+    {
+      "id": "23243562d65e",
+      "reason": "Moved or reworded, not lost: bigram containment 0.86 of this block's text in packages/cms/src/trash/agent-tools.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/agent-tools.ts:92."
+    },
+    {
+      "id": "b0a14421ac7a",
+      "reason": "Moved or reworded, not lost: bigram containment 0.94 of this block's text in packages/cms/src/trash/agent-tools.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/agent-tools.ts:115."
+    },
+    {
+      "id": "b9cd18b2a5c1",
+      "reason": "Moved or reworded, not lost: bigram containment 0.94 of this block's text in packages/cms/src/trash/sql/entry-sql.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/entry-sql.ts:20."
+    },
+    {
+      "id": "9447a90011fa",
+      "reason": "Moved or reworded, not lost: bigram containment 0.88 of this block's text in packages/cms/src/trash/sql/table-adapter.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/table-adapter.ts:78."
+    },
+    {
+      "id": "e11ea69baf32",
+      "reason": "Moved or reworded, not lost: bigram containment 0.83 of this block's text in packages/cms/src/trash/sql/table-adapter.rows.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/table-adapter.ts:157."
+    },
+    {
+      "id": "1c40d0af78a2",
+      "reason": "Moved or reworded, not lost: bigram containment 0.90 of this block's text in packages/cms/src/trash/sql/table-adapter.transitions.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/table-adapter.ts:218."
+    },
+    {
+      "id": "12c8ced364f7",
+      "reason": "Moved or reworded, not lost: bigram containment 0.88 of this block's text in packages/cms/src/trash/sql/table-adapter.transitions.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/table-adapter.ts:249."
+    },
+    {
+      "id": "e9db9cfdd9a2",
+      "reason": "Moved or reworded, not lost: bigram containment 0.93 of this block's text in packages/cms/src/trash/sql/table-adapter.transitions.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/table-adapter.ts:261."
+    },
+    {
+      "id": "fb477c31b143",
+      "reason": "Moved or reworded, not lost: bigram containment 0.86 of this block's text in packages/cms/src/trash/sql/table-adapter.transitions.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/table-adapter.ts:279."
+    },
+    {
+      "id": "ceb4f8b653bc",
+      "reason": "Moved or reworded, not lost: bigram containment 0.82 of this block's text in packages/cms/src/trash/sql/table-adapter.purge.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/table-adapter.ts:355."
+    },
+    {
+      "id": "ffe78c5d4ef9",
+      "reason": "Moved or reworded, not lost: bigram containment 0.86 of this block's text in packages/cms/src/trash/tool-registrations.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/tool-registrations.ts:2."
+    },
+    {
+      "id": "5a6afc1eec34",
+      "reason": "Moved or reworded, not lost: bigram containment 0.93 of this block's text in apps/website/src/features/database/tool-registrations.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/tool-registrations.ts:28."
+    },
+    {
+      "id": "d121910859aa",
+      "reason": "Moved or reworded, not lost: bigram containment 0.84 of this block's text in packages/cms/src/trash/tool-registrations.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/tool-registrations.ts:48."
+    },
+    {
+      "id": "0ea8c4cd905b",
+      "reason": "Moved or reworded, not lost: bigram containment 0.90 of this block's text in packages/cms/src/trash/tool-registrations.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/tool-registrations.ts:75."
+    },
+    {
+      "id": "5ad1aa11da52",
+      "reason": "Moved or reworded, not lost: bigram containment 0.92 of this block's text in packages/cms/src/trash/tool-registrations.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/tool-registrations.ts:90."
+    },
+    {
+      "id": "f9192392bf4e",
+      "reason": "Moved or reworded, not lost: bigram containment 0.85 of this block's text in packages/cms/src/trash/tool-registrations.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/tool-registrations.ts:127."
+    },
+    {
+      "id": "a1816b1c036d",
+      "reason": "Moved or reworded, not lost: bigram containment 0.95 of this block's text in packages/cms/src/trash/tool-registrations.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/tool-registrations.ts:167."
+    },
+    {
+      "id": "cb5fefd11e6f",
+      "reason": "Moved or reworded, not lost: bigram containment 0.94 of this block's text in packages/cms/src/trash/tool-registrations.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/trash/tool-registrations.ts:202."
+    },
+    {
+      "id": "a6ee3e8163e7",
+      "reason": "Moved or reworded, not lost: bigram containment 0.96 of this block's text in packages/integrations/src/webhooks/tools/agent-tools.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/webhooks/agent-tools.ts:4."
+    },
+    {
+      "id": "4d243213ec53",
+      "reason": "Moved or reworded, not lost: bigram containment 0.95 of this block's text in packages/integrations/src/webhooks/tools/agent-tools.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/webhooks/agent-tools.ts:57."
+    },
+    {
+      "id": "98482c40a139",
+      "reason": "Moved or reworded, not lost: bigram containment 0.97 of this block's text in packages/cms/src/seo/agent-tools.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/webhooks/agent-tools.ts:68."
+    },
+    {
+      "id": "13bd0a4cbbbb",
+      "reason": "Moved or reworded, not lost: bigram containment 0.95 of this block's text in packages/integrations/src/webhooks/tools/agent-tools.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/webhooks/agent-tools.ts:193."
+    },
+    {
+      "id": "ba95dc25aabb",
+      "reason": "Moved or reworded, not lost: bigram containment 0.89 of this block's text in packages/integrations/src/webhooks/tools/tool-views.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/webhooks/tool-registrations.ts:92."
+    },
+    {
+      "id": "74801a46e84e",
+      "reason": "Moved or reworded, not lost: bigram containment 0.82 of this block's text in packages/integrations/src/webhooks/tools/tool-views.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/webhooks/tool-registrations.ts:101."
+    },
+    {
+      "id": "f3440d14c214",
+      "reason": "Moved or reworded, not lost: bigram containment 0.99 of this block's text in packages/integrations/src/webhooks/tools/tool-registrations.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/features/webhooks/tool-registrations.ts:172."
+    },
+    {
+      "id": "d966124e79c7",
+      "reason": "Moved or reworded, not lost: bigram containment 0.82 of this block's text in packages/diagnostics/src/observability/provider-contract.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/server/runtime/composition/provider-contracts.ts:12."
     }
   ]
 }
