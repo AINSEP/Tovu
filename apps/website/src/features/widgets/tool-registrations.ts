@@ -8,6 +8,7 @@ import { toolMetadata } from "../../contracts/core/tool-metadata/widgets.js";
  * (`toolMetadata`), and the default surface store.
  */
 import { withToolMetadata, type ToolContributor, type ToolRegistration } from "@jini-ai/core";
+import { contentReadVocabulary } from "../../contracts/core/tool-metadata/content-read-vocabulary.js";
 import { buildWidgetsToolRegistrations, widgetsDerivedRisk, type WidgetsPackageToolDeps } from "@jini-ai/cms/widgets";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
@@ -44,7 +45,7 @@ export function buildWidgetsRegistrations(
   routeDeps: WidgetsToolDeps,
   surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
-  return withToolMetadata({ registrations: buildWidgetsToolRegistrations({ deps: toPackageDeps({ routeDeps }) }), metadata: toolMetadata });
+  return withToolMetadata({ registrations: buildWidgetsToolRegistrations({ deps: toPackageDeps({ routeDeps }) }, { hostReads: contentReadVocabulary }), metadata: toolMetadata });
 }
 
 /**

@@ -1,4 +1,5 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/taxonomy.js';
+import { contentReadVocabulary } from "../../contracts/core/tool-metadata/content-read-vocabulary.js";
 import { type Clock } from "@jini-ai/core/primitives";
 /**
  * @file Taxonomy's half of ADR-049 Decision 4 (SPEC-018/ADR-044), the host binding: the ten
@@ -155,7 +156,7 @@ export function buildTaxonomyRegistrations(
   routeDeps: TaxonomyToolDeps,
   surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
-  return withToolMetadata({ registrations: buildTaxonomyToolRegistrations({ deps: toPackageDeps({ routeDeps }), surfaces, catalog: taxonomyAgentToolCatalog }), metadata: toolMetadata });
+  return withToolMetadata({ registrations: buildTaxonomyToolRegistrations({ deps: toPackageDeps({ routeDeps }), surfaces, catalog: taxonomyAgentToolCatalog }, { hostReads: contentReadVocabulary }), metadata: toolMetadata });
 }
 
 /**
