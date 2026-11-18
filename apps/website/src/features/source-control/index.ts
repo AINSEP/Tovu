@@ -31,4 +31,5 @@ export {
 
 export { InMemorySourceControlCredentialSetRepo } from "./repo.memory.js";
 
+export { bindSourceControlWritePort } from "./write-port.js";
 export type { StaticSiteIdentity, StaticSitePackage, StaticSitePackagerPort } from "./static-site-packager-port.js";

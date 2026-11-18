@@ -27,6 +27,7 @@ import { createAssistantToolExecutor } from "../tool-recovery-preset.js";
 import { issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
 
 
 /**
@@ -105,6 +106,7 @@ async function buildHarness(): Promise<Harness> {
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
   const toolDeps: CustomCredentialsToolDeps = {
     loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
+    sourceControlWrite: unusedSourceControlWrite(),
     workspaceId: WORKSPACE_ID,
     clock,
     customCredentialSetRepo: repo,

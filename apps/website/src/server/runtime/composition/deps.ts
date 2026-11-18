@@ -44,6 +44,7 @@ import { registerContentAnalytics } from './content-events.js';
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { createSiteShareBackend } from "#src/features/site-backup/share-backend";
 import { createStaticSitePackager } from "#src/features/site-backup/static-site-packager";
+import { bindCredentialsHostPorts } from "./credentials-host-ports.js";
 import { bindStaticSiteContext } from "./static-site-context.js";
 import { composeSiteImportBackend } from "./site-import-backend.js";
 import { composeSiteSavedKeys } from "#src/server/runtime/composition/site-portability";
@@ -2708,6 +2709,7 @@ async function composeSiteRouteDeps(
     // spread LAST, so it always wins over anything a caller's `opts` might also carry).
     exportSiteBound: (opts) => exportSite({ ...opts, routeDeps }),
     staticSitePackager: createStaticSitePackager(),
+    ...bindCredentialsHostPorts({ readDeps: () => routeDeps }),
     staticSiteContext: bindStaticSiteContext({ readDeps: () => routeDeps, siteName: resolvedSiteBinding.name }),
   };
   resolveRouteDeps(routeDeps);

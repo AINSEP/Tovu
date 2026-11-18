@@ -16,6 +16,7 @@ import { githubFromSource } from "../../source-control/__tests__/fixtures/github
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { bindSourceControlWritePort } from "#src/features/source-control/index";
 
 
 /**
@@ -100,6 +101,7 @@ function fakeRouteDeps(options: { allow?: boolean; httpSteps?: { match: RegExp; 
     })(),
     customCredentialsHttpClient: httpClient,
     loadSourceControlProviders: githubFromSource,
+    sourceControlWrite: bindSourceControlWritePort({ load: githubFromSource, httpClient }),
     authorize: async (params: Record<string, unknown>) => (allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" }),
   };
 
@@ -314,8 +316,9 @@ test("write_files reports a missing provider without decrypting the saved creden
   const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
   await seedGithub(writeDeps);
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
+  const loadNone = async () => ({ list: () => [], get: () => undefined, refusals: [] });
   const registrations = buildRegistrations({ ...deps,
-    loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }) }, exchanges);
+    loadSourceControlProviders: loadNone, sourceControlWrite: bindSourceControlWritePort({ load: loadNone, httpClient }) }, exchanges);
   await assert.rejects(call(tool(registrations, TOOL_ID)), /custom_credential_write_files: .*source control/);
   assert.equal(sealer.openCalls, 0);
   assert.deepEqual(httpClient.calls, []);
@@ -326,12 +329,13 @@ test("write_files refuses a credential deleted between the summary lookup and de
   await seedGithub(writeDeps);
   const load = deps.loadSourceControlProviders;
   const exchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const registrations = buildRegistrations({ ...deps, loadSourceControlProviders: async ({ workspaceId }) => {
+  const loadAfterDelete: typeof load = async ({ workspaceId }) => {
     const rows = await writeDeps.repo.listByWorkspace({ workspaceId });
     assert.equal(rows.length, 1);
     await writeDeps.repo.delete({ workspaceId, id: rows[0].id });
     return load({ workspaceId });
-  } }, exchanges);
+  };
+  const registrations = buildRegistrations({ ...deps, loadSourceControlProviders: loadAfterDelete, sourceControlWrite: bindSourceControlWritePort({ load: loadAfterDelete, httpClient }) }, exchanges);
   await assert.rejects(call(tool(registrations, TOOL_ID)), /no custom credential labeled 'github'/);
   assert.equal(sealer.openCalls, 0);
   assert.deepEqual(httpClient.calls, []);

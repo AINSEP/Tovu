@@ -17,6 +17,7 @@ import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platfor
 import { loadFixtureAuthSchemes } from "./fixture-auth-schemes.fixture.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
 
 
 /**
@@ -87,6 +88,7 @@ function fakeRouteDeps(options: { allow?: boolean; httpResponses?: (HttpResponse
 
   const deps: CustomCredentialsToolDeps = {
     loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
+    sourceControlWrite: unusedSourceControlWrite(),
     workspaceId: WORKSPACE_ID,
     clock: { nowMs: () => Date.parse(NOW) },
     customCredentialSetRepo: repo,

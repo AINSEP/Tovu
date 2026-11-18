@@ -7,6 +7,7 @@ import type { RouteDeps } from "../../../../routes/types.js";
 import { exportSite } from "#src/features/site-export/index";
 import { createStaticSitePackager } from "#src/features/site-backup/static-site-packager";
 import { bindStaticSiteContext } from "../../static-site-context.js";
+import { bindCredentialsHostPorts } from "../../credentials-host-ports.js";
 import { resolvePublishContentPeerHttpClient } from "../../publish-content-http.js";
 import { resolveExportOutputRootDir, resolvePublishOutputRootDir, bundledAgentPluginsDir, resolveSourceControlExportRootDir } from "../../site-paths.js";
 import { describeSiteBinding } from "#src/platform/site-dir/index";
@@ -236,6 +237,7 @@ export function memoryClientsAndSiteContextDeps(required: MemoryRootContext, _op
     // the lazy `require()` this used to carry is gone.
     exportSiteBound: (opts) => exportSite({ ...opts, routeDeps: routeDeps() }),
     staticSitePackager: createStaticSitePackager(),
+    ...bindCredentialsHostPorts({ readDeps: routeDeps }),
     staticSiteContext: bindStaticSiteContext({ readDeps: routeDeps, siteName: siteBinding.name }),
   } satisfies Partial<MemoryRouteDeps>;
 }

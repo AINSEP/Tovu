@@ -24,7 +24,8 @@ import type {
   CustomCredentialVerificationResult,
 } from "@jini-ai/integrations/credentialed-http";
 import type { CommitFilesResult, FileWritePlan, FileWritePlanResult, SourceControlProvider } from "../../source-control/provider-module.js";
-import type { bindCredentialedRequestPort, bindSourceControlWritePort } from "../credential-ports.js";
+import type { bindCredentialedRequestPort } from "../credential-ports.js";
+import type { bindSourceControlWritePort } from "../../source-control/write-port.js";
 
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 type Assert<T extends true> = T;

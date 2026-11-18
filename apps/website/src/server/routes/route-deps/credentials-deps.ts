@@ -1,4 +1,5 @@
 import type { RememberedApprovalPort } from "@jini-ai/core";
+import type { SourceControlWritePort } from "@jini-ai/core/contracts/credentials";
 import type { SettingsToolDeps } from "#src/features/settings/tool-registrations";
 import type { SiteAssistantCredentialRepoPort, AdminExecutionCredentialRepoPort } from "#src/assistant/host-ports";
 import type { KeyringPort, SecretSealerPort } from "../../../features/webhooks/index.js";
@@ -204,6 +205,14 @@ export interface CredentialsDeps {
    * operator-typed `baseUrl`, not a small set of hardcoded, reviewed provider URLs).
    */
   customCredentialsHttpClient: HttpClientPort;
+  /**
+   * `custom_credential_write_files`' write port: `source-control/write-port.ts`'s binding over `loadSourceControlProviders`,
+   * `customCredentialsHttpClient` and `observability`. Bound by each composition root with getters over this same
+   * bag, so those three are read when a write runs, not when the port is built.
+   * TEST GOTCHA (the `exportSiteBound` rule above): a spread copy of a composed bag that overrides one of the three
+   * leaves this port reading the original; override `sourceControlWrite` too.
+   */
+  sourceControlWrite: SourceControlWritePort;
   /** `site_backup_push`'s client: `SITE_BACKUP_EGRESS_POLICY` (2-minute idle ceiling for large blob
    *  uploads). Absent (the in-memory runtime), the backup uses {@link customCredentialsHttpClient}. */
   siteBackupHttpClient?: HttpClientPort;
