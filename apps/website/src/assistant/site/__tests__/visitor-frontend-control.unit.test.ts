@@ -13,7 +13,7 @@ import { dispatchHttpRequest } from '#src/server/__tests__/helpers/in-process-ht
 import { registerSiteAssistantConfirm, SITE_ASSISTANT_CONFIRM_PATH } from '#src/server/inbound/public-http/routes/site-assistant-confirm';
 
 /** What the composition root lends the visitor control: the real mount, host and timer, so these tests go through the same path the site uses. */
-const TEST_PORTS = { mountRoutes: mountJiniRoutes, routeHost: daemonRouteHost, parserLimitBytes: PUBLIC_JSON_BODY_LIMIT_BYTES, setTimer: nodeSessionTimer };
+const TEST_PORTS = { mountRoutes: mountJiniRoutes, routeHost: daemonRouteHost, parserLimitBytes: PUBLIC_JSON_BODY_LIMIT_BYTES, setTimer: nodeSessionTimer, hookInput: requestHookInput };
 
 /** Exercise the mounted routes and native HTTP objects without a listening socket. */
 function policyFixture() {

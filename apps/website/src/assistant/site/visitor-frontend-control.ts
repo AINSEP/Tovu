@@ -10,7 +10,6 @@ import {
 import type { Express, Request, Response } from 'express';
 import type { Clock } from '@jini-ai/core/primitives';
 import { createRateLimiter, resolveClientIp } from '#src/contracts/core/rate-limit/rate-limit';
-import { requestHookInput } from '#src/server/inbound/shared/request-facts';
 import { readRequestFacts } from '#src/contracts/core/request-facts';
 import { allowsVisitorRequestOrigin } from './visitor-request-origin.js';
 import { readVisitorPagePublication } from '#src/features/theme/visitor-publication';
@@ -29,16 +28,18 @@ export interface VisitorRoutePorts {
   readonly parserLimitBytes: number;
   /** Ends a guest session whose tab never disconnects. */
   readonly setTimer: FrontendSessionTimer;
+  /** Jini's hook input for an Express request, the host's request facts included (the composition's `requestHookInput`). Lent, not imported: the facts' Express half lives in the server layer. */
+  readonly hookInput: (required: { req: Request }) => FrontendHookInput;
 }
 
 type ResolveVisitorOwner = (required: FrontendHookInput) => Promise<NonNullable<Awaited<ReturnType<GuestScope['resolveOwner']>>> | null>;
 
 async function bindVisitorRequest(
-  required: { req: Request; signal: AbortSignal; runId: string; workspaceId: string; control: VisitorControl; resolveOwner: ResolveVisitorOwner },
+  required: { req: Request; signal: AbortSignal; runId: string; workspaceId: string; control: VisitorControl; resolveOwner: ResolveVisitorOwner; hookInput: VisitorRoutePorts['hookInput'] },
   _optional = {},
 ) {
-  const { req, signal, runId, workspaceId, control, resolveOwner } = required;
-  const owner = await resolveOwner(requestHookInput({ req }));
+  const { req, signal, runId, workspaceId, control, resolveOwner, hookInput } = required;
+  const owner = await resolveOwner(hookInput({ req }));
   const publication = readVisitorPagePublication({ revision: req.get('x-visitor-publication') ?? '', workspaceId });
   const unbound = { owner, publication: null, release: () => {} };
   if (!owner || !publication) return unbound;
@@ -62,14 +63,14 @@ function mountVisitorFrontendRoutes(required: { app: Express; scope: GuestScope;
     try {
       const ip = await limiter.check({ key: `ip:${resolveClientIp(req)}` });
       if (!ip.allowed) { res.sendStatus(429); return; }
-      const guest = await scope.resolveGuest(requestHookInput({ req }));
+      const guest = await scope.resolveGuest(ports.hookInput({ req }));
       if (guest && !(await limiter.check({ key: `guest:${guest}` })).allowed) { res.sendStatus(429); return; }
       next();
     } catch (error) { refuseWithReport({ res, error, reportError }); }
   });
   app.post('/api/site-assistant/frontend-sessions/credentials', async (req, res) => {
     try {
-      const issued = await scope.issue(requestHookInput({ req }));
+      const issued = await scope.issue(ports.hookInput({ req }));
       if (!issued) { res.sendStatus(403); return; }
       // The cookie is HttpOnly and travels only in this header; the body carries the tab credential alone.
       res.append('Set-Cookie', issued.setCookie);
@@ -112,7 +113,7 @@ export function createVisitorFrontendControl({ workspaceId, enabled, canonicalOr
     } }, { maxOutputBytes: 24_000 });
   return { control, resolveOwner,
     bindRequest: ({ req, signal, runId }: { req: Request; signal: AbortSignal; runId: string }, _optional = {}) =>
-      bindVisitorRequest({ req, signal, runId, workspaceId, control, resolveOwner }),
+      bindVisitorRequest({ req, signal, runId, workspaceId, control, resolveOwner, hookInput: ports.hookInput }),
     mount: ({ app }: { app: Express }, _optional = {}) => mountVisitorFrontendRoutes({ app, scope, control, limiter, reportError, ports }),
   };
 }
