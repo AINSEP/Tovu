@@ -128,6 +128,14 @@ Signature note (S9): `createNoopObservabilityPort(_required)` and `isNoopObserva
 
 ## 4. Gates (run before every push; paste each output; copy commands only from these blocks)
 `BASE` = the Jini SHA you started from (Tovu: its own base).
+Before the first edit, record the base outputs (lessons 44-46): every gate below runs once on the unmodified pair, and a run is judged on **no new line beyond the base output**:
+```bash
+# Jini, on BASE
+for c in guard check:hooks check:why-comments check:errors check:size check:complexity api:check; do pnpm $c > /tmp/base-$c.txt 2>&1; echo "$c exit $?"; done
+# Tovu, on its base, linked to Jini BASE
+for c in typecheck check:why-comments check:hooks check:errors; do npm run $c > /tmp/tovu-base-$c.txt 2>&1; echo "$c exit $?"; done
+```
+After each commit, run the same loops into `/tmp/after-*` and `diff` each pair. Only lines that went away are allowed. Each touched package runs **its whole suite**, not only the edited files (lesson 45).
 ```bash
 # S1 per commit (Jini), then Tovu linked to the Jini SHA
 pnpm --filter @jini-ai/core --filter @jini-ai/diagnostics --filter @jini-ai/analytics --filter @jini-ai/daemon --filter @jini-ai/http-kit --filter @jini-ai/provider-plugins build
