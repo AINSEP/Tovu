@@ -95,6 +95,10 @@ test("C7: protocol-relative and same-origin-lookalike hrefs collapse to '#' (ope
     "/\t/evil.example", // a TAB planted between the leading "/" and the rest: the WHATWG URL parser
     // strips tab/newline/CR from ANYWHERE in the string before parsing, so this
     // reconstitutes "//evil.example" the same way a browser would see it
+    "//tovu-safehref.invalid/x", // a protocol-relative href is off-origin whatever its host, even one the
+    "/\\tovu-safehref.invalid/x", // href standard once used as its own resolution placeholder
+    "//tovu-safehref.invalid:443/x",
+    "//safehref.invalid/x",
   ];
   for (const href of hostile) {
     const html = renderDocNode({ node: textDoc({ type: "text", text: "x", marks: [{ type: "link", attrs: { href } }] }) });

@@ -1,4 +1,61 @@
 {
   "version": 1,
-  "allow": []
+  "allow": [
+    {
+      "id": "cc765880706f",
+      "reason": "Placeholder-origin constant of the deleted theme safeHref copy. Describes a Tovu safeHref helper the owner decision of 2026-11-17 deleted (Jini's isAllowedHref/toAllowedHref is the single href standard); the attack-shape reasoning it carried (fragment, protocol-relative, backslash fold, TAB/LF/CR strip, placeholder-origin comparison) lives in Jini packages/cms/src/navigation/href.ts."
+    },
+    {
+      "id": "6ff43c2ce673",
+      "reason": "Port-normalization note of the deleted theme safeHref copy's placeholder constant (the :80/:443 split between the two copies is gone by design: every protocol-relative href is refused). Describes a Tovu safeHref helper the owner decision of 2026-11-17 deleted (Jini's isAllowedHref/toAllowedHref is the single href standard); the attack-shape reasoning it carried (fragment, protocol-relative, backslash fold, TAB/LF/CR strip, placeholder-origin comparison) lives in Jini packages/cms/src/navigation/href.ts."
+    },
+    {
+      "id": "a94a33822655",
+      "reason": "Doc of the deleted theme safeHref copy, including its 'duplicate, not a shared import' rationale (features/theme now imports the Jini leaf @jini-ai/cms/navigation/href) and a stale KNOWN GAP note about widget renderers that now all call the standard. Describes a Tovu safeHref helper the owner decision of 2026-11-17 deleted (Jini's isAllowedHref/toAllowedHref is the single href standard); the attack-shape reasoning it carried (fragment, protocol-relative, backslash fold, TAB/LF/CR strip, placeholder-origin comparison) lives in Jini packages/cms/src/navigation/href.ts."
+    },
+    {
+      "id": "7f8bd0d802ae",
+      "reason": "Doc of the deleted platform safeHref helper. Describes a Tovu safeHref helper the owner decision of 2026-11-17 deleted (Jini's isAllowedHref/toAllowedHref is the single href standard); the attack-shape reasoning it carried (fragment, protocol-relative, backslash fold, TAB/LF/CR strip, placeholder-origin comparison) lives in Jini packages/cms/src/navigation/href.ts."
+    },
+    {
+      "id": "fa8e6eb34256",
+      "reason": "File header of the gate's test, rewritten for the new mechanism; the synthetic-mismatch proof and live assertion it described are kept in the rewritten tests. Describes the text-extraction mechanism of the menu-href gate, which compared the two deleted Tovu safeHref copies by extracting their source; with the copies gone the mechanism is deleted (the gate now runs the Jini entry points and scans for a local safeHref)."
+    },
+    {
+      "id": "947685df1eea",
+      "reason": "Synthetic-mismatch note; reworded in place for the two Jini entry points (the proof itself is kept). Describes the text-extraction mechanism of the menu-href gate, which compared the two deleted Tovu safeHref copies by extracting their source; with the copies gone the mechanism is deleted (the gate now runs the Jini entry points and scans for a local safeHref)."
+    },
+    {
+      "id": "162fa70c5b3d",
+      "reason": "Section header of the test of loadHrefChecker, deleted with the extraction. Describes the text-extraction mechanism of the menu-href gate, which compared the two deleted Tovu safeHref copies by extracting their source; with the copies gone the mechanism is deleted (the gate now runs the Jini entry points and scans for a local safeHref)."
+    },
+    {
+      "id": "7595433ecc20",
+      "reason": "Section header of the live test, reworded for the Jini-only comparison plus local-copy scan."
+    },
+    {
+      "id": "b30d4e0b2857",
+      "reason": "Gate file header, rewritten: the still-true dist-vs-src paragraph and the table rationale are kept; the three-copy and extraction paragraphs describe deleted code. Describes the text-extraction mechanism of the menu-href gate, which compared the two deleted Tovu safeHref copies by extracting their source; with the copies gone the mechanism is deleted (the gate now runs the Jini entry points and scans for a local safeHref)."
+    },
+    {
+      "id": "4251fecbe5d2",
+      "reason": "Section header of the extraction helpers. Describes the text-extraction mechanism of the menu-href gate, which compared the two deleted Tovu safeHref copies by extracting their source; with the copies gone the mechanism is deleted (the gate now runs the Jini entry points and scans for a local safeHref)."
+    },
+    {
+      "id": "8ae591cf6202",
+      "reason": "Doc of extractBalancedBraces. Describes the text-extraction mechanism of the menu-href gate, which compared the two deleted Tovu safeHref copies by extracting their source; with the copies gone the mechanism is deleted (the gate now runs the Jini entry points and scans for a local safeHref)."
+    },
+    {
+      "id": "94336564520a",
+      "reason": "Doc of extractSafeHrefDeclaration. Describes the text-extraction mechanism of the menu-href gate, which compared the two deleted Tovu safeHref copies by extracting their source; with the copies gone the mechanism is deleted (the gate now runs the Jini entry points and scans for a local safeHref)."
+    },
+    {
+      "id": "1a3543ef4e6d",
+      "reason": "Doc of loadHrefChecker. Describes the text-extraction mechanism of the menu-href gate, which compared the two deleted Tovu safeHref copies by extracting their source; with the copies gone the mechanism is deleted (the gate now runs the Jini entry points and scans for a local safeHref)."
+    },
+    {
+      "id": "972063af4ef6",
+      "reason": "Doc of the three-implementation runMenuHrefAllowlistSync; replaced by a doc of the Jini-entry-point run plus local-copy scan."
+    }
+  ]
 }

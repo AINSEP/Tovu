@@ -1,9 +1,9 @@
 // Render workers need only handle identity, not the agent runtime's core barrel.
 import { agentHandleSegment } from '@jini-ai/core/agent-handles';
 import { expandPartials } from "../../contracts/core/expand-partials.js";
-import { safeHref } from "./render-contract.js";
 import { COLLECTION_MARKER_TYPE, FEATURED_IMAGE_MARKER_TYPE, markersOfType, MENU_MARKER_TYPE, POST_PREVIEWS_MARKER_TYPE, substituteMarkers, withAddedId, withElementKeptIfAttributed, withInnerContent, withInnerContentFinal, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
 import { extractListingCardTemplate, injectListingScript, listingKeyOfAttributes, parseListingBatchSize, renderListingMore, wrapListingItems } from "@jini-ai/cms/listing";
+import { toAllowedHref } from "@jini-ai/cms/navigation/href";
 import { injectMenuDropdownScript, renderMenuToggle } from "@jini-ai/cms/navigation/dropdown";
 import { postAuthorForDisplay } from "../../contracts/core/post-author.js";
 import { menuLinkRelAttr, renderHtmlMenu } from "#src/features/navigation/render-entry";
@@ -179,8 +179,6 @@ export interface StaticHtmlMenu {
 /** What the route layer resolved for one menu id: its item tree, or its authored HTML. */
 export type StaticMenuContent = readonly StaticMenuItem[] | StaticHtmlMenu;
 
-export { safeHref } from "./render-contract.js";
-
 /**
  * Renders one location's resolved menu items as a flat sequence of `<a>` tags. Top-level items
  * only — v1: every static theme's nav/footer markup this session is a flat link row/column with no
@@ -196,7 +194,7 @@ function renderMenuLinks(items: readonly StaticMenuItem[]): string {
   // offers both, so a flat header/footer silently ignoring them was a render-path divergence.
   return items
     .filter((item) => item.available && item.href !== null)
-    .map((item) => `<a href="${escapeHtml({ text: safeHref({ value: item.href as string }) })}"${menuItemLinkAttrs(item)}>${escapeHtml({ text: item.label })}</a>`)
+    .map((item) => `<a href="${escapeHtml({ text: toAllowedHref({ rawHref: item.href }) })}"${menuItemLinkAttrs(item)}>${escapeHtml({ text: item.label })}</a>`)
     .join("");
 }
 
@@ -272,7 +270,7 @@ function menuItemLinkAttrs(item: StaticMenuItem): string {
 function menuItemBody({ item, linkable }: { item: StaticMenuItem; linkable: boolean }, _optional = {}): string {
   const inner = menuItemInnerHtml(item);
   if (!linkable) return `<span class="menu-item-label" data-toolname="menu_${agentHandleSegment({ value: item.label })}" data-tooldescription="${escapeHtml({ text: item.label })}" data-tool-action="read">${inner}</span>`;
-  return `<a href="${escapeHtml({ text: safeHref({ value: item.href as string }) })}"${menuItemLinkAttrs(item)}>${inner}</a>`;
+  return `<a href="${escapeHtml({ text: toAllowedHref({ rawHref: item.href }) })}"${menuItemLinkAttrs(item)}>${inner}</a>`;
 }
 
 /** Set for `{"variant":"dropdown"}` menus: hands out the child-`<ul>` ids the toggles point at. */
@@ -348,7 +346,7 @@ function injectMenuEmbeds({ html, menus }: { html: string; menus: Readonly<Recor
     if (items === undefined) return undefined;
     if (!Array.isArray(items)) return injectAuthoredMenuHtml({ marker, html: (items as StaticHtmlMenu).html });
     if (marker.config.mode === "html") {
-      const plain = renderHtmlMenu({ id: marker.id, items, sanitizeHref: (value) => safeHref({ value }) });
+      const plain = renderHtmlMenu({ id: marker.id, items, sanitizeHref: (value) => toAllowedHref({ rawHref: value }) });
       // Match forms: a bare marker disappears; explicitly authored wrapper attributes survive.
       return plain === "" ? undefined : withElementKeptIfAttributed({ marker: marker, inner: plain });
     }

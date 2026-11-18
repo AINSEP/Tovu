@@ -69,10 +69,11 @@ export {
  * `isAllowedHref`/`ALLOWED_HREF_SHAPES_DESCRIPTION`: the canonical author-link href
  * allowlist, promoted into Jini so a host imports it rather than hand-copies it (Jini cannot import
  * Tovu; the reverse is the direction that is actually legal). `render.ts`'s and
- * `features/theme/static-render.ts`'s own `safeHref` render-time coercers have not yet been migrated
- * to call this — see `menu-service.ts`'s own doc comment on `isAllowedHref` (Jini repo) for the
- * retirement plan. Re-exported here today so this barrel's own test suite can assert the write-time
- * rejection message against the real, live description text instead of a hand-typed copy of it.
+ * `features/theme/static-render.ts`'s own `safeHref` render-time coercers had not yet been migrated
+ * to call this — see `href.ts`'s own doc comment on `isAllowedHref` (Jini repo) for the
+ * retirement plan; 2026-11-17 they were, and every renderer now calls `toAllowedHref` from
+ * `@jini-ai/cms/navigation/href`. Re-exported here today so this barrel's own test suite can assert the
+ * write-time rejection message against the real, live description text instead of a hand-typed copy of it.
  */
 export {
   createMenu,

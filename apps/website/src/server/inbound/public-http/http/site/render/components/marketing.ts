@@ -1,7 +1,7 @@
 import type { JsonValue, JsonObject } from "@jini-ai/core/primitives";
 import { obj, str, arr } from "../value-readers.js";
 import { escapeHtml } from "#src/platform/html/escape";
-import { safeHref } from "#src/platform/html/safe-url";
+import { toAllowedHref } from "@jini-ai/cms/navigation/href";
 import type { SiteRenderContext } from "../../render-context.js";
 import { mediaPlaceholder } from "../media-placeholder.js";
 
@@ -11,7 +11,7 @@ function actionsHtml({ actions }: { actions: JsonValue[] }, _optional = {}): str
       const o = obj({ value: a });
       if (!o) return "";
       const kind = i === 0 ? "btn btn--primary" : "btn btn--ghost";
-      return `<a class="${kind}" href="${escapeHtml({ text: safeHref({ value: o.href }) })}">${escapeHtml({ text: str({ value: o.label }, { fallback: "Learn more" }) })}</a>`;
+      return `<a class="${kind}" href="${escapeHtml({ text: toAllowedHref({ rawHref: o.href }) })}">${escapeHtml({ text: str({ value: o.label }, { fallback: "Learn more" }) })}</a>`;
     })
     .join("");
   return links ? `<div class="actions">${links}</div>` : "";
@@ -33,7 +33,7 @@ export function announcement(_ctx: SiteRenderContext, props: JsonObject): string
   if (!text) return "";
   const link = obj({ value: props.link });
   const linkHtml = link
-    ? ` <a class="topbar__link" href="${escapeHtml({ text: safeHref({ value: link.href }) })}">${escapeHtml({ text: str({ value: link.label }, { fallback: "Learn more" }) })} →</a>`
+    ? ` <a class="topbar__link" href="${escapeHtml({ text: toAllowedHref({ rawHref: link.href }) })}">${escapeHtml({ text: str({ value: link.label }, { fallback: "Learn more" }) })} →</a>`
     : "";
   return `<div class="topbar"><div class="wrap"><p class="topbar__text">${text}${linkHtml}</p></div></div>`;
 }

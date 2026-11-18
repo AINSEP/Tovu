@@ -2,7 +2,7 @@ import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
 import { escapeHtml } from "#src/platform/html/escape";
 import { menuLinkRelAttr } from "#src/features/navigation/render-entry";
 import { obj, str, arr } from "../value-readers.js";
-import { safeHref } from "#src/platform/html/safe-url";
+import { toAllowedHref } from "@jini-ai/cms/navigation/href";
 
 /** The `class="…"` attribute from a resolved item's `attrs.cssClass`, or `""` when absent — same
  *  escaped, no-allowlist posture `static-render.ts`'s tree-variant renderer already established for
@@ -53,7 +53,7 @@ function renderWidgetMenuItems({ items }: { items: JsonValue[] }, _optional = {}
       const label = widgetMenuItemDecoratedLabel({ attrs, label: escapeHtml({ text: str({ value: o.label }) }) });
       const available = o.available === true && typeof o.href === "string";
       const link = available
-        ? `<a href="${escapeHtml({ text: safeHref({ value: o.href }) })}"${widgetMenuItemLinkAttrs({ attrs })}>${label}</a>`
+        ? `<a href="${escapeHtml({ text: toAllowedHref({ rawHref: o.href }) })}"${widgetMenuItemLinkAttrs({ attrs })}>${label}</a>`
         : `<span class="widget-menu-item--unavailable">${label}</span>`;
       const children = arr({ value: o.children });
       const sub = children.length ? `<ul>${renderWidgetMenuItems({ items: children })}</ul>` : "";

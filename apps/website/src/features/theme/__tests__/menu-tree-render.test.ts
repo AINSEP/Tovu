@@ -383,6 +383,13 @@ const MALICIOUS_HREF_SCHEMES: readonly string[] = [
   "vbscript:msgbox(1)",
   "//evil.example",
   "/\\evil.example",
+  // A protocol-relative href is off-origin whatever its host: not even a placeholder host the href
+  // standard once resolved against (the retired copies' own, or Jini's), nor either default-port spelling.
+  "//tovu-safehref.invalid/x",
+  "/\\tovu-safehref.invalid/x",
+  "//tovu-safehref.invalid:80/x",
+  "//tovu-safehref.invalid:443/x",
+  "//safehref.invalid/x",
 ];
 
 /** Every href shape a real menu link legitimately uses — a scheme guard that breaks these is a worse

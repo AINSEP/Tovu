@@ -2,7 +2,7 @@ import type { SiteRenderContext } from "../../render-context.js";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { escapeHtml } from "#src/platform/html/escape";
 import { str, arr, obj } from "../value-readers.js";
-import { safeHref } from "#src/platform/html/safe-url";
+import { toAllowedHref } from "@jini-ai/cms/navigation/href";
 
 export function siteHeader(ctx: SiteRenderContext, props: JsonObject): string {
   const compact = props.compact === true;
@@ -42,14 +42,14 @@ export function siteNav(ctx: SiteRenderContext, props: JsonObject): string {
       const o = obj({ value: it });
       if (!o) return "";
       const label = escapeHtml({ text: str({ value: o.label }) });
-      const href = escapeHtml({ text: safeHref({ value: o.href }) });
+      const href = escapeHtml({ text: toAllowedHref({ rawHref: o.href }) });
       const children = arr({ value: o.children });
       if (children.length) {
         const sub = children
           .map((c) => {
             const co = obj({ value: c });
             if (!co) return "";
-            return `<li><a href="${escapeHtml({ text: safeHref({ value: co.href }) })}">${escapeHtml({ text: str({ value: co.label }) })}</a></li>`;
+            return `<li><a href="${escapeHtml({ text: toAllowedHref({ rawHref: co.href }) })}">${escapeHtml({ text: str({ value: co.label }) })}</a></li>`;
           })
           .join("");
         return `<li class="nav-item has-children"><a class="nav-link" href="${href}">${label}${caret}</a><ul class="nav-dropdown">${sub}</ul></li>`;
@@ -59,7 +59,7 @@ export function siteNav(ctx: SiteRenderContext, props: JsonObject): string {
     .join("");
   const cta = obj({ value: props.cta });
   const ctaHtml = cta
-    ? `<a class="btn btn--primary nav-cta" href="${escapeHtml({ text: safeHref({ value: cta.href }) })}">${escapeHtml({ text: str({ value: cta.label }, { fallback: "Get started" }) })}</a>`
+    ? `<a class="btn btn--primary nav-cta" href="${escapeHtml({ text: toAllowedHref({ rawHref: cta.href }) })}">${escapeHtml({ text: str({ value: cta.label }, { fallback: "Get started" }) })}</a>`
     : "";
   return `<header class="site-header"><div class="wrap nav"><a class="brand" href="/">${brand}</a><input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle menu"/><label for="nav-toggle" class="nav-burger"><span></span><span></span><span></span></label><nav class="nav-menu"><ul class="nav-list">${items}</ul>${ctaHtml}</nav></div></header>`;
 }
@@ -72,7 +72,7 @@ export function siteFooterRich(ctx: SiteRenderContext, props: JsonObject): strin
     .map((s) => {
       const o = obj({ value: s });
       if (!o) return "";
-      return `<a class="footer__social" href="${escapeHtml({ text: safeHref({ value: o.href }) })}">${escapeHtml({ text: str({ value: o.label }) })}</a>`;
+      return `<a class="footer__social" href="${escapeHtml({ text: toAllowedHref({ rawHref: o.href }) })}">${escapeHtml({ text: str({ value: o.label }) })}</a>`;
     })
     .join("");
   const cols = arr({ value: props.columns })
@@ -83,7 +83,7 @@ export function siteFooterRich(ctx: SiteRenderContext, props: JsonObject): strin
         .map((l) => {
           const lo = obj({ value: l });
           if (!lo) return "";
-          return `<li><a href="${escapeHtml({ text: safeHref({ value: lo.href }) })}">${escapeHtml({ text: str({ value: lo.label }) })}</a></li>`;
+          return `<li><a href="${escapeHtml({ text: toAllowedHref({ rawHref: lo.href }) })}">${escapeHtml({ text: str({ value: lo.label }) })}</a></li>`;
         })
         .join("");
       return `<div class="footer__col"><h4>${escapeHtml({ text: str({ value: o.title }) })}</h4><ul>${links}</ul></div>`;
