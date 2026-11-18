@@ -25,7 +25,7 @@ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
  * `database_plan_migrate_forward` precedent, including reusing this domain's own
  * `gated-hooks.ts`'s `buildMergeTermHooks` directly.
  */
-import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, type HumanConfirmer, type ToolExecutionContext, indexCatalogById, optionalString, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, type AgentToolDefinition, type HumanConfirmer, type SurfaceExchangeStore, type ToolExecutionContext, withToolMetadata, indexCatalogById, optionalString, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireToolPermission } from "@jini-ai/cms/core";
 import { type AuthorizeFn, type OutboxPort, type TransactionalRepoPort } from "@jini-ai/core/contracts/events";
 // `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import
@@ -38,6 +38,7 @@ import {
   plan as gatewayPlan,
   type GatewayDeps,
 } from "../../contracts/core/gated-mutations/gateway.js";
+import type { GatedMutationHooks, GatewayPlan, PrincipalKind } from "@jini-ai/core/gated-mutations";
 import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import type { ToolContributor } from "@jini-ai/core";
@@ -61,6 +62,9 @@ import {
   createTaxonomy,
   createTerm,
   renameTerm,
+  type ContentLookupPort,
+  type ContentTypeTaxonomyPolicyPort,
+  type MergeTermPlanDetails,
   type TaxonomyListPort,
   type TermListPort,
   type EntryRecordLookupPort,
@@ -77,8 +81,6 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 
 const MUTATES_DURABLE_STATE = "mutates-durable-state";
 
-
-const CATALOG_BY_ID = indexCatalogById({ catalog: taxonomyAgentToolCatalog });
 
 /**
  * The exact slice of the route-deps bag Taxonomy's tool handlers read. Declared structurally
@@ -150,6 +152,70 @@ export const taxonomyDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToo
   ["taxonomy_execute_merge_term", MUTATES_DURABLE_STATE],
 ]);
 
+
+/** What the handlers need to put a gated plan -> confirm -> execute ceremony behind a human click. */
+interface TaxonomyMergeGateway {
+  plan(required: { principalId: string; principalKind: PrincipalKind; hooks: MergeHooks }): Promise<GatewayPlan>;
+  confirm(required: { principalId: string; principalKind: PrincipalKind; hooks: MergeHooks; planId: string; planHash: string }): Promise<{ confirmationToken: string }>;
+  execute(required: { principalId: string; principalKind: PrincipalKind; hooks: MergeHooks; confirmationToken: string }): Promise<{ mergedCount: number }>;
+}
+
+type MergeHooks = GatedMutationHooks<MergeTermPlanDetails, { mergedCount: number }>;
+
+/** The confirm dialog a human sees before a merge; the host's dialog spec accepts this shape. */
+interface TaxonomyMergeDialog {
+  toolId: string;
+  errorCode: string;
+  title: string;
+  details: Array<{ label: string; value: string }>;
+  warning: string;
+  danger: boolean;
+  confirmLabel: string;
+}
+
+interface TaxonomyToolSurfaces {
+  readonly surfaceExchanges: SurfaceExchangeStore;
+}
+
+/**
+ * The slice of the host's deps the handlers read. The built objects (`contentTargetPorts`,
+ * `collectionTermPolicy`, `authorizeContentEdit`, `mergeTermHooks`) and the gateway, the human
+ * confirm wrapper, the strict-keys guard and the slug function are host ports: the host owns the
+ * content-type policy, the token policy and the confirm dialog's wording and transport.
+ */
+interface TaxonomyPackageToolDeps {
+  authorize: AuthorizeFn;
+  workspaceId: string;
+  clock: Clock;
+  idGen: { newId(): string };
+  taxonomyRepo: TaxonomyRepoPort & TaxonomyListPort & TransactionalRepoPort;
+  termRepo: TermRepoPort & TermListPort & ImportableTermRepoPort;
+  entryTermRepo: EntryTermRepoPort & UnassignableEntryTermRepoPort & {
+    listForContent(input: { contentType: string; contentId: string }): Promise<ReadonlyArray<{ termId: string }>>;
+    countOverlap(params: { fromTermId: string; intoTermId: string }): Promise<number>;
+  };
+  taxonomyRevisionRepo: TaxonomyRevisionRepoPort;
+  /** Read whole by `toTaxonomyOutbox`, together with `clock`, `idGen` and `workspaceId`. */
+  outbox: OutboxPort;
+  stampWatermark: () => Promise<void> | void;
+  contentTargetPorts(): { contentLookup: ContentLookupPort; contentTypeTaxonomyPolicy: ContentTypeTaxonomyPolicyPort };
+  collectionTermPolicy(): ContentTypeTaxonomyPolicyPort;
+  authorizeContentEdit(required: { principalId: string; contentType: string }, optional?: Record<string, never>): Promise<void>;
+  mergeTermHooks(required: { fromTermId: string; intoTermId: string; actorId: string }, optional?: Record<string, never>): MergeHooks;
+  mergeGateway: TaxonomyMergeGateway;
+  humanConfirmedHandler<TPrepared>(
+    surfaces: TaxonomyToolSurfaces,
+    spec: {
+      flag: string;
+      prepare: (required: { ctx: ToolExecutionContext }) => Promise<TPrepared>;
+      dialog: (prepared: TPrepared) => TaxonomyMergeDialog;
+      run: (required: { ctx: ToolExecutionContext; prepared: TPrepared; confirmer: HumanConfirmer }) => Promise<unknown>;
+    },
+  ): ToolHandler;
+  refuseUnexpectedKeys(input: Record<string, unknown>, allowed: readonly string[]): void;
+  toSlug(required: { text: string }, optional?: Record<string, never>): string;
+}
+
 const MERGE_TOOL_ID = "taxonomy_execute_merge_term";
 
 /** Shared read/assignment validation: posts, pages and live collections can carry terms.
@@ -157,17 +223,17 @@ const MERGE_TOOL_ID = "taxonomy_execute_merge_term";
  * @complexity O(1), at most one indexed content-type read.
  */
 async function requireTaggableContentType(
-  { deps, contentType }: { deps: TaxonomyToolDeps; contentType: string },
+  { deps, contentType }: { deps: TaxonomyPackageToolDeps; contentType: string },
   _optional = {},
 ): Promise<void> {
   if (isContentTypeOnAllowList({ contentType })) return;
-  if (await createLiveCollectionTermPolicy(deps).taxonomiesFor({ contentType }) !== null) return;
+  if (await deps.collectionTermPolicy().taxonomiesFor({ contentType }) !== null) return;
   throw new ToolInputError({ message: `content type '${contentType}' does not support taxonomy assignments. Use post, page, or a live collection key.` });
 }
 
 /** Shared dependency bag for `write-service.ts` calls — every mutating handler here takes this
  * identical shape, mirroring each admin route's own inline construction. */
-function taxonomyDeps(routeDeps: TaxonomyToolDeps): WriteServiceDeps {
+function taxonomyDeps(routeDeps: TaxonomyPackageToolDeps): WriteServiceDeps {
   return {
     authorize: (params) => routeDeps.authorize({ ...params, workspaceId: routeDeps.workspaceId }),
     clock: routeDeps.clock,
@@ -179,33 +245,24 @@ function taxonomyDeps(routeDeps: TaxonomyToolDeps): WriteServiceDeps {
     stampWatermark: routeDeps.stampWatermark,
     outbox: toTaxonomyOutbox(routeDeps),
     workspaceId: routeDeps.workspaceId,
-    ...createContentTargetPorts(routeDeps),
+    ...routeDeps.contentTargetPorts(),
   };
 }
 
 interface HandlerArgs {
-  deps: TaxonomyToolDeps;
-  surfaces: AssistantSurfaceDeps;
+  deps: TaxonomyPackageToolDeps;
+  surfaces: TaxonomyToolSurfaces;
 }
 
 const FORBIDDEN_RULES = [forbiddenRule({ domainPrefix: "TAXONOMY", error: ForbiddenError })];
 
-const termName = async ({ deps, id }: { deps: TaxonomyToolDeps; id: string }, _optional = {}) => (await deps.termRepo.findById({ id }))?.name ?? `${id} (not found)`;
+const termName = async ({ deps, id }: { deps: TaxonomyPackageToolDeps; id: string }, _optional = {}) => (await deps.termRepo.findById({ id }))?.name ?? `${id} (not found)`;
 
 function mergeHooksFor(
-  { deps, ctx, fromTermId, intoTermId }: { deps: TaxonomyToolDeps; ctx: { principal: { id: string } }; fromTermId: string; intoTermId: string },
+  { deps, ctx, fromTermId, intoTermId }: { deps: TaxonomyPackageToolDeps; ctx: { principal: { id: string } }; fromTermId: string; intoTermId: string },
   _optional = {},
 ) {
-  return buildMergeTermHooks({
-    workspaceId: deps.workspaceId,
-    fromTermId,
-    intoTermId,
-    actorId: ctx.principal.id,
-    clock: deps.clock,
-    termRepo: deps.termRepo,
-    entryTermRepo: deps.entryTermRepo,
-    taxonomyRevisionRepo: deps.taxonomyRevisionRepo,
-  });
+  return deps.mergeTermHooks({ fromTermId, intoTermId, actorId: ctx.principal.id });
 }
 
 /** Uses the live, workspace-bound repository, including its parent-taxonomy Trash filter. */
@@ -227,7 +284,7 @@ const taxonomyGetAssignedTermsHandler = ({ deps }: HandlerArgs): ToolHandler => 
   const contentType = requireString({ input: input, key: "contentType" });
   const contentId = requireString({ input: input, key: "contentId" });
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "admin.taxonomy.manage" }, { entityType: "taxonomy" });
-  await authorizeContentEdit({ deps, principalId: ctx.principal.id, contentType });
+  await deps.authorizeContentEdit({ principalId: ctx.principal.id, contentType });
   await requireTaggableContentType({ deps, contentType });
   const assignments = await deps.entryTermRepo.listForContent({ contentType, contentId });
   if (!assignments.length) return { contentType, contentId, terms: [] };
@@ -236,7 +293,7 @@ const taxonomyGetAssignedTermsHandler = ({ deps }: HandlerArgs): ToolHandler => 
   // time, O(all terms) space, a = assigned terms; no assignment or revision writes.
   const { items } = await listTaxonomiesWithTerms({ taxonomies: deps.taxonomyRepo, terms: deps.termRepo });
   const terms = items.flatMap(({ taxonomy, terms }) => terms.filter(term => assigned.has(term.id)).map(term => ({
-    termId: term.id, name: term.name, slug: toSlug({ text: term.name }), taxonomyId: taxonomy.id, taxonomyName: taxonomy.name,
+    termId: term.id, name: term.name, slug: deps.toSlug({ text: term.name }), taxonomyId: taxonomy.id, taxonomyName: taxonomy.name,
   })));
   terms.sort((a, b) => a.taxonomyName.localeCompare(b.taxonomyName) || a.name.localeCompare(b.name) || a.termId.localeCompare(b.termId));
   return { contentType, contentId, terms };
@@ -286,7 +343,7 @@ const taxonomyAssignTermsHandler = ({ deps }: HandlerArgs): ToolHandler => async
 
   // The content's own edit permission first, as the admin route does; assignTerms then checks
   // admin.taxonomy.manage itself.
-  await authorizeContentEdit({ deps, principalId: ctx.principal.id, contentType });
+  await deps.authorizeContentEdit({ principalId: ctx.principal.id, contentType });
   const writeDeps = taxonomyDeps(deps);
   await assignTerms({
     deps: { ...writeDeps, authorize: async params => {
@@ -310,7 +367,7 @@ const taxonomyUnassignTermsHandler = ({ deps }: HandlerArgs): ToolHandler => asy
   }
   const termIds = input.termIds as string[];
 
-  await authorizeContentEdit({ deps, principalId: ctx.principal.id, contentType });
+  await deps.authorizeContentEdit({ principalId: ctx.principal.id, contentType });
   // `taxonomyDeps(deps)` is typed as the base `WriteServiceDeps` (its `entryTerms` narrowed
   // to plain `EntryTermRepoPort`), but `unassignTerms` needs the `UnassignableEntryTermRepoPort`
   // capability too — override `entryTerms` back to `deps.entryTermRepo`'s own wider type
@@ -343,8 +400,7 @@ const taxonomyPlanMergeTermHandler = ({ deps }: HandlerArgs): ToolHandler => asy
     intoTermId,
     computeOverlap: async () => ({ overlappingContentCount: await deps.entryTermRepo.countOverlap({ fromTermId, intoTermId }) }),
     gatewayPlan: async () =>
-      gatewayPlan({
-        deps: deps.gatedMutations.gatewayDeps,
+      deps.mergeGateway.plan({
         principalId: ctx.principal.id,
         principalKind: AGENT_TOOL_PRINCIPAL_KIND,
         hooks,
@@ -359,9 +415,9 @@ type MergePrepared = {
   intoName: string;
 };
 
-async function mergePrepare({ deps, ctx }: { deps: TaxonomyToolDeps; ctx: ToolExecutionContext }, _optional = {}): Promise<MergePrepared> {
+async function mergePrepare({ deps, ctx }: { deps: TaxonomyPackageToolDeps; ctx: ToolExecutionContext }, _optional = {}): Promise<MergePrepared> {
   const input = requireInputRecord({ input: ctx.input });
-  refuseUnexpectedKeys(input, ["fromTermId", "intoTermId"]);
+  deps.refuseUnexpectedKeys(input, ["fromTermId", "intoTermId"]);
   const fromTermId = requireString({ input: input, key: "fromTermId" });
   const intoTermId = requireString({ input: input, key: "intoTermId" });
   const hooks = mergeHooksFor({ deps, ctx, fromTermId, intoTermId });
@@ -372,7 +428,7 @@ async function mergePrepare({ deps, ctx }: { deps: TaxonomyToolDeps; ctx: ToolEx
     intoTermId,
     computeOverlap: async () => ({ overlappingContentCount: await deps.entryTermRepo.countOverlap({ fromTermId, intoTermId }) }),
     gatewayPlan: async () =>
-      gatewayPlan({ deps: deps.gatedMutations.gatewayDeps, principalId: ctx.principal.id, principalKind: AGENT_TOOL_PRINCIPAL_KIND, hooks }),
+      deps.mergeGateway.plan({ principalId: ctx.principal.id, principalKind: AGENT_TOOL_PRINCIPAL_KIND, hooks }),
   });
   return { hooks, plan, fromName: await termName({ deps, id: fromTermId }), intoName: await termName({ deps, id: intoTermId }) };
 }
@@ -396,7 +452,7 @@ function mergeDialog({ plan, fromName, intoName }: MergePrepared, _optional = {}
 }
 
 async function mergeRun(
-  { deps, ctx, prepared: { hooks, plan }, confirmer }: { deps: TaxonomyToolDeps; ctx: ToolExecutionContext; prepared: MergePrepared; confirmer: HumanConfirmer },
+  { deps, ctx, prepared: { hooks, plan }, confirmer }: { deps: TaxonomyPackageToolDeps; ctx: ToolExecutionContext; prepared: MergePrepared; confirmer: HumanConfirmer },
   _optional = {},
 ): Promise<unknown> {
   const { token } = await confirmMergeTerm({
@@ -405,8 +461,7 @@ async function mergeRun(
     planId: plan.planId,
     planHash: plan.planHash,
     gatewayConfirm: async (params) => {
-      const record = await gatewayConfirm({
-        deps: deps.gatedMutations.gatewayDeps,
+      const record = await deps.mergeGateway.confirm({
         principalId: confirmer.id,
         principalKind: confirmer.kind,
         hooks,
@@ -419,8 +474,7 @@ async function mergeRun(
   const result = await executeMergeTerm({
     confirmationToken: token,
     gatewayExecute: (params) =>
-      gatewayExecute({
-        deps: deps.gatedMutations.gatewayDeps,
+      deps.mergeGateway.execute({
         principalId: ctx.principal.id,
         principalKind: AGENT_TOOL_PRINCIPAL_KIND,
         hooks,
@@ -433,18 +487,23 @@ async function mergeRun(
 // Plans as the agent, asks the human, then confirms as the human and executes as the agent —
 // the gateway's own check sequence (authorize, token, actor-class, plan hash) runs unchanged.
 const taxonomyExecuteMergeTermHandler = ({ deps, surfaces }: HandlerArgs): ToolHandler =>
-  humanConfirmedToolHandler(surfaces, {
+  deps.humanConfirmedHandler(surfaces, {
     flag: "merged",
     prepare: ({ ctx }) => mergePrepare({ deps, ctx }),
     dialog: (prepared) => mergeDialog(prepared),
     run: ({ ctx, prepared, confirmer }) => mergeRun({ deps, ctx, prepared, confirmer }),
   });
 
-export function buildTaxonomyRegistrations(
-  routeDeps: TaxonomyToolDeps,
-  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
+/**
+ * Builds the Taxonomy tool registrations from the package-side deps: the id -> handler table over
+ * `catalog` (the host's catalog, which extends the shared one with two read tools). Host metadata
+ * (search vocabulary, approval policy) is NOT applied here; the host binding wraps the result.
+ */
+export function buildTaxonomyToolRegistrations(
+  { deps, surfaces, catalog }: { deps: TaxonomyPackageToolDeps; surfaces: TaxonomyToolSurfaces; catalog: readonly AgentToolDefinition[] },
+  _optional = {},
 ): ToolRegistration[] {
-  const args: HandlerArgs = { deps: routeDeps, surfaces };
+  const args: HandlerArgs = { deps, surfaces };
   const handlers: Record<string, ToolHandler> = {
     ...withModelFacingErrors({ handlers: { taxonomy_get_term: taxonomyGetTermHandler(args) }, rules: FORBIDDEN_RULES }),
     taxonomy_list: taxonomyListHandler(args),
@@ -458,13 +517,62 @@ export function buildTaxonomyRegistrations(
     [MERGE_TOOL_ID]: taxonomyExecuteMergeTermHandler(args),
   };
 
-  return buildDomainRegistrations({ metadata: toolMetadata,
+  return buildDomainRegistrations({
     domain: "taxonomy",
-    catalogModule: "features/taxonomy/agent-tools.ts",
-    catalog: CATALOG_BY_ID,
+    catalogModule: "the taxonomy agent-tool catalog",
+    catalog: indexCatalogById({ catalog }),
     handlers,
     derivedRisk: taxonomyDerivedRisk,
   });
+}
+
+/**
+ * The package deps over the host's route deps. Every field is a getter so a field the composition
+ * root assigns after this registry is built (the authorizer, the repos) is read at call time, as
+ * the handlers did when they read the route deps directly.
+ */
+function toPackageDeps({ routeDeps }: { routeDeps: TaxonomyToolDeps }, _optional = {}): TaxonomyPackageToolDeps {
+  return {
+    get authorize() { return routeDeps.authorize; },
+    get workspaceId() { return routeDeps.workspaceId; },
+    get clock() { return routeDeps.clock; },
+    get idGen() { return routeDeps.idGen; },
+    get taxonomyRepo() { return routeDeps.taxonomyRepo; },
+    get termRepo() { return routeDeps.termRepo; },
+    get entryTermRepo() { return routeDeps.entryTermRepo; },
+    get taxonomyRevisionRepo() { return routeDeps.taxonomyRevisionRepo; },
+    get outbox() { return routeDeps.outbox; },
+    get stampWatermark() { return routeDeps.stampWatermark; },
+    contentTargetPorts: () => createContentTargetPorts(routeDeps),
+    collectionTermPolicy: () => createLiveCollectionTermPolicy(routeDeps),
+    authorizeContentEdit: ({ principalId, contentType }) => authorizeContentEdit({ deps: routeDeps, principalId, contentType }),
+    mergeTermHooks: ({ fromTermId, intoTermId, actorId }) =>
+      buildMergeTermHooks({
+        workspaceId: routeDeps.workspaceId,
+        fromTermId,
+        intoTermId,
+        actorId,
+        clock: routeDeps.clock,
+        termRepo: routeDeps.termRepo,
+        entryTermRepo: routeDeps.entryTermRepo,
+        taxonomyRevisionRepo: routeDeps.taxonomyRevisionRepo,
+      }),
+    mergeGateway: {
+      plan: (required) => gatewayPlan({ deps: routeDeps.gatedMutations.gatewayDeps, ...required }),
+      confirm: (required) => gatewayConfirm({ deps: routeDeps.gatedMutations.gatewayDeps, ...required }),
+      execute: (required) => gatewayExecute({ deps: routeDeps.gatedMutations.gatewayDeps, ...required }),
+    },
+    humanConfirmedHandler: humanConfirmedToolHandler,
+    refuseUnexpectedKeys,
+    toSlug,
+  };
+}
+
+export function buildTaxonomyRegistrations(
+  routeDeps: TaxonomyToolDeps,
+  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
+): ToolRegistration[] {
+  return withToolMetadata({ registrations: buildTaxonomyToolRegistrations({ deps: toPackageDeps({ routeDeps }), surfaces, catalog: taxonomyAgentToolCatalog }), metadata: toolMetadata });
 }
 
 /**
