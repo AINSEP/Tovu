@@ -25,7 +25,7 @@ import { openLegacyContentDb } from "./legacy-content-db.fixture.js";
  */
 
 const BOOKKEEPING = ["__drizzle_migrations", "tovu_migrations"];
-const chain = readFrozenChain({});
+const chain = readFrozenChain();
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-legacy-adoption-"));
 const opened: Array<KyselyKernel<unknown>> = [];
 

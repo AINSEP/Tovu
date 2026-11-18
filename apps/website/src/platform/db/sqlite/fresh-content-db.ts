@@ -69,7 +69,7 @@ export function bootstrapFreshContentDb(
     "0000_legacy_baseline": () => {
       client.exec("CREATE TABLE __drizzle_migrations (id SERIAL PRIMARY KEY, hash text NOT NULL, created_at numeric)");
       const record = client.prepare('INSERT INTO __drizzle_migrations ("hash", "created_at") VALUES (?, ?)');
-      for (const entry of readFrozenChain({})) {
+      for (const entry of readFrozenChain()) {
         for (const statement of entry.statements) client.exec(statement);
         record.run(entry.hash, entry.when);
       }

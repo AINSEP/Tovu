@@ -75,4 +75,4 @@ async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   for (const statement of SQLITE_CHAT_STATEMENTS) await kernel.execute(sql.raw(statement));
 }
 
-export const sqliteChatTables = ({ checksum }: { checksum: string }, _optional: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> => ({ id: SQLITE_CHAT_TABLES_ID, checksum, up });
+export const sqliteChatTables = (checksum: string): MigrationStep<KyselyKernel<unknown>> => ({ id: SQLITE_CHAT_TABLES_ID, checksum, up });

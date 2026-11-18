@@ -14,8 +14,8 @@ import type { MigrationContext } from "@jini-ai/core/contracts/storage";
 const migrationContext: MigrationContext = { note: () => {} };
 
 const cases = [
-  { name: "SQLite", prefix: "", open: () => openMemorySqliteKernel<unknown>(), step: sqliteChatTables({ checksum: "sqlite-literal" }) },
-  { name: "PGlite", prefix: "ai_chat.", open: () => openPgliteKernel<unknown>(), step: chatBaseline({ checksum: "postgres-literal" }) },
+  { name: "SQLite", prefix: "", open: () => openMemorySqliteKernel<unknown>(), step: sqliteChatTables("sqlite-literal") },
+  { name: "PGlite", prefix: "ai_chat.", open: () => openPgliteKernel<unknown>(), step: chatBaseline("postgres-literal") },
 ] as const;
 
 for (const fixture of cases) {
@@ -105,9 +105,9 @@ for (const fixture of cases) {
 test("Postgres chat baseline performs no work on SQLite", async () => {
   const kernel = openMemorySqliteKernel<unknown>();
   try {
-    await chatBaseline({ checksum: "ignored-pg" }).up(kernel, migrationContext);
+    await chatBaseline("ignored-pg").up(kernel, migrationContext);
     assert.deepEqual(await kernel.query(sql`SELECT name FROM sqlite_master WHERE type = 'table'`), []);
-    await sqliteChatTables({ checksum: "sqlite-checksum" }).up(kernel, migrationContext);
+    await sqliteChatTables("sqlite-checksum").up(kernel, migrationContext);
     assert.deepEqual(await kernel.query(sql`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`), [
       { name: "ai_chat_messages" }, { name: "ai_chats" }, { name: "assistant_agent_sessions" }, { name: "assistant_conversation_tool_approvals" },
     ]);
@@ -119,12 +119,12 @@ test("Postgres chat baseline performs no work on SQLite", async () => {
 test("SQLite chat step performs no work on Postgres and baseline failure preserves pre-existing tables", async () => {
   const kernel = openPgliteKernel<unknown>();
   try {
-    await sqliteChatTables({ checksum: "ignored-sqlite" }).up(kernel, migrationContext);
+    await sqliteChatTables("ignored-sqlite").up(kernel, migrationContext);
     assert.deepEqual(await kernel.query(sql`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`), []);
     await kernel.execute(sql`CREATE SCHEMA ai_chat`);
     await kernel.execute(sql`CREATE TABLE ai_chat.ai_chat_messages (payload text)`);
     await kernel.execute(sql`INSERT INTO ai_chat.ai_chat_messages VALUES ('pre-existing message')`);
-    await assert.rejects(kernel.transaction(() => chatBaseline({ checksum: "conflict" }).up(kernel, migrationContext)), { code: "42P07" });
+    await assert.rejects(kernel.transaction(() => chatBaseline("conflict").up(kernel, migrationContext)), { code: "42P07" });
     assert.deepEqual(await kernel.query(sql`SELECT tablename FROM pg_tables WHERE schemaname = 'ai_chat' ORDER BY tablename`),
       [{ tablename: "ai_chat_messages" }]);
     assert.deepEqual(await kernel.query(sql`SELECT * FROM ai_chat.ai_chat_messages`), [{ payload: "pre-existing message" }]);
@@ -139,7 +139,7 @@ test("SQLite chat migration propagates an incompatible existing table error with
   try {
     await kernel.execute(sql`CREATE TABLE ai_chats (id text PRIMARY KEY, payload text)`);
     await kernel.execute(sql`INSERT INTO ai_chats VALUES ('legacy', 'retain this row')`);
-    await assert.rejects(kernel.transaction(() => sqliteChatTables({ checksum: "conflict" }).up(kernel, migrationContext)), /no such column: scope_id/);
+    await assert.rejects(kernel.transaction(() => sqliteChatTables("conflict").up(kernel, migrationContext)), /no such column: scope_id/);
     assert.deepEqual(await kernel.query(sql`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`), [{ name: "ai_chats" }]);
     assert.deepEqual(await kernel.query(sql`SELECT * FROM ai_chats`), [{ id: "legacy", payload: "retain this row" }]);
   } finally {

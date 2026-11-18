@@ -15,7 +15,7 @@ test("search migration stems English words, retains stop words, and builds a GIN
   const kernel = openPgliteKernel<unknown>();
   try {
     await kernel.execute(sql`CREATE TABLE posts (id text PRIMARY KEY)`);
-    const step = postSearch({ checksum: "independent-checksum" });
+    const step = postSearch("independent-checksum");
     assert.equal(step.id, "0001_post_search");
     assert.equal(step.checksum, "independent-checksum");
     await step.up(kernel, migrationContext);
@@ -48,7 +48,7 @@ test("search step leaves SQLite schema and existing values unchanged", async () 
   try {
     await kernel.execute(sql`CREATE TABLE marker (payload text NOT NULL)`);
     await kernel.execute(sql`INSERT INTO marker VALUES ('keep SQLite search')`);
-    await postSearch({ checksum: "sqlite-checksum" }).up(kernel, migrationContext);
+    await postSearch("sqlite-checksum").up(kernel, migrationContext);
     assert.deepEqual(await kernel.query(sql`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`), [{ name: "marker" }]);
     assert.deepEqual(await kernel.query(sql`SELECT * FROM marker`), [{ payload: "keep SQLite search" }]);
   } finally {
@@ -60,10 +60,10 @@ test("search step leaves SQLite schema and existing values unchanged", async () 
 test("search migration propagates missing-posts DDL failure and rolls back in its caller's transaction", async () => {
   const kernel = openPgliteKernel<unknown>();
   try {
-    await assert.rejects(kernel.transaction(() => postSearch({ checksum: "failed-checksum" }).up(kernel, migrationContext)), { code: "42P01" });
+    await assert.rejects(kernel.transaction(() => postSearch("failed-checksum").up(kernel, migrationContext)), { code: "42P01" });
     assert.deepEqual(await kernel.query(sql`SELECT cfgname FROM pg_ts_config WHERE cfgname = 'tovu_search'`), []);
     await kernel.execute(sql`CREATE TABLE posts (id text PRIMARY KEY)`);
-    await kernel.transaction(() => postSearch({ checksum: "retry-checksum" }).up(kernel, migrationContext));
+    await kernel.transaction(() => postSearch("retry-checksum").up(kernel, migrationContext));
     assert.deepEqual(await kernel.query(sql`SELECT to_tsvector('tovu_search', 'running the')::text AS tokens`),
       [{ tokens: "'run':1 'the':2" }]);
   } finally {
