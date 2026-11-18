@@ -538,6 +538,8 @@ test("a retire target that is ALSO part of this bundle is never offered — publ
   const report = await planImport(
     {
       bundle: { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [blockedEntity, holderEntity] },
+      // Even an operator who already ticked "overwrite" for w1 must not get a forced retire here —
+      // the in-bundle case is refused regardless of forcedEntityKeys.
       deps: makeDeps({ forcedEntityKeys: new Set([entityKey({ entityType: "widget", entityId: "w1" })]) })
     }
   );

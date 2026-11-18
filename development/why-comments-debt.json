@@ -912,6 +912,490 @@
     {
       "id": "ff869d24ec10",
       "reason": "wording largely survives at packages/devops/src/local-dev/free-port.ts (45% shared word triples); code changed in 'refactor(scripts): free-port binds @jini-ai/devops/local-dev'"
+    },
+    {
+      "id": "b292f17aa27e",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/admin/src/components/AssistantDock/assistant-runtime-preferences.ts (text re-worded, present (bigram containment 0.9)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "8d93f240ca9c",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/admin/src/features/media/rules.ts (text re-worded, present (bigram containment 0.78)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "381a5117884e",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/admin/src/features/providers/Providers.tsx (\"Hook-calling shell\" doc: the same complexity-ceiling reasoning (injected defaults are branches of the tiny shell, not of the body) restated for the split that replaced `resolveProvidersHook`). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "7d3d3d0d4d80",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/assistant/runtime-preferences.ts (same note re-worded for the OD-4 default-off change (owner-only, probe-gated either way)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "33c81dcf9bb4",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/contracts/core/credential-token.ts (header re-worded after the re-exports were removed; still says it only injects the application-key detector). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "5768704f88e3",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/deployments/deploy-config.ts (text re-worded, present (bigram containment 0.86)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "b95afd46b575",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/deploy/config-injection.ts (text re-worded, present (bigram containment 0.77)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "16c2f6e3b28f",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/deploy/config-injection.ts (QUOTED-sink hazard characters doc, same reasoning). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "ec8b0eb62dbe",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/deploy/config-injection.ts (UNQUOTED-YAML plain-scalar characters doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "47b591a5538d",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/platform/src/mail/activity/activity.ts (text re-worded, present (bigram containment 0.79)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "bed5467d65bf",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/platform/src/mail/activity/activity.ts (field doc \"Opaque; present only with full access\"). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "453a538b0459",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/platform/src/mail/activity/activity.ts (access-tier doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "797db440a2aa",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/platform/src/mail/activity/activity.ts (text re-worded, present (bigram containment 0.93)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "348b3b159fbb",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/platform/src/mail/activity/suppressions.ts (file header (permissions and owner gate)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "3affb54004ed",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/platform/src/mail/activity/suppressions.ts (text re-worded, present (bigram containment 0.86)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "6ec265fb3655",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/platform/src/mail/activity/suppressions.ts (text re-worded, present (bigram containment 0.89)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "3136081ee37f",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/media/__tests__/provider-credential-store.rethrow.test.ts (header re-worded: the policy is now injected as deps.credentialPolicy instead of mock.module). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "f96542aaa4c4",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/navigation/sql/menu-repo.ts and location-binding-repo.ts (file headers of the two SQL repositories). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "97cfdad8ed26",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/navigation/sql/menu-repo.ts (text re-worded, present (bigram containment 0.82)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "e12a12a1982a",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/navigation/sql/menu-repo.ts (text re-worded, present (bigram containment 0.85)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "23d1190d3e09",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/navigation/sql/menu-repo.ts (text re-worded, present (bigram containment 0.97)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "569d26ec1958",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/navigation/sql/location-binding-repo.ts (text re-worded, present (bigram containment 0.85)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "4d833e343486",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/duplicate-embeds.ts (file header). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "e8b647ff9462",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/duplicate-embeds.ts (text re-worded, present (bigram containment 0.94)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "bfe1b1d254bd",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/duplicate-embeds.ts (text re-worded, present (bigram containment 0.98)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "12b47ca0860c",
+      "reason": "Obsolete, not lost: the substance of this comment is at Jini packages/cms/src/seo/html-plain-text.ts (the helper moved to the module that owns SEO text, so the \"lives in post to avoid an import cycle\" placement note no longer describes anything). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "98b506120770",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/seo/html-plain-text.ts (text re-worded, present (bigram containment 0.91)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "12336111d080",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/seo/html-plain-text.ts (text re-worded, present (bigram containment 0.93)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "00fcba061585",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/seo/html-plain-text.ts (text re-worded, present (bigram containment 0.79)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "8bc11652e442",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/post/post-vocabulary.ts and Jini packages/cms/src/core/post-vocabulary.ts (storage-kinds doc re-worded around PublicPostKind). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "9aefb4386094",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/redirects/agent-tools.ts (text re-worded, present (bigram containment 0.81)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "54c34f33e4d9",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/redirects/agent-tools.ts (catalog-entry type doc (published inputSchema, every entry wired)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "e433a16e2a5e",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/redirects/agent-tools.ts (text re-worded, present (bigram containment 0.9)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "ca7e014e688f",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/redirects/tool-registrations.ts (text re-worded, present (bigram containment 0.82)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "02551525fdb2",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/redirects/tool-registrations.ts (text re-worded, present (bigram containment 0.83)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "c70999e10975",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/media/tool-registrations.ts (text re-worded, present (bigram containment 0.84)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "cf3738aec700",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/redirects/tool-registrations.ts (text re-worded, present (bigram containment 0.91)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "575f8c0d646b",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/web-evidence/path-guard.ts (text re-worded, present (bigram containment 0.94)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "59bf2ef40f57",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/web-evidence/path-guard.ts (text re-worded, present (bigram containment 0.98)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "39e8e0f2443b",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/web-evidence/path-guard.ts (text re-worded, present (bigram containment 0.97)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "0d9bb4b4c8e1",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/web-evidence/path-guard.ts (text re-worded, present (bigram containment 0.96)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "e5d672aeaf9f",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/web-evidence/path-guard.ts (text re-worded, present (bigram containment 0.76)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "8ed20cb828a9",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/web-evidence/path-guard.ts (reserved-path mapping helper doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "cf8c8ffb268c",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/web-evidence/path-guard.ts (text re-worded, present (bigram containment 0.75)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "ad29e84aa82d",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/web-evidence/cookie-shapes.ts (text re-worded, present (bigram containment 0.98)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "425de7a1501f",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/web-evidence/bounded-body.ts (text re-worded, present (bigram containment 0.98)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "cea57e6c7123",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts and Tovu apps/website/src/features/source-control/commit-site.ts (file header: \"wrap, do not reimplement\", never-throw contract). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "45574b8b211f",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts (toCommitFile separator note). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "68687d341204",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/source-control/commit-site.ts and Jini packages/devops/src/source-control/contracts.ts (the one seam to the git host). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "81876a818400",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/source-control/commit-site.ts (outcome doc: post-confirm codes are never pre-dialog, with the failure-contract table citation). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "30563adb1d9b",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/contracts.ts (restored note on the outcome type, commit 3363745e) (divergedPaths pass-through doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "8c35299f4a6b",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/source-control/commit-site.ts (resolveSavedApiKey doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "4603577d5dd9",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/source-control/commit-site.ts (text re-worded, present (bigram containment 0.78)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "4e5c4c123b0e",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/source-control/commit-site.ts (ExportSiteBoundFn doc: not named like RouteDeps.runExportSite). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "5ab559b90ad2",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/source-control/commit-site.ts (sourceControlExportRootDir doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "98842195fae4",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts and Tovu commit-site.ts (per-run export directory and why a fixed path per provider has no concurrency guard). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "54cda4dec8fe",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/source-control/commit-site.ts (commitExportDir doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "f630543c4be5",
+      "reason": "Obsolete, not lost: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts (history of a lazy `require` that broke an import cycle; the import is now a plain static one inside Jini devops, so there is no cycle to explain). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "e13fe36a5d00",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts (resolveProviderCredential doc (credential phase)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "251b83de7d46",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts (decrypt-failure surfaces as NO_CREDENTIALS_CONFIGURED). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "4caa843098a5",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts (wrong-provider guard is unreachable but kept explicit). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "b0b88d2d13c8",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/source-control/commit-site.ts and Jini packages/devops/src/source-control/commit.ts (export phase doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "2c6fd1ab9481",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/source-control/commit-site.ts (\"pinned BEFORE rendering\" doc of packageStaticSite). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "c8a4685d65ea",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts (toCommitFile / separator note). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "cb56cd99fa15",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts (previewCommitExport doc and Tovu commit-site.ts previewCommitExport doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "25d24f6298e6",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts (commitSiteToSourceControl doc (fresh export, never throws)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "4f59cc9c20cf",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/source-control/commit-site.ts (\"wiring bug\" message and CommitSiteDeps.gitAdapter doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "d2e35dafe73e",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts (text re-worded, present (bigram containment 0.81)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "dff6a6f9ba95",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts (commitExportedFiles doc (map outcome, redact message)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "e61439ec8875",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts (text re-worded, present (bigram containment 0.93)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "6c6b2aef4d1f",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/devops/src/source-control/commit.ts (redactToken doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "0ee6b4313dab",
+      "reason": "Obsolete, not lost: the substance of this comment is at Tovu apps/website/src/features/source-control/store.ts (the `fetchFn` test override was removed (owner decision: the probe goes only through the guarded httpClient); the new doc says so). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "a6d5496f1ccc",
+      "reason": "Obsolete, not lost: the substance of this comment is at Tovu apps/website/src/features/source-control/store.ts (the `observability` dep of the probe was removed with `fetchFn`; the probe is one guarded httpClient request). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "eeac03fe89a8",
+      "reason": "Obsolete, not lost: the substance of this comment is at Tovu apps/website/src/features/source-control/tool-registrations.ts (`fetchFn` was replaced by `customCredentialsHttpClient`, documented there). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "8fad497ff315",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/read-ports.ts (file header (\"read ports ... types only\")). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "dcb30f43de34",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/read-ports.ts (text re-worded, present (bigram containment 0.82)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "4a7c9fca9b6d",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/read-ports.ts (text re-worded, present (bigram containment 0.82)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "86e0cd4dfa97",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/redirects/sql/repo.rows.ts (text re-worded, present (bigram containment 0.84)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "9a351e2b4e68",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/sql/ (term-repo.ts, taxonomy-repo.ts, entry-term-repo.ts, liveness.ts) (the repositories file header, split per repository). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "47d15b847a2c",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/sql/liveness.ts (text re-worded, present (bigram containment 0.97)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "44b455582b40",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/sql/taxonomy-repo.ts (text re-worded, present (bigram containment 0.86)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "55f03e79a824",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/sql/term-repo.ts (text re-worded, present (bigram containment 0.97)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "a6a62576cd39",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/sql/term-repo.ts (text re-worded, present (bigram containment 0.76)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "d4a00a733851",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/sql/term-repo.ts (text re-worded, present (bigram containment 0.9)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "39bbb034f26d",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/sql/term-repo.ts (ancestor-chain lookup doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "a2b1df260d9b",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/sql/entry-term-repo.ts (text re-worded, present (bigram containment 0.86)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "a5f6ba8c355f",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/sql/entry-term-repo.ts (text re-worded, present (bigram containment 0.87)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "0dd117fa3df6",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/sql/entry-term-repo.ts (text re-worded, present (bigram containment 0.83)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "4b18f9f40e0b",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/sql/entry-term-repo.ts (text re-worded, present (bigram containment 0.76)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "f7e4f3b4e914",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/sql/entry-term-repo.ts (text re-worded, present (bigram containment 0.95)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "c00c12d8606e",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/tool-handlers.ts and Tovu apps/website/src/features/taxonomy/tool-registrations.ts (authorization-shape and confirm-first notes moved with the handlers; the host header keeps what is Tovu's). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "270c0dcf364f",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/taxonomy/tool-handlers.ts (text re-worded, present (bigram containment 0.96)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "d6a7aadfe702",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/web-screenshot/web-screenshot.ts (CAPTURE_LIMITS doc: `reserveMs` is held back so a page that loaded but never settled is still shot as it is). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "fed70294931b",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/web-screenshot/web-screenshot.ts (text re-worded, present (bigram containment 0.75)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "7d376fe6fbb1",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/agent-tools.ts (text re-worded, present (bigram containment 0.76)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "632ecf3d73a6",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/agent-tools.ts (text re-worded, present (bigram containment 0.87)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "34ec56afdbd9",
+      "reason": "Obsolete, not lost: the substance of this comment is at Jini packages/cms/src/widgets/html/media-html.ts (\"temporary host placement until Jini dist is rebuilt\" was a transitional note; the file now lives in Jini and the policy description is in its header). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "732d3b06d6de",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/html/media-html.ts (text re-worded, present (bigram containment 0.91)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "2aefe2c0ef34",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (text re-worded, present (bigram containment 0.89)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "bb8d7ec90cc2",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (per-tool \"->\" handler map notes). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "715d338b03b3",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (per-tool \"->\" handler map notes). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "8de87ab8728b",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (per-tool \"->\" handler map notes). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "c4df0426471d",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (per-tool \"->\" handler map notes). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "08a10cea6d5c",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (per-tool \"->\" handler map notes). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "100f42bf46d0",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (per-tool \"->\" handler map notes). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "a0d6dfc97b8a",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (per-tool \"->\" handler map notes). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "33e611133981",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (per-tool \"->\" handler map notes). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "d5485d8ffd45",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (per-tool \"->\" handler map notes). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "b68df76d1678",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (per-tool \"->\" handler map notes). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "bd28135a5e47",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (text re-worded, present (bigram containment 0.88)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "4d36cd25ba15",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-handlers.areas.ts (placement-view resolver doc). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "c607f228f8c9",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-handlers.instances.ts (the trash handler doc (widgets.read vs widgets.delete split, fresh expectedVersion)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "f8dce843e7ab",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-handlers.areas.ts (text re-worded, present (bigram containment 0.95)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "97aaf9de54f5",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/widgets/tool-registrations.ts (text re-worded, present (bigram containment 0.86)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "25e252a82af3",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Tovu apps/website/src/features/tool-audit/repo.sqlite.ts (text re-worded, present (bigram containment 0.79)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "e7407e739cca",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/workspace/sql/repo.ts (repository header). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "b45524d761ed",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/cms/src/workspace/repo.memory.ts (text re-worded, present (bigram containment 0.75)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "8f102e6f4436",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/__tests__/console-tee.test.ts (the unterminated-last-line test moved with console-tee). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "f97c2c529d9b",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/console-tee.ts (text re-worded, present (bigram containment 0.82)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "e2a8de4c2ea6",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/console-tee.ts (text re-worded, present (bigram containment 0.99)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
+    },
+    {
+      "id": "fff3493ebebb",
+      "reason": "Moved or re-worded, not deleted: the substance of this comment is at Jini packages/diagnostics/src/local-text.ts (text re-worded, present (bigram containment 0.99)). Found by comparing the deleted text with both trees (check-why-comments counts only verbatim survivors)."
     }
   ]
 }
