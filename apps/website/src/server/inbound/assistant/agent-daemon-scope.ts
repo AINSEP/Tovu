@@ -1494,7 +1494,7 @@ const delegatedToolRouteDeps = {
   lifecycle,
   toolExecutor,
   resolvePrincipal,
-  toolRegistry: siteTools.registry,
+  toolRegistry: siteTools.registry, toolFamilies: siteTools.families,
   ...delegatedToolErrorDisclosure({}, {}),
   // Static jobs live at the site server. Read once through its normal permission gate after a
   // lost delegated response; the five-second deadline cannot extend or repeat the publish.
