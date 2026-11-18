@@ -210,22 +210,19 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
  *  a crawler or browser requests them at that exact literal path, never through a link — so unlike
  *  every other content route, they must land at that literal filename, not wrapped in a
  *  `<name>/index.html` directory. */
-// Fixed placeholder origin `safeHref` (below) resolves a claimed same-origin-relative href
-// against, so "//evil.example" (protocol-relative) and "/\evil.example" (backslash-folded by a
-// real browser) both resolve OFF this origin and get refused, the same reasoning
-// `features/theme/static-render.ts`'s own copy of this constant documents at length.
+// `"//evil.example"` (protocol-relative) and `"/\evil.example"` (backslash-folded by a real browser)
+// resolve OFF the page's own origin and are refused by `toAllowedHref` (`@jini-ai/cms/navigation`),
+// whose `href.ts` documents the placeholder-origin resolution at length.
 /**
  * Scheme allowlist for a redirect-stub target, applied before {@link escapeHtmlAttr} embeds it
  * into `renderRedirectStub`'s three sinks. `escapeHtmlAttr` alone only neutralizes
  * quote/attribute-breakout characters — it does nothing to stop a `javascript:`/`data:` scheme
  * from executing once emitted into an `href`, the exact gap `a69f5892`/`0a41515c`
  * closed for every other comparable sink in `features/theme/static-render.ts` and
- * `server/inbound/public-http/http/site/render.ts`. THIS is a third, deliberate duplicate of
- * those two files' own byte-identical `safeHref` — not a shared import, because `features/site-export`
- * pulling a private helper out of either of those modules would need it exported first, widening
- * a surface neither module wants widened for one more caller; those two files already document
- * this exact "duplicate, don't share" precedent for the identical reason. If this logic changes,
- * BOTH of those copies must change too — none of the three update each other automatically.
+ * `server/inbound/public-http/http/site/render.ts`. All three sinks
+ * call the one href standard, `toAllowedHref` from `@jini-ai/cms/navigation` — there is no
+ * Tovu-side copy of it to keep in step (the byte-identical `safeHref` duplicates this comment used
+ * to describe were retired 2026-11-17).
  *
  * @returns the original value when it passes the allowlist, otherwise `"#"` — never a malformed or
  *   unsafe href, matching this codebase's "degrade, don't disappear" convention for a link target.
@@ -283,8 +280,8 @@ export { firstExportFailure, type ExportFailureSummary } from "./export-failure-
  * expected to already be base-path-prefixed by the caller when applicable — this function only
  * embeds it, the same "one place decides the path" split every rewrite above already follows.
  */
-  // Scheme-checked FIRST, escaped second — matching every other href sink's `escapeHtml(safeHref(x))`
-  // order in `render.ts`/`static-render.ts`. `safeHref` degrades an unsafe scheme to `"#"` rather
+  // Scheme-checked FIRST, escaped second — matching every other href sink's `escapeHtml(toAllowedHref(x))`
+  // order in `render.ts`/`static-render.ts`. `toAllowedHref` degrades an unsafe scheme to `"#"` rather
   // than refusing to render the page: this stub's whole job is being a working redirect, and a
   // `javascript:`/`data:` target was never a real destination to preserve. Used for all three
   // sinks (meta refresh, canonical, and the visible link's `href`) — the label text below is

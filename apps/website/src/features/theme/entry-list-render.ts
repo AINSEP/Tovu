@@ -1,6 +1,6 @@
 import { wrapListingItems } from "@jini-ai/cms/listing";
+import { isAllowedHref, toAllowedHref } from "@jini-ai/cms/navigation";
 import { escapeHtml } from "#src/platform/html/escape";
-import { safeHref } from "./render-contract.js";
 
 /**
  * @file Pure entry-list renderer for the `{"type":"collection"}` static-tier marker (C3, plan lines
@@ -10,7 +10,7 @@ import { safeHref } from "./render-contract.js";
  * (`entries/public-list.ts`). Every entry value is attacker-shaped content (an operator's — or an
  * agent tool acting on an operator's behalf — free-text field value) that reaches every visitor of
  * the public site, so it is HTML-escaped on every path, matching this codebase's existing posture for
- * post-previews (`static-render.ts`'s `renderPostPreviewCard`) and menu links (`safeHref`'s own doc).
+ * post-previews (`static-render.ts`'s `renderPostPreviewCard`) and menu links (`toAllowedHref`'s own doc).
  *
  * D1: entry pages are OFF. `href` is `EntryDisplayListPort`'s caller's already-resolved
  * `entryPublicHref(...)` result, which returns `null` while pages are off — a `null` href renders the
@@ -127,7 +127,7 @@ function renderFieldRow(field: EntryListFieldValue): string {
 /** The title element shared by cards and list items: linked only when `href` is non-null (D1). */
 function renderTitle({ item, tag }: { item: EntryListItem; tag: "h3" }, _optional = {}): string {
   const title = escapeHtml({ text: item.title });
-  const inner = item.href === null ? title : `<a href="${escapeHtml({ text: safeHref({ value: item.href }) })}">${title}</a>`;
+  const inner = item.href === null ? title : `<a href="${escapeHtml({ text: toAllowedHref({ rawHref: item.href }) })}">${title}</a>`;
   return `<${tag} class="entry-card__title">${inner}</${tag}>`;
 }
 
@@ -209,7 +209,7 @@ const TAG_ATTRIBUTE_OR_PLACEHOLDER = new RegExp(
 );
 
 /** Attributes whose value a browser follows or loads as a URL, so an entry value placed in one gets
- * the {@link safeHref} scheme allowlist. */
+ * the {@link isAllowedHref} scheme allowlist. */
 const URL_ATTRIBUTE_NAMES: ReadonlySet<string> = new Set(["href", "src", "action", "formaction", "poster", "cite", "background", "data", "xlink:href"]);
 
 /** Non-global twin of {@link PLACEHOLDER_PATTERN} for a stateless "does this contain one" test. */
@@ -231,7 +231,7 @@ function escapeForUnquotedAttribute({ raw }: { raw: string }, _optional = {}): s
 
 /**
  * A URL attribute's value with its placeholders filled. The COMPOSED url (author text plus raw entry
- * values) must pass {@link safeHref}, else the whole value becomes `#` — checking the composed value,
+ * values) must pass {@link isAllowedHref}, else the whole value becomes `#` — checking the composed value,
  * not each placeholder alone, keeps `https://x.test/{{fields.id}}` working while still catching an
  * entry value that sets the scheme. The author's own literal text is never re-escaped.
  *
@@ -239,7 +239,7 @@ function escapeForUnquotedAttribute({ raw }: { raw: string }, _optional = {}): s
  */
 function renderUrlAttributeValue({ value, item, escapeValue }: { value: string; item: EntryListItem; escapeValue: PlaceholderEscape }, _optional = {}): string {
   const composed = substitutePlaceholders({ text: value, item, transform: (raw) => raw });
-  if (safeHref({ value: composed }) !== composed.trim()) return "#";
+  if (!isAllowedHref({ rawHref: composed })) return "#";
   return substitutePlaceholders({ text: value, item, transform: escapeValue });
 }
 

@@ -1,7 +1,7 @@
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { arr, obj, str } from "../value-readers.js";
 import { escapeHtml } from "#src/platform/html/escape";
-import { safeHref } from "#src/platform/html/safe-url";
+import { toAllowedHref } from "@jini-ai/cms/navigation";
 import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN } from "#src/features/post/rendering";
 import { renderEntryList, renderEntryListStructuredData, type EntryListItem, type EntryListFieldValue, type EntryListRenderOptions } from "#src/features/theme/entry-list-render";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
@@ -12,17 +12,17 @@ export function renderWidgetSocialLinks(props: JsonObject): string {
     .map((link) => {
       const o = obj({ value: link });
       if (!o) return "";
-      return `<li><a class="widget-social-link" href="${escapeHtml({ text: safeHref({ value: o.url }) })}">${escapeHtml({ text: str({ value: o.platform }) })}</a></li>`;
+      return `<li><a class="widget-social-link" href="${escapeHtml({ text: toAllowedHref({ rawHref: o.url }) })}">${escapeHtml({ text: str({ value: o.platform }) })}</a></li>`;
     })
     .join("");
   return `<ul class="widget widget-social-links">${items}</ul>`;
 }
 
 /**
- * `entry-summary` builds its own `href="/${slug}"` rather than calling {@link safeHref} — `slug` is
- * never a full URL, so the allowlist scheme/relative checks {@link safeHref} runs don't apply here.
+ * `entry-summary` builds its own `href="/${slug}"` rather than calling {@link toAllowedHref} — `slug` is
+ * never a full URL, so the allowlist scheme/relative checks {@link toAllowedHref} runs don't apply here.
  * That made it a SECOND, independent open-redirect path (2026-08-20 audit finding, alongside
- * `safeHref`'s own protocol-relative bypass fixed above): a `props.slug` of `"/evil.example"` (a
+ * `toAllowedHref`'s own protocol-relative bypass fixed above): a `props.slug` of `"/evil.example"` (a
  * leading slash smuggled inside the widget prop) reconstructs the exact same `"//evil.example"`
  * protocol-relative shape once concatenated behind the hardcoded `/` prefix — `escapeHtml` does not
  * touch `/`, so nothing upstream of this function was stopping it. Fixed the same way
@@ -103,7 +103,7 @@ export function renderWidgetRecentEntries(ir: WidgetRenderIR): string {
   const lis = items
     .map((item) => {
       const title = escapeHtml({ text: item.title });
-      const inner = item.href === null ? title : `<a href="${escapeHtml({ text: safeHref({ value: item.href }) })}">${title}</a>`;
+      const inner = item.href === null ? title : `<a href="${escapeHtml({ text: toAllowedHref({ rawHref: item.href }) })}">${title}</a>`;
       return `<li class="widget-entry-summary">${inner}</li>`;
     })
     .join("");

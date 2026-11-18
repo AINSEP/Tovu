@@ -1,72 +1,43 @@
 /**
- * Behavioral-equivalence gate for the author-link href allowlist (2026-09-03).
+ * Gate for the single href standard of Tovu's public HTML (2026-09-03, reworked 2026-11-17).
  *
  * ## What this catches, and why it's needed
  *
- * The predicate "is this href safe to emit as a public `<a href>`" now exists in three places:
+ * The predicate "is this href safe to emit as a public `<a href>`" has ONE implementation:
+ * `isAllowedHref` (decide) and `toAllowedHref` (coerce to `"#"`), exported from
+ * `@jini-ai/cms/navigation` (Jini repo, `packages/cms/src/navigation/href.ts`). The same function
+ * rejects a menu item's `url` target at write time (a 400 `MenuValidationError`) and degrades a
+ * render-time link to `"#"`, in every Tovu renderer (public renderers, static theme tier, entry-list
+ * templates). Tovu used to carry two hand-kept copies of it (`safeHref` in `platform/html/safe-url.ts`
+ * and in `features/theme/render-contract.ts`), which drifted from each other and from Jini; this gate
+ * existed to extract and compare those copies. They are deleted, so the gate now guards two things:
  *
- * 1. **Canonical**: `isAllowedHref`, exported from `@jini-ai/cms/navigation` (Jini repo,
- *    `packages/cms/src/navigation/menu-service.ts`). Write-time — rejects a menu item's `url` target
- *    with a 400 `MenuValidationError` when it fails.
- * 2. `safeHref` in `apps/website/src/platform/html/safe-url.ts` (this repo).
- *    Render-time — coerces a failing value to `"#"` instead of rejecting.
- * 3. `safeHref` in `apps/website/src/features/theme/static-render.ts` (this repo, static-tier
- *    theme menu rendering). Same render-time coerce-to-`"#"` contract as #2 — a DELIBERATE duplicate
- *    of it, not a shared import, because `features/theme` may not deep-import `server/inbound/**`
- *    (`check:boundaries`' `feature-no-server-or-framework-imports` rule).
- *
- * All three are supposed to accept and reject the exact same shapes. They drifted once already (the
- * write-time copy was a scheme DENYLIST until this same day's companion fix promoted the render-time
- * copies' ALLOWLIST logic into Jini as the canonical implementation) and a HAND-MAINTAINED "keep
- * these three in sync" doc-comment is not a mechanism — nothing stops a future edit to any one of
- * them from silently reopening the gap. This script is the mechanism: it DERIVES a real, callable
- * function from each copy's actual current source (see "How the two Tovu copies are tested" below)
- * and asserts identical accept/reject behavior across a shared adversarial + legitimate table, so a
- * divergence fails a `check:*` script instead of drifting silently.
- *
- * ## How the two Tovu copies are tested — DERIVED, not hand-copied
- *
- * `render.ts` and `static-render.ts` are off-limits to edit in the change that added this gate (a
- * separate agent owns/owned them), so their `safeHref` functions are not `export`ed and cannot be
- * `import`ed directly. Rather than hand-copy their logic into this script (which would just be a
- * FOURTH copy, reintroducing the exact drift risk this gate exists to close), {@link extractSafeHrefDeclaration}
- * pulls the real, current function text out of each file (a balanced-brace scan anchored on the
- * literal `function safeHref(...)` declaration, plus its two `SAFE_HREF_RESOLUTION_*` const
- * dependencies), and {@link loadHrefChecker} writes that EXACT extracted text to a throwaway `.ts`
- * file and `import()`s it for real — so this gate always tests whatever the live file currently
- * contains, not a snapshot frozen at the time this script was written. If either file's `safeHref` is
- * ever renamed, restructured beyond what the extraction regex tolerates, or simply deleted, extraction
- * itself throws (caught in `main()`, reported, exit 1) rather than silently skipping that copy.
+ * 1. **The standard itself, as Tovu consumes it.** The adversarial + legitimate table below is run
+ *    through the REAL `isAllowedHref` and `toAllowedHref` of the Jini build Tovu resolves, and both must
+ *    agree with the expected outcome on every row. A Jini change that loosens the allowlist (or makes the
+ *    two entry points disagree) fails here, in the repo that renders the links.
+ * 2. **No second implementation comes back.** A source scan fails on any local declaration named
+ *    `safeHref` in app/package source (tests are not scanned), so a future edit cannot quietly
+ *    re-create a Tovu-side copy to drift.
  *
  * ## `dist` vs `src` — asserted against
  *
- * The canonical Jini side is asserted against **`dist`**, not `src`: `@jini-ai/cms/navigation`'s
- * package.json `exports` map points only at `./dist/navigation/index.js` — there is no resolution
- * path from a consumer's `import` to Jini's `src/`. This means the gate can go stale relative to an
- * UNBUILT Jini source edit: after editing `packages/cms/src/navigation/menu-service.ts`, run
- * `pnpm --filter @jini-ai/cms build` (Jini repo) before re-running this gate, or it keeps asserting
- * against the previous `dist`. That is a real, disclosed limitation (the same "stale dist silently
- * ships old behavior" failure class this workspace has hit before with `packages/daemon/dist`), not
- * fixed here — this gate polices CROSS-REPO behavioral sync, not Jini's own build freshness, which is
- * a separate, unrelated problem. The two Tovu copies, by contrast, are asserted straight against
- * their live `.ts` SOURCE — no build step, always current.
+ * The Jini side is asserted against **`dist`**: `@jini-ai/cms/navigation`'s package.json `exports` map
+ * points only at `./dist/navigation/index.js`. After editing Jini's `packages/cms/src/navigation/href.ts`,
+ * rebuild it (`pnpm --filter @jini-ai/cms build`, Jini repo) before re-running this gate, or it asserts
+ * against the previous `dist`. A disclosed limitation (the "stale dist silently ships old behavior"
+ * class this workspace has hit before), not fixed here.
  *
- * Usage: npx tsx development/scripts/check-menu-href-allowlist-sync.ts
- * Exit codes: 0 = all three copies agree on every href in the shared table.
- *             1 = at least one disagrees, or a copy's source could not be extracted at all.
+ * Usage: npx tsx development/scripts/check-menu-href-allowlist-sync.ts [--root <dir>]
+ * Exit codes: 0 = the standard passes every table row and no local copy exists.
+ *             1 = a row disagrees, or a local `safeHref` declaration was found.
  */
-import { isAllowedHref } from "@jini-ai/cms/navigation";
+import { isAllowedHref, toAllowedHref } from "@jini-ai/cms/navigation";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
-const RENDER_TS_PATH = path.join(
-  REPO_ROOT,
-  "apps/website/src/platform/html/safe-url.ts"
-);
-const STATIC_RENDER_TS_PATH = path.join(REPO_ROOT, "apps/website/src/features/theme/render-contract.ts");
+const DEFAULT_ROOT = path.resolve(import.meta.dirname, "..", "..");
 
 /** A single implementation's accept/reject predicate, normalized to a boolean regardless of whether
  *  the underlying function rejects (returns `false`) or coerces (returns `"#"`) on failure. */
@@ -74,10 +45,9 @@ export type HrefChecker = (href: string) => boolean;
 
 // ---------------------------------------------------------------------------
 // Adversarial + legitimate table — kept in sync BY EYE with Jini's own copy in
-// `packages/cms/src/navigation/__tests__/menu-service.test.ts`'s `DISALLOWED_URL_TARGET_HREFS` /
-// `ALLOWED_URL_TARGET_HREFS` (that repo cannot import this file, and this repo cannot import that
-// repo's test file, so the two lists are independently maintained — verify they still match when
-// editing either).
+// `packages/cms/src/navigation/__tests__/href.test.ts` (that repo cannot import this file, and this
+// repo cannot import that repo's test file, so the two lists are independently maintained — verify
+// they still match when editing either).
 // ---------------------------------------------------------------------------
 
 export const REJECTED_HREFS: readonly string[] = [
@@ -97,6 +67,15 @@ export const REJECTED_HREFS: readonly string[] = [
   "//evil.example",
   "/\\evil.example",
   "/\t/evil.example",
+  // A protocol-relative href is off-origin whatever its host, including the placeholder hosts the
+  // standard (and Tovu's two retired copies) resolved `/…` hrefs against.
+  "//safehref.invalid/x",
+  "/\\safehref.invalid/x",
+  "//safehref.invalid:80/x",
+  "//tovu-safehref.invalid/x",
+  "/\\tovu-safehref.invalid/x",
+  "//tovu-safehref.invalid:443/x",
+  "//tovu-safehref.invalid:80/x",
 ];
 
 export const ACCEPTED_HREFS: readonly string[] = [
@@ -105,96 +84,6 @@ export const ACCEPTED_HREFS: readonly string[] = [
   "https://ok.example/x",
   "mailto:a@b.example",
 ];
-
-// ---------------------------------------------------------------------------
-// Extraction — pure text-in/text-out, independently testable without touching the filesystem.
-// ---------------------------------------------------------------------------
-
-/**
- * Returns the source range `[openBraceIndex, matchingCloseBraceIndex]` (inclusive) of the first
- * balanced `{...}` block starting at `openBraceIndex`, which must itself point at a `{`.
- *
- * @complexity O(n) in the scanned range's length — one linear pass, no backtracking.
- */
-export function extractBalancedBraces(source: string, openBraceIndex: number): string {
-  if (source[openBraceIndex] !== "{") {
-    throw new Error(`extractBalancedBraces: index ${openBraceIndex} is not '{'`);
-  }
-  let depth = 0;
-  for (let i = openBraceIndex; i < source.length; i++) {
-    if (source[i] === "{") depth++;
-    else if (source[i] === "}") {
-      depth--;
-      if (depth === 0) return source.slice(openBraceIndex, i + 1);
-    }
-  }
-  throw new Error("extractBalancedBraces: no matching closing brace found (unbalanced input)");
-}
-
-const SAFE_HREF_CONSTS_RE =
-  /const SAFE_HREF_RESOLUTION_BASE\s*=[\s\S]*?const SAFE_HREF_RESOLUTION_ORIGIN\s*=[^;]+;/;
-const SAFE_HREF_FN_START_RE = /function safeHref\([^)]*\)[^{]*\{/;
-
-/**
- * Extracts a self-contained, importable `.ts` module body from `source` (a whole file's text):
- * the two `SAFE_HREF_RESOLUTION_*` const declarations `safeHref` depends on, verbatim, followed by
- * the ENTIRE `safeHref` function declaration (found via a balanced-brace scan, so nested `if`/`try`
- * blocks inside it cannot truncate the extraction early), followed by an `export` statement.
- *
- * Deliberately throws rather than returning a best-effort partial result when either anchor is
- * missing — a silently-empty or truncated extraction would make the caller compare against
- * meaningless code and report a false "in sync", which is worse than a loud failure.
- *
- * @param source the whole file's text (caller supplies it; this function does no I/O)
- * @param label the file path, used only to make a thrown error message locate the problem
- * @complexity O(n) in `source`'s length.
- */
-export function extractSafeHrefDeclaration(source: string, label: string): string {
-  const constsMatch = SAFE_HREF_CONSTS_RE.exec(source);
-  if (!constsMatch) {
-    throw new Error(
-      `extractSafeHrefDeclaration: could not find the SAFE_HREF_RESOLUTION_BASE/ORIGIN const pair in ${label}`
-    );
-  }
-  const fnStartMatch = SAFE_HREF_FN_START_RE.exec(source);
-  if (!fnStartMatch) {
-    throw new Error(`extractSafeHrefDeclaration: could not find 'function safeHref(...)' in ${label}`);
-  }
-  const openBraceIndex = fnStartMatch.index + fnStartMatch[0].length - 1;
-  const fnBody = extractBalancedBraces(source, openBraceIndex);
-  const fnDeclaration = source.slice(fnStartMatch.index, openBraceIndex) + fnBody;
-  return `${constsMatch[0]}\n\n${fnDeclaration}\n\nexport { safeHref };\n`;
-}
-
-/**
- * Reads `filePath`, extracts its `safeHref` declaration (see {@link extractSafeHrefDeclaration}),
- * writes the extracted text to a throwaway `.ts` file, `import()`s it for a REAL callable (relying on
- * this script's own `tsx` process-wide loader hook to strip the extracted file's TypeScript syntax —
- * same as every other `development/scripts/*.ts` entry point), and returns a boolean-normalized
- * {@link HrefChecker}. The throwaway file is removed in a `finally`, whether extraction/import
- * succeeds or throws.
- *
- * @complexity O(n) in the source file's length for extraction; one file write, one dynamic import,
- * one file delete.
- */
-export async function loadHrefChecker(filePath: string): Promise<HrefChecker> {
-  const source = fs.readFileSync(filePath, "utf8");
-  const declaration = extractSafeHrefDeclaration(source, filePath);
-
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "menu-href-allowlist-sync-"));
-  const tmpFile = path.join(tmpDir, "extracted-safe-href.ts");
-  try {
-    fs.writeFileSync(tmpFile, declaration, "utf8");
-    const mod = (await import(pathToFileURL(tmpFile).href)) as { safeHref: (required: { value: string }) => string };
-    if (typeof mod.safeHref !== "function") {
-      throw new Error(`loadHrefChecker: extracted module from ${filePath} did not export a 'safeHref' function`);
-    }
-    const safeHref = mod.safeHref;
-    return (href: string) => safeHref({ value: href }) !== "#";
-  } finally {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Comparison
@@ -210,12 +99,11 @@ export interface HrefMismatch {
 
 /**
  * Runs every href in `table` through every named checker in `checkers` and reports any row where a
- * checker's accept/reject decision does not match `expectedAccept` for that table — i.e. every
- * checker must agree with the EXPECTED outcome (and therefore with each other) on every row. Reports
- * per-implementation results on a mismatch so the caller does not have to re-run anything to see which
- * implementation(s) diverged.
+ * checker's accept/reject decision does not match `expectedAccept` — i.e. every checker must agree
+ * with the EXPECTED outcome (and therefore with each other) on every row. Reports per-implementation
+ * results on a mismatch so the caller does not have to re-run anything to see which one diverged.
  *
- * @complexity O(c · h) in checkers times hrefs — both small in practice (3 checkers, ~19 hrefs).
+ * @complexity O(c · h) in checkers times hrefs — both small in practice (2 checkers, ~27 hrefs).
  */
 export function compareCheckers(
   checkers: Readonly<Record<string, HrefChecker>>,
@@ -244,62 +132,113 @@ export function buildSharedTable(): readonly { readonly href: string; readonly e
   ];
 }
 
-/**
- * Loads all three real implementations and runs {@link compareCheckers} over the shared table.
- * Exported so the sibling test's "live" regression test can call this directly, the same shape
- * `check-governance-adr-scope-drift.ts`'s own "live" test calls its exported scan function.
- */
-export async function runMenuHrefAllowlistSync(): Promise<readonly HrefMismatch[]> {
-  const [renderTsChecker, staticRenderTsChecker] = await Promise.all([
-    loadHrefChecker(RENDER_TS_PATH),
-    loadHrefChecker(STATIC_RENDER_TS_PATH),
-  ]);
-  const checkers: Record<string, HrefChecker> = {
+/** The two entry points of the standard, each normalized to {@link HrefChecker}. */
+export function jiniHrefCheckers(): Readonly<Record<string, HrefChecker>> {
+  return {
     "jini:isAllowedHref": (href) => isAllowedHref({ rawHref: href }),
-    "render.ts:safeHref": renderTsChecker,
-    "static-render.ts:safeHref": staticRenderTsChecker,
+    "jini:toAllowedHref": (href) => toAllowedHref({ rawHref: href }) !== "#",
   };
-  return compareCheckers(checkers, buildSharedTable());
 }
 
-async function main(): Promise<void> {
-  let mismatches: readonly HrefMismatch[];
-  try {
-    mismatches = await runMenuHrefAllowlistSync();
-  } catch (err) {
-    console.error(
-      `check:menu-href-allowlist-sync — could not run the comparison at all (extraction failure, not a behavioral mismatch): ${
-        err instanceof Error ? err.message : String(err)
-      }`
-    );
-    process.exit(1);
-    return;
-  }
+// ---------------------------------------------------------------------------
+// Local-copy scan
+// ---------------------------------------------------------------------------
 
-  if (mismatches.length === 0) {
+export interface LocalHrefCopy {
+  readonly file: string;
+  readonly line: number;
+}
+
+const LOCAL_SAFE_HREF_DECLARATION_RE = /\b(?:function\s+safeHref\b|(?:const|let|var)\s+safeHref\b)/;
+/** A line that is only comment text (`//`, `/*`, or a block comment's ` *` continuation) is a mention, not a declaration. */
+const COMMENT_LINE_RE = /^\s*(?:\/\/|\/\*|\*)/;
+const SKIPPED_DIRECTORY_NAMES = new Set(["node_modules", "dist", "__tests__", "coverage"]);
+
+function* sourceFilesUnder({ dir }: { dir: string }): Generator<string> {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (!SKIPPED_DIRECTORY_NAMES.has(entry.name)) yield* sourceFilesUnder({ dir: full });
+    } else if (/\.(?:ts|tsx|mts)$/.test(entry.name) && !/\.test\./.test(entry.name)) {
+      yield full;
+    }
+  }
+}
+
+/**
+ * Finds every non-test source file under `<root>/apps/*` and `<root>/packages/*` that DECLARES a
+ * `safeHref` (a `function`, `const`, `let` or `var` named `safeHref`). An import of one, or a
+ * comment mentioning one, is not a declaration. Reads real files; a missing `apps`/`packages` directory is simply nothing to scan.
+ *
+ * @complexity O(total source bytes) — one pass over each file.
+ */
+export function findLocalHrefAllowlists({ root }: { root: string }): readonly LocalHrefCopy[] {
+  const found: LocalHrefCopy[] = [];
+  for (const top of ["apps", "packages"]) {
+    const topDir = path.join(root, top);
+    if (!fs.existsSync(topDir)) continue;
+    for (const file of sourceFilesUnder({ dir: topDir })) {
+      const lines = fs.readFileSync(file, "utf8").split("\n");
+      lines.forEach((text, index) => {
+        if (!COMMENT_LINE_RE.test(text) && LOCAL_SAFE_HREF_DECLARATION_RE.test(text)) found.push({ file: path.relative(root, file), line: index + 1 });
+      });
+    }
+  }
+  return found;
+}
+
+export interface MenuHrefSyncResult {
+  readonly mismatches: readonly HrefMismatch[];
+  readonly localCopies: readonly LocalHrefCopy[];
+}
+
+/**
+ * Runs the shared table through the real Jini entry points and scans `root` for a local copy.
+ * Exported so the sibling test's "live" regression test can call this directly.
+ */
+export function runMenuHrefAllowlistSync({ root = DEFAULT_ROOT }: { root?: string } = {}): MenuHrefSyncResult {
+  return {
+    mismatches: compareCheckers(jiniHrefCheckers(), buildSharedTable()),
+    localCopies: findLocalHrefAllowlists({ root }),
+  };
+}
+
+function parseRootArgument({ argv }: { argv: readonly string[] }): string {
+  const index = argv.indexOf("--root");
+  if (index === -1) return DEFAULT_ROOT;
+  const value = argv[index + 1];
+  if (value === undefined) throw new Error("--root needs a directory");
+  return path.resolve(value);
+}
+
+function main(): void {
+  const { mismatches, localCopies } = runMenuHrefAllowlistSync({ root: parseRootArgument({ argv: process.argv.slice(2) }) });
+  if (mismatches.length === 0 && localCopies.length === 0) {
     console.log(
-      `check:menu-href-allowlist-sync — ok — jini:isAllowedHref, render.ts:safeHref, and static-render.ts:safeHref agree on all ${
+      `check:menu-href-allowlist-sync — ok — jini:isAllowedHref and jini:toAllowedHref agree on all ${
         REJECTED_HREFS.length + ACCEPTED_HREFS.length
-      } table rows.`
+      } table rows and no local safeHref exists.`
     );
     return;
   }
-
-  console.error(`check:menu-href-allowlist-sync — ${mismatches.length} href(s) produced disagreement across the three copies:`);
   for (const m of mismatches) {
     console.error(`  - ${JSON.stringify(m.href)} (expected accept=${m.expectedAccept}): ${JSON.stringify(m.results)}`);
   }
-  console.error(
-    "\nThe write-time (Jini) and render-time (Tovu x2) href allowlists have drifted apart. Bring the " +
-      "logic back in sync — see this script's own file header for which copy is canonical and the " +
-      "retirement plan for the two Tovu duplicates."
-  );
+  if (mismatches.length > 0) {
+    console.error(`check:menu-href-allowlist-sync — ${mismatches.length} href(s) disagree with the expected outcome. The Jini href standard no longer matches what Tovu's renderers rely on.`);
+  }
+  for (const copy of localCopies) {
+    console.error(`  - ${copy.file}:${copy.line} declares its own safeHref`);
+  }
+  if (localCopies.length > 0) {
+    console.error("check:menu-href-allowlist-sync — a local safeHref is a second href standard. Import toAllowedHref/isAllowedHref from @jini-ai/cms/navigation instead.");
+  }
   process.exit(1);
 }
 
 // Guarded, following check-governance-adr-scope-drift.ts's own precedent: this file is also imported
-// as a plain module by its own unit test, which exercises the pure functions (and the async
-// live-comparison function) directly without this top-level `main()` also running and exiting.
+// as a plain module by its own unit test, which exercises the pure functions directly without this
+// top-level `main()` also running and exiting.
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  void main();
+  main();
 }

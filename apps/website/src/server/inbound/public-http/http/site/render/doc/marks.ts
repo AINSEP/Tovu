@@ -1,7 +1,7 @@
 import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
 import { safeCssColor, safeCssFontFamily, safeCssLength } from "#src/platform/html/style-values";
 import { escapeHtml } from "#src/platform/html/escape";
-import { safeHref } from "#src/platform/html/safe-url";
+import { toAllowedHref } from "@jini-ai/cms/navigation";
 import { isObject } from "../value-readers.js";
 
 // ---------------------------------------------------------------------------
@@ -54,7 +54,7 @@ function renderHighlightMark({ html, attrs }: { html: string; attrs: JsonObject 
 }
 
 function renderLinkMark({ html, attrs }: { html: string; attrs: JsonObject }, _optional = {}): string {
-  return `<a href="${escapeHtml({ text: safeHref({ value: attrs.href }) })}">${html}</a>`;
+  return `<a href="${escapeHtml({ text: toAllowedHref({ rawHref: attrs.href }) })}">${html}</a>`;
 }
 
 /** One renderer per mark `type`, keyed the same way {@link renderMarks} used to switch on the value

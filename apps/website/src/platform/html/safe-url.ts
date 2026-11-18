@@ -1,7 +1,7 @@
 import type { JsonValue } from "@jini-ai/core/primitives";
 
 /**
- * Fixed placeholder origin {@link safeHref} resolves a claimed same-origin-relative href against.
+ * Fixed placeholder origin {@link safeImageSrc} resolves a claimed same-origin-relative `src` against.
  * This is a pure string function with no real request/origin available to it — any two-part fixed
  * origin works equally well as the resolution anchor, since only the RELATIONSHIP between the
  * resolved URL's origin and this one is ever inspected below, never the placeholder value itself.
@@ -11,58 +11,7 @@ const SAFE_HREF_RESOLUTION_BASE = "https://tovu-safehref.invalid/";
 const SAFE_HREF_RESOLUTION_ORIGIN = new URL(SAFE_HREF_RESOLUTION_BASE).origin;
 
 /**
- * Sanitize a content `link` href (C7). Content is data, so an inline link is an
- * untrusted string: allow only in-page (`#…`), same-origin relative (`/…`),
- * `http(s)://`, and `mailto:` targets. Everything else — notably `javascript:`
- * and `data:` — collapses to `"#"` so a doc can never smuggle script into a page.
- *
- * A `#…` target can never carry a scheme/host of its own — the WHATWG URL parser always resolves a
- * fragment-only reference against the CURRENT page's own origin, no matter what precedes or follows
- * the `#` (probed directly against Node's real `URL`, same discipline {@link safeImageSrc}'s own
- * header states for itself) — so that branch needs no further check.
- *
- * The `/…` branch is NOT a plain prefix check (2026-08-20 fix — audit finding "safeHref accepts
- * protocol-relative URLs"). A value can start with a single leading `/` and still resolve OFF
- * origin once a real browser parses it: `"//evil.example"` (protocol-relative — a browser resolves
- * it against the CURRENT PAGE's own scheme, landing on an attacker host), `"/\evil.example"` (a
- * browser folds a backslash to a forward slash for `http(s)` during parsing — the exact fold
- * {@link safeImageSrc}'s own header documents for its admin-media-path check), and even a
- * TAB/NEWLINE/CR planted between the leading `/` and the rest of the string (the WHATWG URL parser
- * strips those three characters from ANYWHERE in the input before parsing, per spec — not just the
- * string's ends, which is all `.trim()` above ever covers — so `"/\t/evil.example"` reconstitutes
- * the same `"//evil.example"` shape a browser would see). Resolving the trimmed value against a
- * FIXED placeholder origin and comparing origins closes all of the above in one check, the same way
- * {@link safeImageSrc}'s own `new URL(src).pathname` check replaced a shape-by-shape regex — and
- * stays correct against whatever equivalent shape is discovered next, rather than needing a new
- * `startsWith` exception bolted on per attack form.
- *
- * **`features/theme/static-render.ts` carries a deliberate DUPLICATE of this exact function** (its
- * own menu-link `safeHref`, added 2026-09-03 alongside the identical fix for the static-tier menu
- * renderers) — not a shared import, because `features/theme` must not deep-import this
- * `server/inbound/` module (`check:boundaries`' no-deep-import rule). That copy takes `string`
- * instead of `JsonValue | undefined` (its own callers already narrow to a real string first) but is
- * otherwise byte-identical, including this `/…` branch's placeholder-origin resolution. If this
- * function's logic changes, that copy must change too — it does not update itself.
- */
-export function safeHref({ value }: { value: JsonValue | undefined }, _optional = {}): string {
-  if (typeof value !== "string") return "#";
-  const href = value.trim();
-  if (href.startsWith("#")) return href;
-  if (/^https?:\/\//i.test(href) || /^mailto:/i.test(href)) return href;
-  if (href.startsWith("/")) {
-    let resolved: URL;
-    try {
-      resolved = new URL(href, SAFE_HREF_RESOLUTION_BASE);
-    } catch {
-      return "#";
-    }
-    return resolved.origin === SAFE_HREF_RESOLUTION_ORIGIN ? href : "#";
-  }
-  return "#";
-}
-
-/**
- * {@link safeHref}'s image-shaped sibling — the allowlist an author-supplied `attrs.src` must pass
+ * The image-shaped sibling of `toAllowedHref` (`@jini-ai/cms/navigation`, the href standard) — the allowlist an author-supplied `attrs.src` must pass
  * before it reaches public HTML. Returns `null` when the value is not safe to emit, and the caller
  * degrades to {@link mediaPlaceholder} exactly as it did when `src` was refused unconditionally.
  *
@@ -71,7 +20,7 @@ export function safeHref({ value }: { value: JsonValue | undefined }, _optional 
  * Until 2026-08-12 the `"image"` case never read `src` at all. That was safe but blunt: it silently
  * broke the toolbar's own "Img by URL" control, which produced content that could never render. The
  * owner's objection was the right one — *"why is that even bad to refuse an attribute source? If the
- * user is saying they want it, why bar it?"* — and `safeHref` two functions up already demonstrates
+ * user is saying they want it, why bar it?"* — and `toAllowedHref` (the href standard) already demonstrates
  * the correct answer for the identical problem class: validate the scheme, do not ban the feature.
  *
  * ## What is rejected, and why each one matters
@@ -105,12 +54,12 @@ export function safeHref({ value }: { value: JsonValue | undefined }, _optional 
  * in the process) during parsing, so the check now sees exactly what a browser will request.
  *
  * Userinfo credentials (`https://user:pass@host/x.png`) are rejected too, and deliberately NOT
- * folded into {@link safeHref}: an `<img>` auto-fires the request on page load, with no reader
+ * folded into `toAllowedHref`: an `<img>` auto-fires the request on page load, with no reader
  * click and no address-bar/status-bar text for them to notice — unlike a link, which requires a
  * navigation gesture first. Silently shipping whatever an author pasted as embedded Basic-Auth
  * credentials to a third-party host on every single page view is a materially different risk than
  * the same string sitting inert in an `href` until clicked, so it is rejected here even though
- * `safeHref`'s identical-looking allowance stays untouched (pre-existing, accepted, out of scope).
+ * `toAllowedHref`'s identical-looking allowance stays untouched (pre-existing, accepted, out of scope).
  *
  * Two other vectors were investigated and are NOT fixed, for stated reasons rather than left
  * silently unconsidered:

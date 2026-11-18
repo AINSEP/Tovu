@@ -1,24 +1,26 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isAllowedHref } from "@jini-ai/cms/navigation";
-
-import { safeHref as platformSafeHref } from "../../../platform/html/safe-url.js";
-import { safeHref as themeSafeHref } from "../render-contract.js";
+import { isAllowedHref, toAllowedHref } from "@jini-ai/cms/navigation";
 
 /**
- * @file Characterization of Tovu's two `safeHref` helpers (`platform/html/safe-url.ts`, used by the
- * public renderers, and `features/theme/render-contract.ts`, used by the static tier) over the exact
- * inputs they accept and refuse, plus a pinned comparison with Jini's canonical `isAllowedHref`
- * (`@jini-ai/cms/navigation`). Written before size-design 03 item 03-a ("replace `safeHref` with
- * `isAllowedHref`"): that replacement is only behaviour-neutral if the composed
- * `isAllowedHref(...) ? href.trim() : "#"` agrees with `safeHref` on every input. It does not, on the
- * inputs in {@link JINI_DIVERGENCES}; the replacement is held until the owner rules on them.
+ * @file Characterization of the single href standard Tovu's renderers use: `isAllowedHref` decides,
+ * `toAllowedHref` coerces (`@jini-ai/cms/navigation`, Jini). Written when Tovu's two hand-kept
+ * `safeHref` helpers (`platform/html/safe-url.ts`, `features/theme/render-contract.ts`) were pinned
+ * against it; the owner ruled Jini's function the one standard (2026-11-17) and both helpers were deleted
+ * with every caller repointed. The rows below are the exact inputs those helpers were characterized
+ * over, with the one standard's answer. The call sites are covered by the renderer suites
+ * (`render.test.ts`, `menu-tree-render.test.ts`, `entry-list-render.test.ts`).
+ *
+ * Differences from the retired helpers, all intended: a protocol-relative href to the old helpers'
+ * own placeholder host (`//tovu-safehref.invalid/x`, `/\tovu-safehref.invalid/x`, either default-port
+ * spelling) is now refused like every other protocol-relative href (the two helpers also disagreed with
+ * each other on `:80` / `:443`); one to Jini's former placeholder host (`//safehref.invalid/x` ...) is
+ * refused where Jini used to accept it; a non-string yields `"#"` instead of throwing.
  */
-type SafeHref = (required: { value: string }) => string;
 
-/** [input, output]: the output is the trimmed input when allowed, otherwise `"#"`. */
-const SHARED: readonly (readonly [string, string])[] = [
+/** [input, output of `toAllowedHref`]: the trimmed input when allowed, otherwise `"#"`. */
+const TABLE: readonly (readonly [string, string])[] = [
   ["", "#"], [" ", "#"], ["#", "#"], ["#x", "#x"], [" #x ", "#x"], [" #x", "#x"], ["#\u0000", "#\u0000"],
   ["/", "/"], ["/a", "/a"], ["/a?b#c", "/a?b#c"], [" /a ", "/a"], ["/%2f/evil", "/%2f/evil"], ["/a b", "/a b"], ["/\u0000a", "/\u0000a"],
   ["http://a", "http://a"], ["HTTPS://a", "HTTPS://a"], [" https://a ", "https://a"],
@@ -30,79 +32,41 @@ const SHARED: readonly (readonly [string, string])[] = [
   ["http:evil", "#"], ["https:", "#"], ["x", "#"], ["a/b", "#"], ["./a", "#"], ["../a", "#"], ["?q", "#"], ["\u0000/a", "#"],
 ];
 
-/**
- * Inputs naming each copy's reserved `.invalid` placeholder origin (the fixed origin a `/…` href is
- * resolved against). Each copy's own placeholder host is treated as "same origin"; they differ from
- * one another only on the default-port spellings (`:443` vs `:80`).
- */
-const PLATFORM_ONLY: readonly (readonly [string, string])[] = [
-  ["//tovu-safehref.invalid/x", "//tovu-safehref.invalid/x"],
-  ["/\\tovu-safehref.invalid/x", "/\\tovu-safehref.invalid/x"],
-  ["//tovu-safehref.invalid:443/x", "//tovu-safehref.invalid:443/x"],
-  ["//tovu-safehref.invalid:80/x", "#"],
-];
-const THEME_ONLY: readonly (readonly [string, string])[] = [
-  ["//tovu-safehref.invalid/x", "//tovu-safehref.invalid/x"],
-  ["/\\tovu-safehref.invalid/x", "/\\tovu-safehref.invalid/x"],
+/** Rows 1-4 of the retired helpers' difference table plus Jini's former placeholder host: all refused. */
+const PLACEHOLDER_HOST_ROWS: readonly (readonly [string, string])[] = [
+  ["//tovu-safehref.invalid/x", "#"],
+  ["/\\tovu-safehref.invalid/x", "#"],
   ["//tovu-safehref.invalid:443/x", "#"],
-  ["//tovu-safehref.invalid:80/x", "//tovu-safehref.invalid:80/x"],
+  ["//tovu-safehref.invalid:80/x", "#"],
+  ["//safehref.invalid/x", "#"],
+  ["/\\safehref.invalid/x", "#"],
+  ["//safehref.invalid:80/x", "#"],
 ];
-const JINI_PLACEHOLDER_HOST_INPUTS = ["//safehref.invalid/x", "/\\safehref.invalid/x", "//safehref.invalid:80/x"];
 
-function assertTable({ fn, rows }: { fn: SafeHref; rows: readonly (readonly [string, string])[] }): void {
-  for (const [input, expected] of rows) assert.equal(fn({ value: input }), expected, JSON.stringify(input));
+const ALL_ROWS = [...TABLE, ...PLACEHOLDER_HOST_ROWS];
+
+function isExpectedAllowed({ input, output }: { input: string; output: string }): boolean {
+  return output !== "#" || input.trim().startsWith("#");
 }
 
-test("platform safeHref: exact output for every shared input", () => {
-  assertTable({ fn: platformSafeHref, rows: SHARED });
-  assertTable({ fn: platformSafeHref, rows: PLATFORM_ONLY });
+test("toAllowedHref: exact output for every characterized input, placeholder hosts included", () => {
+  for (const [input, output] of ALL_ROWS) assert.equal(toAllowedHref({ rawHref: input }), output, JSON.stringify(input));
 });
 
-test("theme safeHref: exact output for every shared input", () => {
-  assertTable({ fn: themeSafeHref, rows: SHARED });
-  assertTable({ fn: themeSafeHref, rows: THEME_ONLY });
-});
-
-test("both Tovu copies refuse Jini's own placeholder host spellings (and so differ from Jini)", () => {
-  for (const input of JINI_PLACEHOLDER_HOST_INPUTS) {
-    assert.equal(platformSafeHref({ value: input }), "#", input);
-    assert.equal(themeSafeHref({ value: input }), "#", input);
+test("isAllowedHref: exact decision for every characterized input", () => {
+  for (const [input, output] of ALL_ROWS) {
+    assert.equal(isAllowedHref({ rawHref: input }), isExpectedAllowed({ input, output }), JSON.stringify(input));
   }
 });
 
-test("platform safeHref coerces every non-string to '#'", () => {
-  for (const value of [undefined, null, 5, true, {}, []]) assert.equal(platformSafeHref({ value }), "#");
+test("the characterized table keeps its 46 shared inputs and 7 placeholder-host rows", () => {
+  assert.equal(new Set(TABLE.map(([input]) => input)).size, 46);
+  assert.equal(new Set(ALL_ROWS.map(([input]) => input)).size, 53);
 });
 
-/** What `safeHref` would become if it were `isAllowedHref` plus the trim-and-fallback every caller needs. */
-function composedFromJini({ value }: { value: string }): string {
-  return isAllowedHref({ rawHref: value }) ? value.trim() : "#";
-}
-
-/** Every input on which the composed-from-Jini function disagrees with a Tovu copy. */
-const JINI_DIVERGENCES: Readonly<Record<"platform" | "theme", readonly string[]>> = {
-  platform: [
-    "//tovu-safehref.invalid/x", "/\\tovu-safehref.invalid/x", "//tovu-safehref.invalid:443/x",
-    ...JINI_PLACEHOLDER_HOST_INPUTS,
-  ],
-  theme: [
-    "//tovu-safehref.invalid/x", "/\\tovu-safehref.invalid/x", "//tovu-safehref.invalid:80/x",
-    ...JINI_PLACEHOLDER_HOST_INPUTS,
-  ],
-};
-
-test("Jini isAllowedHref agrees with both Tovu copies on every shared input", () => {
-  for (const [input] of SHARED) {
-    assert.equal(composedFromJini({ value: input }), platformSafeHref({ value: input }), `platform ${JSON.stringify(input)}`);
-    assert.equal(composedFromJini({ value: input }), themeSafeHref({ value: input }), `theme ${JSON.stringify(input)}`);
+test("raw widget-prop JSON (a non-string) coerces to '#' and is never allowed", () => {
+  for (const rawHref of [undefined, null, 5, true, {}, []]) {
+    assert.equal(toAllowedHref({ rawHref }), "#");
+    assert.equal(isAllowedHref({ rawHref }), false);
   }
-});
-
-test("Jini isAllowedHref differs from the Tovu copies on exactly the placeholder-host inputs, and throws on a non-string", () => {
-  const all = [...SHARED.map(([input]) => input), ...PLATFORM_ONLY.map(([input]) => input), ...THEME_ONLY.map(([input]) => input), ...JINI_PLACEHOLDER_HOST_INPUTS];
-  const unique = [...new Set(all)];
-  const differing = (fn: SafeHref): string[] => unique.filter((input) => fn({ value: input }) !== composedFromJini({ value: input })).sort();
-  assert.deepEqual(differing(platformSafeHref), [...new Set(JINI_DIVERGENCES.platform)].sort());
-  assert.deepEqual(differing(themeSafeHref), [...new Set(JINI_DIVERGENCES.theme)].sort());
-  assert.throws(() => isAllowedHref({ rawHref: undefined as unknown as string }), TypeError);
 });
