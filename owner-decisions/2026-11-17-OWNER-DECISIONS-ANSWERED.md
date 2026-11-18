@@ -28,3 +28,19 @@ Coordinator tovu-30 reviewed each Rec in 2026-11-17-OWNER-DECISIONS.md (full que
 - AU-D15 = ACCEPT the judge-2 rewrite of admin sheet T1b (route-parity step 0, full mapping, S12-S16; ~380k).
 
 - JINI RELEASE (owner 11-17 ~3:55 PM PT): publish PRE-RELEASE snapshots 0.7.1-next.N under npm dist-tag `next` (latest stays 0.7.0) after each combine merge; one real version only when the refactor is done. This is how DX-OD10 snapshots are made.
+
+## Lane S/U local decisions (plan/lanes-s-u-2026-11-16 INDEX-SU.md §4) — owner 2026-11-17 ~5:25 PM PT: take every recommendation
+
+These IDs are LOCAL to lanes S/U (not the xpkg OD ids).
+
+| ID | Answer |
+|---|---|
+| S/U OD-1 | YES: SQL adapters of ports declared in `@jini-ai/core` (settings, confirmation tokens, verified origin, change sets, outbox) live in `@jini-ai/db/<name>` |
+| S/U OD-2 | YES: `kysely` optional peer of `@jini-ai/user-management` (S3a J1) and `@jini-ai/integrations` (S6b J1), added in those commits with the lockfile (lockfile trap until 2026-11-19 still applies: STOP if the install fails it) |
+| S/U OD-3 | YES, after A07: members SQL repos move to `user-management/members/sql` |
+| S/U OD-4 | YES: API keys enter `@jini-ai/user-management`; scheme prefix stays a Tovu value passed as data; stored hash format frozen, no migration |
+| S/U OD-5 | DECIDED (owner rule, option C): dialect helpers reach a Jini SQL adapter as an injected port |
+| S/U OD-6 | (a) one core-contract outbox port shape; unblocks S6a, S8c, move-events |
+| S/U OD-7 | KEEP `members/consent-service.ts` until a reachability proof exists |
+| S/U OD-8 | YES: one Tovu helper `schemaErasedKernel` holds the single schema-erasing cast |
+| S/U OD-9 | YES: new Node subpath `@jini-ai/user-management/members/server` for member credential code |
