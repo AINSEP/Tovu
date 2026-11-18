@@ -4,7 +4,7 @@ import { createCredentialSaveHandlers, createCredentialToolRegistrations } from 
 export { createCredentialSaveHandlers, createCredentialToolRegistrations };
 import { abortGuardedCredentialRepo } from "../vendor-credentials/abort-guarded-repo.js";
 
-import { invalidatePublishCredentialCompatibility } from "../deployments/publish-credentials/index.js";
+import type { PublishCompatibilityPort } from "./publish-compatibility-port.js";
 import { normalizeCredentialWorksFor } from "@jini-ai/platform/secrets/credential-sets";
 import type { DeployTargetRegistry } from "../deployments/contracts.js";
 import { toolMetadata } from '../../contracts/core/tool-metadata/custom-credentials.js';
@@ -94,7 +94,9 @@ export interface CustomCredentialsToolDeps extends OperatorLocaleDeps {
   readonly loadDeployTargets?: ({ workspaceId }: { workspaceId: string }, optional?: Record<string, never>) => Promise<DeployTargetRegistry>;
   /** Plugin-declared key cards (`plugin-credential-card.ts`); absent means none can be opened. */
   readonly loadPluginCredentialCards?: LoadPluginCredentialCards;
-  readonly publishCredentialVerificationCache?: { delete(input: { workspaceId: string; target: string }): void };
+  /** Drops cached publish-target verification when a saved credential changes eligibility; bound by the host
+   *  over `deployments` (`bindPublishCompatibility`), which reads the verification cache and the deploy-target loader. */
+  readonly publishCompatibility: PublishCompatibilityPort;
   /** The self-describing token scheme rules `custom_credential_make_request`/`_verify` apply
    *  (`CredentialedRequestDeps.loadAuthSchemes`): composition supplies the installed plugins; the hermetic
    *  root and tests pass the bundled plugins' source rules. */
@@ -423,12 +425,7 @@ export function bindTovuCredentialToolOperations({ routeDeps, surfaces }: { rout
     recovery: { withSetup: withCustomCredentialSetup },
     publish: {
       loadProviders: () => loadCreateCredentialProviders({ routeDeps }),
-      prepareInvalidation: async () => {
-        const registry = routeDeps.loadDeployTargets && routeDeps.publishCredentialVerificationCache ? await routeDeps.loadDeployTargets({ workspaceId: routeDeps.workspaceId }) : undefined;
-        return ({ after }) => {
-          if (registry && routeDeps.publishCredentialVerificationCache) invalidatePublishCredentialCompatibility({ workspaceId: routeDeps.workspaceId, registry, cache: routeDeps.publishCredentialVerificationCache, after });
-        };
-      },
+      prepareInvalidation: () => routeDeps.publishCompatibility.prepareInvalidation({ workspaceId: routeDeps.workspaceId }),
     },
     locale: {
       resolve: ({ principalId }) => resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId }),

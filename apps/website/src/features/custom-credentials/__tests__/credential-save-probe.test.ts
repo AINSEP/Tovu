@@ -17,6 +17,7 @@ import { CUSTOM_CREDENTIALS_EGRESS_POLICY } from '../../../platform/http/egress-
 import { probeCredentialConnection } from '../credentialed-request.js';
 import { loadFixtureAuthSchemes } from './fixture-auth-schemes.fixture.js';
 import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
+import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
 
 const card = { providerId: 'example', pluginId: 'example', label: 'Example API', ownedApiLabel: 'Example API', category: 'ops',
   baseUrl: 'https://api.example.com/v1', probeUrl: 'https://api.example.com/user', title: 'Connect example',
@@ -47,6 +48,7 @@ async function fixture({ rotate, status = 200, probe = true, abort = false, tran
     loadAuthSchemes: loadFixtureAuthSchemes,
     loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
     sourceControlWrite: unusedSourceControlWrite(),
+    publishCompatibility: bindPublishCompatibility({ source: {} }),
     loadPluginCredentialCards: async () => [{ ...card, probeUrl: probe ? card.probeUrl : undefined, saveKind: legacy ? undefined : card.saveKind }],
     authorize: async () => ({ allowed: true, reason: 'matched' }), customCredentialsFailureLog: line => logs.push(line),
     customCredentialsHttpClient: { send: async (request, options) => {
