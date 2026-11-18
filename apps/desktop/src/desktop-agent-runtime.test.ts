@@ -129,7 +129,7 @@ test("desktop turn access propagates a login environment read failure", async ()
   }), error => error === failure);
 });
 
-test("desktop executor binds launch, state, environment and policies to the supplied runtime", async (t) => {
+test("desktop executor receives the supplied runtime as one bound port", async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "desktop-executor-runtime-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const runtime = createNativeAgentRuntime({ env: { PATH: "/desktop-only", CODEX_DISABLE_PLUGINS: "1", PI_GRACEFUL_SHUTDOWN_MS: "1234" } });
@@ -150,16 +150,20 @@ test("desktop executor binds launch, state, environment and policies to the supp
   t.after(() => chat.close());
   assert.equal(created, 1);
   assert.ok(executorOptions);
-  assert.equal(executorOptions.runtimeState, runtime.state);
   assert.ok(executorRequired);
   assert.equal(executorRequired.hostEnv, runtime.hostEnv);
   // The daemon has no default for any OS-facing port: the desktop host states all five.
   assert.deepEqual(Object.keys(executorRequired.runtime).sort(), ["commandShell", "fileLock", "processes", "spawn", "writer"]);
   assert.equal(executorRequired.runtime.commandShell.platform, process.platform);
-  assert.equal(executorOptions.getAgentDef, runtime.getAgentDef);
-  assert.equal(executorOptions.resolveAgentLaunch, runtime.resolveAgentLaunch);
-  assert.equal(executorOptions.codexDisablePlugins, true);
-  assert.equal(executorOptions.piGracefulShutdownMs, 1234);
+  // The runtime reaches the executor only as the bound port: none of the per-member options the executor used to take.
+  const port = executorRequired.agentRuntime;
+  for (const removed of ["getAgentDef", "resolveAgentLaunch", "runtimeState", "codexDisablePlugins", "piGracefulShutdownMs"]) {
+    assert.equal(removed in executorOptions, false, `${removed} is no longer an executor option`);
+  }
+  assert.equal(port.defs.get({ id: "codex" })?.id, runtime.getAgentDef({ id: "codex" })?.id);
+  assert.deepEqual(port.launch.hostEnvNames(), Object.values(runtime.state.executable.envNames));
+  runtime.state.capabilities.set("codex", { fixtureFlag: true });
+  assert.deepEqual(port.defs.capabilities({ defId: "codex" }), { fixtureFlag: true });
   assert.equal(new URL(chat.daemonUrl).hostname, "127.0.0.1");
 });
 

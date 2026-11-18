@@ -73,7 +73,7 @@ test("a CLI agent's allow-listed env never carries the tool-exec token", async (
   const { selectAgentExecutorHostEnv } = await import("@jini-ai/daemon");
   const access = await freshDaemonAccess("cli-env");
   const token = access.ensureToolExecToken({});
-  const agentEnv = selectAgentExecutorHostEnv({ env: { ...process.env, [access.TOOL_EXEC_TOKEN_ENV_VAR]: token } });
+  const agentEnv = selectAgentExecutorHostEnv({ env: { ...process.env, [access.TOOL_EXEC_TOKEN_ENV_VAR]: token }, hostEnvNames: [] });
   assert.equal(agentEnv[access.TOOL_EXEC_TOKEN_ENV_VAR], undefined);
   assert.ok(!Object.values(agentEnv).includes(token));
 });

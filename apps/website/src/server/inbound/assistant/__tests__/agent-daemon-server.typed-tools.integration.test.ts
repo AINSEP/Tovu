@@ -93,7 +93,7 @@ function hostFixture({ descriptor = {}, delegate, humanApproval = false, bounded
   // cannot satisfy this fixture merely because its initializer still exists in the source.
   const executorOptions = evaluateDaemonExpression<{ mcpJsonInjection: McpJsonInjectionOptions }>(daemonInitializer("agentExecutor"), {
     createAgentExecutor: (_required: unknown, optional: unknown) => optional,
-    lifecycle: {}, daemonRuntime: {}, executorDefinitionPolicies: () => ({}), getAgentDef: () => {}, resolveAgentLaunch: () => {}, assistantRuntime: {},
+    lifecycle: {}, daemonRuntime: {}, agentRuntime: {}, assistantRuntime: {},
     bridgeInjection, assistantPromptAugmenter: {},
   });
   assert.equal(executorOptions.mcpJsonInjection, bridgeInjection);

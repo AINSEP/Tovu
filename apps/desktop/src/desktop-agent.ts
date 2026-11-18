@@ -34,7 +34,8 @@ import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import express, { type NextFunction, type Request, type Response } from "express";
 import type { Principal, ToolDescriptor, ToolRegistration, ToolRegistry } from "@jini-ai/core";
-import type { NativeAgentRuntime } from "@jini-ai/agent-runtime";
+import { createAgentRuntimeBindings, type NativeAgentRuntime } from "@jini-ai/agent-runtime";
+import type { AgentRuntimePort } from "@jini-ai/daemon/ports/agent-runtime";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, createToolExecutor, type AgentExecutor, type AgentExecutorRunInput, type RunLifecycle } from "@jini-ai/daemon";
 import { registerDelegatedToolRoutes, registerToolCatalogRoutes, type ToolCatalogQuery } from "@jini-ai/daemon/http";
 import type { AgentExecutorRuntimePorts } from "@jini-ai/daemon/ports/runtime";
@@ -290,12 +291,9 @@ function defaultAgentExecutor(
   optional: Pick<DesktopAgentRuntimeOptions, "mcpServeScript" | "createAgentExecutor"> = {},
 ): Pick<AgentExecutor, "run"> {
   const runtime = ports.agentRuntime;
-  return (optional.createAgentExecutor ?? createAgentExecutor)({ lifecycle: ports.lifecycle, hostEnv: runtime.hostEnv, runtime: desktopDaemonRuntimePorts({ hostEnv: runtime.hostEnv }) }, {
-    getAgentDef: runtime.getAgentDef,
-    resolveAgentLaunch: runtime.resolveAgentLaunch,
-    runtimeState: runtime.state,
-    codexDisablePlugins: runtime.codex.disablePlugins === true,
-    piGracefulShutdownMs: runtime.pi.gracefulShutdownMs ?? 5000,
+  // One port bound to the app runtime desktop detection also uses; it owns the runtime state, the host env names and the Codex / Pi policies.
+  const agentRuntime = createAgentRuntimeBindings({ runtime }) satisfies AgentRuntimePort;
+  return (optional.createAgentExecutor ?? createAgentExecutor)({ lifecycle: ports.lifecycle, hostEnv: runtime.hostEnv, runtime: desktopDaemonRuntimePorts({ hostEnv: runtime.hostEnv }), agentRuntime }, {
     mcpJsonInjection: {
       toolApprovalOwner: "host",
       ...desktopBridgeLaunch(optional),

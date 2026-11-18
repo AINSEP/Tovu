@@ -151,6 +151,8 @@ export async function captureDaemonRun(
     homedir: () => "/home/daemon-test",
     existsSync: (file: string) => options.hookPresent === true && file === "/home/daemon-test/.claude/hooks/no-system-search",
     failRunBeforeStart: async ({ message }: { message: string }) => { reject(new Error(message)); },
+    // Only the startup-failure formatter is read by the scope body; the real binding supplies it in production.
+    agentRuntime: { failures: { startupMessage: ({ stage }: { stage: string }) => `startup failed at ${stage}` } },
     console: { error: (...args: unknown[]) => { if (!options.terminalFailure) reject(new Error(args.map(String).join(" "))); }, log() {}, warn() {} },
     // Automatic Agent plugins preflight is fail-open and owned by its own tests; this capture
     // isolates onStarted's other wiring.

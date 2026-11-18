@@ -84,8 +84,8 @@ import { bridgePreflightEntry } from "./bridge-preflight-entry.js";
 import { createDaemonRuntimePorts } from "./daemon-runtime-ports.js";
 // @jini-ai/agent-runtime owns this seam; @jini-ai/daemon accepts it as an option.
 import type { PromptAugmenter } from "@jini-ai/core/contracts/agents";
-import { createAgentSelectionResolver, createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";
-import { executorDefinitionPolicies } from "./executor-definition-policies.js";
+import { createAgentRuntimeBindings, createAgentSelectionResolver, createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";
+import type { AgentRuntimePort } from "@jini-ai/daemon/ports/agent-runtime";
 import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, registerFrontendRequestRoute, registerAgentRoutes, registerAttachmentRoutes, registerComponentCatalogRoutes, registerDelegatedToolRoutes, registerMessageRelayRoutes, registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/http";
 import { adminFrontendOwner, adminFrontendRunOwner } from "#src/assistant/admin-frontend-owner";
 import { bearerTokenFromHeader, createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
@@ -519,16 +519,13 @@ const bridgeInjection = {
   },
 };
 const daemonRuntime = createDaemonRuntimePorts({ hostEnv: assistantRuntime.hostEnv });
-const agentExecutor = createAgentExecutor({ lifecycle, runtime: daemonRuntime, hostEnv: assistantRuntime.hostEnv }, {
-  // The same registry and launch resolver `assistant/agents.ts` lists the Local CLI picker from.
-  // `@jini-ai/daemon` pins its own exact `@jini-ai/agent-runtime`, which an install can nest as an
-  // older copy; left to its defaults the executor would look agents up there, so a CLI the picker
-  // shows (e.g. one added in a newer agent-runtime) would fail to start with an unknown agent id.
-  getAgentDef,
-  resolveAgentLaunch,
-  runtimeState: assistantRuntime.state,
+// The executor takes its agent runtime as one port bound to the same runtime `assistant/agents.ts` lists the Local CLI picker from:
+// `@jini-ai/daemon` pins its own exact `@jini-ai/agent-runtime`, which an install can nest as an older copy, and a runtime of its own
+// would look agents up there, so a CLI the picker shows (e.g. one added in a newer agent-runtime) would fail to start with an unknown
+// agent id. The binding also owns the runtime state and the Codex / Pi definition policies, so none is passed to the executor.
+const agentRuntime = createAgentRuntimeBindings({ runtime: assistantRuntime }) satisfies AgentRuntimePort;
+const agentExecutor = createAgentExecutor({ lifecycle, runtime: daemonRuntime, hostEnv: assistantRuntime.hostEnv, agentRuntime }, {
   onCleanupFailure: ({ runId }) => { cleanupFailures.add(runId); console.error('[agent-daemon] CLI cleanup failed'); },
-  ...executorDefinitionPolicies({ runtime: assistantRuntime }),
   mcpJsonInjection: bridgeInjection,
   promptAugmenter: assistantPromptAugmenter,
   // `claudeConfigDirIsolationEnabled` deliberately left at its `@jini-ai/daemon` default (`false`) —
@@ -1053,7 +1050,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
       console.error(`[agent-daemon] run ${run.id} failed to start`, error);
       // A startup rejection must terminalize its attempt so its slot and credentials release.
       void failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: "The assistant could not start this execution attempt.",
-        startup: { stage: startupStage, error } }, {});
+        startup: { stage: startupStage, error }, startupMessage: agentRuntime.failures.startupMessage }, {});
     }).finally(releasePreparation);
 
   /** The server owns pinned guidance and automatic consent, including later tool-triggered
@@ -1332,7 +1329,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
           ctx: { home: (env.HOME ?? env.USERPROFILE ?? homedir()), platform: process.platform, serverName: 'jini' } }, {});
       } catch (error) {
         await failRunBeforeStart({ lifecycle: runLifecycle, runId: run.id, message: `${def.name}'s connector could not be installed safely in its personal settings. Choose another available agent for this message.`,
-          startup: { stage: startupStage, error } }, {}); return false;
+          startup: { stage: startupStage, error }, startupMessage: agentRuntime.failures.startupMessage }, {}); return false;
       }
     }
     if (def?.fullCliAccessNote) await runLifecycle.emit({ runId: run.id, input: {
