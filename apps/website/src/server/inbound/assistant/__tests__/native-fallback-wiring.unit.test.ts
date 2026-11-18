@@ -1,15 +1,14 @@
 import { tmpdir } from "node:os";
 import { buildAssistantFilesystemNotices } from "../assistant-filesystem-notices.js";
-import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
-import { ASSISTANT_CLI_CAPABILITIES } from "#src/contracts/headless/index";
+import { assistantCliPermissions, TOOLS_FIRST_RULE } from "@tovu/contracts/assistant-native-fallbacks";
+import { ASSISTANT_CLI_CAPABILITIES } from "@tovu/contracts/assistant-subagents-policy";
 import { getAgentDef } from "@jini-ai/agent-runtime";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { captureDaemonRun, daemonInitializer, evaluateDaemonExpression } from './helpers/daemon-source.js';
 import { buildBaseSystemOverlay, buildAssistantSubagentsOverlay } from '../assistant-system-overlay.js';
-import { evaluateHostSignals } from "#src/contracts/core/host-signals";
-import { TOOLS_FIRST_RULE } from '#src/contracts/core/assistant-native-fallbacks';
+import { evaluateHostSignals } from "@tovu/contracts/host-signals";
 import type { RunProtocolEvent } from '@jini-ai/protocol';
 import type { ToolAttemptEvent } from '@jini-ai/daemon/tool-audit';
 import { buildAssistantRuntimeGuidance } from "../assistant-runtime-guidance.js";

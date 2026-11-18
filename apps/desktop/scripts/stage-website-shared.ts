@@ -6,7 +6,7 @@
  * ## Why
  *
  * Shell files import shared website code by relative path (e.g. `src/tovu-server.ts` ->
- * `../../website/src/platform/server-logs/redact-local-text.ts`). In the checkout that resolves to
+ * `../../website/src/server/runtime/boot/startup-secrets.ts`). In the checkout that resolves to
  * `apps/website/src/...`. Packaged, the shell lives in `Resources/app.asar/src/`, so the same
  * specifier resolves to `Resources/website/src/...`, which held nothing: desktop 0.1.21's first
  * package failed `smoke-native` with ERR_MODULE_NOT_FOUND for every such import.

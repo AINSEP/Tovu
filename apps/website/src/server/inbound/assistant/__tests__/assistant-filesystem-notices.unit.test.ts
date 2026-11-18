@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { assistantCliPermissions } from '#src/assistant/assistant-subagents-policy';
+import { assistantCliPermissions } from '@tovu/contracts/assistant-native-fallbacks';
 import { buildAssistantFilesystemNotices } from '../assistant-filesystem-notices.js';
 
 test('personal MCP opt-in discloses its boundary; personal hooks and permissions are always excluded', () => {

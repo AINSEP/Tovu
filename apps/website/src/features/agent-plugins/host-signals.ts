@@ -2,7 +2,7 @@ import { readAgentPluginMetadata } from "@jini-ai/agent-plugins/manifest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { AgentPluginPathsPort } from "./service-ports.js";
-import { evaluateHostSignals, selectCoreHostSignalDeclaration, type HostSignalDeclaration, type HostSignals } from "../../contracts/core/host-signals.js";
+import { evaluateHostSignals, selectCoreHostSignalDeclaration, type HostSignalDeclaration, type HostSignals } from "@tovu/contracts/host-signals";
 import { bundledContributionSources } from "./bundled-contribution-sources.js";
 
 /**

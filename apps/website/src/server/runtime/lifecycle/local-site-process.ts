@@ -11,7 +11,7 @@ import path from "node:path";
 import { mkdtempSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import os from "node:os";
-import { redactLocalText } from "../../../platform/server-logs/redact-local-text.js";
+import { redactLocalText } from "@jini-ai/diagnostics/local-text";
 import { probeLoopbackHttp, requestLoopbackHttp } from "@jini-ai/platform/net";
 import { allocatePort, readLiveDaemonRegistryRecord } from "@jini-ai/sidecar";
 import { createNodeDaemonProcessAdapter, type NodeDaemonProcessOptions } from "@jini-ai/sidecar/supervisor/node";

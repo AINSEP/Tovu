@@ -1,5 +1,5 @@
 import { buildAssistantFilesystemNotices } from "../assistant-filesystem-notices.js";
-import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
+import { assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";

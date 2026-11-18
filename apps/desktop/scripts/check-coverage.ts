@@ -49,7 +49,7 @@ import { spawnSync } from "node:child_process";
 import type { SpawnSyncOptionsWithStringEncoding, SpawnSyncReturns } from "node:child_process";
 import { globSync, mkdtempSync, readFileSync, readdirSync, rmSync, existsSync } from "node:fs";
 import os from "node:os";
-import { redactLocalText } from "../../website/src/platform/server-logs/redact-local-text.ts";
+import { redactLocalText } from "@jini-ai/diagnostics/local-text";
 import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

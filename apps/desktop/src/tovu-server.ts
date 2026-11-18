@@ -16,13 +16,13 @@ import { SITES_MCP_SERVER_ID, DESKTOP_MCP_URL_ENV, DESKTOP_MCP_TOKEN_ENV, DESKTO
  * under `apps/website/` has to change for the desktop shell to exist.
  */
 import { redactSecrets } from "@jini-ai/core";
-import { SITE_SLEEP_EXIT_CODE } from "../../website/src/assistant/daemon-exit-codes.ts";
+import { SITE_SLEEP_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 import net from "node:net";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import fs from "node:fs";
-import { redactLocalText } from "../../website/src/platform/server-logs/redact-local-text.ts";
-import { createRedactedOutputSink } from "../../website/src/platform/server-logs/console-tee.ts";
+import { redactLocalText } from "@jini-ai/diagnostics/local-text";
+import { createRedactedOutputSink } from "@jini-ai/diagnostics/console-tee";
 import { spawn as nodeSpawn, execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import type { DesktopAgentService } from "./desktop-agent-service.ts";

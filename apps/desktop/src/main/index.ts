@@ -1,4 +1,4 @@
-import { SITE_SLEEP_EXIT_CODE } from "../../../website/src/assistant/daemon-exit-codes.ts";
+import { SITE_SLEEP_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 import { migrateNestedSitesHome } from "../nested-sites-migration.ts";
 import { createSitesWorkspace, rememberSharedSiteOpen, attachRunningSite } from "../shared-sites.ts";
 /**
@@ -133,7 +133,7 @@ import { createSiteTransitions } from "../site-transitions.ts";
 import { createShutdownTracker, routeQuitSignals, decideBeforeQuit } from "@jini-ai/desktop-host/shutdown";
 // Repeated-quit/drain rationale: Jini/packages/desktop-host/src/shutdown/quit-drain-gate.ts.
 import { isShellPageUrl, isSameOrigin, isExternalBrowserUrl, installGuestWindowOpenPolicy } from "../window-navigation-policy.ts";
-import { isHostedSignInLinkPath, isHostedMcpSignInLinkPath } from "../../../website/src/contracts/core/hosted-sign-in-links.ts";
+import { isHostedSignInLinkPath, isHostedMcpSignInLinkPath } from "@tovu/contracts/hosted-sign-in-links";
 import { registerSpeechIpc } from "../speech/speech-ipc.ts";
 import { registerFindInPageIpc, relayFindResults } from "../find-in-page-ipc.ts";
 import { registerImportHandoffIpc } from "../import-handoff-ipc.ts";

@@ -1,13 +1,12 @@
 /** Phase 4/V06: pure host facts and security policies over neutral declarations, without I/O. */
 import assert from "node:assert/strict";
 import test from "node:test";
-import { CORE_HOST_SIGNAL_FALLBACK, selectCoreHostSignalDeclaration, evaluateHostSignals, type HostSignalDeclaration } from "../../host-signals.js";
+import { CORE_HOST_SIGNAL_FALLBACK, selectCoreHostSignalDeclaration, evaluateHostSignals, type HostSignalDeclaration } from "@tovu/contracts/host-signals";
 import { resolveTrustProxySetting } from "#src/server/inbound/shared/trust-proxy";
 import { createSitePluginPolicy } from "#src/features/plugin-runtime/install";
-import { isHostedAssistantRuntime, resolveFullCliAccess, resolveAssistantCliPermissions } from "../../assistant-native-fallbacks.js";
+import { isHostedAssistantRuntime, resolveFullCliAccess, resolveAssistantCliPermissions, assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 import { resolveAgentPermissionMode } from "../../agent-permission-mode.js";
 import { detectDeploymentSignals } from "#src/server/runtime/boot/boot-readiness-warnings";
-import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
 
 export const declaration: HostSignalDeclaration = { signals: [
   { env: "EXAMPLE_APP", facts: { hosted: true, trustProxyHops: 1, nativeToolsRestricted: true }, label: "Example host" },

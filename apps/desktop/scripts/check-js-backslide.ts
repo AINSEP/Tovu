@@ -24,7 +24,7 @@
  */
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import { redactLocalText } from "../../website/src/platform/server-logs/redact-local-text.ts";
+import { redactLocalText } from "@jini-ai/diagnostics/local-text";
 import { sanitizeUntrustedText } from "@jini-ai/core/text";
 import { fileURLToPath } from "node:url";
 

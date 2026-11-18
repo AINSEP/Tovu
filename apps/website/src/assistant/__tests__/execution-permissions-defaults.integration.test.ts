@@ -3,7 +3,7 @@ import test from "node:test";
 import { InMemorySettingsRepo, ensureSettingDefinitions, getEffective, set } from "@jini-ai/core/settings";
 import { ensureExecutionSettingDefinitions } from "../execution-mode-settings.js";
 import { readAssistantCliPermissions } from "../subagent-settings.js";
-import { resolveAssistantCliPermissions } from "../../contracts/core/assistant-native-fallbacks.js";
+import { resolveAssistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 
 const localDefaults = {
   shell: true, fileWrite: true, userMcp: true, subagents: true,

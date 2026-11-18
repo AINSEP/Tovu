@@ -4,7 +4,7 @@
  * describer, the redactor) is injected through {@link BootPorts}, so this file never imports its
  * parent.
  */
-import { createRedactedOutputSink } from "../../website/src/platform/server-logs/console-tee.ts";
+import { createRedactedOutputSink } from "@jini-ai/diagnostics/console-tee";
 import type { Readable, Writable } from "node:stream";
 
 /** The most child output one mirror write echoes (same value `tovu-server.ts` uses for failures). */

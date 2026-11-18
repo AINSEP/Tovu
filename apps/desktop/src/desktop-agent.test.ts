@@ -10,7 +10,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createNativeAgentRuntime } from "@jini-ai/agent-runtime";
-import { assistantCliPermissions } from "../../website/src/contracts/core/assistant-native-fallbacks.ts";
+import { assistantCliPermissions } from "@tovu/contracts/assistant-native-fallbacks";
 import type { ToolDescriptor, ToolRegistry } from "@jini-ai/core";
 import type { createAgentExecutor } from "@jini-ai/daemon";
 

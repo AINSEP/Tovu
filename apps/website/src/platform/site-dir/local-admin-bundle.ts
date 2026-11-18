@@ -3,8 +3,8 @@ import { lstat, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises
 import { existsSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { redactLocalText } from "../server-logs/redact-local-text.js";
-import { createRedactedOutputSink } from "../server-logs/console-tee.js";
+import { redactLocalText } from "@jini-ai/diagnostics/local-text";
+import { createRedactedOutputSink } from "@jini-ai/diagnostics/console-tee";
 import { withFileLock } from "@jini-ai/platform/fs";
 import { isProcessAlive } from "@jini-ai/platform/process";
 

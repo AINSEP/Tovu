@@ -7,7 +7,7 @@
  */
 import { redactSecrets } from "@jini-ai/core";
 import { createRespawnPolicy } from "@jini-ai/sidecar/respawn-policy";
-import { SITE_SLEEP_EXIT_CODE } from "../../website/src/assistant/daemon-exit-codes.ts";
+import { SITE_SLEEP_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 import type { ResourcesSnapshot } from "./contracts/resources.ts";
 import { readTrackedSites } from "./tracked-sites.ts";
 

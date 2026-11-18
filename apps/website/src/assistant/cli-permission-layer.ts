@@ -1,6 +1,6 @@
 import { resolveDefinitionRaw, type SettingsRepoPort } from "@jini-ai/core/settings";
 import type { JsonValue } from "@jini-ai/core/primitives";
-import { ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_SUBAGENTS_NAMESPACE, type AssistantCliPermissions } from "#src/contracts/headless/index";
+import { ASSISTANT_CLI_PERMISSIONS_KEY, ASSISTANT_SUBAGENTS_NAMESPACE, type AssistantCliPermissions } from "@tovu/contracts/assistant-subagents-policy";
 
 /** Read the addressed owner layer, preserving fields the effective permission projection omits. */
 export async function readCliPermissionLayer(required: {
