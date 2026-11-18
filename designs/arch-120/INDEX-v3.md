@@ -32,7 +32,7 @@ No allow-list, filter, rank exemption or baseline addition anywhere. The baselin
 | 5 | L05 credential store foundation (incl. P1) | `v3/L05-credential-store.md` | 10 | D, I, S | L01, L02 | 70k |
 | 6 | L06 credentials ↔ source-control | `v3/L06-credentials-source-control.md` | 3 | I, H | L05 | 45k |
 | 7 | L07 static export / packager | `v3/L07-static-export.md` | 4 | I, S | L03 | 40k |
-| 8 | L08 media door (M1) | `v3/L08-media-door.md` | 9 | I, S | L00 | 70k |
+| 8 | L08 media door (M1) | `v3/L08-media-door.md` | 9 | D, I, S | L00 | 50k |
 | 9 | L09 theme + asset ops | `v3/L09-theme-assets.md` | 8 | I, D | L03 | 60k |
 | 10 | L10 post readers | `v3/L10-post-readers.md` | 9 | D, I, S, H | L03 | 70k |
 | 11 | L11 plugins / connections | `v3/L11-plugins-connections.md` | 8 | D, I, S | L01, L05 | 60k |
