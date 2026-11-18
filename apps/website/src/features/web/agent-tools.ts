@@ -1,5 +1,5 @@
 import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
-import { DEFAULT_MAX_CHARS, MAX_MAX_CHARS, MAX_URL_LENGTH, WEB_FETCH_FORMATS } from "./web-page.js";
+import { DEFAULT_MAX_CHARS, MAX_MAX_CHARS, MAX_URL_LENGTH, WEB_FETCH_FORMATS } from "@jini-ai/platform/web";
 
 /**
  * @file The `web` domain's agent-tool catalog: reading the PUBLIC web, generic by category. A vendor

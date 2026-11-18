@@ -2,8 +2,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { htmlToMarkdown } from "@jini-ai/platform/web";
-import { fetchWebPage, readWebFetchInput, WEB_FETCH_USER_AGENT, type WebFetchPorts } from "../web-page.js";
+import { htmlToMarkdown, readWebFetchInput } from "@jini-ai/platform/web";
+import { fetchWebPage, WEB_FETCH_USER_AGENT, type WebFetchPorts } from "../web-page.js";
 import type { HttpRequest } from "#src/platform/http/index";
 
 const html = readFileSync(new URL("./fixtures/library-page.html", import.meta.url), "utf8");
