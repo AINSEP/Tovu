@@ -248,7 +248,7 @@ async function servingRig() {
   const deps = {
     webhookSubscriptionRepo,
     webhookDeliveryRepo,
-    webhookSigner: createFixedSecretSigner(new Map([["sub-1", Buffer.from("shared-secret")]])),
+    webhookSigner: createFixedSecretSigner({ secrets: new Map([["sub-1", Buffer.from("shared-secret")]]) }),
     clock,
     observability: createNoopObservabilityPort({}),
   };

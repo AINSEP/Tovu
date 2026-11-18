@@ -599,7 +599,7 @@ function externalMcpSaveHandler({ routeDeps, surfaces }: { routeDeps: ExternalMc
         const locale = await resolveOperatorLocale({ deps: routeDeps, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id });
         errorLocale = locale;
         const record = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId: modelInput.id });
-        const views = await listExternalMcpServerViews({ repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer }, routeDeps.workspaceId);
+        const views = await listExternalMcpServerViews({ deps: { repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer }, workspaceId: routeDeps.workspaceId });
         const existing = views.find(view => view.serverId === modelInput.id);
         const save = mergeExternalMcpSavePrefill({ input: modelInput, existing });
         requireKnownMcpSave({ routeDeps, record, input: buildSaveExternalMcpServerInputFromFormParams({ params: { ...save, enabled: save.enabled ?? true }, workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id }) });
@@ -639,8 +639,8 @@ async function resolveExternalMcpConfigurationCheck(
   { routeDeps, id }: { routeDeps: ExternalMcpToolDeps; id: string }, _optional = {},
 ): Promise<{ ok: boolean; reason?: string }> {
   const { configs, failures } = await readEnabledExternalMcpConfigs(
-    { repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer, oauth: routeDeps.externalMcpOAuth?.tokenResolver },
-    routeDeps.workspaceId,
+    { deps: { repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer, oauth: routeDeps.externalMcpOAuth?.tokenResolver },
+    workspaceId: routeDeps.workspaceId },
   );
   if (configs.some((config) => config.serverId === id)) return { ok: true };
   const failure = failures.find((candidate) => candidate.serverId === id);
@@ -676,7 +676,7 @@ export function buildExternalMcpRegistrations(routeDeps: ExternalMcpToolDeps, su
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
         workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: EXTERNAL_MCP_MANAGE_PERMISSION }, { entityType: EXTERNAL_MCP_ENTITY_TYPE });
 
-      const servers = await listExternalMcpServerViews({ repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer }, routeDeps.workspaceId);
+      const servers = await listExternalMcpServerViews({ deps: { repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer }, workspaceId: routeDeps.workspaceId });
       return { servers };
     },
 

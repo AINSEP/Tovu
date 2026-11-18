@@ -1220,7 +1220,7 @@ export function getResumeCapableAgentIds(): ReadonlySet<string> {
  *  with the older list, which must not overwrite what the rescan recorded. */
 function recordAgents<T extends readonly AgentWithMemoryFlag[]>(agents: T): T {
   resumeCapableAgentIds = extractResumeCapableAgentIds(agents);
-  writeAgentsSnapshot(agents);
+  writeAgentsSnapshot({ agents });
   return agents;
 }
 

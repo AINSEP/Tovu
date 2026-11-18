@@ -69,7 +69,7 @@ test("repointMenuItems() repoints a top-level entryRef target", () => {
   const items = [entryRefItem({ id: "item-1", entryId: "post-old" })];
   const replacements = replacementMap({ "post-old": { newId: "post-new", entityType: "post" } });
 
-  const result = repointMenuItems(items, replacements);
+  const result = repointMenuItems({ items, replacements });
 
   assert.equal(result.count, 1);
   assert.equal(result.items[0].target.kind, "entryRef");
@@ -78,7 +78,7 @@ test("repointMenuItems() repoints a top-level entryRef target", () => {
 
 test("repointMenuItems() retains the page hint and last-known URL when ids change on import", () => {
   const target = { kind: "entryRef" as const, entryId: "page-old", entryType: "page", lastKnownHref: "/about" };
-  const result = repointMenuItems([{ id: "about", target }], replacementMap({ "page-old": { newId: "page-new", entityType: "page" } }));
+  const result = repointMenuItems({ items: [{ id: "about", target }], replacements: replacementMap({ "page-old": { newId: "page-new", entityType: "page" } }) });
   assert.deepEqual(result.items[0].target, { ...target, entryId: "page-new" });
 });
 
@@ -98,7 +98,7 @@ test("repointMenuItems() repoints a nested children grandchild", () => {
   ] satisfies NavItemNode[];
   const replacements = replacementMap({ "post-old": { newId: "post-new", entityType: "post" } });
 
-  const result = repointMenuItems(items, replacements);
+  const result = repointMenuItems({ items, replacements });
 
   assert.equal(result.count, 1);
   const grandchild = result.items[0].children![0].children![0];
@@ -109,7 +109,7 @@ test("repointMenuItems() leaves url/route/termRef targets untouched", () => {
   const items = [urlItem(), routeItem(), termRefItem()];
   const replacements = replacementMap({ "post-old": { newId: "post-new", entityType: "post" } });
 
-  const result = repointMenuItems(items, replacements);
+  const result = repointMenuItems({ items, replacements });
 
   assert.equal(result.count, 0);
   assert.deepEqual(result.items, items);
@@ -126,7 +126,7 @@ test("repointMenuItems() leaves id/label/attrs byte-equal on a repointed item", 
   ];
   const replacements = replacementMap({ "post-old": { newId: "post-new", entityType: "post" } });
 
-  const result = repointMenuItems(items, replacements);
+  const result = repointMenuItems({ items, replacements });
 
   assert.equal(result.items[0].id, "item-1");
   assert.equal(result.items[0].label, "About");
@@ -137,7 +137,7 @@ test("repointMenuItems() with no match returns count 0 and the input items uncha
   const items = [entryRefItem({ id: "item-1", entryId: "post-unrelated" }), urlItem()];
   const replacements = replacementMap({ "post-old": { newId: "post-new", entityType: "post" } });
 
-  const result = repointMenuItems(items, replacements);
+  const result = repointMenuItems({ items, replacements });
 
   assert.equal(result.count, 0);
   assert.deepEqual(result.items, items);
@@ -151,7 +151,7 @@ test("repointMenuItems() counts two items pointing at the same old id as count 2
   ];
   const replacements = replacementMap({ "post-old": { newId: "post-new", entityType: "post" } });
 
-  const result = repointMenuItems(items, replacements);
+  const result = repointMenuItems({ items, replacements });
 
   assert.equal(result.count, 2);
   assert.equal((result.items[0].target as { entryId: string }).entryId, "post-new");
@@ -163,7 +163,7 @@ test("repointMenuItems() never mutates its input array or items", () => {
   const items = [original];
   const replacements = replacementMap({ "post-old": { newId: "post-new", entityType: "post" } });
 
-  repointMenuItems(items, replacements);
+  repointMenuItems({ items, replacements });
 
   assert.equal((original.target as { entryId: string }).entryId, "post-old", "the original item must not be mutated");
   assert.equal(items[0], original, "the original array's slot must still hold the original item");
@@ -187,7 +187,7 @@ test("menuHoldersReferencing() returns one holder per (menu, referencedId)", () 
     }),
   ];
 
-  const holders = menuHoldersReferencing(menus, ["post-about"]);
+  const holders = menuHoldersReferencing({ menus, ids: ["post-about"] });
 
   assert.deepEqual(holders, [
     { entityType: "menu", entityId: "menu-header", entityLabel: "Header", referencedId: "post-about" },
@@ -211,7 +211,7 @@ test("menuHoldersReferencing() de-duplicates two items in the same menu pointing
     }),
   ];
 
-  const holders = menuHoldersReferencing(menus, ["post-about"]);
+  const holders = menuHoldersReferencing({ menus, ids: ["post-about"] });
 
   assert.equal(holders.length, 1);
 });
@@ -232,7 +232,7 @@ test("menuHoldersReferencing() returns two holders for one menu linking to two d
     }),
   ];
 
-  const holders = menuHoldersReferencing(menus, ["post-about", "post-contact"]);
+  const holders = menuHoldersReferencing({ menus, ids: ["post-about", "post-contact"] });
 
   assert.equal(holders.length, 2);
   assert.deepEqual(
@@ -260,7 +260,7 @@ test("menuHoldersReferencing() finds a nested children reference", () => {
     }),
   ];
 
-  const holders = menuHoldersReferencing(menus, ["post-about"]);
+  const holders = menuHoldersReferencing({ menus, ids: ["post-about"] });
 
   assert.deepEqual(holders, [
     { entityType: "menu", entityId: "menu-header", entityLabel: "Header", referencedId: "post-about" },
@@ -270,7 +270,7 @@ test("menuHoldersReferencing() finds a nested children reference", () => {
 test("menuHoldersReferencing() returns nothing when no menu links to any wanted id", () => {
   const menus = [makeMenu({ id: "menu-header", title: "Header", doc: { type: "menu", version: 1, items: [urlItem()] } })];
 
-  const holders = menuHoldersReferencing(menus, ["post-about"]);
+  const holders = menuHoldersReferencing({ menus, ids: ["post-about"] });
 
   assert.deepEqual(holders, []);
 });
@@ -284,7 +284,7 @@ test("menuHoldersReferencing() called with no ids returns nothing", () => {
     }),
   ];
 
-  const holders = menuHoldersReferencing(menus, []);
+  const holders = menuHoldersReferencing({ menus, ids: [] });
 
   assert.deepEqual(holders, []);
 });
@@ -293,7 +293,7 @@ test("repointMenuItems() preserves empty children and shares an unchanged nested
   const leaf = entryRefItem({ id: "unrelated", entryId: "keep", children: [] });
   const branch = urlItem({ children: [leaf] });
   const items = [branch];
-  const result = repointMenuItems(items, replacementMap({ old: { newId: "new", entityType: "page" } }));
+  const result = repointMenuItems({ items, replacements: replacementMap({ old: { newId: "new", entityType: "page" } }) });
   assert.equal(result.count, 0);
   assert.equal(result.items, items);
   assert.equal(result.items[0], branch);
@@ -304,7 +304,7 @@ test("repointMenuItems() preserves empty children and shares an unchanged nested
 test("repointMenuItems() changing only a parent shares its unchanged children", () => {
   const children = [urlItem()];
   const original = entryRefItem({ entryId: "old", children });
-  const result = repointMenuItems([original], replacementMap({ old: { newId: "new", entityType: "page" } }));
+  const result = repointMenuItems({ items: [original], replacements: replacementMap({ old: { newId: "new", entityType: "page" } }) });
   assert.equal(result.count, 1);
   assert.deepEqual(result.items[0].target, { kind: "entryRef", entryId: "new" });
   assert.equal(result.items[0].children, children);
@@ -316,16 +316,16 @@ test("menuHoldersReferencing() ignores unmatched entry refs and empty children a
     entryRefItem({ entryId: "other", children: [] }),
     urlItem({ children: [entryRefItem({ entryId: "wanted", children: [] })] }),
   ] } });
-  assert.deepEqual(menuHoldersReferencing([menu], ["wanted"]), [
+  assert.deepEqual(menuHoldersReferencing({ menus: [menu], ids: ["wanted"] }), [
     { entityType: "menu", entityId: "mixed", entityLabel: "Header", referencedId: "wanted" },
   ]);
 });
 
 test("empty menu collections and empty item arrays preserve the no-change contract", () => {
   const items: readonly NavItemNode[] = [];
-  const result = repointMenuItems(items, replacementMap({ old: { newId: "new", entityType: "page" } }));
+  const result = repointMenuItems({ items, replacements: replacementMap({ old: { newId: "new", entityType: "page" } }) });
   assert.equal(result.count, 0);
   assert.equal(result.items, items);
-  assert.deepEqual(menuHoldersReferencing([], ["old"]), []);
-  assert.deepEqual(menuHoldersReferencing([makeMenu({ id: "empty" })], ["old"]), []);
+  assert.deepEqual(menuHoldersReferencing({ menus: [], ids: ["old"] }), []);
+  assert.deepEqual(menuHoldersReferencing({ menus: [makeMenu({ id: "empty" })], ids: ["old"] }), []);
 });

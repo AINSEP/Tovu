@@ -338,7 +338,7 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
         apiKeyStoredExternally={adminCredential.apiKeyStoredExternally}
         apiKeyPlaceholder={adminCredential.apiKeyPlaceholder}
         canDiscoverModels={adminCredential.canDiscoverModels}
-        describeProbeError={createProbeErrorDescriber(t)}
+        describeProbeError={createProbeErrorDescriber({ t })}
         apiKeyFooter={<AdminByokKeyFooter controller={adminCredential} agentHandle="ai-assistant-admin-byok-save-key" t={t} />}
         formFooter={<AdminByokSettingsFooter controller={adminCredential} agentHandle="ai-assistant-admin-byok-save-settings" t={t} />}
       />
@@ -408,7 +408,7 @@ function resolveAssistantDaemonRestartHook(
  *  of a ternary chain inline in the component's JSX. */
 export function assistantDaemonStatusMessage(
   controller: Pick<AssistantDaemonRestartController, "knownFailed" | "checkingStatus" | "statusError">,
-  t: Translate = (key) => key
+  { t = (key) => key }: { t?: Translate } = {},
 ): string | null {
   if (controller.statusError) return controller.statusError;
   if (controller.checkingStatus && controller.knownFailed === null) return t("Checking status…");
@@ -422,7 +422,7 @@ export function AssistantDaemonRestart(props: AssistantDaemonRestartProps) {
   const t = resolveT({ override: props.t });
   const controller = useAssistantDaemonRestartHook();
   const { restarting, restartResult, restartError, checkingStatus, checkStatus, restart } = controller;
-  const statusMessage = assistantDaemonStatusMessage(controller, t);
+  const statusMessage = assistantDaemonStatusMessage(controller, { t });
   // This panel only reads the policy's `allowed` verdict and never edits the execution config, so
   // it calls the policy hook directly rather than the settings adapter (`useTovuSettingsExecution`),
   // whose required config-change sink would have been a no-op nobody could ever invoke here.
@@ -558,7 +558,7 @@ function visitorCredentialKeyIdleMessage(t: Translate): string {
 
 export function visitorCredentialKeyStatusMessage(
   discovery: VisitorCredentialFormController["discovery"],
-  t: Translate = (key) => key,
+  { t = (key) => key }: { t?: Translate } = {},
 ): string | null {
   if (discovery.status === "ok") {
     return t("Key works — {count} models available.").replace("{count}", String(discovery.models.length));
@@ -651,7 +651,7 @@ export function VisitorCredentialKeyFooter({
   // complexity under the ceiling.
   const t = resolveT({ override: tProp });
   const lines = visitorKeyFooterLines({ discoveryStatus: discovery.status, saveStatus: saveState.status, storedKeyIsForOtherEndpoint });
-  const keyStatus = lines.keyStatus ? visitorCredentialKeyStatusMessage(discovery, t) : null;
+  const keyStatus = lines.keyStatus ? visitorCredentialKeyStatusMessage(discovery, { t }) : null;
   return (
     <div className="assistant-key-footer">
       {keyStatus ? <p className="assistant-key-status" role="status">{keyStatus}</p> : null}

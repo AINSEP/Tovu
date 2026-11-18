@@ -30,7 +30,7 @@ test("a created server starts at version 1 and every edit advances it; the view 
   const h = harness();
   assert.equal((await h.save(h.form())).version, 1);
   assert.equal((await h.save(h.form({ label: "Renamed" }))).version, 2);
-  assert.deepEqual((await listExternalMcpServerViews(h.deps, WORKSPACE)).map(view => view.version), [2]);
+  assert.deepEqual((await listExternalMcpServerViews({ deps: h.deps, workspaceId: WORKSPACE })).map(view => view.version), [2]);
 });
 
 test("T-stale: a form saved from an old screen is refused with both versions and the first save stays", async () => {

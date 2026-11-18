@@ -175,7 +175,7 @@ describe("sortDocuments", () => {
       { id: "new", createdAt: "2026-03-01T00:00:00Z" },
       { id: "mid", createdAt: "2026-02-01T00:00:00Z" },
     ] as AdminMedia[];
-    expect(sortDocuments(items).map((item) => item.id)).toEqual(["new", "mid", "old"]);
+    expect(sortDocuments({ items }).map((item) => item.id)).toEqual(["new", "mid", "old"]);
     expect(items.map((item) => item.id)).toEqual(["old", "new", "mid"]);
   });
 });

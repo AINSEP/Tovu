@@ -46,7 +46,7 @@ export function ensureInitialSession(
   _options = {},
 ): Promise<MeResponse> {
   if (initialSession.current !== null) return initialSession.current;
-  const bootToken = takeBootToken(location, history);
+  const bootToken = takeBootToken({ location, history });
   if (bootToken) {
     initialSession.current = sessionApi.redeemBootSession({ token: bootToken }).catch((error: unknown) => { console.error("[admin] Could not redeem the boot session", describeErrorForLog({ err: error })); }).then(() => sessionApi.me());
   } else {

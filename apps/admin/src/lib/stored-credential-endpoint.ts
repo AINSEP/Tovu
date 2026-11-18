@@ -95,6 +95,6 @@ export function describeProbeError({ e, fallback }: { e: unknown; fallback: stri
  *
  * @complexity Time/space: O(1) per call.
  */
-export function createProbeErrorDescriber(t: Translate): (error: unknown) => string {
+export function createProbeErrorDescriber({ t }: { t: Translate }, _optional: Record<string, never> = {}): (error: unknown) => string {
   return (error) => t(describeProbeError({ e: error, fallback: String(error) }));
 }

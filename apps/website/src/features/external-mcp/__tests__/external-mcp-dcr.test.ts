@@ -292,7 +292,7 @@ test("the minted client id is PERSISTED — a second connect registers nothing",
     await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
 
     assert.equal(registrationCalls(fixture), 1);
-    const [view] = await listExternalMcpServerViews(store.deps, WORKSPACE);
+    const [view] = await listExternalMcpServerViews({ deps: store.deps, workspaceId: WORKSPACE });
     assert.equal(view?.oauth.clientId, "minted-client-id");
   } finally {
     await fixture.close();
@@ -526,7 +526,7 @@ test("a client secret the server volunteers is sealed and never appears in a rea
     const payload = await openExternalMcpOAuthPayload(store.sealer, record);
     assert.equal(payload.clientSecret, "server-issued-secret");
 
-    const views = await listExternalMcpServerViews(store.deps, WORKSPACE);
+    const views = await listExternalMcpServerViews({ deps: store.deps, workspaceId: WORKSPACE });
     assert.ok(!JSON.stringify(views).includes("server-issued-secret"), "the client secret must never reach a read model");
   } finally {
     await fixture.close();

@@ -86,7 +86,7 @@ export function createMenuReverters(deps: MenuReverterDeps): { update: EntityRev
  * registry, since `revertChangeSet` is handed exactly one registry per run and dispatches every
  * change-set item (post, menu, …) through it.
  */
-export function registerMenuReverters(registry: RevertRegistry, deps: MenuReverterDeps): RevertRegistry {
+export function registerMenuReverters({ registry, deps }: { registry: RevertRegistry; deps: MenuReverterDeps }, _optional: Record<string, never> = {}): RevertRegistry {
   const reverters = createMenuReverters(deps);
   registry.register("menu", "update", reverters.update);
   return registry;

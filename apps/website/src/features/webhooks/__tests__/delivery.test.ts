@@ -54,7 +54,7 @@ async function seedActiveSubscription(rig: ReturnType<typeof makeRig>, secret: B
     },
   });
 
-  const signer = createFixedSecretSigner(new Map([[subscription.id, secret]]));
+  const signer = createFixedSecretSigner({ secrets: new Map([[subscription.id, secret]]) });
   return { subscription, signer };
 }
 

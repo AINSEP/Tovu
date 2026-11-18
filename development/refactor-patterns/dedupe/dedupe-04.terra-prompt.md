@@ -106,7 +106,7 @@ export function readVersionConflict(
   required: { error: unknown; attemptedStatus: "draft" | "published" | undefined },
   _optional: Record<string, never> = {},
 ): SaveConflict | null {
-  if (!isVersionConflict(required.error)) return null;
+  if (!isVersionConflict(required)) return null;
   const details = (required.error.body?.details ?? {}) as Record<string, unknown>;
   return {
     expectedVersion: typeof details.expectedVersion === "number" ? details.expectedVersion : null,

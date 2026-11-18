@@ -16,10 +16,10 @@ test("with the split bundled plugins, --target help follows plugin-id order", ()
 });
 
 test("formatTargetOptionHelp: joins one, two, and many ids", () => {
-  assert.equal(formatTargetOptionHelp([]), "deploy platform id declared by bundled plugins");
-  assert.equal(formatTargetOptionHelp(["fly"]), "deploy platform: fly");
-  assert.equal(formatTargetOptionHelp(["fly", "render"]), "deploy platform: fly or render");
-  assert.equal(formatTargetOptionHelp(["a", "b", "c", "d"]), "deploy platform: a, b, c, or d");
+  assert.equal(formatTargetOptionHelp({ ids: [] }), "deploy platform id declared by bundled plugins");
+  assert.equal(formatTargetOptionHelp({ ids: ["fly"] }), "deploy platform: fly");
+  assert.equal(formatTargetOptionHelp({ ids: ["fly", "render"] }), "deploy platform: fly or render");
+  assert.equal(formatTargetOptionHelp({ ids: ["a", "b", "c", "d"] }), "deploy platform: a, b, c, or d");
 });
 
 test("CLI help discovers all contributing packages through the same bundled source selector", async t => {

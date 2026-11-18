@@ -86,7 +86,7 @@ function sendRemoveFailure({ res, mediaId, reason }: { res: Response; mediaId: s
 async function toTrashedMediaResponse({ deps, media }: { deps: MediaRouteDeps; media: MediaRecord }) {
   const [contentType, publicUrl, byteSizes] = await Promise.all([
     readRecordedContentType({ deps, sha256: media.source.sha256 }),
-    resolveMediaPublicUrls(deps, [media]).then((urls) => urls.get(media.id) ?? null),
+    resolveMediaPublicUrls({ deps, assets: [media] }).then((urls) => urls.get(media.id) ?? null),
     resolveMediaByteSizes({ deps, media: [media] }),
   ]);
   return toAdminMediaResponse({ media, contentType, publicUrl, byteSize: byteSizes.get(media.source.sha256) ?? null });

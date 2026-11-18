@@ -25,7 +25,7 @@ afterEach(() => {
 describe("assistant prompt bus", () => {
   it("opens the dock and inserts the text into a mounted composer", () => {
     const opens: boolean[] = [];
-    subscribeToAssistantDockRequests((open) => opens.push(open));
+    subscribeToAssistantDockRequests({ listener: (open) => opens.push(open) });
     const insertText = vi.fn();
     renderHook(() => useAssistantPromptRequests(handleRef({ insertText })));
     requestAssistantPrompt({ text: "Import https://example.com" });

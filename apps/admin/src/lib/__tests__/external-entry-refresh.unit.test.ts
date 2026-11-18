@@ -9,23 +9,23 @@ import { decideExternalEntryRefresh, isNewerRevision } from "../external-entry-r
 
 describe("isNewerRevision", () => {
   it("is false when nothing is loaded yet", () => {
-    expect(isNewerRevision(null, { id: "a", version: 2 })).toBe(false);
+    expect(isNewerRevision({ loaded: null, fresh: { id: "a", version: 2 } })).toBe(false);
   });
 
   it("is false for a different id even with a higher version", () => {
-    expect(isNewerRevision({ id: "a", version: 1 }, { id: "b", version: 5 })).toBe(false);
+    expect(isNewerRevision({ loaded: { id: "a", version: 1 }, fresh: { id: "b", version: 5 } })).toBe(false);
   });
 
   it("is false for the same version", () => {
-    expect(isNewerRevision({ id: "a", version: 3 }, { id: "a", version: 3 })).toBe(false);
+    expect(isNewerRevision({ loaded: { id: "a", version: 3 }, fresh: { id: "a", version: 3 } })).toBe(false);
   });
 
   it("is false for an older version", () => {
-    expect(isNewerRevision({ id: "a", version: 3 }, { id: "a", version: 2 })).toBe(false);
+    expect(isNewerRevision({ loaded: { id: "a", version: 3 }, fresh: { id: "a", version: 2 } })).toBe(false);
   });
 
   it("is true for a strictly higher version on the same id", () => {
-    expect(isNewerRevision({ id: "a", version: 3 }, { id: "a", version: 4 })).toBe(true);
+    expect(isNewerRevision({ loaded: { id: "a", version: 3 }, fresh: { id: "a", version: 4 } })).toBe(true);
   });
 });
 

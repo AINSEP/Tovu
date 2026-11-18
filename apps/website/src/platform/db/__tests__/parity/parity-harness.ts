@@ -317,8 +317,8 @@ export async function readTranscript(mods: ParityModules, ctx: ParityContext): P
     }
     t[at("source.list")] = await outcome(() => mods.source.listSourceControlCredentials(d.source, { workspaceId }));
     t[at("source.resolveDefault.github")] = await outcome(() => mods.source.resolveDefaultForSourceControl(d.source, { workspaceId, providerId: "github" }));
-    t[at("mcp.list")] = await outcome(() => mods.mcp.listExternalMcpServerViews(d.mcp, workspaceId));
-    t[at("mcp.enabled")] = await outcome(() => mods.mcp.readEnabledExternalMcpConfigs(d.mcp, workspaceId));
+    t[at("mcp.list")] = await outcome(() => mods.mcp.listExternalMcpServerViews({ deps: d.mcp, workspaceId }));
+    t[at("mcp.enabled")] = await outcome(() => mods.mcp.readEnabledExternalMcpConfigs({ deps: d.mcp, workspaceId }));
   }
   for (const [workspaceId, principalId] of [["ws", "p"], ["ws", "p2"], ["ws2", "q"], ["ws2", "p"]]) {
     const at = (name: string) => `${name}@${workspaceId}/${principalId}`;
@@ -433,7 +433,7 @@ export async function writeTranscript(mods: ParityModules, ctx: ParityContext,
     const base = { workspaceId: ws, transport: "stdio", enabled: true, command: "mcp-new", args: "", allowedToolNames: "", writeAllowedToolNames: "" };
     t["mcp.1.save-env"] = await outcome(() => mods.mcp.saveExternalMcpServer(d.mcp, { ...base, serverId: "new-env", label: "New env", authMode: "static_env", env: "A=one" }));
     t["mcp.2.save-keeps-env"] = await outcome(() => mods.mcp.saveExternalMcpServer(d.mcp, { ...base, serverId: "new-env", label: "Renamed env", authMode: "static_env" }));
-    t["mcp.3.enabled"] = await outcome(() => mods.mcp.readEnabledExternalMcpConfigs(d.mcp, ws));
+    t["mcp.3.enabled"] = await outcome(() => mods.mcp.readEnabledExternalMcpConfigs({ deps: d.mcp, workspaceId: ws }));
     const lease = { workspaceId: ws, serverId: "server", nowIso: stamp, leaseUntil: "2026-10-11T12:05:00.000Z" };
     t["mcp.4.claim"] = await outcome(() => d.mcp.repo.tryClaimOAuthRefreshLease(lease));
     t["mcp.5.claim-again"] = await outcome(() => d.mcp.repo.tryClaimOAuthRefreshLease(lease));
@@ -441,7 +441,7 @@ export async function writeTranscript(mods: ParityModules, ctx: ParityContext,
     t["mcp.7.claim-after-release"] = await outcome(() => d.mcp.repo.tryClaimOAuthRefreshLease(lease));
     t["mcp.8.delete"] = await outcome(() => mods.mcp.deleteExternalMcpServer(d.mcp, { workspaceId: ws, serverId: "server" }));
     t["mcp.9.delete-again"] = await outcome(() => mods.mcp.deleteExternalMcpServer(d.mcp, { workspaceId: ws, serverId: "server" }));
-    t["mcp.10.list"] = await outcome(() => mods.mcp.listExternalMcpServerViews(d.mcp, ws));
+    t["mcp.10.list"] = await outcome(() => mods.mcp.listExternalMcpServerViews({ deps: d.mcp, workspaceId: ws }));
   }
   if (run("assistant")) {
     t["assistant.1.site-set"] = await outcome(() => mods.site.setSiteAssistantCredential(d.site, { workspaceId: "ws2", apiKey: "ws2-new-site-key-1234567890" }));
@@ -496,7 +496,7 @@ export async function cascadeTranscript(mods: ParityModules, ctx: ParityContext)
   t["purge.3.p-key-kept"] = await outcome(() => mods.exec.resolveExecutionCredential({ deps: d.exec, input: { workspaceId: "ws", principalId: "p" } }));
   t["principal.1.delete-p"] = await rawOutcome(() => ctx.kernel.execute(sql`DELETE FROM principals WHERE id = 'p'`));
   t["principal.2.p-key"] = await outcome(() => mods.exec.getExecutionCredential(d.exec, { workspaceId: "ws", principalId: "p" }));
-  t["principal.3.mcp"] = await outcome(() => mods.mcp.listExternalMcpServerViews(d.mcp, "ws"));
+  t["principal.3.mcp"] = await outcome(() => mods.mcp.listExternalMcpServerViews({ deps: d.mcp, workspaceId: "ws" }));
   t["principal.4.site-kept"] = await outcome(() => mods.site.resolveSiteAssistantApiKey({ deps: d.site, input: { workspaceId: "ws" } }));
   t["workspace.1.delete-ws2"] = await rawOutcome(() => ctx.kernel.execute(sql`DELETE FROM workspaces WHERE id = 'ws2'`));
   t["workspace.2.site"] = await outcome(() => mods.site.getSiteAssistantCredential(d.site, { workspaceId: "ws2" }));

@@ -89,8 +89,8 @@ export function createStoredExternalMcpConnectionSource(
       try {
         const repo = await withoutLegacyDesktop({ deps, isPluginEnabled });
         const { configs, failures } = await readEnabledExternalMcpConfigs(
-          { repo, sealer: deps.sealer, oauth: deps.oauth },
-          deps.workspaceId,
+          { deps: { repo, sealer: deps.sealer, oauth: deps.oauth },
+          workspaceId: deps.workspaceId },
         );
         for (const failure of failures) {
           console.warn(`${deps.log} mcp-federation: stored server '${failure.serverId}' skipped — ${failure.reason}`);

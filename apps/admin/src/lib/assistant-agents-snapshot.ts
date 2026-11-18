@@ -32,6 +32,6 @@ export function readAgentsSnapshot(): readonly ChatPaneAgent[] | undefined {
 }
 
 /** Stores a live inventory for the next cold load (empty lists are ignored; never throws). */
-export function writeAgentsSnapshot(agents: readonly ChatPaneAgent[]): void {
+export function writeAgentsSnapshot({ agents }: { agents: readonly ChatPaneAgent[] }, _optional: Record<string, never> = {}): void {
   snapshot.write({ agents });
 }

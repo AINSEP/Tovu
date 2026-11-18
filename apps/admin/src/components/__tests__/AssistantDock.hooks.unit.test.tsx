@@ -830,7 +830,7 @@ describe("useLocalCliSelection", () => {
   });
 
   it("does not discard a normalized model on an unrelated config change after hydration", () => {
-    writeAgentsSnapshot([{ id: "claude", name: "Claude Code", models: [{ id: "claude-sonnet-5", label: "Sonnet 5" }] }]);
+    writeAgentsSnapshot({ agents: [{ id: "claude", name: "Claude Code", models: [{ id: "claude-sonnet-5", label: "Sonnet 5" }] }] });
     try {
       const config = localCliConfig({ agentId: "claude", modelByAgentId: {} });
       const setExecutionConfig = stubSetExecutionConfig(config);
@@ -848,7 +848,7 @@ describe("useLocalCliSelection", () => {
   });
 
   it("a send-time read keeps ChatPane's normalized model while the saved axes are unchanged, and follows the ledger once they change", () => {
-    writeAgentsSnapshot([{ id: "claude", name: "Claude Code", models: [{ id: "claude-sonnet-5", label: "Sonnet 5" }] }]);
+    writeAgentsSnapshot({ agents: [{ id: "claude", name: "Claude Code", models: [{ id: "claude-sonnet-5", label: "Sonnet 5" }] }] });
     try {
       const config = localCliConfig({ agentId: "claude", modelByAgentId: {} });
       const { result } = renderHook(() => useLocalCliSelection({ executionConfig: config, setExecutionConfig: stubSetExecutionConfig(config), configLoaded: true }));
@@ -892,7 +892,7 @@ describe("useLocalCliSelection", () => {
       { id: "codex", name: "Codex", models: [{ id: "gpt-5", label: "GPT-5" }], reasoningOptions: [{ id: "medium", label: "Medium" }] },
       { id: "aider", name: "Aider", available: false },
     ];
-    beforeEach(() => writeAgentsSnapshot(inventory));
+    beforeEach(() => writeAgentsSnapshot({ agents: inventory }));
     afterEach(() => localStorage.clear());
 
     it("an echo before the ledger settles writes nothing and still lets hydration apply", () => {
@@ -1826,7 +1826,7 @@ describe("agents cache (useRuntimeAccess + useAgentsPlaceholder)", () => {
   });
 
   it("placeholder falls back to the stored snapshot of the last live list", () => {
-    writeAgentsSnapshot([{ id: "gemini", name: "Gemini CLI" }]);
+    writeAgentsSnapshot({ agents: [{ id: "gemini", name: "Gemini CLI" }] });
     vi.stubGlobal("fetch", vi.fn());
     const { result } = renderAgents();
 
@@ -1834,7 +1834,7 @@ describe("agents cache (useRuntimeAccess + useAgentsPlaceholder)", () => {
   });
 
   it("placeholder prefers the cached live list over the snapshot once one has loaded", async () => {
-    writeAgentsSnapshot([{ id: "gemini", name: "Gemini CLI" }]);
+    writeAgentsSnapshot({ agents: [{ id: "gemini", name: "Gemini CLI" }] });
     vi.stubGlobal("fetch", vi.fn(() => okAgents([{ id: "claude", name: "Claude Code" }])));
     const { result, rerender } = renderAgents();
 

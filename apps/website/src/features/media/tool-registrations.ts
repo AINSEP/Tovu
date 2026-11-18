@@ -56,8 +56,8 @@ function resolveOneAssetPublicUrl(
  * transform-version lookup (workspace-wide, not per-asset).
  */
 export async function resolveMediaPublicUrls(
-  deps: MediaPublicUrlDeps & { workspaceId: string },
-  assets: readonly MediaRecord[]
+  { deps, assets }: { deps: MediaPublicUrlDeps & { workspaceId: string }; assets: readonly MediaRecord[] },
+  _optional: Record<string, never> = {},
 ): Promise<Map<string, string | null>> {
   const result = new Map<string, string | null>();
   if (!deps.mediaContentTypeStore) {
@@ -118,7 +118,7 @@ function buildRecordUploadContentType(
 ): (params: { media: MediaRecord; bytes: Uint8Array }) => Promise<void> {
   const store = routeDeps.mediaContentTypeStore;
   return async ({ media, bytes }) => {
-    const contentType = assertAllowedSniffedContentType(bytes);
+    const contentType = assertAllowedSniffedContentType({ bytes });
     if (store) {
       await store.set({ workspaceId: routeDeps.workspaceId, sha256: media.source.sha256, contentType });
     }
@@ -224,7 +224,7 @@ export function buildMediaRegistrationsForTovu(
   // agent/user uploads and chat promotions never share mutable actor state.
   const registrations = buildMediaRegistrations(routeDeps, {
     listContentTypes: routeDeps.mediaContentTypeStore,
-    resolvePublicUrls: ({ assets }) => resolveMediaPublicUrls(routeDeps, assets),
+    resolvePublicUrls: ({ assets }) => resolveMediaPublicUrls({ deps: routeDeps, assets }),
     recordUploadContentType: buildRecordUploadContentType(routeDeps),
     maxUploadBytes: TOVU_MAX_UPLOAD_BYTES,
   });

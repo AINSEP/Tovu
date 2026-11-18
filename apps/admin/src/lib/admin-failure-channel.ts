@@ -84,7 +84,7 @@ export function publishAdminFailure(
 /** A browser refusing clipboard access (permission, unfocused page) is an expected refusal, not an
  * incident: show inline text only. Any other clipboard-path throw is a defect and is published.
  * @complexity O(1). */
-export function isClipboardRefusal(error: unknown): boolean {
+export function isClipboardRefusal({ error }: { error: unknown }, _optional: Record<string, never> = {}): boolean {
   return typeof DOMException !== "undefined" && error instanceof DOMException && error.name === "NotAllowedError";
 }
 

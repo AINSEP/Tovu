@@ -185,7 +185,7 @@ function menuSaveError({ error, t }: { error: unknown; t: Translate }, _optional
   // compare-and-set, wm S4) gets translated "someone else changed this" copy instead of the
   // server's "menu '<id>' was modified concurrently…" text. Other errors (a slug already taken
   // is also a 409, without the code) keep the server message.
-  if (isVersionConflict(error)) return t(VERSION_CONFLICT_MESSAGE);
+  if (isVersionConflict({ error })) return t(VERSION_CONFLICT_MESSAGE);
   return error instanceof Error ? error.message : "save failed";
 }
 
@@ -358,7 +358,7 @@ export function useMenuEditor({ menuId, dependencies: { port, navigate, t, clipb
     } catch (error) {
       if (activeMenuIdRef.current !== copyingForMenuId) return;
       setCopyFeedback(t("Could not copy embed"));
-      if (isClipboardRefusal(error)) return;
+      if (isClipboardRefusal({ error })) return;
       publishLocalAdminFailure({
         message: "The menu embed code could not be copied.",
         action: "Try Copy HTML embed again. If it keeps failing, copy details and report this problem.",

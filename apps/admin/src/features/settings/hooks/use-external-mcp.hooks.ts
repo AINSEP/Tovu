@@ -217,7 +217,7 @@ function expectedVersionOf({ item }: { item: SourceConfigItem | undefined }, _op
 
 /** The plain-words reason a save failed: the stale-version copy for a lost compare-and-set, else the server's own. @complexity O(1). */
 function describeSaveFailure({ err, t }: { err: unknown; t: (key: string) => string }, _options = {}): string {
-  return isVersionConflict(err) ? t(VERSION_CONFLICT_MESSAGE) : describeApiError({ e: err, fallback: t('That server could not be saved.') });
+  return isVersionConflict({ error: err }) ? t(VERSION_CONFLICT_MESSAGE) : describeApiError({ e: err, fallback: t('That server could not be saved.') });
 }
 
 /**

@@ -57,14 +57,14 @@ async function registerCoreTransform(transformDefinitionRepo: InMemoryTransformD
 
 test("resolveMediaPublicUrls: with no mediaContentTypeStore/transformDefinitionRepo supplied, every asset resolves to null", async () => {
   const asset = fakeAsset();
-  const result = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID }, [asset]);
+  const result = await resolveMediaPublicUrls({ deps: { workspaceId: WORKSPACE_ID }, assets: [asset] });
   assert.equal(result.get(asset.id), null);
 });
 
 test("resolveMediaPublicUrls: an empty assets array resolves to an empty map, deps present or not", async () => {
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
   const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});
-  const result = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, []);
+  const result = await resolveMediaPublicUrls({ deps: { workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, assets: [] });
   assert.equal(result.size, 0);
 });
 
@@ -76,7 +76,7 @@ test("resolveMediaPublicUrls: a trashed asset resolves to null without consultin
   await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: trashed.source.sha256, contentType: "image/png" });
   mediaContentTypeStore.getMany = async () => { assert.fail("trashed asset must not trigger content-type lookup"); };
   transformDefinitionRepo.listByName = async () => { assert.fail("trashed asset must not trigger transform lookup"); };
-  const result = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, [trashed]);
+  const result = await resolveMediaPublicUrls({ deps: { workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, assets: [trashed] });
   assert.equal(result.get(trashed.id), null);
 });
 
@@ -91,8 +91,8 @@ test("resolveMediaPublicUrls: a batch that is ENTIRELY trashed short-circuits to
   mediaContentTypeStore.getMany = async () => { assert.fail("all-trashed batch must not trigger content-type lookup"); };
   transformDefinitionRepo.listByName = async () => { assert.fail("all-trashed batch must not trigger transform lookup"); };
   const result = await resolveMediaPublicUrls(
-    { workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo },
-    [trashedA, trashedB]
+    { deps: { workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo },
+    assets: [trashedA, trashedB] }
   );
   assert.equal(result.get(trashedA.id), null);
   assert.equal(result.get(trashedB.id), null);
@@ -103,7 +103,10 @@ test("resolveMediaPublicUrls: an active asset with no 'public' transform registe
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
   const transformDefinitionRepo = new InMemoryTransformDefinitionRepo({});
   const asset = fakeAsset();
-  const result = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, [asset]);
+  const result = await resolveMediaPublicUrls(
+    { deps: { workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo },
+    assets: [asset] }
+  );
   assert.equal(result.get(asset.id), null);
 });
 
@@ -114,7 +117,7 @@ test("resolveMediaPublicUrls: a recorded video asset uses the byte-passthrough /
   const asset = fakeAsset();
   await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: asset.source.sha256, contentType: "video/mp4" });
 
-  const result = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, [asset]);
+  const result = await resolveMediaPublicUrls({ deps: { workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, assets: [asset] });
   assert.equal(result.get(asset.id), `/m/${asset.id}/original.mp4?v=${asset.source.sha256.slice(0, 12)}`);
 });
 
@@ -122,7 +125,7 @@ test("resolveMediaPublicUrls: sanitized SVG needs no registered raster transform
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
   const asset = fakeAsset({ slug: "vector-logo" });
   await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: asset.source.sha256, contentType: "image/svg+xml" });
-  const result = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore }, [asset]);
+  const result = await resolveMediaPublicUrls({ deps: { workspaceId: WORKSPACE_ID, mediaContentTypeStore }, assets: [asset] });
   assert.equal(result.get(asset.id), `/m/vector-logo/original.svg?v=${asset.source.sha256.slice(0, 12)}`);
 });
 
@@ -132,7 +135,7 @@ test("resolveMediaPublicUrls: a non-video asset with a registered 'public' trans
   await registerCoreTransform(transformDefinitionRepo, { format: "webp" });
   const asset = fakeAsset();
 
-  const result = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, [asset]);
+  const result = await resolveMediaPublicUrls({ deps: { workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, assets: [asset] });
   assert.equal(result.get(asset.id), `/m/${asset.id}/${CORE_PUBLIC_TRANSFORM_NAME}.v1/image.webp?v=${asset.source.sha256.slice(0, 12)}`);
 });
 
@@ -143,7 +146,7 @@ test("resolveMediaPublicUrls: the latest public revision supplies both URL versi
   await registerTransform({ deps, input: { workspaceId: WORKSPACE_ID, name: "public", params: { format: "webp" }, owner: "core" } });
   await registerTransform({ deps, input: { workspaceId: WORKSPACE_ID, name: "public", params: { format: "png" }, owner: "core" } });
   const asset = fakeAsset();
-  const result = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, [asset]);
+  const result = await resolveMediaPublicUrls({ deps: { workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, assets: [asset] });
   assert.equal(result.get(asset.id), `/m/${asset.id}/public.v2/image.png?v=${asset.source.sha256.slice(0, 12)}`);
 });
 
@@ -154,7 +157,7 @@ test("resolveMediaPublicUrls: a non-video asset whose sha256 has no recorded con
   const asset = fakeAsset();
   // Deliberately never call mediaContentTypeStore.set() for this asset's sha256.
 
-  const result = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, [asset]);
+  const result = await resolveMediaPublicUrls({ deps: { workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, assets: [asset] });
   assert.equal(result.get(asset.id), `/m/${asset.id}/${CORE_PUBLIC_TRANSFORM_NAME}.v1/image.png?v=${asset.source.sha256.slice(0, 12)}`);
 });
 
@@ -169,8 +172,8 @@ test("resolveMediaPublicUrls: mixed batch — trashed, video, and image assets e
   const image = fakeAsset();
 
   const result = await resolveMediaPublicUrls(
-    { workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo },
-    [trashed, video, image]
+    { deps: { workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo },
+    assets: [trashed, video, image] }
   );
 
   assert.equal(result.get(trashed.id), null);
@@ -184,7 +187,7 @@ test("resolveMediaPublicUrls: an asset with a valid slug resolves a URL keyed by
   await registerCoreTransform(transformDefinitionRepo, { format: "webp" });
   const asset = fakeAsset({ slug: "cover-photo" });
 
-  const result = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, [asset]);
+  const result = await resolveMediaPublicUrls({ deps: { workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, assets: [asset] });
   assert.equal(result.get(asset.id), `/m/cover-photo/${CORE_PUBLIC_TRANSFORM_NAME}.v1/image.webp?v=${asset.source.sha256.slice(0, 12)}`);
 });
 
@@ -194,7 +197,7 @@ test("resolveMediaPublicUrls: a video asset with a valid slug resolves the /orig
   const asset = fakeAsset({ slug: "team-intro" });
   await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: asset.source.sha256, contentType: "video/mp4" });
 
-  const result = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, [asset]);
+  const result = await resolveMediaPublicUrls({ deps: { workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, assets: [asset] });
   assert.equal(result.get(asset.id), `/m/team-intro/original.mp4?v=${asset.source.sha256.slice(0, 12)}`);
 });
 
@@ -208,7 +211,7 @@ test("resolveMediaPublicUrls: is scoped to the caller's own workspace — a tran
   });
   const asset = fakeAsset();
 
-  const result = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, [asset]);
+  const result = await resolveMediaPublicUrls({ deps: { workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, assets: [asset] });
   assert.equal(result.get(asset.id), null, "a transform registered for another workspace must not leak into this workspace's resolution");
 });
 
@@ -254,10 +257,7 @@ test("resolveMediaPublicUrls: a transform format outside EXT_BY_TRANSFORM_FORMAT
   });
   const asset = fakeAsset();
 
-  const result = await resolveMediaPublicUrls(
-    { workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo },
-    [asset]
-  );
+  const result = await resolveMediaPublicUrls({ deps: { workspaceId: WORKSPACE_ID, mediaContentTypeStore, transformDefinitionRepo }, assets: [asset] });
   assert.equal(result.get(asset.id), `/m/${asset.id}/${CORE_PUBLIC_TRANSFORM_NAME}.v1/image.avif?v=${asset.source.sha256.slice(0, 12)}`);
 });
 
@@ -266,7 +266,7 @@ test("mediawidget audio URLs share the original-byte owner without requiring an 
   const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
   const asset = fakeAsset({ slug: "sound" });
   await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: asset.source.sha256, contentType: "audio/wav" });
-  const urls = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore }, [asset]);
+  const urls = await resolveMediaPublicUrls({ deps: { workspaceId: WORKSPACE_ID, mediaContentTypeStore }, assets: [asset] });
   assert.equal(urls.get(asset.id), `/m/sound/original.wav?v=${asset.source.sha256.slice(0, 12)}`);
 });
 
@@ -281,7 +281,7 @@ test("mediawidget URL batch resolves audio/video originals independently of unre
   await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: video.source.sha256, contentType: "video/mp4" });
   await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: image.source.sha256, contentType: "image/png" });
   await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: trashed.source.sha256, contentType: "audio/wav" });
-  const urls = await resolveMediaPublicUrls({ workspaceId: WORKSPACE_ID, mediaContentTypeStore }, [audio, video, image, trashed]);
+  const urls = await resolveMediaPublicUrls({ deps: { workspaceId: WORKSPACE_ID, mediaContentTypeStore }, assets: [audio, video, image, trashed] });
   assert.deepEqual([...urls].sort(([a], [b]) => a.localeCompare(b)), [
     ["audio-id", `/m/sound/original.mp3?v=${audio.source.sha256.slice(0, 12)}`], ["image-id", null], ["trashed-id", null], ["video-id", `/m/clip/original.mp4?v=${video.source.sha256.slice(0, 12)}`],
   ]);

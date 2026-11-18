@@ -94,8 +94,8 @@ describe("dock execution config freshness", () => {
   it("keeps Claude effort across rerender, reopen, reload and the actual next send", async () => {
     const fake = harness();
     fake.saveExternally(savedAgent("claude", "opus"));
-    writeAgentsSnapshot([{ id: "claude", name: "Claude Code", models: [{ id: "opus", label: "Opus" }],
-      reasoningOptions: [{ id: "default", label: "Default" }, { id: "high", label: "High" }] }]);
+    writeAgentsSnapshot({ agents: [{ id: "claude", name: "Claude Code", models: [{ id: "opus", label: "Opus" }],
+      reasoningOptions: [{ id: "default", label: "Default" }, { id: "high", label: "High" }] }] });
     const dock = renderHook(fake.useDock);
     await flush();
     act(() => dock.result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "opus", reasoning: "high" }));
@@ -141,8 +141,8 @@ describe("dock execution config freshness", () => {
   it("includes reasoning in the saved axes so a same-model external effort change replaces normalization", async () => {
     const fake = harness();
     fake.saveExternally(savedAgent("claude", "opus"));
-    writeAgentsSnapshot([{ id: "claude", name: "Claude Code", models: [{ id: "opus", label: "Opus" }],
-      reasoningOptions: [{ id: "default", label: "Default" }, { id: "high", label: "High" }] }]);
+    writeAgentsSnapshot({ agents: [{ id: "claude", name: "Claude Code", models: [{ id: "opus", label: "Opus" }],
+      reasoningOptions: [{ id: "default", label: "Default" }, { id: "high", label: "High" }] }] });
     const { result } = renderHook(fake.useDock);
     await flush();
     act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "opus", reasoning: "default" }));
@@ -400,7 +400,7 @@ describe("dock execution config freshness", () => {
   it("an unrelated execution refresh preserves the picker's normalized default model", async () => {
     const fake = harness();
     fake.saveExternally(savedAgent("claude"));
-    writeAgentsSnapshot([{ id: "claude", name: "Claude", models: [{ id: "claude-sonnet-5", label: "Sonnet 5" }] }]);
+    writeAgentsSnapshot({ agents: [{ id: "claude", name: "Claude", models: [{ id: "claude-sonnet-5", label: "Sonnet 5" }] }] });
     const { result } = renderHook(fake.useDock);
     await flush();
     act(() => result.current.handleLocalCliSelectionChange({ agentId: "claude", model: "claude-sonnet-5" }));

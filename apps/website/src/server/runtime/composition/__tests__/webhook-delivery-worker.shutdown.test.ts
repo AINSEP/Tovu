@@ -41,7 +41,7 @@ function openSite(path: string) {
   const deps = {
     webhookDeliveryRepo: new SqliteWebhookDeliveryRepo({ store: db }),
     webhookSubscriptionRepo: new SqliteWebhookSubscriptionRepo({ store: db }),
-    webhookSigner: createFixedSecretSigner(new Map([["sub-1", Buffer.from("shared-secret")]])),
+    webhookSigner: createFixedSecretSigner({ secrets: new Map([["sub-1", Buffer.from("shared-secret")]]) }),
     clock: { nowIso: () => now },
     observability: createNoopObservabilityPort({}),
   };

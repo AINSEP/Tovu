@@ -48,8 +48,8 @@ export interface ReferenceHolder {
  * @complexity O(n) over every item in the tree (n = total item count including descendants).
  */
 export function repointMenuItems(
-  items: readonly NavItemNode[],
-  replacements: ReadonlyMap<string, MenuRepointReplacement>
+  { items, replacements }: { items: readonly NavItemNode[]; replacements: ReadonlyMap<string, MenuRepointReplacement> },
+  _optional: Record<string, never> = {},
 ): { items: readonly NavItemNode[]; count: number } {
   let count = 0;
   const next = items.map((item) => {
@@ -78,7 +78,7 @@ function repointItem(
 
   let children = item.children;
   if (children && children.length > 0) {
-    const repointedChildren = repointMenuItems(children, replacements);
+    const repointedChildren = repointMenuItems({ items: children, replacements });
     count += repointedChildren.count;
     children = repointedChildren.items;
   }
@@ -100,8 +100,8 @@ function repointItem(
  * plus O(m) for the per-menu de-duplication set (m = menus).
  */
 export function menuHoldersReferencing(
-  menus: readonly NavMenuEntry[],
-  ids: readonly string[]
+  { menus, ids }: { menus: readonly NavMenuEntry[]; ids: readonly string[] },
+  _optional: Record<string, never> = {},
 ): readonly ReferenceHolder[] {
   const wanted = new Set(ids);
   const holders: ReferenceHolder[] = [];

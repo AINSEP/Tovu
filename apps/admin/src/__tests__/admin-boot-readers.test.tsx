@@ -49,7 +49,7 @@ it("ignores restored history and conversation switches, but announces live runs 
   const settings = vi.fn();
   const content = vi.fn();
   const stopSettings = subscribeToSettingsRefresh(settings);
-  const stopContent = subscribeToContentRefresh(content);
+  const stopContent = subscribeToContentRefresh({ listener: content });
   const history: ChatMessage[] = [{ id: "old", role: "assistant", content: "Saved reply", runStatus: "succeeded", events: [
     { kind: "tool_result", toolUseId: "saved-tool", content: "ok", isError: false },
   ] }];

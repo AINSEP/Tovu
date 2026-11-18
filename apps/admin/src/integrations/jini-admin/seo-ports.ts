@@ -17,7 +17,7 @@ export interface SeoHostPorts {
 
 export const seoEvents: SeoEventsPort = {
   subscribe({ onRefresh }) {
-    return subscribeToContentRefresh(scope => { if (contentRefreshApplies({ scope, resource: 'seo' })) onRefresh(); });
+    return subscribeToContentRefresh({ listener: scope => { if (contentRefreshApplies({ scope, resource: 'seo' })) onRefresh(); } });
   },
 };
 

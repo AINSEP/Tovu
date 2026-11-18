@@ -644,7 +644,7 @@ describe("AssistantDock useRuntimeAccess injection", () => {
   });
 
   it("passes no placeholder agents when the runtime access is injected — a fake has no cache to seed from", () => {
-    writeAgentsSnapshot([{ id: "gemini", name: "Gemini CLI" }]);
+    writeAgentsSnapshot({ agents: [{ id: "gemini", name: "Gemini CLI" }] });
     const fakeRuntimeAccess = {
       listAgents: vi.fn().mockResolvedValue([]),
       rescanAgents: vi.fn().mockResolvedValue([]),
@@ -658,7 +658,7 @@ describe("AssistantDock useRuntimeAccess injection", () => {
   });
 
   it("seeds ChatPane's agents from the last live list this browser stored, before listAgents resolves", () => {
-    writeAgentsSnapshot([{ id: "gemini", name: "Gemini CLI" }]);
+    writeAgentsSnapshot({ agents: [{ id: "gemini", name: "Gemini CLI" }] });
 
     render(<AssistantDock useChats={() => fakeChats()} />);
 

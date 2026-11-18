@@ -161,14 +161,14 @@ export function useSourceControlCredentials(
     const formState = formStates[providerId] ?? blankRowFormState();
     const info = providers.find((provider) => provider.id === providerId);
     const fields: SourceControlCredentialFormFields = { providerId, token: formState.token, values: formState.values };
-    const error = credentialDraftError({ value: fields.token }, { locale, required: !defaultSourceControlCredentialForProvider(credentials ?? [], providerId) });
+    const error = credentialDraftError({ value: fields.token }, { locale, required: !defaultSourceControlCredentialForProvider({ credentials: credentials ?? [], providerId }) });
     if (error) { patchForm({ providerId: providerId, patch: () => ({ error }) }); return; }
-    if (info === undefined || !sourceControlCredentialRowReadyToSave(fields, info)) return;
+    if (info === undefined || !sourceControlCredentialRowReadyToSave({ fields, info })) return;
 
-    const existing = defaultSourceControlCredentialForProvider(credentials ?? [], providerId);
+    const existing = defaultSourceControlCredentialForProvider({ credentials: credentials ?? [], providerId });
     patchForm({ providerId: providerId, patch: () => ({ saving: true, error: null }) });
     try {
-      const connection = buildSourceControlConnectionInput(fields, info.fields);
+      const connection = buildSourceControlConnectionInput({ fields, declaredFields: info.fields });
       const result = existing
         ? await port.updateCredential({ id: existing.id, input: { connection } })
         : await port.createCredential({ label: SOURCE_CONTROL_CREDENTIAL_ROW_LABEL, connection });
@@ -190,10 +190,10 @@ export function useSourceControlCredentials(
           return {
             providerId: info.id,
             info,
-            saved: defaultSourceControlCredentialForProvider(credentials, info.id),
+            saved: defaultSourceControlCredentialForProvider({ credentials, providerId: info.id }),
             token: formState.token,
             values: formState.values,
-            readyToSave: sourceControlCredentialRowReadyToSave({ providerId: info.id, token: formState.token, values: formState.values }, info),
+            readyToSave: sourceControlCredentialRowReadyToSave({ fields: { providerId: info.id, token: formState.token, values: formState.values }, info }),
             saving: formState.saving,
             error: formState.error,
           };

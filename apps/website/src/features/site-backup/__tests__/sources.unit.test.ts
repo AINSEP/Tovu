@@ -405,10 +405,10 @@ test("a host that declares no per-file limit gets no per-file check, only this t
 
 test("a disk file over the host's per-file limit is left out and named in skipped with its size; exactly the limit stays", () => {
   const file = (filePath: string, bytes: number) => ({ path: filePath, absPath: `/site/${filePath}`, root: "/site", identity: null, nlink: 1, bytes, mtimeMs: 1, scope: "media" as const });
-  const result = skipOversizedFiles([file("uploads/a.png", 10), file("uploads/movie.mp4", GITHUB_HOST.maxFileBytes + 1), file("uploads/b.png", GITHUB_HOST.maxFileBytes)], GITHUB_HOST);
+  const result = skipOversizedFiles({ files: [file("uploads/a.png", 10), file("uploads/movie.mp4", GITHUB_HOST.maxFileBytes + 1), file("uploads/b.png", GITHUB_HOST.maxFileBytes)], host: GITHUB_HOST });
   assert.deepEqual(result.files.map((f) => f.path), ["uploads/a.png", "uploads/b.png"]);
   assert.deepEqual(result.skipped, [{ path: "uploads/movie.mp4", reason: "100 MiB, over GitHub's 100 MiB per-file limit" }]);
-  assert.deepEqual(skipOversizedFiles([file("big", 200 * 1024 * 1024)], { label: "Other Host" }).skipped, [], "no declared limit, nothing skipped");
+  assert.deepEqual(skipOversizedFiles({ files: [file("big", 200 * 1024 * 1024)], host: { label: "Other Host" } }).skipped, [], "no declared limit, nothing skipped");
 });
 
 test("too many files, or too many bytes in total, is refused with the cap named", () => {

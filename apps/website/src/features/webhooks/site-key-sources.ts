@@ -259,7 +259,7 @@ export function resolveSiteKeyFingerprint(input: ResolveSiteKeyFingerprintInput)
 /** The per-site/new-volume write target from the source list. Never target a legacy shared file:
  * a local site with unreadable metadata must be repaired before a key can be written.
  * @complexity O(n) in sources.length. */
-export function siteKeyFilePathFrom(sources: readonly SiteKeySource[]): string | undefined {
+export function siteKeyFilePathFrom({ sources }: { sources: readonly SiteKeySource[] }, _optional: Record<string, never> = {}): string | undefined {
   return sources.find(source => source.kind === "per-site-file" || source.kind === "volume-file")?.path;
 }
 
@@ -288,8 +288,8 @@ export interface SiteKeySourceMaterial {
 }
 
 export function readSiteKeySourceMaterial(
-  source: SiteKeySource,
-  env: Record<string, string | undefined>
+  { source, env }: { source: SiteKeySource; env: Record<string, string | undefined> },
+  _optional: Record<string, never> = {},
 ): SiteKeySourceMaterial | undefined {
   if (source.kind === "env") {
     const resolved = resolveSiteKeyEnv({ env });

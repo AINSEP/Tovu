@@ -34,10 +34,10 @@ export function buildCriteriaPublishResult({ rows, selection, siteLabel }: { row
   const willPublish: string[] = [];
   const willOverwrite: string[] = [];
   const leftAlone: { label: string; reason: string }[] = [];
-  const selected = new Set(selectableRowKeys(rows).filter((key) => !selection.deselectedKeys.has(key)));
+  const selected = new Set(selectableRowKeys({ rows }).filter((key) => !selection.deselectedKeys.has(key)));
   for (const row of rows) {
     // A carried-along media row publishes with the pages/posts that use it (`rowPublishesWithSelection`).
-    if (rowPublishesWithSelection(row, selected)) {
+    if (rowPublishesWithSelection({ row, selected })) {
       willPublish.push(row.entityLabel);
       if (row.outcome === "forced") willOverwrite.push(row.entityLabel);
       continue;

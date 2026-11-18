@@ -176,7 +176,8 @@ function hasSidecarFieldTypes({ candidate }: { candidate: Record<string, unknown
 /** `true` when `raw` has the writer's required fields and optional legacy timestamps.
  * Pure, O(1) time/space; malformed fields return `false`.
  */
-export function isChatAttachmentSidecarShape(raw: unknown): raw is SidecarRecord & Record<string, unknown> {
+export function isChatAttachmentSidecarShape(required: { raw: unknown }, _optional: Record<string, never> = {}): required is { raw: SidecarRecord & Record<string, unknown> } {
+  const { raw } = required;
   if (typeof raw !== "object" || raw === null) return false;
   const candidate = raw as Record<string, unknown>;
   if (!hasSidecarFieldTypes({ candidate })) return false;
@@ -214,10 +215,11 @@ async function loadSidecar(
     // this store never issued, and treated identically.
     return "no-record";
   }
-  if (!isChatAttachmentSidecarShape(raw) || raw.id !== ref) return "record-unreadable";
-  const filePath = resolveContainedAttachmentPath({ record: raw, canonicalUploadDirectory });
+  const candidate = { raw };
+  if (!isChatAttachmentSidecarShape(candidate) || candidate.raw.id !== ref) return "record-unreadable";
+  const filePath = resolveContainedAttachmentPath({ record: candidate.raw, canonicalUploadDirectory });
   if (filePath === undefined) return "record-outside-upload-root";
-  return { record: raw, filePath };
+  return { record: candidate.raw, filePath };
 }
 
 /** Observes one path's identity, including timestamps for Jini's shared integrity gate.

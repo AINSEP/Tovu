@@ -36,7 +36,7 @@ type BootTokenHistory = Pick<History, "replaceState">;
  * @complexity O(n) in the number of `&`-separated hash params; one `URLSearchParams` pass, no
  *   nested iteration.
  */
-export function takeBootToken(location: BootTokenLocation, history: BootTokenHistory): string | null {
+export function takeBootToken({ location, history }: { location: BootTokenLocation; history: BootTokenHistory }, _optional: Record<string, never> = {}): string | null {
   const rawHash = location.hash.startsWith("#") ? location.hash.slice(1) : location.hash;
   const params = new URLSearchParams(rawHash);
   const token = params.get("boot");

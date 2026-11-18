@@ -26,7 +26,7 @@ test("site-aware source composition uses the metadata key id and caller mode, en
     { kind: "env" },
     { kind: "legacy-shared-file", path: join(HOME, ".tovu", LEGACY_SITE_KEY_FILENAME) },
   ]);
-  assert.equal(siteKeyFilePathFrom(local), join(HOME, ".tovu", "site-keys", "key-distinct.hex"));
+  assert.equal(siteKeyFilePathFrom({ sources: local }), join(HOME, ".tovu", "site-keys", "key-distinct.hex"));
   assert.deepEqual(siteKeySourcesForSiteDir({ siteDir, mode: "production", env, home: HOME, cwd: CWD }), [
     { kind: "env" },
     { kind: "volume-file", path: join(CWD, "sites", ".tovu", "site-key.hex") },
@@ -168,7 +168,7 @@ test("resolveSiteKeyId: undefined when siteId is present but not a non-empty str
 
 test("siteKeyFilePathFrom: the per-site-file candidate's path when one is present in sources", () => {
   const sources = siteKeySources({ mode: "local", env: {}, home: HOME, cwd: CWD, siteKeyId: "site-abc" });
-  assert.equal(siteKeyFilePathFrom(sources), join(HOME, ".tovu", "site-keys", "site-abc.hex"));
+  assert.equal(siteKeyFilePathFrom({ sources }), join(HOME, ".tovu", "site-keys", "site-abc.hex"));
 });
 
 /**
@@ -217,7 +217,7 @@ test("resolveSiteKeyFingerprint: undefined when the field is present but not a n
 
 test("siteKeyFilePathFrom: the given fallback when sources has no per-site-file candidate (e.g. production)", () => {
   const sources = siteKeySources({ mode: "production", env: {}, home: HOME, cwd: CWD });
-  assert.equal(siteKeyFilePathFrom(sources), join(CWD, "sites", ".tovu", "site-key.hex"));
+  assert.equal(siteKeyFilePathFrom({ sources }), join(CWD, "sites", ".tovu", "site-key.hex"));
 });
 
 /**
@@ -262,11 +262,11 @@ test("readSiteKeySourceMaterial: env yields the trimmed value with its var name;
   try {
     const keyFile = join(dir, "site-key.hex");
     writeFileSync(keyFile, "  ab12\n");
-    assert.deepEqual(readSiteKeySourceMaterial({ kind: "env" }, { [SITE_KEY_ENV_VAR_NAME]: " cafe " }), { raw: "cafe", envVarName: SITE_KEY_ENV_VAR_NAME });
-    assert.equal(readSiteKeySourceMaterial({ kind: "env" }, {}), undefined);
-    assert.deepEqual(readSiteKeySourceMaterial({ kind: "volume-file", path: keyFile }, {}), { raw: "  ab12\n" }, "file content is never trimmed");
-    assert.equal(readSiteKeySourceMaterial({ kind: "volume-file", path: join(dir, "absent.hex") }, {}), undefined);
-    assert.equal(readSiteKeySourceMaterial({ kind: "legacy-volume-file" }, {}), undefined, "a file-kind source without a path has no material");
+    assert.deepEqual(readSiteKeySourceMaterial({ source: { kind: "env" }, env: { [SITE_KEY_ENV_VAR_NAME]: " cafe " } }), { raw: "cafe", envVarName: SITE_KEY_ENV_VAR_NAME });
+    assert.equal(readSiteKeySourceMaterial({ source: { kind: "env" }, env: {} }), undefined);
+    assert.deepEqual(readSiteKeySourceMaterial({ source: { kind: "volume-file", path: keyFile }, env: {} }), { raw: "  ab12\n" }, "file content is never trimmed");
+    assert.equal(readSiteKeySourceMaterial({ source: { kind: "volume-file", path: join(dir, "absent.hex") }, env: {} }), undefined);
+    assert.equal(readSiteKeySourceMaterial({ source: { kind: "legacy-volume-file" }, env: {} }), undefined, "a file-kind source without a path has no material");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

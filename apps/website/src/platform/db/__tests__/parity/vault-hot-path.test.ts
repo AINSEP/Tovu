@@ -98,12 +98,12 @@ for (const dialect of PARITY_DIALECTS) {
     });
 
     test("MCP server list: statement count does not grow with the number of servers", async () => {
-      const before = await measure(() => mods.mcp.listExternalMcpServerViews(d.mcp, "ws"));
+      const before = await measure(() => mods.mcp.listExternalMcpServerViews({ deps: d.mcp, workspaceId: "ws" }));
       for (const serverId of ["extra-one", "extra-two"]) {
         await mods.mcp.saveExternalMcpServer(d.mcp, { workspaceId: "ws", serverId, label: serverId, transport: "stdio", authMode: "static_env",
           enabled: true, command: "mcp-extra", args: "", allowedToolNames: "", writeAllowedToolNames: "", env: "KEY=value" });
       }
-      const grown = await measure(() => mods.mcp.listExternalMcpServerViews(d.mcp, "ws"));
+      const grown = await measure(() => mods.mcp.listExternalMcpServerViews({ deps: d.mcp, workspaceId: "ws" }));
       assert.equal(grown.length, before.length, `4 servers: ${before.length} statements, 6 servers: ${grown.length}`);
       // One raw LEFT JOIN onto secrets_vault by primary key (external-mcp-repo.ts `read`): no N+1.
       // Raw statements carry no SQL in the counting kernel, so there is no plan to check here.

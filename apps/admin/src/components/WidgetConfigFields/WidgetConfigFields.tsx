@@ -579,7 +579,7 @@ export const WIDGET_TYPE_OPTIONS: Array<{ value: AdminWidgetType; label: string 
 ];
 
 /** Default (empty-but-valid-shaped) config per type, for a freshly-opened create form. */
-export function defaultWidgetConfig(widgetType: AdminWidgetType): Record<string, unknown> {
+export function defaultWidgetConfig({ widgetType }: { widgetType: AdminWidgetType }, _optional: Record<string, never> = {}): Record<string, unknown> {
   switch (widgetType) {
     case "media":
       return { mode: "media", items: [], layout: "single" };

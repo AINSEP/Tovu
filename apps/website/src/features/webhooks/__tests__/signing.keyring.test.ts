@@ -48,7 +48,7 @@ test("createKeyringBackedSigner produces the same signature createFixedSecretSig
   const timestampSeconds = Math.floor(Date.now() / 1000);
 
   const keyringSigner = createKeyringBackedSigner(makeFixedKeyring(secret));
-  const fixedSigner = createFixedSecretSigner(new Map([[subscription.id, secret]]));
+  const fixedSigner = createFixedSecretSigner({ secrets: new Map([[subscription.id, secret]]) });
 
   const fromKeyring = await keyringSigner.signForSubscription({ subscription, rawBody, timestampSeconds });
   const fromFixed = await fixedSigner.signForSubscription({ subscription, rawBody, timestampSeconds });

@@ -105,7 +105,7 @@ async function boot(options: {
   presets?: readonly ResolvedFederatedConnection[];
 }) {
   const { repo, sealer } = options;
-  const { configs } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  const { configs } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
   const extraConnections = toResolvedFederatedConnections(configs);
 
   const session = new InMemoryMcpSession({ tools: REMOTE_TOOLS });

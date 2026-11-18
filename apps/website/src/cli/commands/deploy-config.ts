@@ -79,12 +79,12 @@ function writeStderr({ message }: { message: string }, _optional = {}): void {
  */
 export function deployConfigTargetOptionHelp({ env = process.env }: Pick<DeployConfigCommandPorts, "env"> = {}): string {
   try {
-    return formatTargetOptionHelp(readBundledDeployConfigTargetIds({ sourceRoot: bundledDeploySourceRoot(env) }));
-  } catch { return formatTargetOptionHelp([]); }
+    return formatTargetOptionHelp({ ids: readBundledDeployConfigTargetIds({ sourceRoot: bundledDeploySourceRoot(env) }) });
+  } catch { return formatTargetOptionHelp({ ids: [] }); }
 }
 
 /** "a", "a or b", "a, b, or c". Pure (exported for its own tests). @complexity O(g). */
-export function formatTargetOptionHelp(ids: readonly string[]): string {
+export function formatTargetOptionHelp({ ids }: { ids: readonly string[] }, _optional: Record<string, never> = {}): string {
   if (ids.length === 0) return "deploy platform id declared by bundled plugins";
   if (ids.length <= 2) return `deploy platform: ${ids.join(" or ")}`;
   return `deploy platform: ${ids.slice(0, -1).join(", ")}, or ${ids[ids.length - 1]}`;

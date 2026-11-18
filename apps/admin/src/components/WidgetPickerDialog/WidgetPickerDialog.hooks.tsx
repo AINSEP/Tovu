@@ -109,7 +109,7 @@ export function useWidgetPickerDialog(
   const { instances, error: loadError } = useExistingInstances({ widgetType: props.widgetType }, { port, locale });
   const [selectedExistingId, setSelectedExistingId] = useState("");
   const [newTitle, setNewTitle] = useState("");
-  const [newConfig, setNewConfig] = useState<Record<string, unknown>>(() => defaultWidgetConfig(props.widgetType));
+  const [newConfig, setNewConfig] = useState<Record<string, unknown>>(() => defaultWidgetConfig({ widgetType: props.widgetType }));
   const [error, setError] = useState<string | null>(null);
   // `useId()`, not string literals — this component is conditionally mounted per caller
   // (`WidgetAddControl`'s `{pickerType ? <WidgetPickerDialog .../> : null}`), and only one

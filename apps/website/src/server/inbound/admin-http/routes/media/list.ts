@@ -31,8 +31,8 @@ export const registerAdminMediaListRoute: MediaRouteRegistrar = ({ app, deps }, 
       });
       const visible = kind === "document" ? media.filter(row => row.status === "active") : media;
       const [contentTypes, publicUrls, byteSizes] = await Promise.all([
-        resolveContentTypes(deps, visible),
-        resolveMediaPublicUrls(deps, visible),
+        resolveContentTypes({ deps, media: visible }),
+        resolveMediaPublicUrls({ deps, assets: visible }),
         resolveMediaByteSizes({ deps, media: visible }),
       ]);
       res.json(toAdminMediaListResponse({ media: visible, contentTypesBySha256: contentTypes, publicUrlsById: publicUrls, byteSizesBySha256: byteSizes }));

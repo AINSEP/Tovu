@@ -26,7 +26,7 @@ const TARGET: ContentAnalysisTarget = {
 function controller(overrides: Partial<ContentAnalysisController> = {}): ContentAnalysisController {
   return {
     hidden: false,
-    view: buildContentAnalysisView({ kind: "report", source: "stored", report: REPORT }, identity),
+    view: buildContentAnalysisView({ state: { kind: "report", source: "stored", report: REPORT }, t: identity }),
     analyzing: false,
     error: null,
     analyze: vi.fn(async () => {}),
@@ -74,13 +74,13 @@ describe("ContentAnalysisCard", () => {
   });
 
   it("says so when the analysis has no headings", () => {
-    renderCard({ view: buildContentAnalysisView({ kind: "report", source: "stored", report: { ...REPORT, toc: [] } }, identity) });
+    renderCard({ view: buildContentAnalysisView({ state: { kind: "report", source: "stored", report: { ...REPORT, toc: [] } }, t: identity }) });
     expect(screen.getByText("No headings yet.")).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Table of contents" })).not.toBeInTheDocument();
   });
 
   it("shows the unavailable state with no report sections", () => {
-    renderCard({ view: buildContentAnalysisView({ kind: "invalid" }, identity) });
+    renderCard({ view: buildContentAnalysisView({ state: { kind: "invalid" }, t: identity }) });
     expect(screen.getByText("Analysis unavailable.")).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Checks" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Analyze now" })).toBeEnabled();

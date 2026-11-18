@@ -39,19 +39,19 @@ function assertRendered(html: string | undefined): string {
 }
 
 test("renderEntryList: empty items gives undefined", () => {
-  assert.equal(renderEntryList([], options()), undefined);
+  assert.equal(renderEntryList({ items: [], options: options() }), undefined);
 });
 
 test("renderEntryList: title and field values are HTML-escaped in card markup", () => {
   const html = assertRendered(
     renderEntryList(
-      [
+      { items: [
         item({
           title: "<script>alert(1)</script>",
           fields: [{ name: "summary", label: "Summary", kind: "text", value: '"quoted" & <b>bold</b>' }],
         }),
       ],
-      options(),
+      options: options() },
     ),
   );
   assert.ok(!html.includes("<script>"));
@@ -60,20 +60,20 @@ test("renderEntryList: title and field values are HTML-escaped in card markup", 
 });
 
 test("renderEntryList: href null renders the title as plain text with no <a>", () => {
-  const html = assertRendered(renderEntryList([item({ title: "No Link", href: null })], options()));
+  const html = assertRendered(renderEntryList({ items: [item({ title: "No Link", href: null })], options: options() }));
   assert.ok(!html.includes("<a "));
   assert.ok(html.includes('<h3 class="entry-card__title">No Link</h3>'));
 });
 
 test("renderEntryList: a non-null href links the title", () => {
-  const html = assertRendered(renderEntryList([item({ title: "Linked", href: "/recipe/linked" })], options()));
+  const html = assertRendered(renderEntryList({ items: [item({ title: "Linked", href: "/recipe/linked" })], options: options() }));
   assert.ok(html.includes('<h3 class="entry-card__title"><a href="/recipe/linked">Linked</a></h3>'));
 });
 
 test("renderEntryList: boolean field values render as Yes/No", () => {
   const html = assertRendered(
     renderEntryList(
-      [
+      { items: [
         item({
           fields: [
             { name: "vegetarian", label: "Vegetarian", kind: "boolean", value: true },
@@ -81,7 +81,7 @@ test("renderEntryList: boolean field values render as Yes/No", () => {
           ],
         }),
       ],
-      options(),
+      options: options() },
     ),
   );
   assert.ok(html.includes("<dt>Vegetarian</dt><dd>Yes</dd>"));
@@ -89,13 +89,13 @@ test("renderEntryList: boolean field values render as Yes/No", () => {
 });
 
 test("renderEntryList: cards layout wraps items in an entry-card inside the columned grid container, marked with data-tovu-entry-list (review fix 3a's style-scoping hook)", () => {
-  const html = assertRendered(renderEntryList([item({ title: "A" })], options({ columns: 4 })));
+  const html = assertRendered(renderEntryList({ items: [item({ title: "A" })], options: options({ columns: 4 }) }));
   assert.ok(html.startsWith('<div class="entry-list entry-list--recipe" data-tovu-entry-list style="--entry-list-columns:4">'));
   assert.ok(html.includes('<article class="entry-card">'));
 });
 
 test("renderEntryList: list layout wraps items in an entry-list__item inside a ul, no columns style, marked with data-tovu-entry-list", () => {
-  const html = assertRendered(renderEntryList([item({ title: "A" })], options({ layout: "list" })));
+  const html = assertRendered(renderEntryList({ items: [item({ title: "A" })], options: options({ layout: "list" }) }));
   assert.ok(html.startsWith('<ul class="entry-list entry-list--recipe entry-list--list" data-tovu-entry-list>'));
   assert.ok(html.includes('<li class="entry-list__item">'));
   assert.ok(!html.includes("--entry-list-columns"));
@@ -103,15 +103,15 @@ test("renderEntryList: list layout wraps items in an entry-list__item inside a u
 
 test("renderEntryList template mode: repeats the template once per item, no card markup added", () => {
   const html = renderEntryList(
-    [item({ title: "First" }), item({ title: "Second" })],
-    options({ template: "<p>{{title}}</p>" }),
+    { items: [item({ title: "First" }), item({ title: "Second" })],
+    options: options({ template: "<p>{{title}}</p>" }) },
   );
   assert.equal(html, "<p>First</p><p>Second</p>");
 });
 
 test("renderEntryList template mode: title/url/date/fields placeholders all resolve and escape", () => {
   const html = renderEntryList(
-    [
+    { items: [
       item({
         title: "Tea & Cake",
         href: "/recipe/tea",
@@ -119,22 +119,22 @@ test("renderEntryList template mode: title/url/date/fields placeholders all reso
         fields: [{ name: "serves", label: "Serves", kind: "text", value: 4 }],
       }),
     ],
-    options({ template: '<a href="{{url}}">{{title}}</a><span>{{date}}</span><span>{{fields.serves}}</span>' }),
+    options: options({ template: '<a href="{{url}}">{{title}}</a><span>{{date}}</span><span>{{fields.serves}}</span>' }) },
   );
   assert.equal(html, '<a href="/recipe/tea">Tea &amp; Cake</a><span>Sep 2, 2026</span><span>4</span>');
 });
 
 test("renderEntryList template mode: a javascript: field value inside href= is neutralized via safeHref", () => {
   const html = renderEntryList(
-    [item({ fields: [{ name: "link", label: "Link", kind: "text", value: "javascript:alert(1)" }] })],
-    options({ template: '<a href="{{fields.link}}">go</a>' }),
+    { items: [item({ fields: [{ name: "link", label: "Link", kind: "text", value: "javascript:alert(1)" }] })],
+    options: options({ template: '<a href="{{fields.link}}">go</a>' }) },
   );
   assert.equal(html, '<a href="#">go</a>');
 });
 
 test("withEntryListStyleOnce: inserts the default style tag once before </head>, even with two entry-lists present", () => {
-  const list1 = assertRendered(renderEntryList([item({ title: "A" })], options({ typeKey: "recipe" })));
-  const list2 = assertRendered(renderEntryList([item({ title: "B" })], options({ typeKey: "tovu_feature" })));
+  const list1 = assertRendered(renderEntryList({ items: [item({ title: "A" })], options: options({ typeKey: "recipe" }) }));
+  const list2 = assertRendered(renderEntryList({ items: [item({ title: "B" })], options: options({ typeKey: "tovu_feature" }) }));
   const html = `<html><head></head><body>${list1}${list2}</body></html>`;
 
   const once = withEntryListStyleOnce({ html });
@@ -169,7 +169,7 @@ test("withEntryListStyleOnce: a theme's own unrelated .entry-list markup (no dat
 });
 
 test("withEntryListStyleOnce: the injected grid selector stays attribute-scoped on a mixed page", () => {
-  const collection = assertRendered(renderEntryList([item()], options()));
+  const collection = assertRendered(renderEntryList({ items: [item()], options: options() }));
   const unrelated = '<section class="entry-list"><p>Theme list</p></section>';
   const html = withEntryListStyleOnce({ html: `<html><head></head><body>${collection}${unrelated}</body></html>` });
   assert.ok(html.includes(unrelated));
@@ -189,7 +189,7 @@ function linkItem(link: string): EntryListItem {
 }
 
 function renderTemplate(template: string, entry: EntryListItem): string {
-  return assertRendered(renderEntryList([entry], options({ template })));
+  return assertRendered(renderEntryList({ items: [entry], options: options({ template }) }));
 }
 
 test("renderEntryList template mode: a javascript: value in a SINGLE-quoted href is neutralized", () => {
@@ -239,36 +239,36 @@ test("renderEntryList template mode: author-literal attribute values without pla
 });
 
 test("list layout: an item without fields renders no empty <dl>", () => {
-  const html = assertRendered(renderEntryList([item({ title: "Bare" })], options({ layout: "list" })));
+  const html = assertRendered(renderEntryList({ items: [item({ title: "Bare" })], options: options({ layout: "list" }) }));
   assert.match(html, /<li class="entry-list__item"><h3 class="entry-card__title"><a href="\/recipe\/untitled">Bare<\/a><\/h3><\/li>/);
   assert.doesNotMatch(html, /<dl/);
 });
 
 test("template placeholders: a null url, an absent field and an unknown key all resolve to empty text", () => {
   const html = assertRendered(renderEntryList(
-    [item({ title: "T", href: null, fields: [{ name: "serves", label: "Serves", kind: "number", value: 4 }] })],
-    options({ template: "<p>[{{url}}][{{fields.missing}}][{{nope}}][{{fields.serves}}][{{date}}]</p>" })
+    { items: [item({ title: "T", href: null, fields: [{ name: "serves", label: "Serves", kind: "number", value: 4 }] })],
+    options: options({ template: "<p>[{{url}}][{{fields.missing}}][{{nope}}][{{fields.serves}}][{{date}}]</p>" }) }
   ));
   assert.equal(html, "<p>[][][][4][Sep 1, 2026]</p>");
 });
 
 test("template: a placeholder in an attribute-name position gets the unquoted-attribute encoding", () => {
-  const html = assertRendered(renderEntryList([item({ title: 'a b"c' })], options({ template: "<div {{title}} class=x>{{title}}</div>" })));
+  const html = assertRendered(renderEntryList({ items: [item({ title: 'a b"c' })], options: options({ template: "<div {{title}} class=x>{{title}}</div>" }) }));
   assert.doesNotMatch(html, /<div a b"c/, "the title cannot inject a new attribute");
   assert.match(html, /<div [^ >]+ class=x>a b&quot;c<\/div>/);
 });
 
 test("a see-more listing key wraps template items and marks the built-in list wrapper", () => {
   const items = [item({ title: "One" })];
-  const templated = assertRendered(renderEntryList(items, options({ template: "<i>{{title}}</i>", listingKey: 1 })));
+  const templated = assertRendered(renderEntryList({ items, options: options({ template: "<i>{{title}}</i>", listingKey: 1 }) }));
   assert.match(templated, /data-jini-listing|1/);
   assert.match(templated, /<i>One<\/i>/);
-  const builtIn = assertRendered(renderEntryList(items, options({ layout: "list", listingKey: 1 })));
+  const builtIn = assertRendered(renderEntryList({ items, options: options({ layout: "list", listingKey: 1 }) }));
   assert.match(builtIn, /<ul class="entry-list entry-list--recipe entry-list--list" data-tovu-entry-list data-jini-listing="1">/);
 });
 
 test("list layout: an item with fields renders its <dl>", () => {
-  const html = assertRendered(renderEntryList([item({ fields: [{ name: "serves", label: "Serves", kind: "number", value: 2 }] })], options({ layout: "list" })));
+  const html = assertRendered(renderEntryList({ items: [item({ fields: [{ name: "serves", label: "Serves", kind: "number", value: 2 }] })], options: options({ layout: "list" }) }));
   assert.match(html, /<li class="entry-list__item">.*<dl class="entry-card__fields">.*Serves.*2.*<\/dl><\/li>/);
 });
 

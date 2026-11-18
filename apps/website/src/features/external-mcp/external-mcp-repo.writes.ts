@@ -21,7 +21,7 @@ type WriteDeps = { kernel: ContentKernel; vaultRepo: SqlSecretsVaultRepo };
 
 class WriteMissed extends Error {}
 
-export function toRow(record: ExternalMcpServerRecord, pointers: { env_secret_id: string | null; oauth_secret_id: string | null }) {
+export function toRow({ record, pointers }: { record: ExternalMcpServerRecord; pointers: { env_secret_id: string | null; oauth_secret_id: string | null } }, _optional: Record<string, never> = {}) {
   return {
     workspace_id: record.workspaceId,
     server_id: record.serverId,
@@ -89,7 +89,7 @@ async function stagePointers({ vaultRepo, record }: { vaultRepo: SqlSecretsVault
 export async function insertRow({ kernel, vaultRepo, record }: WriteDeps & { record: ExternalMcpServerRecord }): Promise<boolean> {
   return lockedWrite({ kernel, workspaceId: record.workspaceId, body: async () => {
     if (await readPointers({ kernel, key: record })) return false;
-    const row = toRow({ ...record, version: 1 }, await stagePointers({ vaultRepo, record }));
+    const row = toRow({ record: { ...record, version: 1 }, pointers: await stagePointers({ vaultRepo, record }) });
     await kernel.run(db => db.insertInto("external_mcp_servers").values(row).execute());
     return true;
   } });
@@ -103,7 +103,7 @@ export async function updateRowIfVersion({ kernel, vaultRepo, record, expectedVe
     const previous = await readPointers({ kernel, key: record });
     if (!previous || Number(previous.version) !== expectedVersion || previous.env_secret_id !== replacedEnv || previous.oauth_secret_id !== replacedAuth) return false;
     const pointers = await stagePointers({ vaultRepo, record });
-    const { workspace_id: _workspace, server_id: _server, ...columns } = toRow({ ...record, version: expectedVersion + 1 }, pointers);
+    const { workspace_id: _workspace, server_id: _server, ...columns } = toRow({ record: { ...record, version: expectedVersion + 1 }, pointers });
     const result = await kernel.run(db => db.updateTable("external_mcp_servers").set(columns)
       .where("workspace_id", "=", record.workspaceId).where("server_id", "=", record.serverId).where("version", "=", expectedVersion)
       .where("env_secret_id", replacedEnv === null ? "is" : "=", replacedEnv).where("oauth_secret_id", replacedAuth === null ? "is" : "=", replacedAuth).executeTakeFirst());

@@ -116,7 +116,7 @@ try {
     devices: createDeviceAuthorizationStore(), lookupProvider: () => PROVIDER,
     httpPorts: { guard: createTovuOAuthGuard({}, { allowLoopbackHttp: true }), fetchFn: async () => { requests += 1; throw new Error("no network in rollback"); } } });
   await check("baseline code opens all three credentials", async () => {
-    const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: service.tokenResolver }, WORKSPACE);
+    const { configs, failures } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer, oauth: service.tokenResolver }, workspaceId: WORKSPACE });
     assert.deepEqual(failures, []);
     const target = (serverId) => configs.find((config) => config.serverId === serverId)?.target;
     assert.deepEqual(target(SERVERS.env)?.env, EXPECTED.env);

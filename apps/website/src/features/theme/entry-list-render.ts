@@ -307,9 +307,9 @@ function renderTemplateItem({ template, item }: { template: string; item: EntryL
  * @complexity O(n · f) over the number of items and each item's field count; template mode is
  * O(n · t) over each item's template-length substitution pass instead.
  */
-export function renderEntryList(items: readonly EntryListItem[], options: EntryListRenderOptions): string | undefined {
+export function renderEntryList({ items, options }: { items: readonly EntryListItem[]; options: EntryListRenderOptions }, _optional: Record<string, never> = {}): string | undefined {
   if (items.length === 0) return undefined;
-  return renderEntryListBody(items, options) + renderEntryListStructuredData(items, options);
+  return renderEntryListBody(items, options) + renderEntryListStructuredData({ items }, options);
 }
 
 /**
@@ -319,7 +319,7 @@ export function renderEntryList(items: readonly EntryListItem[], options: EntryL
  *
  * @complexity O(n · f) over items and their displayed fields.
  */
-export function renderEntryListStructuredData(items: readonly EntryListItem[], options: Pick<EntryListRenderOptions, "structuredData">): string {
+export function renderEntryListStructuredData({ items }: { items: readonly EntryListItem[] }, options: Pick<EntryListRenderOptions, "structuredData"> = {}): string {
   return options.structuredData === "faq-page" ? renderFaqPageJsonLd(items) : "";
 }
 

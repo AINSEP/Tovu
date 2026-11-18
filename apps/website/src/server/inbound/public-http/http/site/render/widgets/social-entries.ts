@@ -96,7 +96,7 @@ export function renderWidgetRecentEntries(ir: WidgetRenderIR): string {
     const typeKey = str({ value: ir.props.typeKey }, { fallback: "recent-entries" });
     // `renderEntryList` returns `undefined` exactly when `items` is empty — that IS this widget's
     // empty state, so no separate length check runs ahead of it on this branch.
-    return renderEntryList(items, { columns, layout, typeKey, ...structuredData }) ?? RECENT_ENTRIES_EMPTY_HTML;
+    return renderEntryList({ items, options: { columns, layout, typeKey, ...structuredData } }) ?? RECENT_ENTRIES_EMPTY_HTML;
   }
   if (items.length === 0) return RECENT_ENTRIES_EMPTY_HTML;
 
@@ -109,5 +109,5 @@ export function renderWidgetRecentEntries(ir: WidgetRenderIR): string {
     .join("");
   // The legacy markup, plus the FAQPage block when asked for — `list` is the default layout, so an
   // FAQ widget that never set one must not silently lose it.
-  return `<ul class="widget widget-recent-entries">${lis}</ul>${renderEntryListStructuredData(items, structuredData)}`;
+  return `<ul class="widget widget-recent-entries">${lis}</ul>${renderEntryListStructuredData({ items }, structuredData)}`;
 }

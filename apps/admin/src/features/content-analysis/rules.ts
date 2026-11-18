@@ -378,7 +378,7 @@ function buildChecks({ checks, t }: { checks: ContentCheck[]; t: Translate }, _o
 }
 
 /** Everything the card renders for one analysis state, already translated. */
-export function buildContentAnalysisView(state: AnalysisState, t: Translate): ContentAnalysisView {
+export function buildContentAnalysisView({ state, t }: { state: AnalysisState; t: Translate }, _optional: Record<string, never> = {}): ContentAnalysisView {
   if (state.kind !== "report") return { lead: t(LEADS[state.kind]), report: null };
   const { report } = state;
   return {

@@ -33,7 +33,7 @@ export function useHtmlAttributeRows(required: { value: string; onChange: (value
   if (attributes.source !== value) setAttributes({ source: value, rows });
 
   function commit({ next }: { next: HtmlAttributeRow[] }, _options: Record<string, never> = {}) {
-    const source = rowsToHtmlAttributes(next);
+    const source = rowsToHtmlAttributes({ rows: next });
     setAttributes({ source, rows: next });
     onChange(source);
   }

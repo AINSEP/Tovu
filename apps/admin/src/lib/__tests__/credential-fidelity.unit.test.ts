@@ -29,7 +29,7 @@ describe('credential byte preservation and safe admin hints', () => {
   });
   it('sends the original entered token to the store; blank and whitespace stay distinct', () => {
     for (const token of [' \nabc+/=._-~\n ', '', '   ']) {
-      expect(buildSourceControlConnectionInput({ providerId: 'github', token, values: {} }, []).token === token).toBe(true);
+      expect(buildSourceControlConnectionInput({ fields: { providerId: 'github', token, values: {} }, declaredFields: [] }).token === token).toBe(true);
       const published = buildCredentialConnectionInput({ providerId: 'fixture-host', spec: { tokenField: 'apiKey', fields: [{ name: 'apiKey', label: 'Key', required: true, secret: true }] }, values: { apiKey: token } });
       expect(token === '' ? !('apiKey' in published) : published.apiKey === token).toBe(true);
       expect(toAccessTokenWriteBody({ authMode: 'static_env', accessToken: token })).toEqual(token === '' ? {} : { accessToken: token });

@@ -223,7 +223,7 @@ function mediaLayoutFields({ widgetType, state, emitMedia }: { widgetType: strin
   return {
     layouts: mediaLayoutsFor({ widgetType }),
     media: state.media,
-    showColumns: layoutUsesColumns(state.media.layout),
+    showColumns: layoutUsesColumns({ layout: state.media.layout }),
     setLayout: ({ layout }, _options: Record<string, never> = {}) => emitMedia({ layout }),
     setColumns: ({ value }, _options: Record<string, never> = {}) => {
       const columns = Number.parseInt(value, 10);

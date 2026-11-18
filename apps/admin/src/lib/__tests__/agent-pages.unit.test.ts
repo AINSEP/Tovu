@@ -124,7 +124,7 @@ describe("buildAdminAgentPages", () => {
     vi.spyOn(router, "navigate").mockImplementation(() => {});
     vi.spyOn(router, "currentRoutePath").mockReturnValue(ADMIN_AGENT_PAGE_PATHS["posts"]!);
     const seen = vi.fn();
-    subscribeToContentRefresh(seen);
+    subscribeToContentRefresh({ listener: seen });
 
     await buildAdminAgentPages()["posts"]!.navigate({});
 
@@ -138,7 +138,7 @@ describe("buildAdminAgentPages", () => {
     vi.spyOn(router, "navigate").mockImplementation(() => {});
     vi.spyOn(router, "currentRoutePath").mockReturnValue("/some-other-route");
     const seen = vi.fn();
-    subscribeToContentRefresh(seen);
+    subscribeToContentRefresh({ listener: seen });
 
     await buildAdminAgentPages()["posts"]!.navigate({});
 

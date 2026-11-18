@@ -46,7 +46,7 @@ test("hosted static token entered through the form is sealed, used as bearer aut
     assert.deepEqual(Object.keys(result as object).sort(), ["connection", "message", "saved", "server"]);
     assert.equal((result as { saved: boolean }).saved, true);
     assert.equal(JSON.stringify(result).includes(secret), false);
-    const resolved = await readEnabledExternalMcpConfigs({ repo, sealer }, deps.workspaceId);
+    const resolved = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: deps.workspaceId });
     assert.deepEqual(resolved.failures, []);
     assert.deepEqual(resolved.configs[0]!.target, { kind: "streamable_http", url: "https://hosted.example/mcp", headers: { authorization: `Bearer ${secret}` } });
   }
@@ -201,7 +201,7 @@ test("the submitted stdio token and env reach runtime while optional non-string 
   assert.match(result.message, /Saved, not tested\./);
   assert.match(result.message, /…oken, 18 chars/);
   assert.match(result.message, /EXTRA_TOKEN/);
-  const resolved = await readEnabledExternalMcpConfigs({ repo: f.repo, sealer: f.sealer }, f.deps.workspaceId);
+  const resolved = await readEnabledExternalMcpConfigs({ deps: { repo: f.repo, sealer: f.sealer }, workspaceId: f.deps.workspaceId });
   assert.deepEqual(resolved.failures, []);
   assert.equal(resolved.configs.length, 1);
   assert.deepEqual(resolved.configs[0]!.target, { kind: "stdio", command: "node", args: [], env: { EXTRA_TOKEN: "env-secret", SERVICE_TOKEN: "human-static-token" } });
@@ -328,7 +328,7 @@ test("omitting the model auth mode saves with the store's static-token default",
   const stored = await f.repo.findByServerId({ workspaceId: f.deps.workspaceId, serverId: "default-auth" });
   assert.ok(stored);
   assert.equal(stored.authMode, "static_env");
-  const resolved = await readEnabledExternalMcpConfigs({ repo: f.repo, sealer: f.sealer }, f.deps.workspaceId);
+  const resolved = await readEnabledExternalMcpConfigs({ deps: { repo: f.repo, sealer: f.sealer }, workspaceId: f.deps.workspaceId });
   assert.deepEqual(resolved.failures, []);
   assert.equal(resolved.configs.length, 1);
   assert.deepEqual(resolved.configs[0]!.target, { kind: "streamable_http", url: "https://hosted.example/mcp", headers: { authorization: "Bearer default-static-token" } });

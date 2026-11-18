@@ -48,7 +48,7 @@ function runningWithToolResults(id: string, count: number): ChatMessage {
 it("announces a content refresh when a run finishes, not only a settings refresh", () => {
   const content = vi.fn();
   const settings = vi.fn();
-  subscribeToContentRefresh(content);
+  subscribeToContentRefresh({ listener: content });
   subscribeToSettingsRefresh(settings);
 
   const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange: vi.fn() } }));
@@ -63,7 +63,7 @@ it("announces a content refresh when a run finishes, not only a settings refresh
 
 it("publishes once per finished run, not once per streaming delta", () => {
   const content = vi.fn();
-  subscribeToContentRefresh(content);
+  subscribeToContentRefresh({ listener: content });
 
   const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange: vi.fn() } }));
 
@@ -84,7 +84,7 @@ it("publishes once per finished run, not once per streaming delta", () => {
 it("still forwards the transcript to the chat store when the run is not terminal", () => {
   const onMessagesChange = vi.fn();
   const content = vi.fn();
-  subscribeToContentRefresh(content);
+  subscribeToContentRefresh({ listener: content });
 
   const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange } }));
   const messages: ChatMessage[] = [{ id: "m1", role: "user", content: "make a Seasons taxonomy" }];
@@ -96,7 +96,7 @@ it("still forwards the transcript to the chat store when the run is not terminal
 
 it("announces a content refresh as soon as a tool call returns, not only when the run ends", () => {
   const content = vi.fn();
-  subscribeToContentRefresh(content);
+  subscribeToContentRefresh({ listener: content });
   const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange: vi.fn() } }));
 
   // The 2026-09-15 bug: `content_post_create` returned, and the assistant then navigated to Posts
@@ -110,7 +110,7 @@ it("announces a content refresh as soon as a tool call returns, not only when th
 
 it("announces once per returned tool call, not once per streaming delta", () => {
   const content = vi.fn();
-  subscribeToContentRefresh(content);
+  subscribeToContentRefresh({ listener: content });
   const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange: vi.fn() } }));
 
   result.current([runningWithToolResults("m1", 1)]);
@@ -133,7 +133,7 @@ it("does not announce a settings refresh mid-run", () => {
 
 it("does not announce twice when the terminal delta also carries a new tool result", () => {
   const content = vi.fn();
-  subscribeToContentRefresh(content);
+  subscribeToContentRefresh({ listener: content });
   const { result } = renderHook(() => useMessagesChangeHandler({ chats: { onMessagesChange: vi.fn() } }));
 
   result.current([{ ...runningWithToolResults("m1", 1), runStatus: "succeeded" }]);
@@ -143,7 +143,7 @@ it("does not announce twice when the terminal delta also carries a new tool resu
 
 it("a freshly opened pane with no stored history still announces its first finished run", () => {
   const content = vi.fn();
-  subscribeToContentRefresh(content);
+  subscribeToContentRefresh({ listener: content });
   const onMessagesChange = vi.fn();
 
   // A pane key but no `initialMessages`: a brand-new conversation, nothing settled to skip.

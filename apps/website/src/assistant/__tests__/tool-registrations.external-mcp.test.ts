@@ -757,7 +757,7 @@ test("external_mcp_save: re-saving with a blank env field keeps the previously s
   const record = await repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: "envkeep" });
   assert.equal(record?.envNames, '["API_KEY"]', "a blank env resubmission must not clear the stored env names");
   assert.notEqual(record?.sealedEnv, null, "the sealed env blob must survive a blank resubmission");
-  const resolved = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE_ID);
+  const resolved = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE_ID });
   assert.deepEqual(resolved.failures, []);
   const config = resolved.configs.find((candidate) => candidate.serverId === "envkeep");
   assert.ok(config);
@@ -903,7 +903,7 @@ test("external_mcp_save: update identity and auth stay bound despite forged hidd
   assert.equal(result.server.transport, "streamable_http");
   assert.equal(result.server.authMode, "static_env");
   assert.equal(await repo.findByServerId({ workspaceId: WORKSPACE_ID, serverId: "other" }), null);
-  const resolved = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE_ID);
+  const resolved = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE_ID });
   assert.deepEqual(resolved.configs[0]!.target, { kind: "streamable_http", url: "https://bound.example/mcp", headers: { authorization: `Bearer ${secret}` } });
   assert.equal(exchanges.size(), 0);
 });
@@ -987,7 +987,7 @@ for (const transport of ['streamable_http', 'stdio'] as const) test(`credential 
   const saved = await repo.findByServerId(identity);
   assert.deepEqual(JSON.parse(saved!.allowedToolNames!), ['read', 'write']);
   assert.deepEqual(JSON.parse(saved!.writeAllowedToolNames!), ['write']);
-  const resolved = await readEnabledExternalMcpConfigs({ repo, sealer: deps.siteAssistantSecretSealer }, WORKSPACE_ID);
+  const resolved = await readEnabledExternalMcpConfigs({ deps: { repo, sealer: deps.siteAssistantSecretSealer }, workspaceId: WORKSPACE_ID });
   const target = resolved.configs.find(config => config.serverId === identity.serverId)!.target;
   if (target.kind === 'stdio') assert.equal(target.env.API_TOKEN, 'synthetic-rotated');
   else assert.equal(target.headers?.authorization, 'Bearer synthetic-rotated');

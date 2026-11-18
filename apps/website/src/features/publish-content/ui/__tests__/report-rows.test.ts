@@ -83,7 +83,7 @@ test("a skipped row with no planner reason still reads as skipped rather than bl
 
 test("the summary counts what the run writes, and excludes conflicts", () => {
   const summary = summarizePublishReport(
-    toPublishReportRows(
+    { rows: toPublishReportRows(
       report([
         row({ outcome: "created", entityId: "a" }),
         row({ outcome: "applied", entityId: "b" }),
@@ -91,7 +91,7 @@ test("the summary counts what the run writes, and excludes conflicts", () => {
         row({ outcome: "conflict", entityId: "d", reason: "edited on the live site" }),
         row({ outcome: "blocked", entityId: "e", reason: "slug taken" }),
       ])
-    )
+    ) }
   );
 
   assert.deepEqual(summary, { total: 5, publishing: 2, unchanged: 1, skipped: 2 });
@@ -166,12 +166,12 @@ test("only a row the run would write is selectable", () => {
     rows.map((r) => [r.entityId, r.selectable]),
     [["a", true], ["b", true], ["c", true], ["d", false], ["e", false], ["f", false]]
   );
-  assert.deepEqual(selectableRowKeys(rows), ["post:a", "post:b", "post:c"]);
+  assert.deepEqual(selectableRowKeys({ rows }), ["post:a", "post:b", "post:c"]);
 });
 
 test("selectable row keys are byte-identical to the planner's own entity keys", () => {
   const rows = toPublishReportRows(report([row({ outcome: "created", entityType: "media", entityId: "m-1" })]));
-  assert.deepEqual(selectableRowKeys(rows), [entityKey({ entityType: "media", entityId: "m-1" })]);
+  assert.deepEqual(selectableRowKeys({ rows }), [entityKey({ entityType: "media", entityId: "m-1" })]);
 });
 
 test("the button's count is the intersection of the selection and what is selectable", () => {
@@ -183,12 +183,12 @@ test("the button's count is the intersection of the selection and what is select
     ])
   );
 
-  assert.equal(countSelectedPublishing(rows, new Set(["post:a", "post:b"])), 2);
-  assert.equal(countSelectedPublishing(rows, new Set(["post:a"])), 1);
-  assert.equal(countSelectedPublishing(rows, new Set()), 0);
+  assert.equal(countSelectedPublishing({ rows, selected: new Set(["post:a", "post:b"]) }), 2);
+  assert.equal(countSelectedPublishing({ rows, selected: new Set(["post:a"]) }), 1);
+  assert.equal(countSelectedPublishing({ rows, selected: new Set() }), 0);
   // A key naming a row that cannot be published, or no row at all, must never inflate the promise
   // the primary button makes out loud.
-  assert.equal(countSelectedPublishing(rows, new Set(["post:c", "post:gone"])), 0);
+  assert.equal(countSelectedPublishing({ rows, selected: new Set(["post:c", "post:gone"]) }), 0);
 });
 
 // ---------------------------------------------------------------------------
@@ -532,8 +532,8 @@ test("a row carried along for anything but pages and posts gets the generic note
     ["Used by items you're publishing", "Used by items you're publishing"]
   );
   assert.deepEqual(rows.map((r) => r.selectable), [false, false]);
-  assert.equal(countSelectedPublishing(rows, new Set(["widget-area:sidebar"])), 2, "counted while the region that uses them is ticked");
-  assert.equal(countSelectedPublishing(rows, new Set()), 0);
+  assert.equal(countSelectedPublishing({ rows, selected: new Set(["widget-area:sidebar"]) }), 2, "counted while the region that uses them is ticked");
+  assert.equal(countSelectedPublishing({ rows, selected: new Set() }), 0);
 });
 
 test("a carried-along row counts toward the button only while a page that uses it is ticked", () => {
@@ -544,9 +544,9 @@ test("a carried-along row counts toward the button only while a page that uses i
       row({ outcome: "created", entityType: "page", entityId: "pg2" }),
     ])
   );
-  assert.deepEqual(selectableRowKeys(rows), ["page:pg1", "page:pg2"], "the media row is never a selection key");
-  assert.equal(countSelectedPublishing(rows, new Set(["page:pg1", "page:pg2"])), 3);
-  assert.equal(countSelectedPublishing(rows, new Set(["page:pg2"])), 1);
+  assert.deepEqual(selectableRowKeys({ rows }), ["page:pg1", "page:pg2"], "the media row is never a selection key");
+  assert.equal(countSelectedPublishing({ rows, selected: new Set(["page:pg1", "page:pg2"]) }), 3);
+  assert.equal(countSelectedPublishing({ rows, selected: new Set(["page:pg2"]) }), 1);
 });
 
 /**

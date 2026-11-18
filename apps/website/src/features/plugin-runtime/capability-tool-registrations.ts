@@ -105,7 +105,7 @@ export async function loadEnabledPluginCapabilityToolSources(deps: {
 }
 
 /** Every capability tool is a pure read: `"none"` risk. */
-export function pluginCapabilityToolDerivedRisk(sources: readonly PluginCapabilityToolSource[]): DerivedRiskByToolId {
+export function pluginCapabilityToolDerivedRisk({ sources }: { sources: readonly PluginCapabilityToolSource[] }, _optional: Record<string, never> = {}): DerivedRiskByToolId {
   return derivedRiskFor({ sources });
 }
 
@@ -119,11 +119,11 @@ export function buildPluginCapabilityToolRegistrations(
 
 /** Composition-root entry point; registry collisions throw to the caller's fail-open try/catch. */
 export async function registerEnabledPluginCapabilityTools(
-  registry: { register: (registration: ToolRegistration) => void; has?: ToolRegistry["has"]; list?: ToolRegistry["list"] },
-  deps: PluginCapabilityToolDeps & {
+  { registry, deps }: { registry: { register: (registration: ToolRegistration) => void; has?: ToolRegistry["has"]; list?: ToolRegistry["list"] }; deps: PluginCapabilityToolDeps & {
     readonly discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
     readonly withExtensionApprovalPolicy: ApplyExtensionApprovalPolicy;
-  },
+  } },
+  _optional: Record<string, never> = {},
 ): Promise<void> {
   await capabilityTools.registerEnabled({ registry, deps, applyApprovalPolicy: deps.withExtensionApprovalPolicy });
 }

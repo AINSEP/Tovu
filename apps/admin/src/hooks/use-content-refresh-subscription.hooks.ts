@@ -56,8 +56,8 @@ import { contentRefreshApplies, subscribeToContentRefresh, type ContentRefreshSc
  */
 export function useContentRefreshSubscription({ resource, onRefresh }: { resource: string; onRefresh: () => void }, _options = {}): void {
   useEffect(() => {
-    return subscribeToContentRefresh((scope: ContentRefreshScope) => {
+    return subscribeToContentRefresh({ listener: (scope: ContentRefreshScope) => {
       if (contentRefreshApplies({ scope, resource })) onRefresh();
-    });
+    } });
   }, [resource, onRefresh]);
 }

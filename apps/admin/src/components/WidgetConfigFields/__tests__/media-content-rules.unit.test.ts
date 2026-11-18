@@ -42,7 +42,7 @@ describe("HTML attribute rows", () => {
       { name: "data-both", value: `it's "x"` },
       { name: "hidden", value: "" },
     ];
-    const text = rowsToHtmlAttributes(rows);
+    const text = rowsToHtmlAttributes({ rows });
     expect(text).toBe(`data-kui="carousel target:'img'" aria-label='Say "hi"' data-both="it's &quot;x&quot;" hidden`);
     expect(htmlAttributesToRows({ text })).toEqual(rows);
   });
@@ -65,8 +65,8 @@ describe("HTML attribute rows", () => {
   });
 
   it("skips nameless rows when serializing (a half-typed row saves nothing)", () => {
-    expect(rowsToHtmlAttributes([{ name: "  ", value: "x" }, { name: " data-x ", value: "1" }])).toBe('data-x="1"');
-    expect(rowsToHtmlAttributes([])).toBe("");
+    expect(rowsToHtmlAttributes({ rows: [{ name: "  ", value: "x" }, { name: " data-x ", value: "1" }] })).toBe('data-x="1"');
+    expect(rowsToHtmlAttributes({ rows: [] })).toBe("");
   });
 
   it("flags rows the renderer will drop, reusing the media attribute allowlist", () => {

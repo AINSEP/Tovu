@@ -45,8 +45,8 @@ export interface ContentTypeDeps {
  * @complexity O(n) map lookups plus one blob read per not-yet-sniffed blob.
  */
 export async function resolveContentTypes(
-  deps: ContentTypeDeps,
-  media: readonly MediaRecord[]
+  { deps, media }: { deps: ContentTypeDeps; media: readonly MediaRecord[] },
+  _optional: Record<string, never> = {},
 ): Promise<Map<string, string>> {
   // Document type is a validated filename policy, not a per-blob sniff cache: identical text
   // bytes can legitimately be saved as .md and .txt. Listing must never download those bytes.

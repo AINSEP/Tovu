@@ -344,7 +344,7 @@ function completionMessagesFor(
 /** Count actual row outcomes, retaining the count-only reply from older peers.
  * @complexity O(n) actual report rows; no I/O. */
 function completionOutcomeMessage({ result, t }: { result: PublishContentExecuteResult; t: Translate }, _options = {}): string {
-  const actual = result.report ? summarizePublishReport(toPublishReportRows(result.report)) : null;
+  const actual = result.report ? summarizePublishReport({ rows: toPublishReportRows(result.report) }) : null;
   const changeCount = actual?.publishing ?? result.changeSetIds.length;
   const published = publishedCountMessage({ count: changeCount, t });
   const skipped = actual?.skipped ?? 0;
@@ -831,7 +831,7 @@ export function usePublishContentConfirm(props: {
     if (overwriteReplanPendingRef.current) return;
     const { plan } = phase;
     const planRows = toPublishReportRows(plan.details);
-    const selectable = selectableRowKeys(planRows);
+    const selectable = selectableRowKeys({ rows: planRows });
     const keep = selectable.filter((key) => !deselectedKeys.has(key));
     if (keep.length === 0) return;
     // A carried-along media row is never selectable, so it is never in `keep` — but it still publishes
@@ -949,7 +949,7 @@ export function usePublishContentConfirm(props: {
     const { criteria, applyOverwriteKeys } = criteriaInputs.current;
     if (criteria === undefined || criteriaAppliedRef.current || phase.kind !== "planned") return;
     criteriaAppliedRef.current = true;
-    const sel = applyPublishCriteria(toPublishReportRows(phase.plan.details), criteria);
+    const sel = applyPublishCriteria({ rows: toPublishReportRows(phase.plan.details), criteria });
     criteriaSelectionRef.current = sel;
     setDeselectedKeys(sel.deselectedKeys);
     if (sel.overwriteKeys.size > 0) {
@@ -1138,7 +1138,7 @@ function publishReportSelection(
   // to date, A–Z in each. Selection and re-plans go by row key, so the order never reaches the plan.
   const rows =
     report === null ? EMPTY_ROWS : sortPublishReportRows({ rows: toPublishReportRows(report, { completed: phase.kind === "done" }), locale });
-  const summary = report === null || phase.kind === "done" ? null : summarizePublishReport(rows);
+  const summary = report === null || phase.kind === "done" ? null : summarizePublishReport({ rows });
   // Owner 2026-09-26 — up-to-date rows fold into one row. They already sort last (`publish-order.ts`),
   // so splitting them off keeps both halves in the shared order.
   const listedRows = rows.filter((row) => row.disposition !== "unchanged");
@@ -1147,12 +1147,12 @@ function publishReportSelection(
 
   // Derived every render rather than stored: `deselectedKeys` is the only state, so these can never
   // disagree with it or with the rows currently on screen.
-  const selectableKeys = selectableRowKeys(rows);
+  const selectableKeys = selectableRowKeys({ rows });
   const selectedKeys: ReadonlySet<string> = new Set(selectableKeys.filter((key) => !deselectedKeys.has(key)));
-  const selectedPublishing = countSelectedPublishing(rows, selectedKeys);
+  const selectedPublishing = countSelectedPublishing({ rows, selected: selectedKeys });
   const carriedAlongKeys: ReadonlySet<string> = new Set(
     rows
-      .filter((row) => row.includedFor.length > 0 && rowPublishesWithSelection(row, selectedKeys))
+      .filter((row) => row.includedFor.length > 0 && rowPublishesWithSelection({ row, selected: selectedKeys }))
       .map((row) => row.key)
   );
   const allSelected = selectableKeys.length > 0 && selectedKeys.size === selectableKeys.length;

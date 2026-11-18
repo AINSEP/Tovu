@@ -2303,7 +2303,7 @@ async function composeSiteRouteDeps(
     // menu-domain `menu/update` reverter, closed over this root's own menuRepo, so a repoint change
     // set is revertible from History exactly like any other publish write.
     revertRegistry: registerMenuReverters(
-      createPostRevertRegistry({
+      { registry: createPostRevertRegistry({
         postRepo,
         clock,
         outbox,
@@ -2314,7 +2314,7 @@ async function composeSiteRouteDeps(
           entityType: POST_ENTITY_TYPE
         }),
       }),
-      { menuRepo, clock, idGen, outbox }
+      deps: { menuRepo, clock, idGen, outbox } }
     ),
     themes: siteThemes,
     themesDir: resolvedThemesDir,

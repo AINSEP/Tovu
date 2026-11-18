@@ -256,18 +256,18 @@ test("read-chat-attachment: a sidecar that is not JSON, or not the right shape, 
 
 test("read-chat-attachment: the shape check rejects a non-object, a wrong field type, and a non-string owner", () => {
   const valid = { id: "a", filePath: "b", name: "c", kind: "image", size: 1, batchId: "d", dev: 2, ino: 3, createdAt: 4 };
-  assert.equal(isChatAttachmentSidecarShape(valid), true);
-  assert.equal(isChatAttachmentSidecarShape({ ...valid, ownerId: "who" }), true);
-  assert.equal(isChatAttachmentSidecarShape({ ...valid, ownerId: 7 }), false);
-  assert.equal(isChatAttachmentSidecarShape({ ...valid, size: "1" }), false);
-  assert.equal(isChatAttachmentSidecarShape({ ...valid, mtimeMs: 1, ctimeMs: 2 }), true);
+  assert.equal(isChatAttachmentSidecarShape({ raw: valid }), true);
+  assert.equal(isChatAttachmentSidecarShape({ raw: { ...valid, ownerId: "who" } }), true);
+  assert.equal(isChatAttachmentSidecarShape({ raw: { ...valid, ownerId: 7 } }), false);
+  assert.equal(isChatAttachmentSidecarShape({ raw: { ...valid, size: "1" } }), false);
+  assert.equal(isChatAttachmentSidecarShape({ raw: { ...valid, mtimeMs: 1, ctimeMs: 2 } }), true);
   for (const timestamp of ["mtimeMs", "ctimeMs"]) {
     for (const malformed of ["1", null, {}]) {
-      assert.equal(isChatAttachmentSidecarShape({ ...valid, [timestamp]: malformed }), false);
+      assert.equal(isChatAttachmentSidecarShape({ raw: { ...valid, [timestamp]: malformed } }), false);
     }
   }
-  assert.equal(isChatAttachmentSidecarShape(null), false);
-  assert.equal(isChatAttachmentSidecarShape("a string"), false);
+  assert.equal(isChatAttachmentSidecarShape({ raw: null }), false);
+  assert.equal(isChatAttachmentSidecarShape({ raw: "a string" }), false);
 });
 
 // ---------------------------------------------------------------------------

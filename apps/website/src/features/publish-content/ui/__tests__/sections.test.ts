@@ -72,11 +72,11 @@ test("the new sections send their whole type set", () => {
 });
 
 test("publishSectionForEntityTypes matches a whole set in any order, and nothing else", () => {
-  assert.equal(publishSectionForEntityTypes(["term", "taxonomy"])?.section, "categories");
-  assert.equal(publishSectionForEntityTypes(["page"])?.section, "pages");
-  assert.equal(publishSectionForEntityTypes(["taxonomy"]), undefined);
-  assert.equal(publishSectionForEntityTypes(["page", "post"]), undefined);
-  assert.equal(publishSectionForEntityTypes([]), undefined);
+  assert.equal(publishSectionForEntityTypes({ entityTypes: ["term", "taxonomy"] })?.section, "categories");
+  assert.equal(publishSectionForEntityTypes({ entityTypes: ["page"] })?.section, "pages");
+  assert.equal(publishSectionForEntityTypes({ entityTypes: ["taxonomy"] }), undefined);
+  assert.equal(publishSectionForEntityTypes({ entityTypes: ["page", "post"] }), undefined);
+  assert.equal(publishSectionForEntityTypes({ entityTypes: [] }), undefined);
 });
 
 test("publishEntityTypeLabel names each type for an owner and falls back to the raw id", () => {

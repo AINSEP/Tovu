@@ -154,7 +154,7 @@ export function resolveSiteKeySources(
 ): { sources: SiteKeySource[]; keyFilePath: string | undefined } {
   const mode = resolveRuntimeMode({ env });
   const sources = siteKeySourcesForSiteDir({ siteDir: deps.siteBinding.dir, mode, env, home: homedir(), cwd: process.cwd() });
-  return { sources, keyFilePath: siteKeyFilePathFrom(sources) };
+  return { sources, keyFilePath: siteKeyFilePathFrom({ sources }) };
 }
 
 export interface SiteKeyStateInput {

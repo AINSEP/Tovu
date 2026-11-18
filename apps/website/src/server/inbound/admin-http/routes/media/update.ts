@@ -113,7 +113,7 @@ export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = ({ app, deps }
       });
       const [contentType, publicUrl, byteSizes] = await Promise.all([
         readRecordedContentType({ deps, sha256: media.source.sha256 }),
-        resolveMediaPublicUrls(deps, [media]).then((urls) => urls.get(media.id) ?? null),
+        resolveMediaPublicUrls({ deps, assets: [media] }).then((urls) => urls.get(media.id) ?? null),
         resolveMediaByteSizes({ deps, media: [media] }),
       ]);
       res.json({ media: toAdminMediaResponse({ media, contentType, publicUrl, byteSize: byteSizes.get(media.source.sha256) ?? null }) });

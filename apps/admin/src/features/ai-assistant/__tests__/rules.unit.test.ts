@@ -112,7 +112,7 @@ describe("visitor credential hydration", () => {
     ["openai", "https://unlisted.example/v1", null],
   ] as const)("restores %s / %s with the correct preset identity", (protocol, baseUrl, providerId) => {
     const current = Object.freeze(config());
-    expect(hydrateVisitorCredentialConfig(current, stored({ provider: protocol, baseUrl }))).toEqual({
+    expect(hydrateVisitorCredentialConfig({ current, stored: stored({ provider: protocol, baseUrl }) })).toEqual({
       protocol, providerId, apiKey: "typed-secret", baseUrl, model: "stored-model",
     });
     expect(current.protocol).toBe("google");
@@ -120,14 +120,14 @@ describe("visitor credential hydration", () => {
   });
 
   it("keeps the protocol and preset for an unknown server provider while hydrating its values", () => {
-    expect(hydrateVisitorCredentialConfig(config({ protocol: "anthropic", providerId: "anthropic" }), stored({ provider: "future-provider", baseUrl: "https://future.example", model: "future-model" })))
+    expect(hydrateVisitorCredentialConfig({ current: config({ protocol: "anthropic", providerId: "anthropic" }), stored: stored({ provider: "future-provider", baseUrl: "https://future.example", model: "future-model" }) }))
       .toEqual({ protocol: "anthropic", providerId: "anthropic", apiKey: "typed-secret", baseUrl: "https://future.example", model: "future-model" });
   });
 
   it("preserves current values for null stored fields but respects explicit empty strings", () => {
-    expect(hydrateVisitorCredentialConfig(config({ baseUrl: "https://local.example/v1", model: "draft-model" }), stored({ provider: "google", baseUrl: null, model: null })))
+    expect(hydrateVisitorCredentialConfig({ current: config({ baseUrl: "https://local.example/v1", model: "draft-model" }), stored: stored({ provider: "google", baseUrl: null, model: null }) }))
       .toEqual({ protocol: "google", providerId: null, apiKey: "typed-secret", baseUrl: "https://local.example/v1", model: "draft-model" });
-    expect(hydrateVisitorCredentialConfig(config(), stored({ provider: "google", baseUrl: "", model: "" })))
+    expect(hydrateVisitorCredentialConfig({ current: config(), stored: stored({ provider: "google", baseUrl: "", model: "" }) }))
       .toEqual({ protocol: "google", providerId: null, apiKey: "typed-secret", baseUrl: "", model: "" });
   });
 });

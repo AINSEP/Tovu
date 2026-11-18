@@ -258,7 +258,7 @@ test("the admin read model never carries a token, a refresh token, or a client s
   });
   await connect(service);
 
-  const [view] = await listExternalMcpServerViews({ repo }, WORKSPACE);
+  const [view] = await listExternalMcpServerViews({ deps: { repo }, workspaceId: WORKSPACE });
 
   assert.ok(view);
   const serialized = JSON.stringify(view);
@@ -484,7 +484,7 @@ test("boot-time federation injects the access token into the operator's chosen e
   const state = new URL(started.kind === "redirect_required" ? started.authorizationUrl : "").searchParams.get("state");
   await service.completeAuthorizationCallback({ serverId: SERVER, redirectUri: REDIRECT_URI, params: { state: state ?? "", code: "c" } });
 
-  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: service.tokenResolver }, WORKSPACE);
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer, oauth: service.tokenResolver }, workspaceId: WORKSPACE });
 
   assert.deepEqual(failures, []);
   assert.equal(configs.length, 1);
@@ -507,7 +507,7 @@ test("a needs_reauth connection is REPORTED at boot, not silently dropped", asyn
   clock.advance(60 * 60 * 1000);
   await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }), REAUTH_ERROR);
 
-  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: service.tokenResolver }, WORKSPACE);
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer, oauth: service.tokenResolver }, workspaceId: WORKSPACE });
 
   assert.deepEqual(configs, []);
   assert.deepEqual(failures, [
@@ -518,7 +518,7 @@ test("a needs_reauth connection is REPORTED at boot, not silently dropped", asyn
 test("an OAuth row read by a process with no token resolver is reported rather than launched credential-free", async () => {
   const { repo, sealer } = await makeHarness();
 
-  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
 
   assert.deepEqual(configs, []);
   assert.equal(failures.length, 1);
@@ -634,11 +634,11 @@ test("disconnect stops the read model claiming a stored token — even though th
     script: [{ json: { token_type: "Bearer", access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
   });
   await connect(service);
-  assert.equal((await listExternalMcpServerViews({ repo }, WORKSPACE))[0]?.oauth.hasStoredToken, true);
+  assert.equal((await listExternalMcpServerViews({ deps: { repo }, workspaceId: WORKSPACE }))[0]?.oauth.hasStoredToken, true);
 
   await service.disconnect({ serverId: SERVER });
 
-  const [view] = await listExternalMcpServerViews({ repo }, WORKSPACE);
+  const [view] = await listExternalMcpServerViews({ deps: { repo }, workspaceId: WORKSPACE });
   assert.ok(view, "the row survives a disconnect — only the authorization is dropped");
   assert.equal(view.oauth.status, "disconnected");
   assert.equal(view.oauth.hasStoredToken, false, "the API must not report a stored token for a disconnected connection");

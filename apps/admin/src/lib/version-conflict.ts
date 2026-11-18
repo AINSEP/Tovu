@@ -25,7 +25,8 @@ export const VERSION_CONFLICT_MESSAGE =
  *
  * @complexity Time/space: O(1).
  */
-export function isVersionConflict(error: unknown): error is ApiError {
+export function isVersionConflict(required: { error: unknown }, _optional: Record<string, never> = {}): required is { error: ApiError } {
+  const { error } = required;
   return error instanceof ApiError && error.status === 409 && error.code === VERSION_CONFLICT_CODE;
 }
 
@@ -57,7 +58,7 @@ export function readVersionConflict(
   required: { error: unknown; attemptedStatus: "draft" | "published" | undefined },
   _optional: Record<string, never> = {},
 ): SaveConflict | null {
-  if (!isVersionConflict(required.error)) return null;
+  if (!isVersionConflict(required)) return null;
   const details = (required.error.body?.details ?? {}) as Record<string, unknown>;
   return {
     expectedVersion: typeof details.expectedVersion === "number" ? details.expectedVersion : null,

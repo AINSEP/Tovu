@@ -66,12 +66,12 @@ export async function publishContentFromTool(
   const plan = (selection: PlanSelection = {}) => planForTool({ context: { deps, peer, contentDeps, principalId }, selection });
   const initial = await plan();
   const selectionRows = toPublishReportRows(initial.details).map(row => ({ ...row, names: initial.itemNames[row.key] ?? [] }));
-  const selection = applyPublishCriteria(selectionRows.map(row => ({ ...row, selectable: true })), criteria);
+  const selection = applyPublishCriteria({ rows: selectionRows.map(row => ({ ...row, selectable: true })), criteria });
   const skipped = excludedBySelection({ selectionRows, selection });
   const chosen = await choosePlan({ initial, selection, plan });
   // Nothing selected: never re-stage an empty bundle on live, and never confirm `chosen`, which
   // still holds every row.
-  const nothingSelected = selectableRowKeys(toPublishReportRows(chosen.details)).every(key => selection.deselectedKeys.has(key));
+  const nothingSelected = selectableRowKeys({ rows: toPublishReportRows(chosen.details) }).every(key => selection.deselectedKeys.has(key));
   const confirmed = await confirmationPlan({ chosen, nothingSelected, selection, plan });
   const urls = (confirmed as typeof initial).publicUrls ?? chosen.publicUrls;
   const summary = { initial, confirmed, selection, skipped, urls };

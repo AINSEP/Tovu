@@ -143,7 +143,7 @@ async function counters() {
     sealedOAuth: null, aadVersion: 1, oauthAadVersion: 1, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' };
   await repo.upsert({ ...blank, workspaceId: 'ws-1', serverId: 'both', envNames: '["TOKEN"]', sealedEnv, sealedOAuth, oauthStatus: 'connected' } as never);
   await repo.upsert({ ...blank, workspaceId: 'ws-1', serverId: 'none' } as never);
-  const views = await listExternalMcpServerViews({ repo, sealer } as never, 'ws-1' as never);
+  const views = await listExternalMcpServerViews({ deps: { repo, sealer } as never, workspaceId: 'ws-1' as never });
   const vault = { lists: 0, rows: 0, bytes: 0, puts: 0 };
   const rows = [{ id: 'other-row', revision: 1 }, { id: 'another-row', revision: 2 }, { id: 'third-row', revision: 3 }];
   const store = createAgentPluginStateStore({ workspaceId: 'ws-1', vault: {

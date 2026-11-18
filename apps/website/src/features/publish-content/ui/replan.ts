@@ -87,14 +87,14 @@ export async function preparePublishConfirmation(
   _optional: Record<string, never> = {},
 ): Promise<PublishContentPlanResult> {
   const rows = toPublishReportRows(required.plan.details);
-  const selectable = selectableRowKeys(rows);
+  const selectable = selectableRowKeys({ rows });
   const keep = selectable.filter(key => !required.deselectedKeys.has(key));
   if (keep.length === selectable.length) return required.plan;
   const keepSet = new Set(keep);
-  const carriedKept = rows.filter(row => row.includedFor.length > 0 && rowPublishesWithSelection(row, keepSet)).map(row => row.key);
+  const carriedKept = rows.filter(row => row.includedFor.length > 0 && rowPublishesWithSelection({ row, selected: keepSet })).map(row => row.key);
   const next = await required.planPublish({ selectedEntityKeys: keep,
     ...overwriteKeysWithin({ overwriteEntityKeys: required.plan.overwriteEntityKeys, keep: [...keep, ...carriedKept] }) });
-  const changing = new Set(rows.filter(row => !rowPublishesWithSelection(row, keepSet)).map(row => row.key));
+  const changing = new Set(rows.filter(row => !rowPublishesWithSelection({ row, selected: keepSet })).map(row => row.key));
   const tickedKeys = new Set((required.plan.overwriteEntityKeys ?? []).filter(key => !changing.has(key)));
   if (!overwriteReplanIsConsistent({ shown: required.plan.details, next: next.details, tickedKeys, changing })) {
     throw new PublishPlanDriftError(next);

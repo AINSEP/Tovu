@@ -69,7 +69,7 @@ export function defaultNewSiteAgentPluginTokenCheck(_required: Record<string, ne
  * Refuses before anything is created when a token is rejected or its plugin takes no token.
  * @throws {ValidationError} The same plain message the admin's create route returns.
  */
-export async function assertNewSiteAgentPluginTokensAccepted(tokens: Readonly<Record<string, string>>, check: NewSiteAgentPluginTokenCheck): Promise<void> {
+export async function assertNewSiteAgentPluginTokensAccepted({ tokens, check }: { tokens: Readonly<Record<string, string>>; check: NewSiteAgentPluginTokenCheck }, _optional: Record<string, never> = {}): Promise<void> {
   const refusal = await firstNewSiteAgentPluginTokenRefusal({ check, tokens });
   if (refusal) throw new ValidationError({ message: refusal.error });
 }
