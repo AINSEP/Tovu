@@ -11,6 +11,7 @@ import type { DaemonRouteHost } from "@jini-ai/daemon/http";
 import { reportRouteInternalError } from "@jini-ai/http-kit";
 import { createNodeDispatcher, maxReserializedJsonBytes } from "@jini-ai/http-kit/node-bridge";
 import type { Express } from "express";
+import { requestFactsLocals } from "#src/server/inbound/shared/request-facts";
 
 /**
  * Mounts `routes` as one layer at this position in `app`.
@@ -19,6 +20,7 @@ import type { Express } from "express";
  * stood, so every Express gate and parser above that line still runs first, and a request the
  * list does not own (another path, or another method of a path it owns) falls through to the
  * routes below it.
+ * Every dispatch gets the request facts (client address, serving protocol, `secure`, query) in `locals`, computed here per request because they follow the trust-proxy setting of the app whose layer is running.
  * @param optional.rawBody - The routes read the request body as raw bytes (uploads). The body a parser above may have produced is then NOT handed on: a route sees the untouched stream, or no body at all when a parser above consumed it. Without this an upload sent as JSON would be stored as re-serialized text.
  * @param optional.redactionPatterns - Extra secret shapes to remove from the log line written when a route throws; the bridge's own patterns always apply.
  * @complexity O(routes) once; one route-table lookup per request.
@@ -32,7 +34,7 @@ export function mountJiniRoutes(
   for (const route of routes) dispatcher.server.route(route);
   app.use((req, res, next) => {
     // A route that throws is answered by the dispatcher itself, so this promise always settles.
-    void dispatcher.handle({ incoming: req, out: res }, { next, locals: res.locals, ...(rawBody ? {} : { parsedBody: req.body as unknown }) });
+    void dispatcher.handle({ incoming: req, out: res }, { next, locals: requestFactsLocals({ req }, { base: res.locals }), ...(rawBody ? {} : { parsedBody: req.body as unknown }) });
   });
 }
 

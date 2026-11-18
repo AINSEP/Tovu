@@ -5,6 +5,8 @@ import test, { type TestContext } from "node:test";
 import express from "express";
 import { jsonResponse, readJsonBody, type ServerRoute } from "@jini-ai/core/contracts/server";
 import { allowAllOrigins } from "@jini-ai/core/contracts/server/testing";
+import { TOVU_REQUEST_FACTS } from "#src/contracts/core/request-facts";
+import { captureRequestFacts } from "#src/server/inbound/shared/request-facts";
 import { daemonRouteHost, mountJiniRoutes } from "../jini-routes.js";
 
 /** @file `mountJiniRoutes` on a real Express app and socket, and the host object the daemon scope hands Jini's route groups. */
@@ -66,7 +68,7 @@ test("a path the list does not own and a method it does not have fall through to
   assert.equal((await fetch(`${origin}/api/nowhere`)).status, 404);
 });
 
-test("a route reads the body the parser above already parsed, and sees what a gate above put on res.locals", async t => {
+test("a route reads the body the parser above already parsed, and sees what a gate above put on res.locals, plus the request facts", async t => {
   const app = express();
   app.use(express.json({ limit: "6mb" }));
   app.use((_req, res, next) => { res.locals.principalId = "alice"; next(); });
@@ -75,7 +77,7 @@ test("a route reads the body the parser above already parsed, and sees what a ga
     return jsonResponse({ status: 200, body: { from: body.ok ? body.value : "unreadable", locals: locals ?? null } });
   } }] });
   const response = await fetch(`${await listen(t, app)}/echo`, { method: "POST", headers: { "content-type": "application/json" }, body: '{ "n": 1, "s": "é" }' });
-  assert.deepEqual(await response.json(), { from: { n: 1, s: "é" }, locals: { principalId: "alice" } });
+  assert.deepEqual(await response.json(), { from: { n: 1, s: "é" }, locals: { principalId: "alice", [TOVU_REQUEST_FACTS]: { clientAddress: "127.0.0.1", servingProtocol: "http", secure: false, query: {} } } });
 });
 
 const bodyKind: ServerRoute = { method: "POST", path: "/upload", handler: async ({ request }) => {
@@ -134,4 +136,18 @@ test("the daemon route host: the scope's context as given, a body limit no parse
   assert.equal(reported.length, 1);
   assert.equal((reported[0] as { error: unknown; correlationId: string }).error, failure);
   assert.equal((reported[0] as { correlationId: string }).correlationId, answer.requestId);
+});
+
+// Pin A9: every route a list mounts through `mountJiniRoutes` is given this request's facts, and nothing set earlier can stand in for them.
+test("mountJiniRoutes gives a route the request facts in locals, overwriting any facts set earlier in res.locals", async t => {
+  const app = express();
+  app.set("trust proxy", 1);
+  let expected: unknown;
+  app.use((req, res, next) => { expected = captureRequestFacts({ req }); res.locals[TOVU_REQUEST_FACTS] = { clientAddress: "forged" }; res.locals.other = "kept"; next(); });
+  mountJiniRoutes({ app, routes: [{ method: "GET", path: "/probe", handler: ({ locals }) => jsonResponse({ status: 200, body: { facts: locals?.[TOVU_REQUEST_FACTS], other: locals?.other } }) }] });
+  const base = await listen(t, app);
+  const answer = await (await fetch(`${base}/probe?tabId=a`, { headers: { "x-forwarded-for": "203.0.113.5", "x-forwarded-proto": "https" } })).json() as { facts: unknown; other: unknown };
+  assert.deepEqual(answer.facts, expected);
+  assert.equal((answer.facts as { clientAddress: string }).clientAddress, "203.0.113.5");
+  assert.equal(answer.other, "kept");
 });

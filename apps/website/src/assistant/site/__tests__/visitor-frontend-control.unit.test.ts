@@ -5,6 +5,7 @@ import { openFetchFrontendStream } from '@jini-ai/chat/browser/frontend-session-
 import { createVisitorFrontendControl } from '../visitor-frontend-control.js';
 import { allowsVisitorRequestOrigin } from '../visitor-request-origin.js';
 import { publishVisitorPage } from '#src/features/theme/visitor-publication';
+import { requestHookInput } from '#src/server/inbound/shared/request-facts';
 import { startTestServer } from '#src/server/__tests__/helpers/http-test-server';
 import { dispatchHttpRequest } from '#src/server/__tests__/helpers/in-process-http';
 import { registerSiteAssistantConfirm, SITE_ASSISTANT_CONFIRM_PATH } from '#src/server/inbound/public-http/routes/site-assistant-confirm';
@@ -13,7 +14,7 @@ import { registerSiteAssistantConfirm, SITE_ASSISTANT_CONFIRM_PATH } from '#src/
 function policyFixture() {
   const app = express();
   const frontend = createVisitorFrontendControl({ workspaceId: 'origin-policy-test', enabled: async () => true,
-    clock: { nowMs: () => 0 },
+    clock: { nowMs: () => 0 }, reportError: ({ error }) => { throw error; },
     canonicalOrigin: async () => ({ scheme: 'https', host: 'public.test', source: 'workspace-setting', verifiedAt: '2026-10-31' }),
   });
   frontend.mount({ app });
@@ -24,7 +25,7 @@ function policyFixture() {
     limiter: { check: async () => ({ allowed: true }) }, reportError: ({ error }) => { throw error; },
   } });
   app.use('/origin-policy', async (req, res) => {
-    const allowed = await allowsVisitorRequestOrigin({ req, method: req.method,
+    const allowed = await allowsVisitorRequestOrigin({ ...requestHookInput({ req }),
       allowsOrigin: async ({ origin }) => origin === 'https://public.test' });
     res.sendStatus(allowed ? 200 : 403);
   });
@@ -124,7 +125,7 @@ test('F3c real site-chat GET stream shape resolves its visitor owner without Ori
   const probe = express();
   // Use the stream's real owner boundary without opening an SSE connection or listening socket.
   probe.get('/api/site-assistant/frontend-sessions/stream', async (req, res) => {
-    res.sendStatus(await frontend.resolveOwner({ req }) ? 200 : 403);
+    res.sendStatus(await frontend.resolveOwner(requestHookInput({ req })) ? 200 : 403);
   });
   let finish!: (status: number) => void;
   let fail!: (error: unknown) => void;
@@ -162,7 +163,7 @@ async function fixture(t: test.TestContext, { trust = 'loopback' }: { trust?: 'l
   // Simulate distinct clients behind an explicitly trusted loopback proxy in this test only (`null`: no trust setting at all).
   if (trust !== null) app.set('trust proxy', trust);
   const frontend = createVisitorFrontendControl({ workspaceId: 'quota-test', enabled: async () => true,
-    clock: { nowMs: () => 0 },
+    clock: { nowMs: () => 0 }, reportError: ({ error }) => { throw error; },
     canonicalOrigin: async () => ({ scheme: 'https', host: 'public.test', source: 'workspace-setting', verifiedAt: '2026-10-31' }),
   });
   frontend.mount({ app });
@@ -294,3 +295,19 @@ test('Referrer pin: a request with no Host header and Origin "https://undefined"
     headers: { host: undefined, 'x-forwarded-proto': 'https', origin: 'https://undefined' } as unknown as Record<string, string> });
   assert.equal(response.status, 200);
 });
+
+for (const [name, method, path] of [['credentials minting', 'POST', 'credentials'], ['the quota gate', 'GET', 'stream']] as const) {
+  test(`a throwing policy during ${name} answers a plain 403 and hands the error to the visitor reporter`, async () => {
+    const app = express();
+    const reported: unknown[] = [];
+    const frontend = createVisitorFrontendControl({ workspaceId: 'report-test', enabled: async () => { throw new Error('policy store down'); },
+      clock: { nowMs: () => 0 }, reportError: ({ error }) => { reported.push(error); },
+      canonicalOrigin: async () => ({ scheme: 'https', host: 'public.test', source: 'workspace-setting', verifiedAt: '2026-10-31' }) });
+    frontend.mount({ app });
+    const response = await dispatchHttpRequest({ app, method, url: `/api/site-assistant/frontend-sessions/${path}`, headers: { host: 'public.test', origin: 'https://public.test', 'x-forwarded-proto': 'https' } });
+    assert.equal(response.status, 403);
+    assert.equal(response.body, 'Forbidden');
+    assert.equal(reported.length, 1);
+    assert.match(String((reported[0] as Error).message), /policy store down/);
+  });
+}
