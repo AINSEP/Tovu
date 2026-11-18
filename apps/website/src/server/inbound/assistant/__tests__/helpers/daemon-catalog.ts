@@ -3,7 +3,7 @@ import ts from "typescript";
 import type { ToolRegistry } from "@jini-ai/core";
 import { toolCatalogRoutes } from "@jini-ai/daemon/http";
 import type { ServerRoute } from "@jini-ai/core/contracts/server";
-import { daemonRouteHost } from "@tovu/host-shared/jini-routes";
+import { daemonRouteHost } from "../../../../runtime/composition/jini-routes.js";
 import type { ToolAttemptAuditSink } from "@jini-ai/daemon/tool-audit";
 import { createDaemonSiteTools } from "../../agent-daemon-site-tools.js";
 import { daemonStatements, daemonSource, evaluateDaemonStatements } from "./daemon-source.js";

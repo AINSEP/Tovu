@@ -12,7 +12,7 @@ import ts from "typescript";
 import { createInMemoryEventLog, createRunLifecycle, type RunLifecycle } from "@jini-ai/daemon";
 import { runRoutes, type RunStartHandler } from "@jini-ai/daemon/http";
 import { createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
-import { daemonRouteHost, mountJiniRoutes } from "@tovu/host-shared/jini-routes";
+import { daemonRouteHost, mountJiniRoutes } from "../../server/runtime/composition/jini-routes.js";
 
 import {
   createOwnedRunListHandler,

@@ -23,14 +23,14 @@ import { awaitSiteBootReadiness } from "./server/runtime/boot/site-boot-readines
 import { checkContentDbSchema } from "./server/runtime/boot/content-db-schema-guard.js";
 import { setReadinessSnapshot } from "./server/runtime/lifecycle/readiness-state.js";
 import { registerPluginSdkResolver } from "./server/runtime/boot/plugin-sdk-resolver.js";
-import { installProcessErrorReporting, installUnhandledRejectionGuard, reportFatalBootFailure } from "@tovu/host-shared/process-error-guards";
+import { installProcessErrorReporting, installUnhandledRejectionGuard, reportFatalBootFailure } from "./server/runtime/boot/process-error-guards.js";
 import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from "./platform/server-logs/index.js";
 import { processBuildRelease, telemetryEnvironment } from './server/runtime/composition/build-release.js';
 import { shutdownAssistantDaemon, startAssistantDaemon } from "./server/inbound/assistant/index.js";
 import { closeStoreOnShutdown, stopServingWithinGrace } from "./server/runtime/lifecycle/close-store-on-shutdown.js";
 import { ensureAgentDaemonPortResolved } from "./server/runtime/lifecycle/agent-daemon-port.js";
 import { ensureAgentDaemonToken, ensureToolExecToken } from "./assistant/index.js";
-import { initializeStartupSecrets } from '@tovu/host-shared/startup-secrets';
+import { initializeStartupSecrets } from './platform/secrets/startup-secrets.js';
 import { registerAdminDevProxyUpgrade } from "./server/inbound/admin-http/admin-dev-proxy.js";
 import { resolveBindHost } from "./server/runtime/boot/bind-host.js";
 import { reserveBootListener } from "./server/runtime/boot/boot-listener.js";

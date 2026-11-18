@@ -2195,7 +2195,7 @@
     "value": 1
   },
   {
-    "file": "packages/host-shared/src/process-error-guards.ts",
+    "file": "apps/website/src/server/runtime/boot/process-error-guards.ts",
     "rule": "catch-reads-error",
     "value": 3
   },

@@ -10,7 +10,7 @@ import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { nodeIntervalScheduler } from "@tovu/host-shared/jini-routes";
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
 
 
 test("secret-card POSTs only answer a principal-bound open exchange and never execute a fresh tool", async t => {

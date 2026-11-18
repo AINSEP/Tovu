@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { initializeStartupSecrets, startupSecretEnvironment, STARTUP_SECRET_KEYS } from '@tovu/host-shared/startup-secrets';
+import { initializeStartupSecrets, startupSecretEnvironment, STARTUP_SECRET_KEYS } from '../startup-secrets.js';
 import { ensureAgentDaemonToken, requireAgentDaemonToken } from '#src/assistant/daemon-access';
 import express from 'express';
 import { desktopRenderForHost } from '../../headless-browser/desktop-render.js';
@@ -75,7 +75,7 @@ test('startup delivery preserves the process runtime and configured owner after 
     await import('#src/platform/site-dir/__tests__/helpers/isolated-catalog-home');
     const { desktopMcpRuntime } = await import(${JSON.stringify(moduleUrl('../../../assistant/desktop-mcp-runtime.ts'))});
     const bearer = desktopMcpRuntime.bearerToken;
-    const { initializeStartupSecrets } = await import('@tovu/host-shared/startup-secrets');
+    const { initializeStartupSecrets } = await import(${JSON.stringify(moduleUrl('../startup-secrets.ts'))});
     await initializeStartupSecrets();
     for (const name of ['TOVU_ADMIN_PASSWORD', 'TOVU_DESKTOP_MCP_TOKEN', 'TOVU_DESKTOP_MCP_HANDOFF_TOKEN']) assert.equal(name in process.env, false);
     assert.equal(desktopMcpRuntime.owned, true);

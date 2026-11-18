@@ -8,12 +8,12 @@ import { createExclusiveRunLease } from "@jini-ai/daemon/exclusive-run-lease";
 import { createScopeControl, requireScopeKey } from "./agent-daemon-scope-control.js";
 import { isDaemonLifecycleLogQuiet } from "../../runtime/lifecycle/daemon-lifecycle-log.js";
 import { closeWithinBound, stopServingWithinGrace } from "../../runtime/lifecycle/close-store-on-shutdown.js";
-import { installUnhandledRejectionGuard } from "@tovu/host-shared/process-error-guards";
+import { installUnhandledRejectionGuard } from "../../runtime/boot/process-error-guards.js";
 import { installServerLogCapture } from "../../../platform/server-logs/index.js";
 import { processBuildRelease, telemetryEnvironment } from "../../runtime/composition/build-release.js";
 import { AGENT_DAEMON_EXIT_CODE } from "@tovu/contracts/daemon-exit-codes";
 import { TOOL_EXEC_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
-import { initializeStartupSecrets, startupSecretEnvironment } from '@tovu/host-shared/startup-secrets';
+import { initializeStartupSecrets, startupSecretEnvironment } from '../../../platform/secrets/startup-secrets.js';
 import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 
 const scopes = new Map<SiteScopeKey, Promise<Awaited<ReturnType<typeof createSiteScope>>>>();

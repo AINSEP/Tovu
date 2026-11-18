@@ -1,7 +1,7 @@
 /** Private spawning-main capability. Never a stored credential or a CLI launch setting. */
 import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection, type McpBearerTokenSupplier } from "@jini-ai/mcp/federation";
 import { createPinnedCapabilityRuntime, type PinnedCapabilityNames } from "@jini-ai/mcp/federation/hosted";
-import { startupSecretEnvironment } from "@tovu/host-shared/startup-secrets";
+import { startupSecretEnvironment } from "../platform/secrets/startup-secrets.js";
 
 export const DESKTOP_MCP_ID = "tovu-desktop";
 export const DESKTOP_MCP_HANDOFF_ENV = "TOVU_DESKTOP_MCP_HANDOFF_TOKEN";

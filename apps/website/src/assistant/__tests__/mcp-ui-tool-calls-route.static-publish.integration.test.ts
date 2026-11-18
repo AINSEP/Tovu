@@ -21,7 +21,7 @@ import { loadBundledDeployTargets } from "#src/features/deployments/deploy-targe
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { nodeIntervalScheduler } from "@tovu/host-shared/jini-routes";
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
 
 
 /**

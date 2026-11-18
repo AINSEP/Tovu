@@ -170,7 +170,6 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@sindresorhus/slugify": "^3.0.1",
     "@tovu/contracts": "*",
-    "@tovu/host-shared": "*",
     "argon2": "^0.44.0",
     "aws4fetch": "^1.0.20",
     "better-sqlite3": "^13.0.0",

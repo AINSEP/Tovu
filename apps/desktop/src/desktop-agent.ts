@@ -37,7 +37,7 @@ import type { Principal, ToolDescriptor, ToolRegistration, ToolRegistry } from "
 import type { NativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, createToolExecutor, type AgentExecutor, type AgentExecutorRunInput, type RunLifecycle } from "@jini-ai/daemon";
 import { delegatedToolRoutes, toolCatalogRoutes, type ToolCatalogQuery } from "@jini-ai/daemon/http";
-import { daemonRouteHost, mountJiniRoutes } from "@tovu/host-shared/jini-routes";
+import { daemonRouteHost, mountJiniRoutes } from "../../website/src/server/runtime/composition/jini-routes.ts";
 import { createNodeCredentialCrypto, createRunScopedCredentials, type RunScopedCredentials } from "@jini-ai/daemon/run-credentials";
 import type { TurnAddressee } from "./desktop-agent-tools.ts";
 import { createToolGapCollector, type ToolGapEntry } from "@jini-ai/daemon/tool-audit";

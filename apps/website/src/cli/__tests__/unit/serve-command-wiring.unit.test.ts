@@ -231,11 +231,11 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   // scenario would otherwise find the previous one still "Running in Web".
   module("../../../platform/site-dir/site-running.ts", { claimSiteRunning: (claim: unknown) => (leaseClaims.push(claim), { attached: attached ? { port: 4320 } : null, ready: () => { if (leaseReadyError) throw leaseReadyError; }, release: () => {} }) });
   module("../../../features/plugin-runtime/sdk-resolver.ts", { registerPluginSdkResolver: () => {} });
-  module(import.meta.resolve("@tovu/host-shared/process-error-guards"), { installUnhandledRejectionGuard: () => {} });
+  module("../../../server/runtime/boot/process-error-guards.ts", { installUnhandledRejectionGuard: () => {} });
   module("../../../server/runtime/boot/boot-readiness-gate.ts", { runProductionReadinessGateOrExit: async () => {} });
   // Startup IPC and the private callback listener are approved boot steps. Keep this
   // wiring test entirely in-process; the listener's implementation has its own tests.
-  module(import.meta.resolve("@tovu/host-shared/startup-secrets"), { initializeStartupSecrets: async () => {} });
+  module("../../../platform/secrets/startup-secrets.ts", { initializeStartupSecrets: async () => {} });
   module("../../../server/runtime/boot/site-daemon-listener.ts", { startSiteDaemonListener: async () => ({ origin: "http://127.0.0.1:4568", close: async () => {} }) });
   module("../../../server/runtime/boot/site-key-boot-notice.ts", { warnIfNoSiteKeyAtBoot: () => {} });
   module("../../../features/webhooks/site-key-ensure.ts", { ensureSiteKeyForBoot: async () => {} });

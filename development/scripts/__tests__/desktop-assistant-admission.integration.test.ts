@@ -5,7 +5,7 @@ import express from 'express';
 import type { ElectronApplication } from '@playwright/test';
 import { createInMemoryEventLog, createRunLifecycle } from '@jini-ai/daemon';
 import { runRoutes } from '@jini-ai/daemon/http';
-import { daemonRouteHost, mountJiniRoutes } from '@tovu/host-shared/jini-routes';
+import { daemonRouteHost, mountJiniRoutes } from '../../../apps/website/src/server/runtime/composition/jini-routes.js';
 import { createApp, createRouteDeps } from '../../../apps/website/src/server/runtime/composition/app.js';
 import { bootAuthenticated, startTestServer } from '../../../apps/website/src/server/__tests__/helpers/http-test-server.js';
 import { ensureAgentDaemonToken, ensureToolExecToken, requireAgentDaemonToken } from '../../../apps/website/src/assistant/daemon-access.js';

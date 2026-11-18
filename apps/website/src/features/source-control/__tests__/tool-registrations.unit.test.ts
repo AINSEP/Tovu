@@ -26,7 +26,7 @@ import { githubFromSource } from "./fixtures/github-from-source.js";
 import { buildSourceControlRegistrations, sourceControlAgentToolCatalog, sourceControlDerivedRisk, type SourceControlToolDeps } from "../tool-registrations.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { nodeIntervalScheduler } from "@tovu/host-shared/jini-routes";
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
 import { createStaticSitePackager } from "../../site-backup/static-site-packager.js";
 
 

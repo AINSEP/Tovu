@@ -12,7 +12,7 @@ import { createNoopProductAnalytics, withProductAnalyticsGuards } from '@jini-ai
 import { type ProductAnalyticsPort, createNoopObservabilityPort, type ErrorReport, type ObservabilityPort } from '@jini-ai/core/contracts/observability';
 import type { PluginDiscoveryRecord } from '@jini-ai/plugins/host/node';
 import { redactLocalText } from '@jini-ai/diagnostics/local-text';
-import { productAdminScreen, projectProductEvent } from '@tovu/host-shared/product-events';
+import { productAdminScreen, projectProductEvent } from '#src/server/runtime/composition/product-events';
 // Desktop main loads this source directly; #src resolves to .ts here and .js in compiled builds.
 import { resolveTovuObservabilityExport } from '#src/server/runtime/composition/observability-export';
 import { processBuildRelease } from '#src/server/runtime/composition/build-release';

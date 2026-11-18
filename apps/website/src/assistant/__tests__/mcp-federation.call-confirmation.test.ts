@@ -23,7 +23,7 @@ import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-t
 import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { nodeIntervalScheduler } from "@tovu/host-shared/jini-routes";
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
 
 
 // This wrapper preserves Tovu's positional call contract for Jini trust policy.

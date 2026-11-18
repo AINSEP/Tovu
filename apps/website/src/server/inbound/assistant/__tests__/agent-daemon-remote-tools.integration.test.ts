@@ -9,7 +9,7 @@ import express from "express";
 import ts from "typescript";
 import { createDiskAttachmentStore, createRemoteAttachmentLookup } from "@jini-ai/daemon/http";
 import { createRunScopedCredentials, registerDaemonAttachmentLookup } from "#src/assistant/daemon-access";
-import { daemonRouteHost, mountJiniRoutes } from "@tovu/host-shared/jini-routes";
+import { daemonRouteHost, mountJiniRoutes } from "#src/server/runtime/composition/jini-routes";
 import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
 import { daemonStatements, daemonSource, evaluateDaemonStatements } from "./helpers/daemon-source.js";
 

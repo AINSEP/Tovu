@@ -1,7 +1,7 @@
 import { createInMemoryIdentityRouteDeps, resolveOwnerCredentials } from "#src/features/identity/wiring";
 import { seededWorkspace, SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID } from "../../../configuration/seed.js";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";
-import { startupSecretEnvironment } from "@tovu/host-shared/startup-secrets";
+import { startupSecretEnvironment } from "../../../../../platform/secrets/startup-secrets.js";
 import { createSettingsPrincipalLookup } from "#src/features/settings/index";
 import { startSettingsRegistration } from "../../settings-registration.js";
 import { InMemorySettingsRepo } from "#src/features/settings/index";

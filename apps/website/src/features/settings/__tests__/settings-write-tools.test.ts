@@ -18,7 +18,7 @@ import { ASSISTANT_SUBAGENTS_NAMESPACE, ASSISTANT_SUBAGENTS_WRITE_REASON } from 
 import { set } from "../site-title-write.js";
 import type { DetectedAgent } from "@jini-ai/agent-runtime";
 import { unwrapRouteHandle } from "#src/server/__tests__/helpers/unwrap-route-handle";
-import { nodeIntervalScheduler } from "@tovu/host-shared/jini-routes";
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
 
 const pickerAgents: DetectedAgent[] = [{
   id: "new", name: "Fixture Agent", bin: "fixture-agent", versionArgs: ["--version"], streamFormat: "plain",

@@ -12,7 +12,7 @@ import { createToolRegistry, type ToolRegistry } from "@jini-ai/core";
 import { buildToolIndex, handleToolCall, type McpToolDef } from "@jini-ai/mcp";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
 import { delegatedToolExecuteRoute, delegatedToolRoutes } from "@jini-ai/daemon/http";
-import { daemonRouteHost, mountJiniRoutes } from "@tovu/host-shared/jini-routes";
+import { daemonRouteHost, mountJiniRoutes } from "../../server/runtime/composition/jini-routes.js";
 
 import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
 import { buildThemesRegistrations, type ThemeToolDeps } from "../../features/theme/tool-registrations.js";
