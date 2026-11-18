@@ -136,7 +136,7 @@ import type { DeepLinkRestorePointLookupPort } from "@jini-ai/db/recovery/deep-l
 import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
 import type { LedgerAppendPort } from "../../features/database/gated-hooks.js";
 import type { MergeableEntryTermRepoPort } from "../../features/taxonomy/gated-hooks.js";
-import type { EntryTermReadPort, TaxonomyPublishReadPort, TermPublishReadPort } from "../../features/taxonomy/repo.sqlite.js";
+import type { EntryTermReadPort, TaxonomyPublishReadPort, TermPublishReadPort } from "@jini-ai/cms/taxonomy";
 import type {
   RemoveTermFn,
   RemoveTaxonomyFn,
@@ -582,7 +582,7 @@ export interface ContentTaxonomyDeps {
    * whichever one repo instance the route wires up as `deps.transaction` — `taxonomyRepo` is the
    * one both delete flows always have, so it is the canonical source. */
   /** Widened once more with `TaxonomyTrashReadPort` (`findForTrash`, a host-only addition — see
-   *  `EntryTermReadPort`'s doc above for why these are declared directly against `apps/website/src/features/taxonomy/repo.sqlite.ts`/
+   *  `EntryTermReadPort`'s doc above for why these are declared directly against Jini's `@jini-ai/cms/taxonomy` read ports/
    *  `apps/website/src/features/taxonomy/trash-term.ts` rather than folded into a certified Jini port) for `trashTaxonomy`'s read. */
   /** Widened for publish-content (`features/taxonomy/publish-content.ts`) with the id-preserving
    *  import's `ImportableTaxonomyRepoPort` and the trash-inclusive `TaxonomyPublishReadPort`. */

@@ -958,14 +958,6 @@
     "coverageClass": "sequential_outbox"
   },
   {
-    "source": "table",
-    "contractMethod": "workspaces via this.db.insert",
-    "caller": "SqliteWorkspaceRepo.insert",
-    "file": "src/features/workspace/repo.sqlite.ts",
-    "line": 24,
-    "coverageClass": "sequential_outbox"
-  },
-  {
     "source": "port",
     "contractMethod": "EventBusPort.subscribe",
     "implementingClass": "InMemoryEventBus",
