@@ -51,4 +51,4 @@ async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   for (const statement of PROJECT_VAULT_STATEMENTS) await kernel.execute(sql.raw(statement));
 }
 
-export const projectVault = (checksum: string): MigrationStep<KyselyKernel<unknown>> => ({ id: PROJECT_VAULT_ID, checksum, up });
+export const projectVault = ({ checksum }: { checksum: string }, _optional: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> => ({ id: PROJECT_VAULT_ID, checksum, up });

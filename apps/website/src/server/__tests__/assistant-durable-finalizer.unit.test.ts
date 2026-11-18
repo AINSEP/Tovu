@@ -9,7 +9,7 @@ import { INCIDENT_PARTIAL } from "#src/assistant/durable-runs/__tests__/incident
 import { EXHAUSTED_NOTICE } from "@jini-ai/chat/server/durable-runs";
 
 test("serving recovery absorbs a daemon lost during restart and finalizes one continued incident message without a browser", async () => {
-  const db = openChatDb(":memory:");
+  const db = openChatDb({ filePath: ":memory:" });
   const ledger = createChatRunLedger({ store: db });
   const history = createChatStoreFactory({ store: db })({ kind: "user", workspaceId: "ws", userId: "admin" });
   const time = 1_790_000_000_000;
@@ -50,7 +50,7 @@ test("serving recovery absorbs a daemon lost during restart and finalizes one co
 // separately over the real durable store: browser hook callbacks cannot prove a SQL commit.
 for (const status of ["failed", "succeeded", "canceled"] as const) {
   test(`the server alone persists a durable ${status} answer with saved work and terminal diagnostics`, async () => {
-    const db = openChatDb(":memory:");
+    const db = openChatDb({ filePath: ":memory:" });
     try {
       const ledger = createChatRunLedger({ store: db });
       const history = createChatStoreFactory({ store: db })({ kind: "user", workspaceId: "ws", userId: "admin" });

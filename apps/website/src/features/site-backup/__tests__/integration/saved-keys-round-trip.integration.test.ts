@@ -85,7 +85,7 @@ for (const placement of ["inSite", "appData"] as const) {
     sourceDb.$client.prepare("INSERT INTO setting_definitions(setting_id,version,namespace,key,owner_kind,schema_json,default_json,scopes,secret,status,created_at,updated_at) VALUES ('saved-secret',1,'core.archive-fixture','secret','core',?,'null',2,1,'active',?,?)").run('{"type":"string"}', "2026-10-31T00:00:00Z", "2026-10-31T00:00:00Z");
     sourceDb.$client.prepare("INSERT INTO setting_values_workspace(setting_id,workspace_id,value_json,state,def_version,seq,updated_by,updated_at) VALUES ('saved-secret','ws',?,'set',1,1,'owner',?)").run(JSON.stringify(settingSecret), "2026-10-31T00:00:00Z");
     const project = await openProjectStore({ sitesHome: h.workspace.home({}), home: h.root }); t.after(() => project.close({}));
-    const projectKernel = openSqliteFileKernel<ContentDatabase>(project.dbPath); t.after(() => projectKernel.close());
+    const projectKernel = openSqliteFileKernel<ContentDatabase>({ filePath: project.dbPath }); t.after(() => projectKernel.close());
     const projectKeys = await createSavedKeysStore({ kernel: projectKernel, ...project.vault });
     await put(projectKeys, "attached", "Attached", projectToken);
     await put(projectKeys, "shadow", "Hosting", "shadowed-project-secret");

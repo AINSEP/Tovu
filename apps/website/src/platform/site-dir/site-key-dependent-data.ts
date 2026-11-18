@@ -45,7 +45,7 @@ export async function findSiteKeyDependentData({ siteDir }: { siteDir: string },
   switch (storage.kind) {
     case "sqlite": {
       const contentDbPath = resolveSiteDatabasePaths({ dir: siteDir }).contentDbPath;
-      return existsSync(contentDbPath) ? findKeyDependentData([contentDbPath]) : false;
+      return existsSync(contentDbPath) ? findKeyDependentData({ dbPaths: [contentDbPath] }) : false;
     }
     case "pglite":
       return pgliteHasKeyDependentData({ dataDir: join(siteDir, PGLITE_DATA_DIR_NAME) });

@@ -96,7 +96,7 @@ export function createTenantScopedChatStore(
 ): ChatHistoryStore {
   return createRunGuardedChatStore({
     isDaemonRunId: ({ runId }) => isDaemonRunId({ runId: runId }),
-    store: createChatHistoryStore({ kernel: chatKernel(db), scope: {
+    store: createChatHistoryStore({ kernel: chatKernel({ store: db }), scope: {
       scopeId: principal.workspaceId, ownerKind: principal.kind,
       ownerId: principal.kind === "user" ? principal.userId : hashSessionKey({ sessionKey: principal.sessionKey }),
     } }),

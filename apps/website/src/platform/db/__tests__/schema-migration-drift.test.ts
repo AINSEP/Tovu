@@ -170,7 +170,7 @@ async function migratedDatabase(): Promise<MigratedDatabase> {
   try {
     // The opener returns the typed Drizzle handle (its pragmas already set); the shape reads below
     // need the raw better-sqlite3 connection underneath it.
-    const db = openSqliteContentConnection(file);
+    const db = openSqliteContentConnection({ filePath: file });
     const sqlite = db.$client;
     try {
       await migrateSqliteContentFile({ db, filePath: file });
@@ -267,9 +267,9 @@ function assertBusyIndex({ sqlite, name, table, columns, partial, query, args }:
 
 test("0038 newsletter busy index matches on fresh and migrated content databases and covers the probe", async () => {
   const fresh = openContentDb(":memory:");
-  const migrated = openSqliteContentConnection(":memory:");
+  const migrated = openSqliteContentConnection({ filePath: ":memory:" });
   try {
-    await migrateContentDatabase(sqliteKernel<unknown>(migrated));
+    await migrateContentDatabase({ kernel: sqliteKernel<unknown>(migrated) });
     for (const db of [fresh, migrated]) assertBusyIndex({ sqlite: db.$client,
       name: "idx_newsletter_campaigns_status", table: "newsletter_campaigns",
       columns: ["workspace_id", "status"], partial: 0,
@@ -280,8 +280,8 @@ test("0038 newsletter busy index matches on fresh and migrated content databases
 });
 
 test("0003 active-run index matches on fresh and migrated chat databases and covers the probe", async () => {
-  const fresh = openChatDb(":memory:");
-  const migrated = await openSiteChatDb(":memory:");
+  const fresh = openChatDb({ filePath: ":memory:" });
+  const migrated = await openSiteChatDb({ filePath: ":memory:" });
   try {
     for (const sqlite of [fresh, migrated]) {
       assertBusyIndex({ sqlite, name: "idx_ai_chat_messages_active", table: "ai_chat_messages",

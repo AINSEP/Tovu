@@ -103,7 +103,7 @@ async function createPreExistingSite(t: TestContext): Promise<string> {
     copyRowsIntoOlderSchema({
       target: db,
       tables: ["workspaces", "posts", "presentation_settings"],
-      populate: (current) => seedContentStore(contentKernel({ store: current }), seed),
+      populate: (current) => seedContentStore({ kernel: contentKernel({ store: current }), ...seed }),
     })
   );
 

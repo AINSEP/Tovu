@@ -132,8 +132,8 @@ function countLine({ table, count }: { table: string; count: number }, _optional
  * @complexity O(1) — a fixed number of string concatenations over three known tables.
  */
 export function formatOrphanedChatRowsWarning(
-  check: OrphanedChatRowsCheck,
-  paths: { contentDbPath: string; chatDbPath: string }
+  { check, ...paths }: { check: OrphanedChatRowsCheck; contentDbPath: string; chatDbPath: string },
+  _optional: Record<string, never> = {}
 ): string {
   if (!check.orphaned) return "";
   const rule = "=".repeat(88);
@@ -182,7 +182,7 @@ export async function warnOnOrphanedChatRows(deps: {
   log?: (message: string) => void;
 }): Promise<OrphanedChatRowsCheck> {
   const check = await checkForOrphanedChatRows({ contentDb: deps.contentDb });
-  const warning = formatOrphanedChatRowsWarning(check, {
+  const warning = formatOrphanedChatRowsWarning({ check,
     contentDbPath: deps.contentDbPath,
     chatDbPath: deps.chatDbPath,
   });

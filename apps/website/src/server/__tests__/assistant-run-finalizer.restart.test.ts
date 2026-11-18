@@ -29,7 +29,7 @@ function deferred() {
 
 for (const missing of ["run-id", "durable-store"] as const) {
   test(`serving boot cancels a row with no ${missing} once and keeps its saved answer`, async () => {
-    const db = openChatDb(":memory:");
+    const db = openChatDb({ filePath: ":memory:" });
     const ledger = createChatRunLedger({ store: db });
     const store = createChatStoreFactory({ store: db })(principal);
     const events = [{ kind: "text" as const, text: "Saved partial" }];
@@ -56,7 +56,7 @@ for (const missing of ["run-id", "durable-store"] as const) {
 }
 
 test("a missing daemon attempt without durable recovery settles canceled instead of stranding its row", async () => {
-  const db = openChatDb(":memory:");
+  const db = openChatDb({ filePath: ":memory:" });
   const ledger = createChatRunLedger({ store: db });
   const store = createChatStoreFactory({ store: db })(principal);
   try {
@@ -78,7 +78,7 @@ test("a missing daemon attempt without durable recovery settles canceled instead
 
 for (const [reason, expectedLaunches] of [["HTTP 400: invalid_request_error", 0], ["HTTP 503: overloaded", 1]] as const) {
   test(`a failed stream uses the shared retryability policy: ${reason}`, async () => {
-    const db = openChatDb(":memory:");
+    const db = openChatDb({ filePath: ":memory:" });
     const store = createChatStoreFactory({ store: db })(principal);
     let launches = 0;
     try {
@@ -106,7 +106,7 @@ for (const [reason, expectedLaunches] of [["HTTP 400: invalid_request_error", 0]
 test("a buffered completed run settles despite a pending checkpoint, and stays succeeded after reopening chat.db", async () => {
   const dir = mkdtempSync(join(tmpdir(), "n08-restart-"));
   const path = join(dir, "chat.db");
-  let db = openChatDb(path);
+  let db = openChatDb({ filePath: path });
   const checkpointEntered = deferred();
   const releaseCheckpoint = deferred();
   const checkpointFinished = deferred();
@@ -171,7 +171,7 @@ test("a buffered completed run settles despite a pending checkpoint, and stays s
     // Let the deliberately late checkpoint finish before physically reopening the database.
     await checkpointFinished.promise;
     db.close();
-    db = openChatDb(path);
+    db = openChatDb({ filePath: path });
     assert.equal(await createChatRunLedger({ store: db }).reconcileInterrupted({ now: 3000 }), 0);
     const reopened = (await createChatStoreFactory({ store: db })(principal).messages({ conversationId: "c1" }))[0]!;
     assert.equal(reopened.runStatus, "succeeded");
@@ -191,7 +191,7 @@ test("a buffered completed run settles despite a pending checkpoint, and stays s
 // assistant-durable-finalizer.unit.test.ts and exercises boot, CAS, reconstruction and completion.
 
 test("an authentication failure keeps its partial answer and never launches a continuation", async () => {
-  const db = openChatDb(":memory:");
+  const db = openChatDb({ filePath: ":memory:" });
   const store = createChatStoreFactory({ store: db })(principal);
   await store.create({ id: "c1" });
   await store.appendMessage({ conversationId: "c1", message: stub });
@@ -217,7 +217,7 @@ test("an authentication failure keeps its partial answer and never launches a co
 });
 
 test("a request-bound run retains its ordinary browser terminal status", async () => {
-  const db = openChatDb(":memory:");
+  const db = openChatDb({ filePath: ":memory:" });
   const store = createChatStoreFactory({ store: db })(principal);
   const ledger = createChatRunLedger({ store: db });
   const byokStub = { ...stub, runId: "byok:run-1" };
@@ -239,7 +239,7 @@ test("a request-bound run retains its ordinary browser terminal status", async (
 });
 
 test("a browser-first restart save of a daemon run stays running, and the finalizer's proof settles it canceled, never failed", async () => {
-  const db = openChatDb(":memory:");
+  const db = openChatDb({ filePath: ":memory:" });
   const store = createChatStoreFactory({ store: db })(principal);
   const ledger = createChatRunLedger({ store: db });
   try {
@@ -264,7 +264,7 @@ test("a browser-first restart save of a daemon run stays running, and the finali
 });
 
 test("an unknown daemon terminal snapshot cannot create a server-owned message", async () => {
-  const db = openChatDb(":memory:");
+  const db = openChatDb({ filePath: ":memory:" });
   const store = createChatStoreFactory({ store: db })(principal);
   try {
     await store.create({ id: "c1" });

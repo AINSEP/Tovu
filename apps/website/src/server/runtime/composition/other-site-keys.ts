@@ -97,7 +97,7 @@ export function createOtherSiteKeys({ target, project }: { target: Target; proje
   async function readSource<T>({ source, read }: { source: Source; read: (input: { kernel: ContentKernel; workspaceId: string; rows: MetaRow[]; keyStatus: boolean; keyring: EnvOrFileKeyring }) => Promise<T> }): Promise<T> {
     if (resolveSiteStorage({ siteDir: source.dir }).kind !== "sqlite") throw refused({ message: couldNotRead({ site: source.name }) });
     const resolved = resolveSiteDatabasePaths({ dir: source.dir }, { workspace, reserveIdentity: false });
-    const kernel = openSource<SecretsVaultDatabase>(resolved.contentDbPath, { readOnly: true });
+    const kernel = openSource<SecretsVaultDatabase>({ filePath: resolved.contentDbPath }, { readOnly: true });
     try {
       const empty = !(await tableExists(kernel, "secrets_vault"));
       const workspaceId = empty ? "" : (await resolveWorkspace({ kernel: kernel as unknown as ContentKernel })).id;

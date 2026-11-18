@@ -91,7 +91,7 @@ test("a migrated SQLite content.db has every generated table and column, with co
     generated.set(block[1]!, columns);
   }
   // Built the way a site's boot builds it: the migration runner (R1h), not the sync Drizzle opener.
-  const db = openSqliteContentConnection(":memory:");
+  const db = openSqliteContentConnection({ filePath: ":memory:" });
   await migrateSqliteContentFile({ db, filePath: ":memory:" });
   const sqlite = sqliteKernel(db);
   const tables = await listTables(sqlite);

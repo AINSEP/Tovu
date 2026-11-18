@@ -350,10 +350,10 @@ async function createSqliteSiteStore(
   progress.createdExternalDbDir = Boolean(externalDbDir);
   await verifiedRestore?.restore({ dir: target, dbPath, siteId });
   verifiedRestore?.signal?.throwIfAborted();
-  const db = openSqliteContentConnection(dbPath);
+  const db = openSqliteContentConnection({ filePath: dbPath });
   try {
-    await migrateContentDatabase(sqliteKernel<unknown>(db));
-    if (!verifiedRestore) await prepareContentStore(contentKernel({ store: db }), { seed });
+    await migrateContentDatabase({ kernel: sqliteKernel<unknown>(db) });
+    if (!verifiedRestore) await prepareContentStore({ kernel: contentKernel({ store: db }) }, { seed });
     // A freshly initialized site must already carry current repair markers, so its first boot
     // does not mutate content.db merely to record a no-op repair. Older sites still repair on boot.
     await deps.runBootDataRepairs({ kernel: contentKernel({ store: db }) });
@@ -440,7 +440,7 @@ async function assertPostgresTargetEmpty({ postgres }: { postgres: PostgresTarge
   if (!postgres) return;
   const kernel = openPostgresKernel<unknown>({ connectionString: postgres.url.trim(), max: 1 });
   try {
-    const occupied = await nonEmptyTables(kernel);
+    const occupied = await nonEmptyTables({ kernel });
     if (occupied.length === 0) return;
     const named = occupied.slice(0, 5).join(", ") + (occupied.length > 5 ? `, and ${occupied.length - 5} more` : "");
     throw new ValidationError(

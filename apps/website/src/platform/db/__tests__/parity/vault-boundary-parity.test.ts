@@ -82,7 +82,7 @@ describe("vault boundary parity [sqlite]", () => {
 describe("vault boundary parity [pglite]", () => {
   test("the key-dependent-data probe gives the same answer on the upgraded rows", async () => {
     const fixture = await migratedParityFixture("pglite");
-    try { assert.equal(await mods.keyDependent.hasKeyDependentData(fixture.kernel), golden.keyDependent); }
+    try { assert.equal(await mods.keyDependent.hasKeyDependentData({ kernel: fixture.kernel }), golden.keyDependent); }
     finally { await fixture.kernel.close(); }
   });
 });

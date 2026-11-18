@@ -98,7 +98,7 @@ describeEachDialect("OriginSettingRepoPort (SQL)", { tables: ["origin_settings"]
     "sql",
     () => {
       const kernel = makeKernel();
-      const seeded = seedDevCapabilityOriginOn(kernel, { workspaceId: WORKSPACE_ID, origin: seedOrigin(), redirectAllowlist: ["Allowed.example"], egressAllowlist: ["api.example.com"] });
+      const seeded = seedDevCapabilityOriginOn({ kernel, workspaceId: WORKSPACE_ID, origin: seedOrigin() }, { redirectAllowlist: ["Allowed.example"], egressAllowlist: ["api.example.com"] });
       return new SqliteOriginSettingRepo({ store: kernel }, { after: seeded });
     },
     () => new SqliteOriginSettingRepo({ store: makeKernel() })
@@ -106,11 +106,11 @@ describeEachDialect("OriginSettingRepoPort (SQL)", { tables: ["origin_settings"]
 
   test("seedDevCapabilityOrigin is idempotent — a second call never overwrites an existing row", async () => {
     const kernel = makeKernel();
-    await seedDevCapabilityOriginOn(kernel, { workspaceId: WORKSPACE_ID, origin: seedOrigin() });
+    await seedDevCapabilityOriginOn({ kernel, workspaceId: WORKSPACE_ID, origin: seedOrigin() });
 
     // A different candidate origin — must NOT clobber the first seed (protects a future real
     // verification flow's write from being silently overwritten by a re-run of this boot seed).
-    await seedDevCapabilityOriginOn(kernel, {
+    await seedDevCapabilityOriginOn({ kernel,
       workspaceId: WORKSPACE_ID,
       origin: createVerifiedOrigin({ scheme: "http", host: "some-other-host", verifiedAt: "2099-01-01T00:00:00.000Z", source: "dev-capability" }),
     });
@@ -122,15 +122,15 @@ describeEachDialect("OriginSettingRepoPort (SQL)", { tables: ["origin_settings"]
 
   test("dev loopback seeds follow scheme and port changes while preserving allowlists and idempotency", async () => {
     const kernel = makeKernel();
-    await seedDevCapabilityOriginOn(kernel, { workspaceId: WORKSPACE_ID, origin: DEV_CAPABILITY_ROW,
+    await seedDevCapabilityOriginOn({ kernel, workspaceId: WORKSPACE_ID, origin: DEV_CAPABILITY_ROW }, {
       redirectAllowlist: ["owner.example"], egressAllowlist: ["api.owner.example"] });
     const changed = createVerifiedOrigin({ ...DEV_CAPABILITY_ROW, scheme: "https", port: 3001, verifiedAt: "2026-10-24T00:00:00.000Z" });
-    await seedDevCapabilityOriginOn(kernel, { workspaceId: WORKSPACE_ID, origin: changed });
+    await seedDevCapabilityOriginOn({ kernel, workspaceId: WORKSPACE_ID, origin: changed });
     const repo = new SqliteOriginSettingRepo({ store: kernel });
     assert.deepEqual(await repo.findByWorkspaceId({ workspaceId: WORKSPACE_ID }), changed);
     assert.deepEqual(await repo.findRedirectAllowlist({ workspaceId: WORKSPACE_ID }), ["owner.example"]);
     assert.deepEqual(await repo.findEgressAllowlist({ workspaceId: WORKSPACE_ID }), ["api.owner.example"]);
-    await seedDevCapabilityOriginOn(kernel, { workspaceId: WORKSPACE_ID, origin: { ...changed, verifiedAt: "2099-01-01T00:00:00.000Z" } });
+    await seedDevCapabilityOriginOn({ kernel, workspaceId: WORKSPACE_ID, origin: { ...changed, verifiedAt: "2099-01-01T00:00:00.000Z" } });
     assert.deepEqual(await repo.findByWorkspaceId({ workspaceId: WORKSPACE_ID }), changed, "unchanged listener does not churn its stamp");
   });
 
@@ -142,14 +142,14 @@ describeEachDialect("OriginSettingRepoPort (SQL)", { tables: ["origin_settings"]
     test(`dev seed preserves ${origin.source} origin on ${origin.host}`, async () => {
       const kernel = makeKernel();
       await registerConfiguredOrigin({ db: kernel, workspaceId: WORKSPACE_ID, origin });
-      await seedDevCapabilityOriginOn(kernel, { workspaceId: WORKSPACE_ID, origin: { ...DEV_CAPABILITY_ROW, scheme: "https", port: 3001 } });
+      await seedDevCapabilityOriginOn({ kernel, workspaceId: WORKSPACE_ID, origin: { ...DEV_CAPABILITY_ROW, scheme: "https", port: 3001 } });
       assert.deepEqual(await new SqliteOriginSettingRepo({ store: kernel }).findByWorkspaceId({ workspaceId: WORKSPACE_ID }), origin);
     });
   }
 
   test("reads wait for the boot write they are given, and fail when it failed", async () => {
     const kernel = makeKernel();
-    const seeded = seedDevCapabilityOriginOn(kernel, { workspaceId: WORKSPACE_ID, origin: seedOrigin() });
+    const seeded = seedDevCapabilityOriginOn({ kernel, workspaceId: WORKSPACE_ID, origin: seedOrigin() });
     assert.equal((await new SqliteOriginSettingRepo({ store: kernel }, { after: seeded }).findByWorkspaceId({ workspaceId: WORKSPACE_ID }))?.host, "example.com");
     const failed = Promise.reject(new Error("boot write failed"));
     await assert.rejects(new SqliteOriginSettingRepo({ store: kernel }, { after: failed }).findEgressAllowlist({ workspaceId: WORKSPACE_ID }), /boot write failed/);
@@ -184,8 +184,8 @@ describeEachDialect("OriginSettingRepoPort (SQL)", { tables: ["origin_settings"]
   test("all origin reads isolate two populated workspaces and a missing workspace", async () => {
     const kernel = makeKernel();
     const other = configuredOrigin("other.example");
-    await seedDevCapabilityOriginOn(kernel, { workspaceId: WORKSPACE_ID, origin: seedOrigin(), redirectAllowlist: ["allowed.example"], egressAllowlist: ["api.example.com"] });
-    await seedDevCapabilityOriginOn(kernel, { workspaceId: "workspace-2", origin: other, redirectAllowlist: ["redirect.other.example"], egressAllowlist: ["api.other.example"] });
+    await seedDevCapabilityOriginOn({ kernel, workspaceId: WORKSPACE_ID, origin: seedOrigin() }, { redirectAllowlist: ["allowed.example"], egressAllowlist: ["api.example.com"] });
+    await seedDevCapabilityOriginOn({ kernel, workspaceId: "workspace-2", origin: other }, { redirectAllowlist: ["redirect.other.example"], egressAllowlist: ["api.other.example"] });
     const repo = new SqliteOriginSettingRepo({ store: kernel });
     for (const [workspaceId, origin, redirects, egress] of [
       [WORKSPACE_ID, seedOrigin(), ["allowed.example"], ["api.example.com"]],
@@ -204,7 +204,7 @@ describeEachDialect("OriginSettingRepoPort (SQL)", { tables: ["origin_settings"]
   // must correct it in place on the next deploy, with no migration.
   test("registerConfiguredOrigin corrects a poisoned dev-capability localhost row in place", async () => {
     const kernel = makeKernel();
-    await seedDevCapabilityOriginOn(kernel, { workspaceId: WORKSPACE_ID, origin: DEV_CAPABILITY_ROW });
+    await seedDevCapabilityOriginOn({ kernel, workspaceId: WORKSPACE_ID, origin: DEV_CAPABILITY_ROW });
 
     assert.equal(await registerConfiguredOrigin({ db: kernel, workspaceId: WORKSPACE_ID, origin: configuredOrigin() }), "updated");
 
@@ -218,9 +218,9 @@ describeEachDialect("OriginSettingRepoPort (SQL)", { tables: ["origin_settings"]
   // with no relationship to the origin bug. This is the assertion that pins the narrow UPDATE.
   test("registerConfiguredOrigin preserves both allowlists when it corrects an existing row", async () => {
     const kernel = makeKernel();
-    await seedDevCapabilityOriginOn(kernel, {
+    await seedDevCapabilityOriginOn({ kernel,
       workspaceId: WORKSPACE_ID,
-      origin: DEV_CAPABILITY_ROW,
+      origin: DEV_CAPABILITY_ROW }, {
       redirectAllowlist: ["Allowed.example"],
       egressAllowlist: ["api.example.com"],
     });

@@ -11,7 +11,7 @@ import { bootstrapFreshContentDb } from "../fresh-content-db.js";
 const BEHIND = "fresh content bootstrap is behind CONTENT_MIGRATIONS; update its fresh-only operations and schema parity guard";
 const tables = (db: ContentDb) => (db.$client.prepare("SELECT name FROM sqlite_schema WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all() as Array<{ name: string }>).map(row => row.name);
 function withDb(work: (db: ContentDb) => void) {
-  const db = openSqliteContentConnection(":memory:");
+  const db = openSqliteContentConnection({ filePath: ":memory:" });
   try { work(db); } finally { db.$client.close(); }
 }
 
@@ -23,7 +23,7 @@ test("an empty database is built at head with both ledgers in step order", () =>
   assert.deepEqual(ledger.map(row => [row.id, row.checksum]), CONTENT_MIGRATIONS.map(step => [step.id, step.checksum]));
   for (const row of ledger) assert.ok(row.applied_at >= before && row.applied_at <= after, row.applied_at);
   const drizzle = db.$client.prepare("SELECT hash, created_at FROM __drizzle_migrations ORDER BY id").all() as Array<{ hash: string; created_at: number }>;
-  assert.deepEqual(drizzle.map(row => [row.hash, Number(row.created_at)]), readFrozenChain().map(entry => [entry.hash, entry.when]));
+  assert.deepEqual(drizzle.map(row => [row.hash, Number(row.created_at)]), readFrozenChain({}).map(entry => [entry.hash, entry.when]));
   const names = tables(db);
   for (const dropped of ["ai_chats", "ai_chat_messages", "assistant_agent_sessions", "deployment_runs", "releases", "oauth_pending_authorizations", "publish_credential_sets", "admin_execution_credentials"]) assert.equal(names.includes(dropped), false, dropped);
   for (const added of ["publish_backstop_log", "form_submissions", "media", "secrets_vault", "oauth_device_authorizations"]) assert.equal(names.includes(added), true, added);

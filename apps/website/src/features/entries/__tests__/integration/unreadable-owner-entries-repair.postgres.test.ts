@@ -44,15 +44,15 @@ test("two processes booting at once: the mismatched rows go exactly once, one ma
   const url = freshPostgresDatabase(DATABASE);
   const [api, daemon] = [0, 1].map(() => openPostgresKernel<ContentDatabase>({ connectionString: url }));
   opened.push(api!, daemon!);
-  await migrateContentDatabase(api as unknown as KyselyKernel<unknown>);
-  await prepareContentStore(api!);
+  await migrateContentDatabase({ kernel: api as unknown as KyselyKernel<unknown> });
+  await prepareContentStore({ kernel: api! });
   await insertEntry(api!, "probe-widget", "widget", { ext: { site: { payload: "probe" } } });
   await insertEntry(api!, "probe-area", "widget_area", { ext: { site: { payload: "probe" } } });
   await insertEntry(api!, "valid-widget", "widget", { ext: { widget: { payload: "{}" } } });
   await insertEntry(api!, "both-widget", "widget", { ext: { widget: { payload: "{}" }, site: { payload: "stray" } } });
   await insertEntry(api!, "recipe", "recipe", { ext: { site: { servings: 2 } } });
 
-  const results = await Promise.all([api!, daemon!].map((kernel) => removeUnreadableOwnerEntries({ stampWatermark: kernelStampWatermark(kernel), kernel }, { log: () => {} })));
+  const results = await Promise.all([api!, daemon!].map((kernel) => removeUnreadableOwnerEntries({ stampWatermark: kernelStampWatermark({ kernel }), kernel }, { log: () => {} })));
 
   assert.deepEqual(results.map((result) => result.ran).sort(), [false, true], "the second runner waits on the lock, then sees the marker");
   const winner = results.find((result) => result.ran)!;

@@ -47,7 +47,7 @@ async function pgSnapshot(target: ContentKernel): Promise<Record<string, Row[]>>
 before(async () => {
   connectionString = freshPostgresDatabase(database);
   kernel = openPostgresKernel<ContentDatabase>({ connectionString });
-  await migrateContentDatabase(kernel as KyselyKernel<unknown>);
+  await migrateContentDatabase({ kernel: kernel as KyselyKernel<unknown> });
   await ensureVaultRepoFixture({ kernel });
   const rows = await fixtureRows();
   for (const [table] of FROZEN_TABLES) {

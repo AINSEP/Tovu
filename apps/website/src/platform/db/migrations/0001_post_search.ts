@@ -36,4 +36,4 @@ async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   for (const statement of STATEMENTS) await kernel.execute(statement);
 }
 
-export const postSearch = (checksum: string): MigrationStep<KyselyKernel<unknown>> => ({ id: POST_SEARCH_ID, checksum, up });
+export const postSearch = ({ checksum }: { checksum: string }, _optional: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> => ({ id: POST_SEARCH_ID, checksum, up });

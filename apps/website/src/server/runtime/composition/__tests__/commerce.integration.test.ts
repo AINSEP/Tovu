@@ -67,7 +67,7 @@ async function fixture(t: test.TestContext, dialect: 'sqlite' | 'pglite') {
     finally { await rm(root, { recursive: true, force: true }); }
   });
   const open = () => dialect === 'sqlite'
-    ? openSqliteFileKernel<unknown>(path.join(root, 'content.db'))
+    ? openSqliteFileKernel<unknown>({ filePath: path.join(root, 'content.db') })
     : openPgliteKernel<unknown>({ dataDir: path.join(root, 'content-pg') });
   kernel = open();
   const clock = { nowMs: () => 1_800_000_000_000 };

@@ -25,13 +25,13 @@ export const LEGACY_BASELINE_ID = "0000_legacy_baseline";
 
 /** What the step applies: the frozen chain's hashes and the Postgres statements. */
 export function legacyBaselineChecksum(): string {
-  const sqlite = readFrozenChain().map((entry) => [entry.tag, entry.hash]);
+  const sqlite = readFrozenChain({}).map((entry) => [entry.tag, entry.hash]);
   return crypto.createHash("sha256").update(JSON.stringify({ sqlite, postgres: POSTGRES_BASELINE })).digest("hex");
 }
 
 async function up(kernel: KyselyKernel<unknown>, context: MigrationContext): Promise<void> {
   if (kernel.dialect === "sqlite") {
-    await adoptLegacySqlite(kernel, context.note);
+    await adoptLegacySqlite({ kernel, note: context.note });
     return;
   }
   const existing = (await listTables(kernel)).filter((name) => name !== LEDGER_TABLE);
@@ -44,4 +44,4 @@ async function up(kernel: KyselyKernel<unknown>, context: MigrationContext): Pro
   for (const statement of POSTGRES_BASELINE) await kernel.execute(sql.raw(statement));
 }
 
-export const legacyBaseline = (checksum: string): MigrationStep<KyselyKernel<unknown>> => ({ id: LEGACY_BASELINE_ID, checksum, up });
+export const legacyBaseline = ({ checksum }: { checksum: string }, _optional: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> => ({ id: LEGACY_BASELINE_ID, checksum, up });

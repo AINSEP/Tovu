@@ -152,7 +152,7 @@ test("openContentDbReadOnly: throws rather than creating a new file when the pat
 test("a refused file migration preserves the database and keeps both the pre-change copy and earlier backups", async () => {
   const scratch = tmpDir("content-db-migration-failure-");
   const dbPath = buildOneMigrationBehindDb(scratch);
-  const db = openSqliteContentConnection(dbPath);
+  const db = openSqliteContentConnection({ filePath: dbPath });
   const ops = path.join(scratch, "ops");
   fs.mkdirSync(ops);
   const oldName = `${MIGRATION_BACKUP_PREFIX}2000-01-01T00-00-00-000Z.db`;

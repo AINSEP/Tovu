@@ -375,7 +375,7 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
     paths: ReturnType<typeof resolveSiteDatabasePaths>;
     request: Parameters<PeerSiteReads['resolve']>[0];
   }, _options = {}): Promise<PeerBag> => {
-    const kernel = openContent<ContentDatabase>(paths.contentDbPath, { readOnly: true });
+    const kernel = openContent<ContentDatabase>({ filePath: paths.contentDbPath }, { readOnly: true });
     let chat: ReturnType<typeof openChat> | undefined, journal: ReturnType<typeof openContent<JournalDatabase>> | undefined;
     try {
       const introspection = new SqliteDatabaseIntrospectionAdapter({ db: kernel, dbPath: paths.contentDbPath });
@@ -395,7 +395,7 @@ export function createPeerSiteReads({ currentSiteDir }: { currentSiteDir: string
       chat = openChat(paths.chatDbPath, chatOptions);
       const journalPath = path.join(path.dirname(paths.contentDbPath), 'ops', 'database-journal.db');
       if (!fs.existsSync(journalPath)) throw new ToolInputError({ message: "This site's database journal is missing. Open the site in Tovu first." });
-      journal = openContent<JournalDatabase>(journalPath, { readOnly: true });
+      journal = openContent<JournalDatabase>({ filePath: journalPath }, { readOnly: true });
       const deps = await composePeer({ source, contentDbPath: paths.contentDbPath, kernel, chat, journal, introspection, ownerId: owner.principal_id, workspaceId });
       const registrations = new Map(request.buildRegistrations({ deps }).filter(registration => isReadOnlyTool({ descriptor: registration.descriptor })).map(registration => [registration.descriptor.id, registration]));
       const peerChat = chat, peerJournal = journal;

@@ -235,7 +235,7 @@ export async function openProjectStore(
   const db = openProjectDb({ dbPath });
   const kernel = sqliteKernel<SecretsVaultDatabase>(db);
   try {
-    await migrateProjectDatabase(kernel as unknown as KyselyKernel<unknown>);
+    await migrateProjectDatabase({ kernel: kernel as unknown as KyselyKernel<unknown> });
   } catch (error) {
     closeSqliteConnection(db);
     throw error;

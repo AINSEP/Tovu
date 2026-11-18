@@ -42,7 +42,7 @@ export interface LegacyEntry {
 }
 
 /** The frozen entries, in order. Throws when `drizzle/` no longer matches the freeze. */
-export function readFrozenChain(dir: string = LEGACY_DRIZZLE_DIR): LegacyEntry[] {
+export function readFrozenChain(_required: Record<string, never>, { dir = LEGACY_DRIZZLE_DIR }: { dir?: string } = {}): LegacyEntry[] {
   const journal = JSON.parse(fs.readFileSync(path.join(dir, "meta/_journal.json"), "utf8")) as {
     entries: Array<{ idx: number; tag: string; when: number }>;
   };
@@ -89,7 +89,7 @@ export class LegacyHistoryError extends Error {
  * @throws LegacyHistoryError for tables without any drizzle history, a recorded hash that is not in
  *   the chain (an edited or foreign migration), or an entry missing BEFORE the last applied one.
  */
-export async function reconcileLegacyHistory(kernel: KyselyKernel<unknown>, chain: readonly LegacyEntry[]): Promise<LegacyReconciliation> {
+export async function reconcileLegacyHistory({ kernel, chain }: { kernel: KyselyKernel<unknown>; chain: readonly LegacyEntry[] }, _optional: Record<string, never> = {}): Promise<LegacyReconciliation> {
   const tables = (await listTables(kernel)).filter((name) => name !== LEDGER_TABLE);
   if (!tables.includes(DRIZZLE_TABLE)) {
     if (tables.length > 0) {
@@ -114,7 +114,7 @@ export async function reconcileLegacyHistory(kernel: KyselyKernel<unknown>, chai
 }
 
 /** Applies `entries` with drizzle's statement semantics, recording each in `__drizzle_migrations`. */
-export async function applyLegacyEntries(kernel: KyselyKernel<unknown>, entries: readonly LegacyEntry[]): Promise<void> {
+export async function applyLegacyEntries({ kernel, entries }: { kernel: KyselyKernel<unknown>; entries: readonly LegacyEntry[] }, _optional: Record<string, never> = {}): Promise<void> {
   // Drizzle's own ledger DDL, verbatim (its `SERIAL` id is not a rowid alias on SQLite; ids stay null).
   await kernel.execute(sql`CREATE TABLE IF NOT EXISTS ${sql.table(DRIZZLE_TABLE)} (id SERIAL PRIMARY KEY, hash text NOT NULL, created_at numeric)`);
   for (const entry of entries) {
@@ -128,10 +128,10 @@ const DROPPABLE = new Set(CHAT_TABLE_NAMES);
 const BOOKKEEPING = [DRIZZLE_TABLE, LEDGER_TABLE];
 
 /** The chain's head schema, built fresh in memory. */
-export async function frozenHeadShape(chain: readonly LegacyEntry[]): Promise<SchemaShape> {
+export async function frozenHeadShape({ chain }: { chain: readonly LegacyEntry[] }, _optional: Record<string, never> = {}): Promise<SchemaShape> {
   const scratch = openMemorySqliteKernel<unknown>();
   try {
-    await scratch.transaction(async () => applyLegacyEntries(scratch, chain));
+    await scratch.transaction(async () => applyLegacyEntries({ kernel: scratch, entries: chain }));
     return await readSchemaShape(scratch, { exclude: BOOKKEEPING });
   } finally {
     await scratch.close();
@@ -165,7 +165,7 @@ function compareTableParts({ name, want, have }: {
 }
 
 /** `actual` against `expected`, table by table, in both directions for shared tables. */
-export function compareShapes(expected: SchemaShape, actual: SchemaShape, optional: { optionalTables?: ReadonlySet<string> } = {}): ShapeDifference {
+export function compareShapes({ expected, actual }: { expected: SchemaShape; actual: SchemaShape }, optional: { optionalTables?: ReadonlySet<string> } = {}): ShapeDifference {
   const problems: string[] = [];
   for (const [name, want] of Object.entries(expected.tables)) {
     const have = actual.tables[name];
@@ -185,15 +185,15 @@ export function compareShapes(expected: SchemaShape, actual: SchemaShape, option
  * The SQLite `up` of `0000_legacy_baseline`: reconcile, apply the missing tail, verify against the
  * chain's head built fresh. Runs inside the runner's transaction (a failure rolls the tail back).
  */
-export async function adoptLegacySqlite(kernel: KyselyKernel<unknown>, note: (message: string) => void): Promise<void> {
-  const chain = readFrozenChain();
-  const state = await reconcileLegacyHistory(kernel, chain);
-  await applyLegacyEntries(kernel, state.pending);
+export async function adoptLegacySqlite({ kernel, note }: { kernel: KyselyKernel<unknown>; note: (message: string) => void }, _optional: Record<string, never> = {}): Promise<void> {
+  const chain = readFrozenChain({});
+  const state = await reconcileLegacyHistory({ kernel, chain });
+  await applyLegacyEntries({ kernel, entries: state.pending });
   const [firstPending] = state.pending;
   if (!state.fresh && firstPending !== undefined) {
     note(`applied legacy migrations ${firstPending.tag} … ${state.pending.at(-1)?.tag} (${state.pending.length})`);
   }
-  const difference = compareShapes(await frozenHeadShape(chain), await readSchemaShape(kernel, { exclude: BOOKKEEPING }), {
+  const difference = compareShapes({ expected: await frozenHeadShape({ chain }), actual: await readSchemaShape(kernel, { exclude: BOOKKEEPING }) }, {
     optionalTables: DROPPABLE,
   });
   if (difference.problems.length > 0) {

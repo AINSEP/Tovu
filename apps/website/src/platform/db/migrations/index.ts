@@ -76,10 +76,10 @@ function pinned(id: string): string {
 }
 
 export const CONTENT_MIGRATIONS: readonly MigrationStep<KyselyKernel<unknown>>[] = [
-  legacyBaseline(pinned("0000_legacy_baseline")),
-  postSearch(pinned("0001_post_search")),
-  dropEmptyLegacyChatTables(pinned("0002_drop_empty_legacy_chat_tables")),
-  coercionJsonAsJson(pinned("0003_coercion_json_as_json")),
+  legacyBaseline({ checksum: pinned("0000_legacy_baseline") }),
+  postSearch({ checksum: pinned("0001_post_search") }),
+  dropEmptyLegacyChatTables({ checksum: pinned("0002_drop_empty_legacy_chat_tables") }),
+  coercionJsonAsJson({ checksum: pinned("0003_coercion_json_as_json") }),
   dropUnusedDeploymentTables({ checksum: pinned("0004_drop_unused_deployment_tables") }),
   mediaCreatedBy({ checksum: pinned("0005_media_createdby") }),
   submissionIpRetentionMigration({ checksum: pinned("0006_submission_ip_retention") }),
@@ -123,8 +123,8 @@ export const CONTENT_MIGRATIONS: readonly MigrationStep<KyselyKernel<unknown>>[]
 ];
 
 export const CHAT_MIGRATIONS: readonly MigrationStep<KyselyKernel<unknown>>[] = [
-  chatBaseline(pinned("chat/0000_chat_baseline")),
-  sqliteChatTables(pinned("chat/0001_sqlite_chat_tables")),
+  chatBaseline({ checksum: pinned("chat/0000_chat_baseline") }),
+  sqliteChatTables({ checksum: pinned("chat/0001_sqlite_chat_tables") }),
   durableRunAttempts({ checksum: pinned("chat/0002_durable_run_attempts") }, {}),
   activeRunIndex({ checksum: pinned("chat/0003_active_run_index") }, {}),
 ];
@@ -132,8 +132,8 @@ export const CHAT_MIGRATIONS: readonly MigrationStep<KyselyKernel<unknown>>[] = 
 /** `project.db`'s own history (files under `project/`, pinned as `project/NNNN_name`). */
 export const PROJECT_LEDGER_TABLE = "tovu_project_migrations";
 export const PROJECT_MIGRATIONS: readonly MigrationStep<KyselyKernel<unknown>>[] = [
-  projectVault(pinned("project/0000_project_vault")),
-  projectCredentialKinds(pinned("project/0001_project_credential_kinds")),
+  projectVault({ checksum: pinned("project/0000_project_vault") }),
+  projectCredentialKinds({ checksum: pinned("project/0001_project_credential_kinds") }),
   siteKeyAttachments({ checksum: pinned("project/0002_site_key_attachments") }),
 ];
 
@@ -148,21 +148,21 @@ export const COMMERCE_MIGRATIONS: readonly MigrationStep<KyselyKernel<unknown>>[
  * @complexity One bounded schema step on first activation, one ledger read thereafter.
  */
 export function migrateCommerceDatabase({ kernel }: { kernel: KyselyKernel<unknown> }, _optional: Record<string, never> = {}): Promise<MigrationReport> {
-  return runMigrations(kernel, COMMERCE_MIGRATIONS, { ledgerTable: COMMERCE_LEDGER_TABLE });
+  return runMigrations({ kernel, steps: COMMERCE_MIGRATIONS }, { ledgerTable: COMMERCE_LEDGER_TABLE });
 }
 
 /** Brings a project database (`project.db`, SQLite; see `project-store.ts`) to head. */
-export function migrateProjectDatabase(kernel: KyselyKernel<unknown>): Promise<MigrationReport> {
-  return runMigrations(kernel, PROJECT_MIGRATIONS, { ledgerTable: PROJECT_LEDGER_TABLE });
+export function migrateProjectDatabase({ kernel }: { kernel: KyselyKernel<unknown> }, _optional: Record<string, never> = {}): Promise<MigrationReport> {
+  return runMigrations({ kernel, steps: PROJECT_MIGRATIONS }, { ledgerTable: PROJECT_LEDGER_TABLE });
 }
 
 /** Brings a content database (any dialect) to head. See `runner.ts`. */
-export function migrateContentDatabase(kernel: KyselyKernel<unknown>, optional: {
+export function migrateContentDatabase({ kernel }: { kernel: KyselyKernel<unknown> }, optional: {
   backupPath?: string;
   onBackupError?: (input: { error: unknown; backupPath: string }) => void;
   onBackupComplete?: (input: { backupPath: string }) => Promise<void>;
 } = {}): Promise<MigrationReport> {
-  return runMigrations(kernel, CONTENT_MIGRATIONS, { ...optional, ledgerTable: LEDGER_TABLE });
+  return runMigrations({ kernel, steps: CONTENT_MIGRATIONS }, { ...optional, ledgerTable: LEDGER_TABLE });
 }
 
 /**
@@ -170,9 +170,9 @@ export function migrateContentDatabase(kernel: KyselyKernel<unknown>, optional: 
  * kernel; tables and ledger `tovu_chat_migrations` in the `ai_chat` schema. SQLite: `kernel` is the
  * site's `chat.db`; same ledger, no schema.
  */
-export function migrateChatDatabase(kernel: KyselyKernel<unknown>): Promise<MigrationReport> {
+export function migrateChatDatabase({ kernel }: { kernel: KyselyKernel<unknown> }, _optional: Record<string, never> = {}): Promise<MigrationReport> {
   const schema = kernel.dialect === "postgres" ? AI_CHAT_SCHEMA : undefined;
-  return runMigrations(kernel, CHAT_MIGRATIONS, { ledgerTable: CHAT_LEDGER_TABLE, schema });
+  return runMigrations({ kernel, steps: CHAT_MIGRATIONS }, { ledgerTable: CHAT_LEDGER_TABLE, schema });
 }
 
 export { type MigrationOptions, type MigrationReport, runMigrations } from "./runner.js";

@@ -56,14 +56,14 @@ test("two connections migrating at once apply a step exactly once", async () => 
       await new Promise((resolve) => setTimeout(resolve, 150));
     },
   };
-  const [a, b] = await Promise.all([runMigrations(first, [slow]), runMigrations(second, [slow])]);
+  const [a, b] = await Promise.all([runMigrations({ kernel: first, steps: [slow] }), runMigrations({ kernel: second, steps: [slow] })]);
   assert.equal(runs, 1);
   assert.deepEqual([...a.applied, ...b.applied], ["0001_slow"]);
   assert.deepEqual([...a.alreadyApplied, ...b.alreadyApplied], ["0001_slow"]);
 });
 
 test("the content history through the current head applies on real Postgres", async () => {
-  const report = await migrateContentDatabase(baseline);
+  const report = await migrateContentDatabase({ kernel: baseline });
   // Pinned literally: deriving both sides from CONTENT_MIGRATIONS would let a dropped step pass.
   const head = [
     "0000_legacy_baseline", "0001_post_search", "0002_drop_empty_legacy_chat_tables",
@@ -98,11 +98,11 @@ test("the content history through the current head applies on real Postgres", as
   assert.deepEqual(await baseline.query(sql`SELECT udt_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'publish_history' AND column_name = 'config_fields_json'`), [{ udt_name: "jsonb" }]);
   const [{ cfg }] = await baseline.query<{ cfg: number }>(sql`SELECT count(*)::int AS cfg FROM pg_ts_config WHERE cfgname = 'tovu_search'`);
   assert.equal(cfg, 1);
-  assert.deepEqual((await migrateContentDatabase(baseline)).applied, [], "a rerun applies nothing");
+  assert.deepEqual((await migrateContentDatabase({ kernel: baseline })).applied, [], "a rerun applies nothing");
 });
 
 test("the chat history lands in ai_chat with its own ledger there; public gets no chat table", async () => {
-  const report = await migrateChatDatabase(baseline);
+  const report = await migrateChatDatabase({ kernel: baseline });
   assert.deepEqual(report.applied, ["0000_chat_baseline", "0001_sqlite_chat_tables", "0002_durable_run_attempts", "0003_active_run_index"]);
   const [busyIndex] = await baseline.query<{ indexdef: string }>(sql`SELECT indexdef FROM pg_indexes
     WHERE schemaname = 'ai_chat' AND indexname = 'idx_ai_chat_messages_active'`);
@@ -123,5 +123,5 @@ test("the chat history lands in ai_chat with its own ledger there; public gets n
   ]);
   const contentSteps = await baseline.query<{ id: string }>(sql`SELECT id FROM tovu_migrations ORDER BY id`);
   assert.deepEqual(contentSteps.map(({ id }) => id), CONTENT_MIGRATIONS.map(({ id }) => id).sort(), "the content ledger holds exactly the current content steps, without chat steps");
-  assert.deepEqual((await migrateChatDatabase(baseline)).applied, [], "a rerun applies nothing");
+  assert.deepEqual((await migrateChatDatabase({ kernel: baseline })).applied, [], "a rerun applies nothing");
 });

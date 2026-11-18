@@ -65,7 +65,7 @@ after(async () => {
 export function sharedPgContentKernel(): PgContentKernel {
   if (sharedPg === undefined) {
     const base = openPgliteKernel<ContentDatabase>();
-    const migrated = migrateContentDatabase(base as KyselyKernel<unknown>).then(() => undefined);
+    const migrated = migrateContentDatabase({ kernel: base as KyselyKernel<unknown> }).then(() => undefined);
     migrated.catch(() => {});
     sharedPg = heldUntil(base, migrated);
   }

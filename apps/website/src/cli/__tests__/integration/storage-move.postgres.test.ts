@@ -28,7 +28,7 @@ import { runStorageMoveCommand } from "../../commands/storage-move.js";
 
 async function counts(kernel: KyselyKernel<unknown>): Promise<Record<string, number>> {
   const result: Record<string, number> = {};
-  for (const table of await readCatalog(kernel)) {
+  for (const table of await readCatalog({ kernel })) {
     const [row] = await kernel.query<{ n: number }>(sql`SELECT count(*)::int AS n FROM ${sql.table(`${table.schema}.${table.name}`)}`);
     result[`${table.schema}.${table.name}`] = row.n;
   }

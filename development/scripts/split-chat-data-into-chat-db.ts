@@ -416,7 +416,7 @@ async function main(): Promise<void> {
   console.log(`chat.db:    ${chatDbPath}`);
 
   const contentDb = openContentDb(dbPath);
-  const chatDb = openChatDb(chatDbPath);
+  const chatDb = openChatDb({ filePath: chatDbPath });
   try {
     applyChatSplit({ contentDb: contentDb.$client, chatDb });
   } finally {

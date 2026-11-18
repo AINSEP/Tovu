@@ -51,7 +51,7 @@ for (const { name, open } of dialects) {
     test("applies pending steps in order, records them, and a rerun applies nothing", async () => {
       const kernel = fresh();
       const steps = [tableStep("0001_first", "first_t"), tableStep("0002_second", "second_t", sum("b"))];
-      const report = await runMigrations(kernel, steps);
+      const report = await runMigrations({ kernel, steps });
       assert.deepEqual(report.applied, ["0001_first", "0002_second"]);
       assert.deepEqual(report.alreadyApplied, []);
       const ledger = await kernel.query<{ id: string; checksum: string; applied_at: string }>(
@@ -66,7 +66,7 @@ for (const { name, open } of dialects) {
       );
       assert.match(ledger[0].applied_at, /^\d{4}-\d\d-\d\dT/);
 
-      const again = await runMigrations(kernel, steps);
+      const again = await runMigrations({ kernel, steps });
       assert.deepEqual(again.applied, []);
       assert.deepEqual(again.alreadyApplied, ["0001_first", "0002_second"]);
     });
@@ -81,7 +81,7 @@ for (const { name, open } of dialects) {
           throw new Error("boom");
         },
       };
-      await assert.rejects(runMigrations(kernel, [tableStep("0001_first", "first_t"), failing, tableStep("0003_third", "third_t")]), /boom/);
+      await assert.rejects(runMigrations({ kernel, steps: [tableStep("0001_first", "first_t"), failing, tableStep("0003_third", "third_t")] }), /boom/);
       const tables = await listTables(kernel);
       assert.ok(tables.includes("first_t"));
       assert.ok(!tables.includes("half_done"), "the failed step's DDL rolled back");
@@ -95,9 +95,9 @@ for (const { name, open } of dialects) {
 
     test("a recorded step whose checksum changed stops the run before anything is applied", async () => {
       const kernel = fresh();
-      await runMigrations(kernel, [tableStep("0001_first", "first_t")]);
+      await runMigrations({ kernel, steps: [tableStep("0001_first", "first_t")] });
       await assert.rejects(
-        runMigrations(kernel, [tableStep("0001_first", "first_t", sum("d")), tableStep("0002_second", "second_t")]),
+        runMigrations({ kernel, steps: [tableStep("0001_first", "first_t", sum("d")), tableStep("0002_second", "second_t")] }),
         (error: unknown) => error instanceof MigrationChecksumError && error.id === "0001_first"
       );
       assert.ok(!(await listTables(kernel)).includes("second_t"));
@@ -105,9 +105,9 @@ for (const { name, open } of dialects) {
 
     test("a recorded step this runtime does not know stops the run (database from a newer Tovu)", async () => {
       const kernel = fresh();
-      await runMigrations(kernel, [tableStep("0001_first", "first_t"), tableStep("0002_newer", "newer_t")]);
+      await runMigrations({ kernel, steps: [tableStep("0001_first", "first_t"), tableStep("0002_newer", "newer_t")] });
       await assert.rejects(
-        runMigrations(kernel, [tableStep("0001_first", "first_t")]),
+        runMigrations({ kernel, steps: [tableStep("0001_first", "first_t")] }),
         (error: unknown) => error instanceof UnknownAppliedMigrationError && error.ids.join() === "0002_newer"
       );
     });

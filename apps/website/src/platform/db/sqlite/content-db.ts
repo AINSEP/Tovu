@@ -72,8 +72,7 @@ export interface ContentDbSeedData {
  */
 export interface ContentDbOpenOptions { readonly open?: SqliteSyncOpener<NativeSqliteDatabase> }
 
-export function openSqliteContentConnection(required: string | { filePath: string }, { open = openNativeSqlite }: ContentDbOpenOptions = {}): ContentDb {
-  const filePath = typeof required === "string" ? required : required.filePath;
+export function openSqliteContentConnection({ filePath }: { filePath: string }, { open = openNativeSqlite }: ContentDbOpenOptions = {}): ContentDb {
   const sqlite = open(filePath, {});
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
@@ -100,7 +99,7 @@ export const MIGRATION_BACKUP_PREFIX = "pre-migrations-";
  */
 export async function migrateSqliteContentFile({ db, filePath }: { db: ContentDb; filePath: string }, _optional: Record<string, never> = {}): Promise<MigrationReport> {
   const backupPath = filePath === ":memory:" ? undefined : migrationBackupPath({ filePath });
-  const report = await migrateContentDatabase(sqliteKernel<unknown>(db), { backupPath, onBackupError: ({ error, backupPath: failed }) => {
+  const report = await migrateContentDatabase({ kernel: sqliteKernel<unknown>(db) }, { backupPath, onBackupError: ({ error, backupPath: failed }) => {
     if (!isDiskFull({ error })) throw error;
     // A half-written copy only holds the space that ran out; the boot continues without it.
     fs.rmSync(failed, { force: true });

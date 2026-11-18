@@ -31,11 +31,11 @@ for (const adapter of eachDialect({ tables: ["mail_feedback_inbox", "workspaces"
       // Rebuild the 0023 inbox, add a row from before 0025, then apply 0025 to it.
       for (const table of ["mail_send_ledger", "mail_suppression", "mail_feedback_inbox", "mail_capture"]) await kernel.execute(sql.raw(`DROP TABLE ${table}`));
       const options = { ledgerTable: "mail_feedback_processed_step_migrations" };
-      await runMigrations(kernel, [ledgers], options);
+      await runMigrations({ kernel, steps: [ledgers] }, options);
       await kernel.execute(sql`INSERT INTO mail_feedback_inbox (provider_id, event_id, workspace_id, recipient, kind, hard_bounce, provider_message_id, occurred_at, received_at)
         VALUES ('resend', 'e1', 'w', 'a@x.test', 'bounced', 1, 'm1', ${AT}, ${AT})`);
-      assert.deepEqual((await runMigrations(kernel, [ledgers, step], options)).applied, [MAIL_FEEDBACK_PROCESSED_ID]);
-      assert.deepEqual((await runMigrations(kernel, [ledgers, step], options)).applied, [], "a second run applies nothing");
+      assert.deepEqual((await runMigrations({ kernel, steps: [ledgers, step] }, options)).applied, [MAIL_FEEDBACK_PROCESSED_ID]);
+      assert.deepEqual((await runMigrations({ kernel, steps: [ledgers, step] }, options)).applied, [], "a second run applies nothing");
       assert.deepEqual(await kernel.query(sql`SELECT event_id, processed_at FROM mail_feedback_inbox`), [{ event_id: "e1", processed_at: null }]);
       await kernel.execute(sql`UPDATE mail_feedback_inbox SET processed_at = ${AT}`);
       assert.deepEqual(await kernel.query(sql`SELECT processed_at FROM mail_feedback_inbox`), [{ processed_at: AT }]);

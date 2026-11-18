@@ -161,16 +161,16 @@ export interface DuplicateContentDbRequired {
 export async function duplicateContentDb(required: DuplicateContentDbRequired): Promise<void> {
   const { sourceDbPath, targetDbPath } = required;
 
-  const source = openSqliteFileKernel<ContentDatabase>(sourceDbPath, { readOnly: true });
+  const source = openSqliteFileKernel<ContentDatabase>({ filePath: sourceDbPath }, { readOnly: true });
   try {
-    await storageOps(source).copyTo(targetDbPath);
+    await storageOps({ kernel: source }).copyTo(targetDbPath);
   } catch (err) {
     throw new InternalError({ message: `duplicateContentDb: copying to ${targetDbPath} failed: ${(err as Error).message}` });
   } finally {
     await source.close();
   }
 
-  const target = openSqliteFileKernel<ContentDatabase>(targetDbPath);
+  const target = openSqliteFileKernel<ContentDatabase>({ filePath: targetDbPath });
   try {
     await purgeStrandedChatTables(target);
     // SPEC-050 REQ-12: the source's legacy site-title pin and marker describe the SOURCE's history,
@@ -180,7 +180,7 @@ export async function duplicateContentDb(required: DuplicateContentDbRequired): 
     // establishes on every real open, checkpointed so a fresh site dir never carries a stray
     // `-wal`/`-shm` sidecar before its first real boot (mirrors `seed-site.mjs`'s own
     // `checkpointAndVerify` discipline), and verified intact as the final gate.
-    await storageOps(target).compactAndVerify();
+    await storageOps({ kernel: target }).compactAndVerify();
   } catch (err) {
     if (err instanceof StorageOpError) throw new InternalError({ message: `duplicateContentDb: ${err.message}` });
     throw err;

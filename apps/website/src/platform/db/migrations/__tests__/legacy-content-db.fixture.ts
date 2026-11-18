@@ -14,7 +14,7 @@ export function openLegacyContentDb(
   { filePath }: { filePath: string },
   _optional: Record<string, never> = {},
 ): ContentDb {
-  const db = openSqliteContentConnection(filePath);
+  const db = openSqliteContentConnection({ filePath });
   try {
     migrate(db, { migrationsFolder: MIGRATIONS_DIR });
     return db;

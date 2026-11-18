@@ -108,7 +108,7 @@ export async function openSiteDbClient(required: OpenSiteDbClientRequired, optio
       ? openPgliteKernel({ env }, await importDriver({ kind: "pglite" }))
       : await openPostgresKernel({ ...required, storage, env }, await importDriver({ kind: "postgres" }));
   // The same connection(s), typed per history: content in `public`, chat in `ai_chat` (ADR-067).
-  return { content: base as ContentKernel, chat: pgChatKernel(base), close: () => base.close() };
+  return { content: base as ContentKernel, chat: pgChatKernel({ kernel: base }), close: () => base.close() };
 }
 
 async function openSqliteClient(required: OpenSiteDbClientRequired, driver: SiteDbDrivers["sqlite"]): Promise<SiteDbClient> {
@@ -117,10 +117,10 @@ async function openSqliteClient(required: OpenSiteDbClientRequired, driver: Site
       throw new Error(`${filePath} does not exist: the site's API process creates and migrates it at boot; start the site, then retry`);
     }
   }
-  const content = driver.openSqliteFileKernel<ContentDatabase>(required.dbPath);
+  const content = driver.openSqliteFileKernel<ContentDatabase>({ filePath: required.dbPath });
   let chat: KyselyKernel<ChatDatabase>;
   try {
-    chat = driver.openSqliteFileKernel<ChatDatabase>(required.chatDbPath);
+    chat = driver.openSqliteFileKernel<ChatDatabase>({ filePath: required.chatDbPath });
   } catch (err) {
     await content.close();
     throw err;

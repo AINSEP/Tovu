@@ -209,7 +209,7 @@ async function siteHasKeyDependentData(deps: AdminSiteKeyDeps): Promise<boolean>
   if (existsSync(join(siteDir, STORAGE_SECRET_FILENAME))) return true;
   if (deps.contentKernel === undefined) return findSiteKeyDependentData({ siteDir });
   try {
-    return await hasKeyDependentData(deps.contentKernel);
+    return await hasKeyDependentData({ kernel: deps.contentKernel });
   } catch {
     return true;
   }

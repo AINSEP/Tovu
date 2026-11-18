@@ -21,7 +21,7 @@ type AnyTables = Record<string, AnyRow>;
  * driver mapping (boolean mode → 0/1, json mode → text). Keys the table has no column for are
  * dropped, as Drizzle drops them. Columns left out take their SQL default.
  */
-export function columnRow(table: Table, value: object): AnyRow {
+export function columnRow({ table, value }: { table: Table; value: object }, _optional: Record<string, never> = {}): AnyRow {
   const row: AnyRow = {};
   for (const [key, column] of Object.entries(getTableColumns(table))) {
     let field = (value as AnyRow)[key];
@@ -34,7 +34,7 @@ export function columnRow(table: Table, value: object): AnyRow {
 
 async function insertRow({ kernel, table, value }: { kernel: ContentKernel; table: Table; value: object }, _optional: Record<string, never> = {}): Promise<void> {
   // Any table by its runtime name: the typed Kysely surface cannot name a table picked at runtime.
-  await (kernel as unknown as KyselyKernel<AnyTables>).run((db) => db.insertInto(getTableName(table)).values(columnRow(table, value)).execute());
+  await (kernel as unknown as KyselyKernel<AnyTables>).run((db) => db.insertInto(getTableName(table)).values(columnRow({ table, value })).execute());
 }
 
 /**
@@ -45,7 +45,7 @@ async function insertRow({ kernel, table, value }: { kernel: ContentKernel; tabl
  * daemon) would otherwise both see no workspace and both insert (READ COMMITTED); on SQLite the
  * transaction's write lock already serializes them.
  */
-export async function seedContentStore(kernel: ContentKernel, seed: ContentDbSeedData): Promise<void> {
+export async function seedContentStore({ kernel, ...seed }: { kernel: ContentKernel } & ContentDbSeedData, _optional: Record<string, never> = {}): Promise<void> {
   await kernel.transaction(async () => {
     await kernel.lockKey("seed_content_store");
     const existing = await kernel.run((db) =>
@@ -71,7 +71,7 @@ export async function seedContentStore(kernel: ContentKernel, seed: ContentDbSee
  * (`id=1`) exists, independent of any demo-seed data; then the demo seed when `seed` is given.
  * Idempotent across restarts: the watermark insert does nothing on conflict, the seed is guarded.
  */
-export async function prepareContentStore(kernel: ContentKernel, optional: { seed?: ContentDbSeedData } = {}): Promise<void> {
+export async function prepareContentStore({ kernel }: { kernel: ContentKernel }, optional: { seed?: ContentDbSeedData } = {}): Promise<void> {
   await kernel.run((db) =>
     db
       .insertInto("database_write_watermark")
@@ -79,5 +79,5 @@ export async function prepareContentStore(kernel: ContentKernel, optional: { see
       .onConflict((conflict) => conflict.column("id").doNothing())
       .execute()
   );
-  if (optional.seed !== undefined) await seedContentStore(kernel, optional.seed);
+  if (optional.seed !== undefined) await seedContentStore({ kernel, ...optional.seed });
 }

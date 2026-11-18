@@ -19,7 +19,7 @@ test('real PostgreSQL passkey completion has one winner, atomic session rollback
   const first = openPostgresKernel<ContentDatabase>({ connectionString: url });
   const second = openPostgresKernel<ContentDatabase>({ connectionString: url });
   t.after(async () => { await first.close(); await second.close(); dropDatabase({ database }); });
-  await migrateContentDatabase(first as unknown as KyselyKernel<unknown>);
+  await migrateContentDatabase({ kernel: first as unknown as KyselyKernel<unknown> });
   const workspaceId = 'synthetic-passkey-site';
   const clock = { nowIso: () => '2026-11-06T00:00:00.000Z', nowMs: () => Date.parse('2026-11-06T00:00:00.000Z') };
   async function deps(kernel: typeof first): Promise<OwnerPasskeyDeps> {

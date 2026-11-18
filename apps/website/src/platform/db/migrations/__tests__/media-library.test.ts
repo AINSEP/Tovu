@@ -21,9 +21,9 @@ for (const adapter of eachDialect({ tables: ['media'], make: kernel => kernel })
         VALUES ('legacy', 'site-a', 'Legacy', 'legacy', '', '', '', 'hash', 'active', 'now', 'now', 1)`);
       const steps = [mediaLibrary({ checksum: MIGRATION_CHECKSUMS['0014_media_library']! })];
       const options = { ledgerTable: 'library_test_migrations' };
-      assert.deepEqual((await runMigrations(kernel as KyselyKernel<unknown>, steps, options)).applied, ['0014_media_library']);
+      assert.deepEqual((await runMigrations({ kernel: kernel as KyselyKernel<unknown>, steps }, options)).applied, ['0014_media_library']);
       assert.deepEqual(await kernel.query(sql`SELECT kind, original_filename FROM media WHERE id = 'legacy'`), [{ kind: 'media', original_filename: null }]);
-      assert.deepEqual((await runMigrations(kernel as KyselyKernel<unknown>, steps, options)).applied, []);
+      assert.deepEqual((await runMigrations({ kernel: kernel as KyselyKernel<unknown>, steps }, options)).applied, []);
       await assert.rejects(kernel.execute(sql`UPDATE media SET kind = 'other' WHERE id = 'legacy'`));
     } finally { if (adapter.name === 'sqlite') await kernel.close(); }
   });

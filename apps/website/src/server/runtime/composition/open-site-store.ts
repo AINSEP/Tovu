@@ -83,7 +83,7 @@ export async function openSiteStore(required: OpenSiteStoreRequired, optional: O
   return {
     storage,
     content: contentKernel({ store: db }),
-    chat: chatKernel(chatDb),
+    chat: chatKernel({ store: chatDb }),
     sqliteDb: db,
     close: async () => {
       closeSqliteConnection(chatDb);
@@ -180,14 +180,14 @@ async function preparePgStore(required: {
   // The same connection(s), typed per history: the content tables here, the chat tables via `pgChatKernel`.
   const content = base as ContentKernel;
   try {
-    const report = await migrateContentDatabase(base);
+    const report = await migrateContentDatabase({ kernel: base });
     for (const note of report.notes) console.log(`[migrations] ${note}`);
-    await migrateChatDatabase(base);
-    await prepareContentStore(content, { seed });
+    await migrateChatDatabase({ kernel: base });
+    await prepareContentStore({ kernel: content }, { seed });
     await runBootDataRepairs({ kernel: content });
   } catch (err) {
     await close();
     throw err;
   }
-  return { storage, content, chat: pgChatKernel(base), close };
+  return { storage, content, chat: pgChatKernel({ kernel: base }), close };
 }

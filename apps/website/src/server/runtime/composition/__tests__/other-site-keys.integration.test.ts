@@ -40,7 +40,7 @@ async function fixture() {
     workspace.registry({}).merge({ entries: [{ id, path: dir, name: id, createdBy: "key-share-test", lastOpened: null }] });
     const dbPath = resolveSiteDatabasePaths({ dir }, { workspace, placement: "inSite", reserveIdentity: false }).contentDbPath;
     fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-    const kernel = openSqliteFileKernel<ContentDatabase>(dbPath);
+    const kernel = openSqliteFileKernel<ContentDatabase>({ filePath: dbPath });
     openKernels.push(kernel);
     await kernel.execute(sql`CREATE TABLE workspaces(id TEXT PRIMARY KEY, name TEXT, slug TEXT, created_at TEXT)`);
     await kernel.execute(sql`CREATE TABLE principals(id TEXT PRIMARY KEY)`);

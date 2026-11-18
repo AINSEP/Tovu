@@ -55,7 +55,7 @@ const UNSETTLED_STATUSES = ["pending", "processing"];
  * and transactional callers so an audit event can be inserted atomically with its domain
  * writes, using the identical row shape rather than a copy or an independent enqueue.
  */
-export function outboxEventValues(event: DomainEvent<object>) {
+export function outboxEventValues(event: DomainEvent<object>, _optional: Record<string, never> = {}) {
   return {
     id: event.id,
     workspace_id: event.workspaceId,

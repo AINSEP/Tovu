@@ -237,8 +237,8 @@ test('LRU eviction closes the oldest bag; warm reads reuse it and idle callbacks
   const schedule = ((callback: () => void) => { callbacks.push(callback); return { unref() {} }; }) as unknown as typeof setTimeout;
   let closes = 0, builds = 0;
   const port = createPeerSiteReads({ currentSiteDir: f.a.dir }, { ...f.options, maxSites: 2, idleMs: 100, now: () => clock, schedule,
-    openContent: (<DB>(file: string, optional: { readOnly?: boolean } = {}) => {
-      const kernel = openSqliteFileKernel<DB>(file, optional);
+    openContent: (<DB>({ filePath }: { filePath: string }, optional: { readOnly?: boolean } = {}) => {
+      const kernel = openSqliteFileKernel<DB>({ filePath }, optional);
       return { ...kernel, close: async () => { closes++; await kernel.close(); } };
     }) as typeof openSqliteFileKernel,
   });

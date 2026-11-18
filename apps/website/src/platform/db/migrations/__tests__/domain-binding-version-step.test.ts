@@ -32,11 +32,11 @@ for (const adapter of eachDialect({ tables: ["domain_binding", "workspaces"], ma
       // Rebuild the 0024 table, add a row from before 0026, then apply 0026 to it.
       await kernel.execute(sql.raw("DROP TABLE domain_binding"));
       const options = { ledgerTable: "domain_binding_version_step_migrations" };
-      await runMigrations(kernel, [bindings], options);
+      await runMigrations({ kernel, steps: [bindings] }, options);
       await kernel.execute(sql`INSERT INTO domain_binding (workspace_id, hostname, zone, requirements_json, status, started_at, created_at, updated_at)
         VALUES ('w', 'www.example.com', 'example.com', '[]', 'pending', ${AT}, ${AT}, ${AT})`);
-      assert.deepEqual((await runMigrations(kernel, [bindings, step], options)).applied, [DOMAIN_BINDING_VERSION_ID]);
-      assert.deepEqual((await runMigrations(kernel, [bindings, step], options)).applied, [], "a second run applies nothing");
+      assert.deepEqual((await runMigrations({ kernel, steps: [bindings, step] }, options)).applied, [DOMAIN_BINDING_VERSION_ID]);
+      assert.deepEqual((await runMigrations({ kernel, steps: [bindings, step] }, options)).applied, [], "a second run applies nothing");
       const [row] = await kernel.query<{ version: number | string }>(sql`SELECT version FROM domain_binding`);
       assert.equal(Number(row?.version), 0);
       await assert.rejects(kernel.execute(sql`UPDATE domain_binding SET version = -1`), CHECK[name]);

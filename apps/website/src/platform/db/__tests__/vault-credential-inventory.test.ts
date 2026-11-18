@@ -108,7 +108,7 @@ test("discoverSealedColumns: suffix-matched columns in code-unit table order, re
   await withFixture(async fx => {
     await fx.kernel.execute(sql`CREATE TABLE "Zplugin" (oauth_sealed_ciphertext text NOT NULL, sealed_ciphertext_hint text)`);
     await fx.kernel.execute(sql`CREATE TABLE _vault_backup_x (sealed_ciphertext text)`);
-    const refs = await discoverSealedColumns(fx.kernel);
+    const refs = await discoverSealedColumns({ kernel: fx.kernel });
     assert.deepEqual(refs.map(ref => ({ table: ref.table, column: ref.column, notNull: ref.notNull })), [
       { table: "Zplugin", column: "oauth_sealed_ciphertext", notNull: true },
       { table: "oauth_device_authorizations", column: "sealed_ciphertext", notNull: true },

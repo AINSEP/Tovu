@@ -33,7 +33,7 @@ import type { Clock } from "@jini-ai/core/primitives";
  * Uses assistant_agent_sessions, with its existing FK cascade and overwrite/clear semantics.
  */
 export function createSqliteAgentSessionStore({ store, clock }: { store: ChatKernel | SqliteConnectionSource; clock: Clock }, _optional = {}): AgentSessionStore {
-  const kernel = chatKernel(store);
+  const kernel = chatKernel({ store });
   switch (kernel.transport) {
     case "better-sqlite3": return createSqliteSessions({ kernel, clock });
     case "pglite":

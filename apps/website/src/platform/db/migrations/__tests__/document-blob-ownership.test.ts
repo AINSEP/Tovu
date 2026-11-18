@@ -47,14 +47,14 @@ for (const dialect of dialects) {
       }
       const steps = [documentBlobOwnership({ checksum: MIGRATION_CHECKSUMS['0015_document_blob_ownership']! })];
       const options = { ledgerTable: 'document_ownership_test_migrations' };
-      assert.deepEqual((await runMigrations(kernel, steps, options)).applied, ['0015_document_blob_ownership']);
+      assert.deepEqual((await runMigrations({ kernel, steps }, options)).applied, ['0015_document_blob_ownership']);
       await insertBlob(kernel, 'later');
       // Exact stored values: SQLite must hold integer 0/1, never a text or NULL false.
       const rows = await kernel.query<{ id: string; document_owned: unknown }>(sql`SELECT id, document_owned FROM asset_blobs ORDER BY id`);
       const { owned, unowned } = dialect;
       assert.deepEqual(rows.map(row => [row.id, row.document_owned]),
         [['active', owned], ['later', unowned], ['ordinary', unowned], ['orphan', unowned], ['other-site', unowned], ['trashed', owned]]);
-      assert.deepEqual((await runMigrations(kernel, steps, options)).applied, []);
+      assert.deepEqual((await runMigrations({ kernel, steps }, options)).applied, []);
 
       const fresh = dialect.fresh();
       try {

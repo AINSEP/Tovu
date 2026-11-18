@@ -22,4 +22,4 @@ async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   );
 }
 
-export const coercionJsonAsJson = (checksum: string): MigrationStep<KyselyKernel<unknown>> => ({ id: COERCION_JSON_AS_JSON_ID, checksum, up });
+export const coercionJsonAsJson = ({ checksum }: { checksum: string }, _optional: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> => ({ id: COERCION_JSON_AS_JSON_ID, checksum, up });

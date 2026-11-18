@@ -50,7 +50,7 @@ test("fresh in-memory openContentDb includes media.created_by and supports Drizz
 
 test("fresh synchronous content databases match every declared table's columns and the real TS migration head", async () => {
   const sync = openContentDb(":memory:");
-  const asyncDb = openSqliteContentConnection(":memory:");
+  const asyncDb = openSqliteContentConnection({ filePath: ":memory:" });
   try {
     const actual = await readSchemaShape(sqliteKernel<unknown>(sync), { exclude: BOOKKEEPING });
     for (const { table } of collectCoreTables()) {
@@ -60,7 +60,7 @@ test("fresh synchronous content databases match every declared table's columns a
       assert.deepEqual(columns.map(column => column.name), declared.columns.map(column => column.name).sort(),
         `fresh content DB column drift: ${declared.name}`);
     }
-    const report = await migrateContentDatabase(sqliteKernel<unknown>(asyncDb));
+    const report = await migrateContentDatabase({ kernel: sqliteKernel<unknown>(asyncDb) });
     assert.ok(report.applied.includes("0036_publish_history_config_jsonb"));
     assert.deepEqual(actual, await readSchemaShape(sqliteKernel<unknown>(asyncDb), { exclude: BOOKKEEPING }));
     // 0036 only converts Postgres: both SQLite paths retain nullable config text and the kind default.
@@ -92,7 +92,7 @@ test("fresh file openContentDb preserves creator attribution on reopen and needs
     db = undefined;
     db = openContentDb(file);
     assert.equal(db.select({ createdBy: media.createdBy }).from(media).get()?.createdBy, "user:owner");
-    const report = await migrateContentDatabase(sqliteKernel<unknown>(db));
+    const report = await migrateContentDatabase({ kernel: sqliteKernel<unknown>(db) });
     assert.deepEqual(report.applied, []);
     assert.deepEqual(report.alreadyApplied, CONTENT_MIGRATIONS.map(step => step.id));
   } finally {

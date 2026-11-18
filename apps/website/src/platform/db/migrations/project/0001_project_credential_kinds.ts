@@ -64,4 +64,4 @@ async function up(kernel: KyselyKernel<unknown>): Promise<void> {
   for (const statement of PROJECT_CREDENTIAL_KINDS_STATEMENTS) await kernel.execute(sql.raw(statement));
 }
 
-export const projectCredentialKinds = (checksum: string): MigrationStep<KyselyKernel<unknown>> => ({ id: PROJECT_CREDENTIAL_KINDS_ID, checksum, up });
+export const projectCredentialKinds = ({ checksum }: { checksum: string }, _optional: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> => ({ id: PROJECT_CREDENTIAL_KINDS_ID, checksum, up });

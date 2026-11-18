@@ -121,7 +121,7 @@ async function run(required: { root: string }, _options: Record<string, never> =
   const projection = await sanitizeShareDatabase({ omittedMediaIds, modules: FIRST_PARTY_DATA_MODULES, snapshot: await readFile(path.join(required.root, "input.db")) });
   const output = path.join(required.root, "output.db");
   await writeFile(output, projection.bytes, { flag: "wx", mode: 0o600 });
-  const fresh = openSqliteFileKernel<Record<string, Record<string, unknown>>>(output);
+  const fresh = openSqliteFileKernel<Record<string, Record<string, unknown>>>({ filePath: output });
   const documentKeys = new Map<string, string>();
   try {
     const workspaces = await fresh.query<{ id: string }>(sql`SELECT id FROM workspaces LIMIT 2`);
@@ -155,7 +155,7 @@ async function run(required: { root: string }, _options: Record<string, never> =
       }
     } });
     await validatePortableReferences({ db: fresh });
-    const connection = sqliteConnectionOf(fresh);
+    const connection = sqliteConnectionOf({ kernel: fresh });
     if (!connection) throw new Error("rebuilt import database has no SQLite connection");
     if (!verifySqliteIntegrity({ db: connection, quick: true }).ok) throw new Error("Invalid rebuilt database");
   } finally { await fresh.close(); }

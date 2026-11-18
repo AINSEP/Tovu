@@ -59,7 +59,7 @@ export function bootstrapFreshContentDb(
   // Injectable for the drift guard's own test; production always uses the real step list.
   { migrations = CONTENT_MIGRATIONS }: { migrations?: readonly MigrationStep<KyselyKernel<unknown>>[] } = {},
 ): boolean {
-  const client = sqliteClientOf(db);
+  const client = sqliteClientOf({ source: db });
   const hasTables = () => client.prepare("SELECT 1 FROM sqlite_schema WHERE type = 'table' AND substr(name, 1, 7) <> 'sqlite_' LIMIT 1").get() !== undefined;
   if (hasTables()) return false;
 
@@ -69,7 +69,7 @@ export function bootstrapFreshContentDb(
     "0000_legacy_baseline": () => {
       client.exec("CREATE TABLE __drizzle_migrations (id SERIAL PRIMARY KEY, hash text NOT NULL, created_at numeric)");
       const record = client.prepare('INSERT INTO __drizzle_migrations ("hash", "created_at") VALUES (?, ?)');
-      for (const entry of readFrozenChain()) {
+      for (const entry of readFrozenChain({})) {
         for (const statement of entry.statements) client.exec(statement);
         record.run(entry.hash, entry.when);
       }

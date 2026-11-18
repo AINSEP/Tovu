@@ -123,7 +123,7 @@ test("real runner: an adopted SQLite baseline ignores rewritten legacy timestamp
   try {
     const report = await migrateSqliteContentFile({ db, filePath: dbPath });
     assert.deepEqual(report.applied, CONTENT_MIGRATIONS.map((step) => step.id));
-    const chain = readFrozenChain();
+    const chain = readFrozenChain({});
     const entry = chain[67];
     assert.ok(entry);
     const rewrittenTimestamp = Math.max(...chain.map((step) => step.when)) + 1;

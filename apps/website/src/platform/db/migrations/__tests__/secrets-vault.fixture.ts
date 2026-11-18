@@ -31,7 +31,7 @@ export async function insertFixture(kernel: KyselyKernel<unknown>, table: string
 export async function vaultFixture(dialect: "sqlite" | "pglite", options: { kernel?: KyselyKernel<unknown> } = {}) {
   const kernel = options.kernel ?? (dialect === "sqlite" ? openMemorySqliteKernel<unknown>() : openPgliteKernel<unknown>());
   try {
-    await runMigrations(kernel, previous);
+    await runMigrations({ kernel, steps: previous });
     for (const id of ["ws", "ws-empty"]) await insertFixture(kernel, "workspaces", { id, name: id, slug: id, created_at: stamp });
     await insertFixture(kernel, "principals", { id: "p", workspace_id: "ws", kind: "user", display_name: "Person", status: "active", created_at: stamp });
     const keyring = new InMemoryKeyring({ hkdfSalt: "vault-step-test" });

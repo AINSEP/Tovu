@@ -45,7 +45,7 @@ describe(COERCION_JSON_AS_JSON_ID, () => {
     await insertDefinition(kernel, "bare", "identity");
     await insertDefinition(kernel, "encoded", '"identity"');
     await insertDefinition(kernel, "none", null);
-    const report = await migrateContentDatabase(kernel);
+    const report = await migrateContentDatabase({ kernel });
     assert.ok(report.applied.includes(COERCION_JSON_AS_JSON_ID));
     assert.equal(await coercionJsonOf(kernel, "bare"), '"identity"');
     assert.equal(await coercionJsonOf(kernel, "encoded"), '"identity"');
@@ -55,7 +55,7 @@ describe(COERCION_JSON_AS_JSON_ID, () => {
   test("PGlite: recorded", async () => {
     const kernel = openPgliteKernel<unknown>();
     opened.push(kernel);
-    const report = await migrateContentDatabase(kernel);
+    const report = await migrateContentDatabase({ kernel });
     assert.ok(report.applied.includes(COERCION_JSON_AS_JSON_ID));
   });
 });

@@ -120,7 +120,7 @@ async function withSiteKernel<R>({ input, use, empty }: { input: SiteKeyRecovery
   if (input.contentKernel !== undefined) return use(input.contentKernel);
   const dbPath = resolveSiteDatabasePaths({ dir: input.siteDir }).contentDbPath;
   if (!existsSync(dbPath)) return empty;
-  const kernel = openSqliteFileKernel<ContentDatabase>(dbPath);
+  const kernel = openSqliteFileKernel<ContentDatabase>({ filePath: dbPath });
   try {
     return await use(kernel);
   } finally {

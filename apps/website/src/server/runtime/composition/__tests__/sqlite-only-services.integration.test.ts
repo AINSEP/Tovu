@@ -25,12 +25,12 @@ test("each SQLite-bound service works on the handle and file it was given", asyn
   const dbPath = path.join(dir, "content.db");
   const db = openContentDb(dbPath);
   try {
-    await prepareContentStore(contentKernel({ store: db }));
+    await prepareContentStore({ kernel: contentKernel({ store: db }) });
     const services = sqliteOnlyServices({ db, dbPath });
 
-    const before = await readKernelWatermark(contentKernel({ store: db }));
+    const before = await readKernelWatermark({ kernel: contentKernel({ store: db }) });
     await services.stampWatermark();
-    assert.equal(await readKernelWatermark(contentKernel({ store: db })), before + 1);
+    assert.equal(await readKernelWatermark({ kernel: contentKernel({ store: db }) }), before + 1);
 
     db.$client.exec("CREATE TABLE service_capture_probe (value TEXT NOT NULL); INSERT INTO service_capture_probe VALUES ('captured row')");
 

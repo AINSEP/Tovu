@@ -24,7 +24,7 @@ async function watermark(): Promise<number> {
 }
 
 test("stampWatermark advances the watermark once per awaited call", async () => {
-  await prepareContentStore(kernel);
+  await prepareContentStore({ kernel });
   const services = pgOnlyServices(kernel);
   const before = await watermark();
   await services.stampWatermark();

@@ -14,13 +14,13 @@ for (const adapter of eachDialect({ tables: ['owner_recovery_codes'], make: kern
     const step = CONTENT_MIGRATIONS.find(entry => entry.id === '0039_owner_recovery_codes');
     assert.ok(step, 'recovery schema must be registered in the content history');
     const options = { ledgerTable: 'recovery_test_migrations' };
-    assert.deepEqual((await runMigrations(kernel, [step], options)).applied, [step.id]);
+    assert.deepEqual((await runMigrations({ kernel, steps: [step] }, options)).applied, [step.id]);
     assert.deepEqual((await listColumns(kernel, 'owner_recovery_codes')).map(column => column.name).sort(),
       ['workspace_id', 'principal_id', 'code_hash'].sort());
     await kernel.execute(sql`INSERT INTO owner_recovery_codes VALUES ('a', 'owner', 'hash')`);
     await assert.rejects(kernel.execute(sql`INSERT INTO owner_recovery_codes VALUES ('a', 'owner', 'hash')`));
     await kernel.execute(sql`INSERT INTO owner_recovery_codes VALUES ('b', 'owner', 'hash')`);
-    assert.deepEqual((await runMigrations(kernel, [step], options)).applied, []);
+    assert.deepEqual((await runMigrations({ kernel, steps: [step] }, options)).applied, []);
     assert.equal((await kernel.query(sql`SELECT code_hash FROM owner_recovery_codes`)).length, 2);
   });
 }

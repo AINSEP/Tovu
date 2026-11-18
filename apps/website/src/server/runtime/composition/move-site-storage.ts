@@ -107,17 +107,17 @@ export async function moveSiteStorage(required: MoveSiteStorageRequired, optiona
   try {
     source = openPgliteKernel<unknown>({ dataDir });
     target = openPostgresKernel<unknown>({ connectionString, max: 2 });
-    const occupied = await nonEmptyTables(target);
+    const occupied = await nonEmptyTables({ kernel: target });
     if (occupied.length > 0) {
       const named = occupied.slice(0, 5).join(", ") + (occupied.length > 5 ? `, and ${occupied.length - 5} more` : "");
       throw new ValidationError({ message: `storage move: the target database already holds data (${named}); move into an empty database` });
     }
     for (const kernel of [source, target]) {
-      await migrateContentDatabase(kernel);
-      await migrateChatDatabase(kernel);
+      await migrateContentDatabase({ kernel });
+      await migrateChatDatabase({ kernel });
     }
     const tables = await copyPgStore({ source, target }, { onCopied: optional.onCopied });
-    await storageOps(target).compactAndVerify();
+    await storageOps({ kernel: target }).compactAndVerify();
 
     if (secretRef === "site") await writeSealedConnectionString({ siteDir, connectionString }, optional.sealer);
     const storage: SiteStorage = { kind: "postgres", secretRef };

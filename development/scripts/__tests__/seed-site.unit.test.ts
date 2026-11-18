@@ -495,7 +495,7 @@ test("S2 seed pruning unlinks MCP parents, removes vault/device rows and restore
     await fixture.kernel.execute(sql`INSERT INTO ${sql.table('_vault_backup_odd"name')} VALUES ('saved-secret')`);
     const liveDbPath = join(liveDir, "content.db");
     const seedDbPath = join(liveDir, "content.seed.db");
-    writeFileSync(liveDbPath, sqliteConnectionOf(fixture.kernel)!.serialize());
+    writeFileSync(liveDbPath, sqliteConnectionOf({ kernel: fixture.kernel })!.serialize());
     const before = readFileSync(liveDbPath);
     await seedSite({ siteName: "vault-seed", liveDir, liveDbPath, seedDbPath });
     assert.deepEqual(readFileSync(liveDbPath), before);

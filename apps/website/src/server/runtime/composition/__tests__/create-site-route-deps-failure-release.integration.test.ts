@@ -50,8 +50,8 @@ test("SQLite: a composition failing after the open closes content.db and chat.db
   await initSite({ dir: siteDir, name: "Release SQLite" });
   const opened = await composeMissingWorkspace(siteDir);
   assert.ok(opened?.sqliteDb, "the composition opened a SQLite store");
-  assert.equal(sqliteClientOf(opened.sqliteDb).open, false, "content.db is closed");
-  assert.equal(sqliteConnectionOf(opened.chat)?.open, false, "chat.db is closed");
+  assert.equal(sqliteClientOf({ source: opened.sqliteDb }).open, false, "content.db is closed");
+  assert.equal(sqliteConnectionOf({ kernel: opened.chat })?.open, false, "chat.db is closed");
 });
 
 test("PGlite: a composition failing after the open releases the owner lock, so the next owner opens", async () => {
@@ -78,7 +78,7 @@ test("L005: failure on a supplied client store releases users without closing th
   try {
     await assert.rejects(createSiteRouteDeps({}, { dbPath, overrides: { store, workspaceId: "caller-workspace", storeRole: "client", themesDir: path.join(siteDir, "themes") } }));
     assert.ok(store.sqliteDb);
-    assert.equal(sqliteClientOf(store.sqliteDb).open, true);
-    assert.equal(sqliteConnectionOf(store.chat)?.open, true);
+    assert.equal(sqliteClientOf({ source: store.sqliteDb }).open, true);
+    assert.equal(sqliteConnectionOf({ kernel: store.chat })?.open, true);
   } finally { await store.close(); }
 });

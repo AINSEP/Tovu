@@ -46,11 +46,10 @@ function openChatConnection({ filePath }: { filePath: string }, { open = openNat
  * `createChatStoreFactory`/`createSqliteAgentSessionStore` take (none of the chat tables has a
  * `sqliteTable` declaration, by design: `RAW_SQL_MANAGED_TABLES` in `schema-migration-drift.test.ts`).
  */
-export async function openSiteChatDb(required: string | { filePath: string }, options: ChatDbOpenOptions = {}): Promise<NativeSqliteDatabase> {
-  const filePath = typeof required === "string" ? required : required.filePath;
+export async function openSiteChatDb({ filePath }: { filePath: string }, options: ChatDbOpenOptions = {}): Promise<NativeSqliteDatabase> {
   const sqlite = openChatConnection({ filePath }, options);
   try {
-    await migrateChatDatabase(sqliteKernel<unknown>(sqlite));
+    await migrateChatDatabase({ kernel: sqliteKernel<unknown>(sqlite) });
   } catch (err) {
     sqlite.close();
     throw err;
@@ -65,8 +64,7 @@ export async function openSiteChatDb(required: string | { filePath: string }, op
  *
  * @complexity O(1) — one connection open plus a fixed number of DDL statements.
  */
-export function openChatDb(required: string | { filePath: string }, options: ChatDbOpenOptions = {}): NativeSqliteDatabase {
-  const filePath = typeof required === "string" ? required : required.filePath;
+export function openChatDb({ filePath }: { filePath: string }, options: ChatDbOpenOptions = {}): NativeSqliteDatabase {
   const sqlite = openChatConnection({ filePath }, options);
   for (const statement of SQLITE_CHAT_STATEMENTS) sqlite.exec(statement);
   for (const statement of durableRunStatements({ dialect: "sqlite" }, {})) sqlite.exec(statement);

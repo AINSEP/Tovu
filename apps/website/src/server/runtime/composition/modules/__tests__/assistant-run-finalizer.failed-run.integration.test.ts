@@ -9,8 +9,8 @@ import { EXHAUSTED_NOTICE, RECOVERY_LIMIT } from "@jini-ai/chat/server/durable-r
 import { createAssistantRunFinalizer } from "../run-finalizer/entry.js";
 
 test("an actual executor failure remains failed through Tovu recovery, chat.db and UI history", { timeout: 10_000 }, async () => {
-  const db = openChatDb(":memory:");
-  const kernel = chatKernel(db);
+  const db = openChatDb({ filePath: ":memory:" });
+  const kernel = chatKernel({ store: db });
   const ledger = createChatRunLedger({ store: kernel });
   const history = createChatHistoryStore({ kernel: kernel, scope: { scopeId: "workspace", ownerKind: "user", ownerId: "alice" } });
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });

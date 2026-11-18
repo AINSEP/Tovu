@@ -36,4 +36,4 @@ async function up(kernel: KyselyKernel<unknown>, context: MigrationContext): Pro
   }
 }
 
-export const dropEmptyLegacyChatTables = (checksum: string): MigrationStep<KyselyKernel<unknown>> => ({ id: DROP_EMPTY_LEGACY_CHAT_TABLES_ID, checksum, up });
+export const dropEmptyLegacyChatTables = ({ checksum }: { checksum: string }, _optional: Record<string, never> = {}): MigrationStep<KyselyKernel<unknown>> => ({ id: DROP_EMPTY_LEGACY_CHAT_TABLES_ID, checksum, up });

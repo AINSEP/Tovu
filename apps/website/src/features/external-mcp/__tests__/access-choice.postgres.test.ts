@@ -19,7 +19,7 @@ let first: ContentKernel; let second: ContentKernel;
 before(async () => {
   const connectionString = freshPostgresDatabase(database);
   first = openPostgresKernel<ContentDatabase>({ connectionString });
-  await migrateContentDatabase(first as KyselyKernel<unknown>);
+  await migrateContentDatabase({ kernel: first as KyselyKernel<unknown> });
   await ensureVaultRepoFixture({ kernel: first });
   second = openPostgresKernel<ContentDatabase>({ connectionString });
   await first.run(db => db.insertInto('workspaces').values({ id: identity.workspaceId, name: 'Choice fixture', slug: 'choice-fixture', created_at: nowIso }).execute());

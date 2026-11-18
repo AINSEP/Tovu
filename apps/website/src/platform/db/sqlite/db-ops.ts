@@ -45,7 +45,7 @@ export class SqliteDbOpsAdapter implements DbOpsPort {
       // Read lazily per capture, not captured at construction — the watermark advances with
       // every gated write, and a restore point must be stamped with its value at capture time
       // (REQ-06), not at wiring time.
-      readWatermark: () => readKernelWatermark(contentKernel({ store: deps.db })),
+      readWatermark: () => readKernelWatermark({ kernel: contentKernel({ store: deps.db }) }),
     });
   }
 

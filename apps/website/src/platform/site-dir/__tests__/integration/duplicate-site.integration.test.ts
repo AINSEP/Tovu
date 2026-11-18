@@ -43,7 +43,7 @@ function seedSourceExtras(siteDir: string): void {
   // content.db while they are empty (migration step `0002_drop_empty_legacy_chat_tables`). Open the
   // file through `openChatDb`, which creates them when absent (the same DDL as legacy migrations
   // 0023/0051), to model a PRE-split install whose content.db still holds real rows.
-  const raw = openChatDb(dbPath);
+  const raw = openChatDb({ filePath: dbPath });
   try {
     const now = Date.now();
     raw

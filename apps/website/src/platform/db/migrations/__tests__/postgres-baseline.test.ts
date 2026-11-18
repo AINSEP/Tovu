@@ -39,7 +39,7 @@ function withoutNotValid(shape: SchemaShape): SchemaShape {
 describe("0000_legacy_baseline on Postgres (PGlite)", () => {
   test("applies on an empty database and matches schema.postgres.ts at head", async () => {
     const kernel = pglite();
-    const report = await migrateContentDatabase(kernel);
+    const report = await migrateContentDatabase({ kernel });
     assert.deepEqual(report.applied, CONTENT_MIGRATIONS.map(step => step.id));
     const reference = pglite(ensurePgContentSchema);
     // `post_search_document` is step 0001's, not the baseline's (`post-search-step.test.ts`).
@@ -82,22 +82,22 @@ describe("0000_legacy_baseline on Postgres (PGlite)", () => {
       { ...expected.tables[name], columns: [...expected.tables[name].columns].sort() },
       `table ${name}`,
     );
-    assert.deepEqual((await migrateContentDatabase(kernel)).applied, [], "a rerun applies nothing");
+    assert.deepEqual((await migrateContentDatabase({ kernel })).applied, [], "a rerun applies nothing");
   });
 
   test("the frozen baseline creates the composite FK (the 42830 case), then head retires core commerce", async () => {
     const kernel = pglite();
-    await runMigrations(kernel, CONTENT_MIGRATIONS.slice(0, 1));
+    await runMigrations({ kernel, steps: CONTENT_MIGRATIONS.slice(0, 1) });
     const rows = await kernel.query<{ n: number }>(
       sql`SELECT count(*)::int AS n FROM pg_constraint WHERE contype = 'f' AND conrelid = 'commerce_products'::regclass AND confrelid = 'member_tiers'::regclass`
     );
     assert.equal(rows[0].n, 1);
-    await migrateContentDatabase(kernel);
+    await migrateContentDatabase({ kernel });
     assert.deepEqual(await kernel.query(sql`SELECT to_regclass('commerce_products') AS table_name`), [{ table_name: null }]);
   });
 
   test("a prototype schema with no ledger is refused, not overwritten", async () => {
     const kernel = pglite(ensurePgContentSchema);
-    await assert.rejects(migrateContentDatabase(kernel), (error: unknown) => error instanceof LegacyHistoryError && /recreate the data dir/.test(error.message));
+    await assert.rejects(migrateContentDatabase({ kernel }), (error: unknown) => error instanceof LegacyHistoryError && /recreate the data dir/.test(error.message));
   });
 });

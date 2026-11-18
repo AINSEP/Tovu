@@ -38,7 +38,7 @@ async function captureChatSnapshot(deps: Pick<DatabaseTransferToolDeps, "db" | "
   const dir = await mkdtemp(join(tmpdir(), "tovu-transfer-chat-"));
   let source: SqliteKernel<unknown> | undefined;
   try {
-    source = openSqliteFileKernel(path, { readOnly: true });
+    source = openSqliteFileKernel({ filePath: path }, { readOnly: true });
     const snapshotPath = join(dir, "chat.db");
     await source.backupTo(snapshotPath);
     return await readFile(snapshotPath);

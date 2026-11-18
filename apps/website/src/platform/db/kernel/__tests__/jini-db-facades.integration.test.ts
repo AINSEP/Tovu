@@ -39,8 +39,8 @@ test("same-file locking crosses from a Tovu shim into a direct Jini kernel", asy
     ]);
     assert.deepEqual(await kb.query(sql`SELECT value FROM probe ORDER BY value`), [{ value: "a" }, { value: "b" }, { value: "nested probe" }]);
     // Native types must remain available to old Tovu consumers without a cast.
-    const native: Database.Database = sqliteClientOf({ $client: a });
-    const reverse: Database.Database | undefined = sqliteConnectionOf(ka);
+    const native: Database.Database = sqliteClientOf({ source: { $client: a } });
+    const reverse: Database.Database | undefined = sqliteConnectionOf({ kernel: ka });
     assert.equal(native, a);
     assert.equal(reverse, a);
   } finally {
@@ -59,18 +59,18 @@ test("runner defaults preserve separate content and chat ledgers, no-op reruns a
   const content = makeStep("0000_content_probe", "content_probe");
   const chat = makeStep("0000_chat_probe", "chat_probe");
   try {
-    assert.equal(await hasLedger(kernel), false);
-    assert.deepEqual(await runMigrations(kernel, [content]), { applied: [content.id], alreadyApplied: [], notes: [] });
-    assert.equal(await hasLedger(kernel), true);
-    assert.deepEqual(await runMigrations(kernel, [chat], { ledgerTable: "tovu_chat_migrations" }), { applied: [chat.id], alreadyApplied: [], notes: [] });
-    assert.deepEqual(await runMigrations(kernel, [content]), { applied: [], alreadyApplied: [content.id], notes: [] });
-    assert.deepEqual(await runMigrations(kernel, [chat], { ledgerTable: "tovu_chat_migrations" }), { applied: [], alreadyApplied: [chat.id], notes: [] });
+    assert.equal(await hasLedger({ kernel }), false);
+    assert.deepEqual(await runMigrations({ kernel, steps: [content] }), { applied: [content.id], alreadyApplied: [], notes: [] });
+    assert.equal(await hasLedger({ kernel }), true);
+    assert.deepEqual(await runMigrations({ kernel, steps: [chat] }, { ledgerTable: "tovu_chat_migrations" }), { applied: [chat.id], alreadyApplied: [], notes: [] });
+    assert.deepEqual(await runMigrations({ kernel, steps: [content] }), { applied: [], alreadyApplied: [content.id], notes: [] });
+    assert.deepEqual(await runMigrations({ kernel, steps: [chat] }, { ledgerTable: "tovu_chat_migrations" }), { applied: [], alreadyApplied: [chat.id], notes: [] });
     assert.deepEqual(await kernel.query(sql`SELECT id, checksum FROM tovu_migrations`), [{ id: content.id, checksum: content.checksum }]);
     assert.deepEqual(await kernel.query(sql`SELECT id, checksum FROM tovu_chat_migrations`), [{ id: chat.id, checksum: chat.checksum }]);
-    await assert.rejects(runMigrations(kernel, [{ ...content, checksum: "f".repeat(64) }]), MigrationChecksumError);
+    await assert.rejects(runMigrations({ kernel, steps: [{ ...content, checksum: "f".repeat(64) }] }), MigrationChecksumError);
     const expected = "the database has migrations this runtime does not know (0000_content_probe); it was upgraded by a newer Tovu — run that version";
     assert.equal(new UnknownAppliedMigrationError([content.id], "Tovu").message, expected);
-    await assert.rejects(runMigrations(kernel, []), (error: unknown) => {
+    await assert.rejects(runMigrations({ kernel, steps: [] }), (error: unknown) => {
       assert.ok(error instanceof UnknownAppliedMigrationError);
       assert.equal(error.message, expected);
       assert.deepEqual(error.ids, [content.id]);
@@ -87,12 +87,12 @@ test("PGlite compaction reads the Tovu ledger and copies drop the Tovu owner loc
   const kernel = openPgliteKernel<unknown>({ dataDir });
   try {
     await kernel.execute(sql`CREATE TABLE tovu_migrations (id TEXT PRIMARY KEY)`);
-    await assert.rejects(storageOps(kernel).compactAndVerify(), { message: "the migration ledger tovu_migrations is empty after compacting" });
+    await assert.rejects(storageOps({ kernel }).compactAndVerify(), { message: "the migration ledger tovu_migrations is empty after compacting" });
     await kernel.execute(sql`INSERT INTO tovu_migrations VALUES ('0000_probe')`);
-    await storageOps(kernel).compactAndVerify();
+    await storageOps({ kernel }).compactAndVerify();
     fs.writeFileSync(path.join(dataDir, OWNER_LOCK_FILE), String(process.pid));
     const target = path.join(dir, "copy");
-    await storageOps(kernel).copyTo(target);
+    await storageOps({ kernel }).copyTo(target);
     assert.equal(fs.existsSync(path.join(target, OWNER_LOCK_FILE)), false);
     const copy = openPgliteKernel<unknown>({ dataDir: target });
     try {
@@ -114,12 +114,12 @@ test("unsupported Postgres copies retain Tovu operator guidance without a server
       ["pglite-socket", "a PGlite socket client copies through its owner's exclusive window (pass pgliteOwner)"],
     ] as const) {
       const kernel = { ...base, dialect: "postgres" as const, transport };
-      await assert.rejects(storageOps(kernel).copyTo("/never"), (error: unknown) => {
+      await assert.rejects(storageOps({ kernel }).copyTo("/never"), (error: unknown) => {
         assert.ok(error instanceof StorageOpNotSupportedError);
         assert.equal(error.message, `storage op copyTo is not supported on the ${transport} driver: ${reason}`);
         return true;
       });
-      await assert.rejects(kernel.transaction(async () => storageOps(kernel).copyTo("/never")), /must be called outside a transaction/);
+      await assert.rejects(kernel.transaction(async () => storageOps({ kernel }).copyTo("/never")), /must be called outside a transaction/);
     }
   } finally {
     await base.close();

@@ -130,7 +130,7 @@ export async function migratedParityFixture(dialect: ParityDialect, options: { k
   const fixture = await vaultFixture(dialect, options);
   try {
     await seedParityRows(fixture, dialect);
-    await runMigrations(fixture.kernel, CONTENT_MIGRATIONS);
+    await runMigrations({ kernel: fixture.kernel, steps: CONTENT_MIGRATIONS });
     for (const workspaceId of PARITY_WORKSPACES) {
       const report = await normalizeVaultAtBoot({ ...fixture, workspaceId, siteId: `parity-${dialect}-${workspaceId}`,
         clock: { nowMs: () => Date.parse(stamp) }, registry: parityVaultKinds });
@@ -460,7 +460,7 @@ export async function writeTranscript(mods: ParityModules, ctx: ParityContext,
 /** The transfer and key-probe boundary (§2d `vault-boundary-parity`), SQLite only: the snapshot
  * plan needs a serialized SQLite file. Table lists are sorted; the plan's own order has its tests. */
 export async function boundaryTranscript(mods: ParityModules, ctx: ParityContext): Promise<Record<string, unknown>> {
-  const bytes = sqliteConnectionOf(ctx.kernel)!.serialize();
+  const bytes = sqliteConnectionOf({ kernel: ctx.kernel })!.serialize();
   const source = mods.current
     ? mods.snapshotSource.openSqliteSnapshotSource({ bytes }, { open: (data: Buffer) => openSqliteSnapshot({ data }) })
     : mods.snapshotSource.openSqliteSnapshotSource(bytes);
@@ -473,7 +473,7 @@ export async function boundaryTranscript(mods: ParityModules, ctx: ParityContext
       leftOut: plan.leftOut.map((entry: { table: string }) => entry.table).sort(),
       excluded: Object.keys(mods.exclusions.EXCLUDED_CORE_TABLES).sort(),
       partiallyExcluded: Object.keys(mods.exclusions.PARTIALLY_EXCLUDED_TABLES).sort(),
-      keyDependent: await mods.keyDependent.hasKeyDependentData(ctx.kernel),
+      keyDependent: await mods.keyDependent.hasKeyDependentData(mods.current ? { kernel: ctx.kernel } : ctx.kernel),
     };
   } finally { source.close(); }
 }
