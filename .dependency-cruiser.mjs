@@ -838,9 +838,8 @@ function noDeepImportRules(mod) {
 // verifies; a new upward need is solved with a port the composition root binds, not by re-ranking
 // around it.
 //
-// `severity: "warn"` while the known violations are being removed (the import statements of the
-// feature edges that close the cycle; the count only goes down). It becomes "error" when the count
-// is 0.
+// `severity: "error"` since the five edges that closed the cycle were cut (S6): the count is 0, so a
+// new upward feature import fails `check:boundaries` at once.
 //
 // `dependencyTypesNot` needs BOTH values: "type-only" covers `import type`, and dependency-cruiser
 // tags an `import("x").T` type node as "type-import" (without it such a node is reported as a
@@ -864,7 +863,7 @@ const FEATURE_RANK_RULES = [...new Set(Object.values(FEATURE_RANK))].sort((a, b)
   const sameOrHigher = Object.keys(FEATURE_RANK).filter((name) => FEATURE_RANK[name] >= rank);
   return {
     name: `feature-rank:${rank}`,
-    severity: "warn",
+    severity: "error",
     comment: "A feature may value-import only features of a strictly lower rank (development/boundaries/feature-ranks.json). Need something from above? Declare a port and let the composition root bind it.",
     // The group in `from.path` is the importing feature; `$1` in `to.pathNot` then skips imports inside that feature.
     from: { path: `^${FEATURES}/(${featureAlternatives(here)})/`, pathNot: FEATURE_RANK_TESTS },
