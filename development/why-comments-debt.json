@@ -1720,6 +1720,102 @@
     {
       "id": "d966124e79c7",
       "reason": "Moved or reworded, not lost: bigram containment 0.82 of this block's text in packages/diagnostics/src/observability/provider-contract.ts (merge-3 classification; the checker counts only verbatim survivors). Was apps/website/src/server/runtime/composition/provider-contracts.ts:12."
+    },
+    {
+      "id": "b40ba6da5a0c",
+      "reason": "Code moved to Jini by admin-j3/T1a (d995b35b deleted apps/admin/src/lib/panel-access.ts; J4 put the rule in @jini-ai/core/admin-runtime): the any-of/all-of rule, unknown-permissions-show-all, group-dropping and no-access gate are documented at Jini packages/core/src/admin-runtime/panel-access.ts:1-23, :53-69, :80-88 and Jini packages/admin/src/react/shell/model.ts:17-21; the Tovu-side facts (UX only, server re-checks, Overview/`slice(0, 1)` row) are at apps/admin/src/panels.tsx:112-121 and apps/admin/src/App.tsx:580-588. Was apps/admin/src/lib/panel-access.ts:4-18 (\"@file which admin sections the signed-in operator can use — the sideba...\")."
+    },
+    {
+      "id": "dfc9a6705bda",
+      "reason": "Code moved to Jini by admin-j3/T1a (d995b35b deleted apps/admin/src/lib/panel-access.ts; J4 put the rule in @jini-ai/core/admin-runtime): the any-of/all-of rule, unknown-permissions-show-all, group-dropping and no-access gate are documented at Jini packages/core/src/admin-runtime/panel-access.ts:1-23, :53-69, :80-88 and Jini packages/admin/src/react/shell/model.ts:17-21; the Tovu-side facts (UX only, server re-checks, Overview/`slice(0, 1)` row) are at apps/admin/src/panels.tsx:112-121 and apps/admin/src/App.tsx:580-588. Was apps/admin/src/lib/panel-access.ts:20-20 (\"the per-panel declaration `panels.tsx` carries....\")."
+    },
+    {
+      "id": "79fb5ed0868c",
+      "reason": "Code moved to Jini by admin-j3/T1a (d995b35b deleted apps/admin/src/lib/panel-access.ts; J4 put the rule in @jini-ai/core/admin-runtime): the any-of/all-of rule, unknown-permissions-show-all, group-dropping and no-access gate are documented at Jini packages/core/src/admin-runtime/panel-access.ts:1-23, :53-69, :80-88 and Jini packages/admin/src/react/shell/model.ts:17-21; the Tovu-side facts (UX only, server re-checks, Overview/`slice(0, 1)` row) are at apps/admin/src/panels.tsx:112-121 and apps/admin/src/App.tsx:580-588. Was apps/admin/src/lib/panel-access.ts:22-25 (\"permission ids, exactly as the panel's landing server route checks the...\")."
+    },
+    {
+      "id": "d9b191158ec8",
+      "reason": "Code moved to Jini by admin-j3/T1a (d995b35b deleted apps/admin/src/lib/panel-access.ts; J4 put the rule in @jini-ai/core/admin-runtime): the any-of/all-of rule, unknown-permissions-show-all, group-dropping and no-access gate are documented at Jini packages/core/src/admin-runtime/panel-access.ts:1-23, :53-69, :80-88 and Jini packages/admin/src/react/shell/model.ts:17-21; the Tovu-side facts (UX only, server re-checks, Overview/`slice(0, 1)` row) are at apps/admin/src/panels.tsx:112-121 and apps/admin/src/App.tsx:580-588. Was apps/admin/src/lib/panel-access.ts:29-29 (\"a panel as this module needs to see it: its id plus its declaration....\")."
+    },
+    {
+      "id": "b9ee0325bdee",
+      "reason": "Code moved to Jini by admin-j3/T1a (d995b35b deleted apps/admin/src/lib/panel-access.ts; J4 put the rule in @jini-ai/core/admin-runtime): the any-of/all-of rule, unknown-permissions-show-all, group-dropping and no-access gate are documented at Jini packages/core/src/admin-runtime/panel-access.ts:1-23, :53-69, :80-88 and Jini packages/admin/src/react/shell/model.ts:17-21; the Tovu-side facts (UX only, server re-checks, Overview/`slice(0, 1)` row) are at apps/admin/src/panels.tsx:112-121 and apps/admin/src/App.tsx:580-588. Was apps/admin/src/lib/panel-access.ts:34-42 (\"true when the operator may use `panel`. `permissions: undefined` means...\")."
+    },
+    {
+      "id": "0f4bdd7b7a71",
+      "reason": "Code moved to Jini by admin-j3/T1a (d995b35b deleted apps/admin/src/lib/panel-access.ts; J4 put the rule in @jini-ai/core/admin-runtime): the any-of/all-of rule, unknown-permissions-show-all, group-dropping and no-access gate are documented at Jini packages/core/src/admin-runtime/panel-access.ts:1-23, :53-69, :80-88 and Jini packages/admin/src/react/shell/model.ts:17-21; the Tovu-side facts (UX only, server re-checks, Overview/`slice(0, 1)` row) are at apps/admin/src/panels.tsx:112-121 and apps/admin/src/App.tsx:580-588. Was apps/admin/src/lib/panel-access.ts:53-63 (\"the sidebar nav with every row the operator cannot use removed. drops ...\")."
+    },
+    {
+      "id": "b8b700f966c8",
+      "reason": "Code moved to Jini by admin-j3/T1a (d995b35b deleted apps/admin/src/lib/panel-access.ts; J4 put the rule in @jini-ai/core/admin-runtime): the any-of/all-of rule, unknown-permissions-show-all, group-dropping and no-access gate are documented at Jini packages/core/src/admin-runtime/panel-access.ts:1-23, :53-69, :80-88 and Jini packages/admin/src/react/shell/model.ts:17-21; the Tovu-side facts (UX only, server re-checks, Overview/`slice(0, 1)` row) are at apps/admin/src/panels.tsx:112-121 and apps/admin/src/App.tsx:580-588. Was apps/admin/src/lib/panel-access.ts:80-86 (\"whether the routed panel may render, or the screen should say \"no acce...\")."
+    },
+    {
+      "id": "dda93e44226f",
+      "reason": "Edited in place by T1a (d995b35b): the reference to the deleted lib/panel-access.ts was replaced by @jini-ai/admin/core's isPanelAccessible/withoutInaccessiblePanels; the same statement is at apps/admin/src/panels.tsx:112-121 (TovuAdminPanel doc) and :461-462 (users any-of note). Was apps/admin/src/panels.tsx:113-118 (\"a tovu panel: jini's `adminpanel` plus `anyofpermissions`, the permiss...\")."
+    },
+    {
+      "id": "6278d3328128",
+      "reason": "Edited in place by T1a (d995b35b): the reference to the deleted lib/panel-access.ts was replaced by @jini-ai/admin/core's isPanelAccessible/withoutInaccessiblePanels; the same statement is at apps/admin/src/panels.tsx:112-121 (TovuAdminPanel doc) and :461-462 (users any-of note). Was apps/admin/src/panels.tsx:458-459 (\"any-of, matching `routes/users/list.ts`: the built-in admin role holds...\")."
+    },
+    {
+      "id": "22357ea57974",
+      "reason": "Edited in place by daemon-r7 (the lookup route reads its own 64 KB body now, no Express parser): the same doc, reworded for the route-data mount, is at apps/website/src/assistant/daemon-access.ts:64-67. Was apps/website/src/assistant/daemon-access.ts:63-67 (\"mounts the daemon's attachment lookup (the server's chat-attachment to...\")."
+    },
+    {
+      "id": "fbc2bb49b50c",
+      "reason": "Code moved to Jini by kt-k09-k10: DELIVERY_STATUS_MAX_LIMIT lives in Jini packages/cms/src/forms/delivery-status-limits.ts:1-2 with the neutral doc 'How many unfinished deliveries a delivery-status read lists at most' (engine text may not name the host tool `forms_delivery_status`, guard R5). Was apps/website/src/contracts/headless/form-delivery-status.ts:26-26 (\"`forms_delivery_status` lists at most this many unfinished deliveries ...\")."
+    },
+    {
+      "id": "a4c9628671a0",
+      "reason": "Code moved to Jini by kt-k03-k04 (comments catalog): COMMENT_ID_SCHEMA's doc is at Jini packages/cms/src/comments/agent-tools.ts:60, reworded to 'the moderation queue read' because engine text may not name the host tool `content_read.*` (guard R5). Was apps/website/src/features/comments/agent-tools.ts:60-60 (\"a comment's id, as returned by `content_read.comment_moderation_queue`...\")."
+    },
+    {
+      "id": "843a5277bde6",
+      "reason": "Code moved to Jini by kt-k07/su-cms-3 (the trash catalog is Jini packages/cms/src/trash/agent-tools.ts); its header there restates the list/restore ownership and per-call kinds rule without the Tovu design-of-record paths (engine neutrality), and the per-call rule is at Jini packages/cms/src/trash/tool-registrations.ts:222-226. Was apps/website/src/features/trash/agent-tools.ts:10-29 (\"@file the trash domain's agent-tool catalog (spec-016 req-22's naming/...\")."
+    },
+    {
+      "id": "c4f9ba17a832",
+      "reason": "Code moved to Jini by su-cms-3 (createTableTrashAdapter is Jini packages/cms/src/trash/sql/table-adapter.ts, split into table-adapter.{context,rows,cascade,transitions,purge}.ts); the read-first precedence, WHERE-repeats-the-read, never-purge-live and cascade/phantom-row rules are restated at its header (lines 1-19) and in the step files, without Tovu-only paths (engine neutrality). Was apps/website/src/features/trash/table-adapter.ts:1-29 (\"@file `createtabletrashadapter` — the one `trashadapter` implementatio...\")."
+    },
+    {
+      "id": "538f5c808930",
+      "reason": "Code moved to Jini by su-cms-3 (createTableTrashAdapter is Jini packages/cms/src/trash/sql/table-adapter.ts, split into table-adapter.{context,rows,cascade,transitions,purge}.ts); the read-first precedence, WHERE-repeats-the-read, never-purge-live and cascade/phantom-row rules are restated at its header (lines 1-19) and in the step files, without Tovu-only paths (engine neutrality). Was apps/website/src/features/trash/table-adapter.ts:68-75 (\"builds one `trashadapter` for a single {@link trashentry}. registered ...\")."
+    },
+    {
+      "id": "5c811799de22",
+      "reason": "Code moved to Jini by su-cms-3 (createTableTrashAdapter is Jini packages/cms/src/trash/sql/table-adapter.ts, split into table-adapter.{context,rows,cascade,transitions,purge}.ts); the read-first precedence, WHERE-repeats-the-read, never-purge-live and cascade/phantom-row rules are restated at its header (lines 1-19) and in the step files, without Tovu-only paths (engine neutrality). Was apps/website/src/features/trash/table-adapter.ts:238-239 (\"already trashed -- idempotent success, no write (mirrors `flipmarker`'...\")."
+    },
+    {
+      "id": "400716d5a6e0",
+      "reason": "Code moved to Jini by su-cms-3 (createTableTrashAdapter is Jini packages/cms/src/trash/sql/table-adapter.ts, split into table-adapter.{context,rows,cascade,transitions,purge}.ts); the read-first precedence, WHERE-repeats-the-read, never-purge-live and cascade/phantom-row rules are restated at its header (lines 1-19) and in the step files, without Tovu-only paths (engine neutrality). Was apps/website/src/features/trash/table-adapter.ts:297-306 (\"physically removes the row. never deletes a live row or its {@link tra...\")."
+    },
+    {
+      "id": "e6d75c32bc8d",
+      "reason": "Code moved to Jini (the catalog build moved with the trash registrations): the same 'built per call, a module-level catalog would freeze the entityType enum' why is at Jini packages/cms/src/trash/tool-registrations.ts:222-226. Was apps/website/src/features/trash/tool-registrations.ts:213-216 (\"built per call, from the kinds this call's registry actually holds (f6...\")."
+    },
+    {
+      "id": "99288f9343aa",
+      "reason": "Code moved to Jini by kt-k09-k10 (webhook tool handlers are Jini packages/integrations/src/webhooks/tools/tool-handlers.ts): the lookup-limit duplication why is at :31-35, the deliveries default/cap at :37-39, the owner-principal placeholder at :110-112, and the authorization-shape header at the top of that file, reworded to name 'the host's admin routes' (engine neutrality). Was apps/website/src/features/webhooks/tool-registrations.ts:6-19 (\"@file integrations' half of adr-049 decision 4: maps `agent-tools.ts`'...\")."
+    },
+    {
+      "id": "c7b6fc51b968",
+      "reason": "Code moved to Jini by kt-k09-k10 (webhook tool handlers are Jini packages/integrations/src/webhooks/tools/tool-handlers.ts): the lookup-limit duplication why is at :31-35, the deliveries default/cap at :37-39, the owner-principal placeholder at :110-112, and the authorization-shape header at the top of that file, reworded to name 'the host's admin routes' (engine neutrality). Was apps/website/src/features/webhooks/tool-registrations.ts:72-79 (\"bound on how many of a subscription's most recent deliveries are read ...\")."
+    },
+    {
+      "id": "13b19c9c3558",
+      "reason": "Code moved to Jini by kt-k09-k10 (webhook tool handlers are Jini packages/integrations/src/webhooks/tools/tool-handlers.ts): the lookup-limit duplication why is at :31-35, the deliveries default/cap at :37-39, the owner-principal placeholder at :110-112, and the authorization-shape header at the top of that file, reworded to name 'the host's admin routes' (engine neutrality). Was apps/website/src/features/webhooks/tool-registrations.ts:82-83 (\"default/cap for `webhooks_get_deliveries`' `limit` — duplicated from `...\")."
+    },
+    {
+      "id": "54277f7b7a52",
+      "reason": "Code moved to Jini by kt-k09-k10 (webhook tool handlers are Jini packages/integrations/src/webhooks/tools/tool-handlers.ts): the lookup-limit duplication why is at :31-35, the deliveries default/cap at :37-39, the owner-principal placeholder at :110-112, and the authorization-shape header at the top of that file, reworded to name 'the host's admin routes' (engine neutrality). Was apps/website/src/features/webhooks/tool-registrations.ts:256-258 (\"mirrors `create.ts`'s own dev-mode placeholder: this codebase has no p...\")."
+    },
+    {
+      "id": "fdaf0b1ea645",
+      "reason": "Behaviour changed by daemon-r7 (route sheet decision): a failing run store now reaches the host's error path on both routes (500) instead of the execution route's body-parser handler (400); the test and its comment were rewritten at lines 147-149 of the same file, which also record the old answer. Was apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-authorize-run.integration.test.ts:147-148 (\"recorded as it is: on the execution route the failure is passed to the...\")."
+    },
+    {
+      "id": "05eb54ad9ad0",
+      "reason": "Behaviour changed by daemon-r7 (route sheet decision): a failing run store now reaches the host's error path on both routes (500) instead of the execution route's body-parser handler (400); the test and its comment were rewritten at lines 147-149 of the same file, which also record the old answer. Was apps/website/src/server/runtime/composition/modules/__tests__/assistant-tool-exec-authorize-run.integration.test.ts:152-152 (\"the catalog route has no error handler of its own, so the host's answe...\")."
     }
   ]
 }
