@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { createNoopObservabilityPort, isNoopObservabilityPort, type ErrorReport, type MetricInput, type MetricOptions } from '@jini-ai/diagnostics/observability';
 import { isNoopProductAnalytics, type ProductEvent } from '@jini-ai/analytics/product';
 import { bootProductTelemetry, bootProductTelemetryFromEnv, createProductConsentReader, loadProductProviders, type ProductConsent, type ProductProviderInput, type ProductTelemetry } from '../product-telemetry.js';
-import { PRODUCT_EVENTS, projectProductEvent } from '../product-events.js';
+import { PRODUCT_EVENTS, projectProductEvent } from '@tovu/host-shared/product-events';
 
 const INSTALL = '00000000-0000-4000-8000-000000000001';
 const CONFIG = { observability: { plugin: 'fake-errors', input: { key: 'FAKE_ERROR_KEY', environment: 'test' } },

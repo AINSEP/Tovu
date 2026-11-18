@@ -1,6 +1,6 @@
 /** Admit only the trusted shell's main frame and the existing product catalog. */
 import type { Tracker } from '@jini-ai/diagnostics/observability';
-import { PRODUCT_EVENTS } from '../../website/src/server/runtime/composition/product-events.ts';
+import { PRODUCT_EVENTS } from '@tovu/host-shared/product-events';
 import { PRODUCT_TELEMETRY_CHANNEL, type ShellTelemetryPayload } from './contracts/product-telemetry.ts';
 interface Sender { getURL(): string }
 interface TelemetryEvent { sender: Sender; senderFrame: { url: string; parent: unknown } | null }
