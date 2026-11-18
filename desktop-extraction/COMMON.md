@@ -38,7 +38,7 @@ A red baseline is **reported, not fixed**. Record both repo SHAs. Then run your 
 
 | # | Mistake a build run already made | Rule (command: block of the same number below; it must print nothing unless stated) |
 |---|---|---|
-| S1 | Red commit, "fixed forward" | Work in progress goes to `wip/desktop-x/<sheet>` (push every 5-10 min, red allowed, never merged). The lane branch `desktop-x/<sheet>` gets a step only after its gate passes, and every lane commit is proven green alone before the push with `git rebase --exec`. The gate is typecheck + build + the tests of the files the commit changed (owner rule: only changed files locally); the full desktop suite runs once per wave in the cloud gate run (INDEX section 5), never on this machine. A failure not in the baseline stops the rebase: fix on wip, rebuild the lane commit. |
+| S1 | Red commit, "fixed forward" | Work in progress goes to `wip/desktop-x/<sheet>` (push every 5-10 min, red allowed, never merged). The lane branch `desktop-x/<sheet>` gets a step only after its gate passes, and every lane commit is proven green alone before the push with `git rebase --exec`. The gate is the script in block S1 under `set -e`: build (`npm run build:server`: contracts, host-shared, sdk, root `tsc` to `dist/`) + typecheck (root, e2e, desktop, tests) + the desktop build + the tests of the files the commit changed (owner rule: only changed files locally). A gate that is a one-line `A && T=$(...); [ -z "$T" ] || ...` chain is wrong: it exits 0 when `A` fails; the full desktop suite runs once per wave in the cloud gate run (INDEX section 5), never on this machine. A failure not in the baseline stops the rebase: fix on wip, rebuild the lane commit. |
 | S2 | Custom hook imported, not injected | Every `.ts`/`.tsx` file you created, moved or edited, whole file (not only added lines, multiline-safe): a **call** of an imported `use*` name inside a component or hook body is a violation; the only allowed use is as the default value of a prop/option. Plus the repo's hook gate with no new key. Includes `useT`, `useAdminLocale`, kit hooks. |
 | S3 | Lazy import of a declared dependency | No **new** runtime `import()` call, `createRequire(` or `loadOptionalPeer`. Counted on the TypeScript syntax tree, so type-position `typeof import("x")`, `x: import("x").T` and JSDoc `{@link import(...)}` are not counted (the round-2 regex counted about 28 such lines on the desktop; the real runtime `import()` calls are the 8 sites D0e owns). A missing module is fixed by **declaring the dependency** in `package.json`, never by deferring the import. `electron-updater` stays a static import. A run that **moves** a file containing one of the existing sites stops unless its sheet names that site. |
 | S4 | Re-export shell left at the old path | The old file is **deleted** and every importer repointed in the same commit. A pre-existing alias line in a real module (for example `apps/admin/src/lib/assistant-subagents.ts:3`) that is only repointed is listed in the report with its line at `B`. |
@@ -55,8 +55,42 @@ A red baseline is **reported, not fixed**. Record both repo SHAs. Then run your 
 B=<your starting SHA>            # set once; every block below uses it
 SRC='\.(ts|tsx|mts|cts|js|mjs)$'; TESTS='(__tests__/|\.test\.|\.spec\.|\.d\.ts$)'
 
-# S1: gate each lane commit. GATE = typecheck + build + the changed files' tests. Tovu example:
-git rebase --exec 'npm --prefix apps/desktop run typecheck && T=$(git diff --name-only HEAD~1 -- apps/desktop/src | sed -E "s#\.(ts|tsx)\$#.test.\1#" | while read f; do [ -f "$f" ] && echo "${f#apps/desktop/}"; done; git diff --name-only HEAD~1 -- "apps/desktop/src/**/*.test.ts*" | sed "s#^apps/desktop/##"); [ -z "$T" ] || (cd apps/desktop && node --experimental-test-module-mocks --import ./scripts/resolve-ts-ext.ts --test $T)' "$B"
+# S1: gate each lane commit. GATE = build + typecheck (root, e2e, desktop) + the changed files' tests, all under `set -e`.
+# The earlier one-liner `A && T=$(...); [ -z "$T" ] || (...)` exited 0 when typecheck FAILED (the `&&` skipped the
+# assignment, `T` stayed empty, and `[ -z "$T" ]` then short-circuited the test step to success) and it never built,
+# so a red commit passed. Found 2026-11-18 by the d0c-verify-fix run, which re-checked every D0c commit by hand.
+GATE="${TMPDIR:-/tmp}/tovu-commit-gate.sh"
+cat > "$GATE" <<'GATE_EOF'
+#!/usr/bin/env bash
+set -euo pipefail                                   # any failing step fails the whole gate
+cd "$(git rev-parse --show-toplevel)"
+# Stale dist must not satisfy an import whose source this commit deleted or moved.
+rm -rf packages/contracts/dist packages/host-shared/dist packages/sdk/dist dist/src apps/desktop/dist
+npm run build:server                                # contracts, host-shared, sdk, root tsc into dist/, runtime assets
+npx tsc -p tsconfig.json --noEmit                   # root + website
+npx tsc -p development/tsconfig.e2e.json --noEmit
+npm --prefix apps/desktop run typecheck
+npm --prefix apps/desktop run build                 # preload + renderer
+NODE_OPTIONS=--max-old-space-size=6144 npx tsc -p tsconfig.tests.json --noEmit
+# Tests: every changed test file, plus the test beside each changed desktop source file. `|| true` keeps a missing
+# sibling test from failing the list under pipefail; the test commands below are the only thing that may fail it.
+CHANGED=$(git diff --name-only --diff-filter=AMR HEAD~1 HEAD)
+DESK=$(for f in $CHANGED; do case "$f" in
+  apps/desktop/src/*.test.ts|apps/desktop/src/*.test.tsx) echo "$f";;
+  apps/desktop/src/*.ts|apps/desktop/src/*.tsx) t="${f%.*}.test.${f##*.}"; [ -f "$t" ] && echo "$t" || true;;
+esac; done | sed 's#^apps/desktop/##' | sort -u)
+ROOT=$(for f in $CHANGED; do case "$f" in
+  apps/desktop/*) ;;
+  *.test.ts|*.test.tsx|*.test.mjs) [ -f "$f" ] && echo "$f" || true;;
+esac; done | sort -u)
+REND=$(echo "$DESK" | grep '^src/renderer/' || true); MAIN=$(echo "$DESK" | grep -v '^src/renderer/' || true)
+if [ -n "$MAIN" ]; then (cd apps/desktop && node --experimental-test-module-mocks --import ./scripts/resolve-ts-ext.ts --test $MAIN); fi
+if [ -n "$REND" ]; then (cd apps/desktop && node --import ./scripts/one-react.ts --import tsx --test $REND); fi
+if [ -n "$ROOT" ]; then TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks $ROOT; fi
+GATE_EOF
+git rebase --exec "bash $GATE" "$B"                 # stops at the first red commit
+# Prove the gate once before trusting it: break one typecheck on purpose (for example a bad import in a scratch file the
+# root tsconfig includes) and confirm `bash "$GATE"` exits non-zero and the rebase stops.
 # Jini example (one package): git rebase --exec 'pnpm --filter @jini-ai/<pkg> build && pnpm --filter @jini-ai/<pkg> exec vitest run --changed HEAD~1' "$B"
 # (renderer tests use the desktop's second runner: node --import ./scripts/one-react.ts --import tsx --test <files>)
 
@@ -143,7 +177,7 @@ node -e "import('@jini-ai/<pkg>/<entry>').then(m=>console.log(Object.keys(m).len
 | Level | What it means | Who can run it |
 |---|---|---|
 | T | typecheck + unit tests + `npm run gates` | any run |
-| P | packaged proof, in this order, on an **unlinked** tree pinned to the published Jini version: (1) `npm --prefix apps/desktop run stage`; (2) package (`electron-builder`, as the `package` script does after `gates`, `build`, `stage`); (3) audit the **built archive**: `node scripts/verify-staged-closure.ts --asar <archive>` from `apps/desktop` — the script throws without `--asar` (`:32-34`) and reads the archive's sibling resource directories. `<archive>` = `app.asar` in the packaged app's resources directory: macOS `<out>/mac*/<App>.app/Contents/Resources/app.asar`, Windows `<out>/win-unpacked/resources/app.asar`, `<out>` = `directories.output` in `electron-builder.yml` (print the path you used); (4) the `build` job of `.github/workflows/desktop-release.yml` on macOS **and** Windows (`verify-package`, `smoke-native`, `smoke-bridge`). Every run that moves a module the packaged main process or child loads at runtime owes steps 1-3, not only D0c2. | needs a machine with Electron; CI or owner |
+| P | packaged proof, in this order, on an **unlinked** tree pinned to the published Jini version: (1) `npm --prefix apps/desktop run stage`; (2) package (`electron-builder`, as the `package` script does after `gates`, `build`, `stage`); (3) audit the **built archive**: `node --experimental-import-meta-resolve scripts/verify-staged-closure.ts --asar <archive>` from `apps/desktop` — the script throws without `--asar` (`:32-34`), and `createNodeRuntimeResolver` throws "staged closure needs node --experimental-import-meta-resolve" without the flag (`@jini-ai/devops` `staged-closure-node.ts`; `verify-package.ts:49` passes it): the flag is mandatory on every manual run. It reads the archive's sibling resource directories. `<archive>` = `app.asar` in the packaged app's resources directory: macOS `<out>/mac*/<App>.app/Contents/Resources/app.asar`, Windows `<out>/win-unpacked/resources/app.asar`, `<out>` = `directories.output` in `electron-builder.yml` (print the path you used); (4) the `build` job of `.github/workflows/desktop-release.yml` on macOS **and** Windows (`verify-package`, `smoke-native`, `smoke-bridge`). Every run that moves a module the packaged main process or child loads at runtime owes steps 1-3, not only D0c2. | needs a machine with Electron; CI or owner |
 | E | a look at the running Electron app (screenshots at 2x, light and dark) for the screens the sheet lists | owner machine or a run with a display |
 
 A sheet marked P or E is **not done** at T. Its report says "T passed; P/E pending" and lists the exact screens or smokes still owed.
