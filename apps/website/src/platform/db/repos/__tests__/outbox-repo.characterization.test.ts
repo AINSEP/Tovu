@@ -44,6 +44,7 @@ describeEachDialect("SqlOutboxAdapter characterization", { tables: ["outbox_even
     await outbox.enqueue(event("e1"));
     await outbox.enqueue(event("e2"));
     await outbox.claimPending({ batchSize: 10, nowIso: T0 });
+    const leaseExpiry = (await outboxRows(kernel))[1]?.next_attempt_at;
     const retryAt = "2026-11-18T00:05:00.000Z";
     await outbox.markFailed({ id: "e1", error: "boom", nextAttemptAt: retryAt, nextStatus: "pending" });
     await outbox.markDelivered({ id: "e2" });
@@ -52,7 +53,7 @@ describeEachDialect("SqlOutboxAdapter characterization", { tables: ["outbox_even
     assert.equal(e2?.status, "delivered");
     assert.equal(e2?.attempts, 1);
     assert.equal(e2?.last_error, null);
-    assert.notEqual(e2?.next_attempt_at, retryAt, "markDelivered does not touch the retry time");
+    assert.equal(e2?.next_attempt_at, leaseExpiry, "markDelivered does not touch the retry time");
   });
 
   test("enqueue takes part in the caller's transaction: a throw leaves no row, a commit leaves one (mutation: run it on another connection)", async () => {
