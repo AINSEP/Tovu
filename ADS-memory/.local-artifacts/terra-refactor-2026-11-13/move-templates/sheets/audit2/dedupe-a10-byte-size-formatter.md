@@ -1,5 +1,13 @@
 # DEDUPE-A10: eight byte-size formatters -> one `@jini-ai/core/text` `formatByteSize` (templates T-DEDUPE + T-MOVE)
 
+> **STATUS (sheet-fixes-2, 2026-11-18): V1-V3 VOID (done); V4-V8 BLOCKED (owner decision). Do not dispatch this sheet.**
+> The 2026-11-18 run (`origin/wave3/audit2-a:cloud-results/audit2-a.md`) stopped correctly: the guard `jini_must_not_exist: packages/core/src/text/format-byte-size.ts` fails because Jini 6f8dc8c2 landed `formatByteSize({ bytes }, { locale = 'en-US', megabyteLabel = 'MB' })` in `@jini-ai/core/text` with a deliberately FIXED display rule (its header: whole B/KB, one decimal from MB up, 1024-based). Re-derived on refactor/terra (Tovu ada11733f / Jini 4c1892368):
+> - V1 (Jini admin/media) and V3 (Tovu `install-archive-size.ts`, via `megabyteLabel: 'MiB'`) are gone: DONE by the earlier run.
+> - V2 is DONE too: `apps/admin/src/features/sites/site-transfer-rules.ts:12` (blob 8581e052) is `formatTransferBytes = invalid ? "—" : formatByteSize({ bytes })` over the core function; the dash is host policy for a missing value, not a second formatter.
+> - V4 (website backup: `KiB`/`MiB`/`GiB`, one decimal KB, `.0` dropped), V5a-c (Jini ui: one decimal KB, no GB), V6 (dropzone: empty string for 0, no GB), V7 (connector: `No data`, auto KB digits), V8 (forms: `.0` dropped) all print DIFFERENT visible labels from the core rule. Consolidating them is either a visible behaviour change in 6 places (needs a failing test first per site and the owner's yes on one display rule) or widening the just-landed core contract with 4+ options (`labels`, `kilobyteDigits`, `trimZeroDecimal`, `largestUnit`) whose interplay with `megabyteLabel` must be designed. Neither is a sheet-drift fix.
+> **Owner question A10-Q1 (recommendation):** converge V5a-c, V6 and V8 (Jini ui/admin, all `KB`-family labels in the same admin UI) to the core rule, each with a characterization test showing the old label RED and the new GREEN; keep V4 (backup manifest text in `KiB`) and V7 (connector "No data" semantics) as domain-specific formatters. On a yes, a new short sheet per package (ui, admin) replaces this one. The text below is the original revision, kept for history only.
+
+
 Written 2026-11-16 against Tovu `integ/wave-b` (`../code`) and Jini `integ/wave-b` (`/home/user/Jini`), every cited line read that day. Row `audit2:A10` (the row names 4 formatters; the census finds **8 in Jini + Tovu admin/website** and 3 more that stay). Startable now (no kit, no lane); nothing on the row is hard-blocked.
 
 Tier: S1 Sonnet (new core file + tests), S2 Sonnet (collapse the Jini copies), S3 Sonnet (Tovu repoint). No Opus review needed: pure functions, parity table is the review. est. executor tokens ≈ 32k (S1 10k, S2 12k, S3 10k).
