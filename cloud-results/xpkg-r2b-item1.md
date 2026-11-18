@@ -1,0 +1,3 @@
+# xpkg-r2b-item1 (Tovu side) — DONE; full report in the Jini branch `cloud-results/xpkg-r2b-item1.md`
+
+Branch `wave2/xpkg-r1c-r2a`. Tovu `720cb29f` (checked against Jini `6ada1f20c`): `embed-policy-ports.ts` binding, `embedPolicy` in `createHostAdminScope` ports, 3 callers + 2 test files pass the policy. Linked to Jini 6ada1f20c: `npm run typecheck` exit 0; apps/admin `tsc --noEmit` clean; apps/admin vitest `src/features/media src/integrations/jini-admin src/components` 166 files / 2201 tests green; full apps/admin suite not completed within the time guard (not verified); `check:size` / `check:complexity` fail only on lines already failing on the base (apps/website, and `media-content-rules.ts` `readMediaContent`).

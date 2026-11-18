@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '../../../__tests__/render-with-jini-kits';
 import { ApiError } from '@/lib/admin-http/request';
 import { navigate } from '@/lib/router';
 import { ConsentOverviewTab, type ConsentOverviewTabProps } from '../ConsentOverviewTab';

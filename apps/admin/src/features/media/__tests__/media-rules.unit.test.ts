@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AdminMedia } from "@/features/media/api/media-api.types";
 import { parseMediaHtmlAttributes } from "@jini-ai/admin/media";
+import { embedPolicy } from "../../../integrations/jini-admin/embed-policy-ports";
 import {
   mediaAltText,
   readFileAsBase64,
@@ -77,11 +78,11 @@ describe("resolveLightboxItem", () => {
 
 describe("unsafe-URL scan on non-ASCII values", () => {
   it("keeps astral characters when stripping whitespace, so an emoji-prefixed scheme is not misread", () => {
-    expect(parseMediaHtmlAttributes({ text: 'title="\u{1F600}javascript:x"' }).errors).toEqual([]);
-    expect(parseMediaHtmlAttributes({ text: 'title="\u{1F600}javascript:x"' }).attributes).toEqual({ title: "\u{1F600}javascript:x" });
+    expect(parseMediaHtmlAttributes({ policy: embedPolicy, text: 'title="\u{1F600}javascript:x"' }).errors).toEqual([]);
+    expect(parseMediaHtmlAttributes({ policy: embedPolicy, text: 'title="\u{1F600}javascript:x"' }).attributes).toEqual({ title: "\u{1F600}javascript:x" });
   });
 
   it("still flags a scheme split by interior whitespace", () => {
-    expect(parseMediaHtmlAttributes({ text: 'title="java\tscript:x"' }).errors).toEqual([{ reason: "unsafe-url", attribute: "title" }]);
+    expect(parseMediaHtmlAttributes({ policy: embedPolicy, text: 'title="java\tscript:x"' }).errors).toEqual([{ reason: "unsafe-url", attribute: "title" }]);
   });
 });

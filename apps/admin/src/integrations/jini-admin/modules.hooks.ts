@@ -5,6 +5,7 @@ import { media } from '@jini-ai/admin/media/react';
 import { mediaPickerToken } from '@jini-ai/admin/contracts/media-picker';
 import { createOverlayController, OverlayHost } from '@jini-ai/admin/react/overlays';
 import { PublishSectionButton } from '../../features/publish-content/PublishSectionButton';
+import { embedPolicy } from './embed-policy-ports';
 import { mediaApi, mediaEvents, createMediaProvidersPort, mediaSessionGrants } from './media-ports';
 import { commentsHostPorts, commentsSessionGrants, type CommentsHostPorts } from './comments-ports';
 import { createHostCommentsModule } from './comments-module.hooks';
@@ -36,7 +37,7 @@ export function createHostAdminScope({ permissions }: { permissions: readonly st
   const widgetsFeature = createHostWidgetsModule({}, { useAdminLocaleHook: useWidgetsLocaleHook });
   const formsFeature = createHostFormsModule({}, { useAdminLocaleHook: useFormsLocaleHook });
   // Scope membership uses object identity: host Provider wrappers are copies of the bound modules.
-  const admin = createAdmin({ modules: [feature.react.module, commentsFeature.react.module, redirectsFeature.react.module, seoFeature.react.module, widgetsFeature.react.module, formsFeature.react.module, pickerConsumer], ports: { mediaApi, mediaEvents, mediaProviders: createMediaProvidersPort({}), ...commentsPorts, ...redirectsPorts, ...seoPorts, ...widgetsPorts, ...formsPorts } }, { permissions: [...mediaSessionGrants({ permissions }), ...commentsSessionGrants({ permissions }), ...redirectsSessionGrants({ permissions }), ...seoSessionGrants({ permissions }), ...formsSessionGrants({ permissions })] });
+  const admin = createAdmin({ modules: [feature.react.module, commentsFeature.react.module, redirectsFeature.react.module, seoFeature.react.module, widgetsFeature.react.module, formsFeature.react.module, pickerConsumer], ports: { mediaApi, embedPolicy, mediaEvents, mediaProviders: createMediaProvidersPort({}), ...commentsPorts, ...redirectsPorts, ...seoPorts, ...widgetsPorts, ...formsPorts } }, { permissions: [...mediaSessionGrants({ permissions }), ...commentsSessionGrants({ permissions }), ...redirectsSessionGrants({ permissions }), ...seoSessionGrants({ permissions }), ...formsSessionGrants({ permissions })] });
   return { permissionKey: JSON.stringify(permissions), admin, overlays, picker: admin.scope({ module: pickerConsumer }).mediaPicker, bindings: { media: feature.react, comments: commentsFeature.react, redirects: redirectsFeature.react, seo: seoFeature.react, widgets: widgetsFeature.react, forms: formsFeature.react } };
 }
 export function useAdminModules({ permissions }: { permissions: readonly string[] }, _optional: Record<string, never> = {}) {
