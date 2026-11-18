@@ -7,7 +7,8 @@ import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { EntrySlugConflictError, importEntry, updateEntry, VersionConflictError } from "../../index.js";
 import type { EntryRecord, EntryRepoPort, EntryRevisionInput } from "../../index.js";
 import { SqliteEntryRepo } from "../../repo.sqlite.js";
-import { TrashAwareInMemoryEntryRepo } from "../../trash-aware-memory-repo.js";
+import type { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
+import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
 
 /**
  * @file Entry writes are compare-and-set (wm S3): `EntryRepoPort.save(row, { expectedVersion })`
@@ -148,7 +149,7 @@ function runCompareAndSetSuite(adapterName: string, make: () => Adapter): void {
 }
 
 runCompareAndSetSuite("TrashAwareInMemoryEntryRepo", () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   const revisions: EntryRevisionInput[] = [];
   const append = repo.appendRevision.bind(repo);
   repo.appendRevision = async (revision) => {

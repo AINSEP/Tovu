@@ -1,4 +1,5 @@
-import { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
+import type { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
+import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
 import type { RemoveWidgetFn } from "@jini-ai/cms/widgets";
 
 /**
@@ -16,7 +17,7 @@ export interface MemoryWidgetTrash {
   calls: Array<Parameters<RemoveWidgetFn>[0]>;
 }
 
-export function memoryWidgetTrash(entryRepo: TrashAwareInMemoryEntryRepo = new TrashAwareInMemoryEntryRepo()): MemoryWidgetTrash {
+export function memoryWidgetTrash(entryRepo: TrashAwareInMemoryEntryRepo = trashAwareEntryRepo()): MemoryWidgetTrash {
   const calls: MemoryWidgetTrash["calls"] = [];
   const remove: RemoveWidgetFn = async (required) => {
     calls.push(required);

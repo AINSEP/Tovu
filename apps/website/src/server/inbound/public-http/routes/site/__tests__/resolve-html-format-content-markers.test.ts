@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
+import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { PostRecord } from "#src/features/post/index";
 import { InMemoryMediaContentTypeStore, InMemoryTransformDefinitionRepo } from "#src/features/media/index";
@@ -64,7 +64,7 @@ function deps(postRepo: InMemoryPostRepo): ContentMarkerResolutionDeps {
   return {
     workspaceId: WORKSPACE_ID,
     postRepo,
-    entryRepo: new TrashAwareInMemoryEntryRepo(),
+    entryRepo: trashAwareEntryRepo(),
     mediaRepo: new InMemoryVersionedMediaRepo({}),
     mediaContentTypeStore: new InMemoryMediaContentTypeStore(),
     transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [] }),

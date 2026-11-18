@@ -6,7 +6,7 @@ import { ToolInputError, type SurfaceEmitter, type ToolExecutionContext, type To
 import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
-import type { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
+import type { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { memoryWidgetTrash } from "./support/memory-widget-trash.js";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";

@@ -5,14 +5,15 @@ import { test } from "node:test";
 import { getMediaAccessEvidenceCache } from "../../../media/access-evidence.js";
 import type { EntryRecord } from "../../index.js";
 import { EntrySlugConflictError, VersionConflictError } from "../../index.js";
-import { TrashAwareInMemoryEntryRepo } from "../../trash-aware-memory-repo.js";
+import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
 
 /**
- * @file S2c T0: the memory twin's write-completion contract and its shared read/trash/slug rows, on the unmoved code,
- * before the class moves to Jini `@jini-ai/cms/entries`. Four sites empty the access-evidence caches linked to THIS repository
- * (the REAL cache, `getMediaAccessEvidenceCache`, seeded with one never-resolved entry), and three of them are deliberately NOT
+ * @file S2c: the memory twin's write-completion contract and its shared read/trash/slug rows. Written on the unmoved code (S2c T0), kept
+ * after the class moved to Jini `@jini-ai/cms/entries` as the binding test: the repo is built the way composition builds it, so each
+ * test proves the host's `onWriteSettled` binding reaches the REAL access-evidence cache. Four sites empty the caches linked to THIS repository
+ * (the cache is `getMediaAccessEvidenceCache`, seeded with one never-resolved entry), and three of them are deliberately NOT
  * in a `finally`: a refused `save`, and a `hardDelete` of a missing id, leave the cache alone (the SQL repo differs: its `save`
- * invalidates on failure too). Each test names the one-line mutation of `trash-aware-memory-repo.ts` that turns it red.
+ * invalidates on failure too). Each test names the one-line mutation of Jini's `repo.trash-aware.memory.ts` that turns it red.
  */
 
 const WS = "ws-1";
@@ -24,7 +25,7 @@ function entry(id: string, overrides: Partial<EntryRecord> = {}): EntryRecord {
 
 /** A repo whose linked access-evidence cache holds one pending entry: the cache is non-empty until the repo says so. */
 function repoWithSeededCache() {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   const cache = getMediaAccessEvidenceCache({ postRepo: {}, entryRepo: repo });
   const seed = () => cache.set("evidence", { expiresAt: Date.now() + 60_000, value: new Promise(() => undefined) });
   seed();
@@ -97,7 +98,7 @@ test("a read never empties the cache", async () => {
 });
 
 test("a trashed row is hidden by every read; findAny* shows it with its marker; a live row has a null marker", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   await repo.save(entry("live"));
   await repo.saveAny({ ...entry("gone"), deletedAt: NOW });
   assert.equal(await repo.findById({ workspaceId: WS, id: "gone" }), null);
@@ -110,7 +111,7 @@ test("a trashed row is hidden by every read; findAny* shows it with its marker; 
 });
 
 test("every read and hardDelete is scoped to the workspace", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   await repo.save(entry("mine"));
   await repo.save(entry("theirs", { workspaceId: "ws-2" }));
   assert.deepEqual((await repo.listByWorkspace({ workspaceId: WS })).map((row) => row.id), ["mine"]);
@@ -123,7 +124,7 @@ test("every read and hardDelete is scoped to the workspace", async () => {
 });
 
 test("a slug held by a trashed row refuses a create with the Trash's message; a save of the trashed row itself is a silent skip", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   await repo.saveAny({ ...entry("held"), deletedAt: NOW });
   await assert.rejects(repo.save(entry("other", { slug: "slug-held" })), (error: unknown) => {
     assert.ok(error instanceof EntrySlugConflictError);
@@ -135,7 +136,7 @@ test("a slug held by a trashed row refuses a create with the Trash's message; a 
 });
 
 test("listPublishedForDisplay honours offset 0, 1 and absent over three published rows", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   for (const id of ["a", "b", "c"]) await repo.save(entry(id, { status: "published", publishedAt: NOW }));
   const ids = async (offset?: number) =>
     (await repo.listPublishedForDisplay({ workspaceId: WS, query: { type: "recipe", where: [], sort: { by: "title", dir: "asc" }, limit: 10, ...(offset === undefined ? {} : { offset }) } })).map((row) => row.id);

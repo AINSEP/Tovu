@@ -5,7 +5,7 @@ import test from "node:test";
 
 import type { ContentTypeFieldDef, ContentTypeRecord } from "#src/features/content-types/index";
 import type { EntryRecord } from "#src/features/entries/index";
-import { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
+import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
 import { type CollectionListQuery, type EntryDisplayListPort, type EntryListExcludingTypesPort } from "#src/features/entries/public-list";
 import { createRecentEntriesResolver, type CoreResolverDeps } from "@jini-ai/cms/widgets/resolvers";
 type ContentTypeLookup = CoreResolverDeps["contentTypes"];
@@ -74,7 +74,7 @@ function entryRow(overrides: Partial<EntryRecord> & Pick<EntryRecord, "id" | "ty
 // ---------------------------------------------------------------------------
 
 test("REQ-25: never returns more than the registered clamp, even with far more published entries than the clamp and no instance-level maxItems", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   for (let i = 0; i < 50; i++) {
     await repo.save(
       entryRow({
@@ -97,7 +97,7 @@ test("REQ-25: never returns more than the registered clamp, even with far more p
 });
 
 test("REQ-25/D7: newest-updated-first, draft excluded, and an old {maxItems:5} config yields the same entries in the same order as before", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   await repo.save(entryRow({ id: "draft-1", type: "post", slug: "draft", title: "Draft", status: "draft", updatedAt: "2026-01-01T00:00:05.000Z" }));
   await repo.save(entryRow({ id: "old-1", type: "post", slug: "old", title: "Old Post", updatedAt: "2026-01-01T00:00:01.000Z" }));
   await repo.save(entryRow({ id: "new-1", type: "post", slug: "new", title: "New Post", updatedAt: "2026-01-01T00:00:02.000Z" }));
@@ -113,7 +113,7 @@ test("REQ-25/D7: newest-updated-first, draft excluded, and an old {maxItems:5} c
 });
 
 test("REQ-25: each legacy instance applies its own maxItems below the shared registry cap", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   for (let i = 0; i < 6; i++) {
     await repo.save(entryRow({ id: `entry-${i}`, type: "post", slug: `post-${i}`, title: `Post ${i}`, updatedAt: `2026-01-01T00:00:0${i}.000Z` }));
   }
@@ -128,7 +128,7 @@ test("REQ-25: each legacy instance applies its own maxItems below the shared reg
 });
 
 test("D1/D7: every legacy-path item's href is null (entry pages are off) — never a dead entry link", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   await repo.save(entryRow({ id: "e-1", type: "post", slug: "post-1", title: "Post 1" }));
 
   const resolver = createRecentEntriesResolver({ collectionList: widgetCollectionListPort, entryList: repo, contentTypes: noContentTypes() });
@@ -141,7 +141,7 @@ test("D1/D7: every legacy-path item's href is null (entry pages are off) — nev
 });
 
 test("D8: system content types (widget/widget_area/nav-menu) never appear when no collection is set", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   await repo.save(entryRow({ id: "post-1", type: "post", slug: "post-1", title: "Real Post", updatedAt: "2026-01-01T00:00:03.000Z" }));
   let n = 0;
   for (const systemType of SYSTEM_CONTENT_TYPES) {
@@ -190,7 +190,7 @@ test("REQ-25/3b: the legacy-path query itself is bounded/sorted/filtered — not
 });
 
 test("3b: 20+ newer system-type rows cannot crowd a real entry out of the legacy-path result (RED before the query-level exclusion fix)", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   await repo.save(entryRow({ id: "post-1", type: "post", slug: "post-1", title: "Real Post", updatedAt: "2026-01-01T00:00:00.000Z" }));
   for (let i = 0; i < 25; i++) {
     await repo.save(
@@ -216,7 +216,7 @@ test("3b: 20+ newer system-type rows cannot crowd a real entry out of the legacy
 // ---------------------------------------------------------------------------
 
 test("collection filter: only entries of the named content type are returned, via listPublishedForDisplay", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   await repo.save(entryRow({ id: "r-1", type: "recipe", slug: "r-1", title: "Pasta", fieldsJson: { ext: { site: { cuisine: "Italian" } } } }));
   await repo.save(entryRow({ id: "r-2", type: "recipe", slug: "r-2", title: "Ramen", fieldsJson: { ext: { site: { cuisine: "Japanese" } } } }));
   await repo.save(entryRow({ id: "p-1", type: "post", slug: "p-1", title: "Unrelated Post" }));
@@ -235,7 +235,7 @@ test("collection filter: only entries of the named content type are returned, vi
 });
 
 test("collection filter: valid where and newest sort return only ordered live published matches with dependency keys", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   const rows = [
     entryRow({ id: "old", type: "recipe", slug: "old", title: "Old Pasta", publishedAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-10T00:00:00.000Z" }),
     entryRow({ id: "new", type: "recipe", slug: "new", title: "New Pasta", publishedAt: "2026-01-02T00:00:00.000Z" }),
@@ -262,7 +262,7 @@ test("collection filter: valid where and newest sort return only ordered live pu
 });
 
 test("D7: legacy columns clamp to 1..6 and dependency keys match the resolved entries", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   await repo.save(entryRow({ id: "e-1", type: "post", slug: "post-1", title: "Post 1" }));
   const resolver = createRecentEntriesResolver({ collectionList: widgetCollectionListPort, entryList: repo, contentTypes: noContentTypes() });
   const results = await resolver.resolveMany([instance("w-high", { columns: 99 }), instance("w-low", { columns: 0 })], CTX);
@@ -276,7 +276,7 @@ test("D7: legacy columns clamp to 1..6 and dependency keys match the resolved en
 });
 
 test("collection settings preserve filtering, title order and an explicit field subset", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   for (const row of [
     entryRow({ id: "zulu", type: "recipe", slug: "zulu", title: "Zulu", updatedAt: "2026-01-03T00:00:00.000Z", fieldsJson: { ext: { site: { cuisine: "Italian", rating: 9, notes: "omit zulu notes" } } } }),
     entryRow({ id: "alpha", type: "recipe", slug: "alpha", title: "Alpha", updatedAt: "2026-01-01T00:00:00.000Z", fieldsJson: { ext: { site: { cuisine: "Italian", rating: 3, notes: "omit alpha notes" } } } }),
@@ -302,14 +302,14 @@ test("collection settings preserve filtering, title order and an explicit field 
 });
 
 test("collection filter: an unknown content type key resolves as target-disabled, not a crash or an unfiltered list", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   const resolver = createRecentEntriesResolver({ collectionList: widgetCollectionListPort, entryList: repo, contentTypes: noContentTypes() });
   const results = await resolver.resolveMany([instance("w-1", { maxItems: 5, collection: "does-not-exist" })], CTX);
   assert.deepEqual(results.get("w-1"), { ok: false, reason: "target-disabled" });
 });
 
 test("collection filter: an invalid config (unknown where field) resolves as invalid-config, never an unfiltered fallback", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   await repo.save(entryRow({ id: "r-1", type: "recipe", slug: "r-1", title: "Pasta" }));
   const contentTypes = fixedContentTypeLookup({ recipe: [field("cuisine")] });
   const resolver = createRecentEntriesResolver({ collectionList: widgetCollectionListPort, entryList: repo, contentTypes });
@@ -321,7 +321,7 @@ test("collection filter: an invalid config (unknown where field) resolves as inv
 });
 
 test("D1: a collection-path item's href is also null (entry pages are off)", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   await repo.save(entryRow({ id: "r-1", type: "recipe", slug: "r-1", title: "Pasta" }));
   const contentTypes = fixedContentTypeLookup({ recipe: [] });
   const resolver = createRecentEntriesResolver({ collectionList: widgetCollectionListPort, entryList: repo, contentTypes });
@@ -356,7 +356,7 @@ test("REQ-25: the registered clamp (20) still wins over a collection instance's 
 });
 
 test("D7: a collection-configured instance with no `layout` key defaults to the widget's own \"list\" layout, not the collection marker's \"cards\" default", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   await repo.save(entryRow({ id: "r-1", type: "recipe", slug: "r-1", title: "Pasta" }));
   const contentTypes = fixedContentTypeLookup({ recipe: [field("cuisine")] });
   const resolver = createRecentEntriesResolver({ collectionList: widgetCollectionListPort, entryList: repo, contentTypes });
@@ -374,7 +374,7 @@ test("D7: a collection-configured instance with no `layout` key defaults to the 
 });
 
 test("AW-7: a collection instance carries any known layout and opt-in faq-page structured data; an unknown layout is the widget's list", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   await repo.save(entryRow({ id: "q-1", type: "recipe", slug: "q-1", title: "Can I freeze it?" }));
   const contentTypes = fixedContentTypeLookup({ recipe: [field("cuisine")] });
   const resolver = createRecentEntriesResolver({ collectionList: widgetCollectionListPort, entryList: repo, contentTypes });
