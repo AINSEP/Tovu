@@ -975,13 +975,6 @@
       "value": 178
     },
     {
-      "file": "apps/website/src/features/seo/tool-registrations.ts",
-      "function": "buildSeoRegistrations#1",
-      "line": 138,
-      "rule": "max-lines-per-function",
-      "value": 88
-    },
-    {
       "file": "apps/website/src/features/site-backup/backup-service.ts",
       "function": "<file>",
       "line": 744,

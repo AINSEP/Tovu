@@ -136,6 +136,100 @@ export const seoDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSide
   ["seo_regenerate_sitemap", "mutates-durable-state"],
 ]);
 
+/** What every handler factory reads: the host route deps and the sitemap invalidation they share. */
+interface SeoHandlerArgs {
+  deps: SeoToolDeps;
+  requestInvalidation: (input: { workspaceId: string }) => Promise<void>;
+}
+
+const seoGetEntryMetaHandler = ({ deps }: SeoHandlerArgs): ToolHandler => async (ctx) => {
+  const entryId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "entryId" });
+  await deps.seoReady;
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_SEO_PERMISSION }, { entityType: "seo-entry", entityId: entryId });
+
+  const meta = await getEntryMeta({ deps: deps.seoDeps, input: { workspaceId: deps.workspaceId, entryId } }, {});
+  return { meta };
+};
+
+const seoAnalyzeEntryHandler = ({ deps }: SeoHandlerArgs): ToolHandler => async (ctx) => {
+  const entryId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "entryId" });
+  await deps.seoReady;
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_SEO_PERMISSION }, { entityType: "seo-entry", entityId: entryId });
+
+  const analysis = await analyzeEntry({ deps: deps.seoDeps, input: { workspaceId: deps.workspaceId, entryId } }, {});
+  return { analysis };
+};
+
+const seoSetEntryOverridesHandler = ({ deps, requestInvalidation }: SeoHandlerArgs): ToolHandler => async (ctx) => {
+  const input = requireInputRecord({ input: ctx.input });
+  const entryId = requireString({ input: input, key: "entryId" });
+  const expectedVersion = requireExpectedVersion({ value: input.expectedVersion, readToolId: "content_read.seo_entry_meta" });
+  await deps.seoReady;
+
+  // Self-enforcing chokepoint (see file header) — no requireToolPermission call here.
+  ctx.signal.throwIfAborted();
+  const { overrides } = await withSchemaOnRejection({
+      toolId: "seo_set_entry_overrides",
+      catalog: CATALOG_BY_ID,
+      isShapeRejection: ({ error }) => error instanceof SeoFieldValidationError || error instanceof SeoInvalidCanonicalUrlError,
+      fn: () =>
+      setEntrySeoOverrides({
+        deps: { postRepo: deps.seoDeps.postRepo, authorize: deps.authorize, invalidateSitemapCache: requestInvalidation, clock: { nowMs: () => Date.parse(deps.clock.nowIso()) }, media: deps.seoDeps.media },
+        input: {
+          workspaceId: deps.workspaceId,
+          entryId,
+          patch: seoOverridesPatchFromInput(input),
+          callerPrincipalId: ctx.principal.id,
+        },
+      }, { expectedVersion }) });
+  return { overrides };
+};
+
+const seoGetSettingsHandler = ({ deps }: SeoHandlerArgs): ToolHandler => async (ctx) => {
+  requireNoInput({ input: ctx.input });
+  await deps.seoReady;
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_SEO_PERMISSION }, { entityType: "seo-settings" });
+
+  const settings = await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId });
+  return { settings };
+};
+
+const seoSetSettingsHandler = ({ deps, requestInvalidation }: SeoHandlerArgs): ToolHandler => async (ctx) => {
+  const input = requireInputRecord({ input: ctx.input });
+  await deps.seoReady;
+  // The one exception to the single-evaluator rule in the file header (2026-10-05):
+  // `setSeoSettings` checks `defaultOgImage` against the media library BEFORE its own per-write
+  // `set()` authorizes, so without this gate a denied caller could learn whether an asset it
+  // names is a non-image. Same order as `put-settings.ts`: authorize, then the chokepoint.
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_SEO_PERMISSION }, { entityType: "seo-settings" });
+
+  ctx.signal.throwIfAborted();
+  const settings = await withSchemaOnRejection({ toolId: "seo_set_settings", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => error instanceof SeoSettingsValidationError, fn: () =>
+      setSeoSettings(
+        {
+          settingsRepo: deps.settingsRepo,
+          clock: deps.clock,
+          ids: deps.idGen,
+          authorize: deps.authorize,
+          principals: deps.principalRepo,
+          invalidateSitemap: requestInvalidation,
+          media: deps.seoDeps.media,
+        },
+        { workspaceId: deps.workspaceId, patch: seoSettingsPatchFromInput(input), callerPrincipalId: ctx.principal.id },
+      ) });
+  return { settings };
+};
+
+const seoRegenerateSitemapHandler = ({ deps, requestInvalidation }: SeoHandlerArgs): ToolHandler => async (ctx) => {
+  requireNoInput({ input: ctx.input });
+  await deps.seoReady;
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_SEO_PERMISSION }, { entityType: "seo-sitemap" });
+
+  await deps.sitemapService.regenerateSitemapCache({ workspaceId: deps.workspaceId }, {});
+  await requestInvalidation({ workspaceId: deps.workspaceId });
+  return { accepted: true };
+};
+
 export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[] {
   // Bind delivery to the existing outbox owner; the same service handles local invalidation.
   const invalidationDeps = {
@@ -144,94 +238,14 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
   };
   const requestInvalidation = (input: { workspaceId: string }) =>
     routeDeps.sitemapService.requestSitemapInvalidation({ deps: invalidationDeps, input }, {});
+  const args: SeoHandlerArgs = { deps: routeDeps, requestInvalidation };
   const handlers: Record<string, ToolHandler> = {
-    seo_get_entry_meta: async (ctx) => {
-      const entryId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "entryId" });
-      await routeDeps.seoReady;
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_SEO_PERMISSION }, { entityType: "seo-entry", entityId: entryId });
-
-      const meta = await getEntryMeta({ deps: routeDeps.seoDeps, input: { workspaceId: routeDeps.workspaceId, entryId } }, {});
-      return { meta };
-    },
-
-    seo_analyze_entry: async (ctx) => {
-      const entryId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "entryId" });
-      await routeDeps.seoReady;
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_SEO_PERMISSION }, { entityType: "seo-entry", entityId: entryId });
-
-      const analysis = await analyzeEntry({ deps: routeDeps.seoDeps, input: { workspaceId: routeDeps.workspaceId, entryId } }, {});
-      return { analysis };
-    },
-
-    seo_set_entry_overrides: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const entryId = requireString({ input: input, key: "entryId" });
-      const expectedVersion = requireExpectedVersion({ value: input.expectedVersion, readToolId: "content_read.seo_entry_meta" });
-      await routeDeps.seoReady;
-
-      // Self-enforcing chokepoint (see file header) — no requireToolPermission call here.
-      ctx.signal.throwIfAborted();
-      const { overrides } = await withSchemaOnRejection({
-          toolId: "seo_set_entry_overrides",
-          catalog: CATALOG_BY_ID,
-          isShapeRejection: ({ error }) => error instanceof SeoFieldValidationError || error instanceof SeoInvalidCanonicalUrlError,
-          fn: () =>
-          setEntrySeoOverrides({
-            deps: { postRepo: routeDeps.seoDeps.postRepo, authorize: routeDeps.authorize, invalidateSitemapCache: requestInvalidation, clock: { nowMs: () => Date.parse(routeDeps.clock.nowIso()) }, media: routeDeps.seoDeps.media },
-            input: {
-              workspaceId: routeDeps.workspaceId,
-              entryId,
-              patch: seoOverridesPatchFromInput(input),
-              callerPrincipalId: ctx.principal.id,
-            },
-          }, { expectedVersion }) });
-      return { overrides };
-    },
-
-    seo_get_settings: async (ctx) => {
-      requireNoInput({ input: ctx.input });
-      await routeDeps.seoReady;
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_SEO_PERMISSION }, { entityType: "seo-settings" });
-
-      const settings = await getSeoSettings({ settingsRepo: routeDeps.settingsRepo }, { workspaceId: routeDeps.workspaceId });
-      return { settings };
-    },
-
-    seo_set_settings: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      await routeDeps.seoReady;
-      // The one exception to the single-evaluator rule in the file header (2026-10-05):
-      // `setSeoSettings` checks `defaultOgImage` against the media library BEFORE its own per-write
-      // `set()` authorizes, so without this gate a denied caller could learn whether an asset it
-      // names is a non-image. Same order as `put-settings.ts`: authorize, then the chokepoint.
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_SEO_PERMISSION }, { entityType: "seo-settings" });
-
-      ctx.signal.throwIfAborted();
-      const settings = await withSchemaOnRejection({ toolId: "seo_set_settings", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => error instanceof SeoSettingsValidationError, fn: () =>
-          setSeoSettings(
-            {
-              settingsRepo: routeDeps.settingsRepo,
-              clock: routeDeps.clock,
-              ids: routeDeps.idGen,
-              authorize: routeDeps.authorize,
-              principals: routeDeps.principalRepo,
-              invalidateSitemap: requestInvalidation,
-              media: routeDeps.seoDeps.media,
-            },
-            { workspaceId: routeDeps.workspaceId, patch: seoSettingsPatchFromInput(input), callerPrincipalId: ctx.principal.id },
-          ) });
-      return { settings };
-    },
-
-    seo_regenerate_sitemap: async (ctx) => {
-      requireNoInput({ input: ctx.input });
-      await routeDeps.seoReady;
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_SEO_PERMISSION }, { entityType: "seo-sitemap" });
-
-      await routeDeps.sitemapService.regenerateSitemapCache({ workspaceId: routeDeps.workspaceId }, {});
-      await requestInvalidation({ workspaceId: routeDeps.workspaceId });
-      return { accepted: true };
-    },
+    seo_get_entry_meta: seoGetEntryMetaHandler(args),
+    seo_analyze_entry: seoAnalyzeEntryHandler(args),
+    seo_set_entry_overrides: seoSetEntryOverridesHandler(args),
+    seo_get_settings: seoGetSettingsHandler(args),
+    seo_set_settings: seoSetSettingsHandler(args),
+    seo_regenerate_sitemap: seoRegenerateSitemapHandler(args),
   };
 
   return buildDomainRegistrations({ metadata: toolMetadata,
