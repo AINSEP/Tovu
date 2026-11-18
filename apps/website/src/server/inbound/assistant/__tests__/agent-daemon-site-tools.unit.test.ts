@@ -53,6 +53,16 @@ test("concurrent principals have isolated catalogs and terminal cleanup", async 
   assert.throws(() => host.registry.list({}), /live run/);
 });
 
+test("the content_read group is read from the same run-scoped registry the route decides with", async () => {
+  const { host, local } = siteToolsFixture();
+  local.register({ descriptor: { id: "content_read.menu", readOnly: true }, policy: { authorize: () => "allow" }, handler: async () => ({}) });
+  await host.start({ runId: "a1", principalId: "alice" });
+  const members = host.withRun({ runId: "a1", fn: () => host.families.describeFamily({ familyId: "content_read" })?.members });
+  assert.deepEqual(members, ["content_read.menu"]);
+  host.finish({ runId: "a1" });
+  assert.throws(() => host.families.describeFamily({ familyId: "content_read" }), /live run/);
+});
+
 test("component requests refresh the server snapshot and fail closed without a core fallback", async () => {
   const { host, requests, advance, invalidate } = siteToolsFixture();
   await host.start({ runId: "run", principalId: "alice" });
