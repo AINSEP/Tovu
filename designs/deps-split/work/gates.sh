@@ -228,7 +228,7 @@ cmd_newlines() {
     fi
     if [ -s "$NOW/$name.new" ]; then echo "STOP-NEWLINE $g:"; cat "$NOW/$name.new"; stop=1; fi
     if [ "$st" != 0 ] && [ "$st" != "$bst" ]; then echo "STOP-EXIT $g exit $st (base $bst)"; stop=1; fi
-    [ "$stop" = 1 ] || echo "gate $g: exit $st (base $bst), no new line"
+    if [ "$stop" = 0 ]; then echo "gate $g: exit $st (base $bst), no new line"; fi
   done
   [ "$stop" = 0 ] || exit 1
 }
