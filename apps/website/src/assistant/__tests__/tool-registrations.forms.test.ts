@@ -1,4 +1,5 @@
-import { createContributionRegistry } from "@jini-ai/core";
+import { createContributionRegistry, resolveHostReadRefs } from "@jini-ai/core";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
  * Covers, for the 3 Forms tools, the union of what
@@ -108,7 +109,8 @@ function executionContext(input: Record<string, unknown>): ToolExecutionContext 
 function catalogEntry(toolId: string): AgentToolDefinition {
   const entry = formsAgentToolCatalog.find((tool) => tool.name === toolId);
   assert.ok(entry, `catalog has no entry for '${toolId}'`);
-  return entry;
+  // Registrations publish the entry with its `{{read:<entity>}}` references resolved by the host's vocabulary.
+  return resolveHostReadRefs({ value: entry }, { hostReads: contentReadVocabulary });
 }
 
 function formsRegistrations(deps: RegistryDepsWithoutLimiter): Map<string, ToolRegistration> {

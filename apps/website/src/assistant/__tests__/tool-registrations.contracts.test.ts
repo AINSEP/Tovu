@@ -20,7 +20,7 @@ import { catalog as themePagePublishedCatalog } from "../../features/theme/page-
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createToolRegistry, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
+import { createToolRegistry, resolveHostReadRefs, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { assertRepairKeywords } from "@jini-ai/core/tool-input-repairs";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
@@ -131,6 +131,7 @@ import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/a
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import { pluginSourceAgentToolCatalog } from '../../features/plugin-runtime/source-tools.js';
 import { createRetiredReadToolIdRewriter, RETIRED_READ_TOOL_TO_CARD } from "../content-read-tool.js";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 import { publishedCatalogDescriptor } from "./fixtures/published-catalog-descriptor.js";
 import { META_TOOL_DESCRIPTORS } from '../byok-tool-surface.js';
 import { buildBaseSystemOverlay } from '../../server/inbound/assistant/assistant-system-overlay.js';
@@ -371,7 +372,8 @@ test("CATALOGS_BY_DOMAIN has an entry for every domain the tool-contribution reg
 function catalogEntry(toolId: string): AgentToolDefinition {
   const entry = WIRED_CATALOGS.find((tool) => tool.name === toolId);
   assert.ok(entry, `no wired catalog has an entry for '${toolId}'`);
-  return entry;
+  // Registrations publish the entry with its `{{read:<entity>}}` references resolved by the host's vocabulary.
+  return resolveHostReadRefs({ value: entry }, { hostReads: contentReadVocabulary });
 }
 
 /**

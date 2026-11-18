@@ -1,7 +1,8 @@
 import { ALL_CHAT_DELETE_TOOLS } from "../permanent-delete-tool-gate.js";
+import { contentReadVocabulary } from "#src/contracts/core/tool-metadata/content-read";
 import { withChatDeleteGrant } from "./fixtures/chat-delete-grant.js";
 import { batchDescriptorFor } from "../batch-tool-inputs.js";
-import { createContributionRegistry } from "@jini-ai/core";
+import { createContributionRegistry, resolveHostReadRefs } from "@jini-ai/core";
 import type { ToolContributor as OwnedToolContributor, DerivedToolContributor as OwnedDerivedToolContributor } from "#src/assistant/index";
 /**
  * @file Webhooks catalog completeness: every entry is wired. Subscription update and
@@ -121,7 +122,8 @@ async function deleteSubscriptionConfirmed(deps: RegistryDepsWithoutLimiter, sub
 function catalogEntry(toolId: string): AgentToolDefinition {
   const entry = getWebhooksAgentToolCatalog().find((tool) => tool.name === toolId);
   assert.ok(entry, `catalog has no entry for '${toolId}'`);
-  return entry;
+  // Registrations publish the entry with its `{{read:<entity>}}` references resolved by the host's vocabulary.
+  return resolveHostReadRefs({ value: entry }, { hostReads: contentReadVocabulary });
 }
 
 const ALL_WEBHOOKS_TOOL_IDS = [
