@@ -4,13 +4,15 @@ Run: design run 2026-11-18, branch `plan/design-deps-split-2026-11-17` (from `or
 Facts base: Tovu `origin/refactor/import-cycle-b` **`f0613d9e`** = `origin/refactor/terra` + import-cycle-b merged (fast-forward: `git merge-base origin/refactor/terra origin/refactor/import-cycle-b` = `ada11733`, terra is 0 commits ahead).
 Inputs: `origin/refactor/import-cycle-b:cloud-results/import-cycle-b.md` §"SEQUENCE H1", `origin/plan/reconcile-2026-11-16:reconcile/SEQUENCE.md` §H1, `origin/plan/size-designs-2026-11-16:size-designs/01-tovu-composition-deps.md` (rev 2) and `02-tovu-composition-app.md`, `origin/plan/error-system-design-2026-11-16:designs/error-system/DESIGN.md` §4 row E3, owner decisions `2026-11-17-OWNER-DECISIONS-ANSWERED.md`, the 47 lessons (`reconcile/LESSONS-FOR-DESIGN-BRIEFS.md`).
 
+**Revision 2 (2026-11-18).** Rejected by the blind Codex judge (`CODEX-JUDGE-1.md`). Every finding was re-checked on `f0613d9e` and the lane refs of 2026-11-18; verdicts and changes are in `REVISION-2.md`. Where this document and `REVISION-2.md` disagree, `REVISION-2.md` wins. The main changes: (1) all gates and STOP checks are one fail-closed script, `work/gates.sh`, with a planted-failure self-test (`work/gates-selftest.txt`); (2) the freeze is a merge-tree check of the candidate commit against every lane before every commit, with the overlapping lanes pinned by SHA in `work/freeze-lanes.tsv`; (3) **every top-level `await` stays in the root; slices and stages are synchronous** (§2.2) — no extra microtask turn anywhere; (4) S0's late-contract pins sit at the seams that exist (OAuth binding through the real project store + the `acme-provider` fixture; plugin host through `composePluginRuntime`'s `getPluginHost`); (5) each sheet carries a "carries" list with one pin per item, and moves are named by binding/anchor, not statement index; (6) S11 moves `composeMemoryOutboundHttp` instead of adding a client factory; (7) S13 types each literal run contextually, keeps the runtime shape pin, and updates the census first.
+
 **Relationship to size design 01.** Design 01 rev 2 was measured on `integ/wave-b-r2` (3,168 lines, closure 1081-3066). Since then 132 lines left the file and most of the closure became one-line calls into existing composition helpers (`storeBoundServicesFor`, `composePluginRuntime`, `startSettingsRegistration`, …). Every line number, count and slice range in design 01 is stale. This document **supersedes design 01 for execution**: it keeps design 01's accepted rules (root owns order and mutable cells; later bindings as getters; five late contracts kept apart; literal as ordered contiguous runs; no `LateRef`; file keeps its name) and re-derives every fact on `f0613d9e` with committed scripts.
 
 All facts below are produced by these commands (Tovu root, after `npm ci`; outputs committed in `work/`):
 
 ```bash
 node designs/deps-split/work/closure-census.cjs .      > designs/deps-split/work/closure-census.tsv   # 215 statements of composeSiteRouteDeps
-node designs/deps-split/work/literal-keys.cjs .        > designs/deps-split/work/literal-keys.tsv     # 260 literal properties + 15 post-assembly writes
+node designs/deps-split/work/literal-keys.cjs .        > designs/deps-split/work/literal-keys.tsv     # 260 literal entries (253 keys + 7 spreads) + 15 post-assembly writes to 14 keys
 node designs/deps-split/work/module-census.cjs .       > designs/deps-split/work/module-census.tsv    # 308 imports + 37 module statements
 node designs/deps-split/work/deps-importers.cjs . --rows > designs/deps-split/work/deps-importers.tsv  # importers by symbol + text-only mentions
 npx eslint --no-config-lookup -c designs/deps-split/work/limits.eslint.config.mjs apps/website/src/server/runtime/composition/deps.ts  # owner limits as errors
@@ -90,13 +92,13 @@ Statement indices are rows of `work/closure-census.tsv` (column 1). "Comment lin
 | E5 | observability binding (writes 2 root cells, 1 process-global) | 137-143 | 1883-1890 | | `observability`, `tracker`, `aiTraceSink` |
 | F1 | mail | 144-146 | 1901-1922 | | `mailResolveDeps`, `resolvedMailer`, `mailDurableOutboxReady` |
 | F2 | content HTTP clients | 147-150 | 1930-1957 | | `customCredentialsHttpClient`, `siteBackupHttpClient`, `outboundTestOrigins`, `mediaImportHttpClient`, `publishContentPeerHttpClient` (hoisted `composeContentHttpClients`) |
-| G1 | content + publish stores, owner form-file protection | 151-161 | 1964-1998 | 155 (`if (owner) await protectExistingFormFiles`) | `postRepo`, `changeSets`, `mediaRepo`, `assetBlobRepo`, `mediaContentTypeStore`, `publishContent*` |
+| G1 | content + publish stores, owner form-file protection | 151-161 | 1964-1998 | 155 (`if (owner) await protectExistingFormFiles` at 1979 — conditional, so the boot-order test's regex does not list it today; S0 adds it) | `postRepo`, `changeSets`, `mediaRepo`, `assetBlobRepo`, `mediaContentTypeStore`, `publishContent*` |
 | G2 | theme roster, theme trash adapter (**mutates `trashAdapters`**), `removeTheme` | 162-166 | 2001-2012 | | `siteThemes`, `themeTrashAdapter`, `removeTheme` |
 | G3 | publish apply port | 167 | 2013-2076 | | `publishContentApplyPort` |
 | H1 | guarded outbound client, MCP OAuth ports, public origin | 168-171 | 2079-2098 | | `guardedOutboundHttpClient`, `externalMcpOAuthHttpPorts`, `derivedPublicOrigin` |
 | H2 | agent-plugin connections (**root writes `bindSharedApiOAuth`** at 173), admin surfaces refresh | 172-174 | 2101-2117 | | `agentPluginConnections`, `adminSurfaceHandlersReady` |
 | H3 | readiness + SEO + route-deps promise + consent readiness + plugin exports + agent MCP | 175-182 | 2119-2133 | | `siteAppBootWork`, `seoDeps`, `sitemapService`, `let resolveRouteDeps`, `routeDepsBuilt`, `siteConsentReady`, `pluginExports`, `agentPluginMcp` |
-| L | the `routeDeps` literal | 183 | 2134-2714 | | 260 properties (`work/literal-keys.tsv`) |
+| L | the `routeDeps` literal | 183 | 2134-2714 | | 260 entries (`work/literal-keys.tsv`): 253 named keys + **7 spreads** (`...agentPluginConnections`, `...compositionApprovalOverrides(…)`, `...compositionConsentOptions(…)`, `...(outboundTestOrigins.length > 0 ? … : {})`, `...identity`, `...resolvedMailer.operations`, `...bindCredentialsHostPorts(…)`) whose keys are only known at run time |
 | I1 | resolve + legacy widget adoption | 184-186 | 2715-2735 | | `widgetAdoptionReady` |
 | I2 | forms: submissions, destination, pull, delivery | 187-192 | 2740-2765 | | 6 `routeDeps.*` writes |
 | I3 | site search | 193 | 2772-2784 | | `routeDeps.siteSearch` |
@@ -123,11 +125,11 @@ The closure is not a pipeline. `closure-census.cjs` column "forward(late)" lists
 |---|---|---|---|
 | 7 lifecycle owner 978-985 | `lifecycleTracker` (let), `routeDeps` | 963 / swap 1887; 2134 | buffer-then-swap; `routeDeps` closure read (TDZ throw if early) |
 | 16 `mediaStorePorts` 1006-1018 | `observability`, `workspaceId`, `settingsRepo`; awaits `mediaCredentials` | 1883, 1032, 1132; promise 1005 resolved 2831 | closure reads inside a lazily called port; **awaited promise** never "too early" |
-| 33 `pluginRuntime` 1092-1115 | `routeDepsBuiltForPluginHost` (let), `contentTypeRepo`, `outbox` | 1091 set 2819; 1643; 1293 | **optional**: `getPluginHost()` returns `undefined` during provider boot; `deferDeclaredContentTypePorts({ build })` |
+| 33 `pluginRuntime` 1092-1115 | `routeDepsBuiltForPluginHost` (let), `contentTypeRepo`, `outbox` | 1091 set 2819; 1643; 1293 | **optional**: `getPluginHost()` returns `undefined` until 2819; it becomes the SDK `lookup` (`plugin-runtime.ts:87`); the provider runtime type (`provider-plugins.ts:114-119`) exposes no getter, so the pin sits at `composePluginRuntime({ getPluginHost })` (S0 pin 3b); `deferDeclaredContentTypePorts({ build })` |
 | 74 follow-up hooks 1391-1458 | `mediaRepo`, `postRepo`, `assetBlobRepo`, `entryRefsRepo`, `routeDeps` | 1977, 1964, 1978, 1635, 2134 | closure reads inside hooks |
 | 76 adapters 1464-1515, 78 `trash` 1520-1532, 110 comments 1670-1689 | `mediaRepo`, `entryRefsRepo`, `postRepo`, `assetBlobRepo` | as above | closure reads |
 | 109 `wireCoreResolvers` 1652-1669 | `mediaRepo`, `mediaContentTypeStore`, `postRepo`, `routeDeps`, `formCollectionProviders` (let) | 1977, 1981, 1964, 2134; 1637 swap 1884 | closure reads; **fallback-then-swap** (empty registry until providers boot) |
-| 135 `compositionProjectKeys` 1863-1877 | `bindSharedApiOAuth` (let) | 1858, set 2113 | **domain error**: "Shared connections are not available yet. Reopen this saved connection and try again." |
+| 135 `compositionProjectKeys` 1863-1877 | `bindSharedApiOAuth` (let) | 1858, set 2113 | **domain error**: "Shared connections are not available yet. Reopen this saved connection and try again." — `bindOAuth` is a construction callback of `createProjectKeys` (`features/project-keys/service.ts:55-68`), not on `ProjectKeysPort` (31-38); it is reached through `projectKeys.use({ keyId, use: true })` on a shared-OAuth row (service.ts:84-97). `projectKeys` exists only after provider boot (1859), so the error window 1859-2113 is unreachable from a caller; the contract is pinned at the binding seam (S0 pin 3a: deleting the 2113 write turns a bound `use` into this error) and as a unit contract once S4 makes `compositionProjectKeys` a module function |
 | 145 mailer 1910-1918 | `mailDurableOutboxReady` | 1922 | closure read |
 | 162-166 themes 2001-2012 | — | — | **mutates** `trashAdapters` (Map from 1464) after `siteThemes` exists; `removeTheme` needs `trash` (1520) |
 | 180 consent readiness 2125-2130 | awaits `routeDepsBuilt` | promise 2123, resolved 2715 | **awaited promise** |
@@ -146,7 +148,7 @@ The closure is not a pipeline. `closure-census.cjs` column "forward(late)" lists
 | `provideMediaCredentials` / `mediaCredentials` | `let` + promise | 1004-1005, resolved 2831 | A3 `mediaStorePorts` | A3 slice result (the resolver is returned; I5 calls it) |
 | `trashAdapters` | `Map` | 1464; `.set(THEME_ENTITY_TYPE)` 2010 | `trash` service | C3 slice result; G2 receives it and calls `.set` verbatim |
 | `siteAppBootWork` | `Set` | 2119; app boot work adds | I5 drain 2829 | H3 result |
-| `routeDeps` | object, **15 writes after assembly** (`grep -P '\twrite\t' work/literal-keys.tsv`: 2735, 2747-2749, 2755-2756, 2772, 2813-2814, 2818, 2822, 2862, 2909, 2922, 2930) | root + I slices | everyone | root; I slices receive it as a value (it exists by then) |
+| `routeDeps` | object, **15 writes after assembly to 14 distinct keys** (`awk -F'\t' '$2=="write"' work/literal-keys.tsv`: 2735, 2747-2749, 2755-2756 (the **5** forms writes), 2772, 2813-2814, 2818, 2822, 2862 + 2909 (`siteShareBackend` twice: failure path, success path), 2922, 2930); `pluginRuntimeReady` is also a literal key (written again at 2822) | root + I slices | everyone | root; I slices receive it as a value (it exists by then) |
 | `consoleLogger` | **module** singleton in `deps.ts:416` | — | 8 uses | stays the one module line; passed down as input `logger` (no slice builds its own; E3 count stays 17) |
 | `siteAppBootWorkByDeps` | **module** `WeakMap` in `site-app-boot-work.ts` | I5 (2817) | `app.ts` | unchanged; module-identity pin `sqlite-create-site-app-module-identity.integration.test.ts` |
 | server-log trace reader | **process-global** `let traceIds` in `platform/server-logs/index.ts:37` | E5 `setServerLogTraceReader` (1886) | log buffer | unchanged, called once at the same position |
@@ -168,7 +170,8 @@ server/runtime/composition/
     overrides.ts                overrides group (§1.3)                                                                 ≈160
     open-store.ts               store-opening group                                                                    ≈150
     provider-identity.ts        provider-identity group                                                                ≈110
-    stages/                     one function per stage: calls its slices in today's order, returns their merged results
+    stages/                     SYNCHRONOUS functions, each covering the slices between two root awaits (§2.2); calls its
+                                slices in today's order, returns their merged results
       foundation.ts  A1-A4 · boot-data.ts B1-B3 · events-trash.ts C1-C4 · content-data.ts D1-D4 · keys-providers.ts E1-E4 ·
       mail-http.ts F1-F2 · publishing.ts G1-G3 · connections.ts H1-H3 · after-assembly.ts I1-I7                       ≤60 each
     slices/                     one responsibility per file; helpers with ONE user travel into that user's file
@@ -187,49 +190,58 @@ server/runtime/composition/
       context.ts                type SiteRootContext = { stage results…, late getters, createApp, exportSite, overrides, dbPath, logger }
       assemble.ts               spreads the runs in literal order; returns NewsletterRouteDeps & ByokToolSurfaceDeps
       <run>.ts × ≈15            ordered contiguous runs of the literal (§2.5), each one function ≤50 code lines
-  guarded-outbound-http.ts      the guarded client both roots build (design 02 §2.5); created in S11; the memory root's
-                                `memory-deps/slices/outbound-http.ts` (on base) is repointed in the same commit
+  outbound-http.ts              S11: `memory-deps/slices/outbound-http.ts` moved here (`git mv`) and its one function
+                                `composeMemoryOutboundHttp` renamed `composeOutboundHttp`; it already builds both the
+                                guarded client and the OAuth ports byte-for-byte as deps.ts 2079-2089 does. Both roots
+                                call it; no new factory (REVISION-2 over-engineering item)
 ```
 
 No file under `site-deps/` imports `app.ts`, `deps.ts` or another slice's **function**; a slice may import another slice's **result type** (`ReturnType<typeof composeX>`), never call it. Stages import slices; the root imports stages, `route-deps/assemble.ts`, `open-store.ts`, `overrides.ts`. Graph is a tree: `deps.ts → stages → slices`, `deps.ts → route-deps → (types of stages)`. `npm run check:boundaries` `no-circular` (warn) gets no new row.
 
-### 2.2 The root after the split (shape; the sheets fix exact text)
+### 2.2 The root after the split (revision 2: awaits stay in the root)
+
+Today's closure has **nine** top-level awaits (census `await` column, located by binding): `workspaceId` (1032), `publishTrustRevocations` (1035), the `warnCompositionChatOrphans` call (1042, whose function awaits `warnOnOrphanedChatRows` inside), `mediaProviders` (1064), `normalizeSiteVaultAtBoot` (1795), `composeProviderConfig` (1822), `providerPluginBoot` (1844), the conditional owner `protectExistingFormFiles` (1979), `registerContentAnalytics` (2932) (and `createSiteRouteDeps` awaits `composeSiteRouteDeps` itself). Every one of them stays a top-level statement of `composeSiteRouteDeps`, verbatim except identifiers. Everything between two awaits is a **synchronous** stage call. No stage is `async`, so no `await` gains or loses a microtask turn and no synchronous stretch gains a yield point (judge major S9-S12).
+
+Segments (sync code between awaits; the stage names are files under `site-deps/stages/`):
+
+| segment | statements (by binding, `f0613d9e` lines) | stage call | then the root awaits |
+|---|---|---|---|
+| s0 | `assistantAgentInventory` … `storeBound` (964-1022) | `composeFoundationStage` (A2, A3, `storeBound`) | `workspaceId` 1032, `publishTrustRevocations` 1035 |
+| s1 | `chatDbPath`, `chat` (1040-1041) | inline (2 lines, root) | `warnCompositionChatOrphans` 1042, `mediaProviders` 1064 |
+| s2 | the `logMediaProviderRefusals` call (1065) … `siteAssistantSecretSealer` (1789) | `composePreludeTailStage` (A4 tail), `composeBootDataStage` (B1-B3), `composeEventsTrashStage` (C1-C4), `composeContentDataStage` (D1-D4), `composeSiteKeysStage` (E1) | `normalizeSiteVaultAtBoot` 1795 |
+| s3 | `siteAssistantCredentialRepo` … `projectKeyReferences` (1799-1821) | `composeAssistantSecretsStage` (E2) | `composeProviderConfig` 1822 |
+| s4 | `providerConfigSource`, `customCredentialSetRepo` (1825-1843) | `composeProviderConfigStage` (E3 tail) | `providerPluginBoot` 1844 (its argument object is built by the sync `providerBootInput(required)`, written inside the call so the callee is still evaluated first) |
+| s5 | provider dispose registration … `publishContentApplyPort` before 1979: E4 tail, E5 (root writes 1884-1887 stay in the root), F1-F2, G1 up to `assetBlobRepo` | `composeProviderPluginsStage`, root writes, `bindObservedStores`, `composeMailHttpStage`, `composeContentStoresStage` | owner `protectExistingFormFiles` 1979 |
+| s6 | `mediaContentTypeStore` (1981) … the `siteSearch`/forms/commerce/plugin-host/sharing/imports writes, up to `registerContentAnalytics` | `composePublishingStage` (G1 tail-G3), `composeOutboundStage` (H1), `composeAgentConnectionsStage` (H2; root write 2113), `composeReadinessStage` (H3; root cells 2122-2123 moved up), `assembleSiteRouteDeps`, `resolveRouteDeps(routeDeps)`, `composeAfterAssemblyStage` (I1-I7 up to 2931, root write 2819 via `markPluginHostReady`) | `registerContentAnalytics` 2932 |
 
 ```ts
 async function composeSiteRouteDeps({ dbPath, opened }: ComposeInput, { overrides = {} }: ComposeOptional = {}) {
-  const pendingLifecycleEvents: PendingLifecycleEvents = [];                       // A1, today 962
-  let lifecycleTracker: LifecycleCapture = bufferingTracker({ pending: pendingLifecycleEvents });  // today 963 (inline arrow kept)
-  let routeDepsBuiltForPluginHost: PluginHostHolder | undefined;                     // today 1091
-  let formCollectionProviders = () => createFormCollectionRegistry({});              // today 1637 (pure arrow; moved up, nothing reads it earlier)
-  let bindSharedApiOAuth: BindSharedApiOAuth | undefined;                            // today 1858 (undefined until H2; moved up)
-  let resolveRouteDeps!: (deps: RouteDeps) => void;                                  // today 2122-2123 (promise creation moved up;
-  const routeDepsBuilt = new Promise<RouteDeps>(resolve => { resolveRouteDeps = resolve; });  //  nothing awaits it before H3)
-  const late = { routeDeps: () => routeDeps, lifecycleTracker: () => lifecycleTracker, pluginHost: () => routeDepsBuiltForPluginHost?.pluginHost,
-    formCollectionProviders: () => formCollectionProviders(), bindSharedApiOAuth: () => bindSharedApiOAuth,
-    settingsRepo: () => bootData.settingsRepo, observability: () => keys.observability, publishing: () => publishing,
-    contentData: () => contentData, eventsTrash: () => eventsTrash, routeDepsBuilt };
-  const foundation = await composeFoundationStage({ opened, dbPath, logger: consoleLogger, late }, { overrides });
-  const bootData = await composeBootDataStage({ foundation, dbPath, logger: consoleLogger, late }, { overrides });
-  const eventsTrash = composeEventsTrashStage({ foundation, bootData, opened, late });
-  const contentData = composeContentDataStage({ foundation, bootData, eventsTrash, dbPath, opened, late });
-  const keys = await composeKeysProvidersStage({ foundation, bootData, eventsTrash, opened, late }, { overrides });
-  formCollectionProviders = () => keys.providerPlugins.formCollectionProviders?.() ?? createFormCollectionRegistry({});  // today 1884
-  setServerLogTraceReader({ traceIds: () => keys.observability.activeTraceIds?.() });                                 // today 1886
-  lifecycleTracker = keys.tracker;                                                                                     // today 1887
-  bindObservedStores({ pending: pendingLifecycleEvents, tracker: keys.tracker, kernel: foundation.kernel, chat: foundation.chat, observability: keys.observability });  // 1888-1890
-  const mailHttp = composeMailHttpStage({ … }, { overrides });
-  const publishing = await composePublishingStage({ … }, { overrides });
-  const connections = composeConnectionsStage({ …, late }, { overrides });   // returns agentPluginConnections; H2's 173 below
-  …                                                                           // (see §2.3 for the three root writes in H2/I5)
-  const routeDeps = assembleSiteRouteDeps({ foundation, bootData, eventsTrash, contentData, keys, mailHttp, publishing, connections, late,
-    overrides, dbPath, createApp, exportSite, logger: consoleLogger });
-  resolveRouteDeps(routeDeps);                                                                                         // today 2715
-  await composeAfterAssemblyStage({ routeDeps, …, late, setPluginHostDeps: … });   // §2.3
+  const { store, onStoreClose } = opened;                                                            // today 958
+  const pendingLifecycleEvents: PendingLifecycleEvents = [];                                         // 962
+  let lifecycleTracker: LifecycleCapture = bufferingTracker({ pending: pendingLifecycleEvents });     // 963
+  let routeDepsBuiltForPluginHost: { readonly pluginHost?: RouteDeps["pluginHost"] } | undefined;     // 1091 (moved up; read only by a getter)
+  let formCollectionProviders = () => createFormCollectionRegistry({});                              // 1637 (moved up; pure arrow)
+  let bindSharedApiOAuth: BindSharedApiOAuth | undefined;                                            // 1858 (moved up; read only inside bindOAuth)
+  let resolveRouteDeps!: (deps: RouteDeps) => void;                                                  // 2122-2123 (moved up;
+  const routeDepsBuilt = new Promise<RouteDeps>((resolve) => { resolveRouteDeps = resolve; });       //  nothing awaits it before H3)
+  const late = { routeDeps: () => routeDeps, lifecycleTracker: () => lifecycleTracker, … };          // getters close over root consts below
+  const foundation = composeFoundationStage({ store, onStoreClose, dbPath, late }, { overrides });   // s0 (sync)
+  const workspaceId = await resolveWorkspaceIdOverride({ kernel: foundation.kernel }, { overrides });                 // 1032
+  const publishTrustRevocations = await publishTrustRevocationStoreFor(foundation.kernel);                              // 1035
+  const chatDbPath = resolveChatDbPath({ dbPath }, { overrides }); const chat = store.chat;                             // 1040-1041
+  await warnCompositionChatOrphans({ store, kernel: foundation.kernel, dbPath, chatDbPath, logger: consoleLogger });   // 1042
+  const mediaProviders = await loadMediaProviderRegistry({ workspaceId }, { loadContributions: foundation.agentPluginLifecycle.loadPluginContributions }); // 1064
+  const early = composeEarlyStages({ … }, { overrides });     // s2: prelude tail, boot-data, events-trash, content-data, site-keys (sync)
+  await normalizeSiteVaultAtBoot({ … }, { … });                                                                        // 1795
+  … s3, await 1822, s4, await 1844, s5 (root writes 1884, 1886, 1887 in order), await 1979 (if owner), s6 …
+  await registerContentAnalytics({ deps: { bus, tracker, workspaceId } });                                             // 2932
   return routeDeps;
 }
 ```
 
-`late.*` getters close over root `const`s declared further down (`routeDeps`, `bootData`, `keys`, `publishing`, …): reading one too early throws the same `ReferenceError` class as today; only the binding name in the message changes (`publishing` instead of `mediaRepo`). That is the one visible diagnostic change (programming-error path only), as accepted in design 01 §5 row 10.
+`late.*` getters close over root `const`s declared further down (`routeDeps`, stage results, …): reading one too early throws the same `ReferenceError` class as today; only the binding name in the message changes (programming-error path only; design 01 §5 row 10).
+
+**Root size.** The root holds 7 cell lines, ~3 `late` lines, 10 awaits, ~14 stage calls, 4 root writes, `resolveRouteDeps`, return ≈ 45 code lines. If eslint reports `composeSiteRouteDeps` over 50 after S13, the only fallback is DESIGN §2.3's (H2's write into the connections stage via `setBindSharedApiOAuth`, the same callback shape as `markPluginHostReady`), then grouping two adjacent sync stage calls of one segment into one stage function. Never: making a stage async.
 
 ### 2.3 Wiring order and the three root writes inside later stages
 
@@ -268,8 +280,8 @@ Each run is `export function <run>RouteDeps(required: SiteRootContext, _optional
 | H1 step | requires | status on `f0613d9e` (command) | this design |
 |---|---|---|---|
 | 3 — R8a step 5 use line for `composition/jini-daemon-runtime.ts` "if ready, otherwise waits for 6" | that no daemon lane still needs to add a line to `deps.ts` | **satisfied by absence**: R8's Tovu binding landed in `server/inbound/assistant/{agent-daemon-scope,daemon-runtime-ports}.ts`; `git diff --name-only $(git merge-base origin/wave2/daemon-r8 f0613d9e) origin/wave2/daemon-r8 -- apps/website/src/server/runtime/composition/deps.ts apps/website/src/server/runtime/composition/app.ts` prints nothing; same for `wave2/daemon-r7` (both touch only `composition/modules/assistant.ts` or a `modules/__tests__` file inside `composition/`); `ls apps/website/src/server/runtime/composition/jini-daemon-runtime.ts` → absent | nothing to do; sheet S0 re-runs the command (STOP if it prints a file) |
-| 4 — freeze → size 01 (`deps.ts`) | `deps.ts` frozen for every other lane; size-02 step 6 needs a shared `guarded-outbound-http.ts` (size 01 step 6) | not started: 3,036 lines | sheets S0-S13 (this design replaces size 01). The freeze check is in INDEX §"Freeze" |
-| 5 — size-02 steps 4-7 (memory root; `createRouteDeps` joins `memory-route-deps.ts`) → unfreeze | memory root slices + literal fragments + `createRouteDeps` moved out of `app.ts` + shared guarded client | **partial**: `memory-deps/slices/` exists on base; literal fragments are on open branch `origin/wave2/size02-step5` (`73d5d31a`, not merged); `createRouteDeps` still at `app.ts:216` (`grep -n 'export function createRouteDeps' apps/website/src/server/runtime/composition/app.ts`); `memory-route-deps.ts` is 10 lines | not designed here (owned by size-02). Dependency both ways is one file: S11 creates `guarded-outbound-http.ts` and repoints the memory root's copy, which **exists on the base** (`git ls-files apps/website/src/server/runtime/composition/memory-deps/slices/outbound-http.ts` prints it) |
+| 4 — freeze → size 01 (`deps.ts`) | `deps.ts` frozen for every other lane; size-02 step 6 needs one shared outbound HTTP owner (size 01 step 6 → S11 moves `composeMemoryOutboundHttp` to `composition/outbound-http.ts`) | not started: 3,036 lines | sheets S0-S13 (this design replaces size 01). The freeze check is in INDEX §"Freeze" |
+| 5 — size-02 steps 4-7 (memory root; `createRouteDeps` joins `memory-route-deps.ts`) → unfreeze | memory root slices + literal fragments + `createRouteDeps` moved out of `app.ts` + shared outbound HTTP owner | **partial**: `memory-deps/slices/` exists on base; literal fragments are on open branch `origin/wave2/size02-step5` (tip **`210ba239`** on 2026-11-18; the `73d5d31a` cited in revision 1 is an ancestor of it, not the tip; not merged; it already conflicts with the base on `app.ts` — `work/freeze-at-f0613d9e.txt`); `createRouteDeps` still at `app.ts:216` (`grep -n 'export function createRouteDeps' apps/website/src/server/runtime/composition/app.ts`); `memory-route-deps.ts` is 10 lines | not designed here (owned by size-02). Dependency both ways is one file: S11 moves the memory root's `composeMemoryOutboundHttp` (it **exists on the base**) to `composition/outbound-http.ts` as `composeOutboundHttp`, and both roots call it (S11 edits `app.ts:5,370` — a shared file in the freeze table) (`git ls-files apps/website/src/server/runtime/composition/memory-deps/slices/outbound-http.ts` prints it) |
 
 **What E3 needs to start** (error-system DESIGN §4 row E3: "one catalog + one reporter in the Tovu composition root; one host logger factory replaces the 17 bare `createConsoleLogger` calls and passes `diagnostics`; must not read a reporter at module scope"):
 
@@ -283,9 +295,9 @@ Each run is `export function <run>RouteDeps(required: SiteRootContext, _optional
 
 | # | risk | pin (fails when the risk happens) | sheet |
 |---|---|---|---|
-| R1 | a late read becomes eager (TDZ at boot) | `late.*` getters only; new `site-root.late-contracts.pin.test.ts`: (a) project-key `bindOAuth` before H2 rejects with the exact "Shared connections are not available yet…" text, (b) `getPluginHost()` is `undefined` inside a fake `overrides.bootProviderPlugins`, (c) lifecycle events captured before provider boot reach the fake tracker in order, (d) form resolvers answer from the empty registry before provider boot, (e) `mediaStorePorts().resolveSharedCredential` awaits until after-assembly | S0 |
-| R2 | key dropped/reordered or overwrite precedence changes | `site-root-route-deps-shape.pin.test.ts`: `Object.keys(routeDeps)` in order + `typeof` per key against a committed snapshot (`createSiteRouteDeps({}, { dbPath: ":memory:" })`); behaviour checks: user removed via `routeDeps.removeUser` is found by `routeDeps.isInTrash` (the `...identity` versions would not); `removePlugin`/`removeTheme`/`removeMember` go through `routeDeps.trash` | S0 |
-| R3 | boot order / awaits shift (SQLite writes serialized by promise chains) | `composition-boot-order.unit.test.ts` keeps every assertion, repointed per moved anchor; the "4 awaits after the first boot promise" assertion becomes "the awaits of each stage file, in stage order, concatenate to the same 4 lines plus the stage calls"; new `site-root.boot-chains.pin.test.ts` records `settingsRepo` definition writes (12 `ensure*` in order) and that `installCommentsDataModule` starts after the newsletter install settles | S0, each stage |
+| R1 | a late read becomes eager (TDZ at boot) | `late.*` getters only; S0 pins at seams that exist (S0 step 4, pin 3a-3e): (a) OAuth binding seam — real `openProjectStore` on temp dirs + the `acme-provider` fixture; a shared-OAuth `projectKeys.use` reaches the host's `sharedOAuth.bind` (characterized result); mutation "delete the 2113 write" turns it into the exact "Shared connections are not available yet…" error; S4 adds the unit contract of the getter; (b) `composePluginRuntime({ getPluginHost })` — a getter returning `undefined` gives no SDK `lookup` host, flipping it later is seen at call time; (c) lifecycle events captured before provider boot reach the tracker after the swap, in order; (d) form resolvers answer from the empty registry before provider boot; (e) the shared media credential resolves only after `createSiteRouteDeps` returns | S0 |
+| R2 | key dropped/reordered or overwrite precedence changes | `site-root-route-deps-shape.pin.test.ts`: the **observed** `Object.keys(routeDeps)` in order + `typeof` per key against a committed snapshot generated from the running base (not from the census: 7 spreads add run-time keys; 15 writes hit 14 keys, one of them already a literal key) (`createSiteRouteDeps({}, { dbPath: ":memory:" })`); behaviour checks: user removed via `routeDeps.removeUser` is found by `routeDeps.isInTrash` (the `...identity` versions would not); `removePlugin`/`removeTheme`/`removeMember` go through `routeDeps.trash` | S0 |
+| R3 | boot order / awaits shift (SQLite writes serialized by promise chains) | awaits stay in the root (§2.2); `composition-boot-order.unit.test.ts` keeps every assertion; S0 widens its top-level-await regex to the conditional form so the owner await at 1979 is pinned too (5 awaits after the first boot promise, not 4), and pins `await warnCompositionChatOrphans(` as the root's await (the `warnOnOrphanedChatRows` anchor is inside the hoisted wrapper); new `site-root.boot-chains.pin.test.ts` records `settingsRepo` definition writes (12 `ensure*` in order) and that `installCommentsDataModule` starts after the newsletter install settles | S0, each stage |
 | R4 | lazy init contracts merge (optional vs fallback vs domain error vs promise) | R1 tests, one per contract; sheets forbid a shared helper | S0 |
 | R5 | module evaluation order changes (`app.ts`, `exportSite` evaluated earlier) | `createApp`/`exportSite` imports stay the last imports of `deps.ts`; `site-deps/**` never imports `app.ts` (`grep -rn "app.js\"\|features/site-export" apps/website/src/server/runtime/composition/site-deps` prints nothing); `no-first-party-require.boundary.test.ts`, `site-export-real-composition` tests | S13 |
 | R6 | a process-global write is duplicated or reordered | `setServerLogTraceReader`, `wireCoreResolvers`, `siteAppBootWorkByDeps.set` each appear once under `composition/` excluding memory root (`grep -rn` per name, counted in the sheet); module-identity integration test | S8, S9, S12 |

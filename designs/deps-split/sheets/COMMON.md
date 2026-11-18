@@ -1,112 +1,118 @@
-# deps-split sheets — COMMON (read with your sheet; one contract: nothing here is overridden by a sheet unless the sheet says "replaces COMMON §n")
+# deps-split sheets — COMMON (revision 2; read with your sheet — one contract: a sheet overrides COMMON only where it says "replaces COMMON §n")
 
-Executor: Sonnet, unattended. Repo: Tovu (+ Jini attached for the build). Work branch: `refactor/deps-split` (created once by S0 from the **latest** `origin/refactor/terra` that contains `origin/refactor/import-cycle-b`; later sheets continue it). Never force-push; `git pull --rebase` before every push; push after every commit. Never push `main` or `refactor/terra`. No subagents. Product code changes only as the sheet says; DESIGN = `designs/deps-split/DESIGN.md` on `origin/plan/design-deps-split-2026-11-17` (`git show origin/plan/design-deps-split-2026-11-17:designs/deps-split/DESIGN.md`). Copy `designs/deps-split/work/` from that branch into the work tree (`git checkout origin/plan/design-deps-split-2026-11-17 -- designs/deps-split/work`) and commit it once in S0.
+Executor: Sonnet, unattended. Repo: Tovu (+ Jini attached, checked out as a sibling named exactly `Jini`). Work branch: `refactor/deps-split`, created once by S0 from the **latest** `origin/refactor/terra` that contains `origin/refactor/import-cycle-b`; later sheets continue it. Never force-push; `git pull --rebase` before every push; push after every commit. Never push `main` or `refactor/terra`. No subagents. DESIGN = `designs/deps-split/DESIGN.md`, revision notes = `designs/deps-split/REVISION-2.md` (both on `origin/plan/design-deps-split-2026-11-17`). S0 vendors `designs/deps-split/` into the work branch; every later sheet uses the vendored copy.
 
-## §1 Setup (only if the sheet runs commands; it always does)
+**All gates live in one script, `designs/deps-split/work/gates.sh`.** Every subcommand exits 0 only on a pass and prints `STOP-…` and exits non-zero on a finding **or on any tool error** (missing file, grep error, crashed runner, cut-short TAP, failed merge-base). A sheet never wraps a gate in `|| echo`, `&& echo`, `; cd`, `| head`/`tail`/`wc`/`xargs`/`sort`, or a process substitution: a gate's own exit status decides. A STOP means: stop the sheet, commit nothing more, write the report (§8) with the STOP line verbatim.
 
-```bash
-# Node 24 (skip if `node -v` already prints v24.x)
-mkdir -p ~/.local/node24 && curl -fsSL https://nodejs.org/dist/latest-v24.x/ | grep -o 'node-v24[^"]*-linux-x64.tar.xz' | head -1 | xargs -I{} curl -fsSL https://nodejs.org/dist/latest-v24.x/{} | tar -xJ -C ~/.local/node24 --strip-components=1
-export PATH=~/.local/node24/bin:$PATH && node -v
-cd ../Jini && pnpm install --frozen-lockfile && pnpm --no-bail -r build; cd ../Tovu
-npm ci && JINI_PACKAGES_DIR="$(cd ../Jini/packages && pwd)" node development/scripts/link-jini.mjs
-```
+Every fenced block below starts with `set -euo pipefail` and is run as one `bash` invocation (paste into `bash -c '…'` or a script file); `export DS_SHEET=S<n>` first.
+
+## §1 Setup (every sheet; idempotent)
 
 ```bash
-# STOP if the link script skipped an app that has its own node_modules (lesson 47)
-for a in apps/*/; do [ -d "$a/node_modules/@jini-ai" ] || continue; for p in "$a"node_modules/@jini-ai/*; do [ -L "$p" ] || echo "STOP: $p is not linked"; done; done
+set -euo pipefail
+export DS_SHEET=S<n>                        # this sheet
+bash designs/deps-split/work/gates.sh setup # Node 24 (sha256-checked), Jini install + build (fails on any failed package), npm ci, link-jini, link check (root + every app)
+export PATH="$HOME/.local/node24/bin:$PATH"
+bash designs/deps-split/work/gates.sh refs  # S1-S13: Tovu base is an ancestor of HEAD; ../Jini is at the SHA S0 pinned (work/base-outputs/refs.env)
 ```
+If `setup` stops on the Jini build: that is a setup failure, not your breakage — report it (`STOP-SETUP-JINI-BUILD`) and stop. The Tovu build is `npm run build:server` (`npm run build` refuses a linked Jini by design: `check-no-linked-jini.mjs`); it is captured as a base output and compared at every sheet end (§5).
 
-## §2 Facts re-check (lesson 43) — first thing in every sheet, before editing
+## §2 Facts re-check (lesson 43) — every sheet, before editing
 
 ```bash
-W=designs/deps-split/work
-node $W/closure-census.cjs . | head -1
-node $W/module-census.cjs . | head -1
-node $W/deps-importers.cjs . | head -1
+set -euo pipefail
+bash designs/deps-split/work/gates.sh facts   # regenerates the 4 censuses; each must equal the committed TSV byte for byte
 ```
-Compare with the first line of the matching committed `$W/*.tsv` **as left by the previous sheet** (each sheet commits refreshed TSVs as its last commit). STOP if they differ and the difference is not explained by the previous sheet's own commits (`git log --oneline -- apps/website/src/server/runtime/composition/deps.ts` since that commit).
+The TSVs on the work branch are the ones the previous sheet committed as its last commit (§9 rule 8). A drift not explained by that sheet's commits = STOP.
 
-## §3 Freeze check (SEQUENCE H1 step 4: nobody else writes `deps.ts` during S0-S13)
+**Anchors, not indices.** From S4 on, statement indices of `work/closure-census.tsv` shift (S4 turns hoisted closure functions into module functions). Sheets name every move by **binding** (the `declares` column) and **anchor text** (a verbatim substring of the first and last statement). Find the current lines with:
+```bash
+set -euo pipefail
+awk -F'\t' -v b='<binding>' 'NR>2 && ("," $5 ",") ~ ("," b ",") {print $1, $2}' designs/deps-split/work/closure-census.tsv   # prints index + lines; empty output = the binding moved: STOP
+```
+(`awk` exits 0 with empty output when nothing matches — so the empty-output rule is read by you, and the sheet's own STOP block re-checks every moved binding with `gates.sh expect-count`.)
+
+## §3 Freeze (SEQUENCE H1 step 4) — before EVERY commit, not only at sheet entry
+
+`gates.sh freeze` (run by `gates.sh commit`) fetches every `origin/wave*`, `origin/refactor/*`, `origin/integ/*` lane, builds the candidate commit from the index, and for each lane not already merged:
+- **exclusive paths** `composition/deps.ts`, `composition/site-deps/**`, `composition/outbound-http.ts` (S11): if merging the lane would change one, the lane must be listed in `work/freeze-lanes.tsv` **with its exact tip SHA** and the current sheet must be **before** the sheet that needs it merged; otherwise STOP. A lane whose tip moved since it was listed = STOP (re-agree with the coordinator).
+- **shared files** (`app.ts`, `src/index.ts`, `size-debt.json`, `error-gate-debt.json`, `memory-deps/slices/outbound-http.ts`, `composition/__tests__/**`, the source-reader tests, `check-capability-inventory.ts`, the two dev scripts): a conflict that **this candidate creates** (absent when the lane is merged into the sheet base) = STOP. Conflicts a lane already has with the base are printed as NOTE (the lane's own rebase).
+- a failed `merge-base` or `merge-tree` = STOP (no silent skip).
+
+Listed lanes on 2026-11-18 (`work/freeze-lanes.tsv`; transcript at `f0613d9e`: `work/freeze-at-f0613d9e.txt`): `wave3/desktop-d0c` (deps.ts:4, merge before S6), `wave2/publish-p0-rest` (deps.ts:1035, 2879, merge before S4), `wave3/moves-b1` (deps.ts:197, merge before S3). INDEX §"Freeze" holds the full overlap table and who resolves what.
+
+## §4 Base outputs (lesson 44) — S0 captures once on the unmodified base
 
 ```bash
-git fetch -q origin '+refs/heads/wave*:refs/remotes/origin/wave*' '+refs/heads/refactor/*:refs/remotes/origin/refactor/*'
-for r in $(git for-each-ref --format='%(refname:short)' refs/remotes/origin/wave2 refs/remotes/origin/wave3 refs/remotes/origin/refactor); do
-  case "$r" in origin/refactor/deps-split|origin/refactor/terra) continue;; esac
-  mb=$(git merge-base "$r" HEAD) || continue
-  git diff --quiet "$mb" "$r" -- apps/website/src/server/runtime/composition/deps.ts || echo "STOP-FREEZE: $r edits deps.ts"
-done
+set -euo pipefail
+bash designs/deps-split/work/gates.sh refs-record    # work/base-outputs/refs.env: TOVU_BASE, JINI, NODE
+bash designs/deps-split/work/gates.sh base-capture   # tsc ×2, build:server, check:{boundaries,architecture,size,complexity,errors,inventory}, loggers.count, tests-sr, tests-wide
 ```
-Expected on 2026-11-18: one line, `origin/wave3/desktop-d0c` (1 import line: `startupSecretEnvironment` from `@tovu/host-shared/startup-secrets`). If D0c is merged into terra, rebase first; if not, continue — the S6 sheet owns that line and applies D0c's spelling only once D0c is in the base. Any **other** branch printed = STOP.
+S0 commits `work/base-outputs/` so every later session compares against the same files. Judging rule (in `gates.sh newlines`): exit status equal to the base's or 0, and **no normalized output line beyond the base** (digits → `N`, so moved line numbers and counts are not findings; a new path, rule or message is). A line a sheet expects (e.g. a debt row the sheet removes) is listed in `work/expected-new-lines.tsv` as `S<n><TAB><gate><TAB><normalized line>` in the same commit, with the reason in the report. Known base reds (import-cycle-b report): `check:boundaries` exit 15, `check:architecture` exit 1.
 
-## §4 Base outputs (lesson 44) — S0 captures once; every later sheet compares against them
+## §5 Gates
 
+Per commit — stage everything, then gate, then commit:
 ```bash
-mkdir -p /tmp/ds-base && B=/tmp/ds-base
-npx tsc -p tsconfig.json --noEmit > $B/tsc.txt 2>&1; echo "exit $?" >> $B/tsc.txt
-NODE_OPTIONS=--max-old-space-size=6144 npx tsc -p tsconfig.tests.json --noEmit > $B/tsc-tests.txt 2>&1; echo "exit $?" >> $B/tsc-tests.txt
-npm run check:boundaries > $B/boundaries.txt 2>&1; echo "exit $?" >> $B/boundaries.txt
-npm run check:architecture > $B/architecture.txt 2>&1; echo "exit $?" >> $B/architecture.txt
-for g in check:size check:complexity check:why-comments check:errors check:inventory; do npm run $g > $B/${g#check:}.txt 2>&1; echo "exit $?" >> $B/${g#check:}.txt; done
+set -euo pipefail
+git add -A
+bash designs/deps-split/work/gates.sh commit   # refs, freeze(candidate), tsc ×2, 6 check gates, why-comments --merge-base, limits, shape, loggers, imports, tests sr
+git commit -m "<message>"
+git pull --rebase && git push
 ```
-S0 commits these files under `designs/deps-split/work/base-outputs/` so later sessions have them. Judging rule: **no new line beyond the base output** (`diff <(sort base) <(sort now) | grep '^>'` prints nothing except lines the sheet names). Known base reds (import-cycle-b report): `check:boundaries` exit 15 (15 `no-deep-imports`), `check:architecture` exit 1 (120 cross-feature edges).
+What `commit` runs, so the sheet text never repeats it:
+- **limits**: the owner limits config (`max-lines-per-function` 50, `complexity` 10, `max-lines` 500) on **every** `.ts` file the candidate adds or changes, tests included. Added files: zero findings. Changed files: no new (rule, message) and no size number above the same entry at `HEAD` (so `deps.ts` may only shrink). Cognitive complexity is covered by `check:complexity`'s ratchet (no new line).
+- **why-comments**: `npm run check:why-comments -- --merge-base --base <TOVU_BASE>` (the CI form; a deleted why-comment with no matching addition stops).
+- **shape**: under `site-deps/` no module `let`/`var`, no `export *`/`export {…} from`, no module `const` initialised by `new`/`create*`/`[`/`{`/`await`, no `createConsoleLogger`.
+- **loggers**: production `createConsoleLogger(` lines in `apps/website/src` equal the base count (17 at `f0613d9e`).
+- **imports** (DESIGN R5): the last four runtime imports of `deps.ts` are, in order, `#src/features/site-export/index`, `./app.js`, `./site-app-boot-work.js`, `./settings-registration.js`; nothing under `site-deps/` imports those four, `app.ts` or `deps.ts`. Their values reach slices as `required.*` inputs.
+- **tests sr**: every source reader of the moved code + `composition/__tests__/*.test.ts` + `memory-deps/__tests__/*.test.ts` (list in `gates.sh` `SR_FILES`). The runner's exit status is kept: exit ∉ {0,1}, or exit 1 with zero failing/cancelled tests, or a TAP without its final summary = STOP; a failing name not in the base list = STOP; fewer tests than the base = STOP.
 
-## §5 Per-commit gates (all of them, every commit; a red gate = fix before the next move, never skip)
-
+Sheet end (after the last product commit, before the TSV refresh commit):
 ```bash
-G=/tmp/ds-now && mkdir -p $G
-npx tsc -p tsconfig.json --noEmit && NODE_OPTIONS=--max-old-space-size=6144 npx tsc -p tsconfig.tests.json --noEmit
-for g in check:boundaries check:architecture check:size check:complexity check:why-comments check:errors check:inventory; do npm run $g > $G/${g#check:}.txt 2>&1; echo "exit $?" >> $G/${g#check:}.txt; diff <(sort /tmp/ds-base/${g#check:}.txt) <(sort $G/${g#check:}.txt) | grep '^>' && echo "STOP-NEWLINE: $g"; done
-# owner limits as errors on every file this commit added or changed under composition/ (deps.ts itself is exempt until S13: only its 2 base rows may remain, with smaller values)
-git diff --name-only HEAD~1 -- apps/website/src/server/runtime/composition | grep '\.ts$' | grep -v '__tests__' | grep -v '/deps\.ts$' | xargs -r npx eslint --no-config-lookup -c designs/deps-split/work/limits.eslint.config.mjs || echo "STOP-LIMITS"
-# no module-level cells and no re-exports in site-deps
-grep -rnE '^(export )?(let|var) |^export \* |^export \{[^}]*\} from ' apps/website/src/server/runtime/composition/site-deps && echo "STOP-SHAPE"
-grep -rnE '^(export )?const [A-Za-z_]+ *= *(new |create[A-Z]|\[|\{)' apps/website/src/server/runtime/composition/site-deps && echo "STOP-MODULE-CELL"
-# the 17 bare loggers stay 17, and site-deps builds none
-test "$(grep -rn 'createConsoleLogger(' apps/website/src --include=*.ts | grep -v __tests__ | grep -vc '\.test\.')" = 17 || echo "STOP-LOGGERS"
-grep -rn 'createConsoleLogger' apps/website/src/server/runtime/composition/site-deps && echo "STOP-LOGGER-IN-SLICE"
-# site-deps never imports app.ts, deps.ts or the exporter (module evaluation order, DESIGN R5)
-grep -rnE "from \"(\.\./)+(app|deps)\.js\"|features/site-export" apps/website/src/server/runtime/composition/site-deps && echo "STOP-IMPORT"
+set -euo pipefail
+bash designs/deps-split/work/gates.sh sheet-end   # build:server vs base, tests wide (server unit + integration + routes) vs base, facts
 ```
+Postgres-only tests are skipped by the runner on this host; their names are in the base failing list and stay there (R12). Record "not run" for `create-site-route-deps.postgres.test.ts`.
 
-Tests per commit (website tests run on `node --test` with tsx; no vitest):
-```bash
-T="TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=2 --test-reporter=tap"
-SR="apps/website/src/server/__tests__/unit/composition-boot-order.unit.test.ts apps/website/src/platform/db/sqlite/__tests__/chat-orphan-check.integration.test.ts apps/website/src/server/__tests__/integration/create-sqlite-route-deps-for-workspace.integration.test.ts apps/website/src/server/__tests__/integration/production-readiness-boot.integration.test.ts apps/website/src/server/__tests__/unit/serving-app-boot-wiring.unit.test.ts apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts apps/website/src/server/inbound/assistant/__tests__/agent-daemon-import-graph.unit.test.ts development/scripts/__tests__/dependency-cruiser.test.ts apps/website/src/server/runtime/lifecycle/__tests__/sqlite-shutdown.integration.test.ts apps/website/src/cli/__tests__/unit/serve-command-wiring.unit.test.ts apps/website/src/__tests__/no-first-party-require.boundary.test.ts"
-eval "$T $SR 'apps/website/src/server/runtime/composition/__tests__/*.test.ts'" > $G/tests.tap 2>&1
-grep -E '^\s*not ok' $G/tests.tap | sed 's/^ *//' | sort -u > $G/fail.txt; grep -E '^# (tests|pass|fail)' $G/tests.tap
-comm -13 /tmp/ds-base/fail.txt $G/fail.txt | grep . && echo "STOP-NEWFAIL"
-```
-S0 records `/tmp/ds-base/fail.txt` with the same command on the unmodified base (16 composition failures are known: Postgres/PGlite/charts names; they must be the same names). At the end of each sheet also run `apps/website/src/server/__tests__/unit/*.test.ts` and `apps/website/src/server/__tests__/integration/*.test.ts` the same way (base list captured in S0 as `fail-wide.txt`).
+## §6 Planted failures (lesson 40) — S0 proves every gate can fail
 
-Test count (honest-testing): report `# tests` before and after each sheet; a drop is a STOP unless the sheet names the moved test file.
-
-## §6 STOPs fire on a planted case (lesson 40) — S0 runs this once and commits the transcript
-
-```bash
-mkdir -p apps/website/src/server/runtime/composition/site-deps && printf 'let planted = 1;\nexport const plantedCell = new Map();\n' > apps/website/src/server/runtime/composition/site-deps/planted.ts
-grep -rnE '^(export )?(let|var) ' apps/website/src/server/runtime/composition/site-deps && echo "STOP-SHAPE fired (expected)"
-grep -rnE '^(export )?const [A-Za-z_]+ *= *(new |create[A-Z]|\[|\{)' apps/website/src/server/runtime/composition/site-deps && echo "STOP-MODULE-CELL fired (expected)"
-rm apps/website/src/server/runtime/composition/site-deps/planted.ts
-```
-Both greps are the exact §5 patterns; if either does not print its planted line, STOP (the gate is broken).
+`gates.sh selftest` plants a failure per gate class with stub tools (new output line, silent crash, new failing test, runner crash with no failure, cut-short TAP, fewer tests, module `let`, module cell, grep tool error, unlisted lane, listed lane at its sheet, moved lane tip) and exits non-zero unless **every** plant fired with a `STOP-` line and every clean case passed. Its transcript at `f0613d9e` is `work/gates-selftest.txt`. S0 then runs the **real** plants (S0 step 3) after setup. Re-run `selftest` whenever `gates.sh` changes.
 
 ## §7 Moving code
 
-- Move statements **verbatim with the comment lines directly above them** (`git diff --color-moved=zebra` must show the block as moved); only identifiers that become `required.x`/getter calls change.
-- A function that moves takes `(required, optional = {})`. Getters for late reads are named after the binding (`late.settingsRepo()`); never read a getter at module scope or at slice entry unless the census row says the read is eager.
-- One commit = one slice or one helper group, with every importer and every source-reading test anchor it moves repointed in the **same** commit (no assertion deleted; a moved anchor is asserted in its new file; an order between two anchors in different files is asserted as the order of the two calls in the stage or root).
-- Debt rows: never edit `size-debt.json`/`error-gate-debt.json` by hand; when `check:size` reports a smaller value or a stale row, run the script's own update mode if it has one, else STOP and report. Values only go down.
+- Move statements **verbatim with the comment lines directly above them** (`git diff --color-moved=zebra` must show the block as moved); only identifiers that become `required.x` or getter calls change.
+- A moved function takes `(required, optional = {})` (owner rule). A positional helper that moves is converted **in the same commit**, with every caller and every source-reading anchor of its call text (S3 lists them).
+- Getters for late reads are named after the binding (`settingsRepo: () => settingsRepo`) and are read **only when called** — never at slice entry, never at module scope.
+- **Awaits stay at their original boundaries.** No new `async` function wraps an original `await`, and no synchronous block becomes async. Every top-level `await` of today's closure stays a top-level statement of `composeSiteRouteDeps`, verbatim except for identifiers renamed by the move (DESIGN §2.2 lists the nine). Slices and stages are **synchronous**; the root calls them between its awaits. This keeps the number of microtask turns between every pair of statements identical to today.
+- One commit = one slice (or one helper group), with every importer and every source-reading test anchor it moves repointed in the **same** commit (no assertion deleted; a moved anchor is asserted in its new file; an order between anchors in different files is asserted as the order of the calls in the root).
+- **Carries.** Each sheet lists the behaviour that must travel with each move and the pin that fails if it does not. A move whose pin is not green on the commit = STOP.
+- **Debt files** (never by hand-edited value, never re-keyed silently):
+  - `size-debt.json`: when `check:size` prints `Delete stale debt entry: <entry>` for a `composition/deps.ts` row this sheet shrank below the limit, delete **exactly that entry** in the same commit (`node -e` below) and name it in the report. Any other `Delete stale…`/`New violation`/`Worsened` line = STOP.
+  - `error-gate-debt.json` (identity = file + rule, value = count): when a counted finding moves (`check:errors` then shows the old row improved and a new file added), transfer **exactly the moved count** in the same commit: decrement (or delete at 0) the `deps.ts` row, add `{file: <new file>, rule, value: <moved count>}`. Total count unchanged. Any other change = STOP.
+```bash
+set -euo pipefail
+# delete one debt entry by exact file + rule (+ name for size rows); fails if it does not remove exactly one entry
+node -e '
+  const fs = require("fs"); const [f, file, rule, name] = process.argv.slice(1);
+  const rows = JSON.parse(fs.readFileSync(f, "utf8"));
+  const keep = rows.filter((r) => !(r.file === file && r.rule === rule && (name === undefined || r.name === name)));
+  if (rows.length - keep.length !== 1) { console.error("STOP-DEBT-EDIT removed " + (rows.length - keep.length)); process.exit(1); }
+  fs.writeFileSync(f, JSON.stringify(keep, null, 2) + "\n");' development/scripts/size-debt.json "<file>" "<rule>" "<name>"
+```
+(Check the field names against the row first: `grep -n -A4 '<file>' development/scripts/size-debt.json`.)
 
-## §8 Report (last commit of each sheet): `cloud-results/deps-split-<sheet>.md` — commits (SHA, one line each), gates table (command → result vs base), test counts before/after, deviations, the exact next step. Push and print the SHAs.
+## §8 Report (last commit of each sheet): `cloud-results/deps-split-<sheet>.md`
 
-## §9 Stage extraction rules (S5-S12; S13 replaces rule 2 at the end)
+Commits (SHA + one line each), gates table (subcommand → result vs base), test counts before/after (`tests-sr`, `tests-wide`), carries table with each pin's name and its red-once evidence, deviations, the exact next step. Push and print the SHAs. On a STOP: the STOP line verbatim, the last green commit, the next step.
 
-1. Top-down, one stage per sheet, in DESIGN §1.3 order. Inside a sheet: one slice per commit (statements verbatim into `site-deps/slices/<slice>.ts`, called from the closure at the same position), then one commit that groups the sheet's slice calls into `site-deps/stages/<stage>.ts`.
-2. The closure keeps today's local names: the extracted block is replaced by `const { a, b, … } = composeX(required, optional)` (with `await` **only** if the block contains a top-level await today; a synchronous block stays synchronous — no extra microtask turn). The destructured names are exactly the block's names that a later row of `work/closure-census.tsv` reads (eager or deferred column). Later code does not change.
-3. A read of a binding declared **later** (census "forward" column) is passed as a getter named after it, written at the call site: `{ settingsRepo: () => settingsRepo }`. The arrow reads the closure `const` when called — same TDZ as today. Never call a getter at slice entry.
-4. Root cells (`let lifecycleTracker`, `routeDepsBuiltForPluginHost`, `formCollectionProviders`, `bindSharedApiOAuth`, `resolveRouteDeps`) stay in the closure; slices receive getters; every write stays at its statement position in the closure (DESIGN §2.3 for the three writes that sit between statements of one stage).
-5. A slice that logs through `consoleLogger` receives `required.logger` and the closure passes `logger: consoleLogger`. No slice imports `createConsoleLogger`.
+## §9 Stage extraction rules (S5-S12; S13 replaces rule 2 at its root commit)
+
+1. Top-down, in DESIGN §1.3 order. Inside a sheet: one slice per commit (statements verbatim into `site-deps/slices/<slice>.ts`, called from the closure at the same position), then one commit that groups the sheet's consecutive synchronous slice calls into `site-deps/stages/<stage>.ts` **only between two root awaits** (a stage never spans an await; DESIGN §2.2 lists the segments).
+2. The closure keeps today's local names: the extracted block becomes `const { a, b, … } = composeX(required, optional)` — **never `await`ed** (slices are synchronous). The destructured names are exactly the block's names that a later statement reads (census eager or deferred column, located by binding). Later code does not change.
+3. A read of a binding declared **later** (census "forward(late)") is passed as a getter at the call site: `{ settingsRepo: () => settingsRepo }`.
+4. Root cells (`pendingLifecycleEvents`, `lifecycleTracker`, `routeDepsBuiltForPluginHost`, `formCollectionProviders`, `bindSharedApiOAuth`, `resolveRouteDeps`/`routeDepsBuilt`) stay in the closure; slices receive getters; every write stays in the closure at its position (DESIGN §2.3).
+5. A slice that logs receives `required.logger`; the closure passes `logger: consoleLogger`. No slice imports `createConsoleLogger`.
 6. A single-user module helper (DESIGN §1.3 table) moves into its user's slice file in the same commit.
-7. Source-reading anchors move with their code (COMMON §7). For `composition-boot-order.unit.test.ts:183-…` ("awaits after the first boot promise"): when an await moves into a slice, the expected list keeps the stage-call line in its place, and a new assertion in the same test pins the await's verbatim text inside the slice file. The "no `db` identifier" and "no `sqliteDb`" assertions (`:187-193`) read `deps.ts` **and** every file under `site-deps/` from S5 on.
-8. Last commit of the sheet: refresh `work/closure-census.tsv`, `work/module-census.tsv`, `work/literal-keys.tsv`, `work/deps-importers.tsv`.
+7. Source-reading anchors move with their code (§7). `composition-boot-order.unit.test.ts`'s top-level-await list keeps reading `composeSiteRouteDeps` (the awaits stay there); its "no `db` identifier" / "no `sqliteDb`" / `storeBound` assertions read `deps.ts` **and** every file under `site-deps/` from S5 on.
+8. Last commit of the sheet: refresh the four `work/*.tsv` with the census scripts (S13 first updates `literal-keys.cjs`, see S13).

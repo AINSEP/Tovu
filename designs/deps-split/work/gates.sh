@@ -6,7 +6,8 @@
 # status is dropped (pipefail is on and no stage of a pipeline here can fail by truncation).
 # Usage (Tovu root): DS_SHEET=S<n> bash designs/deps-split/work/gates.sh <subcommand> [args]
 #   setup | link | refs-record | refs | facts | freeze | base-capture | newlines <gate…> | tsc |
-#   why | limits | shape | loggers | imports | tests <set> | build | commit | sheet-end | selftest
+#   why | limits | shape | loggers | imports | tests <set> | build | commit | sheet-end | selftest |
+#   forbid TAG REGEX PATH… | expect-count TAG N REGEX PATH… | absent TAG PATH… | e3-ready
 set -euo pipefail
 shopt -s nullglob
 
@@ -449,11 +450,41 @@ cmd_selftest() {
   echo "selftest: every planted case fired, every clean case passed"
 }
 
+# Generic sheet checks (each exits non-zero on a finding or a tool error):
+#   forbid TAG REGEX PATH…          no line under PATH matches REGEX (grep -E)
+#   expect-count TAG N REGEX PATH…  exactly N matching lines under PATH
+#   absent TAG PATH…                none of PATH exists
+cmd_expect_count() {
+  local tag=$1 want=$2 got; shift 2
+  local pat=$1; shift
+  got=$(count "$pat" "$@")
+  [ "$got" = "$want" ] || die "$tag ($got matching lines, expected $want)"
+  echo "$tag: $got"
+}
+cmd_absent() { local tag=$1 p; shift; for p in "$@"; do [ ! -e "$p" ] || die "$tag $p exists"; done; echo "$tag: absent"; }
+
+# E3 may start only when all four hold on the merged base (INDEX "What E3 needs").
+cmd_e3_ready() {
+  local stop=0
+  local est=0; "$NPX" eslint --no-config-lookup -c "$W/limits.eslint.config.mjs" "$D/deps.ts" > "$NOW/e3-limits.txt" 2>&1 || est=$?
+  case $est in 0) ;; 1) echo "E3-BLOCKED deps.ts fails the owner limits (500/50/10): $(grep -c error "$NOW/e3-limits.txt" || true) findings"; stop=1;; *) die "TOOL eslint exit $est";; esac
+  local lp=("$D/deps.ts"); [ -d "$SD" ] && lp+=("$SD")
+  local logs; logs=$(count 'createConsoleLogger\(' "${lp[@]}")
+  [ "$logs" = 1 ] || { echo "E3-BLOCKED $logs createConsoleLogger( lines in deps.ts + site-deps (expected exactly 1, in deps.ts)"; stop=1; }
+  local st=0; grep -n 'export function createRouteDeps' "$D/app.ts" > /dev/null || st=$?
+  case $st in 0) echo "E3-BLOCKED memory root still in app.ts (H1 step 5)"; stop=1;; 1) ;; *) die "TOOL grep app.ts";; esac
+  st=0; git merge-base --is-ancestor origin/refactor/error-e0-e2 HEAD || st=$?
+  case $st in 0) ;; 1) echo "E3-BLOCKED E2 not merged"; stop=1;; *) die "TOOL merge-base error-e0-e2";; esac
+  [ "$stop" = 0 ] || exit 1
+  echo "E3 ready"
+}
+
 sub=${1:-}; [ -n "$sub" ] || die "USAGE gates.sh <subcommand>"; shift
 case $sub in
   setup) cmd_setup;; link) cmd_link;; refs-record) cmd_refs_record;; refs) cmd_refs;; facts) cmd_facts;;
   freeze) cmd_freeze;; base-capture) cmd_base_capture;; newlines) cmd_newlines "$@";; tsc) cmd_newlines tsc tsc-tests;;
   why) cmd_why;; limits) cmd_limits;; shape) cmd_shape;; loggers) cmd_loggers;; imports) cmd_imports;;
-  tests) cmd_tests "$@";; build) cmd_newlines build;; commit) cmd_commit;; sheet-end) cmd_sheet_end;; selftest) cmd_selftest;;
+  tests) cmd_tests "$@";; forbid) forbid "$@"; echo "$1: none";; expect-count) cmd_expect_count "$@";; absent) cmd_absent "$@";;
+  e3-ready) cmd_e3_ready;; build) cmd_newlines build;; commit) cmd_commit;; sheet-end) cmd_sheet_end;; selftest) cmd_selftest;;
   *) die "USAGE unknown subcommand $sub";;
 esac
