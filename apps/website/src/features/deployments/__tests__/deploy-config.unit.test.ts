@@ -6,7 +6,8 @@ import path from "node:path";
 
 import { ValidationError } from "#src/platform/site-dir/index";
 
-import { assertNoConfigInjection, buildDeploymentDescriptor } from "../deploy-config.js";
+import { assertNoConfigInjection } from "@jini-ai/devops/deploy";
+import { buildDeploymentDescriptor } from "../deploy-config.js";
 
 const fail = ({ message }: { message: string }) => new ValidationError({ message });
 
