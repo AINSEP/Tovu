@@ -30,7 +30,6 @@ const FORBIDDEN: ReadonlyArray<{ label: string; test: (rel: string) => boolean }
   { label: "prepare-content-store", test: (rel) => rel.includes("prepare-content-store") },
   { label: "boot-data-repairs", test: (rel) => rel.includes("boot-data-repairs") },
   { label: "configuration/seed", test: (rel) => rel.includes("configuration/seed") },
-  { label: "features/plugins/migration-recovery", test: (rel) => rel.startsWith("features/plugins/migration-recovery") },
   { label: "pglite-owner", test: (rel) => rel.includes("pglite-owner") },
 ];
 
@@ -91,6 +90,9 @@ function reachableFiles(entry: string): Set<string> {
   return seen;
 }
 
+/** Plugin data-module recovery lives in this Jini subpath; no file the client reaches may load it. */
+const PLUGIN_RECOVERY_SPECIFIER = "@jini-ai/db/data-modules";
+
 test("W1-L: the client's import graph (static, plus its driver import()s) reaches no migration, seed, repair, recovery or PGlite-owner module", () => {
   const reached = [...reachableFiles(CLIENT_FILE)].map((file) => path.relative(SRC_ROOT, file).split(path.sep).join("/"));
   // Sanity: the walk follows the lazily imported drivers, so a broken resolver cannot pass vacuously.
@@ -99,6 +101,9 @@ test("W1-L: the client's import graph (static, plus its driver import()s) reache
   }
   const offenders = FORBIDDEN.flatMap(({ label, test: matches }) => reached.filter(matches).map((rel) => `${label}: ${rel}`));
   assert.deepEqual(offenders, []);
+  const recoveryLoaders = [...reachableFiles(CLIENT_FILE)].filter((file) =>
+    valueSpecifiers(file, { dynamic: true }).includes(PLUGIN_RECOVERY_SPECIFIER));
+  assert.deepEqual(recoveryLoaders.map((file) => path.relative(SRC_ROOT, file)), []);
 });
 
 /** The module a node names, type-level included: an import/export declaration, `import()` or `typeof import()`. */

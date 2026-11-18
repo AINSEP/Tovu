@@ -3,11 +3,10 @@ import { Icon } from "@jini-ai/ui";
 import { RowMenu } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/core/agent-handles";
 
-import { SiteCard as SiteCardFrame, SiteCardPin, SiteCardStatus, SiteListToolbar, useSiteListView, type SiteCardTone, type SiteListController } from "@jini-ai/ui/site-card";
+import { SiteCard as SiteCardFrame, SiteCardPin, SiteCardStatus, SiteListToolbar, useSiteListView, type SiteCardTone, type SiteListController, type SiteListPrefsController } from "@jini-ai/ui/site-card";
 
 import type { AdminSiteListEntry, AdminSitesSnapshot } from "./api/sites-api.types";
 
-import type { SiteListPrefsController } from "./hooks/use-site-list-prefs.hooks";
 import {
   buildSiteCardMenuItems,
   resolveSiteCardMeta,

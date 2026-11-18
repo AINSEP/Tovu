@@ -6,7 +6,7 @@ import { sql } from "kysely";
 
 import { openPgliteKernel } from "../drivers/pglite.js";
 import { sqliteKernel } from "../drivers/sqlite.js";
-import { sqliteForeignKeyCheckedTransaction, sqliteSchemaObjects, sqliteTableInfo, sqliteTableExtendedInfo } from "../sqlite-only.js";
+import { sqliteForeignKeyCheckedTransaction, sqliteSchemaObjects, sqliteTableInfo, sqliteTableExtendedInfo } from "@jini-ai/db/kernel/sqlite";
 
 /**
  * @file The SQLite-only kernel primitives publish's "send by hand" ships across peers: the exact

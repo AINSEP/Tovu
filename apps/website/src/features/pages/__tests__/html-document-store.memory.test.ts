@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { InMemoryPostRepo, createPost } from "../../post/index.js";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
-import { InMemoryEntryRefsRepo } from "../../../contracts/core/entry-refs/repo.memory.js";
+import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { PageKindMismatchError, PageConcurrentEditError, PageNotFoundError } from "../html-document-store.sqlite.js";
 
 /**

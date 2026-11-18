@@ -8,7 +8,8 @@ import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { createRateLimiter, type RateLimitProfile } from "../../contracts/core/rate-limit/rate-limit.js";
 import { readPageBodyOptions, shapePageBody } from "../site-inspection/page-body.js";
 import { WEB_READ_PERMISSION, webAgentToolCatalog } from "./agent-tools.js";
-import { fetchWebPage, MAX_MAX_CHARS, readWebFetchInput, type WebFetchPorts } from "./web-page.js";
+import { MAX_MAX_CHARS, readWebFetchInput } from "@jini-ai/platform/web";
+import { fetchWebPage, type WebFetchPorts } from "./web-page.js";
 
 /**
  * @file Maps the `web` catalog onto {@link fetchWebPage}. Every catalog entry is wired, so a future

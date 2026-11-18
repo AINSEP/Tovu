@@ -13,7 +13,7 @@ import { openSiteContentDb } from "../../runtime/composition/open-site-content-d
 import { createSiteRouteDepsForWorkspace, createSiteRouteDeps, defaultContentDbPath } from "../../runtime/composition/deps.js";
 import { contentKernel } from "#src/platform/db/content-kernel";
 import { closeSqliteConnection, sqliteConnectionOf } from "#src/platform/db/kernel/drivers/sqlite";
-import { isInMemoryDbPath } from "#src/features/plugins/snapshot";
+import { isInMemoryDbPath } from "@jini-ai/db/data-modules";
 import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
 import { resolveWorkspace } from "#src/platform/site-dir/resolve-workspace";
 import type { SiteStore } from "../../runtime/composition/open-site-store.js";

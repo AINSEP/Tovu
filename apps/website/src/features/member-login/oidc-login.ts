@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { nowIso, type Clock } from "@jini-ai/core/primitives";
 import { formatAad } from "@jini-ai/platform/secrets";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
-import { beginAuthorizationCode, completeAuthorizationCode, createSealedAuthorizationState, validateOidcIdToken,
+import { beginAuthorizationCode, completeAuthorizationCode, createSealedAuthorizationState, createSealerStateCodec, validateOidcIdToken,
   type AuthorizationCallbackParams, type OAuthClient, type OAuthHttpPorts, type OAuthProviderDescriptor,
   type OAuthRandomBytes, type OidcIdTokenClaims } from "@jini-ai/oauth";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
@@ -84,18 +84,9 @@ async function sealState(required: { deps: OidcLoginDeps; plaintext: string; aad
   return Buffer.from(JSON.stringify(sealed), "utf8").toString("base64url");
 }
 
+/** This site's sealer, keyring and `aad` bound to `createSealerStateCodec` (`@jini-ai/oauth`); every open error becomes LOGIN_INVALID in the callers. */
 function stateCodec({ deps, aad }: { deps: OidcLoginDeps; aad: string }, _optional = {}) {
-  return {
-    async seal({ plaintext }: { plaintext: string }, _options = {}) {
-      return sealState({ deps, plaintext, aad });
-    },
-    async open({ state }: { state: string }, _options = {}) {
-      const bytes = Buffer.from(state, "base64url");
-      // Node's permissive decoder otherwise accepts appended garbage or alternate encodings.
-      if (bytes.toString("base64url") !== state) throw new MemberLoginError({ code: "LOGIN_INVALID" });
-      return deps.sealer.open({ sealed: JSON.parse(bytes.toString("utf8")) }, { aad });
-    },
-  };
+  return createSealerStateCodec({ sealer: deps.sealer, keyring: deps.keyring, aad });
 }
 
 function redirectState({ deps, input, version }: { deps: OidcLoginDeps; input: LoginContext; version: string }, _optional = {}) {

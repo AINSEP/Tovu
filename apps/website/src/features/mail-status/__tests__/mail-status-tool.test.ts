@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { isReadOnlyTool, type ToolExecutionContext } from "@jini-ai/core";
 import { ConsoleMailerAdapter } from "../../members/index.js";
-import { SmtpMailerAdapter, type MailerPort } from "../../../platform/mail/index.js";
+import { toPositionalMailer } from "@jini-ai/platform/mail";
+import { SmtpMailerAdapter } from "@jini-ai/platform/mail/smtp";
+import type { MailerPort } from "../../../platform/mail/index.js";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSystemClock } from "@jini-ai/platform/system";
@@ -32,7 +34,7 @@ test("console driver reports false and the exact recovery note", async () => {
 });
 
 test("a real SMTP adapter reports available without sending a message", async () => {
-  const mailer = new SmtpMailerAdapter({ sendMail: async () => assert.fail("status must not send") });
+  const mailer = toPositionalMailer({ mailer: new SmtpMailerAdapter({ transport: { sendMail: async () => assert.fail("status must not send") }, clock: { nowMs: () => 0 } }) });
   assert.deepEqual(await tool(mailer).handler(ctx), { mailDeliveryAvailable: true, driver: "smtp", note: "Email sending is configured." });
 });
 

@@ -1,4 +1,4 @@
-import { sqliteForeignKeyCheckedTransaction, sqliteTableInfo } from "#src/platform/db/kernel/sqlite-only";
+import { sqliteForeignKeyCheckedTransaction, sqliteTableInfo } from "@jini-ai/db/kernel/sqlite";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { createRawRowSqlitePort } from "#src/features/publish-content/publish-backstop-row.sqlite";
 import type { BackstopPorts } from "#src/features/publish-content/backstop-ports";

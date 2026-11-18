@@ -4,7 +4,7 @@ import {
   type CreateMailSenderIdentityResolverOptional as JiniResolverOptional,
   type MailSenderIdentityPort,
 } from "@jini-ai/platform/mail";
-import type { MailerPort } from "./ports.js";
+import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
 
 /**
  * @file Tovu's binding of the one place a system email's `From` is decided (members sign-in links,

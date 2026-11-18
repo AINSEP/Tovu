@@ -7,7 +7,7 @@ import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "
 import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
+import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { createHookRegistry } from "@jini-ai/plugins/host";
 import { InMemoryPostRepo, type BeforeSaveHookPort, type PostRecord } from "#src/features/post/index";

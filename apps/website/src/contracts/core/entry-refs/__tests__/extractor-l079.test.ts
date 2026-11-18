@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { extractEntryRefs, extractHtmlEntryRefs } from '../extractor.js';
+import { extractEntryRefs } from '@jini-ai/cms/widgets';
+import { extractHtmlEntryRefs } from '../extractor.js';
 
 const base = { workspaceId: 'ws', sourceEntryId: 'page', sourceEntryType: 'page' };
 const marker = ({ config }: { config: Record<string, unknown> }, _optional: Record<string, never> = {}) => `<div data-embed-config='${JSON.stringify(config)}'></div>`;

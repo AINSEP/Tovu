@@ -32,7 +32,7 @@
  * unchanged.
  */
 import type { Clock } from "@jini-ai/core/primitives";
-import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
+import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
 import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/core/contracts/events";
 import { registerContentType } from "#src/features/content-types/index";
 import { ContentTypeAlreadyExistsError, NoopContentTypeIndexProvisioner, toContentTypeOutbox, type ContentTypeRepoPort } from "@jini-ai/cms/content-types";
@@ -40,7 +40,7 @@ import { createEntry, importEntry, updateEntry, toEntryOutbox, VersionConflictEr
 import { createPublicPostReader, isTrashed, updatePost, restorePostForward, findPublishedPostById, findPublishedPostBySlug, PostVersionConflictError, PostNotFoundError, type PostRecord, type BeforeSaveHookPort, type ForgetRemovedPostFn, type PostRepoPort } from "../post/post.js";
 import { findMediaByIdOrSlug, getLatestTransformDefinition } from "@jini-ai/cms/media";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "../media/bootstrap.js";
-import { extractEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
+import { extractEntryRefs } from "@jini-ai/cms/widgets";
 import { toSlug } from "../../platform/html/slug.js";
 import { getEntryLockState, type WidgetHostPorts } from "@jini-ai/cms/widgets";
 import type { RemoveWidgetFn, WidgetRegionBindingRepoPort } from "@jini-ai/cms/widgets";

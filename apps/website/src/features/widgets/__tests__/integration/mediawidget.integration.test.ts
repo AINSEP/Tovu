@@ -6,7 +6,8 @@ import { sanitizePageHtml, renderMediaRawHtml } from '@jini-ai/cms/widgets/html'
 import { renderWidgetIr } from '#src/server/inbound/public-http/http/site/render/content-html';
 import { collectReferencedMediaKeys } from '#src/features/publish-content/media-references';
 import { collectBodyReferences } from '#src/features/publish-content/content-references';
-import { extractEntryRefs, extractHtmlEntryRefs } from '#src/contracts/core/entry-refs/extractor';
+import { extractEntryRefs } from '@jini-ai/cms/widgets';
+import { extractHtmlEntryRefs } from '#src/contracts/core/entry-refs/extractor';
 
 const media = { photo: { assetId: 'photo-id', slug: 'photo', alt: 'Library alt', width: 1200, height: 800, transformName: 'public', version: 1 } };
 const renderMedia = ({ props }: { props: JsonObject }) => renderWidgetIr({ componentId: 'media-image', props });

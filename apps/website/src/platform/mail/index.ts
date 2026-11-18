@@ -10,7 +10,9 @@ export type {
   SenderDomainVerification,
   SenderDomainVerificationPort,
 } from "@jini-ai/platform/mail";
-export type { ConsoleMailerAdapter, InMemoryMailerAdapter, MailerPort, MailerSendOptions, MailTestApproval } from "./ports.js";
+/** MailerPort is Jini's positional mailer. Host adapters retain the consumer call shape while translating to Jini at dispatch.
+ * Approval facts are checked again inside the selected provider's delivery policy. */
+export type { PositionalMailer as MailerPort, MailerSendOptions, MailTestApproval } from "@jini-ai/platform/mail";
 export type { MailAdapterCreateContext, MailAdapterCredential, MailAdapterKit, MailAdapterModule } from "./adapter-module.js";
 export { isMailDeliveryAvailable, MAIL_DELIVERY_UNAVAILABLE_NOTE } from "./delivery-availability.js";
 export {
@@ -18,15 +20,15 @@ export {
   type ConfiguredMailSender, type CreateMailSenderIdentityResolverOptional, type MailSenderIdentityPort,
 } from "./sender-identity.js";
 export {
-  createNodemailerSmtpTransport, SmtpMailerAdapter,
-  type CreateNodemailerSmtpTransportConfig, type SmtpMailerAdapterDeps,
+  createNodemailerSmtpTransport,
+  type CreateNodemailerSmtpTransportConfig,
   type SmtpMailPayload, type SmtpTransport,
 } from "./adapters/smtp.nodemailer.js";
 
 export type {
   MailStatusReport, MailProviderField, MailProviderSetup, MailProviderConfiguration,
-  MailProviderConfigurationReport, MailProviderControl,
-} from "./mail-status.js";
+  MailProviderConfigurationReport,
+} from "@jini-ai/platform/mail";
+export type { MailProviderControl } from "./mail-status.js";
 export type { MailPurposeGateProbe } from "./purpose-gate-probe.js";
-export { toJiniMailer, toTovuMailer } from "./purpose-scoped-mailer.js";
 export { credentialSecrets, safeMailProviderText } from "@jini-ai/platform/mail";

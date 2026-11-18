@@ -1812,38 +1812,6 @@
   },
   {
     "source": "port",
-    "contractMethod": "MailSuppressionRepoPort.isSuppressed",
-    "caller": "(no implementation found in project)",
-    "file": "src/platform/mail/ports.ts",
-    "line": 52,
-    "coverageClass": "unknown"
-  },
-  {
-    "source": "port",
-    "contractMethod": "MailSuppressionRepoPort.suppress",
-    "caller": "(no implementation found in project)",
-    "file": "src/platform/mail/ports.ts",
-    "line": 57,
-    "coverageClass": "unknown"
-  },
-  {
-    "source": "port",
-    "contractMethod": "MailSendDedupRepoPort.wasSent",
-    "caller": "(no implementation found in project)",
-    "file": "src/platform/mail/ports.ts",
-    "line": 71,
-    "coverageClass": "unknown"
-  },
-  {
-    "source": "port",
-    "contractMethod": "MailSendDedupRepoPort.markSent",
-    "caller": "(no implementation found in project)",
-    "file": "src/platform/mail/ports.ts",
-    "line": 72,
-    "coverageClass": "unknown"
-  },
-  {
-    "source": "port",
     "contractMethod": "AssetBlobRepoPort.save",
     "implementingClass": "InMemoryAssetBlobRepo",
     "caller": "(anonymous)",

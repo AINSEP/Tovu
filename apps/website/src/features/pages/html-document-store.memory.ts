@@ -11,7 +11,7 @@ import { SYSTEM_ACTOR_ID, announcePendingGoLive } from "../post/index.js";
 import type { PostKind } from "../post/contracts.js";
 import { normalizeEmbedMarkerQuoting } from "@jini-ai/cms/widgets/markers";
 import { extractHtmlEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
-import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
+import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
 import {
   PageConcurrentEditError,
   PageKindMismatchError,

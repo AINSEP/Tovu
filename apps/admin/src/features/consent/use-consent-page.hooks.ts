@@ -3,7 +3,8 @@ import type { ConsentFieldProblem, ConsentSettingsView } from '@jini-ai/admin/co
 
 import { describeApiError } from '@/lib/admin-http/request';
 import { createConsentAutosave, type ConsentAutosave, type ConsentTimers } from './consent-autosave';
-import { canPublishConsent, consentPreviewScale, isConsentConflict, type ConsentSaveState } from './rules';
+import { consentPreviewScale } from '@jini-ai/admin/consent/react';
+import { canPublishConsent, isConsentConflict, type ConsentSaveState } from './rules';
 import type { ConsentEditorLimits, ConsentReadiness, ConsentRevisionsPort, ConsentSettingsSnapshot } from './settings.hooks';
 
 import { type Translate } from '@jini-ai/core/text';

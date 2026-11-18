@@ -11,7 +11,7 @@ import {
 
 import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
 import type { MailerPort } from "#src/platform/mail/index";
-import { toJiniMailer, toTovuMailer } from "#src/platform/mail/index";
+import { fromPositionalMailer as toJiniMailer, toPositionalMailer as toTovuMailer } from "@jini-ai/platform/mail";
 import { describeMailProviders } from "./mail-provider-configuration.js";
 import {
   createProviderMailer,

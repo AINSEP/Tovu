@@ -2,6 +2,178 @@
   "version": 1,
   "allow": [
     {
+      "id": "010687fc2a46",
+      "reason": "Moved to Jini @jini-ai/admin/consent/react preview-scale.ts (Jini 973c07777), reworded neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "df71d71beff3",
+      "reason": "Header of the deleted SmtpMailerAdapter wrapper era; the file now only loads nodemailer lazily and its new header says so."
+    },
+    {
+      "id": "7891185bc85e",
+      "reason": "Documented the deleted SmtpMailerAdapterDeps clock seam; the wrapper class is gone (Jini's adapter takes nowMs directly)."
+    },
+    {
+      "id": "51e0e39463a9",
+      "reason": "Documented the deleted Tovu SmtpMailerAdapter wrapper class; the rationale lives on Jini's SmtpMailerAdapter."
+    },
+    {
+      "id": "25186ff8b98a",
+      "reason": "Doc of the deleted wrapper's capabilities() forwarder; Jini's adapter carries the doc."
+    },
+    {
+      "id": "3a8732221a51",
+      "reason": "Doc of the deleted wrapper's send() forwarder; Jini's adapter carries the doc."
+    },
+    {
+      "id": "5726e7f1e95d",
+      "reason": "Doc of the deleted wrapper's sendBatch() forwarder; Jini's adapter carries the doc."
+    },
+    {
+      "id": "6052f781f34f",
+      "reason": "Header of the deleted ports.ts re-export file; platform/mail/index.ts line 1 states the same boundary."
+    },
+    {
+      "id": "c16792653055",
+      "reason": "Pointer to Jini's ports.ts/types.ts; platform/mail/index.ts line 2 already carries the same pointer."
+    },
+    {
+      "id": "b4867ea042ff",
+      "reason": "File header of the deleted ports.ts; the 'written only by the entries write chokepoint, same transaction' rule now sits above the EntryRefsRepoPort import in platform/db/repos/entry-refs-repo.ts; the port itself is Jini's (cms/widgets/ports.ts)."
+    },
+    {
+      "id": "5bca7dbd0f7f",
+      "reason": "Moved to Jini EntryRefsRepoPort.findByTarget doc (Jini 06cc2bb48)."
+    },
+    {
+      "id": "4ee6da5e31f8",
+      "reason": "Moved to Jini EntryRefsRepoPort.findBySource doc (Jini 06cc2bb48)."
+    },
+    {
+      "id": "c6d6280b3048",
+      "reason": "Moved to Jini EntryRefsRepoPort.replaceForSource doc (Jini 06cc2bb48)."
+    },
+    {
+      "id": "095f3a73d7fb",
+      "reason": "Moved to Jini EntryRefsRepoPort.removeBySource doc (Jini 06cc2bb48)."
+    },
+    {
+      "id": "6e10c61fe7bf",
+      "reason": "Moved to Jini EntryRefsRepoPort.rebuildForWorkspace doc (Jini 06cc2bb48)."
+    },
+    {
+      "id": "b807e0195f58",
+      "reason": "File header of the in-memory repo that moved to Jini cms/widgets/entry-refs.memory.ts (Jini 7412f1dbd), reworded there; the rule-of-two pointer sits in platform/db/repos/entry-refs-repo.ts."
+    },
+    {
+      "id": "41b698d88358",
+      "reason": "File header of the deleted types.ts; the index rationale moved to Jini EntryRefRow (Jini 30954d12c). Its history lines (no running code before SPEC-043) are dropped as plan-approved."
+    },
+    {
+      "id": "95e24310982f",
+      "reason": "Moved to the Jini EntryRefRow.sourceKind doc (Jini 30954d12c)."
+    },
+    {
+      "id": "f17d4c67faf8",
+      "reason": "Moved to the Jini EntryRefRow.targetKind doc (Jini 30954d12c)."
+    },
+    {
+      "id": "5d5a1fe10e7a",
+      "reason": "Moved to the Jini EntryRefRow doc (Jini 30954d12c)."
+    },
+    {
+      "id": "418a744ddc7a",
+      "reason": "Moved with the code to Jini packages/cms/src/widgets/entry-refs-extractor.ts (Jini 1e3af649): widgets/entry-refs-extractor.ts classifyRefFieldKey doc. The Tovu file is now a 1-function binding."
+    },
+    {
+      "id": "0cc349306609",
+      "reason": "Moved with the code to Jini packages/cms/src/widgets/entry-refs-extractor.ts (Jini 1e3af649): extractEntryRefs doc. The Tovu file is now a 1-function binding."
+    },
+    {
+      "id": "01b29c1f23dd",
+      "reason": "Moved with the code to Jini packages/cms/src/widgets/entry-refs-extractor.ts (Jini 1e3af649): the html-pages section comment. The Tovu file is now a 1-function binding."
+    },
+    {
+      "id": "a1f9611f3518",
+      "reason": "Moved with the code to Jini packages/cms/src/widgets/entry-refs-extractor.ts (Jini 1e3af649): MAX_HTML_PAGE_EMBED_REFS doc (path text reworded to be neutral). The Tovu file is now a 1-function binding."
+    },
+    {
+      "id": "c3227988ba6b",
+      "reason": "Moved with the code to Jini packages/cms/src/widgets/entry-refs-extractor.ts (Jini 1e3af649): MAX_HTML_EMBED_REF_ID_LENGTH doc (path text reworded). The Tovu file is now a 1-function binding."
+    },
+    {
+      "id": "ffffbd3599f3",
+      "reason": "Moved with the code to Jini packages/cms/src/widgets/entry-refs-extractor.ts (Jini 1e3af649): HTML_EMBED_TARGET_KINDS doc (the inventory-doc path dropped as a Tovu path). The Tovu file is now a 1-function binding."
+    },
+    {
+      "id": "02450ff24bc2",
+      "reason": "Moved with the code to Jini packages/cms/src/widgets/entry-refs-extractor.ts (Jini 1e3af649): warnRejectedMarkers doc (now describes the injected report). The Tovu file is now a 1-function binding."
+    },
+    {
+      "id": "cbd9a3ffedda",
+      "reason": "Moved with the code to Jini packages/cms/src/widgets/entry-refs-extractor.ts (Jini 1e3af649): extractHtmlEntryRefs doc (host-page-store wording). The Tovu file is now a 1-function binding."
+    },
+    {
+      "id": "76ced6c2706f",
+      "reason": "The generic first sentences (reading the PUBLIC web, vendor = adapter) moved to the @module block of Jini packages/platform/src/web/agent-tools.ts (Jini d478ab5a); the Tovu-specific remainder (Claude Code CLI, owner 2026-10-08, visitor allowlist) stays in the reduced file header."
+    },
+    {
+      "id": "2e09a15983d9",
+      "reason": "Moved to the neutral wording on SiteListPrefsController.loadError in Jini packages/ui/src/features/site-card/use-site-list-prefs.hooks.ts (Jini 6598a5cc): 'the reason', since the host now supplies the error wording."
+    },
+    {
+      "id": "a6407d29416f",
+      "reason": "Moved to the neutral wording on SiteListPrefsController.saveError in Jini packages/ui/src/features/site-card/use-site-list-prefs.hooks.ts (Jini 6598a5cc)."
+    },
+    {
+      "id": "7d7b2c68858c",
+      "reason": "Header moved to Jini packages/db/src/kernel/sqlite/sqlite-only.ts (Jini 70116fc0), reworded neutrally per the sheet: the Tovu-specific pointers (no-raw-SQLite ratchet place, publish-backstop-row path, 'candidate for Jini' note) are dropped; publish-backstop-row.sqlite.ts keeps its own why and now points at the Jini file."
+    },
+    {
+      "id": "20dfd44675f0",
+      "reason": "Moved with sqlite-only.ts to Jini (Jini 70116fc0); only the tracking sentence 'Kept here until Jini publishes this primitive' is dropped as obsolete (it is published now)."
+    },
+    {
+      "id": "d22eea362a13",
+      "reason": "@file header: neutral part moved to the module header of Jini packages/platform/src/mail/email-template-operations.ts; the Pages/posts storage why stays in the Tovu operations.ts header (Jini fdcf829c)."
+    },
+    {
+      "id": "f01766bf6f51",
+      "reason": "EMAIL_TEMPLATE_NAME_MAX doc moved to Jini email-template-operations.ts (Jini fdcf829c)."
+    },
+    {
+      "id": "1945bf9d88dc",
+      "reason": "EmailTemplatePreview.mode doc moved to Jini email-template-operations.ts (Jini fdcf829c)."
+    },
+    {
+      "id": "36b38a7ea0a7",
+      "reason": "createEmailTemplate doc moved to Jini email-template-operations.ts; the storage half (row then ensureHtmlFormat) now documents createTemplateRow in Tovu (Jini fdcf829c)."
+    },
+    {
+      "id": "45a4b9e70fa2",
+      "reason": "editEmailTemplate doc moved to Jini email-template-operations.ts, reworded to the store port (Jini fdcf829c)."
+    },
+    {
+      "id": "d39d338cfe87",
+      "reason": "renameEmailTemplate doc moved to Jini email-template-operations.ts; the row-title/ledger half stays on renameTemplateRow in Tovu (Jini fdcf829c)."
+    },
+    {
+      "id": "aede86c64d84",
+      "reason": "listEmailTemplates doc moved to Jini email-template-operations.ts, reworded neutrally (Jini fdcf829c)."
+    },
+    {
+      "id": "30a2940da80d",
+      "reason": "previewEmailTemplate doc moved to Jini email-template-operations.ts, reworded neutrally (Jini fdcf829c)."
+    },
+    {
+      "id": "490f6d0f03af",
+      "reason": "preview iframe sandbox note moved to Jini email-template-operations.ts, reworded to the host's preview iframe (Jini fdcf829c)."
+    },
+    {
+      "id": "bf34585cdde5",
+      "reason": "renderEmailTemplateForSend doc moved to Jini email-template-operations.ts (Jini fdcf829c)."
+    },
+    {
       "id": "cc765880706f",
       "reason": "Placeholder-origin constant of the deleted theme safeHref copy. Describes a Tovu safeHref helper the owner decision of 2026-11-17 deleted (Jini's isAllowedHref/toAllowedHref is the single href standard); the attack-shape reasoning it carried (fragment, protocol-relative, backslash fold, TAB/LF/CR strip, placeholder-origin comparison) lives in Jini packages/cms/src/navigation/href.ts."
     },
@@ -87,7 +259,7 @@
     },
     {
       "id": "05334bdbcdab",
-      "reason": "wording largely survives at apps/website/src/server/__tests__/assistant-ag-ui-routes.test.ts (71% shared word triples); code changed in 'test(assistant): AG-UI S0 goldens \u2014 admin wire bytes, exact cancel counts, reducer drift'"
+      "reason": "wording largely survives at apps/website/src/server/__tests__/assistant-ag-ui-routes.test.ts (71% shared word triples); code changed in 'test(assistant): AG-UI S0 goldens — admin wire bytes, exact cancel counts, reducer drift'"
     },
     {
       "id": "06a41c27128c",

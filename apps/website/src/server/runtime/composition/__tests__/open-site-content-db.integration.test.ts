@@ -7,8 +7,8 @@ import test, { mock } from "node:test";
 
 import Database from "better-sqlite3";
 
-import { beginJournalEntry, ensureMigrationJournal } from "#src/features/plugins/migration-journal";
-import { snapshotDb } from "#src/features/plugins/snapshot";
+import { beginJournalEntry, ensureMigrationJournal } from "@jini-ai/db/data-modules";
+import { snapshotDb } from "@jini-ai/db/data-modules";
 import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
 import { openLegacyContentDb } from "#src/platform/db/migrations/__tests__/legacy-content-db.fixture";
 import { CONTENT_MIGRATIONS } from "#src/platform/db/migrations/index";
@@ -41,7 +41,7 @@ test("openSiteContentDb restores a crash-interrupted dataModule attempt, then pr
   closeSqliteConnection(openLegacyContentDb({ filePath: dbPath }));
   const raw = new Database(dbPath);
   const snapshotPath = await snapshotDb({ db: contentKernel({ store: raw }), dbPath, label: "crashed-plugin" });
-  await ensureMigrationJournal(contentKernel({ store: raw }));
+  await ensureMigrationJournal({ store: contentKernel({ store: raw }) });
   await beginJournalEntry({ db: contentKernel({ store: raw }), pluginId: "crashed-plugin", snapshotPath: snapshotPath! });
   raw.prepare(`CREATE TABLE "p_crashed_plugin__half_created" (id TEXT PRIMARY KEY)`).run();
   raw.close();

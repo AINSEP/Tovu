@@ -24,7 +24,7 @@ import {
   type MailerPort,
   type SmtpTransport,
 } from "#src/platform/mail/index";
-import { toTovuMailer } from "#src/platform/mail/index";
+import { toPositionalMailer as toTovuMailer } from "@jini-ai/platform/mail";
 
 /**
  * @file The keyed mail-provider catalog `resolve-mailer.ts` selects from (email provider contract v1,

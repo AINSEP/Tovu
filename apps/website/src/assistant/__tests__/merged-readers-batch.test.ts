@@ -10,7 +10,7 @@ import test from "node:test";
 import { createContributionRegistry, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { InMemoryRedirectRepo, type RedirectRecord } from "@jini-ai/cms/redirects";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
-import { InMemoryEntryRefsRepo } from "../../contracts/core/entry-refs/repo.memory.js";
+import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryContentTypeRepo } from "../../features/content-types/index.js";
 import { InMemoryEntryRepo } from "../../features/entries/index.js";
 import { InMemoryNewsletterCampaignRepo } from "../../features/newsletter/repo.memory.js";

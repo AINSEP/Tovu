@@ -16,8 +16,8 @@ import {
   listEmailTemplates,
   previewEmailTemplate,
   requireText,
-  type EmailTemplateDeps,
-} from "./operations.js";
+} from "@jini-ai/platform/mail/email-template-operations";
+import { emailTemplateStore, type EmailTemplateDeps } from "./operations.js";
 
 export interface EmailTemplatesToolDeps extends EmailTemplateDeps {
   authorize: AuthorizeFn;
@@ -51,28 +51,28 @@ export function buildEmailTemplatesRegistrations(deps: EmailTemplatesToolDeps): 
     email_template_list: async ctx => {
       requireInputRecord({ input: ctx.input });
       await permission({ deps, ctx, name: "content.read" });
-      return listEmailTemplates({ deps, input: requireInputRecord({ input: ctx.input }) });
+      return listEmailTemplates({ store: emailTemplateStore({ deps }), input: requireInputRecord({ input: ctx.input }) });
     },
     email_template_get: async ctx => {
       const input = requireInputRecord({ input: ctx.input });
       await permission({ deps, ctx, name: "content.read" });
-      return getEmailTemplate({ deps, id: requireText({ value: input.id, key: "id", max: 200 }) });
+      return getEmailTemplate({ store: emailTemplateStore({ deps }), id: requireText({ value: input.id, key: "id", max: 200 }) });
     },
     email_template_create: async ctx => {
       const input = requireInputRecord({ input: ctx.input });
       await permission({ deps, ctx, name: PAGES_EDIT_HTML_PERMISSION });
       ctx.signal.throwIfAborted();
-      return createEmailTemplate({ deps, input, actorId: ctx.principal.id });
+      return createEmailTemplate({ store: emailTemplateStore({ deps }), input, actorId: ctx.principal.id });
     },
     email_template_edit: async ctx => {
       const input = requireInputRecord({ input: ctx.input });
       await permission({ deps, ctx, name: PAGES_EDIT_HTML_PERMISSION });
-      return editEmailTemplate({ deps, input, actorId: ctx.principal.id });
+      return editEmailTemplate({ store: emailTemplateStore({ deps }), input, actorId: ctx.principal.id });
     },
     email_template_preview: async ctx => {
       const input = requireInputRecord({ input: ctx.input });
       await permission({ deps, ctx, name: "content.read" });
-      return previewEmailTemplate({ deps, input });
+      return previewEmailTemplate({ store: emailTemplateStore({ deps }), input });
     },
   }, rules: [
     forbiddenRule({ domainPrefix: "EMAIL_TEMPLATES", error: ForbiddenError }),

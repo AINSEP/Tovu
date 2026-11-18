@@ -12,7 +12,8 @@ import { attachedOnlyVault } from "#src/features/project-keys/attached-vault";
 import { projectKeyCreateVault } from "#src/features/project-keys/create-vault";
 import { fakeAttachments } from "#src/features/project-keys/__tests__/helpers";
 import { createProjectKeys } from "#src/features/project-keys/service";
-import type { MailProviderConfiguration, MailProviderConfigurationReport, MailProviderControl } from "#src/platform/mail/mail-status";
+import type { MailProviderConfiguration, MailProviderConfigurationReport } from "@jini-ai/platform/mail";
+import type { MailProviderControl } from "#src/platform/mail/mail-status";
 import { assertAdminResponse } from "#src/server/inbound/admin-http/http/__tests__/assert-admin-response";
 
 /**

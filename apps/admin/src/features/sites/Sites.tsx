@@ -15,7 +15,8 @@ import { resolveSitesTabId, resolveSitesTabs, type SitesTabId } from "./Sites.ho
 import type { ActivationOutlook } from "./rules";
 import { useReturnToSiteListOnCreate } from "./hooks/use-created-site-return.hooks";
 import { useWiredSites } from "./hooks/use-sites.hooks";
-import { useWiredSiteListPrefs, type SiteListPrefsController } from "./hooks/use-site-list-prefs.hooks";
+import type { SiteListPrefsController } from "@jini-ai/ui/site-card";
+import { useWiredSiteListPrefs } from "./hooks/use-site-list-prefs.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
 /** Owner update 2026-10-08: independent full-site children, recoverable Trash and default selection.

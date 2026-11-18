@@ -8,12 +8,12 @@ import test from "node:test";
 import Database from "better-sqlite3";
 
 import { declareDataModule } from "@jini-ai/db/data-modules";
-import { beginJournalEntry, ensureMigrationJournal } from "../migration-journal.js";
+import { beginJournalEntry, ensureMigrationJournal } from "@jini-ai/db/data-modules";
 import { openPgliteKernel } from "#src/platform/db/kernel/drivers/pglite";
 import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";
-import { findIncompleteJournalEntries } from "../migration-journal.js";
-import { recoverIncompleteDataModuleMigrations, type RecoveryResult, restoreSqliteSnapshots } from "../migration-recovery.js";
-import { snapshotDb } from "../snapshot.js";
+import { findIncompleteJournalEntries } from "@jini-ai/db/data-modules";
+import { recoverIncompleteDataModuleMigrations, type RecoveryResult, restoreSqliteSnapshots } from "@jini-ai/db/data-modules";
+import { snapshotDb } from "@jini-ai/db/data-modules";
 import { staleColumnsOnSecondRead } from "./stale-columns-proxy.js";
 
 /**
@@ -76,7 +76,7 @@ test("an incomplete journal entry (simulated crash mid-DDL) is restored from its
   // Simulate exactly what declareDataModule does up through DDL_IN_PROGRESS, then "crash" —
   // no COMMITTED/ROLLED_BACK ever gets written.
   const snapshotPath = await snapshotDb({ db: contentKernel({ store: db }), dbPath, label: "crashed-plugin" });
-  await ensureMigrationJournal(contentKernel({ store: db }));
+  await ensureMigrationJournal({ store: contentKernel({ store: db }) });
   // Non-null: `dbPath` here is a real tmpdir file, never `:memory:` — snapshotDb only returns null
   // for SQLite's in-memory/temp identifiers (see snapshot.ts).
   await beginJournalEntry({ db: contentKernel({ store: db }), pluginId: "crashed-plugin", snapshotPath: snapshotPath! });
@@ -111,7 +111,7 @@ test("recovery clears the WAL/SHM sidecars left by the crashed attempt (T8)", as
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
   const snapshotPath = await snapshotDb({ db: contentKernel({ store: db }), dbPath, label: "crashed-plugin" });
-  await ensureMigrationJournal(contentKernel({ store: db }));
+  await ensureMigrationJournal({ store: contentKernel({ store: db }) });
   await beginJournalEntry({ db: contentKernel({ store: db }), pluginId: "crashed-plugin", snapshotPath: snapshotPath! }); // real tmpdir file — never null, see above
   db.prepare(`CREATE TABLE "p_crashed_plugin__x" (id TEXT PRIMARY KEY)`).run();
   // Check WAL existence WHILE the connection is still open — a clean close() triggers its own
@@ -133,7 +133,7 @@ test("multiple incomplete SQLite attempts are settled in one boot without revivi
   const { dir, dbPath } = makeDbWithCoreContent();
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const db = new Database(dbPath);
-  await ensureMigrationJournal(contentKernel({ store: db }));
+  await ensureMigrationJournal({ store: contentKernel({ store: db }) });
   const firstSnapshot = await snapshotDb({ db: contentKernel({ store: db }), dbPath, label: "first-pending" });
   assert.ok(firstSnapshot);
   await beginJournalEntry({ db: contentKernel({ store: db }), pluginId: "first-pending", snapshotPath: firstSnapshot });
@@ -143,7 +143,7 @@ test("multiple incomplete SQLite attempts are settled in one boot without revivi
   assert.ok(secondSnapshot);
   assert.notEqual(firstSnapshot, secondSnapshot);
   await beginJournalEntry({ db: contentKernel({ store: db }), pluginId: "second-pending", snapshotPath: secondSnapshot });
-  assert.deepEqual((await findIncompleteJournalEntries(contentKernel({ store: db }))).map((entry) => entry.pluginId), ["first-pending", "second-pending"]);
+  assert.deepEqual((await findIncompleteJournalEntries({ store: contentKernel({ store: db }) })).map((entry) => entry.pluginId), ["first-pending", "second-pending"]);
   db.close();
 
   assert.deepEqual(await recoverAtBoot(dbPath), {
@@ -153,7 +153,7 @@ test("multiple incomplete SQLite attempts are settled in one boot without revivi
   const restored = new Database(dbPath);
   try {
     assert.deepEqual(restored.prepare("SELECT * FROM posts").all(), [{ id: "p1" }]);
-    assert.deepEqual(await findIncompleteJournalEntries(contentKernel({ store: restored })), [], "one recovery pass must settle both attempts");
+    assert.deepEqual(await findIncompleteJournalEntries({ store: contentKernel({ store: restored }) }), [], "one recovery pass must settle both attempts");
   } finally { restored.close(); }
   assert.deepEqual(await recoverAtBoot(dbPath), { recovered: 0, entries: [] });
 });
@@ -163,10 +163,10 @@ test("a COMMITTED entry is left alone — recovery is a no-op for a successful p
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
   const snapshotPath = await snapshotDb({ db: contentKernel({ store: db }), dbPath, label: "done-plugin" });
-  await ensureMigrationJournal(contentKernel({ store: db }));
+  await ensureMigrationJournal({ store: contentKernel({ store: db }) });
   const id = await beginJournalEntry({ db: contentKernel({ store: db }), pluginId: "done-plugin", snapshotPath: snapshotPath! }); // real tmpdir file — never null
   db.prepare(`CREATE TABLE "p_done_plugin__real" (id TEXT PRIMARY KEY)`).run();
-  const { advanceJournalPhase } = await import("../migration-journal.js");
+  const { advanceJournalPhase } = await import("@jini-ai/db/data-modules");
   await advanceJournalPhase({ db: contentKernel({ store: db }), id, phase: "COMMITTED" });
   db.close();
 
@@ -237,14 +237,14 @@ test("POST-COMMIT DATA-LOSS WINDOW (BUG FIX, 2026-08-12): a declareDataModule ca
 test("postgres/PGlite: an incomplete entry is a rolled-back transaction — marked ROLLED_BACK, nothing restored", async () => {
   const kernel = openPgliteKernel<unknown>();
   try {
-    await ensureMigrationJournal(kernel);
+    await ensureMigrationJournal({ store: kernel });
     await beginJournalEntry({ db: kernel, pluginId: "pg-plugin", snapshotPath: "/nowhere" });
     const result = await recoverIncompleteDataModuleMigrations({
       store: kernel,
       restoreSnapshots: () => assert.fail("a Postgres database has no snapshot to restore"),
     });
     assert.deepEqual(result, { recovered: 1, entries: [{ pluginId: "pg-plugin", snapshotPath: "/nowhere" }] });
-    assert.deepEqual(await findIncompleteJournalEntries(kernel), []);
+    assert.deepEqual(await findIncompleteJournalEntries({ store: kernel }), []);
   } finally {
     await kernel.close();
   }
@@ -256,7 +256,7 @@ test("missing recovery snapshot rejects boot and keeps the incomplete attempt vi
   const db = new Database(dbPath);
   const snapshotPath = await snapshotDb({ db: contentKernel({ store: db }), dbPath, label: "missing-snapshot" });
   assert.ok(snapshotPath);
-  await ensureMigrationJournal(contentKernel({ store: db }));
+  await ensureMigrationJournal({ store: contentKernel({ store: db }) });
   await beginJournalEntry({ db: contentKernel({ store: db }), pluginId: "missing-snapshot", snapshotPath });
   db.prepare('CREATE TABLE "p_missing__partial" (id TEXT PRIMARY KEY)').run();
   db.close();
@@ -269,7 +269,7 @@ test("missing recovery snapshot rejects boot and keeps the incomplete attempt vi
   assert.equal(bootContinued, false);
   const reopened = new Database(dbPath);
   try {
-    const incomplete = await findIncompleteJournalEntries(contentKernel({ store: reopened }));
+    const incomplete = await findIncompleteJournalEntries({ store: contentKernel({ store: reopened }) });
     assert.equal(incomplete.length, 1);
     assert.equal(incomplete[0].pluginId, "missing-snapshot");
     assert.deepEqual(reopened.prepare("SELECT * FROM posts").all(), [{ id: "p1" }]);

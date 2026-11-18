@@ -5,7 +5,7 @@ import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { MemberExternalIdentityRepoPort, MemberSignInResult, MembersWriteServiceDeps } from "../members/index.js";
 import { completeSignIn, createMember, issueMemberSession, requestSignInLink, notifyMemberCreated } from "../members/index.js";
 import type { MemberExternalIdentityRecord, MemberRecord } from "../members/index.js";
-import { decideMemberLogin } from "./link-policy.js";
+import { decideMemberLogin } from "@jini-ai/user-management/server";
 import { MemberLoginError, type VerifiedLoginIdentity } from "./types.js";
 
 export interface MemberLoginLinkDeps extends MembersWriteServiceDeps {

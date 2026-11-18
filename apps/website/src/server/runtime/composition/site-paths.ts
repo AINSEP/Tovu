@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, realpathSync } from "node:fs";
 import { basename, dirname, join, resolve, sep } from "node:path";
-import { isInMemoryDbPath } from "#src/features/plugins/snapshot";
+import { isInMemoryDbPath } from "@jini-ai/db/data-modules";
 // Path reads must not initialize the site registry or database adapters.
 import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 import { resolveSiteRoot } from "#src/platform/site-dir/site-root";

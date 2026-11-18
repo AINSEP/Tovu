@@ -19,7 +19,7 @@ import type {
 } from "#src/features/taxonomy/index";
 import type { EntryTermReadPort, TaxonomyPublishReadPort, TermPublishReadPort } from "@jini-ai/cms/taxonomy";
 import type { EntryListPort, EntryRepoPort } from "#src/features/entries/index";
-import type { EntryRefsRepoPort } from "#src/contracts/core/entry-refs/ports";
+import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
 import type { WidgetRegionBindingRepoPort } from "@jini-ai/cms/widgets";
 import type { EntryPublishReadPort } from "@jini-ai/cms/entries";
 import type { EntryListExcludingTypesPort } from "@jini-ai/cms/widgets/resolvers";

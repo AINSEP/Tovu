@@ -10,7 +10,7 @@ import type { ContentDatabase, PostsTable } from "../../platform/db/content-data
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import { normalizeEmbedMarkerQuoting } from "@jini-ai/cms/widgets/markers";
 import { extractHtmlEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
-import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
+import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
 // Not from `../post/index.js`: that barrel deliberately never re-exports Pages-specific things and,
 // symmetrically, `SYSTEM_ACTOR_ID` is a generic actor fallback this file needs directly rather than
 // through the barrel (`index.ts`'s own header explains the one-way rule; nothing forbids importing

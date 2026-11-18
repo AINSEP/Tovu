@@ -7,7 +7,8 @@ import { contentKernel } from "#src/platform/db/content-kernel";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { postRepoFor } from "#src/features/post/repo";
 import { SqlPagesHtmlDocumentStore } from "#src/features/pages/html-document-store";
-import { createEmailTemplate, getEmailTemplate, listEmailTemplates, EmailTemplateNotFoundError, type EmailTemplateDeps } from "#src/features/email-templates/operations";
+import { createEmailTemplate, getEmailTemplate, listEmailTemplates, EmailTemplateNotFoundError } from "@jini-ai/platform/mail/email-template-operations";
+import { emailTemplateStore, type EmailTemplateDeps } from "#src/features/email-templates/operations";
 import { buildTrashRegistry } from "../registry.js";
 
 import { createTableTrashAdapter } from "../table-adapter.js";
@@ -50,11 +51,11 @@ function harness(_required = {}, _options = {}) {
 test("template moves out of Email, appears in Trash, and restores its HTML, title and revision history", async (t) => {
   const h = harness();
   t.after(() => h.db.$client.close());
-  const template = await createEmailTemplate({ deps: h.deps, input: { name: "Welcome", html: "<title>Hello</title><p>Keep this HTML</p>" }, actorId: ACTOR.principalId });
+  const template = await createEmailTemplate({ store: emailTemplateStore({ deps: h.deps }), input: { name: "Welcome", html: "<title>Hello</title><p>Keep this HTML</p>" }, actorId: ACTOR.principalId });
   const revisions = await h.deps.postRepo.listRevisions({ workspaceId: WS, postId: template.id });
   assert.deepEqual(await h.move({ id: template.id }), { ok: true, version: template.version + 1 });
-  assert.deepEqual((await listEmailTemplates({ deps: h.deps })).templates, []);
-  await assert.rejects(getEmailTemplate({ deps: h.deps, id: template.id }), EmailTemplateNotFoundError);
+  assert.deepEqual((await listEmailTemplates({ store: emailTemplateStore({ deps: h.deps }) })).templates, []);
+  await assert.rejects(getEmailTemplate({ store: emailTemplateStore({ deps: h.deps }), id: template.id }), EmailTemplateNotFoundError);
   const page = await h.trash.list({ workspaceId: WS, now: AT, limit: 50 });
   assert.equal(page.items.length, 1);
   assert.equal(page.items[0]!.entityType, "email-template");
@@ -65,19 +66,19 @@ test("template moves out of Email, appears in Trash, and restores its HTML, titl
   assert.equal((await mayActOnEntityType(h.routeDeps, { principalId: ACTOR.principalId, entityType: "email-template" })).allowed, false);
   h.granted.add("pages.edit_html");
   assert.equal(await h.trash.restore({ workspaceId: WS, entityType: "email-template", entityId: template.id, at: AT }), "restored");
-  const restored = await getEmailTemplate({ deps: h.deps, id: template.id });
+  const restored = await getEmailTemplate({ store: emailTemplateStore({ deps: h.deps }), id: template.id });
   assert.equal(restored.html, template.html);
   assert.equal(restored.name, template.name);
   assert.equal(restored.version, template.version + 2);
   assert.deepEqual(await h.deps.postRepo.listRevisions({ workspaceId: WS, postId: template.id }), revisions);
-  assert.equal((await listEmailTemplates({ deps: h.deps })).templates.length, 1);
+  assert.equal((await listEmailTemplates({ store: emailTemplateStore({ deps: h.deps }) })).templates.length, 1);
   assert.equal((await h.trash.list({ workspaceId: WS, now: AT, limit: 50 })).items.length, 0);
 });
 
 test("template trash refuses denied actors, other workspaces and ordinary pages sharing posts storage", async (t) => {
   const h = harness();
   t.after(() => h.db.$client.close());
-  const template = await createEmailTemplate({ deps: h.deps, input: { name: "A" }, actorId: ACTOR.principalId });
+  const template = await createEmailTemplate({ store: emailTemplateStore({ deps: h.deps }), input: { name: "A" }, actorId: ACTOR.principalId });
   h.granted.clear();
   assert.deepEqual(await h.move({ id: template.id }), { ok: false, reason: "forbidden", permission: "pages.edit_html" });
   h.granted.add("pages.edit_html");
@@ -91,7 +92,7 @@ test("template trash refuses denied actors, other workspaces and ordinary pages 
 test("template purge uses the registered cascades for Pages revisions and search projection", async (t) => {
   const h = harness();
   t.after(() => h.db.$client.close());
-  const template = await createEmailTemplate({ deps: h.deps, input: { name: "A" }, actorId: ACTOR.principalId });
+  const template = await createEmailTemplate({ store: emailTemplateStore({ deps: h.deps }), input: { name: "A" }, actorId: ACTOR.principalId });
   await h.move({ id: template.id });
   const page = await h.trash.list({ workspaceId: WS, now: AT, limit: 50 });
   const result = await h.trash.purgeSelected({ workspaceId: WS, ids: [page.items[0]!.id], actor: ACTOR, authorizeItem: async () => true });

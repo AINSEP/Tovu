@@ -22,7 +22,7 @@ import { createCommentWriteService } from "@jini-ai/cms/comments";
 import { buildCommentsRegistrations, type CommentsToolDeps } from "#src/features/comments/tool-registrations";
 
 import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
-import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
+import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { buildWidgetsDeps } from "#src/features/widgets/deps";

@@ -194,7 +194,7 @@ import { openSiteContentDb } from "./open-site-content-db.js";
 import { openSiteStore, type SiteStore, type SiteStoreRole } from "./open-site-store.js";
 import { createSite } from "./site-dir.js";
 import { storeBoundServicesFor } from "./store-bound-services.js";
-import { isInMemoryDbPath } from "#src/features/plugins/snapshot";
+import { isInMemoryDbPath } from "@jini-ai/db/data-modules";
 import { resolveSiteStorage } from "#src/platform/site-dir/site-storage";
 import type { SiteStorage } from "#src/platform/site-dir/types";
 import { startChatExpirySweep } from "#src/assistant/persistence/chat-expiry-sweep";

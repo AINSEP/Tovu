@@ -1,7 +1,7 @@
 /** Product recovery wording stays in Tovu; Jini owns driver availability checks. */
 import { isMailDeliveryAvailable as isJiniMailDeliveryAvailable } from "@jini-ai/platform/mail";
-import type { MailerPort } from "./ports.js";
-import { toJiniMailer } from "./purpose-scoped-mailer.js";
+import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
+import { fromPositionalMailer as toJiniMailer } from "@jini-ai/platform/mail";
 
 export const MAIL_DELIVERY_UNAVAILABLE_NOTE = "Email sending is not configured: messages are printed to the server console and never leave this machine. Set up a mail provider agent plugin and save its key in Access Tokens to send real email.";
 

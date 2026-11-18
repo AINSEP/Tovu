@@ -10,7 +10,7 @@ import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRe
 import { requestSignInLink } from "#src/features/members/write-service";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { wrapMailerWithPurposeGate } from "../../purpose-scoped-mailer.js";
-import type { MailerPort, MailerSendOptions, MailerSendResult } from "../../ports.js";
+import type { PositionalMailer as MailerPort, MailerSendOptions, MailerSendResult } from "@jini-ai/platform/mail";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**

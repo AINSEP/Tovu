@@ -8,8 +8,8 @@ import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect, heldUntil } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { listColumns, listIndexes, listTables } from "@jini-ai/db/kernel";
 import { type DataModuleDecl, declareDataModule } from "@jini-ai/db/data-modules";
-import { advanceJournalPhase, beginJournalEntry, ensureMigrationJournal, findIncompleteJournalEntries, stageJournalPhase } from "../migration-journal.js";
-import { checkNamespaceAdoption, getPluginIdentity } from "../plugin-identity.js";
+import { advanceJournalPhase, beginJournalEntry, ensureMigrationJournal, findIncompleteJournalEntries, stageJournalPhase } from "@jini-ai/db/data-modules";
+import { checkNamespaceAdoption, getPluginIdentity } from "@jini-ai/db/data-modules";
 
 /**
  * @file The plugin dataModule engine on every dialect (storage plan P1): install, upgrade
@@ -191,7 +191,7 @@ describeEachDialect<ContentKernel>("plugin dataModule engine", { tables: [], mak
   describe("journal and recovery scan", () => {
     test("entries move through their phases; only non-terminal ones are surfaced for recovery", async () => {
       const kernel = makeKernel();
-      await ensureMigrationJournal(kernel);
+      await ensureMigrationJournal({ store: kernel });
       const crashed = await beginJournalEntry({ db: kernel, pluginId: "crashed", snapshotPath: "/snap/crashed" });
       const done = await beginJournalEntry({ db: kernel, pluginId: "done", snapshotPath: "/snap/done" });
       const rolled = await beginJournalEntry({ db: kernel, pluginId: "rolled", snapshotPath: "/snap/rolled" });
@@ -201,7 +201,7 @@ describeEachDialect<ContentKernel>("plugin dataModule engine", { tables: [], mak
       await advanceJournalPhase({ db: kernel, id: done, phase: "COMMITTED" });
       await kernel.transaction(() => stageJournalPhase({ db: kernel, id: rolled, phase: "ROLLED_BACK" }));
 
-      const incomplete = await findIncompleteJournalEntries(kernel);
+      const incomplete = await findIncompleteJournalEntries({ store: kernel });
       assert.equal(incomplete.length, 1);
       assert.equal(incomplete[0].id, crashed);
       assert.equal(incomplete[0].pluginId, "crashed");
@@ -212,7 +212,7 @@ describeEachDialect<ContentKernel>("plugin dataModule engine", { tables: [], mak
 
     test("a staged phase rolls back with its transaction", async () => {
       const kernel = makeKernel();
-      await ensureMigrationJournal(kernel);
+      await ensureMigrationJournal({ store: kernel });
       const id = await beginJournalEntry({ db: kernel, pluginId: "p", snapshotPath: "/snap/p" });
       await assert.rejects(
         kernel.transaction(async () => {
@@ -221,7 +221,7 @@ describeEachDialect<ContentKernel>("plugin dataModule engine", { tables: [], mak
         }),
         /boom/
       );
-      assert.equal((await findIncompleteJournalEntries(kernel))[0]?.phase, "PREPARED_SNAPSHOT");
+      assert.equal((await findIncompleteJournalEntries({ store: kernel }))[0]?.phase, "PREPARED_SNAPSHOT");
     });
   });
 });

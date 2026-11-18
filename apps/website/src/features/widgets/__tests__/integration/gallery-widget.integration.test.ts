@@ -8,8 +8,7 @@ import { InMemoryMediaRepo, InMemoryTransformDefinitionRepo, CORE_PUBLIC_TRANSFO
 import { buildWidgetHostPorts } from '#src/features/widgets/deps';
 import { renderHtmlPageBody } from '#src/server/inbound/public-http/http/site/render/page-body';
 import { renderDocNode, renderWidgetIr } from '#src/server/inbound/public-http/http/site/render/content-html';
-import { extractEntryRefs } from '#src/contracts/core/entry-refs/extractor';
-import { widgetsAgentToolCatalog } from '@jini-ai/cms/widgets';
+import { extractEntryRefs, widgetsAgentToolCatalog } from '@jini-ai/cms/widgets';
 
 const workspaceId = 'gallery-widget-workspace', now = '2026-10-09T00:00:00.000Z';
 const config = { images: [{ mediaId: 'one', alt: 'Author alt', caption: 'Caption' }], layout: 'carousel', columns: 3, aspectRatio: '16/9' };

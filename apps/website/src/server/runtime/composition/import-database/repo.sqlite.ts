@@ -9,7 +9,7 @@ import path from "node:path";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { sqliteKernel, closeSqliteConnection, openNativeSqlite, openSqliteFileKernel, sqliteConnectionOf } from "#src/platform/db/kernel/drivers/sqlite";
 import { listColumns } from "@jini-ai/db/kernel";
-import { sqliteForeignKeyCheckedTransaction, sqliteSchemaObjects, sqliteTableExtendedInfo, type SqliteSchemaObject } from "#src/platform/db/kernel/sqlite-only";
+import { sqliteForeignKeyCheckedTransaction, sqliteSchemaObjects, sqliteTableExtendedInfo, type SqliteSchemaObject } from "@jini-ai/db/kernel/sqlite";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import { sanitizeShareDatabase, prepareSharePluginTables, refuseUnknownShareTables } from "#src/features/site-backup/share-database/repo.sqlite";
 import { SHARE_TABLES, IMPORT_SCHEMA_MISMATCH_EXIT_CODE, IMPORT_REFUSAL_EXIT_CODE, SHARE_VERSION_MISMATCH_MESSAGE, SiteShareRefusal, archiveRefusalName } from "#src/features/site-backup/share-policy";
