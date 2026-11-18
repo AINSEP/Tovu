@@ -1010,13 +1010,6 @@
       "value": 97
     },
     {
-      "file": "apps/website/src/features/taxonomy/tool-registrations.ts",
-      "function": "buildTaxonomyRegistrations#1",
-      "line": 186,
-      "rule": "max-lines-per-function",
-      "value": 223
-    },
-    {
       "file": "apps/website/src/features/theme/publish-content.ts",
       "function": "buildHandler#1",
       "line": 609,
