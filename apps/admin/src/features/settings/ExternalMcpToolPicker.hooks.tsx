@@ -60,7 +60,7 @@ export interface ToolRowBadge {
  *  its unremarkable row IS the statement.
  *
  *  @complexity O(1). */
-export function describeToolRowBadges(row: ToolPickerRow, t: Translate): ToolRowBadge[] {
+export function describeToolRowBadges({ row, t }: { row: ToolPickerRow; t: Translate }, _optional: Record<string, never> = {}): ToolRowBadge[] {
   if (row.kind === "absent") return [{ label: t("This server does not offer a tool by that name."), tone: "warning" }];
   const badges: ToolRowBadge[] = [];
   if (row.destructiveDeclared) badges.push({ label: t("Destructive"), tone: "danger" });
@@ -74,7 +74,7 @@ export function describeToolRowBadges(row: ToolPickerRow, t: Translate): ToolRow
  *  `external-mcp-tool-picker-rules.ts`'s header for why this is a lock rather than a default.
  *
  *  @complexity O(1). */
-export function describeToolRowLock(row: ToolPickerRow, t: Translate): string | null {
+export function describeToolRowLock({ row, t }: { row: ToolPickerRow; t: Translate }, _optional: Record<string, never> = {}): string | null {
   if (!isToolRowLocked(row)) return null;
   return t("The server marks this tool as destructive. Tovu does not enable destructive external tools.");
 }

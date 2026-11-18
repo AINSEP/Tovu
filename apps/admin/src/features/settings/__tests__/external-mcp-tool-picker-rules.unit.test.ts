@@ -277,7 +277,7 @@ describe("seedToolPickerRows — a saved name the probe no longer advertises", (
       kind: "absent",
     });
 
-    const fields = toolPickerFieldValues(rows);
+    const fields = toolPickerFieldValues({ rows });
     expect(fields.allowedToolNames).toBe("list_styles, retired_tool");
     expect(fields.writeAllowedToolNames).toBe("retired_tool");
   });
@@ -289,7 +289,7 @@ describe("toolPickerFieldValues — the last line of defence against INV-002", (
     // exists specifically to prove the function still refuses to trust the input.
     const rows = [row({ remoteName: "a", enabled: true, mayWrite: false }), row({ remoteName: "b", enabled: false, mayWrite: true })];
 
-    const fields = toolPickerFieldValues(rows);
+    const fields = toolPickerFieldValues({ rows });
 
     expect(fields.allowedToolNames).toBe("a");
     expect(fields.writeAllowedToolNames).toBe("");
@@ -302,7 +302,7 @@ describe("toolPickerFieldValues — the last line of defence against INV-002", (
       row({ remoteName: "c", enabled: true, mayWrite: false }),
     ];
 
-    const fields = toolPickerFieldValues(rows);
+    const fields = toolPickerFieldValues({ rows });
 
     expect(fields.allowedToolNames).toBe("a, b, c");
     expect(fields.writeAllowedToolNames).toBe("a, b");
@@ -342,7 +342,7 @@ describe("isToolPickerDirty — compares field VALUES, not rows", () => {
 describe("countEnabledToolRows", () => {
   it("counts only enabled rows", () => {
     const rows = [row({ remoteName: "a", enabled: true }), row({ remoteName: "b", enabled: false }), row({ remoteName: "c", enabled: true })];
-    expect(countEnabledToolRows(rows)).toBe(2);
+    expect(countEnabledToolRows({ rows })).toBe(2);
   });
 });
 
@@ -413,7 +413,7 @@ describe("refreshToolRowDeclarations — a re-probe updates declarations without
     const refreshed = refreshToolRowDeclarations({ rows: draft, tools: [tool({ remoteName: "erase", writeDeclared: true, destructiveDeclared: true })], allowedToolNames: "", writeAllowedToolNames: "" });
     expect(refreshed).toEqual([row({ remoteName: "erase", enabled: false, mayWrite: false, writeDeclared: true, destructiveDeclared: true })]);
     expect(isToolRowLocked(refreshed[0]!)).toBe(true);
-    expect(toolPickerFieldValues(refreshed)).toEqual({ allowedToolNames: "", writeAllowedToolNames: "" });
+    expect(toolPickerFieldValues({ rows: refreshed })).toEqual({ allowedToolNames: "", writeAllowedToolNames: "" });
   });
 
   it("keeps a SAVED grant on a tool that turns destructive — the lock does not rewrite saved state", () => {

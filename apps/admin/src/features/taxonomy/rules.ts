@@ -76,11 +76,11 @@ export function visibleTaxonomyError(params: {
   listFallback: string;
 }): string | null {
   if (!params.deleteTermBlocked) {
-    const message = describeTrashError(params.deleteTermError, params.deleteTermFallback).message;
+    const message = describeTrashError({ e: params.deleteTermError, fallback: params.deleteTermFallback }).message;
     if (message) return message;
   }
   if (!params.deleteTaxonomyBlocked) {
-    const message = describeTrashError(params.deleteTaxonomyError, params.deleteTaxonomyFallback).message;
+    const message = describeTrashError({ e: params.deleteTaxonomyError, fallback: params.deleteTaxonomyFallback }).message;
     if (message) return message;
   }
   if (params.listError) return describeApiError({ e: params.listError, fallback: params.listFallback });
@@ -112,7 +112,7 @@ export function termDepth(required: { term: AdminTerm; byId: Map<string, AdminTe
  *
  * @complexity Time/space: O(n) in term count.
  */
-export function otherMergeTargets(taxonomy: AdminTaxonomyWithTerms, excludeTermId: string): AdminTerm[] {
+export function otherMergeTargets({ taxonomy, excludeTermId }: { taxonomy: AdminTaxonomyWithTerms; excludeTermId: string }, _optional: Record<string, never> = {}): AdminTerm[] {
   return taxonomy.terms.filter((t) => t.id !== excludeTermId);
 }
 
@@ -125,8 +125,8 @@ export function otherMergeTargets(taxonomy: AdminTaxonomyWithTerms, excludeTermI
  * index maintained since selection changes are infrequent relative to render cost here.
  */
 export function findSelectedTerm(
-  taxonomies: AdminTaxonomyWithTerms[] | null,
-  selectedTermId: string | null,
+  { taxonomies, selectedTermId }: { taxonomies: AdminTaxonomyWithTerms[] | null; selectedTermId: string | null },
+  _optional: Record<string, never> = {},
 ): { taxonomy: AdminTaxonomyWithTerms; term: AdminTerm } | null {
   if (!taxonomies || !selectedTermId) return null;
   for (const group of taxonomies) {
@@ -158,7 +158,7 @@ export interface DeleteBlockedState {
  *
  * @complexity O(1) — one `instanceof` check plus a fixed 1-way switch, no iteration.
  */
-export function describeDeleteBlocked(e: unknown): DeleteBlockedState | null {
+export function describeDeleteBlocked({ e }: { e: unknown }, _optional: Record<string, never> = {}): DeleteBlockedState | null {
   if (!(e instanceof ApiError)) return null;
   if (e.code !== "TERM_HAS_CHILDREN") return null;
   const raw = e.body?.count;
@@ -188,7 +188,7 @@ export function describeDeleteBlocked(e: unknown): DeleteBlockedState | null {
  *
  * @complexity O(1) — one `instanceof` check plus two fixed comparisons.
  */
-export function describeTrashError(e: Error | null, fallback: string): { alreadyGone: boolean; message: string | null } {
+export function describeTrashError({ e, fallback }: { e: Error | null; fallback: string }, _optional: Record<string, never> = {}): { alreadyGone: boolean; message: string | null } {
   if (!e) return { alreadyGone: false, message: null };
   if (e instanceof ApiError) {
     if (e.status === 404) return { alreadyGone: true, message: null };
@@ -205,7 +205,7 @@ export function describeTrashError(e: Error | null, fallback: string): { already
  *
  * @complexity O(1).
  */
-export function termPickerSubject(contentType: string): "post" | "page" | "entry" {
+export function termPickerSubject({ contentType }: { contentType: string }, _optional: Record<string, never> = {}): "post" | "page" | "entry" {
   return contentType === "post" || contentType === "page" ? contentType : "entry";
 }
 
@@ -216,7 +216,7 @@ export function termPickerSubject(contentType: string): "post" | "page" | "entry
  *
  * @complexity O(n) in the text's length.
  */
-export function splitTermNames(text: string, hierarchical: boolean): string[] {
+export function splitTermNames({ text, hierarchical }: { text: string; hierarchical: boolean }, _optional: Record<string, never> = {}): string[] {
   const names: string[] = [];
   for (const raw of hierarchical ? [text] : text.split(",")) {
     const name = raw.trim();
@@ -235,7 +235,7 @@ function sameTermName(a: string, b: string): boolean {
  *
  * @complexity O(n), n = `terms.length`.
  */
-export function findTermByName(terms: readonly AdminTerm[], name: string): AdminTerm | undefined {
+export function findTermByName({ terms, name }: { terms: readonly AdminTerm[]; name: string }, _optional: Record<string, never> = {}): AdminTerm | undefined {
   return terms.find((term) => sameTermName(term.name, name));
 }
 

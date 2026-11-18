@@ -323,7 +323,7 @@ export function useExternalMcp(
             const tokenIssue = credentialDraftError({ value: fieldOrEmpty({ fields: input.fields, key: 'accessToken' }) }, { locale, required: true });
             if (tokenIssue) return { ok: false, message: tokenIssue };
           }
-          const oauthIdentityIssue = validateExternalMcpOAuthIdentity(input.fields, t);
+          const oauthIdentityIssue = validateExternalMcpOAuthIdentity(input.fields, { t });
           if (oauthIdentityIssue) return { ok: false, message: oauthIdentityIssue };
           try {
             const { server } = await port.saveExternalMcpServer({

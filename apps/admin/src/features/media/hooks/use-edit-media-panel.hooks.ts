@@ -189,10 +189,10 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
     setDraft((d) => ({ ...d, credit: value }));
   }
   function setWidth(value: string) {
-    setDraft((d) => ({ ...d, width: parseOptionalPixelSize(value) }));
+    setDraft((d) => ({ ...d, width: parseOptionalPixelSize({ value }) }));
   }
   function setHeight(value: string) {
-    setDraft((d) => ({ ...d, height: parseOptionalPixelSize(value) }));
+    setDraft((d) => ({ ...d, height: parseOptionalPixelSize({ value }) }));
   }
   function setCssClass(value: string) {
     setDraft((d) => ({ ...d, cssClass: value.trim() === "" ? null : value }));
@@ -203,7 +203,7 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
 
   const htmlAttributesParsed = parseMediaHtmlAttributes({ text: draft.htmlAttributes ?? "", policy: embedPolicy });
   const htmlAttributesError = htmlAttributesParsed.error
-    ? describeMediaHtmlAttributeError(htmlAttributesParsed.error, locale)
+    ? describeMediaHtmlAttributeError({ error: htmlAttributesParsed.error, locale })
     : null;
 
   async function copyHash() {

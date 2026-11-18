@@ -52,7 +52,7 @@ function githubPagesRow(): AccessTokenExistingRowState {
 
 function makeAccessTokens(overrides: Partial<AccessTokensController> = {}): AccessTokensController {
   const group: AccessTokenProviderGroupState = {
-    info: accessTokenProviderInfo(ACCESS_TOKEN_TEST_PROVIDERS, { kind: "publish", providerId: "github-pages" }),
+    info: accessTokenProviderInfo({ providers: ACCESS_TOKEN_TEST_PROVIDERS, ref: { kind: "publish", providerId: "github-pages" } }),
     rows: [githubPagesRow()],
     addForm: { visible: false, name: "", token: "", values: {}, username: "", worksFor: [], readyToSave: false, saving: false, error: null },
   };

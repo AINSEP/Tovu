@@ -369,7 +369,7 @@ describe("decrypt-failed — a saved connection that never reached admission", (
 
     expect(drifted[0]?.entries[0]?.kind).toBe("needs-sign-in");
     expect(drifted[0]?.entries[0]?.messageKey).toBe("Not signed in. Use Connect on this server below.");
-    expect(describeDriftHeadline(drifted)).toBe("Some saved tools aren't loaded. The reasons are below.");
+    expect(describeDriftHeadline({ connections: drifted })).toBe("Some saved tools aren't loaded. The reasons are below.");
   });
 
   it("ignores a config failure for a DIFFERENT connection id", () => {
@@ -464,7 +464,7 @@ describe("describeDriftHeadline — does a restart actually help?", () => {
     );
 
     expect(drifted).toHaveLength(2);
-    expect(describeDriftHeadline(drifted)).toBe(NO_RESTART);
+    expect(describeDriftHeadline({ connections: drifted })).toBe(NO_RESTART);
   });
 
   it("keeps the restart headline when at least one row is waiting on a restart", () => {
@@ -476,7 +476,7 @@ describe("describeDriftHeadline — does a restart actually help?", () => {
       } },
     );
 
-    expect(describeDriftHeadline(drifted)).toBe(RESTART);
+    expect(describeDriftHeadline({ connections: drifted })).toBe(RESTART);
   });
 
   it("keeps the restart headline for a write-grant row, which takes effect at the next restart", () => {
@@ -486,7 +486,7 @@ describe("describeDriftHeadline — does a restart actually help?", () => {
     );
 
     expect(drifted).not.toBeNull();
-    expect(describeDriftHeadline(drifted ? [drifted] : [])).toBe(RESTART);
+    expect(describeDriftHeadline({ connections: drifted ? [drifted] : [] })).toBe(RESTART);
   });
 });
 

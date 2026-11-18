@@ -48,7 +48,7 @@ const MEDIA_TAB_ICONS = {
  *
  * @complexity O(1) — a fixed five-element array.
  */
-export function resolveMediaTabs(t: (key: string) => string, counts: Partial<Record<MediaTabId, number>> = {}): TabBarTab[] {
+export function resolveMediaTabs({ t }: { t: (key: string) => string }, { counts = {} }: { counts?: Partial<Record<MediaTabId, number>> } = {}): TabBarTab[] {
   return MEDIA_TABS.map((tab) => ({
     id: tab.id,
     label: t(tab.label),
@@ -63,6 +63,6 @@ export function resolveMediaTabs(t: (key: string) => string, counts: Partial<Rec
  *  through the same `resolveActiveTab` guard the URL value goes through rather than a cast — every
  *  id `TabBar` can hand back came from `resolveMediaTabs` above, so the fallback never fires, but
  *  the guard is what makes that a checked fact instead of an asserted one. */
-export function resolveMediaTabChange(setActiveTab: MediaTabsController["setActiveTab"]): (id: string) => void {
-  return (id) => setActiveTab(resolveActiveTab(id));
+export function resolveMediaTabChange({ setActiveTab }: { setActiveTab: MediaTabsController["setActiveTab"] }, _optional: Record<string, never> = {}): (id: string) => void {
+  return (id) => setActiveTab(resolveActiveTab({ tabId: id }));
 }

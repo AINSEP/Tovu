@@ -244,7 +244,7 @@ export function useTrash(deps: TrashDependencies): TrashController {
       const report = await port.restoreTrashItems({
         items: chosen.map((item) => ({ entityType: item.entityType, entityId: item.entityId })),
       });
-      setNotice(describeRestoreReport(locale, report));
+      setNotice(describeRestoreReport({ locale, report }));
       setSelected(new Set<string>());
       reloadAfterAction();
     } catch (e) {
@@ -261,7 +261,7 @@ export function useTrash(deps: TrashDependencies): TrashController {
     setActionError(null);
     try {
       const report = await port.purgeTrashItems({ ids: chosen.map((item) => item.id) });
-      setNotice(describePurgeReport(locale, report));
+      setNotice(describePurgeReport({ locale, report }));
       setSelected(new Set<string>());
       setPurgeConfirmOpen(false);
       reloadAfterAction();
@@ -281,10 +281,10 @@ export function useTrash(deps: TrashDependencies): TrashController {
     notice,
     busy,
     selected,
-    toggle: (id) => setSelected((current) => toggleSelection(current, id)),
+    toggle: (id) => setSelected((current) => toggleSelection({ current, id })),
     toggleAll: () =>
-      setSelected((current) => selectionAfterSelectAll(items ?? [], allVisibleSelected(items ?? [], current))),
-    allSelected: allVisibleSelected(items ?? [], selected),
+      setSelected((current) => selectionAfterSelectAll({ items: items ?? [], allSelected: allVisibleSelected({ items: items ?? [], selected: current }) })),
+    allSelected: allVisibleSelected({ items: items ?? [], selected }),
     onRestoreSelected,
     purgeConfirmOpen,
     setPurgeConfirmOpen,

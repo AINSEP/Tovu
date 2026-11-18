@@ -61,7 +61,7 @@ const ITEMS_IN_INSERTION_ORDER = [ZEBRA, APPLE, MANGO];
 
 describe("sortMediaByOrder", () => {
   it("orders 'created' newest-first by createdAt, independent of insertion order", () => {
-    expect(sortMediaByOrder(ITEMS_IN_INSERTION_ORDER, "created").map((m) => m.id)).toEqual([
+    expect(sortMediaByOrder({ media: ITEMS_IN_INSERTION_ORDER, orderBy: "created" }).map((m) => m.id)).toEqual([
       "mango-1",
       "apple-1",
       "zebra-1",
@@ -71,7 +71,7 @@ describe("sortMediaByOrder", () => {
   it("orders 'alphabetical' case-insensitively by title, independent of insertion order", () => {
     // "apple pie" < "Mango Tart" < "Zebra Zoo" once both sides are lowercased — a naive byte-wise
     // compare would instead put every capitalized title ahead of every lowercase one.
-    expect(sortMediaByOrder(ITEMS_IN_INSERTION_ORDER, "alphabetical").map((m) => m.id)).toEqual([
+    expect(sortMediaByOrder({ media: ITEMS_IN_INSERTION_ORDER, orderBy: "alphabetical" }).map((m) => m.id)).toEqual([
       "apple-1",
       "mango-1",
       "zebra-1",
@@ -84,19 +84,19 @@ describe("sortMediaByOrder", () => {
     // Insertion order here is [sameInstantA, sameInstantB] ("b-tie" first) — the tiebreak must flip
     // it to "b-tie" still first only because "b-tie" > "a-tie" descending, not because it happened
     // to be inserted first (proven by re-running with the insertion order reversed below).
-    expect(sortMediaByOrder([sameInstantA, sameInstantB], "created").map((m) => m.id)).toEqual(["b-tie", "a-tie"]);
-    expect(sortMediaByOrder([sameInstantB, sameInstantA], "created").map((m) => m.id)).toEqual(["b-tie", "a-tie"]);
+    expect(sortMediaByOrder({ media: [sameInstantA, sameInstantB], orderBy: "created" }).map((m) => m.id)).toEqual(["b-tie", "a-tie"]);
+    expect(sortMediaByOrder({ media: [sameInstantB, sameInstantA], orderBy: "created" }).map((m) => m.id)).toEqual(["b-tie", "a-tie"]);
   });
 
   it("treats titles differing only by case as equal-order (case-insensitive), tie-broken by id ascending", () => {
     const upper = makeItem({ id: "z-tie", title: "Same Title" });
     const lower = makeItem({ id: "a-tie", title: "same title" });
-    expect(sortMediaByOrder([upper, lower], "alphabetical").map((m) => m.id)).toEqual(["a-tie", "z-tie"]);
+    expect(sortMediaByOrder({ media: [upper, lower], orderBy: "alphabetical" }).map((m) => m.id)).toEqual(["a-tie", "z-tie"]);
   });
 
   it("sorts an empty title first, ahead of any non-empty title", () => {
     const blank = makeItem({ id: "blank-1", title: "" });
-    expect(sortMediaByOrder([APPLE, blank, ZEBRA], "alphabetical").map((m) => m.id)).toEqual([
+    expect(sortMediaByOrder({ media: [APPLE, blank, ZEBRA], orderBy: "alphabetical" }).map((m) => m.id)).toEqual([
       "blank-1",
       "apple-1",
       "zebra-1",
@@ -105,7 +105,7 @@ describe("sortMediaByOrder", () => {
 
   it("never mutates the array it was given", () => {
     const original = [...ITEMS_IN_INSERTION_ORDER];
-    sortMediaByOrder(ITEMS_IN_INSERTION_ORDER, "alphabetical");
+    sortMediaByOrder({ media: ITEMS_IN_INSERTION_ORDER, orderBy: "alphabetical" });
     expect(ITEMS_IN_INSERTION_ORDER).toEqual(original);
   });
 
@@ -113,7 +113,7 @@ describe("sortMediaByOrder", () => {
     const first = makeItem({ id: "same", title: "Same", caption: "First snapshot" });
     const second = makeItem({ id: "same", title: "Same", caption: "Second snapshot" });
     const input = [second, first];
-    const sorted = sortMediaByOrder(input, order);
+    const sorted = sortMediaByOrder({ media: input, orderBy: order });
     expect(sorted).toEqual([second, first]);
     expect(sorted[0]).toBe(second);
     expect(sorted[1]).toBe(first);

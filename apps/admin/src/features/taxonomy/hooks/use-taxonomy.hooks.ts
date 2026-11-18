@@ -146,12 +146,12 @@ async function runGuardedDelete(
     onSuccess();
   } catch (e) {
     clearPending();
-    const blocked = describeDeleteBlocked(e);
+    const blocked = describeDeleteBlocked({ e });
     if (blocked) {
       onBlocked(blocked);
       return;
     }
-    if (describeTrashError(e instanceof Error ? e : null, "").alreadyGone) {
+    if (describeTrashError({ e: e instanceof Error ? e : null, fallback: "" }).alreadyGone) {
       onSuccess();
       refetch();
     }
@@ -205,7 +205,7 @@ export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string)
     invalidates: [KEYS.list],
   });
 
-  const selected = useMemo(() => findSelectedTerm(taxonomies, selectedTermId), [taxonomies, selectedTermId]);
+  const selected = useMemo(() => findSelectedTerm({ taxonomies, selectedTermId }), [taxonomies, selectedTermId]);
 
   // Precedence logic lives in `rules.ts`'s `visibleTaxonomyError` — extracted out of this hook (not
   // just for the usual "computes a value" reason, but because the branching here pushed the hook's

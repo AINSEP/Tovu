@@ -81,8 +81,8 @@ function ToolPickerRowItem(props: {
 }) {
   const { row, handle, t, onEnabled, onMayWrite } = props;
   const locked = isToolRowLocked(row);
-  const lockReason = describeToolRowLock(row, t);
-  const badges = describeToolRowBadges(row, t);
+  const lockReason = describeToolRowLock({ row, t });
+  const badges = describeToolRowBadges({ row, t });
 
   return (
     <li className="external-mcp-tool-row" data-locked={locked || undefined}>

@@ -311,7 +311,7 @@ function ExternalMcpSourceRow(props: {
 }) {
   const { source, cardHandle, list, tDrift, onRequestRemove, useConnect = useExternalMcpOAuthConnect } = props;
   const [toolsOpen, setToolsOpen] = useState(false);
-  const fieldSpecs = buildExternalMcpFieldSpecs(source.fields, tDrift);
+  const fieldSpecs = buildExternalMcpFieldSpecs(source.fields, { t: tDrift });
   // The SAVED count, not the picker's own draft — see this file's header on why.
   const enabledToolCount = parseSavedToolNames({ value: source.fields["allowedToolNames"] }).length;
   const rowLabel = sourceDisplayLabel(source, fieldSpecs);
@@ -458,7 +458,7 @@ function ExternalMcpRemoveConfirmSection(props: {
 
   return (
     <ExternalMcpRemoveConfirmDialog
-      name={sourceDisplayLabel(source, buildExternalMcpFieldSpecs(source.fields, tDrift))}
+      name={sourceDisplayLabel(source, buildExternalMcpFieldSpecs(source.fields, { t: tDrift }))}
       isOAuth={resolveExternalMcpEffectiveAuthMode(source.fields) === "oauth"}
       cardHandle={cardHandles[index]}
       onConfirm={() => onConfirm(source.id)}
@@ -498,7 +498,7 @@ export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel, showTi
   });
 
   const banner = list.error;
-  const cardHandles = resolveExternalMcpCardHandles(list.sources);
+  const cardHandles = resolveExternalMcpCardHandles({ sources: list.sources });
 
   // What the RUNNING assistant admitted, as opposed to what this tab saved — two different objects,
   // because `Jini packages/mcp/src/federation/trust.ts` R5 freezes the admitted set at connect. Until this banner

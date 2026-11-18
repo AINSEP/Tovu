@@ -201,13 +201,13 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
   async function addTerm(taxonomyId: string) {
     const group = groupOf(taxonomyId);
     if (!group) return;
-    const wanted = splitTermNames(names[taxonomyId] ?? "", group.taxonomy.hierarchical);
+    const wanted = splitTermNames({ text: names[taxonomyId] ?? "", hierarchical: group.taxonomy.hierarchical });
     if (wanted.length === 0) return;
     setCreateTarget(taxonomyId);
     const ids: string[] = [];
     try {
       for (const name of wanted) {
-        const existing = findTermByName(group.terms, name);
+        const existing = findTermByName({ terms: group.terms, name });
         ids.push(existing ? existing.id : (await createMutation.mutate({ input: { taxonomyId, name } })).term.id);
       }
     } catch {
@@ -223,7 +223,7 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
   }
 
   function pickSuggestion(taxonomyId: string, name: string) {
-    const existing = findTermByName(groupOf(taxonomyId)?.terms ?? [], name);
+    const existing = findTermByName({ terms: groupOf(taxonomyId)?.terms ?? [], name });
     if (!existing) {
       setNewTermName(taxonomyId, name);
       return;
@@ -293,7 +293,7 @@ export function useTermPicker(props: TermPickerTarget, deps: TermPickerDependenc
   return {
     taxonomies,
     hidden,
-    subject: termPickerSubject(props.contentType),
+    subject: termPickerSubject({ contentType: props.contentType }),
     selected,
     toggle,
     loading,

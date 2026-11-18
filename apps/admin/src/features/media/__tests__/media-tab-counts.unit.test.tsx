@@ -57,24 +57,24 @@ const UNTYPED = makeItem({ id: "untyped-a", title: "Untyped Asset", contentType:
 
 describe("mediaContentTabCounts", () => {
   it("returns {} — no key at all — while media is still loading (null), so no tab shows a badge", () => {
-    expect(mediaContentTabCounts(null)).toEqual({});
+    expect(mediaContentTabCounts({ media: null })).toEqual({});
   });
 
   it("counts all/images/videos correctly for a mixed set, matching filterMediaByTab exactly", () => {
     const media = [IMAGE_A, IMAGE_B, VIDEO_A, UNTYPED];
-    expect(mediaContentTabCounts(media)).toEqual({ all: 4, images: 2, videos: 1, trash: 0 });
+    expect(mediaContentTabCounts({ media })).toEqual({ all: 4, images: 2, videos: 1, trash: 0 });
   });
 
   it("updates when an item is added", () => {
-    const before = mediaContentTabCounts([IMAGE_A, VIDEO_A]);
-    const after = mediaContentTabCounts([IMAGE_A, VIDEO_A, IMAGE_B]);
+    const before = mediaContentTabCounts({ media: [IMAGE_A, VIDEO_A] });
+    const after = mediaContentTabCounts({ media: [IMAGE_A, VIDEO_A, IMAGE_B] });
     expect(before).toEqual({ all: 2, images: 1, videos: 1, trash: 0 });
     expect(after).toEqual({ all: 3, images: 2, videos: 1, trash: 0 });
   });
 
   it("updates when an item is removed", () => {
-    const before = mediaContentTabCounts([IMAGE_A, IMAGE_B, VIDEO_A]);
-    const after = mediaContentTabCounts([IMAGE_A, VIDEO_A]);
+    const before = mediaContentTabCounts({ media: [IMAGE_A, IMAGE_B, VIDEO_A] });
+    const after = mediaContentTabCounts({ media: [IMAGE_A, VIDEO_A] });
     expect(before).toEqual({ all: 3, images: 2, videos: 1, trash: 0 });
     expect(after).toEqual({ all: 2, images: 1, videos: 1, trash: 0 });
   });
@@ -83,12 +83,12 @@ describe("mediaContentTabCounts", () => {
     // Zero is a legitimate, correct answer here ("Videos 0"), distinct from the {} loading state
     // above (no key at all). `TabBar`'s own `count !== undefined` check renders a "0" badge for
     // this case, which is correct: unlike the loading state, this IS a known count.
-    expect(mediaContentTabCounts([IMAGE_A]).videos).toBe(0);
+    expect(mediaContentTabCounts({ media: [IMAGE_A] }).videos).toBe(0);
   });
 
   it("counts a trashed item only on Trash, never on All/Images/Videos", () => {
     const media = [IMAGE_A, { ...IMAGE_B, status: "trashed" as const }, { ...VIDEO_A, status: "trashed" as const }];
-    expect(mediaContentTabCounts(media)).toEqual({ all: 1, images: 1, videos: 0, trash: 2 });
+    expect(mediaContentTabCounts({ media })).toEqual({ all: 1, images: 1, videos: 0, trash: 2 });
   });
 });
 
@@ -96,7 +96,7 @@ describe("resolveMediaTabs — count wiring", () => {
   const t = (key: string) => key;
 
   it("attaches each tab's count from the given map, by id", () => {
-    const tabs = resolveMediaTabs(t, { all: 4, images: 2, videos: 1, "external-providers": 9, trash: 3 });
+    const tabs = resolveMediaTabs({ t }, { counts: { all: 4, images: 2, videos: 1, "external-providers": 9, trash: 3 } });
     expect(tabs.find((tab) => tab.id === "all")?.count).toBe(4);
     expect(tabs.find((tab) => tab.id === "images")?.count).toBe(2);
     expect(tabs.find((tab) => tab.id === "videos")?.count).toBe(1);
@@ -105,12 +105,12 @@ describe("resolveMediaTabs — count wiring", () => {
   });
 
   it("leaves a tab's count undefined (no badge) when the map has no entry for it", () => {
-    const tabs = resolveMediaTabs(t, { all: 4 });
+    const tabs = resolveMediaTabs({ t }, { counts: { all: 4 } });
     expect(tabs.find((tab) => tab.id === "images")?.count).toBeUndefined();
   });
 
   it("defaults to an empty map when called with no counts at all, unchanged from before this feature", () => {
-    const tabs = resolveMediaTabs(t);
+    const tabs = resolveMediaTabs({ t });
     expect(tabs.every((tab) => tab.count === undefined)).toBe(true);
   });
 });

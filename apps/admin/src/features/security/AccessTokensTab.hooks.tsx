@@ -198,6 +198,6 @@ export function useMergedSecretsOrder(
       rows: group.rows,
     }));
     const otherEntries: MergedSecretsEntry[] = visibleOther.flatMap(otherCredentialGroupEntries);
-    return sortAccessTokenGroups([...providerEntries, ...otherEntries]);
+    return sortAccessTokenGroups({ groups: [...providerEntries, ...otherEntries] });
   }, [providerGroups, otherGroups, query]);
 }

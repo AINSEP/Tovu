@@ -130,7 +130,7 @@ describe("AccessTokensTab descriptor input fallbacks", () => {
     { descriptor: { ...CLOUDFLARE_PAGES_TARGET, credential: { tokenField: "token", fields: [] } }, label: "Access token" },
     { descriptor: CLOUDFLARE_PAGES_TARGET, label: "API token" },
   ])("labels the secret input exactly '$label'", ({ descriptor, label }) => {
-    const info = accessTokenProviderInfo(accessTokenProviders({ publishTargets: [descriptor] }, { sourceControlProviders: [] }), { kind: "publish", providerId: "cloudflare-pages" });
+    const info = accessTokenProviderInfo({ providers: accessTokenProviders({ publishTargets: [descriptor] }, { sourceControlProviders: [] }), ref: { kind: "publish", providerId: "cloudflare-pages" } });
     render(<AccessTokensTab
       useAccessTokensHook={() => makeAccessTokens({
         groups: [{

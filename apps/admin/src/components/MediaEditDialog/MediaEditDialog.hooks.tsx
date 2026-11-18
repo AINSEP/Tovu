@@ -102,7 +102,7 @@ export function useMediaEditDialog(
   // autofocus attribute so the native owner can focus it and restore the opener on unmount.
 
   const parsed = parseMediaHtmlAttributes({ text: htmlAttributes, policy: embedPolicy });
-  const htmlAttributesError = parsed.error ? describeMediaHtmlAttributeError(parsed.error, deps.locale) : null;
+  const htmlAttributesError = parsed.error ? describeMediaHtmlAttributeError({ error: parsed.error, locale: deps.locale }) : null;
 
   function save() {
     onSave({

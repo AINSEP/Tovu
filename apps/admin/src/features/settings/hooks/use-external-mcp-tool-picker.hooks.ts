@@ -177,7 +177,7 @@ export function useExternalMcpToolPicker(deps: {
     setRows((current) => setToolRowMayWrite({ rows: current, remoteName, mayWrite }));
   }, []);
 
-  const fieldValues = useCallback(() => toolPickerFieldValues(rows), [rows]);
+  const fieldValues = useCallback(() => toolPickerFieldValues({ rows }), [rows]);
 
   return {
     loading: active && probe.status === "loading",
@@ -185,7 +185,7 @@ export function useExternalMcpToolPicker(deps: {
     unreachable: probe.error ? describeProbeUnreachable({ error: probe.error, t }) : null,
     rows,
     advertisedCount: tools.length,
-    enabledCount: countEnabledToolRows(rows),
+    enabledCount: countEnabledToolRows({ rows }),
     dirty: isToolPickerDirty({ rows, allowedToolNames, writeAllowedToolNames }),
     setEnabled,
     setMayWrite,

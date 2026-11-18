@@ -57,58 +57,58 @@ const TRASHED_UNTYPED = makeItem({ id: "trashed-untyped", title: "Old Blob", con
 
 describe("filterMediaByTab", () => {
   it("returns every item for the All tab, including untyped and unrecognized ones", () => {
-    expect(filterMediaByTab(ALL_ITEMS, "all")).toEqual(ALL_ITEMS);
+    expect(filterMediaByTab({ media: ALL_ITEMS, tab: "all" })).toEqual(ALL_ITEMS);
   });
 
   it("returns only image/* items for the Images tab", () => {
-    expect(filterMediaByTab(ALL_ITEMS, "images").map((m) => m.id)).toEqual(["png-1", "webp-1"]);
+    expect(filterMediaByTab({ media: ALL_ITEMS, tab: "images" }).map((m) => m.id)).toEqual(["png-1", "webp-1"]);
   });
 
   it("returns only video/* items for the Videos tab", () => {
-    expect(filterMediaByTab(ALL_ITEMS, "videos").map((m) => m.id)).toEqual(["mp4-1"]);
+    expect(filterMediaByTab({ media: ALL_ITEMS, tab: "videos" }).map((m) => m.id)).toEqual(["mp4-1"]);
   });
 
   it("excludes a recognized-but-unpreviewable type from both filtered tabs rather than guessing", () => {
     // `application/octet-stream` is a REAL sniffer answer, not a missing one — it is neither an
     // image nor a video, so it belongs in All only.
-    expect(filterMediaByTab(ALL_ITEMS, "images").some((m) => m.id === "bin-1")).toBe(false);
-    expect(filterMediaByTab(ALL_ITEMS, "videos").some((m) => m.id === "bin-1")).toBe(false);
-    expect(filterMediaByTab(ALL_ITEMS, "all").some((m) => m.id === "bin-1")).toBe(true);
+    expect(filterMediaByTab({ media: ALL_ITEMS, tab: "images" }).some((m) => m.id === "bin-1")).toBe(false);
+    expect(filterMediaByTab({ media: ALL_ITEMS, tab: "videos" }).some((m) => m.id === "bin-1")).toBe(false);
+    expect(filterMediaByTab({ media: ALL_ITEMS, tab: "all" }).some((m) => m.id === "bin-1")).toBe(true);
   });
 
   it("never drops an untyped item from the All tab", () => {
-    expect(filterMediaByTab(ALL_ITEMS, "all").some((m) => m.id === "untyped-1")).toBe(true);
+    expect(filterMediaByTab({ media: ALL_ITEMS, tab: "all" }).some((m) => m.id === "untyped-1")).toBe(true);
   });
 
   it("moves trashed items off All/Images/Videos and onto Trash only", () => {
     const media = [...ALL_ITEMS, TRASHED_PNG];
-    expect(filterMediaByTab(media, "all")).toEqual(ALL_ITEMS);
-    expect(filterMediaByTab(media, "images").map((m) => m.id)).toEqual(["png-1", "webp-1"]);
-    expect(filterMediaByTab(media, "trash").map((m) => m.id)).toEqual(["trashed-png"]);
-    expect(filterMediaByTab(ALL_ITEMS, "trash")).toEqual([]);
+    expect(filterMediaByTab({ media, tab: "all" })).toEqual(ALL_ITEMS);
+    expect(filterMediaByTab({ media, tab: "images" }).map((m) => m.id)).toEqual(["png-1", "webp-1"]);
+    expect(filterMediaByTab({ media, tab: "trash" }).map((m) => m.id)).toEqual(["trashed-png"]);
+    expect(filterMediaByTab({ media: ALL_ITEMS, tab: "trash" })).toEqual([]);
   });
 });
 
 describe("showsUntypedMediaNote", () => {
   it("shows only on the type tabs", () => {
-    expect(showsUntypedMediaNote(ALL_ITEMS, "images")).toBe(true);
-    expect(showsUntypedMediaNote(ALL_ITEMS, "videos")).toBe(true);
-    expect(showsUntypedMediaNote(ALL_ITEMS, "all")).toBe(false);
-    expect(showsUntypedMediaNote(ALL_ITEMS, "trash")).toBe(false);
+    expect(showsUntypedMediaNote({ media: ALL_ITEMS, tab: "images" })).toBe(true);
+    expect(showsUntypedMediaNote({ media: ALL_ITEMS, tab: "videos" })).toBe(true);
+    expect(showsUntypedMediaNote({ media: ALL_ITEMS, tab: "all" })).toBe(false);
+    expect(showsUntypedMediaNote({ media: ALL_ITEMS, tab: "trash" })).toBe(false);
   });
 
   it("ignores an untyped item that is trashed, since All never lists it either", () => {
-    expect(showsUntypedMediaNote([PNG, TRASHED_UNTYPED], "images")).toBe(false);
+    expect(showsUntypedMediaNote({ media: [PNG, TRASHED_UNTYPED], tab: "images" })).toBe(false);
   });
 });
 
 describe("hasUntypedMedia", () => {
   it("is true when any item has no recorded content type", () => {
-    expect(hasUntypedMedia(ALL_ITEMS)).toBe(true);
+    expect(hasUntypedMedia({ media: ALL_ITEMS })).toBe(true);
   });
 
   it("is false once every item is typed, so the disclosure note stays off the normal screen", () => {
-    expect(hasUntypedMedia([PNG, WEBP, MP4, BINARY])).toBe(false);
+    expect(hasUntypedMedia({ media: [PNG, WEBP, MP4, BINARY] })).toBe(false);
   });
 });
 

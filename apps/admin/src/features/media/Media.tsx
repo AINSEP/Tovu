@@ -752,7 +752,7 @@ interface MediaLightboxProps {
  */
 function MediaLightbox(props: MediaLightboxProps) {
   const { items, activeIndex, onNavigate, onClose, t } = props;
-  const item = resolveLightboxItem(items, activeIndex);
+  const item = resolveLightboxItem({ items, activeIndex });
   return (
     <Lightbox
       open={item !== null}
@@ -816,7 +816,7 @@ function MediaToolbar({
   | "uploadOpen" | "openUpload" | "closeUpload" | "uploadError" | "canUpload" | "t">) {
   const fileInputId = useId();
   // Icon button (owner, 2026-11-01): the tooltip and the accessible name are the same tab-aware text.
-  const uploadLabel = t(mediaUploadLabel(activeTab));
+  const uploadLabel = t(mediaUploadLabel({ tab: activeTab }));
 
   return (
     <>
@@ -861,7 +861,7 @@ function MediaToolbar({
               // since 2026-08-24 — this attribute drifted out of sync with that until 2026-09-07 (see the
               // regression test pinning this exact set). Advisory only: `port.uploadMedia` still enforces
               // the real allowlist server-side regardless of what this lets past the file picker.
-              accept={mediaUploadAccept(activeTab)}
+              accept={mediaUploadAccept({ tab: activeTab })}
               aria-label={t("File to upload")}
               onChange={onFileChange}
               {...agentHandle({ handle: "media-upload-file" }, {
@@ -935,7 +935,7 @@ function MediaSizeControl({ size, setSize, t }: { size: MediaGridSize; setSize: 
       {...agentHandle({ handle: "media-grid-size" }, { role: "field", label: "Set the media grid card size: Small, Medium or Large" })}
     >
       <label htmlFor="media-grid-size-select">{t("Size")}</label>
-      <select id="media-grid-size-select" value={size} onChange={(e) => setSize(parseMediaGridSize(e.target.value))}>
+      <select id="media-grid-size-select" value={size} onChange={(e) => setSize(parseMediaGridSize({ value: e.target.value }))}>
         {MEDIA_GRID_SIZES.map((option) => <option key={option.id} value={option.id}>{t(option.label)}</option>)}
       </select>
     </div>
@@ -1067,7 +1067,7 @@ function MediaCard({ item, handle, onExpand, menu, t }: {
           <RowMenu
             triggerLabel={t('Actions for "{title}"').replace("{title}", () => item.title)}
             agentHandle={`${handle}-menu`}
-            items={mediaRowMenuItems(item, menu.editingId, { onToggleEdit: menu.onToggleEdit, onTrash: menu.onTrash, onRequestPurge: menu.onRequestPurge }, menu.locale)}
+            items={mediaRowMenuItems({ item, editingId: menu.editingId, handlers: { onToggleEdit: menu.onToggleEdit, onTrash: menu.onTrash, onRequestPurge: menu.onRequestPurge }, locale: menu.locale })}
           />
         </div>
         <MediaCardMetadata item={item} locale={menu.locale} shape={preview.shape} t={t} />
@@ -1267,7 +1267,7 @@ function MediaLibraryPanel(
           comment for why the `key` lives on `EditMediaPanel`, not on the `<dialog>` around it. */}
       <EditMediaModal item={editingItem} onSaved={onMetadataSaved} onCancel={() => setEditingId(null)} t={t} />
 
-      {showsUntypedMediaNote(media, activeTab) ? <UntypedMediaNote t={t} /> : null}
+      {showsUntypedMediaNote({ media, tab: activeTab }) ? <UntypedMediaNote t={t} /> : null}
 
       <MediaGridOrEmpty
         activeTab={activeTab}
@@ -1446,9 +1446,9 @@ function MediaPageShell({
           reaches for far more often, and read as one group with this one set apart. */}
       <TabBar
         ariaLabel={t("Media")}
-        tabs={resolveMediaTabs(t, tabCounts)}
+        tabs={resolveMediaTabs({ t }, { counts: tabCounts })}
         activeId={activeTab}
-        onChange={resolveMediaTabChange(setActiveTab)}
+        onChange={resolveMediaTabChange({ setActiveTab })}
       />
 
       {children}
@@ -1491,7 +1491,7 @@ export function Media(props: MediaProps) {
   // its length is already "what that tab lists" with no extra request and nothing that could ever
   // go stale relative to what renders when the tab opens.
   const tabCounts: Partial<Record<MediaTabId, number>> = {
-    ...mediaContentTabCounts(media),
+    ...mediaContentTabCounts({ media }),
     "external-providers": MEDIA_PROVIDER_CATALOG.length,
   };
 
@@ -1512,7 +1512,7 @@ export function Media(props: MediaProps) {
   // `MediaContentTabId`. Not memoized: a single filter over a media library is cheap next to the
   // render it feeds, and a `useMemo` here cannot be hoisted above the early returns without
   // changing hook order.
-  const visibleMedia = sortMediaByOrder(filterMediaByTab(media, activeTab), controller.orderBy);
+  const visibleMedia = sortMediaByOrder({ media: filterMediaByTab({ media, tab: activeTab }), orderBy: controller.orderBy });
   // Asset ids are stable and unique, so they disambiguate one card's expand button from another's —
   // same reasoning as every other list on this workstream.
   const mediaExpandHandles = buildAgentListHandles({ prefix: "media-item", ids: visibleMedia.map((item) => item.id) }

@@ -197,7 +197,7 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
     setReadError(null);
     clearOtherWriteErrors(uploadMutation);
     try {
-      const dataBase64 = await readFileAsBase64(file).catch((readFailure: unknown) => {
+      const dataBase64 = await readFileAsBase64({ file }).catch((readFailure: unknown) => {
         setReadError(readFailure);
         throw readFailure;
       });
@@ -317,7 +317,7 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
     upload,
     editingId,
     setEditingId,
-    editingItem: findEditingItem(media, editingId),
+    editingItem: findEditingItem({ media, editingId }),
     toggleEditing,
     onMetadataSaved,
     trash,
