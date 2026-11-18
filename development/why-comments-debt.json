@@ -36,6 +36,50 @@
     {
       "id": "c16792653055",
       "reason": "Pointer to Jini's ports.ts/types.ts; platform/mail/index.ts line 2 already carries the same pointer."
+    },
+    {
+      "id": "b4867ea042ff",
+      "reason": "File header of the deleted ports.ts; the 'written only by the entries write chokepoint, same transaction' rule now sits above the EntryRefsRepoPort import in platform/db/repos/entry-refs-repo.ts; the port itself is Jini's (cms/widgets/ports.ts)."
+    },
+    {
+      "id": "5bca7dbd0f7f",
+      "reason": "Moved to Jini EntryRefsRepoPort.findByTarget doc (Jini 06cc2bb48)."
+    },
+    {
+      "id": "4ee6da5e31f8",
+      "reason": "Moved to Jini EntryRefsRepoPort.findBySource doc (Jini 06cc2bb48)."
+    },
+    {
+      "id": "c6d6280b3048",
+      "reason": "Moved to Jini EntryRefsRepoPort.replaceForSource doc (Jini 06cc2bb48)."
+    },
+    {
+      "id": "095f3a73d7fb",
+      "reason": "Moved to Jini EntryRefsRepoPort.removeBySource doc (Jini 06cc2bb48)."
+    },
+    {
+      "id": "6e10c61fe7bf",
+      "reason": "Moved to Jini EntryRefsRepoPort.rebuildForWorkspace doc (Jini 06cc2bb48)."
+    },
+    {
+      "id": "b807e0195f58",
+      "reason": "File header of the in-memory repo that moved to Jini cms/widgets/entry-refs.memory.ts (Jini 7412f1dbd), reworded there; the rule-of-two pointer sits in platform/db/repos/entry-refs-repo.ts."
+    },
+    {
+      "id": "41b698d88358",
+      "reason": "File header of the deleted types.ts; the index rationale moved to Jini EntryRefRow (Jini 30954d12c). Its history lines (no running code before SPEC-043) are dropped as plan-approved."
+    },
+    {
+      "id": "95e24310982f",
+      "reason": "Moved to the Jini EntryRefRow.sourceKind doc (Jini 30954d12c)."
+    },
+    {
+      "id": "f17d4c67faf8",
+      "reason": "Moved to the Jini EntryRefRow.targetKind doc (Jini 30954d12c)."
+    },
+    {
+      "id": "5d5a1fe10e7a",
+      "reason": "Moved to the Jini EntryRefRow doc (Jini 30954d12c)."
     }
   ]
 }
