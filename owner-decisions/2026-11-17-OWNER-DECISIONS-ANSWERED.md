@@ -44,3 +44,16 @@ These IDs are LOCAL to lanes S/U (not the xpkg OD ids).
 | S/U OD-7 | KEEP `members/consent-service.ts` until a reachability proof exists |
 | S/U OD-8 | YES: one Tovu helper `schemaErasedKernel` holds the single schema-erasing cast |
 | S/U OD-9 | YES: new Node subpath `@jini-ai/user-management/members/server` for member credential code |
+
+## Owner answers 2026-11-17 ~11:10 PM PT
+
+| ID | Answer |
+|---|---|
+| AU-D15 (admin T1b shell swap URLs) | NEW URLs only. No redirects, no legacy aliases, no backward-compatibility code. Change every internal link, route, test and doc in the same change set. |
+| audit2 A10 (byte-size formatting) | Use Jini core's single `formatByteSize` style everywhere; delete the other formatters; fix every downstream label/test. |
+| audit2 A01 (duplicate helpers) | Adopt Jini's behaviour (incl. copy semantics) everywhere; delete the Tovu copies; fix downstream effects. |
+| Daemon changed answers (R7: POST-only remote-run-event gate -> other methods 404; model-proxy/lookup own body reader -> JSON 413; origin check before body -> 403) | Owner delegated: coordinator picks the most responsible long-term option -> KEEP all three (consistent JSON errors, origin rejected before parsing, no route-existence leak). |
+| Q-WH (ui-admin-database) | Owner delegated: coordinator decides the most responsible long-term option (recorded with reasoning when decided). |
+| ER-6, ER-D12, XP-OD6, OLD-CLONES, OLD-KL | Coordinator summarises; owner OK to proceed on recommendations. |
+| J4 React-half home | OPEN: owner asked about `@jini-ai/core/react`; coordinator explained core is the zero-dependency kernel; awaiting owner pick (core/react subpath with optional React peer vs ui-kit exception). |
+| General | No redirects / dead code / back-compat shims anywhere: fix everything now. |
