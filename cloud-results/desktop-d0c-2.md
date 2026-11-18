@@ -10,7 +10,7 @@ Status: **D0c1 and D0c2 DONE at proof level T; P owed (DX-OD10). D0c3 not run (B
 | D0c1.3 | `dfc03c86` | `jini-routes` moved with its test; 5 importers; `_optional: Record<string, never>` -> `_optional = {}` |
 | D0c2.1 | `26c8df0c` | `startup-secrets` moved; 19 importers; new characterization test file; stale path in `stage-website-shared.ts` header fixed |
 | D0c2.2 | `09669849` | `daemon-connection` schemas (lines 1-25 verbatim) in host-shared; module state stays in the website; 4 importers |
-Pushed: D0c1 (tip `dfc03c86`) was pushed by itself and its six desktop gates passed in the pre-push hook (no `--no-verify`); D0c2 follows with the report commit (final tip in the last line below). Push was fast-forward only.
+Pushed fast-forward only, never `--no-verify`: D0c1 (tip `dfc03c86`) alone, six desktop gates 6/6 in the pre-push hook; then D0c2 + the report (tip `09ae8393`). The hook's FIRST attempt on that second push failed `tests` and `coverage` (one dot-reporter `X`, test not named; coverage then refuses a failed run). I ran both runners by hand on the same tree: `src/*` + `src/!(renderer|contracts)/**` 2302 tests, 2292 pass, 0 fail (exit 0); renderer + contracts 928 tests, 926 pass, 0 fail (exit 0); the retry passed 6/6. So one non-reproduced desktop test failure on this branch (the same pattern as the 'one non-reproduced coverage-gate failure' in `desktop-d0.md`); the test is unidentified.
 
 Inventory at start: 9 modules / 11 lines, exactly the sheet's set (no STOP). After D0c1: 6 modules / 8 lines. After D0c2: 4 modules / 5 lines (`host-signals`, `observability-export`, `product-telemetry` x2, `site-paths`) = the D0c3 start set. `node apps/desktop/scripts/stage-website-shared.ts` (linked): `stage-website-shared: bundled 6 module(s)` after D0c1 (none of the moved ones); after D0c2 it bundles the 4 remaining.
 
@@ -50,3 +50,6 @@ Same five failures before and after my commits, none touches a moved line:
 
 ## Overlaps with other runs
 Touched shared files: `apps/desktop/src/main/index.ts`, `tovu-server.ts`, `desktop-agent.ts` (one import line each), `desktop-agent-service.ts`, `main/updates/product-telemetry-boot.ts`, `product-telemetry-ipc.ts`, `scripts/stage-website-shared.ts` (header comment), `package.json`, `package-lock.json`, `apps/desktop/package.json`, `apps/desktop/package-lock.json`, `development/scripts/{build-server.mjs,dev-lite.mjs,error-gate-debt.json}`, `development/evals/tool-search-caller2-compliance-harness.ts`, and website importers listed by the censuses. Any parallel run editing the lockfiles must re-run `npm install` after rebase (not merge by hand).
+
+## SHAs
+Tovu `wave3/desktop-d0c`: `e17f1a7d`, `8e4f68f1`, `dfc03c86` (D0c1), `26c8df0c`, `09669849` (D0c2), `09ae8393` (report); this final report-SHA commit follows it. Jini `wave3/desktop-d0c`: unchanged at `ccb901145`, nothing pushed.
