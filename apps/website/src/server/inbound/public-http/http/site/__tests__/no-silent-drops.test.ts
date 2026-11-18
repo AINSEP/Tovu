@@ -12,7 +12,7 @@ import { parse, parseFragment, type DefaultTreeAdapterMap } from "parse5";
 import { buildPostRecord } from "#src/features/post/__tests__/post-record.fixture";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
-import { renderMediaRawHtml, sanitizePageHtml } from "#src/features/widgets/media-html";
+import { renderMediaRawHtml, sanitizePageHtml } from "@jini-ai/cms/widgets/html";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { renderViaTemplate } from "#src/server/inbound/public-http/routes/site/pages/template-render";
 import { renderSite } from "../render-site.js";

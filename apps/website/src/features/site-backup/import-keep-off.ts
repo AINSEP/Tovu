@@ -4,7 +4,7 @@ import { parseFragment, serialize, type DefaultTreeAdapterMap } from "parse5";
 import type { KyselyKernel } from "@jini-ai/db/kernel";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 import { NO_THEME_ID } from "#src/features/theme/active-theme";
-import { sanitizePageHtml } from "#src/features/widgets/media-html";
+import { sanitizePageHtml } from "@jini-ai/cms/widgets/html";
 
 /**
  * @file What an imported archive may leave switched ON. Imported themes and HTML pages count as

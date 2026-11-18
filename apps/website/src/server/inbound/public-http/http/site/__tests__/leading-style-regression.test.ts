@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { sanitizePageHtml, renderMediaRawHtml } from '#src/features/widgets/media-html';
+import { sanitizePageHtml, renderMediaRawHtml } from '@jini-ai/cms/widgets/html';
 import { buildPostRecord } from '#src/features/post/__tests__/post-record.fixture';
 import { InMemoryPostRepo } from '#src/features/post/index';
 import { TrashAwareInMemoryEntryRepo } from '#src/features/entries/trash-aware-memory-repo';
