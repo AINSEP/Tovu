@@ -1,12 +1,14 @@
+import { reactModuleUi, type LazyTabView } from '@jini-ai/admin/core/react';
+import type { HostModulePage } from './module-context';
 import { createElement, useMemo, type ReactElement, type ComponentType } from 'react';
 import { comments } from '@jini-ai/admin/comments/react';
 import { useWiredAdminLocale } from '../../hooks/use-admin-locale.hooks';
 import { createCommentsTranslator } from './comments-ports';
 
 // The host Provider wraps the package Provider, so its element type is host-owned.
-type HostCommentsModule = Omit<ReturnType<typeof comments>, 'react'> & {
-  react: Omit<ReturnType<typeof comments>['react'], 'Provider'> & {
-    Provider: ComponentType<Parameters<ReturnType<typeof comments>['react']['Provider']>[0]>;
+type HostCommentsModule = Omit<ReturnType<typeof comments<HostModulePage, LazyTabView>>, 'react'> & {
+  react: Omit<ReturnType<typeof comments<HostModulePage, LazyTabView>>['react'], 'Provider'> & {
+    Provider: ComponentType<Parameters<ReturnType<typeof comments<HostModulePage, LazyTabView>>['react']['Provider']>[0]>;
     loadingContent: ReactElement;
   };
 };
@@ -17,7 +19,7 @@ type HostCommentsModule = Omit<ReturnType<typeof comments>, 'react'> & {
  * @example createHostCommentsModule({})
  */
 export function createHostCommentsModule(_required: Record<string, never>, { useAdminLocaleHook = useWiredAdminLocale }: { useAdminLocaleHook?: () => string } = {}): HostCommentsModule {
-  const feature = comments({});
+  const feature = comments({ ui: reactModuleUi });
   const ScopeProvider = feature.react.Provider;
   // Keep this component's identity for the scope lifetime; a locale refresh must not remount it.
   function Provider({ admin, children }: Parameters<typeof ScopeProvider>[0]) {

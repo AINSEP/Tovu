@@ -7,6 +7,7 @@ import { KitProvider } from '@jini-ai/ui-kit/react';
 import { createMemoryWidgetsApi } from '@jini-ai/admin/widgets/adapters/memory';
 import type { AdminWidget } from '@jini-ai/admin/widgets';
 import { widgets } from '@jini-ai/admin/widgets/react';
+import { reactModuleUi } from '@jini-ai/admin/core/react';
 import { createAdmin } from '@jini-ai/admin/core/module';
 import { WidgetsLibrary, WidgetInstanceEditor, WidgetRegions, WidgetRegionEditor } from '../../../features/widgets';
 import { AdminModulesContext, createHostAdminScope } from '../modules.hooks';
@@ -90,7 +91,7 @@ describe('Jini widgets host switch', () => {
   it('uses shared config copy even when the page translator is an English passthrough', () => {
     // Keep the old mixed suite's discriminating seam: page copy intentionally stays English.
     // Only the actual host slot's separate dictionary can produce Texto in this harness.
-    const feature = widgets({ slots: { ConfigFields: WidgetsConfigFieldsSlot, AddControl: WidgetAddControl },
+    const feature = widgets({ ui: reactModuleUi, slots: { ConfigFields: WidgetsConfigFieldsSlot, AddControl: WidgetAddControl },
       widgetTypes: WIDGET_TYPE_OPTIONS, defaultConfig: type => defaultWidgetConfig(type as HostWidgetType),
     }, { locale: 'es', t: key => key });
     const admin = createAdmin({ modules: [feature], ports: { widgetsApi: createMemoryWidgetsApi({}) } });

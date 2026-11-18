@@ -1,3 +1,5 @@
+import { reactModuleUi, type LazyTabView } from '@jini-ai/admin/core/react';
+import type { HostModulePage } from './module-context';
 import { createElement, useMemo, type ReactElement, type ComponentType } from 'react';
 import { redirects, type RedirectsReactOptions } from '@jini-ai/admin/redirects/react';
 import { useWiredAdminLocale } from '../../hooks/use-admin-locale.hooks';
@@ -6,9 +8,9 @@ import { PublishSectionButton } from '../../features/publish-content/PublishSect
 import { createRedirectsTranslator } from './redirects-ports';
 
 // The host Provider wraps the package Provider, so its element type is host-owned.
-type HostRedirectsModule = Omit<ReturnType<typeof redirects>, 'react'> & {
-  react: Omit<ReturnType<typeof redirects>['react'], 'Provider'> & {
-    Provider: ComponentType<Parameters<ReturnType<typeof redirects>['react']['Provider']>[0]>;
+type HostRedirectsModule = Omit<ReturnType<typeof redirects<HostModulePage, LazyTabView>>, 'react'> & {
+  react: Omit<ReturnType<typeof redirects<HostModulePage, LazyTabView>>['react'], 'Provider'> & {
+    Provider: ComponentType<Parameters<ReturnType<typeof redirects<HostModulePage, LazyTabView>>['react']['Provider']>[0]>;
     loadingContent: ReactElement;
   };
 };
@@ -18,7 +20,7 @@ type HostRedirectsModule = Omit<ReturnType<typeof redirects>, 'react'> & {
  * @example createHostRedirectsModule({});
  */
 export function createHostRedirectsModule(_required: Record<string, never>, { useAdminLocaleHook = useWiredAdminLocale }: { useAdminLocaleHook?: () => string } = {}): HostRedirectsModule {
-  const feature = redirects({});
+  const feature = redirects({ ui: reactModuleUi });
   const ScopeProvider = feature.react.Provider;
   // Resolve locale once for this screen, not independently for each row's hit-count cell.
   function Provider({ admin, children }: Parameters<typeof ScopeProvider>[0]) {

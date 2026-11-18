@@ -1,3 +1,5 @@
+import { reactModuleUi, type LazyTabView } from '@jini-ai/admin/core/react';
+import type { HostModulePage } from './module-context';
 import { createElement, useMemo, type ReactElement } from 'react';
 import { forms, type FormsReactOptions } from '@jini-ai/admin/forms/react';
 import { useWiredAdminLocale } from '../../hooks/use-admin-locale.hooks';
@@ -6,8 +8,8 @@ import { PublishSectionButton } from '../../features/publish-content/PublishSect
 import { createFormsTranslator } from './forms-ports';
 
 /** Compose live localization and host slots without remounting the package editor draft. */
-export function createHostFormsModule(_required: Record<string, never>, { useAdminLocaleHook = useWiredAdminLocale }: { useAdminLocaleHook?: () => string } = {}): ReturnType<typeof forms> {
-  const feature = forms({});
+export function createHostFormsModule(_required: Record<string, never>, { useAdminLocaleHook = useWiredAdminLocale }: { useAdminLocaleHook?: () => string } = {}): ReturnType<typeof forms<HostModulePage, LazyTabView>> {
+  const feature = forms({ ui: reactModuleUi });
   const ScopeProvider = feature.react.Provider;
   // Component identity belongs to the scope lifetime; locale changes update options in place.
   function Provider({ admin, children }: Parameters<typeof ScopeProvider>[0]) {

@@ -3,6 +3,8 @@ import type { AdminInstance, ModulePageProps } from '@jini-ai/core/contracts/adm
 import type { LazyTabView } from '@jini-ai/admin/core/react';
 import type { MediaPickerPort } from '@jini-ai/admin/contracts/media-picker';
 import type { createOverlayController } from '@jini-ai/admin/react/overlays';
+/** The page component type of the React module UI the host injects (`reactModuleUi`). */
+export type HostModulePage = LazyExoticComponent<ComponentType<ModulePageProps<LazyTabView>>>;
 type HostModulePageProps = ModulePageProps<LazyTabView> & { params?: Readonly<Record<string, unknown>> };
 interface ModuleBinding { Provider: ComponentType<{ admin: AdminInstance; children: ReactNode }>; pages: Readonly<Record<string, { Page: LazyExoticComponent<ComponentType<HostModulePageProps>>; tabs: Readonly<Record<string, LazyTabView>> }>> }
 export type Runtime = { permissionKey: string; admin: AdminInstance; bindings: Record<string, ModuleBinding>; picker: MediaPickerPort; overlays: ReturnType<typeof createOverlayController> };

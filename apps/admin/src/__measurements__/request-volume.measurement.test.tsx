@@ -3,6 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/__tests__/fetch-query-provider.test-helper";
 import { useWiredRedirects } from "./redirects-harness";
+import { reactModuleUi } from "@jini-ai/admin/core/react";
+import { FormsControllerContext } from "@jini-ai/admin/forms/react";
+import { RedirectsControllerContext } from "@jini-ai/admin/redirects/react";
 import { Media } from "../features/media/Media";
 import type { AdminFormDefinition } from "../features/forms/api/forms-api.types";
 
@@ -59,8 +62,16 @@ function createRecorder(routes: Array<{ match: string; method?: string; respond:
   return { fn, calls };
 }
 
+// The Jini forms/redirects hooks run outside their module Provider here, so the wrapper supplies
+// their injected controller hook the way the host's module Provider does (Jini J4).
 function wrapper({ children }: { children: React.ReactNode }) {
-  return <FetchQueryProvider>{children}</FetchQueryProvider>;
+  return (
+    <FetchQueryProvider>
+      <FormsControllerContext.Provider value={reactModuleUi.useController}>
+        <RedirectsControllerContext.Provider value={reactModuleUi.useController}>{children}</RedirectsControllerContext.Provider>
+      </FormsControllerContext.Provider>
+    </FetchQueryProvider>
+  );
 }
 
 function logRow(feature: string, action: string, calls: Call[]) {

@@ -1,3 +1,5 @@
+import { reactModuleUi, type LazyTabView } from '@jini-ai/admin/core/react';
+import type { HostModulePage } from './module-context';
 import { createElement, useMemo, type ReactElement, type ComponentProps } from 'react';
 import { widgets, useWidgetsOptions, type WidgetsReactOptions, type WidgetsSlots } from '@jini-ai/admin/widgets/react';
 import type { AdminWidgetType as HostWidgetType } from '../../features/widgets/api/widgets-api.types';
@@ -29,8 +31,8 @@ const widgetsHostDefaults: Pick<WidgetsReactOptions, 'slots' | 'widgetTypes' | '
 /** Compose live locale and retained host slots with stable lazy pages and controller identity.
  * @returns Widgets bindings; disposing the enclosing admin scope retires its API scope. O(1).
  */
-export function createHostWidgetsModule(_required: Record<string, never>, { useAdminLocaleHook = useWiredAdminLocale }: { useAdminLocaleHook?: () => string } = {}): ReturnType<typeof widgets> {
-  const feature = widgets(widgetsHostDefaults);
+export function createHostWidgetsModule(_required: Record<string, never>, { useAdminLocaleHook = useWiredAdminLocale }: { useAdminLocaleHook?: () => string } = {}): ReturnType<typeof widgets<HostModulePage, LazyTabView>> {
+  const feature = widgets({ ...widgetsHostDefaults, ui: reactModuleUi });
   const ScopeProvider = feature.react.Provider;
   // Locale refresh must not replace the factory/pages and discard an unsaved config or placement.
   function Provider({ admin, children }: Parameters<typeof ScopeProvider>[0]) {
