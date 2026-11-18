@@ -77,7 +77,7 @@ export function isSameOriginCommentPost({ request }: { request: Parameters<Reque
  *   request, once the salt promise has settled.
  * @complexity O(1) route setup; request work belongs to the Jini handler.
  */
-export function registerCommentsSubmitRoute(app: Express, deps: CommentsSubmitDeps): void {
+export function registerCommentsSubmitRoute({ app, deps }: { app: Express; deps: CommentsSubmitDeps }, _optional: Record<string, never> = {}): void {
   // Named refusal rather than "Cannot read properties of undefined (reading 'then')", which is
   // what a caller missing this dependency produced on 2026-10-08.
   if (typeof deps.ipHashSalt?.then !== "function") {

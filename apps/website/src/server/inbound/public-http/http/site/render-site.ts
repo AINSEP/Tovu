@@ -288,7 +288,7 @@ async function renderHandlebarsTierBody({ theme, route, ctx }: { theme: Discover
 function renderDeclarativeTierBody({ theme, route, ctx }: { theme: DiscoveredTheme; route: SiteRenderContext["route"]; ctx: SiteRenderContext }, _optional = {}): string {
   const templateId = resolveTemplateId({ route, templates: theme.templates });
   const tree = templateId ? theme.templates[templateId] : undefined;
-  return tree ? renderBlock(tree, ctx) : fallbackSiteBody(ctx, route);
+  return tree ? renderBlock({ node: tree, ctx }) : fallbackSiteBody(ctx, route);
 }
 
 /** The `<title>` `pageShell` renders — the viewed post's own title on the `post` route, the site

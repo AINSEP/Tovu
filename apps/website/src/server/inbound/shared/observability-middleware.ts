@@ -63,14 +63,14 @@ import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
  * @param app Express app receiving the middleware.
  * @param deps Request tracker, optional structured logger and host environment binding.
  * @returns Nothing; registers request middleware and response-completion listeners.
- * @example applyRequestTracking(app, { observability, logger });
+ * @example applyRequestTracking({ app, deps: { tracker, logger } });
  * @complexity O(1) time and auxiliary space per request beyond routing and injected adapters.
  */
-export function applyRequestTracking(app: Express, deps: {
+export function applyRequestTracking({ app, deps }: { app: Express; deps: {
   tracker: Tracker;
   logger?: Pick<Logger, "info">;
   env?: Pick<NodeJS.ProcessEnv, "TOVU_LOG_REQUESTS" | "TOVU_LOG_SLOW_REQUESTS">;
-}): void {
+} }, _optional: Record<string, never> = {}): void {
   const env = deps.env ?? process.env;
   const logRequests = env.TOVU_LOG_REQUESTS === "1";
   const slowRequestMs = env.TOVU_LOG_SLOW_REQUESTS?.trim() ? Number(env.TOVU_LOG_SLOW_REQUESTS) : undefined;

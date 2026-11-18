@@ -67,10 +67,11 @@ type IsAuthenticatedPreviewRevision = (required: { revision: string }, optional:
  * for a non-active theme's CSS is normal traffic rather than something to defend against.
  */
 export function registerThemeStaticAssets(
-  app: Express,
-  required: { themeRoots: readonly string[]; themes?: readonly DiscoveredTheme[]; serveStatic?: typeof express.static; isAuthenticatedPreviewRevision?: IsAuthenticatedPreviewRevision },
+  required: { app: Express; themeRoots: readonly string[] },
+  optional: { themes?: readonly DiscoveredTheme[]; serveStatic?: typeof express.static; isAuthenticatedPreviewRevision?: IsAuthenticatedPreviewRevision } = {},
 ): void {
-  const serveStatic = required.serveStatic ?? express.static;
+  const { app } = required;
+  const serveStatic = optional.serveStatic ?? express.static;
   const roots = required.themeRoots.map((dir) => path.resolve(dir));
 
   app.use(["/theme-assets/:themeId", "/theme-preview-assets/:revision/:themeId"], themeAssetSecurityHeaders, (req, res, next) => {
@@ -85,10 +86,10 @@ export function registerThemeStaticAssets(
       }
       if (preview) res.set("Cache-Control", "no-store");
       const nextDir = (): void => {
-        if (sendInheritedTemplate({ themes: required.themes ?? [], themeDir, url: req.url, method: req.method, res })) return;
+        if (sendInheritedTemplate({ themes: optional.themes ?? [], themeDir, url: req.url, method: req.method, res })) return;
         serveFrom({ index: index + 1 });
       };
-      if (sendAuthenticatedPreviewCss({ req, res, themeDir, requestedRevision, next, nextDir }, { isAuthenticatedPreviewRevision: required.isAuthenticatedPreviewRevision })) return;
+      if (sendAuthenticatedPreviewCss({ req, res, themeDir, requestedRevision, next, nextDir }, { isAuthenticatedPreviewRevision: optional.isAuthenticatedPreviewRevision })) return;
 
       // Explicit dotfiles policy makes send check every segment; its legacy default allows hidden directories.
       serveStatic(themeDir, { dotfiles: "deny", ...(preview ? { cacheControl: false, etag: false, lastModified: false } : {}) })(req, res, (err?: unknown) => (err ? next(err) : nextDir()));

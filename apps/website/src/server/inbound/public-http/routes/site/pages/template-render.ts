@@ -166,7 +166,7 @@ export async function renderViaTemplate({ deps, theme, post, staticMenus }: { de
   const withTerms = placeAfterCurrentContent({
     html: withCurrentId,
     post,
-    block: renderAssignedTermsBlock(await resolveAssignedTermsForRender(deps, post)),
+    block: renderAssignedTermsBlock(await resolveAssignedTermsForRender({ deps, post })),
   });
   const withNestedContent = await resolveHtmlFormatContentMarkers({ deps, html: withTerms, depth: 0, budget: { remaining: MAX_CONTENT_EMBED_FETCHES } }, { pendingHtmlOverride: pendingBodyHtml !== undefined ? { id: post.id, slug: post.slug, bodyHtml: pendingBodyHtml } : undefined });
   const resolved = await resolveHtmlPageEmbeds({
@@ -205,7 +205,7 @@ export async function renderViaTemplate({ deps, theme, post, staticMenus }: { de
     // `post.featuredImage` — resolved through the SAME metadata/transform lookups and the SAME
     // `featuredImageView`, so both tiers show the identical URL and alt. Before this, the static
     // path never looked the featured asset up at all and it only ever reached `og:image`.
-    featuredImage: await resolveFeaturedImageForRender(deps, pendingBodyJson !== undefined ? { ...post, bodyJson: pendingBodyJson } : post),
+    featuredImage: await resolveFeaturedImageForRender({ deps, post: pendingBodyJson !== undefined ? { ...post, bodyJson: pendingBodyJson } : post }),
     postAuthor: post,
   } }, {});
   return renderCommentsMarkers({ html: injectSiteAssistantIntoStaticPage({ html: injectExtraHeadIntoStaticPage({ html: rendered, extraHead }), enabled: siteAssistantEnabled }),

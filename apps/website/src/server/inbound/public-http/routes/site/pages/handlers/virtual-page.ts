@@ -69,7 +69,7 @@ export function reportSiteRenderFault({ detail, err }: { detail: string; err: un
 export async function serveVirtualPage({ req, res, deps, post }: {
   req: Request; res: Response; deps: RouteDeps; post: PostRecord;
 }): Promise<void> {
-  deps = withListingBatch(deps, req);
+  deps = withListingBatch({ deps, req });
   const [activeThemeId, siteAssistantEnabled] = await Promise.all([
     resolveRenderThemeId(res, deps),
     resolveSiteAssistantWidgetForRequest({ request: req, deps }),
@@ -78,7 +78,7 @@ export async function serveVirtualPage({ req, res, deps, post }: {
   if (resolved === null) return sendNoThemesInstalled(res);
   const theme = resolved === NO_THEME_ID ? null : resolved;
   const branch = theme ? resolveTemplateBranchChoice({ theme, post }) : { kind: "ineligible" as const };
-  const perVisitor = resolvePerVisitorResponse(req, res);
+  const perVisitor = resolvePerVisitorResponse({ req, res });
   const previewPost = branch.kind === "page-shell" ? { ...post, templateChoice: branch.templateChoice } : post;
   const html = theme && branch.kind !== "ineligible"
     ? await renderViaTemplate({ deps, theme, post: previewPost, staticMenus: await resolveStaticMenusForRender({ deps, theme, currentPath: req.path }) }, { pendingBodyJson: undefined, pendingBodyHtml: post.bodyHtml ?? "", extraHead: undefined, siteAssistantEnabled })

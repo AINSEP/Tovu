@@ -22,8 +22,7 @@ import type { AssignedTermView, EntryTermReadPort } from "@jini-ai/cms/taxonomy"
  * @complexity O(1) plus {@link EntryTermReadPort.listForContent}'s own one-join-query cost.
  */
 export async function resolveAssignedTermsForRender(
-  deps: { entryTermReadRepo?: EntryTermReadPort },
-  post: PostRecord
+  { deps, post }: { deps: { entryTermReadRepo?: EntryTermReadPort }; post: PostRecord }, _optional: Record<string, never> = {}
 ): Promise<readonly AssignedTermView[]> {
   if (!deps.entryTermReadRepo) return [];
   return deps.entryTermReadRepo.listForContent({ contentType: post.kind, contentId: post.id });

@@ -19,7 +19,7 @@ test("product failures reference the same redacted server incident", async (t) =
   const handlers = new Map<string, (req: unknown, res: unknown) => Promise<void>>();
   const app = { get: (route: string, handler: (req: unknown, res: unknown) => Promise<void>) => { handlers.set(route, handler); } } as unknown as IRouter;
   const fail = async (): Promise<never> => { throw new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"); };
-  registerProductRoutes(app, { commerceCatalog: { listProducts: fail, findProduct: fail } } as unknown as CommerceSiteAdapterDeps);
+  registerProductRoutes({ app, deps: { commerceCatalog: { listProducts: fail, findProduct: fail } } as unknown as CommerceSiteAdapterDeps });
   for (const [route, operation, message] of [
     ["/products", "products:catalog", "The product catalog could not be loaded"],
     ["/products/:id", "products:detail", "This product could not be loaded"],

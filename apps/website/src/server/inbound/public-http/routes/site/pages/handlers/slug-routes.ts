@@ -38,8 +38,8 @@ export const registerNestedPathRoute: RouteRegistrar = ({ app, deps: appDeps }, 
 /** `GET /:slug`. */
 export const registerSlugRoute: RouteRegistrar = ({ app, deps: appDeps }, _options = {}) => {
   app.get("/:slug", asyncRoute({ handler: async (req, res, next) => {
-    const deps = withListingBatch(appDeps, req);
-    const slug = resolveRequestedSlug(req, next);
+    const deps = withListingBatch({ deps: appDeps, req });
+    const slug = resolveRequestedSlug({ req, next });
     if (slug === undefined) return;
 
     let theme: DiscoveredTheme | null = null;
@@ -82,7 +82,7 @@ export const registerSlugRoute: RouteRegistrar = ({ app, deps: appDeps }, _optio
       // clears) the validation flash cookie, if any, and decides this response's `Cache-Control` —
       // including the member-session arm, which matters here because `visiblePosts` above made this
       // body cookie-dependent. See `resolvePerVisitorResponse`'s own doc.
-      const perVisitor = resolvePerVisitorResponse(req, res);
+      const perVisitor = resolvePerVisitorResponse({ req, res });
 
       const marketingResolution = await resolveMarketingPageOrOverride({ deps, theme, slug, staticMenus, siteAssistantEnabled }, { postPreviewsAccess: {
         resolver: memberAccessResolver,
@@ -108,7 +108,7 @@ export const registerSlugRoute: RouteRegistrar = ({ app, deps: appDeps }, _optio
       // body straight past a gate that only guarded the generic path below.
       const decision = decidePostMemberAccess({ resolver: memberAccessResolver, post, context: memberContext });
       if (!decision.allowed) {
-        await handlePostNotFoundOnSlugRoute(req, res, deps, theme, staticMenus);
+        await handlePostNotFoundOnSlugRoute({ req, res, deps, theme, staticMenus });
         return;
       }
 

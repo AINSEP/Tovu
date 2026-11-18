@@ -12,7 +12,7 @@ test("templated preview failure references its redacted server incident", async 
     if (route === "/theme-explore/:themeId/template/:templateId") handler = handlers.at(-1);
   } } as unknown as Express;
   const deps = { workspaceId: "ws", authorize: async () => { throw new Error("boom tovu_ak_0123456789ab.SECRETSECRETSECRETSECRET"); } } as unknown as RouteDeps;
-  registerThemePagePreview(app, deps);
+  registerThemePagePreview({ app, deps });
   assert.ok(handler, "the preview handler is registered");
   let status = 0; let body = ""; let type = "";
   const res = { locals: { principal: { id: "owner" } }, status(code: number) { status = code; return res; },

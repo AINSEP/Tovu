@@ -29,8 +29,8 @@ import { themeAssetSecurityHeaders } from "./theme-content-security-headers.js";
  * module's header. Two independent mounts serving the same class of content is exactly why that fix
  * lives in one shared function both call, rather than being reimplemented here.
  */
-export function registerThemePreviewStatic(app: Express, required: { themesStaticDir: string }): void {
-  const { themesStaticDir } = required;
+export function registerThemePreviewStatic(required: { app: Express; themesStaticDir: string }, _optional: Record<string, never> = {}): void {
+  const { app, themesStaticDir } = required;
   if (!existsSync(themesStaticDir)) return;
 
   for (const themeId of readdirSync(themesStaticDir)) {

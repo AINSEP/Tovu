@@ -23,8 +23,8 @@ import type { Express } from "express";
  * `admin-static.ts`'s identical convention for the same reason — redirects instead of serving
  * `distDir`, so iterating on the widget never shows a stale build.
  */
-export function registerSiteChatStatic(app: Express, required: { distDir: string }): void {
-  const { distDir } = required;
+export function registerSiteChatStatic(required: { app: Express; distDir: string }, _optional: Record<string, never> = {}): void {
+  const { app, distDir } = required;
 
   const devProxyUrl = process.env.TOVU_SITE_CHAT_DEV_PROXY_URL;
   if (devProxyUrl) {

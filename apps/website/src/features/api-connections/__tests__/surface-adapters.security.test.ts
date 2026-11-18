@@ -102,7 +102,7 @@ function makeHost(runtime: "hosted" | "desktop" = "hosted", clock: { nowMs: () =
     publicOrigin: () => siteOrigin,
   }, startLoopback === undefined ? {} : { startLoopback });
   const app = express();
-  registerApiConnectionOAuthCallbackRoute(app, { host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: () => {} });
+  registerApiConnectionOAuthCallbackRoute({ app, deps: { host, callbackLimiter: { check: async () => ({ allowed: true, retryAfterSeconds: 0 }) }, log: () => {} } });
   siteServer.removeAllListeners("request");
   siteServer.on("request", app);
   browser = trackStartingBrowser({ host });

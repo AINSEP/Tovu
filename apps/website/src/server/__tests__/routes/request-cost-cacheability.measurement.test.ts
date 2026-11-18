@@ -42,7 +42,7 @@ function buildPublicSiteApp(): { app: express.Express; deps: CommerceSiteTestDep
   // Registration order matters — mirrors `app.ts`'s real order: SEO (sitemap/robots) and
   // store/products must precede `registerSiteRoutes`'s `/:slug` catch-all.
   createSeoModule(deps).registerRoutes?.({ app });
-  registerProductRoutes(app, deps);
+  registerProductRoutes({ app, deps });
   registerSiteRoutes({ app, deps });
   return { app, deps };
 }
@@ -170,7 +170,7 @@ test("A: GET /products/:id (detail)", async (t) => {
   const deps: CommerceSiteAdapterDeps = createRouteDeps();
   deps.commerceCatalog = { listProducts: async () => [{ id: "p1", slug: "test-widget", title: "Test Widget", price: 500, stock: 3, version: 1 }], findProduct: async () => ({ id: "p1", slug: "test-widget", title: "Test Widget", price: 500, stock: 3, version: 1 }) };
   const app = express();
-  registerProductRoutes(app, deps);
+  registerProductRoutes({ app, deps });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}/products/p1`);

@@ -168,7 +168,7 @@ test("templated route: a failure while gathering render data answers a plain 500
 test("route-param guards: each preview handler reached without its params refuses an empty theme id instead of crashing", async (t) => {
   const deps = createRouteDeps();
   const routed = express();
-  registerThemePagePreview(routed, deps);
+  registerThemePagePreview({ app: routed, deps });
   type Layer = { route?: { path: string; stack: Array<{ handle: express.RequestHandler }> } };
   const finalHandler = (routePath: string): express.RequestHandler => {
     const layer = (routed as unknown as { _router: { stack: Layer[] } })._router.stack.find((entry) => entry.route?.path === routePath);

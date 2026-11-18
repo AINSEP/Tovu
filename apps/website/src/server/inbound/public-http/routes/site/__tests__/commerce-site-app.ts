@@ -11,7 +11,7 @@ export function createCommerceSiteTestApp(deps: CommerceSiteTestDeps, _optional:
   const consent = express();
   if (deps.cookieConsent) applySiteCookieConsent({ app: consent, deps, consent: deps.cookieConsent });
   app.use('/products', consent);
-  registerProductRoutes(app, deps);
+  registerProductRoutes({ app, deps });
   app.use(createBaseApp(deps));
   return app;
 }

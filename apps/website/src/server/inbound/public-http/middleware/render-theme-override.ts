@@ -22,7 +22,7 @@ export function setRequestRenderTheme({ response, themeId }: { response: Pick<Re
 }
 
 /** Installs the override for every request `app` serves. Call before the site routes are registered. */
-export function applyRenderThemeOverride(app: Express, { themeId }: { themeId: string }): void {
+export function applyRenderThemeOverride({ app, themeId }: { app: Express; themeId: string }, _optional: Record<string, never> = {}): void {
   app.use((_req, res, next) => {
     setRequestRenderTheme({ response: res, themeId });
     next();

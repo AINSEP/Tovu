@@ -15,7 +15,7 @@ import { asyncRoute } from "../../../../../platform/express/async-route.js";
  * sign-in.ts`'s ADR-PIPE-013 Enforcement note). Renders an HTML page (a human clicks this link),
  * not JSON.
  */
-export function registerPublicNewsletterConfirmRoute(app: Express, deps: NewsletterPublicRouteDeps): void {
+export function registerPublicNewsletterConfirmRoute({ app, deps }: { app: Express; deps: NewsletterPublicRouteDeps }, _optional: Record<string, never> = {}): void {
   app.get("/newsletter/confirm", asyncRoute({ handler: async (req, res) => {
     await deps.newsletterReady;
     const token = typeof req.query.token === "string" ? req.query.token : "";

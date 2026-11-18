@@ -23,7 +23,7 @@ export async function storeListingJsonPage({ deps, keyed, toPreview }: {
   const jsonRequest = deps.listingBatch?.format === "json" ? deps.listingBatch : undefined;
   const jsonBatch = jsonRequest && keyed.get(jsonRequest.key);
   if (!jsonRequest || !jsonBatch) return;
-  const items = await Promise.all(jsonBatch.posts.map(async (post) => toListingJsonItem({ post, preview: toPreview(post), terms: await resolveAssignedTermsForRender(deps, post) })));
+  const items = await Promise.all(jsonBatch.posts.map(async (post) => toListingJsonItem({ post, preview: toPreview(post), terms: await resolveAssignedTermsForRender({ deps, post }) })));
   listingJsonPages.set(jsonRequest, { items, nextCursor: jsonBatch.next });
 }
 

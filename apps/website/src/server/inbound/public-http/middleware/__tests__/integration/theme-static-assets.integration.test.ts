@@ -29,10 +29,10 @@ import { createInMemoryApp } from "#src/server/runtime/composition/memory-route-
 function withTempApp(
   fn: (baseUrl: string) => Promise<void>,
   roots: readonly string[],
-  options: Pick<Parameters<typeof registerThemeStaticAssets>[1], "isAuthenticatedPreviewRevision"> = {},
+  options: Pick<NonNullable<Parameters<typeof registerThemeStaticAssets>[1]>, "isAuthenticatedPreviewRevision"> = {},
 ): Promise<void> {
   const app = express();
-  registerThemeStaticAssets(app, { themeRoots: roots, ...options });
+  registerThemeStaticAssets({ app, themeRoots: roots }, options);
   // Answer static fallthrough without changing headers, as the middleware contract allows.
   // Express's default finalhandler replaces CSP with its own policy for its error document.
   app.use((_req, res) => res.status(404).type("text/plain").send("not found"));

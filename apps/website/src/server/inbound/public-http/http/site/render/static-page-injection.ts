@@ -54,7 +54,7 @@ export function injectExtraHeadIntoStaticPage(
  * inert tag" contract.
  */
 export function injectSiteAssistantIntoStaticPage({ html, enabled }: { html: string; enabled: SiteChatSelection }, _optional = {}): string {
-  const { head, body } = siteAssistantMarkup(enabled);
+  const { head, body } = siteAssistantMarkup({ enabled });
   if (!head && !body) return html;
   const withHead = insertBeforeUncommentedTag({ html, tag: /<\/head>/gi, markup: head });
   return insertBeforeUncommentedTag({ html: withHead, tag: /<\/body>/gi, markup: body });

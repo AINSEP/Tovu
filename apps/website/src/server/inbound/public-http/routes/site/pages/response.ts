@@ -58,7 +58,7 @@ interface PerVisitorResponse {
  *
  * @complexity O(1) plus the bounded cost already documented on the functions it calls.
  */
-export function resolvePerVisitorResponse(req: Request, res: Response): PerVisitorResponse {
+export function resolvePerVisitorResponse({ req, res }: { req: Request; res: Response }, _optional: Record<string, never> = {}): PerVisitorResponse {
   const queryResult = decodeFormSubmissionResultFromQuery(req.query);
   const flash = decodeFormFlashCookieValue({ raw: readRequestCookie({ request: req, name: FORM_FLASH_COOKIE_NAME }) });
   if (flash) clearFormFlashCookie(req, res);

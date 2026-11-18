@@ -66,8 +66,8 @@ export function createNewsletterModule(deps: {
       registerAdminNewsletterResendConfirmationRoute({ app, deps: deps.admin });
       registerAdminNewsletterListSendLogRoute({ app, deps: deps.admin });
       // Public, cookie-less, token-only routes (outside /api/admin's session gate).
-      registerPublicNewsletterConfirmRoute(app, deps.public);
-      registerPublicNewsletterUnsubscribeRoute(app, deps.public);
+      registerPublicNewsletterConfirmRoute({ app, deps: deps.public });
+      registerPublicNewsletterUnsubscribeRoute({ app, deps: deps.public });
     },
   };
 }

@@ -53,7 +53,7 @@ export interface RegisterFormsSubmitRouteDeps extends VisitorAnalyticsDeps {
  * submission regardless of the redirect fix. A `fetch`/JSON caller (every pre-existing test in this
  * file) is unaffected — Express dispatches to whichever parser matches the request's actual
  * `Content-Type`, so mounting both here is additive, never a double-parse of the same request. */
-export function registerFormsSubmitRoute(app: Express, deps: RegisterFormsSubmitRouteDeps): void {
+export function registerFormsSubmitRoute({ app, deps }: { app: Express; deps: RegisterFormsSubmitRouteDeps }, _optional: Record<string, never> = {}): void {
   const resultDeps: Omit<CreateFormSubmitHandlerRequired, "submit"> = {
     workspaceId: deps.workspaceId,
     definitionRepo: deps.submitForm.definitionRepo,

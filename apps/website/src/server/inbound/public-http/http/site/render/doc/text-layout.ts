@@ -27,7 +27,7 @@ function nodeText(node: JsonValue): string {
  * the caller then emits no `id` rather than an empty one, since `id=""` is invalid and unlinkable
  * anyway.
  */
-export function headingAnchorId(node: JsonValue): string {
+export function headingAnchorId({ node }: { node: JsonValue }, _optional: Record<string, never> = {}): string {
   return toSlug({ text: nodeText(node) });
 }
 

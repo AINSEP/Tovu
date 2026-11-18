@@ -16,7 +16,7 @@ import { asyncRoute } from "../../../../../platform/express/async-route.js";
  * repeat click of an already-processed token (REQ-15/EC-03): `processUnsubscribe` itself returns
  * `already-unsubscribed` rather than throwing, and this route renders the SAME success page either way.
  */
-export function registerPublicNewsletterUnsubscribeRoute(app: Express, deps: NewsletterPublicRouteDeps): void {
+export function registerPublicNewsletterUnsubscribeRoute({ app, deps }: { app: Express; deps: NewsletterPublicRouteDeps }, _optional: Record<string, never> = {}): void {
   const handler = async (req: Request, res: Response): Promise<void> => {
     await deps.newsletterReady;
     const token = typeof req.query.token === "string" ? req.query.token : "";

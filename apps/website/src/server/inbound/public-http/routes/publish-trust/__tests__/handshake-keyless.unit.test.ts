@@ -25,7 +25,7 @@ function routes(overrides: Partial<PublishTrustHandshakeDeps> = {}): Map<string,
     get: (path: string, handler: Handler) => handlers.set(`GET ${path}`, handler),
     post: (path: string, handler: Handler) => handlers.set(`POST ${path}`, handler),
   } as unknown as Express;
-  registerPublishTrustHandshakeRoutes(app, {
+  registerPublishTrustHandshakeRoutes({ app, deps: {
     keyring: {} as never,
     workspaceId: "w-1",
     clock,
@@ -34,7 +34,7 @@ function routes(overrides: Partial<PublishTrustHandshakeDeps> = {}): Map<string,
     targetInstallationId: noKey,
     grants: async () => ({ state: "configured", origin: "env", grants: [ACTIVE_GRANT], reason: null }) as PublishTrustResolution,
     ...overrides,
-  });
+  } });
   return handlers;
 }
 

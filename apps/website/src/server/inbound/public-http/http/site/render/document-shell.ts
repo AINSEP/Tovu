@@ -53,7 +53,7 @@ export function pageShell(required: {
   const assets = required.documentAssets ?? { head: '', body: '' };
   const foldHasTitle = extraHead?.includes("<title>") ?? false;
   const titleTag = foldHasTitle ? "" : `<title>${escapeHtml({ text: required.title })}</title>`;
-  const siteAssistant = siteAssistantMarkup(required.siteAssistantEnabled ?? false);
+  const siteAssistant = siteAssistantMarkup({ enabled: required.siteAssistantEnabled ?? false });
   // The theme contributes exactly these three things to the document Tovu owns. With no theme they
   // are each ABSENT, not empty: `BASE_STYLE` is Tovu's own reset and stays either way, but a
   // synthesised `:root { }` or a `<link>` to no font family would be markup an operator has to work

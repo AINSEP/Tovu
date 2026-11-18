@@ -20,7 +20,7 @@ import type { TemplateNode } from "#src/features/theme/index";
  * @complexity O(1) beyond the resolved component's own rendering.
  * @overallScore 100/100
  */
-export function renderBlockSeam(ctx: SiteRenderContext, props: JsonObject): string {
+export function renderBlockSeam({ ctx, props }: { ctx: SiteRenderContext; props: JsonObject }, _optional: Record<string, never> = {}): string {
   if (typeof props.region === "string") {
     return renderWidgetRegion({ ctx, regionKey: props.region });
   }
@@ -74,7 +74,7 @@ function renderRegionBlock(node: JsonObject, ctx: SiteRenderContext): string {
 }
 
 function renderDocTypeBlock(node: JsonObject, ctx: SiteRenderContext): string {
-  return (Array.isArray(node.content) ? node.content : []).map((child) => renderBlock(child, ctx)).join("");
+  return (Array.isArray(node.content) ? node.content : []).map((child) => renderBlock({ node: child, ctx })).join("");
 }
 
 /** One handler per theme-authored block `type` — a lookup instead of a sequential `if`/`if`/`if`
@@ -89,7 +89,7 @@ const BLOCK_TYPE_HANDLERS: Record<string, (node: JsonObject, ctx: SiteRenderCont
   doc: renderDocTypeBlock,
 };
 
-export function renderBlock(node: TemplateNode, ctx: SiteRenderContext): string {
+export function renderBlock({ node, ctx }: { node: TemplateNode; ctx: SiteRenderContext }, _optional: Record<string, never> = {}): string {
   if (!isObject(node)) return "";
   const handler = typeof node.type === "string" ? BLOCK_TYPE_HANDLERS[node.type] : undefined;
   if (handler) return handler(node, ctx);

@@ -71,7 +71,7 @@ const RENDER_BLOCK_TAG = {
     // required" — a region is a `render_block` call over a resolved, ordered widget list instead of
     // a single component). `renderBlockSeam` (render.ts) owns that resolution and is shared with the
     // Handlebars tier's own `render_block` helper.
-    return renderBlockSeam(siteCtx, props);
+    return renderBlockSeam({ ctx: siteCtx, props });
   },
 };
 

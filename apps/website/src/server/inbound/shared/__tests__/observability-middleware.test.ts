@@ -15,7 +15,7 @@ import {
   type RequestTrackingOutcome,
 } from "@jini-ai/core/contracts/observability";
 
-const loggingDisabled: NonNullable<Parameters<typeof applyRequestTracking>[1]["env"]> = {
+const loggingDisabled: NonNullable<Parameters<typeof applyRequestTracking>[0]["deps"]["env"]> = {
   TOVU_LOG_REQUESTS: undefined,
   TOVU_LOG_SLOW_REQUESTS: undefined,
 };
@@ -50,7 +50,7 @@ function createSpyObservabilityPort(): {
 
 function buildTestApp(observability: ObservabilityPort): express.Express {
   const app = express();
-  applyRequestTracking(app, { tracker: createTracker({ observability }), env: loggingDisabled });
+  applyRequestTracking({ app, deps: { tracker: createTracker({ observability }), env: loggingDisabled } });
   app.get("/welcome", (_req, res) => res.status(200).send("ok"));
   app.post("/error", (_req, res) => res.status(500).json({ ok: false }));
   const adminRouter = express.Router();
@@ -121,7 +121,7 @@ test("two concurrent in-flight requests are tracked independently — one reques
   let welcomeResponse: express.Response | undefined;
   let errorResponse: express.Response | undefined;
   const app = express();
-  applyRequestTracking(app, { tracker: createTracker({ observability: port }), env: { ...loggingDisabled, TOVU_LOG_REQUESTS: "1" }, logger: { info: (_input, options) => { logs.push(options!.meta!); } } });
+  applyRequestTracking({ app, deps: { tracker: createTracker({ observability: port }), env: { ...loggingDisabled, TOVU_LOG_REQUESTS: "1" }, logger: { info: (_input, options) => { logs.push(options!.meta!); } } } });
   app.get("/welcome", (_req, res) => { welcomeResponse = res; firstStarted.resolve(); });
   app.post("/error", (_req, res) => { errorResponse = res; secondStarted.resolve(); });
   t.after(() => {
@@ -164,11 +164,11 @@ test("todo-1495: completion logging joins the response and async request context
   t.mock.method(performance, "now", () => 0);
   const entries: Array<{ message: string; options: Parameters<Logger["info"]>[1] }> = [];
   const app = express();
-  applyRequestTracking(app, {
+  applyRequestTracking({ app, deps: {
     tracker: createTracker({}),
     env: { ...loggingDisabled, TOVU_LOG_REQUESTS: "1" },
     logger: { info: ({ message }, options) => { entries.push({ message, options }); } },
-  });
+  } });
   app.get("/posts/:id", async (_req, res) => {
     await Promise.resolve();
     res.json({ requestId: res.locals.requestId });
@@ -189,11 +189,11 @@ test("todo-1495: unmatched requests log the minted response id and a fixed route
   t.mock.method(performance, "now", () => 0);
   const entries: Array<{ message: string; options: Parameters<Logger["info"]>[1] }> = [];
   const app = express();
-  applyRequestTracking(app, {
+  applyRequestTracking({ app, deps: {
     tracker: createTracker({}),
     env: { ...loggingDisabled, TOVU_LOG_REQUESTS: "1" },
     logger: { info: ({ message }, options) => { entries.push({ message, options }); } },
-  });
+  } });
   const baseUrl = await startTestServer(app, t);
   const res = await fetch(`${baseUrl}/private-path?token=secret`, { headers: { "x-request-id": "unsafe id" } });
   await res.text();
@@ -227,7 +227,7 @@ for (const scenario of [
     const error = t.mock.method(console, "error", () => {});
     const failure = new Error("handler failed");
     const app = express();
-    applyRequestTracking(app, { tracker: createTracker({}), env: { ...loggingDisabled, ...scenario.env } });
+    applyRequestTracking({ app, deps: { tracker: createTracker({}), env: { ...loggingDisabled, ...scenario.env } } });
     mountJsonRoute({
       app,
       deps: {},
@@ -287,7 +287,7 @@ for (const scenario of [
     const info = t.mock.method(console, "info", () => {});
     const { port, calls } = createSpyObservabilityPort();
     const app = express();
-    applyRequestTracking(app, { tracker: createTracker({ observability: port }), env: { ...loggingDisabled, ...scenario.env } });
+    applyRequestTracking({ app, deps: { tracker: createTracker({ observability: port }), env: { ...loggingDisabled, ...scenario.env } } });
     app.get("/admin/:asset", (_req, res) => {
       now += scenario.durationMs;
       res.status(scenario.statusCode).end();
@@ -326,7 +326,7 @@ test("the rest of the request runs inside the tracker's scope, so spans a handle
     },
   };
   const app = express();
-  applyRequestTracking(app, { tracker: createTracker({ observability: port }) });
+  applyRequestTracking({ app, deps: { tracker: createTracker({ observability: port }) } });
   app.get("/scoped", (_req, res) => {
     handlerSawScope.push(inside);
     res.status(204).end();
@@ -340,7 +340,7 @@ test("the rest of the request runs inside the tracker's scope, so spans a handle
 test("a tracker without run() (an adapter written before scoping) still lets the request through", async (t) => {
   const port: ObservabilityPort = { ...createNoopObservabilityPort({}), trackRequest: () => ({ end() {} }) };
   const app = express();
-  applyRequestTracking(app, { tracker: createTracker({ observability: port }) });
+  applyRequestTracking({ app, deps: { tracker: createTracker({ observability: port }) } });
   app.get("/plain", (_req, res) => res.status(200).send("ok"));
   const baseUrl = await startTestServer(app, t);
   assert.equal((await fetch(`${baseUrl}/plain`)).status, 200);
@@ -364,7 +364,7 @@ test("a synchronous 503 exports its exception before ending the SDK request span
   const { createInMemoryOtel } = await import("#src/platform/observability/__tests__/fixtures/in-memory-otel");
   const { port, exporter } = createInMemoryOtel();
   const app = express();
-  applyRequestTracking(app, { tracker: createTracker({ observability: port }), env: loggingDisabled });
+  applyRequestTracking({ app, deps: { tracker: createTracker({ observability: port }), env: loggingDisabled } });
   app.get("/unavailable", (_req, res) => res.status(503).end());
   const baseUrl = await startTestServer(app, t);
   assert.equal((await fetch(`${baseUrl}/unavailable`)).status, 503);
@@ -387,7 +387,7 @@ test('a client disconnect before finish settles the request as aborted rather th
   const handling = new Promise<void>(resolve => { reached = resolve; });
   let closed!: () => void;
   const disconnected = new Promise<void>(resolve => { closed = resolve; });
-  applyRequestTracking(app, { tracker: createTracker({ observability: port }), env: loggingDisabled });
+  applyRequestTracking({ app, deps: { tracker: createTracker({ observability: port }), env: loggingDisabled } });
   app.get('/waiting/:id', (_req, res) => { res.on('close', closed); reached(); });
   const baseUrl = await startTestServer(app, t);
   const request = get(`${baseUrl}/waiting/private`);

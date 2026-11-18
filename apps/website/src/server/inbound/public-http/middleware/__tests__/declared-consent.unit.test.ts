@@ -246,7 +246,7 @@ async function changingFixture({ preview = false, failAtBoot = false } = {}) {
     consentAdapters: () => [{ adapter: { id: 'tracking', kind: 'consent-adapter', category: 'analytics', src: '/tracking.mjs' } }],
   } as unknown as RouteDeps;
   const app = express();
-  if (preview) applyRenderThemeOverride(app, { themeId: 'preview-theme' });
+  if (preview) applyRenderThemeOverride({ app, themeId: 'preview-theme' });
   applySiteCookieConsent({ app, deps, consent }, { client: { src: '/_consent/fixture.js', body: Buffer.from('') } });
   app.get('/assets', async (_req, res) => res.json(await res.locals.siteConsentAssets({ scripts: [] })));
   await new Promise<void>(resolve => setImmediate(resolve));

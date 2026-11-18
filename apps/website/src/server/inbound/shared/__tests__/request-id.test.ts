@@ -36,7 +36,7 @@ function spyPort(): { port: ObservabilityPort; options: RequestTrackingOptions[]
 async function serve(t: test.TestContext) {
   const { port, options } = spyPort();
   const app = express();
-  applyRequestTracking(app, { tracker: createTracker({ observability: port }) });
+  applyRequestTracking({ app, deps: { tracker: createTracker({ observability: port }) } });
   app.get("/welcome", (_req, res) => res.status(200).send("ok"));
   return { baseUrl: await startTestServer(app, t), options };
 }

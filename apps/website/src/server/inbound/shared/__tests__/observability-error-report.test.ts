@@ -29,7 +29,7 @@ const secret = ["sk", "live", "R".repeat(12) + "y".repeat(12)].join("_");
 
 async function boot(t: test.TestContext, port: ObservabilityPort): Promise<string> {
   const app = express();
-  applyRequestTracking(app, { tracker: createTracker({ observability: port }), env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } });
+  applyRequestTracking({ app, deps: { tracker: createTracker({ observability: port }), env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } } });
   app.use(express.json());
   app.use((_req, res, next) => { res.locals.principal = { id: "principal-1", email: "owner@example.test" }; next(); });
   app.post("/api/things/:id", () => { throw new Error("handler exploded"); });
@@ -86,7 +86,7 @@ test("uncaught admin exceptions use one safe correlated incident, including anon
   t.mock.method(console, "error", () => {});
   const { port, reports } = recording();
   const app = express();
-  applyRequestTracking(app, { tracker: createTracker({ observability: port }), env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } });
+  applyRequestTracking({ app, deps: { tracker: createTracker({ observability: port }), env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } } });
   app.get("/api/admin/v1/pages/:id", (_req, res) => {
     res.locals.principal = { id: "owner" };
     throw new Error("PRIVATE_BACKEND password=SECRET_CANARY");
@@ -127,7 +127,7 @@ test("an uncaught admin error already reported by a tracked operation is not rep
   const { port, reports } = recording();
   const tracker = createTracker({ observability: port });
   const app = express();
-  applyRequestTracking(app, { tracker, env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } });
+  applyRequestTracking({ app, deps: { tracker, env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } } });
   app.get("/api/admin/v1/pages", (_req, res, next) => {
     res.locals.principal = { id: "owner" };
     void tracker.trace({ name: "pages.load", run: async () => { throw new Error("PRIVATE_BACKEND password=SECRET_CANARY"); } }).catch(next);
@@ -149,7 +149,7 @@ test("admin JSON parser 400s retain the expected error responder without inciden
   const logged = t.mock.method(console, "error", () => {});
   const { port, reports } = recording();
   const app = express();
-  applyRequestTracking(app, { tracker: createTracker({ observability: port }), env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } });
+  applyRequestTracking({ app, deps: { tracker: createTracker({ observability: port }), env: { TOVU_LOG_REQUESTS: undefined, TOVU_LOG_SLOW_REQUESTS: undefined } } });
   app.use(express.json());
   let handled = false;
   app.post("/api/admin/v1/pages", (_req, res) => { handled = true; res.status(204).end(); });

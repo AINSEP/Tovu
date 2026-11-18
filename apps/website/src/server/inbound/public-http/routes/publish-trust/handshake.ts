@@ -277,7 +277,7 @@ async function handleSession(input: { guards: HandshakeGuards; req: Request; res
  *
  * @complexity O(1) per request — see each handler.
  */
-export function registerPublishTrustHandshakeRoutes(app: Express, deps: PublishTrustHandshakeDeps): void {
+export function registerPublishTrustHandshakeRoutes({ app, deps }: { app: Express; deps: PublishTrustHandshakeDeps }, _optional: Record<string, never> = {}): void {
   const guards = createHandshakeGuards(deps);
   app.get("/api/publish-trust/v1/identity", guards.answered((req, res) => handleIdentity({ guards, req, res })));
   app.post("/api/publish-trust/v1/challenge", guards.answered((req, res) => handleChallenge({ guards, req, res })));

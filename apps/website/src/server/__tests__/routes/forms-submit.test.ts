@@ -74,7 +74,7 @@ async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort
   const submitFormDeps = { crypto: globalThis.crypto, definitionRepo, submissionRepo, outbox, bus, clock, idGen,
     rateLimiter: createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock }),
   };
-  registerFormsSubmitRoute(app, {
+  registerFormsSubmitRoute({ app, deps: {
     workspaceId: WORKSPACE_ID,
     formSubmissionAttempts,
     tracker,
@@ -82,7 +82,7 @@ async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort
     visitorAnalyticsProof,
     visitorAnalyticsDeliveryAllowed,
     submitForm: submitFormDeps,
-  });
+  } });
 
   const server = createServer(app);
   server.listen(0);

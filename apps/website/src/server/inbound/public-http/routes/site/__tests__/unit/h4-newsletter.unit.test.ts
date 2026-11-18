@@ -14,10 +14,10 @@ for (const [path, register, title, message] of [
   for (const token of [undefined, ['first', 'second'], { nested: 'token' }]) {
     test(`${path} refuses a missing or ambiguous token (${JSON.stringify(token)}) as HTML`, async () => {
       const app = express();
-      register(app, portFake<NewsletterPublicRouteDeps>({ workspaceId: 'ws', newsletterReady: Promise.resolve(),
+      register({ app, deps: portFake<NewsletterPublicRouteDeps>({ workspaceId: 'ws', newsletterReady: Promise.resolve(),
         newsletterConfirmationTokenRepo: { findByTokenHash: async () => null },
         clock: { nowIso: () => '2026-10-28T00:00:00.000Z' },
-      }));
+      }) });
       const { res, capture } = createCapturingResponse();
       Object.assign(res, { type: (type: string) => { assert.equal(type, 'html'); return res; }, send: (html: string) => { capture.jsonBody = html; return res; } });
       await extractRouteHandler(app, 'get', path)({ query: { token } }, res);
@@ -33,11 +33,11 @@ for (const [path, register, title, message] of [
   }
   test(`${path} redacts unexpected dependency failures in its HTML error page`, async () => {
     const app = express();
-    register(app, portFake<NewsletterPublicRouteDeps>({ workspaceId: 'ws', newsletterReady: Promise.resolve(),
+    register({ app, deps: portFake<NewsletterPublicRouteDeps>({ workspaceId: 'ws', newsletterReady: Promise.resolve(),
       newsletterConfirmationTokenRepo: { findByTokenHash: async () => { throw new Error('private database path'); } },
       newsletterKeyring: { derive: async () => { throw new Error('private key path'); } },
       clock: { nowIso: () => '2026-10-28T00:00:00.000Z' },
-    }));
+    }) });
     const { res, capture } = createCapturingResponse();
     Object.assign(res, { type: () => res, send: (html: string) => { capture.jsonBody = html; return res; } });
     await extractRouteHandler(app, 'get', path)({ query: { token: `${Buffer.from('{}').toString('base64url')}.signature` } }, res);

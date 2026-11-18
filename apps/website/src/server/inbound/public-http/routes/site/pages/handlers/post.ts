@@ -136,7 +136,7 @@ export async function renderGenericPostPage({ deps, theme, post, posts, siteAssi
     // `renderTemplateBranchIfEligible`/`renderViaTemplate` above already resolves this same input for
     // the static-tier template branch. See `SiteRenderContext.assignedTerms`'s own doc for where this
     // lands (`render.ts`'s `renderPostBody`, shared by the declarative/templated/handlebars tiers).
-    resolveAssignedTermsForRender(deps, post),
+    resolveAssignedTermsForRender({ deps, post }),
   ]);
   return renderSite({
     renderAssets: deps.documentAssets,

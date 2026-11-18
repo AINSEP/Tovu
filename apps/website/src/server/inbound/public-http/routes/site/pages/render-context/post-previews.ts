@@ -75,7 +75,7 @@ export async function resolvePostPreviewsForRender({ deps, memberAccessResolver,
   const timeZone = await resolveSiteTimeZoneSafely({ workspaceId: deps.workspaceId }, siteTimeZoneDep(deps));
   const toPreview = (post: PostRecord): StaticPostPreview => {
     const dateIso = postDisplayDateIso(post);
-    return { title: post.title, href: postPublicPath({ slug: post.slug }), dateIso, dateLabel: formatPostPreviewDate({ iso: dateIso, timeZone }), featuredImage: featuredImageView({ mediaAssetMetadata, mediaTransformVersions }, post) };
+    return { title: post.title, href: postPublicPath({ slug: post.slug }), dateIso, dateLabel: formatPostPreviewDate({ iso: dateIso, timeZone }), featuredImage: featuredImageView({ ctx: { mediaAssetMetadata, mediaTransformVersions }, post }) };
   };
   const batches = new Map<number, StaticListingBatch<StaticPostPreview>>();
   for (const [key, batch] of keyed) batches.set(key, { items: batch.posts.map(toPreview), ...(batch.nextHref !== undefined ? { nextHref: batch.nextHref } : {}) });

@@ -71,7 +71,7 @@ function fakeOAuthService(completeAuthorizationCallback: ExternalMcpOAuthService
 
 function buildApp(deps: ExternalMcpOAuthCallbackRouteDeps): express.Express {
   const app = express();
-  registerExternalMcpOAuthCallbackRoute(app, deps);
+  registerExternalMcpOAuthCallbackRoute({ app, deps });
   return app;
 }
 

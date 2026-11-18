@@ -100,8 +100,9 @@ test("preview asset handler disables storage and validators while normal asset o
     },
   };
   const options: unknown[] = [];
-  registerThemeStaticAssets(app as never, {
+  registerThemeStaticAssets({ app: app as never,
     themeRoots: [root],
+  }, {
     serveStatic: Object.assign((_dir: string, opts?: Parameters<typeof express.static>[1]) => {
       options.push(opts);
       return (_req: unknown, res: express.Response) => res.send("fresh stylesheet");
@@ -146,8 +147,9 @@ test("authenticated preview CSS versions absolute local fonts, images and import
   fs.writeFileSync(path.join(root, "test", "css", "main.css"), css);
   let staticHandler: Function = () => {};
   const authenticated = new Set<string>();
-  registerThemeStaticAssets({ use: (_route: unknown, _security: unknown, handler: Function) => { staticHandler = handler; } } as never, {
-    themeRoots: [root], serveStatic: Object.assign(() => (_req: unknown, res: express.Response) => res.send(css), { mime: express.static.mime }),
+  registerThemeStaticAssets({ app: { use: (_route: unknown, _security: unknown, handler: Function) => { staticHandler = handler; } } as never,
+    themeRoots: [root],
+  }, { serveStatic: Object.assign(() => (_req: unknown, res: express.Response) => res.send(css), { mime: express.static.mime }),
     isAuthenticatedPreviewRevision: ({ revision }) => authenticated.has(revision),
   });
   const previewHandler = createThemePreviewMiddleware({

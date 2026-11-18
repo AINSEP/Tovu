@@ -110,7 +110,7 @@ export const CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE = "private, no-store";
  * `undefined` so the caller falls through to API/static/404 handling exactly as Express's own
  * routing would if this middleware weren't here. Returns the cleaned slug string otherwise.
  */
-export function resolveRequestedSlug(req: Request, next: NextFunction): string | undefined {
+export function resolveRequestedSlug({ req, next }: { req: Request; next: NextFunction }, _optional: Record<string, never> = {}): string | undefined {
   // A trailing .html is accepted and stripped so /blog.html resolves identically to /blog — a
   // static theme's own page files are still named foo.html on disk, and someone can always type
   // or bookmark the literal filename even though rewritePageLinks() only ever emits clean routes.

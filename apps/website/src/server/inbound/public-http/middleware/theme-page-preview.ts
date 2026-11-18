@@ -144,7 +144,7 @@ function resolveTemplatedPreviewTarget(
   return { theme, route };
 }
 
-export function registerThemePagePreview(app: Express, deps: RouteDeps): void {
+export function registerThemePagePreview({ app, deps }: { app: Express; deps: RouteDeps }, _optional: Record<string, never> = {}): void {
   registerStaticPagePreview(app, deps);
   registerStaticPartialPreview(app, deps);
   registerTemplatedPreview(app, deps);

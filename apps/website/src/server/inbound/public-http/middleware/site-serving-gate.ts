@@ -49,7 +49,7 @@ function isAlwaysAllowed({ path }: { path: string }, _optional = {}): boolean {
 /** Mounts the recovery gate; status-store failures go to Express's error handler via `next`.
  * @complexity O(1) per request, with at most one status-store read.
  */
-export function applySiteServingGate(app: Express, deps: { siteStatusRepo: SiteStatusPort; workspaceId: string }): void {
+export function applySiteServingGate({ app, deps }: { app: Express; deps: { siteStatusRepo: SiteStatusPort; workspaceId: string } }, _optional: Record<string, never> = {}): void {
   app.use(async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (isAlwaysAllowed({ path: req.path })) {

@@ -97,7 +97,7 @@ function safeErrorLabel({ error }: { error: unknown }, _optional = {}): string {
  * Mounts `GET {API_CONNECTION_OAUTH_CALLBACK_PATH}`.
  * @complexity O(1) per request plus one bounded token exchange and one contribution load.
  */
-export function registerApiConnectionOAuthCallbackRoute(app: Express, deps: ApiConnectionOAuthCallbackRouteDeps): void {
+export function registerApiConnectionOAuthCallbackRoute({ app, deps }: { app: Express; deps: ApiConnectionOAuthCallbackRouteDeps }, _optional: Record<string, never> = {}): void {
   const log = deps.log ?? ((line: string) => { consoleLogger.error({ message: line }); });
   app.get(API_CONNECTION_OAUTH_CALLBACK_PATH, asyncRoute({ handler: async (req, res) => {
     // First: the route is anonymous and each hit can cost an outbound token exchange.

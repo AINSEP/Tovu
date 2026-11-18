@@ -40,7 +40,7 @@ const reasonOf = (html: string): string | undefined => /"reason":"([a-z_]+)"/.ex
 /** The route on its own 127.0.0.1 site, for a limiter or log the shared harness site does not use. */
 async function ownSite(host: ApiConnectionHost, deps: { readonly callbackLimiter?: RateLimiter; readonly log?: (line: string) => void } = {}): Promise<string> {
   const app = express();
-  registerApiConnectionOAuthCallbackRoute(app, { host, callbackLimiter: deps.callbackLimiter ?? allowAll, ...(deps.log ? { log: deps.log } : {}) });
+  registerApiConnectionOAuthCallbackRoute({ app, deps: { host, callbackLimiter: deps.callbackLimiter ?? allowAll, ...(deps.log ? { log: deps.log } : {}) } });
   const server = createServer(app);
   servers.push(server);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));

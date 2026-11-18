@@ -20,7 +20,7 @@ import type { MountInput } from "./module-handles.js";
 export function registerCommentsSubmit({ app, routeDeps }: MountInput, _optional = {}): void {
   // Public comment submission (ADR-031 §4) — unauthenticated by design; must precede the site
   // `/:slug` catch-all, same reasoning as the store/analytics routes above.
-  registerCommentsSubmitRoute(app, {
+  registerCommentsSubmitRoute({ app, deps: {
     visitorAnalyticsProof: routeDeps.visitorAnalyticsProof,
     visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
     visitorTracker: routeDeps.visitorTracker,
@@ -36,7 +36,7 @@ export function registerCommentsSubmit({ app, routeDeps }: MountInput, _optional
     ipHashSalt: resolveCommentsIpHashSalt({
       env: process.env, mode: resolveRuntimeMode(), workspaceId: routeDeps.workspaceId, keyring: routeDeps.siteAssistantSecretKeyring,
     }).then(({ salt }) => salt),
-  });
+  } });
 }
 
 /** Public analytics beacon (ADR-035 §5). */
@@ -45,7 +45,7 @@ export function registerAnalyticsIngest({ app, routeDeps }: MountInput, _optiona
   // `/:slug` catch-all. `config` is now the real ADR-028-backed adapter
   // (`analytics/config.settings.ts`'s `createSettingsAnalyticsConfig`), replacing the former
   // hardcoded dev-only stub.
-  registerAnalyticsIngestRoute(app, {
+  registerAnalyticsIngestRoute({ app, deps: {
     browserAnalytics: routeDeps.browserAnalytics,
     visitorAnalyticsProof: routeDeps.visitorAnalyticsProof,
     visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
@@ -59,7 +59,7 @@ export function registerAnalyticsIngest({ app, routeDeps }: MountInput, _optiona
     resolveWorkspaceForHost: async () => routeDeps.workspaceId, // single-workspace v1
     analyticsSeed: process.env.ANALYTICS_ROOT_KEY_SEED ?? "dev-only-insecure-seed",
     ...analyticsProviderRouteDeps(routeDeps),
-  });
+  } });
 }
 
 /** Public form submission, with its file storage and free-space probe built here, once per app. */
@@ -70,7 +70,7 @@ export function registerFormsSubmit({ app, routeDeps }: MountInput, _optional = 
 
   // Public, unauthenticated form submission endpoint (SPEC-010 REQ-05, FORMS_POST_SUBMIT) — must
   // precede the site `/:slug` catch-all, same reasoning as the routes immediately above.
-  registerFormsSubmitRoute(app, {
+  registerFormsSubmitRoute({ app, deps: {
     visitorAnalyticsProof: routeDeps.visitorAnalyticsProof,
     visitorAnalyticsDeliveryAllowed: routeDeps.visitorAnalyticsDeliveryAllowed,
     visitorTracker: routeDeps.visitorTracker,
@@ -109,5 +109,5 @@ export function registerFormsSubmit({ app, routeDeps }: MountInput, _optional = 
         },
       }, {}),
     },
-  });
+  } });
 }

@@ -153,7 +153,7 @@ async function handshakeServer({ grants }: { grants: readonly PublishTrustGrant[
   const { keyring } = createFixedKeyring({ siteKeyHex: "9".repeat(64) });
   const app = express();
   app.use(express.json());
-  registerPublishTrustHandshakeRoutes(app, {
+  registerPublishTrustHandshakeRoutes({ app, deps: {
     keyring,
     workspaceId: WORKSPACE,
     clock: { nowIso: () => NOW },
@@ -161,7 +161,7 @@ async function handshakeServer({ grants }: { grants: readonly PublishTrustGrant[
     challengeStore: store,
     targetInstallationId: Promise.resolve(DESTINATION_INSTALL),
     grants: async () => resolutionOf(grants),
-  });
+  } });
   const server = createServer(app);
   server.listen(0);
   await once(server, "listening");

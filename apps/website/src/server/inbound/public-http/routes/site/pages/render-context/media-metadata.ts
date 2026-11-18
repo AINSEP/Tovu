@@ -184,13 +184,12 @@ export async function resolveMediaAssetMetadataForRender({ deps, post }: { deps:
  * @complexity O(n + a) body traversal plus distinct media refs, one MIME batch and transform read.
  */
 export async function resolveFeaturedImageForRender(
-  deps: Pick<RenderContextResolutionDeps, "workspaceId" | "mediaRepo" | "mediaContentTypeStore" | "transformDefinitionRepo">,
-  post: PostRecord
+  { deps, post }: { deps: Pick<RenderContextResolutionDeps, "workspaceId" | "mediaRepo" | "mediaContentTypeStore" | "transformDefinitionRepo">; post: PostRecord }, _optional: Record<string, never> = {}
 ): Promise<StaticFeaturedImage | null> {
   if (collectCoverMediaRefs({ post }).length === 0) return null;
   const [mediaAssetMetadata, mediaTransformVersions] = await Promise.all([
     resolveMediaAssetMetadataForRender({ deps, post: undefined }, { listed: [post] }),
     resolveMediaTransformVersionsForRender(deps),
   ]);
-  return featuredImageView({ mediaAssetMetadata, mediaTransformVersions }, post);
+  return featuredImageView({ ctx: { mediaAssetMetadata, mediaTransformVersions }, post });
 }
