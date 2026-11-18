@@ -58,7 +58,7 @@ Classification of one edge (`classify-edges.mjs`, columns `dir`, `door`, `rules`
 | LEGITIMATE | rank(src) > rank(tgt), and dependency-cruiser reports no `no-deep-imports` or `feature-rank` violation on this dependency | Under a strict rank order, a downward edge can never close a cycle. The door rule accepts it. The ratchet flags it only because its path is new. |
 | LEGITIMATE-RANK | non-downward under today's table, but the table is stale: the target never reaches the source, and moving one rank keeps every other edge into and out of that feature downward | The rank rule itself says lowering or correcting a rank is "a one-line change this rule itself verifies". |
 | TANGLE value-up | value import to the same or a higher rank | It breaks the rank rule. 7 of 7 close a runtime feature cycle (`rev2/facts`: runtime feature SCC `{form-destinations, deployments, site-backup, source-control, custom-credentials}`). |
-| TANGLE type-up | type import to the same or a higher rank | 17 of 19 close a type-inclusive feature cycle (the 26-feature type SCC). The owner rule "no tangles" covers type cycles. The ratchet's own doc includes erased edges on purpose. |
+| TANGLE type-up | type import to the same or a higher rank | 18 of 19 close a type-inclusive feature cycle (the 26-feature type SCC). The owner rule "no tangles" covers type cycles. The ratchet's own doc includes erased edges on purpose. |
 | TANGLE deep | downward, but `no-deep-imports:features/media:error` fires | It bypasses the module's door. All 5 are among `check:boundaries`' 15 errors. |
 
 ## 3. The LEGITIMATE edges and the narrow rule change (sheet R1)
