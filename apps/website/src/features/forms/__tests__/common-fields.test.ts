@@ -5,7 +5,7 @@ import { createFormFileStorage } from "../form-file-storage.js";
 import { InMemoryVersionedMediaRepo, InMemoryAssetBlobRepo, InMemoryAssetRenditionRepo, InMemoryBlobStore, InMemoryMediaContentTypeStore, MediaStillReferencedError } from "../../media/index.js";
 import { InMemoryEntryRefsRepo } from "../../../contracts/core/entry-refs/repo.memory.js";
 import { InMemoryPostRepo } from "../../post/repo.memory.js";
-import { formsAgentToolCatalog } from "../agent-tools.js";
+import { formsAgentToolCatalog } from "@jini-ai/cms/forms";
 import { renderWidgetIr } from "../../../server/inbound/public-http/http/site/render/content-html.js";
 import { injectFormSubmissionResultIntoHtml } from "../../../server/inbound/public-http/http/site/form-render.js";
 

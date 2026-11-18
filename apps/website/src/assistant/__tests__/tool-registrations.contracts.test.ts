@@ -85,7 +85,7 @@ import { webAgentToolCatalog } from "../../features/web/agent-tools.js";
 import { webScreenshotAgentToolCatalog } from "../../features/web-screenshot/agent-tools.js";
 import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools.js";
 import { getWorkspaceAgentToolCatalog } from "../../features/workspace/index.js";
-import { formsAgentToolCatalog } from "../../features/forms/agent-tools.js";
+import { formsAgentToolCatalog } from "@jini-ai/cms/forms";
 import { identityAgentToolCatalog } from "@jini-ai/user-management/server";
 import { USER_CREATE_DESCRIPTION_SUFFIX, withoutPassword } from "../../features/identity/tool-registrations.js";
 import { getWebhooksAgentToolCatalog } from "@jini-ai/integrations/webhooks/tools";

@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formsAgentToolCatalog } from "../agent-tools.js";
 
 test("forms_create_definition explains rich-text widget insertion and the HTML form marker alternative", () => {
   const tool = formsAgentToolCatalog.find(({ name }) => name === "forms_create_definition");
@@ -13,7 +12,7 @@ import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
 import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
 import { executeCommand, InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { createFormCollectionRegistry, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormAuthoring } from "@jini-ai/cms/forms";
+import { createFormCollectionRegistry, formsAgentToolCatalog, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FormAuthoring } from "@jini-ai/cms/forms";
 import { buildFormsRegistrations, type FormsToolDeps } from "../tool-registrations.js";
 
 function providerFixture({ allow = true }: { allow?: boolean } = {}) {
