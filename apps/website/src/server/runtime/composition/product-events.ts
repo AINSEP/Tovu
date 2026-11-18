@@ -1,5 +1,5 @@
 /** Tovu-app usage projection. Site events keep their original payload on the independent branch. */
-import type { ProductEvent, ProductEventProperties } from '@jini-ai/analytics/product';
+import type { ProductEvent, ProductEventProperties } from '@jini-ai/core/contracts/observability';
 import { TOOL_ATTEMPT_PHASES } from '@jini-ai/daemon/tool-audit';
 
 const source = Object.freeze(['admin', 'assistant', 'service']);

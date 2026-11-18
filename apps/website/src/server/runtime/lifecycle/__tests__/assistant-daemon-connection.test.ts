@@ -8,7 +8,7 @@ import { activateAssistantDaemon, prepareAssistantPageBinding } from "../../../.
 import { ensureToolExecToken } from "#src/assistant/daemon-access";
 import { publishDaemonPluginEvent } from "../../composition/modules/assistant-tool-exec.js";
 import { createHttpRunDaemonClient } from "../../composition/modules/run-daemon-http-client.js";
-import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
+import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { assistantDaemonToken, delegatedAssistantDaemonConnection, previousAssistantDaemonConnection, setAssistantDaemonConnection } from "../assistant-daemon-connection.js";
 import { ensureAssistantDaemonReady, isAssistantDaemonReady, resetAssistantDaemonSingletonForTests, registerSiteIdleStopHook, shutdownAssistantDaemon, startAssistantDaemon } from "../daemon-supervisor.js";
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "../readiness-state.js";

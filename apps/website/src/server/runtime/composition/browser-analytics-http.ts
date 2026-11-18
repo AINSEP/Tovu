@@ -50,7 +50,7 @@ async function collectionAllowed({ request, deps, surface }: {
 
 /** Forward only the bounded bytes and media type; browser cookies remain inside the host. O(body). */
 async function deliver({ request, response, http, fullPath }: {
-  request: Request; response: Response; http: NonNullable<import('@jini-ai/analytics/product').BrowserAnalyticsContribution['http']>; fullPath: string;
+  request: Request; response: Response; http: NonNullable<import('@jini-ai/core/contracts/observability').BrowserAnalyticsContribution['http']>; fullPath: string;
 }, _options = {}): Promise<void> {
   const result = await http.handle({ method: request.method, path: fullPath.slice(http.path.length),
     body: Buffer.isBuffer(request.body) ? request.body : new Uint8Array(), contentType: request.get('content-type') ?? 'application/octet-stream' });

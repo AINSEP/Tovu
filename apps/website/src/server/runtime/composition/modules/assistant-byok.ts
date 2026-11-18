@@ -88,7 +88,7 @@ import { readPickedFolders, readRunPageContext, withPageContextBlock } from "#sr
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 import { createTestOriginHttpClientFactory } from "#src/platform/http/test-origin-allowlist";
-import type { AgentRunStatus } from "@jini-ai/diagnostics/observability";
+import type { AgentRunStatus } from "@jini-ai/core/contracts/observability";
 import { redactedError } from "@jini-ai/diagnostics/observability/node";
 import { registerInstalledExtensionTools } from "../installed-extension-tools.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";

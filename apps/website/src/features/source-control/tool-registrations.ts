@@ -39,7 +39,7 @@ import { sourceControlSavedApiKeyLabels, type RepositoryTargetValidator } from "
 import { proposeSourceControlCredential } from "./credential-setup.js";
 import { findDefaultSourceControlCredential, listSourceControlCredentials } from "./store.js";
 import type { SourceControlCredentialSetRepoPort } from "./types.js";
-import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 
 /**
  * @file This domain's agent-tool catalog + wiring — mirrors `features/deployments/

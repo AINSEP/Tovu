@@ -5,8 +5,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { createNoopObservabilityPort, isNoopObservabilityPort, type ErrorReport, type MetricInput, type MetricOptions } from '@jini-ai/diagnostics/observability';
-import { isNoopProductAnalytics, type ProductEvent } from '@jini-ai/analytics/product';
+import { isNoopProductAnalytics } from '@jini-ai/analytics/product';
+import { type ProductEvent, createNoopObservabilityPort, isNoopObservabilityPort, type ErrorReport, type MetricInput, type MetricOptions } from '@jini-ai/core/contracts/observability';
 import { bootProductTelemetry, bootProductTelemetryFromEnv, createProductConsentReader, loadProductProviders, type ProductConsent, type ProductProviderInput, type ProductTelemetry } from '../product-telemetry.js';
 import { PRODUCT_EVENTS, projectProductEvent } from '../product-events.js';
 

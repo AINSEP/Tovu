@@ -2,7 +2,7 @@ import { resolveActiveThemeId } from "#src/features/presentation/active-theme-id
 import type { PresentationSettingsRepoPort } from "@jini-ai/cms/presentation";
 import type { RequestListener } from "node:http";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
-import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import type { SettingsRepoPort, getEffective } from "@jini-ai/core/settings";
 
 import type { LiveOriginSourceDeps } from "./live-url.js";

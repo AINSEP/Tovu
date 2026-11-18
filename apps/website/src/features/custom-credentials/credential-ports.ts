@@ -11,7 +11,7 @@ import type {
   SourceControlWritePort,
 } from "@jini-ai/core/contracts/credentials";
 import { EgressRefusedError, type HttpClientPort } from "../../platform/http/index.js";
-import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { buildSourceControlProviderForApi, type LoadSourceControlProviders } from "../source-control/provider-registry.js";
 import {
   CredentialedRequestTransportError,

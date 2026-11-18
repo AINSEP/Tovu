@@ -3,7 +3,11 @@ import { createServer, type RequestListener, type Server } from "node:http";
 import { once } from "node:events";
 import type { AddressInfo } from "node:net";
 
-import { createNoopObservabilityPort, trackFetch, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import { trackFetch } from "@jini-ai/diagnostics/observability";
+import {
+  createNoopObservabilityPort,
+  type ObservabilityPort,
+} from "@jini-ai/core/contracts/observability";
 import { hasControlCharacter } from "@jini-ai/core/contracts/server/verified-origin";
 import { checkSitePathname } from "#src/platform/routing/index";
 import type { SitePathCheck } from "#src/platform/routing/index";

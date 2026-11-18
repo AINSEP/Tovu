@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import express from 'express';
 import { createTracker } from '@jini-ai/diagnostics/observability/node';
-import type { ProductEvent } from '@jini-ai/analytics/product';
+import type { ProductEvent } from '@jini-ai/core/contracts/observability';
 import { createCapturingResponse, extractRouteHandler } from '#src/server/__tests__/helpers/http-test-server';
 import type { SiteSearchRuntime } from '#src/server/runtime/composition/modules/site-search';
 import { parseSearchRequest, registerSiteSearchRoute } from '../../search.js';

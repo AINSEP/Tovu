@@ -3,7 +3,11 @@ import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import test from "node:test";
 
-import { createNoopObservabilityPort, type ErrorReport, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import {
+  createNoopObservabilityPort,
+  type ErrorReport,
+  type ObservabilityPort,
+} from "@jini-ai/core/contracts/observability";
 
 import { installProcessErrorReporting } from "../process-error-guards.js";
 

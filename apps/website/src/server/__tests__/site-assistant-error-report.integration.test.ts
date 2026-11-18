@@ -4,7 +4,11 @@ import test, { type TestContext } from "node:test";
 
 import express from "express";
 import { set as setLegacySetting } from "@jini-ai/core/settings";
-import { createNoopObservabilityPort, type ErrorReport, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import {
+  createNoopObservabilityPort,
+  type ErrorReport,
+  type ObservabilityPort,
+} from "@jini-ai/core/contracts/observability";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
 
 import { setPublicAssistantSettings } from "#src/assistant/index";

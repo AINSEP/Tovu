@@ -7,8 +7,8 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import express from "express";
-import { createNoopObservabilityPort, type ErrorReport, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
-import { createAiGenerationSink, withProductAnalyticsGuards, type ProductAiGeneration } from "@jini-ai/analytics/product";
+import { createAiGenerationSink, withProductAnalyticsGuards } from "@jini-ai/analytics/product";
+import { type ProductAiGeneration, createNoopObservabilityPort, type ErrorReport, type ObservabilityPort } from "@jini-ai/core/contracts/observability";
 
 import { createRouteDeps } from "../../app.js";
 import { createByokToolSurface } from "#src/assistant/index";

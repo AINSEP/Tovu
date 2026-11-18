@@ -7,7 +7,11 @@ import express from "express";
 import { applyRequestTracking } from "../observability-middleware.js";
 import { REQUEST_ID_HEADER, resolveRequestId } from "../request-id.js";
 import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
-import { createNoopObservabilityPort, type ObservabilityPort, type RequestTrackingOptions } from "@jini-ai/diagnostics/observability";
+import {
+  createNoopObservabilityPort,
+  type ObservabilityPort,
+  type RequestTrackingOptions,
+} from "@jini-ai/core/contracts/observability";
 
 /**
  * @file Request IDs (Reliability: structured logging + request IDs): every response carries an

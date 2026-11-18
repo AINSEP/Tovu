@@ -1,5 +1,5 @@
 import { paymentsProviderContract } from "@jini-ai/commerce/payments/kernel";
-import type { ProductAnalyticsPort } from "@jini-ai/analytics/product";
+import type { ProductAnalyticsPort } from "@jini-ai/core/contracts/observability";
 import type { PluginProviderContract } from "@jini-ai/plugins/host";
 
 const hasMethods = ({ value, names }: { value: unknown; names: readonly string[] }): boolean =>

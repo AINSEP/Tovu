@@ -9,7 +9,7 @@ import type { AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { LIVE_PAGE_EGRESS_POLICY, WEB_FETCH_EGRESS_POLICY, WEB_SCREENSHOT_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import type { createDefaultHttpClient } from "#src/platform/http/client";
-import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
+import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { DOMAIN_DNS_EGRESS_POLICY } from "../domain-dns-adapters.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";

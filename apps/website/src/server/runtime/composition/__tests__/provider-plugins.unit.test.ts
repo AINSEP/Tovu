@@ -7,8 +7,13 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from "node:test";
 
-import { createNoopObservabilityPort, createNoopTracker, isNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
-import type { ProductAnalyticsPort, ProductEvent } from "@jini-ai/analytics/product";
+import { createNoopTracker } from "@jini-ai/diagnostics/observability";
+import {
+  createNoopObservabilityPort,
+  isNoopObservabilityPort,
+  type ObservabilityPort,
+} from "@jini-ai/core/contracts/observability";
+import type { ProductAnalyticsPort, ProductEvent } from "@jini-ai/core/contracts/observability";
 import type { ProductConsent, ProductProviderInput, ProductTelemetry } from '../product-telemetry.js';
 import { createAiTraceRecorder } from "@jini-ai/core/contracts/ai-trace";
 import { createPluginContributionRegistry } from "@jini-ai/plugins/host";
@@ -621,10 +626,10 @@ test("AI generation recording follows live attachment and content-policy rotatio
 
 test('visitor events follow visitor proof and revocation even when owner admin telemetry is off', async () => {
   const { captureVisitorEvent } = await import('#src/server/inbound/public-http/visitor-analytics');
-  const events: import('@jini-ai/analytics/product').ProductEvent[] = [];
+  const events: import('@jini-ai/core/contracts/observability').ProductEvent[] = [];
   const { runtime } = fakeRuntime({ installed: ['analytics-posthog'], factories: {
     'analytics-posthog': { contract: 'product_analytics', id: 'posthog', factory: fakeFactory({ calls: { inputs: [], disposed: 0 },
-      port: { capture: (event: import('@jini-ai/analytics/product').ProductEvent) => { events.push(event); }, identify() {} } }) },
+      port: { capture: (event: import('@jini-ai/core/contracts/observability').ProductEvent) => { events.push(event); }, identify() {} } }) },
   } });
   const providers = await bootProviderPlugins({ runtime, config: configOf(CONFIGS), serviceName: 'tovu', site: SITE,
     consent: () => false, consentRevision: () => 0 }, { warn: quiet });
@@ -662,7 +667,7 @@ test('enabled reflects configured current observability leases rather than inert
 
 test('a later contract failure records failure for all rolled-back slots and never publishes stale success', async () => {
   const contributions = createPluginContributionRegistry({});
-  const events: import('@jini-ai/analytics/product').ProductEvent[] = [];
+  const events: import('@jini-ai/core/contracts/observability').ProductEvent[] = [];
   const settings = [{ name: 'apiKey', label: 'Key', required: true }];
   const analytics = { contract: 'product_analytics', id: 'analytics', contractVersion: 1 as const, settings };
   const first = { contract: 'observability', id: 'first', contractVersion: 1 as const, settings };
@@ -673,7 +678,7 @@ test('a later contract failure records failure for all rolled-back slots and nev
     listProviderPlugins: async () => [{ pluginId: 'healthy', providers: [analytics] }, { pluginId: 'mixed', providers: [first, second] }],
     loadProviderPlugins: async ({ pluginIds }: { pluginIds: readonly string[] }) => {
       for (const pluginId of pluginIds) contributions.replace({ contributions: { pluginId, sdk: {} as never, routes: [], tools: [], widgets: [], providers: pluginId === 'healthy'
-        ? [{ ...analytics, factory: () => ({ port: { capture: (event: import('@jini-ai/analytics/product').ProductEvent) => { events.push(event); }, identify() {} }, dispose() {} }) }]
+        ? [{ ...analytics, factory: () => ({ port: { capture: (event: import('@jini-ai/core/contracts/observability').ProductEvent) => { events.push(event); }, identify() {} }, dispose() {} }) }]
         : [{ ...first, factory: () => ({ port: recordingObservability([]), dispose() { disposed++; } }) },
           { ...second, factory: () => { throw new Error('refused'); } }] } });
       return pluginIds;

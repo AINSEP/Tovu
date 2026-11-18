@@ -5,7 +5,7 @@ import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { InMemoryDeliveryEnvelopeStore, InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/index";
 import { RecordingHttpClient } from "#src/features/webhooks/http.memory";
 import { createFixedSecretSigner } from "#src/features/webhooks/signing";
-import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
+import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { createIntegrationsModule, webhookEnvelopeStoreFor } from "../modules/integrations.js";
 import {
   describeWebhookTickError,

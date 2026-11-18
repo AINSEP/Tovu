@@ -11,7 +11,7 @@ import { readFormDestinationSetting } from "#src/features/settings/form-destinat
 import { readFormsAutoPull } from "#src/features/settings/index";
 import type { SettingsRepoPort } from "@jini-ai/core/settings";
 import { buildFormDestinationManifest, importRemoteFormSubmissions, type FormDestinationPullReport, type FormImportCounts, type FormPullCounts, type FormSubmissionReceiptPort, type FormSubmissionsPullPort, type FormSubmissionsPullResult, type FormsAutoPullPort, type RemoteImportResult, type RemoteSubmissionInput } from "#src/features/forms/index";
-import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 
 /**
  * @file Composes the site's form destination once: the publish-side port (active forms, the receiver

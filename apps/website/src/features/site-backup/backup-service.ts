@@ -11,7 +11,7 @@ import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 import type { HttpClientPort } from "../../platform/http/index.js";
-import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { runtimeSchemaVersion } from "../../platform/site-dir/index.js";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import {

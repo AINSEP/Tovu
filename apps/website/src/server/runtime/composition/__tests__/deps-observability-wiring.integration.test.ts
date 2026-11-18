@@ -6,7 +6,12 @@ import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
 
-import { createNoopObservabilityPort, instrumentStorageKernel, isNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import { instrumentStorageKernel } from "@jini-ai/diagnostics/observability";
+import {
+  createNoopObservabilityPort,
+  isNoopObservabilityPort,
+  type ObservabilityPort,
+} from "@jini-ai/core/contracts/observability";
 import { createSiteRouteDeps, type CreateSiteRouteDepsOverrides } from "#src/server/runtime/composition/deps";
 
 /**

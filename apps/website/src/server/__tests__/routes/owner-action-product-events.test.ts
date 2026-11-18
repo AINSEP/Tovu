@@ -8,7 +8,7 @@ import test from "node:test";
 
 import express from "express";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
-import type { ProductAnalyticsPort, ProductEvent } from "@jini-ai/analytics/product";
+import type { ProductAnalyticsPort, ProductEvent } from "@jini-ai/core/contracts/observability";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { registerContentAnalytics } from "../../runtime/composition/content-events.js";

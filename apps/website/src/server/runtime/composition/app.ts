@@ -47,7 +47,7 @@ import { executeCommand } from "@jini-ai/cms/core";
 import express from "express";
 import { NO_PUBLISH_CONTENT_SEED_HASH, type PublishContentSeedHashFn } from "#src/features/publish-content/seed-hash";
 import { randomUUID } from "node:crypto";
-import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
+import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
 import { COMMENT_ENTITY_TYPE, unhideIfRemoveThrows, MEDIA_ENTITY_TYPE, THEME_ENTITY_TYPE, POST_ENTITY_TYPE, REDIRECT_ENTITY_TYPE, removeEntityWithoutBlocker, type TrashKindMover } from "#src/features/trash/index";
 import { bindRemoveEntity, bindForgetRemovedEntity, createTrashSweep } from "@jini-ai/cms/trash";

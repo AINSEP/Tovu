@@ -5,8 +5,14 @@ import { createTracker, createTrackerWarning, createTelemetryTestProbe } from "@
 import type { ConsentPluginContribution } from '#src/contracts/headless/index';
 import { createHash } from 'node:crypto';
 import { createTelemetryDeliveryMonitor, describeTelemetryFailure, type Tracker, type ProviderTelemetryReport, type TelemetryTestResult } from "@jini-ai/diagnostics/observability";
-import { combineObservabilityPorts, createNoopObservabilityPort, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
-import { createAiGenerationSink, createNoopProductAnalytics, fanOutProductAnalytics, withProductAnalyticsGuards, type ProductAnalyticsConsent, type ProductAnalyticsConsentRevision, type ProductAnalyticsPort, type BrowserAnalyticsContribution } from "@jini-ai/analytics/product";
+import { combineObservabilityPorts } from "@jini-ai/diagnostics/observability";
+import { createAiGenerationSink, createNoopProductAnalytics, fanOutProductAnalytics, withProductAnalyticsGuards, type ProductAnalyticsConsent, type ProductAnalyticsConsentRevision } from "@jini-ai/analytics/product";
+import {
+  type ProductAnalyticsPort,
+  type BrowserAnalyticsContribution,
+  createNoopObservabilityPort,
+  type ObservabilityPort,
+} from "@jini-ai/core/contracts/observability";
 import { createFanOutAiTraceSink, type AiTraceSink } from "@jini-ai/core/contracts/ai-trace";
 import { createPluginProviderHost, isProviderSettingRequired, type PluginContributionRegistry, type PluginProviderLease } from "@jini-ai/plugins/host";
 import {
@@ -360,7 +366,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   const queues = new Map<string, Promise<import("@jini-ai/plugins/host").PluginProviderApplyResult>>();
   const applied = new Map<string, "now" | "restart" | "failed">();
   let tracker: Tracker | undefined;
-  const initializations: import('@jini-ai/analytics/product').ProductEvent[] = [];
+  const initializations: import('@jini-ai/core/contracts/observability').ProductEvent[] = [];
   function initialization({ slot, outcome, reasonClass }: { slot: ProviderSlot; outcome: 'success' | 'failure' | 'noop'; reasonClass: 'ready' | 'not_configured' | 'initialization_failed' }): void {
     slot.initializationObserved = true;
     const event = { name: 'provider_initialized', userId: `site:${required.site.siteId}`,

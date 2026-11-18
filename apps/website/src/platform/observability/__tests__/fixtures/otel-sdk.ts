@@ -26,9 +26,9 @@ import {
   redactLabel,
   redactOperationAttributes,
   type ObservabilityConfigEnabled,
-  type ObservabilityPort,
   type TraceSpanPort,
 } from "@jini-ai/diagnostics/observability";
+import { type ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import {
   createOtelObservabilityPort as createDiagnosticOtelPort,
   type TraceSpanKind,

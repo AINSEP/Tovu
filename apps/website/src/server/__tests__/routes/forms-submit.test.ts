@@ -15,7 +15,7 @@ import { injectFormAttemptTokens } from "../../inbound/public-http/http/site/for
 import type { VisitorAnalyticsDeps } from "../../inbound/public-http/visitor-analytics.js";
 import type { HtmlFormDefinitionRecord as FormDefinitionRecord, FieldDescriptor, FormDefinitionRepoPort } from "@jini-ai/cms/forms";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
-import type { ProductAnalyticsPort, ProductEvent } from "@jini-ai/analytics/product";
+import type { ProductAnalyticsPort, ProductEvent } from "@jini-ai/core/contracts/observability";
 import { createFormsModule } from "../../runtime/composition/modules/forms.js";
 import { processOutbox } from "#src/contracts/core/events/index";
 import { registerFormsSubmitRoute } from "../../inbound/public-http/routes/site/forms-submit.js";

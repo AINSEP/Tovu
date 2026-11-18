@@ -35,7 +35,7 @@ import type { ServerModuleHandle } from "./types.js";
 import { type AssistantRunFinalizer } from "./run-finalizer/entry.js";
 import { assistantRunFinalizerFor } from "./run-finalizer/shared.js";
 import { createHttpRunDaemonClient } from "./run-daemon-http-client.js";
-import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
+import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 
 /** Preserve a standalone resource name (including skill slugs) verbatim. Prose still follows
  * the shared heuristic; injected guidance never enters the stored user message. */

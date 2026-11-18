@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 
-import { createNoopObservabilityPort } from "@jini-ai/diagnostics/observability";
+import { createNoopObservabilityPort } from "@jini-ai/core/contracts/observability";
 import type { ChatRunLedger } from "#src/assistant/index";
 import { createAssistantRunFinalizer, type AssistantRunFinalizer } from "../runtime/composition/modules/run-finalizer/entry.js";
 import { assistantRunFinalizerFor } from "../runtime/composition/modules/run-finalizer/shared.js";

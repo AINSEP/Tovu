@@ -1,5 +1,6 @@
 import type { DurableRun } from "@jini-ai/chat/server/durable-runs";
-import { trackFetch, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import { trackFetch } from "@jini-ai/diagnostics/observability";
+import { type ObservabilityPort } from "@jini-ai/core/contracts/observability";
 
 import { RUN_PRINCIPAL_HEADER } from "#src/assistant/index";
 
