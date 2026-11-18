@@ -134,7 +134,7 @@ async function seedFixture(deps: RegistryDepsWithoutLimiter): Promise<{ widgetIn
   const entryRepo = (deps as unknown as { entryRepo: InMemoryEntryRepo }).entryRepo;
   const { registerContentType } = await import("../../features/content-types/write-service.js");
   const { createEntry } = await import("../../features/entries/index.js");
-  const { NoopContentTypeIndexProvisioner } = await import("../../features/content-types/repo.memory.js");
+  const { NoopContentTypeIndexProvisioner } = await import("@jini-ai/cms/content-types");
   const { PRE_AUTHORIZED } = await import("@jini-ai/cms/widgets");
   await registerContentType({
     deps: { repo: contentTypeRepo, clock: createFakeClock({ startIso: NOW }), ids: { newId: () => "ct-seed" }, authorize: PRE_AUTHORIZED, indexProvisioner: new NoopContentTypeIndexProvisioner(), outbox: { enqueue: async () => undefined } },

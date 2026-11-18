@@ -1,0 +1,4 @@
+1c1
+<   regressed: propagation cost (runtime-only)     3.06 → 3.20  (+0.14 pts, +4.58%)
+---
+>   regressed: propagation cost (runtime-only)     3.06 → 3.21  (+0.15 pts, +4.9%)
