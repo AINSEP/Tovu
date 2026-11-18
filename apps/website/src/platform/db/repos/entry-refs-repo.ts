@@ -11,7 +11,7 @@ type EntryRefTargetKind = EntryRefRow["targetKind"];
 
 /**
  * @file THE durable `EntryRefsRepoPort` adapter (ADR-006 rule-of-two "second adapter" half —
- * `core/entry-refs/repo.memory.ts`'s `InMemoryEntryRefsRepo` is the first): one Kysely query body
+ * `InMemoryEntryRefsRepo` from `@jini-ai/cms/widgets` is the first): one Kysely query body
  * for every dialect the storage kernel drives. `sqlite/entry-refs-repo.sqlite.ts` keeps the
  * `SqliteEntryRefsRepo` name as a thin subclass the composition root builds from the content db.
  *

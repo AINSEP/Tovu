@@ -5,7 +5,7 @@ import express from "express";
 import type { RouteDeps } from "#src/server/routes/types";
 import { InMemoryEntryRepo } from "#src/features/entries/index";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
-import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
+import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryWidgetRegionBindingRepo, WIDGET_AREA_CONTENT_TYPE } from "@jini-ai/cms/widgets";
 import { createCapturingResponse, extractRouteHandler } from "#src/server/__tests__/helpers/http-test-server";

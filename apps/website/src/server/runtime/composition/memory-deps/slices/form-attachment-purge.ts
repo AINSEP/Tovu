@@ -1,7 +1,7 @@
 import { createFormAttachmentPurgeHooks } from "@jini-ai/cms/forms";
 import type { InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { withFollowUps, type TrashAdapter } from "@jini-ai/cms/trash";
-import type { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
+import type { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { createFormMediaCleanup } from "#src/features/forms/form-file-purge";
 import { createFormFileStorage } from "../../../../../features/forms/form-file-storage.js";
 import { DEFAULT_GC_GRACE_MS, type InMemoryVersionedMediaRepo } from "#src/features/media/index";

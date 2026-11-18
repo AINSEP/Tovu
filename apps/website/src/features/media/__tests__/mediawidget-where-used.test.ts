@@ -5,7 +5,7 @@ import type { Clock } from '@jini-ai/core/primitives';
 import { InMemoryVersionedMediaRepo } from '../versioned-media-repo.js';
 import { findMediaWhereUsed } from '#src/features/media/where-used';
 import { extractEntryRefs } from '#src/contracts/core/entry-refs/extractor';
-import { InMemoryEntryRefsRepo } from '#src/contracts/core/entry-refs/repo.memory';
+import { InMemoryEntryRefsRepo } from '@jini-ai/cms/widgets';
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createPost, InMemoryPostRepo } from '#src/features/post/index';
 import { assertAdminResponse } from '#src/server/inbound/admin-http/http/__tests__/assert-admin-response';

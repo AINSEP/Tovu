@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import express from "express";
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
-import { InMemoryEntryRefsRepo } from "../../contracts/core/entry-refs/repo.memory.js";
+import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { registerAdminThemesListRoute } from "../inbound/admin-http/routes/themes/list.js";
 import { registerAdminWidgetListRoute } from "../inbound/admin-http/routes/widgets/list.js";
 import { registerAdminWidgetGetRoute } from "../inbound/admin-http/routes/widgets/get-by-id.js";

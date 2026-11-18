@@ -9,7 +9,7 @@ import type { PostsTable } from "#src/platform/db/content-database.generated";
 import { type ContentKernel, describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { postRepoFor } from "#src/features/post/repo";
 import { buildPagesRegistrations } from "../tool-registrations.js";
-import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
+import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { PageConcurrentEditError, PageKindMismatchError, PageNotFoundError, SqlPagesHtmlDocumentStore } from "../html-document-store.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 

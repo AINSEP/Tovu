@@ -3,7 +3,7 @@ import test from "node:test";
 import express from "express";
 import { InMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { InMemoryContentTypeRepo } from "@jini-ai/cms/content-types";
-import { InMemoryEntryRefsRepo } from "../../contracts/core/entry-refs/repo.memory.js";
+import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { registerAdminWidgetCreateRoute } from "../inbound/admin-http/routes/widgets/create.js";
 import { registerAdminWidgetGetRoute } from "../inbound/admin-http/routes/widgets/get-by-id.js";
 import type { RouteDeps } from "../routes/types.js";

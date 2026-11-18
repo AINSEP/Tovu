@@ -1,6 +1,6 @@
 import { createRecordStoreTrashAdapter, type InMemoryTrashRepo, type TrashAdapter } from "@jini-ai/cms/trash";
 import type { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, StoredFormSubmission } from "@jini-ai/cms/forms";
-import type { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
+import type { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import type { TrashAwareInMemoryEntryRepo, TrashableEntryRecord } from "#src/features/entries/trash-aware-memory-repo";
 import type { InMemoryNavLocationBindingRepo } from "#src/features/navigation/index";
 import type { TrashAwareInMemoryMenuRepo, TrashableMenuRecord } from "#src/features/navigation/trash-aware-memory-menu-repo";
