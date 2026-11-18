@@ -117,7 +117,7 @@ import { getSeoAgentToolCatalog } from "../../features/seo/agent-tools.js";
 import { catalog as searchAgentToolCatalog } from "@jini-ai/search/tools";
 import { catalog as commerceStatusCatalog, commerceCatalogToolCatalog } from "@jini-ai/commerce/tools";
 import { commerceResolutionToolCatalog } from "@jini-ai/commerce/payments/tools";
-import { widgetsAgentToolCatalog } from "../../features/widgets/agent-tools.js";
+import { widgetsAgentToolCatalog } from "@jini-ai/cms/widgets";
 import type { ContentTypeRecord } from "../../features/content-types/index.js";
 import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import { buildToolCatalogQuery } from "../tool-catalog-query.js";

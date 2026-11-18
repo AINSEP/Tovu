@@ -27,7 +27,7 @@ import { InMemoryEntryRefsRepo } from "../../contracts/core/entry-refs/repo.memo
 import { InMemoryContentTypeRepo } from "../../features/content-types/index.js";
 import { InMemoryEntryRepo } from "../../features/entries/index.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
-import { widgetsAgentToolCatalog } from "../../features/widgets/agent-tools.js";
+import { widgetsAgentToolCatalog } from "@jini-ai/cms/widgets";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { type RegistryDepsWithoutLimiter, toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
 
