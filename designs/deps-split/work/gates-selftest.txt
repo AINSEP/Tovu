@@ -1,0 +1,21 @@
+# gates.sh selftest at f0613d9e (git 2.43.0), run 2026-11-18 by the revision-2 design run
+selftest newlines-same: clean case passes
+selftest newlines-fixed: clean case passes
+selftest newlines-new: fired (exit 1): STOP-NEWLINE check:boundaries:
+selftest newlines-crash: fired (exit 1): STOP-EXIT check:boundaries exit 2 (base 15)
+selftest tests-newfail: fired (exit 1): STOP-NEWFAIL tests-sr:
+selftest tests-crash: fired (exit 1): STOP-RUNNER tests-sr exit 7
+selftest tests-silent: fired (exit 1): STOP-RUNNER tests-sr exit 1 with no failing test
+selftest tests-cut: fired (exit 1): STOP-TAP-INCOMPLETE /tmp/tmp.GC0JwYuyxg/now/tests-sr.tap (no final summary: runner crashed or was cut short)
+selftest tests-fewer: fired (exit 1): STOP-TESTCOUNT tests-sr 2 < base 3
+selftest tests-known: clean case passes
+selftest shape-let: fired (exit 1): STOP-SHAPE
+selftest shape-cell: fired (exit 1): STOP-CELL
+selftest shape-fn: clean case passes
+selftest grep-tool-error: fired (exit 1): STOP-TOOL grep (MISSING) exit 2
+selftest freeze-unlisted: fired (exit 1): STOP-FREEZE origin/wave3/zz-selftest-freeze changes apps/website/src/server/runtime/composition/deps.ts (not listed, tip moved, or must be merged before S1)
+selftest freeze-listed-before: clean case passes
+selftest freeze-listed-at: fired (exit 1): STOP-FREEZE origin/wave3/zz-selftest-freeze changes apps/website/src/server/runtime/composition/deps.ts (not listed, tip moved, or must be merged before S5)
+selftest freeze-tip-moved: fired (exit 1): STOP-FREEZE origin/wave3/zz-selftest-freeze changes apps/website/src/server/runtime/composition/deps.ts (not listed, tip moved, or must be merged before S1)
+selftest: every planted case fired, every clean case passed
+exit=0

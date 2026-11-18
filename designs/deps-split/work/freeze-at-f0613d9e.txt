@@ -1,0 +1,9 @@
+# DS_SHEET=S0 DS_NO_FETCH=1 DS_FREEZE_BASE=HEAD gates.sh freeze, worktree at f0613d9e, lane refs fetched 2026-11-18
+freeze: NOTE origin/refactor/desktop-args already conflicts with the base on development/scripts/size-debt.json (lane's own rebase)
+freeze: NOTE origin/refactor/size-02-app already conflicts with the base on apps/website/src/server/runtime/composition/app.ts (lane's own rebase)
+freeze: origin/wave2/publish-p0-rest edits an exclusive path; allowed until S4 (tip 9a6a942e5f17319c71e4a531778d72f84d71b779)
+freeze: NOTE origin/wave2/size02-step5 already conflicts with the base on apps/website/src/server/runtime/composition/app.ts (lane's own rebase)
+freeze: origin/wave3/desktop-d0c edits an exclusive path; allowed until S6 (tip a7ebde5060e203dd355ee810f7e33cde9aac93e2)
+freeze: origin/wave3/moves-b1 edits an exclusive path; allowed until S3 (tip b8a30637637d2ef9c77c4487a5e94eaacfc87830)
+freeze: clean for S0
+exit=0
