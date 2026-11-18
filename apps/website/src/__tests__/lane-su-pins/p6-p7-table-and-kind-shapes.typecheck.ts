@@ -9,9 +9,11 @@
  * generated type's key order (the order the Jini copies use).
  * P7: the literal unions of `entry_refs` source and target kinds.
  */
-import type { EntryRefSourceKind, EntryRefTargetKind } from "#src/contracts/core/entry-refs/types";
+import type { EntryRefRow } from "@jini-ai/cms/widgets";
 import type { ContentDatabase } from "#src/platform/db/content-database.generated";
 
+type EntryRefSourceKind = EntryRefRow["sourceKind"];
+type EntryRefTargetKind = EntryRefRow["targetKind"];
 type Expect<T extends true> = T;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
 type ColumnsOf<Table extends keyof ContentDatabase> = keyof ContentDatabase[Table];

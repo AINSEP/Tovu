@@ -6,9 +6,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { createSystemClock } from "@jini-ai/platform/system";
 
 import type { MailerPort } from "../../../platform/mail/index.js";
-import type { MailProviderConfiguration } from "../../../platform/mail/mail-status.js";
-import type { MailSuppressionAdminRepo, MailSuppressionEntry } from "../../mail/suppression-admin.repo.js";
-import { MailActivityForbiddenError } from "../activity.js";
+import type { MailProviderConfiguration } from "@jini-ai/platform/mail";
 import { buildMailDeliveryRegistrations, type MailDeliveryToolDeps } from "../delivery-tool-registrations.js";
 import { readMailFeedbackSetup, type MailFeedbackSetupDeps } from "../feedback-setup.js";
 import { MAIL_PERMISSION_IDS } from "../permissions.js";

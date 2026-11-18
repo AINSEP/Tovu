@@ -22,7 +22,8 @@ import type { TrashEntityType, TrashItem, TrashPort } from "@jini-ai/cms/trash";
 import type { UserRepoPort } from "@jini-ai/user-management";
 
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
-import { buildTrashRegistry, type TrashRegistry } from "../registry.js";
+import type { TrashRegistry } from "@jini-ai/cms/trash";
+import { buildTrashRegistry } from "../registry.js";
 import { contributeTrashTools, type TrashToolDeps } from "../tool-registrations.js";
 
 const WORKSPACE_ID = "ws-trash-contract";

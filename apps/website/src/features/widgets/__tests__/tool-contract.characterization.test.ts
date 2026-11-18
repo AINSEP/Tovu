@@ -22,7 +22,7 @@ import { createHookRegistry } from "@jini-ai/plugins/host";
 import { createRandomUuidGenerator, createSystemClock } from "@jini-ai/platform/system";
 
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
-import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
+import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { pluginHostBinding } from "#src/features/plugin-runtime/host-binding";
 import { InMemoryPostRepo, type BeforeSaveHookPort } from "#src/features/post/index";
