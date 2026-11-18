@@ -2,7 +2,7 @@
 import type { JsonObject } from "@jini-ai/core/primitives";
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { sanitizePageHtml, renderMediaRawHtml } from '#src/features/widgets/media-html';
+import { sanitizePageHtml, renderMediaRawHtml } from '@jini-ai/cms/widgets/html';
 import { renderWidgetIr } from '#src/server/inbound/public-http/http/site/render/content-html';
 import { collectReferencedMediaKeys } from '#src/features/publish-content/media-references';
 import { collectBodyReferences } from '#src/features/publish-content/content-references';
@@ -148,7 +148,7 @@ test('media slug reference scans traverse deeply nested TipTap documents without
 });
 
 test('assistant contracts advertise both Media modes and allow placement content on existing post widgets', async () => {
-  const { widgetsAgentToolCatalog } = await import('#src/features/widgets/agent-tools');
+  const { widgetsAgentToolCatalog } = await import('@jini-ai/cms/widgets');
   const { TIPTAP_DOC_SCHEMA } = await import('#src/features/post/agent-tools');
   for (const name of ['widgets_create_instance', 'widgets_update_instance']) {
     const schema = widgetsAgentToolCatalog.find(tool => tool.name === name)!.inputSchema as any;

@@ -1,0 +1,397 @@
+{
+  "taxonomy_get_term": {
+    "id": "taxonomy_get_term",
+    "description": "Reads one live term by termId, including its taxonomyId, parentId, name, status and version. Use for a tag or category's details before renaming or assigning it. Returns {term}; missing or trashed terms are refused. Requires admin.taxonomy.manage. Use content_read.taxonomy to list available terms.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "termId"
+      ],
+      "properties": {
+        "termId": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "term tag category details parent taxonomy id read one"
+      },
+      "approval": {
+        "class": "read",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": true,
+    "sideEffects": "none"
+  },
+  "taxonomy_list": {
+    "id": "taxonomy_list",
+    "description": "Lists every taxonomy in the workspace together with its terms — the Categories & Tags screen's own two-pane source.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {}
+    },
+    "metadata": {
+      "search": {
+        "keywords": "tags categories taxonomies topics labels list",
+        "queries": [
+          "What categories and tags do we have?",
+          "Can you show me all our taxonomies and their terms?",
+          "I want to see the full category and tag structure.",
+          "What terms exist under each taxonomy?",
+          "Show me everything on the Categories and Tags screen."
+        ]
+      },
+      "approval": {
+        "class": "read",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": true,
+    "sideEffects": "none"
+  },
+  "taxonomy_get_assigned_terms": {
+    "id": "taxonomy_get_assigned_terms",
+    "description": "Reads which tags, categories or taxonomy terms are assigned to a post, page or live collection entry. Use to show the tags on this post or categories on this page before changing them. Returns {contentType, contentId, terms:[{termId,name,slug,taxonomyId,taxonomyName}]} sorted by taxonomy then term name; untagged content returns an empty terms array. Slugs are derived from term names, since terms have no stored slug. Does not change assignments. Requires admin.taxonomy.manage and the content's edit permission; unknown content types are refused. Use taxonomy_list for all available terms, taxonomy_assign_terms to add them.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contentType",
+        "contentId"
+      ],
+      "properties": {
+        "contentType": {
+          "type": "string",
+          "minLength": 1,
+          "description": "'post', 'page', or a Collection key (entries of that Collection)."
+        },
+        "contentId": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "which tags categories does this post have assigned terms show tags of page",
+        "queries": [
+          "Which tags does this post have?",
+          "Show assigned categories for this page.",
+          "Read assigned taxonomy terms for this collection entry.",
+          "What categories are on this post?",
+          "Show the names of the terms already attached to this content."
+        ]
+      },
+      "approval": {
+        "class": "read",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": true,
+    "sideEffects": "none"
+  },
+  "taxonomy_create_taxonomy": {
+    "id": "taxonomy_create_taxonomy",
+    "description": "Creates a new taxonomy (a 'category'-shaped hierarchical grouping, or a 'tag'-shaped flat one — same shared table, distinguished only by the hierarchical flag).",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "hierarchical"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable taxonomy name, e.g. 'Category' or 'Tag'."
+        },
+        "hierarchical": {
+          "type": "boolean",
+          "description": "true = category-shaped (terms may nest under a parent); false = tag-shaped (flat, no parentId allowed)."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "taxonomy category system tags group create new",
+        "queries": [
+          "Can you create a new tag group?",
+          "How do I set up a new hierarchical category taxonomy?",
+          "I want a flat taxonomy for simple tags, not a nested one.",
+          "Can you add a brand-new taxonomy to the workspace?",
+          "How do I create a new grouping system for content?"
+        ]
+      },
+      "approval": {
+        "class": "edit",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  },
+  "taxonomy_create_term": {
+    "id": "taxonomy_create_term",
+    "description": "Creates a new term under an existing taxonomy. If parentId is supplied, the taxonomy must be hierarchical, the parent must exist and belong to the SAME taxonomy, and assigning it must not create a cycle — a freshly-created term has no descendants yet, so a cycle can never actually occur here, but the same validation chain runs regardless.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "taxonomyId",
+        "name"
+      ],
+      "properties": {
+        "taxonomyId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A taxonomy id, as returned by taxonomy_create_taxonomy or taxonomy_list."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The term's name."
+        },
+        "parentId": {
+          "type": "string",
+          "description": "An existing term id in the SAME taxonomy to nest this term under. Omit for a top-level term (required to be omitted for a non-hierarchical taxonomy)."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "tag category term topic create new label",
+        "queries": [
+          "Can you add a new tag under this taxonomy?",
+          "How do I create a subcategory under an existing category?",
+          "Can you add a term with a parent — does it check the parent is in the same taxonomy?",
+          "I want to add a new term to our category list.",
+          "How do I create a new tag term?"
+        ]
+      },
+      "approval": {
+        "class": "edit",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  },
+  "taxonomy_rename_term": {
+    "id": "taxonomy_rename_term",
+    "description": "Renames an existing term in place (its id, taxonomy, parent, and status are unchanged).",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "termId",
+        "newName"
+      ],
+      "properties": {
+        "termId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A term id, as returned by taxonomy_create_term or taxonomy_list."
+        },
+        "newName": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The term's new name."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "tag category term rename edit change name",
+        "queries": [
+          "Can you rename this tag?",
+          "How do I fix a typo in a category name?",
+          "Can you relabel a term without changing its parent or taxonomy?",
+          "I want to rename an existing term in place.",
+          "How do I change the display name of a category?"
+        ]
+      },
+      "approval": {
+        "class": "edit",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  },
+  "taxonomy_assign_terms": {
+    "id": "taxonomy_assign_terms",
+    "description": "Assigns one or more existing terms to a piece of content (the same <TermPicker> operation the Collections editor and the Categories & Tags screen both use). This call ADDS assignments; calling it twice with the same term is a no-op (idempotent). Use taxonomy_unassign_terms to remove an assignment. Every termId is validated (must exist; its taxonomy must be applicable to contentType) before ANY row is written, so a bad id in the list rejects the whole call rather than partially assigning.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contentType",
+        "contentId",
+        "termIds"
+      ],
+      "properties": {
+        "contentType": {
+          "type": "string",
+          "minLength": 1,
+          "description": "'post', 'page', or a Collection key (entries of that Collection)."
+        },
+        "contentId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The id of the content row to assign terms to."
+        },
+        "termIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Term ids to assign. May be empty (a no-op)."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "tag tags label labels categorize category categories assign article post topic",
+        "queries": [
+          "Can you tag this post with a couple categories?",
+          "How do I assign tags to a piece of content?",
+          "If I assign the same tag twice, does it duplicate?",
+          "Can this remove tags too, or only add them?",
+          "How do I attach existing terms to a collection entry?"
+        ]
+      },
+      "approval": {
+        "class": "edit",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  },
+  "taxonomy_unassign_terms": {
+    "id": "taxonomy_unassign_terms",
+    "description": "Removes one or more previously-assigned terms from a piece of content. Idempotent — removing a term that isn't currently assigned is a no-op, not an error. Every termId is validated the same way taxonomy_assign_terms validates them (must exist; its taxonomy must be applicable to contentType) before anything is removed.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contentType",
+        "contentId",
+        "termIds"
+      ],
+      "properties": {
+        "contentType": {
+          "type": "string",
+          "minLength": 1,
+          "description": "'post', 'page', or a Collection key (entries of that Collection)."
+        },
+        "contentId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The id of the content row to unassign terms from."
+        },
+        "termIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Term ids to unassign. May be empty (a no-op)."
+        }
+      }
+    },
+    "metadata": {
+      "approval": {
+        "class": "edit",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  },
+  "taxonomy_plan_merge_term": {
+    "id": "taxonomy_plan_merge_term",
+    "description": "Previews merging one term into another: recomputes and returns the current overlap-loss disclosure (how many pieces of content are already assigned to BOTH terms, whose duplicate assignment would be silently lost by the merge's own dedup step) plus a planId/planHash a human can use in the admin UI's own merge confirmation ceremony. Read-only — performs no merge. Rejects immediately if fromTermId equals intoTermId, before computing anything. To actually merge, call taxonomy_execute_merge_term, which asks the user to confirm first.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fromTermId",
+        "intoTermId"
+      ],
+      "properties": {
+        "fromTermId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The term that would be merged away (deprecated) and re-pointed from."
+        },
+        "intoTermId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The term that would receive every re-pointed assignment."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "tag category term merge combine duplicate preview before",
+        "queries": [
+          "What would happen if I merged these two tags together?",
+          "Can you preview a term merge before actually doing it?",
+          "How much overlap is there between these two categories if I merge them?",
+          "Can this tool actually perform the merge, or just show me what would happen?",
+          "What content would lose its duplicate tag assignment if I merge these terms?"
+        ]
+      },
+      "approval": {
+        "class": "read",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": true,
+    "sideEffects": "none"
+  },
+  "taxonomy_execute_merge_term": {
+    "id": "taxonomy_execute_merge_term",
+    "description": "Merges one term into another: every piece of content tagged with fromTermId is re-tagged with intoTermId, and fromTermId is deprecated. Shows the user a confirm dialog first and only merges if they confirm. The merge can't be undone. Call taxonomy_plan_merge_term first to see how many items are affected.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fromTermId",
+        "intoTermId"
+      ],
+      "properties": {
+        "fromTermId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The term to merge away. It is deprecated after the merge."
+        },
+        "intoTermId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The term that receives every assignment."
+        }
+      }
+    },
+    "metadata": {
+      "title": "Merge these terms",
+      "summary": "This moves content to the destination term and permanently removes the source term.",
+      "search": {
+        "keywords": "tag category term merge combine execute run confirm confirmed apply proceed"
+      },
+      "approval": {
+        "class": "delete",
+        "confirmation": "plan"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  }
+}

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { renderMediaRawHtml } from '../../media-html.js';
+import { renderMediaRawHtml } from '@jini-ai/cms/widgets/html';
 
 test('raw media visits roots and nested children last-first while preserving authored output order', () => {
   const calls: string[] = [];

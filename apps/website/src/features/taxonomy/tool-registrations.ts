@@ -1,37 +1,22 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/taxonomy.js';
 import { type Clock } from "@jini-ai/core/primitives";
-import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
 /**
- * @file Taxonomy's half of ADR-049 Decision 4 (SPEC-018/ADR-044): maps `agent-tools.ts`'s 8 catalog
- * entries onto `write-service.ts`'s ordinary mutations, `list.ts`'s read, and `merge-term.ts`'s
- * plan-only slice of the gated-mutation ceremony, as `ToolRegistration`s.
+ * @file Taxonomy's half of ADR-049 Decision 4 (SPEC-018/ADR-044), the host binding: the ten
+ * handlers and the authored risk map live in `@jini-ai/cms/taxonomy` (`buildTaxonomyToolRegistrations`).
+ * This file supplies what is Tovu's: the catalog (`./agent-tools.ts` extends the shared one with two
+ * read tools), the search vocabulary and approval policy (`toolMetadata`), the gateway bound to
+ * Tovu's token policy and storage ports, the confirm dialog's wording and transport
+ * (`humanConfirmedToolHandler`), the slug function (a saved format), the content-type policy and the
+ * default surface store.
  *
- * Scope: all 8 catalog entries are wired. `taxonomy_execute_merge_term` (2026-09-24) asks the human
- * in chat first: a merge deletes the source term's assignments with no Trash or undo. On the
- * human's click it confirms as that human and executes as the agent acting for them — see
- * `contracts/core/human-confirm.ts`'s `humanConfirmedToolHandler`.
- *
- * Authorization shape, mixed and deliberately so: `createTaxonomy`/`createTerm`/`renameTerm`/
- * `assignTerms` each call `authorizeTaxonomyManage` (`admin.taxonomy.manage`) as their own first line
- * (confirmed directly against `write-service.ts`), so those four handlers must NOT re-check
- * (ADR-021 §2 "one evaluator"). The tagging tools (`taxonomy_assign_terms`/`taxonomy_unassign_terms`)
- * first check a DIFFERENT permission, the content's own edit one (`authorizeContentEdit`), exactly as
- * the admin assign/unassign routes do. `listTaxonomiesWithTerms` (`list.ts`) has no such call of its own —
- * its file header says so explicitly ("no authorization of its own") — so `taxonomy_list`'s handler
- * performs that identical inline check itself, mirroring `taxonomy/list.ts`'s admin route.
- * `taxonomy_plan_merge_term` is a THIRD shape: `core/gated-mutations/gateway.ts`'s `plan()` itself
- * calls `authorize()` unconditionally before `hooks.computePlan()` ever runs (verified directly
- * against that function's body) — mirrors `features/database/tool-registrations.ts`'s identical
- * `database_plan_migrate_forward` precedent, including reusing this domain's own
- * `gated-hooks.ts`'s `buildMergeTermHooks` directly.
+ * `taxonomy_execute_merge_term` (2026-09-24) asks the human in chat first: a merge deletes the source
+ * term's assignments with no Trash or undo. On the human's click it confirms as that human and
+ * executes as the agent acting for them — see `contracts/core/human-confirm.ts`'s
+ * `humanConfirmedToolHandler`.
  */
-import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { requireToolPermission } from "@jini-ai/cms/core";
+import { withToolMetadata, type ToolContributor, type ToolRegistration } from "@jini-ai/core";
+import { buildTaxonomyToolRegistrations, taxonomyDerivedRisk, type TaxonomyPackageToolDeps } from "@jini-ai/cms/taxonomy";
 import { type AuthorizeFn, type OutboxPort, type TransactionalRepoPort } from "@jini-ai/core/contracts/events";
-// `ToolInputError` specifically — see `features/post/tool-registrations.ts`'s identical import
-// for why: the marker `@jini-ai/daemon`'s `ToolExecutor` reads to classify a rejection 400 rather
-// than redacting it into a message-stripped 500.
-import { ToolInputError } from "@jini-ai/core";
 import {
   confirm as gatewayConfirm,
   execute as gatewayExecute,
@@ -40,27 +25,12 @@ import {
 } from "../../contracts/core/gated-mutations/gateway.js";
 import { humanConfirmedToolHandler, refuseUnexpectedKeys } from "#src/contracts/core/human-confirm";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import type { ToolContributor } from "@jini-ai/core";
-import { ForbiddenError } from "@jini-ai/cms/core";
-import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
-import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import { toSlug } from "../../platform/html/slug.js";
 import type { PostRepoPort } from "../post/index.js";
 import { authorizeContentEdit, createContentTargetPorts, createLiveCollectionTermPolicy, type CollectionOwnerLookupPort } from "./collection-term-policy.js";
 import { buildMergeTermHooks, type MergeableEntryTermRepoPort } from "./gated-hooks.js";
 import { taxonomyAgentToolCatalog } from "./agent-tools.js";
 import {
-  listTaxonomiesWithTerms,
-  isContentTypeOnAllowList,
-  confirmMergeTerm,
-  executeMergeTerm,
-  planMergeTerm,
-  toTaxonomyOutbox,
-  assignTerms,
-  unassignTerms,
-  createTaxonomy,
-  createTerm,
-  renameTerm,
   type TaxonomyListPort,
   type TermListPort,
   type EntryRecordLookupPort,
@@ -70,15 +40,9 @@ import {
   type TermRepoPort,
   type ImportableTermRepoPort,
   type UnassignableEntryTermRepoPort,
-  type WriteServiceDeps,
 } from "./index.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-
-const MUTATES_DURABLE_STATE = "mutates-durable-state";
-
-
-const CATALOG_BY_ID = indexCatalogById({ catalog: taxonomyAgentToolCatalog });
 
 /**
  * The exact slice of the route-deps bag Taxonomy's tool handlers read. Declared structurally
@@ -115,71 +79,75 @@ export interface TaxonomyToolDeps {
    * the admin HTTP routes use. */
   stampWatermark: () => Promise<void> | void;
 }
-
-/**
- * This wiring layer's OWN risk classification, authored from what each handler below actually
- * calls. See `DerivedRiskByToolId` in the kit for why it is independent of the catalog's own
- * `sideEffects` declaration.
- */
-export const taxonomyDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
-  // -> listTaxonomiesWithTerms (list.ts): taxonomies.list() + terms.listByTaxonomy() reads only.
-  ["taxonomy_list", "none"],
-  // Full live term read, no assignment or revision writes.
-  ["taxonomy_get_term", "none"],
-  // -> entryTermRepo.listForContent + taxonomyRepo.list + termRepo.listByTaxonomy,
-  //    with contentTypeRepo.findByKey for collection validation; reads only.
-  ["taxonomy_get_assigned_terms", "none"],
-  // -> createTaxonomy (write-service.ts): taxonomies.insert + revisions.insert in effect.
-  ["taxonomy_create_taxonomy", MUTATES_DURABLE_STATE],
-  // -> createTerm (write-service.ts): terms.insert + revisions.insert.
-  ["taxonomy_create_term", MUTATES_DURABLE_STATE],
-  // -> renameTerm (write-service.ts): terms.update + revisions.insert.
-  ["taxonomy_rename_term", MUTATES_DURABLE_STATE],
-  // -> assignTerms (write-service.ts): entryTerms.upsert per termId (INV-05: no revision row, see
-  //    that function's own doc comment for the disclosed narrowing this implements).
-  ["taxonomy_assign_terms", MUTATES_DURABLE_STATE],
-  // -> unassignTerms (write-service.ts): entryTerms.remove per termId — same INV-05 no-revision-row
-  //    narrowing as assignTerms (that function's own doc comment discloses it applies equally here).
-  ["taxonomy_unassign_terms", MUTATES_DURABLE_STATE],
-  // -> gateway.ts's plan() via buildMergeTermHooks: authorizes, then recomputes a plan and returns
-  //    it — verified directly against plan()'s own body, which persists nothing (AC-10).
-  ["taxonomy_plan_merge_term", "none"],
-  // -> gateway confirm() (as the human, after their click) + execute() via buildMergeTermHooks:
-  //    entryTerms.repointTerm (re-points, then deletes the source rows) + terms.update (deprecate)
-  //    + revisions.insert.
-  ["taxonomy_execute_merge_term", MUTATES_DURABLE_STATE],
-]);
-
 const MERGE_TOOL_ID = "taxonomy_execute_merge_term";
 
-/** Shared read/assignment validation: posts, pages and live collections can carry terms.
- * @throws {ToolInputError} For widget, unknown or tombstoned collection types.
- * @complexity O(1), at most one indexed content-type read.
+/**
+ * The merge's human confirmation: the dialog's wording is Tovu's, and the allow-list scan
+ * (`assistant/__tests__/mcp-ui-allowlist-completeness.test.ts`) reads its tool id from this
+ * `dialog:` spec. Plans as the agent, asks the human, then the package confirms as the human and
+ * executes as the agent.
  */
-async function requireTaggableContentType(
-  { deps, contentType }: { deps: TaxonomyToolDeps; contentType: string },
-  _optional = {},
-): Promise<void> {
-  if (isContentTypeOnAllowList({ contentType })) return;
-  if (await createLiveCollectionTermPolicy(deps).taxonomiesFor({ contentType }) !== null) return;
-  throw new ToolInputError({ message: `content type '${contentType}' does not support taxonomy assignments. Use post, page, or a live collection key.` });
-}
+const confirmedMergeHandler: TaxonomyPackageToolDeps["mergeConfirmedHandler"] = (surfaces, { flag, prepare, run }) =>
+  humanConfirmedToolHandler(surfaces, {
+    flag,
+    prepare,
+    dialog: ({ plan, fromName, intoName }) => ({
+      toolId: MERGE_TOOL_ID,
+      errorCode: "TAXONOMY",
+      title: `Merge ${fromName} into ${intoName}?`,
+      details: [
+        { label: "Merge away", value: fromName },
+        { label: "Keep", value: intoName },
+        ...(plan.details.overlappingContentCount > 0
+          ? [{ label: "Tagged with both", value: String(plan.details.overlappingContentCount) }]
+          : []),
+      ],
+      warning: `Everything tagged ${fromName} is re-tagged ${intoName}, and ${fromName} is retired. This can't be undone.`,
+      danger: true,
+      confirmLabel: "Merge terms",
+    }),
+    run,
+  });
 
-/** Shared dependency bag for `write-service.ts` calls — every mutating handler here takes this
- * identical shape, mirroring each admin route's own inline construction. */
-function taxonomyDeps(routeDeps: TaxonomyToolDeps): WriteServiceDeps {
+/**
+ * The package deps over the host's route deps. Every field is a getter so a field the composition
+ * root assigns after this registry is built (the authorizer, the repos) is read at call time, as
+ * the handlers did when they read the route deps directly.
+ */
+function toPackageDeps({ routeDeps }: { routeDeps: TaxonomyToolDeps }, _optional = {}): TaxonomyPackageToolDeps {
   return {
-    authorize: (params) => routeDeps.authorize({ ...params, workspaceId: routeDeps.workspaceId }),
-    clock: routeDeps.clock,
-    idGen: routeDeps.idGen,
-    taxonomies: routeDeps.taxonomyRepo,
-    terms: routeDeps.termRepo,
-    entryTerms: routeDeps.entryTermRepo,
-    revisions: routeDeps.taxonomyRevisionRepo,
-    stampWatermark: routeDeps.stampWatermark,
-    outbox: toTaxonomyOutbox(routeDeps),
-    workspaceId: routeDeps.workspaceId,
-    ...createContentTargetPorts(routeDeps),
+    get authorize() { return routeDeps.authorize; },
+    get workspaceId() { return routeDeps.workspaceId; },
+    get clock() { return routeDeps.clock; },
+    get idGen() { return routeDeps.idGen; },
+    get taxonomyRepo() { return routeDeps.taxonomyRepo; },
+    get termRepo() { return routeDeps.termRepo; },
+    get entryTermRepo() { return routeDeps.entryTermRepo; },
+    get taxonomyRevisionRepo() { return routeDeps.taxonomyRevisionRepo; },
+    get outbox() { return routeDeps.outbox; },
+    get stampWatermark() { return routeDeps.stampWatermark; },
+    contentTargetPorts: () => createContentTargetPorts(routeDeps),
+    collectionTermPolicy: () => createLiveCollectionTermPolicy(routeDeps),
+    authorizeContentEdit: ({ principalId, contentType }) => authorizeContentEdit({ deps: routeDeps, principalId, contentType }),
+    mergeTermHooks: ({ fromTermId, intoTermId, actorId }) =>
+      buildMergeTermHooks({
+        workspaceId: routeDeps.workspaceId,
+        fromTermId,
+        intoTermId,
+        actorId,
+        clock: routeDeps.clock,
+        termRepo: routeDeps.termRepo,
+        entryTermRepo: routeDeps.entryTermRepo,
+        taxonomyRevisionRepo: routeDeps.taxonomyRevisionRepo,
+      }),
+    mergeGateway: {
+      plan: (required) => gatewayPlan({ deps: routeDeps.gatedMutations.gatewayDeps, ...required }),
+      confirm: (required) => gatewayConfirm({ deps: routeDeps.gatedMutations.gatewayDeps, ...required }),
+      execute: (required) => gatewayExecute({ deps: routeDeps.gatedMutations.gatewayDeps, ...required }),
+    },
+    mergeConfirmedHandler: confirmedMergeHandler,
+    refuseUnexpectedKeys,
+    toSlug,
   };
 }
 
@@ -187,254 +155,7 @@ export function buildTaxonomyRegistrations(
   routeDeps: TaxonomyToolDeps,
   surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
-  const mergeHooks = (
-    { ctx, fromTermId, intoTermId }: { ctx: { principal: { id: string } }; fromTermId: string; intoTermId: string },
-    _optional = {},
-  ) =>
-    buildMergeTermHooks({
-      workspaceId: routeDeps.workspaceId,
-      fromTermId,
-      intoTermId,
-      actorId: ctx.principal.id,
-      clock: routeDeps.clock,
-      termRepo: routeDeps.termRepo,
-      entryTermRepo: routeDeps.entryTermRepo,
-      taxonomyRevisionRepo: routeDeps.taxonomyRevisionRepo,
-    });
-  const termName = async ({ id }: { id: string }, _optional = {}) => (await routeDeps.termRepo.findById({ id }))?.name ?? `${id} (not found)`;
-
-  const handlers: Record<string, ToolHandler> = {
-    /** Uses the live, workspace-bound repository, including its parent-taxonomy Trash filter. */
-    ...withModelFacingErrors({ handlers: { taxonomy_get_term: async (ctx) => {
-      const termId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "termId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.taxonomy.manage" }, { entityType: "term", entityId: termId });
-      const term = await routeDeps.termRepo.findByIdFull({ id: termId });
-      if (!term) throw new ToolInputError({ message: `term '${termId}' was not found — call content_read.taxonomy to list valid terms` });
-      return { term };
-    } }, rules: [forbiddenRule({ domainPrefix: "TAXONOMY", error: ForbiddenError })] }),
-    taxonomy_list: async (ctx) => {
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.taxonomy.manage" }, { entityType: "taxonomy" });
-      return listTaxonomiesWithTerms({ taxonomies: routeDeps.taxonomyRepo, terms: routeDeps.termRepo });
-    },
-
-    ...withModelFacingErrors({ handlers: {
-      taxonomy_get_assigned_terms: async (ctx) => {
-        const input = requireInputRecord({ input: ctx.input });
-        const contentType = requireString({ input: input, key: "contentType" });
-        const contentId = requireString({ input: input, key: "contentId" });
-        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "admin.taxonomy.manage" }, { entityType: "taxonomy" });
-        await authorizeContentEdit({ deps: routeDeps, principalId: ctx.principal.id, contentType });
-        await requireTaggableContentType({ deps: routeDeps, contentType });
-        const assignments = await routeDeps.entryTermRepo.listForContent({ contentType, contentId });
-        if (!assignments.length) return { contentType, contentId, terms: [] };
-        const assigned = new Set(assignments.map(row => row.termId));
-        // Bulk lists resolve names without one query per assignment. O(all terms + a log a)
-        // time, O(all terms) space, a = assigned terms; no assignment or revision writes.
-        const { items } = await listTaxonomiesWithTerms({ taxonomies: routeDeps.taxonomyRepo, terms: routeDeps.termRepo });
-        const terms = items.flatMap(({ taxonomy, terms }) => terms.filter(term => assigned.has(term.id)).map(term => ({
-          termId: term.id, name: term.name, slug: toSlug({ text: term.name }), taxonomyId: taxonomy.id, taxonomyName: taxonomy.name,
-        })));
-        terms.sort((a, b) => a.taxonomyName.localeCompare(b.taxonomyName) || a.name.localeCompare(b.name) || a.termId.localeCompare(b.termId));
-        return { contentType, contentId, terms };
-      },
-    }, rules: [forbiddenRule({ domainPrefix: "TAXONOMY", error: ForbiddenError })] }),
-
-    taxonomy_create_taxonomy: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const taxonomy = await createTaxonomy({
-        deps: taxonomyDeps(routeDeps),
-        principalId: ctx.principal.id,
-        name: requireString({ input: input, key: "name" }),
-        hierarchical: input.hierarchical === true,
-      });
-      return { taxonomy };
-    },
-
-    taxonomy_create_term: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const term = await createTerm({
-        deps: taxonomyDeps(routeDeps),
-        principalId: ctx.principal.id,
-        taxonomyId: requireString({ input: input, key: "taxonomyId" }),
-        name: requireString({ input: input, key: "name" }),
-      }, { parentId: optionalString({ input: input, key: "parentId" }) ?? null });
-      return { term };
-    },
-
-    taxonomy_rename_term: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const term = await renameTerm({
-        deps: { ...taxonomyDeps(routeDeps), transaction: (required) => routeDeps.taxonomyRepo.transaction(required) },
-        principalId: ctx.principal.id,
-        termId: requireString({ input: input, key: "termId" }),
-        newName: requireString({ input: input, key: "newName" }),
-      });
-      return { term };
-    },
-
-    taxonomy_assign_terms: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const contentType = requireString({ input: input, key: "contentType" });
-      const contentId = requireString({ input: input, key: "contentId" });
-      if (!Array.isArray(input.termIds) || !input.termIds.every((id: unknown) => typeof id === "string")) {
-        throw new ToolInputError({ message: "'termIds' (string array) is required" });
-      }
-      const termIds = input.termIds as string[];
-
-      // The content's own edit permission first, as the admin route does; assignTerms then checks
-      // admin.taxonomy.manage itself.
-      await authorizeContentEdit({ deps: routeDeps, principalId: ctx.principal.id, contentType });
-      const deps = taxonomyDeps(routeDeps);
-      await assignTerms({
-        deps: { ...deps, authorize: async params => {
-          const result = await deps.authorize(params);
-          // The service owns the taxonomy permission check. Validate the shared content-type
-          // contract only after that grant, including empty assignment requests, before writes.
-          if (result.allowed) await requireTaggableContentType({ deps: routeDeps, contentType });
-          return result;
-        } },
-        principalId: ctx.principal.id, contentType, contentId, termIds,
-      });
-      return { contentType, contentId, assignedTermIds: termIds };
-    },
-
-    taxonomy_unassign_terms: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const contentType = requireString({ input: input, key: "contentType" });
-      const contentId = requireString({ input: input, key: "contentId" });
-      if (!Array.isArray(input.termIds) || !input.termIds.every((id: unknown) => typeof id === "string")) {
-        throw new ToolInputError({ message: "'termIds' (string array) is required" });
-      }
-      const termIds = input.termIds as string[];
-
-      await authorizeContentEdit({ deps: routeDeps, principalId: ctx.principal.id, contentType });
-      // `taxonomyDeps(routeDeps)` is typed as the base `WriteServiceDeps` (its `entryTerms` narrowed
-      // to plain `EntryTermRepoPort`), but `unassignTerms` needs the `UnassignableEntryTermRepoPort`
-      // capability too — override `entryTerms` back to `routeDeps.entryTermRepo`'s own wider type
-      // rather than widening `taxonomyDeps`'s return type for every OTHER handler that doesn't need it.
-      const { removedTermIds } = await unassignTerms({
-        deps: { ...taxonomyDeps(routeDeps), entryTerms: routeDeps.entryTermRepo },
-        principalId: ctx.principal.id,
-        contentType,
-        contentId,
-        termIds,
-      });
-      const removed = new Set(removedTermIds);
-      return { contentType, contentId, unassignedTermIds: removedTermIds, notAssignedTermIds: termIds.filter(id => !removed.has(id)) };
-    },
-
-    taxonomy_plan_merge_term: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const fromTermId = requireString({ input: input, key: "fromTermId" });
-      const intoTermId = requireString({ input: input, key: "intoTermId" });
-
-      const hooks = buildMergeTermHooks({
-        workspaceId: routeDeps.workspaceId,
-        fromTermId,
-        intoTermId,
-        actorId: ctx.principal.id,
-        clock: routeDeps.clock,
-        termRepo: routeDeps.termRepo,
-        entryTermRepo: routeDeps.entryTermRepo,
-        taxonomyRevisionRepo: routeDeps.taxonomyRevisionRepo,
-      });
-
-      // No explicit pre-check here: `gateway.ts`'s plan() calls authorize() unconditionally, BEFORE
-      // hooks.computePlan() ever runs (see `taxonomyDerivedRisk`'s comment for this tool). Adding a
-      // second check here would be the duplicate evaluator ADR-021 §2 forbids.
-      return planMergeTerm({
-        principalId: ctx.principal.id,
-        principalKind: AGENT_TOOL_PRINCIPAL_KIND,
-        fromTermId,
-        intoTermId,
-        computeOverlap: async () => ({ overlappingContentCount: await routeDeps.entryTermRepo.countOverlap({ fromTermId, intoTermId }) }),
-        gatewayPlan: async () =>
-          gatewayPlan({
-            deps: routeDeps.gatedMutations.gatewayDeps,
-            principalId: ctx.principal.id,
-            principalKind: AGENT_TOOL_PRINCIPAL_KIND,
-            hooks,
-          }),
-      });
-    },
-
-    // Plans as the agent, asks the human, then confirms as the human and executes as the agent —
-    // the gateway's own check sequence (authorize, token, actor-class, plan hash) runs unchanged.
-    [MERGE_TOOL_ID]: humanConfirmedToolHandler(surfaces, {
-      flag: "merged",
-      prepare: async ({ ctx }) => {
-        const input = requireInputRecord({ input: ctx.input });
-        refuseUnexpectedKeys(input, ["fromTermId", "intoTermId"]);
-        const fromTermId = requireString({ input: input, key: "fromTermId" });
-        const intoTermId = requireString({ input: input, key: "intoTermId" });
-        const hooks = mergeHooks({ ctx, fromTermId, intoTermId });
-        const plan = await planMergeTerm({
-          principalId: ctx.principal.id,
-          principalKind: AGENT_TOOL_PRINCIPAL_KIND,
-          fromTermId,
-          intoTermId,
-          computeOverlap: async () => ({ overlappingContentCount: await routeDeps.entryTermRepo.countOverlap({ fromTermId, intoTermId }) }),
-          gatewayPlan: async () =>
-            gatewayPlan({ deps: routeDeps.gatedMutations.gatewayDeps, principalId: ctx.principal.id, principalKind: AGENT_TOOL_PRINCIPAL_KIND, hooks }),
-        });
-        return { hooks, plan, fromName: await termName({ id: fromTermId }), intoName: await termName({ id: intoTermId }) };
-      },
-      dialog: ({ plan, fromName, intoName }) => ({
-        toolId: MERGE_TOOL_ID,
-        errorCode: "TAXONOMY",
-        title: `Merge ${fromName} into ${intoName}?`,
-        details: [
-          { label: "Merge away", value: fromName },
-          { label: "Keep", value: intoName },
-          ...(plan.details.overlappingContentCount > 0
-            ? [{ label: "Tagged with both", value: String(plan.details.overlappingContentCount) }]
-            : []),
-        ],
-        warning: `Everything tagged ${fromName} is re-tagged ${intoName}, and ${fromName} is retired. This can't be undone.`,
-        danger: true,
-        confirmLabel: "Merge terms",
-      }),
-      run: async ({ ctx, prepared: { hooks, plan }, confirmer }) => {
-        const { token } = await confirmMergeTerm({
-          principalId: confirmer.id,
-          principalKind: confirmer.kind,
-          planId: plan.planId,
-          planHash: plan.planHash,
-          gatewayConfirm: async (params) => {
-            const record = await gatewayConfirm({
-              deps: routeDeps.gatedMutations.gatewayDeps,
-              principalId: confirmer.id,
-              principalKind: confirmer.kind,
-              hooks,
-              planId: params.planId,
-              planHash: params.planHash,
-            });
-            return { token: record.confirmationToken };
-          },
-        });
-        const result = await executeMergeTerm({
-          confirmationToken: token,
-          gatewayExecute: (params) =>
-            gatewayExecute({
-              deps: routeDeps.gatedMutations.gatewayDeps,
-              principalId: ctx.principal.id,
-              principalKind: AGENT_TOOL_PRINCIPAL_KIND,
-              hooks,
-              confirmationToken: params.confirmationToken,
-            }),
-        });
-        return { merged: true, ...result };
-      },
-    }),
-  };
-
-  return buildDomainRegistrations({ metadata: toolMetadata,
-    domain: "taxonomy",
-    catalogModule: "features/taxonomy/agent-tools.ts",
-    catalog: CATALOG_BY_ID,
-    handlers,
-    derivedRisk: taxonomyDerivedRisk,
-  });
+  return withToolMetadata({ registrations: buildTaxonomyToolRegistrations({ deps: toPackageDeps({ routeDeps }), surfaces, catalog: taxonomyAgentToolCatalog }), metadata: toolMetadata });
 }
 
 /**

@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { isReadOnlyTool, ToolInputError, type ToolExecutionContext } from "@jini-ai/core";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
-import { buildTaxonomyRegistrations, taxonomyDerivedRisk } from "../tool-registrations.js";
+import { taxonomyDerivedRisk } from "@jini-ai/cms/taxonomy";
+import { buildTaxonomyRegistrations } from "../tool-registrations.js";
 
 const ctx = (input: unknown): ToolExecutionContext => ({ executionId: "e", principal: { id: "owner" }, run: { id: "r" }, input, signal: new AbortController().signal });
 async function harness() {

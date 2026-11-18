@@ -5,7 +5,7 @@ import test, { before, after } from "node:test";
 import type { PostRecord } from "#src/features/post/index";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
-import type { AssignedTermView, EntryTermReadPort } from "#src/features/taxonomy/repo.sqlite";
+import type { AssignedTermView, EntryTermReadPort } from "@jini-ai/cms/taxonomy";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { assertDefaultConsentPage } from "#src/server/__tests__/helpers/default-consent-page";
