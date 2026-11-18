@@ -5,9 +5,9 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { registerConfiguredOriginOn, seedDevCapabilityOriginOn, SqlOriginSettingRepo } from "#src/platform/db/repos/origin-repo";
+import { seedDevCapabilityOriginOn } from "#src/platform/db/repos/origin-repo";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "#src/platform/db/sqlite/origin-repo.sqlite";
+import { registerConfiguredOrigin, seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "#src/platform/db/sqlite/origin-repo.sqlite";
 import { InMemoryOriginSettingRepo, createVerifiedOrigin } from "@jini-ai/core/contracts/server/verified-origin";
 import type { OriginSettingRepoPort } from "@jini-ai/core/contracts/server/verified-origin";
 
@@ -99,9 +99,9 @@ describeEachDialect("OriginSettingRepoPort (SQL)", { tables: ["origin_settings"]
     () => {
       const kernel = makeKernel();
       const seeded = seedDevCapabilityOriginOn(kernel, { workspaceId: WORKSPACE_ID, origin: seedOrigin(), redirectAllowlist: ["Allowed.example"], egressAllowlist: ["api.example.com"] });
-      return new SqlOriginSettingRepo(kernel, { after: seeded });
+      return new SqliteOriginSettingRepo({ store: kernel }, { after: seeded });
     },
-    () => new SqlOriginSettingRepo(makeKernel())
+    () => new SqliteOriginSettingRepo({ store: makeKernel() })
   );
 
   test("seedDevCapabilityOrigin is idempotent — a second call never overwrites an existing row", async () => {
@@ -115,7 +115,7 @@ describeEachDialect("OriginSettingRepoPort (SQL)", { tables: ["origin_settings"]
       origin: createVerifiedOrigin({ scheme: "http", host: "some-other-host", verifiedAt: "2099-01-01T00:00:00.000Z", source: "dev-capability" }),
     });
 
-    const repo = new SqlOriginSettingRepo(kernel);
+    const repo = new SqliteOriginSettingRepo({ store: kernel });
     const found = await repo.findByWorkspaceId({ workspaceId: WORKSPACE_ID });
     assert.equal(found?.host, "example.com", "the original seed must survive a second seed call");
   });
@@ -126,7 +126,7 @@ describeEachDialect("OriginSettingRepoPort (SQL)", { tables: ["origin_settings"]
       redirectAllowlist: ["owner.example"], egressAllowlist: ["api.owner.example"] });
     const changed = createVerifiedOrigin({ ...DEV_CAPABILITY_ROW, scheme: "https", port: 3001, verifiedAt: "2026-10-24T00:00:00.000Z" });
     await seedDevCapabilityOriginOn(kernel, { workspaceId: WORKSPACE_ID, origin: changed });
-    const repo = new SqlOriginSettingRepo(kernel);
+    const repo = new SqliteOriginSettingRepo({ store: kernel });
     assert.deepEqual(await repo.findByWorkspaceId({ workspaceId: WORKSPACE_ID }), changed);
     assert.deepEqual(await repo.findRedirectAllowlist({ workspaceId: WORKSPACE_ID }), ["owner.example"]);
     assert.deepEqual(await repo.findEgressAllowlist({ workspaceId: WORKSPACE_ID }), ["api.owner.example"]);
@@ -141,31 +141,31 @@ describeEachDialect("OriginSettingRepoPort (SQL)", { tables: ["origin_settings"]
   for (const origin of [configuredOrigin(), seedOrigin()]) {
     test(`dev seed preserves ${origin.source} origin on ${origin.host}`, async () => {
       const kernel = makeKernel();
-      await registerConfiguredOriginOn({ kernel, workspaceId: WORKSPACE_ID, origin });
+      await registerConfiguredOrigin({ db: kernel, workspaceId: WORKSPACE_ID, origin });
       await seedDevCapabilityOriginOn(kernel, { workspaceId: WORKSPACE_ID, origin: { ...DEV_CAPABILITY_ROW, scheme: "https", port: 3001 } });
-      assert.deepEqual(await new SqlOriginSettingRepo(kernel).findByWorkspaceId({ workspaceId: WORKSPACE_ID }), origin);
+      assert.deepEqual(await new SqliteOriginSettingRepo({ store: kernel }).findByWorkspaceId({ workspaceId: WORKSPACE_ID }), origin);
     });
   }
 
   test("reads wait for the boot write they are given, and fail when it failed", async () => {
     const kernel = makeKernel();
     const seeded = seedDevCapabilityOriginOn(kernel, { workspaceId: WORKSPACE_ID, origin: seedOrigin() });
-    assert.equal((await new SqlOriginSettingRepo(kernel, { after: seeded }).findByWorkspaceId({ workspaceId: WORKSPACE_ID }))?.host, "example.com");
+    assert.equal((await new SqliteOriginSettingRepo({ store: kernel }, { after: seeded }).findByWorkspaceId({ workspaceId: WORKSPACE_ID }))?.host, "example.com");
     const failed = Promise.reject(new Error("boot write failed"));
-    await assert.rejects(new SqlOriginSettingRepo(kernel, { after: failed }).findEgressAllowlist({ workspaceId: WORKSPACE_ID }), /boot write failed/);
+    await assert.rejects(new SqliteOriginSettingRepo({ store: kernel }, { after: failed }).findEgressAllowlist({ workspaceId: WORKSPACE_ID }), /boot write failed/);
   });
 
   test("registerConfiguredOrigin inserts when no origin is registered yet", async () => {
     const kernel = makeKernel();
-    assert.equal(await registerConfiguredOriginOn({ kernel, workspaceId: WORKSPACE_ID, origin: configuredOrigin() }), "inserted");
-    assert.deepEqual(await new SqlOriginSettingRepo(kernel).findByWorkspaceId({ workspaceId: WORKSPACE_ID }), configuredOrigin());
+    assert.equal(await registerConfiguredOrigin({ db: kernel, workspaceId: WORKSPACE_ID, origin: configuredOrigin() }), "inserted");
+    assert.deepEqual(await new SqliteOriginSettingRepo({ store: kernel }).findByWorkspaceId({ workspaceId: WORKSPACE_ID }), configuredOrigin());
   });
 
   test("registerConfiguredOrigin persists, changes and removes port/basePath independently", async () => {
     const kernel = makeKernel();
-    const repo = new SqlOriginSettingRepo(kernel);
+    const repo = new SqliteOriginSettingRepo({ store: kernel });
     let expected = createVerifiedOrigin({ ...configuredOrigin(), port: 8443, basePath: "/site" });
-    assert.equal(await registerConfiguredOriginOn({ kernel, workspaceId: WORKSPACE_ID, origin: expected }), "inserted");
+    assert.equal(await registerConfiguredOrigin({ db: kernel, workspaceId: WORKSPACE_ID, origin: expected }), "inserted");
     assert.deepEqual(await repo.findByWorkspaceId({ workspaceId: WORKSPACE_ID }), expected);
     for (const origin of [
       { ...configuredOrigin(), port: 8443, basePath: "/nested/site" },
@@ -176,7 +176,7 @@ describeEachDialect("OriginSettingRepoPort (SQL)", { tables: ["origin_settings"]
       configuredOrigin(),
     ]) {
       expected = createVerifiedOrigin(origin);
-      assert.equal(await registerConfiguredOriginOn({ kernel, workspaceId: WORKSPACE_ID, origin: expected }), "updated");
+      assert.equal(await registerConfiguredOrigin({ db: kernel, workspaceId: WORKSPACE_ID, origin: expected }), "updated");
       assert.deepEqual(await repo.findByWorkspaceId({ workspaceId: WORKSPACE_ID }), expected);
     }
   });
@@ -186,7 +186,7 @@ describeEachDialect("OriginSettingRepoPort (SQL)", { tables: ["origin_settings"]
     const other = configuredOrigin("other.example");
     await seedDevCapabilityOriginOn(kernel, { workspaceId: WORKSPACE_ID, origin: seedOrigin(), redirectAllowlist: ["allowed.example"], egressAllowlist: ["api.example.com"] });
     await seedDevCapabilityOriginOn(kernel, { workspaceId: "workspace-2", origin: other, redirectAllowlist: ["redirect.other.example"], egressAllowlist: ["api.other.example"] });
-    const repo = new SqlOriginSettingRepo(kernel);
+    const repo = new SqliteOriginSettingRepo({ store: kernel });
     for (const [workspaceId, origin, redirects, egress] of [
       [WORKSPACE_ID, seedOrigin(), ["allowed.example"], ["api.example.com"]],
       ["workspace-2", other, ["redirect.other.example"], ["api.other.example"]],
@@ -206,9 +206,9 @@ describeEachDialect("OriginSettingRepoPort (SQL)", { tables: ["origin_settings"]
     const kernel = makeKernel();
     await seedDevCapabilityOriginOn(kernel, { workspaceId: WORKSPACE_ID, origin: DEV_CAPABILITY_ROW });
 
-    assert.equal(await registerConfiguredOriginOn({ kernel, workspaceId: WORKSPACE_ID, origin: configuredOrigin() }), "updated");
+    assert.equal(await registerConfiguredOrigin({ db: kernel, workspaceId: WORKSPACE_ID, origin: configuredOrigin() }), "updated");
 
-    const found = await new SqlOriginSettingRepo(kernel).findByWorkspaceId({ workspaceId: WORKSPACE_ID });
+    const found = await new SqliteOriginSettingRepo({ store: kernel }).findByWorkspaceId({ workspaceId: WORKSPACE_ID });
     assert.deepEqual(found, configuredOrigin(), "the configured public origin must replace the dev-capability row");
     assert.equal(found?.port, undefined, "the dev seed's port 3000 must not survive onto a portless https origin");
   });
@@ -225,9 +225,9 @@ describeEachDialect("OriginSettingRepoPort (SQL)", { tables: ["origin_settings"]
       egressAllowlist: ["api.example.com"],
     });
 
-    await registerConfiguredOriginOn({ kernel, workspaceId: WORKSPACE_ID, origin: configuredOrigin() });
+    await registerConfiguredOrigin({ db: kernel, workspaceId: WORKSPACE_ID, origin: configuredOrigin() });
 
-    const repo = new SqlOriginSettingRepo(kernel);
+    const repo = new SqliteOriginSettingRepo({ store: kernel });
     assert.deepEqual(await repo.findRedirectAllowlist({ workspaceId: WORKSPACE_ID }), ["allowed.example"]);
     assert.deepEqual(await repo.findEgressAllowlist({ workspaceId: WORKSPACE_ID }), ["api.example.com"]);
   });
@@ -235,12 +235,12 @@ describeEachDialect("OriginSettingRepoPort (SQL)", { tables: ["origin_settings"]
   // A steady-state boot must not churn `verified_at` on every restart.
   test("registerConfiguredOrigin is a no-op when the stored origin already matches", async () => {
     const kernel = makeKernel();
-    await registerConfiguredOriginOn({ kernel, workspaceId: WORKSPACE_ID, origin: configuredOrigin() });
+    await registerConfiguredOrigin({ db: kernel, workspaceId: WORKSPACE_ID, origin: configuredOrigin() });
 
     const restamped = createVerifiedOrigin({ ...configuredOrigin(), verifiedAt: "2099-01-01T00:00:00.000Z" });
-    assert.equal(await registerConfiguredOriginOn({ kernel, workspaceId: WORKSPACE_ID, origin: restamped }), "unchanged");
+    assert.equal(await registerConfiguredOrigin({ db: kernel, workspaceId: WORKSPACE_ID, origin: restamped }), "unchanged");
 
-    const found = await new SqlOriginSettingRepo(kernel).findByWorkspaceId({ workspaceId: WORKSPACE_ID });
+    const found = await new SqliteOriginSettingRepo({ store: kernel }).findByWorkspaceId({ workspaceId: WORKSPACE_ID });
     assert.equal(found?.verifiedAt, "2026-09-18T00:00:00.000Z", "an unchanged origin must not restamp verifiedAt");
   });
 
@@ -249,12 +249,12 @@ describeEachDialect("OriginSettingRepoPort (SQL)", { tables: ["origin_settings"]
   // new domain must be able to say so. Recorded as a decision, not an accident.
   test("registerConfiguredOrigin updates an existing workspace-setting row when the configured origin changes", async () => {
     const kernel = makeKernel();
-    await registerConfiguredOriginOn({ kernel, workspaceId: WORKSPACE_ID, origin: configuredOrigin("old.example") });
+    await registerConfiguredOrigin({ db: kernel, workspaceId: WORKSPACE_ID, origin: configuredOrigin("old.example") });
     assert.equal(
-      await registerConfiguredOriginOn({ kernel, workspaceId: WORKSPACE_ID, origin: configuredOrigin("new.example") }),
+      await registerConfiguredOrigin({ db: kernel, workspaceId: WORKSPACE_ID, origin: configuredOrigin("new.example") }),
       "updated"
     );
-    assert.equal((await new SqlOriginSettingRepo(kernel).findByWorkspaceId({ workspaceId: WORKSPACE_ID }))?.host, "new.example");
+    assert.equal((await new SqliteOriginSettingRepo({ store: kernel }).findByWorkspaceId({ workspaceId: WORKSPACE_ID }))?.host, "new.example");
   });
 });
 

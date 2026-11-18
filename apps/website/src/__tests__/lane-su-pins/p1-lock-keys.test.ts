@@ -5,7 +5,7 @@ import { createVerifiedOrigin } from "@jini-ai/core/contracts/server/verified-or
 
 import { SqlFormDeliveryRepo, SqlFormPullLeaseRepo } from "#src/platform/db/repos/form-delivery-repo";
 import { SqlOutboxAdapter } from "#src/platform/db/repos/outbox-repo";
-import { registerConfiguredOriginOn } from "#src/platform/db/repos/origin-repo";
+import { registerConfiguredOrigin } from "#src/platform/db/sqlite/origin-repo.sqlite";
 import { SqliteTokenStore } from "#src/platform/db/sqlite/gated-mutation-token-repo.sqlite";
 import { SqlWebhookDeliveryRepo } from "#src/platform/db/repos/webhook-repo";
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
@@ -51,7 +51,7 @@ describe("P1 lock keys: workspace, identity, settings, origin, tokens", () => {
   test("origin settings are per workspace", async () => {
     const { kernel, keys } = recordingKernel();
     const origin = createVerifiedOrigin({ scheme: "https", host: "example.com", verifiedAt: "2026-11-17T00:00:00.000Z", source: "workspace-setting" });
-    await registerConfiguredOriginOn({ kernel, workspaceId: WS, origin });
+    await registerConfiguredOrigin({ db: kernel, workspaceId: WS, origin });
     assert.deepEqual(keys, [`origin_settings:${WS}`]);
   });
 
