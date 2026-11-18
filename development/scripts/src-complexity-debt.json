@@ -51,13 +51,6 @@
       "value": 11
     },
     {
-      "file": "apps/website/src/features/agent-plugins/new-site-agent-plugin-tokens.ts",
-      "function": "parseNewSiteAgentPluginTokens#1",
-      "line": 40,
-      "rule": "complexity",
-      "value": 11
-    },
-    {
       "file": "apps/website/src/features/consent/readiness.ts",
       "function": "unmanagedWarnings#1",
       "line": 40,
