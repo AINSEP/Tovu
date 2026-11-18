@@ -26,3 +26,5 @@ Coordinator tovu-30 reviewed each Rec in 2026-11-17-OWNER-DECISIONS.md (full que
 ## Added 2026-11-17 ~3:30 PM PT (owner)
 - 03-a HREF STANDARD: use Jini's isAllowedHref as THE href check; fix Jini (refuse protocol-relative links to its own placeholder host; non-string input = not allowed, never throw; add one Jini helper next to it that returns the trimmed href or "#"), then delete BOTH Tovu safeHref helpers (platform/html/safe-url.ts and features/theme/render-contract.ts), repoint every caller, update check-menu-href-allowlist-sync.
 - AU-D15 = ACCEPT the judge-2 rewrite of admin sheet T1b (route-parity step 0, full mapping, S12-S16; ~380k).
+
+- JINI RELEASE (owner 11-17 ~3:55 PM PT): publish PRE-RELEASE snapshots 0.7.1-next.N under npm dist-tag `next` (latest stays 0.7.0) after each combine merge; one real version only when the refactor is done. This is how DX-OD10 snapshots are made.
