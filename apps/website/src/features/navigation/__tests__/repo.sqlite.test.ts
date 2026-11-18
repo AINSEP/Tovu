@@ -12,7 +12,7 @@ import {
   type NavMenuDoc,
   type NavMenuEntry,
 } from "@jini-ai/cms/navigation";
-import { SqlMenuRepo, SqlNavLocationBindingRepo } from "../repo.js";
+import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "../repo.sqlite.js";
 
 /**
  * @file Shared contract-test suites for `MenuRepoPort` and
@@ -136,7 +136,7 @@ function runMenuRepoContractSuite(adapterName: string, makeRepo: () => MenuRepoP
 }
 
 runMenuRepoContractSuite("InMemoryMenuRepo", () => new InMemoryMenuRepo({}));
-const menuDialects = eachDialect({ tables: ["menus"], make: (kernel) => ({ kernel, repo: new SqlMenuRepo(kernel) }) });
+const menuDialects = eachDialect({ tables: ["menus"], make: (kernel) => ({ kernel, repo: new SqliteMenuRepo({ store: kernel }) }) });
 for (const each of menuDialects) {
   runMenuRepoContractSuite(`SqlMenuRepo ${each.name}`, () => each.make().repo);
 }
@@ -162,7 +162,7 @@ for (const each of menuDialects) {
     const row = sampleMenu();
     await repo.save(row);
     const failure = new Error("storage unavailable");
-    const unavailable = new SqlMenuRepo({ ...kernel, run: async () => { throw failure; } });
+    const unavailable = new SqliteMenuRepo({ store: { ...kernel, run: async () => { throw failure; } } });
     await assert.rejects(unavailable.save({ ...row, title: "Must not persist" }), error => error === failure);
     assert.deepEqual(await repo.findById({ workspaceId: row.workspaceId, id: row.id }), row);
   });
@@ -294,7 +294,7 @@ function runBindingRepoContractSuite(adapterName: string, makeRepo: () => NavLoc
 }
 
 runBindingRepoContractSuite("InMemoryNavLocationBindingRepo", () => new InMemoryNavLocationBindingRepo({}));
-const bindingDialects = eachDialect({ tables: ["nav_location_bindings"], make: (kernel) => new SqlNavLocationBindingRepo(kernel) });
+const bindingDialects = eachDialect({ tables: ["nav_location_bindings"], make: (kernel) => new SqliteNavLocationBindingRepo({ store: kernel }) });
 for (const each of bindingDialects) {
   runBindingRepoContractSuite(`SqlNavLocationBindingRepo ${each.name}`, each.make);
 }

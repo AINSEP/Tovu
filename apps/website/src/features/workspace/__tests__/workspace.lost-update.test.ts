@@ -1,13 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { workspaceRepoFor } from "@jini-ai/cms/workspace/sql";
 import { RecordVersionConflictError } from "@jini-ai/core/optimistic-concurrency";
+import { schemaErasedKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import { toAdminWorkspaceResponse } from "#src/server/inbound/admin-http/http/workspace";
-import { SqlWorkspaceRepo } from "../repo.js";
+import { WORKSPACE_TABLES } from "../repo.sqlite.js";
 
 const initial = { id: "ws", name: "Original", slug: "original", createdAt: "t0", version: 1 };
 
-describeEachDialect("workspace lost update", { tables: ["workspaces"], make: (kernel) => new SqlWorkspaceRepo(kernel) }, (make) => {
+describeEachDialect("workspace lost update", { tables: ["workspaces"], make: (kernel) => workspaceRepoFor({ kernel: schemaErasedKernel({ store: kernel }), tables: WORKSPACE_TABLES }) }, (make) => {
   test("a stale update is refused without overwriting the first change", async () => {
     const repo = make();
     await repo.insert(initial);

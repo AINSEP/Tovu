@@ -5,7 +5,7 @@ import { extractListingBatch, renderListingBatchDocument, type ListingBatchReque
 import { postAuthorForDisplay } from "#src/contracts/core/post-author";
 import { extractPlainTextFromHtml } from "#src/features/post/rendering";
 import { deriveExcerpt } from "@jini-ai/cms/seo";
-import type { AssignedTermView } from "#src/features/taxonomy/contracts";
+import type { AssignedTermView } from "@jini-ai/cms/taxonomy";
 import type { RouteDeps } from "#src/server/routes/types";
 import type { TemplateRenderDeps } from "../render-context/deps.js";
 import { resolveAssignedTermsForRender } from "../render-context/taxonomy.js";

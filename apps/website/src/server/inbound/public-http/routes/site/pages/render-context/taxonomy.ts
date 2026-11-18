@@ -1,6 +1,6 @@
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
 import { markersOfType } from "@jini-ai/cms/widgets/markers";
-import type { AssignedTermView, EntryTermReadPort } from "#src/features/taxonomy/contracts";
+import type { AssignedTermView, EntryTermReadPort } from "@jini-ai/cms/taxonomy";
 
 /**
  * Taxonomy render-surface gap fix (2026-09-02) — categories and tags had a complete WRITE path
