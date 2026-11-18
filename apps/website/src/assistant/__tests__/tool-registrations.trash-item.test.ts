@@ -18,7 +18,7 @@ import {
 } from "@jini-ai/daemon/surface-exchanges";
 import { commentsAgentToolCatalog } from "#src/features/comments/agent-tools";
 import { postAgentToolCatalog } from "#src/features/post/agent-tools";
-import { getRedirectsAgentToolCatalog } from "#src/features/redirects/agent-tools";
+import { getRedirectsAgentToolCatalog } from "@jini-ai/cms/redirects";
 import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
 import { buildTrashRegistry } from "#src/features/trash/registry";

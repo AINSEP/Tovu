@@ -27,7 +27,7 @@ import {
   OriginRegistry,
 } from "@jini-ai/core/contracts/server/verified-origin";
 import { type AgentToolDefinition } from "@jini-ai/core";
-import { getRedirectsAgentToolCatalog } from "../../features/redirects/agent-tools.js";
+import { getRedirectsAgentToolCatalog } from "@jini-ai/cms/redirects";
 import { redirectMatcher } from "@jini-ai/cms/redirects";
 import type { RedirectDbHandle } from "@jini-ai/cms/redirects/sql";
 import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
