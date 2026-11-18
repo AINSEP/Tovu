@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { scanHtmlEmbeds } from "@jini-ai/cms/widgets/html";
-import { extractEntryRefs, extractHtmlEntryRefs } from "../extractor.js";
+import { extractEntryRefs } from "@jini-ai/cms/widgets";
+import { extractHtmlEntryRefs } from "../extractor.js";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 
 test("supported form placement persists the complete page-to-widget-to-form reference chain", async () => {

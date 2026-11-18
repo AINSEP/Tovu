@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { extractEntryRefs, extractHtmlEntryRefs } from "../../extractor.js";
+import { extractEntryRefs } from "@jini-ai/cms/widgets";
+import { extractHtmlEntryRefs } from "../../extractor.js";
 import type { EntryRefRow } from "@jini-ai/cms/widgets";
 
 /**

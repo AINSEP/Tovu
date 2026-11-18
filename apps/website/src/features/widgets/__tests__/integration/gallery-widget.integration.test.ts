@@ -8,7 +8,7 @@ import { InMemoryMediaRepo, InMemoryTransformDefinitionRepo, CORE_PUBLIC_TRANSFO
 import { buildWidgetHostPorts } from '#src/features/widgets/deps';
 import { renderHtmlPageBody } from '#src/server/inbound/public-http/http/site/render/page-body';
 import { renderDocNode, renderWidgetIr } from '#src/server/inbound/public-http/http/site/render/content-html';
-import { extractEntryRefs } from '#src/contracts/core/entry-refs/extractor';
+import { extractEntryRefs } from '@jini-ai/cms/widgets';
 import { widgetsAgentToolCatalog } from '#src/features/widgets/agent-tools';
 
 const workspaceId = 'gallery-widget-workspace', now = '2026-10-09T00:00:00.000Z';

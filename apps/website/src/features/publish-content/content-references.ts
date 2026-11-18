@@ -1,5 +1,5 @@
 import { embedMarkerTarget, scanEmbedMarkers } from "@jini-ai/cms/widgets/markers";
-import { extractEntryRefs } from "#src/contracts/core/entry-refs/extractor";
+import { extractEntryRefs } from "@jini-ai/cms/widgets";
 
 import { collectMediaConfigKeys, collectReferencedMediaKeys } from "./media-references.js";
 import type { PublishContentReference } from "./type-registry.js";

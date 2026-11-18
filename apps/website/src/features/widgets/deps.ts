@@ -40,7 +40,7 @@ import { createEntry, importEntry, updateEntry, toEntryOutbox, VersionConflictEr
 import { createPublicPostReader, isTrashed, updatePost, restorePostForward, findPublishedPostById, findPublishedPostBySlug, PostVersionConflictError, PostNotFoundError, type PostRecord, type BeforeSaveHookPort, type ForgetRemovedPostFn, type PostRepoPort } from "../post/post.js";
 import { findMediaByIdOrSlug, getLatestTransformDefinition } from "@jini-ai/cms/media";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "../media/bootstrap.js";
-import { extractEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
+import { extractEntryRefs } from "@jini-ai/cms/widgets";
 import { toSlug } from "../../platform/html/slug.js";
 import { getEntryLockState, type WidgetHostPorts } from "@jini-ai/cms/widgets";
 import type { RemoveWidgetFn, WidgetRegionBindingRepoPort } from "@jini-ai/cms/widgets";

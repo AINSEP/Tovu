@@ -4,7 +4,7 @@ import test from 'node:test';
 import type { Clock } from '@jini-ai/core/primitives';
 import { InMemoryVersionedMediaRepo } from '../versioned-media-repo.js';
 import { findMediaWhereUsed } from '#src/features/media/where-used';
-import { extractEntryRefs } from '#src/contracts/core/entry-refs/extractor';
+import { extractEntryRefs } from '@jini-ai/cms/widgets';
 import { InMemoryEntryRefsRepo } from '@jini-ai/cms/widgets';
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createPost, InMemoryPostRepo } from '#src/features/post/index';
