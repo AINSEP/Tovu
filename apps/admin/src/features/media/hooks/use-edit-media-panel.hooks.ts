@@ -6,6 +6,7 @@ import type { AdminMedia } from "@/features/media/api/media-api.types";
 import { describeApiError } from "@/lib/admin-http/request";
 import { useFetchMutation, useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { parseMediaHtmlAttributes } from "@jini-ai/admin/media";
+import { embedPolicy } from "../../../integrations/jini-admin/embed-policy-ports";
 import {
   KEYS,
   describeMediaHtmlAttributeError,
@@ -200,7 +201,7 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
     setDraft((d) => ({ ...d, htmlAttributes: value.trim() === "" ? null : value }));
   }
 
-  const htmlAttributesParsed = parseMediaHtmlAttributes({ text: draft.htmlAttributes ?? "" });
+  const htmlAttributesParsed = parseMediaHtmlAttributes({ text: draft.htmlAttributes ?? "", policy: embedPolicy });
   const htmlAttributesError = htmlAttributesParsed.error
     ? describeMediaHtmlAttributeError(htmlAttributesParsed.error, locale)
     : null;

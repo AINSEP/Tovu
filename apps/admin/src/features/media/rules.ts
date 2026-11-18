@@ -113,7 +113,7 @@ export function parseOptionalPixelSize(value: string): number | null {
   return value.trim() === "" ? null : Number(value);
 }
 
-// The HTML-attribute allowlist and parser live in `@jini-ai/admin/media` (`parseMediaHtmlAttributes`); Tovu keeps only the translated message.
+// The HTML-attribute allowlist and parser belong to the content domain (`@jini-ai/cms/widgets/markers`); `integrations/jini-admin/embed-policy-ports.ts` binds them to `@jini-ai/admin/media`'s `parseMediaHtmlAttributes`, and Tovu keeps only the translated message.
 /** Formats a {@link MediaHtmlAttributeError} into the specific, visible message the edit form
  *  shows — always names the rejected attribute or fragment (owner requirement). Same
  *  `media-i18n.ts`'s `t` (COMMON_I18N-falling-back) + `.replace("{placeholder}", ...)` idiom

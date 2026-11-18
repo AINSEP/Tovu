@@ -1,5 +1,6 @@
 import type { AdminMedia } from "../../features/media/api/media-api.types";
 import { parseMediaHtmlAttributes } from "@jini-ai/admin/media";
+import { embedPolicy } from "../../integrations/jini-admin/embed-policy-ports";
 
 /**
  * @file Pure rules behind `MediaContentEditor` — the two-tab ("Media" / "Raw HTML") editor for a
@@ -362,7 +363,7 @@ export function rowsToHtmlAttributes(rows: readonly HtmlAttributeRow[]): string 
  *  off the list) — reuses the media attribute validator rather than a second allowlist. */
 export function isDroppedAttributeRow(row: HtmlAttributeRow): boolean {
   if (row.name.trim() === "") return false;
-  return parseMediaHtmlAttributes({ text: rowsToHtmlAttributes([row]) }).error !== null;
+  return parseMediaHtmlAttributes({ text: rowsToHtmlAttributes([row]), policy: embedPolicy }).error !== null;
 }
 
 /**
