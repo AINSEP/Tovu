@@ -50,13 +50,13 @@ Docs only. Nothing here was executed. Read with `INDEX.md` (order, prerequisites
 | 15 | `memory.ts` (603) | 15 | 1 SSE | `registerMemoryRoutes`, `registerMemoryEventStream` | Preset:608, reference-web | SO 10 + SSE guard. **Order comment** at :580 (static paths before `/:id`). Three `EventEmitter` subscriptions per stream, removed in `onClose`. File > 500. |
 | 16 | `runs.ts` (381) | 5 | 1 SSE | `registerRunRoutes`, `registerRunEventStream` | Preset:290, Tovu-scope:1468 | SO 3; SSE has **no** origin guard. `Last-Event-ID`/`afterCursor` replay. Error-before-open answers JSON, error-after-open ends the stream. |
 | 17 | `terminals.ts` (360) | 6 | 1 SSE | `registerTerminalRoutes`, `registerTerminalEventStream` | Preset:416 | SO 5 + SSE guard. Deferred-end gate (:266), `isEndEvent` on `exit`, 404 after `abandon()`. |
-| 18 | `frontend-sessions.ts` (339) | 1 | 1 SSE + 1 gate | `registerFrontendSessionRoutes` | Preset:659, `frontend-control.ts:170` | `routePrefix` is configurable. Host hook `deps.resolveOwner({ req, res })` takes **Express objects**. `res.sendStatus(403/429)`. TTL timer per scoped session. Uses http-kit `createSseResponse` (`raw-sse.ts`). |
+| 18 | `frontend-sessions.ts` (339) | 1 | 1 SSE + 1 gate | `registerFrontendSessionRoutes` | Preset:659, `frontend-control.ts:170` | `routePrefix` is configurable. Host hook `deps.resolveOwner({ req, res })` takes **Express objects**. `res.sendStatus(403/429)`. TTL timer per scoped session. Uses http-kit `createSseResponse` (`raw-sse.ts`). *(rev 3)* Its host hooks need the trust-proxy client address, the request's HTTPS answer and Express's parsed query: §12 (step F2b). |
 | 19 | `remote-run-events.ts` (273) | 2 | 2 gates | `registerRemoteRunEventRoutes` | Preset:585 | SO 0 by design; bearer gate `requireRemoteToolBridgeToken`. `process.*` (2). |
 | 20 | `model-proxy.ts` (659) | 0 | 6 SSE | `registerModelProxyRoutes` | Preset:374 | Guard inside `runProxyStream` (:418) and in the catch-all (:622). 5 agent-runtime tool-turn values (C6 `ProviderToolTurnPort`, follow-up F3). File > 500. |
 | 21 | `attachments.ts` (1639) | 0 | 2 | `registerAttachmentRoutes` | Tovu-scope:1602, reference-web | POST streams the **raw request body** to disk (`for await (chunk of request)`, :762); DELETE reads parsed JSON and answers **204 no body**. Detects an already-consumed stream. Per-registration `activeUploads` counter. Host hook `resolveOwnerId({ req })`. platform `writeJsonFileAtomicAsync`. File is 3× the limit. |
 | 22 | `attachment-lookup-routes.ts` (89) | 0 | 1 | `registerAttachmentLookupRoutes` | Tovu `daemon-access.ts` | Own parser `express.json({ limit: '64kb' })`. |
 | 23 | `message-relay.ts` (48) | 0 | 1 | `registerMessageRelayRoutes`, `createMessageRelayClaimHandler` | Tovu-scope:1389 | Bearer token; errors go to `next(error)`. Tovu puts a 1 KB parser in front. **d2 already converted this file** (`f6e1401e`). |
-| 24 | `frontend-request-route.ts` (69) | 0 | 1 NDJSON | `registerFrontendRequestRoute` | Tovu-scope:1548 | Host hook `resolveOwner({ req, res })`; plain-string error bodies; streams through `streamToolExecution` with keepalive. |
+| 24 | `frontend-request-route.ts` (69) | 0 | 1 NDJSON | `registerFrontendRequestRoute` | Tovu-scope:1548 | Host hook `resolveOwner({ req, res })`; plain-string error bodies; streams through `streamToolExecution` with keepalive. *(rev 3)* Hook input per §12 (step F3). |
 | 25 | `tool-execution-routes.ts` (237) | 0 | 2 (1 NDJSON) | `registerToolExecutionRoutes` | Tovu `modules/assistant-tool-exec.ts` | Chain: gate → `express.json({ limit })` → optional host `authorizeRun: RequestHandler` → handler → body-parser error handler. Loopback peer check on `req.socket.remoteAddress`. `env = process.env` default. 16 MiB limit. 15 s keepalive timer. |
 | | **Total** | **83** | **17 + 3 gates** | 28 | | |
 
@@ -95,13 +95,13 @@ Not mounted by the preset at all: rows 3, 21–25. They exist only for Tovu and 
 | Client disconnect = `res.on('close')` | `streamToolExecution`, `surface-restoration`, `mountJsonRoute` | `request.signal` (the adapter aborts it on response close; core `json-route.ts` already relies on this) |
 | `req.complete`, `res.destroyed`, `res.headersSent`, `res.writableEnded` | tool-exec, attachments, model-proxy, frontend-sessions | disappear: a handler returns exactly one `Response`, chosen before it returns |
 | `req.socket.remoteAddress` | tool-exec loopback check | `client.address` (already on `ServerHandler`) |
-| `res.cookie(...)`, `req.secure` | `frontend-guest-scope.ts:44` | a `set-cookie` header on the `Response`; "secure" becomes an injected `isSecureRequest` port (§3.5) |
+| `res.cookie(...)`, `req.secure` | `frontend-guest-scope.ts:46` | *(rev 3)* `issue()` returns `{ tabCredential, setCookie }`, its Express caller (Tovu) sets the headers; "secure" is the required `isSecureRequest(FrontendHookInput)` port, answered from Tovu's request facts (`req.secure`, **not** `resolveProtocol`): §12.3 |
 | `req.headers[x] = y` (mutation read by later handlers) | `run-credentials.ts:36` | not expressible on a web `Request`; see D3 |
 | `next()` / `next(error)` | gates, message-relay, run-credentials | `ServerMiddleware` `next()`; errors are thrown, the adapter's error path answers |
 | Express error-handler middleware | `bodyParserFailure` in tool-exec | `readJsonBody` returns a `Result` (413 / 400); no error middleware |
 | Registration order decides a match | memory (`/tree` before `/:id`) | the `Server` contract makes a literal segment win over `:name`, so order stops mattering; pinned in Phase 0 |
 | `app.use(path, gate)` | remote-run-events | `withRouteMiddleware` on those two routes (§2.3) |
-| Host hooks typed with Express | `resolveOwner({ req, res })`, `resolveOwnerId({ req })`, `allowsRequest({ req })`, `authorizeRun: RequestHandler` | hooks take `{ request: Request }` (+ `locals`); `authorizeRun` becomes the typed `AuthorizeToolRun` port (§3.5): it rewrites the parsed body today |
+| Host hooks typed with Express | `resolveOwner({ req, res })`, `resolveOwnerId({ req })`, `allowsRequest({ req })`, `authorizeRun: RequestHandler` | *(rev 3)* frontend hooks take `FrontendHookInput` = `{ request: Pick<Request, 'method' \| 'headers'>, locals }`, never `client`; the host's trust-proxy address, HTTPS answer and parsed query arrive in `locals`, filled by the host's mount adapter (§12.2); `authorizeRun` becomes the typed `AuthorizeToolRun` port (§3.5): it rewrites the parsed body today |
 
 ---
 
@@ -272,10 +272,10 @@ A route group must be **called once per listener**. *(rev 2)* Duplicate registra
 | Same-origin on hand-built routes | `sameOriginRefusal({ request, origin: host.context })` first line of the handler (C4-a) | same |
 | Tool-exec caller gate (token env + loopback + bearer, constant-time compare) | *(rev 2)* one **decision function** owned by daemon, used by daemon's routes through `withRouteMiddleware` and by Tovu's four Express routes through a Tovu adapter (§11.8). `env` and `timingSafeEqual` are **required**. | daemon decides; each host adapts |
 | Remote-bridge token | `withRouteMiddleware` on the two remote-run-event routes; replaces the two `app.use(path, gate)` | daemon |
-| Frontend-session ownership (`resolveOwner` + bind token) | `withRouteMiddleware` on the responses route when `deps.resolveOwner` is set | daemon runs it, host supplies `resolveOwner({ request, locals })` |
+| Frontend-session ownership (`resolveOwner` + bind token) | `withRouteMiddleware` on the responses route when `deps.resolveOwner` is set | daemon runs it, host supplies `resolveOwner(FrontendHookInput)`; the facts it needs come from `locals` (§12) |
 | Host bearer gate, origin middleware, run-ownership gate, idle-park, 6 MB parser | stay Express middleware in Tovu, above the line where the route list is mounted | Tovu |
 | `authorizeRun` (host check between parse and execute; may replace the principal) | typed port `AuthorizeToolRun`, called after the body is parsed (see below) | host supplies, daemon orders |
-| Guest cookie (`frontend-guest-scope.ts`) | `issue({ request })` returns `{ tabCredential, setCookie: string }`; the route puts `setCookie` on its `Response`. `secure: req.secure` becomes `isSecureRequest({ request })`, a required host port, because "is this HTTPS" behind a proxy is host policy (Express answered it from `trust proxy`). | daemon builds the cookie text; Tovu answers "secure?" |
+| Guest cookie (`frontend-guest-scope.ts`) | *(rev 3: §12.3 supersedes this cell)* `issue({ request })` returns `{ tabCredential, setCookie: string }`; the route puts `setCookie` on its `Response`. `secure: req.secure` becomes `isSecureRequest({ request })`, a required host port, because "is this HTTPS" behind a proxy is host policy (Express answered it from `trust proxy`). | daemon builds the cookie text; Tovu answers "secure?" |
 
 **Tool-exec `authorizeRun` is an authorization that also narrows the principal *(rev 2: corrected; the first version of this paragraph described a request that is refused today as accepted)*.** Tovu passes `authorizeRun: requireSiteToolRun(...)` (`modules/assistant-tool-exec.ts:91, 222-238`). That handler:
 
@@ -386,8 +386,8 @@ A **pair** is one Jini commit + one Tovu commit. The old function is deleted and
 | **P0** | Characterization tests (§6), no source change. Lands and is green **before** anything else. | — | 1 Jini, 1 Tovu |
 | **P1** | `route-host.ts`, `route-table.ts`, `line-stream.ts` + their unit tests; Tovu `jini-routes.ts` + its unit test (moved "mounted in Express" case from d2). Nothing calls them yet. | — | 1 |
 | **G1** | JSON-only files, one pair per file, smallest first: `tool-catalog`, `component-catalog`, `agents`, `daemon-status`, `active-context`, `delegated-tools`, `research`, `db-ops`, `health`, `host-tools`, `media`, `routines`, `connectors`, `xai` | 54 | 14 |
-| **G2** | JSON + SSE: `remote-run-events` (gates, no SSE: first), `runs`, `memory`, `terminals`, `frontend-sessions` + `frontend-control`, `model-proxy` | 39 | 6 |
-| **G3** | Raw body / NDJSON / cookies: `attachment-lookup-routes`, `message-relay` (start from d2's version), `tool-execution-routes` (+ the four Tovu gate sites, §11.8), `frontend-request-route` + `surface-*` (+ the two Tovu helper callers, §11.7), `frontend-guest-scope`, `attachments`; then D3 (move `run-credentials.ts` factories to Tovu). *(rev 2: step G3-6 "drop Tovu's parsers" is deleted.)* | 7 | 7 |
+| **G2** | JSON + SSE: `remote-run-events` (gates, no SSE: first), `runs`, `memory`, `terminals`, `model-proxy` (all done on `wave2/daemon-r7`), then *(rev 3)* §12 steps F0 (pins) → F1 (`nodeRequestHeaders`) → F2a (`frontend-guest-scope` + Tovu request facts) → F2b (`frontend-sessions` + `frontend-control`) | 39 | 6 + F0, F1, F2a |
+| **G3** | Raw body / NDJSON: `attachment-lookup-routes` (done, Jini `44c1479e` / Tovu `6489cfd0`), `message-relay` (start from d2's version), `tool-execution-routes` (+ the four Tovu gate sites, §11.8), *(rev 3)* `surface-*` = §12 F4 (+ the two Tovu helper callers, §11.7; not blocked, no host hook), `frontend-request-route` = §12 F3 (after F2b), `attachments`; then D3 (move `run-credentials.ts` factories to Tovu). `frontend-guest-scope` moved to G2 (F2a). *(rev 2: step G3-6 "drop Tovu's parsers" is deleted.)* | 7 | 7 |
 | **Z** | Delete what has no caller left: http-kit `mountJsonRoute`, Express `JsonRouteSpec`/`JsonRoutePorts`/`defineJsonRoute`, `rawInput`, `passesSameOriginGuard`, `sendJson`, `sendApiError`, `sendRawApiError`, `createSseChannel`, `requestedAfterCursor`, `createSseResponse`. **Only if R9 (cms) has also converted**; otherwise Z waits for R9. Drop `express` from daemon `peerDependencies`, `@jini-ai/http-kit` from daemon `dependencies`; remove the retired `injection-debt.json` keys. *(rev 2: `route-manifest.ts` is not rebuilt.)* | — | 1 |
 
 Per-file recipe (G1; ≤ 15 minutes of edits):
@@ -468,7 +468,7 @@ Clock, UUIDs and timers are pinned (injected `now`, `newRequestId`, fake schedul
 - Phase 0 is not green on the unmodified tree, or a Phase 0 case cannot be made to fail by a deliberate one-line break of the thing it names.
 - C-ORIGIN-PORT, G-HTTP-AUTH, C4-a/C4-b or P-NODE-BRIDGE is not on the base branch.
 - A converted route's Phase 0 row changes (status, code, header, body bytes, frame bytes, listener count) other than the one named difference (abort answer).
-- A host hook (`resolveOwner`, `resolveOwnerId`, `allowsRequest`, `authorizeRun`) in Tovu reads something a web `Request` + `locals` + `client` cannot give it.
+- A host hook (`resolveOwner`, `resolveOwnerId`, `allowsRequest`, `authorizeRun`) in Tovu reads something a web `Request` + `locals` + `client` cannot give it. *(rev 3)* For the frontend hooks this is resolved by §12: the host's mount adapter puts Tovu's request facts in `locals`. STOP now means a hook needs a fact that is **not** in §12.1's inventory, or a §12.5 pin changes outside D-FS1; the checks are the fenced commands in §12.7.
 - A file's blob differs from the base in a way that moves a registration line (size lanes may have split `agent-daemon-scope.ts`): re-read, continue only if the same statement still exists.
 - A function would exceed 50 lines or complexity 10 after conversion.
 - Any test would need an assertion removed.
@@ -748,9 +748,11 @@ For every row the executor first applies the named break to today's code, sees t
 | Run ownership, owned list shadowing | Tovu `:1445-1446` | another admin's run → 404; list shows only own runs | mount after the Jini list |
 | Principal header rewrite (D3) | `run-credentials.ts:36` | a caller-sent principal header is replaced by the credential's principal | delete the assignment; the test moves to Tovu with the code |
 | Frontend-session owner + bind token | `frontend-sessions.ts` | wrong owner, wrong token, resolver throws → 403 | each clause |
+| *(rev 3)* Visitor quota address and trust decision | Tovu `visitor-frontend-control.ts:42, 82` | §12.5 A1-A4, A11 | key on `client.address`; first-hop or trust-all parsing; a default address |
+| *(rev 3)* Visitor origin protocol, `Referrer`, absent `Host`; admin `tabId` | `visitor-request-origin.ts:21-28`, `admin-frontend-owner.ts:11` | §12.5 A6, A7 | read only `referer`; `URLSearchParams` for `tabId` |
 | Upload: auth first, consumed body refused | §11.5 | no token → empty temp dir; JSON-typed upload refused | mount with `parsedBody`; mount above the gate |
 | Loopback uses the socket address | bridge | forged `x-forwarded-for` refused | read the header |
-| Guest cookie flags | `frontend-guest-scope.ts:44` | T10 | drop `HttpOnly`/`SameSite`/`Secure` |
+| Guest cookie flags | `frontend-guest-scope.ts:46` | T10, §12.5 A5 | drop `HttpOnly`/`SameSite`/`Secure`; `Secure` from `servingProtocol` instead of `req.secure` |
 | SEC-005 redaction | all JSON routes | T3: thrown message absent from the body | return `error.message` |
 
 ### 11.16 Checklists
@@ -761,4 +763,143 @@ Lessons 1–11: unchanged from INDEX §7 except lesson 2 (inventory now includes
 
 ### 11.17 Updated prerequisites and order for R7
 
-`C-ORIGIN-PORT`, `G-HTTP-AUTH` (+ timing-safe fake), `C4-a`, `C4-b`, **`C4-e`** (`keepAliveMs: false`, `backlog`), **`P-NODE-BRIDGE`** (+ exported `sendWebResponse`, body-provenance test, client-address test, HEAD/OPTIONS cases) → **P0** (incl. Tovu's parser-chain and `authorizeRun` suites, T2b) → **P1** (`route-host`, `route-table`, `line-stream`, `sse-commit`, Tovu `mountJiniRoutes`, preset `mountRoutes`) → G1 → G2 → G3 → Z. STOP additions: C4-e not on the base; any §11.15 test that cannot be made to fail by its named break; the P0 census for O-12 finds a caller.
+`C-ORIGIN-PORT`, `G-HTTP-AUTH` (+ timing-safe fake), `C4-a`, `C4-b`, **`C4-e`** (`keepAliveMs: false`, `backlog`), **`P-NODE-BRIDGE`** (+ exported `sendWebResponse`, body-provenance test, client-address test, HEAD/OPTIONS cases) → **P0** (incl. Tovu's parser-chain and `authorizeRun` suites, T2b) → **P1** (`route-host`, `route-table`, `line-stream`, `sse-commit`, Tovu `mountJiniRoutes`, preset `mountRoutes`) → G1 → G2 → G3 → Z. STOP additions: C4-e not on the base; any §11.15 test that cannot be made to fail by its named break; the P0 census for O-12 finds a caller. *(rev 3)* Frontend files: §12.6 order F0 → F1 → F2a → F2b → F3; F4 any time after P1; STOP checks §12.7.
+
+---
+
+## 12. Frontend request facts (revision 3, 2026-11-18, daemon-frontend-fix; supersedes the text it names)
+
+**Why this section exists.** The executor on `wave2/daemon-r7` stopped `frontend-sessions` + `frontend-control` (and with them `frontend-request-route`, `surface-*`, `frontend-guest-scope`) on §8's rule "a host hook reads something a web `Request` + `locals` + `client` cannot give it" (`cloud-results/daemon-g2g3-cont.md`, section STOPPED). This section re-derives, from the code, what the hooks read, where the host computes it, and how it reaches them, then replaces the steps for those files. All facts below were read on **`origin/wave2/daemon-r7`: Jini `7d74131e`, Tovu `6e7c0df6`**. Line numbers are at those SHAs; the executor re-greps them (lesson 43) and continues only if the same statement still exists.
+
+### 12.1 What every hook reads today (inventory, lesson 2)
+
+| # | Reader | Where | Reads | Answer depends on |
+|---|---|---|---|---|
+| H1 | visitor capacity keys | Tovu `assistant/site/visitor-frontend-control.ts:82` → `resolveClientIp(req)` (`contracts/core/rate-limit/rate-limit.ts:212`) | `ip:<address>` | `trustedProxies` is `[]` at this call, so http-kit's forwarded-hop branch never runs; the answer is the fallback `source.ip \|\| socketPeer` (`rate-limit.ts:218`), then `'unknown'`. **`req.ip` is Express's answer under this app's `trust proxy`** (`server/inbound/shared/trust-proxy.ts:51`, set at `http-app/public-middleware.ts:44`: platform hop count, `TOVU_TRUST_PROXY`, or none). With hop count N Express takes the Nth address from the **right** of `X-Forwarded-For`. |
+| H2 | visitor IP gate (Express, Tovu) | `visitor-frontend-control.ts:40-48` | same `resolveClientIp(req)`; then `scope.resolveGuest({ req })` | same as H1; stays an Express gate above the mount line (§3.5) |
+| H3 | visitor origin check (`allowsRequest`) | `assistant/site/visitor-request-origin.ts:18-30` | `sec-fetch-site`, `origin`, `referer` (GET/HEAD only), `host`, method, and `resolveProtocol(req)` (`server/inbound/public-http/routes/oauth/public-origin.ts:37`) | `resolveProtocol` = first `X-Forwarded-Proto` hop, lower-cased, when it is exactly `http`/`https` (**no trust check**, deliberately, see its doc); otherwise `req.protocol` (Express: `https` on a TLS socket; else the raw first `X-Forwarded-Proto` value only when the peer is trusted; else `http`). Two Express-only details: `req.get('referer')` returns the **`Referrer`** header when present, else `Referer`; an absent `Host` prints as the text `undefined` in the template at `:26`. |
+| H4 | guest cookie `Secure` flag | Jini `daemon/src/http/frontend-guest-scope.ts:46` | `req.secure` | Express: `req.protocol === 'https'`. **Not the same fact as H3's protocol**: probe on express 4.22.2 with `trust proxy` 1 and `X-Forwarded-Proto: HTTPS,http` gives `req.protocol === 'HTTPS'`, `req.secure === false`, while `resolveProtocol` answers `https`. Without trust, `X-Forwarded-Proto: https` gives `secure === false` and `resolveProtocol === 'https'`. |
+| H5 | guest cookie / tab reads | `frontend-guest-scope.ts:32, 53` | `cookie`, `x-frontend-tab` headers | header text only |
+| H6 | visitor owner | `visitor-frontend-control.ts:74-79` | H5 + H3, `x-visitor-publication` | header text only |
+| H7 | admin owner | Tovu `assistant/admin-frontend-owner.ts:9-14`, passed at `agent-daemon-scope.ts:359` and `:1549` | `RUN_PRINCIPAL_HEADER` (written into `req.headers` by `createDaemonAuthMiddleware` above the mount, D3), `x-frontend-tab-id`, else `req.query.tabId` | `req.query` is the admin app's (`agent-daemon-scope.ts:1367`, default "extended" `qs` 6.15.4). Probed: `?tabId=a&tabId=b` → array (refused), `?tabId[x]=a` → object (refused), a `tabId` after 1000 other parameters → dropped (refused); `URLSearchParams` would accept all three. |
+| H8 | daemon capability list (daemon's own, not a hook) | `frontend-sessions.ts:156` `req.query['capability']` | the host app's `qs` result | see §12.4 |
+
+What the bridge gives a handler today (`http-kit/src/node-bridge.ts:319-321`): `request` (headers copied from `incoming.headers` **at dispatch time**, `:153-157`), `locals: { ...options.locals }`, and `client.address` = **the raw socket peer**. `client.address` is therefore **not** H1's answer behind a trusted proxy (every visitor would share the edge's address, which the existing test `new guest cookies cannot bypass the IP session cap or exhaust another client` catches). A web `Request` carries neither the trust decision nor the parsed query. So the STOP was right: none of H1, H4, H7 can be rebuilt from `request` + `client`.
+
+### 12.2 Decision: the host computes the facts once per dispatch and hands them through `locals`
+
+Option (a) of the STOP report, made concrete. No Jini type learns about proxies, Express or Tovu's policy:
+
+1. **Jini declares only the hook input** (new file `packages/daemon/src/http/frontend-hook-input.ts`, ≤ 25 lines):
+   ```ts
+   /**
+    * What a frontend host hook may read: the request's method and headers (a web `Request` is one),
+    * and the per-request values the host's own adapter put in `locals`. Never the socket peer:
+    * which address counts as "the client", and whether the request was HTTPS, is host policy
+    * (proxy trust), so the host computes it and passes it in `locals`.
+    */
+   export interface FrontendHookInput {
+     readonly request: Pick<Request, 'method' | 'headers'>;
+     readonly locals: Readonly<Record<string, unknown>>;
+   }
+   ```
+   Every frontend hook takes exactly this (plus `owner` for capacity keys). `client` is **not** passed to hooks, so a host cannot key quotas on the raw peer by accident.
+2. **Tovu owns the facts** (lesson 9). Two new files, split so domain code needs no Express import and no composition-root import (the last run hit a new back-edge doing that, `check:architecture` 6 → 7):
+   - `apps/website/src/contracts/core/request-facts.ts` (no Express): `interface TovuRequestFacts { clientAddress: string; servingProtocol: string; secure: boolean; query: Readonly<Record<string, unknown>> }`, the key `TOVU_REQUEST_FACTS = 'tovuRequestFacts'`, and `readRequestFacts({ locals })`, which **throws** a named `Error` when the key is absent or malformed (explicit absence check, lesson 20; never a default address, which would fail open into one shared quota key).
+   - `apps/website/src/server/inbound/shared/request-facts.ts` (beside `trust-proxy.ts`, Express): `captureRequestFacts({ req })` = `{ clientAddress: resolveClientIp(req), servingProtocol: resolveProtocol(req), secure: req.secure, query: req.query }` (the existing functions, called unchanged, so the answers are today's by construction); `requestFactsLocals({ req }, { base = {} })` = `{ ...base, [TOVU_REQUEST_FACTS]: captureRequestFacts({ req }) }` (key written last, so nothing earlier in `res.locals` can stand in for it); `requestHookInput({ req })` = `{ request: { method: req.method, headers: nodeRequestHeaders({ incoming: req }) }, locals: requestFactsLocals({ req }) }` for Tovu's own Express routes that call the guest scope.
+3. **Where it is computed: at the mount line, per dispatch.** `mountJiniRoutes` (`server/runtime/composition/jini-routes.ts:35`) changes `locals: res.locals` to `locals: requestFactsLocals({ req }, { base: res.locals })`. Computed there, not in one middleware at the top of the server, because `req.ip`/`req.protocol`/`req.secure` consult **`req.app`'s** `trust proxy fn`, and `req.app` is the app whose layer is running: the same app the old hook ran in. Cost (practice 12): per mount layer a request passes, one `resolveClientIp` (0 proxies listed), one header split, one object; no I/O. Recorded, not optimised.
+4. **One header view.** Jini exports the bridge's existing header loop as `nodeRequestHeaders({ incoming }, _optional = {}): Headers` from `@jini-ai/http-kit/node-bridge` (`toWebRequest` calls it). Tovu's Express callers of the guest scope build their `request` with it, so a header looks the same to the guest scope whether it came through the bridge or through a Tovu Express route (duplicates joined by Node, `cookie` with `; `, the D3 principal header as rewritten by the middleware above).
+
+### 12.3 Jini contract after the change (no Express types)
+
+| Today | After |
+|---|---|
+| `FrontendSessionsHttpDeps.resolveOwner?: ({ req, res }) => Promise<Owner \| null>` (`frontend-sessions.ts:114`) | `resolveOwner?: (required: FrontendHookInput) => Promise<FrontendSessionOwner \| null>` |
+| `resolveCapacityKeys?: ({ req, owner }) => string[]` (`:118`) | `resolveCapacityKeys?: (required: FrontendHookInput & { readonly owner?: FrontendSessionOwner }) => readonly string[]` |
+| `expireScopedSession` `setTimeout(...).unref()` (`:336`) | required `setTimer({ callback, delayMs }) => { cancel(): void }` in the group's deps (§11.14, O-15 records the exception) |
+| `registerFrontendSessionRoutes({ app, deps, adapter })` | `frontendSessionRoutes({ deps, host }, _optional = {}): DaemonRoute[]`; the stream route is a hand-built `ServerRoute`; the responses route is `gated({ route: jsonRoute(...), gates: [{ name: 'frontend-session-owner', middleware }] })` when `resolveOwner` is set (C4-b `withRouteMiddleware`), plain `jsonRoute` with `requireSameOrigin: true` otherwise |
+| `FrontendHttpExtension = ({ app, context }) => void` (`frontend-control.ts:63`), `.httpExtension` | `(required: { host: DaemonRouteHost }) => ServerRoute[]`, `.routes` (§2.2) |
+| `createFrontendGuestScope({ …, allowsRequest: ({ req }) })`; `resolveGuest({ req })`, `issue({ req, res })`, `resolveOwner({ req, res? })` | `createFrontendGuestScope({ …, allowsRequest: (required: FrontendHookInput) => Promise<boolean>, isSecureRequest: (required: FrontendHookInput) => boolean }, { now, lifetimeMs })`; `resolveGuest(input)`, `resolveOwner(input)`, `issue(input)` → `Promise<{ tabCredential: string; setCookie: string } \| null>`; the caller sets `Set-Cookie` and `Cache-Control: no-store` and sends `{ tabCredential }` only |
+| `registerFrontendRequestRoute({ app, path, control, executor, resolveOwner: ({ req, res }), capabilityIds })` | `frontendRequestRoutes({ path, control, executor, resolveOwner: (required: FrontendHookInput) => …, capabilityIds, host }, { newRequestId })` |
+
+Order inside the converted stream route is today's, clause for clause: (no owner hook) same-origin refusal (JSON 403) → owner hook (throws → **500** JSON + request ID through `host.reportInternalError`; `null` → **403** `Forbidden` text/plain) → capability parse → capacity reservation (`FrontendSessionCapacityError` → **429** `Too Many Requests` text/plain; other throw → 500) → SSE commit → `error` event + end, or TTL + `attached`. In the responses gate an owner-hook throw stays **403** (`:315`), not 500. Owner rule "no swallowed errors": that catch now also hands the error to `host.reportInternalError({ report: { source: 'frontend-session-owner', error }, logSource: 'frontend-sessions:owner', message: 'Forbidden' })` and discards the returned body; the client still gets the same 403 bytes. Same for every Tovu `catch { res.sendStatus(403) }` line this work touches (`visitor-frontend-control.ts:47, 54`): the status stays, the error goes to the visitor reporter the module already has (`site-assistant.ts` `reporter`), passed in as a required `reportError` dep of `createVisitorFrontendControl`.
+
+The cookie text (`issue`), built by Jini instead of Express `res.cookie` (cookie 0.7.2 serializer, order probed): `` `${name}=${encodeURIComponent(value)}; Max-Age=${Math.floor(lifetimeMs / 1000)}; Path=${cookiePath}; Expires=${new Date(expires).toUTCString()}; HttpOnly${secure ? '; Secure' : ''}; SameSite=Strict` `` where `expires` is the value the token already carries (`now() + lifetimeMs`). Express computed `Expires` from `Date.now()` in a second call; with the default `now = Date.now` the two agree to the second. ETag on the old `sendStatus` answers is dropped (DM-ETAG, decided).
+
+### 12.4 Query reads
+
+- **H7 (admin `tabId`)**: read from `readRequestFacts({ locals }).query.tabId`, i.e. the admin app's own `qs` result. Identical answers by construction, including the three shapes in §12.1.
+- **H8 (daemon `capability`)**: the daemon cannot read a host's parser. The converted reader is `searchParams.getAll('capability')` plus: **any decoded key that starts with `capability[` makes the query invalid** (the existing `error` event). Probed against today (express 4.22.2 / qs 6.15.4): repeated plain keys, a single key, an empty value, and `capability[k]=…` / `capability=a&capability[k]=b` (error event) answer the same. **Named difference D-FS1** (owner to confirm; the only one this section adds): `capability[]=a`, `capability[0]=a`, `capability[25]=a` are accepted as `['a']` today and become the error event; a `capability` after 1000 other parameters is ignored today and counted after. No client sends either: the only client builds `capability=<id>&…` (`chat/src/embed-widget/browser/frontend-session-bridge.ts:242`). Direction: refusal, not a wider grant. Pinned both ways in T5 so the change is visible, not silent.
+
+### 12.5 Pins: each fails if the resolved address, trust decision, protocol or owner changes
+
+Written **before** any source change (F0), against today's Express code, green on the unmodified tree; each is then seen red under its named break and restored (recorded in the F0 report). They run unchanged after F2a/F2b/F3; Tovu ones go through the real mount path (`mountJiniRoutes` + bridge) once the routes move.
+
+| Pin | File (Tovu unless marked) | Case → expected | Break that must turn it red |
+|---|---|---|---|
+| A1 | `assistant/site/__tests__/visitor-frontend-control.unit.test.ts` (exists: `new guest cookies cannot bypass the IP session cap…`, `changing IP cannot bypass…`, `… rate limited per IP …`) | `trust proxy 'loopback'`, distinct `X-Forwarded-For` → distinct caps | capacity key from the bridge's `client.address`; or from a fixed string |
+| A2 | same file, NEW | `trust proxy` unset, 4 opens from one socket with 4 different spoofed `X-Forwarded-For` → 4th is **429** | key from the first `X-Forwarded-For` hop, or a trust-all setting |
+| A3 | same file, NEW | `trust proxy` = 1, `X-Forwarded-For: <spoofed-i>, 192.0.2.9` for i = 1..4 → 4th is **429** (rightmost hop is the key) | first-hop parsing (http-kit's trusted-proxy branch) |
+| A4 | `server/inbound/shared/__tests__/request-facts.unit.test.ts`, NEW (F2a; table runs on a real Express app per row) | rows over (trust none / 1 / `loopback`) × (`X-Forwarded-For` absent / one / two hops) × (`X-Forwarded-Proto` absent / `https` / `HTTPS,http` / `wss`) → exact `{ clientAddress, servingProtocol, secure }`; e.g. trust 1 + `HTTPS,http` → `servingProtocol 'https'`, `secure false`; no trust + `https` → `'https'`, `false`; trust 1 + `https` → `'https'`, `true` | `secure` derived from `servingProtocol`; `servingProtocol` from `req.protocol`; `clientAddress` from `client.address` |
+| A5 | `visitor-frontend-control.unit.test.ts`, NEW | credentials POST: trust 1 + `X-Forwarded-Proto: https` → `Set-Cookie` string equal byte for byte (frozen `Date`) and contains `; Secure`; no trust + `https` → no `Secure`; trust 1 + `HTTPS,http` → no `Secure`; body is exactly `{"tabCredential":"…"}`; `Cache-Control: no-store` | `isSecureRequest` from `servingProtocol`; `setCookie` leaked into the JSON body; a reordered attribute |
+| A6 | `visitor-frontend-control.unit.test.ts` `policyFixture`, NEW rows | GET stream, no `Origin`: `Referrer: <serving>` + `Referer: https://forged.invalid` → allowed; swapped → refused; HTTP/1.0-style request with no `Host` and `Origin: https://undefined` → today's answer recorded (allowed) | reading only `referer`; printing an absent `Host` as `null` |
+| A7 | `assistant/__tests__/admin-frontend-owner.unit.test.ts` + one socket case in `agent-daemon-server.session-binding-wiring.unit.test.ts` | `?tabId=a&tabId=b`, `?tabId[x]=a`, 1000 params then `tabId=a` → 403; `?tabId=a` → stream opens; `x-frontend-tab-id` wins over the query | reading `request.url`'s `searchParams` instead of `facts.query` |
+| A8 | same socket file, NEW | a principal header written by the auth middleware above the mount is the owner; a client-sent one is not | headers captured before the middleware ran |
+| A9 | `server/runtime/composition/__tests__/jini-routes.unit.test.ts`, NEW (F2a) | a route mounted through `mountJiniRoutes` gets `locals.tovuRequestFacts` equal to `captureRequestFacts({ req })`; a `res.locals.tovuRequestFacts` set earlier is overwritten | spread order swapped; facts omitted |
+| A10 | Jini `daemon/src/http/__tests__/frontend-sessions.test.ts`, NEW (F2b) | in-memory fetch with `locals: { k: 1 }` and `client.address '203.0.113.7'`: hooks receive exactly that `locals`, the request headers, and no `client`; capacity keys are the hook's answer | passing `client` to the hook; dropping `locals` |
+| A11 | Tovu, NEW (F2b) | facts missing (route mounted without `mountJiniRoutes`): owner hook throws → stream **500** + one report, **0** sessions attached; responses gate → **403** + one report | a default `clientAddress` (`'unknown'`) instead of the throw; a swallowed report |
+| A12 | Jini `__tests__/characterization/` T5 rows, NEW | each `capability` shape of §12.4 → today's answer (before), the D-FS1 answer (after, the only rows that change) | reading `capability[…]` keys as plain |
+| A13 | existing §11.15 rows "Frontend-session owner + bind token" and "Guest cookie flags" | unchanged | unchanged |
+
+### 12.6 Steps (each commit green alone; failing test first; pairs per §5)
+
+**F0: pins (no source change).** Jini: A12 + the frontend-session rows of T6/T9 if missing. Tovu: A1 (exists), A2, A3, A5, A6, A7, A8. Test names carry the words §12.7's pattern selects (`spoofed X-Forwarded-For`, `rightmost`, `Referrer`, `Secure`, `tabId`), so the STOP command finds them. Each seen red under its break, then restored. One commit per repo.
+
+**F1 (Jini only): `nodeRequestHeaders` export.** Test first (`node-bridge.test.ts`: a repeated header gives one joined value, `cookie` joined with `; `; red because the export does not exist), then move the loop out of `toWebRequest`. No Tovu half.
+
+**F2a (pair): guest scope + request facts.** Jini: `frontend-hook-input.ts`; `frontend-guest-scope.ts` to §12.3 (no `express` import left in it); its tests move from Express to plain `Request` objects. Tovu, against the F2a Jini SHA: the two `request-facts.ts` files + A4 + A9; `mountJiniRoutes` seeds `locals`; `visitor-request-origin.ts` takes `FrontendHookInput` and reads `servingProtocol` from facts (the `Referrer` and absent-`Host` rules kept, with a why-comment); `visitor-frontend-control.ts` callers of the scope use `requestHookInput({ req })` (IP gate `:44`, credentials `:51`, which now sets the two headers itself); `site-assistant-confirm.ts:11, 54` and `site-assistant.ts:704` (`bindVisitorRequest`) pass `requestHookInput({ req })`. The visitor session hooks still have the Express shape here, so `resolveOwner` / `resolveCapacityKeys` in `visitor-frontend-control.ts` build their input with `requestHookInput({ req })` for this one commit; F2b deletes that line (it is the permanent Express adapter for Tovu's own routes, not a forwarder kept for the old API).
+
+**F2b (pair): `frontend-sessions` + `frontend-control` (G2).** Jini: §12.3 rows 1-5; preset `builtin-features.ts:652` mounts `frontendSessionRoutes` through its `mountRoutes` helper (§11.9) with a Node `setTimer`; `reference-web/src/daemon.ts:409` uses `.routes`; harness `mountList` entries for both prefixes; route-table literal; `raw-sse.ts`'s last daemon user is gone (Z deletes it). Tovu: `agent-daemon-scope.ts:1544` → `mountJiniRoutes({ app, routes: frontendControl.routes({ host: routeHost }) })`; `:359` and `visitor-frontend-control.ts:74-82` take `FrontendHookInput`; `adminFrontendOwner({ request, locals, workspaceId })`; visitor `:59` → `mountJiniRoutes` with `daemonRouteHost({ context: { originPolicy }, parserLimitBytes })`, where `parserLimitBytes` is the limit `parsePublicJsonBody` selects for `POST /api/site-assistant/frontend-sessions/:id/responses` at the base (read the selector in `server/inbound/shared/json-body-parsers.ts`, put the number and its line in the commit message; T4 pins limit ± 1 on that path). A10, A11 added. `setTimer` passed by every `createFrontendControl` caller.
+
+**F3 (pair, G3): `frontend-request-route`.** After F2b. Jini: `frontendRequestRoutes` on the line stream (§3.3, keepalive 15 s through `host.scheduler`); the three plain-string bodies byte for byte (T7). Tovu: `agent-daemon-scope.ts:1547-1549` → one `mountJiniRoutes` line; the hook is the F2b admin owner.
+
+**F4 (pair, G3): `surface-restoration` + `surface-callback`.** **Not blocked by this STOP**: neither takes a host hook; both take an Express `res` only. Design unchanged (§11.7). May run before or after F2; it has no file in common with F2/F3 except `http/index.ts` lines.
+
+`frontend-guest-scope` therefore leaves G3 and lands in F2a (G2): its `resolveOwner` is called from inside the session hooks, so the two cannot change type in different pairs without an adapter.
+
+### 12.7 STOP checks (run per commit; each tested once on a planted case, lesson 40)
+
+```bash
+# Jini, after F2b: no Express type left in the converted frontend files. Prints STOP on a hit.
+cd "$JINI" && rg -n "from 'express'" packages/daemon/src/http/frontend-sessions.ts packages/daemon/src/http/frontend-control.ts packages/daemon/src/http/frontend-guest-scope.ts packages/daemon/src/http/frontend-hook-input.ts && echo "STOP: express type in a converted frontend file"
+```
+```bash
+# Tovu, after F2a: no frontend hook keys anything on the bridge's raw peer address. Prints STOP on a hit.
+cd "$TOVU" && rg -n "client\??\.address" apps/website/src/assistant apps/website/src/server/inbound/shared/request-facts.ts apps/website/src/contracts/core/request-facts.ts && echo "STOP: hook reads the raw peer address"
+```
+```bash
+# Tovu, every commit from F0: the trust/address pins exist and pass. Exit code non-zero = STOP.
+cd "$TOVU" && TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-name-pattern="IP session cap|spoofed X-Forwarded-For|rightmost|Referrer|Secure|tabId" apps/website/src/assistant/site/__tests__/visitor-frontend-control.unit.test.ts apps/website/src/assistant/__tests__/admin-frontend-owner.unit.test.ts || echo "STOP: a trust/address pin is red or missing"
+```
+```bash
+# Every commit: owner limits inside each touched file (lesson 41), and the base comparison (BASE-RED).
+cd "$JINI" && npx eslint --rule '{"max-lines-per-function":["error",50],"complexity":["error",10],"max-lines":["error",500]}' packages/daemon/src/http/frontend-*.ts packages/http-kit/src/node-bridge.ts
+cd "$TOVU" && npx eslint --rule '{"max-lines-per-function":["error",50],"complexity":["error",10],"max-lines":["error",500]}' apps/website/src/assistant/site/visitor-*.ts apps/website/src/assistant/admin-frontend-owner.ts apps/website/src/server/inbound/shared/request-facts.ts apps/website/src/contracts/core/request-facts.ts apps/website/src/server/runtime/composition/jini-routes.ts
+cd "$TOVU" && npm run -s check:architecture   # exit 1 on the base already: compare the output with the base output; a new line = STOP
+```
+```bash
+# Every commit, both repos: why-comments move, never vanish (no check:why-comments script exists on the base).
+# Prints each deleted comment line that does not reappear (trimmed) among the commit's added lines.
+# Every printed line must be listed as "reworded: <old> -> <new>" in the commit message; otherwise STOP.
+del=$(mktemp); add=$(mktemp)
+git diff HEAD~1 -U0 -- '*.ts' | awk '/^-[^-]/ && /(\/\/|^-[ \t]*\*|\/\*)/ { sub(/^-[ \t]*/, ""); print }' | sort -u > "$del"
+git diff HEAD~1 -U0 -- '*.ts' | awk '/^\+[^+]/ { sub(/^\+[ \t]*/, ""); print }' | sort -u > "$add"
+comm -23 "$del" "$add"; rm -f "$del" "$add"
+```
+Planted-case check for the first two: copy one target file to a scratch path, add the forbidden line, run the command against the copy, see `STOP`, delete the copy. Record it in the F0 report.
+
+STOP also when: a pin of §12.5 changes outside D-FS1; `check:architecture` reports a new back-edge (put the Express half in `server/inbound/shared`, never in `server/runtime/composition`); a function passes 50 lines or complexity 10 (extract the stream-opening half of `handleFrontendSessionStream` first, in its own green commit, §7 row 3); a test needs an assertion removed.
+
+### 12.8 Owner rules, as acceptance criteria for F0-F4
+
+Green commit each (BASE-RED: no new line beyond the base output); failing test first (F1, A4, A9-A11 are red before their code); no shells or forwarders (old `register*`/`httpExtension` deleted in their pair, no alias); static imports only; host policy arrives through ports (`FrontendHookInput`, `isSecureRequest`, `setTimer`, `DaemonRouteHost`); `(required, optional = {})` on every new function; fakes not `vi.mock` of another package's internals (in-memory server + `fakeDaemonRouteHost`; Tovu tests use real Express apps); no swallowed errors (§12.3); 50/10/500 by the command above; why-comments move with their code (`frontend-sessions.ts:281-287` stream-guard comment, `:320-325`, `frontend-guest-scope.ts:45`, `visitor-frontend-control.ts:38-39, 56`, `visitor-request-origin.ts:5-10, 27`, `rate-limit.ts:198-200`), checked by the comment-diff command in §12.7; STOP commands only in fenced blocks; no Tovu server framework in Jini (Jini sees `Request`, `Headers`, `locals`; Express stays in Tovu's two adapter files and its own routes).
