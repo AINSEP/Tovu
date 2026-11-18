@@ -1,0 +1,217 @@
+# composeSiteRouteDeps 954-2934, 215 top-level statements
+#	lines	code	kind	declares	await	let	writes-let	forward(late)	deferred	eager
+0	958-958	1	Var	store,onStoreClose						
+1	962-962	1	Var	pendingLifecycleEvents						
+2	963-963	1	Var	lifecycleTracker		lifecycleTracker			pendingLifecycleEvents	
+3	964-964	1	Var	assistantAgentInventory						
+4	965-965	1	Expression						assistantAgentInventory	onStoreClose
+5	976-976	1	Var	resolvedSiteBinding						
+6	977-977	1	Var	agentPluginLayout						resolvedSiteBinding
+7	978-985	6	Var	agentPluginLifecycle				routeDeps	lifecycleTracker,routeDeps	agentPluginLayout
+8	986-986	1	Var	federatedMcpPresetRegistry						
+9	987-987	1	Var	skillLayout						resolvedSiteBinding
+10	988-988	1	Var	resolvedThemesDir						resolvedSiteBinding
+11	989-989	1	Expression							resolvedThemesDir,resolvedSiteBinding
+12	992-992	1	Var	kernel						store
+13	1001-1001	1	Var	resolvedUploadsDir						resolvedSiteBinding
+14	1004-1004	1	Var	provideMediaCredentials		provideMediaCredentials				
+15	1005-1005	1	Var	mediaCredentials			provideMediaCredentials		provideMediaCredentials	
+16	1006-1018	12	Var	mediaStorePorts				observability,workspaceId,settingsRepo	observability,resolvedUploadsDir,workspaceId,agentPluginLifecycle,settingsRepo,mediaCredentials	
+17	1019-1019	1	Var	blobStore,mediaIsRemoteByEnv,isMediaRemote						resolvedUploadsDir,mediaStorePorts
+18	1022-1022	1	Var	storeBound						store
+19	1032-1032	1	Var	workspaceId	await					kernel
+20	1035-1035	1	Var	publishTrustRevocations	await					kernel
+21	1040-1040	1	Var	chatDbPath						
+22	1041-1041	1	Var	chat						store
+23	1042-1042	1	Expression		await			warnCompositionChatOrphans		warnCompositionChatOrphans
+24	1044-1059	7	FunctionDeclaration	warnCompositionChatOrphans	await					store,kernel,chatDbPath
+25	1064-1064	1	Var	mediaProviders	await					workspaceId,agentPluginLifecycle
+26	1065-1065	1	Expression							mediaProviders
+27	1076-1078	3	Var	postSearchBackfillReady						kernel
+28	1080-1080	1	Var	clock						
+29	1081-1081	1	Var	idGen						
+30	1082-1083	2	Var	reportToolAuditError						idGen
+31	1086-1087	2	Var	pluginActivationRepo					agentPluginLayout,workspaceId	kernel,workspaceId
+32	1091-1091	1	Var	routeDepsBuiltForPluginHost		routeDepsBuiltForPluginHost				
+33	1092-1115	16	Var	pluginRuntime				contentTypeRepo,outbox	lifecycleTracker,routeDepsBuiltForPluginHost,contentTypeRepo,clock,idGen,outbox	workspaceId,clock,pluginActivationRepo,resolvedSiteBinding
+34	1119-1119	1	Var	identity						kernel,workspaceId,clock,idGen
+35	1121-1126	6	Var	settingsPrincipals					identity	identity
+36	1130-1130	1	Var	adminPasswordResetReady					storeBound	workspaceId,identity,clock,idGen
+37	1131-1131	1	Var	presentationRepo						kernel
+38	1132-1132	1	Var	settingsRepo						kernel
+39	1137-1137	1	Var	settingsReady						
+40	1139-1144	6	Var	seoReady,commentsSettingsReady,assistantSettingsReady,executionSettingsReady,settingsUiTabsReady,analyticsSettingsReady						settingsRepo,clock,idGen,settingsPrincipals,settingsReady,workspaceId
+41	1150-1150	1	Var	siteTitlePreservationStore						kernel
+42	1151-1151	1	Var	siteDisplayName,siteTimeZone						settingsRepo
+43	1152-1152	1	Var	siteTitleSettingsDeps						settingsRepo,clock,idGen,settingsPrincipals
+44	1153-1171	13	Var	siteSettingsReady					siteTitleSettingsDeps	analyticsSettingsReady
+45	1173-1180	8	Var	siteTitleReady					siteTitleSettingsDeps,siteTitlePreservationStore	siteSettingsReady
+46	1184-1184	1	Expression							siteTitleReady
+47	1192-1192	1	Var	menuRepo						kernel
+48	1193-1193	1	Var	navLocationBindingRepo						kernel
+49	1194-1203	10	Var	menuBindingsReady						menuRepo,navLocationBindingRepo,clock,workspaceId
+50	1212-1212	1	Var	newsletterListRepo						kernel
+51	1216-1221	6	Var	newsletterReady					newsletterListRepo,clock,idGen,workspaceId	kernel
+52	1233-1237	5	Var	commentsReady					kernel	newsletterReady
+53	1250-1250	1	Var	transformDefinitionRepo						kernel
+54	1251-1260	10	Var	mediaTransformReady					clock,idGen,transformDefinitionRepo,workspaceId	commentsReady
+55	1278-1284	7	Var	blobHydrationReady						resolvedSiteBinding,blobStore
+56	1293-1293	1	Var	outbox						kernel
+57	1294-1294	1	Var	bus						
+58	1323-1323	1	Var	REPO_ROOT						
+59	1324-1324	1	Var	devCapabilityScheme						REPO_ROOT
+60	1325-1325	1	Var	originBoot						clock
+61	1326-1326	1	Var	originReady				registerBootOrigin		registerBootOrigin
+62	1328-1354	23	FunctionDeclaration	registerBootOrigin						originBoot,kernel,workspaceId,devCapabilityScheme,clock
+63	1355-1355	1	Var	originRegistry						kernel,originReady
+64	1356-1356	1	Var	redirectRepo						kernel
+65	1357-1357	1	Var	redirectHitSink						
+66	1365-1365	1	Var	assetRenditionRepo						kernel
+67	1369-1369	1	Var	trashRegistry						
+68	1370-1370	1	Var	sqliteTrashDb						kernel
+69	1379-1379	1	Var	trashRepo						kernel
+70	1385-1385	1	Var	taxonomyFollowUpTermRepo						kernel,workspaceId
+71	1386-1386	1	Var	taxonomyFollowUpRevisions						kernel,workspaceId
+72	1387-1387	1	Var	taxonomyFollowUpOutbox						outbox,clock,idGen,workspaceId
+73	1390-1390	1	Var	formDeliveryRepo						kernel
+74	1391-1458	62	Var	trashFollowUpHooks				mediaRepo,postRepo,assetBlobRepo,entryRefsRepo,routeDeps	kernel,mediaRepo,workspaceId,postRepo,clock,assetBlobRepo,assetRenditionRepo,blobStore,entryRefsRepo,outbox,formDeliveryRepo,routeDeps	menuRepo,outbox,idGen,clock,taxonomyFollowUpTermRepo,trashRepo,taxonomyFollowUpRevisions,taxonomyFollowUpOutbox
+75	1459-1463	5	Var	pluginTrashAdapter					pluginRuntime,pluginActivationRepo	
+76	1464-1515	43	Var	trashAdapters				mediaRepo,entryRefsRepo,postRepo,assetBlobRepo	mediaRepo,entryRefsRepo,postRepo,assetBlobRepo,assetRenditionRepo,blobStore,clock,identity,idGen,sqliteTrashDb,trashFollowUpHooks	kernel,pluginTrashAdapter,clock,trashRegistry
+77	1519-1519	1	Var	trashTransaction						kernel
+78	1520-1532	10	Var	trash				postRepo	trashTransaction,postRepo,trashAdapters	trashRepo,trashAdapters
+79	1534-1537	4	Var	removePlugin						pluginTrashAdapter,trash
+80	1541-1544	4	Var	removeUser						trash
+81	1545-1546	2	Var	isInTrash					trashRepo,workspaceId	
+82	1548-1573	24	Var	redirectsWriteDeps					trashRepo,trash,redirectRepo	redirectRepo,trash,originRegistry,clock,idGen,outbox
+83	1577-1582	6	Expression							onStoreClose,redirectRepo,originRegistry,outbox,clock,idGen
+84	1583-1583	1	Expression							onStoreClose,redirectRepo,clock,idGen
+85	1584-1584	1	Expression							onStoreClose,bus,redirectHitSink
+86	1589-1589	1	Var	databaseJournalDbPath						
+87	1590-1590	1	Expression							databaseJournalDbPath
+88	1591-1591	1	Var	databaseJournalDb						databaseJournalDbPath
+89	1593-1593	1	Expression						databaseJournalDb	onStoreClose
+90	1597-1597	1	Var	databaseLedgerRepo						databaseJournalDb,workspaceId
+91	1602-1602	1	Var	migrationRunsRepo						databaseJournalDb,workspaceId
+92	1607-1607	1	Var	publishContentRunRepo						kernel
+93	1608-1610	3	Var	restorePointsRepo					publishContentRunRepo,workspaceId	databaseJournalDb,workspaceId
+94	1611-1611	1	Var	dbOps						storeBound
+95	1614-1614	1	Var	databaseIntrospection						kernel
+96	1621-1621	1	Var	entryRepo						kernel
+97	1625-1625	1	Var	sqliteEntryTermRepo						kernel,workspaceId
+98	1627-1627	1	Var	taxonomyRepo						kernel,workspaceId
+99	1628-1628	1	Var	termRepo						kernel,workspaceId
+100	1629-1629	1	Var	taxonomyRevisionRepo						kernel,workspaceId
+101	1630-1630	1	Var	stampWatermark						storeBound
+102	1634-1634	1	Var	widgetBindingRepo						kernel
+103	1635-1635	1	Var	entryRefsRepo						kernel
+104	1636-1636	1	Var	formDefinitionRepo						kernel
+105	1637-1637	1	Var	formCollectionProviders		formCollectionProviders				
+106	1638-1638	1	Var	formSubmissionRepo						kernel
+107	1643-1643	1	Var	contentTypeRepo						kernel
+108	1644-1644	1	Var	contentTypeIndexProvisioner						
+109	1652-1669	16	Expression					mediaRepo,mediaContentTypeStore,postRepo,routeDeps	entryRepo,mediaRepo,transformDefinitionRepo,mediaContentTypeStore,postRepo,formCollectionProviders,routeDeps	siteTimeZone,entryRepo,menuRepo,navLocationBindingRepo,formDefinitionRepo,contentTypeRepo
+110	1670-1689	16	Var	commentsModule				postRepo	postRepo,trashRepo	kernel,entryRepo,outbox,clock,idGen,settingsRepo,workspaceId,trash,trashTransaction
+111	1690-1693	4	Var	commentsCapability						workspaceId,commentsModule,commentsReady,commentsSettingsReady,settingsRepo,clock,idGen,identity,settingsPrincipals
+112	1701-1701	1	Var	runtimeMode						
+113	1703-1703	1	Var	siteDirForKeyring,siteKeySourcesList						runtimeMode
+114	1745-1745	1	Var	memberRepo						kernel
+115	1750-1750	1	Var	newsletterKeyringSources						runtimeMode,siteKeySourcesList
+116	1751-1753	3	Var	newsletterKeyring						newsletterKeyringSources
+117	1754-1754	1	Var	newsletterSubscriberDirectory						memberRepo
+118	1755-1755	1	Var	newsletterHooks						
+119	1786-1788	3	Var	siteAssistantSecretKeyring						siteKeySourcesList
+120	1789-1789	1	Var	siteAssistantSecretSealer						siteAssistantSecretKeyring
+121	1795-1798	4	Expression		await					kernel,workspaceId,siteDirForKeyring,clock,siteAssistantSecretKeyring,siteAssistantSecretSealer,agentPluginLifecycle
+122	1799-1799	1	Var	siteAssistantCredentialRepo						kernel
+123	1803-1803	1	Var	externalMcpServerRepo						kernel
+124	1806-1806	1	Var	externalMcpOAuthDevices						kernel,workspaceId,clock,siteAssistantSecretSealer,siteAssistantSecretKeyring
+125	1819-1819	1	Var	siteReferenceRepo						kernel
+126	1820-1821	2	Var	projectKeyReferences						workspaceId,siteReferenceRepo,siteAssistantSecretKeyring,siteAssistantSecretSealer,clock
+127	1822-1824	3	Var	savedProviderConfig,projectId,projectVault,projectStore,projectSiteId	await					runtimeMode,onStoreClose,resolvedSiteBinding,projectKeyReferences,workspaceId,kernel,siteAssistantSecretKeyring,siteAssistantSecretSealer,clock
+128	1825-1826	2	Var	providerConfigSource					pluginRuntime	savedProviderConfig
+129	1834-1834	1	Var	customCredentialSetRepo				compositionCustomCredentials		compositionCustomCredentials
+130	1838-1843	6	FunctionDeclaration	compositionCustomCredentials						projectVault,kernel,projectStore
+131	1844-1851	8	Var	providerPlugins	await					pluginRuntime,providerConfigSource,workspaceId,resolvedSiteBinding,runtimeMode,projectId,settingsRepo
+132	1852-1857	4	Expression						providerPlugins,pluginRuntime	onStoreClose
+133	1858-1858	1	Var	bindSharedApiOAuth		bindSharedApiOAuth				
+134	1859-1859	1	Var	projectKeys				compositionProjectKeys		compositionProjectKeys
+135	1863-1877	14	FunctionDeclaration	compositionProjectKeys					providerConfigSource,providerPlugins,projectStore,bindSharedApiOAuth	projectStore,clock,projectSiteId,resolvedSiteBinding,projectKeyReferences,kernel
+136	1878-1882	5	Expression						projectStore,projectSiteId,providerPlugins,kernel,workspaceId	onStoreClose
+137	1883-1883	1	Var	observability,tracker,aiTraceSink						providerPlugins
+138	1884-1884	1	Expression				formCollectionProviders		providerPlugins	formCollectionProviders
+139	1886-1886	1	Expression						observability	
+140	1887-1887	1	Expression				lifecycleTracker			lifecycleTracker,tracker
+141	1888-1888	1	Expression							pendingLifecycleEvents,tracker
+142	1889-1889	1	Expression							kernel,observability
+143	1890-1890	1	Expression							chat,observability
+144	1901-1909	9	Var	mailResolveDeps					workspaceId,agentPluginLifecycle	workspaceId,customCredentialSetRepo,siteAssistantSecretSealer,observability,externalMcpServerRepo,runtimeMode
+145	1910-1918	9	Var	resolvedMailer				mailDurableOutboxReady	settingsRepo,workspaceId,mailDurableOutboxReady,agentPluginLifecycle	mailResolveDeps,settingsRepo,clock,idGen,settingsPrincipals,identity,siteTitleReady,kernel,originRegistry
+146	1922-1922	1	Var	mailDurableOutboxReady						
+147	1930-1930	1	Var	customCredentialsHttpClient						observability
+148	1932-1932	1	Var	siteBackupHttpClient						observability
+149	1934-1934	1	Var	outboundTestOrigins,mediaImportHttpClient,publishContentPeerHttpClient				composeContentHttpClients		composeContentHttpClients
+150	1936-1957	9	FunctionDeclaration	composeContentHttpClients					observability	outboundTestOrigins,observability,mediaImportHttpClient,publishContentPeerHttpClient
+151	1964-1964	1	Var	postRepo						kernel
+152	1972-1972	1	Var	changeSets						kernel
+153	1977-1977	1	Var	mediaRepo						kernel
+154	1978-1978	1	Var	assetBlobRepo						kernel
+155	1979-1979	1	If		await					kernel,workspaceId,resolvedSiteBinding
+156	1981-1981	1	Var	mediaContentTypeStore						kernel
+157	1982-1982	1	Var	publishContentBundleRepo						kernel
+158	1983-1983	1	Var	publishContentBaselineRepo						kernel
+159	1986-1986	1	Var	publishContentFileBlobIndex						
+160	1989-1989	1	Var	publishContentPeerRepo						kernel
+161	1992-1998	7	Var	publishContentSeedHash						resolvedSiteBinding,workspaceId,clock,idGen,redirectsWriteDeps
+162	2001-2001	1	Var	siteThemes						resolvedThemesDir
+163	2005-2005	1	Expression							siteThemes,resolvedThemesDir
+164	2009-2009	1	Var	themeTrashAdapter						siteThemes,resolvedThemesDir
+165	2010-2010	1	Expression							trashAdapters,themeTrashAdapter
+166	2012-2012	1	Var	removeTheme						themeTrashAdapter,trash
+167	2013-2076	58	Var	publishContentApplyPort					siteThemes,resolvedThemesDir	workspaceId,publishContentBundleRepo,publishContentBaselineRepo,publishContentRunRepo,clock,idGen,outbox,changeSets,identity,postRepo,trashRepo,trash,mediaRepo,assetBlobRepo,blobStore,mediaContentTypeStore,redirectsWriteDeps,menuRepo,navLocationBindingRepo,formDefinitionRepo,contentTypeRepo,contentTypeIndexProvisioner,taxonomyRepo,termRepo,sqliteEntryTermRepo,taxonomyRevisionRepo,stampWatermark,entryRepo,entryRefsRepo,widgetBindingRepo,settingsRepo,settingsPrincipals,presentationRepo,siteThemes,resolvedThemesDir,publishContentSeedHash
+168	2079-2087	7	Var	guardedOutboundHttpClient						
+169	2089-2089	1	Var	externalMcpOAuthHttpPorts						guardedOutboundHttpClient
+170	2090-2090	1	Var	derivedPublicOrigin				resolveCompositionPublicOrigin		resolveCompositionPublicOrigin
+171	2092-2098	3	FunctionDeclaration	resolveCompositionPublicOrigin						devCapabilityScheme
+172	2101-2112	11	Var	agentPluginConnections					idGen	workspaceId,agentPluginLifecycle,kernel,siteAssistantSecretKeyring,siteAssistantSecretSealer,customCredentialSetRepo,clock,guardedOutboundHttpClient,derivedPublicOrigin,projectStore,projectSiteId,resolvedSiteBinding,identity,siteReferenceRepo,settingsRepo,idGen,settingsPrincipals,formDefinitionRepo
+173	2113-2113	1	Expression				bindSharedApiOAuth			bindSharedApiOAuth,agentPluginConnections
+174	2115-2117	3	Var	adminSurfaceHandlersReady						agentPluginConnections
+175	2119-2119	1	Var	siteAppBootWork						
+176	2120-2120	1	Var	seoDeps						postRepo,settingsRepo,mediaRepo,mediaContentTypeStore,transformDefinitionRepo,originRegistry,clock
+177	2121-2121	1	Var	sitemapService						seoDeps
+178	2122-2122	1	Var	resolveRouteDeps		resolveRouteDeps				
+179	2123-2123	1	Var	routeDepsBuilt			resolveRouteDeps		resolveRouteDeps	
+180	2125-2130	6	Var	siteConsentReady					routeDepsBuilt	siteTitleSettingsDeps,siteSettingsReady,identity
+181	2131-2131	1	Var	pluginExports				routeDeps	routeDeps	workspaceId,agentPluginLifecycle,customCredentialSetRepo,siteAssistantSecretSealer
+182	2133-2133	1	Var	agentPluginMcp						externalMcpServerRepo,siteAssistantSecretSealer,siteAssistantSecretKeyring,clock
+183	2134-2714	373	Var	routeDeps				compositionSharedOAuth	trashTransaction,trashAdapters,kernel,clock,entryRefsRepo,postRepo,outbox,pluginExports,siteThemes,presentationRepo,siteAssistantCredentialRepo,siteAssistantSecretSealer,chat,agentPluginLayout,workspaceId,formCollectionProviders,agentPluginLifecycle,resolvedSiteBinding,pluginRuntime,providerPlugins,customCredentialSetRepo,reportToolAuditError,settingsRepo	pluginExports,assistantAgentInventory,workspaceId,resolvedSiteBinding,kernel,trash,trashRepo,trashAdapters,trashRegistry,sqliteTrashDb,postRepo,postSearchBackfillReady,chat,tracker,clock,presentationRepo,settingsRepo,seoReady,seoDeps,sitemapService,settingsReady,assistantSettingsReady,idGen,identity,settingsPrincipals,siteAssistantCredentialRepo,siteAssistantSecretSealer,siteAssistantSecretKeyring,externalMcpServerRepo,agentPluginMcp,externalMcpOAuthHttpPorts,externalMcpOAuthDevices,compositionSharedOAuth,agentPluginLayout,derivedPublicOrigin,agentPluginConnections,executionSettingsReady,settingsUiTabsReady,analyticsSettingsReady,siteTitleReady,siteConsentReady,agentPluginLifecycle,customCredentialSetRepo,siteTitlePreservationStore,siteDisplayName,siteTimeZone,outbox,menuRepo,siteThemes,resolvedThemesDir,federatedMcpPresetRegistry,skillLayout,resolvedUploadsDir,mediaIsRemoteByEnv,isMediaRemote,bus,observability,providerPlugins,aiTraceSink,providerConfigSource,projectKeys,publishTrustRevocations,removeUser,isInTrash,redirectRepo,redirectHitSink,originRegistry,redirectsWriteDeps,memberRepo,resolvedMailer,runtimeMode,mailDurableOutboxReady,navLocationBindingRepo,newsletterKeyring,mediaRepo,assetBlobRepo,assetRenditionRepo,mediaContentTypeStore,blobStore,blobHydrationReady,adminPasswordResetReady,transformDefinitionRepo,newsletterReady,newsletterListRepo,newsletterSubscriberDirectory,newsletterHooks,formDefinitionRepo,formSubmissionRepo,databaseLedgerRepo,contentTypeRepo,contentTypeIndexProvisioner,entryRepo,taxonomyRepo,termRepo,sqliteEntryTermRepo,taxonomyRevisionRepo,stampWatermark,restorePointsRepo,dbOps,databaseIntrospection,migrationRunsRepo,commentsModule,commentsCapability,commentsReady,commentsSettingsReady,widgetBindingRepo,entryRefsRepo,pluginActivationRepo,pluginRuntime,removePlugin,removeTheme,publishContentBundleRepo,publishContentFileBlobIndex,publishContentBaselineRepo,publishContentApplyPort,publishContentSeedHash,publishContentRunRepo,publishContentPeerRepo,publishContentPeerHttpClient,siteAppBootWork,projectVault,customCredentialsHttpClient,siteBackupHttpClient,mediaImportHttpClient,outboundTestOrigins,guardedOutboundHttpClient,mediaProviders
+184	2715-2715	1	Expression							resolveRouteDeps,routeDeps
+185	2722-2731	10	Var	widgetAdoptionReady					routeDeps,workspaceId	siteTitleReady,menuBindingsReady,mediaTransformReady
+186	2735-2735	1	Expression							routeDeps,widgetAdoptionReady
+187	2740-2746	7	Var	formSubmissions					agentPluginLifecycle	routeDeps,kernel,outbox,bus,clock,idGen,customCredentialSetRepo,siteAssistantSecretSealer,siteAssistantSecretKeyring,settingsRepo,observability
+188	2747-2747	1	Expression							routeDeps,formSubmissions
+189	2748-2748	1	Expression							routeDeps,formSubmissions
+190	2749-2749	1	Expression							routeDeps,formSubmissions
+191	2755-2755	1	Expression							routeDeps,formDeliveryRepo
+192	2756-2765	10	Expression						agentPluginLifecycle	routeDeps,bus,formDeliveryRepo,settingsRepo,idGen,clock,agentPluginConnections,customCredentialSetRepo,siteAssistantSecretSealer,observability
+193	2772-2784	12	Expression						customCredentialSetRepo,siteAssistantSecretSealer,routeDeps,agentPluginLifecycle,agentPluginLayout	routeDeps,workspaceId,kernel,clock,settingsRepo,idGen,identity,settingsPrincipals,siteAssistantSecretKeyring,observability,agentPluginLifecycle,siteTitleReady
+194	2788-2797	10	FunctionDeclaration	compositionSharedOAuth					projectStore	projectStore,projectSiteId,clock,workspaceId,siteReferenceRepo,siteAssistantSecretKeyring,siteAssistantSecretSealer,resolvedSiteBinding,identity
+195	2799-2799	1	Var	commerceBinding				compositionCommerce		compositionCommerce
+196	2803-2812	9	FunctionDeclaration	compositionCommerce					observability	kernel,workspaceId,projectSiteId,agentPluginLayout,resolvedSiteBinding,settingsRepo,providerConfigSource,providerPlugins,siteSettingsReady,clock,idGen
+197	2813-2813	1	Expression							routeDeps,commerceBinding
+198	2814-2814	1	Expression							routeDeps,commerceBinding
+199	2815-2815	1	Expression						commerceBinding	onStoreClose
+200	2817-2817	1	Expression							routeDeps,siteAppBootWork
+201	2818-2818	1	Expression							routeDeps
+202	2819-2819	1	Expression				routeDepsBuiltForPluginHost			routeDepsBuiltForPluginHost,routeDeps
+203	2822-2822	1	Expression							routeDeps,pluginRuntime
+204	2823-2830	7	Expression						routeDeps,widgetAdoptionReady,blobHydrationReady,adminPasswordResetReady,postSearchBackfillReady,originReady,adminSurfaceHandlersReady,siteAppBootWork	
+205	2831-2832	2	Expression							provideMediaCredentials,workspaceId,routeDeps,siteAssistantSecretSealer
+206	2834-2834	1	Var	savedKeys						workspaceId,siteAssistantSecretSealer
+207	2835-2835	1	Expression					configureSiteSharing		configureSiteSharing
+208	2837-2912	68	FunctionDeclaration	configureSiteSharing					workspaceId,guardedOutboundHttpClient,routeDeps,blobStore,savedKeys,resolvedSiteBinding,settingsRepo,siteAssistantSecretSealer,siteAssistantSecretKeyring,publishContentPeerHttpClient,mediaStorePorts	routeDeps,resolvedThemesDir,resolvedUploadsDir,agentPluginLayout,skillLayout,resolvedSiteBinding,workspaceId,siteAssistantSecretSealer,savedKeys,identity
+209	2913-2913	1	Expression					configureSiteImports		configureSiteImports
+210	2915-2929	12	FunctionDeclaration	configureSiteImports						resolvedSiteBinding,workspaceId,routeDeps,savedKeys,tracker,observability
+211	2930-2930	1	Expression							routeDeps
+212	2931-2931	1	Expression							routeDeps,workspaceId
+213	2932-2932	1	Expression		await					bus,tracker,workspaceId
+214	2933-2933	1	Return							routeDeps

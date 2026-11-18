@@ -1,0 +1,278 @@
+# routeDeps literal 2134-2714: 260 properties
+line	key	form	reads	break-before
+2135	siteBackupSanitize	assign		
+2136	pluginExports	shorthand	pluginExports	
+2137	assistantAgentInventory	shorthand	assistantAgentInventory	
+2138	workspaceId	assign	workspaceId	
+2139	peerSiteReads	assign	resolvedSiteBinding	
+2140	workspaceRepo	assign	kernel	
+2141	trash	shorthand	trash	
+2144	removePost	assign	trash	comment
+2148	removeComment	assign	trash	
+2152	removeMedia	assign	trash	
+2156	removeRedirect	assign	trash	
+2160	removeWidget	assign	trash	
+2161	forgetRemovedMedia	assign	trashRepo	
+2165	forgetRemovedPost	assign	trashRepo	
+2171	sweepTrash	assign	trashRepo,trashAdapters,trashTransaction	comment
+2178	isTrashableEntityType	assign	trashAdapters	comment
+2181	registry	assign	trashRegistry	comment
+2182	db	assign	sqliteTrashDb	
+2183	postRepo	shorthand	postRepo	
+2184	postGoLiveCandidates	assign	postRepo	
+2185	postSearch	assign	kernel,postSearchBackfillReady	
+2188	slugChangeCapture	assign		comment
+2196	docBodyAsPageHtml	assign		comment
+2197	pagesHtmlStore	assign	kernel,clock,entryRefsRepo,postRepo,outbox,pluginExports	
+2201	chatHistory	assign	chat	comment
+2202	chatRunLedger	assign	chat,tracker	
+2205	agentSessions	assign	chat,clock	comment
+2207	conversationToolApprovals	assign	chat	comment
+2208	...compositionApprovalOverrides({ overrides })	spread		
+2209	presentationRepo	shorthand	presentationRepo	
+2210	settingsRepo	shorthand	settingsRepo	
+2211	getEffective	shorthand		
+2212	set	assign	siteThemes,workspaceId,presentationRepo,siteAssistantCredentialRepo,siteAssistantSecretSealer	
+2219	instructionsNamespace	assign		
+2220	seoReady	shorthand	seoReady	
+2221	seoDeps	shorthand	seoDeps	
+2222	sitemapService	shorthand	sitemapService	
+2223	settingsReady	shorthand	settingsReady	
+2224	assistantSettingsReady	shorthand	assistantSettingsReady	
+2225	visitorToolsManagement	assign	workspaceId,assistantSettingsReady,settingsRepo,clock,idGen,identity,settingsPrincipals	
+2229	adminAssistantEnabled	assign		comment
+2230	siteAssistantCredentialRepo	shorthand	siteAssistantCredentialRepo	
+2231	siteAssistantSecretSealer	shorthand	siteAssistantSecretSealer	
+2232	siteAssistantSecretKeyring	shorthand	siteAssistantSecretKeyring	
+2235	databaseTransferChatSnapshot	assign	chat	comment
+2245	databaseTransferDestinationStore	assign	kernel,siteAssistantSecretSealer,siteAssistantSecretKeyring	
+2249	adminExecutionCredentialRepo	assign	kernel	comment
+2251	mediaProviderCredentialRepo	assign	kernel	comment
+2252	externalMcpServerRepo	shorthand	externalMcpServerRepo	
+2253	bundledSourceRoot	assign		
+2254	mcp	assign	agentPluginMcp	
+2255	preferences	assign	settingsRepo,clock,idGen,identity,settingsPrincipals,routeDeps	
+2256	providerFaces	assign	agentPluginLayout,workspaceId	
+2257	notifyRosterChanged	assign		
+2258	builtInExternalMcpServerIds	assign		
+2259	externalMcpToolApprovalRepo	assign	kernel	
+2267	externalMcpOAuth	assign	externalMcpOAuthHttpPorts,workspaceId,externalMcpServerRepo,siteAssistantSecretSealer,siteAssistantSecretKeyring,clock,externalMcpOAuthDevices,compositionSharedOAuth,agentPluginLayout,routeDeps,agentPluginMcp	comment
+2278	externalMcpOAuthDevices	shorthand	externalMcpOAuthDevices	
+2280	derivedPublicOrigin	shorthand	derivedPublicOrigin	comment
+2281	passkeyOrigin	assign		
+2282	...agentPluginConnections	spread	agentPluginConnections	
+2284	executionSettingsReady	shorthand	executionSettingsReady	comment
+2285	settingsUiTabsReady	shorthand	settingsUiTabsReady	
+2286	analyticsSettingsReady	shorthand	analyticsSettingsReady	
+2287	siteTitleReady	shorthand	siteTitleReady	
+2288	siteConsentReady	shorthand	siteConsentReady	
+2289	consentStore	assign	kernel,workspaceId	
+2290	publicPageSecurityHeaders	assign	formCollectionProviders	
+2291	pluginExportHosts	assign	pluginExports,workspaceId	
+2292	...compositionConsentOptions({ workspaceId, loadContributions: 	spread	workspaceId,agentPluginLifecycle	
+2293	mailFeedbackRoute	assign	kernel,workspaceId,customCredentialSetRepo,siteAssistantSecretSealer,agentPluginLifecycle	
+2295	siteTitlePreservationStore	shorthand	siteTitlePreservationStore	
+2296	siteDisplayName	shorthand	siteDisplayName	
+2297	siteTimeZone	shorthand	siteTimeZone	
+2301	changeSets	assign	kernel	comment
+2308	revertRegistry	assign	postRepo,clock,outbox,trashRepo,menuRepo,idGen	comment
+2322	themes	assign	siteThemes	
+2323	themesDir	assign	resolvedThemesDir	
+2329	packageThemesDir	assign		comment
+2330	siteBinding	assign	resolvedSiteBinding	
+2331	createSite	shorthand		
+2332	federatedMcpPresetRegistry	shorthand	federatedMcpPresetRegistry	
+2333	agentPluginLayout	shorthand	agentPluginLayout	
+2334	agentPluginLifecycle	shorthand	agentPluginLifecycle	
+2335	skillLayout	shorthand	skillLayout	
+2336	siteBackupSources	assign	resolvedSiteBinding,resolvedUploadsDir,mediaIsRemoteByEnv,isMediaRemote,resolvedThemesDir,agentPluginLayout,skillLayout,pluginRuntime	
+2339	siteStoragePaths	assign	resolvedSiteBinding,resolvedUploadsDir	
+2340	outbox	shorthand	outbox	
+2341	bus	shorthand	bus	
+2343	observability	shorthand	observability	comment
+2344	tracker	shorthand	tracker	
+2345	visitorTracker	assign	providerPlugins	
+2346	observabilityEnabled	assign	providerPlugins	
+2347	flushTelemetry	assign	providerPlugins	
+2348	browserAnalytics	assign	providerPlugins	
+2349	consentAdapters	assign	providerPlugins	
+2350	telemetryStatus	assign	providerPlugins	
+2351	sendTelemetryTest	assign	providerPlugins	
+2352	aiTraceSink	shorthand	aiTraceSink	
+2353	providerConfig	assign	providerConfigSource	
+2354	reapplyProvider	assign	providerPlugins	
+2355	providerAppliesAt	assign	providerPlugins	
+2356	projectKeys	shorthand	projectKeys	
+2358	legacyProviderCredential	assign	customCredentialSetRepo,workspaceId	comment
+2360	publishTrustRevocations	shorthand	publishTrustRevocations	comment
+2361	clock	shorthand	clock	
+2362	idGen	shorthand	idGen	
+2366	analyticsSink	assign	kernel,workspaceId	comment
+2367	analyticsConfig	assign	settingsRepo	
+2371	analyticsProviders	assign	workspaceId,agentPluginLifecycle,clock,customCredentialSetRepo,siteAssistantSecretSealer,observability	comment
+2376	...identity	spread	identity	
+2377	principalRepo	assign	settingsPrincipals	
+2380	removeUser	shorthand	removeUser	comment
+2381	isInTrash	shorthand	isInTrash	
+2382	redirectRepo	shorthand	redirectRepo	
+2383	redirectHitSink	shorthand	redirectHitSink	
+2384	originRegistry	shorthand	originRegistry	
+2385	redirectsWriteDeps	shorthand	redirectsWriteDeps	
+2388	memberRepo	shorthand	memberRepo	comment
+2389	removeMember	assign	trash	
+2390	memberTierRepo	assign	kernel	
+2391	memberSubscriptionRepo	assign	kernel	
+2392	memberSessionRepo	assign	kernel	
+2393	magicLinkRepo	assign	kernel	
+2401	mailer	assign	resolvedMailer,runtimeMode,mailDurableOutboxReady	comment
+2406	settleMailer	assign	resolvedMailer	
+2407	mailStatus	assign	resolvedMailer	
+2408	setAgentPluginEnabled	assign	resolvedMailer	
+2409	mailProviderControl	assign	resolvedMailer	
+2411	mailDomainRequirements	assign	resolvedMailer	comment
+2414	...resolvedMailer.operations	spread	resolvedMailer	comment
+2416	mailActivity	assign	kernel	comment
+2418	mailSuppressionAdmin	assign	kernel	comment
+2419	menuRepo	shorthand	menuRepo	
+2420	navLocationBindingRepo	shorthand	navLocationBindingRepo	
+2421	removeMenu	assign	trash	
+2430	webhookSubscriptionRepo	assign	kernel	comment
+2431	webhookDeliveryRepo	assign	kernel	
+2435	webhookSigner	assign	newsletterKeyring	comment
+2441	mediaRepo	shorthand	mediaRepo	comment
+2442	assetBlobRepo	shorthand	assetBlobRepo	
+2443	assetRenditionRepo	shorthand	assetRenditionRepo	
+2444	mediaContentTypeStore	shorthand	mediaContentTypeStore	
+2445	blobStore	shorthand	blobStore	
+2446	documentTextExtractors	assign		
+2450	blobHydrationReady	shorthand	blobHydrationReady	comment
+2453	adminPasswordResetReady	shorthand	adminPasswordResetReady	comment
+2461	transformDefinitionRepo	shorthand	transformDefinitionRepo	comment
+2462	imageTransformer	assign		
+2463	imageCodec	assign		
+2469	newsletterReady	shorthand	newsletterReady	comment
+2470	newsletterCampaignRepo	assign	kernel	
+2471	newsletterListRepo	shorthand	newsletterListRepo	
+2472	newsletterSubscriptionRepo	assign	kernel	
+2473	newsletterAudienceSnapshotRepo	assign	kernel	
+2474	newsletterSendRepo	assign	kernel	
+2475	newsletterConfirmationTokenRepo	assign	kernel	
+2476	membersConsentCapability	assign		
+2478	newsletterSubscriberDirectory	shorthand	newsletterSubscriberDirectory	comment
+2479	newsletterKeyring	shorthand	newsletterKeyring	
+2480	newsletterHooks	shorthand	newsletterHooks	
+2485	formDefinitionRepo	shorthand	formDefinitionRepo	comment
+2486	formCollectionProviders	assign	formCollectionProviders	
+2487	formSubmissionRepo	shorthand	formSubmissionRepo	
+2488	formSubmissionAttempts	assign	formSubmissionRepo	
+2489	removeFormSubmission	assign	trash	
+2493	executeCommand	shorthand		
+2494	formsRateLimiter	assign	clock	
+2497	siteAssistantRateLimiter	assign	clock	comment
+2498	databaseLedgerRepo	shorthand	databaseLedgerRepo	
+2501	contentTypeRepo	shorthand	contentTypeRepo	comment
+2502	contentTypeIndexProvisioner	shorthand	contentTypeIndexProvisioner	
+2503	entryRepo	shorthand	entryRepo	
+2504	taxonomyRepo	shorthand	taxonomyRepo	
+2505	termRepo	shorthand	termRepo	
+2509	removeTerm	assign	trash	comment
+2513	removeTaxonomy	assign	trash	
+2521	entryTermRepo	assign	sqliteEntryTermRepo	comment
+2522	entryTermReadRepo	assign	sqliteEntryTermRepo	
+2523	taxonomyRevisionRepo	shorthand	taxonomyRevisionRepo	
+2524	stampWatermark	shorthand	stampWatermark	
+2525	restorePointsRepo	shorthand	restorePointsRepo	
+2526	dbOps	shorthand	dbOps	
+2527	databaseIntrospection	shorthand	databaseIntrospection	
+2533	toolAttemptAuditSink	assign	tracker,kernel,reportToolAuditError	comment
+2536	toolGaps	assign	kernel	
+2537	siteStatusRepo	assign		
+2538	migrationRunsRepo	shorthand	migrationRunsRepo	
+2539	contentKernel	assign	kernel	
+2541	verifyDueDomainBindings	assign	observability,workspaceId,kernel	comment
+2542	disclosureWatermarkSource	assign		
+2543	deepLinkRestorePointLookup	assign	restorePointsRepo	
+2555	gatedMutations	assign	clock,idGen,identity,kernel	comment
+2564	commentRepo	assign	commentsModule	
+2565	commentIngressPolicy	assign	commentsModule	
+2566	commentWriteService	assign	commentsCapability	
+2567	commentsProviders	assign	commentsCapability	
+2568	commentsReady	shorthand	commentsReady	
+2569	commentsSettingsReady	shorthand	commentsSettingsReady	
+2570	widgetBindingRepo	shorthand	widgetBindingRepo	
+2571	entryRefsRepo	shorthand	entryRefsRepo	
+2575	pluginActivationRepo	shorthand	pluginActivationRepo	comment
+2576	discoverPlugins	assign	pluginRuntime	
+2577	onPluginEnabled	assign	pluginRuntime,providerPlugins	
+2581	onPluginDisabled	assign	pluginRuntime	
+2582	listPluginConflicts	assign	pluginRuntime	
+2583	removePlugin	shorthand	removePlugin	
+2584	removeTheme	shorthand	removeTheme	
+2585	readPluginPackageFiles	assign	pluginRuntime	
+2586	previewPluginBeforeSave	assign	pluginRuntime	
+2587	pluginInstaller	assign	pluginRuntime	
+2588	pluginSource	assign	pluginRuntime	
+2589	pluginSourcePolicy	assign	pluginRuntime	
+2590	pluginLoadedVersion	assign	pluginRuntime	
+2591	browserProviders	assign	pluginRuntime	
+2592	chartProviderSnapshot	assign	workspaceId,settingsRepo,pluginRuntime	
+2593	pluginContributions	assign	pluginRuntime	
+2594	pluginBeforeSaveHook	assign	pluginRuntime	
+2596	pluginRuntimeReady	assign		comment
+2601	publishContentBundleRepo	shorthand	publishContentBundleRepo	comment
+2604	fileBlobIndex	assign	publishContentFileBlobIndex	comment
+2608	publishContentBaselineRepo	shorthand	publishContentBaselineRepo	comment
+2611	publishContentApplyPort	shorthand	publishContentApplyPort	comment
+2612	publishContentSeedHash	shorthand	publishContentSeedHash	
+2614	publishContentRunRepo	shorthand	publishContentRunRepo	comment
+2617	publishContentPeerRepo	shorthand	publishContentPeerRepo	comment
+2618	publishContentPeerHttpClient	shorthand	publishContentPeerHttpClient	
+2623	runExportSite	assign		comment
+2627	exportOutputRootDir	assign	resolvedSiteBinding	comment
+2632	createSiteApp	assign	routeDeps	comment
+2637	siteAppBootWork	shorthand	siteAppBootWork	
+2640	resolveStorefrontProducts	assign	routeDeps	comment
+2644	resolveActiveThemeId	assign	routeDeps	comment
+2645	listPublishedPosts	assign	routeDeps	
+2649	publishHistoryStore	assign	kernel	comment
+2651	publishExecutionMode	assign		comment
+2655	publishOutputRootDir	assign	resolvedSiteBinding	comment
+2657	loadDeployTargets	assign	workspaceId,agentPluginLifecycle	comment
+2658	loadInstalledDeployTargets	assign	workspaceId,agentPluginLifecycle,agentPluginLayout	
+2665	loadDeployWorkflowFiles	assign	agentPluginLifecycle	
+2666	loadDeployOps	assign	agentPluginLifecycle	
+2667	loadSourceControlProviders	assign	workspaceId,agentPluginLifecycle	
+2668	loadPluginCredentialCards	assign	workspaceId,agentPluginLifecycle	
+2669	loadAuthSchemes	assign	agentPluginLifecycle	
+2674	publishCredentialVerificationCache	assign		comment
+2679	sourceControlCredentialSetRepo	assign	kernel,projectVault,customCredentialSetRepo,siteAssistantSecretKeyring,siteAssistantSecretSealer,clock,idGen,workspaceId,agentPluginLifecycle	comment
+2687	sourceControlExportRootDir	assign	resolvedSiteBinding	comment
+2691	vendorCredentialSetRepo	assign	kernel,projectVault	comment
+2695	customCredentialSetRepo	shorthand	customCredentialSetRepo	comment
+2698	customCredentialsHttpClient	shorthand	customCredentialsHttpClient	comment
+2699	siteBackupHttpClient	shorthand	siteBackupHttpClient	
+2700	deployOpsHttpClient	assign	observability	
+2703	mediaImportHttpClient	shorthand	mediaImportHttpClient	comment
+2704	...(outboundTestOrigins.length > 0 ? { outboundTestOrigins } : 	spread	outboundTestOrigins	
+2705	mediaGenerationHttpClient	assign	guardedOutboundHttpClient	
+2706	mediaProviderRegistry	assign	mediaProviders	
+2710	exportSiteBound	assign	routeDeps	comment
+2711	staticSitePackager	assign		
+2712	...bindCredentialsHostPorts({ readDeps: () => routeDeps })	spread	routeDeps	
+2713	staticSiteContext	assign	routeDeps,resolvedSiteBinding	
+# post-assembly writes routeDeps.<key> = … (after the literal)
+2735	write	legacyPublishCredentialsReady
+2747	write	formDestination
+2748	write	formSubmissionsPull
+2749	write	formSubmissionsAutoPull
+2755	write	formDeliveryStatus
+2756	write	formDelivery
+2772	write	siteSearch
+2813	write	commerce
+2814	write	commerceCatalog
+2818	write	pluginHost
+2822	write	pluginRuntimeReady
+2862	write	siteShareBackend
+2909	write	siteShareBackend
+2922	write	siteImportBackend
+2930	write	siteConsent

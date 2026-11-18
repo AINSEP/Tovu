@@ -1,0 +1,8 @@
+
+/home/user/facts/apps/website/src/server/runtime/composition/deps.ts
+   693:1  error  File has too many lines (1910). Maximum allowed is 500                                  max-lines
+   954:1  error  Async function 'composeSiteRouteDeps' has too many lines (1195). Maximum allowed is 50  max-lines-per-function
+  2837:3  error  Function 'configureSiteSharing' has too many lines (68). Maximum allowed is 50          max-lines-per-function
+
+✖ 3 problems (3 errors, 0 warnings)
+
