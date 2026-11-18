@@ -1,6 +1,9 @@
 import type { SettingsRouteRegistrar } from "./deps.js";
 import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget, createTovuSettingsService, mountSettingsJsonRoute, rejectSettingsRequest } from "./shared.js";
 
+/** What a 400 for a missing or empty `namespace` tells the caller, in plain words (a person reads it in the admin). */
+const NAMESPACE_REQUIRED_MESSAGE = "Say which group of settings to read: add ?namespace=<group> to the address, for example ?namespace=core.language.";
+
 /**
  * Resolution and rationale now live in Jini packages/core/src/settings/express/cms-adapter.ts:
  * Resolves every effective value for a namespace across the keys registered on either the
@@ -42,7 +45,7 @@ export const registerAdminSettingsGetEffectiveRoute: SettingsRouteRegistrar = ({
 
       const namespace = String(req.query.namespace ?? "");
       if (!namespace) {
-        rejectSettingsRequest({ status: 400, error: "'namespace' query param is required", code: "VALIDATION_ERROR" });
+        rejectSettingsRequest({ status: 400, error: NAMESPACE_REQUIRED_MESSAGE, code: "VALIDATION_ERROR" });
       }
       // `authorize()` above was checked against `deps.workspaceId` and `principal.id` — never let
       // the actual read target a different workspace or principal than what was authorized.
