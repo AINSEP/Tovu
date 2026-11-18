@@ -46,6 +46,39 @@ Parallel-safe groups (disjoint source files): {L01, L02, L03, L08, L12, L13} →
 → {L06, L11, L14} → L15. Each lane is one branch off the integration tip, one PR, merged in this
 order; the gate below is order-independent, so a lane re-run after a rebase stays valid.
 
+## API-surface budget (hard metric; baseline 821, tip 806 → 15 files of headroom)
+
+A declaration moved to a **new** `contracts/core` file adds that file to the surface (+1) when its
+old home was reached through the owner's entry; it is neutral when the old home was already
+deep-imported (measured in the dry-run: operator-locale +1, access-evidence 0 → 807). So moves reuse
+one file per topic. Planned new files (12): `operator-locale.ts` (L02), `settings-vocabulary.ts`
+(L02: `MailTestModeSetting`, `PUBLISHABLE_SETTINGS`), `credential-store.ts` (L02 conflict error;
+L05 adds the scope helpers), `secret-scan.ts` (L02), `theme-ids.ts` (L03; L09 adds the theme import
+policy constants), `declared-content-type-owners.ts`, `redirect-tables.ts`, `fs-folder-recovery.ts`,
+`post-kind.ts`, `export-report.ts` (L03), `declared-api-connection.ts` (L11),
+`term-sync-permission.ts` (L14); `media-access-evidence.ts` (L08) and `SYSTEM_ACTOR_ID` into the
+existing `post-author.ts` (L10) are neutral. Worst case 806 + 12 = 818 ≤ 821 before counting the
+deep imports the I/H moves delete. G2 fails the lane if the surface ever exceeds 821.
+
+## Setup (once per run, before any lane step)
+
+Checkouts side by side and named exactly `Tovu` and `Jini` (host deps resolve `../Jini`). Node 24.
+
+```bash
+set -euo pipefail
+(cd Jini && git fetch origin integ/merge-3-2026-11-18 && git checkout --detach d37821a4 \
+  && pnpm install --frozen-lockfile && pnpm --no-bail -r build)
+cd Tovu && git fetch origin integ/merge-3-2026-11-18 plan/design-arch-120-2026-11-17
+git switch -c "arch-120/$LANE" 2d82735a          # or the current integ tip that contains it
+npm ci && JINI_PACKAGES_DIR="$PWD/../Jini/packages" npm run link:jini
+git checkout origin/plan/design-arch-120-2026-11-17 -- designs/arch-120/v3/edges designs/arch-120/facts/check-boundaries.v3.2d82735a.txt
+git reset -q designs/arch-120                      # gate inputs only; never committed on the lane branch
+```
+
+Run `npm run unlink:jini` before any `build`. If the integ tip has moved past `2d82735a`, first
+re-run `npm run check:architecture` and confirm its NEW lines are a subset of `all-115.txt`
+(G2's first `comm`); if not, STOP and report the extra lines — they need their own row.
+
 ## Shared gate (every lane; fail-closed; repo commands only)
 
 Run from the Tovu root with `LANE=Lxx`. Every command's status is checked directly — no `|| true`,

@@ -3,7 +3,7 @@
 **vendor-credentials (3 edges):**
 - D: `credentialScopes`, `credentialCreateTarget`, `CredentialScope`, `ScopedCredentialDeps`,
   `CredentialProjectHalf` (`features/vendor-credentials/project-scope.ts`, 60 lines; after L01 its
-  only import is `@jini-ai/integrations/webhooks`) → `contracts/core/credential-scope.ts`; also the
+  only import is `@jini-ai/integrations/webhooks`) → `contracts/core/credential-store.ts`; also the
   two pure helpers `credentialScope`, `credentialHint` (`vault-adapter.ts:152,156`).
 - I: `credentialVault` (`vault-adapter.ts:126`, constructs the Jini vault adapter) is called by
   `deployments/publish-credentials/store.ts:111` and `source-control/store.ts`. Each store's deps
@@ -54,8 +54,8 @@ Base: Tovu `2d82735a` (integ/merge-3 tip). Edge list for G2: `designs/arch-120/v
 ### Inventory (TypeScript-AST reverse-import index of tip `2d82735a`, all of `apps/website/src`, prod + tests)
 
 #### Edges
-- `custom-credentials/tovu-credential-sets.ts` -> `vendor-credentials/index.ts` [D] credentialCreateTarget,credentialScopes -> contracts/core/credential-scope.ts
-- `deployments/publish-credentials/store.ts` -> `vendor-credentials/index.ts` [D+I] credentialScope/Hint/CreateTarget/Scopes -> contracts/core/credential-scope.ts; credentialVault -> deps.credentialVault (composition); record types -> S
+- `custom-credentials/tovu-credential-sets.ts` -> `vendor-credentials/index.ts` [D] credentialCreateTarget,credentialScopes -> contracts/core/credential-store.ts
+- `deployments/publish-credentials/store.ts` -> `vendor-credentials/index.ts` [D+I] credentialScope/Hint/CreateTarget/Scopes -> contracts/core/credential-store.ts; credentialVault -> deps.credentialVault (composition); record types -> S
 - `source-control/store.ts` -> `vendor-credentials/index.ts` [D+I] same as deployments store
 - `custom-credentials/vault-repo.ts` -> `project-keys/attached-vault.ts` [S] SiteGrantedVault -> local structural type
 - `custom-credentials/credential-copy-tool.ts` -> `project-keys/service.ts` [S] ProjectKeysPort -> local Pick of called methods

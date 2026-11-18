@@ -13,8 +13,9 @@ function resolve(from, spec) {
 }
 const cache = {};
 function parse(f) { if (!cache[f]) cache[f] = ts.createSourceFile(f, fs.readFileSync(path.join(root, f), 'utf8'), ts.ScriptTarget.Latest, true); return cache[f]; }
+let origName;
 function origin(file, name, depth = 0) {
-  if (file.startsWith('PKG:')) return file.slice(4);
+  if (file.startsWith('PKG:')) return file.slice(4) + (name !== origName ? '#' + name : '');
   if (depth > 8) return '?deep';
   const sf = parse(file);
   for (const st of sf.statements) {
@@ -43,6 +44,6 @@ function origin(file, name, depth = 0) {
 }
 const rows = fs.readFileSync(process.argv[3], 'utf8').trim().split('\n').map(l => l.split('\t'));
 for (const [src, tgt, line, kind, names] of rows) {
-  const res = names.split(',').map(n => n.replace(/^type /, '').replace(/^\* as .*/, '*').split(' as ')[0].trim()).filter(Boolean).map(n => n + '=' + (n === '*' || n === 'import()' ? 'NS' : origin(tgt, n.split('.')[0])).replace('apps/website/src/features/', ''));
+  const res = names.split(',').map(n => n.replace(/^type /, '').replace(/^\* as .*/, '*').split(' as ')[0].trim()).filter(Boolean).map(n => n + '=' + (n === '*' || n === 'import()' ? 'NS' : (origName = n.split('.')[0], origin(tgt, n.split('.')[0]))).replace('apps/website/src/features/', ''));
   console.log([src.replace('apps/website/src/features/', ''), tgt.replace('apps/website/src/features/', ''), line, kind, res.join(' ')].join('\t'));
 }

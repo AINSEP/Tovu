@@ -3,7 +3,7 @@ agent-plugins/service-ports.ts	external-mcp/contracts.ts	L01	J	ExternalMcpConnec
 external-mcp/external-mcp-store.ts	webhooks/index.ts	L01	J	SecretSealerPort <- @jini-ai/integrations/webhooks
 project-keys/site-sealer.ts	webhooks/index.ts	L01	J	KeyringPort,SecretSealerPort <- @jini-ai/integrations/webhooks
 object-storage/artifact-provider.ts	deployments/contracts.ts	L01	J	DeployTargetCredential <- @jini-ai/devops/deploy
-object-storage/registry.ts	deployments/contracts.ts	L01	J	DeployHostKit <- @jini-ai/devops/deploy
+object-storage/registry.ts	deployments/contracts.ts	L01	J	DeployHostKit <- @jini-ai/devops/deploy PluginDeployHostKit (renamed by the Tovu barrel)
 publish-content/tovu-publish-ports.ts	content-types/index.ts	L01	J	ContentTypeListPort,ContentTypeRepoPort,IndexProvisionerPort <- @jini-ai/cms/content-types
 publish-content/tovu-publish-ports.ts	entries/index.ts	L01	J	EntryListPort,EntryRepoPort <- @jini-ai/cms/entries
 publish-content/tovu-publish-ports.ts	navigation/index.ts	L01	J	MenuRepoPort,NavLocationBindingRepoPort <- @jini-ai/cms/navigation

@@ -7,10 +7,10 @@ Every moved declaration's own imports were checked on the tip: only `@jini-ai/*`
 | moved symbol(s) | from | to | edges removed |
 |---|---|---|---|
 | `resolveOperatorLocale` (whole file) | `features/settings/operator-locale.ts` (imports `@jini-ai/core/settings`, `contracts/headless`) | `contracts/core/operator-locale.ts` | 7 |
-| `ProjectKeyCreateConflictError` (class only; `projectKeyCreateVault` stays) | `features/project-keys/create-vault.ts:6` (imports `ToolInputError` from `@jini-ai/core`) | `contracts/core/credential-create-conflict.ts` | 3 |
+| `ProjectKeyCreateConflictError` (class only; `projectKeyCreateVault` stays) | `features/project-keys/create-vault.ts:6` (imports `ToolInputError` from `@jini-ai/core`) | `contracts/core/credential-store.ts` | 3 |
 | `scanTextForSecrets`, `SecretScanHit` | `features/webhooks/secret-scan-guard.ts:172,184` (uses `SECRET_PATTERNS` from `@jini-ai/diagnostics`) | `contracts/core/secret-scan.ts`; `secret-scan-guard.ts` imports it back (the CLI `check:secret-scan` keeps working) | 2 |
-| `MailTestModeSetting` (pure union type) | `features/settings/mail-provider.ts:24` | `contracts/core/mail-test-mode.ts` | 2 |
-| `PUBLISHABLE_SETTINGS` (whole file) | `features/settings/contracts.ts` | `contracts/core/publishable-settings.ts`; delete `settings/contracts.ts`; remove `"contracts"` from `features/settings`' entry list in `.dependency-cruiser.mjs:692` only if no file remains (keeps the door list truthful, not a waiver) | 1 |
+| `MailTestModeSetting` (pure union type) | `features/settings/mail-provider.ts:24` | `contracts/core/settings-vocabulary.ts` | 2 |
+| `PUBLISHABLE_SETTINGS` (whole file) | `features/settings/contracts.ts` | `contracts/core/settings-vocabulary.ts`; delete `settings/contracts.ts`; remove `"contracts"` from `features/settings`' entry list in `.dependency-cruiser.mjs:692` only if no file remains (keeps the door list truthful, not a waiver) | 1 |
 
 **Repoint, no forwarder:** remove the `settings/index.ts:161` export of `resolveOperatorLocale`,
 and every other re-export of a moved symbol; repoint *every* import in the inventory below,
@@ -46,14 +46,14 @@ Base: Tovu `2d82735a` (integ/merge-3 tip). Edge list for G2: `designs/arch-120/v
 - `external-mcp/tool-registrations.ts` -> `settings/index.ts` [D] resolveOperatorLocale -> contracts/core/operator-locale.ts
 - `media-generation/providers-tools.ts` -> `settings/index.ts` [D] resolveOperatorLocale -> contracts/core/operator-locale.ts
 - `source-control/credential-setup.ts` -> `settings/index.ts` [D] resolveOperatorLocale -> contracts/core/operator-locale.ts
-- `custom-credentials/tovu-credential-sets.ts` -> `project-keys/create-vault.ts` [D] ProjectKeyCreateConflictError -> contracts/core/credential-create-conflict.ts
-- `deployments/publish-credentials/store.ts` -> `project-keys/create-vault.ts` [D] ProjectKeyCreateConflictError -> contracts/core/credential-create-conflict.ts
-- `source-control/store.ts` -> `project-keys/create-vault.ts` [D] ProjectKeyCreateConflictError -> contracts/core/credential-create-conflict.ts
+- `custom-credentials/tovu-credential-sets.ts` -> `project-keys/create-vault.ts` [D] ProjectKeyCreateConflictError -> contracts/core/credential-store.ts
+- `deployments/publish-credentials/store.ts` -> `project-keys/create-vault.ts` [D] ProjectKeyCreateConflictError -> contracts/core/credential-store.ts
+- `source-control/store.ts` -> `project-keys/create-vault.ts` [D] ProjectKeyCreateConflictError -> contracts/core/credential-store.ts
 - `publish-content/backstop-policy.ts` -> `webhooks/index.ts` [D] scanTextForSecrets,SecretScanHit -> contracts/core/secret-scan.ts
 - `publish-content/file-tree-policy.ts` -> `webhooks/index.ts` [D] scanTextForSecrets,SecretScanHit -> contracts/core/secret-scan.ts
-- `mail-status/test-send.ts` -> `settings/index.ts` [D] MailTestModeSetting -> contracts/core/mail-test-mode.ts
-- `mail/attempts.repo.ts` -> `settings/index.ts` [D] MailTestModeSetting -> contracts/core/mail-test-mode.ts
-- `site-backup/share-database/repo.sqlite.ts` -> `settings/contracts.ts` [D] PUBLISHABLE_SETTINGS -> contracts/core/publishable-settings.ts (settings/contracts.ts deleted)
+- `mail-status/test-send.ts` -> `settings/index.ts` [D] MailTestModeSetting -> contracts/core/settings-vocabulary.ts
+- `mail/attempts.repo.ts` -> `settings/index.ts` [D] MailTestModeSetting -> contracts/core/settings-vocabulary.ts
+- `site-backup/share-database/repo.sqlite.ts` -> `settings/contracts.ts` [D] PUBLISHABLE_SETTINGS -> contracts/core/settings-vocabulary.ts (settings/contracts.ts deleted)
 
 #### Every import/re-export of a moved or redirected symbol — repoint each; delete each re-export (no forwarder)
 - `MailTestModeSetting`:

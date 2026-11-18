@@ -6,7 +6,7 @@
 | `themeIdCandidates`, `RENAMED_THEME_IDS` (whole 34-line file, no imports) | `features/theme/theme-id-aliases.ts` | same `contracts/core/theme-ids.ts`; delete the old file | 1 |
 | `DECLARED_CONTENT_TYPE_OWNERS` (whole file, imports `@jini-ai/cms/widgets` only) | `features/content-types/declared-owners.ts` | `contracts/core/declared-content-type-owners.ts` | 1 |
 | `REDIRECT_TABLES` (const) | `features/redirects/repo.sqlite.ts:9` | `contracts/core/redirect-tables.ts` (precedent: `contracts/core/widget-tables.ts`) | 1 |
-| `FS_FOLDER_READ_RECOVERY` (string const) | `features/fs-files/site-file-request.ts:13` | `contracts/core/fs-folder-read-recovery.ts` | 1 |
+| `FS_FOLDER_READ_RECOVERY` (string const) | `features/fs-files/site-file-request.ts:13` | `contracts/core/fs-folder-recovery.ts` | 1 |
 | `PostKind` (whole 9-line file, imports `@jini-ai/cms/core`) | `features/post/post-vocabulary.ts` | `contracts/core/post-kind.ts` | 3 (+1 half of V-pages in L10) |
 | `ExportReport` (interface `extends` the Jini `BaseExportReport`) | `features/site-export/site-exporter.ts:23` | `contracts/core/export-report.ts` | 3 |
 
@@ -44,7 +44,7 @@ Base: Tovu `2d82735a` (integ/merge-3 tip). Edge list for G2: `designs/arch-120/v
 - `site-inspection/site-profile.ts` -> `theme/theme-id-aliases.ts` [D] themeIdCandidates,RENAMED_THEME_IDS -> contracts/core/theme-ids.ts (theme-id-aliases.ts deleted)
 - `entries/unreadable-owner-entries-repair.ts` -> `content-types/index.ts` [D] DECLARED_CONTENT_TYPE_OWNERS -> contracts/core/declared-content-type-owners.ts
 - `trash/adapters/redirect.ts` -> `redirects/index.ts` [D] REDIRECT_TABLES -> contracts/core/redirect-tables.ts
-- `media-import/agent-tools.ts` -> `fs-files/site-file-request.ts` [D] FS_FOLDER_READ_RECOVERY -> contracts/core/fs-folder-read-recovery.ts
+- `media-import/agent-tools.ts` -> `fs-files/site-file-request.ts` [D] FS_FOLDER_READ_RECOVERY -> contracts/core/fs-folder-recovery.ts
 - `pages/html-document-store.memory.ts` -> `post/contracts.ts` [D] PostKind -> contracts/core/post-kind.ts
 - `site-search/access.ts` -> `post/contracts.ts` [D] PostKind -> contracts/core/post-kind.ts
 - `site-search/cms-document-source.ts` -> `post/contracts.ts` [D] PostKind -> contracts/core/post-kind.ts

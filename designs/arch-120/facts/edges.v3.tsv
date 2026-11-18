@@ -3,7 +3,7 @@ V001	L01	J	agent-plugins/service-ports.ts	api-connections/connect.ts	11	type	Api
 V002	L01	J	agent-plugins/service-ports.ts	external-mcp/contracts.ts	4	type	ExternalMcpConnectStart=@jini-ai/core/contracts/hosted-mcp	ExternalMcpConnectStart <- @jini-ai/core/contracts/hosted-mcp
 V003	L01	J	external-mcp/external-mcp-store.ts	webhooks/index.ts	7	type	SecretSealerPort=@jini-ai/integrations/webhooks	SecretSealerPort <- @jini-ai/integrations/webhooks
 V004	L01	J	object-storage/artifact-provider.ts	deployments/contracts.ts	3	type	DeployTargetCredential=@jini-ai/devops/deploy	DeployTargetCredential <- @jini-ai/devops/deploy
-V005	L01	J	object-storage/registry.ts	deployments/contracts.ts	11	type	DeployHostKit=@jini-ai/devops/deploy	DeployHostKit <- @jini-ai/devops/deploy
+V005	L01	J	object-storage/registry.ts	deployments/contracts.ts	11	type	DeployHostKit=@jini-ai/devops/deploy#PluginDeployHostKit	DeployHostKit <- @jini-ai/devops/deploy PluginDeployHostKit (renamed by the Tovu barrel)
 V006	L01	J	project-keys/site-sealer.ts	webhooks/index.ts	2	type	KeyringPort=@jini-ai/integrations/webhooks SecretSealerPort=@jini-ai/integrations/webhooks	KeyringPort,SecretSealerPort <- @jini-ai/integrations/webhooks
 V007	L01	J	publish-content/tovu-publish-ports.ts	content-types/index.ts	6	type	ContentTypeListPort=@jini-ai/cms/content-types ContentTypeRepoPort=@jini-ai/cms/content-types IndexProvisionerPort=@jini-ai/cms/content-types	ContentTypeListPort,ContentTypeRepoPort,IndexProvisionerPort <- @jini-ai/cms/content-types
 V008	L01	J	publish-content/tovu-publish-ports.ts	entries/index.ts	21	type	EntryListPort=@jini-ai/cms/entries EntryRepoPort=@jini-ai/cms/entries	EntryListPort,EntryRepoPort <- @jini-ai/cms/entries
