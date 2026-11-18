@@ -16,7 +16,7 @@ import { InMemoryMemberRepo } from "#src/features/members/repo.memory";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import type { MembersWriteServiceDeps } from "#src/features/members/ports";
 import { membersWriteService } from "#src/features/members/write-service";
-import { createTrashService } from "@jini-ai/cms/trash";
+import { buildTrashAgentToolCatalog, createTrashService } from "@jini-ai/cms/trash";
 
 import { SqliteTrashRepo, createContentDbTransactionRunner } from "../repo.sqlite.js";
 import { buildTrashRegistry } from "../registry.js";
@@ -25,7 +25,7 @@ import { createMemberTrashAdapter } from "../adapters/member.js";
 import { moveToTrash } from "../move-to-trash.js";
 import { buildTrashRegistrations } from "../tool-registrations.js";
 import { deriveTrashItemRegistrations } from "../trash-item-tool.js";
-import { buildTrashAgentToolCatalog, trashToolEntityTypes } from "../agent-tools.js";
+import { trashToolEntityTypes } from "../tool-kinds.js";
 import type { ToolExecutionContext } from "@jini-ai/core";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
