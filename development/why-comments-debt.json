@@ -80,6 +80,38 @@
     {
       "id": "5d5a1fe10e7a",
       "reason": "Moved to the Jini EntryRefRow doc (Jini 30954d12c)."
+    },
+    {
+      "id": "418a744ddc7a",
+      "reason": "Moved with the code to Jini packages/cms/src/widgets/entry-refs-extractor.ts (Jini 1e3af649): widgets/entry-refs-extractor.ts classifyRefFieldKey doc. The Tovu file is now a 1-function binding."
+    },
+    {
+      "id": "0cc349306609",
+      "reason": "Moved with the code to Jini packages/cms/src/widgets/entry-refs-extractor.ts (Jini 1e3af649): extractEntryRefs doc. The Tovu file is now a 1-function binding."
+    },
+    {
+      "id": "01b29c1f23dd",
+      "reason": "Moved with the code to Jini packages/cms/src/widgets/entry-refs-extractor.ts (Jini 1e3af649): the html-pages section comment. The Tovu file is now a 1-function binding."
+    },
+    {
+      "id": "a1f9611f3518",
+      "reason": "Moved with the code to Jini packages/cms/src/widgets/entry-refs-extractor.ts (Jini 1e3af649): MAX_HTML_PAGE_EMBED_REFS doc (path text reworded to be neutral). The Tovu file is now a 1-function binding."
+    },
+    {
+      "id": "c3227988ba6b",
+      "reason": "Moved with the code to Jini packages/cms/src/widgets/entry-refs-extractor.ts (Jini 1e3af649): MAX_HTML_EMBED_REF_ID_LENGTH doc (path text reworded). The Tovu file is now a 1-function binding."
+    },
+    {
+      "id": "ffffbd3599f3",
+      "reason": "Moved with the code to Jini packages/cms/src/widgets/entry-refs-extractor.ts (Jini 1e3af649): HTML_EMBED_TARGET_KINDS doc (the inventory-doc path dropped as a Tovu path). The Tovu file is now a 1-function binding."
+    },
+    {
+      "id": "02450ff24bc2",
+      "reason": "Moved with the code to Jini packages/cms/src/widgets/entry-refs-extractor.ts (Jini 1e3af649): warnRejectedMarkers doc (now describes the injected report). The Tovu file is now a 1-function binding."
+    },
+    {
+      "id": "cbd9a3ffedda",
+      "reason": "Moved with the code to Jini packages/cms/src/widgets/entry-refs-extractor.ts (Jini 1e3af649): extractHtmlEntryRefs doc (host-page-store wording). The Tovu file is now a 1-function binding."
     }
   ]
 }
