@@ -111,7 +111,7 @@ export function appendHostDeployNotes(
 /** The kit every generator gets. @complexity O(1). */
 export function createDeployConfigKit(): DeployConfigKit {
   return {
-    assertNoConfigInjection: (fieldLabel, value) => assertNoConfigInjection({ fieldLabel, value }),
+    assertNoConfigInjection: (fieldLabel, value) => assertNoConfigInjection({ fieldLabel, value, fail: ({ message }) => new ValidationError({ message }) }),
     validationError: (message) => new ValidationError({ message }),
     migrationsNote: MIGRATIONS_NOTE,
   };
@@ -286,17 +286,20 @@ function hasLeadingHyphenOrSurroundingWhitespace({ value }: { value: string }, _
   return value.startsWith("-") || value !== value.trim();
 }
 
-export function assertNoConfigInjection({ fieldLabel, value }: { fieldLabel: string; value: string }, _options = {}): void {
+export function assertNoConfigInjection(
+  { fieldLabel, value, fail }: { fieldLabel: string; value: string; fail: (required: { message: string }) => Error },
+  _options = {},
+): void {
   if (containsAnyOf({ value, chars: QUOTE_OR_NEWLINE_CHARS })) {
-    throw new ValidationError({ message: `${fieldLabel} (${JSON.stringify(value)}) contains a quote or newline character, which would corrupt the generated config file` });
+    throw fail({ message: `${fieldLabel} (${JSON.stringify(value)}) contains a quote or newline character, which would corrupt the generated config file` });
   }
   if (containsAnyOf({ value, chars: YAML_SIGNIFICANT_CHARS })) {
-    throw new ValidationError(
+    throw fail(
       { message: `${fieldLabel} (${JSON.stringify(value)}) contains a YAML-significant character (one of : # { [ & *), which would corrupt an unquoted YAML scalar in the generated config file` }
     );
   }
   if (hasLeadingHyphenOrSurroundingWhitespace({ value })) {
-    throw new ValidationError(
+    throw fail(
       { message: `${fieldLabel} (${JSON.stringify(value)}) starts with "-" or has leading/trailing whitespace, which would corrupt an unquoted YAML scalar in the generated config file` }
     );
   }
