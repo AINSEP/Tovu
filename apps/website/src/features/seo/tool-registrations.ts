@@ -24,11 +24,11 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/seo.js';
  *    tools already use (contrast `features/workspace/tool-registrations.ts`'s `workspace_update`,
  *    which self-enforces nothing and is checked only at the handler).
  */
-import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, withToolMetadata, requireInputRecord, requireNoInput, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { requireExpectedVersion, versionConflictRule } from "@jini-ai/core/optimistic-concurrency";
 import { withModelFacingErrors } from "@jini-ai/core/model-facing-tool-errors";
 import { adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
-import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
+import { type AuthorizeFn, type EventBusPort, type OutboxPort } from "@jini-ai/core/contracts/events";
 import type { ToolContributor } from "@jini-ai/core";
 import type { PostRepoPort } from "../post/index.js";
 import type { SettingsRepoPort } from "../settings/index.js";
@@ -41,7 +41,7 @@ import {
   SeoInvalidCanonicalUrlError,
   SeoSettingsValidationError,
 } from "@jini-ai/cms/seo";
-import { getEntryMeta, analyzeEntry, setEntrySeoOverrides, type createSitemapService, type SeoExtFieldsPatch, type SeoSettings } from "@jini-ai/cms/seo";
+import { getEntryMeta, analyzeEntry, setEntrySeoOverrides, type createSitemapService, type GetEntryMetaDeps, type SeoExtFieldsPatch, type SeoSettings, type SetEntrySeoOverridesRequired, type SitemapInvalidationDeps } from "@jini-ai/cms/seo";
 import { getSeoSettings, setSeoSettings } from "./settings.js";
 import type { SeoHostBindings } from "./index.js";
 
@@ -136,9 +136,38 @@ export const seoDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSide
   ["seo_regenerate_sitemap", "mutates-durable-state"],
 ]);
 
-/** What every handler factory reads: the host route deps and the sitemap invalidation they share. */
+/** The settings operations the SEO tools call; the host binds them to its settings ledger. */
+export interface SeoSettingsPort {
+  get(input: { workspaceId: string }): Promise<SeoSettings>;
+  set(input: { workspaceId: string; patch: Partial<SeoSettings>; callerPrincipalId: string }): Promise<SeoSettings>;
+}
+
+/**
+ * The host bindings the SEO tools read, as the members they use: the entry-meta producer's ports,
+ * the post repo that also takes the override write, and the outbox dispatcher.
+ */
+export interface SeoToolHostBindings extends GetEntryMetaDeps {
+  postRepo: GetEntryMetaDeps["postRepo"] & SetEntrySeoOverridesRequired["deps"]["postRepo"];
+  dispatch: SitemapInvalidationDeps["dispatch"];
+}
+
+/** Everything the SEO tool handlers read, as ports: the host supplies the settings operations. */
+export interface SeoPackageToolDeps {
+  readonly outbox: OutboxPort;
+  readonly bus: EventBusPort;
+  readonly authorize: AuthorizeFn;
+  readonly workspaceId: string;
+  readonly clock: { nowIso(): string };
+  readonly idGen: { newId(): string };
+  readonly seoReady: Promise<void>;
+  readonly seoDeps: SeoToolHostBindings;
+  readonly sitemapService: ReturnType<typeof createSitemapService>;
+  readonly seoSettings: SeoSettingsPort;
+}
+
+/** What every handler factory reads: the package deps and the sitemap invalidation they share. */
 interface SeoHandlerArgs {
-  deps: SeoToolDeps;
+  deps: SeoPackageToolDeps;
   requestInvalidation: (input: { workspaceId: string }) => Promise<void>;
 }
 
@@ -190,7 +219,7 @@ const seoGetSettingsHandler = ({ deps }: SeoHandlerArgs): ToolHandler => async (
   await deps.seoReady;
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_SEO_PERMISSION }, { entityType: "seo-settings" });
 
-  const settings = await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId });
+  const settings = await deps.seoSettings.get({ workspaceId: deps.workspaceId });
   return { settings };
 };
 
@@ -205,18 +234,7 @@ const seoSetSettingsHandler = ({ deps, requestInvalidation }: SeoHandlerArgs): T
 
   ctx.signal.throwIfAborted();
   const settings = await withSchemaOnRejection({ toolId: "seo_set_settings", catalog: CATALOG_BY_ID, isShapeRejection: ({ error }) => error instanceof SeoSettingsValidationError, fn: () =>
-      setSeoSettings(
-        {
-          settingsRepo: deps.settingsRepo,
-          clock: deps.clock,
-          ids: deps.idGen,
-          authorize: deps.authorize,
-          principals: deps.principalRepo,
-          invalidateSitemap: requestInvalidation,
-          media: deps.seoDeps.media,
-        },
-        { workspaceId: deps.workspaceId, patch: seoSettingsPatchFromInput(input), callerPrincipalId: ctx.principal.id },
-      ) });
+      deps.seoSettings.set({ workspaceId: deps.workspaceId, patch: seoSettingsPatchFromInput(input), callerPrincipalId: ctx.principal.id }) });
   return { settings };
 };
 
@@ -230,15 +248,19 @@ const seoRegenerateSitemapHandler = ({ deps, requestInvalidation }: SeoHandlerAr
   return { accepted: true };
 };
 
-export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[] {
+/**
+ * The package-side builder: the id -> handler table over the SEO catalog. It takes no host metadata
+ * (search vocabulary, approval policy); the host binding adds it.
+ */
+export function buildSeoToolRegistrations({ deps }: { deps: SeoPackageToolDeps }, _optional = {}): ToolRegistration[] {
   // Bind delivery to the existing outbox owner; the same service handles local invalidation.
   const invalidationDeps = {
-    outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock,
-    idGen: routeDeps.idGen, dispatch: routeDeps.seoDeps.dispatch,
+    outbox: deps.outbox, bus: deps.bus, clock: deps.clock,
+    idGen: deps.idGen, dispatch: deps.seoDeps.dispatch,
   };
   const requestInvalidation = (input: { workspaceId: string }) =>
-    routeDeps.sitemapService.requestSitemapInvalidation({ deps: invalidationDeps, input }, {});
-  const args: SeoHandlerArgs = { deps: routeDeps, requestInvalidation };
+    deps.sitemapService.requestSitemapInvalidation({ deps: invalidationDeps, input }, {});
+  const args: SeoHandlerArgs = { deps, requestInvalidation };
   const handlers: Record<string, ToolHandler> = {
     seo_get_entry_meta: seoGetEntryMetaHandler(args),
     seo_analyze_entry: seoAnalyzeEntryHandler(args),
@@ -248,13 +270,56 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
     seo_regenerate_sitemap: seoRegenerateSitemapHandler(args),
   };
 
-  return buildDomainRegistrations({ metadata: toolMetadata,
+  return buildDomainRegistrations({
     domain: "seo",
     catalogModule: "seo/agent-tools.ts",
     catalog: CATALOG_BY_ID,
     handlers: withModelFacingErrors({ handlers, rules: [versionConflictRule({ readToolId: "content_read.seo_entry_meta" })] }),
     derivedRisk: seoDerivedRisk,
   });
+}
+
+/**
+ * The route deps as the package-side ports. Every field reads the route deps at call time (a getter,
+ * not a copy) because the route deps bag is mutable. The settings write closes over the same
+ * sitemap invalidation the tool handlers build and the host's settings ledger.
+ */
+function toPackageDeps({ routeDeps }: { routeDeps: SeoToolDeps }, _optional = {}): SeoPackageToolDeps {
+  const requestInvalidation = (input: { workspaceId: string }) =>
+    routeDeps.sitemapService.requestSitemapInvalidation({
+      deps: { outbox: routeDeps.outbox, bus: routeDeps.bus, clock: routeDeps.clock, idGen: routeDeps.idGen, dispatch: routeDeps.seoDeps.dispatch },
+      input,
+    }, {});
+  return {
+    get outbox() { return routeDeps.outbox; },
+    get bus() { return routeDeps.bus; },
+    get authorize() { return routeDeps.authorize; },
+    get workspaceId() { return routeDeps.workspaceId; },
+    get clock() { return routeDeps.clock; },
+    get idGen() { return routeDeps.idGen; },
+    get seoReady() { return routeDeps.seoReady; },
+    get seoDeps() { return routeDeps.seoDeps; },
+    get sitemapService() { return routeDeps.sitemapService; },
+    seoSettings: {
+      get: (input) => getSeoSettings({ settingsRepo: routeDeps.settingsRepo }, input),
+      set: (input) => setSeoSettings(
+        {
+          settingsRepo: routeDeps.settingsRepo,
+          clock: routeDeps.clock,
+          ids: routeDeps.idGen,
+          authorize: routeDeps.authorize,
+          principals: routeDeps.principalRepo,
+          invalidateSitemap: requestInvalidation,
+          media: routeDeps.seoDeps.media,
+        },
+        input,
+      ),
+    },
+  };
+}
+
+export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[] {
+  return withToolMetadata({ registrations: buildSeoToolRegistrations({ deps: toPackageDeps({ routeDeps }) }), metadata: toolMetadata });
 }
 
 /**
