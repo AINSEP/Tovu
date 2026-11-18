@@ -21,8 +21,8 @@ function fakeDeps(values: Record<string, unknown>, overrides: Partial<AssistantR
   return { deps, reads };
 }
 
-test("defaults: subagent delegation ON, Claude in Chrome ON", () => {
-  assert.deepEqual(DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, { preferSubagents: true, useClaudeInChrome: true, replyLength: "normal" });
+test("defaults: subagent delegation ON, Claude in Chrome OFF", () => {
+  assert.deepEqual(DEFAULT_ASSISTANT_RUNTIME_PREFERENCES, { preferSubagents: true, useClaudeInChrome: false, replyLength: "normal" });
   assert.ok(Object.isFrozen(DEFAULT_ASSISTANT_RUNTIME_PREFERENCES));
 });
 
@@ -38,15 +38,15 @@ test("reads the person's stored value from core.interface at their scope", async
 
 test("an absent or non-boolean value reads the default", async () => {
   assert.deepEqual(await readAssistantRuntimePreferences({ deps: fakeDeps({ useClaudeInChrome: false }).deps, principalId: "a" }), { preferSubagents: true, useClaudeInChrome: false, replyLength: "normal" });
-  assert.deepEqual(await readAssistantRuntimePreferences({ deps: fakeDeps({}).deps, principalId: "a" }), { preferSubagents: true, useClaudeInChrome: true, replyLength: "normal" });
-  assert.deepEqual(await readAssistantRuntimePreferences({ deps: fakeDeps({ preferSubagents: "yes", useClaudeInChrome: "yes" }).deps, principalId: "a" }), { preferSubagents: true, useClaudeInChrome: true, replyLength: "normal" });
+  assert.deepEqual(await readAssistantRuntimePreferences({ deps: fakeDeps({}).deps, principalId: "a" }), { preferSubagents: true, useClaudeInChrome: false, replyLength: "normal" });
+  assert.deepEqual(await readAssistantRuntimePreferences({ deps: fakeDeps({ preferSubagents: "yes", useClaudeInChrome: "yes" }).deps, principalId: "a" }), { preferSubagents: true, useClaudeInChrome: false, replyLength: "normal" });
 });
 
 test("a failed read or a failed definition boot falls back to the defaults instead of blocking the launch", async () => {
   const throwing = fakeDeps({}, { getEffective: (async () => { throw new Error("db down"); }) as unknown as typeof getEffective }).deps;
-  assert.deepEqual(await readAssistantRuntimePreferences({ deps: throwing, principalId: "a" }), { preferSubagents: true, useClaudeInChrome: true, replyLength: "normal" });
+  assert.deepEqual(await readAssistantRuntimePreferences({ deps: throwing, principalId: "a" }), { preferSubagents: true, useClaudeInChrome: false, replyLength: "normal" });
   const notReady = fakeDeps({ preferSubagents: false, useClaudeInChrome: true, replyLength: "normal" }, { settingsReady: Promise.reject(new Error("boot failed")) }).deps;
-  assert.deepEqual(await readAssistantRuntimePreferences({ deps: notReady, principalId: "a" }), { preferSubagents: true, useClaudeInChrome: true, replyLength: "normal" });
+  assert.deepEqual(await readAssistantRuntimePreferences({ deps: notReady, principalId: "a" }), { preferSubagents: true, useClaudeInChrome: false, replyLength: "normal" });
 });
 
 test("waits for the definitions before reading", async () => {
@@ -57,7 +57,7 @@ test("waits for the definitions before reading", async () => {
   await Promise.resolve();
   assert.equal(reads.length, 0);
   release();
-  assert.deepEqual(await pending, { preferSubagents: false, useClaudeInChrome: true, replyLength: "normal" });
+  assert.deepEqual(await pending, { preferSubagents: false, useClaudeInChrome: false, replyLength: "normal" });
 });
 
 for (const replyLength of ["short", "normal", "detailed"] as const) {

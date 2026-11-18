@@ -177,17 +177,17 @@ test("assistant runtime preference: preferSubagents is a per-person boolean defa
     { value: true, sourceLayer: "default", defVersion: 1 });
 });
 
-test("assistant runtime preference: useClaudeInChrome is a per-person boolean defaulting ON", async () => {
+test("assistant runtime preference: useClaudeInChrome is a per-person boolean defaulting OFF (OD-4)", async () => {
   const { settingsRepo } = await registeredLedger();
   assert.equal(USE_CLAUDE_IN_CHROME_KEY, "useClaudeInChrome");
   const def = await definition(settingsRepo, USE_CLAUDE_IN_CHROME_KEY);
   assert.ok(def, "core.interface/useClaudeInChrome must be registered");
   assert.deepEqual(def.schema, { type: "boolean" });
-  assert.equal(def.defaultValue, true);
+  assert.equal(def.defaultValue, false);
   assert.equal(def.scopes, PER_OPERATOR);
   const scopeContext = { workspaceId: "workspace-1", principalId: "operator-1" };
   assert.deepEqual(await getEffective({ repo: settingsRepo }, { namespace: ADMIN_INTERFACE_NAMESPACE, key: USE_CLAUDE_IN_CHROME_KEY, scopeContext }),
-    { value: true, sourceLayer: "default", defVersion: 1 });
+    { value: false, sourceLayer: "default", defVersion: 1 });
 });
 
 test("reply length defaults to Normal, validates its enum and persists independently per person", async () => {

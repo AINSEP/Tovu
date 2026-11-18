@@ -9,16 +9,16 @@ describe('person-scoped assistant runtime preferences', () => {
     expect(PREFER_SUBAGENTS_KEY).toBe('preferSubagents');
     expect(REPLY_LENGTH_KEY).toBe('replyLength');
     expect(USE_CLAUDE_IN_CHROME_KEY).toBe('useClaudeInChrome');
-    expect(DEFAULT_ASSISTANT_RUNTIME_PREFERENCES).toEqual({ preferSubagents: true, useClaudeInChrome: true, replyLength: 'normal' });
+    expect(DEFAULT_ASSISTANT_RUNTIME_PREFERENCES).toEqual({ preferSubagents: true, useClaudeInChrome: false, replyLength: 'normal' });
   });
   it('reads booleans and falls back to the default for missing or invalid values', () => {
-    expect(readAssistantRuntimePreferences({ values: new Map() })).toEqual({ preferSubagents: true, useClaudeInChrome: true, replyLength: 'normal' });
-    expect(readAssistantRuntimePreferences({ values: new Map<string, unknown>([['preferSubagents', 'no'], ['useClaudeInChrome', 'yes']]) })).toEqual({ preferSubagents: true, useClaudeInChrome: true, replyLength: 'normal' });
+    expect(readAssistantRuntimePreferences({ values: new Map() })).toEqual({ preferSubagents: true, useClaudeInChrome: false, replyLength: 'normal' });
+    expect(readAssistantRuntimePreferences({ values: new Map<string, unknown>([['preferSubagents', 'no'], ['useClaudeInChrome', 'yes']]) })).toEqual({ preferSubagents: true, useClaudeInChrome: false, replyLength: 'normal' });
     expect(readAssistantRuntimePreferences({ values: new Map([['preferSubagents', false], ['useClaudeInChrome', true]]) })).toEqual({ preferSubagents: false, useClaudeInChrome: true, replyLength: 'normal' });
   });
   it('loads through the shared ledger namespace', async () => {
     const port = { load: vi.fn(async () => new Map<string, unknown>([['preferSubagents', false]])), save: vi.fn(async () => {}) };
-    expect(await loadAssistantRuntimePreferences({ port }, {})).toEqual({ preferSubagents: false, useClaudeInChrome: true, replyLength: 'normal' });
+    expect(await loadAssistantRuntimePreferences({ port }, {})).toEqual({ preferSubagents: false, useClaudeInChrome: false, replyLength: 'normal' });
     expect(port.load).toHaveBeenCalledWith({ namespace: 'core.interface' }, {});
   });
   it('saves at user scope, marking only the changed keys', async () => {
@@ -54,7 +54,7 @@ describe('reply length', () => {
       await saveAssistantRuntimePreferences({ port, previous, next }, {});
       expect(port.save).toHaveBeenLastCalledWith({ namespace: 'core.interface', scope: 'user', candidates: [
         { key: 'preferSubagents', valueJson: true, changed: false },
-        { key: 'useClaudeInChrome', valueJson: true, changed: false },
+        { key: 'useClaudeInChrome', valueJson: false, changed: false },
         { key: 'replyLength', valueJson: next.replyLength, changed: true },
       ] }, {});
     }

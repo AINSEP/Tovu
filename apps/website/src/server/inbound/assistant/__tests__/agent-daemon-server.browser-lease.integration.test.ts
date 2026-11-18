@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import test from "node:test";
 import ts from "typescript";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
-import { getEffective, InMemorySettingsRepo } from "@jini-ai/core/settings";
+import { ensureSettingDefinitions, getEffective, InMemorySettingsRepo, set, SCOPE_BIT } from "@jini-ai/core/settings";
 import { createInMemoryEventLog, createRunLifecycle, type AgentExecutorRunInput, type RunLifecycle } from "@jini-ai/daemon";
 import { createExclusiveRunLease, type ExclusiveRunLease } from "@jini-ai/daemon/exclusive-run-lease";
 import { failRunBeforeStart } from "#src/assistant/agent-session-preset";
@@ -73,29 +73,68 @@ test("a non-owner run launches without Chrome and a runtime without the flag get
   assert.equal(unsupported.launched.allowedTools, undefined);
 });
 
-/** A ledger that registered the real definitions, as a freshly booted site has. */
-async function freshRegisteredLedger() {
-  const deps = {
+const SYSTEM_PRINCIPAL = "system-settings-migration";
+
+/** An empty settings ledger with its write ports. */
+function ledgerDeps() {
+  return {
     settingsRepo: new InMemorySettingsRepo(),
     clock: { nowIso: () => "2026-11-17T00:00:00.000Z", nowMs: () => Date.parse("2026-11-17T00:00:00.000Z") },
     ids: { newId: (() => { let next = 0; return () => `lease-test-id-${++next}`; })() },
     principals: createSettingsPrincipalLookup({ repo: new InMemoryPrincipalRepo({}) }),
   };
-  await ensureAdminInterfaceSettingDefinitions(deps, { systemPrincipalId: "system-settings-migration" });
+}
+
+/** A ledger that registered the real definitions, as a freshly booted site has. */
+async function freshRegisteredLedger() {
+  const deps = ledgerDeps();
+  await ensureAdminInterfaceSettingDefinitions(deps, { systemPrincipalId: SYSTEM_PRINCIPAL });
   return deps;
 }
 
-test("the Chrome default has two owners today, and both say on", async () => {
+const WORKSPACE = "workspace-1";
+
+/** Reads one person's runtime preferences the way a launch does, over the ledger's real getEffective. */
+const preferencesFor = ({ settingsRepo, principalId }: { settingsRepo: InMemorySettingsRepo; principalId: string }) =>
+  readAssistantRuntimePreferences({ deps: { settingsRepo, getEffective, settingsReady: Promise.resolve(), workspaceId: WORKSPACE }, principalId });
+
+/** The person's own saved choice, written through the real write service. */
+async function saveChoice({ ledger, principalId, value }: { ledger: Awaited<ReturnType<typeof freshRegisteredLedger>>; principalId: string; value: boolean }) {
+  const deps = { repo: ledger.settingsRepo, clock: ledger.clock, ids: ledger.ids, authorize: async () => ({ allowed: true, reason: "test" }), principals: { findActiveById: async ({ id }: { id: string }) => ({ id }) } };
+  await set({ deps, input: { namespace: ADMIN_INTERFACE_NAMESPACE, key: USE_CLAUDE_IN_CHROME_KEY, scope: "user" as const, workspaceId: WORKSPACE, principalId, callerPrincipalId: principalId, authWorkspaceId: WORKSPACE, value } });
+}
+
+test("OD-4: Chrome is off by default from both owners of the default", async () => {
   const { settingsRepo } = await freshRegisteredLedger();
-  const preferenceDeps = { settingsRepo, getEffective, settingsReady: Promise.resolve(), workspaceId: "ws" };
-  // Owner 1: the registered definition. The effective read finds it with no stored choice.
-  const effective = await getEffective({ repo: settingsRepo }, { namespace: ADMIN_INTERFACE_NAMESPACE, key: USE_CLAUDE_IN_CHROME_KEY, scopeContext: { workspaceId: "ws", principalId: OWNER } });
-  assert.equal(effective?.value, true);
-  assert.equal((await readAssistantRuntimePreferences({ deps: preferenceDeps, principalId: OWNER })).useClaudeInChrome, true);
-  // Owner 2: the fallback object, used when the definition cannot be read at all.
-  const unregistered = { ...preferenceDeps, settingsRepo: new InMemorySettingsRepo() };
-  assert.equal((await readAssistantRuntimePreferences({ deps: unregistered, principalId: OWNER })).useClaudeInChrome, true);
-  assert.equal(DEFAULT_ASSISTANT_RUNTIME_PREFERENCES.useClaudeInChrome, true);
+  // Owner 1: the registered definition answers when nothing is stored.
+  const effective = await getEffective({ repo: settingsRepo }, { namespace: ADMIN_INTERFACE_NAMESPACE, key: USE_CLAUDE_IN_CHROME_KEY, scopeContext: { workspaceId: WORKSPACE, principalId: OWNER } });
+  assert.deepEqual(effective, { value: false, sourceLayer: "default", defVersion: 1 });
+  assert.equal((await preferencesFor({ settingsRepo, principalId: OWNER })).useClaudeInChrome, false);
+  // Owner 2: the fallback object answers when the definition cannot be read at all.
+  assert.equal((await preferencesFor({ settingsRepo: new InMemorySettingsRepo(), principalId: OWNER })).useClaudeInChrome, false);
+  assert.equal(DEFAULT_ASSISTANT_RUNTIME_PREFERENCES.useClaudeInChrome, false);
+});
+
+test("OD-4: a stored true stays true and a stored false stays false, with no migration", async () => {
+  const ledger = await freshRegisteredLedger();
+  await saveChoice({ ledger, principalId: "alice", value: true });
+  await saveChoice({ ledger, principalId: "bob", value: false });
+  assert.equal((await preferencesFor({ settingsRepo: ledger.settingsRepo, principalId: "alice" })).useClaudeInChrome, true);
+  assert.equal((await preferencesFor({ settingsRepo: ledger.settingsRepo, principalId: "bob" })).useClaudeInChrome, false);
+  assert.equal((await preferencesFor({ settingsRepo: ledger.settingsRepo, principalId: "carol" })).useClaudeInChrome, false);
+});
+
+test("OD-4: a site that booted with the old default flips to off on its next boot and keeps stored choices", async () => {
+  const ledger = ledgerDeps();
+  // The state an installed site is in: its first boot stored `true` as the definition's default.
+  await ensureSettingDefinitions(ledger, { namespace: ADMIN_INTERFACE_NAMESPACE, systemPrincipalId: SYSTEM_PRINCIPAL, definitions: [
+    { key: USE_CLAUDE_IN_CHROME_KEY, schema: { type: "boolean" }, defaultValue: true, scopes: SCOPE_BIT.user | SCOPE_BIT.workspace },
+  ] });
+  assert.equal((await preferencesFor({ settingsRepo: ledger.settingsRepo, principalId: "carol" })).useClaudeInChrome, true);
+  await saveChoice({ ledger, principalId: "alice", value: true });
+  await ensureAdminInterfaceSettingDefinitions(ledger, { systemPrincipalId: SYSTEM_PRINCIPAL });
+  assert.equal((await preferencesFor({ settingsRepo: ledger.settingsRepo, principalId: "carol" })).useClaudeInChrome, false);
+  assert.equal((await preferencesFor({ settingsRepo: ledger.settingsRepo, principalId: "alice" })).useClaudeInChrome, true);
 });
 
 const flush = () => new Promise<void>(resolve => setImmediate(resolve));
