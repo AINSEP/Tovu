@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlOutboxAdapter } from "#src/platform/db/repos/outbox-repo";
+import { outboxOn } from "#src/platform/db/__tests__/events-adapters";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import { InMemoryOutbox } from "../memory-bus.js";
 import { MAX_OUTBOX_ATTEMPTS } from "../outbox-worker.js";
@@ -245,6 +245,6 @@ runSettledRowSuite("sqlite", () => new SqliteOutboxAdapter({ store: openContentD
 
 // The one Kysely body on every dialect (storage plan §4): SQLite again through the neutral adapter, and PGlite.
 for (const each of eachDialect({ tables: ["outbox_events"], make: (kernel) => kernel })) {
-  runContractSuite(`kysely/${each.name}`, (options) => new SqlOutboxAdapter(each.make(), options));
-  runSettledRowSuite(`kysely/${each.name}`, () => new SqlOutboxAdapter(each.make()));
+  runContractSuite(`kysely/${each.name}`, (options) => outboxOn({ kernel: each.make() }, options));
+  runSettledRowSuite(`kysely/${each.name}`, () => outboxOn({ kernel: each.make() }));
 }

@@ -1,7 +1,7 @@
 import { exampleRegistry } from "#src/features/source-control/__tests__/fixtures/example-provider";
 import { createCoreTableCatalog } from "#src/server/runtime/composition/database-transfer-adapters";
 import { openSqliteSnapshot } from "#src/platform/db/kernel/drivers/sqlite";
-import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
+import { outboxEventValues } from "@jini-ai/db/events";
 import assert from "node:assert/strict";
 import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { eachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
-import { SqlChangeSetRepo } from "#src/platform/db/repos/change-set-repo";
+import { changeSetsOn } from "#src/platform/db/__tests__/events-adapters";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
 import { InMemoryChangeSetRepo } from "@jini-ai/cms/core/commands";
 import type {
@@ -167,6 +167,6 @@ runContractSuite("memory", () => new InMemoryChangeSetRepo());
 runContractSuite("sqlite", () => new SqliteChangeSetRepo({ store: openContentDb(":memory:") }));
 
 // The one Kysely body on every dialect (storage plan §4): SQLite again through the neutral adapter, and PGlite.
-for (const each of eachDialect({ tables: ["change_set_items", "change_sets", "outbox_events"], make: kernel => new SqlChangeSetRepo(kernel) })) {
+for (const each of eachDialect({ tables: ["change_set_items", "change_sets", "outbox_events"], make: kernel => changeSetsOn({ kernel }) })) {
   runContractSuite(`kysely/${each.name}`, each.make);
 }

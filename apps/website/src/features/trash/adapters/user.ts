@@ -1,6 +1,6 @@
 import type { PurgeCounts, UserPurgePort, UserPurgeReason } from "#src/features/identity/user-purge-types";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import type { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
+import type { outboxEventValues } from "@jini-ai/db/events";
 import type { DomainEvent } from "@jini-ai/core/contracts/events";
 
 import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";

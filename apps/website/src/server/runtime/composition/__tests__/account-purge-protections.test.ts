@@ -1,4 +1,4 @@
-import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
+import { outboxEventValues } from "@jini-ai/db/events";
 import { buildPermanentDeleteRegistrations } from "#src/features/permanent-delete/tool-registrations";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import type { ToolExecutionContext } from "@jini-ai/core";

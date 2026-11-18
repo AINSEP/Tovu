@@ -15,7 +15,7 @@ import { dropDatabase, freshPostgresDatabase } from "#src/platform/db/__tests__/
 import { closeSqliteConnection, openPostgresKernel, openSqliteFileKernel } from "#src/platform/db/kernel/index";
 import { migrateContentDatabase } from "#src/platform/db/migrations/index";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { SqlOutboxAdapter } from "#src/platform/db/repos/outbox-repo";
+import { outboxOn } from "#src/platform/db/__tests__/events-adapters";
 import type { MailerPort, MailerSendOptions, OutboundEmail } from "#src/platform/mail/index";
 import { createMailPolicyWrapper } from "#src/server/runtime/boot/mail-delivery-policy";
 import { InMemoryEventBus, processOutbox } from "../index.js";
@@ -59,7 +59,7 @@ async function seed(db: ContentKernel, recipients: string[]) {
 }
 
 async function boot(db: ContentKernel, send: MailerPort["send"], ledger = createMailSendLedgerRepo({ db })) {
-  const bus = new InMemoryEventBus(), outbox = new SqlOutboxAdapter(db);
+  const bus = new InMemoryEventBus(), outbox = outboxOn({ kernel: db });
   const capabilities = () => ({ driver: "fixture", supportsIdempotencyKey: false, supportsWebhookFeedback: false,
     supportsAttachments: false, maxBatchSize: 1 });
   const provider: MailProviderModule = { id: "fixture", label: "Fixture", credentialKeys: [],
@@ -82,7 +82,7 @@ for (const dialect of ["sqlite", "postgres"] as const) {
     const storage = await store(t, dialect, "outcomes");
     const recipients = ["sent@example.test", "limited@example.test", "unknown@example.test"];
     await seed(storage.db, recipients);
-    await new SqlOutboxAdapter(storage.db).enqueue(source);
+    await outboxOn({ kernel: storage.db }).enqueue(source);
     const calls: { message: OutboundEmail; options: MailerSendOptions }[] = [];
     const send: MailerPort["send"] = async (message, options) => {
       calls.push({ message, options });

@@ -14,7 +14,7 @@ import { formsMailOutboxReady } from "#src/features/forms/mail-outbox-readiness"
 import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 import { applyOwnerPasswordReset } from "#src/features/identity/owner-reset-env";
 import { notifyExternalMcpRosterChanged } from "../../../assistant/external-mcp-roster-change.js";
-import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
+import { outboxEventValues } from "@jini-ai/db/events";
 import { composeAgentPluginMcp, composeAgentPluginPreferences, composePluginProviderFaces } from "./agent-plugin-service-ports.js";
 import { createSiteKeyReferences, type SiteKeyReferences } from "#src/features/project-keys/site-references";
 import { ownerKeyHandleOnly, siteGrantedSealer } from "#src/features/project-keys/site-sealer";

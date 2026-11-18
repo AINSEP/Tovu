@@ -1,5 +1,5 @@
 import { createCoreTableCatalog } from "#src/server/runtime/composition/database-transfer-adapters";
-import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
+import { outboxEventValues } from "@jini-ai/db/events";
 import "../../../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js";
 import assert from "node:assert/strict";
 import { once } from "node:events";

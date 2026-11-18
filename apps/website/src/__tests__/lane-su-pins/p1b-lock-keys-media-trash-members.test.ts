@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 
 import { SqlAssetBlobRepo, SqlMediaRepo } from "#src/platform/db/repos/media-repo";
-import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
+import { outboxEventValues } from "@jini-ai/db/events";
 import { createUserTrashAdapter } from "#src/features/trash/adapters/user";
 import { trashEntityLockKey } from "@jini-ai/cms/trash";
 import { buildTrashRegistry } from "#src/features/trash/registry";

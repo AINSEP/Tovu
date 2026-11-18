@@ -4,7 +4,7 @@ import { openContentDb } from '#src/platform/db/sqlite/content-db';
 import { contentKernel } from '#src/platform/db/content-kernel';
 import { SqlMediaRepo, SqlAssetBlobRepo, SqlAssetRenditionRepo } from '#src/platform/db/repos/media-repo';
 import { SqlEntryRefsRepo } from '#src/platform/db/repos/entry-refs-repo';
-import { SqlOutboxAdapter } from '#src/platform/db/repos/outbox-repo';
+import { outboxOn } from '#src/platform/db/__tests__/events-adapters';
 import { SqlitePostRepo } from '#src/features/post/repo.sqlite';
 import { InMemoryBlobStore } from '@jini-ai/cms/media';
 import { scheduleFormAttachmentCleanup } from '@jini-ai/cms/forms';
@@ -15,7 +15,7 @@ async function fixture(dbPath = ':memory:') {
   const db = openContentDb(dbPath); const kernel = contentKernel({ store: db });
   db.$client.prepare('INSERT OR IGNORE INTO workspaces (id,name,slug,created_at) VALUES (?,?,?,?)').run('w','w','w',at);
   const mediaRepo = new SqlMediaRepo(kernel), blobRepo = new SqlAssetBlobRepo(kernel), renditionRepo = new SqlAssetRenditionRepo(kernel);
-  const outbox = new SqlOutboxAdapter(kernel), clock = { nowMs: () => Date.parse(at) };
+  const outbox = outboxOn({ kernel }), clock = { nowMs: () => Date.parse(at) };
   const media = { mediaRepo, blobRepo, renditionRepo, blobStore: new InMemoryBlobStore(), clock, entryRefsRepo: new SqlEntryRefsRepo(kernel), postRepo: new SqlitePostRepo({ store: kernel }) };
   await mediaRepo.save({ id: 'm', workspaceId: 'w', slug: 'photo', originalFilename: 's-photo.png', title: '', alt: '', caption: '', credit: '', source: { sha256: 'hash' }, status: 'active', createdAt: at, updatedAt: at, version: 1, width: null, height: null, cssClass: null, htmlAttributes: null });
   const prove = () => scheduleFormAttachmentCleanup({ outbox, workspaceId: 'w', mediaId: 'm', sha256: 'hash', now: clock.nowMs(), graceMs: 1000 });
