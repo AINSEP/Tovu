@@ -9,7 +9,7 @@ import ts from "typescript";
  * with NO restart supervisor (`index.ts`'s own `spawnAgentDaemon()`: "there is no retry path today
  * (this function is called exactly once per process boot)") — installs the same process-wide
  * `unhandledRejection` guard `index.ts`'s `main()` installs for the main process
- * (`server/runtime/boot/process-error-guards.ts`, 2026-08-16).
+ * (`packages/host-shared/src/process-error-guards.ts`, 2026-08-16).
  *
  * Closing `commit-site.ts`'s unguarded `resolveDefaultForSourceControl` call fixes today's one known
  * crash path reachable from this process (`source_control_execute_commit`, wired in
@@ -32,7 +32,7 @@ import ts from "typescript";
  * wired before this process starts doing real work. The runtime BEHAVIOR of
  * `installUnhandledRejectionGuard` itself — that installing it really does keep a process alive
  * through a genuine unhandled rejection, proven via a real child-process crash/survive comparison — is
- * already covered end-to-end by `server/boot/__tests__/process-error-guards.unit.test.ts`; this file's
+ * already covered end-to-end by `packages/host-shared/src/__tests__/process-error-guards.unit.test.ts`; this file's
  * only job is confirming THIS entry point actually calls it, the same division of labor
  * `daemon-boots.integration.test.ts` already uses for its own, different wiring question (an import
  * cycle, not a missing call).
