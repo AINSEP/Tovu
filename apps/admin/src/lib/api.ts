@@ -12,7 +12,7 @@ import type {
 } from "@tovu/publish-content-ui";
 
 import { isPageUnloading } from "./page-lifecycle";
-import { adminFailureChannel, publishAdminFailure } from "./admin-failure-channel";
+import { adminFailureChannel, isPageWideFailure, publishAdminFailure } from "./admin-failure-channel";
 import { siteUrl } from "./site-url";
 import { shareSettingsEffectiveRead } from "./settings-effective-reads";
 import { serverReconnect, shouldRetryAfterReconnect, UPSTREAM_REFUSED_HEADER, UPSTREAM_REFUSED_VALUE, type ServerReconnect } from "./server-reconnect";
@@ -2724,7 +2724,7 @@ async function request<T>(path: string, init?: RequestInit, onOk?: (res: Respons
   } catch (error) {
     // Only the final unexpected failure is shared; callers keep their original error and body.
     try {
-      if (error instanceof ApiError && (error.status === 0 || error.status >= 500)) {
+      if (error instanceof ApiError && isPageWideFailure({ status: error.status, method, code: error.code })) {
         publishAdminFailure({ body: error.body, path, method, status: error.status, generation, ...(options.failureEntry ? { entry: options.failureEntry } : {}) }, { basePath: options.basePath ?? BASE });
       }
     } catch { /* Notice effects must never replace the original request rejection. */ }

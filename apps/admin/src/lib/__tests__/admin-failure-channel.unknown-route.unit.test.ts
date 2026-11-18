@@ -13,12 +13,12 @@ function respondWith({ body, status }: { body: unknown; status: number }): void 
 }
 
 it("names the method, full path and the server's own code and reason for a route missing from the vocabulary", async () => {
-  respondWith({ status: 503, body: { error: "the agent daemon is parked", code: "AGENT_DAEMON_PARKED" } });
+  respondWith({ status: 503, body: { error: "the agent daemon is currently unavailable", code: "AGENT_DAEMON_KNOWN_FAILED" } });
   await authenticatedAdminRequest({ path: "", method: "GET" }, { basePath: "/api/agents" }).catch(() => undefined);
   const failure = adminFailureChannel.getSnapshot();
   expect(failure?.step).toBe("GET /api/agents (HTTP 503)");
-  expect(failure?.cause).toContain("AGENT_DAEMON_PARKED");
-  expect(failure?.cause).toContain("the agent daemon is parked");
+  expect(failure?.cause).toContain("AGENT_DAEMON_KNOWN_FAILED");
+  expect(failure?.cause).toContain("the agent daemon is currently unavailable");
   expect(failure?.copyText).not.toContain("Load information");
 });
 
@@ -38,7 +38,7 @@ it("leaves out server text that is not a small {error, code} reply, and for sign
   expect(adminFailureChannel.getSnapshot()?.copyText).not.toContain("TOO_LONG_CANARY");
   adminFailureChannel.reset();
   setAdminDraftIdentity({ id: null });
-  respondWith({ status: 503, body: { error: "SIGNED_OUT_CANARY", code: "AGENT_DAEMON_PARKED" } });
+  respondWith({ status: 503, body: { error: "SIGNED_OUT_CANARY", code: "AGENT_DAEMON_KNOWN_FAILED" } });
   await authenticatedAdminRequest({ path: "", method: "GET" }, { basePath: "/api/agents" }).catch(() => undefined);
   expect(adminFailureChannel.getSnapshot()?.step).toBe("GET /api/agents (HTTP 503)");
   expect(adminFailureChannel.getSnapshot()?.copyText).not.toContain("SIGNED_OUT_CANARY");

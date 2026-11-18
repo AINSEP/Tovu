@@ -87,6 +87,26 @@ function failureEvidence(
   };
 }
 
+/** The server's codes for "the assistant's background service is not running right now". Boot
+ * registers the agent daemon without spawning it, and an idle daemon parks; passive reads must not
+ * wake it (W4-E2), so they answer one of these until the dock activates it or a message is sent.
+ * `AGENT_DAEMON_KNOWN_FAILED` (a boot that really failed) is deliberately absent: that stays loud. */
+const ASSISTANT_NOT_RUNNING_CODES: ReadonlySet<string> = new Set(["AGENT_DAEMON_PARKED", "AGENT_DAEMON_UNAVAILABLE"]);
+
+/** Whether a final failed request belongs on the page-wide notice. Client errors stay with their
+ * caller. A read answered "the assistant is not running yet" is a calm state its caller already shows
+ * (the picker's "Connecting to the assistant…", External MCP's wait) and re-reads, not an incident;
+ * the caller still receives the rejection. Writes refused the same way stay loud.
+ * @complexity O(1). */
+export function isPageWideFailure(
+  { status, method, code }: { status: number; method: string; code?: string | undefined },
+  _options = {},
+): boolean {
+  if (status !== 0 && status < 500) return false;
+  const read = method.toUpperCase() === "GET" || method.toUpperCase() === "HEAD";
+  return !(read && status === 503 && code !== undefined && ASSISTANT_NOT_RUNNING_CODES.has(code));
+}
+
 /** Tovu's disclosure adapter: safe shared wording for legacy failures, approved details after sign-in.
  * Inputs are the final failed response and its captured session generation; no new I/O or retries.
  * @param options.basePath The API prefix the request was sent under, so an unlisted route is named in full.
