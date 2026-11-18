@@ -48,7 +48,7 @@ npm run check:hooks
 npm run check:errors -- --strict
 npm run check:why-comments -- --base "$B"
 if npm run check:architecture >"$OUT/arch.txt" 2>&1; then :; else
-  n=$(sed -nE 's/^.*[^0-9]([0-9]+) metric\(s\) regressed.*$/\1/p' "$OUT/arch.txt" | head -n 1)
+  n=$(sed -nE 's/^(.*[^0-9])?([0-9]+) metric\(s\) regressed.*$/\2/p' "$OUT/arch.txt" | head -n 1)
   test -n "$n"
   test "$n" -le "$ARCH"
 fi
