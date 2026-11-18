@@ -1,0 +1,30 @@
+# href-standard (Tovu side): Jini's `toAllowedHref` / `isAllowedHref` is the single href standard
+
+Branch `fix/href-standard` (Tovu, started from `origin/fix/safehref-isallowedhref` so the characterization test came along, then `origin/refactor/terra` merged in, no force). Jini side: branch `fix/href-standard` there, see its own `cloud-results/href-standard.md`. Tovu was linked to that Jini checkout (`link-jini.mjs`), Node 24.22.3.
+
+## Done
+- Both Tovu helpers deleted: `platform/html/safe-url.ts` `safeHref` and `features/theme/render-contract.ts` `safeHref`, plus the `static-render.ts` re-export. No shell, forwarder or stub left.
+- Every caller repointed to `toAllowedHref({ rawHref })` from `@jini-ai/cms/navigation/href`: render/components/layout.ts (5), marketing.ts (2), doc/marks.ts, widgets/menu.ts, widgets/social-entries.ts (2), theme/static-render.ts (3 incl. the html-menu `sanitizeHref`), theme/entry-list-render.ts (link + URL-attribute check, which now asks `isAllowedHref` directly). The `item.href as string` casts went away because the helper takes `unknown`.
+- Import path is the leaf `@jini-ai/cms/navigation/href`, not the `@jini-ai/cms/navigation` barrel: the barrel pulls the menu tool registrations and with them a `@jini-ai/core` root barrel into the theme worker graph (`worker-import-graph.test.ts` failed 4 tests on the barrel, which is how this was found). Jini gained that leaf subpath.
+- `development/scripts/check-menu-href-allowlist-sync.ts` rewritten: it no longer extracts deleted Tovu text. It runs the shared table (now 27 rows incl. every placeholder-host form) through the real `isAllowedHref` and `toAllowedHref` of the Jini build, and scans `apps/*` and `packages/*` source for a local `safeHref` declaration (fails on one; tests, imports and comment mentions are ignored). Its test was rewritten (10 tests; CLI exit codes via a `--root` flag).
+- site-exporter doc-mention and the navigation barrel comment updated to point at the standard.
+- Characterization test (`safe-href-characterization.test.ts`) now asserts the single standard over the 46 shared inputs plus 7 placeholder-host rows, and non-strings.
+
+## Intended behaviour changes (by design, owner decision 2026-11-17)
+Rows 1-4 of the difference table are gone: a protocol-relative href to Tovu's own placeholder host (`//tovu-safehref.invalid/x`, `/\tovu-safehref.invalid/x`, `:443`, `:80`) is now refused like every other protocol-relative href (the two Tovu copies also disagreed with each other on `:80`/`:443`). Row 2 (Jini accepting `//safehref.invalid/...`) is fixed in Jini and refused. Row 5: a non-string now yields `"#"`. Row 6: the coercing wrapper is the Jini helper, so no caller keeps its own. Security reading: only tightening; real hosts were refused identically before.
+
+## Red first
+Placeholder-host rows added to `render.test.ts` (C7 protocol-relative), `menu-tree-render.test.ts` (flat and tree paths) failed 3 tests against the old helpers; green after the replacement.
+
+## Gates (exact commands, results)
+Tests: `TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --test-concurrency=2 --experimental-test-module-mocks <globs>` over `features/theme/__tests__`, `server/inbound/public-http/http/site/**`, `features/navigation/**`, `features/site-export/**`, `platform/**`, `development/scripts/**`.
+- Base (pre-change, same globs minus the wider scripts set): 5136 tests, 70 fail, 19 cancelled; the failures are Postgres/PGlite/Playwright environment tests plus the old characterization test (which asserted the old divergence and was rewritten).
+- Final: 5968 tests, 5852 pass, 83 fail, 19 cancelled. Every failing name is in the base failing set, or fails identically on a clean `origin/refactor/terra` worktree (re-run: `development/scripts/**` and `tiptap-render-contract.test.ts`, which fails on a missing `./post-editor-file-upload` in admin). No new failing line.
+- One real regression found and fixed on the way: `worker-import-graph.test.ts` budget for `handlebars-worker.ts` 177 -> 178 (the Jini href leaf is one more file in that graph; reason on the line, same convention as earlier raises). Liquid unchanged.
+- `npx tsc -p tsconfig.json --noEmit`: clean. `npm run typecheck:scripts`: 3 errors, all pre-existing in unrelated files. `eslint` on changed files: no new finding (static-render.ts max-lines error is its existing size debt, 511 lines, down from 513).
+- Ratchets, base vs final (base = clean `origin/refactor/terra`): `check:architecture` identical except informational deep-import edges 2866 -> 2861 (it already exits 1 on base); `check:boundaries` identical (16 errors on base and now); `check:size`, `check:complexity`, `check:hooks`, `check:inventory`, `check:menu-href-allowlist-sync`: exit 0. `check:why-comments`: ok, with 14 allow-listed blocks in `development/why-comments-debt.json`, each with its reason (comments of the deleted helpers and of the gate's removed extraction mechanism; their still-true reasoning now lives in Jini `href.ts`). Three blocks were kept by rewording instead of allow-listing.
+
+## Left / next
+- Dependency order: Tovu's `package.json` still says `@jini-ai/cms ^0.7.0`. `toAllowedHref` and `./navigation/href` exist only in the new Jini minor (changeset in Jini). Merge and publish Jini first, then bump the range here and refresh the lockfile. This branch was verified against the linked checkout, never against npm copies, and the link must be removed (`npm run unlink:jini`) before a real build.
+- Out of scope, noted: `safeImageSrc` still resolves against its own `tovu-safehref.invalid` placeholder, and `features/consent/validation.ts` uses `@jini-ai/cookie-consent`'s own `safeHref`; neither was part of the ruling. The consent one is a third href check worth ruling on.
+- File overlap with other runs: render components, theme static-render/entry-list-render, site-exporter doc, the gate script and its test, `why-comments-debt.json`.
