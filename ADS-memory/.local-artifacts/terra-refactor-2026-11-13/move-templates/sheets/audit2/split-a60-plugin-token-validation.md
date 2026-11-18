@@ -1,5 +1,27 @@
 # SPLIT-A60: bounded token-map validation + plugin-summary decoding -> `@jini-ai/agent-plugins/connect` (templates T-SPLIT, T-MOVE)
 
+## REVISION 2 (sheet-fixes-2, 2026-11-18): S1 + S3 DONE; S2 (desktop) rewritten with the dependency + lockfile step — EXECUTABLE
+Done by run `wave3/audit2-a` (report `origin/wave3/audit2-a:cloud-results/audit2-a.md`): Jini fa1d2026 (`connect/token-map.ts`, `parsePluginTokenMap`, `decodeTokenSignInEntries`, 13 tests, changeset) and the website binding (S3). Two corrections from that run hold: `constructor` is NOT refused by the id pattern (only `__proto__` is); the null-prototype result is what makes it harmless, and the Jini test pins that.
+S2 stopped because `apps/desktop/package.json` does not declare `@jini-ai/agent-plugins`, so `src/jini-mcp-peers.test.ts` ("runtime source imports declare their packages instead of relying on hoisting", `:120`) fails on the new import. The fix is a declared dependency, added with its lockfile in the SAME commit (owner rule: declared deps imported statically; landing unit includes the lockfile).
+**Base:** Tovu and Jini `wave3/audit2-a` (Tovu holds S3; Jini holds fa1d2026), or `origin/refactor/terra` once both contain them: `git -C {JINI} merge-base --is-ancestor fa1d2026 HEAD` exits 0, else STOP. Guards (print `b88982ef`, `e651831f`, `85e9b839`, then nothing):
+```bash
+for f in agent-plugin-tokens.ts agent-plugin-tokens.test.ts agent-plugin-tokens.boundaries.test.ts; do git hash-object apps/desktop/src/$f | cut -c1-8; done
+rg -n '"@jini-ai/agent-plugins"' apps/desktop/package.json
+```
+**A60-2r (one Tovu commit; T on linked Jini; P owed: the packaged desktop must contain the `./connect` entry of a published `0.7.1-next.N` snapshot, DX-OD10).**
+1. Dependency first. `apps/desktop` is its OWN npm project (`apps/desktop/package-lock.json`; it is NOT a member of the root `workspaces: ["packages/*"]`); this is npm, not the Jini pnpm lockfile. Run, from the Tovu root:
+```bash
+npm install --prefix apps/desktop --save "@jini-ai/agent-plugins@^0.7.0"
+git diff --stat -- apps/desktop/package.json apps/desktop/package-lock.json   # both changed; nothing else
+JINI_PACKAGES_DIR={JINI}/packages node development/scripts/link-jini.mjs           # npm install replaced the links: relink before any test
+```
+   The manifest line lands in `dependencies` beside `@jini-ai/agent-runtime` (`:31`), range `^0.7.0` like its neighbours. Never hand-edit the lockfile; on a rebase conflict in it, re-run the install instead of merging. If the install changes any OTHER dependency's resolved version in the lockfile beyond adding `@jini-ai/agent-plugins` and its own dependency tree: STOP and report the diff (no silent upgrades).
+2. Apply SPLIT-A60-2 below verbatim (the `cleanCreateTokens` and `parsePluginList` bodies, `TokenSignInPlugin` type from `@jini-ai/agent-plugins/connect`, `project-ipc.ts:54` type import).
+3. Tests: the two desktop token test files UNCHANGED (23 tests passed with the edit in the stopped run) and `src/jini-mcp-peers.test.ts` (must now pass; RED before step 1 is the proof the declaration is what fixes it: paste both outputs). `npm --prefix apps/desktop run typecheck` (environment note: a cloud tree without `electron` installed fails it at base; compare against the base output and judge on "no new line").
+4. Commit manifest + lockfile + source together; report the lockfile diff stat.
+STOP (in addition): the boundary tests need an assertion changed (as below); the install needs network the environment refuses (report, do not vendor).
+
+
 Written 2026-11-16 against Tovu `integ/wave-b` (`../code`) and Jini `integ/wave-b` (`/home/user/Jini`). Row `audit2:A60`. Listed precondition "audit:B06" is a DIFFERENT job (ZIP special-entry refusal in `plugin-runtime/install-archive.ts`): it touches no file here and is NOT a blocker (B06's row text vs this row's "same sheet as prior B06" is a mislabel in the audit; verified by reading `AUDIT-ADDITIONS-2-b.tsv` B06).
 
 Tier: Sonnet + one Opus glance at the security review points. est. executor tokens ≈ 33k (S1 18k, S2 9k, S3 6k). No Chrome look.
