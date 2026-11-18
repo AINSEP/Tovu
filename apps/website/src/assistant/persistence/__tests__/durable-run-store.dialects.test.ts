@@ -5,6 +5,7 @@ import { describeEachChatDialect } from "./chat-dialect-matrix.js";
 import { createChatRunLedger } from "../run-ledger.js";
 import { createChatStoreFactory } from "../store-factory.js";
 import { RunSlotBusyError, RUN_SLOT_BUSY } from "../durable-run-store.js";
+import { agentFailures } from "../../../server/runtime/composition/modules/run-finalizer/agent-failures.js";
 import { CONTINUATION_DIVIDER, createDurableRecovery } from "@jini-ai/chat/server/durable-runs";
 import { INCIDENT_PARTIAL } from "../../durable-runs/__tests__/incident.fixture.js";
 import type { DurableRun } from "@jini-ai/chat/server/durable-runs";
@@ -37,7 +38,7 @@ describeEachChatDialect("durable attempts migration and fencing", harness, (make
     ] });
     const launches: string[] = [];
     const recovery = createDurableRecovery({
-      store: h.store, now: () => TIME + 1000, mintRunId: () => "reconstructed", probe: async () => "dead", attach: () => {},
+      store: h.store, agentFailures, now: () => TIME + 1000, mintRunId: () => "reconstructed", probe: async () => "dead", attach: () => {},
       cancelAttempt: async () => {}, verifyChildDead: async () => true, supportsNativeResume: () => true,
       launch: async ({ request }) => { launches.push(request.contextRef); }, settle: async () => { throw new Error("must continue"); },
     }, {});
@@ -291,7 +292,7 @@ describeEachChatDialect("durable attempts migration and fencing", harness, (make
     const h = make(); const old = await h.accept();
     await h.ledger.checkpoint({ ...old, content: INCIDENT_PARTIAL, events: [{ kind: "text", text: INCIDENT_PARTIAL }] });
     let launched: DurableRun | undefined;
-    const recovery = createDurableRecovery({ store: h.store, now: () => TIME + 20_000, mintRunId: () => "continued",
+    const recovery = createDurableRecovery({ store: h.store, agentFailures, now: () => TIME + 20_000, mintRunId: () => "continued",
       probe: async () => "dead", cancelAttempt: async () => {}, verifyChildDead: async () => false, supportsNativeResume: () => false,
       launch: async ({ run }) => { launched = run; }, attach: () => {}, settle: (settlement) => h.ledger.settle(settlement),
     }, {});

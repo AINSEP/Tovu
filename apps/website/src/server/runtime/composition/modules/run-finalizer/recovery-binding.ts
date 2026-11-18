@@ -21,6 +21,8 @@ export interface RecoveryBindingPorts {
   readonly durable: ChatRunLedger["durable"];
   readonly now: () => number;
   readonly mintRunId: () => string;
+  /** Chat's agent-failure port, bound to the real agent runtime by the composition root. */
+  readonly agentFailures: RecoveryPorts["agentFailures"];
   readonly verifyChildDead: RecoveryPorts["verifyChildDead"];
   readonly supportsNativeResume: RecoveryPorts["supportsNativeResume"];
   /** The current daemon: every launch goes here, and so does every later call for a run it launched. */
@@ -48,7 +50,7 @@ export function createRecoveryBinding(ports: RecoveryBindingPorts, _optional = {
   const attemptEnded: RecoveryBinding["attemptEnded"] = ({ runId }, _options = {}) => { newAttempts.delete(runId); };
   if (!durable) return { recovery: undefined, attemptEnded };
   const recovery = createDurableRecovery({
-    store: durable, now: ports.now, mintRunId: ports.mintRunId,
+    store: durable, agentFailures: ports.agentFailures, now: ports.now, mintRunId: ports.mintRunId,
     async probe(run, _options) {
       if (!run.principalId) throw new Error("assistant recovery probe has no principal id");
       const status = await ports.probe({ run: { runId: run.runId, principalId: run.principalId }, client: clientFor({ runId: run.runId }) });

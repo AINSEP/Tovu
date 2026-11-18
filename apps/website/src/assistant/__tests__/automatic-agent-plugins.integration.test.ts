@@ -1,4 +1,5 @@
 import { getEffective } from "#src/features/settings/index";
+import { agentFailures } from '../../server/runtime/composition/modules/run-finalizer/agent-failures.js';
 import { composeAgentPluginPreferences } from "#src/server/runtime/composition/agent-plugin-service-ports";
 import '../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js';
 import assert from 'node:assert/strict';
@@ -139,7 +140,7 @@ for (const action of ['use', 'skip'] as const) {
         recoveryClock: async () => {},
       } as unknown as DurableRunStore;
       const recovery = createDurableRecovery({
-        store, now: () => 20_000, mintRunId: () => 'next', probe: async () => 'dead', attach: () => {},
+        store, agentFailures, now: () => 20_000, mintRunId: () => 'next', probe: async () => 'dead', attach: () => {},
         cancelAttempt: async ({ runId }) => { abort.abort(); f.runs.forget({ runId }, { preservePending: true }); },
         verifyChildDead: async () => true, supportsNativeResume: () => false,
         launch: async ({ run, request }) => {

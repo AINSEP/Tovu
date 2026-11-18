@@ -5,7 +5,7 @@
  * the leading `/query` — so it must re-render only when one of those changes.
  */
 import { useState } from "react";
-import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen } from "@/__tests__/render-with-jini-kits";
 import { expect, it, vi } from "vitest";
 import { Composer, useComposer, type ComposerDiscoveryGroup } from "@jini-ai/chat/react";
 import { useSelectedSkills, useComposerDiscoveryDraft, useSkillOnlySend } from "../hooks/composer-skills.hooks";

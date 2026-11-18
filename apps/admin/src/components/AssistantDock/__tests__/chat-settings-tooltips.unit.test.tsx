@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@/__tests__/render-with-jini-kits";
 import userEvent from "@testing-library/user-event";
 import { ChatSettingsDialog } from "@jini-ai/chat/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
