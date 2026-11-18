@@ -1,36 +1,41 @@
 # S4 — function-level splits and real inputs, in place inside `deps.ts`
 
-Responsibility: DESIGN §2.4 only; nothing leaves `deps.ts`. Budget ≤190k. Commits: one per row (≈12). Prerequisites: S3; COMMON §1-§3 (`DS_SHEET=S4`); `wave2/publish-p0-rest` merged into the base (it edits `selectConnectedDestination(rows)` inside `configureSiteSharing` and `publishTrustRevocationStoreFor(kernel)`; freeze-lanes: before S4). After it merges, the boot-order anchor for the deny store is its new text — re-run `facts` and `tests sr` first.
+Responsibility: DESIGN §2.4 only; nothing leaves `deps.ts`. Budget ≤160k. Commits: one per row (≈11). Prerequisites: S3; COMMON §1-§4 (`DS_SHEET=S4`). Locate every item by binding / function name (COMMON §3); this sheet's own commits turn hoisted closure functions into module functions, so S5+ never use indices.
 
-Locate every item by binding (COMMON §2 awk) — S1-S3 shifted lines; this sheet's own commits shift indices again (hoisted closure functions become module functions), so S5+ never use indices.
-
-| commit | binding | change |
+| commit | binding (lines on `b5fbf2a5`) | change |
 |---|---|---|
-| 1-2 | `trashFollowUpHooks` | module functions below the closure: `snapshotMediaRepo({ mediaRepo, assets })`, `snapshotPostRepo({ postRepo, posts })`, `formAttachmentPurger(required)` (the `prepareRemoval` body), `composeTrashFollowUpHooks(required)`; the `const trashFollowUpHooks =` statement keeps its position and becomes one call. Forward reads (`mediaRepo`, `postRepo`, `assetBlobRepo`, `entryRefsRepo`, `routeDeps`) are getters |
-| 3 | `trashAdapters` | `mediaTrashAdapter(required)`, `userTrashAdapter(required)`, `composeTrashAdapters(required)` returning the **same** `Map` instance the theme step later `.set`s |
-| 4 | `publishContentApplyPort` | `publishContentPorts(required)` + `composePublishContentApplyPort(required)` |
-| 5 | `configureSiteSharing` | `shareHostKit`, `shareStaticSite`, `shareDelivery`, `configureSiteSharing` (all `(required, optional = {})`) |
-| 6-12 | hoisted closure functions `warnCompositionChatOrphans`, `registerBootOrigin`, `compositionCustomCredentials`, `compositionProjectKeys`, `composeContentHttpClients`, `resolveCompositionPublicOrigin`, `compositionSharedOAuth`, `compositionCommerce`, `configureSiteImports` | module functions with real inputs, **called at the same position**; an `await`ed call stays `await`ed at the same position (`await warnCompositionChatOrphans(required)`), a sync one stays sync. `compositionProjectKeys` takes `getBindSharedApiOAuth: () => bindSharedApiOAuth` and keeps the throw text verbatim; `compositionSharedOAuth`'s inputs all exist before the literal (census eager column of the literal row) |
+| 1-2 | `trashFollowUpHooks` Map (1388-1455, 62 code lines) | module functions below the closure: `snapshotMediaRepo({ mediaRepo, assets })`, `snapshotPostRepo({ postRepo, posts })`, `formAttachmentPurger(required)` (the `prepareRemoval` body), `composeTrashFollowUpHooks(required)`; the `const trashFollowUpHooks =` statement keeps its position and becomes one call. Forward reads (`mediaRepo`, `postRepo`, `assetBlobRepo`, `entryRefsRepo`, `routeDeps`) are getters |
+| 3 | `publishContentApplyPort` (2010-2073, 58) | `publishContentPorts(required)` + `composePublishContentApplyPort(required)` |
+| 4 | `configureSiteSharing` (2837-2912, 68) | `shareHostKit`, `shareStaticSite`, `shareDelivery`, `configureSiteSharing`, all `(required, optional = {})`; the nested `createShareHostKit(_required: Record<string, never>, …)` (2849) becomes `shareHostKit(required)` with its real inputs |
+| 5-10 | hoisted closure functions `warnCompositionChatOrphans` (1041), `registerBootOrigin` (1325), `compositionCustomCredentials` (1835), `compositionProjectKeys` (1860), `composeContentHttpClients` (1933), `resolveCompositionPublicOrigin` (2089), `compositionSharedOAuth` (2788), `compositionCommerce` (2803), `configureSiteImports` (2915) | module functions `(required, optional = {})` with their real inputs, **called at the same position**; an `await`ed call stays `await`ed at the same position (`await warnCompositionChatOrphans({ … })`), a sync one stays sync. `compositionProjectKeys` takes `getBindSharedApiOAuth: () => bindSharedApiOAuth` and keeps the throw text verbatim; `compositionSharedOAuth`'s inputs all exist before the literal (census eager column of the literal row). Six of them are `_required: Record<string, never>` placeholders today (1041, 1325, 1933, 2089, 2837, 2915); four take no parameters (1835, 1860, 2788, 2803) |
+| 11 | public factory `createSiteRouteDeps` (`deps.ts:827-829`: `_required: Record<string, never> = {}`) | owner rule for retained public factories: `_required = {}` (the bag stays, the default stays, the `Record<string, never>` annotation goes). Callers unchanged (they pass `{}`). `createSiteRouteDepsForWorkspace` (3004) has real required inputs and is not touched |
+
+The `trashAdapters` Map (1461-1512, 43 code lines) is **not** split (judge 2, over-engineering): S7 moves it whole, as one statement, into one slice function and keeps the one `Map` instance the theme step later `.set`s. Only if `check:size` then fails that slice function does S7 split it, in the same commit.
 
 ## Carries
-| behaviour (base lines) | pin |
+| behaviour (lines on `b5fbf2a5`) | test (`SHEET_TESTS`) |
 |---|---|
-| purge snapshots are taken under the trash lock before removal; a form attachment without a proven owner is kept with the exact error (1388-1455) | new `trash-follow-up-hooks.unit.test.ts` (fakes): no asset → no-op; non-private asset → exact text "Form attachment ${mediaId} has no proven form upload owner. The submission and file were kept."; remove updates the snapshot; S0 pin 2 |
-| one shared trash adapter `Map`; theme adapter added later to the same instance (1464, 2007) | new unit: `composeTrashAdapters` returns a Map; S0 pin 2 (`removeTheme`) |
-| OAuth binding read at call time: undefined → exact domain error; set later → delegated (1860-1874) | new `composition-project-keys.unit.test.ts`: getter returns `undefined` → `bindOAuth` throws the exact text; flip the getter after construction → the next call delegates (mutation: read the getter at construction → red); S0 pin 3a |
-| boot origin registration for 3 origin kinds (1325-1351) | new `register-boot-origin.unit.test.ts` |
-| site sharing: HEAD goes through the guarded client; failure → `routeDeps.siteShareBackend` stays undefined + one `console.error` line (2837-2912) | new `site-sharing.unit.test.ts`; `site-share-wiring` test at sheet end |
+| purge snapshots are taken under the trash lock before removal; a form attachment without a proven owner is kept with the exact error (1388-1455) | new `$D/__tests__/trash-follow-up-hooks.unit.test.ts` (fakes): no asset → no-op; non-private asset → exact text "Form attachment ${mediaId} has no proven form upload owner. The submission and file were kept."; remove updates the snapshot; S0 pin 2 |
+| OAuth binding read at call time: undefined → exact domain error; set later → delegated (1860-1874) | new `$D/__tests__/composition-project-keys.unit.test.ts`: getter returns `undefined` → `bindOAuth` throws the exact text; flip the getter after construction → the next call delegates (mutation: read the getter at construction → red); S0 pin 3a |
+| boot origin registration for its 3 origin kinds (1325-1351) | new `$D/__tests__/register-boot-origin.unit.test.ts` |
+| site sharing: HEAD goes through the guarded client; failure → `routeDeps.siteShareBackend` stays undefined + one `console.error` line (2837-2912) | new `$D/__tests__/site-sharing.unit.test.ts`; `$D/__tests__/site-share-wiring.integration.test.ts` |
 | chat-orphan warning stays awaited, SQLite-only, failure logged not thrown (1039-1055) | `chat-orphan-check.integration.test.ts`; S0 pin 6 (the root's `await warnCompositionChatOrphans(`) |
+| the public factory still accepts `createSiteRouteDeps({}, { dbPath })` from all callers | `typecheck` + `typecheck:tests`; S0 pin 1 |
 
-## STOP
+```bash
+SHEET_TESTS=(
+  apps/website/src/server/runtime/composition/__tests__/site-share-wiring.integration.test.ts
+)   # the four new unit tests are picked up by SR_TESTS' composition glob and by CHANGED_TESTS
+```
+
+## STOP (before the report commit; COMMON §9 rule 8 form)
 ```bash
 set -euo pipefail
-G="bash designs/deps-split/work/gates.sh"; D=apps/website/src/server/runtime/composition
-$G forbid S4-PLACEHOLDER '_required: Record<string, never>' $D/deps.ts
-npx eslint --no-config-lookup -c designs/deps-split/work/limits.eslint.config.mjs -f json $D/deps.ts > /tmp/ds-s4-limits.json || [ $? -eq 1 ]   # exit 1 = findings (read below); 2 = crash stops here
-node -e '
-  const r = JSON.parse(require("fs").readFileSync("/tmp/ds-s4-limits.json", "utf8"))[0].messages;
-  const bad = r.filter((m) => m.ruleId === "max-lines-per-function" && !/composeSiteRouteDeps/.test(m.message));
-  if (bad.length) { console.log("STOP-S4-LIMITS " + bad.map((m) => m.line + " " + m.message).join("; ")); process.exit(1); }'
+D=apps/website/src/server/runtime/composition
+test -f "$D/deps.ts"
+grep -nE '_required: Record<string, never>' "$D/deps.ts" > "$W/hits" || [ $? -eq 1 ]
+test "$(wc -l < "$W/hits")" -eq 0 || { cat "$W/hits"; echo "STOP-S4-PLACEHOLDER"; exit 1; }
+grep -nE '^  (async )?function ' "$D/deps.ts" > "$W/hits" || [ $? -eq 1 ]
+test "$(wc -l < "$W/hits")" -eq 0 || { cat "$W/hits"; echo "STOP-S4-HOISTED-LEFT"; exit 1; }
 ```
-(The first line's `|| [ $? -eq 1 ]` accepts only eslint's "findings" status; a crash exits 2 and stops.) Gates: COMMON §5; S0 pins every commit (they are in `tests sr`).
+The placeholder check covers parameters only (`_required: …`); the `optional?: Record<string, never>` **callback types** at `deps.ts:492, 686, 853, 952, 3007` are existing callback contracts of `onStoreOpened`/`onClose`/`onStoreClose` and are out of scope. Gates: COMMON §5 on every commit (S0 pins are in `SR_TESTS`).
