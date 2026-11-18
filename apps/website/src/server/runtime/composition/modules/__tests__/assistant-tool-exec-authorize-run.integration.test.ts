@@ -144,12 +144,13 @@ test("the tool catalog is held to the same check: a mismatched principal is refu
 
 test("a run store that fails admits nothing: nothing runs and nothing is listed", async (t) => {
   const rpc = await startRpc(t, async () => { throw new Error("store unavailable"); });
-  // Recorded as it is: on the execution route the failure is passed to the next error handler,
-  // which is the route's own body-parser handler, so the caller is told its JSON was invalid.
+  // A failing store is the host's error path on both routes (the route list throws it to the app's own error handler), so the
+  // caller is never told its JSON was invalid. It used to be on the execution route: the failure went to the route's own
+  // body-parser error handler, which answered 400 "request body must be valid JSON" (a changed answer, decided by the route sheet).
   const executed = await rpc.execute(call({ id: OWNER }));
-  assert.equal(executed.status, 400);
-  assert.deepEqual(JSON.parse(executed.text), { error: { code: "BAD_REQUEST", message: "request body must be valid JSON" } });
-  // The catalog route has no error handler of its own, so the host's answers: 500, without the failure text in production mode.
+  assert.equal(executed.status, 500);
+  assert.doesNotMatch(executed.text, /valid JSON/);
+  // The host's answers: 500, without the failure text in production mode.
   assert.equal((await rpc.catalog({ runId: "run-1", principalId: OWNER })).status, 500);
   assert.deepEqual(rpc.executed, []);
   assert.deepEqual(rpc.listedFor, []);

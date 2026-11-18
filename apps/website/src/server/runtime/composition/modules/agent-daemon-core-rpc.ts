@@ -1,6 +1,6 @@
 /** Retained daemon state at its site owner. Auth precedes the bounded parser, as with tool RPC. */
 import { json, type RequestHandler } from "express";
-import { requireToolExecutionCaller, type ToolExecutionRouteTarget } from "@jini-ai/daemon/http";
+import { requireToolExecutionCallerExpress, type InternalRouteTarget } from "./tool-execution-caller-express.js";
 import { DaemonCoreError, daemonCoreRequest, type DaemonCoreRequest, type DaemonAttemptHead } from "#src/assistant/daemon-core-protocol";
 import { currentToolExecToken, TOOL_EXEC_TOKEN_ENV_VAR } from "#src/assistant/daemon-access";
 import { getAgentDef } from "@jini-ai/agent-runtime";
@@ -17,7 +17,7 @@ type CoreDeps = Pick<RouteDeps, "workspaceId" | "ownerPrincipalId" | "siteBindin
  * @complexity O(1) setup; each RPC performs at most one owner operation, bounded to 16 MiB (matching the existing tool RPC).
  * @example registerAgentDaemonCoreRoutes({ router, deps: routeDeps });
  */
-export function registerAgentDaemonCoreRoutes({ router, deps }: { router: ToolExecutionRouteTarget; deps: CoreDeps }, _options = {}): void {
+export function registerAgentDaemonCoreRoutes({ router, deps }: { router: InternalRouteTarget; deps: CoreDeps }, _options = {}): void {
   const env: NodeJS.ProcessEnv = { get [TOOL_EXEC_TOKEN_ENV_VAR]() { return currentToolExecToken(); } };
   const handler: RequestHandler = (req, res, next) => {
     const parsed = daemonCoreRequest.safeParse(req.body);
@@ -26,7 +26,7 @@ export function registerAgentDaemonCoreRoutes({ router, deps }: { router: ToolEx
       res.status(200).set("cache-control", "no-store").json({ value: value ?? null, traceCapture: deps.aiTraceSink?.capture ?? "metadata" });
     }).catch(next);
   };
-  router.post("/internal/agent-daemon-core", requireToolExecutionCaller({}, { env, tokenEnvVar: TOOL_EXEC_TOKEN_ENV_VAR }), json({ limit: "16mb" }), handler);
+  router.post("/internal/agent-daemon-core", requireToolExecutionCallerExpress({ env }, { tokenEnvVar: TOOL_EXEC_TOKEN_ENV_VAR }), json({ limit: "16mb" }), handler);
 }
 
 /** Indexed owner operations. Never accept a workspace override or create an accepted attempt.

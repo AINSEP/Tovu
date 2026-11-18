@@ -5,12 +5,12 @@
  * parsers and the same-origin rule stay where the scope mounts them.
  */
 import { timingSafeEqual } from "node:crypto";
-import type { SecretRedactionPattern } from "@jini-ai/core";
+import type { SecretRedactionPattern, TimingSafeByteComparison } from "@jini-ai/core";
 import type { RouteHostContext, ServerRoute, SseSchedulerPort } from "@jini-ai/core/contracts/server";
 import type { DaemonRouteHost, FrontendSessionTimer } from "@jini-ai/daemon/http";
 import { reportRouteInternalError } from "@jini-ai/http-kit";
 import { createNodeDispatcher, maxReserializedJsonBytes } from "@jini-ai/http-kit/node-bridge";
-import type { Express } from "express";
+import type { RequestHandler } from "express";
 import { requestFactsLocals } from "#src/server/inbound/shared/request-facts";
 
 /**
@@ -26,7 +26,7 @@ import { requestFactsLocals } from "#src/server/inbound/shared/request-facts";
  * @complexity O(routes) once; one route-table lookup per request.
  */
 export function mountJiniRoutes(
-  { app, routes }: { app: Pick<Express, "use">; routes: readonly ServerRoute[] },
+  { app, routes }: { app: { use: (handler: RequestHandler) => unknown }; routes: readonly ServerRoute[] },
   { rawBody = false, redactionPatterns = [] }: { rawBody?: boolean; redactionPatterns?: readonly SecretRedactionPattern[] } = {},
 ): void {
   // Express answered these routes before they were lists. Callers (and the admin proxy, which forwards a path as the client spelled it) kept their spellings: the answers stay.
@@ -51,6 +51,9 @@ export const nodeSessionTimer: FrontendSessionTimer = ({ callback, delayMs }) =>
   return { cancel: () => { clearTimeout(timer); } };
 };
 
+/** The constant-time compare itself. Routes reach it only through Jini's `timingSafeTokenMatch`, which compares lengths first. */
+export const nodeTimingSafeEqual: TimingSafeByteComparison = ({ left, right }) => timingSafeEqual(left, right);
+
 /**
  * The host object for every Jini route group of one daemon scope. Build it once per scope.
  * @param required.context - The same-origin policy and incident sink the scope already builds for its routes.
@@ -61,8 +64,7 @@ export function daemonRouteHost(required: { context: RouteHostContext; parserLim
     context: required.context,
     reportInternalError: reportRouteInternalError,
     scheduler: nodeIntervalScheduler,
-    // The constant-time compare itself. Routes reach it only through Jini's `timingSafeTokenMatch`, which compares lengths first.
-    timingSafeEqual: ({ left, right }) => timingSafeEqual(left, right),
+    timingSafeEqual: nodeTimingSafeEqual,
     jsonBodyMaxBytes: maxReserializedJsonBytes({ parserLimitBytes: required.parserLimitBytes }),
   } satisfies DaemonRouteHost;
 }

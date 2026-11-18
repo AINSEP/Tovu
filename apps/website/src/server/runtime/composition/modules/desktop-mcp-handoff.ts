@@ -1,7 +1,6 @@
 /** Late listener recovery uses only the authority minted by the main that spawned this server. */
 import { json, type RequestHandler } from "express";
-import type { ToolExecutionRouteTarget } from "@jini-ai/daemon/http";
-import { requireToolExecutionCaller } from "@jini-ai/daemon/http";
+import { requireToolExecutionCallerExpress, type InternalRouteTarget } from "./tool-execution-caller-express.js";
 import { DESKTOP_MCP_HANDOFF_ENV, isDesktopMcpCapability, type DesktopMcpRuntime } from "#src/assistant/desktop-mcp-runtime";
 
 /** Mount before the public JSON parser: Origin, socket peer and bearer are checked before bytes.
@@ -10,7 +9,7 @@ import { DESKTOP_MCP_HANDOFF_ENV, isDesktopMcpCapability, type DesktopMcpRuntime
  * @complexity O(1) setup/body (1 KiB maximum), plus the existing coalesced federation reload.
  */
 export function registerDesktopMcpHandoff({ router, runtime, reload }: {
-  router: Pick<ToolExecutionRouteTarget, "post">; runtime: DesktopMcpRuntime; reload: () => Promise<void | boolean>;
+  router: Pick<InternalRouteTarget, "post">; runtime: DesktopMcpRuntime; reload: () => Promise<void | boolean>;
 }, _options = {}): void {
   const rejectBrowser: RequestHandler = (req, res, next) => {
     if (req.headers.origin !== undefined) { res.sendStatus(403); return; }
@@ -23,6 +22,6 @@ export function registerDesktopMcpHandoff({ router, runtime, reload }: {
     void reload().then(admitted => { res.sendStatus(admitted === false ? 503 : 204); }, next);
   };
   router.post("/internal/desktop-mcp-capability", rejectBrowser,
-    requireToolExecutionCaller({}, { tokenEnvVar: DESKTOP_MCP_HANDOFF_ENV, env: { [DESKTOP_MCP_HANDOFF_ENV]: runtime.handoffToken } }),
+    requireToolExecutionCallerExpress({ env: { [DESKTOP_MCP_HANDOFF_ENV]: runtime.handoffToken } }, { tokenEnvVar: DESKTOP_MCP_HANDOFF_ENV }),
     json({ limit: "1kb" }), receiveCapability);
 }
