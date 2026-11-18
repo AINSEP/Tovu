@@ -9,6 +9,7 @@ import express from "express";
 import ts from "typescript";
 import { createDiskAttachmentStore, createRemoteAttachmentLookup } from "@jini-ai/daemon/http";
 import { createRunScopedCredentials, registerDaemonAttachmentLookup } from "#src/assistant/daemon-access";
+import { daemonRouteHost, mountJiniRoutes } from "#src/server/runtime/composition/jini-routes";
 import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
 import { daemonStatements, daemonSource, evaluateDaemonStatements } from "./helpers/daemon-source.js";
 
@@ -31,6 +32,8 @@ async function bootAttachmentOwner(t: import("node:test").TestContext) {
   const token = "attachment-owner-test-token";
   await evaluateDaemonStatements([registration], {
     app, attachmentStore: store,
+    mountJiniRoutes,
+    routeHost: daemonRouteHost({ context: { originPolicy: { isSameOrigin: () => true } }, parserLimitBytes: 6 * 1024 * 1024 }),
     // Keep the production gate and inject only the boot secret, never a substitute registrar.
     registerDaemonAttachmentLookup: (required: Parameters<typeof registerDaemonAttachmentLookup>[0]) =>
       registerDaemonAttachmentLookup(required, { env: { TOVU_AGENT_DAEMON_TOKEN: token } }),

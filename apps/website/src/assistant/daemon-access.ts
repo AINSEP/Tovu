@@ -1,14 +1,15 @@
 /** Tovu route/env/header bindings for Jini's credential and ownership policies. */
 import type { RunLifecycle } from "@jini-ai/daemon";
 import { startupSecretEnvironment } from '#src/server/runtime/boot/startup-secrets';
-import type { RequestHandler } from "express";
+import type { Express } from "express";
+import type { ServerRoute } from "@jini-ai/core/contracts/server";
 import { createNodeCredentialCrypto, authorizeDaemonRequest, createRouteAccessPolicy,
   ensureAgentDaemonToken as ensureDaemonToken, authorizeRunOwnership, listOwnedRuns,
   createRunScopedCredentials as createDaemonRunCredentials } from "@jini-ai/daemon/run-credentials";
 import type { RunOwnerRegistry, RunScopedCallerResolver } from "@jini-ai/daemon/run-credentials";
 import { createDaemonAuthMiddleware, createRunOwnershipMiddleware,
-  createOwnedRunListHandler as createDaemonOwnedRunListHandler, registerAttachmentLookupRoutes,
-  type AttachmentLookup } from "@jini-ai/daemon/http";
+  createOwnedRunListHandler as createDaemonOwnedRunListHandler, attachmentLookupRoutes, ATTACHMENT_LOOKUP_ROUTE_PATH,
+  type AttachmentLookup, type DaemonRouteHost } from "@jini-ai/daemon/http";
 export { createRunOwnerRegistry } from "@jini-ai/daemon/run-credentials";
 export type { RunOwnerRegistry, RunScopedCaller, RunScopedCredentials, RunScopedCallerResolver } from "@jini-ai/daemon/run-credentials";
 export const AGENT_DAEMON_TOKEN_ENV_VAR = "TOVU_AGENT_DAEMON_TOKEN";
@@ -62,13 +63,13 @@ export function currentToolExecToken(_required = {}, _optional = {}): string | u
 }
 /**
  * Mounts the daemon's attachment lookup (the server's chat-attachment tools read the daemon-owned
- * store through it) behind its own full-daemon-token gate, so neither the gate nor the route's
- * 64 KB parser depends on what the daemon mounts later. Run-scoped credentials are refused.
+ * store through it) behind its own full-daemon-token gate, so the gate does not depend on what the daemon mounts later (the route reads its own 64 KB body). Run-scoped credentials are refused.
  */
-export function registerDaemonAttachmentLookup({ app, store }: { app: { post(path: string, ...handlers: RequestHandler[]): unknown }; store: AttachmentLookup },
+export function registerDaemonAttachmentLookup({ app, store, host, mountRoutes }: { app: Pick<Express, "post">; store: AttachmentLookup; host: DaemonRouteHost; mountRoutes: (required: { routes: readonly ServerRoute[] }) => void },
   { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): void {
-  const gate = requireAgentDaemonToken({ env }, {});
-  registerAttachmentLookupRoutes({ app: { post: (path, ...handlers) => app.post(path, gate, ...handlers) }, store }, {});
+  // The gate is one Express layer for this method and path, mounted just ahead of the route list, so it answers (or lets the request on) before the route reads its body.
+  app.post(ATTACHMENT_LOOKUP_ROUTE_PATH, requireAgentDaemonToken({ env }, {}));
+  mountRoutes({ routes: attachmentLookupRoutes({ store, host }) });
 }
 export function isRunScopedRoute(required: { method: string; path: string }, optional = {}): boolean {
   return routes.allowsRunScoped(required, optional);

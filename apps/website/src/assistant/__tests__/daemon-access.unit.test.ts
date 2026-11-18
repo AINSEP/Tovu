@@ -6,6 +6,7 @@ import {
   DELEGATED_TOOL_CALLS_PATH, ensureAgentDaemonToken, isRunScopedRoute, requireAgentDaemonToken, requireRunOwnership,
   RUN_PRINCIPAL_HEADER,
 } from "../daemon-access.js";
+import { daemonRouteHost, mountJiniRoutes } from "#src/server/runtime/composition/jini-routes";
 
 /**
  * @file `isRunScopedRoute` — which daemon routes a run-scoped credential (as opposed to the host's
@@ -80,7 +81,7 @@ test("a CLI agent's allow-listed env never carries the tool-exec token", async (
 
 /**
  * `registerDaemonAttachmentLookup`: the daemon's lookup route carries its own full-daemon-token gate
- * ahead of its own 64 KB parser, so it is safe whatever the daemon mounts after it (its global parser).
+ * ahead of the route (which reads its own 64 KB body), so it is safe whatever the daemon mounts after it (its global parser).
  */
 async function withLookupDaemon<T>(fn: (input: { url: string; parserCalls: () => number; env: NodeJS.ProcessEnv }) => Promise<T>): Promise<T> {
   const express = (await import("express")).default;
@@ -91,7 +92,8 @@ async function withLookupDaemon<T>(fn: (input: { url: string; parserCalls: () =>
     resolveForRun: async ({ ref, runId }: { ref: string; runId: string }) => ({ ref, runId, path: "/tmp/x" }),
     listPendingForOwner: async () => [],
   };
-  access.registerDaemonAttachmentLookup({ app, store: store as never }, { env });
+  const host = daemonRouteHost({ context: { originPolicy: { isSameOrigin: () => true } }, parserLimitBytes: 6 * 1024 * 1024 });
+  access.registerDaemonAttachmentLookup({ app, store: store as never, host, mountRoutes: ({ routes }) => mountJiniRoutes({ app, routes }) }, { env });
   let parsed = 0;
   app.use((req, res, next) => { parsed += 1; next(); });
   const server = app.listen(0, "127.0.0.1");

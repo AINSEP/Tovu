@@ -1591,7 +1591,7 @@ registerFrontendRequestRoute({ app, path: "/api/frontend-sessions/request", cont
   });
   // Server-side attachment tools consult the sole live owner, including uploads made after boot.
   // The adapter adds its own full-daemon-token gate; run credentials cannot access this route.
-  registerDaemonAttachmentLookup({ app, store: attachmentStore }, { env: authEnv });
+  registerDaemonAttachmentLookup({ app, store: attachmentStore, host: routeHost, mountRoutes: ({ routes }) => mountJiniRoutes({ app, routes }) }, { env: authEnv });
   // Registered ahead of `express.json()` in spirit (see `attachments.ts`'s own "mount before any
   // global body parser" note) even though call order here is necessarily after it (`express.json()`
   // is synchronous module-scope code above; this file's own body-parser-skip behavior for a
