@@ -91,7 +91,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { daemonRouteHost, mountJiniRoutes } from "@tovu/host-shared/jini-routes";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
 import { resolveMcpJsonInjection } from "../../apps/website/src/assistant/mcp-injection.js";
-import { initializeStartupSecrets } from '../../apps/website/src/platform/secrets/startup-secrets.js';
+import { initializeStartupSecrets } from '@tovu/host-shared/startup-secrets';
 import { createRunScopedCredentials } from "../../apps/website/src/assistant/daemon-access.js";
 
 /** CHANGE THIS before each run — confirm free first. See module doc's Safety section. */

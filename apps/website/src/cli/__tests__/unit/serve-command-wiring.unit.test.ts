@@ -235,7 +235,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   module("../../../server/runtime/boot/boot-readiness-gate.ts", { runProductionReadinessGateOrExit: async () => {} });
   // Startup IPC and the private callback listener are approved boot steps. Keep this
   // wiring test entirely in-process; the listener's implementation has its own tests.
-  module("../../../platform/secrets/startup-secrets.ts", { initializeStartupSecrets: async () => {} });
+  module(import.meta.resolve("@tovu/host-shared/startup-secrets"), { initializeStartupSecrets: async () => {} });
   module("../../../server/runtime/boot/site-daemon-listener.ts", { startSiteDaemonListener: async () => ({ origin: "http://127.0.0.1:4568", close: async () => {} }) });
   module("../../../server/runtime/boot/site-key-boot-notice.ts", { warnIfNoSiteKeyAtBoot: () => {} });
   module("../../../features/webhooks/site-key-ensure.ts", { ensureSiteKeyForBoot: async () => {} });

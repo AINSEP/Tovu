@@ -14,7 +14,7 @@ let startup: Promise<void> | undefined;
  * @throws On missing/refused/malformed startup IPC; no partial boot or environment fallback.
  * @complexity O(e) environment scan, one bounded Jini IPC request when marked by the launcher.
  */
-export function initializeStartupSecrets(_required: Record<string, never> = {}, _optional: Record<string, never> = {}): Promise<void> {
+export function initializeStartupSecrets(_required = {}, _optional = {}): Promise<void> {
   if (startup) return startup;
   const inherited = splitNodeStartupSecrets({ env: process.env, keys: STARTUP_SECRET_KEYS });
   for (const key of Object.keys(process.env)) {
@@ -38,6 +38,6 @@ export function initializeStartupSecrets(_required: Record<string, never> = {}, 
  * @returns A detached configuration snapshot, never suitable as a child OS environment.
  * @complexity O(e) copy; no I/O.
  */
-export function startupSecretEnvironment({ env }: { env: NodeJS.ProcessEnv }, _optional: Record<string, never> = {}): NodeJS.ProcessEnv {
+export function startupSecretEnvironment({ env }: { env: NodeJS.ProcessEnv }, _optional = {}): NodeJS.ProcessEnv {
   return env === process.env ? { ...env, ...credentials } : { ...env };
 }

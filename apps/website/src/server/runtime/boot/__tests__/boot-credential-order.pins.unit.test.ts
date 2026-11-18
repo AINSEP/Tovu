@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { STARTUP_SECRET_KEYS } from '../../../../platform/secrets/startup-secrets.js';
+import { STARTUP_SECRET_KEYS } from '@tovu/host-shared/startup-secrets';
 
 /** Env-schema design §2.6, steps S0 and S3: two credential owners consume their names before any
  * config can be parsed. A config loader that "reads the environment once, first statement" would
@@ -67,7 +67,7 @@ test('S3 pin: env-delivered startup secrets leave process.env, stay behind the a
   const names = ['TOVU_AGENT_DAEMON_TOKEN', 'TOVU_TOOL_EXEC_TOKEN', 'JINI_DESKTOP_RENDER_TOKEN', 'TOVU_ADMIN_PASSWORD',
     'TOVU_DESKTOP_MCP_TOKEN', 'TOVU_DESKTOP_MCP_HANDOFF_TOKEN'];
   const source = `import { spawnSync } from 'node:child_process';
-    import { initializeStartupSecrets, startupSecretEnvironment } from ${JSON.stringify(moduleUrl('../../../../platform/secrets/startup-secrets.ts'))};
+    import { initializeStartupSecrets, startupSecretEnvironment } from '@tovu/host-shared/startup-secrets';
     const names = ${JSON.stringify(names)};
     const before = names.filter(name => name in process.env).length;
     const early = startupSecretEnvironment({ env: process.env });

@@ -20,7 +20,7 @@ import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from
 import { processBuildRelease, telemetryEnvironment } from '../../server/runtime/composition/build-release.js';
 import { registerPluginSdkResolver } from "../../features/plugin-runtime/sdk-resolver.js";
 import { ensureAgentDaemonToken, ensureToolExecToken } from "../../assistant/index.js";
-import { initializeStartupSecrets } from '../../platform/secrets/startup-secrets.js';
+import { initializeStartupSecrets } from '@tovu/host-shared/startup-secrets';
 import { runProductionReadinessGateOrExit } from "../../server/runtime/boot/boot-readiness-gate.js";
 import { warnIfNoSiteKeyAtBoot } from "../../server/runtime/boot/site-key-boot-notice.js";
 import { ensureSiteKeyForBoot } from "../../features/webhooks/site-key-ensure.js";

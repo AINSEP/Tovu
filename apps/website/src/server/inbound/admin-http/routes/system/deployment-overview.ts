@@ -1,4 +1,4 @@
-import { startupSecretEnvironment } from '#src/platform/secrets/startup-secrets';
+import { startupSecretEnvironment } from '@tovu/host-shared/startup-secrets';
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
 import { homedir } from "node:os";
 import { siteKeySources } from "#src/features/webhooks/index";

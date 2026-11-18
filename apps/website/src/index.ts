@@ -30,7 +30,7 @@ import { shutdownAssistantDaemon, startAssistantDaemon } from "./server/inbound/
 import { closeStoreOnShutdown, stopServingWithinGrace } from "./server/runtime/lifecycle/close-store-on-shutdown.js";
 import { ensureAgentDaemonPortResolved } from "./server/runtime/lifecycle/agent-daemon-port.js";
 import { ensureAgentDaemonToken, ensureToolExecToken } from "./assistant/index.js";
-import { initializeStartupSecrets } from './platform/secrets/startup-secrets.js';
+import { initializeStartupSecrets } from '@tovu/host-shared/startup-secrets';
 import { registerAdminDevProxyUpgrade } from "./server/inbound/admin-http/admin-dev-proxy.js";
 import { resolveBindHost } from "./server/runtime/boot/bind-host.js";
 import { reserveBootListener } from "./server/runtime/boot/boot-listener.js";
