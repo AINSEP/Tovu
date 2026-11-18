@@ -1,0 +1,8 @@
+apps/website/src/features/agent-plugins/service-ports.ts -> apps/website/src/features/api-connections/contribution.ts
+apps/website/src/features/api-connections/host-bindings.ts -> apps/website/src/features/agent-plugins/lifecycle.ts
+apps/website/src/features/api-connections/host-bindings.ts -> apps/website/src/features/custom-credentials/index.ts
+apps/website/src/features/external-mcp/external-mcp-oauth.ts -> apps/website/src/features/api-connections/browser-binding.ts
+apps/website/src/features/site-backup/bundled-export-file-policy.ts -> apps/website/src/features/agent-plugins/bundled-catalog.ts
+apps/website/src/features/site-backup/import-plugin-state.ts -> apps/website/src/features/agent-plugins/soon-lock.ts
+apps/website/src/features/site-backup/package-file-inventory.ts -> apps/website/src/features/agent-plugins/new-site-agent-plugin-tokens.ts
+apps/website/src/features/sites/site-admin.ts -> apps/website/src/features/agent-plugins/service-ports.ts

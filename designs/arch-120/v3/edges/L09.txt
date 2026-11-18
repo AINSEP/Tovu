@@ -1,0 +1,8 @@
+apps/website/src/features/asset-transfer/asset-destinations.ts -> apps/website/src/features/media/index.ts
+apps/website/src/features/asset-transfer/asset-destinations.ts -> apps/website/src/features/theme/asset-operations.ts
+apps/website/src/features/asset-transfer/asset-sources.ts -> apps/website/src/features/theme/asset-operations.ts
+apps/website/src/features/asset-transfer/copy-tool.ts -> apps/website/src/features/media/document-archive.ts
+apps/website/src/features/asset-transfer/copy-tool.ts -> apps/website/src/features/theme/asset-operations.ts
+apps/website/src/features/image-transform/tool.ts -> apps/website/src/features/theme/asset-operations.ts
+apps/website/src/features/site-backup/import-restore-placement.ts -> apps/website/src/features/theme/catalog.ts
+apps/website/src/features/theme/static-render.ts -> apps/website/src/features/navigation/render-entry.ts

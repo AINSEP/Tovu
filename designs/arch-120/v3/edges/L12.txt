@@ -1,0 +1,3 @@
+apps/website/src/features/deployments/static-publish/publish-consent.ts -> apps/website/src/features/consent/service.ts
+apps/website/src/features/mail-status/use-readiness.ts -> apps/website/src/features/newsletter/index.ts
+apps/website/src/features/member-login/link-service.ts -> apps/website/src/features/members/index.ts

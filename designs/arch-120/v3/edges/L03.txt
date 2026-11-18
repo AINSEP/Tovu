@@ -1,0 +1,13 @@
+apps/website/src/features/entries/unreadable-owner-entries-repair.ts -> apps/website/src/features/content-types/index.ts
+apps/website/src/features/media-import/agent-tools.ts -> apps/website/src/features/fs-files/site-file-request.ts
+apps/website/src/features/pages/html-document-store.memory.ts -> apps/website/src/features/post/contracts.ts
+apps/website/src/features/site-backup/import-keep-off.ts -> apps/website/src/features/theme/active-theme.ts
+apps/website/src/features/site-backup/share-backend.ts -> apps/website/src/features/theme/index.ts
+apps/website/src/features/site-backup/static-copy.ts -> apps/website/src/features/site-export/site-exporter.ts
+apps/website/src/features/site-backup/static-site-packager.ts -> apps/website/src/features/site-export/index.ts
+apps/website/src/features/site-inspection/site-profile.ts -> apps/website/src/features/theme/active-theme.ts
+apps/website/src/features/site-inspection/site-profile.ts -> apps/website/src/features/theme/theme-id-aliases.ts
+apps/website/src/features/site-search/access.ts -> apps/website/src/features/post/contracts.ts
+apps/website/src/features/site-search/cms-document-source.ts -> apps/website/src/features/post/contracts.ts
+apps/website/src/features/source-control/static-site-packager-port.ts -> apps/website/src/features/site-export/index.ts
+apps/website/src/features/trash/adapters/redirect.ts -> apps/website/src/features/redirects/index.ts

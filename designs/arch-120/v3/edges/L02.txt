@@ -1,0 +1,15 @@
+apps/website/src/features/custom-credentials/tool-registrations.ts -> apps/website/src/features/settings/index.ts
+apps/website/src/features/custom-credentials/tovu-credential-sets.ts -> apps/website/src/features/project-keys/create-vault.ts
+apps/website/src/features/database-transfer/tool-registrations.ts -> apps/website/src/features/settings/index.ts
+apps/website/src/features/deployments/deploy-ops/typed-secret-card.ts -> apps/website/src/features/settings/index.ts
+apps/website/src/features/deployments/publish-agent-tools.ts -> apps/website/src/features/settings/index.ts
+apps/website/src/features/deployments/publish-credentials/store.ts -> apps/website/src/features/project-keys/create-vault.ts
+apps/website/src/features/external-mcp/tool-registrations.ts -> apps/website/src/features/settings/index.ts
+apps/website/src/features/mail-status/test-send.ts -> apps/website/src/features/settings/index.ts
+apps/website/src/features/mail/attempts.repo.ts -> apps/website/src/features/settings/index.ts
+apps/website/src/features/media-generation/providers-tools.ts -> apps/website/src/features/settings/index.ts
+apps/website/src/features/publish-content/backstop-policy.ts -> apps/website/src/features/webhooks/index.ts
+apps/website/src/features/publish-content/file-tree-policy.ts -> apps/website/src/features/webhooks/index.ts
+apps/website/src/features/site-backup/share-database/repo.sqlite.ts -> apps/website/src/features/settings/contracts.ts
+apps/website/src/features/source-control/credential-setup.ts -> apps/website/src/features/settings/index.ts
+apps/website/src/features/source-control/store.ts -> apps/website/src/features/project-keys/create-vault.ts

@@ -1,0 +1,2 @@
+apps/website/src/features/site-search/settings.ts -> apps/website/src/features/settings/index.ts
+apps/website/src/features/theme/preview-switcher-tools.ts -> apps/website/src/features/settings/index.ts
