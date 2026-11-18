@@ -6,7 +6,7 @@
  * not-found and remedy-wording policy stay exactly where they are.
  */
 import type { SourceControlWritePort } from "@jini-ai/core/contracts/credentials";
-import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import type { ObservabilityPort } from "@jini-ai/core/contracts/observability";
 import type { HttpClientPort } from "../../platform/http/index.js";
 import { validateRepositoryTarget } from "../custom-credentials/write-files-validation.js";
 import { buildSourceControlProviderForApi, type LoadSourceControlProviders } from "./provider-registry.js";
