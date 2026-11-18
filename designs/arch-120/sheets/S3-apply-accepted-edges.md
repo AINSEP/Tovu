@@ -8,6 +8,7 @@ Rules: never hand-edit the baseline JSON; never run `check:architecture --update
 ## 0. Setup (Node 24)
 
 ```bash
+# Start in the folder that holds both checkouts, named exactly `Tovu` and `Jini` (Tovu links ../Jini/packages).
 export PATH="$HOME/.local/node24/bin:$PATH"
 BASE="${BASE:?the coordinator names the branch that contains S1 and S2 (e.g. an integration branch)}"
 cd Jini && git fetch origin refactor/terra && git checkout --detach origin/refactor/terra && pnpm install --frozen-lockfile && pnpm --no-bail -r build && cd ..

@@ -8,6 +8,7 @@ Owner rules that apply here: args `(required, optional = {})`; no `vi.mock`/modu
 ## 0. Setup (run exactly; Node 24)
 
 ```bash
+# Start in the folder that holds both checkouts, named exactly `Tovu` and `Jini` (Tovu links ../Jini/packages).
 export PATH="$HOME/.local/node24/bin:$PATH"
 BASE="${BASE:-origin/refactor/import-cycle-b}"      # the coordinator may name a later integration branch that contains it
 cd Jini && git fetch origin refactor/terra && git checkout --detach origin/refactor/terra && pnpm install --frozen-lockfile && pnpm --no-bail -r build && cd ..
@@ -36,8 +37,9 @@ Each STOP was checked to fire on a planted case (the file with the import remove
 
 ```bash
 bash $T/sheet-gates.sh /tmp/arch120/base
-TESTS='apps/website/src/features/agent-plugins/**/*.test.ts apps/website/src/features/site-backup/**/*.test.ts apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts'
-run_tests() { TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=2 $TESTS > "$1.log" 2>&1; grep -E '^✖ ' "$1.log" | sed -E 's/ \([0-9.]+ms\)$//' | sort -u > "$1.failed"; grep -E '^ℹ (tests|pass|fail)' "$1.log"; }
+# The globs are quoted on purpose: node expands `**` itself; an unquoted `**` is expanded by bash to one level only.
+run_tests() { TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks --test-concurrency=2 \
+  "apps/website/src/features/agent-plugins/**/*.test.ts" "apps/website/src/features/site-backup/**/*.test.ts" "apps/website/src/server/runtime/composition/__tests__/wiring-identity.test.ts" > "$1.log" 2>&1; grep -E '^✖ ' "$1.log" | sed -E 's/ \([0-9.]+ms\)$//' | sort -u > "$1.failed"; grep -E '^ℹ (tests|pass|fail)' "$1.log"; }
 run_tests /tmp/arch120/tests-base
 ```
 
