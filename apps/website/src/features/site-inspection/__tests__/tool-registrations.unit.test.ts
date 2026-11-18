@@ -162,6 +162,7 @@ test("site_get_profile: a canary in a sealed credential store never appears in t
   await deps.externalMcpServerRepo.upsert({
     workspaceId: deps.workspaceId,
     serverId: "canary-mcp",
+    version: 1,
     label: "Canary MCP",
     provisionedByPluginId: null,
     transport: "stdio",

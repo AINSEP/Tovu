@@ -63,6 +63,7 @@ async function seedHoneytokens(deps: RouteDeps): Promise<void> {
   await deps.externalMcpServerRepo.upsert({
     workspaceId: deps.workspaceId,
     serverId: "canary-mcp",
+    version: 1,
     label: "Canary MCP",
     provisionedByPluginId: null,
     transport: "stdio",

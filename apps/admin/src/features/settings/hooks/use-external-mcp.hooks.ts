@@ -24,6 +24,7 @@ type SourceUpdateInput = Parameters<
 import type { AdminExternalMcpOAuthInput, AdminExternalMcpServer, AdminExternalMcpServerInput } from "@/features/integrations/api/integrations-api.types";
 import { integrationsApi } from "@/features/integrations/api/integrations-api";
 import { describeApiError } from "@/lib/admin-http/request";
+import { VERSION_CONFLICT_MESSAGE, isVersionConflict } from "@/lib/version-conflict";
 import { useSerialWrites } from "@jini-ai/ui/panel-kit";
 import { t as tExternalMcp } from "../external-mcp-i18n";
 import { mergeSourceUpdate, resolveExternalMcpEffectiveAuthMode, resolveExternalMcpEffectiveTransport, validateExternalMcpOAuthIdentity } from "../rules";
@@ -101,6 +102,8 @@ function toItem({ server }: { server: AdminExternalMcpServer }, { locale = "en" 
     enabled: server.enabled,
     fields: {
       builtIn: server.builtIn ? "true" : "false",
+      // The basis for the next save (`expectedVersion`); never rendered, like `builtIn`.
+      version: String(server.version),
       id: server.serverId,
       transport: server.transport,
       command: server.command,
@@ -204,6 +207,17 @@ function toOAuthWriteBody(fields: Record<string, string>): AdminExternalMcpOAuth
     ...omitIfBlank({ key: "deviceAuthorizationEndpoint", value: fieldOrEmpty({ fields, key: "oauthDeviceAuthorizationEndpoint" }) }),
     ...omitIfBlank({ key: "clientSecret", value: fieldOrEmpty({ fields, key: "oauthClientSecret" }) }),
   };
+}
+
+/** `{ expectedVersion }` from the item this tab last loaded or saved, so a save from an old screen is refused. @complexity O(1). */
+function expectedVersionOf({ item }: { item: SourceConfigItem | undefined }, _options = {}): { expectedVersion?: number } {
+  const version = Number(item?.fields.version);
+  return Number.isSafeInteger(version) ? { expectedVersion: version } : {};
+}
+
+/** The plain-words reason a save failed: the stale-version copy for a lost compare-and-set, else the server's own. @complexity O(1). */
+function describeSaveFailure({ err, t }: { err: unknown; t: (key: string) => string }, _options = {}): string {
+  return isVersionConflict(err) ? t(VERSION_CONFLICT_MESSAGE) : describeApiError({ e: err, fallback: t('That server could not be saved.') });
 }
 
 /**
@@ -360,7 +374,7 @@ export function useExternalMcp(
             const previous = lastKnown.current.get(id);
             const merged = mergeSourceUpdate({ previous, patch });
             try {
-              const { server } = await port.saveExternalMcpServer({ serverId: id, body: toWriteBody({ fields: merged.fields, enabled: merged.enabled }, { label: merged.label }) });
+              const { server } = await port.saveExternalMcpServer({ serverId: id, body: { ...toWriteBody({ fields: merged.fields, enabled: merged.enabled }, { label: merged.label }), ...expectedVersionOf({ item: previous }) } });
               setRestartRequired(true);
               const item = toItem({ server }, { locale });
               const changedToken = (merged.fields.accessToken ?? '') !== '';
@@ -369,7 +383,7 @@ export function useExternalMcp(
               return checked;
             } catch (err) {
               if (!previous) return null;
-              return { ...previous, statusMessage: translateCredentialMessage({ message: describeApiError({ e: err, fallback: t('That server could not be saved.') }), locale }) };
+              return { ...previous, statusMessage: translateCredentialMessage({ message: describeSaveFailure({ err, t }), locale }) };
             }
           } }, { key: id });
         },

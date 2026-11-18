@@ -45,6 +45,7 @@ function server(overrides: Partial<AdminExternalMcpServer> = {}): AdminExternalM
   return {
     serverId: "local-fs",
     label: "Local filesystem",
+    version: 1,
     transport: "stdio",
     authMode: "static_env",
     enabled: true,
@@ -228,6 +229,7 @@ describe("useExternalMcp — fetchSources / toItem", () => {
         enabled: true,
         fields: {
           builtIn: "false",
+          version: "1",
           id: "local-fs",
           transport: "stdio",
           command: "npx",
@@ -505,6 +507,7 @@ describe("useExternalMcp — updateSource", () => {
       allowedToolNames: "tool_a",
       writeAllowedToolNames: "",
       authMode: "static_env",
+      expectedVersion: 1,
     } });
   });
 

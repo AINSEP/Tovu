@@ -8,7 +8,9 @@ import type { KyselyKernel } from "@jini-ai/db/kernel";
 import type { UUID } from "@jini-ai/core/primitives";
 
 import { externalMcpAccessSnapshot } from "./external-mcp-store.js";
-import type { ExternalMcpAccessUpdate, ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "./contracts.js";
+import { insertRow, toRow, updateRowIfVersion, updateRuntime, type ServerKey } from "./external-mcp-repo.writes.js";
+import type { ExternalMcpAccessUpdate, ExternalMcpOAuthRuntimePatch, ExternalMcpReplacedSecrets, ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "./contracts.js";
+import type { SealedSecret } from "@jini-ai/core/contracts/vault";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import type { ExternalMcpServersTable } from "../../platform/db/content-database.generated.js";
 import { toBool } from "@jini-ai/core/contracts/storage";
@@ -28,7 +30,6 @@ import { toBool } from "@jini-ai/core/contracts/storage";
  */
 
 type Row = Selectable<ExternalMcpServersTable>;
-type ServerKey = { workspaceId: UUID; serverId: string };
 type JoinedRow = Row & Record<string, unknown>;
 type PayloadKind = "mcp-env" | "mcp-auth";
 const vaultColumns = ["workspace_id", "id", "kind", "owner_key", "principal_id", "binding", "provider", "label", "is_default",
@@ -94,38 +95,7 @@ function toRecord(row: JoinedRow): ExternalMcpServerRecord {
     oauthAadVersion: 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-  };
-}
-
-function toRow(record: ExternalMcpServerRecord, pointers: { env_secret_id: string | null; oauth_secret_id: string | null }) {
-  return {
-    workspace_id: record.workspaceId,
-    server_id: record.serverId,
-    label: record.label,
-    provisioned_by_plugin_id: record.provisionedByPluginId,
-    transport: record.transport,
-    auth_mode: record.authMode,
-    enabled: record.enabled,
-    command: record.command,
-    url: record.url,
-    args: record.args,
-    allowed_tool_names: record.allowedToolNames,
-    write_allowed_tool_names: record.writeAllowedToolNames,
-    write_grants_updated_by_principal_id: record.writeGrantsUpdatedByPrincipalId,
-    write_grants_updated_at: record.writeGrantsUpdatedAt,
-    env_names: record.envNames,
-    ...pointers,
-    oauth_provider_id: record.oauthProviderId,
-    oauth_grant: record.oauthGrant,
-    oauth_client_id: record.oauthClientId,
-    oauth_endpoints_json: record.oauthEndpointsJson,
-    oauth_scopes_json: record.oauthScopesJson,
-    oauth_status: record.oauthStatus,
-    oauth_expires_at: record.oauthExpiresAt,
-    oauth_token_env_name: record.oauthTokenEnvName,
-    oauth_refresh_lease_until: record.oauthRefreshLeaseUntil,
-    created_at: record.createdAt,
-    updated_at: record.updatedAt,
+    version: Number(row.version),
   };
 }
 
@@ -178,6 +148,18 @@ export class SqlExternalMcpServerRepo implements ExternalMcpServerRepoPort {
     });
   }
 
+  async insert({ record }: { record: ExternalMcpServerRecord }): Promise<boolean> {
+    return insertRow({ kernel: this.kernel, vaultRepo: this.vaultRepo, record });
+  }
+
+  async updateIfVersion(required: { record: ExternalMcpServerRecord; expectedVersion: number; replaces: ExternalMcpReplacedSecrets }): Promise<boolean> {
+    return updateRowIfVersion({ kernel: this.kernel, vaultRepo: this.vaultRepo, ...required });
+  }
+
+  async updateOAuthRuntime(required: { key: ServerKey; expectedSealedOAuth: SealedSecret | null; patch: ExternalMcpOAuthRuntimePatch }): Promise<boolean> {
+    return updateRuntime({ kernel: this.kernel, vaultRepo: this.vaultRepo, ...required });
+  }
+
   /** Serialize with credential writers, validate the approved source, then replace access only.
    * The conditional UPDATE also compares prior grants and their decision; no credential/vault column is written.
    * @complexity One indexed hydrated read and conditional UPDATE, O(a+w) bounded grant bytes.
@@ -191,7 +173,7 @@ export class SqlExternalMcpServerRepo implements ExternalMcpServerRepoPort {
       const result = await this.kernel.run(db => db.updateTable("external_mcp_servers")
         .set({ enabled: input.access.enabled, allowed_tool_names: input.access.allowedToolNames,
           write_allowed_tool_names: input.access.writeAllowedToolNames, write_grants_updated_by_principal_id: input.principalId,
-          write_grants_updated_at: input.nowIso, updated_at: input.nowIso })
+          write_grants_updated_at: input.nowIso, updated_at: input.nowIso, version: sql<number>`version + 1` })
         .where("workspace_id", "=", input.workspaceId).where("server_id", "=", input.serverId)
         .where("enabled", "=", expected.enabled)
         .where("allowed_tool_names", expected.allowedToolNames === null ? "is" : "=", expected.allowedToolNames)

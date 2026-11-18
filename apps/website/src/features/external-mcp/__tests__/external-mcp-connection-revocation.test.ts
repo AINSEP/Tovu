@@ -76,7 +76,7 @@ function repoWhoseFindThrows(inner: ExternalMcpServerRepoPort, error: Error): Ex
   return {
     listByWorkspaceId: (workspaceId) => inner.listByWorkspaceId(workspaceId),
     findByServerId: () => Promise.reject(error),
-    upsert: (record) => inner.upsert(record),
+    upsert: (record) => inner.upsert(record), insert: (input) => inner.insert(input), updateIfVersion: (input) => inner.updateIfVersion(input), updateOAuthRuntime: (input) => inner.updateOAuthRuntime(input),
     deleteByServerId: (input) => inner.deleteByServerId(input),
     updateAccessIfCurrent: (input) => inner.updateAccessIfCurrent(input),
     tryClaimOAuthRefreshLease: (input) => inner.tryClaimOAuthRefreshLease(input),

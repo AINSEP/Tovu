@@ -1098,7 +1098,7 @@ function repoWhoseUpsertRejects(inner: ExternalMcpServerRepoPort, error: Error):
   return {
     listByWorkspaceId: (workspaceId) => inner.listByWorkspaceId(workspaceId),
     findByServerId: (input) => inner.findByServerId(input),
-    upsert: () => Promise.reject(error),
+    upsert: () => Promise.reject(error), insert: () => Promise.reject(error), updateIfVersion: () => Promise.reject(error), updateOAuthRuntime: () => Promise.reject(error),
     deleteByServerId: (input) => inner.deleteByServerId(input),
     updateAccessIfCurrent: (input) => inner.updateAccessIfCurrent(input),
     tryClaimOAuthRefreshLease: (input) => inner.tryClaimOAuthRefreshLease(input),

@@ -29,7 +29,7 @@ interface PinnedRecord {
   envNames: string | null; sealedEnv: SealedSecret | null; oauthProviderId: string | null; oauthGrant: string | null;
   oauthClientId: string | null; oauthEndpointsJson: string | null; oauthScopesJson: string | null; oauthStatus: string | null;
   oauthExpiresAt: ISODateTime | null; oauthTokenEnvName: string | null; oauthRefreshLeaseUntil: ISODateTime | null;
-  sealedOAuth: SealedSecret | null; aadVersion: number; oauthAadVersion: number; createdAt: ISODateTime; updatedAt: ISODateTime;
+  sealedOAuth: SealedSecret | null; aadVersion: number; oauthAadVersion: number; createdAt: ISODateTime; updatedAt: ISODateTime; version: number;
 }
 interface PinnedSnapshot {
   readonly admissionRevision: string; readonly enabled: boolean; readonly allowedToolNames: string | null; readonly writeAllowedToolNames: string | null;
@@ -47,14 +47,14 @@ interface PinnedSaveOAuth { providerId?: string; grant?: string; clientId?: stri
 interface PinnedSave {
   workspaceId: UUID; serverId: string; label?: string; transport: string; authMode?: string; enabled: boolean; command: string; url?: string; args: string;
   allowedToolNames: string; writeAllowedToolNames: string; env?: string; accessToken?: string; accessTokenEnvName?: string; oauth?: PinnedSaveOAuth;
-  provisionedByPluginId?: string; principalId: string;
+  provisionedByPluginId?: string; principalId: string; expectedVersion?: number;
 }
 interface PinnedOAuthView { providerId: string | null; grant: string | null; clientId: string | null; scopes: string[]; status: "disconnected" | "pending" | "connected" | "needs_reauth"; expiresAt: ISODateTime | null; tokenEnvName: string | null; hasStoredToken: boolean }
 interface PinnedView {
   serverId: string; label: string; provisionedByPluginId: string | null; transport: string; authMode: string; enabled: boolean; command: string; url: string | null;
   args: string[]; allowedToolNames: string[]; writeAllowedToolNames: string[]; writeGrantsUpdatedByPrincipalId: string | null; writeGrantsUpdatedAt: ISODateTime | null;
   envNames: string[]; hasAccessToken: boolean; accessTokenHint?: CredentialTokenHint | null; envTokenHints?: Readonly<Record<string, CredentialTokenHint>>;
-  accessTokenEnvName: string | null; oauth: PinnedOAuthView;
+  accessTokenEnvName: string | null; oauth: PinnedOAuthView; version: number;
 }
 type PinnedBearer = (request: { readonly url: string }, options?: { readonly signal?: AbortSignal | undefined }) => string | undefined | Promise<string | undefined>;
 type PinnedTarget =
@@ -73,7 +73,7 @@ type PinnedConnectStart =
   | { readonly kind: "redirect_required"; readonly authorizationUrl: string; readonly expiresAt: string }
   | { readonly kind: "device_code"; readonly userCode: string; readonly verificationUri: string; readonly verificationUriComplete: string | null; readonly expiresAt: ISODateTime; readonly intervalSeconds: number };
 type PinnedReason = "removed" | "turned-off" | "disconnected" | "changed" | "tool-not-allowed" | "write-not-allowed" | "unverifiable";
-type PinnedRepoKeys = "listByWorkspaceId" | "findByServerId" | "upsert" | "updateAccessIfCurrent" | "deleteByServerId" | "tryClaimOAuthRefreshLease" | "releaseOAuthRefreshLease";
+type PinnedRepoKeys = "listByWorkspaceId" | "findByServerId" | "upsert" | "insert" | "updateIfVersion" | "updateOAuthRuntime" | "updateAccessIfCurrent" | "deleteByServerId" | "tryClaimOAuthRefreshLease" | "releaseOAuthRefreshLease";
 type PinnedServiceKeys = "beginConnect" | "completeAuthorizationCallback" | "pollDeviceAuthorization" | "disconnect" | "reportAuthFailure" | "tokenResolver" | "listSharedConnections" | "assertSharedAuthorized" | "useLocalConnection" | "useSharedConnection";
 type PinnedDepsKeys = "shared" | "workspaceId" | "repo" | "sealer" | "keyring" | "clock" | "devices" | "httpPorts" | "providers" | "lookupProvider" | "onConnected";
 

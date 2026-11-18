@@ -48,7 +48,7 @@ const { buildBootModules, bundledAgentPluginBootWarnings } = await import("../bo
 // Only the bundled prepare step runs; its collaborators are replaced above.
 const unusedMcpPort = async () => assert.fail("boot reporting must not access real connections");
 const mcp: NewsletterRouteDeps["mcp"] = {
-  repo: { findByServerId: unusedMcpPort, upsert: unusedMcpPort, deleteByServerId: unusedMcpPort, updateAccessIfCurrent: unusedMcpPort },
+  repo: { findByServerId: unusedMcpPort, updateIfVersion: unusedMcpPort, deleteByServerId: unusedMcpPort, updateAccessIfCurrent: unusedMcpPort },
   applyAccess: unusedMcpPort, saveServer: unusedMcpPort,
   classifyError: () => assert.fail("boot reporting must not classify connection errors"),
   notifyRosterChanged: unusedMcpPort,

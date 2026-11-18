@@ -52,6 +52,8 @@ export interface AdminExternalMcpToolApproval {
 }
 
 export interface AdminExternalMcpServer {
+  /** Edit revision; sent back as `expectedVersion` so a save from an older screen is refused (409 `VERSION_CONFLICT`). */
+  version: number;
   /** Source-derived runtime ownership, absent on older servers. */
   builtIn?: boolean;
   serverId: string;
@@ -117,6 +119,8 @@ export interface AdminExternalMcpOAuthInput {
  * that could accept something the store rejects.
  */
 export interface AdminExternalMcpServerInput {
+  /** The `version` this tab last loaded or saved for the server; absent for a create. */
+  expectedVersion?: number;
   label?: string;
   transport: string;
   enabled: boolean;

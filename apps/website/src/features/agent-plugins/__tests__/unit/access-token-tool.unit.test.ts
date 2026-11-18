@@ -385,7 +385,7 @@ test("a store failure after a successful probe is redacted and leaves the previo
   const env = await setup();
   const { pending, exchangeId, emitted } = await raise(env.tools);
   const before = await env.readRow();
-  const writes = t.mock.method(env.repo, "upsert", async () => { throw new Error(`store failed ${TOKEN}`); });
+  const writes = t.mock.method(env.repo, "updateIfVersion", async () => { throw new Error(`store failed ${TOKEN}`); });
   env.surfaceExchanges.deliver({ exchangeId, principalId: PRINCIPAL, params: { token: TOKEN } }, { toolId: SET_TOKEN });
   const result = await pending;
   assert.deepEqual(result, { saved: false, reason: "error", message: "The access token could not be saved. Nothing was changed." });

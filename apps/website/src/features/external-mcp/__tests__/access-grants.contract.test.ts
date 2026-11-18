@@ -26,7 +26,7 @@ function row(overrides: Partial<ExternalMcpServerRecord> = {}): ExternalMcpServe
     oauthProviderId: null, oauthGrant: 'authorization_code', oauthClientId: 'client', oauthEndpointsJson: null,
     oauthScopesJson: '["read"]', oauthStatus: 'connected', oauthExpiresAt: null, oauthTokenEnvName: null,
     oauthRefreshLeaseUntil: null, sealedOAuth: null, aadVersion: 1, oauthAadVersion: 1,
-    createdAt: originalAt, updatedAt: originalAt, ...overrides };
+    createdAt: originalAt, updatedAt: originalAt, version: 1, ...overrides };
 }
 
 async function sqlRepo(kernel: ContentKernel): Promise<ExternalMcpServerRepoPort> {
@@ -54,7 +54,7 @@ function contract(make: () => Promise<ExternalMcpServerRepoPort> | ExternalMcpSe
     await applyExternalMcpAccess({ repo, clock, ...key, expected, access, principalId: 'person' });
     assert.deepEqual(await repo.findByServerId(key), { ...refreshed, enabled: true,
       allowedToolNames: '["read","write"]', writeAllowedToolNames: '["write"]',
-      writeGrantsUpdatedByPrincipalId: 'person', writeGrantsUpdatedAt: appliedAt, updatedAt: appliedAt });
+      writeGrantsUpdatedByPrincipalId: 'person', writeGrantsUpdatedAt: appliedAt, updatedAt: appliedAt, version: refreshed.version + 1 });
   });
 
   for (const changed of [

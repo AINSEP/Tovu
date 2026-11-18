@@ -35,12 +35,14 @@ async function currentValues({ deps, values }: { deps: SealedCredentialKeyDeps; 
 }
 /** Unlink first in the same transaction, then delete the vault row (FK is deliberately RESTRICT).
  * OAuth refresh cannot resurrect the discarded session; a fresh connect is required.
+ * Each unlink advances `version`: a stored credential disappearing is an edit (lost-update rule M7), so a form
+ * loaded before it conflicts instead of saving the old pointers back.
  */
 async function unlinkMcp({ deps, record }: { deps: SealedCredentialKeyDeps; record: VaultRecord }): Promise<void> {
-  if (record.kind === "mcp-env") await deps.kernel.execute(sql`UPDATE external_mcp_servers SET env_secret_id=NULL
+  if (record.kind === "mcp-env") await deps.kernel.execute(sql`UPDATE external_mcp_servers SET env_secret_id=NULL, version=version+1
     WHERE workspace_id=${record.workspaceId} AND env_secret_id=${record.id}`);
   if (record.kind === "mcp-auth") await deps.kernel.execute(sql`UPDATE external_mcp_servers SET oauth_secret_id=NULL,
-    oauth_status='needs_reauth', oauth_expires_at=NULL, oauth_refresh_lease_until=NULL
+    oauth_status='needs_reauth', oauth_expires_at=NULL, oauth_refresh_lease_until=NULL, version=version+1
     WHERE workspace_id=${record.workspaceId} AND oauth_secret_id=${record.id}`);
 }
 /** Remove only a current record. Settings survive optional clears; hints and legacy markers do not. */

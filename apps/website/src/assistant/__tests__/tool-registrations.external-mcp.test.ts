@@ -513,6 +513,7 @@ test("external_mcp_test_connection: unknown id reports ok:false with a named rea
 test("external_mcp_test_connection: a disabled server reports ok:false without decrypting anything", async () => {
   const { deps, repo } = fakeDeps();
   await repo.upsert({
+    version: 1,
     workspaceId: WORKSPACE_ID,
     serverId: "disabled-one",
     label: null,
@@ -552,6 +553,7 @@ test("external_mcp_test_connection: a disabled server reports ok:false without d
 test("external_mcp_test_connection: an enabled, resolvable server reports ok:true, and never launches or connects", async (t) => {
   const { deps, repo } = fakeDeps();
   await repo.upsert({
+    version: 1,
     workspaceId: WORKSPACE_ID,
     serverId: "ready-one",
     label: null,
@@ -908,7 +910,7 @@ test("external_mcp_save: update identity and auth stay bound despite forged hidd
 
 /** DI fake for driver failures: real sealing still runs, but no failed write can persist a row. */
 class RejectingCardWriteRepo extends InMemoryExternalMcpServerRepo {
-  override async upsert(record: ExternalMcpServerRecord): Promise<void> {
+  override async insert({ record }: { record: ExternalMcpServerRecord }): Promise<boolean> {
     if (record.serverId === "invalid") throw new ExternalMcpValidationError("The server URL must be a valid absolute URL.", "url");
     throw new Error("driver failed phase9-error-canary");
   }

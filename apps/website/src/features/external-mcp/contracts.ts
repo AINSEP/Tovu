@@ -9,6 +9,7 @@ export { SUPPORTED_EXTERNAL_MCP_TRANSPORTS, EXTERNAL_MCP_OAUTH_GRANTS } from "@j
 /** The one canonical record/repository/save/view/config closure; never copy these shapes here. */
 export type {
   ExternalMcpTransport, ExternalMcpOAuthGrant, ExternalMcpServerRecord, ExternalMcpAccessUpdate, ExternalMcpServerRepoPort,
+  ExternalMcpOAuthRuntimePatch, ExternalMcpReplacedSecrets,
   ExternalMcpServerTarget, ExternalMcpServerConfig, ExternalMcpOAuthView, ExternalMcpStoreDeps, ExternalMcpOAuthTokenResolverPort,
   SaveExternalMcpOAuthInput, SaveExternalMcpServerInput, ExternalMcpSealedOAuthPayload, SealedExternalMcpOAuth,
   ExternalMcpAuthorizationStart, ExternalMcpDeviceStart, ExternalMcpConnectStart, ExternalMcpRevocationReason,

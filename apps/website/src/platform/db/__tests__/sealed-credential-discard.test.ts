@@ -87,6 +87,18 @@ for (const each of eachDialect({ tables: ["workspaces"], make: kernel => kernel 
     assert.equal(await fx.repo.find({ workspaceId: WS, id: "auth" }), null);
   });
 
+  test(`discarding an MCP credential is an edit of the row: it advances version so a form saved from before it is refused [${each.name}]`, async () => {
+    const fx = await fixture(each.make());
+    await fx.put({ id: "env", kind: "mcp-env", ownerKey: "server", key: fx.wrong });
+    await fx.put({ id: "auth", kind: "mcp-auth", ownerKey: "server", key: fx.wrong });
+    await fx.kernel.execute(sql`INSERT INTO external_mcp_servers (workspace_id,server_id,transport,auth_mode,enabled,url,
+      created_at,updated_at,env_secret_id,oauth_secret_id,oauth_status) VALUES (${WS},'server','streamable_http','oauth',
+      ${fx.kernel.dialect === "sqlite" ? 1 : true},'https://mcp.example.test',${NOW},${NOW},'env','auth','connected')`);
+    assert.deepEqual(await discardVaultCredentialsNotOpening({ kernel: fx.kernel, sealer: fx.right.sealer }), { discarded: 2, kept: 0 });
+    const [server] = await fx.kernel.query<{ version: number }>(sql`SELECT version FROM external_mcp_servers`);
+    assert.equal(Number(server?.version), 3, "one version step per discarded credential: a stored credential disappeared twice");
+  });
+
   test(`MCP env discard clears only the env pointer before deleting the unreadable env secret [${each.name}]`, async () => {
     const fx = await fixture(each.make());
     await fx.put({ id: "env", kind: "mcp-env", ownerKey: "server", key: fx.wrong });
