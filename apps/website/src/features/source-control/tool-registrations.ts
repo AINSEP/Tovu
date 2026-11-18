@@ -21,13 +21,13 @@ import type { ToolContributor } from "@jini-ai/core";
 import {
   commitSiteToSourceControl,
   previewCommitExport,
-  validateCommitTarget,
   type ExportSiteBoundFn,
   type CommitSiteInput,
   type StaticSiteContextFn,
   type SourceControlCommitAdapter,
   type SourceControlCommitOutcome,
 } from "./commit-site.js";
+import { validateCommitTarget } from "./commit-target.js";
 import {
   buildSourceControlProvider,
   switchedOffPluginSentence,

@@ -19,12 +19,12 @@ import {
   previewCommitExport,
   type CommitSiteInput,
   toCommitFile,
-  validateCommitTarget,
   commitExportDir,
   type CommitFile,
   type SourceControlCommitAdapter,
   type SourceControlCommitResult,
 } from "../commit-site.js";
+import { validateCommitTarget } from "../commit-target.js";
 import type { ExportReport } from "#src/features/site-export/index";
 import { exampleProvidersWithoutProbe } from './fixtures/example-provider.js';
 import type { RepositoryTargetValidator } from '../provider-module.js';
