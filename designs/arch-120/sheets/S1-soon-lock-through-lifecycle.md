@@ -43,7 +43,7 @@ run_tests() { TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx -
 run_tests /tmp/arch120/tests-base
 ```
 
-Keep `/tmp/arch120/base/` and `/tmp/arch120/tests-base.failed`: every later check compares against them.
+Keep `/tmp/arch120/base/` and `/tmp/arch120/tests-base.failed`: every later check compares against them. On the design's base the test run prints `tests 2723 / pass 2717 / fail 0` (about 5 minutes).
 
 ## 3. Red tests first (not committed on their own)
 
@@ -65,10 +65,12 @@ test("the lifecycle owner answers undefined for a plugin that may be switched on
 Run the file and confirm exactly these two fail (on the design's base: `pass 8 / fail 2`):
 
 ```bash
-TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks apps/website/src/features/agent-plugins/__tests__/unit/soon-lock.unit.test.ts 2>&1 | grep -E '^ℹ (pass|fail)|^✖ the lifecycle owner'
+R=$(TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --import ./development/test-support/composed-bundle-env.ts --test --experimental-test-module-mocks apps/website/src/features/agent-plugins/__tests__/unit/soon-lock.unit.test.ts 2>&1)
+echo "$R" | grep -E '^ℹ (pass|fail)|^✖ the lifecycle owner'
+test "$(echo "$R" | grep -E '^ℹ fail')" = "ℹ fail 2" && test "$(echo "$R" | grep -E '^✖ the lifecycle owner' | sed -E 's/ \([0-9.]+ms\)$//' | sort -u | wc -l)" = 2 || { echo "STOP R1: expected exactly the two new tests to fail"; exit 1; }
 ```
 
-STOP if anything else fails or the two pass. **Do not commit yet**: the tests reference a method that does not exist, so `tsc -p tsconfig.tests.json` is red now, and the owner rule is "every commit green". The red run above is the failing-test-first evidence; put its two `✖` lines in your report. The tests are committed together with the fix in §4.
+**Do not commit yet**: the tests reference a method that does not exist, so `tsc -p tsconfig.tests.json` is red now, and the owner rule is "every commit green". The red run above is the failing-test-first evidence; put its two `✖` lines in your report. The tests are committed together with the fix in §4.
 
 ## 4. The binding and the repoint (one commit, with the tests)
 
