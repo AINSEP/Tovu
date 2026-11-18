@@ -13,7 +13,7 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/comments.js';
  * real admin route performs it. The seventh, `comments_update_settings`, is the exception and is
  * documented at its own handler.
  */
-import { buildDomainRegistrations, indexCatalogById, optionalOneOf, optionalString, readToolLimit, requireInputRecord, requireNumber, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+import { buildDomainRegistrations, indexCatalogById, withToolMetadata, optionalOneOf, optionalString, readToolLimit, requireInputRecord, requireNumber, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type SurfaceExchangeStore, type ToolExecutionContext, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import { adaptLegacyAuthorize, ForbiddenError, requireToolPermission } from "@jini-ai/cms/core";
 import { type AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { forbiddenRule, withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
@@ -131,18 +131,20 @@ function toModerationQueueToolView(page: ModerationQueuePage): { items: ReturnTy
  * crash. The messages carry only ids/versions the caller itself supplied or must resend; comment
  * bodies and author data never appear in them.
  */
-const COMMENTS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
+function commentsModelFacingRules({ settingsForbiddenError }: { settingsForbiddenError: ModelFacingErrorRule["error"] }, _optional = {}): readonly ModelFacingErrorRule[] {
+  return [
   forbiddenRule({ domainPrefix: "COMMENTS", error: ForbiddenError }),
   // `comments_update_settings` is refused by the settings kit's own ForbiddenError (a separate
   // class, not a subclass of the cms one) — see that handler's note on self-enforcement.
-  forbiddenRule({ domainPrefix: "COMMENTS", error: SettingsForbiddenError }),
+  forbiddenRule({ domainPrefix: "COMMENTS", error: settingsForbiddenError }),
   { error: CommentNotFoundError, code: "COMMENTS_NOT_FOUND" },
   {
     error: CommentVersionConflictError,
     code: "COMMENTS_VERSION_CONFLICT",
     guidance: "Re-read it with comments_list_moderation_queue and retry with the fresh version",
   },
-];
+  ];
+}
 
 /** Maps `applyModeration`'s returned failure to the typed domain error the handlers throw. */
 function moderationFailureError(required: { commentId: string; result: { reason: "not-found" | "conflict"; currentVersion?: number } }): Error {
@@ -167,7 +169,7 @@ function moderationFailureError(required: { commentId: string; result: { reason:
  * @overallScore 100
  */
 function buildCommentsModerationHandler(
-  routeDeps: CommentsToolDeps,
+  routeDeps: CommentsPackageToolDeps,
   spec: { permission: string; action: ModerationAction; toStatus: CommentStatus },
 ): ToolHandler {
   return async (ctx) => {
@@ -216,18 +218,87 @@ function requireCommentsSettingsPatch(input: Record<string, unknown>): Partial<C
   return patch;
 }
 
-/** The two things every handler factory reads: the host route deps and the assistant surfaces. */
-interface CommentsHandlerArgs {
-  deps: CommentsToolDeps;
-  surfaces: AssistantSurfaceDeps;
+/** A Tovu-free view of the surfaces the approval-gated tool needs: the store the confirmation opens on. */
+export interface CommentsPackageSurfaces {
+  readonly surfaceExchanges: SurfaceExchangeStore;
 }
 
-const providerRegistry = ({ deps }: { deps: CommentsToolDeps }, _optional = {}) => {
+/** The comments settings operations the tools call; the host binds them to its settings ledger. */
+export interface CommentsSettingsPort {
+  get(input: { workspaceId: string }): Promise<CommentsSettings>;
+  set(input: { workspaceId: string; patch: Partial<CommentsSettings>; callerPrincipalId: string }): Promise<CommentsSettings>;
+}
+
+/** The members of the comments provider registry the tools call. */
+export interface CommentsProviderRegistryPort {
+  active(required: { siteId: string }): Promise<{ providerId: string | null; revision: number; adapter: unknown }>;
+  select(required: { siteId: string; providerId: string | null; expectedRevision: number; actorPrincipalId: string }): Promise<void>;
+}
+
+/** What the provider-change confirmation shows; only the fields the handler sets. */
+export interface CommentsApprovalDescription {
+  readonly toolId: string;
+  readonly errorCode: string;
+  readonly title: string;
+  readonly access: {
+    readonly resources: readonly {
+      readonly id: string;
+      readonly label: string;
+      readonly scope: { readonly personId: string; readonly siteId: string };
+      readonly previous: string;
+      readonly proposed: string;
+      readonly revision: string;
+    }[];
+  };
+  readonly details: readonly { readonly label: string; readonly value: string }[];
+  readonly warning: string;
+  readonly confirmLabel: string;
+}
+
+/** The host's approval wrapper (ask a person, then run once): the steps and the result flag the tool supplies. */
+export interface CommentsApprovalHandler {
+  <TPrepared>(
+    steps: {
+      surfaces: CommentsPackageSurfaces;
+      prepare: (required: { ctx: ToolExecutionContext }) => Promise<TPrepared>;
+      describe: (required: { ctx: ToolExecutionContext; prepared: TPrepared }) => CommentsApprovalDescription;
+      run: (required: { ctx: ToolExecutionContext; prepared: TPrepared }) => Promise<unknown>;
+    },
+    options: { flag: string },
+  ): ToolHandler;
+}
+
+/**
+ * Everything the comments tool handlers read, as ports: the host (the route deps bag) supplies the
+ * settings operations, the settings error class, the approval wrapper and the unexpected-key refusal.
+ */
+export interface CommentsPackageToolDeps {
+  readonly commentsProviders?: CommentsProviderRegistryPort | undefined;
+  readonly authorize: AuthorizeFn;
+  readonly workspaceId: string;
+  readonly commentsReady: Promise<void>;
+  readonly commentsSettingsReady: Promise<void>;
+  readonly commentRepo: CommentRepoPort;
+  readonly commentWriteService: CommentWriteService;
+  readonly commentsSettings: CommentsSettingsPort;
+  /** The settings ledger's own refusal class, listed with the model-facing rules in the same position. */
+  readonly settingsForbiddenError: ModelFacingErrorRule["error"];
+  readonly approvalHandler: CommentsApprovalHandler;
+  readonly refuseUnexpectedKeys: (input: Record<string, unknown>, allowed: readonly string[]) => void;
+}
+
+/** The two things every handler factory reads: the package deps and the surfaces. */
+interface CommentsHandlerArgs {
+  deps: CommentsPackageToolDeps;
+  surfaces: CommentsPackageSurfaces;
+}
+
+const providerRegistry = ({ deps }: { deps: CommentsPackageToolDeps }, _optional = {}) => {
   if (!deps.commentsProviders) throw new ToolInputError({ message: 'Comments provider service is unavailable.' });
   return deps.commentsProviders;
 };
 
-const providerPermission = async ({ deps, principalId }: { deps: CommentsToolDeps; principalId: string }, _optional = {}) => {
+const providerPermission = async ({ deps, principalId }: { deps: CommentsPackageToolDeps; principalId: string }, _optional = {}) => {
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId, permission: 'comments.configure' }, { entityType: 'comments-provider' });
   await Promise.all([deps.commentsReady, deps.commentsSettingsReady]);
 };
@@ -235,17 +306,17 @@ const providerPermission = async ({ deps, principalId }: { deps: CommentsToolDep
 const commentsGetProviderHandler = ({ deps }: CommentsHandlerArgs): ToolHandler => async ctx => {
   await providerPermission({ deps, principalId: ctx.principal.id });
   const active = await providerRegistry({ deps }).active({ siteId: deps.workspaceId });
-  const settings = await getCommentsSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId });
+  const settings = await deps.commentsSettings.get({ workspaceId: deps.workspaceId });
   const ready = !!active.adapter && settings.enabled;
   return { providerId: active.providerId, revision: active.revision, ready,
     pendingCount: await deps.commentRepo.countByStatus({ workspaceId: deps.workspaceId, status: 'pending' }),
     ...(ready ? {} : { note: providerNote({ providerId: active.providerId, adapterReady: !!active.adapter }) }) };
 };
 
-const commentsSetProviderHandler = ({ deps, surfaces }: CommentsHandlerArgs): ToolHandler => approvalToolHandler({ surfaces,
+const commentsSetProviderHandler = ({ deps, surfaces }: CommentsHandlerArgs): ToolHandler => deps.approvalHandler({ surfaces,
   prepare: async ({ ctx }) => {
     const input = requireInputRecord({ input: ctx.input });
-    refuseUnexpectedKeys(input, ['providerId', 'expectedRevision']);
+    deps.refuseUnexpectedKeys(input, ['providerId', 'expectedRevision']);
     if (input.providerId !== null && input.providerId !== 'built-in') throw new ToolInputError({ message: 'Select built-in or null to disable comments.' });
     const expectedRevision = requireNumber({ input, key: 'expectedRevision' });
     if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) throw new ToolInputError({ message: 'expectedRevision must be a non-negative integer.' });
@@ -300,7 +371,7 @@ const commentsGetSettingsHandler = ({ deps }: CommentsHandlerArgs): ToolHandler 
   await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "comments.configure" }, { entityType: "comments-settings" });
 
   await deps.commentsSettingsReady;
-  const settings = await getCommentsSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId });
+  const settings = await deps.commentsSettings.get({ workspaceId: deps.workspaceId });
   return { settings };
 };
 
@@ -310,19 +381,12 @@ const commentsUpdateSettingsHandler = ({ deps }: CommentsHandlerArgs): ToolHandl
   // No explicit pre-check here, unlike every other Comments handler: `setCommentsSettings`
   // (settings.ts) self-enforces internally — its `set()` call is invoked with
   // `requiredPermissionOverride: 'comments.configure'` HARD-CODED inside settings.ts itself, so
-  // passing `authorize: deps.authorize` through is exactly ADR-021 §2's "one evaluator",
+  // the host binding passes its `authorize` through, which is exactly ADR-021 §2's "one evaluator",
   // reached the domain-function way Forms/Identity use, not the explicit-handler way the rest
   // of this file uses. See settings.ts's own comment on that override for why.
   await deps.commentsSettingsReady;
   ctx.signal.throwIfAborted();
-  const settings = await setCommentsSettings(
-    {
-      settingsRepo: deps.settingsRepo,
-      clock: deps.clock,
-      ids: deps.idGen,
-      authorize: deps.authorize,
-      principals: deps.principalRepo,
-    },
+  const settings = await deps.commentsSettings.set(
     { workspaceId: deps.workspaceId, patch, callerPrincipalId: ctx.principal.id },
   ).catch((error: unknown) => {
     if (error instanceof CommentsSettingsValidationError) throw new ToolInputError({ message: error.message });
@@ -369,11 +433,15 @@ const commentsTrashCommentHandler = ({ deps }: CommentsHandlerArgs): ToolHandler
 
 const commentsRestoreCommentHandler = ({ deps }: CommentsHandlerArgs): ToolHandler => buildCommentsModerationHandler(deps, { permission: "comments.moderate", action: "restore", toStatus: "approved" });
 
-export function buildCommentsRegistrations(
-  routeDeps: CommentsToolDeps,
-  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
+/**
+ * The package-side builder: the id -> handler table over the comments catalog. It takes no host
+ * metadata (search vocabulary, approval policy) and no default surfaces; the host binding adds both.
+ */
+export function buildCommentsToolRegistrations(
+  { deps, surfaces }: { deps: CommentsPackageToolDeps; surfaces: CommentsPackageSurfaces },
+  _optional = {},
 ): ToolRegistration[] {
-  const args: CommentsHandlerArgs = { deps: routeDeps, surfaces };
+  const args: CommentsHandlerArgs = { deps, surfaces };
   const handlers: Record<string, ToolHandler> = {
     comments_get_provider: commentsGetProviderHandler(args),
     comments_set_provider: commentsSetProviderHandler(args),
@@ -388,14 +456,49 @@ export function buildCommentsRegistrations(
   };
 
   // No `unwiredToolIds`: Comments wires its ENTIRE catalog, same tripwire discipline as Forms.
-  return buildDomainRegistrations({ metadata: toolMetadata,
+  return buildDomainRegistrations({
     domain: "comments",
     catalogModule: "comments/agent-tools.ts",
     catalog: CATALOG_BY_ID,
     // Wrapped once over the whole map, never per handler — see `withModelFacingErrors`' own doc.
-    handlers: withModelFacingErrors({ handlers, rules: COMMENTS_MODEL_FACING_ERRORS }),
+    handlers: withModelFacingErrors({ handlers, rules: commentsModelFacingRules({ settingsForbiddenError: deps.settingsForbiddenError }) }),
     derivedRisk: commentsDerivedRisk,
   });
+}
+
+/**
+ * The route deps as the package-side ports. Every field reads the route deps at call time (a getter,
+ * not a copy) because the route deps bag is mutable: a caller that swaps `authorize` or the provider
+ * registry after the registrations were built is seen by the next tool call, as it was before the
+ * handlers took ports.
+ */
+function toPackageDeps({ routeDeps }: { routeDeps: CommentsToolDeps }, _optional = {}): CommentsPackageToolDeps {
+  return {
+    get commentsProviders() { return routeDeps.commentsProviders; },
+    get authorize() { return routeDeps.authorize; },
+    get workspaceId() { return routeDeps.workspaceId; },
+    get commentsReady() { return routeDeps.commentsReady; },
+    get commentsSettingsReady() { return routeDeps.commentsSettingsReady; },
+    get commentRepo() { return routeDeps.commentRepo; },
+    get commentWriteService() { return routeDeps.commentWriteService; },
+    commentsSettings: {
+      get: (input) => getCommentsSettings({ settingsRepo: routeDeps.settingsRepo }, input),
+      set: (input) => setCommentsSettings(
+        { settingsRepo: routeDeps.settingsRepo, clock: routeDeps.clock, ids: routeDeps.idGen, authorize: routeDeps.authorize, principals: routeDeps.principalRepo },
+        input,
+      ),
+    },
+    settingsForbiddenError: SettingsForbiddenError,
+    approvalHandler: approvalToolHandler,
+    refuseUnexpectedKeys,
+  };
+}
+
+export function buildCommentsRegistrations(
+  routeDeps: CommentsToolDeps,
+  surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
+): ToolRegistration[] {
+  return withToolMetadata({ registrations: buildCommentsToolRegistrations({ deps: toPackageDeps({ routeDeps }), surfaces }), metadata: toolMetadata });
 }
 
 /**
