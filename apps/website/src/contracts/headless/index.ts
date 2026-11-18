@@ -5,7 +5,6 @@ export type { PluginExportCatalogPort, PluginExportCatalogRow } from './plugin-e
 export type { ChatAttachmentRefusal, ChatAttachmentReadResult } from './chat-attachment.js';
 export { CHAT_ATTACHMENT_REF_PATTERN } from './chat-attachment.js';
 export type { FormDeliveryStatusRow, FormDeliveryStatusPort } from './form-delivery-status.js';
-export { DELIVERY_STATUS_MAX_LIMIT } from './form-delivery-status.js';
 export type { PluginLookupPort, PluginProvider, AgentPluginWorkspaceLayout, AgentPluginLayout, OperatorLocaleDeps, AgentPluginUninstallToolDeps, SetAgentPluginEnabledInput, AgentPluginHostCapability, PluginHostPort } from './plugin-host.js';
 export type { SiteCookieConsentDeps, ConsentPluginHttp, ConsentPluginContribution } from './site-cookie-consent.js';
 export { CREDENTIAL_SAVE_TOOL_ID, SECRET_FORM_CARD_DEFINITIONS, SECRET_FORM_TOOL_IDS } from './secret-form-cards.js';

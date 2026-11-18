@@ -2,8 +2,9 @@ import type { DomainEvent, OutboxRecord } from "@jini-ai/core/contracts/events";
 import {
   type FormDeliveryQueuedJob, type FormDeliveryPlan, type FormDeliveryPlanPort,
   type FormPullClaim, type FormPullLeasePort, type FormPullRefusal, formDeliveryStatusFromOutbox,
+  DELIVERY_STATUS_MAX_LIMIT,
 } from "@jini-ai/cms/forms";
-import { DELIVERY_STATUS_MAX_LIMIT, type FormDeliveryStatusRow } from "#src/contracts/headless/index";
+import type { FormDeliveryStatusRow } from "#src/contracts/headless/index";
 
 import type { Kysely } from "kysely";
 

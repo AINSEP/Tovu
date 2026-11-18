@@ -15,10 +15,9 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { ToolInputError, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
-import { FormFieldValidationError, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FieldDescriptor, type FormSubmissionRecord } from "@jini-ai/cms/forms";
+import { DELIVERY_STATUS_MAX_LIMIT, FormFieldValidationError, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo, type FieldDescriptor, type FormSubmissionRecord } from "@jini-ai/cms/forms";
 
 import { executeCommand, InMemoryChangeSetRepo } from "../../../contracts/core/commands/index.js";
-import { DELIVERY_STATUS_MAX_LIMIT } from "../agent-tools.js";
 import { createFormDefinition } from "../index.js";
 import { contributeFormsDuplicateHandlers, contributeFormsTools, type FormsToolDeps } from "../tool-registrations.js";
 

@@ -60,9 +60,7 @@ import {
   MAX_MAX_LENGTH,
   MIN_MAX_LENGTH,
 } from "@jini-ai/cms/forms";
-import { MAX_NAME_LENGTH, MAX_NOTIFY_RECIPIENTS, SLUG_PATTERN } from "@jini-ai/cms/forms";
-import { DELIVERY_STATUS_MAX_LIMIT } from "#src/contracts/headless/index";
-export { DELIVERY_STATUS_MAX_LIMIT } from "#src/contracts/headless/index";
+import { DELIVERY_STATUS_MAX_LIMIT, MAX_NAME_LENGTH, MAX_NOTIFY_RECIPIENTS, SLUG_PATTERN } from "@jini-ai/cms/forms";
 
 const FORMS_MANAGE_PERMISSION = "admin.forms.manage" as const;
 
