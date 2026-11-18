@@ -78,6 +78,8 @@ const SET_ACTIVE_THEME_CATALOG: AgentToolDefinition = {
         aliases: ["id", "activeThemeId"],
         minLength: 1,
         description: "A discovered theme's id to activate, or 'none' to turn the theme off.",
+        // Same lister as the theme file tools' shared `themeId`: content_read.theme lists every theme with its id.
+        obtainFrom: "content_read.theme",
       },
     },
   },

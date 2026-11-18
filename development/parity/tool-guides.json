@@ -532,7 +532,7 @@
       "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:272 (prose)",
       "guide apps/website/src/server/inbound/assistant/assistant-system-overlay.ts:287 (prose)",
       "mcp-local ../Jini/packages/mcp/src/server/run-tool-host.ts:16 (prose)",
-      "mcp-local ../Jini/packages/mcp/src/server/tools/delegated-tool.ts:300 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/delegated-tool.ts:310 (prose)",
       "mcp-local ../Jini/packages/mcp/src/server/tools/tool-catalog-tools.ts:56 (prose)"
     ],
     "execute_readonly_delegated_tool": [
@@ -657,7 +657,7 @@
       "mcp-local ../Jini/packages/mcp/src/server/tools/component-catalog-tools.ts:35 (prose)",
       "mcp-local ../Jini/packages/mcp/src/server/tools/component-catalog-tools.ts:70 (prose)",
       "mcp-local ../Jini/packages/mcp/src/server/tools/component-catalog-tools.ts:75 (prose)",
-      "mcp-local ../Jini/packages/mcp/src/server/tools/delegated-tool.ts:184 (prose)",
+      "mcp-local ../Jini/packages/mcp/src/server/tools/delegated-tool.ts:197 (prose)",
       "mcp-local ../Jini/packages/mcp/src/server/tools/run-tools.ts:150 (prose)",
       "mcp-local ../Jini/packages/mcp/src/server/tools/run-tools.ts:70 (prose)",
       "mcp-local ../Jini/packages/mcp/src/server/tools/run-tools.ts:89 (prose)",
@@ -2897,6 +2897,12 @@
         ]
       },
       {
+        "path": "../Jini/packages/core/src/text/masked-identifier-rows.ts",
+        "ids": [
+          "theme_write_file"
+        ]
+      },
+      {
         "path": "../Jini/packages/mcp/src/server/resources/site-guide-resource.ts",
         "ids": [
           "site_guide"
@@ -2907,7 +2913,7 @@
   "sourceProblems": [],
   "pinnedFit": {
     "namedDescriptors": 202,
-    "schemaBytes": 533124,
+    "schemaBytes": 533158,
     "limitTools": 64,
     "limitBytes": 262144,
     "fits": false
