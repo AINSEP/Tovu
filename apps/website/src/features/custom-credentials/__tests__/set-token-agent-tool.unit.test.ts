@@ -25,6 +25,7 @@ import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platfor
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
 
 
 /**
@@ -81,6 +82,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
   const deps: CustomCredentialsToolDeps = {
     loadAuthSchemes: async () => [],
     loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
+    sourceControlWrite: unusedSourceControlWrite(),
     workspaceId: WORKSPACE_ID,
     clock: createFakeClock({ startIso: NOW }),
     customCredentialSetRepo: repo,

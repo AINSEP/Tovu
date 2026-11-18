@@ -29,7 +29,7 @@ import { requireHumanConfirm } from "../../contracts/core/human-confirm.js";
 // Types only: the egress refusal is recognised through the request port's `classifyError`
 // (Tovu's binding, `credential-ports.ts`, holds the `EgressRefusedError` runtime import).
 import type { HttpClientPort } from "../../platform/http/index.js";
-import type { ObservabilityPort } from "@jini-ai/diagnostics/observability";
+import type { SourceControlWritePort } from "@jini-ai/core/contracts/credentials";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import type { ToolContributor } from "@jini-ai/core";
 import { customCredentialsAgentToolCatalog, WRITE_FILES_TOOL_ID } from "./agent-tools.js";
@@ -39,7 +39,7 @@ import {
   type CredentialedRequestDeps,
 } from "./credentialed-request.js";
 
-import { bindCredentialedRequestPort, bindSourceControlWritePort } from "./credential-ports.js";
+import { bindCredentialedRequestPort } from "./credential-ports.js";
 import { cleanCardToken } from "./card-token.js";
 import { applyPluginCredentialCard, buildPluginCredentialForm } from "../../contracts/core/plugin-credential-card.js";
 import { loadPluginCredentialCardsSafely, findPluginCredentialCard, readPluginCredentialValues, type LoadPluginCredentialCards } from "./plugin-credential-card.js";
@@ -88,12 +88,13 @@ export interface CustomCredentialsToolDeps extends OperatorLocaleDeps {
   /** The git-host providers `custom_credential_write_files` writes through (the installed, enabled
    *  Agent Plugins supplied by composition — the bundled `github` one today). */
   readonly loadSourceControlProviders: LoadSourceControlProviders;
+  /** The write port `custom_credential_write_files` commits through, bound by the host over the same provider
+   *  registry, guarded client and observability (`source-control/write-port.ts`). */
+  readonly sourceControlWrite: SourceControlWritePort;
   readonly loadDeployTargets?: ({ workspaceId }: { workspaceId: string }, optional?: Record<string, never>) => Promise<DeployTargetRegistry>;
   /** Plugin-declared key cards (`plugin-credential-card.ts`); absent means none can be opened. */
   readonly loadPluginCredentialCards?: LoadPluginCredentialCards;
   readonly publishCredentialVerificationCache?: { delete(input: { workspaceId: string; target: string }): void };
-  /** `RouteDeps.observability`: a write's raw git-host calls are outbound spans. */
-  readonly observability?: ObservabilityPort;
   /** The self-describing token scheme rules `custom_credential_make_request`/`_verify` apply
    *  (`CredentialedRequestDeps.loadAuthSchemes`): composition supplies the installed plugins; the hermetic
    *  root and tests pass the bundled plugins' source rules. */
@@ -359,7 +360,7 @@ function credentialedRequestDeps(routeDeps: CustomCredentialsToolDeps): Credenti
 function tovuCredentialToolPorts(routeDeps: CustomCredentialsToolDeps): CustomCredentialToolPorts {
   return {
     credentialedRequest: bindCredentialedRequestPort({ deps: credentialedRequestDeps(routeDeps) }),
-    sourceControlWrite: bindSourceControlWritePort({ load: routeDeps.loadSourceControlProviders, httpClient: routeDeps.customCredentialsHttpClient, observability: routeDeps.observability }),
+    sourceControlWrite: routeDeps.sourceControlWrite,
   };
 }
 

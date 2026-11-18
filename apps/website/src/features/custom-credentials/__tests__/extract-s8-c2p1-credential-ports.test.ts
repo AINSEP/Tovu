@@ -14,15 +14,13 @@ import {
   makeCredentialedRequest,
   type CredentialedRequestDeps,
 } from "../credentialed-request.js";
-import { bindCredentialedRequestPort, bindSourceControlWritePort } from "../credential-ports.js";
+import { bindCredentialedRequestPort } from "../credential-ports.js";
 import { EgressRefusedError, type HttpClientPort, type HttpRequest, type HttpResponse } from "../../../platform/http/index.js";
-import type { SourceControlProviderOperations } from "../../source-control/provider-module.js";
-import type { LoadSourceControlProviders, SourceControlProviderRegistry } from "../../source-control/provider-registry.js";
 
 /**
- * @file EXTRACT-S8 C2 part 1: the core `CredentialedRequestPort` and `SourceControlWritePort` as
- * Tovu binds them (`credential-ports.ts`). Real bindings over the real request adapter, store,
- * sealer and provider registry builder; only the network and the provider's git-host calls are fakes.
+ * @file EXTRACT-S8 C2 part 1: the core `CredentialedRequestPort` as Tovu binds it (`credential-ports.ts`;
+ * the `SourceControlWritePort` half lives in `source-control/__tests__/write-port.unit.test.ts`). Real binding over
+ * the real request adapter, store, sealer; only the network is a fake.
  */
 
 const WORKSPACE = "ws-c2p1";
@@ -153,53 +151,4 @@ test("resolveTarget validates the target without decrypting; request decrypts ex
   assert.equal(client.calls.length, 0);
   await port.request({ ...REQUEST, method: "DELETE", url: target.url.href });
   assert.equal(sealer.openCalls, 1);
-});
-
-/** One neutral provider whose methods record the object they were called on. */
-function writerRegistry(log: { plans: unknown[]; commits: { self: unknown; plan: unknown }[]; planSelf: unknown[] }): SourceControlProviderRegistry {
-  const plan = { parentCommitSha: "p1", baseTreeSha: "t1", fileStates: [{ path: "a.txt", exists: false }] };
-  const ops = {
-    async planFileWrite(this: unknown, input: unknown) { log.planSelf.push(this); log.plans.push(input); return { ok: true as const, plan }; },
-    async commitFiles(this: unknown, _input: unknown, given: unknown) { log.commits.push({ self: this, plan: given }); return { ok: true as const, commitSha: "c1", commitUrl: "https://git.example.test/c/c1" }; },
-  } as unknown as SourceControlProviderOperations;
-  const loaded = [{ pluginId: "example-git", descriptor: { id: "example-git", label: "Example Git", apiOrigin: "https://git.example.test", module: "example.mjs" },
-    module: { validateTarget: ({ owner }: { owner: string; repo: string }) => owner === "bad" ? "invalid Example Git owner 'bad'" : null, create: () => ops } }];
-  return { list: () => loaded, get: ({ providerId: id }: { providerId: string }) => loaded.find(entry => entry.descriptor.id === id), refusals: [] } as unknown as SourceControlProviderRegistry;
-}
-
-test("SourceControlWritePort: one build, target rules before planning, same provider and exact plan to commit", async () => {
-  const log = { plans: [] as unknown[], commits: [] as { self: unknown; plan: unknown }[], planSelf: [] as unknown[] };
-  let loads = 0;
-  const load: LoadSourceControlProviders = async () => { loads += 1; return writerRegistry(log); };
-  const port = bindSourceControlWritePort({ load, httpClient: new ScriptedHttpClient() });
-  const built = await port.build({ workspaceId: WORKSPACE, baseUrl: "https://git.example.test" });
-  assert.equal(loads, 1);
-  assert.ok(built.ok);
-  if (!built.ok) return;
-  const provider = built.provider;
-
-  assert.throws(() => port.validateTarget({ provider, target: { owner: "bad", repo: "r" } }), (e: unknown) => e instanceof CustomCredentialValidationError && /invalid Example Git owner 'bad'/.test(e.message));
-  assert.equal(log.plans.length, 0);
-  const target = port.validateTarget({ provider, target: { owner: "o", repo: "r" } });
-  assert.deepEqual(target, { owner: "o", repo: "r" });
-
-  const input = { baseUrl: "https://git.example.test", authorization: "Bearer x", ...target, branch: "main", files: [{ path: "a.txt", content: "hi" }] };
-  const planned = await port.planFileWrite({ provider, input });
-  assert.ok(planned.ok);
-  if (!planned.ok) return;
-  assert.equal(log.planSelf[0], provider);
-  assert.equal(log.plans[0], input);
-  assert.equal(log.commits.length, 0, "planning alone never commits (an aborted run stops here)");
-
-  const committed = await port.commitFiles({ provider, input: { ...input, commitMessage: "m" }, plan: planned.plan });
-  assert.deepEqual(committed, { ok: true, commitSha: "c1", commitUrl: "https://git.example.test/c/c1" });
-  assert.equal(log.commits[0]?.self, provider);
-  assert.equal(log.commits[0]?.plan, planned.plan);
-  assert.equal(loads, 1);
-});
-
-test("SourceControlWritePort.build reports the host's no-provider message without throwing", async () => {
-  const port = bindSourceControlWritePort({ load: async () => ({ list: () => [], get: () => undefined, refusals: [] }) as unknown as SourceControlProviderRegistry, httpClient: new ScriptedHttpClient() });
-  const built = await port.build({ workspaceId: WORKSPACE, baseUrl: "https://git.example.test" });
-  assert.equal(built.ok, false);
 });

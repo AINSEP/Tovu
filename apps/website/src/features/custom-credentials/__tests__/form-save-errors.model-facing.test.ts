@@ -42,6 +42,7 @@ import { buildApiCredentialSaveHandlers, buildCustomCredentialsRegistrations, ty
 import type { CustomCredentialSetRepoPort } from "../types.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
 
 
 const WORKSPACE_ID = "ws-cred-form-save-errors";
@@ -104,6 +105,7 @@ async function buildHarness(options: HarnessOptions = {}) {
   const deps: CustomCredentialsToolDeps = {
     loadAuthSchemes: async () => [],
     loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
+    sourceControlWrite: unusedSourceControlWrite(),
     workspaceId: WORKSPACE_ID,
     clock,
     customCredentialSetRepo: options.repo ? options.repo(repo) : repo,

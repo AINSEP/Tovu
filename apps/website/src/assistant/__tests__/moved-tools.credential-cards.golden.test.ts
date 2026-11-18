@@ -27,6 +27,7 @@ import { saveExternalMcpServer } from '../../features/external-mcp/external-mcp-
 import { InMemoryKeyring } from '../../features/webhooks/keyring.memory.js';
 import { AesGcmSecretSealer } from '../../features/webhooks/secret-sealer.aesgcm.js';
 import type { HttpRequest } from '../../platform/http/index.js';
+import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
 
 const GOLDEN = new URL('./fixtures/moved-tools.credential-cards.golden.json', import.meta.url);
 const SECRET = 'gcard_secret_never_echoed_1234';
@@ -82,7 +83,7 @@ async function setup(path: Path) {
     const repo = new InMemoryCustomCredentialSetRepo();
     if (path === 'rotation') await createCustomCredential({ repo, sealer, keyring, clock, idGen }, { workspaceId: WORKSPACE, label: card.label, category: 'ops', baseUrl: card.baseUrl, connection: { token: 'previous_gcard_key_5678' } });
     const deps: CustomCredentialsToolDeps = { ...common, customCredentialSetRepo: repo, customCredentialsHttpClient: http,
-      loadAuthSchemes: loadFixtureAuthSchemes, loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }) };
+      loadAuthSchemes: loadFixtureAuthSchemes, loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }), sourceControlWrite: unusedSourceControlWrite() };
     const handlers = buildApiCredentialSaveHandlers({ routeDeps: deps, surfaces: { surfaceExchanges } });
     handler = path === 'rotation' ? handlers.rotate : path === 'pluginProvider' ? handlers.pluginProvider : handlers.create;
     input = path === 'rotation' ? { kind: 'api', target: card.label } : path === 'pluginProvider' ? { kind: 'plugin-provider', target: 'acme' } : { kind: 'api', label: 'Generic API', baseUrl: card.baseUrl, category: 'ops' };

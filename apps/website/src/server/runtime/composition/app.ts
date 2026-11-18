@@ -43,6 +43,7 @@ import { RESERVED_SEGMENTS } from "#src/platform/routing/reserved-paths";
 import { readBuiltInExternalMcpServerIds } from "#src/features/external-mcp/built-in-connections";
 import { bindWidgetRemoval } from "#src/features/trash/index";
 import { createStaticSitePackager } from "#src/features/site-backup/static-site-packager";
+import { bindCredentialsHostPorts } from "./credentials-host-ports.js";
 import { bindStaticSiteContext } from "./static-site-context.js";
 import type { ByokToolSurfaceDeps } from "#src/assistant/index";
 import { executeCommand } from "@jini-ai/cms/core";
@@ -902,6 +903,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // the lazy `require()` this used to carry is gone.
     exportSiteBound: (opts) => exportSite({ ...opts, routeDeps }),
     staticSitePackager: createStaticSitePackager(),
+    ...bindCredentialsHostPorts({ readDeps: () => routeDeps }),
     staticSiteContext: bindStaticSiteContext({ readDeps: () => routeDeps, siteName: siteBinding.name }),
   };
   routeDeps.pluginHost = createTovuPluginHost({ deps: routeDeps });
