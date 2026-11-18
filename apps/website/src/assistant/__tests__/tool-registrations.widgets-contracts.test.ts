@@ -29,7 +29,7 @@ import type { TrashAwareInMemoryEntryRepo } from "../../features/entries/trash-a
 import { createEntry } from "../../features/entries/index.js";
 import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
 import { type AgentToolDefinition } from "@jini-ai/core";
-import { widgetsAgentToolCatalog } from "../../features/widgets/agent-tools.js";
+import { widgetsAgentToolCatalog } from "@jini-ai/cms/widgets";
 import { InMemoryWidgetRegionBindingRepo } from "@jini-ai/cms/widgets";
 import { memoryWidgetTrash } from "../../features/widgets/__tests__/support/memory-widget-trash.js";
 import { assertRiskMetadataIsWirable } from "../tool-registrations.js";

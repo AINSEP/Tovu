@@ -1101,13 +1101,6 @@
       "value": 127
     },
     {
-      "file": "apps/website/src/features/widgets/tool-registrations.ts",
-      "function": "buildWidgetsRegistrations#1",
-      "line": 226,
-      "rule": "max-lines-per-function",
-      "value": 213
-    },
-    {
       "file": "apps/website/src/platform/db/sqlite/fresh-content-db.ts",
       "function": "bootstrapFreshContentDb#1",
       "line": 55,
