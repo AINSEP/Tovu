@@ -9,6 +9,13 @@ import { chatKit } from "../jini-kits";
 import { chatSurfaces } from "../jini-surfaces";
 
 /**
+ * TEST-ONLY: ChatSurfaces bound to the REAL implementations,
+ * exactly as a host binds them (Tovu's apps/admin/src/integrations/jini-surfaces.ts). For the few card tests
+ * whose subject is the bound implementation itself: a real sandboxed MCP-UI iframe, a real registry component
+ * rendered inside an A2UI card. Everything else uses fake-chat-surfaces.tsx, which proves chat only needs the port.
+ */
+
+/**
  * @file The host's real `chatSurfaces` / `chatKit` binding, rendered through chat's A2UI card.
  *
  * Chat's own tests drive the card through fakes of its `ChatSurfaces` port, so they cannot prove that
@@ -36,6 +43,7 @@ function renderBound(ui: React.ReactElement) {
   );
 }
 
+// --- registry components (shadcn/recharts), merged into this card's own catalog -------------
 describe("host binding: registry components inside the A2UI card", () => {
   it("renders a registry-sourced shadcn component inside a Card, not the placeholder", () => {
     const events = [
