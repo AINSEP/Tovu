@@ -669,7 +669,7 @@ export interface MembersDeps {
   settleMailer?: () => Promise<void>;
   /** Fresh mail status (lanes, providers, warnings) from `server/runtime/boot/resolve-mailer.ts`. Absent in
    *  roots without a resolved mailer; the mail-status route and tool then report only availability. */
-  mailStatus?: (optional?: { refresh?: boolean }) => Promise<import("#src/platform/mail/mail-status").MailStatusReport>;
+  mailStatus?: (optional?: { refresh?: boolean }) => Promise<import("@jini-ai/platform/mail").MailStatusReport>;
   /** Provider selection, configuration DTO and cache invalidation for `mail_set_provider`, the provider
    *  tools and `system/mail-providers.ts` (`server/runtime/composition/site-mailer.ts`). Absent: they refuse. */
   mailProviderControl?: import("#src/platform/mail/mail-status").MailProviderControl;

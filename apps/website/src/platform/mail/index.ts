@@ -25,7 +25,8 @@ export {
 
 export type {
   MailStatusReport, MailProviderField, MailProviderSetup, MailProviderConfiguration,
-  MailProviderConfigurationReport, MailProviderControl,
-} from "./mail-status.js";
+  MailProviderConfigurationReport,
+} from "@jini-ai/platform/mail";
+export type { MailProviderControl } from "./mail-status.js";
 export type { MailPurposeGateProbe } from "./purpose-gate-probe.js";
 export { credentialSecrets, safeMailProviderText } from "@jini-ai/platform/mail";
