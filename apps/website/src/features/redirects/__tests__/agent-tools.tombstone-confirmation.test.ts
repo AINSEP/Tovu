@@ -17,7 +17,7 @@ import { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
 import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { createRedirect, updateRedirect } from "@jini-ai/cms/redirects";
 import { buildRedirectsRegistrations, type RedirectsToolDeps } from "../tool-registrations.js";
-import { getRedirectsAgentToolCatalog } from "../agent-tools.js";
+import { getRedirectsAgentToolCatalog } from "@jini-ai/cms/redirects";
 import { toolMetadata } from "#src/contracts/core/tool-metadata/redirects";
 import { isNeverInTrash, removeVia, restoreVia } from "./remove-redirect-double.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
