@@ -90,7 +90,7 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
  * additionally fire. See `account-label-heal-scheduler.ts`'s own header for the fire-and-forget/
  * in-flight-dedupe contract that keeps this off the hot path and safe under `62ca21c7`'s guard.
  *
- * See `CredentialsDeps` in `server/routes/types.ts` for why each route picks only its own repo.
+ * See `CredentialsDeps` in `server/routes/route-deps/credentials-deps.ts` for why each route picks only its own repo.
  */
 export type AdminPublishCredentialsDeps = Pick<
   RouteDeps,

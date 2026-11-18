@@ -1227,13 +1227,6 @@
       "value": 111
     },
     {
-      "file": "apps/website/src/server/routes/types.ts",
-      "function": "<file>",
-      "line": 1630,
-      "rule": "max-lines",
-      "value": 518
-    },
-    {
       "file": "apps/website/src/server/runtime/boot/bootstrap.ts",
       "function": "buildBootModules#1",
       "line": 232,

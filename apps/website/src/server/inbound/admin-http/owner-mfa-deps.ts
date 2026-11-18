@@ -1,5 +1,6 @@
 import { createOtplibTotp, createSealedMfaSecrets, type OwnerMfaDeps } from '@jini-ai/user-management/server';
-import type { ClockDeps, CredentialsDeps, IdentityDeps } from '../../routes/types.js';
+import type { ClockDeps, IdentityDeps } from '../../routes/types.js';
+import type { CredentialsDeps } from '../../routes/route-deps/credentials-deps.js';
 import { identityServiceDepsFrom } from './routes/users/deps.js';
 
 /** Sign-in needs identity only; enrollment/verification also needs the site's existing sealer. */
