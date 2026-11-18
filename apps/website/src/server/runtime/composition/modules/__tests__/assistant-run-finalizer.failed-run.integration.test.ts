@@ -7,6 +7,7 @@ import { createChatRunLedger } from "#src/assistant/persistence/run-ledger";
 import { createChatHistoryStore } from "#src/assistant/persistence/chat-history-store";
 import { EXHAUSTED_NOTICE, RECOVERY_LIMIT } from "@jini-ai/chat/server/durable-runs";
 import { createAssistantRunFinalizer } from "../run-finalizer/entry.js";
+import { createDaemonRuntimePorts } from "../../../../inbound/assistant/daemon-runtime-ports.js";
 
 test("an actual executor failure remains failed through Tovu recovery, chat.db and UI history", { timeout: 10_000 }, async () => {
   const db = openChatDb(":memory:");
@@ -27,7 +28,7 @@ test("an actual executor failure remains failed through Tovu recovery, chat.db a
     // This is the last allowed attempt: exercise the real recovery finalization without retries.
     await kernel.run(db => db.updateTable("assistant_run_attempts").set({ recovery_count: RECOVERY_LIMIT })
       .where("message_id", "=", "answer").execute());
-    const executor = createAgentExecutor({ lifecycle }, { getAgentDef: () => null });
+    const executor = createAgentExecutor({ lifecycle, hostEnv: {}, runtime: createDaemonRuntimePorts({ hostEnv: {} }) }, { getAgentDef: () => null });
     await assert.rejects(executor.run({ runId: run.id, agentId: "missing-fixture-cli", prompt: "Answer me", cwd: process.cwd() }),
       { code: "AGENT_NOT_FOUND" });
     assert.equal((await lifecycle.waitForTerminal({ runId: run.id })).state, "failed");

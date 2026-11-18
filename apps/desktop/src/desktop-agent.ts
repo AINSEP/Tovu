@@ -37,6 +37,9 @@ import type { Principal, ToolDescriptor, ToolRegistration, ToolRegistry } from "
 import type { NativeAgentRuntime } from "@jini-ai/agent-runtime";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, createToolExecutor, type AgentExecutor, type AgentExecutorRunInput, type RunLifecycle } from "@jini-ai/daemon";
 import { registerDelegatedToolRoutes, registerToolCatalogRoutes, type ToolCatalogQuery } from "@jini-ai/daemon/http";
+import type { AgentExecutorRuntimePorts } from "@jini-ai/daemon/ports/runtime";
+import { nodeAtomicWriter, nodeFileLock } from "@jini-ai/platform/runtime-ports/fs";
+import { nodeCommandShell, nodeProcessControl, nodeSpawnPort } from "@jini-ai/platform/runtime-ports/process";
 import { createNodeCredentialCrypto, createRunScopedCredentials, type RunScopedCredentials } from "@jini-ai/daemon/run-credentials";
 import type { TurnAddressee } from "./desktop-agent-tools.ts";
 import { createToolGapCollector, type ToolGapEntry } from "@jini-ai/daemon/tool-audit";
@@ -263,6 +266,16 @@ async function prepareDesktopConnector({ agentId, runtime, allowed }: { agentId:
 }
 
 /**
+ * The Node implementations of the OS-facing ports the daemon's agent executor needs. The daemon has no
+ * default for any of them, so the desktop host states them once, from the env snapshot its runtime owns.
+ * @param required.hostEnv The runtime's env snapshot; only its `ComSpec` is read, for the Windows `.cmd` fallback.
+ * @returns The ports to pass as `runtime`. @complexity O(1).
+ */
+function desktopDaemonRuntimePorts({ hostEnv }: { hostEnv: NodeJS.ProcessEnv }, _optional: Record<string, never> = {}): AgentExecutorRuntimePorts {
+  return { spawn: nodeSpawnPort, processes: nodeProcessControl, fileLock: nodeFileLock, writer: nodeAtomicWriter, commandShell: nodeCommandShell({ env: hostEnv }) };
+}
+
+/**
  * The production executor: Jini's own, with the `jini-mcp` bridge injected per run. Inside Electron
  * `execPath` is the app binary, which boots a GUI unless `ELECTRON_RUN_AS_NODE` is set — and Jini's
  * agent env allowlist strips this process's own copy before the CLI spawns the bridge, so it must
@@ -277,11 +290,10 @@ function defaultAgentExecutor(
   optional: Pick<DesktopAgentRuntimeOptions, "mcpServeScript" | "createAgentExecutor"> = {},
 ): Pick<AgentExecutor, "run"> {
   const runtime = ports.agentRuntime;
-  return (optional.createAgentExecutor ?? createAgentExecutor)({ lifecycle: ports.lifecycle }, {
+  return (optional.createAgentExecutor ?? createAgentExecutor)({ lifecycle: ports.lifecycle, hostEnv: runtime.hostEnv, runtime: desktopDaemonRuntimePorts({ hostEnv: runtime.hostEnv }) }, {
     getAgentDef: runtime.getAgentDef,
     resolveAgentLaunch: runtime.resolveAgentLaunch,
     runtimeState: runtime.state,
-    hostEnv: runtime.hostEnv,
     codexDisablePlugins: runtime.codex.disablePlugins === true,
     piGracefulShutdownMs: runtime.pi.gracefulShutdownMs ?? 5000,
     mcpJsonInjection: {
@@ -298,7 +310,7 @@ function defaultAgentExecutor(
     // Same reason as the site daemon: an isolated CLAUDE_CONFIG_DIR loses the operator's Keychain
     // login on macOS and every run fails "Not logged in". See `agent-daemon-server.ts`'s own note.
     claudeConfigDirIsolationEnabled: false,
-  } as Parameters<typeof createAgentExecutor>[1]);
+  });
 }
 
 /**

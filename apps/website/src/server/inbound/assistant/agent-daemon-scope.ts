@@ -81,6 +81,7 @@ import { traceRunLifecycle } from "./run-lifecycle-tracing.js";
 import { createRoutingToolExecutor, createAgentExecutor, createInMemoryEventLog, createRunLifecycle, prepareMessageAttachments, probeMcpBridge, type MessageAttachmentImage, type UserMessageDelivery } from "@jini-ai/daemon";
 import { formatBridgePreflightLogLine, formatRunEndLogLine, formatRunErrorLogLine } from "./run-log-lines.js";
 import { bridgePreflightEntry } from "./bridge-preflight-entry.js";
+import { createDaemonRuntimePorts } from "./daemon-runtime-ports.js";
 // @jini-ai/agent-runtime owns this seam; @jini-ai/daemon accepts it as an option.
 import type { PromptAugmenter } from "@jini-ai/core/contracts/agents";
 import { createAgentSelectionResolver, createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";
@@ -517,9 +518,8 @@ const bridgeInjection = {
     ];
   },
 };
-const agentExecutor = createAgentExecutor({
-  lifecycle,
-}, {
+const daemonRuntime = createDaemonRuntimePorts({ hostEnv: assistantRuntime.hostEnv });
+const agentExecutor = createAgentExecutor({ lifecycle, runtime: daemonRuntime, hostEnv: assistantRuntime.hostEnv }, {
   // The same registry and launch resolver `assistant/agents.ts` lists the Local CLI picker from.
   // `@jini-ai/daemon` pins its own exact `@jini-ai/agent-runtime`, which an install can nest as an
   // older copy; left to its defaults the executor would look agents up there, so a CLI the picker
@@ -527,7 +527,6 @@ const agentExecutor = createAgentExecutor({
   getAgentDef,
   resolveAgentLaunch,
   runtimeState: assistantRuntime.state,
-  hostEnv: assistantRuntime.hostEnv,
   onCleanupFailure: ({ runId }) => { cleanupFailures.add(runId); console.error('[agent-daemon] CLI cleanup failed'); },
   ...executorDefinitionPolicies({ runtime: assistantRuntime }),
   mcpJsonInjection: bridgeInjection,
@@ -1618,7 +1617,7 @@ registerFrontendRequestRoute({ app, path: "/api/frontend-sessions/request", cont
 
   if (optional.probeBridge) await optional.probeBridge();
   else {
-void probeMcpBridge({ entry: bridgePreflightEntry({ injection: bridgeInjection }) }, {}).then((result) => {
+void probeMcpBridge({ entry: bridgePreflightEntry({ injection: bridgeInjection }), spawn: daemonRuntime.spawn, hostEnv: assistantRuntime.hostEnv }).then((result) => {
   const line = formatBridgePreflightLogLine({ result });
   if (result.ok) console.log(line);
   else console.error(line);

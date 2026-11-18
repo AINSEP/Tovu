@@ -135,12 +135,14 @@ test("desktop executor binds launch, state, environment and policies to the supp
   const runtime = createNativeAgentRuntime({ env: { PATH: "/desktop-only", CODEX_DISABLE_PLUGINS: "1", PI_GRACEFUL_SHUTDOWN_MS: "1234" } });
   t.after(() => runtime.dispose({}));
   let created = 0;
+  let executorRequired: Parameters<typeof createAgentExecutor>[0] | undefined;
   let executorOptions: Parameters<typeof createAgentExecutor>[1];
   const run = async () => {};
   const chat = await createDesktopAgentRuntime({ workDir: dir, buildTools: () => [], agentRuntime: runtime }, {
     mcpServeScript: "/fixture/jini-mcp.js",
-    createAgentExecutor: (_required, options) => {
+    createAgentExecutor: (required, options) => {
       created++;
+      executorRequired = required;
       executorOptions = options;
       return { run };
     },
@@ -149,7 +151,11 @@ test("desktop executor binds launch, state, environment and policies to the supp
   assert.equal(created, 1);
   assert.ok(executorOptions);
   assert.equal(executorOptions.runtimeState, runtime.state);
-  assert.equal(executorOptions.hostEnv, runtime.hostEnv);
+  assert.ok(executorRequired);
+  assert.equal(executorRequired.hostEnv, runtime.hostEnv);
+  // The daemon has no default for any OS-facing port: the desktop host states all five.
+  assert.deepEqual(Object.keys(executorRequired.runtime).sort(), ["commandShell", "fileLock", "processes", "spawn", "writer"]);
+  assert.equal(executorRequired.runtime.commandShell.platform, process.platform);
   assert.equal(executorOptions.getAgentDef, runtime.getAgentDef);
   assert.equal(executorOptions.resolveAgentLaunch, runtime.resolveAgentLaunch);
   assert.equal(executorOptions.codexDisablePlugins, true);

@@ -81,6 +81,7 @@ import { registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/ht
 import { createLocalSameOriginPolicy } from "@jini-ai/core/contracts/server";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
 import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
+import { createDaemonRuntimePorts } from "../../apps/website/src/server/inbound/assistant/daemon-runtime-ports.js";
 import type { PromptAugmenter } from "@jini-ai/core/contracts/agents";
 
 import { createRouteDeps } from "../../apps/website/src/server/runtime/composition/app.js";
@@ -229,7 +230,8 @@ async function main(): Promise<void> {
   const principalByRunId = new Map<string, string>();
   const runCredentials = createRunScopedCredentials({ principalOfLiveRun: ({ runId }) => principalByRunId.get(runId) }, {});
   const agentExecutor = createAgentExecutor(
-    { lifecycle },
+    // A scratch harness that really spawns the claude CLI: it hands the daemon the ambient env it always used.
+    { lifecycle, hostEnv: process.env, runtime: createDaemonRuntimePorts({ hostEnv: process.env }) },
     { mcpJsonInjection: resolveMcpJsonInjection({ daemonUrl: DAEMON_URL, mintRunCredential: (runId) => runCredentials.mint({ runId }, {}) }), promptAugmenter },
   );
 
