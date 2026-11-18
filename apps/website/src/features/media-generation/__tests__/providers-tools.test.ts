@@ -26,6 +26,7 @@ import { SURFACE_EXCHANGE_ID_PARAM } from "@jini-ai/daemon/surface-exchanges";
 import type { ToolExecutor } from '@jini-ai/daemon';
 import { createSystemClock } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
 
 
 const SECRET = 't10-media-secret-unique-731';
@@ -45,7 +46,7 @@ test('t10 media callback delivers a human key only to its parked call, rejects w
     // asyncRoute's wrapper returns before the handler finishes; the restore-on-miss path is async, so await the real handler.
     handler = (callback as unknown as { handler: typeof handler }).handler;
   } } as unknown as Express, {
-    surfaceExchanges: f.surfaces,
+    scheduler: nodeIntervalScheduler, surfaceExchanges: f.surfaces,
     toolExecutor: { execute: async () => assert.fail('human secrets must never enter a fresh tool execution') } as unknown as ToolExecutor,
   });
   async function callback(principal: string, params: Record<string, unknown>) {

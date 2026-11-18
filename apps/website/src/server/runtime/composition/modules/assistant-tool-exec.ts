@@ -3,7 +3,7 @@ import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-error
 /**
  * @file The server end of the agent daemon's tool RPC (ADR-070, memory-savings plan §2.3-§2.4): the
  * daemon keeps the run, this process runs the site tools. `POST /internal/tool-executions` and
- * `GET /internal/tool-catalog` (Jini's `registerToolExecutionRoutes`) sit on the BYOK tool surface's
+ * `GET /internal/tool-catalog` (Jini's `toolExecutionRoutes`) sit on the BYOK tool surface's
  * own executor, so a daemon call is gated, approved, audited and recovered exactly as a BYOK call is.
  *
  * Also here: the daemon-call adapters the BYOK module composes into that surface, each a no-op
@@ -20,7 +20,10 @@ import type { RequestHandler } from "express";
 import type { RememberedApprovalPort, ToolRegistration } from "@jini-ai/core";
 import type { Clock } from "@jini-ai/core/primitives";
 import { MAX_DOCUMENT_BYTES } from "@jini-ai/cms/media";
-import { createRemoteAttachmentLookup, registerToolExecutionRoutes, requireToolExecutionCaller, type AttachmentLookup, type ToolExecutionRouteTarget } from "@jini-ai/daemon/http";
+import { createRemoteAttachmentLookup, toolExecutionRoutes, DEFAULT_TOOL_EXEC_MAX_BODY_BYTES, type AttachmentLookup, type AuthorizeToolRun } from "@jini-ai/daemon/http";
+import { jsonResponse } from "@jini-ai/core/contracts/server";
+import { requireToolExecutionCallerExpress, type InternalRouteTarget } from "./tool-execution-caller-express.js";
+import { daemonRouteHost, mountJiniRoutes } from "../jini-routes.js";
 import type { AdminChartProviderSnapshot } from "#src/contracts/headless/index";
 import type { ByokToolSurface } from "#src/assistant/index";
 import type { DurableRunHead, DurableRunStore } from "@jini-ai/chat/server/durable-runs";
@@ -81,20 +84,21 @@ type ComponentCatalogDeps = {
  * @complexity O(1) setup.
  */
 export function registerAssistantToolExecRoutes({ router, toolSurface, runStore, workspaceId, components, plugins, core }: {
-  router: ToolExecutionRouteTarget; toolSurface: Pick<ByokToolSurface, "daemonCalls">;
+  router: InternalRouteTarget; toolSurface: Pick<ByokToolSurface, "daemonCalls">;
 } & ComponentCatalogDeps, _optional = {}): void {
   if (core) registerAgentDaemonCoreRoutes({ router, deps: core });
   const tokenEnv: NodeJS.ProcessEnv = { get [TOOL_EXEC_TOKEN_ENV_VAR]() { return currentToolExecToken(); } };
-  registerToolExecutionRoutes({ app: router, executor: toolSurface.daemonCalls.executor, listToolsFor: toolSurface.daemonCalls.listToolsFor }, {
+  // The routes read their own body after their caller gate, so no parser sits above the list and the raw stream is handed on.
+  const routes = toolExecutionRoutes({ executor: toolSurface.daemonCalls.executor, listToolsFor: toolSurface.daemonCalls.listToolsFor, env: tokenEnv, host: toolRpcRouteHost() }, {
     tokenEnvVar: TOOL_EXEC_TOKEN_ENV_VAR,
-    env: tokenEnv,
     authorizeRun: requireSiteToolRun({ runStore, workspaceId, plugins }),
     runWithContext: ({ context, fn }) => runWithDaemonCallContext({ context: parseDaemonCallContext({ value: context }), fn }),
   });
+  mountJiniRoutes({ app: router, routes }, { rawBody: true });
   // Same private caller gate as execution; never mounted through browser-auth routes.
-  router.get("/internal/component-catalog", requireToolExecutionCaller({}, { tokenEnvVar: TOOL_EXEC_TOKEN_ENV_VAR, env: tokenEnv }),
+  router.get("/internal/component-catalog", requireToolExecutionCallerExpress({ env: tokenEnv }, { tokenEnvVar: TOOL_EXEC_TOKEN_ENV_VAR }),
     componentCatalogHandler({ runStore, workspaceId, plugins, ...(components ? { components } : {}) }));
-  router.post("/internal/agent-plugin-preflight", requireToolExecutionCaller({}, { tokenEnvVar: TOOL_EXEC_TOKEN_ENV_VAR, env: tokenEnv }),
+  router.post("/internal/agent-plugin-preflight", requireToolExecutionCallerExpress({ env: tokenEnv }, { tokenEnvVar: TOOL_EXEC_TOKEN_ENV_VAR }),
     json({ limit: "1kb" }), agentPluginPreflightHandler({ runStore, workspaceId, plugins }));
 }
 
@@ -216,26 +220,37 @@ export async function findLiveSiteToolRun({ runId, runStore, workspaceId, princi
   return principalId === undefined || run.principalId === principalId ? run : undefined;
 }
 
+/** What a tool-RPC request names: the run and the principal, from the body (an execution) or the query (a catalog read). */
+function namedRun(request: Parameters<AuthorizeToolRun>[0]): { runId: unknown; principalId: unknown; toolAccess?: unknown } {
+  if (request.kind === "catalog") return { runId: request.query.runId, principalId: request.query.principalId };
+  const body = request.body as { run?: { id?: unknown }; principal?: { id?: unknown; toolAccess?: unknown } } | undefined;
+  return { runId: body?.run?.id, principalId: body?.principal?.id, toolAccess: body?.principal?.toolAccess };
+}
+
 /** Binds both RPC routes to this site's current answer attempt. Wire identity and roles confer no
  * authority; only the stored principal is forwarded. A read-only request may still attenuate it.
- * Missing storage fails closed. One indexed lookup per request; O(1) extra space. */
+ * Missing storage fails closed. One indexed lookup per request; O(1) extra space. A storage failure is thrown, so it reaches the host's error path and nothing executes. */
 function requireSiteToolRun({ runStore, workspaceId, plugins }: {
   runStore: Pick<DurableRunStore, "find"> | undefined; workspaceId: string;
   plugins?: PluginPreflightPorts;
-}, _optional = {}): RequestHandler {
-  return (req, res, next) => {
-    const body = req.body as { run?: { id?: unknown }; principal?: { id?: unknown; toolAccess?: unknown } } | undefined;
-    const execution = req.method === "POST";
-    const runId = execution ? body?.run?.id : req.query.runId;
-    const principalId = execution ? body?.principal?.id : req.query.principalId;
-    const refuse = () => { res.status(403).json({ error: { code: "FORBIDDEN", message: "a live site run with its recorded principal is required" } }); };
-    if (!runStore || typeof runId !== "string" || typeof principalId !== "string") { refuse(); return; }
-    void findLiveSiteToolRun({ runStore, runId, workspaceId, principalId, plugins }).then((run) => {
-      if (!run) { refuse(); return; }
-      if (execution) req.body.principal = { id: run.principalId, ...(body?.principal?.toolAccess === "read-only" ? { toolAccess: "read-only" } : {}) };
-      next();
-    }).catch(next);
+}, _optional = {}): AuthorizeToolRun {
+  const refuse = () => ({ allowed: false as const,
+    response: jsonResponse({ status: 403, body: { error: { code: "FORBIDDEN", message: "a live site run with its recorded principal is required" } } }) });
+  return async (request) => {
+    const { runId, principalId, toolAccess } = namedRun(request);
+    if (!runStore || typeof runId !== "string" || typeof principalId !== "string") return refuse();
+    const run = await findLiveSiteToolRun({ runStore, runId, workspaceId, principalId, plugins });
+    if (!run) return refuse();
+    if (request.kind === "catalog") return { allowed: true as const };
+    // The principal replaces whatever the caller wrote; every other field it sent is dropped. Its id is the stored run's own:
+    // `findLiveSiteToolRun` returned the run only because the stored principal equals the one named, so the two cannot differ.
+    return { allowed: true as const, principal: { id: principalId, ...(toolAccess === "read-only" ? { toolAccess: "read-only" as const } : {}) } };
   };
+}
+
+/** The host the tool RPC list is given. These routes are called by a local process, never a browser, so no request counts as same-origin; the list never asks. Its body limit is its own (`maxBodyBytes`), not a parser's. */
+function toolRpcRouteHost() {
+  return daemonRouteHost({ context: { originPolicy: { isSameOrigin: () => false } }, parserLimitBytes: DEFAULT_TOOL_EXEC_MAX_BODY_BYTES });
 }
 
 /** The daemon's attachment store, reached over its lookup route with the daemon token; `undefined` with no token. */

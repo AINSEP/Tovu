@@ -16,6 +16,7 @@ import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-t
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
 
 
 /**
@@ -154,7 +155,7 @@ test("real round trip: an exchange delivery from the SAME principal that opened 
 
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
+  registerMcpUiToolCallsRoute(app, { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
@@ -200,7 +201,7 @@ test("SECURITY: a delivery from a DIFFERENT principal than the one that opened t
   // this is what it would look like).
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
+  registerMcpUiToolCallsRoute(app, { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
@@ -238,7 +239,7 @@ test("a delivery cannot be replayed through this route — the exchange's single
 
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
+  registerMcpUiToolCallsRoute(app, { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges });
   const baseUrl = await startTestServer(app, t);
 
   const deliverOnce = () =>

@@ -10,8 +10,9 @@ import express from "express";
 import ts from "typescript";
 
 import { createInMemoryEventLog, createRunLifecycle, type RunLifecycle } from "@jini-ai/daemon";
-import { registerRunRoutes, type RunStartHandler } from "@jini-ai/daemon/http";
+import { runRoutes, type RunStartHandler } from "@jini-ai/daemon/http";
 import { createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
+import { daemonRouteHost, mountJiniRoutes } from "../../server/runtime/composition/jini-routes.js";
 
 import {
   createOwnedRunListHandler,
@@ -26,7 +27,7 @@ import {
  * (`assistant/run-ownership.ts`).
  *
  * The app under test mounts the ownership middleware and the owner-scoped list handler ahead of
- * the REAL `@jini-ai/http-kit` `registerRunRoutes`, against a REAL `RunLifecycle` — the same
+ * the REAL `@jini-ai/daemon` `runRoutes`, against a REAL `RunLifecycle` — the same
  * composition `agent-daemon-server.ts` performs. That matters for more than realism: the central
  * claim of the 404-over-403 decision is that a non-owner's refusal is indistinguishable from a
  * genuinely unknown run, and only a test that provokes both responses from the same server can
@@ -78,7 +79,8 @@ async function bootDaemonRoutes(): Promise<Harness> {
     // Same origin-config env names `agent-daemon-server.ts` passes; an empty `env` keeps the guard
     // hermetic (no ambient JINI_* var can widen or narrow what counts as same-origin here).
     config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
-  registerRunRoutes({ app, deps: { lifecycle, onStarted: recordOwnerOnStart }, adapter });
+  // 100 KiB: the default limit of the `express.json()` parser above.
+  mountJiniRoutes({ app, routes: runRoutes({ deps: { lifecycle, onStarted: recordOwnerOnStart }, host: daemonRouteHost({ context: adapter, parserLimitBytes: 100 * 1024 }) }) });
 
   const server: Server = createServer(app);
   server.listen(0, "127.0.0.1");
@@ -338,8 +340,13 @@ test("the production daemon mounts ownership before run routes and records the d
   const gate = statements.indexOf('app.use(requireAgentDaemonToken({ env: authEnv, runScopedCallers: runCredentials }, {}));');
   const ownership = statements.indexOf('app.use("/api/runs/:runId", requireRunOwnership({ registry: runOwners, lifecycle: lifecycle }, {}));');
   const list = statements.indexOf('app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners }, {}));');
-  const routes = daemonStatements.findIndex(node => ts.isExpressionStatement(node) && ts.isCallExpression(node.expression)
-    && ts.isIdentifier(node.expression.expression) && node.expression.expression.text === "registerRunRoutes");
+  // The run routes are a list handed to `mountJiniRoutes`: the statement is `mountJiniRoutes({ app, routes: runRoutes({ ... }) })`.
+  const mountsRunRoutes = (node: ts.Statement): boolean => ts.isExpressionStatement(node) && ts.isCallExpression(node.expression)
+    && ts.isIdentifier(node.expression.expression) && node.expression.expression.text === "mountJiniRoutes"
+    && node.expression.arguments.some((argument) => ts.isObjectLiteralExpression(argument) && argument.properties.some((property) =>
+      ts.isPropertyAssignment(property) && ts.isIdentifier(property.name) && property.name.text === "routes"
+      && ts.isCallExpression(property.initializer) && ts.isIdentifier(property.initializer.expression) && property.initializer.expression.text === "runRoutes"));
+  const routes = daemonStatements.findIndex(mountsRunRoutes);
   assert.ok(gate >= 0 && ownership > gate && list > gate && routes > ownership && routes > list,
     "both owner gates must execute after authentication and before the unscoped http-kit routes");
 

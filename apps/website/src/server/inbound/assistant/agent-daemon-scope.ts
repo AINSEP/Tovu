@@ -82,10 +82,10 @@ import { bridgePreflightEntry } from "./bridge-preflight-entry.js";
 import type { PromptAugmenter } from "@jini-ai/core/contracts/agents";
 import { createAgentSelectionResolver, createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";
 import { executorDefinitionPolicies } from "./executor-definition-policies.js";
-import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, registerFrontendRequestRoute, registerAgentRoutes, registerAttachmentRoutes, registerComponentCatalogRoutes, registerDelegatedToolRoutes, registerMessageRelayRoutes, registerRunRoutes, toolCatalogRoutes } from "@jini-ai/daemon/http";
+import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, frontendRequestRoutes, agentRoutes, attachmentCleanupRoutes, attachmentUploadRoutes, componentCatalogRoutes, delegatedToolRoutes, messageRelayRoutes, runRoutes, toolCatalogRoutes } from "@jini-ai/daemon/http";
 import { adminFrontendOwner, adminFrontendRunOwner } from "#src/assistant/admin-frontend-owner";
 import { bearerTokenFromHeader, createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
-import type { AttachmentStore, DelegatedToolExecuteRequest, RunMessageRequest, RunStartHandler, StoredAttachment } from "@jini-ai/daemon/http";
+import type { AttachmentStore, AttachmentsHttpDeps, DelegatedToolExecuteRequest, RunMessageRequest, RunStartHandler, StoredAttachment } from "@jini-ai/daemon/http";
 
 /** The `run`/`lifecycle` shape `RunStartHandler` receives — derived rather than imported directly
  *  from `@jini-ai/daemon`/`@jini-ai/protocol` so this file adds no new package-import edge just to
@@ -114,7 +114,7 @@ import {
 } from "./assistant-system-overlay.js";
 import { buildAssistantRuntimeGuidance, createAssistantChromeProbe, resolveAssistantRuntimeLaunch, type AssistantRuntimeGuidanceInput } from "./assistant-runtime-guidance.js";
 import { getCustomFsRoot } from "../../../features/fs-files/custom-root-store.js";
-import { createAgentDaemonCoreDeps, type AgentDaemonCoreOptions, type AgentDaemonResource } from "../../runtime/composition/agent-daemon-core-deps.js"; import { daemonRouteHost, mountJiniRoutes } from "../../runtime/composition/jini-routes.js";
+import { createAgentDaemonCoreDeps, type AgentDaemonCoreOptions, type AgentDaemonResource } from "../../runtime/composition/agent-daemon-core-deps.js"; import { daemonRouteHost, mountJiniRoutes, nodeIntervalScheduler, nodeSessionTimer } from "../../runtime/composition/jini-routes.js";
 import { resolveAgentPermissionMode } from "#src/contracts/core/agent-permission-mode";
 import { applyToolApprovalPolicy } from "#src/assistant/tool-approval-policy";
 import { pageApprovalOptions } from "#src/assistant/page-approval-context";
@@ -357,7 +357,8 @@ const lostFrontendBindings = createLostFrontendBindings();
  */
 const frontendControl = createFrontendControl({
   capabilities: FRONTEND_CONTROL_CAPABILITIES,
-  session: { resolveOwner: async ({ req }) => adminFrontendOwner({ req, workspaceId: routeDeps.workspaceId }) },
+  setTimer: nodeSessionTimer,
+  session: { resolveOwner: async (input) => adminFrontendOwner({ ...input, workspaceId: routeDeps.workspaceId }) },
   resolveBindOwner: ({ request }) => adminFrontendRunOwner({ contextRef: request.contextRef, workspaceId: routeDeps.workspaceId }),
   /**
    * Which tab this run may drive. Tovu's own `contextRef` envelope carries it, put there by the
@@ -1386,7 +1387,7 @@ app.post("/api/runs/:runId/messages/claim", createDaemonAuthMiddleware({
       body: { error: { code: "UNAUTHENTICATED", message: "a live run credential is required" } } };
   },
 }), express.json({ limit: "1kb" })); // The only valid body is `{ via }`.
-registerMessageRelayRoutes({ app, agentExecutor, runScopedCallers: runCredentials });
+mountJiniRoutes({ app, routes: messageRelayRoutes({ agentExecutor, runScopedCallers: runCredentials }) });
 
 // Before every other route's `express.json()` — an unauthenticated caller's body is never parsed. See this
 // file's module doc and `apps/website/src/assistant/daemon-access.ts` for the fail-closed contract. No exemptions: the spawned
@@ -1439,7 +1440,7 @@ const adapter: RouteHostContext = { originPolicy: createLocalSameOriginPolicy({ 
 // Per-run authorization, mounted between the bearer gate and the run routes it protects. The gate
 // above proves the caller is Tovu's proxy; these two prove *which admin* the proxy is speaking for,
 // which is the question neither the gate nor the proxy's own session check can answer. Both must
-// precede `registerRunRoutes`: the middleware so it runs first, and the list handler so it shadows
+// precede `runRoutes`: the middleware so it runs first, and the list handler so it shadows
 // http-kit's unscoped `runListRoute` under Express's first-match-wins routing. See
 // `Jini packages/daemon/src/run-credentials.ts` for the ownership model and the 404-not-403 rationale.
 app.use("/api/runs/:runId", requireRunOwnership({ registry: runOwners, lifecycle: lifecycle }, {}));
@@ -1465,15 +1466,15 @@ async function deliverRunUserMessage(
   return agentExecutor.sendUserMessage({ runId, text, id, attachmentIds }, { imageContents: prepared.images });
 }
 
-registerRunRoutes({ app, deps: { lifecycle, onStarted,
+mountJiniRoutes({ app, routes: runRoutes({ deps: { lifecycle, onStarted,
   deliverUserMessage: (input) => agentExecutor.sendUserMessage(input),
   deliverUserMessageWithAttachments: (input) => deliverRunUserMessage(input, {}),
-}, adapter });
+}, host: routeHost }) });
 // `rescanAgents` wired explicitly (not left to fall back to `listAgents`, `@jini-ai/http-kit`'s own
 // default): `listAssistantAgents` is now cached (see `agents.ts`'s module doc — this file's own
 // gap was the fallback silently serving the same stale cache `POST /api/agents/rescan` exists to
 // bypass). `rescanAssistantAgents` is the one path that actually forces a fresh PATH probe.
-registerAgentRoutes({ app, deps: { listAgents: assistantInventory.listAssistantAgents, rescanAgents: assistantInventory.rescanAssistantAgents }, adapter });
+mountJiniRoutes({ app, routes: agentRoutes({ deps: { listAgents: assistantInventory.listAssistantAgents, rescanAgents: assistantInventory.rescanAssistantAgents }, host: routeHost }) });
 // `GET /api/active` — the one route `jini-mcp` calls (`get_active_context`) that this daemon never
 // served, so it answered 404. Behind the bearer gate above like every route but the delegated one.
 registerRunActiveContextRoute(app, runActiveContexts);
@@ -1516,7 +1517,7 @@ registerDurableToolGuard({ app, ledger: routeDeps.chatRunLedger,
     return durableMessageIdsByRunId.get(runId) ?? null;
   },
 }, {});
-registerDelegatedToolRoutes({ app, deps: delegatedToolRouteDeps, adapter });
+mountJiniRoutes({ app, routes: delegatedToolRoutes({ deps: delegatedToolRouteDeps, host: routeHost }) });
 // The MCP-UI callback endpoint. Two shapes reach it: an exchange delivery, where a form's OR
 // content_post_delete's answer resolves an agent tool call still waiting on it (ADR-055 Decision 1
 // for forms, Decision 2 for the destructive delete), and the legacy confirmation redemption shape
@@ -1528,7 +1529,7 @@ registerDelegatedToolRoutes({ app, deps: delegatedToolRouteDeps, adapter });
 // `mcp-ui-tool-calls-route.ts` for why this must live in THIS process (it is the one holding the
 // `ToolExecutor`/`SurfaceExchangeStore` an exchange delivery actually needs) and
 // `apps/website/src/server/runtime/composition/modules/assistant.ts` for the proxy half.
-registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
+registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges, scheduler: nodeIntervalScheduler });
 // A2UI's own inbound channel (ADR-055 Decision 1, generalized) — a rendered surface's `action`/
 // `functionResponse`/`error` re-entering the process that holds the exchange it answers. Unlike
 // the MCP-UI route above, this never touches `toolExecutor` at all (there is no tool-call shape to
@@ -1542,13 +1543,13 @@ registerA2uiActionsRoute(app, { surfaceExchanges });
 // subprocess that holds no token), these two are reached by the browser through Tovu's own
 // session-authenticated proxy, which attaches the bearer like every other forwarded route. See
 // `apps/website/src/server/runtime/composition/modules/assistant.ts`.
-frontendControl.httpExtension({ app, context: { adapter } });
+mountJiniRoutes({ app, routes: frontendControl.routes({ host: routeHost }) });
 // Runless WebMCP uses the same policy/exchange/audit stack as a daemon run. The proxy supplies
 // the authenticated principal; the bind token and tab id constrain the effect to its own screen.
-registerFrontendRequestRoute({ app, path: "/api/frontend-sessions/request", control: frontendControl,
+mountJiniRoutes({ app, routes: frontendRequestRoutes({ path: "/api/frontend-sessions/request", control: frontendControl, host: routeHost,
   executor: toolExecutor, capabilityIds: FRONTEND_CONTROL_CAPABILITIES.filter(entry => entry.id.startsWith("page.")).map(entry => entry.id),
-  resolveOwner: async ({ req }) => adminFrontendOwner({ req, workspaceId: routeDeps.workspaceId }),
-});
+  resolveOwner: async (input) => adminFrontendOwner({ ...input, workspaceId: routeDeps.workspaceId }),
+}) });
 
   // Discovery is scoped by each run's credential; the server refreshes its own plugin/settings
   // state before returning descriptors. The native FTS owner is released with the final run.
@@ -1562,7 +1563,7 @@ registerFrontendRequestRoute({ app, path: "/api/frontend-sessions/request", cont
       res.status(503).json({ error: "component catalog is unavailable", code: "COMPONENT_CATALOG_UNAVAILABLE" });
     });
   });
-  registerComponentCatalogRoutes({ app, deps: { catalog: siteTools.components }, adapter });
+  mountJiniRoutes({ app, routes: componentCatalogRoutes({ deps: { catalog: siteTools.components }, host: routeHost }) });
 
   // `createDiskAttachmentStore` is async (it reconciles `uploadDirectory` against the previous
   // process on construction — see its own doc), so it cannot be a module-scope `const` the way
@@ -1592,30 +1593,29 @@ registerFrontendRequestRoute({ app, path: "/api/frontend-sessions/request", cont
   });
   // Server-side attachment tools consult the sole live owner, including uploads made after boot.
   // The adapter adds its own full-daemon-token gate; run credentials cannot access this route.
-  registerDaemonAttachmentLookup({ app, store: attachmentStore }, { env: authEnv });
+  registerDaemonAttachmentLookup({ app, store: attachmentStore, host: routeHost, mountRoutes: ({ routes }) => mountJiniRoutes({ app, routes }) }, { env: authEnv });
   // Registered ahead of `express.json()` in spirit (see `attachments.ts`'s own "mount before any
   // global body parser" note) even though call order here is necessarily after it (`express.json()`
   // is synchronous module-scope code above; this file's own body-parser-skip behavior for a
   // non-JSON `content-type` is what actually protects the upload route — see
   // `apps/website/src/server/runtime/composition/modules/assistant.ts#forwardAttachmentUpload`'s doc for the full trace of why an
   // `application/octet-stream` POST survives `express.json()` regardless of registration order).
-  registerAttachmentRoutes({ app, deps: {
-      store: attachmentStore,
+  const attachmentDeps: AttachmentsHttpDeps = { store: attachmentStore,
       acquireActivity: () => idlePark.hold({}, {}),
       // The trusted-downstream-of-the-bearer-gate header `forwardAttachmentUpload`
       // (`server/runtime/composition/modules/assistant.ts`) now stamps from the uploading admin's
       // OWN session — see that function's doc. This is what `chat_list_pending_attachments`
       // (`list-pending-chat-attachments.ts`) scopes its listing by.
-      resolveOwnerId: ({ req }) => req.get(RUN_PRINCIPAL_HEADER) ?? undefined,
+      resolveOwnerId: ({ request }) => request.headers.get(RUN_PRINCIPAL_HEADER) ?? undefined,
       // Without this, `@jini-ai/http-kit`'s own default (20 MB) silently undercuts
       // `TOVU_MAX_UPLOAD_BYTES` for the one media path that reaches it (a chat attachment promoted
       // to the library, `promote-chat-attachment.ts`) — this route's hard, streaming-enforced byte
       // cap, not just the client's own pre-check (`AssistantDock.hooks.tsx`'s
       // `useAttachmentUploader`, which must independently match this so a rejection surfaces before
       // the bytes are ever sent, not just after).
-      maxAttachmentBytes: TOVU_MAX_UPLOAD_BYTES,
-    }, adapter });
-
+      maxAttachmentBytes: TOVU_MAX_UPLOAD_BYTES };
+  mountJiniRoutes({ app, routes: attachmentUploadRoutes({ deps: attachmentDeps, host: routeHost }) }, { rawBody: true });
+  mountJiniRoutes({ app, routes: attachmentCleanupRoutes({ deps: attachmentDeps, host: routeHost }) });
 
   if (optional.probeBridge) await optional.probeBridge();
   else {

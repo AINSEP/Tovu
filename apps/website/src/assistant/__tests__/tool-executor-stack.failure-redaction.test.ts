@@ -22,6 +22,7 @@ import { isRedactedToolFailure, readToolErrorId, TOOL_ERROR_ID_PATTERN, type Too
 import { issueToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
 
 
 /**
@@ -204,7 +205,7 @@ test("MCP-UI ROUTE: a redeemable tool's internal failure is redacted and ID-tagg
 
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { toolExecutor, surfaceExchanges });
+  registerMcpUiToolCallsRoute(app, { scheduler: nodeIntervalScheduler, toolExecutor, surfaceExchanges });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {

@@ -31,7 +31,7 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
  * 2. `Last-Event-ID` is forwarded. The daemon's SSE route (`@jini-ai/http-kit`'s
  *    `requestedAfterCursor`) resumes from that header; dropping it made a browser tab's automatic
  *    `EventSource` reconnect replay the whole run and duplicate every chat message.
- * 3. `GET /api/runs` (list runs) is proxied at all — `registerRunRoutes` mounts it on the daemon,
+ * 3. `GET /api/runs` (list runs) is proxied at all — `runRoutes` lists it on the daemon,
  *    but Tovu's proxy never forwarded it, so it 404'd at Tovu's own router.
  * 4. every forwarded request names the session-verified principal in `RUN_PRINCIPAL_HEADER`, and
  *    names it from `res.locals` rather than from anything inbound. That header is the only thing

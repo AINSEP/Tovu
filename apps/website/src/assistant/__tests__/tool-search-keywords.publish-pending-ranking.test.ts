@@ -32,7 +32,7 @@ const TOP_N = 3;
 
 async function buildCatalog() {
   const { registry } = await realToolCatalog();
-  const frontendControl = createFrontendControl({ capabilities: FRONTEND_CONTROL_CAPABILITIES, resolveBindToken: () => undefined });
+  const frontendControl = createFrontendControl({ capabilities: FRONTEND_CONTROL_CAPABILITIES, setTimer: () => ({ cancel: () => undefined }), resolveBindToken: () => undefined });
   for (const registration of frontendControl.toolRegistrations) registry.register(registration);
   return buildToolCatalogQuery(registry);
 }

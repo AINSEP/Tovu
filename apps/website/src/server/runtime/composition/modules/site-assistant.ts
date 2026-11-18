@@ -1,5 +1,7 @@
 import { createVisitorPageTargets } from '../visitor-page-targets.js';
 import { createVisitorFrontendControl } from '#src/assistant/site/visitor-frontend-control';
+import { daemonRouteHost, mountJiniRoutes, nodeSessionTimer } from '../jini-routes.js';
+import { PUBLIC_JSON_BODY_LIMIT_BYTES } from '#src/server/inbound/shared/json-body-parsers';
 import type { CommittedToolAttemptAuditSink } from "../tool-use-events.js";
 import { visitorAnalyticsProvenance } from "#src/server/inbound/public-http/visitor-analytics";
 import { VISITOR_TOOL_REFUSAL } from "#src/assistant/site/visitor-executor";
@@ -587,11 +589,6 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
       idGenerator: { newId: () => randomBytes(16).toString("base64url") }, defaultChannel: "visitor-tool-confirmation" },
     { idleTtlMs: VISITOR_CONFIRMATION_WAIT_MS, maxLifetimeMs: VISITOR_CONFIRMATION_WAIT_MS }) });
   const pageTargets = createVisitorPageTargets({ deps });
-  const frontend = createVisitorFrontendControl({ workspaceId: deps.workspaceId, clock: deps.clock,
-    enabled: async () => env.TOVU_VISITOR_TOOLS_POLICY !== 'off' && await isPublicAssistantEnabled(
-      { settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
-    canonicalOrigin: () => deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId }),
-  });
   const confirmLimiter = createRateLimiter({ clock: deps.clock, profile: { max: 60, windowSeconds: 60, burst: 0 } });
   const resolution = resolveSiteAssistantMode(env);
   // MOVE: Process-lifetime budgets survive individual chat requests; no timers or workers are started.
@@ -606,6 +603,12 @@ export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantError
       const incident = siteAssistantIncident({ entry });
       if (incident) deps.tracker.error({ error: incident }, { context: { operation: "site_assistant.chat", attributes: { code: entry.code, errorId: entry.errorId } } });
     },
+  });
+
+  const frontend = createVisitorFrontendControl({ workspaceId: deps.workspaceId, clock: deps.clock, ports: { mountRoutes: mountJiniRoutes, routeHost: daemonRouteHost, parserLimitBytes: PUBLIC_JSON_BODY_LIMIT_BYTES, setTimer: nodeSessionTimer },
+    enabled: async () => env.TOVU_VISITOR_TOOLS_POLICY !== 'off' && await isPublicAssistantEnabled(
+      { settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
+    canonicalOrigin: () => deps.originRegistry.canonicalOrigin({ workspaceId: deps.workspaceId }), reportError: ({ error }) => { reporter({ code: "visitor_frontend_control", diagnostic: error }); },
   });
 
   return {

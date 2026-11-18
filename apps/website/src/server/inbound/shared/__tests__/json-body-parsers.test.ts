@@ -2,6 +2,7 @@ import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Readable } from "node:stream";
+import express from "express";
 import type { Request, Response } from "express";
 
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
@@ -13,6 +14,8 @@ import {
   AUTHENTICATED_JSON_BODY_LIMIT,
   parseAuthenticatedJsonBody,
   parsePublicJsonBody,
+  PUBLIC_JSON_BODY_LIMIT,
+  PUBLIC_JSON_BODY_LIMIT_BYTES,
   respondToOversizedBody,
 } from "../json-body-parsers.js";
 
@@ -188,4 +191,15 @@ test("telemetry's first authenticated parser limits decoded streamed bytes to 16
   const { req, error } = await parseBody("/api/admin/v1/telemetry", exact);
   assert.equal(error, undefined);
   assert.deepEqual(req.body, { type: "pageview", route: "/admin" });
+});
+
+// `parserLimitBytes` handed to a Jini route list (the visitor frontend-session mount) is this byte count; the parser itself is configured with the string.
+test("PUBLIC_JSON_BODY_LIMIT_BYTES is the size the public parser accepts: that many bytes pass, one more is refused", async (t) => {
+  const app = express();
+  app.use(express.json({ limit: PUBLIC_JSON_BODY_LIMIT }));
+  app.post("/probe", (_req, res) => { res.json({ ok: true }); });
+  const baseUrl = await startTestServer(app, t);
+  const send = (bytes: number) => fetch(`${baseUrl}/probe`, { method: "POST", headers: { "content-type": "application/json" }, body: jsonOfSize(bytes) });
+  assert.equal((await send(PUBLIC_JSON_BODY_LIMIT_BYTES)).status, 200);
+  assert.equal((await send(PUBLIC_JSON_BODY_LIMIT_BYTES + 1)).status, 413);
 });

@@ -12,8 +12,9 @@ import type { NextFunction, Request, Response } from "express";
 
 import { createToolRegistry } from "@jini-ai/core";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor, type RunLifecycle } from "@jini-ai/daemon";
-import { delegatedToolExecuteRoute, registerRunRoutes, runCancelRoute, runStatusRoute, type RunStartHandler } from "@jini-ai/daemon/http";
+import { delegatedToolExecuteRoute, runRoutes, runCancelRoute, runStatusRoute, type RunStartHandler } from "@jini-ai/daemon/http";
 import { createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
+import { daemonRouteHost, mountJiniRoutes } from "../../server/runtime/composition/jini-routes.js";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR, DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "../daemon-access.js";
 import {
@@ -85,7 +86,8 @@ async function bootDaemon(): Promise<Harness> {
     // Same origin-config env names `agent-daemon-server.ts` passes; an empty `env` keeps the guard
     // hermetic (no ambient JINI_* var can widen or narrow what counts as same-origin here).
     config: { allowedOriginsEnvVar: "JINI_ALLOWED_ORIGINS", webPortEnvVar: "JINI_WEB_PORT", bindHostEnvVar: "JINI_BIND_HOST" } }) };
-  registerRunRoutes({ app, deps: { lifecycle, onStarted: recordOwnerOnStart }, adapter });
+  // 100 KiB: the default limit of the `express.json()` parser above.
+  mountJiniRoutes({ app, routes: runRoutes({ deps: { lifecycle, onStarted: recordOwnerOnStart }, host: daemonRouteHost({ context: adapter, parserLimitBytes: 100 * 1024 }) }) });
 
   const server: Server = createServer(app);
   server.listen(0, "127.0.0.1");
@@ -583,7 +585,7 @@ test("SCOPE: production closes the exemption and binds delegated runId after par
   const auth = statements.indexOf("app.use(requireAgentDaemonToken({ env: authEnv, runScopedCallers: runCredentials }, {}));");
   const json = statements.indexOf('app.use(express.json({ limit: "6mb" }));');
   const binding = statements.indexOf("app.post(DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken({ env: authEnv, runScopedCallers: runCredentials, validateDelegatedRunId: true }, {}));");
-  const route = statements.indexOf("registerDelegatedToolRoutes({ app, deps: delegatedToolRouteDeps, adapter });");
+  const route = statements.indexOf("mountJiniRoutes({ app, routes: delegatedToolRoutes({ deps: delegatedToolRouteDeps, host: routeHost }) });");
   assert.notEqual(auth, -1, "production must authenticate delegated callers without exemptPaths");
   assert.equal(auth < json && json < binding && binding < route, true,
     "delegated run binding must execute after JSON parsing and before the real delegated route");

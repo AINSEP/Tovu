@@ -7,7 +7,7 @@ import { buildToolCatalogQuery } from "../tool-catalog-query.js";
 
 test("admin actions discover page tools before the fallback; explicit links discover the link tool", async () => {
   const { registry } = await realToolCatalog();
-  const frontend = createFrontendControl({ capabilities: FRONTEND_CONTROL_CAPABILITIES, resolveBindToken: () => undefined });
+  const frontend = createFrontendControl({ capabilities: FRONTEND_CONTROL_CAPABILITIES, setTimer: () => ({ cancel: () => undefined }), resolveBindToken: () => undefined });
   for (const tool of withReadOnlyFrontendCapabilities(frontend.toolRegistrations)) registry.register(tool);
   const catalog = buildToolCatalogQuery(registry);
   for (const query of ["open", "bring up", "show me", "go to", "read this screen", "inspect this screen", "can you bring up the agentic plugin for ui ux design", "no can you open it for me"]) {

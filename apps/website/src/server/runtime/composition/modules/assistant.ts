@@ -2,7 +2,9 @@ import { assistantDaemonToken } from "../../lifecycle/assistant-daemon-connectio
 import { redactSecrets } from '@jini-ai/core';
 import { maskLocalPaths } from '@jini-ai/diagnostics';
 import { redactAdminRunContextRef } from "#src/assistant/credential-chat-intake";
-import { tryRestoreSurface } from '@jini-ai/daemon/http';
+import { restoreSurface } from '@jini-ai/daemon/http';
+import { answerSurface } from '#src/assistant/surface-answer';
+import { nodeIntervalScheduler } from '../jini-routes.js';
 /**
  * @file ADR-049 (process-shape correction) — Tovu never spawns a coding-agent CLI itself. This
  * module is a thin, session-authenticated reverse proxy in front of the standalone agent daemon
@@ -511,9 +513,12 @@ async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchan
   const target = localMcpUiTarget({ exchangeId, params, toolName, res, byokSurfaceExchanges });
   const restoreOnly = (req.body as { restore?: unknown } | undefined)?.restore === true;
   if (!restoreOnly && tryLocalMcpUiDelivery({ res, byokSurfaceExchanges, exchangeId: target, params, toolName })) return;
-  if (typeof target === 'string' && await tryRestoreSurface({
-    res, store: byokSurfaceExchanges, exchangeId: target, principalId: getAuthedPrincipal(res).id, toolId: toolName,
-  }, restoreOnly ? {} : { params })) return;
+  if (typeof target === 'string' && await answerSurface({ res, produce: async ({ signal }) => {
+    const restored = await restoreSurface({
+      store: byokSurfaceExchanges, exchangeId: target, principalId: getAuthedPrincipal(res).id, toolId: toolName, scheduler: nodeIntervalScheduler, signal,
+    }, restoreOnly ? {} : { params });
+    return restored.handled ? restored.response : undefined;
+  } })) return;
 
   // `forwardToAgentDaemon` deliberately does NOT relay (see its doc comment) — each caller relays
   // for itself. Without the relay in `proxyPassthrough` this route fetches the daemon's answer and
@@ -603,7 +608,7 @@ function mountRunRoutes(required: AssistantMountContext, _optional = {}): void {
       next(error);
     });
   });
-  // `@jini-ai/http-kit`'s `registerRunRoutes` mounts `GET /api/runs` (list runs, optionally
+  // `@jini-ai/daemon`'s `runRoutes` lists `GET /api/runs` (list runs, optionally
   // filtered by `?contextRef=`) on the daemon alongside the `:runId` routes. It was missing
   // here, so the daemon's list endpoint was unreachable and 404'd at Tovu's own router.
   // Registered ahead of `GET /api/runs/:runId` to keep the exact-path match unambiguous.

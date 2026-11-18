@@ -752,7 +752,7 @@ test("deployment_get_static_publish_capabilities actually executes through the R
 
 /**
  * The bug this pins: `search_components`/`describe_component` were real `@jini-ai/mcp` top-level
- * tools for the spawned-CLI path (`registerComponentCatalogRoutes` in `agent-daemon-server.ts`), but
+ * tools for the spawned-CLI path (`componentCatalogRoutes` in `agent-daemon-server.ts`), but
  * `byok-tool-surface.ts` publishes only 3 meta-tools and resolves every other tool by an id through
  * `execute_delegated_tool` against the SAME `ToolRegistry` `buildRealAssembledSurface()` builds
  * below. Before `component-catalog-tool.ts` existed, neither id was registered there, so a BYOK turn

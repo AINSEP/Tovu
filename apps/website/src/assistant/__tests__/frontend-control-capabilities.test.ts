@@ -135,7 +135,7 @@ test("admin.capture_screenshot is registered, read-only, session-scoped, and sta
 test("createFrontendControl registers exactly the seven chat.* verbs as callable tools, plus page.*, and no confirming tool", () => {
   const frontendControl = createFrontendControl({
     capabilities: FRONTEND_CONTROL_CAPABILITIES,
-    resolveBindToken: () => undefined,
+    setTimer: () => ({ cancel: () => undefined }), resolveBindToken: () => undefined,
   });
 
   const ids = frontendControl.toolRegistrations.map((registration) => registration.descriptor.id);
@@ -170,7 +170,7 @@ test("createFrontendControl registers exactly the seven chat.* verbs as callable
 test("only page.find_elements, admin.capture_screenshot and chat.get_state are registered read-only", () => {
   const frontendControl = createFrontendControl({
     capabilities: FRONTEND_CONTROL_CAPABILITIES,
-    resolveBindToken: () => undefined,
+    setTimer: () => ({ cancel: () => undefined }), resolveBindToken: () => undefined,
   });
   const readOnlyIds = withReadOnlyFrontendCapabilities(frontendControl.toolRegistrations)
     .filter((registration) => isReadOnlyTool({ descriptor: registration.descriptor }))
@@ -182,7 +182,7 @@ test("only page.find_elements, admin.capture_screenshot and chat.get_state are r
 test("marking read-only projects domain metadata and keeps each registration's handler and policy", () => {
   const frontendControl = createFrontendControl({
     capabilities: FRONTEND_CONTROL_CAPABILITIES,
-    resolveBindToken: () => undefined,
+    setTimer: () => ({ cancel: () => undefined }), resolveBindToken: () => undefined,
   });
   const marked = withReadOnlyFrontendCapabilities(frontendControl.toolRegistrations);
   assert.equal(marked.length, frontendControl.toolRegistrations.length);
@@ -198,7 +198,7 @@ test("marking read-only projects domain metadata and keeps each registration's h
 
 
 test("chat.get_state is read-only while chat.send_message is not", () => {
-  const control = createFrontendControl({ capabilities: FRONTEND_CONTROL_CAPABILITIES, resolveBindToken: () => undefined });
+  const control = createFrontendControl({ capabilities: FRONTEND_CONTROL_CAPABILITIES, setTimer: () => ({ cancel: () => undefined }), resolveBindToken: () => undefined });
   const registrations = withReadOnlyFrontendCapabilities(control.toolRegistrations);
   assert.equal(registrations.find((r) => r.descriptor.id === "chat.get_state")?.descriptor.readOnly, true);
   assert.equal(registrations.find((r) => r.descriptor.id === "chat.send_message")?.descriptor.readOnly, undefined);

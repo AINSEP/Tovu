@@ -99,7 +99,7 @@ import { createAssistantServerFederation } from "./assistant-server-federation.j
 import { desktopMcpRuntime } from "#src/assistant/desktop-mcp-runtime";
 import { registerDesktopMcpHandoff } from "./desktop-mcp-handoff.js";
 import { readDaemonCallContext } from "#src/assistant/daemon-call-context";
-import type { ToolExecutionRouteTarget } from "@jini-ai/daemon/http";
+import type { InternalRouteTarget } from "./tool-execution-caller-express.js";
 import type { AttachmentLookup } from "@jini-ai/daemon/http";
 
 export const BYOK_TURN_PATH = "/api/admin/v1/assistant/byok-turn";
@@ -363,9 +363,9 @@ async function resolveByokSystemPrompt(
 export interface AssistantByokModuleHandle extends ServerModuleHandle {
   readonly toolSurface: ByokToolSurface;
   /** Mounts the agent daemon's tool RPC over `toolSurface` (`assistant-tool-exec.ts`). */
-  readonly registerToolExecRoutes: (required: { readonly router: ToolExecutionRouteTarget }) => void;
+  readonly registerToolExecRoutes: (required: { readonly router: InternalRouteTarget }) => void;
   /** Serving owner only: export/preview compositions must never replace its listener or reader. */
-  readonly activateServerFederation: (required: { readonly router: ToolExecutionRouteTarget }, optional?: Record<string, never>) => void;
+  readonly activateServerFederation: (required: { readonly router: InternalRouteTarget }, optional?: Record<string, never>) => void;
 }
 
 /**

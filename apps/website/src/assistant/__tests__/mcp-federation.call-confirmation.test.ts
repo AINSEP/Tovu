@@ -23,6 +23,7 @@ import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-t
 import { RUN_PRINCIPAL_HEADER } from "../daemon-access.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
 
 
 // This wrapper preserves Tovu's positional call contract for Jini trust policy.
@@ -424,7 +425,7 @@ test("G3 route: a federated tool call with no exchange is refused 403 and never 
   const { executor, executed } = refusingExecutor();
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { toolExecutor: executor, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) });
+  registerMcpUiToolCallsRoute(app, { scheduler: nodeIntervalScheduler, toolExecutor: executor, surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) });
   const baseUrl = await startTestServer(app, t);
 
   const res = await fetch(`${baseUrl}${MCP_UI_TOOL_CALLS_PATH}`, {
@@ -446,7 +447,7 @@ test("G3 route: Confirm on an open federated card is delivered (202) and the hel
   const { executor, executed } = refusingExecutor();
   const app = express();
   app.use(express.json());
-  registerMcpUiToolCallsRoute(app, { toolExecutor: executor, surfaceExchanges: h.store });
+  registerMcpUiToolCallsRoute(app, { scheduler: nodeIntervalScheduler, toolExecutor: executor, surfaceExchanges: h.store });
   const baseUrl = await startTestServer(app, t);
 
   const { pending, cards } = call(h, "execute_sql", { query: "drop table g3" });

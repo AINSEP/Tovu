@@ -1069,7 +1069,7 @@ test("LIVE AGENT: content_post_delete's real positive path — escaping, the nev
   const runRes = await request.post(RUNS_PATH, {
     data: { contextRef: JSON.stringify({ prompt }), agentId: "claude" },
   });
-  // `POST /api/runs` creates a run resource — `@jini-ai/http-kit`'s `registerRunRoutes` responds
+  // `POST /api/runs` creates a run resource — `@jini-ai/daemon`'s `runRoutes` responds
   // `successStatus: 201` (`runs.ts:172`), forwarded verbatim by Tovu's `proxyPassthrough`
   // (`res.status(upstream.status)`, `assistant.ts:77`). `200` was never the real status; a real run
   // against this assertion is proof, not inference.

@@ -23,7 +23,7 @@ function fixture(options: { enabled?: boolean; allowed?: boolean; origin?: strin
       const serving = new URL(options.servingOrigin ?? "https://request.site.test");
       const headers = { host: serving.host, origin: options.origin === null ? undefined : options.origin ?? "https://site.test",
         "sec-fetch-site": options.fetchSite === null ? undefined : options.fetchSite ?? "same-origin" };
-      handler!({ body, headers, protocol: serving.protocol.slice(0, -1), get: (key: keyof typeof headers) => headers[key], is: (type: string) => type === (options.type ?? "application/json"), socket: { remoteAddress: "127.0.0.1" } }, res);
+      handler!({ body, headers, method: "POST", secure: serving.protocol === "https:", query: {}, protocol: serving.protocol.slice(0, -1), get: (key: keyof typeof headers) => headers[key], is: (type: string) => type === (options.type ?? "application/json"), socket: { remoteAddress: "127.0.0.1" } }, res);
     });
   } };
 }

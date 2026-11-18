@@ -16,6 +16,7 @@ import { pageApprovalOptions } from "#src/assistant/page-approval-context";
 import { RUN_PRINCIPAL_HEADER } from "#src/assistant/daemon-access";
 import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
 import { daemonSource, evaluateDaemonStatements } from "./helpers/daemon-source.js";
+import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
 
 /** Execute the production registration loop with a harmless, observable frontend effect. */
 async function fixture({ missingRevision = false } = {}) {
@@ -62,7 +63,7 @@ test("the daemon's actual loop asks one chat card before an opaque click; HTTP h
   const app = express();
   app.use(express.json());
   let callbackExecutions = 0;
-  registerMcpUiToolCallsRoute(app, { surfaceExchanges: f.surfaceExchanges, toolExecutor: {
+  registerMcpUiToolCallsRoute(app, { scheduler: nodeIntervalScheduler, surfaceExchanges: f.surfaceExchanges, toolExecutor: {
     ...f.toolExecutor,
     execute: (...args) => { callbackExecutions++; return f.toolExecutor.execute(...args); },
   } });
