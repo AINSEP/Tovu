@@ -1,4 +1,249 @@
 {
   "version": 1,
-  "allow": []
+  "allow": [
+    {
+      "id": "0007b1ffc1c3",
+      "reason": "the code it explained left this spot in 'refactor(admin): move the fetch seam to lib/admin-http (size 06 step 1)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "07fbe6272722",
+      "reason": "wording largely survives at packages/cms/src/widgets/markers/html-attributes.ts (100% shared word triples); code changed in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'"
+    },
+    {
+      "id": "0ce2079d6bfa",
+      "reason": "wording largely survives at apps/admin/src/features/media/__tests__/media-grid-fit.unit.test.tsx (25% shared word triples); code changed in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'"
+    },
+    {
+      "id": "15aeb672bb08",
+      "reason": "wording largely survives at apps/desktop/bin/tovu-desktop.ts (33% shared word triples); code changed in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'"
+    },
+    {
+      "id": "1936a01b7298",
+      "reason": "wording largely survives at packages/ui/src/features/panel-kit/fetch-query/use-cursor-pages.hooks.ts (100% shared word triples); code changed in 'refactor(admin-database): timeline paging comes from useCursorPages in @jini-ai/ui/fetch-query'"
+    },
+    {
+      "id": "1c1d97c37d87",
+      "reason": "the code it explained left this spot in 'refactor(admin,website): repoint A01 Tovu forwarders to existing Jini exports'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "1dcbcb71d770",
+      "reason": "wording largely survives at packages/chat/src/embed-widget/browser/agent-inventory.ts (78% shared word triples); code changed in 'refactor(admin): agent inventory placeholder uses @jini-ai/chat/browser/agent-inventory'"
+    },
+    {
+      "id": "26818aaea43d",
+      "reason": "wording largely survives at apps/admin/src/lib/retry-unreachable.ts (40% shared word triples); code changed in 'refactor(admin,website): repoint A01 Tovu forwarders to existing Jini exports'"
+    },
+    {
+      "id": "26b27d7faf88",
+      "reason": "wording largely survives at apps/admin/src/features/dashboard/hooks/use-recent-activity-disclosure.hooks.ts (66% shared word triples); code changed in 'refactor(admin): persist the dashboard recent-activity card through @jini-ai/ui usePersistedDisclosure'"
+    },
+    {
+      "id": "274df7efe47e",
+      "reason": "wording largely survives at apps/admin/src/features/source-control/__tests__/source-control-visuals.unit.test.tsx (40% shared word triples); code changed in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'"
+    },
+    {
+      "id": "297648f94ba4",
+      "reason": "the code it explained left this spot in 'refactor(admin-sites): delete the unused useSitesHome hook'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "2cfad97a1e1d",
+      "reason": "wording largely survives at apps/admin/src/features/roles/hooks/roles-port.hooks.ts (32% shared word triples); code changed in 'refactor(admin-users): use the shared UsersPort and fake from @jini-ai/user-management'"
+    },
+    {
+      "id": "300e326507b1",
+      "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "3341d7241604",
+      "reason": "the code it explained left this spot in 'refactor(admin-media): provider settings store comes from @jini-ai/admin'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "3e7592522842",
+      "reason": "the code it explained left this spot in 'refactor(admin-users): use the shared UsersPort and fake from @jini-ai/user-management'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "43e370c80454",
+      "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "45a36fce171f",
+      "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "4a0df02b889f",
+      "reason": "wording largely survives at packages/cms/src/media/__tests__/html-attributes.test.ts (33% shared word triples); code changed in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'"
+    },
+    {
+      "id": "501cdc9d74a2",
+      "reason": "wording largely survives at packages/chat/src/embed-widget/browser/agent-inventory.ts (100% shared word triples); code changed in 'refactor(admin): agent inventory placeholder uses @jini-ai/chat/browser/agent-inventory'"
+    },
+    {
+      "id": "503934ec1ed5",
+      "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "53083a49b28b",
+      "reason": "wording largely survives at apps/admin/src/features/sites/__tests__/site-transfer-tabs.unit.test.tsx (25% shared word triples); code changed in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'"
+    },
+    {
+      "id": "5615605b5f43",
+      "reason": "wording largely survives at apps/admin/src/features/plugins/hooks/plugins-port.hooks.ts (97% shared word triples); code changed in 'refactor(admin-members): use the shared MembersPort and fake from @jini-ai/user-management'"
+    },
+    {
+      "id": "57b7186f7cad",
+      "reason": "wording largely survives at apps/admin/src/features/sites/AllSitesTab.tsx (27% shared word triples); code changed in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'"
+    },
+    {
+      "id": "598d2beaa624",
+      "reason": "the code it explained left this spot in 'fix(merge): media card metadata takes formatByteSize from @jini-ai/core/text'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "5ba4d4be186b",
+      "reason": "wording largely survives at apps/admin/src/features/users/hooks/users-dependencies.hooks.ts (29% shared word triples); code changed in 'refactor(admin-users): use the shared UsersPort and fake from @jini-ai/user-management'"
+    },
+    {
+      "id": "5f2e92752a15",
+      "reason": "wording largely survives at apps/admin/src/features/source-control/source-control-visuals.tsx (36% shared word triples); code changed in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'"
+    },
+    {
+      "id": "611fac83e046",
+      "reason": "wording largely survives at packages/cms/src/widgets/markers/html-attributes.ts (80% shared word triples); code changed in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'"
+    },
+    {
+      "id": "64c6316d26a3",
+      "reason": "the code it explained left this spot in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "66f05d8c1243",
+      "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "71ccd056e60e",
+      "reason": "wording largely survives at packages/chat/src/embed-widget/browser/agent-inventory.ts (63% shared word triples); code changed in 'refactor(admin): agent inventory placeholder uses @jini-ai/chat/browser/agent-inventory'"
+    },
+    {
+      "id": "76f34570b3b9",
+      "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "7e7a2461ee5e",
+      "reason": "wording largely survives at apps/admin/src/components/WidgetConfigFields/media-content-rules.ts (55% shared word triples); code changed in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'"
+    },
+    {
+      "id": "7e9946e0664a",
+      "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "81ae25cba5b6",
+      "reason": "the code it explained left this spot in 'refactor(admin-media): provider settings store comes from @jini-ai/admin'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "8d7a606468c4",
+      "reason": "the code it explained left this spot in 'refactor(admin-sites): delete the unused useSitesHome hook'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "9357f2b7f3c1",
+      "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "94224029e803",
+      "reason": "wording largely survives at apps/admin/src/features/database/hooks/use-timeline-section.hooks.ts (29% shared word triples); code changed in 'refactor(admin-database): timeline paging comes from useCursorPages in @jini-ai/ui/fetch-query'"
+    },
+    {
+      "id": "9506bf0b3b6a",
+      "reason": "wording largely survives at apps/admin/src/integrations/chart-providers/__tests__/recharts-bundle-integer-ticks.unit.test.ts (67% shared word triples); code changed in 'fix(charts): re-pin charts-recharts to the published 0.7.1 and keep the pin tied to the dependency'"
+    },
+    {
+      "id": "aca17a7dd251",
+      "reason": "wording largely survives at apps/admin/src/features/database/Database.tsx (31% shared word triples); code changed in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'"
+    },
+    {
+      "id": "ae73600584bf",
+      "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "afb993d1aeb6",
+      "reason": "the code it explained left this spot in 'refactor(admin-sites): delete the unused useSitesHome hook'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "b0ca4814b95e",
+      "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "b2d0a7901be9",
+      "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "b63c426b5fe3",
+      "reason": "wording largely survives at packages/admin/src/media/adapters/http.ts (76% shared word triples); code changed in 'refactor(admin-media): provider settings store comes from @jini-ai/admin'"
+    },
+    {
+      "id": "c52e12c90569",
+      "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "c76e2588fad7",
+      "reason": "wording largely survives at apps/admin/src/features/source-control/source-control-visuals.tsx (50% shared word triples); code changed in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'"
+    },
+    {
+      "id": "cb4b764ac856",
+      "reason": "wording largely survives at packages/cms/src/widgets/markers/html-attributes.ts (84% shared word triples); code changed in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'"
+    },
+    {
+      "id": "cd21e52ceeed",
+      "reason": "wording largely survives at apps/website/src/features/deployments/publish-agent-tools.ts (25% shared word triples); code changed in 'refactor(admin-media): provider settings store comes from @jini-ai/admin'"
+    },
+    {
+      "id": "cfed94982195",
+      "reason": "wording largely survives at packages/cms/src/widgets/markers/html-attributes.ts (86% shared word triples); code changed in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'"
+    },
+    {
+      "id": "d31c788b6486",
+      "reason": "the code it explained left this spot in 'refactor(admin): byte-size labels use @jini-ai/core/text formatByteSize'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "d64c74e5f76b",
+      "reason": "the code it explained left this spot in 'refactor(size): split useThemes under 50 lines'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "d7e6d9aa53c8",
+      "reason": "wording largely survives at apps/admin/src/features/roles/hooks/roles-dependencies.hooks.ts (75% shared word triples); code changed in 'refactor(admin-users): use the shared UsersPort and fake from @jini-ai/user-management'"
+    },
+    {
+      "id": "daef5199858a",
+      "reason": "the code it explained left this spot in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "e5f37bad0f6c",
+      "reason": "the code it explained left this spot in 'refactor(admin-sites): delete the unused useSitesHome hook'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "e658f8fa9770",
+      "reason": "wording largely survives at apps/website/src/features/custom-credentials/credentialed-request.ts (33% shared word triples); code changed in 'refactor(admin-members): use the shared MembersPort and fake from @jini-ai/user-management'"
+    },
+    {
+      "id": "eafd3a8ebd7b",
+      "reason": "wording largely survives at packages/cms/src/widgets/markers/html-attributes.ts (79% shared word triples); code changed in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'"
+    },
+    {
+      "id": "ebcb261d7de7",
+      "reason": "wording largely survives at apps/admin/src/features/sites/hooks/use-site-confirm.hooks.ts (51% shared word triples); code changed in 'refactor(admin,website): repoint A01 Tovu forwarders to existing Jini exports'"
+    },
+    {
+      "id": "f786bd1dabc6",
+      "reason": "wording largely survives at apps/admin/src/lib/assistant-agents-snapshot.ts (59% shared word triples); code changed in 'refactor(admin): agent inventory placeholder uses @jini-ai/chat/browser/agent-inventory'"
+    },
+    {
+      "id": "f7db4a3e8c0d",
+      "reason": "the code it explained left this spot in 'refactor(admin-users): use the shared UsersPort and fake from @jini-ai/user-management'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "fd5b21a23371",
+      "reason": "wording largely survives at packages/cms/src/widgets/markers/html-attributes.ts (87% shared word triples); code changed in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'"
+    },
+    {
+      "id": "fe19ed701569",
+      "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    }
+  ]
 }
