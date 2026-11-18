@@ -9,11 +9,12 @@ import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 
 
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
-import { buildTrashRegistry, type TrashEntry } from "../registry.js";
-import { createTableTrashAdapter } from "../table-adapter.js";
-import { readLiveSnapshot } from "../entry-sql.js";
-import { createTrashService } from "@jini-ai/cms/trash";
+import { buildTrashRegistry } from "../registry.js";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
+import { createTrashService, type TrashEntry } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
+import { readLiveSnapshot } from "@jini-ai/cms/trash/sql";
 
 /**
  * @file `createTableTrashAdapter` against real SQLite (Batch G1b).
@@ -79,12 +80,12 @@ function harness(): Harness {
   return {
     db,
     client,
-    formAdapter: createTableTrashAdapter({ entry: formEntry, db: trashDb }),
-    menuAdapter: createTableTrashAdapter({ entry: menuEntry, db: trashDb }),
+    formAdapter: createTableTrashAdapter({ entry: formEntry, kernel: trashDb, tables: TRASH_TABLES }),
+    menuAdapter: createTableTrashAdapter({ entry: menuEntry, kernel: trashDb, tables: TRASH_TABLES }),
     menuEntry,
-    realMenuAdapter: createTableTrashAdapter({ entry: registry.get("menu")!, db: trashDb }),
-    termAdapter: createTableTrashAdapter({ entry: registry.get("term")!, db: trashDb }),
-    taxonomyAdapter: createTableTrashAdapter({ entry: registry.get("taxonomy")!, db: trashDb }),
+    realMenuAdapter: createTableTrashAdapter({ entry: registry.get("menu")!, kernel: trashDb, tables: TRASH_TABLES }),
+    termAdapter: createTableTrashAdapter({ entry: registry.get("term")!, kernel: trashDb, tables: TRASH_TABLES }),
+    taxonomyAdapter: createTableTrashAdapter({ entry: registry.get("taxonomy")!, kernel: trashDb, tables: TRASH_TABLES }),
   };
 }
 
@@ -316,8 +317,7 @@ test("a purge raced after its initial read preserves the parent and every child 
   const children = h.client.prepare("SELECT * FROM form_submissions ORDER BY id").all();
   const racing = createTableTrashAdapter({
     entry: buildTrashRegistry().get("form")!,
-    db: contentKernel({ store: kernelWithWriterAfterFirstRead(h.db, () => h.client.prepare("UPDATE form_definitions SET version = version + 1 WHERE id = 'form-1'").run()) }),
-  });
+    kernel: contentKernel({ store: kernelWithWriterAfterFirstRead(h.db, () => h.client.prepare("UPDATE form_definitions SET version = version + 1 WHERE id = 'form-1'").run()) }), tables: TRASH_TABLES });
   assert.equal(await racing.purge({ workspaceId: WS, entityId: "form-1", expectedVersion: 3 }), "version-changed");
   assert.ok(readFormRow(h.client, "form-1"));
   assert.deepEqual(h.client.prepare("SELECT * FROM form_submissions ORDER BY id").all(), children);
@@ -567,7 +567,7 @@ test("real menu entry: a purge that fails after removing bindings rolls back the
     purgeFirst: [...(realMenu.purgeFirst ?? []), { table: "no_such_table_for_rollback_test", parentIdColumn: "menu_id" }],
   };
   const trashDb = contentKernel({ store: h.db });
-  const failingAdapter = createTableTrashAdapter({ entry: failingEntry, db: trashDb });
+  const failingAdapter = createTableTrashAdapter({ entry: failingEntry, kernel: trashDb, tables: TRASH_TABLES });
 
   await assert.rejects(() => failingAdapter.purge({ workspaceId: WS, entityId: "menu-bound", expectedVersion: 1 }));
 
@@ -703,8 +703,7 @@ test("hide: a writer that bumps the version between the read and the write makes
   seedMenu(h.client, "menu-1", { status: "published", version: 3 });
   const racing = createTableTrashAdapter({
     entry: h.menuEntry,
-    db: contentKernel({ store: kernelWithWriterAfterFirstRead(h.db, () => h.client.prepare(`UPDATE menus SET version = version + 1 WHERE id = 'menu-1'`).run()) }),
-  });
+    kernel: contentKernel({ store: kernelWithWriterAfterFirstRead(h.db, () => h.client.prepare(`UPDATE menus SET version = version + 1 WHERE id = 'menu-1'`).run()) }), tables: TRASH_TABLES });
 
   const hidden = await racing.hide({ workspaceId: WS, entityId: "menu-1", at: AT, expectedVersion: 3 });
   assert.deepEqual(hidden, { ok: false, reason: "version-changed" });
@@ -716,8 +715,7 @@ test("unhide: a writer that bumps the version between the read and the write mak
   seedMenu(h.client, "menu-1", { status: "trashed", version: 3 });
   const racing = createTableTrashAdapter({
     entry: h.menuEntry,
-    db: contentKernel({ store: kernelWithWriterAfterFirstRead(h.db, () => h.client.prepare(`UPDATE menus SET version = version + 1 WHERE id = 'menu-1'`).run()) }),
-  });
+    kernel: contentKernel({ store: kernelWithWriterAfterFirstRead(h.db, () => h.client.prepare(`UPDATE menus SET version = version + 1 WHERE id = 'menu-1'`).run()) }), tables: TRASH_TABLES });
 
   const unhidden = await racing.unhide({ workspaceId: WS, entityId: "menu-1", at: AT, expectedVersion: 3}, { priorMarker: "published"});
   assert.deepEqual(unhidden, { ok: false, reason: "version-changed" });
@@ -729,10 +727,9 @@ test("hide with no expected version: a writer that changes the status between th
   seedMenu(h.client, "menu-1", { status: "published", version: 3 });
   const racing = createTableTrashAdapter({
     entry: h.menuEntry,
-    db: contentKernel({ store: kernelWithWriterAfterFirstRead(h.db, () =>
+    kernel: contentKernel({ store: kernelWithWriterAfterFirstRead(h.db, () =>
       h.client.prepare(`UPDATE menus SET status = 'draft', version = version + 1 WHERE id = 'menu-1'`).run()
-    ) }),
-  });
+    ) }), tables: TRASH_TABLES });
 
   const hidden = await racing.hide({ workspaceId: WS, entityId: "menu-1", at: AT, expectedVersion: null });
   assert.deepEqual(hidden, { ok: false, reason: "version-changed" });

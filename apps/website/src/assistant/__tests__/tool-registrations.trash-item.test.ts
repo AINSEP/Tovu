@@ -25,10 +25,11 @@ import { buildTrashRegistry } from "#src/features/trash/registry";
 import type { TrashEntityType } from "@jini-ai/cms/trash";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 
-import { createTableTrashAdapter } from "#src/features/trash/table-adapter";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "#src/features/trash/repo.sqlite";
 import { createTrashService, type TrashAdapter } from "@jini-ai/cms/trash";
-import type { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
+import type { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
 
 import { deriveTrashItemRegistrations, TRASH_ITEM_DELEGATES, TRASH_ITEM_TOOL_ID, type TrashItemToolDeps } from "#src/features/trash/trash-item-tool";
 import { trashThemeAgentToolCatalog } from "#src/features/theme/trash-theme-tool";
@@ -137,7 +138,7 @@ function sqliteFormHarness(options: { deny?: boolean } = {}): SqliteFormHarness 
   const registry = buildTrashRegistry();
   const trashDb = contentKernel({ store: db });
   const adapters = new Map<string, TrashAdapter>(
-    [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: trashDb })])
+    [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, kernel: trashDb, tables: TRASH_TABLES })])
   );
   let seq = 0;
   const trash = createTrashService({

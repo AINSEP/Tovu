@@ -236,6 +236,7 @@ const REASON_REWRITES: readonly ReasonRewrite[] = [
   ].map((pattern) => ({ pattern, friendly: "The live site can't accept this collection's fields. Update the live site, then try again." })),
   {
     // entries (`repo.sqlite.ts`, `trash-aware-memory-repo.ts`) and forms word a trashed slug holder alike.
+    // (`trash-aware-memory-repo.ts` is now Jini's `TrashAwareInMemoryEntryRepo`, `@jini-ai/cms/entries`.)
     pattern: /^an? [\w-]+ with slug '.+' is in the Trash/,
     friendly: "An item in the live site's trash still uses this name. Restore or permanently delete it there first.",
   },

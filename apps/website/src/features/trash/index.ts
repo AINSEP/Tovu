@@ -44,24 +44,11 @@ export { moveToTrash } from "./move-to-trash.js";
 export type { MoveToTrashOutcome, TrashKindMover } from "./move-to-trash.js";
 
 export { buildTrashRegistry } from "./registry.js";
-export type {
-  TrashBlockerSpec,
-  TrashCascadeSpec,
-  TrashDisplaySpec,
-  TrashEntry,
-  TrashHiddenWithParentSpec,
-  TrashMarkerSpec,
-  TrashRegistry,
-  TrashDisplayJoin,
-} from "./registry.js";
 
 export type { TrashDb } from "./db-port.js";
 
-export { createTableTrashAdapter } from "./table-adapter.js";
 export { withFollowUps } from "@jini-ai/cms/trash";
 export type { AfterPurge, BeforePurge, HideFollowUp, TrashFollowUpHooks, UnhideFollowUp } from "@jini-ai/cms/trash";
-
-export { isTrashedRecord, notTrashed } from "./not-trashed.js";
 
 export {
   filterVisibleTrashItems,
@@ -82,7 +69,6 @@ export {
 } from "@jini-ai/cms/trash";
 export type { TrashSweepDeps, TrashSweeper, TrashSweepOnce, TrashSweepReport } from "@jini-ai/cms/trash";
 
-export { SqlTrashRepo } from "./repo.js";
 export { createContentDbTransactionRunner, SqliteTrashRepo } from "./repo.sqlite.js";
 export { InMemoryTrashRepo } from "@jini-ai/cms/trash";
 export { decodeTrashCursor, encodeTrashCursor } from "@jini-ai/cms/trash";

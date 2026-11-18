@@ -5,9 +5,9 @@
  * unparseable is still trashable and restorable.
  */
 import { tableExists } from "@jini-ai/db/kernel";
-import { loose } from "../entry-sql.js";
 import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
 import { compareAndDelete, flipMarker, lazyKernel, type MarkerStore } from "./marker-sql.js";
+import { loose } from "@jini-ai/cms/trash/sql";
 
 export const POST_ENTITY_TYPE = "post";
 

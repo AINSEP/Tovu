@@ -25,7 +25,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../../features/content-types/index.js";
 import { registerContentType } from "../../features/content-types/index.js";
-import type { TrashAwareInMemoryEntryRepo } from "../../features/entries/trash-aware-memory-repo.js";
+import type { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
 import { createEntry } from "../../features/entries/index.js";
 import { PRE_AUTHORIZED } from "@jini-ai/cms/widgets";
 import { type AgentToolDefinition } from "@jini-ai/core";

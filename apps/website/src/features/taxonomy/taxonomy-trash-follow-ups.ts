@@ -1,7 +1,7 @@
 // The local trash fork was removed; @jini-ai/cms/trash owns the shared adapter/hooks.
 /**
  * @file Purge-only Trash follow-ups for `term`/`taxonomy` (T6, trash parallel plan §2 step 5 /
- * §6 Q2). The generic table adapter (`features/trash/table-adapter.ts`) already performs the row
+ * §6 Q2). The generic table adapter (`createTableTrashAdapter`, `@jini-ai/cms/trash/sql`) already performs the row
  * removal itself (`registry.ts`'s `term`/`taxonomy` entries); what it does NOT do is write the
  * audit trail `deleteTerm`/`deleteTaxonomy` (`@jini-ai/cms/taxonomy`) used to write alongside their
  * own delete — a `taxonomy_revisions` row plus a `taxonomy.term_deleted`/`taxonomy.deleted` event.

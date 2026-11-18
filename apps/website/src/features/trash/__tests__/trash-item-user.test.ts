@@ -12,7 +12,8 @@ import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { buildTrashRegistry } from "../registry.js";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 
-import { createTableTrashAdapter } from "../table-adapter.js";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createTrashService, InMemoryTrashRepo } from "@jini-ai/cms/trash";
 
 
@@ -156,7 +157,7 @@ for (const state of ["live", "missing", "denied"] as const) {
       VALUES ('f1', ?, 'Contact', 'contact', '{}', '{}', 'active', ?, ?, 1)`).run(workspaceId, at, at);
     const registry = new Map([["form", buildTrashRegistry().get("form")!]]);
     const kernel = contentKernel({ store: db });
-    const adapter = createTableTrashAdapter({ db: kernel, entry: registry.get("form")! });
+    const adapter = createTableTrashAdapter({ kernel: kernel, entry: registry.get("form")!, tables: TRASH_TABLES });
     const trash = createTrashService({ repo: new InMemoryTrashRepo({}), adapters: new Map([["form", adapter]]),
       idGen: { newId: () => "l128-trash" }, entityPolicy: ({ entityType }) => registry.has(entityType),
       transaction: ({ work }) => kernel.transaction(work) });

@@ -20,7 +20,8 @@ import { buildTrashAgentToolCatalog, createTrashService } from "@jini-ai/cms/tra
 
 import { SqliteTrashRepo, createContentDbTransactionRunner } from "../repo.sqlite.js";
 import { buildTrashRegistry } from "../registry.js";
-import { createTableTrashAdapter } from "../table-adapter.js";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createMemberTrashAdapter } from "../adapters/member.js";
 import { moveToTrash } from "../move-to-trash.js";
 import { buildTrashRegistrations } from "../tool-registrations.js";
@@ -43,7 +44,7 @@ function harness() {
   const kernel = contentKernel({ store: db });
   const registry = buildTrashRegistry();
   const adapter = createMemberTrashAdapter({
-    adapter: createTableTrashAdapter({ entry: registry.get("member")!, db: kernel }), db: kernel,
+    adapter: createTableTrashAdapter({ entry: registry.get("member")!, kernel, tables: TRASH_TABLES }), db: kernel,
   });
   const adapters = new Map([["member", adapter]]);
   let seq = 0;
@@ -266,7 +267,7 @@ test("member restore cutoff failure rolls back status, marker and Trash index", 
 test("member adapter: a refused or no-op marker flip returns verbatim and never touches credentials", async () => {
   const { client, kernel, registry, seed } = harness();
   seed("member-scripted");
-  const inner = createTableTrashAdapter({ entry: registry.get("member")!, db: kernel });
+  const inner = createTableTrashAdapter({ entry: registry.get("member")!, kernel, tables: TRASH_TABLES });
   const outcomes = [
     { ok: false as const, reason: "version-changed" as const },
     { ok: false as const, reason: "blocked" as const, code: "member-blocker", count: 2 },

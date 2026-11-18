@@ -8,10 +8,10 @@
  * additionally recorded as a `redirect_revisions.tombstoned = 1` row, which is what the backfill
  * uses to tell a deleted redirect from one an operator merely switched off.
  */
-import { loose } from "../entry-sql.js";
 import type { TrashAdapter, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
 import { compareAndDelete, flipMarker, lazyKernel, type MarkerStore } from "./marker-sql.js";
 import { REDIRECT_TABLES } from "#src/features/redirects/index";
+import { loose } from "@jini-ai/cms/trash/sql";
 
 export const REDIRECT_ENTITY_TYPE = "redirect";
 

@@ -1,0 +1,10 @@
+red ok: claimDue: drop the due predicate -> claimDue takes rows due
+red ok: claimDue: ignore the lease -> claimDue takes rows due
+red ok: claimDue: drop the sweep lock -> claimDue takes the sweep lock
+red ok: claimDue: no transaction (concurrent claimers overlap) -> two concurrent claimers
+red ok: notTrashed: invert the status branch -> notTrashed, as a real WHERE
+red ok: notTrashed: invert the timestamp branch -> notTrashed, as a real WHERE
+red ok: notTrashed: drop the parent condition -> notTrashed, as a real WHERE
+red ok: readLiveSnapshot: remove notTrashed -> readLiveSnapshot returns a live row
+red ok: entryWhere: drop the scope clause -> entryWhere keeps the entry's fixed scope
+bad = 0

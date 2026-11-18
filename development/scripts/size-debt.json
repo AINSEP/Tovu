@@ -1045,13 +1045,6 @@
       "value": 103
     },
     {
-      "file": "apps/website/src/features/trash/table-adapter.ts",
-      "function": "createTableTrashAdapter#1",
-      "line": 76,
-      "rule": "max-lines-per-function",
-      "value": 191
-    },
-    {
       "file": "apps/website/src/platform/db/sqlite/fresh-content-db.ts",
       "function": "bootstrapFreshContentDb#1",
       "line": 55,

@@ -1,0 +1,16 @@
+red ok: save: drop the invalidation -> a successful save empties
+red ok: save: invalidate before the checks (a refused save would clear too) -> a REFUSED save
+red ok: transaction: drop the finally -> a transaction empties
+red ok: transaction: invalidate only on success -> a transaction empties
+red ok: saveAny: drop the invalidation -> saveAny empties
+red ok: hardDelete: drop the invalidation -> hardDelete empties
+red ok: hardDelete: invalidate for a missing id too -> hardDelete empties
+red ok: a constant owner instead of this (save) -> only the writing repository
+red ok: findById shows a trashed row -> a trashed row is hidden
+red ok: listByWorkspace shows trashed rows -> a trashed row is hidden
+red ok: findAnyById loses the marker -> a trashed row is hidden
+red ok: slug conflict: drop the trashed-holder refusal -> a slug held by a trashed row
+red ok: slug conflict: rethrow a generic error -> a slug held by a trashed row
+red ok: hardDelete ignores the workspace -> every read and hardDelete is scoped
+red ok: offset ignored -> listPublishedForDisplay honours offset
+bad = 0

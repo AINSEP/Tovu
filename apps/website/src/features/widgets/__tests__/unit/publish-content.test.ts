@@ -6,7 +6,7 @@ import { InMemoryEntryRefsRepo } from "@jini-ai/cms/widgets";
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { InMemoryFormDefinitionRepo } from "@jini-ai/cms/forms";
-import { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
+import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
 import { applyReport, makeSite, packAll, plan, registerOnly, roundTrip, WORKSPACE_ID } from "#src/features/publish-content/__tests__/round-trip-harness";
 import { contributeWidgetAreaPublish, contributeWidgetPublish } from "../../publish-content.js";
 import { bindWidgetArea, mutateWidgetAreaPlacements } from "@jini-ai/cms/widgets";
@@ -16,7 +16,7 @@ import { parseWidgetAreaPayload } from "@jini-ai/cms/widgets";
 
 function instance(name: string) {
   const ports = {
-    entries: new TrashAwareInMemoryEntryRepo(),
+    entries: trashAwareEntryRepo(),
     contentTypes: new InMemoryContentTypeRepo(),
     entryRefs: new InMemoryEntryRefsRepo(),
     bindings: new InMemoryWidgetRegionBindingRepo(),

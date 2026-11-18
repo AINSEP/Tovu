@@ -19,8 +19,8 @@ import { type Kysely, sql } from "kysely";
 
 import type { ContentDatabase } from "../../../platform/db/content-database.generated.js";
 import type { ContentKernel } from "../../../platform/db/content-kernel.js";
-import { loose } from "../entry-sql.js";
 import type { TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
+import { loose } from "@jini-ai/cms/trash/sql";
 
 /** What a marker adapter is built over: the content kernel supplied by composition. */
 export type MarkerStore = ContentKernel;

@@ -11,10 +11,11 @@ import { createContactFormResolver } from "@jini-ai/cms/widgets/resolvers";
 
 
 import { moveToTrash } from "../move-to-trash.js";
-import { buildTrashRegistry, type TrashRegistry } from "../registry.js";
-import { createTableTrashAdapter } from "../table-adapter.js";
+import { buildTrashRegistry } from "../registry.js";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
-import { createTrashService } from "@jini-ai/cms/trash";
+import { createTrashService, type TrashRegistry } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
 
 /**
@@ -45,7 +46,7 @@ function harness(): Harness {
   // Needed for `form`'s purgeFirst -> `form_submission` phantom-row cleanup (T1 item 5) — same ref
   // shape `deps.ts` builds at composition.
   const adapters = new Map<string, TrashAdapter>(
-    [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: trashDb })])
+    [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, kernel: trashDb, tables: TRASH_TABLES })])
   );
   let seq = 0;
   const trash = createTrashService({

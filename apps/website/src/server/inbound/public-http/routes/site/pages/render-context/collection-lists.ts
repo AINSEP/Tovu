@@ -24,7 +24,7 @@ const MAX_DISTINCT_COLLECTION_MARKERS_PER_PAGE = 10;
 /**
  * Reads one custom field's value out of an entry's namespaced `fields.ext.site.<name>` bag, the
  * route-layer twin of `repo.sqlite.ts`'s `json_extract($.ext.site.<name>)` and
- * `trash-aware-memory-repo.ts`'s own private `siteFieldValue` — duplicated rather than imported
+ * Jini's `TrashAwareInMemoryEntryRepo`'s own private `siteFieldValue` — duplicated rather than imported
  * because both of those live inside `features/entries/`'s repo-adapter internals with no barrel
  * re-export, and this route-level display mapping must not deep-import across that feature boundary
  * just to read a value out of a record it already has in hand.
