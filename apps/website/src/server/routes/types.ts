@@ -116,7 +116,7 @@ import type { ContentTypeListPort } from "../../features/content-types/index.js"
 import type { EntryRepoPort } from "../../features/entries/index.js";
 import type { EntryListPort } from "../../features/entries/index.js";
 import type { EntryDisplayListPort, EntryListExcludingTypesPort } from "../../features/entries/public-list.js";
-import type { EntryPublishReadPort } from "../../features/entries/repo.sqlite.js";
+import type { EntryPublishReadPort } from "@jini-ai/cms/entries";
 import type {
   AssignmentCountEntryTermRepoPort,
   DeletableTaxonomyRepoPort,

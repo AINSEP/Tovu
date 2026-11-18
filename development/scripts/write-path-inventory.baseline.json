@@ -291,14 +291,6 @@
     "coverageClass": "none"
   },
   {
-    "source": "table",
-    "contractMethod": "presentationSettings via this.db\n      .insert",
-    "caller": "SqlitePresentationSettingsRepo.save",
-    "file": "src/features/presentation/repo.sqlite.ts",
-    "line": 37,
-    "coverageClass": "none"
-  },
-  {
     "source": "port",
     "contractMethod": "SettingsRepoPort.transaction",
     "implementingClass": "InMemorySettingsRepo",

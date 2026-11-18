@@ -20,7 +20,7 @@ import {
   VersionConflictError,
   type EntryStatus,
 } from "./index.js";
-import type { TrashableEntryRecord } from "./trash-aware-memory-repo.js";
+import type { TrashableEntryRecord } from "@jini-ai/cms/entries";
 
 /**
  * @file `collection-entry` on the publish factory: every entry except widgets and widget areas

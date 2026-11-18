@@ -5,7 +5,7 @@ import type { PresentationSettingsRecord } from "@jini-ai/cms/presentation";
 
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
-import { presentationSettingsRepoFor } from "../repo.js";
+import { SqlitePresentationSettingsRepo } from "../repo.sqlite.js";
 
 /**
  * @file The presentation-settings repo on every dialect through the kernel's matrix
@@ -21,7 +21,7 @@ function settings(workspaceId: string, activeThemeId: string, updatedAt = T0): P
 }
 
 function repos(kernel: ContentKernel) {
-  return { kernel, repo: presentationSettingsRepoFor(kernel) };
+  return { kernel, repo: new SqlitePresentationSettingsRepo({ store: kernel }) };
 }
 
 describeEachDialect("presentation settings repo", { tables: ["presentation_settings"], make: repos }, (makeRepos) => {
