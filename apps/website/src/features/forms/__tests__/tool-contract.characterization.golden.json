@@ -1,0 +1,822 @@
+{
+  "forms_list_providers": {
+    "id": "forms_list_providers",
+    "description": "Lists the currently registered form collection providers, their public settings fields, answer location and validation behavior. Call before selecting a provider in forms_create_definition or forms_update_definition. Read-only; unavailable settings include an explanation and must not be guessed.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {}
+    },
+    "metadata": {
+      "search": {
+        "keywords": "forms collection provider providers settings external embedded public answers validation",
+        "queries": [
+          "Which form providers can I use?",
+          "What public settings does this form provider need?"
+        ]
+      },
+      "approval": {
+        "class": "read",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": true,
+    "sideEffects": "none"
+  },
+  "forms_list_definitions": {
+    "id": "forms_list_definitions",
+    "description": "Lists every form definition in the workspace with its id, name, slug, status, and field count. Read-only. Call this to find a form's opaque id from its name or slug before calling forms_update_definition, forms_set_definition_status, forms_list_submissions, or forms_get_submission — those tools take formId, not slug.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {}
+    },
+    "metadata": {
+      "search": {
+        "keywords": "forms contact form list existing built",
+        "queries": [
+          "What forms do we have set up on the site?",
+          "I need the id for our contact form before I can edit it.",
+          "Show me all our form definitions and how many fields each has.",
+          "Which forms are active versus disabled?",
+          "Can you list every form by name and slug?"
+        ]
+      },
+      "approval": {
+        "class": "read",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": true,
+    "sideEffects": "none"
+  },
+  "forms_create_definition": {
+    "id": "forms_create_definition",
+    "description": "Creates a new form definition from a name, a URL slug, and a complete list of native field descriptors. Call forms_list_providers before selecting a public collection provider. For a dropdown, use type=select with options [{value,label}]. The slug must be unique within the workspace and can never be changed afterwards. To show this form in a post or other rich-text body, use widgets_create_instance to create a contact-form widget with config { formDefinitionId: <this form's id> }, then widgets_insert_embed it; HTML-format pages and theme templates can instead use a data-embed-config marker with {type:\"form\",id:<this form's id or slug>}.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "slug",
+        "fields"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Human-readable form name shown in the admin UI."
+        },
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+          "description": "Permanent URL slug. Lowercase letters, digits and hyphens; must start with a letter or digit; max 64 characters. Cannot be changed later, and must not already exist in this workspace."
+        },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "label",
+              "type",
+              "required"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$",
+                "description": "Stable field id. Lowercase letters, digits and underscores; must start with a letter. Ids are permanent — an existing id can never be removed by an update."
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "description": "Human-readable label shown above the input."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "text",
+                  "textarea",
+                  "email",
+                  "phone",
+                  "url",
+                  "number",
+                  "range",
+                  "date",
+                  "time",
+                  "datetime",
+                  "select",
+                  "multi-select",
+                  "radio",
+                  "checkbox",
+                  "checkbox-group",
+                  "toggle",
+                  "file",
+                  "hidden"
+                ],
+                "description": "A registered native field type. Use select for a dropdown; multi-select, radio and checkbox-group require options. Phone renders type=tel, datetime renders datetime-local, toggle renders an accessible switch."
+              },
+              "required": {
+                "type": "boolean",
+                "description": "Whether the visitor must fill this field in. Must be a real boolean, not a string. Required checkbox/toggle consent must be checked."
+              },
+              "name": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$",
+                "description": "Optional native input name; must equal id to preserve stored submission keys."
+              },
+              "placeholder": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "helpText": {
+                "type": "string",
+                "maxLength": 500,
+                "description": "Accessible help shown with the field."
+              },
+              "default": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                ],
+                "description": "Initial control value, checked state, or selected option values. Must satisfy this field's rules; forbidden for files."
+              },
+              "options": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 100,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "value",
+                    "label"
+                  ],
+                  "properties": {
+                    "value": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "label": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    }
+                  }
+                },
+                "description": "Required for select, multi-select, radio, checkbox-group. Values must be unique; submissions reject values outside this list."
+              },
+              "minLength": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 5000
+              },
+              "pattern": {
+                "type": "string",
+                "maxLength": 300,
+                "description": "Full-match text validation. Safe subset: literals, character classes, anchors and one repetition; groups, alternation and backreferences are rejected."
+              },
+              "min": {
+                "type": [
+                  "number",
+                  "string"
+                ],
+                "description": "Numeric lower bound, or ISO native date/time lower bound."
+              },
+              "max": {
+                "type": [
+                  "number",
+                  "string"
+                ],
+                "description": "Numeric upper bound, or ISO native date/time upper bound."
+              },
+              "step": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "description": "Numeric increment for number/range. Defaults to 1."
+              },
+              "accept": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 20,
+                "items": {
+                  "type": "string"
+                },
+                "description": "Safe MIME types or image/*, video/*, */*. Omitted means any recognized safe file: PNG/JPEG/GIF/WebP/AVIF, MP4/WebM, PDF. Executables, scripts, markup and archives are always refused."
+              },
+              "maxFileSize": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10485760,
+                "description": "File size limit in bytes, capped at 10 MiB. All uploads in one multipart POST must fit 12 MiB."
+              },
+              "checkboxValue": {
+                "type": "string",
+                "description": "Optional authored checkbox wire value; every other submitted string is rejected."
+              },
+              "maxLength": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1,
+                "maximum": 5000,
+                "description": "Optional per-field character cap (1-5000). Only supported on text, textarea, email, phone, url and hidden fields."
+              },
+              "className": {
+                "type": "string",
+                "maxLength": 300,
+                "description": "Optional CSS class names applied verbatim to the rendered input element (e.g. Tailwind utility classes like 'md:col-span-2 w-1/2'). Any string is accepted — classes are escaped, not sanitized or restricted to a vocabulary."
+              },
+              "attributes": {
+                "type": "object",
+                "maxProperties": 12,
+                "propertyNames": {
+                  "pattern": "^(aria-[a-z0-9-]+|data-[a-z0-9-]+|placeholder|autocomplete|inputmode|pattern|title|min|max|step|minlength|spellcheck|readonly)$"
+                },
+                "additionalProperties": {
+                  "type": "string",
+                  "maxLength": 300
+                },
+                "description": "Optional extra HTML attributes applied to the rendered input element. Attribute NAMES are strictly allowlisted — 'aria-*', 'data-*', 'placeholder', 'autocomplete', 'inputmode', 'pattern', 'title', 'min', 'max', 'step', 'minlength', 'spellcheck', 'readonly'. Anything else, including any 'on*' event handler, 'style', 'formaction', 'href', 'src', 'srcdoc', 'id', 'name', or 'type', is rejected — the call fails rather than silently dropping it. Values are plain strings."
+              }
+            }
+          },
+          "description": "The COMPLETE field list (1-20 fields). Both tools that accept it replace the whole list, so it must include every field the form keeps — but note that unlike a content type, an EXISTING field id may never be dropped; omitting one is rejected rather than deleting it."
+        },
+        "notify": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "enabled",
+            "recipients"
+          ],
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Whether to email recipients on each submission."
+            },
+            "recipients": {
+              "type": "array",
+              "maxItems": 10,
+              "items": {
+                "type": "string",
+                "description": "A valid email address."
+              },
+              "description": "Up to 10 email addresses. Each must be a valid address or the whole call is rejected."
+            }
+          }
+        },
+        "provider": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "config"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,63}$",
+              "description": "Collection provider id from forms_list_providers. Existing definitions and history stay local when switching."
+            },
+            "config": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Public string-valued settings described by forms_list_providers; never credentials or secrets."
+            }
+          }
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "form contact form build create new fields",
+        "queries": [
+          "How do I build a new contact form?",
+          "Can you set up a new form with a specific URL slug?",
+          "I want to create a signup form with these fields.",
+          "How do I add a brand-new form to the site?",
+          "Can you make a new form definition — can the slug ever change later?"
+        ]
+      },
+      "approval": {
+        "class": "edit",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  },
+  "forms_update_definition": {
+    "id": "forms_update_definition",
+    "description": "Updates an existing form definition's name, field list, notification recipients, or public collection provider. Call forms_list_providers before selecting a provider and explain its answer location and validation; republish all affected static pages and Cloudflare manifests after switching. The slug is immutable and is ignored if supplied. Existing field ids cannot be dropped — omitting one is rejected, not treated as a deletion. Pass expectedVersion from content_read.form_definition; if someone changed it since, nothing is saved and you must re-read.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "formId",
+        "expectedVersion"
+      ],
+      "properties": {
+        "formId": {
+          "type": "string",
+          "description": "The form definition's id, as returned by a create call. This is the opaque id, NOT the slug."
+        },
+        "expectedVersion": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The record's version from content_read.form_definition. Required."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "New form name. Omit to leave unchanged."
+        },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "label",
+              "type",
+              "required"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$",
+                "description": "Stable field id. Lowercase letters, digits and underscores; must start with a letter. Ids are permanent — an existing id can never be removed by an update."
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "description": "Human-readable label shown above the input."
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "text",
+                  "textarea",
+                  "email",
+                  "phone",
+                  "url",
+                  "number",
+                  "range",
+                  "date",
+                  "time",
+                  "datetime",
+                  "select",
+                  "multi-select",
+                  "radio",
+                  "checkbox",
+                  "checkbox-group",
+                  "toggle",
+                  "file",
+                  "hidden"
+                ],
+                "description": "A registered native field type. Use select for a dropdown; multi-select, radio and checkbox-group require options. Phone renders type=tel, datetime renders datetime-local, toggle renders an accessible switch."
+              },
+              "required": {
+                "type": "boolean",
+                "description": "Whether the visitor must fill this field in. Must be a real boolean, not a string. Required checkbox/toggle consent must be checked."
+              },
+              "name": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$",
+                "description": "Optional native input name; must equal id to preserve stored submission keys."
+              },
+              "placeholder": {
+                "type": "string",
+                "maxLength": 500
+              },
+              "helpText": {
+                "type": "string",
+                "maxLength": 500,
+                "description": "Accessible help shown with the field."
+              },
+              "default": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                ],
+                "description": "Initial control value, checked state, or selected option values. Must satisfy this field's rules; forbidden for files."
+              },
+              "options": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 100,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "value",
+                    "label"
+                  ],
+                  "properties": {
+                    "value": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "label": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    }
+                  }
+                },
+                "description": "Required for select, multi-select, radio, checkbox-group. Values must be unique; submissions reject values outside this list."
+              },
+              "minLength": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 5000
+              },
+              "pattern": {
+                "type": "string",
+                "maxLength": 300,
+                "description": "Full-match text validation. Safe subset: literals, character classes, anchors and one repetition; groups, alternation and backreferences are rejected."
+              },
+              "min": {
+                "type": [
+                  "number",
+                  "string"
+                ],
+                "description": "Numeric lower bound, or ISO native date/time lower bound."
+              },
+              "max": {
+                "type": [
+                  "number",
+                  "string"
+                ],
+                "description": "Numeric upper bound, or ISO native date/time upper bound."
+              },
+              "step": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "description": "Numeric increment for number/range. Defaults to 1."
+              },
+              "accept": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 20,
+                "items": {
+                  "type": "string"
+                },
+                "description": "Safe MIME types or image/*, video/*, */*. Omitted means any recognized safe file: PNG/JPEG/GIF/WebP/AVIF, MP4/WebM, PDF. Executables, scripts, markup and archives are always refused."
+              },
+              "maxFileSize": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10485760,
+                "description": "File size limit in bytes, capped at 10 MiB. All uploads in one multipart POST must fit 12 MiB."
+              },
+              "checkboxValue": {
+                "type": "string",
+                "description": "Optional authored checkbox wire value; every other submitted string is rejected."
+              },
+              "maxLength": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1,
+                "maximum": 5000,
+                "description": "Optional per-field character cap (1-5000). Only supported on text, textarea, email, phone, url and hidden fields."
+              },
+              "className": {
+                "type": "string",
+                "maxLength": 300,
+                "description": "Optional CSS class names applied verbatim to the rendered input element (e.g. Tailwind utility classes like 'md:col-span-2 w-1/2'). Any string is accepted — classes are escaped, not sanitized or restricted to a vocabulary."
+              },
+              "attributes": {
+                "type": "object",
+                "maxProperties": 12,
+                "propertyNames": {
+                  "pattern": "^(aria-[a-z0-9-]+|data-[a-z0-9-]+|placeholder|autocomplete|inputmode|pattern|title|min|max|step|minlength|spellcheck|readonly)$"
+                },
+                "additionalProperties": {
+                  "type": "string",
+                  "maxLength": 300
+                },
+                "description": "Optional extra HTML attributes applied to the rendered input element. Attribute NAMES are strictly allowlisted — 'aria-*', 'data-*', 'placeholder', 'autocomplete', 'inputmode', 'pattern', 'title', 'min', 'max', 'step', 'minlength', 'spellcheck', 'readonly'. Anything else, including any 'on*' event handler, 'style', 'formaction', 'href', 'src', 'srcdoc', 'id', 'name', or 'type', is rejected — the call fails rather than silently dropping it. Values are plain strings."
+              }
+            }
+          },
+          "description": "The COMPLETE field list (1-20 fields). Both tools that accept it replace the whole list, so it must include every field the form keeps — but note that unlike a content type, an EXISTING field id may never be dropped; omitting one is rejected rather than deleting it."
+        },
+        "notify": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "enabled",
+            "recipients"
+          ],
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Whether to email recipients on each submission."
+            },
+            "recipients": {
+              "type": "array",
+              "maxItems": 10,
+              "items": {
+                "type": "string",
+                "description": "A valid email address."
+              },
+              "description": "Up to 10 email addresses. Each must be a valid address or the whole call is rejected."
+            }
+          }
+        },
+        "provider": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "config"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,63}$",
+              "description": "Collection provider id from forms_list_providers. Existing definitions and history stay local when switching."
+            },
+            "config": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Public string-valued settings described by forms_list_providers; never credentials or secrets."
+            }
+          }
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "form edit change existing update fields recipients send email notify notification notifications submissions address recipient recipients inbox forward",
+        "queries": [
+          "Can you add a new field to our existing form?",
+          "I need to change who gets notified when this form is submitted.",
+          "Send this form's submissions to a different email address.",
+          "Can you rename this form without changing its URL?",
+          "How do I edit the fields on a form I already made?",
+          "Can I remove a field from a form, or does that get blocked?"
+        ]
+      },
+      "approval": {
+        "class": "edit",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  },
+  "forms_set_definition_status": {
+    "id": "forms_set_definition_status",
+    "description": "Sets a form definition's status to 'active' or 'disabled'. Disabling is how a form is taken out of service without deleting it — no tool in this catalog can delete a form definition; permanent deletion happens only through the Trash.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "formId",
+        "status"
+      ],
+      "properties": {
+        "formId": {
+          "type": "string",
+          "description": "The form definition's id, as returned by a create call. This is the opaque id, NOT the slug."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "active",
+            "disabled"
+          ],
+          "description": "'disabled' takes the form out of service (its stored submissions are retained); 'active' puts it back."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "form enable disable turn off retire deactivate activate",
+        "queries": [
+          "How do I turn off a form so people can't submit it anymore?",
+          "Can you disable this old form?",
+          "Is there a way to delete a form, or just disable it?",
+          "How do I re-enable a form I turned off earlier?",
+          "Can you take this form out of service?"
+        ]
+      },
+      "approval": {
+        "class": "edit",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  },
+  "forms_list_submissions": {
+    "id": "forms_list_submissions",
+    "description": "Lists a form's submissions, newest-first, with each submission's field values, source IP, and submission time. Read-only. To remove a submission, move it to the Trash with trash_item (entityType 'form_submission'); permanent removal stays human-only, from the Trash screen.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "formId"
+      ],
+      "properties": {
+        "formId": {
+          "type": "string",
+          "description": "The form definition's id, as returned by a create call. This is the opaque id, NOT the slug."
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Page size, 1-100. Defaults to 50 if omitted."
+        },
+        "cursor": {
+          "type": "string",
+          "description": "Opaque pagination cursor from a previous call's nextCursor. Omit for the first page."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "form submitted submissions contact responses replies entries messages people sent enquiries",
+        "queries": [
+          "What submissions have come in on our contact form?",
+          "Can you show me the latest form entries, newest first?",
+          "Who submitted this form and when?",
+          "I want to see all the responses to our survey form.",
+          "Show me the IP addresses on recent form submissions."
+        ]
+      },
+      "approval": {
+        "class": "read",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": true,
+    "sideEffects": "none"
+  },
+  "forms_get_submission": {
+    "id": "forms_get_submission",
+    "description": "Reads one submission's full field values, source IP, and submission time by id. Read-only.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "formId",
+        "submissionId"
+      ],
+      "properties": {
+        "formId": {
+          "type": "string",
+          "description": "The form definition's id, as returned by a create call. This is the opaque id, NOT the slug."
+        },
+        "submissionId": {
+          "type": "string",
+          "description": "The submission's id, as returned by forms_list_submissions."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "form submission response reply entry message detail",
+        "queries": [
+          "Can you pull up the full details of one specific form submission?",
+          "I have a submission id, show me everything that was submitted.",
+          "What did this particular visitor fill out on the form?",
+          "Can you show me the exact time and IP for this one submission?",
+          "I need to look at a single form response in detail."
+        ]
+      },
+      "approval": {
+        "class": "read",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": true,
+    "sideEffects": "none"
+  },
+  "forms_delivery_status": {
+    "id": "forms_delivery_status",
+    "description": "Shows whether form submissions reached the destinations configured to receive them (the site's form delivery bindings): per binding, its status (pending, retrying, completed or failed), attempts so far, the next retry time and a short error code. With submissionId, that submission's deliveries; without it, the most recent deliveries that have not completed. Read-only; never shows answers, destination addresses or credentials.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "submissionId": {
+          "type": "string",
+          "description": "The submission's id, as returned by forms_list_submissions."
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50,
+          "description": "Without submissionId: how many unfinished deliveries to list, 1-50. Defaults to 50."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "form submission delivery deliveries destination destinations sheet spreadsheet sent reached status retry retrying failed attempts",
+        "queries": [
+          "Did this form submission reach the spreadsheet?",
+          "Which form deliveries failed or are still retrying?",
+          "Why didn't the new signup show up in our sheet?",
+          "Show me the delivery status of the latest form entries.",
+          "Are any form submissions stuck waiting to be sent to their destination?"
+        ]
+      },
+      "approval": {
+        "class": "read",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": true,
+    "sideEffects": "none"
+  },
+  "forms_pull_submissions": {
+    "id": "forms_pull_submissions",
+    "description": "Brings form submissions that a static export stored at its hosting provider back into Submissions here, checks them with the form's own rules, and sends the usual new-submission notifications. Only rows saved here are cleared at the host, so pulling again is always safe and never duplicates. Use it when the owner asks for new entries from a static export. Returns a plain summary per hosting target, counts per form (formId, formSlug, imported, alreadyImported, unmapped, failed) with totals, and ran: false with reason 'already-running' when another pull of the same host is still in progress.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "targetId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "description": "Optional hosting target id to pull from that target only. Omit to pull from every hosting target that receives forms."
+        }
+      }
+    },
+    "metadata": {
+      "search": {
+        "keywords": "form submissions pull import fetch sync bring new entries signups waitlist hosting host waiting",
+        "queries": [
+          "Pull the new form submissions from the host.",
+          "Are there new signups waiting at the hosting provider? Bring them in.",
+          "Import the waitlist entries people submitted on the live static export.",
+          "Sync form entries from our hosting into the admin.",
+          "Fetch the latest form responses that are waiting at the host."
+        ]
+      },
+      "approval": {
+        "class": "edit",
+        "confirmation": "direct"
+      }
+    },
+    "readOnly": false,
+    "sideEffects": "mutates-durable-state"
+  }
+}
