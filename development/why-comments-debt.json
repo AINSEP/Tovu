@@ -116,6 +116,14 @@
     {
       "id": "76ced6c2706f",
       "reason": "The generic first sentences (reading the PUBLIC web, vendor = adapter) moved to the @module block of Jini packages/platform/src/web/agent-tools.ts (Jini d478ab5a); the Tovu-specific remainder (Claude Code CLI, owner 2026-10-08, visitor allowlist) stays in the reduced file header."
+    },
+    {
+      "id": "2e09a15983d9",
+      "reason": "Moved to the neutral wording on SiteListPrefsController.loadError in Jini packages/ui/src/features/site-card/use-site-list-prefs.hooks.ts (Jini 6598a5cc): 'the reason', since the host now supplies the error wording."
+    },
+    {
+      "id": "a6407d29416f",
+      "reason": "Moved to the neutral wording on SiteListPrefsController.saveError in Jini packages/ui/src/features/site-card/use-site-list-prefs.hooks.ts (Jini 6598a5cc)."
     }
   ]
 }
