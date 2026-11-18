@@ -31,6 +31,8 @@ import { WRITE_FILES_TOOL_ID } from "../agent-tools.js";
 import { githubFromSource } from "../../source-control/__tests__/fixtures/github-from-source.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { bindSourceControlWritePort } from "#src/features/source-control/index";
+import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
 
 
 const WORKSPACE_ID = "ws-cred-write-files-network";
@@ -84,6 +86,7 @@ async function buildHarness(steps: Step[]) {
   );
 
   const logLines: string[] = [];
+  const httpClient = new SteppedHttpClient([...steps]);
   const deps: CustomCredentialsToolDeps = {
     loadAuthSchemes: async () => [],
     workspaceId: WORKSPACE_ID,
@@ -92,8 +95,10 @@ async function buildHarness(steps: Step[]) {
     siteAssistantSecretSealer: sealer,
     siteAssistantSecretKeyring: keyring,
     idGen,
-    customCredentialsHttpClient: new SteppedHttpClient([...steps]),
+    customCredentialsHttpClient: httpClient,
     loadSourceControlProviders: githubFromSource,
+    sourceControlWrite: bindSourceControlWritePort({ load: githubFromSource, httpClient }),
+    publishCompatibility: bindPublishCompatibility({ source: {} }),
     customCredentialsFailureLog: (line) => logLines.push(line),
     authorize: async () => ({ allowed: true, reason: "matched" }),
   };

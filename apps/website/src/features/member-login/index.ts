@@ -8,3 +8,5 @@ export { resolveFederatedIdentity, requestLoginEmailProof } from "./link-service
 export type { MemberLoginLinkDeps, MemberLoginLinkInput, MemberLoginLinkResult } from "./link-service.js";
 export { MemberLoginError } from "./types.js";
 export type { LoginProvider, LoginProviderPreset, VerifiedLoginIdentity, MemberLoginOutcomeCode } from "./types.js";
+
+export { createReadyLoginProviderList } from "./ready-providers.js";

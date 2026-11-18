@@ -7,7 +7,7 @@ import type { SecretSealerPort } from "../../webhooks/index.js";
 import { createDeployHostKit, DEPLOY_FETCH_TIMEOUTS } from "../deploy-targets/host-kit.js";
 import type { DeployCredentialCheck, DeployHostKit, DeployTargetCredential, DeployTargetCredentialSpec, DeployTargetRegistry } from "../deploy-targets/types.js";
 import { resolveForPublish } from "../publish-credentials/store.js";
-import type { VendorCredentialSetRepoPort } from "../../vendor-credentials/types.js";
+import type { VendorCredentialSetRepoPort } from "../../vendor-credentials/index.js";
 import { projectConnectionForPublish, toDeployTargetCredential } from "./credentials.js";
 import type { PublishCredentialSource, StaticPublishTargetId } from "./types.js";
 

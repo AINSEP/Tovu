@@ -24,3 +24,5 @@ export {
   type EmailTemplatePreview,
   type EmailTemplateSummary,
 } from "./operations.js";
+
+export { contributeEmailTemplatesTools } from "./tool-registrations.js";

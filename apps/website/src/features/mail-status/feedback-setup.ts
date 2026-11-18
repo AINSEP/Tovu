@@ -15,8 +15,8 @@ import type {
   VerifiedOrigin,
 } from "@jini-ai/core/contracts/server/verified-origin";
 import type { CustomCredentialSetRepoPort } from "../custom-credentials/index.js";
-import { listCustomCredentials } from "../custom-credentials/store.js";
-import { mailWebhookSecretLabels } from "../mail/feedback-sources.js";
+import { listCustomCredentials } from "../custom-credentials/index.js";
+import { mailWebhookSecretLabels } from "../mail/index.js";
 import type { MailSuppressionAdminRepo } from "@jini-ai/platform/mail";
 import type { MailProviderConfiguration, MailProviderControl } from "../../platform/mail/index.js";
 

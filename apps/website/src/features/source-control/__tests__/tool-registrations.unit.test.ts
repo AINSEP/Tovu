@@ -27,6 +27,7 @@ import { buildSourceControlRegistrations, sourceControlAgentToolCatalog, sourceC
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { nodeIntervalScheduler } from "#src/server/runtime/composition/jini-routes";
+import { createStaticSitePackager } from "../../site-backup/static-site-packager.js";
 
 
 /**
@@ -69,6 +70,7 @@ function fakeDeps(options: { allow?: boolean; gitAdapter?: SourceControlCommitAd
     exportSiteBound: options.exportSiteBound ?? (async ({outputDir}) => ({outputDir, routes: {succeeded: [{path: "/", kind: "home", outputFile: "index.html", data: "<html>export fixture</html>"}], failed: []}, assets: {succeeded: [], failed: []}, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: []})),
     sourceControlExportRootDir: exportDir,
     staticSiteContext: async () => ({ name: "Demo", slug: "demo", theme: "Fixture", themeId: "fixture" }),
+    staticSitePackager: createStaticSitePackager(),
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };

@@ -17,6 +17,7 @@ import { createSourceControlCredential } from "../store.js";
 import { buildSourceControlRegistrations, type SourceControlToolDeps } from "../tool-registrations.js";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import { createStaticSitePackager } from "../../site-backup/static-site-packager.js";
 
 
 /**
@@ -69,6 +70,7 @@ function fakeDeps(options: { gitAdapter: SourceControlCommitAdapter; exportSiteB
     sourceControlExportRootDir: exportRootDir,
     exportSiteBound: options.exportSiteBound,
     staticSiteContext: async () => ({ name: "Demo", slug: "demo", theme: "Fixture", themeId: "fixture" }),
+    staticSitePackager: createStaticSitePackager(),
     gitAdapter: options.gitAdapter,
     authorize: async () => ({ allowed: true, reason: "matched" }),
   };

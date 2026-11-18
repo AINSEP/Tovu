@@ -1,5 +1,5 @@
 import { InMemoryMemberRepo } from "#src/features/members/index";
-import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { InMemoryKeyring } from "#src/features/webhooks/index";
 import { MembersSubscriberDirectory } from "#src/features/members/index";
 import { createHookRegistry } from "#src/features/newsletter/send-pipeline";
 import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";

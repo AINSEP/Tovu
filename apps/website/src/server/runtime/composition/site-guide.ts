@@ -7,7 +7,7 @@ import { ToolInputError } from "@jini-ai/core";
 import { createTovuAgentPluginLifecycle, type TovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import type { AgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { readInstalledAgentPluginIdentity } from "@jini-ai/agent-plugins/lifecycle/host-tools";
-import { resolveThemeLayout } from "#src/features/theme/theme-layout";
+import { resolveThemeLayout } from "#src/features/theme/index";
 import type { SiteProfileSourceDeps } from "#src/features/site-inspection/index";
 import { readSiteGuideFacts, loadSiteGuideContributions, type SiteGuideEngine, type SiteGuideService } from "#src/features/site-guide/index";
 import type { GuideTopic as CapabilityCard } from "@jini-ai/agentic/core";
@@ -20,7 +20,7 @@ import { capabilityCard as seo } from "#src/features/seo/capability-card";
 import { capabilityCard as backup } from "#src/features/recovery/capability-card";
 import { capabilityCard as deploy } from "#src/features/deployments/capability-card";
 import { capabilityCard as plugins } from "#src/features/plugin-runtime/capability-card";
-import { capabilityCard as jini } from "#src/features/site-guide/capability-card";
+import { capabilityCard as jini } from "#src/features/site-guide/index";
 
 export const TOVU_CAPABILITY_CARDS: readonly CapabilityCard[] = [content, forms, widgets, themes, members, seo, deploy, backup, plugins, jini];
 export interface TovuSiteGuideDeps extends SiteProfileSourceDeps {

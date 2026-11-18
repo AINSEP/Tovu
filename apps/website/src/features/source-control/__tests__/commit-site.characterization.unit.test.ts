@@ -16,6 +16,7 @@ import {
   type SourceControlCommitOutcome,
 } from "../commit-site.js";
 import type { SourceControlCommitResult, RepositoryTargetValidator } from "../provider-module.js";
+import { createStaticSitePackager } from "../../site-backup/static-site-packager.js";
 import type { SourceControlCredentialSetRepoPort } from "../types.js";
 
 /**
@@ -122,6 +123,7 @@ function setup(scenario: Scenario = {}): Run {
     workspaceId: "11111111-1111-4111-8111-111111111111" as CommitSiteInput["workspaceId"],
     sourceControlExportRootDir: root,
     idGen: { newId: () => { nextRun += 1; return `run-${nextRun}`; } },
+    packager: createStaticSitePackager(),
     staticSiteContext: async () => {
       if (scenario.contextThrows !== undefined) throw scenario.contextThrows;
       return { name: "Demo", slug: "demo", theme: "Fixture", themeId: "fixture" };

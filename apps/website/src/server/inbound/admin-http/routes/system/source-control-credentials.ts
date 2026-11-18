@@ -44,7 +44,7 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
  * precedent): a NEW dot-namespaced permission, not a reused one, and the
  * seeded owner's wildcard grant authorizes it immediately with no seed edit required.
  *
- * See `CredentialsDeps` in `server/routes/types.ts` for why each route picks only its own repo.
+ * See `CredentialsDeps` in `server/routes/route-deps/credentials-deps.ts` for why each route picks only its own repo.
  */
 export type AdminSourceControlCredentialsDeps = Pick<
   RouteDeps,

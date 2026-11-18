@@ -5,6 +5,9 @@ import type { RouteDeps } from "../../../../routes/types.js";
 // 2026-09-05 (fix-cycle) — used to be a lazy `require()` here; see `runExportSite`'s doc below for
 // why a plain static import is now correct.
 import { exportSite } from "#src/features/site-export/index";
+import { createStaticSitePackager } from "#src/features/site-backup/static-site-packager";
+import { bindStaticSiteContext } from "../../static-site-context.js";
+import { bindCredentialsHostPorts } from "../../credentials-host-ports.js";
 import { resolvePublishContentPeerHttpClient } from "../../publish-content-http.js";
 import { resolveExportOutputRootDir, resolvePublishOutputRootDir, bundledAgentPluginsDir, resolveSourceControlExportRootDir } from "../../site-paths.js";
 import { describeSiteBinding } from "#src/platform/site-dir/index";
@@ -26,7 +29,6 @@ import { InMemoryVendorCredentialSetRepo } from "#src/features/deployments/publi
 import { createDefaultHttpClient } from "#src/platform/http/client";
 import { CUSTOM_CREDENTIALS_EGRESS_POLICY, SINGLE_HOP_HTTPS_EGRESS_POLICY, MEDIA_IMPORT_EGRESS_POLICY } from "#src/platform/http/egress-policies";
 import { createMediaProviderRegistry } from "@jini-ai/integrations/media-providers";
-import { resolveActiveTheme, NO_THEME_ID } from "#src/features/theme/index";
 import type { MemoryRootContext, MemoryRouteDeps } from "./context.js";
 
 /**
@@ -234,11 +236,8 @@ export function memoryClientsAndSiteContextDeps(required: MemoryRootContext, _op
     // 2026-09-05 (fix-cycle) — plain static reference now; see `runExportSite`'s doc below for why
     // the lazy `require()` this used to carry is gone.
     exportSiteBound: (opts) => exportSite({ ...opts, routeDeps: routeDeps() }),
-    staticSiteContext: async () => {
-      const theme = resolveActiveTheme({ deps: routeDeps(), activeThemeId: await routeDeps().resolveActiveThemeId() });
-      return { name: routeDeps().siteDisplayName.read() ?? siteBinding.name, slug: siteBinding.name,
-        theme: theme && typeof theme === "object" ? theme.manifest.name : "None",
-        themeId: theme && typeof theme === "object" ? theme.manifest.id : NO_THEME_ID };
-    },
+    staticSitePackager: createStaticSitePackager(),
+    ...bindCredentialsHostPorts({ readDeps: routeDeps }),
+    staticSiteContext: bindStaticSiteContext({ readDeps: routeDeps, siteName: siteBinding.name }),
   } satisfies Partial<MemoryRouteDeps>;
 }

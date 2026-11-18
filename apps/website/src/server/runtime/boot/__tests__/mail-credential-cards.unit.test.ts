@@ -22,6 +22,8 @@ import type { HttpClientPort } from "#src/platform/http/index";
 import { loadBundledMailAdapterRegistry, MAIL_ADAPTERS_FILENAME, parseMailAdaptersFile, type MailAdapterRegistry } from "#src/features/agent-plugins/mail-adapter-registry";
 import { loadMailCredentialCards, loadMailProviderCatalog, MAIL_CREDENTIAL_CATEGORY } from "../mail-provider-catalog.js";
 import { describeMailProviders } from "../mail-provider-configuration.js";
+import { unusedSourceControlWrite } from "#src/features/source-control/__tests__/write-port.support";
+import { bindPublishCompatibility } from "#src/features/deployments/publish-credentials/index";
 
 /**
  * @file Plugin-declared mail key cards: a v2 mail descriptor's `credentialCard` becomes a
@@ -97,6 +99,8 @@ function harness(cards: readonly PluginCredentialCard[]) {
   const deps: CustomCredentialsToolDeps = {
     loadAuthSchemes: async () => [],
     loadSourceControlProviders: async () => ({ list: () => [], get: () => undefined, refusals: [] }),
+    sourceControlWrite: unusedSourceControlWrite(),
+    publishCompatibility: bindPublishCompatibility({ source: {} }),
     loadPluginCredentialCards: async () => cards,
     workspaceId: WORKSPACE_ID,
     clock: createFakeClock({ startIso: "2026-10-22T00:00:00.000Z" }),

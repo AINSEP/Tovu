@@ -1,4 +1,4 @@
-import { createReadyLoginProviderList } from "#src/features/member-login/ready-providers";
+import { createReadyLoginProviderList } from "#src/features/member-login/index";
 import { registerAdminMemberDeleteRoute } from "#src/server/inbound/admin-http/routes/members/delete";
 import { registerAdminMemberListRoute } from "#src/server/inbound/admin-http/routes/members/list";
 import { registerAdminMemberGetRoute } from "#src/server/inbound/admin-http/routes/members/get-by-id";

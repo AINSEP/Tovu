@@ -41,4 +41,5 @@ export {
   type AccountLabelHealSchedulerDeps,
 } from "./account-label-heal-scheduler.js";
 
+export { bindPublishCompatibility, type PublishCompatibilitySource } from "./compatibility-port.js";
 export { InMemoryVendorCredentialSetRepo } from "./repo.memory.js";

@@ -25,7 +25,7 @@ import { createProjectKeys, providerPluginOf } from "#src/features/project-keys/
 import { siteProviderRevisions } from "./provider-revision-watch.js";
 
 import { setAgentPluginEnabled } from "#src/features/agent-plugins/set-enabled";
-import { createReadyLoginProviderList } from "#src/features/member-login/ready-providers";
+import { createReadyLoginProviderList } from "#src/features/member-login/index";
 import { createPluginExportRuntime } from "#src/features/agent-plugins/exports/runtime";
 import { createPluginExportSource } from "#src/features/agent-plugins/exports/source";
 import { readSiteListenerOrigin } from "../boot/site-listener-origin.js";
@@ -43,6 +43,9 @@ import { resolveClientIp } from '#src/contracts/core/rate-limit/rate-limit';
 import { registerContentAnalytics } from './content-events.js';
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { createSiteShareBackend } from "#src/features/site-backup/share-backend";
+import { createStaticSitePackager } from "#src/features/site-backup/static-site-packager";
+import { bindCredentialsHostPorts } from "./credentials-host-ports.js";
+import { bindStaticSiteContext } from "./static-site-context.js";
 import { composeSiteImportBackend } from "./site-import-backend.js";
 import { composeSiteSavedKeys } from "#src/server/runtime/composition/site-portability";
 import { startLocalSiteWhenRunning } from "#src/platform/site-dir/local-site-supervisor";
@@ -181,7 +184,7 @@ import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
 import { createSiteAssistantErrorReporter } from "#src/assistant/site/public-errors";
 import { formatErrorForLog, redactSecrets } from "@jini-ai/core";
-import { discoverAllBuiltInThemes, rescanThemes, syncThemeRoster, resolveActiveTheme, NO_THEME_ID } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes, rescanThemes, syncThemeRoster } from "#src/features/theme/index";
 import { createMemberTrashAdapter } from "#src/features/trash/adapters/member";
 import { createThemeTrashAdapter } from "#src/features/theme/theme-trash";
 import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
@@ -273,7 +276,7 @@ import { SqliteUserPurge } from "#src/features/identity/user-purge.sqlite";
 import type { IdentityRepos } from "@jini-ai/user-management";
 import type { Clock as ClockPort, IdGenerator as IdGeneratorPort } from "@jini-ai/core/primitives";
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "#src/features/forms/repo.sqlite";
-import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
+import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/index";
 import { formSubmissionAttemptsFor } from "#src/features/forms/index";
 import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
 import type { RouteDeps } from "../../routes/types.js";
@@ -293,8 +296,8 @@ import {
   SqliteTransformDefinitionRepo,
 } from "#src/platform/db/sqlite/media-repo.sqlite";
 import { RedirectHitSinkImpl, redirectMatcher, RedirectSlugChangeCapture, registerRedirectHitOutboxHandler, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
-import { registerRedirectsPhaseHandlers } from "#src/features/redirects/phase-handler";
-import { SqliteRedirectRepo } from "#src/features/redirects/repo.sqlite";
+import { registerRedirectsPhaseHandlers } from "#src/features/redirects/index";
+import { SqliteRedirectRepo } from "#src/features/redirects/index";
 import { getSlugChangeCapture, registerSlugChangeCapture } from "#src/platform/routing/adapter";
 import { SqliteRestorePointsRepo } from "#src/platform/db/sqlite/database-journal-repo";
 import { SqliteDatabaseIntrospectionAdapter } from "#src/platform/db/sqlite/database-introspection-adapter.sqlite";
@@ -2705,12 +2708,9 @@ async function composeSiteRouteDeps(
     // `apps/website/src/server/runtime/composition/app.ts`'s matching field for the identical closure-ordering reasoning (`routeDeps`
     // spread LAST, so it always wins over anything a caller's `opts` might also carry).
     exportSiteBound: (opts) => exportSite({ ...opts, routeDeps }),
-    staticSiteContext: async () => {
-      const theme = resolveActiveTheme({ deps: routeDeps, activeThemeId: await routeDeps.resolveActiveThemeId() });
-      return { name: routeDeps.siteDisplayName.read() ?? resolvedSiteBinding.name, slug: resolvedSiteBinding.name,
-        theme: theme && typeof theme === "object" ? theme.manifest.name : "None",
-        themeId: theme && typeof theme === "object" ? theme.manifest.id : NO_THEME_ID };
-    },
+    staticSitePackager: createStaticSitePackager(),
+    ...bindCredentialsHostPorts({ readDeps: () => routeDeps }),
+    staticSiteContext: bindStaticSiteContext({ readDeps: () => routeDeps, siteName: resolvedSiteBinding.name }),
   };
   resolveRouteDeps(routeDeps);
 
