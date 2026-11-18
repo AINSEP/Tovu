@@ -352,8 +352,7 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   const exportEnabled = resolveTovuObservabilityExport({ env: optional.env });
   // Factory options are host-owned; analytics and AI tracing retain their existing policies.
   // Each initialization gets its own span scope; the analytics provider reports delivery failures through diagnostics' classifier.
-  const exportOptions = (contract: ProviderSlotContract) => contract === 'observability' ? { exportEnabled, scope: createAsyncLocalSpanScope({}) }
-    : contract === 'product_analytics' ? { describeTelemetryFailure } : {};
+  const exportOptions = (contract: ProviderSlotContract) => contract === 'observability' ? { exportEnabled, scope: createAsyncLocalSpanScope({}) } : contract === 'product_analytics' ? { describeTelemetryFailure } : {};
   const warn = optional.warn ?? ((message: string) => console.warn(`[provider-plugins] ${message}`));
   const delivery = createTelemetryDeliveryMonitor({ warn });
   const testProbe = createTelemetryTestProbe({});
