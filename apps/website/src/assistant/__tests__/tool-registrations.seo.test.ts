@@ -29,9 +29,8 @@ import {
   InMemoryTransformDefinitionRepo,
 } from "../../features/media/index.js";
 import { type AgentToolDefinition } from "@jini-ai/core";
-import { getSeoAgentToolCatalog } from "../../features/seo/agent-tools.js";
 import { ensureSeoSettingDefinitions, getSeoSettings } from "../../features/seo/settings.js";
-import { createSitemapService, SITEMAP_INVALIDATED_EVENT } from "@jini-ai/cms/seo";
+import { createSitemapService, getSeoAgentToolCatalog, SITEMAP_INVALIDATED_EVENT } from "@jini-ai/cms/seo";
 import { createSeoDeps } from "../../features/seo/index.js";
 import { contributeSeoTools } from "../../features/seo/tool-registrations.js";
 

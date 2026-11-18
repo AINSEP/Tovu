@@ -13,7 +13,7 @@ import { executeRegisteredTool } from "./fixtures/execute-registered-tool.js";
 import { withContentTargets } from "./fixtures/content-target-inputs.js";
 import { withBatchInput } from "@jini-ai/core";
 import { permanentDeleteAgentToolCatalog } from "../../features/permanent-delete/agent-tools.js";
-import { getSeoAgentToolCatalog } from "../../features/seo/agent-tools.js";
+import { getSeoAgentToolCatalog } from "@jini-ai/cms/seo";
 
 function mediaRecord({ id, slug, workspaceId = "w" }: { id: string; slug: string; workspaceId?: string }): MediaRecord {
   return { id, slug, workspaceId, title: slug, alt: "", caption: "", credit: "", source: { sha256: id }, status: "active",
