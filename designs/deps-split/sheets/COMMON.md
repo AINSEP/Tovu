@@ -51,12 +51,20 @@ Empty output means the binding is gone: STOP (`STOP-ANCHOR <binding>`), do not g
 
 ## §4 Sheet start: record the base-red outputs
 
-`check:architecture` exits non-zero on the base (see INDEX "Base gate status"), so its exit status cannot gate. Each sheet records its output once at sheet start, on the sheet's first `HEAD` (= the previous sheet's last pushed commit, which passed this same comparison):
+Two repository checks are red on the base (`work/base-gates-b5fbf2a5.txt`: `check:architecture` exit 1, `check:boundaries` exit 15), so their exit status cannot gate. Each sheet records their **finding lines** once at sheet start, on the sheet's first `HEAD` (= the previous sheet's last pushed commit, which passed the same comparison), and every commit fails on any finding line that is not in that file. Also at sheet start: run `SR_TESTS` + this sheet's `SHEET_TESTS` (§5 runner line); a failure there is `STOP-BASE-RED-TEST` (red before this sheet changed anything).
 ```bash
 set -euo pipefail
-npm run -s check:architecture > "$W/arch.base" 2>&1 || [ $? -eq 1 ]     # 1 = the known base-red findings; any other status stops here
-grep -q '<ARCH_SENTINEL>' "$W/arch.base"                                # the run reached its summary (INDEX "Base gate status" names the line)
+npm run -s check:architecture > "$W/arch.raw" 2>&1 || [ $? -eq 1 ]      # 1 = the known base-red result; any other status stops here
+grep -qE '^check:architecture — (FAILED|OK)' "$W/arch.raw"               # the run reached its summary line (a crash has none)
+grep -E '^  NEW |^    \+ |^  back-edges into composition root|^check:architecture — FAILED: ' "$W/arch.raw" > "$W/arch.base" || [ $? -eq 1 ]
 ```
+Only the **finding lines** are compared: new cross-feature edges (`  NEW …`), new cycle pairs (`    + …`), the composition back-edge count, and the number of failing metrics. The metric value lines are not: they contain the file count (`2232 files`, `366/2232` on `b5fbf2a5`), so every added slice file would change them without any new finding. A newly failing metric still shows, as a changed `FAILED: N metric(s)` line.
+```bash
+rc=0; npm run -s check:boundaries > "$W/bnd.raw" 2>&1 || rc=$?                  # exit = number of errors (15 on the base); completeness is the next line
+grep -qE 'dependencies cruised' "$W/bnd.raw"                                     # depcruise reached its summary (it runs only after the feature-rank step passed)
+grep -E '^  (warn|error) ' "$W/bnd.raw" > "$W/bnd.base" || [ $? -eq 1 ]
+```
+No boundaries finding line names `composition/deps.ts` on the base, so moving code out of it cannot rename an existing line; a slice that adds a cycle or a forbidden import adds a line.
 `check:boundaries` is handled the same way only if INDEX "Base gate status" lists it as base-red; otherwise it is a plain gate in §5.
 
 ## §5 Per commit: commit locally, run the block on the committed tree, then push
@@ -78,10 +86,19 @@ npm run check:size
 npm run check:complexity
 npm run check:errors -- --strict                     # plain check:errors is WARN mode and exits 0 on a new finding
 npm run check:hooks
-npm run -s check:architecture > "$W/arch.now" 2>&1 || [ $? -eq 1 ]
-grep -q '<ARCH_SENTINEL>' "$W/arch.now"
+npm run -s check:architecture > "$W/arch.raw" 2>&1 || [ $? -eq 1 ]
+grep -qE '^check:architecture — (FAILED|OK)' "$W/arch.raw"
+grep -E '^  NEW |^    \+ |^  back-edges into composition root|^check:architecture — FAILED: ' "$W/arch.raw" > "$W/arch.now" || [ $? -eq 1 ]
 diff "$W/arch.base" "$W/arch.now" > "$W/arch.diff" || [ $? -eq 1 ]     # 2 = diff trouble: stops
 awk '/^>/ { print "STOP-ARCH-NEW-LINE " $0; n++ } END { exit n > 0 }' "$W/arch.diff"
+rc=0; npm run -s check:boundaries > "$W/bnd.raw" 2>&1 || rc=$?
+grep -qE 'dependencies cruised' "$W/bnd.raw"
+grep -E '^  (warn|error) ' "$W/bnd.raw" > "$W/bnd.now" || [ $? -eq 1 ]
+diff "$W/bnd.base" "$W/bnd.now" > "$W/bnd.diff" || [ $? -eq 1 ]
+awk '/^>/ { print "STOP-BOUNDARIES-NEW-LINE " $0; n++ } END { exit n > 0 }' "$W/bnd.diff"
+npm run -s check:inventory > "$W/inv.txt" 2>&1          # exits 0 even on findings by design (check-capability-inventory.ts:42-47); the OK line decides
+grep -qF 'check:inventory — OK' "$W/inv.txt"
+npm run build:server
 npm run check:why-comments -- --base "$P"            # diffs $P..HEAD: the committed candidate itself
 # freeze (§2), same block as at sheet start:
 BASE=$(sed -n 's/^TOVU_BASE=//p' designs/deps-split/work/BASE)
@@ -113,14 +130,16 @@ SR_TESTS=(
 - A failing step after `git commit`: fix it in a new local commit and run the whole block again (same `P`). If you cannot make it green, push the local commits to `refactor/deps-split-stop-$DS_SHEET` (a new branch; never to `refactor/deps-split`) and STOP with the failing command's last lines.
 - Debt files are never edited to silence a gate. When `check:size` prints `Delete stale debt entry: …` for a `composition/deps.ts` row this commit shrank, delete exactly that entry from `development/scripts/size-debt.json` (rows live under `.violations`; identity is `file` + `function` + `rule`, e.g. `"function": "<file>"` / `"composeSiteRouteDeps#1"`), in the same commit, and name it in the report. When a counted error finding moves file, transfer exactly its count in `development/scripts/error-gate-debt.json` (top-level array; identity `file` + `rule`; value = count): lower the `deps.ts` row (delete it at 0) and add the new file's row; the total stays equal. `check:size` and `check:errors -- --strict` in the block are what prove the edit right; any other debt change is a STOP.
 
-## §6 Sheet end (after the last product commit, before the report commit)
+## §6 Sheet end
 
+The §5 block runs on every commit, so the last pushed commit already passed everything. Before the report commit additionally print, for the report, the functions the owner's **warn** line (50 code lines) still flags in the files this sheet touched — the repository gates enforce the **error** line (80), `max-lines` 500 and complexity 10 (`work/rev3-command-proofs.txt`: a new 86-line function fails `check:size`, a 56-line one passes it):
 ```bash
 set -euo pipefail
-npm run unlink:jini && npm run build && JINI_PACKAGES_DIR="$PWD/../Jini/packages" npm run link:jini   # the real build (refuses linked Jini, so unlink around it)
-npm run check:boundaries > "$W/bnd.txt" 2>&1 || [ $? -eq <BOUNDARIES_BASE_EXIT> ]               # INDEX "Base gate status"
+git diff --name-only --diff-filter=d "$(sed -n 's/^TOVU_BASE=//p' designs/deps-split/work/BASE)" HEAD -- "$D/deps.ts" "$D/site-deps" > "$W/touched"
+mapfile -t TOUCHED < "$W/touched"
+npx eslint --no-config-lookup -c development/scripts/size-eslint.config.mjs --rule '{"max-lines-per-function": ["error", {"max": 50, "skipBlankLines": true, "skipComments": true, "IIFEs": true}]}' "${TOUCHED[@]}" > "$W/warn50.txt" || [ $? -eq 1 ]
 ```
-plus the §5 block once more on the final tree (it is the report commit's gate). If `npm run build` cannot run here because the published Jini lacks something terra needs (INDEX says whether it did on `b5fbf2a5`), use `npm run build:server` with Jini linked and say so in the report.
+`warn50.txt` goes into the report (a list, not a gate, until S13 — S13's STOP requires it empty for `site-deps/**` and lists what remains in `deps.ts`).
 
 ## §7 Moving code
 

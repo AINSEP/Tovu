@@ -1,0 +1,22 @@
+# rev3 base gate status — Tovu b5fbf2a5 (origin/refactor/terra), Jini 6c9effae (origin/refactor/terra), Node v24.22.3, after COMMON §1 setup (npm ci; build packages/contracts + packages/sdk; JINI_PACKAGES_DIR=../Jini/packages npm run link:jini)
+# one command per line, run from the Tovu root on the unmodified tree; exit status and wall seconds
+typecheck exit=0 secs=34
+typecheck:tests exit=0 secs=60
+check:size exit=0 secs=21
+check:complexity exit=0 secs=21
+check:errors exit=0 secs=18
+check:hooks exit=0 secs=1
+check:architecture exit=1 secs=22
+check:boundaries exit=15 secs=29
+check:inventory exit=0 secs=1
+why(HEAD~1) exit=0 secs=8
+build:server exit=0 secs=26
+
+# check:architecture finding lines kept by COMMON §4's grep: 123
+check:architecture — 2232 files, 73 modules, production files only
+check:architecture — FAILED: 3 metric(s) regressed against a hard constraint.
+  bidirectional hub count                              16.40% (366/2232)
+# check:boundaries finding lines (^  (warn|error) ): 103; none name composition/deps.ts: 0
+x 103 dependency violations (15 errors, 88 warnings). 6531 modules, 44981 dependencies cruised.
+check:inventory — OK: all 25 capability-inventory entries correspond to real deps.ts/app.ts source.
+check:size — ok: 197 violations (157 functions, 40 files); 188 debt entries, 9 accepted exceptions.

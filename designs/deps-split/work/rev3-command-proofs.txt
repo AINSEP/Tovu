@@ -1,0 +1,75 @@
+# rev3 real plants on b5fbf2a5 (each plant removed after; git status clean after each script)
+
+# plant: apps/website/src/server/runtime/composition/zz-plant.ts = a catch that swallows (catch-reads-error), swallowed readFileSync failure, the deps.ts:598 shape
+$ npm run -s check:errors
+New: [catch-reads-error] apps/website/src/server/runtime/composition/zz-plant.ts (1)
+13 entries improved or are gone: run with --update to lower the debt list.
+Error gate (WARN mode): 1 new or worse entries. Not failing the build yet; fix them or use a named idiom.
+-> exit 0
+
+$ npm run -s check:errors -- --strict
+New: [catch-reads-error] apps/website/src/server/runtime/composition/zz-plant.ts (1)
+13 entries improved or are gone: run with --update to lower the debt list.
+Error gate (WARN mode): 1 new or worse entries. Not failing the build yet; fix them or use a named idiom.
+-> exit 1
+
+# plant: apps/website/src/server/runtime/composition/zz-plant.ts = one function with 56 code lines (owner warn limit 50)
+$ npm run -s check:size
+Accepted exception: apps/website/src/platform/db/schema.sqlite.ts:914 <file> [max-lines] 1376 — DB schema declaration, one line per column; splitting it scatters one table set.
+Accepted exception: apps/website/src/server/runtime/composition/peer-site-reads.ts:203 composePeer#1 [max-lines-per-function] 89 — Registration list: peer-site read wiring.
+check:size — ok: 197 violations (157 functions, 40 files); 188 debt entries, 9 accepted exceptions.
+-> exit 0
+
+# plant: delete the why-comment above 'const publishTrustRevocations' in deps.ts, commit it on a throwaway branch, gate with --base <parent>
+$ npm run -s check:why-comments -- --base b5fbf2a5e7e3b966e645e65d0e7e9f773ae16ff8
+why-comments: 1 deleted comment blocks appear nowhere else (owner rule: refactors move "why" comments with the code, never delete them)
+  fix: put the comment back next to the code it explains, or move it with that code.
+  last resort: add { "id": "<id above>", "reason": "<why this comment is truly obsolete>" } to the debt file (`npm run check:why-comments`).
+-> exit 1
+
+# plant: apps/website/src/server/runtime/composition/zz-plant.ts = one function with 86 code lines (owner error limit 80)
+$ npm run -s check:size
+Accepted exception: apps/website/src/platform/db/schema.sqlite.ts:914 <file> [max-lines] 1376 — DB schema declaration, one line per column; splitting it scatters one table set.
+Accepted exception: apps/website/src/server/runtime/composition/peer-site-reads.ts:203 composePeer#1 [max-lines-per-function] 89 — Registration list: peer-site read wiring.
+New violation: apps/website/src/server/runtime/composition/zz-plant.ts:1 zzPlant#1 [max-lines-per-function] 88
+-> exit 1
+
+# plant: apps/website/src/server/runtime/composition/zz-plant.ts = cyclomatic complexity 12 (limit 10)
+$ npm run -s check:complexity
+New violation: apps/website/src/server/runtime/composition/zz-plant.ts:1 zzPlant#1 [complexity] 12
+New violation: apps/website/src/server/runtime/composition/zz-plant.ts:1 zzPlant#1 [sonarjs/cognitive-complexity] 11
+-> exit 1
+
+# plant: apps/website/src/server/runtime/composition/zz-plant.ts = one function with 56 code lines
+$ npx eslint --no-config-lookup -c development/scripts/size-eslint.config.mjs --max-warnings 0 apps/website/src/server/runtime/composition/zz-plant.ts
+-> exit 0
+
+# clean: a compliant existing composition file
+$ npx eslint --no-config-lookup -c development/scripts/size-eslint.config.mjs --max-warnings 0 apps/website/src/server/runtime/composition/memory-deps/slices/outbound-http.ts
+-> exit 0
+
+# base: deps.ts itself
+$ npx eslint --no-config-lookup -c development/scripts/size-eslint.config.mjs --max-warnings 0 apps/website/src/server/runtime/composition/deps.ts
+  951:1  error  Async function 'composeSiteRouteDeps' has too many lines (1198). Maximum allowed is 80  max-lines-per-function
+
+✖ 2 problems (2 errors, 0 warnings)
+
+-> exit 1
+
+# block mechanics (missing path, diff trouble, new arch line, clean pass)
+$ grep -rnE "x" apps/website/src/server/runtime/composition/site-deps > "$W/hits" || [ $? -eq 1 ]; echo reached
+grep: apps/website/src/server/runtime/composition/site-deps: No such file or directory
+-> exit 1
+
+$ diff "$W/arch.base" "$W/arch.now" > "$W/arch.diff" || [ $? -eq 1 ]; awk "/^>/ { print \"STOP-ARCH-NEW-LINE \" \$0; n++ } END { exit n > 0 }" "$W/arch.diff"
+STOP-ARCH-NEW-LINE >   NEW cross-feature edge: c -> d
+-> exit 1
+
+$ diff "$W/arch.base" "$W/nonexistent" > "$W/arch.diff" || [ $? -eq 1 ]; echo reached
+diff: /tmp/claude-0/pw/nonexistent: No such file or directory
+-> exit 1
+
+$ diff "$W/arch.base" "$W/arch.base" > "$W/arch.diff" || [ $? -eq 1 ]; awk "/^>/ { n++ } END { exit n > 0 }" "$W/arch.diff"; echo clean-pass
+clean-pass
+-> exit 0
+
