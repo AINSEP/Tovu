@@ -19,7 +19,8 @@ import { collectTransferTables } from "#src/features/database-transfer/table-cat
 import { classifyAllCoreColumns } from "#src/platform/db/migration/manifest";
 import { SqlUserPurge } from "#src/features/identity/user-purge";
 import { buildTrashRegistry } from "#src/features/trash/registry";
-import { createTableTrashAdapter } from "#src/features/trash/table-adapter";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createMemberTrashAdapter } from "#src/features/trash/adapters/member";
 import { createUserTrashAdapter } from "#src/features/trash/adapters/user";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
@@ -189,7 +190,7 @@ describeEachDialect("trash and purge on a database migrated past 0011", { tables
     await assert.rejects(kernel.query(sql`SELECT count(*) AS n FROM commerce_orders`));
     const entry = buildTrashRegistry().get("member")!;
     assert.equal(entry.blocker, undefined);
-    const member = createMemberTrashAdapter({ adapter: createTableTrashAdapter({ entry, db: kernel }), db: kernel });
+    const member = createMemberTrashAdapter({ adapter: createTableTrashAdapter({ entry, kernel, tables: TRASH_TABLES }), db: kernel });
 
     const hidden = await member.hide({ workspaceId: WS, entityId: "member-1", at: AT, expectedVersion: 1 });
     assert.equal(hidden.ok, true);

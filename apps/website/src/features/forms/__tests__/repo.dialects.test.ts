@@ -52,7 +52,7 @@ function submission(id: string, submittedAt: string, overrides: Partial<FormSubm
 }
 
 function repos(kernel: ContentKernel) {
-  return { kernel, defs: formDefinitionRepoFor({ kernel: kernel, tables: FORMS_TABLES }, {}), subs: formSubmissionRepoFor({ kernel: kernel, tables: FORMS_TABLES }, {}) };
+  return { kernel, defs: formDefinitionRepoFor({ kernel, tables: FORMS_TABLES }, {}), subs: formSubmissionRepoFor({ kernel: kernel, tables: FORMS_TABLES }, {}) };
 }
 
 describeEachDialect(

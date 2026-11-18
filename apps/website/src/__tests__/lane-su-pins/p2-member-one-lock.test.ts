@@ -11,7 +11,8 @@ import { SqlMagicLinkTokenRepo, SqlMemberRepo, SqlMemberSessionRepo } from "#src
 import { InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "#src/features/members/repo.memory";
 import { issueMemberSession } from "#src/features/members/write-service";
 import { buildTrashRegistry } from "#src/features/trash/registry";
-import { createTableTrashAdapter } from "#src/features/trash/table-adapter";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { recordingKernel } from "./support/recording-kernel.js";
 
 /**
@@ -82,6 +83,6 @@ test("Trash hide for the member entry takes the member lock", async () => {
   assert.ok(entry);
   await h.members.save(h.member);
   h.keys.length = 0;
-  assert.equal((await createTableTrashAdapter({ entry, db: h.kernel }).hide({ workspaceId: WS, entityId: MEMBER, at: NOW, expectedVersion: null })).ok, true);
+  assert.equal((await createTableTrashAdapter({ entry, kernel: h.kernel, tables: TRASH_TABLES }).hide({ workspaceId: WS, entityId: MEMBER, at: NOW, expectedVersion: null })).ok, true);
   assert.deepEqual(h.keys, [MEMBER_LOCK]);
 });

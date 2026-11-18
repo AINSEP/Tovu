@@ -352,7 +352,6 @@ import {
   createMediaTrashAdapter,
   createPostTrashAdapter,
   createRedirectTrashAdapter,
-  createTableTrashAdapter,
   MEDIA_ENTITY_TYPE,
   PLUGIN_ENTITY_TYPE,
   THEME_ENTITY_TYPE,
@@ -363,6 +362,8 @@ import {
   createUserTrashAdapter,
   removeEntityWithoutBlocker,
 } from "#src/features/trash/index";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import {
   bindRemoveEntity,
   bindForgetRemovedEntity,
@@ -1502,7 +1503,7 @@ async function composeSiteRouteDeps(
     // written once and driven entirely by each entry's own registration, so this line never changes
     // as G2-G4 add more entries.
     ...[...trashRegistry.values()].map((entry) => {
-      const tableAdapter = createTableTrashAdapter({ entry, db: sqliteTrashDb });
+      const tableAdapter = createTableTrashAdapter({ entry, kernel: sqliteTrashDb, tables: TRASH_TABLES });
       const adapter = entry.entityType === "member"
         ? createMemberTrashAdapter({ adapter: tableAdapter, db: sqliteTrashDb })
         : tableAdapter;

@@ -1066,13 +1066,6 @@
       "value": 103
     },
     {
-      "file": "apps/website/src/features/trash/table-adapter.ts",
-      "function": "createTableTrashAdapter#1",
-      "line": 76,
-      "rule": "max-lines-per-function",
-      "value": 191
-    },
-    {
       "file": "apps/website/src/features/webhooks/tool-registrations.ts",
       "function": "buildWebhooksRegistrations#1",
       "line": 194,

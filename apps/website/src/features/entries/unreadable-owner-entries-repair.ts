@@ -1,7 +1,9 @@
 import { WIDGET_REGION_BINDINGS_TABLE } from "../../contracts/core/widget-tables.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import { DECLARED_CONTENT_TYPE_OWNERS } from "../content-types/index.js";
-import { buildTrashRegistry, createTableTrashAdapter, type TrashAdapter } from "../trash/index.js";
+import { buildTrashRegistry, type TrashAdapter } from "../trash/index.js";
+import { TRASH_TABLES } from "../trash/repo.sqlite.js";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import type { TrashEntry } from "@jini-ai/cms/trash";
 
 /**
@@ -98,7 +100,7 @@ export function ownerEntryRemovalFor(required: { kernel: ContentKernel; type: st
       { table: WIDGET_REGION_BINDINGS_TABLE, parentIdColumn: "area_entry_id" },
     ],
   };
-  return { adapter: createTableTrashAdapter({ entry, db: kernel }), via: registered ? "trash-purge" : "hard-delete" };
+  return { adapter: createTableTrashAdapter({ entry, kernel, tables: TRASH_TABLES }), via: registered ? "trash-purge" : "hard-delete" };
 }
 
 /** Parses a `fields_json` cell; `undefined` when it is not JSON (left alone, never removed). */

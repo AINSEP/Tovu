@@ -5,7 +5,8 @@ import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 
 import { buildTrashRegistry } from "../registry.js";
-import { createTableTrashAdapter } from "../table-adapter.js";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import type { TrashEntry } from "@jini-ai/cms/trash";
 import { readLiveSnapshot } from "@jini-ai/cms/trash/sql";
 
@@ -34,7 +35,7 @@ const TABLES = [
 
 function harness(kernel: ContentKernel) {
   const registry = buildTrashRegistry();
-  const adapter = (type: string) => createTableTrashAdapter({ entry: registry.get(type)!, db: kernel });
+  const adapter = (type: string) => createTableTrashAdapter({ entry: registry.get(type)!, kernel, tables: TRASH_TABLES });
   return { kernel, registry, form: adapter("form"), menu: adapter("menu"), term: adapter("term"), taxonomy: adapter("taxonomy") };
 }
 
@@ -203,7 +204,7 @@ describeEachDialect("generic trash table adapter", { tables: TABLES, make: harne
       purgeFirst: [...(real.purgeFirst ?? []), { table: "no_such_table_for_rollback_test", parentIdColumn: "menu_id" }],
     };
 
-    await assert.rejects(() => createTableTrashAdapter({ entry: failing, db: h.kernel }).purge({ workspaceId: WS, entityId: "m-1", expectedVersion: 1 }));
+    await assert.rejects(() => createTableTrashAdapter({ entry: failing, kernel: h.kernel, tables: TRASH_TABLES }).purge({ workspaceId: WS, entityId: "m-1", expectedVersion: 1 }));
     assert.equal(await count(h.kernel, "menus"), 1);
     assert.equal(await count(h.kernel, "nav_location_bindings"), 1);
   });

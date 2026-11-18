@@ -47,7 +47,6 @@ export { buildTrashRegistry } from "./registry.js";
 
 export type { TrashDb } from "./db-port.js";
 
-export { createTableTrashAdapter } from "./table-adapter.js";
 export { withFollowUps } from "@jini-ai/cms/trash";
 export type { AfterPurge, BeforePurge, HideFollowUp, TrashFollowUpHooks, UnhideFollowUp } from "@jini-ai/cms/trash";
 

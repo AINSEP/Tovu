@@ -6,7 +6,8 @@ import { freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dial
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { TrashEntry } from "@jini-ai/cms/trash";
 import { buildTrashRegistry } from "../registry.js";
-import { createTableTrashAdapter } from "../table-adapter.js";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 
 /**
  * @file S4b T0: the table adapter's contracts that no other test pins, on the unmoved code, before it is partitioned
@@ -91,7 +92,7 @@ for (const operation of ["hide", "unhide", "purge"] as const) {
     const trashed = operation !== "hide";
     await seedForm(base, "f1", { deletedAt: trashed ? AT : null, version: 2 });
     const { kernel, events } = orderRecordingKernel(base);
-    const adapter = createTableTrashAdapter({ entry: formEntry(), db: kernel });
+    const adapter = createTableTrashAdapter({ entry: formEntry(), kernel, tables: TRASH_TABLES });
     if (operation === "purge") await adapter.purge({ workspaceId: WS, entityId: "f1", expectedVersion: 2 });
     else await adapter[operation]({ workspaceId: WS, entityId: "f1", at: AT, expectedVersion: 2 });
     assert.deepEqual(events.slice(0, 3), ["transaction", "lock:trash:form:ws-1:f1", "run"]);
@@ -104,7 +105,8 @@ test("the database is read on the first call, never when the adapter is construc
   let reads = 0;
   const adapter = createTableTrashAdapter({
     entry: formEntry(),
-    get db() {
+    tables: TRASH_TABLES,
+    get kernel() {
       reads += 1;
       return base;
     },
@@ -121,7 +123,7 @@ test("re-hiding an already-trashed row is a no-op that never evaluates the block
   await seedForm(base, "live", { version: 3 });
   // The blocker names a table that does not exist: evaluating it throws, so a clean no-op proves it never ran.
   const entry: TrashEntry = { ...formEntry(), blocker: { table: "no_such_table", parentIdColumn: "form_id", code: "TEST_BLOCKED" } };
-  const adapter = createTableTrashAdapter({ entry, db: base });
+  const adapter = createTableTrashAdapter({ entry, kernel: base, tables: TRASH_TABLES });
   const before = await formRow(base, "trashed");
   assert.deepEqual(await adapter.hide({ workspaceId: WS, entityId: "trashed", at: AT, expectedVersion: 3 }), { ok: true, version: 3, noop: true });
   assert.deepEqual(await formRow(base, "trashed"), before, "row bytes unchanged");
@@ -136,7 +138,7 @@ test("a purge whose claim finds the marker changed (version untouched) reports v
   );
   // A writer restores the form between the purge's read and its claim, without bumping the version.
   const racing = writerAfterFirstRead(base, () => base.run((db) => db.updateTable("form_definitions").set({ deleted_at: null }).where("id", "=", "f1").execute()).then(() => undefined));
-  const adapter = createTableTrashAdapter({ entry: formEntry(), db: racing });
+  const adapter = createTableTrashAdapter({ entry: formEntry(), kernel: racing, tables: TRASH_TABLES });
   assert.equal(await adapter.purge({ workspaceId: WS, entityId: "f1", expectedVersion: 3 }), "version-changed");
   assert.deepEqual(await formRow(base, "f1"), { deleted_at: null, version: 3 });
   assert.equal((await base.run((db) => db.selectFrom("form_submissions").select("id").execute())).length, 1);

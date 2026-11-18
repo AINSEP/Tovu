@@ -23,7 +23,8 @@ import { updatePost, type PostRecord } from "#src/features/post/index";
 import { withFollowUps, type TrashRegistry } from "@jini-ai/cms/trash";
 import { moveToTrash, type MoveToTrashOutcome } from "../move-to-trash.js";
 import { buildTrashRegistry } from "../registry.js";
-import { createTableTrashAdapter } from "../table-adapter.js";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { createTrashService } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashEntityType, TrashPort } from "@jini-ai/cms/trash";
@@ -81,7 +82,7 @@ function harness(): Harness {
   // the outbox event `deleteTerm`/`deleteTaxonomy` used to write alongside their own hard delete.
   const adapters = new Map<string, TrashAdapter>(
     [...registry.values()].map((entry) => {
-      const base = createTableTrashAdapter({ entry, db: trashDb });
+      const base = createTableTrashAdapter({ entry, kernel: trashDb, tables: TRASH_TABLES });
       if (entry.entityType === "term") {
         return [
           entry.entityType,

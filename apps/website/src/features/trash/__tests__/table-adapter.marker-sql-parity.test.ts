@@ -7,7 +7,8 @@ import type { ContentKernel } from "#src/platform/db/content-kernel";
 import type { TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
 import { compareAndDelete, flipMarker } from "../adapters/marker-sql.js";
 import { buildTrashRegistry } from "../registry.js";
-import { createTableTrashAdapter } from "../table-adapter.js";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 
 /**
  * @file S4b T0 (test only): the bespoke `flipMarker` / `compareAndDelete` pair of `adapters/marker-sql.ts` and the generic
@@ -44,7 +45,7 @@ const bespokeFlip = (kernel: ContentKernel, to: "hide" | "unhide", expectedVersi
     expectedVersion,
   });
 
-const generic = (kernel: ContentKernel) => createTableTrashAdapter({ entry: buildTrashRegistry().get("form")!, db: kernel });
+const generic = (kernel: ContentKernel) => createTableTrashAdapter({ entry: buildTrashRegistry().get("form")!, kernel, tables: TRASH_TABLES });
 
 type Scenario = { name: string; row: { deletedAt: string | null; version: number } | null; expectedVersion: number | null };
 

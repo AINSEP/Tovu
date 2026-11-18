@@ -14,7 +14,8 @@ import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 
 import { moveToTrash } from "../move-to-trash.js";
 import { buildTrashRegistry } from "../registry.js";
-import { createTableTrashAdapter } from "../table-adapter.js";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { withFollowUps, type TrashRegistry } from "@jini-ai/cms/trash";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { createTrashService } from "@jini-ai/cms/trash";
@@ -71,7 +72,7 @@ function harness(): Harness {
   const clock = { nowMs: () => Date.parse(AT2), nowIso: () => AT2 };
 
   const adapters = new Map<string, TrashAdapter>(
-    [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, db: trashDb })])
+    [...registry.values()].map((entry) => [entry.entityType, createTableTrashAdapter({ entry, kernel: trashDb, tables: TRASH_TABLES })])
   );
   // Same wiring `deps.ts` performs at composition: the generic status-marker adapter plus this
   // type's own hide/unhide/purge follow-up events.

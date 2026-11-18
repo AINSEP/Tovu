@@ -9,7 +9,8 @@ import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-d
 
 import { withFollowUps, type TrashFollowUpHooks, type TrashEntry } from "@jini-ai/cms/trash";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
-import { createTableTrashAdapter } from "../table-adapter.js";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
 import { createTrashService } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
 
@@ -69,7 +70,7 @@ function harness(hooks: TrashFollowUpHooks, entry: TrashEntry = buildEntry()): H
     .run(WS, WS, WS, "2026-01-01T00:00:00.000Z");
 
   const trashDb = contentKernel({ store: db });
-  const baseAdapter = createTableTrashAdapter({ entry, db: trashDb });
+  const baseAdapter = createTableTrashAdapter({ entry, kernel: trashDb, tables: TRASH_TABLES });
   const wrapped = withFollowUps({ adapter: baseAdapter }, hooks);
   const adapters = new Map<string, TrashAdapter>([[ENTITY_TYPE, wrapped]]);
   const repo = new SqliteTrashRepo({ store: client });

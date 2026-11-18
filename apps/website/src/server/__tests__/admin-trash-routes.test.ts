@@ -11,7 +11,6 @@ import {
   createContentDbTransactionRunner,
   createPostTrashAdapter,
   createRedirectTrashAdapter,
-  createTableTrashAdapter,
   createTrashService,
   POST_ENTITY_TYPE,
   REDIRECT_ENTITY_TYPE,
@@ -19,6 +18,8 @@ import {
   type TrashAdapter,
   type TrashPort,
 } from "#src/features/trash/index";
+import { TRASH_TABLES } from "#src/features/trash/repo.sqlite";
+import { createTableTrashAdapter } from "@jini-ai/cms/trash/sql";
 import * as schema from "#src/platform/db/schema.sqlite";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 
@@ -195,7 +196,7 @@ function buildTrashHarness(): TrashHarness {
     // `moveToTrash` (`POST .../trash/items`) is exercised through the `form` entry — the one
     // registry-derived kind G1c registers.
     ...[...registry.values()].map(
-      (entry) => [entry.entityType, createTableTrashAdapter({ entry, db: sqliteTrashDb })] as const
+      (entry) => [entry.entityType, createTableTrashAdapter({ entry, kernel: sqliteTrashDb, tables: TRASH_TABLES })] as const
     ),
   ]);
   let seq = 0;

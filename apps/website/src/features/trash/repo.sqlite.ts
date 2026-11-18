@@ -7,10 +7,13 @@ import { type ContentKernel, contentKernel, schemaErasedKernel } from "../../pla
 import type { SqliteConnectionSource } from "../../platform/db/kernel/index.js";
 import { SqlTrashRepo } from "@jini-ai/cms/trash/sql";
 
+/** The one table name the Trash binds: the generated schema's `trashed_items`. Every Jini Trash SQL adapter is handed it. */
+export const TRASH_TABLES = { trashedItems: "trashed_items" } as const;
+
 export class SqliteTrashRepo extends SqlTrashRepo {
   /** @param required.store the content db handle, its better-sqlite3 client, or the kernel itself. */
   constructor({ store }: { store: ContentKernel | SqliteConnectionSource }) {
-    super({ kernel: schemaErasedKernel({ store }), tables: { trashedItems: "trashed_items" } }, {});
+    super({ kernel: schemaErasedKernel({ store }), tables: TRASH_TABLES }, {});
   }
 }
 
