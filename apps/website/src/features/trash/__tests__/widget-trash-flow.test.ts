@@ -16,9 +16,9 @@ import { adoptLegacyTrashedWidgets, createWidgetInstance, restoreWidgetPriorStat
 
 
 import { moveToTrash } from "../move-to-trash.js";
-import { buildTrashRegistry, type TrashRegistry } from "../registry.js";
+import { buildTrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "../table-adapter.js";
-import { withFollowUps, type UnhideFollowUp } from "@jini-ai/cms/trash";
+import { withFollowUps, type UnhideFollowUp, type TrashRegistry } from "@jini-ai/cms/trash";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { createTrashService } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";

@@ -1,7 +1,8 @@
 import { WIDGET_REGION_BINDINGS_TABLE } from "../../contracts/core/widget-tables.js";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
 import { DECLARED_CONTENT_TYPE_OWNERS } from "../content-types/index.js";
-import { buildTrashRegistry, createTableTrashAdapter, type TrashAdapter, type TrashEntry } from "../trash/index.js";
+import { buildTrashRegistry, createTableTrashAdapter, type TrashAdapter } from "../trash/index.js";
+import type { TrashEntry } from "@jini-ai/cms/trash";
 
 /**
  * @file A once-per-site boot data repair: removes `entries` rows whose envelope namespace does not

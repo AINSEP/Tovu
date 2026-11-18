@@ -25,8 +25,7 @@ import { PLUGIN_ENTITY_TYPE } from "./adapters/plugin.js";
 import { REDIRECT_ENTITY_TYPE } from "./adapters/redirect.js";
 import { THEME_ENTITY_TYPE } from "./adapters/theme.js";
 import { USER_ENTITY_TYPE } from "./adapters/user.js";
-import type { TrashEntityType, TrashItem } from "@jini-ai/cms/trash";
-import type { TrashRegistry } from "./registry.js";
+import type { TrashEntityType, TrashItem, TrashRegistry } from "@jini-ai/cms/trash";
 
 /** The entry gate on the Trash surface itself. Every row is then filtered again, per kind. */
 export const TRASH_READ_PERMISSION = "content.read";

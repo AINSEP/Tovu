@@ -10,7 +10,7 @@ import { SqlTokenStore } from "#src/platform/db/repos/gated-mutation-token-repo"
 import { SqlWebhookDeliveryRepo } from "#src/platform/db/repos/webhook-repo";
 import { SqlSettingsRepo } from "#src/features/settings/repo";
 import { SqliteEntryTermRepo, SqliteTaxonomyRepo } from "#src/features/taxonomy/repo.sqlite";
-import { SqlTrashRepo } from "#src/features/trash/repo";
+import { SqliteTrashRepo } from "#src/features/trash/repo.sqlite";
 import { createIdentityTransactions } from "#src/features/identity/repo";
 import { SqliteWorkspaceRepo } from "#src/features/workspace/repo.sqlite";
 import { recordingKernel } from "./support/recording-kernel.js";
@@ -72,7 +72,7 @@ describe("P1 lock keys: taxonomy, trash, claims", () => {
 
   test("trash sweep claim", async () => {
     const { kernel, keys } = recordingKernel();
-    assert.deepEqual(await new SqlTrashRepo(kernel).claimDue({ now: "2026-11-17T00:00:00.000Z", leaseOwner: "o", leaseUntil: "2026-11-17T01:00:00.000Z", limit: 5 }), []);
+    assert.deepEqual(await new SqliteTrashRepo({ store: kernel }).claimDue({ now: "2026-11-17T00:00:00.000Z", leaseOwner: "o", leaseUntil: "2026-11-17T01:00:00.000Z", limit: 5 }), []);
     assert.deepEqual(keys, ["trash:sweep-claim"]);
   });
 

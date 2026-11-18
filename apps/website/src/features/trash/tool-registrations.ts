@@ -39,8 +39,7 @@ import {
   TRASH_PERMISSION_BY_ENTITY_TYPE,
   TRASH_READ_PERMISSION,
 } from "./permissions.js";
-import type { TrashEntityType, TrashItem, TrashPort } from "@jini-ai/cms/trash";
-import type { TrashRegistry } from "./registry.js";
+import type { TrashEntityType, TrashItem, TrashPort, TrashRegistry } from "@jini-ai/cms/trash";
 
 const DEFAULT_LIST_LIMIT = 25;
 const MAX_LIST_LIMIT = 100;

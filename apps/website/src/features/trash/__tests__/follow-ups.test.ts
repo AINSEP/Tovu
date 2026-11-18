@@ -7,10 +7,9 @@ import * as schema from "#src/platform/db/schema.sqlite";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 
 
-import { withFollowUps, type TrashFollowUpHooks } from "@jini-ai/cms/trash";
+import { withFollowUps, type TrashFollowUpHooks, type TrashEntry } from "@jini-ai/cms/trash";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { createTableTrashAdapter } from "../table-adapter.js";
-import type { TrashEntry } from "../registry.js";
 import { createTrashService } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
 

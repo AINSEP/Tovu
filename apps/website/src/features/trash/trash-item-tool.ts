@@ -65,9 +65,8 @@ import { THEME_ENTITY_TYPE } from "./adapters/theme.js";
 import { USER_ENTITY_TYPE } from "./adapters/user.js";
 import type { TrashDb } from "./db-port.js";
 import { moveToTrash, type MoveToTrashOutcome } from "./move-to-trash.js";
-import { readLiveSnapshot } from "./entry-sql.js";
-import type { TrashActor, TrashEntityType, TrashPort } from "@jini-ai/cms/trash";
-import type { TrashEntry, TrashRegistry } from "./registry.js";
+import type { TrashActor, TrashEntityType, TrashPort, TrashEntry, TrashRegistry } from "@jini-ai/cms/trash";
+import { readLiveSnapshot } from "@jini-ai/cms/trash/sql";
 
 /** Matches `registry.ts`'s own `entityType: "widget"` literal — kept as a local literal, not an
  *  import from `features/widgets`, the same "duplicate the tiny thing" convention every OTHER

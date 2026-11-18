@@ -4,6 +4,7 @@ import { describe, test } from "node:test";
 import { SqlAssetBlobRepo, SqlMediaRepo } from "#src/platform/db/repos/media-repo";
 import { outboxEventValues } from "#src/platform/db/repos/outbox-repo";
 import { createUserTrashAdapter } from "#src/features/trash/adapters/user";
+import { trashEntityLockKey } from "@jini-ai/cms/trash";
 import { buildTrashRegistry } from "#src/features/trash/registry";
 import { createTableTrashAdapter } from "#src/features/trash/table-adapter";
 import { SqlMagicLinkTokenRepo, SqlMemberRepo } from "#src/features/members/repo";
@@ -86,6 +87,7 @@ describe("P1 trash lock keys", () => {
       const result = await createTableTrashAdapter({ entry, db: kernel }).hide({ workspaceId: WS, entityId: "missing-id", at: NOW, expectedVersion: null });
       assert.deepEqual(result, { ok: false, reason: "not-found" }, entityType);
       assert.deepEqual(keys, [`trash:${entityType}:${WS}:missing-id`], entityType);
+      assert.deepEqual(keys, [trashEntityLockKey({ entityType, workspaceId: WS, entityId: "missing-id" })], `${entityType}: Jini's builder names the key the table adapter takes`);
     }
   });
 

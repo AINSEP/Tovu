@@ -3,11 +3,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { recordingKernel } from "#src/__tests__/lane-su-pins/support/recording-kernel";
-import type { TrashEntityType } from "@jini-ai/cms/trash";
-import { entryWhere, loose, readLiveSnapshot } from "../entry-sql.js";
-import { notTrashed } from "../not-trashed.js";
-import { buildTrashRegistry, type TrashEntry, type TrashRegistry } from "../registry.js";
+import type { TrashEntityType, TrashEntry, TrashRegistry } from "@jini-ai/cms/trash";
+import { buildTrashRegistry } from "../registry.js";
 import { SqliteTrashRepo } from "../repo.sqlite.js";
+import { entryWhere, loose, readLiveSnapshot, notTrashed } from "@jini-ai/cms/trash/sql";
 
 /**
  * @file S4a T0: the Trash SQL kit's contracts on the unmoved code, before it moves to Jini `@jini-ai/cms/trash/sql`.
@@ -84,7 +83,7 @@ test("notTrashed, as a real WHERE: a timestamp marker, a status marker, and hidd
     INSERT INTO t_child VALUES ('c-live', 'w', 'p-live', 'active'), ('c-own', 'w', 'p-live', 'trash'), ('c-orphan', 'w', 'p-gone', 'active'), ('c-null', 'w', NULL, 'active');`.split(";").map((statement) => statement.trim()).filter(Boolean);
   for (const statement of statements) await kernel.execute(sql.raw(statement));
   const ids = (table: string, type: TrashEntityType) =>
-    kernel.run((db) => loose(db).selectFrom(table).select(`${table}.id`).where((eb) => notTrashed({ entityType: type }, { registry })(eb)).orderBy(`${table}.id`).execute()).then((rows) => rows.map((row) => String(row.id)));
+    kernel.run((db) => loose(db).selectFrom(table).select(`${table}.id`).where((eb) => notTrashed({ entityType: type, registry })(eb)).orderBy(`${table}.id`).execute()).then((rows) => rows.map((row) => String(row.id)));
   assert.deepEqual(await ids("t_ts", "form"), ["live"]);
   assert.deepEqual(await ids("t_st", "menu"), ["live"]);
   // A NULL parent id has no parent row, so `NOT EXISTS` is true: the child reads as live.
