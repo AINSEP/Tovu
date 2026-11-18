@@ -13,6 +13,7 @@ import {
 } from "@jini-ai/core";
 import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/core/contracts/events";
 import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
+import { contentReadVocabulary } from "../../contracts/core/tool-metadata/content-read.js";
 import {
   buildFormsToolRegistrations,
   duplicateFormDefinition,
@@ -81,7 +82,7 @@ function toPackageDeps({ routeDeps }: { routeDeps: FormsToolDeps }, _optional = 
 }
 
 export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistration[] {
-  return withToolMetadata({ registrations: buildFormsToolRegistrations({ deps: toPackageDeps({ routeDeps }) }), metadata: toolMetadata });
+  return withToolMetadata({ registrations: buildFormsToolRegistrations({ deps: toPackageDeps({ routeDeps }) }, { hostReads: contentReadVocabulary }), metadata: toolMetadata });
 }
 
 /**

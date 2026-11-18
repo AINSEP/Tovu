@@ -9,6 +9,7 @@
 import { withToolMetadata, type ToolContributor, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import type { OriginRegistryPort } from "@jini-ai/core/contracts/server/verified-origin";
+import { contentReadVocabulary } from "../../contracts/core/tool-metadata/content-read.js";
 import {
   buildWebhooksToolRegistrations,
   webhooksDerivedRisk,
@@ -91,7 +92,7 @@ export function buildWebhooksRegistrations(
   routeDeps: IntegrationsToolDeps,
   surfaces: ChatDeleteSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
-  return withToolMetadata({ registrations: buildWebhooksToolRegistrations({ deps: toPackageDeps({ routeDeps }), surfaces }), metadata: toolMetadata });
+  return withToolMetadata({ registrations: buildWebhooksToolRegistrations({ deps: toPackageDeps({ routeDeps }), surfaces }, { hostReads: contentReadVocabulary }), metadata: toolMetadata });
 }
 
 /**
