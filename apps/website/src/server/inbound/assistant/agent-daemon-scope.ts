@@ -85,7 +85,7 @@ import { bridgePreflightEntry } from "./bridge-preflight-entry.js";
 import type { PromptAugmenter } from "@jini-ai/core/contracts/agents";
 import { createAgentSelectionResolver, createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";
 import { executorDefinitionPolicies } from "./executor-definition-policies.js";
-import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, frontendRequestRoutes, agentRoutes, registerAttachmentRoutes, componentCatalogRoutes, delegatedToolRoutes, registerMessageRelayRoutes, runRoutes, toolCatalogRoutes } from "@jini-ai/daemon/http";
+import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, frontendRequestRoutes, agentRoutes, registerAttachmentRoutes, componentCatalogRoutes, delegatedToolRoutes, messageRelayRoutes, runRoutes, toolCatalogRoutes } from "@jini-ai/daemon/http";
 import { adminFrontendOwner, adminFrontendRunOwner } from "#src/assistant/admin-frontend-owner";
 import { bearerTokenFromHeader, createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
 import type { AttachmentStore, DelegatedToolExecuteRequest, RunMessageRequest, RunStartHandler, StoredAttachment } from "@jini-ai/daemon/http";
@@ -1386,7 +1386,7 @@ app.post("/api/runs/:runId/messages/claim", createDaemonAuthMiddleware({
       body: { error: { code: "UNAUTHENTICATED", message: "a live run credential is required" } } };
   },
 }), express.json({ limit: "1kb" })); // The only valid body is `{ via }`.
-registerMessageRelayRoutes({ app, agentExecutor, runScopedCallers: runCredentials });
+mountJiniRoutes({ app, routes: messageRelayRoutes({ agentExecutor, runScopedCallers: runCredentials }) });
 
 // Before every other route's `express.json()` — an unauthenticated caller's body is never parsed. See this
 // file's module doc and `apps/website/src/assistant/daemon-access.ts` for the fail-closed contract. No exemptions: the spawned
