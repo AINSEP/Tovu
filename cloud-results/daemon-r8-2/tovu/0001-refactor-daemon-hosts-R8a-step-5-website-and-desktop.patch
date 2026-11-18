@@ -1,0 +1,232 @@
+From 035b91304673297b8d20e5dee8da0ca930a69120 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Wed, 18 Nov 2026 00:19:01 +0000
+Subject: [PATCH 1/2] refactor(daemon-hosts): R8a step 5 website and desktop
+ pass the executor its runtime ports and host env; the bridge probe takes
+ spawn and hostEnv
+
+Pairs with Jini R8a step 5 (re-applied on refactor/terra; the Node bindings live in @jini-ai/node-adapters). agent-daemon-scope.ts and desktop-agent.ts state the Node bindings once (node-adapters'), pass { lifecycle, runtime, hostEnv } and call probeMcpBridge with the spawn port; the desktop factory cast is gone.
+The eval harness and the run-finalizer integration test are executor callers too (not in the sheet's table): updated here.
+typed-tools.integration's scope gets the executorDefinitionPolicies stub C6 broke (13 failures on the base, 0 now).
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01FiTZBoVsefwW5254ZQEFJi
+---
+ apps/desktop/src/desktop-agent-runtime.test.ts | 10 ++++++++--
+ apps/desktop/src/desktop-agent.ts              | 18 +++++++++++++++---
+ ...emon-server.typed-tools.integration.test.ts |  2 +-
+ .../inbound/assistant/agent-daemon-scope.ts    |  9 ++++-----
+ .../inbound/assistant/daemon-runtime-ports.ts  | 16 ++++++++++++++++
+ ...un-finalizer.failed-run.integration.test.ts |  3 ++-
+ .../tool-search-caller2-compliance-harness.ts  |  4 +++-
+ 7 files changed, 49 insertions(+), 13 deletions(-)
+ create mode 100644 apps/website/src/server/inbound/assistant/daemon-runtime-ports.ts
+
+diff --git a/apps/desktop/src/desktop-agent-runtime.test.ts b/apps/desktop/src/desktop-agent-runtime.test.ts
+index 649bf59a..0a94bac4 100644
+--- a/apps/desktop/src/desktop-agent-runtime.test.ts
++++ b/apps/desktop/src/desktop-agent-runtime.test.ts
+@@ -135,12 +135,14 @@ test("desktop executor binds launch, state, environment and policies to the supp
+   const runtime = createNativeAgentRuntime({ env: { PATH: "/desktop-only", CODEX_DISABLE_PLUGINS: "1", PI_GRACEFUL_SHUTDOWN_MS: "1234" } });
+   t.after(() => runtime.dispose({}));
+   let created = 0;
++  let executorRequired: Parameters<typeof createAgentExecutor>[0] | undefined;
+   let executorOptions: Parameters<typeof createAgentExecutor>[1];
+   const run = async () => {};
+   const chat = await createDesktopAgentRuntime({ workDir: dir, buildTools: () => [], agentRuntime: runtime }, {
+     mcpServeScript: "/fixture/jini-mcp.js",
+-    createAgentExecutor: (_required, options) => {
++    createAgentExecutor: (required, options) => {
+       created++;
++      executorRequired = required;
+       executorOptions = options;
+       return { run };
+     },
+@@ -149,7 +151,11 @@ test("desktop executor binds launch, state, environment and policies to the supp
+   assert.equal(created, 1);
+   assert.ok(executorOptions);
+   assert.equal(executorOptions.runtimeState, runtime.state);
+-  assert.equal(executorOptions.hostEnv, runtime.hostEnv);
++  assert.ok(executorRequired);
++  assert.equal(executorRequired.hostEnv, runtime.hostEnv);
++  // The daemon has no default for any OS-facing port: the desktop host states all five.
++  assert.deepEqual(Object.keys(executorRequired.runtime).sort(), ["commandShell", "fileLock", "processes", "spawn", "writer"]);
++  assert.equal(executorRequired.runtime.commandShell.platform, process.platform);
+   assert.equal(executorOptions.getAgentDef, runtime.getAgentDef);
+   assert.equal(executorOptions.resolveAgentLaunch, runtime.resolveAgentLaunch);
+   assert.equal(executorOptions.codexDisablePlugins, true);
+diff --git a/apps/desktop/src/desktop-agent.ts b/apps/desktop/src/desktop-agent.ts
+index 115edf17..31add16e 100644
+--- a/apps/desktop/src/desktop-agent.ts
++++ b/apps/desktop/src/desktop-agent.ts
+@@ -37,6 +37,9 @@ import type { Principal, ToolDescriptor, ToolRegistration, ToolRegistry } from "
+ import type { NativeAgentRuntime } from "@jini-ai/agent-runtime";
+ import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, createToolExecutor, type AgentExecutor, type AgentExecutorRunInput, type RunLifecycle } from "@jini-ai/daemon";
+ import { registerDelegatedToolRoutes, toolCatalogRoutes, type ToolCatalogQuery } from "@jini-ai/daemon/http";
++import type { AgentExecutorRuntimePorts } from "@jini-ai/daemon/ports/runtime";
++import { nodeAtomicWriter, nodeFileLock } from "@jini-ai/node-adapters/fs";
++import { nodeCommandShell, nodeProcessControl, nodeSpawnPort } from "@jini-ai/node-adapters/process";
+ import { daemonRouteHost, mountJiniRoutes } from "../../website/src/server/runtime/composition/jini-routes.ts";
+ import { createNodeCredentialCrypto, createRunScopedCredentials, type RunScopedCredentials } from "@jini-ai/daemon/run-credentials";
+ import type { TurnAddressee } from "./desktop-agent-tools.ts";
+@@ -262,6 +265,16 @@ async function prepareDesktopConnector({ agentId, runtime, allowed }: { agentId:
+     ctx: { home: runtime.hostEnv.HOME ?? runtime.hostEnv.USERPROFILE ?? os.homedir(), platform: process.platform, serverName: "jini" } });
+ }
+ 
++/**
++ * The Node implementations of the OS-facing ports the daemon's agent executor needs. The daemon has no
++ * default for any of them, so the desktop host states them once, from the env snapshot its runtime owns.
++ * @param required.hostEnv The runtime's env snapshot; only its `ComSpec` is read, for the Windows `.cmd` fallback.
++ * @returns The ports to pass as `runtime`. @complexity O(1).
++ */
++function desktopDaemonRuntimePorts({ hostEnv }: { hostEnv: NodeJS.ProcessEnv }, _optional: Record<string, never> = {}): AgentExecutorRuntimePorts {
++  return { spawn: nodeSpawnPort, processes: nodeProcessControl, fileLock: nodeFileLock, writer: nodeAtomicWriter, commandShell: nodeCommandShell({ env: hostEnv }) };
++}
++
+ /**
+  * The production executor: Jini's own, with the `jini-mcp` bridge injected per run. Inside Electron
+  * `execPath` is the app binary, which boots a GUI unless `ELECTRON_RUN_AS_NODE` is set — and Jini's
+@@ -277,11 +290,10 @@ function defaultAgentExecutor(
+   optional: Pick<DesktopAgentRuntimeOptions, "mcpServeScript" | "createAgentExecutor"> = {},
+ ): Pick<AgentExecutor, "run"> {
+   const runtime = ports.agentRuntime;
+-  return (optional.createAgentExecutor ?? createAgentExecutor)({ lifecycle: ports.lifecycle }, {
++  return (optional.createAgentExecutor ?? createAgentExecutor)({ lifecycle: ports.lifecycle, hostEnv: runtime.hostEnv, runtime: desktopDaemonRuntimePorts({ hostEnv: runtime.hostEnv }) }, {
+     getAgentDef: runtime.getAgentDef,
+     resolveAgentLaunch: runtime.resolveAgentLaunch,
+     runtimeState: runtime.state,
+-    hostEnv: runtime.hostEnv,
+     codexDisablePlugins: runtime.codex.disablePlugins === true,
+     piGracefulShutdownMs: runtime.pi.gracefulShutdownMs ?? 5000,
+     mcpJsonInjection: {
+@@ -298,7 +310,7 @@ function defaultAgentExecutor(
+     // Same reason as the site daemon: an isolated CLAUDE_CONFIG_DIR loses the operator's Keychain
+     // login on macOS and every run fails "Not logged in". See `agent-daemon-server.ts`'s own note.
+     claudeConfigDirIsolationEnabled: false,
+-  } as Parameters<typeof createAgentExecutor>[1]);
++  });
+ }
+ 
+ /**
+diff --git a/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts b/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts
+index cf833039..2a14aa51 100644
+--- a/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts
++++ b/apps/website/src/server/inbound/assistant/__tests__/agent-daemon-server.typed-tools.integration.test.ts
+@@ -93,7 +93,7 @@ function hostFixture({ descriptor = {}, delegate, humanApproval = false, bounded
+   // cannot satisfy this fixture merely because its initializer still exists in the source.
+   const executorOptions = evaluateDaemonExpression<{ mcpJsonInjection: McpJsonInjectionOptions }>(daemonInitializer("agentExecutor"), {
+     createAgentExecutor: (_required: unknown, optional: unknown) => optional,
+-    lifecycle: {}, getAgentDef: () => {}, resolveAgentLaunch: () => {}, assistantRuntime: {},
++    lifecycle: {}, daemonRuntime: {}, executorDefinitionPolicies: () => ({}), getAgentDef: () => {}, resolveAgentLaunch: () => {}, assistantRuntime: {},
+     bridgeInjection, assistantPromptAugmenter: {},
+   });
+   assert.equal(executorOptions.mcpJsonInjection, bridgeInjection);
+diff --git a/apps/website/src/server/inbound/assistant/agent-daemon-scope.ts b/apps/website/src/server/inbound/assistant/agent-daemon-scope.ts
+index 693aa85b..6d61538d 100644
+--- a/apps/website/src/server/inbound/assistant/agent-daemon-scope.ts
++++ b/apps/website/src/server/inbound/assistant/agent-daemon-scope.ts
+@@ -78,6 +78,7 @@ import { traceRunLifecycle } from "./run-lifecycle-tracing.js";
+ import { createRoutingToolExecutor, createAgentExecutor, createInMemoryEventLog, createRunLifecycle, prepareMessageAttachments, probeMcpBridge, type MessageAttachmentImage, type RunLifecycle, type UserMessageDelivery } from "@jini-ai/daemon";
+ import { formatBridgePreflightLogLine, formatRunEndLogLine, formatRunErrorLogLine } from "./run-log-lines.js";
+ import { bridgePreflightEntry } from "./bridge-preflight-entry.js";
++import { createDaemonRuntimePorts } from "./daemon-runtime-ports.js";
+ // @jini-ai/agent-runtime owns this seam; @jini-ai/daemon accepts it as an option.
+ import type { PromptAugmenter } from "@jini-ai/core/contracts/agents";
+ import { createAgentSelectionResolver, createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";
+@@ -518,9 +519,8 @@ const bridgeInjection = {
+     ];
+   },
+ };
+-const agentExecutor = createAgentExecutor({
+-  lifecycle,
+-}, {
++const daemonRuntime = createDaemonRuntimePorts({ hostEnv: assistantRuntime.hostEnv });
++const agentExecutor = createAgentExecutor({ lifecycle, runtime: daemonRuntime, hostEnv: assistantRuntime.hostEnv }, {
+   // The same registry and launch resolver `assistant/agents.ts` lists the Local CLI picker from.
+   // `@jini-ai/daemon` pins its own exact `@jini-ai/agent-runtime`, which an install can nest as an
+   // older copy; left to its defaults the executor would look agents up there, so a CLI the picker
+@@ -528,7 +528,6 @@ const agentExecutor = createAgentExecutor({
+   getAgentDef,
+   resolveAgentLaunch,
+   runtimeState: assistantRuntime.state,
+-  hostEnv: assistantRuntime.hostEnv,
+   onCleanupFailure: ({ runId }) => { cleanupFailures.add(runId); console.error('[agent-daemon] CLI cleanup failed'); },
+   ...executorDefinitionPolicies({ runtime: assistantRuntime }),
+   mcpJsonInjection: bridgeInjection,
+@@ -1619,7 +1618,7 @@ registerFrontendRequestRoute({ app, path: "/api/frontend-sessions/request", cont
+ 
+   if (optional.probeBridge) await optional.probeBridge();
+   else {
+-void probeMcpBridge({ entry: bridgePreflightEntry({ injection: bridgeInjection }) }, {}).then((result) => {
++void probeMcpBridge({ entry: bridgePreflightEntry({ injection: bridgeInjection }), spawn: daemonRuntime.spawn, hostEnv: assistantRuntime.hostEnv }).then((result) => {
+   const line = formatBridgePreflightLogLine({ result });
+   if (result.ok) console.log(line);
+   else console.error(line);
+diff --git a/apps/website/src/server/inbound/assistant/daemon-runtime-ports.ts b/apps/website/src/server/inbound/assistant/daemon-runtime-ports.ts
+new file mode 100644
+index 00000000..998c05ef
+--- /dev/null
++++ b/apps/website/src/server/inbound/assistant/daemon-runtime-ports.ts
+@@ -0,0 +1,16 @@
++import type { AgentExecutorRuntimePorts } from "@jini-ai/daemon/ports/runtime";
++import { nodeAtomicWriter, nodeFileLock } from "@jini-ai/node-adapters/fs";
++import { nodeCommandShell, nodeProcessControl, nodeSpawnPort } from "@jini-ai/node-adapters/process";
++
++/**
++ * The Node implementations of the OS-facing ports one `@jini-ai/daemon` agent executor needs (spawn, process
++ * control, file lock, atomic writer, command shell). The daemon has no default for any of them, so this host
++ * states them once, from the env it owns, and `satisfies` proves the match.
++ * @param required.hostEnv The env snapshot the runtime owns; only its `ComSpec` is read, for the Windows `.cmd` fallback.
++ * @returns The ports to pass as `runtime`. @complexity O(1).
++ */
++export function createDaemonRuntimePorts({ hostEnv }: { readonly hostEnv: NodeJS.ProcessEnv }, _optional: Record<string, never> = {}): AgentExecutorRuntimePorts {
++  return {
++    spawn: nodeSpawnPort, processes: nodeProcessControl, fileLock: nodeFileLock, writer: nodeAtomicWriter, commandShell: nodeCommandShell({ env: hostEnv }),
++  } satisfies AgentExecutorRuntimePorts;
++}
+diff --git a/apps/website/src/server/runtime/composition/modules/__tests__/assistant-run-finalizer.failed-run.integration.test.ts b/apps/website/src/server/runtime/composition/modules/__tests__/assistant-run-finalizer.failed-run.integration.test.ts
+index e27e9d43..a9351183 100644
+--- a/apps/website/src/server/runtime/composition/modules/__tests__/assistant-run-finalizer.failed-run.integration.test.ts
++++ b/apps/website/src/server/runtime/composition/modules/__tests__/assistant-run-finalizer.failed-run.integration.test.ts
+@@ -7,6 +7,7 @@ import { createChatRunLedger } from "#src/assistant/persistence/run-ledger";
+ import { createChatHistoryStore } from "#src/assistant/persistence/chat-history-store";
+ import { EXHAUSTED_NOTICE, RECOVERY_LIMIT } from "@jini-ai/chat/server/durable-runs";
+ import { createAssistantRunFinalizer } from "../run-finalizer/entry.js";
++import { createDaemonRuntimePorts } from "../../../../inbound/assistant/daemon-runtime-ports.js";
+ 
+ test("an actual executor failure remains failed through Tovu recovery, chat.db and UI history", { timeout: 10_000 }, async () => {
+   const db = openChatDb(":memory:");
+@@ -27,7 +28,7 @@ test("an actual executor failure remains failed through Tovu recovery, chat.db a
+     // This is the last allowed attempt: exercise the real recovery finalization without retries.
+     await kernel.run(db => db.updateTable("assistant_run_attempts").set({ recovery_count: RECOVERY_LIMIT })
+       .where("message_id", "=", "answer").execute());
+-    const executor = createAgentExecutor({ lifecycle }, { getAgentDef: () => null });
++    const executor = createAgentExecutor({ lifecycle, hostEnv: {}, runtime: createDaemonRuntimePorts({ hostEnv: {} }) }, { getAgentDef: () => null });
+     await assert.rejects(executor.run({ runId: run.id, agentId: "missing-fixture-cli", prompt: "Answer me", cwd: process.cwd() }),
+       { code: "AGENT_NOT_FOUND" });
+     assert.equal((await lifecycle.waitForTerminal({ runId: run.id })).state, "failed");
+diff --git a/development/evals/tool-search-caller2-compliance-harness.ts b/development/evals/tool-search-caller2-compliance-harness.ts
+index a1ac4d99..c5203e32 100644
+--- a/development/evals/tool-search-caller2-compliance-harness.ts
++++ b/development/evals/tool-search-caller2-compliance-harness.ts
+@@ -81,6 +81,7 @@ import { registerRunRoutes, toolCatalogRoutes } from "@jini-ai/daemon/http";
+ import { createLocalSameOriginPolicy } from "@jini-ai/core/contracts/server";
+ import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
+ import { buildEvalToolRegistry } from "./tool-search-eval-registry.js";
++import { createDaemonRuntimePorts } from "../../apps/website/src/server/inbound/assistant/daemon-runtime-ports.js";
+ import type { PromptAugmenter } from "@jini-ai/core/contracts/agents";
+ 
+ import { createRouteDeps } from "../../apps/website/src/server/runtime/composition/app.js";
+@@ -230,7 +231,8 @@ async function main(): Promise<void> {
+   const principalByRunId = new Map<string, string>();
+   const runCredentials = createRunScopedCredentials({ principalOfLiveRun: ({ runId }) => principalByRunId.get(runId) }, {});
+   const agentExecutor = createAgentExecutor(
+-    { lifecycle },
++    // A scratch harness that really spawns the claude CLI: it hands the daemon the ambient env it always used.
++    { lifecycle, hostEnv: process.env, runtime: createDaemonRuntimePorts({ hostEnv: process.env }) },
+     { mcpJsonInjection: resolveMcpJsonInjection({ daemonUrl: DAEMON_URL, mintRunCredential: (runId) => runCredentials.mint({ runId }, {}) }), promptAugmenter },
+   );
+ 
+-- 
+2.43.0
+
