@@ -36,7 +36,7 @@ export function seedDevCapabilityOrigin(
   return seedDevCapabilityOriginOn(contentKernel({ store: required.db }), required.seed);
 }
 
-/** `registerConfiguredOrigin` (Jini) on `db`: the operator-declared origin, insert-or-correct. */
+/** {@link registerConfiguredOriginOn} on `db`: the operator-declared origin, insert-or-correct. The writer is Jini's `registerConfiguredOrigin`. */
 export function registerConfiguredOrigin(
   required: { db: ContentKernel | ContentDb; workspaceId: UUID; origin: VerifiedOrigin },
   _optional: Record<string, never> = {}

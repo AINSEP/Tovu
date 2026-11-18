@@ -3,6 +3,32 @@ import type { ConfirmationTokenRecord, TokenStorePort } from "#src/contracts/cor
 import { type ContentKernel, schemaErasedKernel } from "../content-kernel.js";
 import type { ContentDb } from "./content-db.js";
 
+// Why this store exists and why redemption is single-use (the retired `repos/` file's header, kept with the binding):
+/**
+ * @file SPEC-022 durability fix — THE durable `TokenStorePort` adapter: one Kysely query body for
+ * every dialect (storage plan §4, ADR-066). `sqlite/gated-mutation-token-repo.sqlite.ts` is the
+ * thin subclass the composition root builds from the content db handle.
+ *
+ * Purpose:
+ * `core/gated-mutations/token.ts`'s own file header disclosed that a durable token store "is not
+ * required by this test slice" and shipped only `InMemoryTokenStore`. That made the
+ * `gated-mutations` capability-inventory entry `hasDurableAdapter: false` — a `classification:
+ * "production"` capability with no durable adapter, which `production-readiness-gate.ts`'s
+ * `collectDurabilityFailures` unconditionally fails on. This adapter closes that gap: confirmation
+ * tokens survive a process restart via the `gated_mutation_tokens` table (migration `0052`).
+ *
+ * `tryRedeem` is single-use on every dialect: the read, the `isRedeemable` check and the
+ * conditional write run inside one kernel transaction holding `lockKey` on the token, so no other
+ * redemption of the same token can interleave (SQLite: `BEGIN IMMEDIATE` holds the write lock;
+ * Postgres: a transaction advisory lock — READ COMMITTED alone would let two redeems both read
+ * `minted`). The update is also conditioned on the status it read, so a missed lock could never
+ * turn into a second redemption.
+ *
+ * Architectural role:
+ * Infrastructure adapter. `core/gated-mutations` never imports this file — it depends only on
+ * `TokenStorePort`; composition roots (`apps/website/src/server/runtime/composition/deps.ts`) bind the concrete class.
+ */
+
 /** Tovu owns the persisted name; the token store, backups and the pins use the same wiring. */
 export const GATED_MUTATION_TOKEN_TABLES = { tokens: "gated_mutation_tokens" } as const;
 
