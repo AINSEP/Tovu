@@ -201,157 +201,175 @@ function egressTargetCheck(routeDeps: IntegrationsToolDeps) {
     routeDeps.originRegistry.isAllowedEgressTarget({ context: { workspaceId: routeDeps.workspaceId }, url: url });
 }
 
+/** What every tool handler factory is given: the route deps and the confirmation surface store. */
+interface WebhookHandlerArgs {
+  deps: IntegrationsToolDeps;
+  surfaces: ChatDeleteSurfaceDeps;
+}
+
+/** The deps bag the subscription write-service takes, over the route deps and its egress check. */
+function subscriptionServiceDeps(deps: IntegrationsToolDeps, _optional = {}) {
+  return { clock: deps.clock, repo: deps.webhookSubscriptionRepo, idGenerator: deps.idGen, isAllowedTarget: egressTargetCheck(deps) };
+}
+
+const webhooksListSubscriptionsHandler = ({ deps }: WebhookHandlerArgs, _optional = {}): ToolHandler => async (ctx) => {
+  requireNoInput({ input: ctx.input });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_INTEGRATIONS_PERMISSION }, { entityType: "webhook_subscription" });
+
+  const subscriptions = await deps.webhookSubscriptionRepo.listByWorkspace({ workspaceId: deps.workspaceId });
+  const views = await Promise.all(
+    subscriptions.map(async (subscription) => {
+      const recentDeliveries = await deps.webhookDeliveryRepo.listBySubscription({
+        workspaceId: deps.workspaceId,
+        subscriptionId: subscription.id,
+        limit: LAST_DELIVERY_LOOKUP_LIMIT,
+      });
+      return toSubscriptionToolView({ subscription, lastDelivery: mostRecentDelivery(recentDeliveries) });
+    }),
+  );
+  return { subscriptions: views };
+};
+
+const webhooksGetDeliveriesHandler = ({ deps }: WebhookHandlerArgs, _optional = {}): ToolHandler => async (ctx) => {
+  const input = requireInputRecord({ input: ctx.input });
+  const subscriptionId = requireString({ input, key: "subscriptionId" });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_INTEGRATIONS_PERMISSION }, { entityType: "webhook_subscription", entityId: subscriptionId });
+
+  const subscription = await deps.webhookSubscriptionRepo.findById({ workspaceId: deps.workspaceId, id: subscriptionId });
+  if (!subscription) throw new WebhookSubscriptionNotFoundError({ message: `webhook subscription '${subscriptionId}' was not found` });
+
+  const deliveries = await deps.webhookDeliveryRepo.listBySubscription({
+    workspaceId: deps.workspaceId,
+    subscriptionId,
+    limit: clampDeliveriesLimit({ requested: optionalNumber({ input, key: "limit" }) }),
+  });
+  const newestFirst = [...deliveries].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return { deliveries: newestFirst.map((delivery) => toWebhookDeliveryView({ delivery })) };
+};
+
+const webhooksCreateSubscriptionHandler = ({ deps }: WebhookHandlerArgs, _optional = {}): ToolHandler => async (ctx) => {
+  const input = requireInputRecord({ input: ctx.input });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_INTEGRATIONS_PERMISSION }, { entityType: "webhook_subscription" });
+
+  const rawTopics = input.topics;
+  ctx.signal.throwIfAborted();
+  const { subscription } = await createSubscription({
+    deps: subscriptionServiceDeps(deps),
+    input: {
+      workspaceId: deps.workspaceId,
+      // Mirrors `create.ts`'s own dev-mode placeholder: this codebase has no per-agent-run
+      // owner-principal concept yet, so the owner is the same run principal the permission
+      // check above already authorized (never a caller-supplied id).
+      ownerPrincipalId: ctx.principal.id,
+      createdByPrincipalId: ctx.principal.id,
+      label: requireString({ input, key: "label" }),
+      targetUrl: requireString({ input, key: "targetUrl" }),
+      topics: Array.isArray(rawTopics) ? rawTopics.map(String) : [],
+    },
+  });
+  return { subscription: toSubscriptionToolView({ subscription, lastDelivery: null }) };
+};
+
+/** Uses the existing validation/egress owner and never exposes signing material. */
+const webhooksUpdateSubscriptionHandler = ({ deps }: WebhookHandlerArgs, _optional = {}): ToolHandler => async (ctx) => {
+  const input = requireInputRecord({ input: ctx.input });
+  const expectedVersion = requireExpectedVersion({ value: input.expectedVersion, readToolId: "content_read.webhook_subscription" });
+  const subscriptionId = requireString({ input, key: "subscriptionId" });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_INTEGRATIONS_PERMISSION }, { entityType: "webhook_subscription", entityId: subscriptionId });
+  if (!Array.isArray(input.topics) || !input.topics.every(topic => typeof topic === "string")) {
+    throw new WebhookSubscriptionValidationError({ message: "topics must be an array of strings" });
+  }
+  ctx.signal.throwIfAborted();
+  const { subscription } = await updateSubscription({
+    deps: subscriptionServiceDeps(deps),
+    input: { workspaceId: deps.workspaceId, id: subscriptionId, label: requireString({ input, key: "label" }), targetUrl: requireString({ input, key: "targetUrl" }), topics: input.topics },
+  }, { expectedVersion });
+  const deliveries = await deps.webhookDeliveryRepo.listBySubscription({
+    workspaceId: deps.workspaceId, subscriptionId, limit: 1,
+  });
+  return { subscription: toSubscriptionToolView({ subscription, lastDelivery: mostRecentDelivery(deliveries) }) };
+};
+
+const webhooksPauseSubscriptionHandler = ({ deps }: WebhookHandlerArgs, _optional = {}): ToolHandler => async (ctx) => {
+  const input = requireInputRecord({ input: ctx.input });
+  const subscriptionId = requireString({ input, key: "subscriptionId" });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_INTEGRATIONS_PERMISSION }, { entityType: "webhook_subscription", entityId: subscriptionId });
+
+  const { subscription } = await pauseSubscription(
+    {
+      deps: subscriptionServiceDeps(deps),
+      input: { workspaceId: deps.workspaceId, id: subscriptionId },
+    },
+    { paused: optionalBoolean({ input, key: "paused" }) ?? true },
+  );
+  return { subscription: toSubscriptionToolView({ subscription, lastDelivery: null }) };
+};
+
+/**
+ * The MCP-UI-gated delete — migrated onto the shared held-open confirmation exchange
+ * (2026-09-08, ADS-memory/reports/2026-09-08-delete-confirmation-build.md). No separate
+ * staleness re-check: `deleteSubscription` performs its own fresh existence lookup at write
+ * time (confirmed by reading it in full — no `expectedVersion`/optimistic-concurrency field
+ * anywhere in its input), so whatever the row looks like at confirm time is exactly what gets
+ * deleted, or a fresh `WebhookSubscriptionNotFoundError` if it is gone by then.
+ * The owner opt-in now adds a full snapshot check before that service so changed targets re-ask.
+ */
+const webhooksDeleteSubscriptionHandler = ({ deps, surfaces }: WebhookHandlerArgs, _optional = {}): ToolHandler => approvalToolHandler({ surfaces,
+  prepare: async ({ ctx }) => {
+    const subscriptionId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "subscriptionId" });
+    await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_INTEGRATIONS_PERMISSION }, { entityType: "webhook_subscription", entityId: subscriptionId });
+    const existing = await deps.webhookSubscriptionRepo.findById({ workspaceId: deps.workspaceId, id: subscriptionId });
+    if (!existing) throw new WebhookSubscriptionNotFoundError({ message: `webhook subscription '${subscriptionId}' was not found` });
+    return { subscriptionId, existing: structuredClone(existing) };
+  },
+  /**
+   * Describes `webhooks_delete_subscription`'s confirmation dialog. Jini's approval owner
+   * owns HOW the dialog behaves; this only decides WHAT it says. The warning is unconditional (unlike
+   * `content_post_delete`'s status-gated one) because `webhooks_delete_subscription` is classified
+   * `deletes-durable-state` precisely because there is no un-disable path anywhere in this domain — see
+   * `webhooksDerivedRisk`'s own comment on that entry.
+   *
+   * @complexity O(1).
+   */
+  describe: ({ prepared: { existing } }) => ({
+    toolId: WEBHOOKS_DELETE_TOOL_ID, errorCode: "WEBHOOKS",
+    title: "Delete this webhook subscription?", description: "The subscription will stop receiving deliveries.",
+    details: [{ label: "Count", value: "1" }, { label: "Webhook", value: `${existing.label} (${existing.id})` }, { label: "Target origin", value: new URL(existing.targetUrl).origin }, { label: "Topics", value: existing.topics.join(", ") }, { label: "Current status", value: existing.status }],
+    warning: "There is no un-delete for a webhook subscription — reconnecting it means creating a new one, with a new signing secret.",
+    danger: true, confirmLabel: "Delete subscription",
+  }),
+  run: async ({ ctx, prepared: { subscriptionId, existing } }) => {
+    // Authorization can be revoked while the human reads the card; the service has no gate.
+    await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_INTEGRATIONS_PERMISSION }, { entityType: "webhook_subscription", entityId: subscriptionId });
+    if (ctx.signal.aborted) return { deleted: false, ...notConfirmedResult({ confirmed: false, reason: "abandoned" }) };
+    const current = await deps.webhookSubscriptionRepo.findById({ workspaceId: deps.workspaceId, id: subscriptionId });
+    if (!isDeepStrictEqual(current, existing)) throw new ToolInputError({ message: "webhooks_delete_subscription: target changed while confirmation was open. Request a new confirmation; nothing was deleted." });
+    ctx.signal.throwIfAborted();
+    const { subscription } = await deleteSubscription({
+      deps: subscriptionServiceDeps(deps),
+      input: { workspaceId: deps.workspaceId, id: subscriptionId },
+    });
+    return { deleted: true, cancelled: false, subscription: toSubscriptionToolView({ subscription, lastDelivery: null }) };
+  },
+}, { flag: "deleted", batch: true, declined: ({ reason, prepared }) => {
+  if (reason === "declined" && prepared) return { deleted: false, cancelled: true, subscription: toSubscriptionToolView({ subscription: prepared.existing, lastDelivery: null }) };
+  return { deleted: false, cancelled: false, reason, note: reason === "expired"
+    ? "The user did not respond to the confirmation dialog before it expired. Nothing was deleted."
+    : "The confirmation dialog was closed because the run ended. Nothing was deleted." };
+} });
+
 export function buildWebhooksRegistrations(
   routeDeps: IntegrationsToolDeps,
   surfaces: ChatDeleteSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
-  const isAllowedTarget = egressTargetCheck(routeDeps);
-
+  const args = { deps: routeDeps, surfaces };
   const handlers: Record<string, ToolHandler> = {
-    webhooks_list_subscriptions: async (ctx) => {
-      requireNoInput({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_INTEGRATIONS_PERMISSION }, { entityType: "webhook_subscription" });
-
-      const subscriptions = await routeDeps.webhookSubscriptionRepo.listByWorkspace({ workspaceId: routeDeps.workspaceId });
-      const views = await Promise.all(
-        subscriptions.map(async (subscription) => {
-          const recentDeliveries = await routeDeps.webhookDeliveryRepo.listBySubscription({
-            workspaceId: routeDeps.workspaceId,
-            subscriptionId: subscription.id,
-            limit: LAST_DELIVERY_LOOKUP_LIMIT,
-          });
-          return toSubscriptionToolView({ subscription, lastDelivery: mostRecentDelivery(recentDeliveries) });
-        }),
-      );
-      return { subscriptions: views };
-    },
-
-    webhooks_get_deliveries: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const subscriptionId = requireString({ input, key: "subscriptionId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_INTEGRATIONS_PERMISSION }, { entityType: "webhook_subscription", entityId: subscriptionId });
-
-      const subscription = await routeDeps.webhookSubscriptionRepo.findById({ workspaceId: routeDeps.workspaceId, id: subscriptionId });
-      if (!subscription) throw new WebhookSubscriptionNotFoundError({ message: `webhook subscription '${subscriptionId}' was not found` });
-
-      const deliveries = await routeDeps.webhookDeliveryRepo.listBySubscription({
-        workspaceId: routeDeps.workspaceId,
-        subscriptionId,
-        limit: clampDeliveriesLimit({ requested: optionalNumber({ input, key: "limit" }) }),
-      });
-      const newestFirst = [...deliveries].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-      return { deliveries: newestFirst.map((delivery) => toWebhookDeliveryView({ delivery })) };
-    },
-
-    webhooks_create_subscription: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_INTEGRATIONS_PERMISSION }, { entityType: "webhook_subscription" });
-
-      const rawTopics = input.topics;
-      ctx.signal.throwIfAborted();
-      const { subscription } = await createSubscription({
-        deps: { clock: routeDeps.clock, repo: routeDeps.webhookSubscriptionRepo, idGenerator: routeDeps.idGen, isAllowedTarget },
-        input: {
-          workspaceId: routeDeps.workspaceId,
-          // Mirrors `create.ts`'s own dev-mode placeholder: this codebase has no per-agent-run
-          // owner-principal concept yet, so the owner is the same run principal the permission
-          // check above already authorized (never a caller-supplied id).
-          ownerPrincipalId: ctx.principal.id,
-          createdByPrincipalId: ctx.principal.id,
-          label: requireString({ input, key: "label" }),
-          targetUrl: requireString({ input, key: "targetUrl" }),
-          topics: Array.isArray(rawTopics) ? rawTopics.map(String) : [],
-        },
-      });
-      return { subscription: toSubscriptionToolView({ subscription, lastDelivery: null }) };
-    },
-
-    /** Uses the existing validation/egress owner and never exposes signing material. */
-    webhooks_update_subscription: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const expectedVersion = requireExpectedVersion({ value: input.expectedVersion, readToolId: "content_read.webhook_subscription" });
-      const subscriptionId = requireString({ input, key: "subscriptionId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_INTEGRATIONS_PERMISSION }, { entityType: "webhook_subscription", entityId: subscriptionId });
-      if (!Array.isArray(input.topics) || !input.topics.every(topic => typeof topic === "string")) {
-        throw new WebhookSubscriptionValidationError({ message: "topics must be an array of strings" });
-      }
-      ctx.signal.throwIfAborted();
-      const { subscription } = await updateSubscription({
-        deps: { clock: routeDeps.clock, repo: routeDeps.webhookSubscriptionRepo, idGenerator: routeDeps.idGen, isAllowedTarget },
-        input: { workspaceId: routeDeps.workspaceId, id: subscriptionId, label: requireString({ input, key: "label" }), targetUrl: requireString({ input, key: "targetUrl" }), topics: input.topics },
-      }, { expectedVersion });
-      const deliveries = await routeDeps.webhookDeliveryRepo.listBySubscription({
-        workspaceId: routeDeps.workspaceId, subscriptionId, limit: 1,
-      });
-      return { subscription: toSubscriptionToolView({ subscription, lastDelivery: mostRecentDelivery(deliveries) }) };
-    },
-    webhooks_pause_subscription: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const subscriptionId = requireString({ input, key: "subscriptionId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_INTEGRATIONS_PERMISSION }, { entityType: "webhook_subscription", entityId: subscriptionId });
-
-      const { subscription } = await pauseSubscription(
-        {
-          deps: { clock: routeDeps.clock, repo: routeDeps.webhookSubscriptionRepo, idGenerator: routeDeps.idGen, isAllowedTarget },
-          input: { workspaceId: routeDeps.workspaceId, id: subscriptionId },
-        },
-        { paused: optionalBoolean({ input, key: "paused" }) ?? true },
-      );
-      return { subscription: toSubscriptionToolView({ subscription, lastDelivery: null }) };
-    },
-
-    /**
-     * The MCP-UI-gated delete — migrated onto the shared held-open confirmation exchange
-     * (2026-09-08, ADS-memory/reports/2026-09-08-delete-confirmation-build.md). No separate
-     * staleness re-check: `deleteSubscription` performs its own fresh existence lookup at write
-     * time (confirmed by reading it in full — no `expectedVersion`/optimistic-concurrency field
-     * anywhere in its input), so whatever the row looks like at confirm time is exactly what gets
-     * deleted, or a fresh `WebhookSubscriptionNotFoundError` if it is gone by then.
-     * The owner opt-in now adds a full snapshot check before that service so changed targets re-ask.
-     */
-    webhooks_delete_subscription: approvalToolHandler({ surfaces,
-      prepare: async ({ ctx }) => {
-        const subscriptionId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "subscriptionId" });
-        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_INTEGRATIONS_PERMISSION }, { entityType: "webhook_subscription", entityId: subscriptionId });
-        const existing = await routeDeps.webhookSubscriptionRepo.findById({ workspaceId: routeDeps.workspaceId, id: subscriptionId });
-        if (!existing) throw new WebhookSubscriptionNotFoundError({ message: `webhook subscription '${subscriptionId}' was not found` });
-        return { subscriptionId, existing: structuredClone(existing) };
-      },
-      /**
-       * Describes `webhooks_delete_subscription`'s confirmation dialog. Jini's approval owner
-       * owns HOW the dialog behaves; this only decides WHAT it says. The warning is unconditional (unlike
-       * `content_post_delete`'s status-gated one) because `webhooks_delete_subscription` is classified
-       * `deletes-durable-state` precisely because there is no un-disable path anywhere in this domain — see
-       * `webhooksDerivedRisk`'s own comment on that entry.
-       *
-       * @complexity O(1).
-       */
-      describe: ({ prepared: { existing } }) => ({
-        toolId: WEBHOOKS_DELETE_TOOL_ID, errorCode: "WEBHOOKS",
-        title: "Delete this webhook subscription?", description: "The subscription will stop receiving deliveries.",
-        details: [{ label: "Count", value: "1" }, { label: "Webhook", value: `${existing.label} (${existing.id})` }, { label: "Target origin", value: new URL(existing.targetUrl).origin }, { label: "Topics", value: existing.topics.join(", ") }, { label: "Current status", value: existing.status }],
-        warning: "There is no un-delete for a webhook subscription — reconnecting it means creating a new one, with a new signing secret.",
-        danger: true, confirmLabel: "Delete subscription",
-      }),
-      run: async ({ ctx, prepared: { subscriptionId, existing } }) => {
-        // Authorization can be revoked while the human reads the card; the service has no gate.
-        await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: MANAGE_INTEGRATIONS_PERMISSION }, { entityType: "webhook_subscription", entityId: subscriptionId });
-        if (ctx.signal.aborted) return { deleted: false, ...notConfirmedResult({ confirmed: false, reason: "abandoned" }) };
-        const current = await routeDeps.webhookSubscriptionRepo.findById({ workspaceId: routeDeps.workspaceId, id: subscriptionId });
-        if (!isDeepStrictEqual(current, existing)) throw new ToolInputError({ message: "webhooks_delete_subscription: target changed while confirmation was open. Request a new confirmation; nothing was deleted." });
-        ctx.signal.throwIfAborted();
-        const { subscription } = await deleteSubscription({
-          deps: { clock: routeDeps.clock, repo: routeDeps.webhookSubscriptionRepo, idGenerator: routeDeps.idGen, isAllowedTarget },
-          input: { workspaceId: routeDeps.workspaceId, id: subscriptionId },
-        });
-        return { deleted: true, cancelled: false, subscription: toSubscriptionToolView({ subscription, lastDelivery: null }) };
-      },
-    }, { flag: "deleted", batch: true, declined: ({ reason, prepared }) => {
-      if (reason === "declined" && prepared) return { deleted: false, cancelled: true, subscription: toSubscriptionToolView({ subscription: prepared.existing, lastDelivery: null }) };
-      return { deleted: false, cancelled: false, reason, note: reason === "expired"
-        ? "The user did not respond to the confirmation dialog before it expired. Nothing was deleted."
-        : "The confirmation dialog was closed because the run ended. Nothing was deleted." };
-    } }),
+    webhooks_list_subscriptions: webhooksListSubscriptionsHandler(args),
+    webhooks_get_deliveries: webhooksGetDeliveriesHandler(args),
+    webhooks_create_subscription: webhooksCreateSubscriptionHandler(args),
+    webhooks_update_subscription: webhooksUpdateSubscriptionHandler(args),
+    webhooks_pause_subscription: webhooksPauseSubscriptionHandler(args),
+    webhooks_delete_subscription: webhooksDeleteSubscriptionHandler(args),
   };
 
   return buildDomainRegistrations({ metadata: toolMetadata,

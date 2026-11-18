@@ -1094,13 +1094,6 @@
       "value": 81
     },
     {
-      "file": "apps/website/src/features/webhooks/tool-registrations.ts",
-      "function": "buildWebhooksRegistrations#1",
-      "line": 194,
-      "rule": "max-lines-per-function",
-      "value": 127
-    },
-    {
       "file": "apps/website/src/platform/db/sqlite/fresh-content-db.ts",
       "function": "bootstrapFreshContentDb#1",
       "line": 55,

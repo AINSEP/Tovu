@@ -133,6 +133,70 @@ const GET_DELIVERIES_SCHEMA = {
   },
 } as const;
 
+const UPDATE_SUBSCRIPTION_TOOL: AgentToolDefinition = {
+  name: "webhooks_update_subscription",
+  description: "Replaces a webhook subscription's label, HTTPS targetUrl and topics by subscriptionId. Supply all three fields; use content_read.webhook_subscription to read current values first. Returns {subscription}, with signing version metadata but no secret. Status and signing generation stay unchanged. Missing ids, empty labels/topics, malformed targets, denied permission and disallowed egress are refused. Requires admin.integrations.manage. Pass expectedVersion from content_read.webhook_subscription; if someone changed it since, nothing is saved and you must re-read.",
+  sideEffects: "mutates-durable-state", authorization: { permission: MANAGE_INTEGRATIONS_PERMISSION },
+  inputSchema: { type: "object", additionalProperties: false, required: ["subscriptionId", "label", "targetUrl", "topics", "expectedVersion"], properties: {
+    expectedVersion: { type: "integer", minimum: 0, description: "The record's version from content_read.webhook_subscription. Required." },
+    subscriptionId: { type: "string", minLength: 1 }, label: { type: "string", minLength: 1 }, targetUrl: { type: "string", minLength: 1 }, topics: { type: "array", minItems: 1, items: { type: "string" } },
+  } },
+};
+
+const LIST_SUBSCRIPTIONS_TOOL: AgentToolDefinition = {
+  name: "webhooks_list_subscriptions",
+  description: "Lists the workspace's webhook subscriptions, each annotated with its most recent delivery attempt (if any). Read-only.",
+  sideEffects: "none",
+  authorization: { permission: MANAGE_INTEGRATIONS_PERMISSION },
+  inputSchema: {
+    type: "object",
+    additionalProperties: false,
+    required: [],
+    properties: {},
+  },
+};
+
+const GET_DELIVERIES_TOOL: AgentToolDefinition = {
+  name: "webhooks_get_deliveries",
+  description: "Fetches the delivery log (status, attempts, last response, timestamps) for one webhook subscription, newest first.",
+  sideEffects: "none",
+  authorization: { permission: MANAGE_INTEGRATIONS_PERMISSION },
+  inputSchema: GET_DELIVERIES_SCHEMA,
+};
+
+const CREATE_SUBSCRIPTION_TOOL: AgentToolDefinition = {
+  name: "webhooks_create_subscription",
+  description:
+    "Creates a new webhook subscription. Starts active at signing-secret generation 1 — the signing secret itself is never generated or exposed by this tool (it is derived at delivery time from the install site key, never stored).",
+  sideEffects: "mutates-durable-state",
+  authorization: { permission: MANAGE_INTEGRATIONS_PERMISSION },
+  inputSchema: CREATE_SUBSCRIPTION_SCHEMA,
+};
+
+const PAUSE_SUBSCRIPTION_TOOL: AgentToolDefinition = {
+  name: "webhooks_pause_subscription",
+  description: "Pauses or resumes a webhook subscription's deliveries. One tool, both directions (paused defaults to true). Refused if the subscription is already deleted (disabled).",
+  sideEffects: "mutates-durable-state",
+  authorization: { permission: MANAGE_INTEGRATIONS_PERMISSION },
+  inputSchema: PAUSE_SUBSCRIPTION_SCHEMA,
+};
+
+const DELETE_SUBSCRIPTION_TOOL: AgentToolDefinition = {
+  name: "webhooks_delete_subscription",
+  description:
+    "Soft-deletes a webhook subscription (never row-deleted, for audit durability). Safe to call again on an already-deleted subscription — it does not error, though disabledAt/updatedAt are stamped again.",
+  // Classified `deletes-durable-state`, not `mutates-durable-state`, despite being a soft
+  // delete at the storage layer: the same "no agent-reachable undo" standard that justifies
+  // `content_post_delete`'s classification (`features/post/tool-registrations.ts`) applies
+  // here too. Once disabled there is no un-disable/reactivate path anywhere in this domain —
+  // `pauseSubscription` explicitly refuses once `status === "disabled"` — so from an agent's
+  // (or this tool's caller's) perspective the effect is as final as a hard delete, even though
+  // the row survives for audit. See the matching comment on `integrationsDerivedRisk` below.
+  sideEffects: "deletes-durable-state",
+  authorization: { permission: MANAGE_INTEGRATIONS_PERMISSION },
+  inputSchema: SUBSCRIPTION_ID_SCHEMA,
+};
+
 /**
  * The Integrations domain's fixed agent-tool catalog. See this file's header for the two whole
  * classes of operation deliberately absent (subscription update; signing-secret rotation/
@@ -142,64 +206,5 @@ const GET_DELIVERIES_SCHEMA = {
  * @overallScore 100
  */
 export function getWebhooksAgentToolCatalog(): AgentToolDefinition[] {
-  return [
-    {
-      name: "webhooks_update_subscription",
-      description: "Replaces a webhook subscription's label, HTTPS targetUrl and topics by subscriptionId. Supply all three fields; use content_read.webhook_subscription to read current values first. Returns {subscription}, with signing version metadata but no secret. Status and signing generation stay unchanged. Missing ids, empty labels/topics, malformed targets, denied permission and disallowed egress are refused. Requires admin.integrations.manage. Pass expectedVersion from content_read.webhook_subscription; if someone changed it since, nothing is saved and you must re-read.",
-      sideEffects: "mutates-durable-state", authorization: { permission: MANAGE_INTEGRATIONS_PERMISSION },
-      inputSchema: { type: "object", additionalProperties: false, required: ["subscriptionId", "label", "targetUrl", "topics", "expectedVersion"], properties: {
-        expectedVersion: { type: "integer", minimum: 0, description: "The record's version from content_read.webhook_subscription. Required." },
-        subscriptionId: { type: "string", minLength: 1 }, label: { type: "string", minLength: 1 }, targetUrl: { type: "string", minLength: 1 }, topics: { type: "array", minItems: 1, items: { type: "string" } },
-      } },
-    },
-    {
-      name: "webhooks_list_subscriptions",
-      description: "Lists the workspace's webhook subscriptions, each annotated with its most recent delivery attempt (if any). Read-only.",
-      sideEffects: "none",
-      authorization: { permission: MANAGE_INTEGRATIONS_PERMISSION },
-      inputSchema: {
-        type: "object",
-        additionalProperties: false,
-        required: [],
-        properties: {},
-      },
-    },
-    {
-      name: "webhooks_get_deliveries",
-      description: "Fetches the delivery log (status, attempts, last response, timestamps) for one webhook subscription, newest first.",
-      sideEffects: "none",
-      authorization: { permission: MANAGE_INTEGRATIONS_PERMISSION },
-      inputSchema: GET_DELIVERIES_SCHEMA,
-    },
-    {
-      name: "webhooks_create_subscription",
-      description:
-        "Creates a new webhook subscription. Starts active at signing-secret generation 1 — the signing secret itself is never generated or exposed by this tool (it is derived at delivery time from the install site key, never stored).",
-      sideEffects: "mutates-durable-state",
-      authorization: { permission: MANAGE_INTEGRATIONS_PERMISSION },
-      inputSchema: CREATE_SUBSCRIPTION_SCHEMA,
-    },
-    {
-      name: "webhooks_pause_subscription",
-      description: "Pauses or resumes a webhook subscription's deliveries. One tool, both directions (paused defaults to true). Refused if the subscription is already deleted (disabled).",
-      sideEffects: "mutates-durable-state",
-      authorization: { permission: MANAGE_INTEGRATIONS_PERMISSION },
-      inputSchema: PAUSE_SUBSCRIPTION_SCHEMA,
-    },
-    {
-      name: "webhooks_delete_subscription",
-      description:
-        "Soft-deletes a webhook subscription (never row-deleted, for audit durability). Safe to call again on an already-deleted subscription — it does not error, though disabledAt/updatedAt are stamped again.",
-      // Classified `deletes-durable-state`, not `mutates-durable-state`, despite being a soft
-      // delete at the storage layer: the same "no agent-reachable undo" standard that justifies
-      // `content_post_delete`'s classification (`features/post/tool-registrations.ts`) applies
-      // here too. Once disabled there is no un-disable/reactivate path anywhere in this domain —
-      // `pauseSubscription` explicitly refuses once `status === "disabled"` — so from an agent's
-      // (or this tool's caller's) perspective the effect is as final as a hard delete, even though
-      // the row survives for audit. See the matching comment on `integrationsDerivedRisk` below.
-      sideEffects: "deletes-durable-state",
-      authorization: { permission: MANAGE_INTEGRATIONS_PERMISSION },
-      inputSchema: SUBSCRIPTION_ID_SCHEMA,
-    },
-  ];
+  return [UPDATE_SUBSCRIPTION_TOOL, LIST_SUBSCRIPTIONS_TOOL, GET_DELIVERIES_TOOL, CREATE_SUBSCRIPTION_TOOL, PAUSE_SUBSCRIPTION_TOOL, DELETE_SUBSCRIPTION_TOOL];
 }
