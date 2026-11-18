@@ -2907,7 +2907,7 @@
   "sourceProblems": [],
   "pinnedFit": {
     "namedDescriptors": 202,
-    "schemaBytes": 532852,
+    "schemaBytes": 533124,
     "limitTools": 64,
     "limitBytes": 262144,
     "fits": false

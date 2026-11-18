@@ -129,6 +129,8 @@ const THEME_ID_PROPERTY = {
   type: "string",
   minLength: 1,
   description: "A theme's id, exactly as returned by content_read.theme (it is also the theme's folder name).",
+  // content_read.theme lists every theme with its id (the old theme_list id is retired), so a call without it is told where to look.
+  obtainFrom: "content_read.theme",
 } as const;
 
 const RELATIVE_PATH_PROPERTY = {

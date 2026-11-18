@@ -944,3 +944,47 @@ test("every bounded page, size and wait control declares clamp true or false, an
   assert.deepEqual(undeclared.filter((control) => !JINI_OWNED_UNDECLARED.has(control)), [], `declare clamp: true (a page, size or wait control) or clamp: false (it selects, addresses, prices or authorizes) on each:\n${undeclared.join("\n")}`);
   assert.deepEqual(owned.sort(), [...JINI_OWNED_UNDECLARED].sort(), "a Jini-owned control is declared now: remove it from JINI_OWNED_UNDECLARED");
 });
+
+// ---------------------------------------------------------------------------
+// Declared repairs: an `obtainFrom` points at a read tool that exists, and the theme id says where theme ids come from
+// ---------------------------------------------------------------------------
+
+/** Every `obtainFrom` declared in a schema, with its property path, to the depth `assertRepairKeywords` walks. */
+function obtainFromDeclarations({ schema, prefix = "", depth = 0 }: { schema: unknown; prefix?: string; depth?: number }): { path: string; toolId: unknown }[] {
+  const record = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
+  if (!record(schema) || depth > 6) return [];
+  const properties = record(schema.properties) ? schema.properties : {};
+  return Object.entries(properties).flatMap(([name, property]) => {
+    if (!record(property)) return [];
+    const own = Object.hasOwn(property, "obtainFrom") ? [{ path: `${prefix}${name}`, toolId: property.obtainFrom }] : [];
+    return [...own, ...obtainFromDeclarations({ schema: property, prefix: `${prefix}${name}.`, depth: depth + 1 })];
+  });
+}
+
+test("every obtainFrom names a registered read-only tool, so a caller is never pointed at a tool it cannot call or one that writes", () => {
+  const registrations = registrationsById();
+  const wrong: string[] = [];
+  for (const [id, registration] of registrations) {
+    for (const { path, toolId } of obtainFromDeclarations({ schema: registration.descriptor.inputSchema })) {
+      const lister = typeof toolId === "string" ? registrations.get(toolId) : undefined;
+      if (lister === undefined || lister.descriptor.readOnly !== true) wrong.push(`${id}.${path} -> ${String(toolId)}`);
+    }
+  }
+  assert.deepEqual(wrong, []);
+});
+
+/** The theme file tools share one `themeId` property; `theme_set_active` and the content-read card have their own. */
+const SHARED_THEME_ID_TOOLS = [
+  "theme_list_files", "theme_read_file", "theme_write_file", "theme_edit_file", "theme_reset_file", "theme_rename_file",
+  "theme_copy_file", "theme_trash_file", "theme_restore_trashed_file",
+] as const;
+
+test("every theme file tool says content_read.theme is where theme ids come from (theme_list is a retired id)", () => {
+  const registrations = registrationsById();
+  for (const id of SHARED_THEME_ID_TOOLS) {
+    const registration = registrations.get(id);
+    assert.ok(registration, `${id} is registered`);
+    const declared = obtainFromDeclarations({ schema: registration.descriptor.inputSchema }).filter(({ path }) => path === "themeId");
+    assert.deepEqual(declared, [{ path: "themeId", toolId: "content_read.theme" }], id);
+  }
+});

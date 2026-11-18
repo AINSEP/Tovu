@@ -8,7 +8,8 @@ import type { Socket } from "node:net";
 import { PassThrough } from "node:stream";
 import express from "express";
 
-import { createToolRegistry } from "@jini-ai/core";
+import { createToolRegistry, type ToolRegistry } from "@jini-ai/core";
+import { buildToolIndex, handleToolCall, type McpToolDef } from "@jini-ai/mcp";
 import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
 import { delegatedToolExecuteRoute, registerDelegatedToolRoutes } from "@jini-ai/daemon/http";
 
@@ -53,11 +54,13 @@ async function buildDelegatedToolDeps() {
 
   const registry = createToolRegistry({});
   for (const registration of buildThemesRegistrations(routeDeps)) registry.register(registration);
+  // The lister `themeId` points at is registered by the content-read tool, not by the theme domain: a read-only stand-in of it.
+  registry.register({ descriptor: { id: "content_read.theme", readOnly: true }, policy: { authorize: () => "allow" }, handler: async () => ({ themes: [] }) });
   const toolExecutor = createToolExecutor({ registry });
   const lifecycle = createRunLifecycle({ eventLog: createInMemoryEventLog({}) });
   const { run } = await lifecycle.start({ contextRef: "ctx-1" });
 
-  return { run, lifecycle, toolExecutor, resolvePrincipal: () => ({ id: "principal-1" }) };
+  return { run, lifecycle, toolExecutor, registry, resolvePrincipal: () => ({ id: "principal-1" }) };
 }
 
 test("theme_list_files normalizes theme_id to themeId end to end and reports the repair", async () => {
@@ -180,4 +183,36 @@ test("the mounted HTTP adapter returns 200 for a repaired alias and 400 for malf
       socket.destroy();
     }
   }
+});
+
+/** The gateway's text for a missing `themeId` when the route holds the registry: the handler's own words, then where valid ids come from. */
+const MISSING_THEME_ID = "'themeId' (non-empty string) is required";
+const LIST_VALID_THEMES = " List valid values for `themeId` with content_read.theme.";
+
+test("theme_list_files without themeId, through the gateway that holds the registry, says which tool lists themes", async () => {
+  const { run, lifecycle, toolExecutor, registry, resolvePrincipal } = await buildDelegatedToolDeps();
+
+  const result = await delegatedToolExecuteRoute.handle({
+    input: { runId: run.id, toolUseId: "tu-1", toolId: "theme_list_files", input: {} },
+    deps: { lifecycle, toolExecutor, resolvePrincipal, toolRegistry: registry },
+  });
+
+  assert.deepEqual(result, { ok: false, error: { code: "BAD_REQUEST", message: `${MISSING_THEME_ID}${LIST_VALID_THEMES}` } });
+});
+
+/** The registry's own descriptors, published as the typed MCP tools a run would see. */
+function typedTools({ registry }: { registry: ToolRegistry }): McpToolDef[] {
+  return registry.list({})
+    .filter(({ id }) => id === "theme_list_files" || id === "content_read.theme")
+    .map((d) => ({ name: d.id, description: d.description ?? d.id, inputSchema: d.inputSchema as McpToolDef["inputSchema"], handler: () => "ran" }));
+}
+
+test("theme_list_files without themeId, as a typed MCP tool, says which tool lists themes between the instruction and the contract", async () => {
+  const { registry } = await buildDelegatedToolDeps();
+  const tools = typedTools({ registry });
+  const schema = tools.find(({ name }) => name === "theme_list_files")?.inputSchema;
+
+  const result = await handleToolCall({ name: "theme_list_files", tools: buildToolIndex({ tools }), ctx: { baseUrl: "http://daemon", fetchImpl: fetch, diagnosticToolIds: registry.list({}).map(({ id }) => id) } }, { rawArgs: {} });
+
+  assert.deepEqual(result.content, [{ type: "text", text: `invalid arguments for theme_list_files: supply required argument \`themeId\`; list valid values with content_read.theme; Input schema: ${JSON.stringify(schema)}` }]);
 });
