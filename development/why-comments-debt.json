@@ -112,6 +112,10 @@
     {
       "id": "cbd9a3ffedda",
       "reason": "Moved with the code to Jini packages/cms/src/widgets/entry-refs-extractor.ts (Jini 1e3af649): extractHtmlEntryRefs doc (host-page-store wording). The Tovu file is now a 1-function binding."
+    },
+    {
+      "id": "76ced6c2706f",
+      "reason": "The generic first sentences (reading the PUBLIC web, vendor = adapter) moved to the @module block of Jini packages/platform/src/web/agent-tools.ts (Jini d478ab5a); the Tovu-specific remainder (Claude Code CLI, owner 2026-10-08, visitor allowlist) stays in the reduced file header."
     }
   ]
 }
