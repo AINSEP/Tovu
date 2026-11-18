@@ -47,7 +47,7 @@ test("the overlay block appends a trailing space per sentence and is empty when 
 
 test("the Claude in Chrome guidance is the owner's exact text", () => {
   assert.equal(CLAUDE_IN_CHROME_GUIDANCE,
-    "Claude in Chrome is available: prefer it for checking pages the owner is logged into; otherwise use the existing screenshot/Playwright tools.");
+    "Claude in Chrome is available: use web_screenshot_page and page tools first; prefer it for checking pages the owner is logged into; otherwise use the existing screenshot/Playwright tools.");
 });
 
 test("Claude in Chrome is effective only for the owner, with the setting ON, on a supporting runtime", () => {

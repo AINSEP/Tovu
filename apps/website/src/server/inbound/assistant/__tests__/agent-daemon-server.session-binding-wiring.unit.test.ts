@@ -13,6 +13,7 @@ import { resolveFullCliAccess, resolveAssistantCliPermissions } from "#src/contr
 import { assistantCliPermissions } from "#src/assistant/assistant-subagents-policy";
 import { durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt } from "../run-start-decisions.js";
 import { resolveAssistantRuntimeLaunch } from "../assistant-runtime-guidance.js";
+import { claimBrowserForRun, releaseBrowserForRun, releasingBrowserToo } from "../assistant-browser-lease.js";
 import { createAgentSelectionResolver, getAgentDef } from "@jini-ai/agent-runtime";
 import { resolveNativeToolPolicy } from "@jini-ai/agent-runtime/native-tool-policy";
 import { admittedToolSources, type ToolAccessRun } from "@jini-ai/daemon";
@@ -117,7 +118,7 @@ function sessionHarness(coldStartContext?: string, options: { env?: Record<strin
       withRun: ({ fn }: { fn: () => unknown }) => fn(), finish() {} },
     assistantCliCapabilitiesContext: new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>(),
     assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
-    resolveAssistantRuntimeLaunch,
+    resolveAssistantRuntimeLaunch, claimBrowserForRun, releaseBrowserForRun, releasingBrowserToo, optional: {},
     // Like the shared daemon capture fixture, these CLIs have a prepared per-run bridge.
     getAgentDef: ({ id }: { id: string }) => {
       const def = getAgentDef({ id });

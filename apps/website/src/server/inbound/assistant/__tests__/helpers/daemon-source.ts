@@ -30,6 +30,7 @@ import { formatRunEndLogLine, formatRunErrorLogLine } from "../../run-log-lines.
 import { durableAttemptOwnsAnswer, resolveStoredSessionId, selectRunHistoryPrompt } from "../../run-start-decisions.js";
 import { ASSISTANT_DISALLOWED_TOOLS, ASSISTANT_SETTING_SOURCES, resolveAssistantDisallowedTools, resolveAssistantRunSettings } from "../../assistant-system-overlay.js";
 import { resolveAssistantRuntimeLaunch } from "../../assistant-runtime-guidance.js";
+import { claimBrowserForRun, releaseBrowserForRun, releasingBrowserToo } from "../../assistant-browser-lease.js";
 import { createAgentSelectionResolver, getAgentDef } from "@jini-ai/agent-runtime";
 import { createTracker } from "@jini-ai/diagnostics/observability/node";
 
@@ -74,13 +75,14 @@ export function evaluateDaemonExpression<T>(expression: ts.Node, bindings: Recor
  * decisions and hook-settings generation are real. No daemon/server/CLI is started. */
 export async function captureDaemonRun(
   context: Record<string, unknown>,
-  options: { hookPresent?: boolean; runActiveContexts?: RunActiveContextStore; bindings?: Record<string, unknown>; lifecycle?: unknown; terminalFailure?: boolean; request?: Record<string, unknown> } = {},
+  options: { runId?: string; executorSettles?: Promise<unknown>; hookPresent?: boolean; runActiveContexts?: RunActiveContextStore; bindings?: Record<string, unknown>; lifecycle?: unknown; terminalFailure?: boolean; request?: Record<string, unknown> } = {},
 ): Promise<AgentExecutorRunInput> {
   let resolve!: (input: AgentExecutorRunInput) => void;
   let reject!: (error: Error) => void;
   const captured = new Promise<AgentExecutorRunInput>((yes, no) => { resolve = yes; reject = no; });
   const timer = setTimeout(() => reject(new Error("onStarted did not call the executor")), 1000);
   const fixtureDeps = options.bindings?.routeDeps as { agentSessions?: AgentSessionStore } | undefined;
+  const runId = options.runId ?? "daemon-test-run";
   const bindings = {
     env: { ...((options.bindings?.process as { env?: NodeJS.ProcessEnv } | undefined)?.env ?? process.env), HOME: "/home/daemon-test" },
     idlePark: { hold: () => () => {} },
@@ -102,7 +104,7 @@ export async function captureDaemonRun(
     assistantCliCapabilitiesContext: new AsyncLocalStorage<ReturnType<typeof assistantCliPermissions>["capabilities"]>(),
     assistantNativeToolsContext: new AsyncLocalStorage<boolean>(),
     // Real preference resolution; fixtures without settings ports read the registered defaults.
-    resolveAssistantRuntimeLaunch,
+    resolveAssistantRuntimeLaunch, claimBrowserForRun, releaseBrowserForRun, releasingBrowserToo, optional: {},
     // These wiring fixtures exercise already-consented run assembly, not live isolation claims.
     // Real registry definitions remain conservative and are covered by the planner/consent contracts.
     getAgentDef: ({ id }: { id: string }) => {
@@ -157,7 +159,7 @@ export async function captureDaemonRun(
     AbortController,
     // `run()` takes Jini's (required, optional) pair; the executor reassembles one
     // AgentExecutorRunInput from them, so the capture does the same.
-    agentExecutor: { run: async (required: AgentExecutorRunInput, optional: Partial<AgentExecutorRunInput> = {}) => resolve({ ...required, ...optional }) },
+    agentExecutor: { run: async (required: AgentExecutorRunInput, optional: Partial<AgentExecutorRunInput> = {}) => { resolve({ ...required, ...optional }); await options.executorSettles; } },
     ...options.bindings,
     // Partial fixture ports still need the site directory used by every CLI launch.
     routeDeps: { workspaceId: "ws-daemon-test", tracker: createTracker({}), siteBinding: { dir: tmpdir() }, ...fixtureDeps },
@@ -170,14 +172,14 @@ export async function captureDaemonRun(
     if (!options.bindings?.routeDeps) assert.equal(context.conversationId, undefined, "session I/O requires explicit fixture ports");
     if (options.terminalFailure) {
       assert.ok(options.lifecycle, "terminal failure capture requires a real lifecycle");
-      void (options.lifecycle as Pick<RunLifecycle, "waitForTerminal">).waitForTerminal({ runId: "daemon-test-run" }).then((status) => {
+      void (options.lifecycle as Pick<RunLifecycle, "waitForTerminal">).waitForTerminal({ runId }).then((status) => {
         if (status.state === "failed") reject(new Error("onStarted failed the run before executor dispatch"));
       });
     }
     const onStarted = evaluateDaemonExpression<(input: unknown) => void>(daemonInitializer("onStarted"), bindings);
     onStarted({
       request: { contextRef: JSON.stringify({ principalId: "daemon-test-principal", prompt: "Exercise the run lifecycle", ...context }), ...options.request },
-      run: { id: "daemon-test-run" },
+      run: { id: runId },
       lifecycle: withDaemonLifecycle({ lifecycle: options.lifecycle ?? { waitForTerminal: () => new Promise(() => {}) } }),
     });
     return await captured;

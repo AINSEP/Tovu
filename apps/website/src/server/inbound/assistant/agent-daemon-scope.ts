@@ -73,22 +73,19 @@ import { homedir } from "node:os";
 
 import express from "express";
 
-import { createToolRegistry } from "@jini-ai/core";
-import type { Principal, ToolExecutionContext, SurfaceEmitter } from "@jini-ai/core";
+import { createToolRegistry, type Principal, type ToolExecutionContext, type SurfaceEmitter } from "@jini-ai/core";
 import { isTerminalRunState, type RunAgentPayload } from '@jini-ai/protocol';
-import type { RunLifecycle } from "@jini-ai/daemon";
 import { traceRunLifecycle } from "./run-lifecycle-tracing.js";
-import { createRoutingToolExecutor, createAgentExecutor, createInMemoryEventLog, createRunLifecycle, prepareMessageAttachments, probeMcpBridge, type MessageAttachmentImage, type UserMessageDelivery } from "@jini-ai/daemon";
+import { createRoutingToolExecutor, createAgentExecutor, createInMemoryEventLog, createRunLifecycle, prepareMessageAttachments, probeMcpBridge, type MessageAttachmentImage, type RunLifecycle, type UserMessageDelivery } from "@jini-ai/daemon";
 import { formatBridgePreflightLogLine, formatRunEndLogLine, formatRunErrorLogLine } from "./run-log-lines.js";
 import { bridgePreflightEntry } from "./bridge-preflight-entry.js";
 // @jini-ai/agent-runtime owns this seam; @jini-ai/daemon accepts it as an option.
 import type { PromptAugmenter } from "@jini-ai/core/contracts/agents";
 import { createAgentSelectionResolver, createNativeAgentRuntime, ensureAgentCapabilities } from "@jini-ai/agent-runtime";
 import { executorDefinitionPolicies } from "./executor-definition-policies.js";
-import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, registerFrontendRequestRoute, registerAgentRoutes, registerAttachmentRoutes, registerComponentCatalogRoutes, registerDelegatedToolRoutes, registerMessageRelayRoutes, registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/daemon/http";
+import { createDaemonAuthMiddleware, createDiskAttachmentStore, stageAttachmentClaim, createFrontendControl, registerFrontendRequestRoute, registerAgentRoutes, registerAttachmentRoutes, registerComponentCatalogRoutes, registerDelegatedToolRoutes, registerMessageRelayRoutes, registerRunRoutes, registerToolCatalogRoutes, type AttachmentStore, type DelegatedToolExecuteRequest, type RunMessageRequest, type RunStartHandler, type StoredAttachment } from "@jini-ai/daemon/http";
 import { adminFrontendOwner, adminFrontendRunOwner } from "#src/assistant/admin-frontend-owner";
 import { bearerTokenFromHeader, createLocalSameOriginPolicy, type RouteHostContext } from "@jini-ai/core/contracts/server";
-import type { AttachmentStore, DelegatedToolExecuteRequest, RunMessageRequest, RunStartHandler, StoredAttachment } from "@jini-ai/daemon/http";
 
 /** The `run`/`lifecycle` shape `RunStartHandler` receives — derived rather than imported directly
  *  from `@jini-ai/daemon`/`@jini-ai/protocol` so this file adds no new package-import edge just to
@@ -146,12 +143,16 @@ import { readProcessStart } from "./attempt-process-identity.js";
 import { checkReadOnlyTool, defaultDaemonMessages } from "@jini-ai/daemon/read-only-tools";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
+import type { ExclusiveRunLease } from "@jini-ai/daemon/exclusive-run-lease";
+import { claimBrowserForRun, releaseBrowserForRun, releasingBrowserToo } from "./assistant-browser-lease.js";
 import { awaitBootWorkWithinBound } from "../../runtime/lifecycle/await-boot-work.js";
 
 
 export interface SiteScopeOptions {
   readonly coreOptions?: AgentDaemonCoreOptions;
   readonly idlePark?: ReturnType<typeof createAgentDaemonIdlePark>;
+  /** The daemon-wide browser integration lease, shared by every site scope it hosts. */
+  readonly browserLease?: ExclusiveRunLease;
   readonly probeBridge?: () => Promise<void>;
 }
 export interface SiteScope {
@@ -670,7 +671,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
   const run = Object.freeze({ ...startedRun });
   // Every CLI run is busy, including headless/Aider runs with no conversationId. Terminal waits
   // release malformed starts too; preparation and cleanup below retain their own work holds.
-  const releaseRun = idlePark.hold({}, {});
+  const releaseRun = releasingBrowserToo({ release: idlePark.hold({}, {}), lease: optional.browserLease, runId: run.id });
   void runLifecycle.waitForTerminal({ runId: run.id }).catch((error: unknown) => {
     console.error(`[agent-daemon] run ${run.id}: could not wait for completion before releasing activity:`,
       describeErrorForLog({ err: error }));
@@ -1100,7 +1101,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
     // Fresh per-person runtime preferences; a failed read falls back to the registered defaults.
     startupStage = 'runtime preferences';
     const runtimeLaunch = await resolveAssistantRuntimeLaunch({ deps: { settingsRepo: routeDeps.settingsRepo, getEffective: routeDeps.getEffective,
-      settingsReady: routeDeps.siteTitleReady, workspaceId: routeDeps.workspaceId }, principalId: principal.id, agentId: sessionBinding.agentId, subagentsEnabled, isOwner }, { getDef: getAgentDef, probeChrome: probeAssistantChrome });
+      settingsReady: routeDeps.siteTitleReady, workspaceId: routeDeps.workspaceId }, principalId: principal.id, agentId: sessionBinding.agentId, subagentsEnabled, isOwner }, { getDef: getAgentDef, probeChrome: probeAssistantChrome, claimBrowser: () => claimBrowserForRun({ lease: optional.browserLease, runId: run.id }) });
     startupStage = 'shell environment';
     const parityEnv = nativeCapabilities.loginEnvironment ? await readLoginShellEnvironment({ baseEnv: env,
       excludedPrefixes: ["TOVU_", "JINI_"], excludedKeys: ["DATABASE_URL"], excludedSuffixes: ["_ROOT_KEY"] }, {}) : undefined;
@@ -1153,7 +1154,7 @@ const onStarted: RunStartHandler = ({ request, run: startedRun, lifecycle: runLi
       ...runtimeLaunch.runOptions,
     });
     const runWithCapabilities = () => assistantCliCapabilitiesContext.run(nativeCapabilities,
-      () => siteTools.withRun({ runId: run.id, fn: executeRun }));
+      () => siteTools.withRun({ runId: run.id, fn: () => executeRun().finally(() => releaseBrowserForRun({ lease: optional.browserLease, runId: run.id })) }));
     if (disposed) {
       // Cancellation records intent; no executor exists yet to emit the terminal event and
       // release this run's activity hold after withdrawal during preparation.
