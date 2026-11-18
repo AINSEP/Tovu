@@ -29,7 +29,8 @@ import {
   type NodeIpcPeer,
   splitNodeStartupSecrets,
 } from "@jini-ai/sidecar/supervisor/node";
-import { daemonConnection, siteIdleStopReply, daemonControlRequest, delegatedAssistantDaemonConnection, resetAssistantDaemonConnectionForTests, setAssistantDaemonConnection } from "./assistant-daemon-connection.js";
+import { daemonConnection, siteIdleStopReply, daemonControlRequest } from "@tovu/host-shared/daemon-connection";
+import { delegatedAssistantDaemonConnection, resetAssistantDaemonConnectionForTests, setAssistantDaemonConnection } from "./assistant-daemon-connection.js";
 import { createDaemonSupervisor as createSidecarSupervisor } from "@jini-ai/sidecar/supervisor";
 import type { DaemonSupervisorRequired, DaemonSupervisorState, SpawnedDaemonProcess as SidecarDaemonProcess, SupervisorScheduler } from "@jini-ai/sidecar/supervisor";
 import path from "node:path";
