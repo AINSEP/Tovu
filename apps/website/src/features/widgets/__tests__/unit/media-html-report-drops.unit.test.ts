@@ -2,7 +2,8 @@
  * scripts with no trace. Each call that removed anything reports ONCE, naming what and how many. */
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { renderMediaRawHtml, sanitizePageHtml } from '#src/features/widgets/media-html';
+import { renderMediaRawHtml, sanitizePageHtml } from '@jini-ai/cms/widgets/html';
+import { logMediaHtmlEvent } from '#src/features/widgets/media-html-log';
 
 test('one report per call, listing every dropped tag and attribute with counts', () => {
   const reports: Record<string, number>[] = [];
@@ -20,8 +21,8 @@ test('a call that drops nothing does not report (comments are not markup)', () =
 
 test('the default reporter logs exactly one console warning per dropping call', (t) => {
   const warn = t.mock.method(console, 'warn', () => {});
-  sanitizePageHtml({ html: '<script>a()</script><script>b()</script><img src="/x.png" onerror="c()">' });
-  sanitizePageHtml({ html: '<p>clean</p>' });
+  sanitizePageHtml({ html: '<script>a()</script><script>b()</script><img src="/x.png" onerror="c()">' }, { report: logMediaHtmlEvent });
+  sanitizePageHtml({ html: '<p>clean</p>' }, { report: logMediaHtmlEvent });
   assert.equal(warn.mock.callCount(), 1);
   assert.deepEqual(warn.mock.calls[0].arguments, ['[media] Raw HTML sanitizer dropped markup', { script: 2, 'img@onerror': 1 }]);
 });
@@ -36,7 +37,7 @@ test('elements nested past the 128-level bound are dropped and reported, keeping
 
 test('the default unknown-slug reporter warns once per slug that the media renderer cannot resolve', (t) => {
   const warn = t.mock.method(console, 'warn', () => {});
-  const output = renderMediaRawHtml({ html: '<p>{{media:ghost}} and {{media:ghost}}</p>', media: {}, renderMedia: () => '' });
+  const output = renderMediaRawHtml({ html: '<p>{{media:ghost}} and {{media:ghost}}</p>', media: {}, renderMedia: () => '' }, { report: logMediaHtmlEvent });
   assert.equal(output, '', 'markup holding an unresolvable token is dropped, never shown with the raw token');
   assert.equal(warn.mock.callCount(), 1);
   assert.deepEqual(warn.mock.calls[0].arguments, ['[media] unknown slug in raw HTML', { slug: 'ghost' }]);
