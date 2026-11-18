@@ -1,10 +1,8 @@
 import { rmSync } from "node:fs";
-import path from "node:path";
-
+import { join } from "node:path";
 import type { UUID } from "@jini-ai/core/primitives";
-import { redactSecrets } from "@jini-ai/core";
+import * as sourceControl from "@jini-ai/devops/source-control";
 import { describeErrorForLog } from "#src/contracts/core/model-facing-tool-errors";
-import { normalizeRepositoryFolder, prefixRepositoryPath, repositoryTargetError } from "@jini-ai/devops/source-control";
 import { prepareStaticReport } from "../site-backup/static-copy.js";
 import { staticDownloadLayout } from "../site-backup/static-download-layout.js";
 import { LANDING_FILE } from "../site-backup/static-download-landing.js";
@@ -13,213 +11,55 @@ import { SiteShareRefusal } from "../site-backup/share-policy.js";
 import { CREDENTIAL_MESSAGES } from "@jini-ai/platform/secrets/credential-token";
 
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
-import { firstExportFailure, type ExportReport } from "#src/features/site-export/index";
-
-import type { CommitFile, RepositoryTargetValidator, SourceControlCommitResult, SourceControlProvider } from "./provider-module.js";
+import type { ExportReport } from "#src/features/site-export/index";
+import { validateCommitTarget } from "./commit-target.js";
+import type { CommitFile, RepositoryTargetValidator, SourceControlProvider } from "./provider-module.js";
 import { resolveDefaultForSourceControl } from "./store.js";
 import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "./types.js";
 
 /**
- * @file The `source-control` domain's "business" layer — everything `source_control_execute_commit`
- * (`tool-registrations.ts`) needs on a confirmed commit, minus the MCP-UI mechanics. Deliberately its
- * own file, mirroring `features/deployments/static-publish/adapter.ts`'s split from
- * `publish-agent-tools.ts`: the tool-wiring layer owns the confirmation dialog and the exchange
- * park/resume, this layer owns "run a fresh export, resolve a credential, and push a real commit" —
- * directly unit-testable with a faked {@link SourceControlCommitAdapter}, no surface-exchange store involved.
- *
- * Purpose:
- * "Wrap it, do not reimplement," same discipline `adapter.ts`'s own header states — this module runs
- * Tovu's real static exporter (`#src/features/site-export`'s `exportSite`, the SAME engine every publish target and
- * the admin's manual export route already drive), maps the resulting `ExportReport` into the flat
- * `{path, data}` shape {@link SourceControlCommitAdapter.commit} takes, and hands that off. It does no GitHub
- * HTTP itself — that lives in the plugin's provider module, injected here as {@link CommitSiteDeps.gitAdapter}.
- *
- * No base path: unlike `static-publish/adapter.ts`'s `computeBasePath` (needed because a host
- * may serve a project site from `/<repo>`), a source-control commit is not a hosted site at all — nothing
- * here ever calls `exportSite` with a `basePath`, regardless of provider.
- *
- * Destination scope: root by default, or the explicitly selected folder (owner decision,
- * 2026-10-30 plan-145, superseding the 2026-08-16 root-only constraint). The provider owns prefixing
- * and folder-local reconciliation; this layer owns active-theme portable packaging.
- *
- * Never throws for an expected outcome: every failure (no credential, invalid target shape, a genuine
- * credential decrypt failure, a failed export, nothing changed, a diverged branch, an unreachable
- * network, a rejected provider call) is returned as `{ok: false, code, message}` — see
- * {@link SourceControlCommitOutcome}'s own header for why each code is its own, not folded into a
- * generic failure, and {@link commitSiteToSourceControl}'s own doc for why this is a real, enforced
- * contract rather than an aspirational one.
- *
- * Architectural role:
- * `features/source-control` domain logic, this feature's one seam into the git-host provider a plugin
- * ships (`provider-module.ts`). No
- * dependency on `features/deployments/**` — this feature's identity table and Git Data API adapter
- * are its own. A missing source-control identity may use the injected saved API-key reader;
- * this still does not share `publish-credentials`' resolve path (see `store.ts`'s header
- * for why `source_control_credential_sets` is a separate table) or `static-publish/adapter.ts`'s
- * `toDeployFile`/`exportSiteLazily` (a ~6-line duplication, not a shared helper — see this file's
- * `exportSiteLazily` below for why importing the sibling domain's copy would be wrong, not merely
- * redundant).
+ * @file Tovu's binding of `@jini-ai/devops/source-control`'s commit orchestration for `source_control_execute_commit`
+ * (`tool-registrations.ts` owns the confirmation dialog and exchange park/resume, like `static-publish/adapter.ts`'s split from
+ * `publish-agent-tools.ts`). The mechanism and its why-comments live in Jini; Tovu keeps the real static exporter (`exportSite`,
+ * the engine every publish target drives), the static-download layout, the credential store and the sentences a person reads.
+ * Destination: root or one chosen folder (owner decision 2026-10-30 plan-145). Shares nothing with `features/deployments/**`
+ * (`source_control_credential_sets` is its own table, `store.ts`). Never throws for an expected outcome: the tool handler
+ * assumes it, and its process (`agent-daemon-server.ts`) has no restart supervisor.
  */
-
-/** Git branch name — permissive (real branch names allow far more), but refuses whitespace/control
- *  characters before the value reaches a URL path segment. */
-const BRANCH_PATTERN = /^[A-Za-z0-9._/-]{1,250}$/;
-
-/** Git's own ref-name rules for the parts the pattern allows: no `..` anywhere (it would let fetch
- *  normalize `refs/heads/../../x` into another API path called with the user's token), no empty or
- *  dot-led component and no `.lock` component. @complexity O(n) in the (≤250-char) name. */
-function isValidBranchName({ branch }: { branch: string }, _optional = {}): boolean {
-  return BRANCH_PATTERN.test(branch) && !branch.includes("..")
-    && !branch.split("/").some(part => part === "" || part.startsWith(".") || part.endsWith(".lock"));
-}
-const MAX_COMMIT_MESSAGE_LENGTH = 500;
-
-/**
- * Validates a commit target's shape. Called twice by design: once by `tool-registrations.ts`'s handler
- * BEFORE opening the confirmation dialog (a caller with an invalid target never causes a dialog to be
- * raised — same discipline `deployment_execute_static_publish` applies to its own early
- * `validateStaticPublishConfig` call), and again here, defense-in-depth, for any future caller of
- * {@link commitSiteToSourceControl} that skips the tool layer's own check.
- *
- * Owner/repo rules belong to the host: `validateTarget` is the plugin module's own check, run first,
- * then the generic one-path-segment rule (`repositoryTargetError` in `@jini-ai/devops/source-control`,
- * shared with the other writers).
- *
- * @returns `null` when valid, else a human-readable reason safe to return over a tool-result boundary
- *   (never echoes more than the offending field, capped, never a token — there is none in scope here).
- * @complexity O(1) — a handful of fixed-size regex tests.
- */
-export function validateCommitTarget(
-  input: { owner: string; repo: string; branch?: string; folder?: string; commitMessage: string },
-  validateTarget?: RepositoryTargetValidator,
-): string | null {
-  // The owner/repo check every source-control write runs before anything is built or sent: this
-  // file (`source_control_execute_commit`), `custom_credential_write_files` and `site_backup_plan`.
-  // The host's own, stricter rules come first (the plugin module's `validateTarget`, e.g. GitHub's
-  // name patterns and its "invalid GitHub owner" text live in the `github` plugin), so a host's
-  // refusal reads the same whichever tool hit it. Then one generic rule applies to every host: each
-  // value is one URL path segment.
-  const targetError = repositoryTargetError({ owner: input.owner, repo: input.repo }, { validateTarget });
-  if (targetError !== null) return targetError;
-  try { normalizeRepositoryFolder({ folder: input.folder }); }
-  catch (error) { return (error as Error).message; }
-  if (input.branch !== undefined && !isValidBranchName({ branch: input.branch })) return `invalid branch name '${input.branch.slice(0, 60)}'`;
-  if (input.commitMessage.trim() === "" || input.commitMessage.length > MAX_COMMIT_MESSAGE_LENGTH) {
-    return `commitMessage must be 1-${MAX_COMMIT_MESSAGE_LENGTH} characters`;
-  }
-  return null;
-}
-
-export type { CommitFile, SourceControlCommitResult } from "./provider-module.js";
-
-/** Normalizes an `ExportedRoute`/`ExportedAsset`'s `outputFile` (already commit-relative, per that
- *  interface's own doc) to forward slashes — same reasoning `static-publish/adapter.ts`'s own
- *  `toDeployFile` documents: `path.relative` uses the platform separator, and a stray backslash on a
- *  Windows host would be a wrong path in a git tree entry, not a normalized one. */
-export function toCommitFile(entry: { outputFile: string; data: string | Buffer }): CommitFile {
-  return { path: entry.outputFile.split(path.sep).join("/"), data: entry.data };
-}
 
 /** Commit operations receive only the resolved token; saved provider metadata stays in the vault. */
-export interface ResolvedSourceControlCredential {
-  readonly token: string;
-}
-
-/** The one seam between this file and the git host — `commitSiteToSourceControl` calls exactly one
- *  method, with no pre-flight call: every repository/branch/network outcome is discovered during this
- *  one call, after the human confirmed. Production passes the plugin provider's `commitSite`. */
-export interface SourceControlCommitAdapter {
-  commit: SourceControlProvider["commitSite"];
-}
-
-/**
- * Every outcome {@link commitSiteToSourceControl} can produce — one variant per row of this feature's
- * own proposal doc's failure-contract table (`ADS-memory/reports/2026-08-16-source-control-tools.md`).
- * `NO_CHANGES`/`DIVERGED_BRANCH`/`REPOSITORY_NOT_FOUND`/`NETWORK_UNREACHABLE`/`PROVIDER_ERROR` are all
- * discovered post-confirm (this function's own single call to `SourceControlCommitAdapter.commit`), never
- * pre-dialog — `tool-registrations.ts`'s handler only ever pre-checks credential PRESENCE (a cheap,
- * non-decrypting DB read), matching `deployment_execute_static_publish`'s own "one cheap pre-check,
- * everything else discovered after confirm" shape.
- */
-export type SourceControlCommitOutcome =
-  | { ok: false; code: "INVALID_CONFIG"; message: string }
-  | { ok: false; code: "NO_CREDENTIALS_CONFIGURED"; message: string }
-  | { ok: false; code: "EXPORT_FAILED"; message: string }
-  | { ok: false; code: "REPOSITORY_NOT_FOUND"; message: string }
-  | { ok: false; code: "NO_CHANGES"; message: string }
-  | { ok: false; code: "DIVERGED_BRANCH"; message: string }
-  | { ok: false; code: "NETWORK_UNREACHABLE"; message: string }
-  | { ok: false; code: "PROVIDER_ERROR"; message: string }
-  | {
-      ok: true;
-      owner: string;
-      repo: string;
-      folder: string;
-      entryPath: string;
-      branch: string;
-      branchCreated: boolean;
-      commitSha: string;
-      commitUrl: string;
-      filesChanged: number;
-      filesDeleted: number;
-      /** See {@link SourceControlCommitResult}'s own doc — passed through verbatim, always present
-       *  (defaults to `[]`) for the real adapter, so a caller can tell a human exactly what survived a
-       *  shrinking publish because it could not be verified as still Tovu's own. */
-      divergedPaths: readonly string[];
-    };
-
+export interface ResolvedSourceControlCredential { readonly token: string }
+/** The one seam to the git host: one call, no pre-flight, so every repository, branch and network outcome is discovered after the human confirmed. */
+export interface SourceControlCommitAdapter { commit: SourceControlProvider["commitSite"] }
+/** Jini's outcome, whose success also names the folder and entry file. The post-confirm codes are never pre-dialog: the tool handler only pre-checks credential PRESENCE (failure-contract table: ADS-memory/reports/2026-08-16-source-control-tools.md). */
+export type SourceControlCommitOutcome = Extract<sourceControl.SourceControlCommitOutcome, { ok: false }> | (Extract<sourceControl.SourceControlCommitOutcome, { ok: true }> & { folder: string; entryPath: string });
 export interface CommitSiteDeps {
   readonly supportsFolder?: boolean;
-  /** The host committed to: whose saved default credential is resolved, and whose plugin provider
-   *  {@link gitAdapter} is. */
+  /** The host committed to: whose saved default credential is resolved, and whose plugin provider {@link gitAdapter} is. */
   readonly providerId: SourceControlProviderId;
   readonly credentialDeps: {
     repo: SourceControlCredentialSetRepoPort;
     sealer: SecretSealerPort;
     keyring?: KeyringPort;
-    /** Opens a provider-declared saved API key only when no source-control identity exists.
-     * Composition/tool wiring owns the custom-credential reader, never this commit layer. */
+    /** Opens a provider-declared saved API key only when no source-control identity exists; composition owns that reader. */
     resolveSavedApiKey?: (input: { workspaceId: UUID; providerId: SourceControlProviderId }, options?: {}) => Promise<ResolvedSourceControlCredential | null>;
   };
-  /** The plugin provider's `commitSite` (`tool-registrations.ts` resolves it) — tests inject a fake
-   *  here instead of touching `fetch`. Omitted, the commit fails loudly as a wiring bug. */
+  /** The plugin provider's `commitSite`; tests inject a fake instead of touching `fetch`. Omitted, the commit fails loudly as a wiring bug. */
   readonly gitAdapter?: SourceControlCommitAdapter;
   /** The host plugin's own owner/repo check ({@link validateCommitTarget}), when it ships one. */
   readonly validateTarget?: RepositoryTargetValidator;
 }
-
-/**
- * The composition-root-bound export call this domain takes instead of `RouteDeps` itself
- * (2026-08-20 RouteDeps-narrowing fix, superseding `b6144774`'s config-only attempt — see
- * `tool-registrations.ts`'s own `SourceControlToolDeps` doc for the fuller design rationale).
- * Deliberately NOT named anything close to `RouteDeps.runExportSite`
- * (`server/routes/types.ts`) — that field is `ExportEngine<RouteDeps>`, which takes a `routeDeps`
- * parameter the caller must supply on every call; THIS function takes none, because `RouteDeps` is
- * already closed over at the composition root (`apps/website/src/server/runtime/composition/app.ts`'s `createRouteDeps()`/
- * `apps/website/src/server/runtime/composition/deps.ts`'s `createSiteRouteDeps()`, bound as `RouteDeps.exportSiteBound`). Naming the two
- * similarly was reviewed and rejected specifically because a caller mixing them up (passing a
- * `routeDeps` field this function does not want, or omitting one `runExportSite` requires) would
- * still type-check — see this domain's own `tool-registrations.ts` for where that exact class of bug
- * was caught during this fix. Declared locally, never imported from `RouteDeps` or from
- * `features/deployments/static-publish/adapter.ts`'s identical copy — same "duplicate the tiny type,
- * never share across features" convention this file already follows for
- * `exportSiteLazily`'s own former copy.
- */
+/** The composition-root-bound export call, NOT named like `RouteDeps.runExportSite` (that takes `routeDeps` every call; this has it closed over): mixing the two would still type-check. */
 export type ExportSiteBoundFn = (options: { outputDir: string; clean?: boolean; basePath?: string; includeThemePreviews?: boolean; themeId?: string }) => Promise<ExportReport>;
-
 /** Bound to the existing site/theme resolvers by composition, never inferred from output files. */
 export type StaticSiteContextFn = () => Promise<{ name: string; slug: string; theme: string; themeId: string }>;
-
 export interface CommitSiteInput {
   readonly folder?: string;
   readonly staticSiteContext: StaticSiteContextFn;
   readonly workspaceId: UUID;
-  /** `RouteDeps.sourceControlExportRootDir`, threaded down rather than the whole `RouteDeps` bag —
-   *  see `exportSiteBound`'s own doc immediately below for why. */
+  /** `RouteDeps.sourceControlExportRootDir`, threaded down rather than the whole `RouteDeps` bag. */
   readonly sourceControlExportRootDir: string;
   readonly idGen: { newId(): string };
-  /** The pre-bound export call — see {@link ExportSiteBoundFn}'s own doc for what it is and why it
-   *  replaces the `routeDeps: RouteDeps` field this input used to carry. */
   readonly exportSiteBound: ExportSiteBoundFn;
   readonly owner: string;
   readonly repo: string;
@@ -227,321 +67,85 @@ export interface CommitSiteInput {
   readonly commitMessage: string;
 }
 
-/**
- * Each source-control export RUN gets its OWN directory under the site's `out/` (inside the
- * directory every other export/publish artifact already lives under) — `<parent>/providerId/<runId>`,
- * not merely `<parent>/providerId`. Exported (not merely internal) specifically so this per-run
- * isolation is directly testable — this file's own copy of `static-publish/adapter.ts`'s identical
- * `publishOutputDir` fix, for the identical reason.
- *
- * MEDIUM audit finding (2026-08-19, Codex sol bug/architecture audit): a fixed `<parent>/providerId`
- * directory meant this feature had NO concurrency guard at all — not even the process-local
- * single-flight `publish-run.ts` gives `static-publish/adapter.ts` — so two commits (the assistant's
- * confirmed `source_control_execute_commit` tool call firing twice, or overlapping with a future
- * second trigger) could `clean:true` and rewrite the same directory out from under each other.
- * `runId` (always a fresh `input.idGen.newId()` value, minted once per
- * {@link commitSiteToSourceControl} call) makes that collision structurally impossible. The
- * directory is disposable once `exportSiteBound` returns — see {@link cleanupCommitRunDir}'s own
- * doc for why nothing downstream re-reads it from disk.
- *
- * `parent` is `RouteDeps.sourceControlExportRootDir` (`TOVU_SOURCE_CONTROL_EXPORT_DIR` env, then
- * `<site>/out/source-control-export` — mirroring `export-site.ts`'s `TOVU_EXPORT_DIR`/`adapter.ts`'s
- * `TOVU_PUBLISH_DIR`), resolved ONCE by the composition root (`apps/website/src/server/runtime/composition/app.ts`/`apps/website/src/server/runtime/composition/deps.ts`) and
- * threaded through as {@link CommitSiteInput.sourceControlExportRootDir} (2026-08-20
- * RouteDeps-narrowing fix — this used to be `input.routeDeps.sourceControlExportRootDir`; the field
- * moved, the value and its single-resolution-point discipline did not) — never read from
- * `process.env` in this file. A test overrides it the same way it always did: by setting
- * `sourceControlExportRootDir` on the fake `CommitSiteInput` it constructs, not by mutating real
- * process env vars.
- * @complexity O(1) — fixed-shape path join, no I/O.
- */
+/** One run's isolated export directory, `<parent>/providerId/<runId>`. `parent` (`TOVU_SOURCE_CONTROL_EXPORT_DIR`, else `<site>/out/source-control-export`)
+ *  is resolved ONCE by the composition root, never read from the process environment here: a test sets the field on its fake input. @complexity O(1). */
 export function commitExportDir({ parent, providerId, runId }: { parent: string; providerId: string; runId: string }, _options = {}): string {
-  return path.join(parent, providerId, runId);
+  return join(parent, providerId, runId);
 }
 
-/** Best-effort cleanup of one run's isolated export directory (see {@link commitExportDir}'s own
- *  doc) — this file's own copy of `static-publish/adapter.ts`'s identical `cleanupPublishRunDir`.
- *  Safe to call once `exportSiteLazily` has returned or thrown: every byte
- *  `commitSiteToSourceControl` still needs travels through `report.routes.succeeded`/
- *  `report.assets.succeeded`'s own `data` fields, never by re-reading this directory. Never throws —
- *  same best-effort, disclosed-rather-than-silent posture as its `static-publish` twin.
- * @complexity O(n) in the (typically small) exported file count — a recursive directory removal. */
-function cleanupCommitRunDir({ outputDir }: { outputDir: string }, _optional = {}): void {
-  try {
-    rmSync(outputDir, { recursive: true, force: true });
-  } catch {
-    // Swallowed deliberately — see this function's own doc.
-  }
+/** Active-theme portable packaging: the static-download layout, destination paths claimed (a collision or alias refuses). `context` is the
+ *  site identity pinned BEFORE rendering, so an owner changing the live selection mid-export cannot split it. */
+function packageStaticSite({ context, report }: { context: Awaited<ReturnType<StaticSiteContextFn>>; report: ExportReport }, _optional = {}): CommitFile[] {
+  const rendered = prepareStaticReport({ report });
+  const files = staticDownloadLayout({ copy: { files: rendered.files, publicOrigin: rendered.publicOrigin, siteSlug: context.slug, themeId: context.themeId,
+    metadata: { theme: context.theme, routes: rendered.routes, redirectFiles: rendered.redirectFiles, failed: rendered.failed, skipped: rendered.skipped },
+    readme: { name: context.name } } }).map(file => ({ path: file.path, data: file.content }));
+  claimArchivePaths({ entries: files }, { manifest: false });
+  return files;
 }
 
-/*
- * `firstExportFailure` used to be resolved at CALL time here, via
- * `require("#src/features/site-export/index")` inside a `firstExportFailureLazily` helper, to break a
- * circular import: `assistant/tool-registrations.ts -> features/source-control/tool-registrations.ts
- * -> commit-site.ts -> #src/features/site-export/index -> ... -> server/app.ts -> ... assistant`. It is a
- * plain static import again as of 2026-09-05, for two measured reasons.
- *
- * 1. That cycle is gone. `features/site-export/site-exporter.ts` dropped its `server/app.ts` back-edge in
- *    the 2026-08-16 rework (see that file's own "No import of `server/app.ts` here, static OR lazy"
- *    note), and a dependency-cruiser reachability pass over the export barrel's 67-module runtime
- *    closure — type-only edges excluded — found NOTHING under `apps/website/src/server/**`,
- *    `apps/website/src/assistant/**`, `features/source-control/**` or `features/deployments/**` in
- *    it. There is no path back to this file for a cycle to close on. The same pass showed the static
- *    import adds ZERO modules to this file's own runtime closure: every module in the barrel's
- *    closure is already reachable from this file's other imports, so nothing loads that did not
- *    already load.
- * 2. Under `tsx`, `require()` of a first-party `.ts` module is served by tsx's CJS hook, which
- *    transpiles that module and its whole import graph a SECOND time in esbuild's CommonJS format.
- *    Both instantiations report V8 coverage under one `SF:` path, so their `FN:` tables concatenate
- *    and the never-exercised CJS copy clobbers `DA:` line hits. Measured: this one `require()` was
- *    responsible for 45 contaminated first-party blocks (28 SEVERE) in a run of this domain's own
- *    unit test alone — see
- *    `ADS-memory/reports/2026-09-05-coverage-dual-instantiation-routes-W-and-A.md` ("Route A") and
- *    the pin in `__tests__/commit-site-export-resolution.unit.test.ts`.
- *
- * `exportSite` needs no treatment here either: this file never calls it directly —
- * {@link CommitSiteInput.exportSiteBound} is the composition root's own binding.
- * `features/deployments/static-publish/adapter.ts` still carries the lazy `require` version of this
- * helper; it is a separate call, with a much smaller eager-import graph of its own, and is left as
- * an owner decision rather than changed by association.
- */
-
-type CommitCredentialResult =
-  | { ok: true; credential: ResolvedSourceControlCredential }
-  | { ok: false; code: "NO_CREDENTIALS_CONFIGURED"; message: string };
-
-/**
- * Resolves and validates the workspace's default source-control credential, falling back to its
- * provider-declared saved API key only when no explicit credential exists. Split out of
- * `commitSiteToSourceControl` so that function reads as one guard per phase (credential, export,
- * commit) rather than one long chain — this phase alone covers the decrypt-failure catch, the
- * missing-credential case, and the (practically unreachable, but explicitly typed) wrong-provider
- * guard documented at the inline comment below.
- */
-async function resolveCommitCredential(
-  { credentialDeps, workspaceId, providerId }: {
-    credentialDeps: CommitSiteDeps["credentialDeps"]; workspaceId: UUID; providerId: SourceControlProviderId;
-  },
-  _options = {},
-): Promise<CommitCredentialResult> {
-  let credential: Awaited<ReturnType<typeof resolveDefaultForSourceControl>>;
-  try {
-    credential = await resolveDefaultForSourceControl(credentialDeps, { workspaceId, providerId });
-    if (!credential && credentialDeps.resolveSavedApiKey) {
-      const saved = await credentialDeps.resolveSavedApiKey({ workspaceId, providerId });
-      if (saved) return { ok: true, credential: saved };
-    }
-  } catch {
-    // `resolveDefaultForSourceControl`'s own doc documents this as a real, deliberate possibility
-    // (`store.ts`'s `decryptRecord`: a decrypt failure throws rather than degrading to `null`) — this
-    // function's own contract (this doc, right above) is that IT never throws regardless, so a
-    // genuine decrypt failure still needs to "surface", just through this function's own established
-    // `{ok:false, code, message}` channel instead of an uncaught exception. `NO_CREDENTIALS_CONFIGURED`
-    // is the closest existing code — this feature has no dedicated "credential exists but cannot be
-    // decrypted" code, and adding one is a wider API change than this fix, same bucket
-    // `static-publish/adapter.ts`'s own `credentialSource.resolve()` catch uses for the analogous case.
-    return {
-      ok: false,
-      code: "NO_CREDENTIALS_CONFIGURED",
-      message: `credential could not be resolved: ${CREDENTIAL_MESSAGES.storage}`,
-    };
+/** Each stage's refusal text: a packaging refusal is shown, vault, export and provider detail is not (the provider's goes to the log). */
+function describeStageError({ error, stage }: { error: unknown; stage?: sourceControl.CommitErrorStage }, _optional = {}): string {
+  if (stage === "credential") return CREDENTIAL_MESSAGES.storage;
+  if (stage === "commit") { console.warn("[source-control] source control provider could not commit; the commit remains incomplete", describeErrorForLog({ err: error })); return "the source control provider failed while committing"; }
+  if (stage === "arrange") {
+    return error instanceof SiteShareRefusal && /collision|aliases/i.test(error.message)
+      ? `Static site destination validation failed: ${error.message}` : "Static site packaging failed before committing could start.";
   }
-  if (!credential) {
-    return {
-      ok: false,
-      code: "NO_CREDENTIALS_CONFIGURED",
-      message: `No source control credential is configured for '${providerId}'. Connect one in the admin's Source Control page first.`,
-    };
-  }
-  if (credential.connection.providerId !== providerId) {
-    // Unreachable in practice — `resolveDefaultForSourceControl` was called with this `providerId`,
-    // so `findDefaultByProvider` can only ever return a row already stored under that same provider
-    // (the write path never lets `record.providerId` disagree with the group it was inserted into).
-    // Kept as an explicit, typed guard rather than a cast, so a future bug in that invariant fails
-    // loudly here instead of forwarding one host's token to another host's API.
-    return { ok: false, code: "NO_CREDENTIALS_CONFIGURED", message: `The resolved default credential is not a '${providerId}' connection.` };
-  }
-  return { ok: true, credential: { token: credential.connection.token } };
+  return error instanceof Error ? error.message : String(error);
 }
 
-type CommitExportResult = { ok: true; files: CommitFile[] } | { ok: false; code: "EXPORT_FAILED"; message: string };
-
-/**
- * Runs the fresh, isolated export `commitSiteToSourceControl` commits from, and checks it for
- * failures (both route AND asset failures — see the inline comment below). Snapshots theme identity
- * before rendering and validates portable destinations before preview or commit. Split out for the same
- * one-guard-per-phase reason as {@link resolveCommitCredential}.
- */
-async function exportForCommit({ input, providerId }: { input: CommitSiteInput; providerId: string }, _options = {}): Promise<CommitExportResult> {
-  const outputDir = commitExportDir({ parent: input.sourceControlExportRootDir, providerId, runId: input.idGen.newId() });
-  let report: ExportReport;
-  let context: Awaited<ReturnType<StaticSiteContextFn>>;
-  try {
-    // Pin identity and rendering together before an owner can change the live selection mid-export.
-    context = await input.staticSiteContext();
-    report = await input.exportSiteBound({ outputDir, clean: true, includeThemePreviews: false, themeId: context.themeId });
-  } catch (err) {
-    cleanupCommitRunDir({ outputDir });
-    return { ok: false, code: "EXPORT_FAILED", message: `export failed before committing could start: ${err instanceof Error ? err.message : String(err)}` };
-  }
-  cleanupCommitRunDir({ outputDir });
-
-  // Checks BOTH `routes.failed` and `assets.failed` (HIGH audit finding, 2026-08-19 Codex sol bug/
-  // architecture audit) — this used to check only `routes.failed`, so a page could export fine
-  // while its own stylesheet or hero image 404s and the commit would still go through. See
-  // `firstExportFailure`'s own doc (`#src/features/site-export/index`) for the shared check both this function
-  // and `static-publish/adapter.ts`'s `publishStaticSite` now use.
-  const failure = firstExportFailure(report);
-  if (failure) {
-    return {
-      ok: false,
-      code: "EXPORT_FAILED",
-      message: `refused to commit: ${failure.count} ${failure.kind}(s) failed to export (first: '${failure.identifier}' — ${failure.reason})`,
-    };
-  }
-
-  try {
-    const rendered = prepareStaticReport({ report });
-    const files = staticDownloadLayout({ copy: { files: rendered.files, publicOrigin: rendered.publicOrigin, siteSlug: context.slug, themeId: context.themeId,
-      metadata: { theme: context.theme, routes: rendered.routes, redirectFiles: rendered.redirectFiles, failed: rendered.failed, skipped: rendered.skipped },
-      readme: { name: context.name } } }).map(file => ({ path: file.path, data: file.content }));
-    claimArchivePaths({ entries: files }, { manifest: false });
-    return { ok: true, files };
-  } catch (error) {
-    if (error instanceof SiteShareRefusal && /collision|aliases/i.test(error.message)) {
-      return { ok: false, code: "EXPORT_FAILED", message: `Static site destination validation failed: ${error.message}` };
-    }
-    return { ok: false, code: "EXPORT_FAILED", message: "Static site packaging failed before committing could start." };
-  }
+/** The export side: this site's exporter, per-run directory and static-download layout. */
+function exportArgs({ input, providerId }: { input: CommitSiteInput; providerId: string }, _optional = {}): sourceControl.CommitExportArgs {
+  let pinned!: Parameters<typeof packageStaticSite>[0]; // Set by `files.export`, which the orchestration always runs before `layout.arrangeFiles`.
+  return {
+    folder: input.folder, workspaceId: input.workspaceId, owner: input.owner, repo: input.repo, commitMessage: input.commitMessage, providerId,
+    ids: { next: () => input.idGen.newId() },
+    describeError: describeStageError,
+    files: { export: async ({ outputDir }) => {
+      const context = await input.staticSiteContext();
+      pinned = { context, report: await input.exportSiteBound({ outputDir, clean: true, includeThemePreviews: false, themeId: context.themeId }) };
+      return pinned.report;
+    } },
+    layout: {
+      outputDirectory: ({ providerId: id, runId }) => commitExportDir({ parent: input.sourceControlExportRootDir, providerId: id, runId }),
+      cleanup: async ({ outputDir }) => rmSync(outputDir, { recursive: true, force: true }),
+      arrangeFiles: () => packageStaticSite(pinned),
+    },
+  };
 }
 
-export type PreviewCommitExportResult =
-  | { ok: true; fileCount: number; totalBytes: number; paths: string[] }
-  | { ok: false; code: "INVALID_CONFIG" | "EXPORT_FAILED"; message: string };
+/** The credential and provider side: the default credential, else the provider-declared saved API key. */
+function commitArgs({ deps, input }: { deps: CommitSiteDeps; input: CommitSiteInput }, _optional = {}): sourceControl.CommitOrchestrationArgs {
+  const { providerId, credentialDeps } = deps;
+  return {
+    ...exportArgs({ input, providerId }),
+    supportsFolder: deps.supportsFolder,
+    describeMissingCredential: () => `No source control credential is configured for '${providerId}'. Connect one in the admin's Source Control page first.`,
+    credentials: { resolve: async () => {
+      const credential = await resolveDefaultForSourceControl(credentialDeps, { workspaceId: input.workspaceId, providerId });
+      if (credential) return { providerId: credential.connection.providerId, token: credential.connection.token };
+      const saved = await credentialDeps.resolveSavedApiKey?.({ workspaceId: input.workspaceId, providerId });
+      return saved ? { providerId, token: saved.token } : null;
+    } },
+    adapter: { commitSite: async (required, optional = {}) => deps.gitAdapter?.commit({ ...required, folder: required.folder ?? "", ...optional })
+      ?? { ok: false, code: "provider-error", message: "no source control commit adapter is configured — this is a wiring bug, not a credential or network problem" } }, // Production always supplies the adapter (`tool-registrations.ts`): absent is refused loudly, never a silent no-op commit.
+  };
+}
 
-/**
- * Previews what {@link commitSiteToSourceControl} would export and commit, for
- * `tool-registrations.ts`'s `dryRun` handling. Runs the same {@link validateCommitTarget} guard and
- * the same fresh, isolated {@link exportForCommit} pass the real commit runs — so the file count and
- * byte total are real, not estimated — then reports a summary instead of committing anything.
- * Deliberately stops there: unlike {@link commitSiteToSourceControl}, this never calls
- * `resolveCommitCredential` (no decrypt) and never touches a {@link SourceControlCommitAdapter} (no
- * network call) — see this file's header's "no network before a human confirms" rule.
- * `paths` is sorted and capped at the first 50, so a large export does not blow out a dry-run
- * response.
- * @complexity One `exportSite` pass (O(routes + assets) HTTP requests against the in-process app) —
- *   no credential resolution, no `SourceControlCommitAdapter.commit()` call, ever.
- */
-export async function previewCommitExport(input: CommitSiteInput, { providerId = "preview", validateTarget }: { providerId?: string; validateTarget?: RepositoryTargetValidator } = {}): Promise<PreviewCommitExportResult> {
+/** Previews what {@link commitSiteToSourceControl} would export, for the tool's `dryRun`: the same validation and fresh export, no credential read, no provider call. */
+export async function previewCommitExport(input: CommitSiteInput, { providerId = "preview", validateTarget }: { providerId?: string; validateTarget?: RepositoryTargetValidator } = {}): Promise<sourceControl.PreviewCommitExportResult> {
   const configError = validateCommitTarget(input, validateTarget);
   if (configError) return { ok: false, code: "INVALID_CONFIG", message: configError };
-
-  const exportResult = await exportForCommit({ input, providerId });
-  if (!exportResult.ok) return exportResult;
-
-  const sortedPaths = exportResult.files.map((file) => prefixRepositoryPath({ folder: input.folder, path: file.path })).sort();
-  const totalBytes = exportResult.files.reduce((sum, file) => sum + Buffer.byteLength(file.data), 0);
-  return { ok: true, fileCount: exportResult.files.length, totalBytes, paths: sortedPaths.slice(0, 50) };
+  return sourceControl.previewCommitExport(exportArgs({ input, providerId }), { branch: input.branch });
 }
 
-/**
- * Commits Tovu's current site export to `input.owner/input.repo`. Always runs a fresh, `clean` export
- * immediately before committing — never reuses a previously-produced export directory (same
- * "correctness over one extra pass" tradeoff `static-publish/adapter.ts`'s header accepts for its own
- * publish call).
- *
- * Never throws: every failure is returned as `{ok: false, code, message}` — see
- * {@link SourceControlCommitOutcome}'s own header for the full per-code reasoning.
- *
- * This is a REAL contract, not aspirational (live-found 2026-08-16, mirroring `static-publish/
- * adapter.ts`'s own `publishStaticSite` fix for the identical shape): the call to
- * `resolveDefaultForSourceControl` below used to run unguarded, so a genuine decrypt failure (a
- * missing site key, a tampered row) propagated as an UNCAUGHT exception, breaking this exact doc
- * comment. `tool-registrations.ts`'s `source_control_execute_commit` handler is written assuming this
- * function never throws, so that was a real crash risk, not just a documentation lie — worse than the
- * publish-credentials sibling's version of this bug, since this call runs inside
- * `agent-daemon-server.ts`, a separate OS process with no process-level `unhandledRejection` guard of
- * its own at the time and no restart supervisor at all (`index.ts`'s `spawnAgentDaemon()` is called
- * exactly once per boot) — an escaping rejection here would have taken the WHOLE daemon down, not
- * just answered one tool call with an error.
- *
- * @complexity One `exportSite` pass (O(routes + assets) HTTP requests against the in-process app) plus
- *   one `SourceControlCommitAdapter.commit()` call (bounded by that adapter's own fixed request count — see
- *   the provider module).
- */
+/** Commits Tovu's current site export to `input.owner/input.repo` through Jini's orchestration; a success adds the normalized folder and entry file. */
 export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: CommitSiteInput): Promise<SourceControlCommitOutcome> {
   const configError = validateCommitTarget(input, deps.validateTarget);
   if (configError) return { ok: false, code: "INVALID_CONFIG", message: configError };
-
-  const folder = normalizeRepositoryFolder({ folder: input.folder });
-  if (folder && deps.supportsFolder !== true) return { ok: false, code: "INVALID_CONFIG", message: "This provider does not support folder commits." };
-
-  const credentialResult = await resolveCommitCredential({ credentialDeps: deps.credentialDeps, workspaceId: input.workspaceId, providerId: deps.providerId });
-  if (!credentialResult.ok) return credentialResult;
-
-  const exportResult = await exportForCommit({ input, providerId: deps.providerId });
-  if (!exportResult.ok) return exportResult;
-
-  const gitAdapter = deps.gitAdapter;
-  if (!gitAdapter) {
-    // Only reachable if a caller omits BOTH this and relies on a default that does not exist yet —
-    // `tool-registrations.ts` always supplies the plugin provider's adapter in
-    // production. Fails loudly rather than silently no-op'ing a commit.
-    return { ok: false, code: "PROVIDER_ERROR", message: "no source control commit adapter is configured — this is a wiring bug, not a credential or network problem" };
-  }
-
-  let result: SourceControlCommitResult;
-  try {
-    result = await gitAdapter.commit({
-      token: credentialResult.credential.token,
-      owner: input.owner,
-      repo: input.repo,
-      folder,
-      ...(input.branch !== undefined ? { branch: input.branch } : {}),
-      commitMessage: input.commitMessage,
-      files: exportResult.files,
-    });
-  } catch (error) {
-    // Plugin code: its throw must not break this function's never-throw contract, and its raw
-    // message may carry provider detail, so a fixed message is returned instead.
-    console.warn("[source-control] source control provider could not commit; the commit remains incomplete", describeErrorForLog({ err: error }));
-    return { ok: false, code: "PROVIDER_ERROR", message: "the source control provider failed while committing" };
-  }
-
-  return commitOutcome({ result, input, folder, token: credentialResult.credential.token });
-}
-
-/** Map a provider outcome to the caller contract and redact its message before it leaves the vault boundary.
- * @complexity O(message bytes + returned path count), no effects.
- */
-function commitOutcome({ result, input, folder, token }: { result: SourceControlCommitResult; input: CommitSiteInput; folder: string; token: string }, _options = {}): SourceControlCommitOutcome {
-  if (!result.ok) {
-    const codeByAdapterCode = {
-      "repository-not-found": "REPOSITORY_NOT_FOUND",
-      "no-changes": "NO_CHANGES",
-      diverged: "DIVERGED_BRANCH",
-      "network-unreachable": "NETWORK_UNREACHABLE",
-      "provider-error": "PROVIDER_ERROR",
-    } as const;
-    // Own keys only: a plugin's `constructor`/`__proto__` code must not resolve to an inherited member.
-    const code = Object.hasOwn(codeByAdapterCode, result.code) ? codeByAdapterCode[result.code] : "PROVIDER_ERROR";
-    // A host or transport may echo the Authorization value. Use the shared redactor before the
-    // provider's explanation crosses the tool boundary, including tokens with no known prefix.
-    return { ok: false, code, message: redactSecrets({ input: result.message }, { exactSecrets: [token] }) };
-  }
-
-  return {
-    ok: true,
-    owner: input.owner,
-    repo: input.repo,
-    folder,
-    entryPath: prefixRepositoryPath({ folder, path: LANDING_FILE }),
-    branch: result.branch,
-    branchCreated: result.branchCreated,
-    commitSha: result.commitSha,
-    commitUrl: result.commitUrl,
-    filesChanged: result.filesChanged,
-    filesDeleted: result.filesDeleted,
-    divergedPaths: result.divergedPaths ?? [],
-  };
+  const outcome = await sourceControl.commitSiteToSourceControl(commitArgs({ deps, input }), { branch: input.branch });
+  if (!outcome.ok) return outcome;
+  const folder = sourceControl.normalizeRepositoryFolder({ folder: input.folder });
+  return { ...outcome, folder, entryPath: sourceControl.prefixRepositoryPath({ folder, path: LANDING_FILE }) };
 }

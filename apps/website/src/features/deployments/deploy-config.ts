@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { ValidationError } from "#src/platform/site-dir/index";
+import { assertNoConfigInjection } from "@jini-ai/devops/deploy";
 import type { DeploymentSecret, DeploymentDescriptor, RenderedDeployConfig, DeployConfigKit } from "@jini-ai/devops/deploy";
 
 /**
@@ -108,10 +109,18 @@ export function appendHostDeployNotes(
   return extra.length === 0 ? rendered : { ...rendered, notes: [...rendered.notes, ...extra] };
 }
 
-/** The kit every generator gets. @complexity O(1). */
+/**
+ * The kit every generator gets. The injection guard itself (`assertNoConfigInjection`) lives in `@jini-ai/devops/deploy`;
+ * Tovu binds it to its own `ValidationError` and to the positional `(fieldLabel, value)` the plugins call. Its two sink
+ * shapes here: the TOML-emitting plugin's quoted sinks, and the unquoted YAML `name:` lines of the render plugin
+ * (the app name and its disk's volume name). Quoting those at render time was rejected because the bundled generators'
+ * exact-string golden tests pin the CURRENT unquoted rendering for a safe name (`name: acme-app`): quoting would change
+ * every already-safe name's output. A per-host region allow-list is each generator's own choice (one host's catalog had
+ * no authoritative source to enumerate against; its generator says why). @complexity O(1).
+ */
 export function createDeployConfigKit(): DeployConfigKit {
   return {
-    assertNoConfigInjection: (fieldLabel, value) => assertNoConfigInjection({ fieldLabel, value }),
+    assertNoConfigInjection: (fieldLabel, value) => assertNoConfigInjection({ fieldLabel, value, fail: ({ message }) => new ValidationError({ message }) }),
     validationError: (message) => new ValidationError({ message }),
     migrationsNote: MIGRATIONS_NOTE,
   };
@@ -236,71 +245,6 @@ const REQUIRED_SECRETS: readonly DeploymentSecret[] = [
  */
 export const MIGRATIONS_NOTE =
   "content.db's schema (including new tables — e.g. gated_mutation_tokens, added by the SPEC-022 gated-mutations durability fix, migration 0052) migrates automatically on every boot. No separate migration command is needed before or after this deploy.";
-
-/**
- * Guards a value about to be interpolated, unescaped, into a generated TOML/YAML config file (a
- * hosting plugin's `deploy-configs/*.mjs` that builds its config from a hand-written template
- * string; passed to it in the {@link DeployConfigKit}). A generator that builds its config through
- * `JSON.stringify` is safe by construction and does not need it. Two distinct sink shapes call
- * this, so it covers two distinct hazards:
- *
- * 1. QUOTED sinks (a TOML `key = "${...}"`, or a YAML value after the generator's own allow-list
- *    already passed it). A value containing a double-quote can close the quoted string early; one
- *    also containing a newline can then inject an entirely new top-level key on the next line (the
- *    reproduction and its regression test live with the TOML-emitting plugin's generator).
- * 2. UNQUOTED YAML plain-scalar sinks (`render.mjs`'s `name: ${descriptor.appName}`
- *    and the disk's `name: ${descriptor.volumeName}` — YAML, unlike the TOML sinks above, is
- *    rendered with no surrounding quotes at all). Here a `"`/newline isn't the only hazard: `:`,
- *    `#`, `{`, `[`, `&`, `*`, a leading `-`, or leading/trailing whitespace are each YAML
- *    indicator/structural characters that change what an unquoted plain scalar means (`:` or `#`
- *    can end the scalar and start a new key or a comment mid-line; `{`/`[` open a flow collection;
- *    `&`/`*` are anchor/alias indicators; a leading `-` reads as a block-sequence entry) — the
- *    guard passing these through was this task's bug (then `deploy-config-render.ts:65-78`).
- *
- * Rejecting outright is the reliable fix for both — a per-host region allow-list (the shape
- * `render.mjs`'s `RENDER_VALID_REGIONS` uses) is each generator's own choice, and one host's
- * catalog had no authoritative source to enumerate against (its generator says why);
- * the same reasoning extends to app/volume names here — quoting the two unquoted YAML sinks at
- * render time was considered instead of widening this check, but every renderer's own exact-string
- * golden test already pins the CURRENT unquoted rendering for a safe name (e.g.
- * `bundled deploy-config rendering golden test`'s `name: acme-app`), so unconditionally quoting would change
- * output for every already-safe app/volume name, not just unsafe ones — a real caller-visible
- * behavior change this task's own instructions rule out. Widening the reject-list here instead never
- * changes what an already-accepted value renders as; it only ever accepts fewer values, which is
- * exactly the tradeoff already made for `"`/newline above.
- */
-/** QUOTED-sink hazard chars (hazard 1 in this function's own doc) — a bare array + `.some()` so
- *  this predicate carries zero branches of its own; the ceiling this whole extraction exists to
- *  clear applies per-FUNCTION, and a 3-character alternation hand-written as `||` chains was most
- *  of {@link assertNoConfigInjection}'s prior complexity. */
-const QUOTE_OR_NEWLINE_CHARS = ['"', "\n", "\r"] as const;
-
-/** UNQUOTED-YAML-plain-scalar indicator/structural chars (hazard 2 in this function's own doc). */
-const YAML_SIGNIFICANT_CHARS = [":", "#", "{", "[", "&", "*"] as const;
-
-function containsAnyOf({ value, chars }: { value: string; chars: readonly string[] }, _options = {}): boolean {
-  return chars.some((char) => value.includes(char));
-}
-
-function hasLeadingHyphenOrSurroundingWhitespace({ value }: { value: string }, _options = {}): boolean {
-  return value.startsWith("-") || value !== value.trim();
-}
-
-export function assertNoConfigInjection({ fieldLabel, value }: { fieldLabel: string; value: string }, _options = {}): void {
-  if (containsAnyOf({ value, chars: QUOTE_OR_NEWLINE_CHARS })) {
-    throw new ValidationError({ message: `${fieldLabel} (${JSON.stringify(value)}) contains a quote or newline character, which would corrupt the generated config file` });
-  }
-  if (containsAnyOf({ value, chars: YAML_SIGNIFICANT_CHARS })) {
-    throw new ValidationError(
-      { message: `${fieldLabel} (${JSON.stringify(value)}) contains a YAML-significant character (one of : # { [ & *), which would corrupt an unquoted YAML scalar in the generated config file` }
-    );
-  }
-  if (hasLeadingHyphenOrSurroundingWhitespace({ value })) {
-    throw new ValidationError(
-      { message: `${fieldLabel} (${JSON.stringify(value)}) starts with "-" or has leading/trailing whitespace, which would corrupt an unquoted YAML scalar in the generated config file` }
-    );
-  }
-}
 
 /** Every path this module reads is repo-root-relative — same convention `dockerfile.ts`'s own
  *  `dockerfilePath()` already documents: `process.cwd()` is the resolution root because every

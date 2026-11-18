@@ -29,8 +29,8 @@ export interface SourceControlCredentialSetupDeps extends OperatorLocaleDeps {
   siteAssistantSecretKeyring: SourceControlCredentialWriteDeps['keyring'];
   clock: SourceControlCredentialWriteDeps['clock'];
   idGen: SourceControlCredentialWriteDeps['idGen'];
-  fetchFn?: SourceControlCredentialWriteDeps['fetchFn'];
-  observability?: SourceControlCredentialWriteDeps['observability'];
+  /** `RouteDeps.customCredentialsHttpClient`: the guarded client the save-time identity probe goes through. */
+  customCredentialsHttpClient?: SourceControlCredentialWriteDeps['httpClient'];
   loadSourceControlProviders: LoadSourceControlProviders;
 }
 
@@ -121,7 +121,7 @@ export async function proposeSourceControlCredential(spec: { ctx: ToolExecutionC
         repo, sealer: deps.siteAssistantSecretSealer,
         keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen,
         loadSourceControlProviders: deps.loadSourceControlProviders,
-        ...(deps.fetchFn ? { fetchFn: deps.fetchFn } : {}), observability: deps.observability,
+        ...(deps.customCredentialsHttpClient ? { httpClient: deps.customCredentialsHttpClient } : {}),
       }, input: { workspaceId: deps.workspaceId, label: values.label, connection, ...(store.project ? { isDefault: false } : {}) } });
     },
     result: ({ prep, run }): ProposalResult => {

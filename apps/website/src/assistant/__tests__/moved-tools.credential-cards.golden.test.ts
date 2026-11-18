@@ -75,8 +75,8 @@ async function setup(path: Path) {
   const loadCards = async () => { cardLoads++; return [selectedCard]; };
   const authorize = async () => ({ allowed: true, reason: 'matched' });
   const http = { send: async (request: HttpRequest) => { requests.push({ method: request.method, url: request.url }); return { status: 200, headers: {}, bodyText: '[]' }; } };
-  const fetchFn: typeof fetch = async input => { requests.push({ method: 'GET', url: String(input) }); return new Response('{"login":"gcard-owner"}', { status: 200 }); };
-  const common = { workspaceId: WORKSPACE, clock, idGen, authorize, siteAssistantSecretKeyring: keyring, siteAssistantSecretSealer: sealer, loadPluginCredentialCards: loadCards, fetchFn };
+  const probeClient = { send: async (request: HttpRequest) => { requests.push({ method: request.method, url: request.url }); return { status: 200, headers: {}, bodyText: '{"login":"gcard-owner"}' }; } };
+  const common = { workspaceId: WORKSPACE, clock, idGen, authorize, siteAssistantSecretKeyring: keyring, siteAssistantSecretSealer: sealer, loadPluginCredentialCards: loadCards, customCredentialsHttpClient: probeClient };
   let handler: ToolHandler, input: Record<string, unknown>, values: Record<string, unknown> = { token: SECRET };
   if (path === 'rotation' || path === 'pluginProvider' || path === 'plainCreate') {
     const repo = new InMemoryCustomCredentialSetRepo();

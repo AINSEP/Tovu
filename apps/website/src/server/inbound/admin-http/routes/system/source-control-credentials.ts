@@ -48,7 +48,7 @@ import { authorizeDirectOrRespond } from "#src/server/inbound/admin-http/authori
  */
 export type AdminSourceControlCredentialsDeps = Pick<
   RouteDeps,
-  "projectKeys" | "workspaceId" | "authorize" | "clock" | "idGen" | "sourceControlCredentialSetRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring" | "loadSourceControlProviders" | "observability"
+  "projectKeys" | "workspaceId" | "authorize" | "clock" | "idGen" | "sourceControlCredentialSetRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring" | "loadSourceControlProviders" | "customCredentialsHttpClient"
 >;
 
 const PERMISSION = "source-control.credentials.write";
@@ -95,7 +95,8 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
     keyring: deps.siteAssistantSecretKeyring,
     clock: deps.clock,
     idGen: deps.idGen,
-    observability: deps.observability,
+    // why: the save-time account probe carries the token, so it goes through the guarded client (never native fetch).
+    httpClient: deps.customCredentialsHttpClient,
     loadSourceControlProviders: deps.loadSourceControlProviders,
   };
 

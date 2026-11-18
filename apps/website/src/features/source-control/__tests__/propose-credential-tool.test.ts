@@ -85,11 +85,12 @@ function fixture(allowed = true, exchangeOptions: NonNullable<Parameters<typeof 
     sourceControlExportRootDir: '/unused', exportSiteBound: async () => assert.fail('setup must not export'),
     staticSiteContext: async () => assert.fail('credential setup must not read export context'),
     loadSourceControlProviders: githubFromSource,
-    fetchFn: (async (url: string | URL | Request, init?: RequestInit) => {
-      assert.equal(String(url), 'https://api.github.com/user');
-      assert.equal((init!.headers as Record<string, string>).Authorization, `Bearer ${SECRET}`);
-      return new Response(JSON.stringify({ login: 't10-owner' }), { status: 200 });
-    }) as typeof fetch,
+    customCredentialsHttpClient: { send: async (request: { url: string; headers: Readonly<Record<string, string>> }, options?: { redirect?: string }) => {
+      assert.equal(request.url, 'https://api.github.com/user');
+      assert.equal(request.headers.Authorization, `Bearer ${SECRET}`);
+      assert.equal(options?.redirect, 'error');
+      return { status: 200, headers: {}, bodyText: JSON.stringify({ login: 't10-owner' }) };
+    } },
     authorize: async (input: unknown) => { auth.push(input); return { allowed, reason: allowed ? 'matched' : 'insufficient_permission' }; } };
   const surfaces = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: { newId: () => 'source-exchange-t10' }, defaultChannel: "mcp-ui" }, { ...exchangeOptions });
   const registrations = credentialSaveFixtureRegistrations({ registrations: buildSourceControlRegistrations(deps, { surfaceExchanges: surfaces }), adapters: { sourceControl: buildSourceControlCredentialHandler({ deps, surfaces: { surfaceExchanges: surfaces } }) } });
@@ -273,7 +274,7 @@ function bitbucketRegistry(onLoad: () => void = () => {}): LoadSourceControlProv
   return async () => { onLoad(); return { list: () => [loaded], get: ({ providerId: id }) => (id === 'bitbucket' ? loaded : undefined), refusals: [] }; };
 }
 function directDeps(f: ReturnType<typeof fixture>, load: LoadSourceControlProviders): SourceControlCredentialSetupDeps {
-  const { fetchFn: _unused, ...rest } = f.deps;
+  const { customCredentialsHttpClient: _unused, ...rest } = f.deps;
   return { ...rest, loadSourceControlProviders: load };
 }
 function directCall(f: ReturnType<typeof fixture>, deps: SourceControlCredentialSetupDeps, input: unknown, extra: Partial<ToolExecutionContext> = {}, emitSurface?: (s: SurfaceEmission) => Promise<void>) {

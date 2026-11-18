@@ -6,7 +6,10 @@ import path from "node:path";
 
 import { ValidationError } from "#src/platform/site-dir/index";
 
-import { assertNoConfigInjection, buildDeploymentDescriptor } from "../deploy-config.js";
+import { assertNoConfigInjection } from "@jini-ai/devops/deploy";
+import { buildDeploymentDescriptor } from "../deploy-config.js";
+
+const fail = ({ message }: { message: string }) => new ValidationError({ message });
 
 /**
  * @file `buildDeploymentDescriptor`'s own derivation logic. Pins the values it derives from THIS
@@ -84,12 +87,12 @@ test("buildDeploymentDescriptor refuses source format drift instead of guessing 
  * three checks proven to throw, plus the happy path proven NOT to throw.
  */
 test("assertNoConfigInjection: a safe value never throws", () => {
-  assert.doesNotThrow(() => assertNoConfigInjection({ fieldLabel: "field", value: "acme-app_1" }));
+  assert.doesNotThrow(() => assertNoConfigInjection({ fieldLabel: "field", value: "acme-app_1", fail }));
 });
 
 test("assertNoConfigInjection: a quote/newline/CR throws with exact text", () => {
   assert.throws(
-    () => assertNoConfigInjection({ fieldLabel: "field", value: 'evil"value' }),
+    () => assertNoConfigInjection({ fieldLabel: "field", value: 'evil"value', fail }),
     (err: unknown) =>
       err instanceof ValidationError &&
       err.message === 'field ("evil\\"value") contains a quote or newline character, which would corrupt the generated config file',
@@ -98,7 +101,7 @@ test("assertNoConfigInjection: a quote/newline/CR throws with exact text", () =>
 
 test("assertNoConfigInjection: a YAML-significant character throws with exact text", () => {
   assert.throws(
-    () => assertNoConfigInjection({ fieldLabel: "field", value: "evil:value" }),
+    () => assertNoConfigInjection({ fieldLabel: "field", value: "evil:value", fail }),
     (err: unknown) =>
       err instanceof ValidationError &&
       err.message ===
@@ -108,14 +111,14 @@ test("assertNoConfigInjection: a YAML-significant character throws with exact te
 
 test("assertNoConfigInjection: a leading hyphen or surrounding whitespace throws with exact text", () => {
   assert.throws(
-    () => assertNoConfigInjection({ fieldLabel: "field", value: "-evil" }),
+    () => assertNoConfigInjection({ fieldLabel: "field", value: "-evil", fail }),
     (err: unknown) =>
       err instanceof ValidationError &&
       err.message ===
         'field ("-evil") starts with "-" or has leading/trailing whitespace, which would corrupt an unquoted YAML scalar in the generated config file',
   );
   assert.throws(
-    () => assertNoConfigInjection({ fieldLabel: "field", value: " evil " }),
+    () => assertNoConfigInjection({ fieldLabel: "field", value: " evil ", fail }),
     (err: unknown) =>
       err instanceof ValidationError &&
       err.message ===
@@ -126,11 +129,11 @@ test("assertNoConfigInjection: a leading hyphen or surrounding whitespace throws
 test("assertNoConfigInjection rejects every quoted-sink and YAML indicator character independently", () => {
   for (const character of ['"', "\n", "\r"]) {
     const value = `before${character}after`;
-    assert.throws(() => assertNoConfigInjection({ fieldLabel: "field", value }), error => error instanceof ValidationError && error.message === `field (${JSON.stringify(value)}) contains a quote or newline character, which would corrupt the generated config file`);
+    assert.throws(() => assertNoConfigInjection({ fieldLabel: "field", value, fail }), error => error instanceof ValidationError && error.message === `field (${JSON.stringify(value)}) contains a quote or newline character, which would corrupt the generated config file`);
   }
   for (const character of [":", "#", "{", "[", "&", "*"]) {
     const value = `before${character}after`;
-    assert.throws(() => assertNoConfigInjection({ fieldLabel: "field", value }), error => error instanceof ValidationError && error.message === `field (${JSON.stringify(value)}) contains a YAML-significant character (one of : # { [ & *), which would corrupt an unquoted YAML scalar in the generated config file`);
+    assert.throws(() => assertNoConfigInjection({ fieldLabel: "field", value, fail }), error => error instanceof ValidationError && error.message === `field (${JSON.stringify(value)}) contains a YAML-significant character (one of : # { [ & *), which would corrupt an unquoted YAML scalar in the generated config file`);
   }
 });
 

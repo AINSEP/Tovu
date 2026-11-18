@@ -24,6 +24,7 @@ import {
   type SourceControlCredentialWriteDeps,
 } from "../store.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
+import { EgressRefusedError, type HttpClientPort, type HttpRequest } from "#src/platform/http/index";
 
 /** Always fails — simulates a missing `TOVU_SITE_KEY` without touching real env state.
  *  Mirrors `store.resolve.unit.test.ts`'s own local `BrokenKeyring` (kept local to each test file, not
@@ -55,13 +56,22 @@ const NOW = "2026-08-15T00:00:00.000Z";
 const noProviders: LoadSourceControlProviders = async (_required) => ({ list: () => [], get: () => undefined, refusals: [] });
 
 /** Reject rather than allowing a fixture token onto the real network. */
-function neverCallRealNetwork(): typeof fetch {
-  return (async () => {
-    throw new Error("test fetchFn stub: no test in this file should reach the real network");
-  }) as unknown as typeof fetch;
+function neverCallRealNetwork(): HttpClientPort {
+  return { send: async () => { throw new Error("test httpClient stub: no test in this file should reach the real network"); } };
 }
 
-function makeDeps(overrides: Partial<SourceControlCredentialWriteDeps> = {}): SourceControlCredentialWriteDeps {
+/** The guarded client the probe is given, answering from a fetch-shaped stub (a `Response` per call) so each
+ *  test scripts one response; the request's URL, headers and redirect mode reach the stub as `fetch` would see them. */
+function clientFromFetch(fetchStub: typeof fetch): HttpClientPort {
+  return { send: async (request, options) => {
+    const response = await fetchStub(request.url, { method: request.method, headers: { ...request.headers }, ...(options?.redirect ? { redirect: options.redirect } : {}) });
+    return { status: response.status, headers: {}, bodyText: await response.text() };
+  } };
+}
+
+type TestDepsOverrides = Partial<SourceControlCredentialWriteDeps> & { fetchFn?: typeof fetch };
+
+function makeDeps({ fetchFn, ...overrides }: TestDepsOverrides = {}): SourceControlCredentialWriteDeps {
   const keyring = new InMemoryKeyring();
   let counter = 0;
   return {
@@ -70,7 +80,7 @@ function makeDeps(overrides: Partial<SourceControlCredentialWriteDeps> = {}): So
     keyring,
     clock: createFakeClock({ startIso: NOW }),
     idGen: { newId: () => `cred-${(counter += 1)}` },
-    fetchFn: neverCallRealNetwork(),
+    httpClient: fetchFn ? clientFromFetch(fetchFn) : neverCallRealNetwork(),
     loadSourceControlProviders: exampleProviders,
     ...overrides,
   };
@@ -367,7 +377,7 @@ test("updateSourceControlCredential with a NEW connection re-probes and can chan
   const created = await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: "default", connection: { providerId: "example-git", token: "t1" } } });
   assert.equal(created.accountLabel, "old-account");
 
-  deps.fetchFn = fetchIdentity("t2", "new-account");
+  deps.httpClient = clientFromFetch(fetchIdentity("t2", "new-account"));
   const updated = await updateSourceControlCredential({ deps: deps, input: {
     workspaceId: WORKSPACE,
     id: created.id,
@@ -388,7 +398,7 @@ test("updateSourceControlCredential with a NEW connection resets accountLabel to
   const created = await createSourceControlCredential({ deps: deps, input: { workspaceId: WORKSPACE, label: "default", connection: { providerId: "example-git", token: "t1" } } });
   assert.equal(created.accountLabel, "old-account");
 
-  deps.fetchFn = fetchReturningJson(401, { message: "Bad credentials" });
+  deps.httpClient = clientFromFetch(fetchReturningJson(401, { message: "Bad credentials" }));
   const updated = await updateSourceControlCredential({ deps: deps, input: {
     workspaceId: WORKSPACE,
     id: created.id,
@@ -896,4 +906,69 @@ test('a write-only caller can retain an admitted connection if its discovery por
   deps.loadSourceControlProviders = async () => { delete deps.loadSourceControlProviders; return exampleRegistry({ probe: false }); };
   const saved = await createSourceControlCredential({ deps, input: { workspaceId: WORKSPACE, label: 'no-discovery', connection: { providerId: 'example-git', token: 'stored-secret' } } });
   assert.equal(saved.connection, 'saved');
+});
+
+// ---------------------------------------------------------------------------
+// The save-time probe carries the saved token: it leaves only through the guarded client, redirects
+// refused, and never through the global `fetch`.
+// ---------------------------------------------------------------------------
+
+/** Runs `body` with the global `fetch` replaced by one that fails the test if it is ever called. */
+async function withGlobalFetchForbidden<T>(body: (calls: string[]) => Promise<T>): Promise<T> {
+  const original = globalThis.fetch;
+  const calls: string[] = [];
+  globalThis.fetch = (async (input: string | URL | Request) => { calls.push(String(input)); throw new Error("the global fetch must not carry a saved token"); }) as typeof fetch;
+  try { return await body(calls); } finally { globalThis.fetch = original; }
+}
+
+/** A guarded-client double that records each call (request and options) and answers or fails as scripted. */
+function recordingClient(answer: { status: number; body: unknown } | Error): { client: HttpClientPort; sent: { request: HttpRequest; redirect: string | undefined }[] } {
+  const sent: { request: HttpRequest; redirect: string | undefined }[] = [];
+  const client: HttpClientPort = { send: async (request, options) => {
+    sent.push({ request, redirect: options?.redirect });
+    if (answer instanceof Error) throw answer;
+    return { status: answer.status, headers: {}, bodyText: JSON.stringify(answer.body) };
+  } };
+  return { client, sent };
+}
+
+const probeInput = { workspaceId: WORKSPACE, label: "guarded", connection: { providerId: "example-git", token: "fixture_probe_token" } };
+
+test("the save-time probe sends the token through the guarded client with redirects refused, never the global fetch", async () => {
+  const { client, sent } = recordingClient({ status: 200, body: { account: "octo" } });
+  await withGlobalFetchForbidden(async (globalCalls) => {
+    const saved = await createSourceControlCredential({ deps: makeDeps({ httpClient: client }), input: probeInput });
+    assert.equal(saved.accountLabel, "octo");
+    assert.equal(saved.connection, "connected");
+    assert.deepEqual(globalCalls, []);
+  });
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0]!.request.url, "https://git.example.test/identity");
+  assert.equal(sent[0]!.request.headers.Authorization, "Bearer fixture_probe_token");
+  assert.equal(sent[0]!.redirect, "error", "a credentialed call must refuse redirects");
+});
+
+test("a redirect refused by the guarded client leaves the label unknown and reports unreachable, after a durable save", async () => {
+  const { client } = recordingClient(new EgressRefusedError({ message: "redirect response refused by the request's redirect policy" }));
+  const deps = makeDeps({ httpClient: client });
+  const saved = await createSourceControlCredential({ deps, input: probeInput });
+  assert.equal(saved.accountLabel, null);
+  assert.equal(saved.connection, "unreachable");
+  assert.equal((await describeCredential(deps, { workspaceId: WORKSPACE, id: saved.id }))?.configured, true);
+});
+
+test("the guarded transport's own idle timeout is reported as a timeout", async () => {
+  const { client } = recordingClient(new Error("request timed out after 10000ms"));
+  const saved = await createSourceControlCredential({ deps: makeDeps({ httpClient: client }), input: probeInput });
+  assert.equal(saved.connection, "timeout");
+});
+
+test("without a guarded client the provider's request fails as a transport error: nothing leaves the process and the save still succeeds", async () => {
+  const { httpClient: _absent, ...withoutClient } = makeDeps();
+  await withGlobalFetchForbidden(async (globalCalls) => {
+    const saved = await createSourceControlCredential({ deps: withoutClient, input: probeInput });
+    assert.equal(saved.accountLabel, null);
+    assert.equal(saved.connection, "saved");
+    assert.deepEqual(globalCalls, []);
+  });
 });
