@@ -2,6 +2,9 @@
  * (Export-time schema refusals keep their own "update this site" advice: no ZIP exists yet.) */
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
+import fs from "node:fs";
+import path from "node:path";
+import { createHash } from "node:crypto";
 import Database from "better-sqlite3";
 import * as yauzl from "yauzl";
 import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
@@ -11,6 +14,8 @@ import { runtimeSchemaVersion } from "#src/platform/site-dir/schema-guard";
 import { buildShareZip } from "../../share-zip.js";
 import { verifySiteImport } from "../../import-verifier.js";
 import { createShareArchiveReader } from "../../import-archive-reader.js";
+import { createSiteImportBackend } from "../../import-backend.js";
+import { importFixture } from "../import.fixture.js";
 
 const advice = "This ZIP was made by a different Tovu version. Export the site again from an updated Tovu, then import the new ZIP.";
 const schema = runtimeSchemaVersion();
@@ -46,6 +51,14 @@ function versionRefusal(code: string): (error: unknown) => boolean {
   };
 }
 
+function directorySnapshot(required: { root: string }): unknown[] {
+  return fs.readdirSync(required.root, { recursive: true, withFileTypes: true }).map(entry => {
+    const file = path.join(entry.parentPath, entry.name);
+    return entry.isDirectory() ? [path.relative(required.root, file), "directory"]
+      : [path.relative(required.root, file), fs.statSync(file).size, createHash("sha256").update(fs.readFileSync(file)).digest("hex")];
+  }).sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+}
+
 for (const [label, ddl] of changes) test(`importing a ZIP with ${label} returns version advice through the isolated worker`, async t => {
   const archive = await zip(await snapshot(t, ddl));
   await assert.rejects(verifySiteImport({ archive, reader: createShareArchiveReader({ yauzl }), schema, sanitize: rebuildImportDatabase }), versionRefusal("INVALID_DATABASE"));
@@ -54,13 +67,48 @@ for (const [label, ddl] of changes) test(`importing a ZIP with ${label} returns 
 // The owner's specific-refusal rule requires a real source identity. 9081f631e's
 // original fixtures invented index/tag pairs; retain both index and tag comparisons
 // without presenting an invented identity as evidence of a genuine source version.
+// Mutation: accept a different bundled identity; the sanitize fake is reached instead of version advice.
 for (const [label, identity, recipientSchema] of [
   ["index", { index: 0, tag: "0000_yellow_ravenous" }, schema],
   ["tag", schema, { ...schema, tag: schema.tag + "-other-build" }],
 ] as const) test(`importing a ZIP with a different manifest schema ${label} returns version advice`, async t => {
+  const h = await importFixture(t);
+  const home = h.workspace.home({});
+  fs.mkdirSync(path.join(home, "existing", "nested"), { recursive: true });
+  fs.writeFileSync(path.join(home, "existing", "nested", "content.db"), "existing site bytes");
+  const before = directorySnapshot({ root: home });
   const archive = await zip(await snapshot(t), identity);
   await assert.rejects(verifySiteImport({ archive, reader: createShareArchiveReader({ yauzl }), schema: recipientSchema, sanitize: async () => assert.fail("incompatible manifests must refuse before SQLite") }), versionRefusal("INVALID_ARCHIVE"));
+  let sanitized = 0;
+  const backend = createSiteImportBackend({ ...h.backendPorts, schema: recipientSchema, sanitize: async () => {
+    sanitized++; return assert.fail("incompatible manifests must refuse before SQLite");
+  } });
+  const { uploadId } = await backend.upload({ principalId: "owner", archive });
+  await assert.rejects(backend.importBackup({ principalId: "owner", source: { uploadId } }), versionRefusal("INVALID_ARCHIVE"));
+  assert.equal(sanitized, 0);
+  assert.deepEqual(directorySnapshot({ root: home }), before);
 });
+
+// Mutation: remove the unknown-identity refusal; its specific sentence/code assertion fails.
+for (const identity of [{ index: 0, tag: "unknown-bk-identity" }, { index: schema.index + 1, tag: "unknown-next-bk-identity" }]) {
+  test(`unknown archive identity ${identity.index} refuses before sanitizing and leaves sites home byte-identical`, async t => {
+    const h = await importFixture(t), home = h.workspace.home({});
+    fs.mkdirSync(path.join(home, "existing"));
+    fs.writeFileSync(path.join(home, "existing", "content.db"), "do not change");
+    const before = directorySnapshot({ root: home });
+    let sanitized = 0;
+    const backend = createSiteImportBackend({ ...h.backendPorts, sanitize: async () => {
+      sanitized++; return assert.fail("unknown manifests must refuse before SQLite");
+    } });
+    const archive = await zip(await snapshot(t), identity);
+    const { uploadId } = await backend.upload({ principalId: "owner", archive });
+    await assert.rejects(backend.importBackup({ principalId: "owner", source: { uploadId } }), {
+      code: "INVALID_ARCHIVE", message: `Unknown archive schema identity ${JSON.stringify(identity)}.`,
+    });
+    assert.equal(sanitized, 0);
+    assert.deepEqual(directorySnapshot({ root: home }), before);
+  });
+}
 
 test("a corrupt database retains its corruption refusal rather than claiming a version mismatch", async () => {
   await assert.rejects(rebuildImportDatabase({ snapshot: Buffer.from("not a SQLite database") }), {

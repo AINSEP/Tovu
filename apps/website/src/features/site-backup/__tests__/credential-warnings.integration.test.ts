@@ -26,6 +26,16 @@ import type { RouteDeps } from "#src/server/routes/types";
 const key = "ghp_" + "a".repeat(36);
 const stamp = "2026-11-03T00:00:00Z";
 
+// Mutations: return false/refuse on a warning, or suppress provider-shaped warning collection.
+test("requireShareSecretFree currently includes files with secret warnings (BK-R/hardening decides refusal)", () => {
+  const credentialWarnings: CredentialWarning[] = [];
+  const bytes = Buffer.from(`export const token = "${key}";`);
+  assert.equal(requireShareSecretFree({ path: "themes/static/site/credential.js", bytes }, { credentialWarnings }), true);
+  assert.ok(credentialWarnings.some(warning => warning.path === "themes/static/site/credential.js" && warning.kind === "provider key shape"));
+  assert.equal(JSON.stringify(credentialWarnings).includes(key), false);
+  assert.deepEqual(bytes, Buffer.from(`export const token = "${key}";`));
+});
+
 test("credential-looking files stay included and warnings contain only locations and match kinds", () => {
   const credentialWarnings: CredentialWarning[] = [];
   for (const [path, text] of [["themes/site/private-key.pem", ["-----BEGIN", "PRIVATE", "KEY-----"].join(" ") + "\nfixture\n-----END PRIVATE KEY-----"],
