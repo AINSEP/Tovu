@@ -1,0 +1,400 @@
+diff --git a/apps/website/src/features/media/access-evidence.ts b/apps/website/src/contracts/core/media-access-evidence.ts
+similarity index 79%
+rename from apps/website/src/features/media/access-evidence.ts
+rename to apps/website/src/contracts/core/media-access-evidence.ts
+index 71fa0a8c..3c1e5367 100644
+--- a/apps/website/src/features/media/access-evidence.ts
++++ b/apps/website/src/contracts/core/media-access-evidence.ts
+@@ -1,15 +1,16 @@
+-import type { PostRecord } from '../post/post.js';
++/** The one post field the evidence reads (`PostRecord.memberAccessJson`); declared here so the cache imports no feature. */
++type AccessEvidencePost = { memberAccessJson?: string | null };
+ 
+ /** Access settings only: never entry bodies or a visitor's entitlement decision. */
+ export interface AssetReferenceScan {
+-  readonly referencing: Array<Pick<PostRecord, 'memberAccessJson'>>;
+-  readonly opaqueGated: Array<Pick<PostRecord, 'memberAccessJson'>>;
++  readonly referencing: Array<AccessEvidencePost>;
++  readonly opaqueGated: Array<AccessEvidencePost>;
+ }
+ 
+ /** Derived reverse index: access metadata only, no retained post bodies or visitor decisions. */
+ export interface AssetReferenceIndex {
+-  readonly byAsset: Map<string, Set<Pick<PostRecord, 'memberAccessJson'>>>;
+-  readonly opaqueGated: Set<Pick<PostRecord, 'memberAccessJson'>>;
++  readonly byAsset: Map<string, Set<AccessEvidencePost>>;
++  readonly opaqueGated: Set<AccessEvidencePost>;
+ }
+ 
+ type ScanCache = Map<string, { expiresAt: number; value: Promise<AssetReferenceIndex> }>;
+diff --git a/apps/website/src/features/settings/operator-locale.ts b/apps/website/src/contracts/core/operator-locale.ts
+similarity index 98%
+rename from apps/website/src/features/settings/operator-locale.ts
+rename to apps/website/src/contracts/core/operator-locale.ts
+index c9c9e75f..fd627cbb 100644
+--- a/apps/website/src/features/settings/operator-locale.ts
++++ b/apps/website/src/contracts/core/operator-locale.ts
+@@ -9,7 +9,7 @@ import { getEffective as settingsGetEffective, LANGUAGE_NAMESPACE } from "@jini-
+  * the admin's own Language selector writes; this reads it the same way `settings_get_effective` does.
+  */
+ 
+-import type { OperatorLocaleDeps, GetEffectiveSetting } from '../../contracts/headless/index.js';
++import type { OperatorLocaleDeps, GetEffectiveSetting } from '../headless/index.js';
+ 
+ const FALLBACK_LOCALE = "en";
+ 
+diff --git a/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-uninstall-tool.integration.test.ts b/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-uninstall-tool.integration.test.ts
+index 892423bd..87a72274 100644
+--- a/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-uninstall-tool.integration.test.ts
++++ b/apps/website/src/features/agent-plugins/__tests__/integration/agent-plugin-uninstall-tool.integration.test.ts
+@@ -17,7 +17,7 @@ import { createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "
+ import { delegatedToolExecuteRoute } from "@jini-ai/daemon/http";
+ 
+ import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
+-import { resolveOperatorLocale } from "../../../settings/index.js";
++import { resolveOperatorLocale } from "#src/contracts/core/operator-locale";
+ import { operatorLocaleLedger } from "../fixtures/operator-locale-ledger.js";
+ 
+ 
+diff --git a/apps/website/src/features/agent-plugins/__tests__/unit/operator-locale.unit.test.ts b/apps/website/src/features/agent-plugins/__tests__/unit/operator-locale.unit.test.ts
+index 9b5f6a8b..a4dee97e 100644
+--- a/apps/website/src/features/agent-plugins/__tests__/unit/operator-locale.unit.test.ts
++++ b/apps/website/src/features/agent-plugins/__tests__/unit/operator-locale.unit.test.ts
+@@ -3,7 +3,7 @@ import test from "node:test";
+ 
+ import type { SettingsRepoPort } from "@jini-ai/core/settings";
+ import { operatorLocaleLedger } from "../fixtures/operator-locale-ledger.js";
+-import { resolveOperatorLocale } from "../../../settings/index.js";
++import { resolveOperatorLocale } from "#src/contracts/core/operator-locale";
+ import { type GetEffectiveSetting } from "../../../../contracts/headless/index.js";
+ 
+ /** @file The operator's admin locale for Agent Plugin dialogs: the per-user `core.language.locale` read and its English fallbacks. */
+diff --git a/apps/website/src/features/agent-plugins/service-ports.ts b/apps/website/src/features/agent-plugins/service-ports.ts
+index 4f9fb849..4c70bc90 100644
+--- a/apps/website/src/features/agent-plugins/service-ports.ts
++++ b/apps/website/src/features/agent-plugins/service-ports.ts
+@@ -1,14 +1,14 @@
+ /** Consumer-owned service boundaries. Composition binds concrete services and secret stores. */
+ import type { ChatAgentPlugins } from "@jini-ai/agent-plugins/lifecycle";
+ import type { SurfaceCardSecretForm as SecretCardForm } from "@jini-ai/core/contracts/cards";
+-import type { ExternalMcpConnectStart } from "../external-mcp/contracts.js";
++import type { ExternalMcpConnectStart } from "@jini-ai/core/contracts/hosted-mcp";
+ import type { AgentPluginMcpPort as PortableAgentPluginMcpPort, AgentPluginMcpProjectionPorts, AgentPluginMcpServicesPort as PortableAgentPluginMcpServicesPort } from "@jini-ai/agent-plugins/connect";
+ /** The MCP ports live in `@jini-ai/agent-plugins/connect`; these two bind them to Tovu's tool-access change record. */
+ export type AgentPluginMcpPort = PortableAgentPluginMcpPort<import("@jini-ai/daemon").ToolAccessChange>;
+ export type AgentPluginMcpServicesPort = PortableAgentPluginMcpServicesPort<import("@jini-ai/daemon").ToolAccessChange>;
+ import type { PluginCredentialCard } from "@jini-ai/core/contracts/credentials";
+ import type { DeclaredApiConnection } from "../api-connections/contribution.js";
+-import type { ApiConnectionConnectStatus } from "../api-connections/connect.js";
++import type { ApiConnectionConnectStatus } from "@jini-ai/integrations/api-connections";
+ 
+ 
+ /** Connect-time OAuth discovery and the existing validation error identity, adapted by composition. */
+diff --git a/apps/website/src/features/custom-credentials/tool-registrations.ts b/apps/website/src/features/custom-credentials/tool-registrations.ts
+index 1a4f446b..c9547ca3 100644
+--- a/apps/website/src/features/custom-credentials/tool-registrations.ts
++++ b/apps/website/src/features/custom-credentials/tool-registrations.ts
+@@ -12,7 +12,7 @@ import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
+ import { withCustomCredentialSetup } from "./credential-recovery.js";
+ import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
+ import { credentialText, formatCredentialHint, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
+-import { resolveOperatorLocale } from '../settings/index.js';
++import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
+ import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
+ import type { Clock } from "@jini-ai/core/primitives";
+ 
+diff --git a/apps/website/src/features/database-transfer/tool-registrations.ts b/apps/website/src/features/database-transfer/tool-registrations.ts
+index 5ed48ada..14d252a2 100644
+--- a/apps/website/src/features/database-transfer/tool-registrations.ts
++++ b/apps/website/src/features/database-transfer/tool-registrations.ts
+@@ -1,7 +1,7 @@
+ import { toolMetadata } from '../../contracts/core/tool-metadata/database-transfer.js';
+ import { requireHumanConfirm } from "../../contracts/core/human-confirm.js";
+ import { createDestinationExchangeReporter } from './destination-exchange.js';
+-import { resolveOperatorLocale } from '../settings/index.js';
++import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
+ import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
+ import { assertCredentialToken, CredentialInputError } from '@jini-ai/platform/secrets/credential-token';
+ 
+diff --git a/apps/website/src/features/deployments/deploy-ops/typed-secret-card.ts b/apps/website/src/features/deployments/deploy-ops/typed-secret-card.ts
+index d575c608..04da1c1e 100644
+--- a/apps/website/src/features/deployments/deploy-ops/typed-secret-card.ts
++++ b/apps/website/src/features/deployments/deploy-ops/typed-secret-card.ts
+@@ -1,6 +1,6 @@
+ import { SECRET_FORM_CARD_DEFINITIONS } from '../../../contracts/headless/index.js';
+ import { credentialText } from '#src/contracts/core/credential-copy';
+-import { resolveOperatorLocale } from '#src/features/settings/index';
++import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
+ import { defineSecretCardTool } from '@jini-ai/ui/mcp-ui/secret-card';
+ import { askThenReport, type AssistantSurfaceDeps } from '@jini-ai/daemon/surface-exchanges';
+ import type { ToolExecutionContext, ToolExecutionOptions } from '@jini-ai/core';
+diff --git a/apps/website/src/features/deployments/publish-agent-tools.ts b/apps/website/src/features/deployments/publish-agent-tools.ts
+index 6eb1fab2..d69dfffd 100644
+--- a/apps/website/src/features/deployments/publish-agent-tools.ts
++++ b/apps/website/src/features/deployments/publish-agent-tools.ts
+@@ -19,7 +19,7 @@ import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnosti
+ import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
+ import { type CredentialTokenHint } from '@jini-ai/platform/secrets/credential-token';
+ import { credentialText, formatCredentialHint, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
+-import { resolveOperatorLocale } from '../settings/index.js';
++import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
+ import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
+ import { PublishCredentialDuplicateLabelError, PublishCredentialValidationError } from './publish-credentials/store.js';
+ import { verifyPublishCredentialById, verifySubmittedPublishCredential } from './static-publish/verify.js';
+diff --git a/apps/website/src/features/entries/__tests__/repo.characterization.test.ts b/apps/website/src/features/entries/__tests__/repo.characterization.test.ts
+index 1b917ddc..4e174b94 100644
+--- a/apps/website/src/features/entries/__tests__/repo.characterization.test.ts
++++ b/apps/website/src/features/entries/__tests__/repo.characterization.test.ts
+@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
+ import { test } from "node:test";
+ 
+ import { recordingKernel } from "#src/__tests__/lane-su-pins/support/recording-kernel";
+-import { getMediaAccessEvidenceCache } from "../../media/access-evidence.js";
++import { getMediaAccessEvidenceCache } from "#src/contracts/core/media-access-evidence";
+ import type { EntryRecord } from "../index.js";
+ import { EntrySlugConflictError, VersionConflictError } from "../index.js";
+ import { SqliteEntryRepo } from "../repo.sqlite.js";
+diff --git a/apps/website/src/features/entries/__tests__/support/trash-aware-entry-repo.ts b/apps/website/src/features/entries/__tests__/support/trash-aware-entry-repo.ts
+index 3bb51e34..5a189450 100644
+--- a/apps/website/src/features/entries/__tests__/support/trash-aware-entry-repo.ts
++++ b/apps/website/src/features/entries/__tests__/support/trash-aware-entry-repo.ts
+@@ -1,6 +1,6 @@
+ import { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
+ 
+-import { invalidateMediaAccessEvidence } from "#src/features/media/access-evidence";
++import { invalidateMediaAccessEvidence } from "#src/contracts/core/media-access-evidence";
+ 
+ /**
+  * The memory twin of the entry repo, bound the way composition binds it (`memory-deps/slices/repos.ts`): a write that settles
+diff --git a/apps/website/src/features/entries/__tests__/unit/trash-aware-memory-repo.characterization.unit.test.ts b/apps/website/src/features/entries/__tests__/unit/trash-aware-memory-repo.characterization.unit.test.ts
+index c30c7a31..5b501605 100644
+--- a/apps/website/src/features/entries/__tests__/unit/trash-aware-memory-repo.characterization.unit.test.ts
++++ b/apps/website/src/features/entries/__tests__/unit/trash-aware-memory-repo.characterization.unit.test.ts
+@@ -2,7 +2,7 @@ import "../../../../platform/site-dir/__tests__/helpers/isolated-catalog-home.js
+ import assert from "node:assert/strict";
+ import { test } from "node:test";
+ 
+-import { getMediaAccessEvidenceCache } from "../../../media/access-evidence.js";
++import { getMediaAccessEvidenceCache } from "#src/contracts/core/media-access-evidence";
+ import type { EntryRecord } from "../../index.js";
+ import { EntrySlugConflictError, VersionConflictError } from "../../index.js";
+ import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
+diff --git a/apps/website/src/features/entries/repo.sqlite.ts b/apps/website/src/features/entries/repo.sqlite.ts
+index 98f23082..7f944329 100644
+--- a/apps/website/src/features/entries/repo.sqlite.ts
++++ b/apps/website/src/features/entries/repo.sqlite.ts
+@@ -1,6 +1,6 @@
+ import { SqlEntryRepo } from "@jini-ai/cms/entries/sql";
+ import { jsonScalarEquals, jsonSortKey } from "@jini-ai/db/kernel";
+-import { invalidateMediaAccessEvidence } from "../media/access-evidence.js";
++import { invalidateMediaAccessEvidence } from "#src/contracts/core/media-access-evidence";
+ import { type ContentKernel, contentKernel, schemaErasedKernel } from "../../platform/db/content-kernel.js";
+ import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
+ 
+diff --git a/apps/website/src/features/external-mcp/external-mcp-store.ts b/apps/website/src/features/external-mcp/external-mcp-store.ts
+index 87905282..e314356e 100644
+--- a/apps/website/src/features/external-mcp/external-mcp-store.ts
++++ b/apps/website/src/features/external-mcp/external-mcp-store.ts
+@@ -4,7 +4,7 @@ import { assertCredentialFreeField } from "../../contracts/core/credential-token
+ import { CredentialInputError, normalizeCredentialToken, assertCredentialToken, CREDENTIAL_MESSAGES, CREDENTIAL_TOKEN_LIMIT, credentialTokenHint } from "@jini-ai/platform/secrets/credential-token";
+ import type { UUID } from "@jini-ai/core/primitives";
+ import type { ExternalMcpConfigFailure } from "@jini-ai/core/contracts/hosted-mcp";
+-import type { SecretSealerPort } from "../webhooks/index.js";
++import type { SecretSealerPort } from "@jini-ai/integrations/webhooks";
+ import * as hosted from "@jini-ai/mcp/federation/hosted";
+ import type { HostedMcpStorePorts } from "@jini-ai/mcp/federation/hosted";
+ import { externalMcpVaultPorts } from "./external-mcp-vault.js";
+diff --git a/apps/website/src/features/external-mcp/tool-registrations.ts b/apps/website/src/features/external-mcp/tool-registrations.ts
+index 13f1d7dd..d4ac2755 100644
+--- a/apps/website/src/features/external-mcp/tool-registrations.ts
++++ b/apps/website/src/features/external-mcp/tool-registrations.ts
+@@ -4,7 +4,7 @@ import { issueCredentialSetup } from "#src/contracts/core/tool-failure-diagnosti
+ import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
+ import { defineSecretCardTool, type SecretCardRun } from '@jini-ai/ui/mcp-ui/secret-card';
+ import { credentialText, formatCredentialHint, formatCredentialHints, translateCredentialMessage } from '../../contracts/core/credential-copy.js';
+-import { resolveOperatorLocale } from '../settings/index.js';
++import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
+ import { buildDomainRegistrations, indexCatalogById, requireInputRecord, requireNoInput, requireString, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
+ import { ForbiddenError, adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
+ import type { UUID } from "@jini-ai/core/primitives";
+diff --git a/apps/website/src/features/media-generation/providers-tools.ts b/apps/website/src/features/media-generation/providers-tools.ts
+index 85b5ed20..429813b5 100644
+--- a/apps/website/src/features/media-generation/providers-tools.ts
++++ b/apps/website/src/features/media-generation/providers-tools.ts
+@@ -3,7 +3,7 @@ import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
+ import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
+ import { CREDENTIAL_MESSAGES, type CredentialTokenHint } from '@jini-ai/platform/secrets/credential-token';
+ import { credentialText, formatCredentialHint } from '../../contracts/core/credential-copy.js';
+-import { resolveOperatorLocale } from '../settings/index.js';
++import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
+ import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
+ import { type Clock } from "@jini-ai/core/primitives";
+ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
+diff --git a/apps/website/src/features/object-storage/artifact-provider.ts b/apps/website/src/features/object-storage/artifact-provider.ts
+index 98cd2548..54134a92 100644
+--- a/apps/website/src/features/object-storage/artifact-provider.ts
++++ b/apps/website/src/features/object-storage/artifact-provider.ts
+@@ -1,6 +1,6 @@
+ import type { ArtifactStorePort } from "@jini-ai/devops/deploy";
+ 
+-import type { DeployTargetCredential } from "../deployments/contracts.js";
++import type { DeployTargetCredential } from "@jini-ai/devops/deploy";
+ 
+ import type { LoadedObjectStoreRegistry } from "./registry.js";
+ 
+diff --git a/apps/website/src/features/object-storage/registry.ts b/apps/website/src/features/object-storage/registry.ts
+index d19a000a..524b7f8a 100644
+--- a/apps/website/src/features/object-storage/registry.ts
++++ b/apps/website/src/features/object-storage/registry.ts
+@@ -8,7 +8,7 @@ import { createLocalFsObjectStoreProvider, parseObjectStoresFile as parseObjectS
+ 
+ import { bundledContributionSources } from "../agent-plugins/bundled-contribution-sources.js";
+ import { loadPluginContributionsFromSource, type LoadPluginContributions } from "../agent-plugins/lifecycle.js";
+-import type { DeployHostKit } from "../deployments/contracts.js";
++import type { PluginDeployHostKit as DeployHostKit } from "@jini-ai/devops/deploy";
+ 
+ /**
+  * @file The site's object-store providers: the built-in `local` filesystem provider (the registry
+diff --git a/apps/website/src/features/post/repo.memory.ts b/apps/website/src/features/post/repo.memory.ts
+index aad7a23b..c1b97a55 100644
+--- a/apps/website/src/features/post/repo.memory.ts
++++ b/apps/website/src/features/post/repo.memory.ts
+@@ -1,4 +1,4 @@
+-import { invalidateMediaAccessEvidence } from '../media/access-evidence.js';
++import { invalidateMediaAccessEvidence } from '#src/contracts/core/media-access-evidence';
+ import { createHash, randomUUID } from "node:crypto";
+ 
+ import {
+diff --git a/apps/website/src/features/post/repo.ts b/apps/website/src/features/post/repo.ts
+index 7e6516a5..86f5df2a 100644
+--- a/apps/website/src/features/post/repo.ts
++++ b/apps/website/src/features/post/repo.ts
+@@ -1,4 +1,4 @@
+-import { invalidateMediaAccessEvidence } from '../media/access-evidence.js';
++import { invalidateMediaAccessEvidence } from '#src/contracts/core/media-access-evidence';
+ import { randomUUID } from "node:crypto";
+ 
+ import { sql } from "kysely";
+diff --git a/apps/website/src/features/project-keys/site-sealer.ts b/apps/website/src/features/project-keys/site-sealer.ts
+index 6c2aa309..5477b865 100644
+--- a/apps/website/src/features/project-keys/site-sealer.ts
++++ b/apps/website/src/features/project-keys/site-sealer.ts
+@@ -1,5 +1,5 @@
+ import { ToolInputError } from '@jini-ai/core';
+-import type { KeyringPort, SecretSealerPort } from '../webhooks/index.js';
++import type { KeyringPort, SecretSealerPort } from "@jini-ai/integrations/webhooks";
+ 
+ /** Credential services need an active handle for human saves, never owner key derivation.
+  * @returns A handle-only keyring; every derivation fails without reaching the owner keyring.
+diff --git a/apps/website/src/features/publish-content/tovu-publish-ports.ts b/apps/website/src/features/publish-content/tovu-publish-ports.ts
+index 77a39ed8..ba56bcfc 100644
+--- a/apps/website/src/features/publish-content/tovu-publish-ports.ts
++++ b/apps/website/src/features/publish-content/tovu-publish-ports.ts
+@@ -1,9 +1,9 @@
+ import type { BeforeSaveHookPort, ForgetRemovedPostFn, PostRepoPort, RemovePostFn } from "#src/features/post/contracts";
+ import type { AssetBlobRepoPort, BlobStorePort, MediaContentTypeStorePort, VersionedMediaRepoPort } from "#src/features/media/index";
+-import type { MenuRepoPort, NavLocationBindingRepoPort } from "#src/features/navigation/index";
++import type { MenuRepoPort, NavLocationBindingRepoPort } from "@jini-ai/cms/navigation";
+ import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
+ import type { FormDefinitionRepoPort } from "@jini-ai/cms/forms";
+-import type { ContentTypeListPort, ContentTypeRepoPort, IndexProvisionerPort } from "#src/features/content-types/index";
++import type { ContentTypeListPort, ContentTypeRepoPort, IndexProvisionerPort } from "@jini-ai/cms/content-types";
+ import type {
+   ContentLookupPort,
+   ContentTypeTaxonomyPolicyPort,
+@@ -16,9 +16,9 @@ import type {
+   TermListPort,
+   TermRepoPort,
+   UnassignableEntryTermRepoPort,
+-} from "#src/features/taxonomy/index";
++} from "@jini-ai/cms/taxonomy";
+ import type { EntryTermReadPort, TaxonomyPublishReadPort, TermPublishReadPort } from "@jini-ai/cms/taxonomy";
+-import type { EntryListPort, EntryRepoPort } from "#src/features/entries/index";
++import type { EntryListPort, EntryRepoPort } from "@jini-ai/cms/entries";
+ import type { EntryRefsRepoPort } from "@jini-ai/cms/widgets";
+ import type { WidgetRegionBindingRepoPort } from "@jini-ai/cms/widgets";
+ import type { EntryPublishReadPort } from "@jini-ai/cms/entries";
+diff --git a/apps/website/src/features/settings/index.ts b/apps/website/src/features/settings/index.ts
+index 2b3c3b76..7dc2da0e 100644
+--- a/apps/website/src/features/settings/index.ts
++++ b/apps/website/src/features/settings/index.ts
+@@ -158,4 +158,3 @@ export { normalizeSiteTitle, SITE_TITLE_KEY, SITE_TITLE_NAMESPACE } from "./site
+ export { VisitorToolsRevisionConflictError } from "./visitor-tools-write.js";
+ export { ADMIN_INTERFACE_NAMESPACE, PREFER_SUBAGENTS_KEY, REPLY_LENGTH_KEY, USE_CLAUDE_IN_CHROME_KEY } from "./admin-interface.js";
+ 
+-export { resolveOperatorLocale } from "./operator-locale.js";
+diff --git a/apps/website/src/features/source-control/credential-setup.ts b/apps/website/src/features/source-control/credential-setup.ts
+index 6d416b23..d201bf63 100644
+--- a/apps/website/src/features/source-control/credential-setup.ts
++++ b/apps/website/src/features/source-control/credential-setup.ts
+@@ -5,7 +5,7 @@ import { CREDENTIAL_SAVE_TOOL_ID } from "../../contracts/headless/index.js";
+ import { assertCredentialFreeField } from '../../contracts/core/credential-token.js';
+ import { CREDENTIAL_MESSAGES, type CredentialTokenHint, type CredentialConnection } from '@jini-ai/platform/secrets/credential-token';
+ import { credentialText, formatCredentialHint } from '../../contracts/core/credential-copy.js';
+-import { resolveOperatorLocale } from '../settings/index.js';
++import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
+ import { type OperatorLocaleDeps } from '../../contracts/headless/index.js';
+ import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
+ import { optionalString, requireInputRecord, requireString } from "@jini-ai/core";
+diff --git a/apps/website/src/features/trash/__tests__/post-trash-media-evidence.integration.test.ts b/apps/website/src/features/trash/__tests__/post-trash-media-evidence.integration.test.ts
+index 9b3738cb..58dd98d0 100644
+--- a/apps/website/src/features/trash/__tests__/post-trash-media-evidence.integration.test.ts
++++ b/apps/website/src/features/trash/__tests__/post-trash-media-evidence.integration.test.ts
+@@ -9,7 +9,7 @@ import { createSiteRouteDeps } from "#src/server/runtime/composition/deps";
+ import { closeSiteDirBoot } from "#src/platform/site-dir/boot-site-dir";
+ import { bootSiteDir, initSite } from "#src/server/runtime/composition/site-dir";
+ import { createPost } from "#src/features/post/index";
+-import { getMediaAccessEvidenceCache } from "#src/features/media/access-evidence";
++import { getMediaAccessEvidenceCache } from "#src/contracts/core/media-access-evidence";
+ import { POST_ENTITY_TYPE } from "../adapters/post.js";
+ 
+ /**
+diff --git a/apps/website/src/server/inbound/public-http/routes/site/media-rendition.ts b/apps/website/src/server/inbound/public-http/routes/site/media-rendition.ts
+index 1f9b472e..99c6267f 100644
+--- a/apps/website/src/server/inbound/public-http/routes/site/media-rendition.ts
++++ b/apps/website/src/server/inbound/public-http/routes/site/media-rendition.ts
+@@ -1,4 +1,4 @@
+-import { getMediaAccessEvidenceCache, type AssetReferenceScan, type AssetReferenceIndex } from '#src/features/media/access-evidence';
++import { getMediaAccessEvidenceCache, type AssetReferenceScan, type AssetReferenceIndex } from '#src/contracts/core/media-access-evidence';
+ import { collectReferencedMediaKeys, collectPlacedWidgetMediaKeys } from "#src/features/publish-content/media-references";
+ import { parseWidgetInstancePayload } from "@jini-ai/cms/widgets";
+ import { readRequestCookie } from "#src/server/http/request-cookie";
+diff --git a/apps/website/src/server/runtime/composition/agent-plugin-service-ports.ts b/apps/website/src/server/runtime/composition/agent-plugin-service-ports.ts
+index 83022106..300c2f29 100644
+--- a/apps/website/src/server/runtime/composition/agent-plugin-service-ports.ts
++++ b/apps/website/src/server/runtime/composition/agent-plugin-service-ports.ts
+@@ -11,7 +11,7 @@ import { notifyExternalMcpRosterChanged } from '#src/assistant/external-mcp-rost
+ import { findPluginCredentialCard, loadPluginCredentialCardsSafely, type LoadPluginCredentialCards } from '#src/features/custom-credentials/plugin-credential-card';
+ import { applyPluginCredentialCard } from '#src/contracts/core/plugin-credential-card';
+ import { probeCredentialConnection } from '#src/features/custom-credentials/credentialed-request';
+-import { resolveOperatorLocale } from '#src/features/settings/index';
++import { resolveOperatorLocale } from '#src/contracts/core/operator-locale';
+ import { ADMIN_INTERFACE_NAMESPACE, CHAT_AGENT_PLUGINS_KEY } from '#src/features/settings/admin-interface';
+ import { AgentPluginLinkedError, bindProviderFacePorts, linkedProviderOf } from '#src/features/agent-plugins/provider-plugin-link';
+ import { AgentPluginNotReadyError, findSoonAgentPlugin } from '#src/features/agent-plugins/soon-lock';
+diff --git a/apps/website/src/server/runtime/composition/deps.ts b/apps/website/src/server/runtime/composition/deps.ts
+index 8fab9a2a..159d9ef2 100644
+--- a/apps/website/src/server/runtime/composition/deps.ts
++++ b/apps/website/src/server/runtime/composition/deps.ts
+@@ -305,7 +305,7 @@ import { InMemorySiteStatusRepo } from "#src/features/database/repo.memory";
+ import { NoopContentTypeIndexProvisioner } from "#src/features/content-types/index";
+ import { SqliteContentTypeRepo } from "#src/features/content-types/repo.sqlite";
+ import { SqliteEntryRepo } from "#src/features/entries/repo.sqlite";
+-import { invalidateMediaAccessEvidence } from "#src/features/media/access-evidence";
++import { invalidateMediaAccessEvidence } from "#src/contracts/core/media-access-evidence";
+ import { SqliteWidgetRegionBindingRepo } from "#src/features/widgets/repo.sqlite";
+ import { buildWidgetsDeps } from "#src/features/widgets/deps";
+ import { adoptLegacyTrashedWidgets, restoreWidgetPriorStatus } from "@jini-ai/cms/widgets";
+diff --git a/apps/website/src/server/runtime/composition/memory-deps/slices/repos.ts b/apps/website/src/server/runtime/composition/memory-deps/slices/repos.ts
+index 9e0baf3b..10a8e587 100644
+--- a/apps/website/src/server/runtime/composition/memory-deps/slices/repos.ts
++++ b/apps/website/src/server/runtime/composition/memory-deps/slices/repos.ts
+@@ -6,7 +6,7 @@ import { InMemoryCommentRepo } from "@jini-ai/cms/comments";
+ import { InMemoryAssetRenditionRepo, InMemoryVersionedMediaRepo } from "#src/features/media/index";
+ import { InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
+ import { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
+-import { invalidateMediaAccessEvidence } from "#src/features/media/access-evidence";
++import { invalidateMediaAccessEvidence } from "#src/contracts/core/media-access-evidence";
+ import { seededWorkspace } from "../../../configuration/seed.js";
+ import { type ContentDb, openContentDb } from "#src/platform/db/sqlite/content-db";
+ import { type TrashDb } from "#src/features/trash/index";

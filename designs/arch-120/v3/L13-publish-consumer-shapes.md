@@ -41,3 +41,27 @@ Base: Tovu `2d82735a` (integ/merge-3 tip). Edge list for G2: `designs/arch-120/v
 - `features/publish-content/tool-registrations.ts`
     - prod: assistant/tool-registrations.ts, features/publish-content/disconnect-tool.ts, server/runtime/composition/tool-catalog-manifest.ts
     - tests: features/publish-content/__tests__/backstop-gaps-tool.test.ts, features/publish-content/__tests__/execute-pull-tool.plugin-hook-refusal.test.ts, features/publish-content/__tests__/plan-pull-tool.test.ts, features/publish-content/__tests__/publish-agent-tools.test.ts, features/publish-content/__tests__/publish-tool.test.ts, features/publish-content/__tests__/pull-tool-fixture.ts
+
+#### G5 suites — exact (every `*.test.ts` that imports a changed source file or a moved symbol's old home; AST index of the tip): 16 files
+
+```
+SUITES="
+  apps/website/src/features/media/__tests__/import-media-entity.render.test.ts
+  apps/website/src/features/media/__tests__/import-media-entity.rethrow.test.ts
+  apps/website/src/features/media/__tests__/import-media-entity.test.ts
+  apps/website/src/features/publish-content/__tests__/backstop-gaps-tool.test.ts
+  apps/website/src/features/publish-content/__tests__/execute-pull-tool.plugin-hook-refusal.test.ts
+  apps/website/src/features/publish-content/__tests__/peer-transport-blob-pull.test.ts
+  apps/website/src/features/publish-content/__tests__/peer-transport.l061.test.ts
+  apps/website/src/features/publish-content/__tests__/peer-transport.test.ts
+  apps/website/src/features/publish-content/__tests__/plan-pull-tool.test.ts
+  apps/website/src/features/publish-content/__tests__/publish-agent-tools.test.ts
+  apps/website/src/features/publish-content/__tests__/publish-guards.characterization.test.ts
+  apps/website/src/features/publish-content/__tests__/publish-tool.test.ts
+  apps/website/src/features/site-backup/__tests__/share-delivery.integration.test.ts
+  apps/website/src/features/site-backup/__tests__/share-hosting.unit.test.ts
+  apps/website/src/server/__tests__/routes/publish-zero-setup-end-to-end.test.ts
+  apps/website/src/server/inbound/admin-http/routes/publish-content/__tests__/peer-transport.routes.pins.test.ts
+"
+```
+Add the new characterization tests named above to `SUITES`. Barrel-importing suites (`*/index.ts` homes) are large by nature; run them all — G5 is the lane's behaviour net.

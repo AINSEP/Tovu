@@ -10,9 +10,9 @@
   `server/runtime/composition/modules/members.ts`; record types become local subsets.
 
 **Characterization (named risks):** *publish proceeds without consent readiness* →
-`features/deployments/__tests__/*publish-consent*.test.ts`; *newsletter/confirmation readiness
-differs* → `features/mail-status/__tests__/use-readiness*.test.ts`; *OIDC sign-in creates duplicate
-members or skips the created notification* → `features/member-login/__tests__/link-service*.test.ts`
+**new** `features/deployments/static-publish/__tests__/publish-consent.unit.test.ts` (no test imports `publish-consent.ts` on the tip; pin: consent unavailable → refusal, no publish started); *newsletter/confirmation readiness
+differs* → `features/mail-status/__tests__/delivery-visibility.unit.test.ts`, `server/runtime/composition/__tests__/site-mailer.unit.test.ts`; *OIDC sign-in creates duplicate
+members or skips the created notification* → `features/member-login/__tests__/link-service{,.dialects}.test.ts`
 plus one composed-deps case through `modules/members.ts`.
 
 **Gates:** shared gate, `LANE=L12`.
@@ -38,3 +38,15 @@ Base: Tovu `2d82735a` (integ/merge-3 tip). Edge list for G2: `designs/arch-120/v
 - `features/member-login/link-service.ts`
     - prod: features/member-login/index.ts
     - tests: features/member-login/__tests__/link-service.dialects.test.ts, features/member-login/__tests__/link-service.test.ts
+
+#### G5 suites — exact (every `*.test.ts` that imports a changed source file or a moved symbol's old home; AST index of the tip): 4 files
+
+```
+SUITES="
+  apps/website/src/features/mail-status/__tests__/delivery-visibility.unit.test.ts
+  apps/website/src/features/member-login/__tests__/link-service.dialects.test.ts
+  apps/website/src/features/member-login/__tests__/link-service.test.ts
+  apps/website/src/server/runtime/composition/__tests__/site-mailer.unit.test.ts
+"
+```
+Add the new characterization tests named above to `SUITES`. Barrel-importing suites (`*/index.ts` homes) are large by nature; run them all — G5 is the lane's behaviour net.

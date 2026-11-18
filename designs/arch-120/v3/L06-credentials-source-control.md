@@ -50,3 +50,20 @@ Base: Tovu `2d82735a` (integ/merge-3 tip). Edge list for G2: `designs/arch-120/v
 - `features/source-control/write-port.ts`
     - prod: features/source-control/index.ts
     - tests: features/custom-credentials/__tests__/extract-s8-c2p1-ports.type-pin.ts, features/source-control/__tests__/write-port.unit.test.ts
+
+#### G5 suites — exact (every `*.test.ts` that imports a changed source file or a moved symbol's old home; AST index of the tip): 9 files
+
+```
+SUITES="
+  apps/website/src/assistant/__tests__/moved-tools.credential-cards.golden.test.ts
+  apps/website/src/assistant/__tests__/tool-approval-policy.test.ts
+  apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  apps/website/src/features/custom-credentials/__tests__/extract-s8-c2p1-credential-ports.test.ts
+  apps/website/src/features/source-control/__tests__/gates.characterization.unit.test.ts
+  apps/website/src/features/source-control/__tests__/propose-credential-tool.test.ts
+  apps/website/src/features/source-control/__tests__/tool-registrations.dry-run.test.ts
+  apps/website/src/features/source-control/__tests__/tool-registrations.unit.test.ts
+  apps/website/src/features/source-control/__tests__/write-port.unit.test.ts
+"
+```
+Add the new characterization tests named above to `SUITES`. Barrel-importing suites (`*/index.ts` homes) are large by nature; run them all — G5 is the lane's behaviour net.

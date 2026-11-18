@@ -56,6 +56,15 @@ feature)" gets one answer applied everywhere: **a port lives with its consumer; 
 share lives in `contracts/core`; a type the implementer needs only to conform is not imported at all
 — conformance is checked where composition assigns it.**
 
+## 1a. Dry-run evidence (local, not pushed as product code) — `facts/dry-run.v3.md`
+
+L01 + L02's locale move + L08's evidence-cache move (21 edges) were applied to the tip with Jini
+`d37821a4` linked: `tsc` 0 errors (after one fix the dry-run itself found: the `deployments` barrel
+forwards Jini's `PluginDeployHostKit` *renamed*, now written into L01), `typecheck:tests` 0, INDEX-v3
+G2 snippet **PASS** (NEW 115 → 94, all within the 115, still exactly `1 metric(s)`), API surface
+806 → 807, `check:boundaries` 14 → 10 errors with 0 new, `check:size`/`check:complexity` 0,
+138/138 characterization tests pass. G-RATCHET on the pristine tip: `0 124` numstat, 426 → 302.
+
 ## 2. What changed vs rev2
 
 | rev2 | v3 | why it converges |

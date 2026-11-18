@@ -18,10 +18,10 @@
   current fallback is exactly the hidden dependency.
 
 **Characterization (named risks):** *restore re-enables a "soon" plugin* →
-`features/site-backup/__tests__/import-plugin-state*.test.ts` (restore behaviour, judge 2 #1);
-*bundled plugin files missing from a backup* → `package-file-inventory*.test.ts`,
-`bundled-export-file-policy*.test.ts`; *external MCP sign-in link wrong* →
-`features/external-mcp/__tests__/*oauth*.test.ts` and the external-MCP type-pin test;
+`features/agent-plugins/__tests__/unit/soon-lock.unit.test.ts` (the only test importing `import-plugin-state.ts`; restore behaviour, judge 2 #1);
+*bundled plugin files missing from a backup* → `features/site-backup/__tests__/{import-bundled-packages.integration,share-file-policy.unit,integration/archive-v2.integration}.test.ts`,
+`bundled-export-file-policy.unit.test.ts`, `share-zip.unit.test.ts`; *external MCP sign-in link wrong* →
+`features/external-mcp/__tests__/external-mcp-aad-writer-sync.test.ts`, `features/agent-plugins/__tests__/unit/{apply-connect-defaults.unit,enable-access.regression}.test.ts`;
 api-connections connect/BYO tests.
 
 **Gates:** shared gate, `LANE=L11`.
@@ -71,3 +71,48 @@ Base: Tovu `2d82735a` (integ/merge-3 tip). Edge list for G2: `designs/arch-120/v
 - `features/sites/site-admin.ts`
     - prod: features/sites/deps.ts, features/sites/index.ts, features/sites/tool-registrations.ts, features/sites/warm-switch.ts
     - tests: features/sites/__tests__/site-admin-tools.unit.test.ts, features/sites/__tests__/site-admin.unit.test.ts
+
+#### G5 suites — exact (every `*.test.ts` that imports a changed source file or a moved symbol's old home; AST index of the tip): 37 files
+
+```
+SUITES="
+  apps/website/src/assistant/__tests__/agent-daemon-port.barrel.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/apply-connect-defaults.unit.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/connect-skip.unit.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.api-connections.unit.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/connect-tool.unit.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/enable-access.regression.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/soon-lock.unit.test.ts
+  apps/website/src/features/api-connections/__tests__/api-connection-budgets.test.ts
+  apps/website/src/features/api-connections/__tests__/api-connection-slice.test.ts
+  apps/website/src/features/api-connections/__tests__/byo-client.malformed-origin.unit.test.ts
+  apps/website/src/features/api-connections/__tests__/byo-client.unit.test.ts
+  apps/website/src/features/api-connections/__tests__/contribution.fault.unit.test.ts
+  apps/website/src/features/api-connections/__tests__/contribution.unit.test.ts
+  apps/website/src/features/api-connections/__tests__/surface-adapters.security.test.ts
+  apps/website/src/features/external-mcp/__tests__/external-mcp-aad-writer-sync.test.ts
+  apps/website/src/features/external-mcp/__tests__/external-mcp-connection-revocation.test.ts
+  apps/website/src/features/external-mcp/__tests__/external-mcp-dcr.test.ts
+  apps/website/src/features/external-mcp/__tests__/external-mcp-frozen-db.postgres.test.ts
+  apps/website/src/features/external-mcp/__tests__/external-mcp-frozen-db.test.ts
+  apps/website/src/features/external-mcp/__tests__/external-mcp-oauth.lost-update.test.ts
+  apps/website/src/features/external-mcp/__tests__/external-mcp-oauth.test.ts
+  apps/website/src/features/external-mcp/__tests__/external-mcp-operations.unit.test.ts
+  apps/website/src/features/external-mcp/__tests__/external-mcp-shared-oauth.test.ts
+  apps/website/src/features/external-mcp/__tests__/h2b/connection-gate-seam.test.ts
+  apps/website/src/features/external-mcp/__tests__/h2c/sign-in-ports.test.ts
+  apps/website/src/features/external-mcp/__tests__/h3/moved-shims.test.ts
+  apps/website/src/features/external-mcp/__tests__/unit/tool-registrations.oauth-origin.unit.test.ts
+  apps/website/src/features/site-backup/__tests__/bundled-export-file-policy.unit.test.ts
+  apps/website/src/features/site-backup/__tests__/import-bundled-packages.integration.test.ts
+  apps/website/src/features/site-backup/__tests__/integration/archive-v2.integration.test.ts
+  apps/website/src/features/site-backup/__tests__/share-file-policy.unit.test.ts
+  apps/website/src/features/site-backup/__tests__/share-zip.unit.test.ts
+  apps/website/src/features/sites/__tests__/site-admin-tools.unit.test.ts
+  apps/website/src/features/sites/__tests__/site-admin.unit.test.ts
+  apps/website/src/server/__tests__/admin-external-mcp-oauth-routes.test.ts
+  apps/website/src/server/inbound/admin-http/routes/external-mcp/__tests__/oauth-error-mapping.test.ts
+  apps/website/src/server/runtime/composition/modules/__tests__/assistant-server-federation.integration.test.ts
+"
+```
+Add the new characterization tests named above to `SUITES`. Barrel-importing suites (`*/index.ts` homes) are large by nature; run them all — G5 is the lane's behaviour net.

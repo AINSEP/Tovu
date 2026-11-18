@@ -37,3 +37,16 @@ Base: Tovu `2d82735a` (integ/merge-3 tip). Edge list for G2: `designs/arch-120/v
 - `features/theme/preview-switcher-tools.ts`
     - prod: features/theme/tool-registrations.ts
     - tests: assistant/__tests__/tool-registrations.contracts.test.ts, features/theme/__tests__/preview-switcher.integration.test.ts, features/theme/__tests__/preview-switcher.lost-update.test.ts
+
+#### G5 suites — exact (every `*.test.ts` that imports a changed source file or a moved symbol's old home; AST index of the tip): 5 files
+
+```
+SUITES="
+  apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  apps/website/src/features/site-search/__tests__/settings.test.ts
+  apps/website/src/features/theme/__tests__/preview-switcher.integration.test.ts
+  apps/website/src/features/theme/__tests__/preview-switcher.lost-update.test.ts
+  apps/website/src/server/runtime/composition/modules/__tests__/site-search.unit.test.ts
+"
+```
+Add the new characterization tests named above to `SUITES`. Barrel-importing suites (`*/index.ts` homes) are large by nature; run them all — G5 is the lane's behaviour net.

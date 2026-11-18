@@ -114,3 +114,41 @@ Base: Tovu `2d82735a` (integ/merge-3 tip). Edge list for G2: `designs/arch-120/v
 - `features/widgets/publish-content.ts`
     - prod: server/runtime/composition/publish-content-manifest.ts
     - tests: features/publish-content/__tests__/new-types-sqlite-round-trip.test.ts, features/publish-content/__tests__/references.test.ts, features/widgets/__tests__/unit/publish-content.test.ts
+
+#### G5 suites — exact (every `*.test.ts` that imports a changed source file or a moved symbol's old home; AST index of the tip): 30 files
+
+```
+SUITES="
+  apps/website/src/features/content-types/__tests__/publish-content.test.ts
+  apps/website/src/features/entries/__tests__/unit/publish-content.test.ts
+  apps/website/src/features/forms/__tests__/publish-content.test.ts
+  apps/website/src/features/media/__tests__/library-publish-transport.test.ts
+  apps/website/src/features/media/__tests__/library-publish.test.ts
+  apps/website/src/features/media/__tests__/publish-content.apply.test.ts
+  apps/website/src/features/media/__tests__/publish-content.characterization.test.ts
+  apps/website/src/features/media/__tests__/publish-content.overwrite.test.ts
+  apps/website/src/features/media/__tests__/publish-content.write.test.ts
+  apps/website/src/features/media/__tests__/verify-published-media.test.ts
+  apps/website/src/features/navigation/__tests__/publish-content.characterization.test.ts
+  apps/website/src/features/navigation/__tests__/publish-content.test.ts
+  apps/website/src/features/navigation/__tests__/reverters.test.ts
+  apps/website/src/features/post/__tests__/L156-characterization.test.ts
+  apps/website/src/features/post/__tests__/publish-content.characterization.test.ts
+  apps/website/src/features/post/__tests__/publish-content.round-trip.test.ts
+  apps/website/src/features/post/__tests__/publish-content.schedule-featured.test.ts
+  apps/website/src/features/post/__tests__/publish-content.terms.test.ts
+  apps/website/src/features/post/__tests__/publish-content.test.ts
+  apps/website/src/features/publish-content/__tests__/apply-loop.test.ts
+  apps/website/src/features/publish-content/__tests__/execute-pull-tool.plugin-hook-refusal.test.ts
+  apps/website/src/features/publish-content/__tests__/media-video-embed.round-trip.test.ts
+  apps/website/src/features/publish-content/__tests__/new-types-sqlite-round-trip.test.ts
+  apps/website/src/features/publish-content/__tests__/planner.test.ts
+  apps/website/src/features/publish-content/__tests__/references.test.ts
+  apps/website/src/features/settings/__tests__/publish-content.round-trip.test.ts
+  apps/website/src/features/site-backup/__tests__/library-share.integration.test.ts
+  apps/website/src/features/taxonomy/__tests__/publish-content.test.ts
+  apps/website/src/features/taxonomy/__tests__/publish-term-ids.test.ts
+  apps/website/src/features/widgets/__tests__/unit/publish-content.test.ts
+"
+```
+Add the new characterization tests named above to `SUITES`. Barrel-importing suites (`*/index.ts` homes) are large by nature; run them all — G5 is the lane's behaviour net.

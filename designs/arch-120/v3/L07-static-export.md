@@ -18,9 +18,10 @@ are L03's `ExportReport` move.)
   a non-composed path (rg callers), pass it from that path's existing deps instead of adding a default.
 
 **Characterization (named risks):** *static copy no longer rewrites forms/base* and *published HTML
-loses the WebMCP block* → `features/site-backup/__tests__/static-copy*.test.ts`,
-`static-download-layout*.test.ts`, `static-site-packager.unit.test.ts`,
-`features/site-export/__tests__/export-html-policy*.test.ts`; add one composed-deps case asserting a
+loses the WebMCP block* → `features/site-backup/__tests__/static-copy.unit.test.ts`,
+`static-download-collisions.unit.test.ts`, `static-site-packager.unit.test.ts`, `static-export-themes.integration.test.ts`,
+`features/source-control/__tests__/commit-site{,.characterization,.preview-parity}.unit.test.ts`,
+`features/site-export/__tests__/{download-forms-privacy,hosted-forms-static.unit,static-copy-policy.unit}.test.ts`; add one composed-deps case asserting a
 form in an exported page is rewritten and the WebMCP script is present.
 
 **Gates:** shared gate, `LANE=L07`.
@@ -50,3 +51,26 @@ Base: Tovu `2d82735a` (integ/merge-3 tip). Edge list for G2: `designs/arch-120/v
 - `features/site-export/export-html-policy.ts`
     - prod: features/site-backup/static-copy.ts, features/site-backup/static-download-layout.ts, features/site-export/site-exporter.ts
     - tests: features/site-export/__tests__/download-forms-privacy.test.ts, features/site-export/__tests__/hosted-forms-static.unit.test.ts, features/site-export/__tests__/static-copy-policy.unit.test.ts
+
+#### G5 suites — exact (every `*.test.ts` that imports a changed source file or a moved symbol's old home; AST index of the tip): 15 files
+
+```
+SUITES="
+  apps/website/src/features/site-backup/__tests__/share-backend-static-limits.unit.test.ts
+  apps/website/src/features/site-backup/__tests__/static-copy.unit.test.ts
+  apps/website/src/features/site-backup/__tests__/static-download-collisions.unit.test.ts
+  apps/website/src/features/site-backup/__tests__/static-export-themes.integration.test.ts
+  apps/website/src/features/site-backup/__tests__/static-site-packager.unit.test.ts
+  apps/website/src/features/site-export/__tests__/download-forms-privacy.test.ts
+  apps/website/src/features/site-export/__tests__/hosted-forms-static.unit.test.ts
+  apps/website/src/features/site-export/__tests__/render-origin.integration.test.ts
+  apps/website/src/features/site-export/__tests__/static-copy-policy.unit.test.ts
+  apps/website/src/features/source-control/__tests__/commit-site.characterization.unit.test.ts
+  apps/website/src/features/source-control/__tests__/commit-site.preview-parity.unit.test.ts
+  apps/website/src/features/source-control/__tests__/commit-site.unit.test.ts
+  apps/website/src/features/source-control/__tests__/gates.characterization.unit.test.ts
+  apps/website/src/features/source-control/__tests__/tool-registrations.dry-run.test.ts
+  apps/website/src/features/source-control/__tests__/tool-registrations.unit.test.ts
+"
+```
+Add the new characterization tests named above to `SUITES`. Barrel-importing suites (`*/index.ts` homes) are large by nature; run them all — G5 is the lane's behaviour net.

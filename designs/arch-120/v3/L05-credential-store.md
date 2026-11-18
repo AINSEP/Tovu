@@ -106,3 +106,79 @@ Base: Tovu `2d82735a` (integ/merge-3 tip). Edge list for G2: `designs/arch-120/v
 - `features/source-control/store.ts`
     - prod: features/source-control/commit-site.ts, features/source-control/credential-setup.ts, features/source-control/index.ts, features/source-control/tool-registrations.ts
     - tests: features/credential-safety/__tests__/stores.test.ts, features/site-backup/__tests__/tool-registrations-host-connection.unit.test.ts, features/site-backup/__tests__/tool-registrations.unit.test.ts, features/source-control/__tests__/account-probe.guarded.unit.test.ts, features/source-control/__tests__/commit-site.unit.test.ts, features/source-control/__tests__/credential-setup-projections.unit.test.ts, features/source-control/__tests__/gates.characterization.unit.test.ts, features/source-control/__tests__/project-scope.unit.test.ts, features/source-control/__tests__/propose-credential-tool.test.ts, features/source-control/__tests__/shared-key-reader.unit.test.ts, features/source-control/__tests__/store.resolve.unit.test.ts, features/source-control/__tests__/store.unit.test.ts, features/source-control/__tests__/tool-registrations.dry-run.test.ts, features/source-control/__tests__/tool-registrations.unit.test.ts, server/inbound/admin-http/routes/system/__tests__/source-control-credentials.unit.test.ts
+
+#### G5 suites — exact (every `*.test.ts` that imports a changed source file or a moved symbol's old home; AST index of the tip): 68 files
+
+```
+SUITES="
+  apps/website/src/assistant/__tests__/moved-tools.credential-cards.golden.test.ts
+  apps/website/src/assistant/__tests__/read-only-tool-constraint.composition.test.ts
+  apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  apps/website/src/assistant/__tests__/tool-registrations.custom-credentials-egress-refusal.integration.test.ts
+  apps/website/src/features/api-connections/__tests__/shared-api.unit.test.ts
+  apps/website/src/features/api-connections/__tests__/shared-owner.integration.test.ts
+  apps/website/src/features/credential-safety/__tests__/stores.test.ts
+  apps/website/src/features/custom-credentials/__tests__/create-agent-tool.unit.test.ts
+  apps/website/src/features/custom-credentials/__tests__/credential-copy-tool.test.ts
+  apps/website/src/features/custom-credentials/__tests__/credential-save-probe.test.ts
+  apps/website/src/features/custom-credentials/__tests__/extract-s8-c1-source-scan.test.ts
+  apps/website/src/features/custom-credentials/__tests__/extract-s8-c2p2-host-inputs.test.ts
+  apps/website/src/features/custom-credentials/__tests__/extract-s8-c2p2c-ports.test.ts
+  apps/website/src/features/custom-credentials/__tests__/extract-s8-g-cred.integration.test.ts
+  apps/website/src/features/custom-credentials/__tests__/extract-s8-x-host-operations.test.ts
+  apps/website/src/features/custom-credentials/__tests__/extract-s9-tools-public.test.ts
+  apps/website/src/features/custom-credentials/__tests__/form-save-errors.model-facing.test.ts
+  apps/website/src/features/custom-credentials/__tests__/list-agent-tool.unit.test.ts
+  apps/website/src/features/custom-credentials/__tests__/make-request-delete-confirmation.test.ts
+  apps/website/src/features/custom-credentials/__tests__/project-scope.unit.test.ts
+  apps/website/src/features/custom-credentials/__tests__/set-token-agent-tool.unit.test.ts
+  apps/website/src/features/custom-credentials/__tests__/set-username-agent-tool.unit.test.ts
+  apps/website/src/features/custom-credentials/__tests__/tool-registrations.model-facing-errors.test.ts
+  apps/website/src/features/custom-credentials/__tests__/vault-repo.tw4.unit.test.ts
+  apps/website/src/features/custom-credentials/__tests__/write-files-confirmation.test.ts
+  apps/website/src/features/custom-credentials/__tests__/write-files-network-failure.model-facing.test.ts
+  apps/website/src/features/deployments/__tests__/publish-agent-tools.abort-guard.unit.test.ts
+  apps/website/src/features/deployments/__tests__/publish-agent-tools.unit.test.ts
+  apps/website/src/features/deployments/deploy-ops/__tests__/deploy.test.ts
+  apps/website/src/features/deployments/deploy-ops/__tests__/extract-integ2-lazy-credential.test.ts
+  apps/website/src/features/deployments/deploy-ops/__tests__/extract-s9-deploy-ports.test.ts
+  apps/website/src/features/deployments/deploy-ops/__tests__/run-ops-contract.test.ts
+  apps/website/src/features/deployments/deploy-ops/__tests__/run-ops.test.ts
+  apps/website/src/features/deployments/deploy-ops/__tests__/tool-registrations.test.ts
+  apps/website/src/features/deployments/deploy-ops/__tests__/tw3-L041.pins.test.ts
+  apps/website/src/features/deployments/publish-credentials/__tests__/credential-works-for.unit.test.ts
+  apps/website/src/features/deployments/publish-credentials/__tests__/project-scope.unit.test.ts
+  apps/website/src/features/deployments/publish-credentials/__tests__/store.unit.test.ts
+  apps/website/src/features/deployments/static-publish/__tests__/credentials.unit.test.ts
+  apps/website/src/features/deployments/static-publish/__tests__/publish-run.unit.test.ts
+  apps/website/src/features/deployments/static-publish/__tests__/verify.unit.test.ts
+  apps/website/src/features/form-destinations/__tests__/key-store.unit.test.ts
+  apps/website/src/features/mail-status/__tests__/suppressions-feedback.unit.test.ts
+  apps/website/src/features/project-keys/__tests__/shared-oauth-disconnect.unit.test.ts
+  apps/website/src/features/site-backup/__tests__/tool-registrations-host-connection.unit.test.ts
+  apps/website/src/features/site-backup/__tests__/tool-registrations.unit.test.ts
+  apps/website/src/features/source-control/__tests__/account-probe.guarded.unit.test.ts
+  apps/website/src/features/source-control/__tests__/commit-site.unit.test.ts
+  apps/website/src/features/source-control/__tests__/credential-setup-projections.unit.test.ts
+  apps/website/src/features/source-control/__tests__/gates.characterization.unit.test.ts
+  apps/website/src/features/source-control/__tests__/project-scope.unit.test.ts
+  apps/website/src/features/source-control/__tests__/propose-credential-tool.test.ts
+  apps/website/src/features/source-control/__tests__/shared-key-reader.unit.test.ts
+  apps/website/src/features/source-control/__tests__/store.resolve.unit.test.ts
+  apps/website/src/features/source-control/__tests__/store.unit.test.ts
+  apps/website/src/features/source-control/__tests__/tool-registrations.dry-run.test.ts
+  apps/website/src/features/source-control/__tests__/tool-registrations.unit.test.ts
+  apps/website/src/features/vendor-credentials/__tests__/index.unit.test.ts
+  apps/website/src/platform/db/repos/__tests__/custom-credential-repo.test.ts
+  apps/website/src/server/__tests__/route-async-guards.test.ts
+  apps/website/src/server/__tests__/routes/mail-providers-route.test.ts
+  apps/website/src/server/inbound/admin-http/routes/system/__tests__/custom-credentials-branches.unit.test.ts
+  apps/website/src/server/inbound/admin-http/routes/system/__tests__/custom-credentials-inventory.unit.test.ts
+  apps/website/src/server/inbound/admin-http/routes/system/__tests__/source-control-credentials.unit.test.ts
+  apps/website/src/server/runtime/boot/__tests__/mail-credential-cards.unit.test.ts
+  apps/website/src/server/runtime/composition/__tests__/project-store.unit.test.ts
+  apps/website/src/server/runtime/composition/__tests__/vault-boot.integration.test.ts
+  apps/website/src/server/runtime/composition/__tests__/vault-unified-credentials.integration.test.ts
+"
+```
+Add the new characterization tests named above to `SUITES`. Barrel-importing suites (`*/index.ts` homes) are large by nature; run them all — G5 is the lane's behaviour net.

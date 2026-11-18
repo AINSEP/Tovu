@@ -24,10 +24,10 @@ imports only `@jini-ai/*` / `node:*` / `contracts/`.
 **Characterization (named risk: a moved constant silently diverges from the value its owner
 writes):** the owner keeps importing the moved constant (`active-theme.ts` uses `NO_THEME_ID` from
 contracts; `repo.sqlite.ts` builds its SQL from `REDIRECT_TABLES` in contracts), so one source of
-truth remains — pinned by existing suites: `features/trash/__tests__/*redirect*`,
-`features/site-backup/__tests__/import-keep-off*.test.ts`, `share-backend*.test.ts`,
-`features/site-inspection/__tests__/*.test.ts`, `features/site-backup/__tests__/static-site-packager.unit.test.ts`
-(layout/order/collision, judge 2 evidence), `features/entries/__tests__/*unreadable-owner*`.
+truth remains — pinned by existing suites: `features/trash/__tests__/marker-adapters.dialects.test.ts`, `trash.contract.test.ts`,
+**new** `features/site-backup/__tests__/import-keep-off.unit.test.ts` (no direct test exists on the tip: pin that an active `NO_THEME_ID` is kept off the restore list), `features/site-backup/__tests__/share-backend.unit.test.ts`,
+`features/site-inspection/__tests__/site-profile.unit.test.ts` (renamed-theme ids), `features/site-backup/__tests__/static-site-packager.unit.test.ts`
+(layout/order/collision, judge 2 evidence), `features/entries/__tests__/unit/unreadable-owner-entries-repair.unit.test.ts`, `integration/unreadable-owner-entries-repair.dialects.test.ts`.
 
 **Gates:** shared gate, `LANE=L03`.
 
@@ -188,3 +188,231 @@ Base: Tovu `2d82735a` (integ/merge-3 tip). Edge list for G2: `designs/arch-120/v
 - `features/trash/adapters/redirect.ts`
     - prod: features/trash/index.ts, features/trash/permissions.ts, features/trash/tool-kinds.ts, features/trash/trash-item-tool.ts
     - tests: features/trash/__tests__/marker-adapters.dialects.test.ts, features/trash/__tests__/trash.contract.test.ts
+
+#### G5 suites — exact (every `*.test.ts` that imports a changed source file or a moved symbol's old home; AST index of the tip): 220 files
+
+```
+SUITES="
+  apps/website/src/assistant/__tests__/batch-tool-inputs.test.ts
+  apps/website/src/assistant/__tests__/content-target-inputs.test.ts
+  apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.delete-confirmation-family.integration.test.ts
+  apps/website/src/assistant/__tests__/media-import-search-discoverability.test.ts
+  apps/website/src/assistant/__tests__/merged-readers-batch.test.ts
+  apps/website/src/assistant/__tests__/owner-chat-tool-inputs.unit.test.ts
+  apps/website/src/assistant/__tests__/pages-read-html-batch.test.ts
+  apps/website/src/assistant/__tests__/theme-list-files-malformed-input-status.integration.test.ts
+  apps/website/src/assistant/__tests__/tool-registrations.authorization.test.ts
+  apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  apps/website/src/assistant/__tests__/tool-registrations.entries.test.ts
+  apps/website/src/assistant/__tests__/tool-registrations.taxonomy.test.ts
+  apps/website/src/assistant/__tests__/tool-registrations.theme-duplicate.test.ts
+  apps/website/src/assistant/__tests__/tool-registrations.theme-import-file.test.ts
+  apps/website/src/assistant/__tests__/tool-registrations.theme-set-active.test.ts
+  apps/website/src/assistant/__tests__/tool-registrations.themes-edit-rename.test.ts
+  apps/website/src/assistant/__tests__/tool-registrations.themes-reset-copy.test.ts
+  apps/website/src/assistant/__tests__/tool-registrations.themes-trash-restore.test.ts
+  apps/website/src/assistant/__tests__/tool-registrations.themes.test.ts
+  apps/website/src/assistant/__tests__/tool-registrations.widgets-authorization.test.ts
+  apps/website/src/assistant/__tests__/tool-registrations.widgets-contracts.test.ts
+  apps/website/src/cli/__tests__/unit/errors-l149.unit.test.ts
+  apps/website/src/cli/__tests__/unit/export-base-path-notice.unit.test.ts
+  apps/website/src/cli/__tests__/unit/export-base-path-srcset.unit.test.ts
+  apps/website/src/cli/__tests__/unit/theme-validate-normalize-output.unit.test.ts
+  apps/website/src/features/admin-parity/__tests__/tools.unit.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/plugin-embed-export.test.ts
+  apps/website/src/features/agent-plugins/__tests__/unit/plugin-embed-save.test.ts
+  apps/website/src/features/consent/__tests__/ensure-privacy-defaults.test.ts
+  apps/website/src/features/content-types/__tests__/integration/repo.sqlite.integration.test.ts
+  apps/website/src/features/content-types/__tests__/publish-content.test.ts
+  apps/website/src/features/content-types/__tests__/repo.characterization.test.ts
+  apps/website/src/features/content-types/__tests__/repo.dialects.test.ts
+  apps/website/src/features/content-types/__tests__/reserved-keys.test.ts
+  apps/website/src/features/entries/__tests__/integration/repo.dialects.test.ts
+  apps/website/src/features/entries/__tests__/integration/repo.sqlite.integration.test.ts
+  apps/website/src/features/entries/__tests__/integration/unreadable-owner-entries-repair.dialects.test.ts
+  apps/website/src/features/entries/__tests__/integration/unreadable-owner-entries-repair.postgres.test.ts
+  apps/website/src/features/entries/__tests__/unit/public-list.unit.test.ts
+  apps/website/src/features/entries/__tests__/unit/publish-content.test.ts
+  apps/website/src/features/entries/__tests__/unit/trash-aware-memory-repo.display.unit.test.ts
+  apps/website/src/features/entries/__tests__/unit/unreadable-owner-entries-repair.unit.test.ts
+  apps/website/src/features/fs-files/__tests__/site-file-request.unit.test.ts
+  apps/website/src/features/media-import/__tests__/import-local-file.test.ts
+  apps/website/src/features/media-import/__tests__/tool-registrations.test.ts
+  apps/website/src/features/pages/__tests__/edit-html-permission.test.ts
+  apps/website/src/features/pages/__tests__/hidden-until-script.test.ts
+  apps/website/src/features/pages/__tests__/html-document-store.memory.go-live.test.ts
+  apps/website/src/features/pages/__tests__/html-document-store.memory.test.ts
+  apps/website/src/features/pages/__tests__/html-document-store.noop-save.test.ts
+  apps/website/src/features/pages/__tests__/metadata-edit-preserves-html.test.ts
+  apps/website/src/features/pages/__tests__/tool-registrations.move-region.test.ts
+  apps/website/src/features/pages/__tests__/tool-registrations.read-html.test.ts
+  apps/website/src/features/pages/__tests__/tool-registrations.test.ts
+  apps/website/src/features/pages/__tests__/tool-registrations.write-region.test.ts
+  apps/website/src/features/plugin-runtime/__tests__/integration/declarative-runtime.integration.test.ts
+  apps/website/src/features/plugin-runtime/__tests__/integration/testimonials-faq-sample.integration.test.ts
+  apps/website/src/features/plugin-runtime/__tests__/unit/declarative-enable.unit.test.ts
+  apps/website/src/features/post/__tests__/content-duplicate.post-page.test.ts
+  apps/website/src/features/post/__tests__/template-options.unit.test.ts
+  apps/website/src/features/post/__tests__/tool-registrations.html-page-body.test.ts
+  apps/website/src/features/post/__tests__/tool-registrations.model-facing-errors.test.ts
+  apps/website/src/features/post/__tests__/tool-registrations.partial-update.test.ts
+  apps/website/src/features/publish-content/__tests__/new-types-sqlite-round-trip.test.ts
+  apps/website/src/features/redirects/__tests__/index.test.ts
+  apps/website/src/features/site-backup/__tests__/credential-warnings.integration.test.ts
+  apps/website/src/features/site-backup/__tests__/integration/saved-keys-round-trip.integration.test.ts
+  apps/website/src/features/site-backup/__tests__/share-backend-static-limits.unit.test.ts
+  apps/website/src/features/site-backup/__tests__/share-backend.unit.test.ts
+  apps/website/src/features/site-backup/__tests__/share-delivery.integration.test.ts
+  apps/website/src/features/site-backup/__tests__/share-moved-site.integration.test.ts
+  apps/website/src/features/site-backup/__tests__/share-refusals.integration.test.ts
+  apps/website/src/features/site-backup/__tests__/static-copy.unit.test.ts
+  apps/website/src/features/site-backup/__tests__/static-export-themes.integration.test.ts
+  apps/website/src/features/site-backup/__tests__/static-site-packager.unit.test.ts
+  apps/website/src/features/site-export/__tests__/declared-assets.unit.test.ts
+  apps/website/src/features/site-export/__tests__/export-failure-summary.test.ts
+  apps/website/src/features/site-export/__tests__/index.test.ts
+  apps/website/src/features/site-export/__tests__/media-original-urls.test.ts
+  apps/website/src/features/site-export/__tests__/render-origin.integration.test.ts
+  apps/website/src/features/site-export/__tests__/route-manifest.test.ts
+  apps/website/src/features/site-export/__tests__/site-exporter.observability.unit.test.ts
+  apps/website/src/features/site-export/__tests__/site-exporter.test.ts
+  apps/website/src/features/site-export/__tests__/static-copy-policy.unit.test.ts
+  apps/website/src/features/site-inspection/__tests__/site-profile.unit.test.ts
+  apps/website/src/features/site-inspection/__tests__/tool-registrations.unit.test.ts
+  apps/website/src/features/site-search/__tests__/cms-search.test.ts
+  apps/website/src/features/source-control/__tests__/commit-site.characterization.unit.test.ts
+  apps/website/src/features/source-control/__tests__/commit-site.packager-port.unit.test.ts
+  apps/website/src/features/source-control/__tests__/commit-site.preview-parity.unit.test.ts
+  apps/website/src/features/source-control/__tests__/commit-site.unit.test.ts
+  apps/website/src/features/source-control/__tests__/gates.characterization.unit.test.ts
+  apps/website/src/features/source-control/__tests__/tool-registrations.dry-run.test.ts
+  apps/website/src/features/source-control/__tests__/tool-registrations.unit.test.ts
+  apps/website/src/features/taxonomy/__tests__/tool-contract.characterization.test.ts
+  apps/website/src/features/theme/__tests__/active-theme.test.ts
+  apps/website/src/features/theme/__tests__/duplicate-theme.test.ts
+  apps/website/src/features/theme/__tests__/existing-site-template-fallback.integration.test.ts
+  apps/website/src/features/theme/__tests__/hardcoded-link-lists.test.ts
+  apps/website/src/features/theme/__tests__/pages-blank-template.canary.test.ts
+  apps/website/src/features/theme/__tests__/preview-switcher.integration.test.ts
+  apps/website/src/features/theme/__tests__/template-render.canary.test.ts
+  apps/website/src/features/theme/__tests__/theme-files.test.ts
+  apps/website/src/features/theme/__tests__/theme-pages-render.canary.test.ts
+  apps/website/src/features/theme/__tests__/theme-read-file-window.test.ts
+  apps/website/src/features/theme/__tests__/theme-rescan-tool.test.ts
+  apps/website/src/features/theme/__tests__/theme-roster-sync.test.ts
+  apps/website/src/features/theme/__tests__/theme-trash.test.ts
+  apps/website/src/features/theme/__tests__/verify-active-theme.test.ts
+  apps/website/src/features/trash/__tests__/marker-adapters.dialects.test.ts
+  apps/website/src/features/trash/__tests__/trash.contract.test.ts
+  apps/website/src/features/widgets/__tests__/agent-tools.trash-confirmation.test.ts
+  apps/website/src/features/widgets/__tests__/integration/embed-service.integration.test.ts
+  apps/website/src/features/widgets/__tests__/integration/embed-service.post-host.integration.test.ts
+  apps/website/src/features/widgets/__tests__/integration/html-taxonomy-embeds.integration.test.ts
+  apps/website/src/features/widgets/__tests__/integration/region-area-service.integration.test.ts
+  apps/website/src/features/widgets/__tests__/integration/tool-registrations.delegated-error-status.test.ts
+  apps/website/src/features/widgets/__tests__/integration/tool-registrations.handler-gaps.test.ts
+  apps/website/src/features/widgets/__tests__/integration/tool-registrations.input-validation-status.test.ts
+  apps/website/src/features/widgets/__tests__/integration/tool-registrations.plugin-hook-failed.test.ts
+  apps/website/src/features/widgets/__tests__/integration/tool-registrations.region-gaps.test.ts
+  apps/website/src/features/widgets/__tests__/integration/tool-registrations.shape-rejection.test.ts
+  apps/website/src/features/widgets/__tests__/integration/write-service.integration.test.ts
+  apps/website/src/features/widgets/__tests__/tool-contract.characterization.test.ts
+  apps/website/src/features/widgets/__tests__/unit/publish-content.test.ts
+  apps/website/src/features/widgets/__tests__/unit/resolvers-recent-entries.unit.test.ts
+  apps/website/src/platform/site-dir/__tests__/integration/seed-site-themes.integration.test.ts
+  apps/website/src/server/__tests__/admin-widgets-routes.test.ts
+  apps/website/src/server/__tests__/content-type-write-provenance.test.ts
+  apps/website/src/server/__tests__/routes/admin-post-template-preview.test.ts
+  apps/website/src/server/__tests__/routes/bare-page-site-serving.test.ts
+  apps/website/src/server/__tests__/routes/media-site-serving.test.ts
+  apps/website/src/server/__tests__/routes/missing-template-diagnostic-v2-stylesheet.test.ts
+  apps/website/src/server/__tests__/routes/post-template-author.test.ts
+  apps/website/src/server/__tests__/routes/post-template-comments.test.ts
+  apps/website/src/server/__tests__/routes/post-template-featured-image.test.ts
+  apps/website/src/server/__tests__/routes/post-template-site-serving.test.ts
+  apps/website/src/server/__tests__/routes/publish-trust-apply-coverage.test.ts
+  apps/website/src/server/__tests__/routes/seo-site-serving.test.ts
+  apps/website/src/server/__tests__/routes/theme-file-copy-rename-route.integration.test.ts
+  apps/website/src/server/__tests__/routes/theme-file-save-route.integration.test.ts
+  apps/website/src/server/__tests__/routes/widgets-dynamic-resolver-site-serving.test.ts
+  apps/website/src/server/__tests__/routes/widgets-site-serving.test.ts
+  apps/website/src/server/__tests__/visitor-assistant-readiness.integration.test.ts
+  apps/website/src/server/__tests__/widgets-error-code-parity.test.ts
+  apps/website/src/server/inbound/admin-http/routes/content-types/__tests__/register-update-fields.conflict.test.ts
+  apps/website/src/server/inbound/admin-http/routes/content-types/__tests__/update-fields.test.ts
+  apps/website/src/server/inbound/admin-http/routes/content-types/__tests__/write-error-status.unit.test.ts
+  apps/website/src/server/inbound/admin-http/routes/posts/__tests__/preview-consent.integration.test.ts
+  apps/website/src/server/inbound/admin-http/routes/posts/__tests__/template-preview-render.test.ts
+  apps/website/src/server/inbound/admin-http/routes/presentation/__tests__/patch-active-theme.test.ts
+  apps/website/src/server/inbound/admin-http/routes/presentation/__tests__/rescan-themes.test.ts
+  apps/website/src/server/inbound/admin-http/routes/settings/__tests__/events.unit.test.ts
+  apps/website/src/server/inbound/admin-http/routes/settings/__tests__/preview-feed-access.test.ts
+  apps/website/src/server/inbound/admin-http/routes/system/__tests__/site-share-password-handler.test.ts
+  apps/website/src/server/inbound/admin-http/routes/themes/__tests__/duplicate-route.test.ts
+  apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-access-and-not-found.test.ts
+  apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-built-theme-gate.test.ts
+  apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-detail-modified.test.ts
+  apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-detail-route-branches.test.ts
+  apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-detail-slug-collision.test.ts
+  apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-file-copy-route-branches.test.ts
+  apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-file-delete-route-branches.test.ts
+  apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-file-get-route-branches.test.ts
+  apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-file-group-edge-cases.test.ts
+  apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-file-put-route-branches.test.ts
+  apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-file-rename-route-branches.test.ts
+  apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-file-reset-byte-exact.test.ts
+  apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-file-reset-layout-mismatch.test.ts
+  apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-file-reset-route-branches.test.ts
+  apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-io-errors.unit.test.ts
+  apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-liquid-readable.test.ts
+  apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-page-publish-route.test.ts
+  apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-pure-helpers.unit.test.ts
+  apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-save-original-route.test.ts
+  apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-svg-xss.test.ts
+  apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-v2-layout-classification.test.ts
+  apps/website/src/server/inbound/admin-http/routes/themes/__tests__/inherited-template-source.integration.test.ts
+  apps/website/src/server/inbound/admin-http/routes/themes/__tests__/integration/explore-file-trash.integration.test.ts
+  apps/website/src/server/inbound/admin-http/routes/themes/__tests__/integration/explore.integration.test.ts
+  apps/website/src/server/inbound/admin-http/routes/widgets/__tests__/unit/library.unit.test.ts
+  apps/website/src/server/inbound/admin-http/routes/widgets/__tests__/unit/preview.unit.test.ts
+  apps/website/src/server/inbound/admin-http/routes/widgets/__tests__/unit/region-bind.unit.test.ts
+  apps/website/src/server/inbound/admin-http/routes/widgets/__tests__/unit/route-guards.unit.test.ts
+  apps/website/src/server/inbound/admin-http/routes/widgets/__tests__/unit/update.unit.test.ts
+  apps/website/src/server/inbound/public-http/http/site/__tests__/landing-page-render.test.ts
+  apps/website/src/server/inbound/public-http/http/site/__tests__/leading-style-regression.test.ts
+  apps/website/src/server/inbound/public-http/http/site/__tests__/no-silent-drops.test.ts
+  apps/website/src/server/inbound/public-http/http/site/__tests__/render-author.test.ts
+  apps/website/src/server/inbound/public-http/http/site/__tests__/render-blocks-site-branches.unit.test.ts
+  apps/website/src/server/inbound/public-http/http/site/__tests__/render-handlebars.test.ts
+  apps/website/src/server/inbound/public-http/http/site/__tests__/render-menu-html.unit.test.ts
+  apps/website/src/server/inbound/public-http/http/site/__tests__/render.golden.characterization.test.ts
+  apps/website/src/server/inbound/public-http/http/site/__tests__/render.test.ts
+  apps/website/src/server/inbound/public-http/middleware/__tests__/theme-page-preview.test.ts
+  apps/website/src/server/inbound/public-http/middleware/__tests__/theme-preview-refresh.test.ts
+  apps/website/src/server/inbound/public-http/middleware/__tests__/theme-static-assets-live-roster.unit.test.ts
+  apps/website/src/server/inbound/public-http/routes/site/__tests__/embeds-everywhere.route.test.ts
+  apps/website/src/server/inbound/public-http/routes/site/__tests__/forms-timing.route.test.ts
+  apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/pages-branch-coverage.integration.test.ts
+  apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/taxonomy-render-surface.integration.test.ts
+  apps/website/src/server/inbound/public-http/routes/site/__tests__/member-pages.route.test.ts
+  apps/website/src/server/inbound/public-http/routes/site/__tests__/no-theme.route.test.ts
+  apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.edge-paths.route.test.ts
+  apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.home.route.test.ts
+  apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.member-access.route.test.ts
+  apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.paging.route.test.ts
+  apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.response-matrix.characterization.test.ts
+  apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.route.test.ts
+  apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.site-timezone.route.test.ts
+  apps/website/src/server/inbound/public-http/routes/site/__tests__/static-menu-embed-resolution.test.ts
+  apps/website/src/server/inbound/public-http/routes/site/__tests__/static-post-previews-resolution.test.ts
+  apps/website/src/server/inbound/public-http/routes/site/__tests__/unit/h4-pages.unit.test.ts
+  apps/website/src/server/inbound/public-http/routes/site/__tests__/widget-body-embeds.test.ts
+  apps/website/src/server/runtime/composition/__tests__/app.consent-capture.test.ts
+  apps/website/src/server/runtime/composition/__tests__/boot-data-repairs.integration.test.ts
+  apps/website/src/server/runtime/composition/__tests__/create-site-app-theme-override.integration.test.ts
+  apps/website/src/server/runtime/composition/__tests__/create-site-route-deps.postgres.test.ts
+  apps/website/src/server/runtime/composition/__tests__/site-guide.fact-deps.unit.test.ts
+  apps/website/src/server/runtime/composition/__tests__/static-site-context.unit.test.ts
+"
+```
+Add the new characterization tests named above to `SUITES`. Barrel-importing suites (`*/index.ts` homes) are large by nature; run them all — G5 is the lane's behaviour net.
