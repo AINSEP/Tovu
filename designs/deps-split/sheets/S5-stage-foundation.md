@@ -9,7 +9,7 @@ Responsibility: bindings `assistantAgentInventory` … `storeBound` and `logMedi
 | 3 | `stages/foundation.ts` `composeFoundationStage(required, optional)` — synchronous; calls 1, 2 and builds `storeBound` (`storeBoundServicesFor({ store, dbPath })`, verbatim) | | | | union |
 | 4 | `slices/store-prelude-tail.ts` (+ `logMediaProviderRefusals`) | `logMediaProviderRefusals({ refusals: mediaProviders.refusals })` … `pluginActivationRepo` (after the root's `mediaProviders` await) | `kernel`, `workspaceId`, `mediaProviders`, `agentPluginLifecycle`, `logger` | — | `postSearchBackfillReady`, `clock`, `idGen`, `reportToolAuditError`, `pluginActivationRepo` |
 
-No slice here is `async` and none contains `await`; the root keeps the four prelude awaits verbatim between the stage call and the tail call.
+No slice here is `async` and none contains `await`; the root keeps the four prelude awaits verbatim between the stage call and the tail call. The awaited callee `warnCompositionChatOrphans` (a module function since S4, single user = the root) moves in commit 4 to `site-deps/chat-orphans.ts` — it is the original async function that holds the original inner `await warnOnOrphanedChatRows(…)`, not a new wrapper; the root's `await warnCompositionChatOrphans(…)` line is unchanged. `chat-orphan-check.integration.test.ts:38-40,265-266` (reads the warning call's text) is repointed to that file in the same commit.
 
 ## Carries
 | behaviour (base lines) | pin |

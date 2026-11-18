@@ -1,24 +1,38 @@
-# S12 — stage `after-assembly` (rows I1-I7)
+# S12 — after assembly (I1-I7) up to the last root await
 
-Responsibility: statements 185-213 (`f0613d9e` 2722-2932); statement 184 `resolveRouteDeps(routeDeps)` and 202 `routeDepsBuiltForPluginHost = routeDeps` stay in the closure. Budget ≤200k. Commits: 8.
-Prerequisites: S11. COMMON §2, §3, §9. Every slice receives `routeDeps` as a **value** (it exists) and writes the same `routeDeps.<key>` as today (15 writes, `grep -P '\twrite\t' work/literal-keys.tsv`).
+Responsibility: everything after `resolveRouteDeps(routeDeps)` up to `await registerContentAnalytics(…)` (`f0613d9e` 2722-2931); that await **stays in the root, verbatim**, and so do `resolveRouteDeps(routeDeps)` and `return routeDeps`. Budget ≤190k. Commits: 8. Prerequisites: S11; COMMON §1-§3, §9 (`DS_SHEET=S12`). Every slice receives `routeDeps` as a **value** (it exists) and writes the same keys as today: 15 writes to 14 keys (`awk -F'\t' '$2=="write"' work/literal-keys.tsv`).
 
-| commit | slice | statements | notes |
+| commit | slice (sync) | bindings / statements | notes |
 |---|---|---|---|
-| 1 | `slices/widget-adoption.ts` | 185-186 | `logger`; returns `widgetAdoptionReady`; writes `legacyPublishCredentialsReady` |
-| 2 | `slices/forms.ts` | 187-192 | writes 6 keys in order. `serving-app-boot-wiring.unit.test.ts:164` list: `server/runtime/composition/deps.ts` → `server/runtime/composition/site-deps/slices/forms.ts` |
-| 3 | `slices/site-search.ts` | 193 | |
-| 4 | `slices/commerce.ts` (+ `compositionCommerce`; `compositionSharedOAuth` also moves here and is imported by the literal's caller in the closure until S13) | 195-199 | registration `onStoreClose(commerceBinding.close)` in order |
-| 5 | `slices/plugin-host.ts`: `attachPluginHost` (200-201) and `startPluginRuntime` (203-205) | 200-205 minus 202 | closure order: `attachPluginHost(...)`; `routeDepsBuiltForPluginHost = routeDeps;` (202); `startPluginRuntime(...)`. `startPluginRuntime` receives the boot-drain promises as values (`widgetAdoptionReady`, `blobHydrationReady`, `adminPasswordResetReady`, `postSearchBackfillReady`, `originReady`, `adminSurfaceHandlersReady`, `siteAppBootWork`) and `provideMediaCredentials` (S5) |
-| 6 | `slices/site-sharing.ts` (S4's 4 functions) + `slices/site-imports.ts` | 206-210 | `savedKeys` built in the sharing slice and passed to imports |
-| 7 | `slices/consent-analytics.ts` (+ `configureVisitorConsentAnalytics`) | 211-213 | **async** (213 `await registerContentAnalytics`, the 4th pinned await) |
-| 8 | `stages/after-assembly.ts` `composeAfterAssemblyStage(required: { …, markPluginHostReady: () => void }, optional)` calling 1-7; the closure passes `markPluginHostReady: () => { routeDepsBuiltForPluginHost = routeDeps; }` and deletes its own line 202 in the same commit (DESIGN §2.3) |
+| 1 | `slices/widget-adoption.ts` | `widgetAdoptionReady`, the `legacyPublishCredentialsReady` write | receives `logger`; its two `consoleLogger.error` texts verbatim |
+| 2 | `slices/forms.ts` | `formSubmissions` + the **5** forms writes (`formDestination`, `formSubmissionsPull`, `formSubmissionsAutoPull`, `formDeliveryStatus`, `formDelivery`) | `serving-app-boot-wiring.unit.test.ts:164` list entry `server/runtime/composition/deps.ts` → `…/site-deps/slices/forms.ts` |
+| 3 | `slices/site-search.ts` | the `siteSearch` write | |
+| 4 | `slices/commerce.ts` (+ `compositionCommerce`, `compositionSharedOAuth`) | `commerceBinding`, `commerce`/`commerceCatalog` writes, `onStoreClose(commerceBinding.close)` | the literal reads `compositionSharedOAuth(…)` — the closure imports it from this slice file until S13 |
+| 5 | `slices/plugin-host.ts`: `attachPluginHost` (boot-work map `siteAppBootWorkByDeps.set`, `pluginHost` write) and `startPluginRuntime` (`attachEnabledPluginsAtBoot`, `pluginRuntimeReady` write, boot drain, `provideMediaCredentials(…)`) | root order: `attachPluginHost(…)`; `routeDepsBuiltForPluginHost = routeDeps;`; `startPluginRuntime(…)`. `siteAppBootWorkByDeps` arrives as `required.siteAppBootWorkByDeps` (imports rule, COMMON §5) |
+| 6 | `slices/site-sharing.ts` (S4's four functions) + `slices/site-imports.ts` | `savedKeys`, the `siteShareBackend` writes (failure path + success path), `siteImportBackend` | `savedKeys` built in sharing, passed to imports |
+| 7 | `slices/consent-analytics.ts` (+ `configureVisitorConsentAnalytics`) | the `siteConsent` write and the analytics configuration — **not** the `registerContentAnalytics` await | |
+| 8 | `stages/after-assembly.ts` `composeAfterAssemblyStage(required: { …, markPluginHostReady: () => void }, optional = {})` (sync) calling 1-7; the root passes `markPluginHostReady: () => { routeDepsBuiltForPluginHost = routeDeps; }` and deletes its own write in the same commit (DESIGN §2.3). `startSettingsRegistration` and `siteAppBootWorkByDeps` reach it as values |
+
+## Carries
+| behaviour (base lines) | pin |
+|---|---|
+| host attach then cell write then runtime attach (2817-2822): `getPluginHost()` answers during `attachEnabledPluginsAtBoot` | S0 pin 3b + new `plugin-host.unit.test.ts`: the fake runtime's attach observes the host through the getter; mutation (call `markPluginHostReady` after `startPluginRuntime`) → red |
+| boot drain waits on every boot promise in the same set (2823-2830) | S0 pin 5; `plugin-host.unit.test.ts` with pending fakes |
+| media credentials provided last (2831) | S0 pin 3e (now: `provideMediaCredentials(` after `attachEnabledPluginsAtBoot(` inside `plugin-host.ts`) |
+| module identity of the boot-work map (`site-app-boot-work.ts`) | `sqlite-create-site-app-module-identity.integration.test.ts` (wide); `expect-count` below |
+| sharing failure leaves `siteShareBackend` undefined + one error line; success sets it; imports reuse `savedKeys` (2834-2929) | S4's `site-sharing.unit.test.ts`; `site-share-wiring`, `site-backup-wiring` (wide) |
+| forms: the 5 writes in order (2747-2756) | `serving-app-boot-wiring` (repointed); `form-delivery*.test.ts` (wide) |
+| commerce close registered at the same position (2815) | S0 pin 5; `commerce.integration` (wide) |
+| consent service bound to the assembled deps; content analytics registered last and awaited by the root (2930-2932) | widened await list (S0 pin 6); `site-consent.ports.unit.test.ts` |
 
 ## STOP
 ```bash
-D=apps/website/src/server/runtime/composition
-test "$(grep -rn 'siteAppBootWorkByDeps.set(' $D/deps.ts $D/site-deps | wc -l)" = 1 || echo "STOP: boot-work map written more than once"
-grep -rn 'routeDepsBuiltForPluginHost = routeDeps' $D/deps.ts | wc -l | grep -qx 1 || echo "STOP: the plugin-host cell write left the root"
-grep -rq 'attachEnabledPluginsAtBoot' $D/site-deps || echo "STOP: runtime attach missing"
+set -euo pipefail
+G="bash designs/deps-split/work/gates.sh"; D=apps/website/src/server/runtime/composition
+$G expect-count S12-BOOT-WORK-ONCE 1 'siteAppBootWorkByDeps\.set\(' $D/deps.ts $D/site-deps
+$G expect-count S12-HOST-CELL-WRITE 1 'routeDepsBuiltForPluginHost = routeDeps' $D/deps.ts
+$G expect-count S12-RUNTIME-ATTACH 1 'attachEnabledPluginsAtBoot\(' $D/site-deps
+$G expect-count S12-LAST-AWAIT-IN-ROOT 1 '^  await registerContentAnalytics\(' $D/deps.ts
+$G forbid S12-ASYNC-SLICE '^(export )?async function|^  (const [^=]+= )?await ' $D/site-deps/slices/widget-adoption.ts $D/site-deps/slices/forms.ts $D/site-deps/slices/site-search.ts $D/site-deps/slices/commerce.ts $D/site-deps/slices/plugin-host.ts $D/site-deps/slices/site-sharing.ts $D/site-deps/slices/site-imports.ts $D/site-deps/slices/consent-analytics.ts $D/site-deps/stages/after-assembly.ts
 ```
-Gates: COMMON §5; `site-root.late-contracts.pin.test.ts` (b), (e) and `site-root.teardown.pin.test.ts` every commit; `site-share-wiring`, `site-backup-wiring`, `commerce.integration`, `form-delivery*.test.ts`, `sqlite-create-site-app-module-identity.integration.test.ts` at sheet end.
+Gates: COMMON §5.

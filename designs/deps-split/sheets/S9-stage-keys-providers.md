@@ -1,23 +1,38 @@
-# S9 — stage `keys-providers` (rows E1-E5)
+# S9 — keys and providers (E1-E5) around three root awaits
 
-Responsibility: statements 112-143 (`f0613d9e` 1701-1890). Budget ≤180k. Commits: 6.
-Prerequisites: S8. COMMON §2, §3, §9.
+Responsibility: bindings `runtimeMode` … the observed-store binding statements (`f0613d9e` 1701-1890). Three root awaits sit inside this range and **stay in the root, verbatim**: `await normalizeSiteVaultAtBoot(…)` (1795), `… = await composeProviderConfig(…)` (1822), `const providerPlugins = await providerPluginBoot({ overrides })(…)` (1844). Budget ≤170k. Commits: 6. Prerequisites: S8; COMMON §1-§3, §9 (`DS_SHEET=S9`).
 
-| commit | slice | statements | async | getters | returns |
-|---|---|---|---|---|---|
-| 1 | `slices/site-keys.ts` (+ `compositionSiteKeySources`) | 112-120 | no | — | `runtimeMode`, `siteDirForKeyring`, `siteKeySourcesList`, `memberRepo`, `newsletterKeyring`, `newsletterSubscriberDirectory`, `newsletterHooks`, `siteAssistantSecretKeyring`, `siteAssistantSecretSealer` |
-| 2 | `slices/assistant-secrets.ts` | 121-126 | **yes** (121 `await normalizeSiteVaultAtBoot`, must finish before 122 — pinned by `composition-boot-order:177-180`) | — | `siteAssistantCredentialRepo`, `externalMcpServerRepo`, `externalMcpOAuthDevices`, `siteReferenceRepo`, `projectKeyReferences` |
-| 3 | `slices/provider-config.ts` (+ `compositionCustomCredentials` from S4) | 127-130 | yes (127) | — | `savedProviderConfig`, `projectId`, `projectVault`, `projectStore`, `projectSiteId`, `providerConfigSource`, `customCredentialSetRepo` |
-| 4 | `slices/provider-plugins.ts` (+ `compositionProjectKeys` from S4) | 131-132, 134-136 — statement 133 (`let bindSharedApiOAuth`) is a root cell: move the `let` to the top of the closure in this commit (undefined until 2113; read only inside `bindOAuth`) | yes (131) | `bindSharedApiOAuth: () => bindSharedApiOAuth` | `providerPlugins`, `projectKeys` |
-| 5 | `slices/observed-stores.ts` (+ `flushLifecycleEvents`) | 141-143 only. 137-140 stay in the closure, in order (DESIGN §2.3): destructure 137, write 138, call 139, write 140, then `bindObservedStores(...)` | no | — | — |
-| 6 | `stages/keys-providers.ts` | 112-136 (E1-E4; E5 stays in the closure) | yes | | |
+| commit | slice (sync) | bindings | position | returns |
+|---|---|---|---|---|
+| 1 | `slices/site-keys.ts` (+ `compositionSiteKeySources`) | `runtimeMode` … `siteAssistantSecretSealer` | before the vault await | `runtimeMode`, `siteDirForKeyring`, `siteKeySourcesList`, `memberRepo`, `newsletterKeyring`, `newsletterSubscriberDirectory`, `newsletterHooks`, `siteAssistantSecretKeyring`, `siteAssistantSecretSealer` |
+| 2 | `slices/assistant-secrets.ts` | `siteAssistantCredentialRepo` … `projectKeyReferences` | after the vault await, before `composeProviderConfig` | same names |
+| 3 | `slices/provider-config.ts` (+ `compositionCustomCredentials` from S4) | `providerConfigSource`, `customCredentialSetRepo` | after `composeProviderConfig`, before provider boot | same |
+| 4 | `slices/provider-boot-input.ts` `providerBootInput(required)` | the argument object of the provider-boot call (`processRole` … `...createTelemetryConsent(…)`), written **inside** the call: `await providerPluginBoot({ overrides })(providerBootInput({ … }))` so the callee is evaluated before the arguments, as today | in the call | the object |
+| 5 | `slices/provider-plugins.ts` (+ `compositionProjectKeys` from S4) | the dispose registration, `projectKeys`, the provider-revision watch registration; the cell `bindSharedApiOAuth` moves to the top of the closure | after provider boot | `projectKeys` |
+| 6 | `slices/observed-stores.ts` (+ `flushLifecycleEvents`) `bindObservedStores(required)` | the three statements after `lifecycleTracker = tracker` | after the root writes | — |
 
-`composition-boot-order.unit.test.ts:166-174` lists three of the four post-boot-promise awaits by exact text (`normalizeSiteVaultAtBoot`, `composeProviderConfig`, `providerPluginBoot`): per COMMON §9 rule 7, the closure line becomes `const { … } = await composeKeysProvidersStage(…)` and each original line is pinned verbatim inside its slice file, in order.
+The destructuring of `observability, tracker, aiTraceSink`, the writes `formCollectionProviders = …`, `setServerLogTraceReader(…)`, `lifecycleTracker = tracker` **stay in the root, in that order** (DESIGN §2.3). No `stages/keys-providers.ts` spans an await: commits 1-3 and 5 are called directly by the root between its awaits (a stage file groups only consecutive sync calls — here none have two neighbours, so there is no stage file; DESIGN §2.2 segments s2-s5).
+
+## Carries
+| behaviour (base lines) | pin |
+|---|---|
+| vault fence: credential consumers are constructed only after normalization finished (1786-1799) | `composition-boot-order` assertions `keyring < normalize < credentials`: `keyring` and `credentials` anchors now read the slice call order in the root (`composeSiteKeys(` < `await normalizeSiteVaultAtBoot(` < `composeAssistantSecrets(`) + verbatim anchors inside the slices |
+| the five post-boot-promise awaits stay exactly those lines, in order | `composition-boot-order` widened list (S0 pin 6) — unchanged text except identifiers the move renames |
+| provider disposal before plugin-runtime disposal at teardown (1852-1857) | S0 pin 5 (recording `dispose`) |
+| provider revision watch registered on close and reapplies through the provider runtime (1878-1882) | `deps-provider-plugin-boot.integration.test.ts`, `deps-project-credentials.integration.test.ts` |
+| OAuth binding late-bound: exact domain error until bound (1858-1877) | S4's `composition-project-keys.unit.test.ts`; S0 pin 3a |
+| logger bindings: every moved `consoleLogger` use receives the root's logger (E3 handoff) | `gates.sh loggers` + `forbid` below |
+| process-global trace reader set once at the same position (1886) | `expect-count` below; `deps-observability-wiring.integration.test.ts` |
+| lifecycle buffer flushed once after the swap (1887-1890) | S0 pin 3c |
 
 ## STOP
 ```bash
-D=apps/website/src/server/runtime/composition
-test "$(grep -rl 'Shared connections are not available yet. Reopen this saved connection and try again.' $D/deps.ts $D/site-deps | wc -l)" = 1 || echo "STOP: the domain-error text moved or duplicated"
-test "$(grep -rn 'setServerLogTraceReader(' $D/deps.ts $D/site-deps | wc -l)" = 1 || echo "STOP: trace reader set more than once"
+set -euo pipefail
+G="bash designs/deps-split/work/gates.sh"; D=apps/website/src/server/runtime/composition
+$G expect-count S9-DOMAIN-ERROR-ONCE 1 'Shared connections are not available yet\. Reopen this saved connection and try again\.' $D/deps.ts $D/site-deps
+$G expect-count S9-TRACE-READER-ONCE 1 'setServerLogTraceReader\(' $D/deps.ts $D/site-deps
+$G expect-count S9-ROOT-AWAITS 3 '^  (const [^=]+= )?await (normalizeSiteVaultAtBoot|composeProviderConfig|providerPluginBoot)\(' $D/deps.ts
+$G forbid S9-ASYNC-SLICE '^(export )?async function|^  (const [^=]+= )?await ' $D/site-deps/slices/site-keys.ts $D/site-deps/slices/assistant-secrets.ts $D/site-deps/slices/provider-config.ts $D/site-deps/slices/provider-boot-input.ts $D/site-deps/slices/provider-plugins.ts $D/site-deps/slices/observed-stores.ts
+$G forbid S9-CONSOLE-IN-SLICE 'consoleLogger' $D/site-deps
 ```
-Gates: COMMON §5; `site-root.late-contracts.pin.test.ts` (a), (c) every commit; `deps-observability-wiring`, `deps-provider-plugin-boot`, `deps-project-credentials` integration tests every commit.
+(The root-await pattern counts the `const { … } = await composeProviderConfig(` form too: `const [^=]+= ` spans the destructuring.) Gates: COMMON §5; `deps-observability-wiring`, `deps-provider-plugin-boot`, `deps-project-credentials` are in `tests sr`.

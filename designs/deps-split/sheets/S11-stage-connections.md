@@ -1,23 +1,34 @@
-# S11 — stage `connections` (H1-H3) and the shared guarded outbound client
+# S11 — connections (H1-H3); one outbound HTTP owner for both roots
 
-Responsibility: statements 168-182 (`f0613d9e` 2079-2133) + `composition/guarded-outbound-http.ts` used by both roots (design 02 §2.5, size-02 step 6 prerequisite). Budget ≤130k. Commits: 5.
-Prerequisites: S10. COMMON §2, §3, §9.
-```bash
-git ls-files apps/website/src/server/runtime/composition/memory-deps/slices/outbound-http.ts | grep -q . || echo "NOTE: memory root copy absent — commit 1 creates the shared file for deps.ts only"
-```
+Responsibility: bindings `guardedOutboundHttpClient` … `agentPluginMcp` (`f0613d9e` 2079-2133) and moving the existing `composeMemoryOutboundHttp` to a shared owner. **No new client factory** (REVISION-2: over-engineering item): `memory-deps/slices/outbound-http.ts` already builds the same guarded client and OAuth ports, byte for byte as `deps.ts` 2079-2089. Budget ≤120k. Commits: 5. Prerequisites: S10; COMMON §1-§3, §9 (`DS_SHEET=S11`). `app.ts` is a **shared** file (size-02 lanes; `wave2/size02-step5` and `refactor/size-02-app` already conflict with the base on it — NOTE lines in `freeze`); this sheet edits only its import line and the one call line.
 
 | commit | change |
 |---|---|
-| 1 | Share check, red-first: a test `guarded-outbound-http.policy.pin.test.ts` asserts with `toEqual`-style `assert.deepEqual` the policy object of today's `deps.ts:2079-2087` (`allowedSchemes ["https","http"]`, `denyPrivateAddresses true`, `devHostAllowlist []`, `maxRedirects 0`, `connectTimeoutMs 600000`, `maxResponseBytes`/`maxDecompressedBytes` 96 MiB, `userAgent "Tovu/0.1.0"`) **and** of `memory-deps/slices/outbound-http.ts`. If the two differ, STOP: different contracts are not shared (report the diff). If equal: create `composition/guarded-outbound-http.ts` `createTovuGuardedOutboundHttpClient(required, optional = {})`; both roots call it; the memory copy is deleted, its importers repointed (no forwarder) |
-| 2 | `slices/outbound-origin.ts` (+ `resolveCompositionPublicOrigin` from S4): 168-171 → `guardedOutboundHttpClient`, `externalMcpOAuthHttpPorts`, `derivedPublicOrigin` |
-| 3 | `slices/agent-connections.ts`: `composeAgentConnections` (172) and `refreshAdminSurfaces` (174). Closure: call 172, **write 173 in the closure**, call 174 (DESIGN §2.3) |
-| 4 | `slices/readiness.ts`: 175-182 except the root cell lines 178-179 (`let resolveRouteDeps` + `routeDepsBuilt`): move those two to the top of the closure in this commit (nothing awaits `routeDepsBuilt` before 180); the slice receives `routeDepsBuilt` and `routeDeps` getter |
-| 5 | `stages/connections.ts` for 168-171 and 175-182 around the closure-held 172-174 — or, if the stage cannot be contiguous, two stage functions `composeOutboundStage` (H1) and `composeReadinessStage` (H3); record which |
+| 1 | `git mv composition/memory-deps/slices/outbound-http.ts composition/outbound-http.ts`; rename `composeMemoryOutboundHttp` → `composeOutboundHttp`; add the optional port `optional.createHttpClient` (default: the guarded factory it imports today) so its test needs no module mock. Callers: `app.ts` import (line 5) and call (line 370); `deps.ts` replaces its own two statements with `const { externalMcpOAuthHttpPorts, guardedOutboundHttpClient } = composeOutboundHttp();` **keeping both why-comment blocks above the call** (they stay true there). Test: `memory-deps/__tests__/outbound-http.test.ts` → `composition/__tests__/outbound-http.test.ts`, `mock.module` replaced by an interface fake passed as `optional.createHttpClient` that records the config and delegates to the real factory; every assertion kept (one client per call, `userAgent`, the policy `deepEqual`, both ports present, a second call builds a second client). `external-mcp-oauth-loopback-wiring.unit.test.ts:64`: the file list becomes `["../outbound-http.ts"]` and a new test asserts each root calls `composeOutboundHttp(` exactly once (`app.ts`, and `deps.ts` + `site-deps/**`) — test count unchanged |
+| 2 | `slices/public-origin.ts` (+ `resolveCompositionPublicOrigin` from S4): `derivedPublicOrigin` |
+| 3 | `slices/agent-connections.ts`: `composeAgentConnections` (`agentPluginConnections`) and `refreshAdminSurfaces` (`adminSurfaceHandlersReady`). Root: call 1, **write `bindSharedApiOAuth = agentPluginConnections.apiConnections.host.sharedOAuth?.bind;` in the root**, call 2 (DESIGN §2.3) |
+| 4 | `slices/readiness.ts`: `siteAppBootWork` … `agentPluginMcp` minus the cells `resolveRouteDeps`/`routeDepsBuilt` (moved to the top of the closure in this commit; nothing awaits `routeDepsBuilt` before `siteConsentReady`); receives `routeDepsBuilt` (value) and `routeDeps` (getter) |
+| 5 | `stages/connections.ts` only if two adjacent sync calls remain (H1 + public origin); otherwise none — record which |
+
+## Carries
+| behaviour (base lines) | pin |
+|---|---|
+| one egress policy literal for both roots: https/http, private addresses denied, no redirects, 10 min, 96 MiB, `Tovu/0.1.0` (2079-2087) | moved `outbound-http.test.ts` (deep-equal policy, fresh client per call); `expect-count` below counts the policy line in **production composition files only** (the DNS policy in `domain-dns-adapters.ts:15` has different values and is not counted) |
+| OAuth loopback exception only on desktop (2089) | `external-mcp-oauth-loopback-wiring.unit.test.ts` (both roots via the shared owner + the call-once test) |
+| shared OAuth binding written after connections exist, before the admin-surface refresh (2113) | S0 pin 3a; `expect-count` below |
+| admin-surface boot failure only warns, exact text (2115-2117) | `agent-connections.unit.test.ts` with a rejecting fake host → the exact `console.warn` text |
+| consent readiness awaits the route-deps promise (2125-2130) | `readiness.unit.test.ts`: `siteConsentReady` pending until `resolveRouteDeps` is called |
+| memory root unchanged in behaviour | `memory-route-deps.test.ts` and `memory-deps/__tests__/*` (in `tests sr`) |
 
 ## STOP
 ```bash
-D=apps/website/src/server/runtime/composition
-grep -rn 'denyPrivateAddresses' $D --include=*.ts | grep -v __tests__ | wc -l | grep -qx 1 || echo "STOP: the egress policy literal exists in more than one place"
-grep -n 'bindSharedApiOAuth = ' $D/deps.ts | wc -l | grep -qx 1 || echo "STOP: the bindSharedApiOAuth write left the closure"
+set -euo pipefail
+G="bash designs/deps-split/work/gates.sh"; D=apps/website/src/server/runtime/composition
+$G expect-count S11-ONE-EGRESS-POLICY 1 'maxRedirects: 0, connectTimeoutMs: 10 \* 60 \* 1000' $D/outbound-http.ts $D/deps.ts $D/app.ts $D/site-deps $D/memory-deps/slices
+$G absent S11-OLD-OWNER $D/memory-deps/slices/outbound-http.ts
+$G expect-count S11-ROOT-WRITE 1 '^  bindSharedApiOAuth = ' $D/deps.ts
+$G expect-count S11-APP-CALL 1 'composeOutboundHttp\(' $D/app.ts
+$G forbid S11-MODULE-MOCK 'mock\.module\(' $D/__tests__/outbound-http.test.ts
+$G forbid S11-ASYNC-SLICE '^(export )?async function|^  (const [^=]+= )?await ' $D/site-deps/slices/public-origin.ts $D/site-deps/slices/agent-connections.ts $D/site-deps/slices/readiness.ts
 ```
-Gates: COMMON §5; `site-root.late-contracts.pin.test.ts` (a) every commit; `external-mcp-oauth-loopback-wiring.unit.test.ts`, `memory-route-deps.test.ts` at sheet end.
+Gates: COMMON §5.

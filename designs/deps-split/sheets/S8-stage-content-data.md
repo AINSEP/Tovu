@@ -1,22 +1,28 @@
-# S8 — stage `content-data` (rows D1-D4)
+# S8 — stage `content-data` (D1-D4)
 
-Responsibility: statements 86-111 (`f0613d9e` 1589-1693). Budget ≤120k. Commits: 5.
-Prerequisites: S7. COMMON §2, §3, §9.
+Responsibility: bindings `databaseJournalDbPath` … `commentsCapability` (`f0613d9e` 1589-1693). The cell `formCollectionProviders` moves to the top of the closure in commit 2 (a pure arrow; nothing reads it before `wireCoreResolvers` — check: `awk -F'\t' 'NR>2 && ($10 ~ /formCollectionProviders/ || $11 ~ /formCollectionProviders/) {print $1, $2}' designs/deps-split/work/closure-census.tsv` prints only the resolver, comments-capability and literal rows). Budget ≤120k. Commits: 5. Prerequisites: S7; COMMON §1-§3, §9 (`DS_SHEET=S8`).
 
-| commit | slice | statements | getters | returns |
+| commit | slice | bindings | getters | returns |
 |---|---|---|---|---|
-| 1 | `slices/database-journal.ts` | 86-95 (the `mkdirSync` and the journal `onStoreClose` move in order) | — | `databaseJournalDb`, `databaseLedgerRepo`, `migrationRunsRepo`, `publishContentRunRepo`, `restorePointsRepo`, `dbOps`, `databaseIntrospection` |
-| 2 | `slices/content-repos.ts` | 96-104, 106-108 — **statement 105 (`let formCollectionProviders = …`) is a root cell**: the closure keeps it at its position between the two calls, or (if the slice must be contiguous) the `let` moves up to the top of the closure in this commit (a pure arrow; nothing reads it before 1637 — `awk -F'\t' '$10 ~ /formCollectionProviders/ || $11 ~ /formCollectionProviders/ {print $1}' work/closure-census.tsv` prints only rows ≥ 109) | — | `entryRepo`, `sqliteEntryTermRepo`, `taxonomyRepo`, `termRepo`, `taxonomyRevisionRepo`, `stampWatermark`, `widgetBindingRepo`, `entryRefsRepo`, `formDefinitionRepo`, `formSubmissionRepo`, `contentTypeRepo`, `contentTypeIndexProvisioner` |
-| 3 | `slices/core-resolvers.ts` | 109 | `mediaRepo`, `mediaContentTypeStore`, `postRepo`, `routeDeps`, `formCollectionProviders: () => formCollectionProviders()` (keeps the call-time indirection 1666 verbatim) | — |
-| 4 | `slices/comments.ts` | 110-111 | `postRepo` | `commentsModule`, `commentsCapability` |
-| 5 | `stages/content-data.ts` | 86-111 | | |
+| 1 | `slices/database-journal.ts` | `databaseJournalDbPath` … `databaseIntrospection` (the `mkdirSync` and the journal `onStoreClose` in order) | — | `databaseJournalDb`, `databaseLedgerRepo`, `migrationRunsRepo`, `publishContentRunRepo`, `restorePointsRepo`, `dbOps`, `databaseIntrospection` |
+| 2 | `slices/content-repos.ts` | `entryRepo` … `contentTypeIndexProvisioner` minus the `formCollectionProviders` cell | — | the 12 repos |
+| 3 | `slices/core-resolvers.ts` | the `wireCoreResolvers(…)` statement | `mediaRepo`, `mediaContentTypeStore`, `postRepo`, `routeDeps`, `formCollectionProviders: () => formCollectionProviders()` (the call-time indirection verbatim) | — |
+| 4 | `slices/comments.ts` | `commentsModule`, `commentsCapability` | `postRepo` | same |
+| 5 | `stages/content-data.ts` (sync) | 1-4 | | |
 
-`wireCoreResolvers` writes a process-global registry in `@jini-ai/cms/widgets`: called exactly once, same position.
+## Carries
+| behaviour (base lines) | pin |
+|---|---|
+| resolver fallback: empty registry until provider boot, provider registry after, read per call (1637, 1652-1669, 1884) | S0 pin 3d; new `core-resolvers.unit.test.ts`: the slice wires with a getter, flipping the getter after wiring changes the answer (mutation: call the getter at wiring → red) |
+| process-global widget registry written exactly once (1652) | `expect-count` below; `create-core-resolvers.unit.test.ts` (wide) |
+| journal close hook registered at the same position (1593) | S0 pin 5 |
+| comment write chain uses the same repos/capability (1670-1693) | comment route tests (wide); S0 pin 1 (keys + types) |
 
 ## STOP
 ```bash
-D=apps/website/src/server/runtime/composition
-test "$(grep -rn 'wireCoreResolvers(' $D/deps.ts $D/site-deps | wc -l)" = 1 || echo "STOP: wireCoreResolvers called more than once in the site root"
-grep -nE '^  (const [^=]+= )?await ' $D/site-deps/slices/{database-journal,content-repos,core-resolvers,comments}.ts && echo "STOP: became async"
+set -euo pipefail
+G="bash designs/deps-split/work/gates.sh"; D=apps/website/src/server/runtime/composition
+$G expect-count S8-WIRE-ONCE 1 'wireCoreResolvers\(' $D/deps.ts $D/site-deps
+$G forbid S8-ASYNC-SLICE '^(export )?async function|^  (const [^=]+= )?await ' $D/site-deps/slices/database-journal.ts $D/site-deps/slices/content-repos.ts $D/site-deps/slices/core-resolvers.ts $D/site-deps/slices/comments.ts $D/site-deps/stages/content-data.ts
 ```
-Gates: COMMON §5; `site-root.late-contracts.pin.test.ts` (d) every commit; `create-core-resolvers.unit.test.ts` at sheet end.
+Gates: COMMON §5.
