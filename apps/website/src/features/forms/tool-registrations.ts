@@ -1,7 +1,3 @@
-import { createFormCollectionRegistry, describeFormCollectionProviders, type FormCollectionRegistry } from "@jini-ai/cms/forms";
-import type { FormAuthoring } from "@jini-ai/cms/forms";
-import type { FormProviderSelection } from "@jini-ai/core/contracts/forms";
-import { toolMetadata } from '../../contracts/core/tool-metadata/forms.js';
 /**
  * @file Forms' half of ADR-049 Decision 4 (SPEC-010): maps `agent-tools.ts`'s five catalog entries
  * onto the three `write-service.ts` operations plus the two submission reads, as `ToolRegistration`s.
@@ -17,50 +13,50 @@ import { toolMetadata } from '../../contracts/core/tool-metadata/forms.js';
  * three self-enforcing tools would be a duplicate evaluator, and a `ToolPolicy`-only check would be
  * bypassable by any future non-tool caller of the same domain function.
  */
+import {
+  buildDomainRegistrations,
+  type AgentToolSideEffect,
+  type DerivedRiskByToolId,
+  type ToolContributor,
+  type ToolHandler,
+  type ToolRegistration,
+} from "@jini-ai/core";
+import { ForbiddenError } from "@jini-ai/cms/core";
+import type { AuthorizeFn, ChangeSetRepoPort, OutboxPort } from "@jini-ai/core/contracts/events";
 import type { Clock, IdGenerator } from "@jini-ai/core/primitives";
-import type { AuthorizeFn, ChangeSetRepoPort } from "@jini-ai/core/contracts/events";
-import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, optionalString, requireInputRecord, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { ForbiddenError, adaptLegacyAuthorize, requireToolPermission } from "@jini-ai/cms/core";
-import { type OutboxPort } from "@jini-ai/core/contracts/events";
-import { ToolInputError } from "@jini-ai/core";
-import { requireExpectedVersion, versionConflictRule } from "@jini-ai/core/optimistic-concurrency";
-import type { ToolContributor } from "@jini-ai/core";
-import type { DuplicateResourceHandlerContributor } from "../../assistant/tool-contributions.js";
+import { versionConflictRule } from "@jini-ai/core/optimistic-concurrency";
 import { forbiddenRule, withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
-import { DELIVERY_STATUS_MAX_LIMIT, formsAgentToolCatalog } from "./agent-tools.js";
-import type { FormSubmissionsPullPort } from "./import-remote-submissions.js";
-import type { FormDeliveryStatusPort, FormDeliveryStatusRow } from "./delivery-status.js";
-import { deriveAvailableFormSlug } from "@jini-ai/cms/forms";
-import { formSlugPolicy } from "./index.js";
-import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
 import {
   FormDefinitionNotFoundError,
-  FormFieldValidationError,
   FormRateLimitExceededError,
   FormSlugConflictError,
   FormSubmissionNotFoundError,
   FormSubmissionValidationError,
+  type FormCollectionRegistry,
+  type FormCommandExecutorPort,
+  type FormDefinitionRepoPort,
+  type FormSubmissionRepoPort,
 } from "@jini-ai/cms/forms";
-import type { FormDefinitionRepoPort, FormCommandExecutorPort } from "@jini-ai/cms/forms";
-import { type FormSubmissionRepoPort } from "@jini-ai/cms/forms";
-import type {
-  FieldDescriptor,
-  FormDefinitionRecord,
-  FormDefinitionStatus,
-  FormSubmissionRecord,
-  NotifyConfig,
-} from "@jini-ai/cms/forms";
+import type { DuplicateResourceHandlerContributor } from "../../assistant/tool-contributions.js";
+import { toolMetadata } from "../../contracts/core/tool-metadata/forms.js";
+import { deriveDuplicateName } from "../content-duplication/derive-available-name.js";
+import type { FormDeliveryStatusPort } from "./delivery-status.js";
+import { duplicateFormDefinition } from "./duplicate-form.js";
+import type { FormSubmissionsPullPort } from "./import-remote-submissions.js";
 import {
-  createFormDefinition,
-  setFormDefinitionStatus,
-  updateFormDefinition,
-} from "#src/features/forms/index";
-
-const SUBMISSIONS_DEFAULT_LIMIT = 50;
-const SUBMISSIONS_MIN_LIMIT = 1;
-const SUBMISSIONS_MAX_LIMIT = 100;
-
-const CATALOG_BY_ID = indexCatalogById({ catalog: formsAgentToolCatalog });
+  CATALOG_BY_ID,
+  formsCreateDefinitionHandler,
+  formsListDefinitionsHandler,
+  formsListProvidersHandler,
+  formsSetDefinitionStatusHandler,
+  formsUpdateDefinitionHandler,
+} from "./tool-handlers.definitions.js";
+import {
+  formsDeliveryStatusHandler,
+  formsGetSubmissionHandler,
+  formsListSubmissionsHandler,
+  formsPullSubmissionsHandler,
+} from "./tool-handlers.submissions.js";
 
 /**
  * The exact slice of the route-deps bag Forms' tool handlers read. Declared structurally (rather
@@ -115,183 +111,6 @@ export const formsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSi
 ]);
 
 /**
- * The only Forms rejection worth decorating with the published schema.
- *
- * A `ForbiddenError` or `FormSlugConflictError` is not a shape problem, and appending a schema to
- * those would be noise the model must read past — worse, it would imply the call is retryable.
- */
-function isFormsShapeRejection({ error }: { error: unknown }): boolean {
-  return error instanceof FormFieldValidationError;
-}
-
-/** What a Forms tool returns to the model — see {@link toFormDefinitionView}. */
-interface FormDefinitionToolView extends FormAuthoring {
-  id: string;
-  name: string;
-  slug: string;
-  status: FormDefinitionStatus;
-  version: number;
-  fields: FieldDescriptor[];
-  notify: NotifyConfig;
-}
-
-/**
- * Projects a `FormDefinitionRecord` into an explicit model-facing shape rather than returning the
- * domain record verbatim — the same discipline content-types' `toContentTypeView` applies.
- *
- * `workspaceId` is dropped (the agent is already scoped to one workspace it cannot change, so the
- * id can never inform a decision) along with `createdAt`/`updatedAt` (timestamps no follow-up call
- * consumes). `id` is deliberately KEPT: every mutating Forms tool takes `formId`, so the model
- * needs it to make a correct follow-up call without re-reading. `slug` is kept because it is
- * immutable and is what a human will recognize the form by.
- *
- * @param record - The definition as the domain returned it.
- * @returns The model-facing view, with `fields`/`notify.recipients` copied so a tool caller cannot
- * mutate domain state through the returned object.
- * @complexity O(f) in the field count.
- * @overallScore 100
- */
-function toFormDefinitionView(record: FormDefinitionRecord): FormDefinitionToolView {
-  const authoring = record as FormDefinitionRecord & FormAuthoring;
-  return {
-    id: record.id,
-    name: record.name,
-    slug: record.slug,
-    status: record.status,
-    version: record.version,
-    fields: record.fields.map((field) => ({ ...field })),
-    notify: { enabled: record.notify.enabled, recipients: [...record.notify.recipients] },
-    ...(authoring.mode === undefined ? {} : { mode: authoring.mode }),
-    ...(authoring.html === undefined ? {} : { html: authoring.html }),
-    ...(authoring.provider ? { provider: authoring.provider } : {}),
-  };
-}
-
-/** What a submission tool returns to the model — see {@link toFormSubmissionView}. */
-interface FormSubmissionToolView {
-  id: string;
-  formDefinitionId: string;
-  data: FormSubmissionRecord["data"];
-  sourceIp: string;
-  submittedAt: string;
-}
-
-/**
- * Projects a `FormSubmissionRecord` into the explicit model-facing shape, the same discipline
- * `toFormDefinitionView` applies just above. `workspaceId` is dropped for the identical reason —
- * the agent is already scoped to one workspace it cannot change. `sourceIp` is deliberately KEPT:
- * it is the same field value the human admin submissions screen already displays under this same
- * `admin.forms.submissions.read` permission (see `agent-tools.ts`'s file header), not a new
- * exposure this tool introduces.
- *
- * @param record - The submission as the domain returned it.
- * @returns The model-facing view, with `data` copied so a tool caller cannot mutate domain state
- * through the returned object.
- * @complexity O(f) in the submission's field count.
- * @overallScore 100
- */
-function toFormSubmissionView(record: FormSubmissionRecord): FormSubmissionToolView {
-  return {
-    id: record.id,
-    formDefinitionId: record.formDefinitionId,
-    data: { ...record.data },
-    // cms-forms 0.2.2 types an expired IP as null; this view keeps repo.rows.ts's empty string.
-    sourceIp: record.sourceIp ?? "",
-    submittedAt: record.submittedAt,
-  };
-}
-
-/** Reads and range-checks `limit`, mirroring `apps/website/src/server/inbound/admin-http/routes/forms/list-submissions.ts`'s own check.
- *  `forms_list_submissions` has no `withSchemaOnRejection` wrap (unlike the three definition tools
- *  below), so this throws `ToolInputError` directly rather than a domain error class a predicate
- *  would need to recognize — same shape every other unwrapped ad-hoc validator in this codebase
- *  uses (e.g. `features/taxonomy/tool-registrations.ts`'s `termIds` check). */
-function requireSubmissionsLimit(input: Record<string, unknown>): number {
-  if (input.limit === undefined) return SUBMISSIONS_DEFAULT_LIMIT;
-  const limit = input.limit;
-  if (typeof limit !== "number" || !Number.isInteger(limit) || limit < SUBMISSIONS_MIN_LIMIT || limit > SUBMISSIONS_MAX_LIMIT) {
-    throw new ToolInputError({ message: `'limit' must be an integer between ${SUBMISSIONS_MIN_LIMIT} and ${SUBMISSIONS_MAX_LIMIT}` });
-  }
-  return limit;
-}
-
-/** Reads `limit` for the unfinished-deliveries listing; same unwrapped `ToolInputError` shape as
- *  {@link requireSubmissionsLimit}. */
-function requireDeliveryStatusLimit(input: Record<string, unknown>): number {
-  const limit = input.limit ?? DELIVERY_STATUS_MAX_LIMIT;
-  if (typeof limit !== "number" || !Number.isInteger(limit) || limit < 1 || limit > DELIVERY_STATUS_MAX_LIMIT) {
-    throw new ToolInputError({ message: `'limit' must be an integer between 1 and ${DELIVERY_STATUS_MAX_LIMIT}` });
-  }
-  return limit;
-}
-
-/** Copies only the reported fields, so whatever else a status row carries (now or later) never
- *  reaches the model. Error codes are already the allowlisted delivery codes. */
-function toDeliveryStatusView(row: FormDeliveryStatusRow): FormDeliveryStatusRow {
-  return { bindingId: row.bindingId, adapterId: row.adapterId, formId: row.formId, submissionId: row.submissionId,
-    status: row.status, attempts: row.attempts, nextRetryAt: row.nextRetryAt, errorCode: row.errorCode };
-}
-
-/** Binds host persistence and the audited command gateway for the Forms policy adapter. */
-function formsDeps(routeDeps: FormsToolDeps) {
-  return {
-    formCollectionProviders: routeDeps.formCollectionProviders,
-    executeCommand: routeDeps.executeCommand,
-    repo: routeDeps.formDefinitionRepo,
-    clock: routeDeps.clock,
-    idGen: routeDeps.idGen,
-    changeSets: routeDeps.changeSets,
-    outbox: routeDeps.outbox,
-    authorize: routeDeps.authorize,
-  };
-}
-
-/**
- * `forms_set_definition_status` is wrapped in `withSchemaOnRejection`/`isFormsShapeRejection`, and
- * that predicate only recognizes `FormFieldValidationError` — a bare `Error` thrown here would never
- * match it and would reach `@jini-ai/daemon`'s `ToolExecutor` as `errorKind: 'internal'`, redacted to
- * a message-stripped 500 by `@jini-ai/http-kit`'s `delegatedToolExecuteRoute` (SEC-005). Throwing the
- * SAME domain error class the predicate already recognizes (rather than broadening the predicate to
- * also accept a generic `ToolInputError`) is the convention every sibling domain's own
- * `isShapeRejection` follows — `theme`/`sites`/`site-inspection`'s predicates each stay a fixed,
- * narrow allowlist of domain-specific classes, and a new ad-hoc check adopts one of those (existing
- * or freshly declared) rather than widening the allowlist to a generic marker.
- */
-function requireFormsStatus(input: Record<string, unknown>): FormDefinitionStatus {
-  const value = input.status;
-  if (value !== "active" && value !== "disabled") {
-    throw new FormFieldValidationError({ message: "'status' must be exactly 'active' or 'disabled'", fieldErrors: [] });
-  }
-  return value;
-}
-
-/**
- * Reads the optional patch members of `forms_update_definition`.
- *
- * An empty patch is refused rather than accepted as a no-op. `updateFormDefinition` would happily
- * re-save the unchanged record, and the tool would report success for a call that changed nothing —
- * which teaches the model its call worked. The human PUT route can tolerate that; a tool must not.
- *
- * `forms_update_definition` is wrapped in `withSchemaOnRejection`/`isFormsShapeRejection` the same
- * way `forms_set_definition_status` is — see {@link requireFormsStatus}'s doc for why this throws
- * `FormFieldValidationError` rather than a bare `Error` or a generic `ToolInputError`.
- *
- * @complexity O(1).
- * @overallScore 100
- */
-function requireFormsPatch(input: Record<string, unknown>): { name?: string; fields?: FieldDescriptor[]; notify?: NotifyConfig } & FormAuthoring {
-  const patch: { name?: string; fields?: FieldDescriptor[]; notify?: NotifyConfig } & FormAuthoring = {};
-  if (typeof input.name === "string") patch.name = input.name;
-  if (Array.isArray(input.fields)) patch.fields = input.fields as FieldDescriptor[];
-  if (input.notify !== undefined) patch.notify = input.notify as NotifyConfig;
-  if (input.provider !== undefined) patch.provider = input.provider as FormProviderSelection;
-  if (Object.keys(patch).length === 0) {
-    throw new FormFieldValidationError({ message: "at least one of 'name', 'fields', or 'notify' is required — 'slug' is immutable and is never updated", fieldErrors: [] });
-  }
-  return patch;
-}
-
-/**
  * The Forms errors that reach the model with their real reason instead of a redacted
  * `INTERNAL_ERROR` — see `contracts/core/model-facing-tool-errors.ts` for the mechanism and for why
  * this list is an ALLOWLIST rather than a blanket unwrap.
@@ -323,175 +142,17 @@ const FORMS_MODEL_FACING_ERRORS: readonly ModelFacingErrorRule[] = [
 ];
 
 export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistration[] {
+  const args = { deps: routeDeps };
   const handlers: Record<string, ToolHandler> = {
-    forms_list_providers: async (ctx) => {
-      await requireToolPermission({
-        authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
-        workspaceId: routeDeps.workspaceId,
-        principalId: ctx.principal.id,
-        permission: "admin.forms.manage",
-      }, { entityType: "form_definition" });
-      return { providers: describeFormCollectionProviders({ providers: routeDeps.formCollectionProviders?.() ?? createFormCollectionRegistry({}) }) };
-    },
-    forms_list_definitions: async (ctx) => {
-      await requireToolPermission({
-        authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
-        workspaceId: routeDeps.workspaceId,
-        principalId: ctx.principal.id,
-        permission: "admin.forms.manage",
-      }, { entityType: "form_definition" });
-      const definitions = await routeDeps.formDefinitionRepo.list({ workspaceId: routeDeps.workspaceId });
-      return { definitions: definitions.map(record => {
-        const view = toFormDefinitionView(record);
-        // Collection discovery stays compact; single-definition writes retain their full HTML.
-        delete view.html;
-        return view;
-      }) };
-    },
-    forms_create_definition: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      return withSchemaOnRejection({
-        toolId: "forms_create_definition",
-        catalog: CATALOG_BY_ID,
-        isShapeRejection: isFormsShapeRejection,
-        fn: async () => {
-          const { definition } = await createFormDefinition({
-            deps: formsDeps(routeDeps),
-            input: {
-              workspaceId: routeDeps.workspaceId,
-              actor: { id: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
-              name: requireString({ input, key: "name" }),
-              slug: requireString({ input, key: "slug" }),
-              fields: Array.isArray(input.fields) ? (input.fields as FieldDescriptor[]) : [],
-              notify: input.notify as NotifyConfig | undefined,
-              ...(input.provider !== undefined ? { provider: input.provider as FormProviderSelection } : {}),
-            },
-          });
-          return { definition: toFormDefinitionView(definition) };
-        },
-      });
-    },
-    forms_update_definition: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      return withSchemaOnRejection({
-        toolId: "forms_update_definition",
-        catalog: CATALOG_BY_ID,
-        isShapeRejection: isFormsShapeRejection,
-        fn: async () => {
-          const expectedVersion = requireExpectedVersion({ value: input.expectedVersion, readToolId: "content_read.form_definition" });
-          const { definition } = await updateFormDefinition({
-            deps: formsDeps(routeDeps),
-            input: {
-              workspaceId: routeDeps.workspaceId,
-              actor: { id: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
-              formId: requireString({ input, key: "formId" }),
-              patch: requireFormsPatch(input),
-            },
-          }, { expectedVersion });
-          return { definition: toFormDefinitionView(definition) };
-        },
-      });
-    },
-    forms_set_definition_status: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      return withSchemaOnRejection({
-        toolId: "forms_set_definition_status",
-        catalog: CATALOG_BY_ID,
-        isShapeRejection: isFormsShapeRejection,
-        fn: async () => {
-          const { definition } = await setFormDefinitionStatus({
-            deps: formsDeps(routeDeps),
-            input: {
-              workspaceId: routeDeps.workspaceId,
-              actor: { id: ctx.principal.id, kind: AGENT_TOOL_PRINCIPAL_KIND },
-              formId: requireString({ input, key: "formId" }),
-              status: requireFormsStatus(input),
-            },
-          });
-          return { definition: toFormDefinitionView(definition) };
-        },
-      });
-    },
-
-    forms_list_submissions: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const formId = requireString({ input, key: "formId" });
-      await requireToolPermission({
-        authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
-        workspaceId: routeDeps.workspaceId,
-        principalId: ctx.principal.id,
-        permission: "admin.forms.submissions.read",
-      }, { entityType: "form_submission" });
-
-      const definition = await routeDeps.formDefinitionRepo.findById({ workspaceId: routeDeps.workspaceId, id: formId });
-      // The shared typed class reaches the model through Tovu's explicit not-found allowlist.
-      // A bare Error cannot match that allowlist without broadening it to expose every error.
-      if (!definition) throw new FormDefinitionNotFoundError({ message: `form definition '${formId}' was not found` });
-
-      const limit = requireSubmissionsLimit(input);
-      // A non-string cursor is refused, not read as "no cursor" and page 1 (the HTTP route already refuses it).
-      const cursor = optionalString({ input, key: "cursor" });
-      const page = await routeDeps.formSubmissionRepo.listByDefinition({
-        workspaceId: routeDeps.workspaceId,
-        formDefinitionId: formId,
-        limit,
-      }, { cursor });
-      return { submissions: page.items.map(toFormSubmissionView), nextCursor: page.nextCursor };
-    },
-
-    forms_get_submission: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const formId = requireString({ input, key: "formId" });
-      const submissionId = requireString({ input, key: "submissionId" });
-      await requireToolPermission({
-        authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
-        workspaceId: routeDeps.workspaceId,
-        principalId: ctx.principal.id,
-        permission: "admin.forms.submissions.read",
-      }, { entityType: "form_submission", entityId: submissionId });
-
-      const submission = await routeDeps.formSubmissionRepo.findById({ workspaceId: routeDeps.workspaceId, id: submissionId });
-      if (!submission || submission.formDefinitionId !== formId) {
-        // Same reasoning as `forms_list_submissions` above. Note this arm deliberately answers
-        // "not found" for a submission that EXISTS under a different definition — the cross-form
-        // probe is refused with the same text as a genuine miss, and surfacing the real reason
-        // does not change that: the message names only the id the caller already supplied.
-        throw new FormSubmissionNotFoundError({ message: `submission '${submissionId}' was not found` });
-      }
-      return { submission: { ...toFormSubmissionView(submission), ...(submission.evidence ? { evidence: submission.evidence } : {}), ...(submission.validation ? { validation: submission.validation } : {}) } };
-    },
-
-    forms_delivery_status: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const submissionId = optionalString({ input, key: "submissionId" });
-      const limit = requireDeliveryStatusLimit(input);
-      await requireToolPermission({
-        authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
-        workspaceId: routeDeps.workspaceId,
-        principalId: ctx.principal.id,
-        permission: "admin.forms.submissions.read",
-      }, { entityType: "form_submission", ...(submissionId ? { entityId: submissionId } : {}) });
-      const status = routeDeps.formDeliveryStatus;
-      if (!status) throw new ToolInputError({ message: "Form delivery status is not available on this site's server. Restart the site, then try again." });
-      const workspaceId = routeDeps.workspaceId;
-      const rows = submissionId ? await status.forSubmission({ workspaceId, submissionId }) : await status.recentUnfinished({ workspaceId }, { limit });
-      return { deliveries: rows.map(toDeliveryStatusView) };
-    },
-
-    forms_pull_submissions: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const targetId = optionalString({ input, key: "targetId" });
-      await requireToolPermission({
-        authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }),
-        workspaceId: routeDeps.workspaceId,
-        principalId: ctx.principal.id,
-        permission: "admin.forms.manage",
-      }, { entityType: "form_submission" });
-      if (!routeDeps.formSubmissionsPull) {
-        throw new ToolInputError({ message: "Pulling form submissions is not available on this site's server. Restart the site, then try again." });
-      }
-      return routeDeps.formSubmissionsPull.pull({ workspaceId: routeDeps.workspaceId }, targetId ? { targetId } : {});
-    },
+    forms_list_providers: formsListProvidersHandler(args),
+    forms_list_definitions: formsListDefinitionsHandler(args),
+    forms_create_definition: formsCreateDefinitionHandler(args),
+    forms_update_definition: formsUpdateDefinitionHandler(args),
+    forms_set_definition_status: formsSetDefinitionStatusHandler(args),
+    forms_list_submissions: formsListSubmissionsHandler(args),
+    forms_get_submission: formsGetSubmissionHandler(args),
+    forms_delivery_status: formsDeliveryStatusHandler(args),
+    forms_pull_submissions: formsPullSubmissionsHandler(args),
   };
 
   // No `unwiredToolIds`: Forms wires its ENTIRE catalog, which makes a new catalog entry added
@@ -511,119 +172,6 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
 }
 
 /**
- * Forms' `"form"` implementation of `content_duplicate` — see
- * `assistant/duplicate-resource-registry.ts` for the contract, and
- * `features/post/tool-registrations.ts`'s `duplicatePostOrPage` for the sibling `"post"`/`"page"`
- * one. This is the resource that proves the generic tool's seam is real rather than a post-shaped
- * hole with a `resource` parameter bolted on: it gates on `admin.forms.manage`, NOT the
- * `content.write` post/page use, so a caller permitted to copy a page is not thereby permitted to
- * copy a form.
- *
- * No separate upfront read check, unlike `duplicatePostOrPage`'s `content.read` one: reading a form
- * definition IS `admin.forms.manage` in this domain (`forms_list_definitions` gates on exactly that
- * permission), which `content_duplicate`'s own outer gate has already established before this runs.
- * A second identical check would be the duplicate evaluator ADR-021 §2 forbids.
- *
- * What is copied: `name` (defaulting to the source's own name with a numeric suffix — see
- * `../content-duplication/derive-available-name.ts`'s header for the owner's ruling — never
- * `"Copy of <source name>"`), every field descriptor, and the notify config — all deep-copied, so
- * editing the copy can never reach back into the source row. `slug` is derived FROM that (possibly
- * numbered) name (see `duplicate-slug.ts` for why Forms needs derivation where Posts does not), so
- * `"Contact Us 2"` yields `"contact-us-2"` and the two stay in step.
- *
- * @complexity O(f) in the source's field count, plus one `formDefinitionRepo.list()` scan for the
- * default name (skipped entirely when the caller supplies an explicit `overrides.title` — see
- * {@link deriveDefaultDuplicateFormName}) plus one repo read per slug candidate tried.
- */
-/**
- * Derives `content_duplicate`'s default name for a form copy — see
- * `../content-duplication/derive-available-name.ts`'s header for the owner's numeric-suffix ruling.
- * Only ever called when the caller supplied no explicit `overrides.title`.
- *
- * @complexity One `formDefinitionRepo.list()` scan (3 forms at current scale, read live 2026-09-08 —
- * see the shared module's own header for why this is an accepted O(n) scan rather than a new port
- * method), then `deriveDuplicateName`'s own bounded search.
- */
-async function deriveDefaultDuplicateFormName(routeDeps: FormsToolDeps, source: FormDefinitionRecord): Promise<string> {
-  const existingNames = new Set(
-    (await routeDeps.formDefinitionRepo.list({ workspaceId: routeDeps.workspaceId })).map((form) => form.name)
-  );
-  return deriveDuplicateName(
-    { sourceName: source.name },
-    { isTaken: async ({ candidate }) => existingNames.has(candidate) }
-  );
-}
-
-async function duplicateFormDefinition(
-  routeDeps: FormsToolDeps,
-  input: { principalId: string; id: string; overrides: { title?: string; slug?: string; status?: string } }
-): Promise<Record<string, unknown>> {
-  // Rejected rather than ignored. `content_duplicate`'s `status` override is spelled in post/page's
-  // vocabulary (`draft`/`published`), which a form definition has no equivalent of — its statuses are
-  // `active`/`disabled`, flipped by `forms_set_definition_status`. Silently dropping the field would
-  // leave a caller believing it had set something.
-  if (input.overrides.status !== undefined) {
-    throw new ToolInputError({ message:
-      "content_duplicate: resource 'form' does not support the 'status' override — a form definition is " +
-        "active/disabled, not draft/published. Overrides honored for 'form': title (the copy's name) and " +
-        "slug. The copy inherits the source's own active/disabled state; use forms_set_definition_status " +
-        "to change it afterwards."
-    });
-  }
-
-  const source = await routeDeps.formDefinitionRepo.findById({ workspaceId: routeDeps.workspaceId, id: input.id });
-  if (!source) throw new FormDefinitionNotFoundError({ message: `form definition '${input.id}' was not found` });
-
-  const name = input.overrides.title ?? (await deriveDefaultDuplicateFormName(routeDeps, source));
-  const slug =
-    input.overrides.slug ??
-    (await deriveAvailableFormSlug(
-      { name, ...formSlugPolicy,
-        // `isSlugTaken`, not `findBySlug` — trash-blind, so a trashed form's slug is correctly
-        // reported as taken instead of offered to the copy and then colliding on the DB unique
-        // index (decision 3, ADS-memory/reports/2026-09-21-t8f-trash-forms-plan.md §B).
-        isTaken: async (candidate) =>
-          routeDeps.formDefinitionRepo.isSlugTaken({ workspaceId: routeDeps.workspaceId, slug: candidate }),
-      }, {}
-    ));
-
-  const actor = { id: input.principalId, kind: AGENT_TOOL_PRINCIPAL_KIND };
-  const provider = (source as FormDefinitionRecord & FormAuthoring).provider;
-  const { definition } = await createFormDefinition({
-    deps: formsDeps(routeDeps),
-    input: {
-      workspaceId: routeDeps.workspaceId,
-      actor,
-      name,
-      slug,
-      // Deep-copied, not shared: `fields` and `notify.recipients` are arrays of objects the source
-      // row still owns, and a shallow copy would make an edit to the copy's fields mutate the
-      // source's — the same class of silent shared-state corruption `duplicate-embeds.ts` exists
-      // to prevent on the post side.
-      fields: source.fields.map((field) => ({ ...field })),
-      ...((source as { mode?: string }).mode === "html" ? { mode: "html" as const, html: (source as { html?: string }).html ?? "" } : {}),
-      ...(provider ? { provider: structuredClone(provider) } : {}),
-      notify: { enabled: source.notify.enabled, recipients: [...source.notify.recipients] },
-    },
-  });
-
-  // `createFormDefinition` always creates `active`. A copy of a DISABLED form must not come back
-  // live — the same "a copy is never more exposed than its source" rule that makes a duplicated
-  // published page default to draft. Two commands rather than one because `createFormDefinition`
-  // takes no status; a failure here surfaces to the caller rather than silently leaving an active
-  // copy, and the copy is a fresh row nothing references yet, so the window is inert.
-  if (source.status === "disabled") {
-    const { definition: disabled } = await setFormDefinitionStatus({
-      deps: formsDeps(routeDeps),
-      input: { workspaceId: routeDeps.workspaceId, actor, formId: definition.id, status: "disabled" },
-    });
-    return { definition: toFormDefinitionView(disabled) };
-  }
-
-  return { definition: toFormDefinitionView(definition) };
-}
-
-/**
  * `content_duplicate`'s resource contributor for `"form"`, resolving to `admin.forms.manage` — the
  * SAME permission this domain's own `forms_create_definition`/`forms_update_definition` already
  * declare. No new permission is invented for the generic tool.
@@ -639,7 +187,7 @@ export function contributeFormsDuplicateHandlers(): DuplicateResourceHandlerCont
       resource: "form",
       build: (routeDeps, _optional = {}) => ({
         permission: "admin.forms.manage",
-        duplicate: (input, _optional = {}) => duplicateFormDefinition(routeDeps, input),
+        duplicate: (input, _optional = {}) => duplicateFormDefinition({ deps: routeDeps, deriveDuplicateName, input }),
       }),
     },
   ];

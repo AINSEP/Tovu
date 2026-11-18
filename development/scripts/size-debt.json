@@ -842,13 +842,6 @@
       "value": 155
     },
     {
-      "file": "apps/website/src/features/forms/tool-registrations.ts",
-      "function": "buildFormsRegistrations#1",
-      "line": 323,
-      "rule": "max-lines-per-function",
-      "value": 164
-    },
-    {
       "file": "apps/website/src/features/identity/repo.ts",
       "function": "<file>",
       "line": 579,
