@@ -22,7 +22,7 @@ import { bootAuthenticated } from "./http-test-server.js";
  * `platform/db/kernel/__tests__/dialect-matrix.ts`'s repo-level `describeEachDialect`.
  *
  * Modeled on `runtime/composition/__tests__/create-site-route-deps.pglite.integration.test.ts`'s
- * `bootOwner`; teardown follows `serve.ts` (`closeSiteDirBoot(boot, composedStore)`).
+ * `bootOwner`; teardown follows `serve.ts` (`closeSiteDirBoot(boot, { composed: composedStore })`).
  */
 
 export type SiteDialect = "sqlite" | "pglite";
@@ -120,7 +120,7 @@ export async function bootSite(t: TestContext, dialect: SiteDialect, optional: {
         if (failed?.status === "rejected") throw failed.reason;
       } finally {
         // A rejected boot pass must still close the store and restore process-global fixtures.
-        try { if (boot) await closeSiteDirBoot(boot, composed); }
+        try { if (boot) await closeSiteDirBoot(boot, { composed }); }
         finally {
           // A close failure must fail the test, while still restoring globals and removing files.
           if (savedSocketEnv === undefined) delete process.env[PG_SOCKET_ENV];

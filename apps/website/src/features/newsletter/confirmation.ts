@@ -61,7 +61,7 @@ function composeOriginUrl(origin: VerifiedOrigin): string {
 export async function issueConfirmationToken(required: {
   deps: ConfirmationDeps;
   input: { workspaceId: UUID; subscriptionId: UUID; recipientEmail: string };
-}): Promise<{ tokenId: UUID; expiresAt: string }> {
+}, _optional: Record<string, never> = {}): Promise<{ tokenId: UUID; expiresAt: string }> {
   const { deps, input } = required;
   const now = deps.clock.nowIso();
   // Resolved first: a missing sender refuses before any prior token is superseded, so the
@@ -130,7 +130,7 @@ export async function issueConfirmationToken(required: {
 export async function consumeConfirmationToken(required: {
   deps: ConfirmationDeps;
   input: { workspaceId: UUID; rawToken: string };
-}): Promise<{ subscription: SubscriptionRow; changed: boolean; eventId: string }> {
+}, _optional: Record<string, never> = {}): Promise<{ subscription: SubscriptionRow; changed: boolean; eventId: string }> {
   const { deps, input } = required;
   const tokenHash = hashToken({ raw: input.rawToken });
   const token = await deps.tokenRepo.findByTokenHash({ workspaceId: input.workspaceId, tokenHash });

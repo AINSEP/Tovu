@@ -270,7 +270,7 @@ async function planSiteRepair(required: RepairSiteRequired): Promise<SiteRepairP
  * @throws see {@link planSiteRepair}.
  * @complexity see {@link planSiteRepair}.
  */
-export function planRepairSite(required: RepairSiteRequired): Promise<SiteRepairPlan> {
+export function planRepairSite(required: RepairSiteRequired, _optional: Record<string, never> = {}): Promise<SiteRepairPlan> {
   return planSiteRepair(required);
 }
 
@@ -298,7 +298,7 @@ export function planRepairSite(required: RepairSiteRequired): Promise<SiteRepair
  * @complexity see {@link planSiteRepair}, plus two bounded atomic file writes.
  * @overallScore 100
  */
-export async function repairSite(required: RepairSiteRequired): Promise<RepairSiteResult> {
+export async function repairSite(required: RepairSiteRequired, _optional: Record<string, never> = {}): Promise<RepairSiteResult> {
   const plan = await planSiteRepair(required);
   const configPath = path.join(plan.dir, CONFIG_FILE_NAME);
   const metaPath = path.join(plan.dir, SITE_META_FILE_NAME);

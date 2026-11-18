@@ -104,7 +104,7 @@ async function bootSqliteSite(t: TestContext) {
 
   await drainBootReadiness(deps);
   let closing: Promise<void> | undefined;
-  const close = (): Promise<void> => closing ??= closeSiteDirBoot(boot, composed);
+  const close = (): Promise<void> => closing ??= closeSiteDirBoot(boot, { composed });
   t.after(async () => {
     try { await close(); }
     finally { await removeFrozenPackageTree({ root: parent }); }

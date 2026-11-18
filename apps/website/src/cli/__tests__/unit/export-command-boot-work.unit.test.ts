@@ -36,7 +36,7 @@ test("export: a failed export closes the store only after the legacy tail and cr
   };
   const effects: RunExportCommandOptional = {
     bootSiteDir: async () => bootResult as unknown as BootSiteDirResult,
-    closeSiteDirBoot: async (boot: unknown, store: unknown) => {
+    closeSiteDirBoot: async (boot: unknown, { composed: store }: { composed?: unknown } = {}) => {
       assert.equal(boot, bootResult);
       assert.equal(store, composedStore);
       order.push("close");

@@ -57,10 +57,10 @@ test("tool renames: a disable that lands between the rename's read and write is 
   const h = await harness({ provisionedByPluginId: PLUGIN });
   const logs: string[] = [];
   await applyAgentPluginToolRenames(
-    testSiteLayoutContext({ workspaceId: WORKSPACE, externalMcpServerRepo: h.racing(h.disable), clock,
+    { deps: testSiteLayoutContext({ workspaceId: WORKSPACE, externalMcpServerRepo: h.racing(h.disable), clock,
       listPlugins: async () => [{ pluginId: PLUGIN, servers: { supabase: { type: "streamable-http", url: URL_, renamedTools: { get_logs: "query_logs" } } } }],
       notifyRosterChanged: async () => {} }),
-    { info: (m) => logs.push(m), warn: (m) => logs.push(`warn: ${m}`) },
+    log: { info: (m) => logs.push(m), warn: (m) => logs.push(`warn: ${m}`) } },
   );
   const after = await h.row();
   assert.equal(after.enabled, false, "the rename restored the enabled flag it read before the admin's disable");

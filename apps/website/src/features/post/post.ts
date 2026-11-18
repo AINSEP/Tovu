@@ -1186,7 +1186,7 @@ export function normalizeShowPostAuthor(required: { showAuthor: unknown }, _opti
 /** The schedule/featured-image keys a record carries — present only when set, so a row that has
  *  neither keeps the exact record shape it had before these fields existed (the same "absent, not
  *  empty" convention `ext` follows). @complexity O(1). */
-export function presentScheduleFields(fields: { publishAt?: string | null; featuredMediaId?: string | null }): Pick<PostRecord, "publishAt" | "featuredMediaId"> {
+export function presentScheduleFields(fields: { publishAt?: string | null; featuredMediaId?: string | null }, _optional: Record<string, never> = {}): Pick<PostRecord, "publishAt" | "featuredMediaId"> {
   return {
     ...(fields.publishAt ? { publishAt: fields.publishAt } : {}),
     ...(fields.featuredMediaId ? { featuredMediaId: fields.featuredMediaId } : {}),
@@ -2527,7 +2527,7 @@ function assertImportTarget(required: { input: ImportPostEntityInput; existing: 
 export async function importPostEntity(required: {
   deps: ImportPostEntityDeps;
   input: ImportPostEntityInput;
-}): Promise<{ post: PostRecord; revisionId: string; previousRevisionId: string | null }> {
+}, _optional: Record<string, never> = {}): Promise<{ post: PostRecord; revisionId: string; previousRevisionId: string | null }> {
   const { deps, input } = required;
   const { workspaceId, record } = input;
 

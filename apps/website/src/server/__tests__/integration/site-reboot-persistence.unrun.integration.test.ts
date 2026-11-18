@@ -70,7 +70,7 @@ async function serve(siteDir: string): Promise<Running> {
       if (deps) await drainBootReadiness(deps).catch(() => undefined);
       await Promise.allSettled(appBootWork);
     } finally {
-      await closeSiteDirBoot(boot, composed);
+      await closeSiteDirBoot(boot, { composed });
     }
   };
   try {

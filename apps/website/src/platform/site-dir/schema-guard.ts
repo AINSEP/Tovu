@@ -83,7 +83,7 @@ export interface CompareSchemaVersionRequired {
  *   constant number of comparisons; not a function of any caller-controlled collection.
  * @overallScore 100
  */
-export function compareSchemaVersion(required: CompareSchemaVersionRequired): "migrate" | "compatible" {
+export function compareSchemaVersion(required: CompareSchemaVersionRequired, _optional: Record<string, never> = {}): "migrate" | "compatible" {
   const { schemaVersion, schemaTag } = required;
   const runtime = runtimeSchemaVersion();
 

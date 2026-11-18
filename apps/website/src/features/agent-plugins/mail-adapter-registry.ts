@@ -7,7 +7,7 @@ import type { LoadedMailAdapter, MailAdapterRegistry } from "@jini-ai/agent-plug
 /** The file a plugin ships at its root to contribute mail adapters. */
 export const MAIL_ADAPTERS_FILENAME = "tovu-mail-adapters.json";
 /** The credential label a v2 descriptor without one uses; matches the v1 bundled label shape (`Tovu Mail — <label> API`). */
-export function defaultCredentialLabel({ label }: { label: string }): string { return `Tovu Mail — ${label} API`; }
+export function defaultCredentialLabel({ label }: { label: string }, _optional: Record<string, never> = {}): string { return `Tovu Mail — ${label} API`; }
 const contributions = createMailContributions({ filename: MAIL_ADAPTERS_FILENAME, parseSetup: parseMailProviderSetupProperty,
   defaultCredentialLabel, abi: { fromPositionalMailer, toPluginHttpClient }, loadFromSource: loadPluginContributionsFromSource });
 export const { loadMailAdapterRegistry, loadMailAdapterRegistryFromSource, contributeMailProviders } = contributions;

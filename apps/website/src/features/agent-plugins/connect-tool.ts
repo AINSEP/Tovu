@@ -189,13 +189,13 @@ export const tovuAgentPluginConnectHost: AgentPluginConnectHost<AssistantSurface
 function tovuConnectDeps(routeDeps: AgentPluginConnectToolDeps): AgentPluginConnectDeps<AssistantSurfaceDeps, DeclaredApiConnection> {
   type ConnectMcp = ReturnType<typeof withAgentPluginMcpPorts<AgentPluginConnectToolDeps["mcp"]>>;
   let mcp: ConnectMcp | undefined;
-  const deps = withOverrides(routeDeps, {
+  const deps = withOverrides({ target: routeDeps, overrides: {
     isPluginEnabled: (pluginId: string) => routeDeps.isPluginEnabled ? routeDeps.isPluginEnabled(pluginId)
       : isAgentPluginEnabled({ workspaceRoot: routeDeps.agentPluginLayout.forWorkspace({ workspaceId: routeDeps.workspaceId }).root, pluginId }),
     resolveInstalledPlugin: (pluginId: string) => routeDeps.resolveInstalledPlugin ? routeDeps.resolveInstalledPlugin(pluginId)
       : defaultResolveInstalledAgentPlugin({ workspaceId: routeDeps.workspaceId, pluginId, agentPluginLayout: routeDeps.agentPluginLayout }),
     host: tovuAgentPluginConnectHost,
-  });
+  } });
   return Object.defineProperty(deps, "mcp", { get: () => (mcp ??= withAgentPluginMcpPorts(routeDeps.mcp)), enumerable: true, configurable: true }) as Omit<typeof deps, "mcp"> & { readonly mcp: ConnectMcp };
 }
 

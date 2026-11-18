@@ -37,7 +37,7 @@ mock.module("#src/features/agent-plugins/soon-lock", { namedExports: { ...soonLo
   lockSoonAgentPlugins: async () => { calls.push("soon-lock"); return []; },
 } });
 mock.module("#src/features/agent-plugins/grant-signed-in-defaults", { namedExports: { ...grants,
-  grantDeclaredToolsAtBoot: async (input: Parameters<typeof grants.grantDeclaredToolsAtBoot>[0]) => {
+  grantDeclaredToolsAtBoot: async ({ deps: input }: Parameters<typeof grants.grantDeclaredToolsAtBoot>[0]) => {
     assert.equal(input.applyAccess, bundledDeps.mcp.applyAccess);
     assert.equal(input.workspaceId, bundledDeps.workspaceId);
     assert.equal(input.agentPluginLayout, bundledDeps.agentPluginLayout);

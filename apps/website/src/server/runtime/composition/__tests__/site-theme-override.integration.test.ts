@@ -30,7 +30,7 @@ test("deskfx2 NIT: existing site boots with a themes override whose parent is ab
     assert.equal(fs.existsSync(path.join(themesDir, "static", "tovu-starter", "theme.json")), true);
   } finally {
     if (deps) await drainBootReadiness(deps).catch(() => undefined);
-    if (boot) await closeSiteDirBoot(boot, composed);
+    if (boot) await closeSiteDirBoot(boot, { composed });
     fs.rmSync(parent, { recursive: true, force: true });
   }
 });

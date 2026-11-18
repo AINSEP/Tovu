@@ -200,7 +200,7 @@ export interface PostSearchDocument {
 export function toPostSearchDocument(post: {
   id: UUID; title: string; slug: string; bodyJson: unknown;
   bodyFormat?: "doc" | "html"; bodyHtml?: string | null;
-}): PostSearchDocument {
+}, _optional: Record<string, never> = {}): PostSearchDocument {
   return {
     postId: post.id,
     title: post.title,

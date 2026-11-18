@@ -147,7 +147,7 @@ function writePostPublication({ record }: { record: PostRecord }, _options: Reco
  *
  * @complexity O(size of the record's JSON fields) — two `JSON.stringify` calls.
  */
-export function toRow(record: PostRecord) {
+export function toRow(record: PostRecord, _optional: Record<string, never> = {}) {
   return {
     id: record.id,
     workspace_id: record.workspaceId,
@@ -193,7 +193,7 @@ export function toRow(record: PostRecord) {
  *
  * @complexity O(1).
  */
-export function updatableColumns(row: ReturnType<typeof toRow>) {
+export function updatableColumns(row: ReturnType<typeof toRow>, _optional: Record<string, never> = {}) {
   return {
     workspace_id: row.workspace_id,
     title: row.title,

@@ -43,7 +43,7 @@ test("an older site's assistant discovers, saves and renders the blank landing t
   const { deps, repo } = bareDeps([{ ...barePost, bodyHtml: "<section>Nimbus landing content</section>" }]);
   deps.themes = themes;
   deps.presentationRepo = new InMemoryPresentationSettingsRepo({}, { initialRows: [{ workspaceId: "w", activeThemeId: theme.manifest.id, updatedAt: barePost.updatedAt }] });
-  const preview = withContentTargets({ deps, registrations: buildPostPreviewRegistrations(deps, { renderPostPreview }) })[0]!;
+  const preview = withContentTargets({ deps, registrations: buildPostPreviewRegistrations({ deps, renderer: { renderPostPreview } }) })[0]!;
   const offered = await preview.handler(context({ id: barePost.id })) as { availableTemplates: string[] };
   assert.ok(offered.availableTemplates.includes("pages-blank.html"), "older site must offer the new blank landing template");
   for (const choice of offered.availableTemplates) {

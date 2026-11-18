@@ -315,7 +315,7 @@ function createPostDeleteReverter(deps: PostReverterDeps): EntityReverter {
 }
 
 /** Builds the `post/update` and `post/delete` reverters, closed over the given adapters. */
-export function createPostReverters(deps: PostReverterDeps): {
+export function createPostReverters(deps: PostReverterDeps, _optional: Record<string, never> = {}): {
   update: EntityReverter;
   delete: EntityReverter;
 } {
@@ -329,7 +329,7 @@ export function createPostReverters(deps: PostReverterDeps): {
  * Builds a `RevertRegistry` pre-loaded with the post-domain reverters — the composition-root
  * convenience `defaultRevertRegistry()` used to provide before the Job 2 inversion moved it here.
  */
-export function createPostRevertRegistry(deps: PostReverterDeps): RevertRegistry {
+export function createPostRevertRegistry(deps: PostReverterDeps, _optional: Record<string, never> = {}): RevertRegistry {
   const registry = createRevertRegistry();
   const reverters = createPostReverters(deps);
   registry.register("post", "update", reverters.update);

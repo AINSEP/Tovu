@@ -78,7 +78,7 @@ export function parseExpectedVersion(
  *
  * @complexity O(1).
  */
-export function versionConflictEnvelope(err: PostVersionConflictError): {
+export function versionConflictEnvelope(err: PostVersionConflictError, _optional: Record<string, never> = {}): {
   error: string;
   code: typeof VERSION_CONFLICT_CODE;
   details: { expectedVersion: number; currentVersion: number };

@@ -58,7 +58,7 @@ export function agentPluginHostToolPorts(required: { readonly agentPluginLayout:
     activations: agentPluginActivations,
     layout: { forWorkspace: ({ workspaceId }) => layout.forWorkspace({ workspaceId }) },
     memory: {
-      pluginMemory: ({ workspaceId, pluginId }) => pluginMemory({ contain: containAgentPluginStatePath, workspaceId, pluginId }, { layout }),
+      pluginMemory: ({ workspaceId, pluginId }) => pluginMemory({ contain: containAgentPluginStatePath, workspaceId, pluginId , layout }),
       appendNotes: ({ workspaceId, pluginId, guidance }) => appendPluginNotes({ contain: containAgentPluginStatePath,
         workspaceRoot: layout.forWorkspace({ workspaceId }).root, pluginId, guidance }),
     },

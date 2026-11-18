@@ -80,7 +80,7 @@ async function enableSiteConsent({ dir }: { dir: string }): Promise<void> {
     await deps.set({ deps: { repo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen,
       principals: deps.principalRepo, authorize: deps.authorize }, input: { namespace: "core.consent", key: "enabled",
       value: true, scope: "workspace", workspaceId: deps.workspaceId, callerPrincipalId: await deps.ownerPrincipalId } });
-  } finally { await closeSiteDirBoot(boot, composed); }
+  } finally { await closeSiteDirBoot(boot, { composed }); }
 }
 
 test("tovu export --public-url writes absolute discovery and SEO; omitting it keeps the copy domainless", t => {

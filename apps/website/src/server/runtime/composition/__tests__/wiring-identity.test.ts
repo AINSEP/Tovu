@@ -68,7 +68,7 @@ before(async () => {
   } });
   await drainBootReadiness(deps);
   closeAll = async () => {
-    try { await closeSiteDirBoot(boot, composed); }
+    try { await closeSiteDirBoot(boot, { composed }); }
     finally { await removeFrozenPackageTree({ root: parent }); }
   };
 });

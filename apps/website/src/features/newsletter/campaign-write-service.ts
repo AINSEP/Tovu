@@ -214,7 +214,7 @@ async function transitionAndWrite(
 export async function cancelCampaign(required: {
   deps: CampaignWriteServiceDeps;
   input: { workspaceId: UUID; id: UUID; actorId: UUID };
-}): Promise<{ campaign: CampaignRecord }> {
+}, _optional: Record<string, never> = {}): Promise<{ campaign: CampaignRecord }> {
   const campaign = await transitionAndWrite(required.deps, { ...required.input, to: "canceled", actorTier: "compose" });
   return { campaign };
 }
@@ -234,7 +234,7 @@ export function isValidScheduleTimestamp({ value }: { value: string }, _options 
 export async function scheduleCampaign(required: {
   deps: CampaignWriteServiceDeps;
   input: { workspaceId: UUID; id: UUID; actorId: UUID; scheduledAt: string };
-}): Promise<{ campaign: CampaignRecord }> {
+}, _optional: Record<string, never> = {}): Promise<{ campaign: CampaignRecord }> {
   const { deps, input } = required;
   if (!isValidScheduleTimestamp({ value: input.scheduledAt })) {
     throw new NewsletterValidationError({ message: "scheduledAt must be a valid ISO date-time string", field: "scheduledAt", reason: "format" });

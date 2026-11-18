@@ -141,7 +141,7 @@ function toUnsubscribeSubscriptionDeps(deps: NewsletterToolDeps): UnsubscribeSub
  * The optional launch-setting binding defaults to false, preserving the admin routes' existing
  * fail-closed behavior. Runtime composition still has no sending toggle or consent binding.
  */
-export function toNewsletterSendPipelineDeps(deps: NewsletterToolDeps): SendPipelineDeps {
+export function toNewsletterSendPipelineDeps(deps: NewsletterToolDeps, _optional: Record<string, never> = {}): SendPipelineDeps {
   return buildSendPipelineDeps({ deps, isSendingEnabled: deps.newsletterSendingEnabled ?? (async () => false) });
 }
 

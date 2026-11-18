@@ -60,8 +60,8 @@ export function agentPluginOverlaysDir(_required: Record<string, never> = {}, op
 }
 
 /** True when a plugin tool `file` value names an overlay file rather than a plugin file. */
-export function isHostPluginFileRequest(file: unknown): file is string {
-  return typeof file === "string" && file.startsWith(HOST_PLUGIN_FILE_PREFIX);
+export function isHostPluginFileRequest(required: { file: unknown }, _optional: Record<string, never> = {}): required is { file: string } {
+  return typeof required.file === "string" && required.file.startsWith(HOST_PLUGIN_FILE_PREFIX);
 }
 
 /** `undefined` for absent files only; a directory or other non-file is a broken overlay and throws. */
@@ -227,13 +227,14 @@ export interface HostPluginRefOptions {
  * @complexity O(1).
  */
 export function splitHostPluginRefRequest(
-  required: { options: HostPluginRefOptions; defaultDeliveryMode: AgentPluginDeliveryMode },
+  required: { options: HostPluginRefOptions; defaultDeliveryMode: AgentPluginDeliveryMode }, _optional: Record<string, never> = {},
 ): { ownerOptions: HostPluginRefOptions; overlay: { includeGuidance: boolean; file?: string } } {
   const { options } = required;
   const pointerOnly = (options.deliveryMode ?? required.defaultDeliveryMode) === "pointer" && options.skill === undefined && options.file === undefined;
   const { file, ...ownerOptions } = options;
-  if (!isHostPluginFileRequest(file)) return { ownerOptions: options, overlay: { includeGuidance: !pointerOnly } };
-  return { ownerOptions, overlay: { includeGuidance: !pointerOnly, file } };
+  const request = { file };
+  if (!isHostPluginFileRequest(request)) return { ownerOptions: options, overlay: { includeGuidance: !pointerOnly } };
+  return { ownerOptions, overlay: { includeGuidance: !pointerOnly, file: request.file } };
 }
 
 /**

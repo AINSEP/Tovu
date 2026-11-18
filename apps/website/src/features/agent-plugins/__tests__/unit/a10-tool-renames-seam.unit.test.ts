@@ -35,9 +35,9 @@ test('portable renames: object API, host actor and host plugin listing are used'
 
 test('Tovu shim keeps the positional entry and the saved system:tool-renames actor bytes', async () => {
   const h = harness();
-  await tovuApply({ workspaceId: 'w', get agentPluginLayout(): never { throw new Error('layout must stay lazy'); },
+  await tovuApply({ deps: { workspaceId: 'w', get agentPluginLayout(): never { throw new Error('layout must stay lazy'); },
     externalMcpServerRepo: h.repo, clock: { nowMs: () => 0 }, listPlugins: async () => [{ pluginId: 'acme', servers: h.servers }],
-    notifyRosterChanged: async () => {} }, { info: () => {}, warn: m => h.logs.push(m) });
+    notifyRosterChanged: async () => {} }, log: { info: () => {}, warn: m => h.logs.push(m) } });
   assert.equal(h.saved[0]?.writeGrantsUpdatedByPrincipalId, 'system:tool-renames');
   assert.deepEqual(h.logs, []);
 });

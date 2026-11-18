@@ -70,7 +70,7 @@ async function makeHarness(row: {
   const logs: string[] = [];
   const run = () =>
     applyAgentPluginToolRenames(
-      testSiteLayoutContext({
+      { deps: testSiteLayoutContext({
         workspaceId: WORKSPACE,
         externalMcpServerRepo: repo,
         clock,
@@ -79,7 +79,7 @@ async function makeHarness(row: {
           notifications += 1;
         },
       }),
-      { info: (m) => logs.push(`info: ${m}`), warn: (m) => logs.push(`warn: ${m}`) },
+      log: { info: (m) => logs.push(`info: ${m}`), warn: (m) => logs.push(`warn: ${m}`) } },
     );
   const read = async () => {
     const saved = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: SERVER });
@@ -90,10 +90,10 @@ async function makeHarness(row: {
 }
 
 test("renameToolNames: replaces renamed names in place, drops a duplicate the rename creates, null when nothing matched", () => {
-  assert.deepEqual(renameToolNames(["a", "get_logs", "b"], { get_logs: "query_logs" }), ["a", "query_logs", "b"]);
-  assert.deepEqual(renameToolNames(["get_logs", "query_logs"], { get_logs: "query_logs" }), ["query_logs"]);
-  assert.equal(renameToolNames(["a", "b"], { get_logs: "query_logs" }), null);
-  assert.equal(renameToolNames([], { get_logs: "query_logs" }), null);
+  assert.deepEqual(renameToolNames({ names: ["a", "get_logs", "b"], renames: { get_logs: "query_logs" } }), ["a", "query_logs", "b"]);
+  assert.deepEqual(renameToolNames({ names: ["get_logs", "query_logs"], renames: { get_logs: "query_logs" } }), ["query_logs"]);
+  assert.equal(renameToolNames({ names: ["a", "b"], renames: { get_logs: "query_logs" } }), null);
+  assert.equal(renameToolNames({ names: [], renames: { get_logs: "query_logs" } }), null);
 });
 
 test("a provisioned row's saved allowlist follows the declared rename, and the roster is notified once", async () => {
@@ -177,7 +177,7 @@ test("a plugin that declares no renames writes nothing", async () => {
 test("a plugin listing that throws is a warning, never a boot failure", async () => {
   const logs: string[] = [];
   await applyAgentPluginToolRenames(
-    testSiteLayoutContext({
+    { deps: testSiteLayoutContext({
       workspaceId: WORKSPACE,
       externalMcpServerRepo: new InMemoryExternalMcpServerRepo(),
       clock: createFakeClock({ startIso: NOW }),
@@ -186,7 +186,7 @@ test("a plugin listing that throws is a warning, never a boot failure", async ()
       },
       notifyRosterChanged: async () => assert.fail("must not notify"),
     }),
-    { info: (m) => logs.push(m), warn: (m) => logs.push(m) },
+    log: { info: (m) => logs.push(m), warn: (m) => logs.push(m) } },
   );
   assert.deepEqual(logs, ["[agent-plugins] could not list plugins to apply tool renames: Error"]); // fixed class label, not the message (describeErrorForLog)
 });
@@ -249,11 +249,11 @@ test("tool renames skip local, invalid, missing, and unreadable rows while later
 
 test("tool renames propagate a roster notification failure after persisting the rename (reported, not fixed)", async () => {
   const h = await makeHarness({ allowedToolNames: "get_logs" });
-  await assert.rejects(applyAgentPluginToolRenames(testSiteLayoutContext({
+  await assert.rejects(applyAgentPluginToolRenames({ deps: testSiteLayoutContext({
     workspaceId: WORKSPACE, externalMcpServerRepo: h.repo, clock: createFakeClock({ startIso: NOW }),
     listPlugins: async () => h.plugins,
     notifyRosterChanged: async () => { throw new Error("roster unavailable"); },
-  }), { info() {}, warn() {} }), /roster unavailable/);
+  }), log: { info() {}, warn() {} } }), /roster unavailable/);
   assert.equal((await h.read()).allowedToolNames, '["query_logs"]');
 });
 
@@ -261,10 +261,10 @@ test("tool renames still notify after a successful write when its info logger th
   const h = await makeHarness({ allowedToolNames: "get_logs" });
   let notified = 0;
   const warnings: string[] = [];
-  await applyAgentPluginToolRenames(testSiteLayoutContext({
+  await applyAgentPluginToolRenames({ deps: testSiteLayoutContext({
     workspaceId: WORKSPACE, externalMcpServerRepo: h.repo, clock: createFakeClock({ startIso: NOW }),
     listPlugins: async () => h.plugins, notifyRosterChanged: async () => { notified++; },
-  }), { info: () => { throw new Error("logger unavailable"); }, warn: (message) => { warnings.push(message); } });
+  }), log: { info: () => { throw new Error("logger unavailable"); }, warn: (message) => { warnings.push(message); } } });
   assert.equal((await h.read()).allowedToolNames, '["query_logs"]');
   assert.equal(notified, 1);
   assert.deepEqual(warnings, ["[agent-plugins] could not apply the 'supabase' plugin's tool renames to 'supabase': Error"]);
@@ -273,12 +273,12 @@ test("tool renames still notify after a successful write when its info logger th
 test("a non-Error thrown by the plugin listing is reported by its typeof, never its text", async () => {
   const logs: string[] = [];
   await applyAgentPluginToolRenames(
-    testSiteLayoutContext({
+    { deps: testSiteLayoutContext({
       workspaceId: WORKSPACE, externalMcpServerRepo: new InMemoryExternalMcpServerRepo(), clock: createFakeClock({ startIso: NOW }),
       listPlugins: async () => { throw "listing offline"; },
       notifyRosterChanged: async () => assert.fail("must not notify"),
     }),
-    { info: (m) => logs.push(m), warn: (m) => logs.push(m) },
+    log: { info: (m) => logs.push(m), warn: (m) => logs.push(m) } },
   );
   assert.deepEqual(logs, ["[agent-plugins] could not list plugins to apply tool renames: string"]);
 });
@@ -288,9 +288,9 @@ test("without an injected listing, the workspace's installed plugins are read (n
   t.after(() => forceRemove(temporary));
   const logs: string[] = [];
   await applyAgentPluginToolRenames(
-    { workspaceId: WORKSPACE, externalMcpServerRepo: new InMemoryExternalMcpServerRepo(), clock: createFakeClock({ startIso: NOW }),
+    { deps: { workspaceId: WORKSPACE, externalMcpServerRepo: new InMemoryExternalMcpServerRepo(), clock: createFakeClock({ startIso: NOW }),
       notifyRosterChanged: async () => assert.fail("must not notify"), agentPluginLayout: resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: temporary } }) },
-    { info: (m) => logs.push(m), warn: (m) => logs.push(m) },
+    log: { info: (m) => logs.push(m), warn: (m) => logs.push(m) } },
   );
   assert.deepEqual(logs, []);
 });

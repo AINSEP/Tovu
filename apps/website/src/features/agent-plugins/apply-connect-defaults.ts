@@ -64,13 +64,13 @@ export type ApplyConnectDefaultsDeps = Omit<PortableApplyConnectDefaultsDeps, 'p
 };
 
 export function createApplyConnectDefaults(deps: ApplyConnectDefaultsDeps, options: Parameters<typeof createWithPorts>[1] = {}): (serverId: string) => Promise<void> {
-  return createWithPorts(withOverrides(withAgentPluginMcpPorts(deps), {
+  return createWithPorts(withOverrides({ target: withAgentPluginMcpPorts(deps), overrides: {
     resolveServers: deps.resolveServers ?? ((input: { workspaceId: string; pluginId: string }) => resolveAgentPluginMcpServers({ ...input, agentPluginLayout: deps.agentPluginLayout })),
     enablePlugin: deps.enablePlugin ?? ((input: { workspaceId: string; pluginId: string }) => switchPluginOnUnlessOperatorOff({ ...input, agentPluginLayout: deps.agentPluginLayout })),
     isPluginOffByOperator: deps.isPluginOffByOperator ?? ((pluginId: string) => isPluginOffByOperator({ workspaceId: deps.workspaceId, agentPluginLayout: deps.agentPluginLayout, pluginId })),
     actors: tovuConnectActors,
     combinedGrantRejected: tovuEnableAccessMessages.combinedGrantRejected,
-  }), options);
+  } }), options);
 }
 
 export function recordAgentPluginAccessDeclined(input: Omit<Parameters<typeof recordDeclinedWithActor>[0], 'actorId'>, _options = {}): Promise<void> {

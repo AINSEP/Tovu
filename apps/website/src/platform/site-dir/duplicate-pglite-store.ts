@@ -75,7 +75,7 @@ async function copySource({ sourceDataDir, targetDataDir }: { sourceDataDir: str
  * @throws {InternalError} the copy, the purge or the final verification failing (the driver's message kept).
  * @complexity One dump + restore of the whole data dir, one TRUNCATE, one VACUUM — bounded by the site's size.
  */
-export async function duplicatePgliteStore(required: { sourceDataDir: string; targetDataDir: string }): Promise<void> {
+export async function duplicatePgliteStore(required: { sourceDataDir: string; targetDataDir: string }, _optional: Record<string, never> = {}): Promise<void> {
   const { sourceDataDir, targetDataDir } = required;
   try {
     await copySource({ sourceDataDir, targetDataDir });

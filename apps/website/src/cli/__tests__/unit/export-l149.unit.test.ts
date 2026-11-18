@@ -29,7 +29,7 @@ for (const work of ["none", "legacy", "app", "both"] as const) {
         order.push("export");
         return { outputDir: input.outputDir, routes: { succeeded: [], failed: [] }, assets: { succeeded: [], failed: [] }, skippedManifestEntries: [], unreferencedThemeFiles: [], droppedReferences: [] };
       },
-      closeSiteDirBoot: async (actualBoot, actualStore) => {
+      closeSiteDirBoot: async (actualBoot, { composed: actualStore } = {}) => {
         assert.equal(actualBoot, boot); assert.equal(actualStore, store); order.push("close");
       },
     };
@@ -47,7 +47,7 @@ test("export closes the boot and partially composed store when composition fails
   await assert.rejects(runExportCommand({ dir: "/tmp/site" }, {
     registerPluginSdkResolver: () => {}, bootSiteDir: async () => boot,
     createSiteRouteDeps: async (_required, { overrides } = {}) => { overrides?.onStoreOpened?.({ store: store }); throw failure; },
-    closeSiteDirBoot: async (actualBoot, actualStore) => { assert.equal(actualBoot, boot); assert.equal(actualStore, store); closed = true; },
+    closeSiteDirBoot: async (actualBoot, { composed: actualStore } = {}) => { assert.equal(actualBoot, boot); assert.equal(actualStore, store); closed = true; },
   }), error => error === failure);
   assert.equal(closed, true);
 });

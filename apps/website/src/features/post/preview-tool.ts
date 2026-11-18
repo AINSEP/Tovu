@@ -60,7 +60,7 @@ function readPreviewInput(input: Record<string, unknown>, _options: Record<strin
 }
 
 /** Builds the read-only preview handler; authorization precedes lookup and any render read. */
-export function buildPostPreviewRegistrations(deps: PostPreviewToolDeps, renderer: PostPreviewRenderer): ToolRegistration[] {
+export function buildPostPreviewRegistrations({ deps, renderer }: { deps: PostPreviewToolDeps; renderer: PostPreviewRenderer }, _optional: Record<string, never> = {}): ToolRegistration[] {
   return buildDomainRegistrations({ metadata: toolMetadata, domain: "post-preview", catalogModule: "features/post/preview-tool.ts", catalog: CATALOG, derivedRisk: postPreviewDerivedRisk, handlers: {
     content_post_preview: async ctx => {
       const input = requireInputRecord({ input: ctx.input });
@@ -81,6 +81,6 @@ export function buildPostPreviewRegistrations(deps: PostPreviewToolDeps, rendere
   } });
 }
 /** Contributes under its own domain, preserving all of post's existing tools. */
-export function contributePostPreviewTools(renderer: PostPreviewRenderer): ToolContributor<PostPreviewToolDeps, unknown> {
-  return { domain: "post-preview", build: deps => buildPostPreviewRegistrations(deps, renderer), risk: postPreviewDerivedRisk };
+export function contributePostPreviewTools(renderer: PostPreviewRenderer, _optional: Record<string, never> = {}): ToolContributor<PostPreviewToolDeps, unknown> {
+  return { domain: "post-preview", build: deps => buildPostPreviewRegistrations({ deps, renderer }), risk: postPreviewDerivedRisk };
 }

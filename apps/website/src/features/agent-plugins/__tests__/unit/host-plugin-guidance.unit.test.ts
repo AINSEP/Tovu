@@ -99,9 +99,9 @@ test("the overlays directory honors TOVU_AGENT_PLUGIN_OVERLAYS_DIR, defaults to 
 });
 
 test("only file values starting with host/ are host requests", () => {
-  assert.equal(isHostPluginFileRequest("host/brew-ratios.md"), true);
-  assert.equal(isHostPluginFileRequest("host/../x"), true, "routed to the overlay reader, which refuses it");
-  for (const file of ["references/a.md", "SKILL.md", "/host/a.md", undefined, 3]) assert.equal(isHostPluginFileRequest(file), false);
+  assert.equal(isHostPluginFileRequest({ file: "host/brew-ratios.md" }), true);
+  assert.equal(isHostPluginFileRequest({ file: "host/../x" }), true, "routed to the overlay reader, which refuses it");
+  for (const file of ["references/a.md", "SKILL.md", "/host/a.md", undefined, 3]) assert.equal(isHostPluginFileRequest({ file }), false);
 });
 
 const SHADCN = `---
