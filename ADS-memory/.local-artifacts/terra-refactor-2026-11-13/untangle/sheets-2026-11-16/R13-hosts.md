@@ -144,7 +144,11 @@ The signatures and doc comments of both functions stay as they are, so Tovu's ca
 - Gates: `npm run typecheck`, then `npx vitest run` on the 3 owner-store test files in `apps/website`.
 
 ### Step 3: what is checked
-COMMON S1-S15 blocks, plus the blocks below:
+COMMON S1-S15 blocks, plus the blocks below. Every commit runs the **whole suite** of each touched package: `npm --prefix packages/{platform,db,server}/ run test` (lesson 45). Base outputs are captured before step 1 and compared after each commit; only lines that went away are allowed (lessons 44, 46):
+```bash
+for c in guard check:hooks check:why-comments check:errors check:size check:complexity api:check; do pnpm $c > /tmp/base-$c.txt 2>&1; echo "$c exit $?"; done   # on BASE; rerun into /tmp/after-$c.txt and diff
+node scripts/check-error-gate.mjs --strict    # after step 2: no added or worsened entry (the renamed legacy-owner row is the only change)
+```
 ```bash
 # the preset holds only wiring: no SQL text, no crypto, no validation helper left in server owner-store
 rg -n "sql\`|openWithPassphrase|isCopyableKind|EnvOrFileKeyring|throw new OwnerStore" packages/server/src/owner-store -g '!**/__tests__/**'   # prints nothing
