@@ -44,13 +44,13 @@ describe("zipFolderFiles", () => {
     const entries = readZip(new Uint8Array(await zip.arrayBuffer()));
     expect(entries.map((e) => e.name)).toEqual(["tovu.plugin.json", "server/index.mjs", "img/é.png"]);
     expect(Array.from(entries[2]!.data)).toEqual(Array.from(png));
-    for (const entry of entries) expect(entry.crc).toBe(crc32(entry.data));
+    for (const entry of entries) expect(entry.crc).toBe(crc32({ bytes: entry.data }));
     // Only the non-ASCII name carries the UTF-8 flag.
     expect(entries.map((e) => e.flags)).toEqual([0, 0, 0x0800]);
   });
 
   it("matches the standard CRC-32 check value", () => {
-    expect(crc32(new TextEncoder().encode("123456789"))).toBe(0xcbf43926);
+    expect(crc32({ bytes: new TextEncoder().encode("123456789") })).toBe(0xcbf43926);
   });
 
   it("refuses an empty folder, too many files, and a folder over the limit before or after zipping", async () => {

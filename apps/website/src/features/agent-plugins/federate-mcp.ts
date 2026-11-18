@@ -38,7 +38,7 @@ export const tovuFederationMessages: AgentPluginMcpFederationMessages = {
 export type ProvisionAgentPluginMcpServersInput = Omit<PortableProvisionInput, "classifyTrust" | "messages"> & { readonly classifyTrust?: AgentPluginMcpTrustClassifier };
 
 export function planAgentPluginMcpFederation(input: { readonly servers: Readonly<Record<string, McpServerConfig>> }, options: { readonly classifyTrust?: AgentPluginMcpTrustClassifier } = {}): AgentPluginMcpFederationPlan {
-  return planWithTrust(input, { classifyTrust: options.classifyTrust ?? classifyAgentPluginMcpServerTrust, messages: tovuFederationMessages });
+  return planWithTrust({ ...input, classifyTrust: options.classifyTrust ?? classifyAgentPluginMcpServerTrust, messages: tovuFederationMessages });
 }
 
 export function resolveAgentPluginMcpServers(input: Omit<Parameters<typeof resolveWithReads>[0], "lifecycle">, _optional = {}): Promise<Readonly<Record<string, McpServerConfig>>> {
@@ -54,7 +54,7 @@ export function provisionAgentPluginMcpServers(
   deps: AgentPluginMcpContext & Pick<AgentPluginMcpPort, "repo" | "saveServer"> & Partial<Pick<AgentPluginMcpPort, "notifyRosterChanged">>,
   input: ProvisionAgentPluginMcpServersInput,
 ): Promise<ProvisionAgentPluginMcpServersResult> {
-  return provisionWithPorts(withAgentPluginMcpPorts(deps), withOverrides(input, { classifyTrust: input.classifyTrust ?? classifyAgentPluginMcpServerTrust, messages: tovuFederationMessages }));
+  return provisionWithPorts(withOverrides(input, { deps: withAgentPluginMcpPorts(deps), classifyTrust: input.classifyTrust ?? classifyAgentPluginMcpServerTrust, messages: tovuFederationMessages }));
 }
 
 /** Keep the host entry points bound to the portable implementations. */
