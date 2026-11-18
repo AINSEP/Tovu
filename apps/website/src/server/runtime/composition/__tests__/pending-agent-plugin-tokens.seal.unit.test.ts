@@ -47,8 +47,8 @@ test("tokens are sealed with the new site's sealer and import back through the a
   assert.equal(raw.includes("tok-a") || raw.includes("tok-b"), false);
   assert.deepEqual([...listPendingAgentPluginTokenIds({ siteDir: dir })], ["plugin-a", "plugin-b"]);
   const imported: Array<[string, string]> = [];
-  await applyPendingAgentPluginTokens({ siteDir: dir, sealer: sealing.sealer, importToken: async ({ pluginId, token }) => { imported.push([pluginId, token]); return "saved"; } },
-    { info: () => {}, warn: () => {} });
+  await applyPendingAgentPluginTokens({ siteDir: dir, sealer: sealing.sealer, importToken: async ({ pluginId, token }) => { imported.push([pluginId, token]); return "saved"; },
+    log: { info: () => {}, warn: () => {} } });
   assert.deepEqual(imported, [["plugin-a", "tok-a"], ["plugin-b", "tok-b"]]);
 });
 
@@ -65,7 +65,7 @@ test("applying a file with no tokens field removes it without importing anything
   const target = path.join(dir, PENDING_AGENT_PLUGIN_TOKENS_FILENAME);
   fs.writeFileSync(target, '{"version":1}');
   const keyring = new InMemoryKeyring();
-  await applyPendingAgentPluginTokens({ siteDir: dir, sealer: new AesGcmSecretSealer(keyring), importToken: async () => { throw new Error("nothing to import"); } },
-    { info: () => {}, warn: () => {} });
+  await applyPendingAgentPluginTokens({ siteDir: dir, sealer: new AesGcmSecretSealer(keyring), importToken: async () => { throw new Error("nothing to import"); },
+    log: { info: () => {}, warn: () => {} } });
   assert.equal(fs.existsSync(target), false);
 });

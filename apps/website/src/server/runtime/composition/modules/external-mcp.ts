@@ -41,7 +41,7 @@ import type { ServerModuleHandle } from "./types.js";
  * the daemon, not a vendor. Gating either behind `oauthDeps` would take away a `none`/`static_env`
  * server's probe on a deployment that has never configured ANY OAuth connection, for no reason.
  */
-export function createExternalMcpModule(deps: ExternalMcpRouteDeps | ExternalMcpOAuthRouteDeps): ServerModuleHandle {
+export function createExternalMcpModule(deps: ExternalMcpRouteDeps | ExternalMcpOAuthRouteDeps, _optional: Record<string, never> = {}): ServerModuleHandle {
   const oauthDeps = "externalMcpOAuth" in deps && deps.externalMcpOAuth !== undefined ? (deps as ExternalMcpOAuthRouteDeps) : null;
   // Separate instances per family (not one shared limiter) so a device-poll burst does not eat the
   // callback's budget — the same reasoning the connectors module records for its four.

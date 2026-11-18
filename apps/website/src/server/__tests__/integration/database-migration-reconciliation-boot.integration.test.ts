@@ -59,7 +59,7 @@ test("a non-terminal migration_runs row (simulated crash mid-migration) is recon
 
     // Now boot for real, through the exact path index.ts uses.
     const deps = await createSiteRouteDeps({}, { dbPath });
-    const result = await runBootLifecycle(buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath }));
+    const result = await runBootLifecycle({ modules: buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath }) });
 
     const reconciliation = result.modules.find((m) => m.name === "database-migration-reconciliation");
     assert.equal(reconciliation?.lifecycle.status, "ready", "the scan itself succeeds (finding an interrupted migration is a successful detection, not a module failure)");
@@ -100,7 +100,7 @@ test("ADR-041/043/044/045 re-audit round 2 (codex finding R2-F2-BLOCK-NOT-ENFORC
     await databaseJournalDb.close();
 
     const deps = await createSiteRouteDeps({}, { dbPath });
-    await runBootLifecycle(buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath }));
+    await runBootLifecycle({ modules: buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath }) });
     assert.equal(await deps.siteStatusRepo.get(deps.workspaceId), "BLOCKED_PENDING_RECOVERY");
 
     const app = createApp(deps);
@@ -184,7 +184,7 @@ test("round-5 re-audit (codex R5-F1-BLOCKED-RECOVERY-NOT-RESTART-SAFE / Fable R5
 
     // Boot #1 (simulates the operator's process starting after the crash).
     const deps1 = await createSiteRouteDeps({}, { dbPath });
-    const result1 = await runBootLifecycle(buildBootModules(deps1, { useMemory: false, defaultContentDbPath: () => dbPath }));
+    const result1 = await runBootLifecycle({ modules: buildBootModules(deps1, { useMemory: false, defaultContentDbPath: () => dbPath }) });
     const reconciliation1 = result1.modules.find((m) => m.name === "database-migration-reconciliation");
     assert.equal(reconciliation1?.lifecycle.status, "ready", "boot 1: detection succeeds");
     assert.equal(await deps1.siteStatusRepo.get(deps1.workspaceId), "BLOCKED_PENDING_RECOVERY");
@@ -202,7 +202,7 @@ test("round-5 re-audit (codex R5-F1-BLOCKED-RECOVERY-NOT-RESTART-SAFE / Fable R5
     // throwing UNIQUE constraint failed -- the critical module failed, `ok` went false, and
     // index.ts would process.exit(1) before ever calling listen(), locking Recovery itself out.
     const deps2 = await createSiteRouteDeps({}, { dbPath });
-    const result2 = await runBootLifecycle(buildBootModules(deps2, { useMemory: false, defaultContentDbPath: () => dbPath }));
+    const result2 = await runBootLifecycle({ modules: buildBootModules(deps2, { useMemory: false, defaultContentDbPath: () => dbPath }) });
     const reconciliation2 = result2.modules.find((m) => m.name === "database-migration-reconciliation");
     assert.equal(reconciliation2?.lifecycle.status, "ready", "boot 2 must NOT crash the critical module on the same still-unresolved migration");
     assert.equal(result2.ok, true, "boot 2 must succeed overall so the process reaches listen() and Recovery stays reachable");
@@ -234,7 +234,7 @@ test("round-5/6 re-audit (codex R5-F1 / Fable R5-F2-BLOCK-HAS-NO-EXIT, then code
 
     // Boot #1: blocked, as before.
     const deps = await createSiteRouteDeps({}, { dbPath });
-    await runBootLifecycle(buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath }));
+    await runBootLifecycle({ modules: buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath }) });
     assert.equal(await deps.siteStatusRepo.get(deps.workspaceId), "BLOCKED_PENDING_RECOVERY");
 
     // Run the real Recovery restore ceremony (plan -> confirm -> execute) end-to-end over real
@@ -311,7 +311,7 @@ test("round-5/6 re-audit (codex R5-F1 / Fable R5-F2-BLOCK-HAS-NO-EXIT, then code
     // is proving).
     await deps.identityReady;
     const rebootDeps = await createSiteRouteDeps({}, { dbPath });
-    const rebootResult = await runBootLifecycle(buildBootModules(rebootDeps, { useMemory: false, defaultContentDbPath: () => dbPath }));
+    const rebootResult = await runBootLifecycle({ modules: buildBootModules(rebootDeps, { useMemory: false, defaultContentDbPath: () => dbPath }) });
     assert.equal(rebootResult.ok, true);
     assert.equal(await rebootDeps.siteStatusRepo.get(rebootDeps.workspaceId), "SERVING", "the resolution must survive a reboot -- the exit is durable, not just an in-process flag flip");
     assert.equal(
@@ -338,7 +338,7 @@ test("a clean sidecar (no non-terminal migration_runs row) boots normally: siteS
   const dbPath = path.join(dir, "content.db");
   try {
     const deps = await createSiteRouteDeps({}, { dbPath });
-    const result = await runBootLifecycle(buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath }));
+    const result = await runBootLifecycle({ modules: buildBootModules(deps, { useMemory: false, defaultContentDbPath: () => dbPath }) });
 
     const reconciliation = result.modules.find((m) => m.name === "database-migration-reconciliation");
     assert.equal(reconciliation?.lifecycle.status, "ready");

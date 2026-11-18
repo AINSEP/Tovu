@@ -49,7 +49,7 @@ test("agent-plugin-update-recovery: a failed recovery is logged and is optional,
   assert.equal(errors.length, 1);
   assert.match(errors[0]!, /could not be recovered; it is retried next boot: rollback bytes missing/);
 
-  const result = await runBootLifecycle([recovery]);
+  const result = await runBootLifecycle({ modules: [recovery] });
   assert.equal(result.ok, true);
   assert.equal(result.modules[0]!.lifecycle.status, "failed");
 });

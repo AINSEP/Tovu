@@ -54,27 +54,27 @@ export function mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps 
   // ADR-049: the admin assistant's tool-execution/run surface, composed from the published
   // `@jini-ai/core` + `@jini-ai/daemon` + `@jini-ai/node-host` kernel — see `src/assistant/`.
   if (adminAssistantEnabled) {
-    mountRoutes(app, createAssistantModule(routeDeps, byokAssistantModule.toolSurface.surfaceExchanges));
+    mountRoutes({ app, mod: createAssistantModule({ routeDeps, byokSurfaceExchanges: byokAssistantModule.toolSurface.surfaceExchanges }) });
 
     // Durable transcripts for that same assistant, in `content.db` rather than the daemon. Separate
     // module because nothing here is proxied: run execution belongs to the daemon (that is where run
     // state lives), while history belongs to Tovu's own database, where backups, snapshots, and
     // workspace scoping already work. The daemon can restart or be replaced without touching it.
-    mountRoutes(app, createAssistantChatsModule(routeDeps, {
+    mountRoutes({ app, mod: createAssistantChatsModule(routeDeps, {
       recoverInterrupted: options.recoverAssistantChatRuns,
       onBootWork: options.onBootWork,
-    }));
+    }) });
   }
 
   // The AI Assistant admin section's 2 settings routes (GET/PUT the public assistant's master
   // switch). Registered next to `createAssistantModule` for readability only — the two modules share
   // no dependencies and no path prefix (see `modules/assistant-settings.ts`'s header), and both sit
   // inside the `/api/admin` session gate, so this position is not load-bearing.
-  mountRoutes(app, createAssistantSettingsModule(routeDeps));
+  mountRoutes({ app, mod: createAssistantSettingsModule(routeDeps) });
   // The same admin section's "Execution mode" tab — Local CLI detection + BYOK connection
   // test/model discovery. Separate module from the settings pair above for the reason
   // `modules/assistant-execution.ts`'s header gives (stateless egress probes, not settings CRUD).
-  mountRoutes(app, createAssistantExecutionModule(routeDeps));
+  mountRoutes({ app, mod: createAssistantExecutionModule(routeDeps) });
   // 2026-08-04: the admin dock's "API · BYOK" execution mode — a second, provider-direct run path
   // alongside `createAssistantModule`'s daemon proxy above. Composes its own registry/executor over
   // the SAME `buildAssistantToolRegistrations` catalog the daemon uses (see `modules/assistant-byok.ts`'s
@@ -83,13 +83,13 @@ export function mountAssistant({ app, routeDeps, internalRouter, bootWorkByDeps 
   // the module itself (and its `toolSurface`) was already built above, so
   // `createAssistantModule`'s redemption proxy shares the exact same confirmation store.
   if (adminAssistantEnabled) {
-    mountRoutes(app, byokAssistantModule);
+    mountRoutes({ app, mod: byokAssistantModule });
 
     // ADR-059 (2026-08-18): the admin assistant's AG-UI canary transport — additive, flagged,
     // deletable. Wraps the SAME daemon-backed run lifecycle `createAssistantModule` above proxies
     // (via `assistant-daemon-client.ts`'s shared `fetchAgentDaemon`, extracted from that module this
     // same dispatch), translating its wire frames into real AG-UI SSE events. Does not touch, and is
     // not touched by, either existing execution path. See `modules/assistant-ag-ui.ts`'s header.
-    mountRoutes(app, createAssistantAgUiModule(routeDeps));
+    mountRoutes({ app, mod: createAssistantAgUiModule(routeDeps) });
   }
 }

@@ -174,7 +174,7 @@ async function bootGeminiStub(
 
   const app = express();
   app.use(express.json());
-  createSiteAssistantModule(deps, testEnv).registerRoutes?.({ app });
+  createSiteAssistantModule(deps, { env: testEnv }).registerRoutes?.({ app });
   return startTestServer(app, t);
 }
 
@@ -622,7 +622,7 @@ test("site assistant cancels a pending upstream stream when the visitor disconne
   { workspaceId: deps.workspaceId, apiKey: "test-fake-key-not-real", model: "gemini-flash-latest", baseUrl: `http://127.0.0.1:${address.port}` });
   const app = express();
   app.use(express.json());
-  createSiteAssistantModule(deps, { ...process.env, GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: `http://127.0.0.1:${address.port}` }).registerRoutes?.({ app });
+  createSiteAssistantModule(deps, { env: { ...process.env, GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: `http://127.0.0.1:${address.port}` } }).registerRoutes?.({ app });
   const baseUrl = await startTestServer(app, t);
   const controller = new AbortController();
   t.after(() => controller.abort());

@@ -21,7 +21,7 @@ const ALL_ENV_SET: NodeJS.ProcessEnv = {
 
 for (const protocol of ["anthropic", "openai", "azure"] as const satisfies readonly ByokProtocol[]) {
   test(`site assistant env fallbacks: ${protocol} gets none of the three env values, even when all are set`, () => {
-    assert.deepEqual(siteAssistantEnvFallbacks(ALL_ENV_SET, protocol), {
+    assert.deepEqual(siteAssistantEnvFallbacks({ env: ALL_ENV_SET, protocol }), {
       apiKey: undefined,
       baseUrl: undefined,
       model: undefined,
@@ -31,24 +31,24 @@ for (const protocol of ["anthropic", "openai", "azure"] as const satisfies reado
 
 test("site assistant env fallbacks: google reads and trims all three", () => {
   const result = siteAssistantEnvFallbacks(
-    {
+    { env: {
       GEMINI_API_KEY: "  k  ",
       TOVU_SITE_ASSISTANT_BASE_URL: " https://proxy.example ",
       TOVU_SITE_ASSISTANT_MODEL: " gemini-x ",
     },
-    "google",
+    protocol: "google" },
   );
   assert.deepEqual(result, { apiKey: "k", baseUrl: "https://proxy.example", model: "gemini-x" });
 });
 
 test("site assistant env fallbacks: google with whitespace-only env values gets undefined for each", () => {
   const result = siteAssistantEnvFallbacks(
-    {
+    { env: {
       GEMINI_API_KEY: "   ",
       TOVU_SITE_ASSISTANT_BASE_URL: "\t",
       TOVU_SITE_ASSISTANT_MODEL: "",
     },
-    "google",
+    protocol: "google" },
   );
   assert.deepEqual(result, { apiKey: undefined, baseUrl: undefined, model: undefined });
 });

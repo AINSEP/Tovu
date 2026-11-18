@@ -80,8 +80,8 @@ function defaultAgentPluginTokenBootSteps(deps: NewsletterRouteDeps): AgentPlugi
     pendingPluginIds: listPendingAgentPluginTokenIds,
     applyPending: ({ siteDir }) =>
       applyPendingAgentPluginTokens(
-        { siteDir, sealer: deps.siteAssistantSecretSealer, importToken: ({ pluginId, token }) => importAgentPluginAccessToken(deps, { pluginId, token }) },
-        bootLog,
+        { siteDir, sealer: deps.siteAssistantSecretSealer, importToken: ({ pluginId, token }) => importAgentPluginAccessToken(deps, { pluginId, token }),
+        log: bootLog },
       ),
     importFromEnv: ({ skipPluginIds }) => importAgentPluginAccessTokensFromEnv({ deps, env: process.env, log: bootLog }, { skipPluginIds }),
   };

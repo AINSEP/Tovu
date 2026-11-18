@@ -108,8 +108,9 @@ export async function applyPendingAgentPluginTokens(
     siteDir: string;
     sealer: SecretSealerPort;
     importToken: ({ pluginId, token }: { pluginId: string; token: string }, optional?: Record<string, never>) => Promise<"saved" | "saved-left-off" | "already-connected">;
+    log: PendingTokenLog;
   },
-  log: PendingTokenLog,
+  _optional: Record<string, never> = {},
 ): Promise<void> {
   const target = path.join(required.siteDir, PENDING_AGENT_PLUGIN_TOKENS_FILENAME);
   let file: PendingTokensFile;
@@ -117,13 +118,13 @@ export async function applyPendingAgentPluginTokens(
     file = JSON.parse(fs.readFileSync(target, "utf8")) as PendingTokensFile;
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") return;
-    log.warn(`[agent-plugins] ${target} is not valid JSON; removing it. Connect the plugin from chat instead.`);
+    required.log.warn(`[agent-plugins] ${target} is not valid JSON; removing it. Connect the plugin from chat instead.`);
     fs.rmSync(target, { force: true });
     return;
   }
   const remaining: Record<string, SealedSecret> = {};
   for (const [pluginId, sealed] of Object.entries(file?.tokens ?? {})) {
-    if (await applyPendingToken({ required, log, pluginId, sealed })) remaining[pluginId] = sealed;
+    if (await applyPendingToken({ required, log: required.log, pluginId, sealed })) remaining[pluginId] = sealed;
   }
   if (Object.keys(remaining).length === 0) {
     fs.rmSync(target, { force: true });

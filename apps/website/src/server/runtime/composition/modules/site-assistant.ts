@@ -497,7 +497,7 @@ export interface SiteAssistantEnvFallbacks {
 const NO_ENV_FALLBACKS: SiteAssistantEnvFallbacks = { apiKey: undefined, baseUrl: undefined, model: undefined };
 
 /** @complexity O(1). */
-export function siteAssistantEnvFallbacks(env: NodeJS.ProcessEnv, protocol: ByokProtocol): SiteAssistantEnvFallbacks {
+export function siteAssistantEnvFallbacks({ env, protocol }: { env: NodeJS.ProcessEnv; protocol: ByokProtocol }, _optional: Record<string, never> = {}): SiteAssistantEnvFallbacks {
   if (protocol !== "google") return NO_ENV_FALLBACKS;
   return {
     apiKey: nonBlank({ value: env.GEMINI_API_KEY }),
@@ -532,7 +532,7 @@ export function resolveProviderFromCredential(
     return respondUnavailable({ res, reportError, code: "PROVIDER_UNSUPPORTED", error: `site assistant is configured for an unsupported provider "${choice.provider}" — supported providers are anthropic, openai, azure, google.` });
   }
 
-  const envFallbacks = siteAssistantEnvFallbacks(env, protocol);
+  const envFallbacks = siteAssistantEnvFallbacks({ env, protocol });
 
   const apiKey = choice.apiKey ?? envFallbacks.apiKey;
   if (!apiKey) {
@@ -582,7 +582,7 @@ async function runSiteAssistantPreflight(
 /** `siteAssistantConfirmationScheduler` owns the one timer a held visitor confirmation has: its
  *  expiry. The host passes none and gets real timeouts; a test passes its own to reach the expiry
  *  ending without waiting out the 60 s the visitor is given. */
-export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantErrorLog?: (entry: SiteAssistantErrorLogEntry) => void; siteAssistantConfirmationScheduler?: SchedulerPort }, env: NodeJS.ProcessEnv = process.env): ServerModuleHandle {
+export function createSiteAssistantModule(deps: RouteDeps & { siteAssistantErrorLog?: (entry: SiteAssistantErrorLogEntry) => void; siteAssistantConfirmationScheduler?: SchedulerPort }, { env = process.env }: { env?: NodeJS.ProcessEnv } = {}): ServerModuleHandle {
   const confirmations = createVisitorConfirmations({ nowMs: deps.clock.nowMs.bind(deps.clock),
     exchanges: createSurfaceExchangeStore({ clock: deps.clock, scheduler: deps.siteAssistantConfirmationScheduler ?? createTimeoutScheduler({}),
       // This generator is cryptographic; the site's ordinary IDs can be time ordered.
