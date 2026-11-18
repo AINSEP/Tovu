@@ -18,8 +18,8 @@ export {
   type ConfiguredMailSender, type CreateMailSenderIdentityResolverOptional, type MailSenderIdentityPort,
 } from "./sender-identity.js";
 export {
-  createNodemailerSmtpTransport, SmtpMailerAdapter,
-  type CreateNodemailerSmtpTransportConfig, type SmtpMailerAdapterDeps,
+  createNodemailerSmtpTransport,
+  type CreateNodemailerSmtpTransportConfig,
   type SmtpMailPayload, type SmtpTransport,
 } from "./adapters/smtp.nodemailer.js";
 
@@ -28,5 +28,4 @@ export type {
   MailProviderConfigurationReport, MailProviderControl,
 } from "./mail-status.js";
 export type { MailPurposeGateProbe } from "./purpose-gate-probe.js";
-export { toJiniMailer, toTovuMailer } from "./purpose-scoped-mailer.js";
 export { credentialSecrets, safeMailProviderText } from "@jini-ai/platform/mail";

@@ -9,7 +9,7 @@ import {
 import type { MailAttemptObserver } from "#src/features/mail/attempts.repo";
 import type { MailTestModeSetting } from "#src/features/settings/index";
 import type { MailerPort, MailerSendOptions } from "#src/platform/mail/index";
-import { toJiniMailer, toTovuMailer } from "#src/platform/mail/index";
+import { fromPositionalMailer as toJiniMailer, toPositionalMailer as toTovuMailer } from "@jini-ai/platform/mail";
 
 /**
  * @file Tovu decorator that puts Jini's delivery policy (`createMailDeliveryPolicy`: attachments,

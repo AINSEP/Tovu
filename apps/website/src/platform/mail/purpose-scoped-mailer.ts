@@ -15,7 +15,6 @@ export interface WrapMailerWithPurposeGateOptions {
   durableOutboxReady: (required: { capabilityName: string }) => boolean;
 }
 
-export { fromPositionalMailer as toJiniMailer, toPositionalMailer as toTovuMailer } from "@jini-ai/platform/mail";
 import { fromPositionalMailer as toJiniMailer, toPositionalMailer as toTovuMailer } from "@jini-ai/platform/mail";
 
 /** Injects Tovu's durable-outbox readiness into Jini's fail-closed purpose gate.
