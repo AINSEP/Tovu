@@ -1,0 +1,33 @@
+# C12-OBS completeness check (plan run r13b-c12obs-fix, 2026-11-18). Lists every file in packages/apps/examples of
+# both repos that imports one of the 36 moved names from its old home and has no row in the TSV.
+# Usage: python3 -I C12-OBS.completeness.py <Jini> <Tovu> <path to C12-OBS.repoint.tsv>   -> must print nothing.
+# The lane's own hand-edited files (noop.ts, ports.ts, analytics product index/browser) are skipped.
+import re,sys,os,subprocess,csv
+names="RequestTrackingInput RequestTrackingOptions RequestTrackingOutcome TrackerScope RequestTracker DbQueryTrackingInput DbQueryTrackingOutcome DbQueryTracker OutboundCallTrackingInput OutboundCallTrackingOutcome OutboundCallTracker AgentRunTrackingInput AgentRunTrackingOptions AgentRunStatus AgentRunTrackingOutcome AgentRunTracker OperationAttributes OperationTrackingInput OperationTrackingOutcome OperationTracker TraceIds ErrorReport CrashUpload MetricInput MetricOptions ObservabilityPort ObservabilityAdapter createNoopObservabilityPort isNoopObservabilityPort ProductEventProperties ProductEvent ProductIdentity ProductAiGeneration ProductAnalyticsPort ProductAnalyticsAdapter BrowserAnalyticsContribution".split()
+nre=re.compile(r'\b('+'|'.join(names)+r')\b')
+spec_ok=re.compile(r"(@jini-ai/diagnostics|@jini-ai/analytics|/ports(\.js)?$|/noop(\.js)?$|/product(/index)?(\.js)?$|/product/browser(\.js)?$|^\./browser(\.js)?$|^\.\./browser(\.js)?$|^\./index(\.js)?$)")
+imp=re.compile(r"(?:import|export)\s+(type\s+)?(\{[^}]*\}|\*\s+as\s+\w+)\s+from\s+['\"]([^'\"]+)['\"]",re.S)
+OWN={'packages/diagnostics/src/observability/noop.ts','packages/diagnostics/src/observability/ports.ts','packages/analytics/src/product/index.ts','packages/analytics/src/product/browser.ts'}
+roots={'jini':sys.argv[1],'tovu':sys.argv[2]}
+tsv=set()
+for r in csv.DictReader(open(sys.argv[3]),delimiter='\t'): tsv.add((r['repo'],r['file']))
+found=set()
+for repo,root in roots.items():
+  out=subprocess.run(['rg','-l','packages','apps','examples','--glob','!**/node_modules/**','--glob','!**/dist/**','--glob','!ADS-memory/**','-e','|'.join(names),'-t','ts','-t','js'] ,cwd=root,capture_output=True,text=True).stdout.split()
+  for f in out:
+    if not (f.startswith('packages/') or f.startswith('apps/') or f.startswith('examples/')): continue
+    src=open(os.path.join(root,f)).read()
+    for m in imp.finditer(src):
+      spec=m.group(3); body=m.group(2)
+      if not spec_ok.search(spec): continue
+      if spec.startswith('.'):
+        # resolve to diagnostics observability/ analytics product
+        full=os.path.normpath(os.path.join(os.path.dirname(f),spec))
+        if not re.search(r'(diagnostics/src/observability/(ports|noop)|analytics/src/product/(index|browser)|analytics/src/product$)',full): continue
+      ns=set(nre.findall(body))
+      if ns or body.startswith('*'):
+        found.add((repo,f))
+        if (repo,f) not in tsv and f not in OWN: print("UNLISTED",repo,f,spec,sorted(ns) or body[:30])
+for k in sorted(tsv-found):
+  if os.path.exists(os.path.join(roots[k[0]],k[1])): pass
+  else: print("TSV-MISSING-FILE",*k)
