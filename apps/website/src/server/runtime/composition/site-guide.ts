@@ -7,7 +7,7 @@ import { ToolInputError } from "@jini-ai/core";
 import { createTovuAgentPluginLifecycle, type TovuAgentPluginLifecycle } from "#src/features/agent-plugins/lifecycle";
 import type { AgentPluginLayout } from "#src/features/agent-plugins/layout";
 import { readInstalledAgentPluginIdentity } from "@jini-ai/agent-plugins/lifecycle/host-tools";
-import { resolveThemeLayout } from "#src/features/theme/theme-layout";
+import { resolveThemeLayout } from "#src/features/theme/index";
 import type { SiteProfileSourceDeps } from "#src/features/site-inspection/index";
 import { readSiteGuideFacts, loadSiteGuideContributions, type SiteGuideEngine, type SiteGuideService } from "#src/features/site-guide/index";
 import type { GuideTopic as CapabilityCard } from "@jini-ai/agentic/core";

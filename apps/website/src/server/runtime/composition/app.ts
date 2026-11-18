@@ -15,7 +15,7 @@ import { composeSiteTitleSettings } from "./memory-deps/slices/site-title-settin
 import { composeIdentitySettings } from "./memory-deps/slices/identity-settings.js";
 import { composeMemoryRepos } from "./memory-deps/slices/repos.js";
 import { composeMemberSecrets } from "./memory-deps/slices/member-secrets.js";
-import { getExportRunSnapshot } from '../../../features/deployments/export-run.js';
+import { getExportRunSnapshot } from '../../../features/deployments/index.js';
 import { getPublishRunSnapshot } from '../../../features/deployments/static-publish/publish-run.js';
 import { registerWarmSiteRetirement } from '../lifecycle/warm-site-retirement.js';
 import { composeAgentPluginMcp } from "./agent-plugin-service-ports.js";
@@ -59,7 +59,7 @@ import {
 } from "../configuration/seed.js";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import { redirectMatcher, RedirectSlugChangeCapture, registerRedirectHitOutboxHandler, type RedirectsWriteDeps } from "@jini-ai/cms/redirects";
-import { registerRedirectsPhaseHandlers } from "#src/features/redirects/phase-handler";
+import { registerRedirectsPhaseHandlers } from "#src/features/redirects/index";
 import { registerSlugChangeCapture } from "#src/platform/routing/adapter";
 import { InMemoryPluginActivationRepo } from "@jini-ai/plugins/host";
 import { RECHARTS_RUNTIME_SOURCE, RECHARTS_BROWSER_APPROVAL } from "./charts-recharts-source.js";

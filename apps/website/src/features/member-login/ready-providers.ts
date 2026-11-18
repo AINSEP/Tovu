@@ -1,7 +1,7 @@
 /** Shared readiness projection for OIDC routes and public plugin exports; never opens secrets. */
 import { loadBundledLoginProviders, loadLoginProviders } from "./providers.js";
 import { hasLoginCredentials } from "./credentials.js";
-import type { CustomCredentialResolveDeps } from "../custom-credentials/store.js";
+import type { CustomCredentialResolveDeps } from "../custom-credentials/index.js";
 import type { LoadPluginContributions } from "../agent-plugins/lifecycle.js";
 import type { LoginProvider } from "./types.js";
 

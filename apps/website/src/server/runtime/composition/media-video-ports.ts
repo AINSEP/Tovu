@@ -1,5 +1,5 @@
 import { createFfmpegVideoFrameExtractor } from "@jini-ai/cms/media/node";
-import { readChatAttachmentForOwner } from "#src/features/media/read-chat-attachment";
+import { readChatAttachmentForOwner } from "#src/features/media/index";
 import type { MediaVideoToolPorts } from "#src/features/media/view-video-tool";
 
 /** Both CLI and BYOK catalogs receive the same owner reader and frame-extraction port. Directory

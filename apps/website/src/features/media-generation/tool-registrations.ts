@@ -1,4 +1,4 @@
-import { captureMediaUploaded } from "../media/analytics.js";
+import { captureMediaUploaded } from "../media/index.js";
 import { withChatPreview } from "../media/chat-preview.js";
 import type { ImageCodecPort, MediaProvenance } from "@jini-ai/cms/media";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
@@ -34,7 +34,7 @@ import {
   type MediaRepoPort,
   type TransformDefinitionRepoPort,
 } from "../media/index.js";
-import type { MediaContentTypeStorePort } from "../media/content-type-store.js";
+import type { MediaContentTypeStorePort } from "../media/index.js";
 import { resolveMediaPublicUrls } from "../media/tool-registrations.js";
 import { IMAGE_MODEL_IDS, imageModelIdsFrom } from "@jini-ai/integrations/media-providers/catalog";
 import { buildMediaGenerationAgentToolCatalog } from "./agent-tools.js";

@@ -59,7 +59,7 @@ import type {
 } from "../../features/members/index.js";
 import type { MailerPort, MailSenderIdentityPort } from "../../platform/mail/index.js";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "../../features/navigation/index.js";
-import type { RemoveMenuFn } from "../../features/navigation/trash-menu.js";
+import type { RemoveMenuFn } from "../../features/navigation/index.js";
 import type { KeyringPort, SecretSealerPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../features/webhooks/index.js";
 import type { WebhookSigner } from "../../features/webhooks/signing.js";
 import type { DatabaseDestinationStorePort } from "../../features/database-transfer/destination-store.js";
