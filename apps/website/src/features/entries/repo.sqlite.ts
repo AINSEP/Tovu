@@ -12,6 +12,7 @@ export const ENTRY_TABLES = { entries: "entries", revisions: "entry_revisions" }
  * body, in Jini `@jini-ai/cms/entries/sql`). Kept as a named class so callers can construct it from a content db handle or
  * kernel; new code calls `SqliteEntryRepo`.
  */
+/** The entry repo for `kernel`. */
 export class SqliteEntryRepo extends SqlEntryRepo {
   /** The connection's kernel, or the content db handle it is derived from. */
   constructor({ store }: { store: ContentKernel | ContentDb }) {
