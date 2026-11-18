@@ -51,7 +51,8 @@ import { SITE_ORIGIN, readProjectsFile, readTrackedSites, trackSite, untrackSite
 import { mayEraseSiteDirectory, readSiteIdentity } from "./project-delete-guard.ts";
 import { sitePartition } from "./desktop-auth.ts";
 import { createRelocationGate, relocateMovedSites, repointTrackedSite, type RelocationGate } from "./site-relocation.ts";
-import { assertTokensCanReachFolder, cleanCreateTokens, initTokenOptions, listTokenSignInPlugins as listTokenSignInPluginsReal, withCreatedTokens, type TokenSignInPlugin } from "./agent-plugin-tokens.ts";
+import { assertTokensCanReachFolder, cleanCreateTokens, initTokenOptions, listTokenSignInPlugins as listTokenSignInPluginsReal, withCreatedTokens } from "./agent-plugin-tokens.ts";
+import type { TokenSignInPlugin } from "@jini-ai/agent-plugins/connect";
 
 const SITE_IPC_CHANNELS = Object.freeze({
   list: "runner:sites:list",

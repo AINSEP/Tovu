@@ -18,14 +18,10 @@ import { spawn as nodeSpawn } from "node:child_process";
 import type { SpawnOptions } from "node:child_process";
 import type { Readable } from "node:stream";
 
-import { buildCliSpawnPlan, buildCliEnv, parseCliErrorLine } from "./tovu-server.ts";
+import { decodeTokenSignInEntries, parsePluginTokenMap } from "@jini-ai/agent-plugins/connect";
+import type { TokenMapLimits, TokenSignInPlugin } from "@jini-ai/agent-plugins/connect";
 
-/** One service the create form can offer a token field for — mirrors `contracts/project.ts`. */
-interface TokenSignInPlugin {
-  pluginId: string;
-  displayName: string;
-  helpUrl: string;
-}
+import { buildCliSpawnPlan, buildCliEnv, parseCliErrorLine } from "./tovu-server.ts";
 
 /** What `tovu init` reported for the tokens it was given — mirrors `contracts/project.ts`. */
 interface CreatedAgentPluginTokens {
@@ -45,6 +41,7 @@ type ListSpawnFn = (command: string, args: string[], options: SpawnOptions) => L
 const PLUGIN_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const MAX_TOKENS = 8;
 const MAX_TOKEN_LENGTH = 4096;
+const TOKEN_LIMITS: TokenMapLimits = { pluginIdPattern: PLUGIN_ID_PATTERN, maxTokens: MAX_TOKENS, maxTokenLength: MAX_TOKEN_LENGTH };
 
 /**
  * The create input's `agentPluginTokens`, trimmed, blanks dropped — `{}` when none. The renderer is
@@ -55,25 +52,10 @@ const MAX_TOKEN_LENGTH = 4096;
  * @complexity O(n) in the entry count (bounded).
  */
 function cleanCreateTokens({ raw }: { raw: unknown }, _options = {}): Record<string, string> {
-  if (raw === undefined || raw === null) return {};
-  if (!isSmallMap(raw) || !Object.entries(raw).every(([pluginId, value]) => isTokenEntry({ pluginId, value }))) {
-    throw new Error("The access tokens for the new site were not in the expected shape. Nothing was created.");
-  }
-  const out: Record<string, string> = {};
-  for (const [pluginId, value] of Object.entries(raw as Record<string, string>)) {
-    if (value.trim() !== "") out[pluginId] = value.trim();
-  }
-  return out;
-}
-
-/** A plain object with at most {@link MAX_TOKENS} entries. */
-function isSmallMap(raw: unknown): raw is Record<string, unknown> {
-  return typeof raw === "object" && raw !== null && !Array.isArray(raw) && Object.keys(raw).length <= MAX_TOKENS;
-}
-
-/** A plugin id `tovu init` accepts, mapped to a string it accepts. */
-function isTokenEntry({ pluginId, value }: { pluginId: string; value: unknown }, _options = {}): boolean {
-  return PLUGIN_ID_PATTERN.test(pluginId) && typeof value === "string" && value.length <= MAX_TOKEN_LENGTH;
+  const parsed = parsePluginTokenMap({ raw, limits: TOKEN_LIMITS }, {});
+  if (!parsed.ok) throw new Error("The access tokens for the new site were not in the expected shape. Nothing was created.");
+  // The engine's result has no prototype so an id like `__proto__` is only a key; callers get an ordinary object.
+  return { ...parsed.tokens };
 }
 
 /**
@@ -120,12 +102,7 @@ function parseCreatedTokensLine({ output }: { output: string }, _options = {}): 
 function parsePluginList({ stdout }: { stdout: string }, _options = {}): TokenSignInPlugin[] {
   const line = stdout.split(/\r?\n/).reverse().find((candidate) => candidate.trim().startsWith("{"));
   const parsed = JSON.parse(line ?? "{}") as { plugins?: unknown };
-  const plugins = Array.isArray(parsed.plugins) ? parsed.plugins : [];
-  return plugins.flatMap((entry): TokenSignInPlugin[] => {
-    const { pluginId, displayName, helpUrl } = (entry ?? {}) as Record<string, unknown>;
-    if (typeof pluginId !== "string" || !PLUGIN_ID_PATTERN.test(pluginId) || typeof displayName !== "string" || typeof helpUrl !== "string") return [];
-    return /^https:\/\//.test(helpUrl) ? [{ pluginId, displayName, helpUrl }] : [];
-  });
+  return [...decodeTokenSignInEntries({ entries: parsed.plugins, pluginIdPattern: PLUGIN_ID_PATTERN }, {})];
 }
 
 /**
@@ -169,4 +146,4 @@ async function listTokenSignInPlugins(input: {
 }
 
 export { cleanCreateTokens, assertTokensCanReachFolder, initTokenOptions, withCreatedTokens, parseCreatedTokensLine, listTokenSignInPlugins };
-export type { TokenSignInPlugin, CreatedAgentPluginTokens, ListSpawnFn };
+export type { CreatedAgentPluginTokens, ListSpawnFn };
