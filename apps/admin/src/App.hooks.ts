@@ -82,7 +82,7 @@ export interface UseAdminSession {
   /** `true` until the initial `api.me()` round trip settles (resolved or rejected). */
   checking: boolean;
   /** `undefined` until `/auth/me` has answered (or when it omits the field) — "not known yet",
-   *  which `lib/panel-access.ts` treats as "show every section" rather than "hold none". */
+   *  which `@jini-ai/admin/core`'s `isPanelAccessible` treats as "show every section" rather than "hold none". */
   effectivePermissions?: readonly string[];
   /** `Login`'s `onLogin` — also publishes an unscoped settings refresh, since signing in changes
    *  what this tab is allowed to read, not just who it is (see this function's own inline comment

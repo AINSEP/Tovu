@@ -15,7 +15,7 @@ import { createDictionaryTranslator } from '@jini-ai/core/text';
  * duplicating it here — see `App.tsx`'s call site.
  *
  * Also the no-access state `App.tsx`'s `NoAccess` shows for a section the operator holds no
- * permission for (`lib/panel-access.ts`).
+ * permission for (`@jini-ai/admin/core`'s `isPanelAccessible`).
  *
  * Same 21-locale set and order as `admin-nav-i18n.ts`/every feature `*-i18n.ts` file in this app.
  */

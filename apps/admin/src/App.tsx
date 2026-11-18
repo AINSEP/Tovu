@@ -12,6 +12,7 @@ import { useMemo, type ReactNode } from "react";
 import { ChatDockAside, ShellMain, ShellOverlays, ShellSkipLink, type DockT } from "./App.chrome";
 import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 import { matchRoute, resolveAgentPageId, type AdminRoute } from "@jini-ai/admin/core";
+import { isPanelAccessible, withoutInaccessiblePanels } from "@jini-ai/core/admin-runtime";
 import { ConfirmDialog, ConfirmDialogDefaultsProvider, Sidebar, useSidebar } from "@jini-ai/admin/react";
 import { Toast } from "@jini-ai/ui";
 import { KitProvider } from "@jini-ai/ui-kit/react";
@@ -25,7 +26,6 @@ import { getNav } from "./nav";
 import { Login } from "./features/auth";
 import { Placeholder } from "./components/Placeholder";
 import { ADMIN_PANELS } from "./panels";
-import { resolvePanelAccessGate, withoutInaccessiblePanels } from "./lib/panel-access";
 import { translateAdminNavGroups, translateAdminNavLabel } from "./lib/admin-nav-i18n";
 import { t as tApp } from "./app-i18n";
 import { ScrollJumpButtons } from "@jini-ai/ui/admin-widgets";
@@ -187,7 +187,7 @@ export function agentPageId(route: Route): string {
 
 /** What {@link renderRoute} needs to decide whether the operator may see the routed panel. */
 interface RouteAccess {
-  /** The session's `effectivePermissions`; `undefined` while not known (see `lib/panel-access.ts`). */
+  /** The session's `effectivePermissions`; `undefined` while not known (see `@jini-ai/admin/core`'s `isPanelAccessible`). */
   readonly permissions: readonly string[] | undefined;
   readonly locale: string;
 }
@@ -206,8 +206,9 @@ function gatedRouteElement({ route, siteSection, access }: { route: Route; siteS
   if (gate === "hold") return null;
   // A panel the operator holds none of the permissions for: say so, rather than mount a screen
   // whose first read the server answers 403. Same "routing owns visibility" placement as the
-  // Sites gate above; the decision itself lives in `lib/panel-access.ts`.
-  if (resolvePanelAccessGate({ panelId: route.panelId, panels: ADMIN_PANELS, permissions: access.permissions }) === "denied") {
+  // Sites gate above; the decision itself is `@jini-ai/admin/core`'s `isPanelAccessible`
+  // (the dashboard fallback, `panelId: null`, declares nothing and is always allowed).
+  if (!isPanelAccessible({ panel: PANELS_BY_ID.get(route.panelId ?? "dashboard") ?? {}, permissions: access.permissions })) {
     return <NoAccess locale={access.locale} />;
   }
   return undefined;
