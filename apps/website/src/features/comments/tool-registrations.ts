@@ -55,6 +55,12 @@ function toPackageDeps({ routeDeps }: { routeDeps: CommentsToolDeps }, _optional
     get commentWriteService() { return routeDeps.commentWriteService; },
     commentsSettings: {
       get: (input) => getCommentsSettings({ settingsRepo: routeDeps.settingsRepo }, input),
+      // No explicit pre-check here, unlike every other Comments handler: `setCommentsSettings`
+      // (settings.ts) self-enforces internally — its `set()` call is invoked with
+      // `requiredPermissionOverride: 'comments.configure'` HARD-CODED inside settings.ts itself, so
+      // passing `authorize: routeDeps.authorize` through is exactly ADR-021 §2's "one evaluator",
+      // reached the domain-function way Forms/Identity use, not the explicit-handler way the rest
+      // of this file uses. See settings.ts's own comment on that override for why.
       set: (input) => setCommentsSettings(
         { settingsRepo: routeDeps.settingsRepo, clock: routeDeps.clock, ids: routeDeps.idGen, authorize: routeDeps.authorize, principals: routeDeps.principalRepo },
         input,
