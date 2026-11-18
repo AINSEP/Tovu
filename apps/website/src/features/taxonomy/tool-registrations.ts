@@ -79,6 +79,36 @@ export interface TaxonomyToolDeps {
    * the admin HTTP routes use. */
   stampWatermark: () => Promise<void> | void;
 }
+const MERGE_TOOL_ID = "taxonomy_execute_merge_term";
+
+/**
+ * The merge's human confirmation: the dialog's wording is Tovu's, and the allow-list scan
+ * (`assistant/__tests__/mcp-ui-allowlist-completeness.test.ts`) reads its tool id from this
+ * `dialog:` spec. Plans as the agent, asks the human, then the package confirms as the human and
+ * executes as the agent.
+ */
+const confirmedMergeHandler: TaxonomyPackageToolDeps["mergeConfirmedHandler"] = (surfaces, { flag, prepare, run }) =>
+  humanConfirmedToolHandler(surfaces, {
+    flag,
+    prepare,
+    dialog: ({ plan, fromName, intoName }) => ({
+      toolId: MERGE_TOOL_ID,
+      errorCode: "TAXONOMY",
+      title: `Merge ${fromName} into ${intoName}?`,
+      details: [
+        { label: "Merge away", value: fromName },
+        { label: "Keep", value: intoName },
+        ...(plan.details.overlappingContentCount > 0
+          ? [{ label: "Tagged with both", value: String(plan.details.overlappingContentCount) }]
+          : []),
+      ],
+      warning: `Everything tagged ${fromName} is re-tagged ${intoName}, and ${fromName} is retired. This can't be undone.`,
+      danger: true,
+      confirmLabel: "Merge terms",
+    }),
+    run,
+  });
+
 /**
  * The package deps over the host's route deps. Every field is a getter so a field the composition
  * root assigns after this registry is built (the authorizer, the repos) is read at call time, as
@@ -115,7 +145,7 @@ function toPackageDeps({ routeDeps }: { routeDeps: TaxonomyToolDeps }, _optional
       confirm: (required) => gatewayConfirm({ deps: routeDeps.gatedMutations.gatewayDeps, ...required }),
       execute: (required) => gatewayExecute({ deps: routeDeps.gatedMutations.gatewayDeps, ...required }),
     },
-    humanConfirmedHandler: humanConfirmedToolHandler,
+    mergeConfirmedHandler: confirmedMergeHandler,
     refuseUnexpectedKeys,
     toSlug,
   };
