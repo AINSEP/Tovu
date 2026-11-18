@@ -1,4 +1,4 @@
-import type { PublishCompatibilityPort } from "../../custom-credentials/publish-compatibility-port.js";
+import type { CredentialSetSummary } from "@jini-ai/core/contracts/credentials";
 import type { DeployTargetRegistry } from "../contracts.js";
 import { invalidatePublishCredentialCompatibility } from "./store.js";
 
@@ -9,16 +9,18 @@ export interface PublishCompatibilitySource {
 }
 
 /**
- * Binds the port `custom-credentials` declares over the invalidation this feature owns. `required.source` is read inside
+ * Binds `custom-credentials`' `PublishCompatibilityPort` over the invalidation this feature owns. The return type is inferred, not
+ * annotated with that port, so `deployments` takes no import from `custom-credentials`; the host's assignment to
+ * `RouteDeps.publishCompatibility` and `extract-s8-c2p1-ports.type-pin.ts` hold the two shapes together. `required.source` is read inside
  * `prepareInvalidation`, never when the port is bound: the composition roots bind from inside the literal that builds the
  * source, which is not readable yet. No `catch`: a rejected registry load propagates to the save, as before.
  * @complexity O(1) to bind; one registry load per credential write when both values are present.
  */
-export function bindPublishCompatibility(required: { readonly source: PublishCompatibilitySource }, _optional: Record<string, never> = {}): PublishCompatibilityPort {
-  return { prepareInvalidation: async ({ workspaceId }) => {
+export function bindPublishCompatibility(required: { readonly source: PublishCompatibilitySource }, _optional: Record<string, never> = {}) {
+  return { prepareInvalidation: async ({ workspaceId }: { workspaceId: string }, _optional: Record<string, never> = {}) => {
     const source = required.source;
     const registry = source.loadDeployTargets && source.publishCredentialVerificationCache ? await source.loadDeployTargets({ workspaceId }) : undefined;
-    return ({ after }) => {
+    return ({ after }: { after: CredentialSetSummary }) => {
       if (registry && source.publishCredentialVerificationCache) invalidatePublishCredentialCompatibility({ workspaceId, registry, cache: source.publishCredentialVerificationCache, after });
     };
   } };
