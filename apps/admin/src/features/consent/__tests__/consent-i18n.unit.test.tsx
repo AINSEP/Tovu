@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, renderHook, screen } from '@testing-library/react';
+import { render, renderHook, screen } from '../../../__tests__/render-with-jini-kits';
 import { ConsentBannerFields, ConsentLookFields, ConsentPreviewFrame, ConsentRulesFields } from '@jini-ai/admin/consent/react';
 import { CONSENT_DICT, translate } from '../consent-dictionary';
 import { useConsentTranslate } from '../consent-i18n';
