@@ -107,10 +107,11 @@ T = typecheck + tests + six desktop gates; P = packaged proof (staged closure + 
 |---|---|---|---|---|
 | D0a contracts to `@tovu/contracts` (incl. headless barrel importer repoint to `@tovu/contracts/assistant-subagents-policy`) | Tovu | 120k | T, **P** steps 1-3 | P0 |
 | D0b log helpers to `diagnostics` | Jini + Tovu | 120k | T, **P** steps 1-3 | D0a |
-| **D0c design** (Opus; closures, location-derived roots, commit graph; then judged) | none (docs) | 200k | - | OD-1 |
-| D0c1 telemetry boot to `@tovu/host-shared` (**not executable until the design exists**) | Tovu | 120k | T, **P** steps 1-3 | D0c design, D0b |
-| D0c2 daemon schemas, secrets, host signals; delete staging step + verifier resource model | Tovu | 170k | **P** | D0c1 |
-| D0e remove the 8 existing lazy imports (outline only) | Tovu (+ Jini closure) | 150k | **P** | D0c2, daemon R7/R8 for `desktop-agent.ts` |
+| **D0c design** — DONE (draft on `wave3/desktop-d0c`, judged 2026-11-18: `designs/D0c.md`) | none (docs) | - | - | OD-1 = DX-OD1 |
+| D0c1 `@tovu/host-shared` + process-error-guards, product-events, jini-routes — **EXECUTABLE** (revision 4) | Tovu | 130k | T, **P** owed (DX-OD10) | D0b; base `wave3/desktop-d0c` |
+| D0c2 startup-secrets + daemon-connection schemas — **EXECUTABLE** after D0c1 | Tovu | 120k | T, **P** owed | D0c1 |
+| D0c3 product telemetry, host signals, staging-step deletion — **BLOCKED** (Opus design: provider-loader port, host-signals closure, lazy plugin root) | Tovu | design 150k + run ~200k | T, **P** steps 1-4 | D0c2 + its design |
+| D0e remove the 8 existing lazy imports (outline only) | Tovu (+ Jini closure) | 150k | **P** | D0c3 (was D0c2), daemon R7/R8 for `desktop-agent.ts` |
 | D0d `desktop-host/bridge` entry; unused deps | Jini + Tovu | 40k | T | P0 |
 | D1a IPC kit `./electron/ipc` (three policies, policy required per registration, refusals reported, raw parity path; reference-desktop preload bundling) | Jini | 160k | T | P0 |
 | D1b1 gate inventory + adopt: sites channels at parity (OD-2 hardening as a separate later commit) | Tovu | 150k | T, **E** | D1a |
