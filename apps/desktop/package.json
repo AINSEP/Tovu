@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@tovu/contracts": "file:../../packages/contracts",
+    "@tovu/host-shared": "file:../../packages/host-shared",
     "@cfworker/json-schema": "^4.1.1",
     "@jini-ai/agent-runtime": "^0.7.0",
     "@jini-ai/chat": "^0.7.0",

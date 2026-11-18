@@ -5,7 +5,7 @@ import test from "node:test";
 
 import { createNoopObservabilityPort, type ErrorReport, type ObservabilityPort } from "@jini-ai/diagnostics/observability";
 
-import { installProcessErrorReporting } from "../process-error-guards.js";
+import { installProcessErrorReporting, installUnhandledRejectionGuard } from "../process-error-guards.js";
 
 /**
  * @file `installProcessErrorReporting`: unhandled rejections and uncaught exceptions of the server
@@ -143,4 +143,20 @@ test('fatal flush is bounded to 2000ms even if a caller requests a longer deadli
     t.mock.timers.tick(1_999); assert.deepEqual(exits, []);
     t.mock.timers.tick(1); assert.deepEqual(exits, [1]);
   } finally { uninstall(); t.mock.timers.reset(); }
+});
+
+test("installUnhandledRejectionGuard: two installs are independent and each disposer removes only its own listener, once", () => {
+  const baseline = process.listeners("unhandledRejection");
+  const log = () => {};
+  const disposeFirst = installUnhandledRejectionGuard({ log });
+  const disposeSecond = installUnhandledRejectionGuard({ log });
+  try {
+    assert.equal(process.listenerCount("unhandledRejection"), baseline.length + 2);
+    disposeFirst();
+    assert.equal(process.listenerCount("unhandledRejection"), baseline.length + 1);
+    disposeFirst();
+    assert.equal(process.listenerCount("unhandledRejection"), baseline.length + 1, "a second call of the same disposer removes nothing more");
+    disposeSecond();
+    assert.deepEqual(process.listeners("unhandledRejection"), baseline);
+  } finally { disposeFirst(); disposeSecond(); }
 });

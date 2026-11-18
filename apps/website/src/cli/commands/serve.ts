@@ -15,7 +15,7 @@ import type { SiteStore } from "../../server/runtime/composition/open-site-store
 import { awaitBootWorkWithinBound } from "../../server/runtime/lifecycle/await-boot-work.js";
 import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
 import { ensureAgentDaemonPortResolved } from "../../server/runtime/lifecycle/agent-daemon-port.js";
-import { installProcessErrorReporting, installUnhandledRejectionGuard } from "../../server/runtime/boot/process-error-guards.js";
+import { installProcessErrorReporting, installUnhandledRejectionGuard } from "@tovu/host-shared/process-error-guards";
 import { attachServerLogFile, installServerLogCapture, serverLogFilePaths } from "../../platform/server-logs/index.js";
 import { processBuildRelease, telemetryEnvironment } from '../../server/runtime/composition/build-release.js';
 import { registerPluginSdkResolver } from "../../features/plugin-runtime/sdk-resolver.js";
@@ -174,7 +174,7 @@ export interface RunServeCommandOptional {
  */
 export async function runServeCommand(input: RunServeCommandInput, optional: RunServeCommandOptional = {}): Promise<void> {
   // Install before boot: detached identity seed promises can reject independently of identityReady.
-  // See runtime/boot/process-error-guards.ts for the process-wide guard rationale.
+  // See @tovu/host-shared/process-error-guards (packages/host-shared/src) for the process-wide guard rationale.
   installUnhandledRejectionGuard();
   // Server log capture (gap A-04): keeps recent console output in memory, redacted, so the admin
   // server-logs route and the `system_read_server_logs` chat tool can show recent errors. Installed

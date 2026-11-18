@@ -6,7 +6,7 @@
  */
 import type { MessageBoxOptions } from "electron";
 import { createNoopTracker } from "@jini-ai/diagnostics/observability";
-import { installProcessErrorReporting, installUnhandledRejectionGuard } from "../../../../website/src/server/runtime/boot/process-error-guards.ts";
+import { installProcessErrorReporting, installUnhandledRejectionGuard } from "@tovu/host-shared/process-error-guards";
 import { resolveTovuObservabilityExport } from "../../../../website/src/server/runtime/composition/observability-export.ts";
 import { bootDesktopProductTelemetry, desktopProductLaunch, reportDesktopProcessGone } from "../../product-telemetry.ts";
 import type { DesktopProductTelemetry } from "../../product-telemetry.ts";

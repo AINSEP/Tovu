@@ -231,7 +231,7 @@ test("runServeCommand pins the site before boot, forwards the resolved bind host
   // scenario would otherwise find the previous one still "Running in Web".
   module("../../../platform/site-dir/site-running.ts", { claimSiteRunning: (claim: unknown) => (leaseClaims.push(claim), { attached: attached ? { port: 4320 } : null, ready: () => { if (leaseReadyError) throw leaseReadyError; }, release: () => {} }) });
   module("../../../features/plugin-runtime/sdk-resolver.ts", { registerPluginSdkResolver: () => {} });
-  module("../../../server/runtime/boot/process-error-guards.ts", { installUnhandledRejectionGuard: () => {} });
+  module(import.meta.resolve("@tovu/host-shared/process-error-guards"), { installUnhandledRejectionGuard: () => {} });
   module("../../../server/runtime/boot/boot-readiness-gate.ts", { runProductionReadinessGateOrExit: async () => {} });
   // Startup IPC and the private callback listener are approved boot steps. Keep this
   // wiring test entirely in-process; the listener's implementation has its own tests.
