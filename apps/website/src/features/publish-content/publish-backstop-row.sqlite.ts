@@ -1,6 +1,6 @@
 import { sql } from "kysely";
 import type { ContentKernel } from "../../platform/db/content-kernel.js";
-import type { sqliteForeignKeyCheckedTransaction, sqliteTableInfo } from "../../platform/db/kernel/sqlite-only.js";
+import type { sqliteForeignKeyCheckedTransaction, sqliteTableInfo } from "@jini-ai/db/kernel/sqlite";
 import type { RawColumn, RawRowPort, RawValue } from "#src/features/publish-content/backstop-ports";
 import { BackstopRefusal, checkRawTable } from "#src/features/publish-content/backstop-policy";
 
@@ -30,7 +30,7 @@ type RawPk = Readonly<Record<string, RawValue>>;
 async function listRawColumns(required: SqliteRowContext & { table: string }, _optional = {}): Promise<readonly RawColumn[] | null> {
   const { table } = required;
   allowed({ table, columns: [] });
-  // SQLite's own table_info shape, not listColumns': both peers compare and hash it (see sqlite-only.ts).
+  // SQLite's own table_info shape, not listColumns': both peers compare and hash it (see sqlite-only.ts in `@jini-ai/db/kernel/sqlite`).
   const info = await required.tableInfo({ kernel: required.kernel, table });
   if (!info) return null;
   identifier({ name: table }); // a live table whose name later SQL could not quote is refused here, as before

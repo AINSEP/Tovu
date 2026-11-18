@@ -9,9 +9,3 @@ export {
 export { StorageOpError, StorageOpNotSupportedError, type StorageOps, storageOps } from "./ops.js";
 export { openPgliteKernel, type PgKernel } from "./drivers/pglite.js";
 export { openPostgresKernel } from "./drivers/postgres.js";
-export {
-  type SqliteForeignKeyViolation,
-  sqliteForeignKeyCheckedTransaction,
-  type SqliteTableColumn,
-  sqliteTableInfo,
-} from "./sqlite-only.js";
