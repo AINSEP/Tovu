@@ -32,8 +32,10 @@ test("stageBundle computes expiresAt as receivedAt + TTL, never from caller inpu
   const repo = new InMemoryPublishContentBundleRepo();
   const receivedAt = "2026-09-18T00:00:00.000Z";
   const { bundleId, expiresAt } = await stageBundle(
-    { workspaceId: "ws-1", sourcePrincipalId: "principal-1", artifactFormatVersion: 1, hashVersion: 1, entities: [], blobManifest: [] },
-    { repo, clock: fakeClock(receivedAt), idGen: fakeIdGen("bundle-1") }
+    {
+      input: { workspaceId: "ws-1", sourcePrincipalId: "principal-1", artifactFormatVersion: 1, hashVersion: 1, entities: [], blobManifest: [] },
+      deps: { repo, clock: fakeClock(receivedAt), idGen: fakeIdGen("bundle-1") }
+    }
   );
 
   assert.equal(bundleId, "bundle-1");
@@ -51,15 +53,17 @@ test("stageBundle serializes entities/blobManifest and records sourcePrincipalId
   const blobManifest = ["a".repeat(64)];
   await stageBundle(
     {
-      workspaceId: "ws-1",
-      sourcePrincipalId: "principal-1",
-      artifactFormatVersion: 1,
-      hashVersion: 1,
-      sourceLabel: "peer A",
-      entities,
-      blobManifest,
-    },
-    { repo, clock: fakeClock("2026-09-18T00:00:00.000Z"), idGen: fakeIdGen("bundle-2") }
+      input: {
+        workspaceId: "ws-1",
+        sourcePrincipalId: "principal-1",
+        artifactFormatVersion: 1,
+        hashVersion: 1,
+        sourceLabel: "peer A",
+        entities,
+        blobManifest,
+      },
+      deps: { repo, clock: fakeClock("2026-09-18T00:00:00.000Z"), idGen: fakeIdGen("bundle-2") }
+    }
   );
 
   const stored = await repo.findById({ workspaceId: "ws-1", id: "bundle-2" });
@@ -90,8 +94,10 @@ test("loadActiveBundle REFUSES (returns null for) a bundle past its expiresAt â€
   const repo = new InMemoryPublishContentBundleRepo();
   const receivedAt = "2026-09-18T00:00:00.000Z";
   const { bundleId, expiresAt } = await stageBundle(
-    { workspaceId: "ws-1", sourcePrincipalId: "principal-1", artifactFormatVersion: 1, hashVersion: 1, entities: [], blobManifest: [] },
-    { repo, clock: fakeClock(receivedAt), idGen: fakeIdGen("bundle-3"), ttlMs: 1000 }
+    {
+      input: { workspaceId: "ws-1", sourcePrincipalId: "principal-1", artifactFormatVersion: 1, hashVersion: 1, entities: [], blobManifest: [] },
+      deps: { repo, clock: fakeClock(receivedAt), idGen: fakeIdGen("bundle-3"), ttlMs: 1000 }
+    }
   );
 
   const wellPastExpiry = new Date(new Date(expiresAt).getTime() + 1).toISOString();
@@ -103,8 +109,10 @@ test("loadActiveBundle returns the record when it has not yet expired", async ()
   const repo = new InMemoryPublishContentBundleRepo();
   const receivedAt = "2026-09-18T00:00:00.000Z";
   const { bundleId } = await stageBundle(
-    { workspaceId: "ws-1", sourcePrincipalId: "principal-1", artifactFormatVersion: 1, hashVersion: 1, entities: [], blobManifest: [] },
-    { repo, clock: fakeClock(receivedAt), idGen: fakeIdGen("bundle-4") }
+    {
+      input: { workspaceId: "ws-1", sourcePrincipalId: "principal-1", artifactFormatVersion: 1, hashVersion: 1, entities: [], blobManifest: [] },
+      deps: { repo, clock: fakeClock(receivedAt), idGen: fakeIdGen("bundle-4") }
+    }
   );
 
   const result = await loadActiveBundle({ repo, workspaceId: "ws-1", id: bundleId, now: receivedAt });
@@ -131,17 +139,20 @@ test("staging sweeps rows strictly past expiry while preserving the inclusive ex
     entities: [],
     blobManifest: [],
   };
-  await stageBundle(input, { repo, clock: fakeClock(receivedAt), idGen: fakeIdGen("old"), ttlMs: 1_000 });
+  await stageBundle({ input, deps: { repo, clock: fakeClock(receivedAt), idGen: fakeIdGen("old"), ttlMs: 1_000 } });
 
   const exactExpiry = "2026-09-18T00:00:01.000Z";
-  await stageBundle(input, { repo, clock: fakeClock(exactExpiry), idGen: fakeIdGen("boundary") });
+  await stageBundle({ input, deps: { repo, clock: fakeClock(exactExpiry), idGen: fakeIdGen("boundary") } });
   assert.ok(await repo.findById({ workspaceId: "ws-1", id: "old" }), "a row remains usable exactly at expiresAt");
 
-  await stageBundle(input, {
-    repo,
-    clock: fakeClock("2026-09-18T00:00:01.001Z"),
-    idGen: fakeIdGen("new"),
-  });
+  await stageBundle({
+                      input,
+                      deps: {
+      repo,
+      clock: fakeClock("2026-09-18T00:00:01.001Z"),
+      idGen: fakeIdGen("new"),
+    }
+                    });
   assert.equal(await repo.findById({ workspaceId: "ws-1", id: "old" }), null);
   assert.ok(await repo.findById({ workspaceId: "ws-1", id: "boundary" }));
   assert.ok(await repo.findById({ workspaceId: "ws-1", id: "new" }));

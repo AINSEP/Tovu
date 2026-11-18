@@ -89,7 +89,9 @@ export function checkRawValues(
 }
 
 export function gapLabelFor(
-  item: { entityType: "raw-row"; table: string } | { entityType: "raw-file"; relPath: string },
+  { item }: {
+    item: { entityType: "raw-row"; table: string } | { entityType: "raw-file"; relPath: string };
+  },
   _optional = {},
 ): string {
   return item.entityType === "raw-row" ? `table:${item.table}` : `folder:${item.relPath.split("/").slice(0, 2).join("/")}`;

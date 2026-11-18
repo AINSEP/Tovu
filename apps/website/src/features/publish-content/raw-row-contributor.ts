@@ -41,7 +41,7 @@ function scalar(value: unknown): value is RawValue {
 
 /** Every column, including bookkeeping columns, stays NESTED in values so the typed hashing
  * exclusions cannot silently discard raw data. A hash-derived version supplies the existing OCC seam. */
-export function contributeRawRowPublish(_required = {}, _optional = {}): PublishContentContributor {
+export function contributeRawRowPublish(): PublishContentContributor {
   return {
     entityType: "raw-row", dependsOn: [], build: (deps) => buildRawRowHandler({ deps }),
   };

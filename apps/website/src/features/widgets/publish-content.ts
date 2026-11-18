@@ -231,7 +231,7 @@ export const contributeWidgetAreaPublish = (): PublishContentContributor =>
       areaEntryId: "local",
       version: "local",
     },
-    references: ({ entity }) => collectPlacementReferences(entity.state),
+    references: ({ entity }) => collectPlacementReferences({ state: entity.state }),
     write: async (ctx) => {
       const { state, existing, expectedVersion, principalId, workspaceId } = ctx;
       const deps = serviceDeps({ ctx, entityType: "widget-area" });

@@ -72,7 +72,7 @@ test("POST .../bundles with no principal (requireAdminSession did not run) is th
 
 /** A bundle repo whose save fails, as a full disk would. */
 class FailingBundleRepo extends InMemoryPublishContentBundleRepo {
-  override async save(_record: StagedBundleRecord): Promise<void> {
+  override async save({ record: _record }: { record: StagedBundleRecord }): Promise<void> {
     throw new Error("SQLITE_FULL");
   }
 }
@@ -166,7 +166,7 @@ test("a manual send with installed audit storage, the right address and a backst
 /** Registers the real raw-row contributor (it speaks `schemaVersion` 1) for this one test. */
 function registerRawRowType(t: TestContext): void {
   resetPublishContentContributorsForTests(); t.after(resetPublishContentContributorsForTests);
-  registerPublishContentContributor(contributeRawRowPublish());
+  registerPublishContentContributor({ contributor: contributeRawRowPublish() });
 }
 
 test("POST .../bundles refuses an entity of a registered type at another schemaVersion with the exact 400", async (t) => {

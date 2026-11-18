@@ -34,14 +34,16 @@ function setup({ entities, skipped = [], types = ["post", "page", "note"], missi
 }): Fixture {
   resetPublishContentContributorsForTests();
   for (const entityType of new Set(entities.map((e) => e.entityType).concat(skipped.map((s) => s.entityType)))) {
-    registerPublishContentContributor({ entityType, dependsOn: [], build: () => ({
-      entityType, schemaVersion: 1, permission: "content.write", dependsOn: [],
-      pack: async function* () { yield* entities.filter((e) => e.entityType === entityType); },
-      inspect: async () => null, precheck: async () => null,
-      apply: async () => { throw new Error("a plan never applies"); },
-      listSkipped: async () => skipped.filter((s) => s.entityType === entityType),
-      references: ({ entity }) => ((entity.state.uses as string[] | undefined) ?? []).map((key) => ({ entityType: "media", key })),
-    }) });
+    registerPublishContentContributor({
+                                        contributor: { entityType, dependsOn: [], build: () => ({
+        entityType, schemaVersion: 1, permission: "content.write", dependsOn: [],
+        pack: async function* () { yield* entities.filter((e) => e.entityType === entityType); },
+        inspect: async () => null, precheck: async () => null,
+        apply: async () => { throw new Error("a plan never applies"); },
+        listSkipped: async () => skipped.filter((s) => s.entityType === entityType),
+        references: ({ entity }) => ((entity.state.uses as string[] | undefined) ?? []).map((key) => ({ entityType: "media", key })),
+      }) }
+                                      });
   }
   const bodies: Record<string, unknown[]> = {};
   const storageKeys: string[] = [];

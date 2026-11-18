@@ -117,16 +117,16 @@ export interface PublishContentPeerSummary {
  *  {@link PublishContentPeerDuplicateLabelError} rather than propagating it raw. */
 export interface PublishContentPeerRepoPort {
   readonly vault: VaultRepoPort;
-  insert(record: PublishContentPeerRecord): Promise<void>;
+  insert(required: { record: PublishContentPeerRecord }, optional?: {}): Promise<void>;
   /** Full-row replace by `(workspaceId, id)`. */
-  update(record: PublishContentPeerRecord): Promise<void>;
-  findById(input: { workspaceId: string; id: string }): Promise<PublishContentPeerRecord | null>;
+  update(required: { record: PublishContentPeerRecord }, optional?: {}): Promise<void>;
+  findById(input: { workspaceId: string; id: string }, optional?: {}): Promise<PublishContentPeerRecord | null>;
   /** Every peer a workspace has saved. Inherently small — bounded by how many peers a human types
    *  into this one form, never by a caller-supplied N — so no pagination or cap, the same reasoning
    *  `VendorCredentialSetRepoPort.listByWorkspace` records. */
-  listByWorkspace(input: { workspaceId: string }): Promise<PublishContentPeerRecord[]>;
+  listByWorkspace(input: { workspaceId: string }, optional?: {}): Promise<PublishContentPeerRecord[]>;
   /** No-op (not an error) if no row exists — matches this feature's DELETE route contract. */
-  delete(input: { workspaceId: string; id: string }): Promise<void>;
+  delete(input: { workspaceId: string; id: string }, optional?: {}): Promise<void>;
 }
 
 /** Read-side deps: NO sealer, NO keyring — see this file's header. */
@@ -188,7 +188,7 @@ function peerRecord({ record }: { record: VaultRecord }, _options = {}): Publish
  *
  * @complexity O(1) — fixed-shape field mapping.
  */
-export function toPeerSummary(record: PublishContentPeerRecord): PublishContentPeerSummary {
+export function toPeerSummary({ record }: { record: PublishContentPeerRecord }, _optional = {}): PublishContentPeerSummary {
   return {
     id: record.id,
     label: record.label,
@@ -248,8 +248,11 @@ export interface CreatePeerInput {
  * @complexity O(1) — one seal and one insert.
  */
 export async function createPublishContentPeer(
-  deps: PublishContentPeerWriteDeps,
-  input: CreatePeerInput
+  { deps, input }: {
+    deps: PublishContentPeerWriteDeps;
+    input: CreatePeerInput;
+  },
+  _optional = {}
 ): Promise<PublishContentPeerSummary> {
   const label = requireBoundedField({ value: input.label, field: "label" });
   const baseUrl = requireBaseUrl({ raw: input.baseUrl });
@@ -287,8 +290,11 @@ export interface UpdatePeerInput {
  * @complexity O(1) — one read, at most one seal, one update.
  */
 export async function updatePublishContentPeer(
-  deps: PublishContentPeerWriteDeps,
-  input: UpdatePeerInput
+  { deps, input }: {
+    deps: PublishContentPeerWriteDeps;
+    input: UpdatePeerInput;
+  },
+  _optional = {}
 ): Promise<PublishContentPeerSummary> {
   const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
   if (!existing) throw new PublishContentPeerNotFoundError({ message: `peer '${input.id}' was not found` });
@@ -303,7 +309,7 @@ export async function updatePublishContentPeer(
   const now = nowIso({ clock: deps.clock });
   if (input.apiKey === undefined) {
     await updatePeerMetadata(deps, { record: { ...existing, label, baseUrl, remoteWorkspaceId, updatedAt: now } });
-    return toPeerSummary({ ...existing, label, baseUrl, remoteWorkspaceId });
+    return toPeerSummary({ record: { ...existing, label, baseUrl, remoteWorkspaceId } });
   }
   const apiKey = requireBoundedField({ value: input.apiKey, field: "apiKey" });
   const current = await deps.repo.vault.find({ workspaceId: input.workspaceId, id: input.id });
@@ -323,11 +329,14 @@ export async function updatePublishContentPeer(
  * @complexity O(n) in the workspace's peer count (one repo read plus one projection each).
  */
 export async function listPublishContentPeers(
-  deps: PublishContentPeerReadDeps,
-  input: { workspaceId: string }
+  { deps, input }: {
+    deps: PublishContentPeerReadDeps;
+    input: { workspaceId: string };
+  },
+  _optional = {}
 ): Promise<PublishContentPeerSummary[]> {
   const records = await deps.repo.listByWorkspace(input);
-  return records.map(toPeerSummary);
+  return records.map((record) => toPeerSummary({ record }));
 }
 
 /**
@@ -336,11 +345,14 @@ export async function listPublishContentPeers(
  * @complexity O(1).
  */
 export async function getPublishContentPeerSummary(
-  deps: PublishContentPeerReadDeps,
-  input: { workspaceId: string; id: string }
+  { deps, input }: {
+    deps: PublishContentPeerReadDeps;
+    input: { workspaceId: string; id: string };
+  },
+  _optional = {}
 ): Promise<PublishContentPeerSummary | null> {
   const record = await deps.repo.findById(input);
-  return record ? toPeerSummary(record) : null;
+  return record ? toPeerSummary({ record }) : null;
 }
 
 /**
@@ -348,8 +360,11 @@ export async function getPublishContentPeerSummary(
  * @complexity O(1).
  */
 export async function deletePublishContentPeer(
-  deps: PublishContentPeerReadDeps,
-  input: { workspaceId: string; id: string }
+  { deps, input }: {
+    deps: PublishContentPeerReadDeps;
+    input: { workspaceId: string; id: string };
+  },
+  _optional = {}
 ): Promise<void> {
   await deps.repo.delete(input);
 }
@@ -376,8 +391,11 @@ export interface ResolvedPeerCredential {
  * @complexity Two row reads and one AEAD open; no group scan.
  */
 export async function resolvePeerCredential(
-  deps: { repo: PublishContentPeerRepoPort; sealer: SecretSealerPort },
-  input: { workspaceId: string; id: string }
+  { deps, input }: {
+    deps: { repo: PublishContentPeerRepoPort; sealer: SecretSealerPort };
+    input: { workspaceId: string; id: string };
+  },
+  _optional = {}
 ): Promise<ResolvedPeerCredential> {
   const record = await deps.repo.findById(input);
   if (!record) throw new PublishContentPeerNotFoundError({ message: `peer '${input.id}' was not found` });
@@ -411,8 +429,8 @@ export class VaultPublishContentPeerRepo implements PublishContentPeerRepoPort {
   constructor({ vault }: { vault: VaultRepoPort }, _options = {}) { this.vault = vault; }
   readonly vault: VaultRepoPort;
 
-  async insert(record: PublishContentPeerRecord): Promise<void> { await this.write({ record, insert: true }); }
-  async update(record: PublishContentPeerRecord): Promise<void> { await this.write({ record, insert: false }); }
+  async insert({ record }: { record: PublishContentPeerRecord }): Promise<void> { await this.write({ record, insert: true }); }
+  async update({ record }: { record: PublishContentPeerRecord }): Promise<void> { await this.write({ record, insert: false }); }
 
   /** Preserve opaque bytes for metadata edits; Jini guards the replacement revision.
    * @complexity O(metadata size), one read and one CAS write; only conflicts query labels.
@@ -501,7 +519,7 @@ export class InMemoryPublishContentPeerRepo extends VaultPublishContentPeerRepo 
  * @complexity O(n) in the workspace's peer count.
  */
 export function selectConnectedDestination(
-  rows: readonly PublishContentPeerRecord[]
+  { rows }: { rows: readonly PublishContentPeerRecord[] }, _optional = {}
 ): PublishContentPeerRecord | null {
   let chosen: PublishContentPeerRecord | null = null;
   for (const row of rows) {
@@ -512,8 +530,11 @@ export function selectConnectedDestination(
 }
 
 export async function saveConnectedDestination(
-  deps: PublishContentPeerReadDeps & { clock: Clock; idGen: { newId(): string } },
-  input: { workspaceId: string; label: string; baseUrl: string; remoteWorkspaceId: string }
+  { deps, input }: {
+    deps: PublishContentPeerReadDeps & { clock: Clock; idGen: { newId(): string } };
+    input: { workspaceId: string; label: string; baseUrl: string; remoteWorkspaceId: string };
+  },
+  _optional = {}
 ): Promise<PublishContentPeerSummary> {
   const baseUrl = requireBaseUrl({ raw: input.baseUrl });
   const remoteWorkspaceId = requireBoundedField({ value: input.remoteWorkspaceId, field: "remoteWorkspaceId" });
@@ -556,9 +577,9 @@ export async function saveConnectedDestination(
   // exists to prevent. Being briefly disconnected is truthful; publishing to the wrong site is not.
   for (const row of superseded) await deps.repo.delete({ workspaceId: input.workspaceId, id: row.id });
 
-  if (match) await deps.repo.update(record);
-  else await deps.repo.insert(record);
-  return toPeerSummary(record);
+  if (match) await deps.repo.update({ record });
+  else await deps.repo.insert({ record });
+  return toPeerSummary({ record });
 }
 
 /**
@@ -571,8 +592,11 @@ export async function saveConnectedDestination(
  * @complexity O(n) in the workspace's peer count, plus at most one delete.
  */
 export async function removeConnectedDestination(
-  deps: PublishContentPeerReadDeps,
-  input: { workspaceId: string; baseUrl: string }
+  { deps, input }: {
+    deps: PublishContentPeerReadDeps;
+    input: { workspaceId: string; baseUrl: string };
+  },
+  _optional = {}
 ): Promise<boolean> {
   const rows = await deps.repo.listByWorkspace({ workspaceId: input.workspaceId });
   const match = rows.find((row) => row.baseUrl === input.baseUrl && row.sealed === null);
@@ -606,7 +630,7 @@ async function rethrowPeerWriteError(
 }
 
 async function updatePeerMetadata({ repo }: PublishContentPeerReadDeps, { record }: { record: PublishContentPeerRecord }): Promise<void> {
-  try { await repo.update(record); }
+  try { await repo.update({ record }); }
   catch (err) {
     if (isUniqueViolation(err)) throw new PublishContentPeerDuplicateLabelError({ message: `a peer labelled '${record.label}' already exists in this workspace` });
     throw err;

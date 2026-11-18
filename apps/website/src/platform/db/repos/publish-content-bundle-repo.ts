@@ -34,7 +34,7 @@ export class SqlPublishContentBundleRepo implements PublishContentBundleRepoPort
   /** Append-only insert — a staged bundle id is minted fresh by `stageBundle` (`deps.idGen`), so
    *  this never needs to handle a duplicate-id conflict in practice (no transaction needed for a
    *  single-row append with no cross-row invariant). */
-  async save(record: StagedBundleRecord): Promise<void> {
+  async save({ record }: { record: StagedBundleRecord }): Promise<void> {
     await this.kernel.run((db) =>
       db
         .insertInto("publish_content_bundles")

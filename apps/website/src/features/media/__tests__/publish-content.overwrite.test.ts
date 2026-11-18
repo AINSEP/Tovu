@@ -58,17 +58,17 @@ test("changed bytes require Overwrite even when the destination still matches it
   const f = await fixture(t);
   resetPublishContentContributorsForTests();
   t.after(resetPublishContentContributorsForTests);
-  registerPublishContentContributor(contributeMediaPublish());
+  registerPublishContentContributor({ contributor: contributeMediaPublish() });
   const destination = await f.handler.inspect({ id: f.prior.id });
   const bundle = { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities: [f.entity] };
   const deps = { publishContentDeps: f.deps, hasBlob: async () => true,
     getBaseline: async () => ({ hashAtLastSync: destination!.hash, hashVersion: CONTENT_HASH_VERSION }) };
-  const blocked = (await planImport(bundle, deps)).rows[0]!;
+  const blocked = (await planImport({ bundle, deps })).rows[0]!;
   assert.equal(blocked.outcome, "blocked");
   assert.equal(blocked.writes, false);
   assert.equal(blocked.canOverwrite, true);
   assert.match(blocked.reason!, /Tick Overwrite on live/);
-  const forced = (await planImport(bundle, { ...deps, forcedEntityKeys: new Set(["media:photo"]) })).rows[0]!;
+  const forced = (await planImport({ bundle, deps: { ...deps, forcedEntityKeys: new Set(["media:photo"]) } })).rows[0]!;
   assert.equal(forced.outcome, "forced");
   assert.deepEqual(forced.sourceReplacement, f.sourceReplacement);
   assert.equal((await f.repo.findById({ workspaceId, id: "photo" }))!.version, 3);
@@ -244,12 +244,15 @@ test("file replacement offers explain destination edits since the last sync", as
   const f = await fixture(t);
   resetPublishContentContributorsForTests();
   t.after(resetPublishContentContributorsForTests);
-  registerPublishContentContributor(contributeMediaPublish());
-  const report = await planImport({ artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
-    hashVersion: CONTENT_HASH_VERSION, entities: [f.entity] }, {
-    publishContentDeps: f.deps, hasBlob: async () => true,
-    getBaseline: async () => ({ hashAtLastSync: "before-live-edit", hashVersion: CONTENT_HASH_VERSION }),
-  });
+  registerPublishContentContributor({ contributor: contributeMediaPublish() });
+  const report = await planImport({
+                                    bundle: { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
+      hashVersion: CONTENT_HASH_VERSION, entities: [f.entity] },
+                                    deps: {
+      publishContentDeps: f.deps, hasBlob: async () => true,
+      getBaseline: async () => ({ hashAtLastSync: "before-live-edit", hashVersion: CONTENT_HASH_VERSION }),
+    }
+                                  });
   assert.match(report.rows[0]!.reason!, /edited on the destination since the last sync/);
   assert.match(report.rows[0]!.reason!, /Tick Overwrite/);
 });

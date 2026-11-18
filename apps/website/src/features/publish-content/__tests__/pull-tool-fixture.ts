@@ -31,7 +31,7 @@ export async function fixture(entities: PackedEntity[] = [packed("new")]) {
   const bundleRepo = new InMemoryPublishContentBundleRepo();
   const runRepo = new InMemoryPublishContentRunRepo();
   const peerRepo = new InMemoryPublishContentPeerRepo();
-  await peerRepo.insert(peerRow());
+  await peerRepo.insert({ record: peerRow() });
   const baselineRepo = new InMemoryPublishContentBaselineRepo();
   const destination = new Map<string, { version: number; hash: string; title: string }>();
   const blobs = new Map<string, Buffer>();
@@ -46,12 +46,14 @@ export async function fixture(entities: PackedEntity[] = [packed("new")]) {
     return { allowed: !denied.has(args.permission as string), reason: denied.has(args.permission as string) ? "insufficient_permission" : "matched" };
   };
   resetPublishContentContributorsForTests();
-  registerPublishContentContributor({ entityType: "pull-fixture", dependsOn: [], build: () => ({
-    entityType: "pull-fixture", schemaVersion: 1, permission: "content.write", dependsOn: [],
-    pack: async function* () {}, inspect: async ({ id }) => destination.get(id) ?? null,
-    precheck: async ({ entity }) => entity.id === "blocked" ? "Local item is locked" : null,
-    apply: async () => { throw new Error("use the apply port"); },
-  }) });
+  registerPublishContentContributor({
+                                      contributor: { entityType: "pull-fixture", dependsOn: [], build: () => ({
+      entityType: "pull-fixture", schemaVersion: 1, permission: "content.write", dependsOn: [],
+      pack: async function* () {}, inspect: async ({ id }) => destination.get(id) ?? null,
+      precheck: async ({ entity }) => entity.id === "blocked" ? "Local item is locked" : null,
+      apply: async () => { throw new Error("use the apply port"); },
+    }) }
+                                    });
   const deps = {
     workspaceId: "local", clock, idGen, authorize, pluginBeforeSaveHook: undefined, outbox: undefined,
     publishContentPeerRepo: peerRepo, workspaceRepo: { findById: async () => ({ name: "Local" }) },
@@ -93,7 +95,7 @@ export async function fixture(entities: PackedEntity[] = [packed("new")]) {
         const entity = entities.find(e => e.id === row.entityId)!;
         destination.set(entity.id, { version: 1, hash: entity.contentHash, title: (entity.state as { title: string }).title });
       }
-      await runRepo.save({ id: "applied-run", workspaceId: "local", direction: "import", peerPrincipalId: OWNER, peerLabel: "Live site", phase: "applied", restorePointId: args.restorePointId, changeSetIdsJson: "[]", actorId: args.principalId, startedAt: NOW, finishedAt: NOW, reportJson: JSON.stringify(args.report), itemsJson: "[]" });
+      await runRepo.save({ record: { id: "applied-run", workspaceId: "local", direction: "import", peerPrincipalId: OWNER, peerLabel: "Live site", phase: "applied", restorePointId: args.restorePointId, changeSetIdsJson: "[]", actorId: args.principalId, startedAt: NOW, finishedAt: NOW, reportJson: JSON.stringify(args.report), itemsJson: "[]" } });
       return { runId: "applied-run", changeSetIds: [], retiredChangeSetIds: [], repointChangeSetIds: [], menuLinksUpdated: 0, menuLinksNotUpdated: [], verificationProblems: [] };
     } },
   } as unknown as PublishContentToolDeps;
@@ -101,7 +103,7 @@ export async function fixture(entities: PackedEntity[] = [packed("new")]) {
 }
 export async function tool(deps: PublishContentToolDeps, id: string, surfaces: any = { surfaceExchanges: { open: () => { throw new Error("unexpected dialog"); } } }) {
   const { buildPublishContentRegistrations } = await import("../tool-registrations.js");
-  const registration = buildPublishContentRegistrations(deps, surfaces).find(r => r.descriptor.id === id);
+  const registration = buildPublishContentRegistrations({ routeDeps: deps, surfaces }).find(r => r.descriptor.id === id);
   assert.notEqual(registration, undefined, `${id} must be registered`);
   return registration!;
 }

@@ -653,7 +653,7 @@ test("bug 44: video and poster published between disposable SQLite sites immedia
   t.after(() => closeSqliteConnection(destinationDb));
   resetPublishContentContributorsForTests();
   t.after(resetPublishContentContributorsForTests);
-  registerPublishContentContributor(contributeMediaPublish());
+  registerPublishContentContributor({ contributor: contributeMediaPublish() });
   const videoBytes = new TextEncoder().encode("disposable video bytes for the publish hashing contract");
   const videoSha = createHash("sha256").update(videoBytes).digest("hex");
   const poster = makeMediaRecord({ id: "poster", slug: "poster", createdBy: "source-owner",
@@ -675,10 +675,13 @@ test("bug 44: video and poster published between disposable SQLite sites immedia
   for (const entity of entities) await handler.apply({ entity, expectedVersion: undefined,
     principalId: OPERATOR_ID, idempotencyKey: `roundtrip-${entity.id}` });
   assert.deepEqual(await handler.verifyApplied!({ entities }), []);
-  const report = await planImport({ artifactFormatVersion: 1, hashVersion: CONTENT_HASH_VERSION, entities }, {
-    publishContentDeps: destinationDeps, getBaseline: async () => null,
-    hasBlob: async ({ sha256 }) => destination.blobStore.exists({ storageKey: computeBlobStorageKey({ workspaceId: destinationWorkspaceId, sha256 }) }),
-  });
+  const report = await planImport({
+                                    bundle: { artifactFormatVersion: 1, hashVersion: CONTENT_HASH_VERSION, entities },
+                                    deps: {
+      publishContentDeps: destinationDeps, getBaseline: async () => null,
+      hasBlob: async ({ sha256 }) => destination.blobStore.exists({ storageKey: computeBlobStorageKey({ workspaceId: destinationWorkspaceId, sha256 }) }),
+    }
+                                  });
   assert.equal(report.refused, false);
   assert.deepEqual(report.rows.map(row => [row.entityId, row.outcome, row.writes]).sort(),
     [["poster", "unchanged", false], ["video", "unchanged", false]]);

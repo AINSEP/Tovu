@@ -149,7 +149,7 @@ export function plainSentence({ text, fallback }: { text: string; fallback: stri
  *  the one a person will have meant.
  *  @complexity O(n) in the workspace's destination count. */
 function chooseDestination(rows: readonly PublishContentPeerRecord[]): PublishContentPeerRecord | null {
-  const connected = selectConnectedDestination(rows);
+  const connected = selectConnectedDestination({ rows });
   if (connected) return connected;
   return rows.length === 1 ? (rows[0] as PublishContentPeerRecord) : null;
 }
@@ -158,7 +158,7 @@ function chooseDestination(rows: readonly PublishContentPeerRecord[]): PublishCo
  *  @complexity O(n) in the workspace's destination count. */
 async function readReadiness({ deps, findCandidate }: { deps: PublishContentToolDeps; findCandidate: () => Promise<string | null> }, _optional = {}): Promise<{ readiness: PublishReadiness; rows: readonly PublishContentPeerRecord[] }> {
   const rows = await deps.publishContentPeerRepo.listByWorkspace({ workspaceId: deps.workspaceId });
-  const connected = selectConnectedDestination(rows);
+  const connected = selectConnectedDestination({ rows });
   const readiness = describePublishReadiness({
     connectedSiteLabel: connected ? connected.label : null,
     otherSiteLabels: rows.filter((row) => row.sealed !== null).map((row) => row.label),
@@ -225,13 +225,15 @@ async function connectWithTrust(
     };
     const { site, grant } = await connectAndRecordDestination(
       {
-        repo: routeDeps.publishContentPeerRepo,
-        clock: routeDeps.clock,
-        idGen: routeDeps.idGen,
-        connectGrant: (connectInput, _options: Record<string, never> = {}) => connectDestination(trustDeps, connectInput),
-        reverseGrant: () => disconnectDestination(trustDeps),
-      },
-      { workspaceId: routeDeps.workspaceId, baseUrl: baseUrl, entityTypes }
+        deps: {
+          repo: routeDeps.publishContentPeerRepo,
+          clock: routeDeps.clock,
+          idGen: routeDeps.idGen,
+          connectGrant: (connectInput, _options: Record<string, never> = {}) => connectDestination({ deps: trustDeps, input: connectInput }),
+          reverseGrant: () => disconnectDestination({ deps: trustDeps }),
+        },
+        input: { workspaceId: routeDeps.workspaceId, baseUrl: baseUrl, entityTypes }
+      }
     );
 
     return {
@@ -266,8 +268,8 @@ async function connectWithTrust(
  * @complexity O(t) for t catalog entries; handler I/O runs only when invoked.
  */
 export function buildPublishContentRegistrations(
-  routeDeps: PublishContentToolDeps,
-  surfaces: AssistantSurfaceDeps
+  { routeDeps, surfaces }: { routeDeps: PublishContentToolDeps; surfaces: AssistantSurfaceDeps },
+  _optional = {}
 ): ToolRegistration[] {
   const findCandidate = routeDeps.findPublishCandidate ?? (async () => null);
   const provisioning = routeDeps.publishTrustProvisioning ?? defaultProvisioning();
@@ -293,17 +295,17 @@ export function buildPublishContentRegistrations(
       refuseUnexpectedKeys(input, ["peerId"]);
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: PUBLISH_CONTENT_APPLY_PERMISSION });
       const peerId = await selectPullPeer({ deps: routeDeps, supplied: input.peerId });
-      const staged = await pullAndStageFromPeer(routeDeps, { peerId, principalId: ctx.principal.id });
+      const staged = await pullAndStageFromPeer({ deps: routeDeps, input: { peerId, principalId: ctx.principal.id } });
       const planned = await gatewayPlan({ deps: routeDeps.gatedMutations.gatewayDeps, principalId: ctx.principal.id, principalKind: "agent", hooks: pullHooks({ deps: routeDeps, bundleId: staged.bundleId, actorId: ctx.principal.id }) });
       const report = acceptedPullReport(planned.details as PublishContentReport);
       // The bundle table has no source-label column. An existing audit row retains this display
       // metadata across tool calls/restarts; no cached plan is trusted at execute time.
-      await routeDeps.publishContentRunRepo.save({
+      await routeDeps.publishContentRunRepo.save({ record: {
         id: staged.bundleId, workspaceId: routeDeps.workspaceId, direction: "import", phase: "planned",
         peerPrincipalId: ctx.principal.id, peerLabel: staged.peerLabel, actorId: ctx.principal.id,
         restorePointId: null, changeSetIdsJson: null, startedAt: nowIso({ clock: routeDeps.clock }), finishedAt: null,
         reportJson: JSON.stringify(report), itemsJson: null,
-      });
+      } });
       return { bundleId: staged.bundleId, expiresAt: staged.expiresAt, peerLabel: staged.peerLabel,
         counts: pullCounts(report), conflicts: report.rows.filter(row => row.canOverwrite).slice(0, 50).map(row => ({
           entityKey: entityKey({ entityType: row.entityType, entityId: row.entityId }), title: pullTitle(row), reason: row.reason,
@@ -350,7 +352,7 @@ export function buildPublishContentRegistrations(
         const applied = await executePublishContentImport({ workspaceId: routeDeps.workspaceId, costClass: capabilities.restorePoint.costClass,
           gatewayExecute: () => gatewayExecute({ deps: routeDeps.gatedMutations.gatewayDeps, principalId: ctx.principal.id, principalKind: "agent", hooks, confirmationToken: token.confirmationToken }),
         });
-        const status = await getPublishContentRunStatus(routeDeps.publishContentRunRepo, { workspaceId: routeDeps.workspaceId, runId: applied.runId });
+        const status = await getPublishContentRunStatus({ repo: routeDeps.publishContentRunRepo, input: { workspaceId: routeDeps.workspaceId, runId: applied.runId } });
         if (!status?.report) throw new ToolInputError({ message: "The pull ran, but its report could not be loaded. Check import history before retrying." });
         // Use the persisted APPLY report, including any optimistic-concurrency downgrades.
         return { executed: true, counts: pullCounts(status.report), entities: status.report.rows.map(row => ({ entityKey: entityKey({ entityType: row.entityType, entityId: row.entityId }), title: pullTitle(row), outcome: row.outcome, reason: row.reason })) };
@@ -390,7 +392,7 @@ export function contributePublishContentTools<TDeps extends PublishContentToolDe
 } = {}): ToolContributor<TDeps, AssistantSurfaceDeps> {
   return { domain: "publish-content", risk: publishContentDerivedRisk, build: (deps, surfaces) => {
     const buildDeps = options.buildPublishContentDeps;
-    return buildPublishContentRegistrations(buildDeps ? { ...deps, makePublishContentDeps: () => buildDeps(deps) } : deps, surfaces);
+    return buildPublishContentRegistrations({ routeDeps: buildDeps ? { ...deps, makePublishContentDeps: () => buildDeps(deps) } : deps, surfaces });
   } };
 }
 
@@ -423,7 +425,7 @@ async function selectPullPeer({ deps, supplied }: { deps: PublishContentToolDeps
   if (rows.length === 0) throw new ToolInputError({ message: "No live destination is connected. Connect this computer with publish_content_connect, then plan the pull again." });
   const connectedRows = rows.filter(row => row.sealed === null);
   if (connectedRows.length <= 1) {
-    const connected = selectConnectedDestination(rows);
+    const connected = selectConnectedDestination({ rows });
     if (connected) return connected.id;
     if (rows.length === 1) {
       const only = rows[0];

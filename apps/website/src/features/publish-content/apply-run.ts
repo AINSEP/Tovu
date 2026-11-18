@@ -79,7 +79,7 @@ export async function saveRunRecord(
   },
   _optional = {}
 ): Promise<void> {
-  await input.runRepo.save({
+  await input.runRepo.save({ record: {
     id: identity.runId,
     workspaceId: input.workspaceId,
     direction: "import",
@@ -93,7 +93,7 @@ export async function saveRunRecord(
     finishedAt: fields.finishedAt,
     reportJson: JSON.stringify(fields.report),
     itemsJson: JSON.stringify(fields.items),
-  });
+  } });
 }
 
 export function runItemStates({ run }: { run: ApplyRun }, _optional = {}): PublishContentRunItemState[] {

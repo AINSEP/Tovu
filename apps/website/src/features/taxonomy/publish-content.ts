@@ -68,7 +68,7 @@ export const contributeTaxonomyPublish = (): PublishContentContributor =>
   });
 
 /** Parents before children, so `importTerm` always finds a term's parent already written. */
-function parentFirst(rows: readonly Term[]): Term[] {
+function parentFirst({ rows }: { rows: readonly Term[] }, _optional = {}): Term[] {
   const byId = new Map(rows.map((row) => [row.id, row] as const));
   const ordered: Term[] = [];
   const seen = new Set<string>();

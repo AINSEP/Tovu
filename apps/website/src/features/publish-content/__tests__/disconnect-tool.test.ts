@@ -59,7 +59,7 @@ function call(d: Deps) {
 
 test("disconnecting a connected destination forgets it and names the deploy still needed", async () => {
   const repo = new InMemoryPublishContentPeerRepo();
-  await repo.insert(row());
+  await repo.insert({ record: row() });
   const port = provisioning({ ok: true, grants: [], changed: true, target: TARGET });
   const result = await call(deps({ publishContentPeerRepo: repo, publishTrustProvisioning: port, findPublishCandidate: async () => "https://unused.example" }));
   assert.deepEqual(result, { connected: false, site: null, candidateUrl: "https://live.example", message: "This computer no longer publishes to live.example.", nextStep: TARGET.nextStep });
@@ -75,7 +75,7 @@ test("disconnecting when not connected and nothing changed suggests the candidat
 
 test("a changed grant whose target names no next step reports a null nextStep", async () => {
   const repo = new InMemoryPublishContentPeerRepo();
-  await repo.insert(row());
+  await repo.insert({ record: row() });
   const port = provisioning({ ok: true, grants: [], changed: true, target: { kind: "test", path: "deploy.json" } } as unknown as ProvisioningWrite);
   const result = await call(deps({ publishContentPeerRepo: repo, publishTrustProvisioning: port }));
   assert.deepEqual(result, { connected: false, site: null, candidateUrl: "https://live.example", message: "This computer no longer publishes to live.example.", nextStep: null });
@@ -83,7 +83,7 @@ test("a changed grant whose target names no next step reports a null nextStep", 
 
 test("a settings write failure is refused with recovery guidance, and the connected peer is put back", async () => {
   const repo = new InMemoryPublishContentPeerRepo();
-  await repo.insert(row());
+  await repo.insert({ record: row() });
   const port = provisioning({ ok: false, reason: "read-only file system" });
   await assert.rejects(call(deps({ publishContentPeerRepo: repo, publishTrustProvisioning: port })), (error: unknown) =>
     error instanceof ToolInputError && error.message === "Publishing settings could not be saved. Check that this project's files can be written, then disconnect again.");

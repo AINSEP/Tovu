@@ -1029,7 +1029,7 @@ async function composeSiteRouteDeps(
   const workspaceId = await resolveWorkspaceIdOverride(kernel, overrides);
   // Proves the deny store is readable before anything else is built: a missing or inaccessible
   // table stops boot rather than making every disconnected publisher silently look connected.
-  const publishTrustRevocations = await publishTrustRevocationStoreFor(kernel);
+  const publishTrustRevocations = await publishTrustRevocationStoreFor({ kernel });
   // ADS-memory/reports/2026-09-05-db-split-scoping.md §6 — chat data lives in its own file,
   // sibling to content.db, for the same "a whole-file restore/duplicate must never carry (or
   // erase) chat history" reason `databaseJournalDb` below is separate. Opened with the content
@@ -2876,7 +2876,7 @@ async function composeSiteRouteDeps(
             http: guardedOutboundHttpClient,
             peer: async () => {
               const rows = await routeDeps.publishContentPeerRepo.listByWorkspace({ workspaceId });
-              const connected = selectConnectedDestination(rows);
+              const connected = selectConnectedDestination({ rows });
               if (!connected || selection.binding !== undefined && selection.binding !== connected.baseUrl) return undefined;
               const credential = await resolvePublishDestinationCredential({ deps: { repo: routeDeps.publishContentPeerRepo,
                 sealer: siteAssistantSecretSealer, keyring: siteAssistantSecretKeyring, httpClient: publishContentPeerHttpClient },

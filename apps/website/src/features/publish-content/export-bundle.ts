@@ -58,7 +58,7 @@ export interface PackAuthorizedEntitiesDeps {
  * @complexity O(t + e) — one `authorize()` call per registered type `t`, then one yield per entity
  * `e` the allowed types pack. Memory is O(1) in the corpus: entities are yielded, never collected.
  */
-export async function* packAuthorizedEntities(deps: PackAuthorizedEntitiesDeps): AsyncGenerator<PackedEntity> {
+export async function* packAuthorizedEntities(deps: PackAuthorizedEntitiesDeps, _optional = {}): AsyncGenerator<PackedEntity> {
   yield* packHandlerEntities({ ...deps, handlers: buildPublishContentCatalog(deps.publishContentDeps).handlers });
 }
 
@@ -75,7 +75,7 @@ export async function* packHandlerEntities(input: {
   readonly authorize: PublishContentAuthorize;
   readonly workspaceId: string;
   readonly principalId: string;
-}): AsyncGenerator<PackedEntity> {
+}, _optional = {}): AsyncGenerator<PackedEntity> {
   for (const handler of input.handlers) {
     const typeAuth = await input.authorize({
       principalId: input.principalId,
@@ -137,7 +137,7 @@ export async function collectSkippedEntities(input: {
   readonly authorize: PublishContentAuthorize;
   readonly workspaceId: string;
   readonly principalId: string;
-}): Promise<readonly SkippedPackEntity[]> {
+}, _optional = {}): Promise<readonly SkippedPackEntity[]> {
   const skipped: SkippedPackEntity[] = [];
   for (const handler of input.handlers) {
     if (!handler.listSkipped) continue;
@@ -172,8 +172,11 @@ export async function collectSkippedEntities(input: {
  * @complexity O(e) time in the envelope's entity count, O(e) space for the narrowed copy.
  */
 export function selectBundleEntities(
-  envelope: PublishContentExportEnvelope,
-  selectedKeys: ReadonlySet<string>
+  { envelope, selectedKeys }: {
+    envelope: PublishContentExportEnvelope;
+    selectedKeys: ReadonlySet<string>;
+  },
+  _optional = {}
 ): PublishContentExportEnvelope {
   const entities = envelope.entities.filter((entity) => selectedKeys.has(entityKey({ entityType: entity.entityType, entityId: entity.id })));
   const requiredBlobs = new Set<string>();
@@ -198,8 +201,11 @@ export function selectBundleEntities(
  * narrowed copy.
  */
 export function applyPublishScope(
-  envelope: PublishContentExportEnvelope,
-  scope: PublishScope
+  { envelope, scope }: {
+    envelope: PublishContentExportEnvelope;
+    scope: PublishScope;
+  },
+  _optional = {}
 ): PublishContentExportEnvelope {
   const entityKeys = scope.entityKeys ? new Set(scope.entityKeys) : null;
   const matchesScope = ({ type, id }: { type: string; id: string }, _optional = {}): boolean => {
@@ -317,7 +323,7 @@ export function includeReferencedEntities(
  * disclosed: an HTTP request body cannot be produced lazily through `HttpClientPort`.
  */
 export async function buildExportBundle(
-  deps: PackAuthorizedEntitiesDeps & { sourceLabel: string }
+  { deps }: { deps: PackAuthorizedEntitiesDeps & { sourceLabel: string } }, _optional = {}
 ): Promise<PublishContentExportEnvelope> {
   const entities: PackedEntity[] = [];
   const requiredBlobs = new Set<string>();

@@ -25,7 +25,7 @@ test("a hand-configured destination makes this computer ready to publish to it",
 
 test("a connected destination is the one named, even beside a hand-configured one", async () => {
   const f = await fixture();
-  await f.peerRepo.insert(peerRow("connected", "Connected site", true));
+  await f.peerRepo.insert({ record: peerRow("connected", "Connected site", true) });
   const result = await status(f.deps);
   assert.equal(result.summary, "This computer publishes to Connected site.");
 });

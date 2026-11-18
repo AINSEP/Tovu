@@ -74,13 +74,16 @@ test("a peer round-trips through the real secrets_vault table, sealed at rest", 
   const { dir, dbPath } = await createFreshContentDbInTempDir();
   try {
     const deps = makeDeps(dbPath, "peer");
-    const created = await createPublishContentPeer(deps, {
-      workspaceId: WORKSPACE_ID,
-      label: "production",
-      baseUrl: "https://tovu.example.com/",
-      remoteWorkspaceId: "remote-ws-9",
-      apiKey: API_KEY,
-    });
+    const created = await createPublishContentPeer({
+                                                     deps,
+                                                     input: {
+        workspaceId: WORKSPACE_ID,
+        label: "production",
+        baseUrl: "https://tovu.example.com/",
+        remoteWorkspaceId: "remote-ws-9",
+        apiKey: API_KEY,
+      }
+                                                   });
     assert.deepEqual(created, {
       id: "peer-1",
       label: "production",
@@ -93,14 +96,14 @@ test("a peer round-trips through the real secrets_vault table, sealed at rest", 
     // Re-open the file through a SECOND connection: this is what proves the bytes actually landed,
     // rather than living in the first connection's memory.
     const reread = makeDeps(dbPath, "unused");
-    const listed = await listPublishContentPeers({ repo: reread.repo }, { workspaceId: WORKSPACE_ID });
+    const listed = await listPublishContentPeers({ deps: { repo: reread.repo }, input: { workspaceId: WORKSPACE_ID } });
     assert.deepEqual(listed, [created]);
 
     const stored = await reread.repo.findById({ workspaceId: WORKSPACE_ID, id: "peer-1" });
     assert.ok(stored?.sealed, "the sealed group must survive the round trip whole");
     assert.equal(stored.sealed.ciphertext.includes(API_KEY), false, "the key must be at rest as ciphertext, not plaintext");
 
-    const resolved = await resolvePeerCredential({ repo: deps.repo, sealer: deps.sealer }, { workspaceId: WORKSPACE_ID, id: "peer-1" });
+    const resolved = await resolvePeerCredential({ deps: { repo: deps.repo, sealer: deps.sealer }, input: { workspaceId: WORKSPACE_ID, id: "peer-1" } });
     assert.equal(resolved.apiKey, API_KEY);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -118,9 +121,9 @@ test("the real (workspace_id, label) UNIQUE index produces the driver error the 
       remoteWorkspaceId: "remote-ws-9",
       apiKey: API_KEY,
     };
-    await createPublishContentPeer(deps, input);
+    await createPublishContentPeer({ deps, input });
     await assert.rejects(
-      () => createPublishContentPeer(deps, { ...input, baseUrl: "https://other.example.com" }),
+      () => createPublishContentPeer({ deps, input: { ...input, baseUrl: "https://other.example.com" } }),
       (err: unknown) => err instanceof PublishContentPeerDuplicateLabelError
     );
   } finally {
@@ -132,18 +135,21 @@ test("a row whose sealed group is absent reads back as hasCredential:false, not 
   const { dir, dbPath } = await createFreshContentDbInTempDir();
   try {
     const deps = makeDeps(dbPath, "peer");
-    await createPublishContentPeer(deps, {
-      workspaceId: WORKSPACE_ID,
-      label: "production",
-      baseUrl: "https://tovu.example.com",
-      remoteWorkspaceId: "remote-ws-9",
-      apiKey: API_KEY,
-    });
+    await createPublishContentPeer({
+                                     deps,
+                                     input: {
+        workspaceId: WORKSPACE_ID,
+        label: "production",
+        baseUrl: "https://tovu.example.com",
+        remoteWorkspaceId: "remote-ws-9",
+        apiKey: API_KEY,
+      }
+                                   });
     const stored = await deps.repo.findById({ workspaceId: WORKSPACE_ID, id: "peer-1" });
     assert.ok(stored);
-    await deps.repo.update({ ...stored, sealed: null, masked: null });
+    await deps.repo.update({ record: { ...stored, sealed: null, masked: null } });
 
-    const [summary] = await listPublishContentPeers({ repo: deps.repo }, { workspaceId: WORKSPACE_ID });
+    const [summary] = await listPublishContentPeers({ deps: { repo: deps.repo }, input: { workspaceId: WORKSPACE_ID } });
     assert.equal(summary.hasCredential, false);
     assert.equal(summary.masked, null);
   } finally {
@@ -155,22 +161,25 @@ test("update and delete hit the real table by (workspace_id, id)", async () => {
   const { dir, dbPath } = await createFreshContentDbInTempDir();
   try {
     const deps = makeDeps(dbPath, "peer");
-    await createPublishContentPeer(deps, {
-      workspaceId: WORKSPACE_ID,
-      label: "production",
-      baseUrl: "https://tovu.example.com",
-      remoteWorkspaceId: "remote-ws-9",
-      apiKey: API_KEY,
-    });
+    await createPublishContentPeer({
+                                     deps,
+                                     input: {
+        workspaceId: WORKSPACE_ID,
+        label: "production",
+        baseUrl: "https://tovu.example.com",
+        remoteWorkspaceId: "remote-ws-9",
+        apiKey: API_KEY,
+      }
+                                   });
 
-    const renamed = await updatePublishContentPeer(deps, { workspaceId: WORKSPACE_ID, id: "peer-1", label: "prod-eu" });
+    const renamed = await updatePublishContentPeer({ deps, input: { workspaceId: WORKSPACE_ID, id: "peer-1", label: "prod-eu" } });
     assert.equal(renamed.label, "prod-eu");
-    assert.equal((await listPublishContentPeers({ repo: deps.repo }, { workspaceId: WORKSPACE_ID }))[0].label, "prod-eu");
+    assert.equal((await listPublishContentPeers({ deps: { repo: deps.repo }, input: { workspaceId: WORKSPACE_ID } }))[0].label, "prod-eu");
 
-    await deletePublishContentPeer({ repo: deps.repo }, { workspaceId: WORKSPACE_ID, id: "peer-1" });
-    assert.deepEqual(await listPublishContentPeers({ repo: deps.repo }, { workspaceId: WORKSPACE_ID }), []);
+    await deletePublishContentPeer({ deps: { repo: deps.repo }, input: { workspaceId: WORKSPACE_ID, id: "peer-1" } });
+    assert.deepEqual(await listPublishContentPeers({ deps: { repo: deps.repo }, input: { workspaceId: WORKSPACE_ID } }), []);
     // Idempotent: deleting again is a success, matching the DELETE route contract.
-    await deletePublishContentPeer({ repo: deps.repo }, { workspaceId: WORKSPACE_ID, id: "peer-1" });
+    await deletePublishContentPeer({ deps: { repo: deps.repo }, input: { workspaceId: WORKSPACE_ID, id: "peer-1" } });
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -189,31 +198,34 @@ test("credential rotation and moving or removing a connected destination preserv
     idGen: { newId: () => `peer-${++nextId}` },
   };
   try {
-    await createPublishContentPeer(deps, { workspaceId: WORKSPACE_ID, label: "manual", baseUrl: "https://manual.example.com",
-      remoteWorkspaceId: "remote-manual", apiKey: API_KEY });
-    assert.equal((await resolvePeerCredential(deps, { workspaceId: WORKSPACE_ID, id: "peer-1" })).apiKey, API_KEY);
-    await updatePublishContentPeer(deps, { workspaceId: WORKSPACE_ID, id: "peer-1", apiKey: "replacement-key-9999" });
-    assert.equal((await resolvePeerCredential(deps, { workspaceId: WORKSPACE_ID, id: "peer-1" })).apiKey, "replacement-key-9999");
-    assert.deepEqual(await getPublishContentPeerSummary(deps, { workspaceId: WORKSPACE_ID, id: "peer-1" }), {
+    await createPublishContentPeer({
+                                     deps,
+                                     input: { workspaceId: WORKSPACE_ID, label: "manual", baseUrl: "https://manual.example.com",
+        remoteWorkspaceId: "remote-manual", apiKey: API_KEY }
+                                   });
+    assert.equal((await resolvePeerCredential({ deps, input: { workspaceId: WORKSPACE_ID, id: "peer-1" } })).apiKey, API_KEY);
+    await updatePublishContentPeer({ deps, input: { workspaceId: WORKSPACE_ID, id: "peer-1", apiKey: "replacement-key-9999" } });
+    assert.equal((await resolvePeerCredential({ deps, input: { workspaceId: WORKSPACE_ID, id: "peer-1" } })).apiKey, "replacement-key-9999");
+    assert.deepEqual(await getPublishContentPeerSummary({ deps, input: { workspaceId: WORKSPACE_ID, id: "peer-1" } }), {
       id: "peer-1", label: "manual", baseUrl: "https://manual.example.com", remoteWorkspaceId: "remote-manual", masked: "••••9999", hasCredential: true,
     });
     const manual = await deps.repo.findById({ workspaceId: WORKSPACE_ID, id: "peer-1" });
     assert.ok(manual?.sealed);
-    await saveConnectedDestination(deps, { workspaceId: WORKSPACE_ID, label: "first", baseUrl: "https://first.example.com", remoteWorkspaceId: "remote-first" });
-    const reconnected = await saveConnectedDestination(deps, { workspaceId: WORKSPACE_ID, label: "first rebuilt", baseUrl: "https://first.example.com", remoteWorkspaceId: "remote-first-new" });
+    await saveConnectedDestination({ deps, input: { workspaceId: WORKSPACE_ID, label: "first", baseUrl: "https://first.example.com", remoteWorkspaceId: "remote-first" } });
+    const reconnected = await saveConnectedDestination({ deps, input: { workspaceId: WORKSPACE_ID, label: "first rebuilt", baseUrl: "https://first.example.com", remoteWorkspaceId: "remote-first-new" } });
     assert.equal(reconnected.id, "peer-2");
     assert.equal(reconnected.remoteWorkspaceId, "remote-first-new");
-    await saveConnectedDestination(deps, { workspaceId: WORKSPACE_ID, label: "second", baseUrl: "https://second.example.com", remoteWorkspaceId: "remote-second" });
+    await saveConnectedDestination({ deps, input: { workspaceId: WORKSPACE_ID, label: "second", baseUrl: "https://second.example.com", remoteWorkspaceId: "remote-second" } });
     const rows = await deps.repo.listByWorkspace({ workspaceId: WORKSPACE_ID });
     assert.deepEqual(rows.map(row => row.id).sort(), ["peer-1", "peer-3"]);
-    assert.equal(selectConnectedDestination(rows)?.baseUrl, "https://second.example.com");
+    assert.equal(selectConnectedDestination({ rows })?.baseUrl, "https://second.example.com");
     assert.deepEqual(await deps.repo.findById({ workspaceId: WORKSPACE_ID, id: "peer-1" }), manual);
-    assert.equal(await removeConnectedDestination(deps, { workspaceId: WORKSPACE_ID, baseUrl: "https://manual.example.com" }), false);
-    assert.equal(await removeConnectedDestination(deps, { workspaceId: "foreign-workspace", baseUrl: "https://second.example.com" }), false);
-    assert.equal(await removeConnectedDestination(deps, { workspaceId: WORKSPACE_ID, baseUrl: "https://second.example.com" }), true);
-    assert.equal(await removeConnectedDestination(deps, { workspaceId: WORKSPACE_ID, baseUrl: "https://second.example.com" }), false);
+    assert.equal(await removeConnectedDestination({ deps, input: { workspaceId: WORKSPACE_ID, baseUrl: "https://manual.example.com" } }), false);
+    assert.equal(await removeConnectedDestination({ deps, input: { workspaceId: "foreign-workspace", baseUrl: "https://second.example.com" } }), false);
+    assert.equal(await removeConnectedDestination({ deps, input: { workspaceId: WORKSPACE_ID, baseUrl: "https://second.example.com" } }), true);
+    assert.equal(await removeConnectedDestination({ deps, input: { workspaceId: WORKSPACE_ID, baseUrl: "https://second.example.com" } }), false);
     assert.deepEqual(await deps.repo.listByWorkspace({ workspaceId: WORKSPACE_ID }), [manual]);
-    assert.equal((await resolvePeerCredential(deps, { workspaceId: WORKSPACE_ID, id: "peer-1" })).apiKey, "replacement-key-9999");
+    assert.equal((await resolvePeerCredential({ deps, input: { workspaceId: WORKSPACE_ID, id: "peer-1" } })).apiKey, "replacement-key-9999");
   } finally {
     db.$client.close();
     fs.rmSync(dir, { recursive: true, force: true });

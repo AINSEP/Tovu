@@ -78,8 +78,10 @@ async function backstopDeps(overrides: Partial<PublishContentRouteDeps> = {}): P
     ...overrides,
   });
   await createPublishContentPeer(
-    { repo: deps.publishContentPeerRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
-    { workspaceId: deps.workspaceId, label: "Live", baseUrl: LIVE, remoteWorkspaceId: "remote", apiKey: "tovu_live_0123456789abcdef" }
+    {
+      deps: { repo: deps.publishContentPeerRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
+      input: { workspaceId: deps.workspaceId, label: "Live", baseUrl: LIVE, remoteWorkspaceId: "remote", apiKey: "tovu_live_0123456789abcdef" }
+    }
   );
   return deps;
 }

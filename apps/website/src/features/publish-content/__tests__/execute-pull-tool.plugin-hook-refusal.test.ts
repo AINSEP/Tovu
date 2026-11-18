@@ -66,10 +66,10 @@ function refusingSecondPost(): BeforeSaveHookPort {
 /** The t09 pull fixture with its fake apply port swapped for the REAL one over real posts. */
 async function pullOfThreePosts(beforeSaveHook: BeforeSaveHookPort) {
   const f = await fixture([livePost("p-1"), livePost("p-2"), livePost("p-3")]);
-  registerPublishContentContributor(contributeMediaPublish()); // post dependsOn media and term; no ports, so both pack nothing
-  registerPublishContentContributor(contributePostPublish());
-  registerPublishContentContributor(contributeTaxonomyPublish());
-  registerPublishContentContributor(contributeTermPublish());
+  registerPublishContentContributor({ contributor: contributeMediaPublish() }); // post dependsOn media and term; no ports, so both pack nothing
+  registerPublishContentContributor({ contributor: contributePostPublish() });
+  registerPublishContentContributor({ contributor: contributeTaxonomyPublish() });
+  registerPublishContentContributor({ contributor: contributeTermPublish() });
   const postRepo = new InMemoryPostRepo({});
   const outbox = new InMemoryOutbox();
   const ports = { post: { repo: postRepo, forgetRemoved: async () => {}, remove: removeVia(postRepo) } };
@@ -117,7 +117,7 @@ test("a plugin refusing item 2 of 3 says PLUGIN_HOOK_FAILED with the plugin id a
   // The wording's claim, observed: the item before the refusal landed; the refused one and every
   // item after it did not.
   assert.deepEqual((await postRepo.list({ workspaceId: "local" })).map(row => row.id), ["p-1"]);
-  const run = await getPublishContentRunStatus(runRepo, { workspaceId: "local", runId: "apply-run" });
+  const run = await getPublishContentRunStatus({ repo: runRepo, input: { workspaceId: "local", runId: "apply-run" } });
   assert.equal(run?.phase, "failed");
   assert.deepEqual(run?.items.map(item => [item.entityId, item.phase]), [["p-1", "completed"], ["p-2", "failed"], ["p-3", "pending"]]);
 });

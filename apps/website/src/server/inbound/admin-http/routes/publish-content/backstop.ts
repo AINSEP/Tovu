@@ -113,9 +113,12 @@ async function sendCheckedPlan({ res, run, logId }: { res: Response; run: Backst
   const result = await runAuditedBackstop({ audit, record: log, work: async () => {
     const peer = await openBackstopPeer({ deps, peerId: run.target.peerId });
     const plan = log.details.plan as Record<string, unknown>;
-    const confirmation = await confirmPeerImport(peer, { planId: String(plan.planId), planHash: String(plan.planHash) });
-    return executePeerImport(peer, { bundleId: String(log.details.bundleId), confirmationToken: confirmation.confirmationToken,
-      overwriteEntityKeys: log.details.overwriteEntityKeys as string[] | undefined });
+    const confirmation = await confirmPeerImport({ deps: peer, required: { planId: String(plan.planId), planHash: String(plan.planHash) } });
+    return executePeerImport({
+                               deps: peer,
+                               required: { bundleId: String(log.details.bundleId), confirmationToken: confirmation.confirmationToken,
+        overwriteEntityKeys: log.details.overwriteEntityKeys as string[] | undefined }
+                             });
   } });
   res.json({ ...result, logId: log.id, destination: run.target.destination.baseUrl });
 }
@@ -160,12 +163,15 @@ async function planSelection({ res, run, overwriteEntityKeys }: { res: Response;
     items: entities.map((e) => ({ entityType: e.entityType, id: e.id, afterHash: e.contentHash })), result: "pending", runId: null, details: {}, inverses: [] };
   const result = await runAuditedBackstop({ audit, record, successResult: "planned", work: async () => {
     const peer = await openBackstopPeer({ deps, peerId: target.peerId });
-    const pushed = await pushBundleToPeer({ ...peer, blobSource: createCompositePeerBlobSource({ blobStore: deps.blobStore, fileBlobIndex: deps.fileBlobIndex }),
-      computeStorageKey: ({ sha256 }: { sha256: string }, _options: Record<string, never> = {}) => computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 }) }, {
-      bundle: { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION,
-        sourceLabel: deps.workspaceId, entities: auditedEntities, blobManifest: [...new Set(entities.flatMap((e) => e.requiredBlobs))], skipped },
-      ...overwrite,
-    });
+    const pushed = await pushBundleToPeer({
+                                            deps: { ...peer, blobSource: createCompositePeerBlobSource({ blobStore: deps.blobStore, fileBlobIndex: deps.fileBlobIndex }),
+        computeStorageKey: ({ sha256 }: { sha256: string }, _options: Record<string, never> = {}) => computeBlobStorageKey({ workspaceId: deps.workspaceId, sha256 }) },
+                                            required: {
+        bundle: { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION,
+          sourceLabel: deps.workspaceId, entities: auditedEntities, blobManifest: [...new Set(entities.flatMap((e) => e.requiredBlobs))], skipped },
+        ...overwrite,
+      }
+                                          });
     if (pushed.notSupportedByLive.length > 0) throw new BackstopRefusal({ message: "Live can't accept send by hand yet; update live and enable its backstop grant." });
     return { ...pushed, peerId: target.peerId, entities, skipped, ...overwrite };
   } });

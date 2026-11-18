@@ -43,7 +43,7 @@ function liveOrigin({ raw }: { raw: string }, _optional = {}): string {
 /** Reads connected + keyed peers, full-ledger publish URL projection, and the trusted configured origin. */
 export async function listKnownLiveOrigins(deps: LiveOriginSourceDeps): Promise<string[]> {
   const peers = await deps.publishContentPeerRepo?.listByWorkspace({ workspaceId: deps.workspaceId }) ?? [];
-  const connected = selectConnectedDestination(peers);
+  const connected = selectConnectedDestination({ rows: peers });
   const urls = peers.filter(peer => peer.sealed !== null || peer === connected).map(peer => peer.baseUrl);
   const historyUrls = await deps.publishHistoryStore?.listLiveUrls({ workspaceId: deps.workspaceId }) ?? [];
   if (historyUrls.length > 200) throw new ToolInputError({ message: "fetch_live_url: more than 200 distinct live addresses are recorded. Review the publish history before fetching." });

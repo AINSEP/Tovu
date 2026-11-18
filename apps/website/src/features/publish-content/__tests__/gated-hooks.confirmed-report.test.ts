@@ -85,7 +85,7 @@ function registerFakeHandler(destination: Map<string, DestinationRow>): void {
       throw new Error("this fixture's apply() must never run — applyReport is spied, not executed");
     },
   };
-  registerPublishContentContributor({ entityType: ENTITY_TYPE, dependsOn: [], build: () => handler });
+  registerPublishContentContributor({ contributor: { entityType: ENTITY_TYPE, dependsOn: [], build: () => handler } });
 }
 
 function packedEntity(): PackedEntity {
@@ -120,10 +120,10 @@ test("publish-content applies the report the gateway verified, not one re-derive
   registerFakeHandler(destination);
 
   const bundleRepo = new InMemoryPublishContentBundleRepo();
-  await bundleRepo.save(stagedBundle());
+  await bundleRepo.save({ record: stagedBundle() });
 
   const baselineRepo = new InMemoryPublishContentBaselineRepo();
-  await baselineRepo.upsert({
+  await baselineRepo.upsert({ record: {
     workspaceId: WORKSPACE_ID,
     peerPrincipalId: PEER_ID,
     entityType: ENTITY_TYPE,
@@ -132,7 +132,7 @@ test("publish-content applies the report the gateway verified, not one re-derive
     hashVersion: CONTENT_HASH_VERSION,
     syncedAt: "2026-09-19T00:00:00.000Z",
     runId: "run-0",
-  });
+  } });
 
   let nextId = 0;
   const idGen = { newId: () => `id-${++nextId}` };
@@ -242,9 +242,9 @@ for (const changed of ["version", "source"] as const) {
       pack: async function* () {}, inspect: async () => ({ version, hash: DRIFTED_HASH }),
       precheck: async () => ({ reason: "Tick Overwrite on live to replace this file.", sourceReplacement: { version, sourceSha256 } }),
       apply: async () => { throw new Error("stale confirmation must never apply"); } };
-    registerPublishContentContributor({ entityType: ENTITY_TYPE, dependsOn: [], build: () => handler });
+    registerPublishContentContributor({ contributor: { entityType: ENTITY_TYPE, dependsOn: [], build: () => handler } });
     const bundleRepo = new InMemoryPublishContentBundleRepo();
-    await bundleRepo.save(stagedBundle());
+    await bundleRepo.save({ record: stagedBundle() });
     const seen: Array<Record<string, unknown>> = [];
     const { hooks, deps } = minimalHooks(bundleRepo, {}, seen);
     const planned = await plan({ deps, principalId: ACTOR_ID, principalKind: "user", hooks });
@@ -269,7 +269,7 @@ test("execute threads this request's backstop and authorize into the apply port,
     resetPublishContentContributorsForTests();
     registerFakeHandler(new Map([[ENTITY_ID, { version: 1, hash: BASELINE_HASH }]]));
     const bundleRepo = new InMemoryPublishContentBundleRepo();
-    await bundleRepo.save(stagedBundle());
+    await bundleRepo.save({ record: stagedBundle() });
     const seen: Array<Record<string, unknown>> = [];
     const { hooks, deps } = minimalHooks(bundleRepo, extra, seen);
     const planned = await plan({ deps, principalId: ACTOR_ID, principalKind: "user", hooks });

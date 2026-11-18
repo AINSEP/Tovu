@@ -72,7 +72,7 @@ import type { PublishContentDeps, PackedEntity } from "./type-registry.js";
  *  domain's own hooks file decoupled from the full port surface" precedent
  *  `features/database/gated-hooks.ts`'s own `MigrateForwardDbOpsPort` sets. */
 export interface PublishContentDbOpsPort {
-  captureRestorePoint(required: { scopeId: string }): Promise<{ artifactRef: string; watermarkAtCapture: number }>;
+  captureRestorePoint(required: { scopeId: string }, optional?: {}): Promise<{ artifactRef: string; watermarkAtCapture: number }>;
 }
 
 /** Narrow structural slice of `@jini-ai/db/tools#RestorePointSavePort` this file
@@ -88,7 +88,7 @@ export interface PublishContentRestorePointSavePort {
     createdBy: string;
     artifactRef?: string;
     watermarkAtCapture?: number | null;
-  }): Promise<void>;
+  }, optional?: {}): Promise<void>;
 }
 
 /** Thrown when the `bundleId` a `plan`/`execute` request names has no active staged bundle — either
@@ -132,7 +132,7 @@ export interface PublishContentApplyPort {
      */
     authorize?: PublishContentDeps["authorize"];
     backstop?: PublishContentDeps["backstop"];
-  }): Promise<{
+  }, optional?: {}): Promise<{
     /** Actual outcomes after apply, including race-time conflict downgrades. */
     report?: PublishContentReport;
     runId: string;
@@ -175,7 +175,7 @@ export interface BuildPublishContentImportHooksInput {
   baselineRepo: PublishContentBaselineRepoPort;
   /** Only the read side is used ({@link BlobStorePort.exists}) — this ceremony never writes a blob
    *  itself (Task 6's `blobs/probe`/`blobs/:sha` routes own that). */
-  blobStore: { exists(input: { storageKey: string }): Promise<boolean> };
+  blobStore: { exists(input: { storageKey: string }, optional?: {}): Promise<boolean> };
   dbOps: PublishContentDbOpsPort;
   restorePointsRepo: PublishContentRestorePointSavePort;
   applyPort: PublishContentApplyPort;
@@ -225,7 +225,7 @@ export interface PublishContentImportResult {
 }
 
 export function buildPublishContentImportHooks(
-  input: BuildPublishContentImportHooksInput
+  input: BuildPublishContentImportHooksInput, _optional = {}
 ): GatedMutationHooks<PublishContentReport, PublishContentImportResult> {
   return {
     domain: "publish_content.import",
@@ -277,13 +277,16 @@ async function planStagedImport({ input }: { input: BuildPublishContentImportHoo
   const hasBlob = async ({ sha256 }: { sha256: string }, _optional = {}): Promise<boolean> =>
     input.blobStore.exists({ storageKey: computeBlobStorageKey({ workspaceId: input.workspaceId, sha256 }) });
 
-  return planImport(bundle, {
-    publishContentDeps: input.publishContentDeps,
-    getBaseline,
-    hasBlob,
-    ...(input.getSeedHash === undefined ? {} : { getSeedHash: input.getSeedHash }),
-    ...(input.forcedEntityKeys === undefined ? {} : { forcedEntityKeys: input.forcedEntityKeys }),
-  });
+  return planImport({
+                      bundle,
+                      deps: {
+      publishContentDeps: input.publishContentDeps,
+      getBaseline,
+      hasBlob,
+      ...(input.getSeedHash === undefined ? {} : { getSeedHash: input.getSeedHash }),
+      ...(input.forcedEntityKeys === undefined ? {} : { forcedEntityKeys: input.forcedEntityKeys }),
+    }
+                    });
 }
 
 /** Restore-point step: snapshots the workspace and records the snapshot, attributed to the acting

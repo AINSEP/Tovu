@@ -45,8 +45,8 @@ test('publishing and entry refs find raw, saved media config and placement slugs
   const raw = '<img data-media-slug="raw-photo"><video src="{{media:clip}}"></video>';
   const html = raw + `<div data-embed-config='{"type":"widget","slug":"photos","content":{"items":[{"slug":"placed"}]}}'></div>`;
   const bodyJson = { type: 'doc', content: [{ type: 'widgetEmbed', attrs: { placementId: 'p', widgetEntryId: 'w', content: { html: raw } } }] };
-  assert.deepEqual([...collectReferencedMediaKeys({ bodyHtml: html, bodyJson })].sort(), ['clip', 'placed', 'raw-photo']);
-  assert.ok(collectBodyReferences({ bodyHtml: html }).some(ref => ref.entityType === 'media' && ref.key === 'placed'));
+  assert.deepEqual([...collectReferencedMediaKeys({ state: { bodyHtml: html, bodyJson } })].sort(), ['clip', 'placed', 'raw-photo']);
+  assert.ok(collectBodyReferences({ state: { bodyHtml: html } }).some(ref => ref.entityType === 'media' && ref.key === 'placed'));
   const refs = extractEntryRefs({ workspaceId: 'ws', sourceEntryId: 'post', sourceEntryType: 'post', bodyJson, fieldsExt: { widget: { widgetType: 'media', config: { items: [{ slug: 'saved' }], layout: 'bad' } } } });
   assert.deepEqual(refs.filter(ref => ref.targetKind === 'asset').map(ref => ref.targetId).sort(), ['clip', 'raw-photo', 'saved']);
   assert.deepEqual(extractHtmlEntryRefs({ workspaceId: 'ws', sourceEntryId: 'page', html }).filter(ref => ref.targetKind === 'asset').map(ref => ref.targetId).sort(), ['clip', 'placed', 'raw-photo']);
@@ -144,7 +144,7 @@ test('shared widget reference scanner merges saved content before member gating 
 test('media slug reference scans traverse deeply nested TipTap documents without losing the protecting reference', () => {
   let bodyJson: unknown = { type: 'widgetEmbed', attrs: { widgetEntryId: 'w', placementId: 'p', content: { items: [{ slug: 'protected' }] } } };
   for (let depth = 0; depth < 5000; depth++) bodyJson = { type: 'blockquote', content: [bodyJson] };
-  assert.deepEqual([...collectReferencedMediaKeys({ bodyJson })], ['protected']);
+  assert.deepEqual([...collectReferencedMediaKeys({ state: { bodyJson } })], ['protected']);
 });
 
 test('assistant contracts advertise both Media modes and allow placement content on existing post widgets', async () => {

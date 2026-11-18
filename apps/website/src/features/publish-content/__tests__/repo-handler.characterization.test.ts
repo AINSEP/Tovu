@@ -245,7 +245,7 @@ test("gatewayDeps returns the five gateway deps and names every missing one in i
 });
 
 test("okOrThrow returns the value of an ok result and throws the error of a failed one", () => {
-  assert.equal(okOrThrow({ ok: true, value: 5 }), 5);
+  assert.equal(okOrThrow({ result: { ok: true, value: 5 } }), 5);
   const error = new Error("nope");
-  assert.throws(() => okOrThrow({ ok: false, error }), (err: unknown) => err === error);
+  assert.throws(() => okOrThrow({ result: { ok: false, error } }), (err: unknown) => err === error);
 });

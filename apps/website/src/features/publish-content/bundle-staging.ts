@@ -60,10 +60,10 @@ export interface StagedBundleRecord {
 }
 
 export interface PublishContentBundleRepoPort {
-  save(record: StagedBundleRecord): Promise<void>;
-  findById(input: { workspaceId: string; id: string }): Promise<StagedBundleRecord | null>;
+  save(required: { record: StagedBundleRecord }, optional?: {}): Promise<void>;
+  findById(input: { workspaceId: string; id: string }, optional?: {}): Promise<StagedBundleRecord | null>;
   /** Deletes rows whose expiry is strictly before `expiredBefore` and returns the number removed. */
-  deleteExpired(input: { expiredBefore: string }): Promise<number>;
+  deleteExpired(input: { expiredBefore: string }, optional?: {}): Promise<number>;
 }
 
 /**
@@ -93,7 +93,7 @@ export const PUBLISH_CONTENT_BUNDLE_MAX_BODY_BYTES = 20 * 1024 * 1024;
  *
  * @complexity O(1).
  */
-export function computeBundleExpiry(required: { receivedAt: string; ttlMs?: number }): string {
+export function computeBundleExpiry(required: { receivedAt: string; ttlMs?: number }, _optional = {}): string {
   const ttlMs = required.ttlMs ?? PUBLISH_CONTENT_BUNDLE_TTL_MS;
   return new Date(new Date(required.receivedAt).getTime() + ttlMs).toISOString();
 }
@@ -105,7 +105,7 @@ export function computeBundleExpiry(required: { receivedAt: string; ttlMs?: numb
  *
  * @complexity O(1).
  */
-export function isBundleActive(required: { record: StagedBundleRecord; now: string }): boolean {
+export function isBundleActive(required: { record: StagedBundleRecord; now: string }, _optional = {}): boolean {
   return new Date(required.now).getTime() <= new Date(required.record.expiresAt).getTime();
 }
 
@@ -145,8 +145,11 @@ export interface StageBundleDeps {
  * plus one repo write.
  */
 export async function stageBundle(
-  input: StageBundleInput,
-  deps: StageBundleDeps
+  { input, deps }: {
+    input: StageBundleInput;
+    deps: StageBundleDeps;
+  },
+  _optional = {}
 ): Promise<{ bundleId: string; expiresAt: string }> {
   const receivedAt = nowIso({ clock: deps.clock });
   const entitiesJson = JSON.stringify(input.entities);
@@ -170,7 +173,7 @@ export async function stageBundle(
   // bound; if traffic stops, the table is finite and incurs no further growth. Strictly-before
   // matches `isBundleActive`'s inclusive boundary (`now === expiresAt` remains usable).
   await deps.repo.deleteExpired({ expiredBefore: receivedAt });
-  await deps.repo.save(record);
+  await deps.repo.save({ record });
   return { bundleId: record.id, expiresAt };
 }
 
@@ -183,7 +186,7 @@ export async function stageBundle(
  * @complexity O(1) plus one repo read.
  */
 export async function loadActiveBundle(
-  required: { repo: PublishContentBundleRepoPort; workspaceId: string; id: string; now: string }
+  required: { repo: PublishContentBundleRepoPort; workspaceId: string; id: string; now: string }, _optional = {}
 ): Promise<StagedBundleRecord | null> {
   const { repo, workspaceId, id, now } = required;
   const record = await repo.findById({ workspaceId, id });
@@ -197,7 +200,7 @@ export async function loadActiveBundle(
 export class InMemoryPublishContentBundleRepo implements PublishContentBundleRepoPort {
   private readonly recordsById = new Map<string, StagedBundleRecord>();
 
-  async save(record: StagedBundleRecord): Promise<void> {
+  async save({ record }: { record: StagedBundleRecord }): Promise<void> {
     this.recordsById.set(record.id, { ...record });
   }
 

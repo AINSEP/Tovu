@@ -67,8 +67,8 @@ import { publishContentItemIdempotencyKey } from "../idempotency.js";
 const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
 /** `post` depends on `term`; no taxonomy ports are wired here, so both pack nothing. */
 function registerTermTypes(): void {
-  registerPublishContentContributor(contributeTaxonomyPublish());
-  registerPublishContentContributor(contributeTermPublish());
+  registerPublishContentContributor({ contributor: contributeTaxonomyPublish() });
+  registerPublishContentContributor({ contributor: contributeTermPublish() });
 }
 
 /** The bundle's AUTHENTICATED source — plan §1.6 / §5 risk #9's own peer key. Deliberately a
@@ -94,7 +94,7 @@ for (const offer of ["confirmed", "writes-only", "not-forced", "no-source"] as c
     const handler: PublishContentHandler = { entityType: "media", schemaVersion: 1, permission: "content.write", dependsOn: [],
       pack: async function* () {}, inspect: async () => ({ version: 3, hash: "destination" }), precheck: async () => null,
       seedHash: async () => "destination", apply: async input => { observed.push(input); return { changeSetId: "cs" }; } };
-    registerPublishContentContributor({ entityType: "media", dependsOn: [], build: () => handler });
+    registerPublishContentContributor({ contributor: { entityType: "media", dependsOn: [], build: () => handler } });
     const bundleId = await stage(h.bundleRepo, h.clock, [entity]);
     const report: PublishContentReport = { refused: false, refusalReason: null, applyOrder: ["media"], rows: [{
       entityType: "media", entityId: "photo", entityLabel: "Photo", outcome: offer === "not-forced" ? "applied" : "forced",
@@ -121,7 +121,7 @@ test("reviewed file reverts use the destination version in both command and dura
       keys.add(input.idempotencyKey); version++; hash = "sanitized-destination";
       return { changeSetId: `cs-${version}` };
     } };
-  registerPublishContentContributor({ entityType: "media", dependsOn: [], build: () => handler });
+  registerPublishContentContributor({ contributor: { entityType: "media", dependsOn: [], build: () => handler } });
   for (const reviewedVersion of [3, 5]) {
     version = reviewedVersion; hash = "before";
     const bundleId = await stage(h.bundleRepo, h.clock, [entity]);
@@ -132,7 +132,7 @@ test("reviewed file reverts use the destination version in both command and dura
     const result = await h.applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp" });
     const expected = publishContentItemIdempotencyKey({ workspaceId: WORKSPACE_ID, sourcePrincipalId: SOURCE_PRINCIPAL_ID, entity }) + `:${reviewedVersion}`;
     assert.ok(keys.has(expected));
-    const status = await getPublishContentRunStatus(h.runRepo, { workspaceId: WORKSPACE_ID, runId: result.runId });
+    const status = await getPublishContentRunStatus({ repo: h.runRepo, input: { workspaceId: WORKSPACE_ID, runId: result.runId } });
     assert.equal(status?.items[0]?.idempotencyKey, expected);
     const baseline = await h.baselineRepo.findOne({ workspaceId: WORKSPACE_ID, peerPrincipalId: SOURCE_PRINCIPAL_ID, entityType: "media", entityId: "photo" });
     assert.equal(baseline?.hashAtLastSync, "sanitized-destination", "baseline describes the record actually written");
@@ -185,8 +185,8 @@ function makeHarness(
   getSeedHash?: (args: { entityType: string; entityId: string }) => Promise<string | null>
 ) {
   resetPublishContentContributorsForTests();
-  registerPublishContentContributor(contributeMediaPublish());
-  registerPublishContentContributor(contributePostPublish());
+  registerPublishContentContributor({ contributor: contributeMediaPublish() });
+  registerPublishContentContributor({ contributor: contributePostPublish() });
   registerTermTypes(); // post dependsOn term (termIds, plan §3.7)
 
   const postRepo = new InMemoryPostRepo({}, { initialRows: rows });
@@ -277,14 +277,16 @@ async function stage(
 ): Promise<string> {
   const { bundleId } = await stageBundle(
     {
-      workspaceId: WORKSPACE_ID,
-      sourcePrincipalId,
-      artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
-      hashVersion: CONTENT_HASH_VERSION,
-      entities,
-      blobManifest: [],
-    },
-    { repo: bundleRepo, clock, idGen: makeCounterIdGen("bundle") }
+      input: {
+        workspaceId: WORKSPACE_ID,
+        sourcePrincipalId,
+        artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION,
+        hashVersion: CONTENT_HASH_VERSION,
+        entities,
+        blobManifest: [],
+      },
+      deps: { repo: bundleRepo, clock, idGen: makeCounterIdGen("bundle") }
+    }
   );
   return bundleId;
 }
@@ -303,14 +305,17 @@ async function plan(
     hashVersion: CONTENT_HASH_VERSION,
     entities,
   };
-  return planImport(bundle, {
-    publishContentDeps,
-    getBaseline: async ({ entityType, entityId }) => {
-      const record = await baselineRepo.findOne({ workspaceId: WORKSPACE_ID, peerPrincipalId: sourcePrincipalId, entityType, entityId });
-      return record ? { hashAtLastSync: record.hashAtLastSync, hashVersion: record.hashVersion } : null;
-    },
-    hasBlob: async () => true,
-  });
+  return planImport({
+                      bundle,
+                      deps: {
+      publishContentDeps,
+      getBaseline: async ({ entityType, entityId }) => {
+        const record = await baselineRepo.findOne({ workspaceId: WORKSPACE_ID, peerPrincipalId: sourcePrincipalId, entityType, entityId });
+        return record ? { hashAtLastSync: record.hashAtLastSync, hashVersion: record.hashVersion } : null;
+      },
+      hasBlob: async () => true,
+    }
+                    });
 }
 
 // ---------------------------------------------------------------------------
@@ -323,7 +328,7 @@ test("a destination edit landing AFTER plan but BEFORE apply downgrades 'applied
   const { postRepo, clock, baselineRepo, bundleRepo, runRepo, publishContentDeps, applyPort } = makeHarness([original]);
 
   // Prior sync recorded a baseline matching the CURRENT (original) destination hash.
-  await baselineRepo.upsert({
+  await baselineRepo.upsert({ record: {
     workspaceId: WORKSPACE_ID,
     peerPrincipalId: SOURCE_PRINCIPAL_ID,
     entityType: "post",
@@ -332,7 +337,7 @@ test("a destination edit landing AFTER plan but BEFORE apply downgrades 'applied
     hashVersion: CONTENT_HASH_VERSION,
     syncedAt: clock.nowIso(),
     runId: "prior-run",
-  });
+  } });
 
   const sourceUpdate = makePost({ ...original, title: "Updated from peer" });
   const entities = [packedFrom(sourceUpdate)];
@@ -417,12 +422,15 @@ async function planWithForce(
     hashVersion: CONTENT_HASH_VERSION,
     entities,
   };
-  return planImport(bundle, {
-    publishContentDeps,
-    getBaseline: async () => null,
-    hasBlob: async () => true,
-    forcedEntityKeys,
-  });
+  return planImport({
+                      bundle,
+                      deps: {
+      publishContentDeps,
+      getBaseline: async () => null,
+      hasBlob: async () => true,
+      forcedEntityKeys,
+    }
+                    });
 }
 
 test("address-clash overwrite: the live holder is retired to Trash and the incoming row is created under its own id, with the create's changeSetId and the retire's tracked separately", async () => {
@@ -445,7 +453,7 @@ test("address-clash overwrite: the live holder is retired to Trash and the incom
 
   assert.equal(result.changeSetIds.length, 1, "the create is the only id this port's own changeSetIds surfaces — the retire's stays separate (this file's own doc)");
 
-  const status = await getPublishContentRunStatus(runRepo, { workspaceId: WORKSPACE_ID, runId: "run-1" });
+  const status = await getPublishContentRunStatus({ repo: runRepo, input: { workspaceId: WORKSPACE_ID, runId: "run-1" } });
   assert.equal(status?.retiredChangeSetIds.length, 1, "the retire must produce its own change set");
   assert.notEqual(status?.retiredChangeSetIds[0], result.changeSetIds[0], "the retire and the create are two distinct change sets, never the same id twice");
 
@@ -486,7 +494,7 @@ test("the live holder changing between plan and apply downgrades the retire-forc
   assert.equal(persistedReport.rows[0].outcome, "conflict");
   assert.match(persistedReport.rows[0].reason ?? "", /changed after this run's plan was built/);
 
-  const status = await getPublishContentRunStatus(runRepo, { workspaceId: WORKSPACE_ID, runId: "run-1" });
+  const status = await getPublishContentRunStatus({ repo: runRepo, input: { workspaceId: WORKSPACE_ID, runId: "run-1" } });
   assert.deepEqual(status?.retiredChangeSetIds, [], "a stale retire target must never actually be retired");
 
   const stillHolder = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-about" });
@@ -579,7 +587,7 @@ test("the create failing after a successful retire puts the holder back live —
 
   const { clock, bundleRepo, runRepo, publishContentDeps, applyPort } = makeHarness([]);
   registerPublishContentContributor(
-    fakeWidgetContributor(makeRetireFakeHandler({ store, holderId: "holder-widget", applyShouldThrow: true }))
+    { contributor: fakeWidgetContributor(makeRetireFakeHandler({ store, holderId: "holder-widget", applyShouldThrow: true })) }
   );
 
   const incomingEntity: PackedEntity = {
@@ -626,7 +634,7 @@ async function setUpWidgetRetire(options: {
     ...(options.retireKeys === undefined ? {} : { retireKeys: options.retireKeys }),
     ...(options.repointCalls === undefined ? {} : { repointCalls: options.repointCalls }),
   };
-  registerPublishContentContributor(fakeWidgetContributor(makeRetireFakeHandler(handlerOptions)));
+  registerPublishContentContributor({ contributor: fakeWidgetContributor(makeRetireFakeHandler(handlerOptions)) });
   const incomingEntity: PackedEntity = {
     entityType: "widget",
     id: "incoming-widget",
@@ -664,7 +672,7 @@ test("a baseline failure AFTER the create landed must not undo the retire — th
     true,
     "undo() after a landed create would put the holder back at an address the new row now holds"
   );
-  const status = await getPublishContentRunStatus(runRepo, { workspaceId: WORKSPACE_ID, runId: "run-1" });
+  const status = await getPublishContentRunStatus({ repo: runRepo, input: { workspaceId: WORKSPACE_ID, runId: "run-1" } });
   assert.equal(status?.items[0]?.phase, "content_applied");
   assert.equal(status?.items[0]?.changeSetId, "cs-create-1");
   assert.deepEqual(status?.retiredChangeSetIds, ["cs-retire-1"], "the landed retire's change set must survive the later failure too");
@@ -704,7 +712,7 @@ test("a row without `retires` behaves exactly as before S5 — the generic creat
   const result = await applyPort.applyReport({ report, principalId: OPERATOR_PRINCIPAL_ID, bundleId, restorePointId: "rp-1" });
 
   assert.equal(result.changeSetIds.length, 1);
-  const status = await getPublishContentRunStatus(runRepo, { workspaceId: WORKSPACE_ID, runId: "run-1" });
+  const status = await getPublishContentRunStatus({ repo: runRepo, input: { workspaceId: WORKSPACE_ID, runId: "run-1" } });
   assert.deepEqual(status?.retiredChangeSetIds, [], "a row with no retires must never produce a retiredChangeSetId");
 
   const created = await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "post-plain" });
@@ -725,7 +733,7 @@ for (const outcome of ["applied", "forced"] as const) {
       hashAtLastSync: packedFrom(original).contentHash, hashVersion: CONTENT_HASH_VERSION,
       syncedAt: clock.nowIso(), runId: "prior-run",
     };
-    await baselineRepo.upsert(baseline);
+    await baselineRepo.upsert({ record: baseline });
     const entities = [packedFrom({ ...original, title: "Incoming update" })];
     const planned = await plan(publishContentDeps, baselineRepo, SOURCE_PRINCIPAL_ID, entities);
     assert.equal(planned.rows[0]?.outcome, "applied");
@@ -752,7 +760,7 @@ test("baselines are upserted for created/unchanged/applied/forced and NEVER for 
   const { postRepo, clock, baselineRepo, bundleRepo, runRepo, publishContentDeps, applyPort } = makeHarness([applied, forced, unchangedSource]);
 
   // "applied" needs a baseline matching the CURRENT destination hash so it does not itself downgrade.
-  await baselineRepo.upsert({
+  await baselineRepo.upsert({ record: {
     workspaceId: WORKSPACE_ID,
     peerPrincipalId: SOURCE_PRINCIPAL_ID,
     entityType: "post",
@@ -761,7 +769,7 @@ test("baselines are upserted for created/unchanged/applied/forced and NEVER for 
     hashVersion: CONTENT_HASH_VERSION,
     syncedAt: clock.nowIso(),
     runId: "prior-run",
-  });
+  } });
 
   const createdSource = makePost({ id: "p-created", title: "New from peer", slug: "p-created", createdByPrincipalId: "author-c" });
   const appliedSource = makePost({ ...applied, title: "Updated from peer" });
@@ -909,7 +917,7 @@ test("a baseline failure after the content command durably records the landed it
     "Content lands first",
     "precondition: the domain write really landed before the simulated accounting failure"
   );
-  const status = await getPublishContentRunStatus(runRepo, { workspaceId: WORKSPACE_ID, runId: "run-1" });
+  const status = await getPublishContentRunStatus({ repo: runRepo, input: { workspaceId: WORKSPACE_ID, runId: "run-1" } });
   assert.equal(status?.phase, "failed");
   assert.equal(status?.items.length, 1);
   assert.equal(status?.items[0]?.phase, "content_applied");
@@ -998,9 +1006,9 @@ test("a refused report is persisted as an 'abandoned' run and produces no writes
 
 test("a media row blocked at apply time downgrades that ONE row and the rest of the run still applies", async () => {
   resetPublishContentContributorsForTests();
-  registerPublishContentContributor(contributePostPublish());
+  registerPublishContentContributor({ contributor: contributePostPublish() });
   registerTermTypes(); // post dependsOn term (termIds, plan §3.7)
-  registerPublishContentContributor(contributeMediaPublish());
+  registerPublishContentContributor({ contributor: contributeMediaPublish() });
 
   const postRepo = new InMemoryPostRepo({}, { initialRows: [] });
   const mediaRepo = new InMemoryVersionedMediaRepo({});
@@ -1140,7 +1148,7 @@ test("a media row blocked at apply time downgrades that ONE row and the rest of 
 // live silently broken. The run still completes (the content landed), and the result names it.
 test("after applying, the run reports a published media item whose poster is not on the site", async () => {
   resetPublishContentContributorsForTests();
-  registerPublishContentContributor(contributeMediaPublish());
+  registerPublishContentContributor({ contributor: contributeMediaPublish() });
 
   const mediaRepo = new InMemoryVersionedMediaRepo({});
   const assetBlobRepo = new InMemoryAssetBlobRepo({});
@@ -1220,9 +1228,9 @@ test("after applying, the run reports a published media item whose poster is not
 // it is that row's `blocked`, and the rest of the run still applies.
 test("a write refused permission blocks that ONE row with the refusal as its reason; the rest of the run applies", async () => {
   resetPublishContentContributorsForTests();
-  registerPublishContentContributor(contributePostPublish());
+  registerPublishContentContributor({ contributor: contributePostPublish() });
   registerTermTypes();
-  registerPublishContentContributor(contributeMediaPublish());
+  registerPublishContentContributor({ contributor: contributeMediaPublish() });
 
   const postRepo = new InMemoryPostRepo({}, { initialRows: [] });
   const mediaRepo = new InMemoryVersionedMediaRepo({});
@@ -1326,7 +1334,7 @@ async function planWithSeed(
   entities: readonly PackedEntity[]
 ): Promise<PublishContentReport> {
   const bundle: PublishContentBundle = { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities };
-  return planImport(bundle, { publishContentDeps, getBaseline: async () => null, hasBlob: async () => true, getSeedHash });
+  return planImport({ bundle, deps: { publishContentDeps, getBaseline: async () => null, hasBlob: async () => true, getSeedHash } });
 }
 
 test("D1: a row still matching the seed with NO baseline plans 'applied' AND is actually written at apply time", async () => {
@@ -1405,11 +1413,11 @@ function makeMenuRow(overrides: { id: string; entryId: string; version?: number 
  *  to wire `menuRepo`/`navLocationBindingRepo` for this bag — without hand-rolling a fake handler. */
 function makeMenuHarness(rows: PostRecord[] = [], options: { menuRepo?: MenuRepoPort; wireMenuDeps?: boolean } = {}) {
   resetPublishContentContributorsForTests();
-  registerPublishContentContributor(contributeMediaPublish());
-  registerPublishContentContributor(contributePostPublish());
+  registerPublishContentContributor({ contributor: contributeMediaPublish() });
+  registerPublishContentContributor({ contributor: contributePostPublish() });
   registerTermTypes(); // post dependsOn term (termIds, plan §3.7)
-  registerPublishContentContributor(contributePagePublish()); // menu's own MENU_DEPENDS_ON names it
-  registerPublishContentContributor(contributeMenusPublish());
+  registerPublishContentContributor({ contributor: contributePagePublish() }); // menu's own MENU_DEPENDS_ON names it
+  registerPublishContentContributor({ contributor: contributeMenusPublish() });
 
   const postRepo = new InMemoryPostRepo({}, { initialRows: rows });
   const clock = makeClock();
@@ -1531,7 +1539,7 @@ test("R5: a repoint pass never runs when the create half of a retire+create pair
   const menuRepo = new InMemoryMenuRepo({}, { initialRows: [makeMenuRow({ id: "menu-header", entryId: "holder-widget" })] });
   const { clock, bundleRepo, runRepo, publishContentDeps, applyPort } = makeMenuHarness([], { menuRepo });
   registerPublishContentContributor(
-    fakeWidgetContributor(makeRetireFakeHandler({ store, holderId: "holder-widget", applyShouldThrow: true }))
+    { contributor: fakeWidgetContributor(makeRetireFakeHandler({ store, holderId: "holder-widget", applyShouldThrow: true })) }
   );
 
   const incomingEntity: PackedEntity = {
@@ -1656,7 +1664,7 @@ for (const scope of ["run", "item"] as const) {
       ...(scope === "run" ? { idempotencyScope: "run" as const } : {}),
       pack: async function* () {}, inspect: async () => ({ version: 3, hash: "before" }), precheck: async () => null,
       apply: async input => { keys.push(input.idempotencyKey); return { changeSetId: `cs-${keys.length}` }; } };
-    registerPublishContentContributor({ entityType: "media", dependsOn: [], build: () => handler });
+    registerPublishContentContributor({ contributor: { entityType: "media", dependsOn: [], build: () => handler } });
     const itemKey = publishContentItemIdempotencyKey({ workspaceId: WORKSPACE_ID, sourcePrincipalId: SOURCE_PRINCIPAL_ID, entity });
 
     const runIds: string[] = [];

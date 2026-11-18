@@ -39,7 +39,7 @@ import type { ProvisioningFileIo } from "./provisioning.js";
  * second hidden global read.
  * @complexity O(1).
  */
-export function resolveCommittedConfigRoot(env: NodeJS.ProcessEnv = process.env): string {
+export function resolveCommittedConfigRoot(env: NodeJS.ProcessEnv = process.env, _optional = {}): string {
   return env.TOVU_REPO_ROOT || process.cwd();
 }
 

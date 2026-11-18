@@ -309,7 +309,7 @@ function registerPushConfirmRoute({ app, deps, base, pushGuard }: PeerRouteConte
       }
 
       const peer = await openPeer({ deps, peerId: readRouteParam({ req, name: "peerId" }) });
-      res.json(await confirmPeerImport(peer, { planId, planHash }));
+      res.json(await confirmPeerImport({ deps: peer, required: { planId, planHash } }));
     } catch (err) {
       respondWithError({ res, err });
     }
@@ -333,11 +333,14 @@ function registerPushExecuteRoute({ app, deps, base, pushGuard }: PeerRouteConte
 
       const peer = await openPeer({ deps, peerId: readRouteParam({ req, name: "peerId" }) });
       res.json(
-        await executePeerImport(peer, {
-          bundleId,
-          confirmationToken,
-          ...(overwriteEntityKeys === null ? {} : { overwriteEntityKeys }),
-        })
+        await executePeerImport({
+                                  deps: peer,
+                                  required: {
+            bundleId,
+            confirmationToken,
+            ...(overwriteEntityKeys === null ? {} : { overwriteEntityKeys }),
+          }
+                                })
       );
     } catch (err) {
       respondWithError({ res, err });
@@ -351,10 +354,13 @@ function registerPullRoute({ app, deps, base, guard }: PeerRouteContext): void {
       const principalId = await guard({ req, res });
       if (principalId === null) return;
 
-      res.status(201).json(await pullAndStageFromPeer(deps, {
-        peerId: readRouteParam({ req, name: "peerId" }),
-        principalId,
-      }));
+      res.status(201).json(await pullAndStageFromPeer({
+                                                        deps,
+                                                        input: {
+          peerId: readRouteParam({ req, name: "peerId" }),
+          principalId,
+        }
+                                                      }));
     } catch (err) {
       respondWithError({ res, err });
     }

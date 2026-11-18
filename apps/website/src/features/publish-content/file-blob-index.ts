@@ -72,7 +72,7 @@ export const FILE_BLOB_INDEX_MAX_ENTRIES = 20_000;
  * @complexity Every operation is O(1) amortized (a `Map` delete+set / get / delete), matching a real
  *   LRU's own bound.
  */
-export function createFileBlobIndex(_required: Record<string, never> = {}, { maxEntries = FILE_BLOB_INDEX_MAX_ENTRIES }: { maxEntries?: number } = {}): FileBlobIndexPort {
+export function createFileBlobIndex({ maxEntries = FILE_BLOB_INDEX_MAX_ENTRIES }: { maxEntries?: number } = {}): FileBlobIndexPort {
   if (!Number.isInteger(maxEntries) || maxEntries < 1) {
     throw new RangeError(`createFileBlobIndex: maxEntries must be a positive integer, got ${maxEntries}`);
   }

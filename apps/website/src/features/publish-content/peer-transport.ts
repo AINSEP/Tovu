@@ -213,8 +213,8 @@ export const PEER_REQUEST_TIMEOUT_MS = 60_000;
  *  caller is asking for. Both callers below already have the plain sha in scope when they call these
  *  methods, so passing it through costs nothing. */
 export interface PeerBlobSource {
-  exists(input: { sha256: string; storageKey: string }): Promise<boolean>;
-  get(input: { sha256: string; storageKey: string }): Promise<Uint8Array>;
+  exists(input: { sha256: string; storageKey: string }, optional?: {}): Promise<boolean>;
+  get(input: { sha256: string; storageKey: string }, optional?: {}): Promise<Uint8Array>;
 }
 
 export interface PeerCallDeps {
@@ -233,8 +233,11 @@ export interface PeerCallDeps {
  * @complexity O(1) plus one network round trip and one JSON parse of the response.
  */
 export async function callPeer(
-  deps: PeerCallDeps,
-  request: { method: "GET" | "POST" | "PUT" | "DELETE"; path: string; body?: unknown; archive?: Uint8Array; signal?: AbortSignal }
+  { deps, request }: {
+    deps: PeerCallDeps;
+    request: { method: "GET" | "POST" | "PUT" | "DELETE"; path: string; body?: unknown; archive?: Uint8Array; signal?: AbortSignal };
+  },
+  _optional = {}
 ): Promise<unknown> {
   const { baseUrl, apiKey } = deps.credential;
   let response;
@@ -414,7 +417,7 @@ async function probePeerCapabilities(deps: PeerCallDeps): Promise<PeerCapabiliti
   const { credential } = deps;
   let probed: Record<string, unknown>;
   try {
-    probed = requireObject({ value: await callPeer(deps, { method: "GET", path: peerRoute({ credential, suffix: "/capabilities" }) }), what: "capabilities", baseUrl: credential.baseUrl });
+    probed = requireObject({ value: await callPeer({ deps, request: { method: "GET", path: peerRoute({ credential, suffix: "/capabilities" }) } }), what: "capabilities", baseUrl: credential.baseUrl });
   } catch (err) {
     if (err instanceof PublishContentPeerTransportError && LEGACY_PROBE_STATUSES.has(err.peerStatus ?? 0)) {
       return { entityTypes: LEGACY_PEER_ENTITY_TYPES, features: [] };
@@ -485,8 +488,11 @@ function trimBundleToCapabilities(
  * as a batch before uploading; blob bytes are uploaded one at a time, never collected.
  */
 export async function pushBundleToPeer(
-  deps: PeerCallDeps & { blobSource: PeerBlobSource; computeStorageKey: (required: { sha256: string }, optional?: Record<string, never>) => string },
-  required: { bundle: PublishContentExportEnvelope; overwriteEntityKeys?: readonly string[] }
+  { deps, required }: {
+    deps: PeerCallDeps & { blobSource: PeerBlobSource; computeStorageKey: (required: { sha256: string }, optional?: Record<string, never>) => string };
+    required: { bundle: PublishContentExportEnvelope; overwriteEntityKeys?: readonly string[] };
+  },
+  _optional = {}
 ): Promise<PushBundleResult> {
   const { credential } = deps;
 
@@ -510,7 +516,7 @@ export async function pushBundleToPeer(
 
   const { blobsUploaded, blobsUnavailable } = await uploadMissingPeerBlobs(deps, { bundle });
 
-  const staged = requireObject({ value: await callPeer(deps, {
+  const staged = requireObject({ value: await callPeer({ deps, request: {
       method: "POST",
       path: peerRoute({ credential, suffix: "/bundles" }),
       body: {
@@ -520,14 +526,14 @@ export async function pushBundleToPeer(
         entities: bundle.entities,
         blobManifest: bundle.blobManifest,
       },
-    }), what: "bundle staging", baseUrl: credential.baseUrl });
+    } }), what: "bundle staging", baseUrl: credential.baseUrl });
   const bundleId = staged.bundleId;
   if (typeof bundleId !== "string") {
     throw new PublishContentPeerTransportError({ message: `the peer staged the bundle but returned no 'bundleId'`, code: "PEER_RESPONSE_INVALID" });
   }
 
   const plan = requireObject({
-    value: await callPeer(deps, {
+    value: await callPeer({ deps, request: {
       method: "POST",
       path: peerRoute({ credential, suffix: "/import/plan" }),
       // publish-overwrite-live-plan §4/S7 — `undefined` here reaches the peer's `/import/plan` as an
@@ -537,7 +543,7 @@ export async function pushBundleToPeer(
         required.overwriteEntityKeys === undefined
           ? { bundleId }
           : { bundleId, overwriteEntityKeys: required.overwriteEntityKeys },
-    }),
+    } }),
     what: "import plan",
     baseUrl: credential.baseUrl,
   });
@@ -556,14 +562,17 @@ export async function pushBundleToPeer(
  * @complexity O(1) plus one network round trip.
  */
 export async function confirmPeerImport(
-  deps: PeerCallDeps,
-  required: { planId: string; planHash: string }
+  { deps, required }: {
+    deps: PeerCallDeps;
+    required: { planId: string; planHash: string };
+  },
+  _optional = {}
 ): Promise<{ confirmationToken: string }> {
-  const confirmed = requireObject({ value: await callPeer(deps, {
+  const confirmed = requireObject({ value: await callPeer({ deps, request: {
       method: "POST",
       path: peerRoute({ credential: deps.credential, suffix: "/import/confirm" }),
       body: { planId: required.planId, planHash: required.planHash },
-    }), what: "import confirm", baseUrl: deps.credential.baseUrl });
+    } }), what: "import confirm", baseUrl: deps.credential.baseUrl });
   const confirmationToken = confirmed.confirmationToken;
   if (typeof confirmationToken !== "string") {
     throw new PublishContentPeerTransportError({ message: `the peer confirmed the plan but returned no 'confirmationToken'`, code: "PEER_RESPONSE_INVALID" });
@@ -580,15 +589,18 @@ export async function confirmPeerImport(
  * @complexity O(1) plus one network round trip and one ledger append (the peer's apply loop dominates).
  */
 export async function executePeerImport(
-  deps: PeerCallDeps,
-  required: { bundleId: string; confirmationToken: string; overwriteEntityKeys?: readonly string[] }
+  { deps, required }: {
+    deps: PeerCallDeps;
+    required: { bundleId: string; confirmationToken: string; overwriteEntityKeys?: readonly string[] };
+  },
+  _optional = {}
 ): Promise<Record<string, unknown>> {
   // Re-probed rather than trusted from the plan step: execute is a separate request, and the peer
   // may have been redeployed in between.
   if ((required.overwriteEntityKeys?.length ?? 0) > 0) {
     refuseOverwriteOnOlderPeer(deps.credential, await probePeerCapabilities(deps));
   }
-  const result = requireObject({ value: await callPeer(deps, {
+  const result = requireObject({ value: await callPeer({ deps, request: {
       method: "POST",
       path: peerRoute({ credential: deps.credential, suffix: "/import/execute" }),
       // publish-overwrite-live-plan §4/S7 — the same forced set confirmed at plan time. A DIFFERENT
@@ -602,7 +614,7 @@ export async function executePeerImport(
               confirmationToken: required.confirmationToken,
               overwriteEntityKeys: required.overwriteEntityKeys,
             },
-    }), what: "import execute", baseUrl: deps.credential.baseUrl });
+    } }), what: "import execute", baseUrl: deps.credential.baseUrl });
   // HTTP failures already throw. A completed apply may contain conflicts/partial writes; both
   // outcomes remember the destination, but a body explicitly reporting failure never does.
   if (deps.publishHistory && peerApplyCompleted({ result })) {
@@ -649,8 +661,8 @@ function peerApplyCompleted({ result }: { result: Record<string, unknown> }): bo
  *
  * @complexity O(1) network round trip; O(e) memory in the peer's corpus size.
  */
-export async function pullBundleFromPeer(deps: PeerCallDeps): Promise<PublishContentExportEnvelope> {
-  const body = requireObject({ value: await callPeer(deps, { method: "GET", path: peerRoute({ credential: deps.credential, suffix: "/export" }) }), what: "export", baseUrl: deps.credential.baseUrl });
+export async function pullBundleFromPeer(deps: PeerCallDeps, _optional = {}): Promise<PublishContentExportEnvelope> {
+  const body = requireObject({ value: await callPeer({ deps, request: { method: "GET", path: peerRoute({ credential: deps.credential, suffix: "/export" }) } }), what: "export", baseUrl: deps.credential.baseUrl });
 
   if (
     typeof body.artifactFormatVersion !== "number" ||
@@ -684,12 +696,12 @@ export async function pullBundleFromPeer(deps: PeerCallDeps): Promise<PublishCon
  *  create-only write, and nothing else. No `put`, no `remove`: this module can never overwrite or
  *  delete a blob, only add one that is absent. */
 export interface PeerBlobSink {
-  exists(input: { storageKey: string }): Promise<boolean>;
+  exists(input: { storageKey: string }, optional?: {}): Promise<boolean>;
   putIfAbsent(input: {
     workspaceId: string;
     sha256: string;
     bytes: Uint8Array;
-  }): Promise<{ storageKey: string; written: boolean }>;
+  }, optional?: {}): Promise<{ storageKey: string; written: boolean }>;
 }
 
 /**
@@ -755,13 +767,16 @@ export interface PullBlobsResult {
  * same bound `pushBundleToPeer` documents for the opposite direction).
  */
 export async function pullBlobsFromPeer(
-  deps: PeerCallDeps & {
-    blobSink: PeerBlobSink;
-    workspaceId: string;
-    computeStorageKey: (required: { sha256: string }, optional?: Record<string, never>) => string;
-    maxBlobs?: number;
+  { deps, required }: {
+    deps: PeerCallDeps & {
+      blobSink: PeerBlobSink;
+      workspaceId: string;
+      computeStorageKey: (required: { sha256: string }, optional?: Record<string, never>) => string;
+      maxBlobs?: number;
+    };
+    required: { blobManifest: readonly string[] };
   },
-  required: { blobManifest: readonly string[] }
+  _optional = {}
 ): Promise<PullBlobsResult> {
   const maxBlobs = deps.maxBlobs ?? PUBLISH_CONTENT_PULL_MAX_BLOBS;
   const downloaded: string[] = [];
@@ -814,11 +829,11 @@ async function uploadMissingPeerBlobs(
   const blobsUploaded: string[] = [];
   const blobsUnavailable: string[] = [];
   if (bundle.blobManifest.length > 0) {
-    const probed = requireObject({ value: await callPeer(deps, {
+    const probed = requireObject({ value: await callPeer({ deps, request: {
         method: "POST",
         path: peerRoute({ credential, suffix: "/blobs/probe" }),
         body: { shas: bundle.blobManifest },
-      }), what: "blob probe", baseUrl: credential.baseUrl });
+      } }), what: "blob probe", baseUrl: credential.baseUrl });
     const missing = Array.isArray(probed.missing) ? (probed.missing as unknown[]).filter((s): s is string => typeof s === "string") : [];
     // Validate the whole request before any local read or upload: a valid prefix must not let a
     // peer obtain bytes from an invalid mixed batch. This is the manifest AFTER capability trimming.
@@ -836,11 +851,11 @@ async function uploadMissingPeerBlobs(
         continue;
       }
       const bytes = await deps.blobSource.get({ sha256, storageKey });
-      await callPeer(deps, {
+      await callPeer({ deps, request: {
         method: "PUT",
         path: peerRoute({ credential, suffix: `/blobs/${encodeURIComponent(sha256)}` }),
         body: { dataBase64: Buffer.from(bytes).toString("base64") },
-      });
+      } });
       blobsUploaded.push(sha256);
     }
   }
@@ -852,7 +867,7 @@ async function uploadMissingPeerBlobs(
 async function fetchVerifiedPeerBlob(deps: PeerCallDeps, { sha256 }: { sha256: string }): Promise<Uint8Array | null> {
   let body: Record<string, unknown>;
   try {
-    body = requireObject({ value: await callPeer(deps, { method: "GET", path: peerRoute({ credential: deps.credential, suffix: `/blobs/${encodeURIComponent(sha256)}` }) }), what: "blob fetch", baseUrl: deps.credential.baseUrl });
+    body = requireObject({ value: await callPeer({ deps, request: { method: "GET", path: peerRoute({ credential: deps.credential, suffix: `/blobs/${encodeURIComponent(sha256)}` }) } }), what: "blob fetch", baseUrl: deps.credential.baseUrl });
   } catch (err) {
     if (err instanceof PublishContentPeerTransportError && err.peerStatus === 404) {
       return null;

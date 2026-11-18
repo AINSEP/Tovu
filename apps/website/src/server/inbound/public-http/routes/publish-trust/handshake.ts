@@ -247,8 +247,10 @@ async function handleSession(input: { guards: HandshakeGuards; req: Request; res
     }
 
     const verification = await verifyChallengeResponse(
-      { store: deps.challengeStore, clock: deps.clock },
-      { grant, targetInstallationId, response }
+      {
+        deps: { store: deps.challengeStore, clock: deps.clock },
+        input: { grant, targetInstallationId, response }
+      }
     );
     if (!verification.ok) {
       res.status(401).json(HANDSHAKE_REFUSAL);
@@ -256,12 +258,14 @@ async function handleSession(input: { guards: HandshakeGuards; req: Request; res
     }
 
     const { token, payload } = await mintPublishSession(
-      { keyring: deps.keyring, workspaceId: deps.workspaceId, clock: deps.clock },
       {
-        sourceInstallationId: verification.verified.sourceInstallationId,
-        targetInstallationId,
-        capabilities: verification.verified.capabilities,
-        generation: verification.verified.generation,
+        deps: { keyring: deps.keyring, workspaceId: deps.workspaceId, clock: deps.clock },
+        input: {
+          sourceInstallationId: verification.verified.sourceInstallationId,
+          targetInstallationId,
+          capabilities: verification.verified.capabilities,
+          generation: verification.verified.generation,
+        }
       }
     );
 

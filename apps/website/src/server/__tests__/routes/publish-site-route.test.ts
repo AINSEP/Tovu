@@ -1067,9 +1067,9 @@ test("publish destinations: peer rows and deploy links require publish_content.r
   const authorize = deps.authorize;
   deps.authorize = input => input.permission === "publish_content.read" && !peerReadAllowed
     ? Promise.resolve({ allowed: false, reason: "denied" }) : authorize(input);
-  await deps.publishContentPeerRepo.insert({ workspaceId: deps.workspaceId, id: "peer-saved", label: "Live",
+  await deps.publishContentPeerRepo.insert({ record: { workspaceId: deps.workspaceId, id: "peer-saved", label: "Live",
     baseUrl: "https://live.example.test", remoteWorkspaceId: "remote", sealed: null, masked: null,
-    aadVersion: 1, createdAt: "2026-10-18T00:00:00Z", updatedAt: "2026-10-18T00:00:00Z" });
+    aadVersion: 1, createdAt: "2026-10-18T00:00:00Z", updatedAt: "2026-10-18T00:00:00Z" } });
   const common = { url: "https://live.example.test/", reachable: true, status: "applied", publishedAt: "2026-10-18T03:00:00Z", triggeredBy: "admin_ui" as const };
   await historyStore.recordSuccess({ workspaceId: deps.workspaceId, entry: { ...common, kind: "tovu-peer", target: "peer-saved", projectName: "" } });
   await historyStore.recordSuccess({ workspaceId: deps.workspaceId, entry: { ...common, kind: "deploy", target: "custom-server", projectName: "Site", publishedAt: "2026-10-18T02:00:00Z" } });

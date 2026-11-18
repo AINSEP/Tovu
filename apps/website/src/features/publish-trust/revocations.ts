@@ -75,8 +75,8 @@ export interface PublishTrustRevocationPort {
     readonly sourceInstallationId: string;
     readonly nowIso: string;
     readonly note?: string;
-  }): Promise<RevocationWrite>;
-  restore(input: { readonly sourceInstallationId: string }): Promise<RevocationWrite>;
+  }, optional?: {}): Promise<RevocationWrite>;
+  restore(input: { readonly sourceInstallationId: string }, optional?: {}): Promise<RevocationWrite>;
 }
 
 /** @complexity O(1). */
@@ -217,7 +217,7 @@ export function admitPublish(input: {
   readonly publicKeyB64u: string;
   readonly siteLabel: string;
   readonly nowIso: string;
-}): PublishAdmission {
+}, _optional = {}): PublishAdmission {
   const refuse = (refusal: AdmissionRefusal): PublishAdmission => ({
     allowed: false,
     refusal,

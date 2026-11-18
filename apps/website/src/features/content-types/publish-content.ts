@@ -68,16 +68,16 @@ export const contributeContentTypePublish = (): PublishContentContributor =>
       const fields = state.fields as ContentTypeFieldDef[];
       let current = existing
         ? existing
-        : okOrThrow(await registerContentType({ deps: writeDeps, input: { workspaceId, actorId, key, label, fields } })).contentType;
+        : okOrThrow({ result: await registerContentType({ deps: writeDeps, input: { workspaceId, actorId, key, label, fields } }) }).contentType;
       if (existing && (existing.label !== label || JSON.stringify(existing.fields) !== JSON.stringify(fields))) {
         const input = { workspaceId, actorId, key, label, fields, expectedVersion: existing.version };
-        current = okOrThrow(await updateContentTypeFields({ deps: writeDeps, input })).contentType;
+        current = okOrThrow({ result: await updateContentTypeFields({ deps: writeDeps, input }) }).contentType;
       }
       const status = state.status as ContentTypeStatus;
       if (current.status !== status) {
         const input = { workspaceId, actorId, key, expectedVersion: current.version };
         const transition = status === "deprecated" ? deprecateContentType : reactivateContentType;
-        current = okOrThrow(await transition({ deps: writeDeps, input })).contentType;
+        current = okOrThrow({ result: await transition({ deps: writeDeps, input }) }).contentType;
       }
       return { version: current.version };
     },

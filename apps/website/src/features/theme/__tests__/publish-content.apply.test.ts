@@ -400,10 +400,10 @@ function bundleOf(entity: PackedEntity) {
 
 test("round trip: a destination still equal to its original plans 'applied', and apply lands the source files", async () => {
   const fixture = await makeFixture();
-  registerPublishContentContributor(contributeThemeFilesPublish());
+  registerPublishContentContributor({ contributor: contributeThemeFilesPublish() });
   const entity = await packAndStage(fixture);
 
-  const report = await planImport(bundleOf(entity), planDeps(fixture));
+  const report = await planImport({ bundle: bundleOf(entity), deps: planDeps(fixture) });
   assert.deepEqual(report.rows, [
     // Named by its theme.json `name` (`PackedEntity.displayLabel`), not the tree key.
     { entityType: "theme-files", entityId: "static/basic", entityLabel: "Basic", outcome: "applied", writes: true, reason: null, canOverwrite: false, retires: null },
@@ -411,23 +411,23 @@ test("round trip: a destination still equal to its original plans 'applied', and
 
   await handlerFor(fixture.deps).apply({ entity, expectedVersion: 0, principalId: OPERATOR_ID, idempotencyKey: "key-rt" });
   assert.deepEqual(await readTree(path.join(fixture.destThemes, "static/basic")), SOURCE_BASIC);
-  const replanned = await planImport(bundleOf(entity), planDeps(fixture));
+  const replanned = await planImport({ bundle: bundleOf(entity), deps: planDeps(fixture) });
   assert.equal(replanned.rows[0].outcome, "unchanged");
 });
 
 test("round trip: a theme edited on live plans 'conflict' offered as an overwrite; forcing it replaces the tree and keeps .publish-previous", async () => {
   const edited = { ...ORIGINAL_BASIC, "render/partials/nav.html": "<nav>edited on live</nav>" };
   const fixture = await makeFixture({ destFiles: edited });
-  registerPublishContentContributor(contributeThemeFilesPublish());
+  registerPublishContentContributor({ contributor: contributeThemeFilesPublish() });
   const entity = await packAndStage(fixture);
 
-  const report = await planImport(bundleOf(entity), planDeps(fixture));
+  const report = await planImport({ bundle: bundleOf(entity), deps: planDeps(fixture) });
   assert.equal(report.rows[0].outcome, "conflict");
   assert.equal(report.rows[0].writes, false);
   assert.equal(report.rows[0].canOverwrite, true);
   assert.equal(report.rows[0].reason, "no prior sync baseline for theme-files 'static/basic' with this peer — the destination already holds different content");
 
-  const forcedReport = await planImport(bundleOf(entity), planDeps(fixture, new Set([entityKey({ entityType: "theme-files", entityId: "static/basic" })])));
+  const forcedReport = await planImport({ bundle: bundleOf(entity), deps: planDeps(fixture, new Set([entityKey({ entityType: "theme-files", entityId: "static/basic" })])) });
   assert.equal(forcedReport.rows[0].outcome, "forced");
   assert.equal(forcedReport.rows[0].writes, true);
 

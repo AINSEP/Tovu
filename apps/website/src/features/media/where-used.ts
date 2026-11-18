@@ -25,7 +25,7 @@ export async function findMediaWhereUsed(
     if (!postIds.has(row.sourceEntryId)) references.set(`${row.sourceEntryId}:${row.fieldPath}`, row);
   }
   for (const post of posts.filter(post => includeTrashed || post.deletedAt == null)) {
-    const refs = collectReferencedMediaKeys({ bodyJson: post.bodyJson, bodyHtml: post.bodyHtml, seoExtJson: post.seoExtJson });
+    const refs = collectReferencedMediaKeys({ state: { bodyJson: post.bodyJson, bodyHtml: post.bodyHtml, seoExtJson: post.seoExtJson } });
     if (![...refs].some(key => keys.has(key))) continue;
     const row: EntryRefRow = { workspaceId: input.workspaceId, sourceEntryId: post.id, sourceKind: 'config-field', fieldPath: post.bodyFormat === 'html' ? 'bodyHtml' : 'bodyJson', targetKind: 'asset', targetId: input.mediaId };
     references.set(`${post.id}:${row.fieldPath}`, row);

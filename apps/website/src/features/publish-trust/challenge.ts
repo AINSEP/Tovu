@@ -55,7 +55,7 @@ export interface PublishChallengeRecord {
  * caller to verify first and delete later, which is exactly the window a replay needs.
  */
 export interface PublishChallengeStorePort {
-  put(record: PublishChallengeRecord): Promise<void>;
+  put(required: { record: PublishChallengeRecord }, optional?: {}): Promise<void>;
   /** Returns the record AND removes it. A second call for the same nonce returns `null`. */
   takeOnce(required: { nonce: string }, optional?: Record<string, never>): Promise<PublishChallengeRecord | null>;
 }
@@ -86,7 +86,7 @@ export function buildChallengeMessage(input: {
   sourceInstallationId: string;
   generation: number;
   capabilities: readonly string[];
-}): string {
+}, _optional = {}): string {
   return [
     CHALLENGE_MESSAGE_VERSION,
     input.nonce,
@@ -109,7 +109,7 @@ export async function issuePublishChallenge(deps: {
   clock: { nowIso(): string };
   idGen: { newId(): string };
   targetInstallationId: string;
-}): Promise<PublishChallengeRecord> {
+}, _optional = {}): Promise<PublishChallengeRecord> {
   const issuedAtIso = deps.clock.nowIso();
   const record: PublishChallengeRecord = {
     nonce: deps.idGen.newId(),
@@ -117,7 +117,7 @@ export async function issuePublishChallenge(deps: {
     issuedAtIso,
     expiresAtIso: new Date(Date.parse(issuedAtIso) + CHALLENGE_TTL_MS).toISOString(),
   };
-  await deps.store.put(record);
+  await deps.store.put({ record });
   return record;
 }
 
@@ -245,12 +245,15 @@ function signatureRefusal({ grant, targetInstallationId, response }: {
  * @complexity O(n) in the grant's key count plus one Ed25519 verification.
  */
 export async function verifyChallengeResponse(
-  deps: { store: PublishChallengeStorePort; clock: { nowIso(): string } },
-  input: {
-    grant: PublishTrustGrant;
-    targetInstallationId: string;
-    response: PublishChallengeResponse;
-  }
+  { deps, input }: {
+    deps: { store: PublishChallengeStorePort; clock: { nowIso(): string } };
+    input: {
+      grant: PublishTrustGrant;
+      targetInstallationId: string;
+      response: PublishChallengeResponse;
+    };
+  },
+  _optional = {}
 ): Promise<ChallengeVerification> {
   const { response, grant } = input;
   if (typeof response?.nonce !== "string" || response.nonce === "") return refuse({ reason: "no nonce supplied" });
@@ -296,7 +299,7 @@ export class InMemoryPublishChallengeStore implements PublishChallengeStorePort 
   }
 
   /** @complexity O(n) in the stored record count (the sweep), bounded by the TTL window. */
-  async put(record: PublishChallengeRecord): Promise<void> {
+  async put({ record }: { record: PublishChallengeRecord }): Promise<void> {
     const now = Date.parse(this.clock.nowIso());
     for (const [nonce, existing] of this.records) {
       if (isChallengeExpired({ record: existing, now })) this.records.delete(nonce);

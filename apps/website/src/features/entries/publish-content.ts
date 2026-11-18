@@ -69,29 +69,31 @@ async function writeCollectionEntry({ ports, deps, workspaceId, id, state, expec
     wanted: state.termIds,
   });
   const saved = okOrThrow(
-    await importEntry({
-      deps: {
-        entryRepo: ports.entries,
-        contentTypeRepo: ports.contentTypes,
-        clock: deps.clock,
-        // Preserve Jini's entry scope along with the gateway's publish-type stamp.
-        authorize: adaptLegacyAuthorize({ authorize: gateway.authorize }),
-        outbox: toEntryOutbox({ outbox: gateway.outbox, clock: deps.clock, idGen: deps.idGen, workspaceId }),
-      },
-      input: {
-        actorId: principalId,
-        workspaceId,
-        id,
-        type: state.type as string,
-        slug: state.slug as string,
-        title: state.title as string,
-        status: state.status as EntryStatus,
-        fieldsJson: state.fieldsJson,
-        bodyJson: state.bodyJson,
-        publishedAt: (state.publishedAt ?? null) as string | null,
-        expectedVersion,
-      },
-    })
+    {
+      result: await importEntry({
+        deps: {
+          entryRepo: ports.entries,
+          contentTypeRepo: ports.contentTypes,
+          clock: deps.clock,
+          // Preserve Jini's entry scope along with the gateway's publish-type stamp.
+          authorize: adaptLegacyAuthorize({ authorize: gateway.authorize }),
+          outbox: toEntryOutbox({ outbox: gateway.outbox, clock: deps.clock, idGen: deps.idGen, workspaceId }),
+        },
+        input: {
+          actorId: principalId,
+          workspaceId,
+          id,
+          type: state.type as string,
+          slug: state.slug as string,
+          title: state.title as string,
+          status: state.status as EntryStatus,
+          fieldsJson: state.fieldsJson,
+          bodyJson: state.bodyJson,
+          publishedAt: (state.publishedAt ?? null) as string | null,
+          expectedVersion,
+        },
+      })
+    }
   );
   await terms.apply();
   return { version: saved.entry.version };
@@ -168,7 +170,7 @@ export const contributeCollectionEntryPublish = (): PublishContentContributor =>
     // A tombstone is terminal, so nothing in the bundle can fix it. A missing type is left to apply:
     // the same bundle may carry it.
     // Its collection, plus whatever its body embeds and its categories/tags.
-    references: ({ entity }) => [{ entityType: "content-type", key: String(entity.state.type) }, ...collectBodyReferences(entity.state)],
+    references: ({ entity }) => [{ entityType: "content-type", key: String(entity.state.type) }, ...collectBodyReferences({ state: entity.state })],
     validate: validateCollectionEntry,
     write: writeCollectionEntry,
     errors: ENTRY_PUBLISH_ERRORS,

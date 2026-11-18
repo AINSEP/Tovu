@@ -62,7 +62,7 @@ function recordingStore(records: PublishChallengeRecord[] = [issued()]) {
   const held = new Map(records.map((record) => [record.nonce, record]));
   const takes: string[] = [];
   const store: PublishChallengeStorePort = {
-    put: async (record) => {
+    put: async ({ record }) => {
       held.set(record.nonce, record);
     },
     takeOnce: async ({ nonce }) => {
@@ -91,8 +91,10 @@ async function verify(
 ) {
   const { store, takes } = recordingStore(input.records);
   const result = await verifyChallengeResponse(
-    { store, clock: { nowIso: () => input.nowIso ?? NOW } },
-    { grant: input.grant ?? grant(), targetInstallationId: TARGET, response: input.response }
+    {
+      deps: { store, clock: { nowIso: () => input.nowIso ?? NOW } },
+      input: { grant: input.grant ?? grant(), targetInstallationId: TARGET, response: input.response }
+    }
   );
   return { result, takes };
 }
@@ -174,8 +176,10 @@ for (const expiresAtIso of ["corrupt", "", undefined]) {
     const record: PublishChallengeRecord = JSON.parse(JSON.stringify({ ...issued(), expiresAtIso }));
     const { store, takes } = recordingStore([record]);
     const result = await verifyChallengeResponse(
-      { store, clock: { nowIso: () => NOW } },
-      { grant: grant(), targetInstallationId: TARGET, response: response() }
+      {
+        deps: { store, clock: { nowIso: () => NOW } },
+        input: { grant: grant(), targetInstallationId: TARGET, response: response() }
+      }
     );
     assert.deepEqual(result, { ok: false, reason: "nonce has expired" });
     assert.deepEqual(takes, [NONCE]);
@@ -207,8 +211,10 @@ test("the nonce and the grant are judged at one clock reading", async () => {
   const readings = [NOW, "2100-01-01T00:00:00.000Z"];
   const { store } = recordingStore();
   const result = await verifyChallengeResponse(
-    { store, clock: { nowIso: () => readings.shift() ?? "exhausted" } },
-    { grant: grant(), targetInstallationId: TARGET, response: response() }
+    {
+      deps: { store, clock: { nowIso: () => readings.shift() ?? "exhausted" } },
+      input: { grant: grant(), targetInstallationId: TARGET, response: response() }
+    }
   );
   assert.equal(result.ok, true);
 });
@@ -285,16 +291,16 @@ test("the key is looked up by the claimed generation among several", async () =>
 
 test("the in-memory store hands a record back once and then forgets it", async () => {
   const store = new InMemoryPublishChallengeStore({ nowIso: () => NOW });
-  await store.put(issued());
+  await store.put({ record: issued() });
   assert.deepEqual(await store.takeOnce({ nonce: NONCE }), issued());
   assert.equal(await store.takeOnce({ nonce: NONCE }), null);
 });
 
 test("the in-memory store sweeps a record expiring exactly now and keeps a later one", async () => {
   const store = new InMemoryPublishChallengeStore({ nowIso: () => NOW });
-  await store.put(issued({ nonce: "due", expiresAtIso: NOW }));
-  await store.put(issued({ nonce: "live", expiresAtIso: new Date(Date.parse(NOW) + 1).toISOString() }));
-  await store.put(issued({ nonce: "trigger" }));
+  await store.put({ record: issued({ nonce: "due", expiresAtIso: NOW }) });
+  await store.put({ record: issued({ nonce: "live", expiresAtIso: new Date(Date.parse(NOW) + 1).toISOString() }) });
+  await store.put({ record: issued({ nonce: "trigger" }) });
   assert.equal(await store.takeOnce({ nonce: "due" }), null);
   assert.equal((await store.takeOnce({ nonce: "live" }))?.nonce, "live");
 });
@@ -303,10 +309,10 @@ test("the in-memory store sweeps corrupt expiries and retains live records", asy
   const store = new InMemoryPublishChallengeStore({ nowIso: () => NOW });
   for (const [index, expiresAtIso] of ["corrupt", "", undefined].entries()) {
     const record: PublishChallengeRecord = JSON.parse(JSON.stringify({ ...issued({ nonce: `bad-${index}` }), expiresAtIso }));
-    await store.put(record);
+    await store.put({ record });
   }
   const live = issued({ nonce: "live" });
-  await store.put(live);
+  await store.put({ record: live });
   for (let index = 0; index < 3; index++) assert.equal(await store.takeOnce({ nonce: `bad-${index}` }), null);
   assert.deepEqual(await store.takeOnce({ nonce: "live" }), live);
 });
@@ -314,8 +320,8 @@ test("the in-memory store sweeps corrupt expiries and retains live records", asy
 test("the in-memory sweep fails closed when its clock becomes unusable", async () => {
   let nowIso = NOW;
   const store = new InMemoryPublishChallengeStore({ nowIso: () => nowIso });
-  await store.put(issued({ nonce: "previously-live" }));
+  await store.put({ record: issued({ nonce: "previously-live" }) });
   nowIso = "invalid";
-  await store.put(issued({ nonce: "trigger" }));
+  await store.put({ record: issued({ nonce: "trigger" }) });
   assert.equal(await store.takeOnce({ nonce: "previously-live" }), null);
 });

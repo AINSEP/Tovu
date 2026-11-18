@@ -49,7 +49,7 @@ export class SqlPublishContentBaselineRepo implements PublishContentBaselineRepo
     return row ? toRecord(row) : null;
   }
 
-  async upsert(record: PublishContentBaselineRecord): Promise<void> {
+  async upsert({ record }: { record: PublishContentBaselineRecord }): Promise<void> {
     const columns = {
       workspace_id: record.workspaceId,
       peer_principal_id: record.peerPrincipalId,

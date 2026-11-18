@@ -132,10 +132,13 @@ export class PublishTrustConnectError extends Error {
  * @complexity O(1) plus one round trip, two HKDFs, one file read and one file write.
  */
 export async function connectDestination(
-  deps: ConnectDeps,
-  input: { baseUrl: string; entityTypes: readonly string[] }
+  { deps, input }: {
+    deps: ConnectDeps;
+    input: { baseUrl: string; entityTypes: readonly string[] };
+  },
+  _optional = {}
 ): Promise<ConnectedDestination> {
-  const identity = await fetchDestinationIdentity(deps, input);
+  const identity = await fetchDestinationIdentity({ deps, input });
 
   const sourceInstallationId = await deriveInstallationId({ keyring: deps.keyring, workspaceId: deps.workspaceId });
   const signingKey = await derivePublishSigningKey({
@@ -186,7 +189,7 @@ export async function connectDestination(
  * @complexity O(1) plus one HKDF, one file read and one file write.
  */
 export async function disconnectDestination(
-  deps: Pick<ConnectDeps, "keyring" | "provisioning" | "workspaceId">
+  { deps }: { deps: Pick<ConnectDeps, "keyring" | "provisioning" | "workspaceId"> }, _optional = {}
 ): Promise<{ changed: boolean; target: ProvisioningTarget }> {
   const sourceInstallationId = await deriveInstallationId({ keyring: deps.keyring, workspaceId: deps.workspaceId });
   const written = await deps.provisioning.disconnect({ sourceInstallationId });

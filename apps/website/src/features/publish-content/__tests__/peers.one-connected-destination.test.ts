@@ -47,12 +47,16 @@ test("connecting this computer to a second site MOVES the connection — it neve
   const idGen = sequentialIdGen();
 
   await saveConnectedDestination(
-    { repo, clock: fixedClock("2026-09-20T10:00:00.000Z"), idGen },
-    { workspaceId: WORKSPACE, label: "site-a.example", baseUrl: SITE_A, remoteWorkspaceId: "remote-a" }
+    {
+      deps: { repo, clock: fixedClock("2026-09-20T10:00:00.000Z"), idGen },
+      input: { workspaceId: WORKSPACE, label: "site-a.example", baseUrl: SITE_A, remoteWorkspaceId: "remote-a" }
+    }
   );
   await saveConnectedDestination(
-    { repo, clock: fixedClock("2026-09-20T11:00:00.000Z"), idGen },
-    { workspaceId: WORKSPACE, label: "site-b.example", baseUrl: SITE_B, remoteWorkspaceId: "remote-b" }
+    {
+      deps: { repo, clock: fixedClock("2026-09-20T11:00:00.000Z"), idGen },
+      input: { workspaceId: WORKSPACE, label: "site-b.example", baseUrl: SITE_B, remoteWorkspaceId: "remote-b" }
+    }
   );
 
   const rows = await repo.listByWorkspace({ workspaceId: WORKSPACE });
@@ -69,12 +73,16 @@ test("re-connecting the SAME site still updates its row in place rather than rep
   const idGen = sequentialIdGen();
 
   const first = await saveConnectedDestination(
-    { repo, clock: fixedClock("2026-09-20T10:00:00.000Z"), idGen },
-    { workspaceId: WORKSPACE, label: "site-a.example", baseUrl: SITE_A, remoteWorkspaceId: "remote-a" }
+    {
+      deps: { repo, clock: fixedClock("2026-09-20T10:00:00.000Z"), idGen },
+      input: { workspaceId: WORKSPACE, label: "site-a.example", baseUrl: SITE_A, remoteWorkspaceId: "remote-a" }
+    }
   );
   const again = await saveConnectedDestination(
-    { repo, clock: fixedClock("2026-09-20T11:00:00.000Z"), idGen },
-    { workspaceId: WORKSPACE, label: "Rebuilt site A", baseUrl: SITE_A, remoteWorkspaceId: "remote-a-rebuilt" }
+    {
+      deps: { repo, clock: fixedClock("2026-09-20T11:00:00.000Z"), idGen },
+      input: { workspaceId: WORKSPACE, label: "Rebuilt site A", baseUrl: SITE_A, remoteWorkspaceId: "remote-a-rebuilt" }
+    }
   );
 
   assert.equal(again.id, first.id, "re-connecting the same site must not mint a new row id");
@@ -101,16 +109,20 @@ test("moving the connection leaves a hand-configured destination and its credent
     createdAt: "2026-09-01T00:00:00.000Z",
     updatedAt: "2026-09-01T00:00:00.000Z",
   };
-  await repo.insert(sealedRow);
+  await repo.insert({ record: sealedRow });
 
   const idGen = sequentialIdGen();
   await saveConnectedDestination(
-    { repo, clock: fixedClock("2026-09-20T10:00:00.000Z"), idGen },
-    { workspaceId: WORKSPACE, label: "site-a.example", baseUrl: SITE_A, remoteWorkspaceId: "remote-a" }
+    {
+      deps: { repo, clock: fixedClock("2026-09-20T10:00:00.000Z"), idGen },
+      input: { workspaceId: WORKSPACE, label: "site-a.example", baseUrl: SITE_A, remoteWorkspaceId: "remote-a" }
+    }
   );
   await saveConnectedDestination(
-    { repo, clock: fixedClock("2026-09-20T11:00:00.000Z"), idGen },
-    { workspaceId: WORKSPACE, label: "site-b.example", baseUrl: SITE_B, remoteWorkspaceId: "remote-b" }
+    {
+      deps: { repo, clock: fixedClock("2026-09-20T11:00:00.000Z"), idGen },
+      input: { workspaceId: WORKSPACE, label: "site-b.example", baseUrl: SITE_B, remoteWorkspaceId: "remote-b" }
+    }
   );
 
   const rows = await repo.listByWorkspace({ workspaceId: WORKSPACE });
@@ -139,8 +151,8 @@ test("selectConnectedDestination never picks arbitrarily between two connected r
   // Repository order deliberately puts the STALE row first — the order sol's failure chain relied
   // on. The single grant belongs to whichever connection was made last, so the newest row is the
   // only one it can authorise.
-  assert.equal(selectConnectedDestination([older, newer])?.id, "peer-new");
-  assert.equal(selectConnectedDestination([newer, older])?.id, "peer-new");
+  assert.equal(selectConnectedDestination({ rows: [older, newer] })?.id, "peer-new");
+  assert.equal(selectConnectedDestination({ rows: [newer, older] })?.id, "peer-new");
 });
 
 test("selectConnectedDestination answers only for CONNECTED rows — a hand-configured peer is not a connection", async () => {
@@ -158,11 +170,11 @@ test("selectConnectedDestination answers only for CONNECTED rows — a hand-conf
   };
   const sealed: PublishContentPeerRecord = { ...connected, id: "peer-sealed", baseUrl: "https://hand.example", sealed: SEALED_BLOB, masked: "tovu_live_…cdef" };
 
-  assert.equal(selectConnectedDestination([sealed, connected])?.id, "peer-connected");
+  assert.equal(selectConnectedDestination({ rows: [sealed, connected] })?.id, "peer-connected");
   assert.equal(
-    selectConnectedDestination([sealed]),
+    selectConnectedDestination({ rows: [sealed] }),
     null,
     "a peer configured by hand with a pasted key is a destination, not a connection — the HTTP view must not report it as one"
   );
-  assert.equal(selectConnectedDestination([]), null);
+  assert.equal(selectConnectedDestination({ rows: [] }), null);
 });

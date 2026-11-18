@@ -195,16 +195,20 @@ async function scenario(sourceWorkspaceId = "workspace-local") {
 async function connectAndDeploy(s: Awaited<ReturnType<typeof scenario>>, siteKeyHex = SOURCE_SITE_KEY) {
   const keyring = testKeyring(siteKeyHex);
   const connected = await connectDestination(
-    { httpClient: s.httpClient, keyring, provisioning: s.provisioning, clock: s.clock, workspaceId: s.sourceDeps.workspaceId },
-    { baseUrl: DESTINATION_ORIGIN, entityTypes: listPublishContentContributors().map((c) => c.entityType) }
+    {
+      deps: { httpClient: s.httpClient, keyring, provisioning: s.provisioning, clock: s.clock, workspaceId: s.sourceDeps.workspaceId },
+      input: { baseUrl: DESTINATION_ORIGIN, entityTypes: listPublishContentContributors().map((c) => c.entityType) }
+    }
   );
   const site = await saveConnectedDestination(
-    { repo: s.peerRepo, clock: s.clock, idGen: s.idGen },
     {
-      workspaceId: s.sourceDeps.workspaceId,
-      label: "destination.test",
-      baseUrl: connected.baseUrl,
-      remoteWorkspaceId: connected.identity.workspaceId,
+      deps: { repo: s.peerRepo, clock: s.clock, idGen: s.idGen },
+      input: {
+        workspaceId: s.sourceDeps.workspaceId,
+        label: "destination.test",
+        baseUrl: connected.baseUrl,
+        remoteWorkspaceId: connected.identity.workspaceId,
+      }
     }
   );
   await s.redeploy();
@@ -220,24 +224,29 @@ async function publishEverything(s: Awaited<ReturnType<typeof scenario>>, site: 
   });
   const workspace = await s.sourceDeps.workspaceRepo.findById({ id: s.sourceDeps.workspaceId });
   const bundle = await buildExportBundle({
-    workspaceId: s.sourceDeps.workspaceId,
-    principalId: "test-operator",
-    authorize: async () => ({ allowed: true }) as never,
-    publishContentDeps: toPublishContentDeps(s.sourceDeps),
-    sourceLabel: workspace?.name ?? "source",
-  });
+                                           deps: {
+      workspaceId: s.sourceDeps.workspaceId,
+      principalId: "test-operator",
+      authorize: async () => ({ allowed: true }) as never,
+      publishContentDeps: toPublishContentDeps(s.sourceDeps),
+      sourceLabel: workspace?.name ?? "source",
+    }
+                                         });
   const transport = {
     httpClient: s.httpClient,
     credential,
     blobSource: s.sourceDeps.blobStore,
     computeStorageKey: ({ sha256 }: { sha256: string }, _options: Record<string, never> = {}) => `blobs/${sha256}`,
   };
-  const pushed = await pushBundleToPeer(transport, { bundle, overwriteEntityKeys });
-  const { confirmationToken } = await confirmPeerImport(transport, {
-    planId: pushed.plan.planId as string,
-    planHash: pushed.plan.planHash as string,
-  });
-  return executePeerImport(transport, { bundleId: pushed.bundleId, confirmationToken, overwriteEntityKeys });
+  const pushed = await pushBundleToPeer({ deps: transport, required: { bundle, overwriteEntityKeys } });
+  const { confirmationToken } = await confirmPeerImport({
+                                                          deps: transport,
+                                                          required: {
+      planId: pushed.plan.planId as string,
+      planHash: pushed.plan.planHash as string,
+    }
+                                                        });
+  return executePeerImport({ deps: transport, required: { bundleId: pushed.bundleId, confirmationToken, overwriteEntityKeys } });
 }
 
 test("the address to confirm comes from the deploy config the repo already carries", async (t) => {
@@ -325,12 +334,14 @@ test("a fresh install connects and then publishes, with no key displayed or copi
 
     const workspace = await s.sourceDeps.workspaceRepo.findById({ id: s.sourceDeps.workspaceId });
     const bundle = await buildExportBundle({
-      workspaceId: s.sourceDeps.workspaceId,
-      principalId: "test-operator",
-      authorize: async () => ({ allowed: true }) as never,
-      publishContentDeps: toPublishContentDeps(s.sourceDeps),
-      sourceLabel: workspace?.name ?? "source",
-    });
+                                             deps: {
+        workspaceId: s.sourceDeps.workspaceId,
+        principalId: "test-operator",
+        authorize: async () => ({ allowed: true }) as never,
+        publishContentDeps: toPublishContentDeps(s.sourceDeps),
+        sourceLabel: workspace?.name ?? "source",
+      }
+                                           });
     assert.ok(bundle.entities.length > 0, "the source must actually have something to publish");
 
     const transport = {
@@ -339,15 +350,15 @@ test("a fresh install connects and then publishes, with no key displayed or copi
       blobSource: s.sourceDeps.blobStore,
       computeStorageKey: ({ sha256 }: { sha256: string }, _options: Record<string, never> = {}) => `blobs/${sha256}`,
     };
-    const pushed = await pushBundleToPeer(transport, { bundle });
+    const pushed = await pushBundleToPeer({ deps: transport, required: { bundle } });
     assert.equal(typeof pushed.bundleId, "string");
 
     const planId = pushed.plan.planId as string;
     const planHash = pushed.plan.planHash as string;
     assert.ok(planId && planHash, JSON.stringify(pushed.plan));
 
-    const { confirmationToken } = await confirmPeerImport(transport, { planId, planHash });
-    const applied = await executePeerImport(transport, { bundleId: pushed.bundleId, confirmationToken });
+    const { confirmationToken } = await confirmPeerImport({ deps: transport, required: { planId, planHash } });
+    const applied = await executePeerImport({ deps: transport, required: { bundleId: pushed.bundleId, confirmationToken } });
 
     // Content landed on the destination, through its own gated ceremony, authenticated by a
     // credential that was never minted, stored, shown or copied.
@@ -444,21 +455,25 @@ test("disconnecting removes only this computer, and leaves another computer's gr
     // A second computer connects to the same site.
     await connectDestination(
       {
-        httpClient: s.httpClient,
-        keyring: testKeyring(OTHER_COMPUTER_SITE_KEY),
-        provisioning: s.provisioning,
-        clock: s.clock,
-        workspaceId: s.sourceDeps.workspaceId,
-      },
-      { baseUrl: DESTINATION_ORIGIN, entityTypes: ["post"] }
+        deps: {
+          httpClient: s.httpClient,
+          keyring: testKeyring(OTHER_COMPUTER_SITE_KEY),
+          provisioning: s.provisioning,
+          clock: s.clock,
+          workspaceId: s.sourceDeps.workspaceId,
+        },
+        input: { baseUrl: DESTINATION_ORIGIN, entityTypes: ["post"] }
+      }
     );
     assert.equal((JSON.parse(await s.readGrantDocument()) as unknown[]).length, 2);
 
     await disconnectDestination({
-      keyring: testKeyring(SOURCE_SITE_KEY),
-      provisioning: s.provisioning,
-      workspaceId: s.sourceDeps.workspaceId,
-    });
+                                  deps: {
+        keyring: testKeyring(SOURCE_SITE_KEY),
+        provisioning: s.provisioning,
+        workspaceId: s.sourceDeps.workspaceId,
+      }
+                                });
 
     const remaining = JSON.parse(await s.readGrantDocument()) as unknown[];
     assert.equal(remaining.length, 1, "disconnecting one computer must never revoke another");

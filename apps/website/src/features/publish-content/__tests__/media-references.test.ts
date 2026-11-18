@@ -14,7 +14,7 @@ import { collectMediaUrlKeys, collectReferencedMediaKeys } from "../media-refere
  */
 
 function keys(state: Record<string, unknown>): string[] {
-  return [...collectReferencedMediaKeys(state)].sort();
+  return [...collectReferencedMediaKeys({ state })].sort();
 }
 
 test("a ref-based image or media node contributes its assetId", () => {
@@ -135,10 +135,10 @@ test("placed widgets with no explicit mode scan their items, and a config with n
 });
 
 test("data-media-slug references in raw HTML count, in body HTML and in free text", () => {
-  assert.deepEqual([...collectReferencedMediaKeys({ bodyHtml: '<p><img data-media-slug="body-slug"></p>' })], ["body-slug"]);
+  assert.deepEqual([...collectReferencedMediaKeys({ state: { bodyHtml: '<p><img data-media-slug="body-slug"></p>' } })], ["body-slug"]);
   assert.ok(collectMediaUrlKeys({ text: 'Intro <img data-media-slug="text-slug"> and /m/url-key/file.png' }).has("text-slug"));
 });
 
 test("a gallery marker with no images array contributes nothing and does not throw", () => {
-  assert.deepEqual([...collectReferencedMediaKeys({ bodyHtml: `<div data-embed-config='{"type":"gallery","layout":"grid"}'></div>` })], []);
+  assert.deepEqual([...collectReferencedMediaKeys({ state: { bodyHtml: `<div data-embed-config='{"type":"gallery","layout":"grid"}'></div>` } })], []);
 });

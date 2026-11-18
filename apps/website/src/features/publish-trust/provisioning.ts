@@ -138,8 +138,11 @@ export function parseGrantDocument({ text }: { text: string }, _optional = {}): 
  * @complexity O(n) in the grant count.
  */
 export function serializeGrantDocument(
-  grants: readonly PublishTrustGrant[],
-  options: { readonly pretty: boolean }
+  { grants, options }: {
+    grants: readonly PublishTrustGrant[];
+    options: { readonly pretty: boolean };
+  },
+  _optional = {}
 ): string {
   return options.pretty ? `${JSON.stringify(grants, null, 2)}\n` : JSON.stringify(grants);
 }
@@ -159,7 +162,7 @@ export type GrantListEdit =
  *
  * @complexity O(n) in the existing grant count.
  */
-export function mergeGrant(existing: readonly PublishTrustGrant[], incoming: PublishTrustGrant): GrantListEdit {
+export function mergeGrant({ existing, incoming }: { existing: readonly PublishTrustGrant[]; incoming: PublishTrustGrant }, _optional = {}): GrantListEdit {
   const index = existing.findIndex((g) => g.sourceInstallationId === incoming.sourceInstallationId);
   if (index >= 0) {
     const grants = existing.map((g, i) => (i === index ? incoming : g));
@@ -275,7 +278,7 @@ function resolveText(
 export function resolvePublishTrust(input: {
   readonly envValue: string | undefined;
   readonly fileContents: string | null;
-}): PublishTrustResolution {
+}, _optional = {}): PublishTrustResolution {
   if (input.envValue !== undefined) return resolveText({ text: input.envValue, origin: "env", emptyState: "revoked" });
   if (input.fileContents !== null) return resolveText({ text: input.fileContents, origin: "file", emptyState: "absent" });
   return withoutGrants({ state: "absent", origin: "none" });
@@ -354,9 +357,9 @@ export interface PublishTrustProvisioningPort {
   /** What the repo's deploy config carries today. */
   readProvisioned(): Promise<ProvisionedRead>;
   /** Add or replace one source's grant, leaving every other source untouched. */
-  connect(input: { readonly grant: PublishTrustGrant }): Promise<ProvisioningWrite>;
+  connect(input: { readonly grant: PublishTrustGrant }, optional?: {}): Promise<ProvisioningWrite>;
   /** Remove one source's grant. */
-  disconnect(input: { readonly sourceInstallationId: string }): Promise<ProvisioningWrite>;
+  disconnect(input: { readonly sourceInstallationId: string }, optional?: {}): Promise<ProvisioningWrite>;
 }
 
 /**
@@ -376,7 +379,7 @@ export interface ProvisioningCodec {
   /** Extract the grant document from the config file's text; `null` when it carries none. */
   decode(required: { fileContents: string | null }, optional?: Record<string, never>): string | null;
   /** Put `document` back, preserving everything else in the file. */
-  encode(input: { readonly fileContents: string | null; readonly document: string }):
+  encode(input: { readonly fileContents: string | null; readonly document: string }, optional?: {}):
     | { readonly ok: true; readonly contents: string }
     | { readonly ok: false; readonly reason: string };
 }
@@ -409,7 +412,7 @@ export function createFileProvisioning(deps: {
   readonly codec: ProvisioningCodec;
   readonly path: string;
   readonly onEvent?: (event: ProvisioningEvent) => void;
-}): PublishTrustProvisioningPort {
+}, _optional = {}): PublishTrustProvisioningPort {
   const { io, codec, path, onEvent } = deps;
   const target: ProvisioningTarget = { kind: codec.kind, path, nextStep: codec.nextStep };
   const file: ProvisioningFile = { io, codec, path, target, onEvent };
@@ -417,7 +420,7 @@ export function createFileProvisioning(deps: {
   return {
     target,
     readProvisioned: () => readProvisionedGrants({ file }),
-    connect: ({ grant }) => applyGrantEdit({ file, edit: (grants) => mergeGrant(grants, grant) }),
+    connect: ({ grant }) => applyGrantEdit({ file, edit: (grants) => mergeGrant({ existing: grants, incoming: grant }) }),
     disconnect: ({ sourceInstallationId }) => applyGrantEdit({ file, edit: (grants) => removeGrant({ existing: grants, sourceInstallationId }) }),
   };
 }
@@ -475,7 +478,7 @@ async function applyGrantEdit({ file, edit }: {
 
   const encoded = codec.encode({
     fileContents,
-    document: serializeGrantDocument(next.grants, { pretty: codec.pretty }),
+    document: serializeGrantDocument({ grants: next.grants, options: { pretty: codec.pretty } }),
   });
   if (!encoded.ok) {
     onEvent?.({ kind: "error", target, reason: encoded.reason });

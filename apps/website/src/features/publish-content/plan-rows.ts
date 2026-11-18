@@ -124,7 +124,7 @@ const HUMAN_IDENTIFIER_FIELDS = ["slug", "title", "name", "filename", "label", "
  *
  * @complexity O(1) — at most six property reads, no allocation on the miss path.
  */
-export function entityDisplayLabel(state: Record<string, unknown>): string | null {
+export function entityDisplayLabel({ state }: { state: Record<string, unknown> }, _optional = {}): string | null {
   for (const field of HUMAN_IDENTIFIER_FIELDS) {
     const value = state[field];
     if (typeof value === "string" && value.trim().length > 0) return value;
@@ -139,8 +139,8 @@ export function entityDisplayLabel(state: Record<string, unknown>): string | nul
  *
  * @complexity O(1).
  */
-export function packedEntityLabel(entity: PackedEntity): string | null {
+export function packedEntityLabel({ entity }: { entity: PackedEntity }, _optional = {}): string | null {
   const label: unknown = entity.displayLabel;
   if (typeof label === "string" && label.trim().length > 0) return label;
-  return entityDisplayLabel(entity.state);
+  return entityDisplayLabel({ state: entity.state });
 }

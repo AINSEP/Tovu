@@ -89,7 +89,7 @@ const MAX_ID_SEGMENT_LENGTH = 64;
  *
  * @complexity O(s) in the segment count (fixed, small).
  */
-export function resolveTreeRelativePath(kind: FileTreeKind, idSegments: readonly string[]): string | null {
+export function resolveTreeRelativePath({ kind, idSegments }: { kind: FileTreeKind; idSegments: readonly string[] }, _optional = {}): string | null {
   const spec = FILE_TREE_KINDS[kind];
   if (idSegments.length !== spec.idSegmentCount) return null;
   for (const segment of idSegments) {
@@ -430,7 +430,7 @@ export interface FileTreeFileInput {
  *   secret scan (§(p) pattern count times sample length) per qualifying file; `b` is the sum of every
  *   scanned file's `textSample` length.
  */
-export function checkTreeFiles(kind: FileTreeKind, files: readonly FileTreeFileInput[]): string | null {
+export function checkTreeFiles({ kind, files }: { kind: FileTreeKind; files: readonly FileTreeFileInput[] }, _optional = {}): string | null {
   const limits = FILE_TREE_LIMITS;
   if (files.length > limits.maxTreeFiles) {
     return `this tree has ${files.length} files, more than the ${limits.maxTreeFiles}-file limit`;

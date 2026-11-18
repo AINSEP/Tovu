@@ -241,7 +241,7 @@ export interface PublishContentHandler {
     idempotencyKey: string;
     /** Trusted apply-loop context, never read from PackedEntity.state. */
     sourceReplacement?: MediaSourceReplacement;
-  }): Promise<{ changeSetId: string }>;
+  }, optional?: {}): Promise<{ changeSetId: string }>;
 
   /**
    * S4 (`publish-overwrite-live-plan-2026-09-24.md` §4/§5) — read-only, like {@link precheck}: reports
@@ -263,7 +263,7 @@ export interface PublishContentHandler {
     target: RetireTarget;
     principalId: string;
     idempotencyKey: string;
-  }): Promise<{ changeSetId: string; undo(): Promise<void> }>;
+  }, optional?: {}): Promise<{ changeSetId: string; undo(): Promise<void> }>;
 
   /**
    * `publish-repoint-menus-plan-2026-09-24.md` §2.1/§2.2 — read-only, like {@link planRetire}: every
@@ -286,7 +286,7 @@ export interface PublishContentHandler {
     skipIds: ReadonlySet<string>;
     principalId: string;
     runId: string;
-  }): Promise<RepointResult>;
+  }, optional?: {}): Promise<RepointResult>;
   /**
    * Post-publish safety check (2026-09-26): after every row has landed, confirms this type's
    * entities from the run are actually servable here — e.g. a media item's bytes are present and its
@@ -296,7 +296,7 @@ export interface PublishContentHandler {
    * operator-facing lines, one per problem; empty when all is well. Called by the apply loop once,
    * after the repoint pass; a throw is caught and reported, never fails the run (the content landed).
    */
-  verifyApplied?(input: { entities: readonly PackedEntity[] }): Promise<readonly string[]>;
+  verifyApplied?(input: { entities: readonly PackedEntity[] }, optional?: {}): Promise<readonly string[]>;
 
   /**
    * S-F4 (`publish-files-plan-2026-09-24.md` §4) — the hash `id` had when this destination was first
@@ -388,7 +388,7 @@ export interface PublishContentContributor<TPorts = TovuPublishPorts> {
   readonly coversRoots?: readonly string[];
   readonly entityType: string;
   readonly dependsOn: readonly string[];
-  readonly build: (deps: PublishContentDeps<TPorts>) => PublishContentHandler;
+  readonly build: (deps: PublishContentDeps<TPorts>, optional?: {}) => PublishContentHandler;
 }
 
 /** A programmer-authored registry configuration that cannot produce a safe apply order. */
@@ -441,7 +441,7 @@ function catalogDependencies(
  * unregistered type or a dependency cycle makes every possible fallback order unsafe, so this
  * rejects before any handler is built or any publish-content read/write begins.
  */
-export function buildPublishContentCatalog(deps: PublishContentDeps): PublishContentCatalog {
+export function buildPublishContentCatalog(deps: PublishContentDeps, _optional = {}): PublishContentCatalog {
   const snapshot = [...contributors];
   const originalOrder = snapshot.map((contributor) => contributor.entityType);
   const { inDegree, dependents } = catalogDependencies({ snapshot, originalOrder });
@@ -499,7 +499,7 @@ function stampPublishType({ deps, publishType }: { deps: PublishContentDeps; pub
 
 /** Every permission a publishing grant may answer for `handler`'s writes: its own
  *  {@link PublishContentHandler.permission} plus {@link PublishContentHandler.alsoAuthorizes}. */
-export function publishTypePermissions(handler: PublishContentHandler): readonly string[] {
+export function publishTypePermissions({ handler }: { handler: PublishContentHandler }, _optional = {}): readonly string[] {
   return [handler.permission, ...(handler.alsoAuthorizes ?? [])];
 }
 
@@ -514,8 +514,8 @@ export function publishTypePermissions(handler: PublishContentHandler): readonly
  *
  * @complexity O(types) handler builds, each cheap (no I/O).
  */
-export function registeredPublishTypePermissions(deps: PublishContentDeps): ReadonlyMap<string, readonly string[]> {
-  return new Map(contributors.map((contributor) => [contributor.entityType, publishTypePermissions(contributor.build(deps))] as const));
+export function registeredPublishTypePermissions(deps: PublishContentDeps, _optional = {}): ReadonlyMap<string, readonly string[]> {
+  return new Map(contributors.map((contributor) => [contributor.entityType, publishTypePermissions({ handler: contributor.build(deps) })] as const));
 }
 
 let contributors: PublishContentContributor[] = [];
@@ -529,7 +529,7 @@ let contributors: PublishContentContributor[] = [];
  * instance, safe for a test process that legitimately re-registers. Registration order is otherwise
  * preserved so a replacement does not silently reorder the registry.
  */
-export function registerPublishContentContributor(contributor: PublishContentContributor): void {
+export function registerPublishContentContributor({ contributor }: { contributor: PublishContentContributor }, _optional = {}): void {
   const existing = contributors.findIndex((candidate) => candidate.entityType === contributor.entityType);
   if (existing >= 0) {
     contributors[existing] = contributor;

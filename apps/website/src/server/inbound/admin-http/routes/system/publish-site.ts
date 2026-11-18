@@ -391,7 +391,7 @@ async function listVisiblePeers({ deps, res, principal }: { deps: AdminPublishSi
     principalId: principal.id, permission: "publish_content.read", workspaceId: deps.workspaceId,
   });
   if (!peerAuthorization.allowed) return [];
-  return listPublishContentPeers({ repo: deps.publishContentPeerRepo }, { workspaceId: deps.workspaceId });
+  return listPublishContentPeers({ deps: { repo: deps.publishContentPeerRepo }, input: { workspaceId: deps.workspaceId } });
 }
 
 async function handlePublishDestinations({ context, req, res }: { context: PublishSiteContext; req: Request; res: Response }): Promise<void> {

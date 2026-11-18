@@ -88,8 +88,11 @@ export interface DisconnectAndForgetDeps {
  * database write.
  */
 export async function connectAndRecordDestination(
-  deps: ConnectAndRecordDeps,
-  input: { workspaceId: string; baseUrl: string; entityTypes: readonly string[] }
+  { deps, input }: {
+    deps: ConnectAndRecordDeps;
+    input: { workspaceId: string; baseUrl: string; entityTypes: readonly string[] };
+  },
+  _optional = {}
 ): Promise<{ site: PublishContentPeerSummary; grant: GrantWriteResult }> {
   const grant = await deps.connectGrant({ baseUrl: input.baseUrl,
     entityTypes: input.entityTypes.filter((entityType) => entityType !== "raw-row" && entityType !== "raw-file") });
@@ -97,12 +100,14 @@ export async function connectAndRecordDestination(
   let site: PublishContentPeerSummary;
   try {
     site = await saveConnectedDestination(
-      { repo: deps.repo, clock: deps.clock, idGen: deps.idGen },
       {
-        workspaceId: input.workspaceId,
-        label: siteLabelFor({ baseUrl: grant.baseUrl }),
-        baseUrl: grant.baseUrl,
-        remoteWorkspaceId: grant.identity.workspaceId,
+        deps: { repo: deps.repo, clock: deps.clock, idGen: deps.idGen },
+        input: {
+          workspaceId: input.workspaceId,
+          label: siteLabelFor({ baseUrl: grant.baseUrl }),
+          baseUrl: grant.baseUrl,
+          remoteWorkspaceId: grant.identity.workspaceId,
+        }
       }
     );
   } catch (err) {
@@ -134,14 +139,17 @@ export async function connectAndRecordDestination(
  * writes.
  */
 export async function disconnectAndForgetDestination(
-  deps: DisconnectAndForgetDeps,
-  input: { workspaceId: string }
+  { deps, input }: {
+    deps: DisconnectAndForgetDeps;
+    input: { workspaceId: string };
+  },
+  _optional = {}
 ): Promise<{ site: PublishContentPeerSummary | null; changed: boolean; target: GrantReverseResult["target"] }> {
   const rows = await deps.repo.listByWorkspace({ workspaceId: input.workspaceId });
-  const row = selectConnectedDestination(rows);
+  const row = selectConnectedDestination({ rows });
 
   if (row) {
-    await removeConnectedDestination({ repo: deps.repo }, { workspaceId: input.workspaceId, baseUrl: row.baseUrl });
+    await removeConnectedDestination({ deps: { repo: deps.repo }, input: { workspaceId: input.workspaceId, baseUrl: row.baseUrl } });
   }
 
   let reversed: GrantReverseResult;
@@ -153,12 +161,14 @@ export async function disconnectAndForgetDestination(
       // pre-fix split state, which is no worse than doing nothing and is not worth masking `err`.
       try {
         await saveConnectedDestination(
-          { repo: deps.repo, clock: deps.clock, idGen: deps.idGen },
           {
-            workspaceId: input.workspaceId,
-            label: row.label,
-            baseUrl: row.baseUrl,
-            remoteWorkspaceId: row.remoteWorkspaceId,
+            deps: { repo: deps.repo, clock: deps.clock, idGen: deps.idGen },
+            input: {
+              workspaceId: input.workspaceId,
+              label: row.label,
+              baseUrl: row.baseUrl,
+              remoteWorkspaceId: row.remoteWorkspaceId,
+            }
           }
         );
       } catch {

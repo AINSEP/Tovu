@@ -55,13 +55,16 @@ function writeDeps(overrides: { ids?: string[]; now?: string } = {}): PublishCon
 }
 
 async function createDefaultPeer(deps: PublishContentPeerWriteDeps) {
-  return createPublishContentPeer(deps, {
-    workspaceId: WORKSPACE,
-    label: "production",
-    baseUrl: "https://tovu.example.com",
-    remoteWorkspaceId: "remote-ws-9",
-    apiKey: API_KEY,
-  });
+  return createPublishContentPeer({
+                                    deps,
+                                    input: {
+      workspaceId: WORKSPACE,
+      label: "production",
+      baseUrl: "https://tovu.example.com",
+      remoteWorkspaceId: "remote-ws-9",
+      apiKey: API_KEY,
+    }
+                                  });
 }
 
 test("a created peer's summary carries masked + hasCredential and NOTHING sealed", async () => {
@@ -91,8 +94,8 @@ test("the sealed key never appears in a list response, a get, or a stored record
   const deps = writeDeps();
   await createDefaultPeer(deps);
 
-  const listed = await listPublishContentPeers({ repo: deps.repo }, { workspaceId: WORKSPACE });
-  const fetched = await getPublishContentPeerSummary({ repo: deps.repo }, { workspaceId: WORKSPACE, id: "peer-1" });
+  const listed = await listPublishContentPeers({ deps: { repo: deps.repo }, input: { workspaceId: WORKSPACE } });
+  const fetched = await getPublishContentPeerSummary({ deps: { repo: deps.repo }, input: { workspaceId: WORKSPACE, id: "peer-1" } });
 
   // The stored record DOES hold the ciphertext — that is the point of the table. What must never
   // happen is that ciphertext reaching a read model.
@@ -100,7 +103,7 @@ test("the sealed key never appears in a list response, a get, or a stored record
   assert.ok(stored?.sealed, "the row must actually be sealed, or this test proves nothing");
   const ciphertext = stored.sealed.ciphertext;
 
-  for (const payload of [JSON.stringify(listed), JSON.stringify(fetched), JSON.stringify(toPeerSummary(stored))]) {
+  for (const payload of [JSON.stringify(listed), JSON.stringify(fetched), JSON.stringify(toPeerSummary({ record: stored }))]) {
     assert.equal(payload.includes(API_KEY), false, "raw api key leaked");
     assert.equal(payload.includes(ciphertext), false, "sealed ciphertext leaked");
     assert.equal(payload.includes(stored.sealed.nonce), false, "sealed nonce leaked");
@@ -117,7 +120,7 @@ test("resolvePeerCredential round-trips the key through the real sealer", async 
   const deps = writeDeps();
   await createDefaultPeer(deps);
 
-  const resolved = await resolvePeerCredential({ repo: deps.repo, sealer: deps.sealer }, { workspaceId: WORKSPACE, id: "peer-1" });
+  const resolved = await resolvePeerCredential({ deps: { repo: deps.repo, sealer: deps.sealer }, input: { workspaceId: WORKSPACE, id: "peer-1" } });
   assert.equal(resolved.apiKey, API_KEY);
   assert.equal(resolved.baseUrl, "https://tovu.example.com");
   assert.equal(resolved.remoteWorkspaceId, "remote-ws-9");
@@ -126,16 +129,19 @@ test("resolvePeerCredential round-trips the key through the real sealer", async 
 test("a ciphertext sealed for one peer cannot be opened as another peer's — the AAD binds the row id", async () => {
   const deps = writeDeps();
   await createDefaultPeer(deps);
-  await createPublishContentPeer(deps, {
-    workspaceId: WORKSPACE,
-    label: "staging",
-    baseUrl: "https://staging.example.com",
-    remoteWorkspaceId: "remote-ws-8",
-    apiKey: "tovu_live_staging_distinct",
-  });
+  await createPublishContentPeer({
+                                   deps,
+                                   input: {
+      workspaceId: WORKSPACE,
+      label: "staging",
+      baseUrl: "https://staging.example.com",
+      remoteWorkspaceId: "remote-ws-8",
+      apiKey: "tovu_live_staging_distinct",
+    }
+                                 });
 
-  const firstResolved = await resolvePeerCredential(deps, { workspaceId: WORKSPACE, id: "peer-1" });
-  const secondResolved = await resolvePeerCredential(deps, { workspaceId: WORKSPACE, id: "peer-2" });
+  const firstResolved = await resolvePeerCredential({ deps, input: { workspaceId: WORKSPACE, id: "peer-1" } });
+  const secondResolved = await resolvePeerCredential({ deps, input: { workspaceId: WORKSPACE, id: "peer-2" } });
   assert.equal(firstResolved.apiKey, API_KEY);
   assert.equal(secondResolved.apiKey, "tovu_live_staging_distinct");
 
@@ -148,9 +154,9 @@ test("a ciphertext sealed for one peer cannot be opened as another peer's — th
   );
   const second = await deps.repo.findById({ workspaceId: WORKSPACE, id: "peer-2" });
   assert.ok(second);
-  await deps.repo.update({ ...second, sealed: first.sealed });
+  await deps.repo.update({ record: { ...second, sealed: first.sealed } });
   await assert.rejects(
-    () => resolvePeerCredential(deps, { workspaceId: WORKSPACE, id: "peer-2" }),
+    () => resolvePeerCredential({ deps, input: { workspaceId: WORKSPACE, id: "peer-2" } }),
     PublishContentPeerSecretStoreUnconfiguredError
   );
 });
@@ -161,10 +167,10 @@ test("an unopenable ciphertext surfaces as the typed secret-store error, never a
   const stored = await deps.repo.findById({ workspaceId: WORKSPACE, id: "peer-1" });
   assert.ok(stored);
   // Corrupt the ciphertext in place — the shape a rotated/lost site key produces.
-  await deps.repo.update({ ...stored, sealed: { ...stored.sealed!, ciphertext: Buffer.from("garbage").toString("base64") } });
+  await deps.repo.update({ record: { ...stored, sealed: { ...stored.sealed!, ciphertext: Buffer.from("garbage").toString("base64") } } });
 
   await assert.rejects(
-    () => resolvePeerCredential({ repo: deps.repo, sealer: deps.sealer }, { workspaceId: WORKSPACE, id: "peer-1" }),
+    () => resolvePeerCredential({ deps: { repo: deps.repo, sealer: deps.sealer }, input: { workspaceId: WORKSPACE, id: "peer-1" } }),
     (err: unknown) => {
       assert.ok(err instanceof PublishContentPeerSecretStoreUnconfiguredError);
       assert.match(err.message, /peer 'production' credential could not be opened/);
@@ -195,14 +201,17 @@ test("create validates every operator-supplied field", async () => {
   for (const [override, expected] of bad) {
     await assert.rejects(
       () =>
-        createPublishContentPeer(deps, {
-          workspaceId: WORKSPACE,
-          label: "production",
-          baseUrl: "https://tovu.example.com",
-          remoteWorkspaceId: "remote-ws-9",
-          apiKey: API_KEY,
-          ...override,
-        }),
+        createPublishContentPeer({
+                                   deps,
+                                   input: {
+            workspaceId: WORKSPACE,
+            label: "production",
+            baseUrl: "https://tovu.example.com",
+            remoteWorkspaceId: "remote-ws-9",
+            apiKey: API_KEY,
+            ...override,
+          }
+                                 }),
       (err: unknown) => err instanceof PublishContentPeerValidationError && expected.test(err.message)
     );
   }
@@ -213,13 +222,16 @@ test("a duplicate label is a typed conflict, not a raw UNIQUE-constraint driver 
   await createDefaultPeer(deps);
   await assert.rejects(
     () =>
-      createPublishContentPeer(deps, {
-        workspaceId: WORKSPACE,
-        label: "production",
-        baseUrl: "https://other.example.com",
-        remoteWorkspaceId: "remote-ws-7",
-        apiKey: API_KEY,
-      }),
+      createPublishContentPeer({
+                                 deps,
+                                 input: {
+          workspaceId: WORKSPACE,
+          label: "production",
+          baseUrl: "https://other.example.com",
+          remoteWorkspaceId: "remote-ws-7",
+          apiKey: API_KEY,
+        }
+                               }),
     (err: unknown) =>
       err instanceof PublishContentPeerDuplicateLabelError && /a peer labelled 'production' already exists/.test(err.message)
   );
@@ -230,41 +242,41 @@ test("update leaves an absent field alone and reseals only a supplied apiKey", a
   await createDefaultPeer(deps);
   const before = await deps.repo.findById({ workspaceId: WORKSPACE, id: "peer-1" });
 
-  const renamed = await updatePublishContentPeer(deps, { workspaceId: WORKSPACE, id: "peer-1", label: "prod-eu" });
+  const renamed = await updatePublishContentPeer({ deps, input: { workspaceId: WORKSPACE, id: "peer-1", label: "prod-eu" } });
   assert.equal(renamed.label, "prod-eu");
   assert.equal(renamed.baseUrl, "https://tovu.example.com");
   assert.equal(renamed.masked, "••••cdef");
   const afterRename = await deps.repo.findById({ workspaceId: WORKSPACE, id: "peer-1" });
   assert.deepEqual(afterRename?.sealed, before?.sealed, "a rename must not reseal the credential");
 
-  const rotated = await updatePublishContentPeer(deps, { workspaceId: WORKSPACE, id: "peer-1", apiKey: "tovu_live_zzzzzzzzzz9999" });
+  const rotated = await updatePublishContentPeer({ deps, input: { workspaceId: WORKSPACE, id: "peer-1", apiKey: "tovu_live_zzzzzzzzzz9999" } });
   assert.equal(rotated.masked, "••••9999");
   const afterRotate = await deps.repo.findById({ workspaceId: WORKSPACE, id: "peer-1" });
   assert.notDeepEqual(afterRotate?.sealed, before?.sealed, "a rotation must produce a fresh ciphertext");
-  const reopened = await resolvePeerCredential({ repo: deps.repo, sealer: deps.sealer }, { workspaceId: WORKSPACE, id: "peer-1" });
+  const reopened = await resolvePeerCredential({ deps: { repo: deps.repo, sealer: deps.sealer }, input: { workspaceId: WORKSPACE, id: "peer-1" } });
   assert.equal(reopened.apiKey, "tovu_live_zzzzzzzzzz9999");
 });
 
 test("update and resolve refuse an unknown peer; delete is idempotent", async () => {
   const deps = writeDeps();
   await assert.rejects(
-    () => updatePublishContentPeer(deps, { workspaceId: WORKSPACE, id: "nope", label: "x" }),
+    () => updatePublishContentPeer({ deps, input: { workspaceId: WORKSPACE, id: "nope", label: "x" } }),
     (err: unknown) => err instanceof PublishContentPeerNotFoundError
   );
   await assert.rejects(
-    () => resolvePeerCredential({ repo: deps.repo, sealer: deps.sealer }, { workspaceId: WORKSPACE, id: "nope" }),
+    () => resolvePeerCredential({ deps: { repo: deps.repo, sealer: deps.sealer }, input: { workspaceId: WORKSPACE, id: "nope" } }),
     (err: unknown) => err instanceof PublishContentPeerNotFoundError
   );
-  await deletePublishContentPeer({ repo: deps.repo }, { workspaceId: WORKSPACE, id: "nope" });
+  await deletePublishContentPeer({ deps: { repo: deps.repo }, input: { workspaceId: WORKSPACE, id: "nope" } });
   await createDefaultPeer(deps);
-  await deletePublishContentPeer({ repo: deps.repo }, { workspaceId: WORKSPACE, id: "peer-1" });
-  assert.deepEqual(await listPublishContentPeers(deps, { workspaceId: WORKSPACE }), []);
+  await deletePublishContentPeer({ deps: { repo: deps.repo }, input: { workspaceId: WORKSPACE, id: "peer-1" } });
+  assert.deepEqual(await listPublishContentPeers({ deps, input: { workspaceId: WORKSPACE } }), []);
   assert.equal(await deps.repo.findById({ workspaceId: WORKSPACE, id: "peer-1" }), null);
   await assert.rejects(
-    () => resolvePeerCredential(deps, { workspaceId: WORKSPACE, id: "peer-1" }),
+    () => resolvePeerCredential({ deps, input: { workspaceId: WORKSPACE, id: "peer-1" } }),
     PublishContentPeerNotFoundError
   );
-  await deletePublishContentPeer(deps, { workspaceId: WORKSPACE, id: "peer-1" });
+  await deletePublishContentPeer({ deps, input: { workspaceId: WORKSPACE, id: "peer-1" } });
 });
 
 test("a peer row with no sealed credential refuses at resolve rather than pushing unauthenticated", async () => {
@@ -272,11 +284,11 @@ test("a peer row with no sealed credential refuses at resolve rather than pushin
   await createDefaultPeer(deps);
   const stored = await deps.repo.findById({ workspaceId: WORKSPACE, id: "peer-1" });
   assert.ok(stored);
-  await deps.repo.update({ ...stored, sealed: null, masked: null });
+  await deps.repo.update({ record: { ...stored, sealed: null, masked: null } });
 
-  assert.deepEqual(toPeerSummary({ ...stored, sealed: null, masked: null }).hasCredential, false);
+  assert.deepEqual(toPeerSummary({ record: { ...stored, sealed: null, masked: null } }).hasCredential, false);
   await assert.rejects(
-    () => resolvePeerCredential({ repo: deps.repo, sealer: deps.sealer }, { workspaceId: WORKSPACE, id: "peer-1" }),
+    () => resolvePeerCredential({ deps: { repo: deps.repo, sealer: deps.sealer }, input: { workspaceId: WORKSPACE, id: "peer-1" } }),
     (err: unknown) => err instanceof PublishContentPeerCredentialMissingError
   );
 });
@@ -295,52 +307,60 @@ test("a failing keyring fails CLOSED — the row is never written in plaintext",
     () => createDefaultPeer(deps),
     (err: unknown) => err instanceof PublishContentPeerSecretStoreUnconfiguredError
   );
-  assert.deepEqual(await listPublishContentPeers({ repo: deps.repo }, { workspaceId: WORKSPACE }), []);
+  assert.deepEqual(await listPublishContentPeers({ deps: { repo: deps.repo }, input: { workspaceId: WORKSPACE } }), []);
 });
 
 test("peers are workspace-scoped — another workspace's rows are never listed", async () => {
   const deps = writeDeps();
   await createDefaultPeer(deps);
-  await createPublishContentPeer(deps, {
-    workspaceId: "ws-2",
-    label: "production",
-    baseUrl: "https://other.example.com",
-    remoteWorkspaceId: "remote-ws-2",
-    apiKey: API_KEY,
-  });
+  await createPublishContentPeer({
+                                   deps,
+                                   input: {
+      workspaceId: "ws-2",
+      label: "production",
+      baseUrl: "https://other.example.com",
+      remoteWorkspaceId: "remote-ws-2",
+      apiKey: API_KEY,
+    }
+                                 });
 
-  const ours = await listPublishContentPeers({ repo: deps.repo }, { workspaceId: WORKSPACE });
+  const ours = await listPublishContentPeers({ deps: { repo: deps.repo }, input: { workspaceId: WORKSPACE } });
   assert.deepEqual(ours.map((p) => p.id), ["peer-1"]);
 });
 
 test("metadata-only peers need no key and remain removable after vault storage", async () => {
   const deps = writeDeps();
-  await deps.repo.insert({ workspaceId: WORKSPACE, id: "bare", label: "connected", baseUrl: "https://peer.example.test",
-    remoteWorkspaceId: "remote", sealed: null, masked: null, aadVersion: 1, createdAt: "now", updatedAt: "now" });
+  await deps.repo.insert({ record: { workspaceId: WORKSPACE, id: "bare", label: "connected", baseUrl: "https://peer.example.test",
+    remoteWorkspaceId: "remote", sealed: null, masked: null, aadVersion: 1, createdAt: "now", updatedAt: "now" } });
   const vault = (await deps.repo.vault.find({ workspaceId: WORKSPACE, id: "bare" }))!;
   assert.equal(vault.sealed, null);
   assert.equal(vault.last4, null);
   assert.equal(vault.tokenLength, null);
-  assert.deepEqual(await listPublishContentPeers(deps, { workspaceId: WORKSPACE }), [{ id: "bare", label: "connected",
+  assert.deepEqual(await listPublishContentPeers({ deps, input: { workspaceId: WORKSPACE } }), [{ id: "bare", label: "connected",
     baseUrl: "https://peer.example.test", remoteWorkspaceId: "remote", masked: null, hasCredential: false }]);
-  await assert.rejects(resolvePeerCredential(deps, { workspaceId: WORKSPACE, id: "bare" }), PublishContentPeerCredentialMissingError);
-  await deletePublishContentPeer(deps, { workspaceId: WORKSPACE, id: "bare" });
+  await assert.rejects(resolvePeerCredential({ deps, input: { workspaceId: WORKSPACE, id: "bare" } }), PublishContentPeerCredentialMissingError);
+  await deletePublishContentPeer({ deps, input: { workspaceId: WORKSPACE, id: "bare" } });
   assert.equal(await deps.repo.vault.find({ workspaceId: WORKSPACE, id: "bare" }), null);
 });
 
 test("short peer keys have no vault suffix and label-only edits require no crypto", async () => {
   const deps = writeDeps();
-  await createPublishContentPeer(deps, { workspaceId: WORKSPACE, label: "short", baseUrl: "https://peer.example.test",
-    remoteWorkspaceId: "remote", apiKey: "shortkey" });
+  await createPublishContentPeer({
+                                   deps,
+                                   input: { workspaceId: WORKSPACE, label: "short", baseUrl: "https://peer.example.test",
+      remoteWorkspaceId: "remote", apiKey: "shortkey" }
+                                 });
   const old = (await deps.repo.vault.find({ workspaceId: WORKSPACE, id: "peer-1" }))!;
   assert.equal(old.last4, null);
   const noCrypto = async (): Promise<never> => { throw new Error("must not touch crypto"); };
-  await updatePublishContentPeer({ ...deps, sealer: { seal: noCrypto, open: noCrypto } },
-    { workspaceId: WORKSPACE, id: "peer-1", label: "renamed" });
+  await updatePublishContentPeer({
+                                   deps: { ...deps, sealer: { seal: noCrypto, open: noCrypto } },
+                                   input: { workspaceId: WORKSPACE, id: "peer-1", label: "renamed" }
+                                 });
   const renamed = (await deps.repo.vault.find({ workspaceId: WORKSPACE, id: "peer-1" }))!;
   assert.deepEqual(renamed.sealed, old.sealed);
   assert.equal(renamed.label, "renamed");
-  assert.equal((await getPublishContentPeerSummary(deps, { workspaceId: WORKSPACE, id: "peer-1" }))?.masked, "••••");
+  assert.equal((await getPublishContentPeerSummary({ deps, input: { workspaceId: WORKSPACE, id: "peer-1" } }))?.masked, "••••");
   await assert.rejects(deps.repo.vault.patchMeta({ workspaceId: WORKSPACE, id: "peer-1", expectedRevision: old.revision,
     patch: { remoteWorkspaceId: "stale" }, updatedAt: "now" }), VaultError);
 });

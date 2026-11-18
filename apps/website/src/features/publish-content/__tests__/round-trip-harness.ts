@@ -59,9 +59,9 @@ export function registerOnly(contributors: readonly PublishContentContributor[])
   for (const dep of new Set(contributors.flatMap((c) => c.dependsOn))) {
     if (known.has(dep)) continue;
     known.add(dep);
-    registerPublishContentContributor(emptyContributor(dep));
+    registerPublishContentContributor({ contributor: emptyContributor(dep) });
   }
-  for (const contributor of contributors) registerPublishContentContributor(contributor);
+  for (const contributor of contributors) registerPublishContentContributor({ contributor });
 }
 
 function emptyContributor(entityType: string): PublishContentContributor {
@@ -94,8 +94,10 @@ export async function packAll(deps: PublishContentDeps): Promise<PackedEntity[]>
 /** No baselines, so a changed row plans `conflict`; `force` lists `entityKey`s to push past it. */
 export async function plan(entities: readonly PackedEntity[], destination: PublishContentDeps, force: readonly string[] = []): Promise<PublishContentReport> {
   return planImport(
-    { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities },
-    { publishContentDeps: destination, getBaseline: async () => null, hasBlob: async () => true, forcedEntityKeys: new Set(force) }
+    {
+      bundle: { artifactFormatVersion: PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION, hashVersion: CONTENT_HASH_VERSION, entities },
+      deps: { publishContentDeps: destination, getBaseline: async () => null, hasBlob: async () => true, forcedEntityKeys: new Set(force) }
+    }
   );
 }
 

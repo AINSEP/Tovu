@@ -81,7 +81,7 @@ export interface ApplyRowContext {
     changeSetId: string;
     /** The retire half's own change set, for a `retires` row whose retire and create both landed. */
     retiredChangeSetId?: string;
-  }) => Promise<void>;
+  }, optional?: {}) => Promise<void>;
 }
 
 export type InspectedRow = NonNullable<Awaited<ReturnType<PublishContentHandler["inspect"]>>>;
@@ -173,7 +173,7 @@ export async function applyOrdinaryRow({ step }: { step: ApplyRowStep }, _option
  * One indexed inspect per replaced row, with no additional reads on ordinary imports. */
 export async function refreshBaseline({ row, entity, ctx }: { row: PublishContentOutcomeRow; entity: PackedEntity; ctx: ApplyRowContext }, _optional = {}): Promise<void> {
   const destination = row.sourceReplacement ? await ctx.handlerByType.get(row.entityType)?.inspect({ id: row.entityId }) : null;
-  return ctx.baselineRepo.upsert({
+  return ctx.baselineRepo.upsert({ record: {
     workspaceId: ctx.workspaceId,
     peerPrincipalId: ctx.sourcePrincipalId,
     entityType: row.entityType,
@@ -182,7 +182,7 @@ export async function refreshBaseline({ row, entity, ctx }: { row: PublishConten
     hashVersion: entity.hashVersion,
     syncedAt: clockNowIso({ clock: ctx.clock }),
     runId: ctx.runId,
-  });
+  } });
 }
 
 export async function refreshNonWritingRow({ row, ctx }: { row: PublishContentOutcomeRow; ctx: ApplyRowContext }, _optional = {}): Promise<ApplyRowResult> {

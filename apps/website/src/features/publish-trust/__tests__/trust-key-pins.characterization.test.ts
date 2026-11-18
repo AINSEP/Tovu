@@ -91,8 +91,10 @@ test("T-D4: the session MAC is the pinned value, keyed by purpose, workspace and
   const { keyring, derives } = createFixedKeyring({ siteKeyHex: SITE_KEY_HEX });
 
   const minted = await mintPublishSession(
-    { keyring, workspaceId: WORKSPACE, clock: { nowIso: () => "2026-11-16T00:00:00.000Z" } },
-    { sourceInstallationId: PINNED_INSTALLATION_ID, targetInstallationId: "dest-install", capabilities: ["publish_content.apply"], generation: 1 }
+    {
+      deps: { keyring, workspaceId: WORKSPACE, clock: { nowIso: () => "2026-11-16T00:00:00.000Z" } },
+      input: { sourceInstallationId: PINNED_INSTALLATION_ID, targetInstallationId: "dest-install", capabilities: ["publish_content.apply"], generation: 1 }
+    }
   );
 
   assert.equal(minted.token.split(".")[1], PINNED_SESSION_MAC);
@@ -104,8 +106,10 @@ test("T-D4b: a wrong MAC over a payload that cannot be parsed is refused for the
   const unparsable = Buffer.from("{not json", "utf8").toString("base64url");
 
   const verdict = await verifyPublishSession(
-    { keyring, workspaceId: WORKSPACE, clock: { nowIso: () => "2026-11-16T00:00:00.000Z" } },
-    { token: `${unparsable}.${PINNED_SESSION_MAC}`, expectedAudience: "dest-install" }
+    {
+      deps: { keyring, workspaceId: WORKSPACE, clock: { nowIso: () => "2026-11-16T00:00:00.000Z" } },
+      input: { token: `${unparsable}.${PINNED_SESSION_MAC}`, expectedAudience: "dest-install" }
+    }
   );
 
   assert.deepEqual(verdict, { ok: false, reason: "session token signature is invalid" });

@@ -447,8 +447,8 @@ test("publish-content run status returns persisted progress, isolates workspaces
     phase: "applied" as const, restorePointId: "restore-status", changeSetIdsJson: '["change-status"]', actorId: "operator-1",
     startedAt, finishedAt: startedAt, reportJson: null, itemsJson: "[]",
   };
-  await deps.publishContentRunRepo.save(record);
-  await deps.publishContentRunRepo.save({ ...record, id: "foreign-run", workspaceId: "foreign-workspace" });
+  await deps.publishContentRunRepo.save({ record });
+  await deps.publishContentRunRepo.save({ record: { ...record, id: "foreign-run", workspaceId: "foreign-workspace" } });
   const url = `${baseUrl}/api/admin/v1/workspaces/${WORKSPACE}/publish-content/runs`;
   const response = await fetch(`${url}/status-run`, { headers: { cookie } });
   assert.deepEqual(await expectJson(response, 200), {

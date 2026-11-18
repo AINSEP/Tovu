@@ -263,7 +263,7 @@ function toImportableRecord(
 
 /** {@link collectBodyReferences} plus the featured image, so a scoped publish carries that media too. */
 function postReferences(state: Readonly<Record<string, unknown>>): readonly PublishContentReference[] {
-  const refs = collectBodyReferences(state);
+  const refs = collectBodyReferences({ state });
   const featured = state.featuredMediaId;
   if (typeof featured !== "string" || featured.length === 0) return refs;
   if (refs.some((ref) => ref.entityType === "media" && ref.key === featured)) return refs;

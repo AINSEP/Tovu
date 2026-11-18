@@ -37,7 +37,7 @@ function record(overrides: Partial<PublishContentRunRecord> = {}): PublishConten
 
 test("InMemoryPublishContentRunRepo.findById: a run saved under one workspace is invisible to a lookup claiming a different workspace", async () => {
   const repo = new InMemoryPublishContentRunRepo();
-  await repo.save(record({ id: "run-1", workspaceId: "workspace-a" }));
+  await repo.save({ record: record({ id: "run-1", workspaceId: "workspace-a" }) });
 
   const crossTenant = await repo.findById({ workspaceId: "workspace-b", id: "run-1" });
   assert.equal(crossTenant, null, "a run saved under workspace-a must not be readable by id alone from workspace-b");
@@ -45,7 +45,7 @@ test("InMemoryPublishContentRunRepo.findById: a run saved under one workspace is
 
 test("InMemoryPublishContentRunRepo.findById: the same workspace CAN read its own run by id", async () => {
   const repo = new InMemoryPublishContentRunRepo();
-  await repo.save(record({ id: "run-1", workspaceId: "workspace-a" }));
+  await repo.save({ record: record({ id: "run-1", workspaceId: "workspace-a" }) });
 
   const sameTenant = await repo.findById({ workspaceId: "workspace-a", id: "run-1" });
   assert.equal(sameTenant?.id, "run-1");
@@ -75,18 +75,18 @@ for (const adapter of ["memory", "sqlite"] as const) {
         writes: true, reason: null, changeSetId: null, retiredChangeSetId: null, errorSummary: null,
         updatedAt: "2026-09-20T00:00:00.000Z" },
     ];
-    await repo.save(record({ direction: "import" }));
+    await repo.save({ record: record({ direction: "import" }) });
     const saved = record({ phase: "failed", direction: "import", restorePointId: "rp-1", finishedAt: "2026-09-20T00:00:02.000Z",
       changeSetIdsJson: '["cs-write"]', reportJson: JSON.stringify(report), itemsJson: JSON.stringify(items) });
-    await repo.save(saved);
+    await repo.save({ record: saved });
     assert.deepEqual(await repo.findById({ workspaceId: "workspace-a", id: "run-1" }), saved);
-    assert.deepEqual(await getPublishContentRunStatus(repo, { workspaceId: "workspace-a", runId: "run-1" }), {
+    assert.deepEqual(await getPublishContentRunStatus({ repo, input: { workspaceId: "workspace-a", runId: "run-1" } }), {
       id: "run-1", workspaceId: "workspace-a", direction: "import", phase: "failed", restorePointId: "rp-1", actorId: "actor-1",
       startedAt: "2026-09-20T00:00:00.000Z", finishedAt: "2026-09-20T00:00:02.000Z",
       changeSetIds: ["cs-write"], retiredChangeSetIds: ["cs-retire"], report, items,
     });
-    assert.equal(await getPublishContentRunStatus(repo, { workspaceId: "workspace-b", runId: "run-1" }), null);
-    assert.equal(await getPublishContentRunStatus(repo, { workspaceId: "workspace-a", runId: "missing" }), null);
+    assert.equal(await getPublishContentRunStatus({ repo, input: { workspaceId: "workspace-b", runId: "run-1" } }), null);
+    assert.equal(await getPublishContentRunStatus({ repo, input: { workspaceId: "workspace-a", runId: "missing" } }), null);
     assert.equal(await repo.findById({ workspaceId: "workspace-b", id: "run-1" }), null);
     assert.equal(await repo.findById({ workspaceId: "workspace-a", id: "missing" }), null);
   });
@@ -94,8 +94,8 @@ for (const adapter of ["memory", "sqlite"] as const) {
 
 test("status of a run with no change sets, report or progress yet decodes to empty lists and a null report", async () => {
   const repo = new InMemoryPublishContentRunRepo();
-  await repo.save(record({ phase: "planned" }));
-  const status = await getPublishContentRunStatus(repo, { workspaceId: "workspace-a", runId: "run-1" });
+  await repo.save({ record: record({ phase: "planned" }) });
+  const status = await getPublishContentRunStatus({ repo, input: { workspaceId: "workspace-a", runId: "run-1" } });
   assert.deepEqual(
     { changeSetIds: status?.changeSetIds, retiredChangeSetIds: status?.retiredChangeSetIds, report: status?.report, items: status?.items },
     { changeSetIds: [], retiredChangeSetIds: [], report: null, items: [] },
@@ -104,12 +104,12 @@ test("status of a run with no change sets, report or progress yet decodes to emp
 
 test("status ignores JSON columns that are not arrays and change-set ids that are not strings", async () => {
   const repo = new InMemoryPublishContentRunRepo();
-  await repo.save(record({ changeSetIdsJson: '{"cs":"not-a-list"}', itemsJson: '{"phase":"pending"}' }));
-  const notArrays = await getPublishContentRunStatus(repo, { workspaceId: "workspace-a", runId: "run-1" });
+  await repo.save({ record: record({ changeSetIdsJson: '{"cs":"not-a-list"}', itemsJson: '{"phase":"pending"}' }) });
+  const notArrays = await getPublishContentRunStatus({ repo, input: { workspaceId: "workspace-a", runId: "run-1" } });
   assert.deepEqual(notArrays?.changeSetIds, []);
   assert.deepEqual(notArrays?.items, []);
 
-  await repo.save(record({ changeSetIdsJson: '["cs-1", 7, null, "cs-2"]' }));
-  const mixed = await getPublishContentRunStatus(repo, { workspaceId: "workspace-a", runId: "run-1" });
+  await repo.save({ record: record({ changeSetIdsJson: '["cs-1", 7, null, "cs-2"]' }) });
+  const mixed = await getPublishContentRunStatus({ repo, input: { workspaceId: "workspace-a", runId: "run-1" } });
   assert.deepEqual(mixed?.changeSetIds, ["cs-1", "cs-2"]);
 });

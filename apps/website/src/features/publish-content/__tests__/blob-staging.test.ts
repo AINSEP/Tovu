@@ -21,24 +21,24 @@ import {
 test("sha256Hex hashes bytes to their lowercase hex digest", () => {
   const bytes = new TextEncoder().encode("hello publish-content");
   const expected = createHash("sha256").update(bytes).digest("hex");
-  assert.equal(sha256Hex(bytes), expected);
+  assert.equal(sha256Hex({ bytes }), expected);
 });
 
 test("bytesMatchSha256 is true for bytes that really do hash to the claimed sha256", () => {
   const bytes = new TextEncoder().encode("real blob bytes");
-  const realSha = sha256Hex(bytes);
+  const realSha = sha256Hex({ bytes });
   assert.equal(bytesMatchSha256({ bytes, claimedSha256: realSha }), true);
 });
 
 test("bytesMatchSha256 REFUSES bytes whose digest does not match the claimed sha256 (the security property)", () => {
   const bytes = new TextEncoder().encode("attacker-controlled bytes");
-  const someOtherEntitysSha = sha256Hex(new TextEncoder().encode("victim content"));
+  const someOtherEntitysSha = sha256Hex({ bytes: new TextEncoder().encode("victim content") });
   assert.equal(bytesMatchSha256({ bytes, claimedSha256: someOtherEntitysSha }), false);
 });
 
 test("bytesMatchSha256 compares case-insensitively on the claimed side, always against lowercase hex", () => {
   const bytes = new TextEncoder().encode("case check");
-  const realSha = sha256Hex(bytes);
+  const realSha = sha256Hex({ bytes });
   assert.equal(bytesMatchSha256({ bytes, claimedSha256: realSha.toUpperCase() }), true);
 });
 

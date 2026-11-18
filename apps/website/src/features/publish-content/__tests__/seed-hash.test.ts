@@ -18,19 +18,21 @@ import {
 
 function registerInspect(entityType: string, inspect: PublishContentHandler["inspect"]): void {
   registerPublishContentContributor({
-    entityType,
-    dependsOn: [],
-    build: () => ({
+                                      contributor: {
       entityType,
-      schemaVersion: 1,
-      permission: "content.write",
       dependsOn: [],
-      pack: async function* () {},
-      inspect,
-      precheck: async () => null,
-      apply: async () => ({ changeSetId: "unused" }),
-    }),
-  });
+      build: () => ({
+        entityType,
+        schemaVersion: 1,
+        permission: "content.write",
+        dependsOn: [],
+        pack: async function* () {},
+        inspect,
+        precheck: async () => null,
+        apply: async () => ({ changeSetId: "unused" }),
+      }),
+    }
+                                    });
 }
 
 const seedDeps = { workspaceId: "ws-seed" } as PublishContentDeps;

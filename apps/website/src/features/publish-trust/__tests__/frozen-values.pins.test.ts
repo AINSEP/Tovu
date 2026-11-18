@@ -69,8 +69,10 @@ test("T-FROZEN: the three key-derivation purposes and their info strings", async
   const sourceInstallationId = await deriveInstallationId({ keyring, workspaceId: "ws" });
   await derivePublishSigningKey({ keyring, workspaceId: "ws", sourceInstallationId, targetOrigin: "https://d.example", generation: 1 });
   await mintPublishSession(
-    { keyring, workspaceId: "ws", clock: { nowIso: () => "2026-11-16T00:00:00.000Z" } },
-    { sourceInstallationId, targetInstallationId: "t", capabilities: [], generation: 1 }
+    {
+      deps: { keyring, workspaceId: "ws", clock: { nowIso: () => "2026-11-16T00:00:00.000Z" } },
+      input: { sourceInstallationId, targetInstallationId: "t", capabilities: [], generation: 1 }
+    }
   );
 
   assert.deepEqual(derives, [
@@ -94,7 +96,7 @@ test("T-FROZEN: the handshake wire path", async () => {
     },
   };
 
-  await fetchDestinationIdentity({ httpClient }, { baseUrl: "https://d.example" });
+  await fetchDestinationIdentity({ deps: { httpClient }, input: { baseUrl: "https://d.example" } });
 
   assert.equal(PUBLISH_TRUST_HANDSHAKE_BASE, "/api/publish-trust/v1");
   assert.deepEqual(urls, ["https://d.example/api/publish-trust/v1/identity"]);
@@ -104,7 +106,7 @@ test("T-FROZEN: the failure code callers switch on when the other side is not a 
   const httpClient: HttpClientPort = { send: async () => ({ status: 404, headers: {}, bodyText: "" }) };
 
   await assert.rejects(
-    fetchDestinationIdentity({ httpClient }, { baseUrl: "https://d.example" }),
+    fetchDestinationIdentity({ deps: { httpClient }, input: { baseUrl: "https://d.example" } }),
     (error: unknown) => error instanceof PublishTrustHandshakeError && error.failure === "not-a-tovu-site"
   );
 });

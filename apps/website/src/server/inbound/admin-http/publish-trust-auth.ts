@@ -210,8 +210,10 @@ async function verifyBearerSession(input: {
   // The session key is derived per request, so a site key lost after boot rejects here: the same
   // "cannot verify" answer as above, never a rejected middleware.
   const verified = await verifyPublishSession(
-    { keyring: deps.keyring, workspaceId: deps.workspaceId, clock: deps.clock },
-    { token, expectedAudience: installationId }
+    {
+      deps: { keyring: deps.keyring, workspaceId: deps.workspaceId, clock: deps.clock },
+      input: { token, expectedAudience: installationId }
+    }
   ).catch((error: unknown) => {
     // Losing the site key is also a normal unconfigured state after boot.
     if (isNoSiteKeyError(error)) return null;

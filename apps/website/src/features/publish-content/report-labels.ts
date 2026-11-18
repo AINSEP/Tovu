@@ -47,14 +47,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * @complexity O(e + r) time in the bundle's entity count and the report's row count (one map build,
  * one pass); O(e + r) space for the map and the copied rows.
  */
-export function labelPeerPlanRows(plan: PeerPlanEnvelope, entities: readonly PackedEntity[]): PeerPlanEnvelope {
+export function labelPeerPlanRows({ plan, entities }: { plan: PeerPlanEnvelope; entities: readonly PackedEntity[] }, _optional = {}): PeerPlanEnvelope {
   const details = plan.details;
   if (!isRecord(details) || !Array.isArray(details.rows)) return plan;
 
   const labelByKey = new Map<string, string | null>();
   const ownNamed = new Set<string>();
   for (const entity of entities) {
-    labelByKey.set(entityKey({ entityType: entity.entityType, entityId: entity.id }), packedEntityLabel(entity));
+    labelByKey.set(entityKey({ entityType: entity.entityType, entityId: entity.id }), packedEntityLabel({ entity }));
     if (entity.displayLabel !== undefined) ownNamed.add(entityKey({ entityType: entity.entityType, entityId: entity.id }));
   }
 
@@ -87,7 +87,7 @@ export function labelPeerPlanRows(plan: PeerPlanEnvelope, entities: readonly Pac
  *
  * @complexity O(s) in the skipped-unit count; O(r + s) space for the copied `rows` array.
  */
-export function appendSkippedRowsToPeerPlan(plan: PeerPlanEnvelope, skipped: readonly SkippedPackEntity[]): PeerPlanEnvelope {
+export function appendSkippedRowsToPeerPlan({ plan, skipped }: { plan: PeerPlanEnvelope; skipped: readonly SkippedPackEntity[] }, _optional = {}): PeerPlanEnvelope {
   if (skipped.length === 0) return plan;
   const details = plan.details;
   if (!isRecord(details) || !Array.isArray(details.rows) || details.refused === true) return plan;
@@ -120,7 +120,7 @@ const UPDATING_OUTCOMES: ReadonlySet<string> = new Set(["applied", "forced"]);
  *
  * @complexity O(e + r) time and space.
  */
-export function tagTrashingRows(plan: PeerPlanEnvelope, entities: readonly PackedEntity[]): PeerPlanEnvelope {
+export function tagTrashingRows({ plan, entities }: { plan: PeerPlanEnvelope; entities: readonly PackedEntity[] }, _optional = {}): PeerPlanEnvelope {
   const details = plan.details;
   if (!isRecord(details) || !Array.isArray(details.rows)) return plan;
   const trashed = new Set(
@@ -159,8 +159,11 @@ const CHANGING_OUTCOMES: ReadonlySet<string> = new Set(["created", "applied", "f
  * @complexity O(r) in the report's row count; O(r) space for the copied `rows` array.
  */
 export function keepChangingIncludedEntities(
-  plan: PeerPlanEnvelope,
-  includedFor: ReadonlyMap<string, readonly string[]>
+  { plan, includedFor }: {
+    plan: PeerPlanEnvelope;
+    includedFor: ReadonlyMap<string, readonly string[]>;
+  },
+  _optional = {}
 ): PeerPlanEnvelope {
   if (includedFor.size === 0) return plan;
   const details = plan.details;

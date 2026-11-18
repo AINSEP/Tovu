@@ -75,8 +75,8 @@ test("in-flight publish runs keep their restore points; finished runs do not pin
   const repo = new SqliteRestorePointsRepo({ db: journal, siteId: "s", protectedRestorePointIds: () => runs.inFlightRestorePointIds({ workspaceId: "s" }) });
   // Every import records its restore point on its run, so finished runs must not protect them.
   for (const [i, phase] of [[1, "applying"], [2, "planned"], [3, "applied"], [4, "failed"]] as const) {
-    await runs.save({ id: `run${i}`, workspaceId: "s", direction: "import", peerPrincipalId: "peer", peerLabel: null,
-      phase, restorePointId: `r${i}`, changeSetIdsJson: null, actorId: "owner", startedAt: "2026-11-01T00:00:00Z", finishedAt: null, reportJson: null, itemsJson: null });
+    await runs.save({ record: { id: `run${i}`, workspaceId: "s", direction: "import", peerPrincipalId: "peer", peerLabel: null,
+      phase, restorePointId: `r${i}`, changeSetIdsJson: null, actorId: "owner", startedAt: "2026-11-01T00:00:00Z", finishedAt: null, reportJson: null, itemsJson: null } });
   }
   for (let i = 1; i <= 9; i++) {
     const artifactRef = path.join(dir, `restore-point-s-wm0-${i}.db`);

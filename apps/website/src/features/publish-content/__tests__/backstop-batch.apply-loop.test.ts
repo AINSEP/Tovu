@@ -21,7 +21,7 @@ test("the real apply loop joins every raw write in one FK-checked transaction an
   const db = new Database(":memory:");
   t.after(() => db.close());
   resetPublishContentContributorsForTests(); t.after(resetPublishContentContributorsForTests);
-  registerPublishContentContributor(contributeRawRowPublish());
+  registerPublishContentContributor({ contributor: contributeRawRowPublish() });
   // The source deliberately contains a dangling reference. Disable enforcement only while
   // seeding it; the destination below must enforce FKs and roll back the real apply batch.
   db.exec("PRAGMA foreign_keys=OFF; CREATE TABLE p_widgets(id TEXT PRIMARY KEY, title TEXT); CREATE TABLE p_links(id TEXT PRIMARY KEY, widget_id TEXT REFERENCES p_widgets(id)); INSERT INTO p_widgets VALUES('a','new'); INSERT INTO p_links VALUES('l','missing');");
@@ -49,8 +49,8 @@ test("the real apply loop joins every raw write in one FK-checked transaction an
   const baselineRepo = new InMemoryPublishContentBaselineRepo();
   const runRepo = new InMemoryPublishContentRunRepo();
   const bundleRepo = new InMemoryPublishContentBundleRepo();
-  const staged = await stageBundle({ ...bundle, workspaceId: "ws", sourcePrincipalId: "source" }, { repo: bundleRepo, clock, idGen });
-  const report = await planImport(bundle, { publishContentDeps: deps, getBaseline: async () => null, hasBlob: async () => true });
+  const staged = await stageBundle({ input: { ...bundle, workspaceId: "ws", sourcePrincipalId: "source" }, deps: { repo: bundleRepo, clock, idGen } });
+  const report = await planImport({ bundle, deps: { publishContentDeps: deps, getBaseline: async () => null, hasBlob: async () => true } });
   assert.deepEqual(report.rows.map((r) => r.outcome), ["created", "created"]);
   const apply = createPublishContentApplyPort({ workspaceId: "ws", bundleRepo, baselineRepo, runRepo, publishContentDeps: deps, clock, idGen });
   await assert.rejects(apply.applyReport({ report, principalId: "admin", bundleId: staged.bundleId, restorePointId: "restore" }), /Foreign key check failed/);
@@ -59,7 +59,7 @@ test("the real apply loop joins every raw write in one FK-checked transaction an
   const event = [...events.values()][0]!;
   assert.equal(event.result, "failure");
   assert.deepEqual(event.inverses, []);
-  const status = await getPublishContentRunStatus(runRepo, { workspaceId: "ws", runId: event.runId! });
+  const status = await getPublishContentRunStatus({ repo: runRepo, input: { workspaceId: "ws", runId: event.runId! } });
   assert.equal(status?.phase, "failed");
   assert.ok(status?.report?.rows.every((row) => row.outcome === "blocked" && !row.writes));
 });
@@ -67,12 +67,12 @@ test("the real apply loop joins every raw write in one FK-checked transaction an
 test("a selected row equal to live plans unchanged through the real planner", async (t) => {
   const db = new Database(":memory:"); t.after(() => db.close());
   resetPublishContentContributorsForTests(); t.after(resetPublishContentContributorsForTests);
-  registerPublishContentContributor(contributeRawRowPublish());
+  registerPublishContentContributor({ contributor: contributeRawRowPublish() });
   db.exec("CREATE TABLE p_widgets(id TEXT PRIMARY KEY, title TEXT); INSERT INTO p_widgets VALUES('a','same');");
   const deps: PublishContentDeps = { workspaceId: "ws", ports: {}, clock: { nowMs: () => Date.parse("2026-10-04T00:00:00.000Z") }, idGen: { newId: () => "id" },
     backstop: { rows: createRawRowSqlitePort({ checkedTransaction: sqliteForeignKeyCheckedTransaction, tableInfo: sqliteTableInfo, kernel: contentKernel({ store: db }) }), coveredTables: [], coveredRoots: [], selection: { rows: [{ table: "p_widgets", pk: { id: "a" } }] } } };
   const entities = []; for await (const entity of contributeRawRowPublish().build(deps).pack()) entities.push(entity);
-  const report = await planImport({ artifactFormatVersion: 1, hashVersion: 1, entities }, { publishContentDeps: deps, getBaseline: async () => null, hasBlob: async () => true });
+  const report = await planImport({ bundle: { artifactFormatVersion: 1, hashVersion: 1, entities }, deps: { publishContentDeps: deps, getBaseline: async () => null, hasBlob: async () => true } });
   assert.equal(report.rows[0]!.outcome, "unchanged");
   assert.equal(report.rows[0]!.writes, false);
 });

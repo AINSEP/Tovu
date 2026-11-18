@@ -84,7 +84,7 @@ export interface PlanImportDeps {
    *  `(workspaceId, peerPrincipalId)` by the caller's own closure (plan §1.6: baselines are keyed by
    *  the AUTHENTICATED principal, never a bundle-declared id — this module has no principal of its
    *  own to leak into that key by mistake, because it never sees one). */
-  readonly getBaseline: (args: { entityType: string; entityId: string }) => Promise<BaselineRecord | null>;
+  readonly getBaseline: (args: { entityType: string; entityId: string }, optional?: {}) => Promise<BaselineRecord | null>;
   /** Whether a blob this instance would need (by sha256) is already available — Task 6's blob store
    *  is not this module's concern; this is a narrow read-only probe a later composition wires to the
    *  real `BlobStorePort`. Required (not optional) so a caller is forced to make a deliberate choice
@@ -107,7 +107,7 @@ export interface PlanImportDeps {
    * (packing the matching entity out of `dist/content/seed-sites/<site>/content.seed.db`) is a
    * separate follow-up; today's one production caller (`gated-hooks.ts`) does not supply it yet.
    */
-  readonly getSeedHash?: (args: { entityType: string; entityId: string }) => Promise<string | null>;
+  readonly getSeedHash?: (args: { entityType: string; entityId: string }, optional?: {}) => Promise<string | null>;
   /** Entity keys (see {@link entityKey}) the operator has explicitly chosen to force past a
    *  `conflict`, turning that one row's outcome into `forced`. Absent/empty means "force nothing" —
    *  every conflict stays a conflict, the safe default. */
@@ -142,7 +142,7 @@ async function planEntity(
   const identity = {
     entityType: entity.entityType,
     entityId: entity.id,
-    entityLabel: packedEntityLabel(entity),
+    entityLabel: packedEntityLabel({ entity }),
   };
 
   if (!handler) {
@@ -345,7 +345,7 @@ async function attachReferencedBy(
  * number of distinct types `t` — dominated by whatever I/O `getBaseline`/`hasBlob`/`inspect`/
  * `precheck` themselves cost, not by this function's own control flow.
  */
-export async function planImport(bundle: PublishContentBundle, deps: PlanImportDeps): Promise<PublishContentReport> {
+export async function planImport({ bundle, deps }: { bundle: PublishContentBundle; deps: PlanImportDeps }, _optional = {}): Promise<PublishContentReport> {
   if (bundle.artifactFormatVersion !== PUBLISH_CONTENT_ARTIFACT_FORMAT_VERSION) {
     return {
       refused: true,

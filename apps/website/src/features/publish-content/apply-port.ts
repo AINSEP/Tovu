@@ -36,7 +36,7 @@ export type PublishContentApplyDeps = Omit<PublishContentDeps, "ports"> &
  *
  * @complexity O(1) — no work; the type checking is the function.
  */
-export function toPublishContentApplyDeps(required: PublishContentApplyDeps): PublishContentApplyDeps {
+export function toPublishContentApplyDeps(required: PublishContentApplyDeps, _optional = {}): PublishContentApplyDeps {
   return required;
 }
 
@@ -49,7 +49,7 @@ export function toPublishContentApplyDeps(required: PublishContentApplyDeps): Pu
  * per call — dominated by whatever I/O those individually cost, not by this function's own control
  * flow.
  */
-export function createPublishContentApplyPort(input: CreatePublishContentApplyPortInput): PublishContentApplyPort {
+export function createPublishContentApplyPort(input: CreatePublishContentApplyPortInput, _optional = {}): PublishContentApplyPort {
   return {
     applyReport: ({ report, principalId, bundleId, restorePointId, authorize, backstop }) =>
       applyPublishContentReport({ input, report, principalId, bundleId, restorePointId, authorize, backstop }),

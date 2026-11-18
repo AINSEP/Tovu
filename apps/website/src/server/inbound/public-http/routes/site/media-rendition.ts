@@ -117,7 +117,7 @@ function collectMediaRefAssetIds({ root, out }: { root: unknown; out: Set<string
   // Completeness matters most here: this set gates members-only media, so the walk must never stop
   // early at a depth bound — an asset it misses would be served under the fail-open default.
   // The shared authored-reference collector owns that iterative walk, including placement content.
-  for (const key of collectReferencedMediaKeys({ bodyJson: root })) out.add(key);
+  for (const key of collectReferencedMediaKeys({ state: { bodyJson: root } })) out.add(key);
 }
 
 /**
@@ -174,7 +174,7 @@ function isGatedEntry(entry: Pick<PostRecord, "memberAccessJson">): boolean {
  */
 function addHtmlEmbedAssetIds({ bodyHtml, out }: { bodyHtml: string; out: Set<string> }, _optional = {}): void {
   // The same untruncated marker scan now includes compound media, raw tokens and content overlays.
-  for (const key of collectReferencedMediaKeys({ bodyHtml })) out.add(key);
+  for (const key of collectReferencedMediaKeys({ state: { bodyHtml } })) out.add(key);
 }
 
 /** Every asset id one entry references, across BOTH body columns, plus whether this scan knows how

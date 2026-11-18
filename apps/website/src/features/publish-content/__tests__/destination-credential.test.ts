@@ -24,7 +24,7 @@ function depsWith(record: PublishContentPeerRecord | null): PublishDestinationCr
 }
 
 function sessionAnswering(workspaceId: string, calls: unknown[]) {
-  return async (_deps: unknown, input: unknown): Promise<PublishSession> => {
+  return async ({ input }: { deps: unknown; input: unknown }): Promise<PublishSession> => {
     calls.push(input);
     return { token: "session-token", expiresAt: "2026-10-01T01:00:00.000Z", capabilities: [], identity: { installationId: "inst", workspaceId, origin: "https://destination.test" } };
   };

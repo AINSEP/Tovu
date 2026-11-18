@@ -22,9 +22,9 @@ export interface BackstopAuditRecord {
 export interface BackstopGap { readonly label: string; readonly count: number; readonly lastReason: string; readonly lastAt: string }
 export interface BackstopAuditPort {
   ready(): Promise<boolean>;
-  save(input: { record: BackstopAuditRecord }): Promise<void>;
-  get(input: { workspaceId: string; id: string }): Promise<BackstopAuditRecord | null>;
-  gaps(input: { workspaceId: string }): Promise<readonly BackstopGap[]>;
+  save(input: { record: BackstopAuditRecord }, optional?: {}): Promise<void>;
+  get(input: { workspaceId: string; id: string }, optional?: {}): Promise<BackstopAuditRecord | null>;
+  gaps(input: { workspaceId: string }, optional?: {}): Promise<readonly BackstopGap[]>;
 }
 
 /** The CMS backstop's ports. Schema discovery and writes stay in the site's storage adapter. */

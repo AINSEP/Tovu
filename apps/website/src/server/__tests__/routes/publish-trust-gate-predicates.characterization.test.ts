@@ -55,12 +55,15 @@ async function gateFixture({ grants, generation }: { grants: readonly PublishTru
     grants: async () => resolutionOf(grants),
     revocations: async () => ({ ok: true, revocations: [] }),
   };
-  const { token } = await mintPublishSession(deps, {
-    sourceInstallationId: SOURCE_INSTALL,
-    targetInstallationId: DESTINATION_INSTALL,
-    capabilities: ["publish_content.read", "publish_content.apply"],
-    generation,
-  });
+  const { token } = await mintPublishSession({
+                                               deps,
+                                               input: {
+      sourceInstallationId: SOURCE_INSTALL,
+      targetInstallationId: DESTINATION_INSTALL,
+      capabilities: ["publish_content.read", "publish_content.apply"],
+      generation,
+    }
+                                             });
   return { deps, token };
 }
 
@@ -134,7 +137,7 @@ function countingChallengeStore(): { store: PublishChallengeStorePort; taken: st
   const records = new Map<string, PublishChallengeRecord>();
   const taken: string[] = [];
   const store: PublishChallengeStorePort = {
-    put: async (record) => { records.set(record.nonce, record); },
+    put: async ({ record }) => { records.set(record.nonce, record); },
     takeOnce: async ({ nonce }) => {
       taken.push(nonce);
       const record = records.get(nonce) ?? null;
