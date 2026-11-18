@@ -1,4 +1,4 @@
-# importers of composition/deps.ts: 68 files (5 production, 63 test/support); text-only mentions: 167
+# importers of composition/deps.ts: 68 files (5 production, 63 test/support); text-only mentions: 171
 symbol	prod-files	test-files	prod-list
 (dynamic)	0	3	
 CreateSiteRouteDepsOverrides	0	1	
@@ -135,7 +135,6 @@ apps/website/src/features/site-inspection/site-capabilities.ts
 apps/website/src/features/site-inspection/site-profile.ts
 apps/website/src/features/sites/__tests__/tool-registrations.unit.test.ts
 apps/website/src/features/sites/tool-registrations.ts
-apps/website/src/features/source-control/commit-site.ts
 apps/website/src/features/taxonomy/taxonomy-trash-follow-ups.ts
 apps/website/src/features/theme/__tests__/shipped-theme-original-drift.canary.test.ts
 apps/website/src/features/theme/theme-files.ts
@@ -159,7 +158,6 @@ apps/website/src/features/workspace/index.ts
 apps/website/src/platform/db/repos/__tests__/origin-repo.import-boundary.test.ts
 apps/website/src/platform/db/repos/analytics-sink.ts
 apps/website/src/platform/db/repos/change-set-repo.ts
-apps/website/src/platform/db/repos/gated-mutation-token-repo.ts
 apps/website/src/platform/db/repos/media-repo.ts
 apps/website/src/platform/db/repos/origin-repo.ts
 apps/website/src/platform/db/repos/outbox-repo.ts
@@ -167,6 +165,7 @@ apps/website/src/platform/db/sqlite/chat-orphan-check.ts
 apps/website/src/platform/db/sqlite/database-introspection-adapter.sqlite.ts
 apps/website/src/platform/db/sqlite/database-journal-db.ts
 apps/website/src/platform/db/sqlite/database-journal-repo.ts
+apps/website/src/platform/db/sqlite/gated-mutation-token-repo.sqlite.ts
 apps/website/src/platform/dev-host/dev-tls.ts
 apps/website/src/platform/mail/purpose-gate-probe.ts
 apps/website/src/platform/site-dir/__tests__/integration/duplicate-site.integration.test.ts
@@ -207,7 +206,6 @@ apps/website/src/server/inbound/assistant/__tests__/agent-daemon-import-graph.un
 apps/website/src/server/inbound/assistant/chat-attachment-directory.ts
 apps/website/src/server/inbound/public-http/routes/site/pages/render-context/media-metadata.ts
 apps/website/src/server/inbound/shared/observability-middleware.ts
-apps/website/src/server/routes/route-deps/credentials-deps.ts
 apps/website/src/server/routes/types.ts
 apps/website/src/server/runtime/boot/boot-readiness-gate.ts
 apps/website/src/server/runtime/boot/content-db-schema-guard.ts
@@ -219,6 +217,12 @@ apps/website/src/server/runtime/composition/app-permission-grants.ts
 apps/website/src/server/runtime/composition/app.ts
 apps/website/src/server/runtime/composition/content-publish-ports.ts
 apps/website/src/server/runtime/composition/http-app/mount-members-newsletter.ts
+apps/website/src/server/runtime/composition/memory-deps/create-route-deps-options.ts
+apps/website/src/server/runtime/composition/memory-deps/route-deps/assistant-and-site.ts
+apps/website/src/server/runtime/composition/memory-deps/route-deps/members-media-newsletter-forms.ts
+apps/website/src/server/runtime/composition/memory-deps/route-deps/model-comments-plugins.ts
+apps/website/src/server/runtime/composition/memory-deps/route-deps/publish-export.ts
+apps/website/src/server/runtime/composition/memory-deps/route-deps/trash-and-content.ts
 apps/website/src/server/runtime/composition/memory-deps/slices/agent-plugins.ts
 apps/website/src/server/runtime/composition/memory-deps/slices/identity-settings.ts
 apps/website/src/server/runtime/composition/memory-deps/slices/member-secrets.ts

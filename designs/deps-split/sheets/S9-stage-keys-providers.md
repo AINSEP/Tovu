@@ -1,6 +1,6 @@
 # S9 — keys and providers (E1-E5) around three root awaits
 
-Responsibility: bindings `runtimeMode` … the observed-store binding statements (`f0613d9e` 1701-1890). Three root awaits sit inside this range and **stay in the root, verbatim**: `await normalizeSiteVaultAtBoot(…)` (1795), `… = await composeProviderConfig(…)` (1822), `const providerPlugins = await providerPluginBoot({ overrides })(…)` (1844). Budget ≤170k. Commits: 6. Prerequisites: S8; COMMON §1-§3, §9 (`DS_SHEET=S9`).
+Responsibility: bindings `runtimeMode` … the observed-store binding statements (`f0613d9e` 1698-1887). Three root awaits sit inside this range and **stay in the root, verbatim**: `await normalizeSiteVaultAtBoot(…)` (1792), `… = await composeProviderConfig(…)` (1819), `const providerPlugins = await providerPluginBoot({ overrides })(…)` (1841). Budget ≤170k. Commits: 6. Prerequisites: S8; COMMON §1-§3, §9 (`DS_SHEET=S9`).
 
 | commit | slice (sync) | bindings | position | returns |
 |---|---|---|---|---|
@@ -16,14 +16,14 @@ The destructuring of `observability, tracker, aiTraceSink`, the writes `formColl
 ## Carries
 | behaviour (base lines) | pin |
 |---|---|
-| vault fence: credential consumers are constructed only after normalization finished (1786-1799) | `composition-boot-order` assertions `keyring < normalize < credentials`: `keyring` and `credentials` anchors now read the slice call order in the root (`composeSiteKeys(` < `await normalizeSiteVaultAtBoot(` < `composeAssistantSecrets(`) + verbatim anchors inside the slices |
+| vault fence: credential consumers are constructed only after normalization finished (1783-1796) | `composition-boot-order` assertions `keyring < normalize < credentials`: `keyring` and `credentials` anchors now read the slice call order in the root (`composeSiteKeys(` < `await normalizeSiteVaultAtBoot(` < `composeAssistantSecrets(`) + verbatim anchors inside the slices |
 | the five post-boot-promise awaits stay exactly those lines, in order | `composition-boot-order` widened list (S0 pin 6) — unchanged text except identifiers the move renames |
-| provider disposal before plugin-runtime disposal at teardown (1852-1857) | S0 pin 5 (recording `dispose`) |
-| provider revision watch registered on close and reapplies through the provider runtime (1878-1882) | `deps-provider-plugin-boot.integration.test.ts`, `deps-project-credentials.integration.test.ts` |
-| OAuth binding late-bound: exact domain error until bound (1858-1877) | S4's `composition-project-keys.unit.test.ts`; S0 pin 3a |
+| provider disposal before plugin-runtime disposal at teardown (1849-1854) | S0 pin 5 (recording `dispose`) |
+| provider revision watch registered on close and reapplies through the provider runtime (1875-1879) | `deps-provider-plugin-boot.integration.test.ts`, `deps-project-credentials.integration.test.ts` |
+| OAuth binding late-bound: exact domain error until bound (1855-1874) | S4's `composition-project-keys.unit.test.ts`; S0 pin 3a |
 | logger bindings: every moved `consoleLogger` use receives the root's logger (E3 handoff) | `gates.sh loggers` + `forbid` below |
-| process-global trace reader set once at the same position (1886) | `expect-count` below; `deps-observability-wiring.integration.test.ts` |
-| lifecycle buffer flushed once after the swap (1887-1890) | S0 pin 3c |
+| process-global trace reader set once at the same position (1883) | `expect-count` below; `deps-observability-wiring.integration.test.ts` |
+| lifecycle buffer flushed once after the swap (1884-1887) | S0 pin 3c |
 
 ## STOP
 ```bash

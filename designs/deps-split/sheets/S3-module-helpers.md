@@ -13,11 +13,11 @@ Responsibility: the three multi-user helper groups of DESIGN §1.3 "Module-level
 ## Carries (each pin green on the commit that moves the item)
 | behaviour (base lines) | pin |
 |---|---|
-| override pairing: a half-supplied store/close pair throws the same error (504-520) | new `site-deps-overrides.unit.test.ts`: each unpaired combination → exact base message; paired/absent → no throw (characterized red-first by deleting the check) |
+| override pairing: a half-supplied store/close pair throws the same error (501-517) | new `site-deps-overrides.unit.test.ts`: each unpaired combination → exact base message; paired/absent → no throw (characterized red-first by deleting the check) |
 | site binding + themes dir + workspace overrides return what the base returns | same unit file, one case each with plain objects |
-| store prelude order: storage choice → hydration → open → sweeps; failure releases (`openCompositionStore`, 686-721) | `composition-boot-order` anchors (repointed); `create-site-route-deps-failure-release.integration.test.ts`; S0 pin 5 (teardown) |
-| drain → registrations → sweeps stopped → close (686-721) | S0 pin 5; `sqlite-shutdown.integration.test.ts` |
-| provider identity: same site id/name/runtime for the same binding (892-908); project store selection (909-928) | `deps-provider-plugin-boot.integration.test.ts`, `deps-project-credentials.integration.test.ts`; S0 pin 3a |
+| store prelude order: storage choice → hydration → open → sweeps; failure releases (`openCompositionStore`, 683-718) | `composition-boot-order` anchors (repointed); `create-site-route-deps-failure-release.integration.test.ts`; S0 pin 5 (teardown) |
+| drain → registrations → sweeps stopped → close (683-718) | S0 pin 5; `sqlite-shutdown.integration.test.ts` |
+| provider identity: same site id/name/runtime for the same binding (889-905); project store selection (906-925) | `deps-provider-plugin-boot.integration.test.ts`, `deps-project-credentials.integration.test.ts`; S0 pin 3a |
 
 ## STOP
 ```bash

@@ -1,4 +1,0 @@
-# lane	tip (full SHA)	frozen path it changes	must be merged before sheet	mode	note
-origin/wave3/desktop-d0c	a7ebde5060e203dd355ee810f7e33cde9aac93e2	deps.ts:4 import startupSecretEnvironment	S6	allow	statement moves with identity-settings (S6); also src/index.ts imports (shared, conflict-gated)
-origin/wave2/publish-p0-rest	9a6a942e5f17319c71e4a531778d72f84d71b779	deps.ts:1035 publishTrustRevocationStoreFor({ kernel }), deps.ts:2879 selectConnectedDestination({ rows })	S4	allow	2879 is inside configureSiteSharing, split in S4; 1035 moves in S5; boot-order anchor text changes with it
-origin/wave3/moves-b1	b8a30637637d2ef9c77c4487a5e94eaacfc87830	deps.ts:197 import isInMemoryDbPath -> @jini-ai/db/data-modules	S3	allow	S3 copies the import into site-deps/open-store.ts (prepareCompositionStorage)

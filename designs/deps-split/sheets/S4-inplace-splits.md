@@ -15,12 +15,12 @@ Locate every item by binding (COMMON §2 awk) — S1-S3 shifted lines; this shee
 ## Carries
 | behaviour (base lines) | pin |
 |---|---|
-| purge snapshots are taken under the trash lock before removal; a form attachment without a proven owner is kept with the exact error (1391-1458) | new `trash-follow-up-hooks.unit.test.ts` (fakes): no asset → no-op; non-private asset → exact text "Form attachment ${mediaId} has no proven form upload owner. The submission and file were kept."; remove updates the snapshot; S0 pin 2 |
-| one shared trash adapter `Map`; theme adapter added later to the same instance (1464, 2010) | new unit: `composeTrashAdapters` returns a Map; S0 pin 2 (`removeTheme`) |
-| OAuth binding read at call time: undefined → exact domain error; set later → delegated (1863-1877) | new `composition-project-keys.unit.test.ts`: getter returns `undefined` → `bindOAuth` throws the exact text; flip the getter after construction → the next call delegates (mutation: read the getter at construction → red); S0 pin 3a |
-| boot origin registration for 3 origin kinds (1328-1354) | new `register-boot-origin.unit.test.ts` |
+| purge snapshots are taken under the trash lock before removal; a form attachment without a proven owner is kept with the exact error (1388-1455) | new `trash-follow-up-hooks.unit.test.ts` (fakes): no asset → no-op; non-private asset → exact text "Form attachment ${mediaId} has no proven form upload owner. The submission and file were kept."; remove updates the snapshot; S0 pin 2 |
+| one shared trash adapter `Map`; theme adapter added later to the same instance (1464, 2007) | new unit: `composeTrashAdapters` returns a Map; S0 pin 2 (`removeTheme`) |
+| OAuth binding read at call time: undefined → exact domain error; set later → delegated (1860-1874) | new `composition-project-keys.unit.test.ts`: getter returns `undefined` → `bindOAuth` throws the exact text; flip the getter after construction → the next call delegates (mutation: read the getter at construction → red); S0 pin 3a |
+| boot origin registration for 3 origin kinds (1325-1351) | new `register-boot-origin.unit.test.ts` |
 | site sharing: HEAD goes through the guarded client; failure → `routeDeps.siteShareBackend` stays undefined + one `console.error` line (2837-2912) | new `site-sharing.unit.test.ts`; `site-share-wiring` test at sheet end |
-| chat-orphan warning stays awaited, SQLite-only, failure logged not thrown (1042-1058) | `chat-orphan-check.integration.test.ts`; S0 pin 6 (the root's `await warnCompositionChatOrphans(`) |
+| chat-orphan warning stays awaited, SQLite-only, failure logged not thrown (1039-1055) | `chat-orphan-check.integration.test.ts`; S0 pin 6 (the root's `await warnCompositionChatOrphans(`) |
 
 ## STOP
 ```bash

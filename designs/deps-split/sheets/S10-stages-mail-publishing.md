@@ -1,6 +1,6 @@
 # S10 — mail, content HTTP clients, content stores, themes, publish apply (F1-G3) around the owner await
 
-Responsibility: bindings `mailResolveDeps` … `publishContentApplyPort` (`f0613d9e` 1901-2076). The conditional owner await `if ((overrides.storeRole ?? "owner") === "owner") await protectExistingFormFiles(…)` (1979) **stays in the root, verbatim**, between `assetBlobRepo` and `mediaContentTypeStore`. Budget ≤160k. Commits: 7. Prerequisites: S9; COMMON §1-§3, §9 (`DS_SHEET=S10`).
+Responsibility: bindings `mailResolveDeps` … `publishContentApplyPort` (`f0613d9e` 1898-2073). The conditional owner await `if ((overrides.storeRole ?? "owner") === "owner") await protectExistingFormFiles(…)` (1976) **stays in the root, verbatim**, between `assetBlobRepo` and `mediaContentTypeStore`. Budget ≤160k. Commits: 7. Prerequisites: S9; COMMON §1-§3, §9 (`DS_SHEET=S10`).
 
 | commit | slice (sync) | bindings | returns |
 |---|---|---|---|
@@ -15,10 +15,10 @@ Responsibility: bindings `mailResolveDeps` … `publishContentApplyPort` (`f0613
 ## Carries
 | behaviour (base lines) | pin |
 |---|---|
-| mail readiness: the mailer resolves through the durable outbox only after it is ready (1901-1922) | `mail-sender-identity-wiring.integration.test.ts` (wide) + new `mail.unit.test.ts` with a pending outbox promise → send waits |
-| owner-only protection: runs only for the owner role, awaited before the publish stores are built (1979) | the widened await list (S0 pin 6) keeps the line in `composeSiteRouteDeps`; new `owner-protection.pin` case in `create-site-route-deps-boot-options.integration.test.ts` style: `overrides.storeRole: "client"` → protection not called (recording fake via its existing seam, else characterize by file-system effect) |
-| one trash Map; the theme adapter is set on it after `siteThemes` exists (2001-2012) | `expect-count` below; S0 pin 2 (`removeTheme`) |
-| publish apply port wiring and media apply (2013-2076) | `publish-content-media-wiring.test.ts` (wide); S4's unit tests |
+| mail readiness: the mailer resolves through the durable outbox only after it is ready (1898-1919) | `mail-sender-identity-wiring.integration.test.ts` (wide) + new `mail.unit.test.ts` with a pending outbox promise → send waits |
+| owner-only protection: runs only for the owner role, awaited before the publish stores are built (1976) | the widened await list (S0 pin 6) keeps the line in `composeSiteRouteDeps`; new `owner-protection.pin` case in `create-site-route-deps-boot-options.integration.test.ts` style: `overrides.storeRole: "client"` → protection not called (recording fake via its existing seam, else characterize by file-system effect) |
+| one trash Map; the theme adapter is set on it after `siteThemes` exists (1998-2009) | `expect-count` below; S0 pin 2 (`removeTheme`) |
+| publish apply port wiring and media apply (2010-2073) | `publish-content-media-wiring.test.ts` (wide); S4's unit tests |
 
 ## STOP
 ```bash

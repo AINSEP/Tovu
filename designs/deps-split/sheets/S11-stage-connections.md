@@ -1,6 +1,6 @@
 # S11 — connections (H1-H3); one outbound HTTP owner for both roots
 
-Responsibility: bindings `guardedOutboundHttpClient` … `agentPluginMcp` (`f0613d9e` 2079-2133) and moving the existing `composeMemoryOutboundHttp` to a shared owner. **No new client factory** (REVISION-2: over-engineering item): `memory-deps/slices/outbound-http.ts` already builds the same guarded client and OAuth ports, byte for byte as `deps.ts` 2079-2089. Budget ≤120k. Commits: 5. Prerequisites: S10; COMMON §1-§3, §9 (`DS_SHEET=S11`). `app.ts` is a **shared** file (size-02 lanes; `wave2/size02-step5` and `refactor/size-02-app` already conflict with the base on it — NOTE lines in `freeze`); this sheet edits only its import line and the one call line.
+Responsibility: bindings `guardedOutboundHttpClient` … `agentPluginMcp` (`f0613d9e` 2076-2130) and moving the existing `composeMemoryOutboundHttp` to a shared owner. **No new client factory** (REVISION-2: over-engineering item): `memory-deps/slices/outbound-http.ts` already builds the same guarded client and OAuth ports, byte for byte as `deps.ts` 2076-2086. Budget ≤120k. Commits: 5. Prerequisites: S10; COMMON §1-§3, §9 (`DS_SHEET=S11`). `app.ts` is a **shared** file (size-02 lanes; `wave2/size02-step5` and `refactor/size-02-app` already conflict with the base on it — NOTE lines in `freeze`); this sheet edits only its import line and the one call line.
 
 | commit | change |
 |---|---|
@@ -13,18 +13,18 @@ Responsibility: bindings `guardedOutboundHttpClient` … `agentPluginMcp` (`f061
 ## Carries
 | behaviour (base lines) | pin |
 |---|---|
-| one egress policy literal for both roots: https/http, private addresses denied, no redirects, 10 min, 96 MiB, `Tovu/0.1.0` (2079-2087) | moved `outbound-http.test.ts` (deep-equal policy, fresh client per call); `expect-count` below counts the policy line in **production composition files only** (the DNS policy in `domain-dns-adapters.ts:15` has different values and is not counted) |
-| OAuth loopback exception only on desktop (2089) | `external-mcp-oauth-loopback-wiring.unit.test.ts` (both roots via the shared owner + the call-once test) |
-| shared OAuth binding written after connections exist, before the admin-surface refresh (2113) | S0 pin 3a; `expect-count` below |
-| admin-surface boot failure only warns, exact text (2115-2117) | `agent-connections.unit.test.ts` with a rejecting fake host → the exact `console.warn` text |
-| consent readiness awaits the route-deps promise (2125-2130) | `readiness.unit.test.ts`: `siteConsentReady` pending until `resolveRouteDeps` is called |
+| one egress policy literal for both roots: https/http, private addresses denied, no redirects, 10 min, 96 MiB, `Tovu/0.1.0` (2076-2084) | moved `outbound-http.test.ts` (deep-equal policy, fresh client per call); `expect-count` below counts the policy line in **production composition files only** (the DNS policy in `domain-dns-adapters.ts:15` has different values and is not counted) |
+| OAuth loopback exception only on desktop (2086) | `external-mcp-oauth-loopback-wiring.unit.test.ts` (both roots via the shared owner + the call-once test) |
+| shared OAuth binding written after connections exist, before the admin-surface refresh (2110) | S0 pin 3a; `expect-count` below |
+| admin-surface boot failure only warns, exact text (2112-2114) | `agent-connections.unit.test.ts` with a rejecting fake host → the exact `console.warn` text |
+| consent readiness awaits the route-deps promise (2122-2127) | `readiness.unit.test.ts`: `siteConsentReady` pending until `resolveRouteDeps` is called |
 | memory root unchanged in behaviour | `memory-route-deps.test.ts` and `memory-deps/__tests__/*` (in `tests sr`) |
 
 ## STOP
 ```bash
 set -euo pipefail
 G="bash designs/deps-split/work/gates.sh"; D=apps/website/src/server/runtime/composition
-$G expect-count S11-ONE-EGRESS-POLICY 1 'maxRedirects: 0, connectTimeoutMs: 10 \* 60 \* 1000' $D/outbound-http.ts $D/deps.ts $D/app.ts $D/site-deps $D/memory-deps/slices
+$G expect-count S11-ONE-EGRESS-POLICY 1 'maxRedirects: 0, connectTimeoutMs: 10 \* 60 \* 997' $D/outbound-http.ts $D/deps.ts $D/app.ts $D/site-deps $D/memory-deps/slices
 $G absent S11-OLD-OWNER $D/memory-deps/slices/outbound-http.ts
 $G expect-count S11-ROOT-WRITE 1 '^  bindSharedApiOAuth = ' $D/deps.ts
 $G expect-count S11-APP-CALL 1 'composeOutboundHttp\(' $D/app.ts

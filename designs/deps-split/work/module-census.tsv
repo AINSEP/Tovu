@@ -1,37 +1,37 @@
-# deps.ts: 3036 lines; 308 import declarations (last ends line 414); 37 other top-level statements
+# deps.ts: 3036 lines; 305 import declarations (last ends line 411); 37 other top-level statements
 name	comment-start	code-start	end	code-lines	export	kind	uses-module-decls
-export{…} from "./site-paths.js"	398	398	398	1	export	ExportDeclaration	
-consoleLogger	415	416	416	1		VariableStatement	
-CreateSiteRouteDepsOverrides	417	424	503	21	export	InterfaceDeclaration	
-assertOverridesPairedOrAbsent	504	512	520	9		FunctionDeclaration	CreateSiteRouteDepsOverrides
-pluginFailureThresholdOverride	521	529	533	5		FunctionDeclaration	CreateSiteRouteDepsOverrides
-hydrateContentDbIfNeeded	534	545	550	4		FunctionDeclaration	CreateSiteRouteDepsOverrides,resolveSiteBindingOverride
-resolveThemesDirOverride	551	558	560	3		FunctionDeclaration	CreateSiteRouteDepsOverrides
-resolveSiteBindingOverride	561	568	570	3		FunctionDeclaration	CreateSiteRouteDepsOverrides
-resolveSiteBackupSources	571	582	593	12		FunctionDeclaration	readTovuVersion
-readTovuVersion	594	597	604	8		FunctionDeclaration	
-createSiteDisplayNameSource	605	614	618	4		FunctionDeclaration	
-compositionSiteKeySources	619	622	643	14		FunctionDeclaration	CreateSiteRouteDepsOverrides
-compositionApprovalOverrides	644	645	650	6		FunctionDeclaration	CreateSiteRouteDepsOverrides
-prepareCompositionStorage	651	652	659	8		FunctionDeclaration	CreateSiteRouteDepsOverrides
-StoreCloseRegistration	660	666	666	1		TypeAliasDeclaration	
-openCompositionStore	667	686	721	32		FunctionDeclaration	CreateSiteRouteDepsOverrides,StoreCloseRegistration,prepareCompositionStorage,hydrateContentDbIfNeeded,resolveChatDbPath,startOwnerSweeps
-resolveChatDbPath	722	727	732	6		FunctionDeclaration	CreateSiteRouteDepsOverrides
-startOwnerSweeps	733	739	751	11		FunctionDeclaration	CreateSiteRouteDepsOverrides,startOwnerChatExpirySweep
-startOwnerChatExpirySweep	752	754	759	6		FunctionDeclaration	CreateSiteRouteDepsOverrides
-resolveWorkspaceIdOverride	760	767	771	5		FunctionDeclaration	CreateSiteRouteDepsOverrides
-applyAdminPasswordResetFromEnvIfConfigured	772	794	821	25		FunctionDeclaration	CreateSiteRouteDepsOverrides
-createSiteRouteDeps	822	830	843	14	export	FunctionDeclaration	CreateSiteRouteDepsOverrides,assertOverridesPairedOrAbsent,openCompositionStore,composeSiteRouteDeps
-providerPluginBoot	844	846	848	3		FunctionDeclaration	CreateSiteRouteDepsOverrides
-composeProviderConfig	849	855	871	17		FunctionDeclaration	CreateSiteRouteDepsOverrides,acceptedSiteId,projectStoreFor
-credentialProject	872	880	884	5		FunctionDeclaration	
-acceptedSiteId	885	887	891	5		FunctionDeclaration	
-siteIdentityFor	892	903	908	6	export	FunctionDeclaration	acceptedSiteId
-projectStoreFor	909	916	928	13		FunctionDeclaration	CreateSiteRouteDepsOverrides
-logMediaProviderRefusals	929	934	936	3		FunctionDeclaration	
-AgentPluginIdentityAdmission	937	938	938	1		TypeAliasDeclaration	
-agentPluginIdentityAdmission	939	941	947	7		FunctionDeclaration	AgentPluginIdentityAdmission
-composeSiteRouteDeps	948	954	2934	1195		FunctionDeclaration	StoreCloseRegistration,CreateSiteRouteDepsOverrides,resolveSiteBindingOverride,agentPluginIdentityAdmission,resolveThemesDirOverride,resolveWorkspaceIdOverride,resolveChatDbPath,consoleLogger,logMediaProviderRefusals,pluginFailureThresholdOverride,applyAdminPasswordResetFromEnvIfConfigured,compositionSiteDisplaySources,compositionSiteKeySources,composeProviderConfig,credentialProject,providerPluginBoot,siteIdentityFor,flushLifecycleEvents,compositionApprovalOverrides,compositionConsentOptions,resolveSiteBackupSources,configureVisitorConsentAnalytics
+export{…} from "./site-paths.js"	395	395	395	1	export	ExportDeclaration	
+consoleLogger	412	413	413	1		VariableStatement	
+CreateSiteRouteDepsOverrides	414	421	500	21	export	InterfaceDeclaration	
+assertOverridesPairedOrAbsent	501	509	517	9		FunctionDeclaration	CreateSiteRouteDepsOverrides
+pluginFailureThresholdOverride	518	526	530	5		FunctionDeclaration	CreateSiteRouteDepsOverrides
+hydrateContentDbIfNeeded	531	542	547	4		FunctionDeclaration	CreateSiteRouteDepsOverrides,resolveSiteBindingOverride
+resolveThemesDirOverride	548	555	557	3		FunctionDeclaration	CreateSiteRouteDepsOverrides
+resolveSiteBindingOverride	558	565	567	3		FunctionDeclaration	CreateSiteRouteDepsOverrides
+resolveSiteBackupSources	568	579	590	12		FunctionDeclaration	readTovuVersion
+readTovuVersion	591	594	601	8		FunctionDeclaration	
+createSiteDisplayNameSource	602	611	615	4		FunctionDeclaration	
+compositionSiteKeySources	616	619	640	14		FunctionDeclaration	CreateSiteRouteDepsOverrides
+compositionApprovalOverrides	641	642	647	6		FunctionDeclaration	CreateSiteRouteDepsOverrides
+prepareCompositionStorage	648	649	656	8		FunctionDeclaration	CreateSiteRouteDepsOverrides
+StoreCloseRegistration	657	663	663	1		TypeAliasDeclaration	
+openCompositionStore	664	683	718	32		FunctionDeclaration	CreateSiteRouteDepsOverrides,StoreCloseRegistration,prepareCompositionStorage,hydrateContentDbIfNeeded,resolveChatDbPath,startOwnerSweeps
+resolveChatDbPath	719	724	729	6		FunctionDeclaration	CreateSiteRouteDepsOverrides
+startOwnerSweeps	730	736	748	11		FunctionDeclaration	CreateSiteRouteDepsOverrides,startOwnerChatExpirySweep
+startOwnerChatExpirySweep	749	751	756	6		FunctionDeclaration	CreateSiteRouteDepsOverrides
+resolveWorkspaceIdOverride	757	764	768	5		FunctionDeclaration	CreateSiteRouteDepsOverrides
+applyAdminPasswordResetFromEnvIfConfigured	769	791	818	25		FunctionDeclaration	CreateSiteRouteDepsOverrides
+createSiteRouteDeps	819	827	840	14	export	FunctionDeclaration	CreateSiteRouteDepsOverrides,assertOverridesPairedOrAbsent,openCompositionStore,composeSiteRouteDeps
+providerPluginBoot	841	843	845	3		FunctionDeclaration	CreateSiteRouteDepsOverrides
+composeProviderConfig	846	852	868	17		FunctionDeclaration	CreateSiteRouteDepsOverrides,acceptedSiteId,projectStoreFor
+credentialProject	869	877	881	5		FunctionDeclaration	
+acceptedSiteId	882	884	888	5		FunctionDeclaration	
+siteIdentityFor	889	900	905	6	export	FunctionDeclaration	acceptedSiteId
+projectStoreFor	906	913	925	13		FunctionDeclaration	CreateSiteRouteDepsOverrides
+logMediaProviderRefusals	926	931	933	3		FunctionDeclaration	
+AgentPluginIdentityAdmission	934	935	935	1		TypeAliasDeclaration	
+agentPluginIdentityAdmission	936	938	944	7		FunctionDeclaration	AgentPluginIdentityAdmission
+composeSiteRouteDeps	945	951	2934	1198		FunctionDeclaration	StoreCloseRegistration,CreateSiteRouteDepsOverrides,resolveSiteBindingOverride,agentPluginIdentityAdmission,resolveThemesDirOverride,resolveWorkspaceIdOverride,resolveChatDbPath,consoleLogger,logMediaProviderRefusals,pluginFailureThresholdOverride,applyAdminPasswordResetFromEnvIfConfigured,compositionSiteDisplaySources,compositionSiteKeySources,composeProviderConfig,credentialProject,providerPluginBoot,siteIdentityFor,flushLifecycleEvents,compositionApprovalOverrides,compositionConsentOptions,resolveSiteBackupSources,configureVisitorConsentAnalytics
 compositionSiteDisplaySources	2935	2936	2947	11		FunctionDeclaration	CreateSiteRouteDepsOverrides,createSiteDisplayNameSource
 flushLifecycleEvents	2948	2949	2954	6		FunctionDeclaration	
 compositionConsentOptions	2955	2956	2964	9		FunctionDeclaration	

@@ -1,6 +1,6 @@
 # S7 — stage `events-trash` (C1-C4)
 
-Responsibility: bindings `outbox` … the three `onStoreClose` registrations after `redirectsWriteDeps` (`f0613d9e` 1293-1584). Budget ≤190k. Commits: 6. Prerequisites: S6; COMMON §1-§3, §9 (`DS_SHEET=S7`).
+Responsibility: bindings `outbox` … the three `onStoreClose` registrations after `redirectsWriteDeps` (`f0613d9e` 1290-1581). Budget ≤190k. Commits: 6. Prerequisites: S6; COMMON §1-§3, §9 (`DS_SHEET=S7`).
 
 | commit | slice | bindings | getters | returns |
 |---|---|---|---|---|
@@ -14,11 +14,11 @@ Responsibility: bindings `outbox` … the three `onStoreClose` registrations aft
 ## Carries
 | behaviour (base lines) | pin |
 |---|---|
-| locked purge snapshots and the kept-attachment error (1391-1458) | S4's `trash-follow-up-hooks.unit.test.ts` (now importing the slice); S0 pin 2 |
-| one shared trash adapter Map, mutated later by themes (1464, 2010) | `expect-count` below; S0 pin 2 (`removeTheme`) |
-| `trash`'s `onError` text verbatim (1531) | `trash-service.unit.test.ts`: a failing hook → the exact `console.error` text |
-| close hooks: the three registrations run at teardown in the same order of registration (1577-1584) | S0 pin 5 (teardown) |
-| boot origin registered before the readiness promise resolves (1325-1355) | S4's `register-boot-origin.unit.test.ts`; `production-readiness-boot.integration.test.ts` |
+| locked purge snapshots and the kept-attachment error (1388-1455) | S4's `trash-follow-up-hooks.unit.test.ts` (now importing the slice); S0 pin 2 |
+| one shared trash adapter Map, mutated later by themes (1464, 2007) | `expect-count` below; S0 pin 2 (`removeTheme`) |
+| `trash`'s `onError` text verbatim (1528) | `trash-service.unit.test.ts`: a failing hook → the exact `console.error` text |
+| close hooks: the three registrations run at teardown in the same order of registration (1574-1581) | S0 pin 5 (teardown) |
+| boot origin registered before the readiness promise resolves (1322-1352) | S4's `register-boot-origin.unit.test.ts`; `production-readiness-boot.integration.test.ts` |
 | user removal through trash wins over `...identity` (literal precedence) | S0 pin 2 |
 
 ## STOP
