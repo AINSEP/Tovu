@@ -1,26 +1,33 @@
-# S5 — stage `foundation` (DESIGN §1.3 rows A2-A4; A1 stays in the root)
+# S5 — stage `foundation` (A2-A3 + `storeBound`) and slice `store-prelude-tail` (A4 after the root awaits)
 
-Responsibility: statements 3-31 of `composeSiteRouteDeps` (`f0613d9e` lines 964-1087). Budget ≤150k. Commits: 4.
-Prerequisites: S4. COMMON §2, §3, §9.
-```bash
-awk -F'\t' '$1==3 || $1==31 {print $1, $2}' designs/deps-split/work/closure-census.tsv   # take today's lines from here
-```
+Responsibility: bindings `assistantAgentInventory` … `storeBound` and `logMediaProviderRefusals(…)` … `pluginActivationRepo` (`f0613d9e` 964-1022, 1065-1087). The A1 cells, `kernel`, and the four prelude awaits (`workspaceId`, `publishTrustRevocations`, `await warnCompositionChatOrphans(…)`, `mediaProviders`) and `chatDbPath`/`chat` **stay in the root** (DESIGN §2.2 segments s0/s1). Budget ≤150k. Commits: 4. Prerequisites: S4; COMMON §1-§3, §9 (`DS_SHEET=S5`). Locate by binding (COMMON §2), never by index.
 
-| commit | slice file | statements | inputs (values) | getters (late) | returns (used later) |
+| commit | slice file | bindings (first … last) | values in | getters (late) | returns |
 |---|---|---|---|---|---|
-| 1 | `slices/agent-plugin-bootstrap.ts` (+ `agentPluginIdentityAdmission`, its type) | 3-11 | `onStoreClose`, `overrides` | `lifecycleTracker: () => lifecycleTracker`, `routeDeps: () => routeDeps` | `assistantAgentInventory`, `resolvedSiteBinding`, `agentPluginLayout`, `agentPluginLifecycle`, `federatedMcpPresetRegistry`, `skillLayout`, `resolvedThemesDir` |
-| 2 | `slices/media-storage.ts` | 12-17 (stmt 12 `const kernel = store.content` stays in the closure **above** the call; the slice starts at 13) | `resolvedSiteBinding`, `agentPluginLifecycle`, `overrides` | `observability`, `workspaceId`, `settingsRepo` | `resolvedUploadsDir`, `provideMediaCredentials` (function value, returned — the `let` becomes a local of the slice), `mediaCredentials`, `mediaStorePorts`, `blobStore`, `mediaIsRemoteByEnv`, `isMediaRemote` |
-| 3 | `slices/store-prelude.ts` (+ `warnCompositionChatOrphans` module fn from S4, + `logMediaProviderRefusals`) | 18-31, **async** (awaits at 19, 20, 23, 25 stay in order) | `store`, `kernel`, `dbPath`, `overrides`, `agentPluginLifecycle`, `agentPluginLayout`, `logger` | — | `storeBound`, `workspaceId`, `publishTrustRevocations`, `chatDbPath`, `chat`, `mediaProviders`, `postSearchBackfillReady`, `clock`, `idGen`, `reportToolAuditError`, `pluginActivationRepo` |
-| 4 | `stages/foundation.ts` `composeFoundationStage(required, optional)` calling 1-3 | 3-31 | | | union of the above |
+| 1 | `slices/agent-plugin-bootstrap.ts` (+ `agentPluginIdentityAdmission` and its type) | `assistantAgentInventory` … `resolvedThemesDir` (incl. the unnamed seeding statement after it) | `onStoreClose`, `overrides` | `lifecycleTracker`, `routeDeps` | `assistantAgentInventory`, `resolvedSiteBinding`, `agentPluginLayout`, `agentPluginLifecycle`, `federatedMcpPresetRegistry`, `skillLayout`, `resolvedThemesDir` |
+| 2 | `slices/media-storage.ts` | `resolvedUploadsDir` … `blobStore, mediaIsRemoteByEnv, isMediaRemote` (`kernel` stays in the root above the call) | `kernel`, `resolvedSiteBinding`, `agentPluginLifecycle`, `overrides` | `observability`, `workspaceId`, `settingsRepo` | the same names + `provideMediaCredentials` (returned function; the slice's local `let` is written once by the Promise executor at the same position) |
+| 3 | `stages/foundation.ts` `composeFoundationStage(required, optional)` — synchronous; calls 1, 2 and builds `storeBound` (`storeBoundServicesFor({ store, dbPath })`, verbatim) | | | | union |
+| 4 | `slices/store-prelude-tail.ts` (+ `logMediaProviderRefusals`) | `logMediaProviderRefusals({ refusals: mediaProviders.refusals })` … `pluginActivationRepo` (after the root's `mediaProviders` await) | `kernel`, `workspaceId`, `mediaProviders`, `agentPluginLifecycle`, `logger` | — | `postSearchBackfillReady`, `clock`, `idGen`, `reportToolAuditError`, `pluginActivationRepo` |
 
-Note on commit 2: `provideMediaCredentials` is written once by the Promise executor (1004-1005) and called once in I5 (2831). Returning it from the slice keeps one writer and one caller (DESIGN §1.5). Order: the Promise is created at the same position.
+No slice here is `async` and none contains `await`; the root keeps the four prelude awaits verbatim between the stage call and the tail call.
 
-Anchors to repoint in the same commits: `wiring-identity.test.ts:213` (commit 1: replace `server/runtime/composition/deps.ts` by `server/runtime/composition/site-deps/slices/agent-plugin-bootstrap.ts`; set size stays 11; one line); `chat-orphan-check.integration.test.ts:265-266` (commit 3: read the slice file); `composition-boot-order.unit.test.ts` anchors `const kernel = store.content`, `await resolveWorkspaceIdOverride(kernel, overrides)`, `await publishTrustRevocationStoreFor(kernel)`, `await warnOnOrphanedChatRows(`, `preparePostSearchIndex(` (commit 3: the four after `kernel` are asserted in order inside `store-prelude.ts`; `kernel` < the `composeStorePrelude(` call in `deps.ts`).
+## Carries
+| behaviour (base lines) | pin |
+|---|---|
+| buffered lifecycle: events before provider boot are captured and flushed in order after the swap (962-963, 978-985) | S0 pin 3c; `deps-observability-wiring.integration.test.ts` |
+| lifecycle owner built once, in one file (978-985) | `wiring-identity.test.ts:213` `BASELINE_OWNER_FILES`: `server/runtime/composition/deps.ts` → `…/site-deps/slices/agent-plugin-bootstrap.ts` (commit 1; set size stays 11) |
+| lazy media credentials: the promise is created at the same position, resolved only by the after-assembly call; store ports read `observability`/`workspaceId`/`settingsRepo` at call time (1004-1018) | new `media-storage.unit.test.ts` (fakes): ports built with getters that throw until set → building does not call them; `resolveSharedCredential` stays pending until `provideMediaCredentials` is called; S0 pin 3e |
+| `storeBound` is built from `{ store, dbPath }` once (1022) | `composition-boot-order` assertion `/const storeBound = storeBoundServicesFor\(\{ store, dbPath \}\);/` now reads `deps.ts` + `site-deps/**` (COMMON §9 rule 7) and still matches exactly once |
+| prelude awaits order and "no boot promise before the prelude awaits finish" (1032-1064, `preparePostSearchIndex(` 1076) | `composition-boot-order` prelude test: the four awaits stay in `composeSiteRouteDeps` (unchanged anchors); `firstBootPromise` = the `composePreludeTail(` call in the root, and a new assertion pins `preparePostSearchIndex(` inside `store-prelude-tail.ts` |
+| search backfill failure is logged with the same text, not thrown (1076-1078) | `chat-orphan-check.integration.test.ts` + a tail unit case with a rejecting fake |
+| "no `db` identifier", "no `sqliteDb`" in the composition body | the boot-order assertions read `deps.ts` + every `site-deps/` file from this sheet on |
 
 ## STOP
 ```bash
-D=apps/website/src/server/runtime/composition
-test "$(grep -rln 'createTovuAgentPluginLifecycle(' $D/deps.ts $D/site-deps | wc -l)" = 1 || echo "STOP: lifecycle owner built in more than one file"
-grep -nE '^  (const [^=]+= )?await ' $D/site-deps/slices/agent-plugin-bootstrap.ts $D/site-deps/slices/media-storage.ts && echo "STOP: a synchronous block became async"
+set -euo pipefail
+G="bash designs/deps-split/work/gates.sh"; D=apps/website/src/server/runtime/composition
+$G expect-count S5-LIFECYCLE-OWNER 1 'createTovuAgentPluginLifecycle\(' $D/deps.ts $D/site-deps
+$G forbid S5-ASYNC-SLICE '^(export )?async function|^  (const [^=]+= )?await ' $D/site-deps/slices/agent-plugin-bootstrap.ts $D/site-deps/slices/media-storage.ts $D/site-deps/slices/store-prelude-tail.ts $D/site-deps/stages/foundation.ts
+$G expect-count S5-PRELUDE-AWAITS 4 '^  (const [^=]+= )?await (resolveWorkspaceIdOverride|publishTrustRevocationStoreFor|warnCompositionChatOrphans|loadMediaProviderRegistry)\(' $D/deps.ts
 ```
-Gates: COMMON §5 + S0 pins (`site-root.*.pin.test.ts`) every commit.
+Gates: COMMON §5 (S0 pins run in `tests sr` every commit).

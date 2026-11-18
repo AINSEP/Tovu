@@ -1,23 +1,31 @@
-# S7 — stage `events-trash` (rows C1-C4)
+# S7 — stage `events-trash` (C1-C4)
 
-Responsibility: statements 56-85 (`f0613d9e` 1293-1584). Budget ≤200k. Commits: 6.
-Prerequisites: S6. COMMON §2, §3, §9.
+Responsibility: bindings `outbox` … the three `onStoreClose` registrations after `redirectsWriteDeps` (`f0613d9e` 1293-1584). Budget ≤190k. Commits: 6. Prerequisites: S6; COMMON §1-§3, §9 (`DS_SHEET=S7`).
 
-| commit | slice | statements | getters | returns |
+| commit | slice | bindings | getters | returns |
 |---|---|---|---|---|
-| 1 | `slices/events-origin.ts` (+ `registerBootOrigin` module fn from S4) | 56-63 | — | `outbox`, `bus`, `devCapabilityScheme`, `originReady`, `originRegistry` (+ any other name later rows read; check census) |
-| 2 | `slices/redirect-media-repos.ts` | 64-66 | — | `redirectRepo`, `redirectHitSink`, `assetRenditionRepo` |
-| 3 | `slices/trash-follow-ups.ts` (S4's four functions move here) | 67-74 | `mediaRepo`, `postRepo`, `assetBlobRepo`, `entryRefsRepo`, `routeDeps` | `trashRegistry`, `sqliteTrashDb`, `trashRepo`, `formDeliveryRepo`, `trashFollowUpHooks` |
-| 4 | `slices/trash-adapters.ts` (S4's three functions) | 75-76 | `mediaRepo`, `entryRefsRepo`, `postRepo`, `assetBlobRepo` | `pluginTrashAdapter`, `trashAdapters` (the **same** Map instance; G2 mutates it in S10) |
-| 5 | `slices/trash-service.ts` | 77-81 | `postRepo` | `trashTransaction`, `trash`, `removePlugin`, `removeUser`, `isInTrash` |
-| 6 | `slices/redirects.ts` + `stages/events-trash.ts` | 82-85; stage 56-85 | — | `redirectsWriteDeps` |
+| 1 | `slices/events-origin.ts` (+ `registerBootOrigin` from S4) | `outbox` … `originRegistry` | — | `outbox`, `bus`, `devCapabilityScheme`, `originReady`, `originRegistry` (+ every other name a later statement reads — census eager/deferred columns) |
+| 2 | `slices/redirect-media-repos.ts` | `redirectRepo`, `redirectHitSink`, `assetRenditionRepo` | — | same |
+| 3 | `slices/trash-follow-ups.ts` (S4's four functions) | `trashRegistry` … `trashFollowUpHooks` | `mediaRepo`, `postRepo`, `assetBlobRepo`, `entryRefsRepo`, `routeDeps` | `trashRegistry`, `sqliteTrashDb`, `trashRepo`, `formDeliveryRepo`, `trashFollowUpHooks` |
+| 4 | `slices/trash-adapters.ts` (S4's three functions) | `pluginTrashAdapter`, `trashAdapters` | `mediaRepo`, `entryRefsRepo`, `postRepo`, `assetBlobRepo` | `pluginTrashAdapter`, `trashAdapters` (the **same** Map instance; S10's themes step `.set`s it) |
+| 5 | `slices/trash-service.ts` | `trashTransaction` … `isInTrash` | `postRepo` | `trashTransaction`, `trash`, `removePlugin`, `removeUser`, `isInTrash` |
+| 6 | `slices/redirects.ts` + `stages/events-trash.ts` (sync) | `redirectsWriteDeps` + the three registrations, in order, `onStoreClose` passed as a value | — | `redirectsWriteDeps` |
 
-The three `onStoreClose` registrations (1577-1584) move in order with their `onStoreClose` passed as a value. `trash`'s `onError` `console.error` text (1531) is verbatim.
+## Carries
+| behaviour (base lines) | pin |
+|---|---|
+| locked purge snapshots and the kept-attachment error (1391-1458) | S4's `trash-follow-up-hooks.unit.test.ts` (now importing the slice); S0 pin 2 |
+| one shared trash adapter Map, mutated later by themes (1464, 2010) | `expect-count` below; S0 pin 2 (`removeTheme`) |
+| `trash`'s `onError` text verbatim (1531) | `trash-service.unit.test.ts`: a failing hook → the exact `console.error` text |
+| close hooks: the three registrations run at teardown in the same order of registration (1577-1584) | S0 pin 5 (teardown) |
+| boot origin registered before the readiness promise resolves (1325-1355) | S4's `register-boot-origin.unit.test.ts`; `production-readiness-boot.integration.test.ts` |
+| user removal through trash wins over `...identity` (literal precedence) | S0 pin 2 |
 
 ## STOP
 ```bash
-D=apps/website/src/server/runtime/composition/site-deps
-grep -n 'new Map<string, TrashAdapter>' -r $D | wc -l | grep -qx 1 || echo "STOP: trash adapter Map built more than once"
-grep -nE '^  (const [^=]+= )?await ' $D/slices/{events-origin,redirect-media-repos,trash-follow-ups,trash-adapters,trash-service,redirects}.ts && echo "STOP: a top-level await appeared in a synchronous block"
+set -euo pipefail
+G="bash designs/deps-split/work/gates.sh"; D=apps/website/src/server/runtime/composition
+$G expect-count S7-ONE-TRASH-MAP 1 'new Map<string, TrashAdapter>' $D/deps.ts $D/site-deps
+$G forbid S7-ASYNC-SLICE '^(export )?async function|^  (const [^=]+= )?await ' $D/site-deps/slices/events-origin.ts $D/site-deps/slices/redirect-media-repos.ts $D/site-deps/slices/trash-follow-ups.ts $D/site-deps/slices/trash-adapters.ts $D/site-deps/slices/trash-service.ts $D/site-deps/slices/redirects.ts $D/site-deps/stages/events-trash.ts
 ```
-Gates: COMMON §5; `site-root.overridden-capabilities.pin.test.ts`, `memory-root-trash-adapters.pin.test.ts` (unchanged root, sanity) and the trash route tests `apps/website/src/server/__tests__/routes/*trash*.test.ts` at sheet end.
+(`async` arrows **inside** a slice — hooks, adapters — are today's code and allowed: the pattern matches only module-level `async function` declarations and awaits at a function body's own two-space indent.) Gates: COMMON §5; at sheet end also `memory-root-trash-adapters.pin.test.ts` (in `tests sr`) and `server/__tests__/routes/*trash*.test.ts` (in `tests wide`).

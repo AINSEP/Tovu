@@ -1,23 +1,31 @@
-# S6 — stage `boot-data` (rows B1-B3)
+# S6 — stage `boot-data` (B1-B3)
 
-Responsibility: statements 33-55 (`f0613d9e` 1092-1284); statement 32 (`let routeDepsBuiltForPluginHost`) stays in the closure. Budget ≤130k. Commits: 4.
-Prerequisites: S5. COMMON §2, §3, §9. D0c: if `origin/wave3/desktop-d0c` is merged into the base, the `startupSecretEnvironment` import moves with statement 34 in its **D0c spelling** (`@tovu/host-shared/startup-secrets`); if not, it moves as it is and the INDEX overlap row applies.
-```bash
-git merge-base --is-ancestor origin/wave3/desktop-d0c HEAD && echo "D0c in base: use @tovu/host-shared/startup-secrets" || echo "D0c not in base: keep ../../../platform/secrets/startup-secrets.js spelling, rewritten relative to the slice"
-```
+Responsibility: bindings `pluginRuntime` … `blobHydrationReady` (`f0613d9e` 1092-1284); the cell `routeDepsBuiltForPluginHost` moves to the top of the closure (DESIGN §2.2; read only through the getter). Budget ≤130k. Commits: 4. Prerequisites: S5; COMMON §1-§3, §9 (`DS_SHEET=S6`); `wave3/desktop-d0c` merged into the base (freeze-lanes: before S6) — the `startupSecretEnvironment` import moves with `identity` in its D0c spelling `@tovu/host-shared/startup-secrets`.
 
-| commit | slice | statements | getters | returns |
+| commit | slice | bindings | getters | returns |
 |---|---|---|---|---|
-| 1 | `slices/plugin-runtime-boot.ts` (+ `pluginFailureThresholdOverride` import from `overrides.ts`) | 33 | `lifecycleTracker`, `pluginHost: () => routeDepsBuiltForPluginHost?.pluginHost`, `contentTypeRepo`, `outbox` | `pluginRuntime` |
-| 2 | `slices/identity-settings.ts` (+ `applyAdminPasswordResetFromEnvIfConfigured`, `compositionSiteDisplaySources`, `createSiteDisplayNameSource`) | 34-46 | — | `identity`, `settingsPrincipals`, `adminPasswordResetReady`, `presentationRepo`, `settingsRepo`, `settingsReady`, the six `*Ready`, `siteTitlePreservationStore`, `siteDisplayName`, `siteTimeZone`, `siteTitleSettingsDeps`, `siteSettingsReady`, `siteTitleReady` |
-| 3 | `slices/boot-chains.ts` | 47-55 | — (`logger` value) | `menuRepo`, `navLocationBindingRepo`, `menuBindingsReady`, `newsletterListRepo`, `newsletterReady`, `commentsReady`, `transformDefinitionRepo`, `mediaTransformReady`, `blobHydrationReady` |
-| 4 | `stages/boot-data.ts` | 33-55 | | |
+| 1 | `slices/plugin-runtime-boot.ts` (imports `pluginFailureThresholdOverride` from `overrides.ts`) | `pluginRuntime` | `lifecycleTracker`, `pluginHost: () => routeDepsBuiltForPluginHost?.pluginHost`, `contentTypeRepo`, `outbox` | `pluginRuntime` |
+| 2 | `slices/identity-settings.ts` (+ `applyAdminPasswordResetFromEnvIfConfigured`, `compositionSiteDisplaySources`, `createSiteDisplayNameSource`) | `identity` … `siteTitleReady` + the `siteTitleReady.catch(() => undefined)` statement | — | `identity`, `settingsPrincipals`, `adminPasswordResetReady`, `presentationRepo`, `settingsRepo`, `settingsReady`, the six `*Ready`, `siteTitlePreservationStore`, `siteDisplayName`, `siteTimeZone`, `siteTitleSettingsDeps`, `siteSettingsReady`, `siteTitleReady` |
+| 3 | `slices/boot-chains.ts` | `menuRepo` … `blobHydrationReady` | — (`logger` value) | `menuRepo`, `navLocationBindingRepo`, `menuBindingsReady`, `newsletterListRepo`, `newsletterReady`, `commentsReady`, `transformDefinitionRepo`, `mediaTransformReady`, `blobHydrationReady` |
+| 4 | `stages/boot-data.ts` (sync) | 1-3 | | |
 
-The 12-link `ensure*` chain (1153-1171) moves verbatim as one chain (3 links take `(deps, { systemPrincipalId })`, 9 take `({ deps, systemPrincipalId })` — do not normalise). `siteTitleReady.catch(() => undefined)` (1184) moves with it. All synchronous: no `await` in these slices.
+The 12-link `ensure*` chain moves verbatim as one chain (3 links take `(deps, { systemPrincipalId })`, 9 take `({ deps, systemPrincipalId })` — do not normalise).
+
+## Carries
+| behaviour (base lines) | pin |
+|---|---|
+| plugin host is optional until after assembly; read at call time (1094) | S0 pin 3b + new `plugin-runtime-boot.unit.test.ts`: the slice passes a getter, flipping the root cell later is seen by the runtime's lookup |
+| declared content types deferred: `contentTypeRepo`/`outbox` read only on enable (1111-1113) | same unit: building with throwing getters does not throw |
+| settings chain: 12 `ensure*` definitions in order, serialized (1137-1171); title preservation `catch` (1184) | S0 pin 4 |
+| comments module install starts after the newsletter install settles; menu/newsletter/comments/media chains log their failure text (1192-1284) | S0 pin 4; `boot-chains.unit.test.ts` with a rejecting fake per chain → the exact `consoleLogger.error` message via the fake `logger` |
+| admin password reset from env runs once at the same position (1130) | existing admin-reset test in `server/__tests__/unit` (wide set) |
 
 ## STOP
 ```bash
-grep -c '\.then(() => ensure' apps/website/src/server/runtime/composition/site-deps/slices/identity-settings.ts | grep -qx 12 || echo "STOP: settings chain is not 12 links"
-grep -nE '^  (const [^=]+= )?await ' apps/website/src/server/runtime/composition/site-deps/slices/{plugin-runtime-boot,identity-settings,boot-chains}.ts && echo "STOP: became async"
+set -euo pipefail
+G="bash designs/deps-split/work/gates.sh"; D=apps/website/src/server/runtime/composition
+$G expect-count S6-SETTINGS-CHAIN 12 '\.then\(\(\) => ensure' $D/site-deps/slices/identity-settings.ts
+$G forbid S6-ASYNC-SLICE '^(export )?async function|^  (const [^=]+= )?await ' $D/site-deps/slices/plugin-runtime-boot.ts $D/site-deps/slices/identity-settings.ts $D/site-deps/slices/boot-chains.ts $D/site-deps/stages/boot-data.ts
+$G forbid S6-OLD-SECRETS-PATH 'platform/secrets/startup-secrets' $D/deps.ts $D/site-deps
 ```
-Gates: COMMON §5; `site-root.boot-chains.pin.test.ts` every commit.
+Gates: COMMON §5.
