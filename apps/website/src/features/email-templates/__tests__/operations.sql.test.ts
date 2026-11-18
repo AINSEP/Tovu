@@ -6,7 +6,8 @@ import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-m
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 import { postRepoFor } from "#src/features/post/repo";
 import { SqlPagesHtmlDocumentStore, PageNotFoundError, PageKindMismatchError } from "#src/features/pages/html-document-store";
-import { createEmailTemplate, editEmailTemplate, getEmailTemplate, listEmailTemplates, type EmailTemplateDeps } from "../operations.js";
+import { createEmailTemplate, editEmailTemplate, getEmailTemplate, listEmailTemplates } from "@jini-ai/platform/mail/email-template-operations";
+import { emailTemplateStore, type EmailTemplateDeps } from "../operations.js";
 
 /**
  * @file The shared operations over the REAL Pages storage: `SqlPostRepo` + `SqlPagesHtmlDocumentStore`
@@ -30,17 +31,17 @@ describeEachDialect("email templates on Pages storage", { tables: ["posts", "pos
       idGen: { newId: () => `tpl-${++n}` },
       pagesHtmlStore: (scope, options = {}) => new SqlPagesHtmlDocumentStore(scope, { ...options, kernel, clock, revisions: postRepo }),
     };
-    const a = await createEmailTemplate({ deps, input: { name: "A", html: HTML }, actorId: "u1" });
-    await createEmailTemplate({ deps, input: { name: "B", fields: ["code"] }, actorId: "u1" });
+    const a = await createEmailTemplate({ store: emailTemplateStore({ deps }), input: { name: "A", html: HTML }, actorId: "u1" });
+    await createEmailTemplate({ store: emailTemplateStore({ deps }), input: { name: "B", fields: ["code"] }, actorId: "u1" });
     assert.equal(a.subject, "Hi {{name}}");
     const pagesSurface = new SqlPagesHtmlDocumentStore({ workspaceId: WS, postId: a.id }, { kernel, clock, revisions: postRepo });
     await assert.rejects(pagesSurface.read(), PageNotFoundError);
     await assert.rejects(pagesSurface.ensureHtmlFormat({ seedHtml: "<p>bypass</p>" }), PageKindMismatchError);
     await assert.rejects(pagesSurface.write({ html: "<p>bypass</p>" }), /before read/);
-    const edited = await editEmailTemplate({ deps, input: { id: a.id, html: HTML.replace("<p>", "<p>Dear "), expectedVersion: a.version }, actorId: "u1" });
+    const edited = await editEmailTemplate({ store: emailTemplateStore({ deps }), input: { id: a.id, html: HTML.replace("<p>", "<p>Dear "), expectedVersion: a.version }, actorId: "u1" });
     assert.equal(edited.version, a.version + 1);
-    assert.match((await getEmailTemplate({ deps, id: a.id })).html, /Dear/);
-    assert.deepEqual((await listEmailTemplates({ deps })).templates.map((t) => t.name).sort(), ["A", "B"]);
+    assert.match((await getEmailTemplate({ store: emailTemplateStore({ deps }), id: a.id })).html, /Dear/);
+    assert.deepEqual((await listEmailTemplates({ store: emailTemplateStore({ deps }) })).templates.map((t) => t.name).sort(), ["A", "B"]);
     const revisions = await postRepo.listRevisions({ workspaceId: WS, postId: a.id });
     assert.ok(revisions.length >= 2, "the store's revision ledger records the template's history");
   });

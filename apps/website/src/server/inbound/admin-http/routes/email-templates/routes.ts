@@ -14,8 +14,8 @@ import {
   readFieldValues,
   renameEmailTemplate,
   renderEmailTemplateForSend,
-  type EmailTemplateDeps,
-} from "#src/features/email-templates/index";
+} from "@jini-ai/platform/mail/email-template-operations";
+import { emailTemplateStore, type EmailTemplateDeps } from "#src/features/email-templates/index";
 import { PAGES_EDIT_HTML_PERMISSION } from "#src/features/pages/index";
 import { entityNotLiveResponse } from "#src/server/inbound/admin-http/http/entity-not-live";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
@@ -25,7 +25,7 @@ import type { ContentRouteDeps, ContentRouteRegistrar } from "../content/deps.js
 
 /**
  * @file Admin HTTP surface for HTML email templates. Each handler is a permission check plus ONE
- * shared operation from `features/email-templates/operations.ts` — the same call the
+ * shared operation from `@jini-ai/platform/mail/email-template-operations` — the same call the
  * `email_template_*` assistant tools make — so the two surfaces cannot drift.
  *
  * Permissions are existing names: reading/previewing is `content.read` and writing raw HTML is
@@ -99,12 +99,12 @@ const templateId = (req: Request) => String(req.params.templateId);
  */
 export const registerAdminEmailTemplateRoutes: ContentRouteRegistrar = ({ app, deps }, _options = {}) => {
   const limit = rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES });
-  app.get(BASE, route({ deps, permission: "content.read", handler: (req, _res, ops) => listEmailTemplates({ deps: ops, input: req.query }) }));
-  app.post(BASE, limit, route({ deps, permission: PAGES_EDIT_HTML_PERMISSION, handler: (req, res, ops) => createEmailTemplate({ deps: ops, input: body(req), actorId: actor(res) }) }, { status: 201 }));
+  app.get(BASE, route({ deps, permission: "content.read", handler: (req, _res, ops) => listEmailTemplates({ store: emailTemplateStore({ deps: ops }), input: req.query }) }));
+  app.post(BASE, limit, route({ deps, permission: PAGES_EDIT_HTML_PERMISSION, handler: (req, res, ops) => createEmailTemplate({ store: emailTemplateStore({ deps: ops }), input: body(req), actorId: actor(res) }) }, { status: 201 }));
   // Before `/:templateId` routes only for readability: methods and segment counts already differ.
-  app.post(`${BASE}/preview`, limit, route({ deps, permission: "content.read", handler: (req, _res, ops) => previewEmailTemplate({ deps: ops, input: body(req) }) }));
-  app.get(`${BASE}/:templateId`, route({ deps, permission: "content.read", handler: (req, _res, ops) => getEmailTemplate({ deps: ops, id: templateId(req) }) }));
-  app.put(`${BASE}/:templateId/html`, limit, route({ deps, permission: PAGES_EDIT_HTML_PERMISSION, handler: (req, res, ops) => editEmailTemplate({ deps: ops, input: { ...body(req), id: templateId(req) }, actorId: actor(res) }) }));
-  app.patch(`${BASE}/:templateId`, limit, route({ deps, permission: PAGES_EDIT_HTML_PERMISSION, handler: (req, _res, ops) => renameEmailTemplate({ deps: ops, input: { ...body(req), id: templateId(req) } }) }));
-  app.post(`${BASE}/:templateId/render`, limit, route({ deps, permission: "admin.forms.manage", handler: (req, _res, ops) => renderEmailTemplateForSend({ deps: ops, id: templateId(req), values: readFieldValues({ value: body(req).values }) }) }));
+  app.post(`${BASE}/preview`, limit, route({ deps, permission: "content.read", handler: (req, _res, ops) => previewEmailTemplate({ store: emailTemplateStore({ deps: ops }), input: body(req) }) }));
+  app.get(`${BASE}/:templateId`, route({ deps, permission: "content.read", handler: (req, _res, ops) => getEmailTemplate({ store: emailTemplateStore({ deps: ops }), id: templateId(req) }) }));
+  app.put(`${BASE}/:templateId/html`, limit, route({ deps, permission: PAGES_EDIT_HTML_PERMISSION, handler: (req, res, ops) => editEmailTemplate({ store: emailTemplateStore({ deps: ops }), input: { ...body(req), id: templateId(req) }, actorId: actor(res) }) }));
+  app.patch(`${BASE}/:templateId`, limit, route({ deps, permission: PAGES_EDIT_HTML_PERMISSION, handler: (req, _res, ops) => renameEmailTemplate({ store: emailTemplateStore({ deps: ops }), input: { ...body(req), id: templateId(req) } }) }));
+  app.post(`${BASE}/:templateId/render`, limit, route({ deps, permission: "admin.forms.manage", handler: (req, _res, ops) => renderEmailTemplateForSend({ store: emailTemplateStore({ deps: ops }), id: templateId(req), values: readFieldValues({ value: body(req).values }) }) }));
 };

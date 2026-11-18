@@ -182,7 +182,7 @@ export interface MailFeedbackSetupReport {
   providers: MailFeedbackProviderSetup[];
 }
 
-// --- templates (`features/email-templates/operations.ts`) -----------------------------------
+// --- templates (`@jini-ai/platform/mail/email-template-operations`) ------------------------
 
 export interface EmailTemplateField {
   name: string;
