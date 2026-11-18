@@ -1,0 +1,9 @@
+RED ok: read drops the workspace predicate -> each read returns only its own workspace's origin and allowlists
+RED ok: remove the per-workspace lock -> the configured-origin write takes the per-workspace lock inside the transaction, before the read
+RED ok: always write: drop the unchanged short-circuit -> the same origin twice is inserted then unchanged with no second write; a changed origin is updated
+RED ok: a changed origin reports unchanged -> the same origin twice is inserted then unchanged with no second write; a changed origin is updated
+RED ok: correcting write also resets the allowlists -> a correcting write leaves both allowlists as found
+RED ok: egress read returns the redirect list -> OriginRegistry over the real repo: an egress target is allowed for its own workspace, refused for another, and refused when in no allowlist
+RED ok: egress read ignores the asked workspace -> OriginRegistry over the real repo: an egress target is allowed for its own workspace, refused for another, and refused when in no allowlist
+RED ok: an unconfigured workspace is allowed its own egress target (null origin read as a row) -> OriginRegistry over the real repo: an unconfigured workspace refuses every egress target (fail closed) and the canonical origin is returned for a configured one
+rows 8 bad 0
