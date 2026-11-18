@@ -6,7 +6,7 @@ import { createVerifiedOrigin } from "@jini-ai/core/contracts/server/verified-or
 import { SqlFormDeliveryRepo, SqlFormPullLeaseRepo } from "#src/platform/db/repos/form-delivery-repo";
 import { SqlOutboxAdapter } from "#src/platform/db/repos/outbox-repo";
 import { registerConfiguredOriginOn } from "#src/platform/db/repos/origin-repo";
-import { SqlTokenStore } from "#src/platform/db/repos/gated-mutation-token-repo";
+import { SqliteTokenStore } from "#src/platform/db/sqlite/gated-mutation-token-repo.sqlite";
 import { SqlWebhookDeliveryRepo } from "#src/platform/db/repos/webhook-repo";
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { SqliteEntryTermRepo, SqliteTaxonomyRepo } from "#src/features/taxonomy/repo.sqlite";
@@ -57,7 +57,7 @@ describe("P1 lock keys: workspace, identity, settings, origin, tokens", () => {
 
   test("gated mutation tokens are per token", async () => {
     const { kernel, keys } = recordingKernel();
-    assert.deepEqual(await new SqlTokenStore(kernel).tryRedeem({ token: "tok-1", now: "2026-11-17T00:00:00.000Z" }), { redeemed: false, record: null });
+    assert.deepEqual(await new SqliteTokenStore({ store: kernel }).tryRedeem({ token: "tok-1", now: "2026-11-17T00:00:00.000Z" }), { redeemed: false, record: null });
     assert.deepEqual(keys, ["gated_mutation_tokens:tok-1"]);
   });
 });
