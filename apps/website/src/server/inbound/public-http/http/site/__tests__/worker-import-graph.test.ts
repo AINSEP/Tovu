@@ -103,8 +103,10 @@ const FORBIDDEN_FORM_SERVICES = /\/(?:packages\/cms|node_modules\/@jini-ai\/cms)
 // label in core/text"), which the Handlebars worker loads through that barrel; no Tovu module was added.
 // +1 (merge-final 2026-11-16): `safeTextAlign`/`safeAspectRatio` now come from `@jini-ai/cms/html/style-values` (merge-b), while
 // the render split (merge-a) keeps the four CSS-value allowlists in `platform/html/style-values.ts`; the worker loads both files.
+// +1 (href-standard 2026-11-17): the theme tier's `safeHref` copy (inside already-loaded `render-contract.ts`) was replaced by
+// Jini's one href standard, `@jini-ai/cms/navigation/href` (a dependency-free leaf, one file); the barrel is not an option here.
 const WORKER_MODULE_BUDGETS = {
-  "handlebars-worker.ts": 177,
+  "handlebars-worker.ts": 178,
   "liquid-worker.ts": 135,
 } as const;
 

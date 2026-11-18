@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isAllowedHref, toAllowedHref } from "@jini-ai/cms/navigation";
+import { isAllowedHref, toAllowedHref } from "@jini-ai/cms/navigation/href";
 
 /**
  * @file Characterization of the single href standard Tovu's renderers use: `isAllowedHref` decides,

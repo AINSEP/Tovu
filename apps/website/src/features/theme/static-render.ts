@@ -3,7 +3,7 @@ import { agentHandleSegment } from '@jini-ai/core/agent-handles';
 import { expandPartials } from "../../contracts/core/expand-partials.js";
 import { COLLECTION_MARKER_TYPE, FEATURED_IMAGE_MARKER_TYPE, markersOfType, MENU_MARKER_TYPE, POST_PREVIEWS_MARKER_TYPE, substituteMarkers, withAddedId, withElementKeptIfAttributed, withInnerContent, withInnerContentFinal, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
 import { extractListingCardTemplate, injectListingScript, listingKeyOfAttributes, parseListingBatchSize, renderListingMore, wrapListingItems } from "@jini-ai/cms/listing";
-import { toAllowedHref } from "@jini-ai/cms/navigation";
+import { toAllowedHref } from "@jini-ai/cms/navigation/href";
 import { injectMenuDropdownScript, renderMenuToggle } from "@jini-ai/cms/navigation/dropdown";
 import { postAuthorForDisplay } from "../../contracts/core/post-author.js";
 import { menuLinkRelAttr, renderHtmlMenu } from "#src/features/navigation/render-entry";

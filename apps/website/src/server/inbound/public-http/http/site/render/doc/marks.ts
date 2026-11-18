@@ -1,7 +1,7 @@
 import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
 import { safeCssColor, safeCssFontFamily, safeCssLength } from "#src/platform/html/style-values";
 import { escapeHtml } from "#src/platform/html/escape";
-import { toAllowedHref } from "@jini-ai/cms/navigation";
+import { toAllowedHref } from "@jini-ai/cms/navigation/href";
 import { isObject } from "../value-readers.js";
 
 // ---------------------------------------------------------------------------

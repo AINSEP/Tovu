@@ -2,7 +2,7 @@ import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
 import { escapeHtml } from "#src/platform/html/escape";
 import { menuLinkRelAttr } from "#src/features/navigation/render-entry";
 import { obj, str, arr } from "../value-readers.js";
-import { toAllowedHref } from "@jini-ai/cms/navigation";
+import { toAllowedHref } from "@jini-ai/cms/navigation/href";
 
 /** The `class="…"` attribute from a resolved item's `attrs.cssClass`, or `""` when absent — same
  *  escaped, no-allowlist posture `static-render.ts`'s tree-variant renderer already established for

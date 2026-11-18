@@ -1,7 +1,7 @@
 import type { JsonObject } from "@jini-ai/core/primitives";
 import { arr, obj, str } from "../value-readers.js";
 import { escapeHtml } from "#src/platform/html/escape";
-import { toAllowedHref } from "@jini-ai/cms/navigation";
+import { toAllowedHref } from "@jini-ai/cms/navigation/href";
 import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN } from "#src/features/post/rendering";
 import { renderEntryList, renderEntryListStructuredData, type EntryListItem, type EntryListFieldValue, type EntryListRenderOptions } from "#src/features/theme/entry-list-render";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";

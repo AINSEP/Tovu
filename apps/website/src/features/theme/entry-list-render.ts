@@ -1,5 +1,5 @@
 import { wrapListingItems } from "@jini-ai/cms/listing";
-import { isAllowedHref, toAllowedHref } from "@jini-ai/cms/navigation";
+import { isAllowedHref, toAllowedHref } from "@jini-ai/cms/navigation/href";
 import { escapeHtml } from "#src/platform/html/escape";
 
 /**

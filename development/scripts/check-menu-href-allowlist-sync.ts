@@ -5,7 +5,7 @@
  *
  * The predicate "is this href safe to emit as a public `<a href>`" has ONE implementation:
  * `isAllowedHref` (decide) and `toAllowedHref` (coerce to `"#"`), exported from
- * `@jini-ai/cms/navigation` (Jini repo, `packages/cms/src/navigation/href.ts`). The same function
+ * `@jini-ai/cms/navigation/href` (the dependency-free leaf of `@jini-ai/cms/navigation`; Jini repo, `packages/cms/src/navigation/href.ts`). The same function
  * rejects a menu item's `url` target at write time (a 400 `MenuValidationError`) and degrades a
  * render-time link to `"#"`, in every Tovu renderer (public renderers, static theme tier, entry-list
  * templates). Tovu used to carry two hand-kept copies of it (`safeHref` in `platform/html/safe-url.ts`
@@ -22,7 +22,7 @@
  *
  * ## `dist` vs `src` — asserted against
  *
- * The Jini side is asserted against **`dist`**: `@jini-ai/cms/navigation`'s package.json `exports` map
+ * The Jini side is asserted against **`dist`**: `@jini-ai/cms/navigation/href`'s package.json `exports` map
  * points only at `./dist/navigation/index.js`. After editing Jini's `packages/cms/src/navigation/href.ts`,
  * rebuild it (`pnpm --filter @jini-ai/cms build`, Jini repo) before re-running this gate, or it asserts
  * against the previous `dist`. A disclosed limitation (the "stale dist silently ships old behavior"
@@ -32,7 +32,7 @@
  * Exit codes: 0 = the standard passes every table row and no local copy exists.
  *             1 = a row disagrees, or a local `safeHref` declaration was found.
  */
-import { isAllowedHref, toAllowedHref } from "@jini-ai/cms/navigation";
+import { isAllowedHref, toAllowedHref } from "@jini-ai/cms/navigation/href";
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -159,9 +159,9 @@ function* sourceFilesUnder({ dir }: { dir: string }): Generator<string> {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       if (!SKIPPED_DIRECTORY_NAMES.has(entry.name)) yield* sourceFilesUnder({ dir: full });
-    } else if (/\.(?:ts|tsx|mts)$/.test(entry.name) && !/\.test\./.test(entry.name)) {
-      yield full;
+      continue;
     }
+    if (/\.(?:ts|tsx|mts)$/.test(entry.name) && !/\.test\./.test(entry.name)) yield full;
   }
 }
 
@@ -231,7 +231,7 @@ function main(): void {
     console.error(`  - ${copy.file}:${copy.line} declares its own safeHref`);
   }
   if (localCopies.length > 0) {
-    console.error("check:menu-href-allowlist-sync — a local safeHref is a second href standard. Import toAllowedHref/isAllowedHref from @jini-ai/cms/navigation instead.");
+    console.error("check:menu-href-allowlist-sync — a local safeHref is a second href standard. Import toAllowedHref/isAllowedHref from @jini-ai/cms/navigation/href instead.");
   }
   process.exit(1);
 }
