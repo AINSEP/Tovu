@@ -14,12 +14,24 @@
       "reason": "wording largely survives at packages/cms/src/seo/sitemap-documents.ts (26% shared word triples); code changed in 'refactor(website): sitemap.xml and llms.txt routes use the @jini-ai/cms/seo serializers'"
     },
     {
+      "id": "026c308c32d1",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
       "id": "028c6dc2fffc",
       "reason": "wording largely survives at apps/website/src/features/agent-plugins/admin-surfaces/issued-sign-ins.ts (69% shared word triples); code changed in 'refactor(agent-plugins): issued sign-in collector from @jini-ai/agent-plugins/admin-surfaces/node'"
     },
     {
+      "id": "045294caeb66",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
       "id": "05334bdbcdab",
       "reason": "wording largely survives at apps/website/src/server/__tests__/assistant-ag-ui-routes.test.ts (71% shared word triples); code changed in 'test(assistant): AG-UI S0 goldens — admin wire bytes, exact cancel counts, reducer drift'"
+    },
+    {
+      "id": "06a41c27128c",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
       "id": "07fbe6272722",
@@ -78,6 +90,10 @@
       "reason": "wording largely survives at packages/chat/src/embed-widget/browser/agent-inventory.ts (78% shared word triples); code changed in 'refactor(admin): agent inventory placeholder uses @jini-ai/chat/browser/agent-inventory'"
     },
     {
+      "id": "1e64fdefb9c5",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
       "id": "21aff341da07",
       "reason": "wording largely survives at packages/cms/src/seo/content-analysis/analyze-content.ts (75% shared word triples); code changed in 'refactor(plugin-runtime): content scoring from @jini-ai/cms/seo/content-analysis'"
     },
@@ -94,6 +110,10 @@
       "reason": "wording largely survives at apps/admin/src/features/dashboard/hooks/use-recent-activity-disclosure.hooks.ts (66% shared word triples); code changed in 'refactor(admin): persist the dashboard recent-activity card through @jini-ai/ui usePersistedDisclosure'"
     },
     {
+      "id": "2701d790c23d",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
       "id": "274df7efe47e",
       "reason": "wording largely survives at apps/admin/src/features/source-control/__tests__/source-control-visuals.unit.test.tsx (40% shared word triples); code changed in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'"
     },
@@ -106,8 +126,16 @@
       "reason": "the code it explained left this spot in 'refactor(admin-sites): delete the unused useSitesHome hook'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
+      "id": "2a222ed9dc37",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
       "id": "2afbcb943f4c",
       "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "2b0e20308f28",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
       "id": "2cfad97a1e1d",
@@ -130,6 +158,10 @@
       "reason": "wording largely survives at apps/website/src/assistant/site/visitor-confirmations.ts (33% shared word triples); code changed in 'refactor(site-assistant): visitor confirmations on @jini-ai/daemon bound confirmations'"
     },
     {
+      "id": "319a90c39412",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
       "id": "3249ae8e6c6b",
       "reason": "wording largely survives at packages/cms/src/media/blob-store.selection.ts (62% shared word triples); code changed in 'refactor(object-storage): media store selection from @jini-ai/cms/media'"
     },
@@ -138,8 +170,20 @@
       "reason": "the code it explained left this spot in 'refactor(admin-media): provider settings store comes from @jini-ai/admin'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
+      "id": "36fde498ab49",
+      "reason": "wording largely survives at packages/devops/src/local-dev/free-port.ts (51% shared word triples); code changed in 'refactor(scripts): free-port binds @jini-ai/devops/local-dev'"
+    },
+    {
       "id": "38b1713a70e5",
       "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "39232fd65bb2",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "3adc34bc69db",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
       "id": "3b8fe8248451",
@@ -168,6 +212,10 @@
     {
       "id": "43e370c80454",
       "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "447691409322",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
       "id": "44d8885ce14f",
@@ -202,12 +250,20 @@
       "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
+      "id": "4d1fffc08b2a",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
       "id": "4dce5c078daa",
       "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route uses Jini's canonical payload reducer (B1, OD-2)'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
       "id": "4dfa70646b3a",
       "reason": "wording largely survives at packages/cms/src/html/style-values.ts (96% shared word triples); code changed in 'refactor(render): use @jini-ai/cms/html/style-values'"
+    },
+    {
+      "id": "4e0207ca1e8d",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
       "id": "4e19ae5c3767",
@@ -240,6 +296,14 @@
     {
       "id": "532fa0e5e676",
       "reason": "wording largely survives at packages/agentic/src/skills/tools/installed-skill-tools.ts (75% shared word triples); code changed in 'refactor(skills): skill tool loader and registrations from @jini-ai/agentic/skills/tools'"
+    },
+    {
+      "id": "541b044dcf15",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "54bea7eca3b3",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
       "id": "55c171dc43da",
@@ -282,6 +346,10 @@
       "reason": "wording largely survives at apps/admin/src/features/users/hooks/users-dependencies.hooks.ts (29% shared word triples); code changed in 'refactor(admin-users): use the shared UsersPort and fake from @jini-ai/user-management'"
     },
     {
+      "id": "5e4ee909b6a7",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
       "id": "5e7ffa8c6b40",
       "reason": "wording largely survives at packages/chat/src/core/ag-ui/run-input.ts (56% shared word triples); code changed in 'refactor(assistant): the AG-UI route parses its request with Jini's run-input (C1)'"
     },
@@ -300,6 +368,10 @@
     {
       "id": "64c6316d26a3",
       "reason": "the code it explained left this spot in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "66416d5da1f3",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
       "id": "6674f104a661",
@@ -338,6 +410,10 @@
       "reason": "wording largely survives at packages/chat/src/embed-widget/browser/agent-inventory.ts (63% shared word triples); code changed in 'refactor(admin): agent inventory placeholder uses @jini-ai/chat/browser/agent-inventory'"
     },
     {
+      "id": "72c036ad1752",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
       "id": "7307a6bae836",
       "reason": "wording largely survives at packages/oauth/src/callback-page.ts (97% shared word triples); code changed in 'refactor(website): OAuth popup landing page renders through @jini-ai/oauth/callback-page'"
     },
@@ -366,6 +442,10 @@
       "reason": "wording largely survives at apps/website/src/server/runtime/composition/modules/assistant-ag-ui.ts (25% shared word triples); code changed in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'"
     },
     {
+      "id": "786edb475dc5",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
       "id": "7c7c5f4a1fc7",
       "reason": "wording largely survives at apps/website/src/server/inbound/public-http/routes/oauth/callback-page.ts (28% shared word triples); code changed in 'refactor(website): OAuth popup landing page renders through @jini-ai/oauth/callback-page'"
     },
@@ -382,12 +462,20 @@
       "reason": "wording largely survives at packages/oauth/src/callback-page.ts (50% shared word triples); code changed in 'refactor(website): OAuth popup landing page renders through @jini-ai/oauth/callback-page'"
     },
     {
+      "id": "80f6906673f9",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
       "id": "81ae25cba5b6",
       "reason": "the code it explained left this spot in 'refactor(admin-media): provider settings store comes from @jini-ai/admin'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
       "id": "8331c1cd25a9",
       "reason": "wording largely survives at packages/integrations/src/media-providers/image-model-ids.ts (30% shared word triples); code changed in 'refactor(media-generation): image-model id rule comes from @jini-ai/integrations'"
+    },
+    {
+      "id": "88f83123db4f",
+      "reason": "wording largely survives at packages/devops/src/checks/coverage/__tests__/integrity.test.ts (29% shared word triples); code changed in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'"
     },
     {
       "id": "8a3d4a10ce20",
@@ -402,8 +490,16 @@
       "reason": "wording largely survives at apps/website/src/features/deployments/deploy-config-registry.ts (72% shared word triples); code changed in 'refactor(publish-trust): import the deploy-config path guard from @jini-ai/devops (import-cycle S1)'"
     },
     {
+      "id": "8eb7aefa2834",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
       "id": "8efeece17277",
       "reason": "wording largely survives at packages/agentic/src/skills/tools/installed-skill-tools.ts (54% shared word triples); code changed in 'refactor(skills): skill tool loader and registrations from @jini-ai/agentic/skills/tools'"
+    },
+    {
+      "id": "916ccedec795",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
       "id": "91e11858cc6c",
@@ -430,6 +526,14 @@
       "reason": "wording largely survives at packages/db/src/sqlite/stopped.ts (93% shared word triples); code changed in 'refactor(db): stopped-database admission from @jini-ai/db/sqlite'"
     },
     {
+      "id": "96793ec3a1ad",
+      "reason": "wording largely survives at development/scripts/check-jini-registry-drift.mjs (27% shared word triples); code changed in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'"
+    },
+    {
+      "id": "97486d65c8b3",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
       "id": "985367b154d1",
       "reason": "wording largely survives at packages/chat/src/core/run-events/entry.ts (46% shared word triples); code changed in 'refactor(assistant): the AG-UI route uses Jini's canonical payload reducer (B1, OD-2)'"
     },
@@ -438,8 +542,16 @@
       "reason": "wording largely survives at packages/chat/src/core/ag-ui/run-input.ts (94% shared word triples); code changed in 'refactor(assistant): the AG-UI route parses its request with Jini's run-input (C1)'"
     },
     {
+      "id": "9b7c93c7b408",
+      "reason": "wording largely survives at packages/devops/src/checks/coverage/__tests__/integrity.test.ts (97% shared word triples); code changed in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'"
+    },
+    {
       "id": "9b9fe02f2ae6",
       "reason": "the code it explained left this spot in 'refactor(assistant): the AG-UI route uses Jini's canonical payload reducer (B1, OD-2)'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "9cb15a280b9c",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
       "id": "9d98bf5c5d7c",
@@ -462,6 +574,10 @@
       "reason": "wording largely survives at packages/mcp/src/federation/hosted/store.ts (32% shared word triples); code changed in 'refactor(external-mcp): probe and admissions from @jini-ai/mcp'"
     },
     {
+      "id": "a8c51b3ce12a",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
       "id": "ac721ef67e62",
       "reason": "wording largely survives at apps/website/src/server/__tests__/identity-routes.test.ts (38% shared word triples); code changed in 'refactor(commands): import InMemoryChangeSetRepo and revert from @jini-ai/cms directly'"
     },
@@ -470,8 +586,16 @@
       "reason": "wording largely survives at apps/admin/src/features/database/Database.tsx (31% shared word triples); code changed in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'"
     },
     {
+      "id": "ad0ee74b4ed4",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
       "id": "ae73600584bf",
       "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "ae845e2678bc",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
       "id": "af7e31440c6b",
@@ -494,6 +618,10 @@
       "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
+      "id": "b375a96ae78a",
+      "reason": "wording largely survives at development/scripts/check-jini-registry-drift.mjs (43% shared word triples); code changed in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'"
+    },
+    {
       "id": "b5f9428d869e",
       "reason": "wording largely survives at apps/website/src/features/publish-content/publish-backstop-row.sqlite.ts (73% shared word triples); code changed in 'refactor(size): split createRawRowSqlitePort under 50 lines'"
     },
@@ -504,6 +632,14 @@
     {
       "id": "b662b2e1a1c4",
       "reason": "wording largely survives at apps/website/src/server/runtime/composition/modules/run-finalizer/bounded-follow.ts (57% shared word triples); code changed in 'refactor(run-finalizer): A5 extract run-finalizer/stream.ts and bounded-follow.ts'"
+    },
+    {
+      "id": "b835c8f508aa",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "ba6bb4834c07",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
       "id": "bb831b3fbe6b",
@@ -530,12 +666,20 @@
       "reason": "wording largely survives at packages/chat/src/core/ag-ui/event-reduction.ts (25% shared word triples); code changed in 'refactor(assistant): the AG-UI route reads daemon frames with Jini's translateRunFrame (B3, OD-9)'"
     },
     {
+      "id": "c455527377f1",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
       "id": "c52e12c90569",
       "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
       "id": "c76e2588fad7",
       "reason": "wording largely survives at apps/admin/src/features/source-control/source-control-visuals.tsx (50% shared word triples); code changed in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'"
+    },
+    {
+      "id": "c7d9cbe0a5b8",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
       "id": "c97c8154f87d",
@@ -582,12 +726,20 @@
       "reason": "wording largely survives at apps/admin/src/features/roles/hooks/roles-dependencies.hooks.ts (75% shared word triples); code changed in 'refactor(admin-users): use the shared UsersPort and fake from @jini-ai/user-management'"
     },
     {
+      "id": "d8a093056b75",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
       "id": "da6daa76659e",
       "reason": "wording largely survives at packages/agentic/src/skills/tools/installed-skill-tools.ts (79% shared word triples); code changed in 'refactor(skills): skill tool loader and registrations from @jini-ai/agentic/skills/tools'"
     },
     {
       "id": "daef5199858a",
       "reason": "the code it explained left this spot in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "db03339e7de8",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
       "id": "dbca9bb9c34c",
@@ -638,16 +790,32 @@
       "reason": "wording largely survives at packages/oauth/src/callback-page.ts (50% shared word triples); code changed in 'refactor(website): OAuth popup landing page renders through @jini-ai/oauth/callback-page'"
     },
     {
+      "id": "f05f0b79e854",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
       "id": "f15e1d1535a2",
       "reason": "wording largely survives at packages/daemon/src/bound-confirmations.ts (58% shared word triples); code changed in 'refactor(site-assistant): visitor confirmations on @jini-ai/daemon bound confirmations'"
+    },
+    {
+      "id": "f1f5764def56",
+      "reason": "the code it explained left this spot in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
       "id": "f211325327dd",
       "reason": "wording largely survives at apps/website/src/features/publish-content/type-registry.ts (74% shared word triples); code changed in 'refactor(publish-content): split the host port bag out of the type registry (publish-engine P0.3)'"
     },
     {
+      "id": "f4453867d3b2",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
       "id": "f4938768f72f",
       "reason": "wording largely survives at apps/website/src/server/inbound/admin-http/publish-trust-auth.ts (54% shared word triples); code changed in 'refactor(size): split requirePublishTrust under 50 lines'"
+    },
+    {
+      "id": "f74b8d1ad269",
+      "reason": "wording largely survives at development/scripts/check-coverage-integrity.ts (32% shared word triples); code changed in 'refactor(scripts): coverage-integrity gate runs on @jini-ai/devops/checks/coverage'"
     },
     {
       "id": "f786bd1dabc6",
@@ -656,6 +824,10 @@
     {
       "id": "f7db4a3e8c0d",
       "reason": "the code it explained left this spot in 'refactor(admin-users): use the shared UsersPort and fake from @jini-ai/user-management'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "f7e4643c8f51",
+      "reason": "the code it explained left this spot in 'refactor(scripts): Jini publish-drift guards run on @jini-ai/devops/checks/published-types'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
       "id": "f805139a5d34",
@@ -676,6 +848,10 @@
     {
       "id": "fe19ed701569",
       "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "ff869d24ec10",
+      "reason": "wording largely survives at packages/devops/src/local-dev/free-port.ts (45% shared word triples); code changed in 'refactor(scripts): free-port binds @jini-ai/devops/local-dev'"
     }
   ]
 }
