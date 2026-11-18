@@ -11,7 +11,7 @@ import { bootSite, expectJson, send, SITE_DIALECTS, type BootedSite } from "../h
  *  - two saves of the same entry (and of the same menu) sent AT ONCE with the same base version:
  *    exactly one lands (200), the other gets the 409 VERSION_CONFLICT body naming the version that
  *    beat it. The guard is the repos' conditional `UPDATE ... WHERE version = ?`
- *    (`features/entries/repo.ts`, `features/navigation/repo.ts`); the sequential stale-version case is
+ *    (`features/entries/repo.ts`, Jini `@jini-ai/cms/navigation/sql`); the sequential stale-version case is
  *    covered (`collections-entries-` / `menus-real-composition`), the simultaneous one is not, and it
  *    is the one where a read-then-write check would let both through. On Postgres the second
  *    UPDATE waits on the first's row lock and re-checks `version`; on SQLite the writes serialize.
