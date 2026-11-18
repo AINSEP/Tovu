@@ -6,7 +6,8 @@ import type { ContentTypeFieldDef } from "#src/features/content-types/index";
 
 import { createEntry, publishEntry, EntrySlugConflictError } from "../../index.js";
 import type { EntryRecord } from "../../index.js";
-import { TrashAwareInMemoryEntryRepo } from "../../trash-aware-memory-repo.js";
+import type { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
+import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 
 /**
@@ -82,7 +83,7 @@ const RECIPE_FIELDS: ContentTypeFieldDef[] = [
 ];
 
 test("listPublishedForDisplay (memory twin): where equality filters match string, number, and boolean field values", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   await createPublishedEntry({
     repo,
     workspaceId: "ws-1",
@@ -124,7 +125,7 @@ test("listPublishedForDisplay (memory twin): where equality filters match string
 });
 
 test("listPublishedForDisplay (memory twin): sorts by a declared field asc/desc, numerically (9 before 10), not lexically", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   for (const [idSeed, slug, prepTime] of [
     ["recipe-2min", "two-minute-noodles", 2],
     ["recipe-9min", "nine-minute-eggs", 9],
@@ -160,7 +161,7 @@ test("listPublishedForDisplay (memory twin): sorts by a declared field asc/desc,
 });
 
 test("listPublishedForDisplay (memory twin): limit bounds the result count", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   for (const idSeed of ["r3", "r5", "r1", "r4", "r2"]) {
     await createPublishedEntry({
       repo,
@@ -183,7 +184,7 @@ test("listPublishedForDisplay (memory twin): limit bounds the result count", asy
 });
 
 test("listPublishedForDisplay (memory twin): excludes drafts, trashed rows, and rows of other content types", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   await createPublishedEntry({ repo, workspaceId: "ws-2", type: "recipe", contentTypeFields: RECIPE_FIELDS, idSeed: "recipe-other", slug: "other-workspace", title: "Other workspace", siteFields: {} });
   const otherRows = await repo.listPublishedForDisplay({ workspaceId: "ws-2", query: { type: "recipe", where: [], sort: { by: "title", dir: "asc" }, limit: 10 } });
   assert.deepEqual(otherRows.map((row) => row.slug), ["other-workspace"]);
@@ -220,7 +221,7 @@ test("listPublishedForDisplay (memory twin): excludes drafts, trashed rows, and 
   });
 
   // A published-then-trashed row, via the same `findAnyById`/`saveAny` Trash seam this adapter's
-  // header documents (`trash-aware-memory-repo.ts`) — the real Trash record-store adapter flips
+  // header documents (Jini's `TrashAwareInMemoryEntryRepo`) — the real Trash record-store adapter flips
   // `deletedAt` through this exact seam.
   const trashed = await createPublishedEntry({
     repo,
@@ -261,7 +262,7 @@ function seed(repo: TrashAwareInMemoryEntryRepo, id: string, siteFields: Record<
 }
 
 test("memory display sorting puts missing numeric fields first asc and last desc", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   await seed(repo, "ten", { prepTime: 10 });
   await seed(repo, "two", { prepTime: 2 });
   await seed(repo, "nine", { prepTime: 9 });
@@ -273,7 +274,7 @@ test("memory display sorting puts missing numeric fields first asc and last desc
 });
 
 test("memory display boolean sorting distinguishes false from true in both directions", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   await seed(repo, "yes", { vegetarian: true });
   await seed(repo, "no", { vegetarian: false });
   for (const [dir, expected] of [["asc", ["no", "yes"]], ["desc", ["yes", "no"]]] as const) {
@@ -283,7 +284,7 @@ test("memory display boolean sorting distinguishes false from true in both direc
 });
 
 test("memory display ties use ascending id before applying the limit, even for descending sorts", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   for (const id of ["r3", "r1", "r2"]) await seed(repo, id, {}, "Same");
   for (const dir of ["asc", "desc"] as const) {
     const rows = await repo.listPublishedForDisplay({ workspaceId: "ws-1", query: { type: "recipe", where: [], sort: { by: "title", dir }, limit: 2 } });
@@ -292,7 +293,7 @@ test("memory display ties use ascending id before applying the limit, even for d
 });
 
 test("memory display built-in title/published/updated sorts choose conflicting exact orders", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   for (const row of [
     { id: "r-c", title: "Alpha", publishedAt: "2026-09-22T00:00:00.000Z", updatedAt: "2026-09-24T00:00:00.000Z" },
     { id: "r-a", title: "Middle", publishedAt: "2026-09-24T00:00:00.000Z", updatedAt: "2026-09-23T00:00:00.000Z" },
@@ -310,7 +311,7 @@ test("memory display built-in title/published/updated sorts choose conflicting e
 });
 
 test("memory repo hides trashed holders, refuses slug reuse and ignores stale saves", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   const stale = await seed(repo, "holder");
   const trashed = { ...stale, deletedAt: "2026-09-24T00:00:00.000Z" };
   await repo.saveAny(trashed);
@@ -324,7 +325,7 @@ test("memory repo hides trashed holders, refuses slug reuse and ignores stale sa
 });
 
 test("memory repo excludes types, trash, status and other workspaces before applying a bounded list", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   const widget = await seed(repo, "widget");
   await repo.save({ ...widget, type: "widget", updatedAt: "2026-09-29T00:00:00.000Z" });
   const trashed = await seed(repo, "trash");
@@ -342,7 +343,7 @@ test("memory repo excludes types, trash, status and other workspaces before appl
 });
 
 test("memory display sorting ties missing field envelopes by id and paginates after sorting", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   const fields = [null, undefined, {}, { ext: {} }, { ext: { site: {} } }, { ext: { site: { prepTime: null } } }];
   for (const [index, fieldsJson] of fields.entries()) {
     const row = await seed(repo, `r${fields.length - index}`);
@@ -358,7 +359,7 @@ test("memory display sorting ties missing field envelopes by id and paginates af
 });
 
 test("memory display sorting compares mixed scalar types as strings and breaks equal text by id", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   for (const [id, value] of [["r4", true], ["r3", "true"], ["r2", "2"], ["r1", 10]] as const) {
     const row = await seed(repo, id);
     await repo.save({ ...row, fieldsJson: { ext: { site: { mixed: value } } } });
@@ -375,7 +376,7 @@ test("memory display sorting compares mixed scalar types as strings and breaks e
 });
 
 test("memory repo restores a trash marker and limits only live rows", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   const trash = await seed(repo, "trash");
   const first = await seed(repo, "first");
   const second = await seed(repo, "second");
@@ -390,7 +391,7 @@ test("memory repo restores a trash marker and limits only live rows", async () =
 });
 
 test("memory repo returns null for absent and foreign-workspace lookups", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   const row = await seed(repo, "present");
   for (const workspaceId of ["ws-1", "ws-foreign"]) {
     const id = workspaceId === "ws-1" ? "missing" : row.id;
@@ -403,7 +404,7 @@ test("memory repo returns null for absent and foreign-workspace lookups", async 
 });
 
 test("memory purge preserves foreign trash and releases the local id and slug for reuse", async () => {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   const row = await seed(repo, "purge");
   const trashed = { ...row, deletedAt: "2026-10-16T00:00:00Z" };
   await repo.saveAny(trashed);
@@ -419,7 +420,7 @@ test("memory purge preserves foreign trash and releases the local id and slug fo
 
 test("memory display sorting places a missing field first regardless of which side of the comparison it is on", async () => {
   // Missing values seeded before AND after present ones, so the sort compares them in both argument orders.
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   await seed(repo, "a-none");
   await seed(repo, "b-five", { prepTime: 5 });
   await seed(repo, "c-none");

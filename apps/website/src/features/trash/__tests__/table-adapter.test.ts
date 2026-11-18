@@ -9,11 +9,11 @@ import type { ContentDb } from "#src/platform/db/sqlite/content-db";
 
 
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
-import { buildTrashRegistry, type TrashEntry } from "../registry.js";
+import { buildTrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "../table-adapter.js";
-import { readLiveSnapshot } from "../entry-sql.js";
-import { createTrashService } from "@jini-ai/cms/trash";
+import { createTrashService, type TrashEntry } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
+import { readLiveSnapshot } from "@jini-ai/cms/trash/sql";
 
 /**
  * @file `createTableTrashAdapter` against real SQLite (Batch G1b).

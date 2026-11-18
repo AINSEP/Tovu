@@ -11,10 +11,10 @@ import { createContactFormResolver } from "@jini-ai/cms/widgets/resolvers";
 
 
 import { moveToTrash } from "../move-to-trash.js";
-import { buildTrashRegistry, type TrashRegistry } from "../registry.js";
+import { buildTrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "../table-adapter.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
-import { createTrashService } from "@jini-ai/cms/trash";
+import { createTrashService, type TrashRegistry } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
 
 /**

@@ -13,7 +13,8 @@ import { InMemoryMenuRepo, NAV_DOC_TYPE } from "#src/features/navigation/index";
 import type { NavMenuEntry } from "#src/features/navigation/index";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import type { ContentTypeRecord } from "#src/features/content-types/index";
-import { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
+import type { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
+import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 
 /**
@@ -192,7 +193,7 @@ test("GET /:slug (template branch): a post-previews marker in a Post's OWN body_
 });
 
 test("GET /pricing (marketing page): a {\"type\":\"widget\",\"slug\":...} text widget renders the widget's real body", async (t) => {
-  const entryRepo = new TrashAwareInMemoryEntryRepo();
+  const entryRepo = trashAwareEntryRepo();
   await seedTextWidget(entryRepo, WIDGET_SLUG, "Real widget body text");
   const { server, baseUrl } = await startServer({
     themes: [themeWithEmbedsEverywhere()],
@@ -209,7 +210,7 @@ test("GET /pricing (marketing page): a {\"type\":\"widget\",\"slug\":...} text w
 });
 
 test("a widget marker inside a theme partial (nav) resolves on BOTH the marketing page and the template-rendered post", async (t) => {
-  const entryRepo = new TrashAwareInMemoryEntryRepo();
+  const entryRepo = trashAwareEntryRepo();
   await seedTextWidget(entryRepo, WIDGET_SLUG, "Nav widget body text");
   const post = templatedPost();
   const { server, baseUrl } = await startServer({
@@ -326,7 +327,7 @@ async function seededContentTypeRepo(rows: readonly ContentTypeRecord[]): Promis
  *  host-side wrapper implements `EntryDisplayListPort` (so `seedTextWidget` above takes it too),
  *  matching the composition root's own default (`app.ts`'s `createRouteDeps`). */
 async function seededEntryRepo(rows: readonly EntryRecord[]): Promise<TrashAwareInMemoryEntryRepo> {
-  const repo = new TrashAwareInMemoryEntryRepo();
+  const repo = trashAwareEntryRepo();
   await Promise.all(rows.map((row) => repo.save(row)));
   return repo;
 }
@@ -623,7 +624,7 @@ function themeWithHomeAndNotFoundMarkers(): DiscoveredTheme {
 }
 
 test("GET / (no Page claims `/`): the static theme's own index.html widget and post-previews markers resolve, and its id-less content marker stays as written", async (t) => {
-  const entryRepo = new TrashAwareInMemoryEntryRepo();
+  const entryRepo = trashAwareEntryRepo();
   await seedTextWidget(entryRepo, WIDGET_SLUG, "Home widget body text");
   const postA = templatedPost({ id: "home-post-a", slug: "home-post-a", title: "Home Post A" });
   const postB = templatedPost({ id: "home-post-b", slug: "home-post-b", title: "Home Post B" });
@@ -653,7 +654,7 @@ test("GET / (no Page claims `/`): the static theme's own index.html widget and p
 });
 
 test("themed 404: still returns 404, its menu marker still renders (regression), and it now also resolves a widget marker", async (t) => {
-  const entryRepo = new TrashAwareInMemoryEntryRepo();
+  const entryRepo = trashAwareEntryRepo();
   await seedTextWidget(entryRepo, WIDGET_SLUG, "404 widget body text");
   const { server, baseUrl } = await startServer({
     themes: [themeWithHomeAndNotFoundMarkers()],

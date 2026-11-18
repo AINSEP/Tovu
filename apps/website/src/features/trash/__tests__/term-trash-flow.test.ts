@@ -20,9 +20,9 @@ import { SqlitePostRepo } from "#src/features/post/repo.sqlite";
 import { updatePost, type PostRecord } from "#src/features/post/index";
 
 
-import { withFollowUps } from "@jini-ai/cms/trash";
+import { withFollowUps, type TrashRegistry } from "@jini-ai/cms/trash";
 import { moveToTrash, type MoveToTrashOutcome } from "../move-to-trash.js";
-import { buildTrashRegistry, type TrashRegistry } from "../registry.js";
+import { buildTrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "../table-adapter.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
 import { createTrashService } from "@jini-ai/cms/trash";

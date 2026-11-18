@@ -31,9 +31,8 @@ import { type AliasedExpression, type Kysely, sql } from "kysely";
 
 import type { ContentDatabase } from "../../platform/db/content-database.generated.js";
 import type { TrashDb } from "./db-port.js";
-import { entryWhere, loose, qualified, type LooseExpressionBuilder } from "./entry-sql.js";
-import type { TrashAdapter, TrashEntityType, TrashMarkerResult, TrashPurgeOutcome } from "@jini-ai/cms/trash";
-import type { TrashCascadeSpec, TrashEntry, TrashMarkerSpec } from "./registry.js";
+import type { TrashAdapter, TrashEntityType, TrashMarkerResult, TrashPurgeOutcome, TrashCascadeSpec, TrashEntry, TrashMarkerSpec } from "@jini-ai/cms/trash";
+import { entryWhere, loose, qualified, type LooseExpressionBuilder } from "@jini-ai/cms/trash/sql";
 
 const VERSION_CHANGED = "version-changed";
 

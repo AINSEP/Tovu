@@ -4,9 +4,10 @@ import { test } from "node:test";
 import type { ContentKernel } from "#src/platform/db/content-kernel";
 import { describeEachDialect } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 
-import { readLiveSnapshot } from "../entry-sql.js";
-import { buildTrashRegistry, type TrashEntry } from "../registry.js";
+import { buildTrashRegistry } from "../registry.js";
 import { createTableTrashAdapter } from "../table-adapter.js";
+import type { TrashEntry } from "@jini-ai/cms/trash";
+import { readLiveSnapshot } from "@jini-ai/cms/trash/sql";
 
 /**
  * @file The generic `TRASHABLE` adapter and the live-snapshot read (`notTrashed`) on every dialect

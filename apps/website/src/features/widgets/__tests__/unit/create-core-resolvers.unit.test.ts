@@ -3,7 +3,7 @@ import { resolveMenuDoc } from "@jini-ai/cms/navigation";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
+import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
 import { InMemoryFormDefinitionRepo } from "@jini-ai/cms/forms";
 import type { NavMenuEntry, NavMenuReadModel } from "#src/features/navigation/index";
 import { createCoreResolvers } from "@jini-ai/cms/widgets/resolvers";
@@ -49,7 +49,7 @@ function fakeMenuReadModel(menu: NavMenuEntry | null): NavMenuReadModel {
 
 test("createCoreResolvers: returns the built-in dynamic resolver type keys including Gallery, each with a callable resolveMany", () => {
   const resolvers = createCoreResolvers({ crypto: globalThis.crypto, menus: { resolveMenuDoc }, collectionList: widgetCollectionListPort,
-    entryList: new TrashAwareInMemoryEntryRepo(),
+    entryList: trashAwareEntryRepo(),
     navMenuReadModel: fakeMenuReadModel(null),
     formDefinitionRepo: new InMemoryFormDefinitionRepo(),
     contentTypes: noContentTypes(),
@@ -62,7 +62,7 @@ test("createCoreResolvers: returns the built-in dynamic resolver type keys inclu
 });
 
 test("createCoreResolvers: each assembled resolver is wired to the deps it was given, not a shared/global default", async () => {
-  const entryList = new TrashAwareInMemoryEntryRepo();
+  const entryList = trashAwareEntryRepo();
   await entryList.save({
     id: "entry-1",
     workspaceId: "ws-1",

@@ -12,9 +12,9 @@ import { assignRole, createUser, type AuthServiceDeps } from "@jini-ai/user-mana
 
 import { createUserTrashAdapter, USER_ENTITY_TYPE } from "../adapters/user.js";
 import { mayActOnEntityType } from "../permissions.js";
-import { buildTrashRegistry, type TrashRegistry } from "../registry.js";
+import { buildTrashRegistry } from "../registry.js";
 import { createContentDbTransactionRunner, SqliteTrashRepo } from "../repo.sqlite.js";
-import { createTrashSweep } from "@jini-ai/cms/trash";
+import { createTrashSweep, type TrashRegistry } from "@jini-ai/cms/trash";
 import { computePurgeAfter, createTrashService } from "@jini-ai/cms/trash";
 import type { TrashAdapter, TrashPort } from "@jini-ai/cms/trash";
 import { createAppPermissionGrants } from "#src/server/runtime/composition/app-permission-grants";

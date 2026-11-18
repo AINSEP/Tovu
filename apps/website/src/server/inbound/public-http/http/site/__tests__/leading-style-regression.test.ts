@@ -4,7 +4,7 @@ import test from 'node:test';
 import { sanitizePageHtml, renderMediaRawHtml } from '@jini-ai/cms/widgets/html';
 import { buildPostRecord } from '#src/features/post/__tests__/post-record.fixture';
 import { InMemoryPostRepo } from '#src/features/post/index';
-import { TrashAwareInMemoryEntryRepo } from '#src/features/entries/trash-aware-memory-repo';
+import { trashAwareEntryRepo } from '#src/features/entries/__tests__/support/trash-aware-entry-repo';
 import { InMemoryVersionedMediaRepo } from '#src/features/media/versioned-media-repo';
 import { InMemoryMediaContentTypeStore, InMemoryTransformDefinitionRepo } from '#src/features/media/index';
 import { InMemoryPresentationSettingsRepo } from '#src/features/presentation/index';
@@ -49,7 +49,7 @@ test('static content splicing retains the leading stylesheet in saved and pendin
   const post = buildPostRecord({ workspaceId, kind: 'page', bodyFormat: 'html', bodyHtml: body });
   const deps: ContentMarkerResolutionDeps = {
     workspaceId, postRepo: new InMemoryPostRepo({}, { initialRows: [post] }),
-    entryRepo: new TrashAwareInMemoryEntryRepo(), mediaRepo: new InMemoryVersionedMediaRepo({}),
+    entryRepo: trashAwareEntryRepo(), mediaRepo: new InMemoryVersionedMediaRepo({}),
     mediaContentTypeStore: new InMemoryMediaContentTypeStore(),
     transformDefinitionRepo: new InMemoryTransformDefinitionRepo({}, { initialRows: [] }),
   };

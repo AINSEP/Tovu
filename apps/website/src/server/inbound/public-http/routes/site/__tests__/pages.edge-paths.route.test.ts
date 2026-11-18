@@ -12,7 +12,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import type { ContentTypeRecord } from "#src/features/content-types/index";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import type { EntryRecord } from "#src/features/entries/index";
-import { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
+import { trashAwareEntryRepo } from "#src/features/entries/__tests__/support/trash-aware-entry-repo";
 import { InMemoryMenuRepo, NAV_DOC_TYPE, type NavMenuEntry } from "#src/features/navigation/index";
 import { InMemoryPostRepo, ROOT_SLUG, type PostRecord } from "#src/features/post/index";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
@@ -218,7 +218,7 @@ function gadget(overrides: Partial<EntryRecord> & Pick<EntryRecord, "id" | "slug
 async function datedCollectionHtml(entry: EntryRecord): Promise<string> {
   const contentTypeRepo = new InMemoryContentTypeRepo();
   await contentTypeRepo.save(gadgetType());
-  const entryRepo = new TrashAwareInMemoryEntryRepo();
+  const entryRepo = trashAwareEntryRepo();
   await entryRepo.save(entry);
   const deps = { ...createRouteDeps(), contentTypeRepo, entryRepo };
   const marker = `<section data-embed-config='{"type":"collection","typeKey":"gadget"}'><template><p class="dated">{{title}}|{{date}}</p></template>No gadgets</section>`;

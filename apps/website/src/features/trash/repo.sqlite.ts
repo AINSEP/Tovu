@@ -1,16 +1,16 @@
 /**
- * @file The SQLite `TrashRepoPort`: {@link SqlTrashRepo} (`repo.ts`, the one Kysely body) over a
+ * @file The SQLite `TrashRepoPort`: {@link SqlTrashRepo} (Jini's `@jini-ai/cms/trash/sql`, the one Kysely body) over a
  * `content.db` handle's storage kernel — a thin subclass while call sites still hold the handle.
  * Also the content db's {@link createContentDbTransactionRunner}.
  */
-import { type ContentKernel, contentKernel } from "../../platform/db/content-kernel.js";
+import { type ContentKernel, contentKernel, schemaErasedKernel } from "../../platform/db/content-kernel.js";
 import type { SqliteConnectionSource } from "../../platform/db/kernel/index.js";
-import { SqlTrashRepo } from "./repo.js";
+import { SqlTrashRepo } from "@jini-ai/cms/trash/sql";
 
 export class SqliteTrashRepo extends SqlTrashRepo {
   /** @param required.store the content db handle, its better-sqlite3 client, or the kernel itself. */
   constructor({ store }: { store: ContentKernel | SqliteConnectionSource }) {
-    super(contentKernel({ store }));
+    super({ kernel: schemaErasedKernel({ store }), tables: { trashedItems: "trashed_items" } }, {});
   }
 }
 

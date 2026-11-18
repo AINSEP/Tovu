@@ -15,7 +15,7 @@ import type { InMemoryRedirectRepo } from "@jini-ai/cms/redirects";
 import type { InMemoryCommentRepo } from "@jini-ai/cms/comments";
 import type { InMemoryVersionedMediaRepo } from "#src/features/media/index";
 import type { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
-import type { TrashAwareInMemoryEntryRepo } from "#src/features/entries/trash-aware-memory-repo";
+import type { TrashAwareInMemoryEntryRepo } from "@jini-ai/cms/entries";
 import type { TrashDb } from "#src/features/trash/index";
 import type { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import type { TrashAwareInMemoryMenuRepo } from "#src/features/navigation/trash-aware-memory-menu-repo";
