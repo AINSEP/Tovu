@@ -88,7 +88,7 @@ import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "../../apps/website/src/
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createSystemClock, createRandomUuidGenerator } from "@jini-ai/platform/system";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
-import { daemonRouteHost, mountJiniRoutes } from "../../apps/website/src/server/runtime/composition/jini-routes.js";
+import { daemonRouteHost, mountJiniRoutes } from "@tovu/host-shared/jini-routes";
 import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
 import { resolveMcpJsonInjection } from "../../apps/website/src/assistant/mcp-injection.js";
 import { initializeStartupSecrets } from '../../apps/website/src/platform/secrets/startup-secrets.js';
