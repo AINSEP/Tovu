@@ -2,8 +2,8 @@ import { act, cleanup, render, renderHook, screen } from "@/__tests__/fetch-quer
 import { lazy, type ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createAdmin } from '@jini-ai/admin/core/module';
-import { defineAdminModule } from '@jini-ai/core/contracts/admin-module';
-import type { ModulePageProps } from '@jini-ai/admin/react/bind-react';
+import { defineAdminModule, type ModulePageProps } from '@jini-ai/core/contracts/admin-module';
+import type { LazyTabView } from '@jini-ai/admin/core/react';
 import { createOverlayController } from '@jini-ai/admin/react/overlays';
 import { AdminModulesContext, createHostAdminScope, mediaPublishContribution, useAdminModules, useHostMediaPicker, useModulePanel, useModuleProviderContent } from '../modules.hooks';
 import { PublishSectionButton } from '../../../features/publish-content/PublishSectionButton';
@@ -23,7 +23,7 @@ type Runtime = NonNullable<ReturnType<typeof useAdminModules>>;
 function reportsRuntime(): Runtime {
   const reports = defineAdminModule({ id: 'reports', pages: { overview: { path: '/reports', label: 'Reports', tabs: { daily: { label: 'Daily' }, weekly: { label: 'Weekly' } } } } });
   const admin = createAdmin({ modules: [reports], ports: {} });
-  function Page(props: ModulePageProps & { params?: Readonly<Record<string, unknown>> }) {
+  function Page(props: ModulePageProps<LazyTabView> & { params?: Readonly<Record<string, unknown>> }) {
     const { requestedTab, onTabChange, description } = props;
     return <div><p>{`${description.id} tab=${requestedTab ?? 'none'}`}</p><p>{`params=${'params' in props ? JSON.stringify(props.params) : 'absent'}`}</p><button type="button" onClick={() => onTabChange?.({ tab: 'weekly' })}>Weekly</button></div>;
   }
