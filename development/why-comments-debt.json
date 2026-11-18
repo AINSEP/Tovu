@@ -1,4 +1,41 @@
 {
   "version": 1,
-  "allow": []
+  "allow": [
+    {
+      "id": "010687fc2a46",
+      "reason": "Moved to Jini @jini-ai/admin/consent/react preview-scale.ts (Jini 973c07777), reworded neutral; the Tovu file no longer holds the code it explained."
+    },
+    {
+      "id": "df71d71beff3",
+      "reason": "Header of the deleted SmtpMailerAdapter wrapper era; the file now only loads nodemailer lazily and its new header says so."
+    },
+    {
+      "id": "7891185bc85e",
+      "reason": "Documented the deleted SmtpMailerAdapterDeps clock seam; the wrapper class is gone (Jini's adapter takes nowMs directly)."
+    },
+    {
+      "id": "51e0e39463a9",
+      "reason": "Documented the deleted Tovu SmtpMailerAdapter wrapper class; the rationale lives on Jini's SmtpMailerAdapter."
+    },
+    {
+      "id": "25186ff8b98a",
+      "reason": "Doc of the deleted wrapper's capabilities() forwarder; Jini's adapter carries the doc."
+    },
+    {
+      "id": "3a8732221a51",
+      "reason": "Doc of the deleted wrapper's send() forwarder; Jini's adapter carries the doc."
+    },
+    {
+      "id": "5726e7f1e95d",
+      "reason": "Doc of the deleted wrapper's sendBatch() forwarder; Jini's adapter carries the doc."
+    },
+    {
+      "id": "6052f781f34f",
+      "reason": "Header of the deleted ports.ts re-export file; platform/mail/index.ts line 1 states the same boundary."
+    },
+    {
+      "id": "c16792653055",
+      "reason": "Pointer to Jini's ports.ts/types.ts; platform/mail/index.ts line 2 already carries the same pointer."
+    }
+  ]
 }
