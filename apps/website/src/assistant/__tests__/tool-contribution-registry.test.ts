@@ -27,7 +27,7 @@ import { installFirstPartyToolContributors } from "../../server/runtime/composit
 import { type ToolContributor } from "../tool-registrations.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { toAssistantRegistryDeps } from "#src/assistant/__tests__/fixtures/registry-deps";
-import { commentsAgentToolCatalog } from "../../features/comments/agent-tools.js";
+import { commentsAgentToolCatalog } from "@jini-ai/cms/comments";
 import { DEMO_CHOICES_TOOL_ID } from "../demo-choices-tool.js";
 
 const contributions = {

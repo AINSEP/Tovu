@@ -48,7 +48,7 @@ import { demoChoicesAgentToolCatalog } from "../demo-choices-tool.js";
 import { demoImageAgentToolCatalog } from "../demo-image-tool.js";
 import { externalMcpReauthAgentToolCatalog } from "../external-mcp-reauth-tool.js";
 import { renderUiAgentToolCatalog } from "../render-ui-tool.js";
-import { commentsAgentToolCatalog } from "../../features/comments/agent-tools.js";
+import { commentsAgentToolCatalog } from "@jini-ai/cms/comments";
 import {
   contentTypesAgentToolCatalog,
   type ContentTypesAgentToolDefinition as AgentToolDefinition,
