@@ -1,0 +1,18 @@
+row  1 RED                      outbox-repo.ts :: outbox claim
+row  2 RED                      outbox-repo.ts :: a row left in processing is claimed again once its claim lease has expired
+row  3 RED                      outbox-repo.ts :: without an option the stored lease expiry is now + the events barrel constant exactly
+row  4 RED                      outbox-repo.ts :: an option overrides the constant
+row  5 RED                      outbox-repo.ts :: markFailed with nextStatus pending keeps attempts
+row  6 RED                      outbox-repo.ts :: markFailed with nextStatus pending keeps attempts
+row  7 RED                      outbox-repo.ts :: two concurrent claimers never take one event
+row  8 RED                      outbox-repo.ts :: enqueue takes part in the caller's transaction
+row  9 RED                      outbox-repo.ts :: enqueue() of an id already in the outbox is a no-op
+row 10 RED                      outbox-repo.ts :: P8 a frozen event maps to the frozen outbox row
+row 11 RED                      change-set-repo.ts :: a failing item write rolls back the header and the event with it
+row 12 RED                      change-set-repo.ts :: findById, findByIdempotencyKey and listByWorkspace answer only
+row 13 RED                      change-set-repo.ts :: findById, findByIdempotencyKey and listByWorkspace answer only
+row 14 RED                      change-set-repo.ts :: findById, findByIdempotencyKey and listByWorkspace answer only
+row 15 RED                      change-set-repo.ts :: save writes status and the two timestamps of its own workspace
+row 16 RED                      change-set-repo.ts :: the co-persisted outbox row is the frozen outbox row
+row 17 RED                      change-set-repo.ts :: a supplied event is co-persisted as a pending outbox row
+ALL RED 0
