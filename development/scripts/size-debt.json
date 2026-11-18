@@ -800,13 +800,6 @@
       "value": 99
     },
     {
-      "file": "apps/website/src/features/comments/tool-registrations.ts",
-      "function": "buildCommentsRegistrations#1",
-      "line": 218,
-      "rule": "max-lines-per-function",
-      "value": 127
-    },
-    {
       "file": "apps/website/src/features/consent/service.ts",
       "function": "createSiteConsentService#1",
       "line": 83,

@@ -216,151 +216,175 @@ function requireCommentsSettingsPatch(input: Record<string, unknown>): Partial<C
   return patch;
 }
 
+/** The two things every handler factory reads: the host route deps and the assistant surfaces. */
+interface CommentsHandlerArgs {
+  deps: CommentsToolDeps;
+  surfaces: AssistantSurfaceDeps;
+}
+
+const providerRegistry = ({ deps }: { deps: CommentsToolDeps }, _optional = {}) => {
+  if (!deps.commentsProviders) throw new ToolInputError({ message: 'Comments provider service is unavailable.' });
+  return deps.commentsProviders;
+};
+
+const providerPermission = async ({ deps, principalId }: { deps: CommentsToolDeps; principalId: string }, _optional = {}) => {
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId, permission: 'comments.configure' }, { entityType: 'comments-provider' });
+  await Promise.all([deps.commentsReady, deps.commentsSettingsReady]);
+};
+
+const commentsGetProviderHandler = ({ deps }: CommentsHandlerArgs): ToolHandler => async ctx => {
+  await providerPermission({ deps, principalId: ctx.principal.id });
+  const active = await providerRegistry({ deps }).active({ siteId: deps.workspaceId });
+  const settings = await getCommentsSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId });
+  const ready = !!active.adapter && settings.enabled;
+  return { providerId: active.providerId, revision: active.revision, ready,
+    pendingCount: await deps.commentRepo.countByStatus({ workspaceId: deps.workspaceId, status: 'pending' }),
+    ...(ready ? {} : { note: providerNote({ providerId: active.providerId, adapterReady: !!active.adapter }) }) };
+};
+
+const commentsSetProviderHandler = ({ deps, surfaces }: CommentsHandlerArgs): ToolHandler => approvalToolHandler({ surfaces,
+  prepare: async ({ ctx }) => {
+    const input = requireInputRecord({ input: ctx.input });
+    refuseUnexpectedKeys(input, ['providerId', 'expectedRevision']);
+    if (input.providerId !== null && input.providerId !== 'built-in') throw new ToolInputError({ message: 'Select built-in or null to disable comments.' });
+    const expectedRevision = requireNumber({ input, key: 'expectedRevision' });
+    if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) throw new ToolInputError({ message: 'expectedRevision must be a non-negative integer.' });
+    await providerPermission({ deps, principalId: ctx.principal.id });
+    const current = await providerRegistry({ deps }).active({ siteId: deps.workspaceId });
+    if (current.revision !== expectedRevision) throw new ToolInputError({ message: 'Comments provider changed; read it again.' });
+    return { providerId: input.providerId as string | null, previousProviderId: current.providerId, expectedRevision,
+      pendingCount: await deps.commentRepo.countByStatus({ workspaceId: deps.workspaceId, status: 'pending' }) };
+  },
+  describe: ({ ctx, prepared }) => ({ toolId: 'comments_set_provider', errorCode: 'COMMENTS', title: 'Change the comments provider?',
+    access: { resources: [{ id: 'core.comments.provider', label: 'Provider', scope: { personId: ctx.principal.id, siteId: deps.workspaceId },
+      previous: prepared.previousProviderId ?? 'Disabled', proposed: prepared.providerId ?? 'Disabled', revision: String(prepared.expectedRevision) }] },
+    details: [{ label: 'Pending stored comments', value: String(prepared.pendingCount) }],
+    warning: 'Switching or disabling hides public stored comments. Stored data and the readable moderation queue are preserved.', confirmLabel: 'Change provider' }),
+  run: async ({ ctx, prepared }) => {
+    await providerPermission({ deps, principalId: ctx.principal.id });
+    const pendingCount = await deps.commentRepo.countByStatus({ workspaceId: deps.workspaceId, status: 'pending' });
+    if (pendingCount > prepared.pendingCount) throw new ToolInputError({ message: 'More comments arrived. Review a fresh provider confirmation.' });
+    await providerRegistry({ deps }).select({ siteId: deps.workspaceId, providerId: prepared.providerId, expectedRevision: prepared.expectedRevision, actorPrincipalId: ctx.principal.id });
+    return { changed: true, providerId: prepared.providerId };
+  },
+}, { flag: 'changed' });
+
+/** Reads any status directly; pagination cannot establish that an id is absent. */
+const commentsGetCommentHandler = ({ deps }: CommentsHandlerArgs): ToolHandler => async (ctx) => {
+  const commentId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "commentId" });
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "comments.read" }, { entityType: "comment", entityId: commentId });
+  await deps.commentsReady;
+  const comment = await deps.commentRepo.findById({ workspaceId: deps.workspaceId, id: commentId });
+  if (!comment) throw new CommentNotFoundError({ commentId });
+  return { comment: toCommentModerationView(comment) };
+};
+
+const commentsListModerationQueueHandler = ({ deps }: CommentsHandlerArgs): ToolHandler => async (ctx) => {
+  const input = requireInputRecord({ input: ctx.input });
+
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "comments.read" }, { entityType: "comment" });
+
+  await deps.commentsReady;
+  const status: CommentStatus = optionalOneOf({ input, key: "status", values: COMMENT_STATUSES }) ?? "pending";
+  const limit = readToolLimit({ input, max: 100, fallback: 20 });
+  // A non-string cursor is refused, not read as "no cursor" and page 1.
+  const cursor = optionalString({ input, key: "cursor" }) ?? null;
+  const page = await deps.commentRepo.listModerationQueue({ workspaceId: deps.workspaceId, status, limit, cursor });
+  return toModerationQueueToolView(page);
+};
+
+const commentsGetSettingsHandler = ({ deps }: CommentsHandlerArgs): ToolHandler => async (ctx) => {
+  // `getCommentsSettings` has no `authorize` in its deps at all (unlike `setCommentsSettings`,
+  // which self-enforces via its own `set()` call below) — the GET route gates explicitly
+  // before calling it, so this handler mirrors that same explicit call.
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "comments.configure" }, { entityType: "comments-settings" });
+
+  await deps.commentsSettingsReady;
+  const settings = await getCommentsSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId });
+  return { settings };
+};
+
+const commentsUpdateSettingsHandler = ({ deps }: CommentsHandlerArgs): ToolHandler => async (ctx) => {
+  const patch = requireCommentsSettingsPatch(requireInputRecord({ input: ctx.input }));
+
+  // No explicit pre-check here, unlike every other Comments handler: `setCommentsSettings`
+  // (settings.ts) self-enforces internally — its `set()` call is invoked with
+  // `requiredPermissionOverride: 'comments.configure'` HARD-CODED inside settings.ts itself, so
+  // passing `authorize: deps.authorize` through is exactly ADR-021 §2's "one evaluator",
+  // reached the domain-function way Forms/Identity use, not the explicit-handler way the rest
+  // of this file uses. See settings.ts's own comment on that override for why.
+  await deps.commentsSettingsReady;
+  ctx.signal.throwIfAborted();
+  const settings = await setCommentsSettings(
+    {
+      settingsRepo: deps.settingsRepo,
+      clock: deps.clock,
+      ids: deps.idGen,
+      authorize: deps.authorize,
+      principals: deps.principalRepo,
+    },
+    { workspaceId: deps.workspaceId, patch, callerPrincipalId: ctx.principal.id },
+  ).catch((error: unknown) => {
+    if (error instanceof CommentsSettingsValidationError) throw new ToolInputError({ message: error.message });
+    throw error;
+  });
+  return { settings };
+};
+
+const commentsApproveCommentHandler = ({ deps }: CommentsHandlerArgs): ToolHandler => buildCommentsModerationHandler(deps, { permission: "comments.moderate", action: "approve", toStatus: "approved" });
+
+const commentsMarkCommentSpamHandler = ({ deps }: CommentsHandlerArgs): ToolHandler => buildCommentsModerationHandler(deps, { permission: "comments.moderate", action: "mark_spam", toStatus: "spam" });
+
+/** Reversibly trashes a comment through the existing moderation and version checks. */
+const commentsTrashCommentHandler = ({ deps }: CommentsHandlerArgs): ToolHandler => async (ctx) => {
+  const input = requireInputRecord({ input: ctx.input });
+  const commentId = requireString({ input: input, key: "commentId" });
+  const expectedVersion = requireNumber({ input, key: "expectedVersion" });
+
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "comments.delete" }, { entityType: "comment", entityId: commentId });
+
+  await deps.commentsReady;
+  const existing = await deps.commentRepo.findById({ workspaceId: deps.workspaceId, id: commentId });
+  if (!existing) throw new CommentNotFoundError({ commentId });
+
+  // Re-check authorization immediately before the service write.
+  await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: deps.authorize }), workspaceId: deps.workspaceId, principalId: ctx.principal.id, permission: "comments.delete" }, { entityType: "comment", entityId: commentId });
+  const result = await deps.commentWriteService.applyModeration({
+    workspaceId: deps.workspaceId,
+    id: commentId,
+    expectedVersion,
+    action: "trash",
+    toStatus: "trash",
+    actorPrincipalId: ctx.principal.id,
+    actorPluginId: ASSISTANT_ACTOR_PLUGIN_ID,
+    note: typeof input.note === "string" ? input.note : null,
+  });
+  if (!result.ok) {
+    throw moderationFailureError({ commentId, result });
+  }
+
+  return { trashed: true, cancelled: false, moderated: { commentId, toStatus: "trash" } };
+
+};
+
+const commentsRestoreCommentHandler = ({ deps }: CommentsHandlerArgs): ToolHandler => buildCommentsModerationHandler(deps, { permission: "comments.moderate", action: "restore", toStatus: "approved" });
+
 export function buildCommentsRegistrations(
   routeDeps: CommentsToolDeps,
   surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" }) },
 ): ToolRegistration[] {
-  const providerRegistry = (_required = {}, _options = {}) => {
-    if (!routeDeps.commentsProviders) throw new ToolInputError({ message: 'Comments provider service is unavailable.' });
-    return routeDeps.commentsProviders;
-  };
-  const providerPermission = async ({ principalId }: { principalId: string }, _options = {}) => {
-    await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId, permission: 'comments.configure' }, { entityType: 'comments-provider' });
-    await Promise.all([routeDeps.commentsReady, routeDeps.commentsSettingsReady]);
-  };
+  const args: CommentsHandlerArgs = { deps: routeDeps, surfaces };
   const handlers: Record<string, ToolHandler> = {
-    comments_get_provider: async ctx => {
-      await providerPermission({ principalId: ctx.principal.id });
-      const active = await providerRegistry().active({ siteId: routeDeps.workspaceId });
-      const settings = await getCommentsSettings({ settingsRepo: routeDeps.settingsRepo }, { workspaceId: routeDeps.workspaceId });
-      const ready = !!active.adapter && settings.enabled;
-      return { providerId: active.providerId, revision: active.revision, ready,
-        pendingCount: await routeDeps.commentRepo.countByStatus({ workspaceId: routeDeps.workspaceId, status: 'pending' }),
-        ...(ready ? {} : { note: providerNote({ providerId: active.providerId, adapterReady: !!active.adapter }) }) };
-    },
-    comments_set_provider: approvalToolHandler({ surfaces,
-      prepare: async ({ ctx }) => {
-        const input = requireInputRecord({ input: ctx.input });
-        refuseUnexpectedKeys(input, ['providerId', 'expectedRevision']);
-        if (input.providerId !== null && input.providerId !== 'built-in') throw new ToolInputError({ message: 'Select built-in or null to disable comments.' });
-        const expectedRevision = requireNumber({ input, key: 'expectedRevision' });
-        if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) throw new ToolInputError({ message: 'expectedRevision must be a non-negative integer.' });
-        await providerPermission({ principalId: ctx.principal.id });
-        const current = await providerRegistry().active({ siteId: routeDeps.workspaceId });
-        if (current.revision !== expectedRevision) throw new ToolInputError({ message: 'Comments provider changed; read it again.' });
-        return { providerId: input.providerId as string | null, previousProviderId: current.providerId, expectedRevision,
-          pendingCount: await routeDeps.commentRepo.countByStatus({ workspaceId: routeDeps.workspaceId, status: 'pending' }) };
-      },
-      describe: ({ ctx, prepared }) => ({ toolId: 'comments_set_provider', errorCode: 'COMMENTS', title: 'Change the comments provider?',
-        access: { resources: [{ id: 'core.comments.provider', label: 'Provider', scope: { personId: ctx.principal.id, siteId: routeDeps.workspaceId },
-          previous: prepared.previousProviderId ?? 'Disabled', proposed: prepared.providerId ?? 'Disabled', revision: String(prepared.expectedRevision) }] },
-        details: [{ label: 'Pending stored comments', value: String(prepared.pendingCount) }],
-        warning: 'Switching or disabling hides public stored comments. Stored data and the readable moderation queue are preserved.', confirmLabel: 'Change provider' }),
-      run: async ({ ctx, prepared }) => {
-        await providerPermission({ principalId: ctx.principal.id });
-        const pendingCount = await routeDeps.commentRepo.countByStatus({ workspaceId: routeDeps.workspaceId, status: 'pending' });
-        if (pendingCount > prepared.pendingCount) throw new ToolInputError({ message: 'More comments arrived. Review a fresh provider confirmation.' });
-        await providerRegistry().select({ siteId: routeDeps.workspaceId, providerId: prepared.providerId, expectedRevision: prepared.expectedRevision, actorPrincipalId: ctx.principal.id });
-        return { changed: true, providerId: prepared.providerId };
-      },
-    }, { flag: 'changed' }),
-    /** Reads any status directly; pagination cannot establish that an id is absent. */
-    comments_get_comment: async (ctx) => {
-      const commentId = requireString({ input: requireInputRecord({ input: ctx.input }), key: "commentId" });
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "comments.read" }, { entityType: "comment", entityId: commentId });
-      await routeDeps.commentsReady;
-      const comment = await routeDeps.commentRepo.findById({ workspaceId: routeDeps.workspaceId, id: commentId });
-      if (!comment) throw new CommentNotFoundError({ commentId });
-      return { comment: toCommentModerationView(comment) };
-    },
-    comments_list_moderation_queue: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "comments.read" }, { entityType: "comment" });
-
-      await routeDeps.commentsReady;
-      const status: CommentStatus = optionalOneOf({ input, key: "status", values: COMMENT_STATUSES }) ?? "pending";
-      const limit = readToolLimit({ input, max: 100, fallback: 20 });
-      // A non-string cursor is refused, not read as "no cursor" and page 1.
-      const cursor = optionalString({ input, key: "cursor" }) ?? null;
-      const page = await routeDeps.commentRepo.listModerationQueue({ workspaceId: routeDeps.workspaceId, status, limit, cursor });
-      return toModerationQueueToolView(page);
-    },
-
-    comments_get_settings: async (ctx) => {
-      // `getCommentsSettings` has no `authorize` in its deps at all (unlike `setCommentsSettings`,
-      // which self-enforces via its own `set()` call below) — the GET route gates explicitly
-      // before calling it, so this handler mirrors that same explicit call.
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "comments.configure" }, { entityType: "comments-settings" });
-
-      await routeDeps.commentsSettingsReady;
-      const settings = await getCommentsSettings({ settingsRepo: routeDeps.settingsRepo }, { workspaceId: routeDeps.workspaceId });
-      return { settings };
-    },
-
-    comments_update_settings: async (ctx) => {
-      const patch = requireCommentsSettingsPatch(requireInputRecord({ input: ctx.input }));
-
-      // No explicit pre-check here, unlike every other Comments handler: `setCommentsSettings`
-      // (settings.ts) self-enforces internally — its `set()` call is invoked with
-      // `requiredPermissionOverride: 'comments.configure'` HARD-CODED inside settings.ts itself, so
-      // passing `authorize: routeDeps.authorize` through is exactly ADR-021 §2's "one evaluator",
-      // reached the domain-function way Forms/Identity use, not the explicit-handler way the rest
-      // of this file uses. See settings.ts's own comment on that override for why.
-      await routeDeps.commentsSettingsReady;
-      ctx.signal.throwIfAborted();
-      const settings = await setCommentsSettings(
-        {
-          settingsRepo: routeDeps.settingsRepo,
-          clock: routeDeps.clock,
-          ids: routeDeps.idGen,
-          authorize: routeDeps.authorize,
-          principals: routeDeps.principalRepo,
-        },
-        { workspaceId: routeDeps.workspaceId, patch, callerPrincipalId: ctx.principal.id },
-      ).catch((error: unknown) => {
-        if (error instanceof CommentsSettingsValidationError) throw new ToolInputError({ message: error.message });
-        throw error;
-      });
-      return { settings };
-    },
-
-    comments_approve_comment: buildCommentsModerationHandler(routeDeps, { permission: "comments.moderate", action: "approve", toStatus: "approved" }),
-    comments_mark_comment_spam: buildCommentsModerationHandler(routeDeps, { permission: "comments.moderate", action: "mark_spam", toStatus: "spam" }),
-
-    /** Reversibly trashes a comment through the existing moderation and version checks. */
-    comments_trash_comment: async (ctx) => {
-      const input = requireInputRecord({ input: ctx.input });
-      const commentId = requireString({ input: input, key: "commentId" });
-      const expectedVersion = requireNumber({ input, key: "expectedVersion" });
-
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "comments.delete" }, { entityType: "comment", entityId: commentId });
-
-      await routeDeps.commentsReady;
-      const existing = await routeDeps.commentRepo.findById({ workspaceId: routeDeps.workspaceId, id: commentId });
-      if (!existing) throw new CommentNotFoundError({ commentId });
-
-      // Re-check authorization immediately before the service write.
-      await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: "comments.delete" }, { entityType: "comment", entityId: commentId });
-      const result = await routeDeps.commentWriteService.applyModeration({
-        workspaceId: routeDeps.workspaceId,
-        id: commentId,
-        expectedVersion,
-        action: "trash",
-        toStatus: "trash",
-        actorPrincipalId: ctx.principal.id,
-        actorPluginId: ASSISTANT_ACTOR_PLUGIN_ID,
-        note: typeof input.note === "string" ? input.note : null,
-      });
-      if (!result.ok) {
-        throw moderationFailureError({ commentId, result });
-      }
-
-      return { trashed: true, cancelled: false, moderated: { commentId, toStatus: "trash" } };
-
-    },
-
-    comments_restore_comment: buildCommentsModerationHandler(routeDeps, { permission: "comments.moderate", action: "restore", toStatus: "approved" }),
+    comments_get_provider: commentsGetProviderHandler(args),
+    comments_set_provider: commentsSetProviderHandler(args),
+    comments_get_comment: commentsGetCommentHandler(args),
+    comments_list_moderation_queue: commentsListModerationQueueHandler(args),
+    comments_get_settings: commentsGetSettingsHandler(args),
+    comments_update_settings: commentsUpdateSettingsHandler(args),
+    comments_approve_comment: commentsApproveCommentHandler(args),
+    comments_mark_comment_spam: commentsMarkCommentSpamHandler(args),
+    comments_trash_comment: commentsTrashCommentHandler(args),
+    comments_restore_comment: commentsRestoreCommentHandler(args),
   };
 
   // No `unwiredToolIds`: Comments wires its ENTIRE catalog, same tripwire discipline as Forms.
