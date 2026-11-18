@@ -144,11 +144,6 @@ export function createLocalSiteProcessPort(
   const scheme = tls.active ? "https" : "http";
   let buildRoot: string | undefined;
   const registry = { readLive: async () => null, write: async () => {}, removeIfCurrent: async () => {} };
-  function stateForSite(site: ReturnType<typeof listSites>[number]) {
-    const record = site.running;
-    return record ? { name: site.name, status: record.port > 0 ? "running" as const : "starting" as const,
-      pid: record.pid, port: record.port || null, daemonPort: null, adminUrl: runningSiteUrl({ record }), app: record.app, external: true } : null;
-  }
   function existing({ name }: { name: string }) {
     const site = listSites({ cwd: switcherBase, env }).find((entry) => entry.name === name);
     return site ? stateForSite(site) : null;
@@ -156,110 +151,11 @@ export function createLocalSiteProcessPort(
   return {
     existing,
     listExisting: () => listSites({ cwd: switcherBase, env }).flatMap((site) => { const state = stateForSite(site); return state ? [state] : []; }),
-    async isPortFree({ port }) {
-      try { await allocatePort({}, { port, host: "127.0.0.1" }); } catch { return false; }
-      try { await allocatePort({}, { port, host: "::1" }); }
-      catch (error) {
-        // Missing IPv6 says nothing about a port on our IPv4 listener; a collision still refuses.
-        return /EADDRNOTAVAIL|EAFNOSUPPORT/.test(error instanceof Error ? error.message : "");
-      }
-      return true;
-    },
+    isPortFree,
     async dispose() { if (buildRoot) await rm(buildRoot, { recursive: true, force: true }); },
     schedule({ run, delayMs }) { const timer = setTimeout(run, delayMs); timer.unref(); return () => clearTimeout(timer); },
-    async launch({ name, port, daemonPort }): Promise<LocalSiteProcess> {
-      assertLocalSiteName({ name });
-      const site = listSites({ cwd: switcherBase, env }).find((entry) => entry.name === name);
-      if (!site) throw new LocalSiteError({ code: "SITE_NOT_FOUND" });
-      const siteDir = site.dir;
-      // Realpath containment is checked by the directory owner before either boot or Trash.
-      // The validated registry owns arbitrary adopted paths; Trash separately requires containment.
-      readSiteDir({ dir: siteDir });
-      // Encode ownership atomically with creation so a restart can reclaim only dead hosts' builds.
-      buildRoot ??= mkdtempSync(path.join(os.tmpdir(), `tovu-local-sites-${process.pid}-`));
-      const childBuildRoot = buildRoot;
-      const childEnv = localSiteChildEnv({ parent: env, name, siteDir, port, daemonPort, repoRoot, buildRoot: childBuildRoot });
-      const retireToken = randomBytes(32).toString("hex");
-      childEnv.TOVU_DEV_RETIRE_TOKEN = retireToken;
-      childEnv.TOVU_API_URL = `${scheme}://localhost:${port}`;
-      // Match packaged journeys: a supplied production admin bundle can be shared without rebuilding.
-      if (env.TOVU_ADMIN_DIST) childEnv.TOVU_ADMIN_DIST = env.TOVU_ADMIN_DIST;
-      const compiled = import.meta.filename.endsWith(".js");
-      const watch = !compiled && env.TOVU_DEV_WARM_SITES === "1";
-      if (watch) childEnv.TOVU_LOCAL_SITE_WATCH = "1";
-      const args = localSiteLaunchArgs({ compiled, watch, repoRoot, tsxCli: env.TOVU_DEV_TSX_CLI });
-      const diagnostics = localSiteProcessLog({ name, siteDir });
-      const adapter = createNodeDaemonProcessAdapter({ command: process.execPath,
-        args, cwd: repoRoot, env: childEnv, registry }, { ...processOptions, stderr: diagnostics.stderr });
-      const child = adapter.spawnDaemonProcess();
-      diagnostics.observe({ child });
-      if (child.pid === undefined) throw new LocalSiteError({ code: "SITE_START_FAILED" });
-      let exited = false;
-      const listeners = new Set<() => void>();
-      child.on({ event: "exit", listener: () => { exited = true; for (const listener of listeners) listener(); } });
-      child.on({ event: "error", listener: () => { exited = true; for (const listener of listeners) listener(); } });
-      let daemon: SpawnedDaemonProcess | undefined;
-      const retirementRequest = ({ method }: { method: string }, _optional = {}) => requestLoopbackHttp({ url: `${scheme}://localhost:${port}/internal/dev-site-retire`,
-        method, headers: { "x-tovu-retire": retireToken } }, { certificate: tls.credentials?.cert });
-      async function discoverDaemon() {
-        const record = await readLiveDaemonRegistryRecord({ registryPath: path.join(siteDir, "ops/assistant-daemon.json") });
-        const pid = record?.port === daemonPort ? record.pid : daemon?.pid;
-        if (pid === undefined) return;
-        const live = (await listProcessSnapshots()).find((item) => item.pid === pid);
-        const apiPid = watch ? listSites({ cwd: switcherBase, env }).find(site => site.name === name)?.running?.pid : child.pid;
-        if (!isDaemonOwnedBy({ live, apiPid })) { daemon = undefined; return; }
-        daemon = { pid, on() {}, kill(_required, { signal = "SIGTERM" } = {}) {
-          try { process.kill(pid, signal); return true; } catch { return false; }
-        } };
-      }
-      return {
-        pid: child.pid,
-        async tryRetire() {
-          try { return (await retirementRequest({ method: "POST" })).status === 204; }
-          catch {
-            // Retirement is an optional probe; undo a partial request before refusing eviction.
-            await retirementRequest({ method: "DELETE" }).then((response) => {
-              if (response.status !== 204) diagnostics.record({ level: "error", message: `Could not cancel site retirement: HTTP ${response.status}` });
-            }).catch((error: unknown) => diagnostics.record({ level: "error", message: `Could not cancel site retirement: ${describeErrorForLog({ err: error })}` }));
-            return false;
-          }
-        },
-        async cancelRetirement() {
-          await retirementRequest({ method: "DELETE" }).then((response) => {
-            if (response.status !== 204) diagnostics.record({ level: "error", message: `Could not cancel site retirement: HTTP ${response.status}` });
-          }).catch((error: unknown) => diagnostics.record({ level: "error", message: `Could not cancel site retirement: ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}` }));
-        },
-        onExit({ listener }) { listeners.add(listener); if (exited) listener(); },
-        async ready() {
-          if (!childEnv.TOVU_ADMIN_DIST) await waitForLocalAdminBuild({ runtimeDir: childBuildRoot, exited: () => exited });
-          if (exited) return false;
-          try { await discoverDaemon(); }
-          catch (error) {
-            diagnostics.record({ level: "error", message: `pid=${child.pid} readiness discovery failed: ${format(error)}` });
-            throw error;
-          }
-          if (exited) return false;
-          const probeOptions = { certificate: tls.credentials?.cert, servername: "localhost" };
-          const apiReady = await probeHttp({ url: `${scheme}://127.0.0.1:${port}/readyz` }, probeOptions);
-          const adminReady = apiReady && await probeHttp({ url: `${scheme}://127.0.0.1:${port}/admin/` }, probeOptions);
-          if (!adminReady) diagnostics.record({ message: `pid=${child.pid} readiness failed: readyz=${apiReady}, admin=${apiReady ? adminReady : "not probed"}` });
-          return adminReady;
-        },
-        async terminate() {
-          diagnostics.record({ message: `pid=${child.pid} supervisor requested tree termination` });
-          try { await discoverDaemon(); } catch { /* Tree teardown must still run when discovery fails. */ }
-          // A daemon detaches into its own group. Keep its identity even after API crash/reparenting.
-          await adapter.terminateProcess({ child });
-          await discoverDaemon();
-          if (daemon) await adapter.terminateProcess({ child: daemon });
-        },
-        killNow() {
-          diagnostics.record({ message: `pid=${child.pid} host shutdown requested tree termination` });
-          void adapter.terminateProcess({ child }).catch((error: unknown) => diagnostics.record({ level: "error", message: `Could not terminate the site process: ${describeErrorForLog({ err: error })}` }));
-          if (daemon) void adapter.terminateProcess({ child: daemon }).catch((error: unknown) => diagnostics.record({ level: "error", message: `Could not terminate the site daemon: ${describeErrorForLog({ err: error })}` }));
-        },
-      };
-    },
+    launch: createLocalSiteLauncher({ switcherBase, env, repoRoot, tls, scheme, registry, processOptions, probeHttp },
+      () => buildRoot ??= mkdtempSync(path.join(os.tmpdir(), `tovu-local-sites-${process.pid}-`))),
   };
 }
 
@@ -270,4 +166,161 @@ function isDaemonOwnedBy(
 ): boolean {
   const owner = live ? readFlagValue(live.command.trim().split(/\s+/), "--local-site-api-pid") : null;
   return Boolean(live?.command.includes("agent-daemon-server")) && owner === String(apiPid);
+}
+
+interface LocalSiteLaunchContext {
+  switcherBase: string; env: NodeJS.ProcessEnv; repoRoot: string;
+  tls: ReturnType<typeof resolveDevTls>; scheme: string;
+  registry: { readLive: () => Promise<null>; write: () => Promise<void>; removeIfCurrent: () => Promise<void> };
+  processOptions: NodeDaemonProcessOptions | undefined; probeHttp: typeof probeLoopbackHttp;
+}
+
+function stateForSite(site: ReturnType<typeof listSites>[number]) {
+  const record = site.running;
+  return record ? { name: site.name, status: record.port > 0 ? "running" as const : "starting" as const,
+    pid: record.pid, port: record.port || null, daemonPort: null, adminUrl: runningSiteUrl({ record }), app: record.app, external: true } : null;
+}
+
+const isPortFree: LocalSiteProcessPort["isPortFree"] = async ({ port }) => {
+  try { await allocatePort({}, { port, host: "127.0.0.1" }); } catch { return false; }
+  try { await allocatePort({}, { port, host: "::1" }); }
+  catch (error) {
+    // Missing IPv6 says nothing about a port on our IPv4 listener; a collision still refuses.
+    return /EADDRNOTAVAIL|EAFNOSUPPORT/.test(error instanceof Error ? error.message : "");
+  }
+  return true;
+};
+
+function createLocalSiteLauncher(context: LocalSiteLaunchContext, getBuildRoot: () => string): LocalSiteProcessPort["launch"] {
+  return async function launch({ name, port, daemonPort }): Promise<LocalSiteProcess> {
+    const prepared = prepareLocalSiteChild(context, { name, port, daemonPort }, getBuildRoot);
+    const { repoRoot, registry, processOptions } = context;
+    const { args, childEnv, siteDir } = prepared;
+    const diagnostics = localSiteProcessLog({ name, siteDir });
+    const adapter = createNodeDaemonProcessAdapter({ command: process.execPath,
+      args, cwd: repoRoot, env: childEnv, registry }, { ...processOptions, stderr: diagnostics.stderr });
+    const child = adapter.spawnDaemonProcess();
+    diagnostics.observe({ child });
+    if (child.pid === undefined) throw new LocalSiteError({ code: "SITE_START_FAILED" });
+    return observeLocalSiteChild(context, { ...prepared, name, port, daemonPort, child, adapter, diagnostics });
+  };
+}
+
+function prepareLocalSiteChild(context: LocalSiteLaunchContext, { name, port, daemonPort }: Parameters<LocalSiteProcessPort["launch"]>[0], getBuildRoot: () => string) {
+  const { switcherBase, env, repoRoot, scheme } = context;
+  assertLocalSiteName({ name });
+  const site = listSites({ cwd: switcherBase, env }).find((entry) => entry.name === name);
+  if (!site) throw new LocalSiteError({ code: "SITE_NOT_FOUND" });
+  const siteDir = site.dir;
+  // Realpath containment is checked by the directory owner before either boot or Trash.
+  // The validated registry owns arbitrary adopted paths; Trash separately requires containment.
+  readSiteDir({ dir: siteDir });
+  // Encode ownership atomically with creation so a restart can reclaim only dead hosts' builds.
+  const childBuildRoot = getBuildRoot();
+  const childEnv = localSiteChildEnv({ parent: env, name, siteDir, port, daemonPort, repoRoot, buildRoot: childBuildRoot });
+  const retireToken = randomBytes(32).toString("hex");
+  childEnv.TOVU_DEV_RETIRE_TOKEN = retireToken;
+  childEnv.TOVU_API_URL = `${scheme}://localhost:${port}`;
+  // Match packaged journeys: a supplied production admin bundle can be shared without rebuilding.
+  if (env.TOVU_ADMIN_DIST) childEnv.TOVU_ADMIN_DIST = env.TOVU_ADMIN_DIST;
+  const compiled = import.meta.filename.endsWith(".js");
+  const watch = !compiled && env.TOVU_DEV_WARM_SITES === "1";
+  if (watch) childEnv.TOVU_LOCAL_SITE_WATCH = "1";
+  const args = localSiteLaunchArgs({ compiled, watch, repoRoot, tsxCli: env.TOVU_DEV_TSX_CLI });
+  return { siteDir, childBuildRoot, childEnv, retireToken, watch, args };
+}
+
+function createLocalDaemonDiscovery(context: LocalSiteLaunchContext, { name, daemonPort, siteDir, child, watch }: {
+  name: string; daemonPort: number; siteDir: string; child: SpawnedDaemonProcess; watch: boolean;
+}) {
+  const { switcherBase, env } = context;
+  let daemon: SpawnedDaemonProcess | undefined;
+  async function discoverDaemon() {
+    const record = await readLiveDaemonRegistryRecord({ registryPath: path.join(siteDir, "ops/assistant-daemon.json") });
+    const pid = record?.port === daemonPort ? record.pid : daemon?.pid;
+    if (pid === undefined) return;
+    const live = (await listProcessSnapshots()).find((item) => item.pid === pid);
+    const apiPid = watch ? listSites({ cwd: switcherBase, env }).find(site => site.name === name)?.running?.pid : child.pid;
+    if (!isDaemonOwnedBy({ live, apiPid })) { daemon = undefined; return; }
+    daemon = { pid, on() {}, kill(_required, { signal = "SIGTERM" } = {}) {
+      try { process.kill(pid, signal); return true; } catch { return false; }
+    } };
+  }
+  return { discoverDaemon, get daemon() { return daemon; } };
+}
+
+function observeLocalSiteChild(context: LocalSiteLaunchContext, prepared: ReturnType<typeof prepareLocalSiteChild> & {
+  name: string; port: number; daemonPort: number; child: SpawnedDaemonProcess;
+  adapter: ReturnType<typeof createNodeDaemonProcessAdapter>; diagnostics: ReturnType<typeof localSiteProcessLog>;
+}): LocalSiteProcess {
+  const { scheme, tls } = context;
+  const { name, port, daemonPort, siteDir, child, adapter, diagnostics, watch, childEnv, childBuildRoot, retireToken } = prepared;
+  let exited = false;
+  const listeners = new Set<() => void>();
+  child.on({ event: "exit", listener: () => { exited = true; for (const listener of listeners) listener(); } });
+  child.on({ event: "error", listener: () => { exited = true; for (const listener of listeners) listener(); } });
+  const discovery = createLocalDaemonDiscovery(context, { name, daemonPort, siteDir, child, watch });
+  const { discoverDaemon } = discovery;
+  const retirementRequest = ({ method }: { method: string }, _optional = {}) => requestLoopbackHttp({ url: `${scheme}://localhost:${port}/internal/dev-site-retire`,
+    method, headers: { "x-tovu-retire": retireToken } }, { certificate: tls.credentials?.cert });
+  return {
+    pid: child.pid!,
+    ...createLocalSiteRetirement(retirementRequest, diagnostics),
+    onExit({ listener }) { listeners.add(listener); if (exited) listener(); },
+    ready: createLocalSiteReadiness(context, { child, childEnv, childBuildRoot, diagnostics, port }, { exited: () => exited, discoverDaemon }),
+    async terminate() {
+      diagnostics.record({ message: `pid=${child.pid} supervisor requested tree termination` });
+      try { await discoverDaemon(); } catch { /* Tree teardown must still run when discovery fails. */ }
+      // A daemon detaches into its own group. Keep its identity even after API crash/reparenting.
+      await adapter.terminateProcess({ child });
+      await discoverDaemon();
+      if (discovery.daemon) await adapter.terminateProcess({ child: discovery.daemon });
+    },
+    killNow() {
+      diagnostics.record({ message: `pid=${child.pid} host shutdown requested tree termination` });
+      void adapter.terminateProcess({ child }).catch((error: unknown) => diagnostics.record({ level: "error", message: `Could not terminate the site process: ${describeErrorForLog({ err: error })}` }));
+      if (discovery.daemon) void adapter.terminateProcess({ child: discovery.daemon }).catch((error: unknown) => diagnostics.record({ level: "error", message: `Could not terminate the site daemon: ${describeErrorForLog({ err: error })}` }));
+    },
+  };
+}
+
+function createLocalSiteRetirement(retirementRequest: (input: { method: string }) => ReturnType<typeof requestLoopbackHttp>, diagnostics: ReturnType<typeof localSiteProcessLog>) {
+  return {
+    async tryRetire() {
+      try { return (await retirementRequest({ method: "POST" })).status === 204; }
+      catch {
+        // Retirement is an optional probe; undo a partial request before refusing eviction.
+        await retirementRequest({ method: "DELETE" }).then((response) => {
+          if (response.status !== 204) diagnostics.record({ level: "error", message: `Could not cancel site retirement: HTTP ${response.status}` });
+        }).catch((error: unknown) => diagnostics.record({ level: "error", message: `Could not cancel site retirement: ${describeErrorForLog({ err: error })}` }));
+        return false;
+      }
+    },
+    async cancelRetirement() {
+      await retirementRequest({ method: "DELETE" }).then((response) => {
+        if (response.status !== 204) diagnostics.record({ level: "error", message: `Could not cancel site retirement: HTTP ${response.status}` });
+      }).catch((error: unknown) => diagnostics.record({ level: "error", message: `Could not cancel site retirement: ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}` }));
+    },
+  };
+}
+
+function createLocalSiteReadiness(context: LocalSiteLaunchContext, { child, childEnv, childBuildRoot, diagnostics, port }: {
+  child: SpawnedDaemonProcess; childEnv: NodeJS.ProcessEnv; childBuildRoot: string; diagnostics: ReturnType<typeof localSiteProcessLog>; port: number;
+}, state: { exited: () => boolean; discoverDaemon: () => Promise<void> }) {
+  const { scheme, tls, probeHttp } = context;
+  return async function ready() {
+    if (!childEnv.TOVU_ADMIN_DIST) await waitForLocalAdminBuild({ runtimeDir: childBuildRoot, exited: state.exited });
+    if (state.exited()) return false;
+    try { await state.discoverDaemon(); }
+    catch (error) {
+      diagnostics.record({ level: "error", message: `pid=${child.pid} readiness discovery failed: ${format(error)}` });
+      throw error;
+    }
+    if (state.exited()) return false;
+    const probeOptions = { certificate: tls.credentials?.cert, servername: "localhost" };
+    const apiReady = await probeHttp({ url: `${scheme}://127.0.0.1:${port}/readyz` }, probeOptions);
+    const adminReady = apiReady && await probeHttp({ url: `${scheme}://127.0.0.1:${port}/admin/` }, probeOptions);
+    if (!adminReady) diagnostics.record({ message: `pid=${child.pid} readiness failed: readyz=${apiReady}, admin=${apiReady ? adminReady : "not probed"}` });
+    return adminReady;
+  };
 }
