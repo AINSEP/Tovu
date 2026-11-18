@@ -19,6 +19,7 @@ import type { SpawnOptions } from "node:child_process";
 import type { Readable } from "node:stream";
 
 import { decodeTokenSignInEntries, parsePluginTokenMap } from "@jini-ai/agent-plugins/connect";
+// `TokenSignInPlugin` (the engine's type) is one service the create form can offer a token field for — mirrors `contracts/project.ts`.
 import type { TokenMapLimits, TokenSignInPlugin } from "@jini-ai/agent-plugins/connect";
 
 import { buildCliSpawnPlan, buildCliEnv, parseCliErrorLine } from "./tovu-server.ts";
@@ -41,6 +42,10 @@ type ListSpawnFn = (command: string, args: string[], options: SpawnOptions) => L
 const PLUGIN_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const MAX_TOKENS = 8;
 const MAX_TOKEN_LENGTH = 4096;
+/**
+ * What `tovu init` re-checks, handed to the engine's validator: a plain object with at most {@link MAX_TOKENS} entries,
+ * each a plugin id `tovu init` accepts, mapped to a string it accepts.
+ */
 const TOKEN_LIMITS: TokenMapLimits = { pluginIdPattern: PLUGIN_ID_PATTERN, maxTokens: MAX_TOKENS, maxTokenLength: MAX_TOKEN_LENGTH };
 
 /**
