@@ -1,6 +1,6 @@
 # S1 — delete the `deps.ts` site-paths re-export; repoint importers by symbol
 
-Responsibility: the import surface of `deps.ts` only. Budget ≤80k. Commits: 2. Prerequisites: S0 on `refactor/deps-split`; COMMON §1-§4 (`DS_SHEET=S1`).
+Responsibility: the import surface of `deps.ts` only. Budget ≤70k. Commits: 2. Prerequisites: S0 on `refactor/deps-split`; COMMON §1-§4 (`DS_SHEET=S1`).
 The re-export is `deps.ts:395` on `b5fbf2a5` (`grep -n '^export {.*} from "./site-paths.js";$' …/deps.ts` prints exactly one line; anything else = `STOP-ANCHOR`).
 
 ## Moves
