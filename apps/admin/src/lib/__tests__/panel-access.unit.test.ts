@@ -2,11 +2,10 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import type { AdminNavGroup } from "@jini-ai/admin/core";
+import { isPanelAccessible, withoutInaccessiblePanels, type AdminNavGroup } from "@jini-ai/admin/core";
 
 import { ADMIN_PANELS } from "../../panels";
 import { getNav } from "../../nav";
-import { isPanelAccessible, resolvePanelAccessGate, withoutInaccessiblePanels } from "../panel-access";
 
 /**
  * @file The admin nav hides a section the signed-in operator cannot use, and a direct URL to one
@@ -90,20 +89,26 @@ describe("withoutInaccessiblePanels over the real nav", () => {
   });
 });
 
-describe("resolvePanelAccessGate", () => {
+/** The direct-URL decision `App.tsx`'s `gatedRouteElement` makes: the routed panel's declaration, `{}` for none. */
+function gate(input: { panelId: string | null; permissions: readonly string[] | undefined }): "allowed" | "denied" {
+  const panel = ADMIN_PANELS.find((candidate) => candidate.id === (input.panelId ?? "dashboard")) ?? {};
+  return isPanelAccessible({ panel, permissions: input.permissions }) ? "allowed" : "denied";
+}
+
+describe("the direct-URL gate over the real panels", () => {
   it("denies an editor's direct visit to Users and Roles", () => {
-    expect(resolvePanelAccessGate({ panelId: "users", panels: ADMIN_PANELS, permissions: EDITOR })).toBe("denied");
-    expect(resolvePanelAccessGate({ panelId: "roles", panels: ADMIN_PANELS, permissions: EDITOR })).toBe("denied");
+    expect(gate({ panelId: "users", permissions: EDITOR })).toBe("denied");
+    expect(gate({ panelId: "roles", permissions: EDITOR })).toBe("denied");
   });
 
   it("allows the owner everywhere and the editor on Posts", () => {
-    expect(resolvePanelAccessGate({ panelId: "roles", panels: ADMIN_PANELS, permissions: OWNER })).toBe("allowed");
-    expect(resolvePanelAccessGate({ panelId: "posts", panels: ADMIN_PANELS, permissions: EDITOR })).toBe("allowed");
+    expect(gate({ panelId: "roles", permissions: OWNER })).toBe("allowed");
+    expect(gate({ panelId: "posts", permissions: EDITOR })).toBe("allowed");
   });
 
   it("allows the dashboard fallback and an unregistered id, which have no permission to check", () => {
-    expect(resolvePanelAccessGate({ panelId: null, panels: ADMIN_PANELS, permissions: [] })).toBe("allowed");
-    expect(resolvePanelAccessGate({ panelId: "not-a-panel", panels: ADMIN_PANELS, permissions: [] })).toBe("allowed");
+    expect(gate({ panelId: null, permissions: [] })).toBe("allowed");
+    expect(gate({ panelId: "not-a-panel", permissions: [] })).toBe("allowed");
   });
 });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isPanelAccessible, withoutInaccessiblePanels } from "../panel-access";
+import { isPanelAccessible, withoutInaccessiblePanels } from "@jini-ai/admin/core";
 
 import { ADMIN_PANELS } from "../../panels";
 import { getNav } from "../../nav";
@@ -7,7 +7,7 @@ import { getNav } from "../../nav";
 /**
  * @file P1 (admin-ui plan, T1a): for five fixed permission lists, which of the real `ADMIN_PANELS` an
  * operator may use and which rows the real nav shows. The literals below were produced by running
- * Tovu's own rule (`lib/panel-access.ts`) over the real `panels.tsx` list on the base commit, before
+ * Tovu's own rule (`lib/panel-access.ts`, since deleted by T1a) over the real `panels.tsx` list on the base commit, before
  * any edit; they are never computed from the rule under test. The rule may move (T1a repoints it to
  * `@jini-ai/admin/core`); these sets must not change.
  */

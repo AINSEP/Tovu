@@ -1,6 +1,5 @@
 import { Suspense, type ReactNode } from "react";
 import type { AdminPanel } from "@jini-ai/admin/core";
-import type { PanelAccessDeclaration } from "./lib/panel-access";
 import type { PanelRenderContext } from "./panel-contracts";
 export type { PanelRouteContext, PanelRenderContext } from "./panel-contracts";
 import { postEditorRouteKey } from "./features/posts/post-editor-route-key";
@@ -111,12 +110,16 @@ import { t as tApp } from "./app-i18n";
 export type PanelRenderer = (ctx: PanelRenderContext, optional?: Record<string, never>) => ReactNode;
 
 /**
- * A Tovu panel: Jini's `AdminPanel` plus `anyOfPermissions`, the permission ids its landing server
- * route checks. `lib/panel-access.ts` reads it to hide the nav row and gate a direct URL for an
- * operator who holds none of them (UX only — the server still re-checks every request).
+ * A Tovu panel: Jini's `AdminPanel`, whose `anyOfPermissions` is the permission ids the panel's
+ * landing server route checks. `@jini-ai/admin/core`'s `isPanelAccessible` / `withoutInaccessiblePanels`
+ * read it to hide the nav row and gate a direct URL for an operator who holds none of them. NOT A
+ * SECURITY BOUNDARY: this only decides whether a row shows and whether a screen mounts; every route
+ * re-checks server-side. The point is UX: an editor used to see Users and Roles & Permissions and
+ * land on a screen whose first read the server answered 403. An unknown permission list (the session
+ * has not answered yet) shows every panel rather than flashing an empty nav.
  * `lib/__tests__/panel-access.unit.test.ts` pins each declared id against the server route file.
  */
-export type TovuAdminPanel = AdminPanel<PanelRenderer> & PanelAccessDeclaration;
+export type TovuAdminPanel = AdminPanel<PanelRenderer>;
 
 /**
  * Every admin section, in the order the sidebar groups them (see `nav.ts`'s `getNav()`, which
@@ -456,7 +459,7 @@ const PANELS: readonly TovuAdminPanel[] = [
     id: "users",
     description: "Manage admin users and their account access.",
     // Any-of, matching `routes/users/list.ts`: the built-in admin role holds `member.manage` but not
-    // `user.manage`, and still reads this roster. See `lib/panel-access.ts` for why this is any-of.
+    // `user.manage`, and still reads this roster. Any-of is why this is `anyOfPermissions` and not `permissions` (all-of).
     anyOfPermissions: ["user.manage", "member.manage"],
     // `/change-password` (password-banner plan, 2026-09-24 Slice 3): the dashboard nag's "Change
     // password" link (`adminHref({ routePath: "/users/change-password" })`) lands here — same `ctx.view` switch
