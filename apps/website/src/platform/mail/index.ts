@@ -10,7 +10,8 @@ export type {
   SenderDomainVerification,
   SenderDomainVerificationPort,
 } from "@jini-ai/platform/mail";
-export type { ConsoleMailerAdapter, InMemoryMailerAdapter, MailerPort, MailerSendOptions, MailTestApproval } from "./ports.js";
+/** MailerPort is Jini's positional mailer: host adapters keep the consumer call shape and translate at dispatch; approval facts are re-checked in the provider's delivery policy. */
+export type { PositionalMailer as MailerPort, MailerSendOptions, MailTestApproval } from "@jini-ai/platform/mail";
 export type { MailAdapterCreateContext, MailAdapterCredential, MailAdapterKit, MailAdapterModule } from "./adapter-module.js";
 export { isMailDeliveryAvailable, MAIL_DELIVERY_UNAVAILABLE_NOTE } from "./delivery-availability.js";
 export {

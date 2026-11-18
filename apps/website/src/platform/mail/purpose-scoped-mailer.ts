@@ -5,7 +5,7 @@
 import {
   wrapMailerWithPurposeGate as wrapJiniMailerWithPurposeGate,
 } from "@jini-ai/platform/mail";
-import type { MailerPort } from "./ports.js";
+import type { PositionalMailer as MailerPort } from "@jini-ai/platform/mail";
 import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
 
 // Lane/readiness rationale: Jini/packages/platform/src/mail/purpose-scoped-mailer.ts (SPEC-022 C-005 / U-001).
