@@ -125,22 +125,9 @@ export interface ProvidersProps {
   useIntegrationsHook?: typeof useWiredIntegrations;
 }
 
-/** Resolved separately rather than as a default parameter value inside {@link Providers}'s own body
- *  — same complexity-ceiling idiom `SettingsUi.tsx`'s own resolver group uses: ESLint counts a
- *  default inside a function's OWN body as one of that function's branches, a call out to a
- *  separately-scoped resolver does not. */
-function resolveProvidersHook({ override }: { override: typeof useProviders | undefined }, _options: Record<string, never> = {}): typeof useProviders {
-  return override ?? useProviders;
-}
-
-export function Providers(props: ProvidersProps) {
-  const themeBoundary = useAdminThemeBoundary({}, {});
-  const locale = useAdminLocale();
-  const useProvidersHook = resolveProvidersHook({ override: props.useProvidersHook });
-  const p = useProvidersHook();
-  const activeTabId = resolveProvidersTabId({ tabId: props.tabId });
-
-  const tabs: TabBarTab[] = [
+/** The four tab-bar entries, labelled for `locale`. */
+function providersTabs({ locale }: { locale: ReturnType<typeof useAdminLocale> }, _options: Record<string, never> = {}): TabBarTab[] {
+  return [
     {
       id: "external-mcp",
       label: t({ locale: locale, key: "External MCP" }),
@@ -204,6 +191,30 @@ export function Providers(props: ProvidersProps) {
       handleLabel: "Switch to the Webhooks tab — outbound webhooks this site sends when its content changes (soon)",
     },
   ];
+}
+
+/** Hooks `Providers` calls itself; defaults to the real ones, a test hands in fakes. */
+export const defaultProvidersHooks = { useAdminThemeBoundary, useAdminLocale };
+export type ProvidersHooks = typeof defaultProvidersHooks;
+
+/** Hook-calling shell. The screen body lives in {@link ProvidersView}, so these injected defaults
+ *  are branches of this tiny function, not of the body's own complexity budget. */
+export function Providers({ useProvidersHook = useProviders, hooks = defaultProvidersHooks, ...props }: ProvidersProps & { hooks?: ProvidersHooks | undefined }) {
+  const themeBoundary = hooks.useAdminThemeBoundary({}, {});
+  const locale = hooks.useAdminLocale();
+  const p = useProvidersHook();
+  return <ProvidersView {...props} p={p} locale={locale} themeBoundary={themeBoundary} />;
+}
+
+function ProvidersView(props: ProvidersProps & {
+  p: ReturnType<typeof useProviders>;
+  locale: ReturnType<typeof useAdminLocale>;
+  themeBoundary: ReturnType<typeof useAdminThemeBoundary>;
+}) {
+  const { p, locale, themeBoundary } = props;
+  const activeTabId = resolveProvidersTabId({ tabId: props.tabId });
+
+  const tabs = providersTabs({ locale });
 
   return (
     <I18nProvider

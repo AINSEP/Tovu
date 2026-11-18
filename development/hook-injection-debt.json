@@ -895,24 +895,6 @@
         "apps/admin/src/features/posts/Posts.tsx"
       ]
     },
-    "Providers::useAdminLocale": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/providers/Providers.tsx"
-      ]
-    },
-    "Providers::useAdminThemeBoundary": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/providers/Providers.tsx"
-      ]
-    },
-    "Providers::useProvidersHook": {
-      "count": 1,
-      "files": [
-        "apps/admin/src/features/providers/Providers.tsx"
-      ]
-    },
     "ProvidersTab::useAdminLocale": {
       "count": 1,
       "files": [
