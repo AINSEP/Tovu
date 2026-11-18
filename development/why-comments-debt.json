@@ -6,6 +6,10 @@
       "reason": "the code it explained left this spot in 'refactor(admin): move the fetch seam to lib/admin-http (size 06 step 1)'; comment not carried over (Jini follow-up if the code now lives there)"
     },
     {
+      "id": "008d40e2211d",
+      "reason": "wording largely survives at apps/desktop/src/main/updates/desktop-updater.ts (27% shared word triples); code changed in 'fix(desktop): import electron-updater statically again; the wiring test pins the static form'"
+    },
+    {
       "id": "07fbe6272722",
       "reason": "wording largely survives at packages/cms/src/widgets/markers/html-attributes.ts (100% shared word triples); code changed in 'refactor(admin-media): use the shared media HTML-attribute parser from @jini-ai/admin/media'"
     },
@@ -68,6 +72,14 @@
     {
       "id": "45a36fce171f",
       "reason": "the code it explained left this spot in 'refactor(admin): tab-row and card glyphs come from the @jini-ai/ui Icon catalog'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "4846db0accb4",
+      "reason": "the code it explained left this spot in 'fix(desktop): import electron-updater statically again; the wiring test pins the static form'; comment not carried over (Jini follow-up if the code now lives there)"
+    },
+    {
+      "id": "49816eddc943",
+      "reason": "wording largely survives at apps/desktop/src/project-ipc.ts (64% shared word triples); code changed in 'fix(desktop): merge-b desktop part (held cloud patch, pushed --no-verify, owner OK 11-16)'"
     },
     {
       "id": "4a0df02b889f",
