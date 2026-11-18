@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { redactSecrets } from '@jini-ai/core';
 import { maskLocalPaths } from '@jini-ai/diagnostics';
+import { describeTelemetryFailure } from '@jini-ai/diagnostics/observability';
+import { createAsyncLocalSpanScope } from '@jini-ai/diagnostics/observability/node';
 import { createNoopProductAnalytics, withProductAnalyticsGuards } from '@jini-ai/analytics/product';
 import { type ProductAnalyticsPort, createNoopObservabilityPort, type ErrorReport, type ObservabilityPort } from '@jini-ai/core/contracts/observability';
 import type { PluginDiscoveryRecord } from '@jini-ai/plugins/host/node';
@@ -145,7 +147,7 @@ export async function loadProductProviders(required: ProductProviderInput, { res
         importModule: createPluginModuleImporter({ manifest, source: 'built-in' }),
         coreDeps: { getCurrentEntry: unavailable, writeExtField: unavailable, attachFilter: unavailable } },
         contracts: PROVIDER_CONTRACTS, contract, id: provider.id,
-        input: { ...entry.input, release: required.release, environment: required.attribution.attributes.environment, attribution: required.attribution } }, { factoryOptions: { info() {}, ...(contract === 'observability' ? { exportEnabled: required.observabilityExportEnabled } : {}) } });
+        input: { ...entry.input, release: required.release, environment: required.attribution.attributes.environment, attribution: required.attribution } }, { factoryOptions: { info() {}, ...(contract === 'observability' ? { exportEnabled: required.observabilityExportEnabled, scope: createAsyncLocalSpanScope({}) } : { describeTelemetryFailure }) } });
       resources.push(resource);
       // The provider host validated the selected contract before returning its opaque port.
       Object.assign(result, { [key]: resource.port });

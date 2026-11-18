@@ -1,7 +1,7 @@
 import { createFormCollectionRegistry, type FormCollectionRegistry } from "@jini-ai/cms/forms";
 import { type FormCollectionProvider } from "@jini-ai/core/contracts/forms";
 import { leasedProviderItem, type LoadedProviderItem } from "@jini-ai/commerce/payments/kernel";
-import { createTracker, createTrackerWarning, createTelemetryTestProbe } from "@jini-ai/diagnostics/observability/node";
+import { createAsyncLocalSpanScope, createTracker, createTrackerWarning, createTelemetryTestProbe } from "@jini-ai/diagnostics/observability/node";
 import type { ConsentPluginContribution } from '#src/contracts/headless/index';
 import { createHash } from 'node:crypto';
 import { createTelemetryDeliveryMonitor, describeTelemetryFailure, type Tracker, type ProviderTelemetryReport, type TelemetryTestResult } from "@jini-ai/diagnostics/observability";
@@ -351,7 +351,9 @@ export async function bootProviderPlugins(required: BootProviderPluginsRequired,
   const release = required.release ?? processBuildRelease({});
   const exportEnabled = resolveTovuObservabilityExport({ env: optional.env });
   // Factory options are host-owned; analytics and AI tracing retain their existing policies.
-  const exportOptions = (contract: ProviderSlotContract) => contract === 'observability' ? { exportEnabled } : {};
+  // Each initialization gets its own span scope; the analytics provider reports delivery failures through diagnostics' classifier.
+  const exportOptions = (contract: ProviderSlotContract) => contract === 'observability' ? { exportEnabled, scope: createAsyncLocalSpanScope({}) }
+    : contract === 'product_analytics' ? { describeTelemetryFailure } : {};
   const warn = optional.warn ?? ((message: string) => console.warn(`[provider-plugins] ${message}`));
   const delivery = createTelemetryDeliveryMonitor({ warn });
   const testProbe = createTelemetryTestProbe({});
