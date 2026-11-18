@@ -1,0 +1,80 @@
+{
+  "_about": "Model-facing guide modules for development/scripts/check-tool-guides.ts (source C). kind 'guide': its strings are scanned. kind 'not-guide': the report-only candidate pass found a registered tool named in a string literal there and a person judged it is not text a model reads (reason says why). A path starting ../Jini/ is in the sibling Jini checkout.",
+  "sources": [
+    {
+      "path": "apps/website/src/server/inbound/assistant/assistant-system-overlay.ts",
+      "kind": "guide",
+      "reason": "The overlay appended to the assistant's system prompt; names tools the model is told to call."
+    },
+    {
+      "path": "apps/website/src/server/inbound/assistant/assistant-runtime-guidance.ts",
+      "kind": "guide",
+      "reason": "Runtime guidance sentences the model reads at run start."
+    },
+    {
+      "path": "apps/website/src/features/agent-plugins/bundled-catalog.ts",
+      "kind": "guide",
+      "reason": "Bundled plugin catalog text shown to the model when it lists or loads plugins."
+    },
+    {
+      "path": "apps/website/src/features/agent-plugins/host-tool-ports.ts",
+      "kind": "guide",
+      "reason": "Host tool-port wording that reaches the model in plugin tool results."
+    },
+    {
+      "path": "apps/website/src/features/plugin-runtime/plugin-tool-messages.ts",
+      "kind": "guide",
+      "reason": "Plugin tool result and refusal messages the model reads."
+    },
+    {
+      "path": "apps/website/src/features/plugin-runtime/capability-card.ts",
+      "kind": "guide",
+      "reason": "Capability card text the model reads before it uses a plugin."
+    },
+    {
+      "path": "../Jini/packages/daemon/src/core/read-only-tools.ts",
+      "kind": "guide",
+      "reason": "Read-only gateway refusal sentences the model reads."
+    },
+    {
+      "path": "../Jini/packages/mcp/src/server/tool-result-pages.ts",
+      "kind": "guide",
+      "reason": "Paged tool result notices that tell the model which tool reads the next page."
+    },
+    {
+      "path": "content/agent-plugins/how-tovu-works/skills/how-tovu-works/SKILL.md",
+      "kind": "guide",
+      "reason": "Shipped plugin guidance the model loads as a skill."
+    },
+    {
+      "path": "content/agent-plugins/how-tovu-works/skills/build-agent-plugin/SKILL.md",
+      "kind": "guide",
+      "reason": "Shipped plugin guidance the model loads as a skill."
+    },
+    {
+      "path": "content/agent-plugins/how-tovu-works/tovu-site-guide.json",
+      "kind": "guide",
+      "reason": "The site guide's topics, served to the model by site_guide."
+    },
+    {
+      "path": "content/agent-plugins/tovu-theme/skills/tovu-theme/SKILL.md",
+      "kind": "guide",
+      "reason": "Shipped plugin guidance the model loads as a skill."
+    },
+    {
+      "path": "content/agent-plugins/tovu-theme/skills/tovu-theme/references/theme-v2-contract.md",
+      "kind": "guide",
+      "reason": "Reference the tovu-theme skill points the model at."
+    },
+    {
+      "path": "content/agent-plugins/tovu-theme/skills/tovu-theme/references/motion.md",
+      "kind": "guide",
+      "reason": "Reference the tovu-theme skill points the model at."
+    },
+    {
+      "path": "content/agent-plugins/tovu-theme/skills/tovu-theme/references/kuinetic-worked-example.md",
+      "kind": "guide",
+      "reason": "Reference the tovu-theme skill points the model at."
+    }
+  ]
+}
