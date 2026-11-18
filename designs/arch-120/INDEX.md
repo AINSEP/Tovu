@@ -1,78 +1,100 @@
-# arch-120 — sheet index
+# arch-120 — sheet index (revision 2)
 
-Design: [`DESIGN.md`](DESIGN.md). Facts: [`facts/`](facts/) (regenerate with `tools/regenerate-facts.sh`). Reviewed list: [`ACCEPTED-EDGES.tsv`](ACCEPTED-EDGES.tsv) (119 rows).
-Facts base: `origin/refactor/import-cycle-b` `f0613d9e5` (terra + import-cycle-b). Jini: `origin/refactor/terra` `4c189236`, built and linked.
+Design: [`REVISION-2.md`](REVISION-2.md), which supersedes DESIGN.md §0–§6. Judge: [`CODEX-JUDGE-1.md`](CODEX-JUDGE-1.md). Facts: [`rev2/facts/`](rev2/facts/); `facts/` holds the revision-1 facts on `f0613d9e5`, kept for the record.
+Base: Tovu `origin/refactor/terra` `b5fbf2a5e`, Jini `origin/refactor/terra` `6c9effae`. The coordinator may name a later integration branch that contains it; every sheet's prerequisites are re-checked on that branch.
 
-## Order and prerequisites
+## Order
 
-| # | sheet | responsibility | prerequisite (checked by the sheet's own STOP block) | base branch | effect on `check:architecture` |
-|---|---|---|---|---|---|
-| 1 | [S1](sheets/S1-soon-lock-through-lifecycle.md) | remove E085: site-backup asks the lifecycle owner `findSoonPlugin` | E085 import present once; `findSoonPlugin` absent | `origin/refactor/import-cycle-b` or any later branch containing it | 120 → 119 NEW lines (all in the base output) |
-| 2 | [S2](sheets/S2-accept-edges-tool.md) | dev tool that adds reviewed edges to the baseline (no other metric) | the gate still prints `NEW cross-feature edge: <edge>`; baseline file round-trips in the writer format | same as S1; independent of S1 (can run in parallel) | unchanged |
-| 3 | [S3](sheets/S3-apply-accepted-edges.md) | regenerate facts on the live base, apply the reviewed list | S1 and S2 merged into its base; `9240cbe1` reachable | the integration branch that holds S1 + S2 | → **exit 0** |
-
-S1 and S2 touch disjoint files and can run at the same time; S3 runs once both are merged into one branch. Estimated size: S1 ~80k context, S2 ~70k, S3 ~70k (each sheet ≤ 120k, far under the 250k cap).
-
-Every sheet: Node 24; Jini `refactor/terra` built (`pnpm --no-bail -r build`) and linked with `link-jini.mjs` (it covers the root, `apps/admin` and `apps/site-chat`; no sheet touches `apps/desktop`); `@tovu/sdk` built (without it `tsc` reports `TS2307 '@tovu/sdk'`, which is an environment error, not a regression). Each sheet records its own base gate output first and judges every commit with `tools/sheet-gates.sh --compare` (owner decision BASE-RED: no new line beyond the base output).
-
-## Base gate output (facts base, `tools/sheet-gates.sh`)
-
-```
-architecture: exit 1, 121 finding lines        (120 NEW edges + the "regressed against a hard constraint" line)
-boundaries: exit 15, 15 finding lines          (15 no-deep-imports errors; facts/base-gates.f0613d9e.txt)
-why-comments: exit 1, 1 finding lines          (ac521b7d86c5, server/routes/types.ts:1720, inherited from ratchets-arch)
-complexity / errors / error-rule-copies / hooks / size / tsc / tsc-tests: exit 0
-```
-
-## File overlap with the live lanes
-
-Files each sheet changes:
-
-| sheet | files |
-|---|---|
-| S1 | `apps/website/src/features/agent-plugins/lifecycle.ts`, `apps/website/src/features/site-backup/import-plugin-state.ts`, `apps/website/src/features/agent-plugins/__tests__/unit/soon-lock.unit.test.ts` |
-| S2 | new: `development/scripts/accept-architecture-edges.ts`, `development/scripts/architecture-edge-acceptance.ts`, `development/scripts/__tests__/accept-architecture-edges.test.ts` |
-| S3 | `development/scripts/check-architecture.baseline.json`, new: `development/boundaries/accepted-cross-feature-edges.tsv` |
-
-Lane diffs measured 2026-11-18 against each lane's merge-base with the facts base (`git diff --name-only $(git merge-base origin/<lane> origin/refactor/import-cycle-b) origin/<lane>`):
-
-| lane | branch (tip date) | files changed | overlap with S1/S2/S3 files | cross-feature edges the lane adds / removes (`tools/lane-edges.sh`) |
+| # | sheet | removes | prerequisite (checked by the sheet's own STOP block) | size |
 |---|---|---|---|---|
-| S/U cms chain | `wave3/su-cms` (11-18) | 96 | none | +1 `entries/repo.sqlite.ts → media/access-evidence.ts` (classifier: MOVED, same names as `entries/repo.ts → media/access-evidence.ts`); −3: `entries/repo.ts → media/access-evidence.ts`, `publish-content/tovu-publish-ports.ts → entries/contracts.ts`, `→ taxonomy/contracts.ts` |
-| S/U | `wave3/su-s5` (11-18) | 83 | none (touches `site-backup/__tests__/integration/saved-keys-store.fixture.ts`, not S1's files) | −1 `tovu-publish-ports.ts → taxonomy/contracts.ts` |
-| K lane | `wave3/kt-k03-k04`, `kt-k05`, `kt-k07`, `kt-k09-k10`, `kt-t-po` (11-18) | 50 / 101 / 43 / 55 / 34 | none | removals only: `site-backup/import-keep-off.ts → widgets/media-html.ts` (k03-k04, k05, k07, k09-k10), `tovu-publish-ports.ts → taxonomy/contracts.ts` (k05), `site-backup/static-download-landing.ts → post/html-plain-text.ts` (t-po) |
-| admin J/JM | `wave3/admin-j3-t1a`, `wave2/admin-j` (11-18) | 339 / 1 | none (touches other files in `agent-plugins/__tests__/unit/`: `a10c-access-token-seam`, `host-signals`) | none |
-| daemon R7/R8 | `wave2/daemon-r7`, `wave2/daemon-r8` (11-18) | 20 / 13 | none | none |
-| desktop D0c | `wave3/desktop-d0c` (11-18) | 162 | none (touches other `agent-plugins/__tests__/unit/` files) | none |
-| publish-engine | `wave2/publish-p0-rest` (11-17) | 162 | none; it edits `publish-content/tovu-publish-ports.ts` (owner of RC2's code, see DESIGN §3.6) | none |
-| moves | `wave3/moves-b1` (11-18) | 136 | none | −1 `member-login/link-policy.ts → members/index.ts` |
+| 1 | [R1](sheets/R1-rank-keyed-edge-ratchet.md) | the ratchet stops judging strictly-downward edges; 2 rank fixes; baseline key cut to the legacy non-downward set | ranks file present; gate prints NEW lines | ≤ 120k |
+| 2 | [M1](sheets/M1-media-door-and-owned-shapes.md) | N030 N031 N036 N062 N063 (door) and N046 N050 (type-up) | R1 in base | ≤ 150k |
+| 2 | [P1](sheets/P1-consumer-owned-ports.md) | N001 N002 N003 N016 N059 N064 | R1 in base | ≤ 200k |
+| 3 | [C1](sheets/C1-publish-ports-generic-engine.md) | N068–N078 | R1 in base; `wave3/moves-b1` merged | ≤ 250k |
+| lane | `wave3/import-cycle-b-2` (not a sheet here) | N102–N106, N111 (done in 2f6bfeed); N015 (S3b, still to re-apply) | — | — |
+
+M1 and P1 touch disjoint files and can run in parallel. When every row is done, `check:architecture` prints **no** `NEW cross-feature edge` line and no new mutual pair. It still exits 1 on the API surface until F-S lands (REVISION-2 §7). That is stated, not hidden.
+
+## Setup (every sheet; Node 24; checkouts named exactly `Tovu` and `Jini`, side by side)
+
+```bash
+set -euo pipefail
+export PATH="$HOME/.local/node24/bin:$PATH"
+BASE="${BASE:-origin/refactor/terra}"
+(cd Jini && git fetch origin refactor/terra && git checkout --detach origin/refactor/terra && pnpm install --frozen-lockfile && pnpm --no-bail -r build)
+cd Tovu && git fetch origin "${BASE#origin/}"
+git checkout -b "$SHEET_BRANCH" "$BASE"            # e.g. refactor/arch-120-r1
+npm ci
+JINI_PACKAGES_DIR="$PWD/../Jini/packages" node development/scripts/link-jini.mjs
+npm --prefix packages/contracts run build && npm --prefix packages/sdk run build   # tsc needs @tovu/sdk
+RUN=$(mktemp -d); echo "RUN=$RUN"                 # per-run scratch; never a shared /tmp path
+mkdir "$RUN/base"; OUT="$RUN/base"                 # then run the Gate block once, unmodified, to record the base
+```
+
+Base on `b5fbf2a5e` (`rev2/facts/base-gates.b5fbf2a5e.txt`): typecheck, typecheck:tests, check:complexity, check:size, check:why-comments, check:errors, check:error-rule-copies and check:hooks exit 0. `check:boundaries` exits 15 (15 errors), `check:architecture` exits 1, and `lint` exits 1 (559 errors repo-wide), so the block runs lint only on the files the sheet touches.
+
+## Gate block G
+
+Run it once for the base (`OUT=$RUN/base`, with `FILES` empty: lint is skipped) and after every commit (`OUT=$RUN/now`, with `FILES` set to the sheet's changed `.ts` files). Every command is the repo's own. The block stops at the first failure. A red-on-base gate passes only when its run completed (summary line present) and it prints no finding line beyond the base.
+
+```bash
+set -euo pipefail
+mkdir -p "$OUT"
+npm run typecheck
+npm run typecheck:tests
+npm run check:complexity
+npm run check:size
+npm run check:why-comments
+npm run check:errors
+npm run check:error-rule-copies
+npm run check:hooks
+if [ -n "${FILES:-}" ]; then npx biome lint $FILES; fi
+rc=0; npm run check:boundaries > "$OUT/boundaries.txt" 2>&1 || rc=$?
+grep -q 'modules, .* dependencies cruised' "$OUT/boundaries.txt" || { echo "STOP G1: check:boundaries did not complete (exit $rc)"; exit 1; }
+grep '^  error' "$OUT/boundaries.txt" | sort > "$OUT/boundaries.errors"
+grep '^  warn' "$OUT/boundaries.txt" | sort > "$OUT/boundaries.warns"
+rc=0; npm run check:architecture > "$OUT/architecture.txt" 2>&1 || rc=$?
+grep -q 'cross-feature import edges (all-import)' "$OUT/architecture.txt" || { echo "STOP G2: check:architecture did not complete (exit $rc)"; exit 1; }
+grep 'NEW cross-feature edge' "$OUT/architecture.txt" | sort > "$OUT/architecture.new" || true
+awk '/module API surface \(files exposed\) /{print $NF; exit}' "$OUT/architecture.txt" > "$OUT/api"
+awk '/module cycles \(mutual pairs, runtime-only\)/{print $NF; exit}' "$OUT/architecture.txt" > "$OUT/pairs"
+if [ "$OUT" != "$RUN/base" ]; then
+  B="$RUN/base"
+  test -z "$(comm -13 "$B/boundaries.errors" "$OUT/boundaries.errors")" || { echo "STOP G3: new check:boundaries error"; comm -13 "$B/boundaries.errors" "$OUT/boundaries.errors"; exit 1; }
+  test -z "$(comm -13 "$B/boundaries.warns" "$OUT/boundaries.warns")"   || { echo "STOP G4: new check:boundaries warning"; comm -13 "$B/boundaries.warns" "$OUT/boundaries.warns"; exit 1; }
+  test -z "$(comm -13 "$B/architecture.new" "$OUT/architecture.new")"   || { echo "STOP G5: new NEW cross-feature edge"; comm -13 "$B/architecture.new" "$OUT/architecture.new"; exit 1; }
+  test "$(cat "$OUT/api")"   -le "$(cat "$B/api")"   || { echo "STOP G6: API surface rose"; exit 1; }
+  test "$(cat "$OUT/pairs")" -le "$(cat "$B/pairs")" || { echo "STOP G7: runtime mutual pairs rose"; exit 1; }
+fi
+npm run test:ci          # the repo's full suite (TAP to development/coverage/test-results-all.tap)
+npm run check:test-baseline
+```
+
+`npm run test:ci` exits non-zero on any failing test. If the base itself has failures that `development/scripts/repo-test-failure-baseline.json` tolerates, use `npm run test:ci || true` followed by `npm run check:test-baseline`, which then decides: it reads the TAP file and fails on any failure not in that baseline. Record which form the base needed, in the sheet's report.
+
+After `git pull --rebase` and before every push, run the block again (`OUT=$RUN/rebased`). Never push a red block.
+
+## Lane overlap
+
+Measured 2026-11-18 over the 110 lanes updated since 11-16 with `git diff --name-only $(git merge-base <lane> b5fbf2a5e) <lane>` (`rev2/facts/lane-overlap.txt`):
+
+| lane | files it shares with a sheet | effect | action |
+|---|---|---|---|
+| `wave3/import-cycle-b-2` | `source-control/commit-site.ts`, `tool-registrations.ts` | removes the 6 value-up edges and the runtime pair; adds 3 LEGITIMATE edges | runs in parallel; it must also re-apply S3b (N015) |
+| `wave3/su-cms-3` (contains terra) | `entries/trash-aware-memory-repo.ts` (M1) | removes N031; adds `entries/unreadable-owner-entries-repair.ts → trash/repo.sqlite.ts` (4→3, down, LEGITIMATE under R1) | if merged first, M1 drops its N031 step (M1 P-check) |
+| `wave3/su-cms` | the same file | the same | the same |
+| `wave3/moves-b1` | `media/where-used.ts` (M1), `publish-content/tovu-publish-ports.ts` (C1) | repoints `EntryRefsRepoPort` to `@jini-ai/cms/widgets` (no feature edge change) | C1 waits for it; M1 rebases over it (import-line conflict only) |
+| `wave3/xpkg-c12obs-r12` | `custom-credentials/tool-registrations.ts` (P1), `credential-ports.ts` | swaps an `ObservabilityPort` import (Jini path) | P1 rebases over it (import-line conflict only) |
+| `wave3/admin-j3-t1a` | `external-mcp/contracts.ts` (P1), `source-control/commit-site.ts` | 4 changed lines in contracts.ts | P1's STOP re-checks the `ExternalMcpConnectStart` export |
+| `fix/vendor-names-out-of-core` | `api-connections/shared-owner.ts` (P1) | 4 changed lines | P1 re-checks `SharedOAuthOwnerStorage` |
+| `integ/ratchets-arch-2026-11-17`, `refactor/import-cycle-b` | `check-architecture.baseline.json` (R1) | pre-terra bases, superseded by `wave3/import-cycle-b-2` | if either merges, R1's baseline step re-derives the key on the merge result (it never hand-copies the list) |
+| `fix/desktop-waveb` | `publish-content/media-references.ts` | not a C1 file | none |
 
 Reproduce:
 
 ```bash
-for b in wave3/su-cms wave3/su-s5 wave3/kt-k03-k04 wave3/kt-k05 wave3/kt-k07 wave3/kt-k09-k10 wave3/kt-t-po wave3/admin-j3-t1a wave2/admin-j wave2/daemon-r7 wave2/daemon-r8 wave3/desktop-d0c wave2/publish-p0-rest wave3/moves-b1; do
-  git fetch -q origin $b; mb=$(git merge-base origin/$b origin/refactor/import-cycle-b)
-  git diff --name-only $mb origin/$b | grep -E 'agent-plugins/lifecycle.ts|site-backup/import-plugin-state.ts|soon-lock.unit.test.ts|accept-architecture-edges|architecture-edge-acceptance|check-architecture.baseline.json|accepted-cross-feature-edges' | sed "s#^#$b: #"
-done                                      # prints nothing on 2026-11-18
-TOVU="$PWD" bash designs/arch-120/tools/lane-edges.sh wave3/su-cms wave3/su-s5 wave3/kt-k05 wave3/kt-t-po wave3/moves-b1
+git for-each-ref --format='%(committerdate:short) %(refname:short)' refs/remotes/origin | awk '$1>="2026-11-16"' | while read d b; do
+  mb=$(git merge-base "$b" b5fbf2a5e) || continue
+  git diff --name-only "$mb" "$b" | grep -E 'check-architecture|feature-ranks|features/(media|post|entries|forms|agent-plugins|api-connections|external-mcp|project-keys|custom-credentials|plugin-runtime|publish-content)/' | sed "s#^#$b #"
+done
 ```
-
-### What the edge changes mean for merge order
-
-- **No file conflicts.** No lane edits any S1/S2/S3 file, and no lane edits `check-architecture.baseline.json`.
-- **Removals are harmless.** A lane that removes an edge leaves a stale baseline entry (follow-up F-1), never a red gate.
-- **The one addition (`wave3/su-cms`)**: if su-cms merges **before** S3, S3's regeneration classifies its edge as MOVED and accepts it with evidence (no action). If su-cms merges **after** S3, that merge makes `check:architecture` print one NEW line. Whoever merges then runs, on the merge result:
-
-```bash
-OUT=/tmp/arch120/facts TOVU="$PWD" bash designs/arch-120/tools/regenerate-facts.sh   # tools from origin/plan/design-arch-120-2026-11-17
-python3 designs/arch-120/tools/make-accepted.py /tmp/arch120/facts/EDGES.tsv > /tmp/arch120/accepted.tsv || echo "STOP: a NEW edge needs a decision"
-L=development/boundaries/accepted-cross-feature-edges.tsv
-awk -F'\t' 'NR==FNR { have[$1]=1; next } FNR>1 && !($1 in have)' $L /tmp/arch120/accepted.tsv >> $L
-npx tsx development/scripts/accept-architecture-edges.ts $L && npm run check:architecture
-```
-
-- Any other lane that adds an edge after S3 gets the same treatment: the tool accepts nothing without a row, and `make-accepted.py` writes a row only for OLD/MOVED/RENAMED or a named design edge. A genuinely new dependency stops there and needs a decision, which is the gate doing its job.
-
-## Not in these sheets
-
-F-1 (prune 124 stale baseline entries), F-2 (lane T: 37 upward type-only edges, owner question Q3 of the import-cycle design), F-3 (whether `check:architecture` runs in CI). See DESIGN §9.

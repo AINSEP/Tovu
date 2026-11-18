@@ -1,0 +1,11 @@
+typecheck: 0
+typecheck:tests: 0
+check:complexity: 0
+check:size: 0
+check:why-comments: 0
+check:errors: 0
+check:error-rule-copies: 0
+check:hooks: 0
+lint: 1
+check:boundaries: 15 (15 errors, 88 warnings)
+check:architecture: 1 (120 NEW edges; API surface 842>821; new pair site-backup<->source-control)
