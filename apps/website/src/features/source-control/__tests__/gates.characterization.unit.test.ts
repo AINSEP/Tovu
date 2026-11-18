@@ -401,7 +401,7 @@ test("saved-key fallback: asked only when no source-control credential exists", 
   const repo = new InMemorySourceControlCredentialSetRepo();
   await createSourceControlCredential({ deps: {
     repo, sealer, keyring, clock: createSystemClock(), idGen: createRandomUuidGenerator(),
-    loadSourceControlProviders: githubFromSource, fetchFn: async () => new Response('{"login":"octo"}'),
+    loadSourceControlProviders: githubFromSource, httpClient: { send: async () => ({ status: 200, headers: {}, bodyText: '{"login":"octo"}' }) },
   }, input: { workspaceId: "ws-1", label: "Explicit", connection: { providerId: "github", token: "fixture_explicit_token" } } });
   const explicit = fallbackHarness();
   assert.equal((await explicit.run(repo, sealer)).ok, true);
