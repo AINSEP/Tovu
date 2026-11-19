@@ -5,7 +5,7 @@ import { sql } from "kysely";
 
 import { createMfaStore } from "#src/features/identity/mfa.repo";
 import { createRecoveryCodeStore } from "#src/features/identity/recovery-codes.repo";
-import { SqlSessionRepo } from "#src/features/identity/repo";
+import { SqlSessionRepo } from "#src/features/identity/repo.authentication";
 import { freshSqliteContentKernel } from "#src/platform/db/kernel/__tests__/dialect-matrix";
 
 /**

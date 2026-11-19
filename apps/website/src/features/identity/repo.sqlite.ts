@@ -2,17 +2,23 @@ import { type ContentKernel, contentKernel } from "../../platform/db/content-ker
 import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 
 import {
-  SqlApiKeyRepo,
-  SqlPolicyPermissionRepo,
-  SqlPolicyRepo,
-  SqlPrincipalPolicyRepo,
   SqlPrincipalRepo,
-  SqlPrincipalRoleRepo,
-  SqlRolePolicyRepo,
-  SqlRoleRepo,
-  SqlSessionRepo,
   SqlUserRepo,
 } from "./repo.js";
+import {
+  SqlApiKeyRepo,
+  SqlSessionRepo,
+} from "./repo.authentication.js";
+import {
+  SqlPolicyPermissionRepo,
+  SqlPolicyRepo,
+  SqlRoleRepo,
+} from "./repo.authorization.js";
+import {
+  SqlPrincipalPolicyRepo,
+  SqlPrincipalRoleRepo,
+  SqlRolePolicyRepo,
+} from "./repo.assignments.js";
 
 /**
  * @file The identity repo adapters on a site's SQLite `content.db`: each class is its `Sql*` repo
