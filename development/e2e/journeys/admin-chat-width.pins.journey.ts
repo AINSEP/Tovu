@@ -1,3 +1,4 @@
+import type { Page } from "@playwright/test";
 // @unrun: owner-requested edit-only dispatch, 2026-10-10. Browser execution is held.
 import { randomUUID } from "node:crypto";
 import { expect, test } from "./_fixtures.js";
@@ -33,26 +34,10 @@ for (const viewport of [
   { name: "desktop", width: 1440, height: 900, isMobile: false, hasTouch: false },
   { name: "phone", width: 390, height: 844, isMobile: true, hasTouch: true },
 ]) {
-  test.describe(`Bug pin: admin chat reply width (${viewport.name})`, () => {
-    test.use({
-      viewport: { width: viewport.width, height: viewport.height },
-      isMobile: viewport.isMobile,
-      hasTouch: viewport.hasTouch,
-    });
+  {
 
-    test("assistant fills >=95% of the row, user stays <=90%, side padding is even and <=24px, and the list never scrolls sideways", async ({ page }) => {
-      const runStarts: string[] = [];
-      page.on("request", (request) => {
-        if (request.method() === "POST" && new URL(request.url()).pathname === "/api/runs") {
-          runStarts.push(request.url());
-        }
-      });
-      await page.goto("/admin/posts", { waitUntil: "domcontentloaded" });
-      const api = assistantJourneyApi({ page });
-      const before = await captureAssistantArtifacts({ api });
-      const chat = createAdminChatDriver({ page });
 
-      try {
+async function seedAndLoadChatTranscript({ page, api, chat, runStarts, viewport }: { page: Page; api: ReturnType<typeof assistantJourneyApi>; chat: ReturnType<typeof createAdminChatDriver>; runStarts: string[]; viewport: { name: string; width: number; height: number; isMobile: boolean; hasTouch: boolean } }) {
         // New uses the real switcher/API and records this selection for reload.
         await chat.open();
         const conversationId = await chat.newConversation();
@@ -83,6 +68,11 @@ for (const viewport of [
 
         const list = chat.ui.root.locator('[data-agent-element="chat-transcript"]');
         await expect(list).toBeVisible();
+  return { runStarts, viewport, messages, list };
+}
+
+
+async function expectChatTranscriptWidth({ runStarts, viewport, messages, list }: Awaited<ReturnType<typeof seedAndLoadChatTranscript>>) {
         const layout = await list.evaluate((element, ids) => {
           const style = getComputedStyle(element);
           const paddingRight = Number.parseFloat(style.paddingRight);
@@ -124,12 +114,42 @@ for (const viewport of [
           mask: [list.locator("time"), list.locator(".jini-message-meta, .jini-run-footer, [class*=usage], [class*=timestamp]")],
         });
         expect(runStarts, "seeding and reading a completed conversation must start no model run").toEqual([]);
-      } finally {
+}
+function registerChatWidthPin({ viewport }: { viewport: { name: string; width: number; height: number; isMobile: boolean; hasTouch: boolean } }) {
+
+
+    test.use({
+      viewport: { width: viewport.width, height: viewport.height },
+      isMobile: viewport.isMobile,
+      hasTouch: viewport.hasTouch,
+    });
+
+    test("assistant fills >=95% of the row, user stays <=90%, side padding is even and <=24px, and the list never scrolls sideways", async ({ page }) => {
+      const runStarts: string[] = [];
+      page.on("request", (request) => {
+        if (request.method() === "POST" && new URL(request.url()).pathname === "/api/runs") {
+          runStarts.push(request.url());
+        }
+      });
+      await page.goto("/admin/posts", { waitUntil: "domcontentloaded" });
+      const api = assistantJourneyApi({ page });
+      const before = await captureAssistantArtifacts({ api });
+      const chat = createAdminChatDriver({ page });
+
+      try {
+  const seedAndLoadChatTranscriptState = await seedAndLoadChatTranscript({ page, api, chat, runStarts, viewport });
+  await expectChatTranscriptWidth(seedAndLoadChatTranscriptState);
+} finally {
         // Reuse the assistant journey teardown: unmount debounced browser saves before
         // deletion, then verify every created chat is gone, even after a failed assertion.
         await page.goto("/api/assistant/chats", { waitUntil: "domcontentloaded" });
         await cleanupAssistantArtifacts({ api, before });
       }
     });
-  });
+}
+
+test.describe(`Bug pin: admin chat reply width (${viewport.name})`, () => {
+registerChatWidthPin({ viewport });
+});
+}
 }
