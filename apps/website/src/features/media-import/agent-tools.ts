@@ -1,7 +1,7 @@
 import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 import type { AgentToolSideEffect } from "@jini-ai/core";
 import { FS_ROOT_IDS } from "../fs-files/layout.js";
-import { FS_FOLDER_READ_RECOVERY } from "../fs-files/site-file-request.js";
+import { FS_FOLDER_READ_RECOVERY } from "#src/contracts/core/fs-folder-recovery";
 
 /**
  * @file Agent-tool catalog for `features/media-import` — closes the "the assistant is holding a URL

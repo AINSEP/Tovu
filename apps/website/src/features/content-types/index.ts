@@ -14,7 +14,6 @@
 export type { ContentTypeFieldKind, ContentTypeFieldDef, ContentTypeStatus, ContentTypeRecord, ActorPrincipalKind, ActorIdentityInput } from "@jini-ai/cms/content-types";
 export type { Result } from "@jini-ai/core/primitives";
 export { CONTENT_TYPE_FIELD_KINDS, isContentTypeFieldKind, isIndexableFieldKind } from "@jini-ai/cms/content-types";
-export { DECLARED_CONTENT_TYPE_OWNERS } from "./declared-owners.js";
 
 
 export { listContentTypes } from "@jini-ai/cms/content-types";

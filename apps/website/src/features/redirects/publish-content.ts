@@ -7,7 +7,7 @@ import { checkRedirectFieldsWouldWrite, createRedirect, updateRedirect } from "@
 import type { RedirectsWriteDeps } from "@jini-ai/cms/redirects";
 import { RedirectConflictError, RedirectLoopError, RedirectTargetNotAllowedError, RedirectValidationError } from "@jini-ai/cms/redirects";
 import type { RedirectMatchType, RedirectRecord, RedirectStatus, RedirectStatusCode } from "@jini-ai/cms/redirects";
-import { REDIRECT_TABLES } from "./repo.sqlite.js";
+import { REDIRECT_TABLES } from "#src/contracts/core/redirect-tables";
 
 /**
  * @file `redirect`'s publish-content contribution, built on `createRepoPublishHandler`
