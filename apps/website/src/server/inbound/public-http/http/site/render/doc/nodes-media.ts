@@ -4,7 +4,7 @@ import { tryRenderRefImage, plausibleMediaRefId, mediaNodeStyleOverride } from "
 import { mediaPlaceholder } from "../media-placeholder.js";
 import { safeImageSrc, extractYoutubeVideoId } from "#src/platform/html/safe-url";
 import { escapeHtml } from "#src/platform/html/escape";
-import { formatHtmlAttributes } from "./html-attributes.js";
+import { formatHtmlAttributes } from "@jini-ai/cms/widgets/media-attributes";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { MediaAssetRenderMeta } from "../../render-context.js";
 import { mediaUrlKey } from "#src/features/media/public-path";
@@ -51,7 +51,7 @@ export function renderDocImage({ node, deps }: DocNodeHandlerRequired, _optional
   // the identical placeholder below, so invariant I2 (never silently empty) is unchanged.
   const legacySrc = safeImageSrc({ value: attrs.src });
   if (legacySrc !== null) {
-    return `<img src="${escapeHtml({ text: legacySrc })}" alt="${escapeHtml({ text: alt })}"${formatHtmlAttributes(legacyImageExtras(attrs))} loading="lazy" />`;
+    return `<img src="${escapeHtml({ text: legacySrc })}" alt="${escapeHtml({ text: alt })}"${formatHtmlAttributes({ attributes: legacyImageExtras(attrs) })} loading="lazy" />`;
   }
   return mediaPlaceholder({ label: alt || "Image" });
 }

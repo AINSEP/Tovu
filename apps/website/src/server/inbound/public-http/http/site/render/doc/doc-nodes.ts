@@ -2,14 +2,16 @@ import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
 import type { MediaAssetRenderMeta } from "../../render-context.js";
 import type { JsonValue, JsonObject } from "@jini-ai/core/primitives";
 import type { DocNodeRenderDeps, DocNodeHandlerRequired, DocNodeHandler, DocRenderOptions } from "./doc-render-contract.js";
-import { dedupeHeadingIds, alignStyleAttr, headingAnchorId, tableSpanAttrs, tableCellAlignAttr } from "./text-layout.js";
+import { toSlug } from "#src/platform/html/slug";
+import { dedupeHeadingIds, alignStyleAttr, headingAnchorId, tableSpanAttrs, tableCellAlignAttr } from "@jini-ai/cms/html/text-layout";
 import { isObject, str } from "../value-readers.js";
 import { escapeHtml } from "#src/platform/html/escape";
-import { renderMarks } from "./marks.js";
-import { safeLanguageClass } from "#src/platform/html/style-values";
+import { toAllowedHref } from "@jini-ai/cms/navigation/href";
+import { renderMarks } from "@jini-ai/cms/html/document-marks";
+import { safeLanguageClass } from "@jini-ai/cms/html/style-values";
 import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN } from "#src/features/post/rendering";
 import { WIDGET_PLACEHOLDER_IR } from "../widgets/placeholder.js";
-import { resolveEmbedHtmlAttributes, formatHtmlAttributes, omitKey } from "./html-attributes.js";
+import { resolveEmbedHtmlAttributes, formatHtmlAttributes, omitKey } from "@jini-ai/cms/widgets/media-attributes";
 import { renderDocImage, renderDocMedia, renderDocYoutube } from "./nodes-media.js";
 
 /** No-widgets default for every `renderDocNode`/`renderNodes` caller that doesn't pass one. */
@@ -97,7 +99,7 @@ function renderDocDocNode({ node, content, deps }: DocNodeHandlerRequired, _opti
 }
 
 function renderDocParagraph({ node, content, deps }: DocNodeHandlerRequired, _optional = {}): string {
-  return `<p${alignStyleAttr(node)}>${renderChildNodes({ content, deps })}</p>`;
+  return `<p${alignStyleAttr({ node })}>${renderChildNodes({ content, deps })}</p>`;
 }
 
 function renderDocHeading({ node, content, deps }: DocNodeHandlerRequired, _optional = {}): string {
@@ -106,9 +108,9 @@ function renderDocHeading({ node, content, deps }: DocNodeHandlerRequired, _opti
   // Additive: an `id` changes nothing visually, and every heading rendered before this existed
   // simply had no anchor to link to. Emitted as the FIRST attribute, which `dedupeHeadingIds`
   // relies on. Omitted entirely when the text slugifies to nothing.
-  const anchor = headingAnchorId({ node });
+  const anchor = headingAnchorId({ node, toSlug });
   const idAttr = anchor === "" ? "" : ` id="${escapeHtml({ text: anchor })}"`;
-  return `<h${h}${idAttr}${alignStyleAttr(node)}>${renderChildNodes({ content, deps })}</h${h}>`;
+  return `<h${h}${idAttr}${alignStyleAttr({ node })}>${renderChildNodes({ content, deps })}</h${h}>`;
 }
 
 /**
@@ -127,7 +129,7 @@ function renderDocTitle(): string {
 }
 
 function renderDocText({ node }: DocNodeHandlerRequired, _optional = {}): string {
-  return renderMarks({ text: typeof node.text === "string" ? node.text : "", marks: Array.isArray(node.marks) ? node.marks : undefined });
+  return renderMarks({ text: typeof node.text === "string" ? node.text : "", marks: Array.isArray(node.marks) ? node.marks : undefined, toAllowedHref });
 }
 
 function renderDocBulletList({ content, deps }: DocNodeHandlerRequired, _optional = {}): string {
@@ -177,11 +179,11 @@ function renderDocTableRow({ content, deps }: DocNodeHandlerRequired, _optional 
 }
 function renderDocTableCell({ node, content, deps }: DocNodeHandlerRequired, _optional = {}): string {
   const attrs = isObject(node.attrs) ? node.attrs : {};
-  return `<td${tableSpanAttrs(attrs)}${tableCellAlignAttr(node)}>${renderChildNodes({ content, deps })}</td>`;
+  return `<td${tableSpanAttrs({ attrs })}${tableCellAlignAttr({ node })}>${renderChildNodes({ content, deps })}</td>`;
 }
 function renderDocTableHeader({ node, content, deps }: DocNodeHandlerRequired, _optional = {}): string {
   const attrs = isObject(node.attrs) ? node.attrs : {};
-  return `<th${tableSpanAttrs(attrs)}${tableCellAlignAttr(node)}>${renderChildNodes({ content, deps })}</th>`;
+  return `<th${tableSpanAttrs({ attrs })}${tableCellAlignAttr({ node })}>${renderChildNodes({ content, deps })}</th>`;
 }
 
 function renderDocBlockquote({ content, deps }: DocNodeHandlerRequired, _optional = {}): string {
@@ -287,7 +289,7 @@ function renderDocWidgetEmbed({ node, deps }: DocNodeHandlerRequired, _optional 
 
   const parsedAttributes = resolveEmbedHtmlAttributes({ raw: nodeHtmlAttributes });
   const classAttr = mergeWidgetClassAttr({ nodeCssClass, attributesClass: parsedAttributes.class });
-  const restAttributes = formatHtmlAttributes(omitKey({ attributes: parsedAttributes, key: "class" }));
+  const restAttributes = formatHtmlAttributes({ attributes: omitKey({ attributes: parsedAttributes, key: "class" }) });
   return `<div${classAttr}${restAttributes}>${widgetHtml}</div>`;
 }
 

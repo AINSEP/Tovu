@@ -15,7 +15,8 @@ import type { ContentMarkerResolutionDeps } from "#src/server/inbound/public-htt
 import { renderWidgetPreview } from '#src/server/inbound/admin-http/routes/widgets/preview-render';
 import { createGalleryWidgetResolver } from '@jini-ai/cms/widgets/resolvers';
 import { renderSite } from '../render-site.js';
-import { injectFormSubmissionResultIntoHtml } from '../form-render.js';
+import { injectFormSubmissionResultIntoHtml } from "@jini-ai/cms/forms/result-html";
+import { FORM_FEEDBACK, FORM_RESULT_MARKUP } from "../form-feedback-policy.js";
 import { renderWidgetIr } from '../render/content-html.js';
 
 // The complete leading stylesheet from Landing v130, including its CSS checkmark escape.
@@ -32,8 +33,8 @@ const theme = {
 test('the full leading stylesheet and subsequent sections survive page and Raw HTML sanitization exactly', () => {
   assert.equal(sanitizePageHtml({ html: body }), body);
   assert.equal(renderMediaRawHtml({ html: body, media: {}, renderMedia: ({ props }) => renderWidgetIr({ componentId: 'media-image', props }) }), body);
-  assert.equal(injectFormSubmissionResultIntoHtml({ html: body, result: undefined }), body);
-  assert.equal(injectFormSubmissionResultIntoHtml({ html: body, result: { kind: 'success', slug: 'absent' } }), body);
+  assert.equal(injectFormSubmissionResultIntoHtml({ html: body, result: undefined, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK }), body);
+  assert.equal(injectFormSubmissionResultIntoHtml({ html: body, result: { kind: 'success', slug: 'absent' }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK }), body);
 });
 
 test('page and post body rendering retains every leading stylesheet byte', async () => {

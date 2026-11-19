@@ -2,7 +2,7 @@ import { themeTokenAliasDeclarations } from "#src/features/theme/token-aliases";
 import type { DocumentAssets } from "@jini-ai/cms/presentation";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import type { SiteChatSelection } from "../site-chat-markup.js";
-import { escapeHtml } from "#src/platform/html/escape";
+import { renderDocumentShell } from "@jini-ai/cms/presentation/document-shell";
 import { siteAssistantMarkup } from "./site-assistant-mount.js";
 import { withEntryListStyleOnce } from "#src/features/theme/entry-list-render";
 // Every module counts in fresh render workers; omit the rendering re-export wrapper.
@@ -11,14 +11,6 @@ import { renderThemeFontLinks } from "#src/features/theme/font-links";
 // ---------------------------------------------------------------------------
 // Page shell
 // ---------------------------------------------------------------------------
-
-const BASE_STYLE = `
-  *,*::before,*::after { box-sizing: border-box; }
-  body { margin: 0; min-height: 100vh; -webkit-font-smoothing: antialiased; }
-  img { max-width: 100%; height: auto; }
-  a { color: inherit; }
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
-`;
 
 /** Carries the same guessed-name aliases as the static tier's `:root` block — see `token-aliases.ts`. */
 function tokensToCss(tokens: Record<string, string>): string {
@@ -50,34 +42,17 @@ export function pageShell(required: {
   siteAssistantEnabled?: SiteChatSelection;
 }, _optional: Record<string, never> = {}): string {
   const { theme, extraHead } = required;
-  const assets = required.documentAssets ?? { head: '', body: '' };
-  const foldHasTitle = extraHead?.includes("<title>") ?? false;
-  const titleTag = foldHasTitle ? "" : `<title>${escapeHtml({ text: required.title })}</title>`;
   const siteAssistant = siteAssistantMarkup({ enabled: required.siteAssistantEnabled ?? false });
   // The theme contributes exactly these three things to the document Tovu owns. With no theme they
   // are each ABSENT, not empty: `BASE_STYLE` is Tovu's own reset and stays either way, but a
   // synthesised `:root { }` or a `<link>` to no font family would be markup an operator has to work
   // around. `data-theme` in particular is omitted ENTIRELY rather than emitted empty — `[data-theme]`
   // matches `data-theme=""`, so an empty attribute is a selector someone hits by accident.
-  const { themeFontLink, themeStyle, themeAttr } = shellThemeAssets({ theme });
-  const document = `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-${titleTag}
-${extraHead ?? ""}
-${themeFontLink}
-<style>${BASE_STYLE}${themeStyle}</style>
-${siteAssistant.head}
-${assets.head}
-</head>
-<body>
-<div class="site"${themeAttr}>${required.body}</div>
-${siteAssistant.body}
-${assets.body}
-</body>
-</html>`;
+  const { themeFontLink, themeStyle } = shellThemeAssets({ theme });
+  const document = renderDocumentShell({ title: required.title, body: required.body }, {
+    extraHead, documentAssets: required.documentAssets, leadingAssets: siteAssistant,
+    themeFontLink, themeStyle, themeId: theme?.manifest.id,
+  });
   // Review fix 3a: the same once-per-page default style `finishStaticTierDocument`'s
   // `renderStaticPage` call already injects for a static theme's own `{"type":"collection"}`
   // marker (`static-render.ts`'s `renderStaticPage`) — this was the missing half, so a
@@ -90,6 +65,6 @@ ${assets.body}
 }
 
 function shellThemeAssets({ theme }: { theme: DiscoveredTheme | null }) {
-  if (!theme) return { themeFontLink: '', themeStyle: '', themeAttr: '' };
-  return { themeFontLink: renderThemeFontLinks({ manifest: theme.manifest }), themeStyle: `${tokensToCss(theme.tokens)}${theme.css}`, themeAttr: ` data-theme="${escapeHtml({ text: theme.manifest.id })}"` };
+  if (!theme) return { themeFontLink: '', themeStyle: '' };
+  return { themeFontLink: renderThemeFontLinks({ manifest: theme.manifest }), themeStyle: `${tokensToCss(theme.tokens)}${theme.css}` };
 }

@@ -1,6 +1,6 @@
 /** Public form copy follows the rendered document/form language; field labels remain authored. */
 /** [required, select, too long, invalid, "this field", too long with the field's {max} characters]. */
-type FormValidationCopy = readonly [string, string, string, string, string, string];
+import type { FormValidationCopy } from "@jini-ai/cms/forms/validation-messages";
 
 /** The fallback for any locale without its own row. */
 const ENGLISH_COPY: FormValidationCopy = ["Please enter {label}.", "Please select {label}.", "Please shorten {label}.", "Please check {label}.", "this field", "Please keep {label} to {max} characters or fewer."];

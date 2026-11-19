@@ -11,7 +11,7 @@ import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/ind
 import { FormSchemaChangedError, FormAttachmentSpaceError, FormRateLimitExceededError, InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
 import { formSubmissionAttemptsFor, submitForm } from "#src/features/forms/index";
-import { injectFormAttemptTokens } from "../../inbound/public-http/http/site/form-render.js";
+import { injectFormAttemptTokens } from "@jini-ai/cms/forms/form-controls";
 import type { VisitorAnalyticsDeps } from "../../inbound/public-http/visitor-analytics.js";
 import type { HtmlFormDefinitionRecord as FormDefinitionRecord, FieldDescriptor, FormDefinitionRepoPort } from "@jini-ai/cms/forms";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";

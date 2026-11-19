@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formDocumentLocale, formValidationMessages } from "../form-validation-message.js";
+import { formDocumentLocale } from "@jini-ai/cms/forms/validation-messages";
+import { formValidationMessages } from "../form-feedback-policy.js";
 
 // Direct tests for the public form error copy: labels come from the rendered form's markup
 // (aria-label, label[for], wrapping label), copy follows the form's or document's language.
@@ -71,4 +72,18 @@ test("formDocumentLocale reads the html element's lang in any quoting, defaultin
   assert.equal(formDocumentLocale({ html: '<html><body lang="de">' }), "en");
   assert.equal(formDocumentLocale({ html: '<htmlx lang="de">' }), "en");
   assert.equal(formDocumentLocale({ html: "" }), "en");
+});
+
+test("the first live control keeps aria precedence over linked and wrapping labels", () => {
+  const html = '<form><template><input name="f" aria-label="Inert"></template>' +
+    '<label for="live">Linked</label><label>Wrapped<input id="live" name="f" aria-label="Chosen *"></label>' +
+    '<input name="f" aria-label="Later"></form>';
+  assert.equal(message(html), "Please enter Chosen.");
+});
+
+test("label traversal excludes control and inert subtree text while retaining sibling order", () => {
+  const html = '<label for="x">First <span>second</span><textarea>draft</textarea>' +
+    '<select><option>option</option></select><script>script</script><style>style</style>' +
+    '<template><b>template</b></template> &amp; last *</label><input id="x" name="f">';
+  assert.equal(message(html), "Please enter First second & last.");
 });

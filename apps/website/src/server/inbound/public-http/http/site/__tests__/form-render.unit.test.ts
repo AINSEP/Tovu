@@ -3,10 +3,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { FORM_RESULT_QUERY_KEYS } from "../form-wire-policy.js";
 
-import { FORM_BASELINE_STYLE } from "../form-presentation-assets.js";
+import { FORM_BASELINE_STYLE, FORM_SUCCESS_CLASS, FORM_ERROR_CLASS } from "../form-presentation-assets.js";
 import { clearFormSubmissionResultQueryParams, decodeFormSubmissionResultFromQuery, encodeFormSubmissionResultQuery } from "@jini-ai/cms/forms/result-query";
 import { decodeFormFlashCookieValue, encodeFormFlashCookieValue, mergeFormFlashIntoResult } from "@jini-ai/cms/forms/result-flash";
-import { injectFormSubmissionResultIntoHtml, renderFormErrorSlot, renderFormSuccessSlot } from "../form-render.js";
+import { renderFormErrorSlot, renderFormSuccessSlot } from "@jini-ai/cms/forms/form-controls";
+import { injectFormSubmissionResultIntoHtml } from "@jini-ai/cms/forms/result-html";
+import { FORM_FEEDBACK, FORM_RESULT_MARKUP } from "../form-feedback-policy.js";
 
 /**
  * @file Form-result query and flash-cookie boundaries, for the parts `render.test.ts`'s
@@ -45,9 +47,9 @@ test("timing retry round-trips without answers in the URL and restores eligible 
   assert.deepEqual(mergeFormFlashIntoResult({ result, flash: { slug: "other", values: { name: "wrong" } } }), result);
   const merged = mergeFormFlashIntoResult({ result, flash: { slug: "contact", values: { name: "Ada <safe>" } } });
   const html = '<form data-form-slug="contact"><div class="tovu-form-error" data-form-slug="contact" hidden></div><input name="name"><input type="file" name="photo"></form>';
-  assert.equal(injectFormSubmissionResultIntoHtml({ html, result: merged }), '<form data-form-slug="contact"><div class="tovu-form-error" data-form-slug="contact">Please wait a moment, then submit again.</div><input name="name" value="Ada &lt;safe&gt;"><input type="file" name="photo"></form>');
+  assert.equal(injectFormSubmissionResultIntoHtml({ html, result: merged, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK }), '<form data-form-slug="contact"><div class="tovu-form-error" data-form-slug="contact">Please wait a moment, then submit again.</div><input name="name" value="Ada &lt;safe&gt;"><input type="file" name="photo"></form>');
   const authored = '<form data-tovu-form data-form-slug="contact"><div data-tovu-form-error data-form-slug="contact" hidden></div><input name="name"></form>';
-  assert.equal(injectFormSubmissionResultIntoHtml({ html: authored, result }), '<form data-tovu-form data-form-slug="contact"><div data-tovu-form-error data-form-slug="contact">Please wait a moment, then submit again.</div><input name="name"></form>');
+  assert.equal(injectFormSubmissionResultIntoHtml({ html: authored, result, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK }), '<form data-tovu-form data-form-slug="contact"><div data-tovu-form-error data-form-slug="contact">Please wait a moment, then submit again.</div><input name="name"></form>');
 });
 
 test("encode: validation writes at most 20 field errors — the first 20, in order", () => {
@@ -119,18 +121,18 @@ test("decode flash: rejects a missing, empty or non-string slug even with valid 
 
 test("slots: a widget's extra classes and attributes are emitted beside the generic hooks", () => {
   assert.equal(
-    renderFormSuccessSlot({ slug: "s", message: "Thanks", extraClasses: "legacy-success", extraAttrs: 'data-legacy="s"' }),
+    renderFormSuccessSlot({ slug: "s", message: "Thanks", className: FORM_SUCCESS_CLASS }, { extraClasses: "legacy-success", extraAttrs: 'data-legacy="s"' }),
     '<div class="tovu-form-success legacy-success" data-form-slug="s" data-legacy="s" hidden>Thanks</div>',
   );
   assert.equal(
-    renderFormErrorSlot({ slug: "s", extraClasses: "legacy-error", extraAttrs: 'data-legacy="s"' }),
+    renderFormErrorSlot({ slug: "s", className: FORM_ERROR_CLASS }, { extraClasses: "legacy-error", extraAttrs: 'data-legacy="s"' }),
     '<div class="tovu-form-error legacy-error" data-form-slug="s" data-legacy="s" hidden></div>',
   );
 });
 
 test("slots: without extras only the generic class and slug attribute are emitted", () => {
-  assert.equal(renderFormSuccessSlot({ slug: "s", message: "Thanks" }), '<div class="tovu-form-success" data-form-slug="s" hidden>Thanks</div>');
-  assert.equal(renderFormErrorSlot({ slug: "s" }), '<div class="tovu-form-error" data-form-slug="s" hidden></div>');
+  assert.equal(renderFormSuccessSlot({ slug: "s", message: "Thanks", className: FORM_SUCCESS_CLASS }), '<div class="tovu-form-success" data-form-slug="s" hidden>Thanks</div>');
+  assert.equal(renderFormErrorSlot({ slug: "s", className: FORM_ERROR_CLASS }), '<div class="tovu-form-error" data-form-slug="s" hidden></div>');
 });
 
 test("encode flash: a payload with no values sets no cookie", () => {
@@ -149,7 +151,7 @@ const htmlModeFormPage =
 
 test("inject: success on an HTML-mode form reveals its bare success slot and hides the form", () => {
   assert.equal(
-    injectFormSubmissionResultIntoHtml({ html: htmlModeFormPage, result: { kind: "success", slug: "s" } }),
+    injectFormSubmissionResultIntoHtml({ html: htmlModeFormPage, result: { kind: "success", slug: "s" }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK }),
     '<div data-tovu-form-success data-form-slug="s">Thanks</div>' +
       '<form hidden data-tovu-form="s" data-form-slug="s"><div data-tovu-form-error data-form-slug="s" hidden></div></form>',
   );
@@ -157,7 +159,7 @@ test("inject: success on an HTML-mode form reveals its bare success slot and hid
 
 test("inject: a one-second rate limit says 'second', not 'seconds'", () => {
   assert.equal(
-    injectFormSubmissionResultIntoHtml({ html: htmlModeFormPage, result: { kind: "rate-limited", slug: "s", retryAfterSeconds: 1 } }),
+    injectFormSubmissionResultIntoHtml({ html: htmlModeFormPage, result: { kind: "rate-limited", slug: "s", retryAfterSeconds: 1 }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK }),
     '<div data-tovu-form-success data-form-slug="s" hidden>Thanks</div>' +
       '<form data-tovu-form="s" data-form-slug="s"><div data-tovu-form-error data-form-slug="s">Too many submissions — please try again in 1 second.</div></form>',
   );
@@ -188,5 +190,13 @@ test("a flash for another form cannot restore text into a timing retry", () => {
     flash: { slug: "newsletter", values: { name: "Other form's answer" } },
   });
   const html = '<form data-form-slug="contact"><input name="name"></form>';
-  assert.equal(injectFormSubmissionResultIntoHtml({ html, result }), html);
+  assert.equal(injectFormSubmissionResultIntoHtml({ html, result, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK }), html);
+});
+
+test("retry restores dollar text into one existing value and leaves a foreign form untouched", () => {
+  const foreign = '<form data-form-slug="other"><input name="name" value="foreign"></form>';
+  const html = foreign + '<form data-form-slug="s"><div class="tovu-form-error" data-form-slug="s" hidden></div><input name="name" value="old"><textarea name="note">old</textarea></form>';
+  assert.equal(injectFormSubmissionResultIntoHtml({ html, result: {
+    kind: "too-fast", slug: "s", values: { name: "$& $1", note: "$& $1" },
+  }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK }), foreign + '<form data-form-slug="s"><div class="tovu-form-error" data-form-slug="s">Please wait a moment, then submit again.</div><input name="name" value="$&amp; $1"><textarea name="note">$&amp; $1</textarea></form>');
 });

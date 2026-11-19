@@ -15,7 +15,7 @@ import { renderDocBodyAsPageHtml, renderDocNode, renderWidgetIr } from "../rende
 import { DOC_NODE_HANDLERS } from "../render/doc/doc-nodes.js";
 import {
   MARK_RENDERERS,
-} from "../render/doc/marks.js";
+} from "@jini-ai/cms/html/document-marks";
 import {
   pageShell,
 } from "../render/document-shell.js";

@@ -1,6 +1,6 @@
 import type { JsonValue, JsonObject } from "@jini-ai/core/primitives";
 import type { MarkerAttribute } from "@jini-ai/cms/widgets/markers";
-import { NO_MARKER_ATTRIBUTES } from "../doc/html-attributes.js";
+import { NO_MARKER_ATTRIBUTES } from "@jini-ai/cms/widgets/media-attributes";
 import { isObject, str } from "../value-readers.js";
 import { plausibleMediaRefId } from "../doc/media-ref.js";
 import { renderWidgetPlaceholder } from "./placeholder.js";

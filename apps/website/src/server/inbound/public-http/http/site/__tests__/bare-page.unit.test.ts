@@ -225,3 +225,11 @@ test('authored full documents stay byte-identical even when a host supplies gene
   const body = '<!doctype html><html><head><title>Owner</title></head><body>Unchanged</body></html>';
   assert.equal(renderBareEntryDocument({ post: htmlPage({ bodyHtml: body }), siteTitle: 'Assets', documentAssets: { head: '<meta name="host">', body: '<a data-consent-open>Settings</a>' } }), body);
 });
+
+test('authored BOM and comment bypass host assets and the folded title', () => {
+  const body = '\uFEFF<!-- author -->\n<!doctype html><html><head><title>Own</title></head><body>x</body></html>';
+  assert.equal(renderBareEntryDocument({
+    post: htmlPage({ bodyHtml: body }), siteTitle: 'Host', extraHead: '<title>Fold</title>',
+    documentAssets: { head: '<!-- host head -->', body: '<!-- host body -->' },
+  }), body);
+});

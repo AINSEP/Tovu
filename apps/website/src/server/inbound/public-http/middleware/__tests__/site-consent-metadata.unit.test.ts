@@ -5,6 +5,8 @@ import { JSDOM } from 'jsdom';
 import { renderBanner } from '@jini-ai/cookie-consent/render';
 import { consentDeclarationReadiness } from '#src/features/consent/readiness';
 import { pageShell } from '../../http/site/render/document-shell.js';
+import { useSiteChatBuild } from '../../http/site/__tests__/site-chat.fixture.js';
+import { siteAssistantMarkup } from '../../http/site/render/site-assistant-mount.js';
 import { serializeHeadElements } from '@jini-ai/cms/presentation/page-head';
 
 function documentWithAssets(head: string): string {
@@ -54,4 +56,17 @@ test('unmanaged tracker scripts are diagnostics, never an implied resource conve
   const result = consentDeclarationReadiness({ html, scripts: [], runtimeSlot: true });
   assert.equal(result.warnings.filter(warning => warning.code === 'UNMANAGED_CONTENT').length, 2);
   assert.equal('gatedHtml' in result, false);
+});
+
+test('metadata precedes assistant assets, which precede host consent assets in both slots', t => {
+  useSiteChatBuild({ test: t, ready: true });
+  const leading = siteAssistantMarkup({ enabled: true });
+  assert.ok(leading.head && leading.body);
+  const head = '<link rel="canonical" href="/ordered">';
+  const assets = { head: '<!-- consent head -->', body: '<!-- consent body -->' };
+  const html = pageShell({ title: 'Order', theme: null, body: '<p>Body</p>', extraHead: head,
+    siteAssistantEnabled: true, documentAssets: assets });
+  assert.ok(html.includes(leading.head + '\n' + assets.head + '\n</head>'));
+  assert.ok(html.includes(leading.body + '\n' + assets.body + '\n</body>'));
+  assert.ok(html.indexOf(head) < html.indexOf(leading.head));
 });

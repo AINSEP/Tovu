@@ -5,13 +5,14 @@ import { randomUUID } from "node:crypto";
 import type { Request, Response } from "express";
 import { injectListingScript } from "@jini-ai/cms/listing";
 import { decodeFormSubmissionResultFromQuery } from "@jini-ai/cms/forms/result-query";
-import { injectFormSubmissionResultIntoHtml } from "../../../http/site/form-render.js";
+import { injectFormSubmissionResultIntoHtml } from "@jini-ai/cms/forms/result-html";
+import { FORM_FEEDBACK, FORM_RESULT_MARKUP } from "../../../http/site/form-feedback-policy.js";
 import { decodeFormFlashCookieValue, mergeFormFlashIntoResult } from "@jini-ai/cms/forms/result-flash";
 import { FORM_FLASH_COOKIE_NAME, FORM_RESULT_QUERY_KEYS } from "../../../http/site/form-wire-policy.js";
 import type { FormSubmissionRedirectResult } from "@jini-ai/cms/forms";
 import { injectExtraHeadIntoStaticPage } from "@jini-ai/cms/presentation/html";
 import { markOffSiteLinksOpenInNewTab } from "@jini-ai/cms/presentation/html";
-import { injectFormAttemptTokens } from "../../../http/site/form-render.js";
+import { injectFormAttemptTokens } from "@jini-ai/cms/forms/form-controls";
 import { injectMemberAuthScript } from "../../../http/site/member-auth-script.js";
 import { isHttpsRequest } from "../../../../../../platform/express/public-origin.js";
 import { MEMBER_SESSION_COOKIE } from "../../../http/members.js";
@@ -126,7 +127,7 @@ async function finalizePublicPageHtml({ req, html, formResult, deps }: { req: Re
   addPluginExportHostsToResponse({ req, hosts: deps.pluginExportRender?.declaredHosts({}) });
   html = injectListingScript({ html });
   if (deps.pluginContributions) html = await renderPluginWidgetPartials({ html, workspaceId: deps.workspaceId, contributions: deps.pluginContributions, activationRepo: deps.pluginActivationRepo });
-  const finished = injectFormSubmissionResultIntoHtml({ html: markOffSiteLinksOpenInNewTab({ html, siteHost: req.hostname }), result: formResult });
+  const finished = injectFormSubmissionResultIntoHtml({ html: markOffSiteLinksOpenInNewTab({ html, siteHost: req.hostname }), result: formResult, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   // Member sign-in needs this server's API, which an exported file never has: its header keeps the
   // theme's plain "Sign in" link.
   if (isStaticExportRequest(req)) return finished;

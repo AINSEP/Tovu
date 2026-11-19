@@ -6,7 +6,8 @@ import { InMemoryFormDefinitionRepo } from "@jini-ai/cms/forms";
 import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render/page-body";
 import { renderWidgetIr } from "#src/server/inbound/public-http/http/site/render/content-html";
 import { FORM_BASELINE_STYLE } from "#src/server/inbound/public-http/http/site/form-presentation-assets";
-import { injectFormSubmissionResultIntoHtml } from "#src/server/inbound/public-http/http/site/form-render";
+import { injectFormSubmissionResultIntoHtml } from "@jini-ai/cms/forms/result-html";
+import { FORM_FEEDBACK, FORM_RESULT_MARKUP } from "#src/server/inbound/public-http/http/site/form-feedback-policy";
 import { renderHtmlForm } from "@jini-ai/cms/forms";
 import { checkMarkupFile } from "#src/features/theme/validation/markup";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
@@ -63,10 +64,10 @@ test("HTML mode is per occurrence, and native POST results reveal plain confirma
   assert.equal(resolved.get("widget")?.get("widget-1")?.props.mode, undefined);
   const plainHtml = `<div data-embed-config='{"type":"form","id":"contact","mode":"html"}'></div>`;
   const plain = renderHtmlPageBody({ html: plainHtml, resolved: await resolveHtmlPageEmbeds({ deps: { host: buildWidgetHostPorts({}, {}), ...deps }, input: { workspaceId: "ws", html: plainHtml } }) });
-  const success = injectFormSubmissionResultIntoHtml({ html: plain, result: { kind: "success", slug: "contact" } });
+  const success = injectFormSubmissionResultIntoHtml({ html: plain, result: { kind: "success", slug: "contact" }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   assert.match(success, /data-tovu-form-success data-form-slug="contact" role="status">Thanks — your message has been sent\.<\/div>/);
   assert.match(success, /<form hidden class="tovu-form" data-tovu-form/);
-  const failure = injectFormSubmissionResultIntoHtml({ html: plain, result: { kind: "validation", slug: "contact", fieldErrors: [{ field: "email", reason: "invalid" }] } });
+  const failure = injectFormSubmissionResultIntoHtml({ html: plain, result: { kind: "validation", slug: "contact", fieldErrors: [{ field: "email", reason: "invalid" }] }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   // A sentence from the field's label since 2e733c6a5 (friendly form errors), not "email: invalid".
   assert.match(failure, /role="alert">Please check your email\.<\/div>/);
 });

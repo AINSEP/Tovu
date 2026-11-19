@@ -1,6 +1,6 @@
 import type { MarkerAttribute } from "@jini-ai/cms/widgets/markers";
 import { mediaPublicPath } from "#src/features/media/public-path";
-import { NO_MARKER_ATTRIBUTES, mediaAltAttrValue, mediaDimensionAttr, resolveEmbedHtmlAttributes, foldHtmlAttributesClass, mergeMediaClassAttr, attributeValueHtml, mergeMediaExtraAttributes, omitKey } from "./html-attributes.js";
+import { NO_MARKER_ATTRIBUTES, mediaAltAttrValue, mediaDimensionAttr, resolveEmbedHtmlAttributes, foldHtmlAttributesClass, mergeMediaClassAttr, attributeValueHtml, mergeMediaExtraAttributes, omitKey } from "@jini-ai/cms/widgets/media-attributes";
 import { escapeHtml } from "#src/platform/html/escape";
 
 /** Names {@link renderImageTag} renders itself at a fixed position — kept out of

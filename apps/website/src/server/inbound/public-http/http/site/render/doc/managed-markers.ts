@@ -1,5 +1,5 @@
 import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
-import { resolveEmbedHtmlAttributes, formatHtmlAttributes, omitKey } from "./html-attributes.js";
+import { resolveEmbedHtmlAttributes, formatHtmlAttributes, omitKey } from "@jini-ai/cms/widgets/media-attributes";
 import { str, isObject } from "../value-readers.js";
 import { escapeHtml } from "#src/platform/html/escape";
 import { plausibleMediaRefId } from "./media-ref.js";
@@ -14,7 +14,7 @@ function docNodeEmbedMarker(required: { config: JsonObject; attrs: JsonObject; a
   const altAttr = required.alt ? ` alt="${escapeHtml({ text: required.alt })}"` : "";
   // A single-quoted marker reads its JSON raw, so an apostrophe needs the JSON escape, not an entity.
   const json = JSON.stringify(required.config).replace(/'/g, "\\u0027");
-  return `<div${classAttr}${altAttr}${formatHtmlAttributes(omitKey({ attributes: parsed, key: "class" }))} data-embed-config='${json}'></div>`;
+  return `<div${classAttr}${altAttr}${formatHtmlAttributes({ attributes: omitKey({ attributes: parsed, key: "class" }) })} data-embed-config='${json}'></div>`;
 }
 
 /** A widget or managed-media node's Page HTML marker; `undefined` for every other node, which the

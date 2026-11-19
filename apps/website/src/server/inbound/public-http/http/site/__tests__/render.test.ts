@@ -11,7 +11,8 @@ import type { ResolvePageWidgetsResult } from "@jini-ai/cms/widgets";
 import type { WidgetRenderIR } from "@jini-ai/cms/widgets";
 import { renderSite } from "../render-site.js";
 import { decodeFormSubmissionResultFromQuery, encodeFormSubmissionResultQuery } from "@jini-ai/cms/forms/result-query";
-import { injectFormSubmissionResultIntoHtml } from "../form-render.js";
+import { injectFormSubmissionResultIntoHtml } from "@jini-ai/cms/forms/result-html";
+import { FORM_FEEDBACK, FORM_RESULT_MARKUP } from "../form-feedback-policy.js";
 import { decodeFormFlashCookieValue, encodeFormFlashCookieValue, mergeFormFlashIntoResult, type FormFlashPayload } from "@jini-ai/cms/forms/result-flash";
 import type { FormSubmissionRedirectResult } from "@jini-ai/cms/forms";
 import type { MediaAssetRenderMeta, SiteProduct, SiteRenderContext } from "../render-context.js";
@@ -1812,18 +1813,18 @@ function contactFormPageHtml(slug = "contact"): string {
 
 test("injectFormSubmissionResultIntoHtml: undefined result is a byte-identical no-op", () => {
   const html = contactFormPageHtml();
-  assert.equal(injectFormSubmissionResultIntoHtml({ html, result: undefined }), html);
+  assert.equal(injectFormSubmissionResultIntoHtml({ html, result: undefined, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK }), html);
 });
 
 test("injectFormSubmissionResultIntoHtml: a result for a slug NOT present on the page is a silent no-op (stale or forged query string)", () => {
   const html = contactFormPageHtml("contact");
   const result: FormSubmissionRedirectResult = { kind: "success", slug: "some-other-form" };
-  assert.equal(injectFormSubmissionResultIntoHtml({ html, result }), html);
+  assert.equal(injectFormSubmissionResultIntoHtml({ html, result, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK }), html);
 });
 
 test("injectFormSubmissionResultIntoHtml: success reveals the success message and hides the form", () => {
   const html = contactFormPageHtml();
-  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "success", slug: "contact" } });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "success", slug: "contact" }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   assert.match(updated, /<div class="tovu-form-success widget-contact-form-success" data-form-slug="contact" data-contact-form-slug="contact">All set!<\/div>/);
   assert.match(updated, /<form hidden class="widget tovu-form widget-contact-form"/);
 });
@@ -1840,7 +1841,7 @@ test("builder form: an empty required email shows a friendly field sentence whil
   const decoded = decodeFormSubmissionResultFromQuery({ query: Object.fromEntries(params), keys: FORM_RESULT_QUERY_KEYS });
   assert.deepEqual(decoded, result);
 
-  const updated = injectFormSubmissionResultIntoHtml({ html, result: decoded });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: decoded, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   assert.match(updated, /<div class="widget-form-field-error" data-field="email" id="widget-contact-[0-9a-f-]{36}-email-error">Please enter your email\.<\/div>/);
   assert.match(updated, /<div class="tovu-form-error widget-contact-form-error" data-form-slug="contact-us" data-contact-form-slug="contact-us">Please fix the highlighted fields below\.<\/div>/);
   assert.doesNotMatch(updated, />required<\/div>/);
@@ -1854,7 +1855,7 @@ test("builder field instructions use document language and honor a form language
     [`<html lang="es-MX">${html}</html>`, "Introduce Email."],
     [`<html lang="es-MX">${html.replace("<form ", '<form lang="fr" ')}</html>`, "Veuillez renseigner Email."],
   ]) {
-    const updated = injectFormSubmissionResultIntoHtml({ html: page, result });
+    const updated = injectFormSubmissionResultIntoHtml({ html: page, result, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
     const errorId = html.match(/ id="(widget-contact-[0-9a-f-]{36}-email-error)"/)?.[1];
     assert.ok(errorId);
     assert.ok(updated.includes(`id="${errorId}">${expected}</div>`));
@@ -1867,7 +1868,7 @@ test("builder fields translate length and invalid reasons into label-based instr
     const html = contactFormPageHtml();
     const updated = injectFormSubmissionResultIntoHtml({ html, result: {
       kind: "validation", slug: "contact", fieldErrors: [{ field: "email", reason }],
-    } });
+    }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
     const errorId = html.match(/ id="(widget-contact-[0-9a-f-]{36}-email-error)"/)?.[1];
     assert.ok(errorId);
     assert.ok(updated.includes(`id="${errorId}">${message}</div>`));
@@ -1890,7 +1891,7 @@ test("injectFormSubmissionResultIntoHtml: validation reveals a friendly matching
     kind: "validation",
     slug: "contact",
     fieldErrors: [{ field: "email", reason: "<script>bad</script>" }],
-  } });
+  }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   assert.match(updated, /<div class="widget-form-field-error" data-field="email" id="widget-contact-[0-9a-f-]{36}-email-error">Please check your email\.<\/div>/);
   assert.doesNotMatch(updated, /bad|&lt;script&gt;/, "forged reason text must never be echoed");
   assert.match(updated, /data-field="message"[^>]*hidden><\/div>/, "an untouched field's error slot must stay hidden");
@@ -1905,7 +1906,7 @@ test("injectFormSubmissionResultIntoHtml: a field label containing an apostrophe
     kind: "validation",
     slug: "contact",
     fieldErrors: [{ field: "email", reason: "required" }],
-  } });
+  }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   assert.match(updated, /id="widget-contact-[0-9a-f-]{36}-email-error">Please enter Recipient&#39;s email\.<\/div>/, "an apostrophe in the field instruction must be escaped");
   assert.doesNotMatch(updated, /Recipient's email</, "a raw, unescaped apostrophe must never survive into rendered HTML");
 });
@@ -1918,7 +1919,7 @@ test("injectFormSubmissionResultIntoHtml: a field label containing '$&'/'$1'-sha
     kind: "validation",
     slug: "contact",
     fieldErrors: [{ field: "email", reason: "required" }],
-  } });
+  }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   assert.match(updated, /id="widget-contact-[0-9a-f-]{36}-email-error">Please enter cost is \$1\.00, not \$&amp;\.<\/div>/);
   // A `$&` mis-substitution would have duplicated the matched substring inline — the baseline count
   // (success slot + form tag + the form's own error-summary div, all three carry the attribute) must
@@ -1930,13 +1931,13 @@ test("injectFormSubmissionResultIntoHtml: a field label containing '$&'/'$1'-sha
 
 test("injectFormSubmissionResultIntoHtml: rate-limited reveals the error summary with the retry seconds", () => {
   const html = contactFormPageHtml();
-  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "rate-limited", slug: "contact", retryAfterSeconds: 42 } });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "rate-limited", slug: "contact", retryAfterSeconds: 42 }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   assert.match(updated, /<div class="tovu-form-error widget-contact-form-error" data-form-slug="contact" data-contact-form-slug="contact">Too many submissions.*42 seconds\.<\/div>/);
 });
 
 test("injectFormSubmissionResultIntoHtml: generic error reveals a generic message", () => {
   const html = contactFormPageHtml();
-  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "error", slug: "contact" } });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "error", slug: "contact" }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   assert.match(updated, /Something went wrong — please try again\./);
 });
 
@@ -2011,7 +2012,7 @@ test("decodeFormSubmissionResultFromQuery -> injectFormSubmissionResultIntoHtml:
   // object's prototype — Object.prototype itself is untouched by decoding this query.
   assert.equal(Object.prototype.hasOwnProperty.call({}, "polluted"), false);
 
-  const updated = injectFormSubmissionResultIntoHtml({ html, result: decoded });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: decoded, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   assert.doesNotMatch(updated, /<script>alert\(1\)<\/script>/, "the hostile reason must never reach the response as live markup");
   assert.match(
     updated,
@@ -2120,7 +2121,7 @@ test("injectFormSubmissionResultIntoHtml: validation WITH flash values re-popula
     slug: "contact",
     fieldErrors: [{ field: "message", reason: "required" }],
     values: { name: "Ada <Lovelace>", email: "ada@example.com" },
-  } });
+  }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   // The two fields that were VALID (no error) must come back with what the visitor typed — this is
   // the actual bug: before the fix, a 303 PRG reload wiped these even though only "message" failed.
   assert.match(updated, /<input\b(?=[^>]* type="text")(?=[^>]* name="name")(?=[^>]* id="widget-contact-[0-9a-f-]{36}-name")(?=[^>]* aria-describedby="widget-contact-[0-9a-f-]{36}-name-error")(?=[^>]* value="Ada &lt;Lovelace&gt;")[^>]*>/);
@@ -2138,7 +2139,7 @@ test("injectFormSubmissionResultIntoHtml: a flash value naming a field this page
     slug: "contact",
     fieldErrors: [],
     values: { "no-such-field": "whatever" },
-  } });
+  }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   assert.doesNotMatch(updated, /whatever/, "a value for a field the form doesn't have must never appear anywhere in the output");
   assert.doesNotMatch(updated, /value="/, "the form's own real field ('email') has no flash entry here, so it must stay unpopulated");
 });
@@ -2158,72 +2159,72 @@ function rawFormPageHtml(fieldHtml: string, slug = "contact"): string {
 
 test("injectFormSubmissionResultIntoHtml: repopulates a standard HTML5 <input name=\"x\"> (no self-close, no existing value) — bug (a)", () => {
   const html = rawFormPageHtml(`<input type="text" name="x">`);
-  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } } });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" value="hello">`));
 });
 
 test("injectFormSubmissionResultIntoHtml: repopulates <input name=\"x\" value=\"\"> by REPLACING the empty value, not appending a second value= — bug (b)", () => {
   const html = rawFormPageHtml(`<input type="text" name="x" value="">`);
-  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } } });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" value="hello">`));
   assert.equal((updated.match(/\bvalue="/g) ?? []).length, 1, "exactly one value= attribute — never two");
 });
 
 test("injectFormSubmissionResultIntoHtml: repopulates a non-self-closing <input name=\"x\" value=\"old\"> by REPLACING the stale value — bug (b), non-XHTML shape", () => {
   const html = rawFormPageHtml(`<input type="text" name="x" value="old">`);
-  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "new" } } });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "new" } }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" value="new">`));
   assert.equal((updated.match(/\bvalue="/g) ?? []).length, 1, "exactly one value= attribute — never two");
 });
 
 test("injectFormSubmissionResultIntoHtml: repopulates a self-closing XHTML <input name=\"x\" value=\"old\"/> by REPLACING the stale value, keeping the /> form — bug (b), existing path must not regress", () => {
   const html = rawFormPageHtml(`<input type="text" name="x" value="old"/>`);
-  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "new" } } });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "new" } }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" value="new"/>`));
   assert.equal((updated.match(/\bvalue="/g) ?? []).length, 1, "exactly one value= attribute — never two");
 });
 
 test("injectFormSubmissionResultIntoHtml: self-closing XHTML <input name=\"x\"/> with no existing value still repopulates, keeping the /> form — existing path must not regress", () => {
   const html = rawFormPageHtml(`<input type="text" name="x"/>`);
-  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } } });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" value="hello"/>`));
 });
 
 test("injectFormSubmissionResultIntoHtml: a raw <textarea name=\"x\"> still repopulates — existing path must not regress", () => {
   const html = rawFormPageHtml(`<textarea name="x"></textarea>`);
-  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } } });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   assert.equal(updated, rawFormPageHtml(`<textarea name="x">hello</textarea>`));
 });
 
 test("injectFormSubmissionResultIntoHtml: a field name matching no input/textarea in the form is a byte-identical no-op", () => {
   const html = rawFormPageHtml(`<input type="text" name="x">`);
-  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { "no-such-field": "whatever" } } });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { "no-such-field": "whatever" } }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   assert.equal(updated, html);
 });
 
 test("injectFormSubmissionResultIntoHtml: a custom data-default-value attribute survives untouched -- BUG (c), 2026-09-05 Gemini audit finding #5: setInputValueAttr's \\b-bounded regex matches mid-attribute-name (data-default-VALUE=\"...\" has a \\b right before \"value\" because \"-\" precedes it), so the theme author's own preset gets silently overwritten with the flash value instead of a real value= attribute being added", () => {
   const html = rawFormPageHtml(`<input type="text" name="x" data-default-value="preset">`);
-  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } } });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" data-default-value="preset" value="hello">`));
 });
 
 test("injectFormSubmissionResultIntoHtml: a single-quoted value='old' attribute is REPLACED, not duplicated -- bug (d), 2026-09-05 Gemini audit finding #5: the regex only ever matched value=\"...\" (double quotes), so a theme's hand-authored value='...' input was invisible to the existing-attribute check and got a SECOND, double-quoted value= appended -- regressing the exact stale-value-wins bug already fixed once for double quotes, since browsers only honor the first same-named attribute", () => {
   const html = rawFormPageHtml(`<input type="text" name="x" value='old'>`);
-  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "new" } } });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "new" } }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" value="new">`));
   assert.equal((updated.match(/\bvalue=/g) ?? []).length, 1, "exactly one value= attribute -- never two");
 });
 
 test("injectFormSubmissionResultIntoHtml: a double-quoted value=\"Don't know\" containing an apostrophe is REPLACED, not duplicated -- bug (e): the 2026-09-05 fix's own existing-attribute check, /(\\s)value=([\"'])[^\"']*\\2/i, excludes BOTH quote characters from the value body, so it cannot span an embedded apostrophe inside a double-quoted value and never matches at all here -- the code falls through to the append branch and adds a second value=, and the browser honors only the first (the stale \"Don't know\")", () => {
   const html = rawFormPageHtml(`<input type="text" name="x" value="Don't know">`);
-  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } } });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" value="hello">`));
   assert.equal((updated.match(/\bvalue=/g) ?? []).length, 1, "exactly one value= attribute -- never two");
 });
 
 test("injectFormSubmissionResultIntoHtml: a single-quoted value='say \"hi\"' containing a double quote is REPLACED, not duplicated -- bug (e), sibling case with quotes swapped", () => {
   const html = rawFormPageHtml(`<input type="text" name="x" value='say "hi"'>`);
-  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } } });
+  const updated = injectFormSubmissionResultIntoHtml({ html, result: { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } }, markup: FORM_RESULT_MARKUP, feedback: FORM_FEEDBACK });
   assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" value="hello">`));
   assert.equal((updated.match(/\bvalue=/g) ?? []).length, 1, "exactly one value= attribute -- never two");
 });

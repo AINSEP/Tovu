@@ -152,3 +152,23 @@ test("renderDocNode: a managed image's asset htmlAttributes class reaches the re
   const html = renderDocNode({ node: { type: "image", attrs: { assetId: "a1", transformName: "public", alt: "A" } } }, { inlineResolved: new Map(), mediaTransformVersions: new Map([["public", 4]]), mediaAssetMetadata: new Map([["a1", assetMeta({ htmlAttributes: 'class="wide"' })]]) });
   assert.ok(html.includes('class="wide"'), html);
 });
+
+test("headings avoid literal suffix collisions and keep alignment after the id", () => {
+  const content = ["Foo", "Foo", "Foo-2", "Foo"].map(text => ({
+    type: "heading", attrs: { level: 2, textAlign: "center" }, content: [{ type: "text", text }],
+  }));
+  assert.equal(renderDocNode({ node: { type: "doc", content } }),
+    '<h2 id="foo" style="text-align:center">Foo</h2><h2 id="foo-2" style="text-align:center">Foo</h2>' +
+    '<h2 id="foo-2-2" style="text-align:center">Foo-2</h2><h2 id="foo-3" style="text-align:center">Foo</h2>');
+});
+
+test("table spans reject 1001 and cell alignment rejects justify", () => {
+  assert.equal(renderDocNode({ node: { type: "tableCell", attrs: { colspan: 1001, rowspan: 2, align: "justify" },
+    content: [{ type: "text", text: "x" }] } }), '<td rowspan="2">x</td>');
+});
+
+test("bare marker width suppresses asset width while marker extras replace in asset order", () => {
+  assert.equal(mediaImage({ width: 640, htmlAttributes: 'data-a="asset" data-b="second"', markerAttributes: [
+    { name: "width", value: null }, { name: "data-a", value: "A &amp; B" }, { name: "data-c", value: "last" },
+  ] }), '<img ' + IMG_SRC + ' alt="" data-a="A &amp; B" data-b="second" data-c="last" loading="lazy">');
+});

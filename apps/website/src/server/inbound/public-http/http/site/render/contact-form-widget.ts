@@ -1,6 +1,7 @@
 import type { JsonObject } from "@jini-ai/core/primitives";
-import { FORM_CLASS, FORM_RANGE_READOUT_SCRIPT, FORM_BASELINE_STYLE } from "../form-presentation-assets.js";
-import { stampFormFieldMaxLengths, renderFormSuccessSlot, renderFormErrorSlot } from "../form-render.js";
+import { FORM_SUCCESS_CLASS, FORM_ERROR_CLASS, FORM_CLASS, FORM_RANGE_READOUT_SCRIPT, FORM_BASELINE_STYLE } from "../form-presentation-assets.js";
+import { stampFormFieldMaxLengths, renderFormSuccessSlot, renderFormErrorSlot } from "@jini-ai/cms/forms/form-controls";
+import { fieldMaxChars } from "#src/features/forms/render-entry";
 import { str, arr } from "./value-readers.js";
 import { renderWidgetPlaceholder } from "./widgets/placeholder.js";
 import { randomUUID } from "node:crypto";
@@ -72,14 +73,14 @@ export function renderWidgetContactForm(props: JsonObject): string {
     idPrefix,
     successMessage: str({ value: props.successMessage }) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE,
     className: FORM_CLASS,
-  }), fields: fieldDescriptors }) + rangeReadout;
+  }), fields: fieldDescriptors, fieldMaxChars }) + rangeReadout;
   const escapedSlug = escapeHtml({ text: slug });
   const fieldOptions = { submitLabel: "Send", idPrefix, fieldClass: "widget-form-field", errorClass: "widget-form-field-error" };
-  const fields = stampFormFieldMaxLengths({ html: renderHtmlFormBody({ fields: fieldDescriptors, hooks: { field: "data-tovu-field" } }, fieldOptions), fields: fieldDescriptors });
+  const fields = stampFormFieldMaxLengths({ html: renderHtmlFormBody({ fields: fieldDescriptors, hooks: { field: "data-tovu-field" } }, fieldOptions), fields: fieldDescriptors, fieldMaxChars });
   const successMessage = escapeHtml({ text: str({ value: props.successMessage }) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE });
   const legacyAttrs = `data-contact-form-slug="${escapedSlug}"`;
-  const successSlot = renderFormSuccessSlot({ slug: escapedSlug, message: successMessage, extraClasses: "widget-contact-form-success", extraAttrs: legacyAttrs });
-  const errorSlot = renderFormErrorSlot({ slug: escapedSlug, extraClasses: "widget-contact-form-error", extraAttrs: legacyAttrs });
+  const successSlot = renderFormSuccessSlot({ slug: escapedSlug, message: successMessage, className: FORM_SUCCESS_CLASS }, { extraClasses: "widget-contact-form-success", extraAttrs: legacyAttrs });
+  const errorSlot = renderFormErrorSlot({ slug: escapedSlug, className: FORM_ERROR_CLASS }, { extraClasses: "widget-contact-form-error", extraAttrs: legacyAttrs });
   return (
     FORM_BASELINE_STYLE +
     successSlot +

@@ -101,13 +101,14 @@ const FORBIDDEN_FORM_SERVICES = /\/(?:packages\/cms|node_modules\/@jini-ai\/cms)
 // raised by 10 for the render.ts split into feature files (no new code); owner 2026-11-16
 // +1 (merge-a 2026-11-16): Jini core's text barrel now carries format-byte-size.js (6f8dc8c24, "one byte-size
 // label in core/text"), which the Handlebars worker loads through that barrel; no Tovu module was added.
-// +1 (merge-final 2026-11-16): `safeTextAlign`/`safeAspectRatio` now come from `@jini-ai/cms/html/style-values` (merge-b), while
-// the render split (merge-a) keeps the four CSS-value allowlists in `platform/html/style-values.ts`; the worker loads both files.
+// The CSS-value allowlists now share one @jini-ai/cms/html/style-values leaf (R5b), including
+// safeTextAlign/safeAspectRatio and the four allowlists previously split into a local platform file.
 // +1 (href-standard 2026-11-17): the theme tier's `safeHref` copy (inside already-loaded `render-contract.ts`) was replaced by
 // Jini's one href standard, `@jini-ai/cms/navigation/href` (a dependency-free leaf, one file); the barrel is not an option here.
+// +1 (R5a): the managed document template now lives in CMS presentation/document-shell.
 const WORKER_MODULE_BUDGETS = {
-  "handlebars-worker.ts": 178,
-  "liquid-worker.ts": 135,
+  "handlebars-worker.ts": 179,
+  "liquid-worker.ts": 136,
 } as const;
 
 /** Loads one entry in a bounded child, preserving errors so incomplete graphs cannot pass.
