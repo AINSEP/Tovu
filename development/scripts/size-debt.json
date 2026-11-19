@@ -822,6 +822,20 @@
     },
     {
       "file": "apps/website/src/features/theme/publish-content.ts",
+      "function": "buildHandler#1",
+      "line": 609,
+      "rule": "max-lines-per-function",
+      "value": 154
+    },
+    {
+      "file": "apps/website/src/features/theme/publish-content.ts",
+      "function": "buildHandler#1.apply#1",
+      "line": 702,
+      "rule": "max-lines-per-function",
+      "value": 98
+    },
+    {
+      "file": "apps/website/src/features/theme/publish-content.ts",
       "function": "<file>",
       "line": 814,
       "rule": "max-lines",

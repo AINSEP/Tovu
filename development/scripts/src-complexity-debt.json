@@ -94,15 +94,15 @@
     },
     {
       "file": "apps/website/src/features/newsletter/delivery/tool-registrations.ts",
-      "function": "buildNewsletterDeliveryRegistrations#1",
-      "line": 151,
+      "function": "createNewsletterCampaignRun#1.<anonymous>#1",
+      "line": 131,
       "rule": "complexity",
       "value": 11
     },
     {
       "file": "apps/website/src/features/newsletter/delivery/tool-registrations.ts",
-      "function": "buildNewsletterDeliveryRegistrations#1.run#1",
-      "line": 151,
+      "function": "createNewsletterCampaignRun#1.<anonymous>#1",
+      "line": 131,
       "rule": "sonarjs/cognitive-complexity",
       "value": 11
     },
