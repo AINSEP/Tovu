@@ -104,7 +104,7 @@ export function useTemplateSource(
   // Keyed reads replace the cleanup flag: a prior route's source cannot populate this key.
   const queryFetch = useQueryFetchCallback(async () => {
     try { return await port.fetchTemplateSource({ url: templateAssetUrl({ themeId, templateFilename, apiVersion: themeApiVersion }) }); }
-    catch (error) { throw new Error(error instanceof Error ? error.message : "failed to load the template"); }
+    catch (error) { if (error instanceof Error) throw error; throw new Error("failed to load the template", { cause: error }); }
   }, [port, themeId, themeApiVersion, templateFilename]);
   // Query ownership handles StrictMode cleanup/replay without a module-level disposed flag
   // surviving the second mount (apps/admin/INFO.md's disposed-flag trap).

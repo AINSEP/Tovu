@@ -62,7 +62,6 @@ export function registerAdminObservabilityStatusRoute(app: Express, deps: AdminO
       // No submitted error text: only the fixed diagnostic bound by the composition root is sent.
       res.status(200).json(await deps.sendTelemetryTest({}));
     } catch (error) {
-      deps.tracker.error({ error: error instanceof Error ? error : new Error("telemetry test failed") }, { context: { operation: "telemetry.test_action" } });
       sendAdminFailure({ res, error }, { operation: "routes/system/observability-status", code: "INTERNAL_ERROR" });
     }
   });

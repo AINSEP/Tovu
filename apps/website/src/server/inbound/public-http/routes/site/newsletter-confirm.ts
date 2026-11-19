@@ -1,3 +1,4 @@
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { captureVisitorEvent } from "../../visitor-analytics.js";
 import type { Express } from "express";
 
@@ -37,7 +38,8 @@ export function registerPublicNewsletterConfirmRoute(app: Express, deps: Newslet
           .send(renderPage({ title: "Confirmation link invalid", message: "This confirmation link is invalid or has expired. Please request a new one." }));
         return;
       }
-      res.status(500).type("html").send(renderPage({ title: "Something went wrong", message: "Unexpected server error." }));
+      const { errorId } = reportServerFailure({ error: err, operation: "public:newsletter-confirm" }, { tracker: res.locals.adminFailureTracker });
+      res.status(500).type("html").send(renderPage({ title: "Subscription confirmation unavailable", message: `The site couldn’t complete subscription confirmation. Try the original action again and report this error ID if it keeps happening. Error ID: ${errorId}` }));
     }
   } }));
 }

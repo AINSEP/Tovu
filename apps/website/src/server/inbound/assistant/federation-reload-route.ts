@@ -1,3 +1,4 @@
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from "express";
 
 /**
@@ -47,9 +48,8 @@ export function registerFederationReloadRoute(app: Express, deps: FederationRelo
       const result = await deps.reload();
       res.status(200).json({ ok: true, newlyAdmittedConnectionIds: result.newlyAdmittedConnectionIds });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`[agent-daemon] mcp-federation: reload failed — ${message}`);
-      res.status(500).json({ ok: false, error: "federation reload failed" });
+      const { errorId } = reportServerFailure({ error, operation: "agent-daemon:mcp-federation:reload" }, { tracker: res.locals.adminFailureTracker });
+      res.status(500).json({ ok: false, error: "The assistant connections could not be reloaded. Restart the site or app and report this error ID if it keeps happening.", errorId });
     }
   });
 }

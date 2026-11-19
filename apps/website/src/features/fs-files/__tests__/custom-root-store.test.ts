@@ -240,3 +240,12 @@ test("resetCustomFsRootForTests ignores a site directory that does not exist but
     fs.rmSync(base, { recursive: true, force: true });
   }
 });
+
+test("persistence read I/O rejection propagates instead of becoming an empty store", t => {
+  const siteDir = freshSiteDir();
+  const cause = Object.assign(new Error("persistence read canary"), { code: "EACCES" });
+  t.mock.method(fs, "readFileSync", () => { throw cause; });
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); fs.rmSync(siteDir, { recursive: true, force: true }); });
+  assert.throws(() => getCustomFsRoot({ workspaceId: WORKSPACE_A, optional: { siteDir } }), error => error === cause);
+});

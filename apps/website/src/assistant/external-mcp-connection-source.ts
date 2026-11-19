@@ -1,3 +1,5 @@
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import type { UUID } from "@jini-ai/core/primitives";
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 
@@ -121,7 +123,7 @@ async function withoutLegacyDesktop({ deps, isPluginEnabled }: { deps: StoredExt
     try {
       const row = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: DESKTOP_MCP_ID });
       if (row && legacy(row)) await deps.repo.deleteByServerId({ workspaceId: deps.workspaceId, serverId: DESKTOP_MCP_ID });
-    } catch { console.warn(`${deps.log} legacy desktop MCP cleanup unavailable; stdio admission suppressed`); }
+    } catch (error) { console.warn(`${deps.log} legacy desktop MCP cleanup unavailable; stdio admission suppressed ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`); }
   }
   return {
     listByWorkspaceId: async workspaceId => {

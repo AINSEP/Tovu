@@ -176,7 +176,7 @@ async function requestPublishedPage({ deps, baseUrl, path, timeoutMs }: {
     });
   } catch (err) {
     if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
-      const timeout = new Error(`rendering '${path}' exceeded ${timeoutMs}ms`);
+      const timeout = new Error(`rendering '${path}' exceeded ${timeoutMs}ms`, { cause: err });
       timeout.name = "PublishedPageTimeoutError";
       throw timeout;
     }

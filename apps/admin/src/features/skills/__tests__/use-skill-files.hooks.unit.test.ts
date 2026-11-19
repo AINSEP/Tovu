@@ -1,3 +1,4 @@
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 import { useSkillFiles } from "../use-skill-files.hooks";
@@ -77,4 +78,16 @@ describe("useSkillFiles", () => {
     await waitFor(() => expect(result.current.status?.text).toBe("No files to show for this skill."));
     expect(result.current.listNotice).toBe("Some files are not listed: this package is larger than the viewer's limits.");
   });
+});
+
+it("preserves a non-Error file rejection for redacted copy details", async () => {
+  const cause = "password=FILES_CANARY";
+  const read = vi.fn().mockRejectedValue(cause);
+  const { result } = renderHook(() => ({
+    files: useSkillFiles({ toolId: "cause-check", read, t }),
+    query: useFetchQuery({ key: ["skills", "files", "cause-check"], fetch: async () => { throw new Error("observer must join the active read"); } }, { staleTime: 0 }),
+  }));
+  await waitFor(() => expect(result.current.files.failure).toBeTruthy());
+  expect(result.current.query.error?.cause).toBe(cause);
+  expect(result.current.files.failure?.copyText).not.toContain("FILES_CANARY");
 });

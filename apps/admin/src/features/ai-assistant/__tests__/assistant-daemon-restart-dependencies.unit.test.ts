@@ -26,3 +26,18 @@ describe("defaultAssistantDaemonRestartPort", () => {
     expect(restart).not.toHaveBeenCalled();
   });
 });
+
+it("retains malformed readiness cause behind safe HTTP wording", async () => {
+  const cause = new SyntaxError("password=READY_CANARY");
+  vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 503, headers: { "content-type": "application/json" } }));
+  vi.spyOn(Response.prototype, "json").mockRejectedValue(cause);
+  await expect(defaultAssistantDaemonRestartPort.getReadyz()).rejects.toMatchObject({
+    message: "Could not check the assistant's status (malformed response, HTTP 503).", cause,
+  });
+});
+
+it.each([200, 503])("preserves meaningful readiness JSON at HTTP %s", async status => {
+  const body = { ready: status === 200, assistantDaemonKnownFailed: true };
+  vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } }));
+  await expect(defaultAssistantDaemonRestartPort.getReadyz()).resolves.toEqual(body);
+});

@@ -14,6 +14,7 @@ import { DatabaseDiskSpaceError } from "@jini-ai/db/sqlite";
 
 
 export interface FailureOptions {
+  status?: 503;
   operation?: string;
   code?: string;
   message?: string;
@@ -73,8 +74,8 @@ export function adminFailureResponse(
   const body = unexpectedAdminBody({ errorId: randomUUID(), options });
   const { errorId } = reportServerFailure({ error, operation }, { tracker, errorId: body.errorId });
   // The backup owner supplies this closed, human-safe refusal. Preserve it for every admin route.
-  if (error instanceof DatabaseDiskSpaceError) return { status: error.status, body: { code: error.code, errorId, error: error.message } };
-  return { status: 500, body };
+  if (options.status === undefined && error instanceof DatabaseDiskSpaceError) return { status: error.status, body: { code: error.code, errorId, error: error.message } };
+  return { status: options.status ?? 500, body };
 }
 
 /** Only the export pilot opts into its authorized, redacted cause. Other routes retain the

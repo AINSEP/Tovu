@@ -123,3 +123,36 @@ test("attachment gets at most five seconds after activation and cancellation bef
     assert.equal(rebind.mock.calls.length, 1);
   } finally { timeout.mockRestore(); }
 });
+
+test("malformed refusal JSON preserves HTTP guidance without showing its body", async () => {
+  await assert.rejects(activateAssistantDaemon({}, { request: async () => new Response("<html>BODY_CANARY</html>", { status: 502 }) }), error =>
+    error instanceof Error && error.message.includes("HTTP 502") && error.message.includes("Restart") && !error.message.includes("BODY_CANARY"));
+});
+
+test("a refusal body read failure keeps its private cause and HTTP recovery", async () => {
+  const cause = new TypeError("password=BODY_READ_CANARY");
+  const response = new Response(null, { status: 503 });
+  response.json = async () => { throw cause; };
+  await assert.rejects(activateAssistantDaemon({}, { request: async () => response }), error =>
+    error instanceof Error && error.cause === cause && error.message.includes("HTTP 503") && error.message.includes("Reload") && !error.message.includes("BODY_READ_CANARY"));
+});
+
+test("network and page rebind wrappers preserve causes", async () => {
+  const cause = new TypeError("network canary");
+  await assert.rejects(activateAssistantDaemon({}, { request: async () => { throw cause; } }), error => error instanceof Error && error.cause === cause);
+  await assert.rejects(prepareAssistantPageBinding({ bridge: {
+    rebind: async () => { throw cause; }, bindToken: () => undefined,
+  } }, { activate: async () => {} }), error => error instanceof Error && error.cause === cause);
+});
+
+test("caller abort takes precedence over network and rebind wrapping", async () => {
+  const stop = new AbortController();
+  const reason = new DOMException("caller stopped", "AbortError");
+  await assert.rejects(activateAssistantDaemon({ signal: stop.signal }, { request: async () => {
+    stop.abort(reason); throw new Error("network failure");
+  } }), error => error === reason);
+  const attachmentStop = new AbortController();
+  await assert.rejects(prepareAssistantPageBinding({ signal: attachmentStop.signal, bridge: {
+    rebind: async () => { attachmentStop.abort(reason); throw new Error("attachment failure"); }, bindToken: () => undefined,
+  } }, { activate: async () => {} }), error => error === reason);
+});

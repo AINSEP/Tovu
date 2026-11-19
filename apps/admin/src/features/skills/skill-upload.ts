@@ -2,7 +2,7 @@ import type { SkillInstallPayload } from "./api";
 const MAX_BYTES = 8 * 1024 * 1024;
 
 async function base64(file: File) {
-  const buffer = await file.arrayBuffer().catch(() => { throw new Error("Could not read skill files."); });
+  const buffer = await file.arrayBuffer().catch(cause => { throw new Error("Could not read skill files.", { cause }); });
   const bytes = new Uint8Array(buffer);
   const chunks: string[] = [];
   for (let offset = 0; offset < bytes.length; offset += 8192) chunks.push(String.fromCharCode(...bytes.subarray(offset, offset + 8192)));

@@ -1,3 +1,4 @@
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { seoForRequest } from "../../http/site/seo-render-context.js";
 import { buildFeed, FEED_PATH, renderRssXml } from "@jini-ai/cms/seo";
 import { resolveSiteTitle } from "#src/features/settings/index";
@@ -24,8 +25,9 @@ export const registerFeedRoute: SeoRouteRegistrar = ({ app, deps }, _options = {
         input: { workspaceId: deps.workspaceId, siteTitle },
       }, {});
       res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("application/rss+xml").send(renderRssXml({ feed }, {}));
-    } catch {
-      res.status(500).type("text/plain").send("internal error");
+    } catch (error) {
+      const { errorId } = reportServerFailure({ error, operation: "public:feed" }, { tracker: res.locals.adminFailureTracker });
+      res.status(500).type("text/plain").send(`The site couldn’t load the feed. Reload this page and report this error ID if it keeps happening. Error ID: ${errorId}`);
     }
   });
 };

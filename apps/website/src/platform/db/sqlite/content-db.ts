@@ -1,3 +1,5 @@
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -107,7 +109,7 @@ export async function migrateSqliteContentFile({ db, filePath }: { db: ContentDb
     console.warn(`[migrations] Skipping pre-migration backup: ${error instanceof Error ? error.message : String(error)}`);
   }, onBackupComplete: async ({ backupPath: written }) => {
     // Recovery-window cleanup cannot turn a successful copy into a production boot refusal.
-    await removeOlderMigrationBackups({ kept: written }).catch(() => console.warn("[migrations] Could not prune older pre-migration backups."));
+    await removeOlderMigrationBackups({ kept: written }).catch(error => console.warn(`[migrations] Could not prune older pre-migration backups. ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`));
   } });
   if (report.applied.length > 0) {
     console.log(`[migrations] ${filePath}: applied ${report.applied.join(", ")}`);

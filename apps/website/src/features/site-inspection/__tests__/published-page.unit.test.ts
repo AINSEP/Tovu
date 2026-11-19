@@ -585,3 +585,9 @@ test("fetchPublishedPage: an invalid path still opens the loopback server first,
   }
   assert.deepEqual(requests, [], "a refused path must never reach the app");
 });
+
+for (const name of ["TimeoutError", "AbortError"]) test(`published page ${name} retains timeout name and private cause`, async () => {
+  const cause = new DOMException("transport canary", name);
+  await assert.rejects(fetchPublishedPage({ deps: { ...DEPS, fetch: async () => { throw cause; } }, input: { path: "/" } }), error =>
+    error instanceof Error && error.name === "PublishedPageTimeoutError" && error.cause === cause && /rendering '\/' exceeded/.test(error.message));
+});

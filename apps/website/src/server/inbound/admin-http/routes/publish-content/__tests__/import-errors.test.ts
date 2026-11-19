@@ -104,3 +104,15 @@ test("a non-Error throw is a 500 with the generic message, logged the same way",
   assertAdminResponse({ actual: importErrorResponse({ err: "secret detail" }), expected: { status: 500, body: { error: "The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.", code: "INTERNAL_ERROR" } } }, { failure: {"message":"The content import could not finish. Check import history for content already applied before trying again. Copy details and report this problem.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"publishing operation"} });
   assertAdminDiagnostics({ calls: logged.mock.calls.map(call => call.arguments), operation: "[routes/publish-content/import-errors]", diagnostics: [/^secret detail$/] });
 });
+
+test("an explicit 503 override preserves default 507 behavior for other admin callers", t => {
+  t.mock.method(console, "error", () => {});
+  const error = new DatabaseDiskSpaceError({ freeBytes: 0, requiredBytes: 100 });
+  let reply: { status: number; body: unknown } | undefined;
+  const res = { status(status: number) { return { json(body: unknown) { reply = { status, body }; } }; } };
+  sendAdminFailure({ res, error }, { status: 503, code: "CONSENT_UNAVAILABLE", message: "Published enforcement remains in place." });
+  assert.equal(reply?.status, 503);
+  assert.equal((reply?.body as { code: string }).code, "CONSENT_UNAVAILABLE");
+  sendAdminFailure({ res, error });
+  assert.equal(reply?.status, 507);
+});

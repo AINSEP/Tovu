@@ -1,3 +1,4 @@
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { rejectForeignWorkspace } from "#src/server/inbound/shared/route-guards";
 import { readRequestCookie } from "#src/server/http/request-cookie";
 import type { Request } from "express";
@@ -75,7 +76,8 @@ export const registerContentPostGetRoute: RouteRegistrar = ({ app, deps }, _opti
         return;
       }
 
-      res.status(500).json({ error: "internal error" });
+      const { errorId } = reportServerFailure({ error: err, operation: "public:post" }, { tracker: res.locals.adminFailureTracker });
+      res.status(500).json({ error: "The site couldn’t load the post. Reload this page and report this error ID if it keeps happening.", errorId });
     }
   });
 };

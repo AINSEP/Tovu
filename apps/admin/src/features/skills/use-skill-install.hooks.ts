@@ -1,3 +1,4 @@
+import { skillFailure } from "./skill-failure";
 import { useCallback, useRef, useState } from "react";
 import { installSkill, type SkillInstallPayload } from "./api";
 import { prepareSkillUpload } from "./skill-upload";
@@ -16,7 +17,7 @@ export function useSkillInstall(_required = {}, { onInstalled }: { onInstalled?:
     const current = generation.current;
     setError(null);
     try { const payload = await prepareSkillUpload({ files }, { paths }); if (current === generation.current) setPending(payload); }
-    catch (e) { if (current === generation.current) { setCause(e); setError(e instanceof Error ? e.message : "Could not read skill."); } }
+    catch (e) { if (current === generation.current) { setCause(e); setError(skillFailure({ error: e, message: "Could not read skill.", t: key => key }).message); } }
   }, []);
   const cancel = useCallback(() => { if (!confirmLock.current) { ++generation.current; setPending(null); setError(null); } }, []);
   const confirm = useCallback(async () => {
@@ -29,7 +30,7 @@ export function useSkillInstall(_required = {}, { onInstalled }: { onInstalled?:
       if (current === generation.current) setPending(null);
       await onInstalled?.();
     }
-    catch (e) { setCause(e); setError(e instanceof Error ? e.message : "Could not install skill."); }
+    catch (e) { setCause(e); setError(skillFailure({ error: e, message: "Could not install skill.", t: key => key }).message); }
     finally { confirmLock.current = false; setBusy(false); }
   }, [pending, onInstalled]);
   const fail = useCallback((message: string) => { setCause(message); setError(message); }, []);

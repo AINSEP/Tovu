@@ -1,3 +1,4 @@
+import { useFetchQuery } from "@jini-ai/ui/fetch-query";
 import { act, renderHook, waitFor } from "@/__tests__/fetch-query-render";
 import { describe, expect, it, vi } from "vitest";
 
@@ -114,4 +115,16 @@ describe("useTemplateSource", () => {
 
     await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith({ url: "/theme-assets/basic/render/pages/blog-post.html" }));
   });
+});
+
+it.each([new Error("adapter canary"), { rejected: "adapter canary" }])("keeps adapter rejection ownership: %s", async cause => {
+  const port = createFakeTemplateSourcePort();
+  vi.spyOn(port, "fetchTemplateSource").mockRejectedValue(cause);
+  const { result } = renderHook(() => {
+    useTemplateSource({ themeId: "basic", themeTier: "static", themeApiVersion: 2, templateFilename: "cause.html", port });
+    return useFetchQuery({ key: ["themes", "template-source", "basic", 2, "cause.html"], fetch: async () => { throw new Error("observer must join the active read"); } }, { staleTime: 0 });
+  });
+  await waitFor(() => expect(result.current.error).toBeTruthy());
+  if (cause instanceof Error) expect(result.current.error).toBe(cause);
+  else expect(result.current.error).toMatchObject({ message: "failed to load the template", cause });
 });

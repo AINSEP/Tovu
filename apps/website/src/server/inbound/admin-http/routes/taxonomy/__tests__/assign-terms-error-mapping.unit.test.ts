@@ -39,3 +39,14 @@ test("assigned-terms maps Error and non-Error failures to private correlated 500
     statusCode: 500, jsonBody: { error: "internal error", code: "INTERNAL_ERROR" },
   } }, { failure: {"message":"The request could not be completed.","action":"Check the result before repeating this operation. Copy details and report this problem.","step":"Request"} });
 });
+
+test("unexpected assigned-term failure logs one redacted incident matching the reply", async t => {
+  const logs = t.mock.method(console, "error", () => {});
+  const capture = await readAssigned(async () => { throw new Error("assignment context password=ASSIGN_CANARY"); });
+  const body = capture.jsonBody as { code: string; errorId: string };
+  assert.equal(capture.statusCode, 500);
+  assert.equal(body.code, "INTERNAL_ERROR");
+  assert.equal(logs.mock.calls.length, 1);
+  assert.ok(JSON.stringify(logs.mock.calls).includes(body.errorId));
+  assert.doesNotMatch(JSON.stringify(capture) + JSON.stringify(logs.mock.calls), /ASSIGN_CANARY/);
+});

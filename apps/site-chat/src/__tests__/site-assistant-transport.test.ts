@@ -1,3 +1,7 @@
+import { React, act, createRoot, installDom } from "./react-dom-harness";
+import { useSiteAssistantWidget } from "../SiteAssistantWidget.hooks";
+import { JSDOM } from "jsdom";
+import { createSiteVanillaArgs } from "../vanilla-host";
 import assert from "node:assert/strict";
 import { getEventListeners } from "node:events";
 import { afterEach, beforeEach, describe, it } from "node:test";
@@ -395,7 +399,7 @@ describe("createSiteAssistantTransport", () => {
       await donePromise;
 
       assert.equal(errors.length, 1);
-      assert.equal(errors[0]?.message, "Couldn't get an answer: site assistant request failed (502). Try again.");
+      assert.equal(errors[0]?.message, "Couldn't get an answer: This site could not answer (HTTP 502). Try again.");
     });
 
     it("throws 'no stream body' when the response has no body at all", async () => {
@@ -750,4 +754,52 @@ describe("history scanning when the latest user turn is not the last entry", () 
       { role: "assistant", content: "first answer" },
     ]);
   });
+});
+
+for (const mode of ["React transport", "vanilla host"]) {
+  it(`${mode}: malformed envelopes and body I/O settle once with private evidence`, async () => {
+    const savedFetch = globalThis.fetch;
+    const dom = new JSDOM('<div id="root"></div>', { url: 'https://example.test/' });
+    try {
+      for (const scenario of ["html", "read", "reference"]) {
+        const cause = new TypeError("password=BODY_IO_CANARY");
+        globalThis.fetch = async () => {
+          if (scenario === "html") return new Response("<html>HTML_CANARY</html>", { status: 502 });
+          if (scenario === "reference") return Response.json({ error: "Visitor replies are paused.", errorId: "visitor-incident-7" }, { status: 503 });
+          const response = new Response(null, { status: 504 });
+          response.json = async () => { throw cause; };
+          return response;
+        };
+        const transport = mode === "vanilla host"
+          ? createSiteVanillaArgs({ element: dom.window.document.getElementById("root")! }, { document: dom.window.document }).transport
+          : createSiteAssistantTransport();
+        const { handlers, errors, doneCount, donePromise } = makeHandlers();
+        await transport.startRun(baseInput([userMessage("hello")]), handlers);
+        await donePromise;
+        assert.equal(doneCount(), 1);
+        assert.equal(errors.length, 1);
+        assert.doesNotMatch(errors[0]!.message, /HTML_CANARY|BODY_IO_CANARY/);
+        if (scenario === "reference") assert.match(errors[0]!.message, /Visitor replies are paused.*visitor-incident-7/);
+        else assert.match(errors[0]!.message, new RegExp(`HTTP ${scenario === "html" ? 502 : 504}`));
+        if (scenario === "read") assert.equal((errors[0]!.cause as Error).cause, cause);
+      }
+    } finally { globalThis.fetch = savedFetch; dom.window.close(); }
+  });
+}
+
+it("the React widget hook delivers the same safe refusal reference and settles once", async () => {
+  const savedFetch = globalThis.fetch;
+  const { dom, restore } = installDom({ html: '<div id="tovu-site-assistant-root"></div>' }, { url: 'https://example.test/' });
+  const root = createRoot(dom.window.document.getElementById("tovu-site-assistant-root")!);
+  let transport!: ChatTransport;
+  function Probe() { transport = useSiteAssistantWidget({}).transport; return null; }
+  try {
+    globalThis.fetch = async () => Response.json({ error: "Visitor replies are paused.", errorId: "react-visitor-incident" }, { status: 503 });
+    await act(async () => root.render(React.createElement(Probe)));
+    const { handlers, errors, doneCount, donePromise } = makeHandlers();
+    await act(async () => { await transport.startRun(baseInput([userMessage("hello")]), handlers); await donePromise; });
+    assert.equal(errors.length, 1);
+    assert.match(errors[0]!.message, /Visitor replies are paused.*react-visitor-incident/);
+    assert.equal(doneCount(), 1);
+  } finally { await act(async () => root.unmount()); globalThis.fetch = savedFetch; restore(); }
 });

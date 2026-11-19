@@ -62,3 +62,18 @@ test("a successful backup is pruned even if the following migration fails", asyn
   await assert.rejects(migrateSqliteContentFile({ db, filePath: file }), /duplicate column/);
   assert.equal(fs.readdirSync(ops).filter(n => n.endsWith(".db")).length, 5);
 });
+
+test("backup pruning failure logs redacted cause and does not refuse completed migrations", async t => {
+  const { file, db } = fixture(t);
+  const readdir = fs.readdirSync;
+  t.mock.method(fs, "readdirSync", (...args: unknown[]) => {
+    if (args[0] === path.join(path.dirname(file), "ops")) throw new Error("retention context password=PRUNE_CANARY");
+    return Reflect.apply(readdir, fs, args);
+  });
+  const warnings = t.mock.method(console, "warn", () => {});
+  const report = await migrateSqliteContentFile({ db, filePath: file });
+  assert.ok(report.applied.includes("0037_media_source_metadata"));
+  const text = warnings.mock.calls.map(call => call.arguments.join(" ")).join(" ");
+  assert.match(text, /Could not prune older pre-migration backups.*retention context/);
+  assert.doesNotMatch(text, /PRUNE_CANARY/);
+});

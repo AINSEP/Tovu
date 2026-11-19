@@ -1,3 +1,4 @@
+import fsp from "node:fs/promises";
 /** `tovu import-local` over the REAL backend, verifier and restore, with an isolated home: no server, no session. */
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
@@ -215,5 +216,20 @@ test("a tidy request clears what a killed import left, makes no site and prints 
   assert.deepEqual(stagedLeftovers(h.root), []);
   assert.deepEqual(printed, []);
   assert.equal(JSON.parse(fs.readFileSync(path.join(directory, `${importId}.json`), "utf8")).status, "failed");
+  assert.deepEqual(h.workspace.registry({}).list({}), []);
+});
+
+for (const code of ["ENOENT", "EACCES"]) test(`archive open ${code} keeps a private cause and fixed guidance`, async t => {
+  const h = await importFixture(t);
+  const cause = Object.assign(new Error("password=ARCHIVE_CANARY"), { code });
+  t.mock.method(fsp, "open", async () => { throw cause; });
+  await assert.rejects(runImportLocalCommand({}, { workspace: h.workspace, readRequest: async () => JSON.stringify({ file: path.join(h.root, "missing.tovu.zip") }), writeStdout: () => {} }), error => {
+    assert.ok(error instanceof Error);
+    assert.equal(error.name, "ValidationError");
+    assert.equal(error.cause, cause);
+    assert.match(error.message, code === "ENOENT" ? /file is missing.*Choose/ : /file could not be read.*Choose/);
+    assert.doesNotMatch(error.message, /ARCHIVE_CANARY/);
+    return true;
+  });
   assert.deepEqual(h.workspace.registry({}).list({}), []);
 });

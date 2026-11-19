@@ -137,7 +137,7 @@ async function resolveSource({ request, backend }: { request: ImportLocalRequest
 async function readBoundedArchive({ file }: { file: string }): Promise<Buffer> {
   let handle: fsp.FileHandle;
   try { handle = await fsp.open(file, "r"); }
-  catch (error) { throw new ValidationError({ message: `That file could not be opened (${(error as NodeJS.ErrnoException).code ?? "unknown error"}). No website was created.` }); }
+  catch (error) { throw new ValidationError({ message: (error as NodeJS.ErrnoException).code === "ENOENT" ? "That file is missing. Choose the .tovu.zip again. No website was created." : "That file could not be read. Choose a readable .tovu.zip and try again. No website was created." }, { cause: error }); }
   try {
     const { size } = await handle.stat();
     if (size > SHARE_LIMITS.maxArchiveBytes) throw new ValidationError({ message: "That file is over the 300 MiB import limit. No website was created." });

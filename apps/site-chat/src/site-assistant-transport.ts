@@ -268,8 +268,13 @@ function postChat({ args, message, frontendHeaders }: { args: RunArgs; message: 
 
 async function failOnRefusal({ response, life }: { response: Response; life: RunLifecycle }, _options = {}) {
   // A non-JSON refusal still reaches the visitor with its HTTP status below.
-  const body = (await response.json().catch(() => null)) as { error?: string } | null;
-  life.fail({ error: new Error(body?.error || `site assistant request failed (${response.status})`) });
+  const message = `This site could not answer (HTTP ${response.status})`;
+  const body = (await response.json().catch((cause: unknown) => {
+    if (cause instanceof SyntaxError) return null;
+    throw new Error(message, { cause });
+  })) as { error?: string; errorId?: string } | null;
+  const reference = body?.errorId ? ` Error ID: ${body.errorId}` : '';
+  life.fail({ error: new Error((body?.error || message) + reference) });
   life.finish();
 }
 

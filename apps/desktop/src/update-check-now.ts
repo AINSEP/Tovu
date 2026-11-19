@@ -1,3 +1,5 @@
+import { formatErrorForLog, formatUserFacingError } from '@jini-ai/core';
+import { TOVU_ERROR_REDACTION_OPTIONS } from '@tovu/contracts/secret-redaction';
 /**
  * "Check for updates…" in the sites home Settings menu. The Jini controller only checks from the
  * elected owner copy, every four hours, so a copy launched later could sit on an old version for
@@ -50,10 +52,12 @@ export interface UpdateCheckNowDeps {
 
 const NETWORK_ERROR = /ERR_INTERNET_DISCONNECTED|ERR_NAME_NOT_RESOLVED|ERR_NETWORK|ERR_CONNECTION|ERR_TIMED_OUT|ENOTFOUND|ENETUNREACH|ECONNREFUSED|ECONNRESET|ETIMEDOUT|EAI_AGAIN/;
 
-/** Plain words for electron-updater's technical errors; the raw text goes to the log only. */
-export function plainUpdateError({ message }: { message: string }, _optionalArgs = {}): string {
+/** Operation guidance for electron-updater errors; diagnostic details are redacted separately. */
+export function plainUpdateError({ message }: { message: string }, { operation = 'check' }: { operation?: 'check' | 'download' } = {}): string {
   if (NETWORK_ERROR.test(message)) return 'Tovu couldn’t reach the update server. Check your internet connection and try again.';
-  return 'Something went wrong while checking. Try again in a few minutes.';
+  return operation === 'download'
+    ? 'Tovu couldn’t download the update. Choose Check for updates to try the download again.'
+    : 'Tovu couldn’t check for updates. Try Check for updates again in a few minutes.';
 }
 
 const AUTO_OFF = 'Automatic updates are off.';
@@ -84,8 +88,8 @@ function versionUpdateNotice(
 
 /** What the operator reads for each outcome; `ready` reuses the existing prompt instead. */
 export function updateCheckNotice(
-  { outcome, currentVersion, isPackaged, automaticUpdates, errorMessage = '' }: {
-    outcome: UpdateCheckOutcome; currentVersion: string; isPackaged: boolean; automaticUpdates: boolean; errorMessage?: string;
+  { outcome, currentVersion, isPackaged, automaticUpdates, errorMessage = '', errorDetails = '' }: {
+    outcome: UpdateCheckOutcome; currentVersion: string; isPackaged: boolean; automaticUpdates: boolean; errorMessage?: string; errorDetails?: string;
   },
   _optionalArgs = {},
 ): UpdateNotice | null {
@@ -94,7 +98,7 @@ export function updateCheckNotice(
     case 'unavailable': return isPackaged
       ? { type: 'info', message: 'Updates are off for this copy of Tovu', detail: `Reason: ${outcome.reason}.` }
       : { type: 'info', message: 'Updates only work in the installed app', detail: `This is a development copy of Tovu (${currentVersion}).` };
-    case 'error': return { type: 'error', message: 'Couldn’t check for updates', detail: plainUpdateError({ message: errorMessage }) };
+    case 'error': return { type: 'error', message: 'Couldn’t check for updates', detail: plainUpdateError({ message: errorMessage }) + errorDetails };
     default: return versionUpdateNotice({ outcome, currentVersion, automaticUpdates });
   }
 }
@@ -109,10 +113,10 @@ const messageOf = ({ error }: { error: unknown }, _options = {}): string => erro
 export function createUpdateCheckNow(deps: UpdateCheckNowDeps, _optionalArgs = {}): { checkNow: () => Promise<UpdateCheckOutcome> } {
   let inFlight: Promise<UpdateCheckOutcome> | null = null;
 
-  function report({ outcome }: { outcome: UpdateCheckOutcome }, { errorMessage }: { errorMessage?: string } = {}): UpdateCheckOutcome {
+  function report({ outcome }: { outcome: UpdateCheckOutcome }, { errorMessage, errorDetails }: { errorMessage?: string; errorDetails?: string } = {}): UpdateCheckOutcome {
     const notice = updateCheckNotice({
       outcome, currentVersion: deps.currentVersion(), isPackaged: deps.isPackaged,
-      automaticUpdates: deps.automaticUpdates(), errorMessage,
+      automaticUpdates: deps.automaticUpdates(), errorMessage, errorDetails,
     });
     if (notice) deps.notify(notice);
     return outcome;
@@ -126,8 +130,9 @@ export function createUpdateCheckNow(deps: UpdateCheckNowDeps, _optionalArgs = {
     if (!automatic) return report({ outcome: { kind: 'available', version } });
     // The controller's own listener prompts when this finishes; only a failure needs saying here.
     result.downloadPromise?.catch((error: unknown) => {
-      deps.log({ message: `update download failed: ${messageOf({ error })}` });
-      deps.notify({ type: 'error', message: `Couldn’t download Tovu ${version}`, detail: plainUpdateError({ message: messageOf({ error }) }) });
+      deps.log({ message: `update download failed: ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}` });
+      const failure = formatUserFacingError({ message: `Couldn’t download Tovu ${version}`, action: plainUpdateError({ message: messageOf({ error }) }, { operation: 'download' }), step: 'Download update', cause: error }, TOVU_ERROR_REDACTION_OPTIONS);
+      deps.notify({ type: 'error', message: `Couldn’t download Tovu ${version}`, detail: `${failure.action}\n\nCopy details:\n${failure.copyText}` });
     });
     return report({ outcome: { kind: 'downloading', version } });
   }
@@ -151,8 +156,9 @@ export function createUpdateCheckNow(deps: UpdateCheckNowDeps, _optionalArgs = {
       const result = await updater.checkForUpdates();
       return reportCheckResult({ result, automatic });
     } catch (error) {
-      deps.log({ message: `update check failed: ${messageOf({ error })}` });
-      return report({ outcome: { kind: 'error' } }, { errorMessage: messageOf({ error }) });
+      deps.log({ message: `update check failed: ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}` });
+      const failure = formatUserFacingError({ message: 'Couldn’t check for updates', action: plainUpdateError({ message: messageOf({ error }) }), step: 'Check for updates', cause: error }, TOVU_ERROR_REDACTION_OPTIONS);
+      return report({ outcome: { kind: 'error' } }, { errorMessage: messageOf({ error }), errorDetails: `\n\nCopy details:\n${failure.copyText}` });
     }
   }
 

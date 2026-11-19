@@ -1,3 +1,4 @@
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import { observeMemberSignInFailure } from "./analytics.js";
 import { captureVisitorEvent } from "../../visitor-analytics.js";
 import type { Express, Response } from "express";
@@ -49,9 +50,9 @@ export function registerPublicMemberSignInRequestRoute({ app, deps }: { app: Exp
   });
 }
 
-/** Detached failures are observable without logging addresses, bearer tokens or provider details. */
-export function reportMemberDeliveryFailure(_required: { error: unknown }, _optional = {}): void {
-  console.error("Member authentication delivery failed after acceptance");
+/** Detached failures remain observable through private, redacted diagnostics after acceptance. */
+export function reportMemberDeliveryFailure({ error }: { error: unknown }, _optional = {}): void {
+  reportServerFailure({ error, operation: "public:member-delivery" });
 }
 
 /** Setup errors are site-wide; validation is independent of account existence.
@@ -66,5 +67,6 @@ export function respondToSignInError({ error, res }: { error: unknown; res: Resp
     return;
   }
   if (error instanceof MemberValidationError) { res.status(400).json({ error: error.message }); return; }
-  res.status(500).json({ error: "internal error" });
+  const { errorId } = reportServerFailure({ error, operation: "public:member-sign-in" }, { tracker: res.locals.adminFailureTracker });
+  res.status(500).json({ error: "The site couldn’t complete sign-in. Try the original action again and report this error ID if it keeps happening.", errorId });
 }

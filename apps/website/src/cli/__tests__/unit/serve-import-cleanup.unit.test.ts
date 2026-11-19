@@ -8,7 +8,7 @@ test("server boot schedules cleanup once without waiting and warns on cleanup fa
   const stopped = new Error("Test stopped before site initialization.");
   const database = await import("../../../features/site-backup/import-database.js");
   t.mock.module(new URL("../../../features/site-backup/import-database.ts", import.meta.url).href, { namedExports: {
-    ...database, tidyImportDatabases: () => { calls.push("cleanup"); return outcome === "pending" ? new Promise<void>(() => {}) : Promise.reject(new Error("Temporary root unavailable.")); },
+    ...database, tidyImportDatabases: () => { calls.push("cleanup"); return outcome === "pending" ? new Promise<void>(() => {}) : Promise.reject(new Error("Temporary root unavailable. password=IMPORT_CLEANUP_CANARY")); },
   } });
   const startup = await import("../../../platform/secrets/startup-secrets.js");
   t.mock.module(new URL("../../../platform/secrets/startup-secrets.ts", import.meta.url).href, { namedExports: {
@@ -26,6 +26,8 @@ test("server boot schedules cleanup once without waiting and warns on cleanup fa
     await new Promise(resolve => setImmediate(resolve));
     assert.deepEqual(calls, ["resolver", "cleanup", "continue"]);
   }
+  assert.match(warnings[0]!, /Temporary root unavailable/);
+  assert.doesNotMatch(warnings[0]!, /IMPORT_CLEANUP_CANARY/);
   assert.equal(warnings.length, 1);
   assert.match(warnings[0]!, /import database cleanup.*next server start/i);
 });

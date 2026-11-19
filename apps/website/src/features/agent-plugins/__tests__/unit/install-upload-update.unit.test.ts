@@ -290,3 +290,23 @@ test("update: a host without MCP effects is refused as a wiring fault and the ol
     assert.equal((await readActivation(layout)).enabled, false, "a disabled plugin stays disabled");
   });
 });
+
+test("retired package cleanup failure keeps the published update and redacts its diagnostic", async t => {
+  const lifecycle = await import("../../lifecycle.js");
+  t.mock.module(new URL("../../lifecycle.ts", import.meta.url).href, { namedExports: {
+    ...lifecycle, removeFrozenPackageTree: async () => { throw new Error("retired cleanup context password=RETIRED_CANARY"); },
+  } });
+  const modulePath = "../../install-upload.js?retired-cleanup";
+  const { installUploadedAgentPlugin: install } = await import(modulePath);
+  const warnings: string[] = [];
+  t.mock.method(console, "warn", (...args: unknown[]) => warnings.push(args.join(" ")));
+  await withLayout(async layout => {
+    const old = await installFirst(layout, await packageZip("1.0.0"));
+    const archive = await packageZip("1.1.0");
+    const result = await install({ archive, expectedSha256: sha(archive), workspaceId: WORKSPACE, actor: "owner", update: { pluginId: PLUGIN, expectedOldDigest: old.archiveDigest } }, { layout, mcpProvisioning: recordingMcp().port });
+    assert.equal(result.plugin.version, "1.1.0");
+    assert.deepEqual(await liveDigests(layout), [result.plugin.archiveDigest]);
+    assert.match(warnings.join(" "), /retired package cleanup pending.*retired cleanup context/);
+    assert.doesNotMatch(warnings.join(" "), /RETIRED_CANARY/);
+  });
+});

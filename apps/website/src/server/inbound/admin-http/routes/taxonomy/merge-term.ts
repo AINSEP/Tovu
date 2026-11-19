@@ -26,13 +26,13 @@ import type { RouteDeps } from "#src/server/routes/types";
  * `intoTermId`'s content and removes `fromTermId` outright) — unlike `delete-term.ts`/
  * `delete-taxonomy.ts`, this file is NOT converted to the Trash. No code change here.
  */
-function statusFor({ err }: { err: unknown }, _optional = {}): { status: number; code: string } {
-  if (err instanceof ForbiddenError) return { status: 403, code: err.reasonCode };
-  if (err instanceof PlanStaleError) return { status: 409, code: "PLAN_STALE" };
-  if (err instanceof TokenExpiredError) return { status: 409, code: "TOKEN_EXPIRED" };
-  if (err instanceof TokenAlreadyRedeemedError) return { status: 409, code: "TOKEN_ALREADY_REDEEMED" };
-  if (err instanceof SameTermMergeError) return { status: 400, code: "SAME_TERM_MERGE" };
-  return { status: 500, code: "INTERNAL_ERROR" };
+function statusFor({ err }: { err: unknown }, _optional = {}): { status: number; code: string; message: string } | null {
+  if (err instanceof ForbiddenError) return { status: 403, code: err.reasonCode, message: err.message };
+  if (err instanceof PlanStaleError) return { status: 409, code: "PLAN_STALE", message: err.message };
+  if (err instanceof TokenExpiredError) return { status: 409, code: "TOKEN_EXPIRED", message: err.message };
+  if (err instanceof TokenAlreadyRedeemedError) return { status: 409, code: "TOKEN_ALREADY_REDEEMED", message: err.message };
+  if (err instanceof SameTermMergeError) return { status: 400, code: "SAME_TERM_MERGE", message: err.message };
+  return null;
 }
 
 export function registerAdminTaxonomyMergeTermRoutes(app: Express, deps: RouteDeps): void {
@@ -74,9 +74,9 @@ export function registerAdminTaxonomyMergeTermRoutes(app: Express, deps: RouteDe
 
       res.json(result);
     } catch (err) {
-      const { status, code } = statusFor({ err });
-      if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
-      res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
+      const failure = statusFor({ err });
+      if (!failure) { sendAdminFailure({ res, error: err }); return; }
+      res.status(failure.status).json({ error: failure.message, code: failure.code });
     }
   });
 
@@ -116,9 +116,9 @@ export function registerAdminTaxonomyMergeTermRoutes(app: Express, deps: RouteDe
 
       res.json({ confirmationToken: token });
     } catch (err) {
-      const { status, code } = statusFor({ err });
-      if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
-      res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
+      const failure = statusFor({ err });
+      if (!failure) { sendAdminFailure({ res, error: err }); return; }
+      res.status(failure.status).json({ error: failure.message, code: failure.code });
     }
   });
 
@@ -157,9 +157,9 @@ export function registerAdminTaxonomyMergeTermRoutes(app: Express, deps: RouteDe
 
       res.json(result);
     } catch (err) {
-      const { status, code } = statusFor({ err });
-      if (status === 500) { sendAdminFailure({ res, error: err }, { code }); return; }
-      res.status(status).json({ error: err instanceof Error ? err.message : "internal error", code });
+      const failure = statusFor({ err });
+      if (!failure) { sendAdminFailure({ res, error: err }); return; }
+      res.status(failure.status).json({ error: failure.message, code: failure.code });
     }
   });
 }

@@ -1,3 +1,5 @@
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
 import { isDaemonRunId } from "#src/contracts/core/assistant-run-events";
 import { createChatRunLedger as createLedger } from "@jini-ai/chat/store/runtime";
@@ -18,8 +20,8 @@ export function createChatRunLedger({ store }: { store: ChatKernel | SqliteConne
     async settle(required, optional) {
       const changed = await ledger.settle(required, optional);
       if (!changed || !tracker) return changed;
-      const run = await ledger.durable?.find({ runId: required.runId }, {}).catch(() => {
-        tracker.error({ error: new Error("Run analytics attribution lookup failed") }, { context: { operation: "assistant.run.product-event" } });
+      const run = await ledger.durable?.find({ runId: required.runId }, {}).catch(error => {
+        tracker.error({ error: new Error(`Run analytics attribution lookup could not complete. ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`) }, { context: { operation: "assistant.run.product-event" } });
         return null;
       });
       if (run?.principalId) void tracker.capture({ name: "assistant_run_finished", userId: run.principalId }, { properties: { chatSurface: "admin", logicalRunId: required.messageId, outcome: required.status, eventId: `assistant-finish:${required.messageId}` } });

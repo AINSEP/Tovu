@@ -1,3 +1,5 @@
+import { formatErrorForLog } from "@jini-ai/core";
+import { TOVU_ERROR_REDACTION_OPTIONS } from "@tovu/contracts/secret-redaction";
 /** Thin host binding: persistent storage, migration and caps are owned by Jini. */
 import * as filesystem from "node:fs/promises";
 import path from "node:path";
@@ -49,7 +51,7 @@ async function discoverSiteWorkspaceIds(required: Pick<PluginStateEffects, "cont
     for (const entry of await filesystem.readdir(path.join(required.layout.root, "ws"), { withFileTypes: true })) {
       if (!entry.isDirectory()) continue;
       try { required.layout.forWorkspace({ workspaceId: entry.name }); ids.add(entry.name); }
-      catch { console.warn(`[agent-plugins:migration-failed] invalid legacy workspace folder ${entry.name}`); }
+      catch (error) { console.warn(`[agent-plugins:migration-failed] invalid legacy workspace folder ${entry.name} ${formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)}`); }
     }
   } catch (error) {
     if (!error || typeof error !== "object" || !("code" in error) || error.code !== "ENOENT") throw error;

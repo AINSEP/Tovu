@@ -1,3 +1,4 @@
+import { reportServerFailure } from "#src/server/inbound/shared/admin-failure";
 import type { Express, Request, Response } from "express";
 
 import { processUnsubscribe } from "#src/features/newsletter/unsubscribe";
@@ -35,7 +36,8 @@ export function registerPublicNewsletterUnsubscribeRoute(app: Express, deps: New
           .send(renderPage({ title: "Unsubscribe link invalid", message: "This unsubscribe link is invalid or has expired." }));
         return;
       }
-      res.status(500).type("html").send(renderPage({ title: "Something went wrong", message: "Unexpected server error." }));
+      const { errorId } = reportServerFailure({ error: err, operation: "public:newsletter-unsubscribe" }, { tracker: res.locals.adminFailureTracker });
+      res.status(500).type("html").send(renderPage({ title: "Unsubscription unavailable", message: `The site couldn’t complete unsubscription. Try the original action again and report this error ID if it keeps happening. Error ID: ${errorId}` }));
     }
   };
 
