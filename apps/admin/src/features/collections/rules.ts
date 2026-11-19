@@ -108,7 +108,7 @@ export function visibleEntryEditorError(params: {
   versionConflictMessage: string;
 }): string | null {
   const describe = ({ error, fallback }: { error: Error; fallback: string }, _optional = {}) =>
-    isVersionConflict(error) ? params.versionConflictMessage : describeApiError({ e: error, fallback });
+    isVersionConflict({ error }) ? params.versionConflictMessage : describeApiError({ e: error, fallback });
   if (params.updateError) return describe({ error: params.updateError, fallback: params.saveFallback });
   if (params.createError) return describe({ error: params.createError, fallback: params.saveFallback });
   if (params.lifecycleError && params.lifecycleFallback) {

@@ -293,11 +293,11 @@ describe("Library permissions", () => {
     const { result } = renderLibraryHook(port);
     await waitFor(() => expect(result.current.permissions.known).toBe(true));
     const doc = fakeDocument({ filename: "notes.md" });
-    expect(documentMenuItems(doc, result.current).map((item) => item.key)).toEqual(["preview", "download"]);
+    expect(documentMenuItems({ item: doc, controller: result.current }).map((item) => item.key)).toEqual(["preview", "download"]);
     const full = renderLibraryHook(createFakeLibraryPort({ permissions: ALL })).result;
     await waitFor(() => expect(full.current.permissions.known).toBe(true));
-    expect(documentMenuItems(doc, full.current).map((item) => item.key)).toEqual(["preview", "download", "rename", "trash"]);
-    expect(documentMenuItems(fakeDocument({ filename: "report.docx" }), full.current).map((item) => item.key)).toEqual(["download", "rename", "trash"]);
+    expect(documentMenuItems({ item: doc, controller: full.current }).map((item) => item.key)).toEqual(["preview", "download", "rename", "trash"]);
+    expect(documentMenuItems({ item: fakeDocument({ filename: "report.docx" }), controller: full.current }).map((item) => item.key)).toEqual(["download", "rename", "trash"]);
   });
 
   it("hides the Upload documents button without media.upload", async () => {
@@ -689,7 +689,7 @@ describe("Library documents table actions", () => {
 
   it("each menu item runs its own action", () => {
     const controller = stubController({ documents: [doc] });
-    const items = documentMenuItems(doc, controller);
+    const items = documentMenuItems({ item: doc, controller });
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
       controller.calls.push(`anchor:${this.getAttribute("href")}:${this.rel}:${this.hasAttribute("download")}:${this.isConnected}`);
     });

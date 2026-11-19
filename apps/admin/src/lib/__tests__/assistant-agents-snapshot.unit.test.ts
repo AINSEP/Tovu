@@ -11,7 +11,7 @@ describe("assistant agents snapshot", () => {
   });
 
   it("round-trips a live list", () => {
-    writeAgentsSnapshot([{ id: "claude", name: "Claude Code", models: [{ id: "opus", label: "Opus" }] }]);
+    writeAgentsSnapshot({ agents: [{ id: "claude", name: "Claude Code", models: [{ id: "opus", label: "Opus" }] }] });
 
     expect(readAgentsSnapshot()).toEqual([{ id: "claude", name: "Claude Code", models: [{ id: "opus", label: "Opus" }] }]);
   });
@@ -21,8 +21,8 @@ describe("assistant agents snapshot", () => {
   });
 
   it("does not store an empty list over a useful one", () => {
-    writeAgentsSnapshot([{ id: "claude", name: "Claude Code" }]);
-    writeAgentsSnapshot([]);
+    writeAgentsSnapshot({ agents: [{ id: "claude", name: "Claude Code" }] });
+    writeAgentsSnapshot({ agents: [] });
 
     expect(readAgentsSnapshot()).toEqual([{ id: "claude", name: "Claude Code" }]);
   });
@@ -53,6 +53,6 @@ describe("assistant agents snapshot", () => {
       throw new Error("QuotaExceededError");
     });
 
-    expect(() => writeAgentsSnapshot([{ id: "claude", name: "Claude Code" }])).not.toThrow();
+    expect(() => writeAgentsSnapshot({ agents: [{ id: "claude", name: "Claude Code" }] })).not.toThrow();
   });
 });

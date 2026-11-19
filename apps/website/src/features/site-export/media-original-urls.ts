@@ -51,7 +51,7 @@ export async function rewriteMediaOriginalUrls(
   const paths = await localOriginalPaths({ body, deps, locations });
   if (paths.size === 0) return body;
   const records = await exportableMediaRecords({ paths, deps });
-  const contentTypes = await resolveContentTypes(deps, [...records.values()]);
+  const contentTypes = await resolveContentTypes({ deps, media: [...records.values()] });
   const replacements = new Map<string, string>();
   for (const [url, record] of records) {
     const type = contentTypes.get(record.source.sha256);

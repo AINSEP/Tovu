@@ -582,11 +582,11 @@ describe("defaultWidgetConfig", () => {
     ["menu", { menuRef: "" }],
     ["contact-form", { formDefinitionId: "" }],
   ] as const)("%s -> %j", (type, expected) => {
-    expect(defaultWidgetConfig(type)).toEqual(expected);
+    expect(defaultWidgetConfig({ widgetType: type })).toEqual(expected);
   });
 
   it("an unknown type outside the closed union falls back to an empty object", () => {
-    expect(defaultWidgetConfig("unknown-type" as AdminWidgetType)).toEqual({});
+    expect(defaultWidgetConfig({ widgetType: "unknown-type" as AdminWidgetType })).toEqual({});
   });
 });
 

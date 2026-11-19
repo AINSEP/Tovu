@@ -162,7 +162,7 @@ async function bootCapabilityRegistry(activations: PluginActivationRecord[] | In
   const registry = createToolRegistry({});
   const repo = activations instanceof InMemoryPluginActivationRepo ? activations : new InMemoryPluginActivationRepo({ initialRows: activations });
   const authorizeCalls: unknown[] = [];
-  await registerEnabledPluginCapabilityTools(registry, {
+  await registerEnabledPluginCapabilityTools({ registry, deps: {
     withExtensionApprovalPolicy,
     authorize: async (request) => { authorizeCalls.push(request); return { allowed: true } as never; },
     workspaceId: CAP_WORKSPACE,
@@ -170,7 +170,7 @@ async function bootCapabilityRegistry(activations: PluginActivationRecord[] | In
     discoverPlugins: async () => ALL_CAPABILITY_MANIFESTS.map(discoveryRecord),
     pluginActivationRepo: repo,
     ...extra,
-  });
+  } });
   return { registry, repo, authorizeCalls };
 }
 
@@ -200,7 +200,7 @@ export async function observeCapabilityTools(): Promise<unknown> {
   };
   return {
     sources: plain(sources),
-    derivedRisk: [...pluginCapabilityToolDerivedRisk(sources)],
+    derivedRisk: [...pluginCapabilityToolDerivedRisk({ sources })],
     descriptors: registrations.map(descriptorOf),
     bootRegistered: [...stored.registry.list({})].map((entry) => (entry as { id?: string }).id ?? plain(entry)),
     bootSubsets,

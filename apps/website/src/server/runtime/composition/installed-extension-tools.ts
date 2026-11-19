@@ -71,7 +71,7 @@ export const registerInstalledExtensionTools: InstalledExtensionRegistrar = asyn
   await registerExecutableAgentPluginTools({ deps, log });
 
   try {
-    await registerEnabledPluginCapabilityTools(registry, {
+    await registerEnabledPluginCapabilityTools({ registry, deps: {
       withExtensionApprovalPolicy,
       authorize: deps.authorize,
       workspaceId: deps.workspaceId,
@@ -86,7 +86,7 @@ export const registerInstalledExtensionTools: InstalledExtensionRegistrar = asyn
       executablePluginToolRegistry: deps.executablePluginToolRegistry,
       // AW-7 Tier 2: a tier-2 plugin's tool computes a fresh result through this process's registry.
       ...(deps.previewPluginBeforeSave ? { previewPluginBeforeSave: deps.previewPluginBeforeSave } : {}),
-    });
+    } });
   } catch (error) {
     warnFamilySkipped({ log, family: "plugin capability tools", error });
   }

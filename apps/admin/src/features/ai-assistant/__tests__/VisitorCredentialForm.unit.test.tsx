@@ -55,7 +55,7 @@ function fakeController(overrides: Partial<VisitorCredentialFormController> = {}
     hasStoredKey: false,
     storedKeyIsForOtherEndpoint: false,
     configuredPresetIds: new Set(),
-    providerGroups: visitorProviderGroups(new Set()),
+    providerGroups: visitorProviderGroups({ configuredIds: new Set() }),
     selectPresetById: vi.fn(),
     selectPreset: vi.fn(),
     saveKey: vi.fn(async () => undefined),
@@ -471,7 +471,7 @@ describe("in-flight and settled states of the visitor key and settings controls"
   it("marks a provider that already holds a saved key as configured", () => {
     const preset = DEFAULT_PROVIDER_PRESETS[0]!;
     render(<VisitorCredentialForm useVisitorCredentialFormHook={() => fakeController({
-      preset, providerGroups: visitorProviderGroups(new Set([preset.id])),
+      preset, providerGroups: visitorProviderGroups({ configuredIds: new Set([preset.id]) }),
     })} />);
     expect(screen.getByRole("option", { name: `${preset.title} (configured)` })).toBeInTheDocument();
   });

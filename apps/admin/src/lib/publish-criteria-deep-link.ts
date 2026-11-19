@@ -38,8 +38,8 @@ type PublishCriteriaHistory = Pick<History, "replaceState">;
  *   iteration.
  */
 export function takePublishCriteriaFromQuery(
-  location: PublishCriteriaLocation,
-  history: PublishCriteriaHistory
+  { location, history }: { location: PublishCriteriaLocation; history: PublishCriteriaHistory },
+  _optional: Record<string, never> = {},
 ): PublishCriteria | null {
   const params = new URLSearchParams(location.search);
   const raw = params.get(PUBLISH_CRITERIA_QUERY_PARAM);

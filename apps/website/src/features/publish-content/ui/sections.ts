@@ -56,7 +56,7 @@ export function publishSectionById({ id }: { id: string }, _optional = {}): Publ
  *
  * @complexity O(sections × types).
  */
-export function publishSectionForEntityTypes(entityTypes: readonly string[]): PublishSection | undefined {
+export function publishSectionForEntityTypes({ entityTypes }: { entityTypes: readonly string[] }, _optional: Record<string, never> = {}): PublishSection | undefined {
   const wanted = new Set(entityTypes);
   return PUBLISH_SECTIONS.find(
     (candidate) =>

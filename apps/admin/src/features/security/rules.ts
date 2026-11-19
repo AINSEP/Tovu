@@ -647,7 +647,7 @@ export function buildAccessTokenConnectionInput(
     const providerId: AdminPublishCredentialProviderId = fields.ref.providerId;
     return buildCredentialConnectionInput({ providerId, spec, values: { ...fields.values, [spec.tokenField]: fields.token } });
   }
-  return buildSourceControlConnectionInput({ providerId: fields.ref.providerId, token: fields.token, values: fields.values }, info.extraFields);
+  return buildSourceControlConnectionInput({ fields: { providerId: fields.ref.providerId, token: fields.token, values: fields.values }, declaredFields: info.extraFields });
 }
 
 /** The DOM/agent id suffix of one extra field's input. `accountId` keeps its old `account` suffix

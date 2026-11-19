@@ -454,7 +454,7 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
 
           const { media, sniffed } = await storeGeneratedImage({ routeDeps, ctx, input, prompt, generated, provenance: generatedProvenance({ model, generated }) });
 
-          const urls = await resolveMediaPublicUrls(routeDeps, [media]);
+          const urls = await resolveMediaPublicUrls({ deps: routeDeps, assets: [media] });
           // `model`/`provider` let the assistant tell the user which generator it used; `provider` is
           // the vendor the engine actually ran, reported even for a placeholder (`media.placeholder`).
           const result: { media: GeneratedMediaView; model: string; provider: string } = {

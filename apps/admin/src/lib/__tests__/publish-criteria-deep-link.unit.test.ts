@@ -23,7 +23,7 @@ it("returns null and never touches the URL when there is no `publish` param", ()
   const location = fakeLocationAt("");
   const history = fakeHistory();
 
-  expect(takePublishCriteriaFromQuery(location, history)).toBeNull();
+  expect(takePublishCriteriaFromQuery({ location, history })).toBeNull();
   expect(history.replaceState).not.toHaveBeenCalled();
 });
 
@@ -32,7 +32,7 @@ it("round-trips a criteria encoded by encodePublishCriteriaToQuery", () => {
   const location = fakeLocationAt(`?publish=${encoded}`);
   const history = fakeHistory();
 
-  expect(takePublishCriteriaFromQuery(location, history)).toEqual({ types: ["page", "menu"], overwrite: true });
+  expect(takePublishCriteriaFromQuery({ location, history })).toEqual({ types: ["page", "menu"], overwrite: true });
   expect(history.replaceState).toHaveBeenCalledWith(null, "", "/admin/");
 });
 
@@ -40,7 +40,7 @@ it("strips the param but returns null for an invalid payload", () => {
   const location = fakeLocationAt("?publish=not-json-at-all");
   const history = fakeHistory();
 
-  expect(takePublishCriteriaFromQuery(location, history)).toBeNull();
+  expect(takePublishCriteriaFromQuery({ location, history })).toBeNull();
   expect(history.replaceState).toHaveBeenCalledWith(null, "", "/admin/");
 });
 
@@ -49,6 +49,6 @@ it("keeps every other query param and the hash, in place, next to the one it rem
   const location = fakeLocationAt(`?foo=bar&publish=${encoded}`, "/admin/", "#section");
   const history = fakeHistory();
 
-  expect(takePublishCriteriaFromQuery(location, history)).toEqual({ types: ["post"] });
+  expect(takePublishCriteriaFromQuery({ location, history })).toEqual({ types: ["post"] });
   expect(history.replaceState).toHaveBeenCalledWith(null, "", "/admin/?foo=bar#section");
 });

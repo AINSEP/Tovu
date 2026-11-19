@@ -69,7 +69,7 @@ test('chat card saves then probes; reports auth separately and includes the serv
   assert.equal(answer.emissions.length, 2);
   assert.equal(JSON.stringify(answer.emissions).includes(token), false);
   assert.equal(JSON.stringify(answer.result).includes(token), false);
-  const { configs } = await readEnabledExternalMcpConfigs(answer, workspaceId);
+  const { configs } = await readEnabledExternalMcpConfigs({ deps: answer, workspaceId });
   const target = configs[0]?.target;
   assert.equal(target?.kind === 'streamable_http' && target.headers.authorization === `Bearer ${token}`, true, 'the rejected token is still durably saved');
 });

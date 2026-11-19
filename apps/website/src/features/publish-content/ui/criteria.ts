@@ -90,7 +90,7 @@ function matchesItem({ row, item }: { row: PublishReportRow; item: string }, _op
  * @complexity O(rows × items) — an `items` list is a handful of named things per request, so this
  * stays well under a millisecond for any plan size the dialog renders.
  */
-export function applyPublishCriteria(rows: readonly PublishReportRow[], criteria: PublishCriteria & { readonly excludeItems?: readonly string[] }): CriteriaSelection {
+export function applyPublishCriteria({ rows, criteria }: { rows: readonly PublishReportRow[]; criteria: PublishCriteria & { readonly excludeItems?: readonly string[] } }, _optional: Record<string, never> = {}): CriteriaSelection {
   const types = criteria.types ?? [];
   const items = criteria.items ?? [];
   const normalizedTypes = new Set(types.map((type) => normalizeType({ type })));

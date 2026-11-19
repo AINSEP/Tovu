@@ -16,7 +16,7 @@ export function useTaxonomyHtmlEmbed(
       setCopyFeedback(t("Copied!"));
     } catch (error) {
       setCopyFeedback(t("Could not copy embed"));
-      if (isClipboardRefusal(error)) return;
+      if (isClipboardRefusal({ error })) return;
       publishLocalAdminFailure({
         message: "The taxonomy embed code could not be copied.",
         action: "Try Copy HTML embed again. If it keeps failing, copy details and report this problem.",

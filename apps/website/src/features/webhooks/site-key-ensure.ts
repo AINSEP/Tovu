@@ -565,7 +565,7 @@ interface InstallTarget {
  *  a file source with a path is always the target; anything else is skipped (`undefined`). */
 function installIntoSource(required: InstallTarget & { source: SiteKeySource; env: NodeJS.ProcessEnv }): InstallSiteKeyResult | undefined {
   const { source, env, ...target } = required;
-  if (source.kind === "env") return installAgainstEnvKey({ ...target, material: readSiteKeySourceMaterial(source, env) });
+  if (source.kind === "env") return installAgainstEnvKey({ ...target, material: readSiteKeySourceMaterial({ source, env }) });
   if (source.path === undefined) return undefined;
   return installIntoKeyFile({ ...target, path: source.path, current: readRawSiteKeyMaterial(source, env) });
 }
@@ -837,5 +837,5 @@ function isErrorCode({ err, code }: { err: unknown; code: "EEXIST" | "ENOENT" },
 }
 
 function readRawSiteKeyMaterial(source: SiteKeySource, env: NodeJS.ProcessEnv): string | undefined {
-  return readSiteKeySourceMaterial(source, env)?.raw;
+  return readSiteKeySourceMaterial({ source, env })?.raw;
 }

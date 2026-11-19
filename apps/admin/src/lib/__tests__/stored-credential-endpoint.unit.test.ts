@@ -102,11 +102,11 @@ describe("createProbeErrorDescriber — ExecutionTab's describeProbeError, in a 
 
   it("translates the plain-language copy that replaces an endpoint-pin refusal", () => {
     const refusal = new ApiError({ message: "saved for another endpoint", status: 400 }, { code: "STORED_CREDENTIAL_ENDPOINT_MISMATCH" });
-    expect(createProbeErrorDescriber(spanish)(refusal)).toBe("Tu clave guardada es de otro proveedor. Pega una clave para este.");
+    expect(createProbeErrorDescriber({ t: spanish })(refusal)).toBe("Tu clave guardada es de otro proveedor. Pega una clave para este.");
   });
 
   it("keeps a provider's own message, and words a non-Error throw by its string form", () => {
-    expect(createProbeErrorDescriber(spanish)(new Error("API key not valid"))).toBe("API key not valid");
-    expect(createProbeErrorDescriber(spanish)("boom")).toBe("boom");
+    expect(createProbeErrorDescriber({ t: spanish })(new Error("API key not valid"))).toBe("API key not valid");
+    expect(createProbeErrorDescriber({ t: spanish })("boom")).toBe("boom");
   });
 });

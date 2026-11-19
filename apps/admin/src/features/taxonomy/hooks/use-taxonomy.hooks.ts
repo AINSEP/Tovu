@@ -176,9 +176,9 @@ export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string)
   // not blank on every agent write.
   const invalidate = useInvalidate();
   useEffect(() => {
-    return subscribeToContentRefresh((scope) => {
+    return subscribeToContentRefresh({ listener: (scope) => {
       if (contentRefreshApplies({ scope, resource: TAXONOMY_RESOURCE })) invalidate({ key: KEYS.list });
-    });
+    } });
   }, [invalidate]);
 
   const [selectedTermId, setSelectedTermId] = useState<string | null>(null);

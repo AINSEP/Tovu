@@ -582,7 +582,7 @@ export function toPublishReportRows(report: PublishContentReport, { completed = 
  *
  * @complexity O(n), single pass.
  */
-export function summarizePublishReport(rows: readonly PublishReportRow[]): PublishReportSummary {
+export function summarizePublishReport({ rows }: { rows: readonly PublishReportRow[] }, _optional: Record<string, never> = {}): PublishReportSummary {
   let publishing = 0;
   let unchanged = 0;
   let skipped = 0;
@@ -604,7 +604,7 @@ export function summarizePublishReport(rows: readonly PublishReportRow[]): Publi
  *
  * @complexity O(n), single pass.
  */
-export function selectableRowKeys(rows: readonly PublishReportRow[]): readonly string[] {
+export function selectableRowKeys({ rows }: { rows: readonly PublishReportRow[] }, _optional: Record<string, never> = {}): readonly string[] {
   return rows.filter((row) => row.selectable).map((row) => row.key);
 }
 
@@ -615,7 +615,7 @@ export function selectableRowKeys(rows: readonly PublishReportRow[]): readonly s
  *
  * @complexity O(k) in the row's referrer count.
  */
-export function rowPublishesWithSelection(row: PublishReportRow, selected: ReadonlySet<string>): boolean {
+export function rowPublishesWithSelection({ row, selected }: { row: PublishReportRow; selected: ReadonlySet<string> }, _optional: Record<string, never> = {}): boolean {
   if (row.selectable) return selected.has(row.key);
   return row.disposition === "publish" && row.includedFor.some((key) => selected.has(key));
 }
@@ -630,8 +630,8 @@ export function rowPublishesWithSelection(row: PublishReportRow, selected: Reado
  *
  * @complexity O(n·k), single pass; `k` is a carried-along row's referrer count.
  */
-export function countSelectedPublishing(rows: readonly PublishReportRow[], selected: ReadonlySet<string>): number {
+export function countSelectedPublishing({ rows, selected }: { rows: readonly PublishReportRow[]; selected: ReadonlySet<string> }, _optional: Record<string, never> = {}): number {
   let count = 0;
-  for (const row of rows) if (rowPublishesWithSelection(row, selected)) count += 1;
+  for (const row of rows) if (rowPublishesWithSelection({ row, selected })) count += 1;
   return count;
 }

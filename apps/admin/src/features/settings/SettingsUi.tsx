@@ -375,7 +375,7 @@ export function SettingsUi(props: SettingsUiProps) {
             apiKeyStoredExternally={adminCredential.apiKeyStoredExternally}
             apiKeyPlaceholder={adminCredential.apiKeyPlaceholder}
             canDiscoverModels={adminCredential.canDiscoverModels}
-            describeProbeError={createProbeErrorDescriber(tExecution)}
+            describeProbeError={createProbeErrorDescriber({ t: tExecution })}
             apiKeyFooter={<AdminByokKeyFooter controller={adminCredential} t={tExecution} />}
             formFooter={<AdminByokSettingsFooter controller={adminCredential} t={tExecution} />}
             agentHandle="settings-ai-agent"

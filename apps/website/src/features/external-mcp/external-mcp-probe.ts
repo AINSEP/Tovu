@@ -85,7 +85,7 @@ export async function probeExternalMcpServer({ deps, serverId }: { deps: Externa
     ports: {
       repo: deps.externalMcpServerRepo,
       readEnabledConfigs: ({ workspaceId }) => readEnabledExternalMcpConfigs(
-        { repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer, oauth: deps.externalMcpOAuth?.tokenResolver }, workspaceId),
+        { deps: { repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer, oauth: deps.externalMcpOAuth?.tokenResolver }, workspaceId }),
       connect: deps.connect ?? defaultProbeConnect,
     },
     workspaceId: deps.workspaceId,

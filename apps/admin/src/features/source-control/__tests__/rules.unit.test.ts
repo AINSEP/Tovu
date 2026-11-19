@@ -129,69 +129,69 @@ describe("buildSourceControlConnectionInput", () => {
         { name: "username", label: "Username", required: true },
       ],
     } });
-    const connection = buildSourceControlConnectionInput({ providerId: info.id, token: " selected-secret ", values: { username: " operator ", accessToken: "stray-secret" } }, info.fields);
+    const connection = buildSourceControlConnectionInput({ fields: { providerId: info.id, token: " selected-secret ", values: { username: " operator ", accessToken: "stray-secret" } }, declaredFields: info.fields });
     expect(connection).toEqual({ providerId: "example-access", token: " selected-secret ", username: "operator" });
   });
 
   it("omits declared fields that have no value in the form", () => {
-    expect(buildSourceControlConnectionInput({ providerId: "forge", token: "t", values: {} }, FORGE.fields)).toEqual({ providerId: "forge", token: "t" });
+    expect(buildSourceControlConnectionInput({ fields: { providerId: "forge", token: "t", values: {} }, declaredFields: FORGE.fields })).toEqual({ providerId: "forge", token: "t" });
   });
 
   it("passes the token unchanged to the store when the host declares nothing else", () => {
-    expect(buildSourceControlConnectionInput({ ...blankFields("github"), token: `  ${SYNTHETIC_TOKEN}  ` }, GITHUB.fields)).toEqual({ providerId: "github", token: `  ${SYNTHETIC_TOKEN}  ` });
+    expect(buildSourceControlConnectionInput({ fields: { ...blankFields("github"), token: `  ${SYNTHETIC_TOKEN}  ` }, declaredFields: GITHUB.fields })).toEqual({ providerId: "github", token: `  ${SYNTHETIC_TOKEN}  ` });
   });
 
   it("trims ordinary declared fields and drops undeclared or blank ones, preserving the token", () => {
-    const input = buildSourceControlConnectionInput({ providerId: "forge", token: " t ", values: { username: " alice ", stray: "x" } }, FORGE.fields);
+    const input = buildSourceControlConnectionInput({ fields: { providerId: "forge", token: " t ", values: { username: " alice ", stray: "x" } }, declaredFields: FORGE.fields });
     expect(input).toEqual({ providerId: "forge", token: " t ", username: "alice" });
-    expect(buildSourceControlConnectionInput({ providerId: "forge", token: "t", values: { username: "  " } }, FORGE.fields)).toEqual({ providerId: "forge", token: "t" });
+    expect(buildSourceControlConnectionInput({ fields: { providerId: "forge", token: "t", values: { username: "  " } }, declaredFields: FORGE.fields })).toEqual({ providerId: "forge", token: "t" });
   });
 
   it("preserves secret fields and canonical keys alongside trimmed ordinary fields", () => {
-    const input = buildSourceControlConnectionInput({
+    const input = buildSourceControlConnectionInput({ fields: {
       providerId: "forge", token: " t ",
       values: { username: " alice ", password: " p ", blankSecret: "  ", emptySecret: "", optional: "  ", providerId: "other", token: "other", stray: "x" },
-    }, [...FORGE.fields, { name: "password", secret: true }, { name: "blankSecret", secret: true }, { name: "emptySecret", secret: true }, { name: "optional" }, { name: "providerId" }, { name: "token" }]);
+    }, declaredFields: [...FORGE.fields, { name: "password", secret: true }, { name: "blankSecret", secret: true }, { name: "emptySecret", secret: true }, { name: "optional" }, { name: "providerId" }, { name: "token" }] });
     expect(input).toEqual({ providerId: "forge", token: " t ", username: "alice", password: " p ", blankSecret: "  " });
   });
 });
 
 describe("sourceControlCredentialRowReadyToSave", () => {
   it("is false with a blank token", () => {
-    expect(sourceControlCredentialRowReadyToSave(blankFields("github"), GITHUB)).toBe(false);
+    expect(sourceControlCredentialRowReadyToSave({ fields: blankFields("github"), info: GITHUB })).toBe(false);
   });
 
   it("is true once the token alone is filled in when the host declares nothing else", () => {
-    expect(sourceControlCredentialRowReadyToSave({ ...blankFields("github"), token: SYNTHETIC_TOKEN }, GITHUB)).toBe(true);
+    expect(sourceControlCredentialRowReadyToSave({ fields: { ...blankFields("github"), token: SYNTHETIC_TOKEN }, info: GITHUB })).toBe(true);
   });
 
   it("is false until every required declared field is filled, treating whitespace as blank", () => {
-    expect(sourceControlCredentialRowReadyToSave({ ...blankFields("forge"), token: "t" }, FORGE)).toBe(false);
-    expect(sourceControlCredentialRowReadyToSave({ providerId: "forge", token: "t", values: { username: "   " } }, FORGE)).toBe(false);
-    expect(sourceControlCredentialRowReadyToSave({ providerId: "forge", token: "t", values: { username: "alice" } }, FORGE)).toBe(true);
+    expect(sourceControlCredentialRowReadyToSave({ fields: { ...blankFields("forge"), token: "t" }, info: FORGE })).toBe(false);
+    expect(sourceControlCredentialRowReadyToSave({ fields: { providerId: "forge", token: "t", values: { username: "   " } }, info: FORGE })).toBe(false);
+    expect(sourceControlCredentialRowReadyToSave({ fields: { providerId: "forge", token: "t", values: { username: "alice" } }, info: FORGE })).toBe(true);
   });
 
   it("is never ready for an unlisted host", () => {
     const unlisted = sourceControlProviders({ descriptors: [], credentials: [credential({ providerId: "gitlab" })] })[0]!;
-    expect(sourceControlCredentialRowReadyToSave({ ...blankFields("gitlab"), token: "glpat" }, unlisted)).toBe(false);
+    expect(sourceControlCredentialRowReadyToSave({ fields: { ...blankFields("gitlab"), token: "glpat" }, info: unlisted })).toBe(false);
   });
 
   it("ignores an optional field while still requiring the host's required field", () => {
     const provider = { ...FORGE, fields: [...FORGE.fields, { name: "accountId", label: "Account ID", required: false }] };
-    expect(sourceControlCredentialRowReadyToSave({ providerId: "forge", token: "t", values: {} }, provider)).toBe(false);
-    expect(sourceControlCredentialRowReadyToSave({ providerId: "forge", token: "t", values: { username: "alice" } }, provider)).toBe(true);
-    expect(sourceControlCredentialRowReadyToSave({ providerId: "forge", token: "t", values: { username: "alice", accountId: "  " } }, provider)).toBe(true);
+    expect(sourceControlCredentialRowReadyToSave({ fields: { providerId: "forge", token: "t", values: {} }, info: provider })).toBe(false);
+    expect(sourceControlCredentialRowReadyToSave({ fields: { providerId: "forge", token: "t", values: { username: "alice" } }, info: provider })).toBe(true);
+    expect(sourceControlCredentialRowReadyToSave({ fields: { providerId: "forge", token: "t", values: { username: "alice", accountId: "  " } }, info: provider })).toBe(true);
   });
 });
 
 describe("sourceControlCredentialsForProvider / defaultSourceControlCredentialForProvider", () => {
   it("filters to just one provider's saved connections", () => {
     const rows = [credential({ id: "a", providerId: "github" }), credential({ id: "b", providerId: "gitlab" })];
-    expect(sourceControlCredentialsForProvider(rows, "github").map((c) => c.id)).toEqual(["a"]);
+    expect(sourceControlCredentialsForProvider({ credentials: rows, providerId: "github" }).map((c) => c.id)).toEqual(["a"]);
   });
 
   it("returns undefined when nothing is saved for that provider yet", () => {
-    expect(defaultSourceControlCredentialForProvider([], "github")).toBeUndefined();
+    expect(defaultSourceControlCredentialForProvider({ credentials: [], providerId: "github" })).toBeUndefined();
   });
 
   it("prefers the row marked isDefault over an earlier non-default row", () => {
@@ -199,12 +199,12 @@ describe("sourceControlCredentialsForProvider / defaultSourceControlCredentialFo
       credential({ id: "old", providerId: "github", isDefault: false }),
       credential({ id: "current", providerId: "github", isDefault: true }),
     ];
-    expect(defaultSourceControlCredentialForProvider(rows, "github")?.id).toBe("current");
+    expect(defaultSourceControlCredentialForProvider({ credentials: rows, providerId: "github" })?.id).toBe("current");
   });
 
   it("falls back to the first saved row when none is marked default (defensive read)", () => {
     const rows = [credential({ id: "only", providerId: "github", isDefault: false })];
-    expect(defaultSourceControlCredentialForProvider(rows, "github")?.id).toBe("only");
+    expect(defaultSourceControlCredentialForProvider({ credentials: rows, providerId: "github" })?.id).toBe("only");
   });
 });
 

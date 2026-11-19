@@ -216,7 +216,7 @@ async function verifyBearerSession(input: {
     }
   ).catch((error: unknown) => {
     // Losing the site key is also a normal unconfigured state after boot.
-    if (isNoSiteKeyError(error)) return null;
+    if (isNoSiteKeyError({ error })) return null;
     console.error("[publish-trust] Could not verify the publishing session:",
       describeErrorForLog({ err: error }));
     return null;
@@ -319,7 +319,7 @@ function installPublishPrincipal(input: {
 export function requirePublishTrust(deps: PublishTrustAuthDeps) {
   const targetInstallationId = deps.targetInstallationId.catch((error: unknown) => {
     // A site without a configured key is an ordinary state, not a boot failure.
-    if (isNoSiteKeyError(error)) return null;
+    if (isNoSiteKeyError({ error })) return null;
     console.error("[publish-trust] Could not derive the site's publishing identity:",
       describeErrorForLog({ err: error }));
     return null;

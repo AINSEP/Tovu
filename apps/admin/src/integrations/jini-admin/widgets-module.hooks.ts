@@ -23,7 +23,7 @@ const widgetsHostDefaults: Pick<WidgetsReactOptions, 'slots' | 'widgetTypes' | '
   slots: { ConfigFields: WidgetsConfigFieldsSlot, AddControl: WidgetAddControl },
   widgetTypes: WIDGET_TYPE_OPTIONS,
   // Jini's type vocabulary is open; the host owns the closed v1 config dispatcher/catalog.
-  defaultConfig: type => defaultWidgetConfig(type as HostWidgetType),
+  defaultConfig: type => defaultWidgetConfig({ widgetType: type as HostWidgetType }),
 };
 
 /** Compose live locale and retained host slots with stable lazy pages and controller identity.

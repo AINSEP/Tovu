@@ -313,7 +313,7 @@ test("AC-12: once saved and enabled, the account-wide row carries the token only
   assert.equal(result.saved, true);
   await enableRow(env);
 
-  const after = await readEnabledExternalMcpConfigs({ repo: env.repo, sealer: env.sealer }, WORKSPACE);
+  const after = await readEnabledExternalMcpConfigs({ deps: { repo: env.repo, sealer: env.sealer }, workspaceId: WORKSPACE });
   assert.equal(after.configs.length, 1);
   const target = after.configs[0]!.target;
   assert.equal(target.kind, "streamable_http");

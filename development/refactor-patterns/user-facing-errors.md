@@ -77,7 +77,7 @@ T: peer-site-reads:347 (DONE).
 
 ## 6. D-shard error-handling fix items (from REVIEW.md)
 1. local-site-process.ts:225 cancelRetirement throws on non-204 and masks the original error at local-site-supervisor.ts:142,162 -> keep it non-throwing, record via diagnostics.record({ level: "error" }) like tryRetire.
-2. "no site key" matched by message at publish-trust-auth.ts:228,258 and handshake.ts:131 -> export `isNoSiteKeyError(error)` (or a named class) next to the throw in features/webhooks/keyring.env.ts:149; use at all 3.
+2. "no site key" matched by message at publish-trust-auth.ts:228,258 and handshake.ts:131 -> export `isNoSiteKeyError({ error })` (or a named class) next to the throw in features/webhooks/keyring.env.ts:149; use at all 3.
 3. use-theme-canvas-styling.hooks.ts:313 404 by message; use-site-workspace.hooks.ts:575 by full sentence -> match a status/code field (or an exported constant from the thrower).
 4. use-resources.hooks.ts:67, product-memory-telemetry.ts:78 log every poll -> log once per failure streak.
 5. DONE 321fe38d3 (handshake.ts `answered`, site-window.ts x2, desktop-agent.ts x3, consent/settings.ts; tests red/green/mutation). Log regressions (old line had message/stack, D made it class-only) -> `formatErrorForLog({ error }, TOVU_ERROR_REDACTION_OPTIONS)`: handshake.ts:168, site-window.ts:464, desktop-agent.ts:412, consent/settings.ts:37. Tests already assert the regression and must be changed first (red): consent/__tests__/adapters.test.ts:224, main/windows/site-window.test.ts:283, desktop-agent.test.ts:256,355.

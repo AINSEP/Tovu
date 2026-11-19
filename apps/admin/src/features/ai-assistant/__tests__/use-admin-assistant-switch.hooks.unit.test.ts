@@ -47,7 +47,7 @@ describe("useAdminAssistantSwitch", () => {
 
   it("setOpen asks the bus to open/close via requestAssistantDock — it does NOT flip open itself", () => {
     const requests: boolean[] = [];
-    const unsubscribe = subscribeToAssistantDockRequests((open) => requests.push(open));
+    const unsubscribe = subscribeToAssistantDockRequests({ listener: (open) => requests.push(open) });
     const { result } = renderHook(() => useAdminAssistantSwitch());
 
     act(() => result.current.setOpen({ open: true }));

@@ -37,7 +37,7 @@ test('Library documents and their blobs are absent from publish output; forged a
   assert.ok(typeof disguisedRefusal === "string");
   assert.match(disguisedRefusal, /documents cannot be published/i);
   await assert.rejects(handler.apply({ entity: disguised, expectedVersion: undefined, principalId: 'owner', idempotencyKey: 'private-new-id' }));
-  await assert.rejects(duplicateMediaAsset(deps, { principalId: 'owner', id: doc.id, overrides: {} }));
+  await assert.rejects(duplicateMediaAsset({ routeDeps: deps, principalId: 'owner', id: doc.id, overrides: {} }));
   assert.equal(reads, 0);
   const remaining = await deps.mediaRepo.list({ workspaceId: deps.workspaceId });
   assert.equal(remaining.length, 1); assert.equal(remaining[0]!.kind, 'document');

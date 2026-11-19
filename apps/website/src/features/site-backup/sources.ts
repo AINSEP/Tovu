@@ -599,7 +599,7 @@ export function formatByteSize({ bytes }: { bytes: number }, _optional: Record<s
  *
  * @complexity O(n).
  */
-export function skipOversizedFiles(files: readonly PlannedDiskFile[], host: SiteBackupHostLimit): { files: PlannedDiskFile[]; skipped: SkippedSiteBackupFile[] } {
+export function skipOversizedFiles({ files, host }: { files: readonly PlannedDiskFile[]; host: SiteBackupHostLimit }, _optional: Record<string, never> = {}): { files: PlannedDiskFile[]; skipped: SkippedSiteBackupFile[] } {
   const maxFileBytes = host.maxFileBytes;
   if (maxFileBytes === undefined) return { files: [...files], skipped: [] };
   const skipped = files

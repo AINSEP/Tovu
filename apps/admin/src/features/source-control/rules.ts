@@ -89,8 +89,8 @@ export interface SourceControlCredentialFormFields {
  * @complexity O(f + c) time, O(f + c) space for f declared fields containing c characters.
  */
 export function buildSourceControlConnectionInput(
-  fields: SourceControlCredentialFormFields,
-  declaredFields: readonly Pick<AdminPublishTargetField, "name" | "secret">[]
+  { fields, declaredFields }: { fields: SourceControlCredentialFormFields; declaredFields: readonly Pick<AdminPublishTargetField, "name" | "secret">[] },
+  _optional: Record<string, never> = {},
 ): AdminSourceControlConnectionInput {
   const values: Record<string, string> = {};
   for (const field of declaredFields) {
@@ -113,8 +113,8 @@ export const SOURCE_CONTROL_CREDENTIAL_ROW_LABEL = "default";
  * @complexity O(n) in this workspace's total saved-credential count (small).
  */
 export function sourceControlCredentialsForProvider(
-  credentials: readonly AdminSourceControlCredentialSummary[],
-  providerId: AdminSourceControlProviderId
+  { credentials, providerId }: { credentials: readonly AdminSourceControlCredentialSummary[]; providerId: AdminSourceControlProviderId },
+  _optional: Record<string, never> = {},
 ): AdminSourceControlCredentialSummary[] {
   return credentials.filter((credential) => credential.providerId === providerId);
 }
@@ -124,10 +124,10 @@ export function sourceControlCredentialsForProvider(
  *  `defaultCredentialForProvider`'s exact reasoning in `deployment/rules.ts`.
  *  @complexity O(n) in this provider's own (small) saved-connection count. */
 export function defaultSourceControlCredentialForProvider(
-  credentials: readonly AdminSourceControlCredentialSummary[],
-  providerId: AdminSourceControlProviderId
+  { credentials, providerId }: { credentials: readonly AdminSourceControlCredentialSummary[]; providerId: AdminSourceControlProviderId },
+  _optional: Record<string, never> = {},
 ): AdminSourceControlCredentialSummary | undefined {
-  const forProvider = sourceControlCredentialsForProvider(credentials, providerId);
+  const forProvider = sourceControlCredentialsForProvider({ credentials, providerId });
   return forProvider.find((credential) => credential.isDefault) ?? forProvider[0];
 }
 
@@ -137,7 +137,7 @@ export function defaultSourceControlCredentialForProvider(
  * keeps the stored secret untouched). An unlisted host takes no new token.
  * @complexity O(f) in the declared field count.
  */
-export function sourceControlCredentialRowReadyToSave(fields: SourceControlCredentialFormFields, info: SourceControlProviderInfo): boolean {
+export function sourceControlCredentialRowReadyToSave({ fields, info }: { fields: SourceControlCredentialFormFields; info: SourceControlProviderInfo }, _optional: Record<string, never> = {}): boolean {
   if (!info.listed || fields.token.trim() === "") return false;
   return info.fields.every((field) => field.required !== true || (fields.values[field.name] ?? "").trim() !== "");
 }

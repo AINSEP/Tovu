@@ -146,8 +146,8 @@ test("a saved server reaches the daemon's read path with its env decrypted", asy
   // The same call `agent-daemon-server.ts` makes at boot — proving the route and the daemon agree
   // about the stored shape, rather than each being tested against its own idea of it.
   const { configs } = await readEnabledExternalMcpConfigs(
-    { repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer },
-    deps.workspaceId,
+    { deps: { repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer },
+    workspaceId: deps.workspaceId },
   );
   assert.equal(configs.length, 1);
   const target = configs[0]?.target;
@@ -492,7 +492,7 @@ test("saving and toggling notify a roster consumer with the updated running conf
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const snapshots: ReturnType<typeof readEnabledExternalMcpConfigs>[] = [];
   onExternalMcpRosterChanged({ key: "route-test-observer", listener: () => {
-    const snapshot = readEnabledExternalMcpConfigs({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer }, deps.workspaceId);
+    const snapshot = readEnabledExternalMcpConfigs({ deps: { repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer }, workspaceId: deps.workspaceId });
     snapshots.push(snapshot);
     return snapshot;
   } });

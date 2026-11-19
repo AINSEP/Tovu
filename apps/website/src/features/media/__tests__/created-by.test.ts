@@ -54,10 +54,10 @@ test("media copies attribute the new library entry to the copier while retaining
   const { media: original } = await uploadMedia({ deps, input: { workspaceId: "creator-ws",
     bytes: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"),
     filename: "source.png", contentType: "image/png", createdByPrincipal: "source-owner" } });
-  const result = await duplicateMediaAsset({ ...deps, workspaceId: "creator-ws",
+  const result = await duplicateMediaAsset({ routeDeps: { ...deps, workspaceId: "creator-ws",
     assetBlobRepo: deps.blobRepo, assetRenditionRepo: deps.renditionRepo,
     authorize: async () => ({ allowed: true, reason: "matched" }),
-  }, { principalId: "copying-agent", id: original.id, overrides: {} }) as { media: MediaRecord };
+  }, principalId: "copying-agent", id: original.id, overrides: {} }) as { media: MediaRecord };
   assert.notEqual(result.media.id, original.id);
   assert.equal(result.media.createdBy, "copying-agent");
   assert.equal((await deps.mediaRepo.findById({ workspaceId: "creator-ws", id: original.id }))?.createdBy, "source-owner");

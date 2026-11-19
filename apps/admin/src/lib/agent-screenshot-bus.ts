@@ -40,7 +40,7 @@ const listeners = new Set<Listener>();
  * component would set state on an unmounted one.
  * @complexity O(1).
  */
-export function subscribeToScreenshotCaptured(listener: Listener): () => void {
+export function subscribeToScreenshotCaptured({ listener }: { listener: Listener }, _optional: Record<string, never> = {}): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);

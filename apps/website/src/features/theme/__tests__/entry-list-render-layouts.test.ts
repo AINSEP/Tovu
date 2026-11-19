@@ -23,7 +23,7 @@ function jsonLd(html: string): unknown {
 }
 
 test("accordion: one <details> per entry, title as the summary, unlabeled field values as the body", () => {
-  const html = renderEntryList([faq("Do you ship abroad?", "Yes, to 40 countries.")], options());
+  const html = renderEntryList({ items: [faq("Do you ship abroad?", "Yes, to 40 countries.")], options: options() });
   assert.equal(
     html,
     '<div class="entry-list entry-list--faq entry-list--accordion" data-tovu-entry-list>' +
@@ -35,14 +35,14 @@ test("accordion: one <details> per entry, title as the summary, unlabeled field 
 
 test("accordion: escapes every value and skips empty fields", () => {
   const item: EntryListItem = { ...faq("<b>Q</b>", "<script>x</script>"), fields: [{ name: "answer", label: "A", kind: "text", value: "<script>x</script>" }, { name: "note", label: "N", kind: "text", value: null }] };
-  const html = renderEntryList([item], options()) as string;
+  const html = renderEntryList({ items: [item], options: options() }) as string;
   assert.ok(html.includes("&lt;b&gt;Q&lt;/b&gt;"));
   assert.ok(html.includes("&lt;script&gt;x&lt;/script&gt;"));
   assert.ok(!html.includes("entry-accordion__field--note"));
 });
 
 test("carousel: the card markup inside a horizontal, keyboard-scrollable track", () => {
-  const html = renderEntryList([faq("Ada", "Great service")], options({ layout: "carousel", typeKey: "testimonial" }));
+  const html = renderEntryList({ items: [faq("Ada", "Great service")], options: options({ layout: "carousel", typeKey: "testimonial" }) });
   assert.equal(
     html,
     '<div class="entry-list entry-list--testimonial entry-list--carousel" data-tovu-entry-list tabindex="0">' +
@@ -59,7 +59,7 @@ test("the default style ships zero-specificity rules for both new layouts", () =
 });
 
 test("faq-page structured data: one FAQPage block after the list, title = question, field values = answer", () => {
-  const html = renderEntryList([faq("Q1", "A1"), faq("Q2", 42)], options({ structuredData: "faq-page" })) as string;
+  const html = renderEntryList({ items: [faq("Q1", "A1"), faq("Q2", 42)], options: options({ structuredData: "faq-page" }) }) as string;
   assert.ok(html.startsWith('<div class="entry-list entry-list--faq entry-list--accordion"'));
   assert.deepEqual(jsonLd(html), {
     "@context": "https://schema.org",
@@ -72,27 +72,27 @@ test("faq-page structured data: one FAQPage block after the list, title = questi
 });
 
 test("faq-page structured data: entries with no answer text are left out; none left means no block", () => {
-  const html = renderEntryList([faq("Q1", ""), faq("Q2", "A2")], options({ structuredData: "faq-page" })) as string;
+  const html = renderEntryList({ items: [faq("Q1", ""), faq("Q2", "A2")], options: options({ structuredData: "faq-page" }) }) as string;
   assert.deepEqual((jsonLd(html) as { mainEntity: unknown[] }).mainEntity.length, 1);
-  const none = renderEntryList([faq("Q1", null)], options({ structuredData: "faq-page" })) as string;
+  const none = renderEntryList({ items: [faq("Q1", null)], options: options({ structuredData: "faq-page" }) }) as string;
   assert.equal(jsonLd(none), undefined);
 });
 
 test("faq-page structured data cannot break out of its <script>", () => {
-  const html = renderEntryList([faq("</script><script>alert(1)</script>", "a")], options({ structuredData: "faq-page" })) as string;
+  const html = renderEntryList({ items: [faq("</script><script>alert(1)</script>", "a")], options: options({ structuredData: "faq-page" }) }) as string;
   assert.equal(html.match(/<\/script>/g)?.length, 1);
   assert.ok(html.includes("\\u003c/script>"));
 });
 
 test("faq-page structured data also follows an author template", () => {
-  const html = renderEntryList([faq("Q1", "A1")], options({ template: "<p>{{title}}</p>", structuredData: "faq-page" })) as string;
+  const html = renderEntryList({ items: [faq("Q1", "A1")], options: options({ template: "<p>{{title}}</p>", structuredData: "faq-page" }) }) as string;
   assert.ok(html.startsWith("<p>Q1</p>"));
   assert.equal((jsonLd(html) as { mainEntity: unknown[] }).mainEntity.length, 1);
 });
 
 test("boolean answers use the same Yes/No display as the visible list", () => {
   const item: EntryListItem = { ...faq("Open on Sundays?", true), fields: [{ name: "open", label: "Open", kind: "boolean", value: true }] };
-  const html = renderEntryList([item], options({ structuredData: "faq-page" })) as string;
+  const html = renderEntryList({ items: [item], options: options({ structuredData: "faq-page" }) }) as string;
   assert.ok(html.includes(">Yes</p>"));
   assert.equal((jsonLd(html) as { mainEntity: Array<{ acceptedAnswer: { text: string } }> }).mainEntity[0]?.acceptedAnswer.text, "Yes");
 });

@@ -478,7 +478,7 @@ export function useVisitorCredentialForm({
       .then(({ data }) => {
         if (cancelled) return;
         setStored(data);
-        setConfig((current) => hydrateVisitorCredentialConfig(current, data));
+        setConfig((current) => hydrateVisitorCredentialConfig({ current, stored: data }));
         setLoadState({ status: "ready" });
       })
       .catch((error: unknown) => {
@@ -683,7 +683,7 @@ export function useVisitorCredentialForm({
     storedKeyIsForOtherEndpoint,
     configuredPresetIds: configuredIds,
     selectPreset,
-    providerGroups: visitorProviderGroups(configuredIds),
+    providerGroups: visitorProviderGroups({ configuredIds }),
     selectPresetById,
     saveKey,
     saveSettings,

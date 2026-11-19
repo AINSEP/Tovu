@@ -321,7 +321,7 @@ export function useLibrary({ port, locale, t }: LibraryDependencies): LibraryCon
   const rowActions = useLibraryRowActions({ port, t, preview, closePreview });
 
   return {
-    documents: list.data ? sortDocuments(list.data.media) : undefined,
+    documents: list.data ? sortDocuments({ items: list.data.media }) : undefined,
     listError: list.error ? describeApiError({ e: list.error, fallback: t("Couldn't load documents.") }) : null,
     permissions,
     userNames,

@@ -66,7 +66,7 @@ after(async () => {
 test("frozen fixture [postgres]: replayed sealed bytes open, refresh under the lease, re-save and survive a reconnect", async () => {
   const before = await pgSnapshot(kernel);
   const read = wire({ kernel, clockIso: VALID_AT });
-  await listExternalMcpServerViews({ repo: read.repo, sealer: read.sealer }, FROZEN_WORKSPACE);
+  await listExternalMcpServerViews({ deps: { repo: read.repo, sealer: read.sealer }, workspaceId: FROZEN_WORKSPACE });
   assert.deepEqual(Object.values(FROZEN_SERVERS).map((serverId) => read.openedAad.filter((aad) => aad.includes(serverId)).length), [1, 1, 2]);
   assert.deepEqual(nonZero(read.io.kernel), { query: 1 });
   await assertOpensAllThree(read, { envKey: FROZEN_PLAINTEXT.envBlock.FAKE_API_KEY, accessToken: FROZEN_PLAINTEXT.accessToken, refreshToken: FROZEN_PLAINTEXT.refreshToken });

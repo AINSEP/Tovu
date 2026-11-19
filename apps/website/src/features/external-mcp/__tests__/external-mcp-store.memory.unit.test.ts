@@ -157,7 +157,7 @@ test("admin views retain valid lists and tolerate corrupt stored lists", async (
   const { listExternalMcpServerViews } = await import("../external-mcp-store.js");
   const repo = new InMemoryExternalMcpServerRepo();
   await repo.upsert(serverRecord({ allowedToolNames: '["read"]', writeAllowedToolNames: '{broken' }));
-  const [view] = await listExternalMcpServerViews({ repo }, IDENTITY.workspaceId);
+  const [view] = await listExternalMcpServerViews({ deps: { repo }, workspaceId: IDENTITY.workspaceId });
   assert.deepEqual(view?.allowedToolNames, ["read"]);
   assert.deepEqual(view?.writeAllowedToolNames, []);
 });

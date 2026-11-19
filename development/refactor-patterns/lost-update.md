@@ -22,7 +22,7 @@ Jini `@jini-ai/core/settings` ALREADY ships this (main `packages/core/src/settin
 
 Tovu migration `0042_optimistic_concurrency_versions` (commit 50253e2d1) added `version integer NOT NULL DEFAULT 1` to: `webhook_subscriptions`, `external_mcp_servers`, `identity_users`, `roles`, `policies`, `workspaces`. Every other FIX table already has `version`. Terra never writes migrations.
 
-Admin (already exists): `apps/admin/src/lib/version-conflict.ts` — `isVersionConflict(error)`, `VERSION_CONFLICT_MESSAGE`.
+Admin (already exists): `apps/admin/src/lib/version-conflict.ts` — `isVersionConflict({ error })`, `VERSION_CONFLICT_MESSAGE`.
 
 Why version (not updated_at or a content hash): it is what 9 tables and every existing client already use; `updated_at` collides inside one millisecond and depends on clocks; a hash needs the whole row re-serialized identically on two dialects. Why a body field `expectedVersion` (not `If-Match`): every existing arm uses it, and tools have no headers.
 
@@ -99,7 +99,7 @@ The matching GET response must include `version`. Keep `expectedVersion` OPTIONA
 5. Tool description: append " Pass expectedVersion from <readToolId>; if someone changed it since, nothing is saved and you must re-read."
 
 ### V5 L-ADMIN — admin screen that saves the record
-Send `expectedVersion: loaded.version` in the PUT body (settings: `expectedRevisions`). On error: `if (isVersionConflict(error))` show `t(VERSION_CONFLICT_MESSAGE)` in the screen's existing error banner with two actions — "Reload" (refetch, drops local edits only when clicked) and the banner's existing "Copy details" (`error.body` JSON). Keep the person's unsaved edits on screen. After a successful save, store the returned `version` as the new basis. NEVER retry the save automatically.
+Send `expectedVersion: loaded.version` in the PUT body (settings: `expectedRevisions`). On error: `if (isVersionConflict({ error }))` show `t(VERSION_CONFLICT_MESSAGE)` in the screen's existing error banner with two actions — "Reload" (refetch, drops local edits only when clicked) and the banner's existing "Copy details" (`error.body` JSON). Keep the person's unsaved edits on screen. After a successful save, store the returned `version` as the new basis. NEVER retry the save automatically.
 
 ### V6 EXEMPT — leave the code alone
 Exactly the codes listed per site in the Terra prompt. For a site the prompt does not list, use the rule below.

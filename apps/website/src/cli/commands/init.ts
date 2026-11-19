@@ -168,6 +168,6 @@ async function readAndCheckInitTokens({ input, createInput }: {
   if (input.createInputStdin) tokens = await readNewSiteAgentPluginTokensFromStdin({}, { read: async () => JSON.stringify(createInput.agentPluginTokens ?? {}) });
   else if (input.agentPluginTokensStdin) tokens = await readNewSiteAgentPluginTokensFromStdin({}, { read: input.readAgentPluginTokens });
   else tokens = {};
-  if (Object.keys(tokens).length > 0) await assertNewSiteAgentPluginTokensAccepted(tokens, input.checkAgentPluginToken ?? defaultNewSiteAgentPluginTokenCheck({}));
+  if (Object.keys(tokens).length > 0) await assertNewSiteAgentPluginTokensAccepted({ tokens, check: input.checkAgentPluginToken ?? defaultNewSiteAgentPluginTokenCheck({}) });
   return tokens;
 }

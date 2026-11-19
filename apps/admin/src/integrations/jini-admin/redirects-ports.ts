@@ -18,7 +18,7 @@ export interface RedirectsHostPorts {
 
 export const redirectsEvents: RedirectsEventsPort = {
   subscribe(listener) {
-    return subscribeToContentRefresh(scope => { if (contentRefreshApplies({ scope, resource: REDIRECTS_RESOURCE })) listener(); });
+    return subscribeToContentRefresh({ listener: scope => { if (contentRefreshApplies({ scope, resource: REDIRECTS_RESOURCE })) listener(); } });
   },
 };
 

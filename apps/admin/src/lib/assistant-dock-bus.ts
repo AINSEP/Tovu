@@ -89,7 +89,7 @@ export function publishAssistantDockState({ open }: { open: boolean }, _optional
  * @returns A disposer; call it from the owner's effect cleanup.
  * @complexity O(1).
  */
-export function subscribeToAssistantDockRequests(listener: RequestListener): () => void {
+export function subscribeToAssistantDockRequests({ listener }: { listener: RequestListener }, _optional: Record<string, never> = {}): () => void {
   requestListeners.add(listener);
   return () => {
     requestListeners.delete(listener);

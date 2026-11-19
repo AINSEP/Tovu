@@ -138,7 +138,7 @@ interface HandshakeGuards {
 function createHandshakeGuards(deps: PublishTrustHandshakeDeps): HandshakeGuards {
   const targetInstallationId = deps.targetInstallationId.catch((error: unknown) => {
     // A site without a configured key is an ordinary state, not a boot failure.
-    if (isNoSiteKeyError(error)) return null;
+    if (isNoSiteKeyError({ error })) return null;
     console.error("[publish-trust] Could not derive the site's publishing identity for the handshake:",
       describeErrorForLog({ err: error }));
     return null;

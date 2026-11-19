@@ -69,13 +69,13 @@ function post(overrides: Partial<PostRecord> = {}): PostRecord {
  *  registry for the rest of the process's life. */
 async function bootDaemonToolSurface(repo: PluginActivationRepoPort): Promise<ToolRegistry> {
   const registry = createToolRegistry({});
-  await registerEnabledPluginCapabilityTools(registry, { withExtensionApprovalPolicy,
+  await registerEnabledPluginCapabilityTools({ registry, deps: { withExtensionApprovalPolicy,
     authorize: async () => ({ allowed: true }) as never,
     workspaceId: WORKSPACE,
     postRead: requiredPostReader({ repo: new InMemoryPostRepo({}, { initialRows: [post()] }) }),
     discoverPlugins: async () => [RECORD],
     pluginActivationRepo: repo,
-  });
+  } });
   assert.equal(registry.has({ toolId: TOOL_ID }), true, "precondition: an enabled plugin must register its tool at boot");
   return registry;
 }

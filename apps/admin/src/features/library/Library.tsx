@@ -180,7 +180,7 @@ function downloadDocument({ url }: { url: string }, _optional = {}) {
   anchor.remove();
 }
 
-export function documentMenuItems(item: AdminMedia, controller: LibraryController): RowMenuItem[] {
+export function documentMenuItems({ item, controller }: { item: AdminMedia; controller: LibraryController }, _optional: Record<string, never> = {}): RowMenuItem[] {
   const { t, permissions } = controller;
   // Download-only documents have no preview in v1, so their menu leads with Download (the name still opens the details).
   const items: RowMenuItem[] = documentPreviewKind(item) === "download"
@@ -268,7 +268,7 @@ export function DocumentsTab({ controller }: { controller: LibraryController }) 
                 <RowMenu
                   triggerLabel={t('Actions for "{title}"').replace("{title}", () => documentName(item))}
                   agentHandle={`library-doc-${index + 1}-menu`}
-                  items={documentMenuItems(item, controller)}
+                  items={documentMenuItems({ item, controller })}
                 />
               ),
           },

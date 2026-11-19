@@ -110,6 +110,6 @@ export function documentUploaderLabel(required: {
 }
 
 /** Newest first. */
-export function sortDocuments(items: readonly AdminMedia[]): AdminMedia[] {
+export function sortDocuments({ items }: { items: readonly AdminMedia[] }, _optional: Record<string, never> = {}): AdminMedia[] {
   return [...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }

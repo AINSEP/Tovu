@@ -188,7 +188,7 @@ function menuReferenceMethods(deps: PublishContentDeps) {
     const menuRepo = deps.ports.menu?.repo;
     if (!menuRepo) return [];
     const menus = await menuRepo.list({ workspaceId: deps.workspaceId });
-    return menuHoldersReferencing(menus, ids);
+    return menuHoldersReferencing({ menus, ids });
   }
 
   /**
@@ -229,7 +229,7 @@ function menuReferenceMethods(deps: PublishContentDeps) {
     const notUpdated: string[] = [];
 
     for (const menu of menus) {
-      if (input.skipIds.has(menu.id) || repointMenuItems(menu.doc.items, replacementByOldId).count === 0) continue;
+      if (input.skipIds.has(menu.id) || repointMenuItems({ items: menu.doc.items, replacements: replacementByOldId }).count === 0) continue;
 
       const outcome = await repointOneMenu({
         ...ports,
@@ -272,7 +272,7 @@ function menuReferenceMethods(deps: PublishContentDeps) {
     const menu = await input.menuRepo.findById({ workspaceId: deps.workspaceId, id: input.menuId });
     if (!menu) return { kind: "no-op" }; // vanished since the snapshot — nothing left to repoint
 
-    const repointed = repointMenuItems(menu.doc.items, input.replacementByOldId);
+    const repointed = repointMenuItems({ items: menu.doc.items, replacements: input.replacementByOldId });
     if (repointed.count === 0) return { kind: "no-op" }; // already resolved (this attempt or a peer)
 
     try {

@@ -199,11 +199,11 @@ describe("MediaContentEditor", () => {
 
   it("is what WidgetConfigFields renders for media and gallery widgets", () => {
     expect(WIDGET_TYPE_OPTIONS).toContainEqual({ value: "media", label: "Media" });
-    expect(defaultWidgetConfig("media")).toEqual({ mode: "media", items: [], layout: "single" });
-    const { unmount } = render(<WidgetConfigFields widgetType="media" config={defaultWidgetConfig("media")} onChange={() => {}} />);
+    expect(defaultWidgetConfig({ widgetType: "media" })).toEqual({ mode: "media", items: [], layout: "single" });
+    const { unmount } = render(<WidgetConfigFields widgetType="media" config={defaultWidgetConfig({ widgetType: "media" })} onChange={() => {}} />);
     expect(screen.getByRole("tab", { name: "Raw HTML" })).toBeTruthy();
     unmount();
-    render(<WidgetConfigFields widgetType="gallery" config={defaultWidgetConfig("gallery")} onChange={() => {}} />);
+    render(<WidgetConfigFields widgetType="gallery" config={defaultWidgetConfig({ widgetType: "gallery" })} onChange={() => {}} />);
     expect(within(screen.getByRole("tablist")).getAllByRole("tab")).toHaveLength(2);
   });
 });

@@ -21,7 +21,7 @@ export const commentsEvents: CommentsEventsPort = {
   subscribe({ onRefresh }, _optional: Record<string, never> = {}) {
     // Settings intentionally never subscribe: advancing an uncontrolled form's diff baseline
     // on somebody else's write can silently revert it. Jini retains its one-shot seed guard.
-    return subscribeToContentRefresh(scope => { if (contentRefreshApplies({ scope, resource: COMMENTS_QUEUE_RESOURCE })) onRefresh(); });
+    return subscribeToContentRefresh({ listener: scope => { if (contentRefreshApplies({ scope, resource: COMMENTS_QUEUE_RESOURCE })) onRefresh(); } });
   },
 };
 /** Bind workspace routes to the existing HTTP adapters; the host transport owns authentication.

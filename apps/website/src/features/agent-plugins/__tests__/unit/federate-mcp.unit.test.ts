@@ -176,7 +176,7 @@ test("provisionAgentPluginMcpServers: a remote server declaring headers produces
   assert.equal(result.skipped.length, 1);
   assert.equal(result.skipped[0]?.serverKey, "tenant");
 
-  const views = await listExternalMcpServerViews({ repo: deps.repo }, "ws-1");
+  const views = await listExternalMcpServerViews({ deps: { repo: deps.repo }, workspaceId: "ws-1" });
   assert.deepEqual(views, []);
 });
 
@@ -202,7 +202,7 @@ test("provisionAgentPluginMcpServers: enabling a plugin with one auto-admitted r
   assert.deepEqual(result.alreadyProvisioned, []);
   assert.deepEqual(result.adopted, []);
 
-  const views = await listExternalMcpServerViews({ repo: deps.repo }, "ws-1");
+  const views = await listExternalMcpServerViews({ deps: { repo: deps.repo }, workspaceId: "ws-1" });
   assert.equal(views.length, 1);
   assert.equal(views[0]?.serverId, "remote");
   assert.equal(views[0]?.transport, "streamable_http");
@@ -225,7 +225,7 @@ test("provisionAgentPluginMcpServers: an oauth-mode server is saved with authMod
     principalId: "principal-1",
   });
 
-  const views = await listExternalMcpServerViews({ repo: deps.repo }, "ws-1");
+  const views = await listExternalMcpServerViews({ deps: { repo: deps.repo }, workspaceId: "ws-1" });
   assert.equal(views[0]?.serverId, "higgsfield");
   assert.equal(views[0]?.authMode, "oauth");
   assert.equal(views[0]?.oauth.grant, "authorization_code");
@@ -243,7 +243,7 @@ test("provisionAgentPluginMcpServers: stdio and sse servers never produce a row 
     principalId: "principal-1",
   });
 
-  const views = await listExternalMcpServerViews({ repo: deps.repo }, "ws-1");
+  const views = await listExternalMcpServerViews({ deps: { repo: deps.repo }, workspaceId: "ws-1" });
   assert.deepEqual(views, []);
 });
 
@@ -267,7 +267,7 @@ test("provisionAgentPluginMcpServers: the SAME plugin enabling twice reports alr
   assert.deepEqual(second.adopted, []);
   assert.deepEqual(second.alreadyProvisioned, ["remote"]);
 
-  const views = await listExternalMcpServerViews({ repo: deps.repo }, "ws-1");
+  const views = await listExternalMcpServerViews({ deps: { repo: deps.repo }, workspaceId: "ws-1" });
   assert.equal(views.length, 1, "still exactly one row");
 });
 
@@ -469,7 +469,7 @@ test("provisionAgentPluginMcpServers: two different plugins declaring the same s
   assert.deepEqual(second.provisioned, []);
   assert.deepEqual(second.adopted, ["main"], "the second plugin adopts the association rather than losing it or getting a shadow row");
 
-  const views = await listExternalMcpServerViews({ repo: deps.repo }, "ws-1");
+  const views = await listExternalMcpServerViews({ deps: { repo: deps.repo }, workspaceId: "ws-1" });
   assert.equal(views.length, 1, "one shared row, not two");
   assert.equal(views[0]?.provisionedByPluginId, "plugin-b", "the most recently enabling plugin owns the association");
 });
@@ -525,7 +525,7 @@ test("provisionAgentPluginMcpServers: a per-server existence-read rejection is r
   assert.equal(result.failed[0]?.serverKey, "alpha");
   assert.match(result.failed[0]?.reason ?? "", /transient lookup failure/);
 
-  const views = await listExternalMcpServerViews({ repo: deps.repo }, "ws-1");
+  const views = await listExternalMcpServerViews({ deps: { repo: deps.repo }, workspaceId: "ws-1" });
   assert.equal(views.length, 1);
   assert.equal(views[0]?.serverId, "beta");
 });

@@ -26,7 +26,7 @@ function fixture(allow = true) {
       return { ok: true as const, connections: [{ connectionId: "hosted", report: { admitted: [], refused: [] }, isPreset: false }], configFailures: [{ connectionId: "broken", reason: "disabled" }] };
     },
   };
-  const registrations = buildExternalMcpOperationsRegistrations(deps as never, operations);
+  const registrations = buildExternalMcpOperationsRegistrations({ deps: deps as never, operations });
   function call(id: string, input: unknown = {}) {
     return registrations.find(r => r.descriptor.id === id)!.handler({ executionId: "exec", principal: { id: "owner" }, run: { id: "run" }, input, signal: new AbortController().signal } as never);
   }

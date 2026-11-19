@@ -6,7 +6,7 @@ import { isVersionConflict, readVersionConflict, VERSION_CONFLICT_CODE, VERSION_
 
 describe("isVersionConflict", () => {
   it("is true only for a 409 carrying the VERSION_CONFLICT code", () => {
-    expect(isVersionConflict(new ApiError({ message: "stale", status: 409 }, { code: VERSION_CONFLICT_CODE }))).toBe(true);
+    expect(isVersionConflict({ error: new ApiError({ message: "stale", status: 409 }, { code: VERSION_CONFLICT_CODE }) })).toBe(true);
   });
 
   it.each([
@@ -16,7 +16,7 @@ describe("isVersionConflict", () => {
     ["a plain Error", new Error("stale")],
     ["a non-error value", "stale"],
   ])("is false for %s", (_label, error) => {
-    expect(isVersionConflict(error)).toBe(false);
+    expect(isVersionConflict({ error })).toBe(false);
   });
 });
 

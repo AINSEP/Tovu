@@ -77,7 +77,7 @@ describe("getAssistantDockOpen / publishAssistantDockState", () => {
 describe("subscribeToAssistantDockRequests / requestAssistantDock", () => {
   it("calls the registered handler with the requested open value", () => {
     const handler = vi.fn();
-    subscribeToAssistantDockRequests(handler);
+    subscribeToAssistantDockRequests({ listener: handler });
 
     requestAssistantDock({ open: true });
     requestAssistantDock({ open: false });
@@ -91,7 +91,7 @@ describe("subscribeToAssistantDockRequests / requestAssistantDock", () => {
 
   it("the disposer returned by subscribeToAssistantDockRequests stops future delivery", () => {
     const handler = vi.fn();
-    const unsubscribe = subscribeToAssistantDockRequests(handler);
+    const unsubscribe = subscribeToAssistantDockRequests({ listener: handler });
     unsubscribe();
 
     requestAssistantDock({ open: true });
@@ -105,8 +105,8 @@ describe("subscribeToAssistantDockRequests / requestAssistantDock", () => {
       throw new Error("boom");
     });
     const healthy = vi.fn();
-    subscribeToAssistantDockRequests(throwing);
-    subscribeToAssistantDockRequests(healthy);
+    subscribeToAssistantDockRequests({ listener: throwing });
+    subscribeToAssistantDockRequests({ listener: healthy });
 
     requestAssistantDock({ open: true });
 
@@ -120,7 +120,7 @@ describe("resetAssistantDockBus", () => {
     const stateListener = vi.fn();
     const requestListener = vi.fn();
     subscribeToAssistantDock(stateListener);
-    subscribeToAssistantDockRequests(requestListener);
+    subscribeToAssistantDockRequests({ listener: requestListener });
     publishAssistantDockState({ open: true });
 
     resetAssistantDockBus();

@@ -21,15 +21,15 @@ import type { SiteKeySource } from "../site-key-sources.js";
 const ENV_VAR = "TOVU_TEST_SITE_KEY";
 
 test("recognizes both no-site-key errors without treating other failures as missing keys", () => {
-  assert.equal(isNoSiteKeyError(new Error("no site key")), true);
-  assert.equal(isNoSiteKeyError(new Error("no site key: none of the configured sources resolved (env)")), true);
-  assert.equal(isNoSiteKeyError(new Error("site key is corrupted")), false);
-  assert.equal(isNoSiteKeyError("no site key"), false);
+  assert.equal(isNoSiteKeyError({ error: new Error("no site key") }), true);
+  assert.equal(isNoSiteKeyError({ error: new Error("no site key: none of the configured sources resolved (env)") }), true);
+  assert.equal(isNoSiteKeyError({ error: new Error("site key is corrupted") }), false);
+  assert.equal(isNoSiteKeyError({ error: "no site key" }), false);
 });
 
 test("the webhook public surface exports the no-site-key classifier", async () => {
   const webhooks = await import("../index.js");
-  assert.equal(webhooks.isNoSiteKeyError(new Error("no site key")), true);
+  assert.equal(webhooks.isNoSiteKeyError({ error: new Error("no site key") }), true);
 });
 
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {

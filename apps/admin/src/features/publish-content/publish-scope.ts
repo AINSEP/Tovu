@@ -58,5 +58,5 @@ const ALL = Symbol("all");
 function scopeSection({ scope }: { scope: PublishScope | undefined }, _options: Record<string, never> = {}): typeof ITEM | typeof ALL | PublishSection {
   if (scope?.entityKeys !== undefined && scope.entityKeys.length > 0) return ITEM;
   if (scope?.entityTypes === undefined) return ALL;
-  return publishSectionForEntityTypes(scope.entityTypes) ?? ALL;
+  return publishSectionForEntityTypes({ entityTypes: scope.entityTypes }) ?? ALL;
 }

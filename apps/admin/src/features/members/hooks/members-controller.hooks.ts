@@ -8,9 +8,9 @@ import { t } from "../members-i18n";
 
 // Agent-written member changes must re-read the list through the authorized host API.
 const refresh: IdentityRefreshPort = {
-  subscribe: ({ onRefresh }) => subscribeToContentRefresh(scope => {
+  subscribe: ({ onRefresh }) => subscribeToContentRefresh({ listener: scope => {
     if (contentRefreshApplies({ scope, resource: MEMBERS_RESOURCE })) onRefresh();
-  }),
+  } }),
 };
 export type MembersController = Omit<JiniController, "stateFor"> & {
   locale: string;

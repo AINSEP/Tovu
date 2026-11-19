@@ -21,7 +21,7 @@ export const registerAdminExternalMcpListRoute: ExternalMcpRouteRegistrar = ({ a
   app.get("/api/admin/v1/workspaces/:workspaceId/mcp-servers", async (req, res) => {
     try {
       if (!(await guardExternalMcpRequest({ deps, requestedWorkspaceId: req.params.workspaceId, res }))) return;
-      const servers = await listExternalMcpServerViews({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer }, deps.workspaceId);
+      const servers = await listExternalMcpServerViews({ deps: { repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer }, workspaceId: deps.workspaceId });
       res.json({ servers: servers.map(server => describeExternalMcpOwnership({ server, ids: deps.builtInExternalMcpServerIds })) });
     } catch (error) {
       sendAdminFailure({ res, error }, { operation: "routes/external-mcp/list", code: "INTERNAL_ERROR" });

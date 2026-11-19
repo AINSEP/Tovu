@@ -45,7 +45,7 @@ function servers(read: string[]): Readonly<Record<string, McpServerConfig>> {
 
 test("stored config preserves plugin provenance for roster resolution", async () => {
   const deps = await harness();
-  const result = await readEnabledExternalMcpConfigs(deps, workspaceId);
+  const result = await readEnabledExternalMcpConfigs({ deps, workspaceId });
   assert.deepEqual(result.failures, []);
   assert.equal(result.configs.find((c) => c.serverId === "remote")?.provisionedByPluginId, pluginId);
 });

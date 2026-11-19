@@ -149,7 +149,7 @@ async function resolveOneCollectionMarker({ deps, marker, pagePath }: { deps: Pi
   const items = batch.items.map((row) => toCollectionEntryListItem({ row, fields: parsed.display.fields, timeZone }));
   const { template } = splitCollectionMarkerInner({ inner: marker.inner });
   const { columns, layout, structuredData } = parsed.display;
-  const list = renderEntryList(items, { template, columns, layout, typeKey, ...(structuredData === undefined ? {} : { structuredData }), ...(listingKey === undefined ? {} : { listingKey }) });
+  const list = renderEntryList({ items, options: { template, columns, layout, typeKey, ...(structuredData === undefined ? {} : { structuredData }), ...(listingKey === undefined ? {} : { listingKey }) } });
   if (list === undefined || listingKey === undefined || !batch.hasMore) return list;
   return list + renderListingMore({ key: listingKey, href: listingBatchPath({ pagePath, key: listingKey, after: batch.next }) });
 }

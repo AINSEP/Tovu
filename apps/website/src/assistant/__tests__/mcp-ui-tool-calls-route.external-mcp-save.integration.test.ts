@@ -188,7 +188,7 @@ test("a hosted token delivered by the human MCP-UI form is stored without echoin
   assert.equal(executed.status, "completed");
   assert.equal((executed.output as { saved: boolean }).saved, true);
   assert.equal(JSON.stringify(executed).includes(secret), false);
-  const resolved = await readEnabledExternalMcpConfigs({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer }, deps.workspaceId);
+  const resolved = await readEnabledExternalMcpConfigs({ deps: { repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer }, workspaceId: deps.workspaceId });
   assert.deepEqual(resolved.configs.find(config => config.serverId === "hosted-token")!.target,
     { kind: "streamable_http", url: "https://hosted.example/mcp", headers: { authorization: `Bearer ${secret}` } });
 });

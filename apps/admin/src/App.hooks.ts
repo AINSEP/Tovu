@@ -231,7 +231,7 @@ export function usePublishCriteriaDeepLink(
   useEffect(() => {
     if (handledRef.current) return;
     handledRef.current = true;
-    const criteria = takePublishCriteriaFromQuery(window.location, window.history);
+    const criteria = takePublishCriteriaFromQuery({ location: window.location, history: window.history });
     if (criteria !== null) void request(criteria);
   }, [request]);
 }
@@ -604,7 +604,7 @@ export function useChatDockLayout(): UseChatDockLayout {
    * Both directions are wired here, in the hook that owns the boolean, so every open still runs
    * the same focus/escape/sheet-sizing effects above rather than a second, divergent path.
    */
-  useEffect(() => subscribeToAssistantDockRequests(setChatOpen), []);
+  useEffect(() => subscribeToAssistantDockRequests({ listener: setChatOpen }), []);
   useEffect(() => publishAssistantDockState({ open: chatOpen }), [chatOpen]);
 
   // Focus into the dock on open, back to the FAB on close (MSG-06). `tabIndex={-1}` on `App.tsx`'s
@@ -961,7 +961,7 @@ export interface UseScreenshotAnnouncement {
  */
 export function useScreenshotAnnouncement(): UseScreenshotAnnouncement {
   const [announced, setAnnounced] = useState(false);
-  useEffect(() => subscribeToScreenshotCaptured(() => setAnnounced(true)), []);
+  useEffect(() => subscribeToScreenshotCaptured({ listener: () => setAnnounced(true) }), []);
   return { announced, dismiss: () => setAnnounced(false) };
 }
 

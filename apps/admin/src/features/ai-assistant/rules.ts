@@ -116,7 +116,7 @@ export function configuredPresetIds(config: ByokConfig): Set<string> {
  *
  * @complexity Time: O(p) in the number of provider presets; space: O(1).
  */
-export function hydrateVisitorCredentialConfig(current: ByokConfig, stored: SiteAssistantCredential): ByokConfig {
+export function hydrateVisitorCredentialConfig({ current, stored }: { current: ByokConfig; stored: SiteAssistantCredential }, _optional: Record<string, never> = {}): ByokConfig {
   // Nothing saved yet: the server still answers with its own default `provider`, which would
   // override the form's Anthropic default with a provider the operator never chose (2026-10-09).
   if (!hasSavedVisitorCredential(stored)) return current;
@@ -235,7 +235,7 @@ export interface VisitorProviderGroup {
  *
  * @complexity Time: O(p) in the number of provider presets; space: O(p).
  */
-export function visitorProviderGroups(configuredIds: ReadonlySet<string>): VisitorProviderGroup[] {
+export function visitorProviderGroups({ configuredIds }: { configuredIds: ReadonlySet<string> }, _optional: Record<string, never> = {}): VisitorProviderGroup[] {
   const { protocols, gateways } = groupPresets(DEFAULT_PROVIDER_PRESETS);
   const toOptions = (presets: readonly ProviderPreset[]) => presets.map((preset) => ({ preset, configured: configuredIds.has(preset.id) }));
   return [

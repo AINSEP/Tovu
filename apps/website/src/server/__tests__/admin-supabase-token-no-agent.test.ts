@@ -94,7 +94,7 @@ test("with no agent running, an admin pastes a Supabase access token in Settings
   const row = (JSON.parse(listText) as { servers: { serverId: string; authMode: string; enabled: boolean }[] }).servers.find((s) => s.serverId === "supabase");
   assert.deepEqual({ authMode: row?.authMode, enabled: row?.enabled }, { authMode: "static_env", enabled: true });
 
-  const { configs } = await readEnabledExternalMcpConfigs({ repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer }, deps.workspaceId);
+  const { configs } = await readEnabledExternalMcpConfigs({ deps: { repo: deps.externalMcpServerRepo, sealer: deps.siteAssistantSecretSealer }, workspaceId: deps.workspaceId });
   const target = configs.find((c) => c.serverId === "supabase")?.target;
   assert.ok(target && target.kind === "streamable_http");
   assert.equal(target.url, pluginUrl);

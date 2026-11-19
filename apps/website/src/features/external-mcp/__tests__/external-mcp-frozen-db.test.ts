@@ -50,7 +50,7 @@ test("frozen fixture: the retained SQL repo and store open all three credentials
   const { db, kernel } = await frozenDbFile(path.join(SCRATCH, "read.db"));
   const h = wire({ kernel, clockIso: VALID_AT });
 
-  const views = await listExternalMcpServerViews({ repo: h.repo, sealer: h.sealer }, FROZEN_WORKSPACE);
+  const views = await listExternalMcpServerViews({ deps: { repo: h.repo, sealer: h.sealer }, workspaceId: FROZEN_WORKSPACE });
   assert.deepEqual(views.map((view) => [view.serverId, view.authMode]).sort(),
     [[FROZEN_SERVERS.env, "none"], [FROZEN_SERVERS.oauth, "oauth"], [FROZEN_SERVERS.static, "static_env"]]);
   const opensPerRow = Object.values(FROZEN_SERVERS).map((serverId) => h.openedAad.filter((aad) => aad.includes(serverId)).length);
@@ -180,7 +180,7 @@ test("frozen fixture: tampered context or owner is refused before any crypto, an
     resetCounts(h.io.sealer, h.io.keyring);
     await assert.rejects(h.repo.findByServerId({ workspaceId: FROZEN_WORKSPACE, serverId: FROZEN_SERVERS.env }),
       (error: unknown) => error instanceof VaultError && error.code === "context", `${column} tamper is a context refusal`);
-    await assert.rejects(listExternalMcpServerViews({ repo: h.repo, sealer: h.sealer }, FROZEN_WORKSPACE),
+    await assert.rejects(listExternalMcpServerViews({ deps: { repo: h.repo, sealer: h.sealer }, workspaceId: FROZEN_WORKSPACE }),
       (error: unknown) => error instanceof VaultError && error.code === "context");
     assert.deepEqual(nonZero(h.io.sealer), {}, `${column} tamper is refused before crypto`);
     assert.deepEqual(nonZero(h.io.keyring), {});
@@ -243,7 +243,7 @@ test("frozen fixture: provider errors carrying token/secret/URL/path never reach
     const thrown = await h.service.tokenResolver.resolveAccessToken({ serverId: FROZEN_SERVERS.oauth }).then(() => null, (error: unknown) => error);
     assert.ok(thrown instanceof Error, `${name}: the refresh fails`);
     assert.equal(thrown instanceof ExternalMcpReauthRequiredError, name === "invalidGrant");
-    const { failures } = await readEnabledExternalMcpConfigs({ repo: h.repo, sealer: h.sealer, oauth: h.service.tokenResolver }, FROZEN_WORKSPACE);
+    const { failures } = await readEnabledExternalMcpConfigs({ deps: { repo: h.repo, sealer: h.sealer, oauth: h.service.tokenResolver }, workspaceId: FROZEN_WORKSPACE });
     assert.deepEqual(failures.map((failure) => failure.serverId), [FROZEN_SERVERS.oauth]);
     const record = await requireRecord(h.repo, FROZEN_SERVERS.oauth);
     const gate = createExternalMcpConnectionGate({ workspaceId: FROZEN_WORKSPACE, repo: h.repo, isPluginEnabled: async () => true });

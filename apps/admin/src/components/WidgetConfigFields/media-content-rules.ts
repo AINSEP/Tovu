@@ -30,7 +30,7 @@ export function mediaLayoutsFor({ widgetType }: { widgetType: string }, _options
 }
 
 /** Columns only mean something when more than one item sits side by side. */
-export function layoutUsesColumns(layout: MediaLayout): boolean {
+export function layoutUsesColumns({ layout }: { layout: MediaLayout }, _optional: Record<string, never> = {}): boolean {
   return layout !== "single";
 }
 
@@ -148,7 +148,7 @@ export function toMediaConfig(required: { state: MediaContentState }): Record<st
   if (state.mode === "html") return { mode: "html", html: state.html };
   const { media } = state;
   const config: Record<string, unknown> = { mode: "media", items: media.items.map((item) => ({ ...item })), layout: media.layout };
-  if (media.columns !== undefined && layoutUsesColumns(media.layout)) config.columns = media.columns;
+  if (media.columns !== undefined && layoutUsesColumns({ layout: media.layout })) config.columns = media.columns;
   for (const key of ["aspectRatio", "cssClass", "htmlAttributes"] as const) {
     const value = media[key]?.trim();
     if (value) config[key] = value;
@@ -354,7 +354,7 @@ export function htmlAttributesToRows({ text }: { text: string | undefined }, _op
  *
  * @complexity O(total row text).
  */
-export function rowsToHtmlAttributes(rows: readonly HtmlAttributeRow[]): string {
+export function rowsToHtmlAttributes({ rows }: { rows: readonly HtmlAttributeRow[] }, _optional: Record<string, never> = {}): string {
   return rows
     .filter((row) => row.name.trim() !== "")
     .map((row) => {
@@ -368,7 +368,7 @@ export function rowsToHtmlAttributes(rows: readonly HtmlAttributeRow[]): string 
  *  off the list) — reuses the media attribute validator rather than a second allowlist. */
 export function isDroppedAttributeRow(row: HtmlAttributeRow): boolean {
   if (row.name.trim() === "") return false;
-  return parseMediaHtmlAttributes({ text: rowsToHtmlAttributes([row]), policy: embedPolicy }).error !== null;
+  return parseMediaHtmlAttributes({ text: rowsToHtmlAttributes({ rows: [row] }), policy: embedPolicy }).error !== null;
 }
 
 /**

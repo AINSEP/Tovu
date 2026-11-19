@@ -91,7 +91,7 @@ describe('Jini widgets host switch', () => {
     // Keep the old mixed suite's discriminating seam: page copy intentionally stays English.
     // Only the actual host slot's separate dictionary can produce Texto in this harness.
     const feature = widgets({ slots: { ConfigFields: WidgetsConfigFieldsSlot, AddControl: WidgetAddControl },
-      widgetTypes: WIDGET_TYPE_OPTIONS, defaultConfig: type => defaultWidgetConfig(type as HostWidgetType),
+      widgetTypes: WIDGET_TYPE_OPTIONS, defaultConfig: type => defaultWidgetConfig({ widgetType: type as HostWidgetType }),
     }, { locale: 'es', t: key => key });
     const admin = createAdmin({ modules: [feature], ports: { widgetsApi: createMemoryWidgetsApi({}) } });
     try {

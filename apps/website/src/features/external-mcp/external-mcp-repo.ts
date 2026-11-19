@@ -139,7 +139,7 @@ export class SqlExternalMcpServerRepo implements ExternalMcpServerRepoPort {
         .where("server_id", "=", record.serverId).executeTakeFirst());
       const env_secret_id = await persistExternalMcpVaultEnvelope({ repo: this.vaultRepo, sealed: record.sealedEnv, identity: record, kind: "mcp-env" });
       const oauth_secret_id = await persistExternalMcpVaultEnvelope({ repo: this.vaultRepo, sealed: record.sealedOAuth, identity: record, kind: "mcp-auth" });
-      const row = toRow(record, { env_secret_id, oauth_secret_id });
+      const row = toRow({ record, pointers: { env_secret_id, oauth_secret_id } });
       await this.kernel.run(db => db.insertInto("external_mcp_servers").values(row)
         .onConflict(oc => oc.columns(["workspace_id", "server_id"]).doUpdateSet(row)).execute());
       // The upsert unlinks old pointers first; RESTRICT foreign keys remain satisfied throughout.

@@ -206,7 +206,7 @@ test("the built registration is read-only, content.read-gated, and requires a po
   }), withExtensionApprovalPolicy });
   assert.ok(registration);
   assert.equal(registration.descriptor.id, "plugin_capability_word_count");
-  assert.equal(pluginCapabilityToolDerivedRisk([WORD_COUNT_SOURCE]).get("plugin_capability_word_count"), "none");
+  assert.equal(pluginCapabilityToolDerivedRisk({ sources: [WORD_COUNT_SOURCE] }).get("plugin_capability_word_count"), "none");
 
   const schema = registration.descriptor.inputSchema as Record<string, unknown>;
   assert.deepEqual(schema.required, ["postId"]);
@@ -321,11 +321,11 @@ test("an ext bag shaped unexpectedly (not an object) degrades to null + note rat
 
 test("registerEnabledPluginCapabilityTools registers exactly one tool for one enabled plugin", async () => {
   const registry = createToolRegistry({});
-  await registerEnabledPluginCapabilityTools(registry, { withExtensionApprovalPolicy,
+  await registerEnabledPluginCapabilityTools({ registry, deps: { withExtensionApprovalPolicy,
     ...deps(),
     discoverPlugins: async () => [discoveryRecord(WORD_COUNT_MANIFEST)],
     pluginActivationRepo: activationRepoWith([enabledActivation("word-count")]),
-  });
+  } });
 
   assert.ok(registry.has({ toolId: "plugin_capability_word_count" }));
   assert.equal(registry.list({}).length, 1);
@@ -333,11 +333,11 @@ test("registerEnabledPluginCapabilityTools registers exactly one tool for one en
 
 test("registerEnabledPluginCapabilityTools registers nothing for a disabled plugin", async () => {
   const registry = createToolRegistry({});
-  await registerEnabledPluginCapabilityTools(registry, { withExtensionApprovalPolicy,
+  await registerEnabledPluginCapabilityTools({ registry, deps: { withExtensionApprovalPolicy,
     ...deps(),
     discoverPlugins: async () => [discoveryRecord(WORD_COUNT_MANIFEST)],
     pluginActivationRepo: activationRepoWith([]),
-  });
+  } });
 
   assert.equal(registry.list({}).length, 0);
   assert.equal(registry.has({ toolId: "plugin_capability_word_count" }), false);
@@ -353,11 +353,11 @@ test("a tool id that collides with an already-registered tool fails LOUDLY at re
 
   await assert.rejects(
     () =>
-      registerEnabledPluginCapabilityTools(registry, { withExtensionApprovalPolicy,
+      registerEnabledPluginCapabilityTools({ registry, deps: { withExtensionApprovalPolicy,
         ...deps(),
         discoverPlugins: async () => [discoveryRecord(WORD_COUNT_MANIFEST)],
         pluginActivationRepo: activationRepoWith([enabledActivation("word-count")]),
-      }),
+      } }),
     (error: unknown) =>
       error instanceof Error && error.message === 'ToolRegistry: tool "plugin_capability_word_count" is already registered',
   );
@@ -565,12 +565,12 @@ function recordingContributions(): PluginContributionRegistry & { subscriptions:
 test("registerEnabledPluginCapabilityTools attaches executable plugin tools to the registry it was given when no separate executable registry is wired", async () => {
   const registry = createToolRegistry({});
   const contributions = recordingContributions();
-  await registerEnabledPluginCapabilityTools(registry, { withExtensionApprovalPolicy,
+  await registerEnabledPluginCapabilityTools({ registry, deps: { withExtensionApprovalPolicy,
     ...deps(),
     pluginContributions: contributions,
     discoverPlugins: async () => [discoveryRecord(WORD_COUNT_MANIFEST)],
     pluginActivationRepo: activationRepoWith([enabledActivation("word-count")]),
-  });
+  } });
 
   assert.ok(registry.has({ toolId: "plugin_capability_word_count" }));
   assert.equal(contributions.subscriptions, 1, "the executable-tool scope subscribes to contribution changes");
@@ -579,12 +579,12 @@ test("registerEnabledPluginCapabilityTools attaches executable plugin tools to t
 test("registerEnabledPluginCapabilityTools skips executable plugin tools for a register-only sink with no executable registry", async () => {
   const registered: string[] = [];
   const contributions = recordingContributions();
-  await registerEnabledPluginCapabilityTools({ register: (registration) => { registered.push(registration.descriptor.id); } }, { withExtensionApprovalPolicy,
+  await registerEnabledPluginCapabilityTools({ registry: { register: (registration) => { registered.push(registration.descriptor.id); } }, deps: { withExtensionApprovalPolicy,
     ...deps(),
     pluginContributions: contributions,
     discoverPlugins: async () => [discoveryRecord(WORD_COUNT_MANIFEST)],
     pluginActivationRepo: activationRepoWith([enabledActivation("word-count")]),
-  });
+  } });
 
   assert.deepEqual(registered, ["plugin_capability_word_count"]);
   assert.equal(contributions.subscriptions, 0);

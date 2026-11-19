@@ -65,7 +65,7 @@ function readOperationInput({ input, toolId, allowedKeys }: { input: unknown; to
  * @throws {ToolInputError} Handlers refuse invalid arguments, rate limits or unavailable services.
  * @complexity O(1) wiring; services bound their own I/O and collection costs.
  */
-export function buildExternalMcpOperationsRegistrations(deps: ExternalMcpToolDeps, operations: ExternalMcpOperations): ToolRegistration[] {
+export function buildExternalMcpOperationsRegistrations({ deps, operations }: { deps: ExternalMcpToolDeps; operations: ExternalMcpOperations }, _optional: Record<string, never> = {}): ToolRegistration[] {
   const limiter = createRateLimiter({ profile: OUTBOUND_CALL_PER_IP, clock: deps.clock });
   return buildDomainRegistrations({ metadata: toolMetadata,
     domain: "external-mcp-operations",
@@ -104,5 +104,5 @@ export function buildExternalMcpOperationsRegistrations(deps: ExternalMcpToolDep
  * @complexity O(1) time and space.
  */
 export function contributeExternalMcpOperationsTools(operations: ExternalMcpOperations): ToolContributor<ExternalMcpToolDeps, unknown> {
-  return { domain: "external-mcp-operations", build: deps => buildExternalMcpOperationsRegistrations(deps, operations), risk: externalMcpOperationsDerivedRisk };
+  return { domain: "external-mcp-operations", build: deps => buildExternalMcpOperationsRegistrations({ deps, operations }), risk: externalMcpOperationsDerivedRisk };
 }

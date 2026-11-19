@@ -517,7 +517,7 @@ describe("useSiteImport", () => {
 
   it("hands a valid live website to the assistant as a draft and opens the dock", () => {
     const dockRequests: boolean[] = [];
-    const unsubscribe = subscribeToAssistantDockRequests((open) => dockRequests.push(open));
+    const unsubscribe = subscribeToAssistantDockRequests({ listener: (open) => dockRequests.push(open) });
     const insertText = vi.fn();
     const handle = { current: { insertText } } as unknown as React.RefObject<never>;
     renderHook(() => useAssistantPromptRequests(handle));

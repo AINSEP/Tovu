@@ -94,7 +94,7 @@ export function useContentAnalysis(props: ContentAnalysisTarget, deps: ContentAn
 
   return {
     hidden: isContentAnalysisHidden(statusQuery),
-    view: buildContentAnalysisView(currentAnalysis({ post, fresh }), t),
+    view: buildContentAnalysisView({ state: currentAnalysis({ post, fresh }), t }),
     analyzing: previewMutation.status === "pending",
     error: describeCardError({ error: previewMutation.error ?? statusQuery.error, t }),
     analyze,

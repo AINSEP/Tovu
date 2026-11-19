@@ -153,7 +153,7 @@ export class EnvOrFileKeyring implements KeyringPort {
   }
 }
 
-export function isNoSiteKeyError(error: unknown): boolean {
+export function isNoSiteKeyError({ error }: { error: unknown }, _optional: Record<string, never> = {}): boolean {
   return error instanceof Error && (error.message === "no site key" || error.message.startsWith("no site key: none of the configured sources resolved ("));
 }
 
@@ -210,7 +210,7 @@ interface PresentSiteKey {
  */
 function firstPresentSiteKey(input: { sources: readonly SiteKeySource[]; env: Record<string, string | undefined> }): PresentSiteKey | undefined {
   for (const source of input.sources) {
-    const material = readSiteKeySourceMaterial(source, input.env);
+    const material = readSiteKeySourceMaterial({ source, env: input.env });
     if (material !== undefined) return { source, material, parsed: parseSiteKeyHex({ raw: material.raw }) };
   }
   return undefined;
@@ -368,7 +368,7 @@ export function inspectSiteKeyMaterial(options: InspectSiteKeyMaterialOptions, d
 /** One read behind both status functions; {@link inspectSiteKeyMaterial} drops `hex` from it. */
 function readSiteKeyReveal(options: InspectSiteKeyMaterialOptions, deps: SiteKeyReaderDeps): SiteKeyReveal {
   // No write target for a local site with unreadable metadata; legacy shared files are read-only.
-  const keyFilePath = siteKeyFilePathFrom(options.sources) ?? "";
+  const keyFilePath = siteKeyFilePathFrom({ sources: options.sources }) ?? "";
   const present = firstPresentSiteKey({ sources: options.sources, env: (deps.env ?? (() => process.env))() });
   return siteKeyRevealOf({ present, keyFilePath });
 }

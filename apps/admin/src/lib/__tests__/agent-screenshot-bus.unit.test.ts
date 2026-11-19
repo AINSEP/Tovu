@@ -17,7 +17,7 @@ afterEach(() => {
 describe("subscribeToScreenshotCaptured / publishScreenshotCaptured", () => {
   it("notifies a subscribed listener when a capture is published", () => {
     const listener = vi.fn();
-    subscribeToScreenshotCaptured(listener);
+    subscribeToScreenshotCaptured({ listener });
 
     publishScreenshotCaptured();
 
@@ -26,7 +26,7 @@ describe("subscribeToScreenshotCaptured / publishScreenshotCaptured", () => {
 
   it("the disposer returned by subscribeToScreenshotCaptured stops future notifications", () => {
     const listener = vi.fn();
-    const unsubscribe = subscribeToScreenshotCaptured(listener);
+    const unsubscribe = subscribeToScreenshotCaptured({ listener });
     unsubscribe();
 
     publishScreenshotCaptured();
@@ -44,8 +44,8 @@ describe("subscribeToScreenshotCaptured / publishScreenshotCaptured", () => {
       throw new Error("boom");
     });
     const healthy = vi.fn();
-    subscribeToScreenshotCaptured(throwing);
-    subscribeToScreenshotCaptured(healthy);
+    subscribeToScreenshotCaptured({ listener: throwing });
+    subscribeToScreenshotCaptured({ listener: healthy });
 
     publishScreenshotCaptured();
 
@@ -55,7 +55,7 @@ describe("subscribeToScreenshotCaptured / publishScreenshotCaptured", () => {
 
   it("publishing more than once notifies the listener each time — every capture must be announced, not just the first", () => {
     const listener = vi.fn();
-    subscribeToScreenshotCaptured(listener);
+    subscribeToScreenshotCaptured({ listener });
 
     publishScreenshotCaptured();
     publishScreenshotCaptured();
@@ -67,7 +67,7 @@ describe("subscribeToScreenshotCaptured / publishScreenshotCaptured", () => {
 describe("resetScreenshotCapturedBus", () => {
   it("clears every listener", () => {
     const listener = vi.fn();
-    subscribeToScreenshotCaptured(listener);
+    subscribeToScreenshotCaptured({ listener });
 
     resetScreenshotCapturedBus();
     publishScreenshotCaptured(); // would notify the old listener if it survived the reset

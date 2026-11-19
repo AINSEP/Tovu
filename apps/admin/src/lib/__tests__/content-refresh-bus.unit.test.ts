@@ -20,8 +20,8 @@ afterEach(() => resetContentRefreshBus());
 
 test("delivers to every subscriber", () => {
   const seen: string[] = [];
-  subscribeToContentRefresh(() => seen.push("a"));
-  subscribeToContentRefresh(() => seen.push("b"));
+  subscribeToContentRefresh({ listener: () => seen.push("a") });
+  subscribeToContentRefresh({ listener: () => seen.push("b") });
 
   publishContentRefresh();
 
@@ -30,7 +30,7 @@ test("delivers to every subscriber", () => {
 
 test("passes resources through, and normalizes 'no information' to null", () => {
   const scopes: unknown[] = [];
-  subscribeToContentRefresh((scope) => scopes.push(scope));
+  subscribeToContentRefresh({ listener: (scope) => scopes.push(scope) });
 
   publishContentRefresh(["taxonomy"]);
   publishContentRefresh();
@@ -43,7 +43,7 @@ test("passes resources through, and normalizes 'no information' to null", () => 
 
 test("unsubscribing stops delivery", () => {
   const listener = vi.fn();
-  const dispose = subscribeToContentRefresh(listener);
+  const dispose = subscribeToContentRefresh({ listener });
 
   publishContentRefresh();
   dispose();
@@ -56,10 +56,10 @@ test("one throwing subscriber does not suppress the others", () => {
   const errors = vi.spyOn(console, "error").mockImplementation(() => {});
   const survivor = vi.fn();
 
-  subscribeToContentRefresh(() => {
+  subscribeToContentRefresh({ listener: () => {
     throw new Error("taxonomy screen blew up");
-  });
-  subscribeToContentRefresh(survivor);
+  } });
+  subscribeToContentRefresh({ listener: survivor });
 
   expect(() => publishContentRefresh()).not.toThrow();
   expect(survivor).toHaveBeenCalledTimes(1);
@@ -70,10 +70,10 @@ test("one throwing subscriber does not suppress the others", () => {
 
 test("a subscriber added during a publish does not receive that same publish", () => {
   const seen: string[] = [];
-  subscribeToContentRefresh(() => {
+  subscribeToContentRefresh({ listener: () => {
     seen.push("first");
-    subscribeToContentRefresh(() => seen.push("late"));
-  });
+    subscribeToContentRefresh({ listener: () => seen.push("late") });
+  } });
 
   publishContentRefresh();
 

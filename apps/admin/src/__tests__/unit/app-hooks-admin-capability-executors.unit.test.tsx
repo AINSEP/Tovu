@@ -47,7 +47,7 @@ describe("buildAdminCapabilityExecutors", () => {
   it("announces a successful capture on the screenshot-captured bus", async () => {
     resetScreenshotCapturedBus();
     const listener = vi.fn();
-    subscribeToScreenshotCaptured(listener);
+    subscribeToScreenshotCaptured({ listener });
     const element = document.createElement("main");
     document.body.appendChild(element);
     const renderElementToCanvas = vi.fn().mockResolvedValue({
@@ -65,7 +65,7 @@ describe("buildAdminCapabilityExecutors", () => {
   it("does NOT announce on the bus when capture fails (nothing was actually seen)", async () => {
     resetScreenshotCapturedBus();
     const listener = vi.fn();
-    subscribeToScreenshotCaptured(listener);
+    subscribeToScreenshotCaptured({ listener });
     // `element: null` -> captureAdminScreenshotToolResult's own "no admin content area" failure path.
     const executors = buildAdminCapabilityExecutors({ contentEl: null }, { renderElementToCanvas: vi.fn() });
 

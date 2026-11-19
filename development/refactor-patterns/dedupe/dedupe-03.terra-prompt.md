@@ -273,7 +273,7 @@ export interface AssistantMediaView {
   publicUrl: string | null;
 }
 
-export type PersistAssistantMediaDeps = MediaUploadRouteDeps & Parameters<typeof resolveMediaPublicUrls>[0] & {
+export type PersistAssistantMediaDeps = MediaUploadRouteDeps & Parameters<typeof resolveMediaPublicUrls>[0]["deps"] & {
   mediaContentTypeStore: MediaContentTypeStorePort;
   tracker?: Parameters<typeof captureMediaUploaded>[0]["tracker"];
 };
@@ -293,7 +293,7 @@ export async function persistAssistantMedia(
   const sniffed = sniffContentType({ bytes: input.bytes });
   await routeDeps.mediaContentTypeStore.set({ workspaceId: routeDeps.workspaceId, sha256: media.source.sha256, contentType: sniffed });
   captureMediaUploaded({ tracker: routeDeps.tracker, actorId, byteLength: input.bytes.byteLength, kind: "image", source: "assistant" });
-  const urls = await resolveMediaPublicUrls(routeDeps, [media]);
+  const urls = await resolveMediaPublicUrls({ deps: routeDeps, assets: [media] });
   return {
     media: {
       id: media.id, createdBy: media.createdBy ?? null, slug: media.slug, title: media.title, alt: media.alt,

@@ -121,7 +121,7 @@ test('external-mcp env ciphertext opens only in its original row and slot', asyn
   await assert.rejects(repo.upsert({ ...row, serverId: SERVER_B }));
   // A corrupt persisted roster still degrades one connection rather than aborting federation.
   repo.listByWorkspaceId = async () => [row, { ...row, serverId: SERVER_B }];
-  const result = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  const result = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
   assert.deepEqual(result.configs.map(c => c.serverId), [SERVER_A]);
   const target = result.configs[0]!.target;
   assert.equal(target.kind, 'stdio');

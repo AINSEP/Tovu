@@ -189,19 +189,19 @@ describe("buildContentAnalysisView", () => {
   const stored: AnalysisState = { kind: "report", source: "stored", report: parseContentAnalysisReport({ raw: VALID_REPORT_JSON })! };
 
   it("leads with where the analysis came from", () => {
-    expect(buildContentAnalysisView(stored, identity).lead).toBe("From the last save.");
-    expect(buildContentAnalysisView({ ...stored, source: "fresh" } as AnalysisState, identity).lead).toBe(
+    expect(buildContentAnalysisView({ state: stored, t: identity }).lead).toBe("From the last save.");
+    expect(buildContentAnalysisView({ state: { ...stored, source: "fresh" } as AnalysisState, t: identity }).lead).toBe(
       "From your current draft, including unsaved changes."
     );
-    expect(buildContentAnalysisView({ kind: "missing" }, identity)).toEqual({
+    expect(buildContentAnalysisView({ state: { kind: "missing" }, t: identity })).toEqual({
       lead: "Not analyzed yet. Save, or click Analyze now.",
       report: null,
     });
-    expect(buildContentAnalysisView({ kind: "invalid" }, identity)).toEqual({ lead: "Analysis unavailable.", report: null });
+    expect(buildContentAnalysisView({ state: { kind: "invalid" }, t: identity })).toEqual({ lead: "Analysis unavailable.", report: null });
   });
 
   it("builds the four stats with translated, interpolated copy", () => {
-    const view = buildContentAnalysisView(stored, marked);
+    const view = buildContentAnalysisView({ state: stored, t: marked });
     expect(view.report?.stats).toEqual([
       { key: "score", label: "<Score>", value: "84", meta: "<out of 100>" },
       { key: "words", label: "<Words>", value: "420", meta: "<Sentences: {count}>".replace("{count}", "21") },
@@ -219,7 +219,7 @@ describe("buildContentAnalysisView", () => {
     const bands = ["very-easy", "easy", "fairly-easy", "standard", "fairly-difficult", "difficult", "very-difficult"] as const;
     const labels = bands.map((band) => {
       const report = { ...stored.report!, readability: { ...stored.report!.readability, band } };
-      return buildContentAnalysisView({ kind: "report", source: "stored", report }, identity).report!.stats[3]!.meta;
+      return buildContentAnalysisView({ state: { kind: "report", source: "stored", report }, t: identity }).report!.stats[3]!.meta;
     });
     expect(labels).toEqual([
       "Very easy · grade 8.1",
@@ -233,17 +233,17 @@ describe("buildContentAnalysisView", () => {
   });
 
   it("builds the table of contents with a level label and an indent relative to the shallowest heading", () => {
-    const view = buildContentAnalysisView(stored, identity);
+    const view = buildContentAnalysisView({ state: stored, t: identity });
     expect(view.report?.toc).toEqual([
       { key: "0-intro", text: "Intro", levelLabel: "H2", indentRem: 0 },
       { key: "1-details", text: "Details", levelLabel: "H3", indentRem: 1 },
     ]);
-    const empty = buildContentAnalysisView({ kind: "report", source: "stored", report: { ...stored.report!, toc: [] } }, identity);
+    const empty = buildContentAnalysisView({ state: { kind: "report", source: "stored", report: { ...stored.report!, toc: [] } }, t: identity });
     expect(empty.report?.toc).toEqual([]);
   });
 
   it("builds every check with a status label, tone, icon and interpolated message", () => {
-    const view = buildContentAnalysisView(stored, identity);
+    const view = buildContentAnalysisView({ state: stored, t: identity });
     expect(view.report?.checks).toEqual([
       { key: "0-title-length", title: "Title length", status: "pass", statusLabel: "Pass", tone: "status-ok", icon: "✓", message: "Title length is good: 42 characters." },
       { key: "1-meta-description-length", title: "Meta description", status: "skip", statusLabel: "Skipped", tone: "status-neutral", icon: "–", message: "No meta description is set." },
@@ -269,7 +269,7 @@ describe("buildContentAnalysisView", () => {
     ["subheadings", "warn", { words: 450 }, "450 words with no subheadings; add H2–H6 headings."],
   ])("%s %s reads as its own sentence", (id, status, params, message) => {
     const report = { ...stored.report!, checks: [{ id, status, params }] } as never;
-    expect(buildContentAnalysisView({ kind: "report", source: "stored", report }, identity).report!.checks[0]!.message).toBe(message);
+    expect(buildContentAnalysisView({ state: { kind: "report", source: "stored", report }, t: identity }).report!.checks[0]!.message).toBe(message);
   });
 
   it("falls back to the raw id and no message for a check or status combination it has no copy for", () => {
@@ -280,13 +280,13 @@ describe("buildContentAnalysisView", () => {
         { id: "single-h1", status: "fail", params: {} },
       ],
     } as never;
-    const checks = buildContentAnalysisView({ kind: "report", source: "stored", report }, identity).report!.checks;
+    const checks = buildContentAnalysisView({ state: { kind: "report", source: "stored", report }, t: identity }).report!.checks;
     expect(checks[0]).toMatchObject({ title: "future-check", message: "" });
     expect(checks[1]).toMatchObject({ title: "Single H1", statusLabel: "Fail", message: "" });
   });
 
   it("translates a check's template before interpolating its params", () => {
-    const view = buildContentAnalysisView(stored, marked);
+    const view = buildContentAnalysisView({ state: stored, t: marked });
     expect(view.report!.checks[0]!.message).toBe("<Title length is good: 42 characters.>");
   });
 });

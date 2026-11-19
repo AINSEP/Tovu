@@ -54,7 +54,7 @@ const listeners = new Set<Listener>();
  * component would invalidate a cache on behalf of a screen that is no longer mounted.
  * @complexity O(1).
  */
-export function subscribeToContentRefresh(listener: Listener): () => void {
+export function subscribeToContentRefresh({ listener }: { listener: Listener }, _optional: Record<string, never> = {}): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);

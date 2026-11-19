@@ -165,8 +165,8 @@ async function applyCopiedMetadata(
  * @complexity O(1) repo/store calls plus one full read of the source's bytes.
  */
 export async function duplicateMediaAsset(
-  routeDeps: MediaToolDeps & MediaPublicUrlDeps,
-  input: DuplicateMediaInput
+  { routeDeps, ...input }: { routeDeps: MediaToolDeps & MediaPublicUrlDeps } & DuplicateMediaInput,
+  _optional: Record<string, never> = {},
 ): Promise<Record<string, unknown>> {
   // Rejected rather than ignored, mirroring the `"form"` resource: `content_duplicate`'s `status`
   // override is spelled in post/page's vocabulary (draft/published), which a media asset has no
@@ -270,7 +270,7 @@ export function contributeMediaDuplicateHandlers(): DuplicateResourceHandlerCont
       resource: "media",
       build: (routeDeps, _optional = {}) => ({
         permission: "media.upload",
-        duplicate: (input, _optional = {}) => duplicateMediaAsset(routeDeps as unknown as MediaToolDeps & MediaPublicUrlDeps, input),
+        duplicate: (input, _optional = {}) => duplicateMediaAsset({ routeDeps: routeDeps as unknown as MediaToolDeps & MediaPublicUrlDeps, ...input }),
       }),
     },
   ];
