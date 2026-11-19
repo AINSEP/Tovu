@@ -1,6 +1,6 @@
 import type { JsonObject, JsonValue } from "@jini-ai/core/primitives";
 import { escapeHtml } from "#src/platform/html/escape";
-import { menuLinkRelAttr } from "#src/features/navigation/render-entry";
+import { menuLinkRelAttr } from "#src/platform/html/menu-render";
 import { obj, str, arr } from "../value-readers.js";
 import { toAllowedHref } from "@jini-ai/cms/navigation/href";
 

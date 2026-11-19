@@ -2,7 +2,7 @@ import '#src/platform/site-dir/__tests__/helpers/isolated-catalog-home';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { renderHtmlForm } from '@jini-ai/cms/forms';
-import { renderHtmlMenu, type HtmlMenuItem } from '#src/features/navigation/html-render';
+import { renderHtmlMenu, type HtmlMenuItem } from '#src/platform/html/menu-render';
 import { renderWidgetIr } from '#src/server/inbound/public-http/http/site/render/content-html';
 
 test('rendered HTML forms advertise native tools and preserve human submission and transport', () => {

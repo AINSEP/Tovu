@@ -6,7 +6,7 @@ import { extractListingCardTemplate, injectListingScript, listingKeyOfAttributes
 import { toAllowedHref } from "@jini-ai/cms/navigation/href";
 import { injectMenuDropdownScript, renderMenuToggle } from "@jini-ai/cms/navigation/dropdown";
 import { postAuthorForDisplay } from "../../contracts/core/post-author.js";
-import { menuLinkRelAttr, renderHtmlMenu } from "#src/features/navigation/render-entry";
+import { menuLinkRelAttr, renderHtmlMenu } from "#src/platform/html/menu-render";
 import { escapeHtml } from "#src/platform/html/escape";
 import { withEntryListStyleOnce } from "./entry-list-render.js";
 import { findUnrewrittenAssetPaths, rewriteAssetPaths, tokenStylesheetSentinel } from "./static-asset-contract.js";
