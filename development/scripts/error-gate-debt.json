@@ -595,9 +595,14 @@
     "value": 1
   },
   {
-    "file": "apps/desktop/src/project-ipc.ts",
+    "file": "apps/desktop/src/project-ipc.delete.ts",
     "rule": "failure-text-from-catalog",
-    "value": 2
+    "value": 1
+  },
+  {
+    "file": "apps/desktop/src/project-ipc.server.ts",
+    "rule": "failure-text-from-catalog",
+    "value": 1
   },
   {
     "file": "apps/desktop/src/renderer/product-telemetry.ts",

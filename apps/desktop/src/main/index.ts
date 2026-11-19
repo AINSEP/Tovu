@@ -156,7 +156,6 @@ import { registerSiteThemePreviewIpc } from "../site-theme-preview-ipc.ts";
 import { createSitePreviewScheduler } from "../site-preview-scheduler.ts";
 import { registerSiteIpcHandlers } from "../project-ipc.ts";
 import { rescanSites } from "../project-ipc.catalog.ts";
-import { type ProjectSiteLifecycle } from "../project-ipc.types.ts";
 import { createSiteFolders } from "../site-folders.ts";
 import { discoverDesktopSites, startDesktopSiteDiscovery } from "../site-discovery.ts";
 import { addSitePointer } from "../add-site-pointer.ts";
@@ -369,7 +368,7 @@ function settleLegacyOwnerStoreOnStart(): void {
 }
 
 
-let siteLifecycle: ProjectSiteLifecycle | undefined;
+let siteLifecycle: ReturnType<typeof registerSiteIpcHandlers> | undefined;
 let siteMaintenanceTimer: ReturnType<typeof setInterval> | undefined;
 const recoveringSiteWindows = new Map<string, BrowserWindow>();
 
@@ -977,10 +976,8 @@ function buildProjectDeps(sitesCtx: SitesHomeCtx) {
     ctx: sitesCtx,
   };
 }
-type ProjectDeps = ReturnType<typeof buildProjectDeps>;
-
 /** Rescan, then sweep stale previews — see `site-discovery.ts`'s `startDesktopSiteDiscovery`. */
-function startSitesHomeDiscovery(projectDeps: ProjectDeps): void {
+function startSitesHomeDiscovery(projectDeps: ReturnType<typeof buildProjectDeps>): void {
   void startDesktopSiteDiscovery({
     scan: () => rescanSites(projectDeps),
     report: ({ failure }) => console.warn(`tovu desktop: ${failure instanceof Error ? failure.message : String(failure)}`),

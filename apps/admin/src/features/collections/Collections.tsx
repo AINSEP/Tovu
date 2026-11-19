@@ -43,60 +43,6 @@ import { EditFieldsDialog } from "./EditFieldsDialog";
  * formatting, and the row-menu builder all moved to `rules.ts`.
  */
 
-
-function renderNewContentTypeFields(
-  { label, t, setLabel, key, setKey, fields, fieldHandles, updateField, removeField, addField, error }:
-    Pick<ReturnType<NonNullable<NewContentTypeDialogProps["useNewContentTypeDialogHook"]>>, "label" | "setLabel" | "key" | "setKey" | "fields" | "updateField"
-    | "removeField" | "addField" | "error"> &
-    Pick<NewContentTypeDialogProps, "t"> &
-    { fieldHandles: ReturnType<typeof buildAgentListHandles> }
-) {
-  return (
-    <div className="jini-dialog-body">
-    <div className="field">
-      <label className="field-label" htmlFor="ct-label">{t({ key: "Label" })}</label>
-      <input
-        id="ct-label"
-        value={label}
-        onChange={(e) => setLabel(e.target.value)}
-        placeholder={t({ key: "e.g. Recipe" })}
-        data-jini-autofocus=""
-        {...agentHandle({ handle: "new-content-type-label" }, { role: "field", label: "This content type's display name" })}
-      />
-    </div>
-
-    <div className="field">
-      <label className="field-label" htmlFor="ct-key">{t({ key: "Key" })}</label>
-      <input
-        id="ct-key"
-        value={key}
-        onChange={(e) => setKey(e.target.value)}
-        placeholder="e.g. recipe"
-        {...agentHandle({ handle: "new-content-type-key" }, {
-          role: "field",
-          label: "This content type's machine key — used in its entries' URLs",
-        })}
-      />
-    </div>
-
-    <ContentTypeFieldsSection
-      fields={fields}
-      fieldHandles={fieldHandles}
-      idPrefix="ct-field"
-      handlePrefix="new-content-type"
-      showRemoveButton={fields.length > 1}
-      removeButtonLabel={t({ key: "Remove this field from the new content type" })}
-      updateField={updateField}
-      removeField={removeField}
-      addField={addField}
-      error={error}
-      t={t}
-    />
-
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Collections — content-type list
 // ---------------------------------------------------------------------------
@@ -114,6 +60,8 @@ export interface CollectionsProps {
    * nothing and behave exactly as before. See `PostsProps.usePostsHook` for the full rationale.
    */
   useCollectionsHook?: typeof useWiredCollections;
+  /** The component's view-state hook, injectable like the controller hook above. */
+  useCollectionsViewHook?: typeof useCollectionsView;
 }
 
 /** The three modals `Collections` can have open at once (mutually exclusive in practice, but not
@@ -168,11 +116,11 @@ function CollectionsDialogs(props: {
   );
 }
 
-export function Collections({ useCollectionsHook = useWiredCollections, dialogHooks }: CollectionsProps = {}) {
+export function Collections({ useCollectionsHook = useWiredCollections, useCollectionsViewHook = useCollectionsView, dialogHooks }: CollectionsProps = {}) {
   const {
     types, error, showNewDialog, setShowNewDialog, pendingLifecycle, setPendingLifecycle, editingFieldsFor, setEditingFieldsFor, actionError, load, runLifecycle,
     copiedKey, copyFallback, copyEmbedCode, t, locale,
-  } = useCollectionsView({ useCollectionsHook });
+  } = useCollectionsViewHook({ useCollectionsHook });
 
   if (error && !types) return <div className="notice error">{error}</div>;
   if (!types) return <div className="notice">{t({ key: "Loading content types…" })}</div>;

@@ -19,6 +19,7 @@ import {
 } from "./site-transfer-dependencies.hooks";
 
 import { type Translate } from '@jini-ai/core/text';
+import { createSiteShareActions } from "./site-share-actions";
 /**
  * @file State for the Sites screen's Export Site and Import Site tabs (owner, 2026-10-18). Every
  * effect goes through {@link SiteTransferPort}; the tabs themselves are markup only.
@@ -201,38 +202,6 @@ export function useSiteExport(
   };
 }
 
-function createSiteShareActions(
-  { revokingId, passwordDisplay, setRevokingId, setExportError, setExportFailure, port, t, invalidate, scope, clipboard, credentials, setCopiedId }:
-    Pick<ReturnType<typeof useSiteExportState>, "revokingId" | "passwordDisplay" | "setRevokingId" | "setExportError" | "setExportFailure" | "invalidate"
-    | "scope" | "credentials" | "setCopiedId"> &
-    Pick<Parameters<typeof useSiteExport>[0], "port" | "t"> &
-    { clipboard: NonNullable<NonNullable<Parameters<typeof useSiteExport>[1]>["clipboard"]> }
-) {
-  async function revoke(share: SiteShare) {
-    if (revokingId) return;
-    // Invalidate even an in-flight reveal; a revoked archive must not redisplay its password.
-    passwordDisplay.hidePassword();
-    setRevokingId(share.shareId);
-    setExportError(null);
-    setExportFailure(null);
-    try {
-      await port.revokeShare({ shareId: share.shareId });
-    } catch (failure) {
-      setExportError(describeApiError({ e: failure, fallback: t("Revoke failed.") }));
-    } finally {
-      setRevokingId(null);
-      invalidate({ key: [...SITE_TRANSFER_KEYS.shares, scope.queryScope] });
-    }
-  }
-
-  async function copyLink(share: SiteShare) {
-    if (!share.url || !clipboard || credentials.credentialGate(share)) return;
-    await clipboard.writeText(share.url);
-    setCopiedId(share.shareId);
-  }
-  return { revoke, copyLink };
-}
-
 function createSiteExportActions(
   { alive, setExportError, t, credentials, passwordDisplay, exportKind, staticSelection, setExportKind, setExportFailure, port, invalidate, scope }:
     Pick<ReturnType<typeof useSiteExportState>, "alive" | "setExportError" | "credentials" | "passwordDisplay" | "exportKind" | "staticSelection"
@@ -271,10 +240,10 @@ function createSiteExportActions(
   return { exportSite };
 }
 
-function useSiteExportState(
+export function useSiteExportState(
   { port, t, clipboard }:
     Pick<Parameters<typeof useSiteExport>[0], "port" | "t"> &
-    { clipboard: NonNullable<NonNullable<Parameters<typeof useSiteExport>[1]>["clipboard"]> }
+    { clipboard: Pick<Clipboard, "writeText"> | undefined }
 ) {
   const scope = useAdminBootScope();
   const canManageSavedKeys = useSavedKeysAccess({ port, scope });

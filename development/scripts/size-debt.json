@@ -58,13 +58,6 @@
       "value": 101
     },
     {
-      "file": "apps/admin/src/features/collections/NewContentTypeDialog.tsx",
-      "function": "NewContentTypeDialog#1",
-      "line": 21,
-      "rule": "max-lines-per-function",
-      "value": 81
-    },
-    {
       "file": "apps/admin/src/features/deployment/DockerfileTab.tsx",
       "function": "DockerfileEditorCard#1",
       "line": 226,
@@ -245,13 +238,6 @@
       "line": 520,
       "rule": "max-lines-per-function",
       "value": 461
-    },
-    {
-      "file": "apps/admin/src/features/roles/RolesSection.tsx",
-      "function": "RolesSection#1",
-      "line": 53,
-      "rule": "max-lines-per-function",
-      "value": 91
     },
     {
       "file": "apps/admin/src/features/security/AccessTokensTab.tsx",

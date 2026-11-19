@@ -402,7 +402,7 @@
     "apps/website/src/features/theme/publish-content.ts -> apps/website/src/features/publish-content/file-tree-policy.ts",
     "apps/website/src/features/theme/publish-content.ts -> apps/website/src/features/publish-content/type-registry.ts",
     "apps/website/src/features/theme/set-active-theme-tool.ts -> apps/website/src/features/presentation/index.ts",
-    "apps/website/src/features/theme/static-render.ts -> apps/website/src/features/navigation/html-render.ts",
+    "apps/website/src/features/theme/static-render-menus.ts -> apps/website/src/features/navigation/render-entry.ts",
     "apps/website/src/features/theme/theme-file-import.ts -> apps/website/src/features/fs-files/fs-files.ts",
     "apps/website/src/features/theme/theme-file-import.ts -> apps/website/src/features/media-import/fetch-image.ts",
     "apps/website/src/features/theme/theme-file-import.ts -> apps/website/src/features/media/index.ts",

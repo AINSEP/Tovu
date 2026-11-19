@@ -240,6 +240,7 @@ export function CreateWebsiteOnboarding({
   useForm = useCreateWebsiteForm,
   useDestination = useNewSiteDir,
   usePluginTokens = useCreateSitePluginTokens,
+  useWebsiteOnboardingStateHook = useWebsiteOnboardingState,
   supabaseDatabaseAvailable,
 }: {
   onBack: () => void;
@@ -249,6 +250,8 @@ export function CreateWebsiteOnboarding({
   useDestination?: typeof useNewSiteDir;
   /** Same injection pattern as `useForm`: the hook itself, defaulted to the real one. */
   usePluginTokens?: typeof useCreateSitePluginTokens;
+  /** The form's composed view-state hook, injectable like `useForm`. */
+  useWebsiteOnboardingStateHook?: typeof useWebsiteOnboardingState;
   /** Capability injection for renderer tests; production uses the policy module's flag. */
   supabaseDatabaseAvailable?: boolean;
 }) {
@@ -256,7 +259,7 @@ export function CreateWebsiteOnboarding({
     showConnectServices, supabaseDatabaseUnavailable, pluginTokens, name, setName, database, setDatabase, supabaseUrl, setSupabaseUrl, setHasSupabaseKey,
     customProvider, setCustomProvider, customConnection, setCustomConnection, setHasCustomCredential, supabaseKeyRef, customCredentialRef, nameError, canCreate,
     isSubmitting, formError, handleSubmit, destinationHint, showErrorFooter,
-  } = useWebsiteOnboardingState({ supabaseDatabaseAvailable, usePluginTokens, useForm, onCreate, useDestination });
+  } = useWebsiteOnboardingStateHook({ supabaseDatabaseAvailable, usePluginTokens, useForm, onCreate, useDestination });
 
   return (
     <section className="onboarding" aria-labelledby="create-website-title">

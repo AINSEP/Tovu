@@ -27,6 +27,8 @@ export interface IntegrationsProps {
    * module mocking or a fake `fetch`.
    */
   useIntegrationsHook?: typeof useWiredIntegrations;
+  /** The component's view-state hook, injectable like the controller hook above. */
+  useIntegrationsViewHook?: typeof useIntegrationsView;
 }
 
 /** The "Add webhook" form — only rendered while `formOpen`. Top-level rather than an inline
@@ -130,11 +132,11 @@ function IntegrationDeleteDialog(props: {
   );
 }
 
-export function Integrations({ useIntegrationsHook = useWiredIntegrations }: IntegrationsProps = {}) {
+export function Integrations({ useIntegrationsHook = useWiredIntegrations, useIntegrationsViewHook = useIntegrationsView }: IntegrationsProps = {}) {
   const {
     subscriptions, error, formOpen, setFormOpen, label, setLabel, targetUrl, setTargetUrl, topics, setTopics, saving, formError, pendingDelete, setPendingDelete,
     deleting, onCreate, onTogglePause, onDelete, t, locale,
-  } = useIntegrationsView({ useIntegrationsHook });
+  } = useIntegrationsViewHook({ useIntegrationsHook });
 
   if (error) return <div className="notice error">{error}</div>;
   if (!subscriptions) return <div className="notice">{t({ key: "Loading integrations…" })}</div>;
