@@ -152,7 +152,7 @@ test('no bridge at all is an operator-facing message, not a thrown error', async
 
 test('the in-flight status of each action is the lifecycle status of the same name', () => {
   // These two strings are `SiteLifecycleStatus` members that main also produces
-  // (`site-transitions.ts`), so a card mid-click and a card mid-drain render identically.
+  // (`@jini-ai/sidecar/supervisor`), so a card mid-click and a card mid-drain render identically.
   assert.deepEqual(IN_FLIGHT_STATUS, { start: 'starting', stop: 'stopping' });
 });
 

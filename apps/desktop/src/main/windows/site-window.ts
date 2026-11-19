@@ -48,7 +48,7 @@ interface SiteWindowPorts<S extends SiteWindowServer, W extends SiteWindow, C ex
   /** `main.ts`'s `createWindow` (see `app-window.ts`). */
   createWindow: (required: { url: string; title: string; partition: string }) => W;
   readSiteName: (required: { siteDir: string }) => string;
-  /** Drop this child's crash-safety row — `site-process-registry.ts`'s `recordSiteClosed`. */
+  /** Drop this child's crash-safety row — `site-child-registry.ts`'s `siteChildRegistry.recordClosed`. */
   recordSiteClosed: (required: { registryPath: string; siteDir: string; pid: number }) => void;
   siteThemePreviews: { sync: SiteHook; stop: SiteHook };
   sitePreviewScheduler: { cancel: SiteHook };
@@ -145,7 +145,7 @@ function handleSiteWindowClosed<S extends SiteWindowServer, W extends SiteWindow
     releaseRetainedWindow(closed);
     return;
   }
-  // Only when the current entry is still THIS window's (D-09). `site-supervisor.ts` removes an
+  // Only when the current entry is still THIS window's (D-09). `@jini-ai/sidecar/supervisor` removes an
   // entry whose child died, and the operator can re-open the same site from "Open Recent" while
   // this dead window is still on screen — a second `tovu serve`, a second window, a REPLACEMENT
   // entry under the same key. Deleting by site dir alone then dropped that healthy replacement

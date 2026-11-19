@@ -50,7 +50,8 @@ import { registerIdleSiteSleepIpc } from "./site-view-preference.ts";
 import { SITE_ORIGIN, readProjectsFile, readTrackedSites, trackSite, untrackSite, discoverSiteDirs, adoptDiscoveredSites, updateProjectsFile } from "./tracked-sites.ts";
 import { mayEraseDirectory, readDirectoryIdentity } from "@jini-ai/platform/fs";
 import { sitePartition } from "./desktop-auth.ts";
-import { createRelocationGate, relocateMovedSites, repointTrackedSite, type RelocationGate } from "./site-relocation.ts";
+import { relocateMovedSites, repointTrackedSite } from "./tracked-site-relocation.ts";
+import { createDirectoryRelocationGate, type DirectoryRelocationGate } from "@jini-ai/platform/fs";
 import { assertTokensCanReachFolder, cleanCreateTokens, initTokenOptions, listTokenSignInPlugins as listTokenSignInPluginsReal, withCreatedTokens } from "./agent-plugin-tokens.ts";
 import type { TokenSignInPlugin } from "@jini-ai/agent-plugins/connect";
 
@@ -160,7 +161,7 @@ export interface ProjectSiteLifecycle extends SitePresence<PresenceSender & { ge
 }
 
 /** `deps.openSites` — `Map`-compatible, per {@link registerSiteIpcHandlers}'s own doc; in production
- *  it is `site-supervisor.ts`'s supervisor, which adds {@link OpenSites.lastExitOf}. This file's own
+ *  it is `@jini-ai/sidecar/supervisor`'s supervisor, which adds {@link OpenSites.lastExitOf}. This file's own
  *  handlers only ever call `get`/`delete`, but `set`/`has` are part of the type because the
  *  documented "Map-compatible" contract is what callers (this file's own tests, and `main.ts`) build
  *  entries with before a handler ever sees them. */
@@ -169,19 +170,19 @@ interface OpenSites {
   set(siteDir: string, entry: OpenSiteEntry): unknown;
   has(siteDir: string): boolean;
   delete(siteDir: string): boolean;
-  lastExitOf?({ siteDir }: { siteDir: string }, optional?: {}): ServerExitLike | null;
+  lastExitOf?({ key }: { key: string }, optional?: {}): ServerExitLike | null;
 }
 
-/** `deps.transitions` — `site-transitions.ts`'s store, as the two readers here need it. Structural
+/** `deps.transitions` — `@jini-ai/sidecar/supervisor`'s store, as the two readers here need it. Structural
  *  rather than an import of its own type, for the same reason {@link OpenSites} is a duck type:
  *  this file's handlers stay callable from plain `node --test` against a two-line fake. */
 interface SiteTransitionsLike {
-  get({ siteDir }: { siteDir: string }, optional?: {}): "starting" | "stopping" | null;
-  during<T>({ siteDir, transition, body }: { siteDir: string; transition: "starting" | "stopping"; body: () => Promise<T> }, optional?: {}): Promise<T>;
+  get({ key }: { key: string }, optional?: {}): "starting" | "stopping" | null;
+  during<T>({ key, transition, body }: { key: string; transition: "starting" | "stopping"; body: () => Promise<T> }, optional?: {}): Promise<T>;
 }
 
 /** A crash-safety registry row, as {@link liveForeignServers} needs it — mirrors
- *  `site-process-registry.ts`'s own `SiteProcessRow`, duplicated rather than imported for the same
+ *  `site-child-registry.ts`'s own `SiteProcessRow`, duplicated rather than imported for the same
  *  reason `readRegistry`/`isLiveServeRow` arrive on `deps` rather than as a direct import: every
  *  handler here stays callable from plain `node --test` against fakes. */
 interface RegistryRow {
@@ -232,10 +233,10 @@ interface IpcMainLike {
   removeHandler?(channel: string): void;
 }
 
-/** `deps.serializer` — `keyed-serializer.ts`'s per-key promise chain, loosened from that file's own
+/** `deps.serializer` — `@jini-ai/sidecar/supervisor`'s per-key promise chain, loosened from that file's own
  *  exported `KeyedSerializer` type (`run<T>(...): Promise<T>`) to `T | PromiseLike<T>`: this file
  *  only ever `await`s the result, and the plain synchronous fakes several tests use return `fn()`'s
- *  own value rather than a wrapped `Promise`. The real `createKeyedSerializer()` still satisfies
+ *  own value rather than a wrapped `Promise`. The real `createKeyedSerializer({})` still satisfies
  *  this — `Promise<T>` is one of the two arms. */
 interface Serializer {
   run<T>(required: { key: string; fn: () => T | PromiseLike<T> }, optional?: {}): T | PromiseLike<T>;
@@ -295,7 +296,7 @@ interface AddSitePointerLike {
  * @complexity O(1).
  */
 function describeLastExit({ openSites, siteDir }: { openSites: OpenSites; siteDir: string }, _options = {}): string | null {
-  const exit = typeof openSites.lastExitOf === "function" ? openSites.lastExitOf({ siteDir }) : null;
+  const exit = typeof openSites.lastExitOf === "function" ? openSites.lastExitOf({ key: siteDir }) : null;
   if (exit === null) return null;
   if (exit.signal !== null && exit.signal !== undefined) return `The site's server was stopped by ${exit.signal}.`;
   return `The site's server exited (code ${exit.code}).`;
@@ -376,10 +377,10 @@ export function siteRecordLifecycle(
   // both transitions take real wall-clock time, and during either one the two-valued answer is
   // wrong in the direction the operator can SEE — a Start they just pressed reads `stopped` for the
   // whole boot, a Stop reads `running` until the child is gone, and both look like a dead button.
-  // `site-transitions.ts` is what makes the other two answers producible; absent (every test that
+  // `@jini-ai/sidecar/supervisor` is what makes the other two answers producible; absent (every test that
   // is not exercising them) it reads `null` and nothing here changes.
   const sharedStarting = sharedRunning && !sharedPort ? "starting" : null;
-  const lifecycle = siteLifecycle({ running, transition: transitions?.get({ siteDir }) ?? sharedStarting });
+  const lifecycle = siteLifecycle({ running, transition: transitions?.get({ key: siteDir }) ?? sharedStarting });
   return { sharedPort, lifecycle };
 }
 
@@ -420,7 +421,7 @@ function buildSiteRecord(row: SiteRow, deps: SiteRecordDeps) {
     desiredState: presentation.desiredState,
     status: presentation.status,
     // Not always `null` any more: a site that DIED is `stopped` exactly like one that was never
-    // started, and before `site-supervisor.ts` owned that transition the two were indistinguishable
+    // started, and before `@jini-ai/sidecar/supervisor` owned that transition the two were indistinguishable
     // to the renderer (D-06). This is the one place the difference can be told.
     //
     // Only for a settled `stopped`. Mid-transition the prior crash is not what the operator is
@@ -459,7 +460,7 @@ export function importSharedSiteDiscovery(
 
 /**
  * Every tracked project's record, after healing any whose folder was renamed or moved
- * (`site-relocation.ts`). The heal is best-effort: a list that cannot be SAVED still has to render,
+ * (`tracked-site-relocation.ts`). The heal is best-effort: a list that cannot be SAVED still has to render,
  * so a failed write is logged and the rows are shown as they stand.
  *
  * With `relocationGate` (production: {@link registerSiteIpcHandlers}), the heal runs only when the
@@ -470,7 +471,7 @@ export function importSharedSiteDiscovery(
  */
 function handleList(
   deps: Pick<ProjectIpcDeps, "projectsPath" | "openSites" | "readSiteName" | "repoRoot" | "readPreviewVersion" | "transitions" | "sharedSites" | "siteRuntime"> &
-    Partial<Pick<ProjectIpcDeps, "siteScanRoots" | "siteFolders" | "classifySiteDir" | "externalSites">> & { relocationGate?: RelocationGate },
+    Partial<Pick<ProjectIpcDeps, "siteScanRoots" | "siteFolders" | "classifySiteDir" | "externalSites">> & { relocationGate?: DirectoryRelocationGate<SiteRow> },
 ) {
   importSharedSiteDiscovery({ projectsPath: deps.projectsPath, sharedSites: deps.sharedSites, readSiteName: deps.readSiteName });
   const file = readProjectsFile({ projectsPath: deps.projectsPath });
@@ -883,7 +884,7 @@ function unreadableRegistryMessage({ unreadable }: { unreadable: string[] }, _op
  * An UNREADABLE registry file throws instead: its rows are unknown, and reading it as "no rows" is
  * exactly how this guard used to wave an erase through a torn sibling file. It does not wedge for
  * long — the next boot moves a dead instance's unreadable file aside, and a live one's own next
- * write does the same (`site-process-registry.ts`'s `quarantineUnreadableFile`).
+ * write does the same (`site-child-registry.ts`'s `quarantineUnreadableFile`).
  *
  * @param required.ownPid this instance's own child's pid, excluded — its row is not foreign.
  * @complexity O(n) in registry rows, times one `ps` call per row matching `siteDir` (in practice
@@ -951,7 +952,7 @@ async function deleteProject({ id, deps }: { id: string; deps: Pick<ProjectIpcDe
   // BEFORE any side effect, and only for the arm that erases (D-08). The serializer above makes the
   // stop-then-erase sequence safe against THIS process; nothing made it safe against a second copy
   // of the app, and nothing prevents one — `main.ts` calls no `requestSingleInstanceLock`, and
-  // `site-process-registry.ts` is written throughout on the premise that two instances can run at once.
+  // `site-child-registry.ts` is written throughout on the premise that two instances can run at once.
   // Instance A deleting a site instance B has open recursively erased the directory out from under
   // B's live `tovu serve`, which went on writing into unlinked files.
   //
@@ -1224,7 +1225,7 @@ function handleGetPreview({ id, deps }: { id: string; deps: Pick<ProjectIpcDeps,
  * Reuses `openSiteServer` — `main.ts`'s spawn-only counterpart to the `openSiteWindow` "Open
  * Site…"/"Open Recent"/startup already use — through `serializer.run`, so opening the same tab twice
  * fast cannot double-spawn its server (see `main.ts`'s own doc on `openSiteServer`/
- * `keyed-serializer.ts`).
+ * `@jini-ai/sidecar/supervisor`).
  *
  * Returns the project's fresh record rather than nothing: the renderer's `<webview>` needs the
  * `port` this call just produced, and re-deriving it would mean a second `list` round trip for
@@ -1236,7 +1237,7 @@ function handleGetPreview({ id, deps }: { id: string; deps: Pick<ProjectIpcDeps,
  * would then start a `tovu serve` on a path that no longer exists. Inside, "is this project still
  * tracked" is asked at the only instant its answer is still true when acted on.
  *
- * The boot is marked `starting` for its whole duration (`site-transitions.ts`) — seconds, during
+ * The boot is marked `starting` for its whole duration (`@jini-ai/sidecar/supervisor`) — seconds, during
  * which `openSites` still says "not running" and a card left to that alone shows the operator a
  * Start button that appears to have done nothing. The mark is released before the record below is
  * built, so what this RESOLVES with is the settled answer, never `starting`.
@@ -1293,7 +1294,7 @@ async function explainMissingSiteDir({ siteDir, starting }: { siteDir: string; s
  * really gone.
  *
  * **The entry is dropped BEFORE the stop is awaited, deliberately** — the window-`closed` path in
- * `main.ts` does the identical thing for the identical reason. `site-supervisor.ts` watches each
+ * `main.ts` does the identical thing for the identical reason. `@jini-ai/sidecar/supervisor` watches each
  * entry's child and reports an exit it did not expect through `onUnexpectedExit`, which logs a
  * crash and records a `lastExitOf` the card then shows as "the site's server was stopped by
  * SIGTERM". For a stop the operator ASKED for, that is a lie in the one place they can read it.
@@ -1397,7 +1398,7 @@ async function stopSiteServer({ id, deps }: { id: string; deps: Pick<ProjectIpcD
  */
 function markTransition<T>({ transitions, siteDir, transition, body }: { transitions: SiteTransitionsLike | undefined; siteDir: string; transition: "starting" | "stopping"; body: () => Promise<T> }, _options = {}
 ): Promise<T> {
-  return transitions === undefined ? body() : transitions.during({ siteDir, transition, body });
+  return transitions === undefined ? body() : transitions.during({ key: siteDir, transition, body });
 }
 
 /**
@@ -1467,12 +1468,12 @@ async function handleAddSiteFolder({ deps }: { deps: Pick<ProjectIpcDeps, "dialo
  * @param deps
  * @param deps.openSites live open sites, keyed by site dir — `main.ts`'s own module-level
  *   store, passed in rather than imported. `Map`-compatible; in production it is
- *   `site-supervisor.ts`'s supervisor, which additionally drops an entry whose child has died and
+ *   `@jini-ai/sidecar/supervisor`'s supervisor, which additionally drops an entry whose child has died and
  *   answers `lastExitOf` about it. A sites-home-opened (embedded-tab) entry carries no `window`; only
  *   own-server-mode entries do.
- * @param deps.serializer per-site-dir operation serializer (`keyed-serializer.ts`).
+ * @param deps.serializer per-site-dir operation serializer (`@jini-ai/sidecar/supervisor`).
  * @param deps.projectsPath `tracked-sites.ts`'s tracked-project JSON file.
- * @param deps.registryPath crash-safety registry directory (`site-process-registry.ts`), for
+ * @param deps.registryPath crash-safety registry directory (`site-child-registry.ts`), for
  *   `recordSiteClosed` on a delete of a running project and `readRegistry` in its guard.
  * @param deps.repoRoot Tovu repo root.
  * @param deps.statePath `site-dir-store.ts`'s MRU file, for `adoptSiteDir`.
@@ -1498,11 +1499,11 @@ async function handleAddSiteFolder({ deps }: { deps: Pick<ProjectIpcDeps, "dialo
  *   one that already exists — see `handleCreate`'s own comment and `project-delete-guard.ts`.
  * @param deps.openSiteServer `main.ts`'s spawn-or-reuse-a-site's-backend function
  *   (no `BrowserWindow` — see that function's own doc).
- * @param deps.recordSiteClosed `site-process-registry.ts`'s crash-safety row remover.
- * @param deps.readRegistry `site-process-registry.ts`'s crash-safety registry reader, used by
+ * @param deps.recordSiteClosed `site-child-registry.ts`'s crash-safety row remover.
+ * @param deps.readRegistry `site-child-registry.ts`'s crash-safety registry reader, used by
  *   {@link liveForeignServers} to see a SIBLING app instance's open sites — which `openSites`, being
  *   this process's own memory, cannot.
- * @param deps.isLiveServeRow `site-process-registry.ts`'s "is this row's pid still its own live
+ * @param deps.isLiveServeRow `site-child-registry.ts`'s "is this row's pid still its own live
  *   `tovu serve`" identity proof, so a stale or recycled pid can never block a delete.
  * @param deps.ctx `{cliMode, registryPath}` — passed to `openSiteServer` with the site dir.
  * @param options Injected clock/scheduler and preference reader for deterministic lifecycle tests.
@@ -1548,7 +1549,11 @@ function registerSiteIpcHandlers<TCtx>(deps: ProjectIpcDeps<TCtx>, options: Site
  */
 function registerSiteCrudHandlers<TCtx>({ deps, ctx }: { deps: ProjectIpcDeps<TCtx>; ctx: SiteLifecycleCtx<ProjectIpcDeps<TCtx>> }, _optional = {}): void {
   const states = ctx.states;
-  const relocationGate = createRelocationGate({}, { classifySiteDir: deps.classifySiteDir });
+  const classifySiteDir = deps.classifySiteDir ?? classifySiteDirSafely;
+  const relocationGate = createDirectoryRelocationGate<SiteRow>({
+    directoryOf: ({ row }) => row.siteDir,
+    classifyDirectory: ({ directory }) => classifySiteDir({ dir: directory }),
+  });
   deps.ipcMain.handle(SITE_IPC_CHANNELS.list, () => handleList({ ...deps, siteRuntime: states, relocationGate }));
   deps.ipcMain.handle(SITE_IPC_CHANNELS.planNewDir, (_event, input) => ({
     path: planNewSiteDir({ name: input?.name }, { workspace: deps.sharedSites }), homeDir: os.homedir(),
@@ -1678,7 +1683,7 @@ interface ProjectIpcDeps<TCtx = unknown> {
   classifySiteDir: (input: { dir: string }) => "site" | "incomplete" | "empty" | "occupied" | "unreadable";
   openSiteServer: (required: { siteDir: string; ctx: TCtx }) => Promise<unknown>;
   /**
-   * `site-transitions.ts`'s store — which sites are mid-start or mid-stop right now, the fact
+   * `@jini-ai/sidecar/supervisor`'s store — which sites are mid-start or mid-stop right now, the fact
    * `openSites` cannot express. `main.ts` wires the real one (`main-project-wiring.test.ts` holds
    * it there); `buildSiteRecord` and the two lifecycle handlers are its only readers.
    *

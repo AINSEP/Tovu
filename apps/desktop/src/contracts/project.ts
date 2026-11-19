@@ -79,7 +79,7 @@ export interface SiteRecord {
   previewVersion: number | null;
   /**
    * The project's folder is not on disk any more — renamed, moved or deleted — and main could not
-   * find where it went (`site-relocation.ts` heals every rename it CAN prove before this is ever
+   * find where it went (`tracked-site-relocation.ts` heals every rename it CAN prove before this is ever
    * sent). The card says so and offers Locate (`SITE_IPC_CHANNELS.locate`) and Remove instead of
    * Start, which could only fail.
    */

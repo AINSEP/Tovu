@@ -17,7 +17,7 @@
  * itself is signalled, and its own BR-07 shutdown drains it.
  *
  * **Identity before every signal.** The lease records only `{pid, started, token}`, and the OS may
- * hand a dead server's pid to anything. `site-process-registry.ts`'s `isLiveServeRow` proves
+ * hand a dead server's pid to anything. `site-child-registry.ts`'s `isLiveServeRow` proves
  * identity by `--port`/site dir in argv, which an `npm run dev` server does not carry (its site
  * comes from env), so the proof here is start time instead: the process must have existed BEFORE
  * the lease was claimed. A recycled pid started later and fails it; so does a launcher that was not
@@ -30,7 +30,7 @@
  */
 import { resolveOnPath } from '@jini-ai/agent-runtime';
 import { execFileSync } from "node:child_process";
-import { readProcessCommand, readProcessParentPid } from "./site-process-registry.ts";
+import { siteChildProcess } from "./site-child-registry.ts";
 
 /** Who started an externally served site, as far as the card's confirm needs to say. */
 export type ExternalLauncher = "npm-run-dev" | "other";
@@ -173,8 +173,8 @@ export function readProcessStartMs(
 }
 
 export const NODE_PORTS: ExternalStopPorts = {
-  readCommand: ({ pid }) => readProcessCommand({ pid }),
-  readParentPid: ({ pid }) => readProcessParentPid({ pid }),
+  readCommand: ({ pid }) => siteChildProcess.readProcessCommand({ pid }),
+  readParentPid: ({ pid }) => siteChildProcess.readProcessParentPid({ pid }),
   readStartMs: ({ pid }) => readProcessStartMs({ pid }),
   kill: ({ pid, signal }) => { process.kill(pid, signal); },
   sleep: ({ ms }) => new Promise((resolve) => setTimeout(resolve, ms)),

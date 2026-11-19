@@ -9,7 +9,7 @@ import test from 'node:test';
 import { handleList, handleStart } from './project-ipc.ts';
 import { writeTrackedSites } from './tracked-sites.ts';
 import { createSitesWorkspace } from './shared-sites.ts';
-import { createKeyedSerializer } from './keyed-serializer.ts';
+import { createKeyedSerializer } from '@jini-ai/sidecar/supervisor';
 import { buildServeEnv } from './tovu-server.ts';
 import { armDesktopOwnerSignIn } from './desktop-auth.ts';
 import { resolveLocalOwnerSignIn } from '../../website/src/server/runtime/boot/local-owner-signin.ts';
@@ -40,7 +40,7 @@ test('a themes-only stale card without relocation proof cannot Start', async (t)
   fs.mkdirSync(path.join(stale, 'themes'), { recursive: true });
   writeTrackedSites({ projectsPath, rows: [{ siteDir: stale, createdAt: '2026-10-09' }] });
   const deps = { projectsPath, repoRoot: root, openSites: new Map(), readSiteName: () => 'tovu-dev',
-    readPreviewVersion: () => null, serializer: createKeyedSerializer(), ctx: {},
+    readPreviewVersion: () => null, serializer: createKeyedSerializer({}), ctx: {},
     openSiteServer: async () => assert.fail('an invalid folder must never spawn a site') };
   assert.equal(handleList(deps)[0]!.folderMissing, true);
   await assert.rejects(handleStart({ id: stale, deps }), /Folder moved or not a site/);

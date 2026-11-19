@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { assertSpecificSiteRoot } from './site-scan-policy.ts';
-import { createKeyedSerializer } from './keyed-serializer.ts';
+import { createKeyedSerializer } from '@jini-ai/sidecar/supervisor';
 
 const HOME = '/home/u';
 const broad = (root: string, sitesHome?: string) => assert.throws(() => assertSpecificSiteRoot({ root }, { homeDir: HOME, sitesHome }),
@@ -31,7 +31,7 @@ test('$HOME/Tovu is allowed only when the sites home is exactly its sites/ folde
 });
 
 test('keyed serializer: same key runs in order even when a call is queued behind a still-running one', async () => {
-  const queue = createKeyedSerializer();
+  const queue = createKeyedSerializer({});
   const order: string[] = [];
   let release!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; });
@@ -49,7 +49,7 @@ test('keyed serializer: same key runs in order even when a call is queued behind
 });
 
 test('keyed serializer: a rejection reaches its own caller only; the next call on that key still runs; keys are independent', async () => {
-  const queue = createKeyedSerializer();
+  const queue = createKeyedSerializer({});
   await assert.rejects(queue.run({ key: 'k', fn: () => { throw new Error('first failed'); } }), { message: 'first failed' });
   assert.equal(await queue.run({ key: 'k', fn: () => 'after' }), 'after');
   let release!: () => void;

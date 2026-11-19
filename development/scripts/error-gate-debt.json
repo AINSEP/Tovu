@@ -535,11 +535,6 @@
     "value": 1
   },
   {
-    "file": "apps/desktop/src/keyed-serializer.ts",
-    "rule": "catch-reads-error",
-    "value": 1
-  },
-  {
     "file": "apps/desktop/src/main/index.ts",
     "rule": "catch-reads-error",
     "value": 2
@@ -705,16 +700,6 @@
     "value": 7
   },
   {
-    "file": "apps/desktop/src/site-process-registry.ts",
-    "rule": "catch-reads-error",
-    "value": 5
-  },
-  {
-    "file": "apps/desktop/src/site-relocation.ts",
-    "rule": "catch-reads-error",
-    "value": 2
-  },
-  {
     "file": "apps/desktop/src/site-theme-preview.ts",
     "rule": "catch-reads-error",
     "value": 4
@@ -738,11 +723,6 @@
     "file": "apps/desktop/src/stage-payload-run.ts",
     "rule": "catch-reads-error",
     "value": 1
-  },
-  {
-    "file": "apps/desktop/src/tovu-server.ts",
-    "rule": "catch-reads-error",
-    "value": 2
   },
   {
     "file": "apps/desktop/src/tracked-sites.ts",

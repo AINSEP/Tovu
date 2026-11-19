@@ -6,7 +6,7 @@
  *
  * Status is deliberately NOT stored here. `openSites.has(siteDir)` in `main.ts` is ground truth for
  * "running" — a status written to this file would go stale the moment Electron is killed hard,
- * exactly the failure mode `site-process-registry.ts`'s crash-safety design exists to avoid for the
+ * exactly the failure mode `site-child-registry.ts`'s crash-safety design exists to avoid for the
  * supervision side of the same problem. `buildSiteRecord` (`main.ts`) is what joins one row here
  * with `openSites` to produce the `SiteRecord` the renderer actually gets.
  *
@@ -15,7 +15,7 @@
  * with a plain `writeFileSync`, read back as an EMPTY list whenever it was torn or corrupt, and then
  * rewritten from that empty state by the very next change: one crash partway through a write, and
  * every card was gone. Three things answer that, all of them `durable-json-file.ts`'s, shared with
- * `site-process-registry.ts` and `site-dir-store.ts` rather than copied here:
+ * `site-child-registry.ts` and `site-dir-store.ts` rather than copied here:
  *
  * 1. Every write is temp file + `fsync` + `rename`, so a reader sees the whole old file or the whole
  *    new one and a crash can no longer tear this file at all.
@@ -27,14 +27,14 @@
  *
  * Several processes write this ONE file — every app instance (the owner runs several on purpose, and
  * ruled out a single-instance lock), `bin/tovu-desktop.ts add-site`, and the MCP bridge's
- * `add_site_pointer`. A per-instance file, the shape `site-process-registry.ts` chose for its own
+ * `add_site_pointer`. A per-instance file, the shape `site-child-registry.ts` chose for its own
  * rows, is wrong here: the operator expects every window to show the same projects, and a removal in
  * one window to hold everywhere. So every read-modify-write below runs inside one cross-process lock
  * ({@link updateProjectsFile}), which is also what makes "is this dir already known?" and "add it"
  * one decision rather than two a sibling process can slip between.
  *
  * No `electron` import, so this is testable under plain `node --test` — same convention as
- * `site-dir-store.ts` and `site-process-registry.ts`.
+ * `site-dir-store.ts` and `site-child-registry.ts`.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -85,7 +85,7 @@ type SiteClassification = "site" | "incomplete" | "empty" | "occupied";
 type ClassifySiteDirFn = (input: { dir: string }) => SiteClassification | "unreadable";
 
 /** One row as {@link readTrackedSites} returns it. `siteId` is set only per {@link buildTrackedRow}'s doc.
- *  `relocationId` is how the row finds its folder again after a move — `site-relocation.ts` owns it,
+ *  `relocationId` is how the row finds its folder again after a move — `tracked-site-relocation.ts` owns it,
  *  and it grants nothing: the delete guard reads `siteId` alone. */
 interface TrackedSiteRow {
   siteDir: string;

@@ -96,7 +96,7 @@ export async function resolveStartupSiteDirs({ ctx, ports }: { ctx: OwnServerCtx
  * mode — which spawns nothing and records nothing — can only ever find rows a previous own-server or
  * sites-home launch left behind, exactly the rows that should be reaped. It cannot touch a CONCURRENT
  * instance's children: `reconcileOrphans` proves a row's process has actually been reparented to
- * launchd before terminating it (see `site-process-registry.ts`'s `isOrphanedProcess`), and never
+ * launchd before terminating it (see `site-child-registry.ts`'s `isOrphanedProcess`), and never
  * rewrites a live sibling's registry file — each instance writes only its own.
  *
  * @complexity O(n) in persisted row count; each row's own cost is `terminateOrphan`'s bounded poll,

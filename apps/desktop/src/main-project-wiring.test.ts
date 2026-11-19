@@ -76,7 +76,7 @@ test("the deps carry the transitions store, or every start and stop reports the 
   // go on saying `Stopped` for a whole boot and `Running` for a whole drain. This is the only place
   // that omission is visible.
   assert.match(projectDepsBlock(), /transitions: siteTransitions,/);
-  assert.match(source, /const siteTransitions = createSiteTransitions\(\);/);
+  assert.match(source, /const siteTransitions = createChildTransitions\(\{\}\);/);
 });
 
 test("the deps carry a scan root and the recently-opened list for the scan to read", () => {
@@ -122,8 +122,8 @@ test("deskfx2 SHOULD-1: desktop main explicitly enables catalog recovery", () =>
 
 
 test("B2 sleep skips crash telemetry/warnings after preserving exit cleanup", () => {
-  const callback = source.slice(source.indexOf('onUnexpectedExit: ({ siteDir, exit, entry })'), source.indexOf('const productState ='));
-  for (const effect of ['recordSiteClosed(', 'sitePreviewScheduler.cancel(', 'siteThemePreviews.stop(']) {
+  const callback = source.slice(source.indexOf('onUnexpectedExit: ({ key: siteDir, exit, entry })'), source.indexOf('const productState ='));
+  for (const effect of ['siteChildRegistry.recordClosed(', 'sitePreviewScheduler.cancel(', 'siteThemePreviews.stop(']) {
     assert.ok(callback.indexOf(effect) < callback.indexOf('if (exit.code === SITE_SLEEP_EXIT_CODE) return;'));
   }
   assert.ok(callback.indexOf('if (exit.code === SITE_SLEEP_EXIT_CODE) return;') < callback.indexOf('reportDesktopServerExit('));

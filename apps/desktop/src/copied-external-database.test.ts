@@ -10,7 +10,7 @@ import { addSitePointer } from './add-site-pointer.ts';
 import { handleAddSite, handleStart } from './project-ipc.ts';
 import { createSitesWorkspace, shareSiteDirectories } from './shared-sites.ts';
 import { trackSite, readTrackedSites } from './tracked-sites.ts';
-import { createKeyedSerializer } from './keyed-serializer.ts';
+import { createKeyedSerializer } from '@jini-ai/sidecar/supervisor';
 import { createNodeAtomicFilesystem } from '@jini-ai/platform/fs';
 
 const ID = '11111111-1111-4111-8111-111111111111';
@@ -65,7 +65,7 @@ test('Start of a legacy-tracked app-data copy snapshots its content before the s
   trackSite({ projectsPath: f.projectsPath, siteDir: f.copy });
   await handleStart({ id: f.copy, deps: {
     sharedSites: f.workspace, projectsPath: f.projectsPath, repoRoot: f.root, openSites: new Map(),
-    serializer: createKeyedSerializer(), ctx: {}, readSiteName: () => 'Original', readPreviewVersion: () => null,
+    serializer: createKeyedSerializer({}), ctx: {}, readSiteName: () => 'Original', readPreviewVersion: () => null,
     openSiteServer: async () => {
       const meta = JSON.parse(fs.readFileSync(path.join(f.copy, '.site-meta.json'), 'utf8'));
       const copiedPath = f.workspace.databasePath({ dir: f.copy, id: meta.siteId, filename: 'content.db' });

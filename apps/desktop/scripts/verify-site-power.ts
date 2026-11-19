@@ -28,7 +28,7 @@
  *
  * Not part of `npm test`: it launches a real Electron app and a real site server, so it is opt-in
  * and slow. Run it after touching `src/renderer/use-site-power.hooks.ts`, `src/renderer/SiteGrid.tsx`,
- * `src/project-ipc.ts`'s `handleStart`/`handleStop`, or `src/site-transitions.ts`:
+ * `src/project-ipc.ts`'s `handleStart`/`handleStop`, or `@jini-ai/sidecar/supervisor`:
  *
  *   cd apps/desktop
  *   npm run build:renderer                       # the window loads dist/, never src/

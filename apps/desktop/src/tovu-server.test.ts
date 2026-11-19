@@ -1119,7 +1119,12 @@ test("startTovuServer's onExit replays an exit that already happened before the 
 
   child.emit("exit", null, "SIGKILL");
   const seen: Array<{ code: number | null; signal: NodeJS.Signals | null }> = [];
-  handle.onExit({ listener: (exit) => seen.push(exit) });
+  let subscribing = true;
+  handle.onExit({ listener: (exit) => {
+    assert.equal(subscribing, true, "a late subscriber receives synchronous replay");
+    seen.push(exit);
+  } });
+  subscribing = false;
 
   assert.deepEqual(seen, [{ code: null, signal: "SIGKILL" }]);
 });
@@ -1186,6 +1191,7 @@ test("emitBootToken passes --emit-boot-token and returns the token while keeping
 
   assert.equal(args.at(-1), "--emit-boot-token");
   assert.equal(handle.bootToken, token);
+  assert.equal(handle.outputTail!().includes(token), false, "token parsing must never retain the secret");
   await new Promise((resolve) => setImmediate(resolve));
   assert.ok(!mirrored.includes(token), "the boot token must never reach the mirrored terminal output");
   assert.match(mirrored, /tovu serve: dir=/);
@@ -1322,6 +1328,7 @@ test("post-ready output tail is bounded and redacts framed split and exact launc
   child.stderr.write(`unlabelled opaque-launch-`);
   child.stderr.write(`secret ${password}\n`);
   child.stdout.write('tovu serve: bootToken=late-secret\n');
+  assert.doesNotMatch(mirror.stderr.read()?.toString() ?? "", /opaque-launch-secret|desktop-password-fixture/, "framed redaction precedes mirroring");
   const retained = handle.outputTail!();
   assert.match(retained, /unlabelled/);
   assert.doesNotMatch(retained, /opaque-launch-secret|private-boot-token|late-secret/);
@@ -1351,6 +1358,7 @@ test("owned idle stop waits for confirmed sleep exit and never sends a signal", 
   assert.deepEqual(child.killed, []);
   child.exitCode = 89; child.emit('exit', 89, null);
   assert.equal(await sleeping, true);
+  assert.deepEqual(child.killed, [], "confirmed idle exit never requests termination");
 });
 
 

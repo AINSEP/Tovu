@@ -14,7 +14,7 @@
  *
  * **Two sources of that status, and the local one is the smaller.** Main owns it — `handleStart`
  * and `handleStop` mark the site `starting`/`stopping` for as long as their work runs
- * (`site-transitions.ts`), and every reader of the polled record sees it. But the poll is every 4 s,
+ * (`@jini-ai/sidecar/supervisor`), and every reader of the polled record sees it. But the poll is every 4 s,
  * so between the click and the next poll the card would still be showing the pre-click status. The
  * `pending` map here closes exactly that gap, and it is dropped the moment the call settles; it is
  * never an answer of its own about a site.

@@ -24,7 +24,7 @@ test("a quit attempt while the drain is in flight is held, not let through", () 
 });
 
 test("a quit attempt mid-drain is held even once the counts already read empty", () => {
-  // site-supervisor.ts drops a site from openSites the moment its child exits, before the drain's
+  // @jini-ai/sidecar/supervisor drops a site from openSites the moment its child exits, before the drain's
   // promise chain reaches its own closing app.quit(). An empty count is not a finished drain.
   assert.equal(decideBeforeQuit({ phase: "draining", nothingToDrain: true }), "hold");
 });

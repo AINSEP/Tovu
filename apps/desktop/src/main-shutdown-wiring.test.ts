@@ -23,7 +23,7 @@ import os from "node:os";
 import { stripTypeScriptTypes } from "node:module";
 import { createShutdownTracker, decideBeforeQuit } from "@jini-ai/desktop-host/shutdown";
 import { handleStop } from "./project-ipc.ts";
-import { createKeyedSerializer } from "./keyed-serializer.ts";
+import { createKeyedSerializer } from "@jini-ai/sidecar/supervisor";
 import { sitesFilePath, trackSite } from "./tracked-sites.ts";
 import { sourceFunction } from "./renderer/source-test-harness.ts";
 
@@ -151,7 +151,7 @@ test("Quit during a card Stop waits for its tracked teardown after openSites bec
   const openSites = new Map([[root, { server: { port: 4321, pid: 123, stop: () => stop.promise } }]]);
   let closedRows = 0;
   const stopping = handleStop({ id: root, deps: {
-    projectsPath, registryPath: root, repoRoot: root, serializer: createKeyedSerializer(),
+    projectsPath, registryPath: root, repoRoot: root, serializer: createKeyedSerializer({}),
     openSites, pendingTeardowns, readSiteName: () => "alpha", readPreviewVersion: () => null,
     recordSiteClosed: () => { closedRows++; },
   } });
