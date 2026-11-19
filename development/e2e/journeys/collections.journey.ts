@@ -68,8 +68,7 @@ async function openEntry(page: Page, key: string, slug: string): Promise<void> {
   await page.goto(`/admin/collections/${key}/${slug}`);
   await expect(page.getByRole("textbox", { name: "Entry title" })).toBeVisible();
 }
-
-test.describe("W6 collections", () => {
+function registerPublishedCollection() {
   test("define a content type in the modal, add an entry, publish it, and a page marker renders it publicly", { tag: ["@unrun"] }, async ({ page, request }) => {
     const key = typeKey("recipe");
     const label = uniq("Recipes");
@@ -119,6 +118,10 @@ test.describe("W6 collections", () => {
     const hidden = await fetchPublic(request, `/${pageSlug}`);
     expect(hidden.html, "an unpublished entry must leave the public list").not.toContain(title);
   });
+}
+
+test.describe("W6 collections", () => {
+  registerPublishedCollection();
 
   test("collections list, entries list and entry editor baselines", { tag: ["@unrun"] }, async ({ page, request }) => {
     // A fixed key: it is on screen in the list baseline.
@@ -141,8 +144,7 @@ test.describe("W6 collections", () => {
     }
   });
 });
-
-test.describe("collections stress", () => {
+function registerEntryConflict() {
   test("two tabs save the same entry: one wins, the other gets dedicated conflict copy (not the raw server message) and keeps its text", { tag: ["@unrun"] }, async ({ page, context, request }) => {
     const key = typeKey("conflict");
     await createType(request, key, "Conflict Type");
@@ -177,7 +179,8 @@ test.describe("collections stress", () => {
     expect((await readEntry(request, key, id)).title).toMatch(/^Tab A wins/);
     await other.close();
   });
-
+}
+function registerCollectionWriteGuards() {
   test("double-clicking Publish sends one lifecycle call and leaves no error", { tag: ["@unrun"] }, async ({ page, request }) => {
     const key = typeKey("dblpub");
     await createType(request, key, "Double Publish Type");
@@ -227,6 +230,11 @@ test.describe("collections stress", () => {
     const listed = await request.get(`${API}/entries?type=${key}`);
     expect(((await listed.json()).items as unknown[])).toEqual([]);
   });
+}
+
+test.describe("collections stress", () => {
+  registerEntryConflict();
+  registerCollectionWriteGuards();
 
   test("unicode and markup in field values round-trip through the editor and render escaped publicly", { tag: ["@unrun"] }, async ({ page, request }) => {
     const key = typeKey("unicode");

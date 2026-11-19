@@ -76,8 +76,7 @@ async function visitorContext(browser: Browser): Promise<BrowserContext> {
 function submitJson(request: APIRequestContext, slug: string, data: Record<string, unknown>, headers: Record<string, string> = {}) {
   return request.post(`${PUBLIC_URL}/forms/${slug}/submit`, { data, headers: { accept: "application/json", ...headers }, maxRedirects: 0 });
 }
-
-test.describe("W6 forms", () => {
+function registerFormLifecycle() {
   test("build a form in the admin, embed it, a logged-out visitor submits, the admin sees the answer", { tag: ["@unrun"] }, async ({ page, request, browser }) => {
     const slug = uniqSlug("contact-form");
     await page.goto("/admin/forms");
@@ -114,6 +113,10 @@ test.describe("W6 forms", () => {
     await expect(page.getByRole("cell", { name: "visitor@example.test" })).toBeVisible();
     await expect(page.getByRole("cell", { name: "Hello from a stranger" })).toBeVisible();
   });
+}
+
+test.describe("W6 forms", () => {
+  registerFormLifecycle();
 
   test("forms list, builder and submissions baselines", { tag: ["@unrun"] }, async ({ page, request }) => {
     // A fixed slug: the name and slug are on screen in all three shots.
@@ -135,8 +138,7 @@ test.describe("W6 forms", () => {
     await expect(page).toHaveScreenshot("form-submissions.png");
   });
 });
-
-test.describe("forms abuse and stress (public, no login)", () => {
+function registerSpamAndRateLimits() {
   test("a filled honeypot looks like success to the bot but stores nothing", { tag: ["@unrun"] }, async ({ request, browser }) => {
     const slug = uniqSlug("honeypot");
     await createForm(request, slug);
@@ -181,7 +183,8 @@ test.describe("forms abuse and stress (public, no login)", () => {
     const spoofed = await submitJson(request, slug, { email: "x6@example.test", message: "m" }, { "x-forwarded-for": "203.0.113.77" });
     expect(spoofed.status(), "a client-supplied forwarding header must not mint a fresh rate-limit bucket").toBe(429);
   });
-
+}
+function registerBrowserSubmissionGuards() {
   test("a rate-limited browser submission shows the error alert, not the success notice", { tag: ["@unrun"] }, async ({ request, browser }) => {
     const slug = uniqSlug("ratelimit-ui");
     await createForm(request, slug);
@@ -226,7 +229,8 @@ test.describe("forms abuse and stress (public, no login)", () => {
     expect(notEmail.status()).toBe(400);
     expect(await listSubmissions(request, slug)).toEqual([]);
   });
-
+}
+function registerSubmissionPayloadSafety() {
   test("unknown fields, prototype keys and oversized values never reach the stored answer", { tag: ["@unrun"] }, async ({ request }) => {
     const slug = uniqSlug("unknown-fields");
     await createForm(request, slug, [{ id: "message", label: "Message", type: "textarea", required: false }]);
@@ -274,6 +278,12 @@ test.describe("forms abuse and stress (public, no login)", () => {
     expect(await list.text()).not.toContain("secret@example.test");
     await visitor.close();
   });
+}
+
+test.describe("forms abuse and stress (public, no login)", () => {
+  registerSpamAndRateLimits();
+  registerBrowserSubmissionGuards();
+  registerSubmissionPayloadSafety();
 
   test("an unknown form slug answers 404 and does not echo the slug as HTML", { tag: ["@unrun"] }, async ({ request }) => {
     const slug = encodeURIComponent("<b>nope</b>");

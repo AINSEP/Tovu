@@ -62,6 +62,108 @@ async function persistedTranscript(
   expect(response.ok(), "read the real persisted conversation").toBe(true);
   return (await response.json() as { messages: Array<{ role: string; content: string }> }).messages;
 }
+async function pasteAndCancelStripeCanary({ page, chat, pastedCanary, contentDb, baselineIds, row, conversationId, audit }: {
+  page: Page; chat: ReturnType<typeof createAdminChatDriver>; pastedCanary: string; contentDb: string;
+  baselineIds: Set<string>; row: CredentialRow; conversationId: string; audit: CredentialLeakAudit;
+}) {
+  await page.evaluate(value => navigator.clipboard.writeText(value), `Help me save my Stripe API key ${pastedCanary}`);
+  await chat.ui.composer.focus();
+  await page.keyboard.press(process.platform === "darwin" ? "Meta+V" : "Control+V");
+  await chat.send({}, { submission: "enter" });
+  await page.evaluate(() => navigator.clipboard.writeText(""));
+  await expect(chat.ui.root).toContainText("If it was real, rotate it.");
+  await expect(chat.ui.userMessages.last()).toContainText("Help me save my Stripe API key [token removed]");
+  // The completed Mailchimp card remains in its first answer. Scope the next card to the
+  // new answer bubble, rather than matching both historical and pending card iframes.
+  const pendingStripe = chat.ui.assistantMessages.last()
+    .frameLocator('[data-mcpui-host][aria-label^="ui://tovu/custom-credential-create/"] iframe');
+  await expect(pendingStripe.getByLabel("Label", { exact: true })).toHaveValue("stripe", { timeout: 180_000 });
+  await expect(pendingStripe.getByLabel("Base URL", { exact: true })).toHaveValue("https://api.stripe.com");
+  await expect(pendingStripe.getByLabel("Token", { exact: true })).toHaveAttribute("type", "password");
+  await pendingStripe.getByRole("button", { name: "Cancel", exact: true }).click();
+  const answer = await chat.waitForAnswer({ outcome: "succeeded" });
+  expect(answer.content).toMatch(/cancel/i);
+  expect(answer.content).toMatch(/removed|redact/i);
+  expect(credentialRows({ contentDb }).filter(value => !baselineIds.has(value.id)).map(value => value.id)).toEqual([row.id]);
+  const persisted = await persistedTranscript({ page, audit, conversationId });
+  expect(persisted.filter(message => message.role === "user").map(message => message.content)).toEqual([
+    "Help me save my Mailchimp API key", "Help me save my Stripe API key [token removed]",
+  ]);
+  audit.scan({ source: "persisted redaction transcript", bytes: JSON.stringify(persisted) });
+  audit.scan({ source: "rendered transcript", bytes: JSON.stringify(await chat.transcript()) });
+  await audit.browserSnapshot();
+  await expect(chat.ui.messageErrors).toHaveCount(0);
+}
+async function assertSavedMailchimpCanary({ page, audit, site, contentDb, baselineIds, savedCanary, conversationId }: {
+  page: Page; audit: CredentialLeakAudit; site: import("../support/isolated-journey-site.js").IsolatedJourneySite; contentDb: string;
+  baselineIds: Set<string>; savedCanary: string; conversationId: string;
+}) {
+  const savedRows = credentialRows({ contentDb }).filter(row => !baselineIds.has(row.id));
+  expect(savedRows, "exactly one new persisted credential").toHaveLength(1);
+  const row = savedRows[0]!;
+  expect(row.label).toBe("mailchimp");
+  expect(row.sealed_alg).toBe("aes-256-gcm");
+  const manifest = JSON.parse(await readFile(site.manifestPath, "utf8")) as { env: { TOVU_SITE_KEY: string } };
+  const sealer = new AesGcmSecretSealer(new FixedSiteKeyKeyring({ hex: manifest.env.TOVU_SITE_KEY }, { keyId: row.sealed_key_id }));
+  const opened = JSON.parse(await sealer.open({ sealed: {
+    keyId: row.sealed_key_id, ciphertext: row.sealed_ciphertext, nonce: row.sealed_nonce, alg: row.sealed_alg,
+  } }, { aad: buildVaultAad({ workspaceId: WS, id: row.id, kind: "custom", ownerKey: "tovu", principalId: null, binding: null }) })) as { token: string };
+  // Compare booleans so failure diagnostics never print either plaintext operand.
+  expect(Buffer.from(opened.token).equals(Buffer.from(savedCanary)), "saved secret opens byte-for-byte").toBe(true);
+  const listing = await page.request.get(CREDENTIALS);
+  await audit.scanApiResponse({ response: listing });
+  expect(listing.ok()).toBe(true);
+  const summary = (await listing.json() as { credentials: Array<{ id: string; configured: boolean }> }).credentials.find(value => value.id === row.id);
+  expect(summary?.configured).toBe(true);
+  audit.scan({ source: "persisted first-turn transcript", bytes: JSON.stringify(await persistedTranscript({ page, audit, conversationId })) });
+  await audit.browserSnapshot();
+  await audit.scanTree({ dir: site.runtimeDir }); // BEFORE any row/chat cleanup (F5.4)
+  return row;
+}
+async function saveMaskedMailchimpCanary(page: Page, chat: ReturnType<typeof createAdminChatDriver>, savedCanary: string) {
+  await chat.send({ text: "Help me save my Mailchimp API key" }, { submission: "enter" });
+  const card = page.frameLocator('[data-mcpui-host][aria-label^="ui://tovu/custom-credential-create/"] iframe');
+  await expect(card.getByRole("heading", { name: "Save a new custom credential" })).toBeVisible({ timeout: 180_000 });
+  await expect(card.getByLabel("Label", { exact: true })).toHaveValue("mailchimp");
+  await expect(chat.ui.userMessages).toHaveCount(1); // card on FIRST turn, no prompt repair
+  const token = card.getByLabel("Token", { exact: true });
+  await expect(token).toHaveAttribute("type", "password");
+  // A native clipboard paste, rather than a synthetic card response or API-seeded token.
+  await page.evaluate(value => navigator.clipboard.writeText(value), savedCanary);
+  await token.focus();
+  await page.keyboard.press(process.platform === "darwin" ? "Meta+V" : "Control+V");
+  expect(await token.inputValue() === savedCanary, "the complete canary reached the masked field").toBe(true);
+  const redemption = page.waitForResponse(response => new URL(response.url()).pathname === "/api/admin/v1/mcp-ui/tool-calls"
+    && response.request().method() === "POST");
+  await card.getByRole("button", { name: "Save credential", exact: true }).click();
+  expect((await redemption).ok(), "the real secure-card submission was accepted").toBe(true);
+  await expect(card.getByRole("heading", { name: "Credential saved", exact: true })).toBeVisible({ timeout: 180_000 });
+  await expect(card.locator("body")).toContainText("37 chars");
+  await expect(card.locator("body")).toContainText("us21");
+  await expect(card.locator("body")).toContainText("Saved, not tested.");
+  await chat.waitForAnswer({ outcome: "succeeded" });
+  await page.evaluate(() => navigator.clipboard.writeText(""));
+}
+async function removeCredentialCanaries({ page, audit, contentDb, baselineIds, conversationId }: {
+  page: Page; audit: CredentialLeakAudit; contentDb: string; baselineIds: Set<string>; conversationId: string | undefined;
+}) {
+  for (const row of credentialRows({ contentDb }).filter(value => !baselineIds.has(value.id))) {
+    const removed = await page.request.delete(`${CREDENTIALS}/${encodeURIComponent(row.id)}`);
+    await audit.scanApiResponse({ response: removed });
+    expect(removed.status(), "delete this test's credential").toBe(204);
+  }
+  expect(credentialRows({ contentDb }).filter(value => !baselineIds.has(value.id))).toEqual([]);
+  if (conversationId) {
+    const removed = await page.request.delete(`${CHAT_API}/${encodeURIComponent(conversationId)}`);
+    await audit.scanApiResponse({ response: removed });
+    expect(removed.status(), "delete this test's chat").toBe(204);
+    const chats = await page.request.get(CHAT_API);
+    await audit.scanApiResponse({ response: chats });
+    expect(chats.ok()).toBe(true);
+    expect((await chats.json() as { conversations: Array<{ id: string }> }).conversations.some(value => value.id === conversationId)).toBe(false);
+  }
+  await page.evaluate(() => navigator.clipboard.writeText(""));
+}
 
 test.describe("Bug pin: localhost credential-card safety", { tag: ["@real-service", "@isolated-site", "@unrun"] }, () => {
   test.describe.configure({ timeout: 600_000 });
@@ -88,77 +190,9 @@ test.describe("Bug pin: localhost credential-card safety", { tag: ["@real-servic
       await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: site.adminURL });
       await chat.open({ navigate: true });
       conversationId = await chat.newConversation();
-      await chat.send({ text: "Help me save my Mailchimp API key" }, { submission: "enter" });
-      const card = page.frameLocator('[data-mcpui-host][aria-label^="ui://tovu/custom-credential-create/"] iframe');
-      await expect(card.getByRole("heading", { name: "Save a new custom credential" })).toBeVisible({ timeout: 180_000 });
-      await expect(card.getByLabel("Label", { exact: true })).toHaveValue("mailchimp");
-      await expect(chat.ui.userMessages).toHaveCount(1); // card on FIRST turn, no prompt repair
-      const token = card.getByLabel("Token", { exact: true });
-      await expect(token).toHaveAttribute("type", "password");
-      // A native clipboard paste, rather than a synthetic card response or API-seeded token.
-      await page.evaluate(value => navigator.clipboard.writeText(value), savedCanary);
-      await token.focus();
-      await page.keyboard.press(process.platform === "darwin" ? "Meta+V" : "Control+V");
-      expect(await token.inputValue() === savedCanary, "the complete canary reached the masked field").toBe(true);
-      const redemption = page.waitForResponse(response => new URL(response.url()).pathname === "/api/admin/v1/mcp-ui/tool-calls"
-        && response.request().method() === "POST");
-      await card.getByRole("button", { name: "Save credential", exact: true }).click();
-      expect((await redemption).ok(), "the real secure-card submission was accepted").toBe(true);
-      await expect(card.getByRole("heading", { name: "Credential saved", exact: true })).toBeVisible({ timeout: 180_000 });
-      await expect(card.locator("body")).toContainText("37 chars");
-      await expect(card.locator("body")).toContainText("us21");
-      await expect(card.locator("body")).toContainText("Saved, not tested.");
-      await chat.waitForAnswer({ outcome: "succeeded" });
-      await page.evaluate(() => navigator.clipboard.writeText(""));
-
-      const savedRows = credentialRows({ contentDb }).filter(row => !baselineIds.has(row.id));
-      expect(savedRows, "exactly one new persisted credential").toHaveLength(1);
-      const row = savedRows[0]!;
-      expect(row.label).toBe("mailchimp");
-      expect(row.sealed_alg).toBe("aes-256-gcm");
-      const manifest = JSON.parse(await readFile(site.manifestPath, "utf8")) as { env: { TOVU_SITE_KEY: string } };
-      const sealer = new AesGcmSecretSealer(new FixedSiteKeyKeyring({ hex: manifest.env.TOVU_SITE_KEY }, { keyId: row.sealed_key_id }));
-      const opened = JSON.parse(await sealer.open({ sealed: {
-        keyId: row.sealed_key_id, ciphertext: row.sealed_ciphertext, nonce: row.sealed_nonce, alg: row.sealed_alg,
-      } }, { aad: buildVaultAad({ workspaceId: WS, id: row.id, kind: "custom", ownerKey: "tovu", principalId: null, binding: null }) })) as { token: string };
-      // Compare booleans so failure diagnostics never print either plaintext operand.
-      expect(Buffer.from(opened.token).equals(Buffer.from(savedCanary)), "saved secret opens byte-for-byte").toBe(true);
-      const listing = await page.request.get(CREDENTIALS);
-      await audit.scanApiResponse({ response: listing });
-      expect(listing.ok()).toBe(true);
-      const summary = (await listing.json() as { credentials: Array<{ id: string; configured: boolean }> }).credentials.find(value => value.id === row.id);
-      expect(summary?.configured).toBe(true);
-      audit.scan({ source: "persisted first-turn transcript", bytes: JSON.stringify(await persistedTranscript({ page, audit, conversationId })) });
-      await audit.browserSnapshot();
-      await audit.scanTree({ dir: site.runtimeDir }); // BEFORE any row/chat cleanup (F5.4)
-
-      await page.evaluate(value => navigator.clipboard.writeText(value), `Help me save my Stripe API key ${pastedCanary}`);
-      await chat.ui.composer.focus();
-      await page.keyboard.press(process.platform === "darwin" ? "Meta+V" : "Control+V");
-      await chat.send({}, { submission: "enter" });
-      await page.evaluate(() => navigator.clipboard.writeText(""));
-      await expect(chat.ui.root).toContainText("If it was real, rotate it.");
-      await expect(chat.ui.userMessages.last()).toContainText("Help me save my Stripe API key [token removed]");
-      // The completed Mailchimp card remains in its first answer. Scope the next card to the
-      // new answer bubble, rather than matching both historical and pending card iframes.
-      const pendingStripe = chat.ui.assistantMessages.last()
-        .frameLocator('[data-mcpui-host][aria-label^="ui://tovu/custom-credential-create/"] iframe');
-      await expect(pendingStripe.getByLabel("Label", { exact: true })).toHaveValue("stripe", { timeout: 180_000 });
-      await expect(pendingStripe.getByLabel("Base URL", { exact: true })).toHaveValue("https://api.stripe.com");
-      await expect(pendingStripe.getByLabel("Token", { exact: true })).toHaveAttribute("type", "password");
-      await pendingStripe.getByRole("button", { name: "Cancel", exact: true }).click();
-      const answer = await chat.waitForAnswer({ outcome: "succeeded" });
-      expect(answer.content).toMatch(/cancel/i);
-      expect(answer.content).toMatch(/removed|redact/i);
-      expect(credentialRows({ contentDb }).filter(value => !baselineIds.has(value.id)).map(value => value.id)).toEqual([row.id]);
-      const persisted = await persistedTranscript({ page, audit, conversationId });
-      expect(persisted.filter(message => message.role === "user").map(message => message.content)).toEqual([
-        "Help me save my Mailchimp API key", "Help me save my Stripe API key [token removed]",
-      ]);
-      audit.scan({ source: "persisted redaction transcript", bytes: JSON.stringify(persisted) });
-      audit.scan({ source: "rendered transcript", bytes: JSON.stringify(await chat.transcript()) });
-      await audit.browserSnapshot();
-      await expect(chat.ui.messageErrors).toHaveCount(0);
+      await saveMaskedMailchimpCanary(page, chat, savedCanary);
+      const row = await assertSavedMailchimpCanary({ page, audit, site, contentDb, baselineIds, savedCanary, conversationId });
+      await pasteAndCancelStripeCanary({ page, chat, pastedCanary, contentDb, baselineIds, row, conversationId, audit });
     } finally {
       // Scan even on failure, before deletion can erase the evidence. Harness teardown still
       // deletes the ENTIRE isolated site/snapshots and stops every owned process if these fail.
@@ -172,22 +206,7 @@ test.describe("Bug pin: localhost credential-card safety", { tag: ["@real-servic
         await audit.assertClean();
       } finally {
         try {
-          for (const row of credentialRows({ contentDb }).filter(value => !baselineIds.has(value.id))) {
-            const removed = await page.request.delete(`${CREDENTIALS}/${encodeURIComponent(row.id)}`);
-            await audit.scanApiResponse({ response: removed });
-            expect(removed.status(), "delete this test's credential").toBe(204);
-          }
-          expect(credentialRows({ contentDb }).filter(value => !baselineIds.has(value.id))).toEqual([]);
-          if (conversationId) {
-            const removed = await page.request.delete(`${CHAT_API}/${encodeURIComponent(conversationId)}`);
-            await audit.scanApiResponse({ response: removed });
-            expect(removed.status(), "delete this test's chat").toBe(204);
-            const chats = await page.request.get(CHAT_API);
-            await audit.scanApiResponse({ response: chats });
-            expect(chats.ok()).toBe(true);
-            expect((await chats.json() as { conversations: Array<{ id: string }> }).conversations.some(value => value.id === conversationId)).toBe(false);
-          }
-          await page.evaluate(() => navigator.clipboard.writeText(""));
+          await removeCredentialCanaries({ page, audit, contentDb, baselineIds, conversationId });
         } finally {
           try { await audit.detach(); }
           finally { await page.close(); }
