@@ -1,0 +1,71 @@
+import { Argon2PasswordHasher, loadArgon2Binding, NodeSessionTokens } from "@jini-ai/user-management/server";
+import type { PasswordHasherPort } from "@jini-ai/user-management";
+import type { MemberSignInResult, MembersWriteServiceDeps } from "./ports.js";
+import type { MemberRecord, MemberSessionRecord } from "./types.js";
+
+/**
+ * No session lifetime is specified by ADR-030; 30 days is a reasonable default
+ * "remember me" duration for a passwordless member portal (Ghost's own default is
+ * comparable). Revisit if the ADR pins a value later.
+ */
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+const sessionTokens = new NodeSessionTokens({});
+export { sessionTokens as memberSessionTokens };
+const legacyPasswordHasher = new Argon2PasswordHasher({ loadBinding: loadArgon2Binding });
+
+/** Legacy compositions stay additive; new compositions inject the existing staff hasher. O(1). */
+export function memberPasswordHasher({ deps }: { deps: MembersWriteServiceDeps }, _options = {}): PasswordHasherPort {
+  return deps.passwordHasher ?? legacyPasswordHasher;
+}
+
+// Cache per adapter: tests and alternate hosts must never verify a hash made by another hasher.
+const dummyHashes = new WeakMap<PasswordHasherPort, Promise<string>>();
+
+/** One cached, unguessable dummy credential per hasher, so a miss costs the same verify as a hit. */
+export function dummyPasswordHash({ hasher }: { hasher: PasswordHasherPort }, _options = {}): Promise<string> {
+  let hash = dummyHashes.get(hasher);
+  if (!hash) {
+    hash = hasher.hash({ password: newRawToken() });
+    dummyHashes.set(hasher, hash);
+  }
+  return hash;
+}
+
+/** High-entropy session/link digest; low-entropy codes use Jini's Argon2 helper instead. */
+export function hashToken({ rawToken }: { rawToken: string }, _optional = {}): string {
+  return sessionTokens.hashToken({ rawToken });
+}
+
+function newRawToken(): string {
+  return sessionTokens.newToken({});
+}
+
+export function isoPlusMs({ nowIso, ms }: { nowIso: string; ms: number }, _optional = {}): string {
+  return new Date(new Date(nowIso).getTime() + ms).toISOString();
+}
+
+/**
+ * The sole member session minter, reused by password, link and code sign-in.
+ * Persists only the bearer digest and returns the raw token for the HTTP cookie adapter.
+ * @complexity O(1), one session write.
+ */
+export async function issueMemberSession(required: {
+  deps: MembersWriteServiceDeps; member: MemberRecord; nowIso: string;
+}, options: { userAgent?: string; ip?: string } = {}): Promise<MemberSignInResult> {
+  const { deps, member, nowIso } = required;
+  const rawSessionToken = newRawToken();
+  const session: MemberSessionRecord = {
+    id: deps.ids.newId(),
+    workspaceId: member.workspaceId,
+    memberId: member.id,
+    tokenHash: hashToken({ rawToken: rawSessionToken }),
+    createdAt: nowIso,
+    expiresAt: isoPlusMs({ nowIso, ms: SESSION_TTL_MS }),
+    userAgent: options.userAgent,
+    ip: options.ip,
+  };
+  await deps.sessions.save(session);
+
+  return { member, session, rawSessionToken };
+}

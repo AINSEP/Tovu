@@ -33,7 +33,9 @@ import type {
   MembersWriteServiceDeps,
 } from "./ports.js";
 import { MemberSignInUnavailableError, MemberConflictError, MemberNotFoundError, MemberValidationError, type MemberRecord } from "./types.js";
-import { createMember, disableMember, requestSignInLink, updateProfile } from "./write-service.js";
+import { createMember } from "./member-sign-in.js";
+import { requestSignInLink } from "./member-challenge-request.js";
+import { disableMember, updateProfile } from "./member-admin-writes.js";
 
 const MEMBER_MANAGE_PERMISSION = "member.manage" as const;
 

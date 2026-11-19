@@ -2172,24 +2172,6 @@
   },
   {
     "source": "port",
-    "contractMethod": "MailerPort.sendBatch",
-    "implementingClass": "ConsoleMailerAdapter",
-    "caller": "(no caller found in project)",
-    "file": "src/features/members/mailer.console.ts",
-    "line": 67,
-    "coverageClass": "unknown"
-  },
-  {
-    "source": "port",
-    "contractMethod": "MailerPort.send",
-    "implementingClass": "ConsoleMailerAdapter",
-    "caller": "ConsoleMailerAdapter.sendBatch",
-    "file": "src/features/members/mailer.console.ts",
-    "line": 73,
-    "coverageClass": "none"
-  },
-  {
-    "source": "port",
     "contractMethod": "MemberTierRepoPort.save",
     "implementingClass": "InMemoryMemberTierRepo",
     "caller": "(no caller found in project)",
@@ -2308,72 +2290,72 @@
     "source": "port",
     "contractMethod": "MemberRepoPort.save",
     "implementingClass": "InMemoryMemberRepo",
-    "caller": "requestSignInLink",
-    "file": "src/features/members/write-service.ts",
-    "line": 124,
+    "caller": "resolveOrCreateSignInMember",
+    "file": "src/features/members/member-sign-in.ts",
+    "line": 48,
     "coverageClass": "none"
   },
   {
     "source": "port",
     "contractMethod": "MemberRepoPort.save",
     "implementingClass": "SqliteMemberRepo",
-    "caller": "requestSignInLink",
-    "file": "src/features/members/write-service.ts",
-    "line": 124,
+    "caller": "resolveOrCreateSignInMember",
+    "file": "src/features/members/member-sign-in.ts",
+    "line": 48,
     "coverageClass": "none"
   },
   {
     "source": "port",
     "contractMethod": "MagicLinkTokenRepoPort.save",
     "implementingClass": "InMemoryMagicLinkTokenRepo",
-    "caller": "requestSignInLink",
-    "file": "src/features/members/write-service.ts",
-    "line": 130,
+    "caller": "memberChallengeStore",
+    "file": "src/features/members/member-challenge.ts",
+    "line": 23,
     "coverageClass": "none"
   },
   {
     "source": "port",
     "contractMethod": "MagicLinkTokenRepoPort.save",
     "implementingClass": "SqliteMagicLinkTokenRepo",
-    "caller": "requestSignInLink",
-    "file": "src/features/members/write-service.ts",
-    "line": 130,
+    "caller": "memberChallengeStore",
+    "file": "src/features/members/member-challenge.ts",
+    "line": 23,
     "coverageClass": "none"
   },
   {
     "source": "port",
     "contractMethod": "OriginRegistryPort.canonicalOrigin",
     "implementingClass": "OriginRegistry",
-    "caller": "requestSignInLink",
-    "file": "src/features/members/write-service.ts",
-    "line": 153,
+    "caller": "resolveSignInLinkPath",
+    "file": "src/features/members/member-challenge-request.ts",
+    "line": 30,
     "coverageClass": "none"
   },
   {
     "source": "port",
     "contractMethod": "MailerPort.send",
     "implementingClass": "ConsoleMailerAdapter",
-    "caller": "requestSignInLink",
-    "file": "src/features/members/write-service.ts",
-    "line": 189,
+    "caller": "prepareMemberChallenge",
+    "file": "src/features/members/member-challenge-request.ts",
+    "line": 121,
     "coverageClass": "none"
   },
   {
     "source": "port",
     "contractMethod": "MagicLinkTokenRepoPort.consume",
     "implementingClass": "InMemoryMagicLinkTokenRepo",
-    "caller": "completeSignIn",
-    "file": "src/features/members/write-service.ts",
-    "line": 224,
+    "caller": "memberChallengeStore",
+    "file": "src/features/members/member-challenge.ts",
+    "line": 33,
     "coverageClass": "none"
   },
   {
     "source": "port",
     "contractMethod": "MagicLinkTokenRepoPort.consume",
     "implementingClass": "SqliteMagicLinkTokenRepo",
-    "caller": "completeSignIn",
-    "file": "src/features/members/write-service.ts",
-    "line": 224,
+    "caller": "memberChallengeStore",
+    "file": "src/features/members/member-challenge.ts",
+    "line": 33,
     "coverageClass": "none"
   },
   {
@@ -2381,8 +2363,8 @@
     "contractMethod": "MemberRepoPort.save",
     "implementingClass": "InMemoryMemberRepo",
     "caller": "completeSignIn",
-    "file": "src/features/members/write-service.ts",
-    "line": 250,
+    "file": "src/features/members/member-sign-in.ts",
+    "line": 137,
     "coverageClass": "none"
   },
   {
@@ -2390,26 +2372,26 @@
     "contractMethod": "MemberRepoPort.save",
     "implementingClass": "SqliteMemberRepo",
     "caller": "completeSignIn",
-    "file": "src/features/members/write-service.ts",
-    "line": 250,
+    "file": "src/features/members/member-sign-in.ts",
+    "line": 137,
     "coverageClass": "none"
   },
   {
     "source": "port",
     "contractMethod": "MemberSessionRepoPort.save",
     "implementingClass": "InMemoryMemberSessionRepo",
-    "caller": "completeSignIn",
-    "file": "src/features/members/write-service.ts",
-    "line": 263,
+    "caller": "issueMemberSession",
+    "file": "src/features/members/member-credentials.ts",
+    "line": 68,
     "coverageClass": "none"
   },
   {
     "source": "port",
     "contractMethod": "MemberSessionRepoPort.save",
     "implementingClass": "SqliteMemberSessionRepo",
-    "caller": "completeSignIn",
-    "file": "src/features/members/write-service.ts",
-    "line": 263,
+    "caller": "issueMemberSession",
+    "file": "src/features/members/member-credentials.ts",
+    "line": 68,
     "coverageClass": "none"
   },
   {
@@ -2417,8 +2399,8 @@
     "contractMethod": "MemberRepoPort.save",
     "implementingClass": "InMemoryMemberRepo",
     "caller": "updateProfile",
-    "file": "src/features/members/write-service.ts",
-    "line": 301,
+    "file": "src/features/members/member-admin-writes.ts",
+    "line": 45,
     "coverageClass": "none"
   },
   {
@@ -2426,8 +2408,8 @@
     "contractMethod": "MemberRepoPort.save",
     "implementingClass": "SqliteMemberRepo",
     "caller": "updateProfile",
-    "file": "src/features/members/write-service.ts",
-    "line": 301,
+    "file": "src/features/members/member-admin-writes.ts",
+    "line": 45,
     "coverageClass": "none"
   },
   {
@@ -2435,8 +2417,8 @@
     "contractMethod": "MemberRepoPort.save",
     "implementingClass": "InMemoryMemberRepo",
     "caller": "disableMember",
-    "file": "src/features/members/write-service.ts",
-    "line": 336,
+    "file": "src/features/members/member-admin-writes.ts",
+    "line": 81,
     "coverageClass": "none"
   },
   {
@@ -2444,8 +2426,8 @@
     "contractMethod": "MemberRepoPort.save",
     "implementingClass": "SqliteMemberRepo",
     "caller": "disableMember",
-    "file": "src/features/members/write-service.ts",
-    "line": 336,
+    "file": "src/features/members/member-admin-writes.ts",
+    "line": 81,
     "coverageClass": "none"
   },
   {
@@ -2453,8 +2435,8 @@
     "contractMethod": "MemberSessionRepoPort.revokeAllForMember",
     "implementingClass": "InMemoryMemberSessionRepo",
     "caller": "disableMember",
-    "file": "src/features/members/write-service.ts",
-    "line": 337,
+    "file": "src/features/members/member-admin-writes.ts",
+    "line": 82,
     "coverageClass": "none"
   },
   {
@@ -2462,8 +2444,8 @@
     "contractMethod": "MemberSessionRepoPort.revokeAllForMember",
     "implementingClass": "SqliteMemberSessionRepo",
     "caller": "disableMember",
-    "file": "src/features/members/write-service.ts",
-    "line": 337,
+    "file": "src/features/members/member-admin-writes.ts",
+    "line": 82,
     "coverageClass": "none"
   },
   {
@@ -2471,8 +2453,8 @@
     "contractMethod": "MemberSubscriptionRepoPort.save",
     "implementingClass": "InMemoryMemberSubscriptionRepo",
     "caller": "compSubscription",
-    "file": "src/features/members/write-service.ts",
-    "line": 396,
+    "file": "src/features/members/member-admin-writes.ts",
+    "line": 141,
     "coverageClass": "none"
   },
   {
@@ -2480,8 +2462,8 @@
     "contractMethod": "MemberSubscriptionRepoPort.save",
     "implementingClass": "SqliteMemberSubscriptionRepo",
     "caller": "compSubscription",
-    "file": "src/features/members/write-service.ts",
-    "line": 396,
+    "file": "src/features/members/member-admin-writes.ts",
+    "line": 141,
     "coverageClass": "none"
   },
   {
@@ -2489,8 +2471,8 @@
     "contractMethod": "MemberSubscriptionRepoPort.save",
     "implementingClass": "InMemoryMemberSubscriptionRepo",
     "caller": "setSubscriptionStatus",
-    "file": "src/features/members/write-service.ts",
-    "line": 438,
+    "file": "src/features/members/member-admin-writes.ts",
+    "line": 183,
     "coverageClass": "none"
   },
   {
@@ -2498,8 +2480,8 @@
     "contractMethod": "MemberSubscriptionRepoPort.save",
     "implementingClass": "SqliteMemberSubscriptionRepo",
     "caller": "setSubscriptionStatus",
-    "file": "src/features/members/write-service.ts",
-    "line": 438,
+    "file": "src/features/members/member-admin-writes.ts",
+    "line": 183,
     "coverageClass": "none"
   },
   {

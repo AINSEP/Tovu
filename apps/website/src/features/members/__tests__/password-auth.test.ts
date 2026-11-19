@@ -11,7 +11,9 @@ import {
   InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo,
   InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo,
 } from "../repo.memory.js";
-import { completeSignIn, issueMemberSession, requestSignInLink } from "../write-service.js";
+import { completeSignIn } from "../member-sign-in.js";
+import { dummyPasswordHash, issueMemberSession, memberPasswordHasher } from "../member-credentials.js";
+import { requestSignInLink } from "../member-challenge-request.js";
 import { requestPasswordReset, resetPassword, setMemberPassword, signInWithPassword } from "../password-auth.js";
 import { MemberAuthError, MemberReauthenticationRequiredError, MemberValidationError, type MemberRecord } from "../types.js";
 
@@ -398,4 +400,35 @@ test("a credential cutoff that moves while the new password hashes refuses the r
   await assert.rejects(resetPassword({ deps: h.deps, input: { workspaceId: WS, token, password: "new" } }), (error: unknown) => error instanceof MemberAuthError && error.message === "sign-in credential is invalid");
   await assert.rejects(h.login("new"), { message: "INVALID_CREDENTIALS" });
   await h.login("old");
+});
+
+
+test("member hashing selects the injected adapter and one stable legacy fallback", () => {
+  const h = harness();
+  assert.equal(memberPasswordHasher({ deps: h.deps }), h.deps.passwordHasher);
+  const fallback = memberPasswordHasher({ deps: { ...h.deps, passwordHasher: undefined } });
+  assert.notEqual(fallback, h.deps.passwordHasher);
+  assert.equal(memberPasswordHasher({ deps: { ...h.deps, passwordHasher: undefined } }), fallback);
+});
+
+test("dummy credentials cache the same promise per hasher and keep adapters isolated", async () => {
+  const first = harness();
+  const second = harness();
+  const pending = dummyPasswordHash({ hasher: first.deps.passwordHasher! });
+  assert.equal(dummyPasswordHash({ hasher: first.deps.passwordHasher! }), pending);
+  const other = dummyPasswordHash({ hasher: second.deps.passwordHasher! });
+  assert.notEqual(other, pending);
+  await Promise.all([pending, other]);
+  assert.equal(first.hashInputs.length, 1);
+  assert.equal(second.hashInputs.length, 1);
+});
+
+test("repeated absent-password logins hash one dummy credential and verify each miss", async () => {
+  const h = harness();
+  for (const email of ["missing@example.test", "other@example.test", "missing@example.test"]) {
+    await assert.rejects(h.login("wrong", email), MemberAuthError);
+  }
+  assert.equal(h.hashInputs.length, 1);
+  assert.equal(h.verifications.length, 3);
+  assert.deepEqual(h.verifications.map(v => v.hash), Array(3).fill(credentialHash(h.hashInputs[0]!)));
 });

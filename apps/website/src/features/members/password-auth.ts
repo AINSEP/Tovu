@@ -4,9 +4,9 @@ import { validatePasswordPolicy } from "@jini-ai/user-management/server";
 import type { MemberSignInResult, MembersWriteServiceDeps } from "./ports.js";
 import { MemberAuthError, MemberReauthenticationRequiredError, MemberValidationError, type MemberRecord, type MemberSessionRecord } from "./types.js";
 import { resolveMemberSession } from "./access-resolver.js";
-import {
-  consumeMemberChallenge, dummyPasswordHash, issueMemberSession, memberPasswordHasher, requestMemberChallenge,
-} from "./write-service.js";
+import { dummyPasswordHash, issueMemberSession, memberPasswordHasher } from "./member-credentials.js";
+import { consumeMemberChallenge } from "./member-challenge.js";
+import { requestMemberChallenge } from "./member-challenge-request.js";
 
 /** Pending and disabled members cannot obtain a password session, even with a matching hash. */
 function requireActiveMember({ member }: { member: MemberRecord | null }, _options = {}): MemberRecord {

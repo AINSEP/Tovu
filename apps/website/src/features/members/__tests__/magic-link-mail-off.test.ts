@@ -1,9 +1,9 @@
+import { createConsoleMailProvider, toPositionalMailer } from "@jini-ai/platform/mail";
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { ToolExecutionContext } from "@jini-ai/core";
 import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "../repo.memory.js";
 import { createRateLimiter, MAGIC_LINK_PER_EMAIL } from "../../../contracts/core/rate-limit/rate-limit.js";
-import { ConsoleMailerAdapter } from "../mailer.console.js";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { buildMembersRegistrations, type MembersToolDeps } from "../tool-registrations.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
@@ -14,7 +14,7 @@ function harness(driver = "console", allowed = true) {
   const sent: string[] = [];
   const deps: MembersToolDeps = { workspaceId: "ws", clock: createFakeClock({ startIso: NOW }), idGen: { newId: () => `m${++next}` }, memberRepo: new InMemoryMemberRepo(), memberTierRepo: new InMemoryMemberTierRepo(), memberSubscriptionRepo: new InMemoryMemberSubscriptionRepo(), memberSessionRepo: new InMemoryMemberSessionRepo(), magicLinkRepo: new InMemoryMagicLinkTokenRepo(), principalRepo: new InMemoryPrincipalRepo({}),
     authorize: async () => ({ allowed, reason: "fixture grant" }), magicLinkPerEmailLimiter: { check: async ({ key: _key }) => ({ allowed: true }) },
-    mailer: { capabilities: () => ({ ...new ConsoleMailerAdapter().capabilities(), driver }), send: async (message) => { sent.push(message.to.email); return { ok: true, providerMessageId: "message", acceptedAt: NOW }; }, sendBatch: async () => assert.fail("must not batch") },
+    mailer: { capabilities: () => ({ ...toPositionalMailer({ mailer: createConsoleMailProvider({ clock: { nowMs: () => Date.now() } }).create({ credential: { token: "" }, kit: {} as never }) }).capabilities(), driver }), send: async (message) => { sent.push(message.to.email); return { ok: true, providerMessageId: "message", acceptedAt: NOW }; }, sendBatch: async () => assert.fail("must not batch") },
     // A delivering driver needs the site's configured sender (`platform/mail/sender-identity.ts`).
     originRegistry: { canonicalOrigin: async () => ({ scheme: "https", host: "localhost", port: 3000, verifiedAt: NOW, source: "dev-capability" }), isAllowedRedirectTarget: async () => false, isAllowedEgressTarget: async () => false },
     mailSenderIdentity: { resolve: async () => ({ email: "hello@example.com", name: "Example Site" }) },

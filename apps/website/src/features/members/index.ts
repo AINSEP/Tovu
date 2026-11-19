@@ -91,27 +91,17 @@ export {
 
 export { SqlMemberExternalIdentityRepo } from "./repo.js";
 
-export { ConsoleMailerAdapter, type ConsoleMailerAdapterDeps } from "./mailer.console.js";
-
 export {
   DefaultMemberAccessResolver, createMemberAccessResolver,
   resolvePostMemberAccess,
   type MemberAccessResolverDeps,
 } from "./access-resolver.js";
 
-export {
-  compSubscription,
-  createMember,
-  completeSignIn,
-  issueMemberSession,
-  notifyMemberCreated,
-  disableMember,
-  membersWriteService,
-  requestSignInLink,
-  prepareMemberChallenge,
-  setSubscriptionStatus,
-  updateProfile,
-} from "./write-service.js";
+export { membersWriteService } from "./write-service.js";
+export { issueMemberSession } from "./member-credentials.js";
+export { createMember, completeSignIn, notifyMemberCreated } from "./member-sign-in.js";
+export { requestSignInLink, prepareMemberChallenge } from "./member-challenge-request.js";
+export { compSubscription, disableMember, setSubscriptionStatus, updateProfile } from "./member-admin-writes.js";
 
 // D1c consent chokepoint (ADR-PIPE-013 Decision §4) — kept separate from `write-service.ts`.
 export {

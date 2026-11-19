@@ -7,7 +7,7 @@ import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { registerFormNotifySubscriber } from "@jini-ai/cms/forms";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "@jini-ai/cms/forms";
 import { InMemoryMagicLinkTokenRepo, InMemoryMemberRepo, InMemoryMemberSessionRepo, InMemoryMemberSubscriptionRepo, InMemoryMemberTierRepo } from "#src/features/members/repo.memory";
-import { requestSignInLink } from "#src/features/members/write-service";
+import { requestSignInLink } from "#src/features/members/member-challenge-request";
 import { InMemoryPrincipalRepo } from "@jini-ai/user-management/server";
 import { wrapMailerWithPurposeGate } from "../../purpose-scoped-mailer.js";
 import type { PositionalMailer as MailerPort, MailerSendOptions, MailerSendResult } from "@jini-ai/platform/mail";
@@ -29,7 +29,7 @@ import { createFakeClock } from "#src/__tests__/support/fake-clock";
  */
 
 const MEMBERS_WRITE_SERVICE = fs.readFileSync(
-  path.join(import.meta.dirname, "..", "..", "..", "..", "features", "members", "write-service.ts"),
+  path.join(import.meta.dirname, "..", "..", "..", "..", "features", "members", "member-challenge-request.ts"),
   "utf8"
 );
 const FORMS_NOTIFY_SUBSCRIBER = fs.readFileSync(
@@ -56,7 +56,7 @@ test("AC-16 (pre-fix collision, historical regression guard): both call sites mu
 test("AC-17: members' sign-in-link send resolves to the interactive lane", () => {
   assert.ok(
     /lane:\s*["']interactive["']/.test(MEMBERS_WRITE_SERVICE),
-    "members/write-service.ts's mailer send must tag its send options with lane: \"interactive\" (or the Programmer-chosen equivalent discriminating field/value — update this test's regex to match if the exact field/value name differs from the Implementation Outline's placeholder)"
+    "members/member-challenge-request.ts's mailer send must tag its send options with lane: \"interactive\" (or the Programmer-chosen equivalent discriminating field/value — update this test's regex to match if the exact field/value name differs from the Implementation Outline's placeholder)"
   );
 });
 
