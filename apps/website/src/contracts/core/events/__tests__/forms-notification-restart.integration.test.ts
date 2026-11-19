@@ -34,7 +34,7 @@ async function store(t: TestContext, dialect: "sqlite" | "postgres", suffix: str
   const database = `tovu_mail_restart_${suffix}`;
   let open: () => ContentKernel;
   if (dialect === "sqlite") {
-    closeSqliteConnection(openContentDb(filePath));
+    closeSqliteConnection({ source: openContentDb(filePath) });
     open = () => openSqliteFileKernel({ filePath });
   } else {
     const connectionString = freshPostgresDatabase(database);

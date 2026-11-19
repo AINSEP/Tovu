@@ -269,7 +269,7 @@ test("0038 newsletter busy index matches on fresh and migrated content databases
   const fresh = openContentDb(":memory:");
   const migrated = openSqliteContentConnection({ filePath: ":memory:" });
   try {
-    await migrateContentDatabase({ kernel: sqliteKernel<unknown>(migrated) });
+    await migrateContentDatabase({ kernel: sqliteKernel<unknown>({ source: migrated }) });
     for (const db of [fresh, migrated]) assertBusyIndex({ sqlite: db.$client,
       name: "idx_newsletter_campaigns_status", table: "newsletter_campaigns",
       columns: ["workspace_id", "status"], partial: 0,

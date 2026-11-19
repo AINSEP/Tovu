@@ -21,7 +21,7 @@ function accountRows(required: { dbPath: string }): string {
   const db = openContentDb({ filePath: required.dbPath });
   try {
     return JSON.stringify(ACCOUNT_TABLES.map(table => [table, db.$client.prepare(`SELECT * FROM "${table}" ORDER BY rowid`).all()]));
-  } finally { closeSqliteConnection(db); }
+  } finally { closeSqliteConnection({ source: db }); }
 }
 
 /** The backup folder exactly as `site_backup_push` lays it out, zipped the way a person downloads it. */
@@ -48,7 +48,7 @@ test("SEC-1 restore: restoring a sanitized GitHub backup keeps the target site's
   try {
     db.$client.prepare("INSERT INTO members (id,workspace_id,email,status,created_at,updated_at,version) VALUES ('member',?,'member@example.test','active',?,?,1)").run(workspaceId, stamp, stamp);
     db.$client.prepare("INSERT INTO member_sessions (id,workspace_id,member_id,token_hash,created_at,expires_at) VALUES ('member-session',?,'member','member-session-hash',?,'2099-01-01T00:00:00.000Z')").run(workspaceId, stamp);
-  } finally { closeSqliteConnection(db); }
+  } finally { closeSqliteConnection({ source: db }); }
   const before = accountRows({ dbPath });
   const catalogBefore = h.workspace.registry({}).list({}).find(site => site.id === target.siteId);
   assert.ok(catalogBefore, "fixture: the target site is registered");
@@ -78,5 +78,5 @@ test("SEC-1 restore: restoring a sanitized GitHub backup keeps the target site's
   try {
     assert.deepEqual(after.$client.prepare("SELECT id,email,status FROM members").all(), [{ id: "member", email: "member@example.test", status: "active" }]);
     assert.deepEqual(after.$client.prepare("SELECT member_id,token_hash FROM member_sessions").all(), [{ member_id: "member", token_hash: "member-session-hash" }], "the member stays signed in");
-  } finally { closeSqliteConnection(after); }
+  } finally { closeSqliteConnection({ source: after }); }
 });

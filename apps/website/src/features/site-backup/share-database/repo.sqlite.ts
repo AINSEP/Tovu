@@ -328,7 +328,7 @@ export async function sanitizeShareDatabase(required: { snapshot: Buffer; omitte
     await writeFile(filePath, required.snapshot, { flag: "wx", mode: 0o600 });
     source = openSqliteFileKernel<Tables>({ filePath }, { readOnly: true });
     fresh = openContentDb({ filePath: ":memory:" });
-    const target = sqliteKernel<Tables>(fresh);
+    const target = sqliteKernel<Tables>({ source: fresh });
     const from = source;
     const present = new Set(await listTables({ kernel: from }));
     const plugins = await prepareSharePluginTables({ target, present, modules: required.modules });
@@ -346,7 +346,7 @@ export async function sanitizeShareDatabase(required: { snapshot: Buffer; omitte
     return { bytes, media, documents, credentialWarnings, archiveMedia: await archiveMediaSources({ target }) };
   } finally {
     await source?.close();
-    if (fresh) closeSqliteConnection(fresh);
+    if (fresh) closeSqliteConnection({ source: fresh });
     await rm(staging, { recursive: true, force: true });
   }
 }

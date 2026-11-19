@@ -68,7 +68,7 @@ describe("0000_legacy_baseline on SQLite", () => {
     const report = await migrateContentDatabase({ kernel });
     assert.deepEqual(report.applied, CONTENT_MIGRATIONS.map(step => step.id));
     assert.equal(await drizzleRows(kernel), 78);
-    const viaDrizzle = sqliteKernel<unknown>(openLegacyContentDb({ filePath: ":memory:" }));
+    const viaDrizzle = sqliteKernel<unknown>({ source: openLegacyContentDb({ filePath: ":memory:" }) });
     opened.push(viaDrizzle);
     assert.equal(await hasLedger({ kernel: viaDrizzle }), false, "the comparison starts at the frozen chain, before adoption");
     // Steps 0002 and 0004 drop the empty legacy chat and unused deployment tables
@@ -81,7 +81,7 @@ describe("0000_legacy_baseline on SQLite", () => {
 
   test("a drizzle-migrated database is adopted with no schema change and no new drizzle rows", async () => {
     const db = openLegacyContentDb({ filePath: ":memory:" });
-    const kernel = sqliteKernel<unknown>(db);
+    const kernel = sqliteKernel<unknown>({ source: db });
     opened.push(kernel);
     assert.equal(await hasLedger({ kernel }), false, "a frozen-chain fixture has no Tovu ledger");
     const before = await readSchemaShape({ kernel }, { exclude: BOOKKEEPING });
@@ -156,7 +156,7 @@ describe("0000_legacy_baseline on SQLite", () => {
     const file = path.join(tmp, "content.db");
     const db = openLegacyContentDb({ filePath: file });
     const backupPath = path.join(tmp, "backup.db");
-    const report = await migrateContentDatabase({ kernel: sqliteKernel<unknown>(db) }, { backupPath });
+    const report = await migrateContentDatabase({ kernel: sqliteKernel<unknown>({ source: db }) }, { backupPath });
     assert.ok(report.notes.some((note) => note.includes(backupPath)));
     const copy = new Database(backupPath, { readonly: true });
     try {

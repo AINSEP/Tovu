@@ -116,7 +116,7 @@ test("trash items maps a marker-write race to 409 and an unexpected write failur
   t.after(() => client.close());
   client.exec("CREATE TABLE form_definitions (id TEXT, workspace_id TEXT, name TEXT, slug TEXT, deleted_at TEXT, version INTEGER)");
   client.prepare("INSERT INTO form_definitions VALUES (?, ?, ?, ?, NULL, ?)").run("form-7", WS, "Signup form", "signup", 8);
-  const db: TrashDb = sqliteKernel(client);
+  const db: TrashDb = sqliteKernel({ source: client });
   const calls: unknown[] = [];
   for (const fail of [false, true]) {
     const capture = await invoke(registerAdminTrashMoveToTrashRoute, {

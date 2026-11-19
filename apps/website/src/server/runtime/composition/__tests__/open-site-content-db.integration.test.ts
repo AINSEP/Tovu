@@ -38,7 +38,7 @@ test("openSiteContentDb restores a crash-interrupted dataModule attempt, then pr
 
   // A prior legacy boot (frozen Drizzle chain, no Tovu ledger or seeded/watermark rows), then a
   // crash mid-DDL. The watermark row after reopening proves the store was prepared on the restored file.
-  closeSqliteConnection(openLegacyContentDb({ filePath: dbPath }));
+  closeSqliteConnection({ source: openLegacyContentDb({ filePath: dbPath }) });
   const raw = new Database(dbPath);
   const snapshotPath = await snapshotDb({ db: contentKernel({ store: raw }), dbPath, label: "crashed-plugin" });
   await ensureMigrationJournal({ store: contentKernel({ store: raw }) });
@@ -49,7 +49,7 @@ test("openSiteContentDb restores a crash-interrupted dataModule attempt, then pr
   const db = await openSiteContentDb({ dbPath });
   const watermark = db.$client.prepare(`SELECT id, value FROM database_write_watermark`).all();
   const workspaces = db.$client.prepare(`SELECT slug FROM workspaces`).all();
-  closeSqliteConnection(db);
+  closeSqliteConnection({ source: db });
 
   const tables = tableNames(dbPath);
   assert.equal(tables.includes("p_crashed_plugin__half_created"), false, "the half-created table is gone: the snapshot was restored");
@@ -62,7 +62,7 @@ test("openSiteContentDb restores a crash-interrupted dataModule attempt, then pr
 test("openSiteContentDb on a fresh path creates, migrates, seeds once and writes the watermark row", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-open-site-content-db-fresh-"));
   const dbPath = path.join(dir, "content.db");
-  closeSqliteConnection(await openSiteContentDb({ dbPath }));
+  closeSqliteConnection({ source: await openSiteContentDb({ dbPath }) });
   const db = await openSiteContentDb({ dbPath });
   try {
     assert.deepEqual(db.$client.prepare(`SELECT count(*) AS n FROM workspaces`).get(), { n: 1 });
@@ -70,7 +70,7 @@ test("openSiteContentDb on a fresh path creates, migrates, seeds once and writes
     const ids = (db.$client.prepare(`SELECT id FROM tovu_migrations ORDER BY id`).all() as Array<{ id: string }>).map((row) => row.id);
     assert.deepEqual(ids, CONTENT_MIGRATIONS.map((step) => step.id), "the runner's ledger");
   } finally {
-    closeSqliteConnection(db);
+    closeSqliteConnection({ source: db });
   }
   const ops = path.join(dir, "ops");
   assert.deepEqual(fs.existsSync(ops) ? fs.readdirSync(ops) : [], [], "a new, empty file needs no pre-migration copy");
@@ -80,14 +80,14 @@ test("openSiteContentDb on a fresh path creates, migrates, seeds once and writes
 test("openSiteContentDb copies an existing unadopted file to ops/ first and keeps only the newest five copies", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-open-site-content-db-backup-"));
   const dbPath = path.join(dir, "content.db");
-  closeSqliteConnection(openLegacyContentDb({ filePath: dbPath })); // explicit frozen chain, no ledger: a site before R1h
+  closeSqliteConnection({ source: openLegacyContentDb({ filePath: dbPath }) }); // explicit frozen chain, no ledger: a site before R1h
   const ops = path.join(dir, "ops");
   fs.mkdirSync(ops);
   const older = [1, 2, 3, 4, 5].map((day) => `${MIGRATION_BACKUP_PREFIX}2000-01-0${day}T00-00-00-000Z.db`);
   const oldest = older[0]!;
   for (const name of [...older, `${oldest}-wal`, `${oldest}-shm`, "database-journal.db"]) fs.writeFileSync(path.join(ops, name), "");
 
-  closeSqliteConnection(await openSiteContentDb({ dbPath }));
+  closeSqliteConnection({ source: await openSiteContentDb({ dbPath }) });
   const copies = fs.readdirSync(ops).filter((name) => name.startsWith(MIGRATION_BACKUP_PREFIX));
   assert.equal(copies.length, 5, `five copies left, got ${copies.join(", ")}`);
   assert.ok(!copies.some((name) => name.startsWith(oldest)), "the oldest copy and its -wal/-shm are removed");
@@ -100,7 +100,7 @@ test("openSiteContentDb copies an existing unadopted file to ops/ first and keep
     copy.close();
   }
 
-  closeSqliteConnection(await openSiteContentDb({ dbPath }));
+  closeSqliteConnection({ source: await openSiteContentDb({ dbPath }) });
   assert.deepEqual(
     fs.readdirSync(ops).filter((name) => name.startsWith(MIGRATION_BACKUP_PREFIX) && name.endsWith(".db")),
     copies,
@@ -112,7 +112,7 @@ test("openSiteContentDb copies an existing unadopted file to ops/ first and keep
 test("openSiteContentDb closes its connection when a boot step rejects (a checksum mismatch here)", async (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-open-site-content-db-fail-"));
   const dbPath = path.join(dir, "content.db");
-  closeSqliteConnection(await openSiteContentDb({ dbPath }));
+  closeSqliteConnection({ source: await openSiteContentDb({ dbPath }) });
   const raw = new Database(dbPath);
   raw.prepare(`UPDATE tovu_migrations SET checksum = ? WHERE id = ?`).run("0".repeat(64), CONTENT_MIGRATIONS[0]!.id);
   raw.close();

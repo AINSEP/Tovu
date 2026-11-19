@@ -14,7 +14,7 @@ export async function openPreparedContentDb(filePath: string): Promise<ContentDb
     return db;
   } catch (error) {
     // Ownership transfers to the caller only after preparation succeeds.
-    closeSqliteConnection(db);
+    closeSqliteConnection({ source: db });
     throw error;
   }
 }

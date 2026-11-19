@@ -170,12 +170,12 @@ export async function clear(required: ClearValueRequired, _optional = {}): Promi
 }
 
 /** Refuse the whole reset before the ledger clears any dedicated writer's key. Keys are part of
- * the required object; this thin host adapter passes them to Jini's existing two-argument API.
+ * the required object, which this thin host adapter hands to Jini's `resetNamespace` unchanged.
  * @complexity O(d) preflight (partition definitions), followed by the settings owner's transaction.
  */
 export async function resetNamespace(required: ResetNamespaceRequired & { keysInNamespace: string[] }, _optional = {}): ReturnType<typeof resetSettingNamespace> {
   await refuseDedicatedSettingReset({ repo: required.deps.repo, input: required.input });
-  return resetSettingNamespace(required, required.keysInNamespace);
+  return resetSettingNamespace(required);
 }
 
 // Keep existing host imports compatible while the one table guards both dedicated settings.

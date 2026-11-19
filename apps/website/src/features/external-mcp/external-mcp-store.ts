@@ -30,21 +30,21 @@ const externalMcpStorePorts: HostedMcpStorePorts = {
 };
 
 export function parseEnvBlock({ text }: { text: string }, _optional = {}): Record<string, string> {
-  return hosted.parseEnvBlock(text, externalMcpStorePorts);
+  return hosted.parseEnvBlock({ text, ports: externalMcpStorePorts });
 }
 
 export async function listExternalMcpServerViews(
   { deps, workspaceId }: { deps: Pick<ExternalMcpStoreDeps, "repo"> & Partial<Pick<ExternalMcpStoreDeps, "sealer">>; workspaceId: UUID },
   _optional: Record<string, never> = {},
 ): Promise<ExternalMcpServerView[]> {
-  return hosted.listExternalMcpServerViews({ deps: { repo: deps.repo, sealer: deps.sealer, ...externalMcpStorePorts }, ...workspaceId });
+  return hosted.listExternalMcpServerViews({ deps: { repo: deps.repo, sealer: deps.sealer, ...externalMcpStorePorts }, workspaceId });
 }
 
 export async function readEnabledExternalMcpConfigs(
   { deps, workspaceId }: { deps: Pick<ExternalMcpStoreDeps, "repo" | "sealer"> & { oauth?: ExternalMcpOAuthTokenResolverPort }; workspaceId: UUID },
   _optional: Record<string, never> = {},
 ): Promise<{ configs: ExternalMcpServerConfig[]; failures: ExternalMcpConfigFailure[] }> {
-  return hosted.readEnabledExternalMcpConfigs({ deps: { repo: deps.repo, sealer: deps.sealer, oauth: deps.oauth, ...externalMcpStorePorts }, ...workspaceId });
+  return hosted.readEnabledExternalMcpConfigs({ deps: { repo: deps.repo, sealer: deps.sealer, oauth: deps.oauth, ...externalMcpStorePorts }, workspaceId });
 }
 
 export async function openExternalMcpOAuthPayload(
@@ -57,7 +57,7 @@ export async function openExternalMcpOAuthPayload(
 export async function sealExternalMcpOAuthPayload(
   { deps, identity, payload }: { deps: Pick<ExternalMcpStoreDeps, "sealer" | "keyring">; identity: { workspaceId: string; serverId: string }; payload: ExternalMcpSealedOAuthPayload }, _optional = {},
 ): Promise<SealedExternalMcpOAuth> {
-  return hosted.sealExternalMcpOAuthPayload({ sealer: deps.sealer, keyring: deps.keyring, ...externalMcpStorePorts }, identity, payload);
+  return hosted.sealExternalMcpOAuthPayload({ deps: { sealer: deps.sealer, keyring: deps.keyring, ...externalMcpStorePorts }, identity, payload });
 }
 
 export function normalizeExternalMcpAccessToken(

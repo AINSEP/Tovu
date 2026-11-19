@@ -21,7 +21,7 @@ export type ContentKernel = KyselyKernel<ContentDatabase>;
 export function contentKernel({ store }: { store: ContentKernel | SqliteConnectionSource }, _optional: Record<string, never> = {}): ContentKernel {
   return typeof (store as Partial<ContentKernel>).lockKey === "function"
     ? (store as ContentKernel)
-    : sqliteKernel<ContentDatabase>(store as SqliteConnectionSource);
+    : sqliteKernel<ContentDatabase>({ source: store as SqliteConnectionSource });
 }
 
 /**

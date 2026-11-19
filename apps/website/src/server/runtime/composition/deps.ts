@@ -3025,13 +3025,13 @@ export async function createSiteRouteDepsForWorkspace(
         ...store,
         close: async () => {
           try { await store.close(); }
-          finally { closeSqliteConnection(db); }
+          finally { closeSqliteConnection({ source: db }); }
         },
       } }),
     } });
   } catch (error) {
     // Validation/composition failure still belongs to this opener, not the borrowed store.
-    closeSqliteConnection(db);
+    closeSqliteConnection({ source: db });
     throw error;
   }
 }

@@ -72,7 +72,7 @@ test("sqlite: openSiteContentDb runs the repair (its marker is written on a fres
     try {
       assert.equal(await markerPresent(contentKernel({ store: db })), true);
     } finally {
-      closeSqliteConnection(db);
+      closeSqliteConnection({ source: db });
     }
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -106,7 +106,7 @@ test("sqlite install dir: bootSiteDir (tovu serve/export <dir>) runs the repair 
       db.deleteFrom("setting_values_global").where("setting_id", "=", UNREADABLE_OWNER_ENTRIES_REPAIR_SETTING_ID).execute()
     );
     assert.equal(await markerPresent(contentKernel({ store: seeded })), false);
-    closeSqliteConnection(seeded);
+    closeSqliteConnection({ source: seeded });
 
     // Real migrated sites retain these recovery artifacts; only an exact .db file is authoritative.
     const leftovers = ["content.db-shm", "content.db-wal", "content.db.home2-backup"];

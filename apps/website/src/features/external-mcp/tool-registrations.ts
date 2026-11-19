@@ -498,7 +498,7 @@ async function requireMcpSaveApprover({ routeDeps, surfaces, principalId, id }: 
 function requireKnownMcpSave({ routeDeps, record, input }: {
   routeDeps: ExternalMcpToolDeps; record: ExternalMcpServerRecord | null; input: SaveExternalMcpServerInput;
 }): void {
-  const access = { enabled: input.enabled, allowedToolNames: parseAllowedToolNames(input.allowedToolNames), writeAllowedToolNames: parseWriteAllowedToolNames(input.writeAllowedToolNames) };
+  const access = { enabled: input.enabled, allowedToolNames: parseAllowedToolNames({ raw: input.allowedToolNames }), writeAllowedToolNames: parseWriteAllowedToolNames({ raw: input.writeAllowedToolNames }) };
   if (!record) {
     if (access.allowedToolNames.length + access.writeAllowedToolNames.length > 0) throw new ExternalMcpValidationError('This new connection has no verified tool listing. Save the connection with no allowed tools, then choose its allowed tools in Settings → External MCP after it connects. Nothing was saved.', 'allowedToolNames');
     return;
@@ -529,7 +529,7 @@ function mcpSaveTarget({ record, input }: { record: ExternalMcpServerRecord; inp
   return { ...record, transport: input.transport,
     url: input.transport === 'streamable_http' ? input.url?.trim() ?? null : null,
     command: input.transport === 'stdio' ? input.command.trim() : null,
-    args: JSON.stringify(parseArgs(input.args)), authMode: input.authMode ?? record.authMode };
+    args: JSON.stringify(parseArgs({ raw: input.args })), authMode: input.authMode ?? record.authMode };
 }
 
 /** Fixed access proposal through the same human-only exchange as other privilege changes.
@@ -551,8 +551,8 @@ function externalMcpAccessHandler({ routeDeps, surfaces }: { routeDeps: External
       const allowed = optionalStringField({ input, key: 'allowedToolNames' });
       const write = optionalStringField({ input, key: 'writeAllowedToolNames' });
       const access = { enabled: input.enabled as boolean | undefined ?? record.enabled,
-        allowedToolNames: allowed === undefined ? previous.allowedToolNames : parseAllowedToolNames(allowed),
-        writeAllowedToolNames: write === undefined ? previous.writeAllowedToolNames : parseWriteAllowedToolNames(write) };
+        allowedToolNames: allowed === undefined ? previous.allowedToolNames : parseAllowedToolNames({ raw: allowed }),
+        writeAllowedToolNames: write === undefined ? previous.writeAllowedToolNames : parseWriteAllowedToolNames({ raw: write }) };
       const allowedSet = new Set(access.allowedToolNames);
       if (access.writeAllowedToolNames.some(name => !allowedSet.has(name))) throw new ToolInputError({ message: 'Every tool allowed to write must also appear in allowedToolNames. Nothing was changed.' });
       requireKnownMcpAccess({ routeDeps, record, previous, access });

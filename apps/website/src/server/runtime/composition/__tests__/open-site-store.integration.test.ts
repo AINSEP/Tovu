@@ -128,7 +128,7 @@ test("sqlite: a chat.db that cannot open leaves a caller-supplied content.db ope
     );
     assert.equal(sqliteClientOf({ source: db }).open, true, "the caller's handle is the caller's to close");
   } finally {
-    closeSqliteConnection(db);
+    closeSqliteConnection({ source: db });
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
@@ -146,7 +146,7 @@ test("sqlite: closing a store over a caller-supplied content.db closes chat.db a
     assert.equal(sqliteConnectionOf({ kernel: store.chat })?.open, false, "chat.db, opened by the call, is closed");
     assert.equal(sqliteClientOf({ source: db }).open, true, "content.db, supplied by the caller, stays open");
   } finally {
-    closeSqliteConnection(db);
+    closeSqliteConnection({ source: db });
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });

@@ -65,7 +65,7 @@ for (const dialect of ["sqlite", "pglite"] as const) {
 
 test("sqlite: fresh databases install the same ordering trigger and can delete linked MCP secrets", async () => {
   const db = openContentDb(":memory:");
-  const kernel = sqliteKernel<unknown>(db);
+  const kernel = sqliteKernel<unknown>({ source: db });
   try {
     assert.deepEqual(await kernel.query(sql`SELECT sql FROM sqlite_schema WHERE name = 'workspaces_mcp_delete_first'`),
       [{ sql: WORKSPACE_MCP_CASCADE_SQLITE }]);

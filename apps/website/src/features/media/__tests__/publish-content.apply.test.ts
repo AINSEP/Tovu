@@ -648,9 +648,9 @@ test("bug 44: video and poster published between disposable SQLite sites immedia
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "media-publish-roundtrip-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const sourceDb = openContentDb(path.join(root, "source.db"));
-  t.after(() => closeSqliteConnection(sourceDb));
+  t.after(() => closeSqliteConnection({ source: sourceDb }));
   const destinationDb = openContentDb(path.join(root, "destination.db"));
-  t.after(() => closeSqliteConnection(destinationDb));
+  t.after(() => closeSqliteConnection({ source: destinationDb }));
   resetPublishContentContributorsForTests();
   t.after(resetPublishContentContributorsForTests);
   registerPublishContentContributor({ contributor: contributeMediaPublish() });

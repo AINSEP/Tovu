@@ -34,7 +34,7 @@ function probeCases(): Case[] {
   return [
     {
       name: "sqlite",
-      kernel: sqliteKernel<ProbeDb>(drizzle(new Database(":memory:"))),
+      kernel: sqliteKernel<ProbeDb>({ source: drizzle(new Database(":memory:")) }),
       create: sql`CREATE TABLE kernel_probe (id text PRIMARY KEY NOT NULL, doc text, n integer, flag integer)`,
     },
     {
@@ -200,9 +200,9 @@ for (const { name, kernel, create } of cases) {
 
 test("sqlite: one kernel per connection, and a legacy BEGIN IMMEDIATE is joined, not nested", async () => {
   const db = drizzle(new Database(":memory:"));
-  const kernel = sqliteKernel<{ t: { id: string } }>(db);
-  assert.equal(sqliteKernel(db), kernel);
-  assert.equal(sqliteKernel(db.$client), kernel);
+  const kernel = sqliteKernel<{ t: { id: string } }>({ source: db });
+  assert.equal(sqliteKernel({ source: db }), kernel);
+  assert.equal(sqliteKernel({ source: db.$client }), kernel);
   await kernel.execute(sql`CREATE TABLE t (id text)`);
   db.$client.exec("BEGIN IMMEDIATE");
   await kernel.transaction(async () => {

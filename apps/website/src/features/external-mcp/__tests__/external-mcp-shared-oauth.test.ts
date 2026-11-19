@@ -246,7 +246,7 @@ test('production config mapping keeps two shared MCP suppliers distinct at the s
   await signIn(a, 'server-b');
   const { configs, failures } = await readEnabledExternalMcpConfigs({ deps: { repo: a.repo, sealer: a.sealer, oauth: a.service.tokenResolver }, workspaceId: 'workspace-local' });
   assert.deepEqual(failures, []);
-  const connections = toResolvedFederatedConnections(configs);
+  const connections = toResolvedFederatedConnections({ configs });
   const first = connections.find(connection => connection.config.connectionId === 'server')!;
   const second = connections.find(connection => connection.config.connectionId === 'server-b')!;
   assert.equal(await first.bearerToken!({ url: 'https://resource.example/mcp' }), 'access-1');

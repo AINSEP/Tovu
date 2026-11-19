@@ -40,13 +40,13 @@ async function recoverAtBoot(dbPath: string): Promise<RecoveryResult> {
     return await recoverIncompleteDataModuleMigrations({
       store: contentKernel({ store: scan }),
       restoreSnapshots: (entries) => {
-        closeSqliteConnection(scan);
+        closeSqliteConnection({ source: scan });
         closed = true;
         restoreSqliteSnapshots({ dbPath, entries });
       },
     });
   } finally {
-    if (!closed) closeSqliteConnection(scan);
+    if (!closed) closeSqliteConnection({ source: scan });
   }
 }
 

@@ -87,9 +87,9 @@ test("SQLite compactAndVerify leaves a WAL-mode file with no sidecar content, an
 test("storageOps works on the kernel of a Drizzle-style handle, and closeSqliteConnection closes it", async () => {
   const client = new Database(path.join(tmp, "handle.db"));
   const handle = { $client: client };
-  await storageOps({ kernel: sqliteKernel<unknown>(handle) }).copyTo(path.join(tmp, "handle-copy.db"));
+  await storageOps({ kernel: sqliteKernel<unknown>({ source: handle }) }).copyTo(path.join(tmp, "handle-copy.db"));
   assert.ok(fs.existsSync(path.join(tmp, "handle-copy.db")));
-  closeSqliteConnection(handle);
+  closeSqliteConnection({ source: handle });
   assert.equal(client.open, false);
 });
 

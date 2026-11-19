@@ -35,7 +35,7 @@ export async function openSiteContentDb({ dbPath }: { dbPath: string }, options:
     const recovery = await recoverIncompleteDataModuleMigrations({
       store: contentKernel({ store: db }),
       restoreSnapshots: (entries) => {
-        closeSqliteConnection(db);
+        closeSqliteConnection({ source: db });
         open = false;
         restoreSqliteSnapshots({ dbPath, entries });
       },
@@ -55,7 +55,7 @@ export async function openSiteContentDb({ dbPath }: { dbPath: string }, options:
     return db;
   } catch (error) {
     // A failed boot must not hold the file open: a retry or a file replacement follows.
-    if (open) closeSqliteConnection(db);
+    if (open) closeSqliteConnection({ source: db });
     throw error;
   }
 }

@@ -17,7 +17,7 @@ import { sqliteForeignKeyCheckedTransaction, sqliteSchemaObjects, sqliteTableInf
 function kernelWith(ddl: string) {
   const client = new Database(":memory:");
   client.exec(ddl);
-  return { client, kernel: sqliteKernel<unknown>(client) };
+  return { client, kernel: sqliteKernel<unknown>({ source: client }) };
 }
 
 test("archive schema inspection preserves generated/hidden columns and exact metadata with the installed Jini driver", async () => {

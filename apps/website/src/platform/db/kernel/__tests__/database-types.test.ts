@@ -93,7 +93,7 @@ test("a migrated SQLite content.db has every generated table and column, with co
   // Built the way a site's boot builds it: the migration runner (R1h), not the sync Drizzle opener.
   const db = openSqliteContentConnection({ filePath: ":memory:" });
   await migrateSqliteContentFile({ db, filePath: ":memory:" });
-  const sqlite = sqliteKernel(db);
+  const sqlite = sqliteKernel({ source: db });
   const tables = await listTables({ kernel: sqlite });
   const problems: string[] = [];
   const pascal = (name: string) => name.split("_").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join("");

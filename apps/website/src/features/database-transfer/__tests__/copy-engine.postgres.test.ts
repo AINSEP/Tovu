@@ -49,7 +49,7 @@ async function buildMigratedBase(): Promise<Buffer> {
       db.$client.pragma("journal_mode = DELETE");
       return db.$client.serialize();
     } finally {
-      closeSqliteConnection(db);
+      closeSqliteConnection({ source: db });
     }
   } finally {
     rmSync(dir, { recursive: true, force: true });

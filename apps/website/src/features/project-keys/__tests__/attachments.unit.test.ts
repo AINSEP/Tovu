@@ -8,7 +8,7 @@ import { siteKeyAttachments } from "../../../platform/db/migrations/project/0002
 
 test("SQL attachment identity, retry, renaming and cleanup preserve other sites and keys", async t => {
   const db = new Database(":memory:"); t.after(() => db.close());
-  const kernel = sqliteKernel<unknown>(db);
+  const kernel = sqliteKernel<unknown>({ source: db });
   await siteKeyAttachments({ checksum: "new-step" }).up(kernel, { note() {} });
   const attachments = createKeyAttachments({ kernel });
   const a = { siteId: "uuid-a", keyId: "key-a", siteName: "A" };

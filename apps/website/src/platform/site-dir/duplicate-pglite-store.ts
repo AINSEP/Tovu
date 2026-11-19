@@ -39,7 +39,7 @@ async function purgeAiChat(kernel: KyselyKernel<unknown>): Promise<void> {
 
 /** Copies the source data dir to `targetDataDir` through the right door (see this file's header). */
 async function copySource({ sourceDataDir, targetDataDir }: { sourceDataDir: string; targetDataDir: string }, _optional = {}): Promise<void> {
-  const owner = runningPgliteOwner(sourceDataDir);
+  const owner = runningPgliteOwner({ dataDir: sourceDataDir });
   if (owner !== undefined) {
     await copyServedPgliteTo({ owner, targetPath: targetDataDir });
     return;

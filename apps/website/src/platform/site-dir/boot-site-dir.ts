@@ -89,7 +89,7 @@ export async function closeSiteDirBoot(boot: BootSiteDirResult, { composed }: { 
     const store = composed ?? boot.store;
     if (store !== undefined) await store.close();
   } finally {
-    if (boot.db !== undefined) closeSqliteConnection(boot.db);
+    if (boot.db !== undefined) closeSqliteConnection({ source: boot.db });
   }
 }
 
@@ -183,7 +183,7 @@ export async function bootSiteDir(required: BootSiteDirRequired, options: BootSi
 
     return { storage, db, workspaceId: workspace.id, config };
   } catch (err) {
-    closeSqliteConnection(db);
+    closeSqliteConnection({ source: db });
     throw err;
   }
 }

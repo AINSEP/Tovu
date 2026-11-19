@@ -26,7 +26,7 @@ after(async () => {
 
 /** A content database at the legacy chain's head (drizzle's migrator), not yet adopted. */
 function legacyContentKernel(): KyselyKernel<unknown> {
-  const kernel = sqliteKernel<unknown>(openLegacyContentDb({ filePath: ":memory:" }));
+  const kernel = sqliteKernel<unknown>({ source: openLegacyContentDb({ filePath: ":memory:" }) });
   opened.push(kernel);
   return kernel;
 }

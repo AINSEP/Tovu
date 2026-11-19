@@ -215,9 +215,9 @@ test("a duplicated env variable is refused rather than last-write-wins", () => {
 });
 
 test("argv is split without shell quoting, and the allowlist de-duplicates", () => {
-  assert.deepEqual(parseArgs("  -y   pkg@1.2.3 "), ["-y", "pkg@1.2.3"]);
-  assert.deepEqual(parseAllowedToolNames("a, b ,a"), ["a", "b"]);
-  assert.deepEqual(parseAllowedToolNames(""), []);
+  assert.deepEqual(parseArgs({ raw: "  -y   pkg@1.2.3 " }), ["-y", "pkg@1.2.3"]);
+  assert.deepEqual(parseAllowedToolNames({ raw: "a, b ,a" }), ["a", "b"]);
+  assert.deepEqual(parseAllowedToolNames({ raw: "" }), []);
 });
 
 test("parseArgs keeps a double-quoted argument containing spaces as ONE argument (Windows paths)", () => {
@@ -225,22 +225,22 @@ test("parseArgs keeps a double-quoted argument containing spaces as ONE argument
   const raw =
     '"C:\\Users\\John Smith\\AppData\\Local\\Programs\\Tovu\\resources\\app\\bin\\mcp-bridge.ts"' +
     ' --user-data-dir "C:\\Users\\John Smith\\AppData\\Roaming\\tovu-desktop"';
-  assert.deepEqual(parseArgs(raw), [
+  assert.deepEqual(parseArgs({ raw }), [
     "C:\\Users\\John Smith\\AppData\\Local\\Programs\\Tovu\\resources\\app\\bin\\mcp-bridge.ts",
     "--user-data-dir",
     "C:\\Users\\John Smith\\AppData\\Roaming\\tovu-desktop",
   ]);
-  assert.deepEqual(parseArgs('""'), [""]);
+  assert.deepEqual(parseArgs({ raw: '""' }), [""]);
 });
 
 test("parseArgs leaves a quote that does not open a token literal, as before", () => {
-  assert.deepEqual(parseArgs('--name="x" a"b'), ['--name="x"', 'a"b']);
+  assert.deepEqual(parseArgs({ raw: '--name="x" a"b' }), ['--name="x"', 'a"b']);
 });
 
 test("parseArgs refuses an unterminated or run-on quoted argument", () => {
   for (const raw of ['"C:\\Users\\John Smith', '"a b"c']) {
     assert.throws(
-      () => parseArgs(raw),
+      () => parseArgs({ raw }),
       (err: unknown) => err instanceof ExternalMcpValidationError && err.field === "args",
       raw,
     );
@@ -249,7 +249,7 @@ test("parseArgs refuses an unterminated or run-on quoted argument", () => {
 
 test("an allowlist entry the trust tier would refuse is rejected at save time", () => {
   assert.throws(
-    () => parseAllowedToolNames("valid_name, not a valid name"),
+    () => parseAllowedToolNames({ raw: "valid_name, not a valid name" }),
     (err: unknown) => err instanceof ExternalMcpValidationError && err.field === "allowedToolNames",
   );
 });
@@ -283,7 +283,7 @@ test("federation connections carry the operator allowlist and Tovu's own shared 
   await saveExternalMcpServer(deps, validInput());
   const { configs } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
 
-  const [connection] = toResolvedFederatedConnections(configs);
+  const [connection] = toResolvedFederatedConnections({ configs });
   assert.equal(connection?.config.connectionId, "github");
   assert.deepEqual(connection?.config.allowedToolNames, ["search_repositories", "get_file_contents"]);
   assert.equal(stdioLaunch(connection).command, "npx");
@@ -311,7 +311,7 @@ test("toResolvedFederatedConnections stamps a roster origin whose admissionRevis
   assert.ok(row);
 
   const { configs } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
-  const [connection] = toResolvedFederatedConnections(configs);
+  const [connection] = toResolvedFederatedConnections({ configs });
   assert.deepEqual(connection?.config.origin, { kind: "roster", admissionRevision: externalMcpAdmissionRevision(row) });
 });
 
@@ -467,7 +467,7 @@ test("the stored allowlist really gates admission when handed to the real trust 
   const { deps, sealer, repo } = makeDeps();
   await saveExternalMcpServer(deps, validInput({ allowedToolNames: "search_repositories" }));
   const { configs } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
-  const [connection] = toResolvedFederatedConnections(configs);
+  const [connection] = toResolvedFederatedConnections({ configs });
   assert.ok(connection);
 
   // A hostile-ish server: it advertises the one allowlisted tool plus a destructive one it labels
@@ -492,7 +492,7 @@ test("an allowlisted tool the server never advertises is reported rather than sw
   const { deps, sealer, repo } = makeDeps();
   await saveExternalMcpServer(deps, validInput({ allowedToolNames: "search_repositories, typo_tool" }));
   const { configs } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
-  const [connection] = toResolvedFederatedConnections(configs);
+  const [connection] = toResolvedFederatedConnections({ configs });
   assert.ok(connection);
 
   const report = admitRemoteTools({
@@ -519,7 +519,7 @@ test("a write-authorized tool round-trips through save, the real trust tier, and
     validInput({ allowedToolNames: "search_repositories, delete_repository", writeAllowedToolNames: "delete_repository" }),
   );
   const { configs } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
-  const [connection] = toResolvedFederatedConnections(configs);
+  const [connection] = toResolvedFederatedConnections({ configs });
   assert.ok(connection);
   assert.deepEqual(connection.config.writeAllowedToolNames, ["delete_repository"]);
 
@@ -556,7 +556,7 @@ test("a write entry not in the allowlist is rejected at save, naming the offendi
 
 test("a write entry outside the pattern the trust tier would refuse is rejected at save time", () => {
   assert.throws(
-    () => parseWriteAllowedToolNames("valid_name, not a valid name"),
+    () => parseWriteAllowedToolNames({ raw: "valid_name, not a valid name" }),
     (err: unknown) => err instanceof ExternalMcpValidationError && err.field === "writeAllowedToolNames",
   );
 });
@@ -794,7 +794,7 @@ test("more than 64 environment variables are refused", () => {
 test("more than 64 args are refused", () => {
   const raw = Array.from({ length: 65 }, (_, i) => `arg${i}`).join(" ");
   assert.throws(
-    () => parseArgs(raw),
+    () => parseArgs({ raw }),
     (err: unknown) => err instanceof ExternalMcpValidationError && err.field === "args",
   );
 });
@@ -802,7 +802,7 @@ test("more than 64 args are refused", () => {
 test("more than 64 allowed tool names are refused", () => {
   const raw = Array.from({ length: 65 }, (_, i) => `tool_${i}`).join(",");
   assert.throws(
-    () => parseAllowedToolNames(raw),
+    () => parseAllowedToolNames({ raw }),
     (err: unknown) => err instanceof ExternalMcpValidationError && err.field === "allowedToolNames",
   );
 });
@@ -1049,7 +1049,7 @@ test("a hosted row reaches federation as an HTTP launch spec carrying the same h
   await seedHostedRow(repo);
 
   const { configs } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer, oauth: fakeTokenResolver("at-2").port }, workspaceId: WORKSPACE });
-  const [connection] = toResolvedFederatedConnections(configs);
+  const [connection] = toResolvedFederatedConnections({ configs });
 
   assert.ok(connection);
   assert.ok("url" in connection.launch, "a hosted row must not be handed to the stdio adapter");
@@ -1538,6 +1538,6 @@ test("federation retains the provisioning plugin for immediate access lowering",
   const { deps, sealer, repo } = makeDeps();
   await saveExternalMcpServer(deps, validInput({ provisionedByPluginId: "mail-plugin" }));
   const { configs } = await readEnabledExternalMcpConfigs({ deps: { repo, sealer }, workspaceId: WORKSPACE });
-  const [connection] = toResolvedFederatedConnections(configs);
+  const [connection] = toResolvedFederatedConnections({ configs });
   assert.equal(connection?.config.provisionedByPluginId, "mail-plugin");
 });

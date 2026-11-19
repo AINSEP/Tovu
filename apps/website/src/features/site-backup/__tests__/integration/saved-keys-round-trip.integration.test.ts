@@ -70,7 +70,7 @@ for (const placement of ["inSite", "appData"] as const) {
     const sourcePath = path.join(h.root, "source.db");
     fs.writeFileSync(sourcePath, h.db.$client.serialize());
     const sourceDb = openContentDb({ filePath: sourcePath });
-    t.after(() => closeSqliteConnection(sourceDb));
+    t.after(() => closeSqliteConnection({ source: sourceDb }));
     assert.equal(sourceDb.$client.pragma("journal_mode", { simple: true }), "wal");
     const bearer = "roundTripCredentialValue987654321";
     sourceDb.$client.prepare("UPDATE posts SET body_json=? WHERE id='post-0'").run(JSON.stringify({ text: "Authorization: Bearer " + bearer }));
@@ -153,7 +153,7 @@ for (const placement of ["inSite", "appData"] as const) {
     const ready = await imports.completeOwner({ principalId: "owner", importId: pending.importId, adminPassword: OWNER_PASSWORD, savedKeysPassword: undefined });
     assert.equal(ready.status, "ready");
     const dir = path.join(h.workspace.home({}), ready.newSiteName!), dbPath = resolveSiteDatabasePaths({ dir }, { workspace: h.workspace }).contentDbPath;
-    const imported = openContentDb({ filePath: dbPath }); t.after(() => closeSqliteConnection(imported));
+    const imported = openContentDb({ filePath: dbPath }); t.after(() => closeSqliteConnection({ source: imported }));
     assert.equal(imported.$client.prepare<[], { body_json: string }>("SELECT body_json FROM posts WHERE id='post-0'").get()!.body_json.includes(bearer), true);
     const ids = imported.$client.prepare<[], { id: string }>("SELECT id FROM secrets_vault ORDER BY id").all().map(row => row.id);
     assert.deepEqual(ids, []);

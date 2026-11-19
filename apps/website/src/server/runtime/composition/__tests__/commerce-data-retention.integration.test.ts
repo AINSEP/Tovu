@@ -100,7 +100,7 @@ for (const populated of [false, true]) {
       for (const suffix of ["", "-wal", "-shm"]) fs.rmSync(`${filePath}${suffix}`, { force: true });
       const db = openSqliteContentConnection({ filePath });
       try {
-        await runMigrations({ kernel: sqliteKernel<unknown>(db), steps: CONTENT_MIGRATIONS.filter(step => step.id < ARCHIVE_ID) });
+        await runMigrations({ kernel: sqliteKernel<unknown>({ source: db }), steps: CONTENT_MIGRATIONS.filter(step => step.id < ARCHIVE_ID) });
         // Only fixture setup declares the historical modules. Production boot must never invoke
         // them or reconcile them against an empty/off inventory.
         for (const decl of [LIPAY_MANIFEST, STORE_MANIFEST]) {
@@ -131,7 +131,7 @@ for (const populated of [false, true]) {
         db.$client.prepare("INSERT INTO p_lipay__refunds (id, workspace_id, payment_id, idempotency_key, amount_minor, currency, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run("refund", "retained-ws", "payment", "retained-refund-key", 12, "USD", "succeeded", 1, 2);
         db.$client.prepare("INSERT INTO p_store__products (id, title, price, stock, version) VALUES (?, ?, ?, ?, ?)").run("retained-stock", "Historical", 123, 17, 8);
         db.$client.prepare("INSERT INTO p_store__orders (id, product_id, qty, total, at) VALUES (?, ?, ?, ?, ?)").run("retained-store-order", "retained-stock", 2, 246, 3);
-      } finally { closeSqliteConnection(db); }
+      } finally { closeSqliteConnection({ source: db }); }
       const before = snapshot(filePath);
       assert.equal(before.rows.length, 11);
       assert.deepEqual(before.retirement, []);

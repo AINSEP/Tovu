@@ -31,8 +31,7 @@ const CUSTOM_INSTRUCTIONS_KEY = "custom";
  * `typeof ... === "string"` below — no caller here needs the full settings-value union.
  */
 type GetEffective = (
-  deps: { repo: SettingsRepoPort },
-  input: { namespace: string; key: string; scopeContext: { workspaceId: UUID } },
+  required: { deps: { repo: SettingsRepoPort }; namespace: string; key: string; scopeContext: { workspaceId: UUID } },
 ) => Promise<{ value: unknown } | null>;
 
 export interface ResolveCustomInstructionsDeps {
@@ -81,14 +80,12 @@ export async function resolveCustomInstructions(
 ): Promise<string> {
   try {
     await (deps.settingsReady ?? Promise.resolve());
-    const resolved = await deps.getEffective(
-      { repo: deps.settingsRepo },
-      {
-        namespace: deps.instructionsNamespace,
-        key: CUSTOM_INSTRUCTIONS_KEY,
-        scopeContext: { workspaceId: input.workspaceId },
-      },
-    );
+    const resolved = await deps.getEffective({
+      deps: { repo: deps.settingsRepo },
+      namespace: deps.instructionsNamespace,
+      key: CUSTOM_INSTRUCTIONS_KEY,
+      scopeContext: { workspaceId: input.workspaceId },
+    });
     return typeof resolved?.value === "string" ? resolved.value : "";
   } catch (error) {
     console.error("[assistant] resolveCustomInstructions failed; treating as unset", error);

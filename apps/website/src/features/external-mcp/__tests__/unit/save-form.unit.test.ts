@@ -422,6 +422,6 @@ test("unchanged argument prefills preserve empty arguments alongside literal equ
   const args = ["", "--name=x", "C:\\Users\\John Smith\\server", ""];
   const before = existingView({ args });
   const prefill = mergeExternalMcpSavePrefill({ input: BASE_INPUT, existing: before });
-  assert.deepEqual(parseArgs(prefill.args!), args);
+  assert.deepEqual(parseArgs({ raw: prefill.args! }), args);
   assert.deepEqual(before.args, args, "prefill does not mutate the stored view");
 });

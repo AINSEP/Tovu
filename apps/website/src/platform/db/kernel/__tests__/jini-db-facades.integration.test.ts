@@ -26,7 +26,7 @@ test("same-file locking crosses from a Tovu shim into a direct Jini kernel", asy
   try {
     a.pragma("journal_mode = WAL");
     a.exec("CREATE TABLE probe (value TEXT NOT NULL)");
-    const ka = sqliteKernel(a);
+    const ka = sqliteKernel({ source: a });
     const kb = jiniSqliteKernel({ source: b });
     await ka.transaction(async () => {
       await ka.execute(sql`INSERT INTO probe VALUES ('nested probe')`);
@@ -153,9 +153,9 @@ test("owner shims preserve Tovu socket names, low-memory settings and private di
     const parent = path.join(dir, "private-parent");
     fs.mkdirSync(parent, { mode: 0o755 });
     fs.chmodSync(parent, 0o755);
-    assert.throws(() => ensurePrivateDir(path.join(parent, "socket"), { privateParent: true }), /not a 0700 directory owned by this user/);
+    assert.throws(() => ensurePrivateDir({ dir: path.join(parent, "socket") }, { privateParent: true }), /not a 0700 directory owned by this user/);
     fs.chmodSync(parent, 0o700);
-    ensurePrivateDir(path.join(parent, "socket"), { privateParent: true });
+    ensurePrivateDir({ dir: path.join(parent, "socket") }, { privateParent: true });
     assert.equal(fs.statSync(path.join(parent, "socket")).mode & 0o777, 0o700);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -164,9 +164,9 @@ test("owner shims preserve Tovu socket names, low-memory settings and private di
   const fallbackParent = fs.mkdtempSync("/tmp/j02-private-");
   try {
     fs.chmodSync(fallbackParent, 0o755);
-    assert.throws(() => ensurePrivateDir(path.join(fallbackParent, "socket")), /not a 0700 directory owned by this user/);
+    assert.throws(() => ensurePrivateDir({ dir: path.join(fallbackParent, "socket") }), /not a 0700 directory owned by this user/);
     fs.chmodSync(fallbackParent, 0o700);
-    ensurePrivateDir(path.join(fallbackParent, "socket"));
+    ensurePrivateDir({ dir: path.join(fallbackParent, "socket") });
     assert.equal(fs.statSync(path.join(fallbackParent, "socket")).mode & 0o777, 0o700);
   } finally {
     fs.rmSync(fallbackParent, { recursive: true, force: true });

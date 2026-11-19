@@ -83,7 +83,7 @@ export async function importFixture(t: TestContext, placement: "inSite" | "appDa
   // An agent-plugin import seeds frozen (read-only) package trees, which a plain rmSync cannot remove.
   // One hook owns all resources: throwing from an earlier hook would skip a later DB close.
   onTeardown({ t, step: async () => {
-    try { if (openedDb) closeSqliteConnection(openedDb); }
+    try { if (openedDb) closeSqliteConnection({ source: openedDb }); }
     finally {
       try { await removeFrozenPackageTree({ root }); }
       finally { fs.rmSync(root, { recursive: true, force: true }); }
@@ -202,7 +202,7 @@ export async function importFixture(t: TestContext, placement: "inSite" | "appDa
       const input = { workspaceId, username: "admin", password: OWNER_PASSWORD };
       assert.equal((await login({ deps, input })).principal.id, await identity.ownerPrincipalId);
       await assert.rejects(login({ deps, input: { ...input, password: required.rejectedPassword } }), AuthInvalidCredentialsError);
-    } finally { closeSqliteConnection(imported); }
+    } finally { closeSqliteConnection({ source: imported }); }
   };
   return { root, db, safe, files, archive, plan, registry, backend, backendPorts, workspace, started, assertOwnerLogin, archiveWithDatabase, prepareProductionShare };
 }

@@ -99,7 +99,7 @@ export const MIGRATION_BACKUP_PREFIX = "pre-migrations-";
  */
 export async function migrateSqliteContentFile({ db, filePath }: { db: ContentDb; filePath: string }, _optional: Record<string, never> = {}): Promise<MigrationReport> {
   const backupPath = filePath === ":memory:" ? undefined : migrationBackupPath({ filePath });
-  const report = await migrateContentDatabase({ kernel: sqliteKernel<unknown>(db) }, { backupPath, onBackupError: ({ error, backupPath: failed }) => {
+  const report = await migrateContentDatabase({ kernel: sqliteKernel<unknown>({ source: db }) }, { backupPath, onBackupError: ({ error, backupPath: failed }) => {
     if (!isDiskFull({ error })) throw error;
     // A half-written copy only holds the space that ran out; the boot continues without it.
     fs.rmSync(failed, { force: true });
@@ -157,7 +157,7 @@ export function openContentDb(required: string | { filePath: string }, options: 
     if (!bootstrapFreshContentDb({ db })) migrate(db, { migrationsFolder: MIGRATIONS_DIR });
     return db;
   } catch (error) {
-    closeSqliteConnection(db);
+    closeSqliteConnection({ source: db });
     throw error;
   }
 }

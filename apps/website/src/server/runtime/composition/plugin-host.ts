@@ -19,6 +19,7 @@ import { tovuEnableAccessMessages } from '#src/features/agent-plugins/enable-acc
 import { CONNECT_DECLINED_ACTOR } from '#src/features/agent-plugins/apply-connect-defaults';
 import { grantDeclaredToolsToSignedInRows } from '#src/features/agent-plugins/grant-signed-in-defaults';
 import { agentPluginMcpPortsOf, withAgentPluginMcpPorts } from '#src/features/agent-plugins/mcp-host-bindings';
+import type { provisionAgentPluginMcpServers as provisionPortableMcpServers } from '@jini-ai/agent-plugins/connect';
 import { createPluginHost, type PluginHostMessages } from '@jini-ai/agent-plugins/connect/plugin-host';
 
 /** Tovu's product copy for the portable host: these texts name Tovu's enable tool. Bytes unchanged. */
@@ -74,7 +75,7 @@ export function createTovuPluginHost(
     resolveEnabled?: (required: { workspaceRoot: string; pluginId: string }, optional?: Record<string, never>) => Promise<boolean>;
     warn?: (message: string) => void;
     resolveMcpServers?: typeof resolveAgentPluginMcpServers;
-    provisionMcpServers?: typeof provisionAgentPluginMcpServers;
+    provisionMcpServers?: typeof provisionPortableMcpServers;
   } = {},
 ): PluginHostPort {
   const resolveWorkspaceRoot = () => deps.agentPluginLayout.forWorkspace({ workspaceId: deps.workspaceId }).root;

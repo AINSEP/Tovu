@@ -65,7 +65,7 @@ test("[unrun] pglite boot: a lock held by a live foreign process refuses the boo
   const { siteDir, dataDir, socketPath } = await freshPgliteSite(t);
   const lockPath = path.join(dataDir, OWNER_LOCK_FILE);
   assert.equal(fs.existsSync(lockPath), false, "initSite released its own lock");
-  assert.equal(runningPgliteOwner(dataDir), undefined);
+  assert.equal(runningPgliteOwner({ dataDir }), undefined);
 
   // The test runner's parent process: alive for the whole test, and not this process.
   const foreignPid = process.ppid;
@@ -82,7 +82,7 @@ test("[unrun] pglite boot: a lock held by a live foreign process refuses the boo
   });
   assert.equal(fs.readFileSync(lockPath, "utf8"), `${foreignPid}\n`, "a live owner's lock is never reaped");
   assert.equal(fs.existsSync(socketPath), false, "the refused boot never opened a socket");
-  assert.equal(runningPgliteOwner(dataDir), undefined, "the refused boot registered no owner");
+  assert.equal(runningPgliteOwner({ dataDir }), undefined, "the refused boot registered no owner");
   assert.deepEqual(
     fs.readdirSync(dataDir).filter((name) => name.startsWith(`${OWNER_LOCK_FILE}.`)),
     [],
@@ -121,7 +121,7 @@ test("[unrun] pglite boot: while serving, the owner is registered in-process on 
   } });
   await drainBootReadiness(deps);
 
-  const owner = runningPgliteOwner(dataDir);
+  const owner = runningPgliteOwner({ dataDir });
   assert.ok(owner, "the booted site's owner is reachable in-process");
   assert.equal(owner.socketPath, socketPath, "the owner serves the socket derived from its data dir");
   assert.equal(boot.store?.pgliteSocketPath, socketPath, "the store connects through that same socket");
@@ -138,7 +138,7 @@ test("[unrun] pglite boot: while serving, the owner is registered in-process on 
   await drainBootReadiness(deps);
   await closeSiteDirBoot(boot, { composed });
   closed = true;
-  assert.equal(runningPgliteOwner(dataDir), undefined, "a clean close unregisters the owner");
+  assert.equal(runningPgliteOwner({ dataDir }), undefined, "a clean close unregisters the owner");
   assert.equal(fs.existsSync(path.join(dataDir, "PG_VERSION")), true, "the data dir itself is kept");
 });
 

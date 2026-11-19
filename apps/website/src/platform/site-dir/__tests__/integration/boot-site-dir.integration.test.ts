@@ -200,7 +200,7 @@ test("AC-07/INV-05: an older schemaVersion migrates forward, both schemaVersion+
     fs.rmSync(dbPath);
     const older = openSqliteContentConnection({ filePath: dbPath });
     try {
-      const kernel = sqliteKernel<unknown>(older);
+      const kernel = sqliteKernel<unknown>({ source: older });
       await kernel.transaction(() => applyLegacyEntries({ kernel, entries: readFrozenChain().slice(0, -1) }));
       // Raw insert on purpose: this database holds only the frozen chain, which predates migration 0042's
       // `workspaces.version` column that the current Drizzle schema (`workspaces`) now writes.

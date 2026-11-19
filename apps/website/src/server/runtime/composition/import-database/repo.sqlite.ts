@@ -101,22 +101,22 @@ async function run(required: { root: string }, _options: Record<string, never> =
   const source = openSqliteConnection({ filePath: path.join(required.root, "input.db"),
     open: ({ filePath }) => openNativeSqlite(filePath, sourceOptions),
   }, { pragmas: ["trusted_schema = OFF", "query_only = ON"] });
-  const sourceKernel = sqliteKernel<Record<string, Record<string, unknown>>>(source);
+  const sourceKernel = sqliteKernel<Record<string, Record<string, unknown>>>({ source });
   const trusted = openContentDb({ filePath: ":memory:" });
   let portablePluginTables = new Set<string>();
   try {
     // Extension loading remains disabled: this helper never exposes/calls loadExtension.
     const actual = await sqliteSchemaObjects({ kernel: sourceKernel });
-    const plugins = await prepareSharePluginTables({ modules: FIRST_PARTY_DATA_MODULES, target: sqliteKernel(trusted), present: new Set(actual.filter(object => object.type === "table").map(object => object.name)) });
+    const plugins = await prepareSharePluginTables({ modules: FIRST_PARTY_DATA_MODULES, target: sqliteKernel({ source: trusted }), present: new Set(actual.filter(object => object.type === "table").map(object => object.name)) });
     portablePluginTables = plugins.portable;
-    const expected = await sqliteSchemaObjects({ kernel: sqliteKernel(trusted) });
+    const expected = await sqliteSchemaObjects({ kernel: sqliteKernel({ source: trusted }) });
     // No archived SQL is executed or relaxed: every table, index and trigger must match
     // this build. Historical ADD COLUMN schema variants are not part of the v2 contract.
-    await requireTrustedSchemaObjects({ source: sourceKernel, target: sqliteKernel(trusted), actual, expected });
+    await requireTrustedSchemaObjects({ source: sourceKernel, target: sqliteKernel({ source: trusted }), actual, expected });
     if ((await sourceKernel.query(sql`SELECT id FROM workspaces LIMIT 2`)).length !== 1) throw new Error("Import requires one workspace");
     // Source FKs may reference private rows omitted by projection; validate rebuilt FKs below.
     if (verifySqliteIntegrity({ db: source, quick: true }).issues.some(issue => issue.kind === "integrity")) throw new Error("Invalid SQLite integrity");
-  } finally { source.close(); closeSqliteConnection(trusted); }
+  } finally { source.close(); closeSqliteConnection({ source: trusted }); }
   const omittedMediaIds = JSON.parse(await readFile(path.join(required.root, "omitted-media.json"), "utf8")) as string[];
   const projection = await sanitizeShareDatabase({ omittedMediaIds, modules: FIRST_PARTY_DATA_MODULES, snapshot: await readFile(path.join(required.root, "input.db")) });
   const output = path.join(required.root, "output.db");

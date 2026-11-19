@@ -227,7 +227,7 @@ function hostBlockers({ hostname, delegation }: { hostname: string; delegation: 
 async function planTarget(required: { target: Target; errorPrefix: string }, ports: DnsChangePorts): Promise<DomainDnsPlan> {
   const { target } = required;
   const zone = await locateCheckedZone(required, ports);
-  const delegation = zone.found ? await checkDelegation({ zone: zone.zone }, { resolver: ports.resolver }) : null;
+  const delegation = zone.found ? await checkDelegation({ zone: zone.zone, resolver: ports.resolver }) : null;
   const current = delegation?.state === "delegated" ? await listCurrent({ target, zone, ports }) : { records: [], inventory: "unknown" as const };
   const { capabilities } = target.provider;
   const plan = planDnsChanges(
@@ -279,7 +279,7 @@ export async function inspectDomainDns(required: DnsChangeRequest, ports: DnsCha
   const errorPrefix = "dns_status";
   const target = await resolveTarget({ ...required, errorPrefix }, ports);
   const planned = await planTarget({ target, errorPrefix }, ports);
-  const verification = planned.zoneFound ? await verifyRequirements({ zone: planned.zone, requirements: target.requirements }, { resolver: ports.resolver }) : null;
+  const verification = planned.zoneFound ? await verifyRequirements({ zone: planned.zone, requirements: target.requirements, resolver: ports.resolver }) : null;
   return { planned, instructions: instructionsFor(target, planned), verification, binding: target.binding };
 }
 
@@ -339,8 +339,8 @@ async function verifyOnce(required: DnsChangeRequest, ports: VerifyPorts): Promi
   const errorPrefix = "dns_verify";
   const target = await resolveTarget({ ...required, errorPrefix }, ports);
   const { zone } = await locateCheckedZone({ target, errorPrefix }, ports);
-  const delegation = await checkDelegation({ zone }, { resolver: ports.resolver });
-  const verification = await verifyRequirements({ zone, requirements: target.requirements }, { resolver: ports.resolver });
+  const delegation = await checkDelegation({ zone, resolver: ports.resolver });
+  const verification = await verifyRequirements({ zone, requirements: target.requirements, resolver: ports.resolver });
   const now = ports.now();
   const binding = nextBinding({ target, zone, delegation, verification, now });
   const saved = await ports.bindings.put({ binding, now: iso({ ms: now }), expectedVersion: target.binding?.version ?? null });

@@ -418,7 +418,7 @@ test("workspace values: credential-looking valid values stay included; invalid a
 async function pluginTarget(t: TestContext) {
   const db = openContentDb({ filePath: ":memory:" });
   t.after(() => db.$client.close());
-  return sqliteKernel<Record<string, Row>>(db);
+  return sqliteKernel<Record<string, Row>>({ source: db });
 }
 
 test("plugin tables: present portable tables are built with only their policy columns; private names are always reported", async t => {

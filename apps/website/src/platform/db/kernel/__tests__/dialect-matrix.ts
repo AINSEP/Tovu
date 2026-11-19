@@ -74,7 +74,7 @@ export function sharedPgContentKernel(): PgContentKernel {
 
 /** A fresh in-memory SQLite `content.db` (migrated) behind its kernel. */
 export function freshSqliteContentKernel(): SqliteContentKernel {
-  return sqliteKernel<ContentDatabase>(openContentDb(":memory:"));
+  return sqliteKernel<ContentDatabase>({ source: openContentDb(":memory:") });
 }
 
 /** `kernel` with every call held until `pending` settles (the per-test table reset). */

@@ -157,7 +157,7 @@ function openProjectDb({ dbPath }: { dbPath: string }, _optional: Record<string,
     // retried rather than thrown.
     enableProjectWal({ db });
   } catch (error) {
-    closeSqliteConnection(db);
+    closeSqliteConnection({ source: db });
     throw error;
   }
   return db;
@@ -233,11 +233,11 @@ export async function openProjectStore(
   // The key first: no database is created beside a key that is refused.
   const hex = ensureProjectKey({ keyFile: projectKeyFilePath({ ...required, appDataDir: path.dirname(dbPath) }) });
   const db = openProjectDb({ dbPath });
-  const kernel = sqliteKernel<SecretsVaultDatabase>(db);
+  const kernel = sqliteKernel<SecretsVaultDatabase>({ source: db });
   try {
     await migrateProjectDatabase({ kernel: kernel as unknown as KyselyKernel<unknown> });
   } catch (error) {
-    closeSqliteConnection(db);
+    closeSqliteConnection({ source: db });
     throw error;
   }
   const keyring = new FixedSiteKeyKeyring({ hex });
@@ -267,6 +267,6 @@ export async function openProjectStore(
     },
     transaction: ({ run }) => kernel.transaction(run),
     providerRevisions: ({ siteId }) => kernel.query<{ id: string; revision: number; attached_at: string }>(sql`SELECT v.id, v.revision, a.attached_at FROM site_key_attachments a JOIN secrets_vault v ON v.id=a.key_id AND v.workspace_id='project' WHERE a.site_id=${siteId} AND v.kind='api-connection' ORDER BY v.id`),
-    attachments: createKeyAttachments({ kernel: kernel as unknown as KyselyKernel<unknown> }), vault: scope, dbPath, close: () => closeSqliteConnection(db) };
+    attachments: createKeyAttachments({ kernel: kernel as unknown as KyselyKernel<unknown> }), vault: scope, dbPath, close: () => closeSqliteConnection({ source: db }) };
   return store;
 }

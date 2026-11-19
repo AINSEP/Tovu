@@ -30,10 +30,10 @@ test("sqlite: current identity reports the content head; the file wrapper retain
   const db = openContentDb(dbPath);
   const runtime = runtimeSchemaVersion();
   try {
-    assert.deepEqual(await readAppliedSchemaIdentity(sqliteKernel(db)), { idx: CONTENT_MIGRATIONS.length - 1, tag: CONTENT_MIGRATIONS.at(-1)!.id });
-    assert.deepEqual(await readAppliedSchemaIdentity(sqliteKernel(db), { identity: "legacy-stamp" }), { idx: runtime.index, tag: runtime.tag });
+    assert.deepEqual(await readAppliedSchemaIdentity(sqliteKernel({ source: db })), { idx: CONTENT_MIGRATIONS.length - 1, tag: CONTENT_MIGRATIONS.at(-1)!.id });
+    assert.deepEqual(await readAppliedSchemaIdentity(sqliteKernel({ source: db }), { identity: "legacy-stamp" }), { idx: runtime.index, tag: runtime.tag });
   } finally {
-    closeSqliteConnection(db);
+    closeSqliteConnection({ source: db });
   }
   assert.deepEqual(await readAppliedSchemaIdentityOfFile({ dbPath }), { idx: runtime.index, tag: runtime.tag });
 });
@@ -41,7 +41,7 @@ test("sqlite: current identity reports the content head; the file wrapper retain
 test("sqlite: no ledger is 'none'; a latest created_at the journal lacks is 'diverged'", async () => {
   const db = openContentDb(":memory:");
   try {
-    const kernel = sqliteKernel(db);
+    const kernel = sqliteKernel({ source: db });
     // Model a pre-adoption file; adopted databases deliberately ignore the frozen ledger.
     await kernel.execute(sql`DROP TABLE tovu_migrations`);
     await kernel.execute(sql`INSERT INTO __drizzle_migrations (hash, created_at) VALUES ('x', 9999999999999)`);
@@ -49,7 +49,7 @@ test("sqlite: no ledger is 'none'; a latest created_at the journal lacks is 'div
     await kernel.execute(sql`DROP TABLE __drizzle_migrations`);
     assert.equal(await readAppliedSchemaIdentity(kernel), "none");
   } finally {
-    closeSqliteConnection(db);
+    closeSqliteConnection({ source: db });
   }
 });
 
@@ -60,10 +60,10 @@ test("sqlite: an existing empty ledger is none through both kernel and file read
   try {
     db.$client.exec("DROP TABLE tovu_migrations");
     db.$client.exec("DELETE FROM __drizzle_migrations");
-    assert.equal(await readAppliedSchemaIdentity(sqliteKernel(db)), "none");
+    assert.equal(await readAppliedSchemaIdentity(sqliteKernel({ source: db })), "none");
     assert.equal(await readAppliedSchemaIdentityOfFile({ dbPath }), "none");
   } finally {
-    closeSqliteConnection(db);
+    closeSqliteConnection({ source: db });
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });

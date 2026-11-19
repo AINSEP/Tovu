@@ -30,8 +30,8 @@ const openStores: Parameters<typeof closeSqliteConnection>[0][] = [];
 after(() => { for (const store of openStores) closeSqliteConnection(store); });
 function realLeases(): SqlFormPullLeaseRepo {
   const db = openContentDb(":memory:");
-  openStores.push(db);
-  return new SqlFormPullLeaseRepo({ kernel: sqliteKernel(db) });
+  openStores.push({ source: db });
+  return new SqlFormPullLeaseRepo({ kernel: sqliteKernel({ source: db }) });
 }
 
 function setup({ hosts }: { hosts: Record<string, { pages?: FormDestinationPage[]; fail?: string; pull?: () => Promise<FormDestinationPage> }> }) {

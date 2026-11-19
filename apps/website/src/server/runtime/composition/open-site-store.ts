@@ -77,7 +77,7 @@ export async function openSiteStore(required: OpenSiteStoreRequired, optional: O
   try {
     chatDb = await openSiteChatDb({ filePath: required.chatDbPath }, sqliteOptions);
   } catch (err) {
-    if (ownsDb) closeSqliteConnection(db);
+    if (ownsDb) closeSqliteConnection({ source: db });
     throw err;
   }
   return {
@@ -86,8 +86,8 @@ export async function openSiteStore(required: OpenSiteStoreRequired, optional: O
     chat: chatKernel({ store: chatDb }),
     sqliteDb: db,
     close: async () => {
-      closeSqliteConnection(chatDb);
-      if (ownsDb) closeSqliteConnection(db);
+      closeSqliteConnection({ source: chatDb });
+      if (ownsDb) closeSqliteConnection({ source: db });
     },
   };
 }

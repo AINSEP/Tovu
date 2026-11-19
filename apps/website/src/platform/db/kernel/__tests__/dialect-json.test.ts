@@ -29,7 +29,7 @@ interface Case {
 const cases: Case[] = [
   {
     name: "sqlite",
-    kernel: sqliteKernel<ProbeDb>(drizzle(new Database(":memory:"))),
+    kernel: sqliteKernel<ProbeDb>({ source: drizzle(new Database(":memory:")) }),
     create: sql`CREATE TABLE json_probe (id text PRIMARY KEY NOT NULL, doc text NOT NULL)`,
   },
   {

@@ -31,7 +31,7 @@ function open<K extends KyselyKernel<unknown>>(kernel: K): K {
 
 describe("0001_post_search", () => {
   test("SQLite: recorded, the schema is unchanged", async () => {
-    const kernel = open(sqliteKernel<unknown>(openLegacyContentDb({ filePath: ":memory:" })));
+    const kernel = open(sqliteKernel<unknown>({ source: openLegacyContentDb({ filePath: ":memory:" }) }));
     assert.equal(await hasLedger({ kernel }), false, "the fixture starts at the frozen Drizzle chain");
     // Steps 0002 and 0004 drop the empty legacy chat and unused deployment tables;
     // later steps also alter columns/add tables. Isolate the SQLite search step so its
@@ -86,7 +86,7 @@ describe("chat history", () => {
   test("SQLite (chat.db): an existing file made by the old bootstrap is adopted as it is", async () => {
     const db = openChatDb({ filePath: ":memory:" });
     db.prepare("INSERT INTO ai_chats (id, scope_id, owner_kind, owner_id, created_at, updated_at) VALUES ('c1', 'ws', 'user', 'u', 1, 1)").run();
-    const kernel = sqliteKernel<unknown>(db);
+    const kernel = sqliteKernel<unknown>({ source: db });
     const before = await readSchemaShape({ kernel }, { exclude: ["tovu_chat_migrations"] });
     await migrateChatDatabase({ kernel });
     assert.deepEqual(await readSchemaShape({ kernel }, { exclude: ["tovu_chat_migrations"] }), before);

@@ -123,7 +123,7 @@ for (const placement of ["inSite", "appData"] as const) test("A production prepa
     assert.equal(exported.$client.serialize().includes(Buffer.from("source-secret")), false);
     assert.equal(exported.$client.serialize().includes(Buffer.from("source-session")), false);
     assert.equal(exported.$client.serialize().includes(Buffer.from("source-chat-private")), false);
-  } finally { closeSqliteConnection(exported); }
+  } finally { closeSqliteConnection({ source: exported }); }
   const pending = await backend.importBackup({ principalId: "recipient", source: { url: `https://public.example/_share/${shared.token}/${shared.file}` } });
   assert.equal(downloads, 1);
   const stage = h.registry.stagePath({ importId: pending.importId });
@@ -136,7 +136,7 @@ for (const placement of ["inSite", "appData"] as const) test("A production prepa
     }
     const names = projected.$client.prepare("SELECT name FROM sqlite_schema WHERE type='table'").all() as { name: string }[];
     assert.equal(names.some(row => /^(?:ai_chats|ai_chat_messages|assistant_agent_sessions)$/.test(row.name)), false);
-  } finally { closeSqliteConnection(projected); }
+  } finally { closeSqliteConnection({ source: projected }); }
   const result = await backend.completeOwner({ principalId: "recipient", importId: pending.importId, adminPassword: OWNER_PASSWORD });
   const entry = h.workspace.registry({}).list({})[0]!;
   assert.equal(result.newSiteId, entry.id);
@@ -160,7 +160,7 @@ for (const placement of ["inSite", "appData"] as const) test("A production prepa
     const accounts = imported.$client.prepare("SELECT principal_id FROM identity_users").all() as { principal_id: string }[];
     assert.equal(accounts.length, 1);
     assert.notEqual(accounts[0]!.principal_id, "source-owner");
-  } finally { closeSqliteConnection(imported); }
+  } finally { closeSqliteConnection({ source: imported }); }
   assert.equal(createHash("sha256").update(fs.readFileSync(path.join(entry.path, "uploads", STORAGE_KEY))).digest("hex"), HASH);
   assert.deepEqual(fs.readFileSync(path.join(entry.path, "themes/static/site/index.html")), h.files.get("themes/static/site/index.html"));
   for (const [name, bytes] of packageFiles) assert.deepEqual(fs.readFileSync(path.join(entry.path, ".import-quarantine/agent-plugins/portable/package", name)), bytes, "B preserves quarantined " + name);

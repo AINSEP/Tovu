@@ -116,9 +116,9 @@ for (const { name, open } of dialects) {
 
 describe("assertValidSteps", () => {
   test("rejects malformed, unordered or duplicate ids and missing checksums", () => {
-    assert.throws(() => assertValidSteps([tableStep("1_bad", "t")]), /NNNN_snake_name/);
-    assert.throws(() => assertValidSteps([tableStep("0002_b", "t"), tableStep("0001_a", "t")]), /out of order/);
-    assert.throws(() => assertValidSteps([tableStep("0001_a", "t"), tableStep("0001_a", "t")]), /out of order or duplicated/);
-    assert.throws(() => assertValidSteps([tableStep("0001_a", "t", "nope")]), /sha256/);
+    assert.throws(() => assertValidSteps({ steps: [tableStep("1_bad", "t")] }), /NNNN_snake_name/);
+    assert.throws(() => assertValidSteps({ steps: [tableStep("0002_b", "t"), tableStep("0001_a", "t")] }), /out of order/);
+    assert.throws(() => assertValidSteps({ steps: [tableStep("0001_a", "t"), tableStep("0001_a", "t")] }), /out of order or duplicated/);
+    assert.throws(() => assertValidSteps({ steps: [tableStep("0001_a", "t", "nope")] }), /sha256/);
   });
 });

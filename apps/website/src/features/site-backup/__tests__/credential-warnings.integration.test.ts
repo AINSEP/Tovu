@@ -44,7 +44,7 @@ test("credential-looking files stay included and warnings contain only locations
 test("export keeps database values and complete plugin packages; download requires a durable acknowledgement", async t => {
   const directory = await mkdtemp(path.join(tmpdir(), "credential-warning-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const db = openContentDb({ filePath: ":memory:" }); t.after(() => closeSqliteConnection(db));
+  const db = openContentDb({ filePath: ":memory:" }); t.after(() => closeSqliteConnection({ source: db }));
   db.$client.prepare("INSERT INTO workspaces(id,name,slug,created_at) VALUES ('ws','Site','site',?)").run(stamp);
   db.$client.prepare("INSERT INTO posts(id,workspace_id,title,slug,body_json,status,kind,updated_at,version) VALUES (?,'ws','Title',?,?,'draft','post',?,1)").run("one", key, JSON.stringify({ text: key }), stamp);
   const projected = await sanitizeShareDatabase({ snapshot: db.$client.serialize() });

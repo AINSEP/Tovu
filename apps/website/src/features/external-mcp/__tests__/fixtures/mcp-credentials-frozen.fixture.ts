@@ -92,7 +92,7 @@ export async function openFrozenDb(filePath: string): Promise<{ db: ContentDb; k
 }
 
 export function closeFrozenDb(db: ContentDb): void {
-  closeSqliteConnection(db);
+  closeSqliteConnection({ source: db });
 }
 
 /** Loads the frozen SQL text (INSERT statements only) into an opened, migrated database. */

@@ -15,7 +15,7 @@ test("independent API and daemon connections observe site saves without a projec
   const apiDb = new Database(file);
   apiDb.exec("CREATE TABLE secrets_vault (workspace_id TEXT, id TEXT, kind TEXT, revision INTEGER)");
   const daemonDb = new Database(file);
-  const api = sqliteKernel<unknown>(apiDb), daemon = sqliteKernel<unknown>(daemonDb);
+  const api = sqliteKernel<unknown>({ source: apiDb }), daemon = sqliteKernel<unknown>({ source: daemonDb });
   const keyId = "plugin-state:observability-example:provider.config";
   const insert = apiDb.prepare("INSERT INTO secrets_vault VALUES (?, ?, ?, ?)");
   insert.run("ws", keyId, "api-connection", 1);

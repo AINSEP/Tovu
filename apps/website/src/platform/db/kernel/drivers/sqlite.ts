@@ -21,8 +21,8 @@ export type { SqliteKernel } from "@jini-ai/db/kernel/sqlite";
 export type SqliteConnectionSource = Database.Database | { readonly $client: Database.Database };
 
 /** Same shared functions, retaining Tovu's native connection input contract. */
-export const sqliteKernel: <DB>(source: SqliteConnectionSource) => SqliteKernel<DB> = jiniSqliteKernel;
-export const closeSqliteConnection: (source: SqliteConnectionSource) => void = jiniCloseSqliteConnection;
+export const sqliteKernel: <DB>(required: { source: SqliteConnectionSource }) => SqliteKernel<DB> = jiniSqliteKernel;
+export const closeSqliteConnection: (required: { source: SqliteConnectionSource }) => void = jiniCloseSqliteConnection;
 
 /** Open with Tovu's driver; Jini owns the kernel, cache and file turn locks. */
 export function openSqliteFileKernel<DB>({ filePath }: { filePath: string }, optional: { readOnly?: boolean } = {}): SqliteKernel<DB> {

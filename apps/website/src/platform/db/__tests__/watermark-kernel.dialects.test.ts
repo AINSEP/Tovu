@@ -136,7 +136,7 @@ describe("watermark: dialect-free cases", () => {
       assert.equal(await readKernelWatermark({ kernel }), 1);
     } finally {
       other.close();
-      closeSqliteConnection(db);
+      closeSqliteConnection({ source: db });
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
