@@ -198,13 +198,6 @@
       "value": 13
     },
     {
-      "file": "apps/website/src/platform/site-dir/local-site-supervisor.ts",
-      "function": "createLocalSiteSupervisor#1.start#1",
-      "line": 166,
-      "rule": "sonarjs/cognitive-complexity",
-      "value": 11
-    },
-    {
       "file": "apps/website/src/platform/site-dir/read-site-dir.ts",
       "function": "validateMeta#1",
       "line": 110,
