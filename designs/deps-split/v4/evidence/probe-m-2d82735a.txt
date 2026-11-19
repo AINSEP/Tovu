@@ -1,0 +1,12 @@
+# Probe (4b run, local scratch worktree on Tovu 2d82735a, never pushed): M1-M3 applied by probe-m.cjs exactly as the sheets say
+# (declarations cut verbatim in tip order, `export` on the rows marked yes, import tables, one deps.ts import line per file,
+#  the two importers repointed), then the sheets' gate commands. Node 24.22.3.
+tsc -p tsconfig.json --noEmit            exit=0 (19 s)
+tsc -p tsconfig.tests.json --noEmit      no error in site-deps/ or the repointed tests
+check:architecture (--update on the tip, plain on the probe)  update=0 check=0 (one non-blocking ratchet warning: propagation cost 12.69 -> 12.72)
+SIZE_BASE_REF=<tip> check:size           exit=0
+check:complexity                         exit=0
+eslint max-lines-per-function 50 / max-lines 500 on site-deps/*.ts   exit=0
+depcruise apps/website/src               14 errors, 78 warnings (identical to the tip; no violation involves site-deps/)
+M1/M2/M3 characterization tests (copied verbatim from the sheets)   6 pass, 0 fail
+# Not probed: B, H, L, R (their types depend on earlier sheets' outputs); the 70-file test set on the probe.
