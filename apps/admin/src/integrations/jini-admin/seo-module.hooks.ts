@@ -1,3 +1,5 @@
+import { reactModuleUi, type LazyTabView } from '@jini-ai/admin/core/react';
+import type { HostModulePage } from './module-context';
 import { createElement, useMemo, type ReactElement } from 'react';
 import { seo, type SeoReactOptions, type SeoMediaPickerSlotProps } from '@jini-ai/admin/seo/react';
 import { formDateDisplay } from '@jini-ai/admin/forms';
@@ -19,10 +21,10 @@ export function SeoMediaPickerSlot({ agentHandle, ...props }: SeoMediaPickerSlot
  * @returns Stable Provider/page bindings; locale changes retain drafts and open dialog state.
  * @example createHostSeoModule({});
  */
-export function createHostSeoModule(_required: Record<string, never>, { useAdminLocaleHook = useWiredAdminLocale }: { useAdminLocaleHook?: () => string } = {}): ReturnType<typeof seo> & { react: { loadingContent: ReactElement } } {
+export function createHostSeoModule(_required: Record<string, never>, { useAdminLocaleHook = useWiredAdminLocale }: { useAdminLocaleHook?: () => string } = {}): ReturnType<typeof seo<HostModulePage, LazyTabView>> & { react: { loadingContent: ReactElement } } {
   // One site-URL reader for the factory default and the live options the Provider always passes.
   const hostSiteUrl = () => siteUrl({ path: '' });
-  const feature = seo({ siteUrl: hostSiteUrl });
+  const feature = seo({ ui: reactModuleUi, siteUrl: hostSiteUrl });
   const ScopeProvider = feature.react.Provider;
   // Keep this component's identity for the scope lifetime; changing locale must not remount
   // the uncontrolled defaults form or discard an unsaved entry override.

@@ -1,3 +1,4 @@
+import { reactModuleUi } from '@jini-ai/admin/core/react';
 import { createElement, useContext, useEffect, useState, Suspense, type ReactNode } from 'react';
 import { createAdmin } from '@jini-ai/admin/core/module';
 import { defineAdminModule } from '@jini-ai/core/contracts/admin-module';
@@ -30,7 +31,7 @@ const pickerConsumer = defineAdminModule({ id: 'host-editors', requires: { media
  */
 export function createHostAdminScope({ permissions }: { permissions: readonly string[] }, { commentsPorts = commentsHostPorts, useCommentsLocaleHook, redirectsPorts = redirectsHostPorts, useRedirectsLocaleHook, seoPorts = seoHostPorts, useSeoLocaleHook, widgetsPorts = widgetsHostPorts, useWidgetsLocaleHook, formsPorts = formsHostPorts, useFormsLocaleHook }: { commentsPorts?: CommentsHostPorts; useCommentsLocaleHook?: () => string; redirectsPorts?: RedirectsHostPorts; useRedirectsLocaleHook?: () => string; seoPorts?: SeoHostPorts; useSeoLocaleHook?: () => string; widgetsPorts?: WidgetsHostPorts; useWidgetsLocaleHook?: () => string; formsPorts?: FormsHostPorts; useFormsLocaleHook?: () => string } = {}): Runtime {
   const overlays = createOverlayController({});
-  const feature = media({ overlays }, { headerActions: mediaPublishContribution });
+  const feature = media({ ui: reactModuleUi, overlays }, { headerActions: mediaPublishContribution });
   const commentsFeature = createHostCommentsModule({}, { useAdminLocaleHook: useCommentsLocaleHook });
   const redirectsFeature = createHostRedirectsModule({}, { useAdminLocaleHook: useRedirectsLocaleHook });
   const seoFeature = createHostSeoModule({}, { useAdminLocaleHook: useSeoLocaleHook });
