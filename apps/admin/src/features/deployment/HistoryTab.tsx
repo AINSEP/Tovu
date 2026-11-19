@@ -21,8 +21,8 @@ import { HistoryIcon } from "./deployment-visuals";
  * a filter bar, or a set of placeholder rows — scaffolding for data that has never existed would
  * imply a capability this instance does not have.
  */
-export function HistoryTab() {
-  const locale = useAdminLocale();
+export function HistoryTab({ useAdminLocale: useAdminLocaleHook = useAdminLocale }: { useAdminLocale?: typeof useAdminLocale; } = {}) {
+  const locale = useAdminLocaleHook();
   return (
     <div className="deployment-tab">
       <div

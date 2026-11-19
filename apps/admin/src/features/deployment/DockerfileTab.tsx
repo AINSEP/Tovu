@@ -54,6 +54,7 @@ import { type Translate } from '@jini-ai/core/text';
  * separate, larger decision than "make this one tab editable."
  */
 export interface DockerfileTabProps {
+  hooks?: { useDockerfileSourceHook: typeof useWiredDockerfileSource };
   /** DI seam for tests — same convention as every other wired-hook prop in this app. */
   useDockerfileSourceHook?: typeof useWiredDockerfileSource;
 }
@@ -349,7 +350,7 @@ function DockerfileEditorCard({
 }
 
 export function DockerfileTab(props: DockerfileTabProps) {
-  const useDockerfileSourceHook = resolveDockerfileSourceHook({ override: props.useDockerfileSourceHook });
+  const { hooks = { useDockerfileSourceHook: resolveDockerfileSourceHook({ override: props.useDockerfileSourceHook }) } } = props;
   const {
     snapshot,
     draft,
@@ -365,7 +366,7 @@ export function DockerfileTab(props: DockerfileTabProps) {
     copy,
     save,
     t,
-  } = useDockerfileSourceHook();
+  } = hooks.useDockerfileSourceHook();
 
   if (error && !snapshot)
     return (

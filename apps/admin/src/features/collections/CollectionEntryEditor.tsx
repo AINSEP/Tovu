@@ -48,6 +48,7 @@ function readExtSiteField({ fieldsJson, name }: { fieldsJson: unknown; name: str
  * not a wrapper `<div>` around it, which `page.fill`/`page.select_option` cannot resolve into a
  * fillable control. */
 interface FieldControlProps {
+  useJsonFieldControl?: typeof useJsonFieldControl;
   inputId: string;
   value: unknown;
   onChange: (value: unknown) => void;
@@ -109,8 +110,8 @@ function BooleanFieldControl({ inputId, value, onChange, agentHandleProps }: Fie
  * lives there, not here — see that hook's own header). `aria-invalid` flags an unparseable buffer
  * without inventing new copy for it; the last value that DID parse is what stays in `extFields`
  * and what a save sends, regardless of how the buffer currently looks. */
-function JsonFieldControl({ inputId, value, onChange, agentHandleProps, fieldName, setFieldValidity }: FieldControlProps) {
-  const { text, parseError, handleTextChange } = useJsonFieldControl({ value, onChange, fieldName, setFieldValidity });
+function JsonFieldControl({ inputId, value, onChange, agentHandleProps, fieldName, setFieldValidity, useJsonFieldControl: useJsonFieldControlHook = useJsonFieldControl }: FieldControlProps) {
+  const { text, parseError, handleTextChange } = useJsonFieldControlHook({ value, onChange, fieldName, setFieldValidity });
   return (
     <textarea
       id={inputId}
@@ -361,6 +362,7 @@ function EntryFieldsSection(props: {
 }
 
 export interface CollectionEntryEditorProps {
+  hooks?: { useCollectionEntryEditorHook: typeof useWiredCollectionEntryEditor };
   contentTypeKey: string;
   entryId: string | null;
   /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
@@ -384,7 +386,7 @@ function resolveCollectionEntryEditorHook(
 }
 
 export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
-  const useCollectionEntryEditorHook = resolveCollectionEntryEditorHook({ override: props.useCollectionEntryEditorHook });
+  const { hooks = { useCollectionEntryEditorHook: resolveCollectionEntryEditorHook({ override: props.useCollectionEntryEditorHook }) } } = props;
   const {
     contentType,
     entry,
@@ -405,7 +407,7 @@ export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
     toggleLifecycle,
     setFieldValidity,
     t,
-  } = useCollectionEntryEditorHook({ contentTypeKey: props.contentTypeKey, entryId: props.entryId });
+  } = hooks.useCollectionEntryEditorHook({ contentTypeKey: props.contentTypeKey, entryId: props.entryId });
 
   if (loadError) return <div className="notice error">{loadError}</div>;
   if (!loaded || contentType === undefined) return <div className="notice">{t({ key: "Loading entry…" })}</div>;

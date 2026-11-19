@@ -20,6 +20,7 @@ import "./consent-settings.css";
  */
 
 export interface CookieConsentProps {
+  hooks?: { useConsentPage: typeof useConsentPage; useConsentReadiness: typeof useConsentReadiness };
   /** The `?tab=` query value from `panels.tsx`; unknown or absent opens Overview. */
   tabId?: string | null;
   /** Injected in tests; the admin API otherwise. */
@@ -121,9 +122,9 @@ function ConsentPreviewPane({ page, preview, fit, translation }: {
   );
 }
 
-function EditorTab({ tab, page, port, translation, delays }: { tab: Exclude<ConsentTabId, "overview">; page: ConsentPageController; port: ConsentRevisionsPort; translation: ConsentTranslation; delays: CookieConsentProps["delays"] }) {
-  const preview = useConsentPreview({ port, config: tab === "rules" ? null : page.value, t: translation.t }, consentDelayOptions({ delayMs: delays?.previewMs }));
-  const fit = useConsentPreviewScale();
+function EditorTab({ tab, page, port, translation, delays, hooks = { useConsentPreview, useConsentPreviewScale } }: { tab: Exclude<ConsentTabId, "overview">; page: ConsentPageController; port: ConsentRevisionsPort; translation: ConsentTranslation; delays: CookieConsentProps["delays"]; hooks?: { useConsentPreview: typeof useConsentPreview; useConsentPreviewScale: typeof useConsentPreviewScale }; }) {
+  const preview = hooks.useConsentPreview({ port, config: tab === "rules" ? null : page.value, t: translation.t }, consentDelayOptions({ delayMs: delays?.previewMs }));
+  const fit = hooks.useConsentPreviewScale();
   const value = page.value;
   if (!value) throw new Error("cookie consent editor has no loaded settings");
   const { textLimits, regionModes, bannerModes, placements } = page.editor ?? {};
@@ -173,13 +174,13 @@ function ConsentTabContent({ activeTab, page, port, translation, delays, readine
   </>;
 }
 
-export function CookieConsent({ tabId, port = defaultConsentRevisionsPort, useTranslate = useConsentTranslate, delays }: CookieConsentProps) {
+export function CookieConsent({ tabId, port = defaultConsentRevisionsPort, useTranslate = useConsentTranslate, delays, hooks = { useConsentPage, useConsentReadiness } }: CookieConsentProps) {
   const translation = useTranslate();
   const { t } = translation;
-  const page = useConsentPage({ port, t }, consentDelayOptions({ delayMs: delays?.autosaveMs }));
+  const page = hooks.useConsentPage({ port, t }, consentDelayOptions({ delayMs: delays?.autosaveMs }));
   const activeTab = resolveConsentTabId({ tabId });
   // Overview re-checks after each publication and whenever it is reopened on a newer draft.
-  const readiness = useConsentReadiness({ port, refresh: `${page.publishedCount}:${activeTab === "overview" ? page.draftId : ""}`, t });
+  const readiness = hooks.useConsentReadiness({ port, refresh: `${page.publishedCount}:${activeTab === "overview" ? page.draftId : ""}`, t });
   return (
     <div className="page consent-page">
       <div className="page-header">

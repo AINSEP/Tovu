@@ -16,6 +16,7 @@ import { useWiredLogin } from "./hooks/use-login.hooks";
  * (no derivations, no branchy formatting), so this feature has no `rules.ts`.
  */
 export interface LoginProps {
+  hooks?: { useWiredAdminLocale: typeof useWiredAdminLocale };
   onLogin: (user: AdminUser) => void;
   /**
    * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` and
@@ -25,9 +26,9 @@ export interface LoginProps {
   useLoginHook?: typeof useWiredLogin;
 }
 
-export function Login({ onLogin, useLoginHook = useWiredLogin }: LoginProps) {
+export function Login({ onLogin, useLoginHook = useWiredLogin, hooks = { useWiredAdminLocale } }: LoginProps) {
   const { username, setUsername, password, setPassword, error, failure, busy, submit, mfa } = useLoginHook({ onLogin });
-  const locale = useWiredAdminLocale();
+  const locale = hooks.useWiredAdminLocale();
   const t = createLoginTranslator({ locale });
 
   return (

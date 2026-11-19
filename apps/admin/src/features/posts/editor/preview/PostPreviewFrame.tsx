@@ -24,6 +24,7 @@ export function PostPreviewFrame({
   expanded,
   onCollapse,
   t,
+  hooks = { usePostPreviewIframeEscape },
 }: {
   canShowLiveSite: boolean;
   canShowTemplatePreview: boolean;
@@ -38,8 +39,9 @@ export function PostPreviewFrame({
   expanded: boolean;
   onCollapse: () => void;
   t: Translate;
+  hooks?: { usePostPreviewIframeEscape: typeof usePostPreviewIframeEscape };
 }) {
-  const iframeRef = usePostPreviewIframeEscape({ expanded: expanded, onCollapse: onCollapse });
+  const iframeRef = hooks.usePostPreviewIframeEscape({ expanded: expanded, onCollapse: onCollapse });
   const fresh = useThemePreviewFrame({
     // Reuse the authenticated route's consent exclusion; keep the sandbox opaque.
     liveUrl: templatePreviewUrl,

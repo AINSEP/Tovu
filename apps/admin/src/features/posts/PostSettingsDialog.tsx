@@ -26,6 +26,7 @@ const TABS: ReadonlyArray<{ id: PostSettingsTab; label: string }> = [
 ];
 
 export interface PostSettingsDialogProps extends Omit<PostPublishAtFieldProps, "t"> {
+  hooks?: { useTabBarKeyboard: typeof useTabBarKeyboard };
   dialog: PostSettingsDialogController;
   kindLabel: "post" | "page";
   author: string;
@@ -35,8 +36,8 @@ export interface PostSettingsDialogProps extends Omit<PostPublishAtFieldProps, "
   t: Translate;
 }
 
-export function PostSettingsDialog({ dialog, kindLabel, author, setAuthor, showAuthor, setShowAuthor, t, ...publishing }: PostSettingsDialogProps) {
-  const { onKeyDown } = useTabBarKeyboard({ tabs: TABS, activeId: dialog.tab, onChange: (id) => dialog.setTab(id as PostSettingsTab) });
+export function PostSettingsDialog({ dialog, kindLabel, author, setAuthor, showAuthor, setShowAuthor, t, hooks = { useTabBarKeyboard }, ...publishing }: PostSettingsDialogProps) {
+  const { onKeyDown } = hooks.useTabBarKeyboard({ tabs: TABS, activeId: dialog.tab, onChange: (id) => dialog.setTab(id as PostSettingsTab) });
   if (!dialog.open) return null;
   return (
     <Dialog

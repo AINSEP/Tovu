@@ -21,8 +21,8 @@ import { probeBubbleMenu } from "./bubble-menu-state";
  * `Toolbar`'s: the two mount independently (this one only appears with a selection), so sharing one
  * selector would make `Toolbar` re-render on every selection change for state it never displays.
  */
-export function BubbleFormattingMenu({ editor, urlDialog, t }: { editor: Editor; urlDialog: PostUrlDialogController; t: Translate }) {
-  const s = useEditorState({
+export function BubbleFormattingMenu({ editor, urlDialog, t, hooks = { useEditorState } }: { editor: Editor; urlDialog: PostUrlDialogController; t: Translate; hooks?: { useEditorState: typeof useEditorState }; }) {
+  const s = hooks.useEditorState({
     editor,
     selector: ({ editor }) => probeBubbleMenu({ editor }),
   });

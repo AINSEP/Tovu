@@ -13,14 +13,15 @@ import { type Translate } from '@jini-ai/core/text';
  */
 
 export interface AgentPluginSurfaceFrameProps {
+  useAdminSurfaceFrame?: typeof useAdminSurfaceFrame;
   readonly pluginId: string;
   readonly surface: AgentPluginSurfaceSummary;
   readonly port: AgentPluginSurfacesPort;
   readonly t: Translate;
 }
 
-export function AgentPluginSurfaceFrame({ pluginId, surface, port, t }: AgentPluginSurfaceFrameProps) {
-  const frame = useAdminSurfaceFrame({ pluginId, surface, port });
+export function AgentPluginSurfaceFrame({ pluginId, surface, port, t, useAdminSurfaceFrame: useAdminSurfaceFrameHook = useAdminSurfaceFrame }: AgentPluginSurfaceFrameProps) {
+  const frame = useAdminSurfaceFrameHook({ pluginId, surface, port });
   if (frame.status === "navigated") return <p className="field-hint" role="status">{t("This view left its page and was closed. Close and reopen the plugin to use it again.")}</p>;
   if (frame.status === "failed") return <p className="field-hint" role="alert">{t("Could not open this view. Close and reopen the plugin to try again.")}</p>;
   const attributes = adminSurfaceFrameAttributes({ src: surface.src, title: surface.title });

@@ -111,6 +111,7 @@ function PackageFileTree({
   fileHandleByPath,
   handlePrefix,
   label,
+  hooks = { usePackageFileTree },
 }: {
   files: readonly PackageFileView[];
   selectedPath: string | null;
@@ -118,8 +119,9 @@ function PackageFileTree({
   fileHandleByPath: ReadonlyMap<string, string>;
   handlePrefix: string;
   label: string;
+  hooks?: { usePackageFileTree: typeof usePackageFileTree };
 }) {
-  const tree = usePackageFileTree({ paths: files.map((file) => file.relativePath), selectedPath, onOpenFile: onSelectFile });
+  const tree = hooks.usePackageFileTree({ paths: files.map((file) => file.relativePath), selectedPath, onOpenFile: onSelectFile });
   const folderPaths = tree.rows.filter((row) => row.node.kind === "folder").map((row) => row.node.path);
   const folderHandles = buildAgentListHandles({ prefix: `${handlePrefix}-folder`, ids: folderPaths });
   const folderHandleByPath = new Map(folderPaths.map((path, index) => [path, folderHandles[index]]));
@@ -179,13 +181,15 @@ function PackageFileContent({
   headingId,
   agentHandleBase,
   t,
+  hooks = { useCodeWrap },
 }: {
   file: PackageFileView;
   headingId: string;
   agentHandleBase: string;
   t: Translate;
+  hooks?: { useCodeWrap: typeof useCodeWrap };
 }) {
-  const { wrap, toggleWrap } = useCodeWrap();
+  const { wrap, toggleWrap } = hooks.useCodeWrap();
   const hasContent = file.content !== null;
 
   return (

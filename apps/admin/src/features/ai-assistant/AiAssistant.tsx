@@ -246,6 +246,7 @@ function AdminAssistantSwitch({
  * full reasoning. State lives in `hooks/use-admin-execution-mode.hooks.ts`.
  */
 interface AdminExecutionModeProps {
+  hooks?: { useAdminExecutionModeHook: typeof useAdminExecutionMode; useAdminExecutionCredentialHook: typeof useWiredAdminExecutionCredential; useAdminLocale: typeof useAdminLocale; useTovuSettingsExecution: typeof useTovuSettingsExecution };
   useExecutionPolicy?: typeof useTovuExecutionPolicy;
   useAdminExecutionModeHook?: typeof useAdminExecutionMode;
   /**
@@ -288,22 +289,21 @@ function resolveAdminExecutionCredentialHook(
 /** Exported (unlike `AdminAssistantSwitch`) so `AdminExecutionMode.unit.test.tsx` can drive its two
  *  DI seams directly, the same way `VisitorCredentialForm` is exported for its own test file. */
 export function AdminExecutionMode(props: AdminExecutionModeProps) {
+  const { hooks = { useAdminExecutionModeHook: resolveAdminExecutionModeHook({ override: props.useAdminExecutionModeHook }), useAdminExecutionCredentialHook: resolveAdminExecutionCredentialHook({ override: props.useAdminExecutionCredentialHook }), useAdminLocale, useTovuSettingsExecution } } = props;
   // No `AdminExecutionModeProps = {}` default on the parameter itself (2026-08-14, same reasoning
   // as `App.tsx`'s own removal): every real call site is JSX, which always constructs an actual
   // props object — `{}` when no attributes are given, never `undefined` — and every field on
   // `AdminExecutionModeProps` is optional, so `{}` still satisfies the type.
-  const useAdminExecutionModeHook = resolveAdminExecutionModeHook({ override: props.useAdminExecutionModeHook });
-  const useAdminExecutionCredentialHook = resolveAdminExecutionCredentialHook({ override: props.useAdminExecutionCredentialHook });
   const t = resolveT({ override: props.t });
-  const { port, execution } = useAdminExecutionModeHook();
-  const locale = useAdminLocale();
-  const executionPolicy = useTovuSettingsExecution({ config: execution.value, onChange: execution.onChange, locale }, { usePolicy: props.useExecutionPolicy });
+  const { port, execution } = hooks.useAdminExecutionModeHook();
+  const locale = hooks.useAdminLocale();
+  const executionPolicy = hooks.useTovuSettingsExecution({ config: execution.value, onChange: execution.onChange, locale }, { usePolicy: props.useExecutionPolicy });
 
   // Called unconditionally, ahead of the `execution.value === null` gate below (rules of hooks) —
   // same reasoning `SettingsUi.tsx`'s identical call documents: the credential hook's own effects
   // don't read `byok` until an explicit Save/migrate press, and the panel this feeds isn't rendered
   // until past the gate anyway.
-  const adminCredential = useAdminExecutionCredentialHook({
+  const adminCredential = hooks.useAdminExecutionCredentialHook({
     byok: adminExecutionByok({ config: execution.value }),
     onByokChange: (byok) => execution.onChange({ ...(execution.value ?? DEFAULT_EXECUTION_CONFIG), byok }),
   });
@@ -387,6 +387,7 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
  * lying-comment failure mode a past defect in this repo was caused by.
  */
 interface AssistantDaemonRestartProps {
+  hooks?: { useAssistantDaemonRestartHook: typeof useWiredAssistantDaemonRestart; useAdminLocale: typeof useAdminLocale };
   useExecutionPolicy?: typeof useTovuExecutionPolicy;
   /** Dependency injection seam for tests — same convention as `AdminExecutionModeProps
    *  .useAdminExecutionModeHook`. */
@@ -418,16 +419,15 @@ export function assistantDaemonStatusMessage(
 }
 
 export function AssistantDaemonRestart(props: AssistantDaemonRestartProps) {
-  const useAssistantDaemonRestartHook = resolveAssistantDaemonRestartHook({ override: props.useAssistantDaemonRestartHook });
+  const { useExecutionPolicy = useTovuExecutionPolicy, hooks = { useAssistantDaemonRestartHook: resolveAssistantDaemonRestartHook({ override: props.useAssistantDaemonRestartHook }), useAdminLocale } } = props;
   const t = resolveT({ override: props.t });
-  const controller = useAssistantDaemonRestartHook();
+  const controller = hooks.useAssistantDaemonRestartHook();
   const { restarting, restartResult, restartError, checkingStatus, checkStatus, restart } = controller;
   const statusMessage = assistantDaemonStatusMessage(controller, t);
   // This panel only reads the policy's `allowed` verdict and never edits the execution config, so
   // it calls the policy hook directly rather than the settings adapter (`useTovuSettingsExecution`),
   // whose required config-change sink would have been a no-op nobody could ever invoke here.
-  const usePolicy = props.useExecutionPolicy ?? useTovuExecutionPolicy;
-  const executionPolicy = usePolicy({ config: DEFAULT_EXECUTION_CONFIG, locale: useAdminLocale() });
+  const executionPolicy = useExecutionPolicy({ config: DEFAULT_EXECUTION_CONFIG, locale: hooks.useAdminLocale() });
   if (!executionPolicy.allowed) return null;
 
   return (
@@ -718,6 +718,7 @@ export function VisitorCredentialSettingsFooter({
 export { visitorCredentialApiKeyPlaceholder } from "./rules";
 
 interface VisitorCredentialFormProps {
+  hooks?: { useStoredCredentialHint: typeof useStoredCredentialHint };
   useVisitorCredentialFormHook?: typeof useWiredVisitorCredentialForm;
   /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc. Defaults to English
    *  passthrough so `VisitorCredentialForm.unit.test.tsx`'s direct render (no `t` passed) keeps
@@ -728,6 +729,7 @@ interface VisitorCredentialFormProps {
 export function VisitorCredentialForm({
   useVisitorCredentialFormHook = useWiredVisitorCredentialForm,
   t = (key: string) => key,
+  hooks = { useStoredCredentialHint },
 }: VisitorCredentialFormProps = {}) {
   const {
     loadState,
@@ -763,7 +765,7 @@ export function VisitorCredentialForm({
    * provider, else Anthropic) is decided in the hook and `rules.ts`, not here.
    */
   const providerSelectId = useId();
-  const apiKeyPlaceholder = useStoredCredentialHint({ stored, storedKeyIsForOtherEndpoint });
+  const apiKeyPlaceholder = hooks.useStoredCredentialHint({ stored, storedKeyIsForOtherEndpoint });
 
   if (loadState.status === "loading") return <p role="status">{t("Loading saved settings…")}</p>;
   if (loadState.status === "error") return <p role="alert">{t(loadState.message)}</p>;
@@ -878,6 +880,7 @@ function AiAssistantLocaleSync({
 }
 
 export interface AiAssistantProps {
+  hooks?: { useAdminThemeBoundary: typeof useAdminThemeBoundary; useAiAssistantTab: typeof useAiAssistantTab; useWiredAdminLocale: typeof useWiredAdminLocale };
   /**
    * Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
    * for `useCustomSelect`, and `features/posts/Posts.tsx`'s `usePostsHook`.
@@ -897,10 +900,10 @@ export interface AiAssistantProps {
   tabId?: string | null;
 }
 
-export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }: AiAssistantProps = {}) {
-  const themeBoundary = useAdminThemeBoundary({}, {});
+export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId, hooks = { useAdminThemeBoundary, useAiAssistantTab, useWiredAdminLocale } }: AiAssistantProps = {}) {
+  const themeBoundary = hooks.useAdminThemeBoundary({}, {});
   const { settings, loadError, saveError, saving, setPublicEnabled, setWidget } = useAiAssistantHook();
-  const { activeTabId, onTabChange } = useAiAssistantTab({ tabId });
+  const { activeTabId, onTabChange } = hooks.useAiAssistantTab({ tabId });
 
   /**
    * The one `useWiredAdminLocale()` call for this whole screen — every subcomponent below (
@@ -911,7 +914,7 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
    * `AboutPanel({ t })` uses, for the same reason (a component that isn't a descendant of the
    * `I18nProvider` mounted below can't call that package's own `useT()`).
    */
-  const locale = useWiredAdminLocale();
+  const locale = hooks.useWiredAdminLocale();
   const t = createAiAssistantTranslator({ locale });
 
   if (loadError) return <div className="notice error">{loadError}</div>;
