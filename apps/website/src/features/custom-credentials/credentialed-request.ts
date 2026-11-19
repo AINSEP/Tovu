@@ -764,5 +764,5 @@ export async function makeCredentialedRequest(
  * @example probeCredentialConnection({ connection, url, schemes }, { httpClient });
  */
 export function probeCredentialConnection(required: CredentialConnectionProbeInput, options: { httpClient: HttpClientPort }): Promise<CredentialConnectionProbeStatus> {
-  return jiniProbe(required, { httpClient: { send: ({ request }, policy) => options.httpClient.send(request, policy) } });
+  return jiniProbe({ ...required, httpClient: { send: ({ request }, policy) => options.httpClient.send(request, policy) } });
 }

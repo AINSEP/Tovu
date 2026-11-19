@@ -23,7 +23,7 @@ export function validatedAgentPluginToolGrant(
   required: { current: AgentPluginToolGrant; declared: AgentPluginDeclaredTools },
   options: { reason?: 'sign-in' | 'owner-enable'; ports?: AgentPluginMcpProjectionPorts } = {},
 ): AgentPluginToolGrant | null {
-  return validatedWithPorts(required, { ...options, ports: options.ports ?? agentPluginMcpProjectionPorts, messages: tovuEnableAccessMessages });
+  return validatedWithPorts({ ...required, ports: options.ports ?? agentPluginMcpProjectionPorts, messages: tovuEnableAccessMessages }, { reason: options.reason });
 }
 
 export function previewAgentPluginEnableAccess(

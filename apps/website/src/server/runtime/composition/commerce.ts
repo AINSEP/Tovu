@@ -301,7 +301,7 @@ export function composeCommerce(required: ComposeCommerceRequired, optional: { w
       },
       createOrder: async input => { const result = await (await checkoutServer()).createOrder(input); void worker.kick(); return result; },
       pay: async input => { const result = await (await checkoutServer()).pay(input); void worker.kick(); return result; },
-      readOrder: async input => readOwnedCommerceOrder({ deps: { workspaceId: required.workspaceId, siteId: required.siteId, orders, orderPayments, payments: sharedPayments }, input }),
+      readOrder: async input => readOwnedCommerceOrder({ deps: { workspaceId: required.workspaceId, siteId: required.siteId, orders, orderPayments, payments: sharedPayments }, ...input }),
       activate: async () => { const status = await (await checkoutServer()).activate(); if (status.ready) { void worker.kick(); } return status; },
       status: async () => { try { return { ...await readStatus(), needsAttention: await needsAttention() }; }
         catch (error) { console.warn('[commerce] Commerce status could not be read; checkout remains unavailable.', describeErrorForLog({ err: error })); return { active: false, ready: false, reason: 'Commerce configuration could not be read; checkout is unavailable while the site remains online.' }; } },
