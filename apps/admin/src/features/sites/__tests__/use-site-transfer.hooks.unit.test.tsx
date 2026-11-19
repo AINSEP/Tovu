@@ -15,7 +15,8 @@ import {
   type SiteShare,
   siteShareNotices,
 } from "../hooks/site-transfer-dependencies.hooks";
-import { liveImportPrompt, useSiteExport, useSiteImport, validShareLink, validWebsiteAddress } from "../hooks/use-site-transfer.hooks";
+import { liveImportPrompt, validShareLink, validWebsiteAddress } from "../hooks/site-transfer-rules";
+import { useSiteExport, useSiteImport } from "../hooks/use-site-transfer.hooks";
 
 /**
  * @file The Export Site / Import Site controllers, driven against `createFakeSiteTransferPort`, plus

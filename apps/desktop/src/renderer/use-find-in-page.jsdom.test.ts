@@ -14,17 +14,10 @@ import { createRequire } from 'node:module';
 import { act, createElement } from 'react';
 
 import { createFindQueryScheduler, FIND_QUERY_SETTLE_MS } from './find-query-scheduler.js';
-import {
-  FIND_FOCUS_RECLAIM_MS,
-  liveAnchorSelection,
-  liveFindClock,
-  useComposedGuestRef,
-  useFindInPage,
-  type FindBridge,
-  type FindFocusClock,
-  type FindInPage,
-  type FindableGuest,
-} from './use-find-in-page.hooks.js';
+import { FIND_FOCUS_RECLAIM_MS } from './find-input-focus.js';
+import { liveAnchorSelection, type FindBridge, type FindableGuest } from './find-target.js';
+import { liveFindClock, type FindFocusClock } from './find-focus-clock.js';
+import { useComposedGuestRef, useFindInPage, type FindInPage } from './use-find-in-page.hooks.js';
 import type { FindInPageResult } from '../contracts/find-in-page.js';
 
 type TestContext = { after: (fn: () => void) => void };

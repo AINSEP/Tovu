@@ -5,7 +5,7 @@ import { describeApiError } from "@/lib/admin-http/request";
 import { siteWriteErrorKey } from "../rules";
 import { defaultSitesPort } from "./sites-dependencies.hooks";
 import type { SitesPort } from "./sites-port.hooks";
-import { validWebsiteAddress } from "./use-site-transfer.hooks";
+import { validWebsiteAddress } from "./site-transfer-rules";
 
 import { interpolate, type Translate } from '@jini-ai/core/text';
 /**

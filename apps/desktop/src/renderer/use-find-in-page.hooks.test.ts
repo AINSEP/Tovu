@@ -8,24 +8,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {
-  findBarReducer,
-  formatMatchCount,
-  initialFindBarState,
-  resolveFindTarget,
-  restoreFindInputFocus,
-  runFind,
-  shouldCloseOnGuestChange,
-  shouldKeepReclaimingFindFocus,
-  shouldReclaimFindFocus,
-  stopFind,
-  subscribeToFindResults,
-  FIND_FOCUS_RECLAIM_MS,
-  type FindBarState,
-  type FindableGuest,
-  type FindBridge,
-  type AnchorSelection,
-} from './use-find-in-page.hooks.js';
+import { findBarReducer, formatMatchCount, initialFindBarState, shouldCloseOnGuestChange, type FindBarState } from './find-bar-state.js';
+import { resolveFindTarget, runFind, stopFind, subscribeToFindResults, type FindableGuest, type FindBridge, type AnchorSelection } from './find-target.js';
+import { restoreFindInputFocus, shouldKeepReclaimingFindFocus, shouldReclaimFindFocus, FIND_FOCUS_RECLAIM_MS } from './find-input-focus.js';
 import type { FindInPageResult } from '../contracts/find-in-page.js';
 
 /** A `<webview>` stand-in that records every imperative call. */
