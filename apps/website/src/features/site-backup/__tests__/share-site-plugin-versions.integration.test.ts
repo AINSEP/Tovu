@@ -18,7 +18,7 @@ import type { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
 import { prepareArchiveExtensions } from "../archive-extensions.js";
 import type { ArchivePlugin } from "../archive-manifest.js";
-import type { SiteSharePlanContent } from "../plan-store.js";
+import type { SiteSharePlanContent } from "../plan-content.js";
 import { buildShareZip } from "../share-zip.js";
 import { collectSiteBackupFiles, type SiteBackupSources } from "../sources.js";
 import { installSitePlugin, jiniSitePlugins, sitePluginManifest } from "./fixtures/site-plugin.fixture.js";

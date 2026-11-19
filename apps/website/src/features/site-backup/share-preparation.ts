@@ -9,7 +9,7 @@ import { checkShareLimits, type ShareDatabaseSanitizer } from "./share-policy.js
 import { bufferArchiveMedia, type ArchiveMediaRewriter } from "./archive-media.js";
 import { prepareArchiveExtensions } from "./archive-extensions.js";
 import { SiteShareRefusal } from "./share-policy.js";
-import type { SiteSharePlanContent } from "./plan-store.js";
+import type { SiteSharePlanContent } from "./plan-content.js";
 import { addPortableSettings, captureProjectedDatabase, collectShareFiles, type ShareLedger } from "./share-preparation-steps.js";
 
 /**

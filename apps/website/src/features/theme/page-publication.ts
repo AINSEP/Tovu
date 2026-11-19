@@ -1,4 +1,5 @@
-import { requestThemePreviewRefresh } from "./preview-refresh.js";
+import { isReservedThemePreviewPath } from "./preview-policy.js";
+import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import { findTheme } from "./theme-discovery.js";
 import { isPublishableThemePageCandidate } from "./theme-page-eligibility.js";
 import { loadTheme, type DiscoveredTheme } from "./theme.js";
@@ -58,6 +59,6 @@ export function setThemePagePublished(
   writeThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: "theme.json", content: `${JSON.stringify(raw, null, 2)}\n` });
   const index = deps.themes.indexOf(theme);
   deps.themes[index] = loadTheme({ themeDir: theme.dir, id: theme.manifest.id, source: theme.source });
-  requestThemePreviewRefresh({ themesDir: deps.themesDir });
+  requestThemePreviewRefresh({ themesDir: deps.themesDir, isReservedPath: isReservedThemePreviewPath });
   return { page, published, publishedPages };
 }

@@ -6,8 +6,7 @@ import { redactSecretShapes } from "@tovu/contracts/secret-redaction";
 import type { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { NO_THEME_ID } from "../theme/index.js";
 import type { prepareShareContent } from "./share-preparation.js";
-import type { SiteBackupPushProgress } from "./push-engine.js";
-import { SiteBackupPushJobs, type PushJobKey, type PushJobWait } from "./push-jobs.js";
+import { SiteBackupPushJobs, type PushJobKey, type PushJobWait, type SiteBackupPushProgress } from "@jini-ai/devops/backup/push-jobs";
 import { buildShareZip, buildStaticSiteZip } from "./share-zip.js";
 import { captureStaticSite, type StaticSitePorts, type StaticSiteCopy } from "./static-copy.js";
 import { createSiteShare, acknowledgeSiteShare, isOwnShareFolder, revokeSiteShare, type ShareDelivery } from "./share-service.js";
@@ -201,7 +200,7 @@ function startExport({ ctx, startRequired }: { ctx: ShareBackendContext; startRe
   if (startRequired.resumedJobId) throw new SiteShareRefusal({ code: "JOB_NOT_FOUND", message: "Share job expired or belongs to another principal. Create a new export." });
   if (ctx.lane.active) throw new SiteShareRefusal({ code: "BUSY", message: "Another share export is running for this site. Wait for it to finish." });
   ctx.lane.active = key.planId;
-  return ctx.jobs.start({ key, progress: { filesDone: 0, filesTotal: 0, bytesDone: 0, bytesTotal: 0 }, run: (signal, progress) => exportShare({ ctx, input: { signal, progress, format: startRequired.format, themeIds: startRequired.themeIds, publicUrl: startRequired.publicUrl, includeSavedKeys: startRequired.includeSavedKeys } }) });
+  return ctx.jobs.start({ key, progress: { filesDone: 0, filesTotal: 0, bytesDone: 0, bytesTotal: 0 }, run: ({ signal, progress }) => exportShare({ ctx, input: { signal, progress, format: startRequired.format, themeIds: startRequired.themeIds, publicUrl: startRequired.publicUrl, includeSavedKeys: startRequired.includeSavedKeys } }) });
 }
 
 async function staticShareOptions({ ctx }: { ctx: ShareBackendContext }, _options = {}): Promise<StaticExportOptions> {
@@ -221,7 +220,7 @@ async function createShare({ ctx, input, options }: { ctx: ShareBackendContext; 
   const jobId = input.jobId ?? randomUUID();
   const key = { planId: jobId, principalId: input.principalId, workspaceId: required.site + (input.format === "static" ? "/static" : "") };
   const job = jobs.find(key) ?? startExport({ ctx, startRequired: { key, resumedJobId: input.jobId, format: input.format, themeIds: selection.themeIds, publicUrl: selection.publicUrl, includeSavedKeys: input.includeSavedKeys } });
-  const waited = await jobs.wait(job, { signal: input.signal, budgetMs: options.waitMs ?? 1500 });
+  const waited = await jobs.wait({ job, signal: input.signal, budgetMs: options.waitMs ?? 1500 });
   const outcome = waited.state === "done" ? { ...waited, result: await required.registry.get({ site: required.site, shareId: waited.result.shareId }) ?? waited.result } : waited;
   return createOutcome({ waited: outcome, jobId, format: input.format });
 }
@@ -265,7 +264,7 @@ async function revokeShare({ ctx, shareId }: { ctx: ShareBackendContext; shareId
  * @complexity The existing bounded export work; diagnostics add only job-local metadata, with no I/O.
  */
 export function createSiteShareBackend(required: ShareBackendRequired, { now = Date.now, appVersion: boundaryVersion, jiniVersion }: ShareBackendOptional = {}): SiteShareBackend {
-  const ctx: ShareBackendContext = { required, jobs: new SiteBackupPushJobs<ExportedShare>({ now }), lane: { active: null }, now, boundaryVersion, jiniVersion };
+  const ctx: ShareBackendContext = { required, jobs: new SiteBackupPushJobs<ExportedShare>({}, { now }), lane: { active: null }, now, boundaryVersion, jiniVersion };
   return {
     registry: required.registry,
     hasWork: () => ctx.lane.active !== null,

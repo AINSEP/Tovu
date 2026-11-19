@@ -1,10 +1,12 @@
+import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
 import { adminFailureResponse, type AdminFailurePorts } from "#src/server/inbound/shared/admin-failure";
 import {
   PresentationSettingsNotFoundError,
   PresentationSettingsValidationError,
   setActiveTheme,
 } from "#src/features/presentation/index";
-import { findStoredTheme, validThemeIds, writableThemeIds, requestThemePreviewRefresh, ThemeStylingRequiredError } from "#src/features/theme/index";
+import { findStoredTheme, validThemeIds, writableThemeIds, ThemeStylingRequiredError } from "#src/features/theme/index";
+import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import { toAdminPresentationResponse } from "#src/server/inbound/admin-http/http/presentation";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
@@ -75,7 +77,7 @@ export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = ({ app
       // theme (not the one that was active before this PATCH), so switching themes immediately
       // updates what BOTH pickers offer, matching `get.ts`'s identical computation.
       const activeTheme = findStoredTheme({ themes: deps.themes, id: result.settings.activeThemeId });
-      requestThemePreviewRefresh({ themesDir: deps.themesDir });
+      requestThemePreviewRefresh({ themesDir: deps.themesDir, isReservedPath: isReservedThemePreviewPath });
       const activeThemeTemplates = activeTheme?.manifest.templates ?? [];
       const activeThemeStaticPageIds = activeTheme ? Object.keys(activeTheme.pages) : [];
       // Themes admin screen (2026-08-10) — same computation as `get.ts`, so a theme switch's

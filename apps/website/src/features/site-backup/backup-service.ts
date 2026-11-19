@@ -34,9 +34,9 @@ import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from
 import type { SiteImportBackend } from "./import-backend.js";
 import type { SiteShareBackend } from "./share-backend.js";
 import { SiteShareRefusal, type ShareDatabaseSanitizer } from "./share-policy.js";
-import { siteBackupPlanStore as DEFAULT_PLAN_STORE, type SiteBackupPlan, type SiteBackupPlanStore } from "./plan-store.js";
-import { CANCELLED, initialPushProgress, uploadPlannedContent, type SiteBackupPushProgress } from "./push-engine.js";
-import { SiteBackupPushJobs } from "./push-jobs.js";
+import { siteBackupPlanStore as DEFAULT_PLAN_STORE, type SiteBackupPlan, type TovuBackupPlanStore } from "./plan-content.js";
+import { CANCELLED, initialPushProgress, uploadPlannedContent } from "./push-engine.js";
+import { SiteBackupPushJobs, type SiteBackupPushProgress } from "@jini-ai/devops/backup/push-jobs";
 import {
   captureDatabaseSnapshot,
   checkSiteBackupLimits,
@@ -61,7 +61,7 @@ import {
  * Why two calls: the plan does every check that can fail (credential, repository visibility and
  * permissions, branch, folder, database snapshot, sizes) and returns what WOULD be written, so the
  * model can report the planned backup. The push uploads exactly what was planned: the database snapshot is
- * held in memory with the plan (`plan-store.ts`), and each disk file is re-read and refused if it
+ * held in memory with the plan (`plan-content.ts`), and each disk file is re-read and refused if it
  * changed since (`readPlannedFile`).
  *
  * A large backup outlasts one tool call: the push runs as a job (`push-jobs.ts`), the call waits for
@@ -139,7 +139,7 @@ export interface SiteBackupToolDeps {
   /** Composition binds the same trusted catalogue and sanitizer as share/export. */
   readonly siteBackupSanitize: ShareDatabaseSanitizer;
   /** Test-only; defaults to the process-wide store. */
-  readonly siteBackupPlanStore?: SiteBackupPlanStore;
+  readonly siteBackupPlanStore?: TovuBackupPlanStore;
   /** Test-only; defaults to {@link siteAwareSiteKeyStatus} (site-aware — see that function's doc). */
   readonly siteBackupSiteKeyStatus?: () => { readonly active: boolean; readonly invalid?: boolean };
   /** Test-only; defaults to `console.warn`. Receives only lines built here — never a token. */
@@ -737,7 +737,7 @@ const PLAN_TAKE_MESSAGES = {
  *  of a delegated tool call (`push-jobs.ts`), with room for the checks before the upload. */
 export const PUSH_WAIT_MS = 4 * 60 * 1000;
 
-const DEFAULT_PUSH_JOBS = new SiteBackupPushJobs<PushResult>();
+const DEFAULT_PUSH_JOBS = new SiteBackupPushJobs<PushResult>({});
 
 /** What a call returns while its job is still uploading. */
 function inProgressResult({ planId, progress, elapsedMs }: { planId: string; progress: SiteBackupPushProgress; elapsedMs: number }, _optional: Record<string, never> = {}): PushResult {
@@ -778,10 +778,10 @@ export async function pushSiteBackup(
   if (!job) {
     const taken = (deps.siteBackupPlanStore ?? DEFAULT_PLAN_STORE).take(key);
     if (!taken.ok) return { pushed: false, cancelled: false, code: taken.code, message: PLAN_TAKE_MESSAGES[taken.code] };
-    job = jobs.start({ key, progress: initialPushProgress(taken.plan), run: (signal, progress) => pushPlannedBackup({ deps, plan: taken.plan, run: { signal, progress } }) });
+    job = jobs.start({ key, progress: initialPushProgress(taken.plan), run: ({ signal, progress }) => pushPlannedBackup({ deps, plan: taken.plan, run: { signal, progress } }) });
   }
 
-  const waited = await jobs.wait(job, { signal: ctx.signal, budgetMs: pushWaitBudget({ deps, waitMs: optional.waitMs }) });
+  const waited = await jobs.wait({ job, signal: ctx.signal, budgetMs: pushWaitBudget({ deps, waitMs: optional.waitMs }) });
   if (waited.state === "done") return waited.result;
   if (waited.state === "abandoned") return { pushed: false, cancelled: false, reason: "abandoned" };
   return inProgressResult({ planId, progress: waited.progress, elapsedMs: waited.elapsedMs });

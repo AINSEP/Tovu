@@ -17,11 +17,12 @@ import type { SecretSealerPort } from "../../webhooks/index.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { resolveAgentPluginLayout } from "../../agent-plugins/layout.js";
-import { SiteBackupPlanStore, type SiteBackupPlan } from "../plan-store.js";
+import { SiteBackupPlanStore } from "@jini-ai/devops/backup/plan-store";
+import type { SiteBackupPlan, SiteBackupPlanContent } from "../plan-content.js";
 import type { PlannedDiskFile, SiteBackupSources } from "../sources.js";
 import { initialPushProgress, uploadPlannedContent, CANCELLED, type PushFailure } from "../push-engine.js";
 import { buildSourceControlProviderForApi } from "../../source-control/provider-registry.js";
-import { SiteBackupPushJobs } from "../push-jobs.js";
+import { SiteBackupPushJobs } from "@jini-ai/devops/backup/push-jobs";
 import { SiteShareRefusal } from "../share-policy.js";
 import { buildSiteBackupRegistrations, contributeSiteBackupTools, siteBackupAgentToolCatalog, siteBackupDerivedRisk, type PushResult, type SiteBackupToolDeps } from "../tool-registrations.js";
 import type { SourceControlProviderDescriptor } from "../../source-control/provider-registry.js";
@@ -183,7 +184,7 @@ function harness(t: TestContext, options: HarnessOptions = {}) {
   const authorized: string[] = [];
   const logLines: string[] = [];
   const surfaceExchanges = createSurfaceExchangeStore({ scheduler: createTimeoutScheduler({}), clock: createSystemClock(), idGenerator: createRandomUuidGenerator(), defaultChannel: "mcp-ui" });
-  const planStore = new SiteBackupPlanStore(options.planNowMs ? { now: options.planNowMs } : {});
+  const planStore = new SiteBackupPlanStore<SiteBackupPlanContent>({}, options.planNowMs ? { now: options.planNowMs } : {});
   /** Every retry wait the GitHub client asked for; none is slept. */
   const sleeps: number[] = [];
   /** Every snapshot the backup handed its sanitizer. */
@@ -206,7 +207,7 @@ function harness(t: TestContext, options: HarnessOptions = {}) {
     ...(options.useDefaultSiteKeyStatus ? {} : { siteBackupSiteKeyStatus: options.siteKeyStatus ?? (() => ({ active: true })) }),
     siteBackupFailureLog: (line) => logLines.push(line),
     siteBackupNow: () => new Date(NOW),
-    siteBackupPushJobs: new SiteBackupPushJobs<PushResult>(),
+    siteBackupPushJobs: new SiteBackupPushJobs<PushResult>({}),
     siteBackupSleep: async (ms) => void sleeps.push(ms),
     siteBackupSanitize: async ({ snapshot }) => {
       sanitized.push([...snapshot]);
@@ -755,6 +756,8 @@ test("a planId works once: a second push with it is PLAN_NOT_FOUND and raises no
   const planId = await plannedId(h);
   const first = await beginCall(h, planId);
   assert.equal((await first.pending).pushed, true);
+  assert.deepEqual(h.deps.siteBackupPlanStore!.take({ planId, principalId: OWNER_PRINCIPAL, workspaceId: WORKSPACE_ID }),
+    { ok: false, code: "PLAN_NOT_FOUND" }, "the successful push consumed its plan");
   const callsAfterPush = h.github.calls.length;
 
   const emitted: unknown[] = [];
@@ -987,8 +990,12 @@ test("a push past its wait budget returns inProgress with progress; re-calling w
   assert.deepEqual(progress, { filesDone: 5, filesTotal: 6, bytesDone: progress.bytesTotal - DB_BYTES.length, bytesTotal: progress.bytesTotal }, "the inline text is done; the database blob is held");
   assert.match(first.message as string, /Call site_backup_push again with the same planId/);
 
+  const key = { planId, principalId: OWNER_PRINCIPAL, workspaceId: WORKSPACE_ID };
+  const running = h.deps.siteBackupPushJobs!.find(key);
+  assert.ok(running, "the budget leaves the original upload registered");
   const second = (await call(h.pushTool, { planId })) as Result;
   assert.equal(second.inProgress, true, "still uploading, and the plan was not taken a second time");
+  assert.equal(h.deps.siteBackupPushJobs!.find(key), running, "resuming must retain the same job");
 
   gate.open();
   const third = (await call(h.pushTool, { planId })) as Result;

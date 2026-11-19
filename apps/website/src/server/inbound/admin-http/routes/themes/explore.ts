@@ -1,5 +1,6 @@
+import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
 import { sendAdminFailure } from "#src/server/inbound/shared/admin-failure";
-import { requestThemePreviewRefresh } from "#src/features/theme/index";
+import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import { setThemePagePublished, ThemePagePublicationError } from "#src/features/theme/index";
 import type { Response } from "express";
 
@@ -164,7 +165,7 @@ export function reloadTheme({ deps, themeId }: { deps: ContentRouteDeps; themeId
   if (index < 0) return;
   const current = deps.themes[index];
   deps.themes[index] = loadTheme({ themeDir: current.dir, id: themeId, source: current.source });
-  requestThemePreviewRefresh({ themesDir: deps.themesDir });
+  requestThemePreviewRefresh({ themesDir: deps.themesDir, isReservedPath: isReservedThemePreviewPath });
 }
 
 /**

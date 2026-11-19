@@ -11,7 +11,7 @@ import { createSiteShareBackend } from "../share-backend.js";
 import { SiteShareRegistry } from "../share-registry.js";
 import { requireShareSecretFree, excludedSharePath, validateSharePath } from "../share-file-policy.js";
 import type { CredentialWarning } from "../credential-warnings.js";
-import type { SiteSharePlanContent } from "../plan-store.js";
+import type { SiteSharePlanContent } from "../plan-content.js";
 import { sanitizeShareDatabase, rebuildImportDatabase } from "#src/server/runtime/composition/site-portability";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { closeSqliteConnection } from "#src/platform/db/kernel/drivers/sqlite";

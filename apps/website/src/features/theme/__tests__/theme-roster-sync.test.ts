@@ -1,10 +1,12 @@
+import { isReservedThemePreviewPath } from "../preview-policy.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { discoverAllBuiltInThemes, requestThemePreviewRefresh, type DiscoveredTheme } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes, type DiscoveredTheme } from "#src/features/theme/index";
+import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import { syncThemeRoster, themeRosterFingerprint } from "#src/features/theme/theme-roster-sync";
 
 /**
@@ -60,7 +62,7 @@ test("a theme folder another process removed drops out", (t) => {
 test("an edit inside a theme is picked up when the writer bumps the marker", (t) => {
   const { themesDir, themes } = siteThemes(t);
   fs.writeFileSync(path.join(themesDir, "static", "tovu-starter", "tokens.json"), JSON.stringify({ "--ink": "#f0f" }));
-  requestThemePreviewRefresh({ themesDir });
+  requestThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath });
   assert.equal(syncThemeRoster({ themes, themesDir }), true);
   assert.equal(themes[0]?.tokens["--ink"], "#f0f");
 });
@@ -92,10 +94,10 @@ test("a forced first sync discovers rather than adopting an empty roster", (t) =
 
 test("one change rescans once, however many syncs follow it", (t) => {
   const { themesDir, themes } = siteThemes(t);
-  requestThemePreviewRefresh({ themesDir });
+  requestThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath });
   assert.equal(syncThemeRoster({ themes, themesDir }), true);
   assert.equal(syncThemeRoster({ themes, themesDir }), false);
-  requestThemePreviewRefresh({ themesDir });
+  requestThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath });
   assert.equal(syncThemeRoster({ themes, themesDir }), true);
 });
 

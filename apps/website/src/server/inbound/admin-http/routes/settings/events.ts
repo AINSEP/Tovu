@@ -1,3 +1,4 @@
+import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
 /**
  * @file `GET /api/admin/v1/workspaces/:workspaceId/settings/events` — a Server-Sent Events stream
  * that tells an open admin tab when settings it can read have changed, so it re-reads without a
@@ -68,7 +69,7 @@
  */
 
 import { authorizeChangeFeed } from "./preview-feed-access.js";
-import { createThemePreviewFeed, readThemePreviewRefresh } from "#src/features/theme/index";
+import { createThemePreviewFeed, readThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import {
   collectChangedNamespaces,
   type ChangeFeedViewer,
@@ -240,8 +241,8 @@ function runChangeFeed(required: Admission & {
 
   // One tiny site-local marker bridges saves from the separate agent-daemon process.
   // Theme events have their own type and never advance the settings ledger's Last-Event-ID.
-  const previewFeed = createThemePreviewFeed({
-    read: () => deps.themesDir ? readThemePreviewRefresh({ themesDir: deps.themesDir }) : null,
+  const previewFeed = createThemePreviewFeed({ isReservedPath: isReservedThemePreviewPath,
+    read: () => deps.themesDir ? readThemePreviewRefresh({ themesDir: deps.themesDir, isReservedPath: isReservedThemePreviewPath }) : null,
     emit: ({ frame }, _options = {}) => res.write(`event: theme-preview-refresh\ndata: ${JSON.stringify(frame)}\n\n`),
   }, { resumeRevision: typeof req.query.themeRevision === "string" ? req.query.themeRevision : undefined });
   let closed = false;

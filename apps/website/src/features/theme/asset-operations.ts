@@ -1,3 +1,4 @@
+import { isReservedThemePreviewPath } from "./preview-policy.js";
 /** Shared theme file gates and live reload, independent of tool registration. */
 import type { AuthorizeFn } from "@jini-ai/core/contracts/events";
 import { isGeneratedThemePath, resolveThemeFileWriteScope } from "./theme-file-policy.js";
@@ -6,7 +7,7 @@ import { renameThemeFile } from "./theme-file-moves.js";
 import { ThemePathError } from "./theme-files.js";
 import { isInsideCompiledSourceDir, isSourceDirWritableExtension, isTrashedThemePath, trashDestinationFor, validateFileIdentityChange } from "./file-identity-lock.js";
 import { loadTheme, type DiscoveredTheme } from "./theme.js";
-import { requestThemePreviewRefresh } from "./preview-refresh.js";
+import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 
 export { THEME_WRITE_PERMISSION } from "./agent-tools.js";
 export { resolveThemeFilePath } from "./theme-files.js";
@@ -184,7 +185,7 @@ export function reloadThemeInPlace({ routeDeps, theme, themeId }: { routeDeps: T
   const reloaded = loadTheme({ themeDir: theme.dir, id: themeId, source: theme.source });
   const index = routeDeps.themes.findIndex((t) => t.manifest.id === themeId);
   if (index >= 0) routeDeps.themes[index] = reloaded;
-  requestThemePreviewRefresh({ themesDir: routeDeps.themesDir });
+  requestThemePreviewRefresh({ themesDir: routeDeps.themesDir, isReservedPath: isReservedThemePreviewPath });
   return reloaded;
 }
 

@@ -1,3 +1,4 @@
+import { isReservedThemePreviewPath } from "./preview-policy.js";
 import { existsSync, mkdirSync, readdirSync } from "node:fs";
 import type { rename } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve } from "node:path";
@@ -6,7 +7,7 @@ import type { TrashAdapter, TrashMarkerResult } from "@jini-ai/cms/trash";
 
 import { createDirectoryTrashAdapter, THEME_ENTITY_TYPE, type DirectoryTrashLocation } from "#src/features/trash/index";
 
-import { requestThemePreviewRefresh } from "./preview-refresh.js";
+import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import { ENGINE_SUBFOLDERS, THEME_CATALOG_DIR } from "./theme-layout.js";
 import { findTheme, rescanThemes } from "./theme-discovery.js";
 import { type DiscoveredTheme } from "./theme.js";
@@ -134,7 +135,7 @@ export function createThemeTrashAdapter(
   const { themes, themesDir } = required;
   const refresh = async (): Promise<void> => {
     rescanThemes({ themes, dir: themesDir });
-    requestThemePreviewRefresh({ themesDir });
+    requestThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath });
   };
   const adapter = createDirectoryTrashAdapter(
     { entityType: THEME_ENTITY_TYPE, locate: ({ entityId }) => locateThemeFolder({ themes, themesDir, themeId: entityId }) },

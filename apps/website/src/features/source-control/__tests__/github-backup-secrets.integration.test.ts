@@ -14,8 +14,9 @@ import { InMemoryCustomCredentialSetRepo } from "../../custom-credentials/repo.m
 import { createCustomCredential } from "../../custom-credentials/store.js";
 import { planSiteBackup, pushSiteBackup, type PushResult, type SiteBackupToolDeps } from "../../site-backup/backup-service.js";
 import { FakeGitHub } from "../../site-backup/__tests__/fixtures/fake-github.js";
-import { SiteBackupPlanStore } from "../../site-backup/plan-store.js";
-import { SiteBackupPushJobs } from "../../site-backup/push-jobs.js";
+import { SiteBackupPlanStore } from "@jini-ai/devops/backup/plan-store";
+import type { SiteBackupPlanContent } from "../../site-backup/plan-content.js";
+import { SiteBackupPushJobs } from "@jini-ai/devops/backup/push-jobs";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { githubFromSource } from "./fixtures/github-from-source.js";
@@ -89,8 +90,8 @@ test("SEC-1: GitHub backup excludes password hashes, sessions, magic-link tokens
       agentPlugins: resolveAgentPluginLayout({ siteDir: process.cwd() }, { env: { TOVU_AGENT_PLUGINS_DIR: path.join(siteDir, "agent-plugins") } }),
       skillsDir: path.join(siteDir, "skills"), tovuVersion: "test",
     },
-    siteBackupPlanStore: new SiteBackupPlanStore(),
-    siteBackupPushJobs: new SiteBackupPushJobs<PushResult>(),
+    siteBackupPlanStore: new SiteBackupPlanStore<SiteBackupPlanContent>({}),
+    siteBackupPushJobs: new SiteBackupPushJobs<PushResult>({}),
     siteBackupSiteKeyStatus: () => ({ active: true }),
     siteBackupSanitize: sanitizeShareDatabase,
     siteBackupNow: () => new Date(stamp),

@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
+import type { SiteBackupPushProgress } from "@jini-ai/devops/backup/push-jobs";
 
 import type { BackupTreeEntry, CredentialedRepositoryTarget, ProviderCallFailure, SourceControlProvider } from "../source-control/provider-module.js";
-import type { SiteBackupPlan } from "./plan-store.js";
+import type { SiteBackupPlan } from "./plan-content.js";
 import { buildSiteBackupManifest, readPlannedFile, SITE_BACKUP_DATABASE_PATH, SITE_BACKUP_MANIFEST_PATH } from "./sources.js";
 
 /**
@@ -31,14 +32,6 @@ export interface PushFailure {
   readonly ok: false;
   readonly code: string;
   readonly message: string;
-}
-
-/** How far a push has got, updated in place as files go up. The manifest is not counted. */
-export interface SiteBackupPushProgress {
-  filesDone: number;
-  readonly filesTotal: number;
-  bytesDone: number;
-  readonly bytesTotal: number;
 }
 
 export interface UploadPlannedContentInput {

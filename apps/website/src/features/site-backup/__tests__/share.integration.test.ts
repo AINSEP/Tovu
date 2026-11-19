@@ -18,7 +18,8 @@ import { zipFolderFiles } from "@jini-ai/agent-plugins/folder-zip";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { sanitizeShareDatabase, rewriteArchiveMedia } from "#src/server/runtime/composition/site-portability";
 import { buildShareZip } from "../share-zip.js";
-import { SiteBackupPlanStore } from "../plan-store.js";
+import { SiteBackupPlanStore } from "@jini-ai/devops/backup/plan-store";
+import type { SiteBackupPlanContent } from "../plan-content.js";
 import { SiteShareRegistry } from "../share-registry.js";
 import { createSiteShare, revokeSiteShare } from "../share-service.js";
 import { registerPublicShareRoutes } from "#src/server/inbound/public-http/routes/site-share";
@@ -87,7 +88,7 @@ function common(database: Buffer) {
 
 test("ZIP target uses the common plan/manifest; repository plans retain their original contract", async () => {
   const bytes = Buffer.from("sqlite fixture");
-  const store = new SiteBackupPlanStore();
+  const store = new SiteBackupPlanStore<SiteBackupPlanContent>({});
   const repository = { credentialLabel: "private", owner: "owner", repo: "repo", folder: "site", commitMessage: "backup", repository: { branch: "main", parentCommitSha: "parent", baseTreeSha: "tree", htmlUrl: "https://example.test/repo", folderExists: false } };
   const saved = store.save({ principalId: "owner", workspaceId: "ws", content: { ...common(bytes), ...repository } });
   const taken = store.take({ planId: saved.planId, principalId: "owner", workspaceId: "ws" });

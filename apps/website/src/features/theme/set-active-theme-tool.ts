@@ -1,3 +1,4 @@
+import { isReservedThemePreviewPath } from "./preview-policy.js";
 import type { Tracker } from "@jini-ai/diagnostics/observability";
 import { toolMetadata } from '../../contracts/core/tool-metadata/theme.js';
 import { type Clock } from "@jini-ai/core/primitives";
@@ -16,7 +17,7 @@ import {
 } from "#src/features/presentation/index";
 
 import { writableThemeIds, ThemeStylingRequiredError } from "./active-theme.js";
-import { requestThemePreviewRefresh } from "./preview-refresh.js";
+import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import type { DiscoveredTheme } from "./theme.js";
 import { syncThemeRoster } from "./theme-roster-sync.js";
 import { verifyActiveThemeResolves } from "./verify-active-theme.js";
@@ -143,7 +144,7 @@ export async function applyActiveTheme(
     throw activationInputError({ error: err, routeDeps });
   }
   if (routeDeps.themesDir) {
-    requestThemePreviewRefresh({ themesDir: routeDeps.themesDir });
+    requestThemePreviewRefresh({ themesDir: routeDeps.themesDir, isReservedPath: isReservedThemePreviewPath });
     await verifyActiveThemeResolves({ deps: { ...routeDeps, themesDir: routeDeps.themesDir }, activeThemeId, previousThemeId });
   }
   if (previousThemeId !== activeThemeId) {

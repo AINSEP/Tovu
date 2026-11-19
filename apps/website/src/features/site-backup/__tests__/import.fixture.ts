@@ -38,7 +38,7 @@ import { FIRST_PARTY_DATA_MODULES } from "../../../server/runtime/composition/da
 import { declareDataModule } from "@jini-ai/db/data-modules";
 import { ensureDefaultList } from "../../newsletter/lists.js";
 import { SqliteNewsletterListRepo } from "../../newsletter/repo.sqlite.js";
-import type { SiteSharePlanContent } from "../plan-store.js";
+import type { SiteSharePlanContent } from "../plan-content.js";
 import { jiniSitePlugins, sitePluginManifest } from "./fixtures/site-plugin.fixture.js";
 import { onTeardown } from "#src/__tests__/fixtures/teardown";
 

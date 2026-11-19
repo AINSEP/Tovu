@@ -1,3 +1,5 @@
+import { isReservedThemePreviewPath } from "#src/features/theme/preview-policy";
+import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 /** Spec/ADR: ADS-memory/.local-artifacts/theme-preview-refresh/design.md */
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -35,7 +37,6 @@ test("settings-only subscription does not acquire theme permission or bypass set
 
 test("existing stream emits exact theme frames across writers, reauthorizes and cleans up its timers", async (t) => {
   const { registerAdminSettingsEventsRoute } = await import("../events.js");
-  const { requestThemePreviewRefresh } = await import("#src/features/theme/index");
   const fs = await import("node:fs");
   const os = await import("node:os");
   const path = await import("node:path");
@@ -82,7 +83,7 @@ test("existing stream emits exact theme frames across writers, reauthorizes and 
   const writes: string[] = [];
   const req = {
     params: { workspaceId: "ws" },
-    query: { themePreview: "1" },
+    query: { themePreview: "1", themeRevision: "before-disconnect" },
     headers: {},
     httpVersionMajor: 2,
     on: (_name: string, fn: Function) => closeHandlers.push(fn),
@@ -97,15 +98,20 @@ test("existing stream emits exact theme frames across writers, reauthorizes and 
       ended = true;
     },
   };
-  requestThemePreviewRefresh({ themesDir }, { revision: "first", path: "/old" });
+  requestThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath }, { revision: "first", path: "/old" });
   await handler(req, res);
-  ticks.get(1000)?.();
-  await new Promise(setImmediate);
-  requestThemePreviewRefresh({ themesDir }, { revision: "second", path: "/create-a-theme" });
   ticks.get(1000)?.();
   await new Promise(setImmediate);
   assert.deepEqual(writes, [
     ": connected\n\n",
+    'event: theme-preview-refresh\ndata: {"revision":"first","path":"/old"}\n\n',
+  ], "the resumed stream delivers the marker written while disconnected");
+  requestThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath }, { revision: "second", path: "/create-a-theme" });
+  ticks.get(1000)?.();
+  await new Promise(setImmediate);
+  assert.deepEqual(writes, [
+    ": connected\n\n",
+    'event: theme-preview-refresh\ndata: {"revision":"first","path":"/old"}\n\n',
     'event: theme-preview-refresh\ndata: {"revision":"second","path":"/create-a-theme"}\n\n',
   ]);
   allowed = false;

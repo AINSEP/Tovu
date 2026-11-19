@@ -1,7 +1,8 @@
+import { isReservedThemePreviewPath } from "./preview-policy.js";
 import { statSync } from "node:fs";
 import { join } from "node:path";
 
-import { readThemePreviewRefresh } from "./preview-refresh.js";
+import { readThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import { ENGINE_SUBFOLDERS } from "./theme-layout.js";
 import { rescanThemes } from "./theme-discovery.js";
 import { type DiscoveredTheme } from "./theme.js";
@@ -55,7 +56,7 @@ export function themeRosterFingerprint(
       return null;
     }
   };
-  const revision = readThemePreviewRefresh({ themesDir })?.revision ?? null;
+  const revision = readThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath })?.revision ?? null;
   return JSON.stringify([revision, mtimeOf({ sub: null }), ...ENGINE_SUBFOLDERS.map((sub) => mtimeOf({ sub }))]);
 }
 

@@ -1,6 +1,7 @@
+import { isReservedThemePreviewPath } from "./preview-policy.js";
 import { watch } from "node:fs";
 
-import { requestThemePreviewRefresh } from "./preview-refresh.js";
+import { requestThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import { syncThemeRoster } from "./theme-roster-sync.js";
 import type { DiscoveredTheme } from "./theme.js";
 
@@ -77,7 +78,7 @@ export function startThemeWatcher(
     pending = undefined;
     try {
       syncThemeRoster(required, { force: true });
-      requestThemePreviewRefresh({ themesDir: required.themesDir });
+      requestThemePreviewRefresh({ themesDir: required.themesDir, isReservedPath: isReservedThemePreviewPath });
     } catch (error) { onError({ error }); }
   };
 

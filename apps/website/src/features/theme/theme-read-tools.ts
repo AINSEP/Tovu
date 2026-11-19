@@ -1,6 +1,7 @@
+import { isReservedThemePreviewPath } from "./preview-policy.js";
 import { findThemeOrThrow, isShapeRejection, type ThemeToolDeps } from "./asset-operations.js";
 import { adaptLegacyAuthorize } from "@jini-ai/cms/core";
-import { requestThemePreviewRefresh, validatePreviewPath } from "./preview-refresh.js";
+import { requestThemePreviewRefresh, validatePreviewPath } from "@jini-ai/cms/themes/preview/refresh";
 import { NO_THEME_ID } from "./active-theme.js";
 import { statSync } from "node:fs";
 import { ToolInputError } from "@jini-ai/core";
@@ -25,9 +26,9 @@ import { CATALOG_BY_ID } from "./theme-tool-catalog.js";
     export async function preview_reload(routeDeps: ThemeToolDeps, ctx: Parameters<ToolHandler>[0]) {
       const input = requireInputRecord({ input: ctx.input ?? {} });
       const path = optionalString({ input, key: "path" });
-      if (path !== undefined) validatePreviewPath({ path });
+      if (path !== undefined) validatePreviewPath({ path, isReservedPath: isReservedThemePreviewPath });
       await requireToolPermission({ authorize: adaptLegacyAuthorize({ authorize: routeDeps.authorize }), workspaceId: routeDeps.workspaceId, principalId: ctx.principal.id, permission: THEME_READ_PERMISSION }, { entityType: "theme" });
-      return { reloaded: true, ...requestThemePreviewRefresh({ themesDir: routeDeps.themesDir }, { path }) };
+      return { reloaded: true, ...requestThemePreviewRefresh({ themesDir: routeDeps.themesDir, isReservedPath: isReservedThemePreviewPath }, { path }) };
     }
     /**
      * Refreshes the rendering registry in place after folders arrive or disappear.

@@ -1,3 +1,4 @@
+import { isReservedThemePreviewPath } from "../preview-policy.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -5,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { discoverAllBuiltInThemes } from "../theme-discovery.js";
-import { createThemePreviewFeed, readThemePreviewRefresh, type ThemePreviewRefresh } from "../preview-refresh.js";
+import { createThemePreviewFeed, readThemePreviewRefresh, type ThemePreviewRefresh } from "@jini-ai/cms/themes/preview/refresh";
 import { startThemeWatcher, type ThemeWatchPort } from "../theme-watcher.js";
 
 /** Real discovery/marker/feed, fake watcher and clock: no OS watch, server or waiting. */
@@ -24,7 +25,7 @@ function fixture(t: test.TestContext) {
   writeTheme("basic");
   const themes = discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" });
   const frames: ThemePreviewRefresh[] = [];
-  const feed = createThemePreviewFeed({ read: () => readThemePreviewRefresh({ themesDir }), emit: ({ frame }, _options = {}) => {
+  const feed = createThemePreviewFeed({ isReservedPath: isReservedThemePreviewPath, read: () => readThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath }), emit: ({ frame }, _options = {}) => {
     assert.deepEqual(themes.map((theme) => theme.manifest.id), discoverAllBuiltInThemes({ dir: themesDir, source: "built-in" }).map((theme) => theme.manifest.id),
       "discovery is current before an SSE consumer receives the frame");
     frames.push(frame);
@@ -70,7 +71,7 @@ test("settle-then-refresh coalesces adds, changes and removals before the existi
   assert.equal(f.frames.length, 1);
   const revision = f.frames[0].revision;
   t.mock.timers.tick(2_000);
-  assert.equal(readThemePreviewRefresh({ themesDir: f.themesDir })?.revision, revision, "no trailing duplicate refresh");
+  assert.equal(readThemePreviewRefresh({ themesDir: f.themesDir, isReservedPath: isReservedThemePreviewPath })?.revision, revision, "no trailing duplicate refresh");
 });
 
 test("a nested external edit reloads source maps without an in-app marker or folder membership change", (t) => {
@@ -93,7 +94,7 @@ test("metadata, node_modules and editor temp paths never trigger or postpone a r
     "static/basic/style.temp", "static/basic/style.bak", "static/basic/style.css___jb_tmp___", "static/basic/style.css___jb_old___"];
   for (const filename of ignored) f.change(filename);
   t.mock.timers.tick(400);
-  assert.equal(readThemePreviewRefresh({ themesDir: f.themesDir }), null);
+  assert.equal(readThemePreviewRefresh({ themesDir: f.themesDir, isReservedPath: isReservedThemePreviewPath }), null);
   f.change("static/basic/styles.css");
   t.mock.timers.tick(300);
   for (const filename of ignored) f.change(filename);
@@ -102,7 +103,7 @@ test("metadata, node_modules and editor temp paths never trigger or postpone a r
   assert.equal(f.frames.length, 1, "ignored events do not reset the quiet-period timer");
   f.change(".preview-refresh.json"); // Our own notification must not create a feedback loop.
   t.mock.timers.tick(1_000);
-  assert.equal(readThemePreviewRefresh({ themesDir: f.themesDir })?.revision, f.frames[0].revision);
+  assert.equal(readThemePreviewRefresh({ themesDir: f.themesDir, isReservedPath: isReservedThemePreviewPath })?.revision, f.frames[0].revision);
 });
 
 test("an event with no filename still refreshes discovery", (t) => {
@@ -121,7 +122,7 @@ test("stop cancels pending work, ignores late events and closes exactly once", a
   f.change("static/basic/styles.css");
   t.mock.timers.tick(1_000);
   assert.equal(f.closes(), 1);
-  assert.equal(readThemePreviewRefresh({ themesDir: f.themesDir }), null);
+  assert.equal(readThemePreviewRefresh({ themesDir: f.themesDir, isReservedPath: isReservedThemePreviewPath }), null);
 });
 
 test("restarts and site switches replace the sole watcher; an old stop cannot close its successor", async (t) => {
@@ -142,7 +143,7 @@ test("restarts and site switches replace the sole watcher; an old stop cannot cl
   await restarted.stop();
   oldChange({ filename: "static/basic/styles.css" });
   t.mock.timers.tick(1_000);
-  assert.equal(readThemePreviewRefresh({ themesDir: f.themesDir }), null);
+  assert.equal(readThemePreviewRefresh({ themesDir: f.themesDir, isReservedPath: isReservedThemePreviewPath }), null);
   assert.equal(nextClosed, 0);
   await switched.stop();
   assert.equal(nextClosed, 1);
@@ -156,7 +157,7 @@ test("watch errors cancel pending work and close the failed handle", (t) => {
   t.mock.timers.tick(400);
   assert.deepEqual(f.errors, [error]);
   assert.equal(f.closes(), 1);
-  assert.equal(readThemePreviewRefresh({ themesDir: f.themesDir }), null);
+  assert.equal(readThemePreviewRefresh({ themesDir: f.themesDir, isReservedPath: isReservedThemePreviewPath }), null);
 });
 
 test("opening failure is reported and a subsequent start can recover", async (t) => {
@@ -200,13 +201,13 @@ test("the default OS watcher refreshes discovery and the preview marker after a 
   const errors: unknown[] = [];
   const watcher = startThemeWatcher({ themes, themesDir }, { settleMs: 10, onError: ({ error }) => errors.push(error) });
   t.after(async () => { await watcher.stop(); fs.rmSync(root, { recursive: true, force: true }); });
-  assert.equal(readThemePreviewRefresh({ themesDir }), null);
+  assert.equal(readThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath }), null);
   const deadline = Date.now() + 10_000;
   let frame: ThemePreviewRefresh | null = null;
   for (let attempt = 0; frame === null && Date.now() < deadline; attempt += 1) {
     fs.writeFileSync(path.join(themesDir, `touch-${attempt}.txt`), "x");
     await new Promise((resolve) => setTimeout(resolve, 100));
-    frame = readThemePreviewRefresh({ themesDir });
+    frame = readThemePreviewRefresh({ themesDir, isReservedPath: isReservedThemePreviewPath });
   }
   assert.ok(frame, "a real filesystem event reached the settle-then-refresh path");
   assert.deepEqual(errors, []);

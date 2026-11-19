@@ -182,7 +182,6 @@ export { saveThemeAsOriginal, type SaveThemeOriginalRefusal } from "./save-theme
 export { setThemePagePublished, ThemePagePublicationError } from "./page-publication.js";
 export { catalog as themePagePublishedAgentToolCatalog, buildRegistrations as buildThemePagePublishedRegistrations, contributeThemeSetPagePublishedTools } from "./page-publish-tool.js";
 
-export { createThemePreviewFeed, readThemePreviewRefresh, requestThemePreviewRefresh, validatePreviewPath, type ThemePreviewRefresh } from "./preview-refresh.js";
 // 2026-10-08 — a theme another process created, edited or trashed reaches this process's roster.
 export { syncThemeRoster, themeRosterFingerprint } from "./theme-roster-sync.js";
 
