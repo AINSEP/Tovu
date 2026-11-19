@@ -96,9 +96,12 @@ comparison is a plain diff, which the verifier reads.
 | L15 | `v4/L15-boundary-doors.md` | 0 (9 boundary) | E, I, H | L06, L08, L12 | Tovu | Opus |
 
 All 16 lanes touch only the Tovu repo. L01 and L14 read Jini types but change no Jini file.
-"Codex-ready" means the sheet lists every file to edit, every caller and test to repoint, and the
-tests to add. The executor needs no command output to finish. Opus lanes depend on
-`typecheck:tests` to find the last fixtures, so they run in the cloud.
+"Codex-ready" means the sheet pins the whole design: every production file, binding site,
+caller and test to add. The executor needs no command output to finish. A test fixture that
+builds a deps object by hand and now misses a new required field is the only residue. The verifier
+fixes it mechanically by adding the field with the real function, as the sheet says. "Opus" lanes
+have a fixture set too large or too generic-dependent to list (two-root wiring, generic
+migration). They need `typecheck:tests` during the edit, so they run in the cloud.
 
 **Merge order (one branch per lane off the current integ tip, one PR, merged in this order):**
 L00 → L01 → L02 ∥ L13 → L03 → L04 → L05 → L06 → L07 → L08 → L09 → L10 → L11 → L12 → L14 → L15.
