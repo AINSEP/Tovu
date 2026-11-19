@@ -5,10 +5,8 @@ import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { InMemoryAdminExecutionCredentialRepo } from "../execution-credential-store.memory.js";
 import { setExecutionCredential } from "../execution-credential-store.js";
-import {
-  createRequestSuppliedExecutionCredentialPort,
-  createStoredExecutionCredentialPort,
-} from "../byok-credential.js";
+import { createRequestSuppliedExecutionCredentialPort } from "@jini-ai/agent-runtime/providers/credentials";
+import { createStoredExecutionCredentialPort } from "../byok-credential.js";
 
 /**
  * @file `byok-credential.ts`'s two `ExecutionCredentialPort` implementations.

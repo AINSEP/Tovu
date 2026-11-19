@@ -69,6 +69,7 @@ import { randomUUID } from "node:crypto";
 import type { Express, NextFunction, Request, Response } from "express";
 
 import type { Principal, SurfaceEmission, SurfaceEmitter } from "@jini-ai/core";
+import type { ExecutionCredentialPort, RequestSuppliedProviderConfig as RequestSuppliedByokConfig, ResolvedProviderCredential as ResolvedByokCredential } from "@jini-ai/agent-runtime/providers/credentials";
 
 import {
   type ByokChatMessage,
@@ -76,9 +77,6 @@ import {
   type ByokTurnEvent,
   runByokProviderTurn,
   createStoredExecutionCredentialPort,
-  type ExecutionCredentialPort,
-  type RequestSuppliedByokConfig,
-  type ResolvedByokCredential,
   createByokToolSurface,
   type ByokToolSurface,
   type ByokToolSurfaceDeps,
