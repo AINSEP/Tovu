@@ -7,7 +7,7 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { DEFAULT_POST_LIST_LIMIT } from "../post.js";
+import { DEFAULT_POST_LIST_LIMIT } from "../post-read.js";
 import {
   buildPostRegistrations,
   POST_LIST_MIN_EXCERPT_CHARS,

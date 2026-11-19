@@ -7,21 +7,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
-import {
-  createPost,
-  deletePost,
-  findPublishedPostBySlug,
-  importPostEntity,
-  normalizeFeaturedMediaId,
-  retirePostForReplacement,
-  updatePost,
-  PostConflictError,
-  PostNotFoundError,
-  PostValidationError,
-  PostVersionConflictError,
-  type PostRecord,
-  type RemovePostFn,
-} from "../post.js";
+import { createPost } from "../post-create.js";
+import { deletePost, type RemovePostFn } from "../post-trash.js";
+import { findPublishedPostBySlug } from "../post-read.js";
+import { importPostEntity } from "../post-import.js";
+import { normalizeFeaturedMediaId } from "../post-write-fields.js";
+import { retirePostForReplacement } from "../post-retire.js";
+import { updatePost } from "../post-update.js";
+import { PostConflictError, PostNotFoundError, PostValidationError, PostVersionConflictError, type PostRecord } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRecord } from "./post-record.fixture.js";
 

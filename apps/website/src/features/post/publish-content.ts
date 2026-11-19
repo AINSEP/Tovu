@@ -17,8 +17,13 @@ import type {
 import type { TovuPublishPorts, TaxonomyPublishPorts } from "#src/features/publish-content/tovu-publish-ports";
 import { prepareTermSync, readTermIds, TERM_SYNC_PERMISSION, withTermIds } from "#src/features/taxonomy/term-sync";
 
-import { importPostEntity, isTrashed, presentScheduleFields, restorePostForward, retirePostForReplacement, PostConflictError, PostNotFoundError, ROOT_SLUG } from "./post.js";
-import type { PostKind, PostRecord } from "./post.js";
+import { importPostEntity } from "./post-import.js";
+import { isTrashed } from "../../contracts/core/soft-delete.js";
+import { presentScheduleFields } from "./post-write-fields.js";
+import { restorePostForward } from "./post-trash.js";
+import { retirePostForReplacement } from "./post-retire.js";
+import { PostConflictError, PostNotFoundError, ROOT_SLUG, type PostRecord } from "./post.js";
+import type { PostKind } from "./post-vocabulary.js";
 
 /**
  * @file `post`'s and `page`'s publish-content contributions, built on `createRepoPublishHandler`

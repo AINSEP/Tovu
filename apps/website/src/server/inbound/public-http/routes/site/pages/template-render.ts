@@ -3,7 +3,7 @@ import type { SiteChatSelection } from "../../../http/site/site-chat-markup.js";
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { PublicPostRecord as PostRecord } from "#src/features/post/contracts";
-import { createPublicPostReader } from "#src/features/post/post";
+import { createPublicPostReader } from "#src/features/post/post-read";
 import type { MemberContext, MemberAccessResolver } from "#src/features/members/index";
 // Keep request rendering separate from theme installation, imports, and agent tools.
 import { renderStaticPage, injectCurrentEntityContentId, injectPageTitle, resolveTemplate } from "#src/features/theme/static-render";

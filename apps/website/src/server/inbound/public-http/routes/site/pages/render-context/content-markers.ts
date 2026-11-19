@@ -1,5 +1,5 @@
 import { buildWidgetHostPorts } from "#src/features/widgets/deps";
-import { createPublicPostReader, findPublishedPostById, findPublishedPostBySlug } from "#src/features/post/post";
+import { createPublicPostReader, findPublishedPostById, findPublishedPostBySlug } from "#src/features/post/post-read";
 import { markersOfType, substituteMarkers, withInnerContentFinal, type EmbedMarker } from "@jini-ai/cms/widgets/markers";
 import { resolveHtmlPageEmbeds } from "@jini-ai/cms/widgets/html";
 import { renderHtmlPageBody } from "../../../../http/site/render/page-body.js";

@@ -22,7 +22,10 @@ import { InMemoryChangeSetRepo, revertChangeSet } from "#src/contracts/core/comm
 import { InMemoryOutbox } from "#src/contracts/core/events/index";
 
 import { InMemoryPostRepo } from "../repo.memory.js";
-import { createPost, isTrashed, PostConflictError, PostNotFoundError, ROOT_SLUG, type ForgetRemovedPostFn, type PostRecord } from "../post.js";
+import { createPost } from "../post-create.js";
+import { isTrashed } from "../../../contracts/core/soft-delete.js";
+import { PostConflictError, PostNotFoundError, ROOT_SLUG, type PostRecord } from "../post.js";
+import type { ForgetRemovedPostFn } from "../post-trash.js";
 import { createPostRevertRegistry } from "../reverters.js";
 import { removeVia } from "./remove-post-double.js";
 import { PublishContentApplyRowError } from "#src/features/publish-content/apply-errors";

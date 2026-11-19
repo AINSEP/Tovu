@@ -1,6 +1,6 @@
 import { toolMetadata } from '../../contracts/core/tool-metadata/post.js';
-import { type Clock } from "@jini-ai/core/primitives";
-import { adaptLegacyAuthorize, ForbiddenError, requireToolPermission } from "@jini-ai/cms/core";
+import type { Clock, JsonObject } from "@jini-ai/core/primitives";
+import { adaptLegacyAuthorize, ForbiddenError, requireToolPermission, type PostStatus, type PublicPostKind } from "@jini-ai/cms/core";
 /**
  * @file Posts + Pages' half of ADR-049 Decision 4: maps `agent-tools.ts`'s 6 catalog entries onto
  * `post.ts`'s `createPost`/`updatePost`/`deletePost`/`listAdminPosts`/`listAdminPages`/
@@ -47,54 +47,31 @@ import { adaptLegacyAuthorize, ForbiddenError, requireToolPermission } from "@ji
  * truncation is never silent.
  */
 import { isDeepStrictEqual } from "node:util";
-import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalNumber, optionalString, requireInputRecord, requireObject, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration } from "@jini-ai/core";
-import { type JsonObject } from "@jini-ai/core/primitives";
+import { AGENT_TOOL_PRINCIPAL_KIND, buildDomainRegistrations, indexCatalogById, optionalBoolean, optionalNumber, optionalString, requireInputRecord, requireObject, requireString, withSchemaOnRejection, type AgentToolSideEffect, type DerivedRiskByToolId, type ToolHandler, type ToolRegistration, ToolInputError, type AgentToolDefinition as PostAgentToolDefinition, type ToolContributor } from "@jini-ai/core";
 import { type EventBusPort, type OutboxPort, type AuthorizeFn, type ChangeSetRepoPort } from "@jini-ai/core/contracts/events";
 // Sourced from `assistant/` — an explicitly out-of-scope back-edge for this pass (see the dispatch
 // notes this file's narrowing was reported under), not a field this file could re-source from a
 // domain-owned port: the MCP-UI/exchange transport is genuinely assistant-owned.
 // `ToolInputError` specifically — the marker `@jini-ai/daemon`'s `ToolExecutor` reads to tag a
 // rejection `errorKind: 'validation'`. Everything else this file needs comes from `@jini-ai/cms/core`.
-import { ToolInputError, type AgentToolDefinition as PostAgentToolDefinition, type ToolContributor } from "@jini-ai/core";
 import { type AssistantSurfaceDeps } from "@jini-ai/daemon/surface-exchanges";
-import { forbiddenRule } from "@jini-ai/core/model-facing-tool-errors";
+import { forbiddenRule, withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import { withPluginHookRefusals } from "../../contracts/core/plugin-hook-failed-error.js";
-import { withModelFacingErrors, type ModelFacingErrorRule } from "@jini-ai/core/model-facing-tool-errors";
 import { executeCommand } from "../../contracts/core/commands/index.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
 import { entryPublicPath } from "#src/platform/routing/index";
 import type { DuplicateResourceHandlerContributor } from "../../assistant/tool-contributions.js";
 import { POST_LIST_FIELDS, postAgentToolCatalog } from "./agent-tools.js";
-import {
-  createPost,
-  deletePost,
-  getAdminPostById,
-  isTrashed,
-  listAdminPosts,
-  normalizePublishAt,
-  normalizePostAuthor,
-  normalizeShowPostAuthor,
-  type PostAuthorAccountPort,
-  updatePost,
-  DEFAULT_POST_LIST_LIMIT,
-  MAX_POST_LIST_LIMIT,
-  ROOT_SLUG,
-  PostConflictError,
-  PostNotFoundError,
-  PostValidationError,
-  PostVersionConflictError,
-  restorePostForward,
-  type PostKind,
-  type PublicPostRecord,
-  isPublicPost,
-  type PostRecord,
-  type PostRepoPort,
-  type BeforeSaveHookPort,
-  type ForgetRemovedPostFn,
-  type RemovePostFn,
-  type SlugChangeCaptureLookup,
-} from "./post.js";
-import type { PostStatus, PublicPostKind } from "@jini-ai/cms/core";
+import { createPost, type PostAuthorAccountPort } from "./post-create.js";
+import { deletePost, restorePostForward, type ForgetRemovedPostFn, type RemovePostFn } from "./post-trash.js";
+import { getAdminPostById, listAdminPosts, DEFAULT_POST_LIST_LIMIT, MAX_POST_LIST_LIMIT } from "./post-read.js";
+import { isTrashed } from "../../contracts/core/soft-delete.js";
+import { normalizePublishAt, normalizePostAuthor, normalizeShowPostAuthor } from "./post-write-fields.js";
+import { updatePost } from "./post-update.js";
+import { ROOT_SLUG, PostConflictError, PostNotFoundError, PostValidationError, PostVersionConflictError, type PublicPostRecord, isPublicPost, type PostRecord, type PostRepoPort } from "./post.js";
+import type { PostKind } from "./post-vocabulary.js";
+import type { BeforeSaveHookPort } from "./post-before-save.js";
+import type { SlugChangeCaptureLookup } from "./post-slugs.js";
 // The SAME boundary `server/inbound/admin-http/routes/posts/update.ts` uses — imported, not copied.
 // The two arms diverged in the first place because only one of them had this logic at all.
 import { parseExpectedVersion, VERSION_CONFLICT_CODE } from "./expected-version.js";

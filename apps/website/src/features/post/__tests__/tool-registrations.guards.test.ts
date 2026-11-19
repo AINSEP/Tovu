@@ -13,7 +13,7 @@ import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { createTimeoutScheduler } from "@jini-ai/daemon/scheduler";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
-import type { ForgetRemovedPostFn, RemovePostFn } from "../post.js";
+import type { ForgetRemovedPostFn, RemovePostFn } from "../post-trash.js";
 import type { PostSearchQuery } from "../search.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRegistrations, contributePostTools, type PostToolDeps } from "../tool-registrations.js";

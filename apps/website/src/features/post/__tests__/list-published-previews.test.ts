@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import { listPublishedPostPreviews, type PostRecord, type PostRepoPort } from "../post.js";
+import { listPublishedPostPreviews } from "../post-read.js";
+import type { PostRecord, PostRepoPort } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
 import { makePglitePostRepo } from "./pglite-repo.fixture.js";

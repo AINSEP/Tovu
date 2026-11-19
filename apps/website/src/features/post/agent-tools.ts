@@ -1,6 +1,9 @@
 import type { AgentToolDefinition as SharedAgentToolDefinition } from "@jini-ai/core";
 export const CONTENT_POST_DELETE_TOOL_ID = "content_post_delete";
-import { DEFAULT_POST_LIST_LIMIT, MAX_POST_LIST_LIMIT, MAX_SLUG_LENGTH, MAX_TITLE_LENGTH, SLUG_FORMAT_PATTERN, SLUG_OR_ROOT_PATTERN } from "./post.js";
+import { DEFAULT_POST_LIST_LIMIT, MAX_POST_LIST_LIMIT } from "./post-read.js";
+import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN } from "./slug.js";
+import { MAX_TITLE_LENGTH } from "./post-write-fields.js";
+import { SLUG_OR_ROOT_PATTERN } from "./post-slugs.js";
 import { DEFAULT_POST_SEARCH_LIMIT, MAX_POST_SEARCH_LIMIT } from "./search.js";
 import { ASSISTANT_CONTENT_EDIT_GUIDANCE } from "../../contracts/core/assistant-content-guidance.js";
 

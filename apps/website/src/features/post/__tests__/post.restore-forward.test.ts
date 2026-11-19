@@ -3,14 +3,10 @@ import test from "node:test";
 
 import type { DomainEvent, OutboxPort } from "@jini-ai/core/contracts/events";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import {
-  createPost,
-  deletePost,
-  restorePostForward,
-  updatePost,
-  type PostRecord,
-  type PostRepoPort,
-} from "../post.js";
+import { createPost } from "../post-create.js";
+import { deletePost, restorePostForward } from "../post-trash.js";
+import { updatePost } from "../post-update.js";
+import type { PostRecord, PostRepoPort } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
 import { makePglitePostRepo } from "./pglite-repo.fixture.js";

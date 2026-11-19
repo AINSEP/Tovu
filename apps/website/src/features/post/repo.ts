@@ -83,7 +83,7 @@ export class SqlPostRepo implements PostRepoPort, GoLiveCandidatesPort {
   }
 
   /** See PostRepoPort.listHtmlByKind: filter before loading any body and bound the result. */
-  async listHtmlByKind(required: { workspaceId: string; kind: import("./post.js").PostKind; limit: number; before?: { updatedAt: string; id: string } }, _options = {}): Promise<PostRecord[]> {
+  async listHtmlByKind(required: { workspaceId: string; kind: import("./post-vocabulary.js").PostKind; limit: number; before?: { updatedAt: string; id: string } }, _options = {}): Promise<PostRecord[]> {
     const before = required.before;
     const rows = await this.kernel.run(db => db.selectFrom("posts").selectAll()
       .where("workspace_id", "=", required.workspaceId).where("kind", "=", required.kind)

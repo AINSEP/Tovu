@@ -7,7 +7,7 @@ import { Validator, type Schema } from "@cfworker/json-schema";
 import { createSurfaceExchangeStore } from "@jini-ai/daemon/surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
-import { createPost } from "../post.js";
+import { createPost } from "../post-create.js";
 import type { PostRepoPort } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";

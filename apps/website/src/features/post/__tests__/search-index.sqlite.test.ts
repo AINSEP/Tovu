@@ -4,12 +4,14 @@ import test from "node:test";
 import type { JsonObject } from "@jini-ai/core/primitives";
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
-import { createPost, deletePost, updatePost, type PostRecord } from "../post.js";
+import { createPost } from "../post-create.js";
+import { deletePost } from "../post-trash.js";
+import { updatePost } from "../post-update.js";
+import type { PostRecord } from "../post.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
 import { searchAdminPosts, type PostSearchHit } from "../search.js";
-import { backfillPostSearchIndex, postSearchIndexFor } from "../search-index.js";
+import { backfillPostSearchIndex, postSearchIndexFor, SqlitePostSearchIndex } from "../search-index.js";
 import { contentKernel } from "#src/platform/db/content-kernel";
-import { SqlitePostSearchIndex } from "../search-index.js";
 import { removeVia } from "./remove-post-double.js";
 import { createFakeClock } from "#src/__tests__/support/fake-clock";
 

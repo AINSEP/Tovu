@@ -28,7 +28,7 @@ import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/ind
 import { buildContentDuplicationRegistrations } from "#src/features/content-duplication/tool-registrations";
 import { createHookRegistry } from "@jini-ai/plugins/host";
 import { InMemoryPostRepo } from "../repo.memory.js";
-import type { BeforeSaveHookPort } from "../post.js";
+import type { BeforeSaveHookPort } from "../post-before-save.js";
 import { contributePostDuplicateHandlers } from "../tool-registrations.js";
 
 const WORKSPACE_ID = "ws-duplicate-plugin-hook";

@@ -4,20 +4,12 @@ import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
-import {
-  createPost,
-  deletePost,
-  getAdminPostById,
-  getPublishedPostBySlug,
-  isTrashed,
-  listAdminPages,
-  listAdminPosts,
-  listPublishedPosts,
-  updatePost,
-  PostNotFoundError,
-  type PostRecord,
-  type PostRepoPort,
-} from "../post.js";
+import { createPost } from "../post-create.js";
+import { deletePost } from "../post-trash.js";
+import { getAdminPostById, getPublishedPostBySlug, listAdminPages, listAdminPosts, listPublishedPosts } from "../post-read.js";
+import { isTrashed } from "../../../contracts/core/soft-delete.js";
+import { updatePost } from "../post-update.js";
+import { PostNotFoundError, type PostRecord, type PostRepoPort } from "../post.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { SqlitePostRepo } from "../repo.sqlite.js";
 import { makePglitePostRepo } from "./pglite-repo.fixture.js";

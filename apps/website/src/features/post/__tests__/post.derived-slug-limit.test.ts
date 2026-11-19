@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/core/contracts/events";
-import { createPost, MAX_SLUG_LENGTH, MAX_TITLE_LENGTH, PostValidationError, updatePost, type PostRecord, type UpdatePostDeps } from "../post.js";
+import { createPost } from "../post-create.js";
+import { MAX_SLUG_LENGTH } from "../slug.js";
+import { MAX_TITLE_LENGTH } from "../post-write-fields.js";
+import { PostValidationError, type PostRecord } from "../post.js";
+import { updatePost, type UpdatePostDeps } from "../post-update.js";
 import { InMemoryPostRepo } from "../repo.memory.js";
 
 /**

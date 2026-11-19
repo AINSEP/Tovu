@@ -1,5 +1,7 @@
 import { toSlug } from "../../platform/html/slug.js";
 
+/** api.spec.md §4 / behavior.spec.md §4: caller-supplied `slug` maxLength. Exported for the same
+ * reason as {@link MAX_TITLE_LENGTH}. */
 export const MAX_SLUG_LENGTH = 120;
 export const DERIVED_SLUG_SUFFIX_ROOM = "-999".length;
 
